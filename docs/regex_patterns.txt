@@ -1,0 +1,355 @@
+================================================================================
+                    CHORD DETECTION REGEX PATTERNS
+                        Reference Collection
+================================================================================
+
+================================================================================
+PATTERN 1: AMERICAN NOTATION - BASIC (Most Practical)
+================================================================================
+Pattern:
+\b([A-G](?:[#b])?(?:m(?:aj)?(?:7|9|11|13)?|min|maj7|maj9|maj11|maj13|7|9|11|13|6|sus[24]|dim|aug|add\d)?(?:[b#]\d+)*)\b
+
+Description:
+- Matches single letter roots (A-G) with optional accidental (#/b)
+- Supports minor (m/min/minor), major seventh (maj7), plain sevenths (7-13)
+- Includes suspended (sus2/sus4), diminished, augmented, and added-note chords
+- Handles alterations like b5, #11, etc.
+
+Test Cases:
+
+TRUE POSITIVES (Should Match):
+✓ C               (C major)
+✓ Cm              (C minor)
+✓ C7              (C dominant 7th)
+✓ Cmaj7           (C major 7th)
+✓ Cm7             (C minor 7th)
+✓ Cm7b5           (C minor 7th flat 5 - half diminished)
+✓ Csus4           (C suspended 4th)
+✓ Cadd9           (C major add 9)
+✓ C#              (C sharp major)
+✓ Db              (D flat major)
+✓ C#m7            (C sharp minor 7)
+✓ Cbmaj7          (C flat major 7)
+✓ Cdim            (C diminished)
+✓ Caug            (C augmented)
+✓ C9              (C dominant 9)
+✓ C11             (C dominant 11)
+✓ C13             (C dominant 13)
+✓ Cmaj9           (C major 9)
+✓ Csus2           (C suspended 2)
+✓ Cadd4           (C major add 4)
+✓ C7#11           (C dominant 7 sharp 11)
+✓ Cm9             (C minor 9)
+
+FALSE NEGATIVES (Should NOT Match):
+✗ "am"            (English verb - no quality marker)
+✗ "A"             (Article - single letter alone)
+✗ "add"           (Verb alone - no digit after)
+✗ "dim"           (Adjective alone - no root)
+✗ "music"         (Regular word)
+✗ "B-side"        (Letter with hyphen)
+
+================================================================================
+PATTERN 2: AMERICAN NOTATION - WITH NEGATIVE LOOKAHEAD (Recommended)
+================================================================================
+Pattern:
+\b(?!am\b|are\b|and\b|add\b)([A-G](?:[#b])?(?:m(?:aj)?(?:7|9|11|13)?|min|maj7|maj9|maj11|maj13|7|9|11|13|6|sus[24]|dim|aug|add\d)?(?:[b#]\d+)*)\b
+
+Description:
+- Same as Pattern 1 but with negative lookahead
+- Explicitly excludes common words: "am", "are", "and", "add"
+- Allows "add" when followed by digit (add9, add11, etc.)
+
+Additional Protection:
+- Prevents matching "am" (present tense of "to be")
+- Prevents matching "are" (present tense of "to be")
+- Prevents matching "and" (conjunction)
+- Still allows "add" as part of "add9", "add11", etc.
+
+Test Cases:
+
+TRUE POSITIVES:
+✓ C, Cm, C7, Cmaj7, Csus4, Cadd9, C#, Db
+✓ F (in "Play F and G")
+✓ G (in "Then G7")
+✓ Am7 (in "Am7 is nice")
+✓ add9 (as part of "Cadd9")
+
+FALSE NEGATIVES PREVENTED:
+✗ "am" (verb - now excluded)
+✗ "are" (verb - now excluded)
+✗ "and" (conjunction - now excluded)
+✗ "add" (verb alone - now excluded)
+
+================================================================================
+PATTERN 3: AMERICAN NOTATION - COMPREHENSIVE
+================================================================================
+Pattern:
+\b([A-G](?:[#b])?(?:m(?:aj(?:7|9|11|13)?)?|min(?:7|9|11|13)?|maj(?:7|9|11|13)|(?:7|9|11|13)(?:b\d+|#\d+)*|6|sus[24]|dim(?:7)?|aug|add[2-9])?(?:[b#]\d+)*)\b
+
+Description:
+- Extended pattern supporting more complex chord notations
+- Handles:
+  * Multiple qualities in sequence (m9, min7, maj7)
+  * Alterations with numbers (b9, #11, b13)
+  * Diminished 7 specifically (dim7)
+  * Multiple added notes theoretically
+
+Test Cases:
+✓ Cm7b9          (C minor 7 flat 9)
+✓ C7#5           (C dominant 7 sharp 5)
+✓ Cdim7          (C diminished 7)
+✓ Cmaj7#11       (C major 7 sharp 11)
+✓ Cmin7          (C minor 7 - alternative spelling)
+✓ C6add9         (C major 6 add 9)
+
+================================================================================
+PATTERN 4: EUROPEAN NOTATION (Solfege)
+================================================================================
+Pattern:
+\b((?:Do|Re|Mi|Fa|Sol|La|Si)(?:[#b])?(?:m(?:aj)?(?:7|9|11|13)?|min|maj7|maj9|maj11|maj13|7|9|11|13|6|sus[24]|dim|aug|add\d)?(?:[b#]\d+)*)\b
+
+Description:
+- Matches solfege syllables: Do, Re, Mi, Fa, Sol, La, Si
+- Same quality modifiers as American notation
+- Case-sensitive to avoid confusion with English words
+
+Note: "Do" and "Re" can conflict with English words, use with caution in non-musical text.
+
+Test Cases:
+
+TRUE POSITIVES:
+✓ Do             (Do major - European C)
+✓ Dom            (Do minor - European Cm)
+✓ Domaj7         (Do major 7 - European Cmaj7)
+✓ Do#            (Do sharp)
+✓ Dob            (Do flat)
+✓ Dosus4         (Do suspended 4)
+✓ Doadd9         (Do major add 9)
+✓ Sol7           (Sol dominant 7)
+✓ Lam            (La minor)
+
+FALSE NEGATIVES (Context-Dependent):
+✗ "Do" (English verb - might match unintentionally)
+✗ "Re" (Prefix in English - might match)
+
+================================================================================
+PATTERN 5: COMBINED AMERICAN + EUROPEAN
+================================================================================
+Pattern:
+\b(?:([A-G]|Do|Re|Mi|Fa|Sol|La|Si)(?:[#b])?(?:m(?:aj)?(?:7|9|11|13)?|min|maj7|maj9|maj11|maj13|7|9|11|13|6|sus[24]|dim|aug|add\d)?(?:[b#]\d+)*)\b
+
+Description:
+- Single pattern matching both American and European notation
+- Useful for international applications
+- Longer pattern but comprehensive
+
+Test Cases:
+✓ C, D, E (American)
+✓ Do, Re, Mi (European)
+✓ Cm, Dom (Both systems)
+✓ C7, Do7 (Both systems)
+✓ C#maj7, Do#maj7 (Both systems)
+
+================================================================================
+PATTERN 6: SLASH CHORDS (Chords with Bass Notes)
+================================================================================
+Pattern:
+\b([A-G](?:[#b])?(?:m(?:aj)?(?:\d+)?|min|maj7|maj9|7|9|11|13|6|sus[24]|dim|aug|add\d)?(?:[b#]\d+)?)\s*/\s*([A-G](?:[#b])?)\b
+
+Description:
+- Matches chords with explicit bass notes
+- Format: "Chord/BassNote" (e.g., C/G, Dm/F)
+- Captures both chord and bass note separately
+
+Capture Groups:
+- Group 1: Main chord
+- Group 2: Bass note
+
+Test Cases:
+
+TRUE POSITIVES:
+✓ C/G            (C major with G bass)
+✓ Dm/F           (D minor with F bass)
+✓ Gmaj7/B        (G major 7 with B bass)
+✓ Am7/E          (A minor 7 with E bass)
+✓ F#m/A          (F sharp minor with A bass)
+✓ C7/G           (C dominant 7 with G bass)
+
+FALSE NEGATIVES:
+✗ "C / G"        (Extra spaces might not match - adjust pattern if needed)
+✗ "C/G/D"        (Multiple bass notes not captured)
+
+================================================================================
+PATTERN 7: STRICT VALIDATION WITH LOOKAHEAD AND LOOKBEHIND
+================================================================================
+Pattern:
+(?<![a-z])([A-G](?:[#b])?(?:m(?:aj)?(?:7|9|11|13)?|min|maj7|maj9|maj11|maj13|7|9|11|13|6|sus[24]|dim|aug|add\d)?(?:[b#]\d+)*)(?![a-z])
+
+Description:
+- Uses negative lookbehind and lookahead instead of word boundaries
+- Prevents partial matches within words
+- More restrictive than \b in some cases
+
+Test Cases:
+✓ C, Cm, C7 (Isolated chords)
+✓ Am7 (Chord at start)
+✓ "then G7" (Chord in middle)
+✗ "Camel" (Prevents matching C in longer words)
+✗ "denim" (Prevents matching m in longer words)
+
+================================================================================
+PATTERN 8: CASE-INSENSITIVE VARIANT
+================================================================================
+Pattern (with flag):
+(?i)\b([A-G](?:[#b])?(?:m(?:aj)?(?:7|9|11|13)?|min|maj7|maj9|maj11|maj13|7|9|11|13|6|sus[24]|dim|aug|add\d)?(?:[b#]\d+)*)\b
+
+Description:
+- Add (?i) flag to enable case-insensitive matching
+- Matches "c", "C", "Cm", "cM", "cm", etc.
+- Useful for user-generated input that might have inconsistent capitalization
+
+Test Cases:
+✓ c, C, Cm, CM, cM, c7, C7
+✓ dom, Dom, DOM
+✓ cmaj7, CMAJ7, Cmaj7, cMAJ7
+
+Note: This is less common in music notation but useful for input parsing.
+
+================================================================================
+PATTERN 9: FOR CHORD PROGRESSIONS (Multiple Chords in Sequence)
+================================================================================
+Pattern:
+(?:\b[A-G](?:[#b])?(?:m(?:aj)?(?:\d+)?|min|maj7|7|9|11|13|6|sus[24]|dim|aug|add\d)?(?:[b#]\d+)*\b\s*[-–—]?\s*)+
+
+Description:
+- Matches one or more chords separated by dashes or spaces
+- Useful for extracting chord progressions
+- Format: "C - F - G" or "C F G"
+
+Test Cases:
+✓ "C - F - G"           (Chord progression with dashes)
+✓ "C F G"               (Chord progression with spaces)
+✓ "C – F – G"           (With en-dashes)
+✓ "Am7 - D7 - Gmaj7"   (Complex progression)
+
+================================================================================
+PATTERN 10: CHORD WITH OPTIONAL DURATION/TIMING
+================================================================================
+Pattern:
+\b([A-G](?:[#b])?(?:m(?:aj)?(?:\d+)?|min|maj7|7|9|11|13|6|sus[24]|dim|aug|add\d)?(?:[b#]\d+)*)(?:\s*\(?\s*(\d+(?:\.\d+)?)\s*(?:beats?|bars?|measures?)?\)?)?\b
+
+Description:
+- Matches chords with optional duration notation
+- Captures chord and duration separately
+
+Test Cases:
+✓ C (4 beats)
+✓ F 2
+✓ Gmaj7 (8 measures)
+✓ Am7(2)
+
+================================================================================
+PRACTICAL IMPLEMENTATION RECOMMENDATIONS
+================================================================================
+
+FOR WEB APPLICATIONS (JavaScript):
+Use Pattern 2 (with negative lookahead) - best balance of functionality and performance
+
+const chordRegex = /\b(?!am\b|are\b|and\b|add\b)([A-G](?:[#b])?(?:m(?:aj)?(?:\d+)?|min|maj7|maj9|maj11|maj13|7|9|11|13|6|sus[24]|dim|aug|add\d)?(?:[b#]\d+)*)\b/g;
+
+FOR MUSIC ANNOTATION TOOLS:
+Use Pattern 3 (comprehensive) - captures more complex chord notations
+
+FOR INTERNATIONAL APPLICATIONS:
+Use Pattern 5 (combined) - supports both American and European notations
+
+FOR CHORD PROGRESSION PARSING:
+Use Pattern 9 (progression) - specifically designed for multiple chords
+
+FOR STRICT VALIDATION:
+Use Pattern 7 (lookbehind/lookahead) - prevents false positives in text
+
+================================================================================
+TESTING METHODOLOGY
+================================================================================
+
+Step 1: Choose your primary pattern based on use case
+Step 2: Test against sample text with mixed content
+Step 3: Identify false positives and false negatives
+Step 4: Adjust pattern or add additional context rules
+Step 5: Validate against known chord progressions
+
+Example Test Cases:
+
+Text Sample:
+"Play C major, then F, and finish with G7. The Am7 chord works well.
+Add some spice with Cmaj7 and Dm7b5. European notation: Do, Dom, Domaj7."
+
+Expected Matches (Pattern 2):
+C, F, G7, Am7, Cmaj7, Dm7b5, Do, Dom, Domaj7
+
+Words to NOT Match:
+- "and" (conjunction, excluded by lookahead)
+- "Add" in "Add some" (excluded by lookahead unless followed by digit)
+- "The" (not a chord)
+- "well" (not a chord)
+
+================================================================================
+EDGE CASES AND SPECIAL CONSIDERATIONS
+================================================================================
+
+1. DOUBLE ACCIDENTALS:
+   Notation: C##, Dbb, E#b
+   Pattern: Add [#b]{2,} to support
+   Updated: (?:[#b]){1,2}
+
+2. POLYCHORDS:
+   Notation: C/G/D, C/Em
+   Pattern: Extend with additional /Chord segments
+   Updated: (?:/[A-G][#b]?)*
+
+3. JAZZ ALTERATIONS:
+   Notation: C7alt, C7#11#5, Cm7b9
+   Pattern: Add "alt" keyword
+   Updated: (?:alt|[b#]\d+)*
+
+4. ROMAN NUMERAL NOTATION:
+   Notation: I, ii, V7, VI
+   Requires completely different pattern:
+   ^[iIvV]+[7b#]*$
+
+5. CHORD SYMBOLS WITHOUT QUALITY:
+   Some notations omit "m" for minor:
+   Notation: Am vs A- or A-
+   Pattern: Extend quality markers
+   Updated: (?:m|-)?
+
+6. ENHARMONIC EQUIVALENTS:
+   C# = Db, E = Fb, B = Cb
+   Recognition: Handle both spellings
+   Testing: Validate known equivalents
+
+7. CHROMATIC NOTATION:
+   Notation: H for B in Germanic languages
+   Pattern: Regional adaptation needed
+
+================================================================================
+RESOURCE LINKS FOR FURTHER TESTING
+================================================================================
+
+Online Regex Testers:
+- https://regex101.com/
+- https://regexper.com/
+- https://www.regexpal.com/
+
+Music Theory References:
+- https://en.wikipedia.org/wiki/Chord_(music)
+- https://en.wikipedia.org/wiki/Musical_notation
+- https://en.wikipedia.org/wiki/Solf%C3%A8ge
+
+Chord Progression Databases:
+- https://www.hooktheory.com/
+- https://chordify.net/
+
+================================================================================
