@@ -367,12 +367,16 @@ class NotePlayer:
         logger.debug("Playback loop ended")
 
         # Call finished callback if playback ended naturally (not via stop)
+        logger.debug(f"Checking callback: stop_event={self.stop_event.is_set()}, callback={self.on_playback_finished_callback is not None}")
         if not self.stop_event.is_set() and self.on_playback_finished_callback:
             logger.debug("Calling playback finished callback")
             try:
                 self.on_playback_finished_callback()
+                logger.debug("Playback finished callback completed")
             except Exception as e:
                 logger.error(f"Exception in playback finished callback: {e}", exc_info=True)
+        else:
+            logger.debug("Skipping callback (stop_event set or no callback)")
 
     def cleanup(self):
         """Clean up FluidSynth resources"""

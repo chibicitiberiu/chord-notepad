@@ -6,6 +6,7 @@ from .config_service import ConfigService
 from .audio_service import AudioService
 from .chord_detection_service import ChordDetectionService
 from .file_service import FileService
+from .resource_service import ResourceService
 
 __all__ = [
     'AppDataService',
@@ -14,4 +15,5 @@ __all__ = [
     'AudioService',
     'ChordDetectionService',
     'FileService',
+    'ResourceService',
 ]

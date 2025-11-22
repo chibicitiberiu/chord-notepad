@@ -39,10 +39,16 @@ class AudioService:
             # Get config values
             bpm = self._config.get("bpm", 120)
             sf_path = soundfont_path or self._config.get("soundfont_path")
+            time_sig_beats = self._config.get("time_signature_beats", 4)
+            time_sig_unit = self._config.get("time_signature_unit", 4)
 
             # Create player
             self._logger.info("Initializing audio player")
-            self._player = NotePlayer(soundfont_path=sf_path, bpm=bpm)
+            self._player = NotePlayer(
+                soundfont_path=sf_path,
+                bpm=bpm,
+                time_signature=(time_sig_beats, time_sig_unit)
+            )
             self._initialized = True
             self._logger.info("Audio player initialized successfully")
             return True
@@ -64,12 +70,7 @@ class AudioService:
 
         try:
             # Get MIDI notes from chord
-            midi_notes = self._note_picker.chord_to_midi(
-                notes=chord_info.notes,
-                add_bass=True,
-                chord_octave=self._config.get("default_octave", 4),
-                bass_octave=self._config.get("bass_octave", 3)
-            )
+            midi_notes = self._note_picker.chord_to_midi(chord_info.notes)
 
             if midi_notes:
                 self._logger.debug(f"Playing chord immediately: {chord_info.chord}")
@@ -79,6 +80,25 @@ class AudioService:
 
         except Exception as e:
             self._logger.error(f"Error playing chord: {e}", exc_info=True)
+
+    def play_notes_immediate(self, midi_notes: List[int]) -> None:
+        """Play MIDI notes immediately.
+
+        Args:
+            midi_notes: List of MIDI note numbers to play
+        """
+        if not self._ensure_initialized():
+            return
+
+        try:
+            if midi_notes:
+                self._logger.debug(f"Playing MIDI notes immediately: {midi_notes}")
+                self._player.play_notes_immediate(midi_notes)
+            else:
+                self._logger.warning("No MIDI notes provided to play")
+
+        except Exception as e:
+            self._logger.error(f"Error playing notes: {e}", exc_info=True)
 
     def start_sequential_playback(
         self,
@@ -181,3 +201,13 @@ class AudioService:
     def is_paused(self) -> bool:
         """Check if playback is paused."""
         return self._player.is_paused if self._player else False
+
+    def get_time_signature(self) -> tuple:
+        """Get the current time signature.
+
+        Returns:
+            Tuple of (beats_per_measure, beat_unit), e.g., (4, 4) for 4/4 time
+        """
+        beats = self._config.get("time_signature_beats", 4)
+        unit = self._config.get("time_signature_unit", 4)
+        return (beats, unit)

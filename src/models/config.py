@@ -20,6 +20,8 @@ class Config:
     bpm: int = 120
     default_octave: int = 4
     bass_octave: int = 3
+    time_signature_beats: int = 4  # Beats per measure
+    time_signature_unit: int = 4   # Beat unit (e.g., 4 = quarter note)
 
     # Notation
     notation: Literal["american", "european"] = "american"
@@ -66,6 +68,8 @@ class Config:
             "bpm": self.bpm,
             "default_octave": self.default_octave,
             "bass_octave": self.bass_octave,
+            "time_signature_beats": self.time_signature_beats,
+            "time_signature_unit": self.time_signature_unit,
             "notation": self.notation,
             "window_geometry": self.window_geometry,
             "window_maximized": self.window_maximized,
@@ -91,6 +95,8 @@ class Config:
             bpm=data.get("bpm", 120),
             default_octave=data.get("default_octave", 4),
             bass_octave=data.get("bass_octave", 3),
+            time_signature_beats=data.get("time_signature_beats", 4),
+            time_signature_unit=data.get("time_signature_unit", 4),
             notation=data.get("notation", "american"),
             window_geometry=data.get("window_geometry", "900x600"),
             window_maximized=data.get("window_maximized", False),

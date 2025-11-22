@@ -14,6 +14,9 @@ from services.logging_service import LoggingService
 from services.audio_service import AudioService
 from services.chord_detection_service import ChordDetectionService
 from services.file_service import FileService
+from services.resource_service import ResourceService
+from viewmodels.main_window_viewmodel import MainWindowViewModel
+from viewmodels.text_editor_viewmodel import TextEditorViewModel
 
 
 class Application:
@@ -33,6 +36,11 @@ class Application:
         self._audio_service: Optional[AudioService] = None
         self._chord_detection_service: Optional[ChordDetectionService] = None
         self._file_service: Optional[FileService] = None
+        self._resource_service: Optional[ResourceService] = None
+
+        # ViewModels (initialized in on_initialize_ui)
+        self._main_window_viewmodel: Optional[MainWindowViewModel] = None
+        self._text_editor_viewmodel: Optional[TextEditorViewModel] = None
 
         # Event queue for cross-thread UI updates
         self._event_queue: queue.Queue = queue.Queue()
@@ -100,6 +108,15 @@ class Application:
             )
         return self._file_service
 
+    @property
+    def resource_service(self) -> ResourceService:
+        """Get the Resource service."""
+        if self._resource_service is None:
+            raise ServiceNotInitializedError(
+                "ResourceService not initialized. Call on_initialize() first."
+            )
+        return self._resource_service
+
     # Lifecycle methods
 
     def on_initialize(self) -> None:
@@ -130,6 +147,7 @@ class Application:
         # Infrastructure services (no dependencies)
         self._appdata_service = AppDataService()
         self._appdata_service.ensure_directories_exist()
+        self._resource_service = ResourceService()
 
         # Config service (depends on appdata)
         self._config_service = ConfigService(self._appdata_service)
@@ -155,12 +173,25 @@ class Application:
     def on_initialize_ui(self) -> None:
         """Initialize the user interface.
 
-        This will be implemented in later phases when we refactor MainWindow.
-        For now, we'll keep it as a placeholder.
+        Creates ViewModels and passes them to the View layer.
         """
-        # TODO: Create and initialize MainWindow with ViewModels
-        # This will be implemented in Phase 2 (MVVM)
-        pass
+        logger = logging.getLogger(__name__)
+        logger.info("Creating ViewModels")
+
+        # Create ViewModels with service dependencies
+        self._main_window_viewmodel = MainWindowViewModel(
+            self.config_service,
+            self.audio_service,
+            self.file_service,
+            self.chord_detection_service,
+            self  # Pass application for cross-thread callbacks
+        )
+
+        self._text_editor_viewmodel = TextEditorViewModel(
+            self.chord_detection_service
+        )
+
+        logger.info("ViewModels created successfully")
 
     def on_run(self) -> None:
         """Start the application main loop."""
@@ -294,10 +325,14 @@ class Application:
             logger.info(f"Build Date: {BUILD_DATE}")
             logger.info("=" * 60)
 
-            # Create main window (old way for now - will be refactored in Phase 2)
-            # TODO: Refactor MainWindow to accept Application and ViewModel
+            # Create main window with ViewModels
             from ui.main_window import MainWindow
-            root = MainWindow()
+            root = MainWindow(
+                viewmodel=app._main_window_viewmodel,
+                text_editor_viewmodel=app._text_editor_viewmodel,
+                application=app,
+                resource_service=app.resource_service
+            )
             app.set_main_window(root)
 
             # Start the application

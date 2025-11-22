@@ -3,16 +3,26 @@ Custom text editor widget with support for chord detection
 """
 
 import tkinter as tk
-from chord.detector import ChordDetector
-from chord.converter import NotationConverter
+from typing import Optional
 from chord.line_model import Line
 from chord.chord_model import ChordInfo
+from viewmodels.text_editor_viewmodel import TextEditorViewModel
 
 
 class ChordTextEditor(tk.Text):
-    """Text editor widget with chord detection support"""
+    """Text editor widget with chord detection support.
 
-    def __init__(self, parent, **kwargs):
+    This is a thin view layer that delegates all business logic to TextEditorViewModel.
+    """
+
+    def __init__(self, parent, viewmodel: TextEditorViewModel, **kwargs):
+        """Initialize the text editor with a ViewModel.
+
+        Args:
+            parent: Parent widget
+            viewmodel: TextEditorViewModel for presentation logic
+            **kwargs: Additional keyword arguments passed to tk.Text
+        """
         # Enable undo by default
         kwargs.setdefault('undo', True)
         kwargs.setdefault('maxundo', -1)
@@ -21,9 +31,10 @@ class ChordTextEditor(tk.Text):
 
         super().__init__(parent, **kwargs)
 
-        # Chord detection
-        self.notation = 'american'  # Will be set by main window
-        self.chord_detector = ChordDetector(threshold=0.6, notation=self.notation)
+        # Store ViewModel
+        self.viewmodel = viewmodel
+
+        # Chord detection state (maintained for highlighting)
         self.detected_chords = []
         self.lines = []  # List of Line objects with cached classification
 
@@ -49,10 +60,42 @@ class ChordTextEditor(tk.Text):
         # Fix paste to replace selection
         self.bind('<<Paste>>', self._on_paste)
 
-    def set_notation(self, notation):
-        """Set the notation type and refresh highlighting"""
-        self.notation = notation
-        self.chord_detector.notation = notation
+        # Set up observers for ViewModel property changes
+        self._setup_viewmodel_observers()
+
+    def _setup_viewmodel_observers(self):
+        """Set up observers for ViewModel property changes."""
+        # Observe detected lines changes
+        self.viewmodel.observe('detected_lines', self._on_detected_lines_changed)
+
+        # Observe notation changes
+        self.viewmodel.observe('current_notation', self._on_notation_changed)
+
+    def _on_detected_lines_changed(self, lines):
+        """Handle detected lines change from ViewModel.
+
+        Args:
+            lines: List of Line objects from ViewModel
+        """
+        self.lines = lines
+        self._update_highlighting()
+
+    def _on_notation_changed(self, notation: str):
+        """Handle notation change from ViewModel.
+
+        Args:
+            notation: New notation value
+        """
+        # Re-detect chords with new notation
+        self._detect_chords()
+
+    def set_notation(self, notation: str):
+        """Set the notation type and refresh highlighting.
+
+        Args:
+            notation: "american" or "european"
+        """
+        self.viewmodel.set_notation(notation)
         self._detect_chords()
 
     def _reset_typing_timer(self):
@@ -71,27 +114,17 @@ class ChordTextEditor(tk.Text):
         # Get all text content
         text = self.get('1.0', 'end-1c')
 
+        # Delegate chord detection to ViewModel
+        self.viewmodel.on_text_changed(text)
+
+        # The ViewModel will notify us via _on_detected_lines_changed
+        # which will then call _update_highlighting
+
+    def _update_highlighting(self):
+        """Update text highlighting based on detected lines."""
         # Clear existing chord tags
         self.tag_remove('chord', '1.0', tk.END)
         self.tag_remove('chord_invalid', '1.0', tk.END)
-
-        # Parse text into Line objects
-        self.lines = []
-        text_lines = text.split('\n')
-
-        for line_num, content in enumerate(text_lines, start=1):
-            line = Line(content, line_num)
-
-            # Classify the line
-            if self.chord_detector._is_chord_line(content):
-                # This is a chord line - detect chords in it
-                chords = self._detect_chords_in_line(content, line_num)
-                line.set_as_chord_line(chords)
-            else:
-                # This is a text/lyric line
-                line.set_as_text_line()
-
-            self.lines.append(line)
 
         # Collect all chords for highlighting
         self.detected_chords = []
@@ -126,32 +159,6 @@ class ChordTextEditor(tk.Text):
             else:
                 self.tag_add('chord_invalid', start_idx, end_idx)
 
-    def _detect_chords_in_line(self, line_content, line_num):
-        """Detect chords within a single line"""
-        # Use the detector's pattern
-        american_pattern = ChordDetector.CHORD_PATTERN_AMERICAN
-        european_pattern = ChordDetector.CHORD_PATTERN_EUROPEAN
-
-        pattern = european_pattern if self.notation == 'european' else american_pattern
-
-        chords = []
-        for match in pattern.finditer(line_content):
-            chord_str = match.group(1)
-            is_valid, notes = self.chord_detector._validate_chord(chord_str)
-
-            chord_info = ChordInfo(
-                chord=chord_str,
-                line_offset=match.start(),  # Position within the line
-                is_valid=is_valid,
-                notes=notes
-            )
-            # Add line number as extra attribute
-            chord_info.line = line_num
-
-            chords.append(chord_info)
-
-        return chords
-
     def get_detected_chords(self):
         """Get list of detected chords"""
         return self.detected_chords
@@ -159,6 +166,36 @@ class ChordTextEditor(tk.Text):
     def get_lines(self):
         """Get list of Line objects with classification"""
         return self.lines
+
+    def get_chord_at_coordinates(self, x, y) -> Optional[ChordInfo]:
+        """Get the chord at the given pixel coordinates.
+
+        Args:
+            x: X coordinate in pixels
+            y: Y coordinate in pixels
+
+        Returns:
+            ChordInfo object if a chord is at those coordinates, None otherwise
+        """
+        # Get the text index at coordinates
+        index = self.index(f"@{x},{y}")
+        line, col = map(int, index.split('.'))
+
+        # Calculate character position
+        char_pos = 0
+        text = self.get('1.0', 'end-1c')
+        lines = text.split('\n')
+        for i in range(line - 1):
+            char_pos += len(lines[i]) + 1  # +1 for newline
+        char_pos += col
+
+        # Find chord at this position
+        for chord_info in self.detected_chords:
+            if hasattr(chord_info, 'start') and hasattr(chord_info, 'end'):
+                if chord_info.start <= char_pos < chord_info.end:
+                    return chord_info
+
+        return None
 
     def _on_mouse_motion(self, event):
         """Handle mouse motion - change cursor when over chords"""
