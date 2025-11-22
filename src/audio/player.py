@@ -2,9 +2,12 @@
 Audio playback using FluidSynth
 """
 
+import logging
 import os
 from pathlib import Path
 import fluidsynth
+
+logger = logging.getLogger(__name__)
 
 # MIDI note mapping (C4 = Middle C = MIDI 60)
 NOTE_TO_MIDI_BASE = {
@@ -124,14 +127,14 @@ class NotePlayer:
         """Initialize FluidSynth with the soundfont"""
         try:
             # Create FluidSynth instance
-            print("DEBUG: Creating FluidSynth instance...")
+            logger.debug("Creating FluidSynth instance...")
             self.fs = fluidsynth.Synth()
-            print("DEBUG: FluidSynth instance created")
+            logger.debug("FluidSynth instance created")
 
             # Set gain (volume) - 0.0 to 10.0, default is 0.2
-            print("DEBUG: Setting gain...")
+            logger.debug("Setting gain...")
             self.fs.setting('synth.gain', 0.5)
-            print("DEBUG: Gain set")
+            logger.debug("Gain set")
 
             # Start audio output
             # Try different drivers in order of preference
@@ -142,11 +145,11 @@ class NotePlayer:
                 try:
                     result = self.fs.start(driver=driver)
                     if result == 0:  # Success
-                        print(f"FluidSynth started with driver: {driver}")
+                        logger.info(f"FluidSynth started with driver: {driver}")
                         started = True
                         break
                 except Exception as e:
-                    print(f"Failed to start with {driver}: {e}")
+                    logger.debug(f"Failed to start with {driver}: {e}")
                     continue
 
             if not started:
@@ -154,15 +157,13 @@ class NotePlayer:
 
             # Load soundfont
             self.sfid = self.fs.sfload(soundfont_path)
-            print(f"Loaded soundfont: {soundfont_path}, ID: {self.sfid}")
+            logger.info(f"Loaded soundfont: {soundfont_path}, ID: {self.sfid}")
 
             # Select instrument (program)
             self.fs.program_select(self.channel, self.sfid, 0, self.instrument)
 
         except Exception as e:
-            print(f"Warning: Failed to initialize FluidSynth: {e}")
-            import traceback
-            traceback.print_exc()
+            logger.error(f"Failed to initialize FluidSynth: {e}", exc_info=True)
             self.fs = None
 
     def set_instrument(self, program):
@@ -189,7 +190,7 @@ class NotePlayer:
             midi_notes: List of MIDI note numbers
         """
         if not self.fs:
-            print("FluidSynth not initialized!")
+            logger.warning("FluidSynth not initialized, cannot play notes")
             return
 
         # Stop any currently playing notes first
@@ -249,14 +250,14 @@ class NotePlayer:
     def start_playback(self):
         """Start playback in a separate thread"""
         if self.is_playing:
-            print("Already playing")
+            logger.debug("Playback already in progress")
             return
 
         if not self.get_next_note_callback:
-            print("No callback set for getting next note")
+            logger.warning("No callback set for getting next note")
             return
 
-        print("DEBUG: Starting playback thread")
+        logger.debug("Starting playback thread")
         self.is_playing = True
         self.is_paused = False
 
@@ -273,7 +274,7 @@ class NotePlayer:
         if not self.is_playing or self.is_paused:
             return
 
-        print("DEBUG: Pausing playback")
+        logger.debug("Pausing playback")
         self.is_paused = True
         self.pause_event.clear()
         self.stop_all_notes()
@@ -283,7 +284,7 @@ class NotePlayer:
         if not self.is_playing or not self.is_paused:
             return
 
-        print("DEBUG: Resuming playback")
+        logger.debug("Resuming playback")
         self.is_paused = False
         self.pause_event.set()
 
@@ -292,7 +293,7 @@ class NotePlayer:
         if not self.is_playing:
             return
 
-        print("DEBUG: Stopping playback")
+        logger.debug("Stopping playback")
         self.is_playing = False
         self.is_paused = False
 
@@ -306,13 +307,13 @@ class NotePlayer:
             self.playback_thread.join(timeout=1.0)
 
         self.stop_all_notes()
-        print("DEBUG: Playback stopped")
+        logger.debug("Playback stopped")
 
     def _playback_loop(self):
         """Main playback loop running in separate thread"""
         import time
 
-        print("DEBUG: Playback loop started")
+        logger.debug("Playback loop started")
 
         while self.is_playing and not self.stop_event.is_set():
             # Check if paused
@@ -323,33 +324,31 @@ class NotePlayer:
                 break
 
             # Get next note from callback (with read lock)
-            print("DEBUG: Calling get_next_note_callback")
+            logger.debug("Calling get_next_note_callback")
             try:
                 result = self.get_next_note_callback()
             except Exception as e:
-                print(f"ERROR: Exception in get_next_note_callback: {e}")
-                import traceback
-                traceback.print_exc()
+                logger.error(f"Exception in get_next_note_callback: {e}", exc_info=True)
                 break
 
             if result is None:
-                print("DEBUG: No more notes, stopping playback")
+                logger.debug("No more notes, stopping playback")
                 self.is_playing = False
                 break
 
             midi_notes, duration_beats = result
-            print(f"DEBUG: Got note: {midi_notes}, duration: {duration_beats} beats")
+            logger.debug(f"Got note: {midi_notes}, duration: {duration_beats} beats")
 
             # Play notes
             if self.fs and midi_notes:
                 velocity = 100
                 for midi_note in midi_notes:
                     self.fs.noteon(self.channel, midi_note, velocity)
-                print(f"DEBUG: Notes pressed")
+                logger.debug(f"Notes pressed")
 
             # Sleep for duration
             duration_seconds = self._beats_to_seconds(duration_beats)
-            print(f"DEBUG: Sleeping for {duration_seconds}s")
+            logger.debug(f"Sleeping for {duration_seconds}s")
 
             # Sleep in small chunks to be responsive to stop/pause
             sleep_chunks = int(duration_seconds / 0.1) + 1
@@ -363,19 +362,17 @@ class NotePlayer:
 
             # Release notes
             self.stop_all_notes()
-            print(f"DEBUG: Notes released")
+            logger.debug(f"Notes released")
 
-        print("DEBUG: Playback loop ended")
+        logger.debug("Playback loop ended")
 
         # Call finished callback if playback ended naturally (not via stop)
         if not self.stop_event.is_set() and self.on_playback_finished_callback:
-            print("DEBUG: Calling playback finished callback")
+            logger.debug("Calling playback finished callback")
             try:
                 self.on_playback_finished_callback()
             except Exception as e:
-                print(f"ERROR: Exception in playback finished callback: {e}")
-                import traceback
-                traceback.print_exc()
+                logger.error(f"Exception in playback finished callback: {e}", exc_info=True)
 
     def cleanup(self):
         """Clean up FluidSynth resources"""

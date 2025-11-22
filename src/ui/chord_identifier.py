@@ -2,9 +2,12 @@
 Chord identification window with piano roll and note input
 """
 
+import logging
 import tkinter as tk
 from tkinter import ttk
 import re
+
+logger = logging.getLogger(__name__)
 
 
 class PianoRoll(tk.Canvas):
@@ -180,7 +183,7 @@ class PianoRoll(tk.Canvas):
             # Play the note
             self.audio_player.play_notes_immediate([midi_note])
         except Exception as e:
-            print(f"Error playing note: {e}")
+            logger.error(f"Error playing note: {e}", exc_info=True)
 
     def note_to_midi(self, note_name, octave):
         """
@@ -754,14 +757,14 @@ class ChordIdentifierWindow(tk.Toplevel):
                 # Use ChordHelper to convert chord name to MIDI notes
                 midi_notes = self.chord_helper.chord_to_midi(chord_name, base_octave=3)
                 if not midi_notes:
-                    print(f"Cannot play chord {chord_name}: chord not recognized")
+                    logger.warning(f"Cannot play chord {chord_name}: chord not recognized")
                     return
 
                 # Play the chord
                 self.audio_player.play_notes_immediate(midi_notes)
 
             except Exception as e:
-                print(f"Error playing chord {chord_name}: {e}")
+                logger.error(f"Error playing chord {chord_name}: {e}", exc_info=True)
 
     def chord_name_to_midi_fallback(self, chord_name):
         """
@@ -801,7 +804,7 @@ class ChordIdentifierWindow(tk.Toplevel):
 
                 return midi_notes
         except Exception as e:
-            print(f"Fallback chord conversion failed: {e}")
+            logger.error(f"Fallback chord conversion failed: {e}", exc_info=True)
             return None
 
     def extract_root_from_chord_name(self, chord_name):
@@ -898,7 +901,7 @@ class ChordIdentifierWindow(tk.Toplevel):
             self.parent_window.text_editor.focus_set()
             self.parent_window.update_statusbar(f"Inserted chord: {chord_name}")
         except Exception as e:
-            print(f"Error inserting chord: {e}")
+            logger.error(f"Error inserting chord: {e}", exc_info=True)
 
     def clear_all(self):
         """Clear all selections"""

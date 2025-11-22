@@ -2,6 +2,7 @@
 Main application window with text editor and menu bar
 """
 
+import logging
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox, font as tkfont
 import json
@@ -17,6 +18,8 @@ from ui.chord_identifier import ChordIdentifierWindow
 from chord.converter import NotationConverter
 from audio.player import NotePlayer
 from audio.chord_picker import ChordNotePicker
+
+logger = logging.getLogger(__name__)
 
 # Import build info (may be auto-generated during CI build)
 try:
@@ -57,7 +60,7 @@ class MainWindow(tk.Tk):
             # Set callback for when playback finishes
             self.audio_player.set_playback_finished_callback(self._on_playback_finished)
         except Exception as e:
-            print(f"Warning: Could not initialize audio player: {e}")
+            logger.warning(f"Could not initialize audio player: {e}")
             self.audio_player = None
 
         # Initialize chord note picker
@@ -103,7 +106,7 @@ class MainWindow(tk.Tk):
                 icon_image = tk.PhotoImage(file=icon_path)
                 self.iconphoto(True, icon_image)
         except Exception as e:
-            print(f"Warning: Could not load window icon: {e}")
+            logger.warning(f"Could not load window icon: {e}")
 
     def _get_resource_path(self, relative_path):
         """Get absolute path to resource, works for dev and PyInstaller"""
@@ -543,7 +546,7 @@ class MainWindow(tk.Tk):
                     default_settings.update(loaded)
                     self.recent_files = default_settings.get('recent_files', [])
         except Exception as e:
-            print(f"Warning: Failed to load settings: {e}")
+            logger.warning(f"Failed to load settings: {e}")
 
         return default_settings
 
@@ -558,7 +561,7 @@ class MainWindow(tk.Tk):
             with open(settings_path, 'w') as f:
                 json.dump(self.settings, f, indent=2)
         except Exception as e:
-            print(f"Warning: Failed to save settings: {e}")
+            logger.warning(f"Failed to save settings: {e}")
 
     def apply_settings(self):
         """Apply loaded settings"""
@@ -622,7 +625,7 @@ class MainWindow(tk.Tk):
                 icon_label.image = icon_photo  # Keep a reference
                 icon_label.pack(pady=(0, 10))
         except Exception as e:
-            print(f"Warning: Could not load About icon: {e}")
+            logger.warning(f"Could not load About icon: {e}")
 
         # App title
         title_label = tk.Label(main_frame, text="Chord Notepad",
