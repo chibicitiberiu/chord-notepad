@@ -3,6 +3,8 @@ name: Build and Release
 on:
   push:
     branches: [ master, main ]
+    tags:
+      - 'v*.*.*'
   pull_request:
     branches: [ master, main ]
   schedule:
@@ -10,9 +12,6 @@ on:
     - cron: '0 0 * * 1'
   release:
     types: [created]
-  push:
-    tags:
-      - 'v*.*.*'
 
 jobs:
   test:
