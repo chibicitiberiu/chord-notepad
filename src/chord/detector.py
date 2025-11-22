@@ -1,9 +1,9 @@
 """
-Chord detection using line-based classification and PyChord validation
+Chord detection using line-based classification and ChordHelper validation
 """
 
 import re
-from pychord import Chord
+from chord.helper import ChordHelper
 from chord.converter import NotationConverter
 from chord.chord_model import ChordInfo
 
@@ -14,15 +14,18 @@ class ChordDetector:
     # Basic chord pattern for initial detection (American notation, supports lowercase for minor)
     # Supports: ° (diminished), ø (half-diminished), + (augmented)
     # Supports alterations: 7b5, 7#9, 9#11, etc.
+    # Supports parentheses: dim(maj9), maj7#5(9), m7b5(b9)
+    # Supports M (uppercase) for minor-major: mM7, mM9
     CHORD_PATTERN_AMERICAN = re.compile(
-        r'\b([A-Ga-g][#b]?(?:°|ø|\+|m|maj|min|dim|aug|sus[24]?|add\d+|\d+|[#b]\d+)*(?:/[A-Ga-g][#b]?)?)(?![A-Za-z0-9])'
+        r'\b([A-Ga-g][#b]?(?:°|ø|\+|m|M|maj|min|dim|aug|sus[24]?|add\d+|\d+|[#b]\d+|\((?:maj|[#b])?\d+\))*(?:/[A-Ga-g][#b]?)?)(?![A-Za-z0-9])'
     )
 
     # European notation pattern (Do/do for Major/minor, DoM explicit major, Dom explicit minor)
     # Supports: ° (diminished), ø (half-diminished), + (augmented)
     # Supports alterations: 7b5, 7#9, 9#11, etc.
+    # Supports parentheses: dim(maj9), maj7#5(9), m7b5(b9)
     CHORD_PATTERN_EUROPEAN = re.compile(
-        r'\b((?:Do|Re|Mi|Fa|Sol|La|Si|do|re|mi|fa|sol|la|si)[#b]?(?:°|ø|\+|M|m|maj|min|dim|aug|sus[24]?|add\d+|\d+|[#b]\d+)*(?:/(?:Do|Re|Mi|Fa|Sol|La|Si|do|re|mi|fa|sol|la|si)[#b]?)?)(?![A-Za-z0-9])'
+        r'\b((?:Do|Re|Mi|Fa|Sol|La|Si|do|re|mi|fa|sol|la|si)[#b]?(?:°|ø|\+|M|m|maj|min|dim|aug|sus[24]?|add\d+|\d+|[#b]\d+|\((?:maj|[#b])?\d+\))*(?:/(?:Do|Re|Mi|Fa|Sol|La|Si|do|re|mi|fa|sol|la|si)[#b]?)?)(?![A-Za-z0-9])'
     )
 
     def __init__(self, threshold=0.6, notation='american'):
@@ -35,6 +38,7 @@ class ChordDetector:
         """
         self.threshold = threshold
         self.notation = notation
+        self.chord_helper = ChordHelper()
 
     def detect_chords_in_text(self, text):
         """
@@ -44,14 +48,13 @@ class ChordDetector:
             text: Full text content
 
         Returns:
-            List of dicts with chord info: {
-                'chord': str,
-                'line': int,
-                'start': int,
-                'end': int,
-                'is_valid': bool,
-                'pychord_obj': Chord or None
-            }
+            List of ChordInfo objects with attributes:
+                chord: str - The chord string
+                line: int - Line number (1-indexed)
+                start: int - Character position in full text
+                end: int - End position in full text
+                is_valid: bool - Whether chord is valid
+                notes: list - List of note names or empty list
         """
         results = []
         lines = text.split('\n')
@@ -129,15 +132,15 @@ class ChordDetector:
             start = line_offset + match.start()
             end = line_offset + match.end()
 
-            # Validate with PyChord (convert European to American if needed)
-            is_valid, pychord_obj = self._validate_chord(chord_str)
+            # Validate with ChordHelper (convert European to American if needed)
+            is_valid, notes = self._validate_chord(chord_str)
 
             # Create ChordInfo object
             chord_info = ChordInfo(
                 chord=chord_str,
                 line_offset=match.start(),  # Position within the line
                 is_valid=is_valid,
-                pychord_obj=pychord_obj
+                notes=notes
             )
             # Add extra attributes for full text positioning
             chord_info.line = line_num
@@ -150,19 +153,19 @@ class ChordDetector:
 
     def _validate_chord(self, chord_str):
         """
-        Validate chord using PyChord
+        Validate chord using ChordHelper
 
         Args:
             chord_str: Chord string (e.g., "Cmaj7", "Am/G", "c", "d", "A°7", "Bø7" or "Domaj7", "Lam/Sol")
 
         Returns:
-            Tuple of (is_valid, pychord_obj or None)
+            Tuple of (is_valid, notes_list or None)
         """
         try:
             # First convert symbols to text (° → dim, ø → m7b5)
             chord_str = self._convert_symbols_to_text(chord_str)
 
-            # Convert to PyChord-compatible format
+            # Convert to ChordHelper-compatible format
             if self.notation == 'european':
                 # Convert European to American
                 chord_for_validation = NotationConverter.european_to_american(chord_str)
@@ -170,8 +173,11 @@ class ChordDetector:
                 # Handle lowercase American notation (c = Cm, d = Dm)
                 chord_for_validation = self._normalize_american_chord(chord_str)
 
-            chord_obj = Chord(chord_for_validation)
-            return (True, chord_obj)
+            # Validate using ChordHelper
+            is_valid = self.chord_helper.is_valid_chord(chord_for_validation)
+            notes = self.chord_helper.get_notes(chord_for_validation) if is_valid else None
+
+            return (is_valid, notes)
         except Exception:
             return (False, None)
 
@@ -242,7 +248,7 @@ class ChordDetector:
         Returns:
             List of note names (e.g., ['C', 'E', 'G']) or None if invalid
         """
-        is_valid, chord_obj = self._validate_chord(chord_str)
+        is_valid, notes = self._validate_chord(chord_str)
         if is_valid:
-            return chord_obj.components()
+            return notes
         return None

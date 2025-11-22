@@ -106,7 +106,7 @@ class ChordTextEditor(tk.Text):
                         chord=chord_info.chord,
                         line_offset=chord_info.line_offset,
                         is_valid=chord_info.is_valid,
-                        pychord_obj=chord_info.pychord_obj
+                        notes=chord_info.notes
                     )
                     # Add positioning attributes for highlighting
                     chord_with_offset.start = char_offset + chord_info.line_offset
@@ -137,13 +137,13 @@ class ChordTextEditor(tk.Text):
         chords = []
         for match in pattern.finditer(line_content):
             chord_str = match.group(1)
-            is_valid, pychord_obj = self.chord_detector._validate_chord(chord_str)
+            is_valid, notes = self.chord_detector._validate_chord(chord_str)
 
             chord_info = ChordInfo(
                 chord=chord_str,
                 line_offset=match.start(),  # Position within the line
                 is_valid=is_valid,
-                pychord_obj=pychord_obj
+                notes=notes
             )
             # Add line number as extra attribute
             chord_info.line = line_num
@@ -201,6 +201,10 @@ class ChordTextEditor(tk.Text):
 
             # Insert at current cursor position
             self.insert(tk.INSERT, clipboard_text)
+
+            # Trigger chord detection after paste
+            self._reset_typing_timer()
+            self._typing_timer = self.after(self._typing_delay, self._detect_chords)
 
             # Prevent default paste behavior
             return 'break'

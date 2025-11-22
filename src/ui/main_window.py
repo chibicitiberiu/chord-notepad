@@ -6,14 +6,26 @@ import tkinter as tk
 from tkinter import ttk, filedialog, messagebox, font as tkfont
 import json
 import os
+import sys
 import re
 import threading
 import queue
 from pathlib import Path
+from PIL import Image, ImageTk
 from ui.text_editor import ChordTextEditor
+from ui.chord_identifier import ChordIdentifierWindow
 from chord.converter import NotationConverter
 from audio.player import NotePlayer
 from audio.chord_picker import ChordNotePicker
+
+# Import build info (may be auto-generated during CI build)
+try:
+    from build_info import VERSION, BUILD_TYPE, COMMIT_SHORT, BUILD_DATE
+except ImportError:
+    VERSION = "dev-local"
+    BUILD_TYPE = "development"
+    COMMIT_SHORT = "unknown"
+    BUILD_DATE = "unknown"
 
 
 class MainWindow(tk.Tk):
@@ -24,6 +36,9 @@ class MainWindow(tk.Tk):
 
         self.title("Chord Notepad")
         self.geometry("900x600")
+
+        # Set window icon
+        self._set_window_icon()
 
         # Application state
         self.current_file = None
@@ -79,6 +94,29 @@ class MainWindow(tk.Tk):
         # Start queue processor for cross-thread method calls
         self._process_event_queue()
 
+    def _set_window_icon(self):
+        """Set the window icon"""
+        try:
+            # Get the icon path (relative to project root)
+            icon_path = self._get_resource_path('resources/icon-32.png')
+            if os.path.exists(icon_path):
+                icon_image = tk.PhotoImage(file=icon_path)
+                self.iconphoto(True, icon_image)
+        except Exception as e:
+            print(f"Warning: Could not load window icon: {e}")
+
+    def _get_resource_path(self, relative_path):
+        """Get absolute path to resource, works for dev and PyInstaller"""
+        try:
+            # PyInstaller creates a temp folder and stores path in _MEIPASS
+            base_path = sys._MEIPASS
+        except Exception:
+            # Running in development mode
+            # Navigate from src/ui/main_window.py to project root
+            base_path = Path(__file__).parent.parent.parent
+
+        return os.path.join(base_path, relative_path)
+
     def create_menu(self):
         """Create menu bar"""
         menubar = tk.Menu(self)
@@ -123,9 +161,16 @@ class MainWindow(tk.Tk):
 
         # Tools menu
         tools_menu = tk.Menu(menubar, tearoff=0)
+        tools_menu.add_command(label="Identify Chord...", command=self.open_chord_identifier)
+        tools_menu.add_separator()
         tools_menu.add_command(label="Convert to American Notation", command=self.convert_to_american)
         tools_menu.add_command(label="Convert to European Notation", command=self.convert_to_european)
         menubar.add_cascade(label="Tools", menu=tools_menu)
+
+        # Help menu
+        help_menu = tk.Menu(menubar, tearoff=0)
+        help_menu.add_command(label="About", command=self.show_about)
+        menubar.add_cascade(label="Help", menu=help_menu)
 
         # Bind keyboard shortcuts
         self.bind_all("<Control-n>", lambda e: self.new_file())
@@ -249,6 +294,10 @@ class MainWindow(tk.Tk):
 
     def load_file(self, filename):
         """Load file content"""
+        # Check for unsaved changes before loading
+        if not self.prompt_save_if_modified():
+            return
+
         try:
             with open(filename, 'r', encoding='utf-8') as f:
                 content = f.read()
@@ -258,6 +307,8 @@ class MainWindow(tk.Tk):
             self.current_file = filename
             self.is_modified = False
             self.text_editor.edit_reset()  # Reset undo history
+            # Trigger chord detection after loading file
+            self.text_editor._detect_chords()
             self.title(f"Chord Notepad - {os.path.basename(filename)}")
             self.add_to_recent_files(filename)
             self.update_statusbar(f"Opened: {filename}")
@@ -544,6 +595,82 @@ class MainWindow(tk.Tk):
         widget.bind("<Enter>", on_enter)
         widget.bind("<Leave>", on_leave)
 
+    def open_chord_identifier(self):
+        """Open the chord identifier window"""
+        ChordIdentifierWindow(self)
+
+    def show_about(self):
+        """Show About dialog with version information"""
+        about_dialog = tk.Toplevel(self)
+        about_dialog.title("About Chord Notepad")
+        about_dialog.geometry("450x400")
+        about_dialog.transient(self)
+        about_dialog.grab_set()
+        about_dialog.resizable(False, False)
+
+        # Main frame with padding
+        main_frame = ttk.Frame(about_dialog, padding="20")
+        main_frame.pack(fill=tk.BOTH, expand=True)
+
+        # App icon
+        try:
+            icon_path = self._get_resource_path('resources/icon-128.png')
+            if os.path.exists(icon_path):
+                icon_img = Image.open(icon_path)
+                icon_photo = ImageTk.PhotoImage(icon_img)
+                icon_label = tk.Label(main_frame, image=icon_photo)
+                icon_label.image = icon_photo  # Keep a reference
+                icon_label.pack(pady=(0, 10))
+        except Exception as e:
+            print(f"Warning: Could not load About icon: {e}")
+
+        # App title
+        title_label = tk.Label(main_frame, text="Chord Notepad",
+                              font=('TkDefaultFont', 16, 'bold'))
+        title_label.pack(pady=(0, 10))
+
+        # Version info
+        version_frame = ttk.Frame(main_frame)
+        version_frame.pack(pady=10, fill=tk.X)
+
+        info_lines = [
+            ("Version:", VERSION),
+            ("Build Type:", BUILD_TYPE),
+            ("Commit:", COMMIT_SHORT),
+            ("Build Date:", BUILD_DATE),
+        ]
+
+        for label, value in info_lines:
+            row = ttk.Frame(version_frame)
+            row.pack(fill=tk.X, pady=2)
+            ttk.Label(row, text=label, font=('TkDefaultFont', 9, 'bold')).pack(side=tk.LEFT)
+            ttk.Label(row, text=value, font=('TkDefaultFont', 9)).pack(side=tk.LEFT, padx=(5, 0))
+
+        # Description
+        desc_label = tk.Label(main_frame,
+                             text="A simple text editor for musicians with\nchord detection and playback",
+                             font=('TkDefaultFont', 9),
+                             justify=tk.CENTER)
+        desc_label.pack(pady=15)
+
+        # Copyright
+        copyright_label = tk.Label(main_frame,
+                                  text="© 2024 Chord Notepad Contributors\nMIT License",
+                                  font=('TkDefaultFont', 8),
+                                  fg='gray')
+        copyright_label.pack(pady=5)
+
+        # Close button
+        button_frame = ttk.Frame(main_frame)
+        button_frame.pack(pady=(15, 0))
+        ttk.Button(button_frame, text="Close", command=about_dialog.destroy).pack()
+
+        # Center the dialog
+        about_dialog.update_idletasks()
+        x = self.winfo_x() + (self.winfo_width() // 2) - (about_dialog.winfo_width() // 2)
+        y = self.winfo_y() + (self.winfo_height() // 2) - (about_dialog.winfo_height() // 2)
+        about_dialog.geometry(f"+{x}+{y}")
+
     def convert_to_american(self):
         """Convert all chords in the text to American notation"""
         text = self.text_editor.get("1.0", "end-1c")
@@ -790,9 +917,9 @@ class MainWindow(tk.Tk):
             if hasattr(chord_info, 'start') and hasattr(chord_info, 'end'):
                 if chord_info.start <= char_pos < chord_info.end:
                     # Clicked on a chord!
-                    if chord_info.is_valid and chord_info.pychord_obj:
+                    if chord_info.is_valid and chord_info.notes:
                         # Convert chord to MIDI notes
-                        midi_notes = self.chord_picker.chord_to_midi(chord_info.pychord_obj)
+                        midi_notes = self.chord_picker.chord_to_midi(chord_info.notes)
                         # Play immediately (bypass queue)
                         self.audio_player.play_notes_immediate(midi_notes)
                         self.update_statusbar(f"Playing: {chord_info.chord}")
@@ -806,7 +933,7 @@ class MainWindow(tk.Tk):
 
         # Get all valid chords from the document
         all_chords = [c for c in self.text_editor.get_detected_chords()
-                      if c.is_valid and c.pychord_obj]
+                      if c.is_valid and c.notes]
 
         if not all_chords:
             self.update_statusbar("No chords to play")
@@ -895,7 +1022,7 @@ class MainWindow(tk.Tk):
             self.after(0, lambda msg=status_msg: self.update_statusbar(msg))
 
             # Convert chord to MIDI notes
-            midi_notes = self.chord_picker.chord_to_midi(chord_info.pychord_obj)
+            midi_notes = self.chord_picker.chord_to_midi(chord_info.notes)
 
             # Return notes and duration (4 beats = 1 bar in 4/4 time)
             beats_per_measure = self.audio_player.time_signature[0]

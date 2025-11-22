@@ -6,9 +6,12 @@ block_cipher = None
 # Get absolute path to src directory
 src_path = os.path.abspath('src')
 
-# Collect data files (soundfont)
+# Collect data files (soundfont and icons)
 datas = [
     ('resources/soundfont/GeneralUser-GS.sf2', 'resources/soundfont'),
+    ('resources/icon-32.png', 'resources'),
+    ('resources/icon-128.png', 'resources'),
+    ('resources/icon-256.png', 'resources'),
 ]
 
 # Hidden imports - all our local modules
@@ -61,4 +64,5 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
+    icon='resources/chord-notepad-icon.ico',  # Windows icon
 )

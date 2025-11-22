@@ -23,16 +23,20 @@ class ChordNotePicker:
 
     def chord_to_midi(self, chord_obj):
         """
-        Convert a PyChord Chord object to MIDI note numbers
+        Convert a PyChord Chord object or note list to MIDI note numbers
 
         Args:
-            chord_obj: PyChord Chord object
+            chord_obj: PyChord Chord object or list of note names
 
         Returns:
             List of MIDI note numbers
         """
-        # Get notes from chord
-        notes = chord_obj.components()
+        # Get notes from chord - handle both PyChord object and list
+        if isinstance(chord_obj, list):
+            notes = chord_obj
+        else:
+            # Assume it's a PyChord object
+            notes = chord_obj.components()
 
         # Convert to MIDI notes
         midi_notes = []

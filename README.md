@@ -36,11 +36,14 @@ A simple text editor for musicians that automatically detects and plays guitar/p
 
 ## Installation
 
-### Option 1: Use Pre-built Executables
+### Option 1: Use Pre-built Executables (Recommended)
 
-Download the latest release for your platform from the releases page:
-- Linux: `ChordNotepad` (standalone executable)
-- Windows: `ChordNotepad.exe`
+Download the latest release from the [Releases](../../releases) page:
+- **Linux**: `ChordNotepad-linux-x64` (standalone executable)
+- **Windows**: `ChordNotepad-windows-x64.exe`
+- **macOS**: `ChordNotepad-macos-x64`
+
+All releases are automatically built and tested using GitHub Actions.
 
 ### Option 2: Run from Source
 

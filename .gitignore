@@ -39,3 +39,7 @@ Thumbs.db
 *.log
 tmp/
 temp/
+
+# Generated icon files (keep .svg source, regenerate PNGs and ICO)
+resources/icon-*.png
+resources/*.ico
