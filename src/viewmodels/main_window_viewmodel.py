@@ -421,6 +421,32 @@ class MainWindowViewModel(Observable):
         """
         return self._config.get("custom_tunings", {})
 
+    def get_instrument(self) -> int:
+        """Get the current MIDI instrument program number.
+
+        Returns:
+            MIDI program number (0-127)
+        """
+        return self._config.get("instrument", 0)
+
+    def set_instrument(self, program: int) -> None:
+        """Set the MIDI instrument.
+
+        Args:
+            program: MIDI program number (0-127)
+        """
+        logger.debug(f"Setting instrument to program {program}")
+        self._config.set("instrument", program)
+        self._audio.set_instrument(program)
+
+    def get_available_instruments(self) -> List[tuple]:
+        """Get list of available instruments from the soundfont.
+
+        Returns:
+            List of tuples (program_number, instrument_name)
+        """
+        return self._audio.get_available_instruments()
+
     def toggle_notation(self) -> None:
         """Toggle between American and European notation."""
         new_notation = Notation.EUROPEAN if self._notation == Notation.AMERICAN else Notation.AMERICAN

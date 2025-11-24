@@ -342,8 +342,14 @@ class MainWindow(tk.Tk):
                 voicing_menu.add_radiobutton(label=label, variable=self.voicing_var,
                                            value=value, command=self.on_voicing_change)
 
+        # Create instrument submenu with categories
+        self.instrument_var = tk.IntVar(value=self.viewmodel.get_instrument())
+        self.instrument_menu = tk.Menu(menubar, tearoff=0)
+        self.build_instrument_menu()
+
         playback_menu = tk.Menu(menubar, tearoff=0)
         playback_menu.add_cascade(label="Voicing", menu=voicing_menu)
+        playback_menu.add_cascade(label="Instrument", menu=self.instrument_menu)
 
         menubar.add_cascade(label="Playback", menu=playback_menu)
 
@@ -716,6 +722,62 @@ class MainWindow(tk.Tk):
         voicing = self.voicing_var.get()
         self.viewmodel.set_voicing(voicing)
 
+    def on_instrument_change(self) -> None:
+        """Handle instrument selection change"""
+        program = self.instrument_var.get()
+        self.viewmodel.set_instrument(program)
+        # Rebuild the menu to update the indicator
+        self.build_instrument_menu()
+
+    def build_instrument_menu(self) -> None:
+        """Build or rebuild the instrument menu with category indicators"""
+        # Clear existing menu items
+        self.instrument_menu.delete(0, tk.END)
+
+        # Get available instruments from soundfont
+        instruments = self.viewmodel.get_available_instruments()
+        current_instrument = self.viewmodel.get_instrument()
+
+        # Group instruments by General MIDI families (8 instruments per family)
+        instrument_categories = [
+            (0, 7, "Piano"),
+            (8, 15, "Chromatic Percussion"),
+            (16, 23, "Organ"),
+            (24, 31, "Guitar"),
+            (32, 39, "Bass"),
+            (40, 47, "Strings"),
+            (48, 55, "Ensemble"),
+            (56, 63, "Brass"),
+            (64, 71, "Reed"),
+            (72, 79, "Pipe"),
+            (80, 87, "Synth Lead"),
+            (88, 95, "Synth Pad"),
+            (96, 103, "Synth Effects"),
+            (104, 111, "Ethnic"),
+            (112, 119, "Percussive"),
+            (120, 127, "Sound Effects"),
+        ]
+
+        # Create a submenu for each category
+        for start, end, category_name in instrument_categories:
+            category_menu = tk.Menu(self.instrument_menu, tearoff=0)
+            for program, name in instruments:
+                if start <= program <= end:
+                    category_menu.add_radiobutton(
+                        label=f"{program:3d} - {name}",
+                        variable=self.instrument_var,
+                        value=program,
+                        command=self.on_instrument_change
+                    )
+
+            # Add indicator if current instrument is in this category
+            if start <= current_instrument <= end:
+                label = "• " + category_name
+            else:
+                label = "\u2003" + category_name  # Em-space for alignment (≈ bullet width)
+
+            self.instrument_menu.add_cascade(label=label, menu=category_menu)
+
     def update_recent_files_menu(self) -> None:
         """Update recent files menu"""
         self.recent_menu.delete(0, tk.END)
@@ -757,7 +819,7 @@ class MainWindow(tk.Tk):
 
         # Create ViewModel for chord identifier (with audio service for playback)
         chord_id_viewmodel = ChordIdentifierViewModel(
-            chord_detection_service=self.application.chord_detection_service,
+            song_parser_service=self.application.song_parser_service,
             audio_service=self.application.audio_service
         )
 

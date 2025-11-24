@@ -15,9 +15,6 @@
 - ✅ Settings persistence (font, BPM, notation, window geometry, recent files)
 - ✅ Makefile and PyInstaller spec for packaging
 
-**Partially Implemented:**
-- ⚠️ Middle-click to comment chords (NOT implemented)
-
 ## Remaining Work
 
 ### Phase 6: Packaging & Distribution (Partially Complete)

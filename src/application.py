@@ -91,8 +91,8 @@ class Application:
         return self._audio_service
 
     @property
-    def chord_detection_service(self) -> SongParserService:
-        """Get the Chord Detection service."""
+    def song_parser_service(self) -> SongParserService:
+        """Get the Song Parser service."""
         if self._song_parser_service is None:
             raise ServiceNotInitializedError(
                 "SongParserService not initialized. Call on_initialize() first."
@@ -135,6 +135,10 @@ class Application:
 
         logger = logging.getLogger(__name__)
         logger.info(f"{APP_NAME} application initializing")
+
+        # Initialize audio player before UI (so instruments are available for menu)
+        logger.info("Initializing audio system")
+        self._audio_service.initialize_player()
 
         # Initialize UI
         self.on_initialize_ui()
@@ -183,12 +187,12 @@ class Application:
             self.config_service,
             self.audio_service,
             self.file_service,
-            self.chord_detection_service,
+            self.song_parser_service,
             self  # Pass application for cross-thread callbacks
         )
 
         self._text_editor_viewmodel = TextEditorViewModel(
-            self.chord_detection_service
+            self.song_parser_service
         )
 
         logger.info("ViewModels created successfully")

@@ -67,6 +67,25 @@ class PlaybackService:
         self._note_picker = self._create_note_picker(voicing)
         self._config.set("voicing", voicing)
 
+    def get_available_instruments(self) -> List[Tuple[int, str]]:
+        """Get list of available instruments from the soundfont.
+
+        Returns:
+            List of tuples (program_number, instrument_name)
+        """
+        if self._player:
+            return self._player.get_available_instruments()
+        return []
+
+    def set_instrument(self, program: int) -> None:
+        """Change the MIDI instrument.
+
+        Args:
+            program: MIDI program number (0-127)
+        """
+        if self._player:
+            self._player.set_instrument(program)
+
     def initialize_player(self, soundfont_path: Optional[str] = None) -> bool:
         """Initialize the audio player.
 
@@ -102,6 +121,11 @@ class PlaybackService:
                 bpm=bpm,
                 time_signature=(time_sig_beats, time_sig_unit)
             )
+
+            # Set instrument from config
+            instrument = self._config.get("instrument", 0)
+            self._player.set_instrument(instrument)
+
             self._initialized = True
             self._logger.info("Audio player initialized successfully")
             return True
@@ -158,6 +182,45 @@ class PlaybackService:
 
         except Exception as e:
             self._logger.error(f"Error playing notes: {e}", exc_info=True)
+
+    def play_note(self, note_name: str, octave: int, duration: float = 1.0) -> None:
+        """Play a single note by name and octave.
+
+        Args:
+            note_name: Note name (e.g., 'C', 'D#', 'Bb')
+            octave: Octave number
+            duration: Duration in seconds (currently not used, for API compatibility)
+        """
+        if not self._ensure_initialized():
+            return
+
+        try:
+            # Convert note name and octave to MIDI note number
+            # MIDI formula: (octave + 1) * 12 + note_offset
+            NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
+
+            if note_name not in NOTE_NAMES:
+                self._logger.warning(f"Invalid note name: {note_name}")
+                return
+
+            note_offset = NOTE_NAMES.index(note_name)
+            midi_note = (octave + 1) * 12 + note_offset
+
+            self._logger.debug(f"Playing note: {note_name}{octave} (MIDI {midi_note})")
+            self._player.play_notes_immediate([midi_note])
+
+        except Exception as e:
+            self._logger.error(f"Error playing note {note_name}{octave}: {e}", exc_info=True)
+
+    def play_chord_from_midi(self, midi_notes: List[int], duration: float = 2.0) -> None:
+        """Play a chord from MIDI note numbers.
+
+        Args:
+            midi_notes: List of MIDI note numbers to play as a chord
+            duration: Duration in seconds (currently not used, for API compatibility)
+        """
+        # Delegate to play_notes_immediate
+        self.play_notes_immediate(midi_notes)
 
     def pause_playback(self) -> None:
         """Pause ongoing playback."""

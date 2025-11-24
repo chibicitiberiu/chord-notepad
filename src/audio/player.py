@@ -119,6 +119,36 @@ class NotePlayer(IPlayer):
             logger.error(f"Failed to initialize FluidSynth: {e}", exc_info=True)
             self.fs = None
 
+    def get_available_instruments(self) -> List[Tuple[int, str]]:
+        """
+        Get list of available instruments from the loaded soundfont
+
+        Returns:
+            List of tuples (program_number, instrument_name)
+        """
+        instruments = []
+        if self.fs and self.sfid is not None:
+            # Bank 0 contains melodic instruments (GM standard: 0-127)
+            bank = 0
+            for program in range(128):
+                try:
+                    name = self.fs.sfpreset_name(self.sfid, bank, program)
+                    if name:
+                        instruments.append((program, name))
+                except Exception:
+                    # Preset doesn't exist, skip
+                    pass
+        return instruments
+
+    def get_current_instrument(self) -> int:
+        """
+        Get the current instrument program number
+
+        Returns:
+            Current MIDI program number (0-127)
+        """
+        return self.instrument
+
     def set_instrument(self, program: int) -> None:
         """
         Change the instrument

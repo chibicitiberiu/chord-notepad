@@ -24,6 +24,7 @@ class Config:
     time_signature_unit: int = 4   # Beat unit (e.g., 4 = quarter note)
     voicing: str = "piano"  # Voice leading style: 'piano' or 'guitar:<tuning_name>'
     custom_tunings: Dict[str, List[str]] = field(default_factory=dict)  # Custom guitar tunings
+    instrument: int = 0  # MIDI program number (0-127), 0 = Acoustic Grand Piano
 
     # Notation
     notation: Literal["american", "european"] = "american"
@@ -75,6 +76,7 @@ class Config:
             "time_signature_unit": self.time_signature_unit,
             "voicing": self.voicing,
             "custom_tunings": self.custom_tunings,
+            "instrument": self.instrument,
             "notation": self.notation,
             "key": self.key,
             "window_geometry": self.window_geometry,
@@ -105,6 +107,7 @@ class Config:
             time_signature_unit=data.get("time_signature_unit", 4),
             voicing=data.get("voicing", "piano"),
             custom_tunings=data.get("custom_tunings", {}),
+            instrument=data.get("instrument", 0),
             notation=data.get("notation", "american"),
             key=data.get("key", "C"),
             window_geometry=data.get("window_geometry", "900x600"),

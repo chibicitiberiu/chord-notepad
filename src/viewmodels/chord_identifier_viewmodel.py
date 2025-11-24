@@ -1,7 +1,7 @@
 """ViewModel for the chord identifier window."""
 
 import logging
-from typing import List, Tuple, Set
+from typing import List, Tuple, Set, Optional
 from utils.observable import Observable
 from services.song_parser_service import SongParserService
 
