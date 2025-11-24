@@ -2,6 +2,9 @@
 Notation converter between American and European chord notation
 """
 
+import unicodedata
+from typing import Literal
+
 
 class NotationConverter:
     """Convert between American (C, D, E...) and European (Do, Re, Mi...) notation"""
@@ -26,8 +29,31 @@ class NotationConverter:
 
     EUROPEAN_TO_AMERICAN = {v: k for k, v in AMERICAN_TO_EUROPEAN.items()}
 
+    @staticmethod
+    def _normalize_to_ascii(text: str) -> str:
+        """
+        Normalize unicode string to ASCII, removing all accents.
+
+        Examples:
+            Dó -> Do
+            Ré -> Re
+            Fá -> Fa
+            Lá -> La
+
+        Args:
+            text: Unicode string potentially containing accents
+
+        Returns:
+            ASCII string with accents removed
+        """
+        # NFD normalization separates characters from their accents
+        nfd = unicodedata.normalize('NFD', text)
+        # Filter out combining characters (accents)
+        ascii_text = ''.join(char for char in nfd if unicodedata.category(char) != 'Mn')
+        return ascii_text
+
     @classmethod
-    def american_to_european(cls, chord_str):
+    def american_to_european(cls, chord_str: str) -> str:
         """
         Convert American notation chord to European
 
@@ -49,7 +75,7 @@ class NotationConverter:
             return cls._convert_root_american_to_european(result)
 
     @classmethod
-    def european_to_american(cls, chord_str):
+    def european_to_american(cls, chord_str: str) -> str:
         """
         Convert European notation chord to American
 
@@ -71,8 +97,11 @@ class NotationConverter:
             return cls._convert_root_european_to_american(result)
 
     @classmethod
-    def _convert_root_american_to_european(cls, chord_part):
+    def _convert_root_american_to_european(cls, chord_part: str) -> str:
         """Convert root note from American to European"""
+        if not chord_part:
+            return chord_part
+
         # Extract root note (first 1-2 chars, handling sharps/flats)
         if len(chord_part) >= 2 and chord_part[1] in ['#', 'b']:
             root = chord_part[:2]
@@ -92,8 +121,11 @@ class NotationConverter:
         return chord_part  # Return unchanged if not found
 
     @classmethod
-    def _convert_root_european_to_american(cls, chord_part):
+    def _convert_root_european_to_american(cls, chord_part: str) -> str:
         """Convert root note from European to American"""
+        # Normalize accents first (Dó -> Do, Ré -> Re, etc.)
+        chord_part = cls._normalize_to_ascii(chord_part)
+
         # Try to match European roots (Do, Re, Mi, etc.)
         # Check lowercase first (longer matches), then uppercase
         for european, american in sorted(cls.EUROPEAN_TO_AMERICAN.items(), key=lambda x: len(x[0]), reverse=True):
@@ -109,10 +141,10 @@ class NotationConverter:
                 suffix = chord_part[suffix_start:]
 
                 # Handle capitalization convention (lowercase = minor)
-                if european[0].islower():
+                if european and european[0].islower():
                     # Lowercase European notation means minor
                     # do -> Cm, re -> Dm (unless suffix already specifies quality)
-                    if not suffix or (suffix[0] not in ['m', 'M'] and not suffix.startswith('maj') and not suffix.startswith('min')):
+                    if not suffix or (len(suffix) > 0 and suffix[0] not in ['m', 'M'] and not suffix.startswith('maj') and not suffix.startswith('min')):
                         # Add 'm' for minor if no quality is specified
                         suffix = 'm' + suffix
                     # Convert lowercase american to uppercase
@@ -131,7 +163,7 @@ class NotationConverter:
         return chord_part  # Return unchanged if not found
 
     @classmethod
-    def format_for_display(cls, chord_str, notation='american'):
+    def format_for_display(cls, chord_str: str, notation: Literal['american', 'european'] = 'american') -> str:
         """
         Format chord for display based on notation preference
 

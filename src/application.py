@@ -11,8 +11,8 @@ from exceptions import ServiceNotInitializedError
 from services.appdata_service import AppDataService
 from services.config_service import ConfigService
 from services.logging_service import LoggingService
-from services.audio_service import AudioService
-from services.chord_detection_service import ChordDetectionService
+from services.playback_service import PlaybackService
+from services.song_parser_service import SongParserService
 from services.file_service import FileService
 from services.resource_service import ResourceService
 from viewmodels.main_window_viewmodel import MainWindowViewModel
@@ -33,8 +33,8 @@ class Application:
         self._appdata_service: Optional[AppDataService] = None
         self._config_service: Optional[ConfigService] = None
         self._logging_service: Optional[LoggingService] = None
-        self._audio_service: Optional[AudioService] = None
-        self._chord_detection_service: Optional[ChordDetectionService] = None
+        self._audio_service: Optional[PlaybackService] = None
+        self._song_parser_service: Optional[SongParserService] = None
         self._file_service: Optional[FileService] = None
         self._resource_service: Optional[ResourceService] = None
 
@@ -82,7 +82,7 @@ class Application:
         return self._logging_service
 
     @property
-    def audio_service(self) -> AudioService:
+    def audio_service(self) -> PlaybackService:
         """Get the Audio service."""
         if self._audio_service is None:
             raise ServiceNotInitializedError(
@@ -91,13 +91,13 @@ class Application:
         return self._audio_service
 
     @property
-    def chord_detection_service(self) -> ChordDetectionService:
+    def chord_detection_service(self) -> SongParserService:
         """Get the Chord Detection service."""
-        if self._chord_detection_service is None:
+        if self._song_parser_service is None:
             raise ServiceNotInitializedError(
-                "ChordDetectionService not initialized. Call on_initialize() first."
+                "SongParserService not initialized. Call on_initialize() first."
             )
-        return self._chord_detection_service
+        return self._song_parser_service
 
     @property
     def file_service(self) -> FileService:
@@ -157,8 +157,8 @@ class Application:
         self._logging_service = LoggingService()
 
         # Business services (depend on infrastructure)
-        self._chord_detection_service = ChordDetectionService()
-        self._audio_service = AudioService(self._config_service)
+        self._song_parser_service = SongParserService()
+        self._audio_service = PlaybackService(self._config_service)
         self._file_service = FileService(self._config_service)
 
     def on_configure_logging(self) -> None:

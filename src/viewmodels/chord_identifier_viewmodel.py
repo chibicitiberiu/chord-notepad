@@ -3,7 +3,7 @@
 import logging
 from typing import List, Tuple, Set
 from utils.observable import Observable
-from services.chord_detection_service import ChordDetectionService
+from services.song_parser_service import SongParserService
 
 logger = logging.getLogger(__name__)
 
@@ -15,16 +15,16 @@ class ChordIdentifierViewModel(Observable):
     chord identifier UI.
     """
 
-    def __init__(self, chord_detection_service: ChordDetectionService, audio_service=None):
+    def __init__(self, song_parser_service: SongParserService, audio_service=None):
         """Initialize the ViewModel.
 
         Args:
-            chord_detection_service: Service for chord detection and identification
+            song_parser_service: Service for chord detection and identification
             audio_service: Optional audio service for playing notes and chords
         """
         super().__init__()
 
-        self._chord_service = chord_detection_service
+        self._chord_service = song_parser_service
         self._audio_service = audio_service
 
         # Observable state

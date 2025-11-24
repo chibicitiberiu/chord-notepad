@@ -30,12 +30,16 @@ TAG_CHORD_VALID = "chord"
 TAG_CHORD_INVALID = "chord_invalid"
 TAG_CHORD_COMMENT = "chord_comment"
 TAG_CHORD_PLAYING = "chord_playing"
+TAG_DIRECTIVE_VALID = "directive_valid"
+TAG_DIRECTIVE_INVALID = "directive_invalid"
 
 # Colors
 COLOR_CHORD_VALID = "blue"
 COLOR_CHORD_INVALID = "gray"
 COLOR_CHORD_COMMENT = "red"
 COLOR_CHORD_PLAYING_BG = "yellow"
+COLOR_DIRECTIVE_VALID = "#8B4789"  # Purple for directives
+COLOR_DIRECTIVE_INVALID = "red"
 
 # Audio settings
 DEFAULT_OCTAVE = 4

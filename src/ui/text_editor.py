@@ -3,10 +3,17 @@ Custom text editor widget with support for chord detection
 """
 
 import tkinter as tk
-from typing import Optional
-from chord.line_model import Line
-from chord.chord_model import ChordInfo
+from typing import Optional, List, Any
+from models.line import Line
+from models.chord import ChordInfo
 from viewmodels.text_editor_viewmodel import TextEditorViewModel
+from constants import (
+    TAG_CHORD_VALID, TAG_CHORD_INVALID, TAG_CHORD_COMMENT, TAG_CHORD_PLAYING,
+    TAG_DIRECTIVE_VALID, TAG_DIRECTIVE_INVALID,
+    COLOR_CHORD_VALID, COLOR_CHORD_INVALID, COLOR_CHORD_COMMENT, COLOR_CHORD_PLAYING_BG,
+    COLOR_DIRECTIVE_VALID, COLOR_DIRECTIVE_INVALID,
+    CHORD_DETECTION_DEBOUNCE_MS
+)
 
 
 class ChordTextEditor(tk.Text):
@@ -15,7 +22,7 @@ class ChordTextEditor(tk.Text):
     This is a thin view layer that delegates all business logic to TextEditorViewModel.
     """
 
-    def __init__(self, parent, viewmodel: TextEditorViewModel, **kwargs):
+    def __init__(self, parent: Any, viewmodel: TextEditorViewModel, **kwargs: Any) -> None:
         """Initialize the text editor with a ViewModel.
 
         Args:
@@ -39,17 +46,21 @@ class ChordTextEditor(tk.Text):
         self.lines = []  # List of Line objects with cached classification
 
         # Configure tags for chord highlighting
-        self.tag_config('chord', foreground='blue', underline=True)
-        self.tag_config('chord_invalid', foreground='gray', underline=True)
-        self.tag_config('chord_comment', foreground='red', overstrike=True)
-        self.tag_config('chord_playing', background='yellow', foreground='black', underline=True)
+        self.tag_config(TAG_CHORD_VALID, foreground=COLOR_CHORD_VALID, underline=True)
+        self.tag_config(TAG_CHORD_INVALID, foreground=COLOR_CHORD_INVALID, underline=True)
+        self.tag_config(TAG_CHORD_COMMENT, foreground=COLOR_CHORD_COMMENT, overstrike=True)
+        self.tag_config(TAG_CHORD_PLAYING, background=COLOR_CHORD_PLAYING_BG, foreground='black', underline=True)
+
+        # Configure tags for directive highlighting
+        self.tag_config(TAG_DIRECTIVE_VALID, foreground=COLOR_DIRECTIVE_VALID, underline=False)
+        self.tag_config(TAG_DIRECTIVE_INVALID, foreground=COLOR_DIRECTIVE_INVALID, underline=True, underlinefg=COLOR_DIRECTIVE_INVALID)
 
         # Bind numpad Enter to work like regular Enter
         self.bind('<KP_Enter>', lambda e: self.insert(tk.INSERT, '\n'))
 
         # Typing timer for delayed chord detection
         self._typing_timer = None
-        self._typing_delay = 500  # 0.5 second delay
+        self._typing_delay = CHORD_DETECTION_DEBOUNCE_MS
 
         # Bind key events to trigger chord detection
         self.bind('<KeyRelease>', self._on_typing)
@@ -63,7 +74,7 @@ class ChordTextEditor(tk.Text):
         # Set up observers for ViewModel property changes
         self._setup_viewmodel_observers()
 
-    def _setup_viewmodel_observers(self):
+    def _setup_viewmodel_observers(self) -> None:
         """Set up observers for ViewModel property changes."""
         # Observe detected lines changes
         self.viewmodel.observe('detected_lines', self._on_detected_lines_changed)
@@ -71,7 +82,7 @@ class ChordTextEditor(tk.Text):
         # Observe notation changes
         self.viewmodel.observe('current_notation', self._on_notation_changed)
 
-    def _on_detected_lines_changed(self, lines):
+    def _on_detected_lines_changed(self, lines: List[Line]) -> None:
         """Handle detected lines change from ViewModel.
 
         Args:
@@ -80,7 +91,7 @@ class ChordTextEditor(tk.Text):
         self.lines = lines
         self._update_highlighting()
 
-    def _on_notation_changed(self, notation: str):
+    def _on_notation_changed(self, notation: str) -> None:
         """Handle notation change from ViewModel.
 
         Args:
@@ -89,7 +100,11 @@ class ChordTextEditor(tk.Text):
         # Re-detect chords with new notation
         self._detect_chords()
 
-    def set_notation(self, notation: str):
+    def cleanup_observers(self) -> None:
+        """Clean up all observers to prevent memory leaks."""
+        self.viewmodel.clear_observers()
+
+    def set_notation(self, notation: str) -> None:
         """Set the notation type and refresh highlighting.
 
         Args:
@@ -98,18 +113,18 @@ class ChordTextEditor(tk.Text):
         self.viewmodel.set_notation(notation)
         self._detect_chords()
 
-    def _reset_typing_timer(self):
+    def _reset_typing_timer(self) -> None:
         """Reset the typing timer"""
         if self._typing_timer:
             self.after_cancel(self._typing_timer)
             self._typing_timer = None
 
-    def _on_typing(self, event=None):
+    def _on_typing(self, event: Optional[Any] = None) -> None:
         """Handle typing event - trigger chord detection after delay"""
         self._reset_typing_timer()
         self._typing_timer = self.after(self._typing_delay, self._detect_chords)
 
-    def _detect_chords(self):
+    def _detect_chords(self) -> None:
         """Detect and highlight chords in the text, classify lines"""
         # Get all text content
         text = self.get('1.0', 'end-1c')
@@ -120,34 +135,24 @@ class ChordTextEditor(tk.Text):
         # The ViewModel will notify us via _on_detected_lines_changed
         # which will then call _update_highlighting
 
-    def _update_highlighting(self):
+    def _update_highlighting(self) -> None:
         """Update text highlighting based on detected lines."""
         # Clear existing chord tags
-        self.tag_remove('chord', '1.0', tk.END)
-        self.tag_remove('chord_invalid', '1.0', tk.END)
+        self.tag_remove(TAG_CHORD_VALID, '1.0', tk.END)
+        self.tag_remove(TAG_CHORD_INVALID, '1.0', tk.END)
+
+        # Clear existing directive tags
+        self.tag_remove(TAG_DIRECTIVE_VALID, '1.0', tk.END)
+        self.tag_remove(TAG_DIRECTIVE_INVALID, '1.0', tk.END)
 
         # Collect all chords for highlighting
         self.detected_chords = []
-        char_offset = 0
 
         for line in self.lines:
             if line.is_chord_line():
-                # Add chords with adjusted positions for highlighting
+                # Chords already have absolute positions from detector
                 for chord_info in line.chords:
-                    # Create a new ChordInfo with adjusted position
-                    chord_with_offset = ChordInfo(
-                        chord=chord_info.chord,
-                        line_offset=chord_info.line_offset,
-                        is_valid=chord_info.is_valid,
-                        notes=chord_info.notes
-                    )
-                    # Add positioning attributes for highlighting
-                    chord_with_offset.start = char_offset + chord_info.line_offset
-                    chord_with_offset.end = char_offset + chord_info.line_offset + len(chord_info.chord)
-                    self.detected_chords.append(chord_with_offset)
-
-            # Update offset (include newline)
-            char_offset += len(line.content) + 1
+                    self.detected_chords.append(chord_info)
 
         # Highlight detected chords
         for chord_info in self.detected_chords:
@@ -155,19 +160,30 @@ class ChordTextEditor(tk.Text):
             end_idx = f"1.0 + {chord_info.end} chars"
 
             if chord_info.is_valid:
-                self.tag_add('chord', start_idx, end_idx)
+                self.tag_add(TAG_CHORD_VALID, start_idx, end_idx)
             else:
-                self.tag_add('chord_invalid', start_idx, end_idx)
+                self.tag_add(TAG_CHORD_INVALID, start_idx, end_idx)
 
-    def get_detected_chords(self):
+        # Highlight directives
+        for line in self.lines:
+            for directive in line.directives:
+                start_idx = f"1.0 + {directive.start} chars"
+                end_idx = f"1.0 + {directive.end} chars"
+
+                if directive.is_valid:
+                    self.tag_add(TAG_DIRECTIVE_VALID, start_idx, end_idx)
+                else:
+                    self.tag_add(TAG_DIRECTIVE_INVALID, start_idx, end_idx)
+
+    def get_detected_chords(self) -> List[ChordInfo]:
         """Get list of detected chords"""
         return self.detected_chords
 
-    def get_lines(self):
+    def get_lines(self) -> List[Line]:
         """Get list of Line objects with classification"""
         return self.lines
 
-    def get_chord_at_coordinates(self, x, y) -> Optional[ChordInfo]:
+    def get_chord_at_coordinates(self, x: int, y: int) -> Optional[ChordInfo]:
         """Get the chord at the given pixel coordinates.
 
         Args:
@@ -191,13 +207,12 @@ class ChordTextEditor(tk.Text):
 
         # Find chord at this position
         for chord_info in self.detected_chords:
-            if hasattr(chord_info, 'start') and hasattr(chord_info, 'end'):
-                if chord_info.start <= char_pos < chord_info.end:
-                    return chord_info
+            if chord_info.start <= char_pos < chord_info.end:
+                return chord_info
 
         return None
 
-    def _on_mouse_motion(self, event):
+    def _on_mouse_motion(self, event: Any) -> None:
         """Handle mouse motion - change cursor when over chords"""
         # Get the index at mouse position
         index = self.index(f"@{event.x},{event.y}")
@@ -214,10 +229,9 @@ class ChordTextEditor(tk.Text):
         # Check if we're over a chord
         over_chord = False
         for chord_info in self.detected_chords:
-            if hasattr(chord_info, 'start') and hasattr(chord_info, 'end'):
-                if chord_info.start <= char_pos < chord_info.end and chord_info.is_valid:
-                    over_chord = True
-                    break
+            if chord_info.start <= char_pos < chord_info.end and chord_info.is_valid:
+                over_chord = True
+                break
 
         # Change cursor
         if over_chord:
@@ -225,7 +239,7 @@ class ChordTextEditor(tk.Text):
         else:
             self.config(cursor='xterm')
 
-    def _on_paste(self, event):
+    def _on_paste(self, event: Any) -> Optional[str]:
         """Handle paste - replace selection if any"""
         try:
             # Check if there's a selection

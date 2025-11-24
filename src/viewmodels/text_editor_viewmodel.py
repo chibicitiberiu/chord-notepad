@@ -3,9 +3,9 @@
 import logging
 from typing import List, Optional, Tuple
 from utils.observable import Observable
-from services.chord_detection_service import ChordDetectionService
-from chord.line_model import Line
-from chord.chord_model import ChordInfo
+from services.song_parser_service import SongParserService
+from models.line import Line, LineType
+from models.chord import ChordInfo
 
 logger = logging.getLogger(__name__)
 
@@ -16,15 +16,15 @@ class TextEditorViewModel(Observable):
     Manages chord detection, highlighting, and cursor interaction logic.
     """
 
-    def __init__(self, chord_detection_service: ChordDetectionService):
+    def __init__(self, song_parser_service: SongParserService):
         """Initialize the ViewModel.
 
         Args:
-            chord_detection_service: Service for chord detection
+            song_parser_service: Service for chord detection
         """
         super().__init__()
 
-        self._chord_service = chord_detection_service
+        self._chord_service = song_parser_service
 
         # Observable state
         self._detected_lines: List[Line] = []
@@ -126,13 +126,16 @@ class TextEditorViewModel(Observable):
         line = self._detected_lines[line_number - 1]
 
         # Check if this is a chord line
-        if line.type != "chord":
+        if line.type != LineType.CHORD:
             return None
 
         # Find chord at column position
+        # Calculate line offset to convert absolute position to column
+        line_char_offset = sum(len(self._detected_lines[i].content) + 1 for i in range(line.line_number - 1))
+
         for chord in line.chords:
-            chord_start = chord.line_offset
-            chord_end = chord_start + len(chord.chord)
+            chord_start = chord.start - line_char_offset
+            chord_end = chord.end - line_char_offset
 
             if chord_start <= column < chord_end:
                 return chord
@@ -161,13 +164,16 @@ class TextEditorViewModel(Observable):
 
         line = self._detected_lines[line_number - 1]
 
-        if line.type != "chord":
+        if line.type != LineType.CHORD:
             return []
 
         ranges = []
+        # Calculate line offset to convert absolute position to column
+        line_char_offset = sum(len(self._detected_lines[i].content) + 1 for i in range(line.line_number - 1))
+
         for chord in line.chords:
-            start = chord.line_offset
-            end = start + len(chord.chord)
+            start = chord.start - line_char_offset
+            end = chord.end - line_char_offset
             is_valid = chord.is_valid
             ranges.append((start, end, is_valid))
 

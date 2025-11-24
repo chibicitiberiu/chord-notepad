@@ -1,4 +1,4 @@
-.PHONY: run test build clean install icons
+.PHONY: run test tests build clean install icons
 
 # Variables
 PYTHON := pipenv run python
@@ -11,7 +11,10 @@ run:
 
 # Run tests
 test:
-	$(PYTHON) -m pytest tests/
+	$(PYTHON) -m pytest tests/ -v
+
+# Run tests (alias)
+tests: test
 
 # Install dependencies
 install:

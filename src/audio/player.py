@@ -4,13 +4,16 @@ Audio playback using FluidSynth
 
 import logging
 import os
+import threading
 from pathlib import Path
+from typing import Optional, List, Tuple, Callable, Dict
 import fluidsynth
+from audio.player_interface import IPlayer
 
 logger = logging.getLogger(__name__)
 
 # MIDI note mapping (C4 = Middle C = MIDI 60)
-NOTE_TO_MIDI_BASE = {
+NOTE_TO_MIDI_BASE: Dict[str, int] = {
     'C': 0, 'C#': 1, 'Db': 1,
     'D': 2, 'D#': 3, 'Eb': 3,
     'E': 4,
@@ -21,7 +24,7 @@ NOTE_TO_MIDI_BASE = {
 }
 
 
-def note_to_midi(note_str, default_octave=4):
+def note_to_midi(note_str: str, default_octave: int = 4) -> Optional[int]:
     """
     Convert note string to MIDI number
 
@@ -61,10 +64,10 @@ def note_to_midi(note_str, default_octave=4):
     return midi_number if 0 <= midi_number <= 127 else None
 
 
-class NotePlayer:
+class NotePlayer(IPlayer):
     """Audio player for MIDI notes using FluidSynth"""
 
-    def __init__(self, soundfont_path=None, bpm=120, time_signature=(4, 4)):
+    def __init__(self, soundfont_path: Optional[str] = None, bpm: int = 120, time_signature: Tuple[int, int] = (4, 4)) -> None:
         """
         Initialize the note player
 
@@ -82,12 +85,13 @@ class NotePlayer:
         self.bpm = bpm
         self.time_signature = time_signature
 
-        # Playback thread
+        # Playback thread and state
         self.playback_thread = None
         self.is_playing = False
         self.is_paused = False
         self.stop_event = None
         self.pause_event = None
+        self._state_lock = threading.Lock()  # Protects is_playing and is_paused
 
         # Callback to get next note (should return (midi_notes, duration_beats) or None)
         self.get_next_note_callback = None
@@ -104,7 +108,7 @@ class NotePlayer:
         else:
             raise FileNotFoundError(f"Soundfont not found at: {soundfont_path}")
 
-    def _find_soundfont(self):
+    def _find_soundfont(self) -> Optional[str]:
         """Find the bundled soundfont"""
         import sys
 
@@ -123,7 +127,7 @@ class NotePlayer:
 
         return None
 
-    def _initialize_fluidsynth(self, soundfont_path):
+    def _initialize_fluidsynth(self, soundfont_path: str) -> None:
         """Initialize FluidSynth with the soundfont"""
         try:
             # Create FluidSynth instance
@@ -166,7 +170,7 @@ class NotePlayer:
             logger.error(f"Failed to initialize FluidSynth: {e}", exc_info=True)
             self.fs = None
 
-    def set_instrument(self, program):
+    def set_instrument(self, program: int) -> None:
         """
         Change the instrument
 
@@ -182,7 +186,7 @@ class NotePlayer:
             self.instrument = program
             self.fs.program_select(self.channel, self.sfid, 0, program)
 
-    def play_notes_immediate(self, midi_notes):
+    def play_notes_immediate(self, midi_notes: List[int]) -> None:
         """
         Play notes immediately (for manual clicks)
 
@@ -201,20 +205,20 @@ class NotePlayer:
         for midi_note in midi_notes:
             self.fs.noteon(self.channel, midi_note, velocity)
 
-    def stop_all_notes(self):
+    def stop_all_notes(self) -> None:
         """Stop all currently playing notes"""
         if self.fs:
             self.fs.all_notes_off(self.channel)
 
-    def set_bpm(self, bpm):
+    def set_bpm(self, bpm: int) -> None:
         """Update BPM setting"""
         self.bpm = bpm
 
-    def set_time_signature(self, beats_per_measure, beat_unit):
+    def set_time_signature(self, beats_per_measure: int, beat_unit: int) -> None:
         """Update time signature"""
         self.time_signature = (beats_per_measure, beat_unit)
 
-    def _beats_to_seconds(self, beats):
+    def _beats_to_seconds(self, beats: float) -> float:
         """
         Convert beats to seconds based on current BPM
 
@@ -228,7 +232,7 @@ class NotePlayer:
         seconds_per_beat = 60.0 / self.bpm
         return beats * seconds_per_beat
 
-    def set_next_note_callback(self, callback):
+    def set_next_note_callback(self, callback: Callable[[], Optional[Tuple[List[int], float]]]) -> None:
         """
         Set callback to get next note for playback
 
@@ -238,7 +242,7 @@ class NotePlayer:
         """
         self.get_next_note_callback = callback
 
-    def set_playback_finished_callback(self, callback):
+    def set_playback_finished_callback(self, callback: Callable[[], None]) -> None:
         """
         Set callback to be called when playback finishes
 
@@ -247,21 +251,21 @@ class NotePlayer:
         """
         self.on_playback_finished_callback = callback
 
-    def start_playback(self):
+    def start_playback(self) -> None:
         """Start playback in a separate thread"""
-        if self.is_playing:
-            logger.debug("Playback already in progress")
-            return
+        with self._state_lock:
+            if self.is_playing:
+                logger.debug("Playback already in progress")
+                return
 
-        if not self.get_next_note_callback:
-            logger.warning("No callback set for getting next note")
-            return
+            if not self.get_next_note_callback:
+                logger.warning("No callback set for getting next note")
+                return
 
-        logger.debug("Starting playback thread")
-        self.is_playing = True
-        self.is_paused = False
+            logger.debug("Starting playback thread")
+            self.is_playing = True
+            self.is_paused = False
 
-        import threading
         self.stop_event = threading.Event()
         self.pause_event = threading.Event()
         self.pause_event.set()  # Not paused initially
@@ -269,33 +273,38 @@ class NotePlayer:
         self.playback_thread = threading.Thread(target=self._playback_loop, daemon=True)
         self.playback_thread.start()
 
-    def pause_playback(self):
+    def pause_playback(self) -> None:
         """Pause playback"""
-        if not self.is_playing or self.is_paused:
-            return
+        with self._state_lock:
+            if not self.is_playing or self.is_paused:
+                return
 
-        logger.debug("Pausing playback")
-        self.is_paused = True
+            logger.debug("Pausing playback")
+            self.is_paused = True
+
         self.pause_event.clear()
         self.stop_all_notes()
 
-    def resume_playback(self):
+    def resume_playback(self) -> None:
         """Resume playback"""
-        if not self.is_playing or not self.is_paused:
-            return
+        with self._state_lock:
+            if not self.is_playing or not self.is_paused:
+                return
 
-        logger.debug("Resuming playback")
-        self.is_paused = False
+            logger.debug("Resuming playback")
+            self.is_paused = False
+
         self.pause_event.set()
 
-    def stop_playback(self):
+    def stop_playback(self) -> None:
         """Stop playback and wait for thread to finish"""
-        if not self.is_playing:
-            return
+        with self._state_lock:
+            if not self.is_playing:
+                return
 
-        logger.debug("Stopping playback")
-        self.is_playing = False
-        self.is_paused = False
+            logger.debug("Stopping playback")
+            self.is_playing = False
+            self.is_paused = False
 
         if self.stop_event:
             self.stop_event.set()
@@ -309,19 +318,24 @@ class NotePlayer:
         self.stop_all_notes()
         logger.debug("Playback stopped")
 
-    def _playback_loop(self):
+    def _playback_loop(self) -> None:
         """Main playback loop running in separate thread"""
         import time
 
         logger.debug("Playback loop started")
 
-        while self.is_playing and not self.stop_event.is_set():
+        while True:
+            with self._state_lock:
+                if not self.is_playing or self.stop_event.is_set():
+                    break
+
             # Check if paused
             if not self.pause_event.wait(timeout=0.1):
                 continue  # Still paused
 
-            if not self.is_playing:
-                break
+            with self._state_lock:
+                if not self.is_playing:
+                    break
 
             # Get next note from callback (with read lock)
             logger.debug("Calling get_next_note_callback")
@@ -333,7 +347,8 @@ class NotePlayer:
 
             if result is None:
                 logger.debug("No more notes, stopping playback")
-                self.is_playing = False
+                with self._state_lock:
+                    self.is_playing = False
                 break
 
             midi_notes, duration_beats = result
@@ -353,7 +368,9 @@ class NotePlayer:
             # Sleep in small chunks to be responsive to stop/pause
             sleep_chunks = int(duration_seconds / 0.1) + 1
             for _ in range(sleep_chunks):
-                if not self.is_playing or self.stop_event.is_set():
+                with self._state_lock:
+                    should_stop = not self.is_playing or self.stop_event.is_set()
+                if should_stop:
                     break
                 time.sleep(min(0.1, duration_seconds))
                 duration_seconds -= 0.1
@@ -378,7 +395,7 @@ class NotePlayer:
         else:
             logger.debug("Skipping callback (stop_event set or no callback)")
 
-    def cleanup(self):
+    def cleanup(self) -> None:
         """Clean up FluidSynth resources"""
         # Stop playback thread if running
         self.stop_playback()

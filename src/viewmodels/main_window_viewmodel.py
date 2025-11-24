@@ -5,11 +5,12 @@ from pathlib import Path
 from typing import Optional, List, Callable
 from utils.observable import Observable
 from services.config_service import ConfigService
-from services.audio_service import AudioService
+from services.playback_service import PlaybackService
 from services.file_service import FileService
-from services.chord_detection_service import ChordDetectionService
-from chord.line_model import Line
-from chord.chord_model import ChordInfo
+from services.song_parser_service import SongParserService
+from models.line import Line
+from models.chord import ChordInfo
+from models.directive import DirectiveType
 from models.notation import Notation
 
 logger = logging.getLogger(__name__)
@@ -25,9 +26,9 @@ class MainWindowViewModel(Observable):
     def __init__(
         self,
         config_service: ConfigService,
-        audio_service: AudioService,
+        audio_service: PlaybackService,
         file_service: FileService,
-        chord_detection_service: ChordDetectionService,
+        song_parser_service: SongParserService,
         application
     ):
         """Initialize the ViewModel with required services.
@@ -36,7 +37,7 @@ class MainWindowViewModel(Observable):
             config_service: Configuration service
             audio_service: Audio playback service
             file_service: File I/O service
-            chord_detection_service: Chord detection service
+            song_parser_service: Chord detection service
             application: Application instance for cross-thread communication
         """
         super().__init__()
@@ -45,7 +46,7 @@ class MainWindowViewModel(Observable):
         self._config = config_service
         self._audio = audio_service
         self._file = file_service
-        self._chord = chord_detection_service
+        self._chord = song_parser_service
         self._application = application
 
         # Observable state properties (private storage with _ prefix)
@@ -60,6 +61,9 @@ class MainWindowViewModel(Observable):
         self._font_size: int = self._config.get("font_size", 11)
         self._font_family: str = self._config.get("font_family", "TkFixedFont")
         self._current_text: str = ""
+        self._key: Optional[str] = self._config.get("key", None)
+        self._time_signature_beats: int = self._config.get("time_signature_beats", 4)
+        self._time_signature_unit: int = self._config.get("time_signature_unit", 4)
 
         # Playback state
         self._current_chord_index: int = 0
@@ -118,6 +122,21 @@ class MainWindowViewModel(Observable):
         """Get the currently playing chord during playback."""
         return self._current_playing_chord
 
+    @property
+    def key(self) -> Optional[str]:
+        """Get the current key signature."""
+        return self._key
+
+    @property
+    def time_signature_beats(self) -> int:
+        """Get the current time signature beats (numerator)."""
+        return self._time_signature_beats
+
+    @property
+    def time_signature_unit(self) -> int:
+        """Get the current time signature unit (denominator)."""
+        return self._time_signature_unit
+
     # Commands (actions triggered by UI)
 
     def new_file(self) -> bool:
@@ -157,6 +176,9 @@ class MainWindowViewModel(Observable):
             self.set_and_notify("current_text", content)
             self.set_and_notify("is_modified", False)
             self.set_and_notify("current_file", path)
+
+            # Extract and apply initial settings from first directives in the file
+            self._apply_initial_settings_from_content(content)
 
             # Add to recent files
             self._file.add_recent_file(path)
@@ -224,7 +246,7 @@ class MainWindowViewModel(Observable):
             self.start_playback()
 
     def start_playback(self) -> bool:
-        """Start sequential chord playback.
+        """Start sequential chord playback with directive support.
 
         Returns:
             True if playback started, False otherwise
@@ -233,61 +255,29 @@ class MainWindowViewModel(Observable):
             logger.warning("Playback already active")
             return False
 
-        # Detect chords in current text
+        # Parse text into lines with chords and directives
         self._playback_lines = self._chord.detect_chords_in_text(
             self._current_text,
             self._notation
         )
 
-        # Extract all chords
-        all_chords: List[ChordInfo] = []
-        for line in self._playback_lines:
-            all_chords.extend(line.chords)
-
-        if not all_chords:
-            logger.info("No chords found for playback")
-            return False
-
-        logger.info(f"Starting playback of {len(all_chords)} chords")
-        self._current_chord_index = 0
-
-        # Set up playback callback
-        def get_next_chord():
-            if self._current_chord_index >= len(all_chords):
-                return None
-
-            chord = all_chords[self._current_chord_index]
-            self._current_chord_index += 1
-
-            # Convert to MIDI notes
-            from audio.chord_picker import ChordNotePicker
-            picker = ChordNotePicker(
-                chord_octave=self._config.get("default_octave", 4),
-                bass_octave=self._config.get("bass_octave", 3),
-                add_bass=True
-            )
-            midi_notes = picker.chord_to_midi(chord.notes)
-
-            # Return (midi_notes, duration_in_beats)
-            # Play each chord for one full bar (beats per measure from time signature)
-            time_signature = self._audio.get_time_signature()
-            beats_per_measure = time_signature[0]
-            return (midi_notes, float(beats_per_measure))
-
-        # Start audio playback (wrap callback to run on UI thread)
+        # Wrap finished callback to run on UI thread
         def on_finished_wrapper():
             logger.debug("Playback finished - queueing UI callback")
             self._application.queue_ui_callback(self._on_playback_finished)
 
-        self._audio.start_sequential_playback(
-            get_next_callback=get_next_chord,
+        # Start playback (AudioService handles all directive processing and chord resolution)
+        success = self._audio.start_song_playback(
+            lines=self._playback_lines,
+            initial_key=self._key,
             on_finished_callback=on_finished_wrapper
         )
 
-        self.set_and_notify("is_playing", True)
-        self.set_and_notify("is_paused", False)
+        if success:
+            self.set_and_notify("is_playing", True)
+            self.set_and_notify("is_paused", False)
 
-        return True
+        return success
 
     def pause_playback(self) -> None:
         """Pause ongoing playback."""
@@ -327,13 +317,13 @@ class MainWindowViewModel(Observable):
         logger.info("Playback state reset complete")
 
     def on_chord_clicked(self, chord_info: ChordInfo) -> None:
-        """Handle chord click event (play chord immediately).
+        """Handle chord click event (play chord immediately with current key).
 
         Args:
             chord_info: Information about the clicked chord
         """
-        logger.debug(f"Playing chord on click: {chord_info.chord}")
-        self._audio.play_chord_immediate(chord_info)
+        logger.debug(f"Playing chord on click: {chord_info.chord} (key={self._key})")
+        self._audio.play_chord_immediate(chord_info, self._key)
 
     def set_bpm(self, bpm: int) -> None:
         """Set playback tempo.
@@ -349,6 +339,38 @@ class MainWindowViewModel(Observable):
         self._audio.set_bpm(bpm)
         self._config.set("bpm", bpm)
         self.set_and_notify("bpm", bpm)
+
+    def set_key(self, key: Optional[str]) -> None:
+        """Set the key signature.
+
+        Args:
+            key: Key signature (e.g., 'C', 'Am', 'G') or None
+        """
+        logger.debug(f"Setting key to {key}")
+        self._audio.set_key(key) if key else None
+        self._config.set("key", key)
+        self.set_and_notify("key", key)
+
+    def set_time_signature(self, beats: int, unit: int) -> None:
+        """Set the time signature.
+
+        Args:
+            beats: Number of beats per measure
+            unit: Beat unit (4 = quarter note, etc.)
+        """
+        if beats < 1 or beats > 16:
+            logger.warning(f"Invalid time signature beats: {beats}")
+            return
+        if unit not in [1, 2, 4, 8, 16]:
+            logger.warning(f"Invalid time signature unit: {unit}")
+            return
+
+        logger.debug(f"Setting time signature to {beats}/{unit}")
+        self._audio.set_time_signature_from_state(beats, unit)
+        self._config.set("time_signature_beats", beats)
+        self._config.set("time_signature_unit", unit)
+        self.set_and_notify("time_signature_beats", beats)
+        self.set_and_notify("time_signature_unit", unit)
 
     def toggle_notation(self) -> None:
         """Toggle between American and European notation."""
@@ -485,3 +507,72 @@ class MainWindowViewModel(Observable):
             Window geometry string
         """
         return self._config.get("window_geometry", "900x600")
+
+    def _apply_initial_settings_from_content(self, content: str) -> None:
+        """Parse content and apply initial settings from first directives.
+
+        This is called when loading a file to set toolbar values based on
+        the first occurrence of each directive type in the document.
+
+        Args:
+            content: The text content of the file
+        """
+        try:
+            # Parse the content to extract lines with directives
+            lines = self._chord.detect_chords_in_text(content, self._notation)
+
+            # Extract initial settings from first directives
+            settings = self._extract_initial_settings_from_lines(lines)
+
+            # Apply settings to toolbar (UI state)
+            if 'bpm' in settings:
+                logger.info(f"Setting initial BPM from directive: {settings['bpm']}")
+                self.set_bpm(settings['bpm'])
+
+            if 'key' in settings:
+                logger.info(f"Setting initial key from directive: {settings['key']}")
+                self.set_key(settings['key'])
+
+            if 'time_signature' in settings:
+                beats, unit = settings['time_signature']
+                logger.info(f"Setting initial time signature from directive: {beats}/{unit}")
+                self.set_time_signature(beats, unit)
+
+        except Exception as e:
+            logger.warning(f"Failed to extract initial settings from content: {e}")
+            # Not critical - just continue with default settings
+
+    def _extract_initial_settings_from_lines(self, lines: List[Line]) -> dict:
+        """Extract initial playback settings from first directives in document.
+
+        Scans through lines sequentially and finds the first occurrence of each
+        directive type (BPM, KEY, TIME_SIGNATURE). Returns these as initial settings.
+
+        Args:
+            lines: Parsed lines from the document
+
+        Returns:
+            Dict with 'bpm', 'key', and/or 'time_signature' if found
+        """
+        settings = {}
+        found = {'bpm': False, 'key': False, 'time': False}
+
+        for line in lines:
+            for directive in line.directives:
+                if directive.type == DirectiveType.BPM and not found['bpm']:
+                    settings['bpm'] = directive.bpm
+                    found['bpm'] = True
+
+                elif directive.type == DirectiveType.KEY and not found['key']:
+                    settings['key'] = directive.key
+                    found['key'] = True
+
+                elif directive.type == DirectiveType.TIME_SIGNATURE and not found['time']:
+                    settings['time_signature'] = (directive.beats, directive.unit)
+                    found['time'] = True
+
+            # Early exit if we found all directive types
+            if all(found.values()):
+                break
+
+        return settings

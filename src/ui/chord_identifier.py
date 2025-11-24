@@ -259,6 +259,9 @@ class ChordIdentifierWindow(tk.Toplevel):
         # Wire up ViewModel observers
         self.viewmodel.observe("identified_chords", self._on_chords_identified)
 
+        # Set up window close handler to clean up observers
+        self.protocol("WM_DELETE_WINDOW", self._on_close)
+
         self.create_widgets()
 
         # Center window
@@ -446,3 +449,10 @@ class ChordIdentifierWindow(tk.Toplevel):
         # Clear UI elements
         self.piano_roll.set_notes([])
         self.note_entry.delete(0, tk.END)
+
+    def _on_close(self):
+        """Handle window close and clean up observers"""
+        # Clean up observers to prevent memory leaks
+        self.viewmodel.clear_observers()
+        # Destroy the window
+        self.destroy()

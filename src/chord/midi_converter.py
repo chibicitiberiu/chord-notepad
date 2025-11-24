@@ -2,6 +2,8 @@
 Convert chord names to MIDI note numbers
 """
 
+from typing import List, Optional
+
 
 class ChordToMidiConverter:
     """
@@ -17,11 +19,11 @@ class ChordToMidiConverter:
         'G#': 8, 'Ab': 8, 'A': 9, 'A#': 10, 'Bb': 10, 'B': 11, 'B-': 11
     }
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize converter"""
         pass
 
-    def chord_to_midi(self, chord_notes, base_octave=4):
+    def chord_to_midi(self, chord_notes: List[str], base_octave: int = 4) -> Optional[List[int]]:
         """
         Convert list of note names to MIDI note numbers
 
@@ -53,13 +55,16 @@ class ChordToMidiConverter:
 
             # Calculate MIDI note number
             midi_note = note_class + (current_octave + 1) * 12
-            midi_notes.append(midi_note)
+
+            # Validate MIDI range (0-127)
+            if 0 <= midi_note <= 127:
+                midi_notes.append(midi_note)
 
             prev_note_class = note_class
 
         return midi_notes
 
-    def note_to_midi(self, note_name, octave):
+    def note_to_midi(self, note_name: str, octave: int) -> Optional[int]:
         """
         Convert a single note name and octave to MIDI number
 

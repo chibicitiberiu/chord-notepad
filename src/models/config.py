@@ -25,6 +25,7 @@ class Config:
 
     # Notation
     notation: Literal["american", "european"] = "american"
+    key: str = "C"  # Default key signature
 
     # Window
     window_geometry: str = "900x600"
@@ -43,8 +44,8 @@ class Config:
 
     def validate(self) -> None:
         """Validate configuration values."""
-        if not (60 <= self.bpm <= 240):
-            raise ValueError(f"BPM must be between 60 and 240, got {self.bpm}")
+        if not (40 <= self.bpm <= 300):
+            raise ValueError(f"BPM must be between 40 and 300, got {self.bpm}")
 
         if not (6 <= self.font_size <= 72):
             raise ValueError(f"Font size must be between 6 and 72, got {self.font_size}")
