@@ -12,6 +12,7 @@ from models.line import Line
 from models.chord import ChordInfo
 from models.directive import DirectiveType
 from models.notation import Notation
+from models.playback_event import PlaybackEventArgs, PlaybackEventType
 
 logger = logging.getLogger(__name__)
 
@@ -69,6 +70,7 @@ class MainWindowViewModel(Observable):
         self._current_chord_index: int = 0
         self._playback_lines: List[Line] = []
         self._current_playing_chord: Optional[ChordInfo] = None
+        self._current_playback_event: Optional[PlaybackEventArgs] = None
 
     # Properties (read-only access to state)
 
@@ -121,6 +123,11 @@ class MainWindowViewModel(Observable):
     def current_playing_chord(self) -> Optional[ChordInfo]:
         """Get the currently playing chord during playback."""
         return self._current_playing_chord
+
+    @property
+    def current_playback_event(self) -> Optional[PlaybackEventArgs]:
+        """Get the current playback event data."""
+        return self._current_playback_event
 
     @property
     def key(self) -> Optional[str]:
@@ -266,11 +273,17 @@ class MainWindowViewModel(Observable):
             logger.debug("Playback finished - queueing UI callback")
             self._application.queue_ui_callback(self._on_playback_finished)
 
+        # Wrap event callback to run on UI thread
+        def on_event_wrapper(event_args: PlaybackEventArgs):
+            logger.debug(f"Playback event - queueing UI callback: {event_args.event_type}")
+            self._application.queue_ui_callback(lambda: self._on_playback_event(event_args))
+
         # Start playback (AudioService handles all directive processing and chord resolution)
         success = self._audio.start_song_playback(
             lines=self._playback_lines,
             initial_key=self._key,
-            on_finished_callback=on_finished_wrapper
+            on_finished_callback=on_finished_wrapper,
+            on_event_callback=on_event_wrapper
         )
 
         if success:
@@ -308,12 +321,23 @@ class MainWindowViewModel(Observable):
         self.set_and_notify("is_playing", False)
         self.set_and_notify("is_paused", False)
 
+    def _on_playback_event(self, event_args: PlaybackEventArgs) -> None:
+        """Internal callback for playback events.
+
+        Args:
+            event_args: Playback event data
+        """
+        logger.debug(f"Processing playback event on UI thread: {event_args.event_type}")
+        # Use set_and_notify which will set _current_playback_event and notify observers
+        self.set_and_notify("current_playback_event", event_args)
+
     def _on_playback_finished(self) -> None:
         """Internal callback when playback finishes."""
         logger.info("Playback finished callback executing on UI thread")
         self._current_chord_index = 0
         self.set_and_notify("is_playing", False)
         self.set_and_notify("is_paused", False)
+        self.set_and_notify("current_playback_event", None)
         logger.info("Playback state reset complete")
 
     def on_chord_clicked(self, chord_info: ChordInfo) -> None:
@@ -371,6 +395,31 @@ class MainWindowViewModel(Observable):
         self._config.set("time_signature_unit", unit)
         self.set_and_notify("time_signature_beats", beats)
         self.set_and_notify("time_signature_unit", unit)
+
+    def get_voicing(self) -> str:
+        """Get the current voicing style.
+
+        Returns:
+            Voicing string like 'piano', 'guitar:standard', etc.
+        """
+        return self._config.get("voicing", "piano")
+
+    def set_voicing(self, voicing: str) -> None:
+        """Set the voicing style.
+
+        Args:
+            voicing: Voicing string like 'piano', 'guitar:standard', etc.
+        """
+        logger.debug(f"Setting voicing to {voicing}")
+        self._audio.set_voicing(voicing)
+
+    def get_custom_tunings(self) -> dict:
+        """Get custom guitar tunings.
+
+        Returns:
+            Dictionary of custom tuning names to tuning lists
+        """
+        return self._config.get("custom_tunings", {})
 
     def toggle_notation(self) -> None:
         """Toggle between American and European notation."""

@@ -116,6 +116,9 @@ class MainWindow(tk.Tk):
         # Text content changes
         self.viewmodel.observe('current_text', self._on_current_text_changed)
 
+        # Playback event changes
+        self.viewmodel.observe('current_playback_event', self._on_playback_event_changed)
+
     # ViewModel observer callbacks
 
     def _on_font_size_changed(self, new_value: int) -> None:
@@ -160,10 +163,14 @@ class MainWindow(tk.Tk):
             # Playback started
             self.play_button.config(state=tk.DISABLED)
             self.pause_button.config(state=tk.NORMAL)
+            # Lock editor during playback
+            self.text_editor.config(state=tk.DISABLED)
         else:
             # Playback stopped
             self.play_button.config(state=tk.NORMAL)
             self.pause_button.config(state=tk.DISABLED, text="⏸")
+            # Unlock editor
+            self.text_editor.config(state=tk.NORMAL)
             # Clear playing highlight
             self.text_editor.tag_remove('chord_playing', '1.0', tk.END)
             # Update statusbar
@@ -197,6 +204,58 @@ class MainWindow(tk.Tk):
         # Update text editor content
         self.text_editor.delete('1.0', tk.END)
         self.text_editor.insert('1.0', new_value)
+
+    def _on_playback_event_changed(self, event_args: Optional[Any]) -> None:
+        """React to playback event changes from ViewModel.
+
+        Args:
+            event_args: PlaybackEventArgs or None
+        """
+        from models.playback_event import PlaybackEventType
+
+        # Temporarily enable editor to modify tags (disabled state prevents tag modifications)
+        was_disabled = str(self.text_editor.cget('state')) == tk.DISABLED
+        if was_disabled:
+            self.text_editor.config(state=tk.NORMAL)
+
+        # Clear previous playing highlight
+        self.text_editor.tag_remove('chord_playing', '1.0', tk.END)
+
+        if event_args is None:
+            # Playback finished or stopped
+            if was_disabled:
+                self.text_editor.config(state=tk.DISABLED)
+            self.update_statusbar("Ready")
+            return
+
+        # Highlight currently playing chord
+        if event_args.event_type == PlaybackEventType.CHORD_START and event_args.chord_info:
+            chord_info = event_args.chord_info
+            start_idx = f"1.0 + {chord_info.start} chars"
+            end_idx = f"1.0 + {chord_info.end} chars"
+            self.text_editor.tag_add('chord_playing', start_idx, end_idx)
+
+            # Raise the tag priority so it's visible over other tags
+            self.text_editor.tag_raise('chord_playing')
+
+            # Autoscroll to show the playing chord
+            self.text_editor.see(start_idx)
+
+            # Update statusbar with playback state
+            status_parts = []
+            status_parts.append(f"Bar {event_args.current_bar}/{event_args.total_bars}")
+            status_parts.append(f"{event_args.bpm} BPM")
+            status_parts.append(f"{event_args.time_signature_beats}/{event_args.time_signature_unit}")
+            if event_args.key:
+                status_parts.append(f"Key: {event_args.key}")
+            status_parts.append(f"Playing: {chord_info.chord}")
+
+            status_text = " | ".join(status_parts)
+            self.update_statusbar(status_text)
+
+        # Restore disabled state
+        if was_disabled:
+            self.text_editor.config(state=tk.DISABLED)
 
     def _set_window_icon(self) -> None:
         """Set the window icon"""
@@ -253,6 +312,40 @@ class MainWindow(tk.Tk):
             .add_command("Reset Font Size", self.reset_font_size, accelerator="Ctrl+0") \
             .build()
         menubar.add_cascade(label="View", menu=view_menu)
+
+        # Playback menu
+        self.voicing_var = tk.StringVar(value=self.viewmodel.get_voicing())
+
+        # Create voicing submenu
+        voicing_menu = tk.Menu(menubar, tearoff=0)
+        voicing_menu.add_radiobutton(label="Piano", variable=self.voicing_var,
+                                     value="piano", command=self.on_voicing_change)
+
+        # Add guitar tunings
+        voicing_menu.add_separator()
+        voicing_menu.add_radiobutton(label="Guitar (Standard - EADGBE)", variable=self.voicing_var,
+                                     value="guitar:standard", command=self.on_voicing_change)
+        voicing_menu.add_radiobutton(label="Guitar (Drop D)", variable=self.voicing_var,
+                                     value="guitar:drop_d", command=self.on_voicing_change)
+        voicing_menu.add_radiobutton(label="Guitar (DADGAD)", variable=self.voicing_var,
+                                     value="guitar:dadgad", command=self.on_voicing_change)
+        voicing_menu.add_radiobutton(label="Guitar (Open G)", variable=self.voicing_var,
+                                     value="guitar:open_g", command=self.on_voicing_change)
+
+        # Add custom tunings if any
+        custom_tunings = self.viewmodel.get_custom_tunings()
+        if custom_tunings:
+            voicing_menu.add_separator()
+            for tuning_name in sorted(custom_tunings.keys()):
+                label = f"Guitar ({tuning_name})"
+                value = f"guitar:{tuning_name}"
+                voicing_menu.add_radiobutton(label=label, variable=self.voicing_var,
+                                           value=value, command=self.on_voicing_change)
+
+        playback_menu = tk.Menu(menubar, tearoff=0)
+        playback_menu.add_cascade(label="Voicing", menu=voicing_menu)
+
+        menubar.add_cascade(label="Playback", menu=playback_menu)
 
         # Tools menu with Insert submenu
         insert_menu = MenuBuilder(menubar) \
@@ -617,6 +710,11 @@ class MainWindow(tk.Tk):
         beats = self.time_sig_beats_var.get()
         unit = self.time_sig_unit_var.get()
         self.viewmodel.set_time_signature(beats, unit)
+
+    def on_voicing_change(self) -> None:
+        """Handle voicing selection change"""
+        voicing = self.voicing_var.get()
+        self.viewmodel.set_voicing(voicing)
 
     def update_recent_files_menu(self) -> None:
         """Update recent files menu"""

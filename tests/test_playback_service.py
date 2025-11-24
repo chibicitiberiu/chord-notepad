@@ -10,6 +10,7 @@ from src.models.line import Line
 from src.models.chord import ChordInfo
 from src.models.directive import Directive, DirectiveType, BPMModifierType
 from src.models.playback_state import PlaybackState
+from models.playback_event import PlaybackEventArgs, PlaybackEventType
 
 
 @pytest.fixture
@@ -838,3 +839,248 @@ C"""
         result = callback()
         # Should still play the chord
         assert result is not None
+
+
+class TestPlaybackEventCallback:
+    """Tests for playback event callback functionality."""
+
+    def test_event_callback_called_for_each_chord(self, initialized_service, song_parser):
+        """Test that event callback is called for each chord played."""
+        service, mock_player = initialized_service
+
+        text = "C G Am"
+        lines = song_parser.detect_chords_in_text(text)
+
+        event_callback = Mock()
+        service.start_song_playback(lines, initial_key="C", on_event_callback=event_callback)
+
+        callback = mock_player.set_next_note_callback.call_args[0][0]
+
+        # Play all chords
+        callback()  # C
+        callback()  # G
+        callback()  # Am
+
+        # Event callback should be called 3 times
+        assert event_callback.call_count == 3
+
+    def test_event_args_contains_chord_info(self, initialized_service, song_parser):
+        """Test that PlaybackEventArgs contains correct chord info."""
+        service, mock_player = initialized_service
+
+        text = "C"
+        lines = song_parser.detect_chords_in_text(text)
+
+        event_callback = Mock()
+        service.start_song_playback(lines, initial_key="C", on_event_callback=event_callback)
+
+        callback = mock_player.set_next_note_callback.call_args[0][0]
+        callback()  # Play C
+
+        # Get the event args
+        assert event_callback.called
+        event_args = event_callback.call_args[0][0]
+
+        assert isinstance(event_args, PlaybackEventArgs)
+        assert event_args.event_type == PlaybackEventType.CHORD_START
+        assert event_args.chord_info is not None
+        assert event_args.chord_info.chord == "C"
+
+    def test_event_args_contains_playback_state(self, initialized_service, song_parser):
+        """Test that PlaybackEventArgs contains current playback state."""
+        service, mock_player = initialized_service
+
+        text = "{bpm: 140} {key: G} {time: 3/4} C"
+        lines = song_parser.detect_chords_in_text(text)
+
+        event_callback = Mock()
+        service.start_song_playback(lines, initial_key="C", on_event_callback=event_callback)
+
+        callback = mock_player.set_next_note_callback.call_args[0][0]
+        callback()  # Play C with all directives applied
+
+        event_args = event_callback.call_args[0][0]
+
+        # Verify playback state is included
+        assert event_args.bpm == 140
+        assert event_args.key == "G"
+        assert event_args.time_signature_beats == 3
+        assert event_args.time_signature_unit == 4
+
+    def test_event_args_bar_number_tracking(self, initialized_service, song_parser):
+        """Test that bar numbers are tracked correctly."""
+        service, mock_player = initialized_service
+
+        # Create song with multiple chords (4 beats each in 4/4 time)
+        text = "C G Am F"  # 4 bars
+        lines = song_parser.detect_chords_in_text(text)
+
+        event_callback = Mock()
+        service.start_song_playback(lines, initial_key="C", on_event_callback=event_callback)
+
+        callback = mock_player.set_next_note_callback.call_args[0][0]
+
+        # Play all chords and collect bar numbers
+        bar_numbers = []
+        for _ in range(4):
+            callback()
+            event_args = event_callback.call_args[0][0]
+            bar_numbers.append(event_args.current_bar)
+
+        # Bar numbers should be 1, 2, 3, 4
+        assert bar_numbers == [1, 2, 3, 4]
+
+    def test_event_args_bar_number_with_custom_durations(self, initialized_service, song_parser):
+        """Test bar number calculation with custom chord durations."""
+        service, mock_player = initialized_service
+
+        # C for 2 beats, G for 2 beats (same bar), Am for 4 beats (next bar)
+        text = "C*2 G*2 Am*4"
+        lines = song_parser.detect_chords_in_text(text)
+
+        event_callback = Mock()
+        service.start_song_playback(lines, initial_key="C", on_event_callback=event_callback)
+
+        callback = mock_player.set_next_note_callback.call_args[0][0]
+
+        bar_numbers = []
+        for _ in range(3):
+            callback()
+            event_args = event_callback.call_args[0][0]
+            bar_numbers.append(event_args.current_bar)
+
+        # C at bar 1 (beats 0-2), G at bar 1 (beats 2-4), Am at bar 2 (beats 4-8)
+        assert bar_numbers == [1, 1, 2]
+
+    def test_event_args_total_bars_calculated(self, initialized_service, song_parser):
+        """Test that total bars is calculated correctly."""
+        service, mock_player = initialized_service
+
+        # 3 chords, each 4 beats = 12 beats / 4 = 3 bars
+        text = "C G Am"
+        lines = song_parser.detect_chords_in_text(text)
+
+        event_callback = Mock()
+        service.start_song_playback(lines, initial_key="C", on_event_callback=event_callback)
+
+        callback = mock_player.set_next_note_callback.call_args[0][0]
+        callback()
+
+        event_args = event_callback.call_args[0][0]
+        assert event_args.total_bars == 3
+
+    def test_event_args_line_number_tracking(self, initialized_service, song_parser):
+        """Test that line numbers are tracked correctly."""
+        service, mock_player = initialized_service
+
+        text = """C
+G
+Am"""
+        lines = song_parser.detect_chords_in_text(text)
+
+        event_callback = Mock()
+        service.start_song_playback(lines, initial_key="C", on_event_callback=event_callback)
+
+        callback = mock_player.set_next_note_callback.call_args[0][0]
+
+        line_numbers = []
+        for _ in range(3):
+            callback()
+            event_args = event_callback.call_args[0][0]
+            line_numbers.append(event_args.current_line)
+
+        # Line numbers should be 0, 1, 2 (0-indexed)
+        assert line_numbers == [0, 1, 2]
+
+    def test_event_callback_not_called_without_callback(self, initialized_service, song_parser):
+        """Test that playback works without event callback."""
+        service, mock_player = initialized_service
+
+        text = "C G"
+        lines = song_parser.detect_chords_in_text(text)
+
+        # Start playback without event callback
+        result = service.start_song_playback(lines, initial_key="C", on_event_callback=None)
+
+        assert result is True
+
+        callback = mock_player.set_next_note_callback.call_args[0][0]
+
+        # Should not crash when callback is None
+        result1 = callback()
+        result2 = callback()
+
+        assert result1 is not None
+        assert result2 is not None
+
+    def test_event_callback_exception_handling(self, initialized_service, song_parser):
+        """Test that exceptions in event callback don't crash playback."""
+        service, mock_player = initialized_service
+
+        text = "C G"
+        lines = song_parser.detect_chords_in_text(text)
+
+        def failing_callback(event_args):
+            raise Exception("Callback failed!")
+
+        service.start_song_playback(lines, initial_key="C", on_event_callback=failing_callback)
+
+        callback = mock_player.set_next_note_callback.call_args[0][0]
+
+        # Should not crash despite callback exception
+        result1 = callback()
+        result2 = callback()
+
+        # Playback should continue normally
+        assert result1 is not None
+        assert result2 is not None
+
+    def test_event_callback_with_directives(self, initialized_service, song_parser):
+        """Test that event callback reflects directive changes."""
+        service, mock_player = initialized_service
+
+        text = """C
+{bpm: 160} G"""
+        lines = song_parser.detect_chords_in_text(text)
+
+        event_callback = Mock()
+        service.start_song_playback(lines, initial_key="C", on_event_callback=event_callback)
+
+        callback = mock_player.set_next_note_callback.call_args[0][0]
+
+        # Play both chords
+        callback()  # C at 120 BPM
+        callback()  # G at 160 BPM
+
+        # Check BPM in event args
+        first_event = event_callback.call_args_list[0][0][0]
+        second_event = event_callback.call_args_list[1][0][0]
+
+        assert first_event.bpm == 120
+        assert second_event.bpm == 160
+
+    def test_event_callback_preserves_finished_callback(self, initialized_service, song_parser):
+        """Test that event callback doesn't interfere with finished callback."""
+        service, mock_player = initialized_service
+
+        text = "C"
+        lines = song_parser.detect_chords_in_text(text)
+
+        event_callback = Mock()
+        finished_callback = Mock()
+
+        service.start_song_playback(
+            lines,
+            initial_key="C",
+            on_event_callback=event_callback,
+            on_finished_callback=finished_callback
+        )
+
+        # Both callbacks should be registered
+        mock_player.set_playback_finished_callback.assert_called_once_with(finished_callback)
+
+        # Event callback should be usable
+        callback = mock_player.set_next_note_callback.call_args[0][0]
+        callback()
+
+        assert event_callback.called

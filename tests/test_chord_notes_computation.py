@@ -1,7 +1,8 @@
 """Unit tests for chord note computation with key context and slash chords."""
 
 import pytest
-from chord.helper import ChordHelper, ChordNotes
+from chord.helper import ChordHelper
+from models.chord_notes import ChordNotes
 
 
 class TestAbsoluteChords:
@@ -144,6 +145,233 @@ class TestRomanNumeralChords:
             result = chord_helper.compute_chord_notes(roman, key="C", is_relative=True)
             assert result is not None
             assert result.root == expected_root
+
+
+class TestRomanNumeralWithAccidentals:
+    """Tests for roman numerals with flat and sharp accidentals."""
+
+    def test_flat_III_in_C(self, chord_helper):
+        """Test ♭III in C major (Eb major)."""
+        result = chord_helper.compute_chord_notes("♭III", key="C", is_relative=True)
+
+        assert result is not None
+        assert result.root in ["Eb", "D#"]
+        assert result.bass_note in ["Eb", "D#"]
+
+    def test_flat_VII_in_C(self, chord_helper):
+        """Test ♭VII in C major (Bb major)."""
+        result = chord_helper.compute_chord_notes("♭VII", key="C", is_relative=True)
+
+        assert result is not None
+        assert result.root in ["Bb", "A#"]
+
+    def test_flat_II_in_C(self, chord_helper):
+        """Test ♭II in C major (Db major)."""
+        result = chord_helper.compute_chord_notes("♭II", key="C", is_relative=True)
+
+        assert result is not None
+        assert result.root in ["Db", "C#"]
+
+    def test_flat_VI_in_C(self, chord_helper):
+        """Test ♭VI in C major (Ab major)."""
+        result = chord_helper.compute_chord_notes("♭VI", key="C", is_relative=True)
+
+        assert result is not None
+        assert result.root in ["Ab", "G#"]
+
+    def test_flat_V_in_C(self, chord_helper):
+        """Test ♭V in C major (Gb major)."""
+        result = chord_helper.compute_chord_notes("♭V", key="C", is_relative=True)
+
+        assert result is not None
+        assert result.root in ["Gb", "F#"]
+
+    def test_ascii_flat_III(self, chord_helper):
+        """Test bIII (ASCII flat) in C major."""
+        result = chord_helper.compute_chord_notes("bIII", key="C", is_relative=True)
+
+        assert result is not None
+        assert result.root in ["Eb", "D#"]
+
+    def test_ascii_flat_VII(self, chord_helper):
+        """Test bVII (ASCII flat) in C major."""
+        result = chord_helper.compute_chord_notes("bVII", key="C", is_relative=True)
+
+        assert result is not None
+        assert result.root in ["Bb", "A#"]
+
+    def test_sharp_iv_in_C(self, chord_helper):
+        """Test #iv in C major (F# minor)."""
+        result = chord_helper.compute_chord_notes("#iv", key="C", is_relative=True)
+
+        assert result is not None
+        assert result.root in ["F#", "Gb"]
+        # Should be minor
+        assert "A" in result.notes  # F# minor has F#, A, C#
+
+    def test_sharp_IV_in_C(self, chord_helper):
+        """Test #IV in C major (F# major)."""
+        result = chord_helper.compute_chord_notes("#IV", key="C", is_relative=True)
+
+        assert result is not None
+        assert result.root in ["F#", "Gb"]
+        # Should be major
+        assert "A#" in result.notes or "Bb" in result.notes  # F# major has F#, A#, C#
+
+
+class TestRomanNumeralWithDiminished:
+    """Tests for roman numerals with diminished symbols."""
+
+    def test_viio_in_C(self, chord_helper):
+        """Test viio (vii diminished) in C major (Bdim)."""
+        result = chord_helper.compute_chord_notes("viio", key="C", is_relative=True)
+
+        assert result is not None
+        assert result.root == "B"
+        # B diminished has B, D, F
+        assert "B" in result.notes
+        assert "D" in result.notes
+        assert "F" in result.notes
+        assert len(result.notes) == 3
+
+    def test_viio7_in_C(self, chord_helper):
+        """Test viio7 (vii diminished 7th) in C major (Bdim7)."""
+        result = chord_helper.compute_chord_notes("viio7", key="C", is_relative=True)
+
+        assert result is not None
+        assert result.root == "B"
+        # B diminished 7th has 4 notes
+        assert len(result.notes) == 4
+
+    def test_io_in_C(self, chord_helper):
+        """Test io (i diminished) in C (Cdim)."""
+        result = chord_helper.compute_chord_notes("io", key="C", is_relative=True)
+
+        assert result is not None
+        assert result.root == "C"
+        # C diminished has C, Eb, Gb
+        assert "C" in result.notes
+        assert len(result.notes) == 3
+
+    def test_iio_in_C(self, chord_helper):
+        """Test iio (ii diminished) in C major (Ddim)."""
+        result = chord_helper.compute_chord_notes("iio", key="C", is_relative=True)
+
+        assert result is not None
+        assert result.root == "D"
+        assert len(result.notes) == 3
+
+    def test_unicode_diminished_viio(self, chord_helper):
+        """Test vii° (unicode diminished) in C major."""
+        result = chord_helper.compute_chord_notes("vii°", key="C", is_relative=True)
+
+        assert result is not None
+        assert result.root == "B"
+        assert len(result.notes) == 3
+
+    def test_vo_in_C(self, chord_helper):
+        """Test vo (v diminished) in C major (Gdim)."""
+        result = chord_helper.compute_chord_notes("vo", key="C", is_relative=True)
+
+        assert result is not None
+        assert result.root == "G"
+        assert len(result.notes) == 3
+
+
+class TestRomanNumeralCombinations:
+    """Tests for combinations of accidentals and diminished symbols."""
+
+    def test_flat_IIIo_in_C(self, chord_helper):
+        """Test ♭IIIo in C major (Ebdim)."""
+        result = chord_helper.compute_chord_notes("♭IIIo", key="C", is_relative=True)
+
+        assert result is not None
+        assert result.root in ["Eb", "D#"]
+        assert len(result.notes) == 3
+
+    def test_sharp_ivo_in_C(self, chord_helper):
+        """Test #ivo in C major (F#dim)."""
+        result = chord_helper.compute_chord_notes("#ivo", key="C", is_relative=True)
+
+        assert result is not None
+        assert result.root in ["F#", "Gb"]
+        assert len(result.notes) == 3
+
+    def test_flat_viio_in_C(self, chord_helper):
+        """Test ♭viio in C major (Bbdim)."""
+        result = chord_helper.compute_chord_notes("♭viio", key="C", is_relative=True)
+
+        assert result is not None
+        assert result.root in ["Bb", "A#"]
+        assert len(result.notes) == 3
+
+
+class TestModalMixtureChords:
+    """Tests for modal mixture (borrowed chords) from different modes."""
+
+    def test_dorian_chords_in_C(self, chord_helper):
+        """Test Dorian mode chords: i ii ♭III IV v vio ♭VII."""
+        # i in C Dorian = Cm
+        result_i = chord_helper.compute_chord_notes("i", key="C", is_relative=True)
+        assert result_i is not None
+        assert result_i.root == "C"
+
+        # ♭III in C Dorian = Eb
+        result_bIII = chord_helper.compute_chord_notes("♭III", key="C", is_relative=True)
+        assert result_bIII is not None
+        assert result_bIII.root in ["Eb", "D#"]
+
+        # ♭VII in C Dorian = Bb
+        result_bVII = chord_helper.compute_chord_notes("♭VII", key="C", is_relative=True)
+        assert result_bVII is not None
+        assert result_bVII.root in ["Bb", "A#"]
+
+    def test_phrygian_chords_in_C(self, chord_helper):
+        """Test Phrygian mode chords: i ♭II ♭III iv vo ♭VI ♭vii."""
+        # ♭II in C Phrygian = Db
+        result_bII = chord_helper.compute_chord_notes("♭II", key="C", is_relative=True)
+        assert result_bII is not None
+        assert result_bII.root in ["Db", "C#"]
+
+        # vo in C Phrygian = Gdim
+        result_vo = chord_helper.compute_chord_notes("vo", key="C", is_relative=True)
+        assert result_vo is not None
+        assert result_vo.root == "G"
+        assert len(result_vo.notes) == 3
+
+        # ♭VI in C Phrygian = Ab
+        result_bVI = chord_helper.compute_chord_notes("♭VI", key="C", is_relative=True)
+        assert result_bVI is not None
+        assert result_bVI.root in ["Ab", "G#"]
+
+    def test_lydian_chords_in_C(self, chord_helper):
+        """Test Lydian mode chords: I II iii #ivo V vi vii."""
+        # #ivo in C Lydian = F#dim
+        result_sharpivo = chord_helper.compute_chord_notes("#ivo", key="C", is_relative=True)
+        assert result_sharpivo is not None
+        assert result_sharpivo.root in ["F#", "Gb"]
+        assert len(result_sharpivo.notes) == 3
+
+    def test_mixolydian_chords_in_C(self, chord_helper):
+        """Test Mixolydian mode chords: I ii iiio IV v vi ♭VII."""
+        # iiio in C Mixolydian = Edim
+        result_iiio = chord_helper.compute_chord_notes("iiio", key="C", is_relative=True)
+        assert result_iiio is not None
+        assert result_iiio.root == "E"
+        assert len(result_iiio.notes) == 3
+
+    def test_locrian_chords_in_C(self, chord_helper):
+        """Test Locrian mode chords: io ♭II ♭iii iv ♭V ♭VI ♭vii."""
+        # io in C Locrian = Cdim
+        result_io = chord_helper.compute_chord_notes("io", key="C", is_relative=True)
+        assert result_io is not None
+        assert result_io.root == "C"
+        assert len(result_io.notes) == 3
+
+        # ♭V in C Locrian = Gb
+        result_bV = chord_helper.compute_chord_notes("♭V", key="C", is_relative=True)
+        assert result_bV is not None
+        assert result_bV.root in ["Gb", "F#"]
 
 
 class TestRomanNumeralSlashChords:

@@ -250,14 +250,17 @@ class SongParserService:
         """Check if a chord string is a roman numeral chord.
 
         Args:
-            chord_str: Chord string to check
+            chord_str: Chord string to check (e.g., "I", "vi", "♭III", "#ivo", "bVII")
 
         Returns:
             True if it's a roman numeral chord, False otherwise
         """
         # Remove quality markers and extensions to get the base
         base = chord_str.split('/')[0]  # Handle slash chords
-        base = re.sub(r'[°+Δ∆]|[Mm]?[79]|sus[24]|add[0-9]|maj|min|dim|aug', '', base)
+        # Remove accidentals from the beginning
+        base = re.sub(r'^[#b♭♯]', '', base)
+        # Remove quality markers (including 'o' for diminished)
+        base = re.sub(r'[o°+Δ∆]|[Mm]?[79]|sus[24]|add[0-9]|maj|min|dim|aug', '', base)
 
         # Check if base matches roman numeral pattern
         roman_pattern = r'^[IViv]+$'

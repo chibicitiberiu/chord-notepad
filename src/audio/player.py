@@ -12,57 +12,6 @@ from audio.player_interface import IPlayer
 
 logger = logging.getLogger(__name__)
 
-# MIDI note mapping (C4 = Middle C = MIDI 60)
-NOTE_TO_MIDI_BASE: Dict[str, int] = {
-    'C': 0, 'C#': 1, 'Db': 1,
-    'D': 2, 'D#': 3, 'Eb': 3,
-    'E': 4,
-    'F': 5, 'F#': 6, 'Gb': 6,
-    'G': 7, 'G#': 8, 'Ab': 8,
-    'A': 9, 'A#': 10, 'Bb': 10,
-    'B': 11
-}
-
-
-def note_to_midi(note_str: str, default_octave: int = 4) -> Optional[int]:
-    """
-    Convert note string to MIDI number
-
-    Args:
-        note_str: Note like "C4", "D#5", "Bb3", or just "C", "D#"
-        default_octave: Octave to use if not specified (default 4 = middle C)
-
-    Returns:
-        MIDI note number (0-127)
-    """
-    # Extract note name and octave
-    import re
-    match = re.match(r'([A-Ga-g][#b]?)(\d+)?', note_str)
-    if not match:
-        return None
-
-    note_name = match.group(1)
-    octave_str = match.group(2)
-
-    # Use specified octave or default
-    octave = int(octave_str) if octave_str else default_octave
-
-    # Get base note value
-    if note_name not in NOTE_TO_MIDI_BASE:
-        return None
-
-    # Adjust octave for F, G, A, B notes to avoid muddy low range
-    # If we're in octave 3 or below, move F, G, A, B up one octave
-    note_base = note_name.rstrip('#b')
-    if octave <= 3 and note_base in ['F', 'G', 'A', 'B']:
-        octave += 1
-
-    # Calculate MIDI number: (octave + 1) * 12 + note_offset
-    # C4 = 60, so octave 4 starts at MIDI 48
-    midi_number = (octave + 1) * 12 + NOTE_TO_MIDI_BASE[note_name]
-
-    return midi_number if 0 <= midi_number <= 127 else None
-
 
 class NotePlayer(IPlayer):
     """Audio player for MIDI notes using FluidSynth"""

@@ -34,12 +34,14 @@ class ChordDetector:
         r'\b((?:D[oóò]|R[eéèê]|Mi|F[aáà]|Sol|L[aáà]|Si|d[oóò]|r[eéèê]|mi|f[aáà]|sol|l[aáà]|si)[#b♯♭]?(?:°|ø|\+|Δ|M|m|maj|min|mi|dim|aug|dom|alt|sus[24]?|add\d+|no\d+|omit\d+|\d+|[#b♯♭]\d+|\([^)]+\))*(?:/(?:D[oóò]|R[eéèê]|Mi|F[aáà]|Sol|L[aáà]|Si|d[oóò]|r[eéèê]|mi|f[aáà]|sol|l[aáà]|si)[#b♯♭]?)?(?:\*[\d.]+)?)(?![A-Za-z0-9])'
     )
 
-    # Roman numeral chord pattern (I, ii, V7, vi/I, etc.)
+    # Roman numeral chord pattern (I, ii, V7, vi/I, ♭III, #ivo, etc.)
     # Supports uppercase (major) and lowercase (minor) roman numerals
-    # Supports quality markers: °, ø, +, maj, min, dim, aug, sus, add, and extensions
-    # Supports duration: I*2, vi*4.5
+    # Supports accidentals BEFORE roman numeral: ♭III, bVII, #ivo
+    # Supports quality markers: o, °, ø, +, maj, min, dim, aug, sus, add, and extensions
+    # Supports duration: I*2, vi*4.5, ♭III*2
+    # Note: Using lookbehind instead of \b to properly handle Unicode and # characters
     CHORD_PATTERN_ROMAN = re.compile(
-        r'\b([IViv]+[#b]?(?:°|ø|\+|maj|min|dim|aug|sus[24]?|add\d+|\d+|[#b]\d+)*(?:/[IViv]+[#b]?)?(?:\*[\d.]+)?)(?![A-Za-z0-9])'
+        r'(?<![A-Za-z0-9#b♭♯])([#b♭♯]?[IViv]+(?:o|°|ø|\+|maj|min|dim|aug|sus[24]?|add\d+|\d+|[#b]\d+)*(?:/[#b♭♯]?[IViv]+(?:o|°)?)?(?:\*[\d.]+)?)(?![A-Za-z0-9])'
     )
 
     def __init__(self, threshold: float = 0.6, notation: Literal['american', 'european'] = 'american') -> None:

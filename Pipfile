@@ -12,6 +12,7 @@ pillow = "*"
 
 [dev-packages]
 pytest = "~=7.4.0"
+hypothesis = "*"
 pyinstaller = "*"
 
 [requires]

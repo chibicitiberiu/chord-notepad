@@ -5,9 +5,13 @@ from typing import Optional, List, Callable, Tuple
 
 from audio.player_interface import IPlayer
 from audio.player import NotePlayer
+from audio.note_picker_interface import INotePicker
 from audio.chord_picker import ChordNotePicker
+from audio.guitar_chord_picker import GuitarChordPicker
+from models.chord_notes import ChordNotes
 from models.chord import ChordInfo
 from models.playback_state import PlaybackState
+from models.playback_event import PlaybackEventArgs, PlaybackEventType
 from models.line import Line
 from models.directive import Directive, DirectiveType, BPMModifierType
 from services.config_service import ConfigService
@@ -22,10 +26,46 @@ class PlaybackService:
     def __init__(self, config_service: ConfigService, player: Optional[IPlayer] = None):
         self._config = config_service
         self._player: Optional[IPlayer] = player
-        self._note_picker = ChordNotePicker()
+        self._note_picker = self._create_note_picker(self._config.get("voicing", "piano"))
         self._logger = logging.getLogger(__name__)
         self._initialized = player is not None
         self._playback_state = PlaybackState()
+
+    def _create_note_picker(self, voicing: str) -> INotePicker:
+        """Create appropriate note picker based on voicing string.
+
+        Args:
+            voicing: Voicing string like 'piano', 'guitar:standard', 'guitar:drop_d', etc.
+
+        Returns:
+            INotePicker instance
+        """
+        if voicing.startswith("guitar:"):
+            # Extract tuning from voicing string
+            tuning_name = voicing.split(":", 1)[1]
+
+            # Check if it's a custom tuning
+            custom_tunings = self._config.get("custom_tunings", {})
+            if tuning_name in custom_tunings:
+                tuning = custom_tunings[tuning_name]
+            else:
+                # Use built-in tuning
+                tuning = tuning_name
+
+            return GuitarChordPicker(tuning=tuning)
+        else:
+            # Default to piano voicing
+            return ChordNotePicker()
+
+    def set_voicing(self, voicing: str) -> None:
+        """Change the voicing style.
+
+        Args:
+            voicing: Voicing string like 'piano', 'guitar:standard', etc.
+        """
+        self._logger.debug(f"Setting voicing to {voicing}")
+        self._note_picker = self._create_note_picker(voicing)
+        self._config.set("voicing", voicing)
 
     def initialize_player(self, soundfont_path: Optional[str] = None) -> bool:
         """Initialize the audio player.
@@ -89,8 +129,8 @@ class PlaybackService:
                 self._logger.warning(f"Could not resolve chord: {chord_info.chord}")
                 return
 
-            # Convert to MIDI with bass note
-            midi_notes = self._notes_to_midi(chord_notes.notes, bass_note=chord_notes.bass_note)
+            # Convert to MIDI
+            midi_notes = self._notes_to_midi(chord_notes)
             if midi_notes:
                 self._logger.debug(f"Playing chord immediately: {chord_info.chord} -> {chord_notes.notes} (bass: {chord_notes.bass_note})")
                 self._player.play_notes_immediate(midi_notes)
@@ -202,7 +242,8 @@ class PlaybackService:
         """Reset playback state for new playback session.
 
         Resets line position, chord index, and loop stack while preserving
-        BPM, time signature, and key settings.
+        BPM, time signature, and key settings. Also resets chord picker state
+        for consistent voice leading.
         """
         self._logger.debug("Resetting playback state")
         bpm = self._playback_state.bpm
@@ -218,6 +259,9 @@ class PlaybackService:
             time_signature_unit=time_sig_unit,
             key=key
         )
+
+        # Reset chord picker state for consistent voice leading
+        self._note_picker.reset()
 
     def set_time_signature_from_state(self, beats: int, unit: int) -> None:
         """Update time signature in both playback state and player.
@@ -265,7 +309,8 @@ class PlaybackService:
         self,
         lines: List[Line],
         initial_key: Optional[str],
-        on_finished_callback: Optional[Callable[[], None]] = None
+        on_finished_callback: Optional[Callable[[], None]] = None,
+        on_event_callback: Optional[Callable[[PlaybackEventArgs], None]] = None
     ) -> bool:
         """Start playback of a song with lines containing chords and directives.
 
@@ -273,12 +318,16 @@ class PlaybackService:
             lines: List of Line objects with chords and directives
             initial_key: Initial key signature (from UI)
             on_finished_callback: Optional callback when playback finishes
+            on_event_callback: Optional callback for playback events (chord start/end)
 
         Returns:
             True if playback started, False otherwise
         """
         if not self._ensure_initialized():
             return False
+
+        # Reset chord picker state for consistent voice leading at start of playback
+        self._note_picker.reset()
 
         # Count total chords
         total_chords = sum(len(line.chords) for line in lines)
@@ -287,6 +336,16 @@ class PlaybackService:
             return False
 
         self._logger.info(f"Starting song playback with {total_chords} chords")
+
+        # Calculate total bars (sum of all chord durations divided by time signature)
+        time_sig_beats, time_sig_unit = self.get_time_signature()
+        total_beats = 0.0
+        for line in lines:
+            for item in line.items:
+                if isinstance(item, ChordInfo) and item.is_valid:
+                    duration = float(item.duration) if item.duration is not None else float(time_sig_beats)
+                    total_beats += duration
+        total_bars = max(1, int(total_beats / time_sig_beats))
 
         # Initialize playback state
         playback_state = {
@@ -297,7 +356,11 @@ class PlaybackService:
             'current_time_sig': self.get_time_signature(),
             'loop_stack': [],
             'labels': {},
-            'label_states': {}  # Store playback state at each label
+            'label_states': {},  # Store playback state at each label
+            'on_event_callback': on_event_callback,
+            'current_bar': 1,
+            'total_bars': total_bars,
+            'current_beat_position': 0.0
         }
 
         # Build label index
@@ -477,6 +540,10 @@ class PlaybackService:
                     state['current_time_sig'] = saved_state['time_sig']
                     state['current_key'] = saved_state['key']
 
+                    # Restore chord picker state for consistent voice leading
+                    from audio.chord_picker import ChordPickerState
+                    self._note_picker.state = ChordPickerState.from_dict(saved_state['chord_picker_state'])
+
                 state['loop_stack'].append({
                     'label': directive.label,
                     'count': directive.loop_count,
@@ -501,7 +568,8 @@ class PlaybackService:
             saved_state = {
                 'bpm': self._playback_state.bpm,
                 'time_sig': state['current_time_sig'],
-                'key': state['current_key']
+                'key': state['current_key'],
+                'chord_picker_state': self._note_picker.state.to_dict()
             }
             state['label_states'][directive.label] = saved_state
             self._logger.debug(f"Saved state at label '{directive.label}': BPM={saved_state['bpm']}, "
@@ -541,8 +609,8 @@ class PlaybackService:
             self._logger.warning(f"Could not resolve chord: {chord.chord}")
             return None
 
-        # Convert notes to MIDI with bass note
-        midi_notes = self._notes_to_midi(chord_notes.notes, bass_note=chord_notes.bass_note)
+        # Convert to MIDI
+        midi_notes = self._notes_to_midi(chord_notes)
         if not midi_notes:
             self._logger.warning(f"Could not convert chord to MIDI: {chord.chord}")
             return None
@@ -554,10 +622,35 @@ class PlaybackService:
             # Default to full measure
             duration = float(state['current_time_sig'][0])
 
+        # Calculate current bar number based on beat position
+        time_sig_beats = state['current_time_sig'][0]
+        current_bar = int(state['current_beat_position'] / time_sig_beats) + 1
+
+        # Fire playback event callback if provided
+        if state.get('on_event_callback'):
+            try:
+                event_args = PlaybackEventArgs(
+                    event_type=PlaybackEventType.CHORD_START,
+                    chord_info=chord,
+                    bpm=self._playback_state.bpm,
+                    time_signature_beats=state['current_time_sig'][0],
+                    time_signature_unit=state['current_time_sig'][1],
+                    key=state['current_key'],
+                    current_line=state['line_index'],
+                    current_bar=current_bar,
+                    total_bars=state['total_bars']
+                )
+                state['on_event_callback'](event_args)
+            except Exception as e:
+                self._logger.error(f"Error in playback event callback: {e}", exc_info=True)
+
+        # Update beat position for next chord
+        state['current_beat_position'] += duration
+
         self._logger.debug(f"Playing chord: {chord.chord} -> {chord_notes.notes} (bass: {chord_notes.bass_note}, duration={duration})")
         return (midi_notes, duration)
 
-    def _resolve_chord_notes(self, chord: ChordInfo, current_key: Optional[str]):
+    def _resolve_chord_notes(self, chord: ChordInfo, current_key: Optional[str]) -> Optional[ChordNotes]:
         """Resolve a chord to its note names based on current key.
 
         Args:
@@ -581,15 +674,14 @@ class PlaybackService:
 
         return chord_notes_result
 
-    def _notes_to_midi(self, notes: List[str], bass_note: Optional[str] = None) -> Optional[List[int]]:
-        """Convert note names to MIDI note numbers.
+    def _notes_to_midi(self, chord_notes: ChordNotes) -> Optional[List[int]]:
+        """Convert ChordNotes to MIDI note numbers.
 
         Args:
-            notes: List of note names
-            bass_note: Optional bass note to use instead of the root (for slash chords)
+            chord_notes: ChordNotes object with notes, bass_note, and root
 
         Returns:
             List of MIDI note numbers or None
         """
-        # Use the injected note picker with bass note
-        return self._note_picker.chord_to_midi(notes, bass_note=bass_note)
+        # Use the injected note picker
+        return self._note_picker.chord_to_midi(chord_notes)

@@ -138,6 +138,85 @@ class TestRomanNumeralChords:
         assert chords[2].chord == "V"
         assert chords[2].duration == 1.0
 
+    def test_roman_with_flat_accidentals(self, american_detector):
+        """Test roman numerals with flat accidentals (Unicode and ASCII)."""
+        text = "♭III ♭VII bII bVI"
+        chords = american_detector.detect_chords_in_text(text)
+
+        assert len(chords) == 4
+        assert chords[0].chord == "♭III"
+        assert chords[0].is_relative
+        assert chords[1].chord == "♭VII"
+        assert chords[1].is_relative
+        assert chords[2].chord == "bII"
+        assert chords[2].is_relative
+        assert chords[3].chord == "bVI"
+        assert chords[3].is_relative
+
+    def test_roman_with_sharp_accidentals(self, american_detector):
+        """Test roman numerals with sharp accidentals."""
+        text = "#IV #ivo"
+        chords = american_detector.detect_chords_in_text(text)
+
+        assert len(chords) == 2
+        assert chords[0].chord == "#IV"
+        assert chords[0].is_relative
+        assert chords[1].chord == "#ivo"
+        assert chords[1].is_relative
+
+    def test_roman_with_diminished_symbols(self, american_detector):
+        """Test roman numerals with diminished symbols (o and °)."""
+        text = "viio iio vo"
+        chords = american_detector.detect_chords_in_text(text)
+
+        assert len(chords) == 3
+        assert chords[0].chord == "viio"
+        assert chords[0].is_relative
+        assert chords[1].chord == "iio"
+        assert chords[1].is_relative
+        assert chords[2].chord == "vo"
+        assert chords[2].is_relative
+
+    def test_roman_with_unicode_diminished(self, american_detector):
+        """Test roman numerals with Unicode diminished symbol."""
+        text = "vii° ii°"
+        chords = american_detector.detect_chords_in_text(text)
+
+        assert len(chords) == 2
+        assert chords[0].chord == "vii°"
+        assert chords[0].is_relative
+        assert chords[1].chord == "ii°"
+        assert chords[1].is_relative
+
+    def test_roman_with_accidentals_and_diminished(self, american_detector):
+        """Test roman numerals with both accidentals and diminished symbols."""
+        text = "♭IIIo #ivo bviio"
+        chords = american_detector.detect_chords_in_text(text)
+
+        assert len(chords) == 3
+        assert chords[0].chord == "♭IIIo"
+        assert chords[0].is_relative
+        assert chords[1].chord == "#ivo"
+        assert chords[1].is_relative
+        assert chords[2].chord == "bviio"
+        assert chords[2].is_relative
+
+    def test_roman_mode_table_example(self, american_detector):
+        """Test parsing a line from the Wikipedia mode table."""
+        # Example: Dorian mode chords
+        text = "i ii ♭III IV v vio ♭VII"
+        chords = american_detector.detect_chords_in_text(text)
+
+        assert len(chords) == 7
+        assert chords[0].chord == "i"
+        assert chords[1].chord == "ii"
+        assert chords[2].chord == "♭III"
+        assert chords[3].chord == "IV"
+        assert chords[4].chord == "v"
+        assert chords[5].chord == "vio"
+        assert chords[6].chord == "♭VII"
+        assert all(c.is_relative for c in chords)
+
 
 class TestEuropeanNotation:
     """Tests for European notation chord detection."""

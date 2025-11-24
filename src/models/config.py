@@ -1,7 +1,7 @@
 """Application configuration model."""
 
 from dataclasses import dataclass, field
-from typing import List, Optional, Literal
+from typing import List, Optional, Literal, Dict
 
 
 @dataclass
@@ -22,6 +22,8 @@ class Config:
     bass_octave: int = 3
     time_signature_beats: int = 4  # Beats per measure
     time_signature_unit: int = 4   # Beat unit (e.g., 4 = quarter note)
+    voicing: str = "piano"  # Voice leading style: 'piano' or 'guitar:<tuning_name>'
+    custom_tunings: Dict[str, List[str]] = field(default_factory=dict)  # Custom guitar tunings
 
     # Notation
     notation: Literal["american", "european"] = "american"
@@ -71,7 +73,10 @@ class Config:
             "bass_octave": self.bass_octave,
             "time_signature_beats": self.time_signature_beats,
             "time_signature_unit": self.time_signature_unit,
+            "voicing": self.voicing,
+            "custom_tunings": self.custom_tunings,
             "notation": self.notation,
+            "key": self.key,
             "window_geometry": self.window_geometry,
             "window_maximized": self.window_maximized,
             "recent_files": self.recent_files,
@@ -98,7 +103,10 @@ class Config:
             bass_octave=data.get("bass_octave", 3),
             time_signature_beats=data.get("time_signature_beats", 4),
             time_signature_unit=data.get("time_signature_unit", 4),
+            voicing=data.get("voicing", "piano"),
+            custom_tunings=data.get("custom_tunings", {}),
             notation=data.get("notation", "american"),
+            key=data.get("key", "C"),
             window_geometry=data.get("window_geometry", "900x600"),
             window_maximized=data.get("window_maximized", False),
             recent_files=data.get("recent_files", []),

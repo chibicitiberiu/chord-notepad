@@ -3,25 +3,11 @@ Unified chord handling that wraps pychord, music21, and adds custom support
 """
 
 import re
-from dataclasses import dataclass
 from typing import List, Optional, Set
 from pychord import Chord as PyChord
 from music21 import chord as m21_chord, pitch
 from chord.midi_converter import ChordToMidiConverter
-
-
-@dataclass
-class ChordNotes:
-    """Result of chord note computation.
-
-    Attributes:
-        notes: List of note names in the chord (e.g., ['C', 'E', 'G'])
-        bass_note: The bass note (may differ from root for slash chords)
-        root: The root note of the chord
-    """
-    notes: List[str]
-    bass_note: str
-    root: str
+from models.chord_notes import ChordNotes
 
 
 class ChordHelper:
@@ -396,7 +382,7 @@ class ChordHelper:
         Convert roman numeral chord to absolute chord name.
 
         Args:
-            roman: Roman numeral chord (e.g., "I", "iv", "V7", "vi/IV")
+            roman: Roman numeral chord (e.g., "I", "iv", "V7", "vi/IV", "♭III", "viio", "#ivo")
             key: Key signature (e.g., "C", "Am", "G")
 
         Returns:
@@ -409,13 +395,19 @@ class ChordHelper:
             roman = parts[0]
             slash_bass_roman = parts[1]
 
-        # Extract roman numeral base and quality
-        match = re.match(r'^([IViv]+)(.*)', roman)
+        # Normalize unicode symbols first
+        roman = self._normalize_unicode_symbols(roman)
+
+        # Extract roman numeral with optional accidental and diminished symbol
+        # Pattern: [optional flat/sharp][roman numeral][optional diminished o][rest of quality]
+        match = re.match(r'^([#b])?([IViv]+)(o|°)?(.*)', roman)
         if not match:
             return None
 
-        roman_base = match.group(1)
-        quality = match.group(2)
+        accidental = match.group(1)  # '#' or 'b' or None
+        roman_base = match.group(2)   # 'I', 'ii', 'V', etc.
+        diminished_symbol = match.group(3)  # 'o' or '°' or None
+        quality = match.group(4)      # '7', 'maj7', etc.
 
         # Determine if major or minor based on case
         is_major = roman_base.isupper()
@@ -440,17 +432,30 @@ class ChordHelper:
         major_scale_intervals = [0, 2, 4, 5, 7, 9, 11]
         interval = major_scale_intervals[degree]
 
+        # Apply accidental if present
+        if accidental == 'b':
+            interval -= 1  # Flat: lower by 1 semitone
+        elif accidental == '#':
+            interval += 1  # Sharp: raise by 1 semitone
+
         try:
             key_pitch = pitch.Pitch(key_root)
             root_pitch = key_pitch.transpose(interval)
-            root = root_pitch.name
+            # music21 uses "-" for flats, convert to "b" for consistency
+            root = root_pitch.name.replace('-', 'b')
         except:
             return None
 
         # Build quality
         # If lowercase roman numeral, it's minor (unless quality overrides)
-        if not is_major and not quality:
+        if not is_major and not quality and not diminished_symbol:
             quality = 'm'
+
+        # Handle diminished symbol
+        if diminished_symbol:
+            # If there's a quality already (like '7'), prepend 'dim'
+            # Otherwise, just use 'dim'
+            quality = 'dim' + quality
 
         # Build final chord name
         chord_name = root + quality
