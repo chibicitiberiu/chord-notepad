@@ -139,18 +139,23 @@ jobs:
           # Install ImageMagick if not present
           if [[ "${{ runner.os }}" == "Linux" ]]; then
             sudo apt-get install -y imagemagick
+            MAGICK_CMD="convert"
           elif [[ "${{ runner.os }}" == "macOS" ]]; then
             brew install imagemagick
+            MAGICK_CMD="magick"
+          elif [[ "${{ runner.os }}" == "Windows" ]]; then
+            choco install imagemagick -y
+            MAGICK_CMD="magick"
           fi
 
           # Generate PNG icons at different sizes with transparency
           cd resources
-          convert -background none -density 300 chord-notepad-icon.svg -resize 32x32 -quality 100 icon-32.png
-          convert -background none -density 300 chord-notepad-icon.svg -resize 128x128 -quality 100 icon-128.png
-          convert -background none -density 600 chord-notepad-icon.svg -resize 256x256 -quality 100 icon-256.png
+          $MAGICK_CMD -background none -density 300 chord-notepad-icon.svg -resize 32x32 -quality 100 icon-32.png
+          $MAGICK_CMD -background none -density 300 chord-notepad-icon.svg -resize 128x128 -quality 100 icon-128.png
+          $MAGICK_CMD -background none -density 600 chord-notepad-icon.svg -resize 256x256 -quality 100 icon-256.png
 
           # Generate .ico file for Windows with transparency
-          convert -background none -density 600 chord-notepad-icon.svg -define icon:auto-resize=256,128,64,48,32,16 chord-notepad-icon.ico
+          $MAGICK_CMD -background none -density 600 chord-notepad-icon.svg -define icon:auto-resize=256,128,64,48,32,16 chord-notepad-icon.ico
 
           echo "Generated icon files:"
           ls -lh icon-*.png chord-notepad-icon.ico
