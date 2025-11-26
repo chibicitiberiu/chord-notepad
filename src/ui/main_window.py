@@ -397,6 +397,8 @@ class MainWindow(tk.Tk):
 
         # Help menu
         help_menu = MenuBuilder(menubar) \
+            .add_command("User Guide", self.show_help, accelerator="F1") \
+            .add_separator() \
             .add_command("About", self.show_about) \
             .build()
         menubar.add_cascade(label="Help", menu=help_menu)
@@ -412,6 +414,7 @@ class MainWindow(tk.Tk):
         self.bind_all("<Control-equal>", lambda e: self.increase_font_size())  # Ctrl+= is same key as Ctrl++
         self.bind_all("<Control-minus>", lambda e: self.decrease_font_size())
         self.bind_all("<Control-0>", lambda e: self.reset_font_size())
+        self.bind_all("<F1>", lambda e: self.show_help())
 
     def create_toolbar(self) -> None:
         """Create toolbar with controls"""
@@ -862,6 +865,19 @@ class MainWindow(tk.Tk):
             self.update_statusbar(f"Inserted chord: {chord_name}")
         except Exception as e:
             logger.error(f"Error inserting chord: {e}", exc_info=True)
+
+    def show_help(self) -> None:
+        """Show the help window with user documentation."""
+        from ui.help_window import show_help
+        docs_path = self.resource_service.get_resource_path('help/build/html')
+        if not show_help(docs_path):
+            from tkinter import messagebox
+            messagebox.showwarning(
+                "Help Unavailable",
+                "Could not open help documentation.\n\n"
+                "Ensure the documentation has been built:\n"
+                "  make docs-html"
+            )
 
     def show_about(self) -> None:
         """Show About dialog with version information"""

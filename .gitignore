@@ -44,3 +44,6 @@ temp/
 # Generated icon files (keep .svg source, regenerate PNGs and ICO)
 resources/icon-*.png
 resources/*.ico
+
+# Documentation build output
+help/build/

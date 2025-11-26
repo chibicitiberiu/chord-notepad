@@ -6,12 +6,14 @@ block_cipher = None
 # Get absolute path to src directory
 src_path = os.path.abspath('src')
 
-# Collect data files (soundfont and icons)
+# Collect data files (soundfont, icons, and documentation)
 datas = [
     ('resources/soundfont/GeneralUser-GS.sf2', 'resources/soundfont'),
     ('resources/icon-32.png', 'resources'),
     ('resources/icon-128.png', 'resources'),
     ('resources/icon-256.png', 'resources'),
+    # Bundle HTML documentation for in-app help
+    ('help/build/html', 'help/build/html'),
 ]
 
 # Hidden imports - all our local modules
@@ -19,11 +21,24 @@ hiddenimports = [
     'ui',
     'ui.main_window',
     'ui.text_editor',
+    'ui.help_window',
+    'ui.help_viewer',
     'audio',
     'audio.player',
     'audio.chord_picker',
     'chord',
     'chord.converter',
+    # pywebview for help documentation viewer
+    'webview',
+]
+
+# Exclude unused GUI frameworks that pywebview might pull in
+excludes = [
+    'PyQt5',
+    'PyQt6',
+    'PySide2',
+    'PySide6',
+    'wx',
 ]
 
 a = Analysis(
@@ -35,7 +50,7 @@ a = Analysis(
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    excludes=[],
+    excludes=excludes,
     win_no_prefer_redirects=False,
     win_private_assemblies=False,
     cipher=block_cipher,

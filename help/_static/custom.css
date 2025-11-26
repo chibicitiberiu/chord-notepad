@@ -1,0 +1,92 @@
+/* Custom theme using Chord Notepad icon colors */
+/* Coral gradient: #ee8879 -> #da606d, Dark purple: #553c55 */
+
+/* Main sidebar background - light coral tint */
+.wy-nav-side {
+    background: #faf5f5;
+}
+
+/* Search box area - coral accent */
+.wy-side-nav-search {
+    background: #ee8879;
+}
+
+.wy-side-nav-search input[type="text"] {
+    border: 1px solid #da606d;
+}
+
+/* Logo/title text */
+.wy-side-nav-search > a,
+.wy-side-nav-search .wy-dropdown > a {
+    color: #553c55;
+}
+
+/* Version text */
+.wy-side-nav-search > div.version {
+    color: #553c55;
+}
+
+/* Menu items */
+.wy-menu-vertical a {
+    color: #553c55;
+}
+
+.wy-menu-vertical li.current > a,
+.wy-menu-vertical li.on a {
+    background: #f5e8e8;
+    border-right: none;
+    color: #553c55;
+}
+
+.wy-menu-vertical li.current {
+    background: #faf0f0;
+}
+
+/* Section headers */
+.wy-menu-vertical p.caption {
+    color: #553c55;
+}
+
+/* Hover states */
+.wy-menu-vertical a:hover {
+    background: #f0dada;
+}
+
+/* Scrollbar for sidebar */
+.wy-side-scroll {
+    background: #faf5f5;
+}
+
+/* Active/current page highlight */
+.wy-menu-vertical li.toctree-l1.current > a {
+    background: #f5e8e8;
+    border-bottom: 1px solid #e8d0d0;
+    border-top: 1px solid #e8d0d0;
+}
+
+.wy-menu-vertical li.toctree-l2.current > a,
+.wy-menu-vertical li.toctree-l2.current li.toctree-l3 > a {
+    background: #faf0f0;
+}
+
+/* Links in content - use the coral/rose color */
+.rst-content a {
+    color: #da606d;
+}
+
+.rst-content a:hover {
+    color: #ee8879;
+}
+
+/* Code blocks - subtle purple tint */
+.rst-content code,
+.rst-content tt {
+    background: #f9f5f9;
+    border: 1px solid #e8dce8;
+    color: #553c55;
+}
+
+/* Inline code in dark contexts */
+.wy-side-nav-search code {
+    background: rgba(255,255,255,0.3);
+}

@@ -1,12 +1,15 @@
-.PHONY: run test tests build clean install icons
+.PHONY: run test tests build clean install icons docs docs-html docs-pdf
 
 # Variables
 PYTHON := pipenv run python
 PYINSTALLER := pipenv run pyinstaller
+SPHINX_BUILD := pipenv run sphinx-build
 SPEC_FILE := chord-notepad.spec
+DOCS_SOURCE := help
+DOCS_BUILD := help/build
 
 # Run application
-run:
+run: docs-html
 	$(PYTHON) src/main.py
 
 # Run tests
@@ -30,8 +33,21 @@ icons:
 	magick -background none -density 600 chord-notepad-icon.svg -define icon:auto-resize=256,128,64,48,32,16 chord-notepad-icon.ico
 	@echo "Icon files generated in resources/"
 
+# Build all documentation (HTML + PDF)
+docs: docs-html docs-pdf
+
+# Build HTML documentation
+docs-html:
+	$(SPHINX_BUILD) -b html $(DOCS_SOURCE) $(DOCS_BUILD)/html
+	@echo "HTML documentation built in $(DOCS_BUILD)/html"
+
+# Build PDF documentation using rinohtype
+docs-pdf:
+	$(SPHINX_BUILD) -b rinoh $(DOCS_SOURCE) $(DOCS_BUILD)/rinoh
+	@echo "PDF documentation built in $(DOCS_BUILD)/rinoh"
+
 # Build executable (works for both Windows and Linux)
-build: icons
+build: icons docs-html
 	$(PYINSTALLER) --clean $(SPEC_FILE)
 	@echo "Executable built successfully in dist/"
 	@echo "On Windows: dist/ChordNotepad.exe"
@@ -40,6 +56,7 @@ build: icons
 # Clean build artifacts
 clean:
 	rm -rf build/ dist/ __pycache__ .pytest_cache
+	rm -rf $(DOCS_BUILD)
 	rm -f resources/icon-*.png resources/*.ico
 	find . -type d -name "*.egg-info" -exec rm -rf {} + 2>/dev/null || true
 	find . -type f -name "*.pyc" -delete 2>/dev/null || true
