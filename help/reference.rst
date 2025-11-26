@@ -439,6 +439,9 @@ Special Syntax
    * - Syntax
      - Purpose
      - Example
+   * - ``NC``
+     - No Chord (rest/silence)
+     - ``NC``, ``NC*2``, ``NC*4``
    * - ``//``
      - Comment (to end of line)
      - ``C Am // verse chords``

@@ -139,3 +139,6 @@ FluidSynth library required:
 - **macOS:** Via Homebrew
 
 PyInstaller builds are platform-specific. Build on target platform.
+- Don't forget to:
+* use automated tests for testing feature
+* add user documentation in help/ directory

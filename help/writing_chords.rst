@@ -474,6 +474,64 @@ Combine different durations on the same line:
    C*3  Am*3  F*3  G*3   // Each chord fills a full measure
 
 
+NC (No Chord) - Rests and Silence
+=================================
+
+The ``NC`` symbol represents silence or a rest during playback. Use it to create
+pauses, breaks, or empty space in your chord progressions.
+
+Basic NC Usage
+--------------
+
+Write ``NC`` wherever you want silence:
+
+.. code-block:: chord
+
+   C  G  NC  Am        // Play C, G, silence, then Am
+
+NC with Duration
+----------------
+
+Like regular chords, NC supports duration modifiers:
+
+.. code-block:: chord
+
+   C*4  G*4  NC*2  Am*4    // Two beats of silence between G and Am
+   NC*4                     // A full measure of silence
+
+**Common uses:**
+
+* **Song intros** - Start with silence before the first chord
+* **Breaks and pauses** - Create dramatic pauses in the music
+* **Endings** - End a song with a rest instead of sustaining a chord
+* **Count-ins** - Give yourself time to prepare before playing
+
+Examples
+--------
+
+**Intro with count-in:**
+
+.. code-block:: chord
+
+   NC*4                    // One measure rest (count-in)
+   C*4  Am*4  F*4  G*4     // Verse starts
+
+**Dramatic pause:**
+
+.. code-block:: chord
+
+   C  G  Am  F             // Build up
+   NC*2                     // Dramatic pause
+   G*4                      // Resolution
+
+**Ending with silence:**
+
+.. code-block:: chord
+
+   C*4  G*4  C*8           // Final progression
+   NC*4                     // Clean ending with silence
+
+
 Adding Comments
 ===============
 
@@ -531,6 +589,9 @@ Here's an example that uses everything you've learned:
    {time: 4/4}
    {key: G}
 
+   // Count-in (one measure of silence)
+   NC*4
+
    // Intro - sparse, let it breathe
    G*4  D/F#*4
 
@@ -546,7 +607,7 @@ Here's an example that uses everything you've learned:
 
    // Build to end
    {bpm: +10}
-   C  D  G*4
+   C  D  G*4  NC*2    // Dramatic pause before repeat
 
    // Repeat the whole song
    {loop: verse 2}
@@ -559,6 +620,7 @@ This example shows:
 * Various chord types
 * Duration modifiers
 * Slash chords
+* NC for rests and pauses
 * Labels and loops
 
 See :doc:`directives` for more on ``{bpm}``, ``{time}``, ``{key}``, ``{label}``,

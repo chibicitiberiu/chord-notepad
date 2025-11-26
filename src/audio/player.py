@@ -469,6 +469,31 @@ class NotePlayer(IPlayer):
                         self.fs.noteoff(self.channel, midi_note)
                     logger.debug(f"Released notes: {event.midi_notes}")
 
+            # Handle REST event (NC - No Chord)
+            elif event.event_type == MidiEventType.REST:
+                # REST plays no notes, but fires callback for UI highlighting
+                logger.debug(f"REST event at t={event.timestamp:.3f}s (duration={event.metadata.get('duration_seconds', 0):.3f}s)")
+
+                # Fire event callback if provided
+                if self.on_event_callback and self.application and event.metadata.get('has_callback'):
+                    try:
+                        from models.playback_event import PlaybackEventArgs, PlaybackEventType
+                        event_args = PlaybackEventArgs(
+                            event_type=PlaybackEventType.CHORD_START,
+                            chord_info=event.metadata.get('chord_info'),
+                            bpm=event.metadata.get('bpm'),
+                            time_signature_beats=event.metadata.get('time_signature_beats'),
+                            time_signature_unit=event.metadata.get('time_signature_unit'),
+                            key=event.metadata.get('key'),
+                            current_line=event.metadata.get('line_index'),
+                            current_bar=event.metadata.get('bar'),
+                            total_bars=event.metadata.get('total_bars')
+                        )
+                        # Queue callback to UI thread
+                        self.application.queue_ui_callback(lambda: self.on_event_callback(event_args))
+                    except Exception as e:
+                        logger.error(f"Error in REST event callback: {e}", exc_info=True)
+
         # Stop all notes when exiting
         self.stop_all_notes()
         logger.debug("Playback loop ended")

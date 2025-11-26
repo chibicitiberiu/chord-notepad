@@ -29,6 +29,7 @@
   - ✅ Loops (`{loop: intro 3}`)
 - ✅ Beat count annotations (e.g., `C*2` for 2 beats)
 - ✅ About dialog
+- ✅ `//` line comments
 
 ## Remaining Work
 
@@ -45,14 +46,6 @@
 
 ## Future Enhancements (Post-MVP)
 
-### Comment Syntax
-
-**Tasks:**
-1. Support `//` line comments
-   - Lines starting with `//` are skipped during chord detection
-   - Skipped during playback
-   - Rendered in gray/italic in the editor
-   - Example: `// Intro (skip for now)`
 
 ### NC (No Chord) Notation
 

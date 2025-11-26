@@ -219,10 +219,11 @@ class EventProducer:
                     # In playback range - create and return events
                     events = self._create_chord_events(item, state)
                     if events:
-                        # Return NOTE_ON event first, store NOTE_OFF for next call
-                        note_on_event, note_off_event = events
-                        state['pending_note_off'] = note_off_event
-                        return note_on_event
+                        first_event, second_event = events
+                        # REST events have no NOTE_OFF (second_event is None)
+                        if second_event is not None:
+                            state['pending_note_off'] = second_event
+                        return first_event
                     # If event is None, chord couldn't be played, continue to next
                 else:
                     # Not in playback range yet - update counters but don't play
@@ -392,29 +393,18 @@ class EventProducer:
         state['current_beat_position'] += duration_beats
 
     def _create_chord_events(self, chord: ChordInfo, state: dict) -> Optional[Tuple[MidiEvent, MidiEvent]]:
-        """Create MIDI events (NOTE_ON and NOTE_OFF) for a chord.
+        """Create MIDI events (NOTE_ON and NOTE_OFF, or REST) for a chord.
 
         Args:
             chord: ChordInfo object
             state: Production state dictionary
 
         Returns:
-            Tuple of (NOTE_ON event, NOTE_OFF event) or None if chord can't be played
+            Tuple of (NOTE_ON event, NOTE_OFF event) or (REST event, None) for NC,
+            or None if chord can't be played
         """
         if not chord.is_valid:
             self._logger.warning(f"Skipping invalid chord: {chord.chord}")
-            return None
-
-        # Resolve chord to notes
-        chord_notes = self._resolve_chord_notes(chord, state['current_key'])
-        if not chord_notes:
-            self._logger.warning(f"Could not resolve chord: {chord.chord}")
-            return None
-
-        # Convert to MIDI
-        midi_notes = self._notes_to_midi(chord_notes)
-        if not midi_notes:
-            self._logger.warning(f"Could not convert chord to MIDI: {chord.chord}")
             return None
 
         # Determine duration in beats
@@ -431,6 +421,48 @@ class EventProducer:
         # Calculate current bar number based on beat position
         time_sig_beats = state['current_time_sig'][0]
         current_bar = int(state['current_beat_position'] / time_sig_beats) + 1
+
+        # Handle NC (No Chord / rest) - create REST event
+        if chord.is_rest:
+            rest_event = MidiEvent(
+                timestamp=self._current_time_position,
+                event_type=MidiEventType.REST,
+                midi_notes=[],
+                velocity=0,
+                metadata={
+                    'chord_info': chord,
+                    'duration_seconds': duration_seconds,
+                    'line_index': state['line_index'],
+                    'bar': current_bar,
+                    # Callback data
+                    'bpm': self._current_bpm,
+                    'time_signature_beats': state['current_time_sig'][0],
+                    'time_signature_unit': state['current_time_sig'][1],
+                    'key': state['current_key'],
+                    'total_bars': state['total_bars'],
+                    'has_callback': self._on_event_callback is not None
+                }
+            )
+
+            # Update time position and beat position
+            self._current_time_position += duration_seconds
+            state['current_beat_position'] += duration_beats
+
+            self._logger.debug(f"Created REST event for NC at t={rest_event.timestamp:.3f}s "
+                             f"(duration={duration_seconds:.3f}s)")
+            return (rest_event, None)
+
+        # Resolve chord to notes
+        chord_notes = self._resolve_chord_notes(chord, state['current_key'])
+        if not chord_notes:
+            self._logger.warning(f"Could not resolve chord: {chord.chord}")
+            return None
+
+        # Convert to MIDI
+        midi_notes = self._notes_to_midi(chord_notes)
+        if not midi_notes:
+            self._logger.warning(f"Could not convert chord to MIDI: {chord.chord}")
+            return None
 
         # Create NOTE_ON event at current time
         # Store callback data in metadata - Player will fire the callback when event is played

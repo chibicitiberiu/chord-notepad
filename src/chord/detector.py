@@ -15,6 +15,10 @@ class ChordDetector:
     # Comment pattern - matches // and everything after it
     COMMENT_PATTERN = re.compile(r'//.*$')
 
+    # NC (No Chord) pattern - matches NC with optional duration
+    # NC represents silence/rest during playback
+    NC_PATTERN = re.compile(r'\b(NC(?:\*[\d.]+)?)(?![A-Za-z0-9])')
+
     # Basic chord pattern for initial detection (American notation, supports lowercase for minor)
     # Supports: ° (diminished), ø (half-diminished), + (augmented)
     # Supports unicode: ♯, ♭ (in addition to #, b)
@@ -192,11 +196,16 @@ class ChordDetector:
         else:
             patterns = [self.CHORD_PATTERN_AMERICAN, self.CHORD_PATTERN_ROMAN]
 
-        # Count how many words match any chord pattern
+        # Count how many words match any chord pattern (including NC)
         chord_count = 0
         for word in alphanumeric_words:
             # Strip duration suffix (e.g., "C*2" -> "C")
             word_without_duration = word.split('*')[0]
+
+            # Check for NC (No Chord) first
+            if word_without_duration.upper() == 'NC':
+                chord_count += 1
+                continue
 
             for pattern in patterns:
                 if pattern.fullmatch(word_without_duration):
@@ -225,11 +234,11 @@ class ChordDetector:
         # This prevents content inside directives (like "G" in "{key: G}") from being detected as chords
         cleaned_line, position_map = self._remove_directives_and_map_positions(line)
 
-        # Select patterns based on notation (include roman numeral pattern)
+        # Select patterns based on notation (include roman numeral pattern and NC)
         if self.notation == 'european':
-            patterns = [self.CHORD_PATTERN_EUROPEAN, self.CHORD_PATTERN_ROMAN]
+            patterns = [self.CHORD_PATTERN_EUROPEAN, self.CHORD_PATTERN_ROMAN, self.NC_PATTERN]
         else:
-            patterns = [self.CHORD_PATTERN_AMERICAN, self.CHORD_PATTERN_ROMAN]
+            patterns = [self.CHORD_PATTERN_AMERICAN, self.CHORD_PATTERN_ROMAN, self.NC_PATTERN]
 
         # Find all chord matches using all patterns on the cleaned line
         matches = []
@@ -260,11 +269,14 @@ class ChordDetector:
             else:
                 chord_str = chord_str_with_duration
 
+            # Check if this is NC (No Chord / rest)
+            is_rest = (pattern == self.NC_PATTERN)
+
             # Check if this is a roman numeral chord
             is_relative = (pattern == self.CHORD_PATTERN_ROMAN)
 
-            # Validate chord (skip validation for roman numerals - they're context-dependent)
-            if is_relative:
+            # Validate chord (skip validation for roman numerals and NC - they're special cases)
+            if is_relative or is_rest:
                 is_valid = True
             else:
                 is_valid = self._validate_chord(chord_str)
@@ -284,6 +296,7 @@ class ChordDetector:
                 end=abs_end,
                 is_valid=is_valid,
                 is_relative=is_relative,
+                is_rest=is_rest,
                 duration=duration
             )
             # Add line number as dynamic attribute

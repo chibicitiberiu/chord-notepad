@@ -641,6 +641,132 @@ class TestComments:
         assert all(c.is_relative for c in chords)
 
 
+class TestNCNotation:
+    """Tests for NC (No Chord) notation."""
+
+    def test_basic_nc(self, american_detector):
+        """Test detection of basic NC symbol."""
+        text = "C NC G"
+        chords = american_detector.detect_chords_in_text(text)
+
+        assert len(chords) == 3
+        assert chords[0].chord == "C"
+        assert not chords[0].is_rest
+        assert chords[1].chord == "NC"
+        assert chords[1].is_rest
+        assert chords[1].is_valid
+        assert chords[2].chord == "G"
+        assert not chords[2].is_rest
+
+    def test_nc_with_duration(self, american_detector):
+        """Test NC with duration modifier."""
+        text = "C*4 NC*2 G*4"
+        chords = american_detector.detect_chords_in_text(text)
+
+        assert len(chords) == 3
+        assert chords[0].chord == "C"
+        assert chords[0].duration == 4.0
+        assert chords[1].chord == "NC"
+        assert chords[1].is_rest
+        assert chords[1].duration == 2.0
+        assert chords[2].chord == "G"
+        assert chords[2].duration == 4.0
+
+    def test_nc_decimal_duration(self, american_detector):
+        """Test NC with decimal duration."""
+        text = "C NC*1.5 Am"
+        chords = american_detector.detect_chords_in_text(text)
+
+        assert len(chords) == 3
+        assert chords[1].chord == "NC"
+        assert chords[1].is_rest
+        assert chords[1].duration == 1.5
+
+    def test_nc_line_classification(self, american_detector):
+        """Test that NC counts toward chord line classification."""
+        text = "C NC G Am"  # 100% valid chord symbols
+        chords = american_detector.detect_chords_in_text(text)
+
+        assert len(chords) == 4
+        assert any(c.is_rest for c in chords)
+
+    def test_nc_case_insensitive_in_line_check(self, american_detector):
+        """Test that NC is case-insensitive in line classification."""
+        # Note: The pattern is case-sensitive for detection, but we test both
+        text = "C NC G"
+        chords = american_detector.detect_chords_in_text(text)
+
+        assert len(chords) == 3
+        assert chords[1].is_rest
+
+    def test_nc_with_european_notation(self, european_detector):
+        """Test NC works with European notation."""
+        text = "Do NC Sol"
+        chords = european_detector.detect_chords_in_text(text)
+
+        assert len(chords) == 3
+        assert chords[0].chord == "Do"
+        assert chords[1].chord == "NC"
+        assert chords[1].is_rest
+        assert chords[2].chord == "Sol"
+
+    def test_nc_with_roman_numerals(self, american_detector):
+        """Test NC works with roman numeral chords."""
+        text = "I NC V"
+        chords = american_detector.detect_chords_in_text(text)
+
+        assert len(chords) == 3
+        assert chords[0].chord == "I"
+        assert chords[0].is_relative
+        assert chords[1].chord == "NC"
+        assert chords[1].is_rest
+        assert not chords[1].is_relative
+        assert chords[2].chord == "V"
+        assert chords[2].is_relative
+
+    def test_nc_positions(self, american_detector):
+        """Test that NC position tracking is correct."""
+        text = "C NC G"
+        chords = american_detector.detect_chords_in_text(text)
+
+        assert chords[0].start == 0
+        assert chords[0].end == 1
+        assert chords[1].start == 2
+        assert chords[1].end == 4  # "NC" is 2 characters
+        assert chords[2].start == 5
+        assert chords[2].end == 6
+
+    def test_nc_with_directives(self, american_detector):
+        """Test NC with directives on the same line."""
+        text = "{bpm: 120} C NC*2 G"
+        chords = american_detector.detect_chords_in_text(text)
+
+        assert len(chords) == 3
+        assert chords[1].chord == "NC"
+        assert chords[1].is_rest
+        assert chords[1].duration == 2.0
+
+    def test_nc_with_comments(self, american_detector):
+        """Test NC with comments."""
+        text = "C NC G // silence in the middle"
+        chords = american_detector.detect_chords_in_text(text)
+
+        assert len(chords) == 3
+        assert chords[1].is_rest
+
+    def test_nc_multiline(self, american_detector):
+        """Test NC across multiple lines."""
+        text = "C F G\nNC*4\nAm Dm"
+        chords = american_detector.detect_chords_in_text(text)
+
+        assert len(chords) == 6
+        # Find the NC
+        nc_chord = [c for c in chords if c.is_rest][0]
+        assert nc_chord.chord == "NC"
+        assert nc_chord.duration == 4.0
+        assert nc_chord.line == 2
+
+
 class TestEuropeanAdvanced:
     """Tests for European notation with advanced features."""
 

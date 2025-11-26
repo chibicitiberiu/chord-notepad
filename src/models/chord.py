@@ -30,6 +30,9 @@ class ChordInfo:
     is_relative: bool = False
     """Whether this is a relative chord (roman numeral) that depends on the current key"""
 
+    is_rest: bool = False
+    """Whether this is a rest/silence (NC notation)"""
+
     duration: Optional[float] = None
     """Duration of the chord in beats"""
 
