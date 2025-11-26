@@ -37,6 +37,7 @@ def mock_player():
     player.event_buffer = None
     player.on_event_callback = None
     player.application = None
+    player.consumed_events = []  # Store consumed events for test verification
 
     def mock_start_playback():
         """Simulate playback by consuming events from buffer and firing callbacks."""
@@ -47,6 +48,8 @@ def mock_player():
                 event = player.event_buffer.pop_event(timeout=0.1)
                 if event is None:
                     continue
+                # Store event for test verification
+                player.consumed_events.append(event)
                 from models.playback_event_internal import MidiEventType
                 if event.event_type == MidiEventType.END_OF_SONG:
                     break
@@ -116,6 +119,9 @@ def initialized_service(playback_service, mock_player):
 def collect_events_from_buffer(service, max_events=100, timeout=2.0):
     """Helper function to collect events from the event buffer for testing.
 
+    Since the mock player consumes events from the buffer, this function
+    retrieves events from the mock player's consumed_events list instead.
+
     Args:
         service: PlaybackService instance
         max_events: Maximum number of events to collect
@@ -124,22 +130,23 @@ def collect_events_from_buffer(service, max_events=100, timeout=2.0):
     Returns:
         List of MidiEvent objects
     """
-    events = []
     start_time = time.time()
 
-    if not service._event_buffer:
-        return events
+    # Wait for events to be consumed by the mock player
+    while (time.time() - start_time) < timeout:
+        if hasattr(service._player, 'consumed_events'):
+            # Check if we have enough events or if END_OF_SONG was received
+            events = service._player.consumed_events
+            if len(events) >= max_events:
+                return events[:max_events]
+            if any(e.event_type == MidiEventType.END_OF_SONG for e in events):
+                return events
+        time.sleep(0.05)
 
-    while len(events) < max_events and (time.time() - start_time) < timeout:
-        event = service._event_buffer.pop_event(timeout=0.1)
-        if event is None:
-            # No more events available
-            break
-        events.append(event)
-        if event.event_type == MidiEventType.END_OF_SONG:
-            break
-
-    return events
+    # Return whatever events were collected
+    if hasattr(service._player, 'consumed_events'):
+        return service._player.consumed_events[:max_events]
+    return []
 
 
 class TestInitialization:

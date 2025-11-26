@@ -229,12 +229,30 @@ class GuitarChordPicker(INotePicker):
             return best_fingering
 
     def _generate_fingerings_optimized(self, chord_notes: List[str], bass_note: Optional[str] = None) -> List[List[int]]:
-        """Generate fingerings using multiple strategies for speed"""
+        """Generate fingerings using multiple strategies for speed.
+
+        Uses a two-pass approach:
+        1. First try to find complete voicings (all notes present)
+        2. If no complete voicings found, allow partial voicings for complex chords
+        """
+
+        # First pass: strict (all notes required)
+        fingerings = self._generate_fingerings_with_mode(chord_notes, bass_note, allow_partial=False)
+
+        if fingerings:
+            return fingerings
+
+        # Second pass: allow partial voicings for complex chords
+        return self._generate_fingerings_with_mode(chord_notes, bass_note, allow_partial=True)
+
+    def _generate_fingerings_with_mode(self, chord_notes: List[str], bass_note: Optional[str],
+                                       allow_partial: bool) -> List[List[int]]:
+        """Generate fingerings with specified verification mode."""
 
         fingerings = []
 
         # Strategy 1: Try common chord shapes first (FAST)
-        shape_fingerings = self._try_chord_shapes(chord_notes, bass_note)
+        shape_fingerings = self._try_chord_shapes(chord_notes, bass_note, allow_partial=allow_partial)
         fingerings.extend(shape_fingerings)
 
         # If we have enough good fingerings, return early
@@ -242,7 +260,8 @@ class GuitarChordPicker(INotePicker):
             return fingerings[:10]
 
         # Strategy 2: Build from chord tones only (MEDIUM)
-        position_fingerings = self._build_from_chord_tones(chord_notes, bass_note, max_positions=3)
+        position_fingerings = self._build_from_chord_tones(chord_notes, bass_note, max_positions=3,
+                                                           allow_partial=allow_partial)
         fingerings.extend(position_fingerings)
 
         # Deduplicate
@@ -256,7 +275,8 @@ class GuitarChordPicker(INotePicker):
 
         return unique_fingerings[:15]  # Return max 15 fingerings
 
-    def _try_chord_shapes(self, chord_notes: List[str], bass_note: Optional[str] = None) -> List[List[int]]:
+    def _try_chord_shapes(self, chord_notes: List[str], bass_note: Optional[str] = None,
+                          allow_partial: bool = False) -> List[List[int]]:
         """Try to adapt common chord shapes to the target chord"""
 
         fingerings = []
@@ -273,7 +293,7 @@ class GuitarChordPicker(INotePicker):
                 fingering = self._transpose_shape(shape, root, position)
                 if fingering:
                     # Verify it produces correct notes
-                    if self._verify_fingering(fingering, chord_notes, bass_note):
+                    if self._verify_fingering(fingering, chord_notes, bass_note, allow_partial):
                         fingerings.append(fingering)
                         if len(fingerings) >= 3:
                             return fingerings
@@ -300,7 +320,7 @@ class GuitarChordPicker(INotePicker):
         return transposed
 
     def _build_from_chord_tones(self, chord_notes: List[str], bass_note: Optional[str],
-                                max_positions: int = 3) -> List[List[int]]:
+                                max_positions: int = 3, allow_partial: bool = False) -> List[List[int]]:
         """Build fingerings by only considering chord tones"""
 
         fingerings = []
@@ -339,7 +359,7 @@ class GuitarChordPicker(INotePicker):
 
             # Generate combinations efficiently
             position_fingerings = self._generate_combinations_smart(
-                string_options, chord_notes, bass_note
+                string_options, chord_notes, bass_note, allow_partial
             )
 
             fingerings.extend(position_fingerings[:5])  # Max 5 per position
@@ -351,7 +371,8 @@ class GuitarChordPicker(INotePicker):
 
     def _generate_combinations_smart(self, string_options: List[List[int]],
                                     chord_notes: List[str],
-                                    bass_note: Optional[str]) -> List[List[int]]:
+                                    bass_note: Optional[str],
+                                    allow_partial: bool = False) -> List[List[int]]:
         """Generate combinations intelligently without exhaustive search"""
 
         fingerings = []
@@ -367,7 +388,7 @@ class GuitarChordPicker(INotePicker):
 
             for combo in combos:
                 if self._is_playable(combo):
-                    if self._verify_fingering(combo, chord_notes, bass_note):
+                    if self._verify_fingering(combo, chord_notes, bass_note, allow_partial):
                         fingerings.append(combo)
                         if len(fingerings) >= 5:
                             break
@@ -415,11 +436,22 @@ class GuitarChordPicker(INotePicker):
         return combos
 
     def _verify_fingering(self, fingering: List[int], chord_notes: List[str],
-                         bass_note: Optional[str]) -> bool:
-        """Verify a fingering produces exactly the chord notes"""
+                         bass_note: Optional[str], allow_partial: bool = False) -> bool:
+        """Verify a fingering produces valid chord notes.
+
+        Args:
+            fingering: List of fret numbers (-1 = muted)
+            chord_notes: List of note names in the chord
+            bass_note: Optional bass note for slash chords
+            allow_partial: If True, allows partial voicings for complex chords:
+                - ≤3 unique notes: must have all notes
+                - 4-5 unique notes: can have at most 1 missing
+                - ≥6 unique notes: must have at least 4 notes
+        """
 
         # Get pitch classes of chord notes
         chord_pitch_classes = {self._normalize_note(n) for n in chord_notes}
+        num_unique_notes = len(chord_pitch_classes)
 
         notes_played_pitch_classes = set()
         lowest_note = None
@@ -435,9 +467,28 @@ class GuitarChordPicker(INotePicker):
                     lowest_midi = midi
                     lowest_note = note
 
-        # Must have all chord notes (pitch class matching)
-        if not chord_pitch_classes.issubset(notes_played_pitch_classes):
-            return False
+        # Check note coverage
+        notes_present = notes_played_pitch_classes & chord_pitch_classes
+        notes_missing = num_unique_notes - len(notes_present)
+
+        if allow_partial:
+            # Relaxed requirements for complex chords
+            if num_unique_notes <= 3:
+                # Small chords: must have all notes
+                if notes_missing > 0:
+                    return False
+            elif num_unique_notes <= 5:
+                # Medium chords (4-5 notes): can have at most 1 missing
+                if notes_missing > 1:
+                    return False
+            else:
+                # Large chords (6+ notes): must have at least 4 notes
+                if len(notes_present) < 4:
+                    return False
+        else:
+            # Strict: must have all chord notes
+            if notes_missing > 0:
+                return False
 
         # Must NOT have extra notes, EXCEPT the bass note for slash chords
         extra_notes = notes_played_pitch_classes - chord_pitch_classes
