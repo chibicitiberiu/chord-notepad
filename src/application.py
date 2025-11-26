@@ -162,7 +162,7 @@ class Application:
 
         # Business services (depend on infrastructure)
         self._song_parser_service = SongParserService()
-        self._audio_service = PlaybackService(self._config_service)
+        self._audio_service = PlaybackService(self._config_service, application=self)
         self._file_service = FileService(self._config_service)
 
     def on_configure_logging(self) -> None:

@@ -160,15 +160,15 @@ class MainWindow(tk.Tk):
     def _on_is_playing_changed(self, new_value: bool) -> None:
         """React to playback state changes from ViewModel."""
         if new_value:
-            # Playback started
-            self.play_button.config(state=tk.DISABLED)
-            self.pause_button.config(state=tk.NORMAL)
+            # Playback started/resumed - show pause icon
+            self.play_pause_button.config(text="⏸")
+            self._update_play_pause_tooltip()
             # Lock editor during playback
             self.text_editor.config(state=tk.DISABLED)
         else:
-            # Playback stopped
-            self.play_button.config(state=tk.NORMAL)
-            self.pause_button.config(state=tk.DISABLED, text="⏸")
+            # Playback stopped (idle state) - show play icon
+            self.play_pause_button.config(text="▶")
+            self._update_play_pause_tooltip()
             # Unlock editor
             self.text_editor.config(state=tk.NORMAL)
             # Clear playing highlight
@@ -179,11 +179,31 @@ class MainWindow(tk.Tk):
     def _on_is_paused_changed(self, new_value: bool) -> None:
         """React to pause state changes from ViewModel."""
         if new_value:
-            # Paused
-            self.pause_button.config(text="▶")
+            # Paused state - show play icon
+            self.play_pause_button.config(text="▶")
+            self._update_play_pause_tooltip()
         else:
-            # Resumed (or started)
-            self.pause_button.config(text="⏸")
+            # Playing state (resumed or started) - show pause icon
+            if self.viewmodel.is_playing:
+                self.play_pause_button.config(text="⏸")
+                self._update_play_pause_tooltip()
+
+    def _update_play_pause_tooltip(self) -> None:
+        """Update the Play/Pause button tooltip based on current state."""
+        # Determine tooltip text based on state
+        if self.viewmodel.is_playing and not self.viewmodel.is_paused:
+            tooltip_text = "Pause playback"
+        elif self.viewmodel.is_paused:
+            tooltip_text = "Resume playback"
+        else:
+            tooltip_text = "Play from start (Shift+Click to play from cursor)"
+
+        # Create tooltip on first call, update text on subsequent calls
+        if not hasattr(self, '_play_pause_tooltip'):
+            self._play_pause_tooltip = create_tooltip(self.play_pause_button, tooltip_text)
+        else:
+            # Just update the text attribute
+            self._play_pause_tooltip.text = tooltip_text
 
     def _on_bpm_changed(self, new_value: int) -> None:
         """React to BPM changes from ViewModel."""
@@ -464,26 +484,24 @@ class MainWindow(tk.Tk):
         self.time_sig_unit_spin.pack(side=tk.LEFT, padx=(0, 5))
         self.create_tooltip(self.time_sig_unit_spin, "Beat unit (4 = quarter note)")
 
-        # Playback buttons (will be implemented in later phases)
+        # Playback buttons
         ttk.Separator(self.toolbar, orient=tk.VERTICAL).pack(side=tk.LEFT, fill=tk.Y, padx=5)
 
         playback_frame = tk.Frame(self.toolbar)
         playback_frame.pack(side=tk.LEFT, padx=5)
 
-        self.play_button = tk.Button(playback_frame, text="▶", font=('TkDefaultFont', 12),
-                                     width=2, height=1, command=self.start_playback)
-        self.play_button.pack(side=tk.LEFT, padx=1)
-        self.create_tooltip(self.play_button, "Play chords automatically")
-
-        self.pause_button = tk.Button(playback_frame, text="⏸", font=('TkDefaultFont', 12),
-                                      width=2, height=1, state=tk.DISABLED, command=self.pause_playback)
-        self.pause_button.pack(side=tk.LEFT, padx=1)
-        self.create_tooltip(self.pause_button, "Pause playback")
+        self.play_pause_button = tk.Button(playback_frame, text="▶", font=('TkDefaultFont', 12),
+                                           width=2, height=1)
+        self.play_pause_button.pack(side=tk.LEFT, padx=1)
+        # Bind both regular click and shift+click
+        self.play_pause_button.bind('<Button-1>', self.on_play_pause_click)
+        # Tooltip will be set dynamically in _update_play_pause_tooltip()
+        self._update_play_pause_tooltip()
 
         self.stop_button = tk.Button(playback_frame, text="⏹", font=('TkDefaultFont', 12),
                                      width=2, height=1, command=self.stop_playback)
         self.stop_button.pack(side=tk.LEFT, padx=1)
-        self.create_tooltip(self.stop_button, "Stop all sounds")
+        self.create_tooltip(self.stop_button, "Stop playback")
 
     def create_text_editor(self) -> None:
         """Create text editor widget"""
@@ -942,34 +960,53 @@ class MainWindow(tk.Tk):
             self.viewmodel.on_chord_clicked(chord_info)
             self.update_statusbar(f"Playing: {chord_info.chord}")
 
-    def start_playback(self) -> None:
-        """Start auto-playing chords"""
-        logger.info("View start_playback called")
-        # Sync current text to ViewModel before starting playback
-        current_text = self.text_editor.get("1.0", "end-1c")
-        logger.info(f"Current text length: {len(current_text)}")
-        self.viewmodel.on_text_changed(current_text)
+    def on_play_pause_click(self, event: Any) -> None:
+        """Handle Play/Pause button click with Shift modifier support.
 
-        success = self.viewmodel.start_playback()
-        logger.info(f"Playback started: {success}")
-        if success:
-            # Get chord count for status message
-            all_chords = [c for c in self.text_editor.get_detected_chords()
-                          if c.is_valid]
-            self.update_statusbar(f"Playing {len(all_chords)} chords...")
-        else:
-            self.update_statusbar("No chords to play")
+        States:
+        - Initial (not playing): Normal=Play from start, Shift=Play from cursor
+        - Playing: Pause
+        - Paused: Resume
+        """
+        shift_held = event.state & 0x1  # Check if Shift key is held
 
-    def pause_playback(self) -> None:
-        """Pause/resume playback"""
-        if self.viewmodel.is_paused:
-            # Resume
+        if self.viewmodel.is_playing and not self.viewmodel.is_paused:
+            # Currently playing - pause it
+            logger.info("View: Pausing playback")
+            self.viewmodel.pause_playback()
+            self.update_statusbar("Paused playback")
+        elif self.viewmodel.is_paused:
+            # Paused - resume from current position
+            logger.info("View: Resuming playback")
             self.viewmodel.resume_playback()
             self.update_statusbar("Resumed playback")
         else:
-            # Pause
-            self.viewmodel.pause_playback()
-            self.update_statusbar("Paused playback")
+            # Not playing - start playback
+            # Sync current text to ViewModel before starting playback
+            current_text = self.text_editor.get("1.0", "end-1c")
+            self.viewmodel.on_text_changed(current_text)
+
+            if shift_held:
+                # Shift+click - play from cursor position
+                logger.info("View: Playing from cursor position")
+                cursor_pos = self.text_editor.index(tk.INSERT)
+                success = self.viewmodel.start_playback_from_cursor(cursor_pos)
+                if success:
+                    all_chords = [c for c in self.text_editor.get_detected_chords()
+                                  if c.is_valid]
+                    self.update_statusbar(f"Playing from cursor ({len(all_chords)} chords)...")
+                else:
+                    self.update_statusbar("No chords to play from cursor")
+            else:
+                # Normal click - play from start
+                logger.info("View: Playing from start")
+                success = self.viewmodel.start_playback()
+                if success:
+                    all_chords = [c for c in self.text_editor.get_detected_chords()
+                                  if c.is_valid]
+                    self.update_statusbar(f"Playing {len(all_chords)} chords...")
+                else:
+                    self.update_statusbar("No chords to play")
 
     def stop_playback(self) -> None:
         """Stop playback"""

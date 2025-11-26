@@ -8,6 +8,8 @@ from audio.player import NotePlayer
 from audio.note_picker_interface import INotePicker
 from audio.chord_picker import ChordNotePicker
 from audio.guitar_chord_picker import GuitarChordPicker
+from audio.event_buffer import EventBuffer
+from services.event_producer import EventProducer
 from models.chord_notes import ChordNotes
 from models.chord import ChordInfo
 from models.playback_state import PlaybackState
@@ -23,13 +25,18 @@ class PlaybackService:
     Provides business-level API for audio playback, abstracting FluidSynth/NotePlayer details.
     """
 
-    def __init__(self, config_service: ConfigService, player: Optional[IPlayer] = None):
+    def __init__(self, config_service: ConfigService, player: Optional[IPlayer] = None, application=None):
         self._config = config_service
         self._player: Optional[IPlayer] = player
         self._note_picker = self._create_note_picker(self._config.get("voicing", "piano"))
         self._logger = logging.getLogger(__name__)
         self._initialized = player is not None
         self._playback_state = PlaybackState()
+        self._application = application  # For UI callbacks
+
+        # Producer-consumer components
+        self._event_buffer: Optional[EventBuffer] = None
+        self._event_producer: Optional[EventProducer] = None
 
     def _create_note_picker(self, voicing: str) -> INotePicker:
         """Create appropriate note picker based on voicing string.
@@ -236,9 +243,31 @@ class PlaybackService:
 
     def stop_playback(self) -> None:
         """Stop ongoing playback."""
+        # Close event buffer first to wake up producer if it's blocked
+        if self._event_buffer:
+            self._logger.debug("Closing event buffer")
+            self._event_buffer.close()
+            self._event_buffer = None
+
+        # Now stop event producer (it should exit cleanly)
+        if self._event_producer:
+            self._logger.debug("Stopping event producer")
+            self._event_producer.stop()
+            self._event_producer = None
+
+        # Finally stop player
         if self._player:
             self._logger.debug("Stopping playback")
             self._player.stop_playback()
+
+    def stop_all_notes(self) -> None:
+        """Stop all currently playing notes (even if not in playback mode).
+
+        This is useful for clearing stuck notes or stopping immediate chord playback.
+        """
+        if self._player:
+            self._logger.debug("Stopping all notes")
+            self._player.stop_all_notes()
 
     def set_bpm(self, bpm: int) -> None:
         """Change playback speed.
@@ -373,7 +402,9 @@ class PlaybackService:
         lines: List[Line],
         initial_key: Optional[str],
         on_finished_callback: Optional[Callable[[], None]] = None,
-        on_event_callback: Optional[Callable[[PlaybackEventArgs], None]] = None
+        on_event_callback: Optional[Callable[[PlaybackEventArgs], None]] = None,
+        start_line_index: int = 0,
+        start_item_index: int = 0
     ) -> bool:
         """Start playback of a song with lines containing chords and directives.
 
@@ -382,12 +413,17 @@ class PlaybackService:
             initial_key: Initial key signature (from UI)
             on_finished_callback: Optional callback when playback finishes
             on_event_callback: Optional callback for playback events (chord start/end)
+            start_line_index: Line index to start playback from (default: 0)
+            start_item_index: Item index within the line to start from (default: 0)
 
         Returns:
             True if playback started, False otherwise
         """
         if not self._ensure_initialized():
             return False
+
+        # Stop any existing playback before starting new one
+        self.stop_playback()
 
         # Reset chord picker state for consistent voice leading at start of playback
         self._note_picker.reset()
@@ -398,47 +434,48 @@ class PlaybackService:
             self._logger.info("No chords found for playback")
             return False
 
-        self._logger.info(f"Starting song playback with {total_chords} chords")
+        self._logger.info(f"Starting song playback with {total_chords} chords (producer-consumer)")
 
-        # Calculate total bars (sum of all chord durations divided by time signature)
-        time_sig_beats, time_sig_unit = self.get_time_signature()
-        total_beats = 0.0
-        for line in lines:
-            for item in line.items:
-                if isinstance(item, ChordInfo) and item.is_valid:
-                    duration = float(item.duration) if item.duration is not None else float(time_sig_beats)
-                    total_beats += duration
-        total_bars = max(1, int(total_beats / time_sig_beats))
+        # Get initial playback parameters
+        initial_bpm = self._playback_state.bpm
+        initial_time_sig = self.get_time_signature()
 
-        # Initialize playback state
-        playback_state = {
-            'lines': lines,
-            'line_index': 0,
-            'item_index': 0,
-            'current_key': initial_key,
-            'current_time_sig': self.get_time_signature(),
-            'loop_stack': [],
-            'labels': {},
-            'label_states': {},  # Store playback state at each label
-            'on_event_callback': on_event_callback,
-            'current_bar': 1,
-            'total_bars': total_bars,
-            'current_beat_position': 0.0
-        }
+        # Create event buffer (capacity ~100 events = 3-5 seconds of music)
+        self._event_buffer = EventBuffer(capacity=100)
 
-        # Build label index
-        self._build_label_index(playback_state)
+        # Create event producer
+        self._event_producer = EventProducer(
+            lines=lines,
+            initial_key=initial_key,
+            initial_bpm=initial_bpm,
+            initial_time_sig=initial_time_sig,
+            note_picker=self._note_picker,
+            event_buffer=self._event_buffer,
+            application=self._application,
+            player=self._player,
+            on_event_callback=on_event_callback,
+            logger=self._logger,
+            start_line_index=start_line_index,
+            start_item_index=start_item_index
+        )
 
-        # Create playback callback
-        def get_next_chord():
-            return self._get_next_playback_item(playback_state)
+        # Set buffer on player
+        self._player.set_event_buffer(self._event_buffer)
 
-        # Start playback
-        self._player.set_next_note_callback(get_next_chord)
+        # Set event callback on player (player will fire it when events are played)
+        self._player.set_event_callback(on_event_callback, self._application)
+
+        # Set finished callback
         if on_finished_callback:
             self._player.set_playback_finished_callback(on_finished_callback)
+
+        # Start producer thread first (it will start filling the buffer)
+        self._event_producer.start()
+
+        # Start playback thread (it will consume from buffer)
         self._player.start_playback()
 
+        self._logger.info("Producer and consumer threads started")
         return True
 
     def _build_label_index(self, playback_state: dict) -> None:

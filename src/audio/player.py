@@ -42,11 +42,22 @@ class NotePlayer(IPlayer):
         self.pause_event = None
         self._state_lock = threading.Lock()  # Protects is_playing and is_paused
 
-        # Callback to get next note (should return (midi_notes, duration_beats) or None)
-        self.get_next_note_callback = None
+        # Event buffer for producer-consumer architecture
+        self.event_buffer = None
 
         # Callback when playback finishes
         self.on_playback_finished_callback = None
+
+        # Callback for playback events (chord start/end)
+        self.on_event_callback = None
+        self.application = None
+
+        # Playback start time for absolute timestamp tracking
+        self._playback_start_time = None
+
+        # Timer for immediate play note-off
+        self._immediate_note_timer = None
+        self._immediate_notes = []
 
         # Find soundfont
         if soundfont_path is None:
@@ -165,29 +176,57 @@ class NotePlayer(IPlayer):
             self.instrument = program
             self.fs.program_select(self.channel, self.sfid, 0, program)
 
-    def play_notes_immediate(self, midi_notes: List[int]) -> None:
+    def play_notes_immediate(self, midi_notes: List[int], duration: float = 2.0) -> None:
         """
-        Play notes immediately (for manual clicks)
+        Play notes immediately (for manual clicks) and schedule NOTE_OFF after duration
 
         Args:
             midi_notes: List of MIDI note numbers
+            duration: Duration in seconds before notes are released (default 2.0)
         """
         if not self.fs:
             logger.warning("FluidSynth not initialized, cannot play notes")
             return
 
-        # Stop any currently playing notes first
-        self.stop_all_notes()
+        # Cancel any pending timer
+        if self._immediate_note_timer:
+            self._immediate_note_timer.cancel()
+
+        # Stop any currently playing immediate notes
+        if self._immediate_notes:
+            for midi_note in self._immediate_notes:
+                self.fs.noteoff(self.channel, midi_note)
 
         # Play all notes
         velocity = 100
         for midi_note in midi_notes:
             self.fs.noteon(self.channel, midi_note, velocity)
 
+        # Store notes for later release
+        self._immediate_notes = midi_notes.copy()
+
+        # Schedule NOTE_OFF after duration
+        self._immediate_note_timer = threading.Timer(duration, self._release_immediate_notes)
+        self._immediate_note_timer.daemon = True
+        self._immediate_note_timer.start()
+
+    def _release_immediate_notes(self) -> None:
+        """Release notes that were played via play_notes_immediate (called by timer)."""
+        if self.fs and self._immediate_notes:
+            for midi_note in self._immediate_notes:
+                self.fs.noteoff(self.channel, midi_note)
+            logger.debug(f"Released immediate notes: {self._immediate_notes}")
+            self._immediate_notes = []
+
     def stop_all_notes(self) -> None:
         """Stop all currently playing notes"""
         if self.fs:
             self.fs.all_notes_off(self.channel)
+        # Also cancel immediate note timer
+        if self._immediate_note_timer:
+            self._immediate_note_timer.cancel()
+            self._immediate_note_timer = None
+        self._immediate_notes = []
 
     def set_bpm(self, bpm: int) -> None:
         """Update BPM setting"""
@@ -211,15 +250,14 @@ class NotePlayer(IPlayer):
         seconds_per_beat = 60.0 / self.bpm
         return beats * seconds_per_beat
 
-    def set_next_note_callback(self, callback: Callable[[], Optional[Tuple[List[int], float]]]) -> None:
+    def set_event_buffer(self, event_buffer) -> None:
         """
-        Set callback to get next note for playback
+        Set event buffer for playback
 
         Args:
-            callback: Function that returns (midi_notes, duration_beats) or None
-                     Should handle read locking internally
+            event_buffer: EventBuffer instance containing pre-computed MIDI events
         """
-        self.get_next_note_callback = callback
+        self.event_buffer = event_buffer
 
     def set_playback_finished_callback(self, callback: Callable[[], None]) -> None:
         """
@@ -230,6 +268,17 @@ class NotePlayer(IPlayer):
         """
         self.on_playback_finished_callback = callback
 
+    def set_event_callback(self, callback: Optional[Callable], application) -> None:
+        """
+        Set callback to be called for playback events (chord start/end)
+
+        Args:
+            callback: Function to call for playback events
+            application: Application instance for queueing UI callbacks
+        """
+        self.on_event_callback = callback
+        self.application = application
+
     def start_playback(self) -> None:
         """Start playback in a separate thread"""
         with self._state_lock:
@@ -237,8 +286,8 @@ class NotePlayer(IPlayer):
                 logger.debug("Playback already in progress")
                 return
 
-            if not self.get_next_note_callback:
-                logger.warning("No callback set for getting next note")
+            if not self.event_buffer:
+                logger.warning("No event buffer set for playback")
                 return
 
             logger.debug("Starting playback thread")
@@ -248,6 +297,7 @@ class NotePlayer(IPlayer):
         self.stop_event = threading.Event()
         self.pause_event = threading.Event()
         self.pause_event.set()  # Not paused initially
+        self._playback_start_time = None  # Will be set on first event
 
         self.playback_thread = threading.Thread(target=self._playback_loop, daemon=True)
         self.playback_thread.start()
@@ -298,10 +348,13 @@ class NotePlayer(IPlayer):
         logger.debug("Playback stopped")
 
     def _playback_loop(self) -> None:
-        """Main playback loop running in separate thread"""
+        """Main playback loop running in separate thread - consumes events from buffer."""
         import time
+        from models.playback_event_internal import MidiEventType
 
-        logger.debug("Playback loop started")
+        logger.debug("Playback loop started (buffer-based)")
+
+        natural_end = False  # Track if playback ended naturally
 
         while True:
             with self._state_lock:
@@ -316,55 +369,113 @@ class NotePlayer(IPlayer):
                 if not self.is_playing:
                     break
 
-            # Get next note from callback (with read lock)
-            logger.debug("Calling get_next_note_callback")
+            # Get next event from buffer (with timeout)
+            logger.debug("Fetching next event from buffer")
             try:
-                result = self.get_next_note_callback()
+                event = self.event_buffer.pop_event(timeout=0.1)
             except Exception as e:
-                logger.error(f"Exception in get_next_note_callback: {e}", exc_info=True)
+                logger.error(f"Exception getting event from buffer: {e}", exc_info=True)
                 break
 
-            if result is None:
-                logger.debug("No more notes, stopping playback")
+            if event is None:
+                # Timeout - check if we should continue waiting
+                continue
+
+            logger.debug(f"Got event: {event}")
+
+            # Handle END_OF_SONG event
+            if event.event_type == MidiEventType.END_OF_SONG:
+                logger.debug("Reached END_OF_SONG event")
                 with self._state_lock:
                     self.is_playing = False
+                natural_end = True
                 break
 
-            midi_notes, duration_beats = result
-            logger.debug(f"Got note: {midi_notes}, duration: {duration_beats} beats")
+            # Initialize playback start time on first event
+            if self._playback_start_time is None:
+                self._playback_start_time = time.time()
+                logger.debug(f"Playback start time initialized: {self._playback_start_time}")
 
-            # Play notes
-            if self.fs and midi_notes:
-                velocity = 100
-                for midi_note in midi_notes:
-                    self.fs.noteon(self.channel, midi_note, velocity)
-                logger.debug(f"Notes pressed")
+            # Calculate when this event should be played
+            target_time = self._playback_start_time + event.timestamp
+            current_time = time.time()
+            wait_time = target_time - current_time
 
-            # Sleep for duration
-            duration_seconds = self._beats_to_seconds(duration_beats)
-            logger.debug(f"Sleeping for {duration_seconds}s")
+            # Sleep until target time (if in the future)
+            if wait_time > 0:
+                logger.debug(f"Waiting {wait_time:.3f}s until event at t={event.timestamp:.3f}s")
+                # Sleep in small chunks to be responsive to stop/pause
+                sleep_chunks = max(1, int(wait_time / 0.1))
+                chunk_duration = wait_time / sleep_chunks
+                for _ in range(sleep_chunks):
+                    with self._state_lock:
+                        should_stop = not self.is_playing or self.stop_event.is_set()
+                    if should_stop:
+                        break
+                    # Check pause status
+                    if not self.pause_event.is_set():
+                        # Paused - adjust playback start time to account for pause duration
+                        pause_start = time.time()
+                        self.pause_event.wait()  # Wait until unpaused
+                        pause_duration = time.time() - pause_start
+                        self._playback_start_time += pause_duration
+                        logger.debug(f"Paused for {pause_duration:.3f}s, adjusted start time")
+                        break
+                    time.sleep(min(chunk_duration, wait_time))
+                    wait_time -= chunk_duration
+                    if wait_time <= 0:
+                        break
+            elif wait_time < -0.1:
+                # Event is significantly late - log warning
+                logger.warning(f"Event is {-wait_time:.3f}s late (target={event.timestamp:.3f}s)")
 
-            # Sleep in small chunks to be responsive to stop/pause
-            sleep_chunks = int(duration_seconds / 0.1) + 1
-            for _ in range(sleep_chunks):
-                with self._state_lock:
-                    should_stop = not self.is_playing or self.stop_event.is_set()
-                if should_stop:
+            # Check if we should stop before playing
+            with self._state_lock:
+                if not self.is_playing or self.stop_event.is_set():
                     break
-                time.sleep(min(0.1, duration_seconds))
-                duration_seconds -= 0.1
-                if duration_seconds <= 0:
-                    break
 
-            # Release notes
-            self.stop_all_notes()
-            logger.debug(f"Notes released")
+            # Handle NOTE_ON event
+            if event.event_type == MidiEventType.NOTE_ON:
+                if self.fs and event.midi_notes:
+                    # Play notes (don't stop existing notes - allows overlapping/arpeggio)
+                    for midi_note in event.midi_notes:
+                        self.fs.noteon(self.channel, midi_note, event.velocity)
+                    logger.debug(f"Played notes: {event.midi_notes}")
 
+                # Fire event callback if provided and metadata indicates it should be called
+                if self.on_event_callback and self.application and event.metadata.get('has_callback'):
+                    try:
+                        from models.playback_event import PlaybackEventArgs, PlaybackEventType
+                        event_args = PlaybackEventArgs(
+                            event_type=PlaybackEventType.CHORD_START,
+                            chord_info=event.metadata.get('chord_info'),
+                            bpm=event.metadata.get('bpm'),
+                            time_signature_beats=event.metadata.get('time_signature_beats'),
+                            time_signature_unit=event.metadata.get('time_signature_unit'),
+                            key=event.metadata.get('key'),
+                            current_line=event.metadata.get('line_index'),
+                            current_bar=event.metadata.get('bar'),
+                            total_bars=event.metadata.get('total_bars')
+                        )
+                        # Queue callback to UI thread
+                        self.application.queue_ui_callback(lambda: self.on_event_callback(event_args))
+                    except Exception as e:
+                        logger.error(f"Error in playback event callback: {e}", exc_info=True)
+
+            # Handle NOTE_OFF event
+            elif event.event_type == MidiEventType.NOTE_OFF:
+                if self.fs and event.midi_notes:
+                    for midi_note in event.midi_notes:
+                        self.fs.noteoff(self.channel, midi_note)
+                    logger.debug(f"Released notes: {event.midi_notes}")
+
+        # Stop all notes when exiting
+        self.stop_all_notes()
         logger.debug("Playback loop ended")
 
         # Call finished callback if playback ended naturally (not via stop)
-        logger.debug(f"Checking callback: stop_event={self.stop_event.is_set()}, callback={self.on_playback_finished_callback is not None}")
-        if not self.stop_event.is_set() and self.on_playback_finished_callback:
+        logger.debug(f"Checking callback: natural_end={natural_end}, callback={self.on_playback_finished_callback is not None}")
+        if natural_end and self.on_playback_finished_callback:
             logger.debug("Calling playback finished callback")
             try:
                 self.on_playback_finished_callback()
@@ -372,7 +483,7 @@ class NotePlayer(IPlayer):
             except Exception as e:
                 logger.error(f"Exception in playback finished callback: {e}", exc_info=True)
         else:
-            logger.debug("Skipping callback (stop_event set or no callback)")
+            logger.debug("Skipping callback (stopped manually or no callback)")
 
     def cleanup(self) -> None:
         """Clean up FluidSynth resources"""

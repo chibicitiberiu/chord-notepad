@@ -252,8 +252,11 @@ class MainWindowViewModel(Observable):
         else:
             self.start_playback()
 
-    def start_playback(self) -> bool:
+    def start_playback(self, from_char_offset: int = 0) -> bool:
         """Start sequential chord playback with directive support.
+
+        Args:
+            from_char_offset: Character offset to start playback from (0 = beginning)
 
         Returns:
             True if playback started, False otherwise
@@ -267,6 +270,33 @@ class MainWindowViewModel(Observable):
             self._current_text,
             self._notation
         )
+
+        # Find starting line and item index if starting from a specific position
+        start_line_index = 0
+        start_item_index = 0
+
+        if from_char_offset > 0:
+            logger.info(f"Starting playback from character offset {from_char_offset}")
+            # Find the first chord where chord.end > cursor_position
+            found = False
+            for line_idx, line in enumerate(self._playback_lines):
+                for item_idx, item in enumerate(line.items):
+                    # Check if this is a chord
+                    from models.chord import ChordInfo
+                    if isinstance(item, ChordInfo) and item.is_valid:
+                        # Found the first chord after cursor
+                        if item.end > from_char_offset:
+                            start_line_index = line_idx
+                            start_item_index = item_idx
+                            found = True
+                            logger.info(f"Starting from line {line_idx}, item {item_idx} (chord: {item.chord})")
+                            break
+                if found:
+                    break
+
+            if not found:
+                logger.warning("No chords found after cursor position")
+                return False
 
         # Wrap finished callback to run on UI thread
         def on_finished_wrapper():
@@ -283,7 +313,9 @@ class MainWindowViewModel(Observable):
             lines=self._playback_lines,
             initial_key=self._key,
             on_finished_callback=on_finished_wrapper,
-            on_event_callback=on_event_wrapper
+            on_event_callback=on_event_wrapper,
+            start_line_index=start_line_index,
+            start_item_index=start_item_index
         )
 
         if success:
@@ -291,6 +323,38 @@ class MainWindowViewModel(Observable):
             self.set_and_notify("is_paused", False)
 
         return success
+
+    def start_playback_from_cursor(self, cursor_position: str) -> bool:
+        """Start playback from a specific cursor position.
+
+        Args:
+            cursor_position: Tkinter cursor position (e.g., "9.2" = line 9, char 2)
+
+        Returns:
+            True if playback started, False otherwise
+        """
+        # Convert cursor position to character offset
+        # cursor_position format: "line.column" (1-indexed)
+        try:
+            line_num, col_num = cursor_position.split('.')
+            line_num = int(line_num)
+            col_num = int(col_num)
+        except (ValueError, AttributeError):
+            logger.error(f"Invalid cursor position: {cursor_position}")
+            return False
+
+        # Calculate character offset
+        # Count characters in all lines before the cursor line, plus column offset
+        lines = self._current_text.split('\n')
+        char_offset = 0
+        for i in range(line_num - 1):  # line_num is 1-indexed
+            if i < len(lines):
+                char_offset += len(lines[i]) + 1  # +1 for newline
+
+        char_offset += col_num
+
+        logger.info(f"Cursor position {cursor_position} = character offset {char_offset}")
+        return self.start_playback(from_char_offset=char_offset)
 
     def pause_playback(self) -> None:
         """Pause ongoing playback."""
@@ -311,8 +375,11 @@ class MainWindowViewModel(Observable):
         self.set_and_notify("is_paused", False)
 
     def stop_playback(self) -> None:
-        """Stop ongoing playback."""
+        """Stop ongoing playback and all notes."""
         if not self._is_playing:
+            # Even if not playing, stop all notes to clear any stuck notes
+            logger.debug("Stopping all notes (not playing)")
+            self._audio.stop_all_notes()
             return
 
         logger.debug("Stopping playback")

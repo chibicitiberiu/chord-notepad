@@ -46,15 +46,6 @@ class IPlayer(ABC):
         pass
 
     @abstractmethod
-    def set_next_note_callback(self, callback: Callable[[], Optional[Tuple[List[int], float]]]) -> None:
-        """Set callback to get next notes during playback.
-
-        Args:
-            callback: Function that returns (midi_notes, duration) or None when done
-        """
-        pass
-
-    @abstractmethod
     def set_playback_finished_callback(self, callback: Callable[[], None]) -> None:
         """Set callback to be called when playback finishes.
 
