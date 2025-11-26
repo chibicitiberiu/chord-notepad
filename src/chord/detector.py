@@ -12,6 +12,9 @@ from models.chord import ChordInfo
 class ChordDetector:
     """Detects chords in text using line-based classification"""
 
+    # Comment pattern - matches // and everything after it
+    COMMENT_PATTERN = re.compile(r'//.*$')
+
     # Basic chord pattern for initial detection (American notation, supports lowercase for minor)
     # Supports: ° (diminished), ø (half-diminished), + (augmented)
     # Supports unicode: ♯, ♭ (in addition to #, b)
@@ -56,6 +59,19 @@ class ChordDetector:
         self.notation = notation
         self.chord_helper = ChordHelper()
 
+    def _strip_comment(self, line: str) -> str:
+        """Strip comment from a line.
+
+        Comments start with // and continue to end of line.
+
+        Args:
+            line: Line that may contain a comment
+
+        Returns:
+            Line with comment removed
+        """
+        return self.COMMENT_PATTERN.sub('', line)
+
     def detect_chords_in_text(self, text: str) -> List[ChordInfo]:
         """
         Detect all chords in text with line-based classification
@@ -90,10 +106,10 @@ class ChordDetector:
         return results
 
     def _remove_directives_and_map_positions(self, line: str) -> Tuple[str, Dict[int, int]]:
-        """Remove directives from line and create position mapping.
+        """Remove directives and comments from line and create position mapping.
 
         Args:
-            line: Original line with directives
+            line: Original line with directives and/or comments
 
         Returns:
             Tuple of (cleaned_line, position_map) where position_map maps
@@ -103,6 +119,11 @@ class ChordDetector:
         directives = []
         for match in re.finditer(r'\{[^}]+\}', line):
             directives.append((match.start(), match.end()))
+
+        # Find comment region (// to end of line)
+        comment_match = self.COMMENT_PATTERN.search(line)
+        if comment_match:
+            directives.append((comment_match.start(), comment_match.end()))
 
         # Build cleaned line and position map
         cleaned_parts = []
@@ -145,6 +166,9 @@ class ChordDetector:
         """
         if not line.strip():
             return False
+
+        # Remove comments before processing
+        line = self._strip_comment(line)
 
         # Remove all directive text {keyword: value} before word splitting
         # This prevents content inside directives from being counted

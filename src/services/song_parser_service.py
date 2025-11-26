@@ -22,6 +22,9 @@ class SongParserService:
     duration parsing, and song structure building.
     """
 
+    # Comment pattern - matches // and everything after it
+    COMMENT_PATTERN = re.compile(r'//.*$', re.MULTILINE)
+
     def __init__(self):
         self._helper = ChordHelper()
         self._converter = NotationConverter()
@@ -37,6 +40,8 @@ class SongParserService:
         - {key: C}
         - {loop: label count}
 
+        Comments (// to end of line) are stripped before parsing.
+
         Args:
             text: Text to parse
 
@@ -44,6 +49,9 @@ class SongParserService:
             List of Directive objects found in the text
         """
         directives = []
+
+        # Strip comments before parsing directives
+        text = self.COMMENT_PATTERN.sub('', text)
 
         # Pattern to match {keyword: value}
         pattern = r'\{([^:}]+):\s*([^}]+)\}'

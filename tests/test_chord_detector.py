@@ -555,6 +555,92 @@ class TestAdvancedNotations:
         # Note: Individual validation tested in compute_chord_notes tests
 
 
+class TestComments:
+    """Tests for comment support."""
+
+    def test_comment_ignored_on_chord_line(self, american_detector):
+        """Test that comments are ignored on chord lines."""
+        text = "C F G // this is a comment"
+        chords = american_detector.detect_chords_in_text(text)
+
+        assert len(chords) == 3
+        assert chords[0].chord == "C"
+        assert chords[1].chord == "F"
+        assert chords[2].chord == "G"
+
+    def test_full_line_comment(self, american_detector):
+        """Test that full line comments are not detected as chord lines."""
+        text = "// This is a comment line\nC F G"
+        chords = american_detector.detect_chords_in_text(text)
+
+        # Only chords from second line
+        assert len(chords) == 3
+        assert all(c.line == 2 for c in chords)
+
+    def test_comment_after_directive(self, american_detector):
+        """Test comment after directive."""
+        text = "{bpm: 120} C F G // tempo set"
+        chords = american_detector.detect_chords_in_text(text)
+
+        assert len(chords) == 3
+        assert chords[0].chord == "C"
+
+    def test_comment_does_not_affect_chord_positions(self, american_detector):
+        """Test that chord positions are correct despite comments."""
+        text = "C F // comment"
+        chords = american_detector.detect_chords_in_text(text)
+
+        assert len(chords) == 2
+        assert chords[0].start == 0
+        assert chords[0].end == 1
+        assert chords[1].start == 2
+        assert chords[1].end == 3
+
+    def test_multiline_with_comments(self, american_detector):
+        """Test multiline text with comments on various lines."""
+        text = "C F G // first line\n// full comment\nAm Dm // second line"
+        chords = american_detector.detect_chords_in_text(text)
+
+        assert len(chords) == 5
+        # Line 1: C, F, G
+        assert chords[0].line == 1
+        assert chords[1].line == 1
+        assert chords[2].line == 1
+        # Line 2 is full comment - no chords
+        # Line 3: Am, Dm
+        assert chords[3].line == 3
+        assert chords[4].line == 3
+
+    def test_comment_with_chord_like_text(self, american_detector):
+        """Test that chord-like text in comments is ignored."""
+        text = "C F G // Am Dm Em are nice too"
+        chords = american_detector.detect_chords_in_text(text)
+
+        # Should only detect C, F, G - not the ones in comment
+        assert len(chords) == 3
+        assert chords[0].chord == "C"
+        assert chords[1].chord == "F"
+        assert chords[2].chord == "G"
+
+    def test_european_notation_with_comments(self, european_detector):
+        """Test comments work with European notation."""
+        text = "Do Re Mi // comment"
+        chords = european_detector.detect_chords_in_text(text)
+
+        assert len(chords) == 3
+        assert chords[0].chord == "Do"
+        assert chords[1].chord == "Re"
+        assert chords[2].chord == "Mi"
+
+    def test_roman_numerals_with_comments(self, american_detector):
+        """Test comments work with roman numeral chords."""
+        text = "I IV V // progression"
+        chords = american_detector.detect_chords_in_text(text)
+
+        assert len(chords) == 3
+        assert all(c.is_relative for c in chords)
+
+
 class TestEuropeanAdvanced:
     """Tests for European notation with advanced features."""
 

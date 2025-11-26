@@ -503,3 +503,70 @@ class TestNotationConversion:
         result = song_parser.convert_to_european("C D E")
         # NotationConverter should handle this
         assert "Do" in result or "C" in result  # Depends on converter implementation
+
+
+class TestCommentSupport:
+    """Tests for comment support in parsing."""
+
+    def test_directive_after_comment_ignored(self, song_parser):
+        """Test that directives after // are ignored."""
+        text = "// {bpm: 120}"
+        directives = song_parser.parse_directives(text)
+
+        assert len(directives) == 0
+
+    def test_directive_before_comment(self, song_parser):
+        """Test that directives before // are parsed."""
+        text = "{bpm: 120} // this is a comment"
+        directives = song_parser.parse_directives(text)
+
+        assert len(directives) == 1
+        assert directives[0].type == DirectiveType.BPM
+        assert directives[0].bpm == 120
+
+    def test_multiple_lines_with_comments(self, song_parser):
+        """Test parsing directives from multiple lines with comments."""
+        text = "{bpm: 120} // tempo\n{key: C} // key"
+        directives = song_parser.parse_directives(text)
+
+        assert len(directives) == 2
+        assert directives[0].type == DirectiveType.BPM
+        assert directives[1].type == DirectiveType.KEY
+
+    def test_comment_in_song_building(self, song_parser):
+        """Test that comments work in full song building."""
+        text = """{bpm: 120} // tempo setting
+C F G // verse chords
+// This is just a comment line
+Am Dm G // chorus"""
+
+        lines = song_parser.detect_chords_in_text(text, notation=Notation.AMERICAN)
+
+        assert len(lines) == 4
+
+        # Line 1: directive with comment
+        assert lines[0].type == LineType.TEXT
+        assert len(lines[0].directives) == 1
+
+        # Line 2: chords with comment
+        assert lines[1].type == LineType.CHORD
+        assert len(lines[1].chords) == 3
+
+        # Line 3: full comment line
+        assert lines[2].type == LineType.TEXT
+        assert len(lines[2].chords) == 0
+
+        # Line 4: chords with comment
+        assert lines[3].type == LineType.CHORD
+        assert len(lines[3].chords) == 3
+
+    def test_commented_directive_in_chord_line(self, song_parser):
+        """Test that commented-out directives on chord lines are ignored."""
+        text = "C F G // {bpm: 200}"
+        lines = song_parser.detect_chords_in_text(text, notation=Notation.AMERICAN)
+
+        assert len(lines) == 1
+        assert lines[0].type == LineType.CHORD
+        assert len(lines[0].chords) == 3
+        # The commented directive should not be parsed
+        assert len(lines[0].directives) == 0

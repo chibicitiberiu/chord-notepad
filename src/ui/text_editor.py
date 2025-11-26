@@ -2,16 +2,17 @@
 Custom text editor widget with support for chord detection
 """
 
+import re
 import tkinter as tk
-from typing import Optional, List, Any
+from typing import Optional, List, Any, Tuple
 from models.line import Line
 from models.chord import ChordInfo
 from viewmodels.text_editor_viewmodel import TextEditorViewModel
 from constants import (
-    TAG_CHORD_VALID, TAG_CHORD_INVALID, TAG_CHORD_COMMENT, TAG_CHORD_PLAYING,
-    TAG_DIRECTIVE_VALID, TAG_DIRECTIVE_INVALID,
-    COLOR_CHORD_VALID, COLOR_CHORD_INVALID, COLOR_CHORD_COMMENT, COLOR_CHORD_PLAYING_BG,
-    COLOR_DIRECTIVE_VALID, COLOR_DIRECTIVE_INVALID,
+    TAG_CHORD_VALID, TAG_CHORD_INVALID, TAG_CHORD_PLAYING,
+    TAG_DIRECTIVE_VALID, TAG_DIRECTIVE_INVALID, TAG_COMMENT,
+    COLOR_CHORD_VALID, COLOR_CHORD_INVALID, COLOR_CHORD_PLAYING_BG,
+    COLOR_DIRECTIVE_VALID, COLOR_DIRECTIVE_INVALID, COLOR_COMMENT,
     CHORD_DETECTION_DEBOUNCE_MS
 )
 
@@ -48,12 +49,14 @@ class ChordTextEditor(tk.Text):
         # Configure tags for chord highlighting
         self.tag_config(TAG_CHORD_VALID, foreground=COLOR_CHORD_VALID, underline=True)
         self.tag_config(TAG_CHORD_INVALID, foreground=COLOR_CHORD_INVALID, underline=True)
-        self.tag_config(TAG_CHORD_COMMENT, foreground=COLOR_CHORD_COMMENT, overstrike=True)
         self.tag_config(TAG_CHORD_PLAYING, background=COLOR_CHORD_PLAYING_BG, foreground='black', underline=True)
 
         # Configure tags for directive highlighting
         self.tag_config(TAG_DIRECTIVE_VALID, foreground=COLOR_DIRECTIVE_VALID, underline=False)
         self.tag_config(TAG_DIRECTIVE_INVALID, foreground=COLOR_DIRECTIVE_INVALID, underline=True, underlinefg=COLOR_DIRECTIVE_INVALID)
+
+        # Configure tag for comments
+        self.tag_config(TAG_COMMENT, foreground=COLOR_COMMENT)
 
         # Bind numpad Enter to work like regular Enter
         self.bind('<KP_Enter>', lambda e: self.insert(tk.INSERT, '\n'))
@@ -135,6 +138,20 @@ class ChordTextEditor(tk.Text):
         # The ViewModel will notify us via _on_detected_lines_changed
         # which will then call _update_highlighting
 
+    def _find_comments(self, text: str) -> List[Tuple[int, int]]:
+        """Find all comment regions in the text.
+
+        Args:
+            text: The full text content
+
+        Returns:
+            List of (start, end) tuples for each comment region
+        """
+        comments = []
+        for match in re.finditer(r'//[^\n]*', text):
+            comments.append((match.start(), match.end()))
+        return comments
+
     def _update_highlighting(self) -> None:
         """Update text highlighting based on detected lines."""
         # Clear existing chord tags
@@ -144,6 +161,19 @@ class ChordTextEditor(tk.Text):
         # Clear existing directive tags
         self.tag_remove(TAG_DIRECTIVE_VALID, '1.0', tk.END)
         self.tag_remove(TAG_DIRECTIVE_INVALID, '1.0', tk.END)
+
+        # Clear existing comment tags
+        self.tag_remove(TAG_COMMENT, '1.0', tk.END)
+
+        # Get text for comment detection
+        text = self.get('1.0', 'end-1c')
+
+        # Find and highlight comments first (so they appear as gray)
+        comments = self._find_comments(text)
+        for start, end in comments:
+            start_idx = f"1.0 + {start} chars"
+            end_idx = f"1.0 + {end} chars"
+            self.tag_add(TAG_COMMENT, start_idx, end_idx)
 
         # Collect all chords for highlighting
         self.detected_chords = []
