@@ -23,6 +23,9 @@ on:
           - nightly
           - test
 
+permissions:
+  contents: write
+
 jobs:
   test:
     name: Run Tests
