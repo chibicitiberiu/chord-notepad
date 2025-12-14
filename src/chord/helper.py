@@ -336,7 +336,10 @@ class ChordHelper:
             if not chord_name:
                 return None
         else:
-            # Normalize unicode and alternative symbols first
+            # Convert European notation to American first (Do → C, Re → D, etc.)
+            from chord.converter import NotationConverter
+            chord_name = NotationConverter.european_to_american(chord_name)
+            # Normalize unicode and alternative symbols
             chord_name = self._normalize_unicode_symbols(chord_name)
             # Normalize enharmonic equivalents (Cb → B, E# → F, etc.)
             chord_name = self._normalize_enharmonics(chord_name)

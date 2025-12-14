@@ -18,6 +18,7 @@ hypothesis = "*"
 pyinstaller = "*"
 macholib = "*"  # PyInstaller dependency for macOS (included on all platforms for lock consistency)
 colorama = "*"  # Sphinx dependency for Windows (included on all platforms for lock consistency)
+pywin32-ctypes = "*"  # PyInstaller dependency for Windows (included on all platforms for lock consistency)
 sphinx = "*"
 sphinx_rtd_theme = "*"
 rinohtype = "*"
