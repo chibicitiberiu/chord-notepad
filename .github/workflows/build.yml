@@ -38,14 +38,20 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.14'
+          python-version: '3.13'
 
       - name: Install system dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y fluidsynth libfluidsynth3
-          # For pywebview GTK backend
-          sudo apt-get install -y libgirepository1.0-dev gir1.2-webkit2-4.1
+          # For pywebview GTK backend and pygobject build dependencies
+          sudo apt-get install -y \
+            libgirepository1.0-dev \
+            gir1.2-webkit2-4.1 \
+            gcc \
+            pkg-config \
+            python3-dev \
+            libcairo2-dev
 
       - name: Install pipenv
         run: pip install pipenv
@@ -119,15 +125,21 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.14'
+          python-version: '3.13'
 
       - name: Install system dependencies (Linux)
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
           sudo apt-get install -y fluidsynth libfluidsynth3
-          # For pywebview GTK backend
-          sudo apt-get install -y libgirepository1.0-dev gir1.2-webkit2-4.1
+          # For pywebview GTK backend and pygobject build dependencies
+          sudo apt-get install -y \
+            libgirepository1.0-dev \
+            gir1.2-webkit2-4.1 \
+            gcc \
+            pkg-config \
+            python3-dev \
+            libcairo2-dev
 
       - name: Install system dependencies (macOS)
         if: runner.os == 'macOS'
@@ -242,7 +254,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.14'
+          python-version: '3.13'
 
       - name: Install pipenv
         run: pip install pipenv

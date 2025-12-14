@@ -30,6 +30,7 @@
 - ✅ Beat count annotations (e.g., `C*2` for 2 beats)
 - ✅ About dialog
 - ✅ `//` line comments
+- ✅ Support NC for rests/pauses
 
 ## Remaining Work
 
@@ -45,16 +46,6 @@
 ---
 
 ## Future Enhancements (Post-MVP)
-
-
-### NC (No Chord) Notation
-
-**Tasks:**
-1. Support NC for rests/pauses
-   - `NC` treated as special chord symbol meaning silence/rest
-   - Works with beat counts: `NC*2` = silence for 2 beats
-   - Useful for breaks, intros, endings
-   - Example: `C*4  G*4  NC*2  Am*4` (play C, G, silence, then Am)
 
 ### Preferences Dialog
 

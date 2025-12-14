@@ -89,6 +89,12 @@ class MainWindow(tk.Tk):
         # Make chords clickable
         self.text_editor.bind("<Button-1>", self.on_chord_click)
 
+    def show_quick_start_if_needed(self) -> None:
+        """Show the Quick Start dialog if this is the first run."""
+        if self.viewmodel.get_show_quick_start_on_startup():
+            # Use after() to show the dialog after the main window is fully displayed
+            self.after(100, self.show_quick_start)
+
     def _setup_viewmodel_observers(self) -> None:
         """Set up observers for ViewModel property changes."""
         # Font size changes
@@ -398,6 +404,7 @@ class MainWindow(tk.Tk):
         # Help menu
         help_menu = MenuBuilder(menubar) \
             .add_command("User Guide", self.show_help, accelerator="F1") \
+            .add_command("Quick Start", self.show_quick_start) \
             .add_separator() \
             .add_command("About", self.show_about) \
             .build()
@@ -878,6 +885,16 @@ class MainWindow(tk.Tk):
                 "Ensure the documentation has been built:\n"
                 "  make docs-html"
             )
+
+    def show_quick_start(self) -> None:
+        """Show the Quick Start dialog."""
+        from ui.dialogs import QuickStartDialog
+        dialog = QuickStartDialog(self)
+        self.wait_window(dialog)
+
+        # Update config if user chose not to show again
+        if dialog.get_dont_show_again():
+            self.viewmodel.set_show_quick_start_on_startup(False)
 
     def show_about(self) -> None:
         """Show About dialog with version information"""

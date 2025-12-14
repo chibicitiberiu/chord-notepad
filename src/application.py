@@ -339,6 +339,9 @@ class Application:
             )
             app.set_main_window(root)
 
+            # Show quick start dialog if this is the first run
+            root.show_quick_start_if_needed()
+
             # Start the application
             app.on_run()
 

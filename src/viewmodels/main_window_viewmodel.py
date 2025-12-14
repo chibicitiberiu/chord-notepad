@@ -650,6 +650,22 @@ class MainWindowViewModel(Observable):
         """
         return self._config.get("window_geometry", "900x600")
 
+    def get_show_quick_start_on_startup(self) -> bool:
+        """Get whether to show quick start dialog on startup.
+
+        Returns:
+            True if quick start should be shown on startup
+        """
+        return self._config.get("show_quick_start_on_startup", True)
+
+    def set_show_quick_start_on_startup(self, show: bool) -> None:
+        """Set whether to show quick start dialog on startup.
+
+        Args:
+            show: True to show quick start on startup, False to disable
+        """
+        self._config.set("show_quick_start_on_startup", show)
+
     def _apply_initial_settings_from_content(self, content: str) -> None:
         """Parse content and apply initial settings from first directives.
 

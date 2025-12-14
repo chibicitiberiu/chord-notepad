@@ -21,4 +21,4 @@ sphinx_rtd_theme = "*"
 rinohtype = "*"
 
 [requires]
-python_version = "3.14"
+python_version = "3.13"

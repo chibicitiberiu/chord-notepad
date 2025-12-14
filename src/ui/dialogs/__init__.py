@@ -7,6 +7,7 @@ from .insert_directives import (
     InsertLabelDialog,
     InsertLoopDialog,
 )
+from .quick_start import QuickStartDialog
 
 __all__ = [
     'InsertBpmDialog',
@@ -14,4 +15,5 @@ __all__ = [
     'InsertKeyDialog',
     'InsertLabelDialog',
     'InsertLoopDialog',
+    'QuickStartDialog',
 ]

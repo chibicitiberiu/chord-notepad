@@ -45,6 +45,9 @@ class Config:
     # Logging
     log_level: str = "INFO"
 
+    # UI/UX
+    show_quick_start_on_startup: bool = True  # Show quick start dialog on first launch
+
     def validate(self) -> None:
         """Validate configuration values."""
         if not (40 <= self.bpm <= 300):
@@ -86,6 +89,7 @@ class Config:
             "soundfont_path": self.soundfont_path,
             "audio_driver": self.audio_driver,
             "log_level": self.log_level,
+            "show_quick_start_on_startup": self.show_quick_start_on_startup,
         }
 
     @classmethod
@@ -117,4 +121,5 @@ class Config:
             soundfont_path=data.get("soundfont_path"),
             audio_driver=data.get("audio_driver"),
             log_level=data.get("log_level", "INFO"),
+            show_quick_start_on_startup=data.get("show_quick_start_on_startup", True),
         )
