@@ -10,7 +10,7 @@ build/
 *.egg
 
 # Pipenv
-Pipfile.lock
+# Note: Pipfile.lock should be committed for applications to ensure reproducible builds
 
 # Virtual environments
 .venv/
