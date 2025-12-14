@@ -16,6 +16,7 @@ pygobject = {version = "*", markers = "sys_platform == 'linux'"}
 pytest = "~=7.4.0"
 hypothesis = "*"
 pyinstaller = "*"
+macholib = "*"  # PyInstaller dependency for macOS (included on all platforms for lock consistency)
 sphinx = "*"
 sphinx_rtd_theme = "*"
 rinohtype = "*"
