@@ -45,13 +45,16 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y fluidsynth libfluidsynth3
           # For pywebview GTK backend and pygobject build dependencies
+          # Ubuntu 24.04 has libgirepository-2.0-dev for newer pygobject
           sudo apt-get install -y \
-            libgirepository1.0-dev \
+            libgirepository-2.0-dev \
             gir1.2-webkit2-4.1 \
             gcc \
             pkg-config \
             python3-dev \
-            libcairo2-dev
+            libcairo2-dev \
+            libffi-dev \
+            gobject-introspection
 
       - name: Install pipenv
         run: pip install pipenv
@@ -133,13 +136,16 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y fluidsynth libfluidsynth3
           # For pywebview GTK backend and pygobject build dependencies
+          # Ubuntu 24.04 has libgirepository-2.0-dev for newer pygobject
           sudo apt-get install -y \
-            libgirepository1.0-dev \
+            libgirepository-2.0-dev \
             gir1.2-webkit2-4.1 \
             gcc \
             pkg-config \
             python3-dev \
-            libcairo2-dev
+            libcairo2-dev \
+            libffi-dev \
+            gobject-introspection
 
       - name: Install system dependencies (macOS)
         if: runner.os == 'macOS'
