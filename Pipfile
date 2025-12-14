@@ -17,6 +17,7 @@ pytest = "~=7.4.0"
 hypothesis = "*"
 pyinstaller = "*"
 macholib = "*"  # PyInstaller dependency for macOS (included on all platforms for lock consistency)
+pefile = "*"  # PyInstaller dependency for Windows (included on all platforms for lock consistency)
 colorama = "*"  # Sphinx dependency for Windows (included on all platforms for lock consistency)
 pywin32-ctypes = "*"  # PyInstaller dependency for Windows (included on all platforms for lock consistency)
 sphinx = "*"
