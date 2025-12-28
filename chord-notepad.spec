@@ -31,8 +31,8 @@ if sys.platform == 'win32':
     else:
         # Try common local development paths
         local_paths = [
+            os.path.join(os.path.dirname(__file__), '.tools', 'bin'),
             r'C:\tools\fluidsynth\bin',
-            os.path.join(os.path.dirname(__file__), 'fluidsynth', 'bin'),
         ]
         for path in local_paths:
             if os.path.isdir(path):

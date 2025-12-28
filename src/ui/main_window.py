@@ -49,6 +49,9 @@ class MainWindow(tk.Tk):
         """
         super().__init__()
 
+        # Set platform-native ttk theme
+        self._setup_theme()
+
         # Store ViewModels and Services
         self.viewmodel = viewmodel
         self.text_editor_viewmodel = text_editor_viewmodel
@@ -94,6 +97,32 @@ class MainWindow(tk.Tk):
         if self.viewmodel.get_show_quick_start_on_startup():
             # Use after() to show the dialog after the main window is fully displayed
             self.after(100, self.show_quick_start)
+
+    def _setup_theme(self) -> None:
+        """Set up the ttk theme to use platform-native styling."""
+        import sys
+        style = ttk.Style()
+
+        # Get available themes
+        available = style.theme_names()
+
+        # Select platform-appropriate theme
+        if sys.platform == 'win32':
+            # Windows: prefer 'winnative' for native OS look, 'vista' as fallback
+            preferred = ['winnative', 'vista', 'xpnative']
+        elif sys.platform == 'darwin':
+            # macOS: 'aqua' is the native theme
+            preferred = ['aqua']
+        else:
+            # Linux: 'clam' looks most modern/native
+            preferred = ['clam', 'alt']
+
+        # Apply first available preferred theme
+        for theme in preferred:
+            if theme in available:
+                style.theme_use(theme)
+                logger.debug(f"Using ttk theme: {theme}")
+                break
 
     def _setup_viewmodel_observers(self) -> None:
         """Set up observers for ViewModel property changes."""

@@ -1,5 +1,8 @@
 .PHONY: run test tests build clean setup-dev icons docs docs-html docs-pdf
 
+# Tools directory for local dependencies
+TOOLS_DIR := .tools
+
 # Variables
 PYTHON := pipenv run python
 PYINSTALLER := pipenv run pyinstaller
@@ -21,7 +24,55 @@ tests: test
 
 # Set up development environment
 setup-dev:
+	@echo "Setting up development environment..."
+ifeq ($(OS),Windows_NT)
+	@echo "Detected Windows"
+	@if not exist "$(TOOLS_DIR)\bin\libfluidsynth-3.dll" ( \
+		echo Installing FluidSynth to $(TOOLS_DIR)... \
+		& if not exist "$(TOOLS_DIR)" mkdir "$(TOOLS_DIR)" \
+		& curl -L -o "$(TOOLS_DIR)\fluidsynth.zip" https://github.com/FluidSynth/fluidsynth/releases/download/v2.3.4/fluidsynth-2.3.4-win10-x64.zip \
+		& tar -xf "$(TOOLS_DIR)\fluidsynth.zip" -C "$(TOOLS_DIR)" \
+		& del "$(TOOLS_DIR)\fluidsynth.zip" \
+		& echo FluidSynth installed successfully \
+	) else ( \
+		echo FluidSynth already installed \
+	)
+else
+	@case "$$(uname -s)" in \
+		Darwin) \
+			echo "Detected macOS"; \
+			if ! command -v brew >/dev/null 2>&1; then \
+				echo "ERROR: Homebrew is required but not installed."; \
+				echo "Install it from https://brew.sh/"; \
+				exit 1; \
+			fi; \
+			echo "Installing dependencies via Homebrew..."; \
+			brew install fluid-synth imagemagick || true; \
+			;; \
+		Linux) \
+			echo "Detected Linux"; \
+			echo ""; \
+			echo "Please install the following system dependencies for your distribution:"; \
+			echo ""; \
+			echo "  Ubuntu/Debian:"; \
+			echo "    sudo apt-get install fluidsynth libfluidsynth3 imagemagick"; \
+			echo ""; \
+			echo "  Fedora:"; \
+			echo "    sudo dnf install fluidsynth fluidsynth-libs ImageMagick"; \
+			echo ""; \
+			echo "  Arch Linux:"; \
+			echo "    sudo pacman -S fluidsynth imagemagick"; \
+			echo ""; \
+			;; \
+		*) \
+			echo "Unknown OS. Please install FluidSynth and ImageMagick manually."; \
+			;; \
+	esac
+endif
+	@echo "Installing Python dependencies..."
 	pipenv install --dev
+	@echo ""
+	@echo "Setup complete! Run 'make run' to start the application."
 
 # Generate icon files from SVG
 icons:

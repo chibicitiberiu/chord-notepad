@@ -216,6 +216,7 @@ Playback:
 Features that may be considered for future versions but are not currently planned:
 
 ### Deferred (Maybe Later):
+- **Audio device selection** - Allow user to choose output device under Playback menu (requires `sounddevice` library for enumeration)
 - **Export to PDF/image** - Print/export chord sheets as PDF or image files
 - **Dark mode** - UI theme
 - **Multiple tabs** - Work on multiple songs simultaneously

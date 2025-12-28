@@ -101,8 +101,14 @@ class NotePlayer(IPlayer):
             logger.debug("Gain set")
 
             # Start audio output
-            # Try different drivers in order of preference
-            drivers = ['alsa', 'pulseaudio', 'oss']
+            # Try different drivers in order of preference based on platform
+            import sys
+            if sys.platform == 'win32':
+                drivers = ['dsound', 'wasapi', 'waveout']
+            elif sys.platform == 'darwin':
+                drivers = ['coreaudio']
+            else:  # Linux and others
+                drivers = ['pulseaudio', 'alsa', 'oss']
             started = False
 
             for driver in drivers:

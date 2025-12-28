@@ -47,3 +47,6 @@ resources/*.ico
 
 # Documentation build output
 help/build/
+
+# Local development tools (FluidSynth, etc.)
+.tools/
