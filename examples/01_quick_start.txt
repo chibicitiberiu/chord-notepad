@@ -1,0 +1,27 @@
+{bpm: 190} {time: 4/4} {key: C}
+
+// Quick Start Example - Your first chord chart!
+// Chords go on one line, lyrics on the next.
+// Click any chord to hear it, or press Play to hear them all.
+
+{label: verse}
+C        C/E      F      C
+Twinkle, twinkle, little star,
+Dm    Am     G        C
+How I wonder what you are!
+
+C/E Dm       Am       G
+Up above the world so high,
+C/E    F       Am     G
+Like a diamond in the sky.
+
+// Use {loop: label count} to repeat a section
+{loop: verse 2}
+
+// Duration: Add *beats after a chord to hold it longer
+C*4         G*4
+When the blazing sun is gone,
+Am*2        F*2         C*4
+When he nothing shines upon.
+
+// That's it! Open the other examples to learn more features.

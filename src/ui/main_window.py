@@ -126,8 +126,9 @@ class MainWindow(tk.Tk):
 
     def _setup_viewmodel_observers(self) -> None:
         """Set up observers for ViewModel property changes."""
-        # Font size changes
-        self.viewmodel.observe('font_size', self._on_font_size_changed)
+        # Font changes
+        self.viewmodel.observe('font_size', self._on_font_changed)
+        self.viewmodel.observe('font_family', self._on_font_changed)
 
         # Notation changes
         self.viewmodel.observe('notation', self._on_notation_changed)
@@ -156,8 +157,8 @@ class MainWindow(tk.Tk):
 
     # ViewModel observer callbacks
 
-    def _on_font_size_changed(self, new_value: int) -> None:
-        """React to font size changes from ViewModel."""
+    def _on_font_changed(self, new_value: Any) -> None:
+        """React to font changes from ViewModel."""
         self.apply_font()
 
     def _on_notation_changed(self, new_value: Notation) -> None:

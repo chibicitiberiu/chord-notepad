@@ -1144,6 +1144,85 @@ class TestComplexSeventhChordTypes:
             assert len(result.notes) == 4, f"{chord_name} should have 4 notes"
 
 
+class TestComplexJazzChords:
+    """Tests for complex jazz chord extensions and alterations."""
+
+    def test_sharp_11_chords(self, chord_helper):
+        """Test chords with #11 (Lydian sound)."""
+        sharp_11_chords = [
+            'Cmaj7#11',
+            'Cmaj9#11',
+            'C7#11',
+            'C9#11',
+            'C13#11',
+            'Cmaj13#11',
+        ]
+
+        for chord_name in sharp_11_chords:
+            result = chord_helper.compute_chord_notes(chord_name)
+            assert result is not None, f"{chord_name} should resolve"
+            assert result.root == "C", f"{chord_name} should have root C"
+
+    def test_altered_dominant_chords(self, chord_helper):
+        """Test altered dominant chords with multiple alterations."""
+        altered_chords = [
+            'C7b13',
+            'C7#5',
+            'C7b5',
+            'C7#9#5',
+            'C7b9b5',
+            'C7b9b13',
+            'C7#9b13',
+            'C7b9#11',
+            'C7#9#11',
+            'C9b13',
+            'C9#5',
+        ]
+
+        for chord_name in altered_chords:
+            result = chord_helper.compute_chord_notes(chord_name)
+            assert result is not None, f"{chord_name} should resolve"
+            assert result.root == "C", f"{chord_name} should have root C"
+
+    def test_thirteenth_chords(self, chord_helper):
+        """Test thirteenth chord variants."""
+        thirteenth_chords = [
+            'C13',
+            'Cm13',
+            'Cmaj13',
+        ]
+
+        for chord_name in thirteenth_chords:
+            result = chord_helper.compute_chord_notes(chord_name)
+            assert result is not None, f"{chord_name} should resolve"
+            assert result.root == "C", f"{chord_name} should have root C"
+            # 13th chords typically have many notes
+            assert len(result.notes) >= 4, f"{chord_name} should have at least 4 notes"
+
+    def test_sus_chords_with_extensions(self, chord_helper):
+        """Test suspended chords with extensions."""
+        sus_chords = [
+            'C7sus4',
+            'C9sus4',
+            'C13sus4',
+        ]
+
+        for chord_name in sus_chords:
+            result = chord_helper.compute_chord_notes(chord_name)
+            assert result is not None, f"{chord_name} should resolve"
+            assert result.root == "C", f"{chord_name} should have root C"
+
+    def test_complex_chords_with_different_roots(self, chord_helper):
+        """Test complex chords work with various root notes."""
+        complex_qualities = ['maj9#11', '7#9b13', '13#11', '7b9b13']
+
+        for root in ['C', 'F#', 'Bb', 'Eb']:
+            for quality in complex_qualities:
+                chord_name = f"{root}{quality}"
+                result = chord_helper.compute_chord_notes(chord_name)
+                assert result is not None, f"{chord_name} should resolve"
+
+
 @pytest.fixture
 def chord_helper():
     """Create a ChordHelper instance."""

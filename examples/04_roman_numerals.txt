@@ -1,0 +1,105 @@
+{bpm: 172} {time: 4/4} {key: Am}
+
+// Roman Numeral Notation Reference
+// Key-independent chord charts - transpose by changing {key:}!
+//
+// Uppercase = Major, lowercase = minor
+// I=1, ii=2, iii=3, IV=4, V=5, vi=6, vii°=7
+//
+// Edgar Allan Poe's "The Raven"
+
+// ===== BASIC ROMAN NUMERALS =====
+{label: intro}
+i           iv          V           i           // i=Am, iv=Dm, V=E, i=Am
+Once upon a midnight dreary, while I pondered, weak and weary,
+
+// ===== UPPERCASE (Major) vs LOWERCASE (minor) =====
+I           IV          V           I           // All major: I IV V I
+Over many a quaint and curious volume of forgotten lore,
+i           iv          v           i           // All minor: i iv v i
+While I nodded, nearly napping, suddenly there came a tapping.
+
+// ===== SEVENTH CHORDS =====
+{label: verse1}
+i           VI          III         V7          // V7 = dominant 7th
+As of some one gently rapping, rapping at my chamber door.
+i7          iv7         VII7        III7        // 7th chords on each degree
+"'Tis some visitor," I muttered, "tapping at my chamber door."
+
+// ===== FLAT ACCIDENTALS =====
+i           ♭VI         ♭VII        i           // ♭VI, ♭VII (borrowed chords)
+Ah, distinctly I remember it was in the bleak December;
+i           bVI         bVII        i           // Same with 'b' instead of ♭
+And each separate dying ember wrought its ghost upon the floor.
+
+// ===== SHARP ACCIDENTALS =====
+i           #iv         V           i           // #iv = raised 4th degree
+Eagerly I wished the morrow; vainly I had sought to borrow
+i           ♯iv         V           i           // Same with ♯ symbol
+From my books surcease of sorrow—sorrow for the lost Lenore.
+
+// ===== DIMINISHED =====
+{label: bridge}
+viio        vii°        viio7       vii°7       // Diminished (text & symbol)
+Deep into that darkness peering, long I stood there wondering, fearing,
+iio         ii°         #ivo        #iv°        // More diminished chords
+Doubting, dreaming dreams no mortal ever dared to dream before.
+
+// ===== SECONDARY DOMINANTS (Slash notation) =====
+V/V         V/ii        V/vi        V           // V of V, V of ii, etc.
+But the silence was unbroken, and the stillness gave no token,
+V7/IV       V7/V        V7/vi       i           // Secondary dominant 7ths
+And the only word there spoken was the whispered word, "Lenore?"
+
+// ===== INVERSIONS (Slash chords) =====
+{label: verse2}
+i/III       iv/i        V/VII       i           // Chord over bass note
+This I whispered, and an echo murmured back the word, "Lenore!"
+I/V         IV/I        V/ii        I           // More inversions
+Merely this and nothing more.
+
+// ===== SUSPENDED & ADD =====
+Isus4       Isus2       Vsus4       V           // Suspended chords
+Open here I flung the shutter, when, with many a flirt and flutter,
+Iadd9       IVadd9      Vadd9       I           // Add chords
+In there stepped a stately Raven of the saintly days of yore.
+
+// ===== AUGMENTED =====
+I+          III+        V+          i           // Augmented triads
+Not the least obeisance made he; not a minute stopped or stayed he;
+Iaug        IIIaug      Vaug7       i           // Augmented variations
+But, with mien of lord or lady, perched above my chamber door.
+
+// ===== DURATION =====
+{label: refrain}
+i*2         V*2         i*4                     // Hold for beats
+Quoth the Raven, "Nevermore."
+
+// ===== KEY CHANGES =====
+// Change {key:} to transpose everything!
+{key: Em}
+i           iv          V           i           // Now in E minor
+And the Raven, never flitting, still is sitting, still is sitting
+
+{key: Am}
+i           iv          V           i           // Back to A minor
+On the pallid bust of Pallas just above my chamber door;
+
+// ===== NC (NO CHORD) =====
+{label: outro}
+i           NC*2        V           NC*2        // NC = silence
+And my soul... (silence)... from out that shadow... (silence)
+
+i*2         NC*1        V*1         i*4
+Shall be... lifted... nevermore!
+
+// ===== COMPLEX PROGRESSION =====
+{bpm: 160}
+i           ♭VI         ♭VII        V7/V
+Take thy beak from out my heart,
+V7          ♭VImaj7     ♭VII7       i
+And take thy form from off my door!
+iv          i/III       V7          i*4
+Quoth the Raven... "Nevermore."
+
+{loop: refrain 1}

@@ -1,0 +1,125 @@
+{bpm: 120} {time: 4/4} {key: G}
+
+// Complete American Notation Reference
+// Shakespeare's "A Midsummer Night's Dream" meets jazz harmony
+
+// ===== BASIC TRIADS & SEVENTHS =====
+{label: intro}
+G           D           Em          C           // Major, minor triads
+I know a bank where the wild thyme blows,
+Gmaj7       Am7         Bm7         Cmaj7       // Major 7th, minor 7th
+Where oxlips and the nodding violet grows.
+
+// ===== SLASH CHORDS (Inversions) =====
+G/B         C/E         D/F#        G/D
+Quite over-canopied with luscious woodbine,
+Am/C        D/A         G/B         C
+With sweet musk-roses and with eglantine.
+
+// ===== LOWERCASE = MINOR (American shorthand) =====
+// c = Cm, d = Dm, e = Em, etc.
+g           d           e           c
+There sleeps Titania sometime of the night,
+a           e           d           g
+Lull'd in these flowers with dances and delight.
+
+// ===== DOMINANT 7THS & EXTENSIONS =====
+{label: verse1}
+G7          C7          D7          G7          // Dominant 7ths
+Lord, what fools these mortals be!
+G9          C9          D9          G9          // 9ths
+The course of true love never did run smooth.
+G11         C11         D13         Gmaj9       // 11ths, 13ths
+Love looks not with the eyes, but with the mind.
+
+// ===== ALTERED DOMINANTS =====
+{bpm: 100}
+G7#9        C7b9        D7#11       G7b13       // Sharp/flat extensions
+And therefore is wing'd Cupid painted blind.
+D7alt       G7#9#5      C7b9b13     D7#9b13     // Multiple alterations
+Nor hath Love's mind of any judgement taste.
+
+// ===== DIMINISHED & AUGMENTED =====
+{label: bridge}
+Gdim        Gdim7       G°          G°7         // Diminished (text & symbol)
+The lunatic, the lover and the poet
+Gaug        Gaug7       G+          G+7         // Augmented (text & symbol)
+Are of imagination all compact.
+
+// ===== HALF-DIMINISHED =====
+Bm7b5       Am7b5       Bø7         Aø7         // m7b5 and ø symbol
+One sees more devils than vast hell can hold;
+Em7b5       Dm7b5       Eø7         Dø          // Half-diminished variations
+That is the madman.
+
+// ===== SUSPENDED & ADD CHORDS =====
+{bpm: 110}
+Gsus4       Gsus2       Csus4       Dsus4       // Suspended
+The poet's eye, in fine frenzy rolling,
+Gadd9       Cadd9       Dadd9       Gadd9       // Add chords
+Doth glance from heaven to Earth.
+G(add11)    C(add9)     D(no3)      G(omit5)    // Parenthetical notation
+And gives to airy nothing a local habitation.
+
+// ===== MINOR-MAJOR CHORDS =====
+GmM7        CmM7        DmM7        GmM9        // Minor with major 7th
+If we shadows have offended,
+AmM7        EmM7        BmM7        FmM7        // More minor-major
+Think but this, and all is mended.
+
+// ===== ENHARMONIC & UNICODE =====
+{label: enharmonic}
+F#m7        Gbm7        C#7         Db7         // Enharmonic equivalents
+That you have but slumber'd here
+G♯m7        A♭maj7      D♯7         E♭7         // Unicode ♯ and ♭
+While these visions did appear.
+
+// ===== TEMPO MODIFIERS =====
+{bpm: +20}                                      // Relative: add 20 BPM
+G           D           Em          C
+And this weak and idle theme,
+
+{bpm: 75%}                                      // Percentage: 75% of current
+Am          D           G
+No more yielding but a dream.
+
+{bpm: 2x}                                       // Multiplier: double tempo
+G*1         D*1         C*1         G*1
+Gentles, do not reprehend!
+
+{bpm: 0.5x}                                     // Multiplier: half tempo
+G*2         C*2         D*2         G*2
+If you pardon, we will mend.
+
+{bpm: reset}                                    // Reset to original (120)
+G           D           C           G
+So, good night unto you all.
+
+// ===== TIME SIGNATURES =====
+{time: 3/4}
+G           D           Em
+Give me your hands, if we be friends,
+
+{time: 6/8}
+C           G           D
+And Robin shall restore amends.
+
+{time: 4/4}
+
+// ===== NC (NO CHORD / SILENCE) =====
+{label: outro}
+G           NC*2        D           NC*2        // NC = silence/rest
+(chord)     (silence)   (chord)     (silence)
+
+G*2         NC*1        D*1         G*4
+The end... draws... near.
+
+// ===== COMPLEX FINALE =====
+Gmaj7#11    Em9         Am7b5       D7#9b13
+Now the hungry lion roars,
+Cmaj9#11    Bm7b5       E7alt       Am(add9)
+And the wolf behowls the moon.
+G/B         C           D7sus4      Gmaj7*4
+Good night... and dream of summer.
+
+{loop: outro 1}

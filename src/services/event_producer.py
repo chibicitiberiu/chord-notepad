@@ -303,6 +303,18 @@ class EventProducer:
         if directive.label in state['labels']:
             label_pos = state['labels'][directive.label]
 
+            # Loop count of 1 or less means "play once" = no actual looping needed
+            if directive.loop_count <= 1:
+                self._logger.debug(f"Loop '{directive.label}' has count {directive.loop_count}, skipping (no repeat)")
+                return
+
+            # Check if we've already completed this specific loop directive (prevent re-entry)
+            # Use directive position as unique identifier
+            completed_key = f"loop_done_{directive.start}"
+            if completed_key in state:
+                self._logger.debug(f"Loop '{directive.label}' at position {directive.start} already completed, skipping")
+                return
+
             # Check if we're already in a loop for this label
             already_looping = any(loop['label'] == directive.label for loop in state['loop_stack'])
 
@@ -331,7 +343,8 @@ class EventProducer:
                     'label': directive.label,
                     'count': directive.loop_count,
                     'remaining': directive.loop_count - 1,
-                    'target': label_pos
+                    'target': label_pos,
+                    'directive_pos': directive.start  # Track position for completion marking
                 })
                 # Jump to label
                 state['line_index'], state['item_index'] = label_pos
@@ -363,8 +376,10 @@ class EventProducer:
                     current_loop['remaining'] -= 1
                     # Continue playing from after the label
                 else:
-                    # Loop finished
-                    self._logger.debug(f"Loop '{directive.label}' finished")
+                    # Loop finished - mark as completed to prevent re-entry
+                    completed_key = f"loop_done_{current_loop['directive_pos']}"
+                    state[completed_key] = True
+                    self._logger.debug(f"Loop '{directive.label}' finished, marked as completed")
                     state['loop_stack'].pop()
 
     def _update_position_for_chord(self, chord: ChordInfo, state: dict) -> None:

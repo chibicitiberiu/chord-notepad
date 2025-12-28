@@ -159,7 +159,7 @@ class MainWindowViewModel(Observable):
             pass
 
         logger.info("Creating new file")
-        self._current_file = None
+        # Note: set_and_notify handles setting _current_file internally
         self.set_and_notify("current_text", "")
         self.set_and_notify("is_modified", False)
         self.set_and_notify("current_file", None)
@@ -179,7 +179,7 @@ class MainWindowViewModel(Observable):
             logger.info(f"Opening file: {path}")
             content = self._file.open_file(path)
 
-            self._current_file = path
+            # Note: set_and_notify handles setting _current_file internally
             self.set_and_notify("current_text", content)
             self.set_and_notify("is_modified", False)
             self.set_and_notify("current_file", path)
@@ -221,7 +221,7 @@ class MainWindowViewModel(Observable):
             logger.info(f"Saving file: {path}")
             self._file.save_file(path, self._current_text)
 
-            self._current_file = path
+            # Note: set_and_notify handles setting _current_file internally
             self.set_and_notify("is_modified", False)
             self.set_and_notify("current_file", path)
 

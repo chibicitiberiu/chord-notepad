@@ -50,13 +50,23 @@ class SongParserService:
         """
         directives = []
 
-        # Strip comments before parsing directives
-        text = self.COMMENT_PATTERN.sub('', text)
+        # Find all comment regions to skip directives inside them
+        comment_regions = [(m.start(), m.end()) for m in self.COMMENT_PATTERN.finditer(text)]
+
+        def is_in_comment(pos: int) -> bool:
+            """Check if a position is inside a comment."""
+            for start, end in comment_regions:
+                if start <= pos < end:
+                    return True
+            return False
 
         # Pattern to match {keyword: value}
         pattern = r'\{([^:}]+):\s*([^}]+)\}'
 
         for match in re.finditer(pattern, text):
+            # Skip directives inside comments
+            if is_in_comment(match.start()):
+                continue
             start = match.start()
             end = match.end()
             keyword = match.group(1).strip().lower()

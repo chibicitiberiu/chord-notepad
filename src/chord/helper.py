@@ -61,6 +61,16 @@ class ChordHelper:
         'm11': [0, 3, 7, 10, 14, 17],   # Minor 11th (b3 doesn't clash)
         'maj11': [0, 4, 7, 11, 14, 17], # Major 11th
         '13': [0, 4, 7, 10, 14, 21],    # Dominant 13th (omits 11th - practical voicing)
+        'm13': [0, 3, 7, 10, 14, 21],   # Minor 13th
+        'maj13': [0, 4, 7, 11, 14, 21], # Major 13th
+
+        # Sharp 11 chords (Lydian sound)
+        '7#11': [0, 4, 7, 10, 18],          # Dominant 7 #11
+        'maj7#11': [0, 4, 7, 11, 18],       # Major 7 #11
+        '9#11': [0, 4, 7, 10, 14, 18],      # Dominant 9 #11
+        'maj9#11': [0, 4, 7, 11, 14, 18],   # Major 9 #11
+        '13#11': [0, 4, 7, 10, 14, 18, 21], # Dominant 13 #11
+        'maj13#11': [0, 4, 7, 11, 14, 18, 21], # Major 13 #11
 
         # Add chords
         'add9': [0, 4, 7, 14],          # Add 9
@@ -74,6 +84,24 @@ class ChordHelper:
         'dim7#9': [0, 3, 6, 9, 15],     # Diminished 7th sharp 9
         'dim(maj9)': [0, 3, 6, 11, 14], # Diminished with maj7 and 9
         'dimm9': [0, 3, 6, 10, 14],     # Diminished minor 9th
+
+        # Altered dominants with multiple alterations
+        '7b13': [0, 4, 7, 10, 20],          # Dominant 7 flat 13
+        '7#5': [0, 4, 8, 10],               # Dominant 7 sharp 5 (aug7)
+        '7b5': [0, 4, 6, 10],               # Dominant 7 flat 5
+        '7#9#5': [0, 4, 8, 10, 15],         # Dominant 7 #9 #5
+        '7b9b5': [0, 4, 6, 10, 13],         # Dominant 7 b9 b5
+        '7b9b13': [0, 4, 7, 10, 13, 20],    # Dominant 7 b9 b13
+        '7#9b13': [0, 4, 7, 10, 15, 20],    # Dominant 7 #9 b13
+        '7b9#11': [0, 4, 7, 10, 13, 18],    # Dominant 7 b9 #11
+        '7#9#11': [0, 4, 7, 10, 15, 18],    # Dominant 7 #9 #11
+        '9b13': [0, 4, 7, 10, 14, 20],      # Dominant 9 b13
+        '9#5': [0, 4, 8, 10, 14],           # Dominant 9 #5
+
+        # Sus chords with extensions
+        '7sus4': [0, 5, 7, 10],        # Dominant 7 sus4
+        '9sus4': [0, 5, 7, 10, 14],    # Dominant 9 sus4
+        '13sus4': [0, 5, 7, 10, 14, 21], # Dominant 13 sus4
     }
 
     def __init__(self) -> None:
@@ -335,6 +363,8 @@ class ChordHelper:
             chord_name = self._resolve_roman_numeral(chord_name, key)
             if not chord_name:
                 return None
+            # Apply symbol conversions to resolved chord (+ → aug, ° → dim, etc.)
+            chord_name = self._convert_symbols_to_text(chord_name)
         else:
             # Convert European notation to American first (Do → C, Re → D, etc.)
             from chord.converter import NotationConverter

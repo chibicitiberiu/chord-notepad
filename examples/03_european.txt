@@ -1,0 +1,93 @@
+{bpm: 100} {time: 3/4} {key: La}
+
+// European (Solfege) Notation Reference
+// NOTE: Set notation to "European" to use this file!
+//
+// European: Do  Re  Mi  Fa  Sol La  Si
+// American: C   D   E   F   G   A   B
+//
+// Don Quixote's Dream - inspired by Cervantes
+
+// ===== BASIC EUROPEAN NOTATION =====
+{label: intro}
+Lam         Sol         Do          Mi          // La minor, Sol, Do, Mi
+In a village of La Mancha, the name of which
+Fa          Do          Mi          Lam         // Fa, Do, Mi, La minor
+I have no desire to recall...
+
+// ===== MAJOR VS MINOR =====
+// Uppercase root = Major, lowercase or 'm' suffix = minor
+Do          Sol         Lam         Mim         // Do major, Sol major, La minor, Mi minor
+There lived not long ago one of those gentlemen
+Fa          Rem         Sol         Do          // Fa major, Re minor, Sol major, Do
+That keep a lance in the lance-rack.
+
+// ===== SEVENTH CHORDS =====
+{label: verse1}
+Domaj7      Lam7        Rem7        Sol7        // Major 7, minor 7, dominant 7
+An old shield, a lean hack, and a greyhound for coursing.
+Famaj7      Sim7b5      Mi7         Lam7        // Fmaj7, Bm7b5, E7, Am7
+A pot of rather more beef than mutton.
+
+// ===== ACCIDENTALS =====
+{label: verse2}
+Do#m        Reb         Fa#         Solb        // Sharps and flats with #/b
+He became so absorbed in his books
+Do♯m        Re♭         Fa♯         Sol♭        // Unicode sharps ♯ and flats ♭
+That he spent his nights from sunset to sunrise.
+
+// ===== ACCENTED VOWELS (Regional variants) =====
+Dó          Ré          Fá          Lá          // Accented: Dó=Do, Ré=Re, Fá=Fa, Lá=La
+Poring over them until his brains dried up,
+dó          ré          fá          lá          // Lowercase accented = minor
+And he lost the use of his reason.
+
+// ===== EXTENDED CHORDS =====
+{label: bridge}
+Do9         Sol9        Lam9        Mi9         // 9th chords
+He was filled with a desire to go out
+Fa11        Re11        Sol13       Do          // 11th, 13th chords
+To roam the world on horseback.
+
+// ===== SLASH CHORDS =====
+Do/Mi       Lam/Do      Rem/Fa      Sol/Si      // Inversions
+Righting every manner of wrong,
+Do/Sol      Fa/La       Sol/Re      Do          // More slash chords
+And exposing himself to peril and danger.
+
+// ===== DIMINISHED & AUGMENTED =====
+{bpm: 90}
+Dodim       Do°         Ladim7      La°7        // Diminished
+To right the unrightable wrong,
+Doaug       Do+         Miaug7      Mi+7        // Augmented
+To fight the unbeatable foe!
+
+// ===== SUSPENDED =====
+Dosus4      Dosus2      Solsus4     Solsus2     // Suspended chords
+To bear with unbearable sorrow,
+Fasus4      Resus4      Solsus4     Do          // More suspensions
+To run where the brave dare not go!
+
+// ===== DURATION =====
+{label: chorus}
+Do*2        Sol*2       Lam*4                   // Hold for beats
+Dream the impossible dream,
+Fa*2        Mi*2        Lam*4                   // 2 beats, 2 beats, 4 beats
+Fight the unbeatable foe.
+
+// ===== TEMPO CHANGES =====
+{bpm: +30}
+Do          Sol         Lam         Fa
+To try when your arms are too weary,
+
+{bpm: reset}
+Do          Sol         Do
+To reach the unreachable star!
+
+// ===== LOOPS =====
+{loop: chorus 2}
+
+// ===== FINALE =====
+{label: outro}
+Lam*2       Mi*2        Lam         NC*2        Lam*4
+And the world... will be better... for this.

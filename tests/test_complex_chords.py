@@ -93,6 +93,52 @@ class TestComplexAmericanChords:
         assert chords[4].chord == "G7#11"
         assert chords[5].chord == "A7b13"
 
+    def test_complex_altered_dominants(self, american_detector):
+        """Test complex altered dominant chords with multiple alterations."""
+        text = "C7#9#5 D7b9b13 E7#9b13 F7b9#11 G7#9#11"
+        chords = american_detector.detect_chords_in_text(text)
+
+        assert len(chords) == 5
+        assert chords[0].chord == "C7#9#5"
+        assert chords[1].chord == "D7b9b13"
+        assert chords[2].chord == "E7#9b13"
+        assert chords[3].chord == "F7b9#11"
+        assert chords[4].chord == "G7#9#11"
+
+    def test_sharp_11_chords(self, american_detector):
+        """Test chords with sharp 11 (Lydian sound)."""
+        text = "Cmaj7#11 Dmaj9#11 E7#11 F9#11 G13#11"
+        chords = american_detector.detect_chords_in_text(text)
+
+        assert len(chords) == 5
+        assert chords[0].chord == "Cmaj7#11"
+        assert chords[1].chord == "Dmaj9#11"
+        assert chords[2].chord == "E7#11"
+        assert chords[3].chord == "F9#11"
+        assert chords[4].chord == "G13#11"
+
+    def test_thirteenth_chords(self, american_detector):
+        """Test thirteenth chords."""
+        text = "C13 Dm13 Emaj13 F13#11 Gmaj13#11"
+        chords = american_detector.detect_chords_in_text(text)
+
+        assert len(chords) == 5
+        assert chords[0].chord == "C13"
+        assert chords[1].chord == "Dm13"
+        assert chords[2].chord == "Emaj13"
+        assert chords[3].chord == "F13#11"
+        assert chords[4].chord == "Gmaj13#11"
+
+    def test_sus_chords_with_extensions(self, american_detector):
+        """Test suspended chords with extensions."""
+        text = "C7sus4 D9sus4 E13sus4"
+        chords = american_detector.detect_chords_in_text(text)
+
+        assert len(chords) == 3
+        assert chords[0].chord == "C7sus4"
+        assert chords[1].chord == "D9sus4"
+        assert chords[2].chord == "E13sus4"
+
     def test_minor_major_chords(self, american_detector):
         """Test minor-major seventh chords."""
         text = "CmM7 DmM9 EmM7"
