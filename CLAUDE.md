@@ -14,8 +14,8 @@ make test
 # Build executable
 make build
 
-# Install dependencies
-make install
+# Set up development environment
+make setup-dev
 ```
 
 ## Tech Stack

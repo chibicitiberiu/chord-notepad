@@ -9,8 +9,6 @@ pychord = "*"
 mingus = "*"
 music21 = "*"
 pillow = "*"
-pywebview = "*"
-pygobject = {version = "*", markers = "sys_platform == 'linux'"}
 
 [dev-packages]
 pytest = "~=7.4.0"

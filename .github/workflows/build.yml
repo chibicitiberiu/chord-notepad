@@ -44,17 +44,6 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y fluidsynth libfluidsynth3
-          # For pywebview GTK backend and pygobject build dependencies
-          # Ubuntu 24.04 has libgirepository-2.0-dev for newer pygobject
-          sudo apt-get install -y \
-            libgirepository-2.0-dev \
-            gir1.2-webkit2-4.1 \
-            gcc \
-            pkg-config \
-            python3-dev \
-            libcairo2-dev \
-            libffi-dev \
-            gobject-introspection
 
       - name: Install pipenv
         run: pip install pipenv
@@ -135,22 +124,37 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y fluidsynth libfluidsynth3
-          # For pywebview GTK backend and pygobject build dependencies
-          # Ubuntu 24.04 has libgirepository-2.0-dev for newer pygobject
-          sudo apt-get install -y \
-            libgirepository-2.0-dev \
-            gir1.2-webkit2-4.1 \
-            gcc \
-            pkg-config \
-            python3-dev \
-            libcairo2-dev \
-            libffi-dev \
-            gobject-introspection
 
       - name: Install system dependencies (macOS)
         if: runner.os == 'macOS'
         run: |
           brew install fluid-synth
+
+      - name: Install system dependencies (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          # Download FluidSynth for Windows
+          $version = "2.3.4"
+          $url = "https://github.com/FluidSynth/fluidsynth/releases/download/v$version/fluidsynth-$version-win10-x64.zip"
+          $zipPath = "$env:TEMP\fluidsynth.zip"
+          $extractPath = "$env:GITHUB_WORKSPACE\fluidsynth"
+
+          Write-Host "Downloading FluidSynth $version..."
+          Invoke-WebRequest -Uri $url -OutFile $zipPath
+
+          Write-Host "Extracting to $extractPath..."
+          Expand-Archive -Path $zipPath -DestinationPath $extractPath -Force
+
+          # Find the bin directory (it's inside a versioned folder)
+          $binPath = Get-ChildItem -Path $extractPath -Recurse -Directory -Filter "bin" | Select-Object -First 1
+          Write-Host "FluidSynth bin path: $($binPath.FullName)"
+
+          # Set environment variable for subsequent steps
+          echo "FLUIDSYNTH_PATH=$($binPath.FullName)" >> $env:GITHUB_ENV
+
+          # List contents for debugging
+          Get-ChildItem -Path $binPath.FullName
 
       - name: Install pipenv
         run: pip install pipenv

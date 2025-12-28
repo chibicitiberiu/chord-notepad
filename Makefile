@@ -1,4 +1,4 @@
-.PHONY: run test tests build clean install icons docs docs-html docs-pdf
+.PHONY: run test tests build clean setup-dev icons docs docs-html docs-pdf
 
 # Variables
 PYTHON := pipenv run python
@@ -19,8 +19,8 @@ test:
 # Run tests (alias)
 tests: test
 
-# Install dependencies
-install:
+# Set up development environment
+setup-dev:
 	pipenv install --dev
 
 # Generate icon files from SVG

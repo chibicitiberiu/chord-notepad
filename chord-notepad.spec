@@ -1,5 +1,7 @@
 # -*- mode: python ; coding: utf-8 -*-
 import os
+import sys
+import glob
 
 block_cipher = None
 
@@ -16,23 +18,50 @@ datas = [
     ('help/build/html', 'help/build/html'),
 ]
 
+# Collect FluidSynth DLLs on Windows
+binaries = []
+if sys.platform == 'win32':
+    # Look for FluidSynth DLLs in the environment variable set by the build workflow
+    fluidsynth_path = os.environ.get('FLUIDSYNTH_PATH', '')
+    if fluidsynth_path and os.path.isdir(fluidsynth_path):
+        # Collect all DLLs from the FluidSynth bin directory
+        for dll in glob.glob(os.path.join(fluidsynth_path, '*.dll')):
+            binaries.append((dll, 'fluidsynth'))
+        print(f"Found {len(binaries)} FluidSynth DLLs in {fluidsynth_path}")
+    else:
+        # Try common local development paths
+        local_paths = [
+            r'C:\tools\fluidsynth\bin',
+            os.path.join(os.path.dirname(__file__), 'fluidsynth', 'bin'),
+        ]
+        for path in local_paths:
+            if os.path.isdir(path):
+                for dll in glob.glob(os.path.join(path, '*.dll')):
+                    binaries.append((dll, 'fluidsynth'))
+                print(f"Found {len(binaries)} FluidSynth DLLs in {path}")
+                break
+        if not binaries:
+            print("WARNING: FluidSynth DLLs not found. Set FLUIDSYNTH_PATH or install to C:\\tools\\fluidsynth")
+
+# Runtime hooks - handle FluidSynth DLL loading on Windows
+runtime_hooks = []
+if sys.platform == 'win32':
+    runtime_hooks.append('hooks/hook-fluidsynth.py')
+
 # Hidden imports - all our local modules
 hiddenimports = [
     'ui',
     'ui.main_window',
     'ui.text_editor',
     'ui.help_window',
-    'ui.help_viewer',
     'audio',
     'audio.player',
     'audio.chord_picker',
     'chord',
     'chord.converter',
-    # pywebview for help documentation viewer
-    'webview',
 ]
 
-# Exclude unused GUI frameworks that pywebview might pull in
+# Exclude unused GUI frameworks
 excludes = [
     'PyQt5',
     'PyQt6',
@@ -44,12 +73,12 @@ excludes = [
 a = Analysis(
     ['src/main.py'],
     pathex=[src_path],
-    binaries=[],
+    binaries=binaries,
     datas=datas,
     hiddenimports=hiddenimports,
     hookspath=[],
     hooksconfig={},
-    runtime_hooks=[],
+    runtime_hooks=runtime_hooks,
     excludes=excludes,
     win_no_prefer_redirects=False,
     win_private_assemblies=False,
