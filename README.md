@@ -210,7 +210,7 @@ The project uses standard Python conventions with:
 
 ## License
 
-MIT License - feel free to use and modify for your own projects.
+[GNU Affero General Public License v3.0](LICENSE) - feel free to use and modify for your own projects.
 
 ## Contributing
 
