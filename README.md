@@ -2,6 +2,8 @@
 
 A simple text editor for musicians that automatically detects and plays guitar/piano chords using FluidSynth synthesis.
 
+<img width="1084" height="830" alt="image" src="https://github.com/user-attachments/assets/54ebad77-a203-4140-a018-d04476315819" />
+
 ## Features
 
 - Text editor with syntax highlighting for chord symbols
