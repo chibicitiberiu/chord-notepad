@@ -53,9 +53,13 @@ class NotationConverter:
         return ascii_text
 
     @classmethod
-    def american_to_european(cls, chord_str: str) -> str:
+    def chord_american_to_european(cls, chord_str: str) -> str:
         """
-        Convert American notation chord to European
+        Convert a single American-notation chord to European.
+
+        For converting an entire text, see
+        :py:meth:`services.song_parser_service.SongParserService.convert_to_european`,
+        which uses the chord detector to skip lyrics and non-chord text.
 
         Args:
             chord_str: Chord in American notation (e.g., "Cmaj7", "Am/G")
@@ -75,9 +79,13 @@ class NotationConverter:
             return cls._convert_root_american_to_european(result)
 
     @classmethod
-    def european_to_american(cls, chord_str: str) -> str:
+    def chord_european_to_american(cls, chord_str: str) -> str:
         """
-        Convert European notation chord to American
+        Convert a single European-notation chord to American.
+
+        For converting an entire text, see
+        :py:meth:`services.song_parser_service.SongParserService.convert_to_american`,
+        which uses the chord detector to skip lyrics and non-chord text.
 
         Args:
             chord_str: Chord in European notation (e.g., "Domaj7", "Lam/Sol")
@@ -175,5 +183,5 @@ class NotationConverter:
             Formatted chord string
         """
         if notation == 'european':
-            return cls.american_to_european(chord_str)
+            return cls.chord_american_to_european(chord_str)
         return chord_str

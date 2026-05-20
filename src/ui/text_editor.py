@@ -116,6 +116,15 @@ class ChordTextEditor(tk.Text):
         self.viewmodel.set_notation(notation)
         self._detect_chords()
 
+    def refresh_chords(self) -> None:
+        """Re-run chord detection over the current widget content.
+
+        Used after a programmatic text replacement (e.g. notation conversion)
+        so the new chords are highlighted and clickable without waiting for
+        the user to type.
+        """
+        self._detect_chords()
+
     def _reset_typing_timer(self) -> None:
         """Reset the typing timer"""
         if self._typing_timer:

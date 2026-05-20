@@ -12,7 +12,6 @@ from models.playback_event import PlaybackEventArgs, PlaybackEventType
 from models.playback_event_internal import MidiEvent, MidiEventType
 from audio.event_buffer import EventBuffer
 from audio.note_picker_interface import INotePicker
-from audio.chord_picker import ChordPickerState
 
 
 class EventProducer:
@@ -36,7 +35,7 @@ class EventProducer:
         on_event_callback: Optional[Callable[[PlaybackEventArgs], None]] = None,
         logger: Optional[logging.Logger] = None,
         start_line_index: int = 0,
-        start_item_index: int = 0
+        start_item_index: int = 0,
     ):
         """Initialize the event producer.
 
@@ -99,14 +98,7 @@ class EventProducer:
     def _produce_events(self) -> None:
         """Main event production loop (runs in separate thread)."""
         try:
-            # Calculate total bars for UI progress
-            total_beats = 0.0
-            for line in self._lines:
-                for item in line.items:
-                    if isinstance(item, ChordInfo) and item.is_valid:
-                        duration = float(item.duration) if item.duration is not None else float(self._initial_time_sig[0])
-                        total_beats += duration
-            total_bars = max(1, int(total_beats / self._initial_time_sig[0]))
+            total_bars = self._compute_total_bars()
 
             # Initialize state
             state = {
@@ -119,6 +111,7 @@ class EventProducer:
                 'labels': {},
                 'label_states': {},
                 'current_bar': 1,
+                'beats_in_bar': 0.0,  # accumulator within the current bar
                 'total_bars': total_bars,
                 'current_beat_position': 0.0,
                 'start_line_index': self._start_line_index,
@@ -159,6 +152,89 @@ class EventProducer:
         finally:
             self._logger.info("Event producer finished")
 
+    def _compute_total_bars(self) -> int:
+        """Walk the song respecting loops to count how many bars play in total.
+
+        Mirrors the runtime traversal in `_get_next_event` (label snapshots,
+        loop iteration, time-signature directives) so the status bar
+        denominator matches what the user actually hears.
+        """
+        # Pre-index labels.
+        labels = {}
+        for li, line in enumerate(self._lines):
+            for ii, item in enumerate(line.items):
+                if isinstance(item, Directive) and item.type == DirectiveType.LABEL:
+                    labels.setdefault(item.label, (li, ii))
+
+        line_index = 0
+        item_index = 0
+        loop_stack = []
+        completed_loops = set()
+        time_sig_beats = self._initial_time_sig[0]
+        beats_in_bar = 0.0
+        bar_count = 0
+        steps = 0
+        STEP_LIMIT = 100_000  # guard against malformed loops
+
+        while steps < STEP_LIMIT:
+            steps += 1
+            if line_index >= len(self._lines):
+                break
+            line = self._lines[line_index]
+            if item_index >= len(line.items):
+                line_index += 1
+                item_index = 0
+                continue
+
+            item = line.items[item_index]
+            item_index += 1
+
+            if isinstance(item, Directive):
+                if not item.is_valid:
+                    continue
+                if item.type == DirectiveType.TIME_SIGNATURE:
+                    # Flush whatever partial bar we'd built up.
+                    if beats_in_bar > 0:
+                        bar_count += 1
+                        beats_in_bar = 0.0
+                    time_sig_beats = item.beats
+                elif item.type == DirectiveType.LOOP:
+                    if item.loop_count <= 1 or item.start in completed_loops:
+                        continue
+                    already_looping = (
+                        bool(loop_stack) and loop_stack[-1].get('directive_pos') == item.start
+                    )
+                    if not already_looping:
+                        loop_stack.append({
+                            'remaining': item.loop_count - 1,
+                            'directive_pos': item.start,
+                        })
+                    else:
+                        loop_stack[-1]['remaining'] -= 1
+                    if loop_stack[-1]['remaining'] > 0:
+                        if item.label in labels:
+                            line_index, item_index = labels[item.label]
+                    else:
+                        completed_loops.add(item.start)
+                        loop_stack.pop()
+                # LABEL directives don't affect bar counting.
+                continue
+
+            if isinstance(item, ChordInfo) and item.is_valid:
+                duration = (
+                    float(item.duration) if item.duration is not None
+                    else float(time_sig_beats)
+                )
+                beats_in_bar += duration
+                while beats_in_bar >= time_sig_beats:
+                    bar_count += 1
+                    beats_in_bar -= time_sig_beats
+
+        # Round up any remaining partial bar.
+        if beats_in_bar > 0:
+            bar_count += 1
+        return max(1, bar_count)
+
     def _build_label_index(self, state: dict) -> None:
         """Build an index of labels for loop jumps."""
         for line_idx, line in enumerate(state['lines']):
@@ -176,11 +252,11 @@ class EventProducer:
         Returns:
             MidiEvent or None when done
         """
-        # Check if there's a pending NOTE_OFF event to send first
-        if 'pending_note_off' in state and state['pending_note_off']:
-            event = state['pending_note_off']
-            state['pending_note_off'] = None
-            return event
+        # Drain any pre-queued events (e.g. metronome ticks + NOTE_OFF for
+        # the chord we just emitted).
+        pending = state.get('pending_events')
+        if pending:
+            return pending.pop(0)
 
         while True:
             # Check if we've reached the end
@@ -216,15 +292,12 @@ class EventProducer:
             # Process chords
             elif isinstance(item, ChordInfo):
                 if state['in_playback_range']:
-                    # In playback range - create and return events
                     events = self._create_chord_events(item, state)
                     if events:
-                        first_event, second_event = events
-                        # REST events have no NOTE_OFF (second_event is None)
-                        if second_event is not None:
-                            state['pending_note_off'] = second_event
-                        return first_event
-                    # If event is None, chord couldn't be played, continue to next
+                        # `events` is an ordered list (ticks + NOTE_ON, then NOTE_OFF).
+                        # Return the first; rest go in the pending queue.
+                        state.setdefault('pending_events', []).extend(events[1:])
+                        return events[0]
                 else:
                     # Not in playback range yet - update counters but don't play
                     self._update_position_for_chord(item, state)
@@ -292,95 +365,100 @@ class EventProducer:
     def _handle_time_signature_directive(self, directive: Directive, state: dict) -> None:
         """Handle time signature directive."""
         self._logger.debug(f"Directive: Setting time signature to {directive.beats}/{directive.unit}")
+        # Flush any partial bar accumulated under the old time signature so
+        # the bar counter doesn't lump beats across a meter change.
+        if state.get('beats_in_bar', 0.0) > 0:
+            state['current_bar'] = state.get('current_bar', 1) + 1
+            state['beats_in_bar'] = 0.0
         state['current_time_sig'] = (directive.beats, directive.unit)
 
         # Update player's time signature
         if self._player:
             self._player.set_time_signature(directive.beats, directive.unit)
 
+    def _advance_bar_counter(self, state: dict, duration_beats: float, time_sig_beats: int) -> None:
+        """Push beats into the bar counter, rolling over on each completed bar."""
+        beats_in_bar = state.get('beats_in_bar', 0.0) + duration_beats
+        bar = state.get('current_bar', 1)
+        while beats_in_bar >= time_sig_beats:
+            bar += 1
+            beats_in_bar -= time_sig_beats
+        state['current_bar'] = bar
+        state['beats_in_bar'] = beats_in_bar
+
     def _handle_loop_directive(self, directive: Directive, state: dict) -> None:
-        """Handle loop directive (restore state and jump to label)."""
-        if directive.label in state['labels']:
-            label_pos = state['labels'][directive.label]
+        """Loop back to a label.
 
-            # Loop count of 1 or less means "play once" = no actual looping needed
-            if directive.loop_count <= 1:
-                self._logger.debug(f"Loop '{directive.label}' has count {directive.loop_count}, skipping (no repeat)")
-                return
-
-            # Check if we've already completed this specific loop directive (prevent re-entry)
-            # Use directive position as unique identifier
-            completed_key = f"loop_done_{directive.start}"
-            if completed_key in state:
-                self._logger.debug(f"Loop '{directive.label}' at position {directive.start} already completed, skipping")
-                return
-
-            # Check if we're already in a loop for this label
-            already_looping = any(loop['label'] == directive.label for loop in state['loop_stack'])
-
-            if not already_looping:
-                # First time hitting loop directive - initialize loop
-                self._logger.debug(f"Directive: Loop to label '{directive.label}' {directive.loop_count} times")
-
-                # Restore the saved state from the label before jumping back
-                if directive.label in state['label_states']:
-                    saved_state = state['label_states'][directive.label]
-                    self._logger.debug(f"Restoring state at loop: BPM={saved_state['bpm']}, "
-                                     f"time_sig={saved_state['time_sig']}, key={saved_state['key']}")
-                    self._current_bpm = saved_state['bpm']
-                    state['current_time_sig'] = saved_state['time_sig']
-                    state['current_key'] = saved_state['key']
-
-                    # Update player with restored state
-                    if self._player:
-                        self._player.set_bpm(saved_state['bpm'])
-                        self._player.set_time_signature(saved_state['time_sig'][0], saved_state['time_sig'][1])
-
-                    # Restore chord picker state for consistent voice leading
-                    self._note_picker.state = ChordPickerState.from_dict(saved_state['chord_picker_state'])
-
-                state['loop_stack'].append({
-                    'label': directive.label,
-                    'count': directive.loop_count,
-                    'remaining': directive.loop_count - 1,
-                    'target': label_pos,
-                    'directive_pos': directive.start  # Track position for completion marking
-                })
-                # Jump to label
-                state['line_index'], state['item_index'] = label_pos
-            # else: We're already looping, so we'll hit the label which handles continuation
-        else:
+        `loop_count = N` means the labeled section is played N total times.
+        All counter bookkeeping lives here; LABEL directives only snapshot
+        state on first visit.
+        """
+        if directive.label not in state['labels']:
             self._logger.warning(f"Label '{directive.label}' not found for loop")
+            return
+
+        label_pos = state['labels'][directive.label]
+        if directive.loop_count <= 1:
+            return
+
+        completed_key = f"loop_done_{directive.start}"
+        if completed_key in state:
+            return
+
+        loop_stack = state['loop_stack']
+        already_looping = bool(loop_stack) and loop_stack[-1].get('directive_pos') == directive.start
+
+        if not already_looping:
+            # First encounter — we've just finished pass 1; (count - 1) passes remain.
+            loop_stack.append({
+                'label': directive.label,
+                'count': directive.loop_count,
+                'remaining': directive.loop_count - 1,
+                'directive_pos': directive.start,
+            })
+        else:
+            # Re-entry — one more pass completed.
+            loop_stack[-1]['remaining'] -= 1
+
+        if loop_stack[-1]['remaining'] > 0:
+            self._restore_loop_state(directive.label, state)
+            state['line_index'], state['item_index'] = label_pos
+        else:
+            # Done — mark completed, pop, fall through past the loop directive.
+            state[completed_key] = True
+            loop_stack.pop()
+
+    def _restore_loop_state(self, label: str, state: dict) -> None:
+        """Restore BPM, time signature, key, and chord picker state to the
+        snapshot taken when the label was first visited."""
+        if label not in state['label_states']:
+            return
+        saved = state['label_states'][label]
+        self._logger.debug(
+            f"Restoring state at loop: BPM={saved['bpm']}, "
+            f"time_sig={saved['time_sig']}, key={saved['key']}"
+        )
+        self._current_bpm = saved['bpm']
+        state['current_time_sig'] = saved['time_sig']
+        state['current_key'] = saved['key']
+        if self._player:
+            self._player.set_bpm(saved['bpm'])
+            self._player.set_time_signature(saved['time_sig'][0], saved['time_sig'][1])
+        self._note_picker.state = saved['chord_picker_state']
 
     def _handle_label_directive(self, directive: Directive, state: dict) -> None:
-        """Handle label directive (save state on first encounter, check loop completion)."""
-        # First time encountering this label - save the current production state
+        """Snapshot playback state on the first visit so loops can restore it."""
         if directive.label not in state['label_states']:
-            saved_state = {
+            state['label_states'][directive.label] = {
                 'bpm': self._current_bpm,
                 'time_sig': state['current_time_sig'],
                 'key': state['current_key'],
-                'chord_picker_state': self._note_picker.state.to_dict()
+                'chord_picker_state': self._note_picker.state,
             }
-            state['label_states'][directive.label] = saved_state
-            self._logger.debug(f"Saved state at label '{directive.label}': BPM={saved_state['bpm']}, "
-                             f"time_sig={saved_state['time_sig']}, key={saved_state['key']}")
-
-        # Check if we're in a loop and need to continue or finish
-        if state['loop_stack']:
-            current_loop = state['loop_stack'][-1]
-            # Check if this is the label we're looping on
-            if current_loop['label'] == directive.label:
-                if current_loop['remaining'] > 0:
-                    self._logger.debug(f"Continuing loop '{directive.label}' ({current_loop['remaining']} more times)")
-                    current_loop['remaining'] -= 1
-                    # Continue playing from after the label
-                else:
-                    # Loop finished - mark as completed to prevent re-entry
-                    completed_key = f"loop_done_{current_loop['directive_pos']}"
-                    state[completed_key] = True
-                    self._logger.debug(f"Loop '{directive.label}' finished, marked as completed")
-                    state['loop_stack'].pop()
+            self._logger.debug(
+                f"Saved state at label '{directive.label}': BPM={self._current_bpm}, "
+                f"time_sig={state['current_time_sig']}, key={state['current_key']}"
+            )
 
     def _update_position_for_chord(self, chord: ChordInfo, state: dict) -> None:
         """Update beat position counter for a chord without playing it.
@@ -407,16 +485,16 @@ class EventProducer:
         # Do NOT update _current_time_position so playback starts immediately
         state['current_beat_position'] += duration_beats
 
-    def _create_chord_events(self, chord: ChordInfo, state: dict) -> Optional[Tuple[MidiEvent, MidiEvent]]:
-        """Create MIDI events (NOTE_ON and NOTE_OFF, or REST) for a chord.
+    def _create_chord_events(self, chord: ChordInfo, state: dict) -> Optional[List[MidiEvent]]:
+        """Create MIDI events for a chord — optionally with click-track ticks.
 
-        Args:
-            chord: ChordInfo object
-            state: Production state dictionary
-
-        Returns:
-            Tuple of (NOTE_ON event, NOTE_OFF event) or (REST event, None) for NC,
-            or None if chord can't be played
+        Returns an ordered list:
+          * tick(s) at each beat boundary while the chord rings (only when
+            the metronome is armed)
+          * NOTE_ON at the chord's start (same time as the first tick)
+          * NOTE_OFF at the chord's end
+        or `[REST event]` for an NC rest. Returns None if the chord cannot be
+        played.
         """
         if not chord.is_valid:
             self._logger.warning(f"Skipping invalid chord: {chord.chord}")
@@ -433,9 +511,11 @@ class EventProducer:
         beats_per_second = self._current_bpm / 60.0
         duration_seconds = duration_beats / beats_per_second
 
-        # Calculate current bar number based on beat position
+        # Current bar = whatever bar we're already inside (state['current_bar']).
+        # It's incremented below as we cross bar boundaries, so the same
+        # accounting works across time-signature changes and loop replays.
         time_sig_beats = state['current_time_sig'][0]
-        current_bar = int(state['current_beat_position'] / time_sig_beats) + 1
+        current_bar = state['current_bar']
 
         # Handle NC (No Chord / rest) - create REST event
         if chord.is_rest:
@@ -459,13 +539,25 @@ class EventProducer:
                 }
             )
 
-            # Update time position and beat position
+            # Update time, beat, and bar counters
             self._current_time_position += duration_seconds
             state['current_beat_position'] += duration_beats
+            self._advance_bar_counter(state, duration_beats, time_sig_beats)
 
             self._logger.debug(f"Created REST event for NC at t={rest_event.timestamp:.3f}s "
                              f"(duration={duration_seconds:.3f}s)")
-            return (rest_event, None)
+            # Ticks during a rest are intentional — keep the click going.
+            ticks = self._build_metronome_ticks(
+                chord_start_time=rest_event.timestamp,
+                chord_start_beat=state['current_beat_position'] - duration_beats,
+                duration_beats=duration_beats,
+                seconds_per_beat=60.0 / self._current_bpm,
+                beats_per_measure=time_sig_beats,
+            )
+            return sorted(
+                ticks + [rest_event],
+                key=lambda e: (e.timestamp, 0 if e.event_type == MidiEventType.METRONOME_TICK else 1),
+            )
 
         # Resolve chord to notes
         chord_notes = self._resolve_chord_notes(chord, state['current_key'])
@@ -515,13 +607,68 @@ class EventProducer:
             }
         )
 
-        # Update time position and beat position
+        ticks = self._build_metronome_ticks(
+            chord_start_time=note_on_event.timestamp,
+            chord_start_beat=state['current_beat_position'],
+            duration_beats=duration_beats,
+            seconds_per_beat=60.0 / self._current_bpm,
+            beats_per_measure=time_sig_beats,
+        )
+
+        # Update time, beat, and bar counters
         self._current_time_position += duration_seconds
         state['current_beat_position'] += duration_beats
+        self._advance_bar_counter(state, duration_beats, time_sig_beats)
+
+        # Interleave by timestamp so the player consumes them in time order.
+        # NOTE_ON shares the first beat's timestamp; put it right after the
+        # downbeat tick so the chord rings at the same moment.
+        ordered = sorted(
+            ticks + [note_on_event, note_off_event],
+            key=lambda e: (e.timestamp, 0 if e.event_type == MidiEventType.METRONOME_TICK else 1),
+        )
 
         self._logger.debug(f"Created events for {chord.chord}: NOTE_ON at t={note_on_event.timestamp:.3f}s, "
-                         f"NOTE_OFF at t={note_off_event.timestamp:.3f}s (duration={duration_seconds:.3f}s)")
-        return (note_on_event, note_off_event)
+                         f"NOTE_OFF at t={note_off_event.timestamp:.3f}s (duration={duration_seconds:.3f}s), "
+                         f"ticks={len(ticks)}")
+        return ordered
+
+    def _build_metronome_ticks(
+        self,
+        chord_start_time: float,
+        chord_start_beat: float,
+        duration_beats: float,
+        seconds_per_beat: float,
+        beats_per_measure: int,
+    ) -> List[MidiEvent]:
+        """Emit click events at each beat boundary covered by a chord.
+
+        Always emits ticks; whether they actually sound is decided by the
+        player at consumption time. This keeps toggling immediate in both
+        directions — the player can drop ticks live without waiting for the
+        pre-computed event buffer to drain.
+        """
+        if duration_beats <= 0:
+            return []
+        if abs(chord_start_beat - round(chord_start_beat)) > 1e-6:
+            # Chord doesn't start on a beat boundary; skip click insertion.
+            return []
+        bpm_int = max(1, beats_per_measure)
+        start_beat_index = int(round(chord_start_beat))
+        ticks: List[MidiEvent] = []
+        beats_to_cover = int(duration_beats)  # ignore fractional remainder
+        for i in range(beats_to_cover):
+            is_downbeat = ((start_beat_index + i) % bpm_int) == 0
+            ticks.append(
+                MidiEvent(
+                    timestamp=chord_start_time + i * seconds_per_beat,
+                    event_type=MidiEventType.METRONOME_TICK,
+                    midi_notes=[],
+                    velocity=0,
+                    metadata={'is_downbeat': is_downbeat},
+                )
+            )
+        return ticks
 
     def _resolve_chord_notes(self, chord: ChordInfo, current_key: Optional[str]) -> Optional[ChordNotes]:
         """Resolve a chord to its note names based on current key."""

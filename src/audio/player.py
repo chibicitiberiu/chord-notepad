@@ -33,6 +33,12 @@ class NotePlayer(IPlayer):
         # Timing information
         self.bpm = bpm
         self.time_signature = time_signature
+        self._bpm_multiplier = 1.0
+
+        # Song-time / wall-time anchors for live-multiplier-aware scheduling.
+        # target_wall = _wall_anchor + (event.timestamp - _song_anchor) / multiplier
+        self._song_anchor: float = 0.0
+        self._wall_anchor: Optional[float] = None
 
         # Playback thread and state
         self.playback_thread = None
@@ -238,9 +244,75 @@ class NotePlayer(IPlayer):
         """Update BPM setting"""
         self.bpm = bpm
 
+    def set_bpm_multiplier(self, multiplier: float) -> None:
+        """Update playback speed multiplier.
+
+        Takes effect immediately on the next scheduled event; the playback loop
+        recomputes wait times against the live multiplier value.
+        """
+        self._bpm_multiplier = max(0.001, float(multiplier))
+
+    def set_metronome_enabled(self, enabled: bool) -> None:
+        """Mute/unmute the drum channel that carries the click track.
+
+        The event producer always schedules METRONOME_TICK events; this just
+        rides the channel-volume CC so toggling is immediate regardless of
+        what's already buffered.
+        """
+        if self.fs is None:
+            return
+        self._ensure_drum_channel()
+        try:
+            self.fs.cc(self.METRONOME_DRUM_CHANNEL, 7, 100 if enabled else 0)
+        except Exception as e:
+            logger.warning(f"Could not set metronome channel volume: {e}")
+
     def set_time_signature(self, beats_per_measure: int, beat_unit: int) -> None:
         """Update time signature"""
         self.time_signature = (beats_per_measure, beat_unit)
+
+    # GM percussion on channel 9
+    METRONOME_DRUM_CHANNEL = 9
+    METRONOME_DRUM_BANK = 128
+    METRONOME_DOWNBEAT_NOTE = 76  # High Wood Block
+    METRONOME_OFFBEAT_NOTE = 77   # Low Wood Block
+    METRONOME_DOWNBEAT_VELOCITY = 100
+    METRONOME_OFFBEAT_VELOCITY = 80
+
+    def _ensure_drum_channel(self) -> None:
+        if getattr(self, "_drum_configured", False) or self.fs is None or self.sfid is None:
+            return
+        try:
+            self.fs.program_select(
+                self.METRONOME_DRUM_CHANNEL, self.sfid, self.METRONOME_DRUM_BANK, 0
+            )
+            # Start muted; the service raises CC 7 when the user toggles the
+            # metronome on.
+            self.fs.cc(self.METRONOME_DRUM_CHANNEL, 7, 0)
+            self._drum_configured = True
+        except Exception as e:
+            logger.warning(f"Could not select drum bank on channel 9: {e}")
+
+    def play_metronome_tick(self, is_downbeat: bool) -> None:
+        """Sound a short metronome click on the drum channel."""
+        if self.fs is None:
+            return
+        self._ensure_drum_channel()
+        note = self.METRONOME_DOWNBEAT_NOTE if is_downbeat else self.METRONOME_OFFBEAT_NOTE
+        velocity = self.METRONOME_DOWNBEAT_VELOCITY if is_downbeat else self.METRONOME_OFFBEAT_VELOCITY
+        try:
+            self.fs.noteon(self.METRONOME_DRUM_CHANNEL, note, velocity)
+            # Schedule a quick noteoff so the click stays short.
+            threading.Timer(0.04, lambda: self._safe_noteoff(note)).start()
+        except Exception as e:
+            logger.debug(f"Metronome tick failed: {e}")
+
+    def _safe_noteoff(self, note: int) -> None:
+        try:
+            if self.fs is not None:
+                self.fs.noteoff(self.METRONOME_DRUM_CHANNEL, note)
+        except Exception:
+            pass
 
     def _beats_to_seconds(self, beats: float) -> float:
         """
@@ -304,6 +376,8 @@ class NotePlayer(IPlayer):
         self.pause_event = threading.Event()
         self.pause_event.set()  # Not paused initially
         self._playback_start_time = None  # Will be set on first event
+        self._song_anchor = 0.0
+        self._wall_anchor = None
 
         self.playback_thread = threading.Thread(target=self._playback_loop, daemon=True)
         self.playback_thread.start()
@@ -397,43 +471,52 @@ class NotePlayer(IPlayer):
                 natural_end = True
                 break
 
-            # Initialize playback start time on first event
+            # Initialize anchors on first event
             if self._playback_start_time is None:
                 self._playback_start_time = time.time()
+                self._song_anchor = event.timestamp
+                self._wall_anchor = self._playback_start_time
                 logger.debug(f"Playback start time initialized: {self._playback_start_time}")
 
-            # Calculate when this event should be played
-            target_time = self._playback_start_time + event.timestamp
+            def _target_wall_time() -> float:
+                # Live read of multiplier — changes take effect on the next chunk.
+                mult = self._bpm_multiplier or 1.0
+                return self._wall_anchor + (event.timestamp - self._song_anchor) / mult
+
             current_time = time.time()
-            wait_time = target_time - current_time
+            wait_time = _target_wall_time() - current_time
 
             # Sleep until target time (if in the future)
             if wait_time > 0:
                 logger.debug(f"Waiting {wait_time:.3f}s until event at t={event.timestamp:.3f}s")
-                # Sleep in small chunks to be responsive to stop/pause
-                sleep_chunks = max(1, int(wait_time / 0.1))
-                chunk_duration = wait_time / sleep_chunks
-                for _ in range(sleep_chunks):
+                # Sleep in small chunks to be responsive to stop/pause/multiplier
+                CHUNK = 0.05
+                while True:
                     with self._state_lock:
                         should_stop = not self.is_playing or self.stop_event.is_set()
                     if should_stop:
                         break
-                    # Check pause status
                     if not self.pause_event.is_set():
-                        # Paused - adjust playback start time to account for pause duration
+                        # Paused - shift wall anchor by the pause duration so the
+                        # song-time -> wall-time mapping stays consistent.
                         pause_start = time.time()
-                        self.pause_event.wait()  # Wait until unpaused
+                        self.pause_event.wait()
                         pause_duration = time.time() - pause_start
-                        self._playback_start_time += pause_duration
-                        logger.debug(f"Paused for {pause_duration:.3f}s, adjusted start time")
+                        self._wall_anchor += pause_duration
+                        logger.debug(f"Paused for {pause_duration:.3f}s, adjusted anchor")
+                        continue
+                    remaining = _target_wall_time() - time.time()
+                    if remaining <= 0:
                         break
-                    time.sleep(min(chunk_duration, wait_time))
-                    wait_time -= chunk_duration
-                    if wait_time <= 0:
-                        break
-            elif wait_time < -0.1:
-                # Event is significantly late - log warning
-                logger.warning(f"Event is {-wait_time:.3f}s late (target={event.timestamp:.3f}s)")
+                    time.sleep(min(CHUNK, remaining))
+            else:
+                if wait_time < -0.1:
+                    logger.warning(f"Event is {-wait_time:.3f}s late (target={event.timestamp:.3f}s)")
+
+            # Advance anchors so subsequent events schedule from here under the
+            # current multiplier.
+            self._song_anchor = event.timestamp
+            self._wall_anchor = time.time()
 
             # Check if we should stop before playing
             with self._state_lock:
@@ -474,6 +557,10 @@ class NotePlayer(IPlayer):
                     for midi_note in event.midi_notes:
                         self.fs.noteoff(self.channel, midi_note)
                     logger.debug(f"Released notes: {event.midi_notes}")
+
+            # Handle METRONOME_TICK event — short percussive blip on drum channel
+            elif event.event_type == MidiEventType.METRONOME_TICK:
+                self.play_metronome_tick(bool(event.metadata.get('is_downbeat', False)))
 
             # Handle REST event (NC - No Chord)
             elif event.event_type == MidiEventType.REST:

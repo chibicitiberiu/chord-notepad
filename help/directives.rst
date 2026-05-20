@@ -25,7 +25,9 @@ Setting Tempo
    {bpm: 90}      // Slower - 90 BPM
    {bpm: 160}     // Faster - 160 BPM
 
-Valid range: 60-240 BPM.
+Valid range: 20-400 BPM. The toolbar's speed multiplier is applied on top of
+this value, so a song written at ``{bpm: 120}`` with the multiplier set to
+50% plays at 60 BPM.
 
 Place the directive before the chords it should affect:
 

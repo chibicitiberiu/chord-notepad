@@ -323,7 +323,7 @@ class ChordDetector:
             # Convert to ChordHelper-compatible format
             if self.notation == 'european':
                 # Convert European to American
-                chord_for_validation = NotationConverter.european_to_american(chord_str)
+                chord_for_validation = NotationConverter.chord_european_to_american(chord_str)
             else:
                 # Handle lowercase American notation (c = Cm, d = Dm)
                 chord_for_validation = self._normalize_american_chord(chord_str)
@@ -407,7 +407,7 @@ class ChordDetector:
             # Convert chord to validation format and get notes
             chord_str = self._convert_symbols_to_text(chord_str)
             if self.notation == 'european':
-                chord_for_validation = NotationConverter.european_to_american(chord_str)
+                chord_for_validation = NotationConverter.chord_european_to_american(chord_str)
             else:
                 chord_for_validation = self._normalize_american_chord(chord_str)
             return self.chord_helper.get_notes(chord_for_validation)

@@ -22,17 +22,35 @@ Two buttons on the left let you switch notation systems:
 The selected button appears highlighted. Clicking switches your notation and
 updates the key selector to match.
 
-BPM Slider
-----------
+BPM Control
+-----------
 
-The tempo slider controls playback speed:
+The BPM value is shown as underlined text in the toolbar.
 
-* Drag left to slow down (minimum 60 BPM)
-* Drag right to speed up (maximum 240 BPM)
-* The current value displays next to the slider
+* **Drag left/right** to change the value (range 20-400 BPM)
+* **Click** to type a precise value
+* **Middle-click** to reset to the default (120 BPM)
+* **Scroll** with the mouse wheel to step by 1
 
-The slider shows the *current* BPM, which may be different from what you set
-if your song has ``{bpm}`` directives.
+During playback the BPM control becomes read-only and shows the **effective
+BPM** — what's actually playing right now, including any changes from
+``{bpm}`` directives in the song. When playback stops, it goes back to
+showing your base BPM and is editable again.
+
+Speed Multiplier
+----------------
+
+Next to the BPM is the speed multiplier (``100%`` by default), which scales
+the playback speed on top of the BPM (whether you set it manually or via a
+directive). Use it as a "practice slowdown" knob.
+
+* **Drag left/right** to change the value (range 12.5% - 400%, snapping every 12.5%)
+* **Click** to type a precise value — accepts ``150``, ``150%``, or ``1.5x``
+* **Middle-click** to reset to ``100%``
+
+Unlike the BPM control, the multiplier **stays editable during playback** and
+takes effect immediately on the next chord. For example, set the multiplier
+to ``50%`` to play a song at half speed without changing its underlying BPM.
 
 Key Selector
 ------------
@@ -59,6 +77,20 @@ Common settings:
 * 4/4 - Standard time (four quarter-note beats)
 * 3/4 - Waltz time (three quarter-note beats)
 * 6/8 - Compound duple (six eighth-note beats)
+
+Metronome
+---------
+
+The metronome toggle (next to the time signature) arms a click track that
+sounds *during song playback*.
+
+* High wood-block on the downbeat, low one on offbeats
+* The click is scheduled by the playback engine itself, so it always lines
+  up with the song's beats — including changes made by ``{time: X/Y}`` and
+  ``{bpm: ...}`` directives mid-song
+* Toggle it on, then press Play. Turning it off does not pause playback,
+  it just silences the click
+* Always starts off when you open the app
 
 Playback Buttons
 ----------------

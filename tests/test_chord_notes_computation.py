@@ -735,7 +735,7 @@ class TestEuropeanNotationExtensions:
         from chord.converter import NotationConverter
 
         # First convert European to American, then test
-        american = NotationConverter.european_to_american("do")
+        american = NotationConverter.chord_european_to_american("do")
         result = chord_helper.compute_chord_notes(american)
 
         assert result is not None
@@ -748,7 +748,7 @@ class TestEuropeanNotationExtensions:
         """Test European with symbols: 'Do°' becomes 'Cdim'."""
         from chord.converter import NotationConverter
 
-        american = NotationConverter.european_to_american("Do°")
+        american = NotationConverter.chord_european_to_american("Do°")
         result = chord_helper.compute_chord_notes(american)
 
         assert result is not None
@@ -759,7 +759,7 @@ class TestEuropeanNotationExtensions:
         """Test European with parentheses: 'Domaj7(9)' becomes 'Cmaj9'."""
         from chord.converter import NotationConverter
 
-        american = NotationConverter.european_to_american("Domaj7(9)")
+        american = NotationConverter.chord_european_to_american("Domaj7(9)")
         result = chord_helper.compute_chord_notes(american)
 
         assert result is not None
@@ -770,7 +770,7 @@ class TestEuropeanNotationExtensions:
         """Test European half-diminished: 'Solø' becomes 'Gm7b5'."""
         from chord.converter import NotationConverter
 
-        american = NotationConverter.european_to_american("Solø")
+        american = NotationConverter.chord_european_to_american("Solø")
         result = chord_helper.compute_chord_notes(american)
 
         assert result is not None
@@ -781,7 +781,7 @@ class TestEuropeanNotationExtensions:
         """Test European augmented: 'Re+' becomes 'Daug'."""
         from chord.converter import NotationConverter
 
-        american = NotationConverter.european_to_american("Re+")
+        american = NotationConverter.chord_european_to_american("Re+")
         result = chord_helper.compute_chord_notes(american)
 
         assert result is not None
@@ -792,7 +792,7 @@ class TestEuropeanNotationExtensions:
         """Test European add chord: 'Mi(9)' becomes 'Eadd9'."""
         from chord.converter import NotationConverter
 
-        american = NotationConverter.european_to_american("Mi(9)")
+        american = NotationConverter.chord_european_to_american("Mi(9)")
         result = chord_helper.compute_chord_notes(american)
 
         assert result is not None
@@ -803,7 +803,7 @@ class TestEuropeanNotationExtensions:
         """Test European lowercase with seventh: 'rem7' becomes 'Dm7'."""
         from chord.converter import NotationConverter
 
-        american = NotationConverter.european_to_american("rem7")
+        american = NotationConverter.chord_european_to_american("rem7")
         result = chord_helper.compute_chord_notes(american)
 
         assert result is not None
@@ -815,27 +815,27 @@ class TestEuropeanNotationExtensions:
         from chord.converter import NotationConverter
 
         # Test accented Do (Dó -> Do -> C)
-        american_do = NotationConverter.european_to_american("Dó")
+        american_do = NotationConverter.chord_european_to_american("Dó")
         result_do = chord_helper.compute_chord_notes(american_do)
         assert result_do is not None
         assert result_do.root == "C"
 
         # Test accented Re with chord quality (Rém -> Rem -> Dm)
-        american_re = NotationConverter.european_to_american("Rém")
+        american_re = NotationConverter.chord_european_to_american("Rém")
         result_re = chord_helper.compute_chord_notes(american_re)
         assert result_re is not None
         assert result_re.root == "D"
         assert "F" in result_re.notes  # D minor has D, F, A
 
         # Test accented Fa with seventh (Fá7 -> Fa7 -> F7)
-        american_fa = NotationConverter.european_to_american("Fá7")
+        american_fa = NotationConverter.chord_european_to_american("Fá7")
         result_fa = chord_helper.compute_chord_notes(american_fa)
         assert result_fa is not None
         assert result_fa.root == "F"
         assert len(result_fa.notes) == 4  # F7 has 4 notes
 
         # Test accented La major (Lá -> La -> A)
-        american_la = NotationConverter.european_to_american("Lá")
+        american_la = NotationConverter.chord_european_to_american("Lá")
         result_la = chord_helper.compute_chord_notes(american_la)
         assert result_la is not None
         assert result_la.root == "A"

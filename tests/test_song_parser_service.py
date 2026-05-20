@@ -490,19 +490,63 @@ class TestChordValidation:
 
 
 class TestNotationConversion:
-    """Tests for notation conversion."""
+    """Tests for whole-text notation conversion via the document model.
 
-    def test_european_to_american(self, song_parser):
-        """Test conversion from European to American notation."""
-        result = song_parser.convert_to_american("Do Re Mi")
-        # NotationConverter should handle this
-        assert "C" in result or "Do" in result  # Depends on converter implementation
+    Conversion runs the detector first (or accepts a pre-parsed line list)
+    and substitutes only valid chords on chord lines. Lyrics, directives,
+    and roman numerals are preserved.
+    """
 
-    def test_american_to_european(self, song_parser):
-        """Test conversion from American to European notation."""
-        result = song_parser.convert_to_european("C D E")
-        # NotationConverter should handle this
-        assert "Do" in result or "C" in result  # Depends on converter implementation
+    def test_simple_european_to_american(self, song_parser):
+        assert song_parser.convert_to_american("Do Re Mi") == "C D E"
+
+    def test_simple_american_to_european(self, song_parser):
+        assert song_parser.convert_to_european("C D E") == "Do Re Mi"
+
+    def test_full_song_european_to_american(self, song_parser):
+        text = "Do Lam Fa Sol\nDoM7 Lam7 Fa Sol\nDo/Mi Lam/Sol Fa Sol"
+        expected = "C Am F G\nCmaj7 Am7 F G\nC/E Am/G F G"
+        assert song_parser.convert_to_american(text) == expected
+
+    def test_full_song_american_to_european(self, song_parser):
+        text = "C Am F G\nCmaj7 Am7 F G\nC/E Am/G F G"
+        expected = "Do Lam Fa Sol\nDomaj7 Lam7 Fa Sol\nDo/Mi Lam/Sol Fa Sol"
+        assert song_parser.convert_to_european(text) == expected
+
+    def test_lyric_line_is_not_touched(self, song_parser):
+        """The whole point of using the detector: never touch lyric text."""
+        text = "C    Am   F    G\nA week ago I saw a dolphin"
+        result = song_parser.convert_to_european(text)
+        # Chord line gets converted
+        assert "Do" in result and "Lam" in result and "Fa" in result and "Sol" in result
+        # Lyric line is untouched character-for-character
+        assert "A week ago I saw a dolphin" in result
+
+    def test_directive_value_is_not_corrupted(self, song_parser):
+        """`{bpm: 120}` must remain a valid directive after conversion."""
+        text = "{bpm: 120}\nC Am F G"
+        result = song_parser.convert_to_european(text)
+        assert "{bpm: 120}" in result
+
+    def test_preserves_duration_suffix(self, song_parser):
+        assert song_parser.convert_to_american("Do*2 Lam*4.5") == "C*2 Am*4.5"
+
+    def test_roman_numerals_are_left_alone(self, song_parser):
+        text = "I ii V7 vi"
+        assert song_parser.convert_to_european(text) == text
+
+    def test_caller_supplied_lines_bypass_reparse(self, song_parser, mocker=None):
+        """If lines are supplied, the detector is not re-run."""
+        text = "C Am F G"
+        lines = song_parser.detect_chords_in_text(text, notation="american")
+        # Empty out the service's detector by patching to raise — proves we
+        # didn't re-parse.
+        original_detector_factory = song_parser._converter
+        try:
+            result = song_parser.convert_to_european(text, lines)
+        finally:
+            song_parser._converter = original_detector_factory
+        assert result == "Do Lam Fa Sol"
 
 
 class TestCommentSupport:

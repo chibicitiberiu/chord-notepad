@@ -56,6 +56,8 @@ class MainWindowViewModel(Observable):
         self._is_playing: bool = False
         self._is_paused: bool = False
         self._bpm: int = self._config.get("bpm", 120)
+        self._bpm_multiplier: float = float(self._config.get("bpm_multiplier", 1.0))
+        self._metronome_enabled: bool = False  # Always starts off per session
         # Convert string notation to enum
         notation_str = self._config.get("notation", "american")
         self._notation: Notation = Notation(notation_str)
@@ -98,6 +100,16 @@ class MainWindowViewModel(Observable):
     def bpm(self) -> int:
         """Get the current BPM (beats per minute)."""
         return self._bpm
+
+    @property
+    def bpm_multiplier(self) -> float:
+        """Get the BPM speed multiplier applied on top of BPM/directives."""
+        return self._bpm_multiplier
+
+    @property
+    def metronome_enabled(self) -> bool:
+        """Whether the metronome click track is on."""
+        return self._metronome_enabled
 
     @property
     def notation(self) -> Notation:
@@ -420,9 +432,9 @@ class MainWindowViewModel(Observable):
         """Set playback tempo.
 
         Args:
-            bpm: Beats per minute (60-240)
+            bpm: Beats per minute (20-400)
         """
-        if not (60 <= bpm <= 240):
+        if not (20 <= bpm <= 400):
             logger.warning(f"Invalid BPM value: {bpm}")
             return
 
@@ -430,6 +442,35 @@ class MainWindowViewModel(Observable):
         self._audio.set_bpm(bpm)
         self._config.set("bpm", bpm)
         self.set_and_notify("bpm", bpm)
+
+    def toggle_metronome(self) -> None:
+        """Arm or disarm the metronome.
+
+        The actual click track is scheduled by the playback engine; this
+        viewmodel just owns the on/off state and forwards it to the audio
+        service.
+        """
+        new_state = not self._metronome_enabled
+        self._audio.set_metronome_enabled(new_state)
+        # `set_and_notify` updates the backing field and only fires observers
+        # when the value actually changed — let it own both writes.
+        self.set_and_notify("metronome_enabled", new_state)
+
+    def set_bpm_multiplier(self, multiplier: float) -> None:
+        """Set the playback speed multiplier (applied on top of BPM/directives).
+
+        Args:
+            multiplier: Speed multiplier (0.125 - 4.0)
+        """
+        if not (0.125 <= multiplier <= 4.0):
+            logger.warning(f"Invalid BPM multiplier: {multiplier}")
+            return
+
+        logger.debug(f"Setting BPM multiplier to {multiplier}")
+        self._bpm_multiplier = multiplier
+        self._audio.set_bpm_multiplier(multiplier)
+        self._config.set("bpm_multiplier", multiplier)
+        self.set_and_notify("bpm_multiplier", multiplier)
 
     def set_key(self, key: Optional[str]) -> None:
         """Set the key signature.
@@ -534,25 +575,39 @@ class MainWindowViewModel(Observable):
             self._config.set("notation", notation.value)
             self.set_and_notify("notation", notation)
 
-    def convert_text_to_american(self) -> None:
+    def convert_text_to_american(self, lines: Optional[List[Line]] = None) -> None:
         """Convert the current text from European to American notation.
 
-        This is an explicit conversion action, typically called from the Tools menu.
+        Also switches the editor's notation preference to American so the
+        new chords get highlighted, clickable, and parsed correctly.
+
+        Args:
+            lines: Optional pre-parsed document model. If provided, the
+                detector is not re-run for the substitution step.
         """
         logger.info("Converting text to American notation")
-        converted_text = self._chord.convert_to_american(self._current_text)
+        converted_text = self._chord.convert_to_american(self._current_text, lines)
         self.set_and_notify("current_text", converted_text)
+        # Flip the toolbar / editor notation so detection re-runs with the
+        # target notation against the freshly-substituted text.
+        self.set_notation(Notation.AMERICAN)
         if not self._is_modified:
             self.set_and_notify("is_modified", True)
 
-    def convert_text_to_european(self) -> None:
+    def convert_text_to_european(self, lines: Optional[List[Line]] = None) -> None:
         """Convert the current text from American to European notation.
 
-        This is an explicit conversion action, typically called from the Tools menu.
+        Also switches the editor's notation preference to European so the
+        new chords get highlighted, clickable, and parsed correctly.
+
+        Args:
+            lines: Optional pre-parsed document model. If provided, the
+                detector is not re-run for the substitution step.
         """
         logger.info("Converting text to European notation")
-        converted_text = self._chord.convert_to_european(self._current_text)
+        converted_text = self._chord.convert_to_european(self._current_text, lines)
         self.set_and_notify("current_text", converted_text)
+        self.set_notation(Notation.EUROPEAN)
         if not self._is_modified:
             self.set_and_notify("is_modified", True)
 

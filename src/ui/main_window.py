@@ -9,6 +9,7 @@ import os
 from pathlib import Path
 from typing import Any, Optional, List
 from PIL import Image, ImageTk
+from ui.scrubber import Scrubber
 from ui.text_editor import ChordTextEditor
 from ui.chord_identifier import ChordIdentifierWindow
 from ui.builders.menu_builder import MenuBuilder
@@ -19,6 +20,7 @@ from ui.dialogs import (
     InsertLabelDialog,
     InsertLoopDialog,
 )
+from utils.icon_loader import IconLoader
 from utils.ui_helpers import create_tooltip
 from utils.key_helpers import get_key_options
 from models.notation import Notation
@@ -57,6 +59,7 @@ class MainWindow(tk.Tk):
         self.text_editor_viewmodel = text_editor_viewmodel
         self.application = application
         self.resource_service = resource_service
+        self._icons = IconLoader(resource_service)
 
         # Set up observers for ViewModel properties
         self._setup_viewmodel_observers()
@@ -143,6 +146,8 @@ class MainWindow(tk.Tk):
 
         # BPM changes
         self.viewmodel.observe('bpm', self._on_bpm_changed)
+        self.viewmodel.observe('bpm_multiplier', self._on_bpm_multiplier_changed)
+        self.viewmodel.observe('metronome_enabled', self._on_metronome_enabled_changed)
 
         # Key and time signature changes
         self.viewmodel.observe('key', self._on_key_changed)
@@ -176,10 +181,10 @@ class MainWindow(tk.Tk):
         if current_key:
             if new_value == Notation.EUROPEAN:
                 # Converting to European
-                converted_key = NotationConverter.american_to_european(current_key)
+                converted_key = NotationConverter.chord_american_to_european(current_key)
             else:
                 # Converting to American
-                converted_key = NotationConverter.european_to_american(current_key)
+                converted_key = NotationConverter.chord_european_to_american(current_key)
             self.key_var.set(converted_key)
 
         # Update key options based on new notation
@@ -197,13 +202,16 @@ class MainWindow(tk.Tk):
         """React to playback state changes from ViewModel."""
         if new_value:
             # Playback started/resumed - show pause icon
-            self.play_pause_button.config(text="⏸")
+            self.play_pause_button.config(image=self._icon_pause)
             self._update_play_pause_tooltip()
             # Lock editor during playback
             self.text_editor.config(state=tk.DISABLED)
+            # BPM scrubber becomes a live read-only display of the effective BPM
+            if hasattr(self, "bpm_scrubber"):
+                self.bpm_scrubber.set_readonly(True)
         else:
             # Playback stopped (idle state) - show play icon
-            self.play_pause_button.config(text="▶")
+            self.play_pause_button.config(image=self._icon_play)
             self._update_play_pause_tooltip()
             # Unlock editor
             self.text_editor.config(state=tk.NORMAL)
@@ -211,17 +219,21 @@ class MainWindow(tk.Tk):
             self.text_editor.tag_remove('chord_playing', '1.0', tk.END)
             # Update statusbar
             self.update_statusbar("Ready")
+            # Restore editable BPM scrubber with the user's base value
+            if hasattr(self, "bpm_scrubber"):
+                self.bpm_scrubber.set_readonly(False)
+                self.bpm_scrubber.set_value(self.viewmodel.bpm)
 
     def _on_is_paused_changed(self, new_value: bool) -> None:
         """React to pause state changes from ViewModel."""
         if new_value:
             # Paused state - show play icon
-            self.play_pause_button.config(text="▶")
+            self.play_pause_button.config(image=self._icon_play)
             self._update_play_pause_tooltip()
         else:
             # Playing state (resumed or started) - show pause icon
             if self.viewmodel.is_playing:
-                self.play_pause_button.config(text="⏸")
+                self.play_pause_button.config(image=self._icon_pause)
                 self._update_play_pause_tooltip()
 
     def _update_play_pause_tooltip(self) -> None:
@@ -243,8 +255,13 @@ class MainWindow(tk.Tk):
 
     def _on_bpm_changed(self, new_value: int) -> None:
         """React to BPM changes from ViewModel."""
-        self.bpm_label.config(text=f"{new_value} BPM")
-        self.bpm_var.set(new_value)
+        if hasattr(self, "bpm_scrubber"):
+            self.bpm_scrubber.set_value(new_value)
+
+    def _on_bpm_multiplier_changed(self, new_value: float) -> None:
+        """React to multiplier changes from ViewModel."""
+        if hasattr(self, "multiplier_scrubber"):
+            self.multiplier_scrubber.set_value(new_value * 100)
 
     def _on_key_changed(self, new_value: Optional[str]) -> None:
         """React to key changes from ViewModel."""
@@ -260,6 +277,9 @@ class MainWindow(tk.Tk):
         # Update text editor content
         self.text_editor.delete('1.0', tk.END)
         self.text_editor.insert('1.0', new_value)
+        # Programmatic edits don't trigger the typing-driven detection path,
+        # so kick chord highlighting/parsing manually.
+        self.text_editor.refresh_chords()
 
     def _on_playback_event_changed(self, event_args: Optional[Any]) -> None:
         """React to playback event changes from ViewModel.
@@ -283,6 +303,10 @@ class MainWindow(tk.Tk):
                 self.text_editor.config(state=tk.DISABLED)
             self.update_statusbar("Ready")
             return
+
+        # Live-update the BPM scrubber with the effective BPM from the producer
+        if hasattr(self, "bpm_scrubber") and event_args.bpm is not None:
+            self.bpm_scrubber.set_display_text(str(int(event_args.bpm)))
 
         # Highlight currently playing chord
         if event_args.event_type == PlaybackEventType.CHORD_START and event_args.chord_info:
@@ -481,16 +505,49 @@ class MainWindow(tk.Tk):
         # Update button appearance based on current selection
         self.update_notation_buttons()
 
-        # BPM control
+        # Speed (BPM and multiplier)
         ttk.Separator(self.toolbar, orient=tk.VERTICAL).pack(side=tk.LEFT, fill=tk.Y, padx=5)
-        ttk.Label(self.toolbar, text="BPM:").pack(side=tk.LEFT, padx=5)
-        self.bpm_var = tk.IntVar(value=self.viewmodel.bpm)
-        self.bpm_slider = ttk.Scale(self.toolbar, from_=60, to=240,
-                                    variable=self.bpm_var, orient=tk.HORIZONTAL, length=150)
-        self.bpm_slider.pack(side=tk.LEFT, padx=5)
-        self.bpm_label = ttk.Label(self.toolbar, text=f"{self.bpm_var.get()} BPM")
-        self.bpm_label.pack(side=tk.LEFT)
-        self.bpm_var.trace_add('write', self.on_bpm_change)
+        ttk.Label(self.toolbar, text="Speed:").pack(side=tk.LEFT, padx=(5, 4))
+
+        self.bpm_scrubber = Scrubber(
+            self.toolbar,
+            value=self.viewmodel.bpm,
+            min_value=20,
+            max_value=400,
+            step=10,
+            drag_step=1,
+            snap_tolerance=1,
+            formatter=lambda v: f"{int(round(v))}",
+            parser=lambda s: int(round(float(s))),
+            on_change=self._on_bpm_scrubber_change,
+            width=4,
+            default_value=120,
+        )
+        self.bpm_scrubber.pack(side=tk.LEFT)
+        self.create_tooltip(self.bpm_scrubber, "Beats per minute. Drag to change, click to type, middle-click to reset to 120. Read-only during playback.")
+        self.bpm_unit_label = ttk.Label(self.toolbar, text="bpm")
+        self.bpm_unit_label.pack(side=tk.LEFT, padx=(1, 6))
+
+        ttk.Label(self.toolbar, text="x").pack(side=tk.LEFT, padx=(5, 5))
+
+        self.multiplier_scrubber = Scrubber(
+            self.toolbar,
+            value=self.viewmodel.bpm_multiplier * 100,
+            min_value=12.5,
+            max_value=400,
+            step=12.5,
+            drag_step=1,
+            snap_tolerance=3,
+            formatter=lambda v: f"{v:g}",
+            parser=self._parse_multiplier_percent,
+            on_change=self._on_multiplier_scrubber_change,
+            width=5,
+            default_value=100,
+        )
+        self.multiplier_scrubber.pack(side=tk.LEFT)
+        self.create_tooltip(self.multiplier_scrubber, "Speed multiplier applied on top of BPM. Middle-click to reset to 100%. Adjustable during playback.")
+        self.multiplier_unit_label = ttk.Label(self.toolbar, text="%")
+        self.multiplier_unit_label.pack(side=tk.LEFT, padx=(1, 5))
 
         # Key selector
         ttk.Separator(self.toolbar, orient=tk.VERTICAL).pack(side=tk.LEFT, fill=tk.Y, padx=5)
@@ -524,22 +581,51 @@ class MainWindow(tk.Tk):
         self.time_sig_unit_spin.pack(side=tk.LEFT, padx=(0, 5))
         self.create_tooltip(self.time_sig_unit_spin, "Beat unit (4 = quarter note)")
 
+        # Cache icons up front so PhotoImage refs survive
+        ICON_SIZE = 24
+        # Pastel tints — actions get a friendly color hint
+        PLAY_GREEN = (95, 175, 99)
+        PAUSE_BLUE = (88, 140, 199)
+        STOP_CORAL = (240, 128, 128)
+        METRONOME_OFF = (140, 140, 140)
+        METRONOME_ON = (217, 102, 64)  # warm amber when armed
+        self._icon_play = self._icons.load('resources/icons/play.png', ICON_SIZE, PLAY_GREEN)
+        self._icon_pause = self._icons.load('resources/icons/pause.png', ICON_SIZE, PAUSE_BLUE)
+        self._icon_stop = self._icons.load('resources/icons/stop.png', ICON_SIZE, STOP_CORAL)
+        self._icon_metronome_off = self._icons.load('resources/icons/metronome.png', ICON_SIZE, METRONOME_OFF)
+        self._icon_metronome_on = self._icons.load('resources/icons/metronome.png', ICON_SIZE, METRONOME_ON)
+
+        # Metronome toggle
+        ttk.Separator(self.toolbar, orient=tk.VERTICAL).pack(side=tk.LEFT, fill=tk.Y, padx=5)
+        self.metronome_button = tk.Button(
+            self.toolbar,
+            image=self._icon_metronome_off,
+            relief=tk.RAISED,
+            command=self._on_metronome_toggle,
+            padx=4, pady=2,
+        )
+        self._metronome_default_bg = self.metronome_button.cget("background")
+        self.metronome_button.pack(side=tk.LEFT, padx=2)
+        self.create_tooltip(self.metronome_button, "Click track during playback. Toggle this on, then press Play.")
+        self._refresh_metronome_button()
+
         # Playback buttons
         ttk.Separator(self.toolbar, orient=tk.VERTICAL).pack(side=tk.LEFT, fill=tk.Y, padx=5)
 
         playback_frame = tk.Frame(self.toolbar)
         playback_frame.pack(side=tk.LEFT, padx=5)
 
-        self.play_pause_button = tk.Button(playback_frame, text="▶", font=('TkDefaultFont', 12),
-                                           width=2, height=1)
+        self.play_pause_button = tk.Button(
+            playback_frame, image=self._icon_play, padx=4, pady=2,
+        )
         self.play_pause_button.pack(side=tk.LEFT, padx=1)
-        # Bind both regular click and shift+click
         self.play_pause_button.bind('<Button-1>', self.on_play_pause_click)
-        # Tooltip will be set dynamically in _update_play_pause_tooltip()
         self._update_play_pause_tooltip()
 
-        self.stop_button = tk.Button(playback_frame, text="⏹", font=('TkDefaultFont', 12),
-                                     width=2, height=1, command=self.stop_playback)
+        self.stop_button = tk.Button(
+            playback_frame, image=self._icon_stop, padx=4, pady=2,
+            command=self.stop_playback,
+        )
         self.stop_button.pack(side=tk.LEFT, padx=1)
         self.create_tooltip(self.stop_button, "Stop playback")
 
@@ -759,10 +845,45 @@ class MainWindow(tk.Tk):
             self.viewmodel.on_text_changed(current_text)
             self.text_editor.edit_modified(False)
 
-    def on_bpm_change(self, *args: Any) -> None:
-        """Handle BPM slider change"""
-        bpm = self.bpm_var.get()
-        self.viewmodel.set_bpm(bpm)
+    def _on_bpm_scrubber_change(self, value: float) -> None:
+        """Handle BPM scrubber change."""
+        self.viewmodel.set_bpm(int(round(value)))
+
+    def _on_multiplier_scrubber_change(self, value_pct: float) -> None:
+        """Handle multiplier scrubber change (input is a percentage)."""
+        self.viewmodel.set_bpm_multiplier(value_pct / 100.0)
+
+    def _on_metronome_toggle(self) -> None:
+        self.viewmodel.toggle_metronome()
+
+    def _on_metronome_enabled_changed(self, _new_value: bool) -> None:
+        self._refresh_metronome_button()
+
+    def _refresh_metronome_button(self) -> None:
+        if not hasattr(self, "metronome_button"):
+            return
+        if self.viewmodel.metronome_enabled:
+            self.metronome_button.config(
+                relief=tk.SUNKEN,
+                image=self._icon_metronome_on,
+                background="#ffe4cf",  # warm tint matching the on-icon
+            )
+        else:
+            self.metronome_button.config(
+                relief=tk.RAISED,
+                image=self._icon_metronome_off,
+                background=self._metronome_default_bg,
+            )
+
+    @staticmethod
+    def _parse_multiplier_percent(text: str) -> float:
+        """Parse a user-typed multiplier value, accepting '150', '150%', '1.5x'."""
+        s = text.strip().lower().replace(" ", "")
+        if s.endswith("x"):
+            return float(s[:-1]) * 100.0
+        if s.endswith("%"):
+            return float(s[:-1])
+        return float(s)
 
     def on_key_change(self, *args: Any) -> None:
         """Handle key selector change"""
@@ -1000,21 +1121,27 @@ class MainWindow(tk.Tk):
 
     def convert_to_american(self) -> None:
         """Convert all chords in the text to American notation"""
-        # Sync current text to ViewModel before conversion
         current_text = self.text_editor.get("1.0", "end-1c")
         self.viewmodel.on_text_changed(current_text)
-        # Explicitly convert text
-        self.viewmodel.convert_text_to_american()
+        # Reuse the editor's parsed document model only if it was parsed with
+        # the source notation (European). Otherwise let the service re-parse.
+        lines = self._cached_lines_if_source("european")
+        self.viewmodel.convert_text_to_american(lines)
         self.update_statusbar("Converted to American notation")
 
     def convert_to_european(self) -> None:
         """Convert all chords in the text to European notation"""
-        # Sync current text to ViewModel before conversion
         current_text = self.text_editor.get("1.0", "end-1c")
         self.viewmodel.on_text_changed(current_text)
-        # Explicitly convert text
-        self.viewmodel.convert_text_to_european()
+        lines = self._cached_lines_if_source("american")
+        self.viewmodel.convert_text_to_european(lines)
         self.update_statusbar("Converted to European notation")
+
+    def _cached_lines_if_source(self, source_notation: str) -> Optional[List[Any]]:
+        """Return cached detected_lines only if they match the source notation."""
+        if self.text_editor_viewmodel.current_notation != source_notation:
+            return None
+        return self.text_editor_viewmodel.detected_lines or None
 
     def on_chord_click(self, event: Any) -> None:
         """Handle click on text editor - play chord if clicked"""

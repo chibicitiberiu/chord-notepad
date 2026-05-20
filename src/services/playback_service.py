@@ -38,6 +38,8 @@ class PlaybackService:
         self._event_buffer: Optional[EventBuffer] = None
         self._event_producer: Optional[EventProducer] = None
 
+        self._metronome_enabled: bool = False
+
     def _create_note_picker(self, voicing: str) -> INotePicker:
         """Create appropriate note picker based on voicing string.
 
@@ -132,6 +134,10 @@ class PlaybackService:
             # Set instrument from config
             instrument = self._config.get("instrument", 0)
             self._player.set_instrument(instrument)
+
+            # Apply saved speed multiplier
+            multiplier = float(self._config.get("bpm_multiplier", 1.0))
+            self._player.set_bpm_multiplier(multiplier)
 
             self._initialized = True
             self._logger.info("Audio player initialized successfully")
@@ -273,7 +279,7 @@ class PlaybackService:
         """Change playback speed.
 
         Args:
-            bpm: Beats per minute (60-240)
+            bpm: Beats per minute (20-400)
         """
         if self._player:
             self._logger.debug(f"Setting BPM to {bpm}")
@@ -282,6 +288,32 @@ class PlaybackService:
 
         # Update playback state
         self._playback_state.set_bpm(bpm)
+
+    def set_bpm_multiplier(self, multiplier: float) -> None:
+        """Set the playback speed multiplier (live during playback).
+
+        Args:
+            multiplier: Speed multiplier (0.125 - 4.0)
+        """
+        if self._player:
+            self._logger.debug(f"Setting BPM multiplier to {multiplier}")
+            self._player.set_bpm_multiplier(multiplier)
+            self._config.set("bpm_multiplier", multiplier)
+
+    def set_metronome_enabled(self, enabled: bool) -> None:
+        """Arm or disarm the click track.
+
+        Tick events are always scheduled by the EventProducer; the player
+        mutes/unmutes the drum channel via CC 7, so toggling is immediate
+        even mid-playback.
+        """
+        self._metronome_enabled = bool(enabled)
+        if self._player is not None:
+            self._player.set_metronome_enabled(self._metronome_enabled)
+
+    @property
+    def is_metronome_enabled(self) -> bool:
+        return self._metronome_enabled
 
     def set_instrument(self, program: int) -> None:
         """Change MIDI instrument.
@@ -456,7 +488,7 @@ class PlaybackService:
             on_event_callback=on_event_callback,
             logger=self._logger,
             start_line_index=start_line_index,
-            start_item_index=start_item_index
+            start_item_index=start_item_index,
         )
 
         # Set buffer on player
@@ -641,8 +673,7 @@ class PlaybackService:
                     state['current_key'] = saved_state['key']
 
                     # Restore chord picker state for consistent voice leading
-                    from audio.chord_picker import ChordPickerState
-                    self._note_picker.state = ChordPickerState.from_dict(saved_state['chord_picker_state'])
+                    self._note_picker.state = saved_state['chord_picker_state']
 
                 state['loop_stack'].append({
                     'label': directive.label,
@@ -669,7 +700,7 @@ class PlaybackService:
                 'bpm': self._playback_state.bpm,
                 'time_sig': state['current_time_sig'],
                 'key': state['current_key'],
-                'chord_picker_state': self._note_picker.state.to_dict()
+                'chord_picker_state': self._note_picker.state
             }
             state['label_states'][directive.label] = saved_state
             self._logger.debug(f"Saved state at label '{directive.label}': BPM={saved_state['bpm']}, "

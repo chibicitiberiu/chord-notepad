@@ -442,7 +442,7 @@ class SongParserService:
         """
         # Convert to american notation for validation if needed
         if notation == "european":
-            chord_text = self._converter.european_to_american(chord_text)
+            chord_text = self._converter.chord_european_to_american(chord_text)
 
         return self._helper.is_valid_chord(chord_text)
 
@@ -458,32 +458,60 @@ class SongParserService:
         """
         # Convert to american notation for processing
         if notation == "european":
-            chord_text = self._converter.european_to_american(chord_text)
+            chord_text = self._converter.chord_european_to_american(chord_text)
 
         notes = self._helper.get_notes(chord_text)
         return notes if notes else []
 
-    def convert_to_american(self, text: str) -> str:
+    def convert_to_american(self, text: str, lines: Optional[List[Line]] = None) -> str:
         """Convert text from European to American notation.
 
-        Args:
-            text: Text in European notation
-
-        Returns:
-            Text in American notation
+        Uses the document's pre-detected chord positions to substitute only
+        valid chords on chord lines — lyrics like "A week ago" are not touched.
+        If `lines` is not supplied, the text is parsed with the European
+        detector before substituting.
         """
-        return self._converter.european_to_american(text)
+        if lines is None:
+            lines = self.detect_chords_in_text(text, notation="european")
+        return self._apply_chord_conversion(
+            text, lines, self._converter.chord_european_to_american
+        )
 
-    def convert_to_european(self, text: str) -> str:
+    def convert_to_european(self, text: str, lines: Optional[List[Line]] = None) -> str:
         """Convert text from American to European notation.
 
-        Args:
-            text: Text in American notation
-
-        Returns:
-            Text in European notation
+        Uses the document's pre-detected chord positions to substitute only
+        valid chords on chord lines — lyrics are not touched. If `lines` is
+        not supplied, the text is parsed with the American detector first.
         """
-        return self._converter.american_to_european(text)
+        if lines is None:
+            lines = self.detect_chords_in_text(text, notation="american")
+        return self._apply_chord_conversion(
+            text, lines, self._converter.chord_american_to_european
+        )
+
+    @staticmethod
+    def _apply_chord_conversion(text: str, lines: List[Line], convert_chord) -> str:
+        """Substitute each detected chord with its converted form.
+
+        Iterates from the end of the text so earlier positions stay valid.
+        Preserves any trailing characters in the match (e.g. a "*2" duration
+        suffix) because ChordInfo.chord excludes them but [start, end) includes
+        them.
+        """
+        chord_infos = [
+            chord
+            for line in lines if line.is_chord_line()
+            for chord in line.get_valid_chords()
+            if not chord.is_relative
+        ]
+        result = text
+        for info in sorted(chord_infos, key=lambda c: c.start, reverse=True):
+            original = result[info.start:info.end]
+            chord_part = info.chord
+            trailing = original[len(chord_part):]
+            result = result[:info.start] + convert_chord(chord_part) + trailing + result[info.end:]
+        return result
 
     def identify_chord_from_notes(self, notes: List[str], bass_note: str = None) -> List[str]:
         """Identify possible chord names from a set of notes.

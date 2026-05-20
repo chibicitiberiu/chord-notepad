@@ -46,6 +46,15 @@ class IPlayer(ABC):
         pass
 
     @abstractmethod
+    def set_bpm_multiplier(self, multiplier: float) -> None:
+        """Set the playback speed multiplier applied on top of the BPM.
+
+        Args:
+            multiplier: Speed multiplier (e.g. 1.0 = normal, 0.5 = half speed)
+        """
+        pass
+
+    @abstractmethod
     def set_playback_finished_callback(self, callback: Callable[[], None]) -> None:
         """Set callback to be called when playback finishes.
 

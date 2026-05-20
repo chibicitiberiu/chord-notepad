@@ -18,6 +18,7 @@ class Config:
 
     # Playback
     bpm: int = 120
+    bpm_multiplier: float = 1.0  # Speed multiplier applied on top of BPM/directives
     default_octave: int = 4
     bass_octave: int = 3
     time_signature_beats: int = 4  # Beats per measure
@@ -50,8 +51,13 @@ class Config:
 
     def validate(self) -> None:
         """Validate configuration values."""
-        if not (40 <= self.bpm <= 300):
-            raise ValueError(f"BPM must be between 40 and 300, got {self.bpm}")
+        if not (20 <= self.bpm <= 400):
+            raise ValueError(f"BPM must be between 20 and 400, got {self.bpm}")
+
+        if not (0.125 <= self.bpm_multiplier <= 4.0):
+            raise ValueError(
+                f"BPM multiplier must be between 0.125 and 4.0, got {self.bpm_multiplier}"
+            )
 
         if not (6 <= self.font_size <= 72):
             raise ValueError(f"Font size must be between 6 and 72, got {self.font_size}")
@@ -73,6 +79,7 @@ class Config:
             "font_size": self.font_size,
             "theme": self.theme,
             "bpm": self.bpm,
+            "bpm_multiplier": self.bpm_multiplier,
             "default_octave": self.default_octave,
             "bass_octave": self.bass_octave,
             "time_signature_beats": self.time_signature_beats,
@@ -105,6 +112,7 @@ class Config:
             font_size=data.get("font_size", 11),
             theme=data.get("theme", "default"),
             bpm=data.get("bpm", 120),
+            bpm_multiplier=data.get("bpm_multiplier", 1.0),
             default_octave=data.get("default_octave", 4),
             bass_octave=data.get("bass_octave", 3),
             time_signature_beats=data.get("time_signature_beats", 4),

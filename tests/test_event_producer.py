@@ -45,6 +45,109 @@ def simple_song():
     return [line1]
 
 
+def _drain(buffer, max_events=200, timeout=2.0):
+    """Pop everything the producer pushes, stopping at END_OF_SONG."""
+    events = []
+    deadline = time.time() + timeout
+    while time.time() < deadline and len(events) < max_events:
+        ev = buffer.pop_event(timeout=0.1)
+        if ev is None:
+            continue
+        events.append(ev)
+        if ev.event_type == MidiEventType.END_OF_SONG:
+            break
+    return events
+
+
+def _run_producer_and_collect(producer, buffer):
+    producer.start()
+    try:
+        return _drain(buffer)
+    finally:
+        producer.stop()
+
+
+class TestMetronomeTicks:
+    """The producer always emits METRONOME_TICK events alongside chord events.
+
+    Whether they sound is decided by the player at consumption time (it
+    mutes/unmutes the drum channel via CC 7). That keeps toggling the
+    metronome immediate even mid-playback — no waiting for the event buffer
+    to drain.
+
+    `is_downbeat` is derived from the absolute beat counter modulo the
+    current time signature.
+    """
+
+    def test_one_tick_per_beat_in_44(self, simple_song, event_buffer, note_picker, mock_application):
+        producer = EventProducer(
+            lines=simple_song, initial_key="C", initial_bpm=120,
+            initial_time_sig=(4, 4), note_picker=note_picker,
+            event_buffer=event_buffer, application=mock_application,
+        )
+        events = _run_producer_and_collect(producer, event_buffer)
+        ticks = [e for e in events if e.event_type == MidiEventType.METRONOME_TICK]
+        # 4 chords * 4 beats per chord (default to time-sig beats per measure)
+        assert len(ticks) == 16
+
+    def test_downbeat_every_first_beat_of_measure(self, simple_song, event_buffer, note_picker, mock_application):
+        producer = EventProducer(
+            lines=simple_song, initial_key="C", initial_bpm=120,
+            initial_time_sig=(4, 4), note_picker=note_picker,
+            event_buffer=event_buffer, application=mock_application,
+        )
+        events = _run_producer_and_collect(producer, event_buffer)
+        ticks = [e for e in events if e.event_type == MidiEventType.METRONOME_TICK]
+        downbeats = [t.metadata.get('is_downbeat') for t in ticks]
+        assert downbeats == [
+            True, False, False, False,
+            True, False, False, False,
+            True, False, False, False,
+            True, False, False, False,
+        ]
+
+    def test_ticks_align_with_chord_start(self, simple_song, event_buffer, note_picker, mock_application):
+        producer = EventProducer(
+            lines=simple_song, initial_key="C", initial_bpm=120,
+            initial_time_sig=(4, 4), note_picker=note_picker,
+            event_buffer=event_buffer, application=mock_application,
+        )
+        events = _run_producer_and_collect(producer, event_buffer)
+        ticks = [e for e in events if e.event_type == MidiEventType.METRONOME_TICK]
+        note_ons = [e for e in events if e.event_type == MidiEventType.NOTE_ON]
+        # First tick of each chord coincides with its NOTE_ON.
+        first_chord_tick_ts = [ticks[i * 4].timestamp for i in range(len(note_ons))]
+        note_on_ts = [e.timestamp for e in note_ons]
+        assert first_chord_tick_ts == pytest.approx(note_on_ts)
+
+    def test_time_signature_directive_changes_downbeat_pattern(
+        self, event_buffer, note_picker, mock_application
+    ):
+        # 4/4 chord (4 ticks: down, up, up, up), then a time-sig directive
+        # switches to 3/4 and another chord (3 ticks).
+        chord_a = ChordInfo(chord="C", start=0, end=1, is_relative=False, is_valid=True, duration=4)
+        chord_b = ChordInfo(chord="G", start=2, end=3, is_relative=False, is_valid=True, duration=3)
+        time_sig_change = Directive(
+            type=DirectiveType.TIME_SIGNATURE, start=0, end=0,
+            beats=3, unit=4, is_valid=True,
+        )
+        line = Line(content="", line_number=1)
+        line.items = [chord_a, time_sig_change, chord_b]
+
+        producer = EventProducer(
+            lines=[line], initial_key="C", initial_bpm=120,
+            initial_time_sig=(4, 4), note_picker=note_picker,
+            event_buffer=event_buffer, application=mock_application,
+        )
+        events = _run_producer_and_collect(producer, event_buffer)
+        ticks = [e for e in events if e.event_type == MidiEventType.METRONOME_TICK]
+        downs = [t.metadata.get('is_downbeat') for t in ticks]
+        # 4/4 measure: down + 3 ups.
+        # Absolute beat counter persists across the time-sig switch; downbeat
+        # is now (beat % 3 == 0). So beat 4 % 3 == 1 (up), beat 5 (up), beat 6 (down).
+        assert downs == [True, False, False, False, False, False, True]
+
+
 class TestEventProducerBasics:
     """Test basic EventProducer functionality."""
 
@@ -156,6 +259,57 @@ class TestEventProducerBasics:
         for i in range(1, len(events)):
             assert events[i].timestamp >= events[i-1].timestamp, \
                 f"Event {i} timestamp should be >= previous event"
+
+
+class TestLoopAndBarAccounting:
+    """Loops must repeat the right number of times AND the bar counter must
+    advance through the repeats so status-bar 'Bar X / Y' stays consistent.
+    """
+
+    @staticmethod
+    def _song_with_loop(loop_count):
+        from services.song_parser_service import SongParserService
+        text = "{label: a} C*4\n{loop: a " + str(loop_count) + "}"
+        return SongParserService().detect_chords_in_text(text)
+
+    def _run(self, lines, event_buffer, note_picker, mock_application):
+        producer = EventProducer(
+            lines=lines, initial_key="C", initial_bpm=120,
+            initial_time_sig=(4, 4), note_picker=note_picker,
+            event_buffer=event_buffer, application=mock_application,
+        )
+        return _run_producer_and_collect(producer, event_buffer)
+
+    def test_loop_count_3_plays_3_times(self, event_buffer, note_picker, mock_application):
+        events = self._run(self._song_with_loop(3), event_buffer, note_picker, mock_application)
+        note_ons = [e for e in events if e.event_type == MidiEventType.NOTE_ON]
+        assert len(note_ons) == 3
+
+    def test_loop_count_4_plays_4_times(self, event_buffer, note_picker, mock_application):
+        events = self._run(self._song_with_loop(4), event_buffer, note_picker, mock_application)
+        note_ons = [e for e in events if e.event_type == MidiEventType.NOTE_ON]
+        assert len(note_ons) == 4
+
+    def test_total_bars_reflects_loop_replays(self, event_buffer, note_picker, mock_application):
+        events = self._run(self._song_with_loop(3), event_buffer, note_picker, mock_application)
+        note_ons = [e for e in events if e.event_type == MidiEventType.NOTE_ON]
+        # Three full-measure plays of a single 4-beat chord in 4/4 = 3 bars.
+        assert [e.metadata['total_bars'] for e in note_ons] == [3, 3, 3]
+
+    def test_current_bar_advances_through_loop(self, event_buffer, note_picker, mock_application):
+        events = self._run(self._song_with_loop(4), event_buffer, note_picker, mock_application)
+        note_ons = [e for e in events if e.event_type == MidiEventType.NOTE_ON]
+        assert [e.metadata['bar'] for e in note_ons] == [1, 2, 3, 4]
+
+    def test_time_signature_change_flushes_partial_bar(self, event_buffer, note_picker, mock_application):
+        from services.song_parser_service import SongParserService
+        text = "C*4\n{time: 3/4}\nG*3 F*3"
+        lines = SongParserService().detect_chords_in_text(text)
+        events = self._run(lines, event_buffer, note_picker, mock_application)
+        note_ons = [e for e in events if e.event_type == MidiEventType.NOTE_ON]
+        bars = [e.metadata['bar'] for e in note_ons]
+        # 4/4 measure of C, then 3/4 measure of G, then 3/4 measure of F.
+        assert bars == [1, 2, 3]
 
 
 class TestEventProducerDirectives:

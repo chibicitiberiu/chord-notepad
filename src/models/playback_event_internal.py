@@ -9,6 +9,7 @@ class MidiEventType(Enum):
     NOTE_ON = "note_on"
     NOTE_OFF = "note_off"
     REST = "rest"  # Silence/pause (NC notation)
+    METRONOME_TICK = "metronome_tick"  # Click track — drum-channel blip
     END_OF_SONG = "end_of_song"
 
 
