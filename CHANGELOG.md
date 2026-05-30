@@ -7,4 +7,4 @@ of this file are used as the GitHub release description, then automatically
 moved to CHANGELOG_HISTORY.md and this file is reset.
 -->
 
-- Initial release.
+_No changes yet._
