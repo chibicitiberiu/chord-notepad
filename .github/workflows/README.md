@@ -4,7 +4,7 @@ This directory contains automated build and release workflows for Chord Notepad.
 
 ## Workflow Overview
 
-The `build.yml` workflow handles three scenarios:
+The `build.yml` workflow handles four scenarios:
 
 ### 1. Continuous Testing (On Push/PR)
 - **Trigger**: Every push to `master`/`main` or pull request
@@ -12,22 +12,39 @@ The `build.yml` workflow handles three scenarios:
 - **Purpose**: Ensure code quality
 
 ### 2. Nightly Builds (Weekly)
-- **Trigger**: Every Monday at 00:00 UTC (cron schedule)
-- **Condition**: Only runs if there were commits in the last 7 days
+- **Trigger**: Every Monday at 00:00 UTC (cron schedule), or manual workflow_dispatch with `build_type: nightly`
+- **Condition**: Scheduled run only proceeds if there were commits in the last 7 days
 - **Action**:
   - Runs tests
   - Builds executables for Linux, Windows, macOS
   - Creates pre-release with tag `nightly-YYYYMMDD`
-  - Version format: `nightly-YYYYMMDD-<short-commit-hash>`
+  - Version format: `v<BASE_VERSION> nightly <YYYYMMDD> (<short-commit>)`
 - **Retention**: Keeps latest 5 nightly releases, deletes older ones
 
-### 3. Release Builds (On Tag Push)
-- **Trigger**: Pushing a version tag (e.g., `v1.0.0`, `v2.1.3`)
+### 3. Full Releases (Manual Dispatch)
+- **Trigger**: Run workflow manually with `build_type: release` in the Actions tab
 - **Action**:
+  - Reads base version from the `VERSION` file at the repo root
   - Runs tests
-  - Builds executables for Linux, Windows, macOS
-  - Creates official release with the tag name
-  - Version format: Uses the tag name (e.g., `v1.0.0`)
+  - Builds executables for Linux, Windows, macOS plus the PDF user guide
+  - Creates a (non-prerelease) GitHub release with tag `v<BASE_VERSION>-build<run_number>`
+  - Version format: `v<BASE_VERSION> build <run_number> (<short-commit>)`
+- **Notes**: The tag is created automatically by the release action. Bump `VERSION` to publish a new version (e.g. change `0.1` → `0.2` and dispatch).
+
+### 4. Legacy Tag-Push Releases
+- **Trigger**: Pushing a version tag (e.g., `v1.0.0`, `v2.1.3`)
+- **Action**: Same as full releases, but the tag name itself is used as the version.
+
+## Version Source
+
+The base version lives in the **`VERSION` file at the repo root** (one line, e.g. `0.1`).
+Both `src/build_info.py` (for local dev) and the CI workflow read from it, so there is one source of truth.
+
+To publish a new release:
+1. Edit `VERSION` (e.g. `0.1` → `0.2`), commit, push.
+2. Run the **Build and Release** workflow manually with `build_type: release`.
+
+The build number comes from `${{ github.run_number }}`, which is monotonic across the repo.
 
 ## Version Information
 
@@ -35,53 +52,55 @@ Version information is automatically embedded in the built executables:
 
 ### Development Builds (local)
 ```python
-VERSION = "dev-local"
+BASE_VERSION = "0.1"   # read from VERSION file
+BUILD_NUMBER = "0"
+VERSION = "v0.1 (dev-local)"
 BUILD_TYPE = "development"
 ```
 
 ### Nightly Builds
 ```python
-VERSION = "nightly-20241121-a1b2c3d"
+BASE_VERSION = "0.1"
+BUILD_NUMBER = "47"
+VERSION = "v0.1 nightly 20260530 (a1b2c3d)"
 BUILD_TYPE = "nightly"
 COMMIT_HASH = "full-commit-hash"
-BUILD_DATE = "2024-11-21 00:00:00 UTC"
+BUILD_DATE = "2026-05-30 00:00:00 UTC"
 ```
 
-### Release Builds
+### Full Releases
 ```python
-VERSION = "v1.0.0"
+BASE_VERSION = "0.1"
+BUILD_NUMBER = "47"
+VERSION = "v0.1 build 47 (a1b2c3d)"
 BUILD_TYPE = "release"
 COMMIT_HASH = "full-commit-hash"
-BUILD_DATE = "2024-11-21 12:34:56 UTC"
+BUILD_DATE = "2026-05-30 12:34:56 UTC"
 ```
 
 This information is:
 - Written to `src/build_info.py` during CI build
+- Embedded in the Windows exe via `version_info.txt` (visible in Explorer Properties → Details)
 - Displayed in Help > About dialog
 - Logged to console at application startup
 
 ## Creating a Release
 
-### Automatic Release (Recommended)
+### Full Release (Recommended)
 
-1. Commit and push your changes:
-   ```bash
-   git add .
-   git commit -m "Prepare release v1.0.0"
-   git push
-   ```
+1. Bump `VERSION` at the repo root (e.g. `0.1` → `0.2`), commit, push.
+2. Open **Actions → Build and Release → Run workflow**.
+3. Select `build_type: release` and click **Run**.
+4. The workflow runs tests, builds binaries + PDF docs, creates tag `v0.2-build<N>`, and publishes a GitHub release.
 
-2. Create and push a version tag:
-   ```bash
-   git tag v1.0.0
-   git push origin v1.0.0
-   ```
+### Legacy: Tag-Push Release
 
-3. GitHub Actions will automatically:
-   - Run tests
-   - Build binaries for all platforms
-   - Create a GitHub release
-   - Upload binaries as release assets
+For ad-hoc releases at an arbitrary commit you can still push a `v*.*.*` tag:
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+```
+The workflow detects the tag and produces a release named after it.
 
 ### Manual Testing Before Release
 
@@ -169,10 +188,11 @@ Change how many nightly builds to keep:
 
 ## Local Development
 
-For local development, `src/build_info.py` contains default values:
+For local development, `src/build_info.py` reads the base version from `VERSION` at import time and tags the build as `(dev-local)`:
 ```python
-VERSION = "dev-local"
+BASE_VERSION = "0.1"   # from VERSION file
+VERSION = "v0.1 (dev-local)"
 BUILD_TYPE = "development"
 ```
 
-This file is checked into git and won't interfere with CI builds, as the workflow overwrites it during the build process.
+The file is checked into git but is rewritten by CI before PyInstaller runs, so it never conflicts with release builds.

@@ -313,20 +313,26 @@ class Application:
             # Import build info
             try:
                 from build_info import VERSION, BUILD_TYPE, COMMIT_HASH, BUILD_DATE
+                try:
+                    from build_info import BUILD_NUMBER
+                except ImportError:
+                    BUILD_NUMBER = "0"
             except ImportError:
                 VERSION = "dev-local"
                 BUILD_TYPE = "development"
                 COMMIT_HASH = "unknown"
                 BUILD_DATE = "unknown"
+                BUILD_NUMBER = "0"
 
             # Log version information
             logger.info("=" * 60)
             logger.info(f"{APP_NAME}")
             logger.info("=" * 60)
-            logger.info(f"Version:    {VERSION}")
-            logger.info(f"Build Type: {BUILD_TYPE}")
-            logger.info(f"Commit:     {COMMIT_HASH}")
-            logger.info(f"Build Date: {BUILD_DATE}")
+            logger.info(f"Version:      {VERSION}")
+            logger.info(f"Build Type:   {BUILD_TYPE}")
+            logger.info(f"Build Number: {BUILD_NUMBER}")
+            logger.info(f"Commit:       {COMMIT_HASH}")
+            logger.info(f"Build Date:   {BUILD_DATE}")
             logger.info("=" * 60)
 
             # Create main window with ViewModels

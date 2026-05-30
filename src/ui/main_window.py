@@ -30,11 +30,16 @@ logger = logging.getLogger(__name__)
 # Import build info (may be auto-generated during CI build)
 try:
     from build_info import VERSION, BUILD_TYPE, COMMIT_SHORT, BUILD_DATE
+    try:
+        from build_info import BUILD_NUMBER
+    except ImportError:
+        BUILD_NUMBER = "0"
 except ImportError:
     VERSION = "dev-local"
     BUILD_TYPE = "development"
     COMMIT_SHORT = "unknown"
     BUILD_DATE = "unknown"
+    BUILD_NUMBER = "0"
 
 
 class MainWindow(tk.Tk):
@@ -1084,6 +1089,7 @@ class MainWindow(tk.Tk):
         info_lines = [
             ("Version:", VERSION),
             ("Build Type:", BUILD_TYPE),
+            ("Build Number:", BUILD_NUMBER),
             ("Commit:", COMMIT_SHORT),
             ("Build Date:", BUILD_DATE),
         ]

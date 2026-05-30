@@ -22,6 +22,7 @@ on:
         options:
           - nightly
           - test
+          - release
 
 permissions:
   contents: write
@@ -197,20 +198,24 @@ jobs:
       - name: Generate build info
         shell: bash
         run: |
-          # Determine version based on trigger type
-          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
-            # Release build - use tag
-            VERSION="${{ github.ref_name }}"
-            BUILD_TYPE="release"
-          else
-            # Nightly build - use date + short commit
-            VERSION="nightly-$(date +%Y%m%d)-$(git rev-parse --short HEAD)"
-            BUILD_TYPE="nightly"
-          fi
-
+          BASE_VERSION=$(cat VERSION | tr -d '[:space:]')
+          BUILD_NUMBER="${{ github.run_number }}"
           COMMIT_HASH=$(git rev-parse HEAD)
           COMMIT_SHORT=$(git rev-parse --short HEAD)
           BUILD_DATE=$(date -u +"%Y-%m-%d %H:%M:%S UTC")
+
+          # Determine version + build type based on trigger
+          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            # Legacy tag-push release path
+            VERSION="${{ github.ref_name }}"
+            BUILD_TYPE="release"
+          elif [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ inputs.build_type }}" == "release" ]]; then
+            VERSION="v${BASE_VERSION} build ${BUILD_NUMBER} (${COMMIT_SHORT})"
+            BUILD_TYPE="release"
+          else
+            VERSION="v${BASE_VERSION} nightly $(date +%Y%m%d) (${COMMIT_SHORT})"
+            BUILD_TYPE="nightly"
+          fi
 
           # Create build_info.py
           cat > src/build_info.py << EOF
@@ -219,6 +224,8 @@ jobs:
           This file is generated during the build process and should not be edited manually.
           """
 
+          BASE_VERSION = "$BASE_VERSION"
+          BUILD_NUMBER = "$BUILD_NUMBER"
           VERSION = "$VERSION"
           BUILD_TYPE = "$BUILD_TYPE"
           COMMIT_HASH = "$COMMIT_HASH"
@@ -228,6 +235,53 @@ jobs:
 
           echo "Generated build_info.py:"
           cat src/build_info.py
+
+          # Generate PyInstaller version_info.txt for Windows exe properties.
+          # FileVersion/ProductVersion must be a 4-tuple of integers. We parse
+          # BASE_VERSION (e.g. "0.1") into "MAJOR.MINOR.0.BUILD_NUMBER".
+          MAJOR=$(echo "$BASE_VERSION" | cut -d. -f1)
+          MINOR=$(echo "$BASE_VERSION" | cut -d. -f2)
+          PATCH=$(echo "$BASE_VERSION" | cut -d. -f3)
+          MAJOR=${MAJOR:-0}
+          MINOR=${MINOR:-0}
+          PATCH=${PATCH:-0}
+          FILEVER="(${MAJOR}, ${MINOR}, ${PATCH}, ${BUILD_NUMBER})"
+
+          cat > version_info.txt << EOF
+          # UTF-8
+          VSVersionInfo(
+            ffi=FixedFileInfo(
+              filevers=${FILEVER},
+              prodvers=${FILEVER},
+              mask=0x3f,
+              flags=0x0,
+              OS=0x40004,
+              fileType=0x1,
+              subtype=0x0,
+              date=(0, 0)
+            ),
+            kids=[
+              StringFileInfo([
+                StringTable(
+                  '040904B0',
+                  [
+                    StringStruct('CompanyName', 'Chord Notepad Contributors'),
+                    StringStruct('FileDescription', 'Chord Notepad'),
+                    StringStruct('FileVersion', '${VERSION}'),
+                    StringStruct('InternalName', 'ChordNotepad'),
+                    StringStruct('LegalCopyright', 'MIT License'),
+                    StringStruct('OriginalFilename', 'ChordNotepad.exe'),
+                    StringStruct('ProductName', 'Chord Notepad'),
+                    StringStruct('ProductVersion', '${VERSION}')
+                  ])
+              ]),
+              VarFileInfo([VarStruct('Translation', [1033, 1200])])
+            ]
+          )
+          EOF
+
+          echo "Generated version_info.txt:"
+          cat version_info.txt
 
       - name: Build with PyInstaller
         run: pipenv run pyinstaller --clean chord-notepad.spec
@@ -256,8 +310,10 @@ jobs:
     name: Build PDF Documentation
     needs: [test]
     runs-on: ubuntu-latest
-    # Only build PDF for releases (not nightly builds)
-    if: startsWith(github.ref, 'refs/tags/v')
+    # Build PDF only for full releases (tag push or manual release dispatch)
+    if: |
+      startsWith(github.ref, 'refs/tags/v') ||
+      (github.event_name == 'workflow_dispatch' && inputs.build_type == 'release')
     steps:
       - uses: actions/checkout@v5
 
@@ -313,15 +369,23 @@ jobs:
       - name: Determine release info
         id: release_info
         run: |
+          BASE_VERSION=$(cat VERSION | tr -d '[:space:]')
+          BUILD_NUMBER="${{ github.run_number }}"
+          COMMIT_SHORT=$(git rev-parse --short HEAD)
+
           if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
-            # Release build
+            # Legacy tag-push release path
             VERSION="${{ github.ref_name }}"
             RELEASE_NAME="Release $VERSION"
             IS_PRERELEASE=false
             TAG_NAME="$VERSION"
+          elif [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ inputs.build_type }}" == "release" ]]; then
+            VERSION="v${BASE_VERSION} build ${BUILD_NUMBER} (${COMMIT_SHORT})"
+            RELEASE_NAME="Chord Notepad v${BASE_VERSION} (build ${BUILD_NUMBER})"
+            IS_PRERELEASE=false
+            TAG_NAME="v${BASE_VERSION}-build${BUILD_NUMBER}"
           else
-            # Nightly build
-            VERSION="nightly-$(date +%Y%m%d)-$(git rev-parse --short HEAD)"
+            VERSION="v${BASE_VERSION} nightly $(date +%Y%m%d) (${COMMIT_SHORT})"
             RELEASE_NAME="Nightly Build $(date +%Y-%m-%d)"
             IS_PRERELEASE=true
             TAG_NAME="nightly-$(date +%Y%m%d)"
@@ -351,7 +415,7 @@ jobs:
             - **Linux**: `ChordNotepad-linux-x64`
             - **Windows**: `ChordNotepad-windows-x64.exe`
             - **macOS**: `ChordNotepad-macos-x64`
-            ${{ startsWith(github.ref, 'refs/tags/v') && '- **User Guide (PDF)**: `ChordNotepad-UserGuide.pdf`' || '' }}
+            ${{ (startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.build_type == 'release')) && '- **User Guide (PDF)**: `ChordNotepad-UserGuide.pdf`' || '' }}
 
             ### Installation
 
@@ -381,7 +445,10 @@ jobs:
     name: Cleanup Old Nightly Releases
     needs: [create-release]
     runs-on: ubuntu-latest
-    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    # Skip when producing a full release - we only want to prune nightly tags.
+    if: |
+      github.event_name == 'schedule' ||
+      (github.event_name == 'workflow_dispatch' && inputs.build_type != 'release')
     steps:
       - uses: actions/checkout@v5
 
