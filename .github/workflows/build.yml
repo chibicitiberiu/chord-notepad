@@ -53,7 +53,7 @@ jobs:
         run: pipenv install --dev
 
       - name: Run tests
-        run: pipenv run pytest tests/ -v || echo "No tests found or tests failed"
+        run: pipenv run pytest tests/ -v
 
   check-changes:
     name: Check for Recent Changes
