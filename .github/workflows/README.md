@@ -88,10 +88,23 @@ This information is:
 
 ### Full Release (Recommended)
 
-1. Bump `VERSION` at the repo root (e.g. `0.1` → `0.2`), commit, push.
-2. Open **Actions → Build and Release → Run workflow**.
-3. Select `build_type: release` and click **Run**.
-4. The workflow runs tests, builds binaries + PDF docs, creates tag `v0.2-build<N>`, and publishes a GitHub release.
+1. As you work, write release notes into `CHANGELOG.md` at the repo root.
+2. Bump `VERSION` (e.g. `0.1` → `0.2`), commit, push.
+3. Open **Actions → Build and Release → Run workflow**.
+4. Select `build_type: release` and click **Run**.
+
+The workflow then:
+- Runs tests
+- Builds binaries + PDF docs
+- Creates tag `v0.2-build<run_number>` and publishes a GitHub release whose description is built from `CHANGELOG.md`
+- Runs the `rotate-changelog` job, which prepends `CHANGELOG.md`'s notes to `CHANGELOG_HISTORY.md` under a `## v0.2-build<N> — YYYY-MM-DD` header, resets `CHANGELOG.md` to the empty template, and pushes a commit (`[skip ci]`) back to `main`.
+
+### Changelog Conventions
+
+- **`CHANGELOG.md`** — staging area for the *next* release. Edit freely. Everything except the `# Changelog` header and HTML comments ends up in the release description.
+- **`CHANGELOG_HISTORY.md`** — append-only log of past releases, written by CI. Don't edit by hand unless you're fixing a mistake.
+
+If `CHANGELOG.md` is empty when you dispatch a release, the release notes show `_No release notes provided._` and the same placeholder is recorded in history.
 
 ### Legacy: Tag-Push Release
 
@@ -100,7 +113,7 @@ For ad-hoc releases at an arbitrary commit you can still push a `v*.*.*` tag:
 git tag v1.0.0
 git push origin v1.0.0
 ```
-The workflow detects the tag and produces a release named after it.
+The workflow detects the tag and produces a release named after it. **Note:** tag-push releases do *not* trigger the changelog rotation — `main` may have moved past the tagged commit, and we don't want to clobber that work. Manage the changelog manually in this flow.
 
 ### Manual Testing Before Release
 

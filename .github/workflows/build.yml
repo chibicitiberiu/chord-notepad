@@ -37,14 +37,14 @@ jobs:
           fetch-depth: 0  # Fetch all history for version detection
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.14'
 
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y fluidsynth libfluidsynth3
+          sudo apt-get install -y fluidsynth libfluidsynth3 portaudio19-dev
 
       - name: Install pipenv
         run: pip install pipenv
@@ -116,7 +116,7 @@ jobs:
           fetch-depth: 0  # Need full history for version info
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.14'
 
@@ -124,12 +124,12 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y fluidsynth libfluidsynth3
+          sudo apt-get install -y fluidsynth libfluidsynth3 portaudio19-dev
 
       - name: Install system dependencies (macOS)
         if: runner.os == 'macOS'
         run: |
-          brew install fluid-synth
+          brew install fluid-synth portaudio
 
       - name: Install system dependencies (Windows)
         if: runner.os == 'Windows'
@@ -300,7 +300,7 @@ jobs:
           Move-Item ChordNotepad.exe ${{ matrix.asset_name }}
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: ${{ matrix.artifact_name }}
           path: dist/${{ matrix.asset_name }}
@@ -318,9 +318,14 @@ jobs:
       - uses: actions/checkout@v5
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.14'
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y portaudio19-dev
 
       - name: Install pipenv
         run: pip install pipenv
@@ -334,7 +339,7 @@ jobs:
           echo "PDF documentation built"
 
       - name: Upload PDF artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: documentation-pdf
           path: help/build/rinoh/*.pdf
@@ -359,7 +364,7 @@ jobs:
       - uses: actions/checkout@v5
 
       - name: Download all artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v6
         with:
           path: artifacts
 
@@ -372,6 +377,7 @@ jobs:
           BASE_VERSION=$(cat VERSION | tr -d '[:space:]')
           BUILD_NUMBER="${{ github.run_number }}"
           COMMIT_SHORT=$(git rev-parse --short HEAD)
+          IS_FULL_RELEASE=false
 
           if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
             # Legacy tag-push release path
@@ -379,11 +385,13 @@ jobs:
             RELEASE_NAME="Release $VERSION"
             IS_PRERELEASE=false
             TAG_NAME="$VERSION"
+            IS_FULL_RELEASE=true
           elif [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ inputs.build_type }}" == "release" ]]; then
             VERSION="v${BASE_VERSION} build ${BUILD_NUMBER} (${COMMIT_SHORT})"
             RELEASE_NAME="Chord Notepad v${BASE_VERSION} (build ${BUILD_NUMBER})"
             IS_PRERELEASE=false
             TAG_NAME="v${BASE_VERSION}-build${BUILD_NUMBER}"
+            IS_FULL_RELEASE=true
           else
             VERSION="v${BASE_VERSION} nightly $(date +%Y%m%d) (${COMMIT_SHORT})"
             RELEASE_NAME="Nightly Build $(date +%Y-%m-%d)"
@@ -391,10 +399,67 @@ jobs:
             TAG_NAME="nightly-$(date +%Y%m%d)"
           fi
 
+          # Build the release body: optional changelog notes + standard footer.
+          # CHANGELOG.md feeds full releases; nightlies get a generic note.
+          CHANGES_SECTION=""
+          if [[ "$IS_FULL_RELEASE" == "true" ]]; then
+            if [[ -f CHANGELOG.md ]]; then
+              # Strip HTML comments and the leading "# Changelog" header so the
+              # release page shows just the notes, not the template scaffolding.
+              CHANGES_SECTION=$(sed -E -e 's/<!--.*-->//g' -e '/<!--/,/-->/d' -e '/^# Changelog$/d' CHANGELOG.md | sed -e 's/^[[:space:]]*$//' | awk 'NF{p=1} p')
+            fi
+            if [[ -z "$CHANGES_SECTION" ]]; then
+              CHANGES_SECTION="No release notes provided."
+            fi
+          else
+            CHANGES_SECTION="Automated nightly build with latest changes."
+          fi
+
+          PDF_LINE=""
+          if [[ "$IS_FULL_RELEASE" == "true" ]]; then
+            PDF_LINE="- **User Guide (PDF)**: \`ChordNotepad-UserGuide.pdf\`"
+          fi
+
+          {
+            echo "body<<EOF_BODY"
+            echo "## Chord Notepad ${VERSION}"
+            echo ""
+            echo "### What's New"
+            echo ""
+            echo "${CHANGES_SECTION}"
+            echo ""
+            echo "### Downloads"
+            echo "- **Linux**: \`ChordNotepad-linux-x64\`"
+            echo "- **Windows**: \`ChordNotepad-windows-x64.exe\`"
+            echo "- **macOS**: \`ChordNotepad-macos-x64\`"
+            if [[ -n "$PDF_LINE" ]]; then echo "$PDF_LINE"; fi
+            echo ""
+            echo "### Installation"
+            echo ""
+            echo "**Linux:**"
+            echo '```bash'
+            echo "chmod +x ChordNotepad-linux-x64"
+            echo "./ChordNotepad-linux-x64"
+            echo '```'
+            echo "Note: Requires \`libfluidsynth3\` installed"
+            echo ""
+            echo "**Windows:**"
+            echo "Double-click \`ChordNotepad-windows-x64.exe\` to run"
+            echo ""
+            echo "**macOS:**"
+            echo '```bash'
+            echo "chmod +x ChordNotepad-macos-x64"
+            echo "./ChordNotepad-macos-x64"
+            echo '```'
+            echo "Note: Requires FluidSynth installed via Homebrew"
+            echo "EOF_BODY"
+          } >> $GITHUB_OUTPUT
+
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "release_name=$RELEASE_NAME" >> $GITHUB_OUTPUT
           echo "is_prerelease=$IS_PRERELEASE" >> $GITHUB_OUTPUT
           echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
+          echo "is_full_release=$IS_FULL_RELEASE" >> $GITHUB_OUTPUT
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
@@ -408,38 +473,94 @@ jobs:
             artifacts/ChordNotepad-windows/*
             artifacts/ChordNotepad-macos/*
             artifacts/documentation-pdf/*.pdf
-          body: |
-            ## Chord Notepad ${{ steps.release_info.outputs.version }}
-
-            ### Downloads
-            - **Linux**: `ChordNotepad-linux-x64`
-            - **Windows**: `ChordNotepad-windows-x64.exe`
-            - **macOS**: `ChordNotepad-macos-x64`
-            ${{ (startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.build_type == 'release')) && '- **User Guide (PDF)**: `ChordNotepad-UserGuide.pdf`' || '' }}
-
-            ### Installation
-
-            **Linux:**
-            ```bash
-            chmod +x ChordNotepad-linux-x64
-            ./ChordNotepad-linux-x64
-            ```
-            Note: Requires `libfluidsynth3` installed
-
-            **Windows:**
-            Double-click `ChordNotepad-windows-x64.exe` to run
-
-            **macOS:**
-            ```bash
-            chmod +x ChordNotepad-macos-x64
-            ./ChordNotepad-macos-x64
-            ```
-            Note: Requires FluidSynth installed via Homebrew
-
-            ### Changes
-            ${{ (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && 'Automated nightly build with latest changes' || 'See commit history for details' }}
+          body: ${{ steps.release_info.outputs.body }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  rotate-changelog:
+    name: Rotate CHANGELOG into history
+    needs: [create-release]
+    runs-on: ubuntu-latest
+    # Only after a full-release dispatch. Tag-push releases skip this because
+    # main may have moved past the tagged commit; we don't want to clobber that.
+    if: |
+      github.event_name == 'workflow_dispatch' &&
+      inputs.build_type == 'release' &&
+      needs.create-release.result == 'success'
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Rotate CHANGELOG.md into CHANGELOG_HISTORY.md
+        run: |
+          set -euo pipefail
+
+          BASE_VERSION=$(cat VERSION | tr -d '[:space:]')
+          BUILD_NUMBER="${{ github.run_number }}"
+          RELEASE_DATE=$(date -u +"%Y-%m-%d")
+          TAG_NAME="v${BASE_VERSION}-build${BUILD_NUMBER}"
+
+          # Pull just the notes out of CHANGELOG.md (strip HTML comments and the
+          # top-level "# Changelog" heading).
+          NOTES=$(sed -E -e 's/<!--.*-->//g' -e '/<!--/,/-->/d' -e '/^# Changelog$/d' CHANGELOG.md | awk 'NF{p=1} p')
+          if [[ -z "${NOTES// }" ]]; then
+            NOTES="_No release notes provided._"
+          fi
+
+          # Prepend a new section to CHANGELOG_HISTORY.md, preserving the file header.
+          if [[ ! -f CHANGELOG_HISTORY.md ]]; then
+            printf '# Release History\n\n' > CHANGELOG_HISTORY.md
+          fi
+
+          HEADER=$(head -n 4 CHANGELOG_HISTORY.md)
+          TAIL=$(tail -n +5 CHANGELOG_HISTORY.md)
+
+          {
+            printf '%s\n\n' "$HEADER"
+            printf '## %s — %s\n\n' "$TAG_NAME" "$RELEASE_DATE"
+            printf '%s\n\n' "$NOTES"
+            if [[ -n "$TAIL" ]]; then
+              printf '%s\n' "$TAIL"
+            fi
+          } > CHANGELOG_HISTORY.md.new
+          mv CHANGELOG_HISTORY.md.new CHANGELOG_HISTORY.md
+
+          # Reset CHANGELOG.md to an empty template for the next release.
+          cat > CHANGELOG.md << 'EOF'
+          # Changelog
+
+          <!--
+          This file holds release notes for the *next* full release.
+          Write entries here as you work. When a full release is published, the contents
+          of this file are used as the GitHub release description, then automatically
+          moved to CHANGELOG_HISTORY.md and this file is reset.
+          -->
+
+          _No changes yet._
+          EOF
+
+          echo "::group::Updated CHANGELOG_HISTORY.md (head)"
+          head -n 30 CHANGELOG_HISTORY.md
+          echo "::endgroup::"
+
+      - name: Commit and push rotation
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+
+          if git diff --quiet -- CHANGELOG.md CHANGELOG_HISTORY.md; then
+            echo "No changelog changes to commit (already in sync)."
+            exit 0
+          fi
+
+          git add CHANGELOG.md CHANGELOG_HISTORY.md
+          git commit -m "Rotate changelog for v$(cat VERSION) build ${{ github.run_number }} [skip ci]"
+          git push origin HEAD:main
 
   cleanup-nightly:
     name: Cleanup Old Nightly Releases
