@@ -27,12 +27,6 @@ on:
 permissions:
   contents: write
 
-# Force JavaScript actions onto Node 24 even when they still declare Node 20.
-# GitHub deprecated Node 20 for JS actions on 2025-09-19; this opts us in early
-# and silences the warning until each action publishes a Node-24-native release.
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
-
 jobs:
   test:
     name: Run Tests
@@ -306,7 +300,7 @@ jobs:
           Move-Item ChordNotepad.exe ${{ matrix.asset_name }}
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: ${{ matrix.artifact_name }}
           path: dist/${{ matrix.asset_name }}
@@ -340,7 +334,7 @@ jobs:
           echo "PDF documentation built"
 
       - name: Upload PDF artifact
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: documentation-pdf
           path: help/build/rinoh/*.pdf
@@ -365,7 +359,7 @@ jobs:
       - uses: actions/checkout@v5
 
       - name: Download all artifacts
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           path: artifacts
 
