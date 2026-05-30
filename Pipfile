@@ -4,9 +4,11 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-pyfluidsynth = "~=1.3.0"
+# 1.4.0+ moves pyaudio to an optional extra; earlier 1.3.6 forced it as a hard
+# dep, which made CI fail when no prebuilt wheel existed for the Python version
+# (pyaudio then tries to compile from source and needs portaudio dev headers).
+pyfluidsynth = ">=1.4.0"
 pychord = "*"
-mingus = "*"
 music21 = "*"
 pillow = "*"
 
