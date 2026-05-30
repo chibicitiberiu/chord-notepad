@@ -5,30 +5,38 @@ Includes property-based testing with Hypothesis for fuzzing
 """
 
 import pytest
-from hypothesis import given, strategies as st, settings, seed
+from hypothesis import given, strategies as st, settings
 from typing import List, Set
 from models.chord_notes import ChordNotes
 from audio.chord_picker import ChordNotePicker
 from audio.guitar_chord_picker import GuitarChordPicker
 from chord.helper import ChordHelper
 
-# Use consistent seed for reproducible tests
-seed(12346)
+# Reproducible-seed behavior is provided by the "default" Hypothesis profile in
+# tests/conftest.py (derandomize=True). Per-test @seed decorators are not needed.
 
 
 # Helper functions
+_SHARP_NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
+
+
 def midi_to_note_class(midi: int) -> str:
     """Convert MIDI number to note class (without octave)"""
-    note_names = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
-    return note_names[midi % 12]
+    return _SHARP_NOTE_NAMES[midi % 12]
 
 
 def normalize_note(note: str) -> str:
-    """Normalize note names (convert flats to sharps for comparison)"""
-    note_map = {
-        'Db': 'C#', 'Eb': 'D#', 'Gb': 'F#', 'Ab': 'G#', 'Bb': 'A#'
-    }
-    return note_map.get(note, note)
+    """Normalize any note name to its canonical sharp-only form.
+
+    Handles all enharmonic spellings including E#/B# (-> F/C), Cb/Fb (-> B/E),
+    and double accidentals (C## -> D, Cbb -> A#). Unparseable input is returned
+    unchanged so error messages stay readable.
+    """
+    from chord.midi_converter import parse_note_to_semitone
+    semitone = parse_note_to_semitone(note)
+    if semitone is None:
+        return note
+    return _SHARP_NOTE_NAMES[semitone]
 
 
 def notes_to_note_classes(notes: List[str]) -> Set[str]:
@@ -212,7 +220,7 @@ class TestChordPickerFuzzing:
     """Property-based fuzzing tests using Hypothesis - tests full song sequences"""
 
     @given(st.lists(realistic_chord_strategy(), min_size=50, max_size=100))
-    @settings(max_examples=100, deadline=None)
+    @settings(max_examples=100)
     def test_piano_song_sequence_no_wrong_notes(self, chord_sequence):
         """FUZZ: Piano should never produce wrong notes throughout a full song (HARD requirement)"""
         picker = ChordNotePicker()
@@ -239,7 +247,7 @@ class TestChordPickerFuzzing:
                     f"Chord: {chord_notes.notes}, Bass: {chord_notes.bass_note}, MIDI: {midi}"
 
     @given(st.lists(realistic_chord_strategy(), min_size=50, max_size=100))
-    @settings(max_examples=100, deadline=None)
+    @settings(max_examples=100)
     def test_guitar_song_sequence_no_wrong_notes(self, chord_sequence):
         """FUZZ: Guitar should never produce wrong notes throughout a full song (HARD requirement)"""
         picker = GuitarChordPicker()
@@ -266,7 +274,7 @@ class TestChordPickerFuzzing:
                     f"Chord: {chord_notes.notes}, Bass: {chord_notes.bass_note}, MIDI: {midi}"
 
     @given(st.lists(realistic_chord_strategy(), min_size=50, max_size=100))
-    @settings(max_examples=100, deadline=None)
+    @settings(max_examples=100)
     def test_piano_bass_note_preference(self, chord_sequence):
         """FUZZ: Piano should prefer correct bass note (SOFT - 90% threshold for realistic chords)"""
         picker = ChordNotePicker()
@@ -294,7 +302,7 @@ class TestChordPickerFuzzing:
                 f"FUZZ FAIL: Only {success_rate:.1%} of chords had correct bass note (need ≥90%)"
 
     @given(st.lists(realistic_chord_strategy(), min_size=50, max_size=100))
-    @settings(max_examples=100, deadline=None)
+    @settings(max_examples=100)
     def test_guitar_bass_note_preference(self, chord_sequence):
         """FUZZ: Guitar should prefer correct bass note (SOFT - 75% threshold for realistic chords)"""
         picker = GuitarChordPicker()
@@ -322,7 +330,7 @@ class TestChordPickerFuzzing:
                 f"FUZZ FAIL: Only {success_rate:.1%} of chords had correct bass note (need ≥75%)"
 
     @given(st.lists(realistic_chord_strategy(), min_size=50, max_size=100))
-    @settings(max_examples=100, deadline=None)
+    @settings(max_examples=100)
     def test_piano_note_completeness(self, chord_sequence):
         """FUZZ: Piano should include all notes for small chords (SOFT - 95% threshold for realistic chords)"""
         picker = ChordNotePicker()
@@ -358,7 +366,7 @@ class TestChordPickerFuzzing:
                 f"FUZZ FAIL: Only {success_rate:.1%} of small chords had all notes (need ≥95%)"
 
     @given(st.lists(realistic_chord_strategy(), min_size=50, max_size=100))
-    @settings(max_examples=100, deadline=None)
+    @settings(max_examples=100)
     def test_guitar_note_completeness(self, chord_sequence):
         """FUZZ: Guitar note completeness with nuanced requirements based on chord size"""
         picker = GuitarChordPicker()

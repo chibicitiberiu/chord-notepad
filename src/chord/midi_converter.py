@@ -5,19 +5,41 @@ Convert chord names to MIDI note numbers
 from typing import List, Optional
 
 
+# Base letter to semitone offset within the octave.
+_BASE_LETTER_SEMITONE = {'C': 0, 'D': 2, 'E': 4, 'F': 5, 'G': 7, 'A': 9, 'B': 11}
+
+
+def parse_note_to_semitone(note_name: str) -> Optional[int]:
+    """Convert a note name to a semitone class (0-11) modulo octave.
+
+    Accepts any number of sharps ('#') or flats ('b', also '-' for music21 style)
+    after the base letter. Handles enharmonic spellings like 'E#', 'B#', 'Cb',
+    'Fb', and double accidentals ('C##', 'Dbb', etc.).
+
+    Returns None if the input is empty or contains an unrecognised character.
+    """
+    if not note_name:
+        return None
+    base = note_name[0].upper()
+    if base not in _BASE_LETTER_SEMITONE:
+        return None
+    offset = 0
+    for ch in note_name[1:]:
+        if ch == '#':
+            offset += 1
+        elif ch == 'b' or ch == '-':
+            offset -= 1
+        else:
+            return None
+    return (_BASE_LETTER_SEMITONE[base] + offset) % 12
+
+
 class ChordToMidiConverter:
     """
     Converts chord names to MIDI note numbers
 
     Handles both standard chords and exotic notations
     """
-
-    # Note name to semitone mapping
-    NOTE_MAP = {
-        'C': 0, 'C#': 1, 'Db': 1, 'D': 2, 'D#': 3, 'Eb': 3,
-        'E': 4, 'E-': 4, 'F': 5, 'F#': 6, 'Gb': 6, 'G': 7,
-        'G#': 8, 'Ab': 8, 'A': 9, 'A#': 10, 'Bb': 10, 'B': 11, 'B-': 11
-    }
 
     def __init__(self) -> None:
         """Initialize converter"""
@@ -43,7 +65,7 @@ class ChordToMidiConverter:
 
         for note_name in chord_notes:
             # Get the pitch class (0-11)
-            note_class = self.NOTE_MAP.get(note_name)
+            note_class = parse_note_to_semitone(note_name)
 
             if note_class is None:
                 return None

@@ -108,7 +108,7 @@ jobs:
             asset_name: ChordNotepad-windows-x64.exe
           - os: macos-latest
             artifact_name: ChordNotepad-macos
-            asset_name: ChordNotepad-macos-x64
+            asset_name: ChordNotepad-macos-arm64
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v5
@@ -431,7 +431,7 @@ jobs:
             echo "### Downloads"
             echo "- **Linux**: \`ChordNotepad-linux-x64\`"
             echo "- **Windows**: \`ChordNotepad-windows-x64.exe\`"
-            echo "- **macOS**: \`ChordNotepad-macos-x64\`"
+            echo "- **macOS**: \`ChordNotepad-macos-arm64\`"
             if [[ -n "$PDF_LINE" ]]; then echo "$PDF_LINE"; fi
             echo ""
             echo "### Installation"
@@ -448,8 +448,8 @@ jobs:
             echo ""
             echo "**macOS:**"
             echo '```bash'
-            echo "chmod +x ChordNotepad-macos-x64"
-            echo "./ChordNotepad-macos-x64"
+            echo "chmod +x ChordNotepad-macos-arm64"
+            echo "./ChordNotepad-macos-arm64"
             echo '```'
             echo "Note: Requires FluidSynth installed via Homebrew"
             echo "EOF_BODY"

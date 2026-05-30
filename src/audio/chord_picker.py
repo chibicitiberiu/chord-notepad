@@ -6,6 +6,7 @@ from typing import Dict, List, Optional, TYPE_CHECKING
 from dataclasses import dataclass, asdict
 from copy import deepcopy
 from audio.note_picker_interface import INotePicker
+from chord.midi_converter import parse_note_to_semitone
 
 if TYPE_CHECKING:
     from models.chord_notes import ChordNotes
@@ -31,17 +32,6 @@ class ChordPickerState:
 
 class ChordNotePicker(INotePicker):
     """Picks MIDI notes for chords with intelligent voice leading"""
-
-    # MIDI note mapping (C4 = Middle C = MIDI 60)
-    NOTE_TO_MIDI_BASE: Dict[str, int] = {
-        'C': 0, 'C#': 1, 'Db': 1,
-        'D': 2, 'D#': 3, 'Eb': 3,
-        'E': 4,
-        'F': 5, 'F#': 6, 'Gb': 6,
-        'G': 7, 'G#': 8, 'Ab': 8,
-        'A': 9, 'A#': 10, 'Bb': 10,
-        'B': 11
-    }
 
     def __init__(self, chord_octave: int = 3, bass_octave: int = 2, add_bass: bool = True) -> None:
         """
@@ -78,32 +68,28 @@ class ChordNotePicker(INotePicker):
         Convert note string to MIDI number
 
         Args:
-            note_str: Note like "C4", "D#5", "Bb3", or just "C", "D#"
+            note_str: Note like "C4", "D#5", "Bb3", "C##5", or just "C", "D#"
             default_octave: Octave to use if not specified (default 4 = middle C)
 
         Returns:
             MIDI note number (0-127)
         """
-        # Extract note name and octave
         import re
-        match = re.match(r'([A-Ga-g][#b]?)(\d+)?', note_str)
+        # Allow any number of accidentals so double-sharps/double-flats parse.
+        match = re.match(r'^([A-Ga-g][#b]*)(\d+)?$', note_str)
         if not match:
             return None
 
         note_name = match.group(1)
         octave_str = match.group(2)
-
-        # Use specified octave or default
         octave = int(octave_str) if octave_str else default_octave
 
-        # Get base note value
-        if note_name not in ChordNotePicker.NOTE_TO_MIDI_BASE:
+        semitone = parse_note_to_semitone(note_name)
+        if semitone is None:
             return None
 
-        # Calculate MIDI number: (octave + 1) * 12 + note_offset
         # C4 = 60, so octave 4 starts at MIDI 48
-        midi_number = (octave + 1) * 12 + ChordNotePicker.NOTE_TO_MIDI_BASE[note_name]
-
+        midi_number = (octave + 1) * 12 + semitone
         return midi_number if 0 <= midi_number <= 127 else None
 
     def chord_to_midi(self, chord_notes: 'ChordNotes') -> List[int]:

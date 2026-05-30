@@ -123,6 +123,10 @@ class ChordHelper:
         result = self.compute_chord_notes(chord_name)
         return result is not None
 
+    # Qualities where we deliberately diverge from pychord/music21's default
+    # voicing (jazz conventions for omitting clashing intervals).
+    _CUSTOM_VOICING_QUALITIES = frozenset({'11', 'maj11'})
+
     def get_notes(self, chord_name: str) -> Optional[List[str]]:
         """
         Get the notes in a chord
@@ -133,6 +137,19 @@ class ChordHelper:
         Returns:
             list: Note names (e.g., ['C', 'E', 'G', 'B']) or None if invalid
         """
+        # For qualities with curated voicings (e.g. dominant 11th omits the 3rd
+        # to avoid the b9 clash with the 11th), prefer our QUALITY_INTERVALS
+        # table over pychord/music21's mechanical inclusion of every interval.
+        root = self.extract_root(chord_name)
+        if root:
+            quality = chord_name[len(root):]
+            if '/' in quality:
+                quality = quality.split('/')[0]
+            if quality in self._CUSTOM_VOICING_QUALITIES:
+                custom = self._build_chord_notes(chord_name)
+                if custom is not None:
+                    return custom
+
         # Try pychord first (fast and lightweight)
         try:
             chord_obj = PyChord(chord_name)
@@ -238,7 +255,9 @@ class ChordHelper:
 
             for interval in intervals[1:]:
                 new_pitch = root_pitch.transpose(interval)
-                notes.append(new_pitch.name)
+                # music21 uses '-' for flats; normalize to 'b' for consistency
+                # with the rest of the codebase and pychord output.
+                notes.append(new_pitch.name.replace('-', 'b'))
 
             return notes
         except:

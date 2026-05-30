@@ -7,6 +7,7 @@ from dataclasses import dataclass, asdict
 from copy import deepcopy
 import logging
 from audio.note_picker_interface import INotePicker
+from chord.midi_converter import parse_note_to_semitone
 
 if TYPE_CHECKING:
     from models.chord_notes import ChordNotes
@@ -42,16 +43,6 @@ class GuitarChordPicker(INotePicker):
         'drop_d': [38, 45, 50, 55, 59, 64],    # D2, A2, D3, G3, B3, E4
         'dadgad': [38, 45, 50, 55, 57, 62],    # D2, A2, D3, G3, A3, D4
         'open_g': [38, 43, 50, 55, 59, 62],    # D2, G2, D3, G3, B3, D4
-    }
-    
-    NOTE_TO_MIDI_BASE = {
-        'C': 0, 'C#': 1, 'Db': 1,
-        'D': 2, 'D#': 3, 'Eb': 3,
-        'E': 4,
-        'F': 5, 'F#': 6, 'Gb': 6,
-        'G': 7, 'G#': 8, 'Ab': 8,
-        'A': 9, 'A#': 10, 'Bb': 10,
-        'B': 11
     }
     
     # Common chord shapes (relative to root) - these are "templates"
@@ -124,17 +115,16 @@ class GuitarChordPicker(INotePicker):
 
     @staticmethod
     def _normalize_note(note: str) -> int:
-        """Convert note to MIDI pitch class (0-11) handling enharmonics"""
-        note_map = {
-            'C': 0, 'C#': 1, 'Db': 1,
-            'D': 2, 'D#': 3, 'Eb': 3,
-            'E': 4, 'Fb': 4,
-            'F': 5, 'E#': 5, 'F#': 6, 'Gb': 6,
-            'G': 7, 'G#': 8, 'Ab': 8,
-            'A': 9, 'A#': 10, 'Bb': 10,
-            'B': 11, 'Cb': 11
-        }
-        return note_map.get(note, 0)
+        """Convert note to MIDI pitch class (0-11), accepting any enharmonic spelling.
+
+        Falls back to 0 (C) only when the input is wholly unparseable, with a log warning,
+        so callers never get silent corruption from missing dict entries.
+        """
+        semitone = parse_note_to_semitone(note)
+        if semitone is None:
+            logger.warning("Unparseable note name %r in guitar picker; falling back to C", note)
+            return 0
+        return semitone
 
     @staticmethod
     def _notes_match(note1: str, note2: str) -> bool:

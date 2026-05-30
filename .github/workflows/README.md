@@ -130,7 +130,7 @@ Each build produces three artifacts:
 
 - `ChordNotepad-linux-x64` - Linux executable
 - `ChordNotepad-windows-x64.exe` - Windows executable
-- `ChordNotepad-macos-x64` - macOS executable
+- `ChordNotepad-macos-arm64` - macOS executable (Apple Silicon)
 
 ### Platform-Specific Notes
 
@@ -144,7 +144,7 @@ Each build produces three artifacts:
 
 **macOS:**
 - Requires FluidSynth from Homebrew at runtime
-- Built for x64 (Intel) architecture
+- Built for arm64 (Apple Silicon). Intel Macs are not supported by the current pipeline.
 
 ## Troubleshooting
 
