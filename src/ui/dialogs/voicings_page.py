@@ -557,7 +557,8 @@ class VoicingsPage(ttk.Frame):
         name_frame = ttk.Frame(right)
         name_frame.grid(row=1, column=0, sticky='ew', pady=(0, 4))
         name_frame.columnconfigure(1, weight=1)
-        ttk.Label(name_frame, text='Name:').grid(row=0, column=0, sticky='w', padx=(0, 6))
+        self._tip_label(name_frame, 'Name:', TOOLTIPS['name'],
+                        row=0, column=0, sticky='w', padx=(0, 6))
         self._name_var = tk.StringVar()
         self._name_entry = ttk.Entry(name_frame, textvariable=self._name_var)
         self._name_entry.grid(row=0, column=1, sticky='ew')
@@ -568,7 +569,9 @@ class VoicingsPage(ttk.Frame):
         # Row 2: Model.
         model_frame = ttk.Frame(right)
         model_frame.grid(row=2, column=0, sticky='ew', pady=(0, 4))
-        ttk.Label(model_frame, text='Model:').pack(side=tk.LEFT, padx=(0, 6))
+        model_label = ttk.Label(model_frame, text='Model:')
+        model_label.pack(side=tk.LEFT, padx=(0, 6))
+        add_tooltip(model_label, TOOLTIPS['model'])
         self._model_var = tk.StringVar()
         self._model_combo = ttk.Combobox(
             model_frame, textvariable=self._model_var, state='readonly',
@@ -731,6 +734,19 @@ class VoicingsPage(ttk.Frame):
         widget.bind('<KeyRelease>',
                     lambda _e, fid=field_id: self._live_mark(fid), add='+')
 
+    @staticmethod
+    def _tip_label(parent, text: str, tip: str, **grid_kwargs) -> ttk.Label:
+        """Create a form label, grid it, and give it its control's tooltip.
+
+        Mirroring the tooltip onto the label (not just the input) means hovering
+        the caption also reveals the help, which aids discoverability.
+        """
+        label = ttk.Label(parent, text=text)
+        label.grid(**grid_kwargs)
+        if tip:
+            add_tooltip(label, tip)
+        return label
+
     def _apply_field_mark(self, field_id: str, message: Optional[str]) -> None:
         """Red-mark (or clear) one control and fold ``message`` into its tooltip."""
         widget = self._field_widgets.get(field_id)
@@ -860,8 +876,8 @@ class VoicingsPage(ttk.Frame):
         for idx, (field_id, label, var, lo, hi, inc, tip) in enumerate(entries):
             r, c = divmod(idx, 2)
             c *= 2
-            ttk.Label(frame, text=label).grid(row=r, column=c, sticky='w',
-                                              padx=(0, 6), pady=2)
+            self._tip_label(frame, label, tip, row=r, column=c, sticky='w',
+                            padx=(0, 6), pady=2)
             spin = ttk.Spinbox(frame, from_=lo, to=hi, increment=inc,
                                textvariable=var, width=8, command=self._commit_form)
             spin.grid(row=r, column=c + 1, sticky='w', padx=(0, 18), pady=2)
@@ -877,7 +893,8 @@ class VoicingsPage(ttk.Frame):
         row = 0
 
         # Strings.
-        ttk.Label(inner, text='Strings:').grid(row=row, column=0, sticky='w', pady=2)
+        self._tip_label(inner, 'Strings:', TOOLTIPS['tuning'],
+                        row=row, column=0, sticky='w', pady=2)
         strings_var = tk.StringVar(value=_tuning_to_text(data.get('tuning', [])))
         strings_entry = ttk.Entry(inner, textvariable=strings_var)
         strings_entry.grid(row=row, column=1, sticky='ew', pady=2)
@@ -902,8 +919,8 @@ class VoicingsPage(ttk.Frame):
         for idx, (key, text, lo, hi, default) in enumerate(phys_params):
             r, c = divmod(idx, 2)
             c *= 2
-            ttk.Label(phys_frame, text=text).grid(row=r, column=c, sticky='w',
-                                                  padx=(0, 6), pady=2)
+            self._tip_label(phys_frame, text, TOOLTIPS[key],
+                            row=r, column=c, sticky='w', padx=(0, 6), pady=2)
             var = tk.StringVar(value=str(data.get(key, default)))
             spin = ttk.Spinbox(phys_frame, from_=lo, to=hi, textvariable=var, width=8,
                                command=self._commit_form)
@@ -966,12 +983,15 @@ class VoicingsPage(ttk.Frame):
         row += 1
 
         name_w, range_w = 16, 8
-        ttk.Label(voices_frame, text='Name', font=('TkDefaultFont', 9, 'bold')).grid(
-            row=0, column=0, sticky='w', padx=(0, 6))
-        ttk.Label(voices_frame, text='Low', font=('TkDefaultFont', 9, 'bold')).grid(
-            row=0, column=1, sticky='w', padx=(0, 6))
-        ttk.Label(voices_frame, text='High', font=('TkDefaultFont', 9, 'bold')).grid(
-            row=0, column=2, sticky='w', padx=(0, 6))
+        header_font = ('TkDefaultFont', 9, 'bold')
+        for col, (htext, htip) in enumerate((
+            ('Name', TOOLTIPS['voice_name']),
+            ('Low', TOOLTIPS['voice_low']),
+            ('High', TOOLTIPS['voice_high']),
+        )):
+            header = ttk.Label(voices_frame, text=htext, font=header_font)
+            header.grid(row=0, column=col, sticky='w', padx=(0, 6))
+            add_tooltip(header, htip)
         ttk.Separator(voices_frame, orient='horizontal').grid(
             row=1, column=0, columnspan=4, sticky='ew', pady=(2, 4))
 
@@ -1010,7 +1030,8 @@ class VoicingsPage(ttk.Frame):
         add_tooltip(add_btn, TOOLTIPS['add_voice'])
 
         # Max spacing.
-        ttk.Label(inner, text='Max spacing:').grid(row=row, column=0, sticky='w', pady=(8, 2))
+        self._tip_label(inner, 'Max spacing:', TOOLTIPS['max_spacing'],
+                        row=row, column=0, sticky='w', pady=(8, 2))
         spacing_val = data.get('max_spacing')
         spacing_text = (
             ', '.join(str(s) for s in spacing_val)
@@ -1053,8 +1074,9 @@ class VoicingsPage(ttk.Frame):
         movement_var.set(
             ', '.join(str(x) for x in mv) if isinstance(mv, (list, tuple)) else str(mv))
         # Movement is a free-form entry (scalar or list), placed first.
-        ttk.Label(grid_frame, text=ENSEMBLE_WEIGHT_LABELS['movement']).grid(
-            row=0, column=0, sticky='w', padx=(0, 6), pady=2)
+        self._tip_label(grid_frame, ENSEMBLE_WEIGHT_LABELS['movement'],
+                        TOOLTIPS['weight:movement'],
+                        row=0, column=0, sticky='w', padx=(0, 6), pady=2)
         mv_entry = ttk.Entry(grid_frame, textvariable=movement_var, width=10)
         mv_entry.grid(row=0, column=1, sticky='w', padx=(0, 18), pady=2)
         self._bind_commit(mv_entry, is_entry=True)
@@ -1072,8 +1094,9 @@ class VoicingsPage(ttk.Frame):
         for slot, key, var in flat_entries:
             r, c = divmod(slot, 2)
             c *= 2
-            ttk.Label(grid_frame, text=ENSEMBLE_WEIGHT_LABELS.get(key, key)).grid(
-                row=r, column=c, sticky='w', padx=(0, 6), pady=2)
+            self._tip_label(grid_frame, ENSEMBLE_WEIGHT_LABELS.get(key, key),
+                            TOOLTIPS.get(f'weight:{key}', key),
+                            row=r, column=c, sticky='w', padx=(0, 6), pady=2)
             spin = ttk.Spinbox(grid_frame, from_=-100.0, to=100.0, increment=0.1,
                                textvariable=var, width=8, command=self._commit_form)
             spin.grid(row=r, column=c + 1, sticky='w', padx=(0, 18), pady=2)
