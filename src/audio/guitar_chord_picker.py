@@ -1,23 +1,46 @@
 """
-Guitar chord picker - chooses a guitar fingering for a chord.
+Fretboard voicing model - chooses a fretted-instrument fingering for a chord.
 
-Rather than matching against a library of memorized chord shapes, this picker
+Terminology: a *voicing* is a named configuration made of a *model* (the engine
+that renders it) plus that model's parameters. This file is the **fretboard
+model**: a spec-driven engine that voices chords on any fretted instrument
+(guitar, ukulele, banjo, 7-string, ...) described as a :class:`FretboardSpec`
+(``src/models/fretboard_spec.py``) -- its tuning (3-12 strings, re-entrant
+allowed), physical limits (fret range, finger count, stretch), and the tunable
+weights that steer the fingering search. Nothing about six-string guitar is
+hard-coded; every constant the engine once carried now comes from the spec.
+
+Rather than matching against a library of memorized chord shapes, the model
 treats voicing as a pure optimization problem:
 
 1. **Enumerate** every fingering whose strings only sound chord tones (plus the
-   slash bass, if any), within a playable four-fret span.
-2. **Filter** on physical playability (finger count, barre feasibility).
+   slash bass, if any), within a playable fret span (``spec.max_span``).
+2. **Filter** on physical playability (finger count ``spec.fingers``, barre
+   feasibility -- and, if ``spec.allow_barres`` is false, reject any fingering
+   that would need a barre).
 3. **Filter** on note coverage: prefer fingerings that spell the whole chord;
    fall back to partial voicings only for dense chords that cannot be held in
-   full on six strings.
+   full on the available strings. The required-tones floor auto-scales to the
+   string count.
 4. **Score** every survivor with a single weighted heuristic that rewards full,
    low, open voicings with the correct bass and penalizes stretches, barres,
    unstrummable interior mutes, and (mid-progression) movement of the fretting
-   hand away from the previous shape.
+   hand away from the previous shape. The reward/penalty magnitudes are the
+   spec's weights (:data:`DEFAULT_WEIGHTS`); penalties get their sign applied at
+   the use site so a weights UI can present every one as a positive magnitude.
 5. Return the highest-scoring fingering.
 
 Enumeration is cached per chord (it depends only on the pitch classes involved);
 scoring runs on every call because it depends on the mutable transition state.
+The cache is per-instance, so the spec's identity is already baked into every
+cache key -- two pickers with different specs never share a cache.
+
+Re-entrant tunings (e.g. ukulele high-G, where the first string sounds *above*
+the second) are fully supported: bass-note identification compares actual
+sounding pitch (``tuning[string] + fret``), never string index, so the "bass"
+is always the lowest-pitched sounding string. Interior-mute detection stays
+string-order based, which is correct -- a strummer sweeps strings in order
+regardless of their pitch.
 """
 
 from typing import Any, Dict, List, Optional, Tuple, Set, Union, TYPE_CHECKING
@@ -27,6 +50,7 @@ import logging
 from audio.note_picker_interface import INotePicker
 from audio.voicing_optimizer import optimize_sequence
 from chord.midi_converter import parse_note_to_semitone
+from models.fretboard_spec import FretboardSpec, BUILTIN_FRETBOARDS
 
 if TYPE_CHECKING:
     from models.chord_notes import ChordNotes
@@ -53,50 +77,72 @@ class GuitarPickerState:
 
 
 class GuitarChordPicker(INotePicker):
-    """Guitar chord picker that optimizes fingerings instead of matching shapes."""
+    """Fretboard voicing model: optimizes fingerings for any fretted instrument.
 
-    # Common tunings - defined by MIDI values (low string to high string)
-    # Format: [String 0 (lowest/thickest), String 1, ..., String 5 (highest/thinnest)]
-    TUNINGS = {
-        'standard': [40, 45, 50, 55, 59, 64],  # E2, A2, D3, G3, B3, E4
-        'drop_d': [38, 45, 50, 55, 59, 64],    # D2, A2, D3, G3, B3, E4
-        'dadgad': [38, 45, 50, 55, 57, 62],    # D2, A2, D3, G3, A3, D4
-        'open_g': [38, 43, 50, 55, 59, 62],    # D2, G2, D3, G3, B3, D4
-    }
+    Driven by a :class:`FretboardSpec` (its tuning, physical limits, and tunable
+    weights) rather than by six-string-guitar constants. The historical name is
+    kept for import compatibility.
+    """
 
-    # Enumeration limits
-    MAX_FRET = 12      # Highest fret considered
-    MAX_SPAN = 4       # Widest fret stretch the fretting hand can hold (normal pass)
-    RELAXED_SPAN = 5   # Wide-stretch span allowed by the relaxation ladder
-
-    # Scoring weights (higher score = better). All tunable.
-    SCORE_PER_SOUNDING = 1.2       # per string that sounds (fret >= 0)
-    SCORE_PER_OPEN = 0.5           # per open (fret == 0) string
-    SCORE_BASS = 8.0               # bass-note reward/penalty for a non-slash chord
-    SCORE_SLASH_BASS = 12.0        # bass-note reward/penalty for a slash chord
-    SCORE_PER_SPAN_FRET = -1.2     # per fret of stretch (max - min fretted)
-    SCORE_PER_AVG_FRET = -0.6      # per fret of average fretted position
-    SCORE_PER_FRETTED = -0.5       # per fretted string (fingers used)
-    SCORE_BARRE = -1.0             # applied once when a barre is required
-    SCORE_PER_INTERIOR_MUTE = -2.0  # per muted string between sounding strings
-    SCORE_PER_MOVE_FRET = -1.0     # per fret of hand movement from previous shape
-    SCORE_PER_KEPT_FINGER = 0.4    # per finger left in place from previous shape
-
-    def __init__(self, tuning: Union[str, List[int]] = 'standard') -> None:
-        """Initialize guitar chord picker
+    def __init__(self, tuning: Union[str, List[int], FretboardSpec] = 'standard') -> None:
+        """Initialize the fretboard voicing model.
 
         Args:
-            tuning: Either a tuning name (str) or list of 6 MIDI values for strings 0-5
+            tuning: One of three forms:
+
+                - a :class:`FretboardSpec` (the primary path): used directly.
+                - a ``str`` fretboard name looked up in
+                  :data:`BUILTIN_FRETBOARDS`; an unknown name logs a warning and
+                  falls back to ``'standard'``.
+                - a ``List[int]`` of open-string MIDI values (string order,
+                  lowest string first): wrapped in an ad-hoc ``FretboardSpec``
+                  with default limits/weights. The number of strings is
+                  validated by the spec (3-12), replacing the old fixed-6 check.
         """
 
-        # Set tuning MIDI values
-        if isinstance(tuning, str):
-            self.tuning_midi = self.TUNINGS.get(tuning, self.TUNINGS['standard'])
+        # Resolve the incoming argument to a FretboardSpec.
+        if isinstance(tuning, FretboardSpec):
+            spec = tuning
+        elif isinstance(tuning, str):
+            spec = BUILTIN_FRETBOARDS.get(tuning)
+            if spec is None:
+                logger.warning(
+                    "Unknown fretboard tuning %r; falling back to 'standard'", tuning)
+                spec = BUILTIN_FRETBOARDS['standard']
         else:
-            # Custom tuning provided as MIDI values
-            if len(tuning) != 6:
-                raise ValueError("Tuning must have exactly 6 MIDI values (one per string)")
-            self.tuning_midi = tuning
+            # Ad-hoc tuning provided as MIDI values; the spec enforces 3-12
+            # strings and per-entry pitch validity.
+            spec = FretboardSpec.from_dict('custom', {'tuning': list(tuning)})
+
+        self.spec = spec
+
+        # Tuning MIDI values (string order, lowest string first). Kept as a
+        # public attribute for callers/tests that read it directly.
+        self.tuning_midi: List[int] = list(spec.tuning)
+        self._num_strings = len(self.tuning_midi)
+
+        # Physical limits, resolved once from the spec.
+        self._max_fret = spec.max_fret
+        self._max_span = spec.max_span
+        self._relaxed_span = spec.relaxed_span
+        self._fingers = spec.fingers
+        self._allow_barres = spec.allow_barres
+
+        # Scoring weights, resolved once from the spec. Every value is a positive
+        # magnitude (see DEFAULT_WEIGHTS); penalties get their negative sign
+        # applied at the use site so the produced scores stay numerically
+        # identical to the old signed SCORE_* constants under default weights.
+        self._w_sounding = spec.weight('sounding_string_bonus')
+        self._w_open = spec.weight('open_string_bonus')
+        self._w_bass = spec.weight('bass_note_bonus')
+        self._w_slash_bass = spec.weight('slash_bass_bonus')
+        self._w_span = spec.weight('span_penalty')
+        self._w_position = spec.weight('position_penalty')
+        self._w_fretted = spec.weight('fretted_finger_penalty')
+        self._w_barre = spec.weight('barre_penalty')
+        self._w_interior_mute = spec.weight('interior_mute_penalty')
+        self._w_movement = spec.weight('movement_penalty')
+        self._w_kept = spec.weight('kept_finger_bonus')
 
         # Derive note names from MIDI values
         self.tuning_notes = [self._midi_to_note(midi) for midi in self.tuning_midi]
@@ -104,7 +150,9 @@ class GuitarChordPicker(INotePicker):
         # Initialize state
         self._state = GuitarPickerState()
 
-        # Cache for enumerated candidate fingerings (keyed by chord pitch classes)
+        # Cache for enumerated candidate fingerings (keyed by chord pitch
+        # classes). Per-instance, so the spec's identity is implicit in the
+        # cache and never needs to be part of the key.
         self._fingering_cache: Dict[Tuple[Tuple[int, ...], Optional[int]], List[List[int]]] = {}
 
         # Pre-compute fret-to-note mapping for each string (used by the fallback)
@@ -114,9 +162,9 @@ class GuitarChordPicker(INotePicker):
         """Pre-compute which note each fret produces on each string"""
         string_maps = []
 
-        for string_idx in range(6):
+        for string_idx in range(self._num_strings):
             fret_map = {}
-            for fret in range(self.MAX_FRET + 1):  # 0-12 frets
+            for fret in range(self._max_fret + 1):
                 midi = self.tuning_midi[string_idx] + fret
                 note = self._midi_to_note(midi)
                 fret_map[fret] = note  # Keep sharps/flats!
@@ -206,13 +254,13 @@ class GuitarChordPicker(INotePicker):
                                 bass_note: Optional[str]) -> List[List[int]]:
         """Enumerate candidate fingerings, relaxing constraints stepwise.
 
-        The normal pass (span <= ``MAX_SPAN``, default coverage rules) handles
+        The normal pass (span <= ``max_span``, default coverage rules) handles
         the overwhelming majority of chords. Only when it yields nothing do we
         walk down the ladder, each step running solely if the previous produced
         no candidates:
 
-        1. Normal: span <= ``MAX_SPAN`` with the default coverage rules.
-        2. Wide stretch: span <= ``RELAXED_SPAN``, same coverage rules.
+        1. Normal: span <= ``spec.max_span`` with the default coverage rules.
+        2. Wide stretch: span <= ``spec.relaxed_span``, same coverage rules.
         3. Wide stretch plus relaxed coverage: require ``num_unique - 1`` chord
            tones, then ``- 2``, ... down to 1, returning the first non-empty
            level (a triad thus degrades to two chord tones rather than one).
@@ -225,16 +273,16 @@ class GuitarChordPicker(INotePicker):
 
         # Step 1: normal pass.
         candidates = self._enumerate_candidates(chord_notes, bass_note,
-                                                max_span=self.MAX_SPAN)
+                                                max_span=self._max_span)
         if candidates:
             return candidates
 
         # Step 2: allow a wider stretch, keep the default coverage rules.
         candidates = self._enumerate_candidates(chord_notes, bass_note,
-                                                max_span=self.RELAXED_SPAN)
+                                                max_span=self._relaxed_span)
         if candidates:
-            logger.info("Guitar voicing for %s used relaxed ladder step 2 "
-                        "(wide stretch, span <= %d)", chord_notes, self.RELAXED_SPAN)
+            logger.info("Fretboard voicing for %s used relaxed ladder step 2 "
+                        "(wide stretch, span <= %d)", chord_notes, self._relaxed_span)
             return candidates
 
         # Step 3: keep the wide stretch and relax coverage one tone at a time.
@@ -242,11 +290,11 @@ class GuitarChordPicker(INotePicker):
         for min_present in range(num_unique - 1, 0, -1):
             candidates = self._enumerate_candidates(
                 chord_notes, bass_note,
-                max_span=self.RELAXED_SPAN, min_present_override=min_present)
+                max_span=self._relaxed_span, min_present_override=min_present)
             if candidates:
-                logger.warning("Guitar voicing for %s used relaxed ladder step 3 "
+                logger.warning("Fretboard voicing for %s used relaxed ladder step 3 "
                                "(span <= %d, require %d of %d chord tones)",
-                               chord_notes, self.RELAXED_SPAN, min_present, num_unique)
+                               chord_notes, self._relaxed_span, min_present, num_unique)
                 return candidates
 
         return []
@@ -266,14 +314,16 @@ class GuitarChordPicker(INotePicker):
         Args:
             chord_notes: The chord tones (note names).
             bass_note: Optional slash-bass note name.
-            max_span: Widest fret stretch allowed. Defaults to ``MAX_SPAN``.
+            max_span: Widest fret stretch allowed. Defaults to ``spec.max_span``.
             min_present_override: If given, overrides the minimum number of
                 chord tones a candidate must cover to be kept. Used by the
                 relaxation ladder to accept sparser voicings.
         """
 
         if max_span is None:
-            max_span = self.MAX_SPAN
+            max_span = self._max_span
+
+        num_strings = self._num_strings
 
         chord_pcs = {self._normalize_note(n) for n in chord_notes}
         bass_pc = self._normalize_note(bass_note) if bass_note else None
@@ -295,16 +345,25 @@ class GuitarChordPicker(INotePicker):
         else:
             min_present = 4
 
+        # Auto-scale the coverage floor to the instrument: a chord can never
+        # cover more distinct tones than there are strings. On >=6-string
+        # instruments this clamp is a no-op (the floor never exceeds 4); on
+        # fewer strings it lets, e.g., a 4-string instrument voice a 5-tone
+        # chord through the normal pass instead of always hitting the ladder.
+        min_present = min(min_present, num_strings)
+
         # The ladder can force a sparser coverage floor (clamped to the chord).
         if min_present_override is not None:
             min_present = max(1, min(min_present_override, num_unique))
 
-        max_fret = self.MAX_FRET
+        max_fret = self._max_fret
         tuning = self.tuning_midi
+        fingers = self._fingers
+        allow_barres = self._allow_barres
 
         # Per-string options as (fret, coverage_bit) tuples. Mute is (-1, 0).
         string_options: List[List[Tuple[int, int]]] = []
-        for string_idx in range(6):
+        for string_idx in range(num_strings):
             base = tuning[string_idx]
             opts: List[Tuple[int, int]] = [(-1, 0)]
             for fret in range(0, max_fret + 1):
@@ -315,8 +374,8 @@ class GuitarChordPicker(INotePicker):
 
         # Suffix union of coverage bits still reachable from string_idx onward,
         # used to prune branches that can never cover enough chord tones.
-        reachable = [0] * 7
-        for string_idx in range(5, -1, -1):
+        reachable = [0] * (num_strings + 1)
+        for string_idx in range(num_strings - 1, -1, -1):
             bits = reachable[string_idx + 1]
             for _, bit in string_options[string_idx]:
                 bits |= bit
@@ -324,7 +383,7 @@ class GuitarChordPicker(INotePicker):
 
         complete: List[List[int]] = []
         partial: List[List[int]] = []
-        buf = [0] * 6
+        buf = [0] * num_strings
 
         def dfs(string_idx: int, min_f: int, max_f: int, mask: int,
                 n_sound: int, n_fret: int) -> None:
@@ -333,15 +392,19 @@ class GuitarChordPicker(INotePicker):
             if (mask | reachable[string_idx]).bit_count() < min_present:
                 return
 
-            if string_idx == 6:
+            if string_idx == num_strings:
                 if n_sound == 0:
                     return
 
-                # Playability: >4 fretted strings need a feasible barre.
-                if n_fret > 4:
+                # Playability: more fretted strings than fingers need a feasible
+                # barre (one flat finger across the lowest-fret strings, leaving
+                # at most fingers-1 fingers for strings above it).
+                if n_fret > fingers:
+                    if not allow_barres:
+                        return
                     lo = hi = -1
                     above = 0
-                    for s in range(6):
+                    for s in range(num_strings):
                         fs = buf[s]
                         if fs == min_f:
                             if lo == -1:
@@ -349,7 +412,7 @@ class GuitarChordPicker(INotePicker):
                             hi = s
                         elif fs > min_f:
                             above += 1
-                    if above > 3:
+                    if above > fingers - 1:
                         return
                     # No open string may sit inside the barre's string range.
                     for s in range(lo, hi + 1):
@@ -386,11 +449,12 @@ class GuitarChordPicker(INotePicker):
     def _is_playable(self, fingering: Union[List[int], Tuple[int, ...]]) -> bool:
         """Check if a fingering is physically playable.
 
-        Up to four fretted strings each get a finger. More than four requires a
-        barre: one finger lies flat across the strings fretted at the lowest
-        fret, covering the contiguous range they span. Any open string inside
-        that range cannot ring, and the strings fretted above the barre still
-        need separate fingers (at most three of them).
+        Up to ``spec.fingers`` fretted strings each get a finger. More than that
+        requires a barre: one finger lies flat across the strings fretted at the
+        lowest fret, covering the contiguous range they span. Any open string
+        inside that range cannot ring, and the strings fretted above the barre
+        still need separate fingers (at most ``spec.fingers - 1`` of them). When
+        the spec forbids barres, any fingering that would need one is unplayable.
         """
 
         fretted = [(s, f) for s, f in enumerate(fingering) if f > 0]
@@ -398,11 +462,14 @@ class GuitarChordPicker(INotePicker):
             return True
 
         frets = [f for _, f in fretted]
-        if max(frets) - min(frets) > self.MAX_SPAN:
+        if max(frets) - min(frets) > self._max_span:
             return False
 
-        if len(fretted) <= 4:
+        if len(fretted) <= self._fingers:
             return True
+
+        if not self._allow_barres:
+            return False
 
         # Barre required: the flat finger sits at the lowest fretted fret.
         f_min = min(frets)
@@ -414,7 +481,7 @@ class GuitarChordPicker(INotePicker):
                 return False
 
         above = sum(1 for _, f in fretted if f > f_min)
-        return above <= 3
+        return above <= self._fingers - 1
 
     def _score_fingering(self, fingering: List[int], chord_notes: List[str],
                          bass_note: Optional[str]) -> float:
@@ -442,22 +509,24 @@ class GuitarChordPicker(INotePicker):
 
         tuning = self.tuning_midi
 
-        sounding = [s for s in range(6) if fingering[s] >= 0]
+        sounding = [s for s in range(self._num_strings) if fingering[s] >= 0]
         if not sounding:
             # An all-muted fingering (only reachable via a degenerate fallback)
             # sounds nothing; rank it below any real voicing.
             return float('-inf')
         fretted = [s for s in sounding if fingering[s] > 0]
 
-        score = self.SCORE_PER_SOUNDING * len(sounding)
-        score += self.SCORE_PER_OPEN * sum(1 for s in sounding if fingering[s] == 0)
+        score = self._w_sounding * len(sounding)
+        score += self._w_open * sum(1 for s in sounding if fingering[s] == 0)
 
         # Bass term: reward/penalize whether the lowest sounding note matches the
         # target bass. A true slash bass matters more than a plain root bass.
+        # The bass is the lowest sounding *pitch* (tuning + fret), never the
+        # lowest string index -- correct for re-entrant tunings.
         target_pc = self._normalize_note(bass_note) if bass_note else None
         if target_pc is not None:
             is_slash = not self._notes_match(bass_note, chord_notes[0])
-            weight = self.SCORE_SLASH_BASS if is_slash else self.SCORE_BASS
+            weight = self._w_slash_bass if is_slash else self._w_bass
             lowest_string = min(sounding, key=lambda s: tuning[s] + fingering[s])
             lowest_pc = (tuning[lowest_string] + fingering[lowest_string]) % 12
             score += weight if lowest_pc == target_pc else -weight
@@ -466,17 +535,18 @@ class GuitarChordPicker(INotePicker):
             fret_vals = [fingering[s] for s in fretted]
             span = max(fret_vals) - min(fret_vals)
             avg_fret = sum(fret_vals) / len(fret_vals)
-            score += self.SCORE_PER_SPAN_FRET * span
-            score += self.SCORE_PER_AVG_FRET * avg_fret
-            score += self.SCORE_PER_FRETTED * len(fretted)
-            if len(fretted) > 4:
-                score += self.SCORE_BARRE
+            score += -self._w_span * span
+            score += -self._w_position * avg_fret
+            score += -self._w_fretted * len(fretted)
+            if len(fretted) > self._fingers:
+                score += -self._w_barre
 
         # Interior mutes: muted strings between the first and last sounding
-        # string cannot be avoided while strumming.
+        # string cannot be avoided while strumming. String-order based, which is
+        # correct: a strummer sweeps strings in order regardless of their pitch.
         first, last = sounding[0], sounding[-1]
         interior_mutes = sum(1 for s in range(first + 1, last) if fingering[s] == -1)
-        score += self.SCORE_PER_INTERIOR_MUTE * interior_mutes
+        score += -self._w_interior_mute * interior_mutes
 
         return score
 
@@ -493,10 +563,10 @@ class GuitarChordPicker(INotePicker):
             return 0.0
 
         movement = abs(self._get_position(fingering) - self._get_position(prev_fingering))
-        score = self.SCORE_PER_MOVE_FRET * movement
-        kept = sum(1 for s in range(6)
+        score = -self._w_movement * movement
+        kept = sum(1 for s in range(self._num_strings)
                    if fingering[s] == prev_fingering[s] and fingering[s] > 0)
-        score += self.SCORE_PER_KEPT_FINGER * kept
+        score += self._w_kept * kept
         return score
 
     def voice_sequence(self, sequence: List['ChordNotes']) -> List[List[int]]:
@@ -529,7 +599,7 @@ class GuitarChordPicker(INotePicker):
             chord_data.append((notes, bass_note))
 
             if not notes:
-                candidate_sets.append([[-1] * 6])
+                candidate_sets.append([[-1] * self._num_strings])
                 continue
 
             chord_pcs = {self._normalize_note(n) for n in notes}
@@ -587,18 +657,20 @@ class GuitarChordPicker(INotePicker):
     def _get_fallback_fingering(self, root_note: str) -> List[int]:
         """Simple fallback - just play the root note"""
 
-        # Try to find root on low strings using enharmonic matching
-        for string_idx in range(3):  # Try first 3 strings
-            for fret in range(self.MAX_FRET + 1):  # Check all frets
+        # Try to find the root on the lowest few strings using enharmonic
+        # matching. Capped at 3 strings (or fewer for tiny instruments) to keep
+        # the fallback bass low.
+        for string_idx in range(min(3, self._num_strings)):
+            for fret in range(self._max_fret + 1):  # Check all frets
                 note = self._string_note_map[string_idx][fret]
                 if self._notes_match(note, root_note):
-                    fingering = [-1] * 6
+                    fingering = [-1] * self._num_strings
                     fingering[string_idx] = fret
                     # Just play the root, don't add anything else
                     return fingering
 
         # Last resort: mute everything
-        return [-1] * 6
+        return [-1] * self._num_strings
 
     def _update_state(self, fingering: List[int], chord_notes: List[str]) -> None:
         """Update state after playing"""

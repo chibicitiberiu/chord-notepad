@@ -85,14 +85,16 @@ plays three bare notes floating in space. A pianist spreads them across two hand
 with a low root and a couple of notes doubled on top; a guitarist holds a
 particular six-string shape with some open strings ringing. *Voicing* is that
 second step, turning the set of notes into something that sounds like a person
-played it. Chord Notepad does it two different ways, because a keyboard and a
-fretboard don't think alike.
+played it. Chord Notepad does it several different ways, because a keyboard,
+a fretboard, and a section of singers or players don't think alike.
 
 Switch between them under :menuselection:`Playback --> Voicing`: pick **Piano**,
-one of the guitar tunings, or one of the ensemble presets (a four-part choir, a
-string quartet) covered in :doc:`ensembles`. Voicing is independent of the
-**instrument** you choose (see :ref:`changing-instruments`) -- you can play a
-piano voicing through a saxophone, or a guitar voicing through a synth pad.
+one of the fretted-instrument voicings (guitar in various tunings, **Ukulele**,
+or an instrument you've configured yourself) covered in :doc:`fretted`, or one
+of the ensemble presets (a four-part choir, a string quartet) covered in
+:doc:`ensembles`. Voicing is independent of the **instrument** you choose (see
+:ref:`changing-instruments`) -- you can play a piano voicing through a
+saxophone, or a guitar voicing through a synth pad.
 
 Piano Voicing
 -------------
@@ -135,6 +137,10 @@ instead of jumping.
 Guitar Voicing
 --------------
 
+Guitar is voiced by Chord Notepad's *fretboard model*, the same engine that
+handles any other fretted instrument -- ukulele, or one you configure
+yourself; see :doc:`fretted` for the full story and how to add your own.
+
 The guitar side has a harder problem: on a guitar, not every set of notes is
 even physically playable. Fingers only reach so far, and there are only so many
 of them. So instead of arranging notes freely, the guitar picker hunts for a
@@ -171,28 +177,36 @@ give up: it allows a partial voicing (drop a note or two from the fuller
 extended chords), and as a last resort plays just the root so you still hear
 something on the beat.
 
-Available Guitar Tunings
-~~~~~~~~~~~~~~~~~~~~~~~~~~
+Built-in Fretted-Instrument Voicings
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. list-table::
    :header-rows: 1
    :widths: 25 35 40
 
-   * - Tuning
-     - Strings (low to high)
+   * - Voicing
+     - Strings (in string order)
      - Best For
-   * - Standard
+   * - Guitar (Standard)
      - E A D G B E
      - Most music, default choice
-   * - Drop D
+   * - Guitar (Drop D)
      - D A D G B E
      - Heavy rock, metal, alternate bass
-   * - DADGAD
+   * - Guitar (DADGAD)
      - D A D G A D
      - Celtic, folk, fingerstyle
-   * - Open G
+   * - Guitar (Open G)
      - D G D G B D
      - Blues, slide guitar, Keith Richards
+   * - Ukulele
+     - G C E A (re-entrant)
+     - Uke songs, standard "my dog has fleas" tuning
+
+Beyond these five, you can define a voicing for any fretted instrument with
+3 to 12 strings -- a baritone ukulele, a banjo, a seven-string guitar in a
+tuning of your own -- by adding it to the config file. See :doc:`fretted`
+for a worked example and the full list of tunable parameters.
 
 .. figure:: /images/voicings.png
    :alt: Piano keyboard and guitar chord-box diagrams for C, G, Am, and F,
@@ -248,9 +262,10 @@ How to Change Voicing
 
 1. Open the **Playback** menu.
 2. Click **Voicing**.
-3. Select **Piano**, one of the guitar tunings, or one of the ensemble
-   presets -- see :doc:`ensembles` for what each ensemble sounds like and
-   how to define your own.
+3. Select **Piano**, one of the fretted-instrument voicings (guitar
+   tunings, **Ukulele**, or a custom instrument), or one of the ensemble
+   presets -- see :doc:`fretted` for how each fretted voicing plays and how
+   to define your own, and :doc:`ensembles` for the same on ensembles.
 4. Play your chords to hear the difference.
 
 A checkmark shows the current voicing. It applies to full playback and to

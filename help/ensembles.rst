@@ -15,6 +15,11 @@ or scoring a chord chart for a string quartet. Reach for piano or guitar
 when you just want to hear the chords played back on the instrument you'd
 actually play them on.
 
+Piano, guitar, and ensembles are all *voicings*: a voicing is a named
+configuration for one of Chord Notepad's three rendering *models* --
+piano, the *fretboard* model (guitar and other fretted instruments, see
+:doc:`fretted`), or the *ensemble* model covered on this page.
+
 
 The Four Presets
 =================
@@ -171,19 +176,23 @@ Custom Ensembles
 ==================
 
 If the four presets don't match the group you're writing for, define your
-own in Chord Notepad's configuration file -- the same mechanism used for
-custom guitar tunings. The file lives at
+own. Chord Notepad keeps every non-built-in voicing -- ensemble or
+fretted instrument alike -- in a single ``voicings`` object in its
+configuration file; the same registry holds custom guitar tunings and
+other fretted instruments (see :doc:`fretted`). The file lives at
 ``~/.config/chord-notepad/settings.json`` on Linux, or the equivalent
 per-user application-data folder on Windows and macOS.
 
-Add a ``custom_ensembles`` object at the top level, keyed by a short slug
-you'll use internally; each entry describes one ensemble:
+Add a ``voicings`` object at the top level, keyed by a short slug you'll
+use internally; each entry needs a ``"model": "ensemble"`` and describes
+one ensemble:
 
 .. code-block:: json
 
    {
-     "custom_ensembles": {
+     "voicings": {
        "jazz_trio": {
+         "model": "ensemble",
          "label": "Jazz Vocal Trio",
          "voices": [
            {"name": "Lead", "range": ["A3", "F5"]},
@@ -201,6 +210,9 @@ you'll use internally; each entry describes one ensemble:
      }
    }
 
+* ``model`` is required and must be ``"ensemble"`` for a voicing defined
+  this way (a fretted instrument uses ``"model": "fretboard"`` instead --
+  see :doc:`fretted`).
 * ``label`` is what shows up in the Voicing menu (defaults to the slug if
   omitted).
 * ``voices`` is required: 2 to 8 entries, listed top voice first, each with
@@ -218,7 +230,14 @@ you'll use internally; each entry describes one ensemble:
   reference below for the full list of keys.
 
 Custom ensembles appear in :menuselection:`Playback --> Voicing` automatically
-the next time Chord Notepad starts, listed alongside the four built-in presets.
+the next time Chord Notepad starts, sorted alongside every other voicing --
+built-in or custom, ensemble or fretted -- by model and then name.
+
+.. note::
+   Upgrading from an older version? Chord Notepad moves any entries it
+   finds under the old ``custom_tunings`` or ``custom_ensembles`` keys into
+   ``voicings`` automatically the first time it starts, including
+   whichever voicing you had selected. There's nothing to do by hand.
 
 
 Voicing Parameters

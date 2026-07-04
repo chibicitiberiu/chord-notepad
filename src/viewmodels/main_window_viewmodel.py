@@ -559,21 +559,14 @@ class MainWindowViewModel(Observable):
         logger.debug(f"Setting voicing to {voicing}")
         self._audio.set_voicing(voicing)
 
-    def get_custom_tunings(self) -> dict:
-        """Get custom guitar tunings.
+    def get_voicings(self) -> dict:
+        """Get the raw voicings registry.
 
         Returns:
-            Dictionary of custom tuning names to tuning lists
+            Dictionary mapping voicing name to its parameter dict, each of
+            the form ``{"model": "fretboard" | "ensemble" | "piano", ...}``.
         """
-        return self._config.get("custom_tunings", {})
-
-    def get_custom_ensembles(self) -> dict:
-        """Get custom ensemble specs.
-
-        Returns:
-            Dictionary of custom ensemble names to spec dicts (see EnsembleSpec)
-        """
-        return self._config.get("custom_ensembles", {})
+        return self._config.get("voicings", {})
 
     def get_instrument(self) -> int:
         """Get the current MIDI instrument program number.

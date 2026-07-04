@@ -120,20 +120,3 @@ class ChordToMidiConverter:
             prev_note_class = note_class
 
         return midi_notes
-
-    def note_to_midi(self, note_name: str, octave: int) -> Optional[int]:
-        """
-        Convert a single note name and octave to MIDI number
-
-        Args:
-            note_name: Note name (e.g., 'C', 'C#', 'Eb')
-            octave: Octave number (C4 = middle C)
-
-        Returns:
-            int: MIDI note number or None if invalid
-        """
-        note_class = self.NOTE_MAP.get(note_name)
-        if note_class is None:
-            return None
-
-        return note_class + (octave + 1) * 12

@@ -63,7 +63,7 @@ def _install_stub_ensemble_voicer_module():
 
 @pytest.fixture
 def mock_config():
-    """Fake config service; ``custom_ensembles`` defaults to empty."""
+    """Fake config service; ``voicings`` defaults to empty."""
     config = Mock(spec=ConfigService)
     config._store = {
         "bpm": 120,
@@ -72,8 +72,7 @@ def mock_config():
         "soundfont_path": None,
         "voicing": "piano",
         "instrument": 0,
-        "custom_tunings": {},
-        "custom_ensembles": {},
+        "voicings": {},
     }
     config.get.side_effect = lambda key, default=None: config._store.get(key, default)
     return config
@@ -103,14 +102,18 @@ class TestCreateEnsemblePicker:
                 assert isinstance(picker, stub.EnsembleVoicer)
                 assert picker.spec is BUILTIN_ENSEMBLES[key]
 
-    def test_custom_ensemble_shadows_builtin(self, playback_service, mock_config):
-        # Register a custom ensemble under the *same* name as a builtin, with
-        # a different voice layout -- it should win over BUILTIN_ENSEMBLES.
-        mock_config._store["custom_ensembles"] = {"satb": CUSTOM_TRIO}
+    def test_custom_ensemble_in_voicings_shadows_builtin(self, playback_service, mock_config):
+        # Register a custom ensemble in the voicings registry under the
+        # *same* name as a builtin, with a different voice layout. Resolved
+        # via 'voicing:satb', it wins over BUILTIN_ENSEMBLES; the legacy
+        # 'ensemble:satb' prefix is untouched by the registry and keeps
+        # resolving to the real builtin (see TestGuitarAndEnsemblePrefixBuiltinsOnly
+        # in test_voicing_registry.py).
+        mock_config._store["voicings"] = {"satb": {"model": "ensemble", **CUSTOM_TRIO}}
 
         patcher, stub = _install_stub_ensemble_voicer_module()
         with patcher:
-            picker = playback_service._create_note_picker("ensemble:satb")
+            picker = playback_service._create_note_picker("voicing:satb")
 
         assert isinstance(picker, stub.EnsembleVoicer)
         assert picker.spec is not BUILTIN_ENSEMBLES["satb"]
@@ -118,12 +121,12 @@ class TestCreateEnsemblePicker:
         assert picker.spec.label == "Custom Trio"
         assert len(picker.spec.voices) == 3
 
-    def test_custom_ensemble_not_shadowing_a_builtin_resolves(self, playback_service, mock_config):
-        mock_config._store["custom_ensembles"] = {"my_trio": CUSTOM_TRIO}
+    def test_custom_ensemble_in_voicings_not_shadowing_a_builtin_resolves(self, playback_service, mock_config):
+        mock_config._store["voicings"] = {"my_trio": {"model": "ensemble", **CUSTOM_TRIO}}
 
         patcher, stub = _install_stub_ensemble_voicer_module()
         with patcher:
-            picker = playback_service._create_note_picker("ensemble:my_trio")
+            picker = playback_service._create_note_picker("voicing:my_trio")
 
         assert isinstance(picker, stub.EnsembleVoicer)
         assert picker.spec.label == "Custom Trio"
@@ -137,14 +140,14 @@ class TestCreateEnsemblePicker:
         assert isinstance(picker, ChordNotePicker)
         assert any("nonexistent" in r.message for r in caplog.records)
 
-    def test_invalid_custom_ensemble_falls_back_to_piano(self, playback_service, mock_config, caplog):
+    def test_invalid_custom_ensemble_in_voicings_falls_back_to_piano(self, playback_service, mock_config, caplog):
         from audio.chord_picker import ChordNotePicker
 
         # Missing required 'voices' key -> EnsembleSpec.from_dict raises ConfigurationError.
-        mock_config._store["custom_ensembles"] = {"broken": {"label": "Broken"}}
+        mock_config._store["voicings"] = {"broken": {"model": "ensemble", "label": "Broken"}}
 
         with caplog.at_level("WARNING"):
-            picker = playback_service._create_note_picker("ensemble:broken")
+            picker = playback_service._create_note_picker("voicing:broken")
 
         assert isinstance(picker, ChordNotePicker)
         assert any("broken" in r.message for r in caplog.records)
@@ -188,52 +191,61 @@ class TestResolveChordNotesKeyStamping:
         assert chord_notes.root == "G"
 
 
-class TestConfigCustomEnsemblesRoundTrip:
-    """Config.custom_ensembles survives to_dict/from_dict."""
+class TestConfigEnsembleVoicingsRoundTrip:
+    """A voicings registry entry with model 'ensemble' survives to_dict/from_dict.
+
+    (Config's dedicated custom_ensembles field is gone; ensemble specs now
+    live as {"model": "ensemble", **spec_data} entries in the unified
+    voicings registry. See tests/test_voicing_registry.py for the legacy-key
+    migration itself.)
+    """
 
     def test_default_is_empty_dict(self):
         config = Config()
-        assert config.custom_ensembles == {}
+        assert config.voicings == {}
 
     def test_round_trips_through_to_dict_from_dict(self):
-        config = Config(custom_ensembles={"my_trio": CUSTOM_TRIO})
+        config = Config(voicings={"my_trio": {"model": "ensemble", **CUSTOM_TRIO}})
 
         data = config.to_dict()
-        assert data["custom_ensembles"] == {"my_trio": CUSTOM_TRIO}
+        assert data["voicings"] == {"my_trio": {"model": "ensemble", **CUSTOM_TRIO}}
 
         restored = Config.from_dict(data)
-        assert restored.custom_ensembles == {"my_trio": CUSTOM_TRIO}
+        assert restored.voicings == {"my_trio": {"model": "ensemble", **CUSTOM_TRIO}}
 
     def test_missing_key_defaults_to_empty_dict_on_load(self):
         # Simulates loading an older config file written before this field existed.
         data = Config().to_dict()
-        del data["custom_ensembles"]
+        del data["voicings"]
 
         restored = Config.from_dict(data)
-        assert restored.custom_ensembles == {}
+        assert restored.voicings == {}
 
-    def test_custom_ensemble_dict_is_a_valid_ensemble_spec(self):
-        """Sanity check: the round-tripped dict still parses via EnsembleSpec."""
-        config = Config(custom_ensembles={"my_trio": CUSTOM_TRIO})
+    def test_ensemble_voicing_dict_is_a_valid_ensemble_spec(self):
+        """Sanity check: the round-tripped dict (minus 'model') still parses via EnsembleSpec."""
+        config = Config(voicings={"my_trio": {"model": "ensemble", **CUSTOM_TRIO}})
         data = config.to_dict()
         restored = Config.from_dict(data)
 
-        spec = EnsembleSpec.from_dict("my_trio", restored.custom_ensembles["my_trio"])
+        params = dict(restored.voicings["my_trio"])
+        params.pop("model")
+        spec = EnsembleSpec.from_dict("my_trio", params)
         assert spec.label == "Custom Trio"
         assert len(spec.voices) == 3
 
 
-class TestViewModelGetCustomEnsembles:
-    """MainWindowViewModel.get_custom_ensembles mirrors get_custom_tunings."""
+class TestViewModelGetVoicings:
+    """MainWindowViewModel.get_voicings returns the raw voicings registry."""
 
-    def test_returns_configured_custom_ensembles(self):
+    def test_returns_configured_voicings(self):
         from viewmodels.main_window_viewmodel import MainWindowViewModel
         from services.song_parser_service import SongParserService
         from unittest.mock import MagicMock
 
+        voicings = {"my_trio": {"model": "ensemble", **CUSTOM_TRIO}}
         config = Mock(spec=ConfigService)
         config.get.side_effect = lambda key, default=None: {
-            "custom_ensembles": {"my_trio": CUSTOM_TRIO},
+            "voicings": voicings,
         }.get(key, default)
 
         vm = MainWindowViewModel(
@@ -244,7 +256,7 @@ class TestViewModelGetCustomEnsembles:
             application=MagicMock(),
         )
 
-        assert vm.get_custom_ensembles() == {"my_trio": CUSTOM_TRIO}
+        assert vm.get_voicings() == voicings
 
     def test_defaults_to_empty_dict(self):
         from viewmodels.main_window_viewmodel import MainWindowViewModel
@@ -262,4 +274,4 @@ class TestViewModelGetCustomEnsembles:
             application=MagicMock(),
         )
 
-        assert vm.get_custom_ensembles() == {}
+        assert vm.get_voicings() == {}

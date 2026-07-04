@@ -25,6 +25,7 @@ from utils.ui_helpers import create_tooltip
 from utils.key_helpers import get_key_options
 from models.notation import Notation
 from models.ensemble_spec import BUILTIN_ENSEMBLES
+from models.fretboard_spec import BUILTIN_FRETBOARDS
 from constants import TAG_CHORD_PLAYING
 
 logger = logging.getLogger(__name__)
@@ -409,16 +410,13 @@ class MainWindow(tk.Tk):
         voicing_menu.add_radiobutton(label="Piano", variable=self.voicing_var,
                                      value="piano", command=self.on_voicing_change)
 
-        # Add guitar tunings
+        # Add built-in guitar/fretboard tunings
         voicing_menu.add_separator()
-        voicing_menu.add_radiobutton(label="Guitar (Standard - EADGBE)", variable=self.voicing_var,
-                                     value="guitar:standard", command=self.on_voicing_change)
-        voicing_menu.add_radiobutton(label="Guitar (Drop D)", variable=self.voicing_var,
-                                     value="guitar:drop_d", command=self.on_voicing_change)
-        voicing_menu.add_radiobutton(label="Guitar (DADGAD)", variable=self.voicing_var,
-                                     value="guitar:dadgad", command=self.on_voicing_change)
-        voicing_menu.add_radiobutton(label="Guitar (Open G)", variable=self.voicing_var,
-                                     value="guitar:open_g", command=self.on_voicing_change)
+        for fretboard_key in ("standard", "drop_d", "dadgad", "open_g", "ukulele"):
+            spec = BUILTIN_FRETBOARDS[fretboard_key]
+            voicing_menu.add_radiobutton(label=spec.label, variable=self.voicing_var,
+                                         value=f"guitar:{fretboard_key}",
+                                         command=self.on_voicing_change)
 
         # Add built-in ensembles
         voicing_menu.add_separator()
@@ -428,25 +426,14 @@ class MainWindow(tk.Tk):
                                          value=f"ensemble:{ensemble_key}",
                                          command=self.on_voicing_change)
 
-        # Add custom tunings if any
-        custom_tunings = self.viewmodel.get_custom_tunings()
-        if custom_tunings:
+        # Add user-defined voicings (the unified registry replacing the old
+        # separate custom-tunings/custom-ensembles menu blocks)
+        voicings = self.viewmodel.get_voicings()
+        if voicings:
             voicing_menu.add_separator()
-            for tuning_name in sorted(custom_tunings.keys()):
-                label = f"Guitar ({tuning_name})"
-                value = f"guitar:{tuning_name}"
-                voicing_menu.add_radiobutton(label=label, variable=self.voicing_var,
-                                           value=value, command=self.on_voicing_change)
-
-        # Add custom ensembles if any
-        custom_ensembles = self.viewmodel.get_custom_ensembles()
-        if custom_ensembles:
-            voicing_menu.add_separator()
-            for ensemble_name in sorted(custom_ensembles.keys()):
-                label = f"Ensemble ({ensemble_name})"
-                value = f"ensemble:{ensemble_name}"
-                voicing_menu.add_radiobutton(label=label, variable=self.voicing_var,
-                                           value=value, command=self.on_voicing_change)
+            for name in sorted(voicings.keys(), key=lambda n: (voicings[n].get("model", ""), n.lower())):
+                voicing_menu.add_radiobutton(label=name, variable=self.voicing_var,
+                                           value=f"voicing:{name}", command=self.on_voicing_change)
 
         # Create instrument submenu with categories
         self.instrument_var = tk.IntVar(value=self.viewmodel.get_instrument())

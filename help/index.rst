@@ -22,6 +22,7 @@ jump to :doc:`tips`.
    writing_chords
    directives
    playback
+   fretted
    ensembles
    midi_export
    interface

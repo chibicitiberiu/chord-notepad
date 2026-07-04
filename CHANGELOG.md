@@ -19,11 +19,30 @@ moved to CHANGELOG_HISTORY.md and this file is reset.
   tone first (the fifth before the third, a `sus4`'s suspended note never
   dropped); chords with fewer notes double tones, preferring the root; slash
   chords put the bass note in the lowest voice. Custom ensembles can be
-  defined in the config file under `custom_ensembles`, the same way custom
-  guitar tunings are. Exporting MIDI with an ensemble voicing active writes
+  defined in the config file under the `voicings` registry
+  (`"model": "ensemble"`), the same mechanism used for custom fretted
+  instruments. Exporting MIDI with an ensemble voicing active writes
   one named track per voice instead of a single chord track. See the new
   Ensemble Voicings help page for the preset ranges and the full list of
   tunable voicing parameters.
+
+- **Arbitrary fretted instruments** (Playback → Voicing): the guitar voicer
+  is now a general "fretboard model" that can voice any fretted instrument
+  with 3 to 12 strings, including re-entrant tunings (a string tuned higher
+  than the one before it, like a ukulele's high G) -- the bass is always
+  whichever string actually sounds lowest, not whichever is listed first. A
+  new **Ukulele** preset (G4 C4 E4 A4) joins the four existing guitar
+  tunings. Custom fretted instruments -- a baritone ukulele, a banjo, a
+  seven-string guitar in a tuning of your own -- can be defined the same way
+  custom guitar tunings always could. See the new Guitar and Fretted
+  Instruments help page for the built-in voicings, a worked custom example,
+  and the full parameter reference.
+
+- **Unified `voicings` config registry**: custom guitar/fretted tunings and
+  custom ensembles now live together under a single `voicings` key in the
+  config file, each entry tagged `"model": "fretboard"` or
+  `"model": "ensemble"`. They appear in Playback → Voicing automatically,
+  sorted by model then name.
 
 - **Export MIDI...** (File menu) saves the current song as a standard MIDI
   file. The file matches playback exactly: the selected piano or guitar
@@ -37,6 +56,11 @@ moved to CHANGELOG_HISTORY.md and this file is reset.
   notation software.
 
 ### Changed
+
+- Config files using the old `custom_tunings` or `custom_ensembles` keys are
+  migrated to the unified `voicings` registry automatically the first time
+  Chord Notepad starts after upgrading, including whichever voicing was
+  selected at the time. There's nothing to do by hand.
 
 - Guitar voicings are now chosen for the whole song at once instead of chord by
   chord. The picker weighs each fingering's own quality against how smoothly it

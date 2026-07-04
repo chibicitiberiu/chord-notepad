@@ -48,62 +48,123 @@ class PlaybackService:
 
         Args:
             voicing: Voicing string like 'piano', 'guitar:standard', 'guitar:drop_d',
-                or 'ensemble:<name>'.
+                'ensemble:<name>', or 'voicing:<name>' (a named entry in the
+                config's ``voicings`` registry).
 
         Returns:
             INotePicker instance
         """
-        if voicing.startswith("guitar:"):
-            # Extract tuning from voicing string
-            tuning_name = voicing.split(":", 1)[1]
-
-            # Check if it's a custom tuning
-            custom_tunings = self._config.get("custom_tunings", {})
-            if tuning_name in custom_tunings:
-                tuning = custom_tunings[tuning_name]
-            else:
-                # Use built-in tuning
-                tuning = tuning_name
-
-            return GuitarChordPicker(tuning=tuning)
+        if voicing.startswith("voicing:"):
+            return self._create_registry_picker(voicing.split(":", 1)[1])
+        elif voicing.startswith("guitar:"):
+            return self._create_guitar_picker(voicing.split(":", 1)[1])
         elif voicing.startswith("ensemble:"):
             return self._create_ensemble_picker(voicing.split(":", 1)[1])
         else:
             # Default to piano voicing
             return ChordNotePicker()
 
-    def _create_ensemble_picker(self, name: str) -> INotePicker:
-        """Create an ``EnsembleVoicer`` for the named ensemble.
+    def _create_registry_picker(self, name: str) -> INotePicker:
+        """Create the note picker for a named entry in the ``voicings`` registry.
 
-        Resolution order: config ``custom_ensembles`` first, then the
-        built-in ensembles (``satb``, ``ttbb``, ``ssa``, ``quartet``). Falls
-        back to piano voicing (with a warning) if ``name`` is unknown, or if
-        a custom spec is present but fails validation.
+        Each registry entry is ``{"model": "fretboard" | "ensemble" | "piano",
+        ...model-specific parameters}``. Falls back to piano voicing (with a
+        warning) if ``name`` is unknown, the model is unrecognized, or the
+        parameters fail validation.
 
         Args:
-            name: Ensemble slug, e.g. ``'satb'`` or a custom ensemble name.
+            name: Voicing name as registered in config ``voicings``.
 
         Returns:
-            An ``EnsembleVoicer`` for the resolved spec, or a ``ChordNotePicker``
-            fallback.
+            An INotePicker instance for the resolved model, or a
+            ``ChordNotePicker`` fallback.
         """
-        from models.ensemble_spec import EnsembleSpec, BUILTIN_ENSEMBLES
         from exceptions import ConfigurationError
 
-        custom_ensembles = self._config.get("custom_ensembles", {})
-        if name in custom_ensembles:
-            try:
-                spec = EnsembleSpec.from_dict(name, custom_ensembles[name])
-            except ConfigurationError as e:
+        voicings = self._config.get("voicings", {})
+        params = voicings.get(name)
+        if params is None:
+            self._logger.warning(f"Unknown voicing '{name}'; falling back to piano")
+            return ChordNotePicker()
+
+        params = dict(params)
+        model = params.pop("model", None)
+
+        try:
+            if model == "fretboard":
+                from models.fretboard_spec import FretboardSpec
+
+                spec = FretboardSpec.from_dict(name, params)
+                return GuitarChordPicker(spec)
+            elif model == "ensemble":
+                from models.ensemble_spec import EnsembleSpec
+                # Imported lazily (rather than at module level) because this
+                # module is owned by a concurrent task and may not exist on
+                # disk yet when this branch is first exercised.
+                from audio.ensemble_voicer import EnsembleVoicer
+
+                spec = EnsembleSpec.from_dict(name, params)
+                return EnsembleVoicer(spec)
+            elif model == "piano":
+                self._logger.info("piano model has no parameters yet")
+                return ChordNotePicker()
+            else:
                 self._logger.warning(
-                    f"Invalid custom ensemble '{name}': {e}; falling back to piano"
+                    f"Unknown model {model!r} for voicing '{name}'; falling back to piano"
                 )
                 return ChordNotePicker()
-        elif name in BUILTIN_ENSEMBLES:
-            spec = BUILTIN_ENSEMBLES[name]
+        except ConfigurationError as e:
+            self._logger.warning(f"Invalid voicing '{name}': {e}; falling back to piano")
+            return ChordNotePicker()
+
+    def _create_guitar_picker(self, tuning_name: str) -> INotePicker:
+        """Create a ``GuitarChordPicker`` for a built-in fretboard tuning.
+
+        Custom guitar tunings now live in the ``voicings`` registry (see
+        :meth:`_create_registry_picker`); this only resolves the built-in
+        presets in :data:`models.fretboard_spec.BUILTIN_FRETBOARDS`.
+
+        Args:
+            tuning_name: Built-in fretboard slug, e.g. ``'standard'``.
+
+        Returns:
+            A ``GuitarChordPicker`` for the resolved spec, falling back to
+            the standard tuning (with a warning) if unknown.
+        """
+        from models.fretboard_spec import BUILTIN_FRETBOARDS
+
+        if tuning_name in BUILTIN_FRETBOARDS:
+            spec = BUILTIN_FRETBOARDS[tuning_name]
         else:
+            self._logger.warning(
+                f"Unknown guitar tuning '{tuning_name}'; falling back to standard"
+            )
+            spec = BUILTIN_FRETBOARDS["standard"]
+
+        return GuitarChordPicker(spec)
+
+    def _create_ensemble_picker(self, name: str) -> INotePicker:
+        """Create an ``EnsembleVoicer`` for a built-in ensemble.
+
+        Custom ensembles now live in the ``voicings`` registry (see
+        :meth:`_create_registry_picker`); this only resolves the built-in
+        presets in :data:`models.ensemble_spec.BUILTIN_ENSEMBLES`.
+
+        Args:
+            name: Built-in ensemble slug, e.g. ``'satb'``.
+
+        Returns:
+            An ``EnsembleVoicer`` for the resolved spec, or a
+            ``ChordNotePicker`` fallback (with a warning) if ``name`` is
+            unknown.
+        """
+        from models.ensemble_spec import BUILTIN_ENSEMBLES
+
+        if name not in BUILTIN_ENSEMBLES:
             self._logger.warning(f"Unknown ensemble '{name}'; falling back to piano")
             return ChordNotePicker()
+
+        spec = BUILTIN_ENSEMBLES[name]
 
         # Imported lazily (rather than at module level) because this module
         # is owned by a concurrent task and may not exist on disk yet when
