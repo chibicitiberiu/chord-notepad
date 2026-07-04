@@ -208,9 +208,11 @@ def test_drop_set_ranking_prefers_expendable_tones():
     ranked = voicer._ranked_drop_sets(to_place, 1)
 
     # Cheapest two singletons drop the extension D (pc 2) and the fifth G (pc 7).
-    assert ranked[0] == (2,)   # extension, omit weight 7.0
-    assert ranked[1] == (7,)   # fifth, omit weight 8.0
-    # Colour F (30.0) and seventh Bb (40.0) are the most expensive to drop.
+    # Omit weights are now signed (negative); the cheapest to drop is the one
+    # closest to zero: extension -7.0, then fifth -8.0.
+    assert ranked[0] == (2,)   # extension, omit weight -7.0
+    assert ranked[1] == (7,)   # fifth, omit weight -8.0
+    # Colour F (-30.0) and seventh Bb (-40.0) are the most expensive to drop.
     assert ranked.index((5,)) > ranked.index((7,))
     assert ranked.index((10,)) > ranked.index((5,))
 

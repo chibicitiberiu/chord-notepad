@@ -532,16 +532,18 @@ class EnsembleVoicer(INotePicker):
                           drop_count: int) -> List[Tuple[int, ...]]:
         """Return drop-sets (pitch-class tuples) ranked cheapest-first.
 
-        Cost is the summed omission penalty of the dropped tones' roles; ties
-        break by the pitch-class tuple for determinism. Exposed for direct
-        unit testing of the ranking.
+        ``weights['omit']`` is now a signed (negative) contribution, so the
+        cheapest tone to drop is the one whose omission hurts the score least,
+        i.e. the drop-set with the *largest* (least-negative) summed weight.
+        We therefore rank by summed weight descending; ties break by the
+        pitch-class tuple for determinism. Exposed for direct unit testing.
         """
         scored: List[Tuple[float, Tuple[int, ...]]] = []
         for combo in combinations(to_place, drop_count):
             cost = sum(self._omit[role] for _pc, role in combo)
             pcs = tuple(sorted(pc for pc, _role in combo))
             scored.append((cost, pcs))
-        scored.sort(key=lambda item: (item[0], item[1]))
+        scored.sort(key=lambda item: (-item[0], item[1]))
         return [pcs for _cost, pcs in scored]
 
     def _double_plans(self, bass_pc: int, to_place: List[Tuple[int, str]],
@@ -604,9 +606,9 @@ class EnsembleVoicer(INotePicker):
                             continue
                         add = self._comfort(midi, b)
                         if midi == below:
-                            add -= self._unison_penalty
+                            add += self._unison_penalty
                         if b >= 2 and gap > _UPPER_SPACING_THRESHOLD:
-                            add -= self._upper_spacing_penalty * (gap - _UPPER_SPACING_THRESHOLD)
+                            add += self._upper_spacing_penalty * (gap - _UPPER_SPACING_THRESHOLD)
                         new_remaining = list(remaining)
                         new_remaining.remove(pc)
                         next_beam.append(
@@ -670,7 +672,7 @@ class EnsembleVoicer(INotePicker):
         under = _RANGE_COMFORT_EDGE - (midi - low)
         over = _RANGE_COMFORT_EDGE - (high - midi)
         penalty = (under if under > 0 else 0) + (over if over > 0 else 0)
-        return -self._range_comfort_penalty * penalty
+        return self._range_comfort_penalty * penalty
 
     def _score_quality(self, stack: Tuple[int, ...], meta: _ChordMeta) -> float:
         """Intrinsic quality of a voicing in isolation; higher is better.
@@ -697,7 +699,7 @@ class EnsembleVoicer(INotePicker):
         # Omission: chord tones not sung at all.
         for pc, role in meta.tones:
             if pc not in voiced:
-                score -= self._omit[role]
+                score += self._omit[role]
 
         # Inversion: which chord tone is in the bass (plain chords only).
         if not meta.is_slash:
@@ -712,18 +714,18 @@ class EnsembleVoicer(INotePicker):
         # Unisons: adjacent equal pitches.
         for lower, upper in zip(stack, stack[1:]):
             if lower == upper:
-                score -= self._unison_penalty
+                score += self._unison_penalty
 
         # Upper spacing: adjacent gaps not involving the bottom voice.
         for i in range(1, len(stack) - 1):
             gap = stack[i + 1] - stack[i]
             if gap > _UPPER_SPACING_THRESHOLD:
-                score -= self._upper_spacing_penalty * (gap - _UPPER_SPACING_THRESHOLD)
+                score += self._upper_spacing_penalty * (gap - _UPPER_SPACING_THRESHOLD)
 
         # Doubled leading tone.
         lt = meta.ctx.leading_tone_pc
         if lt is not None and counts.get(lt, 0) >= 2:
-            score -= self._double_leading_tone_penalty
+            score += self._double_leading_tone_penalty
 
         return score
 
@@ -750,13 +752,13 @@ class EnsembleVoicer(INotePicker):
             weight = self._movement[n - 1 - b]
             delta = deltas[b]
             magnitude = abs(delta)
-            score -= weight * magnitude
+            score += weight * magnitude
             if magnitude > _LEAP_THRESHOLD:
-                score -= self._leap_penalty
+                score += self._leap_penalty
             if magnitude > _OCTAVE:
-                score -= self._octave_leap_penalty
+                score += self._octave_leap_penalty
             if magnitude == _TRITONE:
-                score -= self._tritone_leap_penalty
+                score += self._tritone_leap_penalty
             if delta == 0:
                 score += self._common_tone_bonus
 
@@ -770,7 +772,7 @@ class EnsembleVoicer(INotePicker):
                 prev_ic = (prev_notes[j] - prev_notes[i]) % _OCTAVE
                 cur_ic = (cur_notes[j] - cur_notes[i]) % _OCTAVE
                 if prev_ic == cur_ic and prev_ic in (0, 7):
-                    score -= self._parallel_perfect_penalty
+                    score += self._parallel_perfect_penalty
 
         # Contrary motion of the outer voices.
         if n >= 2 and deltas[0] != 0 and deltas[n - 1] != 0:

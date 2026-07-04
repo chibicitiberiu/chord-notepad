@@ -136,7 +136,9 @@ class TestDefaultSpecEquivalence:
 
         data = BUILTIN_FRETBOARDS['standard'].to_dict()
         data['weights'] = dict(data['weights'])
-        data['weights']['span_penalty'] = 50.0
+        # Signed convention: a large negative span_penalty makes wide stretches
+        # far more costly.
+        data['weights']['span_penalty'] = -50.0
         tweaked_spec = FretboardSpec.from_dict('tweaked', data)
         tweaked = GuitarChordPicker(tweaked_spec).voice_sequence(PROGRESSION)
 

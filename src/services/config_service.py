@@ -11,6 +11,71 @@ from services.appdata_service import AppDataService
 from constants import CONFIG_VERSION
 
 
+#: Fretboard weight keys stored as positive magnitudes under the v1 (pre-signed)
+#: convention that must be negated when migrating to the v2 signed convention.
+_FRETBOARD_NEGATE_KEYS = (
+    'span_penalty', 'position_penalty', 'fretted_finger_penalty',
+    'barre_penalty', 'interior_mute_penalty', 'movement_penalty',
+)
+
+#: Flat ensemble weight keys negated for the same reason. ``movement`` may be a
+#: scalar or a per-voice list; both are negated element-wise.
+_ENSEMBLE_NEGATE_FLAT_KEYS = (
+    'movement', 'bass_movement', 'leap_penalty', 'octave_leap_penalty',
+    'tritone_leap_penalty', 'parallel_perfect_penalty',
+    'double_leading_tone_penalty', 'range_comfort_penalty',
+    'unison_penalty', 'upper_spacing_penalty',
+)
+
+
+def _is_number(value: Any) -> bool:
+    """True for int/float, excluding bool (a bool is an int subclass)."""
+    return isinstance(value, (int, float)) and not isinstance(value, bool)
+
+
+def _negate_signed_weights(data: dict) -> None:
+    """Negate v1 positive-magnitude penalty weights in-place for the v2 convention.
+
+    v1 stored voicing penalties as positive magnitudes that the engine
+    subtracted; v2 stores every weight as a signed contribution the engine
+    adds. This flips the sign of each overridden penalty key so a migrated
+    config produces byte-identical voicings. Only keys the user actually
+    overrode are touched; missing keys inherit the new negative defaults.
+    Bonus keys, ``doubling`` and ``inversion`` (already signed) are left alone.
+    """
+    voicings = data.get('voicings')
+    if not isinstance(voicings, dict):
+        return
+
+    for entry in voicings.values():
+        if not isinstance(entry, dict):
+            continue
+        weights = entry.get('weights')
+        if not isinstance(weights, dict):
+            continue
+        model = entry.get('model')
+
+        if model == 'fretboard':
+            for key in _FRETBOARD_NEGATE_KEYS:
+                if key in weights and _is_number(weights[key]):
+                    weights[key] = -weights[key]
+
+        elif model == 'ensemble':
+            for key in _ENSEMBLE_NEGATE_FLAT_KEYS:
+                if key not in weights:
+                    continue
+                value = weights[key]
+                if isinstance(value, list):
+                    weights[key] = [-v if _is_number(v) else v for v in value]
+                elif _is_number(value):
+                    weights[key] = -value
+            omit = weights.get('omit')
+            if isinstance(omit, dict):
+                for subkey, subval in omit.items():
+                    if _is_number(subval):
+                        omit[subkey] = -subval
+
+
 class ConfigService:
     """Manages application configuration loading and saving.
 
@@ -173,12 +238,11 @@ class ConfigService:
         Returns:
             Migrated configuration data
         """
-        # Add migrations here when config structure changes
-        # Example:
-        # if from_version < 2:
-        #     data["new_field"] = "default_value"
-        # if from_version < 3:
-        #     data["renamed_field"] = data.pop("old_field_name")
+        # v1 -> v2: voicing weights moved from positive-magnitude penalties
+        # (subtracted by the engine) to signed contributions (added). Negate
+        # each overridden penalty key so migrated voicings stay identical.
+        if from_version < 2:
+            _negate_signed_weights(data)
 
         # Ensure version is set to current
         data["version"] = CONFIG_VERSION

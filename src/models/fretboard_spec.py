@@ -72,25 +72,26 @@ def _resolve_string_pitch(value: Union[int, str], *, context: str) -> int:
 #: :meth:`FretboardSpec.from_dict`'s ``weights`` override), so keep the keys
 #: stable.
 #:
-#: Every value here is a **positive magnitude** -- the picker decides whether
-#: each one is a reward or a penalty and applies the sign itself, so that a
-#: future weights UI can show every slider as "more = stronger effect"
-#: without needing to know which weights used to be negative internally.
-#: The comment on each entry names the ``GuitarChordPicker.SCORE_*`` class
-#: constant it replaces (see ``src/audio/guitar_chord_picker.py``); entries
-#: marked "sign flipped" were negative (penalties) on the old constant and
-#: are now stored as their positive magnitude.
+#: Every value here is a **signed contribution** added directly to a
+#: fingering's score: positive weights are rewards (more = more preferred),
+#: negative weights are penalties (more negative = less preferred). Higher
+#: score always wins, and the picker simply adds each weight times its
+#: quantity, so a future weights UI can show every slider as a signed value
+#: and never has to know which sign the engine "means". The comment on each
+#: entry names the ``GuitarChordPicker.SCORE_*`` class constant it replaces
+#: (see ``src/audio/guitar_chord_picker.py``); the penalty entries are stored
+#: negative to match the old signed constants.
 DEFAULT_WEIGHTS: Dict[str, float] = {
     'sounding_string_bonus': 1.2,     # was SCORE_PER_SOUNDING
     'open_string_bonus': 0.5,         # was SCORE_PER_OPEN
     'bass_note_bonus': 8.0,           # was SCORE_BASS
     'slash_bass_bonus': 12.0,         # was SCORE_SLASH_BASS
-    'span_penalty': 1.2,              # was SCORE_PER_SPAN_FRET (sign flipped)
-    'position_penalty': 0.6,          # was SCORE_PER_AVG_FRET (sign flipped)
-    'fretted_finger_penalty': 0.5,    # was SCORE_PER_FRETTED (sign flipped)
-    'barre_penalty': 1.0,             # was SCORE_BARRE (sign flipped)
-    'interior_mute_penalty': 2.0,     # was SCORE_PER_INTERIOR_MUTE (sign flipped)
-    'movement_penalty': 1.0,          # was SCORE_PER_MOVE_FRET (sign flipped)
+    'span_penalty': -1.2,             # was SCORE_PER_SPAN_FRET
+    'position_penalty': -0.6,         # was SCORE_PER_AVG_FRET
+    'fretted_finger_penalty': -0.5,   # was SCORE_PER_FRETTED
+    'barre_penalty': -1.0,            # was SCORE_BARRE
+    'interior_mute_penalty': -2.0,    # was SCORE_PER_INTERIOR_MUTE
+    'movement_penalty': -1.0,         # was SCORE_PER_MOVE_FRET
     'kept_finger_bonus': 0.4,         # was SCORE_PER_KEPT_FINGER
 }
 

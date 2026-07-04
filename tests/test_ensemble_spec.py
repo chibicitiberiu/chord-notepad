@@ -264,6 +264,39 @@ class TestWeightMerging:
         assert spec.weight("octave_leap_penalty") == DEFAULT_WEIGHTS["octave_leap_penalty"]
         assert spec.weight("common_tone_bonus") == DEFAULT_WEIGHTS["common_tone_bonus"]
 
+    def test_default_weight_signs(self):
+        # Signed convention: every weight is added directly to the score.
+        # Flat penalties and every omit sub-key are negative; bonuses,
+        # doubling and inversion keep their existing signs.
+        assert DEFAULT_WEIGHTS["movement"] == -0.4
+        assert DEFAULT_WEIGHTS["bass_movement"] == -0.15
+        assert DEFAULT_WEIGHTS["leap_penalty"] == -2.0
+        assert DEFAULT_WEIGHTS["octave_leap_penalty"] == -6.0
+        assert DEFAULT_WEIGHTS["tritone_leap_penalty"] == -3.0
+        assert DEFAULT_WEIGHTS["parallel_perfect_penalty"] == -25.0
+        assert DEFAULT_WEIGHTS["double_leading_tone_penalty"] == -8.0
+        assert DEFAULT_WEIGHTS["range_comfort_penalty"] == -0.5
+        assert DEFAULT_WEIGHTS["unison_penalty"] == -0.5
+        assert DEFAULT_WEIGHTS["upper_spacing_penalty"] == -0.15
+        # Bonuses unchanged (positive).
+        assert DEFAULT_WEIGHTS["common_tone_bonus"] == 1.5
+        assert DEFAULT_WEIGHTS["contrary_motion_bonus"] == 0.8
+        assert DEFAULT_WEIGHTS["seventh_resolution_bonus"] == 1.5
+        assert DEFAULT_WEIGHTS["leading_tone_resolution_bonus"] == 1.5
+        # omit flipped to all-negative.
+        assert DEFAULT_WEIGHTS["omit"] == {
+            "root": -4.0, "third": -40.0, "fifth": -8.0,
+            "seventh": -40.0, "color": -30.0, "extension": -7.0,
+        }
+        # doubling and inversion untouched (already signed).
+        assert DEFAULT_WEIGHTS["doubling"] == {
+            "root": 2.0, "fifth": 0.5, "third": -2.0,
+            "seventh": -6.0, "color": -6.0, "extension": -6.0,
+        }
+        assert DEFAULT_WEIGHTS["inversion"] == {
+            "root": 0.0, "first": -1.5, "second": -5.0, "third": -3.0,
+        }
+
     def test_nested_merge_leaves_other_subkeys_default(self):
         spec = EnsembleSpec.from_dict("w", {
             "voices": self._voices(),
@@ -353,7 +386,7 @@ class TestMovementPerVoice:
     def test_scalar_broadcasts_to_all_but_bottom(self):
         spec = self._spec(4)
         result = spec.movement_per_voice()
-        assert result == (0.4, 0.4, 0.4, 0.15)
+        assert result == (-0.4, -0.4, -0.4, -0.15)
 
     def test_list_used_verbatim(self):
         spec = self._spec(3, weights={"movement": [1.0, 2.0, 3.0]})
@@ -366,7 +399,7 @@ class TestMovementPerVoice:
 
     def test_custom_bass_movement_used_for_bottom_voice(self):
         spec = self._spec(2, weights={"bass_movement": 0.9})
-        assert spec.movement_per_voice() == (0.4, 0.9)
+        assert spec.movement_per_voice() == (-0.4, 0.9)
 
 
 # ---------------------------------------------------------------------------

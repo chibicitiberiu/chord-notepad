@@ -50,41 +50,41 @@ logger = logging.getLogger(__name__)
 # Human-readable labels, taken verbatim from help/fretted.rst and
 # help/ensembles.rst, keyed by the weight's config key.
 FRETBOARD_WEIGHT_LABELS: Dict[str, str] = {
-    'sounding_string_bonus': 'Sounding-string bonus',
-    'open_string_bonus': 'Open-string bonus',
-    'bass_note_bonus': 'Bass-note bonus',
-    'slash_bass_bonus': 'Slash-bass bonus',
-    'span_penalty': 'Stretch penalty',
-    'position_penalty': 'Neck-position penalty',
-    'fretted_finger_penalty': 'Finger-use penalty',
-    'barre_penalty': 'Barre penalty',
-    'interior_mute_penalty': 'Interior-mute penalty',
-    'movement_penalty': 'Hand-movement penalty',
-    'kept_finger_bonus': 'Held-finger bonus',
+    'sounding_string_bonus': 'Sounding string',
+    'open_string_bonus': 'Open string',
+    'bass_note_bonus': 'Correct bass note',
+    'slash_bass_bonus': 'Correct slash bass',
+    'span_penalty': 'Wide stretch',
+    'position_penalty': 'High neck position',
+    'fretted_finger_penalty': 'Fretted finger',
+    'barre_penalty': 'Barre',
+    'interior_mute_penalty': 'Muted inner string',
+    'movement_penalty': 'Hand movement',
+    'kept_finger_bonus': 'Kept finger',
 }
 
 ENSEMBLE_WEIGHT_LABELS: Dict[str, str] = {
-    'movement': 'Voice movement cost',
-    'bass_movement': 'Bass movement cost',
-    'leap_penalty': 'Large leap penalty',
-    'octave_leap_penalty': 'Octave leap penalty',
-    'tritone_leap_penalty': 'Tritone leap penalty',
-    'common_tone_bonus': 'Common-tone bonus',
-    'parallel_perfect_penalty': 'Parallel fifths/octaves penalty',
-    'contrary_motion_bonus': 'Contrary motion bonus',
-    'seventh_resolution_bonus': 'Seventh resolution bonus',
-    'leading_tone_resolution_bonus': 'Leading-tone resolution bonus',
-    'double_leading_tone_penalty': 'Doubled leading-tone penalty',
-    'range_comfort_penalty': 'Range comfort margin',
-    'unison_penalty': 'Unison penalty',
-    'upper_spacing_penalty': 'Upper-voice spacing',
+    'movement': 'Voice movement',
+    'bass_movement': 'Bass movement',
+    'leap_penalty': 'Large leap',
+    'octave_leap_penalty': 'Octave leap',
+    'tritone_leap_penalty': 'Tritone leap',
+    'common_tone_bonus': 'Common tone held',
+    'parallel_perfect_penalty': 'Parallel fifths/octaves',
+    'contrary_motion_bonus': 'Contrary motion',
+    'seventh_resolution_bonus': 'Seventh resolves down',
+    'leading_tone_resolution_bonus': 'Leading tone resolves',
+    'double_leading_tone_penalty': 'Doubled leading tone',
+    'range_comfort_penalty': 'Out-of-comfort range',
+    'unison_penalty': 'Unison between voices',
+    'upper_spacing_penalty': 'Wide upper spacing',
 }
 
 # Titles for the three nested-weight sub-frames.
 NESTED_WEIGHT_TITLES: Dict[str, str] = {
-    'doubling': 'Doubling preferences',
-    'omit': 'Omission costs',
-    'inversion': 'Inversion preferences',
+    'doubling': 'Doubling',
+    'omit': 'Omission',
+    'inversion': 'Inversion',
 }
 
 # Human labels for the per-role sub-keys of the nested weights.
@@ -108,9 +108,10 @@ _GROUP_LABEL = {'fretboard': 'Fretboard', 'piano': 'Piano', 'ensemble': 'Ensembl
 
 # Small grey introducing every 'Weights' section.
 _WEIGHTS_BLURB = (
-    "Weights steer the scoring. A higher penalty pushes the picker away from "
-    "that trait; a higher bonus pulls it toward it. The defaults suit most "
-    "music, so adjust only if the results aren't to your taste."
+    "Each weight adds to a voicing's score, so a higher number always means "
+    "more preferred. Positive values pull the picker toward a trait; negative "
+    "values push it away. Zero is neutral. The defaults suit most music, so "
+    "change these only if the results aren't to your taste."
 )
 
 # ---------------------------------------------------------------------------
@@ -140,23 +141,29 @@ TOOLTIPS: Dict[str, str] = {
                      "in for several fretted fingers at once."),
 
     # Fretboard weights.
-    'weight:sounding_string_bonus': ("Reward per string that actually sounds; higher "
-                                     "favors fuller-sounding fingerings."),
-    'weight:open_string_bonus': ("Extra reward per open string (fret 0), on top of the "
-                                 "sounding-string bonus."),
-    'weight:bass_note_bonus': "Reward for the chord's root landing on the lowest sounding string.",
-    'weight:slash_bass_bonus': ("Reward for a slash chord's named bass note landing in the "
-                                "bass (the G in C/G)."),
-    'weight:span_penalty': ("Cost per fret of stretch between the lowest and highest fretted "
-                            "note; higher keeps shapes compact."),
-    'weight:position_penalty': "Cost per fret up the neck; higher keeps fingerings closer to the nut.",
-    'weight:fretted_finger_penalty': ("Cost per fretted finger; higher favors shapes that leave "
-                                      "more strings open or muted."),
-    'weight:barre_penalty': "Extra cost when a fingering needs a barre, on top of the finger-use penalty.",
-    'weight:interior_mute_penalty': "Cost per muted string buried between two sounding strings.",
-    'weight:movement_penalty': ("Cost per fret the hand shifts from the previous chord, across the "
-                                "whole song; higher steadies the hand."),
-    'weight:kept_finger_bonus': "Reward per finger that stays on the same string and fret between chords.",
+    'weight:sounding_string_bonus': ("How the picker treats strings that actually sound. More "
+                                     "positive favors fuller-sounding fingerings; negative would "
+                                     "favor sparser ones."),
+    'weight:open_string_bonus': ("How the picker treats open strings (fret 0), on top of the "
+                                 "sounding-string weight. More positive favors open strings."),
+    'weight:bass_note_bonus': ("How the picker treats the chord's root landing on the lowest "
+                               "sounding string. More positive encourages it."),
+    'weight:slash_bass_bonus': ("How the picker treats a slash chord's named bass note landing "
+                                "in the bass (the G in C/G). More positive encourages it."),
+    'weight:span_penalty': ("How the picker treats wide finger stretches. More negative avoids "
+                            "them; positive would seek them out."),
+    'weight:position_penalty': ("How the picker treats fingerings further up the neck. More "
+                                "negative keeps fingerings closer to the nut."),
+    'weight:fretted_finger_penalty': ("How the picker treats fretted fingers. More negative "
+                                      "favors shapes that leave more strings open or muted."),
+    'weight:barre_penalty': ("How the picker treats fingerings that need a barre, on top of the "
+                             "fretted-finger weight. More negative avoids barres."),
+    'weight:interior_mute_penalty': ("How the picker treats a muted string buried between two "
+                                     "sounding strings. More negative avoids that shape."),
+    'weight:movement_penalty': ("How the picker treats the hand shifting from the previous "
+                                "chord, across the whole song. More negative steadies the hand."),
+    'weight:kept_finger_bonus': ("How the picker treats a finger staying on the same string and "
+                                 "fret between chords. More positive rewards keeping it there."),
 
     # Ensemble voices / spacing / unisons.
     'voice_name': "Name of this voice, e.g. Soprano. Free text.",
@@ -169,26 +176,38 @@ TOOLTIPS: Dict[str, str] = {
     'allow_unisons': "Whether two neighbouring voices may land on the same pitch.",
 
     # Ensemble weights.
-    'weight:movement': ("Cost per semitone an inner or upper voice moves between chords; a single "
-                        "number, or one per voice."),
-    'weight:bass_movement': ("Cost per semitone the bottom voice moves; normally lower than the "
-                             "inner-voice movement cost."),
-    'weight:leap_penalty': "Extra cost when a voice jumps more than a fifth between chords.",
-    'weight:octave_leap_penalty': "Extra cost when a voice jumps a full octave or more.",
-    'weight:tritone_leap_penalty': "Extra cost when a voice leaps exactly a tritone (six semitones).",
-    'weight:common_tone_bonus': "Reward for a voice holding the pitch class it just sang.",
-    'weight:parallel_perfect_penalty': ("Cost per pair of voices moving in parallel fifths or octaves; "
-                                        "set high by default."),
-    'weight:contrary_motion_bonus': "Reward for the outer two voices moving in opposite directions.",
-    'weight:seventh_resolution_bonus': "Reward for a chordal seventh resolving down by step.",
-    'weight:leading_tone_resolution_bonus': "Reward for the leading tone resolving up to the tonic.",
-    'weight:double_leading_tone_penalty': "Extra cost when two voices double the leading tone.",
-    'weight:range_comfort_penalty': ("Cost per semitone a voice sits in the outer 2 semitones of its "
-                                     "range; keeps voices off their extremes."),
-    'weight:unison_penalty': ("Cost per pair of neighbouring voices on the same pitch (only when "
-                              "unisons are allowed)."),
-    'weight:upper_spacing_penalty': ("Cost per semitone an upper-voice gap exceeds an octave; a soft "
-                                     "preference for closer spacing above the bass."),
+    'weight:movement': ("How the picker treats an inner or upper voice moving between chords "
+                        "(a single number, or one per voice). More negative discourages "
+                        "movement; positive would encourage it."),
+    'weight:bass_movement': ("How the picker treats the bottom voice moving between chords, "
+                             "normally set less negative than the inner-voice movement weight."),
+    'weight:leap_penalty': ("How the picker treats a voice jumping more than a fifth between "
+                            "chords. More negative avoids large leaps."),
+    'weight:octave_leap_penalty': ("How the picker treats a voice jumping a full octave or more. "
+                                   "More negative avoids octave leaps."),
+    'weight:tritone_leap_penalty': ("How the picker treats a voice leaping exactly a tritone (six "
+                                    "semitones). More negative avoids tritone leaps."),
+    'weight:common_tone_bonus': ("How the picker treats a voice holding the pitch class it just "
+                                 "sang. More positive rewards holding common tones."),
+    'weight:parallel_perfect_penalty': ("How the picker treats a pair of voices moving in "
+                                        "parallel fifths or octaves. More negative avoids them; "
+                                        "set strongly negative by default."),
+    'weight:contrary_motion_bonus': ("How the picker treats the outer two voices moving in "
+                                     "opposite directions. More positive encourages it."),
+    'weight:seventh_resolution_bonus': ("How the picker treats a chordal seventh resolving down "
+                                        "by step. More positive encourages that resolution."),
+    'weight:leading_tone_resolution_bonus': ("How the picker treats the leading tone resolving up "
+                                             "to the tonic. More positive encourages it."),
+    'weight:double_leading_tone_penalty': ("How the picker treats two voices doubling the leading "
+                                           "tone. More negative avoids doubling it."),
+    'weight:range_comfort_penalty': ("How the picker treats a voice sitting in the outer 2 "
+                                     "semitones of its range. More negative keeps voices off "
+                                     "their extremes."),
+    'weight:unison_penalty': ("How the picker treats a pair of neighbouring voices on the same "
+                              "pitch, when unisons are allowed. More negative avoids unisons."),
+    'weight:upper_spacing_penalty': ("How the picker treats an upper-voice gap exceeding an "
+                                     "octave. More negative favors closer spacing above the "
+                                     "bass."),
 }
 
 
@@ -196,14 +215,15 @@ def _nested_tooltip(group: str, role: str) -> str:
     """Build a per-role tooltip for a nested-weight spinbox."""
     role_label = ROLE_LABELS.get(role, role).lower()
     if group == 'doubling':
-        return (f"Bonus or penalty for doubling the {role_label} when there are more "
-                f"voices than chord tones. Positive favors it.")
+        return (f"How much to favor doubling the {role_label} when there are more voices "
+                f"than chord tones. Positive encourages it, negative avoids it.")
     if group == 'omit':
-        return (f"Penalty for dropping the {role_label} when there are fewer voices than "
-                f"chord tones. Higher protects it from being omitted.")
+        return (f"How reluctant the picker is to drop the {role_label} when there are fewer "
+                f"voices than chord tones. More negative keeps it; nearer zero allows "
+                f"dropping it.")
     if group == 'inversion':
-        return (f"Preference for the {role_label} inversion (which chord tone sits in the "
-                f"bass); negative numbers favor that inversion.")
+        return (f"How much to favor putting the {role_label} in the bass. Higher is more "
+                f"preferred; 0 is neutral.")
     return f"{group} {role_label}"
 
 
@@ -952,7 +972,7 @@ class VoicingsPage(ttk.Frame):
             weight_vars[key] = var
             weight_entries.append((
                 f'weight:{key}', FRETBOARD_WEIGHT_LABELS.get(key, key), var,
-                0.0, 100.0, 0.1, TOOLTIPS.get(f'weight:{key}', key),
+                -100.0, 100.0, 0.1, TOOLTIPS.get(f'weight:{key}', key),
             ))
         self._build_weight_grid(grid_frame, weight_entries)
 

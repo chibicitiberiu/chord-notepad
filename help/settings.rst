@@ -97,10 +97,11 @@ obvious, point at it before consulting :doc:`fretted` or :doc:`ensembles`.
    and a remove button on each row -- plus spacing, unisons, and all the
    weights, including the doubling, omission, and inversion groups (see
    :doc:`ensembles`). Piano voicings have no parameters yet. Each Weights
-   section opens with a one-line reminder of how weights work: higher
-   penalties push the picker away from a trait, higher bonuses pull it
-   toward one, and the defaults suit most music, so leave them alone
-   unless you have a specific reason not to.
+   section opens with a one-line reminder of how weights work: every weight
+   is a signed number added to the voicing's score, positive values make a
+   trait more likely and negative ones less likely, higher is always more
+   preferred, and the defaults suit most music, so leave them alone unless
+   you have a specific reason not to.
 
 Mistakes are flagged as you type, not just when you click Save: an
 invalid field turns red immediately, and a problem that spans two fields

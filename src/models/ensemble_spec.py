@@ -148,18 +148,24 @@ def _resolve_pitch(value: Union[int, str], *, context: str) -> int:
 #: - ``unison_penalty``: cost per pair of adjacent voices sounding a unison.
 #: - ``upper_spacing_penalty``: cost per semitone an upper-voice adjacent gap
 #:   exceeds a perfect octave (12 semitones).
+#: Every value is a **signed contribution** added directly to a voicing's
+#: score: positive weights reward (more = more preferred), negative weights
+#: penalize (more negative = less preferred), and higher score always wins.
+#: The ``doubling`` and ``inversion`` sub-mappings were already signed this
+#: way; the flat penalties and every ``omit`` sub-key are stored negative to
+#: match, so the engine can add every weight uniformly.
 DEFAULT_WEIGHTS: Dict[str, Any] = {
-    'movement': 0.4,
-    'bass_movement': 0.15,
-    'leap_penalty': 2.0,
-    'octave_leap_penalty': 6.0,
-    'tritone_leap_penalty': 3.0,
+    'movement': -0.4,
+    'bass_movement': -0.15,
+    'leap_penalty': -2.0,
+    'octave_leap_penalty': -6.0,
+    'tritone_leap_penalty': -3.0,
     'common_tone_bonus': 1.5,
-    'parallel_perfect_penalty': 25.0,
+    'parallel_perfect_penalty': -25.0,
     'contrary_motion_bonus': 0.8,
     'seventh_resolution_bonus': 1.5,
     'leading_tone_resolution_bonus': 1.5,
-    'double_leading_tone_penalty': 8.0,
+    'double_leading_tone_penalty': -8.0,
     'doubling': {
         'root': 2.0,
         'fifth': 0.5,
@@ -169,12 +175,12 @@ DEFAULT_WEIGHTS: Dict[str, Any] = {
         'extension': -6.0,
     },
     'omit': {
-        'root': 4.0,
-        'third': 40.0,
-        'fifth': 8.0,
-        'seventh': 40.0,
-        'color': 30.0,
-        'extension': 7.0,
+        'root': -4.0,
+        'third': -40.0,
+        'fifth': -8.0,
+        'seventh': -40.0,
+        'color': -30.0,
+        'extension': -7.0,
     },
     'inversion': {
         'root': 0.0,
@@ -182,9 +188,9 @@ DEFAULT_WEIGHTS: Dict[str, Any] = {
         'second': -5.0,
         'third': -3.0,
     },
-    'range_comfort_penalty': 0.5,
-    'unison_penalty': 0.5,
-    'upper_spacing_penalty': 0.15,
+    'range_comfort_penalty': -0.5,
+    'unison_penalty': -0.5,
+    'upper_spacing_penalty': -0.15,
 }
 
 #: Weight keys whose value is itself a per-role mapping rather than a scalar.

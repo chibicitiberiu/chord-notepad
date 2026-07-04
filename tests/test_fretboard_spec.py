@@ -232,11 +232,31 @@ class TestWeightMerging:
                 "weights": {"span_penalty": True},
             })
 
-    def test_all_weight_keys_are_positive_by_default(self):
-        # Documented behaviour: weights hold magnitudes, not signed scores;
-        # the picker applies the sign itself.
-        for value in DEFAULT_WEIGHTS.values():
-            assert value > 0
+    def test_default_weight_signs(self):
+        # Signed convention: every weight is added directly to the score.
+        # Bonuses are positive; penalties are stored negative.
+        assert DEFAULT_WEIGHTS["sounding_string_bonus"] == 1.2
+        assert DEFAULT_WEIGHTS["open_string_bonus"] == 0.5
+        assert DEFAULT_WEIGHTS["bass_note_bonus"] == 8.0
+        assert DEFAULT_WEIGHTS["slash_bass_bonus"] == 12.0
+        assert DEFAULT_WEIGHTS["kept_finger_bonus"] == 0.4
+        assert DEFAULT_WEIGHTS["span_penalty"] == -1.2
+        assert DEFAULT_WEIGHTS["position_penalty"] == -0.6
+        assert DEFAULT_WEIGHTS["fretted_finger_penalty"] == -0.5
+        assert DEFAULT_WEIGHTS["barre_penalty"] == -1.0
+        assert DEFAULT_WEIGHTS["interior_mute_penalty"] == -2.0
+        assert DEFAULT_WEIGHTS["movement_penalty"] == -1.0
+
+    def test_penalty_keys_negative_bonus_keys_positive(self):
+        penalties = {
+            "span_penalty", "position_penalty", "fretted_finger_penalty",
+            "barre_penalty", "interior_mute_penalty", "movement_penalty",
+        }
+        for key, value in DEFAULT_WEIGHTS.items():
+            if key in penalties:
+                assert value < 0, f"{key} should be a negative penalty"
+            else:
+                assert value > 0, f"{key} should be a positive bonus"
 
 
 # ---------------------------------------------------------------------------

@@ -69,10 +69,10 @@ sounding the lowest actual pitch in a fingering is treated as the bass,
 regardless of which string that happens to be.
 
 Because of that re-entrancy, the Ukulele preset also ships with two weights
-adjusted from the guitar defaults: the *Bass-note bonus* is lowered to 1.0
-(within the uke's single octave there is rarely a true low root to chase,
-and insisting on one drags shapes up the neck) and the *Sounding-string
-bonus* is raised to 2.5 (with only four strings, every one that rings
+adjusted from the guitar defaults: the *Correct bass note* weight is
+lowered to +1.0 (within the uke's single octave there is rarely a true low
+root to chase, and insisting on one drags shapes up the neck) and the
+*Sounding string* weight is raised to +2.5 (with only four strings, every one that rings
 counts). With these values the picker lands on the familiar chord-book
 shapes: C as 0003, G as 0232, G7 as 0212, F as 2010.
 
@@ -210,11 +210,14 @@ Physical Parameters
      - ``allow_barres``
      - true
 
-Weights make the picker prefer or avoid something when it scores a
-candidate fingering. Every weight is a plain magnitude -- the engine
-already knows whether it's a bonus (raise the number, the picker prefers
-that trait more) or a penalty (raise the number, the picker avoids that
-trait harder); the direction is fixed per row below.
+Weights steer the picker when it scores a candidate fingering. Every
+weight is a signed number added to the voicing's score. Positive values
+make that trait more likely, negative values less likely, and higher is
+always more preferred. A trait you want the picker to chase gets a
+positive weight; one you want it to steer clear of gets a negative one;
+zero leaves it neutral. The sign already carries the meaning, so raising
+``span_penalty`` from ``-1.2`` toward ``0`` tolerates wider stretches,
+while pushing it more negative clamps down on them.
 
 .. list-table::
    :header-rows: 1
@@ -224,64 +227,65 @@ trait harder); the direction is fixed per row below.
      - What it does
      - Config key
      - Default
-   * - Sounding-string bonus
-     - Reward per string that actually sounds (isn't muted). Higher favors
-       fuller-sounding fingerings.
+   * - Sounding string
+     - Added per string that actually sounds (isn't muted). More positive
+       favors fuller-sounding fingerings.
      - ``sounding_string_bonus``
-     - 1.2
-   * - Open-string bonus
-     - Extra reward per string played open (fret 0), on top of the
-       sounding-string bonus. Open strings ring fuller and cost nothing to
-       hold.
+     - +1.2
+   * - Open string
+     - Added per string played open (fret 0), on top of the sounding-string
+       weight. Open strings ring fuller and cost nothing to hold, so this
+       stays positive.
      - ``open_string_bonus``
-     - 0.5
-   * - Bass-note bonus
-     - Reward for the chord's root landing on the lowest sounding string.
+     - +0.5
+   * - Correct bass note
+     - Added when the chord's root lands on the lowest sounding string.
      - ``bass_note_bonus``
-     - 8.0
-   * - Slash-bass bonus
+     - +8.0
+   * - Correct slash bass
      - The same, but for a slash chord's named bass note (the G in
-       ``C/G``). Set higher than "Bass-note bonus" since a slash bass is a
-       deliberate instruction, not just a preference.
+       ``C/G``). Set more positive than "Correct bass note" since a slash
+       bass is a deliberate instruction, not just a preference.
      - ``slash_bass_bonus``
-     - 12.0
-   * - Stretch penalty
-     - Cost per fret of span between the lowest and highest fretted note.
-       Higher favors more compact shapes even within the allowed stretch.
+     - +12.0
+   * - Wide stretch
+     - Subtracted per fret of span between the lowest and highest fretted
+       note. More negative favors compact shapes even within the allowed
+       stretch.
      - ``span_penalty``
-     - 1.2
-   * - Neck-position penalty
-     - Cost per fret of the fingering's average position up the neck.
-       Higher keeps fingerings closer to the nut.
+     - -1.2
+   * - High neck position
+     - Subtracted per fret of the fingering's average position up the neck.
+       More negative keeps fingerings closer to the nut.
      - ``position_penalty``
-     - 0.6
-   * - Finger-use penalty
-     - Cost per fretted finger the fingering requires. Higher favors
-       fingerings that leave more strings open or muted.
+     - -0.6
+   * - Fretted finger
+     - Subtracted per fretted finger the fingering requires. More negative
+       favors fingerings that leave more strings open or muted.
      - ``fretted_finger_penalty``
-     - 0.5
-   * - Barre penalty
-     - Extra cost when a fingering requires a barre, on top of the
-       finger-use penalty. Barres are harder to hold cleanly than
+     - -0.5
+   * - Barre
+     - Subtracted when a fingering requires a barre, on top of the
+       fretted-finger weight. Barres are harder to hold cleanly than
        individually fretted fingers.
      - ``barre_penalty``
-     - 1.0
-   * - Interior-mute penalty
-     - Cost per muted string sitting between two sounding strings -- a
+     - -1.0
+   * - Muted inner string
+     - Subtracted per muted string sitting between two sounding strings -- a
        "buried" mute that a strum can't skip cleanly.
      - ``interior_mute_penalty``
-     - 2.0
-   * - Hand-movement penalty
-     - Cost per fret the hand's average position shifts from the previous
-       chord's fingering, evaluated across the whole song. Higher keeps
-       the hand from jumping up and down the neck.
+     - -2.0
+   * - Hand movement
+     - Subtracted per fret the hand's average position shifts from the
+       previous chord's fingering, evaluated across the whole song. More
+       negative keeps the hand from jumping up and down the neck.
      - ``movement_penalty``
-     - 1.0
-   * - Held-finger bonus
-     - Reward per finger that can stay on the same string and fret from
-       one chord to the next.
+     - -1.0
+   * - Kept finger
+     - Added per finger that can stay on the same string and fret from one
+       chord to the next.
      - ``kept_finger_bonus``
-     - 0.4
+     - +0.4
 
 .. note::
    These weights apply per voicing. A custom fretted voicing that omits

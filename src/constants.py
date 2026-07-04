@@ -9,7 +9,7 @@ CONFIG_FILENAME = "settings.json"
 LOG_FILENAME = "chord-notepad.log"
 
 # Configuration versioning
-CONFIG_VERSION = 1  # Increment when config structure changes
+CONFIG_VERSION = 2  # Increment when config structure changes
 
 # Limits
 MAX_RECENT_FILES = 10

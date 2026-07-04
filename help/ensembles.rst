@@ -210,9 +210,9 @@ one ensemble:
          "max_spacing": [12, 19],
          "allow_unisons": false,
          "weights": {
-           "movement": 0.6,
+           "movement": -0.6,
            "common_tone_bonus": 2.5,
-           "parallel_perfect_penalty": 15.0
+           "parallel_perfect_penalty": -15.0
          }
        }
      }
@@ -255,9 +255,11 @@ Every ensemble, built-in or custom, is steered by the same set of
 numeric parameters. These are the controls the Voicings page of
 :menuselection:`Options --> Settings...` exposes, one control per row --
 see :doc:`settings` for the page itself; they can also be set directly in
-the ``weights`` object for an ensemble in ``settings.json``. Costs make
-the engine avoid something (raise the number, it avoids it harder);
-bonuses make it prefer something (raise the number, it prefers it more).
+the ``weights`` object for an ensemble in ``settings.json``. Every weight
+is a signed number added to the voicing's score. Positive values make that
+trait more likely, negative values less likely, and higher is always more
+preferred. A trait you want the engine to seek gets a positive weight; one
+you want it to avoid gets a negative one; zero is neutral.
 
 .. list-table::
    :header-rows: 1
@@ -267,104 +269,104 @@ bonuses make it prefer something (raise the number, it prefers it more).
      - What it does
      - Config key
      - Default
-   * - Voice movement cost
-     - How much an inner or upper voice is penalized per semitone it moves
-       from one chord to the next. Higher makes those voices sit stiller;
-       lower lets them roam more freely.
+   * - Voice movement
+     - Added per semitone an inner or upper voice moves from one chord to
+       the next. It's negative, so a more negative value makes those voices
+       sit stiller; nearer zero lets them roam more freely.
      - ``movement``
-     - 0.4
-   * - Bass movement cost
+     - -0.4
+   * - Bass movement
      - The same, but for the bottom voice specifically. Basses conventionally
-       leap more than inner voices, so this is normally set lower than
-       "Voice movement cost".
+       leap more than inner voices, so this sits nearer zero than
+       "Voice movement".
      - ``bass_movement``
-     - 0.15
-   * - Large leap penalty
-     - Extra cost when a single voice jumps more than a fifth between
-       chords, on top of the per-semitone movement cost.
+     - -0.15
+   * - Large leap
+     - Subtracted when a single voice jumps more than a fifth between
+       chords, on top of the per-semitone movement weight.
      - ``leap_penalty``
-     - 2.0
-   * - Octave leap penalty
-     - Extra cost when a voice jumps a full octave or more.
+     - -2.0
+   * - Octave leap
+     - Subtracted when a voice jumps a full octave or more.
      - ``octave_leap_penalty``
-     - 6.0
-   * - Tritone leap penalty
-     - Extra cost when a voice leaps exactly a tritone (six semitones), an
+     - -6.0
+   * - Tritone leap
+     - Subtracted when a voice leaps exactly a tritone (six semitones), an
        interval singers and string players find hard to place accurately.
      - ``tritone_leap_penalty``
-     - 3.0
-   * - Common-tone bonus
-     - Reward for a voice holding the same pitch class it just sang.
-       Higher keeps more notes "tied over" between chords.
+     - -3.0
+   * - Common tone held
+     - Added when a voice holds the same pitch class it just sang. More
+       positive keeps more notes "tied over" between chords.
      - ``common_tone_bonus``
-     - 1.5
-   * - Parallel fifths/octaves penalty
-     - Cost charged per pair of voices that move in parallel perfect fifths
-       or octaves -- the classic part-writing fault. Set very high by
-       default because it's rarely wanted.
+     - +1.5
+   * - Parallel fifths/octaves
+     - Subtracted per pair of voices that move in parallel perfect fifths
+       or octaves -- the classic part-writing fault. Set strongly negative
+       by default because it's rarely wanted.
      - ``parallel_perfect_penalty``
-     - 25.0
-   * - Contrary motion bonus
-     - Reward for the outer two voices (typically soprano and bass) moving
+     - -25.0
+   * - Contrary motion
+     - Added when the outer two voices (typically soprano and bass) move
        in opposite directions.
      - ``contrary_motion_bonus``
-     - 0.8
-   * - Seventh resolution bonus
-     - Reward for a chordal seventh resolving downward by step into the
+     - +0.8
+   * - Seventh resolves down
+     - Added when a chordal seventh resolves downward by step into the
        next chord, the way a seventh conventionally wants to fall.
      - ``seventh_resolution_bonus``
-     - 1.5
-   * - Leading-tone resolution bonus
-     - Reward for the leading tone (the raised 7th degree of the current
-       key) resolving upward by step into the tonic.
+     - +1.5
+   * - Leading tone resolves
+     - Added when the leading tone (the raised 7th degree of the current
+       key) resolves upward by step into the tonic.
      - ``leading_tone_resolution_bonus``
-     - 1.5
-   * - Doubled leading-tone penalty
-     - Extra cost if two voices end up doubling the leading tone, which
+     - +1.5
+   * - Doubled leading tone
+     - Subtracted if two voices end up doubling the leading tone, which
        traditionally produces awkward parallel octaves at the resolution.
      - ``double_leading_tone_penalty``
-     - 8.0
-   * - Doubling preferences (by tone role)
-     - Bonus or penalty for which chord tone gets doubled when there are
+     - -8.0
+   * - Doubling (by tone role)
+     - Added to the score for which chord tone gets doubled when there are
        more voices than notes in the chord. Positive favors doubling that
-       tone; negative discourages it. Keys: ``root`` (2.0), ``fifth``
-       (0.5), ``third`` (-2.0), ``seventh`` (-6.0), ``color`` (-6.0),
+       tone, negative avoids it. Keys: ``root`` (+2.0), ``fifth``
+       (+0.5), ``third`` (-2.0), ``seventh`` (-6.0), ``color`` (-6.0),
        ``extension`` (-6.0).
      - ``doubling.root`` / ``.fifth`` / ``.third`` / ``.seventh`` /
        ``.color`` / ``.extension``
      - see left
-   * - Omission costs (by tone role)
-     - Penalty for dropping a chord tone entirely when there are fewer
-       voices than notes. Higher values protect that tone from being
-       omitted. Keys: ``root`` (4.0), ``third`` (40.0), ``fifth`` (8.0),
-       ``seventh`` (40.0), ``color`` (30.0), ``extension`` (7.0).
+   * - Omission (by tone role)
+     - Added to the score for dropping a chord tone entirely when there are
+       fewer voices than notes. The values are negative, so a more negative
+       one keeps that tone more insistently. Keys: ``root`` (-4.0),
+       ``third`` (-40.0), ``fifth`` (-8.0), ``seventh`` (-40.0), ``color``
+       (-30.0), ``extension`` (-7.0).
      - ``omit.root`` / ``.third`` / ``.fifth`` / ``.seventh`` /
        ``.color`` / ``.extension``
      - see left
-   * - Inversion preferences
-     - Bonus or penalty applied to the bass note's chosen inversion. Keys:
+   * - Inversion (by bass tone)
+     - Added to the score for the bass note's chosen inversion. Keys:
        ``root`` (0.0), ``first`` (-1.5), ``second`` (-5.0), ``third``
-       (-3.0); negative numbers favor that inversion, since they lower the
-       overall cost.
+       (-3.0); nearer zero favors that inversion, more negative avoids it.
      - ``inversion.root`` / ``.first`` / ``.second`` / ``.third``
      - see left
-   * - Range comfort margin
-     - Cost per semitone a voice sits within the outermost 2 semitones of
-       its configured range. Higher keeps voices away from the very top
-       or bottom of what they can sing.
+   * - Out-of-comfort range
+     - Subtracted per semitone a voice sits within the outermost 2 semitones
+       of its configured range. More negative keeps voices away from the
+       very top or bottom of what they can sing.
      - ``range_comfort_penalty``
-     - 0.5
-   * - Unison penalty
-     - Cost per pair of neighbouring voices landing on the same pitch.
+     - -0.5
+   * - Unison between voices
+     - Subtracted per pair of neighbouring voices landing on the same pitch.
        Only relevant when ``allow_unisons`` is ``true``.
      - ``unison_penalty``
-     - 0.5
-   * - Upper-voice spacing
-     - Cost per semitone that a gap between two upper voices exceeds an
-       octave. Separate from ``max_spacing``, which is a hard limit; this
-       is a soft preference for closer spacing above the bass.
+     - -0.5
+   * - Wide upper spacing
+     - Subtracted per semitone that a gap between two upper voices exceeds
+       an octave. Separate from ``max_spacing``, which is a hard limit; this
+       is a soft nudge toward closer spacing above the bass.
      - ``upper_spacing_penalty``
-     - 0.15
+     - -0.15
 
 .. note::
    These weights apply per ensemble. A custom ensemble that omits

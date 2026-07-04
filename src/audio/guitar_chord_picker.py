@@ -25,9 +25,9 @@ treats voicing as a pure optimization problem:
 4. **Score** every survivor with a single weighted heuristic that rewards full,
    low, open voicings with the correct bass and penalizes stretches, barres,
    unstrummable interior mutes, and (mid-progression) movement of the fretting
-   hand away from the previous shape. The reward/penalty magnitudes are the
-   spec's weights (:data:`DEFAULT_WEIGHTS`); penalties get their sign applied at
-   the use site so a weights UI can present every one as a positive magnitude.
+   hand away from the previous shape. The reward/penalty values are the spec's
+   weights (:data:`DEFAULT_WEIGHTS`), each a signed contribution the scorer adds
+   directly: rewards are positive, penalties negative, higher score wins.
 5. Return the highest-scoring fingering.
 
 Enumeration is cached per chord (it depends only on the pitch classes involved);
@@ -128,10 +128,10 @@ class GuitarChordPicker(INotePicker):
         self._fingers = spec.fingers
         self._allow_barres = spec.allow_barres
 
-        # Scoring weights, resolved once from the spec. Every value is a positive
-        # magnitude (see DEFAULT_WEIGHTS); penalties get their negative sign
-        # applied at the use site so the produced scores stay numerically
-        # identical to the old signed SCORE_* constants under default weights.
+        # Scoring weights, resolved once from the spec. Every value is a signed
+        # contribution (see DEFAULT_WEIGHTS): rewards are positive, penalties
+        # negative, and the scorer adds each one directly. Under default
+        # weights this reproduces the old signed SCORE_* constants exactly.
         self._w_sounding = spec.weight('sounding_string_bonus')
         self._w_open = spec.weight('open_string_bonus')
         self._w_bass = spec.weight('bass_note_bonus')
@@ -535,18 +535,18 @@ class GuitarChordPicker(INotePicker):
             fret_vals = [fingering[s] for s in fretted]
             span = max(fret_vals) - min(fret_vals)
             avg_fret = sum(fret_vals) / len(fret_vals)
-            score += -self._w_span * span
-            score += -self._w_position * avg_fret
-            score += -self._w_fretted * len(fretted)
+            score += self._w_span * span
+            score += self._w_position * avg_fret
+            score += self._w_fretted * len(fretted)
             if len(fretted) > self._fingers:
-                score += -self._w_barre
+                score += self._w_barre
 
         # Interior mutes: muted strings between the first and last sounding
         # string cannot be avoided while strumming. String-order based, which is
         # correct: a strummer sweeps strings in order regardless of their pitch.
         first, last = sounding[0], sounding[-1]
         interior_mutes = sum(1 for s in range(first + 1, last) if fingering[s] == -1)
-        score += -self._w_interior_mute * interior_mutes
+        score += self._w_interior_mute * interior_mutes
 
         return score
 
@@ -563,7 +563,7 @@ class GuitarChordPicker(INotePicker):
             return 0.0
 
         movement = abs(self._get_position(fingering) - self._get_position(prev_fingering))
-        score = -self._w_movement * movement
+        score = self._w_movement * movement
         kept = sum(1 for s in range(self._num_strings)
                    if fingering[s] == prev_fingering[s] and fingering[s] > 0)
         score += self._w_kept * kept

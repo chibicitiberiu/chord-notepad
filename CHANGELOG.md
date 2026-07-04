@@ -71,6 +71,18 @@ moved to CHANGELOG_HISTORY.md and this file is reset.
 
 ### Changed
 
+- Voicing weights now use one consistent convention. Every weight is a
+  signed number added to a voicing's score: positive seeks the trait,
+  negative avoids it, zero is neutral, and higher is always more preferred.
+  The old mix of "penalty", "cost", and "bonus" labels with all-positive
+  magnitudes is gone; controls now carry neutral trait names (for example
+  "Wide stretch" at `-1.2`, "Correct bass note" at `+8.0`) whose sign tells
+  you the direction. Existing config files are upgraded automatically the
+  first time Chord Notepad starts after the change, with old positive
+  penalty magnitudes negated on load, so custom voicings keep behaving the
+  same. Config keys are unchanged (`span_penalty` and the rest); only their
+  sign and display labels changed.
+
 - The **Options...** menu item is now **Settings...**, reflecting what it
   actually opens.
 
@@ -102,4 +114,4 @@ moved to CHANGELOG_HISTORY.md and this file is reset.
   replaces every parameter of the voicing you're editing. The ensemble
   voices editor is a proper table (Name / Low / High columns, Add voice,
   per-row remove), the parameter forms use a tidier multi-column layout, and
-  each Weights section explains what raising a penalty or bonus does.
+  each Weights section explains the signed-weight rule up front.
