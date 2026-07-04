@@ -190,6 +190,32 @@ class TestUkulele:
             cands = picker._build_candidate_ladder(chord.notes, chord.bass_note)
             assert cands, f"{name} hit the empty-ladder fallback"
 
+    def test_builtin_preset_picks_chord_book_shapes(self):
+        """The ukulele preset's weight overrides make the picker choose the
+        standard first-position chord-book shapes. Guards the preset's
+        bass_note_bonus/sounding_string_bonus tuning: with plain guitar
+        weights the optimizer chases a root bass up the neck (G at 0775,
+        F at 5550) because on a re-entrant instrument no true low root
+        exists in first position.
+        """
+        expected = [
+            ('C', [0, 0, 0, 3]),
+            ('Am', [2, 0, 0, 0]),
+            ('F', [2, 0, 1, 0]),
+            ('G', [0, 2, 3, 2]),
+            ('G7', [0, 2, 1, 2]),
+        ]
+        chords = dict(self.CHORDS)
+        chords['G'] = _triad('G', ['G', 'B', 'D'])
+        # Voiced in sequence, as in a song: the transition term keeps the hand
+        # in first position (a fresh F with no context legitimately prefers
+        # the root-bass 5550).
+        picker = GuitarChordPicker('ukulele')
+        for name, shape in expected:
+            picker.chord_to_midi(chords[name])
+            got = picker.state.previous_fingering
+            assert got == shape, f"{name}: expected {shape}, got {got}"
+
 
 # ---------------------------------------------------------------------------
 # Alternate string counts: 7-string and synthetic 3-string

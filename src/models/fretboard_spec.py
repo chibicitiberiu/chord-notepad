@@ -300,18 +300,23 @@ class FretboardSpec:
         return self.weights[key]
 
 
-def _builtin(name: str, label: str, tuning: List[Union[int, str]]) -> FretboardSpec:
+def _builtin(name: str, label: str, tuning: List[Union[int, str]],
+             weights: Optional[Dict[str, float]] = None) -> FretboardSpec:
     """Build one built-in :class:`FretboardSpec` with all other fields at default."""
-    return FretboardSpec.from_dict(name, {'label': label, 'tuning': tuning})
+    data: Dict[str, Any] = {'label': label, 'tuning': tuning}
+    if weights:
+        data['weights'] = weights
+    return FretboardSpec.from_dict(name, data)
 
 
 #: Built-in fretboard presets, keyed by the existing ``guitar:<key>`` voicing-string
 #: slug used throughout the codebase (see ``src/ui/main_window.py``'s Voicing menu
 #: and ``GuitarChordPicker.TUNINGS``, which this data supersedes). All use the
-#: engine's default weights and physical limits (:data:`DEFAULT_WEIGHTS`,
-#: ``max_fret=12``, ``fingers=4``, ``max_span=4``, ``relaxed_span=5``,
-#: ``allow_barres=True``); a future Voices UI will let the user override these
-#: per-fretboard on top of these.
+#: engine's default physical limits (``max_fret=12``, ``fingers=4``,
+#: ``max_span=4``, ``relaxed_span=5``, ``allow_barres=True``). The guitars use
+#: :data:`DEFAULT_WEIGHTS` unchanged; the ukulele overrides two weights (see
+#: its comment below). A future Voices UI will let the user override any of
+#: these per-voicing.
 BUILTIN_FRETBOARDS: Dict[str, FretboardSpec] = {
     'standard': _builtin('standard', 'Guitar (Standard - EADGBE)', [40, 45, 50, 55, 59, 64]),
     'drop_d': _builtin('drop_d', 'Guitar (Drop D)', [38, 45, 50, 55, 59, 64]),
@@ -319,6 +324,12 @@ BUILTIN_FRETBOARDS: Dict[str, FretboardSpec] = {
     'open_g': _builtin('open_g', 'Guitar (Open G)', [38, 43, 50, 55, 59, 62]),
     # Re-entrant: G4 (67) sounds higher than the C4 (60) next to it. This is
     # the standard ukulele "my dog has fleas" tuning and is intentionally not
-    # sorted into pitch order.
-    'ukulele': _builtin('ukulele', 'Ukulele', ['G4', 'C4', 'E4', 'A4']),
+    # sorted into pitch order. The weight overrides account for re-entrancy:
+    # everything sounds within one octave, so chasing a root bass (a guitar
+    # instinct) drags shapes up the neck for no audible gain, while every one
+    # of the four strings ringing matters much more than on a six-string.
+    # With these values the picker chooses the standard chord-book shapes
+    # (C=0003, G=0232, G7=0212, F=2010, Bb=3211).
+    'ukulele': _builtin('ukulele', 'Ukulele', ['G4', 'C4', 'E4', 'A4'],
+                        weights={'bass_note_bonus': 1.0, 'sounding_string_bonus': 2.5}),
 }

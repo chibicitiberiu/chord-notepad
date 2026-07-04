@@ -68,6 +68,14 @@ order given, never resorted by pitch, and whichever string ends up
 sounding the lowest actual pitch in a fingering is treated as the bass,
 regardless of which string that happens to be.
 
+Because of that re-entrancy, the Ukulele preset also ships with two weights
+adjusted from the guitar defaults: the *Bass-note bonus* is lowered to 1.0
+(within the uke's single octave there is rarely a true low root to chase,
+and insisting on one drags shapes up the neck) and the *Sounding-string
+bonus* is raised to 2.5 (with only four strings, every one that rings
+counts). With these values the picker lands on the familiar chord-book
+shapes: C as 0003, G as 0232, G7 as 0212, F as 2010.
+
 
 Defining a Custom Fretted Voicing
 ======================================

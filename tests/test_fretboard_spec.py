@@ -316,7 +316,13 @@ class TestBuiltinFretboards:
         assert spec.max_span == 4
         assert spec.relaxed_span == 5
         assert spec.allow_barres is True
-        assert spec.weights == DEFAULT_WEIGHTS
+        if key == "ukulele":
+            # Re-entrant instrument: two weights deliberately differ (see the
+            # preset's comment in fretboard_spec.py); all others stay default.
+            overridden = {"bass_note_bonus": 1.0, "sounding_string_bonus": 2.5}
+            assert spec.weights == {**DEFAULT_WEIGHTS, **overridden}
+        else:
+            assert spec.weights == DEFAULT_WEIGHTS
 
     def test_standard_tuning_and_label(self):
         spec = BUILTIN_FRETBOARDS["standard"]
@@ -344,6 +350,10 @@ class TestBuiltinFretboards:
         # Re-entrant: G4 is higher in pitch than C4 immediately after it.
         assert spec.tuning == (67, 60, 64, 69)
         assert spec.tuning[0] > spec.tuning[1]
+        # Uke-specific weight overrides (root bass barely exists within one
+        # octave; all four strings ringing matters more than on a guitar).
+        assert spec.weight("bass_note_bonus") == 1.0
+        assert spec.weight("sounding_string_bonus") == 2.5
 
     def test_builtin_tunings_match_note_names(self):
         spec = BUILTIN_FRETBOARDS["standard"]
