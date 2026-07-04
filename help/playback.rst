@@ -136,12 +136,21 @@ slash-bass note, if any). Every candidate then has to clear two bars:
 * **It must be reachable** -- no more than a four-fret stretch, and no more
   fretted fingers than a hand has, unless it can use a barre.
 
-Whatever survives is scored, and the highest score wins. The score rewards
-full, low, open-sounding voicings that put the right note in the bass, and it
-docks points for wide stretches, barres, and silent strings buried in the
-middle of a strum. On the first chord that is the whole story; every chord after
-it also earns points for leaving the fretting hand close to the previous shape.
-Same voice-leading instinct as the piano, different instrument.
+Whatever survives is scored on two things: how good the fingering is on its own
+-- full, low, open-sounding, with the right note in the bass, and no wide
+stretches, barres, or silent strings buried in the middle of a strum -- and how
+smoothly it flows to and from its neighbours, keeping the fretting hand close to
+the surrounding shapes.
+
+Rather than deciding chord by chord, the guitar picker plans the **whole song at
+once**. It looks at every chord's fingering options together and chooses the
+combination that reads best overall, weighing each shape's own quality against
+the smoothness of every transition. That lookahead lets it accept a slightly
+plainer shape for one chord when doing so keeps the next few flowing, instead of
+grabbing the locally prettiest fingering and then lurching up the neck to reach
+whatever comes next. Because the plan is made for the song as a whole, a
+repeated section (say a looped verse) is voiced in the context it actually plays
+in each time through.
 
 When a chord is too dense to hold on six strings, the picker relaxes rather than
 give up: it allows a partial voicing (drop a note or two from the fuller

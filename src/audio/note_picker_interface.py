@@ -41,3 +41,20 @@ class INotePicker(ABC):
     def state(self, value) -> None:
         """Set current state (implementation-specific)"""
         pass
+
+    def voice_sequence(self, sequence: List['ChordNotes']) -> List[List[int]]:
+        """Voice an entire song in order.
+
+        Deterministic: the same sequence always yields the same voicings,
+        regardless of prior picker state. The default implementation resets and
+        voices greedily chord-by-chord; pickers that can do better (e.g. by
+        optimizing the whole sequence with lookahead) should override this.
+
+        Args:
+            sequence: The chords to voice, in playback order.
+
+        Returns:
+            One MIDI-note list per chord, positionally aligned with ``sequence``.
+        """
+        self.reset()
+        return [self.chord_to_midi(cn) for cn in sequence]

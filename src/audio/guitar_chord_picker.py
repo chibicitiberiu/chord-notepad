@@ -25,6 +25,7 @@ from dataclasses import dataclass, asdict
 from copy import deepcopy
 import logging
 from audio.note_picker_interface import INotePicker
+from audio.voicing_optimizer import optimize_sequence
 from chord.midi_converter import parse_note_to_semitone
 
 if TYPE_CHECKING:
@@ -417,16 +418,35 @@ class GuitarChordPicker(INotePicker):
 
     def _score_fingering(self, fingering: List[int], chord_notes: List[str],
                          bass_note: Optional[str]) -> float:
-        """Score a fingering; higher is better.
+        """Score a fingering against the current transition state; higher is better.
+
+        The greedy (click-to-play / streaming) path: intrinsic quality plus the
+        transition cost relative to ``self._state.previous_fingering``. Kept as
+        the sum of the two split scorers so that both the greedy path and the
+        whole-song optimizer share exactly the same weights.
+        """
+
+        return (self._score_quality(fingering, chord_notes, bass_note)
+                + self._score_transition(self._state.previous_fingering, fingering))
+
+    def _score_quality(self, fingering: List[int], chord_notes: List[str],
+                       bass_note: Optional[str]) -> float:
+        """Intrinsic quality of a fingering in isolation; higher is better.
 
         Rewards full, low, open voicings with the correct bass note and
-        penalizes wide stretches, barres, interior mutes, and (when a previous
-        fingering exists) hand movement away from the previous shape.
+        penalizes wide stretches, barres, and interior mutes. Carries no
+        transition (previous-shape) term -- that lives in
+        :meth:`_score_transition` so the whole-song optimizer can weigh the two
+        independently.
         """
 
         tuning = self.tuning_midi
 
         sounding = [s for s in range(6) if fingering[s] >= 0]
+        if not sounding:
+            # An all-muted fingering (only reachable via a degenerate fallback)
+            # sounds nothing; rank it below any real voicing.
+            return float('-inf')
         fretted = [s for s in sounding if fingering[s] > 0]
 
         score = self.SCORE_PER_SOUNDING * len(sounding)
@@ -454,21 +474,91 @@ class GuitarChordPicker(INotePicker):
 
         # Interior mutes: muted strings between the first and last sounding
         # string cannot be avoided while strumming.
-        if sounding:
-            first, last = sounding[0], sounding[-1]
-            interior_mutes = sum(1 for s in range(first + 1, last) if fingering[s] == -1)
-            score += self.SCORE_PER_INTERIOR_MUTE * interior_mutes
-
-        # Transition term relative to the previous fingering.
-        previous = self._state.previous_fingering
-        if previous:
-            movement = abs(self._get_position(fingering) - self._get_position(previous))
-            score += self.SCORE_PER_MOVE_FRET * movement
-            kept = sum(1 for s in range(6)
-                       if fingering[s] == previous[s] and fingering[s] > 0)
-            score += self.SCORE_PER_KEPT_FINGER * kept
+        first, last = sounding[0], sounding[-1]
+        interior_mutes = sum(1 for s in range(first + 1, last) if fingering[s] == -1)
+        score += self.SCORE_PER_INTERIOR_MUTE * interior_mutes
 
         return score
+
+    def _score_transition(self, prev_fingering: Optional[List[int]],
+                          fingering: List[int]) -> float:
+        """Transition cost of moving to ``fingering`` from ``prev_fingering``.
+
+        Penalizes fretting-hand movement and rewards fingers left in place. When
+        there is no previous fingering (start of a sequence) the transition cost
+        is zero.
+        """
+
+        if not prev_fingering:
+            return 0.0
+
+        movement = abs(self._get_position(fingering) - self._get_position(prev_fingering))
+        score = self.SCORE_PER_MOVE_FRET * movement
+        kept = sum(1 for s in range(6)
+                   if fingering[s] == prev_fingering[s] and fingering[s] > 0)
+        score += self.SCORE_PER_KEPT_FINGER * kept
+        return score
+
+    def voice_sequence(self, sequence: List['ChordNotes']) -> List[List[int]]:
+        """Voice a whole song at once, optimizing transitions with lookahead.
+
+        Instead of greedily choosing each chord's shape against only the
+        previous one, this gathers every chord's candidate fingerings and runs a
+        beam-pruned Viterbi DP (:func:`optimize_sequence`) that maximizes the sum
+        of intrinsic quality (:meth:`_score_quality`) plus voice-leading
+        transitions (:meth:`_score_transition`) across the entire sequence. A
+        locally weaker shape is accepted when it makes the rest of the song flow
+        more smoothly.
+
+        Deterministic by construction: it resets first and the DP breaks ties by
+        candidate order, so the same sequence always yields the same voicings.
+        """
+
+        self.reset()
+        if not sequence:
+            return []
+
+        # Per position: the candidate fingerings and the (notes, bass) needed to
+        # score them. Empty-candidate chords fall back to a single-candidate set
+        # so the DP always has something to choose and never raises.
+        candidate_sets: List[List[List[int]]] = []
+        chord_data: List[Tuple[List[str], Optional[str]]] = []
+        for chord_notes in sequence:
+            notes = chord_notes.notes
+            bass_note = chord_notes.bass_note
+            chord_data.append((notes, bass_note))
+
+            if not notes:
+                candidate_sets.append([[-1] * 6])
+                continue
+
+            chord_pcs = {self._normalize_note(n) for n in notes}
+            bass_pc = self._normalize_note(bass_note) if bass_note else None
+            cache_key = (tuple(sorted(chord_pcs)), bass_pc)
+
+            candidates = self._fingering_cache.get(cache_key)
+            if candidates is None:
+                candidates = self._build_candidate_ladder(notes, bass_note)
+                self._fingering_cache[cache_key] = candidates
+            if not candidates:
+                logger.warning(f"No fingerings found for {notes}, using fallback")
+                candidates = [self._get_fallback_fingering(notes[0])]
+            candidate_sets.append(candidates)
+
+        def unary(position: int, fingering: List[int]) -> float:
+            notes, bass_note = chord_data[position]
+            if not notes:
+                return 0.0
+            return self._score_quality(fingering, notes, bass_note)
+
+        def transition(prev_fingering: List[int], fingering: List[int]) -> float:
+            return self._score_transition(prev_fingering, fingering)
+
+        chosen = optimize_sequence(
+            candidate_sets, unary, transition, beam_width=20, prune_to=30
+        )
+        return [self._fingering_to_midi(candidate_sets[pos][idx])
+                for pos, idx in enumerate(chosen)]
 
     def _get_position(self, fingering: List[int]) -> float:
         """Get average position"""

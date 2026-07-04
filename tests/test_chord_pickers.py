@@ -11,6 +11,8 @@ from models.chord_notes import ChordNotes
 from audio.chord_picker import ChordNotePicker
 from audio.guitar_chord_picker import GuitarChordPicker
 from chord.helper import ChordHelper
+from services.song_renderer import SongRenderer
+from services.song_parser_service import SongParserService
 
 # Reproducible-seed behavior is provided by the "default" Hypothesis profile in
 # tests/conftest.py (derandomize=True). Per-test @seed decorators are not needed.
@@ -835,3 +837,230 @@ class TestEdgeCases:
 
             for note in expected:
                 assert note in actual or normalize_note(note) in actual
+
+
+# ---------------------------------------------------------------------------
+# Whole-song voicing (voice_sequence): batch optimization with lookahead.
+# ---------------------------------------------------------------------------
+
+def _major(root: str) -> ChordNotes:
+    return ChordHelper().compute_chord_notes(root)
+
+
+def _slash(root: str, bass: str) -> ChordNotes:
+    cn = ChordHelper().compute_chord_notes(root)
+    return ChordNotes(notes=cn.notes, bass_note=bass, root=cn.root)
+
+
+class TestVoiceSequenceDeterminism:
+    """voice_sequence must be deterministic and independent of prior state."""
+
+    PROGRESSION = [
+        ChordNotes(notes=['C', 'E', 'G'], bass_note='C', root='C'),
+        ChordNotes(notes=['G', 'B', 'D'], bass_note='G', root='G'),
+        ChordNotes(notes=['A', 'C', 'E'], bass_note='A', root='A'),
+        ChordNotes(notes=['F', 'A', 'C'], bass_note='F', root='F'),
+        ChordNotes(notes=['D', 'F#', 'A'], bass_note='D', root='D'),
+        ChordNotes(notes=['E', 'G#', 'B'], bass_note='E', root='E'),
+        ChordNotes(notes=['B', 'D', 'F#'], bass_note='B', root='B'),
+        ChordNotes(notes=['Bb', 'D', 'F'], bass_note='Bb', root='Bb'),
+        ChordNotes(notes=['G', 'B', 'D', 'F'], bass_note='G', root='G'),
+        ChordNotes(notes=['C', 'E', 'G'], bass_note='G', root='C'),  # slash
+        ChordNotes(notes=['A', 'C', 'E', 'G'], bass_note='A', root='A'),
+        ChordNotes(notes=['F', 'A', 'C'], bass_note='F', root='F'),
+    ]
+
+    @pytest.mark.parametrize('picker_class', [ChordNotePicker, GuitarChordPicker],
+                             ids=['piano', 'guitar'])
+    def test_repeatable(self, picker_class):
+        """Same sequence -> identical voicings, twice in a row."""
+        picker = picker_class()
+        first = picker.voice_sequence(self.PROGRESSION)
+        second = picker.voice_sequence(self.PROGRESSION)
+        assert first == second
+
+    @pytest.mark.parametrize('picker_class', [ChordNotePicker, GuitarChordPicker],
+                             ids=['piano', 'guitar'])
+    def test_unaffected_by_prior_state(self, picker_class):
+        """Prior chord_to_midi calls must not change the batch result."""
+        clean = picker_class().voice_sequence(self.PROGRESSION)
+
+        dirty = picker_class()
+        # Pollute the picker's transition state with unrelated chords first.
+        for junk in [ChordNotes(notes=['C#', 'F', 'G#'], bass_note='C#', root='C#'),
+                     ChordNotes(notes=['Eb', 'G', 'Bb'], bass_note='Bb', root='Eb')]:
+            dirty.chord_to_midi(junk)
+        polluted = dirty.voice_sequence(self.PROGRESSION)
+
+        assert polluted == clean
+
+
+class TestGuitarVoiceSequence:
+    """Guitar-specific whole-song optimization behavior."""
+
+    @staticmethod
+    def _fingering_for_midi(picker, chord_notes, midi):
+        """Recover the fingering a voice_sequence MIDI list came from."""
+        cands = picker._build_candidate_ladder(chord_notes.notes, chord_notes.bass_note)
+        if not cands:
+            cands = [picker._get_fallback_fingering(chord_notes.notes[0])]
+        for f in cands:
+            if picker._fingering_to_midi(f) == midi:
+                return f
+        raise AssertionError(f"no candidate fingering matches {midi}")
+
+    @classmethod
+    def _total_path_score(cls, picker, sequence, fingerings):
+        """Sum of intrinsic quality plus consecutive transition scores."""
+        total = 0.0
+        prev = None
+        for cn, f in zip(sequence, fingerings):
+            total += picker._score_quality(f, cn.notes, cn.bass_note)
+            total += picker._score_transition(prev, f)
+            prev = f
+        return total
+
+    def _greedy_fingerings(self, sequence):
+        picker = GuitarChordPicker()
+        picker.reset()
+        out = []
+        for cn in sequence:
+            picker.chord_to_midi(cn)
+            out.append(picker.state.previous_fingering)
+        return out
+
+    def _dp_fingerings(self, picker, sequence):
+        midis = picker.voice_sequence(sequence)
+        return [self._fingering_for_midi(picker, cn, m)
+                for cn, m in zip(sequence, midis)]
+
+    def test_canonical_open_voicings_every_occurrence(self):
+        """C-G-Am-F x2 gives the canonical open voicings for BOTH passes."""
+        C = ChordNotes(notes=['C', 'E', 'G'], bass_note='C', root='C')
+        G = ChordNotes(notes=['G', 'B', 'D'], bass_note='G', root='G')
+        Am = ChordNotes(notes=['A', 'C', 'E'], bass_note='A', root='A')
+        F = ChordNotes(notes=['F', 'A', 'C'], bass_note='F', root='F')
+        sequence = [C, G, Am, F, C, G, Am, F]
+
+        voicings = GuitarChordPicker().voice_sequence(sequence)
+
+        # Both occurrences must be identical (whole-song, not drifting).
+        assert voicings[0:4] == voicings[4:8]
+
+        # C, G, Am land on their canonical open shapes.
+        assert voicings[0] == [48, 52, 55, 60, 64]   # x32010
+        assert voicings[1] == [43, 47, 50, 55, 59, 67]  # 320003
+        assert voicings[2] == [45, 52, 57, 60, 64]   # x02210
+
+        # F: a full voicing (>=4 strings) with F (pitch class 5) in the bass.
+        f_midi = voicings[3]
+        assert len(f_midi) >= 4
+        assert min(f_midi) % 12 == 5
+
+    def test_dp_beats_greedy_on_lookahead_case(self):
+        """A progression where greedy's locally-best first chord forces later
+        jumps; whole-song DP takes a slightly weaker first shape for a better
+        total. DP total path score must be strictly greater here.
+
+        Eb, G/E, Cm: greedy voices Eb high (5 sounding strings incl. an open G
+        rank its quality above the low shape), which then jumps down to the two
+        low following chords. The optimizer keeps Eb low, tightening the whole
+        run.
+        """
+        sequence = [_major('Eb'), _slash('G', 'E'), _major('Cm')]
+
+        greedy_fs = self._greedy_fingerings(sequence)
+        picker = GuitarChordPicker()
+        dp_fs = self._dp_fingerings(picker, sequence)
+
+        greedy_total = self._total_path_score(picker, sequence, greedy_fs)
+        dp_total = self._total_path_score(picker, sequence, dp_fs)
+
+        # DP maximizes the exact objective, so it can never be worse.
+        assert dp_total >= greedy_total - 1e-9
+        # For this constructed case it is strictly better.
+        assert dp_total > greedy_total + 1e-6
+
+    def test_dp_never_worse_than_greedy(self):
+        """Across several progressions, DP's total path score is >= greedy's."""
+        progressions = [
+            [_major('C'), _major('G'), _major('A'), _major('F')],
+            [_major('Eb'), _slash('G', 'E'), _major('Cm')],
+            [_major('F'), _major('Ab'), _slash('G', 'F#')],
+            [_major('C'), _major('Bb'), _major('Eb'), _major('C')],
+            [_slash('C', 'F'), _slash('D', 'Eb'), _major('Ab')],
+        ]
+        for sequence in progressions:
+            greedy_fs = self._greedy_fingerings(sequence)
+            picker = GuitarChordPicker()
+            dp_fs = self._dp_fingerings(picker, sequence)
+            greedy_total = self._total_path_score(picker, sequence, greedy_fs)
+            dp_total = self._total_path_score(picker, sequence, dp_fs)
+            assert dp_total >= greedy_total - 1e-9, \
+                f"DP worse than greedy for {[cn.root for cn in sequence]}"
+
+    @given(st.lists(realistic_chord_strategy(), min_size=20, max_size=60))
+    @settings(max_examples=50)
+    def test_voice_sequence_no_wrong_notes(self, chord_sequence):
+        """FUZZ: whole-song guitar voicing never sounds a wrong note (same HARD
+        invariant as the chord_to_midi fuzz test)."""
+        picker = GuitarChordPicker()
+        voicings = picker.voice_sequence(chord_sequence)
+
+        assert len(voicings) == len(chord_sequence)
+
+        for i, (chord_notes, midi) in enumerate(zip(chord_sequence, voicings)):
+            if len(midi) == 0:
+                continue
+            expected = notes_to_note_classes(chord_notes.notes)
+            expected_bass = normalize_note(chord_notes.bass_note)
+            actual = midi_list_to_note_classes(midi)
+            for note in actual:
+                is_in_chord = note in expected or normalize_note(note) in expected
+                is_bass_note = normalize_note(note) == expected_bass or note == expected_bass
+                assert is_in_chord or is_bass_note, \
+                    f"FUZZ FAIL at chord {i}: Note {note} not in chord {expected} " \
+                    f"or bass {expected_bass}. MIDI: {midi}"
+
+
+class TestSongRendererVoicing:
+    """SongRenderer voices played chords via voice_sequence; rests stay silent."""
+
+    def _render(self, text, picker):
+        lines = SongParserService().detect_chords_in_text(text)
+        return SongRenderer().render(
+            lines=lines,
+            initial_key=None,
+            initial_bpm=120,
+            initial_time_sig=(4, 4),
+            note_picker=picker,
+        )
+
+    @pytest.mark.parametrize('picker_class', [ChordNotePicker, GuitarChordPicker],
+                             ids=['piano', 'guitar'])
+    def test_loop_song_all_played_chords_voiced(self, picker_class):
+        """A looped song: every played chord has midi_notes; rests have none."""
+        text = (
+            "{label: verse}\n"
+            "C G\n"
+            "NC Am\n"
+            "F\n"
+            "{loop: verse 2}\n"
+        )
+        rendered = self._render(text, picker_class())
+        assert rendered is not None
+
+        played = [rc for rc in rendered.chords if not rc.is_rest and not rc.skipped]
+        rests = [rc for rc in rendered.chords if rc.is_rest]
+
+        assert played, "expected some played chords"
+        for rc in played:
+            assert rc.midi_notes, f"played chord {rc.chord_info.chord} not voiced"
+
+        assert rests, "expected the NC rest to appear"
+        for rc in rests:
+            assert rc.midi_notes is None
+
+        # The loop really repeated (verse body played more than once).
+        c_chords = [rc for rc in played if rc.chord_info.chord == 'C']
+        assert len(c_chords) >= 2

@@ -8,11 +8,14 @@ change points. It is a one-to-one port of the traversal that the old streaming
 turning MIDI events into a stream is now the compiler's job
 (:func:`services.event_compiler.compile_events`).
 
-Voicing happens inline during the walk via ``note_picker.chord_to_midi``, and
-loop-backs snapshot/restore the note picker's state so each pass voices
-identically -- preserving the exact behaviour of the streaming producer.
-Resetting the picker before rendering is the caller's responsibility, as it was
-before.
+Rendering runs in two phases. A *structure pass* walks the song once, resolving
+every chord's notes and computing all timing/bar/tempo/meter information, but
+leaves each chord's ``midi_notes`` unset. A *voicing pass* then hands the played
+chords (in playback order, loop repeats included) to
+``note_picker.voice_sequence`` in a single call, so the voicer can optimize the
+whole song in context, and assigns the results back. Determinism is owned by
+``voice_sequence`` (which resets the picker itself), so the renderer no longer
+resets the picker or snapshots its state across loops.
 """
 import logging
 import threading
@@ -50,7 +53,8 @@ class SongRenderer:
             initial_key: Initial key signature.
             initial_bpm: Initial BPM.
             initial_time_sig: Initial time signature (beats, unit).
-            note_picker: Voicer; the caller must ``reset()`` it beforehand.
+            note_picker: Voicer; ``voice_sequence`` resets it internally, so no
+                prior ``reset()`` is required for deterministic voicing.
             start_line_index: Line index to begin playback from.
             start_item_index: Item index within that line to begin from.
             cancel_event: If set during the walk, rendering aborts and returns
@@ -140,6 +144,12 @@ class SongRenderer:
                         rendered.append(rc)
                 continue
 
+        # Voicing pass: hand every played (non-rest, non-skipped) chord's
+        # resolved notes to the voicer in one call so it can optimize the whole
+        # song in context, then assign the results back. Rests and skipped
+        # chords keep midi_notes=None.
+        self._voice_rendered_chords(rendered)
+
         # Finalize whole-song bar count (round up any partial bar), matching the
         # old _compute_total_bars behaviour.
         total_bar_count = state['total_bar_count']
@@ -167,14 +177,14 @@ class SongRenderer:
                     state['labels'][item.label] = (line_idx, item_idx)
 
         # '@start' is a built-in label for the top of the document; snapshot the
-        # initial state so a loop back to it restores the starting BPM/time/key
-        # and voicing.
+        # initial state so a loop back to it restores the starting BPM/time/key.
+        # Voicing is no longer snapshotted here -- the whole-song voicing pass
+        # handles loop repeats in context.
         state['labels'].setdefault('@start', (0, 0))
         state['label_states'].setdefault('@start', {
             'bpm': state['current_bpm'],
             'time_sig': state['current_time_sig'],
             'key': state['current_key'],
-            'chord_picker_state': self._note_picker.state,
         })
 
     # ------------------------------------------------------------------
@@ -257,7 +267,6 @@ class SongRenderer:
         state['current_bpm'] = saved['bpm']
         state['current_time_sig'] = saved['time_sig']
         state['current_key'] = saved['key']
-        self._note_picker.state = saved['chord_picker_state']
         self._record_tempo(state, saved['bpm'])
         self._record_meter(state, saved['time_sig'])
 
@@ -267,7 +276,6 @@ class SongRenderer:
                 'bpm': state['current_bpm'],
                 'time_sig': state['current_time_sig'],
                 'key': state['current_key'],
-                'chord_picker_state': self._note_picker.state,
             }
 
     # ------------------------------------------------------------------
@@ -393,15 +401,13 @@ class SongRenderer:
         if not chord_notes:
             self._logger.warning(f"Could not resolve chord: {chord.chord}")
             return None
-        midi_notes = self._notes_to_midi(chord_notes)
-        if not midi_notes:
-            self._logger.warning(f"Could not convert chord to MIDI: {chord.chord}")
-            return None
+        # Voicing is deferred to the whole-song voicing pass; leave midi_notes
+        # unset here so the voicer sees the chords in playback order at once.
 
         rc = RenderedChord(
             chord_info=chord,
             chord_notes=chord_notes,
-            midi_notes=midi_notes,
+            midi_notes=None,
             line_index=line_idx,
             item_index=item_idx,
             start_beat=start_beat,
@@ -432,9 +438,22 @@ class SongRenderer:
             is_relative=chord.is_relative,
         )
 
-    def _notes_to_midi(self, chord_notes: ChordNotes) -> Optional[List[int]]:
+    def _voice_rendered_chords(self, rendered: List[RenderedChord]) -> None:
+        """Voice every played chord in one whole-song pass.
+
+        Collects the played (non-rest, non-skipped) chords in playback order,
+        voices them together via ``note_picker.voice_sequence``, and writes each
+        result back onto its :class:`RenderedChord`. Rests and skipped chords are
+        left with ``midi_notes=None``.
+        """
+        played = [rc for rc in rendered
+                  if not rc.is_rest and not rc.skipped and rc.chord_notes is not None]
+        if not played:
+            return
         try:
-            return self._note_picker.chord_to_midi(chord_notes)
+            voicings = self._note_picker.voice_sequence([rc.chord_notes for rc in played])
         except Exception as e:
-            self._logger.error(f"Error converting notes to MIDI: {e}", exc_info=True)
-            return None
+            self._logger.error(f"Error voicing chords: {e}", exc_info=True)
+            return
+        for rc, midi_notes in zip(played, voicings):
+            rc.midi_notes = midi_notes
