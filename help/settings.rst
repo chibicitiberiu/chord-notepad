@@ -2,7 +2,7 @@
 Settings
 ========
 
-:menuselection:`Options --> Settings...` opens the Settings window, where
+:menuselection:`Tools --> Settings...` opens the Settings window, where
 everything that used to mean hand-editing the config file now has a form.
 It has three pages -- **General**, **Playback & Audio**, and **Voicings** --
 plus **Save** and **Cancel** at the bottom. Save writes every page at once;
@@ -129,7 +129,7 @@ with an extra low B string, the same instrument used as the custom-voicing
 example in :doc:`fretted`. Here's how to build it from the Voicings page
 instead of editing JSON by hand:
 
-1. Open :menuselection:`Options --> Settings...` and go to the
+1. Open :menuselection:`Tools --> Settings...` and go to the
    **Voicings** page.
 2. Click **+** to add a new voicing.
 3. Click **Load config** and pick **Guitar (Standard - EADGBE)**. This

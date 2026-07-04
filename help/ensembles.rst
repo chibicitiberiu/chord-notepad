@@ -176,7 +176,7 @@ Custom Ensembles
 ==================
 
 If the four presets don't match the group you're writing for, define your
-own from :menuselection:`Options --> Settings...` --> Voicings: load a
+own from :menuselection:`Tools --> Settings...` --> Voicings: load a
 built-in ensemble as a starting point, change the voices, spacing, or
 weights, and save. See :doc:`settings` for the page itself and a worked
 example (built there for a fretted instrument, but the same steps apply
@@ -253,7 +253,7 @@ Voicing Parameters
 
 Every ensemble, built-in or custom, is steered by the same set of
 numeric parameters. These are the controls the Voicings page of
-:menuselection:`Options --> Settings...` exposes, one control per row --
+:menuselection:`Tools --> Settings...` exposes, one control per row --
 see :doc:`settings` for the page itself; they can also be set directly in
 the ``weights`` object for an ensemble in ``settings.json``. Every weight
 is a signed number added to the voicing's score. Positive values make that

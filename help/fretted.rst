@@ -81,7 +81,7 @@ Defining a Custom Fretted Voicing
 ======================================
 
 If none of the five match the instrument you're writing for, add one from
-:menuselection:`Options --> Settings...` --> Voicings: load a built-in
+:menuselection:`Tools --> Settings...` --> Voicings: load a built-in
 preset as a starting point, change what's different (tuning, span,
 weights), and save. See :doc:`settings` for the full walkthrough,
 including a seven-string guitar built from the Guitar (Standard) preset.
@@ -164,7 +164,7 @@ Voicing Parameters
 
 Every fretted voicing, built-in or custom, is steered by the same
 physical limits and the same set of numeric weights. These are the
-controls the Voicings page of :menuselection:`Options --> Settings...`
+controls the Voicings page of :menuselection:`Tools --> Settings...`
 exposes, one control per row -- see :doc:`settings` for the page itself;
 they can also be set directly in a voicing's entry in ``settings.json``.
 

@@ -441,14 +441,10 @@ class MainWindow(tk.Tk):
         tools_menu.add_separator()
         tools_menu.add_command(label="Convert to American Notation", command=self.convert_to_american)
         tools_menu.add_command(label="Convert to European Notation", command=self.convert_to_european)
+        tools_menu.add_separator()
+        tools_menu.add_command(label="Settings...", command=self.show_options)
 
         menubar.add_cascade(label="Tools", menu=tools_menu)
-
-        # Options menu
-        options_menu = MenuBuilder(menubar) \
-            .add_command("Settings...", self.show_options) \
-            .build()
-        menubar.add_cascade(label="Options", menu=options_menu)
 
         # Help menu
         help_menu = MenuBuilder(menubar) \

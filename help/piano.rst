@@ -46,7 +46,7 @@ Defining a Custom Piano Voicing
 
 If you want the piano to sit in a different register, spread the hands
 further apart, or trade completeness for a sparser texture, add a custom
-piano voicing from :menuselection:`Options --> Settings...` --> Voicings:
+piano voicing from :menuselection:`Tools --> Settings...` --> Voicings:
 load **Grand Piano** as a starting point, change what's different (ranges,
 span, weights), and save. See :doc:`settings` for the page itself.
 
