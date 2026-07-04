@@ -85,6 +85,53 @@ class RenderedChord:
     When this is set, ``midi_notes`` is an order-preserving deduplicated copy
     of this list (so a unison doesn't double-strike one synth note)."""
 
+    fingering: Optional[List[int]] = None
+    """Winning fretboard fingering for fretted-instrument (guitar) models.
+
+    One entry per string in the picker's string order (lowest string first, as
+    in ``GuitarChordPicker.tuning_midi``): ``-1`` = muted, ``0`` = open, a
+    positive integer = that fret. A non-muted string ``s`` sounds
+    ``tuning_midi[s] + fingering[s]``, so the fretted notes reconstruct
+    ``midi_notes``. ``None`` for non-fretboard models (piano, ensemble), rests,
+    and skipped chords."""
+
+    hand_split: Optional[int] = None
+    """Left-/right-hand split point for the piano model.
+
+    With ``midi_notes`` read low-to-high, ``midi_notes[:hand_split]`` is the
+    left hand and ``midi_notes[hand_split:]`` is the right hand. ``0`` when the
+    model emits no left-hand (bass) notes (e.g. ``add_bass`` disabled). ``None``
+    for non-piano models (guitar, ensemble), rests, and skipped chords."""
+
+
+@dataclass(frozen=True)
+class SongMarker:
+    """A point-in-time annotation on the song timeline for a chord-sheet strip.
+
+    Markers live in the same unrolled beat/time domain as ``RenderedChord`` so a
+    strip view can draw a vertical rule (with a small flag) at each one: section
+    starts, loop repeats, tempo changes, and meter changes. They are produced as
+    a side effect of the renderer's single walk and are purely informational --
+    playback, MIDI export, and voicing never read them.
+    """
+
+    beat: float
+    """Absolute beat position, same domain as ``RenderedChord.start_beat``
+    (never rebased for play-from-cursor)."""
+
+    time: float
+    """Absolute song time in seconds, same domain as
+    ``RenderedChord.start_time``. In the skipped play-from-cursor prefix this is
+    ``0.0`` -- matching the skipped chords there, whose time position also does
+    not advance."""
+
+    kind: str
+    """One of ``'section'``, ``'loop'``, ``'tempo'``, ``'meter'``."""
+
+    text: str
+    """Display text, e.g. ``'chorus'``, ``'chorus (2/3)'``, ``'140 bpm'``,
+    ``'3/4'``."""
+
 
 @dataclass
 class RenderedSong:
@@ -98,6 +145,10 @@ class RenderedSong:
     """(start_beat, bpm) change points, first entry at beat 0."""
     meter_map: List[Tuple[float, Tuple[int, int]]] = field(default_factory=list)
     """(start_beat, time_sig) change points, first entry at beat 0."""
+    markers: List["SongMarker"] = field(default_factory=list)
+    """Timeline markers in walk order (non-decreasing ``beat``): section
+    starts, loop repeats, tempo changes, and meter changes. Empty for a song
+    with no directives. See :class:`SongMarker`."""
     voice_labels: Optional[List[str]] = None
     """Ordered voice names for a fixed-ensemble picker (e.g. ``["Bass",
     "Tenor", "Alto", "Soprano"]``), or ``None`` for free-voiced pickers

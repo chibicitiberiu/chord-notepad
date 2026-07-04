@@ -47,7 +47,7 @@ from typing import Any, Dict, List, Optional, Tuple, Set, Union, TYPE_CHECKING
 from dataclasses import dataclass, asdict
 from copy import deepcopy
 import logging
-from audio.note_picker_interface import INotePicker
+from audio.note_picker_interface import INotePicker, VoicedChord
 from audio.voicing_optimizer import optimize_sequence
 from chord.midi_converter import parse_note_to_semitone
 from models.fretboard_spec import FretboardSpec, BUILTIN_FRETBOARDS
@@ -572,6 +572,16 @@ class GuitarChordPicker(INotePicker):
     def voice_sequence(self, sequence: List['ChordNotes']) -> List[List[int]]:
         """Voice a whole song at once, optimizing transitions with lookahead.
 
+        Thin wrapper over :meth:`voice_sequence_details`: it runs the same
+        whole-song optimization and returns just the MIDI-note lists, discarding
+        the per-chord fingerings. The two therefore always agree.
+        """
+
+        return [vc.midi_notes for vc in self.voice_sequence_details(sequence)]
+
+    def voice_sequence_details(self, sequence: List['ChordNotes']) -> List[VoicedChord]:
+        """Voice a whole song at once, keeping each chord's winning fingering.
+
         Instead of greedily choosing each chord's shape against only the
         previous one, this gathers every chord's candidate fingerings and runs a
         beam-pruned Viterbi DP (:func:`optimize_sequence`) that maximizes the sum
@@ -579,6 +589,10 @@ class GuitarChordPicker(INotePicker):
         transitions (:meth:`_score_transition`) across the entire sequence. A
         locally weaker shape is accepted when it makes the rest of the song flow
         more smoothly.
+
+        Each returned :class:`VoicedChord` carries both the voiced MIDI notes
+        and the chosen fingering (per-string fret list; see
+        :attr:`VoicedChord.fingering`).
 
         Deterministic by construction: it resets first and the DP breaks ties by
         candidate order, so the same sequence always yields the same voicings.
@@ -627,8 +641,14 @@ class GuitarChordPicker(INotePicker):
         chosen = optimize_sequence(
             candidate_sets, unary, transition, beam_width=20, prune_to=30
         )
-        return [self._fingering_to_midi(candidate_sets[pos][idx])
-                for pos, idx in enumerate(chosen)]
+        result: List[VoicedChord] = []
+        for pos, idx in enumerate(chosen):
+            fingering = candidate_sets[pos][idx]
+            result.append(VoicedChord(
+                midi_notes=self._fingering_to_midi(fingering),
+                fingering=list(fingering),
+            ))
+        return result
 
     def _get_position(self, fingering: List[int]) -> float:
         """Get average position"""

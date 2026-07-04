@@ -31,7 +31,7 @@ from dataclasses import dataclass, asdict
 from copy import deepcopy
 import logging
 
-from audio.note_picker_interface import INotePicker
+from audio.note_picker_interface import INotePicker, VoicedChord
 from audio.chord_tones import classify_role
 from audio.voicing_optimizer import optimize_sequence
 from chord.midi_converter import parse_note_to_semitone, intervals_from_note_names
@@ -189,11 +189,25 @@ class ChordNotePicker(INotePicker):
     def voice_sequence(self, sequence: List['ChordNotes']) -> List[List[int]]:
         """Voice a whole song at once, optimizing transitions with lookahead.
 
+        Thin wrapper over :meth:`voice_sequence_details`: it runs the same
+        whole-song optimization and returns just the MIDI-note lists, discarding
+        the per-chord hand splits. The two therefore always agree.
+        """
+        return [vc.midi_notes for vc in self.voice_sequence_details(sequence)]
+
+    def voice_sequence_details(self, sequence: List['ChordNotes']) -> List[VoicedChord]:
+        """Voice a whole song at once, keeping each chord's hand split.
+
         Gathers each chord's candidate voicings and runs the beam-pruned Viterbi
         DP (:func:`optimize_sequence`) that maximizes intrinsic quality plus
         voice-leading transitions across the entire song. This is what keeps the
         right hand in a stable central register across loop repeats instead of
         drifting the way a purely greedy pass does.
+
+        Each returned :class:`VoicedChord` carries both the voiced MIDI notes
+        (sorted low-to-high) and ``hand_split``, the count of left-hand notes,
+        so ``midi_notes[:hand_split]`` is the left hand (see
+        :attr:`VoicedChord.hand_split`).
 
         Deterministic: it resets first and the DP breaks ties by candidate order,
         so the same sequence always yields the same voicings.
@@ -224,8 +238,16 @@ class ChordNotePicker(INotePicker):
         chosen = optimize_sequence(
             candidate_sets, unary, transition, beam_width=20, prune_to=30
         )
-        return [self._voicing_to_midi(candidate_sets[pos][idx])
-                for pos, idx in enumerate(chosen)]
+        result: List[VoicedChord] = []
+        for pos, idx in enumerate(chosen):
+            voicing = candidate_sets[pos][idx]
+            midi = self._voicing_to_midi(voicing)
+            # The right hand sits strictly above the left (enumeration invariant),
+            # so in the sorted, de-duplicated midi list the first len(set(lh))
+            # notes are exactly the left hand. hand_split is that count.
+            hand_split = len(set(voicing.lh))
+            result.append(VoicedChord(midi_notes=midi, hand_split=hand_split))
+        return result
 
     # ------------------------------------------------------------------
     # Candidate enumeration

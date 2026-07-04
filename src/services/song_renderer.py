@@ -25,7 +25,7 @@ from models.line import Line
 from models.chord import ChordInfo
 from models.chord_notes import ChordNotes
 from models.directive import Directive, DirectiveType, BPMModifierType
-from models.rendered_song import RenderedSong, RenderedChord
+from models.rendered_song import RenderedSong, RenderedChord, SongMarker
 from audio.note_picker_interface import INotePicker
 
 
@@ -105,6 +105,12 @@ class SongRenderer:
             'start_line_index': start_line_index,
             'start_item_index': start_item_index,
             'in_playback_range': start_line_index == 0 and start_item_index == 0,
+            # Timeline markers for the chord-sheet strip (see SongMarker) and the
+            # beat of the most recent 'loop' marker, used to suppress the
+            # redundant 'section' marker emitted when a loop re-walks its target
+            # label at the same beat.
+            'markers': [],
+            'last_loop_beat': None,
         }
 
         self._build_label_index(state)
@@ -180,6 +186,7 @@ class SongRenderer:
             total_seconds=state['current_time_position'],
             tempo_map=tempo_map,
             meter_map=meter_map,
+            markers=state['markers'],
             voice_labels=voice_labels,
         )
 
@@ -271,6 +278,19 @@ class SongRenderer:
         else:
             loop_stack[-1]['remaining'] -= 1
         if loop_stack[-1]['remaining'] > 0:
+            # A real jump: emit a 'loop' marker at the jump beat/time. 'p' is the
+            # pass about to play (2..count); with 'remaining' passes still to go
+            # after this one, p = count - remaining + 1. Emitted before the
+            # state restore so the loop flag sorts ahead of any tempo/meter
+            # markers the restore records at the same beat. Recording the beat
+            # lets the re-walked target label suppress its redundant 'section'
+            # marker (the loop flag supersedes it on repeat passes).
+            count = loop_stack[-1]['count']
+            remaining = loop_stack[-1]['remaining']
+            pass_num = count - remaining + 1
+            self._emit_marker(
+                state, 'loop', f'{directive.label} ({pass_num}/{count})')
+            state['last_loop_beat'] = state['current_beat_position']
             self._restore_loop_state(directive.label, state)
             state['line_index'], state['item_index'] = label_pos
         else:
@@ -294,6 +314,19 @@ class SongRenderer:
                 'time_sig': state['current_time_sig'],
                 'key': state['current_key'],
             }
+        # Emit a 'section' marker for user labels. The built-in '@start' label is
+        # synthetic (never an item in the walk), but guard it anyway. Suppress
+        # the marker when a 'loop' marker was just emitted at this same beat:
+        # that happens when a loop jump re-walks its target label, and the loop
+        # flag supersedes the section flag on repeat passes. First encounters
+        # (no preceding loop marker at this beat) always emit.
+        if directive.label == '@start':
+            return
+        last_loop_beat = state.get('last_loop_beat')
+        if (last_loop_beat is not None and
+                abs(last_loop_beat - state['current_beat_position']) < 1e-9):
+            return
+        self._emit_marker(state, 'section', directive.label)
 
     # ------------------------------------------------------------------
     # Tempo / meter change points (future-proofing for MIDI export)
@@ -301,20 +334,57 @@ class SongRenderer:
     def _record_tempo(self, state: dict, bpm: int) -> None:
         beat = state['current_beat_position']
         tempo_map = state['tempo_map']
+        changed = False
         if tempo_map and abs(tempo_map[-1][0] - beat) < 1e-9:
             if tempo_map[-1][1] != bpm:
                 tempo_map[-1] = (beat, bpm)
+                changed = True
         elif not tempo_map or tempo_map[-1][1] != bpm:
             tempo_map.append((beat, bpm))
+            changed = True
+        # Marker on every effective-bpm change past beat 0, mirroring each write
+        # to tempo_map (append or same-beat overwrite). Loop-state restoration
+        # goes through here too, so a loop that restores the label's saved tempo
+        # emits a 'tempo' marker at the jump beat; if a {bpm} directive at the
+        # top of the loop body then re-sets the tempo at that same beat, both the
+        # restored value and the re-set value produce a marker there -- an honest
+        # picture of what the tempo does across the loop seam. The initial bpm at
+        # beat 0 is seeded directly into tempo_map, never via this method, so it
+        # correctly produces no marker.
+        if changed and beat > 1e-9:
+            self._emit_marker(state, 'tempo', f'{bpm} bpm')
 
     def _record_meter(self, state: dict, time_sig: Tuple[int, int]) -> None:
         beat = state['current_beat_position']
         meter_map = state['meter_map']
+        changed = False
         if meter_map and abs(meter_map[-1][0] - beat) < 1e-9:
             if meter_map[-1][1] != time_sig:
                 meter_map[-1] = (beat, time_sig)
+                changed = True
         elif not meter_map or meter_map[-1][1] != time_sig:
             meter_map.append((beat, time_sig))
+            changed = True
+        if changed and beat > 1e-9:
+            self._emit_marker(state, 'meter', f'{time_sig[0]}/{time_sig[1]}')
+
+    # ------------------------------------------------------------------
+    # Timeline markers (chord-sheet strip)
+    # ------------------------------------------------------------------
+    def _emit_marker(self, state: dict, kind: str, text: str) -> None:
+        """Append a :class:`SongMarker` at the current beat/time position.
+
+        Called from the single render walk, so markers land in walk order with
+        non-decreasing ``beat``. ``time`` is the current time position, which is
+        ``0.0`` throughout the skipped play-from-cursor prefix (matching the
+        skipped chords there).
+        """
+        state['markers'].append(SongMarker(
+            beat=state['current_beat_position'],
+            time=state['current_time_position'],
+            kind=kind,
+            text=text,
+        ))
 
     # ------------------------------------------------------------------
     # Chord rendering
@@ -483,7 +553,11 @@ class SongRenderer:
         For free-voiced pickers (piano, guitar; ``voice_labels`` is
         ``None``), behaviour is exactly as before: ``midi_notes`` is the
         voicing unchanged, ``voice_notes`` stays ``None``, and this returns
-        ``None``.
+        ``None``. Their model-specific display detail -- the guitar
+        ``fingering`` and the piano ``hand_split`` -- rides along on each
+        :class:`VoicedChord` from ``voice_sequence_details`` and is copied
+        onto the ``RenderedChord``; models that don't supply it leave those
+        fields ``None``.
 
         Returns:
             The low-to-high voice labels to store on the ``RenderedSong``,
@@ -494,18 +568,21 @@ class SongRenderer:
         if not played:
             return None
         try:
-            voicings = self._note_picker.voice_sequence([rc.chord_notes for rc in played])
+            voicings = self._note_picker.voice_sequence_details(
+                [rc.chord_notes for rc in played])
         except Exception as e:
             self._logger.error(f"Error voicing chords: {e}", exc_info=True)
             return None
 
         voice_labels = getattr(self._note_picker, 'voice_labels', None)
         if voice_labels is None:
-            for rc, midi_notes in zip(played, voicings):
-                rc.midi_notes = midi_notes
+            for rc, voiced in zip(played, voicings):
+                rc.midi_notes = voiced.midi_notes
+                rc.fingering = voiced.fingering
+                rc.hand_split = voiced.hand_split
             return None
 
-        for rc, notes in zip(played, voicings):
-            rc.voice_notes = list(notes)
-            rc.midi_notes = _dedupe_preserve_order(notes)
+        for rc, voiced in zip(played, voicings):
+            rc.voice_notes = list(voiced.midi_notes)
+            rc.midi_notes = _dedupe_preserve_order(voiced.midi_notes)
         return list(reversed(voice_labels))
