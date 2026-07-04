@@ -4,10 +4,17 @@
 # https://www.sphinx-doc.org/en/master/usage/configuration.html
 
 # -- Project information -----------------------------------------------------
+import os
+
 project = 'Chord Notepad User Guide'
-copyright = '2024, Chord Notepad'
+copyright = '2024-2026, Chord Notepad'
 author = 'Chord Notepad'
-release = '1.0'
+
+# Keep the guide's version in sync with the application's VERSION file so the
+# title page never drifts from the released version.
+with open(os.path.join(os.path.dirname(__file__), '..', 'VERSION')) as _vf:
+    release = _vf.read().strip()
+version = release
 
 # -- General configuration ---------------------------------------------------
 extensions = []
