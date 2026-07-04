@@ -6,7 +6,7 @@ from typing import Dict, List, Optional, TYPE_CHECKING
 from dataclasses import dataclass, asdict
 from copy import deepcopy
 from audio.note_picker_interface import INotePicker
-from chord.midi_converter import parse_note_to_semitone
+from chord.midi_converter import parse_note_to_semitone, intervals_from_note_names
 
 if TYPE_CHECKING:
     from models.chord_notes import ChordNotes
@@ -109,16 +109,27 @@ class ChordNotePicker(INotePicker):
         if not notes:
             return []
 
+        # The chord's register lives in its intervals (semitones above the
+        # root): a 9th at +14, an 11th at +17, a 13th at +21. Voice from those
+        # so extensions land where they belong instead of collapsing against
+        # the root. Reconstruct from note order only when intervals are absent
+        # (e.g. a ChordNotes built directly, without going through the helper).
+        root_note = chord_notes.root or notes[0]
+        intervals = chord_notes.intervals
+        if not intervals or len(intervals) != len(notes):
+            intervals = intervals_from_note_names(notes)
+
         # Find optimal voicing based on state
         if self._state.previous_chord_midi:
             chord_midi = self._find_best_voicing(
-                notes,
+                root_note,
+                intervals,
                 self._state.previous_chord_midi,
                 self._state.voicing_octave
             )
         else:
             # First chord - use smart initial positioning
-            chord_midi = self._get_initial_voicing(notes)
+            chord_midi = self._get_initial_voicing(root_note, intervals)
 
         # Add bass note
         result = []
@@ -130,79 +141,84 @@ class ChordNotePicker(INotePicker):
 
         result.extend(chord_midi)
 
+        # A keyboard voicing can't sound the same key twice - drop exact
+        # duplicates (e.g. a wide chord whose root lands on the bass note)
+        # while keeping the order.
+        seen = set()
+        result = [m for m in result if not (m in seen or seen.add(m))]
+
         # Update state for next chord
         self._update_state(chord_midi, notes)
 
         return result
 
-    def _find_best_voicing(self, notes: List[str],
+    def _find_best_voicing(self, root_note: str, intervals: List[int],
                         previous_midi: List[int],
                         preferred_octave: int) -> List[int]:
-        """Find smoothest voice leading from previous chord"""
-        
+        """Find smoothest voice leading from previous chord.
+
+        The chord shape (root + intervals) is rigid, so extensions keep their
+        register. Voice leading only chooses which octave the whole block sits
+        in - it never folds an individual extension back down against the root.
+        """
+
         candidates = []
-        
+
         # Define ideal center range (around middle C)
         IDEAL_CENTER = 60  # Middle C
         IDEAL_RANGE = (48, 72)  # C3 to C5
-        
-        # Try different octave positions
+
+        # Try different octave positions for the whole chord block
         for octave_shift in [-1, 0, 1]:
             octave = preferred_octave + octave_shift
-            
-            # Build chord at this octave
-            voicing = []
-            for note in notes:
-                midi = self._note_to_midi(note, octave)
-                
-                if midi is None:
-                    continue
-                
-                # Keep notes ascending within the chord
-                if voicing and midi < voicing[-1]:
-                    midi += 12
-                
-                voicing.append(midi)
-            
+
+            root_midi = self._note_to_midi(root_note, octave)
+            if root_midi is None:
+                continue
+
+            # Rigid shape: root plus each register-preserving interval.
+            voicing = [root_midi + interval for interval in intervals]
             if not voicing:
                 continue
-            
+
             # Skip if range too wide
             if max(voicing) - min(voicing) > 24:  # More than 2 octaves
                 continue
-            
+
             # Calculate average position
             avg_position = sum(voicing) / len(voicing)
-            
+
             # Skip if getting too low or too high
             if avg_position < 45:  # Too low (below A2)
                 continue
             if avg_position > 75:  # Too high (above Eb5)
                 continue
-            
+
             # Calculate voice leading distance
             voice_distance = self._calculate_voice_distance(voicing, previous_midi)
-            
+
             # Add penalty for being far from ideal center
             center_penalty = abs(avg_position - IDEAL_CENTER) * 0.5
-            
+
             # Add stronger penalty for being too low
             if avg_position < IDEAL_RANGE[0]:
                 center_penalty += (IDEAL_RANGE[0] - avg_position) * 2
-            
+
             # Total score combines voice leading and position preference
             total_score = voice_distance + center_penalty
-            
+
             candidates.append((total_score, voicing))
-        
+
         if candidates:
             candidates.sort(key=lambda x: x[0])
             return candidates[0][1]
-        
-        # Fallback - but aim for middle register
+
+        # Fallback - aim for the middle register but keep the rigid shape.
         target_octave = 4 if preferred_octave < 3 else preferred_octave
-        return [self._note_to_midi(note, target_octave) for note in notes
-                if self._note_to_midi(note, target_octave) is not None]
+        root_midi = self._note_to_midi(root_note, target_octave)
+        if root_midi is None:
+            return []
+        return [root_midi + interval for interval in intervals]
 
     def _update_state(self, chord_midi: List[int], chord_notes: List[str]) -> None:
         """Update internal state after playing a chord"""
@@ -248,12 +264,18 @@ class ChordNotePicker(INotePicker):
 
         return total
 
-    def _get_initial_voicing(self, notes: List[str]) -> List[int]:
-        """Get initial voicing for first chord or after reset"""
-        
-        # Always start in a good middle position
-        # This gives us room to move both up and down
-        root = notes[0].rstrip('#b')
+    def _get_initial_voicing(self, root_note: str, intervals: List[int]) -> List[int]:
+        """Get initial voicing for first chord or after reset.
+
+        Builds the rigid root + intervals shape (extensions stay an octave above
+        the root), then keeps it in a central, hearable register: if the top
+        climbs past C5 the whole block drops an octave. Extensions belong in an
+        upper octave, but stranded high the chord quality gets thin, so prefer
+        the closest register that still keeps them above the root.
+        """
+
+        # Start in a good middle position; gives room to move up and down.
+        root = root_note.rstrip('#b')
         
         # More consistent initial positioning
         octave_map = {
@@ -262,21 +284,16 @@ class ChordNotePicker(INotePicker):
         }
         
         octave = octave_map.get(root, 3)
-        
-        voicing = []
-        for note in notes:
-            midi = self._note_to_midi(note, octave)
-            if midi is None:
-                continue
-            
-            # Keep ascending but check bounds
-            if voicing and midi < voicing[-1]:
-                midi += 12
-            
-            # Don't let it go too high within the chord
-            if midi > 72:  # C5
-                midi -= 12
-            
-            voicing.append(midi)
-        
+
+        root_midi = self._note_to_midi(root_note, octave)
+        if root_midi is None:
+            return []
+
+        voicing = [root_midi + interval for interval in intervals]
+
+        # Prefer the closest register: drop the whole block (preserving the
+        # spread) whenever the top note climbs into a thin, hard-to-hear range.
+        while max(voicing) > 72:  # keep the top at/below C5
+            voicing = [m - 12 for m in voicing]
+
         return voicing

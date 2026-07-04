@@ -34,6 +34,41 @@ def parse_note_to_semitone(note_name: str) -> Optional[int]:
     return (_BASE_LETTER_SEMITONE[base] + offset) % 12
 
 
+def intervals_from_note_names(note_names: List[str]) -> List[int]:
+    """Reconstruct register-preserving intervals (semitones above the root).
+
+    The first name is treated as the root (interval 0). Each subsequent note is
+    placed in the lowest octave that keeps the stack strictly ascending, so
+    extensions land where tertian stacking puts them (a 9th at +14, an 11th at
+    +17, a 13th at +21) rather than folding down into a 2nd/4th/6th.
+
+    This is the fallback for when a backend can't supply real intervals; the
+    normal paths use pychord/music21/the table's own register instead.
+    """
+    if not note_names:
+        return []
+    root_class = parse_note_to_semitone(note_names[0])
+    if root_class is None:
+        return []
+
+    # Keep the reconstructed voicing within two octaves of the root. Real
+    # chords top out at the 13th (+21), so this never touches them; it only
+    # stops a non-tertian pile-up (e.g. a chromatic cluster) from stacking
+    # every note into its own octave and exploding the span.
+    MAX_INTERVAL = 24
+
+    intervals: List[int] = []
+    for name in note_names:
+        note_class = parse_note_to_semitone(name)
+        if note_class is None:
+            continue
+        interval = (note_class - root_class) % 12
+        while intervals and interval <= intervals[-1] and interval + 12 <= MAX_INTERVAL:
+            interval += 12
+        intervals.append(interval)
+    return intervals
+
+
 class ChordToMidiConverter:
     """
     Converts chord names to MIDI note numbers

@@ -13,8 +13,7 @@ CONFIG_VERSION = 1  # Increment when config structure changes
 
 # Limits
 MAX_RECENT_FILES = 10
-MIN_BPM = 60
-MAX_BPM = 240
+# BPM is validated in Config (20-400); the scrubber uses the same range.
 DEFAULT_BPM = 120
 MIN_FONT_SIZE = 6
 MAX_FONT_SIZE = 72

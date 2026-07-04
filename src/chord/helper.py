@@ -3,10 +3,10 @@ Unified chord handling that wraps pychord, music21, and adds custom support
 """
 
 import re
-from typing import List, Optional, Set
+from typing import List, Optional, Set, Tuple
 from pychord import Chord as PyChord
 from music21 import chord as m21_chord, pitch
-from chord.midi_converter import ChordToMidiConverter
+from chord.midi_converter import ChordToMidiConverter, intervals_from_note_names
 from models.chord_notes import ChordNotes
 
 
@@ -21,87 +21,44 @@ class ChordHelper:
     - MIDI conversion (convert chord name to MIDI notes)
     """
 
-    # Comprehensive interval patterns for all chord types
+    # Chord voicings we resolve ourselves instead of deferring to
+    # pychord/music21. Everything the libraries already voice correctly has been
+    # removed - it was dead weight, since for non-custom qualities the table is
+    # only consulted after both libraries fail. Two reasons to keep an entry:
+    #
+    #   1. Better voicing - we deliberately drop a tone that sits a semitone off
+    #      a chord tone. These MUST also be in _CUSTOM_VOICING_QUALITIES so the
+    #      table wins over the libraries' mechanical full stack.
+    #   2. Library-unknown - neither pychord nor music21 parses the symbol, so
+    #      the table is the only thing that can resolve it.
+    #
+    # Intervals are register-preserving (a 9th is 14, an 11th 17, a 13th 21).
     QUALITY_INTERVALS = {
-        # Triads
-        '': [0, 4, 7],                  # Major
-        'm': [0, 3, 7],                 # Minor
-        'dim': [0, 3, 6],               # Diminished
-        'aug': [0, 4, 8],               # Augmented
-        'sus2': [0, 2, 7],              # Suspended 2nd
-        'sus4': [0, 5, 7],              # Suspended 4th
-        '5': [0, 7],                    # Power chord
+        # --- Better voicings (drop a clashing tone; see _CUSTOM_VOICING_QUALITIES) ---
+        '11':     [0, 7, 10, 14, 17],        # drop 3rd - clashes under the 11th
+        'maj11':  [0, 7, 11, 14, 17],        # drop 3rd - E clashes under F
+        '13':     [0, 4, 7, 10, 14, 21],     # drop 11th - clashes over the 3rd
+        'm13':    [0, 3, 7, 10, 14, 21],     # drop 11th
+        'maj13':  [0, 4, 7, 11, 14, 21],     # drop 11th
+        '7b9b13': [0, 4, 7, 10, 13, 20],     # altered dominant - drop natural 11th
 
-        # Seventh chords
-        '7': [0, 4, 7, 10],             # Dominant 7th
-        'maj7': [0, 4, 7, 11],          # Major 7th
-        'm7': [0, 3, 7, 10],            # Minor 7th
-        'dim7': [0, 3, 6, 9],           # Diminished 7th
-        'm7b5': [0, 3, 6, 10],          # Half-diminished
-        'mM7': [0, 3, 7, 11],           # Minor-major 7th
+        # --- Library-unknown for every root (only the table resolves these) ---
+        'maj9#11':   [0, 4, 7, 11, 14, 18],       # Major 9 #11
+        'maj13#11':  [0, 4, 7, 11, 14, 18, 21],   # Major 13 #11
+        '13sus4':    [0, 5, 7, 10, 14, 21],       # Dominant 13 sus4
+        'maj7#5(9)': [0, 4, 8, 11, 14],           # Major 7 #5 add 9
+        'm7b5(b9)':  [0, 3, 6, 10, 13],           # Half-diminished flat 9
+        'dim(maj9)': [0, 3, 6, 11, 14],           # Diminished with maj7 and 9
+        'dimm9':     [0, 3, 6, 10, 14],           # Diminished minor 9th
+
+        # --- Library-unknown for flat roots (Db/Eb/Gb/Ab/Bb); the libraries
+        #     only parse these with sharp/natural roots, so the table has to
+        #     cover the rest. ---
         'augmaj7': [0, 4, 8, 11],       # Augmented major 7th
-        'aug7': [0, 4, 8, 10],          # Augmented 7th
-        '7sus4': [0, 5, 7, 10],         # Dominant 7 sus4
-
-        # Sixth chords
-        '6': [0, 4, 7, 9],              # Major 6th
-        'm6': [0, 3, 7, 9],             # Minor 6th
-
-        # Ninth chords
-        '9': [0, 4, 7, 10, 14],         # Dominant 9th
-        'maj9': [0, 4, 7, 11, 14],      # Major 9th
-        'm9': [0, 3, 7, 10, 14],        # Minor 9th
-        '7b9': [0, 4, 7, 10, 13],       # Dominant 7th flat 9
-        '7#9': [0, 4, 7, 10, 15],       # Dominant 7th sharp 9
-        'mM9': [0, 3, 7, 11, 14],       # Minor-major 9th
-
-        # Eleventh and thirteenth chords
-        # Note: Following jazz theory and pychord conventions
-        '11': [0, 7, 10, 14, 17],       # Dominant 11th (omits 3rd - clashes with 11th)
-        'm11': [0, 3, 7, 10, 14, 17],   # Minor 11th (b3 doesn't clash)
-        'maj11': [0, 4, 7, 11, 14, 17], # Major 11th
-        '13': [0, 4, 7, 10, 14, 21],    # Dominant 13th (omits 11th - practical voicing)
-        'm13': [0, 3, 7, 10, 14, 21],   # Minor 13th
-        'maj13': [0, 4, 7, 11, 14, 21], # Major 13th
-
-        # Sharp 11 chords (Lydian sound)
-        '7#11': [0, 4, 7, 10, 18],          # Dominant 7 #11
-        'maj7#11': [0, 4, 7, 11, 18],       # Major 7 #11
-        '9#11': [0, 4, 7, 10, 14, 18],      # Dominant 9 #11
-        'maj9#11': [0, 4, 7, 11, 14, 18],   # Major 9 #11
-        '13#11': [0, 4, 7, 10, 14, 18, 21], # Dominant 13 #11
-        'maj13#11': [0, 4, 7, 11, 14, 18, 21], # Major 13 #11
-
-        # Add chords
-        'add9': [0, 4, 7, 14],          # Add 9
-        'madd9': [0, 3, 7, 14],         # Minor add 9
-        'add11': [0, 4, 7, 17],         # Add 11
-
-        # Exotic/altered chords
-        'aug7b9': [0, 4, 8, 10, 13],    # Augmented 7th flat 9
-        'maj7#5(9)': [0, 4, 8, 11, 14], # Major 7 #5 add 9
-        'm7b5(b9)': [0, 3, 6, 10, 13],  # Half-diminished flat 9
-        'dim7#9': [0, 3, 6, 9, 15],     # Diminished 7th sharp 9
-        'dim(maj9)': [0, 3, 6, 11, 14], # Diminished with maj7 and 9
-        'dimm9': [0, 3, 6, 10, 14],     # Diminished minor 9th
-
-        # Altered dominants with multiple alterations
-        '7b13': [0, 4, 7, 10, 20],          # Dominant 7 flat 13
-        '7#5': [0, 4, 8, 10],               # Dominant 7 sharp 5 (aug7)
-        '7b5': [0, 4, 6, 10],               # Dominant 7 flat 5
-        '7#9#5': [0, 4, 8, 10, 15],         # Dominant 7 #9 #5
-        '7b9b5': [0, 4, 6, 10, 13],         # Dominant 7 b9 b5
-        '7b9b13': [0, 4, 7, 10, 13, 20],    # Dominant 7 b9 b13
-        '7#9b13': [0, 4, 7, 10, 15, 20],    # Dominant 7 #9 b13
-        '7b9#11': [0, 4, 7, 10, 13, 18],    # Dominant 7 b9 #11
-        '7#9#11': [0, 4, 7, 10, 15, 18],    # Dominant 7 #9 #11
-        '9b13': [0, 4, 7, 10, 14, 20],      # Dominant 9 b13
-        '9#5': [0, 4, 8, 10, 14],           # Dominant 9 #5
-
-        # Sus chords with extensions
-        '7sus4': [0, 5, 7, 10],        # Dominant 7 sus4
-        '9sus4': [0, 5, 7, 10, 14],    # Dominant 9 sus4
-        '13sus4': [0, 5, 7, 10, 14, 21], # Dominant 13 sus4
+        'aug7':    [0, 4, 8, 10],       # Augmented 7th
+        'aug7b9':  [0, 4, 8, 10, 13],   # Augmented 7th flat 9
+        'dim7#9':  [0, 3, 6, 9, 15],    # Diminished 7th sharp 9
+        'mM9':     [0, 3, 7, 11, 14],   # Minor-major 9th
     }
 
     def __init__(self) -> None:
@@ -124,8 +81,13 @@ class ChordHelper:
         return result is not None
 
     # Qualities where we deliberately diverge from pychord/music21's default
-    # voicing (jazz conventions for omitting clashing intervals).
-    _CUSTOM_VOICING_QUALITIES = frozenset({'11', 'maj11'})
+    # voicing (jazz conventions for omitting clashing intervals):
+    # - 11 / maj11 drop the 3rd (a semitone under the 11th).
+    # - 13 / m13 / maj13 drop the 11th (a semitone over the 3rd on
+    #   dominant/major forms; libraries include it and produce the clash).
+    # - 7b9b13 drops the natural 11th (which pychord includes) for the same
+    #   reason; this is what a 7alt symbol expands to.
+    _CUSTOM_VOICING_QUALITIES = frozenset({'11', 'maj11', '13', 'm13', 'maj13', '7b9b13'})
 
     def get_notes(self, chord_name: str) -> Optional[List[str]]:
         """
@@ -137,6 +99,25 @@ class ChordHelper:
         Returns:
             list: Note names (e.g., ['C', 'E', 'G', 'B']) or None if invalid
         """
+        resolved = self._resolve_notes(chord_name)
+        return resolved[0] if resolved else None
+
+    def _resolve_notes(self, chord_name: str) -> Optional[Tuple[List[str], List[int]]]:
+        """Resolve a chord to (note names, register-preserving intervals).
+
+        Intervals are semitones above the root, positionally aligned with the
+        names (root is 0, a 9th is 14, an 11th is 17, a 13th is 21). Each
+        backend supplies its own register - pychord via ``quality.components``,
+        music21 via its pitch octaves, the table via its interval numbers - so
+        the octave an extension belongs in is real data, not something the
+        voicer has to reconstruct from note ordering.
+
+        Args:
+            chord_name: Chord string with any slash bass already stripped
+
+        Returns:
+            (names, intervals) or None if the chord can't be resolved.
+        """
         # For qualities with curated voicings (e.g. dominant 11th omits the 3rd
         # to avoid the b9 clash with the 11th), prefer our QUALITY_INTERVALS
         # table over pychord/music21's mechanical inclusion of every interval.
@@ -146,14 +127,22 @@ class ChordHelper:
             if '/' in quality:
                 quality = quality.split('/')[0]
             if quality in self._CUSTOM_VOICING_QUALITIES:
-                custom = self._build_chord_notes(chord_name)
+                custom = self._build_chord_notes_with_intervals(chord_name)
                 if custom is not None:
                     return custom
 
         # Try pychord first (fast and lightweight)
         try:
             chord_obj = PyChord(chord_name)
-            return chord_obj.components()
+            names = chord_obj.components()
+            if names:
+                intervals = list(chord_obj.quality.components)
+                # quality.components is root-relative; it only lines up with the
+                # component names for non-slash chords. Fall back to
+                # reconstruction if it doesn't (e.g. an inverted/slash spelling).
+                if '/' in chord_name or len(intervals) != len(names):
+                    intervals = intervals_from_note_names(names)
+                return names, intervals
         except:
             pass
 
@@ -161,13 +150,32 @@ class ChordHelper:
         try:
             import music21
             chord_obj = music21.harmony.ChordSymbol(chord_name)
-            # Convert pitch objects to note names
-            return [p.name.replace('-', 'b') for p in chord_obj.pitches]
+            names = [p.name.replace('-', 'b') for p in chord_obj.pitches]
+            if names:
+                intervals = self._music21_intervals(chord_obj, names)
+                return names, intervals
         except:
             pass
 
         # Try our custom implementation
-        return self._build_chord_notes(chord_name)
+        return self._build_chord_notes_with_intervals(chord_name)
+
+    @staticmethod
+    def _music21_intervals(chord_obj, names: List[str]) -> List[int]:
+        """Intervals above the root from a music21 chord's real pitch octaves."""
+        try:
+            root_ps = chord_obj.root().ps
+            intervals = []
+            for p in chord_obj.pitches:
+                interval = int(round(p.ps - root_ps))
+                while interval < 0:  # keep everything at/above the root
+                    interval += 12
+                intervals.append(interval)
+            if len(intervals) == len(names):
+                return intervals
+        except:
+            pass
+        return intervals_from_note_names(names)
 
     def chord_to_midi(self, chord_name: str, base_octave: int = 4) -> Optional[List[int]]:
         """
@@ -232,7 +240,16 @@ class ChordHelper:
         return None
 
     def _build_chord_notes(self, chord_name: str) -> Optional[List[str]]:
-        """Build chord notes from our interval patterns"""
+        """Build chord notes from our interval patterns (names only)."""
+        result = self._build_chord_notes_with_intervals(chord_name)
+        return result[0] if result else None
+
+    def _build_chord_notes_with_intervals(self, chord_name: str) -> Optional[Tuple[List[str], List[int]]]:
+        """Build (note names, intervals) from our QUALITY_INTERVALS table.
+
+        The table already stores register-preserving intervals, so the octave
+        an extension belongs in comes straight from it.
+        """
         root = self.extract_root(chord_name)
         if not root:
             return None
@@ -259,7 +276,7 @@ class ChordHelper:
                 # with the rest of the codebase and pychord output.
                 notes.append(new_pitch.name.replace('-', 'b'))
 
-            return notes
+            return notes, list(intervals)
         except:
             return None
 
@@ -384,25 +401,61 @@ class ChordHelper:
                 return None
             # Apply symbol conversions to resolved chord (+ → aug, ° → dim, etc.)
             chord_name = self._convert_symbols_to_text(chord_name)
-        else:
-            # Convert European notation to American first (Do → C, Re → D, etc.)
-            from chord.converter import NotationConverter
-            chord_name = NotationConverter.chord_european_to_american(chord_name)
-            # Normalize unicode and alternative symbols
-            chord_name = self._normalize_unicode_symbols(chord_name)
-            # Normalize enharmonic equivalents (Cb → B, E# → F, etc.)
-            chord_name = self._normalize_enharmonics(chord_name)
-            # Normalize alternative chord quality notations (Δ, -, M, min, etc.)
-            chord_name = self._normalize_alternative_qualities(chord_name)
-            # Normalize lowercase notation (c = Cm, d = Dm) for absolute chords
-            chord_name = self._normalize_lowercase_chord(chord_name)
-            # Convert symbols to text (° → dim, ø → m7b5, + → aug)
-            chord_name = self._convert_symbols_to_text(chord_name)
+            return self._build_from_normalized(chord_name)
+
+        # Absolute chord. Convert European->American (Do->C, Fa->F) and resolve.
+        # But that conversion can mangle an American chord that merely starts
+        # with a European syllable: 'Faug' -> 'Fug', 'Fadd9' -> 'Fdd9'. When the
+        # converted form fails to resolve, fall back to the original spelling as
+        # American notation. Converting first (rather than trying American first)
+        # keeps genuinely ambiguous cases European - e.g. 'Do' is C major, not
+        # the D-diminished that a lenient 'o'-means-diminished reading would give.
+        from chord.converter import NotationConverter
+        converted = NotationConverter.chord_european_to_american(chord_name)
+        result = self._normalize_and_build(converted)
+        if result is not None:
+            return result
+
+        if converted != chord_name:
+            return self._normalize_and_build(chord_name)
+        return None
+
+    def _normalize_and_build(self, chord_name: str) -> Optional[ChordNotes]:
+        """Normalize an absolute (American) chord symbol and resolve it.
+
+        Runs the full normalization chain then builds the ChordNotes. Does NOT
+        apply European->American conversion; the caller decides whether the
+        input should be treated as European (see compute_chord_notes).
+        """
+        # Normalize unicode and alternative symbols
+        chord_name = self._normalize_unicode_symbols(chord_name)
+        # Normalize enharmonic equivalents (Cb → B, E# → F, etc.)
+        chord_name = self._normalize_enharmonics(chord_name)
+        # Normalize alternative chord quality notations (Δ, -, M, min, etc.)
+        chord_name = self._normalize_alternative_qualities(chord_name)
+        # Normalize lowercase notation (c = Cm, d = Dm) for absolute chords
+        chord_name = self._normalize_lowercase_chord(chord_name)
+        # Convert symbols to text (° → dim, ø → m7b5, + → aug)
+        chord_name = self._convert_symbols_to_text(chord_name)
+        # A few parenthesised voicings (maj7#5(9), m7b5(b9), dim(maj9)) live
+        # in QUALITY_INTERVALS with the parentheses intact. The libraries
+        # can't parse them, and the parenthesis/omit rewrites would mangle
+        # the symbol before get_notes() ever reaches the table, so leave
+        # these untouched and let the table resolve them directly.
+        if not self._is_curated_parenthesised_chord(chord_name):
             # Normalize parentheses notation (Cmaj7(9) → Cmaj9)
             chord_name = self._normalize_parentheses(chord_name)
             # Handle omit notation (C(no3) → simplified form)
             chord_name = self._normalize_omit_notation(chord_name)
 
+        return self._build_from_normalized(chord_name)
+
+    def _build_from_normalized(self, chord_name: str) -> Optional[ChordNotes]:
+        """Resolve an already-normalized chord name into ChordNotes.
+
+        Splits off any slash bass, resolves the notes and their
+        register-preserving intervals, and packages the result.
+        """
         # Parse slash chord
         slash_bass = None
         if '/' in chord_name:
@@ -410,10 +463,11 @@ class ChordHelper:
             chord_name = parts[0]
             slash_bass = parts[1]
 
-        # Get chord notes
-        notes = self.get_notes(chord_name)
-        if not notes:
+        # Get chord notes together with their register-preserving intervals
+        resolved = self._resolve_notes(chord_name)
+        if not resolved:
             return None
+        notes, intervals = resolved
 
         # Extract root
         root = self.extract_root(chord_name)
@@ -426,7 +480,8 @@ class ChordHelper:
         return ChordNotes(
             notes=notes,
             bass_note=bass_note,
-            root=root
+            root=root,
+            intervals=intervals
         )
 
     def _resolve_roman_numeral(self, roman: str, key: str) -> Optional[str]:
@@ -498,10 +553,18 @@ class ChordHelper:
         except:
             return None
 
-        # Build quality
-        # If lowercase roman numeral, it's minor (unless quality overrides)
-        if not is_major and not quality and not diminished_symbol:
-            quality = 'm'
+        # Build quality.
+        # A lowercase roman numeral is minor, and that carries through to any
+        # extension: prepend 'm' to the quality unless it already sets the third
+        # (m/M/maj/min) or replaces it (sus/dim/aug/+). This makes 'ii7' a minor
+        # seventh (Dm7), not a dominant (D7), while leaving 'iisus4', 'iidim',
+        # and uppercase 'II7' untouched. A secondary dominant is written with an
+        # uppercase numeral ('II7' -> D7).
+        if not is_major and not diminished_symbol:
+            if not quality:
+                quality = 'm'
+            elif not quality.startswith(('m', 'M', 'sus', 'dim', 'aug', '+')):
+                quality = 'm' + quality
 
         # Handle diminished symbol
         if diminished_symbol:
@@ -585,6 +648,37 @@ class ChordHelper:
 
         return chord_name
 
+    def _is_curated_parenthesised_chord(self, chord_name: str) -> bool:
+        """Check whether a chord's quality (parentheses intact) is a table key.
+
+        A handful of QUALITY_INTERVALS keys keep their parentheses
+        (maj7#5(9), m7b5(b9), dim(maj9)). Neither pychord nor music21 parses
+        these, and the parenthesis/omit normalizers would rewrite the symbol
+        into something the libraries misread (or can't read at all) before the
+        table is ever consulted. Detecting them lets the caller skip those
+        rewrites so get_notes() resolves them from the table.
+
+        Args:
+            chord_name: Chord string, already unicode/symbol normalized
+
+        Returns:
+            True if the quality (ignoring any slash bass) is a table key
+            containing parentheses.
+        """
+        if '(' not in chord_name:
+            return False
+
+        root = self.extract_root(chord_name)
+        if not root:
+            return False
+
+        quality = chord_name[len(root):]
+        # Ignore any slash bass - the table is keyed on the quality alone.
+        if '/' in quality:
+            quality = quality.split('/')[0]
+
+        return quality in self.QUALITY_INTERVALS
+
     def _normalize_parentheses(self, chord_name: str) -> str:
         """Normalize parentheses notation to standard format.
 
@@ -618,6 +712,14 @@ class ChordHelper:
         base_quality = match.group(2) or ''  # Can be empty
         extension = match.group(3)
         suffix = match.group(4)  # Anything after the parentheses
+
+        # A parenthesised major-seventh quality, e.g. Cm(maj7): the parentheses
+        # hold a quality, not a numeric extension to "add". Convert the inner
+        # 'maj' to 'M' so it stacks onto the base quality -- m(maj7) → mM7
+        # (minor-major seventh), (maj7) → M7 (= maj7).
+        if extension.startswith('maj') or extension == 'M7':
+            inner = extension.replace('maj', 'M', 1)
+            return root + base_quality + inner + suffix
 
         # Check if base quality contains a 7th
         # Need to be careful: dim7, ø7, m7b5, mM7, aug7, etc.
@@ -680,7 +782,7 @@ class ChordHelper:
         - ♭ (unicode flat) → b
         - ♯ (unicode sharp) → #
         - ♮ (unicode natural) → (remove)
-        - Δ (delta/triangle for major) → maj
+        - Δ (delta/triangle for major seventh) → maj7 / maj (see below)
 
         Args:
             chord_name: Chord with unicode symbols
@@ -693,11 +795,18 @@ class ChordHelper:
             '♭': 'b',
             '♯': '#',
             '♮': '',  # Natural sign - just remove it
-            'Δ': 'maj',  # Triangle for major 7th
         }
 
         for unicode_char, ascii_char in replacements.items():
             chord_name = chord_name.replace(unicode_char, ascii_char)
+
+        # Δ (triangle) denotes a major seventh, not a bare major triad. When a
+        # number follows it, the number carries the extension, so Δ becomes
+        # 'maj' (Δ7 → maj7, Δ9 → maj9). On its own -- or before a non-digit like
+        # Δ#11 -- it means a plain major seventh, so Δ becomes 'maj7'
+        # (Δ → maj7, Δ#11 → maj7#11).
+        chord_name = re.sub(r'Δ(?=\d)', 'maj', chord_name)
+        chord_name = chord_name.replace('Δ', 'maj7')
 
         return chord_name
 

@@ -159,12 +159,15 @@ class EventProducer:
         loop iteration, time-signature directives) so the status bar
         denominator matches what the user actually hears.
         """
-        # Pre-index labels.
+        # Pre-index labels. '@start' is a built-in label for the top of the
+        # document (see _build_label_index), so bar counting honours
+        # `{loop: @start N}` too.
         labels = {}
         for li, line in enumerate(self._lines):
             for ii, item in enumerate(line.items):
                 if isinstance(item, Directive) and item.type == DirectiveType.LABEL:
                     labels.setdefault(item.label, (li, ii))
+        labels.setdefault('@start', (0, 0))
 
         line_index = 0
         item_index = 0
@@ -242,6 +245,18 @@ class EventProducer:
                 if isinstance(item, Directive) and item.type == DirectiveType.LABEL:
                     state['labels'][item.label] = (line_idx, item_idx)
                     self._logger.debug(f"Found label '{item.label}' at line {line_idx}, item {item_idx}")
+
+        # '@start' is a built-in label pointing at the top of the document, so
+        # `{loop: @start N}` repeats the whole song without needing an explicit
+        # {label: @start}. Snapshot the initial state so a loop back to it
+        # restores the document's starting BPM/time/key/voicing.
+        state['labels'].setdefault('@start', (0, 0))
+        state['label_states'].setdefault('@start', {
+            'bpm': self._current_bpm,
+            'time_sig': state['current_time_sig'],
+            'key': state['current_key'],
+            'chord_picker_state': self._note_picker.state,
+        })
 
     def _get_next_event(self, state: dict) -> Optional[MidiEvent]:
         """Get next MIDI event (processes directives, returns chord event).

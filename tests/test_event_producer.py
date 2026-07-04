@@ -301,6 +301,26 @@ class TestLoopAndBarAccounting:
         note_ons = [e for e in events if e.event_type == MidiEventType.NOTE_ON]
         assert [e.metadata['bar'] for e in note_ons] == [1, 2, 3, 4]
 
+    def test_at_start_is_builtin_label(self, event_buffer, note_picker, mock_application):
+        """'@start' loops the whole document without an explicit {label: @start}."""
+        from services.song_parser_service import SongParserService
+        text = "C*4\nG*4\n{loop: @start 2}"
+        lines = SongParserService().detect_chords_in_text(text)
+        events = self._run(lines, event_buffer, note_picker, mock_application)
+        note_ons = [e for e in events if e.event_type == MidiEventType.NOTE_ON]
+        # Two chords, then the whole document repeated once more = 4 plays.
+        assert len(note_ons) == 4
+
+    def test_at_start_bar_count_includes_replay(self, event_buffer, note_picker, mock_application):
+        """Bar accounting must include the @start replay."""
+        from services.song_parser_service import SongParserService
+        text = "C*4\nG*4\n{loop: @start 2}"
+        lines = SongParserService().detect_chords_in_text(text)
+        events = self._run(lines, event_buffer, note_picker, mock_application)
+        note_ons = [e for e in events if e.event_type == MidiEventType.NOTE_ON]
+        assert [e.metadata['bar'] for e in note_ons] == [1, 2, 3, 4]
+        assert all(e.metadata['total_bars'] == 4 for e in note_ons)
+
     def test_time_signature_change_flushes_partial_bar(self, event_buffer, note_picker, mock_application):
         from services.song_parser_service import SongParserService
         text = "C*4\n{time: 3/4}\nG*3 F*3"

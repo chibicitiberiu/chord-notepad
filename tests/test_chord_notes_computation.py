@@ -122,6 +122,51 @@ class TestRomanNumeralChords:
         assert result.bass_note == "G"
         assert len(result.notes) == 4  # G7 has 4 notes
 
+    def test_lowercase_seventh_is_minor(self, chord_helper):
+        """A bare seventh on a lowercase numeral is minor, not dominant.
+
+        ``ii7`` in C is Dm7 (D F A C), not the dominant D7 (D F# A C).
+        """
+        result = chord_helper.compute_chord_notes("ii7", key="C", is_relative=True)
+        assert result is not None
+        assert result.root == "D"
+        assert set(result.notes) == {"D", "F", "A", "C"}
+
+    def test_lowercase_extensions_stay_minor(self, chord_helper):
+        """Extensions on lowercase numerals keep the minor third."""
+        cases = {
+            "ii9": {"D", "F", "A", "C", "E"},   # Dm9
+            "ii6": {"D", "F", "A", "B"},        # Dm6
+            "iiadd9": {"D", "F", "A", "E"},     # Dm(add9)
+            "ii7b5": {"D", "F", "Ab", "C"},     # Dm7b5 (half-diminished)
+            "vi7": {"A", "C", "E", "G"},        # Am7
+        }
+        for roman, expected in cases.items():
+            result = chord_helper.compute_chord_notes(roman, key="C", is_relative=True)
+            assert result is not None, roman
+            assert set(result.notes) == expected, f"{roman}: {result.notes}"
+
+    def test_uppercase_seventh_is_dominant(self, chord_helper):
+        """An uppercase numeral with a seventh stays dominant.
+
+        ``II7`` in C is a D dominant seventh (D F# A C), a secondary dominant.
+        """
+        result = chord_helper.compute_chord_notes("II7", key="C", is_relative=True)
+        assert result is not None
+        assert result.root == "D"
+        assert set(result.notes) == {"D", "F#", "A", "C"}
+
+    def test_lowercase_sus_and_maj7_not_forced_minor(self, chord_helper):
+        """sus and maj7 qualities are not turned into minor chords."""
+        # sus has no third, so it isn't rewritten into a (nonexistent) minor-sus
+        sus = chord_helper.compute_chord_notes("iisus4", key="C", is_relative=True)
+        assert sus is not None
+        assert set(sus.notes) == {"D", "G", "A"}
+        # maj7 keeps its major third, matching the absolute 'dmaj7' spelling
+        maj7 = chord_helper.compute_chord_notes("iimaj7", key="C", is_relative=True)
+        assert maj7 is not None
+        assert set(maj7.notes) == {"D", "F#", "A", "C#"}
+
     def test_roman_different_keys(self, chord_helper):
         """Test same roman numeral in different keys."""
         # I in C = C
@@ -599,6 +644,22 @@ class TestParenthesesNotation:
         assert result.root == "C"
         assert len(result.notes) >= 4
 
+    def test_minor_major_seventh_parenthesised(self, chord_helper):
+        """Cm(maj7) is a minor-major seventh (= CmM7), not a bare minor triad."""
+        result = chord_helper.compute_chord_notes("Cm(maj7)")
+
+        assert result is not None
+        assert result.root == "C"
+        assert set(result.notes) == {"C", "Eb", "G", "B"}
+
+    def test_major_seventh_parenthesised(self, chord_helper):
+        """C(maj7) adds a major seventh to the major triad: = Cmaj7."""
+        result = chord_helper.compute_chord_notes("C(maj7)")
+
+        assert result is not None
+        assert result.root == "C"
+        assert set(result.notes) == {"C", "E", "G", "B"}
+
 
 class TestSymbolNotation:
     """Tests for symbol-based chord notation (°, ø, +)."""
@@ -899,6 +960,25 @@ class TestUnicodeSymbols:
         assert len(result.notes) == 4
         assert result.root == "C"
 
+    def test_unicode_delta_bare_is_major7(self, chord_helper):
+        """A bare triangle means major 7th, not a plain major triad: CΔ = Cmaj7."""
+        result = chord_helper.compute_chord_notes("CΔ")
+        assert result is not None
+        assert result.root == "C"
+        assert set(result.notes) == {"C", "E", "G", "B"}
+
+    def test_unicode_delta_with_extension(self, chord_helper):
+        """A number after the triangle carries the extension: CΔ9 = Cmaj9."""
+        result = chord_helper.compute_chord_notes("CΔ9")
+        assert result is not None
+        assert set(result.notes) == {"C", "E", "G", "B", "D"}
+
+    def test_unicode_delta_minor_major7(self, chord_helper):
+        """A triangle on a minor chord is a minor-major seventh: CmΔ = CmM7."""
+        result = chord_helper.compute_chord_notes("CmΔ")
+        assert result is not None
+        assert set(result.notes) == {"C", "Eb", "G", "B"}
+
     def test_unicode_flat_in_alteration(self, chord_helper):
         """Test unicode flat in chord alteration: C7♭5 becomes C7b5."""
         result = chord_helper.compute_chord_notes("C7♭5")
@@ -1055,12 +1135,45 @@ class TestJazzVoicingConventions:
         result = chord_helper.compute_chord_notes("C13")
         assert result is not None
         # Should have: C, E, G, Bb, D (9), A (13)
-        # Should NOT have: F (11) - omitted for practical voicing
+        # Should NOT have: F (11) - clashes a semitone above the major 3rd
         assert "C" in result.notes
         assert "E" in result.notes  # 3rd included
         assert "A" in result.notes  # 13th
-        # F (11th) typically omitted in practical voicings
-        # Note: pychord may or may not include it, so we just verify 13th is there
+        assert "F" not in result.notes  # 11th omitted for practical voicing
+
+    def test_minor_13th_omits_11th(self, chord_helper):
+        """Test Cm13 omits 11th (F) - practical voicing."""
+        result = chord_helper.compute_chord_notes("Cm13")
+        assert result is not None
+        # Should have: C, Eb (b3), G, Bb (b7), D (9), A (13)
+        assert "C" in result.notes
+        assert ("Eb" in result.notes or "D#" in result.notes)  # b3rd
+        assert "A" in result.notes  # 13th
+        assert "F" not in result.notes  # 11th omitted
+
+    def test_major_13th_omits_11th(self, chord_helper):
+        """Test Cmaj13 omits 11th (F) - practical voicing."""
+        result = chord_helper.compute_chord_notes("Cmaj13")
+        assert result is not None
+        # Should have: C, E, G, B (maj7), D (9), A (13)
+        assert "C" in result.notes
+        assert "E" in result.notes  # 3rd included
+        assert "B" in result.notes  # maj7th
+        assert "A" in result.notes  # 13th
+        assert "F" not in result.notes  # 11th omitted
+
+    def test_major_11th_omits_third(self, chord_helper):
+        """Test Cmaj11 omits the 3rd (E) to avoid clash with 11th (F)."""
+        result = chord_helper.compute_chord_notes("Cmaj11")
+        assert result is not None
+        # Should have: C (root), G (5th), B (maj7), D (9), F (11)
+        # Should NOT have: E (3rd) - clashes a semitone under F (11th)
+        assert "C" in result.notes
+        assert "G" in result.notes
+        assert "B" in result.notes  # maj7th
+        assert "D" in result.notes  # 9th
+        assert "F" in result.notes  # 11th
+        assert "E" not in result.notes  # 3rd dropped, like the dominant 11th
 
 
 class TestSeventhChordExtensions:
@@ -1094,6 +1207,63 @@ class TestSeventhChordExtensions:
         # This might not be supported by pychord, but should at least not crash
         result = chord_helper.compute_chord_notes("Caug7(9)")
         # Just verify it doesn't crash - result may be None if not supported
+
+
+class TestCuratedParenthesisedVoicings:
+    """Parenthesised voicings that live in QUALITY_INTERVALS with the
+    parentheses intact. The libraries can't parse these, so the parenthesis
+    normalizer must leave them alone and let the table resolve them instead of
+    rewriting them into a symbol that erases or corrupts the chord.
+    """
+
+    def test_major_seven_sharp_five_add_nine(self, chord_helper):
+        """Cmaj7#5(9) resolves to C E G# B D (not erased to None)."""
+        result = chord_helper.compute_chord_notes("Cmaj7#5(9)")
+        assert result is not None
+        assert result.root == "C"
+        assert "C" in result.notes
+        assert "E" in result.notes             # major 3rd
+        assert ("G#" in result.notes or "Ab" in result.notes)  # #5
+        assert "B" in result.notes             # maj7
+        assert "D" in result.notes             # 9
+
+    def test_diminished_add_major_nine(self, chord_helper):
+        """Cdim(maj9) keeps the maj9 instead of silently dropping it."""
+        result = chord_helper.compute_chord_notes("Cdim(maj9)")
+        assert result is not None
+        assert result.root == "C"
+        assert "C" in result.notes
+        assert ("Eb" in result.notes or "D#" in result.notes)  # b3
+        assert ("Gb" in result.notes or "F#" in result.notes)  # b5
+        assert "B" in result.notes             # maj7
+        assert "D" in result.notes             # 9
+
+    def test_half_diminished_flat_nine(self, chord_helper):
+        """Cm7b5(b9) keeps the b7 instead of collapsing to a wrong chord."""
+        result = chord_helper.compute_chord_notes("Cm7b5(b9)")
+        assert result is not None
+        assert result.root == "C"
+        assert "C" in result.notes
+        assert ("Eb" in result.notes or "D#" in result.notes)  # b3
+        assert ("Gb" in result.notes or "F#" in result.notes)  # b5
+        assert ("Bb" in result.notes or "A#" in result.notes)  # b7 - must survive
+        assert ("Db" in result.notes or "C#" in result.notes)  # b9
+
+    def test_curated_paren_voicing_with_slash_bass(self, chord_helper):
+        """Slash bass survives the curated paren voicing path."""
+        result = chord_helper.compute_chord_notes("Cmaj7#5(9)/G")
+        assert result is not None
+        assert result.root == "C"
+        assert result.bass_note == "G"
+
+    def test_ordinary_paren_extensions_still_merge(self, chord_helper):
+        """The curated skip must not disturb the normal (9)/(b9)/(11) merges."""
+        # These qualities-with-parens are NOT table keys, so they must still be
+        # rewritten by _normalize_parentheses as before.
+        assert chord_helper.compute_chord_notes("Cmaj7(9)") is not None
+        assert chord_helper.compute_chord_notes("C7(b9)") is not None
+        assert chord_helper.compute_chord_notes("Cm7b5(9)") is not None  # -> Cm9b5
+        assert chord_helper.compute_chord_notes("C(add9)") is not None
 
 
 class TestAlteredDominantVariations:
@@ -1221,6 +1391,112 @@ class TestComplexJazzChords:
                 chord_name = f"{root}{quality}"
                 result = chord_helper.compute_chord_notes(chord_name)
                 assert result is not None, f"{chord_name} should resolve"
+
+
+class TestRegisterPreservingIntervals:
+    """compute_chord_notes carries register-preserving intervals (semitones
+    above the root), aligned with the note names, from whichever backend
+    resolves the chord. This is what lets the voicer place extensions in the
+    right octave instead of guessing from note order.
+    """
+
+    def test_intervals_present_and_aligned(self, chord_helper):
+        """Every resolved chord carries intervals aligned with its notes."""
+        for sym in ['C', 'Am', 'C7', 'Cmaj7', 'C9', 'C13', 'Cm7b5', 'Cadd9']:
+            result = chord_helper.compute_chord_notes(sym)
+            assert result is not None
+            assert result.intervals is not None, f"{sym} missing intervals"
+            assert len(result.intervals) == len(result.notes)
+            assert result.intervals[0] == 0  # root at 0
+
+    def test_extension_intervals_are_register_correct(self, chord_helper):
+        """9th -> 14, 11th -> 17, 13th -> 21 (not folded into an octave)."""
+        assert chord_helper.compute_chord_notes("C9").intervals == [0, 4, 7, 10, 14]
+        assert chord_helper.compute_chord_notes("C11").intervals == [0, 7, 10, 14, 17]
+        assert chord_helper.compute_chord_notes("C13").intervals == [0, 4, 7, 10, 14, 21]
+        assert chord_helper.compute_chord_notes("Cadd9").intervals == [0, 4, 7, 14]
+
+    def test_intervals_match_note_pitch_classes(self, chord_helper):
+        """root_pitch_class + interval reproduces each note's pitch class."""
+        from chord.midi_converter import parse_note_to_semitone
+        for sym in ['C13', 'Cmaj11', 'F#9', 'Bbmaj7', 'Ebm11', 'Cmaj7#5(9)']:
+            result = chord_helper.compute_chord_notes(sym)
+            assert result is not None
+            root_pc = parse_note_to_semitone(result.notes[0])
+            for note, interval in zip(result.notes, result.intervals):
+                assert (root_pc + interval) % 12 == parse_note_to_semitone(note), \
+                    f"{sym}: {note} at interval {interval} does not match root"
+
+    def test_curated_voicing_intervals_come_from_table(self, chord_helper):
+        """Curated qualities keep the table's dropped-note register."""
+        # maj11 drops the 3rd; 13 drops the 11th - the intervals reflect that.
+        assert chord_helper.compute_chord_notes("Cmaj11").intervals == [0, 7, 11, 14, 17]
+        assert chord_helper.compute_chord_notes("Cmaj13").intervals == [0, 4, 7, 11, 14, 21]
+
+    def test_intervals_strictly_increasing_for_real_chords(self, chord_helper):
+        """A real chord's intervals ascend - no extension below its predecessor."""
+        for sym in ['C9', 'Cm9', 'C11', 'C13', 'Cmaj13', 'C13#11']:
+            result = chord_helper.compute_chord_notes(sym)
+            assert result is not None
+            ivals = result.intervals
+            assert all(b > a for a, b in zip(ivals, ivals[1:])), f"{sym}: {ivals}"
+
+
+class TestAmericanEuropeanDisambiguation:
+    """American chords that start with a European syllable ('Fa' = F, 'Do' = D)
+    must not be mangled by the European->American conversion. Only 'Do' and 'Fa'
+    collide with American roots; the converter runs first, and we fall back to
+    the American spelling only when the conversion produces an invalid chord.
+    """
+
+    def test_f_aug_and_add_not_mangled(self, chord_helper):
+        """'Faug'/'Fadd9' are F chords, not the 'Fug'/'Fdd9' the converter makes."""
+        from chord.midi_converter import parse_note_to_semitone
+
+        def pcs(sym):
+            r = chord_helper.compute_chord_notes(sym)
+            return sorted(parse_note_to_semitone(n) for n in r.notes) if r else None
+
+        # F is 5 semitones above C; the F chord is the C chord transposed.
+        for quality in ['aug', 'add9', 'add11', 'aug7', 'augmaj7', 'aug7b9']:
+            c = pcs('C' + quality)
+            f = pcs('F' + quality)
+            assert f is not None, f"F{quality} should resolve"
+            assert f == sorted((p + 5) % 12 for p in c), f"F{quality} wrong notes"
+
+    def test_f_root_preserved(self, chord_helper):
+        """The root stays F, not something the conversion left behind."""
+        for quality in ['aug', 'add9', 'aug7', 'augmaj7']:
+            result = chord_helper.compute_chord_notes('F' + quality)
+            assert result is not None
+            assert result.root == 'F'
+
+    def test_do_stays_c_major_not_d_diminished(self, chord_helper):
+        """'Do' is European C major, not D-diminished (lenient 'o' = dim)."""
+        result = chord_helper.compute_chord_notes('Do')
+        assert result is not None
+        assert result.root == 'C'
+        assert set(result.notes) == {'C', 'E', 'G'}
+
+    def test_do7_stays_c7(self, chord_helper):
+        """'Do7' is European C7, not D-diminished-7."""
+        result = chord_helper.compute_chord_notes('Do7')
+        assert result is not None
+        assert result.root == 'C'
+        # C7 = C E G Bb
+        assert 'Bb' in result.notes or 'A#' in result.notes
+        assert 'E' in result.notes
+
+    def test_genuine_european_still_converts(self, chord_helper):
+        """The fallback must not break real European notation."""
+        expected = {
+            'Fa': 'F', 'Fa7': 'F', 'Fam': 'F', 'Re': 'D', 'Mi': 'E',
+            'Sol': 'G', 'La': 'A', 'Si': 'B', 'do': 'C', 'fa': 'F',
+        }
+        for european, root in expected.items():
+            result = chord_helper.compute_chord_notes(european)
+            assert result is not None, f"{european} should resolve"
+            assert result.root == root, f"{european} -> root {result.root}, expected {root}"
 
 
 @pytest.fixture

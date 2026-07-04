@@ -74,6 +74,10 @@ hiddenimports = [
     'audio.chord_picker',
     'chord',
     'chord.converter',
+    # PIL.ImageTk imports this lazily at runtime to bridge Pillow and Tk;
+    # PyInstaller can't see it via static analysis, so the frozen build fails
+    # with "No module named 'PIL._tkinter_finder'" when loading toolbar icons.
+    'PIL._tkinter_finder',
 ]
 
 # Exclude unused GUI frameworks

@@ -473,6 +473,118 @@ class TestPianoPickerSpecific:
         assert set(midi1) == set(midi2), "Same chord should produce same notes"
 
 
+class TestExtensionRegister:
+    """Extensions (9th/11th/13th) must keep their upper register instead of
+    collapsing into a 2nd/4th/6th that clashes with the root.
+
+    The picker voices from the chord's intervals (register-preserving), so an
+    11th lands at +17 and a 13th at +21 above the root. The whole block is then
+    kept in a central register - extensions belong an octave up, but not
+    stranded so high the quality gets thin.
+    """
+
+    @staticmethod
+    def _chord_tone_intervals(picker, chord_notes):
+        """Intervals of the chord voicing above its lowest chord tone.
+
+        The picker prepends a bass note; drop it so we measure the chord
+        voicing itself.
+        """
+        midi = picker.chord_to_midi(chord_notes)
+        assert len(midi) > 1
+        voicing = sorted(midi)[1:]  # strip the low bass
+        return [m - voicing[0] for m in voicing]
+
+    def test_dominant_11th_keeps_high_11th_first_chord(self):
+        """C11 as the very first chord: 9th and 11th stay an octave up."""
+        picker = ChordNotePicker()
+        chord = ChordNotes(notes=['C', 'G', 'Bb', 'D', 'F'], bass_note='C', root='C')
+        intervals = self._chord_tone_intervals(picker, chord)
+        # D (9th) at +14, F (11th) at +17 - not +2 / +5
+        assert intervals == [0, 7, 10, 14, 17]
+
+    def test_major_11th_keeps_high_11th_first_chord(self):
+        """Cmaj11 first chord: 11th stays a real 11th, not a 4th on the root."""
+        picker = ChordNotePicker()
+        chord = ChordNotes(notes=['C', 'G', 'B', 'D', 'F'], bass_note='C', root='C')
+        intervals = self._chord_tone_intervals(picker, chord)
+        assert intervals == [0, 7, 11, 14, 17]
+
+    def test_major_13th_keeps_high_13th_first_chord(self):
+        """Cmaj13 first chord: 9th at +14 and 13th at +21."""
+        picker = ChordNotePicker()
+        chord = ChordNotes(notes=['C', 'E', 'G', 'B', 'D', 'A'], bass_note='C', root='C')
+        intervals = self._chord_tone_intervals(picker, chord)
+        assert intervals == [0, 4, 7, 11, 14, 21]
+
+    def test_register_consistent_first_vs_midprogression(self):
+        """The 11th sits high whether C11 is first or follows another chord."""
+        c11 = ChordNotes(notes=['C', 'G', 'Bb', 'D', 'F'], bass_note='C', root='C')
+
+        first = ChordNotePicker()
+        first_intervals = self._chord_tone_intervals(first, c11)
+
+        after = ChordNotePicker()
+        after.chord_to_midi(ChordNotes(notes=['C', 'E', 'G'], bass_note='C', root='C'))
+        after_intervals = self._chord_tone_intervals(after, c11)
+
+        # Both spread the 9th/11th up an octave (span > one octave).
+        assert first_intervals[-1] >= 12
+        assert after_intervals[-1] >= 12
+
+    def test_extended_chord_stays_central(self):
+        """A spread extended chord stays central - top at/below C5 initially."""
+        picker = ChordNotePicker()
+        chord = ChordNotes(
+            notes=['C', 'E', 'G', 'B', 'D', 'A'],
+            bass_note='C', root='C',
+            intervals=[0, 4, 7, 11, 14, 21],
+        )
+        midi = picker.chord_to_midi(chord)
+        assert max(midi) <= 72  # top note at/below C5 (prefer the closer register)
+
+    def test_picker_uses_provided_intervals(self):
+        """Explicit intervals drive register, not the pitch-class order.
+
+        Same pitch classes, two different interval spellings: a close voicing
+        vs. one with the 9th up an octave. The picker must honor each.
+        """
+        close = ChordNotes(
+            notes=['C', 'D', 'E', 'G'], bass_note='C', root='C',
+            intervals=[0, 2, 4, 7],           # D as a 2nd
+        )
+        spread = ChordNotes(
+            notes=['C', 'D', 'E', 'G'], bass_note='C', root='C',
+            intervals=[0, 4, 7, 14],          # D as a 9th, an octave up
+        )
+        close_tones = self._chord_tone_intervals(ChordNotePicker(), close)
+        spread_tones = self._chord_tone_intervals(ChordNotePicker(), spread)
+
+        assert close_tones == [0, 2, 4, 7]
+        assert spread_tones == [0, 4, 7, 14]
+        assert close_tones != spread_tones
+
+    def test_no_duplicate_midi_notes(self):
+        """A wide chord whose root lands on the bass must not double a key."""
+        picker = ChordNotePicker()
+        # G13 rooted low enough that the chord root can collide with the bass.
+        chord = ChordNotes(
+            notes=['G', 'B', 'D', 'F', 'A', 'E'],
+            bass_note='G', root='G',
+            intervals=[0, 4, 7, 10, 14, 21],
+        )
+        midi = picker.chord_to_midi(chord)
+        assert len(midi) == len(set(midi)), f"duplicate MIDI notes: {midi}"
+
+    def test_triad_first_chord_unchanged(self):
+        """The register fix must not alter plain triad voicings."""
+        picker = ChordNotePicker()
+        chord = ChordNotes(notes=['C', 'E', 'G'], bass_note='C', root='C')
+        midi = picker.chord_to_midi(chord)
+        # C2 bass + C4 E4 G4 - the long-standing initial voicing.
+        assert midi == [36, 60, 64, 67]
+
+
 class TestGuitarPickerSpecific:
     """Tests specific to guitar picker"""
 
