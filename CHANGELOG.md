@@ -7,6 +7,19 @@ of this file are used as the GitHub release description, then automatically
 moved to CHANGELOG_HISTORY.md and this file is reset.
 -->
 
+### Added
+
+- **Export MIDI...** (File menu) saves the current song as a standard MIDI
+  file. The file matches playback exactly: the selected piano or guitar
+  voicing, the real timing, tempo changes from `{bpm}`, time and key
+  signature events from `{time}`/`{key}`, and the currently selected
+  instrument as the MIDI program. Loops are unrolled into their repeated
+  passes, `NC` sections become silence, and the whole song is exported from
+  the beginning regardless of cursor position. The playback speed
+  multiplier is not applied -- the file always uses the song's real tempo.
+  Written as two tracks (conductor + chords) for easy import into DAWs and
+  notation software.
+
 ### Changed
 
 - Guitar voicings are now chosen for the whole song at once instead of chord by

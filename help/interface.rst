@@ -129,6 +129,12 @@ File Menu
 **Save As...** (Ctrl+Shift+S)
    Save the current document with a new name or location.
 
+**Export MIDI...**
+   Save the song as a standard MIDI file. Opens a save dialog for a ``.mid``
+   file containing the same voicings, timing, tempo, and instrument as
+   playback, with loops unrolled into their repeats. See
+   :doc:`midi_export` for details.
+
 **Recent Files**
    A submenu showing up to 10 recently opened files. Click any file to open it
    quickly.

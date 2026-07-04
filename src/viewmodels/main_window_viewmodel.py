@@ -246,6 +246,42 @@ class MainWindowViewModel(Observable):
             logger.error(f"Failed to save file: {e}", exc_info=True)
             return False
 
+    def export_midi_file(self, path: Path) -> bool:
+        """Export the current document as a standard MIDI file.
+
+        Parses the current text, renders the whole song synchronously
+        (voicing + timing), and writes it out as a format-1 SMF using the
+        configured instrument and a title derived from the current file.
+
+        Args:
+            path: Path to write the MIDI file to
+
+        Returns:
+            True if successful, False otherwise
+        """
+        # Imported lazily to keep the (potentially heavier) MIDI writer
+        # dependencies out of application startup.
+        from services.midi_file_writer import write_midi_file
+
+        try:
+            lines = self._chord.detect_chords_in_text(self._current_text, self._notation)
+            rendered = self._audio.render_song(lines, self._key)
+            if rendered is None:
+                logger.warning("No chords found to export as MIDI")
+                return False
+
+            program = self._config.get("instrument", 0)
+            title = self._current_file.stem if self._current_file is not None else "Untitled"
+
+            logger.info(f"Exporting MIDI file: {path}")
+            write_midi_file(rendered, path, program=program, title=title)
+
+            return True
+
+        except Exception as e:
+            logger.error(f"Failed to export MIDI file: {e}", exc_info=True)
+            return False
+
     def on_text_changed(self, text: str) -> None:
         """Handle text content changes.
 

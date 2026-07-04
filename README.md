@@ -27,6 +27,7 @@ A text editor for songwriters. Write chord symbols above your lyrics, the way yo
 **Also**
 - A reverse tool: click notes on a keyboard and it names the chord, inversions and slash spellings included
 - File operations, recent files, adjustable font size
+- Export the song as a standard MIDI file, for use in DAWs or notation software
 
 ## Requirements
 

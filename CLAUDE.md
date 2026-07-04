@@ -44,6 +44,7 @@ src/
 │   ├── playback_service.py    # Audio orchestration
 │   ├── song_renderer.py       # Pre-render song → RenderedSong (voicing + timing)
 │   ├── event_compiler.py      # RenderedSong → MidiEvent stream
+│   ├── midi_file_writer.py    # RenderedSong → .mid file (MIDI export)
 │   ├── song_parser_service.py # Parse songs, detect chords
 │   ├── config_service.py      # Settings persistence
 │   └── file_service.py        # File I/O

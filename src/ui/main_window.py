@@ -368,6 +368,7 @@ class MainWindow(tk.Tk):
             .add_command("Open...", self.open_file, accelerator="Ctrl+O") \
             .add_command("Save", self.save_file, accelerator="Ctrl+S") \
             .add_command("Save As...", self.save_file_as, accelerator="Ctrl+Shift+S") \
+            .add_command("Export MIDI...", self.export_midi) \
             .add_separator() \
             .build()
 
@@ -731,6 +732,30 @@ class MainWindow(tk.Tk):
                 self.update_statusbar(f"Saved: {filename}")
             else:
                 messagebox.showerror("Error", f"Failed to save file:\n{filename}")
+
+    def export_midi(self) -> None:
+        """Export the current document as a standard MIDI file"""
+        initial_stem = self.viewmodel.current_file.stem if self.viewmodel.current_file else "Untitled"
+
+        filename = filedialog.asksaveasfilename(
+            title="Export MIDI",
+            defaultextension=".mid",
+            filetypes=[("MIDI files", "*.mid"), ("All files", "*.*")],
+            initialfile=f"{initial_stem}.mid"
+        )
+
+        if not filename:
+            return
+
+        # Update ViewModel with current text before exporting
+        current_text = self.text_editor.get("1.0", "end-1c")
+        self.viewmodel.on_text_changed(current_text)
+
+        success = self.viewmodel.export_midi_file(Path(filename))
+        if success:
+            self.update_statusbar(f"Exported MIDI: {filename}")
+        else:
+            messagebox.showerror("Error", f"Failed to export MIDI file:\n{filename}")
 
     def prompt_save_if_modified(self) -> bool:
         """Prompt to save if file is modified. Returns True if ok to continue."""

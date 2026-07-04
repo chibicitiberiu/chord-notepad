@@ -11,6 +11,7 @@ pyfluidsynth = ">=1.4.0"
 pychord = "*"
 music21 = "*"
 pillow = "*"
+mido = "*"
 
 [dev-packages]
 pytest = "~=7.4.0"

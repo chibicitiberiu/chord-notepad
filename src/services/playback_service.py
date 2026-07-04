@@ -17,6 +17,7 @@ from models.chord import ChordInfo
 from models.playback_state import PlaybackState
 from models.playback_event import PlaybackEventArgs
 from models.line import Line
+from models.rendered_song import RenderedSong
 from services.config_service import ConfigService
 
 
@@ -531,6 +532,41 @@ class PlaybackService:
         )
         self._render_thread.start()
         return True
+
+    def render_song(self, lines: List[Line], initial_key: Optional[str]) -> Optional[RenderedSong]:
+        """Synchronously render a whole song for export (e.g. MIDI file writing).
+
+        Unlike :meth:`start_song_playback`, this does not touch the audio
+        player: it never calls ``_ensure_initialized`` and never starts
+        playback. It always renders from the very start of the song (no
+        cancellation, no mid-song resume).
+
+        Args:
+            lines: List of Line objects with chords and directives
+            initial_key: Initial key signature (from UI)
+
+        Returns:
+            The fully rendered song, or None if there are no chords to render
+            or rendering fails.
+        """
+        total_chords = sum(len(line.chords) for line in lines)
+        if total_chords == 0:
+            self._logger.info("No chords found to render")
+            return None
+
+        try:
+            return SongRenderer(logger=self._logger).render(
+                lines=lines,
+                initial_key=initial_key,
+                initial_bpm=self._playback_state.bpm,
+                initial_time_sig=self.get_time_signature(),
+                note_picker=self._note_picker,
+                start_line_index=0,
+                start_item_index=0,
+            )
+        except Exception as e:
+            self._logger.error(f"Error rendering song for export: {e}", exc_info=True)
+            return None
 
     def _resolve_chord_notes(self, chord: ChordInfo, current_key: Optional[str]) -> Optional[ChordNotes]:
         """Resolve a chord to its note names based on current key.
