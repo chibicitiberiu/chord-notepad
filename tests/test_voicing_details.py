@@ -128,6 +128,34 @@ class TestEnsembleNoModelDetail:
         assert all(len(rc.voice_notes) == n_voices for rc in played)
 
 
+class TestVoiceStavesPlumbing:
+    """``voice_staves`` rides onto ``RenderedSong`` low-to-high, aligned with labels."""
+
+    def test_free_voiced_pickers_leave_voice_staves_none(self):
+        for picker in (GuitarChordPicker(), ChordNotePicker()):
+            rendered = _render("C G Am F\n", picker)
+            assert picker.voice_staves is None
+            assert rendered.voice_staves is None
+
+    def test_ensemble_voice_staves_low_to_high_aligned_with_labels(self):
+        picker = EnsembleVoicer(BUILTIN_ENSEMBLES['satb'])
+        rendered = _render("C G Am F\n", picker)
+        # Picker reports top-voice-first (aligned with voice_labels).
+        assert picker.voice_staves == ['treble', 'treble', 'bass', 'bass']
+        assert picker.voice_labels == ['Soprano', 'Alto', 'Tenor', 'Bass']
+        # RenderedSong stores both reversed to low-to-high, index-aligned.
+        assert rendered.voice_labels == ['Bass', 'Tenor', 'Alto', 'Soprano']
+        assert rendered.voice_staves == ['bass', 'bass', 'treble', 'treble']
+        assert len(rendered.voice_staves) == len(rendered.voice_labels)
+
+    def test_voice_staves_all_valid_values(self):
+        picker = EnsembleVoicer(BUILTIN_ENSEMBLES['quartet'])
+        rendered = _render("C G Am F\n", picker)
+        assert rendered.voice_staves is not None
+        assert all(s in ('treble', 'bass') for s in rendered.voice_staves)
+        assert len(rendered.voice_staves) == len(picker.voice_labels)
+
+
 class _MinimalPicker(INotePicker):
     """Smallest possible custom picker: only the abstract API, no overrides.
 

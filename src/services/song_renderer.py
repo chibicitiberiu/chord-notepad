@@ -170,7 +170,7 @@ class SongRenderer:
         # resolved notes to the voicer in one call so it can optimize the whole
         # song in context, then assign the results back. Rests and skipped
         # chords keep midi_notes=None.
-        voice_labels = self._voice_rendered_chords(rendered)
+        voice_labels, voice_staves = self._voice_rendered_chords(rendered)
 
         # Finalize whole-song bar count (round up any partial bar), matching the
         # old _compute_total_bars behaviour.
@@ -188,6 +188,7 @@ class SongRenderer:
             meter_map=meter_map,
             markers=state['markers'],
             voice_labels=voice_labels,
+            voice_staves=voice_staves,
         )
 
     # ------------------------------------------------------------------
@@ -533,7 +534,9 @@ class SongRenderer:
             is_relative=chord.is_relative,
         )
 
-    def _voice_rendered_chords(self, rendered: List[RenderedChord]) -> Optional[List[str]]:
+    def _voice_rendered_chords(
+        self, rendered: List[RenderedChord]
+    ) -> Tuple[Optional[List[str]], Optional[List[str]]]:
         """Voice every played chord in one whole-song pass.
 
         Collects the played (non-rest, non-skipped) chords in playback order,
@@ -548,31 +551,34 @@ class SongRenderer:
         ``midi_notes`` becomes an order-preserving deduplicated copy of it,
         so a unison doesn't double-strike one synth note. The picker reports
         ``voice_labels`` top-voice-first; this returns them reversed to
-        low-to-high so they align index-for-index with ``voice_notes``.
+        low-to-high so they align index-for-index with ``voice_notes``. The
+        matching per-voice ``voice_staves`` (also reported top-voice-first) are
+        reversed to low-to-high the same way and returned alongside.
 
         For free-voiced pickers (piano, guitar; ``voice_labels`` is
         ``None``), behaviour is exactly as before: ``midi_notes`` is the
         voicing unchanged, ``voice_notes`` stays ``None``, and this returns
-        ``None``. Their model-specific display detail -- the guitar
+        ``(None, None)``. Their model-specific display detail -- the guitar
         ``fingering`` and the piano ``hand_split`` -- rides along on each
         :class:`VoicedChord` from ``voice_sequence_details`` and is copied
         onto the ``RenderedChord``; models that don't supply it leave those
         fields ``None``.
 
         Returns:
-            The low-to-high voice labels to store on the ``RenderedSong``,
-            or ``None`` for free-voiced pickers.
+            A ``(voice_labels, voice_staves)`` pair, each a low-to-high list to
+            store on the ``RenderedSong``, or ``(None, None)`` for free-voiced
+            pickers.
         """
         played = [rc for rc in rendered
                   if not rc.is_rest and not rc.skipped and rc.chord_notes is not None]
         if not played:
-            return None
+            return None, None
         try:
             voicings = self._note_picker.voice_sequence_details(
                 [rc.chord_notes for rc in played])
         except Exception as e:
             self._logger.error(f"Error voicing chords: {e}", exc_info=True)
-            return None
+            return None, None
 
         voice_labels = getattr(self._note_picker, 'voice_labels', None)
         if voice_labels is None:
@@ -580,9 +586,11 @@ class SongRenderer:
                 rc.midi_notes = voiced.midi_notes
                 rc.fingering = voiced.fingering
                 rc.hand_split = voiced.hand_split
-            return None
+            return None, None
 
         for rc, voiced in zip(played, voicings):
             rc.voice_notes = list(voiced.midi_notes)
             rc.midi_notes = _dedupe_preserve_order(voiced.midi_notes)
-        return list(reversed(voice_labels))
+        voice_staves = getattr(self._note_picker, 'voice_staves', None)
+        staves = list(reversed(voice_staves)) if voice_staves is not None else None
+        return list(reversed(voice_labels)), staves

@@ -236,6 +236,16 @@ class EnsembleVoicer(INotePicker):
         """Voice names, top voice first (per the :class:`INotePicker` contract)."""
         return [v.name for v in self._spec.voices]
 
+    @property
+    def voice_staves(self) -> Optional[List[str]]:
+        """Per-voice staff (``'treble'``/``'bass'``), top voice first.
+
+        Each voice's :attr:`~models.ensemble_spec.VoiceSpec.resolved_staff`
+        (the explicit ``staff`` if set, else auto-resolved from its range),
+        aligned index-for-index with :attr:`voice_labels`.
+        """
+        return [v.resolved_staff for v in self._spec.voices]
+
     # ------------------------------------------------------------------
     # Public conversion
     # ------------------------------------------------------------------

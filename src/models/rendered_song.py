@@ -157,3 +157,14 @@ class RenderedSong:
     Stored LOW to HIGH -- reversed from ``INotePicker.voice_labels``, which
     reports top-voice-first -- so it aligns index-for-index with each
     ``RenderedChord.voice_notes`` (also low to high)."""
+    voice_staves: Optional[List[str]] = None
+    """Per-voice grand-staff assignment for a fixed-ensemble picker (each entry
+    ``'treble'`` or ``'bass'``), or ``None`` for free-voiced pickers (piano,
+    guitar).
+
+    Stored LOW to HIGH, aligned index-for-index with :attr:`voice_labels` and
+    each ``RenderedChord.voice_notes`` -- reversed once from
+    ``INotePicker.voice_staves`` (which reports top-voice-first, matching
+    ``voice_labels``) exactly like ``voice_labels`` is. A chord-sheet staff
+    renderer uses ``voice_staves[i]`` to decide which staff of a grand staff
+    the note ``voice_notes[i]`` (sung by ``voice_labels[i]``) is drawn on."""

@@ -126,3 +126,16 @@ class INotePicker(ABC):
         for free-voiced pickers (piano, guitar), which is the default.
         """
         return None
+
+    @property
+    def voice_staves(self) -> Optional[List[str]]:
+        """Ordered per-voice grand-staff assignments (top voice first), or ``None``.
+
+        Populated by the same fixed-ensemble pickers that report
+        :attr:`voice_labels`, in the exact same order (top voice first) and
+        with one entry per voice: each entry is ``'treble'`` or ``'bass'``,
+        naming which staff of a grand staff that voice is drawn on by a
+        chord-sheet staff renderer. ``None`` for free-voiced pickers (piano,
+        guitar), which is the default.
+        """
+        return None
