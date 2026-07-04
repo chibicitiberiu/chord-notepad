@@ -258,6 +258,10 @@ def _merge_weights(overrides: Optional[Mapping[str, Any]]) -> Dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 
+#: Valid explicit values for :attr:`VoiceSpec.staff`.
+VALID_STAFF_VALUES = ('treble', 'bass')
+
+
 @dataclass(frozen=True)
 class VoiceSpec:
     """A single monophonic voice's identity and comfortable pitch range.
@@ -274,6 +278,25 @@ class VoiceSpec:
 
     high: int
     """Highest MIDI note this voice may be assigned, inclusive."""
+
+    staff: Optional[str] = None
+    """Explicit grand-staff assignment for a chord-sheet renderer: ``'treble'``
+    or ``'bass'``, or ``None`` to auto-resolve from the voice's range via
+    :attr:`resolved_staff`."""
+
+    @property
+    def resolved_staff(self) -> str:
+        """The effective staff this voice renders on: ``'treble'`` or ``'bass'``.
+
+        Returns the explicit :attr:`staff` if one was set. Otherwise
+        auto-resolves from the range center, ``(low + high) / 2`` in MIDI:
+        ``'bass'`` if that center sits below middle C (MIDI 60), ``'treble'``
+        otherwise.
+        """
+        if self.staff is not None:
+            return self.staff
+        center = (self.low + self.high) / 2
+        return 'bass' if center < 60 else 'treble'
 
 
 @dataclass(frozen=True)
@@ -319,7 +342,11 @@ class EnsembleSpec:
                 - ``'voices'`` (required): a list of 2 to 8 entries, each
                   ``{'name': str, 'range': [low, high]}``, ordered top voice
                   first. ``low``/``high`` are each either a MIDI int (0-127)
-                  or a note name such as ``'C4'`` (may be mixed).
+                  or a note name such as ``'C4'`` (may be mixed). Each voice
+                  may also carry an optional ``'staff'`` key (``'treble'`` or
+                  ``'bass'``) pinning which staff of a grand-staff chord
+                  sheet it renders on; omit it to auto-resolve from the
+                  voice's range (see :attr:`VoiceSpec.resolved_staff`).
                 - ``'max_spacing'`` (optional): a list of ``len(voices) - 1``
                   positive integers, one per adjacent-voice gap. Defaults to
                   12 semitones per gap, except the bottommost gap which
@@ -374,7 +401,16 @@ class EnsembleSpec:
                     f"Ensemble {name!r}: voice {voice_name!r} range must have low < high, "
                     f"got {low} >= {high}"
                 )
-            voices.append(VoiceSpec(name=voice_name, low=low, high=high))
+            raw_staff = raw_voice.get('staff')
+            staff: Optional[str] = None
+            if raw_staff is not None:
+                if not isinstance(raw_staff, str) or raw_staff not in VALID_STAFF_VALUES:
+                    raise ConfigurationError(
+                        f"Ensemble {name!r}: voice {voice_name!r} has invalid 'staff' "
+                        f"{raw_staff!r}; must be 'treble' or 'bass'"
+                    )
+                staff = raw_staff
+            voices.append(VoiceSpec(name=voice_name, low=low, high=high, staff=staff))
 
         n_gaps = len(voices) - 1
         raw_spacing = data.get('max_spacing')
@@ -422,7 +458,12 @@ class EnsembleSpec:
         return {
             'label': self.label,
             'voices': [
-                {'name': voice.name, 'range': [voice.low, voice.high]} for voice in self.voices
+                {
+                    'name': voice.name,
+                    'range': [voice.low, voice.high],
+                    **({'staff': voice.staff} if voice.staff is not None else {}),
+                }
+                for voice in self.voices
             ],
             'max_spacing': list(self.max_spacing),
             'allow_unisons': self.allow_unisons,
@@ -459,17 +500,25 @@ class EnsembleSpec:
         return tuple([float(movement)] * (n - 1) + [bass_movement])
 
 
-def _builtin(name: str, label: str, voices: List[Tuple[str, str, str]], max_spacing: List[int]) -> EnsembleSpec:
+def _builtin(name: str, label: str, voices: List[Tuple], max_spacing: List[int]) -> EnsembleSpec:
     """Build one built-in :class:`EnsembleSpec` with default weights.
 
     ``voices`` is a list of ``(voice_name, low_note_name, high_note_name)``
-    tuples, top voice first.
+    tuples, top voice first, optionally followed by a fourth ``staff``
+    element (``'treble'``/``'bass'``) to pin that voice's grand-staff
+    assignment explicitly; a 3-element tuple leaves it unset (auto-resolved
+    from the range).
     """
+    voice_dicts = []
+    for entry in voices:
+        voice_name, low, high = entry[0], entry[1], entry[2]
+        voice_dict: Dict[str, Any] = {'name': voice_name, 'range': [low, high]}
+        if len(entry) > 3 and entry[3] is not None:
+            voice_dict['staff'] = entry[3]
+        voice_dicts.append(voice_dict)
     return EnsembleSpec.from_dict(name, {
         'label': label,
-        'voices': [
-            {'name': voice_name, 'range': [low, high]} for voice_name, low, high in voices
-        ],
+        'voices': voice_dicts,
         'max_spacing': max_spacing,
     })
 
@@ -481,10 +530,10 @@ BUILTIN_ENSEMBLES: Dict[str, EnsembleSpec] = {
     'satb': _builtin(
         'satb', 'Choir (SATB)',
         [
-            ('Soprano', 'C4', 'G5'),
-            ('Alto', 'F3', 'D5'),
-            ('Tenor', 'C3', 'G4'),
-            ('Bass', 'E2', 'C4'),
+            ('Soprano', 'C4', 'G5', 'treble'),
+            ('Alto', 'F3', 'D5', 'treble'),
+            ('Tenor', 'C3', 'G4', 'bass'),
+            ('Bass', 'E2', 'C4', 'bass'),
         ],
         [12, 12, 19],
     ),

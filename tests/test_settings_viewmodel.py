@@ -11,6 +11,7 @@ import pytest
 from models.config import Config
 from models.ensemble_spec import (
     BUILTIN_ENSEMBLES,
+    EnsembleSpec,
     midi_to_note_name,
     parse_note_name,
 )
@@ -276,6 +277,23 @@ class TestValidation:
         errors = dict(vm.validate_all())
         assert "bad_choir" in errors
 
+    def test_bad_ensemble_voice_staff_flagged(self, tmp_path):
+        config = Config(voicings={
+            "bad_choir": {
+                "model": "ensemble",
+                "voices": [
+                    {"name": "High", "range": ["C4", "C5"], "staff": "alto"},
+                    {"name": "Low", "range": ["C3", "C4"]},
+                ],
+            }
+        })
+        vm = SettingsViewModel(_make_config_service(tmp_path, config))
+        message = vm.validate_voicing("bad_choir")
+        assert message is not None
+        assert "alto" in message
+        errors = dict(vm.validate_all())
+        assert "bad_choir" in errors
+
     def test_piano_always_valid(self, tmp_path):
         config = Config(voicings={"p": {"model": "piano"}})
         vm = SettingsViewModel(_make_config_service(tmp_path, config))
@@ -363,6 +381,23 @@ class TestLoadSources:
         params = by_label[std.label]
         assert params["model"] == "fretboard"
         assert params["tuning"] == list(std.tuning)
+
+    def test_satb_load_source_round_trips_with_staff(self, tmp_path):
+        # SATB's params dict is EnsembleSpec.to_dict()'s output, which now
+        # includes a 'staff' key per voice; it must still parse cleanly and
+        # preserve every voice's staff.
+        vm = SettingsViewModel(_make_config_service(tmp_path))
+        by_label = {label: params for label, params in vm.get_load_sources()}
+        satb = BUILTIN_ENSEMBLES["satb"]
+        params = dict(by_label[satb.label])
+        assert params["model"] == "ensemble"
+        for voice_dict in params["voices"]:
+            assert "staff" in voice_dict
+
+        del params["model"]
+        rebuilt = EnsembleSpec.from_dict("satb", params)
+        assert [v.staff for v in rebuilt.voices] == [v.staff for v in satb.voices]
+        assert rebuilt == satb
 
 
 # ---------------------------------------------------------------------------

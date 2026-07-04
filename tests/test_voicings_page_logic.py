@@ -66,6 +66,26 @@ def test_clean_ensemble_data_no_errors():
     assert field_errors(data) == {}
 
 
+def test_clean_ensemble_data_with_explicit_staff_no_errors():
+    data = {
+        'model': 'ensemble',
+        'voices': [
+            {'name': 'Soprano', 'range': [60, 79], 'staff': 'treble'},
+            {'name': 'Bass', 'range': [40, 60], 'staff': 'bass'},
+        ],
+    }
+    assert field_errors(data) == {}
+
+
+def test_ensemble_data_with_absent_staff_no_errors():
+    # Auto (absent 'staff' key) is always valid, regardless of range.
+    data = {
+        'model': 'ensemble',
+        'voices': [{'name': 'Solo', 'range': [60, 79]}],
+    }
+    assert field_errors(data) == {}
+
+
 def test_movement_as_list_of_floats_no_errors():
     data = {
         'model': 'ensemble',
@@ -172,6 +192,30 @@ def test_voice_high_raw_string_flagged():
     assert 'voice:0:high' in errors
 
 
+def test_voice_bad_staff_value_flagged():
+    data = {
+        'model': 'ensemble',
+        'voices': [
+            {'name': 'Lead', 'range': [60, 79], 'staff': 'alto'},
+            {'name': 'Bass', 'range': [40, 60], 'staff': 'bass'},
+        ],
+    }
+    errors = field_errors(data)
+    assert 'voice:0:staff' in errors
+    assert 'voice:1:staff' not in errors
+
+
+def test_voice_valid_staff_values_not_flagged():
+    data = {
+        'model': 'ensemble',
+        'voices': [
+            {'name': 'Lead', 'range': [60, 79], 'staff': 'treble'},
+            {'name': 'Bass', 'range': [40, 60], 'staff': 'bass'},
+        ],
+    }
+    assert field_errors(data) == {}
+
+
 def test_max_spacing_raw_string_flagged():
     data = {
         'model': 'ensemble',
@@ -206,12 +250,16 @@ def test_nested_role_raw_string_flagged():
 def test_multiple_ensemble_errors_reported_together():
     data = {
         'model': 'ensemble',
-        'voices': [{'name': 'A', 'range': ['Q', 72]}, {'name': 'B', 'range': [48, 60]}],
+        'voices': [
+            {'name': 'A', 'range': ['Q', 72], 'staff': 'weird'},
+            {'name': 'B', 'range': [48, 60]},
+        ],
         'max_spacing': 'x',
         'weights': {'leap_penalty': 'nope', 'omit': {'third': 'huge'}},
     }
     errors = field_errors(data)
     assert 'voice:0:low' in errors
+    assert 'voice:0:staff' in errors
     assert 'max_spacing' in errors
     assert 'weight:leap_penalty' in errors
     assert 'nested:omit:third' in errors

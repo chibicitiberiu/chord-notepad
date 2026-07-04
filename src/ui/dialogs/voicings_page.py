@@ -132,6 +132,12 @@ ROLE_LABELS: Dict[str, str] = {
 # Display names for the model combobox, and the mapping back to model keys.
 _MODEL_DISPLAY = {'fretboard': 'Fretboard', 'ensemble': 'Ensemble', 'piano': 'Piano'}
 _DISPLAY_MODEL = {display: model for model, display in _MODEL_DISPLAY.items()}
+
+# Display names for a voice's staff selector, and the mapping back to the
+# 'staff' dict value ('Auto' <-> absent/None key).
+_STAFF_DISPLAY = {None: 'Auto', 'treble': 'Treble', 'bass': 'Bass'}
+_DISPLAY_TO_STAFF = {display: value for value, display in _STAFF_DISPLAY.items()}
+_STAFF_COMBO_VALUES = ['Auto', 'Treble', 'Bass']
 # Group node order in the tree.
 _GROUP_ORDER = ('fretboard', 'piano', 'ensemble')
 _GROUP_LABEL = {'fretboard': 'Fretboard', 'piano': 'Piano', 'ensemble': 'Ensemble'}
@@ -199,6 +205,8 @@ TOOLTIPS: Dict[str, str] = {
     'voice_name': "Name of this voice, e.g. Soprano. Free text.",
     'voice_low': "Lowest note this voice may sing, inclusive (note name or MIDI number).",
     'voice_high': "Highest note this voice may sing, inclusive (note name or MIDI number).",
+    'voice_staff': ("Which staff of a grand-staff chord sheet this voice is drawn on. Auto "
+                    "picks treble or bass from the voice's range; Treble/Bass pins it."),
     'add_voice': "Add another voice to the ensemble (2 to 8 voices).",
     'remove_voice': "Remove this voice from the ensemble.",
     'max_spacing': ("Maximum semitone gap allowed between each pair of neighbouring voices; "
@@ -471,6 +479,9 @@ def field_errors(data: dict) -> Dict[str, str]:
       a number.
     * ``'voice:<i>:low'`` / ``'voice:<i>:high'`` -- a voice range endpoint
       still a raw string (voice *names* are free text and are never flagged).
+    * ``'voice:<i>:staff'`` -- a voice's ``staff`` value that isn't
+      ``'treble'``, ``'bass'``, or absent/``None`` (e.g. hand-edited to some
+      other string in the config file).
     * ``'max_spacing'`` -- the ensemble spacing list still a raw string.
     * ``'range:<key>:low'`` / ``'range:<key>:high'`` -- a piano range
       (``lh_range``/``rh_range``/``bass_range``/``rh_low_anchor``) endpoint
@@ -511,6 +522,9 @@ def field_errors(data: dict) -> Dict[str, str]:
                 errors[f'voice:{i}:low'] = 'Not a valid note name'
             if isinstance(high, str):
                 errors[f'voice:{i}:high'] = 'Not a valid note name'
+            raw_staff = voice.get('staff') if isinstance(voice, dict) else None
+            if raw_staff is not None and raw_staff not in ('treble', 'bass'):
+                errors[f'voice:{i}:staff'] = "Must be 'treble', 'bass', or omitted"
         if isinstance(data.get('max_spacing'), str):
             errors['max_spacing'] = 'Must be whole numbers'
         weights = data.get('weights') or {}
@@ -1128,6 +1142,7 @@ class VoicingsPage(ttk.Frame):
             ('Name', TOOLTIPS['voice_name']),
             ('Low', TOOLTIPS['voice_low']),
             ('High', TOOLTIPS['voice_high']),
+            ('Staff', TOOLTIPS['voice_staff']),
         )):
             header = ttk.Label(voices_frame, text=htext, font=header_font)
             header.grid(row=0, column=col, sticky='w', padx=(0, 6))
@@ -1144,6 +1159,8 @@ class VoicingsPage(ttk.Frame):
                 value=str(voice.get('name', '')) if isinstance(voice, dict) else '')
             low_var = tk.StringVar(value=_pitch_to_text(low) if low is not None else '')
             high_var = tk.StringVar(value=_pitch_to_text(high) if high is not None else '')
+            raw_staff = voice.get('staff') if isinstance(voice, dict) else None
+            staff_var = tk.StringVar(value=_STAFF_DISPLAY.get(raw_staff, str(raw_staff)))
             grid_row = i + 2
 
             name_e = ttk.Entry(voices_frame, textvariable=name_var, width=name_w)
@@ -1152,18 +1169,25 @@ class VoicingsPage(ttk.Frame):
             low_e.grid(row=grid_row, column=1, sticky='w', padx=(0, 6), pady=1)
             high_e = ttk.Entry(voices_frame, textvariable=high_var, width=range_w)
             high_e.grid(row=grid_row, column=2, sticky='w', padx=(0, 6), pady=1)
+            staff_cb = ttk.Combobox(voices_frame, textvariable=staff_var, width=range_w,
+                                    state='readonly', values=_STAFF_COMBO_VALUES)
+            staff_cb.grid(row=grid_row, column=3, sticky='w', padx=(0, 6), pady=1)
+            staff_cb.bind('<<ComboboxSelected>>', self._commit_form)
 
             for entry in (name_e, low_e, high_e):
                 self._bind_commit(entry, is_entry=True)
             add_tooltip(name_e, TOOLTIPS['voice_name'])
             self._register_field(f'voice:{i}:low', low_e, TOOLTIPS['voice_low'])
             self._register_field(f'voice:{i}:high', high_e, TOOLTIPS['voice_high'])
+            self._register_field(f'voice:{i}:staff', staff_cb, TOOLTIPS['voice_staff'])
 
             remove_btn = ttk.Button(voices_frame, text='✕', width=3,
                                     command=lambda idx=i: self._remove_voice(idx))
-            remove_btn.grid(row=grid_row, column=3, sticky='w', padx=(2, 0), pady=1)
+            remove_btn.grid(row=grid_row, column=4, sticky='w', padx=(2, 0), pady=1)
             add_tooltip(remove_btn, TOOLTIPS['remove_voice'])
-            voice_rows.append({'name': name_var, 'low': low_var, 'high': high_var})
+            voice_rows.append({
+                'name': name_var, 'low': low_var, 'high': high_var, 'staff': staff_var,
+            })
 
         add_btn = ttk.Button(voices_frame, text='Add voice', command=self._add_voice)
         add_btn.grid(row=len(voices) + 2, column=0, columnspan=2, sticky='w', pady=(6, 0))
@@ -1274,11 +1298,16 @@ class VoicingsPage(ttk.Frame):
             out: dict = {'model': 'ensemble'}
             out_voices = []
             for vr in voice_rows:
-                out_voices.append({
+                voice_dict: Dict[str, Any] = {
                     'name': vr['name'].get().strip(),
                     'range': [_parse_pitch_or_raw(vr['low'].get()),
                               _parse_pitch_or_raw(vr['high'].get())],
-                })
+                }
+                staff_display = vr['staff'].get()
+                staff_value = _DISPLAY_TO_STAFF.get(staff_display, staff_display)
+                if staff_value is not None:
+                    voice_dict['staff'] = staff_value
+                out_voices.append(voice_dict)
             out['voices'] = out_voices
             spacing_raw = spacing_var.get().strip()
             if spacing_raw:

@@ -61,11 +61,44 @@ class TestVoiceSpec:
         assert v.name == "Soprano"
         assert v.low == 60
         assert v.high == 79
+        assert v.staff is None
 
     def test_is_frozen(self):
         v = VoiceSpec(name="Alto", low=53, high=74)
         with pytest.raises(AttributeError):
             v.low = 0
+
+    def test_explicit_staff_construction(self):
+        v = VoiceSpec(name="Bass", low=40, high=60, staff="bass")
+        assert v.staff == "bass"
+
+
+# ---------------------------------------------------------------------------
+# VoiceSpec.resolved_staff
+# ---------------------------------------------------------------------------
+
+class TestResolvedStaff:
+    def test_explicit_staff_wins(self):
+        # Range center is well above middle C, but staff is pinned to bass.
+        v = VoiceSpec(name="X", low=60, high=79, staff="bass")
+        assert v.resolved_staff == "bass"
+
+    def test_auto_resolves_to_treble_when_center_at_or_above_middle_c(self):
+        v = VoiceSpec(name="X", low=60, high=79)  # center 69.5
+        assert v.resolved_staff == "treble"
+
+    def test_auto_resolves_to_bass_when_center_below_middle_c(self):
+        v = VoiceSpec(name="X", low=40, high=59)  # center 49.5
+        assert v.resolved_staff == "bass"
+
+    def test_auto_boundary_exactly_middle_c_is_treble(self):
+        # center == 60 (middle C) is not "below", so it resolves treble.
+        v = VoiceSpec(name="X", low=55, high=65)  # center 60
+        assert v.resolved_staff == "treble"
+
+    def test_auto_boundary_just_below_middle_c_is_bass(self):
+        v = VoiceSpec(name="X", low=54, high=65)  # center 59.5
+        assert v.resolved_staff == "bass"
 
 
 # ---------------------------------------------------------------------------
@@ -142,6 +175,27 @@ class TestFromDictMinimal:
         })
         assert spec.label == "My Custom Ensemble"
         assert spec.allow_unisons is False
+
+    def test_voice_without_staff_key_defaults_to_none(self):
+        spec = EnsembleSpec.from_dict("plain", {
+            "voices": [
+                {"name": "Top", "range": ["C4", "C5"]},
+                {"name": "Bottom", "range": ["C3", "C4"]},
+            ],
+        })
+        assert spec.voices[0].staff is None
+        assert spec.voices[1].staff is None
+
+    @pytest.mark.parametrize("staff", ["treble", "bass"])
+    def test_explicit_valid_staff_accepted(self, staff):
+        spec = EnsembleSpec.from_dict("staffed", {
+            "voices": [
+                {"name": "Top", "range": ["C4", "C5"], "staff": staff},
+                {"name": "Bottom", "range": ["C3", "C4"]},
+            ],
+        })
+        assert spec.voices[0].staff == staff
+        assert spec.voices[1].staff is None
 
 
 # ---------------------------------------------------------------------------
@@ -239,6 +293,25 @@ class TestFromDictValidation:
             EnsembleSpec.from_dict("bad", {
                 "voices": [
                     {"range": ["C4", "C5"]},
+                    {"name": "Bottom", "range": ["C3", "C4"]},
+                ],
+            })
+
+    def test_bad_staff_value_raises_naming_voice_and_value(self):
+        with pytest.raises(ConfigurationError, match="Lead") as excinfo:
+            EnsembleSpec.from_dict("bad", {
+                "voices": [
+                    {"name": "Lead", "range": ["C4", "C5"], "staff": "alto"},
+                    {"name": "Bottom", "range": ["C3", "C4"]},
+                ],
+            })
+        assert "alto" in str(excinfo.value)
+
+    def test_wrong_typed_staff_raises(self):
+        with pytest.raises(ConfigurationError, match="staff"):
+            EnsembleSpec.from_dict("bad", {
+                "voices": [
+                    {"name": "Lead", "range": ["C4", "C5"], "staff": 1},
                     {"name": "Bottom", "range": ["C3", "C4"]},
                 ],
             })
@@ -473,6 +546,28 @@ class TestRoundTrip:
         rebuilt = EnsembleSpec.from_dict(original.name, original.to_dict())
         assert rebuilt == original
 
+    def test_round_trip_preserves_explicit_staff(self):
+        original = EnsembleSpec.from_dict("staffed", {
+            "voices": [
+                {"name": "Top", "range": ["C4", "C5"], "staff": "treble"},
+                {"name": "Bottom", "range": ["C3", "C4"], "staff": "bass"},
+            ],
+        })
+        rebuilt = EnsembleSpec.from_dict(original.name, original.to_dict())
+        assert rebuilt.voices[0].staff == "treble"
+        assert rebuilt.voices[1].staff == "bass"
+        assert rebuilt == original
+
+    def test_to_dict_omits_staff_key_when_none(self):
+        spec = EnsembleSpec.from_dict("plain", {
+            "voices": [
+                {"name": "Top", "range": ["C4", "C5"]},
+                {"name": "Bottom", "range": ["C3", "C4"]},
+            ],
+        })
+        for voice_dict in spec.to_dict()["voices"]:
+            assert "staff" not in voice_dict
+
 
 # ---------------------------------------------------------------------------
 # Built-in ensembles
@@ -527,3 +622,21 @@ class TestBuiltinEnsembles:
         assert (alto.low, alto.high) == (parse_note_name("F3"), parse_note_name("D5"))
         assert (tenor.low, tenor.high) == (parse_note_name("C3"), parse_note_name("G4"))
         assert (bass.low, bass.high) == (parse_note_name("E2"), parse_note_name("C4"))
+
+    def test_satb_has_explicit_staff_assignments(self):
+        spec = BUILTIN_ENSEMBLES["satb"]
+        soprano, alto, tenor, bass = spec.voices
+        assert soprano.staff == "treble"
+        assert alto.staff == "treble"
+        assert tenor.staff == "bass"
+        assert bass.staff == "bass"
+        # Explicit values also match what auto-resolution would produce,
+        # so resolved_staff agrees regardless of how it got there.
+        for voice in spec.voices:
+            assert voice.resolved_staff == voice.staff
+
+    @pytest.mark.parametrize("key", ["ttbb", "ssa", "quartet"])
+    def test_other_builtins_leave_staff_unset(self, key):
+        spec = BUILTIN_ENSEMBLES[key]
+        for voice in spec.voices:
+            assert voice.staff is None

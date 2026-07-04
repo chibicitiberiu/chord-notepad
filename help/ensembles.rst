@@ -225,7 +225,14 @@ one ensemble:
   omitted).
 * ``voices`` is required: 2 to 8 entries, listed top voice first, each with
   a ``name`` and a ``range`` of ``[low, high]``. Give the range as note
-  names (``"C4"``, ``"F#3"``) or raw MIDI numbers; middle C is ``C4``.
+  names (``"C4"``, ``"F#3"``) or raw MIDI numbers; middle C is ``C4``. Each
+  voice also takes an optional ``staff`` (``"treble"`` or ``"bass"``),
+  used by chord-sheet features that draw a voicing on a grand staff.
+  Leave it out and Chord Notepad picks the staff automatically from the
+  voice's range: ``"bass"`` if the range center sits below middle C,
+  ``"treble"`` otherwise. The built-in Choir (SATB) pins soprano and alto
+  to ``"treble"`` and tenor and bass to ``"bass"`` explicitly; every other
+  built-in leaves it to the automatic rule.
 * ``max_spacing`` is optional: the maximum semitone gap allowed between
   each pair of neighbouring voices, one entry per gap (so one fewer entry
   than there are voices). Leave it out and Chord Notepad defaults every
