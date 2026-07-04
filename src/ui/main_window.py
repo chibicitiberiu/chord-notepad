@@ -49,7 +49,7 @@ except ImportError:
 class MainWindow(tk.Tk):
     """Main application window"""
 
-    def __init__(self, viewmodel: Any, text_editor_viewmodel: Any, application: Any, resource_service: Any) -> None:
+    def __init__(self, viewmodel: Any, text_editor_viewmodel: Any, application: Any, resource_service: Any, chord_sheet_viewmodel: Any = None) -> None:
         """Initialize the main window.
 
         Args:
@@ -57,6 +57,7 @@ class MainWindow(tk.Tk):
             text_editor_viewmodel: TextEditorViewModel
             application: Application instance for event queue access
             resource_service: ResourceService for resolving resource paths
+            chord_sheet_viewmodel: ChordSheetViewModel for the bottom strip
         """
         super().__init__()
 
@@ -66,9 +67,11 @@ class MainWindow(tk.Tk):
         # Store ViewModels and Services
         self.viewmodel = viewmodel
         self.text_editor_viewmodel = text_editor_viewmodel
+        self.chord_sheet_viewmodel = chord_sheet_viewmodel
         self.application = application
         self.resource_service = resource_service
         self._icons = IconLoader(resource_service)
+        self.chord_sheet_panel = None
 
         # Set up observers for ViewModel properties
         self._setup_viewmodel_observers()
@@ -90,9 +93,13 @@ class MainWindow(tk.Tk):
         self.create_toolbar()
         self.create_statusbar()
 
+        # Chord-sheet strip docked under the editor (built after the editor's
+        # paned window exists).
+        self.create_chord_sheet()
+
         # Repack toolbar at the top (after menu bar)
         self.toolbar.pack_forget()
-        self.toolbar.pack(side=tk.TOP, fill=tk.X, padx=5, pady=5, before=self.text_editor.master)
+        self.toolbar.pack(side=tk.TOP, fill=tk.X, padx=5, pady=5, before=self.content_paned)
 
         # Bind events
         self.protocol("WM_DELETE_WINDOW", self.on_close)
@@ -310,8 +317,15 @@ class MainWindow(tk.Tk):
             # Playback finished or stopped
             if was_disabled:
                 self.text_editor.config(state=tk.DISABLED)
+            if self.chord_sheet_viewmodel is not None:
+                self.chord_sheet_viewmodel.on_playback_chord(None)
             self.update_statusbar("Ready")
             return
+
+        # Drive the chord-sheet playhead with the same ping as TAG_CHORD_PLAYING.
+        if self.chord_sheet_viewmodel is not None:
+            if event_args.event_type == PlaybackEventType.CHORD_START:
+                self.chord_sheet_viewmodel.on_playback_chord(event_args.chord_info)
 
         # Live-update the BPM scrubber with the effective BPM from the producer
         if hasattr(self, "bpm_scrubber") and event_args.bpm is not None:
@@ -394,8 +408,15 @@ class MainWindow(tk.Tk):
         menubar.add_cascade(label="Edit", menu=edit_menu)
 
         # View menu
+        chord_sheet_default = (
+            self.chord_sheet_viewmodel.visible
+            if self.chord_sheet_viewmodel is not None else False
+        )
+        self._chord_sheet_var = tk.BooleanVar(value=chord_sheet_default)
         view_menu = MenuBuilder(menubar) \
             .add_command("Font...", self.choose_font) \
+            .add_separator() \
+            .add_checkbutton("Chord Sheet", self._chord_sheet_var, self.toggle_chord_sheet) \
             .add_separator() \
             .add_command("Increase Font Size", self.increase_font_size, accelerator="Ctrl+Plus") \
             .add_command("Decrease Font Size", self.decrease_font_size, accelerator="Ctrl+Minus") \
@@ -622,9 +643,14 @@ class MainWindow(tk.Tk):
 
     def create_text_editor(self) -> None:
         """Create text editor widget"""
-        # Frame for text editor and scrollbar
-        editor_frame = ttk.Frame(self)
-        editor_frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+        # Vertical paned window so the chord-sheet strip can dock under the
+        # editor with a user-draggable divider.
+        self.content_paned = ttk.PanedWindow(self, orient=tk.VERTICAL)
+        self.content_paned.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+
+        # Frame for text editor and scrollbar (top pane)
+        editor_frame = ttk.Frame(self.content_paned)
+        self.content_paned.add(editor_frame, weight=3)
 
         # Scrollbar
         scrollbar = ttk.Scrollbar(editor_frame)
@@ -649,6 +675,110 @@ class MainWindow(tk.Tk):
         """Create status bar"""
         self.statusbar = ttk.Label(self, text="Ready", relief=tk.SUNKEN, anchor=tk.W)
         self.statusbar.pack(side=tk.BOTTOM, fill=tk.X)
+
+    def create_chord_sheet(self) -> None:
+        """Create the chord-sheet strip and dock it under the editor.
+
+        The panel is added to the content paned window only when the viewmodel
+        reports it visible (hidden = removed from the pane, not just blanked).
+        The strip is fed the parsed song (via the text editor's detected lines)
+        and the playback ping, and its height is persisted on sash drags.
+        """
+        vm = self.chord_sheet_viewmodel
+        if vm is None:
+            return
+
+        from ui.chord_sheet.panel import ChordSheetPanel
+
+        self.chord_sheet_panel = ChordSheetPanel(self.content_paned, vm)
+
+        # Feed the strip: parsed song (detected lines + current key) and playhead.
+        self.text_editor_viewmodel.observe(
+            'detected_lines', self._on_detected_lines_for_chord_sheet
+        )
+        self.viewmodel.observe('key', self._on_key_for_chord_sheet)
+        vm.observe('visible', self._on_chord_sheet_visible_changed)
+
+        # Persist the strip height whenever the sash is released.
+        self.content_paned.bind('<ButtonRelease-1>', self._on_content_sash_moved)
+
+        # Apply initial visibility and seed the strip with the current song.
+        if vm.visible:
+            self._show_chord_sheet_pane()
+        self._push_song_to_chord_sheet()
+
+    def _push_song_to_chord_sheet(self) -> None:
+        """Send the current parsed song to the chord-sheet viewmodel."""
+        vm = self.chord_sheet_viewmodel
+        if vm is None:
+            return
+        lines = self.text_editor_viewmodel.detected_lines
+        vm.set_song(lines, self.viewmodel.key)
+
+    def _on_detected_lines_for_chord_sheet(self, _lines: Any) -> None:
+        """Re-render the strip when the parsed song changes."""
+        self._push_song_to_chord_sheet()
+
+    def _on_key_for_chord_sheet(self, _key: Any) -> None:
+        """Re-render the strip when the key changes (affects roman numerals)."""
+        self._push_song_to_chord_sheet()
+
+    def _on_chord_sheet_visible_changed(self, visible: bool) -> None:
+        """Add or remove the strip pane in response to the visibility toggle."""
+        if hasattr(self, '_chord_sheet_var') and self._chord_sheet_var.get() != visible:
+            self._chord_sheet_var.set(visible)
+        if visible:
+            self._show_chord_sheet_pane()
+        else:
+            self._hide_chord_sheet_pane()
+
+    def _show_chord_sheet_pane(self) -> None:
+        """Insert the chord-sheet panel as the bottom pane if not present."""
+        if self.chord_sheet_panel is None:
+            return
+        panes = self.content_paned.panes()
+        if str(self.chord_sheet_panel) in panes:
+            return
+        self.content_paned.add(self.chord_sheet_panel, weight=1)
+        # Position the sash so the strip gets its persisted height.
+        self.after(50, self._apply_saved_chord_sheet_height)
+
+    def _hide_chord_sheet_pane(self) -> None:
+        """Remove the chord-sheet panel from the paned window."""
+        if self.chord_sheet_panel is None:
+            return
+        if str(self.chord_sheet_panel) in self.content_paned.panes():
+            self.content_paned.forget(self.chord_sheet_panel)
+
+    def _apply_saved_chord_sheet_height(self) -> None:
+        """Move the sash so the strip matches its persisted height."""
+        vm = self.chord_sheet_viewmodel
+        if vm is None or self.chord_sheet_panel is None:
+            return
+        if str(self.chord_sheet_panel) not in self.content_paned.panes():
+            return
+        try:
+            total = self.content_paned.winfo_height()
+            sash_y = max(0, total - vm.height)
+            self.content_paned.sashpos(0, sash_y)
+        except Exception as e:
+            logger.debug(f"Could not apply chord-sheet height: {e}")
+
+    def _on_content_sash_moved(self, _event: Any) -> None:
+        """Persist the chord-sheet height after a sash drag."""
+        vm = self.chord_sheet_viewmodel
+        if vm is None or self.chord_sheet_panel is None:
+            return
+        if str(self.chord_sheet_panel) not in self.content_paned.panes():
+            return
+        height = self.chord_sheet_panel.winfo_height()
+        if height > 1:
+            vm.set_height(height)
+
+    def toggle_chord_sheet(self) -> None:
+        """Toggle chord-sheet visibility (View menu checkbutton command)."""
+        if self.chord_sheet_viewmodel is not None:
+            self.chord_sheet_viewmodel.set_visible(self._chord_sheet_var.get())
 
     def new_file(self) -> None:
         """Create new file"""
@@ -1031,11 +1161,15 @@ class MainWindow(tk.Tk):
         if self.prompt_save_if_modified():
             # Save window geometry before closing
             self.viewmodel.set_window_geometry(self.geometry())
+            # Persist the chord-sheet height while the pane still exists
+            self._on_content_sash_moved(None)
             # Stop playback
             self.viewmodel.stop_playback()
             # Clean up observers to prevent memory leaks
             self.viewmodel.clear_observers()
             self.text_editor.cleanup_observers()
+            if self.chord_sheet_viewmodel is not None:
+                self.chord_sheet_viewmodel.clear_observers()
             # Trigger application shutdown (handles cleanup and config save)
             self.application.on_shutdown()
             self.destroy()

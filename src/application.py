@@ -17,6 +17,7 @@ from services.file_service import FileService
 from services.resource_service import ResourceService
 from viewmodels.main_window_viewmodel import MainWindowViewModel
 from viewmodels.text_editor_viewmodel import TextEditorViewModel
+from viewmodels.chord_sheet_viewmodel import ChordSheetViewModel
 
 
 class Application:
@@ -41,6 +42,7 @@ class Application:
         # ViewModels (initialized in on_initialize_ui)
         self._main_window_viewmodel: Optional[MainWindowViewModel] = None
         self._text_editor_viewmodel: Optional[TextEditorViewModel] = None
+        self._chord_sheet_viewmodel: Optional[ChordSheetViewModel] = None
 
         # Event queue for cross-thread UI updates
         self._event_queue: queue.Queue = queue.Queue()
@@ -195,6 +197,15 @@ class Application:
             self.song_parser_service
         )
 
+        # Chord-sheet strip viewmodel (headless; renders via the audio service's
+        # active note picker, marshals results back through this application's
+        # cross-thread event queue).
+        self._chord_sheet_viewmodel = ChordSheetViewModel(
+            self.config_service,
+            self.audio_service,
+            self
+        )
+
         logger.info("ViewModels created successfully")
 
     def on_run(self) -> None:
@@ -340,6 +351,7 @@ class Application:
             root = MainWindow(
                 viewmodel=app._main_window_viewmodel,
                 text_editor_viewmodel=app._text_editor_viewmodel,
+                chord_sheet_viewmodel=app._chord_sheet_viewmodel,
                 application=app,
                 resource_service=app.resource_service
             )

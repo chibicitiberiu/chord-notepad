@@ -58,6 +58,11 @@ class Config:
     # UI/UX
     show_quick_start_on_startup: bool = True  # Show quick start dialog on first launch
 
+    # Chord sheet strip (bottom-docked voiced-chord panel)
+    chord_sheet_visible: bool = False  # Whether the chord sheet panel is shown
+    chord_sheet_view: str = "name"     # Active renderer id ('name', later 'keyboard', ...)
+    chord_sheet_height: int = 160      # Panel height in pixels (paned-window sash position)
+
     def validate(self) -> None:
         """Validate configuration values."""
         if not (20 <= self.bpm <= 400):
@@ -106,6 +111,9 @@ class Config:
             "audio_driver": self.audio_driver,
             "log_level": self.log_level,
             "show_quick_start_on_startup": self.show_quick_start_on_startup,
+            "chord_sheet_visible": self.chord_sheet_visible,
+            "chord_sheet_view": self.chord_sheet_view,
+            "chord_sheet_height": self.chord_sheet_height,
         }
 
     @classmethod
@@ -152,6 +160,9 @@ class Config:
             audio_driver=data.get("audio_driver"),
             log_level=data.get("log_level", "INFO"),
             show_quick_start_on_startup=data.get("show_quick_start_on_startup", True),
+            chord_sheet_visible=data.get("chord_sheet_visible", False),
+            chord_sheet_view=data.get("chord_sheet_view", "name"),
+            chord_sheet_height=data.get("chord_sheet_height", 160),
         )
 
     @staticmethod
