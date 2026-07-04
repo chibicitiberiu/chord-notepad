@@ -24,6 +24,7 @@ from utils.icon_loader import IconLoader
 from utils.ui_helpers import create_tooltip
 from utils.key_helpers import get_key_options
 from models.notation import Notation
+from constants import TAG_CHORD_PLAYING
 
 logger = logging.getLogger(__name__)
 
@@ -221,7 +222,7 @@ class MainWindow(tk.Tk):
             # Unlock editor
             self.text_editor.config(state=tk.NORMAL)
             # Clear playing highlight
-            self.text_editor.tag_remove('chord_playing', '1.0', tk.END)
+            self.text_editor.tag_remove(TAG_CHORD_PLAYING, '1.0', tk.END)
             # Update statusbar
             self.update_statusbar("Ready")
             # Restore editable BPM scrubber with the user's base value
@@ -300,7 +301,7 @@ class MainWindow(tk.Tk):
             self.text_editor.config(state=tk.NORMAL)
 
         # Clear previous playing highlight
-        self.text_editor.tag_remove('chord_playing', '1.0', tk.END)
+        self.text_editor.tag_remove(TAG_CHORD_PLAYING, '1.0', tk.END)
 
         if event_args is None:
             # Playback finished or stopped
@@ -318,10 +319,10 @@ class MainWindow(tk.Tk):
             chord_info = event_args.chord_info
             start_idx = f"1.0 + {chord_info.start} chars"
             end_idx = f"1.0 + {chord_info.end} chars"
-            self.text_editor.tag_add('chord_playing', start_idx, end_idx)
+            self.text_editor.tag_add(TAG_CHORD_PLAYING, start_idx, end_idx)
 
             # Raise the tag priority so it's visible over other tags
-            self.text_editor.tag_raise('chord_playing')
+            self.text_editor.tag_raise(TAG_CHORD_PLAYING)
 
             # Autoscroll to show the playing chord
             self.text_editor.see(start_idx)

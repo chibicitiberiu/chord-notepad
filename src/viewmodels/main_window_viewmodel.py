@@ -315,10 +315,12 @@ class MainWindowViewModel(Observable):
             logger.debug("Playback finished - queueing UI callback")
             self._application.queue_ui_callback(self._on_playback_finished)
 
-        # Wrap event callback to run on UI thread
+        # Event callback: the player already marshals this onto the UI thread
+        # via Application.queue_ui_callback (it fires from the playback thread),
+        # so invoke the handler directly here to avoid double-marshalling.
         def on_event_wrapper(event_args: PlaybackEventArgs):
-            logger.debug(f"Playback event - queueing UI callback: {event_args.event_type}")
-            self._application.queue_ui_callback(lambda: self._on_playback_event(event_args))
+            logger.debug(f"Playback event: {event_args.event_type}")
+            self._on_playback_event(event_args)
 
         # Start playback (AudioService handles all directive processing and chord resolution)
         success = self._audio.start_song_playback(
