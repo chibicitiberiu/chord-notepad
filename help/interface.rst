@@ -119,14 +119,14 @@ File Menu
    Create a new, empty document. If you have unsaved changes, you'll be asked
    to save them first.
 
-**Open** (Ctrl+O)
+**Open...** (Ctrl+O)
    Open an existing chord sheet file. Browse to find your file and click Open.
 
 **Save** (Ctrl+S)
    Save the current document. If it's a new file, you'll be asked where to
    save it.
 
-**Save As** (Ctrl+Shift+S)
+**Save As...** (Ctrl+Shift+S)
    Save the current document with a new name or location.
 
 **Recent Files**
@@ -188,7 +188,7 @@ Playback Menu
    A submenu to select the chord voicing style:
 
    * **Piano** - Keyboard-style voicing (default)
-   * **Guitar (Standard)** - EADGBE tuning
+   * **Guitar (Standard - EADGBE)** - standard tuning
    * **Guitar (Drop D)** - DADGBE tuning
    * **Guitar (DADGAD)** - Celtic tuning
    * **Guitar (Open G)** - Blues/slide tuning
@@ -233,6 +233,12 @@ Tools Menu
 
 Help Menu
 ---------
+
+**User Guide** (F1)
+   Opens this user guide.
+
+**Quick Start**
+   Opens a short quick-start reference.
 
 **About**
    Shows information about Chord Notepad:

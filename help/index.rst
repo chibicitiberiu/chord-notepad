@@ -8,6 +8,11 @@ recognizes chord symbols and plays them back using synthesized instruments.
 Use it to write chord progressions, hear how they sound, and organize your
 musical ideas.
 
+**New here?** The fastest start is to type a few chords -- ``C  Am  F  G`` --
+and press **Play**. For a guided walkthrough, read :doc:`getting_started`; for
+the full chord notation, see :doc:`writing_chords`. If something isn't working,
+jump to :doc:`tips`.
+
 .. toctree::
    :maxdepth: 2
    :caption: Contents:
@@ -21,21 +26,3 @@ musical ideas.
    shortcuts
    tips
    reference
-
-Quick Start
------------
-
-1. Type some chords: ``C  Am  F  G``
-2. Click the **Play** button in the toolbar
-3. Listen to the progression
-
-Chord Notepad detects and highlights valid chords as you type. You can also
-click any individual chord to hear it.
-
-Getting Help
-------------
-
-* :doc:`introduction` - Learn what Chord Notepad can do
-* :doc:`getting_started` - Your first steps with the app
-* :doc:`writing_chords` - Learn the chord notation
-* :doc:`shortcuts` - Quick reference for keyboard shortcuts

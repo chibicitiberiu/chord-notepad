@@ -56,28 +56,24 @@ Using Labels Effectively
    {label: b}
    {label: c}
 
-**Build a master arrangement at the end:**
+**Repeat sections in place with loops:**
+
+A loop repeats the span between its label and the loop directive, so put the
+label at the start of a section and the loop at its end:
 
 .. code-block:: chord
 
-   // Define all your sections first
-   {label: intro}
-   G*4
-
    {label: verse}
    G  D  Em  C
+   {loop: verse 2}      // play the verse twice, then carry on
 
    {label: chorus}
    C  D  G
+   {loop: chorus 2}     // play the chorus twice
 
-   // Then arrange the song with loops
-   {loop: intro 1}
-   {loop: verse 2}
-   {loop: chorus 1}
-   {loop: verse 2}
-   {loop: chorus 2}
-
-This keeps your sections clean and your arrangement flexible.
+Write the sections in the order they should play. A loop repeats a section on
+the spot; it can't jump around to rearrange them. See :doc:`directives` for the
+full behavior.
 
 Tempo Changes for Dynamic Songs
 -------------------------------
@@ -148,22 +144,28 @@ Workflow Tips
 Practice Mode
 -------------
 
-Turn any progression into a practice exercise:
+Turn any progression into a practice exercise by looping it:
 
 .. code-block:: chord
 
-   {bpm: 60}         // Start slow
+   {bpm: 60}              // Start slow
    {label: practice}
    Dm7  G7  Cmaj7  Am7
-
    {loop: practice 20}    // Repeat 20 times
 
-   // Or gradually speed up
-   {bpm: +5}
-   {loop: practice 5}
-   {bpm: +5}
-   {loop: practice 5}
-   // etc.
+To speed up as you go, write the tempo steps out inline rather than looping. A
+loop restores the tempo it had *at the label* every time around (see
+:doc:`directives`), so a ``{bpm}`` bump placed before the loop is undone on each
+repeat. Written out, it climbs as intended:
+
+.. code-block:: chord
+
+   {bpm: 60}
+   Dm7  G7  Cmaj7  Am7
+   {bpm: 70}
+   Dm7  G7  Cmaj7  Am7
+   {bpm: 80}
+   Dm7  G7  Cmaj7  Am7
 
 Comparing Options
 -----------------
@@ -227,24 +229,38 @@ Chords Not Detected?
 --------------------
 
 **Check your spelling:**
-Common typos:
+Misspelled qualities aren't recognized:
 
 * ``Cmaaj7`` → should be ``Cmaj7``
-* ``Csus`` → try ``Csus4``
-* ``c#`` → should be ``C#`` (capital C)
+* ``Cmajor`` → should be ``C`` (or ``Cmaj7`` for the seventh)
+* ``Cminor`` → should be ``Cm``
 
 **Check for extra characters:**
 Chords must be separated by spaces. ``C-Am-F-G`` won't work; use ``C Am F G``.
 
 **Check the notation:**
-If you're using European notation, make sure the toggle is set to "Do", not "AB".
+If you're using European notation, make sure the toggle is set to "Do", not
+"AB". Note that ``Csus``, ``c#``, and other shorthands *are* valid -- they just
+may not mean what you expect (``c#`` is C-sharp *minor*; see the case note under
+:ref:`playback-sounds-wrong`).
 
 **Check for unsupported chords:**
-Some very complex or unusual chord names might not be recognized. Try simplifying
-(e.g., ``Cmaj13#11`` might become ``Cmaj13`` or ``Cmaj7``).
+Chord Notepad recognizes a wide range of chords, including dense jazz voicings
+like ``Cmaj13#11``, but a few unusual spellings still slip through. If a name
+stays gray no matter what, fall back to a simpler one (``Cmaj7`` in place of
+something the parser doesn't know).
+
+.. _playback-sounds-wrong:
 
 Playback Sounds Wrong?
 ----------------------
+
+**Check the chord case:**
+Case is meaningful. A capital letter is a major chord and a lowercase letter is
+a minor one, so ``C`` is C major but ``c`` is C minor, and ``c#`` is C-sharp
+minor rather than C-sharp major. If a chord sounds unexpectedly minor (or major),
+check whether you capitalized the root. In roman numerals the same rule sets the
+quality: ``V`` is major, ``v`` is minor.
 
 **Check the key for roman numerals:**
 If you're using roman numerals (I, IV, V, etc.), make sure the key is set
@@ -349,3 +365,8 @@ it from notes.
 **Try things out:**
 Invalid input is handled safely. You can click chords and test different
 options without risk.
+
+**Report a bug or ask a question:**
+Chord Notepad is open source. If you hit a bug, have a chord that should be
+recognized but isn't, or want to suggest a feature, open an issue on GitHub:
+https://github.com/chibicitiberiu/chord-notepad/issues

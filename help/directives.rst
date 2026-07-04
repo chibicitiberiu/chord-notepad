@@ -290,51 +290,47 @@ Creating Loops
 Building Song Structure
 -----------------------
 
-Here's how to build a complete song:
+A loop repeats the stretch of song **between its label and the loop directive**,
+in place. This is the one thing to get right about loops: a loop is not a
+playlist and not a "goto." There is no instruction that jumps around to play
+sections in a different order than they are written. You write the song out in
+playing order, and drop a loop wherever a section should repeat before moving on.
+
+Put the ``{label}`` at the start of a section and its matching ``{loop}`` at the
+end:
 
 .. code-block:: chord
 
    {bpm: 120}
    {key: G}
 
-   // Define the sections
-   {label: intro}
-   G*4  D*4
-
    {label: verse}
    G  D  Em  C
    G  D  C*2
+   {loop: verse 2}     // play the verse twice, then carry on
 
    {label: chorus}
    Em  C  G  D
    Em  C  G*2
+   {loop: chorus 2}    // play the chorus twice
 
-   {label: bridge}
-   Am  C  D*2
+This plays: **verse, verse, chorus, chorus.** Each section runs once as playback
+reaches it; the loop directive then sends it back to the label for the remaining
+repeats before falling through to whatever comes next.
 
-   {label: outro}
-   G*4
+Because a loop always covers everything from its label down to itself, you can
+repeat several sections together by putting the label earlier:
 
-   // Now arrange the song
-   {loop: intro 1}
-   {loop: verse 2}
-   {loop: chorus 1}
-   {loop: verse 2}
-   {loop: chorus 2}
-   {loop: bridge 1}
-   {loop: chorus 2}
-   {loop: outro 1}
+.. code-block:: chord
 
-This plays:
+   {label: main}
+   G  D  Em  C        // verse
+   Em  C  G  D        // chorus
+   {loop: main 2}     // repeat the verse-and-chorus pair twice
 
-1. Intro once
-2. Verse twice
-3. Chorus once
-4. Verse twice
-5. Chorus twice
-6. Bridge once
-7. Chorus twice
-8. Outro once
+If you want a verse-chorus-verse-chorus form where sections come back later, you
+write them out in that order -- looping cannot fetch a section that has already
+gone by.
 
 Special Label: @start
 ---------------------
@@ -350,15 +346,20 @@ The ``@start`` label always refers to the beginning of the document:
 Loop Behavior
 -------------
 
-When a loop plays:
+Step by step, when playback reaches a ``{loop: label N}`` directive:
 
-1. Playback jumps to the label
-2. All directives (BPM, time, key) are restored to what they were at that label
-3. The section plays through
-4. This repeats for the specified count
-5. Playback continues after the loop directive
+1. The section has just played once -- playback ran from the label straight down
+   to the loop directive.
+2. Playback jumps back to the label. The BPM, time signature, and key are
+   restored to whatever they were *at that label*, so a tempo or key change made
+   inside the section doesn't carry over into the next repeat.
+3. The section plays again. Steps 2-3 repeat until it has played ``N`` times in
+   total.
+4. Playback then continues past the loop directive to the rest of the song.
 
-Labels and loops are useful for practicing specific sections repeatedly.
+A ``count`` of ``1`` (or no valid label) is a no-op -- the section simply plays
+its single inline pass. Labels and loops are also handy for drilling one tricky
+section over and over while you practice.
 
 
 Multiple Directives
@@ -371,7 +372,9 @@ You can put multiple directives on one line:
    {bpm: 120} {time: 4/4} {key: C}
    C  Am  F  G
 
-Directives don't take up beats - they're processed before playback begins.
+Directives don't take up beats - they change playback settings but produce no
+sound of their own. Each one takes effect at its position in the song, so a
+directive placed mid-song affects only the chords after it.
 
 
 Directive Summary

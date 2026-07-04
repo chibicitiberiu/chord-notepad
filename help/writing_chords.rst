@@ -33,6 +33,12 @@ Use ``#`` for sharp and ``b`` for flat:
    ``C#`` and ``Db`` sound the same - they're just different names for the same
    note. Use whichever feels natural for your song's key.
 
+.. tip::
+   You can type the real musical symbols too: ``♯`` works anywhere ``#`` does,
+   and ``♭`` anywhere ``b`` does (so ``C♯`` = ``C#`` and ``E♭`` = ``Eb``).
+   Chord Notepad treats the unicode and ASCII forms as identical. The same goes
+   for chord qualities further down -- see :ref:`alternative-spellings`.
+
 European Notation (Solfège)
 ---------------------------
 
@@ -68,23 +74,128 @@ In many countries, chords use solfège syllables instead of letters:
      - B major
 
 Sharps and flats work the same way: ``Do#``, ``Reb``, ``Fa#``, ``Solb``, etc.
-
-To switch notations, use the **AB/Do** toggle in the toolbar. Existing chords
-are converted automatically.
+Minor, sevenths, and every other quality below use the same suffixes as American
+notation, just on a solfège root: ``Dom`` is C minor, ``Sol7`` is G7, ``Lam7``
+is A minor 7.
 
 Switching Notations
 -------------------
 
-To switch notation systems:
+The **AB / Do** toggle in the toolbar decides which system Chord Notepad *reads
+and displays*:
 
-1. Click the **AB** button for American notation
-2. Click the **Do** button for European notation
+1. Click **AB** for American note names (C, D, E ...).
+2. Click **Do** for European solfège (Do, Re, Mi ...).
 
-The key selector in the toolbar will also update to match your chosen notation.
+The key selector updates to match, and from that point on the editor recognizes
+and highlights chords in the notation you picked.
+
+.. important::
+   The toggle does **not** rewrite text you have already typed. Flipping from
+   **AB** to **Do** does not turn a ``C`` on the page into ``Do`` -- it only
+   changes what the editor expects going forward, so your existing ``C`` chords
+   simply stop being recognized until you toggle back.
+
+   To actually rewrite the chords in your document from one system to the other,
+   use :menuselection:`Tools --> Convert to American Notation` or
+   :menuselection:`Tools --> Convert to European Notation`. Those commands
+   rewrite every chord in place; the toggle never does.
+
+Roman numerals (see :ref:`roman-numerals`) are independent of this toggle. They
+are recognized in both modes and always resolve against the current key.
 
 
 Chord Types and Modifiers
 =========================
+
+Everything in this section is a **quality suffix** added to a root note. The
+suffix is what matters, and it works the same on any root and in any of the
+three notations. A dominant seventh is ``7`` whether you write ``G7`` (American),
+``Sol7`` (European), or ``V7`` (roman, in the key that puts G on the fifth
+degree). So the examples below mostly use American roots for brevity, but each
+one has a European and a roman equivalent:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 25 25 25 25
+
+   * - Quality
+     - American
+     - European
+     - Roman (key of C)
+   * - Major
+     - ``C``
+     - ``Do``
+     - ``I``
+   * - Minor
+     - ``Am``
+     - ``Lam``
+     - ``vi``
+   * - Dominant 7
+     - ``G7``
+     - ``Sol7``
+     - ``V7``
+   * - Minor 7
+     - ``Dm7``
+     - ``Rem7``
+     - ``iim7``
+   * - Major 7
+     - ``Cmaj7``
+     - ``Domaj7``
+     - ``Imaj7``
+   * - Sus4
+     - ``Gsus4``
+     - ``Solsus4``
+     - ``Vsus4``
+
+.. _alternative-spellings:
+
+Alternative Spellings
+---------------------
+
+Most chord qualities can be written more than one way, and Chord Notepad accepts
+all of the common spellings, including the real musical symbols. These are
+exactly equivalent -- pick whichever you like to type:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 30 45 25
+
+   * - Quality
+     - Accepted spellings
+     - Example
+   * - Sharp
+     - ``#`` or ``♯``
+     - ``F#`` = ``F♯``
+   * - Flat
+     - ``b`` or ``♭``
+     - ``Bb`` = ``B♭``
+   * - Minor
+     - ``m``, ``min``, ``mi``, ``-``, or a lowercase root
+     - ``Cm`` = ``Cmin`` = ``C-`` = ``c``
+   * - Major 7
+     - ``maj7``, ``M7``, or ``Δ`` (with or without a ``7``)
+     - ``Cmaj7`` = ``CM7`` = ``CΔ`` = ``CΔ7``
+   * - Dominant 7
+     - ``7`` or ``dom7``
+     - ``C7`` = ``Cdom7``
+   * - Diminished
+     - ``dim`` or ``°``
+     - ``Cdim`` = ``C°``
+   * - Half-diminished
+     - ``m7b5`` or ``ø``
+     - ``Cm7b5`` = ``Cø``
+   * - Augmented
+     - ``aug`` or ``+``
+     - ``Caug`` = ``C+``
+
+.. note::
+   The unicode symbols (``♯ ♭ ° ø Δ``) and their ASCII stand-ins (``# b dim
+   m7b5 maj7``) are treated as identical, so a sheet that mixes them still plays
+   correctly. The triangle ``Δ`` means a major *seventh*: ``CΔ`` is ``Cmaj7``,
+   and a number after it carries the extension (``CΔ9`` is ``Cmaj9``). There is
+   one spelling that is deliberately notation-specific: ``o`` for diminished --
+   covered under :ref:`aug-dim` below.
 
 Major and Minor Chords
 ----------------------
@@ -162,6 +273,25 @@ All intervals are minor thirds.
 
 Also called "minor 7 flat 5." Common in jazz as a ii chord in minor keys.
 
+Sixth Chords
+------------
+
+Sixth chords add the sixth note of the scale to a triad. Unlike a seventh, the
+sixth sits a whole step below the octave, giving a softer, resolved sound often
+heard at the end of a phrase:
+
+**Major 6th** - Add ``6``:
+
+.. code-block:: chord
+
+   C6   G6   F6      // C6 = C + E + G + A
+
+**Minor 6th** - Add ``m6``:
+
+.. code-block:: chord
+
+   Cm6   Am6   Dm6   // Cm6 = C + Eb + G + A
+
 Extended Chords (9th, 11th, 13th)
 ---------------------------------
 
@@ -188,8 +318,18 @@ Extended chords stack more notes on top:
 .. code-block:: chord
 
    C13      // Dominant 13
+   Cmaj13   // Major 13
+   Cm13     // Minor 13
 
 Extended chords are common in jazz.
+
+.. note::
+
+   Chord Notepad voices these the way a player would rather than stacking
+   every interval. The 11th and major 11th drop the 3rd, which sits a
+   semitone below the 11th, and the 13th chords (``C13``, ``Cm13``,
+   ``Cmaj13``) drop the 11th for the same reason. Minor 11ths keep the
+   flat 3rd, since it doesn't clash.
 
 Suspended Chords
 ----------------
@@ -216,6 +356,8 @@ Suspended chords replace the third with another note:
 
 Suspended chords often resolve to the corresponding major or minor chord.
 
+.. _aug-dim:
+
 Augmented and Diminished
 ------------------------
 
@@ -234,6 +376,19 @@ Both ``aug`` and ``+`` mean augmented.
    Cdim   C°   Gdim   G°
 
 Both ``dim`` and ``°`` mean diminished.
+
+.. note::
+   **The ``o`` shorthand for diminished works only in roman numerals.** In
+   classical harmony a small circle after a numeral -- often typed as a plain
+   letter ``o`` -- marks a diminished chord, so ``viio`` and ``io`` are
+   recognized (see :ref:`roman-numerals`).
+
+   It is deliberately **not** accepted on American or European chords, because
+   there ``o`` is ambiguous: it collides with note names and solfège syllables.
+   ``Do`` already means C in European notation, and a trailing ``o`` on a letter
+   root (``Bo``, ``Co``) is too easy to confuse with a typo. For lettered and
+   solfège chords, write ``dim`` or ``°`` instead -- ``Cdim`` or ``C°``, never
+   ``Co``.
 
 Add Chords
 ----------
@@ -316,6 +471,8 @@ The bass note can be any note, not just notes from the chord.
    // Walking bass line example
    C  C/B  Am  Am/G  F  G  C
 
+
+.. _roman-numerals:
 
 Roman Numeral Notation
 ======================
@@ -412,11 +569,21 @@ Add chord extensions just like with regular chords:
 
 .. code-block:: chord
 
-   I        // Major
+   I        // Major triad
    Imaj7    // Major 7
-   ii7      // Minor 7 (ii is already minor)
-   V7       // Dominant 7
+   ii7      // Minor 7 -- lowercase stays minor (Dm7 in C)
+   V7       // Dominant 7 -- uppercase (G7 in C)
+   II7      // Secondary dominant -- uppercase forces major (D7 in C)
    viim7b5  // Half-diminished (natural in minor keys)
+
+.. note::
+   The case of the numeral sets the chord quality, and it carries through to the
+   extension. A lowercase numeral stays minor: ``ii7`` is a minor seventh (Dm7
+   in C), ``ii9`` a minor ninth, ``ii6`` a minor sixth. An uppercase numeral
+   stays major, so its seventh is dominant (``V7`` is G7). To write a
+   **secondary dominant** -- a major-quality seventh on a degree that is
+   normally minor -- use an uppercase numeral: ``II7`` in C is D7, the V-of-V. A
+   ``maj7`` is major either way (``iimaj7`` is D major 7).
 
 Slash Bass with Roman Numerals
 ------------------------------
@@ -432,7 +599,16 @@ You can even write slash chords with roman numerals:
 Chord Duration
 ==============
 
-By default, each chord lasts one beat. Use ``*`` to change this.
+By default, each chord lasts **one bar** -- a full measure of the current time
+signature. So in 4/4 a bare ``C`` is held for four beats; in 3/4 it is held for
+three. Use ``*`` to give a chord a specific length in **beats** instead.
+
+.. note::
+   Duration is always counted in *beats*, while the default (no ``*``) is one
+   whole *bar*. The two line up only when you happen to fill a bar: in 4/4,
+   ``C`` and ``C*4`` sound the same, but ``C*1`` is a quarter of that bar.
+   Change the bar length with a ``{time: ...}`` directive (see
+   :doc:`directives`).
 
 Setting Duration
 ----------------
@@ -443,7 +619,7 @@ Setting Duration
 
    C*2      // C major for 2 beats
    Am*4     // A minor for 4 beats
-   G*1      // G major for 1 beat (default)
+   G*1      // G major for just 1 beat (a bare G fills the whole bar)
 
 Decimal Durations
 -----------------
@@ -549,20 +725,27 @@ Use ``//`` to start a comment:
 
 Everything after ``//`` on that line is ignored during playback.
 
-Using Comments for Lyrics
--------------------------
+Lyrics Are Not Comments
+-----------------------
 
-Add lyrics to help you remember the song structure:
+A common mistake is to comment out lyrics with ``//``. **Don't** -- lyrics go on
+their own line, with no markers at all. Writing chords above the words they go
+with is exactly what Chord Notepad is built for:
 
 .. code-block:: chord
 
-   // Verse 1
    C         Am        F         G
-   // When I find myself in times of trouble
+   When I find myself in times of trouble
+   F         G         C
+   Mother Mary comes to me
 
-   // Chorus
-   F    G    C    Am
-   // Let it be, let it be
+Chord Notepad reads the sheet line by line and works out on its own which lines
+are chords and which are lyrics (see :doc:`introduction`). The chord line lights
+up and plays; the lyric line is displayed but never played, no ``//`` required.
+A lyric that happens to contain a chord-like word -- an *Am*, a *La*, a *Do* --
+is still left alone, because the line as a whole doesn't read as chords.
+
+So keep ``//`` for things that genuinely aren't part of the song.
 
 Using Comments for Notes
 ------------------------
@@ -599,19 +782,17 @@ Here's an example that uses everything you've learned:
    // Verse - steady rhythm
    G  D  Em  C
    G  D  C*2
+   {loop: verse 2}    // play the verse twice
 
    {label: chorus}
    // Chorus - more energy
    Em  C  G  D
    Em  C  G*2
+   {loop: chorus 2}   // play the chorus twice
 
    // Build to end
    {bpm: +10}
-   C  D  G*4  NC*2    // Dramatic pause before repeat
-
-   // Repeat the whole song
-   {loop: verse 2}
-   {loop: chorus 2}
+   C  D  G*4  NC*2    // Dramatic pause to finish
 
 This example shows:
 

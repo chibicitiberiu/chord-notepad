@@ -3,7 +3,8 @@ Keyboard Shortcuts
 ==================
 
 Keyboard shortcuts let you work faster. This page lists all available shortcuts
-organized by category.
+organized by category. Most menu items also show their shortcut on the right, so
+you can pick them up as you go.
 
 
 File Operations
@@ -109,6 +110,19 @@ Text Editor
      - Delete character after cursor
 
 
+Help
+====
+
+.. list-table::
+   :header-rows: 1
+   :widths: 30 70
+
+   * - Shortcut
+     - Action
+   * - F1
+     - Open the user guide
+
+
 Quick Reference Card
 ====================
 
@@ -133,22 +147,3 @@ This can be printed as a reference card.
    Ctrl+-    Zoom Out      Shift+▶   Play from cursor
    Ctrl+0    Reset Zoom    Click ⏹   Stop
    Ctrl+Wheel  Zoom        Click chord  Play chord
-
-
-Tips for Learning Shortcuts
-===========================
-
-1. **Start with the essentials:**
-   Ctrl+S (Save), Ctrl+Z (Undo), and Ctrl+C/V (Copy/Paste) are the most
-   commonly used shortcuts.
-
-2. **Learn them gradually:**
-   Pick one or two new shortcuts each week and practice using them instead
-   of the menu.
-
-3. **Use muscle memory:**
-   After a few days of conscious use, shortcuts become automatic.
-
-4. **Notice the menu hints:**
-   Most menu items show their keyboard shortcut on the right side. This
-   helps you learn as you use the application.

@@ -50,7 +50,7 @@ Seventh Chords
      - C7, D7, G7, A7
    * - maj7, M7, Δ
      - Major 7th
-     - Cmaj7, CM7, Dmaj7
+     - Cmaj7, CM7, CΔ, CΔ7
    * - m7
      - Minor 7th
      - Cm7, Dm7, Am7, Em7
@@ -62,7 +62,7 @@ Seventh Chords
      - Cm7b5, Cø, Dm7b5
    * - mM7, m(maj7)
      - Minor-major 7th
-     - CmM7, DmM7
+     - CmM7, Cm(maj7)
 
 Sixth Chords
 ------------
@@ -112,6 +112,12 @@ Extended Chords
    * - 13
      - Dominant 13th
      - C13, D13, G13
+   * - maj13
+     - Major 13th
+     - Cmaj13, Fmaj13
+   * - m13
+     - Minor 13th
+     - Cm13, Am13
 
 Suspended Chords
 ----------------
@@ -194,40 +200,32 @@ American Notation
 
 .. list-table::
    :header-rows: 1
-   :widths: 25 25 25 25
+   :widths: 33 33 34
 
    * - Natural
      - Sharp
      - Flat
-     - Sound
    * - C
      - C#
      - Db
-     - C
    * - D
      - D#
      - Eb
-     - D
    * - E
      - E# (rare)
      - Fb (rare)
-     - E
    * - F
      - F#
      - Gb
-     - F
    * - G
      - G#
      - Ab
-     - G
    * - A
      - A#
      - Bb
-     - A
    * - B
      - B# (rare)
      - Cb (rare)
-     - B
 
 European Notation
 -----------------
@@ -383,7 +381,7 @@ BPM Directive Values
      - Format
      - Example
    * - Absolute
-     - Number (60-240)
+     - Number (20-400)
      - ``{bpm: 120}``
    * - Relative add
      - +number
@@ -413,8 +411,8 @@ Duration Reference
      - Beats
      - Example
    * - (default)
-     - 1
-     - ``C`` = 1 beat
+     - one full bar
+     - ``C`` = one bar (4 beats in 4/4)
    * - \*2
      - 2
      - ``C*2`` = 2 beats
@@ -535,8 +533,8 @@ Application Limits
      - Minimum
      - Maximum
    * - BPM (tempo)
-     - 60
-     - 240
+     - 20
+     - 400
    * - Font size
      - 6 pt
      - 72 pt
