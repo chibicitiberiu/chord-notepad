@@ -3,7 +3,7 @@ Interface for note pickers (Piano, Guitar, etc.)
 """
 
 from abc import ABC, abstractmethod
-from typing import List, TYPE_CHECKING
+from typing import List, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from models.chord_notes import ChordNotes
@@ -58,3 +58,15 @@ class INotePicker(ABC):
         """
         self.reset()
         return [self.chord_to_midi(cn) for cn in sequence]
+
+    @property
+    def voice_labels(self) -> Optional[List[str]]:
+        """Ordered voice names (top voice first), or ``None``.
+
+        Populated by pickers that voice a fixed ensemble of monophonic voices
+        (e.g. an SATB voicer): such pickers guarantee that ``voice_sequence``
+        emits exactly one note per voice per chord, ordered LOW to HIGH
+        (bottom voice first), with duplicates allowed for unisons. ``None``
+        for free-voiced pickers (piano, guitar), which is the default.
+        """
+        return None

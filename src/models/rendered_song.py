@@ -68,6 +68,23 @@ class RenderedChord:
     """True for chords before the playback start position: they advance beat
     accounting but are never voiced and emit no events."""
 
+    voice_notes: Optional[List[int]] = None
+    """Per-voice MIDI notes, low to high, for fixed-ensemble pickers (e.g. a
+    future SATB voicer). Duplicates are legal (unisons, when two voices land
+    on the same note). ``None`` for free-voiced pickers (piano, guitar),
+    rests, and skipped chords.
+
+    Alignment: both this list and ``RenderedSong.voice_labels`` are stored
+    LOW to HIGH, so ``voice_notes[i]`` is always the note sung by
+    ``RenderedSong.voice_labels[i]`` -- despite the picker itself reporting
+    ``voice_labels`` top-voice-first (see ``INotePicker.voice_labels``), the
+    renderer reverses it once when copying it onto the ``RenderedSong`` so
+    indices line up with the low-to-high ``voice_notes``/``midi_notes``
+    convention used everywhere else in this pipeline.
+
+    When this is set, ``midi_notes`` is an order-preserving deduplicated copy
+    of this list (so a unison doesn't double-strike one synth note)."""
+
 
 @dataclass
 class RenderedSong:
@@ -81,3 +98,11 @@ class RenderedSong:
     """(start_beat, bpm) change points, first entry at beat 0."""
     meter_map: List[Tuple[float, Tuple[int, int]]] = field(default_factory=list)
     """(start_beat, time_sig) change points, first entry at beat 0."""
+    voice_labels: Optional[List[str]] = None
+    """Ordered voice names for a fixed-ensemble picker (e.g. ``["Bass",
+    "Tenor", "Alto", "Soprano"]``), or ``None`` for free-voiced pickers
+    (piano, guitar).
+
+    Stored LOW to HIGH -- reversed from ``INotePicker.voice_labels``, which
+    reports top-voice-first -- so it aligns index-for-index with each
+    ``RenderedChord.voice_notes`` (also low to high)."""

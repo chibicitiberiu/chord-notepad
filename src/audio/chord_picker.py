@@ -32,6 +32,7 @@ from copy import deepcopy
 import logging
 
 from audio.note_picker_interface import INotePicker
+from audio.chord_tones import classify_role, DEFAULT_OMIT_PENALTY
 from audio.voicing_optimizer import optimize_sequence
 from chord.midi_converter import parse_note_to_semitone, intervals_from_note_names
 
@@ -89,18 +90,10 @@ class ChordNotePicker(INotePicker):
     RH_LOW_INTERVAL_FLOOR = 52  # close intervals below ~E3 sound muddy
 
     # --- Scoring weights (higher score = better). All tunable. ----------------
-    # Completeness: penalty (subtracted) for each chord tone missing from the
-    # whole voicing, keyed by the tone's harmonic role. The bass covers the root,
-    # so an omitted root is cheap; the third, seventh and colour tones define the
-    # chord and are effectively never dropped.
-    OMIT_PENALTY = {
-        'root': 4.0,
-        'third': 40.0,
-        'fifth': 8.0,
-        'seventh': 40.0,
-        'color': 30.0,
-        'extension': 7.0,
-    }
+    # Completeness penalties, keyed by the tone's harmonic role (see
+    # :mod:`audio.chord_tones`). Kept as a class attribute so external references
+    # and subclasses that override it keep working.
+    OMIT_PENALTY = DEFAULT_OMIT_PENALTY
     SCORE_PER_RH_NOTE = 0.6       # reward per right-hand note (favour full voicings)
     SCORE_CENTER = -1.4            # per semitone of right-hand mean from ideal
     SCORE_LH_BELOW_OCT2 = -1.5    # per semitone the bass sits below C2
@@ -268,19 +261,11 @@ class ChordNotePicker(INotePicker):
 
     @staticmethod
     def _role(interval: int) -> str:
-        """Classify a chord tone by its register-preserving interval."""
-        if interval >= 12:
-            return 'extension'
-        m = interval % 12
-        if m == 0:
-            return 'root'
-        if m in (3, 4):
-            return 'third'
-        if m in (10, 11):
-            return 'seventh'
-        if m in (6, 7, 8):
-            return 'fifth'
-        return 'color'  # sus2/sus4/6th and other defining colour tones
+        """Classify a chord tone by its register-preserving interval.
+
+        Thin delegation to :func:`audio.chord_tones.classify_role`.
+        """
+        return classify_role(interval)
 
     def _generate_candidates(self, root_pc: int, intervals: List[int],
                              bass_pc: Optional[int]) -> List[Voicing]:

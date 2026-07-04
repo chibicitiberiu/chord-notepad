@@ -29,6 +29,22 @@ from models.rendered_song import RenderedSong, RenderedChord
 from audio.note_picker_interface import INotePicker
 
 
+def _dedupe_preserve_order(notes: List[int]) -> List[int]:
+    """Return ``notes`` with duplicates removed, keeping first-seen order.
+
+    Used to derive a fixed-ensemble picker's ``midi_notes`` (one synth
+    trigger per distinct pitch) from its full per-voice voicing (one entry
+    per voice, duplicates allowed for unisons).
+    """
+    seen = set()
+    result = []
+    for note in notes:
+        if note not in seen:
+            seen.add(note)
+            result.append(note)
+    return result
+
+
 class SongRenderer:
     """Renders a parsed song into a fully pre-computed :class:`RenderedSong`."""
 
@@ -148,7 +164,7 @@ class SongRenderer:
         # resolved notes to the voicer in one call so it can optimize the whole
         # song in context, then assign the results back. Rests and skipped
         # chords keep midi_notes=None.
-        self._voice_rendered_chords(rendered)
+        voice_labels = self._voice_rendered_chords(rendered)
 
         # Finalize whole-song bar count (round up any partial bar), matching the
         # old _compute_total_bars behaviour.
@@ -164,6 +180,7 @@ class SongRenderer:
             total_seconds=state['current_time_position'],
             tempo_map=tempo_map,
             meter_map=meter_map,
+            voice_labels=voice_labels,
         )
 
     # ------------------------------------------------------------------
@@ -428,32 +445,67 @@ class SongRenderer:
         return rc
 
     def _resolve_chord_notes(self, chord: ChordInfo, current_key: Optional[str]) -> Optional[ChordNotes]:
+        """Resolve a chord to its ``ChordNotes``, stamped with the current key.
+
+        ``current_key`` is always passed through, not just for roman-numeral
+        chords: absolute chords still resolve against the song's key for
+        their own notes, but ``ChordNotes.key`` records the key in effect so
+        key-aware voicing rules (e.g. leading-tone handling) can see it
+        regardless of how the chord was spelled. This mirrors
+        ``RenderedChord.key``, which is likewise unconditional.
+        """
         from chord.helper import ChordHelper
 
         helper = ChordHelper()
-        key_to_use = current_key if chord.is_relative else None
         return helper.compute_chord_notes(
             chord.chord,
-            key=key_to_use,
+            key=current_key,
             is_relative=chord.is_relative,
         )
 
-    def _voice_rendered_chords(self, rendered: List[RenderedChord]) -> None:
+    def _voice_rendered_chords(self, rendered: List[RenderedChord]) -> Optional[List[str]]:
         """Voice every played chord in one whole-song pass.
 
         Collects the played (non-rest, non-skipped) chords in playback order,
         voices them together via ``note_picker.voice_sequence``, and writes each
         result back onto its :class:`RenderedChord`. Rests and skipped chords are
         left with ``midi_notes=None``.
+
+        For fixed-ensemble pickers -- ``note_picker.voice_labels`` is not
+        ``None`` (checked via ``getattr`` so picker fakes without the
+        property still work) -- each chord's full voicing (duplicates
+        allowed, one note per voice) is written to ``voice_notes`` and
+        ``midi_notes`` becomes an order-preserving deduplicated copy of it,
+        so a unison doesn't double-strike one synth note. The picker reports
+        ``voice_labels`` top-voice-first; this returns them reversed to
+        low-to-high so they align index-for-index with ``voice_notes``.
+
+        For free-voiced pickers (piano, guitar; ``voice_labels`` is
+        ``None``), behaviour is exactly as before: ``midi_notes`` is the
+        voicing unchanged, ``voice_notes`` stays ``None``, and this returns
+        ``None``.
+
+        Returns:
+            The low-to-high voice labels to store on the ``RenderedSong``,
+            or ``None`` for free-voiced pickers.
         """
         played = [rc for rc in rendered
                   if not rc.is_rest and not rc.skipped and rc.chord_notes is not None]
         if not played:
-            return
+            return None
         try:
             voicings = self._note_picker.voice_sequence([rc.chord_notes for rc in played])
         except Exception as e:
             self._logger.error(f"Error voicing chords: {e}", exc_info=True)
-            return
-        for rc, midi_notes in zip(played, voicings):
-            rc.midi_notes = midi_notes
+            return None
+
+        voice_labels = getattr(self._note_picker, 'voice_labels', None)
+        if voice_labels is None:
+            for rc, midi_notes in zip(played, voicings):
+                rc.midi_notes = midi_notes
+            return None
+
+        for rc, notes in zip(played, voicings):
+            rc.voice_notes = list(notes)
+            rc.midi_notes = _dedupe_preserve_order(notes)
+        return list(reversed(voice_labels))

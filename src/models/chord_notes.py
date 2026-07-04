@@ -21,8 +21,12 @@ class ChordNotes:
             voicer, instead of it being re-guessed from note ordering. Optional
             for backward compatibility; when absent the picker reconstructs it
             from ``notes``.
+        key: The key signature in effect when the chord was resolved (for
+            key-aware voicing rules, e.g. leading-tone handling); ``None``
+            when no key is set.
     """
     notes: List[str]
     bass_note: str
     root: str
     intervals: Optional[List[int]] = None
+    key: Optional[str] = None

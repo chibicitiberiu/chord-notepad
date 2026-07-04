@@ -401,7 +401,7 @@ class ChordHelper:
                 return None
             # Apply symbol conversions to resolved chord (+ → aug, ° → dim, etc.)
             chord_name = self._convert_symbols_to_text(chord_name)
-            return self._build_from_normalized(chord_name)
+            return self._build_from_normalized(chord_name, key=key)
 
         # Absolute chord. Convert European->American (Do->C, Fa->F) and resolve.
         # But that conversion can mangle an American chord that merely starts
@@ -412,20 +412,26 @@ class ChordHelper:
         # the D-diminished that a lenient 'o'-means-diminished reading would give.
         from chord.converter import NotationConverter
         converted = NotationConverter.chord_european_to_american(chord_name)
-        result = self._normalize_and_build(converted)
+        result = self._normalize_and_build(converted, key=key)
         if result is not None:
             return result
 
         if converted != chord_name:
-            return self._normalize_and_build(chord_name)
+            return self._normalize_and_build(chord_name, key=key)
         return None
 
-    def _normalize_and_build(self, chord_name: str) -> Optional[ChordNotes]:
+    def _normalize_and_build(self, chord_name: str, key: Optional[str] = None) -> Optional[ChordNotes]:
         """Normalize an absolute (American) chord symbol and resolve it.
 
         Runs the full normalization chain then builds the ChordNotes. Does NOT
         apply European->American conversion; the caller decides whether the
         input should be treated as European (see compute_chord_notes).
+
+        Args:
+            chord_name: Chord symbol to normalize and resolve.
+            key: Key signature in effect, stamped onto the resulting
+                ``ChordNotes.key`` (not used for resolution here; only roman
+                numerals need a key to resolve against).
         """
         # Normalize unicode and alternative symbols
         chord_name = self._normalize_unicode_symbols(chord_name)
@@ -448,13 +454,18 @@ class ChordHelper:
             # Handle omit notation (C(no3) → simplified form)
             chord_name = self._normalize_omit_notation(chord_name)
 
-        return self._build_from_normalized(chord_name)
+        return self._build_from_normalized(chord_name, key=key)
 
-    def _build_from_normalized(self, chord_name: str) -> Optional[ChordNotes]:
+    def _build_from_normalized(self, chord_name: str, key: Optional[str] = None) -> Optional[ChordNotes]:
         """Resolve an already-normalized chord name into ChordNotes.
 
         Splits off any slash bass, resolves the notes and their
         register-preserving intervals, and packages the result.
+
+        Args:
+            chord_name: Already-normalized chord symbol (slash bass intact).
+            key: Key signature in effect, stamped onto the resulting
+                ``ChordNotes.key``.
         """
         # Parse slash chord
         slash_bass = None
@@ -481,7 +492,8 @@ class ChordHelper:
             notes=notes,
             bass_note=bass_note,
             root=root,
-            intervals=intervals
+            intervals=intervals,
+            key=key
         )
 
     def _resolve_roman_numeral(self, roman: str, key: str) -> Optional[str]:
