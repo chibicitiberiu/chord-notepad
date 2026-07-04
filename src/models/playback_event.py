@@ -30,6 +30,11 @@ class PlaybackEventArgs:
     chord_info: Optional[ChordInfo] = None
     """Currently playing chord (None for PLAYBACK_FINISHED event)"""
 
+    chord_index: Optional[int] = None
+    """Index of the chord in the unrolled ``RenderedSong`` that produced this
+    event, or ``None`` if unavailable. Lets the chord-sheet playhead stay
+    loop-accurate (loop passes share char spans but have distinct indices)."""
+
     bpm: int = 120
     """Current beats per minute"""
 

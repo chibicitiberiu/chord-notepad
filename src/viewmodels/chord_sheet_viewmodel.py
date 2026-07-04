@@ -26,11 +26,29 @@ from constants import (
 from models.chord import ChordInfo
 from models.line import Line
 from models.rendered_song import RenderedSong
-from ui.chord_sheet.name_card import NameCardRenderer
+from ui.chord_sheet.fret_card import FretCardRenderer
+from ui.chord_sheet.keyboard_card import KeyboardCardRenderer
 from ui.chord_sheet.renderer_interface import StripRenderer
+from ui.chord_sheet.staff_card import StaffCardRenderer
+from ui.chord_sheet.tab_strip import TabStripRenderer
 from utils.observable import Observable
 
 logger = logging.getLogger(__name__)
+
+
+def _default_renderers() -> List[StripRenderer]:
+    """Build the standard renderer set, in view-picker order.
+
+    Keyboard, Staff, Chord box, then Tab. The two fretted views declare
+    ``requires_fingering`` so the viewmodel gates them out for songs voiced
+    without fingering data (e.g. piano/ensemble).
+    """
+    return [
+        KeyboardCardRenderer(),
+        StaffCardRenderer(),
+        FretCardRenderer(),
+        TabStripRenderer(),
+    ]
 
 # Snap band for the auto-scroll rule (fractions of the viewport width).
 _SCROLL_SNAP_TO = 0.25   # where the playhead is placed after a snap
@@ -94,8 +112,8 @@ class ChordSheetViewModel(Observable):
             audio_service: PlaybackService; used for the default render and
                 audition seams.
             application: Application, for the default UI-thread marshal.
-            renderers: Strip renderers to offer; defaults to the single
-                placeholder :class:`NameCardRenderer`.
+            renderers: Strip renderers to offer; defaults to the standard set
+                (:func:`_default_renderers`: keyboard, staff, chord box, tab).
             render_fn: Injectable ``(lines, key) -> RenderedSong | None`` seam;
                 defaults to ``audio_service.render_song``.
             audition_fn: Injectable ``(midi_notes) -> None`` seam; defaults to
@@ -114,7 +132,7 @@ class ChordSheetViewModel(Observable):
         self._application = application
 
         self._renderers: List[StripRenderer] = (
-            list(renderers) if renderers is not None else [NameCardRenderer()]
+            list(renderers) if renderers is not None else _default_renderers()
         )
         self._render_fn = render_fn or audio_service.render_song
         self._audition_fn = audition_fn or audio_service.play_notes_immediate
@@ -125,6 +143,10 @@ class ChordSheetViewModel(Observable):
         # Debounce/render bookkeeping.
         self._pending_input: Optional[tuple] = None  # (lines, key)
         self._render_handle: object = None
+        # True when the pending input has not yet been rendered into
+        # ``rendered_song``. While the panel is hidden we hold render work back
+        # (no wasted background renders) and flush it when the panel is shown.
+        self._dirty: bool = False
 
         # Observable state (private storage with leading underscore).
         self._rendered_song: Optional[RenderedSong] = None
@@ -202,6 +224,13 @@ class ChordSheetViewModel(Observable):
             key: Current key signature (for roman-numeral resolution).
         """
         self._pending_input = (list(lines), key)
+        self._dirty = True
+        # Skip the (expensive) render while the panel is hidden; ``set_visible``
+        # flushes the held input when the panel is shown again.
+        if not self._visible:
+            self._scheduler.cancel(self._render_handle)
+            self._render_handle = None
+            return
         self._scheduler.cancel(self._render_handle)
         self._render_handle = self._scheduler.schedule(
             self._debounce_seconds, self._run_render
@@ -219,6 +248,7 @@ class ChordSheetViewModel(Observable):
         except Exception as e:  # pragma: no cover - defensive
             logger.error(f"Chord-sheet render failed: {e}", exc_info=True)
             return
+        self._dirty = False
         self._marshal(lambda: self._apply_rendered(rendered))
 
     def _apply_rendered(self, rendered: Optional[RenderedSong]) -> None:
@@ -234,26 +264,55 @@ class ChordSheetViewModel(Observable):
 
     # -- Playback ping ------------------------------------------------------
 
-    def on_playback_chord(self, chord_info: Optional[ChordInfo]) -> None:
+    def on_playback_chord(
+        self, chord_info: Optional[ChordInfo], chord_index: Optional[int] = None
+    ) -> None:
         """Move the playhead in response to a playback ping.
 
         This is the same signal that drives ``TAG_CHORD_PLAYING`` in the editor:
-        the main window forwards each ``PlaybackEventArgs.chord_info`` here.
+        the main window forwards each ``PlaybackEventArgs`` here.
+
+        The playhead is driven by ``chord_index`` -- the index of the chord in
+        the (unrolled) ``RenderedSong`` the playback engine compiled, carried
+        through the event stream. It maps directly onto this viewmodel's own
+        ``rendered_song.chords`` because both are the deterministic unroll of the
+        same parsed song, so loop passes 2+ (which share their char spans with
+        pass 1) advance the highlight forward instead of jumping backward. When
+        no index is supplied (or it is out of range for the current song) we
+        fall back to matching the chord's char span.
 
         Args:
             chord_info: The chord that just started, or ``None`` on stop/finish.
+            chord_index: Index of the chord in the played song's unrolled chord
+                list, or ``None`` if unavailable.
         """
         if chord_info is None:
             self.set_and_notify("current_index", None)
             return
-        self.set_and_notify("current_index", self._index_for_chord(chord_info))
+        self.set_and_notify("current_index", self._resolve_index(chord_info, chord_index))
+
+    def _resolve_index(
+        self, chord_info: ChordInfo, chord_index: Optional[int]
+    ) -> Optional[int]:
+        """Resolve the played chord to an index in the displayed song.
+
+        Prefers the carried ``chord_index`` (loop-accurate); falls back to a
+        char-span match when it is missing or out of range.
+        """
+        song = self._rendered_song
+        if song is None:
+            return None
+        if chord_index is not None and 0 <= chord_index < len(song.chords):
+            return chord_index
+        return self._index_for_chord(chord_info)
 
     def _index_for_chord(self, chord_info: ChordInfo) -> Optional[int]:
         """Map a played chord to its index in the displayed song by char span.
 
         Matches on ``(start, end)`` offsets, which are stable across independent
         parses of the same text (the strip renders its own ``RenderedSong``,
-        distinct from the playback engine's).
+        distinct from the playback engine's). Used as the fallback when no
+        loop-accurate ``chord_index`` is carried on the ping.
         """
         song = self._rendered_song
         if song is None:
@@ -325,11 +384,11 @@ class ChordSheetViewModel(Observable):
 
     @staticmethod
     def _fallback_view(views: List[str]) -> str:
-        """Pick a fallback view: the default ('name') if present, else the first.
+        """Pick a fallback view: the default ('keyboard') if present, else first.
 
-        The default is ``'name'`` until the real renderers exist (the eventual
-        preferred fallback is ``'keyboard'``); returning the default keeps the
-        strip on a stable, always-available view.
+        Keeps the strip on a stable, always-available view. A persisted view id
+        that no longer exists (e.g. the retired ``'name'`` placeholder) or one
+        gated out for the current song therefore resolves to ``'keyboard'``.
         """
         if DEFAULT_CHORD_SHEET_VIEW in views:
             return DEFAULT_CHORD_SHEET_VIEW
@@ -338,10 +397,19 @@ class ChordSheetViewModel(Observable):
     # -- Visibility / height persistence ------------------------------------
 
     def set_visible(self, visible: bool) -> None:
-        """Show or hide the panel and persist the choice."""
+        """Show or hide the panel and persist the choice.
+
+        Showing the panel flushes any song input that arrived while it was
+        hidden (rendering is held back while hidden to avoid wasted work).
+        """
         visible = bool(visible)
         self._config.set("chord_sheet_visible", visible)
         self.set_and_notify("visible", visible)
+        if visible and self._dirty and self._pending_input is not None:
+            self._scheduler.cancel(self._render_handle)
+            self._render_handle = self._scheduler.schedule(
+                self._debounce_seconds, self._run_render
+            )
 
     def toggle_visible(self) -> None:
         """Toggle panel visibility."""

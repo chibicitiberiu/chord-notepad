@@ -27,7 +27,7 @@ PLAYBACK_THREAD_CHECK_MS = 50
 
 # Chord sheet strip
 DEFAULT_CHORD_SHEET_HEIGHT = 160
-DEFAULT_CHORD_SHEET_VIEW = "name"
+DEFAULT_CHORD_SHEET_VIEW = "keyboard"
 
 # Text editor tags
 TAG_CHORD_VALID = "chord"

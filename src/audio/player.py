@@ -538,6 +538,7 @@ class NotePlayer(IPlayer):
                         event_args = PlaybackEventArgs(
                             event_type=PlaybackEventType.CHORD_START,
                             chord_info=event.metadata.get('chord_info'),
+                            chord_index=event.metadata.get('chord_index'),
                             bpm=event.metadata.get('bpm'),
                             time_signature_beats=event.metadata.get('time_signature_beats'),
                             time_signature_unit=event.metadata.get('time_signature_unit'),
@@ -574,6 +575,7 @@ class NotePlayer(IPlayer):
                         event_args = PlaybackEventArgs(
                             event_type=PlaybackEventType.CHORD_START,
                             chord_info=event.metadata.get('chord_info'),
+                            chord_index=event.metadata.get('chord_index'),
                             bpm=event.metadata.get('bpm'),
                             time_signature_beats=event.metadata.get('time_signature_beats'),
                             time_signature_unit=event.metadata.get('time_signature_unit'),

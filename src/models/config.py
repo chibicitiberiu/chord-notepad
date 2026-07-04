@@ -60,7 +60,7 @@ class Config:
 
     # Chord sheet strip (bottom-docked voiced-chord panel)
     chord_sheet_visible: bool = False  # Whether the chord sheet panel is shown
-    chord_sheet_view: str = "name"     # Active renderer id ('name', later 'keyboard', ...)
+    chord_sheet_view: str = "keyboard"  # Active renderer id ('keyboard', 'staff', 'fret', 'tab')
     chord_sheet_height: int = 160      # Panel height in pixels (paned-window sash position)
 
     def validate(self) -> None:
@@ -161,7 +161,7 @@ class Config:
             log_level=data.get("log_level", "INFO"),
             show_quick_start_on_startup=data.get("show_quick_start_on_startup", True),
             chord_sheet_visible=data.get("chord_sheet_visible", False),
-            chord_sheet_view=data.get("chord_sheet_view", "name"),
+            chord_sheet_view=data.get("chord_sheet_view", "keyboard"),
             chord_sheet_height=data.get("chord_sheet_height", 160),
         )
 

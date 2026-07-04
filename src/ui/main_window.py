@@ -323,9 +323,12 @@ class MainWindow(tk.Tk):
             return
 
         # Drive the chord-sheet playhead with the same ping as TAG_CHORD_PLAYING.
+        # The carried chord_index keeps the strip playhead loop-accurate.
         if self.chord_sheet_viewmodel is not None:
             if event_args.event_type == PlaybackEventType.CHORD_START:
-                self.chord_sheet_viewmodel.on_playback_chord(event_args.chord_info)
+                self.chord_sheet_viewmodel.on_playback_chord(
+                    event_args.chord_info, event_args.chord_index
+                )
 
         # Live-update the BPM scrubber with the effective BPM from the producer
         if hasattr(self, "bpm_scrubber") and event_args.bpm is not None:

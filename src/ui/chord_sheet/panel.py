@@ -12,9 +12,11 @@ only bridges them to Tkinter.
 import logging
 import tkinter as tk
 from tkinter import ttk
-from typing import Optional
+from typing import Optional, Set
 
-from ui.chord_sheet.ops import DrawOps, replay
+from ui.chord_sheet.clef_assets import image_for_clef_key
+from ui.chord_sheet.marker_lane import LANE_HEIGHT, build_marker_lane
+from ui.chord_sheet.ops import DrawOps, ImageOp, replay
 from ui.chord_sheet.renderer_interface import SheetContext, StripLayout
 
 logger = logging.getLogger(__name__)
@@ -37,7 +39,11 @@ class ChordSheetPanel(ttk.Frame):
         super().__init__(parent, **kwargs)
         self._vm = viewmodel
         self._layout: Optional[StripLayout] = None
-        self._images: dict = {}  # asset key -> Tk image (none needed by NameCard yet)
+        # Resolved Tk images by ops image key. These MUST stay referenced or Tk
+        # garbage-collects them and the clef glyphs vanish, so the cache is kept
+        # on the panel for the panel's lifetime.
+        self._images: dict = {}
+        self._warned_image_keys: Set[str] = set()
 
         self._build_widgets()
         self._wire_viewmodel()
@@ -70,6 +76,16 @@ class ChordSheetPanel(ttk.Frame):
         self._hbar = ttk.Scrollbar(body, orient=tk.HORIZONTAL)
         self._hbar.pack(side=tk.BOTTOM, fill=tk.X)
 
+        # Slim marker lane on top; the main strip fills the rest. Both scroll
+        # horizontally together (one scrollbar drives both) so markers stay
+        # aligned with the cards below them.
+        self._lane_canvas = tk.Canvas(
+            body,
+            height=int(LANE_HEIGHT),
+            highlightthickness=0,
+        )
+        self._lane_canvas.pack(side=tk.TOP, fill=tk.X)
+
         self._canvas = tk.Canvas(
             body,
             height=100,
@@ -77,10 +93,15 @@ class ChordSheetPanel(ttk.Frame):
             xscrollcommand=self._hbar.set,
         )
         self._canvas.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
-        self._hbar.config(command=self._canvas.xview)
+        self._hbar.config(command=self._xview_both)
 
         self._canvas.bind("<Configure>", self._on_canvas_configure)
         self._canvas.bind("<Button-1>", self._on_canvas_click)
+
+    def _xview_both(self, *args) -> None:
+        """Scroll the marker lane and the main strip together (scrollbar cmd)."""
+        self._canvas.xview(*args)
+        self._lane_canvas.xview(*args)
 
     def _wire_viewmodel(self) -> None:
         """Subscribe to the viewmodel's observable state."""
@@ -135,6 +156,7 @@ class ChordSheetPanel(ttk.Frame):
     def _relayout_and_paint(self) -> None:
         """Recompute the layout for the current song/view and repaint fully."""
         self._canvas.delete("all")
+        self._lane_canvas.delete("all")
         self._layout = None
 
         song = self._vm.rendered_song
@@ -142,19 +164,56 @@ class ChordSheetPanel(ttk.Frame):
         if song is None or renderer is None:
             return
 
+        # The renderer gets the main canvas's height; the marker lane occupies
+        # its own fixed-height canvas above it, so the content already excludes
+        # the lane (the panel reserves it via the two-canvas split).
         height = max(1, self._canvas.winfo_height())
         ctx = SheetContext(song=song)
         layout = renderer.layout(ctx, float(height))
         self._layout = layout
         self._canvas.config(scrollregion=(0, 0, layout.width, layout.height))
+        self._lane_canvas.config(scrollregion=(0, 0, layout.width, LANE_HEIGHT))
 
         # Highlight is drawn first so it sits behind the card ops.
         self._draw_highlight()
 
         ops = DrawOps()
         renderer.paint(ops, ctx, layout)
+        self._resolve_images(ops.ops)
         replay(ops.ops, self._canvas, self._images)
+
+        # Marker lane spans the same content width, drawn by the panel so every
+        # view gets it for free.
+        self._paint_marker_lane(song, layout)
         self._follow_playhead()
+
+    def _paint_marker_lane(self, song, layout: StripLayout) -> None:
+        """Draw the timeline marker lane over the full content width."""
+        lane_ops = build_marker_lane(
+            song.markers, song.chords, layout.slots, LANE_HEIGHT, layout.width
+        )
+        replay(lane_ops.ops, self._lane_canvas, self._images)
+
+    def _resolve_images(self, ops) -> None:
+        """Resolve image-op keys to Tk images, caching them on the panel.
+
+        Each :class:`ImageOp` key (e.g. ``'clef_treble:96'``) is resolved through
+        :func:`image_for_clef_key` and converted to a ``PhotoImage`` kept in
+        :attr:`_images` (so Tk does not garbage-collect it). Unknown keys are
+        logged once and left unresolved, so :func:`replay` skips them.
+        """
+        from PIL import ImageTk
+
+        for op in ops:
+            if not isinstance(op, ImageOp) or op.key in self._images:
+                continue
+            image = image_for_clef_key(op.key)
+            if image is None:
+                if op.key not in self._warned_image_keys:
+                    self._warned_image_keys.add(op.key)
+                    logger.warning("Skipping unknown chord-sheet image key: %r", op.key)
+                continue
+            self._images[op.key] = ImageTk.PhotoImage(image)
 
     def _draw_highlight(self) -> None:
         """Draw (or move) the highlight rect behind the current slot."""
@@ -196,7 +255,9 @@ class ChordSheetPanel(ttk.Frame):
             playhead_x, float(viewport), float(current_scroll), float(content_width)
         )
         if target is not None and content_width > 0:
-            self._canvas.xview_moveto(target / content_width)
+            fraction = target / content_width
+            self._canvas.xview_moveto(fraction)
+            self._lane_canvas.xview_moveto(fraction)
 
     def _slot_for_index(self, index: int):
         """Return the :class:`SlotBox` for a chord index, or ``None``."""

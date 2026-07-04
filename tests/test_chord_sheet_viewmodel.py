@@ -11,7 +11,6 @@ import pytest
 
 from models.rendered_song import RenderedSong, RenderedChord
 from models.chord import ChordInfo
-from ui.chord_sheet.name_card import NameCardRenderer
 from ui.chord_sheet.renderer_interface import (
     SheetContext,
     SlotBox,
@@ -19,6 +18,24 @@ from ui.chord_sheet.renderer_interface import (
     StripRenderer,
 )
 from viewmodels.chord_sheet_viewmodel import ChordSheetViewModel
+
+
+class PlainRenderer(StripRenderer):
+    """Minimal always-available renderer (stands in for the retired name card)."""
+
+    id = "name"
+    label = "Plain"
+    requires_fingering = False
+
+    def layout(self, ctx: SheetContext, height: float) -> StripLayout:
+        slots = tuple(
+            SlotBox(chord_index=i, x=float(i), width=1.0)
+            for i in range(len(ctx.song.chords))
+        )
+        return StripLayout(width=1.0, height=height, slots=slots)
+
+    def paint(self, ops, ctx, layout):
+        pass
 
 
 # --------------------------------------------------------------------------
@@ -116,8 +133,10 @@ def make_chord(symbol="C", start=0, end=1, is_rest=False, midi_notes=(60, 64, 67
 def make_vm(rendered=None, config=None, renderers=None, audio=None, scheduler=None):
     audio = audio or FakeAudio(rendered=rendered)
     scheduler = scheduler or ManualScheduler()
+    # Default to a visible panel so ``set_song`` actually renders (rendering is
+    # held back while hidden -- see the visibility-gating tests).
     vm = ChordSheetViewModel(
-        config or FakeConfig(),
+        config or FakeConfig(chord_sheet_visible=True),
         audio,
         application=None,
         renderers=renderers,
@@ -193,6 +212,42 @@ def test_current_index_none_when_chord_not_in_song():
     assert vm.current_index is None
 
 
+def test_playhead_carried_index_advances_monotonically_across_loop_seam():
+    # Two passes of the same two-chord section: passes SHARE char spans but are
+    # distinct entries in the unrolled chord list (indices 0,1 then 2,3). The
+    # carried chord_index must drive the highlight forward across the seam.
+    song = RenderedSong(chords=[
+        make_chord("C", start=0, end=1),
+        make_chord("G", start=2, end=3),
+        make_chord("C", start=0, end=1),   # pass 2 reuses pass-1 spans
+        make_chord("G", start=2, end=3),
+    ])
+    vm, _, scheduler = make_vm(rendered=song)
+    vm.set_song([], None)
+    scheduler.flush()
+
+    seen = []
+    for idx in range(4):
+        vm.on_playback_chord(song.chords[idx].chord_info, chord_index=idx)
+        seen.append(vm.current_index)
+    assert seen == [0, 1, 2, 3]  # strictly advancing; lands on the pass-2 cards
+
+    # Sanity: WITHOUT the carried index the span match would jump pass 2 back to
+    # pass 1 (index 1), which is exactly the bug the carried index fixes.
+    vm.on_playback_chord(song.chords[3].chord_info)  # no index -> span fallback
+    assert vm.current_index == 1
+
+
+def test_carried_index_out_of_range_falls_back_to_span():
+    song = RenderedSong(chords=[make_chord("C", start=0, end=1)])
+    vm, _, scheduler = make_vm(rendered=song)
+    vm.set_song([], None)
+    scheduler.flush()
+    # A stale/oversized index falls back to the char-span match.
+    vm.on_playback_chord(ChordInfo(chord="C", start=0, end=1), chord_index=99)
+    assert vm.current_index == 0
+
+
 def test_new_render_clears_stale_index():
     song = RenderedSong(chords=[make_chord("C", start=0, end=1)])
     vm, _, scheduler = make_vm(rendered=song)
@@ -212,7 +267,7 @@ def test_new_render_clears_stale_index():
 
 
 def test_fingering_renderer_hidden_for_piano_song():
-    renderers = [NameCardRenderer(), FingeringRenderer()]
+    renderers = [PlainRenderer(), FingeringRenderer()]
     piano_song = RenderedSong(chords=[make_chord("C", fingering=None)])
     vm, _, scheduler = make_vm(rendered=piano_song, renderers=renderers)
 
@@ -226,7 +281,7 @@ def test_fingering_renderer_hidden_for_piano_song():
 
 
 def test_fingering_renderer_shown_for_fretted_song():
-    renderers = [NameCardRenderer(), FingeringRenderer()]
+    renderers = [PlainRenderer(), FingeringRenderer()]
     fretted_song = RenderedSong(chords=[make_chord("C", fingering=[-1, 3, 2, 0, 1, 0])])
     vm, _, scheduler = make_vm(rendered=fretted_song, renderers=renderers)
 
@@ -236,7 +291,7 @@ def test_fingering_renderer_shown_for_fretted_song():
 
 
 def test_active_view_falls_back_when_it_becomes_unavailable():
-    renderers = [NameCardRenderer(), FingeringRenderer()]
+    renderers = [PlainRenderer(), FingeringRenderer()]
     fretted = RenderedSong(chords=[make_chord("C", fingering=[0, 0, 0, 0, 0, 0])])
     vm, audio, scheduler = make_vm(rendered=fretted, renderers=renderers)
 
@@ -254,10 +309,19 @@ def test_active_view_falls_back_when_it_becomes_unavailable():
 
 
 def test_persisted_unavailable_view_falls_back_on_construction():
-    renderers = [NameCardRenderer(), FingeringRenderer()]
+    renderers = [PlainRenderer(), FingeringRenderer()]
     config = FakeConfig(chord_sheet_view="fret")  # no song yet -> fret unavailable
     vm, _, _ = make_vm(renderers=renderers, config=config)
     assert vm.active_view == "name"
+
+
+def test_persisted_retired_or_unknown_view_loads_as_keyboard():
+    # 'name' is the retired placeholder id; any unknown id resolves to the
+    # keyboard default via the standard renderer set.
+    for persisted in ("name", "totally-unknown"):
+        config = FakeConfig(chord_sheet_view=persisted)
+        vm, _, _ = make_vm(config=config)  # default real renderers
+        assert vm.active_view == "keyboard"
 
 
 # --------------------------------------------------------------------------
@@ -302,12 +366,13 @@ def test_visibility_toggle_persists_to_config():
 
 
 def test_set_active_view_persists_and_ignores_unavailable():
-    config = FakeConfig()
-    vm, _, _ = make_vm(config=config)
+    config = FakeConfig(chord_sheet_visible=True)
+    vm, _, _ = make_vm(config=config)  # default renderers: keyboard, staff, (fret, tab gated)
     vm.set_active_view("does-not-exist")
-    assert vm.active_view == "name"  # unchanged
-    vm.set_active_view("name")
-    assert config.get("chord_sheet_view") == "name"
+    assert vm.active_view == "keyboard"  # unchanged (default)
+    vm.set_active_view("staff")
+    assert vm.active_view == "staff"
+    assert config.get("chord_sheet_view") == "staff"
 
 
 def test_set_height_persists():
@@ -316,6 +381,37 @@ def test_set_height_persists():
     vm.set_height(240)
     assert vm.height == 240
     assert config.get("chord_sheet_height") == 240
+
+
+# --------------------------------------------------------------------------
+# Visibility gating of render work
+# --------------------------------------------------------------------------
+
+
+def test_hidden_panel_defers_render_until_shown():
+    song = RenderedSong(chords=[make_chord("C")])
+    config = FakeConfig(chord_sheet_visible=False)
+    vm, audio, scheduler = make_vm(rendered=song, config=config)
+
+    vm.set_song([], "C")
+    # Hidden: no render scheduled, no render performed.
+    assert scheduler.pending is None
+    assert audio.render_calls == []
+
+    vm.set_visible(True)
+    # Showing flushes the held input into a scheduled render.
+    assert scheduler.pending is not None
+    scheduler.flush()
+    assert audio.render_calls == [([], "C")]
+    assert vm.rendered_song is song
+
+
+def test_show_without_pending_input_does_not_render():
+    config = FakeConfig(chord_sheet_visible=False)
+    vm, audio, scheduler = make_vm(config=config)
+    vm.set_visible(True)  # nothing typed while hidden
+    assert scheduler.pending is None
+    assert audio.render_calls == []
 
 
 # --------------------------------------------------------------------------

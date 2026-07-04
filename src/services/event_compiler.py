@@ -55,7 +55,9 @@ def _sorted_burst(events: List[MidiEvent]) -> List[MidiEvent]:
     )
 
 
-def _compile_rest(rc: RenderedChord, total_bars: int, has_callback: bool) -> List[MidiEvent]:
+def _compile_rest(
+    rc: RenderedChord, total_bars: int, has_callback: bool, chord_index: int
+) -> List[MidiEvent]:
     rest_event = MidiEvent(
         timestamp=rc.start_time,
         event_type=MidiEventType.REST,
@@ -63,6 +65,10 @@ def _compile_rest(rc: RenderedChord, total_bars: int, has_callback: bool) -> Lis
         velocity=0,
         metadata={
             'chord_info': rc.chord_info,
+            # Index of this chord in the unrolled RenderedSong; carried through
+            # to the UI ping so the chord-sheet playhead stays loop-accurate.
+            # Not part of the characterization golden serialization.
+            'chord_index': chord_index,
             'duration_seconds': rc.duration_seconds,
             'line_index': rc.line_index,
             'bar': rc.bar,
@@ -84,7 +90,9 @@ def _compile_rest(rc: RenderedChord, total_bars: int, has_callback: bool) -> Lis
     return _sorted_burst(ticks + [rest_event])
 
 
-def _compile_chord(rc: RenderedChord, total_bars: int, has_callback: bool) -> List[MidiEvent]:
+def _compile_chord(
+    rc: RenderedChord, total_bars: int, has_callback: bool, chord_index: int
+) -> List[MidiEvent]:
     note_on_event = MidiEvent(
         timestamp=rc.start_time,
         event_type=MidiEventType.NOTE_ON,
@@ -93,6 +101,10 @@ def _compile_chord(rc: RenderedChord, total_bars: int, has_callback: bool) -> Li
         metadata={
             'chord_info': rc.chord_info,
             'chord_notes': rc.chord_notes,
+            # Index of this chord in the unrolled RenderedSong; carried through
+            # to the UI ping so the chord-sheet playhead stays loop-accurate.
+            # Not part of the characterization golden serialization.
+            'chord_index': chord_index,
             'duration_seconds': rc.duration_seconds,
             'line_index': rc.line_index,
             'bar': rc.bar,
@@ -139,13 +151,13 @@ def compile_events(rendered: RenderedSong, has_callback: bool) -> List[MidiEvent
     """
     events: List[MidiEvent] = []
     total_bars = rendered.total_bars
-    for rc in rendered.chords:
+    for index, rc in enumerate(rendered.chords):
         if rc.skipped:
             continue
         if rc.is_rest:
-            events.extend(_compile_rest(rc, total_bars, has_callback))
+            events.extend(_compile_rest(rc, total_bars, has_callback, index))
         else:
-            events.extend(_compile_chord(rc, total_bars, has_callback))
+            events.extend(_compile_chord(rc, total_bars, has_callback, index))
 
     events.append(
         MidiEvent(

@@ -6,7 +6,7 @@ from models.config import Config
 def test_defaults():
     config = Config()
     assert config.chord_sheet_visible is False
-    assert config.chord_sheet_view == "name"
+    assert config.chord_sheet_view == "keyboard"
     assert config.chord_sheet_height == 160
 
 
@@ -47,5 +47,5 @@ def test_round_trip_preserves_chord_sheet_fields():
 def test_from_dict_defaults_when_missing():
     config = Config.from_dict({})
     assert config.chord_sheet_visible is False
-    assert config.chord_sheet_view == "name"
+    assert config.chord_sheet_view == "keyboard"
     assert config.chord_sheet_height == 160
