@@ -1,0 +1,524 @@
+{
+  "structure": [
+    {
+      "event_type": "METRONOME_TICK",
+      "timestamp": 0.0,
+      "velocity": 0,
+      "is_downbeat": true
+    },
+    {
+      "event_type": "NOTE_ON",
+      "timestamp": 0.0,
+      "velocity": 100,
+      "chord": "I",
+      "chord_start": 9,
+      "chord_end": 10,
+      "bar": 1,
+      "bpm": 120,
+      "key": "C",
+      "total_bars": 8,
+      "time_signature_beats": 4,
+      "time_signature_unit": 4,
+      "duration_seconds": 2.0
+    },
+    {
+      "event_type": "METRONOME_TICK",
+      "timestamp": 0.5,
+      "velocity": 0,
+      "is_downbeat": false
+    },
+    {
+      "event_type": "METRONOME_TICK",
+      "timestamp": 1.0,
+      "velocity": 0,
+      "is_downbeat": false
+    },
+    {
+      "event_type": "METRONOME_TICK",
+      "timestamp": 1.5,
+      "velocity": 0,
+      "is_downbeat": false
+    },
+    {
+      "event_type": "NOTE_OFF",
+      "timestamp": 2.0,
+      "velocity": 0,
+      "chord": "I",
+      "chord_start": 9,
+      "chord_end": 10,
+      "bar": 1
+    },
+    {
+      "event_type": "METRONOME_TICK",
+      "timestamp": 2.0,
+      "velocity": 0,
+      "is_downbeat": true
+    },
+    {
+      "event_type": "NOTE_ON",
+      "timestamp": 2.0,
+      "velocity": 100,
+      "chord": "V",
+      "chord_start": 11,
+      "chord_end": 12,
+      "bar": 2,
+      "bpm": 120,
+      "key": "C",
+      "total_bars": 8,
+      "time_signature_beats": 4,
+      "time_signature_unit": 4,
+      "duration_seconds": 2.0
+    },
+    {
+      "event_type": "METRONOME_TICK",
+      "timestamp": 2.5,
+      "velocity": 0,
+      "is_downbeat": false
+    },
+    {
+      "event_type": "METRONOME_TICK",
+      "timestamp": 3.0,
+      "velocity": 0,
+      "is_downbeat": false
+    },
+    {
+      "event_type": "METRONOME_TICK",
+      "timestamp": 3.5,
+      "velocity": 0,
+      "is_downbeat": false
+    },
+    {
+      "event_type": "NOTE_OFF",
+      "timestamp": 4.0,
+      "velocity": 0,
+      "chord": "V",
+      "chord_start": 11,
+      "chord_end": 12,
+      "bar": 2
+    },
+    {
+      "event_type": "METRONOME_TICK",
+      "timestamp": 4.0,
+      "velocity": 0,
+      "is_downbeat": true
+    },
+    {
+      "event_type": "NOTE_ON",
+      "timestamp": 4.0,
+      "velocity": 100,
+      "chord": "vi",
+      "chord_start": 13,
+      "chord_end": 15,
+      "bar": 3,
+      "bpm": 120,
+      "key": "C",
+      "total_bars": 8,
+      "time_signature_beats": 4,
+      "time_signature_unit": 4,
+      "duration_seconds": 2.0
+    },
+    {
+      "event_type": "METRONOME_TICK",
+      "timestamp": 4.5,
+      "velocity": 0,
+      "is_downbeat": false
+    },
+    {
+      "event_type": "METRONOME_TICK",
+      "timestamp": 5.0,
+      "velocity": 0,
+      "is_downbeat": false
+    },
+    {
+      "event_type": "METRONOME_TICK",
+      "timestamp": 5.5,
+      "velocity": 0,
+      "is_downbeat": false
+    },
+    {
+      "event_type": "NOTE_OFF",
+      "timestamp": 6.0,
+      "velocity": 0,
+      "chord": "vi",
+      "chord_start": 13,
+      "chord_end": 15,
+      "bar": 3
+    },
+    {
+      "event_type": "METRONOME_TICK",
+      "timestamp": 6.0,
+      "velocity": 0,
+      "is_downbeat": true
+    },
+    {
+      "event_type": "NOTE_ON",
+      "timestamp": 6.0,
+      "velocity": 100,
+      "chord": "IV",
+      "chord_start": 16,
+      "chord_end": 18,
+      "bar": 4,
+      "bpm": 120,
+      "key": "C",
+      "total_bars": 8,
+      "time_signature_beats": 4,
+      "time_signature_unit": 4,
+      "duration_seconds": 2.0
+    },
+    {
+      "event_type": "METRONOME_TICK",
+      "timestamp": 6.5,
+      "velocity": 0,
+      "is_downbeat": false
+    },
+    {
+      "event_type": "METRONOME_TICK",
+      "timestamp": 7.0,
+      "velocity": 0,
+      "is_downbeat": false
+    },
+    {
+      "event_type": "METRONOME_TICK",
+      "timestamp": 7.5,
+      "velocity": 0,
+      "is_downbeat": false
+    },
+    {
+      "event_type": "NOTE_OFF",
+      "timestamp": 8.0,
+      "velocity": 0,
+      "chord": "IV",
+      "chord_start": 16,
+      "chord_end": 18,
+      "bar": 4
+    },
+    {
+      "event_type": "METRONOME_TICK",
+      "timestamp": 8.0,
+      "velocity": 0,
+      "is_downbeat": true
+    },
+    {
+      "event_type": "NOTE_ON",
+      "timestamp": 8.0,
+      "velocity": 100,
+      "chord": "I",
+      "chord_start": 28,
+      "chord_end": 29,
+      "bar": 5,
+      "bpm": 120,
+      "key": "D",
+      "total_bars": 8,
+      "time_signature_beats": 4,
+      "time_signature_unit": 4,
+      "duration_seconds": 2.0
+    },
+    {
+      "event_type": "METRONOME_TICK",
+      "timestamp": 8.5,
+      "velocity": 0,
+      "is_downbeat": false
+    },
+    {
+      "event_type": "METRONOME_TICK",
+      "timestamp": 9.0,
+      "velocity": 0,
+      "is_downbeat": false
+    },
+    {
+      "event_type": "METRONOME_TICK",
+      "timestamp": 9.5,
+      "velocity": 0,
+      "is_downbeat": false
+    },
+    {
+      "event_type": "NOTE_OFF",
+      "timestamp": 10.0,
+      "velocity": 0,
+      "chord": "I",
+      "chord_start": 28,
+      "chord_end": 29,
+      "bar": 5
+    },
+    {
+      "event_type": "METRONOME_TICK",
+      "timestamp": 10.0,
+      "velocity": 0,
+      "is_downbeat": true
+    },
+    {
+      "event_type": "NOTE_ON",
+      "timestamp": 10.0,
+      "velocity": 100,
+      "chord": "V",
+      "chord_start": 30,
+      "chord_end": 31,
+      "bar": 6,
+      "bpm": 120,
+      "key": "D",
+      "total_bars": 8,
+      "time_signature_beats": 4,
+      "time_signature_unit": 4,
+      "duration_seconds": 2.0
+    },
+    {
+      "event_type": "METRONOME_TICK",
+      "timestamp": 10.5,
+      "velocity": 0,
+      "is_downbeat": false
+    },
+    {
+      "event_type": "METRONOME_TICK",
+      "timestamp": 11.0,
+      "velocity": 0,
+      "is_downbeat": false
+    },
+    {
+      "event_type": "METRONOME_TICK",
+      "timestamp": 11.5,
+      "velocity": 0,
+      "is_downbeat": false
+    },
+    {
+      "event_type": "NOTE_OFF",
+      "timestamp": 12.0,
+      "velocity": 0,
+      "chord": "V",
+      "chord_start": 30,
+      "chord_end": 31,
+      "bar": 6
+    },
+    {
+      "event_type": "METRONOME_TICK",
+      "timestamp": 12.0,
+      "velocity": 0,
+      "is_downbeat": true
+    },
+    {
+      "event_type": "NOTE_ON",
+      "timestamp": 12.0,
+      "velocity": 100,
+      "chord": "vi",
+      "chord_start": 32,
+      "chord_end": 34,
+      "bar": 7,
+      "bpm": 120,
+      "key": "D",
+      "total_bars": 8,
+      "time_signature_beats": 4,
+      "time_signature_unit": 4,
+      "duration_seconds": 2.0
+    },
+    {
+      "event_type": "METRONOME_TICK",
+      "timestamp": 12.5,
+      "velocity": 0,
+      "is_downbeat": false
+    },
+    {
+      "event_type": "METRONOME_TICK",
+      "timestamp": 13.0,
+      "velocity": 0,
+      "is_downbeat": false
+    },
+    {
+      "event_type": "METRONOME_TICK",
+      "timestamp": 13.5,
+      "velocity": 0,
+      "is_downbeat": false
+    },
+    {
+      "event_type": "NOTE_OFF",
+      "timestamp": 14.0,
+      "velocity": 0,
+      "chord": "vi",
+      "chord_start": 32,
+      "chord_end": 34,
+      "bar": 7
+    },
+    {
+      "event_type": "METRONOME_TICK",
+      "timestamp": 14.0,
+      "velocity": 0,
+      "is_downbeat": true
+    },
+    {
+      "event_type": "NOTE_ON",
+      "timestamp": 14.0,
+      "velocity": 100,
+      "chord": "IV",
+      "chord_start": 35,
+      "chord_end": 37,
+      "bar": 8,
+      "bpm": 120,
+      "key": "D",
+      "total_bars": 8,
+      "time_signature_beats": 4,
+      "time_signature_unit": 4,
+      "duration_seconds": 2.0
+    },
+    {
+      "event_type": "METRONOME_TICK",
+      "timestamp": 14.5,
+      "velocity": 0,
+      "is_downbeat": false
+    },
+    {
+      "event_type": "METRONOME_TICK",
+      "timestamp": 15.0,
+      "velocity": 0,
+      "is_downbeat": false
+    },
+    {
+      "event_type": "METRONOME_TICK",
+      "timestamp": 15.5,
+      "velocity": 0,
+      "is_downbeat": false
+    },
+    {
+      "event_type": "NOTE_OFF",
+      "timestamp": 16.0,
+      "velocity": 0,
+      "chord": "IV",
+      "chord_start": 35,
+      "chord_end": 37,
+      "bar": 8
+    },
+    {
+      "event_type": "END_OF_SONG",
+      "timestamp": 16.0,
+      "velocity": 100
+    }
+  ],
+  "voicing": [
+    [],
+    [
+      36,
+      60,
+      64,
+      67
+    ],
+    [],
+    [],
+    [],
+    [
+      36,
+      60,
+      64,
+      67
+    ],
+    [],
+    [
+      43,
+      55,
+      59,
+      62
+    ],
+    [],
+    [],
+    [],
+    [
+      43,
+      55,
+      59,
+      62
+    ],
+    [],
+    [
+      45,
+      57,
+      60,
+      64
+    ],
+    [],
+    [],
+    [],
+    [
+      45,
+      57,
+      60,
+      64
+    ],
+    [],
+    [
+      41,
+      53,
+      57,
+      60
+    ],
+    [],
+    [],
+    [],
+    [
+      41,
+      53,
+      57,
+      60
+    ],
+    [],
+    [
+      38,
+      50,
+      54,
+      57
+    ],
+    [],
+    [],
+    [],
+    [
+      38,
+      50,
+      54,
+      57
+    ],
+    [],
+    [
+      45,
+      57,
+      61,
+      64
+    ],
+    [],
+    [],
+    [],
+    [
+      45,
+      57,
+      61,
+      64
+    ],
+    [],
+    [
+      47,
+      59,
+      62,
+      66
+    ],
+    [],
+    [],
+    [],
+    [
+      47,
+      59,
+      62,
+      66
+    ],
+    [],
+    [
+      43,
+      55,
+      59,
+      62
+    ],
+    [],
+    [],
+    [],
+    [
+      43,
+      55,
+      59,
+      62
+    ],
+    []
+  ]
+}

@@ -1,0 +1,140 @@
+{
+  "structure": [
+    {
+      "event_type": "METRONOME_TICK",
+      "timestamp": 0.0,
+      "velocity": 0,
+      "is_downbeat": true
+    },
+    {
+      "event_type": "NOTE_ON",
+      "timestamp": 0.0,
+      "velocity": 100,
+      "chord": "Am",
+      "chord_start": 4,
+      "chord_end": 6,
+      "bar": 1,
+      "bpm": 120,
+      "key": null,
+      "total_bars": 4,
+      "time_signature_beats": 4,
+      "time_signature_unit": 4,
+      "duration_seconds": 2.0
+    },
+    {
+      "event_type": "METRONOME_TICK",
+      "timestamp": 0.5,
+      "velocity": 0,
+      "is_downbeat": false
+    },
+    {
+      "event_type": "METRONOME_TICK",
+      "timestamp": 1.0,
+      "velocity": 0,
+      "is_downbeat": false
+    },
+    {
+      "event_type": "METRONOME_TICK",
+      "timestamp": 1.5,
+      "velocity": 0,
+      "is_downbeat": false
+    },
+    {
+      "event_type": "NOTE_OFF",
+      "timestamp": 2.0,
+      "velocity": 0,
+      "chord": "Am",
+      "chord_start": 4,
+      "chord_end": 6,
+      "bar": 1
+    },
+    {
+      "event_type": "METRONOME_TICK",
+      "timestamp": 2.0,
+      "velocity": 0,
+      "is_downbeat": true
+    },
+    {
+      "event_type": "NOTE_ON",
+      "timestamp": 2.0,
+      "velocity": 100,
+      "chord": "F",
+      "chord_start": 7,
+      "chord_end": 8,
+      "bar": 2,
+      "bpm": 120,
+      "key": null,
+      "total_bars": 4,
+      "time_signature_beats": 4,
+      "time_signature_unit": 4,
+      "duration_seconds": 2.0
+    },
+    {
+      "event_type": "METRONOME_TICK",
+      "timestamp": 2.5,
+      "velocity": 0,
+      "is_downbeat": false
+    },
+    {
+      "event_type": "METRONOME_TICK",
+      "timestamp": 3.0,
+      "velocity": 0,
+      "is_downbeat": false
+    },
+    {
+      "event_type": "METRONOME_TICK",
+      "timestamp": 3.5,
+      "velocity": 0,
+      "is_downbeat": false
+    },
+    {
+      "event_type": "NOTE_OFF",
+      "timestamp": 4.0,
+      "velocity": 0,
+      "chord": "F",
+      "chord_start": 7,
+      "chord_end": 8,
+      "bar": 2
+    },
+    {
+      "event_type": "END_OF_SONG",
+      "timestamp": 4.0,
+      "velocity": 100
+    }
+  ],
+  "voicing": [
+    [],
+    [
+      45,
+      57,
+      60,
+      64
+    ],
+    [],
+    [],
+    [],
+    [
+      45,
+      57,
+      60,
+      64
+    ],
+    [],
+    [
+      41,
+      53,
+      57,
+      60
+    ],
+    [],
+    [],
+    [],
+    [
+      41,
+      53,
+      57,
+      60
+    ],
+    []
+  ]
+}
