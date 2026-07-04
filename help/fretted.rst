@@ -80,11 +80,17 @@ shapes: C as 0003, G as 0232, G7 as 0212, F as 2010.
 Defining a Custom Fretted Voicing
 ======================================
 
-If none of the five match the instrument you're writing for, add one to
-Chord Notepad's configuration file -- the same mechanism used for custom
-ensembles. The file lives at ``~/.config/chord-notepad/settings.json`` on
-Linux, or the equivalent per-user application-data folder on Windows and
-macOS.
+If none of the five match the instrument you're writing for, add one from
+:menuselection:`Options --> Settings...` --> Voicings: load a built-in
+preset as a starting point, change what's different (tuning, span,
+weights), and save. See :doc:`settings` for the full walkthrough,
+including a seven-string guitar built from the Guitar (Standard) preset.
+
+Power users can also edit the configuration file directly -- the same
+mechanism used for custom ensembles, and the same schema the Settings
+window reads and writes. The file lives at
+``~/.config/chord-notepad/settings.json`` on Linux, or the equivalent
+per-user application-data folder on Windows and macOS.
 
 Add a ``voicings`` object at the top level, keyed by a short slug you'll
 use internally; each entry needs a ``"model": "fretboard"`` and describes
@@ -157,11 +163,10 @@ Voicing Parameters
 ======================
 
 Every fretted voicing, built-in or custom, is steered by the same
-physical limits and the same set of numeric weights. There's no dedicated
-settings screen for them yet -- today, changing one means editing a
-voicing's entry in ``settings.json`` -- but they're written up here as the
-controls a future :menuselection:`Options --> Voices` panel will expose,
-one control per row.
+physical limits and the same set of numeric weights. These are the
+controls the Voicings page of :menuselection:`Options --> Settings...`
+exposes, one control per row -- see :doc:`settings` for the page itself;
+they can also be set directly in a voicing's entry in ``settings.json``.
 
 Physical Parameters
 ------------------------

@@ -9,6 +9,20 @@ moved to CHANGELOG_HISTORY.md and this file is reset.
 
 ### Added
 
+- **Settings window** (Options → Settings...): a proper settings UI with
+  three pages -- General (font, notation, default key, quick start at
+  startup, recent-files count, log level), Playback & Audio (default BPM
+  and time signature, soundfont path, audio driver), and Voicings -- and
+  Save/Cancel. The Voicings page is a fully functional editor for custom
+  voicings: load any built-in preset or existing custom voicing as a
+  starting point, edit its name, model, and every parameter (strings,
+  frets, weights for fretboard; voices, spacing, weights for ensemble),
+  and save. Save validates everything and reports exactly which voicing
+  and field is wrong. Renaming or deleting the voicing currently selected
+  for playback is handled correctly, and new or changed voicings appear in
+  Playback → Voicing as soon as you save, no restart needed. Editing the
+  config file by hand still works. See the new Settings help page.
+
 - **Ensemble voicings** (Playback → Voicing): four new presets voice every
   chord for a fixed group of singers or players instead of one instrument --
   **Choir (SATB)**, **Male Choir (TTBB)**, **Treble Choir (SSA)**, and
@@ -56,6 +70,9 @@ moved to CHANGELOG_HISTORY.md and this file is reset.
   notation software.
 
 ### Changed
+
+- The **Options...** menu item is now **Settings...**, reflecting what it
+  actually opens.
 
 - Config files using the old `custom_tunings` or `custom_ensembles` keys are
   migrated to the unified `voicings` registry automatically the first time

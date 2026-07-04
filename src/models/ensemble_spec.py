@@ -67,6 +67,30 @@ def parse_note_name(name: str) -> Optional[int]:
     return midi
 
 
+#: Pitch-class names used by :func:`midi_to_note_name`, sharps convention.
+_MIDI_PITCH_CLASS_NAMES = ('C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B')
+
+
+def midi_to_note_name(midi: int) -> str:
+    """Convert a MIDI note number to a note name with octave (e.g. ``60`` -> ``'C4'``).
+
+    The inverse of :func:`parse_note_name`, using the sharps convention for
+    accidentals (so MIDI 66 renders as ``'F#4'``, never ``'Gb4'``) and the
+    same octave convention as the rest of the codebase (middle C is ``C4`` =
+    MIDI note 60). The round-trip ``parse_note_name(midi_to_note_name(m))``
+    reproduces ``m`` for every ``m`` in ``0..127``.
+
+    Args:
+        midi: A MIDI note number, expected in ``0..127``.
+
+    Returns:
+        The note name, e.g. ``'C4'`` or ``'F#3'``.
+    """
+    pitch_class = midi % 12
+    octave = midi // 12 - 1
+    return f"{_MIDI_PITCH_CLASS_NAMES[pitch_class]}{octave}"
+
+
 def _resolve_pitch(value: Union[int, str], *, context: str) -> int:
     """Resolve a voice-range endpoint (MIDI int or note name) to a MIDI int.
 

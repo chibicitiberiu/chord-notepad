@@ -26,6 +26,7 @@ jump to :doc:`tips`.
    ensembles
    midi_export
    interface
+   settings
    shortcuts
    tips
    reference

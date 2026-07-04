@@ -19,6 +19,7 @@ from ui.dialogs import (
     InsertKeyDialog,
     InsertLabelDialog,
     InsertLoopDialog,
+    OptionsDialog,
 )
 from utils.icon_loader import IconLoader
 from utils.ui_helpers import create_tooltip
@@ -405,35 +406,10 @@ class MainWindow(tk.Tk):
         # Playback menu
         self.voicing_var = tk.StringVar(value=self.viewmodel.get_voicing())
 
-        # Create voicing submenu
-        voicing_menu = tk.Menu(menubar, tearoff=0)
-        voicing_menu.add_radiobutton(label="Piano", variable=self.voicing_var,
-                                     value="piano", command=self.on_voicing_change)
-
-        # Add built-in guitar/fretboard tunings
-        voicing_menu.add_separator()
-        for fretboard_key in ("standard", "drop_d", "dadgad", "open_g", "ukulele"):
-            spec = BUILTIN_FRETBOARDS[fretboard_key]
-            voicing_menu.add_radiobutton(label=spec.label, variable=self.voicing_var,
-                                         value=f"guitar:{fretboard_key}",
-                                         command=self.on_voicing_change)
-
-        # Add built-in ensembles
-        voicing_menu.add_separator()
-        for ensemble_key in ("satb", "ttbb", "ssa", "quartet"):
-            voicing_menu.add_radiobutton(label=BUILTIN_ENSEMBLES[ensemble_key].label,
-                                         variable=self.voicing_var,
-                                         value=f"ensemble:{ensemble_key}",
-                                         command=self.on_voicing_change)
-
-        # Add user-defined voicings (the unified registry replacing the old
-        # separate custom-tunings/custom-ensembles menu blocks)
-        voicings = self.viewmodel.get_voicings()
-        if voicings:
-            voicing_menu.add_separator()
-            for name in sorted(voicings.keys(), key=lambda n: (voicings[n].get("model", ""), n.lower())):
-                voicing_menu.add_radiobutton(label=name, variable=self.voicing_var,
-                                           value=f"voicing:{name}", command=self.on_voicing_change)
+        # Create voicing submenu (populated by rebuild_voicing_menu so it can
+        # be refreshed after the Settings dialog edits the voicings registry)
+        self.voicing_menu = tk.Menu(menubar, tearoff=0)
+        self.rebuild_voicing_menu()
 
         # Create instrument submenu with categories
         self.instrument_var = tk.IntVar(value=self.viewmodel.get_instrument())
@@ -441,7 +417,7 @@ class MainWindow(tk.Tk):
         self.build_instrument_menu()
 
         playback_menu = tk.Menu(menubar, tearoff=0)
-        playback_menu.add_cascade(label="Voicing", menu=voicing_menu)
+        playback_menu.add_cascade(label="Voicing", menu=self.voicing_menu)
         playback_menu.add_cascade(label="Instrument", menu=self.instrument_menu)
 
         menubar.add_cascade(label="Playback", menu=playback_menu)
@@ -467,6 +443,12 @@ class MainWindow(tk.Tk):
         tools_menu.add_command(label="Convert to European Notation", command=self.convert_to_european)
 
         menubar.add_cascade(label="Tools", menu=tools_menu)
+
+        # Options menu
+        options_menu = MenuBuilder(menubar) \
+            .add_command("Settings...", self.show_options) \
+            .build()
+        menubar.add_cascade(label="Options", menu=options_menu)
 
         # Help menu
         help_menu = MenuBuilder(menubar) \
@@ -938,6 +920,43 @@ class MainWindow(tk.Tk):
         voicing = self.voicing_var.get()
         self.viewmodel.set_voicing(voicing)
 
+    def rebuild_voicing_menu(self) -> None:
+        """(Re)populate the Voicing submenu.
+
+        Called once at startup and again after the Settings dialog reports
+        that the voicings registry changed, so added/renamed/removed custom
+        voicings show up immediately without restarting.
+        """
+        self.voicing_menu.delete(0, tk.END)
+
+        self.voicing_menu.add_radiobutton(label="Piano", variable=self.voicing_var,
+                                          value="piano", command=self.on_voicing_change)
+
+        # Built-in guitar/fretboard tunings
+        self.voicing_menu.add_separator()
+        for fretboard_key in ("standard", "drop_d", "dadgad", "open_g", "ukulele"):
+            spec = BUILTIN_FRETBOARDS[fretboard_key]
+            self.voicing_menu.add_radiobutton(label=spec.label, variable=self.voicing_var,
+                                              value=f"guitar:{fretboard_key}",
+                                              command=self.on_voicing_change)
+
+        # Built-in ensembles
+        self.voicing_menu.add_separator()
+        for ensemble_key in ("satb", "ttbb", "ssa", "quartet"):
+            self.voicing_menu.add_radiobutton(label=BUILTIN_ENSEMBLES[ensemble_key].label,
+                                              variable=self.voicing_var,
+                                              value=f"ensemble:{ensemble_key}",
+                                              command=self.on_voicing_change)
+
+        # User-defined voicings (the unified registry replacing the old
+        # separate custom-tunings/custom-ensembles menu blocks)
+        voicings = self.viewmodel.get_voicings()
+        if voicings:
+            self.voicing_menu.add_separator()
+            for name in sorted(voicings.keys(), key=lambda n: (voicings[n].get("model", ""), n.lower())):
+                self.voicing_menu.add_radiobutton(label=name, variable=self.voicing_var,
+                                                  value=f"voicing:{name}", command=self.on_voicing_change)
+
     def on_instrument_change(self) -> None:
         """Handle instrument selection change"""
         program = self.instrument_var.get()
@@ -1083,6 +1102,39 @@ class MainWindow(tk.Tk):
         # Update config if user chose not to show again
         if dialog.get_dont_show_again():
             self.viewmodel.set_show_quick_start_on_startup(False)
+
+    def show_options(self) -> None:
+        """Show the Settings dialog."""
+        dialog = OptionsDialog(self, self.application.config_service, on_apply=self._on_options_apply)
+        self.wait_window(dialog)
+
+    def _on_options_apply(self, changes: Any) -> None:
+        """React to a SettingsChanges reported by the Settings dialog.
+
+        Args:
+            changes: SettingsChanges describing what changed and, if the
+                active voicing had to be rewritten (rename/removal), its new
+                value.
+        """
+        if changes.font_changed:
+            config = self.application.config_service
+            self.viewmodel.set_font_family(config.get("font_family", self.viewmodel.font_family))
+            self.viewmodel.set_font_size(config.get("font_size", self.viewmodel.font_size))
+
+        if changes.voicings_changed:
+            self.rebuild_voicing_menu()
+
+        if changes.new_active_voicing is not None:
+            # The active voicing pointer itself was rewritten (the selected
+            # voicing was renamed or removed): switch the menu selection and
+            # re-invoke the voicing-change path once for the new value.
+            self.voicing_var.set(changes.new_active_voicing)
+            self.on_voicing_change()
+        elif changes.voicings_changed and self.voicing_var.get().startswith("voicing:"):
+            # The active voicing's definition may have been edited in place
+            # (no rename): re-invoke the voicing-change path so playback
+            # picks up the new parameters.
+            self.on_voicing_change()
 
     def show_about(self) -> None:
         """Show About dialog with version information"""

@@ -246,6 +246,14 @@ Tools Menu
    Converts all American notation chords (C, D, E...) in your document to
    European notation (Do, Re, Mi...).
 
+Options Menu
+------------
+
+**Settings...**
+   Opens the Settings window: general preferences, playback and audio
+   defaults, and the full voicing editor, across three pages with
+   Save/Cancel. See :doc:`settings`.
+
 Help Menu
 ---------
 

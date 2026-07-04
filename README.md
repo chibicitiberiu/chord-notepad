@@ -16,7 +16,7 @@ A text editor for songwriters. Write chord symbols above your lyrics, the way yo
 - Click any chord to hear it, or press play to run the whole song with each chord lighting up as it sounds
 - Chords are voiced like a player, not stacked mechanically: the piano voicing moves smoothly from one chord to the next (voice leading), and the guitar voicing finds real, playable fingerings on the fretboard
 - Or voice for an ensemble instead of one instrument: Choir (SATB), Male Choir (TTBB), Treble Choir (SSA), and String Quartet presets voice each chord as independent parts with real voice leading (custom ensembles too), and MIDI export writes them out one track per voice
-- Choose the instrument: piano, or guitar in standard, Drop D, DADGAD, or Open G tuning, plus a ukulele preset (any custom fretted instrument too)
+- Choose the instrument: piano, or guitar in standard, Drop D, DADGAD, or Open G tuning, plus a ukulele preset (any custom fretted instrument too, built with the Options → Settings voicing editor)
 - Real MIDI synthesis through FluidSynth, with a soundfont bundled in
 - A metronome you can switch on and off mid-playback
 

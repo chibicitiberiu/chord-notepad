@@ -39,7 +39,7 @@ src/
 ├── exceptions.py        # Custom exception hierarchy
 ├── models/              # Dataclasses (Song, Line, ChordInfo, Directive, Config)
 ├── views → ui/          # Tkinter widgets (MainWindow, ChordTextEditor)
-├── viewmodels/          # Business logic (MainWindowViewModel, TextEditorViewModel)
+├── viewmodels/          # Business logic (MainWindowViewModel, TextEditorViewModel, SettingsViewModel)
 ├── services/            # Cross-cutting concerns
 │   ├── playback_service.py    # Audio orchestration
 │   ├── song_renderer.py       # Pre-render song → RenderedSong (voicing + timing)
