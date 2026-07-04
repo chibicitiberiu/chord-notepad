@@ -1159,7 +1159,7 @@ class TestPianoTwoHandModel:
 
         # Concretely, the middle G is not voiced as a low root-position block.
         g_midi = dp_voicings[1]
-        g_rh = [m for m in g_midi if m >= ChordNotePicker.RH_MIN]
+        g_rh = [m for m in g_midi if m >= self.P().RH_MIN]
         assert g_rh[0] % 12 != 7 or g_rh[0] > 60, (
             f"G voiced as a low root-position block: {g_midi}"
         )
@@ -1174,7 +1174,7 @@ class TestPianoTwoHandModel:
         voicings = self.P().voice_sequence(seq)
 
         for root, midi in zip(chroma, voicings):
-            rh = [m for m in midi if m >= ChordNotePicker.RH_MIN]
+            rh = [m for m in midi if m >= self.P().RH_MIN]
             assert rh, f"{root} produced no right hand: {midi}"
             mean = sum(rh) / len(rh)
             assert 55 <= mean <= 70, (

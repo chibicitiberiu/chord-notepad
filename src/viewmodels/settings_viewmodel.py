@@ -19,6 +19,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from models.ensemble_spec import BUILTIN_ENSEMBLES, EnsembleSpec
 from models.fretboard_spec import BUILTIN_FRETBOARDS, FretboardSpec
+from models.piano_spec import DEFAULT_PIANO, PianoSpec
 from services.config_service import ConfigService
 
 logger = logging.getLogger(__name__)
@@ -183,7 +184,7 @@ class SettingsViewModel:
             sources.append((spec.label, {'model': 'fretboard', **spec.to_dict()}))
         for spec in BUILTIN_ENSEMBLES.values():
             sources.append((spec.label, {'model': 'ensemble', **spec.to_dict()}))
-        sources.append(('Piano (default)', {'model': 'piano'}))
+        sources.append(('Piano (default)', {'model': 'piano', **DEFAULT_PIANO.to_dict()}))
 
         for name in sorted(self._working_voicings):
             sources.append((name, copy.deepcopy(self._working_voicings[name])))
@@ -193,22 +194,22 @@ class SettingsViewModel:
     def validate_voicing(self, name: str) -> Optional[str]:
         """Validate one working voicing; return an error message, or ``None`` if valid.
 
-        A ``'piano'`` model is always valid. A ``'fretboard'``/``'ensemble'``
-        model is parsed through its spec's ``from_dict`` and any
-        :class:`~exceptions.ConfigurationError` message is returned verbatim.
-        An unknown model returns a descriptive message.
+        A ``'fretboard'``/``'ensemble'``/``'piano'`` model is parsed through
+        its spec's ``from_dict`` and any :class:`~exceptions.ConfigurationError`
+        message is returned verbatim. An unknown model returns a descriptive
+        message.
         """
         data = self._working_voicings.get(name)
         if data is None:
             return f"No voicing named '{name}'."
         model = data.get('model')
-        if model == 'piano':
-            return None
         try:
             if model == 'fretboard':
                 FretboardSpec.from_dict(name, data)
             elif model == 'ensemble':
                 EnsembleSpec.from_dict(name, data)
+            elif model == 'piano':
+                PianoSpec.from_dict(name, data)
             else:
                 return f"Unknown voicing model: {model!r}"
         except Exception as exc:  # noqa: BLE001 - surface any parse failure as text

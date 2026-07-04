@@ -32,9 +32,10 @@ from copy import deepcopy
 import logging
 
 from audio.note_picker_interface import INotePicker
-from audio.chord_tones import classify_role, DEFAULT_OMIT_PENALTY
+from audio.chord_tones import classify_role
 from audio.voicing_optimizer import optimize_sequence
 from chord.midi_converter import parse_note_to_semitone, intervals_from_note_names
+from models.piano_spec import PianoSpec, DEFAULT_PIANO
 
 if TYPE_CHECKING:
     from models.chord_notes import ChordNotes
@@ -70,58 +71,69 @@ class ChordPickerState:
 
 
 class ChordNotePicker(INotePicker):
-    """Picks MIDI notes for chords with a playable two-hand voicing model."""
+    """Picks MIDI notes for chords with a playable two-hand voicing model.
 
-    # --- Physical model (a pianist's two hands) -------------------------------
-    HAND_SPAN_SEMITONES = 14   # widest reach of one hand (a ninth); tunable
-    MAX_NOTES_PER_HAND = 5     # five fingers per hand
-    MAX_TOTAL_NOTES = 10       # both hands together
+    Every physical limit, register and scoring weight is read from a
+    :class:`~models.piano_spec.PianoSpec` (defaulting to the behaviour-preserving
+    :data:`~models.piano_spec.DEFAULT_PIANO`), so a Voices settings UI can tune
+    the keyboard model the same way it tunes the fretboard and ensemble models.
+    The former class constants (``HAND_SPAN_SEMITONES``, ``LH_MIN`` ...,
+    ``SCORE_*``, ``OMIT_PENALTY``) now live as instance attributes set from the
+    spec, keeping any code that read ``picker.HAND_SPAN_SEMITONES`` working.
+    """
 
-    # Registers (MIDI). Left hand lives low, right hand around/above middle C.
-    LH_MIN = 24                # C1
-    LH_MAX = 48                # C3
-    LH_OCTAVE2_LOW = 36        # C2 - preferred bass octave, lower edge
-    LH_OCTAVE2_HIGH = 47       # B2 - preferred bass octave, upper edge
-    RH_MIN = 48                # C3
-    RH_MAX = 84                # C6
-    RH_LOW_ANCHOR_MIN = 48     # lowest right-hand note anchored no lower than C3
-    RH_LOW_ANCHOR_MAX = 64     # ...and no higher than E4, so voicings stay central
-    RH_IDEAL_CENTER = 63.0     # right-hand mean gravitates here (~Eb4)
-    RH_LOW_INTERVAL_FLOOR = 52  # close intervals below ~E3 sound muddy
-
-    # --- Scoring weights (higher score = better). All tunable. ----------------
-    # Completeness penalties, keyed by the tone's harmonic role (see
-    # :mod:`audio.chord_tones`). Kept as a class attribute so external references
-    # and subclasses that override it keep working.
-    OMIT_PENALTY = DEFAULT_OMIT_PENALTY
-    SCORE_PER_RH_NOTE = 0.6       # reward per right-hand note (favour full voicings)
-    SCORE_CENTER = -1.4            # per semitone of right-hand mean from ideal
-    SCORE_LH_BELOW_OCT2 = -1.5    # per semitone the bass sits below C2
-    SCORE_LH_ABOVE_OCT2 = -1.5    # per semitone the bass sits above B2
-    SCORE_LH_DOUBLE = -1.0        # applied once when the bass is octave-doubled
-    SCORE_LH_DOUBLE_LOW = -1.0    # per semitone an octave-doubled bass sits below C2
-    SCORE_RH_LOW_INTERVAL = -2.0  # per close (<=4 st) right-hand interval sounding low
-    SCORE_RH_WIDE_GAP = -0.6      # per interior right-hand gap wider than an octave
-    SCORE_MUDDY_GAP = -1.5        # per semitone the hand gap is below the clearance floor
-    HAND_GAP_FLOOR = 2            # right hand should clear the bass by more than this
-
-    # Transition (voice leading): rewards common tones, penalizes movement. Kept
-    # small so quality dominates and transitions only break ties.
-    SCORE_COMMON_TONE = 1.5       # per right-hand-ish common tone held
-    SCORE_PER_MOVE = -0.35        # per semitone of nearest-neighbour movement
-
-    def __init__(self, chord_octave: int = 3, bass_octave: int = 2, add_bass: bool = True) -> None:
+    def __init__(self, spec: Optional[PianoSpec] = None, chord_octave: int = 3,
+                 bass_octave: int = 2, add_bass: bool = True) -> None:
         """Initialize the piano chord picker.
 
         Args:
+            spec: The piano voicing configuration to use. Defaults to
+                :data:`~models.piano_spec.DEFAULT_PIANO`, which reproduces the
+                original hard-coded behaviour exactly.
             chord_octave: Retained for backward compatibility (the register is
                 now chosen by scoring, not a fixed octave).
             bass_octave: Retained for backward compatibility.
-            add_bass: Whether to include the left-hand bass note (default True).
+            add_bass: Legacy override for whether to include the left-hand bass
+                note. Combined with the spec's own ``add_bass`` (a False here
+                suppresses the bass even if the spec enables it).
         """
+        self.spec = spec if spec is not None else DEFAULT_PIANO
         self.chord_octave = chord_octave
         self.bass_octave = bass_octave
-        self.add_bass = add_bass
+
+        # Physical model + registers, resolved once from the spec. Kept under
+        # the historical constant names so external references keep working.
+        self.HAND_SPAN_SEMITONES = self.spec.hand_span
+        self.MAX_NOTES_PER_HAND = self.spec.max_notes_per_hand
+        self.MAX_TOTAL_NOTES = self.spec.max_total_notes
+        self.LH_MIN, self.LH_MAX = self.spec.lh_range
+        self.LH_OCTAVE2_LOW, self.LH_OCTAVE2_HIGH = self.spec.bass_range
+        self.RH_MIN, self.RH_MAX = self.spec.rh_range
+        self.RH_LOW_ANCHOR_MIN, self.RH_LOW_ANCHOR_MAX = self.spec.rh_low_anchor
+        self.RH_IDEAL_CENTER = self.spec.rh_center
+        self.RH_LOW_INTERVAL_FLOOR = self.spec.rh_low_interval_floor
+        self.HAND_GAP_FLOOR = self.spec.hand_gap_floor
+        self.add_bass = self.spec.add_bass and add_bass
+
+        # Scoring weights, resolved once from the spec. Every value is a signed
+        # contribution the scorer adds directly (rewards positive, penalties
+        # negative); under the default spec these reproduce the old signed
+        # SCORE_* constants and the negated OMIT_PENALTY exactly.
+        self.SCORE_PER_RH_NOTE = self.spec.weight('rh_note_bonus')
+        self.SCORE_CENTER = self.spec.weight('rh_center_penalty')
+        self.SCORE_LH_BELOW_OCT2 = self.spec.weight('lh_below_bass_penalty')
+        self.SCORE_LH_ABOVE_OCT2 = self.spec.weight('lh_above_bass_penalty')
+        self.SCORE_LH_DOUBLE = self.spec.weight('lh_double_penalty')
+        self.SCORE_LH_DOUBLE_LOW = self.spec.weight('lh_double_low_penalty')
+        self.SCORE_RH_LOW_INTERVAL = self.spec.weight('rh_low_interval_penalty')
+        self.SCORE_RH_WIDE_GAP = self.spec.weight('rh_wide_gap_penalty')
+        self.SCORE_MUDDY_GAP = self.spec.weight('muddy_gap_penalty')
+        self.SCORE_COMMON_TONE = self.spec.weight('common_tone_bonus')
+        self.SCORE_PER_MOVE = self.spec.weight('movement_penalty')
+        # Completeness weights, keyed by harmonic role (see audio.chord_tones);
+        # negative = the score lost when a tone of that role is omitted.
+        self.OMIT_PENALTY = self.spec.weight('omit')
+
         self._state = ChordPickerState()
 
         # Cache of enumerated candidate voicings, keyed by chord signature.
@@ -472,10 +484,11 @@ class ChordNotePicker(INotePicker):
         score = 0.0
 
         # Completeness: penalize each chord tone missing from the voicing.
+        # OMIT_PENALTY values are signed (negative), so they add directly.
         for interval in intervals:
             pc = (root_pc + interval) % 12
             if pc not in voiced_pcs:
-                score -= self.OMIT_PENALTY[self._role(interval)]
+                score += self.OMIT_PENALTY[self._role(interval)]
 
         # Right-hand register centering (strong: prevents drift over long songs).
         if rh:

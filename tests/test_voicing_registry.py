@@ -294,16 +294,52 @@ class TestRegistryDispatchEnsemble:
 class TestRegistryDispatchPiano:
     """'voicing:<name>' entries with model 'piano'."""
 
-    def test_builds_chord_note_picker_with_info_log(self, playback_service, mock_config, caplog):
+    def test_bare_piano_builds_default_picker(self, playback_service, mock_config):
         from audio.chord_picker import ChordNotePicker
 
+        # A bare {'model': 'piano'} entry resolves to the default piano spec,
+        # named after the voicing.
         mock_config._store["voicings"] = {"plain": {"model": "piano"}}
 
-        with caplog.at_level("INFO"):
-            picker = playback_service._create_note_picker("voicing:plain")
+        picker = playback_service._create_note_picker("voicing:plain")
 
         assert isinstance(picker, ChordNotePicker)
-        assert any("piano model has no parameters" in r.message for r in caplog.records)
+        assert picker.spec.name == "plain"
+        assert picker.HAND_SPAN_SEMITONES == 14  # default reproduced
+
+    def test_custom_piano_params_flow_into_spec(self, playback_service, mock_config):
+        from audio.chord_picker import ChordNotePicker
+
+        mock_config._store["voicings"] = {
+            "tight": {
+                "model": "piano",
+                "label": "Tight",
+                "hand_span": 10,
+                "add_bass": False,
+                "rh_center": 60,
+            }
+        }
+
+        picker = playback_service._create_note_picker("voicing:tight")
+
+        assert isinstance(picker, ChordNotePicker)
+        assert picker.spec.label == "Tight"
+        assert picker.HAND_SPAN_SEMITONES == 10
+        assert picker.RH_IDEAL_CENTER == 60.0
+        assert picker.add_bass is False
+
+    def test_invalid_piano_params_falls_back_to_piano(self, playback_service, mock_config, caplog):
+        from audio.chord_picker import ChordNotePicker
+
+        # A range with low >= high -> PianoSpec.from_dict raises ConfigurationError.
+        mock_config._store["voicings"] = {"broken": {"model": "piano", "lh_range": ["C3", "C1"]}}
+
+        with caplog.at_level("WARNING"):
+            picker = playback_service._create_note_picker("voicing:broken")
+
+        assert isinstance(picker, ChordNotePicker)
+        assert picker.spec.name == "grand"  # default fallback, not the broken entry
+        assert any("broken" in r.message for r in caplog.records)
 
 
 class TestRegistryDispatchFallbacks:

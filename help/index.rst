@@ -23,6 +23,7 @@ jump to :doc:`tips`.
    directives
    playback
    fretted
+   piano
    ensembles
    midi_export
    interface

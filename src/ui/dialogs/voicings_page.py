@@ -30,6 +30,7 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 from typing import Any, Callable, Dict, List, Optional
 
+from exceptions import ConfigurationError
 from models.ensemble_spec import (
     BUILTIN_ENSEMBLES,
     DEFAULT_WEIGHTS as ENSEMBLE_DEFAULT_WEIGHTS,
@@ -40,6 +41,11 @@ from models.ensemble_spec import (
 from models.fretboard_spec import (
     BUILTIN_FRETBOARDS,
     DEFAULT_WEIGHTS as FRETBOARD_DEFAULT_WEIGHTS,
+)
+from models.piano_spec import (
+    DEFAULT_PIANO,
+    DEFAULT_WEIGHTS as PIANO_DEFAULT_WEIGHTS,
+    PianoSpec,
 )
 from ui.base.tooltip import add_tooltip, ensure_field_error_styles, mark_field
 from viewmodels.settings_viewmodel import SettingsViewModel
@@ -78,6 +84,30 @@ ENSEMBLE_WEIGHT_LABELS: Dict[str, str] = {
     'range_comfort_penalty': 'Out-of-comfort range',
     'unison_penalty': 'Unison between voices',
     'upper_spacing_penalty': 'Wide upper spacing',
+}
+
+PIANO_WEIGHT_LABELS: Dict[str, str] = {
+    'rh_note_bonus': 'Right-hand note',
+    'rh_center_penalty': 'Right-hand center',
+    'lh_below_bass_penalty': 'Bass below range',
+    'lh_above_bass_penalty': 'Bass above range',
+    'lh_double_penalty': 'Doubled bass',
+    'lh_double_low_penalty': 'Doubled bass low',
+    'rh_low_interval_penalty': 'Muddy low interval',
+    'rh_wide_gap_penalty': 'Wide right-hand gap',
+    'muddy_gap_penalty': 'Hands too close',
+    'common_tone_bonus': 'Common tone held',
+    'movement_penalty': 'Voice movement',
+}
+
+# Two piano weight keys collide by name with an existing fretboard/ensemble
+# weight key ('movement_penalty', 'common_tone_bonus'); a shared TOOLTIPS dict
+# keyed by bare 'weight:<key>' can't hold two different texts for the same
+# key, so those two get a piano-prefixed tooltip key instead. See
+# _piano_weight_tooltip below.
+_PIANO_WEIGHT_TOOLTIP_OVERRIDES: Dict[str, str] = {
+    'movement_penalty': 'weight:piano_movement_penalty',
+    'common_tone_bonus': 'weight:piano_common_tone_bonus',
 }
 
 # Titles for the three nested-weight sub-frames.
@@ -208,6 +238,61 @@ TOOLTIPS: Dict[str, str] = {
     'weight:upper_spacing_penalty': ("How the picker treats an upper-voice gap exceeding an "
                                      "octave. More negative favors closer spacing above the "
                                      "bass."),
+
+    # Piano hands & range.
+    'lh_range_low': "Lowest note the left hand may play (note name or MIDI number).",
+    'lh_range_high': "Highest note the left hand may play (note name or MIDI number).",
+    'rh_range_low': "Lowest note the right hand may play (note name or MIDI number).",
+    'rh_range_high': "Highest note the right hand may play (note name or MIDI number).",
+    'bass_range_low': ("Lowest note of the preferred bass register. Sitting below it costs "
+                       "the bass-below-range weight per semitone."),
+    'bass_range_high': ("Highest note of the preferred bass register. Sitting above it costs "
+                        "the bass-above-range weight per semitone."),
+    'rh_low_anchor_low': "Lowest note the right hand's lowest note is anchored within.",
+    'rh_low_anchor_high': "Highest note the right hand's lowest note is anchored within.",
+    'rh_center': ("Target for the right hand's mean pitch. Drifting from it costs the "
+                 "right-hand center weight per semitone."),
+    'rh_low_interval_floor': ("Right-hand close intervals sounding below this note are "
+                             "considered muddy and cost the muddy-low-interval weight."),
+    'hand_span': "Widest reach of one hand, in semitones (a ninth by default).",
+    'max_notes_per_hand': "Most notes one hand may play at once.",
+    'max_total_notes': "Most notes both hands may play together.",
+    'hand_gap_floor': ("The right hand should clear the bass by more than this many "
+                       "semitones, or it costs the hands-too-close weight."),
+    'add_bass': "Whether to include the left-hand bass note at all.",
+
+    # Piano weights.
+    'weight:rh_note_bonus': ("How the picker treats a note kept in the right hand. More "
+                             "positive favors fuller voicings; negative would favor sparser "
+                             "ones."),
+    'weight:rh_center_penalty': ("How the picker treats the right hand's mean pitch straying "
+                                 "from its target center. More negative keeps it closer to "
+                                 "center."),
+    'weight:lh_below_bass_penalty': ("How the picker treats the bass sitting below the "
+                                     "preferred bass range. More negative discourages a bass "
+                                     "that's too low."),
+    'weight:lh_above_bass_penalty': ("How the picker treats the bass sitting above the "
+                                     "preferred bass range. More negative discourages a bass "
+                                     "that's too high."),
+    'weight:lh_double_penalty': ("How the picker treats octave-doubling the bass note. More "
+                                 "negative avoids doubling it."),
+    'weight:lh_double_low_penalty': ("How the picker treats an octave-doubled bass sitting "
+                                     "below the preferred bass range, on top of the doubling "
+                                     "weight. More negative avoids it."),
+    'weight:rh_low_interval_penalty': ("How the picker treats a close right-hand interval "
+                                       "sounding below the muddy-interval floor. More negative "
+                                       "avoids muddy low intervals."),
+    'weight:rh_wide_gap_penalty': ("How the picker treats an interior right-hand gap wider "
+                                   "than an octave. More negative avoids wide gaps."),
+    'weight:muddy_gap_penalty': ("How the picker treats the hands clearing each other by less "
+                                 "than the hand gap floor. More negative keeps the hands "
+                                 "apart."),
+    'weight:piano_common_tone_bonus': ("How the picker treats a note holding the same pitch "
+                                       "across a chord change. More positive rewards holding "
+                                       "common tones."),
+    'weight:piano_movement_penalty': ("How the picker treats a note's nearest-neighbour "
+                                      "movement across a chord change, across the whole song. "
+                                      "More negative steadies the voicing."),
 }
 
 
@@ -387,6 +472,15 @@ def field_errors(data: dict) -> Dict[str, str]:
     * ``'voice:<i>:low'`` / ``'voice:<i>:high'`` -- a voice range endpoint
       still a raw string (voice *names* are free text and are never flagged).
     * ``'max_spacing'`` -- the ensemble spacing list still a raw string.
+    * ``'range:<key>:low'`` / ``'range:<key>:high'`` -- a piano range
+      (``lh_range``/``rh_range``/``bass_range``/``rh_low_anchor``) endpoint
+      still a raw string.
+    * ``'rh_center'`` / ``'rh_low_interval_floor'`` / ``'hand_span'`` /
+      ``'max_notes_per_hand'`` / ``'max_total_notes'`` / ``'hand_gap_floor'``
+      -- a piano physical-param spinbox value that isn't a number
+      (``rh_center`` accepts a float; the rest must be whole numbers).
+    * ``'nested:omit:<role>'`` -- a piano omission-weight role that isn't a
+      number (shares the ``nested:<group>:<role>`` scheme with ensemble).
 
     Args:
         data: A collected voicing dict (must carry a ``'model'`` key).
@@ -428,6 +522,32 @@ def field_errors(data: dict) -> Dict[str, str]:
                 for role, role_value in (value or {}).items():
                     if not _is_number(role_value):
                         errors[f'nested:{key}:{role}'] = 'Must be a number'
+            else:
+                if not _is_number(value):
+                    errors[f'weight:{key}'] = 'Must be a number'
+
+    elif model == 'piano':
+        for range_key in ('lh_range', 'rh_range', 'bass_range', 'rh_low_anchor'):
+            rng = data.get(range_key)
+            if isinstance(rng, (list, tuple)):
+                low = rng[0] if len(rng) > 0 else None
+                high = rng[1] if len(rng) > 1 else None
+                if isinstance(low, str):
+                    errors[f'range:{range_key}:low'] = 'Not a valid note name'
+                if isinstance(high, str):
+                    errors[f'range:{range_key}:high'] = 'Not a valid note name'
+        for key in ('rh_low_interval_floor', 'hand_span', 'max_notes_per_hand',
+                    'max_total_notes', 'hand_gap_floor'):
+            if key in data and not _is_number(data[key]):
+                errors[key] = 'Must be a whole number'
+        if 'rh_center' in data and not _is_number(data['rh_center']):
+            errors['rh_center'] = 'Must be a number'
+        weights = data.get('weights') or {}
+        for key, value in weights.items():
+            if key == 'omit':
+                for role, role_value in (value or {}).items():
+                    if not _is_number(role_value):
+                        errors[f'nested:omit:{role}'] = 'Must be a number'
             else:
                 if not _is_number(value):
                     errors[f'weight:{key}'] = 'Must be a number'
@@ -1201,11 +1321,182 @@ class VoicingsPage(ttk.Frame):
 
     # -- Piano form ----------------------------------------------------------
 
+    _PIANO_RANGE_KEYS = ('lh_range', 'rh_range', 'bass_range', 'rh_low_anchor')
+    _PIANO_SCALAR_KEYS = ('rh_low_interval_floor', 'hand_span', 'max_notes_per_hand',
+                          'max_total_notes', 'hand_gap_floor')
+
+    def _piano_render_data(self, data: dict) -> dict:
+        """Fully populate a piano data dict for rendering, defaults and all.
+
+        Runs ``data`` through :meth:`PianoSpec.from_dict` so a bare
+        ``{'model': 'piano'}`` entry (or any partial one) renders every real
+        default value instead of blanks. If ``data`` currently carries
+        unparseable values (e.g. left over from a previous forgiving commit,
+        or mid-edit), ``from_dict`` raises; fall back to the defaults with
+        ``data``'s own raw values overlaid on top, so the user still sees --
+        and can fix -- whatever is wrong instead of the form silently
+        discarding it.
+        """
+        name = self._current_name or 'piano'
+        try:
+            return PianoSpec.from_dict(name, data).to_dict()
+        except ConfigurationError:
+            populated = DEFAULT_PIANO.to_dict()
+            for key, value in data.items():
+                if key in ('model', 'weights'):
+                    continue
+                if key in self._PIANO_RANGE_KEYS:
+                    if isinstance(value, (list, tuple)) and len(value) == 2:
+                        populated[key] = list(value)
+                    continue
+                populated[key] = value
+            weights = dict(PIANO_DEFAULT_WEIGHTS)
+            weights['omit'] = dict(PIANO_DEFAULT_WEIGHTS['omit'])
+            raw_weights = data.get('weights')
+            if isinstance(raw_weights, dict):
+                for key, value in raw_weights.items():
+                    if key == 'omit' and isinstance(value, dict):
+                        weights['omit'].update(value)
+                    else:
+                        weights[key] = value
+            populated['weights'] = weights
+            return populated
+
+    @staticmethod
+    def _piano_weight_tooltip(key: str) -> str:
+        tip_key = _PIANO_WEIGHT_TOOLTIP_OVERRIDES.get(key, f'weight:{key}')
+        return TOOLTIPS.get(tip_key, key)
+
     def _build_piano_form(self, data: dict) -> None:
         inner = self._new_scroll_area()
-        ttk.Label(
-            inner,
-            text='The piano model has no configurable parameters yet.',
-            foreground='#666666', wraplength=360, justify=tk.LEFT,
-        ).grid(row=0, column=0, columnspan=2, sticky='nw')
-        self._collect = lambda: {'model': 'piano'}
+        populated = self._piano_render_data(data)
+        row = 0
+
+        # Hands & range: four pitch ranges as (Low, High) note-name entries,
+        # the same idiom as the ensemble form's voice-range table.
+        range_frame = ttk.LabelFrame(inner, text='Hands & range', padding=8)
+        range_frame.grid(row=row, column=0, columnspan=2, sticky='ew')
+        row += 1
+
+        header_font = ('TkDefaultFont', 9, 'bold')
+        for col, htext in ((1, 'Low'), (2, 'High')):
+            header = ttk.Label(range_frame, text=htext, font=header_font)
+            header.grid(row=0, column=col, sticky='w', padx=(0, 6))
+        ttk.Separator(range_frame, orient='horizontal').grid(
+            row=1, column=0, columnspan=3, sticky='ew', pady=(2, 4))
+
+        range_specs = (
+            ('lh_range', 'Left hand', 'lh_range_low', 'lh_range_high'),
+            ('rh_range', 'Right hand', 'rh_range_low', 'rh_range_high'),
+            ('bass_range', 'Bass (preferred)', 'bass_range_low', 'bass_range_high'),
+            ('rh_low_anchor', 'RH lowest-note anchor', 'rh_low_anchor_low', 'rh_low_anchor_high'),
+        )
+        range_vars: Dict[str, Dict[str, tk.StringVar]] = {}
+        for i, (key, label, low_tip_key, high_tip_key) in enumerate(range_specs):
+            grid_row = i + 2
+            lo, hi = populated.get(key, (0, 0))
+            row_label = ttk.Label(range_frame, text=label)
+            row_label.grid(row=grid_row, column=0, sticky='w', padx=(0, 6), pady=1)
+            low_var = tk.StringVar(value=_pitch_to_text(lo))
+            high_var = tk.StringVar(value=_pitch_to_text(hi))
+            low_e = ttk.Entry(range_frame, textvariable=low_var, width=8)
+            low_e.grid(row=grid_row, column=1, sticky='w', padx=(0, 6), pady=1)
+            high_e = ttk.Entry(range_frame, textvariable=high_var, width=8)
+            high_e.grid(row=grid_row, column=2, sticky='w', pady=1)
+            self._bind_commit(low_e, is_entry=True)
+            self._bind_commit(high_e, is_entry=True)
+            add_tooltip(row_label, TOOLTIPS[low_tip_key])
+            self._register_field(f'range:{key}:low', low_e, TOOLTIPS[low_tip_key])
+            self._register_field(f'range:{key}:high', high_e, TOOLTIPS[high_tip_key])
+            range_vars[key] = {'low': low_var, 'high': high_var}
+
+        # Physical scalars, two (label, spinbox) pairs per row.
+        phys_frame = ttk.Frame(inner)
+        phys_frame.grid(row=row, column=0, columnspan=2, sticky='ew', pady=(8, 0))
+        row += 1
+        spin_vars: Dict[str, tk.StringVar] = {}
+        phys_params = (
+            ('rh_center', 'RH center:', 0, 127, 0.5),
+            ('rh_low_interval_floor', 'Muddy floor:', 0, 127, 1),
+            ('hand_span', 'Hand span:', 1, 24, 1),
+            ('max_notes_per_hand', 'Max notes/hand:', 1, 10, 1),
+            ('max_total_notes', 'Max total notes:', 1, 20, 1),
+            ('hand_gap_floor', 'Hand gap floor:', 0, 24, 1),
+        )
+        for idx, (key, text, lo, hi, inc) in enumerate(phys_params):
+            r, c = divmod(idx, 2)
+            c *= 2
+            self._tip_label(phys_frame, text, TOOLTIPS[key],
+                            row=r, column=c, sticky='w', padx=(0, 6), pady=2)
+            var = tk.StringVar(value=str(populated.get(key)))
+            spin = ttk.Spinbox(phys_frame, from_=lo, to=hi, increment=inc,
+                               textvariable=var, width=8, command=self._commit_form)
+            spin.grid(row=r, column=c + 1, sticky='w', padx=(0, 18), pady=2)
+            self._bind_commit(spin, is_entry=True)
+            self._register_field(key, spin, TOOLTIPS[key])
+            spin_vars[key] = var
+
+        add_bass_var = tk.BooleanVar(value=bool(populated.get('add_bass', True)))
+        add_bass_check = ttk.Checkbutton(inner, text='Add bass note', variable=add_bass_var,
+                                         command=self._commit_form)
+        add_bass_check.grid(row=row, column=0, columnspan=2, sticky='w', pady=(4, 2))
+        add_tooltip(add_bass_check, TOOLTIPS['add_bass'])
+        row += 1
+
+        # Weights.
+        weights = populated.get('weights', {}) or {}
+        weights_frame = ttk.LabelFrame(inner, text='Weights', padding=8)
+        weights_frame.grid(row=row, column=0, columnspan=2, sticky='ew', pady=(8, 0))
+        row += 1
+        ttk.Label(weights_frame, text=_WEIGHTS_BLURB, foreground='#666666',
+                  wraplength=440, justify=tk.LEFT).grid(
+            row=0, column=0, columnspan=4, sticky='w', pady=(0, 6))
+        grid_frame = ttk.Frame(weights_frame)
+        grid_frame.grid(row=1, column=0, columnspan=4, sticky='ew')
+        weight_vars: Dict[str, tk.StringVar] = {}
+        weight_entries = []
+        for key, default in PIANO_DEFAULT_WEIGHTS.items():
+            if key == 'omit':
+                continue
+            var = tk.StringVar(value=str(weights.get(key, default)))
+            weight_vars[key] = var
+            weight_entries.append((
+                f'weight:{key}', PIANO_WEIGHT_LABELS.get(key, key), var,
+                -100.0, 100.0, 0.1, self._piano_weight_tooltip(key),
+            ))
+        self._build_weight_grid(grid_frame, weight_entries)
+
+        # Omission (nested per-role weights), the same idiom as the ensemble
+        # form's nested-weight sub-frames.
+        omit_frame = ttk.LabelFrame(weights_frame, text=NESTED_WEIGHT_TITLES['omit'], padding=6)
+        omit_frame.grid(row=2, column=0, columnspan=4, sticky='ew', pady=(8, 0))
+        omit_default = PIANO_DEFAULT_WEIGHTS['omit']
+        omit_current = weights.get('omit', {}) or {}
+        omit_vars: Dict[str, tk.StringVar] = {}
+        omit_entries = []
+        for subkey, subdefault in omit_default.items():
+            var = tk.StringVar(value=str(omit_current.get(subkey, subdefault)))
+            omit_vars[subkey] = var
+            omit_entries.append((
+                f'nested:omit:{subkey}', ROLE_LABELS.get(subkey, subkey),
+                var, -100.0, 100.0, 0.1, _nested_tooltip('omit', subkey),
+            ))
+        self._build_weight_grid(omit_frame, omit_entries)
+
+        def collect() -> dict:
+            out: dict = {'model': 'piano'}
+            for key, vars_ in range_vars.items():
+                out[key] = [
+                    _parse_pitch_or_raw(vars_['low'].get()),
+                    _parse_pitch_or_raw(vars_['high'].get()),
+                ]
+            out['rh_center'] = _parse_float_or_raw(spin_vars['rh_center'].get())
+            for key in self._PIANO_SCALAR_KEYS:
+                out[key] = _parse_int_or_raw(spin_vars[key].get())
+            out['add_bass'] = bool(add_bass_var.get())
+            weights_out: dict = {k: _parse_float_or_raw(v.get()) for k, v in weight_vars.items()}
+            weights_out['omit'] = {k: _parse_float_or_raw(v.get()) for k, v in omit_vars.items()}
+            out['weights'] = weights_out
+            return out
+
+        self._collect = collect

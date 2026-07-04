@@ -15,6 +15,7 @@ from models.ensemble_spec import (
     parse_note_name,
 )
 from models.fretboard_spec import BUILTIN_FRETBOARDS
+from models.piano_spec import PianoSpec
 from services.config_service import ConfigService
 from viewmodels.settings_viewmodel import SettingsViewModel
 
@@ -280,6 +281,31 @@ class TestValidation:
         vm = SettingsViewModel(_make_config_service(tmp_path, config))
         assert vm.validate_voicing("p") is None
 
+    def test_piano_bare_and_full_params_valid_bad_range_flagged(self, tmp_path):
+        config = Config(voicings={
+            "bare": {"model": "piano"},
+            "full": {
+                "model": "piano",
+                "lh_range": ["C1", "C3"],
+                "rh_range": ["C3", "C6"],
+                "bass_range": ["C2", "B2"],
+                "rh_low_anchor": ["C3", "E4"],
+                "rh_center": 63.0,
+                "rh_low_interval_floor": 52,
+                "hand_span": 14,
+                "max_notes_per_hand": 5,
+                "max_total_notes": 10,
+                "hand_gap_floor": 2,
+                "add_bass": True,
+                "weights": {"rh_note_bonus": 0.6},
+            },
+            "bad": {"model": "piano", "lh_range": ["C3", "C1"]},
+        })
+        vm = SettingsViewModel(_make_config_service(tmp_path, config))
+        assert vm.validate_voicing("bare") is None
+        assert vm.validate_voicing("full") is None
+        assert vm.validate_voicing("bad") is not None
+
     def test_unknown_model_flagged(self, tmp_path):
         config = Config(voicings={"weird": {"model": "banjo_hero"}})
         vm = SettingsViewModel(_make_config_service(tmp_path, config))
@@ -325,7 +351,10 @@ class TestLoadSources:
             assert params["model"] == "fretboard"
         for _, params in sources[5:9]:
             assert params["model"] == "ensemble"
-        assert sources[9] == ("Piano (default)", {"model": "piano"})
+        label, params = sources[9]
+        assert label == "Piano (default)"
+        assert params["model"] == "piano"
+        PianoSpec.from_dict("piano", params)  # round-trips without error
 
     def test_builtin_params_match_spec(self, tmp_path):
         vm = SettingsViewModel(_make_config_service(tmp_path))

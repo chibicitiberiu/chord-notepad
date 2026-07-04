@@ -9,6 +9,15 @@ moved to CHANGELOG_HISTORY.md and this file is reset.
 
 ### Added
 
+- **Configurable piano voicing** (Options → Settings... → Voicings): the
+  piano model is now fully editable, the same as the fretboard and ensemble
+  models. Hand ranges (left hand, right hand, preferred bass), scoring
+  anchors (right-hand low anchor and center, low-interval floor, hand span,
+  note-count limits, hand gap floor), the add-bass toggle, and every signed
+  weight -- including the per-role omission group -- can all be tuned per
+  voicing or loaded from **Grand Piano** as a starting point. See the new
+  Piano Voicing help page for the full parameter reference.
+
 - **Settings window** (Options → Settings...): a proper settings UI with
   three pages -- General (font, notation, default key, quick start at
   startup, recent-files count, log level), Playback & Audio (default BPM

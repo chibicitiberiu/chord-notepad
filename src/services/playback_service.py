@@ -106,8 +106,10 @@ class PlaybackService:
                 spec = EnsembleSpec.from_dict(name, params)
                 return EnsembleVoicer(spec)
             elif model == "piano":
-                self._logger.info("piano model has no parameters yet")
-                return ChordNotePicker()
+                from models.piano_spec import PianoSpec
+
+                spec = PianoSpec.from_dict(name, params)
+                return ChordNotePicker(spec)
             else:
                 self._logger.warning(
                     f"Unknown model {model!r} for voicing '{name}'; falling back to piano"

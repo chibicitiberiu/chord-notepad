@@ -57,12 +57,13 @@ Playback & Audio
 Voicings
 ========
 
-The Voicings page is the full voicing editor -- everything :doc:`fretted`
-and :doc:`ensembles` describe as configuration-file entries, with a form in
-front of it. A *voicing* is still a named configuration (a model plus that
-model's parameters); a *model* is still the engine underneath -- fretboard,
-ensemble, or piano. See those two pages for what each parameter actually
-does; this page only covers the controls that get you there.
+The Voicings page is the full voicing editor -- everything :doc:`fretted`,
+:doc:`ensembles`, and :doc:`piano` describe as configuration-file entries,
+with a form in front of it. A *voicing* is still a named configuration (a
+model plus that model's parameters); a *model* is still the engine
+underneath -- fretboard, ensemble, or piano. See those three pages for what
+each parameter actually does; this page only covers the controls that get
+you there.
 
 The left side lists your custom voicings, grouped by model (Fretboard,
 Piano, Ensemble), with **+** and **-** buttons to add a new one or remove
@@ -96,12 +97,16 @@ obvious, point at it before consulting :doc:`fretted` or :doc:`ensembles`.
    per voice with Name, Low, and High columns, an **Add voice** button,
    and a remove button on each row -- plus spacing, unisons, and all the
    weights, including the doubling, omission, and inversion groups (see
-   :doc:`ensembles`). Piano voicings have no parameters yet. Each Weights
-   section opens with a one-line reminder of how weights work: every weight
-   is a signed number added to the voicing's score, positive values make a
-   trait more likely and negative ones less likely, higher is always more
-   preferred, and the defaults suit most music, so leave them alone unless
-   you have a specific reason not to.
+   :doc:`ensembles`). For a piano voicing: the left- and right-hand ranges,
+   the preferred bass range, the right-hand low anchor and center, the
+   low-interval floor, hand span, note-count limits, hand gap floor, the
+   add-bass toggle, and all the weights, including the per-role omission
+   group (see :doc:`piano`). Each Weights section opens with a one-line
+   reminder of how weights work: every weight is a signed number added to
+   the voicing's score, positive values make a trait more likely and
+   negative ones less likely, higher is always more preferred, and the
+   defaults suit most music, so leave them alone unless you have a specific
+   reason not to.
 
 Mistakes are flagged as you type, not just when you click Save: an
 invalid field turns red immediately, and a problem that spans two fields

@@ -79,6 +79,30 @@ def test_piano_data_no_errors():
     assert field_errors({'model': 'piano'}) == {}
 
 
+def test_clean_full_piano_data_no_errors():
+    data = {
+        'model': 'piano',
+        'lh_range': [24, 48],
+        'rh_range': [48, 84],
+        'bass_range': [36, 47],
+        'rh_low_anchor': [48, 64],
+        'rh_center': 63.0,
+        'rh_low_interval_floor': 52,
+        'hand_span': 14,
+        'max_notes_per_hand': 5,
+        'max_total_notes': 10,
+        'hand_gap_floor': 2,
+        'add_bass': True,
+        'weights': {
+            'rh_note_bonus': 0.6,
+            'rh_center_penalty': -1.4,
+            'movement_penalty': -0.35,
+            'omit': {'root': -4.0, 'third': -40.0},
+        },
+    }
+    assert field_errors(data) == {}
+
+
 # ---------------------------------------------------------------------------
 # Fretboard parse errors
 # ---------------------------------------------------------------------------
@@ -190,6 +214,68 @@ def test_multiple_ensemble_errors_reported_together():
     assert 'voice:0:low' in errors
     assert 'max_spacing' in errors
     assert 'weight:leap_penalty' in errors
+    assert 'nested:omit:third' in errors
+
+
+# ---------------------------------------------------------------------------
+# Piano parse errors
+# ---------------------------------------------------------------------------
+
+
+def test_piano_range_endpoint_raw_string_flagged():
+    data = {
+        'model': 'piano',
+        'lh_range': ['Q9', 48],
+        'rh_range': [48, 84],
+    }
+    errors = field_errors(data)
+    assert 'range:lh_range:low' in errors
+    assert 'range:lh_range:high' not in errors
+    assert 'range:rh_range:low' not in errors
+
+
+def test_piano_scalar_non_number_flagged():
+    errors = field_errors({'model': 'piano', 'hand_span': 'abc'})
+    assert 'hand_span' in errors
+
+
+def test_piano_rh_center_non_number_flagged():
+    errors = field_errors({'model': 'piano', 'rh_center': 'abc'})
+    assert errors == {'rh_center': errors.get('rh_center')}
+    assert 'rh_center' in errors
+
+
+def test_piano_weight_raw_string_flagged():
+    data = {
+        'model': 'piano',
+        'weights': {'rh_note_bonus': 'nope', 'rh_center_penalty': -1.4},
+    }
+    errors = field_errors(data)
+    assert errors == {'weight:rh_note_bonus': errors.get('weight:rh_note_bonus')}
+    assert 'weight:rh_note_bonus' in errors
+
+
+def test_piano_omit_role_raw_string_flagged():
+    data = {
+        'model': 'piano',
+        'weights': {'omit': {'root': -4.0, 'third': 'bad'}},
+    }
+    errors = field_errors(data)
+    assert 'nested:omit:third' in errors
+    assert 'nested:omit:root' not in errors
+
+
+def test_multiple_piano_errors_reported_together():
+    data = {
+        'model': 'piano',
+        'lh_range': ['Q9', 48],
+        'hand_span': 'abc',
+        'weights': {'rh_note_bonus': 'nope', 'omit': {'third': 'huge'}},
+    }
+    errors = field_errors(data)
+    assert 'range:lh_range:low' in errors
+    assert 'hand_span' in errors
+    assert 'weight:rh_note_bonus' in errors
     assert 'nested:omit:third' in errors
 
 
