@@ -49,6 +49,8 @@ from services.event_compiler import compile_events
 from services.song_parser_service import SongParserService
 from audio.chord_picker import ChordNotePicker
 from audio.guitar_chord_picker import GuitarChordPicker
+from audio.ensemble_voicer import EnsembleVoicer
+from models.ensemble_spec import BUILTIN_ENSEMBLES
 from models.playback_event_internal import MidiEvent, MidiEventType
 
 
@@ -210,6 +212,13 @@ CASES = {
 
     # 9. Guitar picker end-to-end on song 1's text.
     "guitar_picker": (SONG1_TEXT, {"picker_factory": GuitarChordPicker}),
+
+    # 10. SATB ensemble voicer end-to-end on song 1's text (fixed-ensemble
+    #     picker: emits one deduped note per voice per chord).
+    "satb_picker": (
+        SONG1_TEXT,
+        {"picker_factory": lambda: EnsembleVoicer(BUILTIN_ENSEMBLES["satb"])},
+    ),
 }
 
 

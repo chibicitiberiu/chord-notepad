@@ -23,8 +23,9 @@ class Config:
     bass_octave: int = 3
     time_signature_beats: int = 4  # Beats per measure
     time_signature_unit: int = 4   # Beat unit (e.g., 4 = quarter note)
-    voicing: str = "piano"  # Voice leading style: 'piano' or 'guitar:<tuning_name>'
+    voicing: str = "piano"  # Voice leading style: 'piano', 'guitar:<tuning_name>', or 'ensemble:<name>'
     custom_tunings: Dict[str, List[str]] = field(default_factory=dict)  # Custom guitar tunings
+    custom_ensembles: Dict[str, dict] = field(default_factory=dict)  # Custom ensemble specs (see EnsembleSpec)
     instrument: int = 0  # MIDI program number (0-127), 0 = Acoustic Grand Piano
 
     # Notation
@@ -86,6 +87,7 @@ class Config:
             "time_signature_unit": self.time_signature_unit,
             "voicing": self.voicing,
             "custom_tunings": self.custom_tunings,
+            "custom_ensembles": self.custom_ensembles,
             "instrument": self.instrument,
             "notation": self.notation,
             "key": self.key,
@@ -119,6 +121,7 @@ class Config:
             time_signature_unit=data.get("time_signature_unit", 4),
             voicing=data.get("voicing", "piano"),
             custom_tunings=data.get("custom_tunings", {}),
+            custom_ensembles=data.get("custom_ensembles", {}),
             instrument=data.get("instrument", 0),
             notation=data.get("notation", "american"),
             key=data.get("key", "C"),

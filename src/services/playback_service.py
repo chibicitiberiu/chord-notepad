@@ -47,7 +47,8 @@ class PlaybackService:
         """Create appropriate note picker based on voicing string.
 
         Args:
-            voicing: Voicing string like 'piano', 'guitar:standard', 'guitar:drop_d', etc.
+            voicing: Voicing string like 'piano', 'guitar:standard', 'guitar:drop_d',
+                or 'ensemble:<name>'.
 
         Returns:
             INotePicker instance
@@ -65,9 +66,51 @@ class PlaybackService:
                 tuning = tuning_name
 
             return GuitarChordPicker(tuning=tuning)
+        elif voicing.startswith("ensemble:"):
+            return self._create_ensemble_picker(voicing.split(":", 1)[1])
         else:
             # Default to piano voicing
             return ChordNotePicker()
+
+    def _create_ensemble_picker(self, name: str) -> INotePicker:
+        """Create an ``EnsembleVoicer`` for the named ensemble.
+
+        Resolution order: config ``custom_ensembles`` first, then the
+        built-in ensembles (``satb``, ``ttbb``, ``ssa``, ``quartet``). Falls
+        back to piano voicing (with a warning) if ``name`` is unknown, or if
+        a custom spec is present but fails validation.
+
+        Args:
+            name: Ensemble slug, e.g. ``'satb'`` or a custom ensemble name.
+
+        Returns:
+            An ``EnsembleVoicer`` for the resolved spec, or a ``ChordNotePicker``
+            fallback.
+        """
+        from models.ensemble_spec import EnsembleSpec, BUILTIN_ENSEMBLES
+        from exceptions import ConfigurationError
+
+        custom_ensembles = self._config.get("custom_ensembles", {})
+        if name in custom_ensembles:
+            try:
+                spec = EnsembleSpec.from_dict(name, custom_ensembles[name])
+            except ConfigurationError as e:
+                self._logger.warning(
+                    f"Invalid custom ensemble '{name}': {e}; falling back to piano"
+                )
+                return ChordNotePicker()
+        elif name in BUILTIN_ENSEMBLES:
+            spec = BUILTIN_ENSEMBLES[name]
+        else:
+            self._logger.warning(f"Unknown ensemble '{name}'; falling back to piano")
+            return ChordNotePicker()
+
+        # Imported lazily (rather than at module level) because this module
+        # is owned by a concurrent task and may not exist on disk yet when
+        # this branch is first exercised; only needed once a spec resolves.
+        from audio.ensemble_voicer import EnsembleVoicer
+
+        return EnsembleVoicer(spec)
 
     def set_voicing(self, voicing: str) -> None:
         """Change the voicing style.
@@ -569,11 +612,19 @@ class PlaybackService:
             return None
 
     def _resolve_chord_notes(self, chord: ChordInfo, current_key: Optional[str]) -> Optional[ChordNotes]:
-        """Resolve a chord to its note names based on current key.
+        """Resolve a chord to its ``ChordNotes``, stamped with the current key.
+
+        ``current_key`` is always passed through, not just for roman-numeral
+        chords: absolute chords still resolve against their own notes
+        regardless of key, but ``ChordNotes.key`` records the key in effect
+        so key-aware voicing rules (e.g. leading-tone handling, or a future
+        ensemble voicer) can see it regardless of how the chord was spelled.
+        This mirrors ``SongRenderer._resolve_chord_notes``, which is
+        likewise unconditional.
 
         Args:
             chord: ChordInfo object
-            current_key: Current key signature (for roman numerals only)
+            current_key: Current key signature in effect
 
         Returns:
             ChordNotes object with notes, bass_note, and root, or None if resolution fails
@@ -581,12 +632,9 @@ class PlaybackService:
         from chord.helper import ChordHelper
 
         helper = ChordHelper()
-        # Only pass key for relative (roman numeral) chords
-        # Absolute chords should ignore the key parameter
-        key_to_use = current_key if chord.is_relative else None
         chord_notes_result = helper.compute_chord_notes(
             chord.chord,
-            key=key_to_use,
+            key=current_key,
             is_relative=chord.is_relative
         )
 

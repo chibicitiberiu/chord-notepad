@@ -19,6 +19,7 @@ def make_chord(
     symbol="C",
     *,
     midi_notes=(48, 60, 64, 67),
+    voice_notes=None,
     start_beat=0.0,
     duration_beats=4.0,
     bpm=120,
@@ -44,6 +45,7 @@ def make_chord(
         bar=1,
         is_rest=is_rest,
         skipped=skipped,
+        voice_notes=list(voice_notes) if voice_notes is not None else None,
     )
 
 
@@ -321,3 +323,188 @@ def test_integration_render_pipeline_deterministic(song_parser, tmp_path):
     midi = mido.MidiFile(str(path_a))
     assert midi.type == 1
     assert messages_of_type(midi.tracks[1], "note_on")
+
+
+# ---------------------------------------------------------------------------
+# Per-voice export (RenderedSong.voice_labels / RenderedChord.voice_notes)
+# ---------------------------------------------------------------------------
+
+SATB_LABELS = ["Bass", "Tenor", "Alto", "Soprano"]  # low to high
+
+
+def test_no_voice_labels_uses_single_chords_track(tmp_path):
+    """Baseline (no voice_labels): unchanged from before per-voice support."""
+    rendered = RenderedSong(
+        chords=[
+            make_chord("C", start_beat=0.0, duration_beats=4.0),
+            make_chord("G", start_beat=4.0, duration_beats=4.0),
+        ],
+        total_beats=8.0,
+        tempo_map=[(0.0, 120)],
+        meter_map=[(0.0, (4, 4))],
+    )
+    assert rendered.voice_labels is None
+    midi = read_back(rendered, tmp_path)
+    assert len(midi.tracks) == 2
+    names = messages_of_type(midi.tracks[1], "track_name")
+    assert names[0][1].name == "Chords"
+
+
+def test_per_voice_tracks_order_names_and_pitches(tmp_path):
+    """SATB voice_labels (low->high) produce 5 tracks, top-voice-first after
+    the conductor, each carrying only that voice's note per chord."""
+    rendered = RenderedSong(
+        chords=[
+            make_chord(
+                "C", midi_notes=[48, 60, 64, 67],
+                voice_notes=[48, 60, 64, 67],  # Bass, Tenor, Alto, Soprano
+                start_beat=0.0, duration_beats=4.0,
+            ),
+            make_chord(
+                "G", midi_notes=[43, 59, 62, 67],
+                voice_notes=[43, 59, 62, 67],
+                start_beat=4.0, duration_beats=4.0,
+            ),
+        ],
+        total_beats=8.0,
+        tempo_map=[(0.0, 120)],
+        meter_map=[(0.0, (4, 4))],
+        voice_labels=list(SATB_LABELS),
+    )
+    midi = read_back(rendered, tmp_path)
+
+    assert len(midi.tracks) == 5
+
+    names = [messages_of_type(t, "track_name")[0][1].name for t in midi.tracks]
+    assert names == ["Chord Notepad export", "Soprano", "Alto", "Tenor", "Bass"]
+
+    conductor, soprano, alto, tenor, bass = midi.tracks
+
+    def notes_on(track):
+        return sorted({m.note for _, m in messages_of_type(track, "note_on")})
+
+    assert notes_on(soprano) == [67]
+    assert notes_on(alto) == [62, 64]
+    assert notes_on(tenor) == [59, 60]
+    assert notes_on(bass) == [43, 48]
+
+    # Each voice track still has its own program_change and end_of_track.
+    for track in (soprano, alto, tenor, bass):
+        assert messages_of_type(track, "program_change")
+        assert messages_of_type(track, "end_of_track")
+
+
+def test_per_voice_tracks_preserve_unison(tmp_path):
+    """A unison (two adjacent voices sharing a pitch) is duplicated across
+    both voice tracks, not collapsed."""
+    rendered = RenderedSong(
+        chords=[
+            make_chord(
+                "C", midi_notes=[48, 60, 64, 67],
+                voice_notes=[48, 48, 64, 67],  # Bass and Tenor unison at 48
+                start_beat=0.0, duration_beats=4.0,
+            ),
+        ],
+        total_beats=4.0,
+        tempo_map=[(0.0, 120)],
+        meter_map=[(0.0, (4, 4))],
+        voice_labels=list(SATB_LABELS),
+    )
+    midi = read_back(rendered, tmp_path)
+    conductor, soprano, alto, tenor, bass = midi.tracks
+
+    assert {m.note for _, m in messages_of_type(tenor, "note_on")} == {48}
+    assert {m.note for _, m in messages_of_type(bass, "note_on")} == {48}
+
+
+def test_per_voice_track_program_number_respected(tmp_path):
+    rendered = RenderedSong(
+        chords=[
+            make_chord(
+                "C", midi_notes=[48, 60, 64, 67],
+                voice_notes=[48, 60, 64, 67],
+                start_beat=0.0, duration_beats=4.0,
+            ),
+        ],
+        total_beats=4.0,
+        voice_labels=list(SATB_LABELS),
+    )
+    midi = read_back(rendered, tmp_path, program=52)
+    for track in midi.tracks[1:]:
+        progs = messages_of_type(track, "program_change")
+        assert progs[0][1].program == 52
+
+
+def test_missing_voice_notes_falls_back_to_single_track(tmp_path):
+    """If any played chord lacks voice_notes (or has a mismatched length),
+    the whole export falls back to the single 'Chords' track."""
+    rendered = RenderedSong(
+        chords=[
+            make_chord(
+                "C", midi_notes=[48, 60, 64, 67],
+                voice_notes=[48, 60, 64, 67],
+                start_beat=0.0, duration_beats=4.0,
+            ),
+            make_chord(
+                "G", midi_notes=[43, 59, 62, 67],
+                voice_notes=None,  # missing
+                start_beat=4.0, duration_beats=4.0,
+            ),
+        ],
+        total_beats=8.0,
+        tempo_map=[(0.0, 120)],
+        meter_map=[(0.0, (4, 4))],
+        voice_labels=list(SATB_LABELS),
+    )
+    midi = read_back(rendered, tmp_path)
+    assert len(midi.tracks) == 2
+    names = messages_of_type(midi.tracks[1], "track_name")
+    assert names[0][1].name == "Chords"
+    # Both chords' full midi_notes are present on the combined track.
+    on_notes = {m.note for _, m in messages_of_type(midi.tracks[1], "note_on")}
+    assert on_notes == {48, 60, 64, 67, 43, 59, 62}
+
+
+def test_mismatched_voice_notes_length_falls_back_to_single_track(tmp_path):
+    rendered = RenderedSong(
+        chords=[
+            make_chord(
+                "C", midi_notes=[48, 60, 64, 67],
+                voice_notes=[48, 60, 64],  # only 3 entries for 4 voice_labels
+                start_beat=0.0, duration_beats=4.0,
+            ),
+        ],
+        total_beats=4.0,
+        voice_labels=list(SATB_LABELS),
+    )
+    midi = read_back(rendered, tmp_path)
+    assert len(midi.tracks) == 2
+    assert messages_of_type(midi.tracks[1], "track_name")[0][1].name == "Chords"
+
+
+def test_skipped_and_rest_chords_ignored_by_voice_notes_guard(tmp_path):
+    """A skipped chord or a rest with no voice_notes must not block per-voice
+    export -- only *played* chords (not skipped, not rest) need voice_notes."""
+    rendered = RenderedSong(
+        chords=[
+            make_chord(
+                "C", midi_notes=[48, 60, 64, 67], voice_notes=None,
+                start_beat=0.0, duration_beats=4.0, skipped=True,
+            ),
+            make_chord(
+                "NC", is_rest=True, voice_notes=None,
+                start_beat=4.0, duration_beats=4.0,
+            ),
+            make_chord(
+                "G", midi_notes=[43, 59, 62, 67],
+                voice_notes=[43, 59, 62, 67],
+                start_beat=8.0, duration_beats=4.0,
+            ),
+        ],
+        total_beats=12.0,
+        voice_labels=list(SATB_LABELS),
+    )
+    midi = read_back(rendered, tmp_path)
+    assert len(midi.tracks) == 5
+    names = [messages_of_type(t, "track_name")[0][1].name for t in midi.tracks]
+    assert names == ["Chord Notepad export", "Soprano", "Alto", "Tenor", "Bass"]

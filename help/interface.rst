@@ -198,8 +198,14 @@ Playback Menu
    * **Guitar (Drop D)** - DADGBE tuning
    * **Guitar (DADGAD)** - Celtic tuning
    * **Guitar (Open G)** - Blues/slide tuning
+   * **Choir (SATB)** - four-part mixed choir
+   * **Male Choir (TTBB)** - four-part male choir
+   * **Treble Choir (SSA)** - three-part treble choir
+   * **String Quartet** - two violins, viola, cello
+   * Any custom guitar tunings or ensembles you've added to the config file
 
-   A checkmark shows the current selection.
+   A checkmark shows the current selection. See :doc:`ensembles` for how the
+   ensemble presets work and how to define your own.
 
 **Instrument**
    A submenu organized by instrument category:

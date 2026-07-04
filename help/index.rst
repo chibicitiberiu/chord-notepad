@@ -22,6 +22,7 @@ jump to :doc:`tips`.
    writing_chords
    directives
    playback
+   ensembles
    midi_export
    interface
    shortcuts

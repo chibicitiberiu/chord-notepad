@@ -567,6 +567,14 @@ class MainWindowViewModel(Observable):
         """
         return self._config.get("custom_tunings", {})
 
+    def get_custom_ensembles(self) -> dict:
+        """Get custom ensemble specs.
+
+        Returns:
+            Dictionary of custom ensemble names to spec dicts (see EnsembleSpec)
+        """
+        return self._config.get("custom_ensembles", {})
+
     def get_instrument(self) -> int:
         """Get the current MIDI instrument program number.
 

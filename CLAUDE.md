@@ -52,6 +52,9 @@ src/
 │   ├── player.py              # NotePlayer (FluidSynth wrapper)
 │   ├── chord_picker.py        # Piano voicing
 │   ├── guitar_chord_picker.py # Guitar voicing
+│   ├── ensemble_voicer.py     # N-voice (SATB etc.) voicing from an EnsembleSpec
+│   ├── chord_tones.py         # Shared chord-tone role taxonomy (root/third/...)
+│   ├── voicing_optimizer.py   # Beam-Viterbi harness for whole-song voicing
 │   └── event_buffer.py        # Bounded event queue feeding the player
 ├── chord/               # Chord detection
 │   ├── detector.py            # Regex-based detection

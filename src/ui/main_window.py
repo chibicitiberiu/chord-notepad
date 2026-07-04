@@ -24,6 +24,7 @@ from utils.icon_loader import IconLoader
 from utils.ui_helpers import create_tooltip
 from utils.key_helpers import get_key_options
 from models.notation import Notation
+from models.ensemble_spec import BUILTIN_ENSEMBLES
 from constants import TAG_CHORD_PLAYING
 
 logger = logging.getLogger(__name__)
@@ -419,6 +420,14 @@ class MainWindow(tk.Tk):
         voicing_menu.add_radiobutton(label="Guitar (Open G)", variable=self.voicing_var,
                                      value="guitar:open_g", command=self.on_voicing_change)
 
+        # Add built-in ensembles
+        voicing_menu.add_separator()
+        for ensemble_key in ("satb", "ttbb", "ssa", "quartet"):
+            voicing_menu.add_radiobutton(label=BUILTIN_ENSEMBLES[ensemble_key].label,
+                                         variable=self.voicing_var,
+                                         value=f"ensemble:{ensemble_key}",
+                                         command=self.on_voicing_change)
+
         # Add custom tunings if any
         custom_tunings = self.viewmodel.get_custom_tunings()
         if custom_tunings:
@@ -426,6 +435,16 @@ class MainWindow(tk.Tk):
             for tuning_name in sorted(custom_tunings.keys()):
                 label = f"Guitar ({tuning_name})"
                 value = f"guitar:{tuning_name}"
+                voicing_menu.add_radiobutton(label=label, variable=self.voicing_var,
+                                           value=value, command=self.on_voicing_change)
+
+        # Add custom ensembles if any
+        custom_ensembles = self.viewmodel.get_custom_ensembles()
+        if custom_ensembles:
+            voicing_menu.add_separator()
+            for ensemble_name in sorted(custom_ensembles.keys()):
+                label = f"Ensemble ({ensemble_name})"
+                value = f"ensemble:{ensemble_name}"
                 voicing_menu.add_radiobutton(label=label, variable=self.voicing_var,
                                            value=value, command=self.on_voicing_change)
 

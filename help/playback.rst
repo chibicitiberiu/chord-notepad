@@ -89,9 +89,10 @@ played it. Chord Notepad does it two different ways, because a keyboard and a
 fretboard don't think alike.
 
 Switch between them under :menuselection:`Playback --> Voicing`: pick **Piano**,
-or one of the guitar tunings. Voicing is independent of the **instrument** you
-choose (see :ref:`changing-instruments`) -- you can play a piano voicing through
-a saxophone, or a guitar voicing through a synth pad.
+one of the guitar tunings, or one of the ensemble presets (a four-part choir, a
+string quartet) covered in :doc:`ensembles`. Voicing is independent of the
+**instrument** you choose (see :ref:`changing-instruments`) -- you can play a
+piano voicing through a saxophone, or a guitar voicing through a synth pad.
 
 Piano Voicing
 -------------
@@ -247,7 +248,9 @@ How to Change Voicing
 
 1. Open the **Playback** menu.
 2. Click **Voicing**.
-3. Select **Piano** or one of the guitar tunings.
+3. Select **Piano**, one of the guitar tunings, or one of the ensemble
+   presets -- see :doc:`ensembles` for what each ensemble sounds like and
+   how to define your own.
 4. Play your chords to hear the difference.
 
 A checkmark shows the current voicing. It applies to full playback and to

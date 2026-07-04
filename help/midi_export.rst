@@ -53,6 +53,13 @@ The file has two tracks: a conductor track carrying tempo, time signature,
 and key, and a chord track carrying the notes. This is the standard layout
 most software expects.
 
+**Ensemble voicings export one track per voice.** If an :doc:`ensemble
+voicing <ensembles>` (Choir, Male Choir, Treble Choir, String Quartet, or a
+custom ensemble) is selected instead of piano or guitar, the single chord
+track is replaced by one named track per voice -- Soprano, Alto, Tenor,
+and Bass each get their own track, top voice first, so the file opens in
+a notation program as separate parts rather than one stack of chords.
+
 
 Working with the Exported File
 ===============================
