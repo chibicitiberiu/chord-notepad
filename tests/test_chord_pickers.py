@@ -497,42 +497,68 @@ class TestExtensionRegister:
         voicing = sorted(midi)[1:]  # strip the low bass
         return [m - voicing[0] for m in voicing]
 
+    @staticmethod
+    def _core_and_extension_midis(picker, chord_notes):
+        """Split the right-hand voicing into (core MIDIs, extension MIDIs).
+
+        A chord tone is an extension when its register-preserving interval is a
+        ninth or higher (>=12); everything else is a core tone. The bass note is
+        stripped first. Classification is by pitch class, which is unambiguous
+        for these chords (the extension pitch classes are distinct from the core
+        ones).
+        """
+        from chord.midi_converter import intervals_from_note_names, parse_note_to_semitone
+        midi = picker.chord_to_midi(chord_notes)
+        assert len(midi) > 1
+        voicing = sorted(midi)[1:]  # strip the low bass
+        root_pc = parse_note_to_semitone(chord_notes.root)
+        intervals = chord_notes.intervals or intervals_from_note_names(chord_notes.notes)
+        core_pcs, ext_pcs = set(), set()
+        for iv in intervals:
+            pc = (root_pc + iv) % 12
+            (ext_pcs if iv >= 12 else core_pcs).add(pc)
+        core = [m for m in voicing if m % 12 in core_pcs and m % 12 not in ext_pcs]
+        ext = [m for m in voicing if m % 12 in ext_pcs]
+        return core, ext
+
+    def _assert_extensions_above_core(self, picker, chord_notes):
+        """Principle: every extension tone sounds strictly above every core tone."""
+        core, ext = self._core_and_extension_midis(picker, chord_notes)
+        assert core, "expected some core tones in the voicing"
+        assert ext, "expected some extension tones in the voicing"
+        assert min(ext) > max(core), (
+            f"extensions {ext} must sound above all core tones {core}"
+        )
+
     def test_dominant_11th_keeps_high_11th_first_chord(self):
-        """C11 as the very first chord: 9th and 11th stay an octave up."""
+        """C11 first chord: the 9th and 11th sound above every core tone."""
         picker = ChordNotePicker()
         chord = ChordNotes(notes=['C', 'G', 'Bb', 'D', 'F'], bass_note='C', root='C')
-        intervals = self._chord_tone_intervals(picker, chord)
-        # D (9th) at +14, F (11th) at +17 - not +2 / +5
-        assert intervals == [0, 7, 10, 14, 17]
+        self._assert_extensions_above_core(picker, chord)
 
     def test_major_11th_keeps_high_11th_first_chord(self):
-        """Cmaj11 first chord: 11th stays a real 11th, not a 4th on the root."""
+        """Cmaj11 first chord: the 11th stays above the core, not a 4th on the root."""
         picker = ChordNotePicker()
         chord = ChordNotes(notes=['C', 'G', 'B', 'D', 'F'], bass_note='C', root='C')
-        intervals = self._chord_tone_intervals(picker, chord)
-        assert intervals == [0, 7, 11, 14, 17]
+        self._assert_extensions_above_core(picker, chord)
 
     def test_major_13th_keeps_high_13th_first_chord(self):
-        """Cmaj13 first chord: 9th at +14 and 13th at +21."""
+        """Cmaj13 first chord: the 9th and 13th sound above every core tone."""
         picker = ChordNotePicker()
-        chord = ChordNotes(notes=['C', 'E', 'G', 'B', 'D', 'A'], bass_note='C', root='C')
-        intervals = self._chord_tone_intervals(picker, chord)
-        assert intervals == [0, 4, 7, 11, 14, 21]
+        chord = ChordNotes(notes=['C', 'E', 'G', 'B', 'D', 'A'], bass_note='C', root='C',
+                           intervals=[0, 4, 7, 11, 14, 21])
+        self._assert_extensions_above_core(picker, chord)
 
     def test_register_consistent_first_vs_midprogression(self):
-        """The 11th sits high whether C11 is first or follows another chord."""
+        """Extensions sit above the core whether C11 is first or follows a chord."""
         c11 = ChordNotes(notes=['C', 'G', 'Bb', 'D', 'F'], bass_note='C', root='C')
 
         first = ChordNotePicker()
-        first_intervals = self._chord_tone_intervals(first, c11)
+        self._assert_extensions_above_core(first, c11)
 
         after = ChordNotePicker()
         after.chord_to_midi(ChordNotes(notes=['C', 'E', 'G'], bass_note='C', root='C'))
-        after_intervals = self._chord_tone_intervals(after, c11)
-
-        # Both spread the 9th/11th up an octave (span > one octave).
-        assert first_intervals[-1] >= 12
-        assert after_intervals[-1] >= 12
+        self._assert_extensions_above_core(after, c11)
 
     def test_extended_chord_stays_central(self):
         """A spread extended chord stays central - top at/below C5 initially."""
@@ -1064,3 +1090,127 @@ class TestSongRendererVoicing:
         # The loop really repeated (verse body played more than once).
         c_chords = [rc for rc in played if rc.chord_info.chord == 'C']
         assert len(c_chords) >= 2
+
+
+# ---------------------------------------------------------------------------
+# Piano two-hand physical model: hand constraints, inversions, register.
+# ---------------------------------------------------------------------------
+class TestPianoTwoHandModel:
+    """The piano voicer models a pianist's two hands, each with limited reach."""
+
+    P = ChordNotePicker
+
+    @staticmethod
+    def _total_movement(voicings):
+        """Sum of nearest-neighbour movement between consecutive voicings."""
+        total = 0.0
+        prev = None
+        for midi in voicings:
+            if prev is not None:
+                for note in midi:
+                    total += min(abs(note - p) for p in prev)
+            prev = midi
+        return total
+
+    @given(realistic_chord_strategy())
+    @settings(max_examples=300)
+    def test_no_candidate_violates_hand_constraints(self, chord):
+        """Every generated candidate obeys per-hand count, span and register."""
+        picker = self.P()
+        root_pc, intervals, bass_pc = picker._chord_signature(chord)
+        candidates = picker._generate_candidates(root_pc, intervals, bass_pc)
+
+        for v in candidates:
+            assert len(v.lh) <= picker.MAX_NOTES_PER_HAND, f"LH too many notes: {v}"
+            assert len(v.rh) <= picker.MAX_NOTES_PER_HAND, f"RH too many notes: {v}"
+            assert len(v.lh) + len(v.rh) <= picker.MAX_TOTAL_NOTES, f"too many notes: {v}"
+            if v.lh:
+                assert max(v.lh) - min(v.lh) <= picker.HAND_SPAN_SEMITONES, f"LH span: {v}"
+                assert all(picker.LH_MIN <= n <= picker.LH_MAX for n in v.lh), f"LH range: {v}"
+            if v.rh:
+                assert max(v.rh) - min(v.rh) <= picker.HAND_SPAN_SEMITONES, f"RH span: {v}"
+                assert all(picker.RH_MIN <= n <= picker.RH_MAX for n in v.rh), f"RH range: {v}"
+            if v.lh and v.rh:
+                assert min(v.rh) > max(v.lh), f"hand crossing / shared key: {v}"
+            midi = picker._voicing_to_midi(v)
+            assert len(midi) == len(set(midi)), f"duplicate MIDI note: {v}"
+
+    def test_voice_sequence_uses_inversion_for_g(self):
+        """C -> G -> C: G voiced as an inversion/shared-tone shape, not root block.
+
+        The whole-song optimizer must beat a naive root-position-everything
+        baseline on total voice movement.
+        """
+        C = ChordNotes(notes=['C', 'E', 'G'], bass_note='C', root='C')
+        G = ChordNotes(notes=['G', 'B', 'D'], bass_note='G', root='G')
+        seq = [C, G, C]
+
+        dp_voicings = self.P().voice_sequence(seq)
+
+        # Baseline: every chord voiced in low root position (bass + root-position RH).
+        baseline = [[36, 60, 64, 67], [43, 55, 59, 62], [36, 60, 64, 67]]
+
+        dp_move = self._total_movement(dp_voicings)
+        baseline_move = self._total_movement(baseline)
+        assert dp_move < baseline_move, (
+            f"DP movement {dp_move} not below root-position baseline {baseline_move}; "
+            f"voicings={dp_voicings}"
+        )
+
+        # Concretely, the middle G is not voiced as a low root-position block.
+        g_midi = dp_voicings[1]
+        g_rh = [m for m in g_midi if m >= ChordNotePicker.RH_MIN]
+        assert g_rh[0] % 12 != 7 or g_rh[0] > 60, (
+            f"G voiced as a low root-position block: {g_midi}"
+        )
+
+    def test_register_stable_over_long_descending_progression(self):
+        """A 16-chord descending progression keeps the RH mean in a fixed band."""
+        helper = ChordHelper()
+        # Chromatic descent through 16 major chords, wrapping around.
+        chroma = ['C', 'B', 'Bb', 'A', 'Ab', 'G', 'Gb', 'F',
+                  'E', 'Eb', 'D', 'Db', 'C', 'B', 'Bb', 'A']
+        seq = [helper.compute_chord_notes(r) for r in chroma]
+        voicings = self.P().voice_sequence(seq)
+
+        for root, midi in zip(chroma, voicings):
+            rh = [m for m in midi if m >= ChordNotePicker.RH_MIN]
+            assert rh, f"{root} produced no right hand: {midi}"
+            mean = sum(rh) / len(rh)
+            assert 55 <= mean <= 70, (
+                f"{root} RH mean {mean:.1f} drifted out of band (55-70): {midi}"
+            )
+
+    def test_slash_bass_is_left_hand(self):
+        """A slash chord puts the slash bass in the left hand; RH needs only chord tones."""
+        picker = self.P()
+        # C/D: bass D is not even a chord tone of C major.
+        chord = ChordNotes(notes=['C', 'E', 'G'], bass_note='D', root='C')
+        midi = picker.chord_to_midi(chord)
+
+        assert midi_to_note_class(min(midi)) == 'D', f"lowest note should be D: {midi}"
+
+        lh, rh = picker.split_hands(chord)
+        assert lh and midi_to_note_class(lh[0]) == 'D'
+        rh_pcs = {midi_to_note_class(m) for m in rh}
+        assert rh_pcs <= {'C', 'E', 'G'}, f"RH should hold only chord tones: {rh}"
+
+    def test_voice_sequence_deterministic_fresh_and_after_state(self):
+        """voice_sequence is identical fresh and after prior chord_to_midi calls."""
+        seq = [
+            ChordNotes(notes=['C', 'E', 'G'], bass_note='C', root='C'),
+            ChordNotes(notes=['A', 'C', 'E', 'G'], bass_note='A', root='A'),
+            ChordNotes(notes=['F', 'A', 'C'], bass_note='F', root='F'),
+            ChordNotes(notes=['G', 'B', 'D', 'F'], bass_note='G', root='G'),
+            ChordNotes(notes=['C', 'E', 'G'], bass_note='G', root='C'),  # slash
+        ]
+        fresh = self.P().voice_sequence(seq)
+
+        dirty = self.P()
+        for junk in [ChordNotes(notes=['Eb', 'G', 'Bb'], bass_note='Eb', root='Eb'),
+                     ChordNotes(notes=['F#', 'A#', 'C#'], bass_note='F#', root='F#')]:
+            dirty.chord_to_midi(junk)
+        after = dirty.voice_sequence(seq)
+
+        assert fresh == after
+        assert fresh == self.P().voice_sequence(seq)

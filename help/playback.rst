@@ -96,12 +96,25 @@ a saxophone, or a guitar voicing through a synth pad.
 Piano Voicing
 -------------
 
-The piano voicing is built around **voice leading**: moving as little as possible
-from one chord to the next. Going from C to Am, it looks at where the hand just
-was and picks the shape of Am nearest to it, holding any shared notes exactly
-where they are instead of leaping across the keyboard. It shifts the whole chord
-up or down by octaves to stay in a comfortable range, drops a root into the bass,
-and scores each candidate by how far the notes had to travel.
+The piano voicing models a pianist's **two hands**. The left hand plays the bass
+(the chord's root, or the slash bass for a chord like ``C/G``) down in the
+low register; the right hand plays the chord itself around middle C. Each hand
+reaches only so far -- at most five notes spanning no more than a ninth -- so the
+voicer never asks for a shape a real hand could not hold.
+
+For the right hand it lays out several ways to play the chord: root position and
+every **inversion**, at a couple of octaves, and -- for tall chords that won't
+fit one hand -- with an inner note or two dropped (the fifth first, then the
+doubled root). Ninths, elevenths and thirteenths always sit above the core
+triad, so an eleventh sounds like an eleventh rather than collapsing into a
+clashing second next to the root. Every candidate is scored on how complete and
+how centered it is, then on **voice leading** -- how little the notes have to
+move from the previous chord, holding shared notes in place instead of leaping.
+
+Rather than deciding each chord in isolation, the voicer optimizes the **whole
+song at once**. That keeps the right hand anchored in a stable central register
+from start to finish: a chord that comes back on a looped verse is voiced the
+same way it was the first time, instead of drifting an octave lower each pass.
 
 .. figure:: /images/voiceleading.png
    :alt: Four piano keyboards for C, Am, F, and G shown twice: with voice
