@@ -700,6 +700,7 @@ class MainWindow(tk.Tk):
             'detected_lines', self._on_detected_lines_for_chord_sheet
         )
         self.viewmodel.observe('key', self._on_key_for_chord_sheet)
+        self.viewmodel.observe('voicing', self._on_voicing_for_chord_sheet)
         vm.observe('visible', self._on_chord_sheet_visible_changed)
 
         # Persist the strip height whenever the sash is released.
@@ -724,6 +725,15 @@ class MainWindow(tk.Tk):
 
     def _on_key_for_chord_sheet(self, _key: Any) -> None:
         """Re-render the strip when the key changes (affects roman numerals)."""
+        self._push_song_to_chord_sheet()
+
+    def _on_voicing_for_chord_sheet(self, _voicing: Any) -> None:
+        """Re-render the strip when the voicing changes.
+
+        The note picker was rebuilt, so voicings (and fingering availability,
+        which gates the Chord box and Tab views) may all differ even though
+        the song text is unchanged.
+        """
         self._push_song_to_chord_sheet()
 
     def _on_chord_sheet_visible_changed(self, visible: bool) -> None:

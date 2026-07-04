@@ -558,6 +558,11 @@ class MainWindowViewModel(Observable):
         """
         logger.debug(f"Setting voicing to {voicing}")
         self._audio.set_voicing(voicing)
+        # Notify unconditionally (not set_and_notify, which skips equal
+        # values): re-selecting or editing the active voicing in place keeps
+        # the same selection string, but the note picker was still rebuilt,
+        # so observers (e.g. the chord sheet) must re-render regardless.
+        self.notify("voicing", voicing)
 
     def get_voicings(self) -> dict:
         """Get the raw voicings registry.
