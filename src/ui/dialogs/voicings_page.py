@@ -3,11 +3,25 @@
 A two-pane editor for the ``voicings`` registry: a grouped tree of voicings on
 the left (with add/remove buttons), and a model-specific parameter form on the
 right. All state lives in the injected
-:class:`~viewmodels.settings_viewmodel.SettingsViewModel`; this widget only
-renders it and forwards edits. Nothing here is validated inline -- the form is
-deliberately forgiving while the user types (an unparseable field keeps its raw
-string in the working copy), and the dialog's Save button is the gate that runs
-``viewmodel.validate_all()``.
+:class:`~viewmodels.settings_viewmodel.SettingsViewModel`; this widget renders
+it and forwards edits.
+
+The form stays deliberately forgiving while the user types: an unparseable
+field keeps its raw string in the working copy rather than being rejected
+mid-edit. What changed is that this raw state is now *shown* inline instead of
+hidden. Two error classes surface:
+
+* **Parse errors** -- a value that stayed a raw string where a number, note
+  name or list was expected. These are detected by the pure, headless-testable
+  :func:`field_errors` and marked red on the offending control as you type.
+* **Semantic / cross-field errors** (relaxed span < span, voice low >= high, a
+  wrong ``max_spacing`` length, an out-of-range value, ...) are left to the
+  spec: after each edit ``viewmodel.validate_voicing`` runs and its message is
+  shown in a red banner at the top of the form.
+
+The dialog's Save button is still the hard gate (it runs
+``viewmodel.validate_all`` and jumps to the first bad voicing); the inline
+feedback here is additive.
 """
 
 import logging
@@ -27,6 +41,7 @@ from models.fretboard_spec import (
     BUILTIN_FRETBOARDS,
     DEFAULT_WEIGHTS as FRETBOARD_DEFAULT_WEIGHTS,
 )
+from ui.base.tooltip import add_tooltip, ensure_field_error_styles, mark_field
 from viewmodels.settings_viewmodel import SettingsViewModel
 
 logger = logging.getLogger(__name__)
@@ -90,6 +105,111 @@ _DISPLAY_MODEL = {display: model for model, display in _MODEL_DISPLAY.items()}
 # Group node order in the tree.
 _GROUP_ORDER = ('fretboard', 'piano', 'ensemble')
 _GROUP_LABEL = {'fretboard': 'Fretboard', 'piano': 'Piano', 'ensemble': 'Ensemble'}
+
+# Small grey introducing every 'Weights' section.
+_WEIGHTS_BLURB = (
+    "Weights steer the scoring. A higher penalty pushes the picker away from "
+    "that trait; a higher bonus pulls it toward it. The defaults suit most "
+    "music, so adjust only if the results aren't to your taste."
+)
+
+# ---------------------------------------------------------------------------
+# Tooltip texts -- one concrete sentence per input, grounded in the parameter
+# tables of help/fretted.rst and help/ensembles.rst. Kept here (module level)
+# so the wording is maintainable in one place.
+# ---------------------------------------------------------------------------
+TOOLTIPS: Dict[str, str] = {
+    # Header controls.
+    'name': "The name of this voicing, shown in the Playback → Voicing menu.",
+    'model': ("The engine that renders this voicing: fretboard (a fretted "
+              "instrument), ensemble (independent voices), or piano."),
+    'load': ("Replace this voicing's parameters with those of a built-in preset "
+             "or another voicing. The name is kept."),
+    'tree_add': "Add a new voicing.",
+    'tree_remove': "Remove the selected voicing.",
+
+    # Fretboard physical parameters.
+    'tuning': ("Open-string pitches in string order, lowest string first "
+               "(note names or MIDI numbers, e.g. E2 A2 D3 G3 B3 E4). Required."),
+    'max_fret': "Highest fret the picker will reach; higher allows shapes further up the neck.",
+    'fingers': "How many fretting fingers the hand has available.",
+    'max_span': "Widest fret stretch the hand holds on a normal pass.",
+    'relaxed_span': ("Widest stretch accepted as a last resort when nothing fits "
+                     "the normal span; must be at least the stretch."),
+    'allow_barres': ("Whether one finger flattened across several strings can stand "
+                     "in for several fretted fingers at once."),
+
+    # Fretboard weights.
+    'weight:sounding_string_bonus': ("Reward per string that actually sounds; higher "
+                                     "favors fuller-sounding fingerings."),
+    'weight:open_string_bonus': ("Extra reward per open string (fret 0), on top of the "
+                                 "sounding-string bonus."),
+    'weight:bass_note_bonus': "Reward for the chord's root landing on the lowest sounding string.",
+    'weight:slash_bass_bonus': ("Reward for a slash chord's named bass note landing in the "
+                                "bass (the G in C/G)."),
+    'weight:span_penalty': ("Cost per fret of stretch between the lowest and highest fretted "
+                            "note; higher keeps shapes compact."),
+    'weight:position_penalty': "Cost per fret up the neck; higher keeps fingerings closer to the nut.",
+    'weight:fretted_finger_penalty': ("Cost per fretted finger; higher favors shapes that leave "
+                                      "more strings open or muted."),
+    'weight:barre_penalty': "Extra cost when a fingering needs a barre, on top of the finger-use penalty.",
+    'weight:interior_mute_penalty': "Cost per muted string buried between two sounding strings.",
+    'weight:movement_penalty': ("Cost per fret the hand shifts from the previous chord, across the "
+                                "whole song; higher steadies the hand."),
+    'weight:kept_finger_bonus': "Reward per finger that stays on the same string and fret between chords.",
+
+    # Ensemble voices / spacing / unisons.
+    'voice_name': "Name of this voice, e.g. Soprano. Free text.",
+    'voice_low': "Lowest note this voice may sing, inclusive (note name or MIDI number).",
+    'voice_high': "Highest note this voice may sing, inclusive (note name or MIDI number).",
+    'add_voice': "Add another voice to the ensemble (2 to 8 voices).",
+    'remove_voice': "Remove this voice from the ensemble.",
+    'max_spacing': ("Maximum semitone gap allowed between each pair of neighbouring voices; "
+                    "comma-separated, one value per gap."),
+    'allow_unisons': "Whether two neighbouring voices may land on the same pitch.",
+
+    # Ensemble weights.
+    'weight:movement': ("Cost per semitone an inner or upper voice moves between chords; a single "
+                        "number, or one per voice."),
+    'weight:bass_movement': ("Cost per semitone the bottom voice moves; normally lower than the "
+                             "inner-voice movement cost."),
+    'weight:leap_penalty': "Extra cost when a voice jumps more than a fifth between chords.",
+    'weight:octave_leap_penalty': "Extra cost when a voice jumps a full octave or more.",
+    'weight:tritone_leap_penalty': "Extra cost when a voice leaps exactly a tritone (six semitones).",
+    'weight:common_tone_bonus': "Reward for a voice holding the pitch class it just sang.",
+    'weight:parallel_perfect_penalty': ("Cost per pair of voices moving in parallel fifths or octaves; "
+                                        "set high by default."),
+    'weight:contrary_motion_bonus': "Reward for the outer two voices moving in opposite directions.",
+    'weight:seventh_resolution_bonus': "Reward for a chordal seventh resolving down by step.",
+    'weight:leading_tone_resolution_bonus': "Reward for the leading tone resolving up to the tonic.",
+    'weight:double_leading_tone_penalty': "Extra cost when two voices double the leading tone.",
+    'weight:range_comfort_penalty': ("Cost per semitone a voice sits in the outer 2 semitones of its "
+                                     "range; keeps voices off their extremes."),
+    'weight:unison_penalty': ("Cost per pair of neighbouring voices on the same pitch (only when "
+                              "unisons are allowed)."),
+    'weight:upper_spacing_penalty': ("Cost per semitone an upper-voice gap exceeds an octave; a soft "
+                                     "preference for closer spacing above the bass."),
+}
+
+
+def _nested_tooltip(group: str, role: str) -> str:
+    """Build a per-role tooltip for a nested-weight spinbox."""
+    role_label = ROLE_LABELS.get(role, role).lower()
+    if group == 'doubling':
+        return (f"Bonus or penalty for doubling the {role_label} when there are more "
+                f"voices than chord tones. Positive favors it.")
+    if group == 'omit':
+        return (f"Penalty for dropping the {role_label} when there are fewer voices than "
+                f"chord tones. Higher protects it from being omitted.")
+    if group == 'inversion':
+        return (f"Preference for the {role_label} inversion (which chord tone sits in the "
+                f"bass); negative numbers favor that inversion.")
+    return f"{group} {role_label}"
+
+
+# ---------------------------------------------------------------------------
+# Parsing helpers (forgiving: keep the raw string when a value won't parse)
+# ---------------------------------------------------------------------------
 
 
 def _default_fretboard_data() -> dict:
@@ -182,6 +302,119 @@ def _parse_float_or_raw(text: str):
         return text
 
 
+def _parse_int_list_or_raw(text: str):
+    """Parse a comma-separated int list; return a list or the raw string."""
+    tokens = [t.strip() for t in text.split(',') if t.strip()]
+    parsed = []
+    for token in tokens:
+        try:
+            parsed.append(int(token))
+        except ValueError:
+            return text
+    return parsed
+
+
+def _parse_scalar_or_list(text: str):
+    """Parse ``movement`` as a single float or a comma-separated list of floats."""
+    text = text.strip()
+    if ',' in text:
+        tokens = [t.strip() for t in text.split(',') if t.strip()]
+        parsed = []
+        for token in tokens:
+            try:
+                parsed.append(float(token))
+            except ValueError:
+                return text
+        return parsed
+    try:
+        return float(text)
+    except ValueError:
+        return text
+
+
+# ---------------------------------------------------------------------------
+# Inline validation (pure, headless-testable)
+# ---------------------------------------------------------------------------
+
+
+def _is_number(value: Any) -> bool:
+    """True for a real int/float, excluding bool."""
+    return isinstance(value, (int, float)) and not isinstance(value, bool)
+
+
+def field_errors(data: dict) -> Dict[str, str]:
+    """Map each bad field-id in a *collected* voicing dict to a short message.
+
+    This detects only **parse** errors -- values that the forgiving collectors
+    left as a raw ``str`` where a number, note name or list was expected. It
+    runs on the output of the form's ``collect()`` (so a valid note name like
+    ``'C4'`` has already become the int ``60`` and is *not* flagged; only an
+    unparseable leftover string is). Semantic and cross-field problems
+    (``relaxed_span < max_span``, ``low >= high``, wrong ``max_spacing``
+    length, out-of-range values, too few/many voices/strings) are deliberately
+    left to the spec's validation and the red banner -- this function never
+    reports them.
+
+    Field-ids:
+
+    * ``'tuning'`` -- fretboard strings still a raw string.
+    * ``'max_fret'`` / ``'fingers'`` / ``'max_span'`` / ``'relaxed_span'`` --
+      a physical-param spinbox value that isn't a whole number.
+    * ``'weight:<key>'`` -- a flat weight value that isn't a number.
+    * ``'movement'`` -- the ensemble ``movement`` weight still a raw string.
+    * ``'nested:<group>:<role>'`` -- a doubling/omit/inversion role that isn't
+      a number.
+    * ``'voice:<i>:low'`` / ``'voice:<i>:high'`` -- a voice range endpoint
+      still a raw string (voice *names* are free text and are never flagged).
+    * ``'max_spacing'`` -- the ensemble spacing list still a raw string.
+
+    Args:
+        data: A collected voicing dict (must carry a ``'model'`` key).
+
+    Returns:
+        A ``{field_id: message}`` dict; empty when every value parsed.
+    """
+    errors: Dict[str, str] = {}
+    model = data.get('model')
+
+    if model == 'fretboard':
+        if isinstance(data.get('tuning'), str):
+            errors['tuning'] = 'Not a valid note name'
+        for key in ('max_fret', 'fingers', 'max_span', 'relaxed_span'):
+            if key in data and not _is_number(data[key]):
+                errors[key] = 'Must be a whole number'
+        weights = data.get('weights') or {}
+        for key, value in weights.items():
+            if not _is_number(value):
+                errors[f'weight:{key}'] = 'Must be a number'
+
+    elif model == 'ensemble':
+        for i, voice in enumerate(data.get('voices') or []):
+            vrange = voice.get('range', []) if isinstance(voice, dict) else []
+            low = vrange[0] if len(vrange) > 0 else None
+            high = vrange[1] if len(vrange) > 1 else None
+            if isinstance(low, str):
+                errors[f'voice:{i}:low'] = 'Not a valid note name'
+            if isinstance(high, str):
+                errors[f'voice:{i}:high'] = 'Not a valid note name'
+        if isinstance(data.get('max_spacing'), str):
+            errors['max_spacing'] = 'Must be whole numbers'
+        weights = data.get('weights') or {}
+        for key, value in weights.items():
+            if key == 'movement':
+                if isinstance(value, str):
+                    errors['movement'] = 'Must be a number or list of numbers'
+            elif key in _NESTED_WEIGHT_KEYS:
+                for role, role_value in (value or {}).items():
+                    if not _is_number(role_value):
+                        errors[f'nested:{key}:{role}'] = 'Must be a number'
+            else:
+                if not _is_number(value):
+                    errors[f'weight:{key}'] = 'Must be a number'
+
+    return errors
+
+
 class VoicingsPage(ttk.Frame):
     """Left tree + right parameter-form editor for the voicings registry."""
 
@@ -202,6 +435,12 @@ class VoicingsPage(ttk.Frame):
         self._loading_form = False
         # Per-model form state, populated by _build_*_form.
         self._collect: Optional[Callable[[], dict]] = None
+        # field-id -> control, tooltip, and base tooltip text (for inline marks).
+        self._field_widgets: Dict[str, tk.Widget] = {}
+        self._field_tooltips: Dict[str, Any] = {}
+        self._field_base_tips: Dict[str, str] = {}
+
+        ensure_field_error_styles()
 
         self.columnconfigure(1, weight=1)
         self.rowconfigure(0, weight=1)
@@ -229,10 +468,12 @@ class VoicingsPage(ttk.Frame):
 
         buttons = ttk.Frame(left)
         buttons.grid(row=1, column=0, columnspan=2, sticky='w', pady=(6, 0))
-        ttk.Button(buttons, text='+', width=3, command=self._on_add).pack(side=tk.LEFT)
-        ttk.Button(buttons, text='−', width=3, command=self._on_remove).pack(
-            side=tk.LEFT, padx=(4, 0)
-        )
+        add_btn = ttk.Button(buttons, text='+', width=3, command=self._on_add)
+        add_btn.pack(side=tk.LEFT)
+        remove_btn = ttk.Button(buttons, text='−', width=3, command=self._on_remove)
+        remove_btn.pack(side=tk.LEFT, padx=(4, 0))
+        add_tooltip(add_btn, TOOLTIPS['tree_add'])
+        add_tooltip(remove_btn, TOOLTIPS['tree_remove'])
 
     def refresh(self) -> None:
         """Re-read the view model and rebuild the voicings tree."""
@@ -301,26 +542,30 @@ class VoicingsPage(ttk.Frame):
         right = ttk.Frame(self)
         right.grid(row=0, column=1, sticky='nsew')
         right.columnconfigure(0, weight=1)
-        right.rowconfigure(4, weight=1)
+        right.rowconfigure(5, weight=1)
         self._right = right
 
-        # Row 1: Load config menubutton.
-        self._load_button = ttk.Menubutton(right, text='Load config ▾')
+        # Row 0: Load config menubutton (the Menubutton draws its own indicator,
+        # so the text is plain 'Load config' with no manual arrow glyph).
+        self._load_button = ttk.Menubutton(right, text='Load config')
         self._load_menu = tk.Menu(self._load_button, tearoff=0)
         self._load_button['menu'] = self._load_menu
         self._load_button.grid(row=0, column=0, sticky='w', pady=(0, 6))
+        add_tooltip(self._load_button, TOOLTIPS['load'])
 
-        # Row 2: Name.
+        # Row 1: Name.
         name_frame = ttk.Frame(right)
         name_frame.grid(row=1, column=0, sticky='ew', pady=(0, 4))
-        ttk.Label(name_frame, text='Name:').pack(side=tk.LEFT, padx=(0, 6))
+        name_frame.columnconfigure(1, weight=1)
+        ttk.Label(name_frame, text='Name:').grid(row=0, column=0, sticky='w', padx=(0, 6))
         self._name_var = tk.StringVar()
         self._name_entry = ttk.Entry(name_frame, textvariable=self._name_var)
-        self._name_entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        self._name_entry.grid(row=0, column=1, sticky='ew')
         self._name_entry.bind('<FocusOut>', self._on_name_commit)
         self._name_entry.bind('<Return>', self._on_name_commit)
+        add_tooltip(self._name_entry, TOOLTIPS['name'])
 
-        # Row 3: Model.
+        # Row 2: Model.
         model_frame = ttk.Frame(right)
         model_frame.grid(row=2, column=0, sticky='ew', pady=(0, 4))
         ttk.Label(model_frame, text='Model:').pack(side=tk.LEFT, padx=(0, 6))
@@ -332,12 +577,21 @@ class VoicingsPage(ttk.Frame):
         )
         self._model_combo.pack(side=tk.LEFT)
         self._model_combo.bind('<<ComboboxSelected>>', self._on_model_changed)
+        add_tooltip(self._model_combo, TOOLTIPS['model'])
 
         ttk.Separator(right, orient='horizontal').grid(row=3, column=0, sticky='ew', pady=6)
 
-        # Row 4: the model parameter form host (scrollable content added per model).
+        # Row 4: the semantic/cross-field error banner (hidden until needed).
+        self._banner = tk.Label(
+            right, anchor='w', justify=tk.LEFT, wraplength=420,
+            background='#ffdddd', foreground='#8b0000', padx=8, pady=5,
+        )
+        self._banner.grid(row=4, column=0, sticky='ew', pady=(0, 6))
+        self._banner.grid_remove()
+
+        # Row 5: the model parameter form host (scrollable content per model).
         self._form_host = ttk.Frame(right)
-        self._form_host.grid(row=4, column=0, sticky='nsew')
+        self._form_host.grid(row=5, column=0, sticky='nsew')
         self._form_host.columnconfigure(0, weight=1)
         self._form_host.rowconfigure(0, weight=1)
 
@@ -367,6 +621,12 @@ class VoicingsPage(ttk.Frame):
 
     def _on_load_source(self, params: dict) -> None:
         if self._current_name is None:
+            return
+        if not messagebox.askyesno(
+            'Load configuration',
+            'Loading a configuration replaces all parameters of this voicing. Continue?',
+            parent=self,
+        ):
             return
         import copy
         data = copy.deepcopy(params)
@@ -436,6 +696,8 @@ class VoicingsPage(ttk.Frame):
         self._current_name = None
         self._current_label = None
         self._collect = None
+        self._reset_fields()
+        self._hide_banner()
         self._name_var.set('')
         self._model_var.set('')
         for child in self._form_host.winfo_children():
@@ -453,10 +715,69 @@ class VoicingsPage(ttk.Frame):
         self._load_button.configure(state=state)
         self._model_combo.configure(state='readonly' if enabled else 'disabled')
 
+    # -- Inline validation plumbing -----------------------------------------
+
+    def _reset_fields(self) -> None:
+        """Forget the previous form's registered controls (they were destroyed)."""
+        self._field_widgets = {}
+        self._field_tooltips = {}
+        self._field_base_tips = {}
+
+    def _register_field(self, field_id: str, widget: tk.Widget, tip_text: str) -> None:
+        """Track a validatable control: tooltip it, and re-mark it live as it's typed."""
+        self._field_base_tips[field_id] = tip_text
+        self._field_tooltips[field_id] = add_tooltip(widget, tip_text)
+        self._field_widgets[field_id] = widget
+        widget.bind('<KeyRelease>',
+                    lambda _e, fid=field_id: self._live_mark(fid), add='+')
+
+    def _apply_field_mark(self, field_id: str, message: Optional[str]) -> None:
+        """Red-mark (or clear) one control and fold ``message`` into its tooltip."""
+        widget = self._field_widgets.get(field_id)
+        if widget is None:
+            return
+        mark_field(widget, message is not None)
+        tooltip = self._field_tooltips.get(field_id)
+        if tooltip is not None:
+            base = self._field_base_tips.get(field_id, '')
+            tooltip.set_text(f"{base}\n\n⚠ {message}" if message else base)
+
+    def _live_mark(self, field_id: str) -> None:
+        """Lightweight per-keystroke re-mark of a single field (no vm/banner touch)."""
+        if self._collect is None:
+            return
+        errors = field_errors(self._collect())
+        self._apply_field_mark(field_id, errors.get(field_id))
+
+    def _refresh_validation(self) -> None:
+        """Re-mark every field from :func:`field_errors` and refresh the banner."""
+        if self._current_name is None or self._collect is None:
+            self._hide_banner()
+            return
+        errors = field_errors(self._collect())
+        for field_id in self._field_widgets:
+            self._apply_field_mark(field_id, errors.get(field_id))
+        message = self._vm.validate_voicing(self._current_name)
+        if message:
+            self._show_banner(message)
+        else:
+            self._hide_banner()
+
+    def _show_banner(self, message: str) -> None:
+        self._banner.configure(text=message)
+        self._banner.grid()
+
+    def _hide_banner(self) -> None:
+        self._banner.grid_remove()
+
     # -- Scrollable form scaffolding ----------------------------------------
 
     def _new_scroll_area(self) -> ttk.Frame:
-        """Clear the form host and return a fresh scrollable inner frame."""
+        """Clear the form host and return a fresh scrollable inner frame.
+
+        The inner frame carries a right padding so its controls never sit
+        underneath the vertical scrollbar.
+        """
         for child in self._form_host.winfo_children():
             child.destroy()
 
@@ -466,7 +787,8 @@ class VoicingsPage(ttk.Frame):
         scrollbar.grid(row=0, column=1, sticky='ns')
         canvas.configure(yscrollcommand=scrollbar.set)
 
-        inner = ttk.Frame(canvas)
+        # padding right = 16 keeps content clear of the scrollbar gutter.
+        inner = ttk.Frame(canvas, padding=(2, 2, 16, 2))
         window = canvas.create_window((0, 0), window=inner, anchor='nw')
 
         def _on_configure(event):
@@ -494,6 +816,7 @@ class VoicingsPage(ttk.Frame):
         return inner
 
     def _build_form(self, data: dict) -> None:
+        self._reset_fields()
         self._loading_form = True
         try:
             model = data.get('model', 'piano')
@@ -505,6 +828,8 @@ class VoicingsPage(ttk.Frame):
                 self._build_piano_form(data)
         finally:
             self._loading_form = False
+        # Reflect the freshly-built form's current error state immediately.
+        self._refresh_validation()
 
     def _commit_form(self, event=None) -> None:
         if self._loading_form or self._current_name is None or self._collect is None:
@@ -514,12 +839,34 @@ class VoicingsPage(ttk.Frame):
             data['label'] = self._current_label
         self._vm.set_voicing_data(self._current_name, data)
         self._dirty = True
+        self._refresh_validation()
 
     def _bind_commit(self, widget, *, is_entry=False) -> None:
         """Wire a widget so leaving/changing it commits the form."""
         if is_entry:
             widget.bind('<FocusOut>', self._commit_form)
             widget.bind('<Return>', self._commit_form)
+
+    # -- Shared weight-grid helper ------------------------------------------
+
+    def _build_weight_grid(self, frame: ttk.Frame,
+                           entries: List) -> None:
+        """Lay a list of weight spinboxes out in a 2-column (label, spin) grid.
+
+        Args:
+            frame: The parent frame; columns 0/2 hold labels, 1/3 hold spins.
+            entries: ``(field_id, label, var, lo, hi, increment, tip)`` tuples.
+        """
+        for idx, (field_id, label, var, lo, hi, inc, tip) in enumerate(entries):
+            r, c = divmod(idx, 2)
+            c *= 2
+            ttk.Label(frame, text=label).grid(row=r, column=c, sticky='w',
+                                              padx=(0, 6), pady=2)
+            spin = ttk.Spinbox(frame, from_=lo, to=hi, increment=inc,
+                               textvariable=var, width=8, command=self._commit_form)
+            spin.grid(row=r, column=c + 1, sticky='w', padx=(0, 18), pady=2)
+            self._bind_commit(spin, is_entry=True)
+            self._register_field(field_id, spin, tip)
 
     # -- Fretboard form ------------------------------------------------------
 
@@ -529,51 +876,68 @@ class VoicingsPage(ttk.Frame):
         weights.update(data.get('weights', {}) or {})
         row = 0
 
+        # Strings.
         ttk.Label(inner, text='Strings:').grid(row=row, column=0, sticky='w', pady=2)
         strings_var = tk.StringVar(value=_tuning_to_text(data.get('tuning', [])))
         strings_entry = ttk.Entry(inner, textvariable=strings_var)
         strings_entry.grid(row=row, column=1, sticky='ew', pady=2)
         self._bind_commit(strings_entry, is_entry=True)
+        self._register_field('tuning', strings_entry, TOOLTIPS['tuning'])
         row += 1
         ttk.Label(inner, text='(note names or MIDI numbers, e.g. E2 A2 D3 G3 B3 E4)',
                   foreground='#666666').grid(row=row, column=1, sticky='w')
         row += 1
 
+        # Physical parameters, two (label, spinbox) pairs per row.
+        phys_frame = ttk.Frame(inner)
+        phys_frame.grid(row=row, column=0, columnspan=2, sticky='ew', pady=(6, 0))
+        row += 1
         spin_vars: Dict[str, tk.StringVar] = {}
-        for key, text, lo, hi, default in (
+        phys_params = (
             ('max_fret', 'Max fret:', 5, 24, 12),
             ('fingers', 'Fingers:', 1, 5, 4),
             ('max_span', 'Max span:', 1, 8, 4),
             ('relaxed_span', 'Relaxed span:', 1, 10, 5),
-        ):
-            ttk.Label(inner, text=text).grid(row=row, column=0, sticky='w', pady=2)
+        )
+        for idx, (key, text, lo, hi, default) in enumerate(phys_params):
+            r, c = divmod(idx, 2)
+            c *= 2
+            ttk.Label(phys_frame, text=text).grid(row=r, column=c, sticky='w',
+                                                  padx=(0, 6), pady=2)
             var = tk.StringVar(value=str(data.get(key, default)))
-            spin = ttk.Spinbox(inner, from_=lo, to=hi, textvariable=var, width=8,
+            spin = ttk.Spinbox(phys_frame, from_=lo, to=hi, textvariable=var, width=8,
                                command=self._commit_form)
-            spin.grid(row=row, column=1, sticky='w', pady=2)
+            spin.grid(row=r, column=c + 1, sticky='w', padx=(0, 18), pady=2)
             self._bind_commit(spin, is_entry=True)
+            self._register_field(key, spin, TOOLTIPS[key])
             spin_vars[key] = var
-            row += 1
 
         barre_var = tk.BooleanVar(value=bool(data.get('allow_barres', True)))
-        ttk.Checkbutton(inner, text='Allow barre chords', variable=barre_var,
-                        command=self._commit_form).grid(
-            row=row, column=1, sticky='w', pady=2)
+        barre_check = ttk.Checkbutton(inner, text='Allow barre chords', variable=barre_var,
+                                      command=self._commit_form)
+        barre_check.grid(row=row, column=0, columnspan=2, sticky='w', pady=(4, 2))
+        add_tooltip(barre_check, TOOLTIPS['allow_barres'])
         row += 1
 
-        weights_frame = ttk.LabelFrame(inner, text='Weights', padding=6)
+        # Weights.
+        weights_frame = ttk.LabelFrame(inner, text='Weights', padding=8)
         weights_frame.grid(row=row, column=0, columnspan=2, sticky='ew', pady=(8, 0))
-        weights_frame.columnconfigure(1, weight=1)
+        row += 1
+        ttk.Label(weights_frame, text=_WEIGHTS_BLURB, foreground='#666666',
+                  wraplength=440, justify=tk.LEFT).grid(
+            row=0, column=0, columnspan=4, sticky='w', pady=(0, 6))
+        grid_frame = ttk.Frame(weights_frame)
+        grid_frame.grid(row=1, column=0, columnspan=4, sticky='ew')
         weight_vars: Dict[str, tk.StringVar] = {}
-        for wrow, key in enumerate(FRETBOARD_DEFAULT_WEIGHTS):
-            ttk.Label(weights_frame, text=FRETBOARD_WEIGHT_LABELS.get(key, key)).grid(
-                row=wrow, column=0, sticky='w', pady=1)
+        weight_entries = []
+        for key in FRETBOARD_DEFAULT_WEIGHTS:
             var = tk.StringVar(value=str(weights.get(key)))
-            spin = ttk.Spinbox(weights_frame, from_=0.0, to=100.0, increment=0.1,
-                               textvariable=var, width=8, command=self._commit_form)
-            spin.grid(row=wrow, column=1, sticky='w', pady=1)
-            self._bind_commit(spin, is_entry=True)
             weight_vars[key] = var
+            weight_entries.append((
+                f'weight:{key}', FRETBOARD_WEIGHT_LABELS.get(key, key), var,
+                0.0, 100.0, 0.1, TOOLTIPS.get(f'weight:{key}', key),
+            ))
+        self._build_weight_grid(grid_frame, weight_entries)
 
         def collect() -> dict:
             out: dict = {'model': 'fretboard'}
@@ -593,39 +957,59 @@ class VoicingsPage(ttk.Frame):
         voices = list(data.get('voices', []) or [])
         row = 0
 
-        voices_frame = ttk.LabelFrame(inner, text='Voices', padding=6)
+        # Voices: an editable table with a header row and one row of aligned
+        # Entry cells per voice. All columns are fixed-width and left-aligned
+        # (no expanding middle column), so 'High' and the remove button stay
+        # snug against 'Name' instead of being shoved to the right edge.
+        voices_frame = ttk.LabelFrame(inner, text='Voices', padding=8)
         voices_frame.grid(row=row, column=0, columnspan=2, sticky='ew')
-        voices_frame.columnconfigure(1, weight=1)
         row += 1
 
-        ttk.Label(voices_frame, text='Name').grid(row=0, column=0, sticky='w')
-        ttk.Label(voices_frame, text='Low').grid(row=0, column=1, sticky='w')
-        ttk.Label(voices_frame, text='High').grid(row=0, column=2, sticky='w')
+        name_w, range_w = 16, 8
+        ttk.Label(voices_frame, text='Name', font=('TkDefaultFont', 9, 'bold')).grid(
+            row=0, column=0, sticky='w', padx=(0, 6))
+        ttk.Label(voices_frame, text='Low', font=('TkDefaultFont', 9, 'bold')).grid(
+            row=0, column=1, sticky='w', padx=(0, 6))
+        ttk.Label(voices_frame, text='High', font=('TkDefaultFont', 9, 'bold')).grid(
+            row=0, column=2, sticky='w', padx=(0, 6))
+        ttk.Separator(voices_frame, orient='horizontal').grid(
+            row=1, column=0, columnspan=4, sticky='ew', pady=(2, 4))
 
         voice_rows: List[Dict[str, tk.StringVar]] = []
         for i, voice in enumerate(voices):
             vrange = voice.get('range', [None, None]) if isinstance(voice, dict) else [None, None]
             low = vrange[0] if len(vrange) > 0 else None
             high = vrange[1] if len(vrange) > 1 else None
-            name_var = tk.StringVar(value=str(voice.get('name', '')) if isinstance(voice, dict) else '')
+            name_var = tk.StringVar(
+                value=str(voice.get('name', '')) if isinstance(voice, dict) else '')
             low_var = tk.StringVar(value=_pitch_to_text(low) if low is not None else '')
             high_var = tk.StringVar(value=_pitch_to_text(high) if high is not None else '')
-            name_e = ttk.Entry(voices_frame, textvariable=name_var, width=12)
-            name_e.grid(row=i + 1, column=0, sticky='w', pady=1)
-            low_e = ttk.Entry(voices_frame, textvariable=low_var, width=8)
-            low_e.grid(row=i + 1, column=1, sticky='w', pady=1, padx=2)
-            high_e = ttk.Entry(voices_frame, textvariable=high_var, width=8)
-            high_e.grid(row=i + 1, column=2, sticky='w', pady=1, padx=2)
+            grid_row = i + 2
+
+            name_e = ttk.Entry(voices_frame, textvariable=name_var, width=name_w)
+            name_e.grid(row=grid_row, column=0, sticky='w', padx=(0, 6), pady=1)
+            low_e = ttk.Entry(voices_frame, textvariable=low_var, width=range_w)
+            low_e.grid(row=grid_row, column=1, sticky='w', padx=(0, 6), pady=1)
+            high_e = ttk.Entry(voices_frame, textvariable=high_var, width=range_w)
+            high_e.grid(row=grid_row, column=2, sticky='w', padx=(0, 6), pady=1)
+
             for entry in (name_e, low_e, high_e):
                 self._bind_commit(entry, is_entry=True)
-            ttk.Button(voices_frame, text='✕', width=3,
-                       command=lambda idx=i: self._remove_voice(idx)).grid(
-                row=i + 1, column=3, padx=2)
+            add_tooltip(name_e, TOOLTIPS['voice_name'])
+            self._register_field(f'voice:{i}:low', low_e, TOOLTIPS['voice_low'])
+            self._register_field(f'voice:{i}:high', high_e, TOOLTIPS['voice_high'])
+
+            remove_btn = ttk.Button(voices_frame, text='✕', width=3,
+                                    command=lambda idx=i: self._remove_voice(idx))
+            remove_btn.grid(row=grid_row, column=3, sticky='w', padx=(2, 0), pady=1)
+            add_tooltip(remove_btn, TOOLTIPS['remove_voice'])
             voice_rows.append({'name': name_var, 'low': low_var, 'high': high_var})
 
-        ttk.Button(voices_frame, text='Add voice', command=self._add_voice).grid(
-            row=len(voices) + 1, column=0, sticky='w', pady=(4, 0))
+        add_btn = ttk.Button(voices_frame, text='Add voice', command=self._add_voice)
+        add_btn.grid(row=len(voices) + 2, column=0, columnspan=2, sticky='w', pady=(6, 0))
+        add_tooltip(add_btn, TOOLTIPS['add_voice'])
 
+        # Max spacing.
         ttk.Label(inner, text='Max spacing:').grid(row=row, column=0, sticky='w', pady=(8, 2))
         spacing_val = data.get('max_spacing')
         spacing_text = (
@@ -636,14 +1020,17 @@ class VoicingsPage(ttk.Frame):
         spacing_entry = ttk.Entry(inner, textvariable=spacing_var)
         spacing_entry.grid(row=row, column=1, sticky='ew', pady=(8, 2))
         self._bind_commit(spacing_entry, is_entry=True)
+        self._register_field('max_spacing', spacing_entry, TOOLTIPS['max_spacing'])
         row += 1
         ttk.Label(inner, text=f'(comma-separated, {max(len(voices) - 1, 0)} values expected)',
                   foreground='#666666').grid(row=row, column=1, sticky='w')
         row += 1
 
         unison_var = tk.BooleanVar(value=bool(data.get('allow_unisons', True)))
-        ttk.Checkbutton(inner, text='Allow unisons', variable=unison_var,
-                        command=self._commit_form).grid(row=row, column=1, sticky='w', pady=2)
+        unison_check = ttk.Checkbutton(inner, text='Allow unisons', variable=unison_var,
+                                       command=self._commit_form)
+        unison_check.grid(row=row, column=0, columnspan=2, sticky='w', pady=2)
+        add_tooltip(unison_check, TOOLTIPS['allow_unisons'])
         row += 1
 
         weights = data.get('weights', {}) or {}
@@ -651,52 +1038,74 @@ class VoicingsPage(ttk.Frame):
         movement_var = tk.StringVar()
         nested_vars: Dict[str, Dict[str, tk.StringVar]] = {}
 
-        weights_frame = ttk.LabelFrame(inner, text='Weights', padding=6)
+        # Flat weights (plus the special movement entry) in a 2-column grid.
+        weights_frame = ttk.LabelFrame(inner, text='Weights', padding=8)
         weights_frame.grid(row=row, column=0, columnspan=2, sticky='ew', pady=(8, 0))
-        weights_frame.columnconfigure(1, weight=1)
-        wrow = 0
-        for key, default in ENSEMBLE_DEFAULT_WEIGHTS.items():
-            if key == 'movement':
-                ttk.Label(weights_frame, text=ENSEMBLE_WEIGHT_LABELS[key]).grid(
-                    row=wrow, column=0, sticky='w', pady=1)
-                mv = weights.get('movement', default)
-                movement_var.set(
-                    ', '.join(str(x) for x in mv) if isinstance(mv, (list, tuple)) else str(mv)
-                )
-                mv_entry = ttk.Entry(weights_frame, textvariable=movement_var, width=14)
-                mv_entry.grid(row=wrow, column=1, sticky='w', pady=1)
-                self._bind_commit(mv_entry, is_entry=True)
-                wrow += 1
-            elif key in _NESTED_WEIGHT_KEYS:
-                continue
-            else:
-                ttk.Label(weights_frame, text=ENSEMBLE_WEIGHT_LABELS.get(key, key)).grid(
-                    row=wrow, column=0, sticky='w', pady=1)
-                var = tk.StringVar(value=str(weights.get(key, default)))
-                spin = ttk.Spinbox(weights_frame, from_=-100.0, to=100.0, increment=0.1,
-                                   textvariable=var, width=8, command=self._commit_form)
-                spin.grid(row=wrow, column=1, sticky='w', pady=1)
-                self._bind_commit(spin, is_entry=True)
-                weight_vars[key] = var
-                wrow += 1
+        row += 1
+        ttk.Label(weights_frame, text=_WEIGHTS_BLURB, foreground='#666666',
+                  wraplength=440, justify=tk.LEFT).grid(
+            row=0, column=0, columnspan=4, sticky='w', pady=(0, 6))
 
+        grid_frame = ttk.Frame(weights_frame)
+        grid_frame.grid(row=1, column=0, columnspan=4, sticky='ew')
+
+        mv = weights.get('movement', ENSEMBLE_DEFAULT_WEIGHTS['movement'])
+        movement_var.set(
+            ', '.join(str(x) for x in mv) if isinstance(mv, (list, tuple)) else str(mv))
+        # Movement is a free-form entry (scalar or list), placed first.
+        ttk.Label(grid_frame, text=ENSEMBLE_WEIGHT_LABELS['movement']).grid(
+            row=0, column=0, sticky='w', padx=(0, 6), pady=2)
+        mv_entry = ttk.Entry(grid_frame, textvariable=movement_var, width=10)
+        mv_entry.grid(row=0, column=1, sticky='w', padx=(0, 18), pady=2)
+        self._bind_commit(mv_entry, is_entry=True)
+        self._register_field('movement', mv_entry, TOOLTIPS['weight:movement'])
+
+        flat_entries = []
+        idx = 1  # movement occupies grid slot 0
+        for key, default in ENSEMBLE_DEFAULT_WEIGHTS.items():
+            if key == 'movement' or key in _NESTED_WEIGHT_KEYS:
+                continue
+            var = tk.StringVar(value=str(weights.get(key, default)))
+            weight_vars[key] = var
+            flat_entries.append((idx, key, var))
+            idx += 1
+        for slot, key, var in flat_entries:
+            r, c = divmod(slot, 2)
+            c *= 2
+            ttk.Label(grid_frame, text=ENSEMBLE_WEIGHT_LABELS.get(key, key)).grid(
+                row=r, column=c, sticky='w', padx=(0, 6), pady=2)
+            spin = ttk.Spinbox(grid_frame, from_=-100.0, to=100.0, increment=0.1,
+                               textvariable=var, width=8, command=self._commit_form)
+            spin.grid(row=r, column=c + 1, sticky='w', padx=(0, 18), pady=2)
+            self._bind_commit(spin, is_entry=True)
+            self._register_field(f'weight:{key}', spin, TOOLTIPS.get(f'weight:{key}', key))
+
+        # Nested-weight groups: three LabelFrames laid out to use horizontal
+        # space (doubling + omit side by side, inversion below), each rendering
+        # its role rows in two columns.
+        nested_container = ttk.Frame(inner)
+        nested_container.grid(row=row, column=0, columnspan=2, sticky='ew', pady=(8, 0))
+        nested_container.columnconfigure(0, weight=1, uniform='nested')
+        nested_container.columnconfigure(1, weight=1, uniform='nested')
+        row += 1
+        nested_positions = {'doubling': (0, 0), 'omit': (0, 1), 'inversion': (1, 0)}
         for nested_key in _NESTED_WEIGHT_KEYS:
             sub_default = ENSEMBLE_DEFAULT_WEIGHTS[nested_key]
             sub_current = weights.get(nested_key, {}) or {}
-            sub_frame = ttk.LabelFrame(inner, text=NESTED_WEIGHT_TITLES[nested_key], padding=6)
-            sub_frame.grid(row=row + 1 + list(_NESTED_WEIGHT_KEYS).index(nested_key),
-                           column=0, columnspan=2, sticky='ew', pady=(8, 0))
-            sub_frame.columnconfigure(1, weight=1)
+            gr, gc = nested_positions[nested_key]
+            sub_frame = ttk.LabelFrame(nested_container, text=NESTED_WEIGHT_TITLES[nested_key],
+                                       padding=6)
+            sub_frame.grid(row=gr, column=gc, sticky='new', padx=(0, 8), pady=(0, 8))
             nested_vars[nested_key] = {}
-            for srow, (subkey, subdefault) in enumerate(sub_default.items()):
-                ttk.Label(sub_frame, text=ROLE_LABELS.get(subkey, subkey)).grid(
-                    row=srow, column=0, sticky='w', pady=1)
+            role_entries = []
+            for subkey, subdefault in sub_default.items():
                 var = tk.StringVar(value=str(sub_current.get(subkey, subdefault)))
-                spin = ttk.Spinbox(sub_frame, from_=-100.0, to=100.0, increment=0.1,
-                                   textvariable=var, width=8, command=self._commit_form)
-                spin.grid(row=srow, column=1, sticky='w', pady=1)
-                self._bind_commit(spin, is_entry=True)
                 nested_vars[nested_key][subkey] = var
+                role_entries.append((
+                    f'nested:{nested_key}:{subkey}', ROLE_LABELS.get(subkey, subkey),
+                    var, -100.0, 100.0, 0.1, _nested_tooltip(nested_key, subkey),
+                ))
+            self._build_weight_grid(sub_frame, role_entries)
 
         def collect() -> dict:
             out: dict = {'model': 'ensemble'}
@@ -757,33 +1166,3 @@ class VoicingsPage(ttk.Frame):
             foreground='#666666', wraplength=360, justify=tk.LEFT,
         ).grid(row=0, column=0, columnspan=2, sticky='nw')
         self._collect = lambda: {'model': 'piano'}
-
-
-def _parse_int_list_or_raw(text: str):
-    """Parse a comma-separated int list; return a list or the raw string."""
-    tokens = [t.strip() for t in text.split(',') if t.strip()]
-    parsed = []
-    for token in tokens:
-        try:
-            parsed.append(int(token))
-        except ValueError:
-            return text
-    return parsed
-
-
-def _parse_scalar_or_list(text: str):
-    """Parse ``movement`` as a single float or a comma-separated list of floats."""
-    text = text.strip()
-    if ',' in text:
-        tokens = [t.strip() for t in text.split(',') if t.strip()]
-        parsed = []
-        for token in tokens:
-            try:
-                parsed.append(float(token))
-            except ValueError:
-                return text
-        return parsed
-    try:
-        return float(text)
-    except ValueError:
-        return text

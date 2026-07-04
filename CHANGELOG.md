@@ -93,3 +93,13 @@ moved to CHANGELOG_HISTORY.md and this file is reset.
   song at once. This keeps the right hand in a stable central register instead
   of drifting downward over long progressions and looped sections -- a repeated
   chord is now voiced the same way every time through.
+
+- The Voicings settings page is easier to use correctly: every control has a
+  hover tooltip, invalid fields turn red as soon as you type them instead of
+  only on Save, and cross-field problems (a relaxed span smaller than the
+  normal span, a voice's low note above its high note) show up as a message
+  at the top of the editor. Load config now asks for confirmation, since it
+  replaces every parameter of the voicing you're editing. The ensemble
+  voices editor is a proper table (Name / Low / High columns, Add voice,
+  per-row remove), the parameter forms use a tidier multi-column layout, and
+  each Weights section explains what raising a penalty or bonus does.

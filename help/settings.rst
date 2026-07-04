@@ -71,13 +71,16 @@ four ensemble presets, the default piano -- aren't listed here since
 they're not yours to edit, but they are available as starting points (see
 below).
 
-The right side edits whichever voicing is selected:
+The right side edits whichever voicing is selected. Every control has a
+hover tooltip explaining what it does, so if a field's purpose isn't
+obvious, point at it before consulting :doc:`fretted` or :doc:`ensembles`.
 
 **Load config**
    Copies every parameter from an existing voicing -- any built-in preset
    or any other custom voicing -- into the one you're editing. This is the
    normal way to start a new voicing: load the closest preset, then change
-   what's different.
+   what's different. Since it overwrites everything currently in the
+   editor, it asks you to confirm first.
 
 **Name**
    The voicing's name. Editing it renames the voicing.
@@ -88,18 +91,29 @@ The right side edits whichever voicing is selected:
 
 **Parameters**
    For a fretboard voicing: strings, frets, fingers, spans, and barres,
-   plus all eleven weights (see :doc:`fretted`). For an ensemble voicing:
-   the voices table (each voice's name and range), spacing, unisons, and
-   all the weights, including the doubling, omission, and inversion groups
-   (see :doc:`ensembles`). Piano voicings have no parameters yet.
+   plus all eleven weights (see :doc:`fretted`), laid out in a compact
+   multi-column form. For an ensemble voicing: the voices table -- a row
+   per voice with Name, Low, and High columns, an **Add voice** button,
+   and a remove button on each row -- plus spacing, unisons, and all the
+   weights, including the doubling, omission, and inversion groups (see
+   :doc:`ensembles`). Piano voicings have no parameters yet. Each Weights
+   section opens with a one-line reminder of how weights work: higher
+   penalties push the picker away from a trait, higher bonuses pull it
+   toward one, and the defaults suit most music, so leave them alone
+   unless you have a specific reason not to.
 
-Save validates every voicing on the page, not just the one you're
-currently editing, and if something's wrong it names exactly which voicing
-and which field. Renaming or deleting the voicing you're currently playing
-with is handled: a rename follows the selection so playback keeps using
-it, and a delete falls back to piano. Once you save, any new or changed
-custom voicing shows up in :menuselection:`Playback --> Voicing`
-immediately -- no restart needed.
+Mistakes are flagged as you type, not just when you click Save: an
+invalid field turns red immediately, and a problem that spans two fields
+-- a relaxed span smaller than the normal span, a voice whose low note is
+above its high note -- shows up as a message at the top of the editor.
+Save stays blocked until every field on the page is valid. On top of
+that, Save also validates every *other* voicing on the page, not just the
+one you're currently editing, and if something's wrong there it names
+exactly which voicing and which field. Renaming or deleting the voicing
+you're currently playing with is handled: a rename follows the selection
+so playback keeps using it, and a delete falls back to piano. Once you
+save, any new or changed custom voicing shows up in
+:menuselection:`Playback --> Voicing` immediately -- no restart needed.
 
 Worked Example: A Seven-String Guitar
 --------------------------------------
