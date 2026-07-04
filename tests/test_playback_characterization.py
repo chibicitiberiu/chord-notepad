@@ -44,9 +44,9 @@ from typing import List, Optional
 
 import pytest
 
-from services.event_producer import EventProducer
+from services.song_renderer import SongRenderer
+from services.event_compiler import compile_events
 from services.song_parser_service import SongParserService
-from audio.event_buffer import EventBuffer
 from audio.chord_picker import ChordNotePicker
 from audio.guitar_chord_picker import GuitarChordPicker
 from models.playback_event_internal import MidiEvent, MidiEventType
@@ -71,10 +71,10 @@ def produce_all_events(
 ) -> List[MidiEvent]:
     """Parse ``text`` and return the full MidiEvent stream (incl. END_OF_SONG).
 
-    Drives ``EventProducer._produce_events`` directly on the current thread with
-    a large buffer so pushes never block. This is the single integration seam
-    the refactor will re-point at the new pre-rendered pipeline; everything else
-    in this file (serialization, golden comparison) stays the same.
+    Renders the song synchronously via ``SongRenderer`` and flattens it with
+    ``compile_events`` -- no threads, no buffer. This is the single integration
+    seam the refactor re-pointed at the new pre-rendered pipeline; everything
+    else in this file (serialization, golden comparison) stays the same.
     """
     parser = SongParserService()
     lines = parser.detect_chords_in_text(text)
@@ -82,32 +82,17 @@ def produce_all_events(
     if picker is None:
         picker = ChordNotePicker()
 
-    # Capacity far above any corpus song so push_event never blocks; there is no
-    # consumer draining concurrently while production runs.
-    buffer = EventBuffer(capacity=100_000)
-
-    producer = EventProducer(
+    picker.reset()
+    rendered = SongRenderer().render(
         lines=lines,
         initial_key=initial_key,
         initial_bpm=initial_bpm,
         initial_time_sig=initial_time_sig,
         note_picker=picker,
-        event_buffer=buffer,
-        application=None,
-        player=None,
-        on_event_callback=None,
         start_line_index=start_line_index,
         start_item_index=start_item_index,
     )
-
-    # Synchronous, single-threaded production. __init__ already set
-    # _current_bpm / _current_time_position, so we can call the loop directly.
-    producer._produce_events()
-
-    events: List[MidiEvent] = []
-    while buffer.size() > 0:
-        events.append(buffer.pop_event(timeout=0.0))
-    return events
+    return compile_events(rendered, has_callback=False)
 
 
 # ---------------------------------------------------------------------------

@@ -42,6 +42,8 @@ src/
 ├── viewmodels/          # Business logic (MainWindowViewModel, TextEditorViewModel)
 ├── services/            # Cross-cutting concerns
 │   ├── playback_service.py    # Audio orchestration
+│   ├── song_renderer.py       # Pre-render song → RenderedSong (voicing + timing)
+│   ├── event_compiler.py      # RenderedSong → MidiEvent stream
 │   ├── song_parser_service.py # Parse songs, detect chords
 │   ├── config_service.py      # Settings persistence
 │   └── file_service.py        # File I/O
@@ -49,7 +51,7 @@ src/
 │   ├── player.py              # NotePlayer (FluidSynth wrapper)
 │   ├── chord_picker.py        # Piano voicing
 │   ├── guitar_chord_picker.py # Guitar voicing
-│   └── event_buffer.py        # Producer-consumer queue
+│   └── event_buffer.py        # Bounded event queue feeding the player
 ├── chord/               # Chord detection
 │   ├── detector.py            # Regex-based detection
 │   ├── helper.py              # pychord/music21 validation
@@ -70,8 +72,10 @@ ViewModels inherit from `Observable`. Views subscribe: `viewmodel.observe('prope
 - Playback thread: FluidSynth with precise timing
 - Cross-thread: Queue-based via `Application._event_queue`
 
-### Producer-Consumer (Audio)
-`EventProducer` → `EventBuffer` → `NotePlayer` (FluidSynth)
+### Pre-Render Pipeline (Audio)
+`SongRenderer` (whole-song → `RenderedSong`) → `compile_events` (→ `MidiEvent` list)
+→ `EventBuffer` → `NotePlayer` (FluidSynth). A short-lived RenderThread renders and
+compiles, fills the buffer, then starts the player.
 
 ## Code Conventions
 

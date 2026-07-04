@@ -254,12 +254,14 @@ class TestSongPlayback:
         result = service.start_song_playback(lines, initial_key="C")
 
         assert result is True
-        # Check that event buffer was set on player (new producer-consumer architecture)
+        # Rendering + wiring now happens on the RenderThread; wait for it.
+        if service._render_thread is not None:
+            service._render_thread.join(timeout=2.0)
+        # Check that event buffer was set on player (pre-render architecture)
         mock_player.set_event_buffer.assert_called_once()
         mock_player.start_playback.assert_called_once()
-        # Verify event buffer and producer were created
+        # Verify event buffer was created and filled
         assert service._event_buffer is not None
-        assert service._event_producer is not None
 
     def test_start_song_playback_no_chords(self, initialized_service):
         """Test that playback returns False when no chords present."""
@@ -291,21 +293,21 @@ class TestDirectiveHandling:
     """Tests for directive processing during playback."""
 
     def test_bpm_directive(self, initialized_service, song_parser):
-        """Test BPM directive changes tempo."""
+        """Test BPM directive changes tempo (baked into event metadata)."""
         service, mock_player = initialized_service
 
         # Parse line with BPM directive and chord
         text = "{bpm: 140} C"
         lines = song_parser.detect_chords_in_text(text)
 
-        # Start playback - this creates the event producer
         service.start_song_playback(lines, initial_key="C")
-
-        # Give producer time to process directive
         time.sleep(0.1)
 
-        # Verify BPM was changed on the player
-        mock_player.set_bpm.assert_called_with(140)
+        events = collect_events_from_buffer(service)
+        note_on_events = [e for e in events if e.event_type == MidiEventType.NOTE_ON]
+        assert len(note_on_events) == 1
+        # BPM is now pre-rendered into the event metadata, not set on the player.
+        assert note_on_events[0].metadata['bpm'] == 140
 
     def test_key_directive_changes_resolution(self, initialized_service, song_parser):
         """Test KEY directive changes roman numeral resolution."""
@@ -349,22 +351,35 @@ class TestDirectiveHandling:
         assert abs(duration_seconds - expected_duration) < 0.1
 
 
+def _note_on_bpms(service):
+    """Collect the per-chord BPM values baked into the NOTE_ON event metadata."""
+    events = collect_events_from_buffer(service)
+    return [
+        e.metadata['bpm']
+        for e in events
+        if e.event_type == MidiEventType.NOTE_ON
+    ]
+
+
 class TestEnhancedBPMDirectives:
-    """Tests for enhanced BPM directive handling during playback."""
+    """Tests for enhanced BPM directive handling during playback.
+
+    BPM is pre-rendered into each event's metadata rather than pushed to the
+    player mid-walk, so these assert on the NOTE_ON metadata BPM.
+    """
 
     def test_relative_bpm_increase(self, initialized_service, song_parser):
         """Test relative BPM increase during playback."""
         service, mock_player = initialized_service
 
-        # Parse line with relative BPM directive
         text = "{bpm: +20} C"
         lines = song_parser.detect_chords_in_text(text)
 
         service.start_song_playback(lines, initial_key="C")
-        time.sleep(0.1)  # Give producer time to process directives
+        time.sleep(0.1)
 
-        # Verify BPM increased from 120 to 140
-        mock_player.set_bpm.assert_called_with(140)
+        # BPM increased from 120 to 140.
+        assert _note_on_bpms(service) == [140]
 
     def test_relative_bpm_decrease(self, initialized_service, song_parser):
         """Test relative BPM decrease during playback."""
@@ -376,8 +391,8 @@ class TestEnhancedBPMDirectives:
         service.start_song_playback(lines, initial_key="C")
         time.sleep(0.1)
 
-        # Verify BPM decreased from 120 to 90
-        mock_player.set_bpm.assert_called_with(90)
+        # BPM decreased from 120 to 90.
+        assert _note_on_bpms(service) == [90]
 
     def test_percentage_bpm_half_speed(self, initialized_service, song_parser):
         """Test percentage BPM (50% = half speed)."""
@@ -389,8 +404,8 @@ class TestEnhancedBPMDirectives:
         service.start_song_playback(lines, initial_key="C")
         time.sleep(0.1)
 
-        # Verify BPM set to 50% (60)
-        mock_player.set_bpm.assert_called_with(60)
+        # BPM set to 50% (60).
+        assert _note_on_bpms(service) == [60]
 
     def test_percentage_bpm_faster(self, initialized_service, song_parser):
         """Test percentage BPM (150% = 1.5x speed)."""
@@ -402,8 +417,8 @@ class TestEnhancedBPMDirectives:
         service.start_song_playback(lines, initial_key="C")
         time.sleep(0.1)
 
-        # Verify BPM set to 150% (180)
-        mock_player.set_bpm.assert_called_with(180)
+        # BPM set to 150% (180).
+        assert _note_on_bpms(service) == [180]
 
     def test_multiplier_bpm_half_speed(self, initialized_service, song_parser):
         """Test multiplier BPM (0.5x = half speed)."""
@@ -415,8 +430,8 @@ class TestEnhancedBPMDirectives:
         service.start_song_playback(lines, initial_key="C")
         time.sleep(0.1)
 
-        # Verify BPM multiplied by 0.5 (60)
-        mock_player.set_bpm.assert_called_with(60)
+        # BPM multiplied by 0.5 (60).
+        assert _note_on_bpms(service) == [60]
 
     def test_multiplier_bpm_double_speed(self, initialized_service, song_parser):
         """Test multiplier BPM (2x = double speed)."""
@@ -428,24 +443,21 @@ class TestEnhancedBPMDirectives:
         service.start_song_playback(lines, initial_key="C")
         time.sleep(0.1)
 
-        # Verify BPM multiplied by 2 (240)
-        mock_player.set_bpm.assert_called_with(240)
+        # BPM multiplied by 2 (240).
+        assert _note_on_bpms(service) == [240]
 
     def test_reset_bpm_after_changes(self, initialized_service, song_parser):
         """Test reset BPM returns to initial value."""
         service, mock_player = initialized_service
 
-        # Parse multi-line text with BPM change and reset
         text = "{bpm: 180} C\n{bpm: reset} G"
         lines = song_parser.detect_chords_in_text(text)
 
         service.start_song_playback(lines, initial_key="C")
         time.sleep(0.2)
 
-        # Verify BPM was set to 180, then reset to 120
-        calls = mock_player.set_bpm.call_args_list
-        assert any(call == call(180) for call in calls), "Should set BPM to 180"
-        assert any(call == call(120) for call in calls), "Should reset BPM to 120"
+        # BPM set to 180, then reset to 120.
+        assert _note_on_bpms(service) == [180, 120]
 
     def test_chained_bpm_modifiers(self, initialized_service, song_parser):
         """Test multiple BPM modifiers applied in sequence."""
@@ -458,10 +470,8 @@ class TestEnhancedBPMDirectives:
         service.start_song_playback(lines, initial_key="C")
         time.sleep(0.2)
 
-        # Verify BPM progression
-        calls = mock_player.set_bpm.call_args_list
-        assert any(call == call(240) for call in calls), "Should set BPM to 240 (2x)"
-        assert any(call == call(120) for call in calls), "Should set BPM to 120 (50% of 240)"
+        # 240 (2x of 120), then 120 (50% of 240).
+        assert _note_on_bpms(service) == [240, 120]
 
 
 class TestLoopStateRestoration:
@@ -488,10 +498,11 @@ F"""
         # Should play: C, G (loop), C, G, F = 5 chords
         assert len(note_on_events) == 5, f"Should have 5 chords (C, G, C, G, F), got {len(note_on_events)}"
 
-        # Verify BPM was set to 240 (2x) and restored to 120
-        calls = mock_player.set_bpm.call_args_list
-        assert any(call == call(240) for call in calls), "Should set BPM to 240 (2x)"
-        assert any(call == call(120) for call in calls), "Should restore BPM to 120"
+        # BPM bumped to 240 (2x) inside the loop, restored to 120 on loop-back.
+        # After the loop finishes the tempo stays at 240, so the trailing F
+        # (outside the labeled section) plays at 240.
+        bpms = [e.metadata['bpm'] for e in note_on_events]
+        assert bpms == [120, 240, 120, 240, 240]
 
     def test_key_restored_on_loop_with_relative_chords(self, initialized_service, song_parser):
         """Test that key is restored when looping with relative (roman numeral) chords."""
@@ -591,10 +602,9 @@ F"""
         # Should play: C, I (loop), C, I = 4 chords
         assert len(note_on_events) >= 4, f"Should have at least 4 chords, got {len(note_on_events)}"
 
-        # Verify BPM was set and restored
-        calls = mock_player.set_bpm.call_args_list
-        assert any(call == call(100) for call in calls), "Should set BPM to 100"
-        assert any(call == call(200) for call in calls), "Should set BPM to 200 (2x)"
+        # BPM set to 100 then 200 (2x) inside the loop, restored on each pass.
+        bpms = [e.metadata['bpm'] for e in note_on_events[:4]]
+        assert bpms == [100, 200, 100, 200]
 
 
 class TestChordDurations:
@@ -902,11 +912,11 @@ class TestPlaybackEventCallback:
         event_callback = Mock()
         service.start_song_playback(lines, initial_key="C", on_event_callback=event_callback)
 
-        # Give producer time to generate events and fire callbacks
+        # Give the render thread + player time to emit events and fire callbacks
         time.sleep(0.3)
 
         # Application.queue_ui_callback should be called for each chord
-        # The EventProducer wraps the callback in a lambda
+        # (the player wraps the callback in a lambda when it plays a NOTE_ON)
         ui_callback_count = mock_application.queue_ui_callback.call_count
 
         assert ui_callback_count >= 3, f"Should have at least 3 UI callbacks for 3 chords, got {ui_callback_count}"

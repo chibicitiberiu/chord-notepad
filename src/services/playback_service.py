@@ -1,6 +1,7 @@
 """Audio playback service wrapping NotePlayer."""
 
 import logging
+import threading
 from typing import Optional, List, Callable, Tuple
 
 from audio.player_interface import IPlayer
@@ -9,7 +10,8 @@ from audio.note_picker_interface import INotePicker
 from audio.chord_picker import ChordNotePicker
 from audio.guitar_chord_picker import GuitarChordPicker
 from audio.event_buffer import EventBuffer
-from services.event_producer import EventProducer
+from services.song_renderer import SongRenderer
+from services.event_compiler import compile_events
 from models.chord_notes import ChordNotes
 from models.chord import ChordInfo
 from models.playback_state import PlaybackState
@@ -33,9 +35,10 @@ class PlaybackService:
         self._playback_state = PlaybackState()
         self._application = application  # For UI callbacks
 
-        # Producer-consumer components
+        # Pre-render pipeline components
         self._event_buffer: Optional[EventBuffer] = None
-        self._event_producer: Optional[EventProducer] = None
+        self._render_thread: Optional[threading.Thread] = None
+        self._render_cancel: Optional[threading.Event] = None
 
         self._metronome_enabled: bool = False
 
@@ -248,17 +251,24 @@ class PlaybackService:
 
     def stop_playback(self) -> None:
         """Stop ongoing playback."""
-        # Close event buffer first to wake up producer if it's blocked
-        if self._event_buffer:
+        # Cancel any in-flight render so the render thread bails promptly.
+        if self._render_cancel is not None:
+            self._render_cancel.set()
+
+        # Wait for the render thread to finish (it either bails on the cancel
+        # flag or completes its quick buffer-fill + player-start wiring).
+        if self._render_thread is not None:
+            self._logger.debug("Joining render thread")
+            self._render_thread.join(timeout=2.0)
+            self._render_thread = None
+        self._render_cancel = None
+
+        # Close the event buffer (if the render thread got as far as creating it)
+        # to wake the player if it's blocked waiting for events.
+        if self._event_buffer is not None:
             self._logger.debug("Closing event buffer")
             self._event_buffer.close()
             self._event_buffer = None
-
-        # Now stop event producer (it should exit cleanly)
-        if self._event_producer:
-            self._logger.debug("Stopping event producer")
-            self._event_producer.stop()
-            self._event_producer = None
 
         # Finally stop player
         if self._player:
@@ -302,7 +312,7 @@ class PlaybackService:
     def set_metronome_enabled(self, enabled: bool) -> None:
         """Arm or disarm the click track.
 
-        Tick events are always scheduled by the EventProducer; the player
+        Tick events are always pre-rendered into the event stream; the player
         mutes/unmutes the drum channel via CC 7, so toggling is immediate
         even mid-playback.
         """
@@ -465,48 +475,61 @@ class PlaybackService:
             self._logger.info("No chords found for playback")
             return False
 
-        self._logger.info(f"Starting song playback with {total_chords} chords (producer-consumer)")
+        self._logger.info(f"Starting song playback with {total_chords} chords (pre-render)")
 
         # Get initial playback parameters
         initial_bpm = self._playback_state.bpm
         initial_time_sig = self.get_time_signature()
 
-        # Create event buffer (capacity ~100 events = 3-5 seconds of music)
-        self._event_buffer = EventBuffer(capacity=100)
+        has_callback = on_event_callback is not None
+        cancel_event = threading.Event()
+        self._render_cancel = cancel_event
 
-        # Create event producer
-        self._event_producer = EventProducer(
-            lines=lines,
-            initial_key=initial_key,
-            initial_bpm=initial_bpm,
-            initial_time_sig=initial_time_sig,
-            note_picker=self._note_picker,
-            event_buffer=self._event_buffer,
-            application=self._application,
-            player=self._player,
-            on_event_callback=on_event_callback,
-            logger=self._logger,
-            start_line_index=start_line_index,
-            start_item_index=start_item_index,
+        def _render_and_play() -> None:
+            """Render the whole song, compile events, then wire and start the
+            player. Runs off the calling thread so rendering never blocks the UI.
+            """
+            try:
+                rendered = SongRenderer(logger=self._logger).render(
+                    lines=lines,
+                    initial_key=initial_key,
+                    initial_bpm=initial_bpm,
+                    initial_time_sig=initial_time_sig,
+                    note_picker=self._note_picker,
+                    start_line_index=start_line_index,
+                    start_item_index=start_item_index,
+                    cancel_event=cancel_event,
+                )
+                if rendered is None or cancel_event.is_set():
+                    self._logger.debug("Render cancelled before playback start")
+                    return
+
+                events = compile_events(rendered, has_callback=has_callback)
+                if cancel_event.is_set():
+                    return
+
+                # Buffer holds the whole song at once (no backpressure needed).
+                buffer = EventBuffer(capacity=len(events) + 1)
+                for event in events:
+                    buffer.push_event(event)
+
+                self._event_buffer = buffer
+                self._player.set_event_buffer(buffer)
+                self._player.set_event_callback(on_event_callback, self._application)
+                if on_finished_callback:
+                    self._player.set_playback_finished_callback(on_finished_callback)
+
+                if cancel_event.is_set():
+                    return
+                self._player.start_playback()
+                self._logger.info("Render complete, playback started")
+            except Exception as e:
+                self._logger.error(f"Error rendering song for playback: {e}", exc_info=True)
+
+        self._render_thread = threading.Thread(
+            target=_render_and_play, daemon=True, name="RenderThread"
         )
-
-        # Set buffer on player
-        self._player.set_event_buffer(self._event_buffer)
-
-        # Set event callback on player (player will fire it when events are played)
-        self._player.set_event_callback(on_event_callback, self._application)
-
-        # Set finished callback
-        if on_finished_callback:
-            self._player.set_playback_finished_callback(on_finished_callback)
-
-        # Start producer thread first (it will start filling the buffer)
-        self._event_producer.start()
-
-        # Start playback thread (it will consume from buffer)
-        self._player.start_playback()
-
-        self._logger.info("Producer and consumer threads started")
+        self._render_thread.start()
         return True
 
     def _resolve_chord_notes(self, chord: ChordInfo, current_key: Optional[str]) -> Optional[ChordNotes]:
