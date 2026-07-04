@@ -1,19 +1,32 @@
 # Chord Notepad
 
-A simple text editor for musicians that automatically detects and plays guitar/piano chords using FluidSynth synthesis.
+A text editor for songwriters. Write chord symbols above your lyrics, the way you'd jot a song on the back of an envelope, and Chord Notepad detects them, highlights them, and plays them back, voiced the way a real musician would on piano or guitar. The sound is real MIDI synthesis through FluidSynth.
 
 <img width="1084" height="830" alt="image" src="https://github.com/user-attachments/assets/54ebad77-a203-4140-a018-d04476315819" />
 
 ## Features
 
-- Text editor with syntax highlighting for chord symbols
-- Real-time chord detection (supports major, minor, 7th, dim, aug, sus, and complex jazz chords)
-- Interactive chord playback (click any chord to hear it)
-- Auto-play mode with configurable BPM and time signature
-- Visual chord highlighting during playback
-- File operations (New, Open, Save, Save As)
-- Recent files menu
-- Configurable font size and BPM settings
+**Writing chords**
+- Highlights chord symbols as you type, and tells chord lines apart from lyric lines on its own
+- Three notations you can switch between: American (`C`, `Am`, `Bb7`), European solfège (`Do`, `Re`, `Mi`), and roman numerals (`I`, `V`, `vi`)
+- Roman numerals follow the key: write `I V vi IV`, set `{key: D}`, and hear it in D; change the key and the same lines play anywhere
+- Understands the full range, from plain triads to slash chords and altered jazz voicings (`C/E`, `C7b9`, `Cmaj7#5(9)`, `Cm7b5`)
+
+**Playing them back**
+- Click any chord to hear it, or press play to run the whole song with each chord lighting up as it sounds
+- Chords are voiced like a player, not stacked mechanically: the piano voicing moves smoothly from one chord to the next (voice leading), and the guitar voicing finds real, playable fingerings on the fretboard
+- Choose the instrument: piano, or guitar in standard, Drop D, DADGAD, or Open G tuning (custom tunings too)
+- Real MIDI synthesis through FluidSynth, with a soundfont bundled in
+- A metronome you can switch on and off mid-playback
+
+**A small format for songs**
+- Hold a chord longer with `C*2` (two beats), rest with `NC`, comment with `//`
+- Inline directives drive the player: `{bpm: 120}`, `{bpm: +20}`, `{time: 3/4}`, `{key: G}`, `{label: verse}`, `{loop: verse 4}`
+- Tempo and key can change partway through a song, and loops replay a labelled section
+
+**Also**
+- A reverse tool: click notes on a keyboard and it names the chord, inversions and slash spellings included
+- File operations, recent files, adjustable font size
 
 ## Requirements
 
@@ -135,6 +148,7 @@ Note: PyInstaller creates platform-specific executables. To build for Windows, y
 - **Alterations**: C7b5, D7#9, Em7b5
 - **Half-diminished**: Cø7, Dm7b5
 - **Add chords**: Cadd9, Dadd11
+- **Slash chords / inversions**: C/E, Am/G, G/B
 
 ### Keyboard Shortcuts
 
@@ -155,10 +169,14 @@ chord-notepad/
 │   │   ├── main_window.py      # Main window with menu and toolbar
 │   │   └── text_editor.py      # Custom text editor widget
 │   ├── audio/
-│   │   ├── player.py           # FluidSynth audio player
-│   │   └── chord_picker.py     # Chord-to-MIDI converter
+│   │   ├── player.py               # FluidSynth playback engine
+│   │   ├── chord_picker.py         # Piano voice-leading picker
+│   │   └── guitar_chord_picker.py  # Guitar fingering search
+│   ├── services/                   # Song parsing, playback, event production
+│   ├── viewmodels/                 # MVVM view-models
 │   └── chord/
-│       └── converter.py        # Chord notation parser
+│       ├── helper.py               # Symbol -> notes, notes -> chord name
+│       └── detector.py             # Line classification and detection
 ├── resources/
 │   └── soundfont/
 │       └── GeneralUser-GS.sf2  # Bundled soundfont
@@ -189,26 +207,29 @@ The project uses standard Python conventions with:
 ## Architecture
 
 ### Threading Model
-- **Main Thread**: Tkinter GUI event loop
-- **Player Thread**: FluidSynth playback with precise timing
-- **Cross-thread Communication**: Queue-based invoke system for thread-safe GUI updates
+- **Main thread**: Tkinter GUI event loop
+- **Producer thread**: walks the song ahead of time and pushes a single merged, timestamped stream of events (chord notes plus metronome ticks) into a bounded buffer
+- **Player thread**: pops events, waits for each one's moment, and fires FluidSynth; the GUI stays out of the timing loop and is signalled through a queue
 
 ### Audio Playback
-- Uses FluidSynth for high-quality MIDI synthesis
-- Supports real-time note triggering (click-to-play)
-- Scheduled playback with configurable BPM and time signatures
-- Each chord plays for 1 bar (4 beats in 4/4 time)
+- FluidSynth MIDI synthesis, both for click-to-play and full-song playback
+- Every event is anchored to an absolute time, so tempo and key can change mid-song without drift
+- Chord durations are set per chord in the text (a bare chord is one beat, `C*2` is two)
 
 ## Dependencies
 
 ### Runtime
 - `pyfluidsynth`: Python bindings for FluidSynth
-- `pychord`: Chord parsing and music theory
+- `pychord`: fast chord parsing (the first-pass parser)
+- `music21`: fallback parser for more exotic chord spellings
+- `pillow`: image handling
 - `tkinter`: GUI framework (included with Python)
 
 ### Development
-- `pyinstaller`: Creates standalone executables
-- `pytest`: Testing framework
+- `pyinstaller`: creates standalone executables
+- `pytest`: test runner
+- `hypothesis`: property-based tests (fuzzes the voicing, asserting it never plays a note outside the chord)
+- `sphinx` / `rinohtype`: build the user guide
 
 ## License
 
