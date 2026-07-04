@@ -625,6 +625,142 @@ class TestGuitarPickerSpecific:
         # Should produce same result
         assert set(midi1) == set(midi2)
 
+    # --- Optimization-based voicing regressions ---
+    # These lock in the open-position voicings the picker should settle on now
+    # that shapes are chosen by scoring rather than by matching templates.
+
+    def test_am_first_chord_is_open_shape(self):
+        """Am as the first chord voices the open x02210 shape."""
+        picker = GuitarChordPicker()
+        picker.chord_to_midi(ChordNotes(notes=['A', 'C', 'E'], bass_note='A', root='A'))
+        assert picker.state.previous_fingering == [-1, 0, 2, 2, 1, 0]
+
+    def test_am_after_g_stays_open_shape(self):
+        """Am after G still voices x02210 (regression: used to become 5322xx)."""
+        picker = GuitarChordPicker()
+        picker.chord_to_midi(ChordNotes(notes=['G', 'B', 'D'], bass_note='G', root='G'))
+        picker.chord_to_midi(ChordNotes(notes=['A', 'C', 'E'], bass_note='A', root='A'))
+        fingering = picker.state.previous_fingering
+        assert fingering == [-1, 0, 2, 2, 1, 0]
+        assert fingering != [5, 3, 2, 2, -1, -1]
+
+    def test_e_major_open_shape(self):
+        """E major voices the open 022100 shape."""
+        picker = GuitarChordPicker()
+        picker.chord_to_midi(ChordNotes(notes=['E', 'G#', 'B'], bass_note='E', root='E'))
+        assert picker.state.previous_fingering == [0, 2, 2, 1, 0, 0]
+
+    def test_c_g_am_f_progression_full_open_voicings(self):
+        """C-G-Am-F yields full open-position voicings with correct basses."""
+        picker = GuitarChordPicker()
+        prog = [
+            ('C', ChordNotes(notes=['C', 'E', 'G'], bass_note='C', root='C')),
+            ('G', ChordNotes(notes=['G', 'B', 'D'], bass_note='G', root='G')),
+            ('Am', ChordNotes(notes=['A', 'C', 'E'], bass_note='A', root='A')),
+            ('F', ChordNotes(notes=['F', 'A', 'C'], bass_note='F', root='F')),
+        ]
+        fingerings = {}
+        for name, chord in prog:
+            picker.chord_to_midi(chord)
+            fingerings[name] = picker.state.previous_fingering
+
+        assert fingerings['C'] == [-1, 3, 2, 0, 1, 0]   # x32010
+        assert fingerings['G'] == [3, 2, 0, 0, 0, 3]    # 320003
+        assert fingerings['Am'] == [-1, 0, 2, 2, 1, 0]  # x02210
+
+        # F need not be a textbook shape, but must be a full voicing with F in bass.
+        f = fingerings['F']
+        sounding = [s for s in range(6) if f[s] >= 0]
+        assert len(sounding) >= 4, f"F should sound >=4 strings, got {f}"
+        lowest = min(sounding, key=lambda s: picker.tuning_midi[s] + f[s])
+        lowest_pc = (picker.tuning_midi[lowest] + f[lowest]) % 12
+        assert lowest_pc == 5, f"F should have F in the bass, got {f}"  # F == pitch class 5
+
+    def test_playability_full_barre(self):
+        """A full barre chord (six strings, one flat finger at the low fret) is playable."""
+        picker = GuitarChordPicker()
+        assert picker._is_playable([1, 3, 3, 2, 1, 1]) is True
+
+    def test_playability_open_string_under_barre(self):
+        """An open string trapped inside the barre range is unplayable."""
+        picker = GuitarChordPicker()
+        # Five fretted strings; the barre at fret 1 spans strings 0-5, but the
+        # open A string (index 1) sits inside that range and cannot ring.
+        assert picker._is_playable([1, 0, 3, 3, 1, 1]) is False
+
+    def test_playability_partial_barre(self):
+        """A partial barre across the higher strings is playable."""
+        picker = GuitarChordPicker()
+        assert picker._is_playable([-1, 2, 4, 4, 3, 2]) is True
+
+    def test_playability_min_fret_on_single_string(self):
+        """More than four fretted strings whose lowest fret is on a single
+        string needs five fingers and is unplayable."""
+        picker = GuitarChordPicker()
+        # fret 1 only on the low E; four more strings fretted above it => 5 fingers.
+        assert picker._is_playable([1, -1, 3, 3, 3, 3]) is False
+
+    # --- Relaxation ladder ---
+    # A degenerate tuning (all six strings tuned to the same note) makes each
+    # pitch class reachable at exactly one fret in 0..12, so we can force the
+    # ladder down a specific rung by choosing a chord whose tones sit too far
+    # apart for the normal pass.
+
+    def test_ladder_step2_wide_stretch_rescue(self):
+        """Span-5 rescue: a dyad reachable only at a 5-fret stretch.
+
+        With every string tuned to C, pitch class D lives only at fret 2 and G
+        only at fret 7 (their fret-14/19 copies exceed MAX_FRET). The dyad D-G
+        therefore needs a 5-fret span - impossible at the normal span of 4, so
+        ladder step 2 (wide stretch) must find it.
+        """
+        picker = GuitarChordPicker(tuning=[48] * 6)  # all strings = C
+        chord = ChordNotes(notes=['D', 'G'], bass_note='D', root='D')
+        midi = picker.chord_to_midi(chord)
+
+        note_classes = midi_list_to_note_classes(midi)
+        assert 'D' in note_classes, f"expected D in {note_classes} ({midi})"
+        assert 'G' in note_classes, f"expected G in {note_classes} ({midi})"
+
+    def test_ladder_step3_coverage_rescue(self):
+        """Coverage rescue: a triad too spread for any full voicing.
+
+        With every string tuned to C, C#/E/G# sit at frets 1/4/8 - a 7-fret
+        span, impossible even at the relaxed span of 5. Ladder step 3 must
+        drop the coverage floor and return a 2-of-3-tone voicing (e.g. frets
+        1+4), strictly better than the old lone-root fallback.
+        """
+        picker = GuitarChordPicker(tuning=[48] * 6)  # all strings = C
+        chord = ChordNotes(notes=['C#', 'E', 'G#'], bass_note='C#', root='C#')
+        midi = picker.chord_to_midi(chord)
+
+        chord_pcs = notes_to_note_classes(['C#', 'E', 'G#'])
+        present = midi_list_to_note_classes(midi) & chord_pcs
+        assert len(present) >= 2, \
+            f"coverage-relaxed voicing should keep >=2 chord tones, got {present} ({midi})"
+
+    def test_ladder_does_not_disturb_fast_path(self):
+        """Standard tuning is untouched: the cheap normal pass still wins.
+
+        Am must still voice the open x02210 shape, and a plain C major triad
+        must still enumerate a complete (all-three-tone) voicing - proof the
+        ladder only engages when the normal pass comes up empty.
+        """
+        picker = GuitarChordPicker()
+        picker.chord_to_midi(ChordNotes(notes=['A', 'C', 'E'], bass_note='A', root='A'))
+        assert picker.state.previous_fingering == [-1, 0, 2, 2, 1, 0]
+
+        # C major's normal pass yields at least one complete voicing (C, E, G).
+        candidates = picker._enumerate_candidates(['C', 'E', 'G'], 'C')
+        assert candidates, "C major should enumerate candidates on the fast path"
+
+        def pcs_of(fingering):
+            return {(picker.tuning_midi[s] + f) % 12
+                    for s, f in enumerate(fingering) if f >= 0}
+
+        assert any({0, 4, 7} <= pcs_of(f) for f in candidates), \
+            "C major fast path should include a complete voicing (all three tones)"
+
 
 # Edge cases tests (parametrized)
 class TestEdgeCases:

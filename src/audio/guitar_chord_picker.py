@@ -1,8 +1,26 @@
 """
-Guitar chord picker - optimized version with correct note generation
+Guitar chord picker - chooses a guitar fingering for a chord.
+
+Rather than matching against a library of memorized chord shapes, this picker
+treats voicing as a pure optimization problem:
+
+1. **Enumerate** every fingering whose strings only sound chord tones (plus the
+   slash bass, if any), within a playable four-fret span.
+2. **Filter** on physical playability (finger count, barre feasibility).
+3. **Filter** on note coverage: prefer fingerings that spell the whole chord;
+   fall back to partial voicings only for dense chords that cannot be held in
+   full on six strings.
+4. **Score** every survivor with a single weighted heuristic that rewards full,
+   low, open voicings with the correct bass and penalizes stretches, barres,
+   unstrummable interior mutes, and (mid-progression) movement of the fretting
+   hand away from the previous shape.
+5. Return the highest-scoring fingering.
+
+Enumeration is cached per chord (it depends only on the pitch classes involved);
+scoring runs on every call because it depends on the mutable transition state.
 """
 
-from typing import Dict, List, Optional, Tuple, Set, Union, TYPE_CHECKING
+from typing import Any, Dict, List, Optional, Tuple, Set, Union, TYPE_CHECKING
 from dataclasses import dataclass, asdict
 from copy import deepcopy
 import logging
@@ -34,8 +52,8 @@ class GuitarPickerState:
 
 
 class GuitarChordPicker(INotePicker):
-    """Optimized guitar chord picker with correct voicing generation"""
-    
+    """Guitar chord picker that optimizes fingerings instead of matching shapes."""
+
     # Common tunings - defined by MIDI values (low string to high string)
     # Format: [String 0 (lowest/thickest), String 1, ..., String 5 (highest/thinnest)]
     TUNINGS = {
@@ -44,32 +62,24 @@ class GuitarChordPicker(INotePicker):
         'dadgad': [38, 45, 50, 55, 57, 62],    # D2, A2, D3, G3, A3, D4
         'open_g': [38, 43, 50, 55, 59, 62],    # D2, G2, D3, G3, B3, D4
     }
-    
-    # Common chord shapes (relative to root) - these are "templates"
-    CHORD_SHAPES = {
-        'major': [
-            # Open C shape
-            {'pattern': [-1, 3, 2, 0, 1, 0], 'root_string': 1, 'root_fret': 3},
-            # Open G shape  
-            {'pattern': [3, 2, 0, 0, 0, 3], 'root_string': 0, 'root_fret': 3},
-            # Open D shape
-            {'pattern': [-1, -1, 0, 2, 3, 2], 'root_string': 3, 'root_fret': 0},
-            # Open A shape
-            {'pattern': [-1, 0, 2, 2, 2, 0], 'root_string': 1, 'root_fret': 0},
-            # Open E shape
-            {'pattern': [0, 2, 2, 1, 0, 0], 'root_string': 0, 'root_fret': 0},
-            # Barre F shape (E shape barred)
-            {'pattern': [1, 3, 3, 2, 1, 1], 'root_string': 0, 'root_fret': 1},
-        ],
-        'minor': [
-            # Am shape
-            {'pattern': [-1, 0, 2, 2, 1, 0], 'root_string': 1, 'root_fret': 0},
-            # Em shape  
-            {'pattern': [0, 2, 2, 0, 0, 0], 'root_string': 0, 'root_fret': 0},
-            # Dm shape
-            {'pattern': [-1, -1, 0, 2, 3, 1], 'root_string': 3, 'root_fret': 0},
-        ]
-    }
+
+    # Enumeration limits
+    MAX_FRET = 12      # Highest fret considered
+    MAX_SPAN = 4       # Widest fret stretch the fretting hand can hold (normal pass)
+    RELAXED_SPAN = 5   # Wide-stretch span allowed by the relaxation ladder
+
+    # Scoring weights (higher score = better). All tunable.
+    SCORE_PER_SOUNDING = 1.2       # per string that sounds (fret >= 0)
+    SCORE_PER_OPEN = 0.5           # per open (fret == 0) string
+    SCORE_BASS = 8.0               # bass-note reward/penalty for a non-slash chord
+    SCORE_SLASH_BASS = 12.0        # bass-note reward/penalty for a slash chord
+    SCORE_PER_SPAN_FRET = -1.2     # per fret of stretch (max - min fretted)
+    SCORE_PER_AVG_FRET = -0.6      # per fret of average fretted position
+    SCORE_PER_FRETTED = -0.5       # per fretted string (fingers used)
+    SCORE_BARRE = -1.0             # applied once when a barre is required
+    SCORE_PER_INTERIOR_MUTE = -2.0  # per muted string between sounding strings
+    SCORE_PER_MOVE_FRET = -1.0     # per fret of hand movement from previous shape
+    SCORE_PER_KEPT_FINGER = 0.4    # per finger left in place from previous shape
 
     def __init__(self, tuning: Union[str, List[int]] = 'standard') -> None:
         """Initialize guitar chord picker
@@ -93,10 +103,10 @@ class GuitarChordPicker(INotePicker):
         # Initialize state
         self._state = GuitarPickerState()
 
-        # Cache for fingerings
-        self._fingering_cache = {}
+        # Cache for enumerated candidate fingerings (keyed by chord pitch classes)
+        self._fingering_cache: Dict[Tuple[Tuple[int, ...], Optional[int]], List[List[int]]] = {}
 
-        # Pre-compute fret-to-note mapping for each string (optimization)
+        # Pre-compute fret-to-note mapping for each string (used by the fallback)
         self._string_note_map = self._build_string_note_map()
 
     def _build_string_note_map(self) -> List[Dict[int, str]]:
@@ -105,7 +115,7 @@ class GuitarChordPicker(INotePicker):
 
         for string_idx in range(6):
             fret_map = {}
-            for fret in range(13):  # 0-12 frets
+            for fret in range(self.MAX_FRET + 1):  # 0-12 frets
                 midi = self.tuning_midi[string_idx] + fret
                 note = self._midi_to_note(midi)
                 fret_map[fret] = note  # Keep sharps/flats!
@@ -136,7 +146,7 @@ class GuitarChordPicker(INotePicker):
         """Get current state (returns a copy)"""
         return deepcopy(self._state)
 
-    @state.setter  
+    @state.setter
     def state(self, new_state: GuitarPickerState) -> None:
         """Set state (accepts a copy)"""
         self._state = deepcopy(new_state)
@@ -158,466 +168,329 @@ class GuitarChordPicker(INotePicker):
 
         # Find best fingering
         fingering = self._find_best_fingering(notes, bass_note)
-        
+
         # Convert fingering to MIDI notes
         midi_notes = self._fingering_to_midi(fingering)
-        
+
         # Update state
         self._update_state(fingering, notes)
-        
+
         return midi_notes
 
     def _find_best_fingering(self, chord_notes: List[str], bass_note: Optional[str] = None) -> List[int]:
-        """Find the best playable fingering for the chord"""
+        """Find the best playable fingering for the chord.
 
-        # Keep chord notes with their sharps/flats
-        chord_note_list = chord_notes
+        Enumerates (and caches) all candidate fingerings, then scores each one
+        against the current transition state and returns the argmax.
+        """
 
-        # Create normalized pitch class set for comparison
         chord_pitch_classes = {self._normalize_note(n) for n in chord_notes}
+        bass_pc = self._normalize_note(bass_note) if bass_note else None
 
-        # Check cache
-        cache_key = (tuple(sorted(chord_pitch_classes)), bass_note)
+        cache_key = (tuple(sorted(chord_pitch_classes)), bass_pc)
 
-        if cache_key not in self._fingering_cache:
-            # Generate fingerings efficiently
-            all_fingerings = self._generate_fingerings_optimized(chord_note_list, bass_note)
-            self._fingering_cache[cache_key] = all_fingerings
-        else:
-            all_fingerings = self._fingering_cache[cache_key]
+        candidates = self._fingering_cache.get(cache_key)
+        if candidates is None:
+            candidates = self._build_candidate_ladder(chord_notes, bass_note)
+            self._fingering_cache[cache_key] = candidates
 
-        if not all_fingerings:
+        if not candidates:
             logger.warning(f"No fingerings found for {chord_notes}, using fallback")
             return self._get_fallback_fingering(chord_notes[0])
 
-        # Score based on current state - PASS chord_notes for bass checking
-        if self._state.previous_fingering:
-            # Minimize movement from previous position
-            best_score = float('inf')
-            best_fingering = all_fingerings[0]
+        # max() returns the first argmax, so DFS order breaks ties deterministically.
+        return max(candidates, key=lambda f: self._score_fingering(f, chord_notes, bass_note))
 
-            for fingering in all_fingerings:
-                score = self._score_fingering_transition(
-                    fingering, self._state.previous_fingering, chord_notes
-                )
-                if score < best_score:
-                    best_score = score
-                    best_fingering = fingering
+    def _build_candidate_ladder(self, chord_notes: List[str],
+                                bass_note: Optional[str]) -> List[List[int]]:
+        """Enumerate candidate fingerings, relaxing constraints stepwise.
 
-            return best_fingering
-        else:
-            # First chord - prefer open/low position with correct bass
-            best_score = float('inf')
-            best_fingering = all_fingerings[0]
+        The normal pass (span <= ``MAX_SPAN``, default coverage rules) handles
+        the overwhelming majority of chords. Only when it yields nothing do we
+        walk down the ladder, each step running solely if the previous produced
+        no candidates:
 
-            for fingering in all_fingerings:
-                score = self._score_fingering_initial(fingering, chord_notes)
-                if score < best_score:
-                    best_score = score
-                    best_fingering = fingering
+        1. Normal: span <= ``MAX_SPAN`` with the default coverage rules.
+        2. Wide stretch: span <= ``RELAXED_SPAN``, same coverage rules.
+        3. Wide stretch plus relaxed coverage: require ``num_unique - 1`` chord
+           tones, then ``- 2``, ... down to 1, returning the first non-empty
+           level (a triad thus degrades to two chord tones rather than one).
 
-            return best_fingering
-
-    def _generate_fingerings_optimized(self, chord_notes: List[str], bass_note: Optional[str] = None) -> List[List[int]]:
-        """Generate fingerings using multiple strategies for speed.
-
-        Uses a two-pass approach:
-        1. First try to find complete voicings (all notes present)
-        2. If no complete voicings found, allow partial voicings for complex chords
+        The lone-root fallback in :meth:`_get_fallback_fingering` remains the
+        absolute last resort, applied by the caller when this returns nothing.
+        The whole ladder cost is paid once per chord because the caller caches
+        the result.
         """
 
-        # First pass: strict (all notes required)
-        fingerings = self._generate_fingerings_with_mode(chord_notes, bass_note, allow_partial=False)
+        # Step 1: normal pass.
+        candidates = self._enumerate_candidates(chord_notes, bass_note,
+                                                max_span=self.MAX_SPAN)
+        if candidates:
+            return candidates
 
-        if fingerings:
-            return fingerings
+        # Step 2: allow a wider stretch, keep the default coverage rules.
+        candidates = self._enumerate_candidates(chord_notes, bass_note,
+                                                max_span=self.RELAXED_SPAN)
+        if candidates:
+            logger.info("Guitar voicing for %s used relaxed ladder step 2 "
+                        "(wide stretch, span <= %d)", chord_notes, self.RELAXED_SPAN)
+            return candidates
 
-        # Second pass: allow partial voicings for complex chords
-        return self._generate_fingerings_with_mode(chord_notes, bass_note, allow_partial=True)
+        # Step 3: keep the wide stretch and relax coverage one tone at a time.
+        num_unique = len({self._normalize_note(n) for n in chord_notes})
+        for min_present in range(num_unique - 1, 0, -1):
+            candidates = self._enumerate_candidates(
+                chord_notes, bass_note,
+                max_span=self.RELAXED_SPAN, min_present_override=min_present)
+            if candidates:
+                logger.warning("Guitar voicing for %s used relaxed ladder step 3 "
+                               "(span <= %d, require %d of %d chord tones)",
+                               chord_notes, self.RELAXED_SPAN, min_present, num_unique)
+                return candidates
 
-    def _generate_fingerings_with_mode(self, chord_notes: List[str], bass_note: Optional[str],
-                                       allow_partial: bool) -> List[List[int]]:
-        """Generate fingerings with specified verification mode."""
+        return []
 
-        fingerings = []
+    def _enumerate_candidates(self, chord_notes: List[str],
+                              bass_note: Optional[str],
+                              max_span: Optional[int] = None,
+                              min_present_override: Optional[int] = None) -> List[List[int]]:
+        """Enumerate all playable candidate fingerings for the chord.
 
-        # Strategy 1: Try common chord shapes first (FAST)
-        shape_fingerings = self._try_chord_shapes(chord_notes, bass_note, allow_partial=allow_partial)
-        fingerings.extend(shape_fingerings)
-
-        # If we have enough good fingerings, return early
-        if len(fingerings) >= 5:
-            return fingerings[:10]
-
-        # Strategy 2: Build from chord tones only (MEDIUM)
-        position_fingerings = self._build_from_chord_tones(chord_notes, bass_note, max_positions=3,
-                                                           allow_partial=allow_partial)
-        fingerings.extend(position_fingerings)
-
-        # Deduplicate
-        unique_fingerings = []
-        seen = set()
-        for f in fingerings:
-            key = tuple(f)
-            if key not in seen:
-                seen.add(key)
-                unique_fingerings.append(f)
-
-        return unique_fingerings[:15]  # Return max 15 fingerings
-
-    def _try_chord_shapes(self, chord_notes: List[str], bass_note: Optional[str] = None,
-                          allow_partial: bool = False) -> List[List[int]]:
-        """Try to adapt common chord shapes to the target chord"""
-
-        fingerings = []
-        root = chord_notes[0] if chord_notes else 'C'
-
-        # Determine chord type (simplified)
-        is_minor = len(chord_notes) >= 3  # This is simplified - you'd check actual intervals
-
-        shapes = self.CHORD_SHAPES.get('minor' if is_minor else 'major', [])
-
-        for shape in shapes:
-            # Try to transpose this shape to our root
-            for position in range(8):  # Try different positions
-                fingering = self._transpose_shape(shape, root, position)
-                if fingering:
-                    # Verify it produces correct notes
-                    if self._verify_fingering(fingering, chord_notes, bass_note, allow_partial):
-                        fingerings.append(fingering)
-                        if len(fingerings) >= 3:
-                            return fingerings
-
-        return fingerings
-
-    def _transpose_shape(self, shape: Dict, target_root: str, position: int) -> Optional[List[int]]:
-        """Transpose a chord shape to a new position"""
-        
-        pattern = shape['pattern']
-        transposed = []
-        
-        for fret in pattern:
-            if fret == -1:
-                transposed.append(-1)
-            elif fret == 0 and position == 0:
-                transposed.append(0)
-            else:
-                new_fret = fret + position
-                if new_fret > 12:  # Too high
-                    return None
-                transposed.append(new_fret)
-        
-        return transposed
-
-    def _build_from_chord_tones(self, chord_notes: List[str], bass_note: Optional[str],
-                                max_positions: int = 3, allow_partial: bool = False) -> List[List[int]]:
-        """Build fingerings by only considering chord tones"""
-
-        fingerings = []
-
-        # Create pitch class set for comparison
-        chord_pitch_classes = {self._normalize_note(n) for n in chord_notes}
-
-        # Also include bass note for slash chords
-        if bass_note:
-            bass_pitch_class = self._normalize_note(bass_note)
-        else:
-            bass_pitch_class = None
-
-        # Try a few positions
-        for position in range(max_positions):
-            # For each string, find frets that produce chord tones OR bass note
-            string_options = []
-
-            for string_idx in range(6):
-                options = []
-
-                # Always can mute
-                options.append(-1)
-
-                # Check frets in this position range
-                for fret in range(max(0, position), min(position + 5, 13)):
-                    # Use pre-computed map for speed
-                    note = self._string_note_map[string_idx][fret]
-                    note_pc = self._normalize_note(note)
-
-                    # Add if it's a chord tone OR the bass note (for slash chords)
-                    if note_pc in chord_pitch_classes or note_pc == bass_pitch_class:
-                        options.append(fret)
-
-                string_options.append(options)
-
-            # Generate combinations efficiently
-            position_fingerings = self._generate_combinations_smart(
-                string_options, chord_notes, bass_note, allow_partial
-            )
-
-            fingerings.extend(position_fingerings[:5])  # Max 5 per position
-
-            if len(fingerings) >= 10:
-                break
-
-        return fingerings
-
-    def _generate_combinations_smart(self, string_options: List[List[int]],
-                                    chord_notes: List[str],
-                                    bass_note: Optional[str],
-                                    allow_partial: bool = False) -> List[List[int]]:
-        """Generate combinations intelligently without exhaustive search"""
-
-        fingerings = []
-
-        # Start with promising combinations
-        # Prefer patterns with 3-4 played strings
-        for num_played in [4, 3, 5, 6]:
-            if len(fingerings) >= 5:
-                break
-
-            # Try different string combinations
-            combos = self._get_string_combinations(num_played, string_options, chord_notes)
-
-            for combo in combos:
-                if self._is_playable(combo):
-                    if self._verify_fingering(combo, chord_notes, bass_note, allow_partial):
-                        fingerings.append(combo)
-                        if len(fingerings) >= 5:
-                            break
-
-        return fingerings
-
-    def _get_string_combinations(self, num_played: int, string_options: List[List[int]],
-                                chord_notes: List[str]) -> List[List[int]]:
-        """Get promising string combinations"""
-        from itertools import product
-
-        combos = []
-
-        # Try combinations with consecutive strings
-        for start in range(7 - num_played):
-            # Get the strings we're playing
-            strings_to_play = list(range(start, min(start + num_played, 6)))
-
-            # Build options for each string in this range
-            options_for_combo = []
-            for i in range(6):
-                if i in strings_to_play:
-                    # For strings we're playing, use their valid frets (excluding -1)
-                    valid_frets = [f for f in string_options[i] if f != -1]
-                    if not valid_frets:
-                        # If no valid frets, must mute
-                        options_for_combo.append([-1])
-                    else:
-                        # Limit options to avoid explosion
-                        options_for_combo.append(valid_frets[:3])
-                else:
-                    # Muted strings
-                    options_for_combo.append([-1])
-
-            # Generate combinations (limit to 20 per range to avoid explosion)
-            for combo_tuple in list(product(*options_for_combo))[:20]:
-                combo = list(combo_tuple)
-                # Skip if all muted
-                if all(f == -1 for f in combo):
-                    continue
-                combos.append(combo)
-                if len(combos) >= 50:  # Reasonable limit
-                    return combos
-
-        return combos
-
-    def _verify_fingering(self, fingering: List[int], chord_notes: List[str],
-                         bass_note: Optional[str], allow_partial: bool = False) -> bool:
-        """Verify a fingering produces valid chord notes.
+        Walks every combination of per-string fret options (mute plus any fret
+        whose pitch class is a chord tone or the slash bass), pruning branches
+        that exceed ``max_span``. Complete voicings (every chord tone present)
+        are preferred; partial voicings are returned only when no complete
+        voicing exists.
 
         Args:
-            fingering: List of fret numbers (-1 = muted)
-            chord_notes: List of note names in the chord
-            bass_note: Optional bass note for slash chords
-            allow_partial: If True, allows partial voicings for complex chords:
-                - ≤3 unique notes: must have all notes
-                - 4-5 unique notes: can have at most 1 missing
-                - ≥6 unique notes: must have at least 4 notes
+            chord_notes: The chord tones (note names).
+            bass_note: Optional slash-bass note name.
+            max_span: Widest fret stretch allowed. Defaults to ``MAX_SPAN``.
+            min_present_override: If given, overrides the minimum number of
+                chord tones a candidate must cover to be kept. Used by the
+                relaxation ladder to accept sparser voicings.
         """
 
-        # Get pitch classes of chord notes
-        chord_pitch_classes = {self._normalize_note(n) for n in chord_notes}
-        num_unique_notes = len(chord_pitch_classes)
+        if max_span is None:
+            max_span = self.MAX_SPAN
 
-        notes_played_pitch_classes = set()
-        lowest_note = None
-        lowest_midi = 999
+        chord_pcs = {self._normalize_note(n) for n in chord_notes}
+        bass_pc = self._normalize_note(bass_note) if bass_note else None
 
-        for string_idx, fret in enumerate(fingering):
-            if fret >= 0:
-                note = self._string_note_map[string_idx][fret]
-                notes_played_pitch_classes.add(self._normalize_note(note))
+        allowed = set(chord_pcs)
+        if bass_pc is not None:
+            allowed.add(bass_pc)
 
-                midi = self.tuning_midi[string_idx] + fret
-                if midi < lowest_midi:
-                    lowest_midi = midi
-                    lowest_note = note
+        # Slash bass notes that are not chord tones do not count toward coverage.
+        num_unique = len(chord_pcs)
+        pc_bit = {pc: i for i, pc in enumerate(chord_pcs)}
 
-        # Check note coverage
-        notes_present = notes_played_pitch_classes & chord_pitch_classes
-        notes_missing = num_unique_notes - len(notes_present)
-
-        if allow_partial:
-            # Relaxed requirements for complex chords
-            if num_unique_notes <= 3:
-                # Small chords: must have all notes
-                if notes_missing > 0:
-                    return False
-            elif num_unique_notes <= 5:
-                # Medium chords (4-5 notes): can have at most 1 missing
-                if notes_missing > 1:
-                    return False
-            else:
-                # Large chords (6+ notes): must have at least 4 notes
-                if len(notes_present) < 4:
-                    return False
+        # Minimum number of chord tones a candidate must cover to be kept at all
+        # (complete or partial). Anything below this is pruned during the DFS.
+        if num_unique <= 3:
+            min_present = num_unique
+        elif num_unique <= 5:
+            min_present = num_unique - 1
         else:
-            # Strict: must have all chord notes
-            if notes_missing > 0:
-                return False
+            min_present = 4
 
-        # Must NOT have extra notes, EXCEPT the bass note for slash chords
-        extra_notes = notes_played_pitch_classes - chord_pitch_classes
-        if extra_notes:
-            # Allow bass note as an exception (e.g., C/D has D as extra note)
-            if bass_note:
-                bass_pitch_class = self._normalize_note(bass_note)
-                # Remove bass note from extra notes
-                extra_notes_without_bass = extra_notes - {bass_pitch_class}
-                if extra_notes_without_bass:
-                    return False
-            else:
-                return False
+        # The ladder can force a sparser coverage floor (clamped to the chord).
+        if min_present_override is not None:
+            min_present = max(1, min(min_present_override, num_unique))
 
-        # Check bass note if specified (enharmonic match)
-        if bass_note and lowest_note:
-            if not self._notes_match(lowest_note, bass_note):
-                return False
+        max_fret = self.MAX_FRET
+        tuning = self.tuning_midi
 
-        return True
+        # Per-string options as (fret, coverage_bit) tuples. Mute is (-1, 0).
+        string_options: List[List[Tuple[int, int]]] = []
+        for string_idx in range(6):
+            base = tuning[string_idx]
+            opts: List[Tuple[int, int]] = [(-1, 0)]
+            for fret in range(0, max_fret + 1):
+                pc = (base + fret) % 12
+                if pc in allowed:
+                    opts.append((fret, 1 << pc_bit[pc] if pc in pc_bit else 0))
+            string_options.append(opts)
+
+        # Suffix union of coverage bits still reachable from string_idx onward,
+        # used to prune branches that can never cover enough chord tones.
+        reachable = [0] * 7
+        for string_idx in range(5, -1, -1):
+            bits = reachable[string_idx + 1]
+            for _, bit in string_options[string_idx]:
+                bits |= bit
+            reachable[string_idx] = bits
+
+        complete: List[List[int]] = []
+        partial: List[List[int]] = []
+        buf = [0] * 6
+
+        def dfs(string_idx: int, min_f: int, max_f: int, mask: int,
+                n_sound: int, n_fret: int) -> None:
+            # Coverage prune: even sounding every remaining string cannot reach
+            # the minimum number of chord tones required.
+            if (mask | reachable[string_idx]).bit_count() < min_present:
+                return
+
+            if string_idx == 6:
+                if n_sound == 0:
+                    return
+
+                # Playability: >4 fretted strings need a feasible barre.
+                if n_fret > 4:
+                    lo = hi = -1
+                    above = 0
+                    for s in range(6):
+                        fs = buf[s]
+                        if fs == min_f:
+                            if lo == -1:
+                                lo = s
+                            hi = s
+                        elif fs > min_f:
+                            above += 1
+                    if above > 3:
+                        return
+                    # No open string may sit inside the barre's string range.
+                    for s in range(lo, hi + 1):
+                        if buf[s] == 0:
+                            return
+
+                present = mask.bit_count()
+                if present == num_unique:
+                    complete.append(buf[:])
+                elif present >= min_present:
+                    partial.append(buf[:])
+                return
+
+            for fret, bit in string_options[string_idx]:
+                if fret > 0:
+                    nmin = fret if fret < min_f else min_f
+                    nmax = fret if fret > max_f else max_f
+                    if nmax - nmin > max_span:
+                        continue
+                    buf[string_idx] = fret
+                    dfs(string_idx + 1, nmin, nmax, mask | bit, n_sound + 1, n_fret + 1)
+                elif fret == 0:
+                    buf[string_idx] = 0
+                    dfs(string_idx + 1, min_f, max_f, mask | bit, n_sound + 1, n_fret)
+                else:  # mute
+                    buf[string_idx] = -1
+                    dfs(string_idx + 1, min_f, max_f, mask, n_sound, n_fret)
+
+        # Sentinels chosen so the first fretted string always sets both bounds.
+        dfs(0, max_fret + 1, 0, 0, 0, 0)
+
+        return complete if complete else partial
 
     def _is_playable(self, fingering: Union[List[int], Tuple[int, ...]]) -> bool:
-        """Check if a fingering is physically playable"""
-        
-        fretted = [f for f in fingering if f > 0]
-        
+        """Check if a fingering is physically playable.
+
+        Up to four fretted strings each get a finger. More than four requires a
+        barre: one finger lies flat across the strings fretted at the lowest
+        fret, covering the contiguous range they span. Any open string inside
+        that range cannot ring, and the strings fretted above the barre still
+        need separate fingers (at most three of them).
+        """
+
+        fretted = [(s, f) for s, f in enumerate(fingering) if f > 0]
         if not fretted:
             return True
-        
-        # Check stretch
-        if max(fretted) - min(fretted) > 4:
-            return False
-        
-        # Check finger count
-        unique_frets = set(fretted)
-        if len(unique_frets) > 4:
-            # Check for barre possibility
-            for fret in unique_frets:
-                if fretted.count(fret) >= 2:
-                    if len(unique_frets) - 1 <= 4:
-                        return True
-            return False
-        
-        return True
 
-    def _score_fingering_initial(self, fingering: List[int], chord_notes: List[str] = None) -> float:
-        """Score for first chord - prefer correct bass note"""
+        frets = [f for _, f in fretted]
+        if max(frets) - min(frets) > self.MAX_SPAN:
+            return False
 
-        score = 0.0
-        fretted = [f for f in fingering if f > 0]
+        if len(fretted) <= 4:
+            return True
+
+        # Barre required: the flat finger sits at the lowest fretted fret.
+        f_min = min(frets)
+        barre_strings = [s for s, f in fretted if f == f_min]
+        lo, hi = min(barre_strings), max(barre_strings)
+
+        for s in range(lo, hi + 1):
+            if fingering[s] == 0:  # open string trapped under the barre
+                return False
+
+        above = sum(1 for _, f in fretted if f > f_min)
+        return above <= 3
+
+    def _score_fingering(self, fingering: List[int], chord_notes: List[str],
+                         bass_note: Optional[str]) -> float:
+        """Score a fingering; higher is better.
+
+        Rewards full, low, open voicings with the correct bass note and
+        penalizes wide stretches, barres, interior mutes, and (when a previous
+        fingering exists) hand movement away from the previous shape.
+        """
+
+        tuning = self.tuning_midi
+
+        sounding = [s for s in range(6) if fingering[s] >= 0]
+        fretted = [s for s in sounding if fingering[s] > 0]
+
+        score = self.SCORE_PER_SOUNDING * len(sounding)
+        score += self.SCORE_PER_OPEN * sum(1 for s in sounding if fingering[s] == 0)
+
+        # Bass term: reward/penalize whether the lowest sounding note matches the
+        # target bass. A true slash bass matters more than a plain root bass.
+        target_pc = self._normalize_note(bass_note) if bass_note else None
+        if target_pc is not None:
+            is_slash = not self._notes_match(bass_note, chord_notes[0])
+            weight = self.SCORE_SLASH_BASS if is_slash else self.SCORE_BASS
+            lowest_string = min(sounding, key=lambda s: tuning[s] + fingering[s])
+            lowest_pc = (tuning[lowest_string] + fingering[lowest_string]) % 12
+            score += weight if lowest_pc == target_pc else -weight
 
         if fretted:
-            # Prefer lower positions
-            avg_fret = sum(fretted) / len(fretted)
-            score += avg_fret * 2
+            fret_vals = [fingering[s] for s in fretted]
+            span = max(fret_vals) - min(fret_vals)
+            avg_fret = sum(fret_vals) / len(fret_vals)
+            score += self.SCORE_PER_SPAN_FRET * span
+            score += self.SCORE_PER_AVG_FRET * avg_fret
+            score += self.SCORE_PER_FRETTED * len(fretted)
+            if len(fretted) > 4:
+                score += self.SCORE_BARRE
 
-            # Penalize stretches
-            stretch = max(fretted) - min(fretted)
-            score += stretch * 3
+        # Interior mutes: muted strings between the first and last sounding
+        # string cannot be avoided while strumming.
+        if sounding:
+            first, last = sounding[0], sounding[-1]
+            interior_mutes = sum(1 for s in range(first + 1, last) if fingering[s] == -1)
+            score += self.SCORE_PER_INTERIOR_MUTE * interior_mutes
 
-        # Reward open strings
-        score -= fingering.count(0) * 2
-
-        # Penalize muted strings
-        score += fingering.count(-1) * 1.5
-
-        # NEW: Strongly prefer root note in bass
-        if chord_notes:
-            root_note = chord_notes[0]  # First note is root
-            lowest_string_idx = next((i for i in range(6) if fingering[i] >= 0), None)
-
-            if lowest_string_idx is not None:
-                lowest_note = self._string_note_map[lowest_string_idx][fingering[lowest_string_idx]]
-
-                if self._notes_match(lowest_note, root_note):
-                    score -= 5  # Big bonus for correct bass
-                else:
-                    score += 3  # Penalty for wrong bass
-
-        return score
-
-    def _score_fingering_transition(self, fingering: List[int], previous: List[int],
-                                chord_notes: List[str] = None) -> float:
-        """Score based on transition from previous - also consider bass note"""
-
-        score = 0.0
-
-        # Position change
-        curr_pos = self._get_position(fingering)
-        prev_pos = self._get_position(previous)
-        position_jump = abs(curr_pos - prev_pos)
-
-        if position_jump > 5:
-            score += position_jump * 10
-        elif position_jump > 3:
-            score += position_jump * 5
-        else:
-            score += position_jump * 2
-
-        # Reward keeping similar pattern
-        pattern_similarity = sum(1 for i in range(6) if fingering[i] == previous[i])
-        score -= pattern_similarity * 1.5
-
-        # NEW: Still prefer correct bass note even during transitions
-        if chord_notes:
-            root_note = chord_notes[0]
-            lowest_string_idx = next((i for i in range(6) if fingering[i] >= 0), None)
-
-            if lowest_string_idx is not None:
-                lowest_note = self._string_note_map[lowest_string_idx][fingering[lowest_string_idx]]
-
-                if self._notes_match(lowest_note, root_note):
-                    score -= 3  # Bonus for correct bass (less than initial to prioritize smooth transition)
-                else:
-                    score += 2  # Smaller penalty during transitions
+        # Transition term relative to the previous fingering.
+        previous = self._state.previous_fingering
+        if previous:
+            movement = abs(self._get_position(fingering) - self._get_position(previous))
+            score += self.SCORE_PER_MOVE_FRET * movement
+            kept = sum(1 for s in range(6)
+                       if fingering[s] == previous[s] and fingering[s] > 0)
+            score += self.SCORE_PER_KEPT_FINGER * kept
 
         return score
 
     def _get_position(self, fingering: List[int]) -> float:
         """Get average position"""
-        
+
         fretted = [f for f in fingering if f > 0]
         return sum(fretted) / len(fretted) if fretted else 0
 
     def _fingering_to_midi(self, fingering: List[int]) -> List[int]:
         """Convert fingering to MIDI notes"""
-        
+
         midi_notes = []
-        
+
         for string_idx, fret in enumerate(fingering):
             if fret >= 0:
                 midi = self.tuning_midi[string_idx] + fret
                 midi_notes.append(midi)
-        
+
         return sorted(midi_notes)
 
     def _midi_to_note(self, midi: int) -> str:
         """Convert MIDI to note name"""
-        
+
         note_names = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
         return note_names[midi % 12]
 
@@ -626,7 +499,7 @@ class GuitarChordPicker(INotePicker):
 
         # Try to find root on low strings using enharmonic matching
         for string_idx in range(3):  # Try first 3 strings
-            for fret in range(13):  # Check all frets
+            for fret in range(self.MAX_FRET + 1):  # Check all frets
                 note = self._string_note_map[string_idx][fret]
                 if self._notes_match(note, root_note):
                     fingering = [-1] * 6
@@ -639,11 +512,11 @@ class GuitarChordPicker(INotePicker):
 
     def _update_state(self, fingering: List[int], chord_notes: List[str]) -> None:
         """Update state after playing"""
-        
+
         self._state.previous_fingering = fingering
         self._state.previous_chord_notes = chord_notes
         self._state.current_position = int(self._get_position(fingering))
-        
+
         if fingering:
             fretted = [f for f in fingering if f > 0]
             if fretted:

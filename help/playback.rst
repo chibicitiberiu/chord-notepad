@@ -126,21 +126,22 @@ even physically playable. Fingers only reach so far, and there are only so many
 of them. So instead of arranging notes freely, the guitar picker hunts for a
 *fingering* -- a specific fret on each string that a hand can actually hold.
 
-It generates candidates two ways. The first is a small library of familiar open
-shapes (the cowboy C, G, D, A, and E, plus a barre shape) slid up and down the
-neck. The second builds fingerings from scratch, one string at a time,
-from a map of which note sits at every fret. Every candidate then has to clear
-two bars:
+It builds every candidate from scratch, one string at a time, from a map of
+which note sits at each fret -- no memorized chord shapes involved. Each string
+may be muted or fretted anywhere its note belongs to the chord (plus the one
+slash-bass note, if any). Every candidate then has to clear two bars:
 
 * **It must spell the chord** -- cover all the notes, and add nothing that isn't
   in the chord (the one slash-bass note excepted).
 * **It must be reachable** -- no more than a four-fret stretch, and no more
   fretted fingers than a hand has, unless it can use a barre.
 
-Whatever survives is scored, and, just like the piano, the first chord favors
-low open positions while every chord after it is scored on how little the
-fretting hand has to shift from the shape before. Same voice-leading instinct,
-different instrument.
+Whatever survives is scored, and the highest score wins. The score rewards
+full, low, open-sounding voicings that put the right note in the bass, and it
+docks points for wide stretches, barres, and silent strings buried in the
+middle of a strum. On the first chord that is the whole story; every chord after
+it also earns points for leaving the fretting hand close to the previous shape.
+Same voice-leading instinct as the piano, different instrument.
 
 When a chord is too dense to hold on six strings, the picker relaxes rather than
 give up: it allows a partial voicing (drop a note or two from the fuller
