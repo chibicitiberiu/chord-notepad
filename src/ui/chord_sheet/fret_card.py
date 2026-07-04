@@ -1,0 +1,291 @@
+"""Fretted-instrument chord-box renderer: one card per chord, nut at top.
+
+:class:`FretCardRenderer` draws each sounding chord as a standard vertical
+chord diagram (strings vertical, frets horizontal, nut/fret-position marker at
+top) with the chord symbol printed above it. Rests and chords voiced without
+fingering data (``RenderedChord.fingering is None``) get a slim empty card,
+matching :class:`~ui.chord_sheet.name_card.NameCardRenderer`'s rest handling.
+
+The diagram logic is a direct port of the user's own ``guitar_svg`` generator
+(``scripts/music/chord_diagrams.py`` in the tibich.com blog repo): strings are
+vertical lines with the *lowest* string leftmost (``fingering[0]`` is the
+lowest string, per ``RenderedChord.fingering``'s documented convention), frets
+are horizontal lines, and:
+
+- ``base = 1`` (nut visible, thick bar drawn above the grid) when any string
+  is open, no string is fretted, or the lowest fretted position is 1 or less.
+- otherwise ``base = min(fretted positions)``, and a ``'<base>fr'`` label is
+  drawn to the left of the first fret row instead of a nut bar.
+- a fretted position lands in row ``f - base + 0.5`` (centered in its row).
+
+Unlike the static SVG script (fixed pixel constants), geometry here is a pure
+function of ``(ctx, height)`` per the renderer contract: every length derives
+from the given content ``height`` plus two song-wide quantities computed once
+per render -- the string count (``len(fingering)`` of any chord that has one,
+default 6) and the fret-row count (4 by default, extended for every card in
+the song if some chord's fretted span needs more rows, so all cards stay
+uniform). Card width is likewise a single value derived from those song-wide
+quantities, so every sounding-chord card in the strip is the same width.
+"""
+
+from dataclasses import dataclass
+from typing import List, Optional
+
+from models.rendered_song import RenderedChord, RenderedSong
+from ui.chord_sheet.ops import DrawOps
+from ui.chord_sheet.renderer_interface import (
+    SheetContext,
+    SlotBox,
+    StripLayout,
+    StripRenderer,
+)
+
+#: Horizontal gap between adjacent cards, px.
+CARD_GAP = 8.0
+#: Leading/trailing padding at the strip's left and right edges, px.
+STRIP_MARGIN = 12.0
+#: Width of a rest/no-fingering slot's slim card, px.
+REST_WIDTH = 30.0
+#: Minimum number of fret rows drawn, extended song-wide when a shape needs more.
+DEFAULT_ROWS = 4
+#: Fallback string count when no chord in the song carries fingering data.
+DEFAULT_STRING_COUNT = 6
+
+#: Palette (module-local; echoes the user's blog diagrams).
+_ACCENT = "#2a3d46"  # fretted-note dots
+_INK = "#22323a"  # nut bar, open-circle outline, chord symbol
+_MUTE = "#8b949b"  # muted-string '×', base-fret label
+_GRID = "#b9c2c7"  # fret/string grid lines
+
+# Geometry ratios: fractions of the given content height / row height that
+# keep the diagram's proportions stable as the strip is resized. Mirrors the
+# source SVG's fixed SG=15 / FG=18 (string gap ~0.83x the fret-row height).
+_SYMBOL_FRAC = 0.22
+_GRID_VPAD = 6.0
+_SG_TO_ROW = 0.85
+_SIDE_PAD_FACTOR = 1.35
+_MARKER_GAP_FACTOR = 0.5
+_DOT_RADIUS_FACTOR = 0.34
+_OPEN_RADIUS_FACTOR = 0.24
+_NUT_HEIGHT_FACTOR = 0.12
+
+
+@dataclass(frozen=True)
+class _Geometry:
+    """Resolved pixel geometry for one render, shared by every card."""
+
+    card_width: float
+    symbol_h: float
+    grid_top: float
+    grid_left: float
+    row_h: float
+    string_gap: float
+    box_w: float
+    rows: int
+    nut_h: float
+    marker_gap: float
+    dot_r: float
+    open_r: float
+    symbol_size: int
+    label_size: int
+
+
+def _chord_base(fingering: List[int]) -> int:
+    """Return the fret-position base (1 = nut visible) for a fingering."""
+    fretted = [f for f in fingering if f > 0]
+    has_open = any(f == 0 for f in fingering)
+    if has_open or not fretted or min(fretted) <= 1:
+        return 1
+    return min(fretted)
+
+
+def _song_geometry_inputs(song: RenderedSong) -> tuple:
+    """Compute the song-wide row count and string count once per render.
+
+    Walks every chord's fingering to find the widest fretted span (extending
+    ``DEFAULT_ROWS`` if needed) and the string count, so every card in the
+    strip draws the same number of rows/strings regardless of which chord's
+    shape happens to need them.
+    """
+    rows = DEFAULT_ROWS
+    string_count: Optional[int] = None
+    for chord in song.chords:
+        fingering = chord.fingering
+        if not fingering:
+            continue
+        if string_count is None:
+            string_count = len(fingering)
+        base = _chord_base(fingering)
+        fretted = [f for f in fingering if f > 0]
+        if fretted:
+            span = max(fretted) - base + 1
+            rows = max(rows, span)
+    return rows, (string_count or DEFAULT_STRING_COUNT)
+
+
+def _compute_geometry(height: float, rows: int, string_count: int) -> _Geometry:
+    """Derive every pixel length from the content ``height`` alone (plus the
+    song-wide ``rows``/``string_count``), so painting is a pure function of
+    ``(ctx, height)``."""
+    symbol_h = max(14.0, height * _SYMBOL_FRAC)
+    grid_h = max(24.0, height - symbol_h - 2 * _GRID_VPAD)
+    row_h = grid_h / rows
+    string_gap = row_h * _SG_TO_ROW
+    box_w = string_gap * (string_count - 1) if string_count > 1 else string_gap
+    side_pad = string_gap * _SIDE_PAD_FACTOR
+    return _Geometry(
+        card_width=box_w + 2 * side_pad,
+        symbol_h=symbol_h,
+        grid_top=symbol_h + _GRID_VPAD,
+        grid_left=side_pad,
+        row_h=row_h,
+        string_gap=string_gap,
+        box_w=box_w,
+        rows=rows,
+        nut_h=max(2.0, row_h * _NUT_HEIGHT_FACTOR),
+        marker_gap=max(6.0, row_h * _MARKER_GAP_FACTOR),
+        dot_r=max(2.5, string_gap * _DOT_RADIUS_FACTOR),
+        open_r=max(2.0, string_gap * _OPEN_RADIUS_FACTOR),
+        symbol_size=int(max(9, min(16, round(height * 0.11)))),
+        label_size=int(max(7, min(11, round(height * 0.08)))),
+    )
+
+
+def _has_shape(chord: RenderedChord) -> bool:
+    """Whether a chord gets a full fret-box card (vs. a slim empty one)."""
+    return (not chord.is_rest) and bool(chord.fingering)
+
+
+class FretCardRenderer(StripRenderer):
+    """Draw fretted-instrument chords as vertical chord-box cards."""
+
+    id = "fret"
+    label = "Chord box"
+    requires_fingering = True
+
+    def layout(self, ctx: SheetContext, height: float) -> StripLayout:
+        """Lay cards out left to right with a uniform width for every shape.
+
+        Args:
+            ctx: Song-wide context.
+            height: Available content height in pixels.
+
+        Returns:
+            A :class:`StripLayout` with one slim slot per rest/no-fingering
+            chord and one full-width slot per chord with a fingering, in song
+            order.
+        """
+        rows, string_count = _song_geometry_inputs(ctx.song)
+        geo = _compute_geometry(height, rows, string_count)
+
+        slots: List[SlotBox] = []
+        x = STRIP_MARGIN
+        for index, chord in enumerate(ctx.song.chords):
+            width = geo.card_width if _has_shape(chord) else REST_WIDTH
+            slots.append(SlotBox(chord_index=index, x=x, width=width))
+            x += width + CARD_GAP
+
+        content_width = (x - CARD_GAP + STRIP_MARGIN) if slots else (2 * STRIP_MARGIN)
+        return StripLayout(width=content_width, height=height, slots=tuple(slots))
+
+    def paint(self, ops: DrawOps, ctx: SheetContext, layout: StripLayout) -> None:
+        """Draw each card's chord symbol and fret-box diagram.
+
+        Args:
+            ops: Recorder to append draw ops to.
+            ctx: Song-wide context.
+            layout: Layout from :meth:`layout` for the same ``ctx``/``height``.
+        """
+        rows, string_count = _song_geometry_inputs(ctx.song)
+        geo = _compute_geometry(layout.height, rows, string_count)
+        chords = ctx.song.chords
+
+        for slot in layout.slots:
+            chord = chords[slot.chord_index]
+            if not _has_shape(chord):
+                continue  # slim empty card: no ops
+            self._paint_card(ops, chord, slot, geo)
+
+    def _paint_card(
+        self, ops: DrawOps, chord: RenderedChord, slot: SlotBox, geo: _Geometry
+    ) -> None:
+        """Draw one chord's symbol + fret-box diagram at its slot."""
+        tag = f"slot:{slot.chord_index}"
+        fingering = chord.fingering
+        base = _chord_base(fingering)
+
+        ops.text(
+            slot.x + geo.card_width / 2.0,
+            geo.symbol_h / 2.0,
+            chord.chord_info.chord,
+            anchor="center",
+            size=geo.symbol_size,
+            fill=_INK,
+            bold=True,
+            tags=(tag,),
+        )
+
+        grid_left = slot.x + geo.grid_left
+        grid_top = geo.grid_top
+        box_w = geo.box_w
+        row_h = geo.row_h
+
+        if base == 1:
+            ops.rect(
+                grid_left,
+                grid_top - geo.nut_h,
+                box_w,
+                geo.nut_h,
+                fill=_INK,
+                tags=(tag,),
+            )
+        else:
+            ops.text(
+                grid_left - 4.0,
+                grid_top + row_h * 0.7,
+                f"{base}fr",
+                anchor="e",
+                size=geo.label_size,
+                fill=_MUTE,
+                tags=(tag,),
+            )
+
+        for r in range(geo.rows + 1):
+            y = grid_top + r * row_h
+            ops.line(
+                [(grid_left, y), (grid_left + box_w, y)], fill=_GRID, tags=(tag,)
+            )
+
+        n = len(fingering)
+        grid_bottom = grid_top + geo.rows * row_h
+        for i in range(n):
+            x = grid_left + i * geo.string_gap
+            ops.line([(x, grid_top), (x, grid_bottom)], fill=_GRID, tags=(tag,))
+
+        for i, f in enumerate(fingering):
+            x = grid_left + i * geo.string_gap
+            if f == -1:
+                ops.text(
+                    x,
+                    grid_top - geo.marker_gap,
+                    "×",
+                    anchor="center",
+                    size=geo.label_size,
+                    fill=_MUTE,
+                    tags=(tag,),
+                )
+            elif f == 0:
+                r = geo.open_r
+                ops.oval(
+                    x - r,
+                    grid_top - geo.marker_gap - r,
+                    2 * r,
+                    2 * r,
+                    outline=_INK,
+                    width=1.1,
+                    tags=(tag,),
+                )
+            else:
+                r = geo.dot_r
+                cy = grid_top + (f - base + 0.5) * row_h
+                ops.oval(x - r, cy - r, 2 * r, 2 * r, fill=_ACCENT, tags=(tag,))
