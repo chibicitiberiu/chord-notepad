@@ -9,6 +9,21 @@ moved to CHANGELOG_HISTORY.md and this file is reset.
 
 ### Added
 
+- **Chord sheet** (View → Chord Sheet): a collapsible strip docked under the
+  editor that lays out the song's voiced chords left to right, in playback
+  order, one card per occurrence -- loops are unrolled, so a repeated
+  section gets one card per pass, and voice leading means the same chord
+  symbol can look different from one pass to the next, exactly as it
+  sounds. Four views: **Keyboard** (mini piano per chord, stacked hands for
+  the piano model) and **Staff** (grand staff whole notes, honoring an
+  ensemble's per-voice staff setting) are available for any voicing;
+  **Chord box** and **Tab** need fingering data and are only available for
+  a fretboard-model voicing. A marker lane above the cards shows section
+  labels, loop passes (``chorus (2/3)``), and tempo/meter changes. The
+  strip follows playback with a highlight and auto-scroll, and clicking a
+  card plays that exact voicing. The active view and the panel's height are
+  remembered between sessions. See the new Chord Sheet help page.
+
 - **Configurable piano voicing** (Tools → Settings... → Voicings): the
   piano model is now fully editable, the same as the fretboard and ensemble
   models. Hand ranges (left hand, right hand, preferred bass), scoring

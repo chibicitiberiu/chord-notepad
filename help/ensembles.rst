@@ -227,7 +227,8 @@ one ensemble:
   a ``name`` and a ``range`` of ``[low, high]``. Give the range as note
   names (``"C4"``, ``"F#3"``) or raw MIDI numbers; middle C is ``C4``. Each
   voice also takes an optional ``staff`` (``"treble"`` or ``"bass"``),
-  used by chord-sheet features that draw a voicing on a grand staff.
+  used by the chord sheet's Staff view (see :doc:`chord_sheet`) to draw a
+  voicing on a grand staff.
   Leave it out and Chord Notepad picks the staff automatically from the
   voice's range: ``"bass"`` if the range center sits below middle C,
   ``"treble"`` otherwise. The built-in Choir (SATB) pins soprano and alto

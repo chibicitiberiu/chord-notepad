@@ -25,6 +25,7 @@ jump to :doc:`tips`.
    fretted
    piano
    ensembles
+   chord_sheet
    midi_export
    interface
    settings

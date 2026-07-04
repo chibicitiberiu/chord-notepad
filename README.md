@@ -19,6 +19,7 @@ A text editor for songwriters. Write chord symbols above your lyrics, the way yo
 - Choose the instrument: piano, or guitar in standard, Drop D, DADGAD, or Open G tuning, plus a ukulele preset (any custom fretted instrument or custom piano voicing too, built with the Tools → Settings voicing editor)
 - Real MIDI synthesis through FluidSynth, with a soundfont bundled in
 - A metronome you can switch on and off mid-playback
+- A chord sheet strip (View → Chord Sheet) shows the song's voiced chords left to right as they'll actually play, follows along during playback, and switches between keyboard, staff, chord box, and tab views
 
 **A small format for songs**
 - Hold a chord longer with `C*2` (two beats), rest with `NC`, comment with `//`

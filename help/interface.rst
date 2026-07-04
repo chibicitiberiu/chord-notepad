@@ -175,6 +175,11 @@ View Menu
 
    Your choice is saved and remembered for next time.
 
+**Chord Sheet**
+   Shows or hides the chord sheet strip docked under the editor, with the
+   song's voiced chords laid out left to right as they'll actually play.
+   See :doc:`chord_sheet`.
+
 **Increase Font Size** (Ctrl+Plus)
    Make the text one size larger.
 
