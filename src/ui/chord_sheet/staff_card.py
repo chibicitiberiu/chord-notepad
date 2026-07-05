@@ -22,11 +22,14 @@ Engraving detail:
   spaces so they never read as merged at middle C; a middle C gets its single
   ledger line clearly in the gap.
 - **Vertical placement is diatonic, from spelling, not raw MIDI.** A note's
-  letter comes from the chord's parser note names (matched by pitch class) so a
-  ``Bb`` sits on the B line and an ``F#`` on the F position; the octave is
-  derived from the spelling so it reproduces the MIDI note across the enharmonic
-  seam (``B#3`` = 60, ``Cb5`` = 71). Each staff maps diatonic index by its own
-  anchor (E4 on the treble bottom line; A3 on the bass top line).
+  letter is key-aware: a note diatonic to the chord's key is spelled the way the
+  signature spells it (a ``Db`` chord in F# major places its notes as C#/E#/G#,
+  no accidentals), so the staff never fights its own signature; a chromatic note
+  keeps the chord's parser spelling (a ``Bb`` sits on the B line). The octave is
+  derived from the resolved spelling so it reproduces the MIDI note across the
+  enharmonic seam (``B#3`` = 60, ``Cb5`` = 71), including when the key-aware
+  spelling itself crosses it. Each staff maps diatonic index by its own anchor
+  (E4 on the treble bottom line; A3 on the bass top line).
 - **Frozen clefs + key signature.** The two clefs and the key signature are
   painted into a non-scrolling left gutter (:meth:`StaffCardRenderer.paint_gutter`)
   so they stay visible while the content scrolls. The gutter signature is
@@ -119,6 +122,12 @@ _SHARP_SPELLING: Tuple[Tuple[str, int], ...] = (
     ('C', 0), ('C', 1), ('D', 0), ('D', 1), ('E', 0), ('F', 0),
     ('F', 1), ('G', 0), ('G', 1), ('A', 0), ('A', 1), ('B', 0),
 )
+#: Default (letter, accidental) per pitch class, flat convention (used as the
+#: fallback in flat keys so unmatched chromatic pitch classes read as flats).
+_FLAT_SPELLING: Tuple[Tuple[str, int], ...] = (
+    ('C', 0), ('D', -1), ('D', 0), ('E', -1), ('E', 0), ('F', 0),
+    ('G', -1), ('G', 0), ('A', -1), ('A', 0), ('B', -1), ('B', 0),
+)
 #: Diatonic index of E4 (the treble staff's bottom line) and A3 (the bass
 #: staff's top line): the per-staff vertical anchors.
 _E4_INDEX = 4 * 7 + _LETTER_VALUE['E']
@@ -168,14 +177,27 @@ def _accidental_offset(name: str) -> int:
     return offset
 
 
-def _match_letter(pc: int, chord_notes) -> Tuple[str, int]:
+def _match_letter(pc: int, chord_notes, fifths: Optional[int] = None) -> Tuple[str, int]:
     """Return the ``(letter, accidental_offset)`` spelling a pitch class ``pc``.
 
-    Prefers a name from the chord's parser spelling (``notes``, then
-    ``bass_note``, then ``root``) whose pitch class matches ``pc`` -- so a
-    ``Bb`` keeps its B-with-flat spelling and an ``F#`` its F-with-sharp. Falls
-    back to the sharp spelling for a pitch class the chord doesn't name.
+    Precedence:
+
+    1. **Diatonic-in-key wins.** When ``fifths`` is known, a pitch class that
+       is diatonic to the key is spelled the way the key signature spells it
+       (F#'s pc 1 is C#, its pc 5 is E#, Gb's pc 11 is Cb), regardless of how
+       the chord symbol was written. The downstream accidental-vs-signature
+       logic then draws nothing for it.
+    2. **Source spelling second.** A chromatic pitch class (not diatonic to the
+       key) keeps a name from the chord's parser spelling (``notes``, then
+       ``bass_note``, then ``root``) whose pitch class matches ``pc`` -- so a
+       ``Bb`` keeps its B-with-flat spelling and an ``F#`` its F-with-sharp.
+    3. **Fallback follows the signature.** A pitch class matched by neither
+       falls back to flats in flat keys and sharps otherwise (sharp keys, C
+       major, or no key).
     """
+    key_map = _diatonic_key_map(fifths)
+    if pc in key_map:
+        return key_map[pc]
     if chord_notes is not None:
         candidates: List[str] = list(chord_notes.notes or [])
         if chord_notes.bass_note:
@@ -187,19 +209,23 @@ def _match_letter(pc: int, chord_notes) -> Tuple[str, int]:
                 continue
             if parse_note_to_semitone(name) == pc and name[0].upper() in _LETTER_VALUE:
                 return name[0].upper(), _accidental_offset(name)
-    return _SHARP_SPELLING[pc % 12]
+    table = _FLAT_SPELLING if (fifths is not None and fifths < 0) else _SHARP_SPELLING
+    return table[pc % 12]
 
 
-def _spell(midi: int, chord_notes) -> Tuple[str, int, int]:
+def _spell(midi: int, chord_notes, fifths: Optional[int] = None) -> Tuple[str, int, int]:
     """Spell a MIDI note as ``(letter, accidental_offset, diatonic_index)``.
 
-    The letter/accidental come from :func:`_match_letter`; the octave is derived
-    so ``letter+accidental`` reproduces ``midi`` exactly, which handles the
-    enharmonic seam (``B#3`` = 60 lands on the B position below middle C;
-    ``Cb5`` = 71 lands on the C5 position with a flat).
+    The letter/accidental come from :func:`_match_letter` (key-aware when
+    ``fifths`` is given); the octave is derived so ``letter+accidental``
+    reproduces ``midi`` exactly, which handles the enharmonic seam (``B#3`` = 60
+    lands on the B position below middle C; ``Cb5`` = 71 lands on the C5
+    position with a flat, one diatonic step above where ``B4`` would sit) --
+    including when the key-aware spelling itself crosses the seam (Gb major's
+    pc 11 is Cb).
     """
     pc = midi % 12
-    letter, acc = _match_letter(pc, chord_notes)
+    letter, acc = _match_letter(pc, chord_notes, fifths)
     natural = _LETTER_SEMITONE[letter] + acc
     octave = (midi - natural) // 12 - 1
     return letter, acc, _diatonic_index(letter, octave)
@@ -263,6 +289,27 @@ def _signature_letter_map(fifths: Optional[int]) -> Dict[str, int]:
     out: Dict[str, int] = {}
     for entry in _signature_entries(fifths):
         out[entry.letter] = 1 if entry.kind == 'sharp' else -1
+    return out
+
+
+def _diatonic_key_map(fifths: Optional[int]) -> Dict[int, Tuple[str, int]]:
+    """Pitch class -> its diatonic ``(letter, accidental)`` in the key.
+
+    Built straight from the key signature: each of the seven letters carries
+    the accidental the signature applies to it, giving the major scale as the
+    signature spells it (F#: F#/G#/A#/B/C#/D#/E#; Gb: Gb/Ab/Bb/Cb/Db/Eb/F, so
+    pc 11 is Cb -- a non-natural letter, not skipped). Minor keys share their
+    relative major's ``fifths`` and so the same map. ``None`` (no key) yields an
+    empty map, disabling the diatonic-in-key rule.
+    """
+    if fifths is None:
+        return {}
+    sig_map = _signature_letter_map(fifths)
+    out: Dict[int, Tuple[str, int]] = {}
+    for letter in _LETTER_VALUE:
+        acc = sig_map.get(letter, 0)
+        pc = (_LETTER_SEMITONE[letter] + acc) % 12
+        out[pc] = (letter, acc)
     return out
 
 
@@ -336,10 +383,17 @@ def _voiced(chord: RenderedChord, song: RenderedSong) -> List[Tuple[int, str, st
 
 
 def _resolve_notes(chord: RenderedChord, song: RenderedSong) -> List[_Note]:
-    """Resolve a chord's drawn notes to spelled :class:`_Note` records."""
+    """Resolve a chord's drawn notes to spelled :class:`_Note` records.
+
+    Spelling is key-aware: notes diatonic to the chord's key are spelled to
+    match the signature (so a ``Db`` chord in F# major draws its notes as C#/E#/
+    G# with no accidentals), while chromatic notes keep the user's source
+    spelling. See :func:`_match_letter`.
+    """
     notes: List[_Note] = []
+    fifths = _key_fifths(chord.key)
     for midi, staff, color in _voiced(chord, song):
-        letter, acc, idx = _spell(midi, chord.chord_notes)
+        letter, acc, idx = _spell(midi, chord.chord_notes, fifths)
         notes.append(_Note(midi, staff, letter, acc, idx, color))
     return notes
 

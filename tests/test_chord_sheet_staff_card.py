@@ -11,9 +11,12 @@ legend; and the extended clef/glyph asset resolver.
 """
 from typing import List, Optional
 
+from audio.chord_picker import ChordNotePicker
 from models.chord import ChordInfo
 from models.chord_notes import ChordNotes
+from models.line import Line
 from models.rendered_song import RenderedChord, RenderedSong
+from services.song_renderer import SongRenderer
 from ui.chord_sheet.ops import DrawOps, ImageOp, LineOp, TextOp
 from ui.chord_sheet.renderer_interface import (
     HAND_COLORS,
@@ -94,6 +97,46 @@ def noteheads(ops) -> List[ImageOp]:
 def accidentals(ops, kind: str) -> List[ImageOp]:
     return [o for o in ops.ops
             if isinstance(o, ImageOp) and o.key.startswith("glyph_accidental_" + kind)]
+
+
+def render_song(symbols: List[str], key: Optional[str], bpm: int = 120) -> RenderedSong:
+    """Render ``symbols`` through the real pipeline in ``key`` (piano voicing).
+
+    Builds a one-line song of absolute chords, renders it with a real
+    :class:`ChordNotePicker`, and returns the :class:`RenderedSong` -- so each
+    chord carries the parser's source spelling in ``chord_notes`` and a real
+    voicing in ``midi_notes``, exactly as the app produces.
+    """
+    line = Line(content=" ".join(symbols), line_number=1)
+    line.items = [
+        ChordInfo(chord=sym, start=i, end=i + 1, is_relative=False, is_valid=True)
+        for i, sym in enumerate(symbols)
+    ]
+    picker = ChordNotePicker()
+    picker.reset()
+    return SongRenderer().render(
+        lines=[line], initial_key=key, initial_bpm=bpm,
+        initial_time_sig=(4, 4), note_picker=picker,
+    )
+
+
+def content_accidental_ops(ops):
+    """Every accidental glyph/text drawn on a note in the scrolling content.
+
+    Image accidentals tagged to a chord slot plus the rare double-accidental
+    text fallback -- i.e. everything a note contributes, excluding gutter and
+    key-change signature glyphs.
+    """
+    out = []
+    for o in ops.ops:
+        in_slot = any(str(t).startswith("slot:") for t in o.tags)
+        if not in_slot:
+            continue
+        if isinstance(o, ImageOp) and o.key.startswith("glyph_accidental_"):
+            out.append(o)
+        elif isinstance(o, TextOp) and ("♯" in o.s or "♭" in o.s):
+            out.append(o)
+    return out
 
 
 def color_of(op: ImageOp) -> Optional[str]:
@@ -462,6 +505,116 @@ class TestAccidentalsVsSignature:
         assert sc._accidental_kind('C', 1, gmaj) == 'sharp'    # C# not in sig
         assert sc._accidental_kind('C', 0, gmaj) is None       # C natural matches
         assert sc._accidental_kind('F', 2, gmaj) == 'text'     # double -> fallback
+
+
+# --------------------------------------------------------------------------
+# Key-aware respelling (notes spelled to match the signature)
+# --------------------------------------------------------------------------
+
+class TestKeyAwareRespelling:
+    def _letters(self, song, chord):
+        notes = sc._resolve_notes(chord, song)
+        return [(n.letter, n.acc) for n in notes]
+
+    def test_flat_spelled_chords_in_f_sharp_carry_no_accidentals(self):
+        # The reported bug: F# major song whose chords are typed with flats
+        # (Ebm/Db/B). Every note is diatonic to F# and must be respelled to the
+        # sharp signature -- so the content draws ZERO note accidentals.
+        song = render_song(["Ebm", "Db", "B"], "F#")
+        _, ops = paint(song)
+        assert content_accidental_ops(ops) == []
+        assert noteheads(ops)  # notes are still drawn
+        # Ebm's flat root (Eb, pc 3) is respelled D#, landing on the D letter,
+        # not the E line it used to sit on.
+        ebm_letters = self._letters(song, song.chords[0])
+        assert ("D", 1) in ebm_letters
+        assert all(letter != "E" for letter, _ in ebm_letters)
+        # Db's flat root (Db, pc 1) is respelled C#, on the C letter.
+        assert ("C", 1) in self._letters(song, song.chords[1])
+
+    def test_gb_in_f_sharp_lands_on_f_sharp_without_accidental(self):
+        song = render_song(["Gb"], "F#")
+        _, ops = paint(song)
+        assert content_accidental_ops(ops) == []
+        # Gb (pc 6) -> F#; Bb (pc 10) -> A#; Db (pc 1) -> C#: all sharp-family.
+        letters = self._letters(song, song.chords[0])
+        assert ("F", 1) in letters
+        assert all(acc >= 0 for _, acc in letters)  # no flats survive
+
+    def test_flat_spelled_chords_in_e_flat_minor_carry_no_accidentals(self):
+        # The second screenshot: Eb minor (relative of Gb major, 6 flats). The
+        # same Ebm/Db/B progression is fully diatonic and draws no accidentals.
+        song = render_song(["Ebm", "Db", "B"], "Ebm")
+        _, ops = paint(song)
+        assert content_accidental_ops(ops) == []
+        # The "B" chord's B (pc 11) is diatonic here and respells to Cb (the C
+        # letter with a flat) -- a non-natural letter the map must include.
+        b_letters = self._letters(song, song.chords[2])
+        assert ("C", -1) in b_letters
+        assert all(letter != "B" for letter, _ in b_letters)
+
+    def test_seam_pc11_in_gb_major_spells_cb_one_step_above_b4(self):
+        # MIDI 71 is B4 by source spelling; in a 6-flat key (Eb minor / Gb
+        # major) it is diatonic pc 11 and must spell Cb5 -- one diatonic step
+        # ABOVE where B4 sits, with the octave crossing the enharmonic seam.
+        cn = ChordNotes(notes=["B", "D#", "F#"], bass_note="B", root="B")
+        letter, acc, idx = sc._spell(71, cn, sc._key_fifths("Ebm"))
+        assert (letter, acc) == ("C", -1)
+        assert idx == sc._diatonic_index("C", 5)
+        assert idx == sc._diatonic_index("B", 4) + 1
+
+    def test_chromatic_note_keeps_source_spelling_in_key(self):
+        # Ebm in the key of C: none of Eb/Gb/Bb is diatonic, so the source flat
+        # spelling (and its flat glyphs) survives -- rule 2 regression.
+        cn = ChordNotes(notes=["Eb", "Gb", "Bb"], bass_note="Eb", root="Eb")
+        song = make_song(make_chord(
+            "Ebm", midi_notes=[63, 66, 70], chord_notes=cn, key="C"))
+        _, ops = paint(song)
+        letters = [(n.letter, n.acc) for n in sc._resolve_notes(song.chords[0], song)]
+        assert letters == [("E", -1), ("G", -1), ("B", -1)]
+        assert len(accidentals(ops, "flat")) == 3
+        assert not accidentals(ops, "sharp")
+
+    def test_genuinely_chromatic_note_gets_natural_against_sharp_signature(self):
+        # Bm in F#: the D natural (pc 2) is chromatic (F# major has D#), so it
+        # keeps its natural spelling and draws a NATURAL cancelling the sig's D#.
+        song = render_song(["Bm"], "F#")
+        _, ops = paint(song)
+        accs = content_accidental_ops(ops)
+        assert len(accs) >= 1
+        assert all(o.key.startswith("glyph_accidental_natural") for o in accs)
+        # The natural sits on the D letter, not the D# line's neighbour.
+        d_notes = [n for n in sc._resolve_notes(song.chords[0], song)
+                   if n.letter == "D"]
+        assert d_notes and all(n.acc == 0 for n in d_notes)
+
+    def test_flat_key_respells_sharp_source_to_signature(self):
+        # Eb major with a sharp-spelled source (D#m): D# (pc 3) is diatonic and
+        # respells to Eb, drawing no accidental.
+        cn = ChordNotes(notes=["D#", "F#", "A#"], bass_note="D#", root="D#")
+        song = make_song(make_chord(
+            "D#m", midi_notes=[63], chord_notes=cn, key="Eb"))
+        _, ops = paint(song)
+        letters = [(n.letter, n.acc) for n in sc._resolve_notes(song.chords[0], song)]
+        assert letters == [("E", -1)]  # D# -> Eb
+        assert content_accidental_ops(ops) == []
+
+    def test_fallback_direction_follows_signature_in_flat_key(self):
+        # Key Ab (4 flats): a pitch class matched by neither rule 1 nor rule 2
+        # (no chord_notes) falls back to a FLAT spelling, not a sharp.
+        assert sc._match_letter(6, None, sc._key_fifths("Ab")) == ("G", -1)
+        song = make_song(make_chord("?", midi_notes=[66], chord_notes=None, key="Ab"))
+        _, ops = paint(song)
+        assert len(accidentals(ops, "flat")) == 1
+        assert not accidentals(ops, "sharp")
+
+    def test_diatonic_map_contains_enharmonic_letters(self):
+        # The map is built from the signature, so it carries non-natural letters
+        # that live on the seam (F# major's E#, Gb major's Cb) rather than
+        # skipping them.
+        assert sc._diatonic_key_map(sc._key_fifths("F#"))[5] == ("E", 1)
+        assert sc._diatonic_key_map(sc._key_fifths("Gb"))[11] == ("C", -1)
+        assert sc._diatonic_key_map(None) == {}
 
 
 # --------------------------------------------------------------------------

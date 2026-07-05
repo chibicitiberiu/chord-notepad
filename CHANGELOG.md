@@ -117,6 +117,12 @@ moved to CHANGELOG_HISTORY.md and this file is reset.
 
 ### Fixed
 
+- The staff view now spells notes to match the key signature: a song in F#
+  whose chords are typed with flat names (Ebm, Db, Gb) engraves as D#m, C#,
+  and F# with no accidentals, and the same song in Ebm engraves as Ebm, Db,
+  and Cb. Chords outside the key keep the spelling you typed. Chord labels
+  above the staff always stay as written.
+
 - Pasting text with Windows-style line endings (CRLF) no longer leaves stray
   carriage-return characters in the editor (they showed up as junk glyphs at
   the ends of pasted lines). Pasted and opened text is also cleaned of

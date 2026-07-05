@@ -66,7 +66,10 @@ real music-font glyphs: whole-note heads, sharps, flats, and naturals.
 The key signature is drawn after the clefs from the song's key, and again
 after a double barline wherever a ``{key}`` directive changes it; notes
 then only carry accidentals where they deviate from the signature
-(including a natural sign to cancel it). Available for any voicing. An
+(including a natural sign to cancel it). Notes are spelled to match the
+key signature -- a ``Db`` chord in F# major is drawn as C# with no
+accidental -- while the chord labels stay exactly as you typed them.
+Available for any voicing. An
 ensemble voicing routes each voice to the staff (treble or bass) set for
 it -- see :doc:`ensembles` for where that per-voice ``staff`` setting comes
 from -- and colors each voice, with a small legend at the left. The piano
