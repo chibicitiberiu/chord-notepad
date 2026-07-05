@@ -21,6 +21,7 @@ jump to :doc:`tips`.
    getting_started
    writing_chords
    directives
+   transpose
    playback
    fretted
    piano

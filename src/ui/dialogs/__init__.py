@@ -9,6 +9,7 @@ from .insert_directives import (
 )
 from .quick_start import QuickStartDialog
 from .options_dialog import OptionsDialog
+from .transpose_dialog import TransposeDialog
 
 __all__ = [
     'InsertBpmDialog',
@@ -18,4 +19,5 @@ __all__ = [
     'InsertLoopDialog',
     'QuickStartDialog',
     'OptionsDialog',
+    'TransposeDialog',
 ]

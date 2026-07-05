@@ -491,27 +491,53 @@ class SongParserService:
         )
 
     @staticmethod
+    def rewrite_chord_spans(text: str, spans, transform) -> str:
+        """Splice a per-chord ``transform`` into ``text`` for the given spans.
+
+        This is the shared token-walk/replacement core used by notation
+        conversion (and reused by the transpose service). Each span is a
+        ``(start, end, chord_part)`` tuple where ``[start, end)`` is the full
+        match in ``text`` and ``chord_part`` is the chord string proper.
+        ``transform(chord_part)`` returns the replacement chord text.
+
+        Spans are rewritten from the end of the text so earlier offsets stay
+        valid. Any trailing characters in ``[start, end)`` beyond
+        ``chord_part`` (e.g. a "*2" duration suffix) are preserved verbatim.
+
+        Note: this performs a flat substitution with no chord-line/lyric
+        alignment adjustment. The transpose service layers alignment on top of
+        the same detection + transform primitives.
+
+        Args:
+            text: Full document text.
+            spans: Iterable of (start, end, chord_part) tuples.
+            transform: Callable mapping a chord string to its replacement.
+
+        Returns:
+            The rewritten text.
+        """
+        result = text
+        for start, end, chord_part in sorted(spans, key=lambda s: s[0], reverse=True):
+            original = result[start:end]
+            trailing = original[len(chord_part):]
+            result = result[:start] + transform(chord_part) + trailing + result[end:]
+        return result
+
+    @staticmethod
     def _apply_chord_conversion(text: str, lines: List[Line], convert_chord) -> str:
         """Substitute each detected chord with its converted form.
 
-        Iterates from the end of the text so earlier positions stay valid.
-        Preserves any trailing characters in the match (e.g. a "*2" duration
-        suffix) because ChordInfo.chord excludes them but [start, end) includes
-        them.
+        Builds the chord spans from the pre-detected chord lines (valid,
+        non-relative chords only) and delegates the splice to
+        :py:meth:`rewrite_chord_spans`.
         """
-        chord_infos = [
-            chord
+        spans = [
+            (chord.start, chord.end, chord.chord)
             for line in lines if line.is_chord_line()
             for chord in line.get_valid_chords()
             if not chord.is_relative
         ]
-        result = text
-        for info in sorted(chord_infos, key=lambda c: c.start, reverse=True):
-            original = result[info.start:info.end]
-            chord_part = info.chord
-            trailing = original[len(chord_part):]
-            result = result[:info.start] + convert_chord(chord_part) + trailing + result[info.end:]
-        return result
+        return SongParserService.rewrite_chord_spans(text, spans, convert_chord)
 
     def identify_chord_from_notes(self, notes: List[str], bass_note: str = None) -> List[str]:
         """Identify possible chord names from a set of notes.

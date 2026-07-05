@@ -655,6 +655,39 @@ class MainWindowViewModel(Observable):
         if not self._is_modified:
             self.set_and_notify("is_modified", True)
 
+    def transpose(self, semitones: int, region: Optional[tuple] = None) -> None:
+        """Transpose chords by ``semitones`` and replace the document text.
+
+        Mirrors the ``convert_text_to_*`` command pattern: call the pure
+        service, then ``set_and_notify("current_text", ...)`` so the editor
+        replaces its content (the view groups this into one undo step).
+
+        When the whole document is transposed (``region is None``) the toolbar
+        key, if set, is shifted too so roman numerals keep sounding the same.
+
+        Args:
+            semitones: Number of semitones to shift (positive = up).
+            region: Optional ``(start, end)`` character range to limit the
+                transpose to a text selection; ``None`` = whole document.
+        """
+        if semitones == 0:
+            return
+
+        from services.transpose_service import transpose_text, transpose_key
+
+        logger.info(f"Transposing by {semitones} semitones (region={region})")
+        new_text = transpose_text(self._current_text, semitones, self._notation, region)
+        self.set_and_notify("current_text", new_text)
+
+        # Whole-document transpose also shifts the toolbar key so relative
+        # (roman-numeral) chords resolve to the same pitches as before.
+        if region is None and self._key:
+            new_key = transpose_key(self._key, semitones, self._notation)
+            self.set_key(new_key)
+
+        if not self._is_modified:
+            self.set_and_notify("is_modified", True)
+
     def set_font_size(self, size: int) -> None:
         """Set editor font size.
 

@@ -26,6 +26,16 @@ moved to CHANGELOG_HISTORY.md and this file is reset.
   The active view and the panel's height are remembered between sessions.
   See the new Chord Sheet help page.
 
+- **Transpose** (Tools → Transpose...): shift every chord in the selection
+  (or the whole song, when nothing is selected) up or down by a number of
+  semitones. Slash basses and ``{key}`` directives shift too, and a
+  whole-song transpose also moves the toolbar key, so roman-numeral chords
+  keep sounding the same. European chord names stay European. Chords keep
+  their position above the right lyric syllable: the chord line absorbs
+  small changes, and when a chord genuinely outgrows its slot the lyric
+  line stretches with it (a space at a word gap, or a hyphen mid-word).
+  One undo step reverses the whole operation.
+
 - **Capo suggestion**: with **Allow capo** enabled (Tools → Settings... →
   Playback & Audio) and a fretboard voicing active, the chord sheet's Chord
   box and Tab views show the capo position that makes the whole song easiest

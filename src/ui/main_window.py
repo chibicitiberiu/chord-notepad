@@ -20,6 +20,7 @@ from ui.dialogs import (
     InsertLabelDialog,
     InsertLoopDialog,
     OptionsDialog,
+    TransposeDialog,
 )
 from utils.icon_loader import IconLoader
 from utils.ui_helpers import create_tooltip
@@ -462,6 +463,8 @@ class MainWindow(tk.Tk):
             .build()
 
         tools_menu.add_cascade(label="Insert", menu=insert_menu)
+        tools_menu.add_separator()
+        tools_menu.add_command(label="Transpose...", command=self.open_transpose_dialog)
         tools_menu.add_separator()
         tools_menu.add_command(label="Convert to American Notation", command=self.convert_to_american)
         tools_menu.add_command(label="Convert to European Notation", command=self.convert_to_european)
@@ -1369,6 +1372,53 @@ class MainWindow(tk.Tk):
         lines = self._cached_lines_if_source("american")
         self.viewmodel.convert_text_to_european(lines)
         self.update_statusbar("Converted to European notation")
+
+    def open_transpose_dialog(self) -> None:
+        """Open the Transpose dialog and apply the result as one undo step."""
+        region = self._selection_char_range()
+
+        dialog = TransposeDialog(self, has_selection=region is not None)
+        self.wait_window(dialog)
+
+        if dialog.result is None or dialog.result == 0:
+            return
+
+        semitones = dialog.result
+
+        # Sync the widget text into the ViewModel before transposing.
+        current_text = self.text_editor.get("1.0", "end-1c")
+        self.viewmodel.on_text_changed(current_text)
+
+        # Replace the whole document as a single undo unit: place a separator,
+        # suppress auto-separators while the observer rewrites the widget, then
+        # place a closing separator.
+        prev_autosep = self.text_editor.cget('autoseparators')
+        self.text_editor.edit_separator()
+        self.text_editor.config(autoseparators=False)
+        try:
+            self.viewmodel.transpose(semitones, region)
+        finally:
+            self.text_editor.config(autoseparators=prev_autosep)
+            self.text_editor.edit_separator()
+
+        scope = "selection" if region is not None else "whole song"
+        self.update_statusbar(f"Transposed {scope} by {semitones:+d} semitones")
+
+    def _selection_char_range(self) -> Optional[tuple]:
+        """Return the current selection as a (start, end) character range.
+
+        Returns None when there is no active selection.
+        """
+        try:
+            if not self.text_editor.tag_ranges(tk.SEL):
+                return None
+            start = self.text_editor.count("1.0", tk.SEL_FIRST, "chars")[0]
+            end = self.text_editor.count("1.0", tk.SEL_LAST, "chars")[0]
+        except (tk.TclError, TypeError, IndexError):
+            return None
+        if end <= start:
+            return None
+        return (start, end)
 
     def _cached_lines_if_source(self, source_notation: str) -> Optional[List[Any]]:
         """Return cached detected_lines only if they match the source notation."""
