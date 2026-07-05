@@ -11,20 +11,27 @@ moved to CHANGELOG_HISTORY.md and this file is reset.
 
 - **Chord sheet** (View → Chord Sheet): a collapsible strip docked under the
   editor that lays out the song's voiced chords left to right, in playback
-  order, one card per occurrence -- loops are unrolled, so a repeated
-  section gets one card per pass, and voice leading means the same chord
-  symbol can look different from one pass to the next, exactly as it
-  sounds. Four views: **Keyboard** (mini piano per chord, stacked hands for
-  the piano model) and **Staff** (grand staff whole notes, honoring an
-  ensemble's per-voice staff setting) are available for any voicing;
-  **Chord box** and **Tab** need fingering data and are only available for
-  a fretboard-model voicing. A marker lane above the cards shows section
-  labels, loop passes (``chorus (2/3)``), and tempo/meter changes. The
-  strip follows playback with a highlight and auto-scroll, and clicking a
-  card plays that exact voicing. Roman-numeral chords are labeled with
-  their resolution in the current key, e.g. ``V7 (G7)``. The active view
-  and the panel's height are remembered between sessions. See the new
-  Chord Sheet help page.
+  order -- loops are unrolled, so a repeated section appears once per pass,
+  and voice leading means the same chord symbol can be voiced differently
+  from one pass to the next, exactly as it sounds. Four views, switched with
+  toggle buttons: **Piano roll** (DAW-style, duration-proportional note bars,
+  hands/voices color-coded) and **Staff** (one continuous engraved grand
+  staff with key signatures, signature-relative accidentals, and per-voice
+  colors) work for any voicing; **Chord box** and **Tab** need fingering data
+  and are only available for a fretboard-model voicing. A marker lane above
+  the strip shows section labels, loop passes (``chorus (2/3)``), and
+  tempo/meter changes. Roman-numeral chords are labeled with their resolution
+  in the current key, e.g. ``V7 (G7)``. The strip follows playback with a
+  highlight and auto-scroll, and clicking a chord plays that exact voicing.
+  The active view and the panel's height are remembered between sessions.
+  See the new Chord Sheet help page.
+
+- **Capo suggestion**: with **Allow capo** enabled (Tools → Settings... →
+  Playback & Audio) and a fretboard voicing active, the chord sheet's Chord
+  box and Tab views show the capo position that makes the whole song easiest
+  to play (e.g. ``Suggested: capo 2`` for a song in F# major). Advice only --
+  nothing is re-voiced.
+
 
 - **Configurable piano voicing** (Tools → Settings... → Voicings): the
   piano model is now fully editable, the same as the fretboard and ensemble
