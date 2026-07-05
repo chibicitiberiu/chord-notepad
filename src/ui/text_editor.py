@@ -8,6 +8,7 @@ from typing import Optional, List, Any, Tuple
 from models.line import Line
 from models.chord import ChordInfo
 from viewmodels.text_editor_viewmodel import TextEditorViewModel
+from utils.text_normalization import normalize_song_text
 from constants import (
     TAG_CHORD_VALID, TAG_CHORD_INVALID, TAG_CHORD_PLAYING,
     TAG_DIRECTIVE_VALID, TAG_DIRECTIVE_INVALID, TAG_COMMENT,
@@ -279,15 +280,24 @@ class ChordTextEditor(tk.Text):
             self.config(cursor='xterm')
 
     def _on_paste(self, event: Any) -> Optional[str]:
-        """Handle paste - replace selection if any"""
+        """Handle paste - replace selection if any, normalizing the text"""
+        # Get clipboard content, normalized: Tk inserts CR characters from
+        # CRLF clipboards verbatim (they render as junk glyphs at line ends
+        # and pollute the document), and text copied from websites often
+        # carries non-breaking / zero-width spaces that break chord
+        # detection. Always suppress the default paste: falling back to it
+        # would insert the raw, unnormalized text.
         try:
-            # Check if there's a selection
-            if self.tag_ranges(tk.SEL):
-                # Delete the selection first
-                self.delete(tk.SEL_FIRST, tk.SEL_LAST)
+            clipboard_text = normalize_song_text(self.clipboard_get())
+        except tk.TclError:
+            # Clipboard empty or unavailable - paste nothing rather than let
+            # the default binding insert unnormalized text.
+            return 'break'
 
-            # Get clipboard content
-            clipboard_text = self.clipboard_get()
+        try:
+            # Replace the selection if there is one
+            if self.tag_ranges(tk.SEL):
+                self.delete(tk.SEL_FIRST, tk.SEL_LAST)
 
             # Insert at current cursor position
             self.insert(tk.INSERT, clipboard_text)
@@ -295,9 +305,6 @@ class ChordTextEditor(tk.Text):
             # Trigger chord detection after paste
             self._reset_typing_timer()
             self._typing_timer = self.after(self._typing_delay, self._detect_chords)
-
-            # Prevent default paste behavior
-            return 'break'
         except tk.TclError:
-            # No clipboard content or other error - allow default behavior
             pass
+        return 'break'

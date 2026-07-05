@@ -7,6 +7,7 @@ from typing import List, Optional
 
 from exceptions import FileOperationError
 from services.config_service import ConfigService
+from utils.text_normalization import normalize_song_text
 
 
 class FileService:
@@ -23,7 +24,11 @@ class FileService:
             path: Path to file to open
 
         Returns:
-            File contents as string
+            File contents as string, normalized for the editor (line endings
+            become ``\\n`` -- Python's universal newlines already do that --
+            and non-breaking / zero-width characters are cleaned up, since
+            they silently break chord detection). The file on disk is not
+            touched; the normalized form only reaches it on save.
 
         Raises:
             FileOperationError: If file cannot be read
@@ -31,7 +36,7 @@ class FileService:
         try:
             self._logger.info(f"Opening file: {path}")
             with open(path, 'r', encoding='utf-8') as f:
-                content = f.read()
+                content = normalize_song_text(f.read())
 
             # Add to recent files
             self.add_recent_file(path)

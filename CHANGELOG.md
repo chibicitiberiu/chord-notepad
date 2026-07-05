@@ -112,6 +112,15 @@ moved to CHANGELOG_HISTORY.md and this file is reset.
   Written as two tracks (conductor + chords) for easy import into DAWs and
   notation software.
 
+### Fixed
+
+- Pasting text with Windows-style line endings (CRLF) no longer leaves stray
+  carriage-return characters in the editor (they showed up as junk glyphs at
+  the ends of pasted lines). Pasted and opened text is also cleaned of
+  non-breaking and zero-width spaces, which look right but silently break
+  chord detection. Files on disk are never rewritten by this; the cleaned
+  text only reaches the file when you save.
+
 ### Changed
 
 - Voicing weights now use one consistent convention. Every weight is a
