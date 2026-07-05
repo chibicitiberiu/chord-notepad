@@ -185,6 +185,17 @@ class PlaybackService:
         self._note_picker = self._create_note_picker(voicing)
         self._config.set("voicing", voicing)
 
+    def active_fretboard_spec(self):
+        """Return the active picker's :class:`FretboardSpec`, or ``None``.
+
+        Only fretboard-model voicings (``GuitarChordPicker``) carry a spec; for
+        piano/ensemble voicings this returns ``None``. Exposed as a seam for the
+        chord-sheet strip's capo advisor, which needs the tuning a capo raises.
+        """
+        if isinstance(self._note_picker, GuitarChordPicker):
+            return self._note_picker.spec
+        return None
+
     def get_available_instruments(self) -> List[Tuple[int, str]]:
         """Get list of available instruments from the soundfont.
 

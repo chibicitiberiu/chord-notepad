@@ -37,7 +37,8 @@ _GENERAL_FIELDS = (
     'log_level', 'bpm', 'time_signature_beats', 'time_signature_unit',
 )
 _AUDIO_FIELDS = ('soundfont_path', 'audio_driver')
-_ALL_SCALAR_FIELDS = _FONT_FIELDS + _GENERAL_FIELDS + _AUDIO_FIELDS
+_GUITAR_FIELDS = ('allow_capo',)
+_ALL_SCALAR_FIELDS = _FONT_FIELDS + _GENERAL_FIELDS + _AUDIO_FIELDS + _GUITAR_FIELDS
 
 
 @dataclass
@@ -46,13 +47,17 @@ class SettingsChanges:
 
     Each flag is set only when at least one field in its group actually
     differs from the config the view model was constructed against.
-    ``new_active_voicing`` is set only when the selected voicing string had to
-    be rewritten because the voicing it pointed at was renamed or deleted.
+    ``guitar_changed`` covers the guitar/fretboard playback flags (currently
+    just ``allow_capo``), which the chord-sheet strip reacts to by recomputing
+    its capo suggestion. ``new_active_voicing`` is set only when the selected
+    voicing string had to be rewritten because the voicing it pointed at was
+    renamed or deleted.
     """
 
     font_changed: bool = False
     general_changed: bool = False
     audio_changed: bool = False
+    guitar_changed: bool = False
     voicings_changed: bool = False
     new_active_voicing: Optional[str] = None
 
@@ -83,6 +88,7 @@ class SettingsViewModel:
         self.time_signature_unit: int = config.time_signature_unit
         self.soundfont_path: Optional[str] = config.soundfont_path
         self.audio_driver: Optional[str] = config.audio_driver
+        self.allow_capo: bool = config.allow_capo
 
         # Deep working copy of the voicings registry.
         self._working_voicings: Dict[str, dict] = copy.deepcopy(config.voicings)
@@ -243,6 +249,7 @@ class SettingsViewModel:
         changes.font_changed = self._group_changed(_FONT_FIELDS)
         changes.general_changed = self._group_changed(_GENERAL_FIELDS)
         changes.audio_changed = self._group_changed(_AUDIO_FIELDS)
+        changes.guitar_changed = self._group_changed(_GUITAR_FIELDS)
 
         # Push scalars.
         for field in _ALL_SCALAR_FIELDS:

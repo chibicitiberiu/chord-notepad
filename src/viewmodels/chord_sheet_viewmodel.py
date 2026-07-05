@@ -101,6 +101,7 @@ class ChordSheetViewModel(Observable):
         renderers: Optional[List[StripRenderer]] = None,
         render_fn: Optional[Callable[[List[Line], Optional[str]], Optional[RenderedSong]]] = None,
         audition_fn: Optional[Callable[[List[int]], None]] = None,
+        capo_spec_fn: Optional[Callable[[], object]] = None,
         scheduler=None,
         marshal: Optional[Callable[[Callable[[], None]], None]] = None,
         debounce_ms: int = CHORD_SHEET_RERENDER_DEBOUNCE_MS,
@@ -118,6 +119,10 @@ class ChordSheetViewModel(Observable):
                 defaults to ``audio_service.render_song``.
             audition_fn: Injectable ``(midi_notes) -> None`` seam; defaults to
                 ``audio_service.play_notes_immediate``.
+            capo_spec_fn: Injectable ``() -> FretboardSpec | None`` seam giving
+                the active picker's fretboard spec (``None`` for non-fretboard
+                voicings); defaults to ``audio_service.active_fretboard_spec``.
+                Used by the capo advisor when ``allow_capo`` is on.
             scheduler: Injectable debounce scheduler with ``schedule(delay, fn)``
                 / ``cancel(handle)``; defaults to a ``threading.Timer`` seam.
             marshal: Injectable UI-thread marshal; defaults to
@@ -136,6 +141,9 @@ class ChordSheetViewModel(Observable):
         )
         self._render_fn = render_fn or audio_service.render_song
         self._audition_fn = audition_fn or audio_service.play_notes_immediate
+        self._capo_spec_fn = capo_spec_fn or getattr(
+            audio_service, "active_fretboard_spec", lambda: None
+        )
         self._scheduler = scheduler or _TimerScheduler()
         self._marshal = marshal or self._default_marshal
         self._debounce_seconds = max(0.0, debounce_ms) / 1000.0
@@ -151,6 +159,9 @@ class ChordSheetViewModel(Observable):
         # Observable state (private storage with leading underscore).
         self._rendered_song: Optional[RenderedSong] = None
         self._current_index: Optional[int] = None
+        # Suggested capo position (fret) for the current fretboard-voiced song,
+        # or None when off / not fretboard-voiced / no gain. Advice only.
+        self._capo_suggestion: Optional[int] = None
         self._active_view: str = self._config.get("chord_sheet_view", DEFAULT_CHORD_SHEET_VIEW)
         self._available_views: List[str] = self._compute_available_views(None)
         self._visible: bool = bool(self._config.get("chord_sheet_visible", False))
@@ -172,6 +183,17 @@ class ChordSheetViewModel(Observable):
     def current_index(self) -> Optional[int]:
         """Index into ``rendered_song.chords`` the playhead is on, or ``None``."""
         return self._current_index
+
+    @property
+    def capo_suggestion(self) -> Optional[int]:
+        """Suggested capo fret for the current song, or ``None``.
+
+        Non-``None`` only when ``allow_capo`` is on, the current render used a
+        fretboard voicing, and a capo beats no-capo by a meaningful margin. The
+        panel shows it only while a fret/tab view is active. Advice only --
+        nothing is re-voiced.
+        """
+        return self._capo_suggestion
 
     @property
     def active_view(self) -> str:
@@ -248,10 +270,15 @@ class ChordSheetViewModel(Observable):
         except Exception as e:  # pragma: no cover - defensive
             logger.error(f"Chord-sheet render failed: {e}", exc_info=True)
             return
+        # Compute the capo suggestion in this same off-thread pass (scoring the
+        # whole song across capo positions is expensive) before marshaling back.
+        capo = self._compute_capo_suggestion(rendered)
         self._dirty = False
-        self._marshal(lambda: self._apply_rendered(rendered))
+        self._marshal(lambda: self._apply_rendered(rendered, capo))
 
-    def _apply_rendered(self, rendered: Optional[RenderedSong]) -> None:
+    def _apply_rendered(
+        self, rendered: Optional[RenderedSong], capo_suggestion: Optional[int] = None
+    ) -> None:
         """Adopt a freshly rendered song and refresh gated view availability.
 
         Runs on the UI thread (via the marshal seam).
@@ -260,7 +287,50 @@ class ChordSheetViewModel(Observable):
         # A new song can invalidate the current playhead index.
         if self._current_index is not None:
             self.set_and_notify("current_index", None)
+        # Reset/refresh the capo suggestion for the new render (None unless a
+        # fretboard voicing with allow_capo on produced a meaningful gain).
+        self.set_and_notify("capo_suggestion", capo_suggestion)
         self._refresh_available_views()
+
+    def _compute_capo_suggestion(self, rendered: Optional[RenderedSong]) -> Optional[int]:
+        """Suggest a capo for ``rendered``, or ``None``.
+
+        Returns ``None`` unless ``allow_capo`` is enabled, the render carries
+        fretboard fingering data (i.e. a fretboard voicing was used), the active
+        picker exposes a fretboard spec, and the song has voiceable chords. The
+        actual scoring lives in :func:`services.capo_advisor.suggest_capo`.
+        """
+        if rendered is None:
+            return None
+        if not self._config.get("allow_capo", False):
+            return None
+        if not self._song_has_fingering(rendered):
+            return None
+        spec = self._capo_spec_fn()
+        if spec is None:
+            return None
+        sequence = [rc.chord_notes for rc in rendered.chords if rc.chord_notes is not None]
+        if not sequence:
+            return None
+        try:
+            from services.capo_advisor import suggest_capo
+
+            return suggest_capo(spec, sequence)
+        except Exception as e:  # pragma: no cover - defensive
+            logger.error(f"Capo suggestion failed: {e}", exc_info=True)
+            return None
+
+    def refresh_capo_suggestion(self) -> None:
+        """Recompute the capo suggestion for the current song and notify.
+
+        Used when the ``allow_capo`` setting is toggled in Settings: the song
+        and its voicing are unchanged, so re-scoring the already-rendered song
+        (rather than a full re-render) is enough to show or hide the header
+        suggestion without a restart.
+        """
+        self.set_and_notify(
+            "capo_suggestion", self._compute_capo_suggestion(self._rendered_song)
+        )
 
     # -- Playback ping ------------------------------------------------------
 

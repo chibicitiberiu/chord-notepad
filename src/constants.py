@@ -29,6 +29,15 @@ PLAYBACK_THREAD_CHECK_MS = 50
 DEFAULT_CHORD_SHEET_HEIGHT = 160
 DEFAULT_CHORD_SHEET_VIEW = "keyboard"
 
+# Capo advisor (see services/capo_advisor.py). When "Allow capo" is on and a
+# fretboard voicing is active, the advisor scores every capo position 0..MAX
+# with the guitar picker's whole-song playability score and suggests the best
+# one only if it beats capo 0 by at least MIN_GAIN. The score is driven mostly
+# by the fretboard weights open_string_bonus / position_penalty / barre_penalty,
+# so the gain is roughly "points of playability saved across the whole song".
+CAPO_MAX_DEFAULT = 7      # Highest capo position considered.
+CAPO_MIN_GAIN = 6.0       # Minimum score improvement over capo 0 to suggest a capo.
+
 # Text editor tags
 TAG_CHORD_VALID = "chord"
 TAG_CHORD_INVALID = "chord_invalid"

@@ -456,3 +456,122 @@ def test_scroll_none_when_content_fits_viewport():
 
 def test_scroll_zero_viewport_returns_none():
     assert st(playhead_x=100, viewport_width=0, current_scroll_x=0, content_width=500) is None
+
+
+# --------------------------------------------------------------------------
+# Capo suggestion (allow_capo)
+# --------------------------------------------------------------------------
+
+from models.chord_notes import ChordNotes  # noqa: E402
+from models.fretboard_spec import BUILTIN_FRETBOARDS  # noqa: E402
+
+_STANDARD_SPEC = BUILTIN_FRETBOARDS["standard"]
+
+
+def _fingered_chord(symbol, notes, root, fingering):
+    """A RenderedChord carrying both resolved ChordNotes and a fingering."""
+    rc = make_chord(symbol, fingering=fingering)
+    rc.chord_notes = ChordNotes(notes=notes, bass_note=root, root=root)
+    return rc
+
+
+# A barre-heavy F#-major progression: capoing genuinely helps.
+def _fsharp_song():
+    return RenderedSong(chords=[
+        _fingered_chord("F#", ["F#", "A#", "C#"], "F#", [-1, -1, 4, 3, 2, 2]),
+        _fingered_chord("B", ["B", "D#", "F#"], "B", [-1, 2, 4, 4, 4, 2]),
+        _fingered_chord("C#", ["C#", "F", "G#"], "C#", [-1, 4, 6, 6, 6, 4]),
+        _fingered_chord("D#m", ["D#", "F#", "A#"], "D#", [-1, -1, 1, 3, 4, 2]),
+    ])
+
+
+def _piano_song():
+    # chord_notes present but NO fingering -> not a fretboard voicing.
+    return RenderedSong(chords=[
+        _fingered_chord("F#", ["F#", "A#", "C#"], "F#", None),
+    ])
+
+
+def _make_capo_vm(rendered, *, allow_capo, spec=_STANDARD_SPEC):
+    audio = FakeAudio(rendered=rendered)
+    scheduler = ManualScheduler()
+    vm = ChordSheetViewModel(
+        FakeConfig(chord_sheet_visible=True, allow_capo=allow_capo),
+        audio,
+        application=None,
+        scheduler=scheduler,
+        marshal=direct_marshal,
+        capo_spec_fn=lambda: spec,
+    )
+    return vm, scheduler
+
+
+def test_capo_suggestion_appears_for_fretboard_song_when_allowed():
+    vm, scheduler = _make_capo_vm(_fsharp_song(), allow_capo=True)
+    vm.set_song([], None)
+    scheduler.flush()
+    assert vm.capo_suggestion is not None
+    assert vm.capo_suggestion > 0
+
+
+def test_capo_suggestion_none_when_allow_capo_off():
+    vm, scheduler = _make_capo_vm(_fsharp_song(), allow_capo=False)
+    vm.set_song([], None)
+    scheduler.flush()
+    assert vm.capo_suggestion is None
+
+
+def test_capo_suggestion_none_for_piano_voicing():
+    # No fingering data -> not a fretboard voicing -> no suggestion even when on.
+    vm, scheduler = _make_capo_vm(_piano_song(), allow_capo=True)
+    vm.set_song([], None)
+    scheduler.flush()
+    assert vm.capo_suggestion is None
+
+
+def test_capo_suggestion_none_when_no_spec():
+    vm, scheduler = _make_capo_vm(_fsharp_song(), allow_capo=True, spec=None)
+    vm.set_song([], None)
+    scheduler.flush()
+    assert vm.capo_suggestion is None
+
+
+def test_capo_suggestion_resets_on_new_song():
+    audio = FakeAudio(rendered=_fsharp_song())
+    scheduler = ManualScheduler()
+    vm = ChordSheetViewModel(
+        FakeConfig(chord_sheet_visible=True, allow_capo=True),
+        audio,
+        application=None,
+        scheduler=scheduler,
+        marshal=direct_marshal,
+        capo_spec_fn=lambda: _STANDARD_SPEC,
+    )
+    vm.set_song([], None)
+    scheduler.flush()
+    assert vm.capo_suggestion is not None
+
+    # Re-render an open-friendly (piano) song: the suggestion resets to None.
+    audio.rendered = _piano_song()
+    vm.set_song([], None)
+    scheduler.flush()
+    assert vm.capo_suggestion is None
+
+
+def test_refresh_capo_suggestion_reacts_to_config_toggle():
+    audio = FakeAudio(rendered=_fsharp_song())
+    scheduler = ManualScheduler()
+    config = FakeConfig(chord_sheet_visible=True, allow_capo=False)
+    vm = ChordSheetViewModel(
+        config, audio, application=None,
+        scheduler=scheduler, marshal=direct_marshal,
+        capo_spec_fn=lambda: _STANDARD_SPEC,
+    )
+    vm.set_song([], None)
+    scheduler.flush()
+    assert vm.capo_suggestion is None  # off
+
+    # Flip the setting and refresh without a full re-render.
+    config.set("allow_capo", True)
+    vm.refresh_capo_suggestion()
+    assert vm.capo_suggestion is not None

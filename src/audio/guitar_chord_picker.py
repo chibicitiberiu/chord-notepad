@@ -598,9 +598,70 @@ class GuitarChordPicker(INotePicker):
         candidate order, so the same sequence always yields the same voicings.
         """
 
+        candidate_sets, chosen, _unary, _transition = self._optimize_sequence(sequence)
+        result: List[VoicedChord] = []
+        for pos, idx in enumerate(chosen):
+            fingering = candidate_sets[pos][idx]
+            result.append(VoicedChord(
+                midi_notes=self._fingering_to_midi(fingering),
+                fingering=list(fingering),
+            ))
+        return result
+
+    def voice_sequence_score(self, sequence: List['ChordNotes']) -> float:
+        """Total score of the winning whole-song path for ``sequence``.
+
+        Runs the exact same candidate enumeration and beam-Viterbi search as
+        :meth:`voice_sequence_details` (both delegate to
+        :meth:`_optimize_sequence`), then sums the score the DP maximized for
+        the path it chose: each chosen candidate's unary (intrinsic-quality)
+        score plus the transition score between consecutive chosen candidates.
+        Because it reuses the same code paths, the score can never disagree
+        with the fingerings :meth:`voice_sequence_details` returns.
+
+        This is the playability figure the capo advisor
+        (:mod:`services.capo_advisor`) compares across capo positions: raising
+        the tuning changes the enumerated shapes, and the weighted score --
+        driven chiefly by ``open_string_bonus``, ``position_penalty`` and
+        ``barre_penalty`` -- reflects how much easier the song is to play.
+
+        Args:
+            sequence: The chords to voice, in playback order.
+
+        Returns:
+            The summed unary + transition score of the chosen path, or ``0.0``
+            for an empty sequence.
+        """
+        candidate_sets, chosen, unary, transition = self._optimize_sequence(sequence)
+        total = 0.0
+        prev_fingering: Optional[List[int]] = None
+        for pos, idx in enumerate(chosen):
+            fingering = candidate_sets[pos][idx]
+            total += unary(pos, fingering)
+            if prev_fingering is not None:
+                total += transition(prev_fingering, fingering)
+            prev_fingering = fingering
+        return total
+
+    def _optimize_sequence(
+        self, sequence: List['ChordNotes']
+    ) -> Tuple[List[List[List[int]]], List[int], Any, Any]:
+        """Shared whole-song enumeration + beam-Viterbi search.
+
+        Resets the picker, gathers every chord's candidate fingerings, and runs
+        :func:`optimize_sequence` over them with the unary/transition scoring
+        callbacks. Both :meth:`voice_sequence_details` (which turns the choice
+        into voiced notes + fingerings) and :meth:`voice_sequence_score` (which
+        sums the chosen path's score) build on this single method so the two can
+        never diverge.
+
+        Returns:
+            A ``(candidate_sets, chosen, unary, transition)`` tuple:
+            ``candidate_sets[pos]`` is the (original, unpruned) candidate list
+            for position ``pos``, ``chosen[pos]`` indexes into it, and ``unary``
+            /``transition`` are the exact scoring closures the DP used.
+        """
         self.reset()
-        if not sequence:
-            return []
 
         # Per position: the candidate fingerings and the (notes, bass) needed to
         # score them. Empty-candidate chords fall back to a single-candidate set
@@ -641,14 +702,7 @@ class GuitarChordPicker(INotePicker):
         chosen = optimize_sequence(
             candidate_sets, unary, transition, beam_width=20, prune_to=30
         )
-        result: List[VoicedChord] = []
-        for pos, idx in enumerate(chosen):
-            fingering = candidate_sets[pos][idx]
-            result.append(VoicedChord(
-                midi_notes=self._fingering_to_midi(fingering),
-                fingering=list(fingering),
-            ))
-        return result
+        return candidate_sets, chosen, unary, transition
 
     def _get_position(self, fingering: List[int]) -> float:
         """Get average position"""

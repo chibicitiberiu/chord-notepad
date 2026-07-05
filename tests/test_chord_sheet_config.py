@@ -49,3 +49,14 @@ def test_from_dict_defaults_when_missing():
     assert config.chord_sheet_visible is False
     assert config.chord_sheet_view == "keyboard"
     assert config.chord_sheet_height == 160
+
+
+def test_allow_capo_defaults_false():
+    assert Config().allow_capo is False
+    assert Config.from_dict({}).allow_capo is False
+
+
+def test_allow_capo_round_trips():
+    original = Config(allow_capo=True)
+    assert original.to_dict()["allow_capo"] is True
+    assert Config.from_dict(original.to_dict()).allow_capo is True

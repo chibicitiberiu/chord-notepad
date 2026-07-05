@@ -183,3 +183,57 @@ def test_canvas_backgrounds_use_strip_bg(root):
     panel, vm = _make_panel(root, "C G\n")
     assert panel._canvas.cget("bg") == STRIP_BG
     assert panel._lane_canvas.cget("bg") == STRIP_BG
+
+
+def _render_guitar(text):
+    from audio.guitar_chord_picker import GuitarChordPicker
+
+    lines = SongParserService().detect_chords_in_text(text)
+    return SongRenderer().render(
+        lines=lines,
+        initial_key="C",
+        initial_bpm=120,
+        initial_time_sig=(4, 4),
+        note_picker=GuitarChordPicker("standard"),
+    )
+
+
+def test_capo_suggestion_label_shows_only_for_fretboard_views(root):
+    from models.fretboard_spec import BUILTIN_FRETBOARDS
+
+    rendered = _render_guitar("F# B C# D#m\n")
+    vm = ChordSheetViewModel(
+        FakeConfig(chord_sheet_visible=True, chord_sheet_view="fret", allow_capo=True),
+        audio_service=None,
+        application=None,
+        render_fn=lambda lines, key: rendered,
+        audition_fn=lambda notes: None,
+        scheduler=ImmediateScheduler(),
+        marshal=lambda fn: fn(),
+        capo_spec_fn=lambda: BUILTIN_FRETBOARDS["standard"],
+    )
+    from ui.chord_sheet.panel import ChordSheetPanel
+
+    panel = ChordSheetPanel(root, vm)
+    panel.pack(fill=tk.BOTH, expand=True)
+    root.update_idletasks()
+    vm.set_song([], "C")
+    root.update_idletasks()
+    # Fret becomes available once the fretted song is rendered; select it.
+    vm.set_active_view("fret")
+    root.update_idletasks()
+
+    # The barre-heavy F# progression suggests a nonzero capo, shown on fret view.
+    assert vm.capo_suggestion is not None
+    assert vm.active_view == "fret"
+    assert "capo" in panel._capo_label.cget("text").lower()
+
+    # A non-fretboard view hides the suggestion...
+    vm.set_active_view("keyboard")
+    root.update_idletasks()
+    assert panel._capo_label.cget("text") == ""
+
+    # ...and the tab view shows it again.
+    vm.set_active_view("tab")
+    root.update_idletasks()
+    assert "capo" in panel._capo_label.cget("text").lower()

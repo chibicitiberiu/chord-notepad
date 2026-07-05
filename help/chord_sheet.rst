@@ -89,6 +89,19 @@ ensemble) while Chord box or Tab is active, the strip falls back to
 Keyboard automatically.
 
 
+Capo Suggestion
+======================
+
+When **Allow capo** is enabled (see :doc:`settings`) and a fretboard voicing
+is active, the header row shows a hint such as ``Suggested: capo 2`` next to
+the view buttons while the Chord box or Tab view is active. It names the capo
+position that makes the whole song easiest to play -- fewest barres, lowest on
+the neck, most open strings -- for songs written in awkward keys. Nothing is
+re-voiced or transposed; it is advice only, telling you where a capo would
+help. Nothing is shown when the best choice is no capo, when a non-fretboard
+voicing is active, or when the setting is off.
+
+
 Following Playback
 ======================
 
