@@ -31,6 +31,7 @@ from models.rendered_song import RenderedSong
 from ui.chord_sheet.ops import DrawOps
 from ui.chord_sheet.renderer_interface import (
     SheetContext,
+    chord_symbol_label,
     SlotBox,
     StripLayout,
     StripRenderer,
@@ -158,7 +159,7 @@ class TabStripRenderer(StripRenderer):
             ops.text(
                 cx,
                 SYMBOL_MARGIN / 2.0,
-                chord.chord_info.chord,
+                chord_symbol_label(chord),
                 anchor="center",
                 size=_SYMBOL_SIZE,
                 fill=_INK,

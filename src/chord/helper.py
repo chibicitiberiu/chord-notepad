@@ -396,12 +396,17 @@ class ChordHelper:
             if not key:
                 return None
             # Convert roman numeral to absolute chord name
-            chord_name = self._resolve_roman_numeral(chord_name, key)
-            if not chord_name:
+            resolved_name = self._resolve_roman_numeral(chord_name, key)
+            if not resolved_name:
                 return None
             # Apply symbol conversions to resolved chord (+ → aug, ° → dim, etc.)
-            chord_name = self._convert_symbols_to_text(chord_name)
-            return self._build_from_normalized(chord_name, key=key)
+            chord_name = self._convert_symbols_to_text(resolved_name)
+            result = self._build_from_normalized(chord_name, key=key)
+            if result is not None:
+                # Keep the natural (pre-normalization) spelling for display,
+                # e.g. the chord sheet shows "V7 (G7)".
+                result.resolved_symbol = resolved_name
+            return result
 
         # Absolute chord. Convert European->American (Do->C, Fa->F) and resolve.
         # But that conversion can mangle an American chord that merely starts

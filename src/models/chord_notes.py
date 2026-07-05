@@ -24,9 +24,15 @@ class ChordNotes:
         key: The key signature in effect when the chord was resolved (for
             key-aware voicing rules, e.g. leading-tone handling); ``None``
             when no key is set.
+        resolved_symbol: For roman-numeral (relative) chords, the absolute
+            chord symbol the numeral resolved to in the current key (e.g.
+            ``"G7"`` for ``V7`` in C), in its natural spelling (before
+            symbol-to-text normalization). ``None`` for absolute chords.
+            Display-only; used by the chord sheet to show ``V7 (G7)``.
     """
     notes: List[str]
     bass_note: str
     root: str
     intervals: Optional[List[int]] = None
     key: Optional[str] = None
+    resolved_symbol: Optional[str] = None

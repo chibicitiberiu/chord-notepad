@@ -31,6 +31,7 @@ from models.rendered_song import RenderedChord
 from ui.chord_sheet.ops import DrawOps
 from ui.chord_sheet.renderer_interface import (
     SheetContext,
+    chord_symbol_label,
     SlotBox,
     StripLayout,
     StripRenderer,
@@ -188,7 +189,7 @@ class KeyboardCardRenderer(StripRenderer):
             ops.text(
                 slot.x + slot.width / 2.0,
                 CARD_VMARGIN + TEXT_H / 2.0,
-                chord.chord_info.chord,
+                chord_symbol_label(chord),
                 anchor="center",
                 size=11,
                 fill=_INK,

@@ -21,6 +21,11 @@ notes (or a different fingering) each time through, exactly as it sounds.
 A rest (``NC``) gets a slim, empty card rather than a blank gap, so the
 strip's rhythm still reads correctly even where nothing sounds.
 
+Roman-numeral chords show the chord they resolve to in the current key in
+parentheses: ``V7`` in the key of C is labeled ``V7 (G7)``. If the key
+changes mid-song, each card resolves against the key in effect at that
+point.
+
 Click any card to hear that exact voicing once, the same way clicking a
 chord in the editor plays it.
 

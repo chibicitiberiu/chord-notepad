@@ -21,8 +21,10 @@ moved to CHANGELOG_HISTORY.md and this file is reset.
   a fretboard-model voicing. A marker lane above the cards shows section
   labels, loop passes (``chorus (2/3)``), and tempo/meter changes. The
   strip follows playback with a highlight and auto-scroll, and clicking a
-  card plays that exact voicing. The active view and the panel's height are
-  remembered between sessions. See the new Chord Sheet help page.
+  card plays that exact voicing. Roman-numeral chords are labeled with
+  their resolution in the current key, e.g. ``V7 (G7)``. The active view
+  and the panel's height are remembered between sessions. See the new
+  Chord Sheet help page.
 
 - **Configurable piano voicing** (Tools → Settings... → Voicings): the
   piano model is now fully editable, the same as the fretboard and ensemble

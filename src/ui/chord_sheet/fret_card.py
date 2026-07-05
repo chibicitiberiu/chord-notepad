@@ -35,6 +35,7 @@ from models.rendered_song import RenderedChord, RenderedSong
 from ui.chord_sheet.ops import DrawOps
 from ui.chord_sheet.renderer_interface import (
     SheetContext,
+    chord_symbol_label,
     SlotBox,
     StripLayout,
     StripRenderer,
@@ -217,7 +218,7 @@ class FretCardRenderer(StripRenderer):
         ops.text(
             slot.x + geo.card_width / 2.0,
             geo.symbol_h / 2.0,
-            chord.chord_info.chord,
+            chord_symbol_label(chord),
             anchor="center",
             size=geo.symbol_size,
             fill=_INK,

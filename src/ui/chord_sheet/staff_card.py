@@ -46,6 +46,7 @@ from ui.chord_sheet.clef_assets import clef_placement
 from ui.chord_sheet.ops import DrawOps
 from ui.chord_sheet.renderer_interface import (
     SheetContext,
+    chord_symbol_label,
     SlotBox,
     StripLayout,
     StripRenderer,
@@ -389,7 +390,7 @@ class StaffCardRenderer(StripRenderer):
         # Chord symbol.
         ops.text(
             x0 + slot.width / 2.0, geom.y_symbol,
-            chord.chord_info.chord,
+            chord_symbol_label(chord),
             anchor="n", size=max(8, int(round(1.3 * s))),
             fill=_INK, bold=True, tags=(tag,),
         )

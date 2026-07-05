@@ -26,7 +26,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Tuple
 
-from models.rendered_song import RenderedSong
+from models.rendered_song import RenderedChord, RenderedSong
 from ui.chord_sheet.ops import DrawOps
 
 
@@ -117,3 +117,23 @@ class StripRenderer(ABC):
                 same ``ctx``/``height``; painting reuses its slot geometry.
         """
         raise NotImplementedError
+
+
+def chord_symbol_label(chord: RenderedChord) -> str:
+    """Display label for a chord's symbol on the strip.
+
+    Roman-numeral (relative) chords append the absolute chord they resolved
+    to in the current key, e.g. ``"V7 (G7)"``; absolute chords are shown
+    as written.
+
+    Args:
+        chord: The rendered chord whose label to build.
+
+    Returns:
+        The label text.
+    """
+    label = chord.chord_info.chord
+    notes = chord.chord_notes
+    if notes is not None and notes.resolved_symbol:
+        return f"{label} ({notes.resolved_symbol})"
+    return label
