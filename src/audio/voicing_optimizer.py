@@ -48,6 +48,7 @@ def optimize_sequence(
     transition_score: Callable[[Any, Any], float],
     beam_width: int = 20,
     prune_to: Optional[int] = 30,
+    should_abort: Optional[Callable[[], bool]] = None,
 ) -> List[int]:
     """Choose the best-scoring candidate at each position of a sequence.
 
@@ -76,6 +77,12 @@ def optimize_sequence(
             ``prune_to`` candidates (by unary score alone) are kept before
             the DP runs. Must be >= 1 if given. ``None`` keeps every
             candidate.
+        should_abort: Optional zero-argument predicate checked once per
+            position in the forward pass. When it returns ``True`` the search
+            stops immediately by raising :class:`~exceptions.RenderAborted`
+            (control flow, not an error). ``None`` (the default) disables the
+            check entirely, so behaviour -- and every golden -- is byte-for-byte
+            unchanged on the playback and export paths.
 
     Returns:
         A list with one candidate index per position, indexing into the
@@ -85,6 +92,7 @@ def optimize_sequence(
     Raises:
         ValueError: If ``beam_width`` or ``prune_to`` is < 1, or if any
             position's candidate list is empty.
+        RenderAborted: If ``should_abort`` fires during the forward pass.
 
     Notes:
         Deterministic: ties are always broken by preferring the lower
@@ -134,6 +142,10 @@ def optimize_sequence(
     # Forward pass: Viterbi with a beam of surviving partial paths.
     beams: List[List[_BeamEntry]] = []
 
+    if should_abort is not None and should_abort():
+        from exceptions import RenderAborted
+        raise RenderAborted()
+
     first_beam: List[_BeamEntry] = [
         (unary_value, orig_idx, candidate, None)
         for orig_idx, candidate, unary_value in pruned[0]
@@ -144,6 +156,9 @@ def optimize_sequence(
     beams.append(first_beam)
 
     for position in range(1, len(candidate_sets)):
+        if should_abort is not None and should_abort():
+            from exceptions import RenderAborted
+            raise RenderAborted()
         prev_beam = beams[position - 1]
         current_beam: List[_BeamEntry] = []
         for orig_idx, candidate, unary_value in pruned[position]:

@@ -5,6 +5,7 @@ two-canvas marker lane, clef-image resolution during replay, and view switching.
 """
 
 import os
+import time
 
 import pytest
 
@@ -74,7 +75,7 @@ def _render(text):
 def _make_panel(root, text, *, view="keyboard"):
     rendered = _render(text)
 
-    def render_fn(lines, key):
+    def render_fn(lines, key, should_abort=None):
         return rendered
 
     vm = ChordSheetViewModel(
@@ -84,6 +85,7 @@ def _make_panel(root, text, *, view="keyboard"):
         render_fn=render_fn,
         audition_fn=lambda notes: None,
         scheduler=ImmediateScheduler(),
+        executor=lambda fn: fn(),
         marshal=lambda fn: fn(),
     )
     from ui.chord_sheet.panel import ChordSheetPanel
@@ -141,10 +143,11 @@ def _make_panel_with_renderers(root, text, renderers, *, view):
         FakeConfig(chord_sheet_visible=True, chord_sheet_view=view),
         audio_service=None,
         application=None,
-        render_fn=lambda lines, key: rendered,
+        render_fn=lambda lines, key, should_abort=None: rendered,
         audition_fn=auditions.append,
         renderers=renderers,
         scheduler=ImmediateScheduler(),
+        executor=lambda fn: fn(),
         marshal=lambda fn: fn(),
     )
     from ui.chord_sheet.panel import ChordSheetPanel
@@ -304,9 +307,10 @@ def test_hidden_panel_paints_after_being_shown(root):
         FakeConfig(chord_sheet_visible=False),
         audio_service=None,
         application=None,
-        render_fn=lambda lines, key: rendered,
+        render_fn=lambda lines, key, should_abort=None: rendered,
         audition_fn=lambda notes: None,
         scheduler=ImmediateScheduler(),
+        executor=lambda fn: fn(),
         marshal=lambda fn: fn(),
     )
     from ui.chord_sheet.panel import ChordSheetPanel
@@ -368,6 +372,62 @@ def test_canvas_backgrounds_use_strip_bg(root):
     assert panel._lane_canvas.cget("bg") == STRIP_BG
 
 
+class _Configure:
+    """Minimal stand-in for a Tk <Configure> event."""
+
+
+def _quiesce_configure(panel):
+    """Cancel any armed trailing repaint so a test starts from a quiet period."""
+    if panel._configure_after is not None:
+        try:
+            panel.after_cancel(panel._configure_after)
+        except Exception:
+            pass
+        panel._configure_after = None
+
+
+def test_configure_burst_debounces_to_one_trailing_repaint(root):
+    # A sash-drag storm fires one <Configure> per pixel. The first configure
+    # after a quiet period repaints immediately (live resize); the rest of the
+    # burst must collapse into a single trailing repaint, not one-per-event.
+    renderer = _FakeRenderer("g", gutter=0.0)
+    panel, vm, _ = _make_panel_with_renderers(root, "C G Am F\n", [renderer], view="g")
+    root.update_idletasks()
+    _quiesce_configure(panel)
+    renderer.layout_zooms.clear()
+
+    # A synchronous burst (no event loop spun in between).
+    for _ in range(10):
+        panel._on_canvas_configure(_Configure())
+
+    # Leading edge repainted exactly once; the other nine collapsed away.
+    assert len(renderer.layout_zooms) == 1
+    assert panel._configure_after is not None  # a single trailing repaint is armed
+
+    # Let the trailing debounce actually fire via the Tk event loop.
+    deadline = time.time() + 1.0
+    while panel._configure_after is not None and time.time() < deadline:
+        root.update()
+        time.sleep(0.02)
+
+    assert panel._configure_after is None
+    # Exactly one more repaint (the trailing one) -- the burst produced 2 total,
+    # not 10.
+    assert len(renderer.layout_zooms) == 2
+
+
+def test_first_configure_after_quiet_period_repaints_immediately(root):
+    renderer = _FakeRenderer("g", gutter=0.0)
+    panel, vm, _ = _make_panel_with_renderers(root, "C G Am F\n", [renderer], view="g")
+    root.update_idletasks()
+    _quiesce_configure(panel)
+    renderer.layout_zooms.clear()
+
+    # A single configure after quiet -> immediate (leading) repaint.
+    panel._on_canvas_configure(_Configure())
+    assert len(renderer.layout_zooms) == 1
+
+
 def _render_guitar(text):
     from audio.guitar_chord_picker import GuitarChordPicker
 
@@ -389,9 +449,10 @@ def test_capo_suggestion_label_shows_only_for_fretboard_views(root):
         FakeConfig(chord_sheet_visible=True, chord_sheet_view="fret", allow_capo=True),
         audio_service=None,
         application=None,
-        render_fn=lambda lines, key: rendered,
+        render_fn=lambda lines, key, should_abort=None: rendered,
         audition_fn=lambda notes: None,
         scheduler=ImmediateScheduler(),
+        executor=lambda fn: fn(),
         marshal=lambda fn: fn(),
         capo_spec_fn=lambda: BUILTIN_FRETBOARDS["standard"],
     )

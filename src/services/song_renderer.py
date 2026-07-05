@@ -19,7 +19,7 @@ resets the picker or snapshots its state across loops.
 """
 import logging
 import threading
-from typing import List, Optional, Tuple
+from typing import Callable, List, Optional, Tuple
 
 from models.line import Line
 from models.chord import ChordInfo
@@ -27,6 +27,7 @@ from models.chord_notes import ChordNotes
 from models.directive import Directive, DirectiveType, BPMModifierType
 from models.rendered_song import RenderedSong, RenderedChord, SongMarker
 from audio.note_picker_interface import INotePicker
+from exceptions import RenderAborted
 
 
 def _dedupe_preserve_order(notes: List[int]) -> List[int]:
@@ -61,6 +62,7 @@ class SongRenderer:
         start_line_index: int = 0,
         start_item_index: int = 0,
         cancel_event: Optional[threading.Event] = None,
+        should_abort: Optional[Callable[[], bool]] = None,
     ) -> Optional[RenderedSong]:
         """Render the whole song synchronously.
 
@@ -75,11 +77,17 @@ class SongRenderer:
             start_item_index: Item index within that line to begin from.
             cancel_event: If set during the walk, rendering aborts and returns
                 ``None`` (used to cancel a render that is stopped mid-flight).
+            should_abort: Optional cooperative-abort predicate threaded into the
+                whole-song voicing pass. When it fires the voicer raises
+                :class:`~exceptions.RenderAborted`, which propagates out of
+                ``render``. ``None`` (default) never aborts -- the playback and
+                export call sites pass nothing, so behaviour is unchanged.
 
         Returns:
             A :class:`RenderedSong`, or ``None`` if cancelled.
         """
         self._note_picker = note_picker
+        self._should_abort = should_abort
         self._initial_key = initial_key
         self._initial_bpm = initial_bpm
         self._initial_time_sig = initial_time_sig
@@ -575,7 +583,14 @@ class SongRenderer:
             return None, None
         try:
             voicings = self._note_picker.voice_sequence_details(
-                [rc.chord_notes for rc in played])
+                [rc.chord_notes for rc in played],
+                should_abort=getattr(self, '_should_abort', None))
+        except RenderAborted:
+            # Cooperative abort: a newer render generation superseded this one.
+            # Propagate so the caller can drop the abandoned work; this is
+            # control flow, not a voicing error, so it must not be swallowed by
+            # the broad except below.
+            raise
         except Exception as e:
             self._logger.error(f"Error voicing chords: {e}", exc_info=True)
             return None, None

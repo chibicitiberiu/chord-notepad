@@ -62,7 +62,7 @@ class FakeAudio:
         self.render_calls = []
         self.auditions = []
 
-    def render_song(self, lines, key):
+    def render_song(self, lines, key, should_abort=None, private_picker=False):
         self.render_calls.append((lines, key))
         return self.rendered
 
@@ -93,6 +93,11 @@ class ManualScheduler:
 
 
 def direct_marshal(fn):
+    fn()
+
+
+def inline_executor(fn):
+    """Run a render job synchronously in the calling thread (test seam)."""
     fn()
 
 
@@ -158,6 +163,7 @@ def make_vm(rendered=None, config=None, renderers=None, audio=None, scheduler=No
         application=None,
         renderers=renderers,
         scheduler=scheduler,
+        executor=inline_executor,
         marshal=direct_marshal,
     )
     return vm, audio, scheduler
@@ -192,6 +198,276 @@ def test_render_result_notifies_observers():
     vm.set_song([], None)
     scheduler.flush()
     assert seen == [song]
+
+
+def test_typing_burst_of_n_yields_exactly_one_render():
+    song = RenderedSong(chords=[make_chord("C")])
+    vm, audio, scheduler = make_vm(rendered=song)
+    for key in ("A", "B", "C", "D", "E"):  # five rapid edits
+        vm.set_song([], key)
+    assert audio.render_calls == []
+    scheduler.flush()
+    assert len(audio.render_calls) == 1
+    assert audio.render_calls[0][1] == "E"  # newest input rendered
+
+
+# --------------------------------------------------------------------------
+# Background-job threading: generation, serialization, cooperative abort
+# --------------------------------------------------------------------------
+
+import threading  # noqa: E402
+import time  # noqa: E402
+
+from exceptions import RenderAborted  # noqa: E402
+
+
+class ImmediateScheduler:
+    """Runs the scheduled callback synchronously (bypasses the debounce)."""
+
+    def schedule(self, delay, fn):
+        fn()
+        return None
+
+    def cancel(self, handle):
+        pass
+
+
+class DeferredExecutor:
+    """Captures render jobs so a test can run them on demand."""
+
+    def __init__(self):
+        self.jobs = []
+
+    def __call__(self, fn):
+        self.jobs.append(fn)
+
+    def run_all(self):
+        while self.jobs:
+            self.jobs.pop(0)()
+
+
+def test_stale_generation_result_is_dropped_out_of_order():
+    # Render two inputs; capture the apply callbacks and run them newest-first.
+    # The older (stale) result must not clobber the newer one.
+    song_a = RenderedSong(chords=[make_chord("C")])
+    song_b = RenderedSong(chords=[make_chord("G")])
+    captured = []
+    audio = FakeAudio()
+    scheduler = ManualScheduler()
+    vm = ChordSheetViewModel(
+        FakeConfig(chord_sheet_visible=True), audio, application=None,
+        scheduler=scheduler, executor=inline_executor, marshal=captured.append,
+    )
+
+    audio.rendered = song_a
+    vm.set_song([], "A")
+    scheduler.flush()          # job renders A, captures apply_A (older generation)
+    audio.rendered = song_b
+    vm.set_song([], "B")
+    scheduler.flush()          # job renders B, captures apply_B (newer generation)
+
+    assert len(captured) == 2
+    assert vm.rendered_song is None   # nothing applied yet
+
+    captured[1]()              # apply newest (B) -> current -> applied
+    assert vm.rendered_song is song_b
+    captured[0]()              # apply stale (A) -> generation moved on -> dropped
+    assert vm.rendered_song is song_b
+
+
+def test_abort_predicate_fires_for_in_flight_job_when_new_input_arrives():
+    holder = {}
+    def render_fn(lines, key, should_abort=None):
+        holder["abort"] = should_abort
+        return RenderedSong(chords=[make_chord("C")])
+
+    scheduler = ManualScheduler()
+    vm = ChordSheetViewModel(
+        FakeConfig(chord_sheet_visible=True), FakeAudio(), application=None,
+        render_fn=render_fn, scheduler=scheduler,
+        executor=inline_executor, marshal=lambda fn: None,
+    )
+    vm.set_song([], "A")
+    scheduler.flush()
+    abort = holder["abort"]
+    assert abort() is False       # still the current generation
+    vm.set_song([], "B")          # a new edit bumps the generation
+    assert abort() is True        # the in-flight job's abort predicate now fires
+
+
+def test_render_aborted_from_render_fn_runs_queued_input():
+    song_b = RenderedSong(chords=[make_chord("G")])
+    calls = []
+    scheduler = ManualScheduler()
+    holder = {}
+
+    def render_fn(lines, key, should_abort=None):
+        calls.append(key)
+        if len(calls) == 1:
+            # A newer input arrives mid-render, then this (now stale) render bails.
+            holder["vm"].set_song([], "B")
+            scheduler.flush()           # dispatch sees the job running -> queues a rerun
+            assert should_abort() is True
+            raise RenderAborted()
+        return song_b
+
+    vm = ChordSheetViewModel(
+        FakeConfig(chord_sheet_visible=True), FakeAudio(), application=None,
+        render_fn=render_fn, scheduler=scheduler,
+        executor=inline_executor, marshal=direct_marshal,
+    )
+    holder["vm"] = vm
+    vm.set_song([], "A")
+    scheduler.flush()
+    # The aborted render leaves state consistent, then the queued newest input runs.
+    assert calls == ["A", "B"]
+    assert vm.rendered_song is song_b
+
+
+def test_capo_result_dropped_when_generation_stale():
+    # The capo suggestion is computed in the render job; a stale generation
+    # drops the whole result, capo included.
+    captured = []
+    audio = FakeAudio(rendered=_fsharp_song())
+    scheduler = ManualScheduler()
+    vm = ChordSheetViewModel(
+        FakeConfig(chord_sheet_visible=True, allow_capo=True), audio,
+        application=None, scheduler=scheduler, executor=inline_executor,
+        marshal=captured.append, capo_spec_fn=lambda: _STANDARD_SPEC,
+    )
+    vm.set_song([], None)
+    scheduler.flush()             # render job captures apply (with a capo suggestion)
+    vm.set_song([], None)         # bump the generation -> the captured apply is stale
+
+    captured[0]()                 # apply the stale result
+    assert vm.rendered_song is None
+    assert vm.capo_suggestion is None
+
+
+def test_real_thread_render_runs_off_the_calling_thread():
+    song = RenderedSong(chords=[make_chord("C")])
+    started = threading.Event()
+    release = threading.Event()
+
+    def render_fn(lines, key, should_abort=None):
+        started.set()
+        assert release.wait(2.0)      # hold the render open until the test releases it
+        return song
+
+    done = threading.Event()
+    captured = []
+
+    def marshal(fn):
+        captured.append(fn)
+        done.set()
+
+    vm = ChordSheetViewModel(
+        FakeConfig(chord_sheet_visible=True), FakeAudio(), application=None,
+        render_fn=render_fn, scheduler=ImmediateScheduler(), marshal=marshal,
+    )  # default executor -> a real daemon thread
+
+    t0 = time.monotonic()
+    vm.set_song([], "C")
+    elapsed = time.monotonic() - t0
+
+    assert started.wait(2.0)          # the render actually started on a worker
+    assert elapsed < 0.5              # the caller was not blocked by the render
+    assert not done.is_set()          # result not marshaled while the render is held
+    release.set()
+    assert done.wait(2.0)             # result arrived via the marshal seam
+    captured[0]()
+    assert vm.rendered_song is song
+
+
+# --------------------------------------------------------------------------
+# No background work while the panel is hidden
+# --------------------------------------------------------------------------
+
+
+def test_hidden_set_song_never_calls_render_fn():
+    song = RenderedSong(chords=[make_chord("C")])
+    config = FakeConfig(chord_sheet_visible=False)
+    vm, audio, scheduler = make_vm(rendered=song, config=config)
+    vm.set_song([], "C")
+    assert scheduler.pending is None       # no timer armed
+    assert audio.render_calls == []        # no render dispatched
+
+
+def test_hidden_refresh_capo_does_not_score():
+    scored = []
+
+    def capo_spec_fn():
+        scored.append(True)   # reading the spec only happens during scoring
+        return _STANDARD_SPEC
+
+    audio = FakeAudio(rendered=_fsharp_song())
+    scheduler = ManualScheduler()
+    vm = ChordSheetViewModel(
+        FakeConfig(chord_sheet_visible=False, allow_capo=True), audio,
+        application=None, scheduler=scheduler, executor=inline_executor,
+        marshal=direct_marshal, capo_spec_fn=capo_spec_fn,
+    )
+    vm.refresh_capo_suggestion()
+    assert scored == []                    # no capo search ran
+    assert scheduler.pending is None       # nothing armed
+
+
+def test_show_flushes_single_render_job_with_newest_input():
+    song = RenderedSong(chords=[make_chord("C")])
+    config = FakeConfig(chord_sheet_visible=False)
+    vm, audio, scheduler = make_vm(rendered=song, config=config)
+    vm.set_song([], "A")
+    vm.set_song([], "B")                   # newest input while hidden
+    assert audio.render_calls == []
+    vm.set_visible(True)
+    scheduler.flush()
+    assert audio.render_calls == [([], "B")]   # exactly one render, newest input
+    assert vm.rendered_song is song
+
+
+def test_show_collapses_pending_render_and_capo_into_one_job():
+    # A pending render plus a capo refresh requested while hidden must NOT both
+    # dispatch: the render alone recomputes the suggestion.
+    audio = FakeAudio(rendered=_fsharp_song())
+    scheduler = ManualScheduler()
+    vm = ChordSheetViewModel(
+        FakeConfig(chord_sheet_visible=False, allow_capo=True), audio,
+        application=None, scheduler=scheduler, executor=inline_executor,
+        marshal=direct_marshal, capo_spec_fn=lambda: _STANDARD_SPEC,
+    )
+    vm.set_song([], None)                  # render pending
+    vm.refresh_capo_suggestion()           # capo refresh requested -> folds into the render
+    vm.set_visible(True)
+    scheduler.flush()
+    assert len(audio.render_calls) == 1    # one render (which also computed the capo)
+    assert scheduler.pending is None       # no leftover second job
+    assert vm.capo_suggestion is not None
+
+
+def test_hide_during_render_drops_the_result():
+    # Documented choice: hiding aborts the in-flight job (nobody's looking) by
+    # bumping the generation, so its result is dropped rather than applied.
+    song = RenderedSong(chords=[make_chord("C")])
+    applied = []
+    holder = {}
+
+    def render_fn(lines, key, should_abort=None):
+        holder["vm"].set_visible(False)    # user hides the panel mid-render
+        assert should_abort() is True      # the hide bumped the generation
+        return song
+
+    scheduler = ManualScheduler()
+    vm = ChordSheetViewModel(
+        FakeConfig(chord_sheet_visible=True), FakeAudio(), application=None,
+        render_fn=render_fn, scheduler=scheduler, executor=inline_executor,
+        marshal=applied.append,
+    )
+    holder["vm"] = vm
+    vm.set_song([], "A")
+    scheduler.flush()
+    for fn in applied:
+        fn()
+    assert vm.rendered_song is None        # stale result dropped
 
 
 # --------------------------------------------------------------------------
@@ -517,6 +793,7 @@ def _make_capo_vm(rendered, *, allow_capo, spec=_STANDARD_SPEC):
         audio,
         application=None,
         scheduler=scheduler,
+        executor=inline_executor,
         marshal=direct_marshal,
         capo_spec_fn=lambda: spec,
     )
@@ -561,6 +838,7 @@ def test_capo_suggestion_resets_on_new_song():
         audio,
         application=None,
         scheduler=scheduler,
+        executor=inline_executor,
         marshal=direct_marshal,
         capo_spec_fn=lambda: _STANDARD_SPEC,
     )
@@ -682,7 +960,7 @@ def test_refresh_capo_suggestion_reacts_to_config_toggle():
     config = FakeConfig(chord_sheet_visible=True, allow_capo=False)
     vm = ChordSheetViewModel(
         config, audio, application=None,
-        scheduler=scheduler, marshal=direct_marshal,
+        scheduler=scheduler, executor=inline_executor, marshal=direct_marshal,
         capo_spec_fn=lambda: _STANDARD_SPEC,
     )
     vm.set_song([], None)

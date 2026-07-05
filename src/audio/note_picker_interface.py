@@ -4,7 +4,7 @@ Interface for note pickers (Piano, Guitar, etc.)
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import List, Optional, TYPE_CHECKING
+from typing import Callable, List, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from models.chord_notes import ChordNotes
@@ -76,7 +76,11 @@ class INotePicker(ABC):
         """Set current state (implementation-specific)"""
         pass
 
-    def voice_sequence(self, sequence: List['ChordNotes']) -> List[List[int]]:
+    def voice_sequence(
+        self,
+        sequence: List['ChordNotes'],
+        should_abort: Optional[Callable[[], bool]] = None,
+    ) -> List[List[int]]:
         """Voice an entire song in order.
 
         Deterministic: the same sequence always yields the same voicings,
@@ -86,6 +90,10 @@ class INotePicker(ABC):
 
         Args:
             sequence: The chords to voice, in playback order.
+            should_abort: Optional cooperative-abort predicate (see
+                :func:`audio.voicing_optimizer.optimize_sequence`). The default
+                greedy implementation ignores it; overriding pickers thread it
+                into their whole-song search. ``None`` (default) never aborts.
 
         Returns:
             One MIDI-note list per chord, positionally aligned with ``sequence``.
@@ -93,7 +101,11 @@ class INotePicker(ABC):
         self.reset()
         return [self.chord_to_midi(cn) for cn in sequence]
 
-    def voice_sequence_details(self, sequence: List['ChordNotes']) -> List['VoicedChord']:
+    def voice_sequence_details(
+        self,
+        sequence: List['ChordNotes'],
+        should_abort: Optional[Callable[[], bool]] = None,
+    ) -> List['VoicedChord']:
         """Voice an entire song, returning per-chord display detail.
 
         Same selection and ordering as :meth:`voice_sequence` -- each result's
@@ -108,12 +120,17 @@ class INotePicker(ABC):
 
         Args:
             sequence: The chords to voice, in playback order.
+            should_abort: Optional cooperative-abort predicate, forwarded to
+                :meth:`voice_sequence`. ``None`` (default) never aborts.
 
         Returns:
             One :class:`VoicedChord` per chord, positionally aligned with
             ``sequence``.
         """
-        return [VoicedChord(midi_notes=notes) for notes in self.voice_sequence(sequence)]
+        return [
+            VoicedChord(midi_notes=notes)
+            for notes in self.voice_sequence(sequence, should_abort=should_abort)
+        ]
 
     @property
     def voice_labels(self) -> Optional[List[str]]:

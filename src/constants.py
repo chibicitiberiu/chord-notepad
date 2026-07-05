@@ -28,6 +28,11 @@ PLAYBACK_THREAD_CHECK_MS = 50
 # Chord sheet strip
 DEFAULT_CHORD_SHEET_HEIGHT = 160
 DEFAULT_CHORD_SHEET_VIEW = "keyboard"
+# Trailing-repaint debounce for the strip canvas <Configure> storm during a
+# sash drag: the first configure after a quiet period repaints immediately
+# (so window resizes stay live), the rest of the burst collapse into one
+# trailing repaint this many ms after the last configure.
+CHORD_SHEET_CONFIGURE_DEBOUNCE_MS = 120
 
 # Capo advisor (see services/capo_advisor.py). When "Allow capo" is on and a
 # fretboard voicing is active, the advisor scores every capo position 0..MAX

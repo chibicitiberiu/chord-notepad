@@ -26,7 +26,7 @@ pitch class); scoring runs every call because it depends on the mutable
 transition state.
 """
 
-from typing import Any, Dict, List, NamedTuple, Optional, Tuple, TYPE_CHECKING
+from typing import Any, Callable, Dict, List, NamedTuple, Optional, Tuple, TYPE_CHECKING
 from dataclasses import dataclass, asdict
 from copy import deepcopy
 import logging
@@ -186,16 +186,19 @@ class ChordNotePicker(INotePicker):
         self._update_state(midi, notes)
         return midi
 
-    def voice_sequence(self, sequence: List['ChordNotes']) -> List[List[int]]:
+    def voice_sequence(self, sequence: List['ChordNotes'],
+                       should_abort: Optional[Callable[[], bool]] = None) -> List[List[int]]:
         """Voice a whole song at once, optimizing transitions with lookahead.
 
         Thin wrapper over :meth:`voice_sequence_details`: it runs the same
         whole-song optimization and returns just the MIDI-note lists, discarding
         the per-chord hand splits. The two therefore always agree.
         """
-        return [vc.midi_notes for vc in self.voice_sequence_details(sequence)]
+        return [vc.midi_notes
+                for vc in self.voice_sequence_details(sequence, should_abort=should_abort)]
 
-    def voice_sequence_details(self, sequence: List['ChordNotes']) -> List[VoicedChord]:
+    def voice_sequence_details(self, sequence: List['ChordNotes'],
+                              should_abort: Optional[Callable[[], bool]] = None) -> List[VoicedChord]:
         """Voice a whole song at once, keeping each chord's hand split.
 
         Gathers each chord's candidate voicings and runs the beam-pruned Viterbi
@@ -236,7 +239,8 @@ class ChordNotePicker(INotePicker):
                                           self._voicing_to_midi(cur))
 
         chosen = optimize_sequence(
-            candidate_sets, unary, transition, beam_width=20, prune_to=30
+            candidate_sets, unary, transition, beam_width=20, prune_to=30,
+            should_abort=should_abort,
         )
         result: List[VoicedChord] = []
         for pos, idx in enumerate(chosen):

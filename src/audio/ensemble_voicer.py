@@ -52,7 +52,7 @@ from copy import deepcopy
 from dataclasses import dataclass
 from itertools import combinations, combinations_with_replacement
 import logging
-from typing import Any, Dict, FrozenSet, List, NamedTuple, Optional, Tuple, TYPE_CHECKING
+from typing import Any, Callable, Dict, FrozenSet, List, NamedTuple, Optional, Tuple, TYPE_CHECKING
 
 from audio.note_picker_interface import INotePicker
 from audio.chord_tones import classify_role
@@ -286,7 +286,8 @@ class EnsembleVoicer(INotePicker):
         self._store_state(best_stack, meta)
         return sorted(set(best_stack))
 
-    def voice_sequence(self, sequence: List['ChordNotes']) -> List[List[int]]:
+    def voice_sequence(self, sequence: List['ChordNotes'],
+                       should_abort: Optional[Callable[[], bool]] = None) -> List[List[int]]:
         """Voice a whole song at once, optimizing voice leading with lookahead.
 
         Resets, enumerates every chord's candidate voicings, and runs the
@@ -332,7 +333,8 @@ class EnsembleVoicer(INotePicker):
             return self._score_transition(prev_cand.notes, cand.notes, prev_ctx)
 
         chosen = optimize_sequence(
-            candidate_sets, unary, transition, beam_width=20, prune_to=30
+            candidate_sets, unary, transition, beam_width=20, prune_to=30,
+            should_abort=should_abort,
         )
         result = [list(candidate_sets[pos][idx].notes)
                   for pos, idx in enumerate(chosen)]

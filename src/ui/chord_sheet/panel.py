@@ -14,6 +14,7 @@ import tkinter as tk
 from tkinter import ttk
 from typing import Optional, Set
 
+from constants import CHORD_SHEET_CONFIGURE_DEBOUNCE_MS
 from ui.chord_sheet.clef_assets import image_for_clef_key
 from ui.chord_sheet.marker_lane import LANE_HEIGHT, build_marker_lane
 from ui.chord_sheet.ops import DrawOps, ImageOp, replay
@@ -57,6 +58,11 @@ class ChordSheetPanel(ttk.Frame):
         # replays on scroll.
         self._gutter_width: float = 0.0
         self._gutter_state: Optional[tuple] = None
+
+        # Pending trailing-repaint ``after`` id for the <Configure> debounce
+        # (see ``_on_canvas_configure``). ``None`` means we are in a quiet
+        # period, so the next configure is the "leading" one and repaints live.
+        self._configure_after: Optional[str] = None
 
         self._build_widgets()
         self._wire_viewmodel()
@@ -253,7 +259,39 @@ class ChordSheetPanel(ttk.Frame):
         self._zoom_out_btn.state(state)
 
     def _on_canvas_configure(self, _event) -> None:
-        """Re-layout on resize (height feeds the renderer)."""
+        """Re-layout on resize, debounced so a sash-drag storm doesn't stutter.
+
+        A sash drag fires one ``<Configure>`` per pixel, and each full
+        re-layout + repaint is expensive. To keep interaction live without
+        repainting on every pixel:
+
+        - the FIRST configure after a quiet period repaints immediately (a
+          normal window resize still feels responsive), then
+        - every configure inside the ensuing burst only (re)arms a single
+          trailing repaint ``CHORD_SHEET_CONFIGURE_DEBOUNCE_MS`` after the last
+          one, so the burst collapses to one final repaint at the settled size.
+
+        The trailing repaint (via ``_relayout_and_paint``) also repaints the
+        frozen gutter, so the gutter follows the same cadence. Height
+        persistence is driven separately off the paned window's sash-release
+        event, so it is unaffected by this debounce.
+        """
+        if self._configure_after is None:
+            # Leading edge: repaint now for immediate feedback.
+            self._relayout_and_paint()
+        else:
+            # Mid-burst: drop the previously-armed trailing repaint.
+            try:
+                self.after_cancel(self._configure_after)
+            except Exception:
+                pass
+        self._configure_after = self.after(
+            CHORD_SHEET_CONFIGURE_DEBOUNCE_MS, self._on_configure_trailing
+        )
+
+    def _on_configure_trailing(self) -> None:
+        """Fire the single trailing repaint at the end of a Configure burst."""
+        self._configure_after = None
         self._relayout_and_paint()
 
     def _on_canvas_click(self, event) -> None:

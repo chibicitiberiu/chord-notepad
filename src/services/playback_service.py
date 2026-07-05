@@ -19,6 +19,7 @@ from models.playback_event import PlaybackEventArgs
 from models.line import Line
 from models.rendered_song import RenderedSong
 from services.config_service import ConfigService
+from exceptions import RenderAborted
 
 
 class PlaybackService:
@@ -650,8 +651,14 @@ class PlaybackService:
         self._render_thread.start()
         return True
 
-    def render_song(self, lines: List[Line], initial_key: Optional[str]) -> Optional[RenderedSong]:
-        """Synchronously render a whole song for export (e.g. MIDI file writing).
+    def render_song(
+        self,
+        lines: List[Line],
+        initial_key: Optional[str],
+        should_abort: Optional[Callable[[], bool]] = None,
+        private_picker: bool = False,
+    ) -> Optional[RenderedSong]:
+        """Synchronously render a whole song for export or the chord-sheet strip.
 
         Unlike :meth:`start_song_playback`, this does not touch the audio
         player: it never calls ``_ensure_initialized`` and never starts
@@ -661,15 +668,35 @@ class PlaybackService:
         Args:
             lines: List of Line objects with chords and directives
             initial_key: Initial key signature (from UI)
+            should_abort: Optional cooperative-abort predicate threaded into the
+                voicing search. ``None`` (default, used by MIDI export) never
+                aborts. The chord-sheet strip passes a generation-guard here so a
+                superseded render bails promptly (raising
+                :class:`~exceptions.RenderAborted`, which this method re-raises).
+            private_picker: When ``True``, render with a *freshly created* note
+                picker for the current voicing instead of the shared
+                ``self._note_picker``. Pickers carry mutable voice-leading state
+                and per-instance caches, so the strip -- which can render on a
+                background thread concurrently with a playback render -- must not
+                share the playback picker. Playback and export keep the shared
+                picker (default ``False``) so their goldens are unchanged.
 
         Returns:
             The fully rendered song, or None if there are no chords to render
             or rendering fails.
+
+        Raises:
+            RenderAborted: If ``should_abort`` fires during the voicing search.
         """
         total_chords = sum(len(line.chords) for line in lines)
         if total_chords == 0:
             self._logger.info("No chords found to render")
             return None
+
+        if private_picker:
+            note_picker = self._create_note_picker(self._config.get("voicing", "piano"))
+        else:
+            note_picker = self._note_picker
 
         try:
             return SongRenderer(logger=self._logger).render(
@@ -677,10 +704,16 @@ class PlaybackService:
                 initial_key=initial_key,
                 initial_bpm=self._playback_state.bpm,
                 initial_time_sig=self.get_time_signature(),
-                note_picker=self._note_picker,
+                note_picker=note_picker,
                 start_line_index=0,
                 start_item_index=0,
+                should_abort=should_abort,
             )
+        except RenderAborted:
+            # Control flow, not an error: let the strip's job runner drop the
+            # abandoned render. Never reached on the export path (should_abort
+            # is None there).
+            raise
         except Exception as e:
             self._logger.error(f"Error rendering song for export: {e}", exc_info=True)
             return None

@@ -421,3 +421,71 @@ class TestRealisticShapeSmokeTest:
         assert len(result) == n_positions
         for position, idx in enumerate(result):
             assert 0 <= idx < len(candidate_sets[position])
+
+
+# --------------------------------------------------------------------------
+# Cooperative abort (should_abort)
+# --------------------------------------------------------------------------
+
+from exceptions import RenderAborted  # noqa: E402
+
+
+def test_should_abort_none_is_identical_to_default():
+    # An explicit should_abort=None must produce the exact same choice as the
+    # default (goldens rely on this being a pure no-op).
+    candidate_sets = [[0, 1, 2], [0, 1, 2], [0, 1, 2]]
+
+    def unary(pos, c):
+        return float(c)
+
+    def transition(prev, c):
+        return -abs(c - prev)
+
+    base = optimize_sequence(candidate_sets, unary, transition)
+    with_none = optimize_sequence(candidate_sets, unary, transition, should_abort=None)
+    assert base == with_none
+
+
+def test_should_abort_false_never_raises():
+    candidate_sets = [[0, 1], [0, 1], [0, 1]]
+    result = optimize_sequence(
+        candidate_sets,
+        lambda pos, c: float(c),
+        lambda prev, c: 0.0,
+        should_abort=lambda: False,
+    )
+    assert len(result) == 3
+
+
+def test_should_abort_true_raises_render_aborted_promptly():
+    # A never-say-die scoring function would loop forever if the abort were not
+    # honored; firing it immediately must raise before much work is done.
+    calls = {"unary": 0}
+
+    def unary(pos, c):
+        calls["unary"] += 1
+        return float(c)
+
+    big = [list(range(50)) for _ in range(200)]
+    with pytest.raises(RenderAborted):
+        optimize_sequence(
+            big, unary, lambda prev, c: 0.0, should_abort=lambda: True
+        )
+
+
+def test_should_abort_mid_sequence_stops_forward_pass():
+    # Abort turns on after the third forward-pass position check.
+    state = {"n": 0}
+
+    def should_abort():
+        state["n"] += 1
+        return state["n"] > 3
+
+    candidate_sets = [[0, 1] for _ in range(20)]
+    with pytest.raises(RenderAborted):
+        optimize_sequence(
+            candidate_sets,
+            lambda pos, c: float(c),
+            lambda prev, c: 0.0,
+            should_abort=should_abort,
+        )

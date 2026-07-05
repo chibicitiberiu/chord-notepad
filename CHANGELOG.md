@@ -117,6 +117,12 @@ moved to CHANGELOG_HISTORY.md and this file is reset.
 
 ### Fixed
 
+- Typing no longer stutters while the chord sheet re-renders: the strip's
+  voicing work (and capo scoring) now runs on a background thread, is
+  cancelled mid-search the moment you type again, and never runs at all
+  while the panel is hidden. Dragging the panel divider repaints once per
+  pause instead of once per pixel.
+
 - The staff view now spells notes to match the key signature: a song in F#
   whose chords are typed with flat names (Ebm, Db, Gb) engraves as D#m, C#,
   and F# with no accidentals, and the same song in Ebm engraves as Ebm, Db,

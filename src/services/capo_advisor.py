@@ -33,7 +33,7 @@ needed here -- the score speaks for itself.
 
 import dataclasses
 import logging
-from typing import List, Optional
+from typing import Callable, List, Optional
 
 from audio.guitar_chord_picker import GuitarChordPicker
 from constants import CAPO_MAX_DEFAULT, CAPO_MIN_GAIN
@@ -58,6 +58,7 @@ def suggest_capo(
     sequence: List[ChordNotes],
     max_capo: int = CAPO_MAX_DEFAULT,
     min_gain: float = CAPO_MIN_GAIN,
+    should_abort: Optional[Callable[[], bool]] = None,
 ) -> Optional[int]:
     """Suggest the easiest-to-play capo position for a song, or ``None``.
 
@@ -74,6 +75,11 @@ def suggest_capo(
         max_capo: Highest capo position to consider (inclusive).
         min_gain: Minimum score improvement over capo 0 required to suggest a
             capo. See :data:`constants.CAPO_MIN_GAIN`.
+        should_abort: Optional cooperative-abort predicate checked between capo
+            positions and threaded into every per-capo whole-song score. When it
+            fires, the underlying search raises
+            :class:`~exceptions.RenderAborted`, which propagates out of this
+            function. ``None`` (default) never aborts.
 
     Returns:
         The suggested capo fret (``1..max_capo``), or ``None`` when capo 0 is
@@ -83,13 +89,17 @@ def suggest_capo(
     if not any(cn is not None and cn.notes for cn in sequence):
         return None
 
-    base_score = GuitarChordPicker(spec).voice_sequence_score(sequence)
+    base_score = GuitarChordPicker(spec).voice_sequence_score(
+        sequence, should_abort=should_abort)
 
     best_capo = 0
     best_score = base_score
     for capo in range(1, max_capo + 1):
+        if should_abort is not None and should_abort():
+            from exceptions import RenderAborted
+            raise RenderAborted()
         picker = GuitarChordPicker(_capo_spec(spec, capo))
-        score = picker.voice_sequence_score(sequence)
+        score = picker.voice_sequence_score(sequence, should_abort=should_abort)
         # Strictly-greater keeps the tie-goes-to-lower-capo rule: an equal score
         # never displaces the lower capo already held in best_capo.
         if score > best_score:

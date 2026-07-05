@@ -109,7 +109,8 @@ class _FixedEnsemblePicker(INotePicker):
     def state(self, value) -> None:
         self._state = value
 
-    def voice_sequence(self, sequence: List['ChordNotes']) -> List[List[int]]:
+    def voice_sequence(self, sequence: List['ChordNotes'],
+                       should_abort=None) -> List[List[int]]:
         self.reset()
         return [list(self.VOICING) for _ in sequence]
 

@@ -43,7 +43,7 @@ string-order based, which is correct -- a strummer sweeps strings in order
 regardless of their pitch.
 """
 
-from typing import Any, Dict, List, Optional, Tuple, Set, Union, TYPE_CHECKING
+from typing import Any, Callable, Dict, List, Optional, Tuple, Set, Union, TYPE_CHECKING
 from dataclasses import dataclass, asdict
 from copy import deepcopy
 import logging
@@ -620,7 +620,8 @@ class GuitarChordPicker(INotePicker):
         score += self._w_kept * kept
         return score
 
-    def voice_sequence(self, sequence: List['ChordNotes']) -> List[List[int]]:
+    def voice_sequence(self, sequence: List['ChordNotes'],
+                       should_abort: Optional[Callable[[], bool]] = None) -> List[List[int]]:
         """Voice a whole song at once, optimizing transitions with lookahead.
 
         Thin wrapper over :meth:`voice_sequence_details`: it runs the same
@@ -628,9 +629,11 @@ class GuitarChordPicker(INotePicker):
         the per-chord fingerings. The two therefore always agree.
         """
 
-        return [vc.midi_notes for vc in self.voice_sequence_details(sequence)]
+        return [vc.midi_notes
+                for vc in self.voice_sequence_details(sequence, should_abort=should_abort)]
 
-    def voice_sequence_details(self, sequence: List['ChordNotes']) -> List[VoicedChord]:
+    def voice_sequence_details(self, sequence: List['ChordNotes'],
+                              should_abort: Optional[Callable[[], bool]] = None) -> List[VoicedChord]:
         """Voice a whole song at once, keeping each chord's winning fingering.
 
         Instead of greedily choosing each chord's shape against only the
@@ -649,7 +652,8 @@ class GuitarChordPicker(INotePicker):
         candidate order, so the same sequence always yields the same voicings.
         """
 
-        candidate_sets, chosen, _unary, _transition = self._optimize_sequence(sequence)
+        candidate_sets, chosen, _unary, _transition = self._optimize_sequence(
+            sequence, should_abort=should_abort)
         result: List[VoicedChord] = []
         for pos, idx in enumerate(chosen):
             fingering = candidate_sets[pos][idx]
@@ -659,7 +663,8 @@ class GuitarChordPicker(INotePicker):
             ))
         return result
 
-    def voice_sequence_score(self, sequence: List['ChordNotes']) -> float:
+    def voice_sequence_score(self, sequence: List['ChordNotes'],
+                            should_abort: Optional[Callable[[], bool]] = None) -> float:
         """Total score of the winning whole-song path for ``sequence``.
 
         Runs the exact same candidate enumeration and beam-Viterbi search as
@@ -683,7 +688,8 @@ class GuitarChordPicker(INotePicker):
             The summed unary + transition score of the chosen path, or ``0.0``
             for an empty sequence.
         """
-        candidate_sets, chosen, unary, transition = self._optimize_sequence(sequence)
+        candidate_sets, chosen, unary, transition = self._optimize_sequence(
+            sequence, should_abort=should_abort)
         total = 0.0
         prev_fingering: Optional[List[int]] = None
         for pos, idx in enumerate(chosen):
@@ -695,7 +701,8 @@ class GuitarChordPicker(INotePicker):
         return total
 
     def _optimize_sequence(
-        self, sequence: List['ChordNotes']
+        self, sequence: List['ChordNotes'],
+        should_abort: Optional[Callable[[], bool]] = None,
     ) -> Tuple[List[List[List[int]]], List[int], Any, Any]:
         """Shared whole-song enumeration + beam-Viterbi search.
 
@@ -751,7 +758,8 @@ class GuitarChordPicker(INotePicker):
             return self._score_transition(prev_fingering, fingering)
 
         chosen = optimize_sequence(
-            candidate_sets, unary, transition, beam_width=20, prune_to=30
+            candidate_sets, unary, transition, beam_width=20, prune_to=30,
+            should_abort=should_abort,
         )
         return candidate_sets, chosen, unary, transition
 
