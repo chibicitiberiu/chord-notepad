@@ -129,6 +129,13 @@ moved to CHANGELOG_HISTORY.md and this file is reset.
   while the panel is hidden. Dragging the panel divider repaints once per
   pause instead of once per pixel.
 
+- Chord-sheet rendering is roughly 4x faster on songs with repeated chords
+  (the voicing search no longer rescores the same shapes at every
+  occurrence), and the capo suggestion -- by far the most expensive part,
+  since it scores the whole song at eight capo positions -- is both 4x
+  faster and remembered per song, so edits that don't change the chords
+  reuse it instantly. Results are identical, just sooner.
+
 - The staff view now spells notes to match the key signature: a song in F#
   whose chords are typed with flat names (Ebm, Db, Gb) engraves as D#m, C#,
   and F# with no accidentals, and the same song in Ebm engraves as Ebm, Db,

@@ -30,9 +30,10 @@ The debounce scheduler, the executor, the UI-thread marshal, the render seam and
 the capo-spec seam are all injectable so tests run synchronously.
 """
 
+import json
 import logging
 import threading
-from typing import Callable, Dict, List, Optional
+from typing import Callable, Dict, List, Optional, Tuple
 
 from exceptions import RenderAborted
 
@@ -77,6 +78,11 @@ _SCROLL_EPSILON = 0.5    # px; scroll deltas smaller than this are treated as no
 _ZOOM_STEP = 1.2   # multiplicative factor per zoom-in/out click
 _ZOOM_MIN = 0.5
 _ZOOM_MAX = 2.5
+
+# Capo-suggestion cache size: the advice depends only on the fretboard spec and
+# the chord sequence, so a handful of entries covers toggling between recent
+# songs/specs while keeping the cache trivially small.
+_CAPO_CACHE_MAX = 4
 
 
 class _TimerScheduler:
@@ -198,6 +204,16 @@ class ChordSheetViewModel(Observable):
         self._generation: int = 0
         self._job_running: bool = False
         self._rerun_requested: bool = False
+
+        # Capo-suggestion cache: (spec identity, chord sequence) -> suggestion.
+        # The advice is a pure function of the fretboard spec and the resolved
+        # chord sequence, so lyric-only edits (which re-render but leave both
+        # unchanged) hit the cache instead of re-running the expensive
+        # whole-song capo search. Insertion-ordered with oldest-first eviction
+        # (hits are re-inserted, making it effectively LRU), capped at
+        # ``_CAPO_CACHE_MAX`` entries. Only touched on the (serialized,
+        # single-worker) background job, so no extra locking is needed.
+        self._capo_cache: Dict[Tuple[str, tuple], Optional[int]] = {}
 
         # Observable state (private storage with leading underscore).
         self._rendered_song: Optional[RenderedSong] = None
@@ -494,6 +510,11 @@ class ChordSheetViewModel(Observable):
         fretboard fingering data (i.e. a fretboard voicing was used), the active
         picker exposes a fretboard spec, and the song has voiceable chords. The
         actual scoring lives in :func:`services.capo_advisor.suggest_capo`.
+
+        Results are cached per (spec, chord sequence) -- see ``_capo_cache`` --
+        so re-renders that leave the chords untouched (lyric-only edits) never
+        re-run the expensive whole-song capo search. The cache is consulted
+        before the search is dispatched, so a hit costs nothing on the worker.
         """
         if rendered is None:
             return None
@@ -507,15 +528,47 @@ class ChordSheetViewModel(Observable):
         sequence = [rc.chord_notes for rc in rendered.chords if rc.chord_notes is not None]
         if not sequence:
             return None
+
+        cache_key = self._capo_cache_key(spec, sequence)
+        if cache_key is not None and cache_key in self._capo_cache:
+            # Re-insert to refresh recency (oldest-first eviction below).
+            suggestion = self._capo_cache.pop(cache_key)
+            self._capo_cache[cache_key] = suggestion
+            logger.debug("Capo suggestion cache hit: %r", suggestion)
+            return suggestion
+
         try:
             from services.capo_advisor import suggest_capo
 
-            return suggest_capo(spec, sequence, should_abort=should_abort)
+            suggestion = suggest_capo(spec, sequence, should_abort=should_abort)
         except RenderAborted:
             raise
         except Exception as e:  # pragma: no cover - defensive
             logger.error(f"Capo suggestion failed: {e}", exc_info=True)
             return None
+
+        if cache_key is not None:
+            self._capo_cache[cache_key] = suggestion
+            while len(self._capo_cache) > _CAPO_CACHE_MAX:
+                self._capo_cache.pop(next(iter(self._capo_cache)))
+        return suggestion
+
+    @staticmethod
+    def _capo_cache_key(spec, sequence) -> Optional[Tuple[str, tuple]]:
+        """Build the capo-cache key for a (spec, chord sequence) pair.
+
+        The spec's identity is its stable JSON serialization (``to_dict`` with
+        sorted keys), and the sequence's identity is the ordered tuple of each
+        chord's ``(notes, bass_note)`` -- exactly the fields the guitar picker's
+        scoring reads. Returns ``None`` (uncacheable) if the spec cannot be
+        serialized, so an odd injected spec degrades to the uncached behavior.
+        """
+        try:
+            spec_id = json.dumps(spec.to_dict(), sort_keys=True)
+        except Exception:  # pragma: no cover - defensive (ad-hoc test specs)
+            return None
+        seq_id = tuple((tuple(cn.notes), cn.bass_note) for cn in sequence)
+        return (spec_id, seq_id)
 
     def refresh_capo_suggestion(self) -> None:
         """Recompute the capo suggestion for the current song, off the UI thread.

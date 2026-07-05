@@ -724,8 +724,17 @@ class GuitarChordPicker(INotePicker):
         # Per position: the candidate fingerings and the (notes, bass) needed to
         # score them. Empty-candidate chords fall back to a single-candidate set
         # so the DP always has something to choose and never raises.
+        #
+        # ``pos_keys[pos]`` is a hashable identity of everything the unary
+        # scorer reads from the chord at ``pos`` (``None`` for empty-notes
+        # positions, whose unary is 0.0): the fingering-cache key (sorted pitch
+        # classes + bass pc) plus the first note's pitch class, which
+        # :meth:`_score_quality` consults for its slash-bass check. Repeated
+        # chords share the key, so the memo below collapses their (identical)
+        # rescoring into a single computation per (chord, fingering) pair.
         candidate_sets: List[List[List[int]]] = []
         chord_data: List[Tuple[List[str], Optional[str]]] = []
+        pos_keys: List[Optional[Tuple[Any, ...]]] = []
         for chord_notes in sequence:
             notes = chord_notes.notes
             bass_note = chord_notes.bass_note
@@ -733,11 +742,13 @@ class GuitarChordPicker(INotePicker):
 
             if not notes:
                 candidate_sets.append([[-1] * self._num_strings])
+                pos_keys.append(None)
                 continue
 
             chord_pcs = {self._normalize_note(n) for n in notes}
             bass_pc = self._normalize_note(bass_note) if bass_note else None
             cache_key = (tuple(sorted(chord_pcs)), bass_pc)
+            pos_keys.append((cache_key, self._normalize_note(notes[0])))
 
             candidates = self._fingering_cache.get(cache_key)
             if candidates is None:
@@ -748,14 +759,33 @@ class GuitarChordPicker(INotePicker):
                 candidates = [self._get_fallback_fingering(notes[0])]
             candidate_sets.append(candidates)
 
+        # Per-call memos: both scorers are pure functions of their arguments,
+        # so a hit returns the exact float computed the first time (no
+        # reordering, no tie-break changes -- results are byte-identical).
+        # Per-call lifetime is enough: repeated positions share pos_keys and
+        # candidate lists within one call, and nothing here outlives it.
+        unary_memo: Dict[Tuple[Any, ...], float] = {}
+        transition_memo: Dict[Tuple[Tuple[int, ...], Tuple[int, ...]], float] = {}
+
         def unary(position: int, fingering: List[int]) -> float:
-            notes, bass_note = chord_data[position]
-            if not notes:
+            pos_key = pos_keys[position]
+            if pos_key is None:
                 return 0.0
-            return self._score_quality(fingering, notes, bass_note)
+            memo_key = (pos_key, tuple(fingering))
+            score = unary_memo.get(memo_key)
+            if score is None:
+                notes, bass_note = chord_data[position]
+                score = self._score_quality(fingering, notes, bass_note)
+                unary_memo[memo_key] = score
+            return score
 
         def transition(prev_fingering: List[int], fingering: List[int]) -> float:
-            return self._score_transition(prev_fingering, fingering)
+            memo_key = (tuple(prev_fingering), tuple(fingering))
+            score = transition_memo.get(memo_key)
+            if score is None:
+                score = self._score_transition(prev_fingering, fingering)
+                transition_memo[memo_key] = score
+            return score
 
         chosen = optimize_sequence(
             candidate_sets, unary, transition, beam_width=20, prune_to=30,

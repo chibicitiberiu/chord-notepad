@@ -219,24 +219,47 @@ class ChordNotePicker(INotePicker):
         if not sequence:
             return []
 
+        # ``sig_keys[pos]`` is the chord signature at ``pos`` (``None`` for
+        # empty-notes positions, whose unary is 0.0). ``_score_quality`` reads
+        # the chord only through :meth:`_chord_signature`, so repeated chords
+        # (same signature) score any given voicing identically -- the per-call
+        # memos below just skip the recomputation, returning the exact float
+        # computed the first time.
         candidate_sets: List[List[Voicing]] = []
+        sig_keys: List[Optional[Tuple[int, Tuple[int, ...], Optional[int]]]] = []
         for chord_notes in sequence:
             if not chord_notes.notes:
                 # An empty chord contributes a single silent candidate so the DP
                 # always has something to choose and never raises.
                 candidate_sets.append([Voicing((), ())])
+                sig_keys.append(None)
                 continue
             candidate_sets.append(self._get_candidates(chord_notes))
+            root_pc, intervals, bass_pc = self._chord_signature(chord_notes)
+            sig_keys.append((root_pc, tuple(intervals), bass_pc))
+
+        unary_memo: Dict[Tuple[Any, ...], float] = {}
+        transition_memo: Dict[Tuple[Voicing, Voicing], float] = {}
 
         def unary(position: int, voicing: Voicing) -> float:
-            chord_notes = sequence[position]
-            if not chord_notes.notes:
+            sig_key = sig_keys[position]
+            if sig_key is None:
                 return 0.0
-            return self._score_quality(voicing, chord_notes)
+            memo_key = (sig_key, voicing)
+            score = unary_memo.get(memo_key)
+            if score is None:
+                score = self._score_quality(voicing, sequence[position])
+                unary_memo[memo_key] = score
+            return score
 
         def transition(prev: Voicing, cur: Voicing) -> float:
-            return self._score_transition(self._voicing_to_midi(prev),
-                                          self._voicing_to_midi(cur))
+            memo_key = (prev, cur)
+            score = transition_memo.get(memo_key)
+            if score is None:
+                score = self._score_transition(self._voicing_to_midi(prev),
+                                               self._voicing_to_midi(cur))
+                transition_memo[memo_key] = score
+            return score
 
         chosen = optimize_sequence(
             candidate_sets, unary, transition, beam_width=20, prune_to=30,
