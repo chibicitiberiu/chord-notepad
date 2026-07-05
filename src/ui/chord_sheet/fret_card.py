@@ -12,10 +12,15 @@ vertical lines with the *lowest* string leftmost (``fingering[0]`` is the
 lowest string, per ``RenderedChord.fingering``'s documented convention), frets
 are horizontal lines, and:
 
-- ``base = 1`` (nut visible, thick bar drawn above the grid) when any string
-  is open, no string is fretted, or the lowest fretted position is 1 or less.
+- ``base = 1`` (nut visible, thick bar drawn above the grid) when the whole
+  fretted shape fits within the default rows (or nothing is fretted).
 - otherwise ``base = min(fretted positions)``, and a ``'<base>fr'`` label is
-  drawn to the left of the first fret row instead of a nut bar.
+  drawn to the left of the first fret row instead of a nut bar. Open strings
+  keep their circle above the grid in either case -- an open marker means
+  "open" regardless of position, so a voicing that mixes open strings with an
+  8th-position shape stays a compact ``8fr`` box instead of stretching the
+  grid from the nut (this deliberately diverges from the blog script, whose
+  figures were all open-position shapes).
 - a fretted position lands in row ``f - base + 0.5`` (centered in its row).
 
 Unlike the static SVG script (fixed pixel constants), geometry here is a pure
@@ -92,10 +97,18 @@ class _Geometry:
 
 
 def _chord_base(fingering: List[int]) -> int:
-    """Return the fret-position base (1 = nut visible) for a fingering."""
+    """Return the fret-position base (1 = nut visible) for a fingering.
+
+    The grid starts at the nut only when the whole fretted shape fits within
+    the default rows; otherwise it starts at the lowest fretted note and gets
+    a ``'<base>fr'`` position label. Open strings do NOT force the grid back
+    to the nut: their circles above the grid mean "open" regardless of
+    position (standard chord-chart practice), which keeps a shape like an
+    open string against an 8th-position voicing to a few rows instead of
+    stretching the grid from the nut to fret ten.
+    """
     fretted = [f for f in fingering if f > 0]
-    has_open = any(f == 0 for f in fingering)
-    if has_open or not fretted or min(fretted) <= 1:
+    if not fretted or max(fretted) <= DEFAULT_ROWS:
         return 1
     return min(fretted)
 

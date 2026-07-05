@@ -229,3 +229,34 @@ def test_empty_song_has_positive_width_and_no_slots():
     layout = FretCardRenderer().layout(SheetContext(song=make_song()), height=HEIGHT)
     assert layout.slots == ()
     assert layout.width > 0
+
+
+def test_open_strings_with_high_position_shape_stays_compact():
+    # Regression: a voicing mixing open strings with an 8th-position shape
+    # (e.g. jazz voicings like G7#9#5) must NOT stretch the grid from the nut
+    # to fret ten. It gets a '<base>fr' label at the lowest fretted note and
+    # keeps its open circles above the grid; row count stays at the default.
+    jazz = make_chord("G7#9#5", fingering=[-1, 8, 7, 8, 0, 0])
+    open_c = make_chord("C", fingering=[-1, 3, 2, 0, 1, 0])
+    song = make_song(jazz, open_c)
+    renderer = FretCardRenderer()
+    ctx = SheetContext(song=song)
+    layout = renderer.layout(ctx, height=HEIGHT)
+    ops = DrawOps()
+    renderer.paint(ops, ctx, layout)
+
+    jazz_ops = slot_ops(ops, 0)
+
+    # Position label, not a nut bar.
+    texts = [op for op in jazz_ops if isinstance(op, TextOp)]
+    assert any(t.s == "7fr" for t in texts), [t.s for t in texts]
+    assert [op for op in jazz_ops if isinstance(op, RectOp)] == []  # no nut
+
+    # Open-string circles still drawn above the grid (hollow ovals).
+    hollow = [op for op in jazz_ops if isinstance(op, OvalOp) and op.fill is None]
+    assert len(hollow) == 2
+
+    # Rows stay at the default: span 7..8 is 2 rows, no song-wide extension.
+    for slot_index in (0, 1):
+        horiz = horizontal_lines(slot_ops(ops, slot_index))
+        assert len(horiz) == DEFAULT_ROWS + 1
