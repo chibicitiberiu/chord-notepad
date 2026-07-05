@@ -169,6 +169,24 @@ def test_gutter_pane_appears_with_declared_width(root):
     assert renderer.gutter_calls             # paint_gutter was called
 
 
+def test_gutter_corner_does_not_inflate_the_lane_row(root):
+    # Regression: the gutter corner is a tk.Canvas; without an explicit
+    # height it requests ~260px and inflates the marker-lane row, shoving
+    # the strip to the bottom of a tall panel with a big blank band above.
+    from ui.chord_sheet.panel import LANE_HEIGHT
+
+    renderer = _FakeRenderer("g", gutter=40.0)
+    panel, vm, _ = _make_panel_with_renderers(root, "C G Am F\n", [renderer], view="g")
+    root.geometry("900x600")
+    root.update_idletasks()
+    root.update()
+
+    assert panel._gutter_corner.winfo_height() <= int(LANE_HEIGHT) + 2
+    # The strip canvas starts right below the lane, no dead band between.
+    lane_bottom = panel._lane_canvas.winfo_y() + panel._lane_canvas.winfo_height()
+    assert abs(panel._canvas.winfo_y() - lane_bottom) <= 2
+
+
 def test_gutter_collapses_for_gutterless_renderer(root):
     renderer = _FakeRenderer("plain", gutter=0.0)
     panel, vm, _ = _make_panel_with_renderers(root, "C G Am F\n", [renderer], view="plain")

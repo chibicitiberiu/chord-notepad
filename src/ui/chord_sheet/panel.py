@@ -130,7 +130,11 @@ class ChordSheetPanel(ttk.Frame):
         # renderer declares a positive ``gutter_width`` (see ``_repaint_gutter``).
         # A small corner above it keeps the top bar visually continuous.
         self._gutter_corner = tk.Canvas(
-            body, width=1, highlightthickness=0, bg=STRIP_BG
+            # Explicit height: an unset tk.Canvas height defaults to ~260px,
+            # which would inflate the marker-lane row it shares (row 0) and
+            # shove the strip to the bottom of a tall panel.
+            body, width=1, height=int(LANE_HEIGHT), highlightthickness=0,
+            bg=STRIP_BG,
         )
         self._gutter_canvas = tk.Canvas(
             body, width=1, highlightthickness=0, bg=STRIP_BG
