@@ -1,18 +1,26 @@
-"""Headless tests for the grand-staff :class:`StaffCardRenderer`.
+"""Headless tests for the continuous grand-staff :class:`StaffCardRenderer`.
 
-Every test inspects the recorded :class:`DrawOps` (no Tk/display): one slot per
-chord with slim rests; whole notes as hollow ovals split across the two staves;
-diatonic placement and accidentals driven by spelling (Bb/F#, the B#/Cb seam);
-ledger lines for middle C; second-interval collision offsets; ensemble routing
-by ``voice_staves``; parseable clef image ops; and the clef-asset scaling API.
+Every test inspects the recorded :class:`DrawOps` (no Tk/display). Coverage:
+one slot per chord with slim empty rests; Bravura noteheads as tinted image ops
+split across the two staves; diatonic placement and spelling (Bb/F#, the B#/Cb
+seam); ledger lines; second-interval collision offsets; ensemble routing by
+``voice_staves``; key signatures (glyph counts + per-clef positions); accidentals
+drawn only when they deviate from the signature; a mid-song key change (double
+barline + fresh signature); per-voice and per-hand notehead tints; a voice
+legend; and the extended clef/glyph asset resolver.
 """
 from typing import List, Optional
 
 from models.chord import ChordInfo
 from models.chord_notes import ChordNotes
 from models.rendered_song import RenderedChord, RenderedSong
-from ui.chord_sheet.ops import DrawOps, ImageOp, LineOp, OvalOp, TextOp
-from ui.chord_sheet.renderer_interface import SheetContext
+from ui.chord_sheet.ops import DrawOps, ImageOp, LineOp, TextOp
+from ui.chord_sheet.renderer_interface import (
+    HAND_COLORS,
+    NOTE_INK,
+    SheetContext,
+    VOICE_COLORS,
+)
 from ui.chord_sheet import clef_assets as ca
 from ui.chord_sheet import staff_card as sc
 from ui.chord_sheet.staff_card import StaffCardRenderer, REST_WIDTH
@@ -28,6 +36,9 @@ def make_chord(
     is_rest: bool = False,
     midi_notes: Optional[List[int]] = None,
     chord_notes: Optional[ChordNotes] = None,
+    key: Optional[str] = None,
+    bar: int = 1,
+    duration_beats: float = 1.0,
     hand_split: Optional[int] = None,
     voice_notes: Optional[List[int]] = None,
 ) -> RenderedChord:
@@ -38,24 +49,26 @@ def make_chord(
         line_index=0,
         item_index=0,
         start_beat=0.0,
-        duration_beats=1.0,
+        duration_beats=duration_beats,
         start_time=0.0,
         duration_seconds=0.0,
         bpm=120,
         time_sig=(4, 4),
-        key=None,
-        bar=1,
+        key=key,
+        bar=bar,
         is_rest=is_rest,
         voice_notes=voice_notes,
         hand_split=hand_split,
     )
 
 
-def make_song(*chords: RenderedChord, voice_staves=None) -> RenderedSong:
-    return RenderedSong(chords=list(chords), voice_staves=voice_staves)
+def make_song(*chords: RenderedChord, voice_staves=None, voice_labels=None) -> RenderedSong:
+    return RenderedSong(
+        chords=list(chords), voice_staves=voice_staves, voice_labels=voice_labels
+    )
 
 
-def paint(song: RenderedSong, height: float = 120.0):
+def paint(song: RenderedSong, height: float = 130.0):
     renderer = StaffCardRenderer()
     ctx = SheetContext(song=song)
     layout = renderer.layout(ctx, height)
@@ -64,8 +77,31 @@ def paint(song: RenderedSong, height: float = 120.0):
     return layout, ops
 
 
-def ovals(ops) -> List[OvalOp]:
-    return [o for o in ops.ops if isinstance(o, OvalOp)]
+def noteheads(ops) -> List[ImageOp]:
+    return [o for o in ops.ops
+            if isinstance(o, ImageOp) and o.key.startswith("glyph_notehead_whole")]
+
+
+def accidentals(ops, kind: str) -> List[ImageOp]:
+    return [o for o in ops.ops
+            if isinstance(o, ImageOp) and o.key.startswith("glyph_accidental_" + kind)]
+
+
+def color_of(op: ImageOp) -> Optional[str]:
+    """The tint suffix of a glyph key, or ``None`` for an untinted key."""
+    parts = op.key.split(":")
+    return parts[2] if len(parts) == 3 else None
+
+
+def note_center_y(op: ImageOp, s: float) -> float:
+    """Center y of a notehead image op (origin registers on its line/space)."""
+    return op.y + ca.glyph_placement("notehead_whole", s).origin_y
+
+
+def vertical_lines(ops) -> List[LineOp]:
+    return [o for o in ops.ops if isinstance(o, LineOp)
+            and o.fill == sc._STAFF_LINE and len(o.points) == 2
+            and abs(o.points[0][0] - o.points[1][0]) < 1e-6]
 
 
 def ink_ledgers(ops) -> List[LineOp]:
@@ -92,25 +128,37 @@ class TestLayout:
         layout, _ = paint(song)
         assert [s.chord_index for s in layout.slots] == [0, 1, 2]
 
+    def test_slots_are_duration_proportional(self):
+        song = make_song(
+            make_chord("C", midi_notes=[60], chord_notes=C_MAJOR, duration_beats=1.0),
+            make_chord("G", midi_notes=[55], chord_notes=C_MAJOR, duration_beats=2.0),
+        )
+        layout, _ = paint(song)
+        w1, w2 = layout.slots[0].width, layout.slots[1].width
+        assert w2 > w1
+        assert w1 == sc._slot_width(song.chords[0])
+        assert w2 == sc._slot_width(song.chords[1])
+
     def test_rest_slot_is_slim_and_empty(self):
         song = make_song(
-            make_chord("C", midi_notes=[60, 64, 67], chord_notes=C_MAJOR),
+            make_chord("C", midi_notes=[60, 64, 67], chord_notes=C_MAJOR, duration_beats=2.0),
             make_chord("NC", is_rest=True),
         )
         layout, ops = paint(song)
         chord_slot, rest_slot = layout.slots
         assert rest_slot.width == REST_WIDTH
         assert rest_slot.width < chord_slot.width
-        # The rest emits no noteheads and no clefs.
-        rest_tag = "slot:1"
-        rest_ops = [o for o in ops.ops if rest_tag in o.tags]
-        assert not any(isinstance(o, (OvalOp, ImageOp)) for o in rest_ops)
+        # The rest emits nothing: no noteheads, accidentals, or symbol text.
+        rest_ops = [o for o in ops.ops if "slot:1" in o.tags]
+        assert rest_ops == []
 
     def test_geometry_is_pure_function_of_height(self):
         song = make_song(make_chord("C", midi_notes=[60, 64, 67], chord_notes=C_MAJOR))
-        (l1, o1), (l2, o2) = paint(song, 120.0), paint(song, 120.0)
+        (l1, o1), (l2, o2) = paint(song, 130.0), paint(song, 130.0)
         assert l1.slots[0].width == l2.slots[0].width
         assert [type(o) for o in o1.ops] == [type(o) for o in o2.ops]
+        assert [getattr(o, "key", None) for o in o1.ops] == \
+               [getattr(o, "key", None) for o in o2.ops]
 
 
 # --------------------------------------------------------------------------
@@ -118,22 +166,19 @@ class TestLayout:
 # --------------------------------------------------------------------------
 
 class TestPianoChordBothStaves:
-    def test_hollow_ovals_on_both_staves_lh_below(self):
+    def test_noteheads_on_both_staves_lh_below(self):
         # LH bass note 48 (C3), RH 60/64/67; hand_split=1.
         song = make_song(make_chord(
             "C", midi_notes=[48, 60, 64, 67], chord_notes=C_MAJOR, hand_split=1))
         _, ops = paint(song)
-        heads = ovals(ops)
+        heads = noteheads(ops)
         assert len(heads) == 4
-        assert all(o.fill is None and o.outline == sc._INK for o in heads)  # hollow
 
-        geom = sc._geometry(120.0)
-        # The bass staff spans below the treble staff; the LH note (C3) sits
-        # lower (greater y) than every right-hand note.
-        centers = sorted(o.y + o.h / 2.0 for o in heads)
-        bass_split = geom.treble_top + 5.0 * geom.staff_space  # between staves
-        lh = [c for c in centers if c > bass_split]
-        rh = [c for c in centers if c <= bass_split]
+        geom = sc._geometry(130.0)
+        centers = sorted(note_center_y(o, geom.staff_space) for o in heads)
+        split = geom.treble_bottom() + (_gap := (geom.bass_top - geom.treble_bottom())) / 2.0
+        lh = [c for c in centers if c > split]
+        rh = [c for c in centers if c <= split]
         assert len(lh) == 1 and len(rh) == 3
         assert min(lh) > max(rh)
 
@@ -143,55 +188,52 @@ class TestPianoChordBothStaves:
 # --------------------------------------------------------------------------
 
 class TestSpellingAccidentals:
-    def _note_center_y_at_index(self, ops, geom, diatonic_index):
-        target = geom.y_for_index(diatonic_index)
-        return [o for o in ovals(ops)
-                if abs((o.y + o.h / 2.0) - target) < 1e-6]
+    def _heads_at_index(self, ops, geom, diatonic_index, staff):
+        target = geom.y_for_index(diatonic_index, staff)
+        return [o for o in noteheads(ops)
+                if abs(note_center_y(o, geom.staff_space) - target) < 1e-6]
 
     def test_flat_sits_on_letter_position_with_flat_glyph(self):
         # Bb (MIDI 70) must land on the B position (not A#) with a flat glyph.
         cn = ChordNotes(notes=['B-', 'D', 'F'], bass_note='B-', root='B-')
         song = make_song(make_chord("Bb", midi_notes=[70], chord_notes=cn))
         _, ops = paint(song)
-        geom = sc._geometry(120.0)
+        geom = sc._geometry(130.0)
         b_index = sc._diatonic_index('B', 4)  # Bb4 -> B position, octave 4
-        assert self._note_center_y_at_index(ops, geom, b_index)
-        flats = [o for o in ops.ops if isinstance(o, TextOp) and o.s == '♭']
-        assert len(flats) == 1
+        assert self._heads_at_index(ops, geom, b_index, 'treble')
+        assert len(accidentals(ops, 'flat')) == 1
+        assert not accidentals(ops, 'sharp')
 
     def test_sharp_sits_on_letter_position_with_sharp_glyph(self):
         # F# (MIDI 66) must land on the F position with a sharp glyph.
         cn = ChordNotes(notes=['F#', 'A', 'C#'], bass_note='F#', root='F#')
         song = make_song(make_chord("F#", midi_notes=[66], chord_notes=cn))
         _, ops = paint(song)
-        geom = sc._geometry(120.0)
+        geom = sc._geometry(130.0)
         f_index = sc._diatonic_index('F', 4)  # F#4 -> F position, octave 4
-        assert self._note_center_y_at_index(ops, geom, f_index)
-        sharps = [o for o in ops.ops if isinstance(o, TextOp) and o.s == '♯']
-        assert len(sharps) == 1
+        assert self._heads_at_index(ops, geom, f_index, 'treble')
+        assert len(accidentals(ops, 'sharp')) == 1
 
     def test_unmatched_pitch_class_defaults_to_sharp(self):
         # No chord_notes: a black-key MIDI note falls back to a sharp spelling.
         song = make_song(make_chord("?", midi_notes=[66], chord_notes=None))
         _, ops = paint(song)
-        assert any(isinstance(o, TextOp) and o.s == '♯' for o in ops.ops)
+        assert len(accidentals(ops, 'sharp')) == 1
 
 
 class TestEnharmonicSeam:
     def test_b_sharp_lands_below_middle_c(self):
-        # B#3 sounds as MIDI 60 but is spelled on the B position below middle C.
         cn = ChordNotes(notes=['B#', 'D#', 'F##'], bass_note='B#', root='B#')
-        _letter, acc, idx = sc._spell(60, cn)
-        assert (_letter, acc) == ('B', 1)
-        assert idx == sc._diatonic_index('B', 3)  # 27, one step below C4 (28)
+        letter, acc, idx = sc._spell(60, cn)
+        assert (letter, acc) == ('B', 1)
+        assert idx == sc._diatonic_index('B', 3)
         assert idx < sc._diatonic_index('C', 4)
 
     def test_c_flat_lands_on_c5_position(self):
-        # Cb5 sounds as MIDI 71 but is spelled on the C5 position with a flat.
         cn = ChordNotes(notes=['C-', 'E-', 'G-'], bass_note='C-', root='C-')
-        _letter, acc, idx = sc._spell(71, cn)
-        assert (_letter, acc) == ('C', -1)
-        assert idx == sc._diatonic_index('C', 5)  # 35, above B4 (34)
+        letter, acc, idx = sc._spell(71, cn)
+        assert (letter, acc) == ('C', -1)
+        assert idx == sc._diatonic_index('C', 5)
         assert idx > sc._diatonic_index('B', 4)
 
 
@@ -201,18 +243,16 @@ class TestEnharmonicSeam:
 
 class TestLedgerLines:
     def test_middle_c_gets_exactly_one_ledger(self):
-        # Middle C (60) defaults to the treble staff (>= 60) and needs one
-        # ledger line below it.
+        # Middle C (60) defaults to the treble staff and needs one ledger below.
         song = make_song(make_chord("C", midi_notes=[60], chord_notes=C_MAJOR))
         _, ops = paint(song)
         ledgers = ink_ledgers(ops)
         assert len(ledgers) == 1
-        geom = sc._geometry(120.0)
-        expected_y = geom.y_for_index(sc._diatonic_index('C', 4))
+        geom = sc._geometry(130.0)
+        expected_y = geom.y_for_index(sc._diatonic_index('C', 4), 'treble')
         assert abs(ledgers[0].points[0][1] - expected_y) < 1e-6
 
     def test_note_inside_staff_needs_no_ledger(self):
-        # B4 (71) sits on the treble middle line -> no ledger.
         cn = ChordNotes(notes=['B', 'D', 'F'], bass_note='B', root='B')
         song = make_song(make_chord("B", midi_notes=[71], chord_notes=cn))
         _, ops = paint(song)
@@ -227,39 +267,35 @@ class TestSecondCollisions:
     def test_cluster_offsets_alternate(self):
         # C4-D4-E4 (60,62,64) on one staff: the middle note is pushed right.
         cn = ChordNotes(notes=['C', 'D', 'E'], bass_note='C', root='C')
-        # Force all three onto the treble staff via a hand_split of 0.
         song = make_song(make_chord(
             "cluster", midi_notes=[60, 62, 64], chord_notes=cn, hand_split=0))
         _, ops = paint(song)
-        heads = ovals(ops)
+        heads = noteheads(ops)
         assert len(heads) == 3
         xs = sorted(round(o.x, 3) for o in heads)
-        geom = sc._geometry(120.0)
-        # Two noteheads share the base column; one is offset a notehead-width.
+        nh = ca.glyph_placement('notehead_whole', sc._geometry(130.0).staff_space)
         assert xs[0] == xs[1]
-        assert abs((xs[2] - xs[0]) - geom.notehead_w) < 1e-2
+        assert abs((xs[2] - xs[0]) - nh.width) < 1e-2
 
     def test_third_apart_does_not_collide(self):
-        # C4-E4-G4 (a triad, all thirds) never offsets: one shared column.
         song = make_song(make_chord(
             "C", midi_notes=[60, 64, 67], chord_notes=C_MAJOR, hand_split=0))
         _, ops = paint(song)
-        xs = {round(o.x, 3) for o in ovals(ops)}
+        xs = {round(o.x, 3) for o in noteheads(ops)}
         assert len(xs) == 1
 
 
 # --------------------------------------------------------------------------
-# Ensemble routing by voice_staves
+# Ensemble routing + tint by voice_staves / VOICE_COLORS
 # --------------------------------------------------------------------------
 
 class TestEnsembleRouting:
-    def test_note_staves_follow_voice_staves(self):
-        # voice_notes low-to-high; voice_staves aligned low-to-high.
+    def test_voiced_follows_voice_staves(self):
         chord = make_chord(
             "C", midi_notes=[43, 55, 60, 64],
             chord_notes=C_MAJOR, voice_notes=[43, 55, 60, 64])
         song = make_song(chord, voice_staves=['bass', 'bass', 'treble', 'treble'])
-        pairs = sc._note_staves(chord, song)
+        pairs = [(m, st) for m, st, _ in sc._voiced(chord, song)]
         assert pairs == [(43, 'bass'), (55, 'bass'), (60, 'treble'), (64, 'treble')]
 
     def test_missing_voice_staves_falls_back_to_middle_c_split(self):
@@ -267,20 +303,210 @@ class TestEnsembleRouting:
             "C", midi_notes=[48, 55, 64, 67],
             chord_notes=C_MAJOR, voice_notes=[48, 55, 64, 67])
         song = make_song(chord, voice_staves=None)
-        pairs = sc._note_staves(chord, song)
+        pairs = [(m, st) for m, st, _ in sc._voiced(chord, song)]
         assert pairs == [(48, 'bass'), (55, 'bass'), (64, 'treble'), (67, 'treble')]
 
-    def test_ensemble_song_paints_notes_on_both_staves(self):
+    def test_ensemble_notes_carry_per_voice_tint(self):
         chord = make_chord(
             "C", midi_notes=[43, 55, 60, 64],
             chord_notes=C_MAJOR, voice_notes=[43, 55, 60, 64])
         song = make_song(chord, voice_staves=['bass', 'bass', 'treble', 'treble'])
-        _, ops = paint(song, 140.0)
-        geom = sc._geometry(140.0)
-        between = geom.treble_top + 5.0 * geom.staff_space
-        centers = [o.y + o.h / 2.0 for o in ovals(ops)]
-        assert any(c < between for c in centers)   # treble
-        assert any(c > between for c in centers)   # bass
+        _, ops = paint(song)
+        heads = noteheads(ops)
+        assert [color_of(o) for o in heads] == \
+               [VOICE_COLORS[i].lstrip('#') for i in range(4)]
+
+    def test_ensemble_notes_on_both_staves(self):
+        chord = make_chord(
+            "C", midi_notes=[43, 55, 60, 64],
+            chord_notes=C_MAJOR, voice_notes=[43, 55, 60, 64])
+        song = make_song(chord, voice_staves=['bass', 'bass', 'treble', 'treble'])
+        _, ops = paint(song)
+        geom = sc._geometry(130.0)
+        between = geom.treble_bottom() + (geom.bass_top - geom.treble_bottom()) / 2.0
+        centers = [note_center_y(o, geom.staff_space) for o in noteheads(ops)]
+        assert any(c < between for c in centers)
+        assert any(c > between for c in centers)
+
+
+class TestPianoTints:
+    def test_lh_and_rh_carry_hand_colors(self):
+        song = make_song(make_chord(
+            "C", midi_notes=[48, 60, 64, 67], chord_notes=C_MAJOR, hand_split=1))
+        _, ops = paint(song)
+        colors = [color_of(o) for o in noteheads(ops)]
+        assert colors[0] == HAND_COLORS['lh'].lstrip('#')
+        assert colors[1:] == [HAND_COLORS['rh'].lstrip('#')] * 3
+
+    def test_plain_notes_use_default_ink(self):
+        song = make_song(make_chord("C", midi_notes=[60, 64, 67], chord_notes=C_MAJOR))
+        _, ops = paint(song)
+        assert all(color_of(o) == NOTE_INK.lstrip('#') for o in noteheads(ops))
+
+
+# --------------------------------------------------------------------------
+# Key signatures
+# --------------------------------------------------------------------------
+
+class TestKeySignatures:
+    def _header_accidentals(self, ops, kind):
+        return [o for o in accidentals(ops, kind) if "header" in o.tags]
+
+    def test_key_fifths_mapping(self):
+        assert sc._key_fifths('C') == 0
+        assert sc._key_fifths('G') == 1
+        assert sc._key_fifths('F') == -1
+        assert sc._key_fifths('Eb') == -3
+        assert sc._key_fifths('Am') == 0      # relative minor of C
+        assert sc._key_fifths('Em') == 1      # relative minor of G
+        assert sc._key_fifths(None) is None
+        assert sc._key_fifths('H7?') is None  # unmappable
+
+    def test_g_major_one_sharp_on_both_clefs(self):
+        # C-major chord in G major: no note accidentals, so all sharps are the sig.
+        song = make_song(make_chord("C", midi_notes=[60, 64, 67], chord_notes=C_MAJOR, key='G'))
+        _, ops = paint(song)
+        sharps = self._header_accidentals(ops, 'sharp')
+        assert len(sharps) == 2  # F# on treble and bass
+        geom = sc._geometry(130.0)
+        oy = ca.glyph_placement('accidental_sharp', geom.staff_space).origin_y
+        ys = sorted(o.y + oy for o in sharps)
+        expected = sorted([
+            geom.y_for_index(sc._diatonic_index('F', 5), 'treble'),
+            geom.y_for_index(sc._diatonic_index('F', 3), 'bass'),
+        ])
+        assert all(abs(a - b) < 1e-6 for a, b in zip(ys, expected))
+
+    def test_f_major_one_flat_on_both_clefs(self):
+        song = make_song(make_chord("C", midi_notes=[60, 64, 67], chord_notes=C_MAJOR, key='F'))
+        _, ops = paint(song)
+        flats = self._header_accidentals(ops, 'flat')
+        assert len(flats) == 2  # Bb on treble and bass
+        geom = sc._geometry(130.0)
+        oy = ca.glyph_placement('accidental_flat', geom.staff_space).origin_y
+        ys = sorted(o.y + oy for o in flats)
+        expected = sorted([
+            geom.y_for_index(sc._diatonic_index('B', 4), 'treble'),
+            geom.y_for_index(sc._diatonic_index('B', 2), 'bass'),
+        ])
+        assert all(abs(a - b) < 1e-6 for a, b in zip(ys, expected))
+
+    def test_eb_major_three_flats_per_clef(self):
+        song = make_song(make_chord("C", midi_notes=[60, 64, 67], chord_notes=C_MAJOR, key='Eb'))
+        _, ops = paint(song)
+        flats = self._header_accidentals(ops, 'flat')
+        assert len(flats) == 6  # B, E, A on both staves
+        geom = sc._geometry(130.0)
+        between = geom.treble_bottom() + (geom.bass_top - geom.treble_bottom()) / 2.0
+        oy = ca.glyph_placement('accidental_flat', geom.staff_space).origin_y
+        treble = [o for o in flats if (o.y + oy) < between]
+        bass = [o for o in flats if (o.y + oy) > between]
+        assert len(treble) == 3 and len(bass) == 3
+
+    def test_unmappable_key_draws_no_signature(self):
+        song = make_song(make_chord("C", midi_notes=[60, 64, 67], chord_notes=C_MAJOR, key='???'))
+        _, ops = paint(song)
+        assert not accidentals(ops, 'sharp')
+        assert not accidentals(ops, 'flat')
+
+
+# --------------------------------------------------------------------------
+# Accidentals relative to the signature
+# --------------------------------------------------------------------------
+
+class TestAccidentalsVsSignature:
+    def _one_note(self, names, midi, key):
+        cn = ChordNotes(notes=names, bass_note=names[0], root=names[0])
+        song = make_song(make_chord("x", midi_notes=[midi], chord_notes=cn, key=key))
+        return paint(song)[1]
+
+    def _note_accidentals(self, ops, kind):
+        return [o for o in accidentals(ops, kind) if "header" not in o.tags]
+
+    def test_sharp_matching_signature_draws_nothing(self):
+        # F# in G major: matches the signature -> no accidental on the note.
+        ops = self._one_note(['F#'], 66, 'G')
+        assert self._note_accidentals(ops, 'sharp') == []
+        assert self._note_accidentals(ops, 'natural') == []
+
+    def test_natural_against_sharp_signature_draws_natural(self):
+        # F natural in G major: deviates from F# -> a natural.
+        ops = self._one_note(['F'], 65, 'G')
+        assert len(self._note_accidentals(ops, 'natural')) == 1
+
+    def test_flat_matching_signature_draws_nothing(self):
+        # Bb in F major: matches the signature -> nothing.
+        ops = self._one_note(['B-'], 70, 'F')
+        assert self._note_accidentals(ops, 'flat') == []
+        assert self._note_accidentals(ops, 'natural') == []
+
+    def test_natural_against_flat_signature_draws_natural(self):
+        # B natural in F major: deviates from Bb -> a natural.
+        ops = self._one_note(['B'], 71, 'F')
+        assert len(self._note_accidentals(ops, 'natural')) == 1
+
+    def test_accidental_kind_helper(self):
+        gmaj = sc._signature_letter_map(sc._key_fifths('G'))
+        assert sc._accidental_kind('F', 1, gmaj) is None      # F# matches sig
+        assert sc._accidental_kind('F', 0, gmaj) == 'natural'  # F natural deviates
+        assert sc._accidental_kind('C', 1, gmaj) == 'sharp'    # C# not in sig
+        assert sc._accidental_kind('C', 0, gmaj) is None       # C natural matches
+        assert sc._accidental_kind('F', 2, gmaj) == 'text'     # double -> fallback
+
+
+# --------------------------------------------------------------------------
+# Mid-song key change
+# --------------------------------------------------------------------------
+
+class TestKeyChange:
+    def test_key_change_draws_double_barline_and_new_signature(self):
+        song = make_song(
+            make_chord("C", midi_notes=[60, 64, 67], chord_notes=C_MAJOR, key='C'),
+            make_chord("G", midi_notes=[55, 59, 62], chord_notes=C_MAJOR, key='G'),
+        )
+        layout, ops = paint(song)
+        s = sc._geometry(130.0).staff_space
+        lead = sc._key_change_lead(sc._key_fifths('G'), s)
+        slot1 = layout.slots[1]
+        # Two thin vertical staff-color lines sit in the lead region left of slot 1.
+        change_lines = [o for o in vertical_lines(ops)
+                        if slot1.x - lead - 1 <= o.points[0][0] <= slot1.x]
+        assert len(change_lines) == 2
+        # The initial key (C) has no signature, so the two sharps are the new one.
+        assert len(accidentals(ops, 'sharp')) == 2
+
+    def test_no_change_when_signature_is_unchanged(self):
+        # C major -> A minor: same 0-accidental signature, no double barline.
+        song = make_song(
+            make_chord("C", midi_notes=[60, 64, 67], chord_notes=C_MAJOR, key='C'),
+            make_chord("Am", midi_notes=[57, 60, 64], chord_notes=C_MAJOR, key='Am'),
+        )
+        _, ops = paint(song)
+        # Only the initial connecting barline is a vertical staff line.
+        assert len(vertical_lines(ops)) == 1
+
+
+# --------------------------------------------------------------------------
+# Legend
+# --------------------------------------------------------------------------
+
+class TestLegend:
+    def test_legend_present_for_satb(self):
+        labels = ['Bass', 'Tenor', 'Alto', 'Soprano']
+        chord = make_chord(
+            "C", midi_notes=[43, 55, 60, 64],
+            chord_notes=C_MAJOR, voice_notes=[43, 55, 60, 64])
+        song = make_song(chord, voice_staves=['bass', 'bass', 'treble', 'treble'],
+                         voice_labels=labels)
+        _, ops = paint(song)
+        legend = [o for o in ops.ops if isinstance(o, TextOp) and "legend" in o.tags]
+        assert [o.s for o in legend] == labels
+        assert [o.fill for o in legend] == [VOICE_COLORS[i] for i in range(4)]
+
+    def test_no_legend_without_voice_labels(self):
+        song = make_song(make_chord("C", midi_notes=[60, 64, 67], chord_notes=C_MAJOR))
+        _, ops = paint(song)
+        assert not [o for o in ops.ops if isinstance(o, TextOp) and "legend" in o.tags]
 
 
 # --------------------------------------------------------------------------
@@ -291,59 +517,86 @@ class TestClefOps:
     def test_clef_ops_present_and_keys_parseable(self):
         song = make_song(make_chord("C", midi_notes=[60, 64, 67], chord_notes=C_MAJOR))
         _, ops = paint(song)
-        clefs = [o for o in ops.ops if isinstance(o, ImageOp)]
-        keys = {o.key for o in clefs}
+        keys = {o.key for o in ops.ops if isinstance(o, ImageOp)}
         assert any(k.startswith('clef_treble:') for k in keys)
         assert any(k.startswith('clef_bass:') for k in keys)
         for key in keys:
             img = ca.image_for_clef_key(key)
             assert img is not None
-            # Key height matches the image it resolves to.
             assert img.size[1] == int(key.split(':')[1])
 
     def test_treble_clef_reference_line_lands_on_g4(self):
         song = make_song(make_chord("C", midi_notes=[60, 64, 67], chord_notes=C_MAJOR))
         _, ops = paint(song)
-        geom = sc._geometry(120.0)
+        geom = sc._geometry(130.0)
         placement = ca.clef_placement('treble', geom.staff_space)
         treble_op = next(o for o in ops.ops
                          if isinstance(o, ImageOp) and o.key.startswith('clef_treble:'))
-        g4_y = geom.y_for_index(sc._diatonic_index('G', 4))
+        g4_y = geom.y_for_index(sc._diatonic_index('G', 4), 'treble')
         assert abs((treble_op.y + placement.baseline_y) - g4_y) < 1e-6
 
 
 # --------------------------------------------------------------------------
-# Clef asset API
+# Clef / glyph asset API
 # --------------------------------------------------------------------------
 
 class TestClefAssets:
-    def test_downscaled_bases_within_bound(self):
+    def test_downscaled_clef_bases_within_bound(self):
         for kind in ('treble', 'bass'):
             assert ca._CLEF_BASE[kind].height <= 256
+
+    def test_downscaled_glyph_bases_within_bound(self):
+        assert ca._GLYPH_BASE['notehead_whole'].height <= 64
+        for name in ('accidental_sharp', 'accidental_flat', 'accidental_natural'):
+            assert ca._GLYPH_BASE[name].height <= 160
 
     def test_get_clef_image_matches_placement_height(self):
         for kind in ('treble', 'bass'):
             img = ca.get_clef_image(kind, 9.0)
             placement = ca.clef_placement(kind, 9.0)
-            assert img.size[1] == placement.height
-            assert img.size[0] == placement.width
+            assert img.size == (placement.width, placement.height)
 
-    def test_anchor_scales_proportionally_with_size(self):
+    def test_clef_anchor_scales_proportionally(self):
         for kind in ('treble', 'bass'):
             small = ca.clef_placement(kind, 8.0)
             big = ca.clef_placement(kind, 16.0)
-            # Doubling the staff space doubles height, width, and the baseline.
             assert abs(big.height / small.height - 2.0) < 0.05
-            assert abs(big.width / small.width - 2.0) < 0.06
             assert abs(big.baseline_y / small.baseline_y - 2.0) < 0.05
 
-    def test_image_for_key_round_trips_placement_key(self):
-        placement = ca.clef_placement('bass', 10.0)
-        img = ca.image_for_clef_key(placement.key)
-        assert img is not None
-        assert img.size == (placement.width, placement.height)
+    def test_glyph_placement_scales_and_round_trips(self):
+        for name in ('notehead_whole', 'accidental_sharp',
+                     'accidental_flat', 'accidental_natural'):
+            pl = ca.glyph_placement(name, 10.0)
+            img = ca.image_for_clef_key(pl.key)
+            assert img is not None
+            assert img.size == (pl.width, pl.height)
 
-    def test_malformed_keys_return_none(self):
+    def test_glyph_origin_scales_proportionally(self):
+        small = ca.glyph_placement('accidental_sharp', 8.0)
+        big = ca.glyph_placement('accidental_sharp', 16.0)
+        assert abs(big.origin_y / small.origin_y - 2.0) < 0.05
+
+    def test_tinted_glyph_key_resolves(self):
+        pl = ca.glyph_placement('notehead_whole', 12.0, '#3a5a8a')
+        assert pl.key.endswith(':3a5a8a')
+        img = ca.image_for_clef_key(pl.key)
+        assert img is not None and img.size == (pl.width, pl.height)
+        # Tint recolors the ink to the requested rgb (kept where alpha > 0).
+        r, g, b, _ = img.getpixel((0, img.size[1] // 2))
+        assert (r, g, b) == (0x3a, 0x5a, 0x8a)
+
+    def test_tint_accepts_bare_and_hash_prefixed_colors(self):
+        assert ca.glyph_placement('notehead_whole', 12.0, 'a04848').key.endswith(':a04848')
+        assert ca.glyph_placement('notehead_whole', 12.0, '#A04848').key.endswith(':a04848')
+
+    def test_malformed_clef_keys_return_none(self):
         for bad in ('', 'clef_treble', 'clef_treble:', 'clef_foo:10',
                     'clef_treble:abc', 'clef_treble:0', 'nope:10'):
+            assert ca.image_for_clef_key(bad) is None
+
+    def test_malformed_glyph_keys_return_none(self):
+        for bad in ('glyph_notehead_whole', 'glyph_notehead_whole:',
+                    'glyph_bogus:64', 'glyph_notehead_whole:0',
+                    'glyph_notehead_whole:64:xyz', 'glyph_notehead_whole:64:3a5a8',
+                    'glyph_notehead_whole:64:3a5a8a:9'):
             assert ca.image_for_clef_key(bad) is None

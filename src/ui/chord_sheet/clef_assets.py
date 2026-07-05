@@ -23,6 +23,24 @@ resolves: ``'clef_<kind>:<int-height>'`` where ``<kind>`` is ``treble`` or
 (the width follows from the height, preserving aspect). Both sides derive the
 size from that single integer height, so the positioned clef and the rendered
 image always agree.
+
+The staff renderer also needs Bravura **noteheads and accidentals**, embedded
+the same way (base64 RGBA PNGs, SMuFL registration metadata). These extend the
+key grammar so the panel's single resolver keeps working unchanged:
+
+- ``'glyph_<name>:<int-height>'`` -- the black-ink glyph at that pixel height,
+  where ``<name>`` is ``notehead_whole`` / ``accidental_sharp`` /
+  ``accidental_flat`` / ``accidental_natural``.
+- ``'glyph_<name>:<int-height>:<rrggbb>'`` -- a *tinted* variant: the ink is
+  recolored to the 6-hex color while the glyph's alpha is kept as the mask
+  (so a notehead can be drawn in a voice/hand color). Tints are cached by
+  ``(name, height, color)``.
+
+:func:`glyph_placement` builds a glyph key (optionally with a tint color) plus
+its placement geometry -- the scaled ``origin_x``/``origin_y`` (the SMuFL
+registration point: a notehead's origin is vertically centered on its line or
+space; an accidental's origin registers to the line/space it alters), so a
+painter anchors the image ``'nw'`` at ``(x - origin_x, staff_y - origin_y)``.
 """
 from __future__ import annotations
 
@@ -40,6 +58,12 @@ except AttributeError:  # pragma: no cover - very old Pillow
 
 #: Prefix every clef image key starts with (see the module docstring).
 _KEY_PREFIX = "clef_"
+
+#: Prefix every staff-glyph (notehead/accidental) image key starts with. Glyph
+#: keys extend the clef grammar: ``'glyph_<name>:<int-height>'`` for the plain
+#: black-ink glyph and ``'glyph_<name>:<int-height>:<rrggbb>'`` for a tinted
+#: variant (the ink recolored to ``rrggbb``, the alpha kept as the mask).
+_GLYPH_PREFIX = "glyph_"
 
 
 class _ClefBase(NamedTuple):
@@ -70,6 +94,23 @@ class ClefPlacement(NamedTuple):
     width: int
     height: int
     baseline_y: float
+
+
+class GlyphPlacement(NamedTuple):
+    """Where and how big to place a staff glyph at a given staff-space size.
+
+    ``key`` goes into the ``ops.image`` op; ``width``/``height`` are the placed
+    image's pixel size; ``origin_x``/``origin_y`` are the glyph's SMuFL
+    registration point (px from the image's top-left), so a painter anchors the
+    image ``'nw'`` at ``(staff_x - origin_x, staff_y - origin_y)`` to land the
+    glyph's registration point on ``(staff_x, staff_y)``.
+    """
+
+    key: str
+    width: int
+    height: int
+    origin_x: float
+    origin_y: float
 
 
 _TREBLE_PNG_B64 = (
@@ -296,6 +337,176 @@ _CLEF_BASE: Dict[str, _ClefBase] = {
 }
 
 
+class _GlyphBase(NamedTuple):
+    """One embedded staff-glyph blob plus its scaled SMuFL registration data."""
+
+    b64: str
+    """base64 of the downscaled RGBA PNG (black ink + alpha)."""
+    width: int
+    """Embedded-image width in px."""
+    height: int
+    """Embedded-image height in px."""
+    px_per_staff_space: float
+    """Image pixels spanning one staff space at the embedded size."""
+    origin_x: float
+    """x (px from left) of the glyph's SMuFL origin in the embedded image."""
+    origin_y: float
+    """y (px from top) of the glyph's SMuFL origin in the embedded image."""
+
+
+_NOTEHEAD_WHOLE_PNG_B64 = (
+    "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"
+    "+h+kGAzzSLmXwAAAAABJRU5ErkJggg=="
+)
+
+_ACCIDENTAL_SHARP_PNG_B64 = (
+    "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"
+)
+
+_ACCIDENTAL_FLAT_PNG_B64 = (
+    "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"
+)
+
+_ACCIDENTAL_NATURAL_PNG_B64 = (
+    "iVBORw0KGgoAAAANSUhEUgAAACgAAACgCAYAAAB+HS7YAAAE8klEQVR4nO2dPagcVRSAv9nZFwn+RE0ikiKiQSVgUAMhBIvnL4ro"
+    "aywi0dbW1CqxtNTCxlJQIUVSqAgigoqiSDQGtFCCYqEvjcQYJRB3d8bCc+XkZn7uvDO7s8L54JL3dndmvrlzZ949Z85sALYDbwDn"
+    "gRIogBnwK/AC/5IxIG+JmG6F+vkZ+dxoKMEL0mNFJDmR1z4fUnAMbK55bySHdkV+LxfodYnEUuOCVlzQigtacUErLmjFBa24oBUX"
+    "tOKCVlzQigtacUErLmjFBa0sveB4aIGITFrouGIZBDOVi5yqDC8M2IO6l2bSADYBe4En5P1XFylYJ7UF2AM8BjwC3KmWuY+KBHpo"
+    "M/n3hNpAV0ZylOKT8UrgIeA14MeKBP5EWtl3D8bjqVDjaQtwD/C4yO1Sy4UEfqZ2ilTBrKb3sqjNVM8HdgKrwMNyuHY0SFVuO0Uw"
+    "bHhFZfoLtQHNtcBdwL3A/cDdwFUdpS4hRfB64ArgYvT6ZmAbsBs4AOyTdkPFDtJFSpMl3v/4WtrfwDUisRO4ueY+yzQajxsmVbAJ"
+    "fWE1C8WkCoYxl6kxlDWcQAsXHIyln824oBUXtOKCVlzQigtaWXrBRUZ1ZTQxSZoJzXs2o8OCvOL9sk1yHoJBKp68lsAZKWKbATdJ"
+    "vNIo2ZdgiObyaGPfAieBj4FTwDpwTj67G/gAuFHtUO3KN9oKlU8J7STwErBfUhlNfBklCS5rGz1Jglwu7TzwDvA68KkEV4FcLROO"
+    "VujlpKuIpcd+AY7IeNKMWwKo8PqJth7sIqhXsg48H8XAecUYrKN3wbCCKfCyDGwt1jWy61UwLHxa0hkWsd4FdQouJH7GPcTCvQiG"
+    "YP0P4FZZ4Ur9Nucj2HSal7Ki09JGklRcKCnXoXLIDETqdGsQOf4P80EXtOKCVlzQigtacUErLthA0gxpSMFSblI2MoRgLnK3A7eo"
+    "+WYlixbMZXqfAa+k5GZIDJgwBkqZSvVtAt5UYWxbVDlXwSxKu+0BPusgNzfBUZQc3Qq8CPzZUa5XwdBbelxfDRwGfq5Yb1JLzW6F"
+    "jYbrVnxDu1BP1QLcBjwFPC1nKtJr8Q60kipYqB4qayo+dgAPAmvAo6qWYRadJJ1pyiyUkhFdjZbJRWgVeA54Vz6nl590PZxVre3P"
+    "TbhGzaTq46ykP66TnODWip4u+yyuSPl72HQh1Ye694oPOqQ0Sl3Tt6iKD4bMuaTi80ErLmjFBa24oBUXtOKCVlzQigtamVflURz8"
+    "hKr0UkWISSFCn3UzsUwvWAR1nBKXPZ2Tr8U6JcU968Dvsr1t8rTEQckPbji7VRcrTytyKxeBbySltlZRplLFmtTX6Ec/OuVm4jxN"
+    "LPUX8CHwLHBHjURIIo1V2cpY9fh3bfmappMkLKifSZpIZdFx4H3gp2gZXWVURI8MaULIeqGtm2PBeFyF978CjgFvA99HPZSp5Wak"
+    "0zr2gmCpVqy7f12Ejsq3l03l9fiSMXc+icbVe8AheT4p3pm+Lh/JZSljOd0PyXj4CPhBrShXH57WbGzhjHqqLmqiUw9mUQa17swb"
+    "hPgkWTqWfjbjglZc0IoLWnFBKy5oxQWtuKAVF7TiglZc0IoLWnFBK0MLthYVDS04apAsU7/zaB6ErOxv8vMkulNQSt7ozEB+/w2t"
+    "Byqq5nQy9eCQ/61H6MW9wJOqki6TUtKjwBf/ANDeU5tMAPIAAAAAAElFTkSuQmCC"
+)
+
+_GLYPH_BASE: Dict[str, _GlyphBase] = {
+    "notehead_whole": _GlyphBase(
+        _NOTEHEAD_WHOLE_PNG_B64, 108, 64, 64.0, 0.0, 32.0,
+    ),
+    "accidental_sharp": _GlyphBase(
+        _ACCIDENTAL_SHARP_PNG_B64, 57, 160, 57.206704, 0.0, 80.446927,
+    ),
+    "accidental_flat": _GlyphBase(
+        _ACCIDENTAL_FLAT_PNG_B64, 59, 160, 65.015873, 0.0, 114.285714,
+    ),
+    "accidental_natural": _GlyphBase(
+        _ACCIDENTAL_NATURAL_PNG_B64, 40, 160, 59.020173, 0.0, 80.691643,
+    ),
+}
+
+
 @lru_cache(maxsize=None)
 def _base_image(kind: str) -> Image.Image:
     """Decode the embedded base PNG for ``kind`` once (cached)."""
@@ -351,31 +562,137 @@ def get_clef_image(kind: str, staff_space_px: float) -> Image.Image:
     return _render_at_height(kind, clef_placement(kind, staff_space_px).height)
 
 
-def image_for_clef_key(key: str) -> Optional[Image.Image]:
-    """Resolve an ops image ``key`` (``'clef_<kind>:<int-height>'``) to an image.
+# -- Staff glyphs (noteheads / accidentals) --------------------------------
 
-    The panel calls this while replaying draw ops: it turns the key an
-    ``ImageOp`` carries into a concretely sized :class:`PIL.Image.Image` (which
-    it then converts to a Tk image). Returns ``None`` for any key that is not a
-    well-formed clef key, so an unknown asset is skipped rather than crashing a
-    paint.
+@lru_cache(maxsize=None)
+def _base_glyph_image(name: str) -> Image.Image:
+    """Decode the embedded base PNG for glyph ``name`` once (cached)."""
+    raw = base64.b64decode(_GLYPH_BASE[name].b64)
+    return Image.open(io.BytesIO(raw)).convert("RGBA")
+
+
+@lru_cache(maxsize=None)
+def _render_glyph_at_height(name: str, height: int) -> Image.Image:
+    """Return glyph ``name`` resized to ``height`` px (aspect kept), cached."""
+    data = _GLYPH_BASE[name]
+    width = max(1, round(data.width * height / data.height))
+    return _base_glyph_image(name).resize((width, height), _LANCZOS)
+
+
+@lru_cache(maxsize=None)
+def _render_glyph_tinted(name: str, height: int, color6: str) -> Image.Image:
+    """Return glyph ``name`` at ``height`` px recolored to ``color6`` (cached).
+
+    The glyph is black ink + alpha; the tint keeps the alpha as a mask and
+    fills the opaque pixels with the ``rrggbb`` color, so an accidental or
+    notehead can be drawn in a voice/hand color.
+    """
+    base = _render_glyph_at_height(name, height)
+    rgb = (int(color6[0:2], 16), int(color6[2:4], 16), int(color6[4:6], 16))
+    solid = Image.new("RGBA", base.size, rgb + (255,))
+    solid.putalpha(base.getchannel("A"))
+    return solid
+
+
+def _normalize_color(color: Optional[str]) -> Optional[str]:
+    """Normalize a color to lowercase ``rrggbb``, or ``None`` if malformed.
+
+    Accepts an optional leading ``'#'``; requires exactly six hex digits.
+    """
+    if not color:
+        return None
+    c = color.lstrip("#").lower()
+    if len(c) == 6 and all(ch in "0123456789abcdef" for ch in c):
+        return c
+    return None
+
+
+def glyph_placement(
+    name: str, staff_space_px: float, color: Optional[str] = None
+) -> GlyphPlacement:
+    """Compute the image key + placement geometry for a staff glyph.
 
     Args:
-        key: An image key of the form ``'clef_treble:96'`` / ``'clef_bass:60'``.
+        name: One of ``'notehead_whole'``, ``'accidental_sharp'``,
+            ``'accidental_flat'``, ``'accidental_natural'``.
+        staff_space_px: The staff's staff-space size in px at the card's scale.
+        color: Optional tint (``'#rrggbb'`` or ``'rrggbb'``); when given, the
+            key carries the normalized color so the glyph renders recolored.
 
     Returns:
-        The sized clef image, or ``None`` if ``key`` is malformed / unknown.
+        A :class:`GlyphPlacement`: the ``'glyph_<name>:<height>[:<rrggbb>]'``
+        image key, the placed pixel ``width``/``height``, and the scaled
+        ``origin_x``/``origin_y`` registration point.
+
+    Raises:
+        KeyError: if ``name`` is not a known glyph.
     """
-    prefix, sep, height_str = key.partition(":")
-    if sep != ":" or not prefix.startswith(_KEY_PREFIX):
+    data = _GLYPH_BASE[name]
+    scale = staff_space_px / data.px_per_staff_space
+    height = max(1, round(data.height * scale))
+    ratio = height / data.height
+    width = max(1, round(data.width * ratio))
+    origin_x = data.origin_x * ratio
+    origin_y = data.origin_y * ratio
+    color6 = _normalize_color(color)
+    if color6:
+        key = f"{_GLYPH_PREFIX}{name}:{height}:{color6}"
+    else:
+        key = f"{_GLYPH_PREFIX}{name}:{height}"
+    return GlyphPlacement(key, width, height, origin_x, origin_y)
+
+
+def image_for_clef_key(key: str) -> Optional[Image.Image]:
+    """Resolve an ops image ``key`` to a sized :class:`PIL.Image.Image`.
+
+    The panel calls this while replaying draw ops: it turns the key an
+    ``ImageOp`` carries into a concretely sized image (which it then converts to
+    a Tk image). Despite the historical name it resolves the whole key grammar:
+
+    - ``'clef_<kind>:<int-height>'`` -- a treble/bass clef.
+    - ``'glyph_<name>:<int-height>'`` -- a black-ink notehead/accidental.
+    - ``'glyph_<name>:<int-height>:<rrggbb>'`` -- a tinted glyph variant.
+
+    Returns ``None`` for any key that is not well-formed, so an unknown asset is
+    skipped rather than crashing a paint.
+
+    Args:
+        key: An image key (e.g. ``'clef_treble:96'``,
+            ``'glyph_notehead_whole:48'``, ``'glyph_accidental_sharp:120:3a5a8a'``).
+
+    Returns:
+        The sized image, or ``None`` if ``key`` is malformed / unknown.
+    """
+    parts = key.split(":")
+    if len(parts) < 2:
         return None
-    kind = prefix[len(_KEY_PREFIX):]
-    if kind not in _CLEF_BASE:
-        return None
+    name = parts[0]
     try:
-        height = int(height_str)
+        height = int(parts[1])
     except ValueError:
         return None
     if height <= 0:
         return None
-    return _render_at_height(kind, height)
+
+    if name.startswith(_KEY_PREFIX):
+        if len(parts) != 2:
+            return None
+        kind = name[len(_KEY_PREFIX):]
+        if kind not in _CLEF_BASE:
+            return None
+        return _render_at_height(kind, height)
+
+    if name.startswith(_GLYPH_PREFIX):
+        gname = name[len(_GLYPH_PREFIX):]
+        if gname not in _GLYPH_BASE:
+            return None
+        if len(parts) == 2:
+            return _render_glyph_at_height(gname, height)
+        if len(parts) == 3:
+            color6 = _normalize_color(parts[2])
+            if color6 is None:
+                return None
+            return _render_glyph_tinted(gname, height, color6)
+        return None
+
+    return None
