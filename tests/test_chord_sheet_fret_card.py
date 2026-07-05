@@ -1,11 +1,15 @@
 """Tests for ``FretCardRenderer`` layout and painting."""
 
+import pytest
+
 from models.chord import ChordInfo
 from models.rendered_song import RenderedChord, RenderedSong
 from ui.chord_sheet.fret_card import (
     DEFAULT_ROWS,
+    MAX_CONTENT_HEIGHT,
     REST_WIDTH,
     FretCardRenderer,
+    _capped_content_height,
     _compute_geometry,
     _song_geometry_inputs,
 )
@@ -260,3 +264,81 @@ def test_open_strings_with_high_position_shape_stays_compact():
     for slot_index in (0, 1):
         horiz = horizontal_lines(slot_ops(ops, slot_index))
         assert len(horiz) == DEFAULT_ROWS + 1
+
+
+def test_label_is_fret_cards():
+    assert FretCardRenderer.label == "Fret cards"
+    assert FretCardRenderer.id == "fret"  # id is stable, only the label changed
+
+
+def test_supports_zoom():
+    assert FretCardRenderer.supports_zoom is True
+
+
+def test_content_height_uncapped_below_max_is_unchanged():
+    # Below the cap, current "scale to height" behavior stays: no padding,
+    # geometry derives from the raw height.
+    content_height, top_pad = _capped_content_height(HEIGHT, zoom=1.0)
+    assert content_height == HEIGHT
+    assert top_pad == 0.0
+
+
+def test_content_height_capped_at_large_panel_heights():
+    tall_height = 600.0
+    content_height, top_pad = _capped_content_height(tall_height, zoom=1.0)
+    assert content_height == MAX_CONTENT_HEIGHT
+    assert top_pad == pytest.approx((tall_height - MAX_CONTENT_HEIGHT) / 2.0)
+
+
+def test_zoom_scales_the_cap():
+    tall_height = 1000.0
+    doubled, _ = _capped_content_height(tall_height, zoom=2.0)
+    halved, _ = _capped_content_height(tall_height, zoom=0.5)
+    assert doubled == pytest.approx(MAX_CONTENT_HEIGHT * 2.0)
+    assert halved == pytest.approx(MAX_CONTENT_HEIGHT * 0.5)
+
+
+def test_card_is_vertically_centered_when_capped():
+    # A tall panel must center the fixed-size card rather than blow its
+    # geometry up: the blank space above the chord symbol should match the
+    # blank space below the fret grid.
+    tall_height = 600.0
+    song = make_song(make_chord("C", fingering=[-1, 3, 2, 0, 1, 0]))
+    renderer = FretCardRenderer()
+    ctx = SheetContext(song=song)
+    layout = renderer.layout(ctx, height=tall_height)
+    ops = DrawOps()
+    renderer.paint(ops, ctx, layout)
+    card_ops = slot_ops(ops, 0)
+
+    rows, string_count = _song_geometry_inputs(song)
+    content_height, top_pad = _capped_content_height(tall_height, zoom=1.0)
+    geo = _compute_geometry(content_height, rows, string_count)
+
+    symbol_text = next(t for t in card_ops if isinstance(t, TextOp) and t.s == "C")
+    assert symbol_text.y == pytest.approx(top_pad + geo.symbol_h / 2.0)
+
+    horiz = horizontal_lines(card_ops)
+    grid_bottom_y = max(op.points[0][1] for op in horiz)
+    bottom_gap = tall_height - grid_bottom_y
+    # Approximately centered: the card geometry itself reserves a few px of
+    # internal padding below the grid (independent of centering), so allow
+    # slack rather than requiring an exact match.
+    assert top_pad == pytest.approx(bottom_gap, abs=10.0)
+    assert top_pad > 50.0  # plenty of blank space at this height
+
+
+def test_card_does_not_grow_unbounded_past_the_cap():
+    # Regression: a very tall panel must not keep scaling the card up --
+    # geometry derived from a capped height at 600px must match geometry
+    # derived directly from the cap itself.
+    song = make_song(make_chord("C", fingering=[-1, 3, 2, 0, 1, 0]))
+    renderer = FretCardRenderer()
+    ctx = SheetContext(song=song)
+
+    rows, string_count = _song_geometry_inputs(song)
+    capped_geo = _compute_geometry(MAX_CONTENT_HEIGHT, rows, string_count)
+
+    for tall_height in (400.0, 600.0, 1200.0):
+        layout = renderer.layout(ctx, height=tall_height)
+        assert layout.slots[0].width == pytest.approx(capped_geo.card_width)

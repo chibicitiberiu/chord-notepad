@@ -34,7 +34,7 @@ quantities, so every sounding-chord card in the strip is the same width.
 """
 
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 from models.rendered_song import RenderedChord, RenderedSong
 from ui.chord_sheet.ops import DrawOps
@@ -56,6 +56,19 @@ REST_WIDTH = 30.0
 DEFAULT_ROWS = 4
 #: Fallback string count when no chord in the song carries fingering data.
 DEFAULT_STRING_COUNT = 6
+
+#: Content height above which a card stops growing with the panel and is
+#: instead vertically centered in the available height, at zoom 1.0.
+#:
+#: Before this cap, every pixel length was a fraction of the raw panel
+#: height, so a tall panel produced oversized boxes the user had to shrink
+#: the panel to read comfortably. At height=230 with the default 4 rows:
+#: symbol_h = 230 * 0.22 =~ 50.6, grid_h = 230 - 50.6 - 12 =~ 167.4,
+#: row_h = 167.4 / 4 =~ 41.9, string_gap = row_h * 0.85 =~ 35.6,
+#: dot_r =~ 12.1, open_r =~ 8.5 -- a comfortably large, crisp card. Past
+#: this, growth stops and the fixed-size card centers instead, mirroring
+#: the tab lane's fixed-size block centering.
+MAX_CONTENT_HEIGHT = 230.0
 
 #: Palette (module-local; echoes the user's blog diagrams).
 _ACCENT = "#2a3d46"  # fretted-note dots
@@ -170,12 +183,36 @@ def _has_shape(chord: RenderedChord) -> bool:
     return (not chord.is_rest) and bool(chord.fingering)
 
 
+def _capped_content_height(height: float, zoom: float) -> Tuple[float, float]:
+    """Resolve the content height used for geometry math, plus top padding.
+
+    Content height never exceeds ``MAX_CONTENT_HEIGHT * zoom``: past that cap,
+    the card's geometry stops growing with the panel, and the returned top
+    padding centers the resulting (shorter, fixed-size) block within
+    ``height`` instead. Below the cap, this returns ``height`` unchanged with
+    zero padding, so the existing "scale to height" behavior is untouched.
+
+    Args:
+        height: Raw available content height in pixels.
+        zoom: User zoom factor; scales the cap so ``+`` can grow cards past
+            what the base cap allows and ``-`` shrinks them.
+
+    Returns:
+        ``(content_height, top_pad)``.
+    """
+    cap = MAX_CONTENT_HEIGHT * zoom
+    content_height = min(height, cap)
+    top_pad = max(0.0, (height - content_height) / 2.0)
+    return content_height, top_pad
+
+
 class FretCardRenderer(StripRenderer):
     """Draw fretted-instrument chords as vertical chord-box cards."""
 
     id = "fret"
-    label = "Chord box"
+    label = "Fret cards"
     requires_fingering = True
+    supports_zoom = True
 
     def layout(self, ctx: SheetContext, height: float) -> StripLayout:
         """Lay cards out left to right with a uniform width for every shape.
@@ -190,7 +227,8 @@ class FretCardRenderer(StripRenderer):
             order.
         """
         rows, string_count = _song_geometry_inputs(ctx.song)
-        geo = _compute_geometry(height, rows, string_count)
+        content_height, _ = _capped_content_height(height, ctx.zoom)
+        geo = _compute_geometry(content_height, rows, string_count)
 
         slots: List[SlotBox] = []
         x = STRIP_MARGIN
@@ -211,17 +249,23 @@ class FretCardRenderer(StripRenderer):
             layout: Layout from :meth:`layout` for the same ``ctx``/``height``.
         """
         rows, string_count = _song_geometry_inputs(ctx.song)
-        geo = _compute_geometry(layout.height, rows, string_count)
+        content_height, top_pad = _capped_content_height(layout.height, ctx.zoom)
+        geo = _compute_geometry(content_height, rows, string_count)
         chords = ctx.song.chords
 
         for slot in layout.slots:
             chord = chords[slot.chord_index]
             if not _has_shape(chord):
                 continue  # slim empty card: no ops
-            self._paint_card(ops, chord, slot, geo)
+            self._paint_card(ops, chord, slot, geo, top_pad)
 
     def _paint_card(
-        self, ops: DrawOps, chord: RenderedChord, slot: SlotBox, geo: _Geometry
+        self,
+        ops: DrawOps,
+        chord: RenderedChord,
+        slot: SlotBox,
+        geo: _Geometry,
+        top_pad: float = 0.0,
     ) -> None:
         """Draw one chord's symbol + fret-box diagram at its slot."""
         tag = f"slot:{slot.chord_index}"
@@ -230,7 +274,7 @@ class FretCardRenderer(StripRenderer):
 
         ops.text(
             slot.x + geo.card_width / 2.0,
-            geo.symbol_h / 2.0,
+            top_pad + geo.symbol_h / 2.0,
             chord_symbol_label(chord),
             anchor="center",
             size=geo.symbol_size,
@@ -240,7 +284,7 @@ class FretCardRenderer(StripRenderer):
         )
 
         grid_left = slot.x + geo.grid_left
-        grid_top = geo.grid_top
+        grid_top = top_pad + geo.grid_top
         box_w = geo.box_w
         row_h = geo.row_h
 

@@ -73,7 +73,7 @@ from -- and colors each voice, with a small legend at the left. The piano
 model splits by hand (left hand to the bass staff, right hand to the
 treble); everything else splits at middle C.
 
-Chord box
+Fret cards
 ------------
 
 A standard vertical chord diagram: strings, frets, and finger positions,
@@ -87,7 +87,7 @@ Tab
 ------
 
 A continuous tab lane: string lines spanning the whole strip, with each
-chord's fret numbers written onto them at its position. Like Chord box, this
+chord's fret numbers written onto them at its position. Like Fret cards, this
 needs fingering data and is only available for a fretboard-model voicing.
 
 If you switch to a voicing that doesn't produce fingering data (piano or an
