@@ -9,7 +9,7 @@ from chord.helper import ChordHelper
 from services.song_parser_service import SongParserService
 from services.song_renderer import SongRenderer
 from audio.chord_picker import ChordNotePicker
-from ui.chord_sheet.keyboard_card import KeyboardCardRenderer
+from ui.chord_sheet.piano_roll import PianoRollRenderer
 from ui.chord_sheet.ops import DrawOps, TextOp
 from ui.chord_sheet.renderer_interface import SheetContext, chord_symbol_label
 
@@ -84,7 +84,7 @@ class TestChordSymbolLabel:
 
     def test_renderer_draws_the_resolved_label(self):
         song = _render('V7\n', 'C')
-        renderer = KeyboardCardRenderer()
+        renderer = PianoRollRenderer()
         ctx = SheetContext(song=song)
         layout = renderer.layout(ctx, 160.0)
         ops = DrawOps()

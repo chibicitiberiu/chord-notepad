@@ -137,3 +137,31 @@ def chord_symbol_label(chord: RenderedChord) -> str:
     if notes is not None and notes.resolved_symbol:
         return f"{label} ({notes.resolved_symbol})"
     return label
+
+
+#: Shared note-color palette, used by every renderer that color-codes notes so
+#: the strip reads consistently across views. Ensemble voicings color by voice
+#: (indexed low voice first, matching ``RenderedChord.voice_notes`` /
+#: ``RenderedSong.voice_labels`` order, wrapping if there are more voices than
+#: colors); muted, distinguishable hues on the light strip background.
+VOICE_COLORS: Tuple[str, ...] = (
+    "#3a5a8a",  # low voice (e.g. Bass) - blue
+    "#4a7a4a",  # e.g. Tenor - green
+    "#a07a3a",  # e.g. Alto - amber
+    "#a04848",  # top voice (e.g. Soprano) - red
+    "#7a4a8a",  # 5th voice - purple
+    "#3a8a7a",  # 6th voice - teal
+    "#8a8a3a",  # 7th voice - olive
+    "#8a4a3a",  # 8th voice - rust
+)
+
+#: Piano-model hand colors (two tones of the same family so hands read as
+#: related but separable).
+HAND_COLORS = {"lh": "#8a5a3a", "rh": "#2a6f8a"}
+
+#: Default note ink when there is no voice/hand structure (e.g. guitar).
+NOTE_INK = "#22323a"
+
+#: Background color of the whole strip (panel canvases and any cutout rects a
+#: renderer draws behind glyphs/numbers must use this so they blend in).
+STRIP_BG = "#fbfbf8"

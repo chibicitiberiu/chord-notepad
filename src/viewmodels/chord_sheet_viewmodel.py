@@ -27,7 +27,7 @@ from models.chord import ChordInfo
 from models.line import Line
 from models.rendered_song import RenderedSong
 from ui.chord_sheet.fret_card import FretCardRenderer
-from ui.chord_sheet.keyboard_card import KeyboardCardRenderer
+from ui.chord_sheet.piano_roll import PianoRollRenderer
 from ui.chord_sheet.renderer_interface import StripRenderer
 from ui.chord_sheet.staff_card import StaffCardRenderer
 from ui.chord_sheet.tab_strip import TabStripRenderer
@@ -39,12 +39,12 @@ logger = logging.getLogger(__name__)
 def _default_renderers() -> List[StripRenderer]:
     """Build the standard renderer set, in view-picker order.
 
-    Keyboard, Staff, Chord box, then Tab. The two fretted views declare
+    Piano roll, Staff, Chord box, then Tab. The two fretted views declare
     ``requires_fingering`` so the viewmodel gates them out for songs voiced
     without fingering data (e.g. piano/ensemble).
     """
     return [
-        KeyboardCardRenderer(),
+        PianoRollRenderer(),
         StaffCardRenderer(),
         FretCardRenderer(),
         TabStripRenderer(),
