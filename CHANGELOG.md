@@ -17,14 +17,17 @@ moved to CHANGELOG_HISTORY.md and this file is reset.
   toggle buttons: **Piano roll** (DAW-style, duration-proportional note bars,
   hands/voices color-coded) and **Staff** (one continuous engraved grand
   staff with key signatures, signature-relative accidentals, and per-voice
-  colors) work for any voicing; **Chord box** and **Tab** need fingering data
+  colors) work for any voicing; **Fret cards** and **Tab** need fingering data
   and are only available for a fretboard-model voicing. A marker lane above
   the strip shows section labels, loop passes (``chorus (2/3)``), and
   tempo/meter changes. Roman-numeral chords are labeled with their resolution
   in the current key, e.g. ``V7 (G7)``. The strip follows playback with a
   highlight and auto-scroll, and clicking a chord plays that exact voicing.
-  The active view and the panel's height are remembered between sessions.
-  See the new Chord Sheet help page.
+  The piano roll's keyboard and the staff's clefs and key signature stay
+  pinned at the left edge while the strip scrolls, and the Staff, Fret
+  cards, and Tab views have per-view zoom buttons. The active view, zoom,
+  and the panel's height are remembered between sessions. See the new
+  Chord Sheet help page.
 
 - **Transpose** (Tools → Transpose...): shift every chord in the selection
   (or the whole song, when nothing is selected) up or down by a number of
@@ -122,6 +125,13 @@ moved to CHANGELOG_HISTORY.md and this file is reset.
   text only reaches the file when you save.
 
 ### Changed
+
+- Guitar fingering selection now penalizes wide fretting-hand stretches:
+  compact shapes are preferred generally, and 4-fret shapes that would force
+  a middle finger to make the far reach (rather than a lengthwise
+  index-to-pinky stretch) effectively always lose to a playable alternative.
+  Both penalties are editable weights in the fretboard voicing settings.
+
 
 - Voicing weights now use one consistent convention. Every weight is a
   signed number added to a voicing's score: positive seeks the trait,

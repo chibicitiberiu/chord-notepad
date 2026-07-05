@@ -91,16 +91,26 @@ chord's fret numbers written onto them at its position. Like Fret cards, this
 needs fingering data and is only available for a fretboard-model voicing.
 
 If you switch to a voicing that doesn't produce fingering data (piano or an
-ensemble) while Chord box or Tab is active, the strip falls back to
+ensemble) while Fret cards or Tab is active, the strip falls back to
 the Piano roll automatically.
+
+Parts of a view that you need for orientation stay pinned at the left edge
+while the strip scrolls: the piano roll's keyboard, and the staff's clefs
+and key signature (which switches to show the key in effect at the first
+visible chord once you scroll past a ``{key}`` change).
+
+The Staff, Fret cards, and Tab views have **−** / **+** buttons at the right
+end of the strip's header to make their drawing smaller or larger. The zoom
+level is remembered per view.
 
 
 Capo Suggestion
 ======================
 
-When **Allow capo** is enabled (see :doc:`settings`) and a fretboard voicing
+When **Allow capo** is enabled (from :menuselection:`Playback --> Voicing`,
+or in :doc:`settings`) and a fretboard voicing
 is active, the header row shows a hint such as ``Suggested: capo 2`` next to
-the view buttons while the Chord box or Tab view is active. It names the capo
+the view buttons while the Fret cards or Tab view is active. It names the capo
 position that makes the whole song easiest to play -- fewest barres, lowest on
 the neck, most open strings -- for songs written in awkward keys. Nothing is
 re-voiced or transposed; it is advice only, telling you where a capo would
