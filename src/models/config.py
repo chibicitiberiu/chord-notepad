@@ -65,6 +65,9 @@ class Config:
     chord_sheet_visible: bool = False  # Whether the chord sheet panel is shown
     chord_sheet_view: str = "keyboard"  # Active renderer id ('keyboard', 'staff', 'fret', 'tab')
     chord_sheet_height: int = 160      # Panel height in pixels (paned-window sash position)
+    # Per-view display zoom factors, keyed by renderer id (only non-1.0 entries
+    # are stored). Values are clamped to [0.5, 2.5]; junk is dropped on load.
+    chord_sheet_zoom: Dict[str, float] = field(default_factory=dict)
 
     def validate(self) -> None:
         """Validate configuration values."""
@@ -118,6 +121,7 @@ class Config:
             "chord_sheet_visible": self.chord_sheet_visible,
             "chord_sheet_view": self.chord_sheet_view,
             "chord_sheet_height": self.chord_sheet_height,
+            "chord_sheet_zoom": self.chord_sheet_zoom,
         }
 
     @classmethod
@@ -168,7 +172,26 @@ class Config:
             chord_sheet_visible=data.get("chord_sheet_visible", False),
             chord_sheet_view=data.get("chord_sheet_view", "keyboard"),
             chord_sheet_height=data.get("chord_sheet_height", 160),
+            chord_sheet_zoom=cls._sanitize_chord_sheet_zoom(data.get("chord_sheet_zoom")),
         )
+
+    @staticmethod
+    def _sanitize_chord_sheet_zoom(raw) -> Dict[str, float]:
+        """Coerce persisted per-view zoom factors into a clean dict.
+
+        A non-dict becomes ``{}``. Each value must be a real number (bools are
+        rejected); it is clamped to ``[0.5, 2.5]`` and rounded to 3 decimals.
+        Non-numeric values are dropped.
+        """
+        if not isinstance(raw, dict):
+            return {}
+        clean: Dict[str, float] = {}
+        for key, value in raw.items():
+            if isinstance(value, bool) or not isinstance(value, (int, float)):
+                continue
+            clamped = min(2.5, max(0.5, float(value)))
+            clean[str(key)] = round(clamped, 3)
+        return clean
 
     @staticmethod
     def _migrate_voicings(data: dict) -> tuple:

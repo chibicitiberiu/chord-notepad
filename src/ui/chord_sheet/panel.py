@@ -51,6 +51,13 @@ class ChordSheetPanel(ttk.Frame):
         self._images: dict = {}
         self._warned_image_keys: Set[str] = set()
 
+        # Frozen-gutter bookkeeping. ``_gutter_width`` is the currently-shown
+        # pane width (0 = collapsed); ``_gutter_state`` is the last painted
+        # (renderer, scroll_x, height, zoom, width) key, used to skip identical
+        # replays on scroll.
+        self._gutter_width: float = 0.0
+        self._gutter_state: Optional[tuple] = None
+
         self._build_widgets()
         self._wire_viewmodel()
 
@@ -92,22 +99,53 @@ class ChordSheetPanel(ttk.Frame):
         self._capo_label.pack(side=tk.LEFT, padx=(12, 0))
         self._update_capo_label()
 
+        # Compact zoom controls pinned to the right end of the header row,
+        # enabled only while the active view declares ``supports_zoom``. Packed
+        # right-to-left so "+" is rightmost and "-" sits to its left.
+        self._zoom_in_btn = ttk.Button(
+            header, text="+", width=2, style="Toolbutton", command=self._vm.zoom_in
+        )
+        self._zoom_in_btn.pack(side=tk.RIGHT, padx=(0, 0))
+        self._zoom_out_btn = ttk.Button(
+            header, text="−", width=2, style="Toolbutton", command=self._vm.zoom_out
+        )
+        self._zoom_out_btn.pack(side=tk.RIGHT, padx=(0, 2))
+        self._update_zoom_buttons_state()
+
         body = ttk.Frame(self)
         body.pack(side=tk.TOP, fill=tk.BOTH, expand=True, padx=4, pady=4)
+        # Column 0: frozen gutter (fixed width, 0 when collapsed). Column 1: the
+        # scrolling strip + lane. Row 0: marker lane. Row 1: strip. Row 2: bar.
+        body.columnconfigure(0, weight=0)
+        body.columnconfigure(1, weight=1)
+        body.rowconfigure(0, weight=0)
+        body.rowconfigure(1, weight=1)
+        body.rowconfigure(2, weight=0)
 
-        self._hbar = ttk.Scrollbar(body, orient=tk.HORIZONTAL)
-        self._hbar.pack(side=tk.BOTTOM, fill=tk.X)
+        self._hbar = ttk.Scrollbar(body, orient=tk.HORIZONTAL, command=self._xview_both)
+        self._hbar.grid(row=2, column=0, columnspan=2, sticky="ew")
 
-        # Slim marker lane on top; the main strip fills the rest. Both scroll
-        # horizontally together (one scrollbar drives both) so markers stay
-        # aligned with the cards below them.
+        # Frozen left gutter: a non-scrolling pane pinned at the strip's left
+        # edge (piano-roll keyboard, staff clefs). Kept ungridded until a
+        # renderer declares a positive ``gutter_width`` (see ``_repaint_gutter``).
+        # A small corner above it keeps the top bar visually continuous.
+        self._gutter_corner = tk.Canvas(
+            body, width=1, highlightthickness=0, bg=STRIP_BG
+        )
+        self._gutter_canvas = tk.Canvas(
+            body, width=1, highlightthickness=0, bg=STRIP_BG
+        )
+
+        # Slim marker lane on top; the main strip fills the rest. Both live in
+        # the scrolling column and share one scrollbar so markers stay aligned
+        # with the cards below them (and with the strip when a gutter is shown).
         self._lane_canvas = tk.Canvas(
             body,
             height=int(LANE_HEIGHT),
             highlightthickness=0,
             bg=STRIP_BG,
         )
-        self._lane_canvas.pack(side=tk.TOP, fill=tk.X)
+        self._lane_canvas.grid(row=0, column=1, sticky="ew")
 
         self._canvas = tk.Canvas(
             body,
@@ -116,8 +154,7 @@ class ChordSheetPanel(ttk.Frame):
             bg=STRIP_BG,
             xscrollcommand=self._hbar.set,
         )
-        self._canvas.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
-        self._hbar.config(command=self._xview_both)
+        self._canvas.grid(row=1, column=1, sticky="nsew")
 
         self._canvas.bind("<Configure>", self._on_canvas_configure)
         self._canvas.bind("<Button-1>", self._on_canvas_click)
@@ -126,6 +163,9 @@ class ChordSheetPanel(ttk.Frame):
         """Scroll the marker lane and the main strip together (scrollbar cmd)."""
         self._canvas.xview(*args)
         self._lane_canvas.xview(*args)
+        # A horizontal scroll changes what content sits at the viewport's left
+        # edge, so scroll-dependent gutters (staff key signature) must repaint.
+        self._repaint_gutter()
 
     def _wire_viewmodel(self) -> None:
         """Subscribe to the viewmodel's observable state."""
@@ -134,6 +174,7 @@ class ChordSheetPanel(ttk.Frame):
         self._vm.observe("active_view", self._on_active_view_changed)
         self._vm.observe("available_views", self._on_available_views_changed)
         self._vm.observe("capo_suggestion", self._on_capo_suggestion_changed)
+        self._vm.observe("zoom", self._on_zoom_changed)
 
     # -- Viewmodel observers ------------------------------------------------
 
@@ -153,11 +194,17 @@ class ChordSheetPanel(ttk.Frame):
         # The suggestion is only shown for fret/tab, so its visibility can
         # change purely from a view switch.
         self._update_capo_label()
+        # Zoom support is per-renderer, so the buttons may enable/disable.
+        self._update_zoom_buttons_state()
         self._relayout_and_paint()
 
     def _on_available_views_changed(self, views) -> None:
         """Update the toggle buttons' enabled state when gating changes."""
         self._update_view_buttons_state(views)
+
+    def _on_zoom_changed(self, _zoom) -> None:
+        """Re-layout and repaint at the new zoom (display-only, no re-render)."""
+        self._relayout_and_paint()
 
     def _on_capo_suggestion_changed(self, _suggestion) -> None:
         """Show/hide/update the capo suggestion label."""
@@ -195,6 +242,12 @@ class ChordSheetPanel(ttk.Frame):
             else:
                 button.state(["disabled"])
 
+    def _update_zoom_buttons_state(self) -> None:
+        """Enable the +/- zoom buttons only when the active view supports zoom."""
+        state = ["!disabled"] if self._vm.zoom_supported else ["disabled"]
+        self._zoom_in_btn.state(state)
+        self._zoom_out_btn.state(state)
+
     def _on_canvas_configure(self, _event) -> None:
         """Re-layout on resize (height feeds the renderer)."""
         self._relayout_and_paint()
@@ -216,17 +269,20 @@ class ChordSheetPanel(ttk.Frame):
         self._canvas.delete("all")
         self._lane_canvas.delete("all")
         self._layout = None
+        # A full repaint invalidates any cached gutter replay.
+        self._gutter_state = None
 
         song = self._vm.rendered_song
         renderer = self._vm.active_renderer
         if song is None or renderer is None:
+            self._collapse_gutter()
             return
 
         # The renderer gets the main canvas's height; the marker lane occupies
         # its own fixed-height canvas above it, so the content already excludes
         # the lane (the panel reserves it via the two-canvas split).
         height = max(1, self._canvas.winfo_height())
-        ctx = SheetContext(song=song)
+        ctx = SheetContext(song=song, zoom=self._vm.zoom_for_active_view)
         layout = renderer.layout(ctx, float(height))
         self._layout = layout
         self._canvas.config(scrollregion=(0, 0, layout.width, layout.height))
@@ -244,6 +300,8 @@ class ChordSheetPanel(ttk.Frame):
         # view gets it for free.
         self._paint_marker_lane(song, layout)
         self._follow_playhead()
+        # Paint the frozen gutter last so it reflects the final scroll position.
+        self._repaint_gutter()
 
     def _paint_marker_lane(self, song, layout: StripLayout) -> None:
         """Draw the timeline marker lane over the full content width."""
@@ -251,6 +309,60 @@ class ChordSheetPanel(ttk.Frame):
             song.markers, song.chords, layout.slots, LANE_HEIGHT, layout.width
         )
         replay(lane_ops.ops, self._lane_canvas, self._images)
+
+    def _repaint_gutter(self) -> None:
+        """Size, show, and repaint the frozen left gutter for the active view.
+
+        The gutter is a non-scrolling pane whose width comes from the renderer's
+        :meth:`~ui.chord_sheet.renderer_interface.StripRenderer.gutter_width`
+        (0 collapses it entirely). Its ops are painted in gutter-local
+        coordinates with ``scroll_x`` = the content x currently at the strip
+        viewport's left edge, so scroll-dependent gutters can redraw. Identical
+        replays (same renderer, scroll_x, height, zoom, width) are skipped.
+        """
+        song = self._vm.rendered_song
+        renderer = self._vm.active_renderer
+        if song is None or renderer is None:
+            self._collapse_gutter()
+            return
+
+        height = max(1, self._canvas.winfo_height())
+        ctx = SheetContext(song=song, zoom=self._vm.zoom_for_active_view)
+        width = float(renderer.gutter_width(ctx, float(height)))
+        if width <= 0:
+            self._collapse_gutter()
+            return
+
+        # Ensure the pane is shown at the right width.
+        if self._gutter_width != width:
+            pixels = int(round(width))
+            self._gutter_canvas.config(width=pixels)
+            self._gutter_corner.config(width=pixels)
+            self._gutter_canvas.grid(row=1, column=0, sticky="ns")
+            self._gutter_corner.grid(row=0, column=0, sticky="nsew")
+            self._gutter_width = width
+
+        scroll_x = float(self._canvas.canvasx(0))
+        key = (id(renderer), round(scroll_x, 2), height, round(ctx.zoom, 3),
+               round(width, 2))
+        if key == self._gutter_state:
+            return
+        self._gutter_state = key
+
+        self._gutter_canvas.delete("all")
+        ops = DrawOps()
+        renderer.paint_gutter(ops, ctx, float(height), scroll_x)
+        self._resolve_images(ops.ops)
+        replay(ops.ops, self._gutter_canvas, self._images)
+
+    def _collapse_gutter(self) -> None:
+        """Hide the frozen gutter pane entirely (renderer declares no gutter)."""
+        if self._gutter_width != 0.0 or self._gutter_state is not None:
+            self._gutter_canvas.grid_remove()
+            self._gutter_corner.grid_remove()
+            self._gutter_canvas.delete("all")
+        self._gutter_width = 0.0
+        self._gutter_state = None
 
     def _resolve_images(self, ops) -> None:
         """Resolve image-op keys to Tk images, caching them on the panel.
@@ -316,6 +428,8 @@ class ChordSheetPanel(ttk.Frame):
             fraction = target / content_width
             self._canvas.xview_moveto(fraction)
             self._lane_canvas.xview_moveto(fraction)
+            # Auto-scroll moved the viewport: refresh the scroll-dependent gutter.
+            self._repaint_gutter()
 
     def _slot_for_index(self, index: int):
         """Return the :class:`SlotBox` for a chord index, or ``None``."""

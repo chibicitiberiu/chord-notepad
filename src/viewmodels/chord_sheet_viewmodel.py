@@ -16,7 +16,7 @@ timer and the UI-thread marshal are injectable seams so tests run synchronously.
 
 import logging
 import threading
-from typing import Callable, List, Optional
+from typing import Callable, Dict, List, Optional
 
 from constants import (
     CHORD_SHEET_RERENDER_DEBOUNCE_MS,
@@ -54,6 +54,11 @@ def _default_renderers() -> List[StripRenderer]:
 _SCROLL_SNAP_TO = 0.25   # where the playhead is placed after a snap
 _SCROLL_TRIGGER = 0.70   # playhead past this fraction triggers a forward snap
 _SCROLL_EPSILON = 0.5    # px; scroll deltas smaller than this are treated as no-op
+
+# Display-zoom step/bounds for zoom-capable renderers (staff, piano roll, ...).
+_ZOOM_STEP = 1.2   # multiplicative factor per zoom-in/out click
+_ZOOM_MIN = 0.5
+_ZOOM_MAX = 2.5
 
 
 class _TimerScheduler:
@@ -172,6 +177,11 @@ class ChordSheetViewModel(Observable):
         if self._active_view not in self._available_views:
             self._active_view = self._fallback_view(self._available_views)
 
+        # Per-view display zoom factors (renderer id -> factor). ``zoom`` mirrors
+        # the factor for the *active* view so the panel can observe it directly.
+        self._zoom_by_view: Dict[str, float] = self._load_zoom_factors()
+        self._zoom: float = self._zoom_by_view.get(self._active_view, 1.0)
+
     # -- Properties ---------------------------------------------------------
 
     @property
@@ -231,6 +241,71 @@ class ChordSheetViewModel(Observable):
     def active_renderer(self) -> Optional[StripRenderer]:
         """The renderer matching :attr:`active_view`, or ``None``."""
         return self.get_renderer(self._active_view)
+
+    # -- Display zoom -------------------------------------------------------
+
+    @property
+    def zoom(self) -> float:
+        """Display zoom factor for the active view (observable). 1.0 = default."""
+        return self._zoom
+
+    @property
+    def zoom_for_active_view(self) -> float:
+        """The active view's zoom factor (the value the panel threads into
+        :class:`~ui.chord_sheet.renderer_interface.SheetContext`)."""
+        return self._zoom
+
+    @property
+    def zoom_supported(self) -> bool:
+        """Whether the active renderer honors zoom (``supports_zoom``).
+
+        The panel enables its +/- zoom buttons only when this is ``True``.
+        """
+        renderer = self.active_renderer
+        return bool(renderer is not None and renderer.supports_zoom)
+
+    def zoom_in(self) -> None:
+        """Zoom the active view in one multiplicative step (no-op if unsupported)."""
+        self._set_zoom(self._zoom * _ZOOM_STEP)
+
+    def zoom_out(self) -> None:
+        """Zoom the active view out one multiplicative step (no-op if unsupported)."""
+        self._set_zoom(self._zoom / _ZOOM_STEP)
+
+    def _set_zoom(self, value: float) -> None:
+        """Clamp/round and apply a zoom factor to the active view, then notify.
+
+        Ignored when the active renderer does not support zoom. Persists the
+        per-view factors and notifies ``zoom`` observers so the panel repaints
+        (display-only: no song re-render).
+        """
+        if not self.zoom_supported:
+            return
+        value = round(min(_ZOOM_MAX, max(_ZOOM_MIN, value)), 3)
+        self._zoom_by_view[self._active_view] = value
+        self._persist_zoom_factors()
+        self.set_and_notify("zoom", value)
+
+    def _load_zoom_factors(self) -> Dict[str, float]:
+        """Load and sanitize persisted per-view zoom factors from config."""
+        raw = self._config.get("chord_sheet_zoom", {})
+        if not isinstance(raw, dict):
+            return {}
+        factors: Dict[str, float] = {}
+        for key, value in raw.items():
+            if isinstance(value, bool) or not isinstance(value, (int, float)):
+                continue
+            factors[str(key)] = round(min(_ZOOM_MAX, max(_ZOOM_MIN, float(value))), 3)
+        return factors
+
+    def _persist_zoom_factors(self) -> None:
+        """Persist only the non-default (non-1.0) per-view zoom factors."""
+        stored = {
+            view: factor
+            for view, factor in self._zoom_by_view.items()
+            if abs(factor - 1.0) > 1e-9
+        }
+        self._config.set("chord_sheet_zoom", stored)
 
     # -- Song input / debounced re-render -----------------------------------
 
@@ -428,6 +503,8 @@ class ChordSheetViewModel(Observable):
             return
         self._config.set("chord_sheet_view", view_id)
         self.set_and_notify("active_view", view_id)
+        # Surface the newly-active view's own zoom factor (per-view isolation).
+        self.set_and_notify("zoom", self._zoom_by_view.get(view_id, 1.0))
 
     def _refresh_available_views(self) -> None:
         """Recompute gated availability and fall back if the active view vanished."""

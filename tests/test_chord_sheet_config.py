@@ -60,3 +60,44 @@ def test_allow_capo_round_trips():
     original = Config(allow_capo=True)
     assert original.to_dict()["allow_capo"] is True
     assert Config.from_dict(original.to_dict()).allow_capo is True
+
+
+# --------------------------------------------------------------------------
+# chord_sheet_zoom (per-view display zoom factors)
+# --------------------------------------------------------------------------
+
+
+def test_chord_sheet_zoom_defaults_empty():
+    assert Config().chord_sheet_zoom == {}
+    assert Config.from_dict({}).chord_sheet_zoom == {}
+
+
+def test_chord_sheet_zoom_round_trips():
+    original = Config(chord_sheet_zoom={"staff": 1.5, "keyboard": 0.5})
+    data = original.to_dict()
+    assert data["chord_sheet_zoom"] == {"staff": 1.5, "keyboard": 0.5}
+    restored = Config.from_dict(data)
+    assert restored.chord_sheet_zoom == {"staff": 1.5, "keyboard": 0.5}
+
+
+def test_chord_sheet_zoom_sanitizes_on_load():
+    config = Config.from_dict({
+        "chord_sheet_zoom": {
+            "a": 5.0,        # clamped down to max
+            "b": 0.1,        # clamped up to min
+            "c": "x",        # non-numeric -> dropped
+            "d": True,       # bool -> dropped
+            "e": 1.234567,   # rounded to 3 decimals
+        }
+    })
+    z = config.chord_sheet_zoom
+    assert z["a"] == 2.5
+    assert z["b"] == 0.5
+    assert "c" not in z
+    assert "d" not in z
+    assert z["e"] == 1.235
+
+
+def test_chord_sheet_zoom_non_dict_becomes_empty():
+    assert Config.from_dict({"chord_sheet_zoom": ["nope"]}).chord_sheet_zoom == {}
+    assert Config.from_dict({"chord_sheet_zoom": None}).chord_sheet_zoom == {}

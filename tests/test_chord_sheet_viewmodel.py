@@ -110,6 +110,23 @@ class FingeringRenderer(StripRenderer):
         pass
 
 
+class ZoomRenderer(StripRenderer):
+    """Minimal always-available renderer that declares zoom support."""
+
+    supports_zoom = True
+    requires_fingering = False
+
+    def __init__(self, id="zoomy"):
+        self.id = id
+        self.label = id
+
+    def layout(self, ctx: SheetContext, height: float) -> StripLayout:
+        return StripLayout(width=1.0, height=height, slots=())
+
+    def paint(self, ops, ctx, layout):
+        pass
+
+
 def make_chord(symbol="C", start=0, end=1, is_rest=False, midi_notes=(60, 64, 67), fingering=None):
     return RenderedChord(
         chord_info=ChordInfo(chord=symbol, start=start, end=end, is_valid=True),
@@ -556,6 +573,107 @@ def test_capo_suggestion_resets_on_new_song():
     vm.set_song([], None)
     scheduler.flush()
     assert vm.capo_suggestion is None
+
+
+# --------------------------------------------------------------------------
+# Display zoom (per-view factors)
+# --------------------------------------------------------------------------
+
+
+def test_zoom_defaults_to_one():
+    vm, _, _ = make_vm(renderers=[ZoomRenderer()])
+    assert vm.zoom == 1.0
+    assert vm.zoom_for_active_view == 1.0
+    assert vm.zoom_supported is True
+
+
+def test_zoom_in_out_step_multiplicatively():
+    vm, _, _ = make_vm(renderers=[ZoomRenderer()])
+    vm.zoom_in()
+    assert vm.zoom == 1.2
+    vm.zoom_in()
+    assert vm.zoom == round(1.2 * 1.2, 3)  # 1.44
+    vm.zoom_out()
+    assert vm.zoom == 1.2  # 1.44 / 1.2, rounded
+
+
+def test_zoom_clamps_to_bounds():
+    vm, _, _ = make_vm(renderers=[ZoomRenderer()])
+    for _ in range(20):
+        vm.zoom_in()
+    assert vm.zoom == 2.5
+    for _ in range(40):
+        vm.zoom_out()
+    assert vm.zoom == 0.5
+
+
+def test_zoom_ignored_when_renderer_does_not_support_it():
+    vm, _, _ = make_vm(renderers=[PlainRenderer()])  # supports_zoom is False
+    assert vm.zoom_supported is False
+    vm.zoom_in()
+    assert vm.zoom == 1.0
+
+
+def test_zoom_notifies_observers():
+    vm, _, _ = make_vm(renderers=[ZoomRenderer()])
+    seen = []
+    vm.observe("zoom", seen.append)
+    vm.zoom_in()
+    assert seen == [1.2]
+
+
+def test_zoom_is_per_view_isolated():
+    config = FakeConfig(chord_sheet_visible=True)
+    renderers = [ZoomRenderer("a"), ZoomRenderer("b")]
+    vm, _, _ = make_vm(renderers=renderers, config=config)
+    assert vm.active_view == "a"
+
+    vm.zoom_in()                 # a -> 1.2
+    vm.set_active_view("b")
+    assert vm.zoom == 1.0        # b untouched
+    vm.zoom_in()
+    vm.zoom_in()                 # b -> 1.44
+    vm.set_active_view("a")
+    assert vm.zoom == 1.2        # a preserved
+
+
+def test_zoom_persists_only_non_default_factors():
+    config = FakeConfig(chord_sheet_visible=True)
+    renderers = [ZoomRenderer("a"), ZoomRenderer("b")]
+    vm, _, _ = make_vm(renderers=renderers, config=config)
+    vm.zoom_in()                 # a -> 1.2
+    vm.set_active_view("b")      # b stays 1.0 (default), must not be stored
+    assert config.get("chord_sheet_zoom") == {"a": 1.2}
+
+
+def test_zoom_loads_persisted_factors_per_view():
+    config = FakeConfig(chord_sheet_visible=True, chord_sheet_zoom={"a": 1.5, "b": 0.75})
+    renderers = [ZoomRenderer("a"), ZoomRenderer("b")]
+    vm, _, _ = make_vm(renderers=renderers, config=config)
+    assert vm.active_view == "a"
+    assert vm.zoom == 1.5
+    vm.set_active_view("b")
+    assert vm.zoom == 0.75
+
+
+def test_zoom_load_sanitizes_junk_factors():
+    config = FakeConfig(
+        chord_sheet_visible=True,
+        chord_sheet_zoom={"a": "bad", "b": 99, "c": 0.1},
+    )
+    renderers = [ZoomRenderer("a"), ZoomRenderer("b"), ZoomRenderer("c")]
+    vm, _, _ = make_vm(renderers=renderers, config=config)
+    assert vm.zoom == 1.0          # 'a' junk dropped
+    vm.set_active_view("b")
+    assert vm.zoom == 2.5          # clamped down
+    vm.set_active_view("c")
+    assert vm.zoom == 0.5          # clamped up
+
+
+def test_zoom_load_non_dict_is_empty():
+    config = FakeConfig(chord_sheet_visible=True, chord_sheet_zoom="nope")
+    vm, _, _ = make_vm(renderers=[ZoomRenderer("a")], config=config)
+    assert vm.zoom == 1.0
 
 
 def test_refresh_capo_suggestion_reacts_to_config_toggle():
