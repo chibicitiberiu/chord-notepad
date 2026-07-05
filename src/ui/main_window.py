@@ -1062,6 +1062,17 @@ class MainWindow(tk.Tk):
         voicing = self.voicing_var.get()
         self.viewmodel.set_voicing(voicing)
 
+    def on_allow_capo_toggle(self) -> None:
+        """Persist the Voicing-menu 'Allow capo' toggle and refresh the strip."""
+        value = bool(self._allow_capo_var.get())
+        config = self.application.config_service
+        config.set("allow_capo", value)
+        config.save_config()
+        vm = self.chord_sheet_viewmodel
+        refresh = getattr(vm, "refresh_capo_suggestion", None)
+        if refresh is not None:
+            refresh()
+
     def rebuild_voicing_menu(self) -> None:
         """(Re)populate the Voicing submenu.
 
@@ -1081,6 +1092,15 @@ class MainWindow(tk.Tk):
             self.voicing_menu.add_radiobutton(label=spec.label, variable=self.voicing_var,
                                               value=f"guitar:{fretboard_key}",
                                               command=self.on_voicing_change)
+
+        # Capo suggestion toggle, kept next to the guitar voicings it applies
+        # to (mirrors the checkbox in Settings -> Playback & Audio).
+        if not hasattr(self, '_allow_capo_var'):
+            self._allow_capo_var = tk.BooleanVar(
+                value=bool(self.application.config_service.get("allow_capo", False)))
+        self.voicing_menu.add_checkbutton(label="Allow capo",
+                                          variable=self._allow_capo_var,
+                                          command=self.on_allow_capo_toggle)
 
         # Built-in ensembles
         self.voicing_menu.add_separator()
@@ -1269,6 +1289,10 @@ class MainWindow(tk.Tk):
 
         if changes.voicings_changed:
             self.rebuild_voicing_menu()
+
+        if getattr(changes, "guitar_changed", False) and hasattr(self, '_allow_capo_var'):
+            self._allow_capo_var.set(
+                bool(self.application.config_service.get("allow_capo", False)))
 
         if changes.new_active_voicing is not None:
             # The active voicing pointer itself was rewritten (the selected
