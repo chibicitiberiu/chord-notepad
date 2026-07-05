@@ -17,7 +17,7 @@ from typing import Optional, Set
 from ui.chord_sheet.clef_assets import image_for_clef_key
 from ui.chord_sheet.marker_lane import LANE_HEIGHT, build_marker_lane
 from ui.chord_sheet.ops import DrawOps, ImageOp, replay
-from ui.chord_sheet.renderer_interface import SheetContext, StripLayout
+from ui.chord_sheet.renderer_interface import SheetContext, STRIP_BG, StripLayout
 
 logger = logging.getLogger(__name__)
 
@@ -54,21 +54,31 @@ class ChordSheetPanel(ttk.Frame):
     # -- Construction -------------------------------------------------------
 
     def _build_widgets(self) -> None:
-        """Create the view picker, canvas, and horizontal scrollbar."""
+        """Create the view picker (toggle buttons), canvas, and scrollbar."""
         header = ttk.Frame(self)
         header.pack(side=tk.TOP, fill=tk.X, padx=4, pady=(4, 0))
 
         ttk.Label(header, text="View:").pack(side=tk.LEFT)
+
+        # One Toolbutton-style radiobutton per renderer the viewmodel knows
+        # (in its registered order), sharing a single StringVar so selecting
+        # one deselects the rest. Renderers gated out for the current song
+        # (e.g. fretted views for a piano-voiced song) stay visible but
+        # disabled, so the row's layout never shifts.
         self._view_var = tk.StringVar(value=self._vm.active_view)
-        self._view_picker = ttk.Combobox(
-            header,
-            textvariable=self._view_var,
-            state="readonly",
-            width=16,
-            values=list(self._vm.available_views),
-        )
-        self._view_picker.pack(side=tk.LEFT, padx=(4, 0))
-        self._view_picker.bind("<<ComboboxSelected>>", self._on_view_picked)
+        self._view_buttons: dict = {}
+        for renderer in self._vm.renderers:
+            button = ttk.Radiobutton(
+                header,
+                text=renderer.label,
+                value=renderer.id,
+                variable=self._view_var,
+                style="Toolbutton",
+                command=self._on_view_picked,
+            )
+            button.pack(side=tk.LEFT, padx=(4, 0))
+            self._view_buttons[renderer.id] = button
+        self._update_view_buttons_state()
 
         body = ttk.Frame(self)
         body.pack(side=tk.TOP, fill=tk.BOTH, expand=True, padx=4, pady=4)
@@ -83,6 +93,7 @@ class ChordSheetPanel(ttk.Frame):
             body,
             height=int(LANE_HEIGHT),
             highlightthickness=0,
+            bg=STRIP_BG,
         )
         self._lane_canvas.pack(side=tk.TOP, fill=tk.X)
 
@@ -90,6 +101,7 @@ class ChordSheetPanel(ttk.Frame):
             body,
             height=100,
             highlightthickness=0,
+            bg=STRIP_BG,
             xscrollcommand=self._hbar.set,
         )
         self._canvas.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
@@ -128,14 +140,28 @@ class ChordSheetPanel(ttk.Frame):
         self._relayout_and_paint()
 
     def _on_available_views_changed(self, views) -> None:
-        """Update the picker's options when gating changes."""
-        self._view_picker.config(values=list(views))
+        """Update the toggle buttons' enabled state when gating changes."""
+        self._update_view_buttons_state(views)
 
     # -- Tk event handlers --------------------------------------------------
 
-    def _on_view_picked(self, _event) -> None:
-        """Forward a picker selection to the viewmodel."""
+    def _on_view_picked(self) -> None:
+        """Forward a toggle-button selection to the viewmodel."""
         self._vm.set_active_view(self._view_var.get())
+
+    def _update_view_buttons_state(self, views=None) -> None:
+        """Enable buttons for available views, disable the gated-out rest.
+
+        Args:
+            views: Available renderer ids, or ``None`` to read the
+                viewmodel's current ``available_views``.
+        """
+        available = set(views if views is not None else self._vm.available_views)
+        for view_id, button in self._view_buttons.items():
+            if view_id in available:
+                button.state(["!disabled"])
+            else:
+                button.state(["disabled"])
 
     def _on_canvas_configure(self, _event) -> None:
         """Re-layout on resize (height feeds the renderer)."""

@@ -13,6 +13,7 @@ tk = pytest.importorskip("tkinter")
 from audio.chord_picker import ChordNotePicker
 from services.song_parser_service import SongParserService
 from services.song_renderer import SongRenderer
+from ui.chord_sheet.renderer_interface import STRIP_BG
 from viewmodels.chord_sheet_viewmodel import ChordSheetViewModel
 
 
@@ -139,3 +140,46 @@ def test_hidden_panel_paints_after_being_shown(root):
     root.update_idletasks()
     assert vm.rendered_song is rendered
     assert panel._canvas.find_all()
+
+
+def test_view_picker_has_one_toggle_button_per_renderer_in_order(root):
+    panel, vm = _make_panel(root, "C G\nAm F\n")
+    labels_by_id = {renderer.id: renderer.label for renderer in vm.renderers}
+
+    assert set(panel._view_buttons.keys()) == set(labels_by_id.keys())
+    for view_id, button in panel._view_buttons.items():
+        assert button.cget("text") == labels_by_id[view_id]
+
+
+def test_fingering_gated_buttons_disabled_for_piano_rendered_song(root):
+    # ``ChordNotePicker`` (used by ``_render``) voices for piano: no
+    # fingering data, so the fretted views (fret box, tab) must be gated out
+    # and shown disabled, while the ungated ones stay enabled.
+    panel, vm = _make_panel(root, "C G\nAm F\n")
+    assert "fret" not in vm.available_views
+    assert "tab" not in vm.available_views
+    assert "keyboard" in vm.available_views
+    assert "staff" in vm.available_views
+
+    for view_id, button in panel._view_buttons.items():
+        if view_id in vm.available_views:
+            assert not button.instate(("disabled",)), f"{view_id} should be enabled"
+        else:
+            assert button.instate(("disabled",)), f"{view_id} should be disabled"
+
+
+def test_clicking_an_enabled_button_switches_the_active_view(root):
+    panel, vm = _make_panel(root, "C G\nAm F\n")
+    assert vm.active_view == "keyboard"
+
+    panel._view_buttons["staff"].invoke()
+    root.update_idletasks()
+
+    assert vm.active_view == "staff"
+    assert panel._view_var.get() == "staff"
+
+
+def test_canvas_backgrounds_use_strip_bg(root):
+    panel, vm = _make_panel(root, "C G\n")
+    assert panel._canvas.cget("bg") == STRIP_BG
+    assert panel._lane_canvas.cget("bg") == STRIP_BG

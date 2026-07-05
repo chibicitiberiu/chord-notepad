@@ -33,6 +33,7 @@ from ui.chord_sheet.renderer_interface import (
     SheetContext,
     chord_symbol_label,
     SlotBox,
+    STRIP_BG,
     StripLayout,
     StripRenderer,
 )
@@ -50,10 +51,18 @@ MAX_SLOT_WIDTH = 120.0
 #: Fallback string count when no chord in the song carries fingering data.
 DEFAULT_STRING_COUNT = 6
 
-#: Vertical space above the string lines reserved for the chord symbol, px.
-SYMBOL_MARGIN = 22.0
-#: Vertical padding below the lowest string line, px.
+#: Fixed vertical gap between adjacent string lines, px. Never stretched to
+#: fill a tall panel -- see :func:`_string_line_ys`.
+STRING_GAP = 14.0
+#: Vertical space above the top string line reserved for the chord-symbol
+#: band, px. Part of the fixed-size "tab block" that gets centered.
+SYMBOL_MARGIN = 18.0
+#: Vertical space below the lowest string line reserved for the lower half of
+#: fret-number glyph boxes, px. Part of the fixed-size "tab block".
 BOTTOM_MARGIN = 10.0
+#: Bar lines extend this many px above the top string / below the bottom
+#: string, so they read as a touch taller than the string block itself.
+BAR_LINE_PAD = 3.0
 #: Size of the background rect drawn behind each fret-number/x/0 glyph, px.
 LABEL_BOX_W = 16.0
 LABEL_BOX_H = 13.0
@@ -61,7 +70,6 @@ LABEL_BOX_H = 13.0
 #: Palette (module-local; echoes the user's blog diagrams).
 _INK = "#22323a"  # chord symbols, fret-number text
 _GRID = "#b9c2c7"  # string lines, bar lines
-_LABEL_BG = "#ffffff"  # background rect behind a fret number (line readability)
 
 _SYMBOL_SIZE = 12
 _LABEL_SIZE = 10
@@ -81,13 +89,29 @@ def _song_string_count(song: RenderedSong) -> int:
 
 
 def _string_line_ys(height: float, string_count: int) -> Tuple[float, ...]:
-    """Y positions of the string lines, top (highest string) to bottom (lowest)."""
-    top = SYMBOL_MARGIN
-    bottom = max(top + 10.0, height - BOTTOM_MARGIN)
+    """Y positions of the string lines, top (highest string) to bottom (lowest).
+
+    Strings use a FIXED gap (:data:`STRING_GAP`) regardless of ``height`` --
+    the lane never stretches string spacing to fill a tall panel. The whole
+    tab block (the chord-symbol band above the top string, plus the strings
+    themselves) is vertically centered in ``height``, so any extra height
+    becomes blank space above and below. Only when ``height`` is too small to
+    fit the fixed spacing does the gap compress just enough to fit.
+    """
+    spread = (string_count - 1) * STRING_GAP if string_count > 1 else 0.0
+    block_height = SYMBOL_MARGIN + spread + BOTTOM_MARGIN
+    gap = STRING_GAP
+
+    if block_height > height:
+        available = max(0.0, height - SYMBOL_MARGIN - BOTTOM_MARGIN)
+        gap = available / (string_count - 1) if string_count > 1 else 0.0
+        block_height = height
+
+    block_top = max(0.0, (height - block_height) / 2.0)
+    top_string_y = block_top + SYMBOL_MARGIN
     if string_count <= 1:
-        return (((top + bottom) / 2.0),)
-    step = (bottom - top) / (string_count - 1)
-    return tuple(top + i * step for i in range(string_count))
+        return (top_string_y,)
+    return tuple(top_string_y + i * gap for i in range(string_count))
 
 
 class TabStripRenderer(StripRenderer):
@@ -138,6 +162,9 @@ class TabStripRenderer(StripRenderer):
 
         top_y = line_ys[0]
         bottom_y = line_ys[-1]
+        symbol_y = top_y - SYMBOL_MARGIN / 2.0
+        bar_top = top_y - BAR_LINE_PAD
+        bar_bottom = bottom_y + BAR_LINE_PAD
         prev_bar: Optional[int] = None
         for index, slot in enumerate(layout.slots):
             chord = chords[slot.chord_index]
@@ -145,7 +172,7 @@ class TabStripRenderer(StripRenderer):
 
             if index > 0 and chord.bar != prev_bar:
                 ops.line(
-                    [(slot.x, top_y), (slot.x, bottom_y)],
+                    [(slot.x, bar_top), (slot.x, bar_bottom)],
                     fill=_GRID,
                     width=1.5,
                     tags=(tag,),
@@ -158,7 +185,7 @@ class TabStripRenderer(StripRenderer):
             cx = slot.x + slot.width / 2.0
             ops.text(
                 cx,
-                SYMBOL_MARGIN / 2.0,
+                symbol_y,
                 chord_symbol_label(chord),
                 anchor="center",
                 size=_SYMBOL_SIZE,
@@ -177,7 +204,7 @@ class TabStripRenderer(StripRenderer):
                     y - LABEL_BOX_H / 2.0,
                     LABEL_BOX_W,
                     LABEL_BOX_H,
-                    fill=_LABEL_BG,
+                    fill=STRIP_BG,
                     tags=(tag,),
                 )
                 ops.text(
