@@ -137,6 +137,8 @@ class GuitarChordPicker(INotePicker):
         self._w_bass = spec.weight('bass_note_bonus')
         self._w_slash_bass = spec.weight('slash_bass_bonus')
         self._w_span = spec.weight('span_penalty')
+        self._w_stretch = spec.weight('stretch_penalty')
+        self._w_awkward = spec.weight('awkward_stretch_penalty')
         self._w_position = spec.weight('position_penalty')
         self._w_fretted = spec.weight('fretted_finger_penalty')
         self._w_barre = spec.weight('barre_penalty')
@@ -483,6 +485,47 @@ class GuitarChordPicker(INotePicker):
         above = sum(1 for _, f in fretted if f > f_min)
         return above <= self._fingers - 1
 
+    def _is_clean_lengthwise_stretch(self, fingering: List[int],
+                                     fretted: List[int]) -> bool:
+        """Whether a wide shape is a clean lengthwise (index<->pinky) reach.
+
+        A hand can span three frets comfortably only when a single *outer*
+        finger does the reaching while the others stay anchored together. This
+        returns ``True`` when all three hold:
+
+        1. exactly one fretted string sits at the far (highest) fret -- one
+           finger makes the stretch, not two;
+        2. that far string is the lowest- or highest-*indexed* fretted string
+           (an outer finger, i.e. index or pinky, takes the reach) rather than
+           an interior one (which would force a middle finger to stretch);
+        3. every other fretted note lies within ``[min, min + 1]`` -- the
+           anchoring fingers stay compact instead of also splaying.
+
+        The reported unplayable B, ``x-2-1-4-0-2``, fails (2): its far note
+        (fret 4) sits on an interior string while strings on both sides are also
+        fretted. A true index<->pinky reach such as a single fret-4 note on the
+        outermost fretted string passes.
+
+        Args:
+            fingering: The per-string fret list (mute ``-1``, open ``0``).
+            fretted: The indices of the fretted strings (``fingering[s] > 0``),
+                as gathered by the caller.
+
+        Returns:
+            ``True`` if the shape is a clean lengthwise reach; ``False`` if an
+            inner finger would have to make the stretch.
+        """
+        fret_vals = [fingering[s] for s in fretted]
+        lo, hi = min(fret_vals), max(fret_vals)
+
+        far_strings = [s for s in fretted if fingering[s] == hi]
+        if len(far_strings) != 1:
+            return False
+        far = far_strings[0]
+        if far != min(fretted) and far != max(fretted):
+            return False
+        return all(fingering[s] <= lo + 1 for s in fretted if s != far)
+
     def _score_fingering(self, fingering: List[int], chord_notes: List[str],
                          bass_note: Optional[str]) -> float:
         """Score a fingering against the current transition state; higher is better.
@@ -540,6 +583,14 @@ class GuitarChordPicker(INotePicker):
             score += self._w_fretted * len(fretted)
             if len(fretted) > self._fingers:
                 score += self._w_barre
+            # Whole-shape stretch cost: free up to a one-fret span, then per fret.
+            score += self._w_stretch * max(0, span - 1)
+            # Middle-finger cost: a span-3 shape that is not a clean lengthwise
+            # (index<->pinky) reach forces an inner finger to make the far
+            # stretch, which no hand can hold. Charged on top of the mild,
+            # sign-agnostic stretch cost above.
+            if span == 3 and not self._is_clean_lengthwise_stretch(fingering, fretted):
+                score += self._w_awkward
 
         # Interior mutes: muted strings between the first and last sounding
         # string cannot be avoided while strumming. String-order based, which is

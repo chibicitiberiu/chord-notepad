@@ -254,6 +254,21 @@ while pushing it more negative clamps down on them.
        stretch.
      - ``span_penalty``
      - -1.2
+   * - Compact shape
+     - Subtracted per fret of the shape's total span beyond the first, on top
+       of "Wide stretch" -- a one-fret span costs nothing, a two-fret span
+       once, a three-fret span twice. A gentle nudge toward compact shapes.
+     - ``stretch_penalty``
+     - -0.7
+   * - Awkward stretch
+     - Subtracted once when a three-fret shape is *not* a clean index-to-pinky
+       reach -- that is, when the far fret isn't a single note on an outer
+       string with the rest bunched near the low fret -- so an inner finger
+       would have to make the stretch. Set strongly negative because no hand
+       can hold such a shape; a clean lengthwise reach pays only "Compact
+       shape".
+     - ``awkward_stretch_penalty``
+     - -6.0
    * - High neck position
      - Subtracted per fret of the fingering's average position up the neck.
        More negative keeps fingerings closer to the nut.

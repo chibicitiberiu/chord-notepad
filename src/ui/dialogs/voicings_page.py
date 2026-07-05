@@ -61,6 +61,8 @@ FRETBOARD_WEIGHT_LABELS: Dict[str, str] = {
     'bass_note_bonus': 'Correct bass note',
     'slash_bass_bonus': 'Correct slash bass',
     'span_penalty': 'Wide stretch',
+    'stretch_penalty': 'Compact shape',
+    'awkward_stretch_penalty': 'Awkward stretch',
     'position_penalty': 'High neck position',
     'fretted_finger_penalty': 'Fretted finger',
     'barre_penalty': 'Barre',
@@ -188,6 +190,13 @@ TOOLTIPS: Dict[str, str] = {
                                 "in the bass (the G in C/G). More positive encourages it."),
     'weight:span_penalty': ("How the picker treats wide finger stretches. More negative avoids "
                             "them; positive would seek them out."),
+    'weight:stretch_penalty': ("How the picker treats a shape's overall fret span beyond a "
+                               "single fret. More negative favors compact shapes; a one-fret "
+                               "span costs nothing."),
+    'weight:awkward_stretch_penalty': ("How the picker treats a three-fret shape that isn't a "
+                                       "clean index-to-pinky reach on an outer string -- one "
+                                       "that would force an inner finger to make the stretch. "
+                                       "Set strongly negative to reject shapes no hand can hold."),
     'weight:position_penalty': ("How the picker treats fingerings further up the neck. More "
                                 "negative keeps fingerings closer to the nut."),
     'weight:fretted_finger_penalty': ("How the picker treats fretted fingers. More negative "

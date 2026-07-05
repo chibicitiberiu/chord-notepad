@@ -704,6 +704,65 @@ class TestGuitarPickerSpecific:
         lowest_pc = (picker.tuning_midi[lowest] + f[lowest]) % 12
         assert lowest_pc == 5, f"F should have F in the bass, got {f}"  # F == pitch class 5
 
+    # --- Awkward span-3 stretch regression (the reported B) ---
+
+    @staticmethod
+    def _span_ok(picker, fingering):
+        """A picked shape must be span <= 2 or a clean lengthwise (index<->pinky) reach.
+
+        This is the physical rule the awkward-stretch weight enforces softly:
+        anything wider than a two-fret box has to be a single outer finger doing
+        the reach, never an inner finger.
+        """
+        fretted = [s for s in range(len(fingering)) if fingering[s] > 0]
+        if not fretted:
+            return True
+        span = max(fingering[s] for s in fretted) - min(fingering[s] for s in fretted)
+        if span <= 2:
+            return True
+        if span == 3:
+            return picker._is_clean_lengthwise_stretch(fingering, fretted)
+        return False
+
+    def test_b_major_standalone_not_awkward_stretch(self):
+        """Standalone B major must not pick the unplayable x-2-1-4-0-2 monster.
+
+        The reported bug: index on fret 1, two fingers on fret 2 across
+        non-adjacent strings, and the pinky reaching an *interior* string at
+        fret 4 -- a four-fret box at the nut no hand can hold. The chosen shape
+        must be compact (span <= 2) or a clean lengthwise reach.
+        """
+        picker = GuitarChordPicker()
+        picker.chord_to_midi(ChordNotes(notes=['B', 'D#', 'F#'], bass_note='B', root='B'))
+        fingering = picker.state.previous_fingering
+        assert fingering != [-1, 2, 1, 4, 0, 2], "picked the reported unplayable B monster"
+        assert self._span_ok(picker, fingering), \
+            f"B voiced with an awkward inner-finger stretch: {fingering}"
+
+    def test_b_major_in_progression_not_awkward_stretch(self):
+        """B inside E-B-C#m-A (whole-song voicing) also avoids the awkward stretch."""
+        picker = GuitarChordPicker()
+        prog = [
+            ChordNotes(notes=['E', 'G#', 'B'], bass_note='E', root='E'),
+            ChordNotes(notes=['B', 'D#', 'F#'], bass_note='B', root='B'),
+            ChordNotes(notes=['C#', 'E', 'G#'], bass_note='C#', root='C#'),
+            ChordNotes(notes=['A', 'C#', 'E'], bass_note='A', root='A'),
+        ]
+        details = picker.voice_sequence_details(prog)
+        b_fingering = details[1].fingering
+        assert b_fingering != [-1, 2, 1, 4, 0, 2], "picked the reported unplayable B monster"
+        assert self._span_ok(picker, b_fingering), \
+            f"B voiced with an awkward inner-finger stretch: {b_fingering}"
+
+    def test_clean_lengthwise_stretch_is_not_flagged_awkward(self):
+        """A genuine index<->pinky reach on an outer string is a clean stretch."""
+        picker = GuitarChordPicker()
+        # Far note (fret 4) alone on the outermost fretted string, rest compact.
+        assert picker._is_clean_lengthwise_stretch([-1, 1, -1, -1, -1, 4], [1, 5]) is True
+        assert picker._is_clean_lengthwise_stretch([4, 1, 2, 2, -1, -1], [0, 1, 2, 3]) is True
+        # The reported B: far note on an interior string -> awkward.
+        assert picker._is_clean_lengthwise_stretch([-1, 2, 1, 4, 0, 2], [1, 2, 3, 5]) is False
+
     def test_playability_full_barre(self):
         """A full barre chord (six strings, one flat finger at the low fret) is playable."""
         picker = GuitarChordPicker()

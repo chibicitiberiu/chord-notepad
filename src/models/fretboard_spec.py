@@ -87,6 +87,8 @@ DEFAULT_WEIGHTS: Dict[str, float] = {
     'bass_note_bonus': 8.0,           # was SCORE_BASS
     'slash_bass_bonus': 12.0,         # was SCORE_SLASH_BASS
     'span_penalty': -1.2,             # was SCORE_PER_SPAN_FRET
+    'stretch_penalty': -0.7,          # per fret of fretted span beyond the first
+    'awkward_stretch_penalty': -6.0,  # span-3 shape that is not a clean lengthwise reach
     'position_penalty': -0.6,         # was SCORE_PER_AVG_FRET
     'fretted_finger_penalty': -0.5,   # was SCORE_PER_FRETTED
     'barre_penalty': -1.0,            # was SCORE_BARRE
