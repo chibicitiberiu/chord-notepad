@@ -24,7 +24,7 @@ Design rules for renderers:
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Tuple
+from typing import List, Tuple
 
 from models.rendered_song import RenderedChord, RenderedSong
 from ui.chord_sheet.ops import DrawOps
@@ -71,6 +71,11 @@ class SheetContext:
 
     song: RenderedSong
 
+    zoom: float = 1.0
+    """User zoom factor for renderers that declare ``supports_zoom``. 1.0 =
+    default size. Zoom scales the renderer's intrinsic geometry (staff
+    space, string gap, fret-box size), not the panel height."""
+
 
 class StripRenderer(ABC):
     """A pluggable chord-sheet strip view.
@@ -85,6 +90,33 @@ class StripRenderer(ABC):
 
     label: str = ""
     """Human-readable name shown in the view picker."""
+
+    supports_zoom: bool = False
+    """Whether this renderer honors ``SheetContext.zoom`` (the panel enables
+    its +/- zoom buttons only for such renderers)."""
+
+    def gutter_width(self, ctx: 'SheetContext', height: float) -> float:
+        """Width in px of this renderer's frozen left gutter, or 0 for none.
+
+        The gutter is drawn on a separate, non-scrolling canvas pinned to the
+        strip's left edge (e.g. the piano roll's keyboard, the staff view's
+        clefs and key signature), so it stays visible while the content
+        scrolls. Pure function of (ctx, height).
+        """
+        return 0.0
+
+    def paint_gutter(self, ops: DrawOps, ctx: 'SheetContext', height: float,
+                     scroll_x: float) -> None:
+        """Emit draw ops for the frozen gutter.
+
+        Called on every render AND whenever the strip scrolls, with
+        ``scroll_x`` = the content x currently at the viewport's left edge,
+        so scroll-dependent gutters (the staff view's key signature must show
+        the key in effect at the first visible chord) can redraw. Renderers
+        with a static gutter simply ignore ``scroll_x``. Coordinates are
+        gutter-local (x=0 is the gutter's left edge). Default: nothing.
+        """
+        return None
 
     requires_fingering: bool = False
     """When ``True`` the renderer only makes sense for songs that carry
@@ -165,3 +197,69 @@ NOTE_INK = "#22323a"
 #: Background color of the whole strip (panel canvases and any cutout rects a
 #: renderer draws behind glyphs/numbers must use this so they blend in).
 STRIP_BG = "#fbfbf8"
+
+
+def measure_boundaries(song: RenderedSong) -> List[float]:
+    """Absolute beat positions of measure boundaries across the song.
+
+    Walks ``song.meter_map`` (each entry starts a fresh bar) stepping by that
+    meter's beats-per-bar until the next meter change or ``total_beats``.
+    Beat 0 is not included; a meter-change point itself is a boundary.
+
+    Returns:
+        Strictly increasing beat positions, possibly empty for tiny songs.
+    """
+    boundaries: List[float] = []
+    meters = list(song.meter_map) or [(0.0, (4, 4))]
+    eps = 1e-9
+    for i, (seg_start, (beats, _unit)) in enumerate(meters):
+        seg_end = meters[i + 1][0] if i + 1 < len(meters) else song.total_beats
+        if beats <= 0:
+            continue
+        if seg_start > eps and (not boundaries or seg_start > boundaries[-1] + eps):
+            boundaries.append(seg_start)
+        b = seg_start + beats
+        while b < seg_end - eps:
+            boundaries.append(b)
+            b += beats
+    if boundaries and abs(boundaries[-1] - song.total_beats) < eps:
+        boundaries.pop()
+    return boundaries
+
+
+def bar_line_xs(layout: StripLayout, song: RenderedSong) -> List[float]:
+    """X positions of measure-boundary bar lines within a strip layout.
+
+    Boundaries that fall INSIDE a chord's slot are interpolated beat-
+    proportionally into it, so a chord held across a measure boundary (e.g.
+    ``A*8`` in 4/4) still shows the bar line mid-chord. A boundary exactly at
+    a chord's start lands on that slot's left edge. Boundaries outside every
+    slot (past the last chord) are dropped.
+
+    Args:
+        layout: The layout whose slots to map into (slot order matches
+            ``song.chords``).
+        song: The rendered song providing ``start_beat``/``duration_beats``.
+
+    Returns:
+        X positions in content coordinates, in ascending order.
+    """
+    xs: List[float] = []
+    eps = 1e-9
+    slots = layout.slots
+    chords = song.chords
+    for beat in measure_boundaries(song):
+        for slot in slots:
+            chord = chords[slot.chord_index]
+            start = chord.start_beat
+            dur = chord.duration_beats
+            if beat < start - eps:
+                xs.append(slot.x)
+                break
+            if beat < start + dur - eps:
+                if dur > eps and beat > start + eps:
+                    xs.append(slot.x + slot.width * (beat - start) / dur)
+                else:
+                    xs.append(slot.x)
+                break
+    return xs
