@@ -92,7 +92,7 @@ DEFAULT_WEIGHTS: Dict[str, float] = {
     'position_penalty': -0.6,         # was SCORE_PER_AVG_FRET
     'fretted_finger_penalty': -0.5,   # was SCORE_PER_FRETTED
     'barre_penalty': -1.0,            # was SCORE_BARRE
-    'interior_mute_penalty': -2.0,    # was SCORE_PER_INTERIOR_MUTE
+    'interior_mute_penalty': -4.0,    # a dead string inside a strummed shape is hard to execute
     'movement_penalty': -1.0,         # was SCORE_PER_MOVE_FRET
     'kept_finger_bonus': 0.4,         # was SCORE_PER_KEPT_FINGER
 }

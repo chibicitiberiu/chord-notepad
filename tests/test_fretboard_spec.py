@@ -246,7 +246,7 @@ class TestWeightMerging:
         assert DEFAULT_WEIGHTS["position_penalty"] == -0.6
         assert DEFAULT_WEIGHTS["fretted_finger_penalty"] == -0.5
         assert DEFAULT_WEIGHTS["barre_penalty"] == -1.0
-        assert DEFAULT_WEIGHTS["interior_mute_penalty"] == -2.0
+        assert DEFAULT_WEIGHTS["interior_mute_penalty"] == -4.0
         assert DEFAULT_WEIGHTS["movement_penalty"] == -1.0
 
     def test_penalty_keys_negative_bonus_keys_positive(self):

@@ -1,11 +1,16 @@
-"""Tests for the v1 -> v2 config migration that flips voicing weight signs.
+"""Tests for the config-version migrations of voicing weights.
 
-v1 stored voicing penalty weights as positive magnitudes that the engine
-subtracted; v2 stores every weight as a signed contribution the engine adds.
-The migration negates each overridden penalty key (fretboard penalties,
+v1 -> v2: v1 stored voicing penalty weights as positive magnitudes that the
+engine subtracted; v2 stores every weight as a signed contribution the engine
+adds. The migration negates each overridden penalty key (fretboard penalties,
 ensemble flat penalties, and every ``omit`` sub-key) so a migrated config
 produces byte-identical voicings, while leaving bonuses, ``doubling`` and
-``inversion`` untouched. The version gate makes it idempotent.
+``inversion`` untouched.
+
+v2 -> v3: ``interior_mute_penalty``'s default was recalibrated from -2.0 to
+-4.0; fretboard voicings still carrying the exact old default follow it, while
+user-tuned values stay. A v1 config chains through both steps (+2.0 -> -2.0 ->
+-4.0). The version gate makes the whole pipeline idempotent.
 """
 
 import copy
@@ -101,7 +106,9 @@ def test_fretboard_penalties_negated(tmp_path):
     assert w["position_penalty"] == -0.6
     assert w["fretted_finger_penalty"] == -0.5
     assert w["barre_penalty"] == -1.0
-    assert w["interior_mute_penalty"] == -2.0
+    # Chains through v3: the sign flip lands on -2.0 (the old default), which
+    # the interior-mute recalibration then bumps to the new -4.0 default.
+    assert w["interior_mute_penalty"] == -4.0
     assert w["movement_penalty"] == -1.0
     # Bonuses stay positive.
     assert w["bass_note_bonus"] == 8.0
@@ -156,10 +163,10 @@ def test_unknown_model_untouched(tmp_path):
     assert migrated["voicings"]["a_piano"]["weights"]["span_penalty"] == 1.2
 
 
-def test_version_bumped_to_two(tmp_path):
+def test_version_bumped_to_current(tmp_path):
     service = _service(tmp_path)
     migrated = service._migrate_config(copy.deepcopy(_v1_config()), 1)
-    assert migrated["version"] == 2
+    assert migrated["version"] == 3
 
 
 def test_migration_is_idempotent_via_version_gate(tmp_path):
@@ -174,6 +181,59 @@ def test_migration_is_idempotent_via_version_gate(tmp_path):
     assert twice["voicings"]["my_choir"]["weights"]["omit"]["third"] == -40.0
     assert twice["voicings"]["my_choir"]["weights"]["movement"] == -0.4
     assert twice == once
+
+
+def test_v2_interior_mute_default_bumped_to_v3(tmp_path):
+    """A v2 config still on the old -2.0 interior-mute default follows the
+    recalibrated -4.0 default; a user-tuned value is left alone."""
+    service = _service(tmp_path)
+    data = {
+        "version": 2,
+        "voicings": {
+            "seven_string": {
+                "model": "fretboard",
+                "tuning": [35, 40, 45, 50, 55, 59, 64],
+                "weights": {"interior_mute_penalty": -2.0, "barre_penalty": -1.0},
+            },
+            "tuned_by_hand": {
+                "model": "fretboard",
+                "tuning": [40, 45, 50, 55, 59, 64],
+                "weights": {"interior_mute_penalty": -2.5},
+            },
+            "my_choir": {
+                "model": "ensemble",
+                "voices": [{"name": "B", "range": ["C3", "C4"]}],
+                "weights": {"movement": -0.4},
+            },
+        },
+    }
+    migrated = service._migrate_config(data, 2)
+
+    assert migrated["voicings"]["seven_string"]["weights"]["interior_mute_penalty"] == -4.0
+    # Other weights and non-default values are untouched.
+    assert migrated["voicings"]["seven_string"]["weights"]["barre_penalty"] == -1.0
+    assert migrated["voicings"]["tuned_by_hand"]["weights"]["interior_mute_penalty"] == -2.5
+    # Non-fretboard models are never touched.
+    assert migrated["voicings"]["my_choir"]["weights"] == {"movement": -0.4}
+    assert migrated["version"] == 3
+
+
+def test_v2_to_v3_does_not_renegate_signs(tmp_path):
+    """Migrating from v2 skips the sign flip entirely."""
+    service = _service(tmp_path)
+    data = {
+        "version": 2,
+        "voicings": {
+            "my_guitar": {
+                "model": "fretboard",
+                "tuning": [40, 45, 50, 55, 59, 64],
+                "weights": {"span_penalty": -1.2, "bass_note_bonus": 8.0},
+            },
+        },
+    }
+    migrated = service._migrate_config(data, 2)
+    w = migrated["voicings"]["my_guitar"]["weights"]
+    assert w == {"span_penalty": -1.2, "bass_note_bonus": 8.0}
 
 
 def test_only_overridden_keys_negated_missing_inherit_defaults(tmp_path):

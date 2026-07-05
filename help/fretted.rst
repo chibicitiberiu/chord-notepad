@@ -287,9 +287,11 @@ while pushing it more negative clamps down on them.
      - -1.0
    * - Muted inner string
      - Subtracted per muted string sitting between two sounding strings -- a
-       "buried" mute that a strum can't skip cleanly.
+       "buried" mute that a strum can't skip cleanly. Set strongly negative so
+       a plain barre chord beats a contorted shape with a dead string in the
+       middle.
      - ``interior_mute_penalty``
-     - -2.0
+     - -4.0
    * - Hand movement
      - Subtracted per fret the hand's average position shifts from the
        previous chord's fingering, evaluated across the whole song. More

@@ -117,6 +117,12 @@ moved to CHANGELOG_HISTORY.md and this file is reset.
 
 ### Fixed
 
+- The chord sheet's marker lane now flags key changes (from ``{key}``
+  directives, including a loop restoring its section's key), alongside the
+  existing section, loop, tempo, and meter markers. Markers that land on the
+  same beat now share a single combined flag instead of overlapping, and
+  nearby flags shift right so their labels never collide.
+
 - Typing no longer stutters while the chord sheet re-renders: the strip's
   voicing work (and capo scoring) now runs on a background thread, is
   cancelled mid-search the moment you type again, and never runs at all
@@ -137,6 +143,14 @@ moved to CHANGELOG_HISTORY.md and this file is reset.
   text only reaches the file when you save.
 
 ### Changed
+
+- Guitar fingering selection now weighs a muted string buried inside a
+  strummed shape much more heavily ("Muted inner string" weight, `-2.0` to
+  `-4.0`). Progressions in flat keys (Ebm, Db, B) now come out as the barre
+  and compact shapes a guitarist would actually play instead of contorted
+  grips with a dead string in the middle; open-position songs keep their
+  cowboy shapes. Saved voicings still on the old default are upgraded
+  automatically; a hand-tuned value is left alone.
 
 - Guitar fingering selection now penalizes wide fretting-hand stretches:
   compact shapes are preferred generally, and 4-fret shapes that would force

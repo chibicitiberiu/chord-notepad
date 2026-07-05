@@ -28,9 +28,39 @@ _ENSEMBLE_NEGATE_FLAT_KEYS = (
 )
 
 
+#: v2 default for ``interior_mute_penalty`` and the recalibrated v3 default.
+#: The v3 migration bumps only voicings still carrying the old default, so a
+#: user who deliberately tuned the weight keeps their value.
+_INTERIOR_MUTE_V2_DEFAULT = -2.0
+_INTERIOR_MUTE_V3_DEFAULT = -4.0
+
+
 def _is_number(value: Any) -> bool:
     """True for int/float, excluding bool (a bool is an int subclass)."""
     return isinstance(value, (int, float)) and not isinstance(value, bool)
+
+
+def _bump_default_interior_mute(data: dict) -> None:
+    """Move fretboard voicings from the v2 to the v3 ``interior_mute_penalty`` default, in-place.
+
+    Saved voicings persist their full weight dict, so the recalibrated default
+    (-2.0 -> -4.0, which makes barre shapes beat contorted interior-mute shapes)
+    would never reach existing profiles without this. Only an exact old-default
+    value is bumped; any other value is a deliberate user setting and stays.
+    """
+    voicings = data.get('voicings')
+    if not isinstance(voicings, dict):
+        return
+
+    for entry in voicings.values():
+        if not isinstance(entry, dict) or entry.get('model') != 'fretboard':
+            continue
+        weights = entry.get('weights')
+        if not isinstance(weights, dict):
+            continue
+        value = weights.get('interior_mute_penalty')
+        if _is_number(value) and value == _INTERIOR_MUTE_V2_DEFAULT:
+            weights['interior_mute_penalty'] = _INTERIOR_MUTE_V3_DEFAULT
 
 
 def _negate_signed_weights(data: dict) -> None:
@@ -243,6 +273,14 @@ class ConfigService:
         # each overridden penalty key so migrated voicings stay identical.
         if from_version < 2:
             _negate_signed_weights(data)
+
+        # v2 -> v3: interior_mute_penalty's default was recalibrated from -2.0
+        # to -4.0 (interior mutes were undervalued, letting contorted shapes
+        # beat plain barre chords). Voicings still on the old default follow it;
+        # user-tuned values are left alone. Runs after the sign flip so a v1
+        # config's +2.0 (the old positive-magnitude default) chains to -4.0.
+        if from_version < 3:
+            _bump_default_interior_mute(data)
 
         # Ensure version is set to current
         data["version"] = CONFIG_VERSION
