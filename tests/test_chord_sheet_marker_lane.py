@@ -123,7 +123,12 @@ def test_distinct_kinds_get_distinct_colors():
     assert knobs[0].fill != knobs[1].fill
 
 
-def test_same_beat_markers_fan_flags_out_without_overlap():
+def _rules(ops):
+    """The vertical marker rules (excludes the bottom separator)."""
+    return [o for o in ops if isinstance(o, LineOp) and o.points[0][1] == 0.0]
+
+
+def test_same_beat_markers_combine_into_one_flag():
     chords = [make_chord(0.0)]
     slots = _slots_for(chords)
     markers = [
@@ -131,10 +136,70 @@ def test_same_beat_markers_fan_flags_out_without_overlap():
         SongMarker(beat=0.0, time=0.0, kind="meter", text="3/4"),
     ]
     ops = build_marker_lane(markers, chords, slots, LANE_HEIGHT, 200.0).ops
+    # One rule for the group, at the shared x (slot 0's left edge).
+    rules = _rules(ops)
+    assert len(rules) == 1
+    assert rules[0].points[0][0] == pytest.approx(12.0)
+    # Two knobs side by side (each _KNOB_W=4 wide, 1px gap), kind colors kept.
     knobs = [o for o in ops if isinstance(o, RectOp)]
-    # Both rules coincide, but the two flags' knobs sit at different x.
-    assert knobs[0].x != knobs[1].x
-    assert knobs[1].x > knobs[0].x
+    assert len(knobs) == 2
+    assert knobs[1].x == pytest.approx(knobs[0].x + 4.0 + 1.0)
+    assert knobs[0].fill != knobs[1].fill
+    # One combined label joining the texts.
+    texts = [o for o in ops if isinstance(o, TextOp)]
+    assert [t.s for t in texts] == ["90 bpm · 3/4"]
+
+
+def test_nearby_flags_push_right_but_rules_stay_put():
+    # Slots at x=12 and x=62 span beats 0..4; a marker at beat 0.5 sits at
+    # x = 12 + (0.5/4)*50 = 18.25 -- close enough that its flag would overlap
+    # the first marker's label, so only the flag is pushed right of it.
+    chords = [make_chord(0.0), make_chord(4.0)]
+    slots = _slots_for(chords)
+    markers = [
+        SongMarker(beat=0.0, time=0.0, kind="section", text="verse one"),
+        SongMarker(beat=0.5, time=0.25, kind="tempo", text="140 bpm"),
+    ]
+    ops = build_marker_lane(markers, chords, slots, LANE_HEIGHT, 200.0).ops
+    rules = _rules(ops)
+    assert len(rules) == 2
+    assert rules[0].points[0][0] == pytest.approx(12.0)
+    assert rules[1].points[0][0] == pytest.approx(18.25)  # rule stays at its x
+    knobs = [o for o in ops if isinstance(o, RectOp)]
+    texts = [o for o in ops if isinstance(o, TextOp)]
+    # First flag: knob at 12+3, label estimated to end at text_x + 9*5.5.
+    first_right = texts[0].x + len("verse one") * 5.5
+    # Second flag starts clear of the first (right edge + _FLAG_PAD=8), well
+    # past where its rule would have put it (18.25 + 3).
+    assert knobs[1].x == pytest.approx(first_right + 8.0)
+    assert knobs[1].x > 18.25 + 3.0
+
+
+def test_lone_marker_flag_geometry_unchanged():
+    chords = [make_chord(0.0)]
+    slots = _slots_for(chords)
+    markers = [SongMarker(beat=0.0, time=0.0, kind="section", text="verse")]
+    ops = build_marker_lane(markers, chords, slots, LANE_HEIGHT, 200.0).ops
+    knobs = [o for o in ops if isinstance(o, RectOp)]
+    texts = [o for o in ops if isinstance(o, TextOp)]
+    assert len(knobs) == 1 and len(texts) == 1
+    # Knob at the rule's x + _FLAG_INSET=3; label 2px right of the knob.
+    assert knobs[0].x == pytest.approx(12.0 + 3.0)
+    assert texts[0].x == pytest.approx(knobs[0].x + 4.0 + 2.0)
+    assert texts[0].s == "verse"
+
+
+def test_key_kind_gets_its_own_color():
+    chords = [make_chord(0.0), make_chord(4.0)]
+    slots = _slots_for(chords)
+    markers = [
+        SongMarker(beat=0.0, time=0.0, kind="tempo", text="90 bpm"),
+        SongMarker(beat=4.0, time=2.0, kind="key", text="Key G"),
+    ]
+    ops = build_marker_lane(markers, chords, slots, LANE_HEIGHT, 200.0).ops
+    knobs = [o for o in ops if isinstance(o, RectOp)]
+    assert knobs[1].fill == "#7a5a6e"
+    assert knobs[0].fill != knobs[1].fill
 
 
 def test_empty_markers_still_draws_only_the_separator():

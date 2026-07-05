@@ -126,8 +126,12 @@ class SongRenderer:
         rendered: List[RenderedChord] = []
         tempo_map: List[Tuple[float, int]] = [(0.0, initial_bpm)]
         meter_map: List[Tuple[float, Tuple[int, int]]] = [(0.0, initial_time_sig)]
+        # key_map stays internal to the walk (it only drives 'key' markers);
+        # unlike tempo_map/meter_map it is not stored on the RenderedSong.
+        key_map: List[Tuple[float, Optional[str]]] = [(0.0, initial_key)]
         state['tempo_map'] = tempo_map
         state['meter_map'] = meter_map
+        state['key_map'] = key_map
 
         while True:
             if cancel_event is not None and cancel_event.is_set():
@@ -230,6 +234,7 @@ class SongRenderer:
             self._handle_bpm_directive(directive, state)
         elif directive.type == DirectiveType.KEY:
             state['current_key'] = directive.key
+            self._record_key(state, directive.key)
         elif directive.type == DirectiveType.TIME_SIGNATURE:
             self._handle_time_signature_directive(directive, state)
         elif directive.type == DirectiveType.LOOP:
@@ -315,6 +320,7 @@ class SongRenderer:
         state['current_key'] = saved['key']
         self._record_tempo(state, saved['bpm'])
         self._record_meter(state, saved['time_sig'])
+        self._record_key(state, saved['key'])
 
     def _handle_label_directive(self, directive: Directive, state: dict) -> None:
         if directive.label not in state['label_states']:
@@ -338,7 +344,8 @@ class SongRenderer:
         self._emit_marker(state, 'section', directive.label)
 
     # ------------------------------------------------------------------
-    # Tempo / meter change points (future-proofing for MIDI export)
+    # Tempo / meter / key change points (tempo/meter future-proof MIDI export;
+    # the key map only feeds 'key' markers and stays internal to the walk)
     # ------------------------------------------------------------------
     def _record_tempo(self, state: dict, bpm: int) -> None:
         beat = state['current_beat_position']
@@ -376,6 +383,29 @@ class SongRenderer:
             changed = True
         if changed and beat > 1e-9:
             self._emit_marker(state, 'meter', f'{time_sig[0]}/{time_sig[1]}')
+
+    def _record_key(self, state: dict, key: Optional[str]) -> None:
+        beat = state['current_beat_position']
+        key_map = state['key_map']
+        changed = False
+        if key_map and abs(key_map[-1][0] - beat) < 1e-9:
+            if key_map[-1][1] != key:
+                key_map[-1] = (beat, key)
+                changed = True
+        elif not key_map or key_map[-1][1] != key:
+            key_map.append((beat, key))
+            changed = True
+        # Marker on every effective-key change past beat 0, mirroring each write
+        # to key_map exactly like _record_tempo mirrors tempo_map: a repeated
+        # {key} with the same effective key writes nothing and so emits nothing,
+        # and loop-state restoration comes through here too, so a loop that
+        # restores the label's saved key emits a 'key' marker at the jump beat.
+        # The initial key at beat 0 is seeded directly into key_map, never via
+        # this method, so it correctly produces no marker. A key of None (song
+        # started without one and a loop restored that) has no honest label, so
+        # the map records it but no marker is emitted.
+        if changed and beat > 1e-9 and key is not None:
+            self._emit_marker(state, 'key', f'Key {key}')
 
     # ------------------------------------------------------------------
     # Timeline markers (chord-sheet strip)

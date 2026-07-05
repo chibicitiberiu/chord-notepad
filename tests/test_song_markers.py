@@ -2,7 +2,8 @@
 
 Markers annotate the unrolled beat/time domain (the same one ``RenderedChord``
 lives in) for an upcoming chord-sheet strip view: section starts, loop repeats,
-tempo changes, and meter changes. They are a purely additive side effect of the
+tempo changes, meter changes, and key changes. They are a purely additive side
+effect of the
 single render walk -- playback, MIDI export, and voicing never read them.
 
 Each test builds a song from ChordPro-ish text via ``SongParserService`` (so the
@@ -99,6 +100,75 @@ class TestMeterMarkers:
         rendered = _render("{time: 3/4}\nC D\n")
         assert [m for m in rendered.markers if m.kind == "meter"] == []
         assert rendered.meter_map == [(0.0, (3, 4))]
+
+
+class TestKeyMarkers:
+    def test_key_change_marker_text_and_beat(self):
+        rendered = _render("C\n{key: G}\nD\n")
+        keys = [m for m in rendered.markers if m.kind == "key"]
+        assert len(keys) == 1
+        assert keys[0].text == "Key G"
+        assert keys[0].beat == 4.0
+
+    def test_initial_key_emits_no_marker(self):
+        rendered = _render("C G\n", initial_key="F#")
+        assert [m for m in rendered.markers if m.kind == "key"] == []
+
+    def test_no_key_marker_when_key_directive_at_beat_zero(self):
+        # A {key} before any chord is the starting key, not a change.
+        rendered = _render("{key: G}\nC D\n")
+        assert [m for m in rendered.markers if m.kind == "key"] == []
+
+    def test_duplicate_same_key_directive_emits_nothing(self):
+        rendered = _render("C\n{key: G}\nD\n{key: G}\nE\n")
+        keys = [m for m in rendered.markers if m.kind == "key"]
+        assert [(m.text, m.beat) for m in keys] == [("Key G", 4.0)]
+
+    def test_redundant_key_directive_matching_current_key_emits_nothing(self):
+        # {key: C} while already in C (the initial key) is not a change.
+        rendered = _render("C\n{key: C}\nD\n", initial_key="C")
+        assert [m for m in rendered.markers if m.kind == "key"] == []
+
+
+class TestLoopRestoringKey:
+    """Pin the key behavior across a loop seam when a {key} lives in the body.
+
+    Mirrors TestLoopRestoringTempo: the loop restores the label's saved key at
+    the jump beat, then the re-walked {key} directive re-sets it at that same
+    beat. Markers mirror both effective changes, so two 'key' markers land at
+    the jump beat -- the honest picture of the key across the seam.
+    """
+
+    def test_restore_then_reset_emits_both_key_markers(self):
+        # The label snapshot (key C) is taken BEFORE {key: G}, and the first
+        # {key: G} sits at beat 0 (the starting key of the walk), so it emits
+        # no marker. At the seam the restore emits 'Key C', then the re-walked
+        # {key: G} emits 'Key G' -- both at the jump beat.
+        rendered = _render(
+            "{label: chorus}\n{key: G}\nC\n{loop: chorus 2}\nD\n",
+            initial_key="C")
+        assert _tuples(rendered) == [
+            ("section", "chorus"),
+            ("loop", "chorus (2/2)"),
+            ("key", "Key C"),       # loop restores the label's saved C
+            ("key", "Key G"),       # re-walked {key: G} re-sets it
+        ]
+        seam = [m for m in rendered.markers if m.kind in ("loop", "key")]
+        assert all(m.beat == 4.0 for m in seam)
+
+    def test_loop_restore_to_different_key_emits_one_marker(self):
+        # No {key} inside the body after the jump target's snapshot point --
+        # the key changes mid-body AFTER the chord, so the restore back to the
+        # saved key is the only effective change at each seam.
+        rendered = _render(
+            "{label: chorus}\nC\n{key: G}\n{loop: chorus 2}\nD\n",
+            initial_key="C")
+        keys = [m for m in rendered.markers if m.kind == "key"]
+        assert [(m.text, m.beat) for m in keys] == [
+            ("Key G", 4.0),   # {key: G} after the first pass's chord
+            ("Key C", 4.0),   # loop restore back to the label's saved C
+            ("Key G", 8.0),   # re-walked {key: G} on the second pass
+        ]
 
 
 class TestLoopMarkers:

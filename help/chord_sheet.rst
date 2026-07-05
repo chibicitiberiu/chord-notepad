@@ -137,6 +137,8 @@ The Timeline Marker Lane
 A slim lane above the strip marks points in the timeline: section starts
 (from ``{label}``), loop repeats (from ``{loop}``, shown as the section name
 and which pass you're on, e.g. ``chorus (2/3)``), tempo changes (from
-``{bpm}``), and meter changes (from ``{time}``). See :doc:`directives` for
-how those directives work. The markers are purely informational -- they
-don't affect playback or the voicing, just what you see above it.
+``{bpm}``), meter changes (from ``{time}``), and key changes (from
+``{key}``). See :doc:`directives` for how those directives work. Markers
+that fall on the same beat share a single combined flag, with one colored
+tick per marker. The markers are purely informational -- they don't affect
+playback or the voicing, just what you see above it.
