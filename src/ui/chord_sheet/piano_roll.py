@@ -18,15 +18,17 @@ Layout:
   that comfortably exceeds a readable few pixels per row; for a song spanning
   many octaves rows shrink accordingly. The strip never scrolls vertically, so
   there is no floor enforced beyond what the division naturally yields.
-- **Left gutter (``GUTTER_W`` px):** a small vertical keyboard aligned with the
-  rows -- white-key row blocks span the full gutter width, black-key rows are
-  narrower and darker, and each C row gets a tiny octave label (``C3``,
-  ``C4``, ...). The gutter is part of the lane; chord slots start at its right
-  edge.
+- **Frozen left gutter (``GUTTER_W`` px):** a small vertical keyboard aligned
+  with the rows -- white-key row blocks span the full gutter width, black-key
+  rows are narrower and darker, and each C row gets a tiny octave label
+  (``C3``, ``C4``, ...). The gutter is painted by :meth:`PianoRollRenderer.paint_gutter`
+  onto a separate, non-scrolling canvas so it stays visible while the content
+  scrolls; it is static (``scroll_x`` is ignored). Chord slots in the scrolling
+  content start at the content's left margin (x = 0), not offset by the gutter.
 - **Row shading:** black-key rows get a slightly darker fill than
-  ``STRIP_BG`` across the whole lane (not just the gutter) for the classic
-  DAW-roll look. A light guide line is drawn at every C row, a bolder one at
-  C4 (MIDI 60).
+  ``STRIP_BG`` across the whole lane for the classic DAW-roll look. A light
+  guide line is drawn at every C row, a bolder one at C4 (MIDI 60). Both live
+  in the scrolling content, full width.
 - **Slots:** one per chord in song order (rests included, as gaps -- nothing
   is drawn for them beyond the shared bar-line/shading passes), duration-
   proportional using the same ``PX_PER_BEAT``/min/max clamp values as
@@ -40,20 +42,23 @@ Layout:
   else (guitar) uses the flat ``NOTE_INK``.
 - **Chord symbols** (``chord_symbol_label``) sit in a band above the roll,
   centered over each slot.
-- **Bar lines:** a vertical light rule at the start of every chord whose
-  ``bar`` differs from the previous chord's (mirrors
-  :class:`~ui.chord_sheet.tab_strip.TabStripRenderer`).
+- **Bar lines:** a vertical light rule at every measure boundary, placed by the
+  shared :func:`~ui.chord_sheet.renderer_interface.bar_line_xs` helper. A
+  boundary that falls inside a long chord (e.g. ``A*8`` in 4/4) is interpolated
+  mid-slot, so held chords still show the measure line.
 """
 
-from typing import List, Optional, Tuple
+from typing import List, Tuple
 
 from models.rendered_song import RenderedChord, RenderedSong
 from ui.chord_sheet.ops import DrawOps
 from ui.chord_sheet.renderer_interface import (
     HAND_COLORS,
     NOTE_INK,
+    STRIP_BG,
     SheetContext,
     VOICE_COLORS,
+    bar_line_xs,
     chord_symbol_label,
     SlotBox,
     StripLayout,
@@ -63,10 +68,11 @@ from ui.chord_sheet.renderer_interface import (
 #: Pitch classes that fall on a white key.
 WHITE_PC = {0, 2, 4, 5, 7, 9, 11}
 
-#: Width of the left-hand mini-keyboard gutter, px.
+#: Width of the frozen left-hand mini-keyboard gutter, px.
 GUTTER_W = 44.0
-#: Trailing padding after the last slot, px (mirrors tab_strip's leading
-#: margin; the roll has no leading margin since the gutter fills that role).
+#: Trailing padding after the last slot, px. The scrolling content has no
+#: leading margin: slots start at the content's left edge (x = 0), and the
+#: keyboard lives in the frozen gutter canvas, not in the content.
 STRIP_MARGIN = 12.0
 #: Pixels per beat before clamping -- identical to tab_strip's, so a chord of
 #: a given duration reads the same width across the tab and piano-roll views.
@@ -110,6 +116,19 @@ def _slot_width(duration_beats: float) -> float:
     return max(MIN_SLOT_WIDTH, min(MAX_SLOT_WIDTH, duration_beats * PX_PER_BEAT))
 
 
+def _row_metrics(song: RenderedSong, height: float) -> Tuple[int, int, float]:
+    """Return ``(low, high, row_h)`` for the song's pitch rows at ``height``.
+
+    Shared by the scrolling content (row shading / guides / note bars) and the
+    frozen gutter keyboard so both agree on row positions.
+    """
+    low, high = _pitch_range(song)
+    row_count = high - low + 1
+    usable = max(0.0, height - SYMBOL_H)
+    row_h = usable / row_count if row_count > 0 else 0.0
+    return low, high, row_h
+
+
 def _pitch_range(song: RenderedSong) -> Tuple[int, int]:
     """Song-wide voiced MIDI range, padded by ``_PAD`` semitones each way.
 
@@ -132,8 +151,11 @@ class PianoRollRenderer(StripRenderer):
     requires_fingering = False
 
     def layout(self, ctx: SheetContext, height: float) -> StripLayout:
-        """Lay slots out left to right after the gutter, width proportional
-        to duration.
+        """Lay slots out left to right from the content's left margin, width
+        proportional to duration.
+
+        The keyboard now lives in the frozen gutter (see :meth:`paint_gutter`),
+        so content slots start at x = 0 -- no gutter offset.
 
         Args:
             ctx: Song-wide context.
@@ -142,22 +164,62 @@ class PianoRollRenderer(StripRenderer):
         Returns:
             A :class:`StripLayout` with one slot per chord (rests included as
             gaps -- the roll draws nothing for them beyond shared shading/bar
-            lines), in song order, contiguous starting at the gutter's right
+            lines), in song order, contiguous starting at the content's left
             edge.
         """
         slots: List[SlotBox] = []
-        x = GUTTER_W
+        x = 0.0
         for index, chord in enumerate(ctx.song.chords):
             width = _slot_width(chord.duration_beats)
             slots.append(SlotBox(chord_index=index, x=x, width=width))
             x += width
 
-        content_width = (x + STRIP_MARGIN) if slots else (GUTTER_W + 2 * STRIP_MARGIN)
+        content_width = (x + STRIP_MARGIN) if slots else (2 * STRIP_MARGIN)
         return StripLayout(width=content_width, height=height, slots=tuple(slots))
 
+    def gutter_width(self, ctx: SheetContext, height: float) -> float:
+        """Width of the frozen keyboard gutter (constant ``GUTTER_W``)."""
+        return GUTTER_W
+
+    def paint_gutter(self, ops: DrawOps, ctx: SheetContext, height: float,
+                     scroll_x: float) -> None:
+        """Paint the vertical mini-keyboard into the frozen gutter.
+
+        White-key rows fill the gutter width; black-key rows draw a narrower,
+        darker block; each C row gets a tiny octave label. Coordinates are
+        gutter-local (x = 0 is the gutter's left edge) and static -- the
+        keyboard is pitch-indexed, not time-indexed, so ``scroll_x`` is ignored.
+
+        Args:
+            ops: Recorder to append draw ops to.
+            ctx: Song-wide context.
+            height: Available content height in pixels.
+            scroll_x: Ignored (the keyboard does not scroll horizontally).
+        """
+        song = ctx.song
+        low, high, row_h = _row_metrics(song, height)
+
+        for note in range(low, high + 1):
+            y = SYMBOL_H + (high - note) * row_h
+            pc = note % 12
+            if pc not in WHITE_PC:
+                bw = GUTTER_W * _BLACK_GUTTER_RATIO
+                ops.rect(0.0, y, bw, row_h, fill=_GUTTER_BLACK,
+                         tags=("gutter", "gutter-key"))
+            else:
+                ops.rect(0.0, y, GUTTER_W, row_h, fill=_GUTTER_WHITE,
+                         outline=_GUTTER_BORDER, tags=("gutter", "gutter-key"))
+            if pc == 0:
+                octave = note // 12 - 1
+                ops.text(
+                    3.0, y + row_h / 2.0, f"C{octave}",
+                    anchor="w", size=8, fill=_INK, tags=("gutter", "label"),
+                )
+
     def paint(self, ops: DrawOps, ctx: SheetContext, layout: StripLayout) -> None:
-        """Draw row shading/guides, the gutter keyboard, bar lines, chord
-        symbols, and per-note bars.
+        """Draw row shading/guides, measure bar lines, chord symbols, and
+        per-note bars into the scrolling content (the keyboard lives in the
+        frozen gutter, see :meth:`paint_gutter`).
 
         Args:
             ops: Recorder to append draw ops to.
@@ -165,10 +227,7 @@ class PianoRollRenderer(StripRenderer):
             layout: Layout from :meth:`layout` for the same ``ctx``/``height``.
         """
         song = ctx.song
-        low, high = _pitch_range(song)
-        row_count = high - low + 1
-        usable = max(0.0, layout.height - SYMBOL_H)
-        row_h = usable / row_count if row_count > 0 else 0.0
+        low, high, row_h = _row_metrics(song, layout.height)
 
         def y_of(note: int) -> float:
             return SYMBOL_H + (high - note) * row_h
@@ -176,63 +235,38 @@ class PianoRollRenderer(StripRenderer):
         for note in range(low, high + 1):
             y = y_of(note)
             pc = note % 12
-            is_black = pc not in WHITE_PC
 
-            if is_black:
-                ops.rect(
-                    GUTTER_W,
-                    y,
-                    max(0.0, layout.width - GUTTER_W),
-                    row_h,
-                    fill=_BLACK_ROW_SHADE,
-                    tags=("row-shade",),
-                )
-                bw = GUTTER_W * _BLACK_GUTTER_RATIO
-                ops.rect(0.0, y, bw, row_h, fill=_GUTTER_BLACK, tags=("gutter", "gutter-key"))
-            else:
+            if pc not in WHITE_PC:
                 ops.rect(
                     0.0,
                     y,
-                    GUTTER_W,
+                    layout.width,
                     row_h,
-                    fill=_GUTTER_WHITE,
-                    outline=_GUTTER_BORDER,
-                    tags=("gutter", "gutter-key"),
+                    fill=_BLACK_ROW_SHADE,
+                    tags=("row-shade",),
                 )
 
             if pc == 0:
                 is_c4 = note == 60
                 ops.line(
-                    [(GUTTER_W, y), (layout.width, y)],
+                    [(0.0, y), (layout.width, y)],
                     fill=_GUIDE_C4 if is_c4 else _GUIDE_C,
                     width=1.5 if is_c4 else 1.0,
                     tags=("guide-c",),
                 )
-                octave = note // 12 - 1
-                ops.text(
-                    3.0,
-                    y + row_h / 2.0,
-                    f"C{octave}",
-                    anchor="w",
-                    size=8,
-                    fill=_INK,
-                    tags=("gutter", "label"),
-                )
+
+        for bx in bar_line_xs(layout, song):
+            ops.line(
+                [(bx, SYMBOL_H), (bx, layout.height)],
+                fill=_GRID,
+                width=1.5,
+                tags=("bar-line",),
+            )
 
         chords = song.chords
-        prev_bar: Optional[int] = None
-        for index, slot in enumerate(layout.slots):
+        for slot in layout.slots:
             chord = chords[slot.chord_index]
             tag = f"slot:{slot.chord_index}"
-
-            if index > 0 and chord.bar != prev_bar:
-                ops.line(
-                    [(slot.x, SYMBOL_H), (slot.x, layout.height)],
-                    fill=_GRID,
-                    width=1.5,
-                    tags=(tag,),
-                )
-            prev_bar = chord.bar
 
             if chord.is_rest:
                 continue

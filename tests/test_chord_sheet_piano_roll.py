@@ -1,5 +1,8 @@
 """Tests for ``PianoRollRenderer`` layout and painting."""
 
+from audio.chord_picker import ChordNotePicker
+from services.song_parser_service import SongParserService
+from services.song_renderer import SongRenderer
 from models.rendered_song import RenderedSong, RenderedChord
 from models.chord import ChordInfo
 from ui.chord_sheet.ops import DrawOps, TextOp, RectOp, LineOp
@@ -10,7 +13,13 @@ from ui.chord_sheet.piano_roll import (
     _pitch_range,
     _slot_width,
 )
-from ui.chord_sheet.renderer_interface import HAND_COLORS, NOTE_INK, SheetContext, VOICE_COLORS
+from ui.chord_sheet.renderer_interface import (
+    HAND_COLORS,
+    NOTE_INK,
+    SheetContext,
+    VOICE_COLORS,
+    bar_line_xs,
+)
 
 
 def make_chord(
@@ -57,6 +66,28 @@ def render(song, height=220.0):
     ops = DrawOps()
     renderer.paint(ops, ctx, layout)
     return ctx, layout, ops
+
+
+def render_gutter(song, height=220.0, scroll_x=0.0):
+    renderer = PianoRollRenderer()
+    ctx = SheetContext(song=song)
+    ops = DrawOps()
+    renderer.paint_gutter(ops, ctx, height, scroll_x)
+    return ctx, ops
+
+
+def render_real(text, time_sig=(4, 4), height=220.0):
+    lines = SongParserService().detect_chords_in_text(text)
+    song = SongRenderer().render(
+        lines=lines,
+        initial_key="C",
+        initial_bpm=120,
+        initial_time_sig=time_sig,
+        note_picker=ChordNotePicker(),
+        start_line_index=0,
+        start_item_index=0,
+    )
+    return render(song, height)
 
 
 def test_layout_slot_count_matches_chord_count_including_rests():
@@ -154,37 +185,91 @@ def test_black_key_rows_shaded_count_matches_black_pitch_classes_in_range():
     assert expected_black > 0
 
 
+def test_gutter_width_is_constant_and_positive():
+    renderer = PianoRollRenderer()
+    a = make_song(make_chord("C", midi_notes=[48, 60, 72]))
+    b = make_song(make_chord("C", midi_notes=[36, 60, 84]))  # wider range
+    assert renderer.gutter_width(SheetContext(song=a), 220.0) == GUTTER_W
+    assert renderer.gutter_width(SheetContext(song=b), 300.0) == GUTTER_W
+    assert GUTTER_W > 0
+
+
 def test_gutter_has_a_label_per_c_row():
     song = make_song(make_chord("C", midi_notes=[48, 60, 72]))
     ctx = SheetContext(song=song)
     low, high = _pitch_range(ctx.song)
     expected_c_rows = sum(1 for n in range(low, high + 1) if n % 12 == 0)
 
-    _, layout, ops = render(song)
+    _, ops = render_gutter(song)
     labels = [o for o in ops.ops if isinstance(o, TextOp) and "label" in o.tags]
     assert len(labels) == expected_c_rows
     assert expected_c_rows > 0
-    assert all(o.x < GUTTER_W for o in labels)
+    # Gutter coordinates are gutter-local: labels sit inside the gutter width.
+    assert all(0.0 <= o.x < GUTTER_W for o in labels)
     assert any(o.s.startswith("C") for o in labels)
 
 
-def test_bar_line_at_bar_change_none_at_first_chord():
-    c1 = make_chord("C", bar=1)
-    c2 = make_chord("F", bar=1)
-    c3 = make_chord("G", bar=2)
-    song = make_song(c1, c2, c3)
+def test_gutter_emits_key_blocks_within_gutter_width():
+    song = make_song(make_chord("C", midi_notes=[48, 60, 72]))
+    _, ops = render_gutter(song)
+    keys = [o for o in ops.ops if isinstance(o, RectOp) and "gutter-key" in o.tags]
+    assert keys, "gutter must draw keyboard key blocks"
+    # Every key block stays within the gutter width.
+    assert all(o.x >= 0.0 and o.x + o.w <= GUTTER_W + 1e-9 for o in keys)
+
+
+def test_gutter_static_across_scroll():
+    song = make_song(make_chord("C", midi_notes=[48, 60, 72]))
+    _, a = render_gutter(song, scroll_x=0.0)
+    _, b = render_gutter(song, scroll_x=999.0)
+    # The keyboard is pitch-indexed, so scrolling must not change it.
+    assert [type(o) for o in a.ops] == [type(o) for o in b.ops]
+    a_keys = [(o.x, o.y) for o in a.ops if isinstance(o, RectOp)]
+    b_keys = [(o.x, o.y) for o in b.ops if isinstance(o, RectOp)]
+    assert a_keys == b_keys
+
+
+def test_content_has_no_keyboard_and_slots_start_at_margin():
+    song = make_song(make_chord("C", midi_notes=[48, 60, 72]))
     _, layout, ops = render(song)
+    # No key-block / gutter ops leak into the scrolling content.
+    assert not [o for o in ops.ops if "gutter-key" in getattr(o, "tags", ())]
+    assert not [o for o in ops.ops if isinstance(o, TextOp) and "label" in o.tags]
+    # Slots start at the content's left margin, not offset by the gutter.
+    assert layout.slots[0].x == 0.0
 
-    def has_bar_line(slot):
-        tag = f"slot:{slot.chord_index}"
-        return any(
-            isinstance(o, LineOp) and tag in o.tags and len(set(p[0] for p in o.points)) == 1
-            for o in ops.ops
-        )
 
-    assert not has_bar_line(layout.slots[0])
-    assert not has_bar_line(layout.slots[1])
-    assert has_bar_line(layout.slots[2])
+def _bar_line_xs_drawn(ops):
+    return sorted(
+        o.points[0][0]
+        for o in ops.ops
+        if isinstance(o, LineOp) and "bar-line" in o.tags
+        and len(set(p[0] for p in o.points)) == 1
+    )
+
+
+def test_bar_lines_at_measure_boundaries_real_song():
+    # Four one-bar chords in 4/4: boundaries at the start of chords 2, 3, 4.
+    ctx, layout, ops = render_real("C*4  G*4  Am*4  F*4\n")
+    xs = _bar_line_xs_drawn(ops)
+    expected = bar_line_xs(layout, ctx.song)
+    assert xs == sorted(expected)
+    # First chord's slot has no bar line at its own left edge (beat 0).
+    assert layout.slots[0].x not in xs
+
+
+def test_long_chord_shows_mid_slot_bar_line_regression():
+    # A*8 in 4/4 held across a measure boundary must draw a bar line mid-slot,
+    # not only at chord starts (the reported bug: two measures read as one).
+    ctx, layout, ops = render_real("A*8  C*4\n")
+    xs = _bar_line_xs_drawn(ops)
+    a_slot = layout.slots[0]
+    c_slot = layout.slots[1]
+    # Boundary at beat 4 of the 8-beat A -> halfway into the A slot.
+    mid = a_slot.x + a_slot.width * 0.5
+    assert any(abs(x - mid) < 1e-6 for x in xs), (xs, mid)
+    # And a boundary at beat 8 -> the start of the C slot.
+    assert any(abs(x - c_slot.x) < 1e-6 for x in xs), (xs, c_slot.x)
 
 
 def test_empty_song_degrades_gracefully():

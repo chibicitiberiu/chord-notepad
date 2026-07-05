@@ -68,13 +68,22 @@ def make_song(*chords: RenderedChord, voice_staves=None, voice_labels=None) -> R
     )
 
 
-def paint(song: RenderedSong, height: float = 130.0):
+def paint(song: RenderedSong, height: float = 130.0, zoom: float = 1.0):
     renderer = StaffCardRenderer()
-    ctx = SheetContext(song=song)
+    ctx = SheetContext(song=song, zoom=zoom)
     layout = renderer.layout(ctx, height)
     ops = DrawOps()
     renderer.paint(ops, ctx, layout)
     return layout, ops
+
+
+def paint_gutter(song: RenderedSong, height: float = 130.0, scroll_x: float = 0.0,
+                 zoom: float = 1.0):
+    renderer = StaffCardRenderer()
+    ctx = SheetContext(song=song, zoom=zoom)
+    ops = DrawOps()
+    renderer.paint_gutter(ops, ctx, height, scroll_x)
+    return ops
 
 
 def noteheads(ops) -> List[ImageOp]:
@@ -350,7 +359,8 @@ class TestPianoTints:
 
 class TestKeySignatures:
     def _header_accidentals(self, ops, kind):
-        return [o for o in accidentals(ops, kind) if "header" in o.tags]
+        # The initial key signature is painted into the frozen gutter.
+        return [o for o in accidentals(ops, kind) if "gutter" in o.tags]
 
     def test_key_fifths_mapping(self):
         assert sc._key_fifths('C') == 0
@@ -365,7 +375,7 @@ class TestKeySignatures:
     def test_g_major_one_sharp_on_both_clefs(self):
         # C-major chord in G major: no note accidentals, so all sharps are the sig.
         song = make_song(make_chord("C", midi_notes=[60, 64, 67], chord_notes=C_MAJOR, key='G'))
-        _, ops = paint(song)
+        ops = paint_gutter(song)
         sharps = self._header_accidentals(ops, 'sharp')
         assert len(sharps) == 2  # F# on treble and bass
         geom = sc._geometry(130.0)
@@ -379,7 +389,7 @@ class TestKeySignatures:
 
     def test_f_major_one_flat_on_both_clefs(self):
         song = make_song(make_chord("C", midi_notes=[60, 64, 67], chord_notes=C_MAJOR, key='F'))
-        _, ops = paint(song)
+        ops = paint_gutter(song)
         flats = self._header_accidentals(ops, 'flat')
         assert len(flats) == 2  # Bb on treble and bass
         geom = sc._geometry(130.0)
@@ -393,7 +403,7 @@ class TestKeySignatures:
 
     def test_eb_major_three_flats_per_clef(self):
         song = make_song(make_chord("C", midi_notes=[60, 64, 67], chord_notes=C_MAJOR, key='Eb'))
-        _, ops = paint(song)
+        ops = paint_gutter(song)
         flats = self._header_accidentals(ops, 'flat')
         assert len(flats) == 6  # B, E, A on both staves
         geom = sc._geometry(130.0)
@@ -514,9 +524,9 @@ class TestLegend:
 # --------------------------------------------------------------------------
 
 class TestClefOps:
-    def test_clef_ops_present_and_keys_parseable(self):
+    def test_clef_ops_present_in_gutter_and_keys_parseable(self):
         song = make_song(make_chord("C", midi_notes=[60, 64, 67], chord_notes=C_MAJOR))
-        _, ops = paint(song)
+        ops = paint_gutter(song)
         keys = {o.key for o in ops.ops if isinstance(o, ImageOp)}
         assert any(k.startswith('clef_treble:') for k in keys)
         assert any(k.startswith('clef_bass:') for k in keys)
@@ -525,15 +535,121 @@ class TestClefOps:
             assert img is not None
             assert img.size[1] == int(key.split(':')[1])
 
-    def test_treble_clef_reference_line_lands_on_g4(self):
+    def test_content_has_no_clef_ops(self):
+        # The clefs now live in the frozen gutter, never the scrolling content.
         song = make_song(make_chord("C", midi_notes=[60, 64, 67], chord_notes=C_MAJOR))
         _, ops = paint(song)
+        assert not [o for o in ops.ops
+                    if isinstance(o, ImageOp) and o.key.startswith('clef_')]
+
+    def test_treble_clef_reference_line_lands_on_g4(self):
+        song = make_song(make_chord("C", midi_notes=[60, 64, 67], chord_notes=C_MAJOR))
+        ops = paint_gutter(song)
         geom = sc._geometry(130.0)
         placement = ca.clef_placement('treble', geom.staff_space)
         treble_op = next(o for o in ops.ops
                          if isinstance(o, ImageOp) and o.key.startswith('clef_treble:'))
         g4_y = geom.y_for_index(sc._diatonic_index('G', 4), 'treble')
         assert abs((treble_op.y + placement.baseline_y) - g4_y) < 1e-6
+
+
+# --------------------------------------------------------------------------
+# Frozen gutter: width stability + scroll-aware key signature
+# --------------------------------------------------------------------------
+
+class TestGutter:
+    def test_gutter_width_positive(self):
+        renderer = StaffCardRenderer()
+        song = make_song(make_chord("C", midi_notes=[60, 64, 67], chord_notes=C_MAJOR))
+        assert renderer.gutter_width(SheetContext(song=song), 130.0) > 0.0
+
+    def test_gutter_width_fits_widest_signature_and_is_scroll_stable(self):
+        # A song whose key changes C (0 sharps) -> B major (5 sharps): the
+        # gutter must be sized for the widest signature so its width -- and thus
+        # the content's left edge -- does not jump when scrolling past the change.
+        renderer = StaffCardRenderer()
+        c_only = make_song(make_chord("C", midi_notes=[60], chord_notes=C_MAJOR, key='C'))
+        two_key = make_song(
+            make_chord("C", midi_notes=[60], chord_notes=C_MAJOR, key='C'),
+            make_chord("B", midi_notes=[59], chord_notes=C_MAJOR, key='B'),
+        )
+        w_plain = renderer.gutter_width(SheetContext(song=c_only), 130.0)
+        w_two = renderer.gutter_width(SheetContext(song=two_key), 130.0)
+        # The B-major signature is wider than the empty C signature.
+        assert w_two > w_plain
+        # gutter_width is a pure function of (ctx, height): it does not depend on
+        # scroll, so painting at any scroll uses this same width.
+        s = sc._staff_space(130.0)
+        _, _, geom_w = sc._gutter_geometry(two_key, s)
+        assert abs(geom_w - w_two) < 1e-9
+
+    def test_gutter_signature_at_scroll_zero_is_initial_key(self):
+        # Two-key song C -> G. At scroll 0 the first visible chord is in C:
+        # no signature accidentals.
+        song = make_song(
+            make_chord("C", midi_notes=[60], chord_notes=C_MAJOR, key='C'),
+            make_chord("G", midi_notes=[55], chord_notes=C_MAJOR, key='G'),
+        )
+        ops = paint_gutter(song, scroll_x=0.0)
+        assert not accidentals(ops, 'sharp')
+        assert not accidentals(ops, 'flat')
+        # The clefs are always present regardless of scroll.
+        assert any(o.key.startswith('clef_treble:')
+                   for o in ops.ops if isinstance(o, ImageOp))
+
+    def test_gutter_signature_follows_scroll_past_key_change(self):
+        # Scrolled past the C chord to the G chord's slot: the gutter shows the
+        # NEW key's signature (one sharp on each staff).
+        song = make_song(
+            make_chord("C", midi_notes=[60], chord_notes=C_MAJOR, key='C'),
+            make_chord("G", midi_notes=[55], chord_notes=C_MAJOR, key='G'),
+        )
+        renderer = StaffCardRenderer()
+        ctx = SheetContext(song=song)
+        layout = renderer.layout(ctx, 130.0)
+        scroll_x = layout.slots[1].x + 1.0  # firmly inside the G slot
+        ops = paint_gutter(song, scroll_x=scroll_x)
+        assert len(accidentals(ops, 'sharp')) == 2  # F# treble + bass
+        assert not accidentals(ops, 'flat')
+
+
+# --------------------------------------------------------------------------
+# Zoom
+# --------------------------------------------------------------------------
+
+class TestZoom:
+    def test_supports_zoom_declared(self):
+        assert StaffCardRenderer.supports_zoom is True
+
+    def test_staff_space_scales_with_zoom_within_clamps(self):
+        # At height 130 both zoom 1.0 and 2.0 stay within the staff-space clamps,
+        # so the staff space doubles.
+        s1 = sc._staff_space(130.0, 1.0)
+        s2 = sc._staff_space(130.0, 2.0)
+        assert sc._MIN_STAFF_SPACE < s1 < sc._MAX_STAFF_SPACE
+        assert sc._MIN_STAFF_SPACE < s2 < sc._MAX_STAFF_SPACE
+        assert abs(s2 - 2.0 * s1) < 1e-9
+        # Geometry derived from the staff space scales too.
+        g1 = sc._geometry(130.0, 1.0)
+        g2 = sc._geometry(130.0, 2.0)
+        assert abs(g2.staff_space - 2.0 * g1.staff_space) < 1e-9
+
+    def test_layout_width_grows_with_zoom(self):
+        song = make_song(
+            make_chord("C", midi_notes=[60, 64, 67], chord_notes=C_MAJOR, duration_beats=2.0),
+            make_chord("G", midi_notes=[55, 59, 62], chord_notes=C_MAJOR, duration_beats=2.0),
+        )
+        l1, _ = paint(song, zoom=1.0)
+        l2, _ = paint(song, zoom=2.0)
+        assert l2.width > l1.width
+        assert l2.slots[0].width > l1.slots[0].width
+
+    def test_gutter_width_grows_with_zoom(self):
+        renderer = StaffCardRenderer()
+        song = make_song(make_chord("C", midi_notes=[60], chord_notes=C_MAJOR, key='G'))
+        w1 = renderer.gutter_width(SheetContext(song=song, zoom=1.0), 130.0)
+        w2 = renderer.gutter_width(SheetContext(song=song, zoom=2.0), 130.0)
+        assert w2 > w1
 
 
 # --------------------------------------------------------------------------

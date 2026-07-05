@@ -27,10 +27,17 @@ Engraving detail:
   derived from the spelling so it reproduces the MIDI note across the enharmonic
   seam (``B#3`` = 60, ``Cb5`` = 71). Each staff maps diatonic index by its own
   anchor (E4 on the treble bottom line; A3 on the bass top line).
-- **Key signatures.** ``RenderedChord.key`` drives a key signature drawn right
-  after the clefs, and again -- preceded by a thin double barline -- wherever
-  the key changes chord-to-chord. Sharps/flats use the circle of fifths (minor
+- **Frozen clefs + key signature.** The two clefs and the key signature are
+  painted into a non-scrolling left gutter (:meth:`StaffCardRenderer.paint_gutter`)
+  so they stay visible while the content scrolls. The gutter signature is
+  scroll-aware: it shows the signature for the key in effect at the first
+  visible chord. In-content key changes still draw a fresh signature (preceded
+  by a thin double barline) at the change point; the gutter is a persistent
+  reminder, not a replacement. Sharps/flats use the circle of fifths (minor
   keys via their relative major); unmappable keys draw no signature.
+- **Zoom.** The renderer honors ``SheetContext.zoom``: the staff space (and
+  every glyph, gap, ledger extent, and slot width derived from it) scales by
+  the zoom factor, clamped to the same pixel floor/ceiling as at zoom 1.0.
 - **Accidentals are relative to the signature.** A note only gets an accidental
   glyph when its spelling deviates from the signature: F# in G major draws
   nothing, F natural in G major draws a natural. There is **no bar-carryover
@@ -62,6 +69,7 @@ from ui.chord_sheet.ops import DrawOps
 from ui.chord_sheet.renderer_interface import (
     HAND_COLORS,
     NOTE_INK,
+    STRIP_BG,
     SheetContext,
     SlotBox,
     StripLayout,
@@ -394,14 +402,20 @@ class _Geometry:
         return self.bass_top + (_A3_INDEX - diatonic_index) * half
 
 
-def _staff_space(height: float) -> float:
-    """Staff-space size (line-to-line gap) for a lane of the given height."""
-    return max(_MIN_STAFF_SPACE, min(_MAX_STAFF_SPACE, height / _HEIGHT_UNITS))
+def _staff_space(height: float, zoom: float = 1.0) -> float:
+    """Staff-space size (line-to-line gap) for a lane of the given height.
+
+    ``zoom`` scales the intrinsic staff-space size (and hence every glyph,
+    gap, and ledger extent derived from it); the result is clamped to the same
+    sane pixel floor/ceiling used at zoom 1.0, so the staff never collapses or
+    grows without bound.
+    """
+    return max(_MIN_STAFF_SPACE, min(_MAX_STAFF_SPACE, height / _HEIGHT_UNITS * zoom))
 
 
-def _geometry(height: float) -> _Geometry:
-    """Compute the lane's vertical geometry from ``height`` (pure)."""
-    s = _staff_space(height)
+def _geometry(height: float, zoom: float = 1.0) -> _Geometry:
+    """Compute the lane's vertical geometry from ``height``/``zoom`` (pure)."""
+    s = _staff_space(height, zoom)
 
     top_pad = 0.6 * s
     symbol_h = 2.2 * s
@@ -437,11 +451,18 @@ _SIG_NOTES_GAP = 1.0
 _KEY_CHANGE_PAD = 1.4
 
 
-def _slot_width(chord: RenderedChord) -> float:
-    """Slot width: slim for rests, else duration-proportional (clamped)."""
+def _slot_width(chord: RenderedChord, zoom: float = 1.0) -> float:
+    """Slot width: slim for rests, else duration-proportional (clamped).
+
+    The duration->width constants scale with ``zoom`` so the layout keeps its
+    proportions (and does not cramp) as the staff space grows.
+    """
     if chord.is_rest:
-        return REST_WIDTH
-    return max(MIN_SLOT_WIDTH, min(MAX_SLOT_WIDTH, chord.duration_beats * PX_PER_BEAT))
+        return REST_WIDTH * zoom
+    return max(
+        MIN_SLOT_WIDTH * zoom,
+        min(MAX_SLOT_WIDTH * zoom, chord.duration_beats * PX_PER_BEAT * zoom),
+    )
 
 
 def _signature_width(fifths: Optional[int], s: float) -> float:
@@ -458,17 +479,34 @@ def _key_change_lead(fifths: Optional[int], s: float) -> float:
     return _KEY_CHANGE_PAD * s + _signature_width(fifths, s)
 
 
-def _header_geometry(song: RenderedSong, s: float) -> Tuple[float, float, float]:
-    """Return ``(x_clef, x_sig, x_slots)`` for the clef + initial-signature header."""
+def _content_x0(s: float) -> float:
+    """Left x where the first scrolling-content slot begins.
+
+    The clef and initial key signature now live in the frozen gutter, so the
+    content only reserves a small lead after its connecting barline.
+    """
+    return STRIP_MARGIN + _SIG_NOTES_GAP * s
+
+
+def _gutter_geometry(song: RenderedSong, s: float) -> Tuple[float, float, float]:
+    """Return gutter-local ``(x_clef, x_sig, gutter_width)`` for the frozen pane.
+
+    ``x_clef``/``x_sig`` are the gutter-local x of the clef and the signature's
+    first accidental. ``gutter_width`` fits the clef plus the WIDEST key
+    signature used anywhere in the song (so the width -- and thus the content's
+    left edge -- does not jump when scrolling past a key change) plus a small
+    trailing pad.
+    """
     clef_w = max(
         clef_placement('treble', s).width,
         clef_placement('bass', s).width,
     )
-    x_clef = STRIP_MARGIN + _CLEF_PAD_LEFT * s
+    x_clef = _CLEF_PAD_LEFT * s
     x_sig = x_clef + clef_w + _CLEF_SIG_GAP * s
-    fifths0 = _key_fifths(song.chords[0].key) if song.chords else None
-    x_slots = x_sig + _signature_width(fifths0, s) + _SIG_NOTES_GAP * s
-    return x_clef, x_sig, x_slots
+    keys = {chord.key for chord in song.chords} or {None}
+    max_sig = max(_signature_width(_key_fifths(key), s) for key in keys)
+    width = x_sig + max_sig + _SIG_NOTES_GAP * s
+    return x_clef, x_sig, width
 
 
 # --------------------------------------------------------------------------
@@ -481,13 +519,16 @@ class StaffCardRenderer(StripRenderer):
     id = "staff"
     label = "Staff"
     requires_fingering = False
+    supports_zoom = True
 
     def layout(self, ctx: SheetContext, height: float) -> StripLayout:
         """Lay slots left to right, width proportional to duration.
 
-        Slots begin after the clef + initial-signature header; a chord whose key
+        Slots begin after a small content lead (the clef + initial signature
+        now live in the frozen gutter, not the content); a chord whose key
         differs from the previous chord's reserves extra lead width for a double
-        barline and a new signature.
+        barline and a new signature. All horizontal spacing scales with
+        ``ctx.zoom`` via the zoom-aware staff space and slot widths.
 
         Args:
             ctx: Song-wide context.
@@ -498,8 +539,8 @@ class StaffCardRenderer(StripRenderer):
             as slim gaps).
         """
         song = ctx.song
-        s = _staff_space(height)
-        _, _, x = _header_geometry(song, s)
+        s = _staff_space(height, ctx.zoom)
+        x = _content_x0(s)
 
         prev_fifths = _key_fifths(song.chords[0].key) if song.chords else None
         slots: List[SlotBox] = []
@@ -509,12 +550,76 @@ class StaffCardRenderer(StripRenderer):
                 if fifths != prev_fifths:
                     x += _key_change_lead(fifths, s)
                     prev_fifths = fifths
-            width = _slot_width(chord)
+            width = _slot_width(chord, ctx.zoom)
             slots.append(SlotBox(chord_index=index, x=x, width=width))
             x += width
 
         content_width = (x + STRIP_MARGIN) if slots else (2 * STRIP_MARGIN)
         return StripLayout(width=content_width, height=height, slots=tuple(slots))
+
+    # -- Frozen gutter (clefs + key signature) ------------------------------
+
+    def gutter_width(self, ctx: SheetContext, height: float) -> float:
+        """Width of the frozen gutter: clef + widest signature + padding.
+
+        Sized for the widest key signature used anywhere in the song so the
+        content's left edge does not shift when the scroll-aware signature
+        changes. Honors ``ctx.zoom`` through the zoom-aware staff space.
+        """
+        s = _staff_space(height, ctx.zoom)
+        _, _, width = _gutter_geometry(ctx.song, s)
+        return width
+
+    def paint_gutter(self, ops: DrawOps, ctx: SheetContext, height: float,
+                     scroll_x: float) -> None:
+        """Paint the frozen clefs and the scroll-aware key signature.
+
+        Draws (in order) the strip background, both staves' line stubs across
+        the gutter, the two clefs, then the key signature for the key in effect
+        at the first chord whose slot is at-or-after ``scroll_x`` (empty song or
+        before the first chord -> the initial key). Coordinates are gutter-local.
+
+        Args:
+            ops: Recorder to append draw ops to.
+            ctx: Song-wide context.
+            height: Available content height in pixels.
+            scroll_x: Content x at the viewport's left edge (drives which key
+                signature to show).
+        """
+        song = ctx.song
+        geom = _geometry(height, ctx.zoom)
+        s = geom.staff_space
+        x_clef, x_sig, width = _gutter_geometry(song, s)
+
+        ops.rect(0.0, 0.0, width, height, fill=STRIP_BG, tags=("gutter",))
+        for base in (geom.treble_top, geom.bass_top):
+            for k in range(5):
+                y = base + k * s
+                ops.line([(0.0, y), (width, y)],
+                         fill=_STAFF_LINE, width=geom.staff_line_w, tags=("gutter",))
+
+        self._paint_clefs(ops, x_clef, geom, tags=("gutter",))
+        fifths = self._key_at_scroll(ctx, height, scroll_x)
+        self._paint_signature(ops, x_sig, fifths, geom, ("gutter",))
+
+    def _key_at_scroll(self, ctx: SheetContext, height: float,
+                       scroll_x: float) -> Optional[int]:
+        """Circle-of-fifths of the key in effect at the first visible chord.
+
+        Walks the (pure) layout slots and returns the fifths of the first chord
+        whose slot begins at-or-after ``scroll_x``; before the first chord (or
+        an empty song) returns the initial key; scrolled past every chord it
+        returns the last chord's key.
+        """
+        song = ctx.song
+        chords = song.chords
+        if not chords:
+            return None
+        eps = 1e-6
+        for slot in self.layout(ctx, height).slots:
+            if slot.x >= scroll_x - eps:
+                return _key_fifths(chords[slot.chord_index].key)
+        return _key_fifths(chords[-1].key)
 
     def paint(self, ops: DrawOps, ctx: SheetContext, layout: StripLayout) -> None:
         """Emit the grand staff, clefs, signatures, and whole notes.
@@ -526,17 +631,17 @@ class StaffCardRenderer(StripRenderer):
         """
         song = ctx.song
         chords = song.chords
-        geom = _geometry(layout.height)
+        geom = _geometry(layout.height, ctx.zoom)
         s = geom.staff_space
 
         x_left = STRIP_MARGIN
         x_right = max(x_left + 1.0, layout.width - STRIP_MARGIN)
         self._paint_staff_lines(ops, geom, x_left, x_right)
 
-        x_clef, x_sig, _ = _header_geometry(song, s)
-        self._paint_clefs(ops, x_clef, geom)
+        # Clefs and the initial signature live in the frozen gutter now; the
+        # scrolling content only draws staff lines, legend, in-content key
+        # changes, symbols, and notes.
         fifths0 = _key_fifths(chords[0].key) if chords else None
-        self._paint_signature(ops, x_sig, fifths0, geom, ("header",))
         if song.voice_labels:
             self._paint_legend(ops, song.voice_labels, geom)
 
@@ -582,16 +687,17 @@ class StaffCardRenderer(StripRenderer):
             fill=_STAFF_LINE, width=geom.staff_line_w, tags=("staff",),
         )
 
-    def _paint_clefs(self, ops: DrawOps, x_clef: float, geom: _Geometry) -> None:
+    def _paint_clefs(self, ops: DrawOps, x_clef: float, geom: _Geometry,
+                     tags: Tuple[str, ...] = ("gutter",)) -> None:
         """Emit clef images registered to each staff's reference line."""
         treble = clef_placement('treble', geom.staff_space)
         g4_y = geom.y_for_index(_diatonic_index('G', 4), 'treble')
         ops.image(x_clef, g4_y - treble.baseline_y, treble.key,
-                  anchor="nw", tags=("header",))
+                  anchor="nw", tags=tags)
         bass = clef_placement('bass', geom.staff_space)
         f3_y = geom.y_for_index(_diatonic_index('F', 3), 'bass')
         ops.image(x_clef, f3_y - bass.baseline_y, bass.key,
-                  anchor="nw", tags=("header",))
+                  anchor="nw", tags=tags)
 
     def _paint_legend(self, ops: DrawOps, labels: List[str], geom: _Geometry) -> None:
         """Draw a tiny stacked voice legend at the far left, each in its color."""
