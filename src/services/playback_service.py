@@ -651,12 +651,40 @@ class PlaybackService:
         self._render_thread.start()
         return True
 
+    def fretboard_spec_for(self, voicing: str):
+        """Resolve a voicing string to its :class:`FretboardSpec`, or ``None``.
+
+        Pure lookup -- unlike :meth:`set_voicing` it does not change the active
+        picker. Handles built-in ``guitar:<tuning>`` slugs and ``voicing:<name>``
+        registry entries whose model is ``fretboard``; returns ``None`` for
+        piano/ensemble voicings or an unresolvable name. Used by the Suggest
+        Capo tool, which scores capo positions on a chosen fretboard voicing
+        that need not be the active one.
+        """
+        from models.fretboard_spec import BUILTIN_FRETBOARDS, FretboardSpec
+
+        if voicing.startswith("guitar:"):
+            key = voicing.split(":", 1)[1]
+            return BUILTIN_FRETBOARDS.get(key, BUILTIN_FRETBOARDS["standard"])
+        if voicing.startswith("voicing:"):
+            name = voicing.split(":", 1)[1]
+            params = self._config.get("voicings", {}).get(name)
+            if isinstance(params, dict) and params.get("model") == "fretboard":
+                params = {k: v for k, v in params.items() if k != "model"}
+                try:
+                    return FretboardSpec.from_dict(name, params)
+                except Exception as e:  # pragma: no cover - defensive
+                    self._logger.warning(f"Invalid fretboard voicing '{name}': {e}")
+                    return None
+        return None
+
     def render_song(
         self,
         lines: List[Line],
         initial_key: Optional[str],
         should_abort: Optional[Callable[[], bool]] = None,
         private_picker: bool = False,
+        note_picker: Optional[INotePicker] = None,
     ) -> Optional[RenderedSong]:
         """Synchronously render a whole song for export or the chord-sheet strip.
 
@@ -680,6 +708,10 @@ class PlaybackService:
                 background thread concurrently with a playback render -- must not
                 share the playback picker. Playback and export keep the shared
                 picker (default ``False``) so their goldens are unchanged.
+            note_picker: Explicit picker to render with, overriding both the
+                shared picker and ``private_picker``. Used by the Suggest Capo
+                tool to render (and thus resolve the chords of) a *chosen*
+                fretboard voicing that need not be the active one.
 
         Returns:
             The fully rendered song, or None if there are no chords to render
@@ -693,10 +725,11 @@ class PlaybackService:
             self._logger.info("No chords found to render")
             return None
 
-        if private_picker:
-            note_picker = self._create_note_picker(self._config.get("voicing", "piano"))
-        else:
-            note_picker = self._note_picker
+        if note_picker is None:
+            if private_picker:
+                note_picker = self._create_note_picker(self._config.get("voicing", "piano"))
+            else:
+                note_picker = self._note_picker
 
         try:
             return SongRenderer(logger=self._logger).render(

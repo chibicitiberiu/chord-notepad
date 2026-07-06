@@ -21,6 +21,7 @@ from ui.dialogs import (
     InsertLoopDialog,
     OptionsDialog,
     TransposeDialog,
+    CapoDialog,
 )
 from utils.icon_loader import IconLoader
 from utils.ui_helpers import create_tooltip
@@ -465,6 +466,7 @@ class MainWindow(tk.Tk):
         tools_menu.add_cascade(label="Insert", menu=insert_menu)
         tools_menu.add_separator()
         tools_menu.add_command(label="Transpose...", command=self.open_transpose_dialog)
+        tools_menu.add_command(label="Suggest Capo...", command=self.open_suggest_capo_dialog)
         tools_menu.add_separator()
         tools_menu.add_command(label="Convert to American Notation", command=self.convert_to_american)
         tools_menu.add_command(label="Convert to European Notation", command=self.convert_to_european)
@@ -1062,17 +1064,6 @@ class MainWindow(tk.Tk):
         voicing = self.voicing_var.get()
         self.viewmodel.set_voicing(voicing)
 
-    def on_allow_capo_toggle(self) -> None:
-        """Persist the Voicing-menu 'Allow capo' toggle and refresh the strip."""
-        value = bool(self._allow_capo_var.get())
-        config = self.application.config_service
-        config.set("allow_capo", value)
-        config.save_config()
-        vm = self.chord_sheet_viewmodel
-        refresh = getattr(vm, "refresh_capo_suggestion", None)
-        if refresh is not None:
-            refresh()
-
     def rebuild_voicing_menu(self) -> None:
         """(Re)populate the Voicing submenu.
 
@@ -1092,15 +1083,6 @@ class MainWindow(tk.Tk):
             self.voicing_menu.add_radiobutton(label=spec.label, variable=self.voicing_var,
                                               value=f"guitar:{fretboard_key}",
                                               command=self.on_voicing_change)
-
-        # Capo suggestion toggle, kept next to the guitar voicings it applies
-        # to (mirrors the checkbox in Settings -> Playback & Audio).
-        if not hasattr(self, '_allow_capo_var'):
-            self._allow_capo_var = tk.BooleanVar(
-                value=bool(self.application.config_service.get("allow_capo", False)))
-        self.voicing_menu.add_checkbutton(label="Allow capo",
-                                          variable=self._allow_capo_var,
-                                          command=self.on_allow_capo_toggle)
 
         # Built-in ensembles
         self.voicing_menu.add_separator()
@@ -1290,10 +1272,6 @@ class MainWindow(tk.Tk):
         if changes.voicings_changed:
             self.rebuild_voicing_menu()
 
-        if getattr(changes, "guitar_changed", False) and hasattr(self, '_allow_capo_var'):
-            self._allow_capo_var.set(
-                bool(self.application.config_service.get("allow_capo", False)))
-
         if changes.new_active_voicing is not None:
             # The active voicing pointer itself was rewritten (the selected
             # voicing was renamed or removed): switch the menu selection and
@@ -1427,6 +1405,57 @@ class MainWindow(tk.Tk):
 
         scope = "selection" if region is not None else "whole song"
         self.update_statusbar(f"Transposed {scope} by {semitones:+d} semitones")
+
+    def open_suggest_capo_dialog(self) -> None:
+        """Suggest a capo for a chosen voicing and insert a {capo} directive.
+
+        Asks which fretboard voicing to optimize for (defaulting to the active
+        one, or standard guitar when the active voicing is not fretboard),
+        scores the selection (or whole song), and inserts a ``{capo: N}``
+        directive as one undo step -- or reports that no capo helps.
+        """
+        region = self._selection_char_range()
+
+        options = self.viewmodel.capo_voicing_options()  # (display, voicing_string)
+        by_name = {display: voicing for display, voicing in options}
+        default_voicing = self.viewmodel.default_capo_voicing()
+        default_name = next(
+            (display for display, voicing in options if voicing == default_voicing),
+            options[0][0] if options else "",
+        )
+
+        dialog = CapoDialog(self, list(by_name.keys()), default_name)
+        self.wait_window(dialog)
+        if dialog.result is None:
+            return
+
+        voicing = by_name.get(dialog.result)
+        if voicing is None:
+            return
+
+        # Sync the widget text into the ViewModel before scoring/inserting.
+        current_text = self.text_editor.get("1.0", "end-1c")
+        self.viewmodel.on_text_changed(current_text)
+
+        capo = self.viewmodel.suggest_capo_for(voicing, region)
+        scope = "selection" if region is not None else "whole song"
+        if not capo:
+            self.update_statusbar(
+                f"No capo makes the {scope} easier on {dialog.result}")
+            return
+
+        # Insert the directive as a single undo unit (same pattern as transpose).
+        prev_autosep = self.text_editor.cget('autoseparators')
+        self.text_editor.edit_separator()
+        self.text_editor.config(autoseparators=False)
+        try:
+            self.viewmodel.insert_capo(capo, region)
+        finally:
+            self.text_editor.config(autoseparators=prev_autosep)
+            self.text_editor.edit_separator()
+
+        self.update_statusbar(
+            f"Suggested capo {capo} for the {scope} on {dialog.result}")
 
     def _selection_char_range(self) -> Optional[tuple]:
         """Return the current selection as a (start, end) character range.

@@ -688,6 +688,89 @@ class MainWindowViewModel(Observable):
         if not self._is_modified:
             self.set_and_notify("is_modified", True)
 
+    # -- Suggest Capo (Tools) ------------------------------------------------
+
+    def capo_voicing_options(self) -> List[tuple]:
+        """List ``(display_name, voicing_string)`` for every fretboard voicing.
+
+        Covers the built-in fretboard tunings and any ``fretboard``-model entry
+        in the voicings registry. The Suggest Capo dialog shows the display
+        names; the voicing string resolves back to a :class:`FretboardSpec`.
+        """
+        from models.fretboard_spec import BUILTIN_FRETBOARDS
+
+        options: List[tuple] = []
+        for key in ("standard", "drop_d", "dadgad", "open_g", "ukulele"):
+            options.append((BUILTIN_FRETBOARDS[key].label, f"guitar:{key}"))
+        for name, params in self.get_voicings().items():
+            if isinstance(params, dict) and params.get("model") == "fretboard":
+                options.append((name, f"voicing:{name}"))
+        return options
+
+    def default_capo_voicing(self) -> str:
+        """The voicing string to preselect in the Suggest Capo dialog.
+
+        The active voicing when it is a fretboard voicing (the common case),
+        otherwise built-in standard guitar -- a capo is a fretboard concept, and
+        the active voicing may be piano or an ensemble.
+        """
+        active = self.get_voicing()
+        if self._audio.fretboard_spec_for(active) is not None:
+            return active
+        return "guitar:standard"
+
+    def suggest_capo_for(self, voicing: str, region: Optional[tuple] = None) -> Optional[int]:
+        """Best capo fret for ``voicing`` over ``region`` (whole song if ``None``).
+
+        Renders the current document with a picker on the chosen voicing's spec
+        (so chords resolve with the same key/loop context as everywhere else),
+        keeps the chords whose source span overlaps ``region``, and scores capo
+        positions with :func:`services.capo_advisor.suggest_capo`. Returns the
+        suggested fret, or ``None`` when the voicing is not a fretboard voicing,
+        there are no chords in range, or no capo beats capo 0 meaningfully.
+        """
+        spec = self._audio.fretboard_spec_for(voicing)
+        if spec is None:
+            return None
+
+        from audio.guitar_chord_picker import GuitarChordPicker
+        from services.capo_advisor import suggest_capo
+
+        lines = self._chord.detect_chords_in_text(self._current_text, self._notation)
+        rendered = self._audio.render_song(
+            lines, self._key, note_picker=GuitarChordPicker(spec))
+        if rendered is None:
+            return None
+
+        chords = rendered.chords
+        if region is not None:
+            start, end = region
+            chords = [rc for rc in chords
+                      if rc.chord_info.start < end and rc.chord_info.end > start]
+        sequence = [rc.chord_notes for rc in chords if rc.chord_notes is not None]
+        if not sequence:
+            return None
+        return suggest_capo(spec, sequence)
+
+    def insert_capo(self, capo: int, region: Optional[tuple] = None) -> None:
+        """Insert a ``{capo: N}`` directive and replace the document text.
+
+        Mirrors :meth:`transpose`: it calls the pure
+        :func:`services.capo_insert.insert_capo_directive` and
+        ``set_and_notify("current_text", ...)`` so the editor swaps its content
+        (the view groups this into one undo step). The directive lands at the
+        start of the line containing the selection (or the top of the document
+        when ``region`` is ``None``).
+        """
+        from services.capo_insert import insert_capo_directive
+
+        selection_start = region[0] if region is not None else None
+        new_text, _offset = insert_capo_directive(
+            self._current_text, capo, selection_start)
+        self.set_and_notify("current_text", new_text)
+        if not self._is_modified:
+            self.set_and_notify("is_modified", True)
+
     def set_font_size(self, size: int) -> None:
         """Set editor font size.
 
