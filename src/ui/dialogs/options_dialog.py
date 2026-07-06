@@ -276,33 +276,6 @@ class OptionsDialog(tk.Toplevel):
         ).grid(row=row, column=0, columnspan=2, sticky="w")
         row += 1
 
-        # Guitar / fretboard section.
-        ttk.Separator(page, orient=tk.HORIZONTAL).grid(
-            row=row, column=0, columnspan=2, sticky="ew", pady=(14, 6),
-        )
-        row += 1
-        ttk.Label(page, text="Guitar", font=("TkDefaultFont", 10, "bold")).grid(
-            row=row, column=0, columnspan=2, sticky="w", pady=(0, 2),
-        )
-        row += 1
-
-        allow_capo_var = tk.BooleanVar(value=self._viewmodel.allow_capo)
-        ttk.Checkbutton(
-            page,
-            text="Allow capo (suggest a capo position for fretboard voicings)",
-            variable=allow_capo_var,
-        ).grid(row=row, column=0, columnspan=2, sticky="w", pady=6)
-        self._bind_var(allow_capo_var, "allow_capo")
-        row += 1
-
-        ttk.Label(
-            page,
-            text="When on, the chord sheet suggests the easiest capo position "
-                 "for the song while a fret or tab view is active. Advice only "
-                 "— nothing is re-voiced.",
-            foreground=_HINT_FG, wraplength=420, justify=tk.LEFT,
-        ).grid(row=row, column=0, columnspan=2, sticky="w")
-
         return page
 
     # ------------------------------------------------------------------
@@ -390,22 +363,4 @@ class OptionsDialog(tk.Toplevel):
         changes = self._viewmodel.commit()
         if self.on_apply is not None:
             self.on_apply(changes)
-        if changes.guitar_changed:
-            self._refresh_capo_suggestion()
         self.destroy()
-
-    def _refresh_capo_suggestion(self) -> None:
-        """Nudge the chord-sheet strip to recompute its capo suggestion.
-
-        The 'Allow capo' flag only affects the chord-sheet header, so toggling
-        it can take effect without a restart by re-scoring the already-rendered
-        song. The strip viewmodel is reached duck-typed through the parent
-        window; if it is absent (e.g. no strip wired) this is a no-op.
-        """
-        vm = getattr(self.master, "chord_sheet_viewmodel", None)
-        refresh = getattr(vm, "refresh_capo_suggestion", None)
-        if callable(refresh):
-            try:
-                refresh()
-            except Exception:  # pragma: no cover - defensive
-                logger.debug("Could not refresh capo suggestion", exc_info=True)

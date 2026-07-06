@@ -11,29 +11,26 @@ so the strip shows exactly the voicing that would play/export, but with a
 *private* picker (``private_picker=True``) so a background strip render never
 races the shared playback picker's voice-leading state.
 
-Rendering (a whole-song beam-Viterbi voicing search, plus up to a handful more
-for the capo advisor) is expensive, so it is **debounced** and run **off the UI
-thread** on a serialized single-worker basis:
+Rendering (a whole-song beam-Viterbi voicing search) is expensive, so it is
+**debounced** and run **off the UI thread** on a serialized single-worker basis:
 
-- Every ``set_song`` / ``refresh_capo_suggestion`` bumps a GENERATION counter.
+- Every ``set_song`` bumps a GENERATION counter.
 - When the debounce fires, one job is dispatched through the ``executor`` seam
   (default: a daemon thread; tests: inline). Only one job runs at a time; a
   request arriving while a job runs is remembered and run when the job finishes.
 - The job threads a ``should_abort`` predicate -- "my generation is no longer
-  current" -- into the render and capo search, so a superseded job stops
-  promptly (raising :class:`~exceptions.RenderAborted`) instead of running to
-  completion.
+  current" -- into the render, so a superseded job stops promptly (raising
+  :class:`~exceptions.RenderAborted`) instead of running to completion.
 - The result is marshaled back to the UI thread (``Application.queue_ui_callback``)
   and APPLIED ONLY IF its generation is still current; stale results are dropped.
 
-The debounce scheduler, the executor, the UI-thread marshal, the render seam and
-the capo-spec seam are all injectable so tests run synchronously.
+The debounce scheduler, the executor, the UI-thread marshal and the render seam
+are all injectable so tests run synchronously.
 """
 
-import json
 import logging
 import threading
-from typing import Callable, Dict, List, Optional, Tuple
+from typing import Callable, Dict, List, Optional
 
 from exceptions import RenderAborted
 
@@ -78,11 +75,6 @@ _SCROLL_EPSILON = 0.5    # px; scroll deltas smaller than this are treated as no
 _ZOOM_STEP = 1.2   # multiplicative factor per zoom-in/out click
 _ZOOM_MIN = 0.5
 _ZOOM_MAX = 2.5
-
-# Capo-suggestion cache size: the advice depends only on the fretboard spec and
-# the chord sequence, so a handful of entries covers toggling between recent
-# songs/specs while keeping the cache trivially small.
-_CAPO_CACHE_MAX = 4
 
 
 class _TimerScheduler:
@@ -130,7 +122,6 @@ class ChordSheetViewModel(Observable):
         renderers: Optional[List[StripRenderer]] = None,
         render_fn: Optional[Callable[..., Optional[RenderedSong]]] = None,
         audition_fn: Optional[Callable[[List[int]], None]] = None,
-        capo_spec_fn: Optional[Callable[[], object]] = None,
         scheduler=None,
         executor: Optional[Callable[[Callable[[], None]], None]] = None,
         marshal: Optional[Callable[[Callable[[], None]], None]] = None,
@@ -151,10 +142,6 @@ class ChordSheetViewModel(Observable):
                 render never shares the shared playback picker's state).
             audition_fn: Injectable ``(midi_notes) -> None`` seam; defaults to
                 ``audio_service.play_notes_immediate``.
-            capo_spec_fn: Injectable ``() -> FretboardSpec | None`` seam giving
-                the active picker's fretboard spec (``None`` for non-fretboard
-                voicings); defaults to ``audio_service.active_fretboard_spec``.
-                Used by the capo advisor when ``allow_capo`` is on.
             scheduler: Injectable debounce scheduler with ``schedule(delay, fn)``
                 / ``cancel(handle)``; defaults to a ``threading.Timer`` seam.
             executor: Injectable ``(fn) -> None`` seam that runs a render job.
@@ -176,9 +163,6 @@ class ChordSheetViewModel(Observable):
         )
         self._render_fn = render_fn or self._default_render
         self._audition_fn = audition_fn or audio_service.play_notes_immediate
-        self._capo_spec_fn = capo_spec_fn or getattr(
-            audio_service, "active_fretboard_spec", lambda: None
-        )
         self._scheduler = scheduler or _TimerScheduler()
         self._executor = executor or self._default_executor
         self._marshal = marshal or self._default_marshal
@@ -186,7 +170,6 @@ class ChordSheetViewModel(Observable):
 
         # Debounce/render bookkeeping.
         self._pending_input: Optional[tuple] = None  # (lines, key)
-        self._pending_mode: str = "render"           # "render" | "capo"
         self._render_handle: object = None
         # True when the pending input has not yet been rendered into
         # ``rendered_song``. While the panel is hidden we hold render work back
@@ -194,33 +177,19 @@ class ChordSheetViewModel(Observable):
         self._dirty: bool = False
 
         # Background-job serialization. ``_generation`` is bumped on every
-        # ``set_song`` / ``refresh_capo_suggestion`` and is the freshness token
-        # both the cooperative-abort predicate and the apply-guard compare
-        # against. ``_job_running`` ensures a single worker; ``_rerun_requested``
-        # remembers a request that arrived while a job was in flight so the newest
-        # input is run when the current job finishes. All three are guarded by
-        # ``_job_lock``.
+        # ``set_song`` and is the freshness token both the cooperative-abort
+        # predicate and the apply-guard compare against. ``_job_running`` ensures
+        # a single worker; ``_rerun_requested`` remembers a request that arrived
+        # while a job was in flight so the newest input is run when the current
+        # job finishes. All three are guarded by ``_job_lock``.
         self._job_lock = threading.Lock()
         self._generation: int = 0
         self._job_running: bool = False
         self._rerun_requested: bool = False
 
-        # Capo-suggestion cache: (spec identity, chord sequence) -> suggestion.
-        # The advice is a pure function of the fretboard spec and the resolved
-        # chord sequence, so lyric-only edits (which re-render but leave both
-        # unchanged) hit the cache instead of re-running the expensive
-        # whole-song capo search. Insertion-ordered with oldest-first eviction
-        # (hits are re-inserted, making it effectively LRU), capped at
-        # ``_CAPO_CACHE_MAX`` entries. Only touched on the (serialized,
-        # single-worker) background job, so no extra locking is needed.
-        self._capo_cache: Dict[Tuple[str, tuple], Optional[int]] = {}
-
         # Observable state (private storage with leading underscore).
         self._rendered_song: Optional[RenderedSong] = None
         self._current_index: Optional[int] = None
-        # Suggested capo position (fret) for the current fretboard-voiced song,
-        # or None when off / not fretboard-voiced / no gain. Advice only.
-        self._capo_suggestion: Optional[int] = None
         self._active_view: str = self._config.get("chord_sheet_view", DEFAULT_CHORD_SHEET_VIEW)
         self._available_views: List[str] = self._compute_available_views(None)
         self._visible: bool = bool(self._config.get("chord_sheet_visible", False))
@@ -247,17 +216,6 @@ class ChordSheetViewModel(Observable):
     def current_index(self) -> Optional[int]:
         """Index into ``rendered_song.chords`` the playhead is on, or ``None``."""
         return self._current_index
-
-    @property
-    def capo_suggestion(self) -> Optional[int]:
-        """Suggested capo fret for the current song, or ``None``.
-
-        Non-``None`` only when ``allow_capo`` is on, the current render used a
-        fretboard voicing, and a capo beats no-capo by a meaningful margin. The
-        panel shows it only while a fret/tab view is active. Advice only --
-        nothing is re-voiced.
-        """
-        return self._capo_suggestion
 
     @property
     def active_view(self) -> str:
@@ -376,7 +334,6 @@ class ChordSheetViewModel(Observable):
             key: Current key signature (for roman-numeral resolution).
         """
         self._pending_input = (list(lines), key)
-        self._pending_mode = "render"
         self._dirty = True
         with self._job_lock:
             self._generation += 1
@@ -395,8 +352,7 @@ class ChordSheetViewModel(Observable):
     def _dispatch(self) -> None:
         """Start a render job, or remember a rerun if one is already running.
 
-        Called by the debounce scheduler (and directly by
-        :meth:`refresh_capo_suggestion`). Serializes so at most one job runs at a
+        Called by the debounce scheduler. Serializes so at most one job runs at a
         time: if a job is in flight, the newest request is remembered
         (``_rerun_requested``) and picked up when that job finishes.
         """
@@ -413,32 +369,24 @@ class ChordSheetViewModel(Observable):
         Loops so a rerun requested during the job (newest input) runs without
         re-entering the executor. Each iteration snapshots the current
         generation and threads a "still current?" abort predicate into the
-        (expensive) render + capo search; a superseded iteration raises
+        (expensive) render; a superseded iteration raises
         :class:`~exceptions.RenderAborted` and simply falls through to the rerun
         check. Results are marshaled back and applied only if still current.
         """
         while True:
             with self._job_lock:
                 gen = self._generation
-                mode = self._pending_mode
                 pending = self._pending_input
                 self._rerun_requested = False
                 # Snapshotting the pending work means it is now being handled;
-                # a fresh ``set_song`` / ``refresh_capo_suggestion`` re-dirties.
+                # a fresh ``set_song`` re-dirties.
                 self._dirty = False
             should_abort = self._make_abort(gen)
             try:
-                if mode == "capo":
-                    rendered = self._rendered_song
-                    capo = self._compute_capo_suggestion(
-                        rendered, should_abort=should_abort)
-                    self._marshal(self._apply_cb(gen, None, capo, capo_only=True))
-                elif pending is not None:
+                if pending is not None:
                     lines, key = pending
                     rendered = self._render_fn(lines, key, should_abort=should_abort)
-                    capo = self._compute_capo_suggestion(
-                        rendered, should_abort=should_abort)
-                    self._marshal(self._apply_cb(gen, rendered, capo, capo_only=False))
+                    self._marshal(self._apply_cb(gen, rendered))
             except RenderAborted:
                 logger.debug(
                     "Chord-sheet render aborted (generation %d superseded)", gen)
@@ -453,8 +401,8 @@ class ChordSheetViewModel(Observable):
     def _make_abort(self, gen: int) -> Callable[[], bool]:
         """Build the cooperative-abort predicate for job generation ``gen``.
 
-        Returns ``True`` once a newer ``set_song`` / ``refresh_capo_suggestion``
-        has bumped the generation past ``gen``, so the in-flight search bails.
+        Returns ``True`` once a newer ``set_song`` has bumped the generation past
+        ``gen``, so the in-flight render bails.
         """
         return lambda: gen != self._generation
 
@@ -462,9 +410,6 @@ class ChordSheetViewModel(Observable):
         self,
         gen: int,
         rendered: Optional[RenderedSong],
-        capo: Optional[int],
-        *,
-        capo_only: bool,
     ) -> Callable[[], None]:
         """Build the UI-thread apply callback, guarded by generation ``gen``.
 
@@ -477,15 +422,10 @@ class ChordSheetViewModel(Observable):
                     "Dropping stale chord-sheet result (generation %d, current %d)",
                     gen, self._generation)
                 return
-            if capo_only:
-                self.set_and_notify("capo_suggestion", capo)
-            else:
-                self._apply_rendered(rendered, capo)
+            self._apply_rendered(rendered)
         return _apply
 
-    def _apply_rendered(
-        self, rendered: Optional[RenderedSong], capo_suggestion: Optional[int] = None
-    ) -> None:
+    def _apply_rendered(self, rendered: Optional[RenderedSong]) -> None:
         """Adopt a freshly rendered song and refresh gated view availability.
 
         Runs on the UI thread (via the marshal seam).
@@ -494,112 +434,7 @@ class ChordSheetViewModel(Observable):
         # A new song can invalidate the current playhead index.
         if self._current_index is not None:
             self.set_and_notify("current_index", None)
-        # Reset/refresh the capo suggestion for the new render (None unless a
-        # fretboard voicing with allow_capo on produced a meaningful gain).
-        self.set_and_notify("capo_suggestion", capo_suggestion)
         self._refresh_available_views()
-
-    def _compute_capo_suggestion(
-        self,
-        rendered: Optional[RenderedSong],
-        should_abort: Optional[Callable[[], bool]] = None,
-    ) -> Optional[int]:
-        """Suggest a capo for ``rendered``, or ``None``.
-
-        Returns ``None`` unless ``allow_capo`` is enabled, the render carries
-        fretboard fingering data (i.e. a fretboard voicing was used), the active
-        picker exposes a fretboard spec, and the song has voiceable chords. The
-        actual scoring lives in :func:`services.capo_advisor.suggest_capo`.
-
-        Results are cached per (spec, chord sequence) -- see ``_capo_cache`` --
-        so re-renders that leave the chords untouched (lyric-only edits) never
-        re-run the expensive whole-song capo search. The cache is consulted
-        before the search is dispatched, so a hit costs nothing on the worker.
-        """
-        if rendered is None:
-            return None
-        if not self._config.get("allow_capo", False):
-            return None
-        if not self._song_has_fingering(rendered):
-            return None
-        spec = self._capo_spec_fn()
-        if spec is None:
-            return None
-        sequence = [rc.chord_notes for rc in rendered.chords if rc.chord_notes is not None]
-        if not sequence:
-            return None
-
-        cache_key = self._capo_cache_key(spec, sequence)
-        if cache_key is not None and cache_key in self._capo_cache:
-            # Re-insert to refresh recency (oldest-first eviction below).
-            suggestion = self._capo_cache.pop(cache_key)
-            self._capo_cache[cache_key] = suggestion
-            logger.debug("Capo suggestion cache hit: %r", suggestion)
-            return suggestion
-
-        try:
-            from services.capo_advisor import suggest_capo
-
-            suggestion = suggest_capo(spec, sequence, should_abort=should_abort)
-        except RenderAborted:
-            raise
-        except Exception as e:  # pragma: no cover - defensive
-            logger.error(f"Capo suggestion failed: {e}", exc_info=True)
-            return None
-
-        if cache_key is not None:
-            self._capo_cache[cache_key] = suggestion
-            while len(self._capo_cache) > _CAPO_CACHE_MAX:
-                self._capo_cache.pop(next(iter(self._capo_cache)))
-        return suggestion
-
-    @staticmethod
-    def _capo_cache_key(spec, sequence) -> Optional[Tuple[str, tuple]]:
-        """Build the capo-cache key for a (spec, chord sequence) pair.
-
-        The spec's identity is its stable JSON serialization (``to_dict`` with
-        sorted keys), and the sequence's identity is the ordered tuple of each
-        chord's ``(notes, bass_note)`` -- exactly the fields the guitar picker's
-        scoring reads. Returns ``None`` (uncacheable) if the spec cannot be
-        serialized, so an odd injected spec degrades to the uncached behavior.
-        """
-        try:
-            spec_id = json.dumps(spec.to_dict(), sort_keys=True)
-        except Exception:  # pragma: no cover - defensive (ad-hoc test specs)
-            return None
-        seq_id = tuple((tuple(cn.notes), cn.bass_note) for cn in sequence)
-        return (spec_id, seq_id)
-
-    def refresh_capo_suggestion(self) -> None:
-        """Recompute the capo suggestion for the current song, off the UI thread.
-
-        Used when the ``allow_capo`` setting is toggled in Settings: the song
-        and its voicing are unchanged, so re-scoring the already-rendered song
-        (rather than a full re-render) is enough to show or hide the header
-        suggestion. Scoring the whole song across capo positions is itself
-        expensive (up to a handful of whole-song searches), so it runs on the
-        background worker just like a render: it bumps the generation
-        (invalidating any in-flight render) and dispatches a capo-only job whose
-        result is dropped if a newer generation supersedes it.
-
-        While the panel is hidden nothing is dispatched (no wasted searches when
-        nobody is looking): the capo refresh is recorded as pending work and run
-        by :meth:`set_visible` when the panel is shown. If a full render is
-        already pending it is left as-is -- a render recomputes the suggestion
-        anyway, so a capo-only job would be redundant.
-        """
-        # Set the pending state *before* bumping the generation (mirrors
-        # ``set_song``) so a job that observes the new generation also observes
-        # the new mode. A pending full render already recomputes the suggestion,
-        # so don't downgrade it to a capo-only job.
-        if not (self._dirty and self._pending_mode == "render"):
-            self._pending_mode = "capo"
-            self._dirty = True
-        with self._job_lock:
-            self._generation += 1
-        if not self._visible:
-            return  # deferred; set_visible(True) flushes exactly one job
-        self._dispatch()
 
     # -- Playback ping ------------------------------------------------------
 
@@ -740,16 +575,15 @@ class ChordSheetViewModel(Observable):
     def set_visible(self, visible: bool) -> None:
         """Show or hide the panel and persist the choice.
 
-        No background job ever runs while the panel is hidden -- neither a render
-        nor a capo-only search -- because nobody is looking. Concretely:
+        No background render ever runs while the panel is hidden, because nobody
+        is looking. Concretely:
 
         - Hiding aborts any in-flight job by bumping the generation (so its
           result is dropped) and, if that job had work in flight, re-marks the
           pending state dirty so showing re-runs it. It also cancels any armed
           debounce timer.
-        - Showing flushes exactly ONE job for whatever is pending (a render, or a
-          capo-only refresh), via the debounce scheduler. A render already
-          recomputes the capo suggestion, so the two never both dispatch.
+        - Showing flushes exactly ONE render for the pending input via the
+          debounce scheduler.
         """
         visible = bool(visible)
         self._config.set("chord_sheet_visible", visible)

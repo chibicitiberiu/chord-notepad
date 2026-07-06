@@ -143,23 +143,6 @@ class TestScalars:
         vm.commit()
         assert (tmp_path / "settings.json").exists()
 
-    def test_allow_capo_initialized_and_round_trips(self, tmp_path):
-        service = _make_config_service(tmp_path, Config(allow_capo=True))
-        vm = SettingsViewModel(service)
-        assert vm.allow_capo is True
-
-        vm.allow_capo = False
-        vm.commit()
-        assert service.config.allow_capo is False
-
-    def test_allow_capo_change_sets_guitar_flag(self, tmp_path):
-        vm = SettingsViewModel(_make_config_service(tmp_path))
-        vm.allow_capo = True
-        changes = vm.commit()
-        assert changes.guitar_changed is True
-        assert changes.general_changed is False
-        assert changes.audio_changed is False
-
     def test_no_change_leaves_guitar_flag_false(self, tmp_path):
         vm = SettingsViewModel(_make_config_service(tmp_path))
         changes = vm.commit()

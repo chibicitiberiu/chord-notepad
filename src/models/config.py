@@ -35,9 +35,6 @@ class Config:
     # for the one-time migration of those legacy keys).
     voicings: Dict[str, dict] = field(default_factory=dict)
     instrument: int = 0  # MIDI program number (0-127), 0 = Acoustic Grand Piano
-    # When true and a fretboard voicing is active, the chord-sheet strip suggests
-    # the easiest capo position for the song (advice only; nothing is re-voiced).
-    allow_capo: bool = False
 
     # Notation
     notation: Literal["american", "european"] = "american"
@@ -107,7 +104,6 @@ class Config:
             "voicing": self.voicing,
             "voicings": self.voicings,
             "instrument": self.instrument,
-            "allow_capo": self.allow_capo,
             "notation": self.notation,
             "key": self.key,
             "window_geometry": self.window_geometry,
@@ -158,7 +154,6 @@ class Config:
             voicing=voicing,
             voicings=voicings,
             instrument=data.get("instrument", 0),
-            allow_capo=data.get("allow_capo", False),
             notation=data.get("notation", "american"),
             key=data.get("key", "C"),
             window_geometry=data.get("window_geometry", "900x600"),

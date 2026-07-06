@@ -25,12 +25,6 @@ logger = logging.getLogger(__name__)
 #: Highlight fill drawn behind the chord slot under the playhead.
 _HIGHLIGHT_FILL = "#ffe58a"
 
-#: Muted foreground for the capo-suggestion label in the header row.
-_MUTED_FG = "#666666"
-
-#: Views for which the capo suggestion is relevant (fretboard renderers).
-_FRETBOARD_VIEWS = ("fret", "tab")
-
 
 class ChordSheetPanel(ttk.Frame):
     """Tk shell hosting the scrolling chord-sheet strip."""
@@ -98,12 +92,6 @@ class ChordSheetPanel(ttk.Frame):
             button.pack(side=tk.LEFT, padx=(4, 0))
             self._view_buttons[renderer.id] = button
         self._update_view_buttons_state()
-
-        # Capo suggestion (advice only), shown next to the toggles while a
-        # fret/tab view is active and the viewmodel has a suggestion.
-        self._capo_label = ttk.Label(header, text="", foreground=_MUTED_FG)
-        self._capo_label.pack(side=tk.LEFT, padx=(12, 0))
-        self._update_capo_label()
 
         # Compact zoom controls pinned to the right end of the header row,
         # enabled only while the active view declares ``supports_zoom``. Packed
@@ -183,7 +171,6 @@ class ChordSheetPanel(ttk.Frame):
         self._vm.observe("current_index", self._on_current_index_changed)
         self._vm.observe("active_view", self._on_active_view_changed)
         self._vm.observe("available_views", self._on_available_views_changed)
-        self._vm.observe("capo_suggestion", self._on_capo_suggestion_changed)
         self._vm.observe("zoom", self._on_zoom_changed)
 
     # -- Viewmodel observers ------------------------------------------------
@@ -201,9 +188,6 @@ class ChordSheetPanel(ttk.Frame):
         """Repaint with the newly selected renderer."""
         if self._view_var.get() != view_id:
             self._view_var.set(view_id)
-        # The suggestion is only shown for fret/tab, so its visibility can
-        # change purely from a view switch.
-        self._update_capo_label()
         # Zoom support is per-renderer, so the buttons may enable/disable.
         self._update_zoom_buttons_state()
         self._relayout_and_paint()
@@ -215,22 +199,6 @@ class ChordSheetPanel(ttk.Frame):
     def _on_zoom_changed(self, _zoom) -> None:
         """Re-layout and repaint at the new zoom (display-only, no re-render)."""
         self._relayout_and_paint()
-
-    def _on_capo_suggestion_changed(self, _suggestion) -> None:
-        """Show/hide/update the capo suggestion label."""
-        self._update_capo_label()
-
-    def _update_capo_label(self) -> None:
-        """Refresh the capo-suggestion label from the viewmodel state.
-
-        Text is shown only when a suggestion exists AND a fretboard view
-        (fret/tab) is active; it is blank otherwise.
-        """
-        suggestion = self._vm.capo_suggestion
-        if suggestion is not None and self._vm.active_view in _FRETBOARD_VIEWS:
-            self._capo_label.config(text=f"Suggested: capo {suggestion}")
-        else:
-            self._capo_label.config(text="")
 
     # -- Tk event handlers --------------------------------------------------
 

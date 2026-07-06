@@ -324,24 +324,23 @@ def test_render_aborted_from_render_fn_runs_queued_input():
     assert vm.rendered_song is song_b
 
 
-def test_capo_result_dropped_when_generation_stale():
-    # The capo suggestion is computed in the render job; a stale generation
-    # drops the whole result, capo included.
+def test_stale_render_result_dropped_when_generation_bumped():
+    # A stale generation drops the whole render result rather than applying it.
     captured = []
-    audio = FakeAudio(rendered=_fsharp_song())
+    song = RenderedSong(chords=[make_chord("C")])
+    audio = FakeAudio(rendered=song)
     scheduler = ManualScheduler()
     vm = ChordSheetViewModel(
-        FakeConfig(chord_sheet_visible=True, allow_capo=True), audio,
+        FakeConfig(chord_sheet_visible=True), audio,
         application=None, scheduler=scheduler, executor=inline_executor,
-        marshal=captured.append, capo_spec_fn=lambda: _STANDARD_SPEC,
+        marshal=captured.append,
     )
     vm.set_song([], None)
-    scheduler.flush()             # render job captures apply (with a capo suggestion)
+    scheduler.flush()             # render job captures apply
     vm.set_song([], None)         # bump the generation -> the captured apply is stale
 
     captured[0]()                 # apply the stale result
     assert vm.rendered_song is None
-    assert vm.capo_suggestion is None
 
 
 def test_real_thread_render_runs_off_the_calling_thread():
@@ -393,25 +392,6 @@ def test_hidden_set_song_never_calls_render_fn():
     assert audio.render_calls == []        # no render dispatched
 
 
-def test_hidden_refresh_capo_does_not_score():
-    scored = []
-
-    def capo_spec_fn():
-        scored.append(True)   # reading the spec only happens during scoring
-        return _STANDARD_SPEC
-
-    audio = FakeAudio(rendered=_fsharp_song())
-    scheduler = ManualScheduler()
-    vm = ChordSheetViewModel(
-        FakeConfig(chord_sheet_visible=False, allow_capo=True), audio,
-        application=None, scheduler=scheduler, executor=inline_executor,
-        marshal=direct_marshal, capo_spec_fn=capo_spec_fn,
-    )
-    vm.refresh_capo_suggestion()
-    assert scored == []                    # no capo search ran
-    assert scheduler.pending is None       # nothing armed
-
-
 def test_show_flushes_single_render_job_with_newest_input():
     song = RenderedSong(chords=[make_chord("C")])
     config = FakeConfig(chord_sheet_visible=False)
@@ -423,25 +403,6 @@ def test_show_flushes_single_render_job_with_newest_input():
     scheduler.flush()
     assert audio.render_calls == [([], "B")]   # exactly one render, newest input
     assert vm.rendered_song is song
-
-
-def test_show_collapses_pending_render_and_capo_into_one_job():
-    # A pending render plus a capo refresh requested while hidden must NOT both
-    # dispatch: the render alone recomputes the suggestion.
-    audio = FakeAudio(rendered=_fsharp_song())
-    scheduler = ManualScheduler()
-    vm = ChordSheetViewModel(
-        FakeConfig(chord_sheet_visible=False, allow_capo=True), audio,
-        application=None, scheduler=scheduler, executor=inline_executor,
-        marshal=direct_marshal, capo_spec_fn=lambda: _STANDARD_SPEC,
-    )
-    vm.set_song([], None)                  # render pending
-    vm.refresh_capo_suggestion()           # capo refresh requested -> folds into the render
-    vm.set_visible(True)
-    scheduler.flush()
-    assert len(audio.render_calls) == 1    # one render (which also computed the capo)
-    assert scheduler.pending is None       # no leftover second job
-    assert vm.capo_suggestion is not None
 
 
 def test_hide_during_render_drops_the_result():
@@ -752,108 +713,6 @@ def test_scroll_zero_viewport_returns_none():
 
 
 # --------------------------------------------------------------------------
-# Capo suggestion (allow_capo)
-# --------------------------------------------------------------------------
-
-from models.chord_notes import ChordNotes  # noqa: E402
-from models.fretboard_spec import BUILTIN_FRETBOARDS  # noqa: E402
-
-_STANDARD_SPEC = BUILTIN_FRETBOARDS["standard"]
-
-
-def _fingered_chord(symbol, notes, root, fingering):
-    """A RenderedChord carrying both resolved ChordNotes and a fingering."""
-    rc = make_chord(symbol, fingering=fingering)
-    rc.chord_notes = ChordNotes(notes=notes, bass_note=root, root=root)
-    return rc
-
-
-# A barre-heavy F#-major progression: capoing genuinely helps.
-def _fsharp_song():
-    return RenderedSong(chords=[
-        _fingered_chord("F#", ["F#", "A#", "C#"], "F#", [-1, -1, 4, 3, 2, 2]),
-        _fingered_chord("B", ["B", "D#", "F#"], "B", [-1, 2, 4, 4, 4, 2]),
-        _fingered_chord("C#", ["C#", "F", "G#"], "C#", [-1, 4, 6, 6, 6, 4]),
-        _fingered_chord("D#m", ["D#", "F#", "A#"], "D#", [-1, -1, 1, 3, 4, 2]),
-    ])
-
-
-def _piano_song():
-    # chord_notes present but NO fingering -> not a fretboard voicing.
-    return RenderedSong(chords=[
-        _fingered_chord("F#", ["F#", "A#", "C#"], "F#", None),
-    ])
-
-
-def _make_capo_vm(rendered, *, allow_capo, spec=_STANDARD_SPEC):
-    audio = FakeAudio(rendered=rendered)
-    scheduler = ManualScheduler()
-    vm = ChordSheetViewModel(
-        FakeConfig(chord_sheet_visible=True, allow_capo=allow_capo),
-        audio,
-        application=None,
-        scheduler=scheduler,
-        executor=inline_executor,
-        marshal=direct_marshal,
-        capo_spec_fn=lambda: spec,
-    )
-    return vm, scheduler
-
-
-def test_capo_suggestion_appears_for_fretboard_song_when_allowed():
-    vm, scheduler = _make_capo_vm(_fsharp_song(), allow_capo=True)
-    vm.set_song([], None)
-    scheduler.flush()
-    assert vm.capo_suggestion is not None
-    assert vm.capo_suggestion > 0
-
-
-def test_capo_suggestion_none_when_allow_capo_off():
-    vm, scheduler = _make_capo_vm(_fsharp_song(), allow_capo=False)
-    vm.set_song([], None)
-    scheduler.flush()
-    assert vm.capo_suggestion is None
-
-
-def test_capo_suggestion_none_for_piano_voicing():
-    # No fingering data -> not a fretboard voicing -> no suggestion even when on.
-    vm, scheduler = _make_capo_vm(_piano_song(), allow_capo=True)
-    vm.set_song([], None)
-    scheduler.flush()
-    assert vm.capo_suggestion is None
-
-
-def test_capo_suggestion_none_when_no_spec():
-    vm, scheduler = _make_capo_vm(_fsharp_song(), allow_capo=True, spec=None)
-    vm.set_song([], None)
-    scheduler.flush()
-    assert vm.capo_suggestion is None
-
-
-def test_capo_suggestion_resets_on_new_song():
-    audio = FakeAudio(rendered=_fsharp_song())
-    scheduler = ManualScheduler()
-    vm = ChordSheetViewModel(
-        FakeConfig(chord_sheet_visible=True, allow_capo=True),
-        audio,
-        application=None,
-        scheduler=scheduler,
-        executor=inline_executor,
-        marshal=direct_marshal,
-        capo_spec_fn=lambda: _STANDARD_SPEC,
-    )
-    vm.set_song([], None)
-    scheduler.flush()
-    assert vm.capo_suggestion is not None
-
-    # Re-render an open-friendly (piano) song: the suggestion resets to None.
-    audio.rendered = _piano_song()
-    vm.set_song([], None)
-    scheduler.flush()
-    assert vm.capo_suggestion is None
-
-
-# --------------------------------------------------------------------------
 # Display zoom (per-view factors)
 # --------------------------------------------------------------------------
 
@@ -952,148 +811,3 @@ def test_zoom_load_non_dict_is_empty():
     config = FakeConfig(chord_sheet_visible=True, chord_sheet_zoom="nope")
     vm, _, _ = make_vm(renderers=[ZoomRenderer("a")], config=config)
     assert vm.zoom == 1.0
-
-
-def test_refresh_capo_suggestion_reacts_to_config_toggle():
-    audio = FakeAudio(rendered=_fsharp_song())
-    scheduler = ManualScheduler()
-    config = FakeConfig(chord_sheet_visible=True, allow_capo=False)
-    vm = ChordSheetViewModel(
-        config, audio, application=None,
-        scheduler=scheduler, executor=inline_executor, marshal=direct_marshal,
-        capo_spec_fn=lambda: _STANDARD_SPEC,
-    )
-    vm.set_song([], None)
-    scheduler.flush()
-    assert vm.capo_suggestion is None  # off
-
-    # Flip the setting and refresh without a full re-render.
-    config.set("allow_capo", True)
-    vm.refresh_capo_suggestion()
-    assert vm.capo_suggestion is not None
-
-
-# --------------------------------------------------------------------------
-# Capo suggestion cache (per spec + chord sequence)
-# --------------------------------------------------------------------------
-
-import services.capo_advisor as capo_advisor  # noqa: E402
-
-
-def _count_suggest_capo(monkeypatch, result=3):
-    """Replace the capo-advisor backend with a counting stub returning ``result``."""
-    calls = []
-
-    def counting(spec, sequence, *args, **kwargs):
-        calls.append((spec, sequence))
-        return result
-
-    monkeypatch.setattr(capo_advisor, "suggest_capo", counting)
-    return calls
-
-
-def _song_from_symbols(symbols):
-    """A fingered song whose chord sequence is derived from ``symbols``."""
-    return RenderedSong(chords=[
-        _fingered_chord(sym, [sym, "X", "Y"], sym, [0, 0, 0, 0, 0, 0])
-        for sym in symbols
-    ])
-
-
-def test_capo_cache_same_sequence_and_spec_scores_once(monkeypatch):
-    calls = _count_suggest_capo(monkeypatch)
-    audio = FakeAudio(rendered=_fsharp_song())
-    scheduler = ManualScheduler()
-    vm = ChordSheetViewModel(
-        FakeConfig(chord_sheet_visible=True, allow_capo=True), audio,
-        application=None, scheduler=scheduler, executor=inline_executor,
-        marshal=direct_marshal, capo_spec_fn=lambda: _STANDARD_SPEC,
-    )
-    vm.set_song([], None)
-    scheduler.flush()
-    assert len(calls) == 1
-    assert vm.capo_suggestion == 3
-
-    # A lyric-only edit re-renders the same chord sequence: no recompute, but
-    # the suggestion is still published to the (fresh) rendered state.
-    audio.rendered = _fsharp_song()  # equal sequence, new object
-    vm.set_song([], None)
-    scheduler.flush()
-    assert len(calls) == 1           # cache hit -- backend not invoked again
-    assert vm.capo_suggestion == 3   # value still published
-
-    # A capo-only refresh over the same song also hits the cache.
-    vm.refresh_capo_suggestion()
-    assert len(calls) == 1
-    assert vm.capo_suggestion == 3
-
-
-def test_capo_cache_recomputes_when_sequence_changes(monkeypatch):
-    calls = _count_suggest_capo(monkeypatch)
-    audio = FakeAudio(rendered=_song_from_symbols(["F#", "B"]))
-    scheduler = ManualScheduler()
-    vm = ChordSheetViewModel(
-        FakeConfig(chord_sheet_visible=True, allow_capo=True), audio,
-        application=None, scheduler=scheduler, executor=inline_executor,
-        marshal=direct_marshal, capo_spec_fn=lambda: _STANDARD_SPEC,
-    )
-    vm.set_song([], None)
-    scheduler.flush()
-    assert len(calls) == 1
-
-    audio.rendered = _song_from_symbols(["C", "G"])  # different chords
-    vm.set_song([], None)
-    scheduler.flush()
-    assert len(calls) == 2
-
-
-def test_capo_cache_recomputes_when_spec_changes(monkeypatch):
-    from models.fretboard_spec import BUILTIN_FRETBOARDS
-
-    calls = _count_suggest_capo(monkeypatch)
-    spec_holder = {"spec": _STANDARD_SPEC}
-    audio = FakeAudio(rendered=_fsharp_song())
-    scheduler = ManualScheduler()
-    vm = ChordSheetViewModel(
-        FakeConfig(chord_sheet_visible=True, allow_capo=True), audio,
-        application=None, scheduler=scheduler, executor=inline_executor,
-        marshal=direct_marshal, capo_spec_fn=lambda: spec_holder["spec"],
-    )
-    vm.set_song([], None)
-    scheduler.flush()
-    assert len(calls) == 1
-
-    spec_holder["spec"] = BUILTIN_FRETBOARDS["drop_d"]  # same song, new spec
-    audio.rendered = _fsharp_song()
-    vm.set_song([], None)
-    scheduler.flush()
-    assert len(calls) == 2
-
-
-def test_capo_cache_size_is_bounded(monkeypatch):
-    calls = _count_suggest_capo(monkeypatch)
-    audio = FakeAudio()
-    scheduler = ManualScheduler()
-    vm = ChordSheetViewModel(
-        FakeConfig(chord_sheet_visible=True, allow_capo=True), audio,
-        application=None, scheduler=scheduler, executor=inline_executor,
-        marshal=direct_marshal, capo_spec_fn=lambda: _STANDARD_SPEC,
-    )
-    songs = [_song_from_symbols([sym]) for sym in ("A", "B", "C", "D", "E", "F")]
-    for song in songs:
-        audio.rendered = song
-        vm.set_song([], None)
-        scheduler.flush()
-    assert len(calls) == len(songs)
-    assert len(vm._capo_cache) <= 4  # oldest entries evicted
-
-    # The first (evicted) song recomputes; the most recent one still hits.
-    audio.rendered = songs[0]
-    vm.set_song([], None)
-    scheduler.flush()
-    assert len(calls) == len(songs) + 1
-
-    audio.rendered = songs[-1]
-    vm.set_song([], None)
-    scheduler.flush()
-    assert len(calls) == len(songs) + 1  # cache hit
