@@ -250,6 +250,45 @@ Change keys within a song:
    playback.
 
 
+Capo
+====
+
+The ``{capo}`` directive tells the fret and tab views to show chord shapes
+relative to a capo, for guitar and other fretboard voicings.
+
+Setting a Capo
+--------------
+
+**Format:** ``{capo: fret}`` (0-12; 0 means no capo)
+
+.. code-block:: chord
+
+   {capo: 2}      // Play as if a capo is on the 2nd fret
+   {capo: 0}      // No capo (the default)
+
+Like the other directives it takes effect from where it appears onward, so a
+capo set at the top applies to the whole song, and you can change it mid-song
+(handy for the odd song where you move the capo between sections).
+
+What It Does
+------------
+
+A capo only changes the *shapes you play*, never the sound. With a capo on the
+2nd fret, a song in F# can be played with open E-shape chords instead of
+barres. When a ``{capo}`` is in effect and a fretboard voicing is active, the
+**Fret cards** and **Tab** views draw those capo-relative shapes (the top of a
+fret diagram is the capo) and show a small ``Capo N`` marker; the piano roll,
+staff, and the playback pitch are unaffected. It is ignored for piano and
+ensemble voicings.
+
+Finding the Best Capo
+---------------------
+
+You don't have to guess: :menuselection:`Tools --> Suggest Capo...` scores capo
+positions for a voicing you choose and inserts the ``{capo}`` directive for you.
+See :doc:`chord_sheet` for details.
+
+
 Labels and Loops
 ================
 

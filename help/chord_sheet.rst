@@ -107,18 +107,30 @@ end of the strip's header to make their drawing smaller or larger. The zoom
 level is remembered per view.
 
 
-Capo Suggestion
+Capo
 ======================
 
-When **Allow capo** is enabled (from :menuselection:`Playback --> Voicing`,
-or in :doc:`settings`) and a fretboard voicing
-is active, the header row shows a hint such as ``Suggested: capo 2`` next to
-the view buttons while the Fret cards or Tab view is active. It names the capo
-position that makes the whole song easiest to play -- fewest barres, lowest on
-the neck, most open strings -- for songs written in awkward keys. Nothing is
-re-voiced or transposed; it is advice only, telling you where a capo would
-help. Nothing is shown when the best choice is no capo, when a non-fretboard
-voicing is active, or when the setting is off.
+A capo is set with a ``{capo: N}`` directive in the song (see
+:doc:`directives`). When one is in effect and a fretboard voicing is active,
+the **Fret cards** and **Tab** views draw the chord shapes *relative to the
+capo* -- the top of a fret diagram becomes the capo, and the fret numbers are
+counted from there, so an awkward barre song reads as the easy open shapes you
+would actually play. A small ``Capo N`` marker appears by the chord it starts
+at (and again wherever a mid-song ``{capo}`` changes it). The capo changes only
+the shapes shown, never the pitch: playback, the piano roll, and the staff are
+unaffected, and non-fretboard voicings ignore it.
+
+Suggesting a Capo
+-----------------
+
+To find a good capo, use :menuselection:`Tools --> Suggest Capo...`. It asks
+which fretboard voicing to optimize for -- defaulting to the current one, or
+standard guitar when the active voicing is not a fretboard voicing -- then
+scores capo positions over the selection (or the whole song when nothing is
+selected) and inserts the ``{capo: N}`` directive at that point, as a single
+undo step. It looks for the position that makes the part easiest to play:
+fewest barres, lowest on the neck, most open strings. If no capo helps, it says
+so and inserts nothing.
 
 
 Following Playback

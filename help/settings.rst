@@ -53,11 +53,10 @@ Playback & Audio
    The FluidSynth audio driver to use. Leave it empty to let FluidSynth
    pick one automatically. Takes effect after restarting the application.
 
-**Allow capo** (under *Guitar*)
-   When on, and a fretboard voicing is active, the chord sheet suggests the
-   easiest capo position for the current song while a fret or tab view is
-   shown (see :doc:`chord_sheet`). It is advice only -- nothing is re-voiced
-   or transposed. Off by default; the change takes effect immediately.
+.. note::
+   Capo handling moved out of Settings: a capo is now a ``{capo: N}`` directive
+   in the song, and :menuselection:`Tools --> Suggest Capo...` finds and inserts
+   a good one. See :doc:`chord_sheet` and :doc:`directives`.
 
 
 Voicings

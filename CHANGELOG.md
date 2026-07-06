@@ -39,11 +39,14 @@ moved to CHANGELOG_HISTORY.md and this file is reset.
   line stretches with it (a space at a word gap, or a hyphen mid-word).
   One undo step reverses the whole operation.
 
-- **Capo suggestion**: with **Allow capo** enabled (Tools → Settings... →
-  Playback & Audio) and a fretboard voicing active, the chord sheet's Chord
-  box and Tab views show the capo position that makes the whole song easiest
-  to play (e.g. ``Suggested: capo 2`` for a song in F# major). Advice only --
-  nothing is re-voiced.
+- **Capo**: a new ``{capo: N}`` directive draws the Fret cards and Tab views
+  relative to a capo -- the top of a fret diagram becomes the capo and the
+  shapes read as the easy open chords you'd actually play, with a small
+  ``Capo N`` marker. It changes only the shapes shown, not the pitch, and can
+  change mid-song. **Tools → Suggest Capo...** finds a good capo for a voicing
+  you pick (defaulting to the active one, or standard guitar) over the
+  selection or whole song, and inserts the directive as one undo step. Applies
+  to guitar and other fretboard voicings; ignored by piano and ensembles.
 
 
 - **Configurable piano voicing** (Tools → Settings... → Voicings): the
