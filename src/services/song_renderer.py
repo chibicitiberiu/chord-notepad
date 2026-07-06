@@ -99,6 +99,9 @@ class SongRenderer:
             'current_key': initial_key,
             'current_time_sig': initial_time_sig,
             'current_bpm': initial_bpm,
+            # Active capo fret (0 = none). Set only by {capo} directives; drives
+            # capo-relative voicing of fretboard chords in the voicing pass.
+            'current_capo': 0,
             'loop_stack': [],
             'labels': {},
             'label_states': {},
@@ -222,6 +225,7 @@ class SongRenderer:
             'bpm': state['current_bpm'],
             'time_sig': state['current_time_sig'],
             'key': state['current_key'],
+            'capo': state['current_capo'],
         })
 
     # ------------------------------------------------------------------
@@ -235,6 +239,8 @@ class SongRenderer:
         elif directive.type == DirectiveType.KEY:
             state['current_key'] = directive.key
             self._record_key(state, directive.key)
+        elif directive.type == DirectiveType.CAPO:
+            state['current_capo'] = directive.capo or 0
         elif directive.type == DirectiveType.TIME_SIGNATURE:
             self._handle_time_signature_directive(directive, state)
         elif directive.type == DirectiveType.LOOP:
@@ -318,6 +324,9 @@ class SongRenderer:
         state['current_bpm'] = saved['bpm']
         state['current_time_sig'] = saved['time_sig']
         state['current_key'] = saved['key']
+        # Capo restores with the rest of the state; it drives no marker, so
+        # there is nothing to record -- just reinstate the value.
+        state['current_capo'] = saved.get('capo', 0)
         self._record_tempo(state, saved['bpm'])
         self._record_meter(state, saved['time_sig'])
         self._record_key(state, saved['key'])
@@ -328,6 +337,7 @@ class SongRenderer:
                 'bpm': state['current_bpm'],
                 'time_sig': state['current_time_sig'],
                 'key': state['current_key'],
+                'capo': state['current_capo'],
             }
         # Emit a 'section' marker for user labels. The built-in '@start' label is
         # synthetic (never an item in the walk), but guard it anyway. Suppress
@@ -482,6 +492,7 @@ class SongRenderer:
             bar=state['current_bar'],
             is_rest=chord.is_rest,
             skipped=True,
+            capo=state['current_capo'],
         )
         state['current_beat_position'] += duration_beats
         self._advance_total_bar_counter(state, duration_beats, time_sig[0])
@@ -516,6 +527,7 @@ class SongRenderer:
                 bar=current_bar,
                 is_rest=True,
                 skipped=False,
+                capo=state['current_capo'],
             )
             state['current_time_position'] += duration_seconds
             state['current_beat_position'] += duration_beats
@@ -546,6 +558,7 @@ class SongRenderer:
             bar=current_bar,
             is_rest=False,
             skipped=False,
+            capo=state['current_capo'],
         )
         state['current_time_position'] += duration_seconds
         state['current_beat_position'] += duration_beats
@@ -611,10 +624,18 @@ class SongRenderer:
                   if not rc.is_rest and not rc.skipped and rc.chord_notes is not None]
         if not played:
             return None, None
+        # Capo path only when the model supports it (fretboard) AND some chord
+        # actually carries a capo. Otherwise take the single whole-song call --
+        # byte-for-byte the pre-capo behaviour, which the goldens depend on.
+        capos = [rc.capo for rc in played]
+        use_capo = self._note_picker.supports_capo and any(c != 0 for c in capos)
         try:
-            voicings = self._note_picker.voice_sequence_details(
-                [rc.chord_notes for rc in played],
-                should_abort=getattr(self, '_should_abort', None))
+            if use_capo:
+                voicings = self._voice_capo_spans(played, capos)
+            else:
+                voicings = self._note_picker.voice_sequence_details(
+                    [rc.chord_notes for rc in played],
+                    should_abort=getattr(self, '_should_abort', None))
         except RenderAborted:
             # Cooperative abort: a newer render generation superseded this one.
             # Propagate so the caller can drop the abandoned work; this is
@@ -639,3 +660,29 @@ class SongRenderer:
         voice_staves = getattr(self._note_picker, 'voice_staves', None)
         staves = list(reversed(voice_staves)) if voice_staves is not None else None
         return list(reversed(voice_labels)), staves
+
+    def _voice_capo_spans(self, played, capos):
+        """Voice ``played`` in maximal same-capo spans, each on a capo'd picker.
+
+        Only reached for capo-supporting (fretboard) models with at least one
+        nonzero capo. Consecutive chords sharing a capo value are voiced together
+        on ``note_picker.with_capo(capo)`` (capo ``0`` reuses the base picker), so
+        each span's fingerings come out relative to its own capo. Voice leading is
+        optimized within a span but not carried across a capo change -- a capo
+        move is a natural break where the hand repositions anyway. Returns one
+        :class:`VoicedChord` per entry of ``played``, in order.
+
+        ``RenderAborted`` from any span propagates to the caller's handler.
+        """
+        result = []
+        i, n = 0, len(played)
+        while i < n:
+            j = i
+            while j < n and capos[j] == capos[i]:
+                j += 1
+            picker = self._note_picker.with_capo(capos[i])
+            result.extend(picker.voice_sequence_details(
+                [rc.chord_notes for rc in played[i:j]],
+                should_abort=getattr(self, '_should_abort', None)))
+            i = j
+        return result

@@ -133,6 +133,29 @@ class INotePicker(ABC):
         ]
 
     @property
+    def supports_capo(self) -> bool:
+        """Whether this model can voice with a capo (see :meth:`with_capo`).
+
+        ``True`` only for fretboard models, where a capo is a raised tuning.
+        ``False`` (the default) for piano/ensemble models, for which a capo is
+        meaningless -- the renderer then voices ``{capo}`` spans normally and
+        ignores the capo.
+        """
+        return False
+
+    def with_capo(self, semitones: int) -> Optional['INotePicker']:
+        """Return a copy of this picker voicing as if capoed ``semitones`` up.
+
+        Fretboard models return a picker whose tuning is raised by ``semitones``,
+        so the fingerings it produces are capo-relative (fret ``0`` is the capo)
+        while the sounding pitches are unchanged. ``0`` returns ``self`` (no
+        capo). Non-fretboard models return ``None`` -- the default -- and the
+        renderer leaves such spans voiced normally. Only called when
+        :attr:`supports_capo` is ``True`` and the capo is nonzero.
+        """
+        return None
+
+    @property
     def voice_labels(self) -> Optional[List[str]]:
         """Ordered voice names (top voice first), or ``None``.
 

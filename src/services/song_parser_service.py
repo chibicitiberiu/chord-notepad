@@ -109,6 +109,21 @@ class SongParserService:
                     directives.append(directive)
                     directive_created = True
 
+                elif keyword == 'capo':
+                    # Parse capo directive: {capo: N} where N is a fret 0..12
+                    # (0 means no capo). Out-of-range or non-integer is invalid.
+                    fret = int(value)
+                    if not 0 <= fret <= 12:
+                        raise ValueError(f"Capo out of range (0-12): {value}")
+                    directive = Directive(
+                        type=DirectiveType.CAPO,
+                        start=start,
+                        end=end,
+                        capo=fret
+                    )
+                    directives.append(directive)
+                    directive_created = True
+
                 elif keyword == 'loop':
                     # Parse loop directive: "label count"
                     parts = value.split()

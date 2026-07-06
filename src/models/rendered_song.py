@@ -68,6 +68,15 @@ class RenderedChord:
     """True for chords before the playback start position: they advance beat
     accounting but are never voiced and emit no events."""
 
+    capo: int = 0
+    """Capo fret in effect at this chord (0 = none), from ``{capo}`` directives.
+
+    For fretboard voicings the chord is voiced on a tuning raised by this many
+    semitones, so ``fingering`` comes out capo-relative (fret 0 = the capo) and
+    the fret/tab views draw shapes and a ``Capo N`` marker accordingly. The
+    sounding pitches are unchanged -- a capo picks easier shapes for the same
+    chords, it does not transpose. Ignored by non-fretboard models."""
+
     voice_notes: Optional[List[int]] = None
     """Per-voice MIDI notes, low to high, for fixed-ensemble pickers (e.g. a
     future SATB voicer). Duplicates are legal (unisons, when two voices land

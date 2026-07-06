@@ -14,7 +14,8 @@ class DirectiveType(IntEnum):
     KEY = 2
     LOOP = 3
     LABEL = 4
-    UNKNOWN = 5  # For invalid/unparseable directives
+    CAPO = 5
+    UNKNOWN = 6  # For invalid/unparseable directives
 
 
 class BPMModifierType(IntEnum):
@@ -70,6 +71,10 @@ class Directive:
     loop_count: int = 2
     """Number of times to loop (for DirectiveType.LOOP). Must be >= 1. Default is 2."""
 
+    capo: Optional[int] = None
+    """Capo fret position (for DirectiveType.CAPO). 0 means no capo. Applies to
+    fretboard voicings only; the fret/tab views draw shapes relative to it."""
+
     def __repr__(self) -> str:
         """String representation of the directive."""
         if self.type == DirectiveType.BPM:
@@ -89,6 +94,8 @@ class Directive:
             return f"Directive(TIME_SIG={self.beats}/{self.unit})"
         elif self.type == DirectiveType.KEY:
             return f"Directive(KEY={self.key})"
+        elif self.type == DirectiveType.CAPO:
+            return f"Directive(CAPO={self.capo})"
         elif self.type == DirectiveType.LOOP:
             return f"Directive(LOOP={self.label}, count={self.loop_count})"
         elif self.type == DirectiveType.LABEL:

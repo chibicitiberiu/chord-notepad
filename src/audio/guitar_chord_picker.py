@@ -44,7 +44,7 @@ regardless of their pitch.
 """
 
 from typing import Any, Callable, Dict, List, Optional, Tuple, Set, Union, TYPE_CHECKING
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass, asdict, replace
 from copy import deepcopy
 import logging
 from audio.note_picker_interface import INotePicker, VoicedChord
@@ -206,6 +206,28 @@ class GuitarChordPicker(INotePicker):
         """Reset to initial state"""
         self._state = GuitarPickerState()
         self._fingering_cache.clear()
+
+    @property
+    def supports_capo(self) -> bool:
+        """Fretboard models voice with a capo as a raised tuning."""
+        return True
+
+    def with_capo(self, semitones: int) -> 'GuitarChordPicker':
+        """Return a picker on this spec's tuning raised by ``semitones`` frets.
+
+        A capo at fret *N* lifts every open string by *N* semitones, so the new
+        picker voices the same chords from the capo's "nut": its fingerings come
+        out capo-relative (fret ``0`` = the capo) while the sounding MIDI notes
+        stay the true chord pitches (``raised_tuning[s] + fret`` equals the
+        original pitch). ``0`` returns ``self`` unchanged. Only the tuning
+        changes; fret limits and weights are preserved. This is the same tuning
+        bump the capo advisor scores with (:func:`services.capo_advisor._capo_spec`).
+        """
+        if semitones == 0:
+            return self
+        raised = replace(
+            self.spec, tuning=tuple(p + semitones for p in self.spec.tuning))
+        return GuitarChordPicker(raised)
 
     def chord_to_midi(self, chord_notes: 'ChordNotes') -> List[int]:
         """Convert chord to MIDI notes via guitar fingering"""
