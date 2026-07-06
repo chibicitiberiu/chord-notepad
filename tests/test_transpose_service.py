@@ -163,6 +163,24 @@ class TestKeyDirectives:
         assert transpose_key("C", 2, "american") == "D"
         assert transpose_key("Lam", 2, "european") == "Sim"
 
+    def test_key_result_must_name_a_real_signature(self):
+        # Style preservation would spell these Gbm / D# / G# / A# -- keys that
+        # don't exist (8+ accidentals). The enharmonic twin is used instead.
+        assert transpose_key("Ebm", 3, "american") == "F#m"
+        assert transpose_key("Bbm", 8, "american") == "F#m"
+        assert transpose_key("Ebm", 10, "american") == "C#m"   # not Dbm
+        assert transpose_key("C#", 2, "american") == "Eb"      # not D#
+        assert transpose_key("F#", 2, "american") == "Ab"      # not G#
+        assert transpose_key("F#", 4, "american") == "Bb"      # not A#
+        assert transpose_key("mibm", 3, "european") == "fa#m"
+
+    def test_valid_style_preserved_keys_still_kept(self):
+        # Both enharmonic keys exist here; the source style wins as before.
+        assert transpose_key("Ebm", 2, "american") == "Fm"
+        assert transpose_key("C#m", 2, "american") == "D#m"    # 6 sharps, real
+        assert transpose_key("Db", 2, "american") == "Eb"
+        assert transpose_key("F#", 1, "american") == "G"
+
 
 # --- duration suffixes ------------------------------------------------------
 

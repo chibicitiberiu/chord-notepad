@@ -37,7 +37,9 @@ Engraving detail:
   visible chord. In-content key changes still draw a fresh signature (preceded
   by a thin double barline) at the change point; the gutter is a persistent
   reminder, not a replacement. Sharps/flats use the circle of fifths (minor
-  keys via their relative major); unmappable keys draw no signature.
+  keys via their relative major); a key spelled without a real signature of
+  its own (Gbm, D#) engraves as its enharmonic twin (F#m, Eb), and only a
+  wholly unparseable key draws no signature.
 - **Zoom.** The renderer honors ``SheetContext.zoom``: the staff space (and
   every glyph, gap, ledger extent, and slot width derived from it) scales by
   the zoom factor, clamped to the same pixel floor/ceiling as at zoom 1.0.
@@ -45,7 +47,9 @@ Engraving detail:
   glyph when its spelling deviates from the signature: F# in G major draws
   nothing, F natural in G major draws a natural. There is **no bar-carryover
   memory** -- every chord is annotated independently against the signature (a
-  deliberate simplification). Double sharps/flats fall back to text.
+  deliberate simplification). Double sharps/flats are never sourced from chord
+  spellings (they respell enharmonically); the text fallback remains as a
+  last-ditch safety only.
 - **Voice color coding.** Ensemble chords (``voice_notes``) tint each voice's
   notehead/accidental by ``VOICE_COLORS[voice_index]``; piano chords
   (``hand_split``) tint the left hand and right hand by ``HAND_COLORS``;
@@ -156,6 +160,18 @@ _FLAT_ORDER: Tuple[Tuple[str, int], ...] = (
 #: letters (two -> standard bass-clef positions on the staff).
 _BASS_SIG_OCTAVE_DROP = 2
 
+#: Canonical circle-of-fifths position per tonic *pitch class*, used as the
+#: enharmonic fallback when a key's literal spelling has no real signature
+#: (Gbm, D#, a double-accidental tonic, ...). Each pc maps to the fifths of
+#: its conventional key: the unique real signature where one exists (D#/Gb ->
+#: Eb major's -3) and the fewer-accidentals twin at the F#/Gb-style seams.
+_PC_MAJOR_FIFTHS: Dict[int, int] = {
+    0: 0, 1: -5, 2: 2, 3: -3, 4: 4, 5: -1, 6: 6, 7: 1, 8: -4, 9: 3, 10: -2, 11: 5,
+}
+_PC_MINOR_FIFTHS: Dict[int, int] = {
+    9: 0, 4: 1, 11: 2, 6: 3, 1: 4, 8: 5, 3: -6, 10: -5, 2: -1, 7: -2, 0: -3, 5: -4,
+}
+
 
 # --------------------------------------------------------------------------
 # Spelling
@@ -191,6 +207,8 @@ def _match_letter(pc: int, chord_notes, fifths: Optional[int] = None) -> Tuple[s
        key) keeps a name from the chord's parser spelling (``notes``, then
        ``bass_note``, then ``root``) whose pitch class matches ``pc`` -- so a
        ``Bb`` keeps its B-with-flat spelling and an ``F#`` its F-with-sharp.
+       Double-accidental spellings (pychord's ``Bbb``) are skipped -- they have
+       no engraving glyph -- and fall through to the single-accidental fallback.
     3. **Fallback follows the signature.** A pitch class matched by neither
        falls back to flats in flat keys and sharps otherwise (sharp keys, C
        major, or no key).
@@ -208,7 +226,13 @@ def _match_letter(pc: int, chord_notes, fifths: Optional[int] = None) -> Tuple[s
             if not name:
                 continue
             if parse_note_to_semitone(name) == pc and name[0].upper() in _LETTER_VALUE:
-                return name[0].upper(), _accidental_offset(name)
+                acc = _accidental_offset(name)
+                # A double accidental (pychord spells Gbm's third as Bbb) has
+                # no engraving glyph and reads badly on a chord sheet; let it
+                # fall through to the plain single-accidental fallback below.
+                if abs(acc) > 1:
+                    continue
+                return name[0].upper(), acc
     table = _FLAT_SPELLING if (fifths is not None and fifths < 0) else _SHARP_SPELLING
     return table[pc % 12]
 
@@ -247,8 +271,12 @@ def _accidental_text(acc: int) -> str:
 def _key_fifths(key: Optional[str]) -> Optional[int]:
     """Circle-of-fifths position for ``key`` (+sharps/-flats), or ``None``.
 
-    Minor keys resolve through their relative major. An unknown/unmappable key
-    (or ``None``) yields ``None`` and logs at debug -- no signature is drawn.
+    Minor keys resolve through their relative major. A spelling outside the
+    tables (Gbm, D# -- names with no real signature of their own, typically
+    from style-preserving transposition or typed directly) falls back to its
+    tonic's *pitch class* and takes the conventional enharmonic key's
+    signature: Gbm engraves as F#m (3 sharps), D# as Eb (3 flats). Only a
+    wholly unparseable key (or ``None``) yields ``None`` -- no signature drawn.
     """
     if not key:
         return None
@@ -257,6 +285,14 @@ def _key_fifths(key: Optional[str]) -> Optional[int]:
         return _MINOR_FIFTHS[k]
     if k in _MAJOR_FIFTHS:
         return _MAJOR_FIFTHS[k]
+    minor = k.endswith('m')
+    root = k[:-1] if minor else k
+    pc = parse_note_to_semitone(root)
+    if pc is not None:
+        fifths = (_PC_MINOR_FIFTHS if minor else _PC_MAJOR_FIFTHS)[pc % 12]
+        logger.debug("Key %r has no real signature; engraving its enharmonic "
+                     "twin (%+d fifths)", key, fifths)
+        return fifths
     logger.debug("No key signature mapping for key %r", key)
     return None
 

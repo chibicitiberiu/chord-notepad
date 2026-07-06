@@ -289,6 +289,30 @@ class TestEnharmonicSeam:
         assert idx > sc._diatonic_index('B', 4)
 
 
+class TestDoubleAccidentalSources:
+    """pychord spells Gbm as Gb-Bbb-Db; doubles must never reach the canvas."""
+
+    GBM = ChordNotes(notes=['Gb', 'Bbb', 'Db'], bass_note='Gb', root='Gb')
+
+    def test_double_flat_skipped_for_plain_fallback(self):
+        # No key: the Bbb source spelling is skipped (no engraving glyph) and
+        # pc 9 falls back to plain A instead of B-double-flat.
+        assert sc._match_letter(9, self.GBM, None) == ('A', 0)
+
+    def test_gbm_in_gbm_key_is_fully_diatonic(self):
+        # Key Gbm engraves as F#m (3 sharps): every chord tone is diatonic, so
+        # nothing carries an accidental -- including the Bbb (spelled A).
+        fifths = sc._key_fifths('Gbm')
+        assert fifths == 3
+        assert sc._match_letter(6, self.GBM, fifths) == ('F', 1)   # F#
+        assert sc._match_letter(9, self.GBM, fifths) == ('A', 0)
+        assert sc._match_letter(1, self.GBM, fifths) == ('C', 1)   # C#
+        sig_map = sc._signature_letter_map(fifths)
+        for pc in (6, 9, 1):
+            letter, acc = sc._match_letter(pc, self.GBM, fifths)
+            assert sc._accidental_kind(letter, acc, sig_map) is None
+
+
 # --------------------------------------------------------------------------
 # Ledger lines
 # --------------------------------------------------------------------------
@@ -414,6 +438,15 @@ class TestKeySignatures:
         assert sc._key_fifths('Em') == 1      # relative minor of G
         assert sc._key_fifths(None) is None
         assert sc._key_fifths('H7?') is None  # unmappable
+
+    def test_key_without_real_signature_takes_enharmonic_twin(self):
+        # Style-preserving transposition used to produce these; users can also
+        # type them. Each engraves as the enharmonic key that actually exists.
+        assert sc._key_fifths('Gbm') == 3     # F#m
+        assert sc._key_fifths('Dbm') == 4     # C#m
+        assert sc._key_fifths('D#') == -3     # Eb
+        assert sc._key_fifths('G#') == -4     # Ab
+        assert sc._key_fifths('A#') == -2     # Bb
 
     def test_g_major_one_sharp_on_both_clefs(self):
         # C-major chord in G major: no note accidentals, so all sharps are the sig.

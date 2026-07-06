@@ -136,6 +136,14 @@ moved to CHANGELOG_HISTORY.md and this file is reset.
   faster and remembered per song, so edits that don't change the chords
   reuse it instantly. Results are identical, just sooner.
 
+- Transposing no longer produces impossible key names: a key that would land
+  on D#, G#, A#, Dbm, or Gbm (spellings with no real key signature) now comes
+  out as its enharmonic twin (Eb, Ab, Bb, C#m, F#m). The staff view also
+  engraves such keys as their twin if one is typed directly, instead of
+  drawing no signature at all, and note spellings with double flats (like the
+  B-double-flat inside a Gbm chord) are respelled enharmonically instead of
+  falling back to plain-text accidental marks.
+
 - The staff view now spells notes to match the key signature: a song in F#
   whose chords are typed with flat names (Ebm, Db, Gb) engraves as D#m, C#,
   and F# with no accidentals, and the same song in Ebm engraves as Ebm, Db,

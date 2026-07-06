@@ -38,6 +38,11 @@ never emits double accidentals nor E#/Cb/Fb/B#.
 Examples: ``C#`` +2 -> ``D#`` (style kept), ``Db`` +2 -> ``Eb``, ``Bb`` +1 ->
 ``B``, ``F#`` +1 -> ``G``, ``C`` +1 -> ``C#`` (default).
 
+*Keys* get one extra rule on top of this: the result must name a real key
+signature, so style preservation is overridden where it would produce D#/G#/A#
+major or Dbm/Gbm minor (see :func:`transpose_key`). Chord roots are exempt --
+a D# chord is unremarkable; D# major as a key is not.
+
 Chord-line / lyric-line alignment
 ---------------------------------
 The invariant is *chord-above-syllable*: after transposing, each chord must
@@ -192,11 +197,24 @@ def transpose_chord_token(chord_part: str, semitones: int, notation: Union[Notat
     return new_root + rest
 
 
+#: Pitch classes whose style-preserved spelling would name a key with no real
+#: signature, per mode. D#/G#/A# major and Dbm/Gbm minor would need 8+
+#: accidentals (double-flat/-sharp territory); their enharmonic twins are the
+#: keys that actually exist, so the style preference is overridden for them.
+_NO_SUCH_MAJOR_SHARP = {3, 8, 10}   # D#, G#, A#  -> Eb, Ab, Bb
+_NO_SUCH_MINOR_FLAT = {1, 6}        # Dbm, Gbm    -> C#m, F#m
+
+
 def transpose_key(key_str: str, semitones: int, notation: Union[Notation, str]) -> str:
     """Transpose a key name (e.g. 'C', 'Am', 'Do', 'Lam'), preserving form.
 
     A trailing 'm' marks a minor key and is kept; the root is respelled with
-    the same enharmonic policy as chords.
+    the same enharmonic policy as chords, with one extra rule: the result must
+    name a real key signature. A chord can be spelled D# or Gbm freely, but as
+    *keys* those don't exist (their signatures would need more than seven
+    accidentals), so the source's accidental style is overridden where it
+    would produce one: sharp-style majors landing on D#/G#/A# come out Eb/Ab/
+    Bb, and flat-style minors landing on Dbm/Gbm come out C#m/F#m.
     """
     notation = _notation_str(notation)
     key_str = key_str.strip()
@@ -208,7 +226,12 @@ def transpose_key(key_str: str, semitones: int, notation: Union[Notation, str]) 
     if parsed is None:
         return key_str
     pc, style, is_lower, consumed = parsed
-    new_root = _spell((pc + semitones) % 12, style, notation, is_lower)
+    new_pc = (pc + semitones) % 12
+    if minor and style == 'flat' and new_pc in _NO_SUCH_MINOR_FLAT:
+        style = 'sharp'
+    elif not minor and style == 'sharp' and new_pc in _NO_SUCH_MAJOR_SHARP:
+        style = 'flat'
+    new_root = _spell(new_pc, style, notation, is_lower)
     return new_root + root_str[consumed:] + ('m' if minor else '')
 
 

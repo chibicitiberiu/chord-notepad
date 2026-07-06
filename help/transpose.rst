@@ -60,6 +60,12 @@ Because of this, transposing up and then back down by the same amount returns
 plain chords to exactly where they started, but a chord that was spelled with
 an unusual accidental may come back with the more conventional spelling.
 
+Key names (the toolbar key and ``{key}`` directives) follow the same
+preference with one extra rule: the result must be a real key. A chord can be
+spelled ``D#`` freely, but there is no D# major key signature, so a key that
+would land there comes out ``Eb`` instead -- likewise ``Gbm`` becomes ``F#m``,
+``Dbm`` becomes ``C#m``, ``G#`` becomes ``Ab``, and ``A#`` becomes ``Bb``.
+
 
 Keeping Chords Over the Lyrics
 ==================================
