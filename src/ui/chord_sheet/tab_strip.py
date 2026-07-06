@@ -101,6 +101,7 @@ LABEL_BOX_H = 13.0
 #: Palette (module-local; echoes the user's blog diagrams).
 _INK = "#22323a"  # chord symbols, fret-number text
 _GRID = "#b9c2c7"  # string lines, bar lines
+_MUTE = "#8b949b"  # "Capo N" markers (same muted ink as the fret card's labels)
 
 #: Font sizes at zoom 1.0.
 _SYMBOL_SIZE = 12
@@ -124,6 +125,31 @@ def _song_string_count(song: RenderedSong) -> int:
         if chord.fingering:
             return len(chord.fingering)
     return DEFAULT_STRING_COUNT
+
+
+def _capo_span_starts(song: RenderedSong) -> List[Tuple[int, int]]:
+    """Return ``(chord_index, capo)`` for the first chord of each capo span.
+
+    Walks the song's chords in order; a chord starts a ``Capo N`` marker when
+    its ``capo`` is greater than zero and differs from the previous chord's
+    ``capo`` (the first chord is compared against an implicit capo 0). This
+    yields one entry for a single whole-song ``{capo}`` and one per mid-song
+    change to a nonzero value; capo 0 yields nothing.
+
+    Args:
+        song: The rendered song whose chords to walk.
+
+    Returns:
+        ``(chord_index, capo)`` pairs, in song order, for span starts.
+    """
+    starts: List[Tuple[int, int]] = []
+    prev_capo = 0
+    for index, chord in enumerate(song.chords):
+        capo = chord.capo
+        if capo > 0 and capo != prev_capo:
+            starts.append((index, capo))
+        prev_capo = capo
+    return starts
 
 
 def _string_line_ys(
@@ -274,3 +300,20 @@ class TabStripRenderer(StripRenderer):
                     fill=_INK,
                     tags=(tag,),
                 )
+
+        # "Capo N" markers, drawn beside the chord symbol of the first chord in
+        # each nonzero-capo span (the tab fret numbers are already capo-relative).
+        slot_by_index = {slot.chord_index: slot for slot in layout.slots}
+        for chord_index, capo in _capo_span_starts(ctx.song):
+            slot = slot_by_index.get(chord_index)
+            if slot is None:
+                continue
+            ops.text(
+                slot.x,
+                symbol_y,
+                f"Capo {capo}",
+                anchor="w",
+                size=label_size,
+                fill=_MUTE,
+                tags=(f"slot:{chord_index}",),
+            )

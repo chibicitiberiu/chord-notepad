@@ -183,6 +183,31 @@ def _has_shape(chord: RenderedChord) -> bool:
     return (not chord.is_rest) and bool(chord.fingering)
 
 
+def _capo_span_starts(chords: List[RenderedChord]) -> List[Tuple[int, int]]:
+    """Return ``(chord_index, capo)`` for the first chord of each capo span.
+
+    Walks ``chords`` in song order; a chord starts a ``Capo N`` marker when its
+    ``capo`` is greater than zero and differs from the previous chord's ``capo``
+    (the first chord is compared against an implicit capo 0). This yields one
+    entry for a single whole-song ``{capo}`` and one per mid-song change to a
+    nonzero value; capo 0 yields nothing.
+
+    Args:
+        chords: The rendered chords in song order.
+
+    Returns:
+        ``(chord_index, capo)`` pairs, in song order, for span starts.
+    """
+    starts: List[Tuple[int, int]] = []
+    prev_capo = 0
+    for index, chord in enumerate(chords):
+        capo = chord.capo
+        if capo > 0 and capo != prev_capo:
+            starts.append((index, capo))
+        prev_capo = capo
+    return starts
+
+
 def _capped_content_height(height: float, zoom: float) -> Tuple[float, float]:
     """Resolve the content height used for geometry math, plus top padding.
 
@@ -258,6 +283,23 @@ class FretCardRenderer(StripRenderer):
             if not _has_shape(chord):
                 continue  # slim empty card: no ops
             self._paint_card(ops, chord, slot, geo, top_pad)
+
+        # "Capo N" markers, drawn beside the chord symbol of the first chord in
+        # each nonzero-capo span (fret numbers are already capo-relative).
+        slot_by_index = {slot.chord_index: slot for slot in layout.slots}
+        for chord_index, capo in _capo_span_starts(chords):
+            slot = slot_by_index.get(chord_index)
+            if slot is None:
+                continue
+            ops.text(
+                slot.x,
+                top_pad + geo.symbol_h / 2.0,
+                f"Capo {capo}",
+                anchor="w",
+                size=geo.label_size,
+                fill=_MUTE,
+                tags=(f"slot:{chord_index}",),
+            )
 
     def _paint_card(
         self,

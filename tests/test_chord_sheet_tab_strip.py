@@ -304,6 +304,50 @@ def test_a8_across_a_measure_boundary_shows_a_mid_chord_bar_line():
     assert xs == pytest.approx([expected_mid_chord_x, c_slot.x])
 
 
+def capo_markers(ops):
+    return [op for op in ops.ops if isinstance(op, TextOp) and op.s.startswith("Capo")]
+
+
+def _paint_guitar(text):
+    song = _render_guitar(text)
+    renderer = TabStripRenderer()
+    ctx = SheetContext(song=song)
+    layout = renderer.layout(ctx, height=HEIGHT)
+    ops = DrawOps()
+    renderer.paint(ops, ctx, layout)
+    return song, layout, ops
+
+
+def test_single_whole_song_capo_draws_one_marker_at_first_chord():
+    song, layout, ops = _paint_guitar("{capo: 2}\nC G Am\n")
+    markers = capo_markers(ops)
+    assert [m.s for m in markers] == ["Capo 2"]
+    assert markers[0].x == pytest.approx(layout.slots[0].x)
+
+
+def test_no_capo_directive_draws_no_marker():
+    _song, _layout, ops = _paint_guitar("C G Am\n")
+    assert capo_markers(ops) == []
+
+
+def test_capo_zero_directive_draws_no_marker():
+    _song, _layout, ops = _paint_guitar("{capo: 0}\nC G Am\n")
+    assert capo_markers(ops) == []
+
+
+def test_mid_song_capo_change_draws_two_markers_at_the_span_starts():
+    song, layout, ops = _paint_guitar("{capo: 2}\nC G\n{capo: 4}\nAm F\n")
+    markers = sorted(capo_markers(ops), key=lambda m: m.x)
+    assert [m.s for m in markers] == ["Capo 2", "Capo 4"]
+
+    capos = [c.capo for c in song.chords]
+    first_two_x = layout.slots[0].x
+    change_index = capos.index(4)
+    change_x = layout.slots[change_index].x
+    assert markers[0].x == pytest.approx(first_two_x)
+    assert markers[1].x == pytest.approx(change_x)
+
+
 def test_bar_lines_do_not_exceed_the_string_block_vertically():
     song = _render_guitar("A*8  C*4\n")
     renderer = TabStripRenderer()

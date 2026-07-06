@@ -2,8 +2,11 @@
 
 import pytest
 
+from audio.guitar_chord_picker import GuitarChordPicker
 from models.chord import ChordInfo
 from models.rendered_song import RenderedChord, RenderedSong
+from services.song_parser_service import SongParserService
+from services.song_renderer import SongRenderer
 from ui.chord_sheet.fret_card import (
     DEFAULT_ROWS,
     MAX_CONTENT_HEIGHT,
@@ -264,6 +267,62 @@ def test_open_strings_with_high_position_shape_stays_compact():
     for slot_index in (0, 1):
         horiz = horizontal_lines(slot_ops(ops, slot_index))
         assert len(horiz) == DEFAULT_ROWS + 1
+
+
+def _render_guitar(text, time_sig=(4, 4)):
+    """Render a real song with guitar fingering data, for capo-marker tests."""
+    lines = SongParserService().detect_chords_in_text(text)
+    return SongRenderer().render(
+        lines=lines,
+        initial_key="C",
+        initial_bpm=120,
+        initial_time_sig=time_sig,
+        note_picker=GuitarChordPicker("standard"),
+        start_line_index=0,
+        start_item_index=0,
+    )
+
+
+def capo_markers(ops):
+    return [op for op in ops.ops if isinstance(op, TextOp) and op.s.startswith("Capo")]
+
+
+def _paint_guitar(text):
+    song = _render_guitar(text)
+    renderer = FretCardRenderer()
+    ctx = SheetContext(song=song)
+    layout = renderer.layout(ctx, height=HEIGHT)
+    ops = DrawOps()
+    renderer.paint(ops, ctx, layout)
+    return song, layout, ops
+
+
+def test_single_whole_song_capo_draws_one_marker_at_first_chord():
+    song, layout, ops = _paint_guitar("{capo: 2}\nC G Am\n")
+    markers = capo_markers(ops)
+    assert [m.s for m in markers] == ["Capo 2"]
+    assert markers[0].x == pytest.approx(layout.slots[0].x)
+
+
+def test_no_capo_directive_draws_no_marker():
+    _song, _layout, ops = _paint_guitar("C G Am\n")
+    assert capo_markers(ops) == []
+
+
+def test_capo_zero_directive_draws_no_marker():
+    _song, _layout, ops = _paint_guitar("{capo: 0}\nC G Am\n")
+    assert capo_markers(ops) == []
+
+
+def test_mid_song_capo_change_draws_two_markers_at_the_span_starts():
+    song, layout, ops = _paint_guitar("{capo: 2}\nC G\n{capo: 4}\nAm F\n")
+    markers = sorted(capo_markers(ops), key=lambda m: m.x)
+    assert [m.s for m in markers] == ["Capo 2", "Capo 4"]
+
+    capos = [c.capo for c in song.chords]
+    change_index = capos.index(4)
+    assert markers[0].x == pytest.approx(layout.slots[0].x)
+    assert markers[1].x == pytest.approx(layout.slots[change_index].x)
 
 
 def test_label_is_fret_cards():
