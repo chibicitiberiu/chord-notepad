@@ -2,9 +2,7 @@
 
 A text editor for songwriters. Write chord symbols above your lyrics, the way you'd jot a song on the back of an envelope, and Chord Notepad detects them, highlights them, and plays them back, voiced the way a real musician would on piano or guitar. The sound is real MIDI synthesis through FluidSynth.
 
-### Watch the demo
-
-[![Chord Notepad demo video](https://img.youtube.com/vi/1Pf2bl4FVAc/hqdefault.jpg)](https://youtu.be/1Pf2bl4FVAc)
+**[Watch the demo](https://youtu.be/1Pf2bl4FVAc)**
 
 <img width="1084" height="830" alt="image" src="https://github.com/user-attachments/assets/54ebad77-a203-4140-a018-d04476315819" />
 
