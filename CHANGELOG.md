@@ -7,8 +7,6 @@ of this file are used as the GitHub release description, then automatically
 moved to CHANGELOG_HISTORY.md and this file is reset.
 -->
 
-**Demo:** https://youtu.be/1Pf2bl4FVAc
-
 ### Added
 
 - **Chord sheet** (View → Chord Sheet): a collapsible strip docked under the
