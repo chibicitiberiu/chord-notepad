@@ -118,7 +118,12 @@ exe = EXE(
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
-    upx=True,
+    # UPX rewrites each bundled DLL's PE headers, which strips the Authenticode
+    # signatures off ucrtbase.dll / python314.dll. On machines that enforce
+    # Windows Application Control (WDAC / Smart App Control) the mangled DLLs then
+    # fail code-integrity checks ("Bad Image 0xc0e90002" / blocked file). Leave the
+    # original signed DLLs intact.
+    upx=False,
     upx_exclude=[],
     runtime_tmpdir=None,
     console=False,  # No console window for GUI app
