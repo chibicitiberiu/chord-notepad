@@ -1,10 +1,15 @@
 # Chord Notepad
 
-A text editor for chord notation. Write chord symbols above your lyrics and Chord Notepad detects them, highlights them, and plays them back, voiced the way a real musician would on piano or guitar. The sound is real MIDI synthesis through FluidSynth.
+A text editor for chord notation. Write chord symbols above your lyrics and Chord Notepad detects them, highlights them and plays them back, voiced the way a real musician would on piano or guitar. The sound is real MIDI synthesis through FluidSynth.
 
 **[Watch the demo](https://youtu.be/1Pf2bl4FVAc)** · **[Read how it was built](https://tibich.com/blog/chord-notepad-release/)**
 
 <img width="1084" height="830" alt="image" src="https://github.com/user-attachments/assets/54ebad77-a203-4140-a018-d04476315819" />
+
+## Notes:
+
+- because Windows version is not yet signed (work in progress), a Windows SmartScreen warning is shown on the current release
+- macOS version has had limited testing; feedback welcome.
 
 ## Features
 
