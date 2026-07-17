@@ -7,9 +7,9 @@ of this file are used as the GitHub release description, then automatically
 moved to CHANGELOG_HISTORY.md and this file is reset.
 -->
 
-### Fixed
+### Added
 
-- **Windows:** Fixed a startup failure where bundled runtime libraries such as
-  `ucrtbase.dll` were rejected with a "Bad Image" error (status `0xc0e90002`).
-  UPX executable compression was rewriting these DLLs and stripping their
-  signatures; it is now disabled so the original signed libraries ship intact.
+- **Windows:** Release builds are now code-signed with Azure Trusted Signing.
+  This clears the SmartScreen "unknown publisher" warning and lets the app
+  launch on machines that enforce Windows Application Control (WDAC / Smart App
+  Control), which previously blocked the unsigned executable.
