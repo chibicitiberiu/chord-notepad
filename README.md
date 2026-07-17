@@ -8,7 +8,6 @@ A text editor for chord notation. Write chord symbols above your lyrics and Chor
 
 ## Notes:
 
-- because Windows version is not yet signed (work in progress), a Windows SmartScreen warning is shown on the current release
 - macOS version has had limited testing; feedback welcome.
 
 ## Features
