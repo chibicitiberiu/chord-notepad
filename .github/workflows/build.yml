@@ -92,6 +92,12 @@ jobs:
     permissions:
       contents: write
       id-token: write
+    # Ties the OIDC token's subject to a stable value
+    # (repo:<owner>/<repo>:environment:release) so the Azure federated credential
+    # can match every release with one entry, instead of a per-tag subject.
+    # Do NOT add required-reviewer protection rules to this environment, or it
+    # will gate nightly/dispatch builds too.
+    environment: release
     # Run build only for nightly (if changes), tag push, or manual workflow dispatch
     if: |
       always() &&
