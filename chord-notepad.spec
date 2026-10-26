@@ -88,6 +88,11 @@ excludes = [
     'PySide6',
     'wx',
 ]
+if sys.platform != 'win32':
+    # Windows-only timezone support (pulled in via matplotlib -> dateutil).
+    # dateutil already treats it as optional, and leaving it in makes
+    # PyInstaller warn that user32 isn't found on Linux/macOS.
+    excludes.append('dateutil.tz.win')
 
 a = Analysis(
     ['src/main.py'],
@@ -95,7 +100,9 @@ a = Analysis(
     binaries=binaries,
     datas=datas,
     hiddenimports=hiddenimports,
-    hookspath=[],
+    # Build-time hook overrides. Kept apart from hooks/hook-fluidsynth.py, which
+    # is a *runtime* hook and must not be picked up as a build hook.
+    hookspath=['hooks/pyinstaller'],
     hooksconfig={},
     runtime_hooks=runtime_hooks,
     excludes=excludes,
@@ -130,7 +137,8 @@ exe_options = dict(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon='resources/chord-notepad-icon.ico',  # Windows icon
+    # PyInstaller only embeds icons on Windows/macOS and warns elsewhere.
+    icon='resources/chord-notepad-icon.ico' if sys.platform in ('win32', 'darwin') else None,
     version=win_version_file,  # Embedded VS_VERSION_INFO on Windows
 )
 

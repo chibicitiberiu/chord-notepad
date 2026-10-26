@@ -205,8 +205,28 @@ pipenv run pyinstaller --clean --noconfirm --distpath dist-store --workpath buil
     -Publisher 'CN=ChordNotepadUnreserved' -PublisherDisplayName 'Chord Notepad Contributors'
 ```
 
-To install it, sign it with a self-signed certificate whose subject equals
-`-Publisher`, trust that certificate, then add the package:
+The package is unsigned, so double-clicking it fails ("publisher certificate
+could not be verified"). There are two ways to install it.
+
+**Quick: Developer Mode, no signing.** Turn on *Settings → System → For
+developers → Developer Mode*, then register the unpacked package. Works with
+the `.msix` straight from the CI artifact, no Windows SDK needed:
+
+```powershell
+Copy-Item ChordNotepad-0.3.2-x64.msix ChordNotepad.zip   # Expand-Archive wants .zip
+Expand-Archive ChordNotepad.zip -DestinationPath $env:USERPROFILE\ChordNotepadTest
+Add-AppxPackage -Register $env:USERPROFILE\ChordNotepadTest\AppxManifest.xml
+# Remove: Get-AppxPackage ChordNotepad.Unreserved | Remove-AppxPackage
+```
+
+The app runs from that folder (not the read-only `WindowsApps`), so keep it
+in place while testing. Everything else (Start tile, icons, AppData
+redirection) behaves like a Store install.
+
+**Exact: signed install.** Sign it with a self-signed certificate whose
+subject equals `-Publisher`, trust that certificate, then add the package
+(needs `signtool` from the Windows SDK). CI does this on every run in
+`smoke_test.ps1`:
 
 ```powershell
 $cert = New-SelfSignedCertificate -Type Custom -Subject 'CN=ChordNotepadUnreserved' `

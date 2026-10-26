@@ -189,7 +189,8 @@ jobs:
             brew install imagemagick
             MAGICK_CMD="magick"
           elif [[ "${{ runner.os }}" == "Windows" ]]; then
-            choco install imagemagick -y
+            # The Windows image already ships ImageMagick.
+            command -v magick >/dev/null || choco install imagemagick -y
             MAGICK_CMD="magick"
           fi
 
@@ -369,7 +370,9 @@ jobs:
           $publisher = $env:STORE_PUBLISHER
           $publisherName = $env:STORE_PUBLISHER_DISPLAY_NAME
           if (-not $identity -or -not $publisher -or -not $publisherName) {
-            Write-Host "::warning::STORE_* repo variables not set; building MSIX with a placeholder identity (not uploadable to the Store)."
+            # Only a release build is meant for Partner Center, so only warn there.
+            $level = if ($env:GITHUB_REF -like 'refs/tags/v*') { 'warning' } else { 'notice' }
+            Write-Host "::${level}::STORE_* repo variables not set; building MSIX with a placeholder identity (not uploadable to the Store)."
             $identity = 'ChordNotepad.Unreserved'
             $publisher = 'CN=ChordNotepadUnreserved'
             $publisherName = 'Chord Notepad Contributors'
@@ -464,7 +467,7 @@ jobs:
       - uses: actions/checkout@v5
 
       - name: Download all artifacts
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           path: artifacts
 
@@ -562,7 +565,7 @@ jobs:
           echo "is_full_release=$IS_FULL_RELEASE" >> $GITHUB_OUTPUT
 
       - name: Create Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ steps.release_info.outputs.tag_name }}
           name: ${{ steps.release_info.outputs.release_name }}
