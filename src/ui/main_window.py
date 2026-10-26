@@ -1382,7 +1382,9 @@ class MainWindow(tk.Tk):
     def show_quick_start(self) -> None:
         """Show the Quick Start dialog."""
         from ui.dialogs import QuickStartDialog
-        dialog = QuickStartDialog(self)
+        editor_font = (resolve_font_family(self.text_editor, self.viewmodel.font_family),
+                       self.viewmodel.font_size)
+        dialog = QuickStartDialog(self, self.application.song_parser_service, editor_font)
         self.wait_window(dialog)
 
         # Update config if user chose not to show again

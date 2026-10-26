@@ -21,6 +21,9 @@ moved to CHANGELOG_HISTORY.md and this file is reset.
   hover feedback, slim scrollbars and a flat status bar.
 - The chord sheet's views (Piano roll, Staff, Fret cards, Tab) are now tabs.
   Hovering a greyed-out tab explains how to enable it.
+- The Quick Start tour shows real, colour-highlighted song examples (chords
+  over lyrics, Do-Re-Mi, Roman numerals, timing, sections) instead of
+  one-line snippets and screenshot placeholders.
 
 ### Fixed
 
