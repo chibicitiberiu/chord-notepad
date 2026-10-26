@@ -2,7 +2,8 @@
 
 _Last updated: 27 October 2026_
 
-Chord Notepad does not collect, store or send any personal information.
+Chord Notepad does not collect or send any personal information. Nothing you
+do in the app is shared with the developer or anyone else.
 
 ## What the app keeps, and where
 
