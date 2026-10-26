@@ -182,6 +182,13 @@ certificate, so Trusted Signing is not involved and SmartScreen does not apply.
 4. In Partner Center, start a new submission, upload the `.msix` under
    **Packages**, and submit for certification (usually 1-3 days).
 
+After building, CI runs `packaging/msix/smoke_test.ps1`: it signs a throwaway
+copy with a self-signed cert, installs it on the runner, launches the app
+through its package identity, and fails the job if no startup log appears in
+the package's private AppData or the process dies. The full app log is printed
+in the step output. Runners have no audio device, so a missing soundfont load
+is only a warning there.
+
 Without the `STORE_*` variables CI still builds an MSIX with a placeholder
 identity (`CN=ChordNotepadUnreserved`) and prints a warning. That package is
 fine for local testing but Partner Center will reject it.
