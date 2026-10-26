@@ -13,3 +13,9 @@ moved to CHANGELOG_HISTORY.md and this file is reset.
   This clears the SmartScreen "unknown publisher" warning and lets the app
   launch on machines that enforce Windows Application Control (WDAC / Smart App
   Control), which previously blocked the unsigned executable.
+
+### Fixed
+
+- The editor's default font is monospace again on a fresh install. The default
+  (Tk's fixed-width font) was being read as an unknown font name, so Tk fell
+  back to a proportional font and chords drifted out of line above the lyrics.

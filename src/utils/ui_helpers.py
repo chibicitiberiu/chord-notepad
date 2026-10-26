@@ -1,6 +1,7 @@
 """UI helper utilities for common Tkinter patterns."""
 
 import tkinter as tk
+from tkinter import font as tkfont
 from typing import Callable, Optional
 
 
@@ -93,6 +94,25 @@ def create_tooltip(widget: tk.Widget, text: str, delay: int = 500) -> ToolTip:
         create_tooltip(button, "This button does something")
     """
     return ToolTip(widget, text, delay)
+
+
+def resolve_font_family(widget: tk.Misc, family: str) -> str:
+    """Turn a Tk named font (e.g. ``TkFixedFont``) into its real family.
+
+    A ``(family, size)`` font tuple only accepts real families; given a named
+    font Tk silently falls back to a proportional default. Real family names
+    are returned unchanged.
+
+    Args:
+        widget: Any widget, used to reach the Tk interpreter
+        family: Font family or Tk named font
+
+    Returns:
+        A family name usable in a font tuple
+    """
+    if family in tkfont.names(root=widget):
+        return tkfont.nametofont(family, root=widget).actual('family')
+    return family
 
 
 def bind_mousewheel(widget: tk.Widget, callback: Callable, platform: Optional[str] = None) -> None:

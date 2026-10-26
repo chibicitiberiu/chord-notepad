@@ -24,7 +24,7 @@ from ui.dialogs import (
     CapoDialog,
 )
 from utils.icon_loader import IconLoader
-from utils.ui_helpers import create_tooltip
+from utils.ui_helpers import create_tooltip, resolve_font_family
 from utils.key_helpers import get_key_options
 from models.notation import Notation
 from models.ensemble_spec import BUILTIN_ENSEMBLES
@@ -997,7 +997,7 @@ class MainWindow(tk.Tk):
 
     def apply_font(self) -> None:
         """Apply font settings to text editor"""
-        family = self.viewmodel.font_family
+        family = resolve_font_family(self.text_editor, self.viewmodel.font_family)
         size = self.viewmodel.font_size
         self.text_editor.configure(font=(family, size))
 
