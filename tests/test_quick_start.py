@@ -70,3 +70,23 @@ def test_every_page_renders_with_highlighted_read_only_snippets(root):
                 assert snippet.tag_ranges(TAG_CHORD_VALID), "snippet has no highlighted chords"
     finally:
         dialog.destroy()
+
+
+def test_every_image_block_ships_in_resources():
+    from pathlib import Path
+    root_dir = Path(__file__).resolve().parent.parent
+    for page in QuickStartDialog.PAGES:
+        for block in page["blocks"]:
+            if block[0] == "image":
+                assert (root_dir / block[1]).is_file(), block[1]
+
+
+def test_image_block_is_shown(root):
+    dialog = QuickStartDialog(root)
+    try:
+        index = next(i for i, page in enumerate(QuickStartDialog.PAGES)
+                     if any(block[0] == "image" for block in page["blocks"]))
+        dialog._load_page(index)
+        assert dialog._images, "chord sheet picture was not loaded"
+    finally:
+        dialog.destroy()

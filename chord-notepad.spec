@@ -15,6 +15,7 @@ datas = [
     ('resources/icon-128.png', 'resources'),
     ('resources/icon-256.png', 'resources'),
     ('resources/icons', 'resources/icons'),
+    ('resources/quickstart', 'resources/quickstart'),
     # Bundle HTML documentation for in-app help
     ('help/build/html', 'help/build/html'),
 ]

@@ -8,15 +8,17 @@ from tkinter import ttk
 from typing import Any, List, Optional
 
 from constants import UI_BORDER
+from services.resource_service import ResourceService
 from services.song_parser_service import SongParserService
 from ui.text_editor import ChordTextEditor
 from viewmodels.text_editor_viewmodel import TextEditorViewModel
 
 logger = logging.getLogger(__name__)
 
-# A page is a title plus a list of blocks. A block is either
-#   ("text", paragraph) or
+# A page is a title plus a list of blocks. A block is one of
+#   ("text", paragraph)
 #   ("snippet", song_text, notation)
+#   ("image", resource_path)
 # Snippets are rendered by a read-only ChordTextEditor running the real chord
 # detection, so they look exactly like the editor (colors, font, underlines).
 
@@ -137,6 +139,7 @@ class QuickStartDialog(tk.Toplevel):
                  "The panel under the editor draws the song's chords as you write: "
                  "as a piano roll, on a music staff, as guitar chord diagrams (Fret "
                  "cards), or as tab. It follows along while the song plays."),
+                ("image", "resources/quickstart/chord_sheet.png"),
                 ("text",
                  "Fret cards and Tab need a fretted instrument, picked in Playback "
                  "→ Voicing (for example Guitar). Show or hide the panel with "
@@ -158,7 +161,8 @@ class QuickStartDialog(tk.Toplevel):
 
     def __init__(self, parent: tk.Misc,
                  song_parser_service: Optional[SongParserService] = None,
-                 editor_font: Optional[Any] = None) -> None:
+                 editor_font: Optional[Any] = None,
+                 resource_service: Optional[ResourceService] = None) -> None:
         """Initialize the Quick Start dialog.
 
         Args:
@@ -166,6 +170,8 @@ class QuickStartDialog(tk.Toplevel):
             song_parser_service: Chord detection for the example snippets
                 (a fresh one is created if omitted)
             editor_font: Font the main editor uses, so snippets match it
+            resource_service: Resolves bundled image paths (a fresh one is
+                created if omitted)
         """
         super().__init__(parent)
 
@@ -180,7 +186,10 @@ class QuickStartDialog(tk.Toplevel):
 
         self._parser = song_parser_service or SongParserService()
         self._editor_font = editor_font
+        self._resources = resource_service or ResourceService()
         self._snippets: List[ChordTextEditor] = []
+        # PhotoImages shown on the current page; Tk drops them if unreferenced.
+        self._images: List[tk.PhotoImage] = []
 
         # Current page index
         self.current_page = 0
@@ -246,6 +255,7 @@ class QuickStartDialog(tk.Toplevel):
         for snippet in self._snippets:
             snippet.cleanup_observers()
         self._snippets = []
+        self._images = []
         for child in self.body.winfo_children():
             child.destroy()
 
@@ -253,6 +263,19 @@ class QuickStartDialog(tk.Toplevel):
         """Add a wrapped paragraph to the page body."""
         ttk.Label(self.body, text=text, wraplength=700, justify=tk.LEFT).pack(
             fill=tk.X, anchor=tk.W, pady=(0, 10))
+
+    def _add_image(self, relative_path: str) -> None:
+        """Add a bundled picture (with a 1px border) to the page body."""
+        try:
+            image = tk.PhotoImage(master=self, file=self._resources.get_resource_path(relative_path))
+        except tk.TclError:
+            logger.warning(f"Quick Start image missing: {relative_path}")
+            return
+        self._images.append(image)
+        frame = tk.Frame(self.body, bd=0, highlightthickness=1,
+                         highlightbackground=UI_BORDER, highlightcolor=UI_BORDER)
+        frame.pack(anchor=tk.W, pady=(0, 12))
+        tk.Label(frame, image=image, bd=0).pack()
 
     def _add_snippet(self, text: str, notation: str) -> None:
         """Add a read-only, chord-highlighted example to the page body.
@@ -310,6 +333,8 @@ class QuickStartDialog(tk.Toplevel):
                 self._add_text(block[1])
             elif block[0] == "snippet":
                 self._add_snippet(block[1], block[2])
+            elif block[0] == "image":
+                self._add_image(block[1])
 
         self.page_indicator.config(text=f"{page_index + 1} / {len(self.PAGES)}")
 
