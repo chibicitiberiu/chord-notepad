@@ -232,11 +232,19 @@ class ChordSheetPanel(ttk.Frame):
     # -- Tk event handlers --------------------------------------------------
 
     def _on_tab_changed(self, _event=None) -> None:
-        """Forward a tab selection to the viewmodel (ignored while syncing)."""
+        """Forward a user's tab selection to the viewmodel.
+
+        <<NotebookTabChanged>> is queued, so it also arrives after our own
+        programmatic selects (when ``_syncing_tabs`` is already cleared). Those
+        always match the viewmodel's active view; only a real click differs.
+        Forwarding them would record the startup fallback as the user's choice.
+        """
         if self._syncing_tabs:
             return
-        index = self._tabs.index("current")
-        self._vm.set_active_view(self._tab_ids[index])
+        view_id = self._tab_ids[self._tabs.index("current")]
+        if view_id == self._vm.active_view:
+            return
+        self._vm.set_active_view(view_id)
 
     def _select_tab(self, view_id: str) -> None:
         """Select the tab for ``view_id`` without notifying the viewmodel."""

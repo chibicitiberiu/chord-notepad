@@ -456,3 +456,13 @@ def test_first_configure_after_quiet_period_repaints_immediately(root):
     assert len(renderer.layout_zooms) == 1
 
 
+
+
+def test_startup_fallback_tab_select_does_not_overwrite_saved_view(root):
+    # Fret cards saved, but the piano-voiced song gates it out: the strip shows
+    # the keyboard fallback. The notebook's queued <<NotebookTabChanged>> for
+    # that programmatic select must not be recorded as the user's choice.
+    panel, vm = _make_panel(root, "C G\nAm F\n", view="fret")
+    root.update()  # deliver queued virtual events
+    assert vm.active_view == "keyboard"
+    assert vm._config.get("chord_sheet_view") == "fret"
