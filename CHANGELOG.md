@@ -14,6 +14,14 @@ moved to CHANGELOG_HISTORY.md and this file is reset.
   launch on machines that enforce Windows Application Control (WDAC / Smart App
   Control), which previously blocked the unsigned executable.
 
+### Changed
+
+- Refreshed look: a modern native theme on Windows (it was using the classic
+  Windows 95-style one), a lighter flat style on Linux, a tidier toolbar with
+  hover feedback, slim scrollbars and a flat status bar.
+- The chord sheet's views (Piano roll, Staff, Fret cards, Tab) are now tabs.
+  Hovering a greyed-out tab explains how to enable it.
+
 ### Fixed
 
 - The editor's default font is monospace again on a fresh install. The default

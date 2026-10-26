@@ -544,6 +544,31 @@ def test_fingering_renderer_shown_for_fretted_song():
     assert "fret" in vm.available_views
 
 
+def test_fretted_views_unavailable_reason_variants():
+    renderers = [PlainRenderer(), FingeringRenderer()]
+
+    # No rendered song yet.
+    vm, _, scheduler = make_vm(rendered=RenderedSong(chords=[]), renderers=renderers)
+    assert vm.fretted_views_unavailable_reason == "Add some chords to see this view."
+    vm.set_song([], None)
+    scheduler.flush()  # rendered, but empty
+    assert vm.fretted_views_unavailable_reason == "Add some chords to see this view."
+
+    # Chords but no fingering (piano voicing).
+    piano = RenderedSong(chords=[make_chord("C", fingering=None)])
+    vm, _, scheduler = make_vm(rendered=piano, renderers=renderers)
+    vm.set_song([], None)
+    scheduler.flush()
+    assert "Playback \u2192 Voicing" in vm.fretted_views_unavailable_reason
+
+    # Fretted song: available.
+    fretted = RenderedSong(chords=[make_chord("C", fingering=[-1, 3, 2, 0, 1, 0])])
+    vm, _, scheduler = make_vm(rendered=fretted, renderers=renderers)
+    vm.set_song([], None)
+    scheduler.flush()
+    assert vm.fretted_views_unavailable_reason is None
+
+
 def test_active_view_falls_back_when_it_becomes_unavailable():
     renderers = [PlainRenderer(), FingeringRenderer()]
     fretted = RenderedSong(chords=[make_chord("C", fingering=[0, 0, 0, 0, 0, 0])])

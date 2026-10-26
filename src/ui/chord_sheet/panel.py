@@ -14,7 +14,14 @@ import tkinter as tk
 from tkinter import ttk
 from typing import Optional, Set
 
-from constants import CHORD_SHEET_CONFIGURE_DEBOUNCE_MS
+from constants import (
+    CHORD_SHEET_CONFIGURE_DEBOUNCE_MS,
+    UI_BORDER,
+    UI_HOVER,
+    UI_TAB_IDLE,
+    UI_TEXT_DISABLED,
+)
+from ui.base.tooltip import TabToolTip
 from ui.chord_sheet.clef_assets import image_for_clef_key
 from ui.chord_sheet.marker_lane import LANE_HEIGHT, build_marker_lane
 from ui.chord_sheet.ops import DrawOps, ImageOp, replay
@@ -71,28 +78,6 @@ class ChordSheetPanel(ttk.Frame):
         header = ttk.Frame(self)
         header.pack(side=tk.TOP, fill=tk.X, padx=4, pady=(4, 0))
 
-        ttk.Label(header, text="View:").pack(side=tk.LEFT)
-
-        # One Toolbutton-style radiobutton per renderer the viewmodel knows
-        # (in its registered order), sharing a single StringVar so selecting
-        # one deselects the rest. Renderers gated out for the current song
-        # (e.g. fretted views for a piano-voiced song) stay visible but
-        # disabled, so the row's layout never shifts.
-        self._view_var = tk.StringVar(value=self._vm.active_view)
-        self._view_buttons: dict = {}
-        for renderer in self._vm.renderers:
-            button = ttk.Radiobutton(
-                header,
-                text=renderer.label,
-                value=renderer.id,
-                variable=self._view_var,
-                style="Toolbutton",
-                command=self._on_view_picked,
-            )
-            button.pack(side=tk.LEFT, padx=(4, 0))
-            self._view_buttons[renderer.id] = button
-        self._update_view_buttons_state()
-
         # Compact zoom controls pinned to the right end of the header row,
         # enabled only while the active view declares ``supports_zoom``. Packed
         # right-to-left so "+" is rightmost and "-" sits to its left.
@@ -101,13 +86,31 @@ class ChordSheetPanel(ttk.Frame):
         )
         self._zoom_in_btn.pack(side=tk.RIGHT, padx=(0, 0))
         self._zoom_out_btn = ttk.Button(
-            header, text="−", width=2, style="Toolbutton", command=self._vm.zoom_out
+            header, text="\u2212", width=2, style="Toolbutton", command=self._vm.zoom_out
         )
         self._zoom_out_btn.pack(side=tk.RIGHT, padx=(0, 2))
         self._update_zoom_buttons_state()
 
+        # The view picker is a ttk.Notebook used purely as a tab strip: one tab
+        # per renderer (in registered order) whose pages are empty zero-height
+        # frames, with the real body sitting directly beneath. Renderers gated
+        # out for the current song stay visible but disabled, so the row's
+        # layout never shifts.
+        self._configure_tab_style()
+        self._tabs = ttk.Notebook(header, style="ChordSheet.TNotebook", takefocus=False)
+        self._tab_ids: list = [renderer.id for renderer in self._vm.renderers]
+        for renderer in self._vm.renderers:
+            self._tabs.add(ttk.Frame(self._tabs, height=0), text=renderer.label)
+        self._tabs.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        # True while the panel itself changes tab states/selection, so the
+        # resulting <<NotebookTabChanged>> doesn't feed back into the viewmodel.
+        self._syncing_tabs = False
+        self._tabs.bind("<<NotebookTabChanged>>", self._on_tab_changed)
+        self._tab_tip = TabToolTip(self._tabs, self._tab_tip_text)
+        self._update_view_buttons_state()
+
         body = ttk.Frame(self)
-        body.pack(side=tk.TOP, fill=tk.BOTH, expand=True, padx=4, pady=4)
+        body.pack(side=tk.TOP, fill=tk.BOTH, expand=True, padx=4, pady=(0, 4))
         # Column 0: frozen gutter (fixed width, 0 when collapsed). Column 1: the
         # scrolling strip + lane. Row 0: marker lane. Row 1: strip. Row 2: bar.
         body.columnconfigure(0, weight=0)
@@ -165,6 +168,33 @@ class ChordSheetPanel(ttk.Frame):
         # edge, so scroll-dependent gutters (staff key signature) must repaint.
         self._repaint_gutter()
 
+    @staticmethod
+    def _configure_tab_style() -> None:
+        """Style the view picker as tabs attached to the strip below.
+
+        Only configure options (no images) so it degrades across themes. The
+        notebook's client area is empty, so its border is trimmed to nothing
+        and the selected tab is lifted a little with negative bottom margin.
+        """
+        style = ttk.Style()
+        surface = style.lookup("TFrame", "background")
+        # The empty client area blends into the surrounding surface (no stray
+        # line under the tabs); the selected tab takes the strip's paper color
+        # so it reads as joined to the strip directly below it.
+        style.configure("ChordSheet.TNotebook", borderwidth=0, tabmargins=(0, 2, 0, 0),
+                        background=surface, bordercolor=surface,
+                        lightcolor=surface, darkcolor=surface)
+        style.layout("ChordSheet.TNotebook", [("Notebook.client", {"sticky": "nswe"})])
+        style.configure("ChordSheet.TNotebook.Tab", padding=(10, 3), bordercolor=UI_BORDER)
+        style.map(
+            "ChordSheet.TNotebook.Tab",
+            padding=[("selected", (12, 5))],
+            expand=[("selected", (0, 2, 0, 0))],
+            background=[("selected", STRIP_BG), ("active", UI_HOVER), ("!selected", UI_TAB_IDLE)],
+            lightcolor=[("selected", STRIP_BG), ("!selected", UI_TAB_IDLE)],
+            foreground=[("disabled", UI_TEXT_DISABLED)],
+        )
+
     def _wire_viewmodel(self) -> None:
         """Subscribe to the viewmodel's observable state."""
         self._vm.observe("rendered_song", self._on_rendered_song_changed)
@@ -186,14 +216,13 @@ class ChordSheetPanel(ttk.Frame):
 
     def _on_active_view_changed(self, view_id: str) -> None:
         """Repaint with the newly selected renderer."""
-        if self._view_var.get() != view_id:
-            self._view_var.set(view_id)
+        self._select_tab(view_id)
         # Zoom support is per-renderer, so the buttons may enable/disable.
         self._update_zoom_buttons_state()
         self._relayout_and_paint()
 
     def _on_available_views_changed(self, views) -> None:
-        """Update the toggle buttons' enabled state when gating changes."""
+        """Update the tabs' enabled state when gating changes."""
         self._update_view_buttons_state(views)
 
     def _on_zoom_changed(self, _zoom) -> None:
@@ -202,23 +231,50 @@ class ChordSheetPanel(ttk.Frame):
 
     # -- Tk event handlers --------------------------------------------------
 
-    def _on_view_picked(self) -> None:
-        """Forward a toggle-button selection to the viewmodel."""
-        self._vm.set_active_view(self._view_var.get())
+    def _on_tab_changed(self, _event=None) -> None:
+        """Forward a tab selection to the viewmodel (ignored while syncing)."""
+        if self._syncing_tabs:
+            return
+        index = self._tabs.index("current")
+        self._vm.set_active_view(self._tab_ids[index])
+
+    def _select_tab(self, view_id: str) -> None:
+        """Select the tab for ``view_id`` without notifying the viewmodel."""
+        if view_id not in self._tab_ids:
+            return
+        self._syncing_tabs = True
+        try:
+            self._tabs.select(self._tab_ids.index(view_id))
+        finally:
+            self._syncing_tabs = False
+
+    def _tab_tip_text(self, index: int) -> Optional[str]:
+        """Tooltip text for tab ``index``: why it is disabled, else ``None``."""
+        if self._tabs.tab(index, "state") != "disabled":
+            return None
+        return self._vm.fretted_views_unavailable_reason
 
     def _update_view_buttons_state(self, views=None) -> None:
-        """Enable buttons for available views, disable the gated-out rest.
+        """Enable tabs for available views, disable the gated-out rest.
+
+        Disabling the selected tab makes Tk auto-select another one, so the
+        change handler is suppressed while states update and the selection is
+        then re-synced to the viewmodel's own active view.
 
         Args:
             views: Available renderer ids, or ``None`` to read the
                 viewmodel's current ``available_views``.
         """
         available = set(views if views is not None else self._vm.available_views)
-        for view_id, button in self._view_buttons.items():
-            if view_id in available:
-                button.state(["!disabled"])
-            else:
-                button.state(["disabled"])
+        self._syncing_tabs = True
+        try:
+            for index, view_id in enumerate(self._tab_ids):
+                self._tabs.tab(index, state="normal" if view_id in available else "disabled")
+            if self._vm.active_view in self._tab_ids:
+                self._tabs.select(self._tab_ids.index(self._vm.active_view))
+        finally:
+            self._syncing_tabs = False
+        self._tab_tip.refresh()
 
     def _update_zoom_buttons_state(self) -> None:
         """Enable the +/- zoom buttons only when the active view supports zoom."""

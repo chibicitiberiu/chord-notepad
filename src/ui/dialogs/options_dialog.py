@@ -98,7 +98,7 @@ class OptionsDialog(tk.Toplevel):
 
         # Left page list.
         self._nav = ttk.Treeview(body, show="tree", selectmode="browse", height=10)
-        self._nav.column("#0", width=160, stretch=False)
+        self._nav.column("#0", width=180, stretch=False)
         self._nav.pack(side=tk.LEFT, fill=tk.Y, padx=(0, 10))
         self._nav.insert("", "end", iid="general", text="General")
         self._nav.insert("", "end", iid="playback_audio", text="Playback & Audio")

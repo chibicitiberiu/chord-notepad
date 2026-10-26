@@ -1,4 +1,4 @@
-"""Scrubber widget: a compact numeric control that looks like underlined text.
+"""Scrubber widget: a compact numeric control shown as a tinted value chip.
 
 Drag horizontally to change the value, click without dragging to type a precise
 value. Used in the toolbar where a slider would take too much space.
@@ -8,12 +8,15 @@ import tkinter as tk
 from tkinter import ttk, font as tkfont
 from typing import Callable, Optional
 
+from constants import UI_SCRUB_BG, UI_SCRUB_HOVER
+
 
 class Scrubber(ttk.Frame):
-    """A draggable/typable numeric text control styled like a hyperlink.
+    """A draggable/typable numeric value shown as a small tinted chip.
 
     The widget alternates between two modes:
-      * idle: shows the formatted value as a label, underlined and link-blue
+      * idle: shows the formatted value as a label, bold and link-blue on a
+        light tint that darkens on hover
       * editing: shows a tk.Entry where the user can type a precise value
 
     Dragging horizontally on the label changes the value. When `snap_tolerance`
@@ -75,7 +78,6 @@ class Scrubber(ttk.Frame):
             family=base_font.cget("family"),
             size=base_font.cget("size"),
             weight="bold",
-            underline=True,
         )
         self._label = tk.Label(
             self,
@@ -84,11 +86,17 @@ class Scrubber(ttk.Frame):
             fg=self.LINK_COLOR,
             cursor="sb_h_double_arrow",
             width=self._width,
-            anchor="e",
-            padx=0,
+            anchor="center",
+            padx=2,
+            pady=1,
             bd=0,
+            bg=UI_SCRUB_BG,
         )
         self._label.pack(side=tk.LEFT)
+        # Surface color for readonly mode, where the chip tint is dropped.
+        self._plain_bg = ttk.Style().lookup('TFrame', 'background') or self._label.cget('bg')
+        self._label.bind("<Enter>", lambda _e: self._set_hover(True), add="+")
+        self._label.bind("<Leave>", lambda _e: self._set_hover(False), add="+")
 
         self._label.bind("<ButtonPress-1>", self._on_press)
         self._label.bind("<B1-Motion>", self._on_drag)
@@ -273,9 +281,13 @@ class Scrubber(ttk.Frame):
         if readonly:
             if self._entry is not None:
                 self._cancel_edit()
-            self._label.config(cursor="arrow", fg=self.READONLY_COLOR)
-            self._idle_font.config(underline=False)
+            self._label.config(cursor="arrow", fg=self.READONLY_COLOR, bg=self._plain_bg)
         else:
-            self._label.config(cursor="sb_h_double_arrow", fg=self.LINK_COLOR)
-            self._idle_font.config(underline=True)
+            self._label.config(cursor="sb_h_double_arrow", fg=self.LINK_COLOR, bg=UI_SCRUB_BG)
             self._refresh_label()
+
+    def _set_hover(self, hovering: bool) -> None:
+        """Darken the chip tint while the pointer is over an editable value."""
+        if self._readonly:
+            return
+        self._label.config(bg=UI_SCRUB_HOVER if hovering else UI_SCRUB_BG)

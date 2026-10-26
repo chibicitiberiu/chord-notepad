@@ -91,6 +91,11 @@ compiles, fills the buffer, then starts the player.
 - **Docstrings:** Required on all public methods
 - **Logging:** `logger = logging.getLogger(__name__)` per module
 
+### UI styling
+- Don't change the editor's text or typography (font, text colors, chord
+  highlighting/tag styles). Its border, scrollbar and surrounding chrome are
+  fair game for UI polish. (Tibi, 2026-10-26)
+
 ## Testing
 
 ```bash

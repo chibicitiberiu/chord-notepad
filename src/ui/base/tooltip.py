@@ -146,6 +146,67 @@ class ToolTip:
             self._tip_window = None
 
 
+class TabToolTip(ToolTip):
+    """A tooltip for individual tabs of a :class:`ttk.Notebook`.
+
+    Uses the same look as :class:`ToolTip`, but the text is looked up per tab
+    through ``text_for_tab`` (tab index -> text, or ``None`` for no tip), so
+    only some tabs (e.g. the disabled ones) explain themselves. The tip hides
+    on leave, on click, and as soon as the hovered tab no longer has text.
+    """
+
+    def __init__(self, notebook: ttk.Notebook, text_for_tab, delay_ms: int = 400, wraplength: int = 320) -> None:
+        """Create and arm the per-tab tooltip.
+
+        Args:
+            notebook: The notebook whose tabs get tooltips.
+            text_for_tab: Callable ``(tab_index) -> Optional[str]``.
+            delay_ms: Hover delay before the tip appears.
+            wraplength: Maximum pixel width before the tip text wraps.
+        """
+        super().__init__(notebook, '', delay_ms=delay_ms, wraplength=wraplength)
+        self._text_for_tab = text_for_tab
+        self._hover_tab: Optional[int] = None
+        notebook.bind('<Motion>', self._on_motion, add='+')
+
+    def tab_at(self, x: int, y: int) -> Optional[int]:
+        """Index of the tab under widget coords ``(x, y)``, or ``None``."""
+        try:
+            return int(self.widget.index(f'@{x},{y}'))
+        except tk.TclError:
+            return None
+
+    def refresh(self) -> None:
+        """Re-check the hovered tab's text; hide the tip if it has none now."""
+        if self._hover_tab is None:
+            return
+        text = self._text_for_tab(self._hover_tab)
+        if text is None:
+            self.hide()
+        else:
+            self.set_text(text)
+
+    def _on_enter(self, _event: Optional[tk.Event] = None) -> None:
+        """No-op: showing is driven by ``<Motion>`` over a specific tab."""
+
+    def _on_leave(self, _event: Optional[tk.Event] = None) -> None:
+        """Hide and forget the hovered tab."""
+        self._hover_tab = None
+        self.hide()
+
+    def _on_motion(self, event: tk.Event) -> None:
+        """Track the hovered tab; (re)arm the tip when it changes."""
+        tab = self.tab_at(event.x, event.y)
+        if tab == self._hover_tab:
+            return
+        self._hover_tab = tab
+        self.hide()
+        text = None if tab is None else self._text_for_tab(tab)
+        if text is not None:
+            self.text = text
+            self._after_id = self.widget.after(self.delay_ms, self._show)
+
+
 def add_tooltip(widget: tk.Widget, text: str, **kwargs) -> ToolTip:
     """Attach a :class:`ToolTip` to ``widget`` and return it.
 

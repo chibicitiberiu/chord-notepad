@@ -25,6 +25,24 @@ CHORD_SHEET_RERENDER_DEBOUNCE_MS = 500
 EVENT_QUEUE_POLL_MS = 100
 PLAYBACK_THREAD_CHECK_MS = 50
 
+# UI chrome palette (toolbar, borders, scrollbars, status bar). The editor's
+# text and chord colors are deliberately not part of this. UI_BG is only
+# applied on themes we restyle (clam); native themes keep their own surface.
+UI_BG = "#f3f3f3"
+UI_BORDER = "#cfcfcf"
+UI_HOVER = "#e2e2e2"
+UI_ACCENT = "#0078d4"
+UI_ACCENT_ACTIVE = "#006cc1"
+UI_TEXT_MUTED = "#5c5c5c"
+UI_TEXT_DISABLED = "#a3a3a3"
+# Unselected tab fill (the chord-sheet view tabs).
+UI_TAB_IDLE = "#e7e7e7"
+UI_SCROLL_THUMB = "#c4c4c4"
+UI_SCROLL_THUMB_ACTIVE = "#a6a6a6"
+# Tint behind draggable numeric values (BPM, speed %) in the toolbar.
+UI_SCRUB_BG = "#e6effa"
+UI_SCRUB_HOVER = "#d4e4f7"
+
 # Chord sheet strip
 DEFAULT_CHORD_SHEET_HEIGHT = 160
 DEFAULT_CHORD_SHEET_VIEW = "keyboard"

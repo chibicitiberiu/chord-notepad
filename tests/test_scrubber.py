@@ -5,6 +5,8 @@ import tkinter as tk
 
 import pytest
 
+from constants import UI_SCRUB_BG, UI_SCRUB_HOVER
+
 
 def _has_display() -> bool:
     return os.environ.get("DISPLAY") or os.name == "nt"
@@ -178,11 +180,22 @@ class TestReset:
 
 
 class TestReadonly:
-    def test_readonly_disables_underline(self, root):
+    def test_readonly_drops_the_chip_tint(self, root):
         s = _make_scrubber(root, value=50)
-        assert s._idle_font.cget("underline") in (1, True)
+        assert s._label.cget("bg") == UI_SCRUB_BG
         s.set_readonly(True)
-        assert s._idle_font.cget("underline") in (0, False)
+        assert s._label.cget("bg") != UI_SCRUB_BG
+        s.set_readonly(False)
+        assert s._label.cget("bg") == UI_SCRUB_BG
+
+    def test_hover_tint_only_when_editable(self, root):
+        s = _make_scrubber(root, value=50)
+        s._set_hover(True)
+        assert s._label.cget("bg") == UI_SCRUB_HOVER
+        s._set_hover(False)
+        s.set_readonly(True)
+        s._set_hover(True)
+        assert s._label.cget("bg") != UI_SCRUB_HOVER
 
     def test_set_display_text_overrides_label_in_readonly(self, root):
         s = _make_scrubber(root, value=50)

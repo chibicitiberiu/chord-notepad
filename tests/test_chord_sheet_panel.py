@@ -333,12 +333,13 @@ def test_view_picker_has_one_toggle_button_per_renderer_in_order(root):
     panel, vm = _make_panel(root, "C G\nAm F\n")
     labels_by_id = {renderer.id: renderer.label for renderer in vm.renderers}
 
-    assert set(panel._view_buttons.keys()) == set(labels_by_id.keys())
-    for view_id, button in panel._view_buttons.items():
-        assert button.cget("text") == labels_by_id[view_id]
+    assert panel._tab_ids == [renderer.id for renderer in vm.renderers]
+    assert panel._tabs.index("end") == len(vm.renderers)
+    for index, view_id in enumerate(panel._tab_ids):
+        assert panel._tabs.tab(index, "text") == labels_by_id[view_id]
 
 
-def test_fingering_gated_buttons_disabled_for_piano_rendered_song(root):
+def test_fingering_gated_tabs_disabled_for_piano_rendered_song(root):
     # ``ChordNotePicker`` (used by ``_render``) voices for piano: no
     # fingering data, so the fretted views (fret box, tab) must be gated out
     # and shown disabled, while the ungated ones stay enabled.
@@ -348,22 +349,49 @@ def test_fingering_gated_buttons_disabled_for_piano_rendered_song(root):
     assert "keyboard" in vm.available_views
     assert "staff" in vm.available_views
 
-    for view_id, button in panel._view_buttons.items():
+    for index, view_id in enumerate(panel._tab_ids):
+        state = panel._tabs.tab(index, "state")
         if view_id in vm.available_views:
-            assert not button.instate(("disabled",)), f"{view_id} should be enabled"
+            assert state == "normal", f"{view_id} should be enabled"
         else:
-            assert button.instate(("disabled",)), f"{view_id} should be disabled"
+            assert state == "disabled", f"{view_id} should be disabled"
 
 
-def test_clicking_an_enabled_button_switches_the_active_view(root):
+def test_clicking_an_enabled_tab_switches_the_active_view(root):
     panel, vm = _make_panel(root, "C G\nAm F\n")
     assert vm.active_view == "keyboard"
 
-    panel._view_buttons["staff"].invoke()
-    root.update_idletasks()
+    panel._tabs.select(panel._tab_ids.index("staff"))
+    root.update()  # <<NotebookTabChanged>> is queued, not run synchronously
 
     assert vm.active_view == "staff"
-    assert panel._view_var.get() == "staff"
+
+
+def test_viewmodel_view_change_selects_matching_tab(root):
+    panel, vm = _make_panel(root, "C G\nAm F\n")
+    vm.set_active_view("staff")
+    root.update_idletasks()
+    assert panel._tab_ids[panel._tabs.index("current")] == "staff"
+
+
+def test_disabling_selected_tab_keeps_viewmodel_fallback(root):
+    # Persisted fret view with a piano song: the VM falls back to keyboard and
+    # the tab strip must follow it rather than Tk's own auto-selection.
+    panel, vm = _make_panel(root, "C G\nAm F\n", view="fret")
+    root.update()  # flush the queued <<NotebookTabChanged>> too
+    assert vm.active_view == "keyboard"
+    assert panel._tab_ids[panel._tabs.index("current")] == "keyboard"
+
+
+def test_tab_tooltip_text_only_for_disabled_tabs(root):
+    panel, vm = _make_panel(root, "C G\nAm F\n")
+    for index, view_id in enumerate(panel._tab_ids):
+        text = panel._tab_tip_text(index)
+        if view_id in vm.available_views:
+            assert text is None
+        else:
+            assert text == vm.fretted_views_unavailable_reason
+            assert "Voicing" in text
 
 
 def test_canvas_backgrounds_use_strip_bg(root):

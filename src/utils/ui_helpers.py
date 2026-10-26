@@ -23,9 +23,10 @@ class ToolTip:
         self.schedule_id: Optional[str] = None
 
         # Bind events
-        self.widget.bind('<Enter>', self._on_enter)
-        self.widget.bind('<Leave>', self._on_leave)
-        self.widget.bind('<Button>', self._on_leave)  # Hide on click
+        # add='+' so widgets keep their own Enter/Leave handlers (hover tints).
+        self.widget.bind('<Enter>', self._on_enter, add='+')
+        self.widget.bind('<Leave>', self._on_leave, add='+')
+        self.widget.bind('<Button>', self._on_leave, add='+')  # Hide on click
 
     def _on_enter(self, event: Optional[tk.Event] = None) -> None:
         """Handle mouse enter event."""

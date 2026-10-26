@@ -228,6 +228,16 @@ class ChordSheetViewModel(Observable):
         return self._available_views
 
     @property
+    def fretted_views_unavailable_reason(self) -> Optional[str]:
+        """Why the fingering-requiring views are disabled, or ``None`` if available."""
+        song = self._rendered_song
+        if self._song_has_fingering(song):
+            return None
+        if song is None or not song.chords:
+            return "Add some chords to see this view."
+        return "Pick a fretted instrument (e.g. Guitar) in Playback \u2192 Voicing to use this view."
+
+    @property
     def visible(self) -> bool:
         """Whether the chord-sheet panel is shown."""
         return self._visible

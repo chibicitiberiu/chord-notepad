@@ -29,7 +29,17 @@ from utils.key_helpers import get_key_options
 from models.notation import Notation
 from models.ensemble_spec import BUILTIN_ENSEMBLES
 from models.fretboard_spec import BUILTIN_FRETBOARDS
-from constants import TAG_CHORD_PLAYING
+from constants import (
+    TAG_CHORD_PLAYING,
+    UI_ACCENT,
+    UI_ACCENT_ACTIVE,
+    UI_BG,
+    UI_BORDER,
+    UI_HOVER,
+    UI_SCROLL_THUMB,
+    UI_SCROLL_THUMB_ACTIVE,
+    UI_TEXT_MUTED,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -129,8 +139,9 @@ class MainWindow(tk.Tk):
 
         # Select platform-appropriate theme
         if sys.platform == 'win32':
-            # Windows: prefer 'winnative' for native OS look, 'vista' as fallback
-            preferred = ['winnative', 'vista', 'xpnative']
+            # Windows: 'vista' is the modern native look; 'winnative' is the
+            # Windows 95-style classic one, kept only as a last resort.
+            preferred = ['vista', 'xpnative', 'winnative']
         elif sys.platform == 'darwin':
             # macOS: 'aqua' is the native theme
             preferred = ['aqua']
@@ -144,6 +155,87 @@ class MainWindow(tk.Tk):
                 style.theme_use(theme)
                 logger.debug(f"Using ttk theme: {theme}")
                 break
+
+        if style.theme_use() == 'clam':
+            self._restyle_clam(style)
+
+        style.configure('Muted.TLabel', foreground=UI_TEXT_MUTED)
+        style.configure('Status.TLabel', foreground=UI_TEXT_MUTED, padding=(8, 3))
+
+        # Classic tk widgets in the toolbar don't follow the ttk theme, so they
+        # take the themed surface color explicitly.
+        self._ui_bg = style.lookup('TFrame', 'background') or UI_BG
+
+    def _restyle_clam(self, style: ttk.Style) -> None:
+        """Flatten clam's beveled grey look into a lighter, flat one."""
+        # Classic tk widgets (menus, dialog windows, a few labels/buttons) read
+        # their colors from the option database, not the ttk theme. Match them
+        # to the restyled surface. Text/Entry/Listbox are left alone, so the
+        # editor keeps its own colors.
+        for option, value in (
+            ('*Toplevel.background', UI_BG),
+            ('*Frame.background', UI_BG),
+            ('*Label.background', UI_BG),
+            ('*Button.background', UI_BG),
+            ('*Button.activeBackground', UI_HOVER),
+            ('*Button.highlightBackground', UI_BG),
+            ('*Canvas.background', UI_BG),
+            ('*Canvas.highlightBackground', UI_BG),
+            ('*Menu.background', UI_BG),
+            ('*Menu.activeBackground', UI_ACCENT),
+            ('*Menu.activeForeground', 'white'),
+            ('*Menu.relief', 'flat'),
+            ('*Menu.activeBorderWidth', 0),
+        ):
+            self.option_add(option, value)
+
+        style.configure(
+            '.',
+            background=UI_BG,
+            bordercolor=UI_BORDER,
+            lightcolor=UI_BG,
+            darkcolor=UI_BG,
+            troughcolor=UI_BG,
+            focuscolor=UI_ACCENT,
+        )
+        style.map('TButton', background=[('pressed', UI_BORDER), ('active', UI_HOVER)])
+        style.map('Toolbutton', background=[('selected', UI_HOVER), ('active', UI_HOVER)])
+        # Selections (tree rows, list rows, entry text) use the accent color
+        # instead of clam's slate grey.
+        style.configure('.', selectbackground=UI_ACCENT, selectforeground='white')
+        style.map('Treeview', background=[('selected', UI_ACCENT)],
+                  foreground=[('selected', 'white')])
+        style.configure('Treeview', rowheight=24)
+        self.option_add('*Listbox.selectBackground', UI_ACCENT)
+        self.option_add('*Listbox.selectForeground', 'white')
+        # Readonly comboboxes (Key) read as a plain white field, not a grey slab.
+        style.map('TCombobox',
+                  fieldbackground=[('readonly', 'white')],
+                  selectbackground=[('readonly', 'white')],
+                  selectforeground=[('readonly', 'black')],
+                  background=[('active', UI_HOVER)])
+        style.configure('TCombobox', arrowcolor=UI_TEXT_MUTED)
+        style.configure('TSpinbox', arrowcolor=UI_TEXT_MUTED)
+
+        # Slim, arrowless scrollbars: just a thumb in a flat trough.
+        for orient in ('Vertical', 'Horizontal'):
+            style.layout(f'{orient}.TScrollbar', [
+                (f'{orient}.Scrollbar.trough', {'sticky': 'nswe', 'children': [
+                    (f'{orient}.Scrollbar.thumb', {'expand': '1', 'sticky': 'nswe'}),
+                ]}),
+            ])
+        style.configure(
+            'TScrollbar',
+            background=UI_SCROLL_THUMB,
+            lightcolor=UI_SCROLL_THUMB,
+            darkcolor=UI_SCROLL_THUMB,
+            bordercolor=UI_BG,
+            troughcolor=UI_BG,
+            gripcount=0,
+            arrowsize=11,
+        )
+        style.map('TScrollbar', background=[('pressed', UI_SCROLL_THUMB_ACTIVE),
+                                            ('active', UI_SCROLL_THUMB_ACTIVE)])
 
     def _setup_viewmodel_observers(self) -> None:
         """Set up observers for ViewModel property changes."""
@@ -499,35 +591,39 @@ class MainWindow(tk.Tk):
 
     def create_toolbar(self) -> None:
         """Create toolbar with controls"""
-        self.toolbar = ttk.Frame(self)
-        self.toolbar.pack(side=tk.TOP, fill=tk.X, padx=5, pady=5)
+        self.toolbar = ttk.Frame(self, padding=(6, 6, 6, 2))
+        self.toolbar.pack(side=tk.TOP, fill=tk.X)
 
         # Notation selection with icon toggle buttons
         self.notation_var = tk.StringVar(value=self.viewmodel.notation.value)
 
         # Create toggle button frame
-        notation_frame = tk.Frame(self.toolbar, relief=tk.SUNKEN, bd=1)
-        notation_frame.pack(side=tk.LEFT, padx=(5, 15))
+        # A segmented control: two flat buttons inside a 1px border.
+        notation_frame = tk.Frame(self.toolbar, bd=0, highlightthickness=1,
+                                  highlightbackground=UI_BORDER, highlightcolor=UI_BORDER)
+        notation_frame.pack(side=tk.LEFT, padx=(0, 10))
 
         btn_font = ('TkDefaultFont', 10)
         self.american_btn = tk.Button(notation_frame, text="AB", font=btn_font,
-                                      width=2, height=1, relief=tk.FLAT, bd=0,
+                                      width=3, height=1, relief=tk.FLAT, bd=0,
+                                      highlightthickness=0, cursor='hand2',
                                       command=lambda: self.set_notation('american'))
-        self.american_btn.pack(side=tk.LEFT, padx=1, pady=1)
+        self.american_btn.pack(side=tk.LEFT)
         self.create_tooltip(self.american_btn, "American notation (C, D, E...)")
 
         self.european_btn = tk.Button(notation_frame, text="Do", font=btn_font,
-                                      width=2, height=1, relief=tk.FLAT, bd=0,
+                                      width=3, height=1, relief=tk.FLAT, bd=0,
+                                      highlightthickness=0, cursor='hand2',
                                       command=lambda: self.set_notation('european'))
-        self.european_btn.pack(side=tk.LEFT, padx=1, pady=1)
+        self.european_btn.pack(side=tk.LEFT)
         self.create_tooltip(self.european_btn, "European notation (Do, Re, Mi...)")
 
         # Update button appearance based on current selection
         self.update_notation_buttons()
 
         # Speed (BPM and multiplier)
-        ttk.Separator(self.toolbar, orient=tk.VERTICAL).pack(side=tk.LEFT, fill=tk.Y, padx=5)
-        ttk.Label(self.toolbar, text="Speed:").pack(side=tk.LEFT, padx=(5, 4))
+        self._toolbar_separator()
+        ttk.Label(self.toolbar, text="Speed", style='Muted.TLabel').pack(side=tk.LEFT, padx=(0, 6))
 
         self.bpm_scrubber = Scrubber(
             self.toolbar,
@@ -548,7 +644,7 @@ class MainWindow(tk.Tk):
         self.bpm_unit_label = ttk.Label(self.toolbar, text="bpm")
         self.bpm_unit_label.pack(side=tk.LEFT, padx=(1, 6))
 
-        ttk.Label(self.toolbar, text="x").pack(side=tk.LEFT, padx=(5, 5))
+        ttk.Label(self.toolbar, text="×", style='Muted.TLabel').pack(side=tk.LEFT, padx=(2, 6))
 
         self.multiplier_scrubber = Scrubber(
             self.toolbar,
@@ -567,24 +663,24 @@ class MainWindow(tk.Tk):
         self.multiplier_scrubber.pack(side=tk.LEFT)
         self.create_tooltip(self.multiplier_scrubber, "Speed multiplier applied on top of BPM. Middle-click to reset to 100%. Adjustable during playback.")
         self.multiplier_unit_label = ttk.Label(self.toolbar, text="%")
-        self.multiplier_unit_label.pack(side=tk.LEFT, padx=(1, 5))
+        self.multiplier_unit_label.pack(side=tk.LEFT, padx=(1, 0))
 
         # Key selector
-        ttk.Separator(self.toolbar, orient=tk.VERTICAL).pack(side=tk.LEFT, fill=tk.Y, padx=5)
-        ttk.Label(self.toolbar, text="Key:").pack(side=tk.LEFT, padx=(5, 2))
+        self._toolbar_separator()
+        ttk.Label(self.toolbar, text="Key", style='Muted.TLabel').pack(side=tk.LEFT, padx=(0, 6))
         # Get default key based on current notation
         default_key = self.viewmodel.key or ("Do" if self.viewmodel.notation == Notation.EUROPEAN else "C")
         self.key_var = tk.StringVar(value=default_key)
         # Key options will be set based on notation
         self.key_combo = ttk.Combobox(self.toolbar, textvariable=self.key_var,
                                       values=get_key_options(self.viewmodel.notation), state='readonly', width=5)
-        self.key_combo.pack(side=tk.LEFT, padx=(0, 5))
+        self.key_combo.pack(side=tk.LEFT)
         self.key_var.trace_add('write', self.on_key_change)
         self.create_tooltip(self.key_combo, "Key signature for roman numeral chords")
 
         # Time signature control
-        ttk.Separator(self.toolbar, orient=tk.VERTICAL).pack(side=tk.LEFT, fill=tk.Y, padx=5)
-        ttk.Label(self.toolbar, text="Time:").pack(side=tk.LEFT, padx=(5, 2))
+        self._toolbar_separator()
+        ttk.Label(self.toolbar, text="Time", style='Muted.TLabel').pack(side=tk.LEFT, padx=(0, 6))
         self.time_sig_beats_var = tk.IntVar(value=self.viewmodel.time_signature_beats)
         self.time_sig_beats_spin = ttk.Spinbox(self.toolbar, from_=1, to=16,
                                                textvariable=self.time_sig_beats_var,
@@ -592,13 +688,13 @@ class MainWindow(tk.Tk):
         self.time_sig_beats_spin.pack(side=tk.LEFT)
         self.create_tooltip(self.time_sig_beats_spin, "Beats per measure")
 
-        ttk.Label(self.toolbar, text="/").pack(side=tk.LEFT, padx=2)
+        ttk.Label(self.toolbar, text="/", style='Muted.TLabel').pack(side=tk.LEFT, padx=3)
 
         self.time_sig_unit_var = tk.IntVar(value=self.viewmodel.time_signature_unit)
         self.time_sig_unit_spin = ttk.Spinbox(self.toolbar, values=(1, 2, 4, 8, 16),
                                               textvariable=self.time_sig_unit_var,
                                               width=3, command=self.on_time_signature_change)
-        self.time_sig_unit_spin.pack(side=tk.LEFT, padx=(0, 5))
+        self.time_sig_unit_spin.pack(side=tk.LEFT)
         self.create_tooltip(self.time_sig_unit_spin, "Beat unit (4 = quarter note)")
 
         # Cache icons up front so PhotoImage refs survive
@@ -616,48 +712,61 @@ class MainWindow(tk.Tk):
         self._icon_metronome_on = self._icons.load('resources/icons/metronome.png', ICON_SIZE, METRONOME_ON)
 
         # Metronome toggle
-        ttk.Separator(self.toolbar, orient=tk.VERTICAL).pack(side=tk.LEFT, fill=tk.Y, padx=5)
-        self.metronome_button = tk.Button(
-            self.toolbar,
-            image=self._icon_metronome_off,
-            relief=tk.RAISED,
-            command=self._on_metronome_toggle,
-            padx=4, pady=2,
-        )
-        self._metronome_default_bg = self.metronome_button.cget("background")
-        self.metronome_button.pack(side=tk.LEFT, padx=2)
+        self._toolbar_separator()
+        self.metronome_button = self._make_icon_button(
+            self.toolbar, self._icon_metronome_off, command=self._on_metronome_toggle)
+        self.metronome_button.pack(side=tk.LEFT)
         self.create_tooltip(self.metronome_button, "Click track during playback. Toggle this on, then press Play.")
         self._refresh_metronome_button()
 
         # Playback buttons
-        ttk.Separator(self.toolbar, orient=tk.VERTICAL).pack(side=tk.LEFT, fill=tk.Y, padx=5)
+        self._toolbar_separator()
 
-        playback_frame = tk.Frame(self.toolbar)
-        playback_frame.pack(side=tk.LEFT, padx=5)
+        playback_frame = tk.Frame(self.toolbar, bg=self._ui_bg)
+        playback_frame.pack(side=tk.LEFT)
 
-        self.play_pause_button = tk.Button(
-            playback_frame, image=self._icon_play, padx=4, pady=2,
-        )
-        self.play_pause_button.pack(side=tk.LEFT, padx=1)
+        self.play_pause_button = self._make_icon_button(playback_frame, self._icon_play)
+        self.play_pause_button.pack(side=tk.LEFT, padx=(0, 2))
         self.play_pause_button.bind('<Button-1>', self.on_play_pause_click)
         self._update_play_pause_tooltip()
 
-        self.stop_button = tk.Button(
-            playback_frame, image=self._icon_stop, padx=4, pady=2,
-            command=self.stop_playback,
-        )
-        self.stop_button.pack(side=tk.LEFT, padx=1)
+        self.stop_button = self._make_icon_button(
+            playback_frame, self._icon_stop, command=self.stop_playback)
+        self.stop_button.pack(side=tk.LEFT)
         self.create_tooltip(self.stop_button, "Stop playback")
+
+    def _toolbar_separator(self) -> None:
+        """Add a vertical divider between toolbar groups."""
+        ttk.Separator(self.toolbar, orient=tk.VERTICAL).pack(side=tk.LEFT, fill=tk.Y, padx=10, pady=2)
+
+    def _make_icon_button(self, parent: tk.Widget, image: Any,
+                          command: Optional[Any] = None) -> tk.Button:
+        """Create a flat toolbar icon button that highlights on hover.
+
+        The color it returns to after hover is kept in ``_rest_bg`` so toggle
+        buttons (the metronome) can change their resting tint.
+        """
+        button = tk.Button(
+            parent, image=image, command=command, relief=tk.FLAT, bd=0,
+            highlightthickness=0, padx=6, pady=4, cursor='hand2',
+            bg=self._ui_bg, activebackground=UI_HOVER,
+        )
+        button._rest_bg = self._ui_bg
+        button.bind('<Enter>', lambda _e: button.config(bg=UI_HOVER), add='+')
+        button.bind('<Leave>', lambda _e: button.config(bg=button._rest_bg), add='+')
+        return button
 
     def create_text_editor(self) -> None:
         """Create text editor widget"""
         # Vertical paned window so the chord-sheet strip can dock under the
         # editor with a user-draggable divider.
         self.content_paned = ttk.PanedWindow(self, orient=tk.VERTICAL)
-        self.content_paned.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+        self.content_paned.pack(fill=tk.BOTH, expand=True, padx=6, pady=(4, 6))
 
-        # Frame for text editor and scrollbar (top pane)
-        editor_frame = ttk.Frame(self.content_paned)
+        # Frame for text editor and scrollbar (top pane). It draws the editor's
+        # 1px border, which turns accent-colored while the editor has focus.
+        editor_frame = tk.Frame(self.content_paned, bd=0, highlightthickness=1,
+                                highlightbackground=UI_BORDER, highlightcolor=UI_BORDER)
         self.content_paned.add(editor_frame, weight=3)
 
         # Scrollbar
@@ -668,10 +777,19 @@ class MainWindow(tk.Tk):
         self.text_editor = ChordTextEditor(
             editor_frame,
             viewmodel=self.text_editor_viewmodel,
-            yscrollcommand=scrollbar.set
+            yscrollcommand=scrollbar.set,
+            relief=tk.FLAT,
+            bd=0,
+            highlightthickness=0,
+            padx=6,
+            pady=4,
         )
         self.text_editor.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         scrollbar.config(command=self.text_editor.yview)
+        self.text_editor.bind(
+            '<FocusIn>', lambda _e: editor_frame.config(highlightbackground=UI_ACCENT), add='+')
+        self.text_editor.bind(
+            '<FocusOut>', lambda _e: editor_frame.config(highlightbackground=UI_BORDER), add='+')
 
         # Set initial notation (sync with main ViewModel)
         self.text_editor.set_notation(self.viewmodel.notation.value)
@@ -681,8 +799,11 @@ class MainWindow(tk.Tk):
 
     def create_statusbar(self) -> None:
         """Create status bar"""
-        self.statusbar = ttk.Label(self, text="Ready", relief=tk.SUNKEN, anchor=tk.W)
-        self.statusbar.pack(side=tk.BOTTOM, fill=tk.X)
+        status_frame = ttk.Frame(self)
+        status_frame.pack(side=tk.BOTTOM, fill=tk.X)
+        ttk.Separator(status_frame, orient=tk.HORIZONTAL).pack(side=tk.TOP, fill=tk.X)
+        self.statusbar = ttk.Label(status_frame, text="Ready", anchor=tk.W, style='Status.TLabel')
+        self.statusbar.pack(side=tk.TOP, fill=tk.X)
 
     def create_chord_sheet(self) -> None:
         """Create the chord-sheet strip and dock it under the editor.
@@ -986,14 +1107,12 @@ class MainWindow(tk.Tk):
     def update_notation_buttons(self) -> None:
         """Update toggle button appearance based on selected notation"""
         current = self.notation_var.get()
-        inactive_bg = '#e1e1e1'  # Light gray for inactive buttons
-
-        if current == 'american':
-            self.american_btn.config(bg='#0078d4', fg='white', activebackground='#006cc1')
-            self.european_btn.config(bg=inactive_bg, fg='black', activebackground='#d0d0d0')
-        else:
-            self.european_btn.config(bg='#0078d4', fg='white', activebackground='#006cc1')
-            self.american_btn.config(bg=inactive_bg, fg='black', activebackground='#d0d0d0')
+        selected, other = ((self.american_btn, self.european_btn) if current == 'american'
+                           else (self.european_btn, self.american_btn))
+        selected.config(bg=UI_ACCENT, fg='white', activebackground=UI_ACCENT_ACTIVE,
+                        activeforeground='white')
+        other.config(bg=self._ui_bg, fg='black', activebackground=UI_HOVER,
+                     activeforeground='black')
 
     def apply_font(self) -> None:
         """Apply font settings to text editor"""
@@ -1026,17 +1145,13 @@ class MainWindow(tk.Tk):
         if not hasattr(self, "metronome_button"):
             return
         if self.viewmodel.metronome_enabled:
-            self.metronome_button.config(
-                relief=tk.SUNKEN,
-                image=self._icon_metronome_on,
-                background="#ffe4cf",  # warm tint matching the on-icon
-            )
+            rest_bg = "#ffe4cf"  # warm tint matching the on-icon
+            image = self._icon_metronome_on
         else:
-            self.metronome_button.config(
-                relief=tk.RAISED,
-                image=self._icon_metronome_off,
-                background=self._metronome_default_bg,
-            )
+            rest_bg = self._ui_bg
+            image = self._icon_metronome_off
+        self.metronome_button._rest_bg = rest_bg
+        self.metronome_button.config(image=image, background=rest_bg)
 
     @staticmethod
     def _parse_multiplier_percent(text: str) -> float:
