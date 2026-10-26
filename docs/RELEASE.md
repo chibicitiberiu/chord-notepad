@@ -213,15 +213,22 @@ developers → Developer Mode*, then register the unpacked package. Works with
 the `.msix` straight from the CI artifact, no Windows SDK needed:
 
 ```powershell
+$dir = "$env:USERPROFILE\ChordNotepadTest"
 Copy-Item ChordNotepad-0.3.2-x64.msix ChordNotepad.zip   # Expand-Archive wants .zip
-Expand-Archive ChordNotepad.zip -DestinationPath $env:USERPROFILE\ChordNotepadTest
-Add-AppxPackage -Register $env:USERPROFILE\ChordNotepadTest\AppxManifest.xml
+Expand-Archive ChordNotepad.zip -DestinationPath $dir
+# MSIX stores names percent-encoded; a plain unzip leaves libstdc%2B%2B-6.dll,
+# and FluidSynth then fails to load ("or one of its dependencies").
+Get-ChildItem $dir -Recurse -File | Where-Object Name -like '*%*' |
+    Rename-Item -NewName { [uri]::UnescapeDataString($_.Name) }
+Add-AppxPackage -Register "$dir\AppxManifest.xml"
 # Remove: Get-AppxPackage ChordNotepad.Unreserved | Remove-AppxPackage
 ```
 
-The app runs from that folder (not the read-only `WindowsApps`), so keep it
-in place while testing. Everything else (Start tile, icons, AppData
-redirection) behaves like a Store install.
+Launch it from the Start menu. Running `ChordNotepad.exe` from the folder
+starts it *without* package identity, so AppData isn't redirected. The app
+runs from that folder (not the read-only `WindowsApps`), so keep it in place
+while testing. Everything else (Start tile, icons, AppData redirection)
+behaves like a Store install.
 
 **Exact: signed install.** Sign it with a self-signed certificate whose
 subject equals `-Publisher`, trust that certificate, then add the package
