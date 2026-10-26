@@ -214,7 +214,7 @@ the `.msix` straight from the CI artifact, no Windows SDK needed:
 
 ```powershell
 $dir = "$env:USERPROFILE\ChordNotepadTest"
-Copy-Item ChordNotepad-0.3.2-x64.msix ChordNotepad.zip   # Expand-Archive wants .zip
+Copy-Item ChordNotepad-0.4.0-x64.msix ChordNotepad.zip   # Expand-Archive wants .zip
 Expand-Archive ChordNotepad.zip -DestinationPath $dir
 # MSIX stores names percent-encoded; a plain unzip leaves libstdc%2B%2B-6.dll,
 # and FluidSynth then fails to load ("or one of its dependencies").
