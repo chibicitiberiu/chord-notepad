@@ -107,13 +107,12 @@ a = Analysis(
 
 pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
 
-exe = EXE(
-    pyz,
-    a.scripts,
-    a.binaries,
-    a.zipfiles,
-    a.datas,
-    [],
+# CHORD_NOTEPAD_ONEDIR=1 builds a folder (dist/ChordNotepad/) instead of a single
+# exe. The Microsoft Store (MSIX) build uses it: a onefile exe inside a package
+# would unpack the whole bundle to %TEMP% on every launch.
+onedir = os.environ.get('CHORD_NOTEPAD_ONEDIR') == '1'
+
+exe_options = dict(
     name='ChordNotepad',
     debug=False,
     bootloader_ignore_signals=False,
@@ -125,7 +124,6 @@ exe = EXE(
     # original signed DLLs intact.
     upx=False,
     upx_exclude=[],
-    runtime_tmpdir=None,
     console=False,  # No console window for GUI app
     disable_windowed_traceback=False,
     argv_emulation=False,
@@ -135,3 +133,26 @@ exe = EXE(
     icon='resources/chord-notepad-icon.ico',  # Windows icon
     version=win_version_file,  # Embedded VS_VERSION_INFO on Windows
 )
+
+if onedir:
+    exe = EXE(pyz, a.scripts, [], exclude_binaries=True, **exe_options)
+    coll = COLLECT(
+        exe,
+        a.binaries,
+        a.datas,
+        strip=False,
+        upx=False,  # see the UPX note above
+        upx_exclude=[],
+        name='ChordNotepad',
+    )
+else:
+    exe = EXE(
+        pyz,
+        a.scripts,
+        a.binaries,
+        a.zipfiles,
+        a.datas,
+        [],
+        runtime_tmpdir=None,
+        **exe_options,
+    )

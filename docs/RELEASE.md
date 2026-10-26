@@ -134,6 +134,94 @@ The version is determined by:
 
 Make sure you're pushing the correct tag format: `v*.*.*`
 
+## Microsoft Store (Supporter Edition)
+
+The Store listing is a paid "supporter edition" of the **same app** as the free
+GitHub download. There is no feature difference and no build flag; people pay
+for the Store install/auto-update convenience and to support the project.
+
+It ships as an MSIX built from a *onedir* PyInstaller build
+(`CHORD_NOTEPAD_ONEDIR=1`), because a onefile exe inside a package would unpack
+itself to `%TEMP%` on every launch. MSIX is used rather than submitting the
+`.exe` because paid pricing for EXE/MSI Store submissions has been unreliable.
+
+The package is **unsigned**: the Store re-signs it with Microsoft's
+certificate, so Trusted Signing is not involved and SmartScreen does not apply.
+
+### One-time setup
+
+1. Register a developer account at <https://storedeveloper.microsoft.com>.
+2. In Partner Center, create a new **MSIX or PWA app** and reserve its name.
+3. Open **Product management → Product identity** and copy the three values
+   into GitHub **repo Variables** (Settings → Secrets and variables → Actions →
+   Variables):
+
+   | Variable | Partner Center field |
+   |---|---|
+   | `STORE_IDENTITY_NAME` | `Package/Identity/Name` |
+   | `STORE_PUBLISHER` | `Package/Identity/Publisher` (`CN=...`) |
+   | `STORE_PUBLISHER_DISPLAY_NAME` | `Package/Properties/PublisherDisplayName` |
+   | `STORE_DISPLAY_NAME` | Only if the reserved name is not `Chord Notepad` |
+
+4. Fill in the submission: price, category (Music), age rating questionnaire,
+   Store listing (description, at least one screenshot), and a privacy policy
+   URL if asked (the app collects nothing, so a short page saying that works).
+5. Under **Submission options → Restricted capabilities**, justify
+   `runFullTrust`: "Desktop (Win32) application packaged with MSIX; needs full
+   trust to run its Python runtime and FluidSynth audio engine."
+
+### Each Store release
+
+1. Bump `VERSION`. The package version is `MAJOR.MINOR.PATCH.0` (the Store
+   reserves the 4th field) and every submission must be higher than the last
+   published one, so a rebuild of an already-published `VERSION` is rejected.
+2. Release as usual (tag push or *release* dispatch). Tag pushes and every
+   manual dispatch also build the MSIX; scheduled nightlies don't.
+3. Download the `ChordNotepad-store-msix` artifact from the workflow run. It is
+   never attached to the GitHub release.
+4. In Partner Center, start a new submission, upload the `.msix` under
+   **Packages**, and submit for certification (usually 1-3 days).
+
+Without the `STORE_*` variables CI still builds an MSIX with a placeholder
+identity (`CN=ChordNotepadUnreserved`) and prints a warning. That package is
+fine for local testing but Partner Center will reject it.
+
+### Building and testing locally (Windows)
+
+Needs the Windows SDK (`makeappx.exe`, `makepri.exe`) and ImageMagick.
+
+```powershell
+$env:CHORD_NOTEPAD_ONEDIR = '1'
+pipenv run pyinstaller --clean --noconfirm --distpath dist-store --workpath build-store chord-notepad.spec
+./packaging/msix/build_msix.ps1 -AppDir dist-store/ChordNotepad -OutFile dist-store/ChordNotepad.msix `
+    -Version (Get-Content VERSION) -IdentityName ChordNotepad.Unreserved `
+    -Publisher 'CN=ChordNotepadUnreserved' -PublisherDisplayName 'Chord Notepad Contributors'
+```
+
+To install it, sign it with a self-signed certificate whose subject equals
+`-Publisher`, trust that certificate, then add the package:
+
+```powershell
+$cert = New-SelfSignedCertificate -Type Custom -Subject 'CN=ChordNotepadUnreserved' `
+    -KeyUsage DigitalSignature -CertStoreLocation Cert:\CurrentUser\My `
+    -TextExtension @('2.5.29.37={text}1.3.6.1.5.5.7.3.3', '2.5.29.19={text}')
+$pwd = ConvertTo-SecureString -String 'test' -Force -AsPlainText
+Export-PfxCertificate -Cert $cert -FilePath test.pfx -Password $pwd
+signtool sign /fd SHA256 /f test.pfx /p test dist-store/ChordNotepad.msix
+# Elevated prompt:
+Import-PfxCertificate -FilePath test.pfx -CertStoreLocation Cert:\LocalMachine\TrustedPeople -Password $pwd
+Add-AppxPackage dist-store/ChordNotepad.msix
+```
+
+### Things that behave differently in the Store build
+
+- **Settings location.** Writes to `%APPDATA%\ChordNotepad` are redirected to
+  the package's private folder
+  (`%LOCALAPPDATA%\Packages\<package family>\LocalCache\Roaming\ChordNotepad`).
+  Store and GitHub installs on the same machine do not share settings or logs.
+- **Install folder is read-only.** Nothing may be written next to the exe.
+  The app only writes under `%APPDATA%` today; keep it that way.
+
 ## Manual Release (Not Recommended)
 
 If you need to create a release manually:

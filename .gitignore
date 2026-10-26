@@ -50,3 +50,7 @@ help/build/
 
 # Local development tools (FluidSynth, etc.)
 .tools/
+
+# Microsoft Store (MSIX) build output
+dist-store/
+build-store/

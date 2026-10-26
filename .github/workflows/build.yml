@@ -344,6 +344,57 @@ jobs:
           path: dist/${{ matrix.asset_name }}
           retention-days: 90
 
+      # --- Microsoft Store package (Windows) --------------------------------
+      # The paid Store listing ships the same app as an MSIX built from a onedir
+      # PyInstaller build. The .msix stays a workflow artifact (uploaded to
+      # Partner Center by hand) and is never attached to the GitHub release.
+      # Runs on tag pushes and manual dispatches, not scheduled nightlies.
+      # STORE_* repo variables come from Partner Center > Product identity;
+      # without them the package gets a placeholder identity that works for
+      # local sideload tests but that Partner Center will reject.
+      - name: Build Store package (MSIX)
+        if: runner.os == 'Windows' && (startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch')
+        shell: pwsh
+        env:
+          CHORD_NOTEPAD_ONEDIR: '1'
+          STORE_IDENTITY_NAME: ${{ vars.STORE_IDENTITY_NAME }}
+          STORE_PUBLISHER: ${{ vars.STORE_PUBLISHER }}
+          STORE_PUBLISHER_DISPLAY_NAME: ${{ vars.STORE_PUBLISHER_DISPLAY_NAME }}
+          STORE_DISPLAY_NAME: ${{ vars.STORE_DISPLAY_NAME }}
+        run: |
+          pipenv run pyinstaller --clean --noconfirm --distpath dist-store --workpath build-store chord-notepad.spec
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+          $identity = $env:STORE_IDENTITY_NAME
+          $publisher = $env:STORE_PUBLISHER
+          $publisherName = $env:STORE_PUBLISHER_DISPLAY_NAME
+          if (-not $identity -or -not $publisher -or -not $publisherName) {
+            Write-Host "::warning::STORE_* repo variables not set; building MSIX with a placeholder identity (not uploadable to the Store)."
+            $identity = 'ChordNotepad.Unreserved'
+            $publisher = 'CN=ChordNotepadUnreserved'
+            $publisherName = 'Chord Notepad Contributors'
+          }
+          # Must equal the name reserved in Partner Center.
+          $displayName = if ($env:STORE_DISPLAY_NAME) { $env:STORE_DISPLAY_NAME } else { 'Chord Notepad' }
+
+          $version = (Get-Content VERSION -Raw).Trim()
+          ./packaging/msix/build_msix.ps1 `
+            -AppDir dist-store/ChordNotepad `
+            -OutFile "dist-store/ChordNotepad-$version-x64.msix" `
+            -Version $version `
+            -IdentityName $identity `
+            -Publisher $publisher `
+            -PublisherDisplayName $publisherName `
+            -DisplayName $displayName
+
+      - name: Upload Store package
+        if: runner.os == 'Windows' && (startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch')
+        uses: actions/upload-artifact@v6
+        with:
+          name: ChordNotepad-store-msix
+          path: dist-store/*.msix
+          retention-days: 90
+
   build-pdf-docs:
     name: Build PDF Documentation
     needs: [test]
