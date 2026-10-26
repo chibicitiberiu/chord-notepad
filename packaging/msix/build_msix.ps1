@@ -115,6 +115,13 @@ try {
     # scan the thousands of files PyInstaller puts in _internal.
     $priConfig = Join-Path $work 'priconfig.xml'
     Invoke-Native $makepri @('createconfig', '/cf', $priConfig, '/dq', 'en-US', '/pv', '10.0.0', '/o')
+    # The default config splits scale/language variants into separate .pri
+    # files meant for resource packs. This is a single package, so keep every
+    # variant in resources.pri or Windows never sees the scale-200 assets.
+    $priXml = [xml](Get-Content -Raw $priConfig)
+    $packaging = $priXml.SelectSingleNode('//packaging')
+    if ($packaging) { [void]$packaging.ParentNode.RemoveChild($packaging) }
+    $priXml.Save($priConfig)
     Invoke-Native $makepri @('new', '/pr', $priRoot, '/cf', $priConfig, '/mn', $manifestPath,
         '/of', (Join-Path $stage 'resources.pri'), '/o')
     Copy-Item -Path $assetDir -Destination $stage -Recurse
