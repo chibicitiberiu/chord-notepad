@@ -594,6 +594,48 @@ def test_persisted_unavailable_view_falls_back_on_construction():
     assert vm.active_view == "name"
 
 
+def test_fallback_view_is_not_persisted():
+    renderers = [PlainRenderer(), FingeringRenderer()]
+    config = FakeConfig(chord_sheet_view="fret", chord_sheet_visible=True)  # no song yet -> fret unavailable
+    vm, audio, scheduler = make_vm(renderers=renderers, config=config,
+                                   rendered=RenderedSong(chords=[make_chord("C", fingering=None)]))
+    vm.set_song([], None)
+    scheduler.flush()
+    assert vm.active_view == "name"
+    assert config.get("chord_sheet_view") == "fret"
+
+
+def test_preferred_view_returns_once_available():
+    renderers = [PlainRenderer(), FingeringRenderer()]
+    config = FakeConfig(chord_sheet_view="fret", chord_sheet_visible=True)
+    vm, audio, scheduler = make_vm(renderers=renderers, config=config,
+                                   rendered=RenderedSong(chords=[make_chord("C", fingering=None)]))
+    vm.set_song([], None)
+    scheduler.flush()
+    assert vm.active_view == "name"  # gated: shown fallback
+
+    audio.rendered = RenderedSong(chords=[make_chord("C", fingering=[0, 0, 0, 0, 0, 0])])
+    vm.set_song([], None)
+    scheduler.flush()
+    assert vm.active_view == "fret"  # back to the user's choice
+
+
+def test_user_pick_while_fallback_replaces_the_preference():
+    renderers = [PlainRenderer(), FingeringRenderer()]
+    config = FakeConfig(chord_sheet_view="fret", chord_sheet_visible=True)
+    vm, audio, scheduler = make_vm(renderers=renderers, config=config,
+                                   rendered=RenderedSong(chords=[make_chord("C", fingering=None)]))
+    vm.set_song([], None)
+    scheduler.flush()
+    vm.set_active_view("name")  # explicit choice during fallback
+    assert config.get("chord_sheet_view") == "name"
+
+    audio.rendered = RenderedSong(chords=[make_chord("C", fingering=[0, 0, 0, 0, 0, 0])])
+    vm.set_song([], None)
+    scheduler.flush()
+    assert vm.active_view == "name"  # stays on what the user picked
+
+
 def test_persisted_retired_or_unknown_view_loads_as_keyboard():
     # 'name' is the retired placeholder id; any unknown id resolves to the
     # keyboard default via the standard renderer set.

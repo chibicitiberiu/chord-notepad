@@ -24,6 +24,10 @@ moved to CHANGELOG_HISTORY.md and this file is reset.
 
 ### Fixed
 
+- The chord sheet remembers the view you picked. Starting with an empty
+  document used to replace a saved Fret cards or Tab choice with Piano roll;
+  now it shows Piano roll only until chords load, then switches back.
+
 - The editor's default font is monospace again on a fresh install. The default
   (Tk's fixed-width font) was being read as an unknown font name, so Tk fell
   back to a proportional font and chords drifted out of line above the lyrics.

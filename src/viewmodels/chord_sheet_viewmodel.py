@@ -190,7 +190,11 @@ class ChordSheetViewModel(Observable):
         # Observable state (private storage with leading underscore).
         self._rendered_song: Optional[RenderedSong] = None
         self._current_index: Optional[int] = None
-        self._active_view: str = self._config.get("chord_sheet_view", DEFAULT_CHORD_SHEET_VIEW)
+        # The view the user last picked (persisted) vs. the one shown now. They
+        # differ while the picked view is gated out, e.g. Fret cards on startup
+        # before any chords render; the strip returns to it once available.
+        self._preferred_view: str = self._config.get("chord_sheet_view", DEFAULT_CHORD_SHEET_VIEW)
+        self._active_view: str = self._preferred_view
         self._available_views: List[str] = self._compute_available_views(None)
         self._visible: bool = bool(self._config.get("chord_sheet_visible", False))
         self._height: int = int(self._config.get("chord_sheet_height", DEFAULT_CHORD_SHEET_HEIGHT))
@@ -540,17 +544,33 @@ class ChordSheetViewModel(Observable):
         if view_id not in self._available_views:
             logger.debug(f"Ignoring unavailable chord-sheet view: {view_id!r}")
             return
+        self._preferred_view = view_id
         self._config.set("chord_sheet_view", view_id)
+        self._show_view(view_id)
+
+    def _show_view(self, view_id: str) -> None:
+        """Make ``view_id`` the displayed view without touching the user's choice."""
         self.set_and_notify("active_view", view_id)
         # Surface the newly-active view's own zoom factor (per-view isolation).
         self.set_and_notify("zoom", self._zoom_by_view.get(view_id, 1.0))
 
     def _refresh_available_views(self) -> None:
-        """Recompute gated availability and fall back if the active view vanished."""
+        """Recompute gated availability and pick the view to show.
+
+        Shows the user's preferred view whenever it is available; otherwise
+        keeps the current view if still available, else falls back. Fallbacks
+        are not persisted, so a temporarily gated choice isn't forgotten.
+        """
         views = self._compute_available_views(self._rendered_song)
         self.set_and_notify("available_views", views)
-        if self._active_view not in views:
-            self.set_active_view(self._fallback_view(views))
+        if self._preferred_view in views:
+            target = self._preferred_view
+        elif self._active_view in views:
+            target = self._active_view
+        else:
+            target = self._fallback_view(views)
+        if target != self._active_view:
+            self._show_view(target)
 
     def _compute_available_views(self, song: Optional[RenderedSong]) -> List[str]:
         """Renderer ids selectable for ``song`` (fingering-requiring ones gated)."""
