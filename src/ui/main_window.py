@@ -185,9 +185,16 @@ class MainWindow(tk.Tk):
             ('*Menu.activeBackground', UI_ACCENT),
             ('*Menu.activeForeground', 'white'),
             ('*Menu.relief', 'flat'),
-            ('*Menu.activeBorderWidth', 0),
+            # A flat active border doubles as per-entry padding; borderWidth
+            # pads the whole dropdown.
+            ('*Menu.activeRelief', 'flat'),
+            ('*Menu.activeBorderWidth', 4),
+            ('*Menu.borderWidth', 4),
         ):
             self.option_add(option, value)
+        # The root window exists before the options above, so it needs its
+        # color set directly (it shows around the toolbar and content pane).
+        self.configure(background=UI_BG)
 
         style.configure(
             '.',
@@ -1252,6 +1259,12 @@ class MainWindow(tk.Tk):
             (120, 127, "Sound Effects"),
         ]
 
+        # Same-size marker images keep the family names aligned whether or not
+        # they carry the current-instrument dot (text bullets vary in width).
+        if not hasattr(self, '_category_markers'):
+            self._category_markers = (self._make_menu_marker(False),
+                                      self._make_menu_marker(True))
+
         # Create a submenu for each category
         for start, end, category_name in instrument_categories:
             category_menu = tk.Menu(self.instrument_menu, tearoff=0)
@@ -1264,13 +1277,24 @@ class MainWindow(tk.Tk):
                         command=self.on_instrument_change
                     )
 
-            # Add indicator if current instrument is in this category
-            if start <= current_instrument <= end:
-                label = "• " + category_name
-            else:
-                label = "\u2003" + category_name  # Em-space for alignment (≈ bullet width)
+            # Mark the category holding the current instrument
+            is_current = start <= current_instrument <= end
+            self.instrument_menu.add_cascade(
+                label=category_name, menu=category_menu,
+                image=self._category_markers[is_current], compound=tk.LEFT,
+            )
 
-            self.instrument_menu.add_cascade(label=label, menu=category_menu)
+    def _make_menu_marker(self, filled: bool, width: int = 20, height: int = 14) -> tk.PhotoImage:
+        """Return a menu-entry marker: a small dot, or a blank of the same size."""
+        image = tk.PhotoImage(master=self, width=width, height=height)
+        if filled:
+            cx, cy = (width - 1) / 2, (height - 1) / 2
+            radius = 3.5
+            for y in range(height):
+                for x in range(width):
+                    if (x - cx) ** 2 + (y - cy) ** 2 <= radius ** 2:
+                        image.put('#333333', (x, y))
+        return image
 
     def update_recent_files_menu(self) -> None:
         """Update recent files menu"""
