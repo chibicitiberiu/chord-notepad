@@ -109,9 +109,8 @@ class MainWindow(tk.Tk):
         # paned window exists).
         self.create_chord_sheet()
 
-        # Repack toolbar at the top (after menu bar)
-        self.toolbar.pack_forget()
-        self.toolbar.pack(side=tk.TOP, fill=tk.X, padx=5, pady=5, before=self.content_paned)
+        # Pack the toolbar at the top, above the editor pane that was packed first.
+        self.toolbar.pack(side=tk.TOP, fill=tk.X, before=self.content_paned)
 
         # Bind events
         self.protocol("WM_DELETE_WINDOW", self.on_close)
@@ -160,7 +159,7 @@ class MainWindow(tk.Tk):
             self._restyle_clam(style)
 
         style.configure('Muted.TLabel', foreground=UI_TEXT_MUTED)
-        style.configure('Status.TLabel', foreground=UI_TEXT_MUTED, padding=(8, 3))
+        style.configure('Status.TLabel', foreground=UI_TEXT_MUTED, padding=(8, 2))
 
         # Classic tk widgets in the toolbar don't follow the ttk theme, so they
         # take the themed surface color explicitly.
@@ -598,8 +597,8 @@ class MainWindow(tk.Tk):
 
     def create_toolbar(self) -> None:
         """Create toolbar with controls"""
-        self.toolbar = ttk.Frame(self, padding=(6, 6, 6, 2))
-        self.toolbar.pack(side=tk.TOP, fill=tk.X)
+        # Packed later in __init__, once the editor pane exists to pack above.
+        self.toolbar = ttk.Frame(self, padding=(6, 4, 6, 4))
 
         # Notation selection with icon toggle buttons
         self.notation_var = tk.StringVar(value=self.viewmodel.notation.value)
@@ -768,7 +767,7 @@ class MainWindow(tk.Tk):
         # Vertical paned window so the chord-sheet strip can dock under the
         # editor with a user-draggable divider.
         self.content_paned = ttk.PanedWindow(self, orient=tk.VERTICAL)
-        self.content_paned.pack(fill=tk.BOTH, expand=True, padx=6, pady=(4, 6))
+        self.content_paned.pack(fill=tk.BOTH, expand=True, padx=6, pady=(0, 4))
 
         # Frame for text editor and scrollbar (top pane). It draws the editor's
         # 1px border, which turns accent-colored while the editor has focus.
