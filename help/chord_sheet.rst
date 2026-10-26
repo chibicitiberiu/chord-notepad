@@ -45,8 +45,11 @@ and the view you last picked (see below) are remembered between sessions.
 The Four Views
 ==================
 
-A **View** picker above the strip switches between four ways of drawing the
-same voiced chords. Which ones are available depends on the active voicing:
+The tabs above the strip switch between four ways of drawing the same voiced
+chords. Which ones are available depends on the active voicing; a tab that
+can't be used right now is greyed out, and hovering it tells you why (the
+song has no chords yet, or it needs a fretted voicing such as Guitar, picked
+from :menuselection:`Playback --> Voicing`):
 
 Piano roll
 -------------
