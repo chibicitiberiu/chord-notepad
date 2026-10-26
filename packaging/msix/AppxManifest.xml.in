@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  MSIX manifest template for the Microsoft Store build. build_msix.ps1 replaces
-  the {{TOKENS}}. Identity Name, Publisher and PublisherDisplayName must match
+  MSIX manifest template for the Microsoft Store build. build_msix.ps1 fills in
+  the double-brace placeholders. Identity Name, Publisher and PublisherDisplayName must match
   Partner Center (Product identity page) or the upload is rejected.
 -->
 <Package
