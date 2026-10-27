@@ -26,6 +26,8 @@ apps:
       LD_LIBRARY_PATH: $SNAP/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR:$SNAP/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/pulseaudio
       TCL_LIBRARY: $SNAP/usr/share/tcltk/tcl8.6
       TK_LIBRARY: $SNAP/usr/share/tcltk/tk8.6
+      # pyfluidsynth only searches the system linker cache (src/audio/fluidsynth_import.py)
+      CHORD_NOTEPAD_LIBFLUIDSYNTH: $SNAP/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/libfluidsynth.so.3
 
 parts:
   # core26 doesn't ship Python; stage 3.14 (with tkinter) from the archive.

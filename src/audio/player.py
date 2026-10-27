@@ -7,7 +7,7 @@ import os
 import threading
 from pathlib import Path
 from typing import Optional, List, Tuple, Callable, Dict
-import fluidsynth
+from audio.fluidsynth_import import fluidsynth
 from audio.player_interface import IPlayer
 from exceptions import AudioInitializationError
 

@@ -21,8 +21,9 @@ sys.path.insert(0, str(APP / "src"))
 failures = []
 names = [m.name for m in pkgutil.iter_modules([str(APP / "src")])]
 for package in [n for n in names if (APP / "src" / n).is_dir()]:
-    module = importlib.import_module(package)
-    names += [m.name for m in pkgutil.walk_packages(module.__path__, package + ".")]
+    # Walk the folder, not the imported package: importing it may be the
+    # very thing that fails, and that has to be reported, not crash the test.
+    names += [m.name for m in pkgutil.walk_packages([str(APP / "src" / package)], package + ".")]
 
 for name in sorted(set(names)):
     try:
@@ -31,7 +32,7 @@ for name in sorted(set(names)):
         failures.append(f"{name}: {type(exc).__name__}: {exc}")
 
 # Lazily imported third-party code the module walk doesn't reach.
-for name in ["mido", "music21.harmony", "jeepney.io.blocking", "fluidsynth", "PIL.ImageTk"]:
+for name in ["mido", "music21.harmony", "jeepney.io.blocking", "PIL.ImageTk"]:
     try:
         importlib.import_module(name)
     except Exception as exc:  # noqa: BLE001
