@@ -17,6 +17,20 @@ from models.playback_event import PlaybackEventArgs, PlaybackEventType
 logger = logging.getLogger(__name__)
 
 
+def _describe_error(exc: BaseException) -> str:
+    """A one-line reason for an error dialog.
+
+    Our own exceptions and OS errors already carry a readable message; for
+    anything else (a missing module, a bug) prefix the type so it isn't bare.
+    """
+    from exceptions import ChordNotepadError
+
+    text = str(exc).strip()
+    if isinstance(exc, (ChordNotepadError, OSError)) and text:
+        return text
+    return f"{type(exc).__name__}: {text}" if text else type(exc).__name__
+
+
 class MainWindowViewModel(Observable):
     """ViewModel for the main application window.
 
@@ -74,7 +88,15 @@ class MainWindowViewModel(Observable):
         self._current_playing_chord: Optional[ChordInfo] = None
         self._current_playback_event: Optional[PlaybackEventArgs] = None
 
+        # Why the last open/save/export failed, for the view's error dialog.
+        self._last_error: Optional[str] = None
+
     # Properties (read-only access to state)
+
+    @property
+    def last_error(self) -> Optional[str]:
+        """Reason the last open/save/export failed, or None if it succeeded."""
+        return self._last_error
 
     @property
     def current_file(self) -> Optional[Path]:
@@ -185,8 +207,9 @@ class MainWindowViewModel(Observable):
             path: Path to the file to open
 
         Returns:
-            True if successful, False otherwise
+            True if successful, False otherwise (see :attr:`last_error`)
         """
+        self._last_error = None
         try:
             logger.info(f"Opening file: {path}")
             content = self._file.open_file(path)
@@ -206,16 +229,20 @@ class MainWindowViewModel(Observable):
 
         except Exception as e:
             logger.error(f"Failed to open file: {e}", exc_info=True)
+            self._last_error = _describe_error(e)
             return False
 
     def save_file(self) -> bool:
         """Save the current file.
 
         Returns:
-            True if successful, False otherwise
+            True if successful, False otherwise. When there is no current
+            file, returns False with :attr:`last_error` None (the view should
+            ask for a name); on a real failure :attr:`last_error` is set.
         """
         if self._current_file is None:
             # Need to show save-as dialog
+            self._last_error = None
             return False
 
         return self.save_file_as(self._current_file)
@@ -227,8 +254,9 @@ class MainWindowViewModel(Observable):
             path: Path to save the file to
 
         Returns:
-            True if successful, False otherwise
+            True if successful, False otherwise (see :attr:`last_error`)
         """
+        self._last_error = None
         try:
             logger.info(f"Saving file: {path}")
             self._file.save_file(path, self._current_text)
@@ -244,6 +272,7 @@ class MainWindowViewModel(Observable):
 
         except Exception as e:
             logger.error(f"Failed to save file: {e}", exc_info=True)
+            self._last_error = _describe_error(e)
             return False
 
     def export_midi_file(self, path: Path) -> bool:
@@ -257,17 +286,24 @@ class MainWindowViewModel(Observable):
             path: Path to write the MIDI file to
 
         Returns:
-            True if successful, False otherwise
+            True if successful, False otherwise (see :attr:`last_error`)
         """
-        # Imported lazily to keep the (potentially heavier) MIDI writer
-        # dependencies out of application startup.
-        from services.midi_file_writer import write_midi_file
-
+        self._last_error = None
         try:
+            # Imported lazily to keep the (potentially heavier) MIDI writer
+            # dependencies out of application startup. Inside the try so a
+            # broken install is reported like any other export failure.
+            from services.midi_file_writer import write_midi_file
+
             lines = self._chord.detect_chords_in_text(self._current_text, self._notation)
-            rendered = self._audio.render_song(lines, self._key)
+            if not any(line.chords for line in lines):
+                logger.warning("No chords found to export as MIDI")
+                self._last_error = "There are no chords to export."
+                return False
+            rendered = self._audio.render_song(lines, self._key, raise_errors=True)
             if rendered is None:
                 logger.warning("No chords found to export as MIDI")
+                self._last_error = "There are no chords to export."
                 return False
 
             program = self._config.get("instrument", 0)
@@ -280,6 +316,7 @@ class MainWindowViewModel(Observable):
 
         except Exception as e:
             logger.error(f"Failed to export MIDI file: {e}", exc_info=True)
+            self._last_error = _describe_error(e)
             return False
 
     def on_text_changed(self, text: str) -> None:
@@ -307,7 +344,10 @@ class MainWindowViewModel(Observable):
             from_char_offset: Character offset to start playback from (0 = beginning)
 
         Returns:
-            True if playback started, False otherwise
+            True if playback started, False if there was nothing to play
+
+        Raises:
+            AudioInitializationError: If the audio output can't be started.
         """
         if self._is_playing:
             logger.warning("Playback already active")
@@ -358,6 +398,11 @@ class MainWindowViewModel(Observable):
             logger.debug(f"Playback event: {event_args.event_type}")
             self._on_playback_event(event_args)
 
+        # Render failures happen on the render thread: hand them to the UI thread.
+        def on_error_wrapper(message: str):
+            self._application.queue_ui_callback(
+                lambda: self.notify("playback_error", message))
+
         # Start playback (AudioService handles all directive processing and chord resolution)
         success = self._audio.start_song_playback(
             lines=self._playback_lines,
@@ -365,7 +410,8 @@ class MainWindowViewModel(Observable):
             on_finished_callback=on_finished_wrapper,
             on_event_callback=on_event_wrapper,
             start_line_index=start_line_index,
-            start_item_index=start_item_index
+            start_item_index=start_item_index,
+            on_error_callback=on_error_wrapper,
         )
 
         if success:
@@ -382,6 +428,9 @@ class MainWindowViewModel(Observable):
 
         Returns:
             True if playback started, False otherwise
+
+        Raises:
+            AudioInitializationError: If the audio output can't be started.
         """
         # Convert cursor position to character offset
         # cursor_position format: "line.column" (1-indexed)
@@ -462,6 +511,9 @@ class MainWindowViewModel(Observable):
 
         Args:
             chord_info: Information about the clicked chord
+
+        Raises:
+            AudioInitializationError: If the audio output can't be started.
         """
         logger.debug(f"Playing chord on click: {chord_info.chord} (key={self._key})")
         self._audio.play_chord_immediate(chord_info, self._key)
@@ -738,7 +790,7 @@ class MainWindowViewModel(Observable):
 
         lines = self._chord.detect_chords_in_text(self._current_text, self._notation)
         rendered = self._audio.render_song(
-            lines, self._key, note_picker=GuitarChordPicker(spec))
+            lines, self._key, note_picker=GuitarChordPicker(spec), raise_errors=True)
         if rendered is None:
             return None
 

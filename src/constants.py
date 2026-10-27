@@ -5,6 +5,7 @@ from enum import Enum
 # Application metadata
 APP_NAME = "Chord Notepad"
 APP_ID = "chord-notepad"
+WM_CLASS = "ChordNotepad"
 CONFIG_FILENAME = "settings.json"
 LOG_FILENAME = "chord-notepad.log"
 

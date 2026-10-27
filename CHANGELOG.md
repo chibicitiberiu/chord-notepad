@@ -7,27 +7,31 @@ of this file are used as the GitHub release description, then automatically
 moved to CHANGELOG_HISTORY.md and this file is reset.
 -->
 
+### Added
+
+- **Linux packages.** Chord Notepad is now built as a Flatpak (a
+  `.flatpak` file attached to each release) and as a snap for the Snap Store.
+  Both run sandboxed, with settings and logs kept in the sandbox's own folder.
+- **Native file dialogs on Linux.** Open, Save As, Export MIDI and the
+  soundfont picker use your desktop's own file dialog (GNOME, KDE and others)
+  when it is available, instead of Tk's dated one.
+
 ### Changed
 
-- **Refreshed look.** Windows now uses its modern native theme (the app was
-  using the classic Windows 95-style one); Linux gets a lighter, flat style.
-  The toolbar is tidier, with hover feedback on its buttons and the BPM and
-  speed values shown as chips; scrollbars are slim, menus have more breathing
-  room, and the status bar is flat.
-- **Chord sheet tabs.** The chord sheet's views (Piano roll, Staff, Fret cards,
-  Tab) are now tabs. Hovering a greyed-out tab explains how to enable it.
-- **New Quick Start tour.** Examples are shown exactly as they appear in the
-  editor, with chords highlighted: chords over lyrics, how chord lines are
-  detected, Do-Re-Mi and Roman numerals, timing, song sections, and a picture
-  of the chord sheet.
+- **Errors are always shown.** When something goes wrong, the app now says so
+  in a dialog with the reason (and where the log file is), instead of failing
+  silently. This covers opening, saving and exporting files, playback and
+  audio problems, the help window, and settings. If audio can't start, Play
+  explains why instead of playing silence.
+- On Linux, settings and logs follow the XDG base directories
+  (`$XDG_CONFIG_HOME`, `$XDG_DATA_HOME`) when they are set. The defaults
+  (`~/.config` and `~/.local/share`) are unchanged.
 
 ### Fixed
 
-- The editor's default font is monospace again on a fresh install. The default
-  (Tk's fixed-width font) was being read as an unknown font name, so Tk fell
-  back to a proportional font and chords drifted out of line above the lyrics.
-- The chord sheet remembers the view you picked. Starting with an empty
-  document used to replace a saved Fret cards or Tab choice with Piano roll;
-  now it shows Piano roll only until chords load, then switches back.
-- The instrument menu's marker for the current instrument family now lines up
-  with the other family names.
+- Choosing "Yes" to save unsaved changes no longer discards your edits when
+  the save fails; the New/Open/Close you started is stopped instead.
+- Saving to an existing file that can't be written no longer silently opens
+  Save As; it tells you why the save failed.
+- The Transpose dialog no longer closes silently on input that isn't a number.
+- Linux desktops show Chord Notepad's own icon and name for its window.

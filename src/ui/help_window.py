@@ -13,6 +13,8 @@ import threading
 import webbrowser
 from typing import Optional
 
+from exceptions import ChordNotepadError
+
 logger = logging.getLogger(__name__)
 
 # Module-level server instance to keep it alive
@@ -67,14 +69,15 @@ class HelpServer:
             logger.info("Help server stopped")
 
 
-def show_help(docs_path: str) -> bool:
+def show_help(docs_path: str) -> None:
     """Open the help documentation in the system browser.
 
     Args:
         docs_path: Path to the HTML documentation directory
 
-    Returns:
-        True if help was opened successfully, False otherwise
+    Raises:
+        ChordNotepadError: If the docs are missing or no browser could be
+            opened; the message says what to do.
     """
     global _help_server
 
@@ -82,8 +85,14 @@ def show_help(docs_path: str) -> bool:
 
     if not os.path.exists(index_path):
         logger.error(f"Documentation not found: {index_path}")
-        return False
+        raise ChordNotepadError(
+            "Could not find the help documentation.\n\n"
+            f"Looked in: {docs_path}\n\n"
+            "If you run from source, build it first with:\n"
+            "  make docs-html"
+        )
 
+    url = None
     try:
         if is_sandboxed():
             # In sandboxed environment, serve via HTTP
@@ -99,9 +108,17 @@ def show_help(docs_path: str) -> bool:
             url = f'file://{os.path.abspath(index_path)}'
             logger.info(f"Opening help via file URL: {url}")
 
-        webbrowser.open(url)
-        return True
-
+        opened = webbrowser.open(url)
     except Exception as e:
-        logger.error(f"Failed to open help: {e}")
-        return False
+        logger.error(f"Failed to open help: {e}", exc_info=True)
+        message = f"Could not open the help.\n\n{e}"
+        if url:
+            message += f"\n\nYou can open it yourself at:\n{url}"
+        raise ChordNotepadError(message) from e
+
+    if not opened:
+        logger.error(f"No web browser could open {url}")
+        raise ChordNotepadError(
+            "Could not open a web browser to show the help.\n\n"
+            f"You can open it yourself at:\n{url}"
+        )

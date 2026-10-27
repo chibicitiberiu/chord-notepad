@@ -5,12 +5,14 @@ bottom. Nothing is written to configuration until Save is pressed.
 
 import logging
 import tkinter as tk
-from tkinter import ttk, messagebox, filedialog, font as tkfont
+from tkinter import ttk, messagebox, font as tkfont
 from typing import Any, Callable, Dict, Optional
 
 from constants import MIN_FONT_SIZE, MAX_FONT_SIZE
+from exceptions import ConfigurationError
 from viewmodels.settings_viewmodel import SettingsViewModel
 from ui.dialogs.voicings_page import VoicingsPage
+from utils.file_dialogs import ask_open_filename
 
 logger = logging.getLogger(__name__)
 
@@ -317,10 +319,10 @@ class OptionsDialog(tk.Toplevel):
 
     def _browse_soundfont(self, soundfont_var: tk.StringVar) -> None:
         """Open a file picker for the soundfont path and update the entry."""
-        filename = filedialog.askopenfilename(
+        filename = ask_open_filename(
+            self,
             title="Select SoundFont",
             filetypes=[("SoundFont files", "*.sf2"), ("All files", "*.*")],
-            parent=self,
         )
         if filename:
             soundfont_var.set(filename)
@@ -360,7 +362,13 @@ class OptionsDialog(tk.Toplevel):
             self._voicings_page.select_voicing(name)
             return
 
-        changes = self._viewmodel.commit()
+        try:
+            changes = self._viewmodel.commit()
+        except ConfigurationError as e:
+            # Keep the dialog open so nothing typed is lost.
+            logger.error(f"Could not save settings: {e}")
+            messagebox.showerror("Settings", f"Could not save settings.\n\n{e}", parent=self)
+            return
         if self.on_apply is not None:
             self.on_apply(changes)
         self.destroy()

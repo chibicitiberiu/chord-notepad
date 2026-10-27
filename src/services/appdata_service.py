@@ -1,10 +1,21 @@
 """Application data directory management service."""
 
+import os
 import sys
 from pathlib import Path
 from typing import Optional
 
 from constants import APP_ID, CONFIG_FILENAME, LOG_FILENAME
+
+
+def _xdg_dir(variable: str, default: Path) -> Path:
+    """Return the XDG base directory from the environment, or the default.
+
+    The spec says relative paths are invalid and must be ignored. Flatpak sets
+    these to the app's private folders under ~/.var/app.
+    """
+    value = os.environ.get(variable, "")
+    return Path(value) if os.path.isabs(value) else default
 
 
 class AppDataService:
@@ -24,7 +35,7 @@ class AppDataService:
 
         Returns:
             Path to the application data directory based on platform:
-            - Linux: ~/.local/share/chord-notepad
+            - Linux: $XDG_DATA_HOME/chord-notepad (default ~/.local/share)
             - macOS: ~/Library/Application Support/ChordNotepad
             - Windows: %APPDATA%/ChordNotepad
         """
@@ -36,7 +47,7 @@ class AppDataService:
                 base = Path.home() / "Library" / "Application Support"
                 self._app_data_dir = base / "ChordNotepad"
             else:  # Linux and other Unix-like systems
-                base = Path.home() / ".local" / "share"
+                base = _xdg_dir("XDG_DATA_HOME", Path.home() / ".local" / "share")
                 self._app_data_dir = base / APP_ID
 
         return self._app_data_dir
@@ -46,7 +57,7 @@ class AppDataService:
 
         Returns:
             Path to the config directory based on platform:
-            - Linux: ~/.config/chord-notepad
+            - Linux: $XDG_CONFIG_HOME/chord-notepad (default ~/.config)
             - macOS: ~/Library/Application Support/ChordNotepad
             - Windows: %APPDATA%/ChordNotepad
         """
@@ -55,7 +66,8 @@ class AppDataService:
                 # On Windows and macOS, config is in the same location as app data
                 self._config_dir = self.get_app_data_dir()
             else:  # Linux
-                self._config_dir = Path.home() / ".config" / APP_ID
+                base = _xdg_dir("XDG_CONFIG_HOME", Path.home() / ".config")
+                self._config_dir = base / APP_ID
 
         return self._config_dir
 

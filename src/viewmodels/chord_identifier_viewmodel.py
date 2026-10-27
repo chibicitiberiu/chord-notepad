@@ -4,6 +4,7 @@ import logging
 from typing import List, Tuple, Set, Optional
 from utils.observable import Observable
 from services.song_parser_service import SongParserService
+from exceptions import ChordDetectionError
 
 logger = logging.getLogger(__name__)
 
@@ -346,16 +347,16 @@ class ChordIdentifierViewModel(Observable):
             note_name: Note name (e.g., "C", "D#")
             octave: Octave number
             duration: Duration in seconds
+
+        Raises:
+            AudioInitializationError: If the audio output can't be started.
         """
         if self._audio_service is None:
             logger.warning("Cannot play note: AudioService not available")
             return
 
-        try:
-            self._audio_service.play_note(note_name, octave, duration)
-            logger.debug(f"Playing note: {note_name}{octave}")
-        except Exception as e:
-            logger.error(f"Error playing note {note_name}{octave}: {e}", exc_info=True)
+        self._audio_service.play_note(note_name, octave, duration)
+        logger.debug(f"Playing note: {note_name}{octave}")
 
     def play_chord(self, chord_name: str, duration: float = 2.0) -> None:
         """Play a chord by name.
@@ -363,29 +364,33 @@ class ChordIdentifierViewModel(Observable):
         Args:
             chord_name: Chord name (e.g., "C", "Am7", "D/F#")
             duration: Duration in seconds
+
+        Raises:
+            ChordDetectionError: If the chord's notes can't be worked out.
+            AudioInitializationError: If the audio output can't be started.
         """
         if self._audio_service is None:
             logger.warning("Cannot play chord: AudioService not available")
             return
 
-        try:
-            # Get MIDI notes for the chord
-            midi_notes = self.get_chord_midi_notes(chord_name)
-            if not midi_notes:
-                logger.warning(f"Cannot play chord: No MIDI notes for '{chord_name}'")
-                return
+        # Get MIDI notes for the chord
+        midi_notes = self.get_chord_midi_notes(chord_name)
+        if not midi_notes:
+            logger.warning(f"Cannot play chord: No MIDI notes for '{chord_name}'")
+            raise ChordDetectionError(f"Could not work out the notes of {chord_name}.")
 
-            # Play the chord
-            self._audio_service.play_chord_from_midi(midi_notes, duration)
-            logger.debug(f"Playing chord: {chord_name}")
-        except Exception as e:
-            logger.error(f"Error playing chord {chord_name}: {e}", exc_info=True)
+        # Play the chord
+        self._audio_service.play_chord_from_midi(midi_notes, duration)
+        logger.debug(f"Playing chord: {chord_name}")
 
     def play_selected_notes(self, duration: float = 2.0) -> None:
         """Play all currently selected notes as a chord.
 
         Args:
             duration: Duration in seconds
+
+        Raises:
+            AudioInitializationError: If the audio output can't be started.
         """
         if self._audio_service is None:
             logger.warning("Cannot play selected notes: AudioService not available")
@@ -395,17 +400,14 @@ class ChordIdentifierViewModel(Observable):
             logger.warning("No notes selected to play")
             return
 
-        try:
-            # Convert selected notes to MIDI
-            NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
-            midi_notes = []
-            for note_name, octave in self._selected_notes:
-                note_offset = NOTE_NAMES.index(note_name) if note_name in NOTE_NAMES else 0
-                midi = (octave + 1) * 12 + note_offset
-                midi_notes.append(midi)
+        # Convert selected notes to MIDI
+        NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
+        midi_notes = []
+        for note_name, octave in self._selected_notes:
+            note_offset = NOTE_NAMES.index(note_name) if note_name in NOTE_NAMES else 0
+            midi = (octave + 1) * 12 + note_offset
+            midi_notes.append(midi)
 
-            # Play as chord
-            self._audio_service.play_chord_from_midi(midi_notes, duration)
-            logger.debug(f"Playing selected notes: {self._selected_notes}")
-        except Exception as e:
-            logger.error(f"Error playing selected notes: {e}", exc_info=True)
+        # Play as chord
+        self._audio_service.play_chord_from_midi(midi_notes, duration)
+        logger.debug(f"Playing selected notes: {self._selected_notes}")

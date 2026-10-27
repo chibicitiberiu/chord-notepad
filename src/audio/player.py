@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Optional, List, Tuple, Callable, Dict
 import fluidsynth
 from audio.player_interface import IPlayer
+from exceptions import AudioInitializationError
 
 logger = logging.getLogger(__name__)
 
@@ -71,8 +72,10 @@ class NotePlayer(IPlayer):
 
         if soundfont_path and os.path.exists(soundfont_path):
             self._initialize_fluidsynth(soundfont_path)
+        elif soundfont_path:
+            raise FileNotFoundError(f"Soundfont not found: {soundfont_path}")
         else:
-            raise FileNotFoundError(f"Soundfont not found at: {soundfont_path}")
+            raise FileNotFoundError("No soundfont found. Choose one in Settings.")
 
     def _find_soundfont(self) -> Optional[str]:
         """Find the bundled soundfont"""
@@ -94,7 +97,13 @@ class NotePlayer(IPlayer):
         return None
 
     def _initialize_fluidsynth(self, soundfont_path: str) -> None:
-        """Initialize FluidSynth with the soundfont"""
+        """Initialize FluidSynth with the soundfont.
+
+        Raises:
+            AudioInitializationError: If no audio driver starts or the
+                soundfont can't be loaded. The caller decides how to tell the
+                user; a player with no synth would just play silence.
+        """
         try:
             # Create FluidSynth instance
             logger.debug("Creating FluidSynth instance...")
@@ -129,10 +138,15 @@ class NotePlayer(IPlayer):
                     continue
 
             if not started:
-                raise Exception("Could not start FluidSynth with any audio driver")
+                raise AudioInitializationError(
+                    f"No audio output could be started (tried {', '.join(drivers)})."
+                )
 
-            # Load soundfont
+            # Load soundfont (FluidSynth returns -1 instead of raising)
             self.sfid = self.fs.sfload(soundfont_path)
+            if self.sfid is None or self.sfid < 0:
+                self.sfid = None
+                raise AudioInitializationError(f"Could not load the soundfont: {soundfont_path}")
             logger.info(f"Loaded soundfont: {soundfont_path}, ID: {self.sfid}")
 
             # Select instrument (program)
@@ -140,7 +154,15 @@ class NotePlayer(IPlayer):
 
         except Exception as e:
             logger.error(f"Failed to initialize FluidSynth: {e}", exc_info=True)
+            if self.fs is not None:
+                try:
+                    self.fs.delete()  # release the audio device we may hold
+                except Exception:
+                    logger.debug("FluidSynth cleanup after failed init failed", exc_info=True)
             self.fs = None
+            if isinstance(e, AudioInitializationError):
+                raise
+            raise AudioInitializationError(f"FluidSynth failed to start: {e}") from e
 
     def get_available_instruments(self) -> List[Tuple[int, str]]:
         """

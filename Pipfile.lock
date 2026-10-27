@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "5daecbfbfee53a54e0ee5d4e6506a596c6e2ae03389a23c8390f935ec26944a9"
+            "sha256": "079e19a575ff309d97b049777169e9cbacfcc8b29f1da51b97b9c88e2e3f197b"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -350,6 +350,15 @@
             ],
             "markers": "python_version >= '3.9'",
             "version": "==3.17"
+        },
+        "jeepney": {
+            "hashes": [
+                "sha256:97e5714520c16fc0a45695e5365a2e11b81ea79bba796e26f9f1d178cb182683",
+                "sha256:cf0e9e845622b81e4a28df94c40345400256ec608d0e55bb8a3feaa9163f5732"
+            ],
+            "index": "pypi",
+            "markers": "python_version >= '3.7'",
+            "version": "==0.9.0"
         },
         "joblib": {
             "hashes": [

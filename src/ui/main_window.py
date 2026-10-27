@@ -4,15 +4,18 @@ Main application window with text editor and menu bar
 
 import logging
 import tkinter as tk
-from tkinter import ttk, filedialog, messagebox, font as tkfont
+from tkinter import ttk, messagebox, font as tkfont
 import os
+import sys
 from pathlib import Path
 from typing import Any, Optional, List
 from PIL import Image, ImageTk
 from ui.scrubber import Scrubber
+from utils import error_reporting
 from ui.text_editor import ChordTextEditor
 from ui.chord_identifier import ChordIdentifierWindow
 from ui.builders.menu_builder import MenuBuilder
+from ui.audio_errors import show_audio_error
 from ui.dialogs import (
     InsertBpmDialog,
     InsertTimeSignatureDialog,
@@ -25,9 +28,11 @@ from ui.dialogs import (
 )
 from utils.icon_loader import IconLoader
 from utils.ui_helpers import create_tooltip, resolve_font_family
+from utils.file_dialogs import ask_open_filename, ask_save_as_filename, display_path
 from utils.key_helpers import get_key_options
 from models.notation import Notation
 from models.ensemble_spec import BUILTIN_ENSEMBLES
+from exceptions import AudioInitializationError, ChordNotepadError
 from models.fretboard_spec import BUILTIN_FRETBOARDS
 from constants import (
     TAG_CHORD_PLAYING,
@@ -39,6 +44,7 @@ from constants import (
     UI_SCROLL_THUMB,
     UI_SCROLL_THUMB_ACTIVE,
     UI_TEXT_MUTED,
+    WM_CLASS,
 )
 
 logger = logging.getLogger(__name__)
@@ -71,7 +77,13 @@ class MainWindow(tk.Tk):
             resource_service: ResourceService for resolving resource paths
             chord_sheet_viewmodel: ChordSheetViewModel for the bottom strip
         """
-        super().__init__()
+        # On Linux the class becomes the X11 WM_CLASS, which desktops match to
+        # the .desktop file (StartupWMClass) to show the right icon and name.
+        # Windows and macOS keep Tk's default.
+        if sys.platform.startswith('linux'):
+            super().__init__(className=WM_CLASS)
+        else:
+            super().__init__()
 
         # Set platform-native ttk theme
         self._setup_theme()
@@ -127,6 +139,14 @@ class MainWindow(tk.Tk):
         if self.viewmodel.get_show_quick_start_on_startup():
             # Use after() to show the dialog after the main window is fully displayed
             self.after(100, self.show_quick_start)
+
+    def report_callback_exception(self, exc: type, val: BaseException, tb: Any) -> None:
+        """Log errors raised in Tk callbacks and tell the user.
+
+        Tk's default prints the traceback to stderr, which nobody sees in a
+        packaged app, so a failing menu command looked like it did nothing.
+        """
+        error_reporting.report_unexpected_error(self, (exc, val, tb), "UI callback")
 
     def _setup_theme(self) -> None:
         """Set up the ttk theme to use platform-native styling."""
@@ -275,6 +295,7 @@ class MainWindow(tk.Tk):
 
         # Playback event changes
         self.viewmodel.observe('current_playback_event', self._on_playback_event_changed)
+        self.viewmodel.observe('playback_error', self._on_playback_error)
 
     # ViewModel observer callbacks
 
@@ -396,6 +417,19 @@ class MainWindow(tk.Tk):
         # Programmatic edits don't trigger the typing-driven detection path,
         # so kick chord highlighting/parsing manually.
         self.text_editor.refresh_chords()
+
+    def _on_playback_error(self, message: str) -> None:
+        """Tell the user the song couldn't be played (render failed)."""
+        self.update_statusbar("Playback failed")
+        messagebox.showerror("Playback Error", f"Could not play the song.\n\n{message}", parent=self)
+
+    def _show_file_error(self, action: str, filename: Any) -> None:
+        """Show a failed open/save/export with the reason from the ViewModel."""
+        message = f"{action}:\n{display_path(filename)}"
+        reason = self.viewmodel.last_error
+        if reason:
+            message += f"\n\n{reason}"
+        messagebox.showerror("Error", message, parent=self)
 
     def _on_playback_event_changed(self, event_args: Optional[Any]) -> None:
         """React to playback event changes from ViewModel.
@@ -936,7 +970,8 @@ class MainWindow(tk.Tk):
         if not self.prompt_save_if_modified():
             return
 
-        filename = filedialog.askopenfilename(
+        filename = ask_open_filename(
+            self,
             title="Open File",
             filetypes=[("Text Files", "*.txt"), ("All Files", "*.*")]
         )
@@ -955,29 +990,39 @@ class MainWindow(tk.Tk):
             self.text_editor.edit_reset()  # Reset undo history
             self.text_editor._detect_chords()  # Trigger chord detection
             self.update_recent_files_menu()  # Update menu with new recent files
-            self.update_statusbar(f"Opened: {filename}")
+            self.update_statusbar(f"Opened: {display_path(filename)}")
         else:
-            messagebox.showerror("Error", f"Failed to open file:\n{filename}")
+            self._show_file_error("Failed to open file", filename)
 
-    def save_file(self) -> None:
-        """Save current file"""
+    def save_file(self) -> bool:
+        """Save current file. Returns True if it was saved."""
         # Update ViewModel with current text before saving
         current_text = self.text_editor.get("1.0", "end-1c")
         self.viewmodel.on_text_changed(current_text)
 
         success = self.viewmodel.save_file()
-        if not success:
-            # No current file, show save-as dialog
-            self.save_file_as()
-        else:
-            self.update_statusbar(f"Saved: {self.viewmodel.current_file}")
+        if success:
+            self.update_statusbar(f"Saved: {display_path(self.viewmodel.current_file)}")
+            return True
+        if self.viewmodel.current_file is not None:
+            # A real failure, not a missing name: say why instead of
+            # silently falling through to Save As.
+            self._show_file_error("Failed to save file", self.viewmodel.current_file)
+            return False
+        # No current file, show save-as dialog
+        return self.save_file_as()
 
-    def save_file_as(self) -> None:
-        """Save file with new name"""
-        filename = filedialog.asksaveasfilename(
+    def save_file_as(self) -> bool:
+        """Save file with new name. Returns True if it was saved."""
+        # Pre-fill a name with its extension: the Flatpak's portal dialog only
+        # grants access to the exact name chosen, so ".txt" can't be added later.
+        current = self.viewmodel.current_file
+        filename = ask_save_as_filename(
+            self,
             title="Save File As",
             defaultextension=".txt",
-            filetypes=[("Text Files", "*.txt"), ("All Files", "*.*")]
+            filetypes=[("Text Files", "*.txt"), ("All Files", "*.*")],
+            initialfile=current.name if current else "Untitled.txt",
         )
 
         if filename:
@@ -988,15 +1033,17 @@ class MainWindow(tk.Tk):
             success = self.viewmodel.save_file_as(Path(filename))
             if success:
                 self.update_recent_files_menu()  # Update menu with new recent files
-                self.update_statusbar(f"Saved: {filename}")
-            else:
-                messagebox.showerror("Error", f"Failed to save file:\n{filename}")
+                self.update_statusbar(f"Saved: {display_path(filename)}")
+                return True
+            self._show_file_error("Failed to save file", filename)
+        return False
 
     def export_midi(self) -> None:
         """Export the current document as a standard MIDI file"""
         initial_stem = self.viewmodel.current_file.stem if self.viewmodel.current_file else "Untitled"
 
-        filename = filedialog.asksaveasfilename(
+        filename = ask_save_as_filename(
+            self,
             title="Export MIDI",
             defaultextension=".mid",
             filetypes=[("MIDI files", "*.mid"), ("All files", "*.*")],
@@ -1012,20 +1059,22 @@ class MainWindow(tk.Tk):
 
         success = self.viewmodel.export_midi_file(Path(filename))
         if success:
-            self.update_statusbar(f"Exported MIDI: {filename}")
+            self.update_statusbar(f"Exported MIDI: {display_path(filename)}")
         else:
-            messagebox.showerror("Error", f"Failed to export MIDI file:\n{filename}")
+            self._show_file_error("Failed to export MIDI file", filename)
 
     def prompt_save_if_modified(self) -> bool:
         """Prompt to save if file is modified. Returns True if ok to continue."""
         if self.viewmodel.is_modified:
             response = messagebox.askyesnocancel(
                 "Unsaved Changes",
-                "Do you want to save your changes?"
+                "Do you want to save your changes?",
+                parent=self,
             )
             if response:  # Yes
-                self.save_file()
-                return True
+                # Only go on if the save worked (it already showed why not, or
+                # the user cancelled Save As); otherwise the changes are lost.
+                return self.save_file()
             elif response is None:  # Cancel
                 return False
             else:  # No
@@ -1365,19 +1414,16 @@ class MainWindow(tk.Tk):
             self.update_statusbar(f"Inserted chord: {chord_name}")
         except Exception as e:
             logger.error(f"Error inserting chord: {e}", exc_info=True)
+            messagebox.showerror("Error", f"Could not insert the chord {chord_name}.\n\n{e}", parent=self)
 
     def show_help(self) -> None:
         """Show the help window with user documentation."""
         from ui.help_window import show_help
         docs_path = self.resource_service.get_resource_path('help/build/html')
-        if not show_help(docs_path):
-            from tkinter import messagebox
-            messagebox.showwarning(
-                "Help Unavailable",
-                "Could not open help documentation.\n\n"
-                "Ensure the documentation has been built:\n"
-                "  make docs-html"
-            )
+        try:
+            show_help(docs_path)
+        except ChordNotepadError as e:
+            messagebox.showwarning("Help Unavailable", str(e), parent=self)
 
     def show_quick_start(self) -> None:
         """Show the Quick Start dialog."""
@@ -1624,7 +1670,12 @@ class MainWindow(tk.Tk):
         """Handle click on text editor - play chord if clicked"""
         chord_info = self.text_editor.get_chord_at_coordinates(event.x, event.y)
         if chord_info and chord_info.is_valid:
-            self.viewmodel.on_chord_clicked(chord_info)
+            try:
+                self.viewmodel.on_chord_clicked(chord_info)
+            except AudioInitializationError as e:
+                self.update_statusbar("Audio is not available")
+                show_audio_error(self, e, from_click=True)
+                return
             self.update_statusbar(f"Playing: {chord_info.chord}")
 
     def on_play_pause_click(self, event: Any) -> None:
@@ -1653,27 +1704,39 @@ class MainWindow(tk.Tk):
             current_text = self.text_editor.get("1.0", "end-1c")
             self.viewmodel.on_text_changed(current_text)
 
-            if shift_held:
-                # Shift+click - play from cursor position
-                logger.info("View: Playing from cursor position")
-                cursor_pos = self.text_editor.index(tk.INSERT)
-                success = self.viewmodel.start_playback_from_cursor(cursor_pos)
-                if success:
-                    all_chords = [c for c in self.text_editor.get_detected_chords()
-                                  if c.is_valid]
-                    self.update_statusbar(f"Playing from cursor ({len(all_chords)} chords)...")
-                else:
-                    self.update_statusbar("No chords to play from cursor")
+            try:
+                self._start_playback(shift_held)
+            except AudioInitializationError as e:
+                self.update_statusbar("Audio is not available")
+                show_audio_error(self, e)
+
+    def _start_playback(self, shift_held: bool) -> None:
+        """Start playback from the start, or from the cursor with Shift.
+
+        Raises:
+            AudioInitializationError: If the audio output can't be started.
+        """
+        if shift_held:
+            # Shift+click - play from cursor position
+            logger.info("View: Playing from cursor position")
+            cursor_pos = self.text_editor.index(tk.INSERT)
+            success = self.viewmodel.start_playback_from_cursor(cursor_pos)
+            if success:
+                all_chords = [c for c in self.text_editor.get_detected_chords()
+                              if c.is_valid]
+                self.update_statusbar(f"Playing from cursor ({len(all_chords)} chords)...")
             else:
-                # Normal click - play from start
-                logger.info("View: Playing from start")
-                success = self.viewmodel.start_playback()
-                if success:
-                    all_chords = [c for c in self.text_editor.get_detected_chords()
-                                  if c.is_valid]
-                    self.update_statusbar(f"Playing {len(all_chords)} chords...")
-                else:
-                    self.update_statusbar("No chords to play")
+                self.update_statusbar("No chords to play from cursor")
+        else:
+            # Normal click - play from start
+            logger.info("View: Playing from start")
+            success = self.viewmodel.start_playback()
+            if success:
+                all_chords = [c for c in self.text_editor.get_detected_chords()
+                              if c.is_valid]
+                self.update_statusbar(f"Playing {len(all_chords)} chords...")
+            else:
+                self.update_statusbar("No chords to play")
 
     def stop_playback(self) -> None:
         """Stop playback"""

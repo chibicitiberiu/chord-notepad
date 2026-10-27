@@ -15,6 +15,7 @@ from services.playback_service import PlaybackService
 from services.song_parser_service import SongParserService
 from services.file_service import FileService
 from services.resource_service import ResourceService
+from utils import error_reporting
 from viewmodels.main_window_viewmodel import MainWindowViewModel
 from viewmodels.text_editor_viewmodel import TextEditorViewModel
 from viewmodels.chord_sheet_viewmodel import ChordSheetViewModel
@@ -175,6 +176,9 @@ class Application:
             log_level=log_level,
             console_output=True
         )
+        # Errors nothing else catches get logged and shown, not lost on stderr
+        error_reporting.set_log_path(str(self.appdata_service.get_log_file_path()))
+        error_reporting.install_thread_hook(self.queue_ui_callback, lambda: self._main_window)
 
     def on_initialize_ui(self) -> None:
         """Initialize the user interface.
@@ -275,9 +279,9 @@ class Application:
                 callback = self._event_queue.get_nowait()
                 try:
                     callback()
-                except Exception as e:
-                    logger = logging.getLogger(__name__)
-                    logger.error(f"Error executing UI callback: {e}", exc_info=True)
+                except Exception:
+                    error_reporting.report_unexpected_error(
+                        self._main_window, sys.exc_info(), "queued UI callback")
         except queue.Empty:
             pass
         finally:
@@ -376,6 +380,7 @@ class Application:
                 import traceback
                 print(f"Fatal error: {e}", file=sys.stderr)
                 traceback.print_exc()
+            error_reporting.show_fatal_error(e)
             return 1
 
         finally:

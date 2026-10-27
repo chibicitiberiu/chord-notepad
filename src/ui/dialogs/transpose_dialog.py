@@ -2,7 +2,7 @@
 
 import logging
 import tkinter as tk
-from tkinter import ttk
+from tkinter import ttk, messagebox
 from typing import Optional
 
 logger = logging.getLogger(__name__)
@@ -78,7 +78,13 @@ class TransposeDialog(tk.Toplevel):
         try:
             value = int(self.semitones_var.get())
         except (tk.TclError, ValueError):
-            value = 0
+            # Closing with 0 would look like Transpose did nothing.
+            messagebox.showerror(
+                "Invalid Input",
+                "Enter a whole number of semitones from -11 to 11.",
+                parent=self,
+            )
+            return
         value = max(-11, min(11, value))
         self.result = value
         self.destroy()

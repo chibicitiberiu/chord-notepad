@@ -309,6 +309,15 @@ cause issues.
 While Chord Notepad can open any text file, if the file has a strange extension,
 you might need to select "All Files" in the Open dialog.
 
+**Open/Save dialog looks different on Linux:**
+On Linux, Chord Notepad uses your desktop's own file dialog (through the
+XDG Desktop Portal) when one is available, and its built-in dialog
+otherwise. The Flatpak version always goes through the portal, since that's
+the only way it can reach your files. If the desktop dialog misbehaves, you
+can force the built-in one by starting the app with the environment variable
+``CHORD_NOTEPAD_FILE_DIALOG=tk`` (or ``CHORD_NOTEPAD_FILE_DIALOG=portal`` to
+force the desktop one).
+
 
 Common Mistakes
 ===============

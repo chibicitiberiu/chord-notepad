@@ -12,6 +12,9 @@ pychord = "*"
 music21 = "*"
 pillow = "*"
 mido = "*"
+# Pure-Python D-Bus client for the XDG FileChooser portal (Linux/Flatpak file
+# dialogs). Imported lazily, so Windows/macOS never load it.
+jeepney = "*"
 
 [dev-packages]
 pytest = "~=7.4.0"

@@ -4,8 +4,11 @@ Chord identification window with piano roll and note input
 
 import logging
 import tkinter as tk
-from tkinter import ttk
+from tkinter import ttk, messagebox
 import re
+
+from exceptions import AudioInitializationError, ChordNotepadError
+from ui.audio_errors import show_audio_error
 
 logger = logging.getLogger(__name__)
 
@@ -177,11 +180,8 @@ class PianoRoll(tk.Canvas):
         if not self.on_play_note:
             return
 
-        try:
-            # Delegate to callback
-            self.on_play_note(note_name, octave)
-        except Exception as e:
-            logger.error(f"Error playing note: {e}", exc_info=True)
+        # Delegate to callback (it reports its own errors)
+        self.on_play_note(note_name, octave)
 
     def note_to_midi(self, note_name, octave):
         """
@@ -368,8 +368,12 @@ class ChordIdentifierWindow(tk.Toplevel):
             note_name: Note name to play
             octave: Octave number
         """
-        # Delegate to ViewModel
-        self.viewmodel.play_note(note_name, octave, duration=1.0)
+        # Delegate to ViewModel. Clicking a key mainly selects it, so a broken
+        # audio setup is reported once rather than on every click.
+        try:
+            self.viewmodel.play_note(note_name, octave, duration=1.0)
+        except AudioInitializationError as e:
+            show_audio_error(self, e, from_click=True)
 
     def _on_chords_identified(self, chord_list):
         """Observer callback when chords are identified in ViewModel.
@@ -412,13 +416,18 @@ class ChordIdentifierWindow(tk.Toplevel):
         chord_name = self.results_listbox.get(selection[0])
 
         # Don't play info messages
-        if chord_name.startswith("Selected notes:") or chord_name.startswith("Notes:") or \
+        if chord_name.startswith(("Selected notes:", "Notes:", "Error:")) or \
            chord_name in ["", "Select notes to identify chords...", "No standard chord found.",
                          "Try adding or removing notes.", "Make sure you've selected valid notes."]:
             return
 
         # Delegate to ViewModel
-        self.viewmodel.play_chord(chord_name, duration=2.0)
+        try:
+            self.viewmodel.play_chord(chord_name, duration=2.0)
+        except AudioInitializationError as e:
+            show_audio_error(self, e, from_click=True)
+        except ChordNotepadError as e:
+            messagebox.showerror("Identify Chord", str(e), parent=self)
 
     def insert_selected_chord(self):
         """Insert the selected chord into the parent text editor"""
@@ -429,17 +438,14 @@ class ChordIdentifierWindow(tk.Toplevel):
         chord_name = self.results_listbox.get(selection[0])
 
         # Don't insert info messages
-        if chord_name.startswith("Selected notes:") or chord_name.startswith("Notes:") or \
+        if chord_name.startswith(("Selected notes:", "Notes:", "Error:")) or \
            chord_name in ["", "Select notes to identify chords...", "No standard chord found.",
                          "Try adding or removing notes.", "Make sure you've selected valid notes."]:
             return
 
-        # Use callback to insert chord
+        # Use callback to insert chord (it reports its own errors)
         if self.on_insert_chord:
-            try:
-                self.on_insert_chord(chord_name)
-            except Exception as e:
-                logger.error(f"Error inserting chord: {e}", exc_info=True)
+            self.on_insert_chord(chord_name)
 
     def clear_all(self):
         """Clear all selections"""

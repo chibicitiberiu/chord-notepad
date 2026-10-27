@@ -21,6 +21,8 @@ from constants import (
     UI_TAB_IDLE,
     UI_TEXT_DISABLED,
 )
+from exceptions import AudioInitializationError
+from ui.audio_errors import show_audio_error
 from ui.base.tooltip import TabToolTip
 from ui.chord_sheet.clef_assets import image_for_clef_key
 from ui.chord_sheet.marker_lane import LANE_HEIGHT, build_marker_lane
@@ -333,7 +335,10 @@ class ChordSheetPanel(ttk.Frame):
         content_x = self._canvas.canvasx(event.x)
         for slot in self._layout.slots:
             if slot.x <= content_x <= slot.x + slot.width:
-                self._vm.audition(slot.chord_index)
+                try:
+                    self._vm.audition(slot.chord_index)
+                except AudioInitializationError as e:
+                    show_audio_error(self.winfo_toplevel(), e, from_click=True)
                 return
 
     # -- Painting -----------------------------------------------------------

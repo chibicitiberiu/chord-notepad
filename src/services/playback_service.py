@@ -19,7 +19,7 @@ from models.playback_event import PlaybackEventArgs
 from models.line import Line
 from models.rendered_song import RenderedSong
 from services.config_service import ConfigService
-from exceptions import RenderAborted
+from exceptions import AudioInitializationError, RenderAborted
 
 
 class PlaybackService:
@@ -34,6 +34,8 @@ class PlaybackService:
         self._note_picker = self._create_note_picker(self._config.get("voicing", "piano"))
         self._logger = logging.getLogger(__name__)
         self._initialized = player is not None
+        # Why the last initialize_player() failed, for the error dialog.
+        self._init_error: Optional[str] = None
         self._playback_state = PlaybackState()
         self._application = application  # For UI callbacks
 
@@ -261,6 +263,7 @@ class PlaybackService:
             self._player.set_bpm_multiplier(multiplier)
 
             self._initialized = True
+            self._init_error = None
             self._logger.info("Audio player initialized successfully")
             return True
 
@@ -268,6 +271,7 @@ class PlaybackService:
             self._logger.error(f"Failed to initialize audio player: {e}", exc_info=True)
             self._player = None
             self._initialized = False
+            self._init_error = str(e) or type(e).__name__
             return False
 
     def play_chord_immediate(self, chord_info: ChordInfo, current_key: Optional[str] = None) -> None:
@@ -276,46 +280,42 @@ class PlaybackService:
         Args:
             chord_info: Chord information
             current_key: Current key signature for resolving roman numerals
+
+        Raises:
+            AudioInitializationError: If the audio output can't be started.
         """
-        if not self._ensure_initialized():
+        self._require_audio()
+
+        # Resolve chord notes dynamically
+        chord_notes = self._resolve_chord_notes(chord_info, current_key)
+        if not chord_notes:
+            self._logger.warning(f"Could not resolve chord: {chord_info.chord}")
             return
 
-        try:
-            # Resolve chord notes dynamically
-            chord_notes = self._resolve_chord_notes(chord_info, current_key)
-            if not chord_notes:
-                self._logger.warning(f"Could not resolve chord: {chord_info.chord}")
-                return
-
-            # Convert to MIDI
-            midi_notes = self._notes_to_midi(chord_notes)
-            if midi_notes:
-                self._logger.debug(f"Playing chord immediately: {chord_info.chord} -> {chord_notes.notes} (bass: {chord_notes.bass_note})")
-                self._player.play_notes_immediate(midi_notes)
-            else:
-                self._logger.warning(f"Could not convert chord to MIDI notes: {chord_info.chord}")
-
-        except Exception as e:
-            self._logger.error(f"Error playing chord: {e}", exc_info=True)
+        # Convert to MIDI
+        midi_notes = self._notes_to_midi(chord_notes)
+        if midi_notes:
+            self._logger.debug(f"Playing chord immediately: {chord_info.chord} -> {chord_notes.notes} (bass: {chord_notes.bass_note})")
+            self._player.play_notes_immediate(midi_notes)
+        else:
+            self._logger.warning(f"Could not convert chord to MIDI notes: {chord_info.chord}")
 
     def play_notes_immediate(self, midi_notes: List[int]) -> None:
         """Play MIDI notes immediately.
 
         Args:
             midi_notes: List of MIDI note numbers to play
+
+        Raises:
+            AudioInitializationError: If the audio output can't be started.
         """
-        if not self._ensure_initialized():
-            return
+        self._require_audio()
 
-        try:
-            if midi_notes:
-                self._logger.debug(f"Playing MIDI notes immediately: {midi_notes}")
-                self._player.play_notes_immediate(midi_notes)
-            else:
-                self._logger.warning("No MIDI notes provided to play")
-
-        except Exception as e:
-            self._logger.error(f"Error playing notes: {e}", exc_info=True)
+        if midi_notes:
+            self._logger.debug(f"Playing MIDI notes immediately: {midi_notes}")
+            self._player.play_notes_immediate(midi_notes)
+        else:
+            self._logger.warning("No MIDI notes provided to play")
 
     def play_note(self, note_name: str, octave: int, duration: float = 1.0) -> None:
         """Play a single note by name and octave.
@@ -324,27 +324,25 @@ class PlaybackService:
             note_name: Note name (e.g., 'C', 'D#', 'Bb')
             octave: Octave number
             duration: Duration in seconds (currently not used, for API compatibility)
+
+        Raises:
+            AudioInitializationError: If the audio output can't be started.
         """
-        if not self._ensure_initialized():
+        self._require_audio()
+
+        # Convert note name and octave to MIDI note number
+        # MIDI formula: (octave + 1) * 12 + note_offset
+        NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
+
+        if note_name not in NOTE_NAMES:
+            self._logger.warning(f"Invalid note name: {note_name}")
             return
 
-        try:
-            # Convert note name and octave to MIDI note number
-            # MIDI formula: (octave + 1) * 12 + note_offset
-            NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
+        note_offset = NOTE_NAMES.index(note_name)
+        midi_note = (octave + 1) * 12 + note_offset
 
-            if note_name not in NOTE_NAMES:
-                self._logger.warning(f"Invalid note name: {note_name}")
-                return
-
-            note_offset = NOTE_NAMES.index(note_name)
-            midi_note = (octave + 1) * 12 + note_offset
-
-            self._logger.debug(f"Playing note: {note_name}{octave} (MIDI {midi_note})")
-            self._player.play_notes_immediate([midi_note])
-
-        except Exception as e:
-            self._logger.error(f"Error playing note {note_name}{octave}: {e}", exc_info=True)
+        self._logger.debug(f"Playing note: {note_name}{octave} (MIDI {midi_note})")
+        self._player.play_notes_immediate([midi_note])
 
     def play_chord_from_midi(self, midi_notes: List[int], duration: float = 2.0) -> None:
         """Play a chord from MIDI note numbers.
@@ -475,6 +473,21 @@ class PlaybackService:
             return self.initialize_player()
         return True
 
+    def _require_audio(self) -> None:
+        """Make sure the player is up, or say why it isn't.
+
+        Raises:
+            AudioInitializationError: With the reason initialization failed.
+        """
+        if not self._ensure_initialized():
+            reason = self._init_error or "The audio player could not be started."
+            raise AudioInitializationError(f"Audio is not available.\n\n{reason}")
+
+    @property
+    def audio_error(self) -> Optional[str]:
+        """Why the audio player failed to start, or None if it hasn't failed."""
+        return None if self._initialized else self._init_error
+
     @property
     def is_initialized(self) -> bool:
         """Check if audio player is initialized."""
@@ -564,7 +577,8 @@ class PlaybackService:
         on_finished_callback: Optional[Callable[[], None]] = None,
         on_event_callback: Optional[Callable[[PlaybackEventArgs], None]] = None,
         start_line_index: int = 0,
-        start_item_index: int = 0
+        start_item_index: int = 0,
+        on_error_callback: Optional[Callable[[str], None]] = None,
     ) -> bool:
         """Start playback of a song with lines containing chords and directives.
 
@@ -575,12 +589,17 @@ class PlaybackService:
             on_event_callback: Optional callback for playback events (chord start/end)
             start_line_index: Line index to start playback from (default: 0)
             start_item_index: Item index within the line to start from (default: 0)
+            on_error_callback: Called with a message if rendering fails on the
+                render thread (after ``on_finished_callback``, so the caller's
+                playing state is reset first). Runs on the render thread.
 
         Returns:
-            True if playback started, False otherwise
+            True if playback started, False if there was nothing to play
+
+        Raises:
+            AudioInitializationError: If the audio output can't be started.
         """
-        if not self._ensure_initialized():
-            return False
+        self._require_audio()
 
         # Stop any existing playback before starting new one
         self.stop_playback()
@@ -644,6 +663,13 @@ class PlaybackService:
                 self._logger.info("Render complete, playback started")
             except Exception as e:
                 self._logger.error(f"Error rendering song for playback: {e}", exc_info=True)
+                if cancel_event.is_set():
+                    return  # stopped meanwhile; nobody is waiting on this render
+                # Playback never started, so the player won't call these.
+                if on_finished_callback:
+                    on_finished_callback()
+                if on_error_callback:
+                    on_error_callback(str(e) or type(e).__name__)
 
         self._render_thread = threading.Thread(
             target=_render_and_play, daemon=True, name="RenderThread"
@@ -685,6 +711,7 @@ class PlaybackService:
         should_abort: Optional[Callable[[], bool]] = None,
         private_picker: bool = False,
         note_picker: Optional[INotePicker] = None,
+        raise_errors: bool = False,
     ) -> Optional[RenderedSong]:
         """Synchronously render a whole song for export or the chord-sheet strip.
 
@@ -712,10 +739,14 @@ class PlaybackService:
                 shared picker and ``private_picker``. Used by the Suggest Capo
                 tool to render (and thus resolve the chords of) a *chosen*
                 fretboard voicing that need not be the active one.
+            raise_errors: Re-raise rendering errors instead of logging them and
+                returning None. User-initiated callers (MIDI export, Suggest
+                Capo) set this so the user can be told what went wrong; the
+                background chord-sheet strip leaves it off.
 
         Returns:
             The fully rendered song, or None if there are no chords to render
-            or rendering fails.
+            or rendering fails (and ``raise_errors`` is False).
 
         Raises:
             RenderAborted: If ``should_abort`` fires during the voicing search.
@@ -749,6 +780,8 @@ class PlaybackService:
             raise
         except Exception as e:
             self._logger.error(f"Error rendering song for export: {e}", exc_info=True)
+            if raise_errors:
+                raise
             return None
 
     def _resolve_chord_notes(self, chord: ChordInfo, current_key: Optional[str]) -> Optional[ChordNotes]:

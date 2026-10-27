@@ -1,5 +1,6 @@
 """Observable pattern implementation for MVVM architecture."""
 
+import sys
 from typing import Any, Callable, Dict, List
 
 
@@ -66,14 +67,12 @@ class Observable:
             for callback in self._observers[property_name]:
                 try:
                     callback(value)
-                except Exception as e:
-                    # Log but don't let observer errors break the notification chain
-                    import logging
-                    logger = logging.getLogger(__name__)
-                    logger.error(
-                        f"Error in observer callback for '{property_name}': {e}",
-                        exc_info=True
-                    )
+                except Exception:
+                    # Keep notifying the other observers, but don't hide the
+                    # error: log it and show it like any other unexpected one.
+                    from utils import error_reporting
+                    error_reporting.report_from_any_thread(
+                        sys.exc_info(), f"observer of '{property_name}'")
 
     def set_and_notify(self, property_name: str, value: Any) -> None:
         """Set a property value and notify observers.
