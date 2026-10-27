@@ -1,7 +1,10 @@
+// >>> Before playing: click the "Do" button at the left of the toolbar <<<
+// This song uses European (Do-Re-Mi) chord names. In the default American
+// mode (the "AB" button) its chords aren't recognized and stay plain text.
+
 {bpm: 100} {time: 3/4} {key: La}
 
 // European (Solfege) Notation Reference
-// NOTE: Set notation to "European" to use this file!
 //
 // European: Do  Re  Mi  Fa  Sol La  Si
 // American: C   D   E   F   G   A   B
