@@ -73,6 +73,18 @@
   </supports>
 
   <releases>
+    <release version="0.4.1" date="2026-10-28">
+      <description>
+        <p>
+          First release as a Flatpak and on the Snap Store. On Linux, the file
+          dialogs are the desktop's own, and settings follow the XDG base
+          directories. Errors are now always shown in a dialog instead of
+          failing silently. Fixes a black app icon on macOS and Linux, a status
+          bar that could disappear, and small, unscaled checkboxes and beveled
+          menus on Tk 8.6.
+        </p>
+      </description>
+    </release>
     <release version="0.4.0" date="2026-10-27">
       <description>
         <p>
