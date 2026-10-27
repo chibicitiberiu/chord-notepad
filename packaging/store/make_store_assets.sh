@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Render the Microsoft Store listing images.
+# Render the Microsoft Store listing images and the Snap Store banner.
 #
 # Usage: packaging/store/make_store_assets.sh [photo.jpg] [out_dir]
 #
@@ -69,5 +69,15 @@ magick "$tmp/box-bg.png" \
   "$tmp/icon-box.png" -gravity north -geometry +0+560 -composite \
   "$tmp/title-box.png" -gravity north -geometry +0+1280 -composite \
   "$out/box-2160x2160.png"
+
+# 3:1 Snap Store banner: icon beside the name, as one centred row. JPEG,
+# since the store caps banners at 2MB.
+background 3000 1000 "$tmp/banner-bg.png"
+icon 400 "$tmp/icon-banner.png"
+title 'Chord Notepad' 190 "$tmp/title-banner.png"
+magick "$tmp/icon-banner.png" \( "$tmp/title-banner.png" -background none -gravity west -splice 70x0 \) \
+  -background none -gravity center +append "$tmp/row-banner.png"
+magick "$tmp/banner-bg.png" "$tmp/row-banner.png" -gravity center -composite \
+  -quality 90 "$out/snap-banner-3000x1000.jpg"
 
 echo "Wrote: $(ls "$out" | tr '\n' ' ')"

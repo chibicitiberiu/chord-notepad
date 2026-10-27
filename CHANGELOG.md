@@ -35,6 +35,8 @@ moved to CHANGELOG_HISTORY.md and this file is reset.
   Save As; it tells you why the save failed.
 - The Transpose dialog no longer closes silently on input that isn't a number.
 - Linux desktops show Chord Notepad's own icon and name for its window.
+- The app icon on macOS and Linux showed a black notepad instead of the pink
+  one; the build now renders it correctly.
 - The status bar no longer disappears when the window is shorter than its
   content.
 - Linux menus have a soft one-pixel outline, and the highlighted item is no

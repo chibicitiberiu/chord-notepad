@@ -77,11 +77,21 @@ endif
 # Generate icon files from SVG
 icons:
 	@echo "Generating icon files from SVG..."
+	@# ImageMagick's built-in SVG renderer paints the icon's linked gradient
+	@# black, so prefer librsvg (rsvg-convert) when it is installed.
 	cd resources && \
-	magick -background none -density 300 chord-notepad-icon.svg -resize 32x32 -quality 100 icon-32.png && \
-	magick -background none -density 300 chord-notepad-icon.svg -resize 128x128 -quality 100 icon-128.png && \
-	magick -background none -density 600 chord-notepad-icon.svg -resize 256x256 -quality 100 icon-256.png && \
-	magick -background none -density 600 chord-notepad-icon.svg -define icon:auto-resize=256,128,64,48,32,16 chord-notepad-icon.ico
+	if command -v rsvg-convert >/dev/null; then \
+		for size in 16 32 48 64 128 256; do \
+			rsvg-convert -w $$size -h $$size chord-notepad-icon.svg -o icon-$$size.png || exit 1; \
+		done && \
+		magick icon-256.png icon-128.png icon-64.png icon-48.png icon-32.png icon-16.png chord-notepad-icon.ico && \
+		rm icon-16.png icon-48.png icon-64.png; \
+	else \
+		magick -background none -density 300 chord-notepad-icon.svg -resize 32x32 -quality 100 icon-32.png && \
+		magick -background none -density 300 chord-notepad-icon.svg -resize 128x128 -quality 100 icon-128.png && \
+		magick -background none -density 600 chord-notepad-icon.svg -resize 256x256 -quality 100 icon-256.png && \
+		magick -background none -density 600 chord-notepad-icon.svg -define icon:auto-resize=256,128,64,48,32,16 chord-notepad-icon.ico; \
+	fi
 	@echo "Icon files generated in resources/"
 
 # Build all documentation (HTML + PDF)

@@ -181,12 +181,14 @@ jobs:
       - name: Generate icon files
         shell: bash
         run: |
-          # Install ImageMagick if not present
+          # ImageMagick's built-in SVG renderer (used on Linux and macOS)
+          # paints the icon's linked gradient black, so the PNGs come from
+          # librsvg there. The Windows ImageMagick renders it correctly.
           if [[ "${{ runner.os }}" == "Linux" ]]; then
-            sudo apt-get install -y imagemagick
+            sudo apt-get install -y imagemagick librsvg2-bin
             MAGICK_CMD="convert"
           elif [[ "${{ runner.os }}" == "macOS" ]]; then
-            brew install imagemagick
+            brew install imagemagick librsvg
             MAGICK_CMD="magick"
           elif [[ "${{ runner.os }}" == "Windows" ]]; then
             # The Windows image already ships ImageMagick.
@@ -194,14 +196,35 @@ jobs:
             MAGICK_CMD="magick"
           fi
 
-          # Generate PNG icons at different sizes with transparency
           cd resources
-          $MAGICK_CMD -background none -density 300 chord-notepad-icon.svg -resize 32x32 -quality 100 icon-32.png
-          $MAGICK_CMD -background none -density 300 chord-notepad-icon.svg -resize 128x128 -quality 100 icon-128.png
-          $MAGICK_CMD -background none -density 600 chord-notepad-icon.svg -resize 256x256 -quality 100 icon-256.png
+          if command -v rsvg-convert >/dev/null; then
+            for size in 16 32 48 64 128 256; do
+              rsvg-convert -w $size -h $size chord-notepad-icon.svg -o icon-$size.png
+            done
+            $MAGICK_CMD icon-256.png icon-128.png icon-64.png icon-48.png icon-32.png icon-16.png chord-notepad-icon.ico
+            rm icon-16.png icon-48.png icon-64.png
+          else
+            # Generate PNG icons at different sizes with transparency
+            $MAGICK_CMD -background none -density 300 chord-notepad-icon.svg -resize 32x32 -quality 100 icon-32.png
+            $MAGICK_CMD -background none -density 300 chord-notepad-icon.svg -resize 128x128 -quality 100 icon-128.png
+            $MAGICK_CMD -background none -density 600 chord-notepad-icon.svg -resize 256x256 -quality 100 icon-256.png
 
-          # Generate .ico file for Windows with transparency
-          $MAGICK_CMD -background none -density 600 chord-notepad-icon.svg -define icon:auto-resize=256,128,64,48,32,16 chord-notepad-icon.ico
+            # Generate .ico file for Windows with transparency
+            $MAGICK_CMD -background none -density 600 chord-notepad-icon.svg -define icon:auto-resize=256,128,64,48,32,16 chord-notepad-icon.ico
+          fi
+
+          # Fail the build instead of shipping a black icon again: the pad's
+          # centre pixel must be the pink gradient, not black.
+          pipenv run python -c "
+          import sys
+          from PIL import Image
+          for name in ('icon-32.png', 'icon-128.png', 'icon-256.png'):
+              im = Image.open(name).convert('RGB')
+              pixel = im.getpixel((im.width // 2, im.height // 2))
+              print(name, pixel)
+              if pixel[0] < 150:
+                  sys.exit(f'{name}: centre pixel {pixel} is not the pink pad; the SVG rendered wrong')
+          "
 
           echo "Generated icon files:"
           ls -lh icon-*.png chord-notepad-icon.ico

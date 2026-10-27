@@ -8,4 +8,4 @@ Icon=io.github.chibicitiberiu.ChordNotepad
 Terminal=false
 Categories=AudioVideo;Audio;Music;Education;
 Keywords=chords;guitar;piano;lyrics;song;chordpro;
-StartupWMClass=ChordNotepad
+StartupWMClass=Chordnotepad

@@ -5,7 +5,10 @@ from enum import Enum
 # Application metadata
 APP_NAME = "Chord Notepad"
 APP_ID = "chord-notepad"
-WM_CLASS = "ChordNotepad"
+# X11 window class, matched by StartupWMClass in the .desktop file. Tk
+# title-cases it (first letter upper, the rest lower), so this is spelled the
+# way it ends up on the window.
+WM_CLASS = "Chordnotepad"
 CONFIG_FILENAME = "settings.json"
 LOG_FILENAME = "chord-notepad.log"
 
