@@ -35,3 +35,9 @@ moved to CHANGELOG_HISTORY.md and this file is reset.
   Save As; it tells you why the save failed.
 - The Transpose dialog no longer closes silently on input that isn't a number.
 - Linux desktops show Chord Notepad's own icon and name for its window.
+- The status bar no longer disappears when the window is shorter than its
+  content.
+- Linux menus have a soft one-pixel outline, and the highlighted item is no
+  longer drawn with a raised bevel on older Tk.
+- On Linux with older Tk (8.6), the app follows the desktop's display scaling
+  and its checkboxes are no longer tiny.

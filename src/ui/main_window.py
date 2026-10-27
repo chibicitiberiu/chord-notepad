@@ -16,6 +16,7 @@ from ui.text_editor import ChordTextEditor
 from ui.chord_identifier import ChordIdentifierWindow
 from ui.builders.menu_builder import MenuBuilder
 from ui.audio_errors import show_audio_error
+from ui.menu_style import iter_menus, style_menu
 from ui.dialogs import (
     InsertBpmDialog,
     InsertTimeSignatureDialog,
@@ -26,6 +27,7 @@ from ui.dialogs import (
     TransposeDialog,
     CapoDialog,
 )
+from utils.display_scaling import apply_xft_dpi
 from utils.icon_loader import IconLoader
 from utils.ui_helpers import create_tooltip, resolve_font_family
 from utils.file_dialogs import ask_open_filename, ask_save_as_filename, display_path
@@ -82,6 +84,7 @@ class MainWindow(tk.Tk):
         # Windows and macOS keep Tk's default.
         if sys.platform.startswith('linux'):
             super().__init__(className=WM_CLASS)
+            apply_xft_dpi(self)
         else:
             super().__init__()
 
@@ -203,12 +206,14 @@ class MainWindow(tk.Tk):
             ('*Menu.background', UI_BG),
             ('*Menu.activeBackground', UI_ACCENT),
             ('*Menu.activeForeground', 'white'),
+            # The outline comes from ui/menu_style.py.
             ('*Menu.relief', 'flat'),
-            # A flat active border doubles as per-entry padding; borderWidth
-            # pads the whole dropdown.
+            ('*Menu.borderWidth', 1),
+            # A flat active border doubles as per-entry padding. activeRelief
+            # only exists from Tk 8.7: Tk 8.6 draws the active border raised,
+            # so it gets none there.
             ('*Menu.activeRelief', 'flat'),
-            ('*Menu.activeBorderWidth', 4),
-            ('*Menu.borderWidth', 4),
+            ('*Menu.activeBorderWidth', 4 if tk.TkVersion >= 8.7 else 0),
         ):
             self.option_add(option, value)
         # The root window exists before the options above, so it needs its
@@ -224,6 +229,13 @@ class MainWindow(tk.Tk):
             troughcolor=UI_BG,
             focuscolor=UI_ACCENT,
         )
+        # Tk 9's clam scales check and radio indicators with the DPI; Tk 8.6
+        # draws them at a fixed 10px, tiny on a scaled desktop.
+        if tk.TkVersion < 9.0:
+            pixels_per_point = float(self.tk.call('tk', 'scaling'))
+            indicator = round(10 * pixels_per_point * 72 / 96)
+            style.configure('TCheckbutton', indicatorsize=indicator)
+            style.configure('TRadiobutton', indicatorsize=indicator)
         style.map('TButton', background=[('pressed', UI_BORDER), ('active', UI_HOVER)])
         style.map('Toolbutton', background=[('selected', UI_HOVER), ('active', UI_HOVER)])
         # Selections (tree rows, list rows, entry text) use the accent color
@@ -616,6 +628,13 @@ class MainWindow(tk.Tk):
             .build()
         menubar.add_cascade(label="Help", menu=help_menu)
 
+        # Restyled clam menus: outlined dropdowns, a menubar spaced as before.
+        if ttk.Style(self).theme_use() == 'clam':
+            menubar.configure(borderwidth=4)
+            for menu in iter_menus(self):
+                if menu is not menubar:
+                    style_menu(menu)
+
         # Bind keyboard shortcuts
         self.bind_all("<Control-n>", lambda e: self.new_file())
         self.bind_all("<Control-o>", lambda e: self.open_file())
@@ -840,7 +859,10 @@ class MainWindow(tk.Tk):
     def create_statusbar(self) -> None:
         """Create status bar"""
         status_frame = ttk.Frame(self)
-        status_frame.pack(side=tk.BOTTOM, fill=tk.X)
+        # Packed ahead of the editor pane: pack hands out space in packing
+        # order, so a window shorter than the content would otherwise squeeze
+        # the status bar to nothing.
+        status_frame.pack(side=tk.BOTTOM, fill=tk.X, before=self.content_paned)
         ttk.Separator(status_frame, orient=tk.HORIZONTAL).pack(side=tk.TOP, fill=tk.X)
         self.statusbar = ttk.Label(status_frame, text="Ready", anchor=tk.W, style='Status.TLabel')
         self.statusbar.pack(side=tk.TOP, fill=tk.X)

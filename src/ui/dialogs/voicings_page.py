@@ -48,6 +48,7 @@ from models.piano_spec import (
     PianoSpec,
 )
 from ui.base.tooltip import add_tooltip, ensure_field_error_styles, mark_field
+from ui.menu_style import style_menu
 from viewmodels.settings_viewmodel import SettingsViewModel
 
 logger = logging.getLogger(__name__)
@@ -712,6 +713,7 @@ class VoicingsPage(ttk.Frame):
         # so the text is plain 'Load config' with no manual arrow glyph).
         self._load_button = ttk.Menubutton(right, text='Load config')
         self._load_menu = tk.Menu(self._load_button, tearoff=0)
+        style_menu(self._load_menu)
         self._load_button['menu'] = self._load_menu
         self._load_button.grid(row=0, column=0, sticky='w', pady=(0, 6))
         add_tooltip(self._load_button, TOOLTIPS['load'])

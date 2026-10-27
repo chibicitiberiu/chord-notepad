@@ -26,6 +26,11 @@ apps:
       LD_LIBRARY_PATH: $SNAP/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR:$SNAP/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/pulseaudio
       TCL_LIBRARY: $SNAP/usr/share/tcltk/tcl8.6
       TK_LIBRARY: $SNAP/usr/share/tcltk/tk8.6
+      # The host's /etc/fonts is visible in the snap, but its conf.d symlinks
+      # point outside it, which leaves fontconfig without any family aliases
+      # (monospace, sans-serif). Use the config staged with libfontconfig.
+      FONTCONFIG_FILE: $SNAP/etc/fonts/fonts.conf
+      FONTCONFIG_PATH: $SNAP/etc/fonts
       # pyfluidsynth only searches the system linker cache (src/audio/fluidsynth_import.py)
       CHORD_NOTEPAD_LIBFLUIDSYNTH: $SNAP/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/libfluidsynth.so.3
 
@@ -40,6 +45,7 @@ parts:
       - python3.14-minimal
       - python3.14-venv
       - python3.14-tk
+      - fontconfig-config   # fonts.conf and aliases, see FONTCONFIG_FILE
 
   audio:
     plugin: nil
