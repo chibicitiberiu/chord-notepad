@@ -54,3 +54,9 @@ help/build/
 # Microsoft Store (MSIX) build output
 dist-store/
 build-store/
+
+# Snapcraft build state
+/parts/
+/stage/
+/prime/
+*.snap

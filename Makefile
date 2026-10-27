@@ -1,4 +1,4 @@
-.PHONY: run test tests build clean setup-dev icons docs docs-html docs-pdf
+.PHONY: run test tests build clean setup-dev icons docs docs-html docs-pdf flatpak flatpak-check snap snap-check
 
 # Tools directory for local dependencies
 TOOLS_DIR := .tools
@@ -105,10 +105,44 @@ build: icons docs-html
 	@echo "On Linux: dist/ChordNotepad"
 
 # Clean build artifacts
+# Build the Flatpak and export a single-file bundle to dist/.
+# Uses flatpak-builder if installed, else the org.flatpak.Builder flatpak.
+FLATPAK_ID := io.github.chibicitiberiu.ChordNotepad
+FLATPAK_DIR := packaging/flatpak
+FLATPAK_BUILDER := $(shell command -v flatpak-builder 2>/dev/null || echo flatpak run --user --no-documents-portal org.flatpak.Builder)
+
+flatpak: icons docs-html
+	cd $(FLATPAK_DIR) && $(FLATPAK_BUILDER) --user --install-deps-from=flathub \
+		--disable-rofiles-fuse --force-clean --repo=repo build-dir $(FLATPAK_ID).yml
+	mkdir -p dist
+	flatpak build-bundle --runtime-repo=https://dl.flathub.org/repo/flathub.flatpakrepo \
+		$(FLATPAK_DIR)/repo dist/ChordNotepad-linux-x64.flatpak $(FLATPAK_ID)
+	@echo "Bundle: dist/ChordNotepad-linux-x64.flatpak"
+
+# Install the bundle (user) and import every app module on the real runtime.
+flatpak-check:
+	flatpak install --user -y --noninteractive --reinstall dist/ChordNotepad-linux-x64.flatpak
+	flatpak run --command=python3 $(FLATPAK_ID) - < packaging/linux/smoke_test.py
+
+# Build the snap (snap/snapcraft.yaml) into dist/. Needs snapcraft and LXD;
+# CI passes SNAPCRAFT="sudo snapcraft".
+SNAPCRAFT ?= snapcraft
+
+snap: icons docs-html
+	mkdir -p dist
+	$(SNAPCRAFT) pack --use-lxd --output dist/ChordNotepad-linux-x64.snap
+	@echo "Snap: dist/ChordNotepad-linux-x64.snap"
+
+# Install the local snap and import every app module inside its confinement.
+snap-check:
+	sudo snap install --dangerous dist/ChordNotepad-linux-x64.snap
+	snap run --shell chord-notepad -c '"$$SNAP/bin/python3" - "$$SNAP/share/chord-notepad"' < packaging/linux/smoke_test.py
+
 clean:
 	rm -rf build/ dist/ __pycache__ .pytest_cache
 	rm -rf $(DOCS_BUILD)
 	rm -f resources/icon-*.png resources/*.ico
+	rm -rf $(FLATPAK_DIR)/.flatpak-builder $(FLATPAK_DIR)/build-dir $(FLATPAK_DIR)/repo
 	find . -type d -name "*.egg-info" -exec rm -rf {} + 2>/dev/null || true
 	find . -type f -name "*.pyc" -delete 2>/dev/null || true
 	find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true

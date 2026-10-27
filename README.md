@@ -63,7 +63,9 @@ A text editor for chord notation. Write chord symbols above your lyrics and Chor
 ### Option 1: Use Pre-built Executables (Recommended)
 
 Download the latest release from the [Releases](../../releases) page:
-- **Linux**: `ChordNotepad-linux-x64` (standalone executable)
+- **Linux**: `ChordNotepad-linux-x64.flatpak` (sandboxed; install with
+  `flatpak install --user ChordNotepad-linux-x64.flatpak`, which also fetches
+  the runtime from Flathub), or `ChordNotepad-linux-x64` (standalone executable)
 - **Windows**: `ChordNotepad-windows-x64.exe`
 - **macOS**: `ChordNotepad-macos-x64`
 

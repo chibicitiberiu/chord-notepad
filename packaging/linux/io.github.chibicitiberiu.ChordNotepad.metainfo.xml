@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.chibicitiberiu.ChordNotepad</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>AGPL-3.0-or-later</project_license>
+
+  <name>Chord Notepad</name>
+  <summary>Write chord sheets and hear them</summary>
+
+  <developer id="io.github.chibicitiberiu">
+    <name>Tiberiu Chibici</name>
+  </developer>
+
+  <description>
+    <p>
+      Chord Notepad is a text editor for musicians. Write chord symbols above
+      your lyrics and it picks them out, highlights them and plays them back,
+      voiced the way a pianist or guitarist would actually play them.
+    </p>
+    <p>
+      Chords can be written in American (C, Am, Bb7), European (Do, Re, Mi) or
+      Roman numeral notation, from plain triads to slash chords and altered
+      jazz voicings. Click a chord to hear it, or play the whole song with each
+      chord lighting up as it sounds. Tempo, meter, key and repeated sections
+      are set with simple ChordPro-style directives.
+    </p>
+    <p>
+      Playback uses real MIDI synthesis with a bundled soundfont. Piano
+      voicings move smoothly from chord to chord, guitar voicings use playable
+      fingerings in several tunings, and ensemble presets voice each chord for
+      choir or string quartet. A chord sheet strip shows the voiced chords as a
+      piano roll, staff, chord boxes or tab, and songs can be exported as MIDI
+      files.
+    </p>
+  </description>
+
+  <launchable type="desktop-id">io.github.chibicitiberiu.ChordNotepad.desktop</launchable>
+  <provides>
+    <binary>chord-notepad</binary>
+  </provides>
+
+  <url type="homepage">https://github.com/chibicitiberiu/chord-notepad</url>
+  <url type="bugtracker">https://github.com/chibicitiberiu/chord-notepad/issues</url>
+  <url type="vcs-browser">https://github.com/chibicitiberiu/chord-notepad</url>
+
+  <categories>
+    <category>Audio</category>
+    <category>Music</category>
+    <category>Education</category>
+  </categories>
+  <keywords>
+    <keyword>chords</keyword>
+    <keyword>guitar</keyword>
+    <keyword>piano</keyword>
+    <keyword>lyrics</keyword>
+    <keyword>ChordPro</keyword>
+    <keyword>MIDI</keyword>
+  </keywords>
+
+  <branding>
+    <color type="primary" scheme_preference="light">#dcc8dc</color>
+    <color type="primary" scheme_preference="dark">#3d2b3d</color>
+  </branding>
+
+  <content_rating type="oars-1.1"/>
+
+  <requires>
+    <display_length compare="ge">768</display_length>
+  </requires>
+  <supports>
+    <control>keyboard</control>
+    <control>pointing</control>
+  </supports>
+
+  <releases>
+    <release version="0.4.0" date="2026-10-27">
+      <description>
+        <p>
+          A refreshed look with a flat style, tidier toolbar and slim
+          scrollbars. The chord sheet views are now tabs, and a new Quick Start
+          tour shows highlighted examples in every notation. The editor's
+          default font is monospace again on fresh installs.
+        </p>
+      </description>
+    </release>
+    <release version="0.3.2" date="2026-07-17">
+      <description>
+        <p>Windows builds are now code-signed.</p>
+      </description>
+    </release>
+    <release version="0.3.1" date="2026-07-09">
+      <description>
+        <p>Fixed a Windows startup failure caused by compressed system libraries.</p>
+      </description>
+    </release>
+    <release version="0.3.0" date="2026-07-07">
+      <description>
+        <p>
+          Adds the chord sheet: a strip under the editor showing the voiced
+          chords as piano roll, staff, chord boxes or tab, following along
+          during playback.
+        </p>
+      </description>
+    </release>
+    <release version="0.2.0" date="2026-07-04"/>
+  </releases>
+</component>

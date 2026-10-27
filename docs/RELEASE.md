@@ -256,6 +256,86 @@ Add-AppxPackage dist-store/ChordNotepad.msix
 - **Install folder is read-only.** Nothing may be written next to the exe.
   The app only writes under `%APPDATA%` today; keep it that way.
 
+## Flatpak bundle (Linux)
+
+Every Linux CI build also produces `ChordNotepad-linux-x64.flatpak`, attached
+to the GitHub release next to the PyInstaller binary. It is a single-file
+bundle; installing it pulls the `org.freedesktop.Platform` runtime from
+Flathub. Bundles don't auto-update; a self-hosted Flatpak repo would fix that.
+
+Unlike the other builds it is built **from source**, not from PyInstaller:
+`packaging/flatpak/io.github.chibicitiberiu.ChordNotepad.yml` builds Tcl/Tk,
+the `_tkinter` extension (from the CPython release matching the runtime's
+Python), FluidSynth, the Python packages, and installs `src/` with a small
+launcher. The build reuses the help HTML, icons and `build_info.py` generated
+earlier in the job, so run `make flatpak` (which builds docs and icons first),
+not flatpak-builder directly.
+
+```bash
+make flatpak        # -> dist/ChordNotepad-linux-x64.flatpak
+flatpak install --user dist/ChordNotepad-linux-x64.flatpak
+flatpak run io.github.chibicitiberiu.ChordNotepad
+```
+
+Locally it uses `flatpak-builder` if installed, otherwise the
+`org.flatpak.Builder` flatpak (`flatpak install --user flathub org.flatpak.Builder`).
+
+**Python packages** come from `packaging/flatpak/python3-deps.json`, generated
+by `packaging/flatpak/gen_python_deps.py` from the versions in `Pipfile.lock`.
+Re-run it after changing app dependencies. The list is explicit on purpose:
+music21's numpy/matplotlib dependencies are never imported by the app and are
+left out. If you add a dependency, add it to `PACKAGES` in that script.
+
+**Sandbox:** X11 (Tk has no Wayland backend), PulseAudio, and network (only so
+the host browser can reach the help server on 127.0.0.1). There is no
+filesystem permission: open/save go through the XDG FileChooser portal
+(`src/utils/file_dialogs.py`). Settings and logs live in
+`~/.var/app/io.github.chibicitiberiu.ChordNotepad/`.
+
+**Desktop integration** files are in `packaging/linux/` (the `.desktop` file
+and AppStream metainfo). Add a `<release>` entry to the metainfo for each
+version.
+
+**Flathub:** not pursued for now. These files were written with AI assistance,
+which Flathub's policy does not allow in submitted manifests; a Flathub
+submission would need a hand-written manifest and metainfo.
+
+## Snap Store (Linux)
+
+`snap/snapcraft.yaml` builds a strictly confined snap on `core26` (Ubuntu
+26.04). It reuses the Flatpak's pieces: the same pinned Python packages
+(`packaging/linux/requirements.txt`, written by `gen_python_deps.py`), the
+`.desktop` file and metainfo in `packaging/linux/` (the store listing's title,
+summary, description and icon come from the metainfo), and the smoke test.
+
+- **Python and Tk:** `core26` ships no Python, so Python 3.14 and its tkinter
+  (Tk 8.6, which Ubuntu still builds Python against) are staged from the 26.04
+  archive, as are FluidSynth 2.4 and libpulse.
+- **Interfaces:** `x11`, `desktop`, `desktop-legacy`, `audio-playback`, `home`,
+  `network-bind`. All auto-connect, so revisions pass automated review.
+- **Launcher** (`packaging/snap/chord-notepad.sh`) points libpulse at the
+  user's sound server; inside a snap `XDG_RUNTIME_DIR` is per-snap.
+
+```bash
+make snap           # -> dist/ChordNotepad-linux-x64.snap (needs snapcraft + LXD)
+make snap-check     # installs it with --dangerous and runs the smoke test
+```
+
+### One-time setup
+
+1. Create an account at <https://snapcraft.io> and register the name
+   `chord-notepad` (`snapcraft register chord-notepad`). New names are
+   reviewed by hand, which can take days.
+2. Export a CI credential and add it as the repo **secret**
+   `SNAPCRAFT_STORE_CREDENTIALS`:
+   ```bash
+   snapcraft export-login --snaps=chord-notepad --acls package_access,package_push,package_update,package_release -
+   ```
+
+CI then uploads every Linux build: tagged releases to `stable`, nightlies and
+manual dispatches to `edge`. Without the secret the snap is still built and
+kept as the `ChordNotepad-snap` workflow artifact.
+
 ## Manual Release (Not Recommended)
 
 If you need to create a release manually:

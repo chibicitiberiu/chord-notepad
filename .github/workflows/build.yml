@@ -345,6 +345,85 @@ jobs:
           path: dist/${{ matrix.asset_name }}
           retention-days: 90
 
+      # --- Snap (Linux) ------------------------------------------------------
+      # Built with snapcraft in LXD from snap/snapcraft.yaml (core26), before the
+      # Flatpak so its build caches aren't copied into the snap's build. Kept as
+      # a workflow artifact; published to the Snap Store when the
+      # SNAPCRAFT_STORE_CREDENTIALS secret is set (tags -> stable, else edge).
+      # Snapcraft is called directly: snapcore/action-* still run on Node 20.
+      - name: Install snapcraft
+        if: runner.os == 'Linux'
+        run: |
+          sudo snap install lxd
+          sudo lxd init --auto
+          # Docker's firewall rules drop traffic from the LXD bridge otherwise
+          sudo iptables -P FORWARD ACCEPT
+          sudo snap install snapcraft --classic
+
+      - name: Build snap
+        if: runner.os == 'Linux'
+        run: make snap SNAPCRAFT="sudo snapcraft"
+
+      - name: Smoke-test snap
+        if: runner.os == 'Linux'
+        run: make snap-check
+
+      - name: Upload snap
+        if: runner.os == 'Linux'
+        uses: actions/upload-artifact@v6
+        with:
+          name: ChordNotepad-snap
+          path: dist/ChordNotepad-linux-x64.snap
+          retention-days: 90
+
+      - name: Publish snap
+        if: runner.os == 'Linux'
+        env:
+          SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_STORE_CREDENTIALS }}
+          CHANNEL: ${{ startsWith(github.ref, 'refs/tags/v') && 'stable' || 'edge' }}
+        run: |
+          if [ -z "$SNAPCRAFT_STORE_CREDENTIALS" ]; then
+            echo "::notice::SNAPCRAFT_STORE_CREDENTIALS not set; snap built but not published"
+            exit 0
+          fi
+          snapcraft upload --release="$CHANNEL" dist/ChordNotepad-linux-x64.snap
+
+      # --- Flatpak bundle (Linux) -------------------------------------------
+      # Built from source by packaging/flatpak/*.yml (not from the PyInstaller
+      # binary) and exported as a single-file bundle that pulls the runtime
+      # from Flathub on install. Reuses the docs, icons and build_info.py the
+      # steps above generated.
+      - name: Install flatpak-builder
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y flatpak flatpak-builder
+          flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+
+      - name: Cache flatpak-builder state
+        if: runner.os == 'Linux'
+        uses: actions/cache@v6
+        with:
+          path: packaging/flatpak/.flatpak-builder
+          key: flatpak-${{ hashFiles('packaging/flatpak/*.yml', 'packaging/flatpak/*.json') }}-${{ github.sha }}
+          restore-keys: flatpak-${{ hashFiles('packaging/flatpak/*.yml', 'packaging/flatpak/*.json') }}-
+
+      - name: Build Flatpak bundle
+        if: runner.os == 'Linux'
+        run: make flatpak
+
+      - name: Smoke-test Flatpak bundle
+        if: runner.os == 'Linux'
+        run: make flatpak-check
+
+      - name: Upload Flatpak bundle
+        if: runner.os == 'Linux'
+        uses: actions/upload-artifact@v6
+        with:
+          name: ChordNotepad-flatpak
+          path: dist/ChordNotepad-linux-x64.flatpak
+          retention-days: 90
+
       # --- Microsoft Store package (Windows) --------------------------------
       # The paid Store listing ships the same app as an MSIX built from a onedir
       # PyInstaller build. The .msix stays a workflow artifact (uploaded to
@@ -573,6 +652,7 @@ jobs:
           prerelease: ${{ steps.release_info.outputs.is_prerelease }}
           files: |
             artifacts/ChordNotepad-linux/*
+            artifacts/ChordNotepad-flatpak/*
             artifacts/ChordNotepad-windows/*
             artifacts/ChordNotepad-macos/*
             artifacts/documentation-pdf/*.pdf

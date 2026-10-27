@@ -1,0 +1,76 @@
+name: chord-notepad
+base: core26
+adopt-info: chord-notepad
+grade: stable
+confinement: strict
+license: AGPL-3.0-or-later
+# Title, summary, description and icon come from the AppStream metainfo
+# (parse-info below); the version from the VERSION file.
+
+platforms:
+  amd64:
+
+apps:
+  chord-notepad:
+    command: bin/chord-notepad
+    common-id: io.github.chibicitiberiu.ChordNotepad
+    desktop: usr/share/applications/io.github.chibicitiberiu.ChordNotepad.desktop
+    plugs:
+      - x11            # Tk only speaks X11 (XWayland on Wayland sessions)
+      - desktop        # fonts, file-chooser portal, opening the help in a browser
+      - desktop-legacy
+      - audio-playback
+      - home           # recent files and settings outside the portal's grants
+      - network-bind   # built-in help server on 127.0.0.1
+    environment:
+      LD_LIBRARY_PATH: $SNAP/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR:$SNAP/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/pulseaudio
+      TCL_LIBRARY: $SNAP/usr/share/tcltk/tcl8.6
+      TK_LIBRARY: $SNAP/usr/share/tcltk/tk8.6
+
+parts:
+  # core26 doesn't ship Python; stage 3.14 (with tkinter) from the archive.
+  python-runtime:
+    plugin: nil
+    stage-packages:
+      - libpython3.14-minimal
+      - libpython3.14-stdlib
+      - python3-minimal
+      - python3.14-minimal
+      - python3.14-venv
+      - python3.14-tk
+
+  audio:
+    plugin: nil
+    stage-packages:
+      - libfluidsynth3
+      - libpulse0
+
+  chord-notepad:
+    after: [python-runtime]
+    plugin: python
+    source: .
+    python-requirements:
+      - packaging/linux/requirements.txt
+    build-environment:
+      # The list is complete on purpose: music21's numpy/matplotlib deps are
+      # never imported by the app (see packaging/flatpak/gen_python_deps.py).
+      - PIP_NO_DEPS: "1"
+    override-build: |
+      craftctl default
+      craftctl set version="$(cat VERSION)"
+      app="$CRAFT_PART_INSTALL/share/chord-notepad"
+      mkdir -p "$app/help/build"
+      cp -r src resources examples VERSION "$app/"
+      rm -f "$app"/resources/*.ico
+      find "$app/src" -name __pycache__ -prune -exec rm -rf {} +
+      # Sphinx output, built before snapcraft runs (make snap)
+      cp -r help/build/html "$app/help/build/"
+      install -Dm755 packaging/snap/chord-notepad.sh "$CRAFT_PART_INSTALL/bin/chord-notepad"
+      install -Dm644 packaging/linux/io.github.chibicitiberiu.ChordNotepad.desktop \
+        "$CRAFT_PART_INSTALL/usr/share/applications/io.github.chibicitiberiu.ChordNotepad.desktop"
+      install -Dm644 packaging/linux/io.github.chibicitiberiu.ChordNotepad.metainfo.xml \
+        "$CRAFT_PART_INSTALL/usr/share/metainfo/io.github.chibicitiberiu.ChordNotepad.metainfo.xml"
+      install -Dm644 resources/chord-notepad-icon.svg \
+        "$CRAFT_PART_INSTALL/usr/share/icons/hicolor/scalable/apps/io.github.chibicitiberiu.ChordNotepad.svg"
+    parse-info:
+      - usr/share/metainfo/io.github.chibicitiberiu.ChordNotepad.metainfo.xml

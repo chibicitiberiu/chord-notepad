@@ -1,0 +1,103 @@
+{
+    "name": "python3-deps",
+    "buildsystem": "simple",
+    "build-commands": [
+        "pip3 install --verbose --exists-action=i --no-index --no-deps --ignore-installed --no-build-isolation --find-links=\"file://${PWD}\" --prefix=${FLATPAK_DEST} pychord music21 chardet more-itertools requests certifi charset-normalizer idna urllib3 webcolors pyfluidsynth mido packaging pillow jeepney"
+    ],
+    "sources": [
+        {
+            "type": "file",
+            "url": "https://files.pythonhosted.org/packages/87/81/94a57511c865f6290d436c8e648f9a89e462f10188c139bdb1616a0c7206/pychord-1.4.0-py3-none-any.whl",
+            "sha256": "18f06e0dd72ffd2ffd1ec9354489fa9c4bbbc49ffcb7afbb32458c317ff99d54"
+        },
+        {
+            "type": "file",
+            "url": "https://files.pythonhosted.org/packages/fa/32/3790478438b1fdd0b9b5154e2ac6f91dce105743a26bf0bd20c04b1922ec/music21-10.3.0-py3-none-any.whl",
+            "sha256": "f7b12100142537ef96a1f3ea567ca59df9b5a0c7323b988e9b05c56c52547ee1"
+        },
+        {
+            "type": "file",
+            "url": "https://files.pythonhosted.org/packages/8c/6c/0a40afdb50a0fe041ab95553b835a8160b6cf0e81edf2ae2fe9f5224cbf9/chardet-7.4.3-py3-none-any.whl",
+            "sha256": "1173b74051570cf08099d7429d92e4882d375ad4217f92a6e5240ccfb26f231e"
+        },
+        {
+            "type": "file",
+            "url": "https://files.pythonhosted.org/packages/e8/3d/1087453384dbde46a8c7f9356eead2c58be8a7bf156bca40243377c85715/more_itertools-11.1.0-py3-none-any.whl",
+            "sha256": "4b65538ae22f6fed0ce4874efd317463a7489796a0939fa66824dd542125a192"
+        },
+        {
+            "type": "file",
+            "url": "https://files.pythonhosted.org/packages/a0/f4/c67b0b3f1b9245e8d266f0f112c500d50e5b4e83cb6f3b71b6528104182a/requests-2.34.2-py3-none-any.whl",
+            "sha256": "2a0d60c172f83ac6ab31e4554906c0f3b3588d37b5cb939b1c061f4907e278e0"
+        },
+        {
+            "type": "file",
+            "url": "https://files.pythonhosted.org/packages/59/8c/57e832b7af6d7c5abe66eb3fbe3a3a32f4d11ea23a1aa7131371035be991/certifi-2026.5.20-py3-none-any.whl",
+            "sha256": "3c52e209ba0a4ad7aebe60436a4ab349c39e1e602e8c134221e546902ad25897"
+        },
+        {
+            "type": "file",
+            "url": "https://files.pythonhosted.org/packages/db/8f/61959034484a4a7c527811f4721e75d02d653a35afb0b6054474d8185d4c/charset_normalizer-3.4.7-py3-none-any.whl",
+            "sha256": "3dce51d0f5e7951f8bb4900c257dad282f49190fdbebecd4ba99bcc41fef404d"
+        },
+        {
+            "type": "file",
+            "url": "https://files.pythonhosted.org/packages/de/a7/f76514cc40ad6234098ecdebda08732d75964776c51a42845b7da10649e2/idna-3.17-py3-none-any.whl",
+            "sha256": "466e48829084efe2548012b855df21540b96f2e20e51bd124c851536556a592c"
+        },
+        {
+            "type": "file",
+            "url": "https://files.pythonhosted.org/packages/7f/3e/5db95bcf282c52709639744ca2a8b149baccf648e39c8cc87553df9eae0c/urllib3-2.7.0-py3-none-any.whl",
+            "sha256": "9fb4c81ebbb1ce9531cce37674bbc6f1360472bc18ca9a553ede278ef7276897"
+        },
+        {
+            "type": "file",
+            "url": "https://files.pythonhosted.org/packages/e2/cc/e097523dd85c9cf5d354f78310927f1656c422bd7b2613b2db3e3f9a0f2c/webcolors-25.10.0-py3-none-any.whl",
+            "sha256": "032c727334856fc0b968f63daa252a1ac93d33db2f5267756623c210e57a4f1d"
+        },
+        {
+            "type": "file",
+            "url": "https://files.pythonhosted.org/packages/40/b6/7387ecf46c01df39ed36d9700312a11d8455efe04803b8472a333ff9d51b/pyfluidsynth-1.4.0-py3-none-any.whl",
+            "sha256": "93f0a0e8d5b34f974010473f9985fc52e1379e8f316892afeb2de1d759439ca3"
+        },
+        {
+            "type": "file",
+            "url": "https://files.pythonhosted.org/packages/fd/28/45deb15c11859d2f10702b32e71de9328a9fa494f989626916db39a9617f/mido-1.3.3-py3-none-any.whl",
+            "sha256": "01033c9b10b049e4436fca2762194ca839b09a4334091dd3c34e7f4ae674fd8a"
+        },
+        {
+            "type": "file",
+            "url": "https://files.pythonhosted.org/packages/df/b2/87e62e8c3e2f4b32e5fe99e0b86d576da1312593b39f47d8ceef365e95ed/packaging-26.2-py3-none-any.whl",
+            "sha256": "5fc45236b9446107ff2415ce77c807cee2862cb6fac22b8a73826d0693b0980e"
+        },
+        {
+            "type": "file",
+            "url": "https://files.pythonhosted.org/packages/8c/21/c2bcdd5906101a30244eaffc1b6e6ce71a31bd0742a01eb89e660ebfac2d/pillow-12.2.0.tar.gz",
+            "sha256": "a830b1a40919539d07806aa58e1b114df53ddd43213d9c8b75847eee6c0182b5"
+        },
+        {
+            "type": "file",
+            "url": "https://files.pythonhosted.org/packages/b2/a3/e137168c9c44d18eff0376253da9f1e9234d0239e0ee230d2fee6cea8e55/jeepney-0.9.0-py3-none-any.whl",
+            "sha256": "97e5714520c16fc0a45695e5365a2e11b81ea79bba796e26f9f1d178cb182683"
+        }
+    ],
+    "modules": [
+        {
+            "name": "python3-build-deps",
+            "buildsystem": "simple",
+            "build-commands": [
+                "pip3 install --verbose --exists-action=i --no-index --no-deps --ignore-installed --no-build-isolation --find-links=\"file://${PWD}\" --prefix=${FLATPAK_DEST} pybind11"
+            ],
+            "sources": [
+                {
+                    "type": "file",
+                    "url": "https://files.pythonhosted.org/packages/33/fd/8762f7ee3e4e4be6d1d846cffb4916dd9bb02b2f800d3603718a0efe494c/pybind11-3.1.0-py3-none-any.whl",
+                    "sha256": "b8488090f8acffbcb6b5d6a85571a6827a0a2981ffb75e5a0b27b87c4a6b7dd0"
+                }
+            ],
+            "cleanup": [
+                "*"
+            ]
+        }
+    ]
+}
