@@ -1,6 +1,8 @@
 # Android build
 
-Status: **M2 toolchain spike** (see `docs/ANDROID_PORT_PLAN.md`). The Gradle
+Status: **M2 toolchain spike**, plus the M6 build groundwork: natives built
+from source and Python packages installed offline (see "Natives from source and
+offline packages" below, and `docs/ANDROID_PORT_PLAN.md`). The Gradle
 project under `android/` is the kept skeleton; everything in the
 `io.github.chibicitiberiu.chordnotepad.spike` package and
 `android/app/src/main/python/chordnotepad_android/spike.py` is throwaway test
@@ -14,15 +16,20 @@ android/
   gradle/libs.versions.toml         versions (AGP, Kotlin, Chaquopy, Compose)
   gradle/wrapper/                   Gradle 9.8.2 wrapper (sha256-pinned)
   local.env.example                 toolchain paths; copy to local.env (gitignored)
-  app/build.gradle.kts              app module: Chaquopy, FluidSynth, SoundFont
+  requirements.txt                  Python packages for the APK, pinned with sha256 hashes
+  app/build.gradle.kts              app module: Chaquopy, natives, wheelhouse, SoundFont
   app/src/main/kotlin/io/github/chibicitiberiu/chordnotepad/
     ChordNotepadApp.kt, MainActivity.kt
     spike/                          M2 test screen (throwaway)
   app/src/main/python/chordnotepad_android/
     android_shim.py                 runtime patches standing in for core changes
     spike.py                        M2 test glue (throwaway)
+  native/                           FluidSynth + dependencies as pinned git submodules
+  native/build.sh                   cross-compiles them (mirrors upstream's Android CI)
   tools/strip_music21.py            builds the data-trimmed music21 wheel
+  tools/build_wheelhouse.py         fills/checks the offline wheelhouse, refreshes pins
   tools/check_16k.py                16 KB page-size check for an APK
+  tools/compare_apks.py             entry-by-entry APK diff (reproducibility)
 ```
 
 The Python core is not copied: Chaquopy reads `../../src` directly, minus
@@ -44,11 +51,13 @@ Gradle tasks, not duplicated in git.
 | Chaquopy | 17.2.0 | Python 3.14.8 runtime; needs a host `python3.14` as buildPython |
 | Compose BOM | 2026.09.00 | Compose 1.12, Material 3 |
 | compileSdk / targetSdk / minSdk | 37 / 36 / 24 | current AndroidX needs compileSdk 37; the app still targets 36 |
-| NDK | 27.3.13750724 | only for `libc++_shared.so` (the FluidSynth prebuilt needs it) |
-| FluidSynth | 2.6.0 upstream Android prebuilt | dev only; M6 builds natives from source |
+| NDK | 27.3.13750724 | compiles the natives (`android/native/build.sh`); `libc++_shared.so` comes from it too |
+| CMake | 3.31.6 (SDK package) | used by `build.sh`, with the Ninja it bundles; not the host's CMake 4 |
+| FluidSynth | 2.6.1, built from source | default; `-PcnNatives=prebuilt` uses upstream's 2.6.0 Android zip instead (sha256-pinned) |
 | ABIs | arm64-v8a, x86_64 | `-PcnAbis=x86_64` builds one ABI |
 
-Python packages (all `--no-deps`, pinned in `app/build.gradle.kts`):
+Python packages (all `--no-deps`, pinned with hashes in `android/requirements.txt`,
+installed offline from the wheelhouse; see below):
 music21 10.3.0 (trimmed, see below), pychord 1.4.0, mido 1.3.3,
 pyfluidsynth 1.4.0, plus what music21 really imports: chardet 6.0.0.post1
 (LGPL; below 7 on purpose), webcolors, more-itertools, requests, urllib3, idna,
@@ -68,7 +77,7 @@ source android/local.env
 # JDK 21 (Temurin) -> $ANDROID_ROOT/jdk, command-line tools -> $ANDROID_HOME/cmdline-tools/latest
 yes | sdkmanager --licenses
 sdkmanager "platform-tools" "emulator" "platforms;android-36" "platforms;android-37.0" \
-  "build-tools;36.1.0" "ndk;27.3.13750724" \
+  "build-tools;36.1.0" "ndk;27.3.13750724" "cmake;3.31.6" \
   "system-images;android-36;google_apis;x86_64" \
   "system-images;android-36;google_apis_ps16k;x86_64"
 
@@ -84,9 +93,27 @@ build outputs to `$ANDROID_ROOT/build/<checkout path>/` instead of
 Gradle's small project cache (`android/.gradle`, ~20 MB) stays in the tree.
 It also sets `SOURCE_DATE_EPOCH` and `PYTHONHASHSEED=0` for reproducible builds.
 
-The FluidSynth prebuilt zip and the upstream music21 wheel are downloaded on
-first build into `$CHORD_NOTEPAD_ANDROID_CACHE` and checked against pinned
-sha256 hashes.
+Native sources (git submodules, shallow; ~32 MB of git objects in
+`.git/modules` plus a 73 MB checkout; Oboe is the largest at 19 + 30 MB). Don't use `--recursive`: FluidSynth's `test/manual` submodule is
+test data the build doesn't need.
+
+```bash
+git submodule update --init --depth 1 android/native
+git -C android/native/fluidsynth submodule update --init --depth 1 gcem signalsmith-audio-basics
+```
+
+Python wheelhouse (the only step that downloads Python packages; hash-checked,
+pure-Python wheels only, into `$CHORD_NOTEPAD_ANDROID_CACHE/wheelhouse`):
+
+```bash
+python3.14 android/tools/build_wheelhouse.py          # fetch what's missing
+python3.14 android/tools/build_wheelhouse.py check    # offline: all pins present, hashes match?
+```
+
+Gradle runs both of these steps itself when needed (`buildNatives`,
+`prepareWheelhouse`), so a plain `./gradlew` works after the submodule init;
+the commands above are for doing it up front or offline. `build.sh` installs
+the pinned NDK and CMake through `sdkmanager` if they're missing.
 
 ## Build, install, run
 
@@ -96,6 +123,9 @@ cd android
 nice -n 10 ./gradlew :app:assembleDebug
 nice -n 10 ./gradlew :app:assembleRelease               # debug-signed for now (real keys: M6)
 nice -n 10 ./gradlew :app:assembleRelease -PcnMusic21=full   # untrimmed music21, for size comparison
+nice -n 10 ./gradlew :app:assembleRelease -PcnNatives=prebuilt  # upstream 2.6.0 natives (no submodules needed)
+nice -n 10 ./gradlew --offline :app:assembleRelease     # no network: the wheelhouse step only checks
+nice -n 10 native/build.sh --abis x86_64                # natives by hand; same output dir Gradle uses
 ./gradlew --stop                                        # when done (shared machine)
 
 # Emulator: headless. SwiftShader GLES crashes this emulator build (37.2.12);
@@ -121,6 +151,148 @@ python3 tools/check_16k.py $OUT/release/app-release.apk
 $ANDROID_HOME/build-tools/36.1.0/zipalign -c -P 16 -v 4 $OUT/release/app-release.apk
 python3 tools/compare_apks.py a.apk b.apk          # reproducibility diff
 ```
+
+## Natives from source and offline packages (M6 groundwork)
+
+**Date:** 2026-10-29. Nothing in a default build now comes from a prebuilt
+binary or a package index: the natives compile from pinned submodules and
+pip installs from a hash-checked local wheelhouse. (F-Droid itself isn't being
+pursued yet; this only keeps the build compatible with it.)
+
+### Native sources
+
+All in `android/native/`, shallow submodules pinned to the release tag's
+commit. `build.sh` refuses to build if a checkout isn't at its tag.
+
+| Component | Version | Licence | Ships in the APK as |
+|---|---|---|---|
+| FluidSynth | 2.6.1 | LGPL-2.1-or-later | `libfluidsynth.so` |
+| Oboe | 1.10.0 | Apache-2.0 | `liboboe.so` |
+| libsndfile | 1.2.2 | LGPL-2.1-or-later | `libsndfile.so` |
+| libogg | 1.3.6 | BSD-3-Clause | `libogg.so` |
+| libvorbis | 1.3.7 | BSD-3-Clause | `libvorbis.so`, `libvorbisenc.so`, `libvorbisfile.so` |
+| FLAC (libFLAC only) | 1.4.3 | BSD-3-Clause (Xiph); the GPL'd tools aren't built | `libFLAC.so` |
+| Opus | 1.5.2 | BSD-3-Clause | `libopus.so` |
+| gcem (FluidSynth's submodule) | 1.18.0 | Apache-2.0 | header-only, compiled in |
+| signalsmith-audio-basics (FluidSynth's submodule) | 012d2be | MIT | header-only, compiled in (limiter, reverb) |
+| signalsmith-linear | 0.3.1 | MIT | header-only, compiled in |
+| signalsmith-dsp | 1.7.1 | MIT | header-only, compiled in |
+| signalsmith-hilbert (hilbert-iir) | 1.0.0 | 0BSD | header-only, compiled in |
+| libc++ (NDK 27.3) | | Apache-2.0 WITH LLVM-exception | `libc++_shared.so` |
+
+FluidSynth's CMake git-clones the three signalsmith libraries at configure time
+(`FetchContent`); `build.sh` points it at the submodules instead and sets
+`FETCHCONTENT_FULLY_DISCONNECTED`, so configuring never touches the network.
+Its `gcem` submodule is likewise required (it would otherwise be downloaded);
+`test/manual` (test data) is not.
+
+`build.sh` follows upstream's `.azure/azure-pipelines-android.yml` and
+`cmake-android.yml` (v2.6.1): NDK 27.3.13750724, API 24, shared libraries,
+`c++_shared`, `-Denable-oboe=1 -Denable-opensles=1 -Denable-floats=1`, the same
+per-library options, `-Wl,-z,max-page-size=16384`, RelWithDebInfo. Deliberate
+differences: SDK CMake 3.31.6 with Ninja (the host has CMake 4.3, which rejects
+libvorbis's `cmake_minimum_required(2.8.12)`); `-ffile-prefix-map` for the
+source, build and NDK paths and a fixed `DEFAULT_SOUNDFONT` (it defaulted to
+the install prefix, i.e. the checkout path); libsndfile's MPEG support off
+explicitly (upstream gets the same result by not having mpg123/lame). The
+FluidSynth build summary: Oboe yes, OpenSLES yes, SF3 yes, DLS yes,
+libsndfile yes, limiter yes, float samples.
+
+Outputs go to `$CHORD_NOTEPAD_ANDROID_BUILD_ROOT/<checkout>/native/<abi>/lib`
+(about 86 MB per ABI including CMake work dirs). A stamp per ABI hashes the
+script, the toolchain versions and every submodule's commit and local diff;
+an unchanged ABI is skipped in well under a second. A full build of one ABI
+takes about 50 s with `-j4` on this machine.
+
+### Sizes vs the upstream prebuilt
+
+After stripping (`llvm-strip --strip-unneeded`, what AGP does), in bytes:
+
+| Library | arm64-v8a source | arm64-v8a prebuilt | x86_64 source | x86_64 prebuilt |
+|---|---|---|---|---|
+| libfluidsynth.so | 594,256 | 544,536 | 668,192 | 587,152 |
+| libopus.so | 398,032 | 400,048 | 477,856 | 479,936 |
+| liboboe, libsndfile, libFLAC, libogg, libvorbis* | same size | same size | same size | same size |
+| **Total (9 libraries)** | **2,955,168** | **2,907,464** | **3,219,816** | **3,140,856** |
+
+Everything but FluidSynth and Opus comes out exactly the same size as
+upstream's build. FluidSynth is 50 to 80 KB bigger, most likely because it's
+2.6.1 against the prebuilt's 2.6.0 (not checked by building 2.6.0). Opus is
+2 KB smaller. The universal release APK is 90.86 MB with source-built
+natives vs 90.73 MB with the prebuilt (it was 91.0 MB in M2, before the pure
+charset-normalizer wheel dropped its binary module). All `PT_LOAD` segments
+are 16 KB aligned; `tools/check_16k.py` and `zipalign -c -P 16` pass.
+
+**On the emulator** (`cn_phone`, x86_64, release build, spike auto mode):
+`FluidSynth started with audio driver: oboe`, 48 kHz, the SF2 loads, song
+playback starts and chord taps reach `noteon` in ~1 ms. (SF3 decoding, the
+one path that exercises libsndfile and the codecs, isn't used by the app
+today.)
+
+### Python packages offline
+
+`android/requirements.txt` pins every package with the sha256 of its
+`py3-none-any` wheel on PyPI. `tools/build_wheelhouse.py` fills
+`$CHORD_NOTEPAD_ANDROID_CACHE/wheelhouse` with `pip download --require-hashes
+--no-deps --only-binary=:all: --platform any --abi none` (21 MB, 12 wheels),
+`check` verifies it offline, and `lock` rewrites the hashes from PyPI's JSON
+API after a version bump. Gradle reads the pins from the same file, so there's
+one list. Chaquopy's pip runs with `--no-deps --no-index --find-links
+<wheelhouse> --find-links <trimmed music21 dir>`; its log shows only
+"Looking in links", no index. `strip_music21.py` now takes the upstream wheel
+from the wheelhouse (its own hash pin stays as a second check).
+
+To bump a package: edit the version in `android/requirements.txt`, run
+`python3.14 android/tools/build_wheelhouse.py lock`, then
+`python3.14 android/tools/build_wheelhouse.py`, then build.
+
+**Network-free check:** reproducibility copy A (below) was built inside a
+network namespace with only loopback up (`unshare -c -n --keep-caps`, then
+`ip link set lo up`; a `curl https://pypi.org` in it fails) and `gradlew
+--offline --no-daemon`. It built from clean, natives included, so neither
+Gradle, CMake, `build.sh`, the wheelhouse step nor Chaquopy's pip needed the
+network. Its log has no `chaquo.com`, `pypi.org` or `pythonhosted` URL and
+pip reports only "Looking in links". (`unshare -r`, which runs the build as
+uid 0, is a trap: the JVM's `user.home` becomes `/root` and the Kotlin daemon
+client spun for 10+ minutes walking a directory tree. Keep your uid with `-c`.)
+
+### Reproducibility with source-built natives
+
+**Still byte-identical.** Same method as M2: one snapshot of commit
+`4804e29` (rsync of the tree, then `git checkout -- src tests` in the copy to
+drop unrelated uncommitted work), copied to
+`/mnt/data_linux/Bin/android/repro/m6-a/chord-notepad` and
+`.../m6-b/chord-notepad-other-name`, each built from clean with
+`--no-daemon --no-build-cache --no-configuration-cache`. Copy A ran offline
+in the network namespace above, copy B normally. Each checkout compiled its
+own natives into its own per-checkout build directory.
+
+- Both APKs: sha256 `6059abf8ed70c3f6…`, 90,856,460 bytes; `compare_apks.py`
+  reports IDENTICAL.
+- The unstripped `.so` files from both copies are identical too, so the
+  prefix maps work and nothing else path- or time-dependent gets in (no
+  `__DATE__`/`__TIME__` in these sources; the NDK's sha1 build-id is content
+  based).
+- A third build, in the main checkout with a warm Gradle daemon,
+  configuration cache and a different `SOURCE_DATE_EPOCH` (the commit before),
+  produced the same sha256. The epoch value doesn't reach the APK; setting
+  it is what matters (hash-based pycs).
+
+Still not covered: a different machine or user, a different host
+`python3.14` micro version as buildPython, and a different host `pkg-config`.
+The copies were deleted afterwards; the APK and both build logs are kept in
+`$CHORD_NOTEPAD_ANDROID_CACHE` (`apks/m6-source-universal.apk`,
+`m6-repro-a-offline.log`, `m6-repro-b.log`).
+
+### What's still prebuilt
+
+- Chaquopy's own runtime: CPython 3.14.8, its stdlib modules, OpenSSL, SQLite
+  and `libchaquopy_java.so`, from Maven Central (`com.chaquo.python:target`)
+  through Gradle. F-Droid would need these from source too (a cpython srclib,
+  as the plan's recipe notes say).
+- `libc++_shared.so`, from the NDK (as for any NDK app).
+- AndroidX/Compose/Kotlin libraries from Google Maven / Maven Central.
+- The FluidSynth 2.6.0 zip, only with `-PcnNatives=prebuilt`.
 
 ## Required core changes (found by the spike)
 
@@ -187,8 +359,9 @@ synth settings through `AudioOptions` (`android_shim.audio_options()`).
    the device (the APK excludes `ui/**`).
 
 Build-side notes, not core changes:
-- `charset-normalizer` 3.5.2 resolves to an Android binary wheel
-  (`md.cpython-314-*.so`); for an F-Droid build, pin its pure-Python wheel.
+- `charset-normalizer` 3.5.2 resolved to an Android binary wheel
+  (`md.cpython-314-*.so`) from chaquo.com's index. **Done (M6 groundwork):**
+  the wheelhouse pins its pure-Python wheel.
 - Release builds are not minified yet; R8 would cut the 7.7 MB of dex
   substantially (Chaquopy ships its own keep rules).
 - The SF2 is 29 MB of every APK. An SF3 (Ogg-compressed) GeneralUser GS would
@@ -213,7 +386,7 @@ trimmed music21, unless noted. Phone numbers: still to do (see below).
 | Scheduling jitter OK? | **Go only while Python is idle; No-go under concurrent Python work.** Idle: interval error p99 0.9 to 1.4 ms. With one other Python thread busy (a render loop as a stand-in for a chord-sheet render): p50 26 ms, p99 49 to 76 ms, drift +5.5 s per minute. See below. Recommendation: move to pyfluidsynth's `Sequencer` (sample-clock timing in C) as planned, and fix the drift (core change 6). **Done in M1b**; see "After the Sequencer, desktop". |
 | APK size? | **Acceptable, with easy wins left.** 91.0 MB universal, 69.8 MB arm64-v8a only (trimmed music21). The SF2 is 29 MB of that; R8 and an SF3 would cut a further ~25 to 30 MB. |
 | 16 KB pages? | **Go.** All 160 ELF files (APK `lib/` plus Chaquopy's nested extension modules) have 16 KB `PT_LOAD` alignment; `zipalign -c -P 16` passes; the app runs and plays on the `google_apis_ps16k` image (`getconf PAGESIZE` = 16384). |
-| Reproducible? | **Yes, on one machine.** Two clean release builds from different checkout paths are byte-identical, signature included, after two fixes (see below). |
+| Reproducible? | **Yes, on one machine.** Two clean release builds from different checkout paths are byte-identical, signature included, after two fixes (see below). Re-checked with source-built natives and the offline wheelhouse: still identical. |
 
 ### Numbers
 
@@ -334,11 +507,12 @@ Chaquopy's `.imy` zips). diffoscope wasn't needed.
    (PYTHONHASHSEED=0 was set in both passes; not shown to be required.)
 
 Not covered yet, and needed before claiming reproducibility to F-Droid: a
-different machine and user, a different `python3.14` micro version as
-buildPython (pyc bytecode), and Chaquopy/pip downloads that aren't hash-pinned
-yet (the M6 wheelhouse). The natives are upstream prebuilts and the NDK's
-`libc++_shared.so`; AGP strips them (`stripReleaseDebugSymbols`), which was
-deterministic here.
+different machine and user, and a different `python3.14` micro version as
+buildPython (pyc bytecode). The natives were upstream prebuilts here; AGP
+strips them (`stripReleaseDebugSymbols`), which was deterministic. **Update
+(M6 groundwork):** the pip downloads are now hash-pinned and offline, the
+natives build from source, and the check still gives byte-identical APKs; see
+"Reproducibility with source-built natives" above.
 
 ### Needs the phone
 

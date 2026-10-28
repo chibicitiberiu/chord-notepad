@@ -125,7 +125,7 @@ android/                   Gradle project (Kotlin DSL, version catalog)
   app/src/main/kotlin/io/github/chibicitiberiu/chordnotepad/{bridge,ui/...,files,audio}
   app/src/main/python/chordnotepad_android/   host glue (paths, ThreadedHost wiring, loadLibrary hand-off)
   native/                  fluidsynth + deps as pinned git submodules, build.sh (16 KB pages)
-  tools/                   strip_music21.py, wheelhouse builder (pinned, hash-checked)
+  tools/                   strip_music21.py, build_wheelhouse.py (pins in android/requirements.txt, hash-checked)
 fastlane/metadata/android/ repo root (F-Droid requirement)
 docs/ANDROID.md, docs/architecture/session.md
 ```
@@ -264,8 +264,8 @@ Each area is built only after its logic is in the core (most of it already is, a
   - Play uses Google-managed app signing, with the upload key in a GitHub environment `android-release` that only `v*` tags can use.
   - A separate offline **FOSS key** (RSA-4096, two encrypted backups) signs the GitHub APK and the F-Droid build when it's reproducible. Register the package name and key for developer verification as soon as they exist.
   - Play installs and FOSS installs don't update each other; document this.
-- **Natives from source:** `android/native/build.sh` mirrors upstream CI (NDK 27.3, API 24, `max-page-size=16384`), with the dependencies as pinned submodules. The 2.6.0 prebuilt is for development only.
-- **Python packages offline:** `--no-index --find-links` to a wheelhouse built from pinned, hash-checked PyPI files plus the trimmed music21. No chaquo.com downloads at all.
+- **Natives from source:** `android/native/build.sh` mirrors upstream CI (NDK 27.3, API 24, `max-page-size=16384`), with the dependencies as pinned submodules. The 2.6.0 prebuilt is for development only. **Done (2026-10-29):** FluidSynth 2.6.1 and its dependencies (plus the signalsmith libraries its CMake would otherwise clone) are shallow submodules pinned to release tags; Gradle builds them by default (`buildNatives`) and keeps the hash-pinned 2.6.0 zip behind `-PcnNatives=prebuilt`. Stripped sizes match the prebuilt within 2 % (details in `docs/ANDROID.md`).
+- **Python packages offline:** `--no-index --find-links` to a wheelhouse built from pinned, hash-checked PyPI files plus the trimmed music21. No chaquo.com downloads at all. **Done (2026-10-29):** pins and hashes in `android/requirements.txt`, `tools/build_wheelhouse.py` (fetch/check/lock); a clean Gradle build inside a network namespace with `--offline` succeeds, and the two-path reproducibility check still gives byte-identical APKs.
 - **CI** (desktop jobs unchanged):
   - `android-emulator`: KVM, `reactivecircus/android-emulator-runner`, and a dependency-free on-device `smoke.py` that imports everything and compares against `tests/fixtures/characterization` goldens. Gated on paths, plus nightly.
   - `android-release` on tags: an upload-key-signed AAB as a workflow artifact, **uploaded to Play by hand** (as with the MSIX); a FOSS-key-signed universal APK, checked with `apksigner verify`; a full source tarball with submodules.
