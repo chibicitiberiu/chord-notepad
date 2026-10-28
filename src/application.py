@@ -15,6 +15,8 @@ from services.song_parser_service import SongParserService
 from services.file_service import FileService
 from services.resource_service import ResourceService
 from ui.tk_host import TkHost
+# Imported here, before anything can fail, so the error dialog is installed
+# as the session error handler (see utils.error_reporting).
 from utils import error_reporting
 from viewmodels.main_window_viewmodel import MainWindowViewModel
 from viewmodels.text_editor_viewmodel import TextEditorViewModel

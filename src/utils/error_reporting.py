@@ -8,20 +8,33 @@ points at the log file.
 Dialogs are throttled: only one at a time, and the same message isn't shown
 again within a few seconds, so an error in a timer callback can't flood the
 screen.
+
+This is the Tk presenter for :mod:`session.errors`: importing this module
+installs :func:`report_from_any_thread` as the session error handler, so
+errors the core reports (e.g. a failing observer) are shown here. The
+application imports it at startup, before anything can fail. Without tkinter
+(the Android core) the module still imports, but installs nothing.
 """
+
+from __future__ import annotations
 
 import logging
 import sys
 import threading
 import time
-import tkinter as tk
-from tkinter import messagebox
-from types import TracebackType
-from typing import Callable, Optional, Tuple, Type
+from typing import Callable, Optional, Tuple
+
+from session import errors as session_errors
+from session.errors import ExcInfo
+
+try:
+    import tkinter as tk
+    from tkinter import messagebox
+except ImportError:  # no Tk on this platform; see the module docstring
+    tk = None  # type: ignore[assignment]
+    messagebox = None  # type: ignore[assignment]
 
 logger = logging.getLogger(__name__)
-
-ExcInfo = Tuple[Type[BaseException], BaseException, Optional[TracebackType]]
 
 # Don't repeat an identical dialog within this many seconds.
 REPEAT_QUIET_SECONDS = 5.0
@@ -155,3 +168,13 @@ def show_fatal_error(exc: BaseException) -> None:
         # windowed Windows build, where a display always exists anyway.
         if sys.stderr is not None:
             print(message, file=sys.stderr)
+
+
+def _handle_session_error(exc_info: ExcInfo, context: str) -> None:
+    # Looked up at call time so tests can patch report_from_any_thread's
+    # module state (_run_on_ui_thread, _get_parent).
+    report_from_any_thread(exc_info, context)
+
+
+if tk is not None:
+    session_errors.set_handler(_handle_session_error)

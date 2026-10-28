@@ -29,7 +29,6 @@ DESKTOP_ONLY = {
 # these one by one (docs/ANDROID_PORT_PLAN.md); the test fails when one starts
 # importing cleanly, so the entry gets deleted instead of going stale.
 KNOWN_LEAKS = {
-    "utils.error_reporting",            # tkinter at module top (session step 2)
     "viewmodels.chord_sheet_viewmodel",  # ui.chord_sheet -> clef_assets -> PIL
 }
 
@@ -91,3 +90,12 @@ def test_core_imports_without_desktop_libraries():
 def test_known_leaks_list_is_current():
     fixed = KNOWN_LEAKS - set(_probe(sorted(KNOWN_LEAKS)))
     assert not fixed, f"These modules import cleanly now; remove them from KNOWN_LEAKS: {sorted(fixed)}"
+
+
+def test_session_package_is_core_and_imports_without_desktop_libraries():
+    # The session layer is what the Android UI talks to: it must never be
+    # excused as desktop-only or as a known leak.
+    session = [m for m in _core_modules() if m == "session" or m.startswith("session.")]
+    assert "session.host" in session and "session.errors" in session
+    assert not set(session) & (DESKTOP_ONLY | KNOWN_LEAKS)
+    assert _probe(session) == {}

@@ -3,6 +3,8 @@
 import sys
 from typing import Any, Callable, Dict, List
 
+from session import errors
+
 
 class Observable:
     """Base class for observable objects that can notify observers of property changes.
@@ -69,9 +71,9 @@ class Observable:
                     callback(value)
                 except Exception:
                     # Keep notifying the other observers, but don't hide the
-                    # error: log it and show it like any other unexpected one.
-                    from utils import error_reporting
-                    error_reporting.report_from_any_thread(
+                    # error: hand it to whatever reports unexpected errors
+                    # (on desktop, the error dialog in utils.error_reporting).
+                    errors.report_from_any_thread(
                         sys.exc_info(), f"observer of '{property_name}'")
 
     def set_and_notify(self, property_name: str, value: Any) -> None:

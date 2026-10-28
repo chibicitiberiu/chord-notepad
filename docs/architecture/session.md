@@ -77,7 +77,7 @@ src/session/
   host.py          Host protocol, Cancellable, HostDispatch (queue_ui_callback shim)
   threaded_host.py ThreadedHost (queue + timer heap; Android/headless)
   testing.py       ManualHost (virtual clock), InMemoryDocumentStore, FakePlayer, EventRecorder
-  errors.py        Tk-free unexpected-error routing (handler registry + throttle)
+  errors.py        Tk-free unexpected-error routing (handler registry; the handler throttles)
   documents.py     DocumentRef, DocumentStore, FileSystemDocumentStore
   state.py         frozen state DTOs
   events.py        one-off event + request DTOs
@@ -106,11 +106,14 @@ class Host(Protocol):
 ```
 
 There are three implementations:
-- **`TkHost(root)`**
+- **`TkHost(root=None)`**
   - `post` puts the callback on a queue, which the existing 100 ms `after()`
     drain runs.
   - `call_later` wraps `root.after` and returns a handle that calls
     `after_cancel`.
+  - The host is built before the window (services and viewmodels come
+    first), so the root is attached later with `attach(root)`; `start()` and
+    `stop()` run the drain. Posts made before `start()` wait in the queue.
 - **`ManualHost`** (tests)
   - `run_pending()` runs posted callbacks.
   - `advance(seconds)` moves the virtual clock forward.
@@ -271,10 +274,14 @@ Only one flow can be pending at a time.
 
 - **`session/errors.py`** provides `set_handler(fn)` and
   `report_from_any_thread(exc_info, context)`. With no handler installed, it
-  logs.
+  logs. Throttling is the handler's job: the Tk presenter already throttles
+  its dialogs, and the Android handler will throttle its events.
 - **`Observable.notify`** reports through it.
 - **`utils/error_reporting.py`** stays the Tk presenter and registers itself as
-  the handler at import time. Existing test patch points keep working.
+  the handler at import time. `application.py` imports it at the top, so it is
+  installed before anything can fail. Its tkinter import is guarded: without
+  Tk it still imports but installs nothing. Existing test patch points keep
+  working.
 - **Android** installs a handler that emits `UnexpectedError`, throttled.
 - **Expected failures are events:** `last_error` becomes `UserError`, and
   `AudioInitializationError` becomes `AudioUnavailable`. The session owns the
