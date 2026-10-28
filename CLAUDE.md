@@ -96,6 +96,17 @@ compiles, fills the buffer, then starts the player.
   highlighting/tag styles). Its border, scrollbar and surrounding chrome are
   fair game for UI polish. (Tibi, 2026-10-26)
 
+### Android port (in progress, see docs/ANDROID_PORT_PLAN.md)
+- Logic lives in the shared Python core. Views (Tk and the Kotlin/Compose UI)
+  stay thin: cross-viewmodel wiring and app flows belong in `src/session/`
+  (design: docs/architecture/session.md), never in `main_window.py` or Kotlin.
+- Android SDK, emulator AVDs, Gradle cache, JDK and pip cache go under
+  `/mnt/data_linux/Bin/android/`, never `~` (low on space). (Tibi, 2026-10-28)
+- The machine is shared with other projects running in parallel: check
+  `free -h`/load before heavy work, run builds/tests/emulators under `nice`,
+  keep Gradle workers and emulator RAM modest, and don't run several heavy jobs
+  (emulator + Gradle + full pytest) at once. (Tibi, 2026-10-28)
+
 ## Testing
 
 ```bash

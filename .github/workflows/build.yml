@@ -299,11 +299,11 @@ jobs:
                 StringTable(
                   '040904B0',
                   [
-                    StringStruct('CompanyName', 'Chord Notepad Contributors'),
+                    StringStruct('CompanyName', 'Tiberiu Chibici'),
                     StringStruct('FileDescription', 'Chord Notepad'),
                     StringStruct('FileVersion', '${VERSION}'),
                     StringStruct('InternalName', 'ChordNotepad'),
-                    StringStruct('LegalCopyright', 'MIT License'),
+                    StringStruct('LegalCopyright', '(c) 2025-2026 Tiberiu Chibici. GNU AGPL-3.0'),
                     StringStruct('OriginalFilename', 'ChordNotepad.exe'),
                     StringStruct('ProductName', 'Chord Notepad'),
                     StringStruct('ProductVersion', '${VERSION}')

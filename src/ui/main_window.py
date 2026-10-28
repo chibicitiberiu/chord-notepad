@@ -1550,7 +1550,7 @@ class MainWindow(tk.Tk):
 
         # Copyright
         copyright_label = tk.Label(main_frame,
-                                  text="© 2024 Chord Notepad Contributors\nMIT License",
+                                  text="© 2025–2026 Tiberiu Chibici\nGNU AGPL-3.0 · github.com/chibicitiberiu/chord-notepad",
                                   font=('TkDefaultFont', 8),
                                   fg='gray')
         copyright_label.pack(pady=5)

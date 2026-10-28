@@ -13,5 +13,7 @@ moved to CHANGELOG_HISTORY.md and this file is reset.
   Snap Store, and the Microsoft Store (a paid supporter edition of the same
   app). The help's "Limitations" section no longer claims there is no staff or
   tab view.
+- The About dialog and the Windows executable's file properties now state the
+  correct licence (GNU AGPL-3.0) and copyright holder. They wrongly said MIT.
 - Dropped "ChordPro" from the Linux desktop entry and AppStream search
   keywords.
