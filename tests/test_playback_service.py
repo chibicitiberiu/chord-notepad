@@ -169,10 +169,12 @@ class TestInitialization:
 
             assert result is True
             assert service.is_initialized is True
+            from audio.audio_options import AudioOptions
             mock_note_player_class.assert_called_once_with(
                 soundfont_path=None,
                 bpm=120,
-                time_signature=(4, 4)
+                time_signature=(4, 4),
+                options=AudioOptions(),
             )
 
     def test_initialize_player_failure(self, mock_config):

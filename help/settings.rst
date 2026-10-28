@@ -50,8 +50,11 @@ Playback & Audio
    the application.
 
 **Audio driver**
-   The FluidSynth audio driver to use. Leave it empty to let FluidSynth
-   pick one automatically. Takes effect after restarting the application.
+   The FluidSynth audio driver to try first (for example ``alsa``,
+   ``pulseaudio`` or ``jack``). If it can't start, Chord Notepad falls back to
+   the usual drivers for your system, and tells you when none of them works.
+   Leave it empty to use the usual drivers only. Takes effect after restarting
+   the application.
 
 .. note::
    Capo handling moved out of Settings: a capo is now a ``{capo: N}`` directive

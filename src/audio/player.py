@@ -4,9 +4,11 @@ Audio playback using FluidSynth
 
 import logging
 import os
+import sys
 import threading
 from pathlib import Path
 from typing import Optional, List, Tuple, Callable, Dict
+from audio.audio_options import AudioOptions
 from audio.fluidsynth_import import fluidsynth
 from audio.player_interface import IPlayer
 from exceptions import AudioInitializationError
@@ -17,7 +19,13 @@ logger = logging.getLogger(__name__)
 class NotePlayer(IPlayer):
     """Audio player for MIDI notes using FluidSynth"""
 
-    def __init__(self, soundfont_path: Optional[str] = None, bpm: int = 120, time_signature: Tuple[int, int] = (4, 4)) -> None:
+    def __init__(
+        self,
+        soundfont_path: Optional[str] = None,
+        bpm: int = 120,
+        time_signature: Tuple[int, int] = (4, 4),
+        options: Optional[AudioOptions] = None,
+    ) -> None:
         """
         Initialize the note player
 
@@ -25,8 +33,12 @@ class NotePlayer(IPlayer):
             soundfont_path: Path to soundfont file (.sf2)
             bpm: Beats per minute (default 120)
             time_signature: Tuple of (beats_per_measure, beat_unit) (default 4/4)
+            options: Synth settings and preferred audio driver from the host
+                (default: FluidSynth's defaults and the platform driver list)
         """
         self.fs = None
+        #: The audio driver that actually started.
+        self.driver_name: Optional[str] = None
         self.sfid = None
         self.channel = 0
         self.instrument = 0  # Acoustic Grand Piano by default
@@ -71,7 +83,7 @@ class NotePlayer(IPlayer):
             soundfont_path = self._find_soundfont()
 
         if soundfont_path and os.path.exists(soundfont_path):
-            self._initialize_fluidsynth(soundfont_path)
+            self._initialize_fluidsynth(soundfont_path, options)
         elif soundfont_path:
             raise FileNotFoundError(f"Soundfont not found: {soundfont_path}")
         else:
@@ -79,8 +91,6 @@ class NotePlayer(IPlayer):
 
     def _find_soundfont(self) -> Optional[str]:
         """Find the bundled soundfont"""
-        import sys
-
         # Check if running from PyInstaller bundle
         if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
             # Running from PyInstaller bundle
@@ -96,51 +106,42 @@ class NotePlayer(IPlayer):
 
         return None
 
-    def _initialize_fluidsynth(self, soundfont_path: str) -> None:
+    def _initialize_fluidsynth(self, soundfont_path: str, options: Optional[AudioOptions] = None) -> None:
         """Initialize FluidSynth with the soundfont.
+
+        Args:
+            soundfont_path: The .sf2 file to load.
+            options: Synth settings and the preferred audio driver.
 
         Raises:
             AudioInitializationError: If no audio driver starts or the
                 soundfont can't be loaded. The caller decides how to tell the
                 user; a player with no synth would just play silence.
         """
+        options = options or AudioOptions()
         try:
-            # Create FluidSynth instance
+            synth_kwargs = options.synth_settings()
+            if options.sample_rate:
+                synth_kwargs["samplerate"] = float(options.sample_rate)
             logger.debug("Creating FluidSynth instance...")
-            self.fs = fluidsynth.Synth()
-            logger.debug("FluidSynth instance created")
+            self.fs = fluidsynth.Synth(**synth_kwargs)
 
             # Set gain (volume) - 0.0 to 10.0, default is 0.2
-            logger.debug("Setting gain...")
             self.fs.setting('synth.gain', 0.5)
-            logger.debug("Gain set")
 
-            # Start audio output
-            # Try different drivers in order of preference based on platform
-            import sys
-            if sys.platform == 'win32':
-                drivers = ['dsound', 'wasapi', 'waveout']
-            elif sys.platform == 'darwin':
-                drivers = ['coreaudio']
-            else:  # Linux and others
-                drivers = ['pulseaudio', 'alsa', 'oss']
-            started = False
-
+            # Try the preferred driver, then the platform's usual ones
+            drivers = options.driver_candidates(sys.platform)
+            self.driver_name = None
             for driver in drivers:
-                try:
-                    result = self.fs.start(driver=driver)
-                    if result == 0:  # Success
-                        logger.info(f"FluidSynth started with driver: {driver}")
-                        started = True
-                        break
-                except Exception as e:
-                    logger.debug(f"Failed to start with {driver}: {e}")
-                    continue
+                if self._start_audio_driver(driver):
+                    self.driver_name = driver
+                    break
 
-            if not started:
+            if self.driver_name is None:
                 raise AudioInitializationError(
                     f"No audio output could be started (tried {', '.join(drivers)})."
                 )
+            logger.info(f"FluidSynth started with audio driver: {self.driver_name}")
 
             # Load soundfont (FluidSynth returns -1 instead of raising)
             self.sfid = self.fs.sfload(soundfont_path)
@@ -163,6 +164,44 @@ class NotePlayer(IPlayer):
             if isinstance(e, AudioInitializationError):
                 raise
             raise AudioInitializationError(f"FluidSynth failed to start: {e}") from e
+
+    def _start_audio_driver(self, driver: str) -> bool:
+        """Try to start one FluidSynth audio driver.
+
+        pyfluidsynth's ``Synth.start()`` returns OK even when FluidSynth could
+        not create the driver (``new_fluid_audio_driver`` returned NULL), so
+        the handle it stores is what tells success from failure.
+
+        Args:
+            driver: FluidSynth audio driver name, e.g. ``"pulseaudio"``.
+
+        Returns:
+            True if the driver is running.
+        """
+        try:
+            result = self.fs.start(driver=driver)
+        except Exception as e:
+            logger.info(f"Audio driver {driver!r} failed to start: {e}")
+            result = -1
+        if result == 0 and self.fs.audio_driver:
+            return True
+        logger.info(f"Audio driver {driver!r} could not be started")
+        self._discard_failed_start()
+        return False
+
+    def _discard_failed_start(self) -> None:
+        """Free the MIDI input driver a failed ``start()`` still created.
+
+        The next attempt would overwrite (and leak) it.
+        """
+        fs = self.fs
+        if getattr(fs, "midi_driver", None):
+            try:
+                fluidsynth.delete_fluid_midi_driver(fs.midi_driver)
+            except Exception:
+                logger.debug("Could not free the MIDI driver after a failed start", exc_info=True)
+            fs.midi_driver = None
+        fs.audio_driver = None
 
     def get_available_instruments(self) -> List[Tuple[int, str]]:
         """

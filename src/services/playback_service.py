@@ -1,9 +1,11 @@
 """Audio playback service wrapping NotePlayer."""
 
+import dataclasses
 import logging
 import threading
 from typing import Optional, List, Callable, Tuple
 
+from audio.audio_options import AudioOptions
 from audio.player_interface import IPlayer
 from audio.player import NotePlayer
 from audio.note_picker_interface import INotePicker
@@ -28,8 +30,25 @@ class PlaybackService:
     Provides business-level API for audio playback, abstracting FluidSynth/NotePlayer details.
     """
 
-    def __init__(self, config_service: ConfigService, player: Optional[IPlayer] = None, application=None):
+    def __init__(
+        self,
+        config_service: ConfigService,
+        player: Optional[IPlayer] = None,
+        application=None,
+        audio_options: Optional[AudioOptions] = None,
+    ):
+        """Create the service.
+
+        Args:
+            config_service: Settings (BPM, soundfont, audio driver, voicing...).
+            player: A ready player (tests, headless hosts); None creates the
+                FluidSynth player on first use.
+            application: Anything with ``queue_ui_callback`` for playback pings.
+            audio_options: Synth settings from the host (sample rate, period
+                size, Oboe settings). The desktop passes none.
+        """
         self._config = config_service
+        self._audio_options = audio_options
         self._player: Optional[IPlayer] = player
         self._note_picker = self._create_note_picker(self._config.get("voicing", "piano"))
         self._logger = logging.getLogger(__name__)
@@ -218,15 +237,26 @@ class PlaybackService:
         if self._player:
             self._player.set_instrument(program)
 
-    def initialize_player(self, soundfont_path: Optional[str] = None) -> bool:
+    def initialize_player(
+        self,
+        soundfont_path: Optional[str] = None,
+        audio_options: Optional[AudioOptions] = None,
+    ) -> bool:
         """Initialize the audio player.
+
+        The audio driver chosen in Settings (``audio_driver``) is tried first,
+        then the host's preferred driver, then the platform's usual drivers.
 
         Args:
             soundfont_path: Optional path to soundfont file (.sf2)
+            audio_options: Synth settings from the host; kept for later
+                (lazy) re-initialization. None keeps the constructor's.
 
         Returns:
             True if initialized successfully, False otherwise
         """
+        if audio_options is not None:
+            self._audio_options = audio_options
         if self._initialized:
             self._logger.debug("Audio player already initialized")
             return True
@@ -251,7 +281,8 @@ class PlaybackService:
             self._player = NotePlayer(
                 soundfont_path=sf_path,
                 bpm=bpm,
-                time_signature=(time_sig_beats, time_sig_unit)
+                time_signature=(time_sig_beats, time_sig_unit),
+                options=self._effective_audio_options(),
             )
 
             # Set instrument from config
@@ -273,6 +304,14 @@ class PlaybackService:
             self._initialized = False
             self._init_error = str(e) or type(e).__name__
             return False
+
+    def _effective_audio_options(self) -> AudioOptions:
+        """The host's audio options with the Settings driver put first."""
+        options = self._audio_options or AudioOptions()
+        driver = self._config.get("audio_driver")
+        if isinstance(driver, str) and driver.strip():
+            options = dataclasses.replace(options, driver=driver.strip())
+        return options
 
     def play_chord_immediate(self, chord_info: ChordInfo, current_key: Optional[str] = None) -> None:
         """Play a chord immediately (click-to-play) with dynamic note resolution.
