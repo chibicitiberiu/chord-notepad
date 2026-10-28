@@ -100,6 +100,14 @@ class MainWindowViewModel(Observable):
         return self._last_error
 
     @property
+    def documents(self) -> DocumentStore:
+        """The store documents are read from and written to.
+
+        The session keeps the recent list in it (the viewmodel doesn't).
+        """
+        return self._documents
+
+    @property
     def current_document(self) -> Optional[DocumentRef]:
         """The open document, or None for an unsaved new one."""
         return self._current_document
@@ -232,9 +240,6 @@ class MainWindowViewModel(Observable):
             # Extract and apply initial settings from first directives in the file
             self._apply_initial_settings_from_content(content)
 
-            # Add to recent files
-            self._documents.add_recent(ref)
-
             return True
 
         except Exception as e:
@@ -273,9 +278,6 @@ class MainWindowViewModel(Observable):
 
             self.set_and_notify("is_modified", False)
             self.set_and_notify("current_document", ref)
-
-            # Add to recent files
-            self._documents.add_recent(ref)
 
             return True
 
@@ -872,14 +874,6 @@ class MainWindowViewModel(Observable):
         """Decrease font size by 1."""
         self.set_font_size(max(self._font_size - 1, 6))
 
-    def get_recent_files(self) -> List[DocumentRef]:
-        """Get the recently opened documents that are still available.
-
-        Returns:
-            Document references, most recent first
-        """
-        return self._documents.recent()
-
     def reset_font_size(self) -> None:
         """Reset font size to default."""
         default_size = 11
@@ -903,20 +897,6 @@ class MainWindowViewModel(Observable):
             True if there are unsaved changes, False otherwise
         """
         return self._is_modified
-
-    def get_window_title(self) -> str:
-        """Get the window title based on current state.
-
-        Returns:
-            Window title string
-        """
-        if self._current_document:
-            filename = self._current_document.display_name
-            modified_marker = "*" if self._is_modified else ""
-            return f"{filename}{modified_marker} - Chord Notepad"
-        else:
-            modified_marker = "*" if self._is_modified else ""
-            return f"Untitled{modified_marker} - Chord Notepad"
 
     def set_window_geometry(self, geometry: str) -> None:
         """Save window geometry to configuration.

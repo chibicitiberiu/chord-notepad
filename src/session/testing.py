@@ -153,7 +153,8 @@ class InMemoryDocumentStore:
     """A :class:`session.documents.DocumentStore` backed by a dict.
 
     Documents are keyed by ``ref.id``; :meth:`ref` makes a reference for a
-    name. Text documents are stored as ``str``, exports as ``bytes``.
+    name. Text documents are stored as ``str``, exports as ``bytes``. Like
+    the file-system store, reads and writes leave the recent list alone.
     """
 
     def __init__(self, documents: Optional[Dict[str, Union[str, bytes]]] = None,
@@ -165,6 +166,8 @@ class InMemoryDocumentStore:
             max_recent: Length cap of the recent list.
         """
         self.contents: Dict[str, Union[str, bytes]] = {}
+        #: When set, every write fails with this reason (a full disk...).
+        self.write_error: Optional[str] = None
         self._recent: List[DocumentRef] = []
         self._max_recent = max_recent
         for name, data in (documents or {}).items():
@@ -182,16 +185,18 @@ class InMemoryDocumentStore:
         data = self.contents[ref.id]
         if isinstance(data, bytes):
             raise FileOperationError(f"Cannot read file (encoding issue): {ref.location}")
-        self.add_recent(ref)
         return normalize_song_text(data)
 
     def write_text(self, ref: DocumentRef, text: str) -> None:
-        """Store ``text`` and remember the document as recent."""
+        """Store ``text``, or raise ``write_error`` if a test set one."""
+        if self.write_error is not None:
+            raise FileOperationError(self.write_error)
         self.contents[ref.id] = text
-        self.add_recent(ref)
 
     def write_bytes(self, ref: DocumentRef, data: bytes) -> None:
-        """Store an export (not added to the recent list)."""
+        """Store an export, or raise ``write_error`` if a test set one."""
+        if self.write_error is not None:
+            raise FileOperationError(self.write_error)
         self.contents[ref.id] = bytes(data)
 
     def is_available(self, ref: DocumentRef) -> bool:

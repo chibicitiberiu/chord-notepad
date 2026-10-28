@@ -7,6 +7,9 @@ only plain values, so the bridge can serialize them.
 Only the events the session already emits are defined here; the rest of the
 design's list (``docs/architecture/session.md``) arrives with the steps that
 emit them.
+
+Requests (``...Request``) carry a ``request_id``: the view answers each with
+``AppSession.respond(request_id, value)``, where None always means cancel.
 """
 
 from dataclasses import dataclass
@@ -124,3 +127,69 @@ class CapoChoiceRequest:
     request_id: int
     options: Tuple[MenuItem, ...]
     default: str
+
+
+class DiscardChoice(str, Enum):
+    """The answers to :class:`ConfirmDiscardRequest`."""
+
+    SAVE = "save"
+    """Save the changes first (asks for a name if the document has none)."""
+    DISCARD = "discard"
+    """Go on without saving."""
+    CANCEL = "cancel"
+    """Stop what was being done (None means the same)."""
+
+
+@dataclass(frozen=True)
+class ConfirmDiscardRequest:
+    """The document has unsaved changes: save them before going on?
+
+    Asked before New, Open and closing the app. Answer with
+    ``respond(request_id, choice)``, a :class:`DiscardChoice` value
+    (``"save"``, ``"discard"`` or ``"cancel"``); None cancels too.
+
+    Attributes:
+        request_id: Pass back to ``respond``.
+    """
+
+    request_id: int
+
+
+class PickMode(str, Enum):
+    """What a :class:`PickDocumentRequest` picks a document for."""
+
+    OPEN = "open"
+    """An existing song to open."""
+    SAVE = "save"
+    """Where to save the song (Save As)."""
+    EXPORT_MIDI = "export_midi"
+    """Where to write a MIDI export."""
+
+
+@dataclass(frozen=True)
+class PickDocumentRequest:
+    """Ask the user to pick a document (the platform's file picker).
+
+    Answer with ``respond(request_id, ref)``, a :class:`DocumentRef` from the
+    platform's store (desktop: ``FileSystemDocumentStore.ref_for_path``), or
+    None if the user cancelled.
+
+    Attributes:
+        request_id: Pass back to ``respond``.
+        mode: Open, save or export.
+        suggested_name: The name to pre-fill when saving or exporting
+            (``"song.txt"``, ``"song.mid"``); empty when opening.
+    """
+
+    request_id: int
+    mode: PickMode
+    suggested_name: str
+
+
+@dataclass(frozen=True)
+class CloseApproved:
+    """The app may close now (nothing unsaved, or the user chose).
+
+    Emitted by ``request_close``. The view tears itself down; the session
+    doesn't stop anything itself.
+    """

@@ -25,14 +25,17 @@ from ui.dialogs.insert_directives import dialog_for_request
 from utils.display_scaling import apply_xft_dpi
 from utils.icon_loader import IconLoader
 from utils.ui_helpers import create_tooltip, resolve_font_family
-from utils.file_dialogs import ask_open_filename, ask_save_as_filename, display_path
+from utils.file_dialogs import ask_open_filename, ask_save_as_filename
 from models.notation import Notation
+from session import formatting
 from session.events import (
-    AudioUnavailable, CapoChoiceRequest, InsertDirectiveRequest, TextEdited, UserError,
+    AudioUnavailable, CapoChoiceRequest, CloseApproved, ConfirmDiscardRequest, DiscardChoice,
+    InsertDirectiveRequest, PickDocumentRequest, PickMode, TextEdited, UserError,
 )
 from session.state import (
-    ChordSheetState, EditorState, HighlightState, InstrumentMenuState, PlayAction,
-    PlaybackState, StatusState, ToolbarState, VoicingMenuState,
+    ChordSheetState, DocumentState, EditorState, HighlightState, InstrumentMenuState,
+    PlayAction, PlaybackState, RecentDocumentsState, StatusState, ToolbarState,
+    VoicingMenuState,
 )
 from session.toolbar import (
     BPM_SCALE, MULTIPLIER_SCALE, ScrubScale, format_bpm, format_multiplier_pct, parse_bpm,
@@ -63,6 +66,14 @@ _PLAY_PAUSE_TOOLTIPS = {
     PlayAction.PLAY: "Play from start (Shift+Click to play from cursor)",
     PlayAction.PAUSE: "Pause playback",
     PlayAction.RESUME: "Resume playback",
+}
+
+# How the native file pickers are shown for each PickDocumentRequest mode:
+# (title, default extension, file types).
+_TEXT_FILE_TYPES = [("Text Files", "*.txt"), ("All Files", "*.*")]
+_PICKERS = {
+    PickMode.SAVE: ("Save File As", ".txt", _TEXT_FILE_TYPES),
+    PickMode.EXPORT_MIDI: ("Export MIDI", ".mid", [("MIDI files", "*.mid"), ("All files", "*.*")]),
 }
 
 # Import build info (may be auto-generated during CI build)
@@ -128,10 +139,9 @@ class MainWindow(tk.Tk):
         self.resource_service = resource_service
         self._icons = IconLoader(resource_service)
         self.chord_sheet_panel = None
+        self._closing = False
 
-        # Set up observers for ViewModel properties
-        self._setup_viewmodel_observers()
-
+        # Replaced by the session's DocumentState once subscribed.
         self.title("Chord Notepad")
         self.geometry("900x600")
 
@@ -308,22 +318,6 @@ class MainWindow(tk.Tk):
         style.map('TScrollbar', background=[('pressed', UI_SCROLL_THUMB_ACTIVE),
                                             ('active', UI_SCROLL_THUMB_ACTIVE)])
 
-    def _setup_viewmodel_observers(self) -> None:
-        """Set up observers for ViewModel property changes."""
-        # File state changes
-        self.viewmodel.observe('current_document', self._on_current_document_changed)
-        self.viewmodel.observe('is_modified', self._on_is_modified_changed)
-
-    # ViewModel observer callbacks
-
-    def _on_current_document_changed(self, new_value: Optional[Any]) -> None:
-        """React to current document changes from ViewModel."""
-        self.title(self.viewmodel.get_window_title())
-
-    def _on_is_modified_changed(self, new_value: bool) -> None:
-        """React to modification state changes from ViewModel."""
-        self.title(self.viewmodel.get_window_title())
-
     def _on_session_output(self, item: object) -> None:
         """Apply one state or event delivered by the session."""
         if isinstance(item, TextEdited):
@@ -344,6 +338,10 @@ class MainWindow(tk.Tk):
             self.build_instrument_menu(item)
         elif isinstance(item, ChordSheetState):
             self._apply_chord_sheet(item)
+        elif isinstance(item, DocumentState):
+            self.title(item.title)
+        elif isinstance(item, RecentDocumentsState):
+            self._apply_recent_documents(item)
         elif isinstance(item, AudioUnavailable):
             # Over the window the click came from (e.g. the chord identifier).
             present_audio_unavailable(self._dialog_parent(), item.message)
@@ -355,6 +353,13 @@ class MainWindow(tk.Tk):
             self.after_idle(self._present_directive_request, item)
         elif isinstance(item, CapoChoiceRequest):
             self.after_idle(self._present_capo_request, item)
+        elif isinstance(item, ConfirmDiscardRequest):
+            self.after_idle(self._present_confirm_discard, item)
+        elif isinstance(item, PickDocumentRequest):
+            self.after_idle(self._present_pick_document, item)
+        elif isinstance(item, CloseApproved):
+            # Not from inside delivery: closing shuts the session down.
+            self.after_idle(self._close_window)
 
     def _apply_editor(self, state: EditorState) -> None:
         """Lock or unlock the editor and apply its font."""
@@ -410,14 +415,6 @@ class MainWindow(tk.Tk):
             self.text_editor.tag_raise(TAG_CHORD_PLAYING)
             self.text_editor.see(start)
 
-    def _show_file_error(self, action: str, filename: Any) -> None:
-        """Show a failed open/save/export with the reason from the ViewModel."""
-        message = f"{action}:\n{display_path(filename)}"
-        reason = self.viewmodel.last_error
-        if reason:
-            message += f"\n\n{reason}"
-        messagebox.showerror("Error", message, parent=self)
-
     def _set_window_icon(self) -> None:
         """Set the window icon"""
         try:
@@ -434,9 +431,9 @@ class MainWindow(tk.Tk):
         menubar = MenuBuilder.create_menubar(self)
 
         # File menu
-        # Create recent files submenu first
+        # The Recent Files submenu is filled from the session's
+        # RecentDocumentsState.
         self.recent_menu = tk.Menu(menubar, tearoff=0)
-        self.update_recent_files_menu()
 
         file_menu = MenuBuilder(menubar) \
             .add_command("New", self.new_file, accelerator="Ctrl+N") \
@@ -837,128 +834,73 @@ class MainWindow(tk.Tk):
         """Toggle chord-sheet visibility (View menu checkbutton command)."""
         self.session.set_chord_sheet_visible(self._chord_sheet_var.get())
 
+    # -- documents: the session runs the flows, the window presents requests --
+
+    def _send_text(self) -> None:
+        """Make sure the session has the editor's text (a no-op unless an
+        edit's <<Modified>> is still queued)."""
+        self.session.set_text(self.text_editor.get_text())
+
     def new_file(self) -> None:
-        """Create new file"""
-        if self.prompt_save_if_modified():
-            self.viewmodel.new_file()
-            self.update_statusbar("New file created")
+        """File > New."""
+        self._send_text()
+        self.session.new_document()
 
     def open_file(self) -> None:
-        """Open file dialog and load file"""
-        if not self.prompt_save_if_modified():
-            return
+        """File > Open..."""
+        self._send_text()
+        self.session.open_document()
 
-        filename = ask_open_filename(
-            self,
-            title="Open File",
-            filetypes=[("Text Files", "*.txt"), ("All Files", "*.*")]
-        )
+    def save_file(self) -> None:
+        """File > Save."""
+        self._send_text()
+        self.session.save()
 
-        if filename:
-            self.load_file(filename)
-
-    def load_file(self, filename: str) -> None:
-        """Load file content"""
-        # Check for unsaved changes before loading
-        if not self.prompt_save_if_modified():
-            return
-
-        success = self.viewmodel.open_file(self.application.documents.ref_for_path(filename))
-        if success:
-            self.text_editor.edit_reset()  # Reset undo history
-            self.update_recent_files_menu()  # Update menu with new recent files
-            self.update_statusbar(f"Opened: {display_path(filename)}")
-        else:
-            self._show_file_error("Failed to open file", filename)
-
-    def save_file(self) -> bool:
-        """Save current file. Returns True if it was saved."""
-        # Update ViewModel with current text before saving
-        current_text = self.text_editor.get("1.0", "end-1c")
-        self.viewmodel.on_text_changed(current_text)
-
-        success = self.viewmodel.save_file()
-        if success:
-            self.update_statusbar(f"Saved: {display_path(self.viewmodel.current_file)}")
-            return True
-        if self.viewmodel.current_file is not None:
-            # A real failure, not a missing name: say why instead of
-            # silently falling through to Save As.
-            self._show_file_error("Failed to save file", self.viewmodel.current_file)
-            return False
-        # No current file, show save-as dialog
-        return self.save_file_as()
-
-    def save_file_as(self) -> bool:
-        """Save file with new name. Returns True if it was saved."""
-        # Pre-fill a name with its extension: the Flatpak's portal dialog only
-        # grants access to the exact name chosen, so ".txt" can't be added later.
-        current = self.viewmodel.current_file
-        filename = ask_save_as_filename(
-            self,
-            title="Save File As",
-            defaultextension=".txt",
-            filetypes=[("Text Files", "*.txt"), ("All Files", "*.*")],
-            initialfile=current.name if current else "Untitled.txt",
-        )
-
-        if filename:
-            # Update ViewModel with current text before saving
-            current_text = self.text_editor.get("1.0", "end-1c")
-            self.viewmodel.on_text_changed(current_text)
-
-            success = self.viewmodel.save_file_as(
-                self.application.documents.ref_for_path(filename))
-            if success:
-                self.update_recent_files_menu()  # Update menu with new recent files
-                self.update_statusbar(f"Saved: {display_path(filename)}")
-                return True
-            self._show_file_error("Failed to save file", filename)
-        return False
+    def save_file_as(self) -> None:
+        """File > Save As..."""
+        self._send_text()
+        self.session.save_as()
 
     def export_midi(self) -> None:
-        """Export the current document as a standard MIDI file"""
-        initial_stem = self.viewmodel.current_file.stem if self.viewmodel.current_file else "Untitled"
+        """File > Export MIDI..."""
+        self._send_text()
+        self.session.export_midi()
 
-        filename = ask_save_as_filename(
-            self,
-            title="Export MIDI",
-            defaultextension=".mid",
-            filetypes=[("MIDI files", "*.mid"), ("All files", "*.*")],
-            initialfile=f"{initial_stem}.mid"
+    def _open_recent(self, ref: Any) -> None:
+        """File > Recent Files > a document."""
+        self._send_text()
+        self.session.open_recent(ref)
+
+    def _present_confirm_discard(self, request: ConfirmDiscardRequest) -> None:
+        """Ask whether to save the unsaved changes; answer the session."""
+        response = messagebox.askyesnocancel(
+            formatting.CONFIRM_DISCARD_TITLE,
+            formatting.CONFIRM_DISCARD_MESSAGE,
+            parent=self,
         )
-
-        if not filename:
-            return
-
-        # Update ViewModel with current text before exporting
-        current_text = self.text_editor.get("1.0", "end-1c")
-        self.viewmodel.on_text_changed(current_text)
-
-        success = self.viewmodel.export_midi_file(
-            self.application.documents.ref_for_path(filename))
-        if success:
-            self.update_statusbar(f"Exported MIDI: {display_path(filename)}")
+        if response is None:
+            choice = DiscardChoice.CANCEL
         else:
-            self._show_file_error("Failed to export MIDI file", filename)
+            choice = DiscardChoice.SAVE if response else DiscardChoice.DISCARD
+        self.session.respond(request.request_id, choice.value)
 
-    def prompt_save_if_modified(self) -> bool:
-        """Prompt to save if file is modified. Returns True if ok to continue."""
-        if self.viewmodel.is_modified:
-            response = messagebox.askyesnocancel(
-                "Unsaved Changes",
-                "Do you want to save your changes?",
-                parent=self,
+    def _present_pick_document(self, request: PickDocumentRequest) -> None:
+        """Show the native file picker; answer the session with a ref or None."""
+        if request.mode is PickMode.OPEN:
+            filename = ask_open_filename(self, title="Open File", filetypes=_TEXT_FILE_TYPES)
+        else:
+            title, extension, filetypes = _PICKERS[request.mode]
+            # A name with its extension: the Flatpak's portal dialog only
+            # grants access to the exact name chosen.
+            filename = ask_save_as_filename(
+                self,
+                title=title,
+                defaultextension=extension,
+                filetypes=filetypes,
+                initialfile=request.suggested_name,
             )
-            if response:  # Yes
-                # Only go on if the save worked (it already showed why not, or
-                # the user cancelled Save As); otherwise the changes are lost.
-                return self.save_file()
-            elif response is None:  # Cancel
-                return False
-            else:  # No
-                return True
-        return True
+        ref = self.application.documents.ref_for_path(filename) if filename else None
+        self.session.respond(request.request_id, ref)
 
     def select_all(self) -> str:
         """Select all text"""
@@ -1157,18 +1099,16 @@ class MainWindow(tk.Tk):
                         image.put('#333333', (x, y))
         return image
 
-    def update_recent_files_menu(self) -> None:
-        """Update recent files menu"""
+    def _apply_recent_documents(self, state: RecentDocumentsState) -> None:
+        """Rebuild File > Recent Files."""
         self.recent_menu.delete(0, tk.END)
-        recent_files = self.viewmodel.get_recent_files()
-        if not recent_files:
+        if not state.items:
             self.recent_menu.add_command(label="(No recent files)", state=tk.DISABLED)
         else:
-            for ref in recent_files:
-                # Desktop refs are local files whose id is the path.
+            for ref in state.items:
                 self.recent_menu.add_command(
                     label=ref.display_name,
-                    command=lambda r=ref: self.load_file(r.id)
+                    command=lambda r=ref: self._open_recent(r)
                 )
 
     def update_statusbar(self, message: str) -> None:
@@ -1176,22 +1116,33 @@ class MainWindow(tk.Tk):
         self.session.show_status(message)
 
     def on_close(self) -> None:
-        """Handle window close"""
-        if self.prompt_save_if_modified():
-            # Save window geometry before closing
-            self.viewmodel.set_window_geometry(self.geometry())
-            # Persist the chord-sheet height while the pane still exists
-            self._on_content_sash_moved(None)
-            # Stop playback
-            self.session.stop()
-            # Clean up observers to prevent memory leaks
-            self.viewmodel.clear_observers()
-            self._session_subscription.cancel()
-            if self.chord_sheet_viewmodel is not None:
-                self.chord_sheet_viewmodel.clear_observers()
-            # Trigger application shutdown (handles cleanup and config save)
-            self.application.on_shutdown()
-            self.destroy()
+        """The window's close button, File > Exit, Ctrl+Q: ask the session.
+
+        It asks about unsaved changes and answers with CloseApproved, which
+        closes the window (:meth:`_close_window`).
+        """
+        self._send_text()
+        self.session.request_close()
+
+    def _close_window(self) -> None:
+        """Tear the window and the application down (the session approved)."""
+        if self._closing:
+            return  # a second approval queued before the first ran
+        self._closing = True
+        # Save window geometry before closing
+        self.viewmodel.set_window_geometry(self.geometry())
+        # Persist the chord-sheet height while the pane still exists
+        self._on_content_sash_moved(None)
+        # Stop playback
+        self.session.stop()
+        # Clean up observers to prevent memory leaks
+        self.viewmodel.clear_observers()
+        self._session_subscription.cancel()
+        if self.chord_sheet_viewmodel is not None:
+            self.chord_sheet_viewmodel.clear_observers()
+        # Trigger application shutdown (handles cleanup and config save)
+        self.application.on_shutdown()
+        self.destroy()
 
     def create_tooltip(self, widget: tk.Widget, text: str) -> None:
         """Create a tooltip for a widget using ui_helpers.create_tooltip"""

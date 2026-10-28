@@ -143,16 +143,19 @@ class DocumentStore(Protocol):
     def write_text(self, ref: DocumentRef, text: str) -> None: ...
     def write_bytes(self, ref: DocumentRef, data: bytes) -> None: ...
     def is_available(self, ref: DocumentRef) -> bool: ...
-    def recent(self) -> list[DocumentRef]: ...
-    def add_recent(self, ref: DocumentRef) -> None: ...
+    def recent(self) -> list[DocumentRef]: ...                # prunes unavailable ones
+    def add_recent(self, ref: DocumentRef) -> None: ...       # capped (max_recent_files)
 ```
+
+Reading and writing never touch the recent list (since step 11): the
+session's document flows call `add_recent` after a successful open or save,
+and exports never join.
 
 - **`FileSystemDocumentStore(file_service)`** delegates to `FileService`, which
   handles normalization, pruning recent files and error messages. It adds
   `ref_for_path(path)`. The desktop id is `os.path.abspath`, not `resolve()`:
   resolving would rewrite symlinks and mapped network drives in the location
-  the user sees. `write_bytes` goes through `FileService.save_bytes`, which
-  does not add exports to the recent list.
+  the user sees. `write_bytes` goes through `FileService.save_bytes`.
 - **`MainWindowViewModel`** works on `DocumentRef`s instead of `Path`:
   - `_current_document` replaces `_current_file`;
   - `open_file`, `save_file_as` and `export_midi_file` take refs.
@@ -160,9 +163,9 @@ class DocumentStore(Protocol):
   `write_bytes`. A failed write now reports `FileService`'s wording
   ("Permission denied: …", "Failed to write file: …") like a failed save.
 - **Until step 13** the viewmodel keeps a `current_file -> Optional[Path]`
-  shim, `MainWindow` turns picker paths into refs with
-  `application.documents.ref_for_path`, and the Recent Files menu reopens a
-  ref through `load_file(ref.id)`.
+  shim (unused by the window since step 11), and `MainWindow` turns picker
+  paths into refs with `application.documents.ref_for_path` when it answers
+  a `PickDocumentRequest`.
 
 ### States (frozen; only str/int/float/bool/None, tuples, str-Enums)
 
@@ -195,8 +198,8 @@ kinds may overlap and the view decides which wins (Tk: tag priority).
 
 ```python
 TextEdited(text_revision, start, end, replacement, undo, cursor)   # undo: group|plain|reset
-ConfirmDiscardRequest(request_id)
-PickDocumentRequest(request_id, mode, suggested_name)              # open|save|export_midi
+ConfirmDiscardRequest(request_id)                                  # answer DiscardChoice: save|discard|cancel
+PickDocumentRequest(request_id, mode, suggested_name)              # PickMode: open|save|export_midi
 CapoChoiceRequest(request_id, options, default)
 InsertDirectiveRequest(request_id, kind, existing_labels, notation)
 UserError(title, message)
@@ -210,7 +213,7 @@ Every programmatic edit is a splice-shaped `TextEdited`, with an undo policy:
 | Edit | Splice | Undo policy |
 |---|---|---|
 | Transpose, capo | `(0, len, new)` | `group` (one undo step) |
-| Convert notation | | `plain` |
+| Convert notation, New | | `plain` |
 | Open file | | `reset` |
 | Insert | `(at, at, text)`, with the cursor placed after the inserted text | |
 
@@ -266,12 +269,11 @@ class AppSession:
   `text_revision`.
 - Transitional commands, removed by the step named:
   - `set_text_now(text)`: removed in step 8 (see below).
-  - `show_status(text)`: the Tk view still words the outcome of the flows it
-    runs itself (new, open, save, export, and the chord identifier's
-    "Inserted chord: X"). `MainWindow.update_statusbar` sends that text here,
-    so the status line has one owner (`StatusState`) and a repeated playback
-    status is never lost behind a view-written one. Goes with step 11 (the
-    file flows) and step 13 (the identifier's wording).
+  - `show_status(text)`: the Tk view words the chord identifier's
+    "Inserted chord: X" (`MainWindow.update_statusbar` sends it here), so the
+    status line has one owner (`StatusState`) and a repeated playback status
+    is never lost behind a view-written one. Its only caller since step 11;
+    goes with step 13.
 - The Quick Start snippets paint `compute_spans` directly (display only, no
   session).
 
@@ -315,9 +317,10 @@ class AppSession:
   carrying the undo policy of the command running at the time (`group` for
   transpose and capo, `plain` otherwise); the cursor goes to the end of the
   text, where Tk's delete+insert left it before.
-- Open and New still replace the text through the viewmodel from the Tk
-  window, so they arrive as `plain` edits; `MainWindow.load_file` calls
-  `edit_reset()` afterwards as before. Step 11 makes Open emit `reset`.
+- Open and New replaced the text through the viewmodel from the Tk window,
+  as `plain` edits, with `MainWindow.load_file` calling `edit_reset()`
+  afterwards. Since step 11 the session's flows run them: Open is a `reset`
+  edit, New stays `plain`.
 - Programmatic edits are refused (logged, no output) while a song plays or is
   paused: `transpose`, `convert_notation`, `insert_text`, and the answers to
   the insert-directive and capo requests. The requests themselves are still
@@ -439,6 +442,60 @@ class AppSession:
 - `session.testing.FakeChordSheet` stands in for the strip viewmodel in
   session tests; `EventRecorder.compact(skip=...)` leaves out states a
   golden isn't about.
+
+**Interim shape (recorded in step 11, documents).**
+- Commands `new_document()`, `open_document(ref=None)`, `open_recent(ref)`,
+  `save()`, `save_as()`, `export_midi()`, `request_close()`, each a
+  `FlowRunner` flow. The unsaved-changes question is
+  `ConfirmDiscardRequest`, answered `"save"`, `"discard"` or `"cancel"`
+  (`DiscardChoice`; None cancels). Pickers are `PickDocumentRequest(mode,
+  suggested_name)`, answered with a `DocumentRef` or None; any other answer
+  raises `TypeError` (the bridge decodes refs in step 14). The flows contain
+  no path logic: the desktop view answers with `ref_for_path(picked path)`,
+  Android will answer with a ref for a SAF URI.
+- Semantics, as before: with unsaved changes New, Open (also a recent one)
+  and close ask first; "save" on a never-saved document goes through the
+  Save As picker; a failed or cancelled save stops the New/Open/close;
+  cancel anywhere stops. Save As suggests the document's name
+  (`Untitled.txt` without one), Export MIDI `<stem>.mid` (`Untitled.mid`).
+  Open is a `reset` edit, highlighted in the same delivery, and the file's
+  first tempo, key and time-signature directives set the toolbar
+  (`MainWindowViewModel._apply_initial_settings_from_content`, unchanged).
+  Reopening a document whose text equals the editor's still emits a `reset`
+  splice (same text), so the view's undo history starts over as before.
+  `request_close` emits `CloseApproved()`; the view then tears itself down
+  (Tk: `_close_window`, from `after_idle`, since it shuts the session down).
+- Failures are `UserError("Error", "<action>:\n<location>\n\n<reason>")`,
+  the wording of the old dialogs; the reason still comes from
+  `MainWindowViewModel.last_error` (open/save/export keep returning bool).
+  Status texts ("Opened: …", "Saved: …", "Exported MIDI: …", "New file
+  created") are `StatusState`s from the flows.
+- The viewmodel still holds the open document, the text and the modified
+  flag, and does the I/O (`open_file`, `save_file_as`, `export_midi_file`,
+  `new_file`); the session observes `current_document` and `is_modified`
+  and publishes `DocumentState(display_name, location, is_modified, title)`
+  (`"Untitled"` and None for a new document; the title from
+  `formatting.window_title`). The session uses the viewmodel's store
+  (`MainWindowViewModel.documents`) until it gets its own in step 14, so
+  the two can't diverge.
+- Recents have one owner: the flows call `add_recent` after a successful
+  open or save (any save, so the list is republished then too) and publish
+  `RecentDocumentsState(items)`, a tuple of `DocumentRef`s (frozen, strings
+  only). `FileService.open_file/save_file` and the viewmodel no longer add
+  to it (both did, so each open/save wrote the list twice). The store caps
+  the list (`max_recent_files`) and prunes unavailable entries when it is
+  read: at startup and after each open or save, as when the Tk menu was
+  rebuilt.
+- Tk: the File menu and its shortcuts send the editor text with `set_text`,
+  then the command; requests are presented from `after_idle`
+  (`askyesnocancel`, the native pickers in `utils/file_dialogs.py`); the
+  title and the Recent Files menu come from the states. `MainWindow` no
+  longer reads `last_error`, `current_file`, `get_window_title` or
+  `get_recent_files` (the last two are gone from the viewmodel).
+- Behaviour changes: Open with unsaved changes answered "No" asked the
+  question a second time (the picker path ran the check again); it asks
+  once now. The title reads "Untitled - Chord Notepad" from startup (it was
+  "Chord Notepad" until the first edit or open).
 
 **Flows** (`flows.py`) are generators. They yield requests and receive answers
 through `respond()`, so a request/response flow reads as plain sequential code.

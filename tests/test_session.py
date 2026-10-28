@@ -79,11 +79,16 @@ def test_type_text_no_spans_before_the_debounce_spans_after(env):
         ("ToolbarState", "american", 120, 120, True, 100.0, "C", 4, 4, False, "play"),
         ("VoicingMenuState", "piano", ANY),
         ("InstrumentMenuState", 0, ANY),
+        ("DocumentState", "Untitled", None, False, "Untitled - Chord Notepad"),
+        ("RecentDocumentsState", ()),
     ]
     env.recorder.clear()
 
     env.session.set_text("C G\nla la {bpm: 90} // x")
-    assert env.recorder.items == []
+    # Only the title's "modified" mark comes at once.
+    assert env.recorder.compact() == [
+        ("DocumentState", "Untitled", None, True, "Untitled* - Chord Notepad")]
+    env.recorder.clear()
 
     env.host.advance(0.499)
     assert env.recorder.items == []
@@ -99,8 +104,8 @@ def test_type_text_no_spans_before_the_debounce_spans_after(env):
 
 
 def test_each_keystroke_restarts_the_debounce(env):
-    env.recorder.clear()
     env.session.set_text("C")
+    env.recorder.clear()  # the title's "modified" mark
     env.host.advance(0.3)
     env.session.set_text("C G")
     env.host.advance(0.3)  # 0.6 s after the first keystroke, 0.3 s after the last
@@ -245,7 +250,8 @@ def test_listeners_are_only_called_between_commands(env):
     env.session.subscribe(listener)
     seen_during.clear()
     load(env, "C G")
-    assert seen_during == ["C G"]
+    # The title's "modified" mark, then the highlight.
+    assert seen_during == ["C G", "C G"]
 
 
 def test_a_listener_may_run_a_command(env):

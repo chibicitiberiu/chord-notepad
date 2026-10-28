@@ -75,12 +75,15 @@ def test_portal_paths_show_only_the_name():
     assert ref.id == "/run/user/1000/doc/abc123/My Song.txt"
 
 
-def test_text_round_trip_is_normalized_and_recent(tmp_path):
+def test_text_round_trip_is_normalized_and_leaves_the_recent_list_alone(tmp_path):
+    # The session's document flows keep the recent list, not reads and writes.
     store, config = _fs(tmp_path)
     ref = store.ref_for_path(tmp_path / "song.txt")
     store.write_text(ref, "C G\n")
     assert store.is_available(ref)
     assert store.read_text(ref) == "C G\n"   # non-breaking space cleaned up
+    assert store.recent() == []
+    store.add_recent(ref)
     assert store.recent() == [ref]
     assert config.values["recent_files"] == [str((tmp_path / "song.txt").resolve())]
 
@@ -141,6 +144,8 @@ def test_memory_store_contract():
     song = store.ref("song.txt")
     assert store.is_available(song)
     assert store.read_text(song) == "C G\n"
+    assert store.recent() == []
+    store.add_recent(song)
     assert store.recent() == [song]
 
     out = store.ref("out.mid")
@@ -156,6 +161,7 @@ def test_memory_store_contract():
 
     for name in ("a.txt", "b.txt"):
         store.write_text(store.ref(name), "")
+        store.add_recent(store.ref(name))
     assert [r.display_name for r in store.recent()] == ["b.txt", "a.txt"]
 
     del store.contents[store.ref("b.txt").id]
@@ -181,7 +187,7 @@ def _viewmodel(store):
     )
 
 
-def test_open_sets_the_document_text_and_recent():
+def test_open_sets_the_document_text():
     store = InMemoryDocumentStore({"song.txt": "{bpm: 90}\nC G\n"})
     vm = _viewmodel(store)
     seen = []
@@ -193,8 +199,7 @@ def test_open_sets_the_document_text_and_recent():
     assert seen == [ref]
     assert vm.current_text == "{bpm: 90}\nC G\n"
     assert vm.bpm == 90
-    assert vm.get_recent_files() == [ref]
-    assert vm.get_window_title() == "song.txt - Chord Notepad"
+    assert store.recent() == []   # the session's flows add it
 
 
 def test_failed_open_keeps_the_current_document():
@@ -222,7 +227,6 @@ def test_save_writes_to_the_current_document_and_save_as_switches():
     assert vm.save_file_as(copy) is True
     assert vm.current_document == copy
     assert store.contents[copy.id] == "Am\n"
-    assert [r.display_name for r in vm.get_recent_files()] == ["copy.txt", "song.txt"]
 
 
 def test_new_file_clears_the_document():
@@ -232,7 +236,6 @@ def test_new_file_clears_the_document():
     vm.new_file()
     assert vm.current_document is None
     assert vm.current_file is None
-    assert vm.get_window_title() == "Untitled - Chord Notepad"
 
 
 def test_current_file_compatibility_property_is_the_path(tmp_path):
@@ -274,33 +277,5 @@ def test_file_dialogs_reexports_the_moved_path_helpers():
     assert paths.display_path(os.path.join("home", "a.txt")) == os.path.join("home", "a.txt")
 
 
-# --------------------------------------------------------------------------
-# MainWindow: picker paths become refs (unbound methods on a Mock window)
-# --------------------------------------------------------------------------
-
-
-def test_load_file_opens_the_ref_for_the_picked_path():
-    from ui.main_window import MainWindow
-
-    window = Mock()
-    window.prompt_save_if_modified.return_value = True
-    window.viewmodel.open_file.return_value = True
-    MainWindow.load_file(window, "/a/song.txt")
-
-    window.application.documents.ref_for_path.assert_called_once_with("/a/song.txt")
-    window.viewmodel.open_file.assert_called_once_with(
-        window.application.documents.ref_for_path.return_value)
-
-
-def test_recent_menu_lists_display_names_and_reopens_by_id():
-    from ui.main_window import MainWindow
-
-    window = Mock()
-    ref = DocumentRef(id="/a/song.txt", display_name="song.txt", location="/a/song.txt")
-    window.viewmodel.get_recent_files.return_value = [ref]
-    MainWindow.update_recent_files_menu(window)
-
-    kwargs = window.recent_menu.add_command.call_args.kwargs
-    assert kwargs["label"] == "song.txt"
-    kwargs["command"]()
-    window.load_file.assert_called_once_with("/a/song.txt")
+# The window turning picker paths into refs and the Recent Files menu are
+# tested with the flows (tests/test_session_documents.py).

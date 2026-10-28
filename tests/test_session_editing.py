@@ -397,16 +397,18 @@ def test_paused_counts_as_playing():
 
 
 # -- open / new go through the same path ----------------------------------------------------------
+# (the document flows themselves: tests/test_session_documents.py)
 
 
-def test_opening_a_document_is_a_plain_whole_text_edit():
+def test_opening_a_document_is_a_reset_whole_text_edit():
     env = Env("C")
-    store = env.main._documents
+    store = env.main.documents
     store.contents[store.ref("song.txt").id] = "G D\n{bpm: 90}"
-    env.main.open_file(store.ref("song.txt"))
+    env.main.set_and_notify("is_modified", False)
+    env.session.open_document(store.ref("song.txt"))
 
     edit = env.recorder.of_type(TextEdited)[0]
     assert (edit.start, edit.end, edit.replacement, edit.undo) == (
-        0, 1, "G D\n{bpm: 90}", UndoPolicy.PLAIN)
+        0, 1, "G D\n{bpm: 90}", UndoPolicy.RESET)
     assert env.recorder.last(HighlightState).text_revision == edit.text_revision
     assert env.main.is_modified is False

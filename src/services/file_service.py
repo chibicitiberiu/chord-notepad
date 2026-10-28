@@ -18,7 +18,7 @@ class FileService:
         self._logger = logging.getLogger(__name__)
 
     def open_file(self, path: Path) -> str:
-        """Open and read a file.
+        """Open and read a file (the recent list is the caller's business).
 
         Args:
             path: Path to file to open
@@ -37,9 +37,6 @@ class FileService:
             self._logger.info(f"Opening file: {path}")
             with open(path, 'r', encoding='utf-8') as f:
                 content = normalize_song_text(f.read())
-
-            # Add to recent files
-            self.add_recent_file(path)
 
             self._logger.debug(f"File opened successfully: {len(content)} characters")
             return content
@@ -77,9 +74,6 @@ class FileService:
             with open(path, 'w', encoding='utf-8') as f:
                 f.write(content)
 
-            # Add to recent files
-            self.add_recent_file(path)
-
             self._logger.debug(f"File saved successfully: {len(content)} characters")
             return True
 
@@ -93,8 +87,8 @@ class FileService:
     def save_bytes(self, path: Path, data: bytes) -> None:
         """Write binary content (e.g. an exported MIDI file) to a file.
 
-        Unlike :meth:`save_file` this does not add the file to the recent
-        list: exports aren't documents the user reopens here.
+        Like :meth:`open_file` and :meth:`save_file` this leaves the recent
+        list alone; the session's document flows keep it (exports never join).
 
         Args:
             path: Path to write to

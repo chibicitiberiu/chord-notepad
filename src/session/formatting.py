@@ -1,9 +1,8 @@
 """User-facing strings the session builds, so every UI words things the same.
 
-So far: the status-line texts of playback and of the editing commands, the
-audio and playback error messages, and the Voicing and Instrument menu models.
-Titles join with the step that moves the document flows into the session
-(``docs/architecture/session.md``).
+The status-line texts of playback, the editing commands and the document
+flows; the window title; the audio, playback and file error messages and the
+unsaved-changes question; the Voicing and Instrument menu models.
 """
 
 from typing import Iterable, Mapping, Optional, Sequence, Tuple, Union
@@ -82,6 +81,68 @@ def audio_unavailable_message(reason: str, from_click: bool) -> str:
     message = reason or "Audio is not available."
     if from_click:
         message += "\n\nClicked chords won't play until this is fixed."
+    return message
+
+
+# -- documents -------------------------------------------------------------------
+
+APP_TITLE = "Chord Notepad"
+UNTITLED = "Untitled"
+#: The name Save As suggests for a document that was never saved.
+UNTITLED_FILE_NAME = "Untitled.txt"
+NEW_DOCUMENT_STATUS = "New file created"
+
+FILE_ERROR_TITLE = "Error"
+OPEN_FAILED = "Failed to open file"
+SAVE_FAILED = "Failed to save file"
+EXPORT_FAILED = "Failed to export MIDI file"
+
+CONFIRM_DISCARD_TITLE = "Unsaved Changes"
+CONFIRM_DISCARD_MESSAGE = "Do you want to save your changes?"
+
+
+def window_title(display_name: Optional[str], is_modified: bool) -> str:
+    """The window title, e.g. ``song.txt* - Chord Notepad``.
+
+    Args:
+        display_name: The document's name, or None for a new one (``Untitled``).
+        is_modified: Whether it has unsaved changes (marked with ``*``).
+    """
+    marker = "*" if is_modified else ""
+    return f"{display_name or UNTITLED}{marker} - {APP_TITLE}"
+
+
+def midi_export_name(stem: Optional[str]) -> str:
+    """The name Export MIDI suggests, e.g. ``song.mid`` (``Untitled.mid`` without a document)."""
+    return f"{stem or UNTITLED}.mid"
+
+
+def opened_status(location: str) -> str:
+    """The status after a document was opened."""
+    return f"Opened: {location}"
+
+
+def saved_status(location: str) -> str:
+    """The status after the document was saved."""
+    return f"Saved: {location}"
+
+
+def exported_midi_status(location: str) -> str:
+    """The status after a MIDI file was exported."""
+    return f"Exported MIDI: {location}"
+
+
+def file_error_message(action: str, location: str, reason: Optional[str]) -> str:
+    """The message for a failed open, save or export.
+
+    Args:
+        action: What failed, e.g. :data:`OPEN_FAILED`.
+        location: The document, as the user sees it.
+        reason: Why (the store's or the renderer's message), if known.
+    """
+    message = f"{action}:\n{location}"
+    if reason:
+        message += f"\n\n{reason}"
     return message
 
 

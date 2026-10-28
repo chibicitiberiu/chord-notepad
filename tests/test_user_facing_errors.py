@@ -11,7 +11,6 @@ and ``messagebox`` is patched.
 
 import sys
 import tkinter as tk
-from pathlib import Path
 from types import ModuleType
 from unittest.mock import MagicMock, Mock, patch
 
@@ -432,82 +431,14 @@ class TestPresentAudioUnavailable:
 
 class TestMainWindowDialogs:
 
-    def _window(self, last_error=None):
-        from ui.main_window import MainWindow
-
+    def _window(self):
         window = Mock()
-        window.viewmodel.last_error = last_error
-        # Route the helper to the real implementation so the message is built.
-        window._show_file_error.side_effect = (
-            lambda action, name: MainWindow._show_file_error(window, action, name))
         return window
 
-    def test_open_failure_shows_reason(self):
-        from ui.main_window import MainWindow
-
-        window = self._window(last_error="File not found: /a/song.txt")
-        window.prompt_save_if_modified.return_value = True
-        window.viewmodel.open_file.return_value = False
-
-        with patch("ui.main_window.messagebox.showerror") as showerror:
-            MainWindow.load_file(window, "/a/song.txt")
-
-        title, message = showerror.call_args.args
-        assert "song.txt" in message
-        assert "File not found" in message
-        assert showerror.call_args.kwargs["parent"] is window
-
-    def test_export_failure_shows_reason(self):
-        from ui.main_window import MainWindow
-
-        window = self._window(last_error="There are no chords to export.")
-        window.viewmodel.current_file = None
-        window.viewmodel.export_midi_file.return_value = False
-
-        with patch("ui.main_window.ask_save_as_filename", return_value="/tmp/song.mid"), \
-                patch("ui.main_window.messagebox.showerror") as showerror:
-            MainWindow.export_midi(window)
-
-        message = showerror.call_args.args[1]
-        assert "Failed to export MIDI file" in message
-        assert "song.mid" in message
-        assert "There are no chords to export." in message
-
-    def test_save_failure_reports_instead_of_save_as(self):
-        from ui.main_window import MainWindow
-
-        window = self._window(last_error="Permission denied: /ro/song.txt")
-        window.viewmodel.save_file.return_value = False
-        window.viewmodel.current_file = Path("/ro/song.txt")
-
-        with patch("ui.main_window.messagebox.showerror") as showerror:
-            assert MainWindow.save_file(window) is False
-
-        window.save_file_as.assert_not_called()
-        assert "Permission denied" in showerror.call_args.args[1]
-
-    def test_save_without_name_asks_for_one(self):
-        from ui.main_window import MainWindow
-
-        window = self._window()
-        window.viewmodel.save_file.return_value = False
-        window.viewmodel.current_file = None
-        window.save_file_as.return_value = True
-
-        with patch("ui.main_window.messagebox.showerror") as showerror:
-            assert MainWindow.save_file(window) is True
-        window.save_file_as.assert_called_once()
-        showerror.assert_not_called()
-
-    def test_failed_save_on_prompt_stops_the_action(self):
-        from ui.main_window import MainWindow
-
-        window = self._window()
-        window.viewmodel.is_modified = True
-        window.save_file.return_value = False
-
-        with patch("ui.main_window.messagebox.askyesnocancel", return_value=True):
-            assert MainWindow.prompt_save_if_modified(window) is False
+    # The file flows' errors (open, save, export, a failed save stopping
+    # New/Open/close) are UserErrors from the session now:
+    # tests/test_session_documents.py. The window shows them like any other
+    # (test_user_error_event_is_shown).
 
     # Playback failures are reported by the session (tests/test_session_playback.py);
     # the window only presents its events.

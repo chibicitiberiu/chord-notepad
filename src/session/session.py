@@ -5,8 +5,10 @@ it primitive-typed commands and get back one stream of frozen DTOs (see
 ``docs/architecture/session.md``). It is being built up step by step: so far
 it owns the text mirror, debounced chord detection, the highlight spans, the
 chord-sheet feed, playback (transport, playing chord, status line, editor
-lock, audio-failure reporting) and the programmatic edits (transpose, capo,
-convert notation, inserts), which it sends to the views as ``TextEdited``.
+lock, audio-failure reporting), the programmatic edits (transpose, capo,
+convert notation, inserts), which it sends to the views as ``TextEdited``,
+the toolbar, the menus, settings, and the document flows (new, open, save,
+save as, export MIDI, close; the recent list and the window title).
 
 Every public command and every callback the session schedules runs inside
 :meth:`Emitter.batch`, so output is delivered at the outermost exit and never
@@ -17,7 +19,9 @@ import contextlib
 import dataclasses
 import functools
 import logging
-from typing import TYPE_CHECKING, Any, Callable, Iterator, Optional, Sequence, Tuple, TypeVar
+from typing import (
+    TYPE_CHECKING, Any, Callable, Generator, Iterator, Optional, Sequence, Tuple, TypeVar,
+)
 
 from constants import CHORD_DETECTION_DEBOUNCE_MS, MAX_FONT_SIZE, MIN_FONT_SIZE
 from exceptions import AudioInitializationError
@@ -26,17 +30,18 @@ from models.playback_event import PlaybackEventArgs, PlaybackEventType
 from session import directives, formatting, toolbar
 from session.audio_policy import AudioFailurePolicy
 from session.emitter import Emitter, Listener
+from session.documents import DocumentRef
 from session.events import (
-    AudioUnavailable, CapoChoiceRequest, InsertDirectiveRequest, TextEdited, UndoPolicy,
-    UserError,
+    AudioUnavailable, CapoChoiceRequest, CloseApproved, ConfirmDiscardRequest, DiscardChoice,
+    InsertDirectiveRequest, PickDocumentRequest, PickMode, TextEdited, UndoPolicy, UserError,
 )
 from session.flows import Flow, FlowRunner
 from session.highlighting import chord_at, compute_spans
 from session.host import Cancellable, Host
 from session.state import (
-    ChordSheetState, ChordSheetView, EditorState, HighlightState, InstrumentMenuState,
-    MenuItem, PlayAction, PlaybackState, PlaybackStatus, Span, SpanKind, StatusState,
-    ToolbarState, VoicingMenuState,
+    ChordSheetState, ChordSheetView, DocumentState, EditorState, HighlightState,
+    InstrumentMenuState, MenuItem, PlayAction, PlaybackState, PlaybackStatus,
+    RecentDocumentsState, Span, SpanKind, StatusState, ToolbarState, VoicingMenuState,
 )
 
 if TYPE_CHECKING:
@@ -52,6 +57,10 @@ logger = logging.getLogger(__name__)
 F = TypeVar("F", bound=Callable[..., Any])
 
 Selection = Optional[Sequence[int]]
+
+# A step of a document flow that reports whether it went through (the
+# unsaved-changes question, a save): ``ok = yield from self._save_flow()``.
+SubFlow = Generator[Any, Any, bool]
 
 # The viewmodel properties the toolbar shows (besides the notation).
 _TOOLBAR_INPUTS = ("bpm", "bpm_multiplier", "metronome_enabled", "key",
@@ -93,9 +102,10 @@ class AppSession:
 
         Args:
             host: Runs the session's callbacks and timers on the session thread.
-            main_window_viewmodel: Keeps the document text, its modified flag
-                and the notation preference (until those move here), and
-                runs playback.
+            main_window_viewmodel: Keeps the document text, its modified flag,
+                the open document and the notation preference (until those
+                move here), does the document I/O through its store (which
+                the session's recent list uses too), and runs playback.
             text_editor_viewmodel: The chord-detection component; only the
                 session drives it.
             chord_sheet_viewmodel: The chord-sheet strip, fed the parsed song
@@ -128,8 +138,17 @@ class AppSession:
         self._on_replaced = self._entry(self._on_text_replaced)
         self._main.observe("current_text", self._on_replaced)
 
-        # Dialog-driven commands (insert directive, suggest capo).
+        # Dialog-driven commands (insert directive, suggest capo, the
+        # document flows).
         self._flows = FlowRunner(self._emitter.emit)
+
+        # Documents: the viewmodel reads and writes them through its store;
+        # the session keeps the recent list there (the flows are its only
+        # writer) and publishes the title.
+        self._documents = self._main.documents
+        self._on_document = self._entry(self._publish_document)
+        self._main.observe("current_document", self._on_document)
+        self._main.observe("is_modified", self._on_document)
 
         # Detection follows the notation preference.
         self._detector.set_notation(self._main.notation.value)
@@ -193,6 +212,8 @@ class AppSession:
             self._publish_voicing_menu()
             self._publish_instrument_menu()
             self._publish_chord_sheet()
+            self._publish_document()
+            self._publish_recent()
 
     # -- lifecycle ------------------------------------------------------------
 
@@ -228,6 +249,8 @@ class AppSession:
         self._cancel_detection()
         self._flows.cancel()
         self._main.unobserve("current_text", self._on_replaced)
+        self._main.unobserve("current_document", self._on_document)
+        self._main.unobserve("is_modified", self._on_document)
         self._main.unobserve("notation", self._on_notation)
         for name in _TOOLBAR_INPUTS:
             self._main.unobserve(name, self._on_toolbar_input)
@@ -385,6 +408,76 @@ class AppSession:
                 Answers to a request that is no longer pending are ignored.
         """
         self._flows.respond(request_id, value)
+
+    # -- documents ----------------------------------------------------------------
+    #
+    # Each command is a flow (see session.flows): the unsaved-changes question
+    # is a ConfirmDiscardRequest, file pickers are PickDocumentRequests the
+    # view answers with a DocumentRef. Send the editor's text with set_text
+    # first, so the modified flag and what gets saved are current. Starting
+    # one while another flow waits for an answer closes that one.
+
+    @_command
+    def new_document(self) -> None:
+        """Start a new, empty document.
+
+        Asks about unsaved changes first. The text is cleared with a plain
+        edit (Undo brings the old text back, as it always has).
+        """
+        self._flows.start(self._new_flow())
+
+    @_command
+    def open_document(self, ref: Optional[DocumentRef] = None) -> None:
+        """Open a document: ``ref``, or one the user picks.
+
+        Asks about unsaved changes first, then (without ``ref``) emits a
+        :class:`PickDocumentRequest` in ``open`` mode. The opened text
+        replaces the editor's with a ``reset`` edit (the undo history starts
+        over) and its first tempo, key and time-signature directives set the
+        toolbar. A failure is a :class:`UserError`.
+
+        Raises:
+            TypeError: If ``ref`` isn't a DocumentRef.
+        """
+        self._flows.start(self._open_flow(self._as_ref(ref)))
+
+    @_command
+    def open_recent(self, ref: DocumentRef) -> None:
+        """Open an entry of :class:`RecentDocumentsState` (like :meth:`open_document`).
+
+        Raises:
+            TypeError: If ``ref`` isn't a DocumentRef.
+        """
+        ref = self._as_ref(ref)
+        if ref is None:
+            raise TypeError("open_recent needs a DocumentRef")
+        self._flows.start(self._open_flow(ref))
+
+    @_command
+    def save(self) -> None:
+        """Save the document; one that was never saved asks for a name first."""
+        self._flows.start(self._as_flow(self._save_flow()))
+
+    @_command
+    def save_as(self) -> None:
+        """Save the document under a name the user picks (it becomes the open document)."""
+        self._flows.start(self._as_flow(self._save_as_flow()))
+
+    @_command
+    def export_midi(self) -> None:
+        """Render the song and write it as a MIDI file the user picks.
+
+        Suggests ``<document name>.mid``. Exports don't join the recent list
+        and don't change the open document. A failure (no chords, a render or
+        write error) is a :class:`UserError`.
+        """
+        self._flows.start(self._export_flow())
+
+    @_command
+    def request_close(self) -> None:
+        """The user wants to quit: asks about unsaved changes, then emits
+        :class:`CloseApproved` unless they cancelled (or a save failed)."""
+        self._flows.start(self._close_flow())
 
     # -- playback ---------------------------------------------------------------
 
@@ -629,10 +722,8 @@ class AppSession:
     def show_status(self, text: str) -> None:
         """Show ``text`` in the status line.
 
-        Transitional: the Tk view still words the outcome of the flows it
-        runs itself (new, open, save, export, and the chord identifier's
-        insert). Goes away as those flows move into the session (steps 11
-        and 13).
+        Transitional: the Tk view still words the chord identifier's
+        "Inserted chord: X". Goes away with step 13.
         """
         self._set_status(text)
 
@@ -747,8 +838,13 @@ class AppSession:
 
     def _splice(self, start: int, end: int, replacement: str,
                 undo: UndoPolicy = UndoPolicy.PLAIN) -> None:
-        """Make an edit: update the copies, tell the views, re-detect at once."""
-        if start != end or replacement:
+        """Make an edit: update the copies, tell the views, re-detect at once.
+
+        A ``reset`` edit is delivered even if it changes nothing (a document
+        with the same text was opened): the views still start a new undo
+        history.
+        """
+        if start != end or replacement or undo is UndoPolicy.RESET:
             old = self._text
             self._replace_mirror(old[:start] + replacement + old[end:], 0)
             self._emitter.emit(TextEdited(self._revision, start, end, replacement, undo,
@@ -811,6 +907,133 @@ class AppSession:
         with self._undo_policy(UndoPolicy.GROUP):
             self._main.insert_capo(capo, region)
         self._set_status(formatting.capo_suggested_status(capo, region is not None, label))
+
+    # -- document internals -----------------------------------------------------
+
+    @staticmethod
+    def _as_ref(value: object) -> Optional[DocumentRef]:
+        """A document a view handed over (a command argument or an answer)."""
+        if value is None or isinstance(value, DocumentRef):
+            return value
+        raise TypeError(f"expected a DocumentRef or None, not {value!r}")
+
+    @staticmethod
+    def _as_flow(step: SubFlow) -> Flow:
+        """Run a step that reports success as a flow of its own."""
+        yield from step
+
+    def _confirm_discard(self) -> SubFlow:
+        """With unsaved changes, ask whether to save them; True to go on."""
+        if not self._main.is_modified:
+            return True
+        answer = yield ConfirmDiscardRequest(0)
+        if answer == DiscardChoice.SAVE:
+            # A failed or cancelled save stops what was being done, so the
+            # changes aren't lost.
+            return (yield from self._save_flow())
+        if answer == DiscardChoice.DISCARD:
+            return True
+        if answer not in (None, DiscardChoice.CANCEL):
+            logger.warning("Unknown answer %r to the unsaved-changes question; cancelling",
+                           answer)
+        return False
+
+    def _save_flow(self) -> SubFlow:
+        """Save to the open document, or ask for a name if there is none."""
+        ref = self._main.current_document
+        if ref is None:
+            return (yield from self._save_as_flow())
+        return self._write_document(ref)
+
+    def _save_as_flow(self) -> SubFlow:
+        """Ask where to save, then save there."""
+        current = self._main.current_document
+        # A name with its extension: the Flatpak's portal dialog only grants
+        # access to the exact name chosen, so ".txt" can't be added later.
+        suggested = current.display_name if current is not None else formatting.UNTITLED_FILE_NAME
+        ref = self._as_ref((yield PickDocumentRequest(0, PickMode.SAVE, suggested)))
+        if ref is None:
+            return False
+        return self._write_document(ref)
+
+    def _write_document(self, ref: DocumentRef) -> bool:
+        """Write the text to ``ref``; it becomes the open, unmodified document."""
+        if not self._main.save_file_as(ref):
+            self._file_error(formatting.SAVE_FAILED, ref)
+            return False
+        self._remember(ref)
+        self._set_status(formatting.saved_status(ref.location))
+        return True
+
+    def _new_flow(self) -> Flow:
+        if not (yield from self._confirm_discard()):
+            return
+        with self._undo_policy(UndoPolicy.PLAIN):
+            self._main.new_file()
+        self._set_status(formatting.NEW_DOCUMENT_STATUS)
+
+    def _open_flow(self, ref: Optional[DocumentRef]) -> Flow:
+        if not (yield from self._confirm_discard()):
+            return
+        if ref is None:
+            ref = self._as_ref((yield PickDocumentRequest(0, PickMode.OPEN, "")))
+            if ref is None:
+                return
+        # The text arrives through the viewmodel (_on_text_replaced) as one
+        # reset edit, highlighted at once; the directives then set the toolbar.
+        revision = self._revision
+        with self._undo_policy(UndoPolicy.RESET):
+            opened = self._main.open_file(ref)
+        if not opened:
+            self._file_error(formatting.OPEN_FAILED, ref)
+            return
+        if self._revision == revision:
+            # Same text as before: still a new undo history in the views.
+            self._splice(0, len(self._text), self._text, UndoPolicy.RESET)
+        self._remember(ref)
+        self._set_status(formatting.opened_status(ref.location))
+
+    def _export_flow(self) -> Flow:
+        current = self._main.current_document
+        suggested = formatting.midi_export_name(current.stem if current is not None else None)
+        ref = self._as_ref((yield PickDocumentRequest(0, PickMode.EXPORT_MIDI, suggested)))
+        if ref is None:
+            return
+        # Not remembered as recent: exports aren't documents to reopen here.
+        if self._main.export_midi_file(ref):
+            self._set_status(formatting.exported_midi_status(ref.location))
+        else:
+            self._file_error(formatting.EXPORT_FAILED, ref)
+
+    def _close_flow(self) -> Flow:
+        if not (yield from self._confirm_discard()):
+            return
+        self._emitter.emit(CloseApproved())
+
+    def _remember(self, ref: DocumentRef) -> None:
+        """Put ``ref`` at the front of the recent list (the one place that does)."""
+        self._documents.add_recent(ref)
+        self._publish_recent()
+
+    def _file_error(self, action: str, ref: DocumentRef) -> None:
+        self._emitter.emit(UserError(
+            formatting.FILE_ERROR_TITLE,
+            formatting.file_error_message(action, ref.location, self._main.last_error)))
+
+    def _publish_document(self, _changed: Any = None) -> None:
+        ref = self._main.current_document
+        modified = self._main.is_modified
+        name = ref.display_name if ref is not None else None
+        self._emitter.set_state(DocumentState(
+            display_name=name or formatting.UNTITLED,
+            location=ref.location if ref is not None else None,
+            is_modified=modified,
+            title=formatting.window_title(name, modified),
+        ))
+
+    def _publish_recent(self) -> None:
+        """Publish the recent list (reading it prunes documents that are gone)."""
+        self._emitter.set_state(RecentDocumentsState(tuple(self._documents.recent())))
 
     def _feed_chord_sheet(self, _changed: Any = None) -> None:
         """Send the parsed song and key to the chord sheet (it debounces)."""

@@ -40,7 +40,11 @@ class DocumentRef:
 
 
 class DocumentStore(Protocol):
-    """Reads and writes documents and keeps the recent-documents list."""
+    """Reads and writes documents and keeps the recent-documents list.
+
+    Reading and writing never touch the recent list: the session's document
+    flows decide what joins it (opened and saved songs, not exports).
+    """
 
     def read_text(self, ref: DocumentRef) -> str:
         """Read a song, normalized for the editor.
@@ -51,7 +55,7 @@ class DocumentStore(Protocol):
         ...
 
     def write_text(self, ref: DocumentRef, text: str) -> None:
-        """Write a song (and remember it as recent).
+        """Write a song.
 
         Raises:
             FileOperationError: With a user-facing reason.
@@ -59,7 +63,7 @@ class DocumentStore(Protocol):
         ...
 
     def write_bytes(self, ref: DocumentRef, data: bytes) -> None:
-        """Write an export (not remembered as recent).
+        """Write an export.
 
         Raises:
             FileOperationError: With a user-facing reason.
@@ -71,11 +75,14 @@ class DocumentStore(Protocol):
         ...
 
     def recent(self) -> List[DocumentRef]:
-        """Recently used documents that are still available, newest first."""
+        """Recently used documents that are still available, newest first.
+
+        Documents that are no longer available are dropped from the list.
+        """
         ...
 
     def add_recent(self, ref: DocumentRef) -> None:
-        """Move ``ref`` to the front of the recent list."""
+        """Move ``ref`` to the front of the recent list (capped in length)."""
         ...
 
 

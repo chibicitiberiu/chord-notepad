@@ -15,6 +15,8 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Optional, Tuple
 
+from session.documents import DocumentRef
+
 
 class SpanKind(str, Enum):
     """What a highlighted range of the text is."""
@@ -260,3 +262,34 @@ class ChordSheetState:
     zoom_supported: bool
     current_index: Optional[int]
     song_revision: int
+
+
+@dataclass(frozen=True)
+class DocumentState:
+    """The open document, for the window title and the Save As suggestion.
+
+    Attributes:
+        display_name: Its name (``song.txt``), or ``Untitled`` for a new
+            document that was never saved.
+        location: Where it is, as the user should see it; None for a new
+            document.
+        is_modified: Whether it has unsaved changes.
+        title: The window title, e.g. ``song.txt* - Chord Notepad``.
+    """
+
+    display_name: str
+    location: Optional[str]
+    is_modified: bool
+    title: str
+
+
+@dataclass(frozen=True)
+class RecentDocumentsState:
+    """The recently opened or saved documents (File > Recent Files).
+
+    Attributes:
+        items: Newest first, only those still available, at most the
+            configured number. Send one back with ``open_recent``.
+    """
+
+    items: Tuple[DocumentRef, ...]

@@ -371,7 +371,7 @@ def test_initial_states():
         _toolbar("play"),
     ]
     assert [type(item).__name__ for item in recorder.items[5:]] == [
-        "VoicingMenuState", "InstrumentMenuState"]
+        "VoicingMenuState", "InstrumentMenuState", "DocumentState", "RecentDocumentsState"]
 
 
 def test_show_status_goes_through_the_status_state():
