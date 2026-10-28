@@ -244,6 +244,7 @@ class Application:
             self._host,
             main_window_viewmodel=self._main_window_viewmodel,
             text_editor_viewmodel=self._text_editor_viewmodel,
+            chord_sheet_viewmodel=self._chord_sheet_viewmodel,
         )
 
         logger.info("ViewModels created successfully")

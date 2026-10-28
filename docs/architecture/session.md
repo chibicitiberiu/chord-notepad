@@ -243,10 +243,15 @@ class AppSession:
 
 **Interim shape (recorded in step 5).** Until the remaining steps land:
 - The constructor takes the viewmodels it composes
-  (`AppSession(host, *, main_window_viewmodel, text_editor_viewmodel)`), built
-  by `Application`; `CoreServices` replaces them in step 14. `Application.on_run`
-  calls `start()` once the window has attached the host; `on_shutdown` calls
-  `shutdown()`.
+  (`AppSession(host, *, main_window_viewmodel, text_editor_viewmodel,
+  chord_sheet_viewmodel=None)`), built by `Application`; `CoreServices`
+  replaces them in step 14. `Application.on_run` calls `start()` once the
+  window has attached the host; `on_shutdown` calls `shutdown()`.
+- The chord-sheet feed (step 6) starts at `start()`, which seeds the strip
+  once: feeding arms the strip's debounce timer, and on desktop the host has
+  no window to run timers on before that. After it, a change of the detected
+  lines, the key or the voicing re-feeds `set_song` (the voicing notifies even
+  for the same value, because the note picker was rebuilt).
 - `MainWindowViewModel` still holds the document text and the modified flag
   (playback, save and export read it there). The session keeps its own copy for
   detection and forwards every change to `on_text_changed`.

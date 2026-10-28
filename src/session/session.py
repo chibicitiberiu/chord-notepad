@@ -3,7 +3,8 @@
 The session composes the existing viewmodels and is their observer; views send
 it primitive-typed commands and get back one stream of frozen DTOs (see
 ``docs/architecture/session.md``). It is being built up step by step: so far
-it owns the text mirror, debounced chord detection and the highlight spans.
+it owns the text mirror, debounced chord detection, the highlight spans and
+the chord-sheet feed.
 
 Every public command and every callback the session schedules runs inside
 :meth:`Emitter.batch`, so output is delivered at the outermost exit and never
@@ -23,6 +24,9 @@ from session.host import Cancellable, Host
 from session.state import HighlightState, Span, SpanKind
 
 if TYPE_CHECKING:
+    # Type-only: the chord-sheet viewmodel still imports PIL (see the core
+    # import guard), so the session must not import it at run time.
+    from viewmodels.chord_sheet_viewmodel import ChordSheetViewModel
     from viewmodels.main_window_viewmodel import MainWindowViewModel
     from viewmodels.text_editor_viewmodel import TextEditorViewModel
 
@@ -49,6 +53,7 @@ class AppSession:
     def __init__(self, host: Host, *,
                  main_window_viewmodel: "MainWindowViewModel",
                  text_editor_viewmodel: "TextEditorViewModel",
+                 chord_sheet_viewmodel: Optional["ChordSheetViewModel"] = None,
                  detection_delay_s: float = CHORD_DETECTION_DEBOUNCE_MS / 1000) -> None:
         """Create the session. Nothing is delivered or scheduled until used.
 
@@ -58,6 +63,8 @@ class AppSession:
                 and the notation preference (until those move here).
             text_editor_viewmodel: The chord-detection component; only the
                 session drives it.
+            chord_sheet_viewmodel: The chord-sheet strip, fed the parsed song
+                once the session is started; None without a strip.
             detection_delay_s: How long typing must pause before the text is
                 re-detected.
         """
@@ -65,6 +72,8 @@ class AppSession:
         self._emitter = Emitter()
         self._main = main_window_viewmodel
         self._detector = text_editor_viewmodel
+        self._chord_sheet = chord_sheet_viewmodel
+        self._started = False
         self._detection_delay_s = detection_delay_s
 
         # The session's copy of the editor text, and its revision.
@@ -78,6 +87,14 @@ class AppSession:
         self._detector.set_notation(self._main.notation.value)
         self._on_notation = self._entry(self._on_notation_changed)
         self._main.observe("notation", self._on_notation)
+
+        # The chord sheet re-renders when the parsed song, the key (roman
+        # numerals) or the voicing (fingerings, view gating) changes.
+        self._on_song_input = self._entry(self._feed_chord_sheet)
+        if self._chord_sheet is not None:
+            self._detector.observe("detected_lines", self._on_song_input)
+            self._main.observe("key", self._on_song_input)
+            self._main.observe("voicing", self._on_song_input)
 
         with self._emitter.batch():
             self._emitter.set_state(HighlightState(0, 0, ()))
@@ -99,17 +116,25 @@ class AppSession:
 
     @_command
     def start(self) -> None:
-        """Detect the current text and publish the result.
+        """Detect the current text, publish the result and seed the chord sheet.
 
         Call once the host can run timers (on desktop: after
-        ``TkHost.attach``).
+        ``TkHost.attach``); the chord sheet is fed only from here on, because
+        feeding it arms its debounce timer.
         """
         self._detect_now()
+        # Started after detecting, so the strip is seeded exactly once.
+        self._started = True
+        self._feed_chord_sheet()
 
     def shutdown(self) -> None:
         """Cancel pending work and stop observing; drops every listener."""
+        self._started = False
         self._cancel_detection()
         self._main.unobserve("notation", self._on_notation)
+        self._detector.unobserve("detected_lines", self._on_song_input)
+        self._main.unobserve("key", self._on_song_input)
+        self._main.unobserve("voicing", self._on_song_input)
         self._emitter.close()
 
     # -- editing ----------------------------------------------------------------
@@ -242,6 +267,12 @@ class AppSession:
     def _publish_highlight(self) -> None:
         self._spans = compute_spans(self._detector.detected_lines, self._text)
         self._emitter.set_state(HighlightState(self._revision, self._client_token, self._spans))
+
+    def _feed_chord_sheet(self, _changed: Any = None) -> None:
+        """Send the parsed song and key to the chord sheet (it debounces)."""
+        if self._chord_sheet is None or not self._started:
+            return
+        self._chord_sheet.set_song(self._detector.detected_lines, self._main.key)
 
     def _on_notation_changed(self, notation: Notation) -> None:
         self._detector.set_notation(notation.value)

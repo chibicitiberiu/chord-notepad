@@ -885,8 +885,8 @@ class MainWindow(tk.Tk):
 
         The panel is added to the content paned window only when the viewmodel
         reports it visible (hidden = removed from the pane, not just blanked).
-        The strip is fed the parsed song (via the text editor's detected lines)
-        and the playback ping, and its height is persisted on sash drags.
+        The session feeds it the parsed song; the window still forwards the
+        playback ping, and persists its height on sash drags.
         """
         vm = self.chord_sheet_viewmodel
         if vm is None:
@@ -896,46 +896,14 @@ class MainWindow(tk.Tk):
 
         self.chord_sheet_panel = ChordSheetPanel(self.content_paned, vm)
 
-        # Feed the strip: parsed song (detected lines + current key) and playhead.
-        self.text_editor_viewmodel.observe(
-            'detected_lines', self._on_detected_lines_for_chord_sheet
-        )
-        self.viewmodel.observe('key', self._on_key_for_chord_sheet)
-        self.viewmodel.observe('voicing', self._on_voicing_for_chord_sheet)
         vm.observe('visible', self._on_chord_sheet_visible_changed)
 
         # Persist the strip height whenever the sash is released.
         self.content_paned.bind('<ButtonRelease-1>', self._on_content_sash_moved)
 
-        # Apply initial visibility and seed the strip with the current song.
+        # Apply initial visibility (the session seeds the song when started).
         if vm.visible:
             self._show_chord_sheet_pane()
-        self._push_song_to_chord_sheet()
-
-    def _push_song_to_chord_sheet(self) -> None:
-        """Send the current parsed song to the chord-sheet viewmodel."""
-        vm = self.chord_sheet_viewmodel
-        if vm is None:
-            return
-        lines = self.text_editor_viewmodel.detected_lines
-        vm.set_song(lines, self.viewmodel.key)
-
-    def _on_detected_lines_for_chord_sheet(self, _lines: Any) -> None:
-        """Re-render the strip when the parsed song changes."""
-        self._push_song_to_chord_sheet()
-
-    def _on_key_for_chord_sheet(self, _key: Any) -> None:
-        """Re-render the strip when the key changes (affects roman numerals)."""
-        self._push_song_to_chord_sheet()
-
-    def _on_voicing_for_chord_sheet(self, _voicing: Any) -> None:
-        """Re-render the strip when the voicing changes.
-
-        The note picker was rebuilt, so voicings (and fingering availability,
-        which gates the Chord box and Tab views) may all differ even though
-        the song text is unchanged.
-        """
-        self._push_song_to_chord_sheet()
 
     def _on_chord_sheet_visible_changed(self, visible: bool) -> None:
         """Add or remove the strip pane in response to the visibility toggle."""
