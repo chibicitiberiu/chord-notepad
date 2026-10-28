@@ -192,6 +192,12 @@ Keep the existing behaviour where Settings' `general_changed` is ignored; it get
 
 Check manually on Flatpak, Snap, Windows and macOS, because this changes which audio driver users end up with.
 
+**Added after the M2 spike (2026-10-29; details in `docs/ANDROID.md`).** These are core changes. They replace the runtime shims in `android_shim.py`.
+- **Timing:** schedule notes on FluidSynth's `Sequencer` (sample clock) instead of the Python sleep loop. Measured on the emulator, the loop drifts +80–95 ms/min when idle, and under GIL load from one busy thread it reaches p99 49–76 ms with +5.5 s/min drift. Pause, seek and live speed changes reschedule. Desktop benefits too.
+- **FluidSynth loading:** `fluidsynth_import` accepts a bare soname. The player has an Android driver list `['oboe', 'opensles']` and logs the driver that actually started.
+- **Host-provided settings:** sample rate, Oboe performance mode, and the app data directories. Today `AppDataService` gets them through `XDG_*`.
+- **Faster first note:** Play renders the whole song before the first note (1.4 s on the emulator), so stream the first bars or reuse the chord sheet's `RenderedSong`.
+
 ### M2: toolchain spike (can run in parallel with M1 from week 1; go/no-go)
 
 1. Install the SDK, emulator, AVDs (phone and tablet, x86_64, KVM) and JDK 21 under `/mnt/data_linux/Bin/android`. Check that `du ~` is unchanged.
