@@ -21,11 +21,14 @@ Rendering (a whole-song beam-Viterbi voicing search) is expensive, so it is
 - The job threads a ``should_abort`` predicate -- "my generation is no longer
   current" -- into the render, so a superseded job stops promptly (raising
   :class:`~exceptions.RenderAborted`) instead of running to completion.
-- The result is marshaled back to the UI thread (``Application.queue_ui_callback``)
-  and APPLIED ONLY IF its generation is still current; stale results are dropped.
+- The result is marshaled back to the session thread (``host.post``) and
+  APPLIED ONLY IF its generation is still current; stale results are dropped.
 
-The debounce scheduler, the executor, the UI-thread marshal and the render seam
-are all injectable so tests run synchronously.
+Given a :class:`~session.host.Host`, the debounce runs through
+``host.call_later`` (:class:`HostScheduler`), so the timer fires on the session
+thread, and results are marshaled with ``host.post``. The debounce scheduler,
+the executor, the marshal and the render seam are all injectable so tests run
+synchronously.
 """
 
 import logging
@@ -42,6 +45,7 @@ from constants import (
 from models.chord import ChordInfo
 from models.line import Line
 from models.rendered_song import RenderedSong
+from session.host import Host
 from ui.chord_sheet.fret_card import FretCardRenderer
 from ui.chord_sheet.piano_roll import PianoRollRenderer
 from ui.chord_sheet.renderer_interface import StripRenderer
@@ -98,6 +102,27 @@ class _TimerScheduler:
             handle.cancel()
 
 
+class HostScheduler:
+    """Debounce scheduler backed by ``host.call_later``.
+
+    The fired callback runs on the session thread. That only dispatches the
+    job; the render itself still runs on the executor's thread.
+    """
+
+    def __init__(self, host: Host) -> None:
+        """Schedule through ``host``."""
+        self._host = host
+
+    def schedule(self, delay_seconds: float, fn: Callable[[], None]) -> object:
+        """Schedule ``fn`` to run after ``delay_seconds`` on the session thread."""
+        return self._host.call_later(delay_seconds, fn)
+
+    def cancel(self, handle: object) -> None:
+        """Cancel a previously scheduled handle (no-op if ``None``)."""
+        if handle is not None:
+            handle.cancel()
+
+
 class ChordSheetViewModel(Observable):
     """Presentation logic for the chord-sheet strip (headless, Observable).
 
@@ -119,6 +144,7 @@ class ChordSheetViewModel(Observable):
         audio_service,
         application=None,
         *,
+        host: Optional[Host] = None,
         renderers: Optional[List[StripRenderer]] = None,
         render_fn: Optional[Callable[..., Optional[RenderedSong]]] = None,
         audition_fn: Optional[Callable[[List[int]], None]] = None,
@@ -133,7 +159,11 @@ class ChordSheetViewModel(Observable):
             config_service: ConfigService for persisting/loading strip settings.
             audio_service: PlaybackService; used for the default render and
                 audition seams.
-            application: Application, for the default UI-thread marshal.
+            application: Application, for the default UI-thread marshal when
+                no ``host`` is given.
+            host: Session host. When given, it is the default debounce
+                scheduler (:class:`HostScheduler`) and the default marshal
+                (``host.post``).
             renderers: Strip renderers to offer; defaults to the standard set
                 (:func:`_default_renderers`: keyboard, staff, chord box, tab).
             render_fn: Injectable ``(lines, key, should_abort=None) ->
@@ -143,13 +173,13 @@ class ChordSheetViewModel(Observable):
             audition_fn: Injectable ``(midi_notes) -> None`` seam; defaults to
                 ``audio_service.play_notes_immediate``.
             scheduler: Injectable debounce scheduler with ``schedule(delay, fn)``
-                / ``cancel(handle)``; defaults to a ``threading.Timer`` seam.
+                / ``cancel(handle)``; defaults to :class:`HostScheduler` with a
+                host, else a ``threading.Timer`` seam.
             executor: Injectable ``(fn) -> None`` seam that runs a render job.
                 Defaults to spawning a daemon thread; tests inject an inline
                 ``lambda fn: fn()`` to run jobs synchronously.
-            marshal: Injectable UI-thread marshal; defaults to
-                ``application.queue_ui_callback`` (or a direct call if no
-                application is supplied).
+            marshal: Injectable UI-thread marshal; defaults to ``host.post``,
+                else ``application.queue_ui_callback``, else a direct call.
             debounce_ms: Debounce window in milliseconds.
         """
         super().__init__()
@@ -163,9 +193,13 @@ class ChordSheetViewModel(Observable):
         )
         self._render_fn = render_fn or self._default_render
         self._audition_fn = audition_fn or audio_service.play_notes_immediate
-        self._scheduler = scheduler or _TimerScheduler()
+        if scheduler is None:
+            scheduler = HostScheduler(host) if host is not None else _TimerScheduler()
+        if marshal is None:
+            marshal = host.post if host is not None else self._default_marshal
+        self._scheduler = scheduler
         self._executor = executor or self._default_executor
-        self._marshal = marshal or self._default_marshal
+        self._marshal = marshal
         self._debounce_seconds = max(0.0, debounce_ms) / 1000.0
 
         # Debounce/render bookkeeping.

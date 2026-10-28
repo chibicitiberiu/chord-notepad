@@ -205,12 +205,12 @@ class Application:
         )
 
         # Chord-sheet strip viewmodel (headless; renders via the audio service's
-        # active note picker, marshals results back through this application's
-        # cross-thread event queue).
+        # active note picker off the UI thread; debounces and marshals results
+        # back through the Tk host).
         self._chord_sheet_viewmodel = ChordSheetViewModel(
             self.config_service,
             self.audio_service,
-            self
+            host=self._host,
         )
 
         logger.info("ViewModels created successfully")

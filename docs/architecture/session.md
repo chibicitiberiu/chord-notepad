@@ -247,8 +247,13 @@ Only one flow can be pending at a time.
 2. **Background threads never mutate state.** This covers the render thread,
    the playback loop, the chord-sheet job thread and `BackgroundWorker`. They
    only `host.post`, and they only read inputs that can't change.
-3. **The chord sheet's debounce uses `host.call_later`.** A `HostScheduler`
-   adapter replaces `_TimerScheduler`, and `marshal` becomes `host.post`.
+3. **The chord sheet's debounce uses `host.call_later`.** Given a host, a
+   `HostScheduler` adapter replaces `_TimerScheduler` as the default, and
+   `marshal` defaults to `host.post` (`_TimerScheduler` stays only for a
+   viewmodel built without a host). The timer only dispatches the job; the
+   render still runs on the executor's thread. On desktop `MainWindow`
+   attaches itself to the `TkHost` first thing, because building the chord
+   sheet already arms that timer.
 4. **The session thread never renders.**
    - MIDI export and capo suggestion run on `BackgroundWorker`.
    - `PlaybackService.stop_playback` no longer joins the render thread. A start

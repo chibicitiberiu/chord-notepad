@@ -878,3 +878,97 @@ def test_zoom_load_non_dict_is_empty():
     config = FakeConfig(chord_sheet_visible=True, chord_sheet_zoom="nope")
     vm, _, _ = make_vm(renderers=[ZoomRenderer("a")], config=config)
     assert vm.zoom == 1.0
+
+
+# --------------------------------------------------------------------------
+# Host-driven debounce (ManualHost: virtual clock, posted results)
+# --------------------------------------------------------------------------
+
+
+def make_host_vm(rendered=None, visible=True, debounce_ms=500):
+    from session.testing import ManualHost
+
+    host = ManualHost()
+    audio = FakeAudio(rendered=rendered)
+    vm = ChordSheetViewModel(
+        FakeConfig(chord_sheet_visible=visible), audio,
+        host=host, renderers=[PlainRenderer()],
+        executor=inline_executor, debounce_ms=debounce_ms,
+    )
+    return vm, audio, host
+
+
+def test_host_debounce_renders_once_after_the_quiet_period():
+    song = RenderedSong(chords=[make_chord("C")])
+    vm, audio, host = make_host_vm(rendered=song)
+
+    vm.set_song(["a"], None)
+    host.advance(0.3)
+    vm.set_song(["b"], None)          # re-arms the timer
+    host.advance(0.3)
+    assert audio.render_calls == []   # 0.3 s since the last edit
+    assert host.pending_timers == 1
+
+    host.advance(0.2)
+    assert audio.render_calls == [(["b"], None)]
+    assert vm.rendered_song is song   # result posted and applied
+    assert host.pending_timers == 0
+
+
+def test_host_result_is_applied_on_the_session_thread_via_post():
+    from session.testing import ManualHost
+
+    song = RenderedSong(chords=[make_chord("C")])
+    host = ManualHost()
+    jobs = []
+    vm = ChordSheetViewModel(
+        FakeConfig(chord_sheet_visible=True), FakeAudio(rendered=song),
+        host=host, renderers=[PlainRenderer()], executor=jobs.append,
+    )
+    vm.set_song(["a"], None)
+    host.advance(0.5)
+    assert len(jobs) == 1             # the timer dispatched the job
+
+    jobs[0]()                         # the "worker thread" renders
+    assert vm.rendered_song is None   # not applied off the session thread
+    assert host.pending_posts == 1
+    host.run_pending()
+    assert vm.rendered_song is song
+
+
+def test_host_hidden_panel_never_arms_the_timer_and_showing_flushes():
+    song = RenderedSong(chords=[make_chord("C")])
+    vm, audio, host = make_host_vm(rendered=song, visible=False)
+
+    vm.set_song(["a"], None)
+    assert host.pending_timers == 0
+    host.advance(1.0)
+    assert audio.render_calls == []
+
+    vm.set_visible(True)
+    host.advance(0.5)
+    assert audio.render_calls == [(["a"], None)]
+
+
+def test_host_hiding_cancels_the_armed_timer():
+    vm, audio, host = make_host_vm(rendered=RenderedSong(chords=[make_chord("C")]))
+    vm.set_song(["a"], None)
+    vm.set_visible(False)
+    assert host.pending_timers == 0
+    host.advance(1.0)
+    assert audio.render_calls == []
+
+
+def test_injected_seams_win_over_the_host():
+    from session.testing import ManualHost
+
+    host = ManualHost()
+    scheduler = ManualScheduler()
+    vm = ChordSheetViewModel(
+        FakeConfig(chord_sheet_visible=True), FakeAudio(), host=host,
+        renderers=[PlainRenderer()], scheduler=scheduler,
+        executor=inline_executor, marshal=direct_marshal,
+    )
+    vm.set_song(["a"], None)
+    assert scheduler.pending is not None
+    assert host.pending_timers == 0

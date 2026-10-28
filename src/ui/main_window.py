@@ -88,6 +88,10 @@ class MainWindow(tk.Tk):
         else:
             super().__init__()
 
+        # The host's timers run on this window. Attach before building the
+        # chord sheet, which arms its debounce timer through the host.
+        application.host.attach(self)
+
         # Set platform-native ttk theme
         self._setup_theme()
 
