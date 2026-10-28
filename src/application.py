@@ -1,12 +1,11 @@
 """Central application container with lifecycle management."""
 
 import logging
-import queue
 import sys
 import tkinter as tk
 from typing import Optional, Callable
 
-from constants import APP_NAME, EVENT_QUEUE_POLL_MS
+from constants import APP_NAME
 from exceptions import ServiceNotInitializedError
 from services.appdata_service import AppDataService
 from services.config_service import ConfigService
@@ -15,6 +14,7 @@ from services.playback_service import PlaybackService
 from services.song_parser_service import SongParserService
 from services.file_service import FileService
 from services.resource_service import ResourceService
+from ui.tk_host import TkHost
 from utils import error_reporting
 from viewmodels.main_window_viewmodel import MainWindowViewModel
 from viewmodels.text_editor_viewmodel import TextEditorViewModel
@@ -27,7 +27,7 @@ class Application:
     This class serves as the main application container, managing:
     - Application lifecycle (initialization, running, shutdown)
     - Service instantiation and access
-    - Cross-thread event queue for UI updates
+    - The Tk host: the cross-thread queue and timers on the UI thread
     """
 
     def __init__(self):
@@ -45,8 +45,9 @@ class Application:
         self._text_editor_viewmodel: Optional[TextEditorViewModel] = None
         self._chord_sheet_viewmodel: Optional[ChordSheetViewModel] = None
 
-        # Event queue for cross-thread UI updates
-        self._event_queue: queue.Queue = queue.Queue()
+        # Runs callbacks on the Tk main thread (cross-thread queue, timers).
+        # The root window is attached in set_main_window().
+        self._host = TkHost()
 
         # Main window reference
         self._main_window: Optional[tk.Tk] = None
@@ -222,9 +223,9 @@ class Application:
 
         self._running = True
 
-        # Start the event queue processing
+        # Start draining the cross-thread queue
         if self._main_window is not None:
-            self._process_event_queue()
+            self._host.start()
             logger.info("Starting Tkinter main loop")
             self._main_window.mainloop()
         else:
@@ -236,6 +237,7 @@ class Application:
         logger.info(f"{APP_NAME} shutting down")
 
         self._running = False
+        self._host.stop()
 
         # Cleanup audio service
         if self._audio_service is not None:
@@ -255,39 +257,24 @@ class Application:
 
         logger.info("Application shutdown complete")
 
-    # Event queue methods (moved from MainWindow)
+    # Cross-thread callbacks
+
+    @property
+    def host(self) -> TkHost:
+        """The host that runs callbacks on the Tk main thread."""
+        return self._host
 
     def queue_ui_callback(self, callback: Callable) -> None:
         """Queue a callback to be executed on the UI thread.
 
         This is used for cross-thread communication, allowing background threads
-        to safely update the UI.
+        to safely update the UI. Kept as the entry point PlaybackService,
+        NotePlayer and MainWindowViewModel use; it posts to the host.
 
         Args:
             callback: Function to execute on UI thread
         """
-        self._event_queue.put(callback)
-
-    def _process_event_queue(self) -> None:
-        """Process pending UI callbacks from the event queue.
-
-        This method is called periodically on the UI thread to process
-        callbacks queued by background threads.
-        """
-        try:
-            while not self._event_queue.empty():
-                callback = self._event_queue.get_nowait()
-                try:
-                    callback()
-                except Exception:
-                    error_reporting.report_unexpected_error(
-                        self._main_window, sys.exc_info(), "queued UI callback")
-        except queue.Empty:
-            pass
-        finally:
-            # Schedule next check
-            if self._running and self._main_window is not None:
-                self._main_window.after(EVENT_QUEUE_POLL_MS, self._process_event_queue)
+        self._host.post(callback)
 
     # Utility methods
 
@@ -298,6 +285,7 @@ class Application:
             window: The main Tkinter window
         """
         self._main_window = window
+        self._host.attach(window)
 
     @property
     def is_initialized(self) -> bool:

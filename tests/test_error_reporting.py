@@ -107,21 +107,19 @@ def test_tk_callback_errors_go_through_the_reporter():
 
 
 def test_queued_callback_errors_go_through_the_reporter():
-    import queue
-    from application import Application
+    from ui.tk_host import TkHost
 
-    app = mock.Mock()
-    app._event_queue = queue.Queue()
-    app._running = False
+    root = mock.Mock()
+    host = TkHost(root)
 
     def boom():
         raise RuntimeError("render failed")
 
-    app._event_queue.put(boom)
-    with mock.patch("application.error_reporting.report_unexpected_error") as report:
-        Application._process_event_queue(app)
+    host.post(boom)
+    with mock.patch("ui.tk_host.error_reporting.report_unexpected_error") as report:
+        host._drain()
     report.assert_called_once()
-    assert report.call_args.args[0] is app._main_window
+    assert report.call_args.args[0] is root
     assert isinstance(report.call_args.args[1][1], RuntimeError)
 
 
