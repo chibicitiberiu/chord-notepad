@@ -6,7 +6,8 @@ horizontally-scrolling ``Canvas`` (plus a view picker), replays the active
 renderer's draw ops onto it, highlights the chord under the playhead, follows
 playback by auto-scrolling, and turns clicks into auditions. All layout/paint
 logic lives in the renderers and all state lives in the viewmodel; this class
-only bridges them to Tkinter.
+only bridges them to Tkinter. The user's commands (zoom, view tabs, clicks to
+audition) go through the session, which owns the audio-failure reporting.
 """
 
 import logging
@@ -21,8 +22,6 @@ from constants import (
     UI_TAB_IDLE,
     UI_TEXT_DISABLED,
 )
-from exceptions import AudioInitializationError
-from ui.audio_errors import show_audio_error
 from ui.base.tooltip import TabToolTip
 from ui.chord_sheet.clef_assets import image_for_clef_key
 from ui.chord_sheet.marker_lane import LANE_HEIGHT, build_marker_lane
@@ -38,16 +37,21 @@ _HIGHLIGHT_FILL = "#ffe58a"
 class ChordSheetPanel(ttk.Frame):
     """Tk shell hosting the scrolling chord-sheet strip."""
 
-    def __init__(self, parent: tk.Widget, viewmodel, **kwargs) -> None:
+    def __init__(self, parent: tk.Widget, viewmodel, *, session, **kwargs) -> None:
         """Build the panel and wire it to the viewmodel.
 
         Args:
             parent: Parent widget.
-            viewmodel: A :class:`ChordSheetViewModel`.
+            viewmodel: A :class:`ChordSheetViewModel`, whose rendered song
+                and display state the panel paints.
+            session: Takes the panel's commands: ``chord_sheet_zoom(step)``,
+                ``set_chord_sheet_view(view_id)`` and ``audition(index)``
+                (an :class:`~session.session.AppSession`).
             **kwargs: Passed through to ``ttk.Frame``.
         """
         super().__init__(parent, **kwargs)
         self._vm = viewmodel
+        self._session = session
         self._layout: Optional[StripLayout] = None
         # Resolved Tk images by ops image key. These MUST stay referenced or Tk
         # garbage-collects them and the clef glyphs vanish, so the cache is kept
@@ -84,11 +88,13 @@ class ChordSheetPanel(ttk.Frame):
         # enabled only while the active view declares ``supports_zoom``. Packed
         # right-to-left so "+" is rightmost and "-" sits to its left.
         self._zoom_in_btn = ttk.Button(
-            header, text="+", width=2, style="Toolbutton", command=self._vm.zoom_in
+            header, text="+", width=2, style="Toolbutton",
+            command=lambda: self._session.chord_sheet_zoom(1)
         )
         self._zoom_in_btn.pack(side=tk.RIGHT, padx=(0, 0))
         self._zoom_out_btn = ttk.Button(
-            header, text="\u2212", width=2, style="Toolbutton", command=self._vm.zoom_out
+            header, text="\u2212", width=2, style="Toolbutton",
+            command=lambda: self._session.chord_sheet_zoom(-1)
         )
         self._zoom_out_btn.pack(side=tk.RIGHT, padx=(0, 2))
         self._update_zoom_buttons_state()
@@ -234,7 +240,7 @@ class ChordSheetPanel(ttk.Frame):
     # -- Tk event handlers --------------------------------------------------
 
     def _on_tab_changed(self, _event=None) -> None:
-        """Forward a user's tab selection to the viewmodel.
+        """Forward a user's tab selection to the session.
 
         <<NotebookTabChanged>> is queued, so it also arrives after our own
         programmatic selects (when ``_syncing_tabs`` is already cleared). Those
@@ -246,7 +252,7 @@ class ChordSheetPanel(ttk.Frame):
         view_id = self._tab_ids[self._tabs.index("current")]
         if view_id == self._vm.active_view:
             return
-        self._vm.set_active_view(view_id)
+        self._session.set_chord_sheet_view(view_id)
 
     def _select_tab(self, view_id: str) -> None:
         """Select the tab for ``view_id`` without notifying the viewmodel."""
@@ -335,10 +341,7 @@ class ChordSheetPanel(ttk.Frame):
         content_x = self._canvas.canvasx(event.x)
         for slot in self._layout.slots:
             if slot.x <= content_x <= slot.x + slot.width:
-                try:
-                    self._vm.audition(slot.chord_index)
-                except AudioInitializationError as e:
-                    show_audio_error(self.winfo_toplevel(), e, from_click=True)
+                self._session.audition(slot.chord_index)
                 return
 
     # -- Painting -----------------------------------------------------------

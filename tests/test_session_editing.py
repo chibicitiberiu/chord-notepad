@@ -148,7 +148,9 @@ def test_convert_is_a_plain_edit_and_switches_detection():
     assert env.recorder.compact() == [
         ("TextEdited", 2, 0, 15, "Do Sol\nhello there", "plain", 18),
         ("HighlightState", 2, 0, (chord(0, 2), chord(3, 6))),
-        # The toolbar follows the target notation (no key set: the first option).
+        # Detection and the toolbar follow the target notation (no key set:
+        # the first option).
+        ("EditorState", "TkFixedFont", 11, False, "european"),
         ("ToolbarState", "european", 120, 120, True, 100.0, "Do", 4, 4, False, "play"),
         ("StatusState", "Converted to European notation"),
     ]

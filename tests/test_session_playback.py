@@ -16,8 +16,12 @@ from session.audio_policy import AudioFailurePolicy
 from session.events import AudioUnavailable, UserError
 from session.host import HostDispatch
 from session.session import AppSession
-from session.state import EditorState, PlaybackState, PlaybackStatus, StatusState, ToolbarState
-from session.testing import EventRecorder, FakePlayer, InMemoryDocumentStore, ManualHost
+from session.state import (
+    ChordSheetState, EditorState, PlaybackState, PlaybackStatus, StatusState, ToolbarState,
+)
+from session.testing import (
+    EventRecorder, FakeChordSheet, FakePlayer, InMemoryDocumentStore, ManualHost,
+)
 from viewmodels.main_window_viewmodel import MainWindowViewModel
 from viewmodels.text_editor_viewmodel import TextEditorViewModel
 
@@ -35,19 +39,6 @@ class FakeConfig:
 
     def set(self, key, value):
         self._values[key] = value
-
-
-class FakeChordSheet:
-    """Records the playhead pings the session forwards to the strip."""
-
-    def __init__(self):
-        self.pings = []
-
-    def set_song(self, lines, key):
-        pass
-
-    def on_playback_chord(self, chord_info, chord_index=None):
-        self.pings.append((chord_info.chord if chord_info else None, chord_index))
 
 
 class Env:
@@ -98,6 +89,11 @@ def _span(start, end):
     return ("chord", start, end)
 
 
+def _editor(read_only):
+    """The compacted EditorState for the defaults (TkFixedFont 11, American)."""
+    return ("EditorState", "TkFixedFont", 11, read_only, "american")
+
+
 def _toolbar(action="play", bpm_display=120):
     """The compacted ToolbarState for the defaults (120 BPM, key C, 4/4)."""
     return ("ToolbarState", "american", 120, bpm_display, action == "play", 100.0, "C",
@@ -113,7 +109,7 @@ def test_play_progress_finished():
     # Started: the transport and the lock are on, the chord count is shown.
     assert env.recorder.compact() == [
         ("PlaybackState", "playing", None, None, 0, 0),
-        ("EditorState", True),
+        _editor(True),
         # The tempo is read-only now and the button pauses.
         _toolbar("pause"),
         ("StatusState", "Playing 4 chords..."),
@@ -122,7 +118,8 @@ def test_play_progress_finished():
 
     env.rendered()
 
-    assert env.recorder.compact() == [
+    # (The strip's playhead has its own test below.)
+    assert env.recorder.compact(skip=(ChordSheetState,)) == [
         ("PlaybackState", "playing", _span(0, 1), 0, 1, 3),
         ("StatusState", "Bar 1/3 | 120 BPM | 4/4 | Playing: C"),
         ("PlaybackState", "playing", _span(2, 3), 1, 2, 3),
@@ -133,7 +130,7 @@ def test_play_progress_finished():
         ("StatusState", "Bar 3/3 | 120 BPM | 4/4 | Key: G | Playing: F"),
         # Finished: back to idle, unlocked, "Ready".
         ("PlaybackState", "idle", None, None, 0, 0),
-        ("EditorState", False),
+        _editor(False),
         _toolbar("play"),
         ("StatusState", "Ready"),
     ]
@@ -204,7 +201,7 @@ def test_stop_returns_to_idle_and_drops_pings_posted_before_it():
     env.session.stop()
     assert env.recorder.compact() == [
         ("PlaybackState", "idle", None, None, 0, 0),
-        ("EditorState", False),
+        _editor(False),
         _toolbar("play"),
         ("StatusState", "Stopped playback"),
     ]
@@ -349,7 +346,7 @@ def test_render_failure_returns_to_idle_and_reports_a_user_error():
         env.rendered()
     assert env.recorder.compact() == [
         ("PlaybackState", "idle", None, None, 0, 0),
-        ("EditorState", False),
+        _editor(False),
         _toolbar("play"),
         ("StatusState", "Ready"),
         ("StatusState", "Playback failed"),
@@ -367,12 +364,14 @@ def test_initial_states():
                          text_editor_viewmodel=TextEditorViewModel(SongParserService()))
     recorder = EventRecorder()
     session.subscribe(recorder)
-    assert recorder.compact()[1:] == [
+    assert recorder.compact()[1:5] == [
         ("PlaybackState", "idle", None, None, 0, 0),
         ("StatusState", "Ready"),
-        ("EditorState", False),
+        _editor(False),
         _toolbar("play"),
     ]
+    assert [type(item).__name__ for item in recorder.items[5:]] == [
+        "VoicingMenuState", "InstrumentMenuState"]
 
 
 def test_show_status_goes_through_the_status_state():

@@ -61,6 +61,28 @@ class ImmediateScheduler:
         pass
 
 
+class _Commands:
+    """The session's chord-sheet commands, applied straight to the viewmodel.
+
+    In the app these go through AppSession (tests/test_session_menus.py).
+    """
+
+    def __init__(self, vm):
+        self._vm = vm
+
+    def chord_sheet_zoom(self, step):
+        if step > 0:
+            self._vm.zoom_in()
+        elif step < 0:
+            self._vm.zoom_out()
+
+    def set_chord_sheet_view(self, view_id):
+        self._vm.set_active_view(view_id)
+
+    def audition(self, index):
+        self._vm.audition(index)
+
+
 def _render(text):
     lines = SongParserService().detect_chords_in_text(text)
     return SongRenderer().render(
@@ -90,7 +112,7 @@ def _make_panel(root, text, *, view="keyboard"):
     )
     from ui.chord_sheet.panel import ChordSheetPanel
 
-    panel = ChordSheetPanel(root, vm)
+    panel = ChordSheetPanel(root, vm, session=_Commands(vm))
     panel.pack(fill=tk.BOTH, expand=True)
     root.update_idletasks()
     vm.set_song([], "C")
@@ -152,7 +174,7 @@ def _make_panel_with_renderers(root, text, renderers, *, view):
     )
     from ui.chord_sheet.panel import ChordSheetPanel
 
-    panel = ChordSheetPanel(root, vm)
+    panel = ChordSheetPanel(root, vm, session=_Commands(vm))
     panel.pack(fill=tk.BOTH, expand=True)
     root.update_idletasks()
     vm.set_song([], "C")
@@ -315,7 +337,7 @@ def test_hidden_panel_paints_after_being_shown(root):
     )
     from ui.chord_sheet.panel import ChordSheetPanel
 
-    panel = ChordSheetPanel(root, vm)
+    panel = ChordSheetPanel(root, vm, session=_Commands(vm))
     panel.pack(fill=tk.BOTH, expand=True)
     root.update_idletasks()
 

@@ -286,18 +286,14 @@ class AppSession:
   `ChordSheetState` exists.
 - `PlaybackState` carried an extra `bpm` (the effective tempo) until step 9
   moved it to `ToolbarState.bpm_display`.
-- `EditorState` has only `read_only` (true while playing or paused); the
-  font and notation fields come with steps 9-10.
+- `EditorState` had only `read_only` until step 10 added the font and
+  notation fields.
 - Status texts come from `session/formatting.py`. The chord count in
   "Playing N chords..." is taken from the latest detection, as before (it can
   lag a just-typed edit by the 0.5 s debounce).
 - `AudioUnavailable.message` is the full user-facing text (the click variant
-  says clicked chords stay silent). The policy instance is the session's
-  `audio_failure_policy`; `MainWindow` shares it with `ui.audio_errors`
-  (`use_policy`), whose `show_audio_error` the chord-sheet audition and the
-  chord identifier still call, so all click sources report once between
-  them. Those two move onto the session with `audition(index)` and the
-  identifier rework.
+  says clicked chords stay silent). Since step 10 every click source goes
+  through the session's one `AudioFailurePolicy` (see below).
 - Playback pings that reach the session after it went idle (posted by the
   player before a Stop reached it) are dropped, so a stopped song no longer
   re-highlights a chord or rewrites the status line.
@@ -385,6 +381,64 @@ class AppSession:
   scrubber `on_change`), never from variable traces. `ui.scrubber.Scrubber`
   does its math through `ScrubScale`. `utils/key_helpers.py` is gone
   (`toolbar.key_options`).
+
+**Interim shape (recorded in step 10, settings and menus).**
+- `apply_settings(changes)` does what `MainWindow._on_options_apply` did:
+  `font_changed` re-reads the font from the config
+  (`MainWindowViewModel.reload_font_settings`); `voicings_changed`
+  republishes `VoicingMenuState`; `new_active_voicing` is applied with
+  `set_voicing`, else a `voicing:` voicing in use is re-applied when the
+  registry changed (it may have been edited in place). `general_changed`
+  and `audio_changed` are still ignored on purpose: the dialog saves those
+  as defaults for the next start, and the running toolbar keeps its values.
+  The dialog itself still commits the config (`SettingsViewModel`, scoped
+  to the dialog).
+- `EditorState(font_family, font_size, read_only, notation)`; the session
+  observes the viewmodel's font. Commands: `set_font(family, size)`,
+  `step_font_size(delta)` (Ctrl +/-, Ctrl+wheel; clamped 6-72),
+  `reset_font_size()`. The Tk window keeps the last `EditorState` for the
+  font dialog and the Quick Start snippets.
+- `VoicingMenuState(selected, groups)`: groups of `MenuItem`s (piano, the
+  built-in fretboards, the built-in ensembles, the user's voicings by model
+  then name; empty groups left out), built by
+  `formatting.voicing_menu_groups`. `set_voicing` only takes those values
+  (ValueError otherwise) and re-applies the same value when chosen again.
+  The Tk menu is rebuilt only when the groups change; otherwise only the
+  radio selection moves.
+- `InstrumentMenuState(current, families)` with `InstrumentFamily(name,
+  is_current, items)`; item values are program numbers as strings. The
+  General MIDI family table is `formatting.INSTRUMENT_FAMILIES`. The
+  soundfont's list is read again on every publish (startup and each
+  `set_instrument`), as the Tk menu did on each rebuild. The Tk menu
+  destroys the old family submenus on a rebuild and styles the new ones
+  (before, submenus built after startup lost the clam outline).
+- `ChordSheetState(visible, height, active_view, views, disabled_reason,
+  zoom, zoom_supported, current_index, song_revision)`, with
+  `ChordSheetView(view_id, label, available)`. The session observes the
+  strip viewmodel's `visible`, `active_view`, `available_views`, `zoom`,
+  `current_index` and `rendered_song` (which bumps `song_revision`).
+  Commands: `set_chord_sheet_visible`, `set_chord_sheet_height`,
+  `set_chord_sheet_view` (unavailable views
+  ignored), `chord_sheet_zoom(step)`, `audition(index)`; all do nothing
+  without a strip.
+- Interim: the Tk `ChordSheetPanel` still paints from the strip viewmodel
+  (the `RenderedSong` and the renderers are live objects; painting is a
+  view job until draw ops cross the bridge) and observes its display
+  state for repaints. Only its commands (zoom buttons, tabs, clicks) go
+  through the session (`ChordSheetPanel(parent, vm, session=...)`). The
+  window uses `ChordSheetState` for the pane, the View menu check and the
+  sash height.
+- Audio failures: chord-sheet auditions are played by the session and the
+  chord identifier hands its `AudioInitializationError`s to
+  `report_audio_failure(reason, from_click=True)`; both go through the
+  session's `AudioFailurePolicy`, so all click sources still report once
+  between them. `ui/audio_errors.py` lost its module-global policy
+  (`use_policy`, `show_audio_error`); it only presents `AudioUnavailable`.
+  The Tk window parents that dialog to the focused toplevel, so the
+  identifier's error still shows over the identifier.
+- `session.testing.FakeChordSheet` stands in for the strip viewmodel in
+  session tests; `EventRecorder.compact(skip=...)` leaves out states a
+  golden isn't about.
 
 **Flows** (`flows.py`) are generators. They yield requests and receive answers
 through `respond()`, so a request/response flow reads as plain sequential code.

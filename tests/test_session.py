@@ -5,7 +5,7 @@ by the test's virtual clock. Detection, the parser and the viewmodels are real.
 """
 
 import threading
-from unittest.mock import MagicMock
+from unittest.mock import ANY, MagicMock
 
 import pytest
 
@@ -75,8 +75,10 @@ def test_type_text_no_spans_before_the_debounce_spans_after(env):
         ("HighlightState", 0, 0, ()),
         ("PlaybackState", "idle", None, None, 0, 0),
         ("StatusState", "Ready"),
-        ("EditorState", False),
+        ("EditorState", "TkFixedFont", 11, False, "american"),
         ("ToolbarState", "american", 120, 120, True, 100.0, "C", 4, 4, False, "play"),
+        ("VoicingMenuState", "piano", ANY),
+        ("InstrumentMenuState", 0, ANY),
     ]
     env.recorder.clear()
 
@@ -202,6 +204,7 @@ def test_notation_change_redetects_immediately(env):
     env.main.set_notation(Notation.EUROPEAN)
     assert env.recorder.compact() == [
         ("HighlightState", 1, 0, (chord(0, 2), chord(3, 5), chord(6, 8))),
+        ("EditorState", "TkFixedFont", 11, False, "european"),
         ("ToolbarState", "european", 120, 120, True, 100.0, "Do", 4, 4, False, "play")]
 
 

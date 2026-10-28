@@ -64,7 +64,9 @@ def wired():
     # to are stand-ins.
     window = SimpleNamespace(text_editor=editor, session=session, viewmodel=Mock(),
                              update_statusbar=Mock(), statusbar=Mock(),
-                             _apply_playback=Mock(), _apply_toolbar=Mock())
+                             _apply_playback=Mock(), _apply_toolbar=Mock(),
+                             _apply_editor=Mock(), rebuild_voicing_menu=Mock(),
+                             build_instrument_menu=Mock(), _apply_chord_sheet=Mock())
     editor.bind("<<Modified>>", lambda e: MainWindow.on_text_modified(window))
     session.subscribe(lambda item: MainWindow._on_session_output(window, item))
     session.start()
@@ -261,9 +263,11 @@ def test_playing_state_highlights_and_scrolls_to_the_chord(wired):
 def test_editor_state_locks_the_editor(wired):
     from session.state import EditorState
 
-    MainWindow._on_session_output(wired.window, EditorState(read_only=True))
+    wired.window._apply_editor = lambda state: MainWindow._apply_editor(wired.window, state)
+    wired.window.apply_font = lambda: None
+    MainWindow._on_session_output(wired.window, EditorState("TkFixedFont", 11, True, "american"))
     assert str(wired.editor.cget("state")) == "disabled"
-    MainWindow._on_session_output(wired.window, EditorState(read_only=False))
+    MainWindow._on_session_output(wired.window, EditorState("TkFixedFont", 11, False, "american"))
     assert str(wired.editor.cget("state")) == "normal"
 
 

@@ -15,6 +15,10 @@ normalization, recent-list and error behaviour as the file-system store.
 ``PlaybackService``: it makes no sound and keeps no time, it just turns the
 pre-rendered event buffer into the progress pings and the finished callback
 the real player would send, through the same ``queue_ui_callback`` path.
+
+:class:`FakeChordSheet` stands in for the chord-sheet strip's viewmodel: it
+records what the session feeds it and renders nothing until a test hands it a
+song with :meth:`FakeChordSheet.finish_render`.
 """
 
 import dataclasses
@@ -26,11 +30,12 @@ from enum import Enum
 from typing import Any, Callable, Deque, Dict, List, Optional, Tuple, Type, TypeVar, Union
 
 from audio.player_interface import IPlayer
-from exceptions import FileOperationError
+from exceptions import AudioInitializationError, FileOperationError
 from models.playback_event import PlaybackEventArgs, PlaybackEventType
 from models.playback_event_internal import MidiEventType
 from session.documents import DocumentRef
 from session.state import Span, ToolbarState
+from utils.observable import Observable
 from utils.text_normalization import normalize_song_text
 
 
@@ -251,9 +256,13 @@ class EventRecorder:
         """Forget what was recorded so far."""
         self.items.clear()
 
-    def compact(self) -> List[Any]:
-        """Everything recorded, through :func:`compact`."""
-        return [compact(item) for item in self.items]
+    def compact(self, skip: Tuple[type, ...] = ()) -> List[Any]:
+        """Everything recorded, through :func:`compact`.
+
+        Args:
+            skip: Types to leave out (states a golden isn't about).
+        """
+        return [compact(item) for item in self.items if not isinstance(item, skip)]
 
     def of_type(self, item_type: Type[T]) -> List[T]:
         """The recorded items of one type, in delivery order."""
@@ -425,3 +434,148 @@ class FakePlayer(IPlayer):
 
     def cleanup(self) -> None:
         """Nothing to release."""
+
+
+@dataclasses.dataclass(frozen=True)
+class FakeRenderer:
+    """A chord-sheet view as the session sees it (no painting)."""
+
+    id: str
+    label: str
+    supports_zoom: bool = False
+    requires_fingering: bool = False
+
+
+class FakeChordSheet(Observable):
+    """A stand-in for ``ChordSheetViewModel`` with the same observable surface.
+
+    Attributes:
+        fed: What the session fed, as ``(chord names, key)``.
+        pings: The playhead pings, as ``(chord name or None, chord index)``.
+        auditioned: The indices passed to :meth:`audition`.
+        audition_error: If set, :meth:`audition` raises an
+            ``AudioInitializationError`` with this text.
+    """
+
+    def __init__(self, renderers: Optional[List[FakeRenderer]] = None,
+                 visible: bool = False, height: int = 200) -> None:
+        """Start hidden, on the first view, with no song."""
+        super().__init__()
+        self.fed: List[Tuple[List[str], Optional[str]]] = []
+        self.pings: List[Tuple[Optional[str], Optional[int]]] = []
+        self.auditioned: List[int] = []
+        self.audition_error: Optional[str] = None
+        self._renderers = list(renderers if renderers is not None else [
+            FakeRenderer("keyboard", "Keyboard", supports_zoom=True),
+            FakeRenderer("fret", "Fret", requires_fingering=True),
+        ])
+        self._visible = visible
+        self._height = height
+        self._active_view = self._renderers[0].id
+        self._available_views = [r.id for r in self._renderers if not r.requires_fingering]
+        self._zoom = 1.0
+        self._current_index: Optional[int] = None
+        self._rendered_song: Any = None
+
+    # -- what the session reads ------------------------------------------------
+
+    @property
+    def renderers(self) -> List[FakeRenderer]:
+        """Every view, in tab order."""
+        return list(self._renderers)
+
+    @property
+    def visible(self) -> bool:
+        """Whether the strip is shown."""
+        return self._visible
+
+    @property
+    def height(self) -> int:
+        """The strip's height in pixels."""
+        return self._height
+
+    @property
+    def active_view(self) -> str:
+        """The view shown."""
+        return self._active_view
+
+    @property
+    def available_views(self) -> List[str]:
+        """The views the song can be shown in."""
+        return self._available_views
+
+    @property
+    def zoom(self) -> float:
+        """The active view's zoom."""
+        return self._zoom
+
+    @property
+    def zoom_supported(self) -> bool:
+        """Whether the active view zooms."""
+        return any(r.id == self._active_view and r.supports_zoom for r in self._renderers)
+
+    @property
+    def current_index(self) -> Optional[int]:
+        """The playhead's chord index."""
+        return self._current_index
+
+    @property
+    def rendered_song(self) -> Any:
+        """The last song handed to :meth:`finish_render`."""
+        return self._rendered_song
+
+    @property
+    def fretted_views_unavailable_reason(self) -> Optional[str]:
+        """Why some views are unavailable, or None."""
+        if len(self._available_views) == len(self._renderers):
+            return None
+        return "Pick a fretted instrument."
+
+    # -- what the session calls ------------------------------------------------
+
+    def set_song(self, lines: Any, key: Optional[str]) -> None:
+        """Record the fed song."""
+        self.fed.append(([c.chord for line in lines for c in line.chords], key))
+
+    def on_playback_chord(self, chord_info: Any, chord_index: Optional[int] = None) -> None:
+        """Record the ping and move the playhead."""
+        self.pings.append((chord_info.chord if chord_info else None, chord_index))
+        self.set_and_notify("current_index", chord_index if chord_info else None)
+
+    def set_visible(self, visible: bool) -> None:
+        """Show or hide."""
+        self.set_and_notify("visible", bool(visible))
+
+    def set_height(self, height: int) -> None:
+        """Remember the height (no notification, like the real one)."""
+        self._height = max(1, int(height))
+
+    def set_active_view(self, view_id: str) -> None:
+        """Switch to an available view."""
+        if view_id in self._available_views:
+            self.set_and_notify("active_view", view_id)
+
+    def zoom_in(self) -> None:
+        """Zoom in by 1.25 if the view zooms."""
+        if self.zoom_supported:
+            self.set_and_notify("zoom", round(self._zoom * 1.25, 3))
+
+    def zoom_out(self) -> None:
+        """Zoom out by 1.25 if the view zooms."""
+        if self.zoom_supported:
+            self.set_and_notify("zoom", round(self._zoom / 1.25, 3))
+
+    def audition(self, chord_index: int) -> None:
+        """Record the audition, or fail like broken audio."""
+        if self.audition_error is not None:
+            raise AudioInitializationError(self.audition_error)
+        self.auditioned.append(chord_index)
+
+    # -- test controls ---------------------------------------------------------
+
+    def finish_render(self, song: Any, fingering: bool = False) -> None:
+        """Adopt ``song`` as if a render finished (fretted views if ``fingering``)."""
+        self._rendered_song = song
+        self.notify("rendered_song", song)
+        views = [r.id for r in self._renderers if fingering or not r.requires_fingering]
+        self.set_and_notify("available_views", views)

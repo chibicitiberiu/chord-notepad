@@ -13,7 +13,7 @@ from services.config_service import ConfigService
 from services.song_parser_service import SongParserService
 from session.host import HostDispatch
 from session.session import AppSession
-from session.testing import ManualHost
+from session.testing import FakeChordSheet, ManualHost
 from viewmodels.main_window_viewmodel import MainWindowViewModel
 from viewmodels.text_editor_viewmodel import TextEditorViewModel
 
@@ -28,16 +28,6 @@ def _make_vm(audio=None, application=None):
         song_parser_service=SongParserService(),
         application=application if application is not None else MagicMock(),
     )
-
-
-class FakeChordSheet:
-    """Records what the session feeds the strip, as (chord names, key)."""
-
-    def __init__(self):
-        self.fed = []
-
-    def set_song(self, lines, key):
-        self.fed.append(([c.chord for line in lines for c in line.chords], key))
 
 
 class SessionEnv:

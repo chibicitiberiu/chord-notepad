@@ -8,7 +8,6 @@ from tkinter import ttk, messagebox
 import re
 
 from exceptions import AudioInitializationError, ChordNotepadError
-from ui.audio_errors import show_audio_error
 
 logger = logging.getLogger(__name__)
 
@@ -238,13 +237,16 @@ class PianoRoll(tk.Canvas):
 class ChordIdentifierWindow(tk.Toplevel):
     """Window for identifying chords from notes"""
 
-    def __init__(self, parent, viewmodel, on_insert_chord=None):
+    def __init__(self, parent, viewmodel, on_insert_chord=None, on_audio_error=None):
         """Initialize chord identifier window.
 
         Args:
             parent: Parent window
             viewmodel: ChordIdentifierViewModel instance
             on_insert_chord: Callback function(chord_name: str) for inserting chords
+            on_audio_error: Callback function(error) for audio that couldn't
+                start; the main window reports it by the session's
+                once-per-session policy for clicks
         """
         super().__init__(parent)
 
@@ -255,6 +257,7 @@ class ChordIdentifierWindow(tk.Toplevel):
         # Store ViewModel
         self.viewmodel = viewmodel
         self.on_insert_chord = on_insert_chord
+        self.on_audio_error = on_audio_error
 
         # Wire up ViewModel observers
         self.viewmodel.observe("identified_chords", self._on_chords_identified)
@@ -373,7 +376,14 @@ class ChordIdentifierWindow(tk.Toplevel):
         try:
             self.viewmodel.play_note(note_name, octave, duration=1.0)
         except AudioInitializationError as e:
-            show_audio_error(self, e, from_click=True)
+            self._report_audio_error(e)
+
+    def _report_audio_error(self, error):
+        """Hand an audio failure to the owner (it applies the reporting policy)."""
+        if self.on_audio_error is not None:
+            self.on_audio_error(error)
+        else:
+            logger.warning(f"Audio unavailable: {error}")
 
     def _on_chords_identified(self, chord_list):
         """Observer callback when chords are identified in ViewModel.
@@ -425,7 +435,7 @@ class ChordIdentifierWindow(tk.Toplevel):
         try:
             self.viewmodel.play_chord(chord_name, duration=2.0)
         except AudioInitializationError as e:
-            show_audio_error(self, e, from_click=True)
+            self._report_audio_error(e)
         except ChordNotepadError as e:
             messagebox.showerror("Identify Chord", str(e), parent=self)
 

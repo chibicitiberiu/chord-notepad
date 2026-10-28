@@ -856,6 +856,14 @@ class MainWindowViewModel(Observable):
         self._config.set("font_family", family)
         self.set_and_notify("font_family", family)
 
+    def reload_font_settings(self) -> None:
+        """Re-apply the font family and size stored in the config.
+
+        For the Settings dialog, which writes the config directly.
+        """
+        self.set_font_family(self._config.get("font_family", self._font_family))
+        self.set_font_size(self._config.get("font_size", self._font_size))
+
     def increase_font_size(self) -> None:
         """Increase font size by 1."""
         self.set_font_size(min(self._font_size + 1, 72))

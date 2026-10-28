@@ -139,17 +139,21 @@ class StatusState:
 
 @dataclass(frozen=True)
 class EditorState:
-    """How the editor behaves.
+    """How the editor looks and behaves.
 
     Attributes:
+        font_family: The editor font's family, as configured (a view maps
+            names it lacks to a fallback).
+        font_size: The editor font's size in points.
         read_only: True while a song plays or is paused (the editor is locked
             so the playing-chord offsets stay valid).
-
-    The design's font and notation fields arrive with the steps that move
-    them into the session (9 and 10).
+        notation: ``american`` or ``european``: how chords are detected.
     """
 
+    font_family: str
+    font_size: int
     read_only: bool
+    notation: str
 
 
 @dataclass(frozen=True)
@@ -163,3 +167,96 @@ class MenuItem:
 
     label: str
     value: str
+
+
+@dataclass(frozen=True)
+class VoicingMenuState:
+    """The Playback > Voicing menu: how chords are voiced.
+
+    Attributes:
+        selected: The value of the voicing in use (``piano``,
+            ``guitar:standard``, ``ensemble:satb``, ``voicing:<name>``...).
+        groups: The choices, in groups a view separates: piano, the built-in
+            fretboards, the built-in ensembles, then the user's voicings (a
+            group that would be empty is left out). Send a value back with
+            ``set_voicing``.
+    """
+
+    selected: str
+    groups: Tuple[Tuple[MenuItem, ...], ...]
+
+
+@dataclass(frozen=True)
+class InstrumentFamily:
+    """One General MIDI family (8 programs) in the Instrument menu.
+
+    Attributes:
+        name: The family, e.g. ``Guitar``.
+        is_current: Whether it holds the instrument in use.
+        items: The soundfont's programs in it; each value is the program
+            number as a string.
+    """
+
+    name: str
+    is_current: bool
+    items: Tuple[MenuItem, ...]
+
+
+@dataclass(frozen=True)
+class InstrumentMenuState:
+    """The Playback > Instrument menu.
+
+    Attributes:
+        current: The MIDI program in use (0-127). Send another with
+            ``set_instrument``.
+        families: The 16 General MIDI families, in program order (a family
+            the soundfont has nothing for has no items).
+    """
+
+    current: int
+    families: Tuple[InstrumentFamily, ...]
+
+
+@dataclass(frozen=True)
+class ChordSheetView:
+    """One of the chord sheet's views (keyboard, staff, chord boxes, tab).
+
+    Attributes:
+        view_id: Send it back with ``set_chord_sheet_view``.
+        label: The tab's label.
+        available: False while the song can't be shown that way (fretted
+            views need a fretboard voicing and some chords).
+    """
+
+    view_id: str
+    label: str
+    available: bool
+
+
+@dataclass(frozen=True)
+class ChordSheetState:
+    """The chord-sheet strip under the editor.
+
+    Attributes:
+        visible: Whether the strip is shown.
+        height: Its height in pixels (desktop; kept across runs).
+        active_view: The view shown.
+        views: Every view, in tab order, with its availability.
+        disabled_reason: Why the unavailable views are unavailable, or None.
+        zoom: The active view's zoom factor (1.0 = default).
+        zoom_supported: Whether the active view zooms.
+        current_index: The chord under the playhead (an index into the
+            rendered song), or None.
+        song_revision: Goes up whenever the strip rendered a new song, so a
+            view knows to repaint.
+    """
+
+    visible: bool
+    height: int
+    active_view: str
+    views: Tuple[ChordSheetView, ...]
+    disabled_reason: Optional[str]
+    zoom: float
+    zoom_supported: bool
+    current_index: Optional[int]
+    song_revision: int

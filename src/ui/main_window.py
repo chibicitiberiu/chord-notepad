@@ -14,7 +14,7 @@ from utils import error_reporting
 from ui.text_editor import ChordTextEditor
 from ui.chord_identifier import ChordIdentifierWindow
 from ui.builders.menu_builder import MenuBuilder
-from ui.audio_errors import present_audio_unavailable, use_policy as use_audio_failure_policy
+from ui.audio_errors import present_audio_unavailable
 from ui.menu_style import iter_menus, style_menu
 from ui.dialogs import (
     OptionsDialog,
@@ -31,16 +31,16 @@ from session.events import (
     AudioUnavailable, CapoChoiceRequest, InsertDirectiveRequest, TextEdited, UserError,
 )
 from session.state import (
-    EditorState, HighlightState, PlayAction, PlaybackState, StatusState, ToolbarState,
+    ChordSheetState, EditorState, HighlightState, InstrumentMenuState, PlayAction,
+    PlaybackState, StatusState, ToolbarState, VoicingMenuState,
 )
 from session.toolbar import (
     BPM_SCALE, MULTIPLIER_SCALE, ScrubScale, format_bpm, format_multiplier_pct, parse_bpm,
     parse_multiplier_pct,
 )
-from models.ensemble_spec import BUILTIN_ENSEMBLES
 from exceptions import ChordNotepadError
-from models.fretboard_spec import BUILTIN_FRETBOARDS
 from constants import (
+    DEFAULT_FONT_SIZE,
     TAG_CHORD_PLAYING,
     UI_ACCENT,
     UI_ACCENT_ACTIVE,
@@ -117,9 +117,11 @@ class MainWindow(tk.Tk):
         self.text_editor_viewmodel = text_editor_viewmodel
         self.chord_sheet_viewmodel = chord_sheet_viewmodel
         self.session = session
-        # Chord-sheet and identifier clicks report audio failures by the
-        # session's policy too, so all clicks together report once.
-        use_audio_failure_policy(session.audio_failure_policy)
+        # The latest editor and chord-sheet states (fonts for dialogs, the
+        # strip's height for the sash) and the voicing groups last built.
+        self._editor_state: Optional[EditorState] = None
+        self._chord_sheet_state: Optional[ChordSheetState] = None
+        self._voicing_groups: Optional[tuple] = None
         # The playing chord last painted: (span, chord index, bar).
         self._shown_progress: Optional[tuple] = None
         self.application = application
@@ -308,19 +310,11 @@ class MainWindow(tk.Tk):
 
     def _setup_viewmodel_observers(self) -> None:
         """Set up observers for ViewModel property changes."""
-        # Font changes
-        self.viewmodel.observe('font_size', self._on_font_changed)
-        self.viewmodel.observe('font_family', self._on_font_changed)
-
         # File state changes
         self.viewmodel.observe('current_document', self._on_current_document_changed)
         self.viewmodel.observe('is_modified', self._on_is_modified_changed)
 
     # ViewModel observer callbacks
-
-    def _on_font_changed(self, new_value: Any) -> None:
-        """React to font changes from ViewModel."""
-        self.apply_font()
 
     def _on_current_document_changed(self, new_value: Optional[Any]) -> None:
         """React to current document changes from ViewModel."""
@@ -343,9 +337,16 @@ class MainWindow(tk.Tk):
         elif isinstance(item, StatusState):
             self.statusbar.config(text=item.text)
         elif isinstance(item, EditorState):
-            self.text_editor.config(state=tk.DISABLED if item.read_only else tk.NORMAL)
+            self._apply_editor(item)
+        elif isinstance(item, VoicingMenuState):
+            self.rebuild_voicing_menu(item)
+        elif isinstance(item, InstrumentMenuState):
+            self.build_instrument_menu(item)
+        elif isinstance(item, ChordSheetState):
+            self._apply_chord_sheet(item)
         elif isinstance(item, AudioUnavailable):
-            present_audio_unavailable(self, item.message)
+            # Over the window the click came from (e.g. the chord identifier).
+            present_audio_unavailable(self._dialog_parent(), item.message)
         elif isinstance(item, UserError):
             messagebox.showerror(item.title, item.message, parent=self)
         elif isinstance(item, InsertDirectiveRequest):
@@ -354,6 +355,20 @@ class MainWindow(tk.Tk):
             self.after_idle(self._present_directive_request, item)
         elif isinstance(item, CapoChoiceRequest):
             self.after_idle(self._present_capo_request, item)
+
+    def _apply_editor(self, state: EditorState) -> None:
+        """Lock or unlock the editor and apply its font."""
+        self._editor_state = state
+        self.text_editor.config(state=tk.DISABLED if state.read_only else tk.NORMAL)
+        self.apply_font()
+
+    def _dialog_parent(self) -> tk.Misc:
+        """The window that has the focus (a dialog), else the main window."""
+        try:
+            focus = self.focus_get()
+        except (KeyError, tk.TclError):
+            focus = None
+        return focus.winfo_toplevel() if focus is not None else self
 
     def _apply_toolbar(self, state: ToolbarState) -> None:
         """Show the session's toolbar state (setting widgets sends nothing back)."""
@@ -451,11 +466,8 @@ class MainWindow(tk.Tk):
         menubar.add_cascade(label="Edit", menu=edit_menu)
 
         # View menu
-        chord_sheet_default = (
-            self.chord_sheet_viewmodel.visible
-            if self.chord_sheet_viewmodel is not None else False
-        )
-        self._chord_sheet_var = tk.BooleanVar(value=chord_sheet_default)
+        # Set from the session's ChordSheetState.
+        self._chord_sheet_var = tk.BooleanVar(value=False)
         view_menu = MenuBuilder(menubar) \
             .add_command("Font...", self.choose_font) \
             .add_separator() \
@@ -467,18 +479,12 @@ class MainWindow(tk.Tk):
             .build()
         menubar.add_cascade(label="View", menu=view_menu)
 
-        # Playback menu
-        self.voicing_var = tk.StringVar(value=self.viewmodel.get_voicing())
-
-        # Create voicing submenu (populated by rebuild_voicing_menu so it can
-        # be refreshed after the Settings dialog edits the voicings registry)
+        # Playback menu. The Voicing and Instrument submenus are filled from
+        # the session's menu states (and rebuilt when those change).
+        self.voicing_var = tk.StringVar()
         self.voicing_menu = tk.Menu(menubar, tearoff=0)
-        self.rebuild_voicing_menu()
-
-        # Create instrument submenu with categories
-        self.instrument_var = tk.IntVar(value=self.viewmodel.get_instrument())
+        self.instrument_var = tk.IntVar()
         self.instrument_menu = tk.Menu(menubar, tearoff=0)
-        self.build_instrument_menu()
 
         playback_menu = tk.Menu(menubar, tearoff=0)
         playback_menu.add_cascade(label="Voicing", menu=self.voicing_menu)
@@ -766,22 +772,21 @@ class MainWindow(tk.Tk):
 
         from ui.chord_sheet.panel import ChordSheetPanel
 
-        self.chord_sheet_panel = ChordSheetPanel(self.content_paned, vm)
-
-        vm.observe('visible', self._on_chord_sheet_visible_changed)
+        # The panel paints the strip viewmodel's rendered song; its zoom, tab
+        # and click commands go through the session.
+        self.chord_sheet_panel = ChordSheetPanel(self.content_paned, vm, session=self.session)
 
         # Persist the strip height whenever the sash is released.
         self.content_paned.bind('<ButtonRelease-1>', self._on_content_sash_moved)
 
-        # Apply initial visibility (the session seeds the song when started).
-        if vm.visible:
-            self._show_chord_sheet_pane()
+        # Visibility comes with the session's ChordSheetState.
 
-    def _on_chord_sheet_visible_changed(self, visible: bool) -> None:
-        """Add or remove the strip pane in response to the visibility toggle."""
-        if hasattr(self, '_chord_sheet_var') and self._chord_sheet_var.get() != visible:
-            self._chord_sheet_var.set(visible)
-        if visible:
+    def _apply_chord_sheet(self, state: ChordSheetState) -> None:
+        """Show or hide the strip pane and keep the View menu check in step."""
+        self._chord_sheet_state = state
+        if self._chord_sheet_var.get() != state.visible:
+            self._chord_sheet_var.set(state.visible)
+        if state.visible:
             self._show_chord_sheet_pane()
         else:
             self._hide_chord_sheet_pane()
@@ -806,33 +811,31 @@ class MainWindow(tk.Tk):
 
     def _apply_saved_chord_sheet_height(self) -> None:
         """Move the sash so the strip matches its persisted height."""
-        vm = self.chord_sheet_viewmodel
-        if vm is None or self.chord_sheet_panel is None:
+        state = self._chord_sheet_state
+        if state is None or self.chord_sheet_panel is None:
             return
         if str(self.chord_sheet_panel) not in self.content_paned.panes():
             return
         try:
             total = self.content_paned.winfo_height()
-            sash_y = max(0, total - vm.height)
+            sash_y = max(0, total - state.height)
             self.content_paned.sashpos(0, sash_y)
         except Exception as e:
             logger.debug(f"Could not apply chord-sheet height: {e}")
 
     def _on_content_sash_moved(self, _event: Any) -> None:
         """Persist the chord-sheet height after a sash drag."""
-        vm = self.chord_sheet_viewmodel
-        if vm is None or self.chord_sheet_panel is None:
+        if self.chord_sheet_panel is None:
             return
         if str(self.chord_sheet_panel) not in self.content_paned.panes():
             return
         height = self.chord_sheet_panel.winfo_height()
         if height > 1:
-            vm.set_height(height)
+            self.session.set_chord_sheet_height(height)
 
     def toggle_chord_sheet(self) -> None:
         """Toggle chord-sheet visibility (View menu checkbutton command)."""
-        if self.chord_sheet_viewmodel is not None:
-            self.chord_sheet_viewmodel.set_visible(self._chord_sheet_var.get())
+        self.session.set_chord_sheet_visible(self._chord_sheet_var.get())
 
     def new_file(self) -> None:
         """Create new file"""
@@ -974,8 +977,7 @@ class MainWindow(tk.Tk):
 
         # Get available fonts
         families = sorted(list(tkfont.families()))
-        current_family = self.viewmodel.font_family
-        current_size = self.viewmodel.font_size
+        current_family, current_size = self._editor_font()
 
         # Font family selection
         ttk.Label(dialog, text="Font Family:").pack(pady=(10, 5))
@@ -997,8 +999,7 @@ class MainWindow(tk.Tk):
         button_frame.pack(pady=15)
 
         def on_ok() -> None:
-            self.viewmodel.set_font_family(font_var.get())
-            self.viewmodel.set_font_size(size_var.get())
+            self.session.set_font(font_var.get(), size_var.get())
             dialog.destroy()
 
         def on_cancel() -> None:
@@ -1015,19 +1016,19 @@ class MainWindow(tk.Tk):
 
     def increase_font_size(self) -> None:
         """Increase font size"""
-        self.viewmodel.increase_font_size()
+        self.session.step_font_size(1)
 
     def decrease_font_size(self) -> None:
         """Decrease font size"""
-        self.viewmodel.decrease_font_size()
+        self.session.step_font_size(-1)
 
     def reset_font_size(self) -> None:
         """Reset font size to default"""
-        self.viewmodel.reset_font_size()
+        self.session.reset_font_size()
 
     def on_mouse_wheel_zoom(self, event: Any) -> None:
         """Handle Ctrl+MouseWheel for zooming"""
-        self.viewmodel.on_mouse_wheel_zoom(event.delta)
+        self.session.step_font_size(1 if event.delta > 0 else -1)
 
     def set_notation(self, notation: str) -> None:
         """Detect chords in ``notation`` (a notation button)."""
@@ -1043,11 +1044,17 @@ class MainWindow(tk.Tk):
         other.config(bg=self._ui_bg, fg='black', activebackground=UI_HOVER,
                      activeforeground='black')
 
+    def _editor_font(self) -> tuple:
+        """The configured editor font as ``(family, size)`` (from EditorState)."""
+        state = self._editor_state
+        if state is None:
+            return ("TkFixedFont", DEFAULT_FONT_SIZE)
+        return (state.font_family, state.font_size)
+
     def apply_font(self) -> None:
         """Apply font settings to text editor"""
-        family = resolve_font_family(self.text_editor, self.viewmodel.font_family)
-        size = self.viewmodel.font_size
-        self.text_editor.configure(font=(family, size))
+        family, size = self._editor_font()
+        self.text_editor.configure(font=(resolve_font_family(self.text_editor, family), size))
 
     def on_text_modified(self, event: Optional[Any] = None) -> None:
         """Send the edited text to the session (which re-detects after a pause)."""
@@ -1087,82 +1094,34 @@ class MainWindow(tk.Tk):
                                         self.time_sig_unit_var.get())
 
     def on_voicing_change(self) -> None:
-        """Handle voicing selection change"""
-        voicing = self.voicing_var.get()
-        self.viewmodel.set_voicing(voicing)
+        """The user picked a voicing in the menu."""
+        self.session.set_voicing(self.voicing_var.get())
 
-    def rebuild_voicing_menu(self) -> None:
-        """(Re)populate the Voicing submenu.
-
-        Called once at startup and again after the Settings dialog reports
-        that the voicings registry changed, so added/renamed/removed custom
-        voicings show up immediately without restarting.
-        """
-        self.voicing_menu.delete(0, tk.END)
-
-        self.voicing_menu.add_radiobutton(label="Piano", variable=self.voicing_var,
-                                          value="piano", command=self.on_voicing_change)
-
-        # Built-in guitar/fretboard tunings
-        self.voicing_menu.add_separator()
-        for fretboard_key in ("standard", "drop_d", "dadgad", "open_g", "ukulele"):
-            spec = BUILTIN_FRETBOARDS[fretboard_key]
-            self.voicing_menu.add_radiobutton(label=spec.label, variable=self.voicing_var,
-                                              value=f"guitar:{fretboard_key}",
-                                              command=self.on_voicing_change)
-
-        # Built-in ensembles
-        self.voicing_menu.add_separator()
-        for ensemble_key in ("satb", "ttbb", "ssa", "quartet"):
-            self.voicing_menu.add_radiobutton(label=BUILTIN_ENSEMBLES[ensemble_key].label,
-                                              variable=self.voicing_var,
-                                              value=f"ensemble:{ensemble_key}",
-                                              command=self.on_voicing_change)
-
-        # User-defined voicings (the unified registry replacing the old
-        # separate custom-tunings/custom-ensembles menu blocks)
-        voicings = self.viewmodel.get_voicings()
-        if voicings:
-            self.voicing_menu.add_separator()
-            for name in sorted(voicings.keys(), key=lambda n: (voicings[n].get("model", ""), n.lower())):
-                self.voicing_menu.add_radiobutton(label=name, variable=self.voicing_var,
-                                                  value=f"voicing:{name}", command=self.on_voicing_change)
+    def rebuild_voicing_menu(self, state: VoicingMenuState) -> None:
+        """Show the session's Voicing menu: rebuilt when its choices changed
+        (Settings edited the voicings), else only the selection moves."""
+        if state.groups != self._voicing_groups:
+            self._voicing_groups = state.groups
+            self.voicing_menu.delete(0, tk.END)
+            for index, group in enumerate(state.groups):
+                if index:
+                    self.voicing_menu.add_separator()
+                for item in group:
+                    self.voicing_menu.add_radiobutton(
+                        label=item.label, variable=self.voicing_var, value=item.value,
+                        command=self.on_voicing_change)
+        self.voicing_var.set(state.selected)
 
     def on_instrument_change(self) -> None:
-        """Handle instrument selection change"""
-        program = self.instrument_var.get()
-        self.viewmodel.set_instrument(program)
-        # Rebuild the menu to update the indicator
-        self.build_instrument_menu()
+        """The user picked an instrument in the menu."""
+        self.session.set_instrument(self.instrument_var.get())
 
-    def build_instrument_menu(self) -> None:
-        """Build or rebuild the instrument menu with category indicators"""
-        # Clear existing menu items
+    def build_instrument_menu(self, state: InstrumentMenuState) -> None:
+        """Rebuild the Instrument menu from the session's state (one submenu
+        per General MIDI family, the current one marked)."""
         self.instrument_menu.delete(0, tk.END)
-
-        # Get available instruments from soundfont
-        instruments = self.viewmodel.get_available_instruments()
-        current_instrument = self.viewmodel.get_instrument()
-
-        # Group instruments by General MIDI families (8 instruments per family)
-        instrument_categories = [
-            (0, 7, "Piano"),
-            (8, 15, "Chromatic Percussion"),
-            (16, 23, "Organ"),
-            (24, 31, "Guitar"),
-            (32, 39, "Bass"),
-            (40, 47, "Strings"),
-            (48, 55, "Ensemble"),
-            (56, 63, "Brass"),
-            (64, 71, "Reed"),
-            (72, 79, "Pipe"),
-            (80, 87, "Synth Lead"),
-            (88, 95, "Synth Pad"),
-            (96, 103, "Synth Effects"),
-            (104, 111, "Ethnic"),
-            (112, 119, "Percussive"),
-            (120, 127, "Sound Effects"),
-        ]
+        for child in self.instrument_menu.winfo_children():
+            child.destroy()  # the previous family submenus
 
         # Same-size marker images keep the family names aligned whether or not
         # they carry the current-instrument dot (text bullets vary in width).
@@ -1170,24 +1129,21 @@ class MainWindow(tk.Tk):
             self._category_markers = (self._make_menu_marker(False),
                                       self._make_menu_marker(True))
 
-        # Create a submenu for each category
-        for start, end, category_name in instrument_categories:
+        for family in state.families:
             category_menu = tk.Menu(self.instrument_menu, tearoff=0)
-            for program, name in instruments:
-                if start <= program <= end:
-                    category_menu.add_radiobutton(
-                        label=f"{program:3d} - {name}",
-                        variable=self.instrument_var,
-                        value=program,
-                        command=self.on_instrument_change
-                    )
-
-            # Mark the category holding the current instrument
-            is_current = start <= current_instrument <= end
+            for item in family.items:
+                category_menu.add_radiobutton(
+                    label=item.label,
+                    variable=self.instrument_var,
+                    value=int(item.value),
+                    command=self.on_instrument_change,
+                )
+            style_menu(category_menu)  # built after startup's styling pass
             self.instrument_menu.add_cascade(
-                label=category_name, menu=category_menu,
-                image=self._category_markers[is_current], compound=tk.LEFT,
+                label=family.name, menu=category_menu,
+                image=self._category_markers[family.is_current], compound=tk.LEFT,
             )
+        self.instrument_var.set(state.current)
 
     def _make_menu_marker(self, filled: bool, width: int = 20, height: int = 14) -> tk.PhotoImage:
         """Return a menu-entry marker: a small dot, or a blank of the same size."""
@@ -1255,8 +1211,13 @@ class MainWindow(tk.Tk):
         ChordIdentifierWindow(
             parent=self,
             viewmodel=chord_id_viewmodel,
-            on_insert_chord=self._on_insert_chord_from_identifier
+            on_insert_chord=self._on_insert_chord_from_identifier,
+            on_audio_error=self._on_identifier_audio_error,
         )
+
+    def _on_identifier_audio_error(self, error: BaseException) -> None:
+        """Report the identifier's audio failure by the session's click policy."""
+        self.session.report_audio_failure(str(error), from_click=True)
 
     def _on_insert_chord_from_identifier(self, chord_name: str) -> None:
         """Handle chord insertion from chord identifier.
@@ -1290,8 +1251,8 @@ class MainWindow(tk.Tk):
     def show_quick_start(self) -> None:
         """Show the Quick Start dialog."""
         from ui.dialogs import QuickStartDialog
-        editor_font = (resolve_font_family(self.text_editor, self.viewmodel.font_family),
-                       self.viewmodel.font_size)
+        family, size = self._editor_font()
+        editor_font = (resolve_font_family(self.text_editor, family), size)
         dialog = QuickStartDialog(self, self.application.song_parser_service, editor_font,
                                   self.resource_service)
         self.wait_window(dialog)
@@ -1301,37 +1262,10 @@ class MainWindow(tk.Tk):
             self.viewmodel.set_show_quick_start_on_startup(False)
 
     def show_options(self) -> None:
-        """Show the Settings dialog."""
-        dialog = OptionsDialog(self, self.application.config_service, on_apply=self._on_options_apply)
+        """Show the Settings dialog; the session applies what it saved."""
+        dialog = OptionsDialog(self, self.application.config_service,
+                               on_apply=self.session.apply_settings)
         self.wait_window(dialog)
-
-    def _on_options_apply(self, changes: Any) -> None:
-        """React to a SettingsChanges reported by the Settings dialog.
-
-        Args:
-            changes: SettingsChanges describing what changed and, if the
-                active voicing had to be rewritten (rename/removal), its new
-                value.
-        """
-        if changes.font_changed:
-            config = self.application.config_service
-            self.viewmodel.set_font_family(config.get("font_family", self.viewmodel.font_family))
-            self.viewmodel.set_font_size(config.get("font_size", self.viewmodel.font_size))
-
-        if changes.voicings_changed:
-            self.rebuild_voicing_menu()
-
-        if changes.new_active_voicing is not None:
-            # The active voicing pointer itself was rewritten (the selected
-            # voicing was renamed or removed): switch the menu selection and
-            # re-invoke the voicing-change path once for the new value.
-            self.voicing_var.set(changes.new_active_voicing)
-            self.on_voicing_change()
-        elif changes.voicings_changed and self.voicing_var.get().startswith("voicing:"):
-            # The active voicing's definition may have been edited in place
-            # (no rename): re-invoke the voicing-change path so playback
-            # picks up the new parameters.
-            self.on_voicing_change()
 
     def show_about(self) -> None:
         """Show About dialog with version information"""

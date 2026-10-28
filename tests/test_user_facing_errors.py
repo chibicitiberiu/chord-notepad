@@ -88,13 +88,6 @@ def _stub_writer(render=None):
     return patch.dict(sys.modules, {"services.midi_file_writer": stub})
 
 
-@pytest.fixture(autouse=True)
-def _reset_click_error_flag():
-    audio_errors.reset_click_error_shown()
-    yield
-    audio_errors.reset_click_error_shown()
-
-
 # ---------------------------------------------------------------------------
 # MainWindowViewModel: open / save / export keep the reason
 # ---------------------------------------------------------------------------
@@ -421,35 +414,16 @@ class TestShowHelp:
 
 
 # ---------------------------------------------------------------------------
-# show_audio_error: clicks report once, Play always
+# present_audio_unavailable: the Tk dialog for the session's AudioUnavailable
+# (the once-per-session policy is tested in tests/test_session_menus.py)
 # ---------------------------------------------------------------------------
 
-class TestShowAudioError:
+class TestPresentAudioUnavailable:
 
-    def test_click_errors_shown_once(self):
+    def test_shows_the_message_as_an_audio_error(self):
         with patch("ui.audio_errors.messagebox.showerror") as showerror:
-            audio_errors.show_audio_error(None, AudioInitializationError("no driver"), from_click=True)
-            audio_errors.show_audio_error(None, AudioInitializationError("no driver"), from_click=True)
-        assert showerror.call_count == 1
-        assert "no driver" in showerror.call_args.args[1]
-
-    def test_clicks_share_the_session_policy(self):
-        from session.audio_policy import AudioFailurePolicy
-
-        policy = AudioFailurePolicy()
-        audio_errors.use_policy(policy)
-        assert policy.should_report(from_click=True)  # the session reported a tap
-        with patch("ui.audio_errors.messagebox.showerror") as showerror:
-            audio_errors.show_audio_error(None, AudioInitializationError("x"), from_click=True)
-            audio_errors.show_audio_error(None, AudioInitializationError("x"))
-        assert showerror.call_count == 1  # only Play
-
-    def test_explicit_errors_always_shown(self):
-        with patch("ui.audio_errors.messagebox.showerror") as showerror:
-            audio_errors.show_audio_error(None, AudioInitializationError("a"), from_click=True)
-            audio_errors.show_audio_error(None, AudioInitializationError("a"))
-            audio_errors.show_audio_error(None, AudioInitializationError("a"))
-        assert showerror.call_count == 3
+            audio_errors.present_audio_unavailable(None, "no driver")
+        assert showerror.call_args.args == ("Audio Error", "no driver")
 
 
 # ---------------------------------------------------------------------------
@@ -551,6 +525,7 @@ class TestMainWindowDialogs:
         from ui.main_window import MainWindow
 
         window = self._window()
+        window._dialog_parent.return_value = window
         with patch("ui.audio_errors.messagebox.showerror") as showerror:
             MainWindow._on_session_output(window, AudioUnavailable("no driver", from_click=True))
             MainWindow._on_session_output(window, AudioUnavailable("no driver", from_click=True))
@@ -630,10 +605,25 @@ class TestDialogs:
         from ui.chord_identifier import ChordIdentifierWindow
 
         window = Mock()
-        window.viewmodel.play_note.side_effect = AudioInitializationError("no driver")
-        with patch("ui.chord_identifier.show_audio_error") as show:
-            ChordIdentifierWindow._on_play_note(window, "C", 4)
-        assert show.call_args.kwargs["from_click"] is True
+        error = AudioInitializationError("no driver")
+        window.viewmodel.play_note.side_effect = error
+        ChordIdentifierWindow._on_play_note(window, "C", 4)
+        window._report_audio_error.assert_called_once_with(error)
+
+    def test_identifier_hands_audio_errors_to_its_owner(self):
+        from ui.chord_identifier import ChordIdentifierWindow
+
+        window = Mock()
+        error = AudioInitializationError("no driver")
+        ChordIdentifierWindow._report_audio_error(window, error)
+        window.on_audio_error.assert_called_once_with(error)
+
+    def test_main_window_reports_identifier_audio_errors_through_the_session(self):
+        from ui.main_window import MainWindow
+
+        window = Mock()
+        MainWindow._on_identifier_audio_error(window, AudioInitializationError("no driver"))
+        window.session.report_audio_failure.assert_called_once_with("no driver", from_click=True)
 
     def test_identifier_unplayable_chord_is_reported(self):
         from ui.chord_identifier import ChordIdentifierWindow
@@ -655,13 +645,12 @@ class TestDialogs:
             with pytest.raises(ChordDetectionError):
                 vm.play_chord("Cweird")
 
-    def test_chord_sheet_click_reports_audio_error(self):
+    def test_chord_sheet_click_auditions_through_the_session(self):
+        # The session plays it and reports audio failures by its policy.
         from ui.chord_sheet.panel import ChordSheetPanel
 
         panel = Mock()
         panel._canvas.canvasx.return_value = 5
         panel._layout.slots = [Mock(x=0, width=10, chord_index=0)]
-        panel._vm.audition.side_effect = AudioInitializationError("no driver")
-        with patch("ui.chord_sheet.panel.show_audio_error") as show:
-            ChordSheetPanel._on_canvas_click(panel, Mock(x=5))
-        assert show.call_args.kwargs["from_click"] is True
+        ChordSheetPanel._on_canvas_click(panel, Mock(x=5))
+        panel._session.audition.assert_called_once_with(0)

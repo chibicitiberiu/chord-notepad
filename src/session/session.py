@@ -19,7 +19,7 @@ import functools
 import logging
 from typing import TYPE_CHECKING, Any, Callable, Iterator, Optional, Sequence, Tuple, TypeVar
 
-from constants import CHORD_DETECTION_DEBOUNCE_MS
+from constants import CHORD_DETECTION_DEBOUNCE_MS, MAX_FONT_SIZE, MIN_FONT_SIZE
 from exceptions import AudioInitializationError
 from models.notation import Notation
 from models.playback_event import PlaybackEventArgs, PlaybackEventType
@@ -34,8 +34,9 @@ from session.flows import Flow, FlowRunner
 from session.highlighting import chord_at, compute_spans
 from session.host import Cancellable, Host
 from session.state import (
-    EditorState, HighlightState, MenuItem, PlayAction, PlaybackState, PlaybackStatus, Span,
-    SpanKind, StatusState, ToolbarState,
+    ChordSheetState, ChordSheetView, EditorState, HighlightState, InstrumentMenuState,
+    MenuItem, PlayAction, PlaybackState, PlaybackStatus, Span, SpanKind, StatusState,
+    ToolbarState, VoicingMenuState,
 )
 
 if TYPE_CHECKING:
@@ -43,6 +44,7 @@ if TYPE_CHECKING:
     # import guard), so the session must not import it at run time.
     from viewmodels.chord_sheet_viewmodel import ChordSheetViewModel
     from viewmodels.main_window_viewmodel import MainWindowViewModel
+    from viewmodels.settings_viewmodel import SettingsChanges
     from viewmodels.text_editor_viewmodel import TextEditorViewModel
 
 logger = logging.getLogger(__name__)
@@ -54,6 +56,10 @@ Selection = Optional[Sequence[int]]
 # The viewmodel properties the toolbar shows (besides the notation).
 _TOOLBAR_INPUTS = ("bpm", "bpm_multiplier", "metronome_enabled", "key",
                    "time_signature_beats", "time_signature_unit")
+
+# The chord-sheet viewmodel properties ChordSheetState mirrors (besides the
+# rendered song, which bumps its revision).
+_CHORD_SHEET_INPUTS = ("visible", "active_view", "available_views", "zoom", "current_index")
 
 _PLAY_ACTIONS = {
     PlaybackStatus.IDLE: PlayAction.PLAY,
@@ -145,6 +151,24 @@ class AppSession:
             self._main.observe("key", self._on_song_input)
             self._main.observe("voicing", self._on_song_input)
 
+        # The editor font and the Voicing menu follow the viewmodel (the
+        # Settings dialog changes them too, through apply_settings).
+        self._on_editor_input = self._entry(self._publish_editor)
+        self._main.observe("font_family", self._on_editor_input)
+        self._main.observe("font_size", self._on_editor_input)
+        self._on_voicing = self._entry(self._publish_voicing_menu)
+        self._main.observe("voicing", self._on_voicing)
+
+        # The strip's own state (visibility, view, zoom, playhead) and a
+        # revision that goes up with every song it rendered.
+        self._sheet_revision = 0
+        self._on_sheet_change = self._entry(self._publish_chord_sheet)
+        self._on_sheet_song = self._entry(self._on_chord_sheet_song)
+        if self._chord_sheet is not None:
+            for name in _CHORD_SHEET_INPUTS:
+                self._chord_sheet.observe(name, self._on_sheet_change)
+            self._chord_sheet.observe("rendered_song", self._on_sheet_song)
+
         # Playback: the viewmodel runs it, the session turns its transport
         # flags and progress pings into states.
         self._audio_policy = audio_failure_policy or AudioFailurePolicy()
@@ -164,8 +188,11 @@ class AppSession:
             self._emitter.set_state(HighlightState(0, 0, ()))
             self._emitter.set_state(self._playback)
             self._emitter.set_state(StatusState(formatting.READY))
-            self._emitter.set_state(EditorState(read_only=False))
+            self._publish_editor()
             self._publish_toolbar()
+            self._publish_voicing_menu()
+            self._publish_instrument_menu()
+            self._publish_chord_sheet()
 
     # -- lifecycle ------------------------------------------------------------
 
@@ -204,6 +231,13 @@ class AppSession:
         self._main.unobserve("notation", self._on_notation)
         for name in _TOOLBAR_INPUTS:
             self._main.unobserve(name, self._on_toolbar_input)
+        self._main.unobserve("font_family", self._on_editor_input)
+        self._main.unobserve("font_size", self._on_editor_input)
+        self._main.unobserve("voicing", self._on_voicing)
+        if self._chord_sheet is not None:
+            for name in _CHORD_SHEET_INPUTS:
+                self._chord_sheet.unobserve(name, self._on_sheet_change)
+            self._chord_sheet.unobserve("rendered_song", self._on_sheet_song)
         self._detector.unobserve("detected_lines", self._on_song_input)
         self._main.unobserve("key", self._on_song_input)
         self._main.unobserve("voicing", self._on_song_input)
@@ -395,9 +429,24 @@ class AppSession:
             self._main.on_chord_clicked(chord)
         except AudioInitializationError as e:
             self._set_status(formatting.AUDIO_UNAVAILABLE_STATUS)
-            self._report_audio_failure(e, from_click=True)
+            self._report_audio_failure(str(e), from_click=True)
             return
         self._set_status(formatting.tapped_chord_status(chord.chord))
+
+    @_command
+    def report_audio_failure(self, reason: str, from_click: bool = True) -> None:
+        """Report audio that failed to start for something played outside the session.
+
+        For the click-to-hear sources whose audio a dialog-scoped viewmodel
+        plays (the chord identifier). The failure goes through the session's
+        reporting policy like a chord tap: emits :class:`AudioUnavailable` the
+        first time in a session, later ones are only logged.
+
+        Args:
+            reason: Why, usually the ``AudioInitializationError`` text.
+            from_click: True for click-to-hear actions.
+        """
+        self._report_audio_failure(reason, from_click)
 
     # -- toolbar ----------------------------------------------------------------
 
@@ -457,6 +506,125 @@ class AppSession:
         """Turn the click track on or off."""
         self._main.toggle_metronome()
 
+    # -- playback menu, fonts, settings -------------------------------------------
+
+    @_command
+    def set_voicing(self, voicing: str) -> None:
+        """Voice chords with ``voicing`` (a value from :class:`VoicingMenuState`).
+
+        Choosing the voicing in use again re-applies it (the chord sheet
+        re-renders).
+
+        Raises:
+            ValueError: If it isn't one of the menu's values.
+        """
+        values = {item.value for group in self._voicing_groups() for item in group}
+        if voicing not in values:
+            raise ValueError(f"unknown voicing {voicing!r}")
+        self._main.set_voicing(voicing)
+
+    @_command
+    def set_instrument(self, program: int) -> None:
+        """Play with General MIDI ``program`` (0-127).
+
+        Raises:
+            ValueError: For a program outside 0-127.
+        """
+        program = int(program)
+        if not 0 <= program <= 127:
+            raise ValueError(f"MIDI program {program} outside 0-127")
+        self._main.set_instrument(program)
+        self._publish_instrument_menu()
+
+    @_command
+    def set_font(self, family: str, size: int) -> None:
+        """Set the editor font (a size outside 6-72 is logged and ignored)."""
+        self._main.set_font_family(family)
+        self._main.set_font_size(int(size))
+
+    @_command
+    def step_font_size(self, delta: int) -> None:
+        """Grow (positive) or shrink the editor font, within 6-72 points."""
+        size = self._main.font_size + int(delta)
+        self._main.set_font_size(max(MIN_FONT_SIZE, min(MAX_FONT_SIZE, size)))
+
+    @_command
+    def reset_font_size(self) -> None:
+        """Put the editor font back to its default size."""
+        self._main.reset_font_size()
+
+    @_command
+    def apply_settings(self, changes: "SettingsChanges") -> None:
+        """Bring the running app in line with settings the Settings dialog saved.
+
+        The dialog writes the config itself (``SettingsViewModel.commit``) and
+        hands over what changed: a new font is applied, the Voicing menu is
+        rebuilt from the edited registry, and the voicing in use is
+        re-applied when it was renamed or removed (the new value) or may have
+        been edited in place (a user voicing). ``general_changed`` and
+        ``audio_changed`` are ignored, as they always were: those settings
+        are defaults for the next start (the dialog says so where it
+        matters).
+
+        Args:
+            changes: What :meth:`SettingsViewModel.commit` reported.
+        """
+        if changes.font_changed:
+            self._main.reload_font_settings()
+        if changes.voicings_changed:
+            self._publish_voicing_menu()
+        if changes.new_active_voicing is not None:
+            self._main.set_voicing(changes.new_active_voicing)
+        elif changes.voicings_changed and self._main.get_voicing().startswith("voicing:"):
+            # Possibly edited in place: rebuild the picker from the new values.
+            self._main.set_voicing(self._main.get_voicing())
+
+    # -- chord sheet ------------------------------------------------------------
+
+    @_command
+    def set_chord_sheet_visible(self, visible: bool) -> None:
+        """Show or hide the chord sheet (it renders only while shown)."""
+        if self._chord_sheet is not None:
+            self._chord_sheet.set_visible(bool(visible))
+
+    @_command
+    def set_chord_sheet_height(self, px: int) -> None:
+        """Remember the chord sheet's height, in pixels (desktop)."""
+        if self._chord_sheet is not None:
+            self._chord_sheet.set_height(int(px))
+            self._publish_chord_sheet()
+
+    @_command
+    def set_chord_sheet_view(self, view_id: str) -> None:
+        """Show the chord sheet as ``view_id``; an unavailable view is ignored."""
+        if self._chord_sheet is not None:
+            self._chord_sheet.set_active_view(view_id)
+
+    @_command
+    def chord_sheet_zoom(self, step: int) -> None:
+        """Zoom the active chord-sheet view in (positive) or out (negative)
+        one step; ignored for views that don't zoom."""
+        if self._chord_sheet is None or step == 0:
+            return
+        if step > 0:
+            self._chord_sheet.zoom_in()
+        else:
+            self._chord_sheet.zoom_out()
+
+    @_command
+    def audition(self, index: int) -> None:
+        """Play chord ``index`` of the chord sheet's song once (click-to-hear).
+
+        If audio can't start, the first click-to-hear failure in a session
+        emits :class:`AudioUnavailable`; later ones only log.
+        """
+        if self._chord_sheet is None:
+            return
+        try:
+            self._chord_sheet.audition(int(index))
+        except AudioInitializationError as e:
+            self._report_audio_failure(str(e), from_click=True)
+
     @_command
     def show_status(self, text: str) -> None:
         """Show ``text`` in the status line.
@@ -470,11 +638,7 @@ class AppSession:
 
     @property
     def audio_failure_policy(self) -> AudioFailurePolicy:
-        """The policy the session reports audio failures by.
-
-        Shared with the Tk presenter for the click sources that don't go
-        through the session yet (chord-sheet audition, chord identifier).
-        """
+        """The policy the session reports audio failures by."""
         return self._audio_policy
 
     # -- queries ----------------------------------------------------------------
@@ -662,12 +826,58 @@ class AppSession:
         """
         self._detector.set_notation(notation.value)
         self._detect_now()
+        self._publish_editor()
         key = self._main.key
         if key:
             converted = toolbar.convert_key(key, notation.value)
             if converted != key:
                 self._main.set_key(converted)
         self._publish_toolbar()
+
+    def _publish_editor(self, _changed: Any = None) -> None:
+        self._emitter.set_state(EditorState(
+            font_family=self._main.font_family,
+            font_size=self._main.font_size,
+            read_only=self._playback.status is not PlaybackStatus.IDLE,
+            notation=self._main.notation.value,
+        ))
+
+    def _voicing_groups(self) -> Tuple[Tuple[MenuItem, ...], ...]:
+        return formatting.voicing_menu_groups(self._main.get_voicings())
+
+    def _publish_voicing_menu(self, _changed: Any = None) -> None:
+        self._emitter.set_state(VoicingMenuState(
+            selected=self._main.get_voicing(), groups=self._voicing_groups()))
+
+    def _publish_instrument_menu(self) -> None:
+        current = self._main.get_instrument()
+        self._emitter.set_state(InstrumentMenuState(
+            current=current,
+            families=formatting.instrument_families(
+                self._main.get_available_instruments(), current),
+        ))
+
+    def _on_chord_sheet_song(self, _song: Any) -> None:
+        self._sheet_revision += 1
+        self._publish_chord_sheet()
+
+    def _publish_chord_sheet(self, _changed: Any = None) -> None:
+        sheet = self._chord_sheet
+        if sheet is None:
+            return
+        available = set(sheet.available_views)
+        self._emitter.set_state(ChordSheetState(
+            visible=sheet.visible,
+            height=sheet.height,
+            active_view=sheet.active_view,
+            views=tuple(ChordSheetView(r.id, r.label, r.id in available)
+                        for r in sheet.renderers),
+            disabled_reason=sheet.fretted_views_unavailable_reason,
+            zoom=sheet.zoom,
+            zoom_supported=sheet.zoom_supported,
+            current_index=sheet.current_index,
+            song_revision=self._sheet_revision,
+        ))
 
     def _publish_toolbar(self, _changed: Any = None) -> None:
         status = self._playback.status
@@ -704,7 +914,7 @@ class AppSession:
         if playback.status is PlaybackStatus.IDLE:
             self._effective_bpm = None
         self._emitter.set_state(playback)
-        self._emitter.set_state(EditorState(read_only=playback.status is not PlaybackStatus.IDLE))
+        self._publish_editor()
         self._publish_toolbar()
 
     def _start_playback(self, from_offset: Optional[int]) -> None:
@@ -714,7 +924,7 @@ class AppSession:
             started = self._main.start_playback(from_char_offset=from_offset or 0)
         except AudioInitializationError as e:
             self._set_status(formatting.AUDIO_UNAVAILABLE_STATUS)
-            self._report_audio_failure(e, from_click=False)
+            self._report_audio_failure(str(e), from_click=False)
             return
         if started:
             # Counted from the latest detection, as the status always has.
@@ -723,11 +933,11 @@ class AppSession:
         else:
             self._set_status(formatting.nothing_to_play_status(from_cursor))
 
-    def _report_audio_failure(self, error: BaseException, from_click: bool) -> None:
+    def _report_audio_failure(self, reason: str, from_click: bool) -> None:
         if not self._audio_policy.should_report(from_click):
-            logger.warning(f"Audio unavailable (already reported): {error}")
+            logger.warning(f"Audio unavailable (already reported): {reason}")
             return
-        message = formatting.audio_unavailable_message(str(error), from_click)
+        message = formatting.audio_unavailable_message(reason, from_click)
         self._emitter.emit(AudioUnavailable(message, from_click))
 
     def _on_transport_changed(self, _value: Any = None) -> None:

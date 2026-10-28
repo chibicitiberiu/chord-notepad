@@ -5,10 +5,10 @@ the chord sheet or the chord identifier) also places the cursor or selects a
 note, so when audio is broken those clicks report it once per session and
 then only log it; otherwise editing would mean dismissing a dialog per click.
 
-The session owns one :class:`AudioFailurePolicy` and applies it to its own
-taps. Until chord-sheet auditions and the chord identifier go through the
-session, the Tk presenter (``ui.audio_errors``) shares the same instance, so
-all click sources still report only once between them.
+The session owns one :class:`AudioFailurePolicy` and applies it to every
+click source: editor taps, chord-sheet auditions and the chord identifier
+(which reports through ``AppSession.report_audio_failure``), so they report
+only once between them.
 """
 
 
