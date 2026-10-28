@@ -1,0 +1,40 @@
+[submodule "fluidsynth"]
+	path = android/native/fluidsynth
+	url = https://github.com/FluidSynth/fluidsynth.git
+	shallow = true
+[submodule "oboe"]
+	path = android/native/oboe
+	url = https://github.com/google/oboe.git
+	shallow = true
+[submodule "libsndfile"]
+	path = android/native/libsndfile
+	url = https://github.com/libsndfile/libsndfile.git
+	shallow = true
+[submodule "ogg"]
+	path = android/native/ogg
+	url = https://github.com/xiph/ogg.git
+	shallow = true
+[submodule "vorbis"]
+	path = android/native/vorbis
+	url = https://github.com/xiph/vorbis.git
+	shallow = true
+[submodule "flac"]
+	path = android/native/flac
+	url = https://github.com/xiph/flac.git
+	shallow = true
+[submodule "opus"]
+	path = android/native/opus
+	url = https://github.com/xiph/opus.git
+	shallow = true
+[submodule "signalsmith-linear"]
+	path = android/native/signalsmith-linear
+	url = https://github.com/Signalsmith-Audio/linear.git
+	shallow = true
+[submodule "signalsmith-dsp"]
+	path = android/native/signalsmith-dsp
+	url = https://github.com/Signalsmith-Audio/dsp.git
+	shallow = true
+[submodule "signalsmith-hilbert"]
+	path = android/native/signalsmith-hilbert
+	url = https://github.com/Signalsmith-Audio/hilbert-iir.git
+	shallow = true
