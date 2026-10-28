@@ -50,8 +50,9 @@ class PlaybackService:
         self._config = config_service
         self._audio_options = audio_options
         self._player: Optional[IPlayer] = player
-        self._note_picker = self._create_note_picker(self._config.get("voicing", "piano"))
+        # Before the note picker: building a configured voicing that fails logs a warning.
         self._logger = logging.getLogger(__name__)
+        self._note_picker = self._create_note_picker(self._config.get("voicing", "piano"))
         self._initialized = player is not None
         # Why the last initialize_player() failed, for the error dialog.
         self._init_error: Optional[str] = None

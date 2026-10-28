@@ -9,6 +9,9 @@ moved to CHANGELOG_HISTORY.md and this file is reset.
 
 ### Fixed
 
+- If the selected custom voicing can no longer be built (for example after
+  editing settings.json by hand), Chord Notepad starts with piano voicing
+  instead of failing to start.
 - Playback keeps time more accurately. Notes, the metronome and speed changes
   stay on the beat even while Chord Notepad is busy with something else (for
   example redrawing the chord sheet), and long songs no longer slowly fall

@@ -232,6 +232,18 @@ def playback_service(mock_config):
     return PlaybackService(config_service=mock_config, player=None)
 
 
+def test_broken_configured_voicing_at_startup_falls_back_to_piano(mock_config):
+    """A saved voicing that no longer builds must not crash the service's constructor."""
+    from audio.chord_picker import ChordNotePicker
+
+    mock_config._store["voicings"] = {"broken": {"model": "fretboard"}}
+    mock_config._store["voicing"] = "voicing:broken"
+
+    service = PlaybackService(config_service=mock_config, player=None)
+
+    assert isinstance(service._note_picker, ChordNotePicker)
+
+
 class TestRegistryDispatchFretboard:
     """'voicing:<name>' entries with model 'fretboard'."""
 
