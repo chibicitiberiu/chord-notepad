@@ -67,15 +67,22 @@ Download the latest release from the [Releases](../../releases) page:
   `flatpak install --user ChordNotepad-linux-x64.flatpak`, which also fetches
   the runtime from Flathub), or `ChordNotepad-linux-x64` (standalone executable)
 - **Windows**: `ChordNotepad-windows-x64.exe`
-- **macOS**: `ChordNotepad-macos-x64`
+- **macOS**: `ChordNotepad-macos-arm64`
 
 All releases are automatically built and tested using GitHub Actions.
+
+It is also available from app stores:
+- **Linux**: [Snap Store](https://snapcraft.io/chord-notepad)
+  (`sudo snap install chord-notepad`)
+- **Windows**: [Microsoft Store](https://apps.microsoft.com/detail/9nb07qdfwjf4).
+  This is a paid supporter edition: the same app as the free download, with
+  automatic updates. Buying it is a way to support development.
 
 ### Option 2: Run from Source
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/yourusername/chord-notepad.git
+   git clone https://github.com/chibicitiberiu/chord-notepad.git
    cd chord-notepad
    ```
 

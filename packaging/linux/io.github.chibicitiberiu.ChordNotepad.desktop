@@ -7,5 +7,5 @@ Exec=chord-notepad
 Icon=io.github.chibicitiberiu.ChordNotepad
 Terminal=false
 Categories=AudioVideo;Audio;Music;Education;
-Keywords=chords;guitar;piano;lyrics;song;chordpro;
+Keywords=chords;guitar;piano;lyrics;song;
 StartupWMClass=Chordnotepad

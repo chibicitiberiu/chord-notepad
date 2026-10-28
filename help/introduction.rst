@@ -124,10 +124,15 @@ Limitations
 Chord Notepad is a chord editor, not a full music production tool. It does not:
 
 * Record audio or add effects (not a DAW)
-* Display standard musical notation (not sheet music software)
-* Show guitar tablature (not a tab editor)
+* Write melodies or rhythms in standard notation (not sheet music software)
+* Edit guitar tablature by hand (not a tab editor)
 
 For those features, you would need different software.
+
+The chord sheet strip does show your chords on a staff, as fret diagrams, or as
+tab (see :doc:`chord_sheet`), but those views are drawn from the chords you
+type and the voicing that plays them. You can't place individual notes or
+frets yourself.
 
 System Requirements
 -------------------
@@ -140,3 +145,17 @@ Chord Notepad runs on:
 
 Audio playback requires a working sound system. The application uses FluidSynth
 for instrument synthesis.
+
+Getting Chord Notepad
+---------------------
+
+Chord Notepad is free and open source. Downloads for every platform are on the
+`GitHub releases page <https://github.com/chibicitiberiu/chord-notepad/releases>`_.
+
+It is also available from:
+
+* **Snap Store** (Linux): https://snapcraft.io/chord-notepad, or run
+  ``sudo snap install chord-notepad``
+* **Microsoft Store** (Windows): https://apps.microsoft.com/detail/9nb07qdfwjf4.
+  This is a paid supporter edition. It is the same app as the free download and
+  updates automatically. Buying it helps support development.
