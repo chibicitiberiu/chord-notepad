@@ -73,9 +73,10 @@ def load(env, text):
 def test_type_text_no_spans_before_the_debounce_spans_after(env):
     assert env.recorder.compact() == [
         ("HighlightState", 0, 0, ()),
-        ("PlaybackState", "idle", None, None, 0, 0, None),
+        ("PlaybackState", "idle", None, None, 0, 0),
         ("StatusState", "Ready"),
         ("EditorState", False),
+        ("ToolbarState", "american", 120, 120, True, 100.0, "C", 4, 4, False, "play"),
     ]
     env.recorder.clear()
 
@@ -200,7 +201,8 @@ def test_notation_change_redetects_immediately(env):
     env.recorder.clear()
     env.main.set_notation(Notation.EUROPEAN)
     assert env.recorder.compact() == [
-        ("HighlightState", 1, 0, (chord(0, 2), chord(3, 5), chord(6, 8)))]
+        ("HighlightState", 1, 0, (chord(0, 2), chord(3, 5), chord(6, 8))),
+        ("ToolbarState", "european", 120, 120, True, 100.0, "Do", 4, 4, False, "play")]
 
 
 def test_detection_starts_in_the_saved_notation():

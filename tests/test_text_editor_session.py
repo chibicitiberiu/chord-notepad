@@ -64,7 +64,7 @@ def wired():
     # to are stand-ins.
     window = SimpleNamespace(text_editor=editor, session=session, viewmodel=Mock(),
                              update_statusbar=Mock(), statusbar=Mock(),
-                             _apply_playback=Mock())
+                             _apply_playback=Mock(), _apply_toolbar=Mock())
     editor.bind("<<Modified>>", lambda e: MainWindow.on_text_modified(window))
     session.subscribe(lambda item: MainWindow._on_session_output(window, item))
     session.start()
@@ -232,10 +232,7 @@ def test_highlight_state_from_the_session_is_painted(wired):
 def _playback_window(wired):
     """A window whose playback widgets are stand-ins around the real editor."""
     return SimpleNamespace(
-        text_editor=wired.editor, viewmodel=SimpleNamespace(bpm=120),
-        play_pause_button=Mock(), _icon_play="play", _icon_pause="pause",
-        _play_pause_tooltip=SimpleNamespace(text=""), bpm_scrubber=Mock(),
-        _shown_progress=None, session=Mock())
+        text_editor=wired.editor, _shown_progress=None, session=Mock())
 
 
 def test_playing_state_highlights_and_scrolls_to_the_chord(wired):
@@ -246,30 +243,19 @@ def test_playing_state_highlights_and_scrolls_to_the_chord(wired):
     editor.insert("1.0", "\n" * 200 + "C  G")
     window = _playback_window(wired)
     span = Span(203, 204, SpanKind.CHORD)
-    MainWindow._apply_playback(
-        window, PlaybackState(PlaybackStatus.PLAYING, span, 1, 1, 1, 96))
+    MainWindow._apply_playback(window, PlaybackState(PlaybackStatus.PLAYING, span, 1, 1, 1))
 
     assert _ranges(editor, TAG_CHORD_PLAYING) == [(203, 204)]
     assert editor.bbox("1.0 + 203 chars") is not None  # scrolled into view
-    window.play_pause_button.config.assert_called_with(image="pause")
-    assert window._play_pause_tooltip.text == "Pause playback"
-    window.bpm_scrubber.set_readonly.assert_called_with(True)
-    window.bpm_scrubber.set_display_text.assert_called_with("96")
 
     # Pausing keeps the chord highlighted and doesn't scroll back to it.
     editor.see("1.0")
-    MainWindow._apply_playback(
-        window, PlaybackState(PlaybackStatus.PAUSED, span, 1, 1, 1, 96))
+    MainWindow._apply_playback(window, PlaybackState(PlaybackStatus.PAUSED, span, 1, 1, 1))
     assert _ranges(editor, TAG_CHORD_PLAYING) == [(203, 204)]
     assert editor.bbox("1.0 + 203 chars") is None
-    window.play_pause_button.config.assert_called_with(image="play")
-    assert window._play_pause_tooltip.text == "Resume playback"
 
     MainWindow._apply_playback(window, PlaybackState(PlaybackStatus.IDLE))
     assert _ranges(editor, TAG_CHORD_PLAYING) == []
-    window.bpm_scrubber.set_readonly.assert_called_with(False)
-    window.bpm_scrubber.set_value.assert_called_with(120)
-    assert window._play_pause_tooltip.text.startswith("Play from start")
 
 
 def test_editor_state_locks_the_editor(wired):

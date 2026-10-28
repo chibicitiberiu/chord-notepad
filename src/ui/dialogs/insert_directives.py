@@ -13,7 +13,7 @@ import logging
 import tkinter as tk
 from tkinter import ttk, messagebox
 from typing import Dict, Iterable, Optional
-from utils.key_helpers import get_key_options
+from session.toolbar import key_options
 from models.notation import Notation
 from session.directives import DirectiveKind, check_directive, loop_label_choices
 from session.events import InsertDirectiveRequest
@@ -203,7 +203,7 @@ class InsertKeyDialog(BaseInsertDialog):
         super().__init__(parent, "Insert Key Change", description, notation=notation)
 
         # Get keys based on current notation
-        keys = get_key_options(notation)
+        keys = list(key_options(self.notation.value))
 
         self.key_var = tk.StringVar(value=keys[0])  # Default to first key (C or Do)
         self.key_combo = ttk.Combobox(self.content_frame, textvariable=self.key_var,

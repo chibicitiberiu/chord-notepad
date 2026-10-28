@@ -23,7 +23,7 @@ from constants import CHORD_DETECTION_DEBOUNCE_MS
 from exceptions import AudioInitializationError
 from models.notation import Notation
 from models.playback_event import PlaybackEventArgs, PlaybackEventType
-from session import directives, formatting
+from session import directives, formatting, toolbar
 from session.audio_policy import AudioFailurePolicy
 from session.emitter import Emitter, Listener
 from session.events import (
@@ -34,8 +34,8 @@ from session.flows import Flow, FlowRunner
 from session.highlighting import chord_at, compute_spans
 from session.host import Cancellable, Host
 from session.state import (
-    EditorState, HighlightState, MenuItem, PlaybackState, PlaybackStatus, Span, SpanKind,
-    StatusState,
+    EditorState, HighlightState, MenuItem, PlayAction, PlaybackState, PlaybackStatus, Span,
+    SpanKind, StatusState, ToolbarState,
 )
 
 if TYPE_CHECKING:
@@ -50,6 +50,16 @@ logger = logging.getLogger(__name__)
 F = TypeVar("F", bound=Callable[..., Any])
 
 Selection = Optional[Sequence[int]]
+
+# The viewmodel properties the toolbar shows (besides the notation).
+_TOOLBAR_INPUTS = ("bpm", "bpm_multiplier", "metronome_enabled", "key",
+                   "time_signature_beats", "time_signature_unit")
+
+_PLAY_ACTIONS = {
+    PlaybackStatus.IDLE: PlayAction.PLAY,
+    PlaybackStatus.PLAYING: PlayAction.PAUSE,
+    PlaybackStatus.PAUSED: PlayAction.RESUME,
+}
 
 
 def _command(method: F) -> F:
@@ -120,6 +130,13 @@ class AppSession:
         self._on_notation = self._entry(self._on_notation_changed)
         self._main.observe("notation", self._on_notation)
 
+        # The toolbar mirrors the viewmodel's tempo, key, time signature and
+        # metronome, whoever changed them (a command, an opened file's
+        # directives, a whole-song transpose).
+        self._on_toolbar_input = self._entry(self._publish_toolbar)
+        for name in _TOOLBAR_INPUTS:
+            self._main.observe(name, self._on_toolbar_input)
+
         # The chord sheet re-renders when the parsed song, the key (roman
         # numerals) or the voicing (fingerings, view gating) changes.
         self._on_song_input = self._entry(self._feed_chord_sheet)
@@ -132,6 +149,9 @@ class AppSession:
         # flags and progress pings into states.
         self._audio_policy = audio_failure_policy or AudioFailurePolicy()
         self._playback = PlaybackState(self._playback_status())
+        # The tempo of the chord sounding (directives applied); None when
+        # idle and before the first chord.
+        self._effective_bpm: Optional[int] = None
         self._on_transport = self._entry(self._on_transport_changed)
         self._on_progress = self._entry(self._on_playback_event)
         self._on_render_error = self._entry(self._on_playback_error)
@@ -145,6 +165,7 @@ class AppSession:
             self._emitter.set_state(self._playback)
             self._emitter.set_state(StatusState(formatting.READY))
             self._emitter.set_state(EditorState(read_only=False))
+            self._publish_toolbar()
 
     # -- lifecycle ------------------------------------------------------------
 
@@ -181,6 +202,8 @@ class AppSession:
         self._flows.cancel()
         self._main.unobserve("current_text", self._on_replaced)
         self._main.unobserve("notation", self._on_notation)
+        for name in _TOOLBAR_INPUTS:
+            self._main.unobserve(name, self._on_toolbar_input)
         self._detector.unobserve("detected_lines", self._on_song_input)
         self._main.unobserve("key", self._on_song_input)
         self._main.unobserve("voicing", self._on_song_input)
@@ -375,6 +398,64 @@ class AppSession:
             self._report_audio_failure(e, from_click=True)
             return
         self._set_status(formatting.tapped_chord_status(chord.chord))
+
+    # -- toolbar ----------------------------------------------------------------
+
+    @_command
+    def set_notation(self, notation: str) -> None:
+        """Detect chords in ``notation`` from now on (the text is not rewritten).
+
+        The toolbar key is respelled in the new notation and the key list
+        swapped; the text is re-detected at once.
+
+        Args:
+            notation: ``american`` or ``european``.
+
+        Raises:
+            ValueError: For any other notation.
+        """
+        self._main.set_notation(Notation(notation))
+
+    @_command
+    def set_bpm(self, bpm: float) -> None:
+        """Set the base tempo; ignored while a song plays or is paused.
+
+        The value is clamped to 20-400 and snapped like the toolbar's tempo
+        control (``toolbar.BPM_SCALE``).
+        """
+        if self._playback_status() is not PlaybackStatus.IDLE:
+            logger.info("Ignoring a tempo change while a song is playing")
+            return
+        self._main.set_bpm(toolbar.normalize_bpm(bpm))
+
+    @_command
+    def set_multiplier_pct(self, pct: float) -> None:
+        """Set the speed multiplier, in percent (100 = as written).
+
+        Applies during playback too. The value is clamped to 12.5-400 and
+        snapped like the toolbar's control (``toolbar.MULTIPLIER_SCALE``).
+        """
+        self._main.set_bpm_multiplier(toolbar.MULTIPLIER_SCALE.normalize(pct) / 100.0)
+
+    @_command
+    def set_key(self, key: Optional[str]) -> None:
+        """Set the key roman numerals resolve in (None or empty: no key)."""
+        self._main.set_key(key or None)
+
+    @_command
+    def set_time_signature(self, beats: int, unit: int) -> None:
+        """Set the time signature; invalid values are logged and ignored.
+
+        Args:
+            beats: Beats per bar, 1-16.
+            unit: The beat unit: 1, 2, 4, 8 or 16.
+        """
+        self._main.set_time_signature(int(beats), int(unit))
+
+    @_command
+    def toggle_metronome(self) -> None:
+        """Turn the click track on or off."""
+        self._main.toggle_metronome()
 
     @_command
     def show_status(self, text: str) -> None:
@@ -574,8 +655,39 @@ class AppSession:
         self._chord_sheet.set_song(self._detector.detected_lines, self._main.key)
 
     def _on_notation_changed(self, notation: Notation) -> None:
+        """Detect in the new notation and respell the key in it.
+
+        Also reached from convert, whose ``TextEdited`` is already queued, so
+        the views get the edit first and then its highlight.
+        """
         self._detector.set_notation(notation.value)
         self._detect_now()
+        key = self._main.key
+        if key:
+            converted = toolbar.convert_key(key, notation.value)
+            if converted != key:
+                self._main.set_key(converted)
+        self._publish_toolbar()
+
+    def _publish_toolbar(self, _changed: Any = None) -> None:
+        status = self._playback.status
+        idle = status is PlaybackStatus.IDLE
+        bpm = self._main.bpm
+        notation = self._main.notation.value
+        self._emitter.set_state(ToolbarState(
+            notation=notation,
+            bpm=bpm,
+            bpm_display=(self._effective_bpm
+                         if not idle and self._effective_bpm is not None else bpm),
+            bpm_editable=idle,
+            multiplier_pct=round(self._main.bpm_multiplier * 100.0, 6),
+            key=toolbar.shown_key(self._main.key, notation),
+            key_options=toolbar.key_options(notation),
+            beats=self._main.time_signature_beats,
+            unit=self._main.time_signature_unit,
+            metronome=self._main.metronome_enabled,
+            play_action=_PLAY_ACTIONS[status],
+        ))
 
     # -- playback internals -----------------------------------------------------
 
@@ -589,8 +701,11 @@ class AppSession:
 
     def _publish_playback(self, playback: PlaybackState) -> None:
         self._playback = playback
+        if playback.status is PlaybackStatus.IDLE:
+            self._effective_bpm = None
         self._emitter.set_state(playback)
         self._emitter.set_state(EditorState(read_only=playback.status is not PlaybackStatus.IDLE))
+        self._publish_toolbar()
 
     def _start_playback(self, from_offset: Optional[int]) -> None:
         from_cursor = from_offset is not None
@@ -641,10 +756,11 @@ class AppSession:
         if is_chord_start and self._chord_sheet is not None:
             # chord_index keeps the strip's playhead right on loop passes.
             self._chord_sheet.on_playback_chord(event.chord_info, event.chord_index)
-        bpm = int(event.bpm) if event.bpm is not None else self._playback.bpm
+        if event.bpm is not None:
+            self._effective_bpm = int(event.bpm)
         chord = event.chord_info
         if not (is_chord_start and chord is not None):
-            self._publish_playback(dataclasses.replace(self._playback, bpm=bpm))
+            self._publish_toolbar()
             return
         self._publish_playback(dataclasses.replace(
             self._playback,
@@ -652,7 +768,6 @@ class AppSession:
             chord_index=event.chord_index,
             bar=event.current_bar,
             total_bars=event.total_bars,
-            bpm=bpm,
         ))
         self._set_status(formatting.playing_chord_status(
             event.current_bar, event.total_bars, event.bpm,

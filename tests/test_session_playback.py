@@ -16,7 +16,7 @@ from session.audio_policy import AudioFailurePolicy
 from session.events import AudioUnavailable, UserError
 from session.host import HostDispatch
 from session.session import AppSession
-from session.state import EditorState, PlaybackState, PlaybackStatus, StatusState
+from session.state import EditorState, PlaybackState, PlaybackStatus, StatusState, ToolbarState
 from session.testing import EventRecorder, FakePlayer, InMemoryDocumentStore, ManualHost
 from viewmodels.main_window_viewmodel import MainWindowViewModel
 from viewmodels.text_editor_viewmodel import TextEditorViewModel
@@ -98,6 +98,12 @@ def _span(start, end):
     return ("chord", start, end)
 
 
+def _toolbar(action="play", bpm_display=120):
+    """The compacted ToolbarState for the defaults (120 BPM, key C, 4/4)."""
+    return ("ToolbarState", "american", 120, bpm_display, action == "play", 100.0, "C",
+            4, 4, False, action)
+
+
 # -- golden: play -> progress -> finished ------------------------------------------
 
 
@@ -106,8 +112,10 @@ def test_play_progress_finished():
     env.session.play_pause()
     # Started: the transport and the lock are on, the chord count is shown.
     assert env.recorder.compact() == [
-        ("PlaybackState", "playing", None, None, 0, 0, None),
+        ("PlaybackState", "playing", None, None, 0, 0),
         ("EditorState", True),
+        # The tempo is read-only now and the button pauses.
+        _toolbar("pause"),
         ("StatusState", "Playing 4 chords..."),
     ]
     env.recorder.clear()
@@ -115,17 +123,18 @@ def test_play_progress_finished():
     env.rendered()
 
     assert env.recorder.compact() == [
-        ("PlaybackState", "playing", _span(0, 1), 0, 1, 3, 120),
+        ("PlaybackState", "playing", _span(0, 1), 0, 1, 3),
         ("StatusState", "Bar 1/3 | 120 BPM | 4/4 | Playing: C"),
-        ("PlaybackState", "playing", _span(2, 3), 1, 2, 3, 120),
+        ("PlaybackState", "playing", _span(2, 3), 1, 2, 3),
         ("StatusState", "Bar 2/3 | 120 BPM | 4/4 | Playing: G"),
-        ("PlaybackState", "playing", _span(19, 23), 2, 3, 3, 120),
+        ("PlaybackState", "playing", _span(19, 23), 2, 3, 3),
         ("StatusState", "Bar 3/3 | 120 BPM | 4/4 | Key: G | Playing: Am"),
-        ("PlaybackState", "playing", _span(24, 27), 3, 3, 3, 120),
+        ("PlaybackState", "playing", _span(24, 27), 3, 3, 3),
         ("StatusState", "Bar 3/3 | 120 BPM | 4/4 | Key: G | Playing: F"),
         # Finished: back to idle, unlocked, "Ready".
-        ("PlaybackState", "idle", None, None, 0, 0, None),
+        ("PlaybackState", "idle", None, None, 0, 0),
         ("EditorState", False),
+        _toolbar("play"),
         ("StatusState", "Ready"),
     ]
     assert env.main.is_playing is False
@@ -138,12 +147,15 @@ def test_the_chord_sheet_playhead_follows_playback_and_clears_at_the_end():
     assert env.sheet.pings == [("C", 0), ("G", 1), ("Am", 2), ("F", 3), (None, None)]
 
 
-def test_directive_tempo_reaches_the_state_and_the_status():
+def test_directive_tempo_reaches_the_toolbar_and_the_status():
     env = Env(text="{bpm: 90}\nC G")
     env.session.play_pause()
     env.rendered()
-    first = env.recorder.of_type(PlaybackState)[1]
-    assert first.bpm == 90
+    # Read-only 120 until the first chord, then the directive's 90, then
+    # the user's 120 again once the song is over.
+    assert [(t.bpm_display, t.bpm_editable) for t in env.recorder.of_type(ToolbarState)] == [
+        (120, False), (90, False), (120, True)]
+    assert all(t.bpm == 120 for t in env.recorder.of_type(ToolbarState))
     assert "90 BPM" in env.recorder.of_type(StatusState)[1].text
 
 
@@ -160,7 +172,8 @@ def test_pause_and_resume_keep_the_playing_chord():
 
     env.session.play_pause()
     assert env.recorder.compact() == [
-        ("PlaybackState", "paused", _span(0, 1), 0, 1, 3, 120),
+        ("PlaybackState", "paused", _span(0, 1), 0, 1, 3),
+        _toolbar("resume"),
         ("StatusState", "Paused playback"),
     ]
     assert env.player.calls[-1] == "pause"
@@ -168,7 +181,8 @@ def test_pause_and_resume_keep_the_playing_chord():
 
     env.session.play_pause(from_offset=10)  # Shift is ignored when paused
     assert env.recorder.compact() == [
-        ("PlaybackState", "playing", _span(0, 1), 0, 1, 3, 120),
+        ("PlaybackState", "playing", _span(0, 1), 0, 1, 3),
+        _toolbar("pause"),
         ("StatusState", "Resumed playback"),
     ]
     assert env.player.calls[-1] == "resume"
@@ -189,8 +203,9 @@ def test_stop_returns_to_idle_and_drops_pings_posted_before_it():
 
     env.session.stop()
     assert env.recorder.compact() == [
-        ("PlaybackState", "idle", None, None, 0, 0, None),
+        ("PlaybackState", "idle", None, None, 0, 0),
         ("EditorState", False),
+        _toolbar("play"),
         ("StatusState", "Stopped playback"),
     ]
     env.recorder.clear()
@@ -333,8 +348,9 @@ def test_render_failure_returns_to_idle_and_reports_a_user_error():
         env.recorder.clear()
         env.rendered()
     assert env.recorder.compact() == [
-        ("PlaybackState", "idle", None, None, 0, 0, None),
+        ("PlaybackState", "idle", None, None, 0, 0),
         ("EditorState", False),
+        _toolbar("play"),
         ("StatusState", "Ready"),
         ("StatusState", "Playback failed"),
         ("UserError", "Playback Error", "Could not play the song.\n\nrender broke"),
@@ -352,9 +368,10 @@ def test_initial_states():
     recorder = EventRecorder()
     session.subscribe(recorder)
     assert recorder.compact()[1:] == [
-        ("PlaybackState", "idle", None, None, 0, 0, None),
+        ("PlaybackState", "idle", None, None, 0, 0),
         ("StatusState", "Ready"),
         ("EditorState", False),
+        _toolbar("play"),
     ]
 
 

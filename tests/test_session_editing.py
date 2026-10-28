@@ -88,6 +88,8 @@ def test_golden_transpose_is_one_grouped_edit_then_immediate_spans_and_key_shift
     assert env.recorder.compact() == [
         ("TextEdited", 2, 0, 12, "D A\nla la\nBm", "group", 12),
         ("HighlightState", 2, 0, (chord(0, 1), chord(2, 3), chord(10, 12))),
+        # The toolbar key moved with the song.
+        ("ToolbarState", "american", 120, 120, True, 100.0, "D", 4, 4, False, "play"),
         ("StatusState", "Transposed whole song by +2 semitones"),
     ]
     assert env.session.text == env.main.current_text == "D A\nla la\nBm"
@@ -146,6 +148,8 @@ def test_convert_is_a_plain_edit_and_switches_detection():
     assert env.recorder.compact() == [
         ("TextEdited", 2, 0, 15, "Do Sol\nhello there", "plain", 18),
         ("HighlightState", 2, 0, (chord(0, 2), chord(3, 6))),
+        # The toolbar follows the target notation (no key set: the first option).
+        ("ToolbarState", "european", 120, 120, True, 100.0, "Do", 4, 4, False, "play"),
         ("StatusState", "Converted to European notation"),
     ]
     assert env.main.notation.value == "european"

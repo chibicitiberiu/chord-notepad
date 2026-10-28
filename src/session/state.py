@@ -75,10 +75,9 @@ class PlaybackState:
             list (loop passes have distinct indices), or None.
         bar: The current bar, 1-based (0 when idle).
         total_bars: Bars in the played song (0 when idle).
-        bpm: The effective tempo of the chord sounding now (directives
-            applied), or None before the first chord and when idle.
-            Interim: the design shows it as ``ToolbarState.bpm_display``,
-            which arrives in step 9.
+
+    The effective tempo of the chord sounding is the toolbar's
+    (``ToolbarState.bpm_display``).
     """
 
     status: PlaybackStatus
@@ -86,7 +85,49 @@ class PlaybackState:
     chord_index: Optional[int] = None
     bar: int = 0
     total_bars: int = 0
-    bpm: Optional[int] = None
+
+
+class PlayAction(str, Enum):
+    """What the Play/Pause button does when pressed."""
+
+    PLAY = "play"
+    PAUSE = "pause"
+    RESUME = "resume"
+
+
+@dataclass(frozen=True)
+class ToolbarState:
+    """The toolbar: notation, tempo, key, time signature, metronome, transport.
+
+    Attributes:
+        notation: ``american`` or ``european`` (detection and the key list).
+        bpm: The user's base tempo.
+        bpm_display: The tempo to show: while a song plays, that of the
+            chord sounding (directives applied) once known; else ``bpm``.
+        bpm_editable: False while a song plays or is paused (the tempo field
+            then only displays ``bpm_display``).
+        multiplier_pct: The speed multiplier in percent (100 = as written);
+            adjustable during playback.
+        key: The key for roman numerals, in ``notation`` (the first key
+            option when none is set).
+        key_options: The keys to choose from, in ``notation``.
+        beats: Time-signature numerator.
+        unit: Time-signature denominator.
+        metronome: Whether the click track plays with the song.
+        play_action: What the Play/Pause button does now.
+    """
+
+    notation: str
+    bpm: int
+    bpm_display: int
+    bpm_editable: bool
+    multiplier_pct: float
+    key: str
+    key_options: Tuple[str, ...]
+    beats: int
+    unit: int
+    metronome: bool
+    play_action: PlayAction
 
 
 @dataclass(frozen=True)

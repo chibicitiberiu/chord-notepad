@@ -52,7 +52,8 @@ exists once.
 - **Document flows:** new, open, save, save-as, close, export MIDI and recent
   files; the unsaved-changes decision.
 - **Formatting:** status texts, the title, BPM-multiplier parsing; the
-  voicing-menu model and ordering; the instrument-family table; key options.
+  voicing-menu model and ordering; the instrument-family table; key options
+  (`session/toolbar.py` holds the toolbar's value logic).
 
 **Views (Tk now, Compose later)**
 - Widgets, theme, icons, tooltip wording, dialog layout.
@@ -83,7 +84,8 @@ src/session/
   events.py        one-off event + request DTOs
   audio_policy.py  AudioFailurePolicy: Play reports every time, clicks once per session
   emitter.py       Emitter: output buffering, coalescing and flush (the delivery contract)
-  formatting.py    titles, status strings, multiplier parse, voicing/instrument menu models, key conversion
+  formatting.py    titles, status strings, voicing/instrument menu models
+  toolbar.py       key list + key respelling, BPM/multiplier parse+format, ScrubScale (clamp/snap/quantize)
   directives.py    Insert-menu directives: field validation + messages, directive text, labels, loop choices
   highlighting.py  find_comments, compute_spans(lines, text), chord_at(lines, offset)
   flows.py         generator-based request/response FlowRunner
@@ -282,10 +284,8 @@ class AppSession:
   `ChordSheetViewModel.on_playback_chord` (the strip's playhead); the panel
   still observes the strip viewmodel's `current_index` until
   `ChordSheetState` exists.
-- `PlaybackState` carries an extra `bpm` (the effective tempo of the chord
-  sounding, directives applied; None when idle). The design shows it as
-  `ToolbarState.bpm_display`; step 9 moves it there or keeps it here.
-  `bpm_editable` is the view's `status == idle` for now.
+- `PlaybackState` carried an extra `bpm` (the effective tempo) until step 9
+  moved it to `ToolbarState.bpm_display`.
 - `EditorState` has only `read_only` (true while playing or paused); the
   font and notation fields come with steps 9-10.
 - Status texts come from `session/formatting.py`. The chord count in
@@ -353,6 +353,38 @@ class AppSession:
   semitones and calls `transpose(semitones, selection)`. Before any edit
   command the Tk view sends the widget's text with `set_text`.
 - Selections are `(start, end)` code-point pairs; an empty one means none.
+
+**Interim shape (recorded in step 9, toolbar).**
+- `ToolbarState(notation, bpm, bpm_display, bpm_editable, multiplier_pct, key,
+  key_options, beats, unit, metronome, play_action)`. `bpm_display` is the
+  effective tempo of the chord sounding while a song plays (once the first
+  chord is known), else `bpm`; `bpm_editable` is `status == idle`;
+  `play_action` is `play|pause|resume` and drives the Tk Play/Pause icon and
+  tooltip. `key` is the first key option when no key is set (what the Tk
+  combobox always showed); a notation flip with no key set therefore no
+  longer writes one.
+- `MainWindowViewModel` still owns the values (and their config writes); the
+  session observes `bpm`, `bpm_multiplier`, `metronome_enabled`, `key` and the
+  time signature and republishes the whole state, so file directives and a
+  whole-song transpose reach the toolbar too. (`set_bpm_multiplier` used to
+  assign before `set_and_notify`, so it never notified; fixed.)
+- Commands: `set_notation`, `set_bpm` (ignored while playing or paused, like
+  the read-only Tk field), `set_multiplier_pct` (works during playback),
+  `set_key` (None/"" clears), `set_time_signature` (invalid values logged and
+  ignored by the viewmodel), `toggle_metronome`. `set_bpm` and
+  `set_multiplier_pct` clamp and snap with the scrubber's own `ScrubScale`
+  (`toolbar.BPM_SCALE`, `toolbar.MULTIPLIER_SCALE`), so a raw slider value
+  lands where a Tk drag would.
+- Notation: the session's `notation` observer re-detects, respells the key in
+  the new notation (`toolbar.convert_key`, via `set_key`) and publishes the
+  new key list. It runs for `set_notation` and for the flip at the end of
+  convert; in the latter the `TextEdited` is already queued, so the views
+  get the edit, then its highlight, then the toolbar.
+- The Tk toolbar starts neutral and only maps `ToolbarState`; widgets send
+  commands from user actions (`<<ComboboxSelected>>`, spinbox `command`,
+  scrubber `on_change`), never from variable traces. `ui.scrubber.Scrubber`
+  does its math through `ScrubScale`. `utils/key_helpers.py` is gone
+  (`toolbar.key_options`).
 
 **Flows** (`flows.py`) are generators. They yield requests and receive answers
 through `respond()`, so a request/response flow reads as plain sequential code.

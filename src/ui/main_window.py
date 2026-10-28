@@ -26,13 +26,16 @@ from utils.display_scaling import apply_xft_dpi
 from utils.icon_loader import IconLoader
 from utils.ui_helpers import create_tooltip, resolve_font_family
 from utils.file_dialogs import ask_open_filename, ask_save_as_filename, display_path
-from utils.key_helpers import get_key_options
 from models.notation import Notation
 from session.events import (
     AudioUnavailable, CapoChoiceRequest, InsertDirectiveRequest, TextEdited, UserError,
 )
 from session.state import (
-    EditorState, HighlightState, PlaybackState, PlaybackStatus, StatusState,
+    EditorState, HighlightState, PlayAction, PlaybackState, StatusState, ToolbarState,
+)
+from session.toolbar import (
+    BPM_SCALE, MULTIPLIER_SCALE, ScrubScale, format_bpm, format_multiplier_pct, parse_bpm,
+    parse_multiplier_pct,
 )
 from models.ensemble_spec import BUILTIN_ENSEMBLES
 from exceptions import ChordNotepadError
@@ -55,11 +58,11 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-# The Play/Pause button's tooltip for each playback status.
+# The Play/Pause button's tooltip for what pressing it does.
 _PLAY_PAUSE_TOOLTIPS = {
-    PlaybackStatus.IDLE: "Play from start (Shift+Click to play from cursor)",
-    PlaybackStatus.PLAYING: "Pause playback",
-    PlaybackStatus.PAUSED: "Resume playback",
+    PlayAction.PLAY: "Play from start (Shift+Click to play from cursor)",
+    PlayAction.PAUSE: "Pause playback",
+    PlayAction.RESUME: "Resume playback",
 }
 
 # Import build info (may be auto-generated during CI build)
@@ -309,51 +312,15 @@ class MainWindow(tk.Tk):
         self.viewmodel.observe('font_size', self._on_font_changed)
         self.viewmodel.observe('font_family', self._on_font_changed)
 
-        # Notation changes
-        self.viewmodel.observe('notation', self._on_notation_changed)
-
         # File state changes
         self.viewmodel.observe('current_document', self._on_current_document_changed)
         self.viewmodel.observe('is_modified', self._on_is_modified_changed)
-
-        # BPM changes
-        self.viewmodel.observe('bpm', self._on_bpm_changed)
-        self.viewmodel.observe('bpm_multiplier', self._on_bpm_multiplier_changed)
-        self.viewmodel.observe('metronome_enabled', self._on_metronome_enabled_changed)
-
-        # Key and time signature changes
-        self.viewmodel.observe('key', self._on_key_changed)
-        self.viewmodel.observe('time_signature_beats', self._on_time_signature_changed)
-        self.viewmodel.observe('time_signature_unit', self._on_time_signature_changed)
 
     # ViewModel observer callbacks
 
     def _on_font_changed(self, new_value: Any) -> None:
         """React to font changes from ViewModel."""
         self.apply_font()
-
-    def _on_notation_changed(self, new_value: Notation) -> None:
-        """React to notation changes from ViewModel."""
-        from chord.converter import NotationConverter
-
-        # Convert Notation enum to string value for UI components
-        notation_str = new_value.value
-        self.notation_var.set(notation_str)
-        self.update_notation_buttons()
-
-        # Convert current key to new notation
-        current_key = self.key_var.get()
-        if current_key:
-            if new_value == Notation.EUROPEAN:
-                # Converting to European
-                converted_key = NotationConverter.chord_american_to_european(current_key)
-            else:
-                # Converting to American
-                converted_key = NotationConverter.chord_european_to_american(current_key)
-            self.key_var.set(converted_key)
-
-        # Update key options based on new notation
-        self.key_combo['values'] = get_key_options(new_value)
 
     def _on_current_document_changed(self, new_value: Optional[Any]) -> None:
         """React to current document changes from ViewModel."""
@@ -363,25 +330,6 @@ class MainWindow(tk.Tk):
         """React to modification state changes from ViewModel."""
         self.title(self.viewmodel.get_window_title())
 
-    def _on_bpm_changed(self, new_value: int) -> None:
-        """React to BPM changes from ViewModel."""
-        if hasattr(self, "bpm_scrubber"):
-            self.bpm_scrubber.set_value(new_value)
-
-    def _on_bpm_multiplier_changed(self, new_value: float) -> None:
-        """React to multiplier changes from ViewModel."""
-        if hasattr(self, "multiplier_scrubber"):
-            self.multiplier_scrubber.set_value(new_value * 100)
-
-    def _on_key_changed(self, new_value: Optional[str]) -> None:
-        """React to key changes from ViewModel."""
-        self.key_var.set(new_value or "")
-
-    def _on_time_signature_changed(self, new_value: int) -> None:
-        """React to time signature changes from ViewModel."""
-        self.time_sig_beats_var.set(self.viewmodel.time_signature_beats)
-        self.time_sig_unit_var.set(self.viewmodel.time_signature_unit)
-
     def _on_session_output(self, item: object) -> None:
         """Apply one state or event delivered by the session."""
         if isinstance(item, TextEdited):
@@ -390,6 +338,8 @@ class MainWindow(tk.Tk):
             self.text_editor.apply_highlight(item)
         elif isinstance(item, PlaybackState):
             self._apply_playback(item)
+        elif isinstance(item, ToolbarState):
+            self._apply_toolbar(item)
         elif isinstance(item, StatusState):
             self.statusbar.config(text=item.text)
         elif isinstance(item, EditorState):
@@ -405,21 +355,31 @@ class MainWindow(tk.Tk):
         elif isinstance(item, CapoChoiceRequest):
             self.after_idle(self._present_capo_request, item)
 
-    def _apply_playback(self, state: PlaybackState) -> None:
-        """Show the transport status and highlight the chord that is sounding."""
-        playing = state.status is PlaybackStatus.PLAYING
-        self.play_pause_button.config(image=self._icon_pause if playing else self._icon_play)
-        self._play_pause_tooltip.text = _PLAY_PAUSE_TOOLTIPS[state.status]
+    def _apply_toolbar(self, state: ToolbarState) -> None:
+        """Show the session's toolbar state (setting widgets sends nothing back)."""
+        self._notation = state.notation
+        self.update_notation_buttons()
 
         # While a song plays the BPM scrubber is a read-only display of the
         # effective tempo; afterwards it shows the user's base value again.
-        idle = state.status is PlaybackStatus.IDLE
-        self.bpm_scrubber.set_readonly(not idle)
-        if idle:
-            self.bpm_scrubber.set_value(self.viewmodel.bpm)
-        elif state.bpm is not None:
-            self.bpm_scrubber.set_display_text(str(state.bpm))
+        self.bpm_scrubber.set_readonly(not state.bpm_editable)
+        self.bpm_scrubber.set_value(state.bpm)
+        if not state.bpm_editable:
+            self.bpm_scrubber.set_display_text(format_bpm(state.bpm_display))
+        self.multiplier_scrubber.set_value(state.multiplier_pct)
 
+        self.key_combo['values'] = state.key_options
+        self.key_var.set(state.key)
+        self.time_sig_beats_var.set(state.beats)
+        self.time_sig_unit_var.set(state.unit)
+        self._refresh_metronome_button(state.metronome)
+
+        pausing = state.play_action is PlayAction.PAUSE
+        self.play_pause_button.config(image=self._icon_pause if pausing else self._icon_play)
+        self._play_pause_tooltip.text = _PLAY_PAUSE_TOOLTIPS[state.play_action]
+
+    def _apply_playback(self, state: PlaybackState) -> None:
+        """Highlight (and scroll to) the chord that is sounding."""
         # Repaint (and scroll to) the playing chord only when playback moved
         # on, not when it was merely paused.
         progress = (state.playing_span, state.chord_index, state.bar)
@@ -587,8 +547,9 @@ class MainWindow(tk.Tk):
         # Packed later in __init__, once the editor pane exists to pack above.
         self.toolbar = ttk.Frame(self, padding=(6, 4, 6, 4))
 
-        # Notation selection with icon toggle buttons
-        self.notation_var = tk.StringVar(value=self.viewmodel.notation.value)
+        # The widgets start neutral: the session's ToolbarState fills them in
+        # when the window subscribes, and keeps them current.
+        self._notation = Notation.AMERICAN.value
 
         # Create toggle button frame
         # A segmented control: two flat buttons inside a 1px border.
@@ -618,20 +579,8 @@ class MainWindow(tk.Tk):
         self._toolbar_separator()
         ttk.Label(self.toolbar, text="Speed", style='Muted.TLabel').pack(side=tk.LEFT, padx=(0, 6))
 
-        self.bpm_scrubber = Scrubber(
-            self.toolbar,
-            value=self.viewmodel.bpm,
-            min_value=20,
-            max_value=400,
-            step=10,
-            drag_step=1,
-            snap_tolerance=1,
-            formatter=lambda v: f"{int(round(v))}",
-            parser=lambda s: int(round(float(s))),
-            on_change=self._on_bpm_scrubber_change,
-            width=4,
-            default_value=120,
-        )
+        self.bpm_scrubber = self._make_scrubber(
+            BPM_SCALE, format_bpm, parse_bpm, self._on_bpm_scrubber_change, width=4)
         self.bpm_scrubber.pack(side=tk.LEFT)
         self.create_tooltip(self.bpm_scrubber, "Beats per minute. Drag to change, click to type, middle-click to reset to 120. Read-only during playback.")
         self.bpm_unit_label = ttk.Label(self.toolbar, text="bpm")
@@ -639,20 +588,9 @@ class MainWindow(tk.Tk):
 
         ttk.Label(self.toolbar, text="×", style='Muted.TLabel').pack(side=tk.LEFT, padx=(2, 6))
 
-        self.multiplier_scrubber = Scrubber(
-            self.toolbar,
-            value=self.viewmodel.bpm_multiplier * 100,
-            min_value=12.5,
-            max_value=400,
-            step=12.5,
-            drag_step=1,
-            snap_tolerance=3,
-            formatter=lambda v: f"{v:g}",
-            parser=self._parse_multiplier_percent,
-            on_change=self._on_multiplier_scrubber_change,
-            width=5,
-            default_value=100,
-        )
+        self.multiplier_scrubber = self._make_scrubber(
+            MULTIPLIER_SCALE, format_multiplier_pct, parse_multiplier_pct,
+            self._on_multiplier_scrubber_change, width=5)
         self.multiplier_scrubber.pack(side=tk.LEFT)
         self.create_tooltip(self.multiplier_scrubber, "Speed multiplier applied on top of BPM. Middle-click to reset to 100%. Adjustable during playback.")
         self.multiplier_unit_label = ttk.Label(self.toolbar, text="%")
@@ -661,20 +599,18 @@ class MainWindow(tk.Tk):
         # Key selector
         self._toolbar_separator()
         ttk.Label(self.toolbar, text="Key", style='Muted.TLabel').pack(side=tk.LEFT, padx=(0, 6))
-        # Get default key based on current notation
-        default_key = self.viewmodel.key or ("Do" if self.viewmodel.notation == Notation.EUROPEAN else "C")
-        self.key_var = tk.StringVar(value=default_key)
-        # Key options will be set based on notation
+        self.key_var = tk.StringVar()
         self.key_combo = ttk.Combobox(self.toolbar, textvariable=self.key_var,
-                                      values=get_key_options(self.viewmodel.notation), state='readonly', width=5)
+                                      state='readonly', width=5)
         self.key_combo.pack(side=tk.LEFT)
-        self.key_var.trace_add('write', self.on_key_change)
+        # Only a user's pick is sent; the session's state sets the variable.
+        self.key_combo.bind('<<ComboboxSelected>>', self.on_key_change)
         self.create_tooltip(self.key_combo, "Key signature for roman numeral chords")
 
         # Time signature control
         self._toolbar_separator()
         ttk.Label(self.toolbar, text="Time", style='Muted.TLabel').pack(side=tk.LEFT, padx=(0, 6))
-        self.time_sig_beats_var = tk.IntVar(value=self.viewmodel.time_signature_beats)
+        self.time_sig_beats_var = tk.IntVar(value=4)
         self.time_sig_beats_spin = ttk.Spinbox(self.toolbar, from_=1, to=16,
                                                textvariable=self.time_sig_beats_var,
                                                width=3, command=self.on_time_signature_change)
@@ -683,7 +619,7 @@ class MainWindow(tk.Tk):
 
         ttk.Label(self.toolbar, text="/", style='Muted.TLabel').pack(side=tk.LEFT, padx=3)
 
-        self.time_sig_unit_var = tk.IntVar(value=self.viewmodel.time_signature_unit)
+        self.time_sig_unit_var = tk.IntVar(value=4)
         self.time_sig_unit_spin = ttk.Spinbox(self.toolbar, values=(1, 2, 4, 8, 16),
                                               textvariable=self.time_sig_unit_var,
                                               width=3, command=self.on_time_signature_change)
@@ -710,7 +646,6 @@ class MainWindow(tk.Tk):
             self.toolbar, self._icon_metronome_off, command=self._on_metronome_toggle)
         self.metronome_button.pack(side=tk.LEFT)
         self.create_tooltip(self.metronome_button, "Click track during playback. Toggle this on, then press Play.")
-        self._refresh_metronome_button()
 
         # Playback buttons
         self._toolbar_separator()
@@ -722,12 +657,30 @@ class MainWindow(tk.Tk):
         self.play_pause_button.pack(side=tk.LEFT, padx=(0, 2))
         self.play_pause_button.bind('<Button-1>', self.on_play_pause_click)
         self._play_pause_tooltip = create_tooltip(
-            self.play_pause_button, _PLAY_PAUSE_TOOLTIPS[PlaybackStatus.IDLE])
+            self.play_pause_button, _PLAY_PAUSE_TOOLTIPS[PlayAction.PLAY])
 
         self.stop_button = self._make_icon_button(
             playback_frame, self._icon_stop, command=self.stop_playback)
         self.stop_button.pack(side=tk.LEFT)
         self.create_tooltip(self.stop_button, "Stop playback")
+
+    def _make_scrubber(self, scale: ScrubScale, formatter: Any, parser: Any,
+                       on_change: Any, width: int) -> Scrubber:
+        """A toolbar scrubber on ``scale`` (the session snaps values the same way)."""
+        return Scrubber(
+            self.toolbar,
+            value=scale.default if scale.default is not None else scale.min_value,
+            min_value=scale.min_value,
+            max_value=scale.max_value,
+            step=scale.step,
+            drag_step=scale.drag_step,
+            snap_tolerance=scale.snap_tolerance,
+            formatter=formatter,
+            parser=parser,
+            on_change=on_change,
+            width=width,
+            default_value=scale.default,
+        )
 
     def _toolbar_separator(self) -> None:
         """Add a vertical divider between toolbar groups."""
@@ -1077,14 +1030,12 @@ class MainWindow(tk.Tk):
         self.viewmodel.on_mouse_wheel_zoom(event.delta)
 
     def set_notation(self, notation: str) -> None:
-        """Set the notation type"""
-        # Convert string to Notation enum
-        notation_enum = Notation(notation)
-        self.viewmodel.set_notation(notation_enum)
+        """Detect chords in ``notation`` (a notation button)."""
+        self.session.set_notation(notation)
 
     def update_notation_buttons(self) -> None:
         """Update toggle button appearance based on selected notation"""
-        current = self.notation_var.get()
+        current = self._notation
         selected, other = ((self.american_btn, self.european_btn) if current == 'american'
                            else (self.european_btn, self.american_btn))
         selected.config(bg=UI_ACCENT, fg='white', activebackground=UI_ACCENT_ACTIVE,
@@ -1106,22 +1057,18 @@ class MainWindow(tk.Tk):
 
     def _on_bpm_scrubber_change(self, value: float) -> None:
         """Handle BPM scrubber change."""
-        self.viewmodel.set_bpm(int(round(value)))
+        self.session.set_bpm(value)
 
     def _on_multiplier_scrubber_change(self, value_pct: float) -> None:
         """Handle multiplier scrubber change (input is a percentage)."""
-        self.viewmodel.set_bpm_multiplier(value_pct / 100.0)
+        self.session.set_multiplier_pct(value_pct)
 
     def _on_metronome_toggle(self) -> None:
-        self.viewmodel.toggle_metronome()
+        self.session.toggle_metronome()
 
-    def _on_metronome_enabled_changed(self, _new_value: bool) -> None:
-        self._refresh_metronome_button()
-
-    def _refresh_metronome_button(self) -> None:
-        if not hasattr(self, "metronome_button"):
-            return
-        if self.viewmodel.metronome_enabled:
+    def _refresh_metronome_button(self, enabled: bool) -> None:
+        """Tint the metronome button while the click track is on."""
+        if enabled:
             rest_bg = "#ffe4cf"  # warm tint matching the on-icon
             image = self._icon_metronome_on
         else:
@@ -1130,26 +1077,14 @@ class MainWindow(tk.Tk):
         self.metronome_button._rest_bg = rest_bg
         self.metronome_button.config(image=image, background=rest_bg)
 
-    @staticmethod
-    def _parse_multiplier_percent(text: str) -> float:
-        """Parse a user-typed multiplier value, accepting '150', '150%', '1.5x'."""
-        s = text.strip().lower().replace(" ", "")
-        if s.endswith("x"):
-            return float(s[:-1]) * 100.0
-        if s.endswith("%"):
-            return float(s[:-1])
-        return float(s)
-
     def on_key_change(self, *args: Any) -> None:
-        """Handle key selector change"""
-        key = self.key_var.get()
-        self.viewmodel.set_key(key if key else None)
+        """The user picked a key in the toolbar."""
+        self.session.set_key(self.key_var.get() or None)
 
     def on_time_signature_change(self) -> None:
-        """Handle time signature change"""
-        beats = self.time_sig_beats_var.get()
-        unit = self.time_sig_unit_var.get()
-        self.viewmodel.set_time_signature(beats, unit)
+        """The user stepped a time-signature spinbox."""
+        self.session.set_time_signature(self.time_sig_beats_var.get(),
+                                        self.time_sig_unit_var.get())
 
     def on_voicing_change(self) -> None:
         """Handle voicing selection change"""

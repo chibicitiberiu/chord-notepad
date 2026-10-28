@@ -29,7 +29,7 @@ TIME_SIGNATURE_UNITS = [2, 4, 8, 16]
 AUDIO_DRIVERS = ["", "alsa", "pulseaudio", "jack", "dsound", "coreaudio"]
 
 # Fixed set of default-key choices (one spelling per semitone). Deliberately
-# smaller than utils.key_helpers.get_key_options(), which lists every
+# smaller than session.toolbar.key_options(), which lists every
 # enharmonic spelling for the toolbar's roman-numeral key selector; the
 # Settings default key just needs a single sane starting point.
 DEFAULT_KEY_OPTIONS = [

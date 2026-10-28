@@ -30,7 +30,7 @@ from exceptions import FileOperationError
 from models.playback_event import PlaybackEventArgs, PlaybackEventType
 from models.playback_event_internal import MidiEventType
 from session.documents import DocumentRef
-from session.state import Span
+from session.state import Span, ToolbarState
 from utils.text_normalization import normalize_song_text
 
 
@@ -211,11 +211,18 @@ def compact(item: Any) -> Any:
     """A session DTO as nested plain tuples, for golden assertions.
 
     A dataclass becomes ``(ClassName, field, ...)``, a :class:`Span` the
-    shorter ``(kind, start, end)``, an enum its value; tuples and lists are
+    shorter ``(kind, start, end)``, a :class:`ToolbarState` loses its
+    ``key_options``, an enum its value; tuples and lists are
     compacted element-wise. Anything else is returned as is.
     """
     if isinstance(item, Span):
         return (item.kind.value, item.start, item.end)
+    if isinstance(item, ToolbarState):
+        # key_options follows from the notation; leaving it out keeps
+        # goldens readable.
+        return ("ToolbarState",) + tuple(
+            compact(getattr(item, f.name)) for f in dataclasses.fields(item)
+            if f.name != "key_options")
     if isinstance(item, Enum):
         return item.value
     if dataclasses.is_dataclass(item) and not isinstance(item, type):

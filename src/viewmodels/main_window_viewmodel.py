@@ -567,7 +567,6 @@ class MainWindowViewModel(Observable):
             return
 
         logger.debug(f"Setting BPM multiplier to {multiplier}")
-        self._bpm_multiplier = multiplier
         self._audio.set_bpm_multiplier(multiplier)
         self._config.set("bpm_multiplier", multiplier)
         self.set_and_notify("bpm_multiplier", multiplier)

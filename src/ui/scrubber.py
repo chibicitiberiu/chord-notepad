@@ -9,6 +9,7 @@ from tkinter import ttk, font as tkfont
 from typing import Callable, Optional
 
 from constants import UI_SCRUB_BG, UI_SCRUB_HOVER
+from session.toolbar import ScrubScale
 
 
 class Scrubber(ttk.Frame):
@@ -48,11 +49,9 @@ class Scrubber(ttk.Frame):
     ) -> None:
         super().__init__(parent)
 
-        self._min = min_value
-        self._max = max_value
-        self._step = step
-        self._drag_step = drag_step if drag_step is not None else step
-        self._snap_tolerance = snap_tolerance
+        # The range/grid math is shared with the session (session.toolbar).
+        self._scale = ScrubScale(min_value=min_value, max_value=max_value, step=step,
+                                 drag_step=drag_step, snap_tolerance=snap_tolerance)
         self._formatter = formatter or (lambda v: f"{v:g}")
         self._parser = parser or float
         self._on_change = on_change
@@ -109,37 +108,13 @@ class Scrubber(ttk.Frame):
         self._entry_var = tk.StringVar()
         self._entry: Optional[tk.Entry] = None
 
-    def _clamp(self, value: float) -> float:
-        if value < self._min:
-            return self._min
-        if value > self._max:
-            return self._max
-        return value
-
-    def _snap_to_grid(self, value: float, tolerance: Optional[float] = None) -> float:
-        if self._step <= 0:
-            return value
-        steps = round((value - self._min) / self._step)
-        snapped = self._min + steps * self._step
-        if snapped > self._max:
-            snapped = self._max
-        if tolerance is None or tolerance <= 0:
-            return snapped
-        if abs(snapped - value) <= tolerance:
-            return snapped
-        return value
-
     def _clamp_and_snap(self, value: float) -> float:
         """Used for direct value assignment (init, set_value, reset, typed input).
 
         Honors `snap_tolerance`: strict snap when tolerance == 0, magnetic
         (preserves arbitrary values not near a snap point) when > 0.
         """
-        return self._snap_to_grid(self._clamp(value), tolerance=self._snap_tolerance)
-
-    def _quantize_drag(self, value: float) -> float:
-        """Apply magnetic snap to a drag-relative value (already at drag_step granularity)."""
-        return self._snap_to_grid(self._clamp(value), tolerance=self._snap_tolerance)
+        return self._scale.normalize(value)
 
     def _refresh_label(self) -> None:
         self._label.config(text=self._formatter(self._value))
@@ -160,8 +135,7 @@ class Scrubber(ttk.Frame):
         if not self._dragged:
             return
         steps = dx // self._pixels_per_step
-        raw = self._drag_start_value + steps * self._drag_step
-        new_value = self._quantize_drag(raw)
+        new_value = self._scale.stepped(self._drag_start_value, steps)
         if new_value != self._value:
             self._value = new_value
             self._refresh_label()
@@ -196,7 +170,7 @@ class Scrubber(ttk.Frame):
     def _step_by(self, direction: int) -> None:
         if self._readonly:
             return
-        new_value = self._quantize_drag(self._value + direction * self._drag_step)
+        new_value = self._scale.stepped(self._value, direction)
         if new_value != self._value:
             self._value = new_value
             self._refresh_label()
