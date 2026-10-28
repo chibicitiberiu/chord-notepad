@@ -65,7 +65,12 @@ def chord(start, end):
 
 
 def test_type_text_no_spans_before_the_debounce_spans_after(env):
-    assert env.recorder.compact() == [("HighlightState", 0, 0, ())]
+    assert env.recorder.compact() == [
+        ("HighlightState", 0, 0, ()),
+        ("PlaybackState", "idle", None, None, 0, 0, None),
+        ("StatusState", "Ready"),
+        ("EditorState", False),
+    ]
     env.recorder.clear()
 
     env.session.set_text("C G\nla la {bpm: 90} // x")
@@ -200,7 +205,6 @@ def test_chord_at_uses_the_latest_detection(env):
     assert env.session.chord_at(1) is None
     assert env.session.chord_at(5) == Span(3, 14, SpanKind.CHORD_INVALID)
     assert env.session.chord_at(16) is None
-    assert env.session.detected_chord_at(0).chord == "C"
 
 
 def test_chord_at_lags_until_the_debounce_like_the_highlighting(env):
@@ -243,7 +247,8 @@ def test_new_subscriber_gets_the_current_highlight(env):
     env.session.set_text_now("C G")
     late = EventRecorder()
     env.session.subscribe(late)
-    assert late.compact() == [("HighlightState", 1, 0, (chord(0, 1), chord(2, 3)))]
+    assert late.of_type(HighlightState) == [late.items[0]]
+    assert late.compact()[0] == ("HighlightState", 1, 0, (chord(0, 1), chord(2, 3)))
 
 
 def test_commands_must_run_on_the_session_thread(env):

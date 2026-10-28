@@ -13,7 +13,7 @@ that publish them.
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Tuple
+from typing import Optional, Tuple
 
 
 class SpanKind(str, Enum):
@@ -52,3 +52,60 @@ class HighlightState:
     text_revision: int
     client_token: int
     spans: Tuple[Span, ...]
+
+
+class PlaybackStatus(str, Enum):
+    """Whether a song is playing."""
+
+    IDLE = "idle"
+    PLAYING = "playing"
+    PAUSED = "paused"
+
+
+@dataclass(frozen=True)
+class PlaybackState:
+    """Song playback: the transport status and the chord that is sounding.
+
+    Attributes:
+        status: Idle, playing or paused.
+        playing_span: The chord sounding now (kind ``CHORD``), in code points
+            of the text playback started from; None when idle or before the
+            first chord.
+        chord_index: Index of that chord in the played song's unrolled chord
+            list (loop passes have distinct indices), or None.
+        bar: The current bar, 1-based (0 when idle).
+        total_bars: Bars in the played song (0 when idle).
+        bpm: The effective tempo of the chord sounding now (directives
+            applied), or None before the first chord and when idle.
+            Interim: the design shows it as ``ToolbarState.bpm_display``,
+            which arrives in step 9.
+    """
+
+    status: PlaybackStatus
+    playing_span: Optional[Span] = None
+    chord_index: Optional[int] = None
+    bar: int = 0
+    total_bars: int = 0
+    bpm: Optional[int] = None
+
+
+@dataclass(frozen=True)
+class StatusState:
+    """The status line under the editor."""
+
+    text: str
+
+
+@dataclass(frozen=True)
+class EditorState:
+    """How the editor behaves.
+
+    Attributes:
+        read_only: True while a song plays or is paused (the editor is locked
+            so the playing-chord offsets stay valid).
+
+    The design's font and notation fields arrive with the steps that move
+    them into the session (9 and 10).
+    """
+
+    read_only: bool

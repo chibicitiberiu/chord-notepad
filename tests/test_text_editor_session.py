@@ -53,14 +53,18 @@ def wired():
         pytest.skip("No display available for tkinter tests")
     host = ManualHost()
     parser = SongParserService()
-    main_vm = MainWindowViewModel(_Config(), MagicMock(), InMemoryDocumentStore(),
+    audio = MagicMock()
+    main_vm = MainWindowViewModel(_Config(), audio, InMemoryDocumentStore(),
                                   parser, HostDispatch(host))
     session = AppSession(host, main_window_viewmodel=main_vm,
                          text_editor_viewmodel=TextEditorViewModel(parser))
     editor = ChordTextEditor(root, session=session)
     editor.pack()
+    # Only the editor is real; the other widgets the session's states map
+    # to are stand-ins.
     window = SimpleNamespace(text_editor=editor, session=session, viewmodel=Mock(),
-                             update_statusbar=Mock())
+                             update_statusbar=Mock(), statusbar=Mock(),
+                             _apply_playback=Mock())
     editor.bind("<<Modified>>", lambda e: MainWindow.on_text_modified(window))
     session.subscribe(lambda item: MainWindow._on_session_output(window, item))
     session.start()
@@ -69,7 +73,7 @@ def wired():
     editor.wait_visibility()
     root.update()
     yield SimpleNamespace(root=root, host=host, session=session, editor=editor,
-                          window=window, main_vm=main_vm)
+                          window=window, main_vm=main_vm, audio=audio)
     session.shutdown()
     root.destroy()
 
@@ -201,16 +205,86 @@ def test_click_plays_the_chord_under_the_pointer(wired):
 
     x, y = _pixel_of(editor, 3)
     MainWindow.on_chord_click(wired.window, SimpleNamespace(x=x, y=y))
-    played = wired.window.viewmodel.on_chord_clicked.call_args.args[0]
+    played = wired.audio.play_chord_immediate.call_args.args[0]
     assert (played.chord, played.start, played.end) == ("G", 3, 4)
+    wired.window.statusbar.config.assert_called_with(text="Playing: G")
 
-    wired.window.viewmodel.on_chord_clicked.reset_mock()
+    wired.audio.play_chord_immediate.reset_mock()
     x, y = _pixel_of(editor, 6)
     MainWindow.on_chord_click(wired.window, SimpleNamespace(x=x, y=y))
-    wired.window.viewmodel.on_chord_clicked.assert_not_called()
+    wired.audio.play_chord_immediate.assert_not_called()
 
 
 def test_highlight_state_from_the_session_is_painted(wired):
     MainWindow._on_session_output(
         wired.window, HighlightState(9, 0, (Span(0, 1, SpanKind.COMMENT),)))
     assert wired.editor.highlight.text_revision == 9
+
+
+# -- playback: the view only maps states and forwards commands -------------------
+
+
+def _playback_window(wired):
+    """A window whose playback widgets are stand-ins around the real editor."""
+    return SimpleNamespace(
+        text_editor=wired.editor, viewmodel=SimpleNamespace(bpm=120),
+        play_pause_button=Mock(), _icon_play="play", _icon_pause="pause",
+        _play_pause_tooltip=SimpleNamespace(text=""), bpm_scrubber=Mock(),
+        _shown_progress=None, session=Mock())
+
+
+def test_playing_state_highlights_and_scrolls_to_the_chord(wired):
+    from constants import TAG_CHORD_PLAYING
+    from session.state import PlaybackState, PlaybackStatus
+
+    editor = wired.editor
+    editor.insert("1.0", "\n" * 200 + "C  G")
+    window = _playback_window(wired)
+    span = Span(203, 204, SpanKind.CHORD)
+    MainWindow._apply_playback(
+        window, PlaybackState(PlaybackStatus.PLAYING, span, 1, 1, 1, 96))
+
+    assert _ranges(editor, TAG_CHORD_PLAYING) == [(203, 204)]
+    assert editor.bbox("1.0 + 203 chars") is not None  # scrolled into view
+    window.play_pause_button.config.assert_called_with(image="pause")
+    assert window._play_pause_tooltip.text == "Pause playback"
+    window.bpm_scrubber.set_readonly.assert_called_with(True)
+    window.bpm_scrubber.set_display_text.assert_called_with("96")
+
+    # Pausing keeps the chord highlighted and doesn't scroll back to it.
+    editor.see("1.0")
+    MainWindow._apply_playback(
+        window, PlaybackState(PlaybackStatus.PAUSED, span, 1, 1, 1, 96))
+    assert _ranges(editor, TAG_CHORD_PLAYING) == [(203, 204)]
+    assert editor.bbox("1.0 + 203 chars") is None
+    window.play_pause_button.config.assert_called_with(image="play")
+    assert window._play_pause_tooltip.text == "Resume playback"
+
+    MainWindow._apply_playback(window, PlaybackState(PlaybackStatus.IDLE))
+    assert _ranges(editor, TAG_CHORD_PLAYING) == []
+    window.bpm_scrubber.set_readonly.assert_called_with(False)
+    window.bpm_scrubber.set_value.assert_called_with(120)
+    assert window._play_pause_tooltip.text.startswith("Play from start")
+
+
+def test_editor_state_locks_the_editor(wired):
+    from session.state import EditorState
+
+    MainWindow._on_session_output(wired.window, EditorState(read_only=True))
+    assert str(wired.editor.cget("state")) == "disabled"
+    MainWindow._on_session_output(wired.window, EditorState(read_only=False))
+    assert str(wired.editor.cget("state")) == "normal"
+
+
+def test_shift_play_sends_the_cursor_offset_in_code_points(wired):
+    editor = wired.editor
+    editor.insert("1.0", "\U0001F3B8 C\nG")
+    editor.mark_set("insert", "2.0")
+    window = _playback_window(wired)
+
+    MainWindow.on_play_pause_click(window, SimpleNamespace(state=0x1))
+    window.session.play_pause.assert_called_with(4)
+    window.session.set_text.assert_called_with("\U0001F3B8 C\nG")
+
+    MainWindow.on_play_pause_click(window, SimpleNamespace(state=0))
+    window.session.play_pause.assert_called_with(None)

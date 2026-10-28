@@ -81,6 +81,7 @@ src/session/
   documents.py     DocumentRef, DocumentStore, FileSystemDocumentStore
   state.py         frozen state DTOs
   events.py        one-off event + request DTOs
+  audio_policy.py  AudioFailurePolicy: Play reports every time, clicks once per session
   emitter.py       Emitter: output buffering, coalescing and flush (the delivery contract)
   formatting.py    titles, status strings, multiplier parse, voicing/instrument menu models, key conversion
   highlighting.py  find_comments, compute_spans(lines, text), chord_at(lines, offset)
@@ -264,13 +265,51 @@ class AppSession:
   - `set_text_now(text)`: the Tk view applied a programmatic edit (open,
     transpose, convert, capo) itself and reports the result, which is
     re-detected immediately (steps 8 and 11 move those edits in).
-  - `detected_chord_at(offset) -> ChordInfo`: the Tk click-to-play still calls
-    the viewmodel itself (step 7's `tap_chord_at`).
+  - `show_status(text)`: the Tk view still words the outcome of the flows it
+    runs itself (open, save, export, transpose, capo, insert, convert).
+    `MainWindow.update_statusbar` sends that text here, so the status line has
+    one owner (`StatusState`) and a repeated playback status is never lost
+    behind a view-written one. Goes as those flows move in (steps 8-11).
 - `insert_text(at, text)` splices the session's copy and re-detects at once; the
   Tk view still inserts into the widget itself. Emitting `TextEdited` comes
   with step 8.
 - The Quick Start snippets paint `compute_spans` directly (display only, no
   session).
+
+**Interim shape (recorded in step 7, playback).**
+- The session observes `MainWindowViewModel`'s `is_playing`, `is_paused`,
+  `current_playback_event` and `playback_error`, and drives
+  `start_playback(from_char_offset)`, `pause_playback`, `resume_playback`,
+  `stop_playback` and `on_chord_clicked`; the viewmodel and
+  `PlaybackService` are unchanged. It forwards each `CHORD_START` ping to
+  `ChordSheetViewModel.on_playback_chord` (the strip's playhead); the panel
+  still observes the strip viewmodel's `current_index` until
+  `ChordSheetState` exists.
+- `PlaybackState` carries an extra `bpm` (the effective tempo of the chord
+  sounding, directives applied; None when idle). The design shows it as
+  `ToolbarState.bpm_display`; step 9 moves it there or keeps it here.
+  `bpm_editable` is the view's `status == idle` for now.
+- `EditorState` has only `read_only` (true while playing or paused); the
+  font and notation fields come with steps 9-10.
+- Status texts come from `session/formatting.py`. The chord count in
+  "Playing N chords..." is taken from the latest detection, as before (it can
+  lag a just-typed edit by the 0.5 s debounce).
+- `AudioUnavailable.message` is the full user-facing text (the click variant
+  says clicked chords stay silent). The policy instance is the session's
+  `audio_failure_policy`; `MainWindow` shares it with `ui.audio_errors`
+  (`use_policy`), whose `show_audio_error` the chord-sheet audition and the
+  chord identifier still call, so all click sources report once between
+  them. Those two move onto the session with `audition(index)` and the
+  identifier rework.
+- Playback pings that reach the session after it went idle (posted by the
+  player before a Stop reached it) are dropped, so a stopped song no longer
+  re-highlights a chord or rewrites the status line.
+- The strip's playhead is cleared when a song finishes, but stays on the
+  last chord after Stop (unchanged behaviour; `PlaybackState` itself goes
+  idle with no chord).
+- The Tk Play button first sends the widget's text with `set_text` (a no-op
+  when `<<Modified>>` already did), then `play_pause(from_offset)`, with the
+  Shift+click cursor as a code-point offset (`ChordTextEditor.offset_of`).
 
 **Flows** (`flows.py`) are generators. They yield requests and receive answers
 through `respond()`, so a request/response flow reads as plain sequential code.
@@ -342,7 +381,8 @@ Only one flow can be pending at a time.
 - **Android** installs a handler that emits `UnexpectedError`, throttled.
 - **Expected failures are events:** `last_error` becomes `UserError`, and
   `AudioInitializationError` becomes `AudioUnavailable`. The session owns the
-  "report click failures once per session" policy.
+  "report click failures once per session" policy (`AudioFailurePolicy`;
+  playback render failures are `UserError` since step 7).
 
 ## Migration (desktop, one commit per step, full test suite green each time)
 

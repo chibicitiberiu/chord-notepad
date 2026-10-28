@@ -10,6 +10,11 @@ normalization, recent-list and error behaviour as the file-system store.
 
 :class:`EventRecorder` is a session listener that keeps what it was given, and
 :func:`compact` turns that into plain tuples for golden assertions.
+
+:class:`FakePlayer` stands in for the FluidSynth ``NotePlayer`` under the real
+``PlaybackService``: it makes no sound and keeps no time, it just turns the
+pre-rendered event buffer into the progress pings and the finished callback
+the real player would send, through the same ``queue_ui_callback`` path.
 """
 
 import dataclasses
@@ -20,7 +25,10 @@ from collections import deque
 from enum import Enum
 from typing import Any, Callable, Deque, Dict, List, Optional, Tuple, Type, TypeVar, Union
 
+from audio.player_interface import IPlayer
 from exceptions import FileOperationError
+from models.playback_event import PlaybackEventArgs, PlaybackEventType
+from models.playback_event_internal import MidiEventType
 from session.documents import DocumentRef
 from session.state import Span
 from utils.text_normalization import normalize_song_text
@@ -248,3 +256,165 @@ class EventRecorder:
         """The last recorded item of one type, or None."""
         found = self.of_type(item_type)
         return found[-1] if found else None
+
+
+class FakePlayer(IPlayer):
+    """A silent :class:`audio.player_interface.IPlayer` for session tests.
+
+    ``PlaybackService`` hands it the event buffer and callbacks on its render
+    thread and then calls :meth:`start_playback`. By default that consumes
+    the whole buffer at once, still on the render thread: every chord (and
+    ``NC`` rest) posts a ``CHORD_START`` ping through ``queue_ui_callback``
+    like ``NotePlayer`` does, then the end of the song calls the finished
+    callback. A test joins ``PlaybackService._render_thread`` and runs the
+    host's pending callbacks to see the result.
+
+    With ``auto_play=False`` nothing is consumed until the test calls
+    :meth:`play`, so it can pause or stop in the middle of a song.
+
+    Attributes:
+        calls: Transport calls in order (``start``, ``pause``, ``resume``,
+            ``stop``).
+        immediate: The note lists played by click-to-hear, in order.
+        played: The buffer events consumed so far.
+    """
+
+    def __init__(self, auto_play: bool = True) -> None:
+        """Create the player.
+
+        Args:
+            auto_play: Consume the whole song as soon as playback starts.
+        """
+        self.auto_play = auto_play
+        self.event_buffer: Any = None
+        self.on_event_callback: Optional[Callable[[PlaybackEventArgs], None]] = None
+        self.application: Any = None
+        self.on_playback_finished_callback: Optional[Callable[[], None]] = None
+        self.is_playing = False
+        self.is_paused = False
+        self.calls: List[str] = []
+        self.immediate: List[List[int]] = []
+        self.played: List[Any] = []
+        self.bpm: Optional[int] = None
+        self.bpm_multiplier = 1.0
+        self.instrument = 0
+        self.metronome_enabled = False
+
+    # -- what PlaybackService wires up -------------------------------------
+
+    def set_event_buffer(self, event_buffer: Any) -> None:
+        """Take the pre-rendered events to play."""
+        self.event_buffer = event_buffer
+
+    def set_event_callback(self, callback: Optional[Callable[[PlaybackEventArgs], None]],
+                           application: Any) -> None:
+        """Take the progress callback and what to marshal it through."""
+        self.on_event_callback = callback
+        self.application = application
+
+    def set_playback_finished_callback(self, callback: Callable[[], None]) -> None:
+        """Take the callback for a song that played to its end."""
+        self.on_playback_finished_callback = callback
+
+    # -- transport -----------------------------------------------------------
+
+    def start_playback(self) -> None:
+        """Start the song; with ``auto_play`` play all of it right away."""
+        self.calls.append("start")
+        self.is_playing = True
+        self.is_paused = False
+        if self.auto_play:
+            self.play()
+
+    def play(self, chords: Optional[int] = None) -> int:
+        """Consume buffered events, posting a ping per chord.
+
+        Args:
+            chords: Stop after this many chord pings; None plays to the end
+                of the song, which calls the finished callback.
+
+        Returns:
+            How many chord pings were posted.
+        """
+        posted = 0
+        while self.event_buffer is not None and (chords is None or posted < chords):
+            event = self.event_buffer.pop_event(timeout=0)
+            if event is None:
+                break
+            self.played.append(event)
+            if event.event_type == MidiEventType.END_OF_SONG:
+                self.is_playing = False
+                if self.on_playback_finished_callback is not None:
+                    self.on_playback_finished_callback()
+                break
+            if (event.event_type in (MidiEventType.NOTE_ON, MidiEventType.REST)
+                    and event.metadata.get("has_callback")):
+                self._post_ping(event.metadata)
+                posted += 1
+        return posted
+
+    def _post_ping(self, meta: Dict[str, Any]) -> None:
+        if self.on_event_callback is None or self.application is None:
+            return
+        args = PlaybackEventArgs(
+            event_type=PlaybackEventType.CHORD_START,
+            chord_info=meta.get("chord_info"),
+            chord_index=meta.get("chord_index"),
+            bpm=meta.get("bpm"),
+            time_signature_beats=meta.get("time_signature_beats"),
+            time_signature_unit=meta.get("time_signature_unit"),
+            key=meta.get("key"),
+            current_line=meta.get("line_index"),
+            current_bar=meta.get("bar"),
+            total_bars=meta.get("total_bars"),
+        )
+        callback = self.on_event_callback
+        self.application.queue_ui_callback(lambda: callback(args))
+
+    def pause_playback(self) -> None:
+        """Pause (nothing is consumed meanwhile unless the test plays)."""
+        self.calls.append("pause")
+        self.is_paused = True
+
+    def resume_playback(self) -> None:
+        """Resume after a pause."""
+        self.calls.append("resume")
+        self.is_paused = False
+
+    def stop_playback(self) -> None:
+        """Stop; a stopped song never calls the finished callback."""
+        self.calls.append("stop")
+        self.is_playing = False
+        self.is_paused = False
+
+    # -- everything else -----------------------------------------------------
+
+    def play_notes_immediate(self, midi_notes: List[int]) -> None:
+        """Record a click-to-hear chord."""
+        self.immediate.append(list(midi_notes))
+
+    def stop_all_notes(self) -> None:
+        """Nothing rings, so nothing to silence."""
+
+    def set_bpm(self, bpm: int) -> None:
+        """Record the tempo."""
+        self.bpm = bpm
+
+    def set_bpm_multiplier(self, multiplier: float) -> None:
+        """Record the speed multiplier."""
+        self.bpm_multiplier = multiplier
+
+    def set_instrument(self, program: int) -> None:
+        """Record the MIDI program."""
+        self.instrument = program
+
+    def get_available_instruments(self) -> List[Tuple[int, str]]:
+        """No soundfont, no instruments."""
+        return []
+
+    def set_metronome_enabled(self, enabled: bool) -> None:
+        """Record whether the click track is on."""
+        self.metronome_enabled = enabled
+
+    def cleanup(self) -> None:
+        """Nothing to release."""

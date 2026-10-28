@@ -425,6 +425,17 @@ class TestShowAudioError:
         assert showerror.call_count == 1
         assert "no driver" in showerror.call_args.args[1]
 
+    def test_clicks_share_the_session_policy(self):
+        from session.audio_policy import AudioFailurePolicy
+
+        policy = AudioFailurePolicy()
+        audio_errors.use_policy(policy)
+        assert policy.should_report(from_click=True)  # the session reported a tap
+        with patch("ui.audio_errors.messagebox.showerror") as showerror:
+            audio_errors.show_audio_error(None, AudioInitializationError("x"), from_click=True)
+            audio_errors.show_audio_error(None, AudioInitializationError("x"))
+        assert showerror.call_count == 1  # only Play
+
     def test_explicit_errors_always_shown(self):
         with patch("ui.audio_errors.messagebox.showerror") as showerror:
             audio_errors.show_audio_error(None, AudioInitializationError("a"), from_click=True)
@@ -516,41 +527,40 @@ class TestMainWindowDialogs:
         with patch("ui.main_window.messagebox.askyesnocancel", return_value=True):
             assert MainWindow.prompt_save_if_modified(window) is False
 
-    def test_chord_click_reports_audio_error(self):
+    # Playback failures are reported by the session (tests/test_session_playback.py);
+    # the window only presents its events.
+
+    def test_chord_click_goes_to_the_session(self):
         from ui.main_window import MainWindow
 
         window = self._window()
-        chord = ChordInfo(chord="C", start=0, end=1, is_valid=True, is_relative=False)
-        window.session.detected_chord_at.return_value = chord
-        window.viewmodel.on_chord_clicked.side_effect = AudioInitializationError("no driver")
+        window.text_editor.offset_at.return_value = 7
+        MainWindow.on_chord_click(window, Mock(x=1, y=1))
+        window.session.tap_chord_at.assert_called_once_with(7)
 
-        with patch("ui.main_window.show_audio_error") as show:
-            MainWindow.on_chord_click(window, Mock(x=1, y=1))
-
-        show.assert_called_once()
-        assert show.call_args.kwargs["from_click"] is True
-
-    def test_play_reports_audio_error(self):
+    def test_audio_unavailable_event_is_shown(self):
+        from session.events import AudioUnavailable
         from ui.main_window import MainWindow
 
         window = self._window()
-        window.viewmodel.is_playing = False
-        window.viewmodel.is_paused = False
-        window._start_playback.side_effect = AudioInitializationError("no driver")
+        with patch("ui.audio_errors.messagebox.showerror") as showerror:
+            MainWindow._on_session_output(window, AudioUnavailable("no driver", from_click=True))
+            MainWindow._on_session_output(window, AudioUnavailable("no driver", from_click=True))
+        # The session already applied the once-per-session policy.
+        assert showerror.call_count == 2
+        assert showerror.call_args.args == ("Audio Error", "no driver")
+        assert showerror.call_args.kwargs["parent"] is window
 
-        with patch("ui.main_window.show_audio_error") as show:
-            MainWindow.on_play_pause_click(window, Mock(state=0))
-
-        show.assert_called_once()
-        assert show.call_args.kwargs.get("from_click", False) is False
-
-    def test_playback_render_error_is_shown(self):
+    def test_user_error_event_is_shown(self):
+        from session.events import UserError
         from ui.main_window import MainWindow
 
         window = self._window()
         with patch("ui.main_window.messagebox.showerror") as showerror:
-            MainWindow._on_playback_error(window, "render broke")
-        assert "render broke" in showerror.call_args.args[1]
+            MainWindow._on_session_output(
+                window, UserError("Playback Error", "Could not play the song.\n\nrender broke"))
+        assert showerror.call_args.args == ("Playback Error", "Could not play the song.\n\nrender broke")
+        assert showerror.call_args.kwargs["parent"] is window
 
     def test_help_failure_shows_reason(self):
         from ui.main_window import MainWindow

@@ -14,7 +14,7 @@ from utils import error_reporting
 from ui.text_editor import ChordTextEditor
 from ui.chord_identifier import ChordIdentifierWindow
 from ui.builders.menu_builder import MenuBuilder
-from ui.audio_errors import show_audio_error
+from ui.audio_errors import present_audio_unavailable, use_policy as use_audio_failure_policy
 from ui.menu_style import iter_menus, style_menu
 from ui.dialogs import (
     InsertBpmDialog,
@@ -32,9 +32,12 @@ from utils.ui_helpers import create_tooltip, resolve_font_family
 from utils.file_dialogs import ask_open_filename, ask_save_as_filename, display_path
 from utils.key_helpers import get_key_options
 from models.notation import Notation
-from session.state import HighlightState
+from session.events import AudioUnavailable, UserError
+from session.state import (
+    EditorState, HighlightState, PlaybackState, PlaybackStatus, StatusState,
+)
 from models.ensemble_spec import BUILTIN_ENSEMBLES
-from exceptions import AudioInitializationError, ChordNotepadError
+from exceptions import ChordNotepadError
 from models.fretboard_spec import BUILTIN_FRETBOARDS
 from constants import (
     TAG_CHORD_PLAYING,
@@ -53,6 +56,13 @@ if TYPE_CHECKING:
     from session.session import AppSession
 
 logger = logging.getLogger(__name__)
+
+# The Play/Pause button's tooltip for each playback status.
+_PLAY_PAUSE_TOOLTIPS = {
+    PlaybackStatus.IDLE: "Play from start (Shift+Click to play from cursor)",
+    PlaybackStatus.PLAYING: "Pause playback",
+    PlaybackStatus.PAUSED: "Resume playback",
+}
 
 # Import build info (may be auto-generated during CI build)
 try:
@@ -82,7 +92,8 @@ class MainWindow(tk.Tk):
             application: Application instance for event queue access
             resource_service: ResourceService for resolving resource paths
             chord_sheet_viewmodel: ChordSheetViewModel for the bottom strip
-            session: The application session (text, detection, highlighting)
+            session: The application session (text, detection, highlighting,
+                playback, status line)
         """
         # On Linux the class becomes the X11 WM_CLASS, which desktops match to
         # the .desktop file (StartupWMClass) to show the right icon and name.
@@ -105,6 +116,11 @@ class MainWindow(tk.Tk):
         self.text_editor_viewmodel = text_editor_viewmodel
         self.chord_sheet_viewmodel = chord_sheet_viewmodel
         self.session = session
+        # Chord-sheet and identifier clicks report audio failures by the
+        # session's policy too, so all clicks together report once.
+        use_audio_failure_policy(session.audio_failure_policy)
+        # The playing chord last painted: (span, chord index, bar).
+        self._shown_progress: Optional[tuple] = None
         self.application = application
         self.resource_service = resource_service
         self._icons = IconLoader(resource_service)
@@ -126,8 +142,6 @@ class MainWindow(tk.Tk):
 
         # Create UI components (text editor first so menu can reference it)
         self.create_text_editor()
-        # The session's output: replays the current states, then updates.
-        self._session_subscription = self.session.subscribe(self._on_session_output)
         self.create_menu()
         self.create_toolbar()
         self.create_statusbar()
@@ -138,6 +152,10 @@ class MainWindow(tk.Tk):
 
         # Pack the toolbar at the top, above the editor pane that was packed first.
         self.toolbar.pack(side=tk.TOP, fill=tk.X, before=self.content_paned)
+
+        # The session's output: replays the current states, then updates.
+        # Subscribed once every widget a state maps to exists.
+        self._session_subscription = self.session.subscribe(self._on_session_output)
 
         # Bind events
         self.protocol("WM_DELETE_WINDOW", self.on_close)
@@ -300,10 +318,6 @@ class MainWindow(tk.Tk):
         self.viewmodel.observe('current_document', self._on_current_document_changed)
         self.viewmodel.observe('is_modified', self._on_is_modified_changed)
 
-        # Playback state changes
-        self.viewmodel.observe('is_playing', self._on_is_playing_changed)
-        self.viewmodel.observe('is_paused', self._on_is_paused_changed)
-
         # BPM changes
         self.viewmodel.observe('bpm', self._on_bpm_changed)
         self.viewmodel.observe('bpm_multiplier', self._on_bpm_multiplier_changed)
@@ -316,10 +330,6 @@ class MainWindow(tk.Tk):
 
         # Text content changes
         self.viewmodel.observe('current_text', self._on_current_text_changed)
-
-        # Playback event changes
-        self.viewmodel.observe('current_playback_event', self._on_playback_event_changed)
-        self.viewmodel.observe('playback_error', self._on_playback_error)
 
     # ViewModel observer callbacks
 
@@ -358,61 +368,6 @@ class MainWindow(tk.Tk):
         """React to modification state changes from ViewModel."""
         self.title(self.viewmodel.get_window_title())
 
-    def _on_is_playing_changed(self, new_value: bool) -> None:
-        """React to playback state changes from ViewModel."""
-        if new_value:
-            # Playback started/resumed - show pause icon
-            self.play_pause_button.config(image=self._icon_pause)
-            self._update_play_pause_tooltip()
-            # Lock editor during playback
-            self.text_editor.config(state=tk.DISABLED)
-            # BPM scrubber becomes a live read-only display of the effective BPM
-            if hasattr(self, "bpm_scrubber"):
-                self.bpm_scrubber.set_readonly(True)
-        else:
-            # Playback stopped (idle state) - show play icon
-            self.play_pause_button.config(image=self._icon_play)
-            self._update_play_pause_tooltip()
-            # Unlock editor
-            self.text_editor.config(state=tk.NORMAL)
-            # Clear playing highlight
-            self.text_editor.tag_remove(TAG_CHORD_PLAYING, '1.0', tk.END)
-            # Update statusbar
-            self.update_statusbar("Ready")
-            # Restore editable BPM scrubber with the user's base value
-            if hasattr(self, "bpm_scrubber"):
-                self.bpm_scrubber.set_readonly(False)
-                self.bpm_scrubber.set_value(self.viewmodel.bpm)
-
-    def _on_is_paused_changed(self, new_value: bool) -> None:
-        """React to pause state changes from ViewModel."""
-        if new_value:
-            # Paused state - show play icon
-            self.play_pause_button.config(image=self._icon_play)
-            self._update_play_pause_tooltip()
-        else:
-            # Playing state (resumed or started) - show pause icon
-            if self.viewmodel.is_playing:
-                self.play_pause_button.config(image=self._icon_pause)
-                self._update_play_pause_tooltip()
-
-    def _update_play_pause_tooltip(self) -> None:
-        """Update the Play/Pause button tooltip based on current state."""
-        # Determine tooltip text based on state
-        if self.viewmodel.is_playing and not self.viewmodel.is_paused:
-            tooltip_text = "Pause playback"
-        elif self.viewmodel.is_paused:
-            tooltip_text = "Resume playback"
-        else:
-            tooltip_text = "Play from start (Shift+Click to play from cursor)"
-
-        # Create tooltip on first call, update text on subsequent calls
-        if not hasattr(self, '_play_pause_tooltip'):
-            self._play_pause_tooltip = create_tooltip(self.play_pause_button, tooltip_text)
-        else:
-            # Just update the text attribute
-            self._play_pause_tooltip.text = tooltip_text
-
     def _on_bpm_changed(self, new_value: int) -> None:
         """React to BPM changes from ViewModel."""
         if hasattr(self, "bpm_scrubber"):
@@ -445,11 +400,46 @@ class MainWindow(tk.Tk):
         """Apply one state or event delivered by the session."""
         if isinstance(item, HighlightState):
             self.text_editor.apply_highlight(item)
+        elif isinstance(item, PlaybackState):
+            self._apply_playback(item)
+        elif isinstance(item, StatusState):
+            self.statusbar.config(text=item.text)
+        elif isinstance(item, EditorState):
+            self.text_editor.config(state=tk.DISABLED if item.read_only else tk.NORMAL)
+        elif isinstance(item, AudioUnavailable):
+            present_audio_unavailable(self, item.message)
+        elif isinstance(item, UserError):
+            messagebox.showerror(item.title, item.message, parent=self)
 
-    def _on_playback_error(self, message: str) -> None:
-        """Tell the user the song couldn't be played (render failed)."""
-        self.update_statusbar("Playback failed")
-        messagebox.showerror("Playback Error", f"Could not play the song.\n\n{message}", parent=self)
+    def _apply_playback(self, state: PlaybackState) -> None:
+        """Show the transport status and highlight the chord that is sounding."""
+        playing = state.status is PlaybackStatus.PLAYING
+        self.play_pause_button.config(image=self._icon_pause if playing else self._icon_play)
+        self._play_pause_tooltip.text = _PLAY_PAUSE_TOOLTIPS[state.status]
+
+        # While a song plays the BPM scrubber is a read-only display of the
+        # effective tempo; afterwards it shows the user's base value again.
+        idle = state.status is PlaybackStatus.IDLE
+        self.bpm_scrubber.set_readonly(not idle)
+        if idle:
+            self.bpm_scrubber.set_value(self.viewmodel.bpm)
+        elif state.bpm is not None:
+            self.bpm_scrubber.set_display_text(str(state.bpm))
+
+        # Repaint (and scroll to) the playing chord only when playback moved
+        # on, not when it was merely paused.
+        progress = (state.playing_span, state.chord_index, state.bar)
+        if progress == self._shown_progress:
+            return
+        self._shown_progress = progress
+        self.text_editor.tag_remove(TAG_CHORD_PLAYING, '1.0', tk.END)
+        span = state.playing_span
+        if span is not None:
+            start = f"1.0 + {span.start} chars"
+            self.text_editor.tag_add(TAG_CHORD_PLAYING, start, f"1.0 + {span.end} chars")
+            # Above the chord tags, so it shows
+            self.text_editor.tag_raise(TAG_CHORD_PLAYING)
+            self.text_editor.see(start)
 
     def _show_file_error(self, action: str, filename: Any) -> None:
         """Show a failed open/save/export with the reason from the ViewModel."""
@@ -458,72 +448,6 @@ class MainWindow(tk.Tk):
         if reason:
             message += f"\n\n{reason}"
         messagebox.showerror("Error", message, parent=self)
-
-    def _on_playback_event_changed(self, event_args: Optional[Any]) -> None:
-        """React to playback event changes from ViewModel.
-
-        Args:
-            event_args: PlaybackEventArgs or None
-        """
-        from models.playback_event import PlaybackEventType
-
-        # Temporarily enable editor to modify tags (disabled state prevents tag modifications)
-        was_disabled = str(self.text_editor.cget('state')) == tk.DISABLED
-        if was_disabled:
-            self.text_editor.config(state=tk.NORMAL)
-
-        # Clear previous playing highlight
-        self.text_editor.tag_remove(TAG_CHORD_PLAYING, '1.0', tk.END)
-
-        if event_args is None:
-            # Playback finished or stopped
-            if was_disabled:
-                self.text_editor.config(state=tk.DISABLED)
-            if self.chord_sheet_viewmodel is not None:
-                self.chord_sheet_viewmodel.on_playback_chord(None)
-            self.update_statusbar("Ready")
-            return
-
-        # Drive the chord-sheet playhead with the same ping as TAG_CHORD_PLAYING.
-        # The carried chord_index keeps the strip playhead loop-accurate.
-        if self.chord_sheet_viewmodel is not None:
-            if event_args.event_type == PlaybackEventType.CHORD_START:
-                self.chord_sheet_viewmodel.on_playback_chord(
-                    event_args.chord_info, event_args.chord_index
-                )
-
-        # Live-update the BPM scrubber with the effective BPM from the producer
-        if hasattr(self, "bpm_scrubber") and event_args.bpm is not None:
-            self.bpm_scrubber.set_display_text(str(int(event_args.bpm)))
-
-        # Highlight currently playing chord
-        if event_args.event_type == PlaybackEventType.CHORD_START and event_args.chord_info:
-            chord_info = event_args.chord_info
-            start_idx = f"1.0 + {chord_info.start} chars"
-            end_idx = f"1.0 + {chord_info.end} chars"
-            self.text_editor.tag_add(TAG_CHORD_PLAYING, start_idx, end_idx)
-
-            # Raise the tag priority so it's visible over other tags
-            self.text_editor.tag_raise(TAG_CHORD_PLAYING)
-
-            # Autoscroll to show the playing chord
-            self.text_editor.see(start_idx)
-
-            # Update statusbar with playback state
-            status_parts = []
-            status_parts.append(f"Bar {event_args.current_bar}/{event_args.total_bars}")
-            status_parts.append(f"{event_args.bpm} BPM")
-            status_parts.append(f"{event_args.time_signature_beats}/{event_args.time_signature_unit}")
-            if event_args.key:
-                status_parts.append(f"Key: {event_args.key}")
-            status_parts.append(f"Playing: {chord_info.chord}")
-
-            status_text = " | ".join(status_parts)
-            self.update_statusbar(status_text)
-
-        # Restore disabled state
-        if was_disabled:
-            self.text_editor.config(state=tk.DISABLED)
 
     def _set_window_icon(self) -> None:
         """Set the window icon"""
@@ -803,7 +727,8 @@ class MainWindow(tk.Tk):
         self.play_pause_button = self._make_icon_button(playback_frame, self._icon_play)
         self.play_pause_button.pack(side=tk.LEFT, padx=(0, 2))
         self.play_pause_button.bind('<Button-1>', self.on_play_pause_click)
-        self._update_play_pause_tooltip()
+        self._play_pause_tooltip = create_tooltip(
+            self.play_pause_button, _PLAY_PAUSE_TOOLTIPS[PlaybackStatus.IDLE])
 
         self.stop_button = self._make_icon_button(
             playback_frame, self._icon_stop, command=self.stop_playback)
@@ -885,8 +810,8 @@ class MainWindow(tk.Tk):
 
         The panel is added to the content paned window only when the viewmodel
         reports it visible (hidden = removed from the pane, not just blanked).
-        The session feeds it the parsed song; the window still forwards the
-        playback ping, and persists its height on sash drags.
+        The session feeds it the parsed song and moves its playhead; the
+        window persists its height on sash drags.
         """
         vm = self.chord_sheet_viewmodel
         if vm is None:
@@ -1362,8 +1287,8 @@ class MainWindow(tk.Tk):
                 )
 
     def update_statusbar(self, message: str) -> None:
-        """Update status bar message"""
-        self.statusbar.config(text=message)
+        """Show ``message`` in the status bar (through the session's status line)."""
+        self.session.show_status(message)
 
     def on_close(self) -> None:
         """Handle window close"""
@@ -1373,7 +1298,7 @@ class MainWindow(tk.Tk):
             # Persist the chord-sheet height while the pane still exists
             self._on_content_sash_moved(None)
             # Stop playback
-            self.viewmodel.stop_playback()
+            self.session.stop()
             # Clean up observers to prevent memory leaks
             self.viewmodel.clear_observers()
             self._session_subscription.cancel()
@@ -1676,82 +1601,23 @@ class MainWindow(tk.Tk):
         return self.text_editor_viewmodel.detected_lines or None
 
     def on_chord_click(self, event: Any) -> None:
-        """Handle click on text editor - play chord if clicked"""
-        offset = self.text_editor.offset_at(event.x, event.y)
-        chord_info = self.session.detected_chord_at(offset)
-        if chord_info and chord_info.is_valid:
-            try:
-                self.viewmodel.on_chord_clicked(chord_info)
-            except AudioInitializationError as e:
-                self.update_statusbar("Audio is not available")
-                show_audio_error(self, e, from_click=True)
-                return
-            self.update_statusbar(f"Playing: {chord_info.chord}")
+        """A click in the editor plays the chord under the pointer, if any."""
+        self.session.tap_chord_at(self.text_editor.offset_at(event.x, event.y))
 
     def on_play_pause_click(self, event: Any) -> None:
-        """Handle Play/Pause button click with Shift modifier support.
+        """Play/Pause: play from the start, pause, or resume.
 
-        States:
-        - Initial (not playing): Normal=Play from start, Shift=Play from cursor
-        - Playing: Pause
-        - Paused: Resume
+        Shift+click while idle plays from the cursor instead.
         """
-        shift_held = event.state & 0x1  # Check if Shift key is held
-
-        if self.viewmodel.is_playing and not self.viewmodel.is_paused:
-            # Currently playing - pause it
-            logger.info("View: Pausing playback")
-            self.viewmodel.pause_playback()
-            self.update_statusbar("Paused playback")
-        elif self.viewmodel.is_paused:
-            # Paused - resume from current position
-            logger.info("View: Resuming playback")
-            self.viewmodel.resume_playback()
-            self.update_statusbar("Resumed playback")
-        else:
-            # Not playing - start playback
-            # Sync current text to ViewModel before starting playback
-            current_text = self.text_editor.get("1.0", "end-1c")
-            self.viewmodel.on_text_changed(current_text)
-
-            try:
-                self._start_playback(shift_held)
-            except AudioInitializationError as e:
-                self.update_statusbar("Audio is not available")
-                show_audio_error(self, e)
-
-    def _start_playback(self, shift_held: bool) -> None:
-        """Start playback from the start, or from the cursor with Shift.
-
-        Raises:
-            AudioInitializationError: If the audio output can't be started.
-        """
-        if shift_held:
-            # Shift+click - play from cursor position
-            logger.info("View: Playing from cursor position")
-            cursor_pos = self.text_editor.index(tk.INSERT)
-            success = self.viewmodel.start_playback_from_cursor(cursor_pos)
-            if success:
-                all_chords = [c for c in self.text_editor_viewmodel.get_all_chords()
-                              if c.is_valid]
-                self.update_statusbar(f"Playing from cursor ({len(all_chords)} chords)...")
-            else:
-                self.update_statusbar("No chords to play from cursor")
-        else:
-            # Normal click - play from start
-            logger.info("View: Playing from start")
-            success = self.viewmodel.start_playback()
-            if success:
-                all_chords = [c for c in self.text_editor_viewmodel.get_all_chords()
-                              if c.is_valid]
-                self.update_statusbar(f"Playing {len(all_chords)} chords...")
-            else:
-                self.update_statusbar("No chords to play")
+        # Make sure the session plays the text in the widget.
+        self.session.set_text(self.text_editor.get_text())
+        shift_held = event.state & 0x1
+        from_offset = self.text_editor.offset_of(tk.INSERT) if shift_held else None
+        self.session.play_pause(from_offset)
 
     def stop_playback(self) -> None:
         """Stop playback"""
-        self.viewmodel.stop_playback()
-        self.update_statusbar("Stopped playback")
+        self.session.stop()
 
     def insert_bpm(self) -> None:
         """Open dialog to insert a BPM/Tempo change directive"""
