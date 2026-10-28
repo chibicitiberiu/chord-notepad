@@ -577,7 +577,7 @@ class TestMainWindowDialogs:
         from ui.main_window import MainWindow
 
         window = self._window()
-        window.text_editor.insert.side_effect = tk.TclError("bad index")
+        window.text_editor.offset_of.side_effect = tk.TclError("bad index")
         with patch("ui.main_window.messagebox.showerror") as showerror:
             MainWindow._on_insert_chord_from_identifier(window, "Am")
         assert "bad index" in showerror.call_args.args[1]

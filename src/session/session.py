@@ -4,31 +4,38 @@ The session composes the existing viewmodels and is their observer; views send
 it primitive-typed commands and get back one stream of frozen DTOs (see
 ``docs/architecture/session.md``). It is being built up step by step: so far
 it owns the text mirror, debounced chord detection, the highlight spans, the
-chord-sheet feed and playback (transport, playing chord, status line,
-editor lock, audio-failure reporting).
+chord-sheet feed, playback (transport, playing chord, status line, editor
+lock, audio-failure reporting) and the programmatic edits (transpose, capo,
+convert notation, inserts), which it sends to the views as ``TextEdited``.
 
 Every public command and every callback the session schedules runs inside
 :meth:`Emitter.batch`, so output is delivered at the outermost exit and never
 in the middle of a command. All of it runs on the session thread.
 """
 
+import contextlib
 import dataclasses
 import functools
 import logging
-from typing import TYPE_CHECKING, Any, Callable, Optional, Tuple, TypeVar
+from typing import TYPE_CHECKING, Any, Callable, Iterator, Optional, Sequence, Tuple, TypeVar
 
 from constants import CHORD_DETECTION_DEBOUNCE_MS
 from exceptions import AudioInitializationError
 from models.notation import Notation
 from models.playback_event import PlaybackEventArgs, PlaybackEventType
-from session import formatting
+from session import directives, formatting
 from session.audio_policy import AudioFailurePolicy
 from session.emitter import Emitter, Listener
-from session.events import AudioUnavailable, UserError
+from session.events import (
+    AudioUnavailable, CapoChoiceRequest, InsertDirectiveRequest, TextEdited, UndoPolicy,
+    UserError,
+)
+from session.flows import Flow, FlowRunner
 from session.highlighting import chord_at, compute_spans
 from session.host import Cancellable, Host
 from session.state import (
-    EditorState, HighlightState, PlaybackState, PlaybackStatus, Span, SpanKind, StatusState,
+    EditorState, HighlightState, MenuItem, PlaybackState, PlaybackStatus, Span, SpanKind,
+    StatusState,
 )
 
 if TYPE_CHECKING:
@@ -41,6 +48,8 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 F = TypeVar("F", bound=Callable[..., Any])
+
+Selection = Optional[Sequence[int]]
 
 
 def _command(method: F) -> F:
@@ -95,6 +104,16 @@ class AppSession:
         self._client_token = 0
         self._detect_timer: Optional[Cancellable] = None
         self._spans: Tuple[Span, ...] = ()
+
+        # The viewmodel replaces the whole text for open and new (and for the
+        # transpose, convert and capo commands the session runs through it).
+        # The undo policy of the resulting edit is the running command's.
+        self._edit_undo = UndoPolicy.PLAIN
+        self._on_replaced = self._entry(self._on_text_replaced)
+        self._main.observe("current_text", self._on_replaced)
+
+        # Dialog-driven commands (insert directive, suggest capo).
+        self._flows = FlowRunner(self._emitter.emit)
 
         # Detection follows the notation preference.
         self._detector.set_notation(self._main.notation.value)
@@ -159,6 +178,8 @@ class AppSession:
         """Cancel pending work and stop observing; drops every listener."""
         self._started = False
         self._cancel_detection()
+        self._flows.cancel()
+        self._main.unobserve("current_text", self._on_replaced)
         self._main.unobserve("notation", self._on_notation)
         self._detector.unobserve("detected_lines", self._on_song_input)
         self._main.unobserve("key", self._on_song_input)
@@ -193,31 +214,120 @@ class AppSession:
         self._arm_detection()
 
     @_command
-    def set_text_now(self, text: str) -> None:
-        """Like :meth:`set_text`, but re-detect immediately.
-
-        Transitional: the Tk view still applies programmatic edits (open,
-        transpose, convert, capo) itself and reports the result here. It goes
-        away once those edits move into the session (steps 8 and 11).
-        """
-        if text != self._text:
-            self._replace_mirror(text, 0)
-        self._detect_now()
-
-    @_command
     def insert_text(self, at: int, text: str) -> None:
         """Insert ``text`` at offset ``at`` and re-detect immediately.
 
-        For inserts that don't come from typing (the chord identifier).
+        For inserts that don't come from typing (the chord identifier). The
+        views get it as a plain :class:`TextEdited` with the cursor after the
+        inserted text. Refused (logged, nothing changes) while a song plays
+        or is paused, like every programmatic edit.
 
         Raises:
             ValueError: If ``at`` is outside the text.
         """
         if not 0 <= at <= len(self._text):
             raise ValueError(f"insert offset {at} outside the text (length {len(self._text)})")
-        if text:
-            self._replace_mirror(self._text[:at] + text + self._text[at:], 0)
-        self._detect_now()
+        if not self._edits_allowed("insert"):
+            return
+        self._splice(at, at, text)
+
+    @_command
+    def transpose(self, semitones: int, selection: Selection = None) -> None:
+        """Transpose the chords (and key directives) by ``semitones``.
+
+        One undo step in the views. A whole-song transpose also shifts the
+        toolbar key, so roman numerals keep sounding the same.
+
+        Args:
+            semitones: Positive is up; 0 does nothing.
+            selection: ``(start, end)`` to transpose only the chords that
+                overlap it; None (or an empty range) for the whole song.
+
+        Raises:
+            ValueError: If the selection is outside the text.
+        """
+        if semitones == 0 or not self._edits_allowed("transpose"):
+            return
+        region = self._region(selection)
+        with self._undo_policy(UndoPolicy.GROUP):
+            self._main.transpose(semitones, region)
+        self._set_status(formatting.transposed_status(semitones, region is not None))
+
+    @_command
+    def convert_notation(self, target: str) -> None:
+        """Rewrite the chords in ``target`` notation and switch detection to it.
+
+        Args:
+            target: ``american`` or ``european``.
+
+        Raises:
+            ValueError: For any other notation.
+        """
+        notation = Notation(target)
+        if not self._edits_allowed("convert"):
+            return
+        source = Notation.EUROPEAN if notation is Notation.AMERICAN else Notation.AMERICAN
+        # The detector's lines can be reused when they are of the current
+        # text in the source notation; otherwise the converter parses.
+        lines = None
+        if self._detect_timer is None and self._detector.current_notation == source.value:
+            lines = self._detector.detected_lines or None
+        if notation is Notation.AMERICAN:
+            self._main.convert_text_to_american(lines)
+        else:
+            self._main.convert_text_to_european(lines)
+        self._set_status(formatting.converted_status(notation.value))
+
+    @_command
+    def request_insert_directive(self, kind: str, at: int) -> None:
+        """Ask the view for a directive's fields, then insert it at ``at``.
+
+        Emits :class:`InsertDirectiveRequest`; ``respond`` with the fields
+        inserts the directive (and a space) as a plain edit, or emits a
+        :class:`UserError` if they don't validate. Refused at answer time
+        while a song plays.
+
+        Args:
+            kind: ``bpm``, ``time``, ``key``, ``label`` or ``loop``.
+            at: Where to insert (the cursor), in code points.
+
+        Raises:
+            ValueError: For an unknown kind, or ``at`` outside the text.
+        """
+        kind = directives.DirectiveKind(kind).value
+        if not 0 <= at <= len(self._text):
+            raise ValueError(f"insert offset {at} outside the text (length {len(self._text)})")
+        self._flows.start(self._insert_directive_flow(kind, at))
+
+    @_command
+    def request_suggest_capo(self, selection: Selection = None) -> None:
+        """Ask which voicing to optimize for, then insert the best ``{capo: N}``.
+
+        Emits :class:`CapoChoiceRequest`; ``respond`` with a voicing scores
+        the selection (or the whole song) and inserts the directive at the
+        start of the selection's line (the top without one) as one undo step,
+        or says in the status line that no capo helps. Refused at answer time
+        while a song plays.
+
+        Args:
+            selection: ``(start, end)`` to score only the chords that overlap
+                it; None (or an empty range) for the whole song.
+
+        Raises:
+            ValueError: If the selection is outside the text.
+        """
+        self._flows.start(self._suggest_capo_flow(self._region(selection)))
+
+    @_command
+    def respond(self, request_id: int, value: object) -> None:
+        """Answer a request the session emitted.
+
+        Args:
+            request_id: The request's ``request_id``.
+            value: The answer (see each request type); None cancels.
+                Answers to a request that is no longer pending are ignored.
+        """
+        self._flows.respond(request_id, value)
 
     # -- playback ---------------------------------------------------------------
 
@@ -271,8 +381,9 @@ class AppSession:
         """Show ``text`` in the status line.
 
         Transitional: the Tk view still words the outcome of the flows it
-        runs itself (open, save, transpose, insert...). Goes away as those
-        flows move into the session (steps 8-11).
+        runs itself (new, open, save, export, and the chord identifier's
+        insert). Goes away as those flows move into the session (steps 11
+        and 13).
         """
         self._set_status(text)
 
@@ -357,6 +468,104 @@ class AppSession:
     def _publish_highlight(self) -> None:
         self._spans = compute_spans(self._detector.detected_lines, self._text)
         self._emitter.set_state(HighlightState(self._revision, self._client_token, self._spans))
+
+    # -- editing internals ------------------------------------------------------
+
+    def _edits_allowed(self, what: str) -> bool:
+        """Programmatic edits wait for playback to stop (the editor is locked)."""
+        if self._playback_status() is PlaybackStatus.IDLE:
+            return True
+        logger.info("Ignoring %s while a song is playing", what)
+        return False
+
+    def _region(self, selection: Selection) -> Optional[Tuple[int, int]]:
+        """A command's selection as ``(start, end)``, or None for none/empty.
+
+        Raises:
+            ValueError: If it is outside the text or reversed.
+        """
+        if selection is None:
+            return None
+        start, end = (int(x) for x in selection)
+        if not 0 <= start <= end <= len(self._text):
+            raise ValueError(f"selection {start}-{end} outside the text (length {len(self._text)})")
+        return (start, end) if start < end else None
+
+    @contextlib.contextmanager
+    def _undo_policy(self, policy: UndoPolicy) -> Iterator[None]:
+        """Give the edits the viewmodel makes meanwhile ``policy``."""
+        previous, self._edit_undo = self._edit_undo, policy
+        try:
+            yield
+        finally:
+            self._edit_undo = previous
+
+    def _splice(self, start: int, end: int, replacement: str,
+                undo: UndoPolicy = UndoPolicy.PLAIN) -> None:
+        """Make an edit: update the copies, tell the views, re-detect at once."""
+        if start != end or replacement:
+            old = self._text
+            self._replace_mirror(old[:start] + replacement + old[end:], 0)
+            self._emitter.emit(TextEdited(self._revision, start, end, replacement, undo,
+                                          start + len(replacement)))
+        self._detect_now()
+
+    def _on_text_replaced(self, text: str) -> None:
+        """The viewmodel replaced the document text (open, new, or a command)."""
+        if text != self._text:
+            self._splice(0, len(self._text), text, self._edit_undo)
+        else:
+            self._detect_now()
+
+    def _labels(self) -> Tuple[str, ...]:
+        """The labels in the current text (parsed afresh if detection is pending)."""
+        lines = (self._detector.detected_lines if self._detect_timer is None
+                 else self._detector.detect_chords(self._text))
+        return directives.existing_labels(lines)
+
+    def _insert_directive_flow(self, kind: str, at: int) -> Flow:
+        """Ask for a directive's fields, check them and insert the directive."""
+        notation = self._main.notation.value
+        fields = yield InsertDirectiveRequest(0, kind, self._labels(), notation)
+        if fields is None:
+            return
+        try:
+            # Checked against the labels now: the text may have changed.
+            text = directives.build_directive(
+                kind, fields, existing_labels=self._labels(), notation=notation)
+        except directives.InvalidDirective as e:
+            self._emitter.emit(UserError(e.problem.title, e.problem.message))
+            return
+        if not self._edits_allowed("insert directive"):
+            return
+        # The text may have changed while the user was answering.
+        at = min(at, len(self._text))
+        self._splice(at, at, text + " ")
+        self._set_status(formatting.inserted_status(text))
+
+    def _suggest_capo_flow(self, region: Optional[Tuple[int, int]]) -> Flow:
+        """Ask for a voicing, score capo positions on it and insert the best."""
+        options = tuple(MenuItem(label, value)
+                        for label, value in self._main.capo_voicing_options())
+        values = [o.value for o in options]
+        default = self._main.default_capo_voicing()
+        if default not in values:
+            default = values[0] if values else ""
+        voicing = yield CapoChoiceRequest(0, options, default)
+        label = next((o.label for o in options if o.value == voicing), None)
+        if voicing is None or label is None:
+            return
+        if not self._edits_allowed("suggest capo"):
+            return
+        if region is not None and region[1] > len(self._text):
+            region = None  # the text changed under the selection
+        capo = self._main.suggest_capo_for(voicing, region)
+        if not capo:
+            self._set_status(formatting.no_capo_status(region is not None, label))
+            return
+        with self._undo_policy(UndoPolicy.GROUP):
+            self._main.insert_capo(capo, region)
+        self._set_status(formatting.capo_suggested_status(capo, region is not None, label))
 
     def _feed_chord_sheet(self, _changed: Any = None) -> None:
         """Send the parsed song and key to the chord sheet (it debounces)."""

@@ -109,3 +109,16 @@ class EditorState:
     """
 
     read_only: bool
+
+
+@dataclass(frozen=True)
+class MenuItem:
+    """One choice in a menu or list a view shows.
+
+    Attributes:
+        label: What the user sees.
+        value: What the view sends back when it is chosen.
+    """
+
+    label: str
+    value: str

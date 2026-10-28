@@ -84,6 +84,7 @@ src/session/
   audio_policy.py  AudioFailurePolicy: Play reports every time, clicks once per session
   emitter.py       Emitter: output buffering, coalescing and flush (the delivery contract)
   formatting.py    titles, status strings, multiplier parse, voicing/instrument menu models, key conversion
+  directives.py    Insert-menu directives: field validation + messages, directive text, labels, loop choices
   highlighting.py  find_comments, compute_spans(lines, text), chord_at(lines, offset)
   flows.py         generator-based request/response FlowRunner
   workers.py       BackgroundWorker (single-thread executor, results via host.post)
@@ -262,17 +263,13 @@ class AppSession:
   `chord_at(offset) -> Span | None` (the Tk hand cursor), `text`,
   `text_revision`.
 - Transitional commands, removed by the step named:
-  - `set_text_now(text)`: the Tk view applied a programmatic edit (open,
-    transpose, convert, capo) itself and reports the result, which is
-    re-detected immediately (steps 8 and 11 move those edits in).
+  - `set_text_now(text)`: removed in step 8 (see below).
   - `show_status(text)`: the Tk view still words the outcome of the flows it
-    runs itself (open, save, export, transpose, capo, insert, convert).
-    `MainWindow.update_statusbar` sends that text here, so the status line has
-    one owner (`StatusState`) and a repeated playback status is never lost
-    behind a view-written one. Goes as those flows move in (steps 8-11).
-- `insert_text(at, text)` splices the session's copy and re-detects at once; the
-  Tk view still inserts into the widget itself. Emitting `TextEdited` comes
-  with step 8.
+    runs itself (new, open, save, export, and the chord identifier's
+    "Inserted chord: X"). `MainWindow.update_statusbar` sends that text here,
+    so the status line has one owner (`StatusState`) and a repeated playback
+    status is never lost behind a view-written one. Goes with step 11 (the
+    file flows) and step 13 (the identifier's wording).
 - The Quick Start snippets paint `compute_spans` directly (display only, no
   session).
 
@@ -311,9 +308,58 @@ class AppSession:
   when `<<Modified>>` already did), then `play_pause(from_offset)`, with the
   Shift+click cursor as a code-point offset (`ChordTextEditor.offset_of`).
 
+**Interim shape (recorded in step 8, programmatic edits).**
+- Every programmatic edit reaches the views as one `TextEdited` followed, in
+  the same flush, by the `HighlightState` of the new text (no debounce).
+  `insert_text` and the directive insert are session splices `(at, at, text)`;
+  transpose, convert and capo still run through `MainWindowViewModel`
+  (`transpose`, `convert_text_to_*`, `insert_capo`), which replaces the whole
+  text with `set_and_notify("current_text")`. The session observes
+  `current_text` and turns each replacement into `TextEdited(0, len, new)`
+  carrying the undo policy of the command running at the time (`group` for
+  transpose and capo, `plain` otherwise); the cursor goes to the end of the
+  text, where Tk's delete+insert left it before.
+- Open and New still replace the text through the viewmodel from the Tk
+  window, so they arrive as `plain` edits; `MainWindow.load_file` calls
+  `edit_reset()` afterwards as before. Step 11 makes Open emit `reset`.
+- Programmatic edits are refused (logged, no output) while a song plays or is
+  paused: `transpose`, `convert_notation`, `insert_text`, and the answers to
+  the insert-directive and capo requests. The requests themselves are still
+  emitted, so the dialogs open as before; the answer is refused. (Before, the
+  locked widget silently ignored these edits while the viewmodel and session
+  copies took them, so the copies disagreed with the editor.)
+- `TextEdited` is applied by `ChordTextEditor.apply_edit` even while the
+  widget is locked (Open/New during playback now update the editor instead
+  of leaving it showing the old text). It clears the widget's modified flag
+  afterwards: `<<Modified>>` is queued, so that is what keeps the edit from
+  being sent back with `set_text`.
+- Ordering: a state keeps its first position when set twice in one flush, so
+  the session never publishes a `HighlightState` before a `TextEdited` in the
+  same command. Edit commands don't re-detect up front: convert reuses the
+  detector's lines only when no detection is pending, and the label lookup
+  parses afresh (`TextEditorViewModel.detect_chords`, no notify) when one is.
+- Requests: `InsertDirectiveRequest(request_id, kind, existing_labels,
+  notation)`, answered with a `{field: value}` mapping (`session/directives.py`
+  documents the fields) or None; `CapoChoiceRequest(request_id, options,
+  default)` with `MenuItem(label, value)` options, answered with a value or
+  None. Invalid directive fields at answer time emit `UserError`; the Tk
+  dialogs check them live with `directives.check_directive` (same messages as
+  before) so that only happens to a view that skips the check. The capo
+  suggestion still runs synchronously in `respond` (step 12 moves it to the
+  worker). The Tk window presents requests from `after_idle`, never from inside
+  the listener: a modal dialog there would hold back the session's output
+  (playback progress) until it closed.
+- The transpose dialog stays view-side (no request): the view asks for the
+  semitones and calls `transpose(semitones, selection)`. Before any edit
+  command the Tk view sends the widget's text with `set_text`.
+- Selections are `(start, end)` code-point pairs; an empty one means none.
+
 **Flows** (`flows.py`) are generators. They yield requests and receive answers
 through `respond()`, so a request/response flow reads as plain sequential code.
-Only one flow can be pending at a time.
+Only one flow can be pending at a time: starting another closes the pending
+one (so a view that lost a request can't wedge the session), and answers to
+anything but the pending request id are ignored. `respond(id, None)` cancels
+by convention.
 
 **Delivery contract**
 - Listeners are called only on the session thread, and only at flush points,
@@ -413,7 +459,8 @@ Manual check after each step (`make run`):
 - close with unsaved changes.
 
 Behaviour changes to call out in commit messages:
-- an inserted directive is highlighted after the debounce;
+- an inserted directive is highlighted after the debounce (steps 5-7; since
+  step 8 it is highlighted at once again);
 - navigation keys no longer trigger re-detection;
 - stopping playback no longer blocks for up to 2 s.
 

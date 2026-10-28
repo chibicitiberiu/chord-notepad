@@ -1,7 +1,7 @@
 """User-facing strings the session builds, so every UI words things the same.
 
-So far: the status-line texts of playback and the audio and playback error
-messages. Titles, the multiplier parse and the menu models join with the
+So far: the status-line texts of playback and of the editing commands, and
+the audio and playback error messages. Titles, the multiplier parse and the menu models join with the
 steps that move them into the session (``docs/architecture/session.md``).
 """
 
@@ -78,3 +78,41 @@ def audio_unavailable_message(reason: str, from_click: bool) -> str:
     if from_click:
         message += "\n\nClicked chords won't play until this is fixed."
     return message
+
+
+# -- editing commands ------------------------------------------------------------
+
+
+def _scope(has_selection: bool) -> str:
+    return "selection" if has_selection else "whole song"
+
+
+def transposed_status(semitones: int, has_selection: bool) -> str:
+    """The status after Transpose, e.g. ``Transposed whole song by +2 semitones``."""
+    return f"Transposed {_scope(has_selection)} by {semitones:+d} semitones"
+
+
+def converted_status(notation: str) -> str:
+    """The status after converting the text to ``american`` or ``european`` notation."""
+    return f"Converted to {notation.capitalize()} notation"
+
+
+def inserted_status(text: str) -> str:
+    """The status after a directive was inserted, e.g. ``Inserted: {bpm: 90}``."""
+    return f"Inserted: {text}"
+
+
+def capo_suggested_status(capo: int, has_selection: bool, voicing: str) -> str:
+    """The status after Suggest Capo inserted ``{capo: N}``.
+
+    Args:
+        capo: The suggested fret.
+        has_selection: Whether only the selection was scored.
+        voicing: The voicing's display name.
+    """
+    return f"Suggested capo {capo} for the {_scope(has_selection)} on {voicing}"
+
+
+def no_capo_status(has_selection: bool, voicing: str) -> str:
+    """The status when no capo makes the song (or selection) easier to play."""
+    return f"No capo makes the {_scope(has_selection)} easier on {voicing}"

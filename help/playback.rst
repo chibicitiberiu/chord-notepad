@@ -44,7 +44,10 @@ During Playback
 
 While playing:
 
-* The text editor becomes **read-only** (you can't edit while playing)
+* The text editor becomes **read-only** (you can't edit while playing).
+  Tools that change the text (Transpose, Suggest Capo, the notation
+  conversions, the Insert menu and the chord identifier's Insert) leave it
+  unchanged until you stop.
 * The **current chord** is highlighted in yellow
 * The **status bar** shows: bar number, BPM, time signature, key, and chord name
 * The editor **auto-scrolls** to keep the playing chord visible

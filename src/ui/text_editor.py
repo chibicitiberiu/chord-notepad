@@ -4,6 +4,7 @@ Custom text editor widget that paints the session's chord highlighting
 
 import tkinter as tk
 from typing import TYPE_CHECKING, Any, Dict, Iterable, Optional
+from session.events import TextEdited, UndoPolicy
 from session.state import HighlightState, Span, SpanKind
 from utils.text_normalization import normalize_song_text
 from constants import (
@@ -30,8 +31,9 @@ class ChordTextEditor(tk.Text):
     """Text editor widget that shows chord highlighting.
 
     A thin view: chord detection, highlight spans and chord hit-testing live
-    in the session. The window sends the text to the session when it changes
-    and hands the resulting :class:`HighlightState` to :meth:`apply_highlight`.
+    in the session. The window sends the text to the session when it changes,
+    hands the resulting :class:`HighlightState` to :meth:`apply_highlight` and
+    the session's own edits to :meth:`apply_edit`.
     """
 
     def __init__(self, parent: Any, session: Optional["AppSession"] = None, **kwargs: Any) -> None:
@@ -89,6 +91,51 @@ class ChordTextEditor(tk.Text):
         """
         self.highlight = state
         self.paint_spans(state.spans)
+
+    def apply_edit(self, edit: TextEdited) -> None:
+        """Apply an edit the session made (transpose, insert, open...).
+
+        The undo policy decides how it goes into the undo history: ``group``
+        is one undo step of its own, ``plain`` is like any edit, ``reset``
+        clears the history. The edit is applied even while the editor is
+        locked for playback (the session decides what may change), and it is
+        not reported back to the session as typing.
+
+        Args:
+            edit: The splice, in code-point offsets
+        """
+        locked = str(self.cget('state')) == tk.DISABLED
+        if locked:
+            self.config(state=tk.NORMAL)
+        try:
+            start = f"1.0 + {edit.start} chars"
+            if edit.undo is UndoPolicy.GROUP:
+                autoseparators = self.cget('autoseparators')
+                self.edit_separator()
+                self.config(autoseparators=False)
+                try:
+                    self._splice(start, f"1.0 + {edit.end} chars", edit.replacement)
+                finally:
+                    self.config(autoseparators=autoseparators)
+                    self.edit_separator()
+            else:
+                self._splice(start, f"1.0 + {edit.end} chars", edit.replacement)
+                if edit.undo is UndoPolicy.RESET:
+                    self.edit_reset()
+            self.mark_set(tk.INSERT, f"1.0 + {edit.cursor} chars")
+        finally:
+            if locked:
+                self.config(state=tk.DISABLED)
+        # The session already has this text. <<Modified>> is delivered later
+        # through the event queue and only sends the text when the flag is
+        # set, so clearing it here keeps the edit from coming back as typing.
+        self.edit_modified(False)
+
+    def _splice(self, start: str, end: str, replacement: str) -> None:
+        if self.compare(start, '<', end):
+            self.delete(start, end)
+        if replacement:
+            self.insert(start, replacement)
 
     def paint_spans(self, spans: Iterable[Span]) -> None:
         """Replace the chord, directive and comment highlighting with ``spans``.

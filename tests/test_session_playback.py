@@ -75,7 +75,8 @@ class Env:
         self.recorder = EventRecorder()
         self.session.subscribe(self.recorder)
         self.session.start()
-        self.session.set_text_now(text)
+        self.session.set_text(text)
+        self.host.advance(0.5)
         self.recorder.clear()
 
     def rendered(self):
@@ -315,7 +316,8 @@ def test_the_policy_can_be_shared():
     assert session.audio_failure_policy is policy
     recorder = EventRecorder()
     session.subscribe(recorder)
-    session.set_text_now("C")
+    session.set_text("C")
+    host.advance(0.5)
     session.tap_chord_at(0)
     assert recorder.of_type(AudioUnavailable) == []
 

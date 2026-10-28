@@ -61,6 +61,12 @@ def chord(start, end):
     return ("chord", start, end)
 
 
+def load(env, text):
+    """Type ``text`` and let the detection debounce run out."""
+    env.session.set_text(text)
+    env.host.advance(0.5)
+
+
 # -- golden: typing ----------------------------------------------------------
 
 
@@ -143,23 +149,30 @@ def test_a_new_token_for_the_same_text_resends_current_spans(env):
 # -- immediate detection -----------------------------------------------------
 
 
-def test_set_text_now_highlights_without_waiting(env):
+def test_a_viewmodel_replace_highlights_without_waiting(env):
+    # Open and New replace the text through the viewmodel.
     env.session.set_text("C")  # pending debounce...
     env.recorder.clear()
-    env.session.set_text_now("C G")
-    assert env.recorder.compact() == [("HighlightState", 2, 0, (chord(0, 1), chord(2, 3)))]
+    env.main.set_and_notify("current_text", "C G")
+    assert env.recorder.compact() == [
+        ("TextEdited", 2, 0, 1, "C G", "plain", 3),
+        ("HighlightState", 2, 0, (chord(0, 1), chord(2, 3))),
+    ]
     assert env.host.pending_timers == 0  # ...is cancelled
+    assert env.session.text == "C G"
 
 
-def test_set_text_now_redetects_even_when_the_text_is_unchanged(env):
+def test_a_viewmodel_replace_with_the_same_text_redetects_at_once(env):
     env.session.set_text("C G")
     env.recorder.clear()
-    env.session.set_text_now("C G")
-    assert env.recorder.compact() == [("HighlightState", 1, 0, (chord(0, 1), chord(2, 3)))]
+    env.main.new_file()
+    env.main.set_and_notify("current_text", "C G")
+    assert env.recorder.compact()[-1] == ("HighlightState", 3, 0, (chord(0, 1), chord(2, 3)))
+    assert env.host.pending_timers == 0
 
 
 def test_insert_text_splices_and_highlights_immediately(env):
-    env.session.set_text_now("C G\nla la")
+    load(env, "C G\nla la")
     env.recorder.clear()
 
     env.session.insert_text(4, "Am ")
@@ -173,7 +186,7 @@ def test_insert_text_splices_and_highlights_immediately(env):
 
 
 def test_insert_text_rejects_an_offset_outside_the_text(env):
-    env.session.set_text_now("C")
+    load(env, "C")
     with pytest.raises(ValueError):
         env.session.insert_text(2, "G")
     with pytest.raises(ValueError):
@@ -181,7 +194,7 @@ def test_insert_text_rejects_an_offset_outside_the_text(env):
 
 
 def test_notation_change_redetects_immediately(env):
-    env.session.set_text_now("Do Re Mi")
+    load(env, "Do Re Mi")
     assert env.highlights()[-1].spans == ()
 
     env.recorder.clear()
@@ -192,7 +205,7 @@ def test_notation_change_redetects_immediately(env):
 
 def test_detection_starts_in_the_saved_notation():
     env = Env(notation="european")
-    env.session.set_text_now("Do Re")
+    load(env, "Do Re")
     assert [s.kind for s in env.highlights()[-1].spans] == [SpanKind.CHORD, SpanKind.CHORD]
 
 
@@ -200,7 +213,7 @@ def test_detection_starts_in_the_saved_notation():
 
 
 def test_chord_at_uses_the_latest_detection(env):
-    env.session.set_text_now("C  Cmaj13#11b9\nCome")
+    load(env, "C  Cmaj13#11b9\nCome")
     assert env.session.chord_at(0) == Span(0, 1, SpanKind.CHORD)
     assert env.session.chord_at(1) is None
     assert env.session.chord_at(5) == Span(3, 14, SpanKind.CHORD_INVALID)
@@ -226,7 +239,7 @@ def test_listeners_are_only_called_between_commands(env):
 
     env.session.subscribe(listener)
     seen_during.clear()
-    env.session.set_text_now("C G")
+    load(env, "C G")
     assert seen_during == ["C G"]
 
 
@@ -237,14 +250,14 @@ def test_a_listener_may_run_a_command(env):
 
     env.session.subscribe(echo)
     env.recorder.clear()
-    env.session.set_text_now("C")
+    load(env, "C")
     revisions = [h.text_revision for h in env.highlights()]
     assert revisions == [1, 2]
     assert env.session.text == "G C"
 
 
 def test_new_subscriber_gets_the_current_highlight(env):
-    env.session.set_text_now("C G")
+    load(env, "C G")
     late = EventRecorder()
     env.session.subscribe(late)
     assert late.of_type(HighlightState) == [late.items[0]]

@@ -9,7 +9,7 @@ runs on a ManualHost, so the debounce is driven by the test.
 import os
 import time
 from types import SimpleNamespace
-from unittest.mock import MagicMock, Mock
+from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
@@ -155,9 +155,14 @@ def test_paste_rearms_detection(wired):
     assert _ranges(editor, TAG_CHORD_VALID) == [(0, 2), (4, 5)]
 
 
+def _replace(wired, text):
+    """Replace the text through the viewmodel, like Open and New do."""
+    wired.main_vm.set_and_notify("current_text", text)
+
+
 def test_programmatic_replace_is_highlighted_at_once(wired):
-    # MainWindow._on_current_text_changed: open/transpose/convert results.
-    MainWindow._on_current_text_changed(wired.window, "G D\nla")
+    _replace(wired, "G D\nla")
+    assert wired.editor.get_text() == "G D\nla"
     assert _ranges(wired.editor, TAG_CHORD_VALID) == [(0, 1), (2, 3)]
     wired.root.update()  # the edit's own <<Modified>> must not re-arm anything
     assert wired.host.pending_timers == 0
@@ -182,7 +187,7 @@ def _pixel_of(editor, offset):
 
 def test_hand_cursor_only_over_valid_chords(wired):
     editor = wired.editor
-    MainWindow._on_current_text_changed(wired.window, "C  Cmaj13#11b9\nCome")
+    _replace(wired, "C  Cmaj13#11b9\nCome")
     wired.root.update()
 
     x, y = _pixel_of(editor, 0)
@@ -200,7 +205,7 @@ def test_hand_cursor_only_over_valid_chords(wired):
 
 def test_click_plays_the_chord_under_the_pointer(wired):
     editor = wired.editor
-    MainWindow._on_current_text_changed(wired.window, "C  G\nla")
+    _replace(wired, "C  G\nla")
     wired.root.update()
 
     x, y = _pixel_of(editor, 3)
@@ -288,3 +293,158 @@ def test_shift_play_sends_the_cursor_offset_in_code_points(wired):
 
     MainWindow.on_play_pause_click(window, SimpleNamespace(state=0))
     window.session.play_pause.assert_called_with(None)
+
+
+# -- programmatic edits: undo policy, no echo, request presenters ----------------
+
+
+def _type(wired, text):
+    """Type ``text`` into an empty editor and let it reach the session."""
+    wired.editor.insert("1.0", text)
+    wired.root.update()
+    wired.host.advance(0.5)
+    wired.editor.edit_reset()
+
+
+def _count_set_text(wired):
+    calls = []
+    real = wired.session.set_text
+
+    def spy(*args, **kwargs):
+        calls.append(args)
+        return real(*args, **kwargs)
+
+    wired.session.set_text = spy
+    return calls
+
+
+def test_transpose_is_one_undo_step_and_is_not_echoed(wired):
+    editor = wired.editor
+    _type(wired, "C G\nla la")
+    calls = _count_set_text(wired)
+    revision = wired.session.text_revision
+
+    wired.session.transpose(2, None)
+    assert editor.get_text() == "D A\nla la"
+    assert _ranges(editor, TAG_CHORD_VALID) == [(0, 1), (2, 3)]
+    assert editor.index("insert") == "2.5"  # cursor after the replacement
+
+    wired.root.update()  # the edit's own <<Modified>>
+    assert calls == []
+    assert wired.session.text_revision == revision + 1
+    assert wired.host.pending_timers == 0
+
+    editor.edit_undo()  # one step restores the original
+    assert editor.get_text() == "C G\nla la"
+    wired.root.update()  # undo is a user edit: it reaches the session
+    assert wired.session.text == "C G\nla la"
+
+
+def test_inserted_text_is_a_plain_edit_with_the_cursor_after_it(wired):
+    editor = wired.editor
+    _type(wired, "C G")
+    wired.session.insert_text(1, " Am")
+    assert editor.get_text() == "C Am G"
+    assert editor.offset_of("insert") == 4
+    assert _ranges(editor, TAG_CHORD_VALID) == [(0, 1), (2, 4), (5, 6)]
+    editor.edit_undo()
+    assert editor.get_text() == "C G"
+
+
+def test_a_reset_edit_clears_the_undo_history(wired):
+    from session.events import TextEdited, UndoPolicy
+
+    editor = wired.editor
+    _type(wired, "C G")
+    editor.insert("end", " Am")
+    editor.apply_edit(TextEdited(9, 0, 6, "G D", UndoPolicy.RESET, 0))
+    assert editor.get_text() == "G D"
+    assert editor.index("insert") == "1.0"
+    with pytest.raises(tk.TclError):
+        editor.edit_undo()
+
+
+def test_an_edit_applies_while_the_editor_is_locked(wired):
+    from session.events import TextEdited, UndoPolicy
+
+    editor = wired.editor
+    editor.config(state=tk.DISABLED)
+    editor.apply_edit(TextEdited(1, 0, 0, "C G", UndoPolicy.PLAIN, 3))
+    assert editor.get_text() == "C G"
+    assert str(editor.cget("state")) == "disabled"
+
+
+def _presenting_window(wired):
+    """The wired window, plus the bits the request presenters use."""
+    window = wired.window
+    window.after_idle = Mock()
+    window.wait_window = Mock()
+    window._present_directive_request = Mock()
+    window._present_capo_request = Mock()
+    return window
+
+
+def test_insert_directive_round_trip(wired):
+    from session.events import InsertDirectiveRequest
+
+    editor = wired.editor
+    _type(wired, "C G\n{label: verse}\nAm")
+    editor.mark_set("insert", "3.0")
+    window = _presenting_window(wired)
+
+    MainWindow._request_directive(window, "loop")
+    # Presented once delivery is over, not from inside it.
+    present, request = window.after_idle.call_args.args
+    assert present is window._present_directive_request
+    assert isinstance(request, InsertDirectiveRequest)
+    assert request.existing_labels == ("verse",)
+
+    dialog = SimpleNamespace(result={"label": "verse", "count": "2"})
+    with patch("ui.main_window.dialog_for_request", return_value=dialog) as make:
+        MainWindow._present_directive_request(window, request)
+    make.assert_called_once_with(window, request)
+    assert editor.get_text() == "C G\n{label: verse}\n{loop: verse 2} Am"
+    assert _ranges(editor, TAG_DIRECTIVE_VALID) == [(4, 18), (19, 34)]
+    wired.window.statusbar.config.assert_called_with(text="Inserted: {loop: verse 2}")
+
+
+def test_cancelled_directive_dialog_answers_none(wired):
+    _type(wired, "C G")
+    window = _presenting_window(wired)
+    MainWindow._request_directive(window, "bpm")
+    _, request = window.after_idle.call_args.args
+    with patch("ui.main_window.dialog_for_request",
+               return_value=SimpleNamespace(result=None)):
+        MainWindow._present_directive_request(window, request)
+    assert wired.editor.get_text() == "C G"
+    assert wired.session.text == "C G"
+
+
+def test_capo_dialog_answers_with_the_chosen_voicing(wired):
+    from session.events import CapoChoiceRequest
+    from session.state import MenuItem
+
+    window = SimpleNamespace(wait_window=Mock(), session=Mock())
+    request = CapoChoiceRequest(5, (MenuItem("Standard", "guitar:standard"),
+                                    MenuItem("Drop D", "guitar:drop_d")), "guitar:drop_d")
+    dialog = SimpleNamespace(result="Standard")
+    with patch("ui.main_window.CapoDialog", return_value=dialog) as make:
+        MainWindow._present_capo_request(window, request)
+    make.assert_called_once_with(window, ["Standard", "Drop D"], "Drop D")
+    window.session.respond.assert_called_once_with(5, "guitar:standard")
+
+    dialog.result = None
+    with patch("ui.main_window.CapoDialog", return_value=dialog):
+        MainWindow._present_capo_request(window, request)
+    window.session.respond.assert_called_with(5, None)
+
+
+def test_identifier_insert_is_refused_while_playing(wired):
+    editor = wired.editor
+    _type(wired, "C ")
+    wired.main_vm._is_playing = True  # what the session checks
+    editor.mark_set("insert", "end-1c")
+    MainWindow._on_insert_chord_from_identifier(wired.window, "Am")
+    assert editor.get_text() == "C "
+    assert wired.session.text == "C "
+    wired.window.update_statusbar.assert_not_called()

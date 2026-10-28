@@ -7,7 +7,7 @@ import tkinter as tk
 from tkinter import ttk, messagebox, font as tkfont
 import os
 import sys
-from typing import TYPE_CHECKING, Any, Optional, List
+from typing import TYPE_CHECKING, Any, Optional
 from PIL import Image, ImageTk
 from ui.scrubber import Scrubber
 from utils import error_reporting
@@ -17,22 +17,20 @@ from ui.builders.menu_builder import MenuBuilder
 from ui.audio_errors import present_audio_unavailable, use_policy as use_audio_failure_policy
 from ui.menu_style import iter_menus, style_menu
 from ui.dialogs import (
-    InsertBpmDialog,
-    InsertTimeSignatureDialog,
-    InsertKeyDialog,
-    InsertLabelDialog,
-    InsertLoopDialog,
     OptionsDialog,
     TransposeDialog,
     CapoDialog,
 )
+from ui.dialogs.insert_directives import dialog_for_request
 from utils.display_scaling import apply_xft_dpi
 from utils.icon_loader import IconLoader
 from utils.ui_helpers import create_tooltip, resolve_font_family
 from utils.file_dialogs import ask_open_filename, ask_save_as_filename, display_path
 from utils.key_helpers import get_key_options
 from models.notation import Notation
-from session.events import AudioUnavailable, UserError
+from session.events import (
+    AudioUnavailable, CapoChoiceRequest, InsertDirectiveRequest, TextEdited, UserError,
+)
 from session.state import (
     EditorState, HighlightState, PlaybackState, PlaybackStatus, StatusState,
 )
@@ -328,9 +326,6 @@ class MainWindow(tk.Tk):
         self.viewmodel.observe('time_signature_beats', self._on_time_signature_changed)
         self.viewmodel.observe('time_signature_unit', self._on_time_signature_changed)
 
-        # Text content changes
-        self.viewmodel.observe('current_text', self._on_current_text_changed)
-
     # ViewModel observer callbacks
 
     def _on_font_changed(self, new_value: Any) -> None:
@@ -387,18 +382,11 @@ class MainWindow(tk.Tk):
         self.time_sig_beats_var.set(self.viewmodel.time_signature_beats)
         self.time_sig_unit_var.set(self.viewmodel.time_signature_unit)
 
-    def _on_current_text_changed(self, new_value: str) -> None:
-        """React to text content changes from ViewModel."""
-        # Update text editor content
-        self.text_editor.delete('1.0', tk.END)
-        self.text_editor.insert('1.0', new_value)
-        # A programmatic edit: highlight the new text now, not after the
-        # typing debounce.
-        self.session.set_text_now(new_value)
-
     def _on_session_output(self, item: object) -> None:
         """Apply one state or event delivered by the session."""
-        if isinstance(item, HighlightState):
+        if isinstance(item, TextEdited):
+            self.text_editor.apply_edit(item)
+        elif isinstance(item, HighlightState):
             self.text_editor.apply_highlight(item)
         elif isinstance(item, PlaybackState):
             self._apply_playback(item)
@@ -410,6 +398,12 @@ class MainWindow(tk.Tk):
             present_audio_unavailable(self, item.message)
         elif isinstance(item, UserError):
             messagebox.showerror(item.title, item.message, parent=self)
+        elif isinstance(item, InsertDirectiveRequest):
+            # Shown once delivery is over: a modal dialog run from here would
+            # hold back the session's output (playback progress) until closed.
+            self.after_idle(self._present_directive_request, item)
+        elif isinstance(item, CapoChoiceRequest):
+            self.after_idle(self._present_capo_request, item)
 
     def _apply_playback(self, state: PlaybackState) -> None:
         """Show the transport status and highlight the chord that is sounding."""
@@ -1336,16 +1330,15 @@ class MainWindow(tk.Tk):
             chord_name: Chord name to insert
         """
         try:
-            text = chord_name + " "
             # Make sure the session's copy matches the widget before splicing
             # (a no-op unless an edit's <<Modified>> is still queued).
             self.session.set_text(self.text_editor.get_text())
-            at = self.text_editor.offset_of(tk.INSERT)
-            self.text_editor.insert(tk.INSERT, text)
-            # Mirror the insert in the session, which highlights it at once
-            self.session.insert_text(at, text)
+            revision = self.session.text_revision
+            # The session inserts it into the editor (refused while playing)
+            self.session.insert_text(self.text_editor.offset_of(tk.INSERT), chord_name + " ")
             self.text_editor.focus_set()
-            self.update_statusbar(f"Inserted chord: {chord_name}")
+            if self.session.text_revision != revision:
+                self.update_statusbar(f"Inserted chord: {chord_name}")
         except Exception as e:
             logger.error(f"Error inserting chord: {e}", exc_info=True)
             messagebox.showerror("Error", f"Could not insert the chord {chord_name}.\n\n{e}", parent=self)
@@ -1480,24 +1473,16 @@ class MainWindow(tk.Tk):
 
     def convert_to_american(self) -> None:
         """Convert all chords in the text to American notation"""
-        current_text = self.text_editor.get("1.0", "end-1c")
-        self.viewmodel.on_text_changed(current_text)
-        # Reuse the editor's parsed document model only if it was parsed with
-        # the source notation (European). Otherwise let the service re-parse.
-        lines = self._cached_lines_if_source("european")
-        self.viewmodel.convert_text_to_american(lines)
-        self.update_statusbar("Converted to American notation")
+        self.session.set_text(self.text_editor.get_text())
+        self.session.convert_notation(Notation.AMERICAN.value)
 
     def convert_to_european(self) -> None:
         """Convert all chords in the text to European notation"""
-        current_text = self.text_editor.get("1.0", "end-1c")
-        self.viewmodel.on_text_changed(current_text)
-        lines = self._cached_lines_if_source("american")
-        self.viewmodel.convert_text_to_european(lines)
-        self.update_statusbar("Converted to European notation")
+        self.session.set_text(self.text_editor.get_text())
+        self.session.convert_notation(Notation.EUROPEAN.value)
 
     def open_transpose_dialog(self) -> None:
-        """Open the Transpose dialog and apply the result as one undo step."""
+        """Open the Transpose dialog; the session applies it as one undo step."""
         region = self._selection_char_range()
 
         dialog = TransposeDialog(self, has_selection=region is not None)
@@ -1506,77 +1491,32 @@ class MainWindow(tk.Tk):
         if dialog.result is None or dialog.result == 0:
             return
 
-        semitones = dialog.result
-
-        # Sync the widget text into the ViewModel before transposing.
-        current_text = self.text_editor.get("1.0", "end-1c")
-        self.viewmodel.on_text_changed(current_text)
-
-        # Replace the whole document as a single undo unit: place a separator,
-        # suppress auto-separators while the observer rewrites the widget, then
-        # place a closing separator.
-        prev_autosep = self.text_editor.cget('autoseparators')
-        self.text_editor.edit_separator()
-        self.text_editor.config(autoseparators=False)
-        try:
-            self.viewmodel.transpose(semitones, region)
-        finally:
-            self.text_editor.config(autoseparators=prev_autosep)
-            self.text_editor.edit_separator()
-
-        scope = "selection" if region is not None else "whole song"
-        self.update_statusbar(f"Transposed {scope} by {semitones:+d} semitones")
+        self.session.set_text(self.text_editor.get_text())
+        self.session.transpose(dialog.result, region)
 
     def open_suggest_capo_dialog(self) -> None:
         """Suggest a capo for a chosen voicing and insert a {capo} directive.
 
-        Asks which fretboard voicing to optimize for (defaulting to the active
-        one, or standard guitar when the active voicing is not fretboard),
+        The session asks which fretboard voicing to optimize for (a
+        :class:`CapoChoiceRequest`, presented by :meth:`_present_capo_request`),
         scores the selection (or whole song), and inserts a ``{capo: N}``
         directive as one undo step -- or reports that no capo helps.
         """
         region = self._selection_char_range()
+        self.session.set_text(self.text_editor.get_text())
+        self.session.request_suggest_capo(region)
 
-        options = self.viewmodel.capo_voicing_options()  # (display, voicing_string)
-        by_name = {display: voicing for display, voicing in options}
-        default_voicing = self.viewmodel.default_capo_voicing()
-        default_name = next(
-            (display for display, voicing in options if voicing == default_voicing),
-            options[0][0] if options else "",
+    def _present_capo_request(self, request: CapoChoiceRequest) -> None:
+        """Show the Suggest Capo dialog and answer the session's request."""
+        labels = [option.label for option in request.options]
+        default_label = next(
+            (o.label for o in request.options if o.value == request.default),
+            labels[0] if labels else "",
         )
-
-        dialog = CapoDialog(self, list(by_name.keys()), default_name)
+        dialog = CapoDialog(self, labels, default_label)
         self.wait_window(dialog)
-        if dialog.result is None:
-            return
-
-        voicing = by_name.get(dialog.result)
-        if voicing is None:
-            return
-
-        # Sync the widget text into the ViewModel before scoring/inserting.
-        current_text = self.text_editor.get("1.0", "end-1c")
-        self.viewmodel.on_text_changed(current_text)
-
-        capo = self.viewmodel.suggest_capo_for(voicing, region)
-        scope = "selection" if region is not None else "whole song"
-        if not capo:
-            self.update_statusbar(
-                f"No capo makes the {scope} easier on {dialog.result}")
-            return
-
-        # Insert the directive as a single undo unit (same pattern as transpose).
-        prev_autosep = self.text_editor.cget('autoseparators')
-        self.text_editor.edit_separator()
-        self.text_editor.config(autoseparators=False)
-        try:
-            self.viewmodel.insert_capo(capo, region)
-        finally:
-            self.text_editor.config(autoseparators=prev_autosep)
-            self.text_editor.edit_separator()
-
-        self.update_statusbar(
-            f"Suggested capo {capo} for the {scope} on {dialog.result}")
+        value = next((o.value for o in request.options if o.label == dialog.result), None)
+        self.session.respond(request.request_id, value)
 
     def _selection_char_range(self) -> Optional[tuple]:
         """Return the current selection as a (start, end) character range.
@@ -1593,12 +1533,6 @@ class MainWindow(tk.Tk):
         if end <= start:
             return None
         return (start, end)
-
-    def _cached_lines_if_source(self, source_notation: str) -> Optional[List[Any]]:
-        """Return cached detected_lines only if they match the source notation."""
-        if self.text_editor_viewmodel.current_notation != source_notation:
-            return None
-        return self.text_editor_viewmodel.detected_lines or None
 
     def on_chord_click(self, event: Any) -> None:
         """A click in the editor plays the chord under the pointer, if any."""
@@ -1621,78 +1555,33 @@ class MainWindow(tk.Tk):
 
     def insert_bpm(self) -> None:
         """Open dialog to insert a BPM/Tempo change directive"""
-        dialog = InsertBpmDialog(self)
-        self.wait_window(dialog)
-
-        if dialog.result:
-            self.text_editor.insert(tk.INSERT, dialog.result + " ")
-            self.text_editor.focus_set()
-            self.update_statusbar(f"Inserted: {dialog.result}")
+        self._request_directive("bpm")
 
     def insert_time_signature(self) -> None:
         """Open dialog to insert a Time Signature change directive"""
-        dialog = InsertTimeSignatureDialog(self)
-        self.wait_window(dialog)
-
-        if dialog.result:
-            self.text_editor.insert(tk.INSERT, dialog.result + " ")
-            self.text_editor.focus_set()
-            self.update_statusbar(f"Inserted: {dialog.result}")
+        self._request_directive("time")
 
     def insert_key(self) -> None:
         """Open dialog to insert a Key change directive"""
-        dialog = InsertKeyDialog(self, notation=self.viewmodel.notation)
-        self.wait_window(dialog)
-
-        if dialog.result:
-            self.text_editor.insert(tk.INSERT, dialog.result + " ")
-            self.text_editor.focus_set()
-            self.update_statusbar(f"Inserted: {dialog.result}")
+        self._request_directive("key")
 
     def insert_label(self) -> None:
         """Open dialog to insert a Label directive"""
-        # Get existing labels from the current text
-        existing_labels = self._get_existing_labels()
-
-        dialog = InsertLabelDialog(self, existing_labels=existing_labels)
-        self.wait_window(dialog)
-
-        if dialog.result:
-            self.text_editor.insert(tk.INSERT, dialog.result + " ")
-            self.text_editor.focus_set()
-            self.update_statusbar(f"Inserted: {dialog.result}")
+        self._request_directive("label")
 
     def insert_loop(self) -> None:
         """Open dialog to insert a Loop directive"""
-        # Get existing labels from the current text
-        existing_labels = self._get_existing_labels()
+        self._request_directive("loop")
 
-        dialog = InsertLoopDialog(self, existing_labels=existing_labels)
+    def _request_directive(self, kind: str) -> None:
+        """Ask the session to insert a ``kind`` directive at the cursor."""
+        self.session.set_text(self.text_editor.get_text())
+        self.session.request_insert_directive(kind, self.text_editor.offset_of(tk.INSERT))
+
+    def _present_directive_request(self, request: InsertDirectiveRequest) -> None:
+        """Show the directive's dialog and answer the session's request."""
+        dialog = dialog_for_request(self, request)
         self.wait_window(dialog)
-
+        self.session.respond(request.request_id, dialog.result)
         if dialog.result:
-            self.text_editor.insert(tk.INSERT, dialog.result + " ")
             self.text_editor.focus_set()
-            self.update_statusbar(f"Inserted: {dialog.result}")
-
-    def _get_existing_labels(self) -> set:
-        """Get existing labels from the current text.
-
-        Returns:
-            Set of label names
-        """
-        try:
-            # Get current text
-            current_text = self.text_editor.get("1.0", "end-1c")
-
-            # Parse the text to find labels
-            song = self.application.song_parser_service.build_song(
-                current_text,
-                self.viewmodel.notation
-            )
-
-            # Extract label names
-            return set(song.labels.keys())
-        except Exception as e:
-            logger.warning(f"Could not extract labels from text: {e}")
-            return set()

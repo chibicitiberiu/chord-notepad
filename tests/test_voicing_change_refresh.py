@@ -52,6 +52,11 @@ class SessionEnv:
         if start:
             self.session.start()
 
+    def load(self, text):
+        """Type ``text`` and let the detection debounce run out."""
+        self.session.set_text(text)
+        self.host.advance(0.5)
+
 
 # -- the viewmodel contract the feed relies on -----------------------------------
 
@@ -103,7 +108,7 @@ class TestChordSheetFeed:
 
     def test_voicing_change_refeeds_the_current_song(self):
         env = SessionEnv()
-        env.session.set_text_now("C G Am")
+        env.load("C G Am")
         env.sheet.fed.clear()
 
         env.main.set_voicing('guitar:drop_d')
@@ -112,7 +117,7 @@ class TestChordSheetFeed:
 
     def test_same_voicing_twice_refeeds_twice(self):
         env = SessionEnv()
-        env.session.set_text_now("C G")
+        env.load("C G")
         env.sheet.fed.clear()
 
         env.main.set_voicing('voicing:my_seven_string')
@@ -122,7 +127,7 @@ class TestChordSheetFeed:
 
     def test_key_change_refeeds_with_the_new_key(self):
         env = SessionEnv()
-        env.session.set_text_now("I IV V")
+        env.load("I IV V")
         env.sheet.fed.clear()
 
         env.main.set_key("D")
@@ -140,10 +145,10 @@ class TestChordSheetFeed:
 
     def test_identical_redetection_does_not_refeed(self):
         env = SessionEnv()
-        env.session.set_text_now("C G")
+        env.load("C G")
         env.sheet.fed.clear()
 
-        env.session.set_text_now("C G")
+        env.load("C G")
 
         assert env.sheet.fed == []
 
