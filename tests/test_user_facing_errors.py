@@ -322,6 +322,14 @@ class TestPlaybackServiceErrors:
 
 class TestNotePlayerInit:
 
+    @pytest.fixture(autouse=True)
+    def _no_sequencer(self):
+        # The sequencer needs a real synth (tests/test_player_sequencer.py and
+        # tests/test_audio_driver_selection.py cover it).
+        with patch("audio.player.SynthSequencer"), \
+                patch("audio.player.fluidsynth.delete_fluid_audio_driver"):
+            yield
+
     def _bare_player(self):
         from audio.player import NotePlayer
 

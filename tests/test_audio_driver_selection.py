@@ -59,15 +59,35 @@ def _bare_player():
     return player
 
 
-def _init(player, synth, handles, options=None, platform="linux"):
+class FakeSequencer:
+    """Stands in for ``SynthSequencer``; records the order of events."""
+
+    def __init__(self, synth, log=None):
+        self.log = log if log is not None else []
+        self.log.append(("sequencer", list(synth.started)))
+        self.sources = []
+
+    def new_source(self, name):
+        self.sources.append(name)
+        return len(self.sources) + 1
+
+    def delete(self):
+        self.log.append(("delete sequencer",))
+
+
+def _init(player, synth, handles, options=None, platform="linux", log=None):
     """Run _initialize_fluidsynth; ``handles`` maps driver name -> handle."""
     synth.handles = handles
+    log = log if log is not None else []
 
     def make(**kwargs):
         synth.kwargs = kwargs
         return synth
 
     with patch("audio.player.fluidsynth.Synth", side_effect=make), \
+            patch("audio.player.SynthSequencer", side_effect=lambda s: FakeSequencer(s, log)), \
+            patch("audio.player.fluidsynth.delete_fluid_audio_driver",
+                  side_effect=lambda h: log.append(("delete driver", h))), \
             patch("audio.player.sys.platform", platform):
         player._initialize_fluidsynth("/x.sf2", options)
     return synth.started
@@ -177,6 +197,21 @@ class TestDriverSelection:
         with pytest.raises(AudioInitializationError, match="soundfont"):
             _init(player, synth, {"pulseaudio": 1})
         assert synth.deleted
+
+    def test_sequencer_is_registered_before_any_driver_renders(self):
+        player, synth, log = _bare_player(), FakeSynth(), []
+        _init(player, synth, {"pulseaudio": 1}, log=log)
+        assert log == [("sequencer", [])]
+        assert player._sequencer.sources == ["chordnotepad-song", "chordnotepad-click"]
+        assert player._song_source != player._click_source
+
+    def test_failed_init_stops_the_driver_before_freeing_the_sequencer(self):
+        player, synth, log = _bare_player(), FakeSynth(), []
+        synth.sfload_result = -1
+        with pytest.raises(AudioInitializationError):
+            _init(player, synth, {"pulseaudio": 1}, log=log)
+        assert log[1:] == [("delete driver", 1), ("delete sequencer",)]
+        assert synth.deleted and player._sequencer is None
 
     def test_other_errors_are_wrapped(self):
         player = _bare_player()

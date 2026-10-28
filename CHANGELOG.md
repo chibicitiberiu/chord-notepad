@@ -9,6 +9,10 @@ moved to CHANGELOG_HISTORY.md and this file is reset.
 
 ### Fixed
 
+- Playback keeps time more accurately. Notes, the metronome and speed changes
+  stay on the beat even while Chord Notepad is busy with something else (for
+  example redrawing the chord sheet), and long songs no longer slowly fall
+  behind.
 - The **Audio driver** setting is now used: Chord Notepad tries that driver
   first. Before, it was saved but ignored.
 - If an audio driver can't start, Chord Notepad now tries the next one, and
