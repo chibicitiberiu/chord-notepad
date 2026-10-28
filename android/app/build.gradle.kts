@@ -36,12 +36,26 @@ val music21TrimmedWheel: Provider<RegularFile> =
 val buildPythonExe: String = providers.environmentVariable("CHAQUOPY_BUILD_PYTHON")
     .orElse("python3.14").get()
 
+// Python packages: pinned with hashes in android/requirements.txt and installed
+// offline from this wheelhouse (filled by tools/build_wheelhouse.py).
+val pythonRequirements: RegularFile = repoRoot.file("android/requirements.txt")
+val wheelhouseDir: String = "$androidCacheDir/wheelhouse"
+val pythonPins: List<Pair<String, String>> =
+    providers.fileContents(pythonRequirements).asText.get().lines()
+        .map { it.substringBefore('#').trim() }
+        .mapNotNull { Regex("""^([A-Za-z0-9][A-Za-z0-9._-]*)==([^\s\\]+)""").find(it) }
+        .map { it.groupValues[1] to it.groupValues[2] }
+check(pythonPins.any { it.first == "music21" && it.second == music21Version }) {
+    "android/requirements.txt must pin music21==$music21Version (strip_music21.py's version)"
+}
+
 android {
     namespace = "io.github.chibicitiberiu.chordnotepad"
     // Current AndroidX/Compose releases require compiling against API 37;
     // the app still targets 36.
     compileSdk = 37
-    // Only used for libc++_shared.so (the FluidSynth prebuilt needs it).
+    // Same NDK as android/native/build.sh; Gradle itself only takes
+    // libc++_shared.so from it.
     ndkVersion = "27.3.13750724"
 
     defaultConfig {
@@ -92,9 +106,15 @@ chaquopy {
         version = "3.14"
         buildPython(buildPythonExe)
         pip {
-            // Every dependency is listed explicitly: music21's declared deps
-            // pull in numpy/matplotlib/joblib, which it never imports here.
-            options("--no-deps")
+            // Offline: everything comes from the hash-checked wheelhouse
+            // (tools/build_wheelhouse.py, pins in android/requirements.txt);
+            // no PyPI or chaquo.com index is consulted. Every dependency is
+            // listed explicitly: music21's declared deps pull in
+            // numpy/matplotlib/joblib, which it never imports here.
+            options("--no-deps", "--no-index", "--find-links", wheelhouseDir)
+            for ((name, version) in pythonPins) {
+                if (name != "music21") install("$name==$version")
+            }
             if (music21Mode == "full") {
                 install("music21==$music21Version")
             } else {
@@ -104,19 +124,6 @@ chaquopy {
                 options("--find-links", music21TrimmedWheel.get().asFile.parentFile.path)
                 install("music21==$music21Version+cnstrip1")
             }
-            // What music21 actually imports (verified by import probe).
-            install("chardet==6.0.0.post1")
-            install("webcolors==25.10.0")
-            install("more-itertools==11.2.1")
-            install("requests==2.34.2")
-            install("urllib3==2.8.0")
-            install("idna==3.20")
-            install("certifi==2026.10.23")
-            install("charset-normalizer==3.5.2")
-            // Core deps
-            install("pychord==1.4.0")
-            install("mido==1.3.3")
-            install("pyfluidsynth==1.4.0")
         }
     }
     sourceSets {
@@ -140,36 +147,93 @@ chaquopy {
 }
 
 // ---------------------------------------------------------------------------
-// Trimmed music21 wheel (tools/strip_music21.py), built before Chaquopy's pip.
+// Offline wheelhouse and the trimmed music21 wheel (tools/strip_music21.py),
+// both ready before Chaquopy's pip runs.
 // ---------------------------------------------------------------------------
+val prepareWheelhouse = tasks.register<Exec>("prepareWheelhouse") {
+    description = "Checks the offline wheelhouse against android/requirements.txt (downloads only missing pins)"
+    val script = repoRoot.file("android/tools/build_wheelhouse.py")
+    // The script hash-checks the wheelhouse itself and only goes online for
+    // files that are missing; under `gradlew --offline` it only checks.
+    outputs.upToDateWhen { false }
+    commandLine(
+        buildPythonExe, "-I", script.asFile.path,
+        if (gradle.startParameter.isOffline) "check" else "fetch",
+        "--requirements", pythonRequirements.asFile.path,
+        "--wheelhouse", wheelhouseDir,
+    )
+}
+
 val stripMusic21 = tasks.register<Exec>("stripMusic21") {
     description = "Builds the data-trimmed music21 wheel"
+    dependsOn(prepareWheelhouse)
     val script = repoRoot.file("android/tools/strip_music21.py")
     inputs.file(script)
     outputs.file(music21TrimmedWheel)
-    environment("CHORD_NOTEPAD_ANDROID_CACHE", androidCacheDir)
     commandLine(
         buildPythonExe, "-I", script.asFile.path,
+        "--wheel", "$wheelhouseDir/music21-$music21Version-py3-none-any.whl",
         "--out-dir", music21TrimmedWheel.get().asFile.parentFile.path,
     )
 }
-if (music21Mode != "full") {
-    tasks.matching { it.name.matches(Regex("install.*PythonRequirements")) }.configureEach {
-        dependsOn(stripMusic21)
-    }
+tasks.matching { it.name.matches(Regex("install.*PythonRequirements")) }.configureEach {
+    dependsOn(prepareWheelhouse)
+    if (music21Mode != "full") dependsOn(stripMusic21)
 }
 
 // ---------------------------------------------------------------------------
-// FluidSynth 2.6.0 upstream Android prebuilt (development only; M6 builds the
-// natives from source). Extracted into a generated jniLibs directory together
-// with libc++_shared.so from the NDK.
+// Native libraries: FluidSynth, Oboe, libsndfile and its codecs.
+//   cnNatives=source (default): cross-compiled from the pinned submodules in
+//     android/native by android/native/build.sh (mirrors upstream's Android CI).
+//   cnNatives=prebuilt: upstream's FluidSynth 2.6.0 Android release zip,
+//     sha256-pinned; a fallback for when the submodules aren't checked out.
+// Either way they land in a generated jniLibs directory together with
+// libc++_shared.so from the NDK.
 // ---------------------------------------------------------------------------
-abstract class PrepareFluidSynth : DefaultTask() {
+val nativesMode: String = providers.gradleProperty("cnNatives").orElse("source").get()
+check(nativesMode == "source" || nativesMode == "prebuilt") {
+    "cnNatives must be 'source' or 'prebuilt', not '$nativesMode'"
+}
+val nativeLibs = listOf(
+    // libfluidsynth needs liboboe and libsndfile; libsndfile needs the codecs.
+    "libfluidsynth.so", "liboboe.so", "libsndfile.so", "libFLAC.so", "libogg.so",
+    "libopus.so", "libvorbis.so", "libvorbisenc.so", "libvorbisfile.so",
+)
+val androidProjectDir: File = rootProject.layout.projectDirectory.asFile
+// Same per-checkout scheme as settings.gradle.kts and build.sh's default, so a
+// hand-run build.sh and Gradle share one output directory.
+val nativeOutDir: File = providers.environmentVariable("CHORD_NOTEPAD_ANDROID_BUILD_ROOT").orNull
+    ?.let { File(it, androidProjectDir.absolutePath.trimStart('/').replace('/', '_') + "/native") }
+    ?: File(androidProjectDir, "build/native")
+
+val buildNatives = tasks.register<Exec>("buildNatives") {
+    description = "Cross-compiles FluidSynth and its dependencies (android/native/build.sh)"
+    val script = File(androidProjectDir, "native/build.sh")
+    // build.sh keeps its own input stamp per ABI and returns at once when
+    // nothing changed, so let it decide.
+    outputs.upToDateWhen { false }
+    outputs.dirs(appAbis.map { File(nativeOutDir, "$it/lib") })
+    environment("ANDROID_HOME", androidComponents.sdkComponents.sdkDirectory.get().asFile.path)
+    commandLine(
+        "bash", script.path,
+        "--abis", appAbis.joinToString(","),
+        "--out", nativeOutDir.path,
+        "--jobs", providers.gradleProperty("cnNativeJobs").orElse("4").get(),
+    )
+}
+
+abstract class PrepareNativeLibs : DefaultTask() {
+    @get:Input abstract val mode: Property<String>
+    @get:Input abstract val abis: ListProperty<String>
+    @get:Input abstract val libs: ListProperty<String>
+    /** mode=source: the libraries build.sh produced, one lib dir per ABI. */
+    @get:InputFiles @get:PathSensitive(PathSensitivity.RELATIVE)
+    abstract val builtLibs: ConfigurableFileCollection
+    @get:Internal abstract val builtDir: Property<String>
+    /** mode=prebuilt: the upstream zip. */
     @get:Input abstract val url: Property<String>
     @get:Input abstract val sha256: Property<String>
     @get:Input abstract val zipPath: Property<String>
-    @get:Input abstract val abis: ListProperty<String>
-    @get:Input abstract val libs: ListProperty<String>
     /** libc++_shared.so per ABI from the NDK (only these files are task inputs,
      *  not the whole multi-GB NDK directory). */
     @get:InputFiles @get:PathSensitive(PathSensitivity.RELATIVE)
@@ -189,8 +253,7 @@ abstract class PrepareFluidSynth : DefaultTask() {
         return md.digest().joinToString("") { "%02x".format(it) }
     }
 
-    @TaskAction
-    fun run() {
+    private fun prebuiltZip(): File {
         val zip = File(zipPath.get())
         if (!zip.exists() || sha256Of(zip) != sha256.get()) {
             zip.parentFile.mkdirs()
@@ -200,38 +263,51 @@ abstract class PrepareFluidSynth : DefaultTask() {
         }
         val actual = sha256Of(zip)
         check(actual == sha256.get()) { "FluidSynth prebuilt hash mismatch: $actual" }
+        return zip
+    }
 
+    @TaskAction
+    fun run() {
         val out = outputDir.get().asFile
         out.deleteRecursively()
         val triples = mapOf("arm64-v8a" to "aarch64-linux-android", "x86_64" to "x86_64-linux-android")
-        ZipFile(zip).use { zf ->
+        val zip = if (mode.get() == "prebuilt") ZipFile(prebuiltZip()) else null
+        try {
             for (abi in abis.get()) {
                 val abiDir = File(out, abi).apply { mkdirs() }
                 for (lib in libs.get()) {
-                    val entry = zf.getEntry("lib/$abi/$lib") ?: error("missing lib/$abi/$lib in ${zip.name}")
-                    zf.getInputStream(entry).use { input ->
-                        File(abiDir, lib).outputStream().use { input.copyTo(it) }
+                    val dest = File(abiDir, lib)
+                    if (zip != null) {
+                        val entry = zip.getEntry("lib/$abi/$lib") ?: error("missing lib/$abi/$lib in the prebuilt zip")
+                        zip.getInputStream(entry).use { input -> dest.outputStream().use { input.copyTo(it) } }
+                    } else {
+                        val src = File(builtDir.get(), "$abi/lib/$lib")
+                        check(src.isFile) { "missing $src (did buildNatives run?)" }
+                        src.copyTo(dest, overwrite = true)
                     }
                 }
                 val triple = triples[abi] ?: error("unknown ABI $abi")
                 val cxx = libcxx.files.single { it.parentFile.name == triple }
                 cxx.copyTo(File(abiDir, "libc++_shared.so"), overwrite = true)
             }
+        } finally {
+            zip?.close()
         }
     }
 }
 
-val prepareFluidSynth = tasks.register<PrepareFluidSynth>("prepareFluidSynth") {
-    description = "Extracts the FluidSynth prebuilt .so files into generated jniLibs"
+val prepareNativeLibs = tasks.register<PrepareNativeLibs>("prepareNativeLibs") {
+    description = "Collects the FluidSynth .so files (source-built or prebuilt) into generated jniLibs"
+    mode.set(nativesMode)
+    abis.set(appAbis)
+    libs.set(nativeLibs)
+    builtDir.set(nativeOutDir.path)
+    if (nativesMode == "source") {
+        builtLibs.from(buildNatives)
+    }
     url.set("https://github.com/FluidSynth/fluidsynth/releases/download/v2.6.0/fluidsynth-v2.6.0-android24.zip")
     sha256.set("81cd70dddb3381cda02c430a6657923766d1acb83de11d266d7a19aee3c7ca4d")
     zipPath.set("$androidCacheDir/fluidsynth-v2.6.0-android24.zip")
-    abis.set(appAbis)
-    // libfluidsynth needs liboboe and libsndfile; libsndfile needs the codecs.
-    libs.set(listOf(
-        "libfluidsynth.so", "liboboe.so", "libsndfile.so", "libFLAC.so", "libogg.so",
-        "libopus.so", "libvorbis.so", "libvorbisenc.so", "libvorbisfile.so",
-    ))
     val triples = mapOf("arm64-v8a" to "aarch64-linux-android", "x86_64" to "x86_64-linux-android")
     libcxx.from(androidComponents.sdkComponents.ndkDirectory.map { ndk ->
         appAbis.map { abi ->
@@ -280,7 +356,7 @@ androidComponents {
     onVariants { variant ->
         variant.sources.assets?.addGeneratedSourceDirectory(copySoundfont, CopyIntoAssets::outputDir)
         variant.sources.assets?.addGeneratedSourceDirectory(copySpikeSample, CopyIntoAssets::outputDir)
-        variant.sources.jniLibs?.addGeneratedSourceDirectory(prepareFluidSynth, PrepareFluidSynth::outputDir)
+        variant.sources.jniLibs?.addGeneratedSourceDirectory(prepareNativeLibs, PrepareNativeLibs::outputDir)
     }
 }
 
