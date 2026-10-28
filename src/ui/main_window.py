@@ -7,7 +7,6 @@ import tkinter as tk
 from tkinter import ttk, messagebox, font as tkfont
 import os
 import sys
-from pathlib import Path
 from typing import Any, Optional, List
 from PIL import Image, ImageTk
 from ui.scrubber import Scrubber
@@ -289,7 +288,7 @@ class MainWindow(tk.Tk):
         self.viewmodel.observe('notation', self._on_notation_changed)
 
         # File state changes
-        self.viewmodel.observe('current_file', self._on_current_file_changed)
+        self.viewmodel.observe('current_document', self._on_current_document_changed)
         self.viewmodel.observe('is_modified', self._on_is_modified_changed)
 
         # Playback state changes
@@ -343,8 +342,8 @@ class MainWindow(tk.Tk):
         # Update key options based on new notation
         self.key_combo['values'] = get_key_options(new_value)
 
-    def _on_current_file_changed(self, new_value: Optional[Path]) -> None:
-        """React to current file changes from ViewModel."""
+    def _on_current_document_changed(self, new_value: Optional[Any]) -> None:
+        """React to current document changes from ViewModel."""
         self.title(self.viewmodel.get_window_title())
 
     def _on_is_modified_changed(self, new_value: bool) -> None:
@@ -1011,7 +1010,7 @@ class MainWindow(tk.Tk):
         if not self.prompt_save_if_modified():
             return
 
-        success = self.viewmodel.open_file(Path(filename))
+        success = self.viewmodel.open_file(self.application.documents.ref_for_path(filename))
         if success:
             self.text_editor.edit_reset()  # Reset undo history
             self.text_editor._detect_chords()  # Trigger chord detection
@@ -1056,7 +1055,8 @@ class MainWindow(tk.Tk):
             current_text = self.text_editor.get("1.0", "end-1c")
             self.viewmodel.on_text_changed(current_text)
 
-            success = self.viewmodel.save_file_as(Path(filename))
+            success = self.viewmodel.save_file_as(
+                self.application.documents.ref_for_path(filename))
             if success:
                 self.update_recent_files_menu()  # Update menu with new recent files
                 self.update_statusbar(f"Saved: {display_path(filename)}")
@@ -1083,7 +1083,8 @@ class MainWindow(tk.Tk):
         current_text = self.text_editor.get("1.0", "end-1c")
         self.viewmodel.on_text_changed(current_text)
 
-        success = self.viewmodel.export_midi_file(Path(filename))
+        success = self.viewmodel.export_midi_file(
+            self.application.documents.ref_for_path(filename))
         if success:
             self.update_statusbar(f"Exported MIDI: {display_path(filename)}")
         else:
@@ -1377,10 +1378,11 @@ class MainWindow(tk.Tk):
         if not recent_files:
             self.recent_menu.add_command(label="(No recent files)", state=tk.DISABLED)
         else:
-            for filepath in recent_files:
+            for ref in recent_files:
+                # Desktop refs are local files whose id is the path.
                 self.recent_menu.add_command(
-                    label=os.path.basename(str(filepath)),
-                    command=lambda f=filepath: self.load_file(str(f))
+                    label=ref.display_name,
+                    command=lambda r=ref: self.load_file(r.id)
                 )
 
     def update_statusbar(self, message: str) -> None:

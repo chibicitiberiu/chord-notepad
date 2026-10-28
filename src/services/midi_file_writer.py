@@ -12,7 +12,7 @@ chord as note_on/note_off pairs on channel 0, named 'Chords'. For a
 fixed-ensemble render (``rendered.voice_labels`` set, e.g. an SATB voicer),
 one track per voice follows the conductor instead, ordered top voice first,
 each named after its voice and carrying only that voice's note per chord --
-see :func:`write_midi_file` for the exact fallback rule. All timing comes from
+see :func:`render_midi_bytes` for the exact fallback rule. All timing comes from
 the beat domain of the render, converted to MIDI ticks through the meter map,
 so the exported file matches playback exactly.
 
@@ -23,6 +23,7 @@ note is therefore ``unit/4`` app-beats, which is why the exported MIDI tempo is
 ``60e6/bpm`` in 4/4) and why a meter change alters the tempo meta even at constant
 BPM.
 """
+import io
 import logging
 from pathlib import Path
 from typing import Callable, List, Optional, Tuple
@@ -242,23 +243,21 @@ def _finalize_track(events: list, total_tick: int) -> mido.MidiTrack:
     return track
 
 
-def write_midi_file(
+def render_midi_bytes(
     rendered: RenderedSong,
-    path: Path,
     program: int = 0,
     title: Optional[str] = None,
-) -> None:
-    """Write a pre-rendered song to a format-1 Standard MIDI File.
+) -> bytes:
+    """Render a pre-rendered song as the bytes of a format-1 Standard MIDI File.
 
     Args:
         rendered: The whole-song render whose beat domain and tempo/meter maps
             drive the exported timing.
-        path: Destination file path.
         program: General MIDI program (instrument) number for the chord track(s).
         title: Track name for the conductor track; a default is used if omitted.
 
-    Raises:
-        FileOperationError: If the file cannot be written.
+    Returns:
+        The complete ``.mid`` file contents.
 
     When ``rendered.voice_labels`` is set (a fixed-ensemble picker voiced the
     song) and every played chord's ``voice_notes`` matches it in length, the
@@ -288,7 +287,33 @@ def write_midi_file(
             _build_chord_track(rendered, b2t, program, 'Chords', lambda rc: rc.midi_notes)
         )
 
+    buffer = io.BytesIO()
+    midi.save(file=buffer)
+    return buffer.getvalue()
+
+
+def write_midi_file(
+    rendered: RenderedSong,
+    path: Path,
+    program: int = 0,
+    title: Optional[str] = None,
+) -> None:
+    """Write a pre-rendered song to a format-1 Standard MIDI File.
+
+    See :func:`render_midi_bytes` for the file layout.
+
+    Args:
+        rendered: The whole-song render.
+        path: Destination file path.
+        program: General MIDI program (instrument) number for the chord track(s).
+        title: Track name for the conductor track; a default is used if omitted.
+
+    Raises:
+        FileOperationError: If the file cannot be written.
+    """
+    data = render_midi_bytes(rendered, program=program, title=title)
     try:
-        midi.save(str(path))
+        with open(path, 'wb') as f:
+            f.write(data)
     except (OSError, IOError) as exc:
         raise FileOperationError(f"Failed to write MIDI file '{path}': {exc}") from exc

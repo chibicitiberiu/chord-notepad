@@ -25,7 +25,6 @@ some other way") also falls back to Tk.
 
 import logging
 import os
-import re
 import secrets
 import sys
 import threading
@@ -33,6 +32,9 @@ import tkinter as tk
 from tkinter import filedialog, messagebox
 from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence, Tuple, TypeVar, Union
 from urllib.parse import unquote, urlparse
+
+# Moved to utils.paths (Tk-free); re-exported for existing importers.
+from utils.paths import display_path, is_document_portal_path  # noqa: F401
 
 logger = logging.getLogger(__name__)
 
@@ -58,9 +60,6 @@ _RESPONSE_CANCELLED = 1
 
 # Glob filter entry type in the portal's a(sa(us)) filter format (1 = MIME type)
 _FILTER_GLOB = 0
-
-# Where the document portal exposes files handed to a sandboxed app.
-_DOC_PORTAL_PATH_RE = re.compile(r"^/run/(?:user/\d+|flatpak)/doc/")
 
 PortalFilter = Tuple[str, List[Tuple[int, str]]]
 FileTypes = Iterable[Sequence[Any]]
@@ -174,37 +173,6 @@ def ask_save_as_filename(
         initialdir=initialdir,
     )
     return _normalise_tk_result(filedialog.asksaveasfilename(**kwargs))
-
-
-def display_path(path: Union[str, "os.PathLike[str]"]) -> str:
-    """Return a user-facing form of a file path.
-
-    Files handed to a Flatpak through the document portal live under
-    ``/run/user/<uid>/doc/<id>/``, which means nothing to the user, so those
-    are shown by file name only. Any other path is returned unchanged.
-
-    Args:
-        path: File path.
-
-    Returns:
-        The file name for document-portal paths, otherwise ``str(path)``.
-    """
-    text = os.fspath(path)
-    if is_document_portal_path(text):
-        return os.path.basename(text)
-    return text
-
-
-def is_document_portal_path(path: Union[str, "os.PathLike[str]"]) -> bool:
-    """Check whether a path points into the document portal's FUSE mount.
-
-    Args:
-        path: File path.
-
-    Returns:
-        True for ``/run/user/<uid>/doc/...`` and ``/run/flatpak/doc/...`` paths.
-    """
-    return bool(_DOC_PORTAL_PATH_RE.match(os.fspath(path)))
 
 
 def tk_filetypes_to_portal_filters(filetypes: FileTypes) -> List[PortalFilter]:

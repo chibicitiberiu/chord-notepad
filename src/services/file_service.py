@@ -90,6 +90,31 @@ class FileService:
             self._logger.error(f"Error writing file: {e}", exc_info=True)
             raise FileOperationError(f"Failed to write file: {e}")
 
+    def save_bytes(self, path: Path, data: bytes) -> None:
+        """Write binary content (e.g. an exported MIDI file) to a file.
+
+        Unlike :meth:`save_file` this does not add the file to the recent
+        list: exports aren't documents the user reopens here.
+
+        Args:
+            path: Path to write to
+            data: Bytes to write
+
+        Raises:
+            FileOperationError: If file cannot be written
+        """
+        try:
+            self._logger.info(f"Writing file: {path}")
+            with open(path, 'wb') as f:
+                f.write(data)
+            self._logger.debug(f"File written successfully: {len(data)} bytes")
+        except PermissionError:
+            self._logger.error(f"Permission denied: {path}")
+            raise FileOperationError(f"Permission denied: {path}")
+        except Exception as e:
+            self._logger.error(f"Error writing file: {e}", exc_info=True)
+            raise FileOperationError(f"Failed to write file: {e}")
+
     def get_recent_files(self) -> List[Path]:
         """Get list of recently opened files.
 

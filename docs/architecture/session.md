@@ -127,7 +127,7 @@ There are three implementations:
 ```python
 @dataclass(frozen=True)
 class DocumentRef:
-    id: str            # opaque: resolved path (desktop) / content URI (Android)
+    id: str            # opaque: absolute path (desktop) / content URI (Android)
     display_name: str  # "song.txt" -> titles, Save-As suggestion
     location: str      # user-facing, for messages
     @property
@@ -144,12 +144,20 @@ class DocumentStore(Protocol):
 
 - **`FileSystemDocumentStore(file_service)`** delegates to `FileService`, which
   handles normalization, pruning recent files and error messages. It adds
-  `ref_for_path(path)`.
+  `ref_for_path(path)`. The desktop id is `os.path.abspath`, not `resolve()`:
+  resolving would rewrite symlinks and mapped network drives in the location
+  the user sees. `write_bytes` goes through `FileService.save_bytes`, which
+  does not add exports to the recent list.
 - **`MainWindowViewModel`** works on `DocumentRef`s instead of `Path`:
   - `_current_document` replaces `_current_file`;
   - `open_file`, `save_file_as` and `export_midi_file` take refs.
 - **MIDI export** calls `midi_file_writer.render_midi_bytes(...)`, then
-  `write_bytes`.
+  `write_bytes`. A failed write now reports `FileService`'s wording
+  ("Permission denied: …", "Failed to write file: …") like a failed save.
+- **Until step 13** the viewmodel keeps a `current_file -> Optional[Path]`
+  shim, `MainWindow` turns picker paths into refs with
+  `application.documents.ref_for_path`, and the Recent Files menu reopens a
+  ref through `load_file(ref.id)`.
 
 ### States (frozen; only str/int/float/bool/None, tuples, str-Enums)
 

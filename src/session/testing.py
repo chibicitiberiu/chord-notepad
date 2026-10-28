@@ -4,13 +4,20 @@
 :meth:`ManualHost.run_pending`, and timers wait for the virtual clock to be
 moved with :meth:`ManualHost.advance`. A test drives time explicitly, so a
 500 ms debounce takes no real time and can't be flaky.
+
+:class:`InMemoryDocumentStore` keeps documents in a dict, with the same
+normalization, recent-list and error behaviour as the file-system store.
 """
 
 import heapq
 import itertools
 import threading
 from collections import deque
-from typing import Callable, Deque, List, Tuple
+from typing import Callable, Deque, Dict, List, Optional, Tuple, Union
+
+from exceptions import FileOperationError
+from session.documents import DocumentRef
+from utils.text_normalization import normalize_song_text
 
 
 class _ManualTimer:
@@ -121,3 +128,63 @@ class ManualHost:
             self.run_pending()
         self._now = target
         return fired
+
+
+class InMemoryDocumentStore:
+    """A :class:`session.documents.DocumentStore` backed by a dict.
+
+    Documents are keyed by ``ref.id``; :meth:`ref` makes a reference for a
+    name. Text documents are stored as ``str``, exports as ``bytes``.
+    """
+
+    def __init__(self, documents: Optional[Dict[str, Union[str, bytes]]] = None,
+                 max_recent: int = 10) -> None:
+        """Create the store.
+
+        Args:
+            documents: Initial contents, keyed by display name.
+            max_recent: Length cap of the recent list.
+        """
+        self.contents: Dict[str, Union[str, bytes]] = {}
+        self._recent: List[DocumentRef] = []
+        self._max_recent = max_recent
+        for name, data in (documents or {}).items():
+            self.contents[self.ref(name).id] = data
+
+    @staticmethod
+    def ref(name: str) -> DocumentRef:
+        """A reference to the document called ``name``."""
+        return DocumentRef(id=f"memory:{name}", display_name=name, location=name)
+
+    def read_text(self, ref: DocumentRef) -> str:
+        """Return the normalized text, like reading a file does."""
+        if ref.id not in self.contents:
+            raise FileOperationError(f"File not found: {ref.location}")
+        data = self.contents[ref.id]
+        if isinstance(data, bytes):
+            raise FileOperationError(f"Cannot read file (encoding issue): {ref.location}")
+        self.add_recent(ref)
+        return normalize_song_text(data)
+
+    def write_text(self, ref: DocumentRef, text: str) -> None:
+        """Store ``text`` and remember the document as recent."""
+        self.contents[ref.id] = text
+        self.add_recent(ref)
+
+    def write_bytes(self, ref: DocumentRef, data: bytes) -> None:
+        """Store an export (not added to the recent list)."""
+        self.contents[ref.id] = bytes(data)
+
+    def is_available(self, ref: DocumentRef) -> bool:
+        """Whether the document exists."""
+        return ref.id in self.contents
+
+    def recent(self) -> List[DocumentRef]:
+        """Recent documents that still exist, newest first (prunes the rest)."""
+        self._recent = [r for r in self._recent if self.is_available(r)]
+        return list(self._recent)
+
+    def add_recent(self, ref: DocumentRef) -> None:
+        """Move ``ref`` to the front of the recent list."""
+        self._recent = [ref] + [r for r in self.recent() if r.id != ref.id]
+        del self._recent[self._max_recent:]

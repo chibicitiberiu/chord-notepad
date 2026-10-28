@@ -6,8 +6,8 @@ from typing import Optional, List, Callable
 from utils.observable import Observable
 from services.config_service import ConfigService
 from services.playback_service import PlaybackService
-from services.file_service import FileService
 from services.song_parser_service import SongParserService
+from session.documents import DocumentRef, DocumentStore
 from models.line import Line
 from models.chord import ChordInfo
 from models.directive import DirectiveType
@@ -42,7 +42,7 @@ class MainWindowViewModel(Observable):
         self,
         config_service: ConfigService,
         audio_service: PlaybackService,
-        file_service: FileService,
+        documents: DocumentStore,
         song_parser_service: SongParserService,
         application
     ):
@@ -51,7 +51,8 @@ class MainWindowViewModel(Observable):
         Args:
             config_service: Configuration service
             audio_service: Audio playback service
-            file_service: File I/O service
+            documents: Where documents are read and written (and the
+                recent list kept)
             song_parser_service: Chord detection service
             application: Application instance for cross-thread communication
         """
@@ -60,12 +61,12 @@ class MainWindowViewModel(Observable):
         # Services
         self._config = config_service
         self._audio = audio_service
-        self._file = file_service
+        self._documents = documents
         self._chord = song_parser_service
         self._application = application
 
         # Observable state properties (private storage with _ prefix)
-        self._current_file: Optional[Path] = None
+        self._current_document: Optional[DocumentRef] = None
         self._is_modified: bool = False
         self._is_playing: bool = False
         self._is_paused: bool = False
@@ -99,9 +100,20 @@ class MainWindowViewModel(Observable):
         return self._last_error
 
     @property
+    def current_document(self) -> Optional[DocumentRef]:
+        """The open document, or None for an unsaved new one."""
+        return self._current_document
+
+    @property
     def current_file(self) -> Optional[Path]:
-        """Get the currently opened file path."""
-        return self._current_file
+        """The open document as a local path (desktop compatibility shim).
+
+        Only meaningful for refs from ``FileSystemDocumentStore``, whose id is
+        the path. Goes away once the window works on refs (session step 13).
+        """
+        if self._current_document is None:
+            return None
+        return Path(self._current_document.id)
 
     @property
     def is_modified(self) -> bool:
@@ -193,37 +205,35 @@ class MainWindowViewModel(Observable):
             pass
 
         logger.info("Creating new file")
-        # Note: set_and_notify handles setting _current_file internally
         self.set_and_notify("current_text", "")
         self.set_and_notify("is_modified", False)
-        self.set_and_notify("current_file", None)
+        self.set_and_notify("current_document", None)
 
         return True
 
-    def open_file(self, path: Path) -> bool:
-        """Open a file.
+    def open_file(self, ref: DocumentRef) -> bool:
+        """Open a document.
 
         Args:
-            path: Path to the file to open
+            ref: The document to open
 
         Returns:
             True if successful, False otherwise (see :attr:`last_error`)
         """
         self._last_error = None
         try:
-            logger.info(f"Opening file: {path}")
-            content = self._file.open_file(path)
+            logger.info(f"Opening file: {ref.location}")
+            content = self._documents.read_text(ref)
 
-            # Note: set_and_notify handles setting _current_file internally
             self.set_and_notify("current_text", content)
             self.set_and_notify("is_modified", False)
-            self.set_and_notify("current_file", path)
+            self.set_and_notify("current_document", ref)
 
             # Extract and apply initial settings from first directives in the file
             self._apply_initial_settings_from_content(content)
 
             # Add to recent files
-            self._file.add_recent_file(path)
+            self._documents.add_recent(ref)
 
             return True
 
@@ -240,33 +250,32 @@ class MainWindowViewModel(Observable):
             file, returns False with :attr:`last_error` None (the view should
             ask for a name); on a real failure :attr:`last_error` is set.
         """
-        if self._current_file is None:
+        if self._current_document is None:
             # Need to show save-as dialog
             self._last_error = None
             return False
 
-        return self.save_file_as(self._current_file)
+        return self.save_file_as(self._current_document)
 
-    def save_file_as(self, path: Path) -> bool:
-        """Save the current file to a specific path.
+    def save_file_as(self, ref: DocumentRef) -> bool:
+        """Save the current text to a specific document.
 
         Args:
-            path: Path to save the file to
+            ref: The document to save to
 
         Returns:
             True if successful, False otherwise (see :attr:`last_error`)
         """
         self._last_error = None
         try:
-            logger.info(f"Saving file: {path}")
-            self._file.save_file(path, self._current_text)
+            logger.info(f"Saving file: {ref.location}")
+            self._documents.write_text(ref, self._current_text)
 
-            # Note: set_and_notify handles setting _current_file internally
             self.set_and_notify("is_modified", False)
-            self.set_and_notify("current_file", path)
+            self.set_and_notify("current_document", ref)
 
             # Add to recent files
-            self._file.add_recent_file(path)
+            self._documents.add_recent(ref)
 
             return True
 
@@ -275,15 +284,15 @@ class MainWindowViewModel(Observable):
             self._last_error = _describe_error(e)
             return False
 
-    def export_midi_file(self, path: Path) -> bool:
+    def export_midi_file(self, ref: DocumentRef) -> bool:
         """Export the current document as a standard MIDI file.
 
         Parses the current text, renders the whole song synchronously
         (voicing + timing), and writes it out as a format-1 SMF using the
-        configured instrument and a title derived from the current file.
+        configured instrument and a title derived from the current document.
 
         Args:
-            path: Path to write the MIDI file to
+            ref: The document to write the MIDI file to
 
         Returns:
             True if successful, False otherwise (see :attr:`last_error`)
@@ -293,7 +302,7 @@ class MainWindowViewModel(Observable):
             # Imported lazily to keep the (potentially heavier) MIDI writer
             # dependencies out of application startup. Inside the try so a
             # broken install is reported like any other export failure.
-            from services.midi_file_writer import write_midi_file
+            from services.midi_file_writer import render_midi_bytes
 
             lines = self._chord.detect_chords_in_text(self._current_text, self._notation)
             if not any(line.chords for line in lines):
@@ -307,10 +316,11 @@ class MainWindowViewModel(Observable):
                 return False
 
             program = self._config.get("instrument", 0)
-            title = self._current_file.stem if self._current_file is not None else "Untitled"
+            title = self._current_document.stem if self._current_document is not None else "Untitled"
 
-            logger.info(f"Exporting MIDI file: {path}")
-            write_midi_file(rendered, path, program=program, title=title)
+            logger.info(f"Exporting MIDI file: {ref.location}")
+            data = render_midi_bytes(rendered, program=program, title=title)
+            self._documents.write_bytes(ref, data)
 
             return True
 
@@ -855,13 +865,13 @@ class MainWindowViewModel(Observable):
         """Decrease font size by 1."""
         self.set_font_size(max(self._font_size - 1, 6))
 
-    def get_recent_files(self) -> List[Path]:
-        """Get list of recently opened files.
+    def get_recent_files(self) -> List[DocumentRef]:
+        """Get the recently opened documents that are still available.
 
         Returns:
-            List of file paths
+            Document references, most recent first
         """
-        return self._file.get_recent_files()
+        return self._documents.recent()
 
     def reset_font_size(self) -> None:
         """Reset font size to default."""
@@ -893,8 +903,8 @@ class MainWindowViewModel(Observable):
         Returns:
             Window title string
         """
-        if self._current_file:
-            filename = self._current_file.name
+        if self._current_document:
+            filename = self._current_document.display_name
             modified_marker = "*" if self._is_modified else ""
             return f"{filename}{modified_marker} - Chord Notepad"
         else:

@@ -56,13 +56,13 @@ def _config(**overrides):
     return config
 
 
-def _viewmodel(text="C G\n", file_service=None, audio=None):
+def _viewmodel(text="C G\n", documents=None, audio=None):
     from viewmodels.main_window_viewmodel import MainWindowViewModel
 
     vm = MainWindowViewModel(
         config_service=_config(),
         audio_service=audio if audio is not None else MagicMock(),
-        file_service=file_service if file_service is not None else MagicMock(),
+        documents=documents if documents is not None else MagicMock(),
         song_parser_service=SongParserService(),
         application=MagicMock(),
     )
@@ -70,9 +70,20 @@ def _viewmodel(text="C G\n", file_service=None, audio=None):
     return vm
 
 
-def _stub_writer(write=None):
+def _fs_store():
+    from services.file_service import FileService
+    from session.documents import FileSystemDocumentStore
+
+    return FileSystemDocumentStore(FileService(MagicMock()))
+
+
+def _out_mid():
+    return _fs_store().ref_for_path("/tmp/out.mid")
+
+
+def _stub_writer(render=None):
     stub = ModuleType("services.midi_file_writer")
-    stub.write_midi_file = write if write is not None else MagicMock()
+    stub.render_midi_bytes = render if render is not None else MagicMock(return_value=b"MIDI")
     stub.PPQ = 480
     return patch.dict(sys.modules, {"services.midi_file_writer": stub})
 
@@ -91,32 +102,30 @@ def _reset_click_error_flag():
 class TestViewModelFileErrors:
 
     def test_open_missing_file_reports_reason(self, tmp_path):
-        from services.file_service import FileService
-
-        vm = _viewmodel(file_service=FileService(MagicMock()))
-        missing = tmp_path / "nope.txt"
+        store = _fs_store()
+        vm = _viewmodel(documents=store)
+        missing = store.ref_for_path(tmp_path / "nope.txt")
 
         assert vm.open_file(missing) is False
         assert "File not found" in vm.last_error
         assert "nope.txt" in vm.last_error
 
     def test_open_success_clears_previous_error(self, tmp_path):
-        from services.file_service import FileService
-
-        vm = _viewmodel(file_service=FileService(MagicMock()))
-        vm.open_file(tmp_path / "nope.txt")
+        store = _fs_store()
+        vm = _viewmodel(documents=store)
+        vm.open_file(store.ref_for_path(tmp_path / "nope.txt"))
         song = tmp_path / "song.txt"
         song.write_text("C G\n", encoding="utf-8")
 
-        assert vm.open_file(song) is True
+        assert vm.open_file(store.ref_for_path(song)) is True
         assert vm.last_error is None
 
     def test_save_as_failure_reports_reason(self):
-        files = MagicMock()
-        files.save_file.side_effect = FileOperationError("Permission denied: /ro/song.txt")
-        vm = _viewmodel(file_service=files)
+        documents = MagicMock()
+        documents.write_text.side_effect = FileOperationError("Permission denied: /ro/song.txt")
+        vm = _viewmodel(documents=documents)
 
-        assert vm.save_file_as(Path("/ro/song.txt")) is False
+        assert vm.save_file_as(_fs_store().ref_for_path("/ro/song.txt")) is False
         assert vm.last_error == "Permission denied: /ro/song.txt"
 
     def test_save_without_file_is_not_an_error(self):
@@ -127,11 +136,11 @@ class TestViewModelFileErrors:
         assert vm.last_error is None
 
     def test_plain_os_error_text_is_used_as_is(self):
-        files = MagicMock()
-        files.save_file.side_effect = OSError(28, "No space left on device")
-        vm = _viewmodel(file_service=files)
+        documents = MagicMock()
+        documents.write_text.side_effect = OSError(28, "No space left on device")
+        vm = _viewmodel(documents=documents)
 
-        vm.save_file_as(Path("/tmp/x.txt"))
+        vm.save_file_as(_fs_store().ref_for_path("/tmp/x.txt"))
         assert "No space left on device" in vm.last_error
 
     def test_export_with_no_chords_says_so(self):
@@ -139,7 +148,7 @@ class TestViewModelFileErrors:
         vm = _viewmodel(text="just lyrics here\n", audio=audio)
 
         with _stub_writer():
-            assert vm.export_midi_file(Path("/tmp/out.mid")) is False
+            assert vm.export_midi_file(_out_mid()) is False
         assert vm.last_error == "There are no chords to export."
         audio.render_song.assert_not_called()
 
@@ -148,8 +157,10 @@ class TestViewModelFileErrors:
         audio.render_song.return_value = RenderedSong()
         vm = _viewmodel(audio=audio)
 
-        with _stub_writer(MagicMock(side_effect=FileOperationError("disk full"))):
-            assert vm.export_midi_file(Path("/tmp/out.mid")) is False
+        vm._documents.write_bytes.side_effect = FileOperationError("disk full")
+
+        with _stub_writer():
+            assert vm.export_midi_file(_out_mid()) is False
         assert vm.last_error == "disk full"
 
     def test_export_missing_module_is_reported_not_raised(self):
@@ -157,7 +168,7 @@ class TestViewModelFileErrors:
         # and only reached stderr.
         vm = _viewmodel()
         with patch.dict(sys.modules, {"services.midi_file_writer": None}):
-            assert vm.export_midi_file(Path("/tmp/out.mid")) is False
+            assert vm.export_midi_file(_out_mid()) is False
         assert "ImportError" in vm.last_error or "ModuleNotFoundError" in vm.last_error
 
     def test_export_render_failure_reports_reason(self):
@@ -166,7 +177,7 @@ class TestViewModelFileErrors:
         vm = _viewmodel(audio=audio)
 
         with _stub_writer():
-            assert vm.export_midi_file(Path("/tmp/out.mid")) is False
+            assert vm.export_midi_file(_out_mid()) is False
         assert "voicing blew up" in vm.last_error
         assert audio.render_song.call_args.kwargs["raise_errors"] is True
 
@@ -177,7 +188,7 @@ class TestViewModelFileErrors:
         vm._last_error = "stale"
 
         with _stub_writer():
-            assert vm.export_midi_file(Path("/tmp/out.mid")) is True
+            assert vm.export_midi_file(_out_mid()) is True
         assert vm.last_error is None
 
 

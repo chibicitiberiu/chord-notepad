@@ -20,7 +20,7 @@ def _make_vm(audio=None):
     return MainWindowViewModel(
         config_service=config,
         audio_service=audio if audio is not None else MagicMock(),
-        file_service=MagicMock(),
+        documents=MagicMock(),
         song_parser_service=SongParserService(),
         application=MagicMock(),
     )

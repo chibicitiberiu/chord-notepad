@@ -2,12 +2,11 @@
 MainWindowViewModel.export_midi_file.
 
 Headless: no Tkinter, no real audio. `services.midi_file_writer` is stubbed
-via sys.modules so these tests pass whether or not the real module (owned by
-another concurrent task) exists on disk yet.
+via sys.modules so the viewmodel tests check what it asks for without
+rendering a real file; documents live in an InMemoryDocumentStore.
 """
 
 import sys
-from pathlib import Path
 from unittest.mock import Mock, MagicMock, patch
 from types import ModuleType
 
@@ -19,6 +18,7 @@ from services.song_parser_service import SongParserService
 from models.notation import Notation
 from models.rendered_song import RenderedSong
 from exceptions import FileOperationError
+from session.testing import InMemoryDocumentStore
 
 
 TWO_CHORD_TEXT = "C G\n"
@@ -89,14 +89,16 @@ class TestRenderSong:
         assert not playback_service.is_initialized
 
 
-def _install_stub_writer_module(mock_write=None):
+def _install_stub_writer_module(mock_render=None):
     """Install a stub 'services.midi_file_writer' module into sys.modules.
 
-    Returns (context_manager, mock_write). The stub is used so tests pass
-    whether or not the real writer module exists on disk during this run.
+    Returns (context_manager, stub). The stub's ``render_midi_bytes`` returns
+    ``b"MIDI"`` unless a replacement is given, so the tests check what the
+    viewmodel asks for without rendering a real file.
     """
     stub = ModuleType("services.midi_file_writer")
-    stub.write_midi_file = mock_write if mock_write is not None else MagicMock()
+    stub.render_midi_bytes = (
+        mock_render if mock_render is not None else MagicMock(return_value=b"MIDI"))
     stub.PPQ = 480
     return patch.dict(sys.modules, {"services.midi_file_writer": stub}), stub
 
@@ -104,8 +106,8 @@ def _install_stub_writer_module(mock_write=None):
 class TestExportMidiFile:
     """MainWindowViewModel.export_midi_file."""
 
-    def _make_viewmodel(self, current_text="C G\n", current_file=None, instrument=5):
-        """Build a MainWindowViewModel with fully mocked services."""
+    def _make_viewmodel(self, current_text="C G\n", current_document=None, instrument=5):
+        """Build a MainWindowViewModel with mocked services and an in-memory store."""
         from viewmodels.main_window_viewmodel import MainWindowViewModel
 
         config = Mock(spec=ConfigService)
@@ -122,72 +124,78 @@ class TestExportMidiFile:
         }.get(key, default)
 
         audio = MagicMock()
-        file_service = MagicMock()
+        store = InMemoryDocumentStore()
         song_parser = SongParserService()
         application = MagicMock()
 
         vm = MainWindowViewModel(
             config_service=config,
             audio_service=audio,
-            file_service=file_service,
+            documents=store,
             song_parser_service=song_parser,
             application=application,
         )
         vm._current_text = current_text
-        if current_file is not None:
-            vm._current_file = Path(current_file)
+        if current_document is not None:
+            vm._current_document = store.ref(current_document)
 
-        return vm, audio
+        return vm, audio, store
 
-    def test_calls_write_midi_file_with_rendered_song_path_program_title(self):
-        vm, audio = self._make_viewmodel(
-            current_text="C G\n", current_file="/tmp/mysong.txt", instrument=12
+    def test_renders_with_program_and_title_and_writes_the_bytes(self):
+        vm, audio, store = self._make_viewmodel(
+            current_text="C G\n", current_document="mysong.txt", instrument=12
         )
         rendered = RenderedSong()
         audio.render_song.return_value = rendered
+        out = store.ref("out.mid")
 
         patcher, stub = _install_stub_writer_module()
         with patcher:
-            result = vm.export_midi_file(Path("/tmp/out.mid"))
+            result = vm.export_midi_file(out)
 
             assert result is True
-            stub.write_midi_file.assert_called_once_with(
-                rendered, Path("/tmp/out.mid"), program=12, title="mysong"
+            stub.render_midi_bytes.assert_called_once_with(
+                rendered, program=12, title="mysong"
             )
+        assert store.contents[out.id] == b"MIDI"
+        assert store.recent() == []  # exports aren't recent documents
 
-    def test_uses_untitled_when_no_current_file(self):
-        vm, audio = self._make_viewmodel(current_text="C G\n", current_file=None, instrument=0)
+    def test_uses_untitled_when_no_current_document(self):
+        vm, audio, store = self._make_viewmodel(
+            current_text="C G\n", current_document=None, instrument=0)
         rendered = RenderedSong()
         audio.render_song.return_value = rendered
 
         patcher, stub = _install_stub_writer_module()
         with patcher:
-            result = vm.export_midi_file(Path("/tmp/out.mid"))
+            result = vm.export_midi_file(store.ref("out.mid"))
 
             assert result is True
-            stub.write_midi_file.assert_called_once_with(
-                rendered, Path("/tmp/out.mid"), program=0, title="Untitled"
+            stub.render_midi_bytes.assert_called_once_with(
+                rendered, program=0, title="Untitled"
             )
 
     def test_returns_false_when_render_song_returns_none(self):
-        vm, audio = self._make_viewmodel(current_text="no chords here\n")
+        vm, audio, store = self._make_viewmodel(current_text="no chords here\n")
         audio.render_song.return_value = None
 
         patcher, stub = _install_stub_writer_module()
         with patcher:
-            result = vm.export_midi_file(Path("/tmp/out.mid"))
+            result = vm.export_midi_file(store.ref("out.mid"))
 
             assert result is False
-            stub.write_midi_file.assert_not_called()
+            stub.render_midi_bytes.assert_not_called()
+        assert store.contents == {}
 
     def test_returns_false_and_does_not_raise_on_file_operation_error(self):
-        vm, audio = self._make_viewmodel(current_text="C G\n")
-        rendered = RenderedSong()
-        audio.render_song.return_value = rendered
+        vm, audio, store = self._make_viewmodel(current_text="C G\n")
+        audio.render_song.return_value = RenderedSong()
+        vm._documents = MagicMock()
+        vm._documents.write_bytes.side_effect = FileOperationError("disk full")
 
-        failing_write = MagicMock(side_effect=FileOperationError("disk full"))
-        patcher, stub = _install_stub_writer_module(mock_write=failing_write)
+        patcher, stub = _install_stub_writer_module()
         with patcher:
-            result = vm.export_midi_file(Path("/tmp/out.mid"))
+            result = vm.export_midi_file(store.ref("out.mid"))
 
             assert result is False
+        assert vm.last_error == "disk full"

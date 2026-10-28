@@ -14,6 +14,7 @@ from services.playback_service import PlaybackService
 from services.song_parser_service import SongParserService
 from services.file_service import FileService
 from services.resource_service import ResourceService
+from session.documents import FileSystemDocumentStore
 from ui.tk_host import TkHost
 # Imported here, before anything can fail, so the error dialog is installed
 # as the session error handler (see utils.error_reporting).
@@ -41,6 +42,7 @@ class Application:
         self._song_parser_service: Optional[SongParserService] = None
         self._file_service: Optional[FileService] = None
         self._resource_service: Optional[ResourceService] = None
+        self._document_store: Optional[FileSystemDocumentStore] = None
 
         # ViewModels (initialized in on_initialize_ui)
         self._main_window_viewmodel: Optional[MainWindowViewModel] = None
@@ -115,6 +117,15 @@ class Application:
         return self._file_service
 
     @property
+    def documents(self) -> FileSystemDocumentStore:
+        """Get the document store (local files)."""
+        if self._document_store is None:
+            raise ServiceNotInitializedError(
+                "Document store not initialized. Call on_initialize() first."
+            )
+        return self._document_store
+
+    @property
     def resource_service(self) -> ResourceService:
         """Get the Resource service."""
         if self._resource_service is None:
@@ -170,6 +181,7 @@ class Application:
         self._song_parser_service = SongParserService()
         self._audio_service = PlaybackService(self._config_service, application=self)
         self._file_service = FileService(self._config_service)
+        self._document_store = FileSystemDocumentStore(self._file_service)
 
     def on_configure_logging(self) -> None:
         """Configure the logging system."""
@@ -195,7 +207,7 @@ class Application:
         self._main_window_viewmodel = MainWindowViewModel(
             self.config_service,
             self.audio_service,
-            self.file_service,
+            self.documents,
             self.song_parser_service,
             self  # Pass application for cross-thread callbacks
         )
