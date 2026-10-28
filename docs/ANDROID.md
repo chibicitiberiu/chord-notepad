@@ -124,26 +124,30 @@ python3 tools/compare_apks.py a.apk b.apk          # reproducibility diff
 
 ## Required core changes (found by the spike)
 
-The spike runs the core unmodified; `chordnotepad_android/android_shim.py`
-patches around these at runtime. Each should become a real core change, after
-which its shim goes away.
+The spike ran the core unmodified; `chordnotepad_android/android_shim.py`
+patched around these at runtime. Each becomes a real core change, after which
+its shim goes away. Items 1 to 4, 6 and 7 landed with M1b (2026-10-29); the
+shim now only sets the data directories (item 5), and the spike passes its
+synth settings through `AudioOptions` (`android_shim.audio_options()`).
 
-1. **`audio/fluidsynth_import.py`: accept a bare soname.** On Android the
+1. **Done (M1b).** **`audio/fluidsynth_import.py`: accept a bare soname.** On Android the
    native libraries stay inside the APK, so there is no file path; only
    `libfluidsynth.so` (resolved by the linker from the app's namespace) works.
    CPython 3.14's `ctypes.util.find_library` on Android only looks in
    `/system/lib64`, and the `CHORD_NOTEPAD_LIBFLUIDSYNTH` override requires an
    existing file. Fix: if the value has no `/`, skip the `exists` check; on
    `sys.platform == "android"` default to `libfluidsynth.so`.
-2. **`audio/player.py`: Android driver list.** `sys.platform` is `"android"`,
+2. **Done (M1b).** **`audio/player.py`: Android driver list.** `sys.platform` is `"android"`,
    which falls into the Linux branch (`pulseaudio`, `alsa`, `oss`). It must be
    `["oboe", "opensles"]`. (Also log the driver that actually started; today it
    logs the requested one.)
-3. **NULL audio driver check** (already planned in M1b). pyfluidsynth's
+3. **Done (M1b).** **NULL audio driver check.** pyfluidsynth's
    `Synth.start()` returns `FLUID_OK` even when `new_fluid_audio_driver()`
    returned NULL, so the fallback and the "audio unavailable" path never run.
    Check `synth.audio_driver` after `start()`.
-4. **Synth settings from the host.** `NotePlayer` creates `fluidsynth.Synth()`
+4. **Done (M1b):** `AudioOptions(sample_rate, period_size, settings)`, passed
+   to `PlaybackService(..., audio_options=)` or `initialize_player()`.
+   **Synth settings from the host.** `NotePlayer` creates `fluidsynth.Synth()`
    at pyfluidsynth's default 44.1 kHz; the device's native rate (48 kHz on the
    emulator and most phones) avoids a resampler. The host should pass the
    sample rate and extra settings (`audio.oboe.performance-mode=LowLatency`,
@@ -151,13 +155,22 @@ which its shim goes away.
 5. **App data directories from the host.** `AppDataService` falls into the
    Linux/XDG branch on Android; the shim points `XDG_*` at `filesDir`. The
    planned `utils/paths.py` (M1 step 4) should take the directory from the host.
-6. **Playback loop re-anchors on every event, so lateness accumulates.**
+6. **Done (M1b), by item 7:** there is no Python timing loop any more.
+   **Playback loop re-anchors on every event, so lateness accumulates.**
    After each event the loop sets `_wall_anchor = time.time()`, so each event's
    lateness shifts every later event. Measured drift: +80 to +90 ms over 60 s
    when idle, **+5.65 s over 60 s** with a concurrent Python render. Schedule
    against the song start (re-anchor only on pause and multiplier changes) and
    use a monotonic clock (`perf_counter`, already planned in M1b).
-7. **GIL contention during playback** (see measurements): any Python work on
+7. **Done (M1b):** song notes and metronome clicks are scheduled on
+   FluidSynth's sequencer at absolute ticks of its sample clock
+   (`audio/sequencer.py`, `audio/song_scheduler.py`). A `PlaybackClock` thread
+   only feeds it 2 s ahead and posts the UI pings; FluidSynth's audio thread
+   never calls into Python. Pause, stop and live speed changes remove the
+   queued events and resend from the current position. Click-to-hear
+   note-offs go through the sequencer too (no timer thread per click).
+   Measured below ("After the Sequencer, desktop").
+   **GIL contention during playback** (see measurements): any Python work on
    another thread (a chord-sheet render, detection while typing) delays the
    player thread by tens of ms per event. Either keep the timing loop out of
    Python (pyfluidsynth's `Sequencer`, the plan's first fallback) or avoid
@@ -197,7 +210,7 @@ trimmed music21, unless noted. Phone numbers: still to do (see below).
 |---|---|
 | Chaquopy + core works? | **Go.** Python 3.14.8 starts; music21, the core, detection, render and playback all run unmodified, with the runtime shims listed above. |
 | Audio plays? | **Go (pipeline-level).** FluidSynth 2.6.0 starts on `oboe` (AAudio stream at 48 kHz, active in AudioFlinger); SF2 loads from `filesDir`. On the emulator the host audio backend didn't initialise ("Could not init `pa'"), so nothing was audible. Audible output must be checked on the phone. |
-| Scheduling jitter OK? | **Go only while Python is idle; No-go under concurrent Python work.** Idle: interval error p99 0.9 to 1.4 ms. With one other Python thread busy (a render loop as a stand-in for a chord-sheet render): p50 26 ms, p99 49 to 76 ms, drift +5.5 s per minute. See below. Recommendation: move to pyfluidsynth's `Sequencer` (sample-clock timing in C) as planned, and fix the drift (core change 6). |
+| Scheduling jitter OK? | **Go only while Python is idle; No-go under concurrent Python work.** Idle: interval error p99 0.9 to 1.4 ms. With one other Python thread busy (a render loop as a stand-in for a chord-sheet render): p50 26 ms, p99 49 to 76 ms, drift +5.5 s per minute. See below. Recommendation: move to pyfluidsynth's `Sequencer` (sample-clock timing in C) as planned, and fix the drift (core change 6). **Done in M1b**; see "After the Sequencer, desktop". |
 | APK size? | **Acceptable, with easy wins left.** 91.0 MB universal, 69.8 MB arm64-v8a only (trimmed music21). The SF2 is 29 MB of that; R8 and an SF3 would cut a further ~25 to 30 MB. |
 | 16 KB pages? | **Go.** All 160 ELF files (APK `lib/` plus Chaquopy's nested extension modules) have 16 KB `PT_LOAD` alignment; `zipalign -c -P 16` passes; the app runs and plays on the `google_apis_ps16k` image (`getconf PAGESIZE` = 16384). |
 | Reproducible? | **Yes, on one machine.** Two clean release builds from different checkout paths are byte-identical, signature included, after two fixes (see below). |
@@ -258,6 +271,32 @@ median but not the tail. Rendering the chord sheet, detecting while typing, or
 session work during playback would all trigger this. **Sequencer fallback
 recommended** (timing in FluidSynth's C sequencer, Python only enqueues
 ahead), plus core change 6 regardless.
+
+### After the Sequencer, desktop (M1b)
+
+**Date:** 2026-10-29. **Host:** the Fedora 44 desktop (24 threads, load
+average ~20 from other work), Python 3.14.8, FluidSynth 2.6.1.
+**Method:** `tests/perf/measure_playback_timing.py`: 60 s of woodblock notes
+at 4 per second through the real `NotePlayer`, on FluidSynth's `file` audio
+driver (it renders in its own thread at real-time pace and writes raw PCM),
+with onsets found in the rendered audio. So unlike the spike's table this
+includes everything up to the synth output; Oboe/mixer/DAC latency is a
+constant offset on top. "Old" is the pre-M1b player (`git show
+78a6e98:src/audio/player.py`) driven the same way. The busy thread spins pure
+Python for the whole run.
+
+| Run (60 s, 240 notes) | Interval error p50 / p90 / p99 / max (ms) | Drift after 60 s | UI ping lateness p50 / p99 / max (ms) |
+|---|---|---|---|
+| Old sleep loop | 0.54 / 1.22 / 1.84 / 1.84 | +39 ms | (not measured) |
+| Old sleep loop + busy Python thread | 9.77 / 11.38 / 11.38 / 11.38 | **+2.47 s** | (not measured) |
+| Sequencer | 0.54 / 1.07 / 1.22 / 1.22 | −1.4 ms | 1 / 2 / 2 |
+| Sequencer + busy Python thread | 0.54 / 1.07 / 1.22 / 1.22 | −1.4 ms | 10 / 20 / 86 |
+
+The sequencer's remaining error is FluidSynth's render block (64 samples,
+1.45 ms at 44.1 kHz) and its whole-millisecond tick; it doesn't change under
+load. GIL contention now only delays the UI pings (chord highlighting,
+status), by about a switch interval per wake. Still to do on the phone: the
+recorded-output metronome test from the plan.
 
 ### Op buffer (optional item)
 

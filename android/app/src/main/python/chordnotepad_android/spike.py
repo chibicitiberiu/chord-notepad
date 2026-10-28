@@ -11,6 +11,12 @@ CLOCK_MONOTONIC as Kotlin's System.nanoTime):
   the noteon wall time vs (a) the ideal grid anchored at the first note and
   (b) the previous note (interval error). This is scheduling jitter only; the
   audio output path (Oboe buffers, mixer, DAC) is not included.
+
+  Since M1b the player schedules song notes on FluidSynth's sequencer, so
+  they no longer pass through ``fs.noteon`` and this probe only sees chord
+  taps. Song timing is measured from rendered audio instead
+  (``tests/perf/measure_playback_timing.py``; on the device: record the
+  output).
 """
 
 import json
@@ -52,7 +58,7 @@ def init(files_dir: str, soundfont_path: str, sample_rate: int, frames_per_buffe
     logging.basicConfig(level=logging.INFO, stream=sys.stderr,
                         format="%(levelname)s %(name)s: %(message)s")
     t0 = time.perf_counter_ns()
-    android_shim.install(files_dir, sample_rate=int(sample_rate))
+    android_shim.install(files_dir)
     t1 = time.perf_counter_ns()
     import music21  # noqa: F401  (timed on its own: the heaviest import)
     t2 = time.perf_counter_ns()
@@ -69,7 +75,8 @@ def init(files_dir: str, soundfont_path: str, sample_rate: int, frames_per_buffe
     _S["parser"] = SongParserService()
     _S["playback"] = PlaybackService(config)
     t4 = time.perf_counter_ns()
-    ok = _S["playback"].initialize_player(soundfont_path)
+    ok = _S["playback"].initialize_player(
+        soundfont_path, audio_options=android_shim.audio_options(int(sample_rate)))
     t5 = time.perf_counter_ns()
 
     result = {
@@ -82,8 +89,7 @@ def init(files_dir: str, soundfont_path: str, sample_rate: int, frames_per_buffe
         "player_init_ms": _ms(t5 - t4),
         "audio_ok": ok,
         "audio_error": _S["playback"].audio_error,
-        "driver": android_shim.STATE["driver"],
-        "driver_attempts": android_shim.STATE["driver_attempts"],
+        "driver": getattr(_S["playback"]._player, "driver_name", None),
         "sample_rate": sample_rate,
         "frames_per_buffer": frames_per_buffer,
         "proc": _proc_status(),
@@ -237,8 +243,7 @@ def play_song(click_ns: int, lines=None, mode: str = "song") -> str:
 def play_dense(click_ns: int, seconds: int, metronome: bool, load: bool) -> str:
     """Play 4 chords per second (eighth notes at 120 BPM) for jitter statistics.
 
-    ``metronome`` also schedules the click track (a threading.Timer per tick in
-    today's player); ``load`` re-renders the sample song in a loop on another
+    ``metronome`` also schedules the click track; ``load`` re-renders the sample song in a loop on another
     Python thread meanwhile, as a stand-in for a concurrent chord-sheet render
     competing for the GIL.
     """
