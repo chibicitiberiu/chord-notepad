@@ -7,16 +7,22 @@ moved with :meth:`ManualHost.advance`. A test drives time explicitly, so a
 
 :class:`InMemoryDocumentStore` keeps documents in a dict, with the same
 normalization, recent-list and error behaviour as the file-system store.
+
+:class:`EventRecorder` is a session listener that keeps what it was given, and
+:func:`compact` turns that into plain tuples for golden assertions.
 """
 
+import dataclasses
 import heapq
 import itertools
 import threading
 from collections import deque
-from typing import Callable, Deque, Dict, List, Optional, Tuple, Union
+from enum import Enum
+from typing import Any, Callable, Deque, Dict, List, Optional, Tuple, Type, TypeVar, Union
 
 from exceptions import FileOperationError
 from session.documents import DocumentRef
+from session.state import Span
 from utils.text_normalization import normalize_song_text
 
 
@@ -188,3 +194,57 @@ class InMemoryDocumentStore:
         """Move ``ref`` to the front of the recent list."""
         self._recent = [ref] + [r for r in self.recent() if r.id != ref.id]
         del self._recent[self._max_recent:]
+
+
+T = TypeVar("T")
+
+
+def compact(item: Any) -> Any:
+    """A session DTO as nested plain tuples, for golden assertions.
+
+    A dataclass becomes ``(ClassName, field, ...)``, a :class:`Span` the
+    shorter ``(kind, start, end)``, an enum its value; tuples and lists are
+    compacted element-wise. Anything else is returned as is.
+    """
+    if isinstance(item, Span):
+        return (item.kind.value, item.start, item.end)
+    if isinstance(item, Enum):
+        return item.value
+    if dataclasses.is_dataclass(item) and not isinstance(item, type):
+        return (type(item).__name__,) + tuple(
+            compact(getattr(item, f.name)) for f in dataclasses.fields(item))
+    if isinstance(item, (tuple, list)):
+        return tuple(compact(x) for x in item)
+    return item
+
+
+class EventRecorder:
+    """A session listener that records everything delivered to it.
+
+    Pass the recorder itself to ``session.subscribe``.
+    """
+
+    def __init__(self) -> None:
+        """Start with nothing recorded."""
+        self.items: List[Any] = []
+
+    def __call__(self, item: Any) -> None:
+        """Record one delivered item."""
+        self.items.append(item)
+
+    def clear(self) -> None:
+        """Forget what was recorded so far."""
+        self.items.clear()
+
+    def compact(self) -> List[Any]:
+        """Everything recorded, through :func:`compact`."""
+        return [compact(item) for item in self.items]
+
+    def of_type(self, item_type: Type[T]) -> List[T]:
+        """The recorded items of one type, in delivery order."""
+        return [item for item in self.items if isinstance(item, item_type)]
+
+    def last(self, item_type: Type[T]) -> Optional[T]:
+        """The last recorded item of one type, or None."""
+        found = self.of_type(item_type)
+        return found[-1] if found else None

@@ -14,8 +14,6 @@ tk = pytest.importorskip("tkinter")
 
 from ui.text_editor import ChordTextEditor
 from utils.text_normalization import normalize_song_text
-from viewmodels.text_editor_viewmodel import TextEditorViewModel
-from services.song_parser_service import SongParserService
 
 
 # ---------------------------------------------------------------------------
@@ -56,8 +54,7 @@ def editor():
     if not _has_display():
         pytest.skip("No display available for tkinter tests")
     root = tk.Tk()
-    vm = TextEditorViewModel(SongParserService())
-    widget = ChordTextEditor(root, vm)
+    widget = ChordTextEditor(root)
     widget.pack()
     # The window must be mapped: Tk does not deliver synthesized <<Paste>>
     # events to widgets of a withdrawn window in a fresh interpreter.

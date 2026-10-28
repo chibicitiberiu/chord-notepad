@@ -15,6 +15,7 @@ from services.song_parser_service import SongParserService
 from services.file_service import FileService
 from services.resource_service import ResourceService
 from session.documents import FileSystemDocumentStore
+from session.session import AppSession
 from ui.tk_host import TkHost
 # Imported here, before anything can fail, so the error dialog is installed
 # as the session error handler (see utils.error_reporting).
@@ -48,6 +49,9 @@ class Application:
         self._main_window_viewmodel: Optional[MainWindowViewModel] = None
         self._text_editor_viewmodel: Optional[TextEditorViewModel] = None
         self._chord_sheet_viewmodel: Optional[ChordSheetViewModel] = None
+
+        # The application layer the window drives (initialized in on_initialize_ui)
+        self._session: Optional[AppSession] = None
 
         # Runs callbacks on the Tk main thread (cross-thread queue, timers).
         # The root window is attached in set_main_window().
@@ -124,6 +128,15 @@ class Application:
                 "Document store not initialized. Call on_initialize() first."
             )
         return self._document_store
+
+    @property
+    def session(self) -> AppSession:
+        """Get the application session."""
+        if self._session is None:
+            raise ServiceNotInitializedError(
+                "AppSession not initialized. Call on_initialize() first."
+            )
+        return self._session
 
     @property
     def resource_service(self) -> ResourceService:
@@ -225,6 +238,14 @@ class Application:
             host=self._host,
         )
 
+        # The session composes the viewmodels. It only uses the host's timers
+        # once started, after the main window has attached itself.
+        self._session = AppSession(
+            self._host,
+            main_window_viewmodel=self._main_window_viewmodel,
+            text_editor_viewmodel=self._text_editor_viewmodel,
+        )
+
         logger.info("ViewModels created successfully")
 
     def on_run(self) -> None:
@@ -240,6 +261,7 @@ class Application:
         # Start draining the cross-thread queue
         if self._main_window is not None:
             self._host.start()
+            self.session.start()
             logger.info("Starting Tkinter main loop")
             self._main_window.mainloop()
         else:
@@ -252,6 +274,8 @@ class Application:
 
         self._running = False
         self._host.stop()
+        if self._session is not None:
+            self._session.shutdown()
 
         # Cleanup audio service
         if self._audio_service is not None:
@@ -359,7 +383,8 @@ class Application:
                 text_editor_viewmodel=app._text_editor_viewmodel,
                 chord_sheet_viewmodel=app._chord_sheet_viewmodel,
                 application=app,
-                resource_service=app.resource_service
+                resource_service=app.resource_service,
+                session=app.session,
             )
             app.set_main_window(root)
 

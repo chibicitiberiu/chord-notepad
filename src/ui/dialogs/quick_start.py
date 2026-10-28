@@ -10,8 +10,8 @@ from typing import Any, List, Optional
 from constants import UI_BORDER
 from services.resource_service import ResourceService
 from services.song_parser_service import SongParserService
+from session.highlighting import compute_spans
 from ui.text_editor import ChordTextEditor
-from viewmodels.text_editor_viewmodel import TextEditorViewModel
 
 logger = logging.getLogger(__name__)
 
@@ -19,8 +19,9 @@ logger = logging.getLogger(__name__)
 #   ("text", paragraph)
 #   ("snippet", song_text, notation)
 #   ("image", resource_path)
-# Snippets are rendered by a read-only ChordTextEditor running the real chord
-# detection, so they look exactly like the editor (colors, font, underlines).
+# Snippets are rendered by a read-only ChordTextEditor painting the spans of the
+# real chord detection, so they look exactly like the editor (colors, font,
+# underlines).
 
 
 class QuickStartDialog(tk.Toplevel):
@@ -252,8 +253,6 @@ class QuickStartDialog(tk.Toplevel):
 
     def _clear_body(self) -> None:
         """Remove the current page's widgets."""
-        for snippet in self._snippets:
-            snippet.cleanup_observers()
         self._snippets = []
         self._images = []
         for child in self.body.winfo_children():
@@ -290,7 +289,6 @@ class QuickStartDialog(tk.Toplevel):
 
         snippet = ChordTextEditor(
             frame,
-            viewmodel=TextEditorViewModel(self._parser),
             height=text.count('\n') + 1,
             width=60,
             wrap=tk.NONE,
@@ -305,10 +303,11 @@ class QuickStartDialog(tk.Toplevel):
         if self._editor_font:
             snippet.configure(font=self._editor_font)
         snippet.insert('1.0', text)
-        snippet.set_notation(notation)  # runs detection, which applies the highlighting
+        lines = self._parser.detect_chords_in_text(text, notation)
+        snippet.paint_spans(compute_spans(lines, text))
         snippet.configure(state=tk.DISABLED)
-        # Display only: no hand cursor over chords, no typing/paste handling.
-        for sequence in ('<Motion>', '<KeyRelease>', '<<Paste>>'):
+        # Display only: no hand cursor over chords, no paste handling.
+        for sequence in ('<Motion>', '<<Paste>>'):
             snippet.unbind(sequence)
         snippet.pack(fill=tk.X)
         self._snippets.append(snippet)

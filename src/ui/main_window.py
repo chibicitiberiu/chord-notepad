@@ -7,7 +7,7 @@ import tkinter as tk
 from tkinter import ttk, messagebox, font as tkfont
 import os
 import sys
-from typing import Any, Optional, List
+from typing import TYPE_CHECKING, Any, Optional, List
 from PIL import Image, ImageTk
 from ui.scrubber import Scrubber
 from utils import error_reporting
@@ -32,6 +32,7 @@ from utils.ui_helpers import create_tooltip, resolve_font_family
 from utils.file_dialogs import ask_open_filename, ask_save_as_filename, display_path
 from utils.key_helpers import get_key_options
 from models.notation import Notation
+from session.state import HighlightState
 from models.ensemble_spec import BUILTIN_ENSEMBLES
 from exceptions import AudioInitializationError, ChordNotepadError
 from models.fretboard_spec import BUILTIN_FRETBOARDS
@@ -47,6 +48,9 @@ from constants import (
     UI_TEXT_MUTED,
     WM_CLASS,
 )
+
+if TYPE_CHECKING:
+    from session.session import AppSession
 
 logger = logging.getLogger(__name__)
 
@@ -68,7 +72,8 @@ except ImportError:
 class MainWindow(tk.Tk):
     """Main application window"""
 
-    def __init__(self, viewmodel: Any, text_editor_viewmodel: Any, application: Any, resource_service: Any, chord_sheet_viewmodel: Any = None) -> None:
+    def __init__(self, viewmodel: Any, text_editor_viewmodel: Any, application: Any, resource_service: Any,
+                 chord_sheet_viewmodel: Any = None, *, session: "AppSession") -> None:
         """Initialize the main window.
 
         Args:
@@ -77,6 +82,7 @@ class MainWindow(tk.Tk):
             application: Application instance for event queue access
             resource_service: ResourceService for resolving resource paths
             chord_sheet_viewmodel: ChordSheetViewModel for the bottom strip
+            session: The application session (text, detection, highlighting)
         """
         # On Linux the class becomes the X11 WM_CLASS, which desktops match to
         # the .desktop file (StartupWMClass) to show the right icon and name.
@@ -98,6 +104,7 @@ class MainWindow(tk.Tk):
         self.viewmodel = viewmodel
         self.text_editor_viewmodel = text_editor_viewmodel
         self.chord_sheet_viewmodel = chord_sheet_viewmodel
+        self.session = session
         self.application = application
         self.resource_service = resource_service
         self._icons = IconLoader(resource_service)
@@ -119,6 +126,8 @@ class MainWindow(tk.Tk):
 
         # Create UI components (text editor first so menu can reference it)
         self.create_text_editor()
+        # The session's output: replays the current states, then updates.
+        self._session_subscription = self.session.subscribe(self._on_session_output)
         self.create_menu()
         self.create_toolbar()
         self.create_statusbar()
@@ -326,7 +335,6 @@ class MainWindow(tk.Tk):
         notation_str = new_value.value
         self.notation_var.set(notation_str)
         self.update_notation_buttons()
-        self.text_editor.set_notation(notation_str)
 
         # Convert current key to new notation
         current_key = self.key_var.get()
@@ -429,9 +437,14 @@ class MainWindow(tk.Tk):
         # Update text editor content
         self.text_editor.delete('1.0', tk.END)
         self.text_editor.insert('1.0', new_value)
-        # Programmatic edits don't trigger the typing-driven detection path,
-        # so kick chord highlighting/parsing manually.
-        self.text_editor.refresh_chords()
+        # A programmatic edit: highlight the new text now, not after the
+        # typing debounce.
+        self.session.set_text_now(new_value)
+
+    def _on_session_output(self, item: object) -> None:
+        """Apply one state or event delivered by the session."""
+        if isinstance(item, HighlightState):
+            self.text_editor.apply_highlight(item)
 
     def _on_playback_error(self, message: str) -> None:
         """Tell the user the song couldn't be played (render failed)."""
@@ -835,10 +848,10 @@ class MainWindow(tk.Tk):
         scrollbar = ttk.Scrollbar(editor_frame)
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
 
-        # Text editor (uses TextEditorViewModel)
+        # Text editor (paints the session's highlighting)
         self.text_editor = ChordTextEditor(
             editor_frame,
-            viewmodel=self.text_editor_viewmodel,
+            session=self.session,
             yscrollcommand=scrollbar.set,
             relief=tk.FLAT,
             bd=0,
@@ -852,9 +865,6 @@ class MainWindow(tk.Tk):
             '<FocusIn>', lambda _e: editor_frame.config(highlightbackground=UI_ACCENT), add='+')
         self.text_editor.bind(
             '<FocusOut>', lambda _e: editor_frame.config(highlightbackground=UI_BORDER), add='+')
-
-        # Set initial notation (sync with main ViewModel)
-        self.text_editor.set_notation(self.viewmodel.notation.value)
 
         # Apply font settings
         self.apply_font()
@@ -1013,7 +1023,6 @@ class MainWindow(tk.Tk):
         success = self.viewmodel.open_file(self.application.documents.ref_for_path(filename))
         if success:
             self.text_editor.edit_reset()  # Reset undo history
-            self.text_editor._detect_chords()  # Trigger chord detection
             self.update_recent_files_menu()  # Update menu with new recent files
             self.update_statusbar(f"Opened: {display_path(filename)}")
         else:
@@ -1203,10 +1212,9 @@ class MainWindow(tk.Tk):
         self.text_editor.configure(font=(family, size))
 
     def on_text_modified(self, event: Optional[Any] = None) -> None:
-        """Handle text modification"""
+        """Send the edited text to the session (which re-detects after a pause)."""
         if self.text_editor.edit_modified():
-            current_text = self.text_editor.get("1.0", "end-1c")
-            self.viewmodel.on_text_changed(current_text)
+            self.session.set_text(self.text_editor.get_text())
             self.text_editor.edit_modified(False)
 
     def _on_bpm_scrubber_change(self, value: float) -> None:
@@ -1400,7 +1408,7 @@ class MainWindow(tk.Tk):
             self.viewmodel.stop_playback()
             # Clean up observers to prevent memory leaks
             self.viewmodel.clear_observers()
-            self.text_editor.cleanup_observers()
+            self._session_subscription.cancel()
             if self.chord_sheet_viewmodel is not None:
                 self.chord_sheet_viewmodel.clear_observers()
             # Trigger application shutdown (handles cleanup and config save)
@@ -1435,9 +1443,14 @@ class MainWindow(tk.Tk):
             chord_name: Chord name to insert
         """
         try:
-            self.text_editor.insert(tk.INSERT, chord_name + " ")
-            # Trigger chord detection after inserting
-            self.text_editor._detect_chords()
+            text = chord_name + " "
+            # Make sure the session's copy matches the widget before splicing
+            # (a no-op unless an edit's <<Modified>> is still queued).
+            self.session.set_text(self.text_editor.get_text())
+            at = self.text_editor.offset_of(tk.INSERT)
+            self.text_editor.insert(tk.INSERT, text)
+            # Mirror the insert in the session, which highlights it at once
+            self.session.insert_text(at, text)
             self.text_editor.focus_set()
             self.update_statusbar(f"Inserted chord: {chord_name}")
         except Exception as e:
@@ -1696,7 +1709,8 @@ class MainWindow(tk.Tk):
 
     def on_chord_click(self, event: Any) -> None:
         """Handle click on text editor - play chord if clicked"""
-        chord_info = self.text_editor.get_chord_at_coordinates(event.x, event.y)
+        offset = self.text_editor.offset_at(event.x, event.y)
+        chord_info = self.session.detected_chord_at(offset)
         if chord_info and chord_info.is_valid:
             try:
                 self.viewmodel.on_chord_clicked(chord_info)
@@ -1750,7 +1764,7 @@ class MainWindow(tk.Tk):
             cursor_pos = self.text_editor.index(tk.INSERT)
             success = self.viewmodel.start_playback_from_cursor(cursor_pos)
             if success:
-                all_chords = [c for c in self.text_editor.get_detected_chords()
+                all_chords = [c for c in self.text_editor_viewmodel.get_all_chords()
                               if c.is_valid]
                 self.update_statusbar(f"Playing from cursor ({len(all_chords)} chords)...")
             else:
@@ -1760,7 +1774,7 @@ class MainWindow(tk.Tk):
             logger.info("View: Playing from start")
             success = self.viewmodel.start_playback()
             if success:
-                all_chords = [c for c in self.text_editor.get_detected_chords()
+                all_chords = [c for c in self.text_editor_viewmodel.get_all_chords()
                               if c.is_valid]
                 self.update_statusbar(f"Playing {len(all_chords)} chords...")
             else:

@@ -81,6 +81,7 @@ src/session/
   documents.py     DocumentRef, DocumentStore, FileSystemDocumentStore
   state.py         frozen state DTOs
   events.py        one-off event + request DTOs
+  emitter.py       Emitter: output buffering, coalescing and flush (the delivery contract)
   formatting.py    titles, status strings, multiplier parse, voicing/instrument menu models, key conversion
   highlighting.py  find_comments, compute_spans(lines, text), chord_at(lines, offset)
   flows.py         generator-based request/response FlowRunner
@@ -179,6 +180,13 @@ ChordSheetState(visible, height, active_view, views, disabled_reason, zoom, zoom
                 current_index, song_revision)
 ```
 
+`HighlightState.text_revision` is the session's revision of the text the spans
+were computed for; it goes up on every change to the session's copy.
+`client_token` echoes the token of the `set_text` that produced that text (0
+for edits the session made), so a view whose text has moved on can tell the
+spans are stale. Spans are listed comments first, then chords, then directives;
+kinds may overlap and the view decides which wins (Tk: tag priority).
+
 ### One-off events and requests
 
 ```python
@@ -233,6 +241,32 @@ class AppSession:
     def apply_settings(self, changes: SettingsChanges) -> None
 ```
 
+**Interim shape (recorded in step 5).** Until the remaining steps land:
+- The constructor takes the viewmodels it composes
+  (`AppSession(host, *, main_window_viewmodel, text_editor_viewmodel)`), built
+  by `Application`; `CoreServices` replaces them in step 14. `Application.on_run`
+  calls `start()` once the window has attached the host; `on_shutdown` calls
+  `shutdown()`.
+- `MainWindowViewModel` still holds the document text and the modified flag
+  (playback, save and export read it there). The session keeps its own copy for
+  detection and forwards every change to `on_text_changed`.
+- The session observes `MainWindowViewModel.notation` to switch the detection
+  notation (re-detecting immediately) until `set_notation` moves in (step 9).
+- Queries the views call synchronously on the session thread:
+  `chord_at(offset) -> Span | None` (the Tk hand cursor), `text`,
+  `text_revision`.
+- Transitional commands, removed by the step named:
+  - `set_text_now(text)`: the Tk view applied a programmatic edit (open,
+    transpose, convert, capo) itself and reports the result, which is
+    re-detected immediately (steps 8 and 11 move those edits in).
+  - `detected_chord_at(offset) -> ChordInfo`: the Tk click-to-play still calls
+    the viewmodel itself (step 7's `tap_chord_at`).
+- `insert_text(at, text)` splices the session's copy and re-detects at once; the
+  Tk view still inserts into the widget itself. Emitting `TextEdited` comes
+  with step 8.
+- The Quick Start snippets paint `compute_spans` directly (display only, no
+  session).
+
 **Flows** (`flows.py`) are generators. They yield requests and receive answers
 through `respond()`, so a request/response flow reads as plain sequential code.
 Only one flow can be pending at a time.
@@ -244,7 +278,12 @@ Only one flow can be pending at a time.
   buffered output on its outermost exit.
 - If a state changes more than once before a flush, it keeps its first position
   and carries its latest value.
+- Setting a state to the value it already has delivers nothing (so `start()`
+  right after `subscribe()` doesn't repeat the replayed highlight).
 - Events keep their order.
+- Output produced outside a command raises: a missing wrapper fails loudly
+  instead of delivering in the middle of something. Viewmodel observers the
+  session registers are wrapped like timers.
 - Payloads never contain live objects (`ChordInfo`, `Line`, `Path`,
   `RenderedSong`).
 

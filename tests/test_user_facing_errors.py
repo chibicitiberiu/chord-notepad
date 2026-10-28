@@ -521,7 +521,7 @@ class TestMainWindowDialogs:
 
         window = self._window()
         chord = ChordInfo(chord="C", start=0, end=1, is_valid=True, is_relative=False)
-        window.text_editor.get_chord_at_coordinates.return_value = chord
+        window.session.detected_chord_at.return_value = chord
         window.viewmodel.on_chord_clicked.side_effect = AudioInitializationError("no driver")
 
         with patch("ui.main_window.show_audio_error") as show:
