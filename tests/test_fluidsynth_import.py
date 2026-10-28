@@ -63,3 +63,36 @@ def test_missing_env_path_falls_back_to_plain_import(monkeypatch, fresh_import, 
     module = fresh_import()
     assert module.fluidsynth.lib == ctypes.util.find_library("fluidsynth")
     assert "missing file" in caplog.text
+
+
+def test_bare_soname_is_passed_to_the_linker(monkeypatch, fresh_import):
+    # Android: the library lives inside the APK, so only its soname resolves
+    soname = ctypes.util.find_library("fluidsynth")
+    if soname is None:
+        pytest.skip("libfluidsynth not installed")
+    assert "/" not in soname
+    nothing = lambda name: None
+    monkeypatch.setattr(ctypes.util, "find_library", nothing)
+    monkeypatch.setenv(loader.LIBRARY_ENV, soname)
+
+    module = fresh_import()
+
+    assert module.fluidsynth.lib == soname
+
+
+def test_android_defaults_to_the_soname(monkeypatch):
+    monkeypatch.delenv(loader.LIBRARY_ENV, raising=False)
+    monkeypatch.setattr(sys, "platform", "android")
+    assert loader._requested_library() == loader.ANDROID_SONAME
+
+
+def test_env_wins_on_android(monkeypatch):
+    monkeypatch.setenv(loader.LIBRARY_ENV, "libfluidsynth-custom.so")
+    monkeypatch.setattr(sys, "platform", "android")
+    assert loader._requested_library() == "libfluidsynth-custom.so"
+
+
+def test_desktop_without_env_uses_pyfluidsynth_lookup(monkeypatch):
+    monkeypatch.delenv(loader.LIBRARY_ENV, raising=False)
+    monkeypatch.setattr(sys, "platform", "linux")
+    assert loader._requested_library() == ""
