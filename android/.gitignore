@@ -1,0 +1,13 @@
+# Machine-local toolchain paths (see local.env.example)
+local.env
+local.properties
+# Gradle / Kotlin / IDE state
+.gradle/
+.kotlin/
+build/
+app/build/
+captures/
+.idea/
+*.iml
+.cxx/
+.externalNativeBuild/
