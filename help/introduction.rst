@@ -10,19 +10,23 @@ lyrics with the chords on the line above them, the way you'd jot a song on the
 back of an envelope or find it written online. As you type, the application
 highlights the chords and can play them back using synthesized instruments.
 
-.. only:: desktop
+.. platform-figure:: editor-main-window
+   :alt: The Chord Notepad main window: a chord sheet with chord symbols
+         highlighted in blue above the lyrics, directives in braces, and a
+         toolbar across the top.
+   :android-alt: Chord Notepad on a phone, in the Play tab: a song with blue
+                 chords above the lyrics, the chord that is playing in yellow,
+                 the chord sheet below the text and the player at the bottom.
+   :align: center
+   :width: 100%
+   :android-caption: A song playing in Chord Notepad. Chord symbols are blue
+      above the lyric lines, the chord that sounds right now is yellow, and
+      ``{directives}`` and ``// comments`` are colored differently and never
+      play. Below the text are the chord sheet and the player.
 
-   .. platform-figure:: editor-main-window
-      :platforms: desktop
-      :alt: The Chord Notepad main window: a chord sheet with chord symbols
-            highlighted in blue above the lyrics, directives in braces, and a
-            toolbar across the top.
-      :align: center
-      :width: 100%
-
-      A chord sheet open in Chord Notepad. Chord symbols are highlighted in blue
-      above the lyric lines; ``{directives}`` and ``// comments`` are colored
-      differently and never play.
+   A chord sheet open in Chord Notepad. Chord symbols are highlighted in blue
+   above the lyric lines; ``{directives}`` and ``// comments`` are colored
+   differently and never play.
 
 .. only:: desktop
 
@@ -84,18 +88,22 @@ Use the notation you're comfortable with:
    The toolbar toggle (labelled **AB / Do**) switches the editor between American
    and European note names:
 
-   .. platform-figure:: notation-toggle
-      :platforms: desktop
-      :alt: The AB / Do notation toggle at the left of the toolbar, with AB
-            (American) selected.
-      :align: center
-
-      The notation toggle. **AB** is American, **Do** is European.
-
 .. only:: android
 
    The **AB / Do** switch in the Edit ribbon sets the notation the text is read
-   in: American or European note names.
+   in: American or European note names. **Convert**, right next to it, rewrites
+   the chords themselves from one notation to the other.
+
+.. platform-figure:: notation-toggle
+   :alt: The AB / Do notation toggle at the left of the toolbar, with AB
+         (American) selected.
+   :android-alt: The AB / Do switch and the Convert button in the Edit ribbon,
+                 with AB (American) selected.
+   :align: center
+   :android-caption: The notation switch and Convert. **AB** is American, **Do**
+      is European.
+
+   The notation toggle. **AB** is American, **Do** is European.
 
 .. only:: desktop
 
@@ -182,9 +190,14 @@ System Requirements
 
 .. only:: android
 
-   This variant of the guide describes the Android app. Chord Notepad also runs
-   on Linux, Windows and macOS, and the chord notation is the same on every
-   platform.
+   The Android app needs Android 7.0 or newer on a 64-bit phone or tablet. It
+   works offline: the instruments, this guide and everything else are built in,
+   and the app doesn't ask for internet access.
+
+   This edition of the guide describes the Android app. Chord Notepad also runs
+   on Linux, Windows and macOS. Songs are plain text files, and the chord
+   notation is the same on every platform, so a song written on your phone
+   plays the same on your computer.
 
 Getting Chord Notepad
 ---------------------
@@ -204,5 +217,6 @@ Getting Chord Notepad
 
 .. only:: android
 
-   Chord Notepad is free and open source. The project lives on the
-   `GitHub releases page <https://github.com/chibicitiberiu/chord-notepad/releases>`_.
+   Chord Notepad is free and open source. The source code, and the downloads
+   for every platform, are on
+   `GitHub <https://github.com/chibicitiberiu/chord-notepad/releases>`_.
