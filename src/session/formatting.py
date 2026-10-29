@@ -127,6 +127,11 @@ def saved_status(location: str) -> str:
     return f"Saved: {location}"
 
 
+def exporting_midi_status(location: str) -> str:
+    """The status while a MIDI file is being rendered."""
+    return f"Exporting MIDI: {location}..."
+
+
 def exported_midi_status(location: str) -> str:
     """The status after a MIDI file was exported."""
     return f"Exported MIDI: {location}"
@@ -182,6 +187,15 @@ def capo_suggested_status(capo: int, has_selection: bool, voicing: str) -> str:
 def no_capo_status(has_selection: bool, voicing: str) -> str:
     """The status when no capo makes the song (or selection) easier to play."""
     return f"No capo makes the {_scope(has_selection)} easier on {voicing}"
+
+
+def finding_capo_status(has_selection: bool, voicing: str) -> str:
+    """The status while Suggest Capo scores the song (or selection)."""
+    return f"Finding a capo for the {_scope(has_selection)} on {voicing}..."
+
+
+#: The status when the text changed while Suggest Capo was scoring it.
+CAPO_STALE_STATUS = "The song changed while finding a capo; nothing was inserted"
 
 
 # -- menus -------------------------------------------------------------------------

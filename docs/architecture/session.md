@@ -344,8 +344,8 @@ class AppSession:
   None. Invalid directive fields at answer time emit `UserError`; the Tk
   dialogs check them live with `directives.check_directive` (same messages as
   before) so that only happens to a view that skips the check. The capo
-  suggestion still runs synchronously in `respond` (step 12 moves it to the
-  worker). The Tk window presents requests from `after_idle`, never from inside
+  suggestion runs on the worker since step 12 (see below). The Tk window
+  presents requests from `after_idle`, never from inside
   the listener: a modal dialog there would hold back the session's output
   (playback progress) until it closed.
 - The transpose dialog stays view-side (no request): the view asks for the
@@ -496,6 +496,58 @@ class AppSession:
   question a second time (the picker path ran the check again); it asks
   once now. The title reads "Untitled - Chord Notepad" from startup (it was
   "Chord Notepad" until the first edit or open).
+
+**Interim shape (recorded in step 12, background work).**
+- `session/workers.py`: `BackgroundWorker(host)` runs jobs one at a time on a
+  daemon thread (started by the first `submit`); `submit(fn, on_done)`
+  returns a `Job` whose `cancel()` drops the outcome (and skips the job if it
+  hasn't started). The `Outcome(value, error)` comes back through
+  `host.post`, so `on_done` runs on the session thread; the session wraps it
+  like a timer. `shutdown()` (from `AppSession.shutdown`) drops outcomes still
+  on their way and doesn't wait for a running job. `wait_idle()` is for
+  tests. `AppSession(..., worker=None)` makes its own on the host.
+- Jobs only use what they captured on the session thread:
+  `MainWindowViewModel.capo_job(voicing, region)` and `midi_export_job()`
+  snapshot the text, notation, key, tempo and time signature (passed to
+  `PlaybackService.render_song` as `initial_bpm`/`initial_time_sig`), and
+  the export takes its own note picker (`PlaybackService.create_note_picker`)
+  instead of the shared one a playback render may be using. The synchronous
+  `suggest_capo_for` and `export_midi_file` remain (job + finish in one
+  go) for direct callers and tests.
+- Suggest Capo: after the answer the status reads "Finding a capo for the
+  whole song on X..." and the result is applied when it arrives, after
+  re-checking two things. While a song plays or is paused the result is
+  refused (logged, like every programmatic edit). If the text revision moved
+  on (the user typed), the result is dropped and the status says "The song
+  changed while finding a capo; nothing was inserted"; the user asks again.
+  That is the simplest correct choice: re-running automatically could insert
+  a capo into text the user is still editing. A newer Suggest Capo cancels
+  an older one still being scored. A render failure goes to the unexpected-
+  error handler (as the exception escaping `respond` did before) and the
+  status goes back to "Ready".
+- Export MIDI: the song as it is when the file is picked is rendered on the
+  worker ("Exporting MIDI: <location>..."); the bytes are written on the
+  session thread when the render arrives
+  (`MainWindowViewModel.finish_midi_export`), so a failure has the same
+  wording as before and nothing half-written is left if the app closes
+  mid-render. An export still rendering at shutdown is dropped. On failure
+  the status goes back to "Ready".
+- `PlaybackService.stop_playback` no longer joins the render thread (it
+  waited up to 2 s). `_start_lock` orders the render thread's "check cancel
+  → wire the player → `player.start_playback()`" against stop's "cancel and
+  take the event buffer", after which stop calls `player.stop_playback()`:
+  a render stopped before it reached the lock never starts the player, and
+  a player it did start is stopped. A failed render reports under the same
+  lock, so a stopped render reports nothing. `cleanup()` cancels a render in
+  flight the same way. A new render waits on its own thread for the
+  previous (cancelled) one to finish before it resets and uses the shared
+  note picker, so two playback renders never share it.
+- Playback generation: `MainWindowViewModel` tags each run's callbacks
+  (pings, end of song, render error) with a generation that goes up on
+  every start and stop, and drops them on the session thread when stale.
+  So a ping or an end the old run posted before it saw a stop can't
+  highlight a chord or end the new run (the session's own "drop pings while
+  idle" check only covered the gap before a new run).
 
 **Flows** (`flows.py`) are generators. They yield requests and receive answers
 through `respond()`, so a request/response flow reads as plain sequential code.

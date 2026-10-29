@@ -214,6 +214,35 @@ def test_stop_returns_to_idle_and_drops_pings_posted_before_it():
     assert env.sheet.pings == [("C", 0)]
 
 
+def test_pings_and_the_end_of_a_stopped_run_are_dropped_during_the_next_run():
+    env = Env(auto_play=False)
+    env.session.play_pause()
+    env.rendered()
+    old_ping = env.player.on_event_callback
+    old_end = env.player.on_playback_finished_callback
+    env.session.stop()
+    env.session.play_pause()  # a new run, started before the old run's posts arrived
+    env.rendered()
+    env.recorder.clear()
+
+    # The old run's ping and its end arrive now (posted before it saw the stop).
+    from models.chord import ChordInfo
+    from models.playback_event import PlaybackEventArgs, PlaybackEventType
+    chord = ChordInfo(chord="C", start=0, end=1, is_valid=True, is_relative=False)
+    old_ping(PlaybackEventArgs(event_type=PlaybackEventType.CHORD_START, chord_info=chord,
+                               chord_index=0, current_bar=1, total_bars=3))
+    old_end()
+    env.host.run_pending()
+
+    assert env.recorder.items == []
+    assert env.main.is_playing is True
+
+    # The new run's own pings still get through.
+    env.player.play(chords=1)
+    env.host.run_pending()
+    assert env.recorder.last(PlaybackState).playing_span is not None
+
+
 def test_stop_while_idle_only_says_so():
     env = Env()
     env.session.stop()

@@ -27,7 +27,7 @@ from constants import CHORD_DETECTION_DEBOUNCE_MS, MAX_FONT_SIZE, MIN_FONT_SIZE
 from exceptions import AudioInitializationError
 from models.notation import Notation
 from models.playback_event import PlaybackEventArgs, PlaybackEventType
-from session import directives, formatting, toolbar
+from session import directives, errors, formatting, toolbar
 from session.audio_policy import AudioFailurePolicy
 from session.emitter import Emitter, Listener
 from session.documents import DocumentRef
@@ -38,6 +38,7 @@ from session.events import (
 from session.flows import Flow, FlowRunner
 from session.highlighting import chord_at, compute_spans
 from session.host import Cancellable, Host
+from session.workers import BackgroundWorker, Job, Outcome
 from session.state import (
     ChordSheetState, ChordSheetView, DocumentState, EditorState, HighlightState,
     InstrumentMenuState, MenuItem, PlayAction, PlaybackState, PlaybackStatus,
@@ -97,7 +98,8 @@ class AppSession:
                  text_editor_viewmodel: "TextEditorViewModel",
                  chord_sheet_viewmodel: Optional["ChordSheetViewModel"] = None,
                  detection_delay_s: float = CHORD_DETECTION_DEBOUNCE_MS / 1000,
-                 audio_failure_policy: Optional[AudioFailurePolicy] = None) -> None:
+                 audio_failure_policy: Optional[AudioFailurePolicy] = None,
+                 worker: Optional[BackgroundWorker] = None) -> None:
         """Create the session. Nothing is delivered or scheduled until used.
 
         Args:
@@ -115,6 +117,9 @@ class AppSession:
                 re-detected.
             audio_failure_policy: Decides which audio failures are reported;
                 a new one (nothing reported yet) by default.
+            worker: Runs the renders the user waits for (MIDI export,
+                Suggest Capo) off the session thread; a new one on ``host``
+                by default. Shut down with the session.
         """
         self._host = host
         self._emitter = Emitter()
@@ -141,6 +146,11 @@ class AppSession:
         # Dialog-driven commands (insert directive, suggest capo, the
         # document flows).
         self._flows = FlowRunner(self._emitter.emit)
+
+        # Renders the user waits for run here; the outcome comes back as a
+        # posted callback. A newer Suggest Capo supersedes an older one.
+        self._worker = worker if worker is not None else BackgroundWorker(host)
+        self._capo_job: Optional[Job] = None
 
         # Documents: the viewmodel reads and writes them through its store;
         # the session keeps the recent list there (the flows are its only
@@ -248,6 +258,9 @@ class AppSession:
         self._started = False
         self._cancel_detection()
         self._flows.cancel()
+        # Outcomes still on their way are dropped (an export not written yet
+        # is lost; the app is closing).
+        self._worker.shutdown()
         self._main.unobserve("current_text", self._on_replaced)
         self._main.unobserve("current_document", self._on_document)
         self._main.unobserve("is_modified", self._on_document)
@@ -384,10 +397,14 @@ class AppSession:
         """Ask which voicing to optimize for, then insert the best ``{capo: N}``.
 
         Emits :class:`CapoChoiceRequest`; ``respond`` with a voicing scores
-        the selection (or the whole song) and inserts the directive at the
-        start of the selection's line (the top without one) as one undo step,
-        or says in the status line that no capo helps. Refused at answer time
-        while a song plays.
+        the selection (or the whole song) on the background worker ("Finding
+        a capo..." meanwhile), then inserts the directive at the start of the
+        selection's line (the top without one) as one undo step, or says in
+        the status line that no capo helps. Refused at answer time, and when
+        the result arrives, while a song plays. If the text changed while it
+        was being scored the result is dropped (the status says so) rather
+        than inserted into a song it wasn't computed for; the user can ask
+        again.
 
         Args:
             selection: ``(start, end)`` to score only the chords that overlap
@@ -467,9 +484,11 @@ class AppSession:
     def export_midi(self) -> None:
         """Render the song and write it as a MIDI file the user picks.
 
-        Suggests ``<document name>.mid``. Exports don't join the recent list
-        and don't change the open document. A failure (no chords, a render or
-        write error) is a :class:`UserError`.
+        Suggests ``<document name>.mid``. The song as it is when the user
+        picks the file is rendered on the background worker ("Exporting
+        MIDI: ..." meanwhile) and written when the render arrives. Exports
+        don't join the recent list and don't change the open document. A
+        failure (no chords, a render or write error) is a :class:`UserError`.
         """
         self._flows.start(self._export_flow())
 
@@ -900,7 +919,33 @@ class AppSession:
             return
         if region is not None and region[1] > len(self._text):
             region = None  # the text changed under the selection
-        capo = self._main.suggest_capo_for(voicing, region)
+        job = self._main.capo_job(voicing, region)
+        if job is None:
+            self._set_status(formatting.no_capo_status(region is not None, label))
+            return
+        if self._capo_job is not None:
+            self._capo_job.cancel()  # superseded: its result would be stale anyway
+        self._set_status(formatting.finding_capo_status(region is not None, label))
+        self._capo_job = self._worker.submit(job, self._entry(functools.partial(
+            self._on_capo_scored, self._revision, region, label)))
+
+    def _on_capo_scored(self, revision: int, region: Optional[Tuple[int, int]], label: str,
+                        outcome: Outcome) -> None:
+        """The worker scored the capo positions for the text at ``revision``."""
+        self._capo_job = None
+        if not outcome.ok:
+            self._set_status(formatting.READY)
+            error = outcome.error
+            errors.report_from_any_thread((type(error), error, error.__traceback__),
+                                          "Suggest Capo")
+            return
+        if not self._edits_allowed("suggest capo"):
+            return
+        if self._revision != revision:
+            logger.info("The text changed while finding a capo; dropping the result")
+            self._set_status(formatting.CAPO_STALE_STATUS)
+            return
+        capo = outcome.value
         if not capo:
             self._set_status(formatting.no_capo_status(region is not None, label))
             return
@@ -999,10 +1044,18 @@ class AppSession:
         ref = self._as_ref((yield PickDocumentRequest(0, PickMode.EXPORT_MIDI, suggested)))
         if ref is None:
             return
+        # Rendered off the session thread from a snapshot of the song now.
+        job = self._main.midi_export_job()
+        self._set_status(formatting.exporting_midi_status(ref.location))
+        self._worker.submit(job, self._entry(functools.partial(self._on_midi_rendered, ref)))
+
+    def _on_midi_rendered(self, ref: DocumentRef, outcome: Outcome) -> None:
+        """The worker rendered (or failed to render) a MIDI export: write it."""
         # Not remembered as recent: exports aren't documents to reopen here.
-        if self._main.export_midi_file(ref):
+        if self._main.finish_midi_export(ref, outcome.value, outcome.error):
             self._set_status(formatting.exported_midi_status(ref.location))
         else:
+            self._set_status(formatting.READY)
             self._file_error(formatting.EXPORT_FAILED, ref)
 
     def _close_flow(self) -> Flow:

@@ -26,6 +26,7 @@ from session.state import (
     DocumentState, HighlightState, RecentDocumentsState, StatusState, ToolbarState,
 )
 from session.testing import EventRecorder, FakePlayer, InMemoryDocumentStore, ManualHost
+from session.workers import BackgroundWorker
 from viewmodels.main_window_viewmodel import MainWindowViewModel
 from viewmodels.text_editor_viewmodel import TextEditorViewModel
 
@@ -58,15 +59,22 @@ class Env:
             {"song.txt": SONG} if documents is None else documents, max_recent=max_recent)
         self.main = MainWindowViewModel(
             self.config, self.audio, self.store, SongParserService(), dispatch)
+        self.worker = BackgroundWorker(self.host)
         self.session = AppSession(
             self.host, main_window_viewmodel=self.main,
-            text_editor_viewmodel=TextEditorViewModel(SongParserService()))
+            text_editor_viewmodel=TextEditorViewModel(SongParserService()),
+            worker=self.worker)
         self.recorder = EventRecorder()
         self.session.subscribe(self.recorder)
         self.session.start()
         if text:
             self.type(text)
         self.recorder.clear()
+
+    def settle(self):
+        """Let the background worker finish, then deliver its outcomes."""
+        assert self.worker.wait_idle(timeout=30)
+        self.host.run_pending()
 
     def type(self, text):
         self.session.set_text(text)
@@ -412,6 +420,10 @@ def test_export_writes_midi_bytes_and_is_not_recent():
     request = env.request(PickDocumentRequest)
     assert (request.mode, request.suggested_name) == (PickMode.EXPORT_MIDI, "song.mid")
     env.answer(env.ref("song.mid"))
+    # Rendered on the worker; written when the render comes back.
+    assert env.status() == "Exporting MIDI: song.mid..."
+    assert env.ref("song.mid").id not in env.store.contents
+    env.settle()
     data = env.store.contents[env.ref("song.mid").id]
     assert isinstance(data, bytes) and data.startswith(b"MThd")
     assert env.recent() == ["song.txt"]
@@ -426,6 +438,7 @@ def test_export_titles_the_midi_after_the_document():
     env.session.export_midi()
     with patch("services.midi_file_writer.render_midi_bytes", return_value=b"MIDI") as render:
         env.answer(env.ref("out.mid"))
+        env.settle()
     assert render.call_args.kwargs["title"] == "song"
 
 
@@ -439,8 +452,10 @@ def test_export_without_chords_is_a_user_error():
     env = Env("just lyrics", documents={})
     env.session.export_midi()
     env.answer(env.ref("out.mid"))
+    env.settle()
     assert env.errors() == [(
         "Error", "Failed to export MIDI file:\nout.mid\n\nThere are no chords to export.")]
+    assert env.status() == "Ready"
     assert env.store.contents == {}
 
 
@@ -449,7 +464,29 @@ def test_export_write_failure_is_a_user_error():
     env.store.write_error = "disk full"
     env.session.export_midi()
     env.answer(env.ref("out.mid"))
+    env.settle()
     assert env.errors() == [("Error", "Failed to export MIDI file:\nout.mid\n\ndisk full")]
+
+
+def test_export_renders_the_song_as_it_was_when_the_file_was_picked():
+    env = Env("C G", documents={})
+    env.session.export_midi()
+    with patch("services.midi_file_writer.render_midi_bytes", return_value=b"MIDI") as render:
+        env.answer(env.ref("out.mid"))
+        env.session.set_text("just lyrics now")  # typed while it renders
+        env.settle()
+    song = render.call_args.args[0]
+    assert [rc.chord_info.chord for rc in song.chords] == ["C", "G"]
+    assert env.store.contents[env.ref("out.mid").id] == b"MIDI"
+
+
+def test_an_export_still_rendering_at_shutdown_writes_nothing():
+    env = Env("C G", documents={})
+    env.session.export_midi()
+    env.answer(env.ref("out.mid"))
+    env.session.shutdown()
+    env.settle()
+    assert env.store.contents == {}
 
 
 def test_cancelled_export_writes_nothing():

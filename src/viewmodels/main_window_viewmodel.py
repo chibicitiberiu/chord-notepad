@@ -16,6 +16,8 @@ from models.playback_event import PlaybackEventArgs, PlaybackEventType
 
 logger = logging.getLogger(__name__)
 
+_NO_CHORDS_TO_EXPORT = "There are no chords to export."
+
 
 def _describe_error(exc: BaseException) -> str:
     """A one-line reason for an error dialog.
@@ -88,6 +90,8 @@ class MainWindowViewModel(Observable):
         self._playback_lines: List[Line] = []
         self._current_playing_chord: Optional[ChordInfo] = None
         self._current_playback_event: Optional[PlaybackEventArgs] = None
+        # Goes up with every start and stop; see start_playback.
+        self._playback_generation: int = 0
 
         # Why the last open/save/export failed, for the view's error dialog.
         self._last_error: Optional[str] = None
@@ -287,11 +291,11 @@ class MainWindowViewModel(Observable):
             return False
 
     def export_midi_file(self, ref: DocumentRef) -> bool:
-        """Export the current document as a standard MIDI file.
+        """Export the current document as a standard MIDI file, synchronously.
 
-        Parses the current text, renders the whole song synchronously
-        (voicing + timing), and writes it out as a format-1 SMF using the
-        configured instrument and a title derived from the current document.
+        :meth:`midi_export_job` and :meth:`finish_midi_export` in one go, on
+        the calling thread. The session runs the job on its background worker
+        instead.
 
         Args:
             ref: The document to write the MIDI file to
@@ -299,33 +303,76 @@ class MainWindowViewModel(Observable):
         Returns:
             True if successful, False otherwise (see :attr:`last_error`)
         """
-        self._last_error = None
+        job = self.midi_export_job()
         try:
+            data = job()
+        except Exception as e:
+            return self.finish_midi_export(ref, None, e)
+        return self.finish_midi_export(ref, data, None)
+
+    def midi_export_job(self) -> Callable[[], bytes]:
+        """Snapshot the song for a MIDI export; the job renders it.
+
+        Everything the export depends on (text, notation, key, tempo, time
+        signature, instrument, title, a note picker of its own) is captured
+        now, so the returned job can run on any thread while the document
+        keeps changing. It parses the text, renders the whole song (voicing +
+        timing) and returns a format-1 SMF.
+
+        Returns:
+            A job returning the MIDI file's bytes. It raises if there are no
+            chords (``ChordNotepadError``) or rendering fails.
+        """
+        from exceptions import ChordNotepadError
+
+        text, notation, key = self._current_text, self._notation, self._key
+        program = self._config.get("instrument", 0)
+        title = self._current_document.stem if self._current_document is not None else "Untitled"
+        playback = self._audio.get_playback_state()
+        bpm = playback.bpm
+        time_signature = (playback.time_signature_beats, playback.time_signature_unit)
+        # Its own picker: the shared one may be voicing a playback render on
+        # the render thread meanwhile.
+        picker = self._audio.create_note_picker()
+
+        def render() -> bytes:
             # Imported lazily to keep the (potentially heavier) MIDI writer
-            # dependencies out of application startup. Inside the try so a
-            # broken install is reported like any other export failure.
+            # dependencies out of application startup.
             from services.midi_file_writer import render_midi_bytes
 
-            lines = self._chord.detect_chords_in_text(self._current_text, self._notation)
+            lines = self._chord.detect_chords_in_text(text, notation)
             if not any(line.chords for line in lines):
                 logger.warning("No chords found to export as MIDI")
-                self._last_error = "There are no chords to export."
-                return False
-            rendered = self._audio.render_song(lines, self._key, raise_errors=True)
+                raise ChordNotepadError(_NO_CHORDS_TO_EXPORT)
+            rendered = self._audio.render_song(
+                lines, key, note_picker=picker, raise_errors=True,
+                initial_bpm=bpm, initial_time_sig=time_signature)
             if rendered is None:
                 logger.warning("No chords found to export as MIDI")
-                self._last_error = "There are no chords to export."
-                return False
+                raise ChordNotepadError(_NO_CHORDS_TO_EXPORT)
+            return render_midi_bytes(rendered, program=program, title=title)
 
-            program = self._config.get("instrument", 0)
-            title = self._current_document.stem if self._current_document is not None else "Untitled"
+        return render
 
+    def finish_midi_export(self, ref: DocumentRef, data: Optional[bytes],
+                           error: Optional[BaseException]) -> bool:
+        """Write what a :meth:`midi_export_job` produced (or record why it failed).
+
+        Args:
+            ref: The document to write the MIDI file to.
+            data: The job's bytes, or None if it raised.
+            error: What the job raised, or None.
+
+        Returns:
+            True if the file was written, False otherwise (see :attr:`last_error`)
+        """
+        self._last_error = None
+        try:
+            if error is not None:
+                raise error
             logger.info(f"Exporting MIDI file: {ref.location}")
-            data = render_midi_bytes(rendered, program=program, title=title)
             self._documents.write_bytes(ref, data)
-
             return True
-
         except Exception as e:
             logger.error(f"Failed to export MIDI file: {e}", exc_info=True)
             self._last_error = _describe_error(e)
@@ -398,22 +445,38 @@ class MainWindowViewModel(Observable):
                 logger.warning("No chords found after cursor position")
                 return False
 
+        # Everything this run reports is tagged with its generation. Stopping
+        # (or starting another run) moves the generation on, so a ping, an
+        # end or an error the old run posted before it stopped is dropped
+        # instead of landing in the new run. Checked on the UI thread, where
+        # the generation changes.
+        self._playback_generation += 1
+        generation = self._playback_generation
+
+        def is_current() -> bool:
+            if generation == self._playback_generation:
+                return True
+            logger.debug("Dropping a callback from an earlier playback run")
+            return False
+
         # Wrap finished callback to run on UI thread
         def on_finished_wrapper():
             logger.debug("Playback finished - queueing UI callback")
-            self._application.queue_ui_callback(self._on_playback_finished)
+            self._application.queue_ui_callback(
+                lambda: self._on_playback_finished() if is_current() else None)
 
         # Event callback: the player already marshals this onto the UI thread
         # via Application.queue_ui_callback (it fires from the playback thread),
         # so invoke the handler directly here to avoid double-marshalling.
         def on_event_wrapper(event_args: PlaybackEventArgs):
             logger.debug(f"Playback event: {event_args.event_type}")
-            self._on_playback_event(event_args)
+            if is_current():
+                self._on_playback_event(event_args)
 
         # Render failures happen on the render thread: hand them to the UI thread.
         def on_error_wrapper(message: str):
             self._application.queue_ui_callback(
-                lambda: self.notify("playback_error", message))
+                lambda: self.notify("playback_error", message) if is_current() else None)
 
         # Start playback (AudioService handles all directive processing and chord resolution)
         success = self._audio.start_song_playback(
@@ -494,6 +557,7 @@ class MainWindowViewModel(Observable):
             return
 
         logger.debug("Stopping playback")
+        self._playback_generation += 1  # what the stopped run still posts is stale
         self._audio.stop_playback()
         self._current_chord_index = 0
         self.set_and_notify("is_playing", False)
@@ -785,35 +849,61 @@ class MainWindowViewModel(Observable):
     def suggest_capo_for(self, voicing: str, region: Optional[tuple] = None) -> Optional[int]:
         """Best capo fret for ``voicing`` over ``region`` (whole song if ``None``).
 
-        Renders the current document with a picker on the chosen voicing's spec
-        (so chords resolve with the same key/loop context as everywhere else),
-        keeps the chords whose source span overlaps ``region``, and scores capo
-        positions with :func:`services.capo_advisor.suggest_capo`. Returns the
-        suggested fret, or ``None`` when the voicing is not a fretboard voicing,
-        there are no chords in range, or no capo beats capo 0 meaningfully.
+        Runs :meth:`capo_job` on the calling thread. Returns the suggested
+        fret, or ``None`` when the voicing is not a fretboard voicing, there
+        are no chords in range, or no capo beats capo 0 meaningfully.
+        """
+        job = self.capo_job(voicing, region)
+        return job() if job is not None else None
+
+    def capo_job(self, voicing: str, region: Optional[tuple] = None
+                 ) -> Optional[Callable[[], Optional[int]]]:
+        """Snapshot the song for Suggest Capo on ``voicing``; the job scores it.
+
+        The job renders the document (as it is now) with a picker on the
+        chosen voicing's spec, so chords resolve with the same key/loop
+        context as everywhere else, keeps the chords whose source span
+        overlaps ``region``, and scores capo positions with
+        :func:`services.capo_advisor.suggest_capo`. It only uses what was
+        captured here, so it can run on any thread.
+
+        Returns:
+            None when ``voicing`` is not a fretboard voicing; otherwise a job
+            returning the suggested fret, or None when there are no chords in
+            range or no capo beats capo 0 meaningfully. Rendering errors are
+            raised by the job.
         """
         spec = self._audio.fretboard_spec_for(voicing)
         if spec is None:
             return None
 
-        from audio.guitar_chord_picker import GuitarChordPicker
-        from services.capo_advisor import suggest_capo
+        text, notation, key = self._current_text, self._notation, self._key
+        playback = self._audio.get_playback_state()
+        bpm = playback.bpm
+        time_signature = (playback.time_signature_beats, playback.time_signature_unit)
 
-        lines = self._chord.detect_chords_in_text(self._current_text, self._notation)
-        rendered = self._audio.render_song(
-            lines, self._key, note_picker=GuitarChordPicker(spec), raise_errors=True)
-        if rendered is None:
-            return None
+        def score() -> Optional[int]:
+            from audio.guitar_chord_picker import GuitarChordPicker
+            from services.capo_advisor import suggest_capo
 
-        chords = rendered.chords
-        if region is not None:
-            start, end = region
-            chords = [rc for rc in chords
-                      if rc.chord_info.start < end and rc.chord_info.end > start]
-        sequence = [rc.chord_notes for rc in chords if rc.chord_notes is not None]
-        if not sequence:
-            return None
-        return suggest_capo(spec, sequence)
+            lines = self._chord.detect_chords_in_text(text, notation)
+            rendered = self._audio.render_song(
+                lines, key, note_picker=GuitarChordPicker(spec), raise_errors=True,
+                initial_bpm=bpm, initial_time_sig=time_signature)
+            if rendered is None:
+                return None
+
+            chords = rendered.chords
+            if region is not None:
+                start, end = region
+                chords = [rc for rc in chords
+                          if rc.chord_info.start < end and rc.chord_info.end > start]
+            sequence = [rc.chord_notes for rc in chords if rc.chord_notes is not None]
+            if not sequence:
+                return None
+            return suggest_capo(spec, sequence)
+
+        return score
 
     def insert_capo(self, capo: int, region: Optional[tuple] = None) -> None:
         """Insert a ``{capo: N}`` directive and replace the document text.

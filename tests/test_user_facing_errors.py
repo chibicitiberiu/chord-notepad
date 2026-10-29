@@ -226,14 +226,18 @@ class TestViewModelPlaybackErrors:
             vm.on_chord_clicked(chord)
 
     def test_suggest_capo_does_not_hide_render_errors(self):
+        from models.fretboard_spec import BUILTIN_FRETBOARDS
+
+        # A real spec, so nothing needs patching: patching GuitarChordPicker
+        # leaked the mock into services.capo_advisor when that module was
+        # first imported under the patch (later capo tests then failed).
         audio = MagicMock()
-        audio.fretboard_spec_for.return_value = MagicMock()
+        audio.fretboard_spec_for.return_value = BUILTIN_FRETBOARDS["standard"]
         audio.render_song.side_effect = ValueError("boom")
         vm = _viewmodel(audio=audio)
 
-        with patch("audio.guitar_chord_picker.GuitarChordPicker"):
-            with pytest.raises(ValueError):
-                vm.suggest_capo_for("guitar:standard")
+        with pytest.raises(ValueError):
+            vm.suggest_capo_for("guitar:standard")
 
 
 # ---------------------------------------------------------------------------

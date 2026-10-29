@@ -18,6 +18,7 @@ from session.host import HostDispatch
 from session.session import AppSession
 from session.state import HighlightState, MenuItem, StatusState
 from session.testing import EventRecorder, FakePlayer, InMemoryDocumentStore, ManualHost
+from session.workers import BackgroundWorker
 from viewmodels.main_window_viewmodel import MainWindowViewModel
 from viewmodels.text_editor_viewmodel import TextEditorViewModel
 
@@ -46,9 +47,11 @@ class Env:
         self.audio = PlaybackService(self.config, player=self.player, application=dispatch)
         self.main = MainWindowViewModel(
             self.config, self.audio, InMemoryDocumentStore(), SongParserService(), dispatch)
+        self.worker = BackgroundWorker(self.host)
         self.session = AppSession(
             self.host, main_window_viewmodel=self.main,
-            text_editor_viewmodel=TextEditorViewModel(SongParserService()))
+            text_editor_viewmodel=TextEditorViewModel(SongParserService()),
+            worker=self.worker)
         self.recorder = EventRecorder()
         self.session.subscribe(self.recorder)
         self.session.start()
@@ -63,6 +66,11 @@ class Env:
         self.audio._render_thread.join(timeout=10)
         self.host.run_pending()
         self.recorder.clear()
+
+    def settle(self):
+        """Let the background worker finish, then deliver its outcomes."""
+        assert self.worker.wait_idle(timeout=30)
+        self.host.run_pending()
 
     def request(self, request_type):
         return self.recorder.last(request_type)
@@ -317,6 +325,13 @@ def test_capo_response_inserts_the_directive_as_one_grouped_edit():
 
     env.session.respond(1, "guitar:standard")
 
+    # Scored on the worker: only a progress status until the result is in.
+    assert env.recorder.compact() == [
+        ("StatusState", "Finding a capo for the whole song on Guitar (Standard - EADGBE)...")]
+    assert env.session.text == BARRE_SONG
+    env.recorder.clear()
+    env.settle()
+
     edit = env.recorder.last(TextEdited)
     capo = int(edit.replacement.split("}")[0].split(":")[1])
     assert capo > 0
@@ -333,8 +348,10 @@ def test_no_capo_helps_only_says_so():
     env.recorder.clear()
 
     env.session.respond(1, "guitar:standard")
+    env.settle()
 
     assert env.recorder.compact() == [
+        ("StatusState", "Finding a capo for the selection on Guitar (Standard - EADGBE)..."),
         ("StatusState", "No capo makes the selection easier on Guitar (Standard - EADGBE)")]
     assert env.session.text == "C G Am F"
 
@@ -346,8 +363,70 @@ def test_capo_cancelled_or_unknown_voicing_does_nothing():
     env.session.respond(1, None)
     env.session.request_suggest_capo(None)
     env.session.respond(2, "voicing:no such thing")
+    env.settle()
     assert env.recorder.of_type(TextEdited) == []
     assert env.recorder.of_type(StatusState) == []
+
+
+def test_capo_result_for_text_that_changed_meanwhile_is_dropped():
+    env = Env(BARRE_SONG)
+    env.session.request_suggest_capo(None)
+    env.session.respond(1, "guitar:standard")
+    env.session.set_text(BARRE_SONG + "\nmore")  # typed while it was scored
+    env.recorder.clear()
+
+    env.settle()
+
+    assert env.recorder.of_type(TextEdited) == []
+    assert env.session.text == BARRE_SONG + "\nmore"
+    assert env.status() == "The song changed while finding a capo; nothing was inserted"
+
+
+def test_capo_result_is_refused_if_playback_started_meanwhile():
+    env = Env(BARRE_SONG)
+    env.session.request_suggest_capo(None)
+    env.session.respond(1, "guitar:standard")
+    env.play()
+
+    env.settle()
+
+    assert env.recorder.of_type(TextEdited) == []
+    assert env.session.text == BARRE_SONG
+
+
+def test_a_newer_capo_request_supersedes_the_older_one():
+    env = Env(BARRE_SONG)
+    env.session.request_suggest_capo(None)
+    env.session.respond(1, "guitar:standard")
+    env.session.request_suggest_capo(None)
+    env.session.respond(2, "guitar:standard")
+    env.recorder.clear()
+
+    env.settle()
+
+    # One insert: the first result was cancelled, not dropped as stale.
+    assert len(env.recorder.of_type(TextEdited)) == 1
+    assert env.session.text.count("{capo:") == 1
+
+
+def test_capo_render_failure_is_reported_as_unexpected():
+    from unittest.mock import patch
+    from session import errors
+
+    env = Env(BARRE_SONG)
+    env.session.request_suggest_capo(None)
+    reported = []
+    previous = errors.set_handler(lambda exc_info, context: reported.append((exc_info[1], context)))
+    try:
+        with patch.object(env.audio, "render_song", side_effect=ValueError("boom")):
+            env.session.respond(1, "guitar:standard")
+            env.settle()
+    finally:
+        errors.set_handler(previous)
+
+    assert [(str(e), c) for e, c in reported] == [("boom", "Suggest Capo")]
+    assert env.status() == "Ready"
+    assert env.session.text == BARRE_SONG
 
 
 # -- read-only while playing ------------------------------------------------------------------
@@ -377,6 +456,7 @@ def test_dialogs_still_open_while_playing_but_their_answers_are_refused():
     env.session.request_suggest_capo(None)
     assert env.request(CapoChoiceRequest) is not None
     env.session.respond(2, "guitar:standard")
+    env.settle()
 
     assert env.recorder.of_type(TextEdited) == []
     assert env.session.text == BARRE_SONG
