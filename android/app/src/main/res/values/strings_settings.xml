@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- ⋮ → Settings (M5): General, Playback and the Voicings editor. Labels
+<!-- ☰ → Settings (M5): General, Playback and the Voicings editor. Labels
      and supporting texts as help/settings.rst words them for Android; the
      voicing form's own texts come from Python (settings_forms). -->
 <resources>
@@ -18,19 +18,19 @@
 
     <!-- General -->
     <string name="settings_font_family">Font family</string>
-    <string name="settings_font_family_help">The editor\'s font, the same setting as ⋮ → View → Font….</string>
+    <string name="settings_font_family_help">The editor\'s font. Pinching the text changes its size too.</string>
     <string name="settings_font_size">Font size</string>
     <string name="settings_notation">Chord notation</string>
-    <string name="settings_notation_help">American or European, the same toggle as the AB/Do buttons in the toolbar.</string>
+    <string name="settings_notation_help">American or European, the same switch as AB / Do in the Edit ribbon.</string>
     <string name="settings_notation_american">American</string>
     <string name="settings_notation_european">European</string>
     <string name="settings_default_key">Default key</string>
     <string name="settings_default_key_help">The key a new document starts in.</string>
     <string name="settings_key_none">None</string>
     <string name="settings_quick_start">Show quick start at startup</string>
-    <string name="settings_quick_start_help">Whether the quick-start reference (also reachable from ⋮ → Help → Quick Start) opens automatically when Chord Notepad launches.</string>
+    <string name="settings_quick_start_help">Whether the quick-start tour (also in ☰ → Quick start) opens automatically when Chord Notepad starts.</string>
     <string name="settings_recent_files">Number of recent files</string>
-    <string name="settings_recent_files_help">How many entries ⋮ → File → Recent Files remembers.</string>
+    <string name="settings_recent_files_help">How many songs ☰ → Recent remembers.</string>
 
     <!-- Playback -->
     <string name="settings_default_bpm">Default BPM</string>
