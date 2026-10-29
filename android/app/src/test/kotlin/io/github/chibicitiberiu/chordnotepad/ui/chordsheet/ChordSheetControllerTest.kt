@@ -75,4 +75,26 @@ class ChordSheetControllerTest {
         assertNotNull(c.failure)
         job.cancel()
     }
+
+    @Test
+    fun `loading is on from the request until its buffer is shown`() = runTest {
+        val c = controller(UnconfinedTestDispatcher(testScheduler))
+        val requests = MutableStateFlow<SheetRequest?>(null)
+        val job = launch { c.follow(requests) }
+        assertEquals(false, c.loading)
+        requests.value = SheetRequest(1, "staff", 1.0, 130)
+        runCurrent()
+        assertEquals(true, c.loading) // inside the settle delay
+        advanceTimeBy(100); runCurrent()
+        assertEquals(false, c.loading)
+        requests.value = SheetRequest(2, "staff", 1.0, 130) // an edit
+        runCurrent()
+        assertEquals(true, c.loading)
+        advanceTimeBy(100); runCurrent()
+        assertEquals(false, c.loading)
+        requests.value = null // hidden: nothing is coming
+        advanceTimeBy(100); runCurrent()
+        assertEquals(false, c.loading)
+        job.cancel()
+    }
 }

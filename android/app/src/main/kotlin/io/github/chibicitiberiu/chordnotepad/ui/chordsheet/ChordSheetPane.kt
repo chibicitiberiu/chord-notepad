@@ -39,6 +39,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.PlainTooltip
 import androidx.compose.material3.Text
 import androidx.compose.material3.TooltipAnchorPosition
@@ -153,6 +154,10 @@ fun ChordSheetPane(
             onSelect = commands::setChordSheetView,
             onZoom = commands::chordSheetZoom,
         )
+        // A thin bar while the strip is being rendered or fetched (first open, edits, view/zoom change).
+        Box(Modifier.fillMaxWidth().height(2.dp)) {
+            if (controller.loading) LinearProgressIndicator(Modifier.fillMaxWidth().height(2.dp))
+        }
         ChordSheetStrip(
             controller = controller,
             glyphs = glyphs,

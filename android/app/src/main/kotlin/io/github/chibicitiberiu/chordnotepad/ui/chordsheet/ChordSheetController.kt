@@ -16,6 +16,7 @@ import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.withContext
 
@@ -61,8 +62,14 @@ class ChordSheetController(
         private set
 
     /** The request [sheet] answers. */
-    var loaded: SheetRequest? = null
+    var loaded: SheetRequest? by mutableStateOf(null)
         private set
+
+    /** The newest request [follow] has seen (loaded or not yet). */
+    private var requested: SheetRequest? by mutableStateOf(null)
+
+    /** True while a buffer is being fetched or decoded for the newest request (the pane shows a progress bar). */
+    val loading: Boolean get() = requested.let { it != null && it != loaded && failure == null }
 
     /**
      * Fetch a buffer for each distinct request. A newer request cancels the
@@ -70,7 +77,7 @@ class ChordSheetController(
      */
     @OptIn(FlowPreview::class)
     suspend fun follow(requests: Flow<SheetRequest?>) {
-        requests.distinctUntilChanged().debounce(SETTLE_MS).collectLatest { request ->
+        requests.distinctUntilChanged().onEach { requested = it }.debounce(SETTLE_MS).collectLatest { request ->
             if (request != null) load(request)
         }
     }
@@ -108,10 +115,12 @@ class ChordSheetController(
         } catch (e: UnsupportedChordSheetVersion) {
             Log.e(TAG, "Chord sheet buffer version ${e.version} not supported", e)
             failure = "This chord sheet needs a newer version of the app."
+            loaded = request
             sheet = null
         } catch (e: ChordSheetFormatException) {
             Log.e(TAG, "Malformed chord sheet buffer", e)
             failure = "The chord sheet couldn't be drawn."
+            loaded = request
             sheet = null
         }
     }
