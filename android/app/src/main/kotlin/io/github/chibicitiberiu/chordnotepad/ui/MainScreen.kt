@@ -5,6 +5,7 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -44,6 +45,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -180,10 +183,18 @@ private fun MainContent(
     val status by repo.status.collectAsState()
     var toolbarShown by rememberSaveable { mutableStateOf(true) }
 
+    val rootFocus = remember { FocusRequester() }
+    LaunchedEffect(Unit) { runCatching { rootFocus.requestFocus() } }
+
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val compact = maxWidth < CompactWidth
         Scaffold(
-            modifier = Modifier.onPreviewKeyEvent { actions.handleShortcut(it, onHelp = onUserGuide) },
+            // Focusable root with initial focus, so a hardware keyboard's shortcuts
+            // (F1, Ctrl+N...) work before anything is tapped; it shows no soft keyboard.
+            modifier = Modifier
+                .onPreviewKeyEvent { actions.handleShortcut(it, onHelp = onUserGuide) }
+                .focusRequester(rootFocus)
+                .focusable(),
             topBar = {
                 TopAppBar(
                     title = { Text(titleOf(document), maxLines = 1, overflow = TextOverflow.Ellipsis) },

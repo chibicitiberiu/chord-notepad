@@ -1101,6 +1101,20 @@ Build-side notes, not core changes:
   shrink it severalfold; FluidSynth 2.6 with libsndfile/vorbis loads SF3.
   Check the licence before converting.
 
+## 16 KB page verification
+
+**Date:** 2026-10-29. `cn_phone_16k` (16 KB page-size system image, x86_64,
+headless, 2 GB), debug APK. `adb shell getconf PAGESIZE` = 16384. The app
+installs and starts (cold start 5.7 s on the first start after boot), logcat
+shows `FluidSynth started with audio driver: oboe`, the session starts, and
+playing a typed `C Am F G C` highlights the playing chord and shows
+`Bar 2/5 | 120 BPM | 4/4 | Playing: Am` with no crash (zero `FATAL EXCEPTION`).
+F1 opened the User Guide with a hardware key right after dismissing the Quick
+Start. Not checked on this run: the chord sheet strip (hidden by default in
+the compact layout) and loading `examples/02_american_complete.txt` through
+the picker. The first launch right after the install was lost while the system
+was still settling after boot (the process was gone; a second start was fine).
+
 ## Spike measurements (M2)
 
 **Date:** 2026-10-29. **Device:** Android emulator `cn_phone` (Pixel 8 profile,
