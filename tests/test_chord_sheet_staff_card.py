@@ -27,6 +27,7 @@ from chord_sheet.renderer_interface import (
 from chord_sheet import clef_assets as ca
 from chord_sheet import staff_card as sc
 from chord_sheet.staff_card import StaffCardRenderer, REST_WIDTH
+from ui.chord_sheet import clef_images as ci
 
 
 # --------------------------------------------------------------------------
@@ -717,7 +718,7 @@ class TestClefOps:
         assert any(k.startswith('clef_treble:') for k in keys)
         assert any(k.startswith('clef_bass:') for k in keys)
         for key in keys:
-            img = ca.image_for_clef_key(key)
+            img = ci.image_for_clef_key(key)
             assert img is not None
             assert img.size[1] == int(key.split(':')[1])
 
@@ -854,7 +855,7 @@ class TestClefAssets:
 
     def test_get_clef_image_matches_placement_height(self):
         for kind in ('treble', 'bass'):
-            img = ca.get_clef_image(kind, 9.0)
+            img = ci.get_clef_image(kind, 9.0)
             placement = ca.clef_placement(kind, 9.0)
             assert img.size == (placement.width, placement.height)
 
@@ -869,7 +870,7 @@ class TestClefAssets:
         for name in ('notehead_whole', 'accidental_sharp',
                      'accidental_flat', 'accidental_natural'):
             pl = ca.glyph_placement(name, 10.0)
-            img = ca.image_for_clef_key(pl.key)
+            img = ci.image_for_clef_key(pl.key)
             assert img is not None
             assert img.size == (pl.width, pl.height)
 
@@ -881,7 +882,7 @@ class TestClefAssets:
     def test_tinted_glyph_key_resolves(self):
         pl = ca.glyph_placement('notehead_whole', 12.0, '#3a5a8a')
         assert pl.key.endswith(':3a5a8a')
-        img = ca.image_for_clef_key(pl.key)
+        img = ci.image_for_clef_key(pl.key)
         assert img is not None and img.size == (pl.width, pl.height)
         # Tint recolors the ink to the requested rgb (kept where alpha > 0).
         r, g, b, _ = img.getpixel((0, img.size[1] // 2))
@@ -894,11 +895,11 @@ class TestClefAssets:
     def test_malformed_clef_keys_return_none(self):
         for bad in ('', 'clef_treble', 'clef_treble:', 'clef_foo:10',
                     'clef_treble:abc', 'clef_treble:0', 'nope:10'):
-            assert ca.image_for_clef_key(bad) is None
+            assert ci.image_for_clef_key(bad) is None
 
     def test_malformed_glyph_keys_return_none(self):
         for bad in ('glyph_notehead_whole', 'glyph_notehead_whole:',
                     'glyph_bogus:64', 'glyph_notehead_whole:0',
                     'glyph_notehead_whole:64:xyz', 'glyph_notehead_whole:64:3a5a8',
                     'glyph_notehead_whole:64:3a5a8a:9'):
-            assert ca.image_for_clef_key(bad) is None
+            assert ci.image_for_clef_key(bad) is None

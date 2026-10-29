@@ -19,10 +19,10 @@ so the clef's reference line lands exactly on the right staff line.
 resolves: ``'clef_<kind>:<int-height>'`` where ``<kind>`` is ``treble`` or
 ``bass`` and ``<int-height>`` is the target image height in whole pixels
 (e.g. ``'clef_treble:96'``). :func:`clef_placement` builds the key;
-:func:`image_for_clef_key` resolves it back to a sized :class:`PIL.Image.Image`
-(the width follows from the height, preserving aspect). Both sides derive the
-size from that single integer height, so the positioned clef and the rendered
-image always agree.
+:func:`parse_image_key` splits it back into the base asset, the height and the
+optional tint, and :func:`scaled_width` gives the width (it follows from the
+height, preserving aspect). Both sides derive the size from that single
+integer height, so the positioned clef and the rendered image always agree.
 
 The staff renderer also needs Bravura **noteheads and accidentals**, embedded
 the same way (base64 RGBA PNGs, SMuFL registration metadata). These extend the
@@ -41,20 +41,18 @@ its placement geometry -- the scaled ``origin_x``/``origin_y`` (the SMuFL
 registration point: a notehead's origin is vertically centered on its line or
 space; an accidental's origin registers to the line/space it alters), so a
 painter anchors the image ``'nw'`` at ``(x - origin_x, staff_y - origin_y)``.
+
+**No Pillow here.** This module is shared with Android, which has no Pillow:
+it holds the embedded PNG bytes, the placement math and the key grammar only.
+Decoding, resizing and tinting for Tk live in :mod:`ui.chord_sheet.clef_images`;
+Android draws the six base PNGs (:func:`base_glyph_pngs`) itself, scaled to the
+key's height and tinted with a colour filter.
 """
 from __future__ import annotations
 
 import base64
-import io
 from functools import lru_cache
-from typing import Dict, NamedTuple, Optional
-
-from PIL import Image
-
-try:  # Pillow >= 9.1
-    _LANCZOS = Image.Resampling.LANCZOS
-except AttributeError:  # pragma: no cover - very old Pillow
-    _LANCZOS = Image.LANCZOS  # type: ignore[attr-defined]
+from typing import Dict, NamedTuple, Optional, Tuple
 
 #: Prefix every clef image key starts with (see the module docstring).
 _KEY_PREFIX = "clef_"
@@ -507,19 +505,145 @@ _GLYPH_BASE: Dict[str, _GlyphBase] = {
 }
 
 
-@lru_cache(maxsize=None)
-def _base_image(kind: str) -> Image.Image:
-    """Decode the embedded base PNG for ``kind`` once (cached)."""
-    raw = base64.b64decode(_CLEF_BASE[kind].b64)
-    return Image.open(io.BytesIO(raw)).convert("RGBA")
+# -- Base assets and the image-key grammar (shared with Android) -----------
+
+#: Every base asset, by the name an image key starts with (``'clef_treble'``,
+#: ``'glyph_accidental_sharp'``, ...), in a fixed order.
+BASE_ASSETS: Tuple[str, ...] = tuple(
+    [f"{_KEY_PREFIX}{kind}" for kind in _CLEF_BASE]
+    + [f"{_GLYPH_PREFIX}{name}" for name in _GLYPH_BASE]
+)
+
+
+class ImageKey(NamedTuple):
+    """An image key split into its parts (see :func:`parse_image_key`)."""
+
+    asset: str
+    """Base asset name, one of :data:`BASE_ASSETS` (e.g. ``'clef_treble'``)."""
+    height: int
+    """Target image height in whole pixels (> 0)."""
+    color: Optional[str]
+    """Tint as lowercase ``rrggbb`` (glyph keys only), or ``None`` for black ink."""
+
+
+def _base_record(asset: str):
+    """Return the ``_ClefBase``/``_GlyphBase`` record for a base asset name.
+
+    Raises:
+        KeyError: if ``asset`` is not one of :data:`BASE_ASSETS`.
+    """
+    if asset.startswith(_KEY_PREFIX):
+        return _CLEF_BASE[asset[len(_KEY_PREFIX):]]
+    if asset.startswith(_GLYPH_PREFIX):
+        return _GLYPH_BASE[asset[len(_GLYPH_PREFIX):]]
+    raise KeyError(asset)
 
 
 @lru_cache(maxsize=None)
-def _render_at_height(kind: str, height: int) -> Image.Image:
-    """Return the clef resized to ``height`` px (width follows aspect), cached."""
-    data = _CLEF_BASE[kind]
-    width = max(1, round(data.width * height / data.height))
-    return _base_image(kind).resize((width, height), _LANCZOS)
+def base_png(asset: str) -> bytes:
+    """Return the embedded RGBA PNG bytes of a base asset (decoded once).
+
+    Args:
+        asset: One of :data:`BASE_ASSETS`.
+
+    Raises:
+        KeyError: if ``asset`` is unknown.
+    """
+    return base64.b64decode(_base_record(asset).b64)
+
+
+def base_size(asset: str) -> Tuple[int, int]:
+    """Return the ``(width, height)`` in px of a base asset's embedded PNG.
+
+    Raises:
+        KeyError: if ``asset`` is unknown.
+    """
+    record = _base_record(asset)
+    return record.width, record.height
+
+
+def base_glyph_pngs() -> Dict[str, bytes]:
+    """Return every base asset's PNG bytes, keyed by asset name.
+
+    These are the six images Android ships (``<asset>.png``) and draws itself:
+    an image key's ``asset`` part names the file, its height scales it and its
+    tint (if any) becomes a colour filter over the black ink.
+    """
+    return {asset: base_png(asset) for asset in BASE_ASSETS}
+
+
+def scaled_width(asset: str, height: int) -> int:
+    """Width in px of a base asset drawn at ``height`` px (aspect kept).
+
+    This is the rounding every renderer of an image key must use, so the image
+    lines up with the placement :func:`clef_placement`/:func:`glyph_placement`
+    computed.
+    """
+    width, base_height = base_size(asset)
+    return max(1, round(width * height / base_height))
+
+
+def parse_image_key(key: str) -> Optional[ImageKey]:
+    """Split an ops image ``key`` into its base asset, height and tint.
+
+    The grammar:
+
+    - ``'clef_<kind>:<int-height>'`` -- a treble/bass clef.
+    - ``'glyph_<name>:<int-height>'`` -- a black-ink notehead/accidental.
+    - ``'glyph_<name>:<int-height>:<rrggbb>'`` -- a tinted glyph variant.
+
+    Args:
+        key: An image key (e.g. ``'clef_treble:96'``,
+            ``'glyph_accidental_sharp:120:3a5a8a'``).
+
+    Returns:
+        The parsed :class:`ImageKey`, or ``None`` if ``key`` is malformed or
+        names an unknown asset (so a missing asset is skipped, not a crash).
+    """
+    parts = key.split(":")
+    if len(parts) < 2:
+        return None
+    name = parts[0]
+    try:
+        height = int(parts[1])
+    except ValueError:
+        return None
+    if height <= 0:
+        return None
+
+    if name.startswith(_KEY_PREFIX):
+        if len(parts) != 2 or name[len(_KEY_PREFIX):] not in _CLEF_BASE:
+            return None
+        return ImageKey(name, height, None)
+
+    if name.startswith(_GLYPH_PREFIX):
+        if name[len(_GLYPH_PREFIX):] not in _GLYPH_BASE:
+            return None
+        if len(parts) == 2:
+            return ImageKey(name, height, None)
+        if len(parts) == 3:
+            color6 = _normalize_color(parts[2])
+            if color6 is None:
+                return None
+            return ImageKey(name, height, color6)
+        return None
+
+    return None
+
+
+# -- Placement -------------------------------------------------------------
+
+def _normalize_color(color: Optional[str]) -> Optional[str]:
+    """Normalize a color to lowercase ``rrggbb``, or ``None`` if malformed.
+
+    Accepts an optional leading ``'#'``; requires exactly six hex digits.
+    """
+    if not color:
+        return None
+    c = color.lstrip("#").lower()
+    if len(c) == 6 and all(ch in "0123456789abcdef" for ch in c):
+        return c
+    return None
 
 
 def clef_placement(kind: str, staff_space_px: float) -> ClefPlacement:
@@ -545,66 +669,6 @@ def clef_placement(kind: str, staff_space_px: float) -> ClefPlacement:
     width = max(1, round(data.width * ratio))
     baseline_y = data.baseline_y * ratio
     return ClefPlacement(f"{_KEY_PREFIX}{kind}:{height}", width, height, baseline_y)
-
-
-def get_clef_image(kind: str, staff_space_px: float) -> Image.Image:
-    """Return the clef image sized for a staff of ``staff_space_px`` (cached).
-
-    Args:
-        kind: ``'treble'`` or ``'bass'``.
-        staff_space_px: The staff's staff-space size in px.
-
-    Returns:
-        A :class:`PIL.Image.Image` scaled so its staff-space matches
-        ``staff_space_px`` (same size :func:`image_for_clef_key` yields for the
-        matching :attr:`ClefPlacement.key`).
-    """
-    return _render_at_height(kind, clef_placement(kind, staff_space_px).height)
-
-
-# -- Staff glyphs (noteheads / accidentals) --------------------------------
-
-@lru_cache(maxsize=None)
-def _base_glyph_image(name: str) -> Image.Image:
-    """Decode the embedded base PNG for glyph ``name`` once (cached)."""
-    raw = base64.b64decode(_GLYPH_BASE[name].b64)
-    return Image.open(io.BytesIO(raw)).convert("RGBA")
-
-
-@lru_cache(maxsize=None)
-def _render_glyph_at_height(name: str, height: int) -> Image.Image:
-    """Return glyph ``name`` resized to ``height`` px (aspect kept), cached."""
-    data = _GLYPH_BASE[name]
-    width = max(1, round(data.width * height / data.height))
-    return _base_glyph_image(name).resize((width, height), _LANCZOS)
-
-
-@lru_cache(maxsize=None)
-def _render_glyph_tinted(name: str, height: int, color6: str) -> Image.Image:
-    """Return glyph ``name`` at ``height`` px recolored to ``color6`` (cached).
-
-    The glyph is black ink + alpha; the tint keeps the alpha as a mask and
-    fills the opaque pixels with the ``rrggbb`` color, so an accidental or
-    notehead can be drawn in a voice/hand color.
-    """
-    base = _render_glyph_at_height(name, height)
-    rgb = (int(color6[0:2], 16), int(color6[2:4], 16), int(color6[4:6], 16))
-    solid = Image.new("RGBA", base.size, rgb + (255,))
-    solid.putalpha(base.getchannel("A"))
-    return solid
-
-
-def _normalize_color(color: Optional[str]) -> Optional[str]:
-    """Normalize a color to lowercase ``rrggbb``, or ``None`` if malformed.
-
-    Accepts an optional leading ``'#'``; requires exactly six hex digits.
-    """
-    if not color:
-        return None
-    c = color.lstrip("#").lower()
-    if len(c) == 6 and all(ch in "0123456789abcdef" for ch in c):
-        return c
-    return None
 
 
 def glyph_placement(
@@ -640,59 +704,3 @@ def glyph_placement(
     else:
         key = f"{_GLYPH_PREFIX}{name}:{height}"
     return GlyphPlacement(key, width, height, origin_x, origin_y)
-
-
-def image_for_clef_key(key: str) -> Optional[Image.Image]:
-    """Resolve an ops image ``key`` to a sized :class:`PIL.Image.Image`.
-
-    The panel calls this while replaying draw ops: it turns the key an
-    ``ImageOp`` carries into a concretely sized image (which it then converts to
-    a Tk image). Despite the historical name it resolves the whole key grammar:
-
-    - ``'clef_<kind>:<int-height>'`` -- a treble/bass clef.
-    - ``'glyph_<name>:<int-height>'`` -- a black-ink notehead/accidental.
-    - ``'glyph_<name>:<int-height>:<rrggbb>'`` -- a tinted glyph variant.
-
-    Returns ``None`` for any key that is not well-formed, so an unknown asset is
-    skipped rather than crashing a paint.
-
-    Args:
-        key: An image key (e.g. ``'clef_treble:96'``,
-            ``'glyph_notehead_whole:48'``, ``'glyph_accidental_sharp:120:3a5a8a'``).
-
-    Returns:
-        The sized image, or ``None`` if ``key`` is malformed / unknown.
-    """
-    parts = key.split(":")
-    if len(parts) < 2:
-        return None
-    name = parts[0]
-    try:
-        height = int(parts[1])
-    except ValueError:
-        return None
-    if height <= 0:
-        return None
-
-    if name.startswith(_KEY_PREFIX):
-        if len(parts) != 2:
-            return None
-        kind = name[len(_KEY_PREFIX):]
-        if kind not in _CLEF_BASE:
-            return None
-        return _render_at_height(kind, height)
-
-    if name.startswith(_GLYPH_PREFIX):
-        gname = name[len(_GLYPH_PREFIX):]
-        if gname not in _GLYPH_BASE:
-            return None
-        if len(parts) == 2:
-            return _render_glyph_at_height(gname, height)
-        if len(parts) == 3:
-            color6 = _normalize_color(parts[2])
-            if color6 is None:
-                return None
-            return _render_glyph_tinted(gname, height, color6)
-        return None
-
-    return None

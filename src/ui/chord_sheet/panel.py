@@ -27,11 +27,11 @@ from constants import (
     UI_TAB_IDLE,
     UI_TEXT_DISABLED,
 )
-from chord_sheet.clef_assets import image_for_clef_key
 from chord_sheet.marker_lane import LANE_HEIGHT, build_marker_lane
 from chord_sheet.ops import DrawOps, ImageOp
 from chord_sheet.renderer_interface import SheetContext, STRIP_BG, StripLayout
 from ui.base.tooltip import TabToolTip
+from ui.chord_sheet.clef_images import image_for_clef_key
 from ui.chord_sheet.tk_replay import replay
 
 logger = logging.getLogger(__name__)

@@ -2,6 +2,7 @@ import java.io.File
 import java.net.URI
 import java.security.MessageDigest
 import java.util.zip.ZipFile
+import javax.inject.Inject
 
 plugins {
     alias(libs.plugins.android.application)
@@ -370,8 +371,48 @@ val copySpikeSample = tasks.register<CopyIntoAssets>("copySpikeSample") {
     outputDir.set(layout.buildDirectory.dir("generated/spike/assets"))
 }
 
+// ---------------------------------------------------------------------------
+// Chord sheet: the six base clef/glyph PNGs that Kotlin draws the staff view's
+// image ops with, exported from src/chord_sheet/clef_assets.py at build time
+// (tools/export_clef_glyphs.py) instead of committed as binaries. They land in
+// assets/chord_sheet/<asset>.png plus glyphs.json (docs/ANDROID.md).
+// ---------------------------------------------------------------------------
+abstract class ExportClefGlyphs @Inject constructor(
+    private val execOps: ExecOperations,
+) : DefaultTask() {
+    @get:Input abstract val pythonExe: Property<String>
+    @get:InputFile abstract val script: RegularFileProperty
+    /** The module that embeds the PNGs (the script's only import). */
+    @get:InputFile abstract val clefAssets: RegularFileProperty
+    @get:Internal abstract val srcDir: Property<String>
+    @get:OutputDirectory abstract val outputDir: DirectoryProperty
+
+    @TaskAction
+    fun run() {
+        val out = outputDir.get().asFile
+        out.deleteRecursively()
+        execOps.exec {
+            commandLine(
+                pythonExe.get(), "-I", script.get().asFile.path,
+                "--src", srcDir.get(),
+                "--out-dir", File(out, "chord_sheet").path,
+            )
+        }
+    }
+}
+
+val exportClefGlyphs = tasks.register<ExportClefGlyphs>("exportClefGlyphs") {
+    description = "Exports the chord sheet's base clef/glyph PNGs into generated assets"
+    pythonExe.set(buildPythonExe)
+    script.set(repoRoot.file("android/tools/export_clef_glyphs.py"))
+    clefAssets.set(repoRoot.file("src/chord_sheet/clef_assets.py"))
+    srcDir.set(repoRoot.dir("src").asFile.path)
+    outputDir.set(layout.buildDirectory.dir("generated/chordSheetGlyphs/assets"))
+}
+
 androidComponents {
     onVariants { variant ->
+        variant.sources.assets?.addGeneratedSourceDirectory(exportClefGlyphs, ExportClefGlyphs::outputDir)
         variant.sources.assets?.addGeneratedSourceDirectory(copySoundfont, CopyIntoAssets::outputDir)
         variant.sources.assets?.addGeneratedSourceDirectory(copySpikeSample, CopyIntoAssets::outputDir)
         variant.sources.jniLibs?.addGeneratedSourceDirectory(prepareNativeLibs, PrepareNativeLibs::outputDir)
