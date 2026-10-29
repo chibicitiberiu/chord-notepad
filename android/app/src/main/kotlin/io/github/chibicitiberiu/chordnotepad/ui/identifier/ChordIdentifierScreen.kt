@@ -105,7 +105,7 @@ fun ChordIdentifierDialog(
     val state by repo.identifier.collectAsState()
     val status by repo.status.collectAsState()
 
-    Dialog(onDismissRequest = onClose, properties = DialogProperties(usePlatformDefaultWidth = !compact)) {
+    Dialog(onDismissRequest = onClose, properties = identifierDialogProperties(compact)) {
         Surface(
             modifier = if (compact) Modifier.fillMaxSize() else Modifier.widthIn(max = 640.dp).heightIn(max = 720.dp),
             shape = if (compact) MaterialTheme.shapes.extraSmall else MaterialTheme.shapes.extraLarge,
@@ -115,6 +115,15 @@ fun ChordIdentifierDialog(
         }
     }
 }
+
+/**
+ * The full-screen (phone) identifier draws edge to edge like the rest of the
+ * app (`enableEdgeToEdge`): its window doesn't fit the system bars, so the
+ * surface covers the status bar strip and [safeDrawingPadding] keeps the
+ * content clear of the bars and the keyboard.
+ */
+internal fun identifierDialogProperties(compact: Boolean) =
+    DialogProperties(usePlatformDefaultWidth = !compact, decorFitsSystemWindows = !compact)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
