@@ -23,19 +23,16 @@ sealed interface RequestPresentation {
     data class Picker(val request: PickDocumentRequest) : RequestPresentation
 
     /**
-     * Not presented yet: its dialog comes with the M5 tools, so it's
-     * cancelled at once. M5 moves each kind to [Dialog] and adds the dialog
-     * to `SessionRequests`.
+     * Not presented: cancelled at once. Every kind has a UI since M5; kept
+     * for a request type a newer core may add.
      */
     data class NotYetSupported(val request: SessionRequest) : RequestPresentation
 }
 
 /** Which presentation [request] gets. */
 fun presentationOf(request: SessionRequest): RequestPresentation = when (request) {
-    is ConfirmDiscardRequest -> RequestPresentation.Dialog(request)
+    is ConfirmDiscardRequest, is CapoChoiceRequest, is InsertDirectiveRequest -> RequestPresentation.Dialog(request)
     is PickDocumentRequest -> RequestPresentation.Picker(request)
-    // M5: Transpose/Capo and Insert directive dialogs.
-    is CapoChoiceRequest, is InsertDirectiveRequest -> RequestPresentation.NotYetSupported(request)
 }
 
 /**
@@ -51,12 +48,15 @@ fun presentationOf(request: SessionRequest): RequestPresentation = when (request
  * @param adopt Persists a picked document's grant and describes it
  *   (`SafDocumentStore.adopt`); provider I/O.
  * @param runOffMain Runs provider I/O away from the main thread.
+ * @param onDiscardAnswered Told every answer to the unsaved-changes question,
+ *   before it is sent (`CloseCoordinator`).
  */
 class RequestController(
     private val pending: StateFlow<SessionRequest?>,
     private val commands: SessionCommands,
     private val adopt: (uri: String, mode: PickMode) -> DocumentRef,
     private val runOffMain: (block: () -> Unit) -> Unit,
+    private val onDiscardAnswered: (DiscardChoice) -> Unit = {},
 ) {
     private var launchedPickerId: Int? = null
 
@@ -107,12 +107,22 @@ class RequestController(
     }
 
     /** The unsaved-changes dialog's answer; null (dismissed) cancels like Cancel. */
-    fun answerDiscard(request: ConfirmDiscardRequest, choice: DiscardChoice?) =
-        commands.respondDiscard(request.requestId, choice ?: DiscardChoice.CANCEL)
+    fun answerDiscard(request: ConfirmDiscardRequest, choice: DiscardChoice?) {
+        val answer = choice ?: DiscardChoice.CANCEL
+        onDiscardAnswered(answer)
+        commands.respondDiscard(request.requestId, answer)
+    }
+
+    /** Suggest Capo's voicing ([value], an option's value), or null for Cancel. */
+    fun answerCapo(request: CapoChoiceRequest, value: String?) = commands.respondCapo(request.requestId, value)
+
+    /** An Insert directive dialog's fields, or null for Cancel; the session checks them. */
+    fun answerDirective(request: InsertDirectiveRequest, fields: Map<String, String>?) =
+        commands.respondDirective(request.requestId, fields)
 
     /** Cancel [request] (the user dismissed it, or there's no UI for it). */
     fun cancel(request: SessionRequest) = when (request) {
-        is ConfirmDiscardRequest -> commands.respondDiscard(request.requestId, DiscardChoice.CANCEL)
+        is ConfirmDiscardRequest -> answerDiscard(request, DiscardChoice.CANCEL)
         is PickDocumentRequest -> commands.respondPick(request.requestId, null)
         is CapoChoiceRequest -> commands.respondCapo(request.requestId, null)
         is InsertDirectiveRequest -> commands.respondDirective(request.requestId, null)

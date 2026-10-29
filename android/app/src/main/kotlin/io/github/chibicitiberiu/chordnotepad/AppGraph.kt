@@ -19,6 +19,7 @@ import io.github.chibicitiberiu.chordnotepad.lifecycle.PlaybackAudioPolicy
 import io.github.chibicitiberiu.chordnotepad.ui.ErrorQueue
 import io.github.chibicitiberiu.chordnotepad.ui.editor.EditorController
 import io.github.chibicitiberiu.chordnotepad.ui.editor.bind
+import io.github.chibicitiberiu.chordnotepad.ui.requests.CloseCoordinator
 import io.github.chibicitiberiu.chordnotepad.ui.requests.RequestController
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -62,12 +63,20 @@ class AppGraph(context: Context) {
     /** Commands to the session. */
     val commands: SessionCommands get() = pyHost.commands
 
+    /** Finishing the activity when Back is approved, and what that leaves behind. */
+    val close = CloseCoordinator(resetSession = {
+        // A draft restore is refused while a song plays.
+        commands.stop()
+        commands.restoreDraft("", null, false)
+    })
+
     /** Answers the session's requests (app-scoped: a rotation loses no picker result). */
     val requests = RequestController(
         pending = repository.pendingRequest,
         commands = pyHost.commands,
         adopt = documents::adopt,
         runOffMain = { block -> scope.launch(Dispatchers.IO) { block() } },
+        onDiscardAnswered = close::onDiscardAnswered,
     )
 
     /** The editor's text and highlighting (app-scoped: survives rotation). */
@@ -95,6 +104,7 @@ class AppGraph(context: Context) {
         editorText = editor::currentText
         editor.bind(scope, repository)
         errorQueue.bind(scope, repository.errors)
+        close.bind(scope, repository.closeApproved)
         ProcessLifecycleOwner.get().lifecycle.addObserver(AppLifecycleHooks(commands))
         PlaybackAudioPolicy(AndroidAudioFocusGateway(app), AndroidNoisyGateway(app), commands::pause)
             .bind(scope, repository.playback)

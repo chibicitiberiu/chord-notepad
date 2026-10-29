@@ -62,9 +62,9 @@ class RequestControllerTest {
         val pick = PickDocumentRequest(2, PickMode.OPEN, "")
         assertEquals(RequestPresentation.Picker(pick), presentationOf(pick))
         val capo = CapoChoiceRequest(3, listOf(MenuItem("Piano", "piano")), "piano")
-        assertEquals(RequestPresentation.NotYetSupported(capo), presentationOf(capo))
+        assertEquals(RequestPresentation.Dialog(capo), presentationOf(capo))
         val directive = InsertDirectiveRequest(4, "bpm", emptyList(), "american")
-        assertEquals(RequestPresentation.NotYetSupported(directive), presentationOf(directive))
+        assertEquals(RequestPresentation.Dialog(directive), presentationOf(directive))
     }
 
     @Test
@@ -164,16 +164,31 @@ class RequestControllerTest {
     }
 
     @Test
-    fun `capo and directive requests are cancelled until M5`() {
+    fun `capo and directive requests wait for their dialogs, then answer`() {
         val c = controller()
-        pending.value = CapoChoiceRequest(20, listOf(MenuItem("Standard", "guitar:standard")), "guitar:standard")
-        assertNull(c.onPending(pending.value))
-        assertResponded("""{"request_id": 20, "value": null}""")
+        val capo = CapoChoiceRequest(20, listOf(MenuItem("Standard", "guitar:standard")), "guitar:standard")
+        pending.value = capo
+        assertNull(c.onPending(capo)) // a dialog: nothing sent yet
+        assertTrue(sent.isEmpty())
+        c.answerCapo(capo, "guitar:standard")
+        assertResponded("""{"request_id": 20, "value": "guitar:standard"}""")
         assertNull(pending.value)
-        pending.value = InsertDirectiveRequest(21, "label", listOf("verse"), "american")
-        assertNull(c.onPending(pending.value))
-        assertResponded("""{"request_id": 21, "value": null}""")
+
+        val label = InsertDirectiveRequest(21, "label", listOf("verse"), "american")
+        pending.value = label
+        assertNull(c.onPending(label))
+        assertTrue(sent.isEmpty())
+        c.answerDirective(label, mapOf("label" to "chorus"))
+        assertResponded("""{"request_id": 21, "value": {"label": "chorus"}}""")
         assertNull(pending.value)
+
+        // Cancel answers null.
+        pending.value = CapoChoiceRequest(22, capo.options, capo.default)
+        c.answerCapo(pending.value as CapoChoiceRequest, null)
+        assertResponded("""{"request_id": 22, "value": null}""")
+        pending.value = InsertDirectiveRequest(23, "bpm", emptyList(), "american")
+        c.answerDirective(pending.value as InsertDirectiveRequest, null)
+        assertResponded("""{"request_id": 23, "value": null}""")
     }
 
     @Test

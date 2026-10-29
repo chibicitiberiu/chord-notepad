@@ -53,14 +53,22 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.github.chibicitiberiu.chordnotepad.AppGraph
 import io.github.chibicitiberiu.chordnotepad.R
+import io.github.chibicitiberiu.chordnotepad.about.BuildInfo
 import io.github.chibicitiberiu.chordnotepad.bridge.DocumentState
 import io.github.chibicitiberiu.chordnotepad.bridge.HostStatus
 import io.github.chibicitiberiu.chordnotepad.bridge.PlayAction
+import io.github.chibicitiberiu.chordnotepad.bridge.ScreenCommands
+import io.github.chibicitiberiu.chordnotepad.ui.about.APP_LICENCE_ID
+import io.github.chibicitiberiu.chordnotepad.ui.about.AboutScreen
+import io.github.chibicitiberiu.chordnotepad.ui.about.LicenceDetailScreen
+import io.github.chibicitiberiu.chordnotepad.ui.about.LicencesScreen
+import io.github.chibicitiberiu.chordnotepad.ui.about.Pages
 import io.github.chibicitiberiu.chordnotepad.ui.chordsheet.ChordSheetSplit
 import io.github.chibicitiberiu.chordnotepad.ui.editor.ChordEditor
 import io.github.chibicitiberiu.chordnotepad.ui.icons.AppIcons
 import io.github.chibicitiberiu.chordnotepad.ui.requests.SessionRequests
 import io.github.chibicitiberiu.chordnotepad.ui.toolbar.SessionToolbar
+import io.github.chibicitiberiu.chordnotepad.ui.tools.ToolActions
 
 // The desktop transport icons' pastel tints (main_window.py).
 private val PlayGreen = Color(0xFF5FAF63)
@@ -71,28 +79,65 @@ private val StopCoral = Color(0xFFF08080)
 private val CompactWidth = 600.dp
 
 /**
- * The main screen: app bar (title, transport, menu), toolbar, editor and
- * status line, over the session's states. One adaptive layout: on narrow
- * screens the toolbar scrolls sideways and can be hidden.
+ * The main screen, or the About pages over it (Help › About). The About
+ * pages replace the editor rather than cover it, so nothing underneath keeps
+ * the keyboard focus. Back closes the app (asking about unsaved changes) from
+ * the editor, and goes up one page from About.
  */
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun MainScreen(graph: AppGraph, onCloseApproved: () -> Unit) {
-    val repo = graph.repository
     val actions = remember(graph) { MainActions(graph.commands, graph.editor) }
+    val document by graph.repository.document.collectAsState()
+    val snackbars = remember { SnackbarHostState() }
+    var page by rememberSaveable { mutableStateOf(Pages.MAIN) }
+
+    // CloseApproved goes through the app-scoped CloseCoordinator, so a close
+    // approved while the activity is being recreated still finishes the new one.
+    val finish by graph.close.finishRequested.collectAsState()
+    LaunchedEffect(finish) {
+        if (finish) {
+            graph.close.consumeFinish()
+            onCloseApproved()
+        }
+    }
+    // Android has no File > Exit: Back is the desktop's window close. With
+    // unsaved changes it asks first (request_close -> the unsaved-changes
+    // dialog -> CloseApproved -> finish); otherwise the system handles it.
+    BackHandler(enabled = page == Pages.MAIN && document?.isModified == true) {
+        graph.close.onCloseRequested()
+        actions.requestClose()
+    }
+    BackHandler(enabled = page != Pages.MAIN) { page = Pages.parent(page) }
+
+    when {
+        page == Pages.MAIN -> MainContent(graph, actions, snackbars, onAbout = { page = Pages.ABOUT })
+        page == Pages.ABOUT -> AboutScreen(
+            info = BuildInfo.current,
+            onBack = { page = Pages.MAIN },
+            onOpenLicence = { page = Pages.detail(APP_LICENCE_ID) },
+            onOpenLicences = { page = Pages.LICENCES },
+        )
+        page == Pages.LICENCES -> LicencesScreen(onBack = { page = Pages.ABOUT }, onOpen = { page = Pages.detail(it) })
+        else -> Pages.detailId(page)?.let { id ->
+            LicenceDetailScreen(id, onBack = { page = Pages.parent(page) })
+        }
+    }
+
+    SessionRequests(graph.repository.pendingRequest, graph.requests, graph.repository)
+    ErrorPresenter(graph.errorQueue, snackbars)
+}
+
+/** The app bar, toolbar, editor, chord sheet and status line over the session's states. */
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
+@Composable
+private fun MainContent(graph: AppGraph, actions: MainActions, snackbars: SnackbarHostState, onAbout: () -> Unit) {
+    val repo = graph.repository
     val host by repo.hostStatus.collectAsState()
     val document by repo.document.collectAsState()
     val editorState by repo.editor.collectAsState()
     val toolbar by repo.toolbar.collectAsState()
     val status by repo.status.collectAsState()
-    val snackbars = remember { SnackbarHostState() }
     var toolbarShown by rememberSaveable { mutableStateOf(true) }
-
-    LaunchedEffect(Unit) { repo.closeApproved.collect { onCloseApproved() } }
-    // Android has no File > Exit: Back is the desktop's window close. With
-    // unsaved changes it asks first (request_close -> the unsaved-changes
-    // dialog -> CloseApproved -> finish); otherwise the system handles it.
-    BackHandler(enabled = document?.isModified == true, onBack = actions::requestClose)
 
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val compact = maxWidth < CompactWidth
@@ -127,6 +172,8 @@ fun MainScreen(graph: AppGraph, onCloseApproved: () -> Unit) {
                                 graph.editor.state.edit { selection = TextRange(0, length) }
                             },
                             compact = compact,
+                            onAbout = onAbout,
+                            tools = remember(graph) { ToolActions(graph.commands, ScreenCommands(graph.pyHost), graph.editor) },
                         )
                     },
                 )
@@ -163,9 +210,6 @@ fun MainScreen(graph: AppGraph, onCloseApproved: () -> Unit) {
             }
         }
     }
-
-    SessionRequests(repo.pendingRequest, graph.requests)
-    ErrorPresenter(graph.errorQueue, snackbars)
 }
 
 /** The document's name with the desktop's unsaved-changes marker (`song.txt*`). */

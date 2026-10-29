@@ -48,7 +48,10 @@ object AppIcons {
     /** Back from a submenu. */
     val ChevronLeft: ImageVector = icon("ChevronLeft", "M15.41,7.41L14,6l-6,6 6,6 1.41,-1.41L10.83,12z")
 
-    /** A dropdown. */
+    /** Back from a screen. */
+    val ArrowBack: ImageVector = icon("ArrowBack", "M20,11H7.83l5.59,-5.59L12,4l-8,8 8,8 1.41,-1.41L7.83,13H20v-2z")
+
+    /** Drop-down caret. */
     val ArrowDropDown: ImageVector = icon("ArrowDropDown", "M7,10l5,5 5,-5z")
 
     /** The metronome: an outlined pyramid, its base filled, and the pendulum. */

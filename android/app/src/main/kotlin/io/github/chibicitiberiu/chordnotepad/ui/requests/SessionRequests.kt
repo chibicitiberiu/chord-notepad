@@ -8,27 +8,47 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.res.stringResource
 import io.github.chibicitiberiu.chordnotepad.R
+import io.github.chibicitiberiu.chordnotepad.bridge.CapoChoiceRequest
 import io.github.chibicitiberiu.chordnotepad.bridge.ConfirmDiscardRequest
 import io.github.chibicitiberiu.chordnotepad.bridge.DiscardChoice
+import io.github.chibicitiberiu.chordnotepad.bridge.InsertDirectiveRequest
+import io.github.chibicitiberiu.chordnotepad.bridge.SessionRepository
 import io.github.chibicitiberiu.chordnotepad.bridge.SessionRequest
+import io.github.chibicitiberiu.chordnotepad.ui.tools.CapoDialog
+import io.github.chibicitiberiu.chordnotepad.ui.tools.InsertDirectiveDialog
+import io.github.chibicitiberiu.chordnotepad.ui.tools.keyChoices
 import kotlinx.coroutines.flow.StateFlow
 
 /**
  * The dialogs for the session's pending request. The request is app-scoped
  * state, so a dialog comes back after a rotation until it's answered.
- * Pickers are launched by the activity ([RequestPickers]); requests without
- * a UI yet are cancelled there ([RequestPresentation.NotYetSupported]).
+ * Pickers are launched by the activity ([RequestPickers]).
+ *
+ * @param repo The states the Insert directive dialogs choose from (the key
+ *   lists and beat units of `SettingsState`, the toolbar's keys as a fallback).
  */
 @Composable
-fun SessionRequests(pending: StateFlow<SessionRequest?>, controller: RequestController) {
+fun SessionRequests(pending: StateFlow<SessionRequest?>, controller: RequestController, repo: SessionRepository) {
     val request by pending.collectAsState()
     val dialog = request?.let(::presentationOf) as? RequestPresentation.Dialog ?: return
     when (val r = dialog.request) {
         is ConfirmDiscardRequest -> ConfirmDiscardDialog { controller.answerDiscard(r, it) }
-        // M5 adds the Capo choice and Insert directive dialogs here.
+        is CapoChoiceRequest -> CapoDialog(r) { controller.answerCapo(r, it) }
+        is InsertDirectiveRequest -> {
+            val settings by repo.settings.collectAsState()
+            val toolbar by repo.toolbar.collectAsState()
+            InsertDirectiveDialog(
+                request = r,
+                keys = keyChoices(r.notation, settings?.americanKeys, settings?.europeanKeys, toolbar?.keyOptions),
+                units = settings?.timeSignatureUnits?.takeIf { it.isNotEmpty() } ?: DEFAULT_UNITS,
+            ) { controller.answerDirective(r, it) }
+        }
         else -> Unit
     }
 }
+
+// The desktop dialog's units, until SettingsState arrives (it's sent at start).
+private val DEFAULT_UNITS = listOf(1, 2, 4, 8, 16)
 
 /**
  * The desktop's unsaved-changes question (`formatting.CONFIRM_DISCARD_*`),

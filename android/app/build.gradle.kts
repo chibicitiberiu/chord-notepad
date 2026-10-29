@@ -9,6 +9,7 @@ plugins {
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.chaquopy)
+    alias(libs.plugins.aboutlibraries)
 }
 
 // ---------------------------------------------------------------------------
@@ -19,6 +20,15 @@ plugins {
 val repoRoot: Directory = rootProject.layout.projectDirectory.dir("..")
 val appVersionName: String = providers.fileContents(repoRoot.file("VERSION")).asText.get().trim()
 val appVersionCode = 4010
+
+// Shown in About: the commit the build was made from (never a date, so builds
+// stay reproducible). "unknown" outside a git checkout; -PcnCommit=<id> sets it.
+val appCommit: String = providers.gradleProperty("cnCommit").orElse(
+    providers.exec {
+        commandLine("git", "-C", repoRoot.asFile.path, "rev-parse", "--short=9", "HEAD")
+        isIgnoreExitValue = true
+    }.standardOutput.asText.map { it.trim().ifEmpty { "unknown" } },
+).get()
 
 // ABIs: arm64-v8a (phones) + x86_64 (emulator). `-PcnAbis=x86_64` builds one.
 val appAbis: List<String> = providers.gradleProperty("cnAbis")
@@ -70,6 +80,7 @@ android {
         targetSdk = 36
         versionCode = appVersionCode
         versionName = appVersionName
+        buildConfigField("String", "COMMIT", "\"$appCommit\"")
         ndk {
             abiFilters += appAbis
         }
@@ -91,6 +102,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 
     testOptions {
@@ -102,6 +114,9 @@ android {
                 // The bridge contract (step 14 commits it; the test skips
                 // while it is missing). See docs/ANDROID.md, "Bridge contract".
                 it.systemProperty("cn.bridgeSchema", bridgeSchemaPath)
+                // The licence data the app bundles (AboutLibrariesTest, LicenceCatalogTest).
+                it.systemProperty("cn.licensesDir", file("src/main/assets/licenses").path)
+                it.systemProperty("cn.requirements", pythonRequirements.asFile.path)
             }
         }
     }
@@ -432,4 +447,29 @@ dependencies {
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
+}
+
+// ---------------------------------------------------------------------------
+// Open source licences: AboutLibraries' plugin turns the Maven dependencies'
+// POM data into aboutlibraries.json at build time (a raw resource). Offline:
+// no remote licence or funding lookups, so the build needs no network beyond
+// the Maven artifacts themselves. Everything the plugin can't see (Python,
+// native libraries, packages, the SoundFont) is in src/main/licenses
+// (docs/ANDROID.md, "Licences screen").
+// ---------------------------------------------------------------------------
+aboutLibraries {
+    offlineMode = true
+    collect {
+        fetchRemoteLicense = false
+        fetchRemoteFunding = false
+    }
+}
+
+// The unit tests check the generated Maven licence data against the texts we
+// bundle, so they run after the plugin task and get its output path.
+val aboutLibrariesJsonPath: String =
+    layout.buildDirectory.file("generated/aboutLibraries/debug/res/raw/aboutlibraries.json").get().asFile.path
+tasks.matching { it.name == "testDebugUnitTest" }.configureEach {
+    dependsOn(tasks.matching { it.name == "prepareLibraryDefinitionsDebug" })
+    (this as Test).systemProperty("cn.aboutLibrariesJson", aboutLibrariesJsonPath)
 }

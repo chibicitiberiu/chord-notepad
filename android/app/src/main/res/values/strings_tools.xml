@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- ⋮ › Tools and its dialogs (M5). Names and paths as help/*.rst tells
+     Android users (⋮ → Tools → Transpose, Suggest Capo, Insert, Convert
+     notation, Identify Chord); dialog texts as the desktop's. -->
+<resources>
+    <string name="menu_tools">Tools</string>
+    <string name="menu_identify_chord">Identify Chord…</string>
+    <string name="menu_insert">Insert</string>
+    <string name="menu_insert_bpm">BPM/Tempo Change…</string>
+    <string name="menu_insert_time">Time Signature Change…</string>
+    <string name="menu_insert_key">Key Change…</string>
+    <string name="menu_insert_label">Label…</string>
+    <string name="menu_insert_loop">Loop…</string>
+    <string name="menu_transpose">Transpose…</string>
+    <string name="menu_suggest_capo">Suggest Capo…</string>
+    <string name="menu_convert">Convert notation</string>
+    <string name="menu_convert_american">Convert to American Notation</string>
+    <string name="menu_convert_european">Convert to European Notation</string>
+
+    <!-- Transpose (ui/dialogs/transpose_dialog.py) -->
+    <string name="transpose_title">Transpose</string>
+    <string name="transpose_selection">Transpose selection.</string>
+    <string name="transpose_whole_song">Transpose whole song.</string>
+    <string name="transpose_hint">Shift every chord by the chosen number of semitones (positive = up, negative = down).</string>
+    <string name="transpose_semitones">Semitones</string>
+    <string name="transpose_down">One semitone down</string>
+    <string name="transpose_up">One semitone up</string>
+
+    <!-- Suggest Capo (ui/dialogs/capo_dialog.py) -->
+    <string name="capo_title">Suggest Capo</string>
+    <string name="capo_hint">Suggest a capo position for this song.\n\nChoose the fretboard voicing the suggestion should optimize for; the recommended capo makes those shapes easiest to play.</string>
+    <string name="capo_voicing">Voicing</string>
+
+    <!-- Insert directive dialogs (ui/dialogs/insert_directives.py) -->
+    <string name="insert_button">Insert</string>
+    <string name="insert_bpm_title">Insert BPM/Tempo Change</string>
+    <string name="insert_bpm_hint">Starting from this point, the tempo of playback changes to/by the given amount.\n\nValid formats:\n  • 110 - absolute change\n  • +20 - relative change\n  • 20% - relative change by percentage\n  • 2x - multiplier\n  • reset or original - reset back to initial BPM</string>
+    <string name="insert_bpm_field">BPM</string>
+    <string name="insert_time_title">Insert Time Signature Change</string>
+    <string name="insert_time_hint">Starting from this point, the time signature of playback changes to this value.</string>
+    <string name="insert_time_beats">Beats</string>
+    <string name="insert_time_unit">Unit</string>
+    <string name="insert_key_title">Insert Key Change</string>
+    <string name="insert_key_hint">Starting from this point, the key in which relative chords play will change.\n\nSelect the new key signature from the list below.</string>
+    <string name="insert_key_field">Key</string>
+    <string name="insert_label_title">Insert Label</string>
+    <string name="insert_label_hint">Inserts a label which can be used for making loops.\n\nEnter a unique label name (letters, numbers, and underscores only).</string>
+    <string name="insert_label_field">Label</string>
+    <string name="insert_loop_title">Insert Loop</string>
+    <string name="insert_loop_hint">Placed at the end of a loop.\n\nTo set the beginning of a loop, use a label directive (Tools → Insert → Label).\nUse \'@start\' as a special keyword for the beginning of the song.</string>
+    <string name="insert_loop_label">Label</string>
+    <string name="insert_loop_count">Count</string>
+    <string name="insert_loop_fewer">One repeat fewer</string>
+    <string name="insert_loop_more">One repeat more</string>
+
+    <!-- Chord identifier (ui/chord_identifier.py, Android wording from help/interface.rst) -->
+    <string name="identifier_title">Identify Chord</string>
+    <string name="identifier_close">Close</string>
+    <string name="identifier_hint">Tap keys on the piano or type notes below (e.g., C E G or C, E, G). Long-press a key to hear it without selecting it.</string>
+    <string name="identifier_notes">Notes</string>
+    <string name="identifier_clear">Clear</string>
+    <string name="identifier_candidates">Possible Chords</string>
+    <string name="identifier_insert">Insert</string>
+    <string name="identifier_keyboard">Piano keyboard, two octaves from C4</string>
+</resources>

@@ -29,9 +29,15 @@ import io.github.chibicitiberiu.chordnotepad.ui.menus.VoicingSheet
 import io.github.chibicitiberiu.chordnotepad.ui.menus.instrumentFamilies
 import io.github.chibicitiberiu.chordnotepad.ui.menus.recentEntries
 import io.github.chibicitiberiu.chordnotepad.ui.menus.voicingRows
+import io.github.chibicitiberiu.chordnotepad.ui.tools.ConvertPageItems
+import io.github.chibicitiberiu.chordnotepad.ui.tools.InsertPageItems
+import io.github.chibicitiberiu.chordnotepad.ui.tools.ToolActions
+import io.github.chibicitiberiu.chordnotepad.ui.tools.ToolPopup
+import io.github.chibicitiberiu.chordnotepad.ui.tools.ToolPopups
+import io.github.chibicitiberiu.chordnotepad.ui.tools.ToolsPageItems
 
 /** The submenus of the overflow menu (the desktop's menu bar, as far as M4 goes). */
-private enum class MenuPage { ROOT, FILE, RECENT, EDIT, VIEW, PLAYBACK, VOICING, INSTRUMENT, FAMILY }
+private enum class MenuPage { ROOT, FILE, RECENT, EDIT, VIEW, PLAYBACK, VOICING, INSTRUMENT, FAMILY, HELP, TOOLS, INSERT, CONVERT }
 
 /** What the overflow menu opened outside itself. */
 private enum class MenuPopup { NONE, VOICING_SHEET, INSTRUMENT_SHEET, FONT }
@@ -40,14 +46,17 @@ private enum class MenuPopup { NONE, VOICING_SHEET, INSTRUMENT_SHEET, FONT }
  * The app bar's overflow menu: File, Edit, View and Playback as on the
  * desktop, each a page of its own (Android menus don't cascade). On phones
  * ([compact]) Voicing and Instrument open bottom sheets instead of pages.
- * Tools and Help come with M5. There is no File › Exit: Back closes the
- * app, asking about unsaved changes first (`MainScreen`).
+ * Tools comes with M5; Help has About so far, with User Guide and Quick
+ * Start to join it. There is no File › Exit: Back closes the app, asking
+ * about unsaved changes first (`MainScreen`).
  *
  * @param repo The session's states the menus show.
  * @param canUndo Whether Edit › Undo does anything now.
  * @param canRedo Whether Edit › Redo does anything now.
  * @param onSelectAll Select the whole text in the editor.
  * @param compact Phone-sized window: pickers as bottom sheets.
+ * @param onAbout Open Help › About.
+ * @param tools What Tools does (its pages are in `ui/tools/ToolsMenu.kt`).
  */
 @Composable
 fun OverflowMenu(
@@ -57,6 +66,8 @@ fun OverflowMenu(
     canRedo: Boolean,
     onSelectAll: () -> Unit,
     compact: Boolean,
+    onAbout: () -> Unit,
+    tools: ToolActions,
 ) {
     val recent by repo.recentDocuments.collectAsState()
     val voicing by repo.voicingMenu.collectAsState()
@@ -67,6 +78,7 @@ fun OverflowMenu(
     var page by remember { mutableStateOf(MenuPage.ROOT) }
     var family by remember { mutableIntStateOf(0) }
     var popup by rememberSaveable { mutableStateOf(MenuPopup.NONE) }
+    var toolPopup by rememberSaveable { mutableStateOf(ToolPopup.NONE) }
     fun close() {
         open = false
         page = MenuPage.ROOT
@@ -78,6 +90,13 @@ fun OverflowMenu(
     fun show(p: MenuPopup) {
         close()
         popup = p
+    }
+    fun showTool(p: ToolPopup) {
+        close()
+        toolPopup = p
+    }
+    val toolRow: @Composable (String, Boolean, () -> Unit) -> Unit = { label, submenu, onClick ->
+        if (submenu) Submenu(label, onOpen = onClick) else Item(label, null, onClick)
     }
 
     Box {
@@ -91,6 +110,33 @@ fun OverflowMenu(
                     Submenu(stringResource(R.string.menu_edit)) { page = MenuPage.EDIT }
                     Submenu(stringResource(R.string.menu_view)) { page = MenuPage.VIEW }
                     Submenu(stringResource(R.string.menu_playback)) { page = MenuPage.PLAYBACK }
+                    Submenu(stringResource(R.string.menu_tools)) { page = MenuPage.TOOLS }
+                    // Settings (M5c) goes here: help/*.rst names it ⋮ → Settings.
+                    Submenu(stringResource(R.string.menu_help)) { page = MenuPage.HELP }
+                }
+                MenuPage.HELP -> {
+                    Back(stringResource(R.string.menu_help)) { page = MenuPage.ROOT }
+                    // M5 adds User Guide and Quick Start above About, as on the desktop.
+                    Item(stringResource(R.string.menu_about), null, run(onAbout))
+                }
+                MenuPage.TOOLS -> {
+                    Back(stringResource(R.string.menu_tools)) { page = MenuPage.ROOT }
+                    ToolsPageItems(
+                        tools = tools,
+                        row = toolRow,
+                        run = ::run,
+                        openInsert = { page = MenuPage.INSERT },
+                        openConvert = { page = MenuPage.CONVERT },
+                        show = ::showTool,
+                    )
+                }
+                MenuPage.INSERT -> {
+                    Back(stringResource(R.string.menu_insert)) { page = MenuPage.TOOLS }
+                    InsertPageItems(tools, toolRow, ::run)
+                }
+                MenuPage.CONVERT -> {
+                    Back(stringResource(R.string.menu_convert)) { page = MenuPage.TOOLS }
+                    ConvertPageItems(tools, toolRow, ::run)
                 }
                 MenuPage.FILE -> {
                     Back(stringResource(R.string.menu_file)) { page = MenuPage.ROOT }
@@ -180,6 +226,7 @@ fun OverflowMenu(
     }
 
     MenuPopups(popup, actions, repo) { popup = MenuPopup.NONE }
+    ToolPopups(toolPopup, tools, repo, compact) { toolPopup = ToolPopup.NONE }
 }
 
 /** The bottom sheets and the font dialog the menu opened; [onClose] when they're done. */

@@ -54,6 +54,8 @@
     <string name="menu_playback">Playback</string>
     <string name="menu_voicing">Voicing</string>
     <string name="menu_instrument">Instrument</string>
+    <string name="menu_help">Help</string>
+    <string name="menu_about">About Chord Notepad</string>
 
     <!-- Dialogs -->
     <string name="audio_error_title">Audio Error</string>
@@ -70,4 +72,31 @@
     <string name="font_monospace">Monospace</string>
     <string name="font_sans">Sans</string>
     <string name="font_serif">Serif</string>
+
+    <!-- About and licences -->
+    <string name="about_title">About Chord Notepad</string>
+    <string name="about_description">A simple text editor for musicians with chord detection and playback</string>
+    <string name="about_version">Version</string>
+    <string name="about_build_type">Build type</string>
+    <string name="about_build_number">Build number</string>
+    <string name="about_commit">Commit</string>
+    <string name="about_copyright">© 2025–2026 Tiberiu Chibici</string>
+    <string name="about_license">GNU AGPL-3.0</string>
+    <string name="about_source">github.com/chibicitiberiu/chord-notepad</string>
+    <string name="about_licences">Open source licences</string>
+    <string name="about_open_failed">No app can open this link</string>
+    <string name="licences_title">Open source licences</string>
+    <string name="licences_intro">Chord Notepad is free software. It is built from the components below.</string>
+    <string name="licences_loading">Loading…</string>
+    <string name="licences_text_missing">The licence text could not be loaded.</string>
+    <string name="licences_group_app">This app</string>
+    <string name="licences_group_runtime">Python runtime</string>
+    <string name="licences_group_native">Audio libraries</string>
+    <string name="licences_group_python">Python packages</string>
+    <string name="licences_group_data">Sounds and graphics</string>
+    <string name="licences_group_android">Android libraries</string>
+    <string name="licences_copyright">Copyright %1$s</string>
+    <string name="licences_website">Website</string>
+    <string name="licences_source">Source code</string>
+    <string name="licences_back">Back</string>
 </resources>

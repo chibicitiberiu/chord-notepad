@@ -752,6 +752,53 @@ wheelhouse with `--require-hashes`, runs `./gradlew testDebugUnitTest lint
 assembleDebug`, then `check_16k.py`, `zipalign -c -P 16` and
 `check_manifest.py` on the debug APK.
 
+## About and the licences screen
+
+Help > About shows the name, `versionName` (the `VERSION` file), the build type,
+`versionCode`, the git commit (`BuildConfig.COMMIT`, from `git rev-parse`; set
+`-PcnCommit=<id>` outside a checkout) and no date, so builds stay reproducible.
+Links open only when tapped, through an `ACTION_VIEW` intent; the app has no
+INTERNET permission.
+
+**Open source licences** has three sources:
+
+- *Maven libraries* (AndroidX, Kotlin, ...): the AboutLibraries Gradle plugin
+  (`com.mikepenz.aboutlibraries.plugin.android`, build time only, no runtime
+  dependency) writes `res/raw/aboutlibraries.json`. `offlineMode` is on, so it
+  reads POM data only and needs no network beyond the Maven artifacts. It adds
+  no permission and no Play services (`tools/check_manifest.py` passes).
+- *Everything it can't see*: `app/src/main/assets/licenses/components.json`
+  (Python, Chaquopy and the libraries it bundles, the audio libraries, the
+  Python packages, the SoundFont, Bravura, the app itself). Each entry names
+  its licence texts (`texts/<name>.txt`, verbatim upstream files) and, for
+  LGPL and MPL components, where the source is.
+- *Texts*: `assets/licenses/texts/`, produced by `tools/gather_licenses.py`
+  (wheels from the wheelhouse, the native submodules, this repo, distribution
+  licence directories; `--check` verifies). Three texts are kept by hand (see
+  `ONE_OFF` in the script).
+
+To update: bump a pinned Python package in `requirements.txt`, then change its
+`version` in `components.json` (a unit test fails until they agree) and run
+`gather_licenses.py`; for a native submodule or a Chaquopy bump, check the
+version strings against the APK (`strings` on the `.so` files) and edit the
+entry. A new bundled component needs an entry, with a text file added to the
+script's table. `LicencesTest` checks that every entry parses, every named text
+exists, no text is unused, the Python entries match `requirements.txt`, and
+that every Maven licence id the plugin exports has a text. The Maven list
+changes with dependencies; the rest only when you edit these files.
+
+Note: pyFluidSynth's metadata says MIT but its LICENSE file and source header
+are LGPL 2.1; it is listed as LGPL.
+
+### Closing with Back
+
+Back on the editor with unsaved changes asks (`request_close`). "Don't save"
+leaves the session with the discarded text, so `CloseCoordinator` (app-scoped)
+sends `stop` and `restore_draft("", null, false)` before the activity finishes,
+and reopening shows a fresh Untitled document. It also turns the non-replaying
+`CloseApproved` event into a `finishRequested` state, so a close approved
+during a rotation still finishes the new activity once.
+
 ## Natives from source and offline packages (M6 groundwork)
 
 **Date:** 2026-10-29. Nothing in a default build now comes from a prebuilt
