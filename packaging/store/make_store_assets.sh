@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Render the Microsoft Store listing images and the Snap Store banner.
+# Render the Microsoft Store listing images, the Snap Store banner and the
+# Google Play icon and feature graphic.
 #
 # Usage: packaging/store/make_store_assets.sh [photo.jpg] [out_dir]
 #
@@ -79,5 +80,23 @@ magick "$tmp/icon-banner.png" \( "$tmp/title-banner.png" -background none -gravi
   -background none -gravity center +append "$tmp/row-banner.png"
 magick "$tmp/banner-bg.png" "$tmp/row-banner.png" -gravity center -composite \
   -quality 90 "$out/snap-banner-3000x1000.jpg"
+
+# Google Play: 512 px icon. Play rounds the corners itself, so this is the
+# full square: the notepad on the launcher icon's cream background
+# (android/tools/make_launcher_icons.py), a little larger than in the
+# adaptive icon since no circular mask applies.
+magick -size 512x512 xc:'#FDF0EB' \
+  \( -background none -density 2400 "$svg" -trim -resize 340x340 \) \
+  -gravity center -composite -alpha off "$out/play-icon-512.png"
+
+# Google Play feature graphic, 1024x500: icon beside the name, like the Snap
+# banner. Play wants JPEG or 24-bit PNG without alpha.
+background 1024 500 "$tmp/feature-bg.png"
+icon 190 "$tmp/icon-feature.png"
+title 'Chord Notepad' 88 "$tmp/title-feature.png"
+magick "$tmp/icon-feature.png" \( "$tmp/title-feature.png" -background none -gravity west -splice 34x0 \) \
+  -background none -gravity center +append "$tmp/row-feature.png"
+magick "$tmp/feature-bg.png" "$tmp/row-feature.png" -gravity center -composite \
+  -alpha off -quality 92 "$out/play-feature-1024x500.jpg"
 
 echo "Wrote: $(ls "$out" | tr '\n' ' ')"

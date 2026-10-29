@@ -1,0 +1,32 @@
+# Google Play store listing (en-US). Paste each section into Play Console >
+# Grow users > Store presence > Main store listing. Limits: title 30, short
+# description 80, full description 4000 characters (checked by count_listing.py).
+
+## Title
+Chord Notepad
+
+## Short description
+Write chords above your lyrics and hear them played, voiced like a musician.
+
+## Full description
+Chord Notepad is a text editor for musicians. Type chord symbols above your lyrics; the app recognises them, highlights them and plays them back, voiced the way a pianist or guitarist would play them.
+
+<b>Writing (Edit mode)</b>
+• American (C, Am, Bb7), European (Do, Re, Mi) and Roman numeral (I, IV, V7) notation, from triads to slash chords and altered jazz chords
+• Directives for tempo, time signature, key, capo, sections and repeats, such as {bpm: 90}, {time: 3/4}, {key: G} and {loop: verse 2}
+• Transpose a song or a selection, convert between American and European notation, identify a chord from its notes, and get a capo suggestion for guitar
+
+<b>Playing (Play mode)</b>
+• Tap a chord to hear it, or play the song from the playhead while each chord lights up as it sounds
+• Piano voicings that move smoothly from chord to chord, playable guitar fingerings in several tunings, and ensemble voicings for choir or strings; edit them or create your own
+• 128 General MIDI instruments, a metronome, and playback speed from 25% to 400%
+• A chord sheet shows the voiced chords as a piano roll, a staff, chord boxes or tab
+
+<b>Files and privacy</b>
+• Songs are plain text files, opened and saved through the Android file picker (local storage or cloud providers); songs can be exported as MIDI files
+• No account, no ads and no internet permission; your songs stay on your device
+
+Chord Notepad is free software under the GNU AGPL-3.0. Buying it here supports its development. The source code and free builds for Android, Windows, macOS and Linux are at https://github.com/chibicitiberiu/chord-notepad
+
+## Release notes (first release)
+First Android release: Edit and Play modes, chord playback with voice-led piano, guitar and ensemble voicings, a chord sheet (piano roll, staff, chord boxes, tab), transpose, capo suggestions, MIDI export, light and dark themes.
