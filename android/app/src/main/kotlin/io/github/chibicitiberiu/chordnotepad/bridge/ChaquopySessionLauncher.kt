@@ -31,6 +31,9 @@ private class ChaquopySessionHandle(private val handle: PyObject) : SessionHandl
         handle.callAttr("submit", command, argsJson)
     }
 
+    override fun chordSheetBuffer(height: Float): ByteArray? =
+        handle.callAttr("chord_sheet_buffer", height)?.use { it.toJava(ByteArray::class.java) }
+
     override fun shutdown() {
         handle.callAttr("shutdown")
         handle.close()

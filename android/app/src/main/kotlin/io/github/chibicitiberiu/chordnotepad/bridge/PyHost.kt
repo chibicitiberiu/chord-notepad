@@ -3,6 +3,7 @@ package io.github.chibicitiberiu.chordnotepad.bridge
 import android.util.Log
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.asCoroutineDispatcher
+import kotlinx.coroutines.withContext
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
@@ -70,6 +71,21 @@ class PyHost(
                 Log.e(TAG, "Submitting $command failed", e)
                 repository.publish(UnexpectedError("Command $command failed: $e", context = "bridge"))
             }
+        }
+    }
+
+    /**
+     * The chord sheet's op buffer for a strip [height] dp tall, packed by
+     * Python on the bridge thread (ordered with commands; 10-40 ms on the
+     * emulator). Null without a session, without a rendered song, or when
+     * packing failed (Python reports that as an `UnexpectedError`).
+     */
+    suspend fun chordSheetBuffer(height: Float): ByteArray? = withContext(dispatcher) {
+        try {
+            handle?.chordSheetBuffer(height)
+        } catch (e: Exception) {
+            Log.e(TAG, "chord_sheet_buffer failed", e)
+            null
         }
     }
 

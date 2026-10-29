@@ -1,0 +1,112 @@
+{
+ "background": "#fbfbf8",
+ "byte_length": 6547,
+ "content": {
+  "coord_sum": 151661.75687599182,
+  "count": 215,
+  "first": {
+   "fill": "#b9c2c7",
+   "op": "line",
+   "points": [
+    [
+     0.0,
+     27.094499588012695
+    ],
+    [
+     1123.56005859375,
+     27.094499588012695
+    ]
+   ],
+   "tags": [
+    "strings"
+   ],
+   "width": 1.0
+  },
+  "histogram": {
+   "line": 20,
+   "rect": 90,
+   "text": 105
+  },
+  "last": {
+   "anchor": "center",
+   "bold": false,
+   "fill": "#22323a",
+   "op": "text",
+   "size": 8.0,
+   "tags": [
+    "slot:14"
+   ],
+   "text": "0",
+   "x": 1081.572021484375,
+   "y": 27.094499588012695
+  },
+  "tag_count": 215
+ },
+ "content_height": 110.0,
+ "content_width": 1123.56005859375,
+ "first_slot": [
+  0,
+  12.0,
+  79.96800231933594
+ ],
+ "gutter_runs": [],
+ "gutter_variants": [],
+ "gutter_width": 0.0,
+ "height": 110.0,
+ "highlight": "#ffe58a",
+ "lane": {
+  "coord_sum": 11373.704223632812,
+  "count": 16,
+  "first": {
+   "fill": "#c2ccd6",
+   "op": "line",
+   "points": [
+    [
+     0.0,
+     19.5
+    ],
+    [
+     1123.56005859375,
+     19.5
+    ]
+   ],
+   "tags": [
+    "marker-lane"
+   ],
+   "width": 1.0
+  },
+  "histogram": {
+   "line": 5,
+   "rect": 7,
+   "text": 4
+  },
+  "last": {
+   "anchor": "w",
+   "bold": false,
+   "fill": "#2a333a",
+   "op": "text",
+   "size": 8.0,
+   "tags": [
+    "marker-lane",
+    "marker:4",
+    "marker:5",
+    "marker:6"
+   ],
+   "text": "3/4 \u00b7 Key C \u00b7 outro",
+   "x": 950.6320190429688,
+   "y": 10.0
+  },
+  "tag_count": 37
+ },
+ "lane_height": 20.0,
+ "last_slot": [
+  14,
+  1051.583984375,
+  59.97600173950195
+ ],
+ "slot_count": 15,
+ "slot_x_sum": 8076.839996337891,
+ "string_count": 58,
+ "view_id": "tab",
+ "zoom": 0.8330000042915344
+}

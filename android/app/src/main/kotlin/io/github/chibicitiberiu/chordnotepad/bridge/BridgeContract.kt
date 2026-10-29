@@ -7,6 +7,7 @@ package io.github.chibicitiberiu.chordnotepad.bridge
 //         audio_options: dict) -> SessionHandle
 //   SessionHandle.submit(command: str, args_json: str) -> None   # enqueue only
 //   SessionHandle.shutdown() -> None
+//   SessionHandle.chord_sheet_buffer(height: float) -> Optional[bytes]
 //
 // Threading: Kotlin calls start/submit/shutdown only from PyHost's bridge
 // thread, never from Main. Python calls EventSink and DocumentStoreBridge on
@@ -39,6 +40,13 @@ interface SessionHandle {
 
     /** Stop the session thread and release audio. */
     fun shutdown()
+
+    /**
+     * The active chord-sheet view packed as draw ops (docs/ANDROID.md, "Chord
+     * sheet op buffer") for a strip [height] dp tall, or null without a
+     * rendered song. Packs on the calling thread (the bridge thread).
+     */
+    fun chordSheetBuffer(height: Float): ByteArray? = null
 }
 
 /**

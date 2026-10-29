@@ -1,0 +1,107 @@
+{
+ "background": "#fbfbf8",
+ "byte_length": 76358,
+ "content": {
+  "coord_sum": 34200355.5143404,
+  "count": 2600,
+  "first": {
+   "anchor": "center",
+   "bold": true,
+   "fill": "#22323a",
+   "op": "text",
+   "size": 14.0,
+   "tags": [
+    "slot:0"
+   ],
+   "text": "G",
+   "x": 70.51229858398438,
+   "y": 14.300000190734863
+  },
+  "histogram": {
+   "line": 1560,
+   "oval": 674,
+   "rect": 120,
+   "text": 246
+  },
+  "last": {
+   "fill": "#2a3d46",
+   "h": 10.334639549255371,
+   "op": "oval",
+   "outline": null,
+   "tags": [
+    "slot:132"
+   ],
+   "w": 10.334639549255371,
+   "width": 1.0,
+   "x": 16345.513671875,
+   "y": 56.252681732177734
+  },
+  "tag_count": 2600
+ },
+ "content_height": 130.0,
+ "content_width": 16383.1982421875,
+ "first_slot": [
+  0,
+  12.0,
+  117.02459716796875
+ ],
+ "gutter_runs": [],
+ "gutter_variants": [],
+ "gutter_width": 0.0,
+ "height": 130.0,
+ "highlight": "#ffe58a",
+ "lane": {
+  "coord_sum": 557775.40234375,
+  "count": 44,
+  "first": {
+   "fill": "#c2ccd6",
+   "op": "line",
+   "points": [
+    [
+     0.0,
+     19.5
+    ],
+    [
+     16383.1982421875,
+     19.5
+    ]
+   ],
+   "tags": [
+    "marker-lane"
+   ],
+   "width": 1.0
+  },
+  "histogram": {
+   "line": 15,
+   "rect": 15,
+   "text": 14
+  },
+  "last": {
+   "anchor": "w",
+   "bold": false,
+   "fill": "#2a333a",
+   "op": "text",
+   "size": 8.0,
+   "tags": [
+    "marker-lane",
+    "marker:13",
+    "marker:14"
+   ],
+   "text": "4/4 \u00b7 outro",
+   "x": 14153.7802734375,
+   "y": 10.0
+  },
+  "tag_count": 89
+ },
+ "lane_height": 20.0,
+ "last_slot": [
+  132,
+  16254.173828125,
+  117.02459716796875
+ ],
+ "slot_count": 133,
+ "slot_x_sum": 1094884.7592773438,
+ "string_count": 264,
+ "view_id": "fret",
+ "zoom": 1.0
+}

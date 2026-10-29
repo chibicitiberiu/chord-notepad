@@ -1,0 +1,147 @@
+{
+ "background": "#fbfbf8",
+ "byte_length": 25030,
+ "content": {
+  "coord_sum": 13427290.667973757,
+  "count": 1078,
+  "first": {
+   "fill": "#7c8b96",
+   "op": "line",
+   "points": [
+    [
+     12.0,
+     76.80000305175781
+    ],
+    [
+     20649.951171875,
+     76.80000305175781
+    ]
+   ],
+   "tags": [
+    "staff"
+   ],
+   "width": 1.0
+  },
+  "histogram": {
+   "image": 765,
+   "line": 183,
+   "text": 130
+  },
+  "last": {
+   "anchor": "nw",
+   "key": "glyph_notehead_whole:16:22323a",
+   "op": "image",
+   "tags": [
+    "slot:132"
+   ],
+   "x": 20553.5078125,
+   "y": 124.80000305175781
+  },
+  "tag_count": 1078
+ },
+ "content_height": 180.0,
+ "content_width": 20661.951171875,
+ "first_slot": [
+  0,
+  28.0,
+  165.88800048828125
+ ],
+ "gutter_runs": [
+  [
+   null,
+   0
+  ]
+ ],
+ "gutter_variants": [
+  {
+   "coord_sum": 5337.528732299805,
+   "count": 15,
+   "first": {
+    "fill": "#fbfbf8",
+    "h": 180.0,
+    "op": "rect",
+    "outline": null,
+    "tags": [
+     "gutter"
+    ],
+    "w": 102.4000015258789,
+    "width": 1.0,
+    "x": 0.0,
+    "y": 0.0
+   },
+   "histogram": {
+    "image": 4,
+    "line": 10,
+    "rect": 1
+   },
+   "last": {
+    "anchor": "nw",
+    "key": "glyph_accidental_sharp:45",
+    "op": "image",
+    "tags": [
+     "gutter"
+    ],
+    "x": 64.80000305175781,
+    "y": 190.17430114746094
+   },
+   "tag_count": 15
+  }
+ ],
+ "gutter_width": 102.4000015258789,
+ "height": 180.0,
+ "highlight": "#ffe58a",
+ "lane": {
+  "coord_sum": 722784.65234375,
+  "count": 44,
+  "first": {
+   "fill": "#c2ccd6",
+   "op": "line",
+   "points": [
+    [
+     0.0,
+     19.5
+    ],
+    [
+     20661.951171875,
+     19.5
+    ]
+   ],
+   "tags": [
+    "marker-lane"
+   ],
+   "width": 1.0
+  },
+  "histogram": {
+   "line": 15,
+   "rect": 15,
+   "text": 14
+  },
+  "last": {
+   "anchor": "w",
+   "bold": false,
+   "fill": "#2a333a",
+   "op": "text",
+   "size": 8.0,
+   "tags": [
+    "marker-lane",
+    "marker:13",
+    "marker:14"
+   ],
+   "text": "4/4 \u00b7 outro",
+   "x": 17957.904296875,
+   "y": 10.0
+  },
+  "tag_count": 89
+ },
+ "lane_height": 20.0,
+ "last_slot": [
+  132,
+  20484.064453125,
+  165.88800048828125
+ ],
+ "slot_count": 133,
+ "slot_x_sum": 1422066.4039916992,
+ "string_count": 264,
+ "view_id": "staff",
+ "zoom": 1.7280000448226929
+}

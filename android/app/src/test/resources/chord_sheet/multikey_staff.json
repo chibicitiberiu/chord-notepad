@@ -1,0 +1,226 @@
+{
+ "background": "#fbfbf8",
+ "byte_length": 5107,
+ "content": {
+  "coord_sum": 138967.38720273972,
+  "count": 139,
+  "first": {
+   "fill": "#7c8b96",
+   "op": "line",
+   "points": [
+    [
+     12.0,
+     33.015872955322266
+    ],
+    [
+     1402.3968505859375,
+     33.015872955322266
+    ]
+   ],
+   "tags": [
+    "staff"
+   ],
+   "width": 1.0
+  },
+  "histogram": {
+   "image": 86,
+   "line": 38,
+   "text": 15
+  },
+  "last": {
+   "anchor": "nw",
+   "key": "glyph_notehead_whole:7:22323a",
+   "op": "image",
+   "tags": [
+    "slot:14"
+   ],
+   "x": 1360.3968505859375,
+   "y": 57.02910232543945
+  },
+  "tag_count": 139
+ },
+ "content_height": 130.0,
+ "content_width": 1414.3968505859375,
+ "first_slot": [
+  0,
+  18.878307342529297,
+  96.0
+ ],
+ "gutter_runs": [
+  [
+   null,
+   0
+  ],
+  [
+   306.8782958984375,
+   1
+  ],
+  [
+   661.9153442382812,
+   2
+  ],
+  [
+   1080.7672119140625,
+   0
+  ]
+ ],
+ "gutter_variants": [
+  {
+   "coord_sum": 2368.8853311538696,
+   "count": 13,
+   "first": {
+    "fill": "#fbfbf8",
+    "h": 130.0,
+    "op": "rect",
+    "outline": null,
+    "tags": [
+     "gutter"
+    ],
+    "w": 60.042327880859375,
+    "width": 1.0,
+    "x": 0.0,
+    "y": 0.0
+   },
+   "histogram": {
+    "image": 2,
+    "line": 10,
+    "rect": 1
+   },
+   "last": {
+    "anchor": "nw",
+    "key": "clef_bass:25",
+    "op": "image",
+    "tags": [
+     "gutter"
+    ],
+    "x": 4.126984119415283,
+    "y": 84.1988754272461
+   },
+   "tag_count": 13
+  },
+  {
+   "coord_sum": 2530.1601362228394,
+   "count": 15,
+   "first": {
+    "fill": "#fbfbf8",
+    "h": 130.0,
+    "op": "rect",
+    "outline": null,
+    "tags": [
+     "gutter"
+    ],
+    "w": 60.042327880859375,
+    "width": 1.0,
+    "x": 0.0,
+    "y": 0.0
+   },
+   "histogram": {
+    "image": 4,
+    "line": 10,
+    "rect": 1
+   },
+   "last": {
+    "anchor": "nw",
+    "key": "glyph_accidental_sharp:19",
+    "op": "image",
+    "tags": [
+     "gutter"
+    ],
+    "x": 27.94179916381836,
+    "y": 81.92840576171875
+   },
+   "tag_count": 15
+  },
+  {
+   "coord_sum": 2956.3985624313354,
+   "count": 19,
+   "first": {
+    "fill": "#fbfbf8",
+    "h": 130.0,
+    "op": "rect",
+    "outline": null,
+    "tags": [
+     "gutter"
+    ],
+    "w": 60.042327880859375,
+    "width": 1.0,
+    "x": 0.0,
+    "y": 0.0
+   },
+   "histogram": {
+    "image": 8,
+    "line": 10,
+    "rect": 1
+   },
+   "last": {
+    "anchor": "nw",
+    "key": "glyph_accidental_flat:17",
+    "op": "image",
+    "tags": [
+     "gutter"
+    ],
+    "x": 44.756614685058594,
+    "y": 96.53439331054688
+   },
+   "tag_count": 19
+  }
+ ],
+ "gutter_width": 60.042327880859375,
+ "height": 130.0,
+ "highlight": "#ffe58a",
+ "lane": {
+  "coord_sum": 14453.788619995117,
+  "count": 16,
+  "first": {
+   "fill": "#c2ccd6",
+   "op": "line",
+   "points": [
+    [
+     0.0,
+     19.5
+    ],
+    [
+     1414.3968505859375,
+     19.5
+    ]
+   ],
+   "tags": [
+    "marker-lane"
+   ],
+   "width": 1.0
+  },
+  "histogram": {
+   "line": 5,
+   "rect": 7,
+   "text": 4
+  },
+  "last": {
+   "anchor": "w",
+   "bold": false,
+   "fill": "#2a333a",
+   "op": "text",
+   "size": 8.0,
+   "tags": [
+    "marker-lane",
+    "marker:4",
+    "marker:5",
+    "marker:6"
+   ],
+   "text": "3/4 \u00b7 Key C \u00b7 outro",
+   "x": 1205.3968505859375,
+   "y": 10.0
+  },
+  "tag_count": 37
+ },
+ "lane_height": 20.0,
+ "last_slot": [
+  14,
+  1330.3968505859375,
+  72.0
+ ],
+ "slot_count": 15,
+ "slot_x_sum": 10245.433994293213,
+ "string_count": 55,
+ "view_id": "staff",
+ "zoom": 1.0
+}

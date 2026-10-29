@@ -1,0 +1,150 @@
+{
+ "background": "#fbfbf8",
+ "byte_length": 33645,
+ "content": {
+  "coord_sum": 6729327.2839131355,
+  "count": 946,
+  "first": {
+   "fill": "#eef0ec",
+   "h": 2.9189188480377197,
+   "op": "rect",
+   "outline": null,
+   "tags": [
+    "row-shade"
+   ],
+   "w": 12012.0,
+   "width": 1.0,
+   "x": 0.0,
+   "y": 124.16216278076172
+  },
+  "histogram": {
+   "line": 127,
+   "rect": 689,
+   "text": 130
+  },
+  "last": {
+   "fill": "#22323a",
+   "h": 1.9189189672470093,
+   "op": "rect",
+   "outline": "#22323a",
+   "tags": [
+    "slot:132",
+    "note:66"
+   ],
+   "w": 92.0,
+   "width": 0.5,
+   "x": 11906.0,
+   "y": 45.35135269165039
+  },
+  "tag_count": 1620
+ },
+ "content_height": 130.0,
+ "content_width": 12012.0,
+ "first_slot": [
+  0,
+  0.0,
+  96.0
+ ],
+ "gutter_runs": [
+  [
+   null,
+   0
+  ]
+ ],
+ "gutter_variants": [
+  {
+   "coord_sum": 4506.172974824905,
+   "count": 40,
+   "first": {
+    "fill": "#ffffff",
+    "h": 2.9189188480377197,
+    "op": "rect",
+    "outline": "#b9c2c7",
+    "tags": [
+     "gutter",
+     "gutter-key"
+    ],
+    "w": 44.0,
+    "width": 1.0,
+    "x": 0.0,
+    "y": 127.0810775756836
+   },
+   "histogram": {
+    "rect": 37,
+    "text": 3
+   },
+   "last": {
+    "fill": "#ffffff",
+    "h": 2.9189188480377197,
+    "op": "rect",
+    "outline": "#b9c2c7",
+    "tags": [
+     "gutter",
+     "gutter-key"
+    ],
+    "w": 44.0,
+    "width": 1.0,
+    "x": 0.0,
+    "y": 22.0
+   },
+   "tag_count": 80
+  }
+ ],
+ "gutter_width": 44.0,
+ "height": 130.0,
+ "highlight": "#ffe58a",
+ "lane": {
+  "coord_sum": 417821.0,
+  "count": 44,
+  "first": {
+   "fill": "#c2ccd6",
+   "op": "line",
+   "points": [
+    [
+     0.0,
+     19.5
+    ],
+    [
+     12012.0,
+     19.5
+    ]
+   ],
+   "tags": [
+    "marker-lane"
+   ],
+   "width": 1.0
+  },
+  "histogram": {
+   "line": 15,
+   "rect": 15,
+   "text": 14
+  },
+  "last": {
+   "anchor": "w",
+   "bold": false,
+   "fill": "#2a333a",
+   "op": "text",
+   "size": 8.0,
+   "tags": [
+    "marker-lane",
+    "marker:13",
+    "marker:14"
+   ],
+   "text": "4/4 \u00b7 outro",
+   "x": 10382.0,
+   "y": 10.0
+  },
+  "tag_count": 89
+ },
+ "lane_height": 20.0,
+ "last_slot": [
+  132,
+  11904.0,
+  96.0
+ ],
+ "slot_count": 133,
+ "slot_x_sum": 821904.0,
+ "string_count": 302,
+ "view_id": "keyboard",
+ "zoom": 1.0
+}
