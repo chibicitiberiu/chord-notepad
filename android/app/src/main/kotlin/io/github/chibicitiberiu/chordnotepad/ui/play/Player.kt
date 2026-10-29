@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
@@ -13,8 +14,15 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.PlainTooltip
 import androidx.compose.material3.Text
+import androidx.compose.material3.TooltipAnchorPosition
+import androidx.compose.material3.TooltipBox
+import androidx.compose.material3.TooltipDefaults
+import androidx.compose.material3.rememberTooltipState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -42,6 +50,8 @@ data class PlayerState(
     /** The song pill: "90 · 3/4 · G". */
     val pill: String,
     val playing: Boolean,
+    /** Play was pressed and the song is still being rendered: the play button shows a ring and ignores taps. */
+    val starting: Boolean = false,
     val metronome: Boolean,
     /** The speed badge ("1.25×"), null at 100 %. */
     val speedBadge: String?,
@@ -50,6 +60,8 @@ data class PlayerState(
     val status: String,
     /** For the buttons' descriptions. */
     val voicingLabel: String,
+    /** Set while a song plays: the voicing button is greyed out and says why. */
+    val voicingLockedReason: String? = null,
     val instrumentLabel: String,
 )
 
@@ -88,10 +100,13 @@ fun Player(state: PlayerState, actions: PlayerActions, compact: Boolean, modifie
                 horizontalArrangement = Arrangement.spacedBy(if (compact) 0.dp else 6.dp, Alignment.CenterHorizontally),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                SideButton(R.drawable.mdi_music, stringResource(R.string.player_voicing, state.voicingLabel), false, side, actions::voicing)
+                SideButton(
+                    R.drawable.mdi_music, stringResource(R.string.player_voicing, state.voicingLabel), false, side,
+                    actions::voicing, lockedReason = state.voicingLockedReason,
+                )
                 SideButton(R.drawable.mdi_guitar_acoustic, stringResource(R.string.player_instrument, state.instrumentLabel), false, side, actions::instrument)
                 SideButton(R.drawable.mdi_skip_previous, stringResource(R.string.player_rewind), false, side, actions::rewind)
-                PlayButton(state.playing, if (compact) 48.dp else 54.dp, actions::playPause)
+                PlayButton(state.playing, state.starting, if (compact) 48.dp else 54.dp, actions::playPause)
                 SideButton(R.drawable.mdi_metronome, stringResource(R.string.player_metronome), state.metronome, side, actions::toggleMetronome)
                 SideButton(
                     R.drawable.mdi_speedometer,
@@ -137,23 +152,44 @@ private fun SongPill(text: String, onClick: () -> Unit) {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun SideButton(icon: Int, label: String, on: Boolean, size: Dp, onClick: () -> Unit, badge: String? = null) {
+private fun SideButton(
+    icon: Int, label: String, on: Boolean, size: Dp, onClick: () -> Unit, badge: String? = null,
+    lockedReason: String? = null,
+) {
     val colors = appColors
+    val locked = lockedReason != null
     Box(Modifier.size(size)) {
-        Box(
-            Modifier
-                .size(size)
-                .clip(CircleShape)
-                .background(if (on) colors.primarySoft else Color.Transparent)
-                .clickable(role = Role.Button, onClick = onClick)
-                .semantics {
-                    contentDescription = label
-                    if (on) stateDescription = "on"
-                },
-            contentAlignment = Alignment.Center,
-        ) {
-            MdiIcon(icon, if (on) colors.primary else colors.icon, size = if (size < 40.dp) 24.dp else 26.dp)
+        val button = @Composable {
+            Box(
+                Modifier
+                    .size(size)
+                    .clip(CircleShape)
+                    .background(if (on) colors.primarySoft else Color.Transparent)
+                    .clickable(enabled = !locked, role = Role.Button, onClick = onClick)
+                    .semantics {
+                        contentDescription = label
+                        if (on) stateDescription = "on"
+                        if (lockedReason != null) stateDescription = lockedReason
+                    },
+                contentAlignment = Alignment.Center,
+            ) {
+                MdiIcon(
+                    icon, (if (on) colors.primary else colors.icon).copy(alpha = if (locked) 0.38f else 1f),
+                    size = if (size < 40.dp) 24.dp else 26.dp,
+                )
+            }
+        }
+        if (lockedReason == null) {
+            button()
+        } else {
+            // A disabled button says why on long-press.
+            TooltipBox(
+                positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Above),
+                tooltip = { PlainTooltip { Text(lockedReason) } },
+                state = rememberTooltipState(),
+            ) { button() }
         }
         if (badge != null) {
             Text(
@@ -175,7 +211,7 @@ private fun SideButton(icon: Int, label: String, on: Boolean, size: Dp, onClick:
 
 /** The big round ▶/⏸ in the primary colour. */
 @Composable
-private fun PlayButton(playing: Boolean, size: Dp, onClick: () -> Unit) {
+private fun PlayButton(playing: Boolean, starting: Boolean, size: Dp, onClick: () -> Unit) {
     val colors = appColors
     val label = stringResource(if (playing) R.string.player_pause else R.string.player_play)
     Box(
@@ -185,10 +221,18 @@ private fun PlayButton(playing: Boolean, size: Dp, onClick: () -> Unit) {
             .shadow(3.dp, CircleShape)
             .clip(CircleShape)
             .background(colors.primary)
-            .clickable(role = Role.Button, onClick = onClick)
+            // While the song renders a tap does nothing (the ring says so); Stop-like cancel is ⏮.
+            .clickable(enabled = !starting, role = Role.Button, onClick = onClick)
             .semantics { contentDescription = label },
         contentAlignment = Alignment.Center,
     ) {
         MdiIcon(if (playing) R.drawable.mdi_pause else R.drawable.mdi_play, colors.onPrimary, size = 34.dp)
+        if (starting) {
+            CircularProgressIndicator(
+                Modifier.fillMaxSize().padding(3.dp),
+                color = colors.onPrimary,
+                strokeWidth = 3.dp,
+            )
+        }
     }
 }

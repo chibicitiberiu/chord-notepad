@@ -70,6 +70,12 @@ class BridgeCodecTest {
                [{"label": "Guitar", "value": "guitar:standard"}]]}""",
         )
         assertEquals("guitar:standard", v.groups[1][0].value)
+        assertEquals(null, v.lockedReason)
+        val locked = decode<VoicingMenuState>(
+            "VoicingMenuState",
+            """{"selected": "piano", "groups": [], "locked_reason": "Pause to change the voicing"}""",
+        )
+        assertEquals("Pause to change the voicing", locked.lockedReason)
         val i = decode<InstrumentMenuState>(
             "InstrumentMenuState",
             """{"current": 24, "families": [{"name": "Guitar", "is_current": true,

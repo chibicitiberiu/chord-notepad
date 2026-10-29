@@ -36,6 +36,9 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -184,7 +187,21 @@ fun SongScreen(graph: AppGraph, actions: MainActions, snackbars: SnackbarHostSta
     }
 
     // Edit mode has no status line: what the session says shows as a snackbar.
+    // Play shows it on the player, and a snackbar still up from Edit goes.
     StatusSnackbars(mode, status?.text, snackbars)
+
+    val window = LocalConfiguration.current
+    val windowSideBySide = ScreenLayout.of(
+        window.screenWidthDp.toFloat(), window.screenHeightDp.toFloat(), mode, chordSheet?.visible == true,
+    ).sideBySide
+
+    // The screen stays on while a song plays; released on pause, stop, the end or leaving.
+    val view = LocalView.current
+    val awake = keepScreenOn(playback)
+    DisposableEffect(view, awake) {
+        view.keepScreenOn = awake
+        onDispose { view.keepScreenOn = false }
+    }
 
     val ribbonActions = remember(actions, tools, editor) {
         object : RibbonActions {
@@ -246,7 +263,9 @@ fun SongScreen(graph: AppGraph, actions: MainActions, snackbars: SnackbarHostSta
             // work before anything is tapped; it shows no soft keyboard.
             modifier = Modifier.handleKeys(actions, nav).focusRequester(rootFocus).focusable(),
             containerColor = colors.surface,
-            snackbarHost = { SnackbarHost(snackbars) },
+            snackbarHost = {
+                SnackbarHost(snackbars, Modifier.padding(bottom = snackbarClearanceDp(mode, windowSideBySide).dp))
+            },
         ) { padding ->
             BoxWithConstraints(Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding)) {
                 val layout = ScreenLayout.of(maxWidth.value, maxHeight.value, mode, chordSheet?.visible == true)
@@ -289,7 +308,7 @@ fun SongScreen(graph: AppGraph, actions: MainActions, snackbars: SnackbarHostSta
                         )
                     }
                     when {
-                        layout.sideBySide -> SideBySide(graph, text, playerState(toolbar, playback?.status, chordSheet?.visible, status?.text, host, songDefaults, graph), playerActions)
+                        layout.sideBySide -> SideBySide(graph, text, playerState(toolbar, playback?.status, playback.isStarting, chordSheet?.visible, status?.text, host, songDefaults, graph), playerActions)
                         layout.sheetBelow -> {
                             text(Modifier.weight(1f).fillMaxWidth())
                             ChordSheetSplit(graph.pyHost, Modifier.fillMaxWidth())
@@ -298,7 +317,7 @@ fun SongScreen(graph: AppGraph, actions: MainActions, snackbars: SnackbarHostSta
                     }
                     if (mode == AppMode.PLAY && !layout.sideBySide) {
                         Player(
-                            playerState(toolbar, playback?.status, chordSheet?.visible, status?.text, host, songDefaults, graph),
+                            playerState(toolbar, playback?.status, playback.isStarting, chordSheet?.visible, status?.text, host, songDefaults, graph),
                             playerActions,
                             compact = false,
                         )
@@ -438,6 +457,7 @@ private fun SideBySide(
 private fun playerState(
     toolbar: ToolbarState?,
     status: PlaybackStatus?,
+    starting: Boolean,
     sheetVisible: Boolean?,
     statusText: String?,
     host: HostStatus,
@@ -454,11 +474,13 @@ private fun playerState(
     return PlayerState(
         pill = defaults?.summary ?: toolbar?.let { fallbackDefaults(it).summary }.orEmpty(),
         playing = status == PlaybackStatus.PLAYING,
+        starting = starting,
         metronome = toolbar?.metronome == true,
         speedBadge = toolbar?.let { speedBadge(it.multiplierPct) },
         sheetVisible = sheetVisible == true,
         status = text,
         voicingLabel = selectedVoicingLabel(voicing).orEmpty(),
+        voicingLockedReason = voicing?.lockedReason,
         instrumentLabel = instruments?.let { currentProgramName(instrumentFamilies(it)) }.orEmpty(),
     )
 }
@@ -477,6 +499,11 @@ private fun fallbackDefaults(t: ToolbarState): SongDefaults {
 @Composable
 private fun StatusSnackbars(mode: AppMode, text: String?, snackbars: SnackbarHostState) {
     var last by remember { mutableStateOf(text) }
+    LaunchedEffect(mode) {
+        // A status message still up from Edit goes (errors, which have a dismiss action, stay).
+        val data = snackbars.currentSnackbarData
+        if (!statusSnackbarsShown(mode) && data?.visuals?.withDismissAction == false) data.dismiss()
+    }
     val currentMode by rememberUpdatedState(mode)
     LaunchedEffect(text) {
         val t = text
@@ -484,7 +511,7 @@ private fun StatusSnackbars(mode: AppMode, text: String?, snackbars: SnackbarHos
             last = t
             // Opening a song switches to Play along with its status: let the mode settle first.
             delay(150)
-            if (currentMode == AppMode.EDIT && !t.isNullOrBlank()) snackbars.showSnackbar(t, duration = SnackbarDuration.Short)
+            if (statusSnackbarsShown(currentMode) && !t.isNullOrBlank()) snackbars.showSnackbar(t, duration = SnackbarDuration.Short)
         }
     }
 }

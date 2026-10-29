@@ -610,7 +610,19 @@ committed schema (2026-10-29).
   opens Song defaults; voicing, instrument, ⏮ (`rewind`), ▶/⏸
   (`play_pause {}`: from the playhead), metronome, speed (badge when ≠ 100 %),
   ▭ (`set_chord_sheet_visible`); the status line is `StatusState.text`. In
-  Edit mode each new status shows as a snackbar instead.
+  Edit mode each new status shows as a snackbar instead; in Play mode no
+  status snackbar shows (a leftover one is dismissed) and error snackbars sit
+  above the player (`snackbarClearanceDp`).
+  *Starting:* from ▶ until the first chord sounds the session renders the
+  whole song and reports `PlaybackState(status=playing, chord_index=None)`
+  (`PlaybackState?.isStarting`, `ui/main/PlaybackUi.kt`; no extra bridge
+  field). The play button shows a progress ring and ignores taps meanwhile;
+  ⏮ is the way to cancel. *Voicing lock:* `VoicingMenuState.locked_reason` is
+  set while a song plays (not paused); the Voicing button is greyed with that
+  reason on long-press and `set_voicing` is refused by the session. A voicing
+  chosen while paused makes the next ▶ render again from the paused chord.
+  The instrument changes at any time. *Screen on:* the window keeps the
+  screen awake only while the status is `playing` (`keepScreenOn`).
 - **Sheets** (`ui/sheets/`, route in `SheetRoute`, saved across rotation):
   Song defaults (`set_bpm_text`, `set_time_signature`, `set_key` for the
   editable defaults, `write_song_defaults`, Edit → Edit mode with the cursor
@@ -699,6 +711,11 @@ version 1), and the bridge hands it out (`SessionHandle.chord_sheet_buffer`,
 too (M4: `ui/chordsheet/ChordSheetBuffer.kt`, `ChordSheetController.kt`,
 `ChordSheetPainter.kt`). A pinch sends its whole step count as one
 `chord_sheet_zoom {step}`, which applies `|step|` steps and repaints once.
+The zoom buttons and the pinch exist only where `ChordSheetState.zoom_supported`
+(staff, fret cards and tab; not the piano roll). Fret cards only grow past the
+strip height cap (230 dp x zoom), so on a short strip `+` changes nothing until
+`-` has shrunk the cards. While a buffer is being fetched
+(`ChordSheetController.loading`) a thin progress bar shows under the tabs.
 
 The chord sheet's renderers (`src/chord_sheet/`) are headless: they record
 draw ops (`chord_sheet/ops.py`) that the Tk panel replays onto a canvas.

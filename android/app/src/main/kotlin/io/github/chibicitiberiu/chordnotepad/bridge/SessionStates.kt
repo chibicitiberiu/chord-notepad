@@ -84,6 +84,8 @@ data class EditorState(
 data class VoicingMenuState(
     val selected: String,
     val groups: List<List<MenuItem>>,
+    /** Why the voicing can't change now (a song plays; pause first), or null. */
+    @SerialName("locked_reason") val lockedReason: String? = null,
 ) : SessionState
 
 /** One General MIDI family in the instrument menu; item values are program numbers. */
