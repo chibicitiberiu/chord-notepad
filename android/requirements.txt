@@ -12,6 +12,9 @@ pychord==1.4.0 \
     --hash=sha256:18f06e0dd72ffd2ffd1ec9354489fa9c4bbbc49ffcb7afbb32458c317ff99d54
 mido==1.3.3 \
     --hash=sha256:01033c9b10b049e4436fca2762194ca839b09a4334091dd3c34e7f4ae674fd8a
+# mido's only dependency (mido/version.py imports it; without it MIDI export fails).
+packaging==26.3 \
+    --hash=sha256:d7193f7c8e4e93f444fde0262bf90af30e16fa0ad0ad44cb553c87339b23cd1c
 pyfluidsynth==1.4.0 \
     --hash=sha256:93f0a0e8d5b34f974010473f9985fc52e1379e8f316892afeb2de1d759439ca3
 

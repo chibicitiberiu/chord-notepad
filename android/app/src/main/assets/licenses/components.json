@@ -317,6 +317,18 @@
       ]
     },
     {
+      "id": "packaging",
+      "name": "packaging",
+      "group": "python",
+      "version": "26.3",
+      "license": "Apache-2.0 OR BSD-2-Clause",
+      "url": "https://github.com/pypa/packaging",
+      "texts": [
+        "packaging-Apache-2.0",
+        "packaging-BSD"
+      ]
+    },
+    {
       "id": "pyfluidsynth",
       "name": "pyFluidSynth",
       "group": "python",

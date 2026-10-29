@@ -72,7 +72,7 @@ assets by Gradle tasks, not duplicated in git.
 Python packages (all `--no-deps`, pinned with hashes in `android/requirements.txt`,
 installed offline from the wheelhouse; see below):
 music21 10.3.0 (trimmed, see below), pychord 1.4.0, mido 1.3.3,
-pyfluidsynth 1.4.0, plus what music21 really imports: chardet 6.0.0.post1
+pyfluidsynth 1.4.0, packaging 26.3 (mido imports it), plus what music21 really imports: chardet 6.0.0.post1
 (LGPL; below 7 on purpose), webcolors, more-itertools, requests, urllib3, idna,
 certifi, charset-normalizer. numpy, matplotlib, joblib, jsonpickle and Pillow are
 **not** needed: the core imports, detects and renders with them absent
