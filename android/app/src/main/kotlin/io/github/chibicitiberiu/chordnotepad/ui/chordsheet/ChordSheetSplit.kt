@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -28,6 +27,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import io.github.chibicitiberiu.chordnotepad.bridge.PyHost
+import io.github.chibicitiberiu.chordnotepad.ui.theme.appColors
 import kotlin.math.roundToInt
 
 /** The smallest chord sheet the handle allows, in dp (header + a usable strip). */
@@ -96,13 +96,15 @@ fun ChordSheetSplit(host: PyHost, modifier: Modifier = Modifier) {
     }
 }
 
-/** The split's grab bar: a pill on a thin strip, dragged vertically. */
+/** The split's grab bar: a pill on a thin strip at the top of the sheet, dragged vertically. */
 @Composable
 private fun SplitHandle(onDrag: (Float) -> Unit, onDragEnd: () -> Unit) {
+    val colors = appColors
     Box(
         Modifier
             .fillMaxWidth()
-            .height(16.dp)
+            .height(14.dp)
+            .background(colors.surfaceLow)
             .semantics { contentDescription = "Resize the chord sheet" }
             .draggable(
                 state = rememberDraggableState(onDrag),
@@ -111,11 +113,12 @@ private fun SplitHandle(onDrag: (Float) -> Unit, onDragEnd: () -> Unit) {
             ),
         contentAlignment = Alignment.Center,
     ) {
+        Box(Modifier.align(Alignment.TopCenter).fillMaxWidth().height(1.dp).background(colors.line))
         Box(
             Modifier
                 .size(width = 36.dp, height = 4.dp)
                 .clip(RoundedCornerShape(2.dp))
-                .background(MaterialTheme.colorScheme.outlineVariant),
+                .background(colors.grip),
         )
     }
 }

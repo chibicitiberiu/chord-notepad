@@ -2,8 +2,8 @@ package io.github.chibicitiberiu.chordnotepad.ui.settings
 
 import io.github.chibicitiberiu.chordnotepad.bridge.SettingsState
 import io.github.chibicitiberiu.chordnotepad.bridge.SettingsValues
-import io.github.chibicitiberiu.chordnotepad.ui.configFamilyFor
 import io.github.chibicitiberiu.chordnotepad.ui.editor.EditorFontKind
+import io.github.chibicitiberiu.chordnotepad.ui.editor.configFamilyFor
 import io.github.chibicitiberiu.chordnotepad.ui.editor.fontKindFor
 import kotlinx.serialization.Serializable
 

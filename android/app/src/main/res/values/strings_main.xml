@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- App bar: ☰, the title (tap to rename), the Edit / Play tabs, Save -->
+    <string name="drawer_open">Open the menu</string>
+    <string name="mode_edit">Edit</string>
+    <string name="mode_play">Play</string>
+
+    <!-- Edit ribbon -->
+    <string name="ribbon_insert">Insert</string>
+    <string name="ribbon_transpose">Transpose</string>
+    <string name="ribbon_identify">Identify</string>
+    <string name="ribbon_convert">Convert</string>
+    <string name="ribbon_more">Show more tools</string>
+
+    <!-- Player -->
+    <string name="player_voicing">Voicing: %1$s</string>
+    <string name="player_instrument">Instrument: %1$s</string>
+    <string name="player_rewind">Back to the start (stops playback)</string>
+    <string name="player_play">Play</string>
+    <string name="player_pause">Pause</string>
+    <string name="player_metronome">Metronome</string>
+    <string name="player_speed">Speed</string>
+    <string name="player_sheet_show">Show the chord sheet</string>
+    <string name="player_sheet_hide">Hide the chord sheet</string>
+    <string name="sheet_zoom_in">Zoom in</string>
+    <string name="sheet_zoom_out">Zoom out</string>
+
+    <!-- Sheets -->
+    <string name="sheet_done">Done</string>
+    <string name="song_defaults_title">Song defaults</string>
+    <string name="song_defaults_subtitle">Defaults apply where the song has no directive; they aren\'t saved with the file. Values the song sets are shown for reference.</string>
+    <string name="song_defaults_write">Write into song</string>
+    <string name="song_defaults_bpm">%1$s bpm</string>
+    <string name="song_defaults_no_key">None</string>
+    <string name="song_defaults_set_by">Set by</string>
+    <string name="song_defaults_in_song">in the song</string>
+    <string name="song_defaults_edit">Edit</string>
+    <string name="song_defaults_default_note">Default; the song has no</string>
+    <string name="voicing_subtitle">Which notes play for each chord.</string>
+    <string name="voicing_edit">Edit voicings…</string>
+    <string name="voicing_group_piano">Piano</string>
+    <string name="voicing_group_fretted">Fretted</string>
+    <string name="voicing_group_ensembles">Ensembles</string>
+    <string name="voicing_group_yours">Your voicings</string>
+    <string name="instrument_back">Back to the families</string>
+    <string name="speed_title">Playback speed</string>
+    <string name="speed_reset">Reset</string>
+    <string name="speed_manual">Manual…</string>
+    <string name="speed_manual_hint">25 to 400</string>
+    <string name="speed_manual_error">Enter a number from 25 to 400</string>
+    <string name="insert_tempo">Tempo</string>
+    <string name="insert_time">Time signature</string>
+    <string name="insert_key">Key</string>
+    <string name="insert_capo">Capo</string>
+    <string name="insert_label">Label (section)</string>
+    <string name="insert_loop">Loop</string>
+
+    <!-- Rename (tap the title) -->
+    <string name="rename_title">Rename</string>
+    <string name="rename_button">Rename</string>
+    <string name="rename_saved_as">Saved as “%1$s”</string>
+    <string name="rename_empty">Type a name</string>
+    <string name="rename_bad_character">A name can\'t contain / \\ : * ? " &lt; &gt; |</string>
+    <string name="rename_failed_title">Couldn\'t rename</string>
+    <string name="rename_failed_save_as">%1$s\n\nSave a copy under the new name instead?</string>
+
+    <!-- Drawer -->
+    <string name="drawer_new">New song</string>
+    <string name="drawer_recent">Recent</string>
+    <string name="drawer_no_recent">No recent songs</string>
+    <string name="drawer_save_as">Save as…</string>
+    <string name="drawer_user_guide">User guide</string>
+    <string name="drawer_quick_start">Quick start</string>
+    <string name="drawer_about">About</string>
+</resources>

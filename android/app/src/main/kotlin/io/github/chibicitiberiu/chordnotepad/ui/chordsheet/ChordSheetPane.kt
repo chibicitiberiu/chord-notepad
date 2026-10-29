@@ -2,6 +2,19 @@ package io.github.chibicitiberiu.chordnotepad.ui.chordsheet
 
 import android.content.pm.ApplicationInfo
 import android.util.Log
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
+import io.github.chibicitiberiu.chordnotepad.R
+import io.github.chibicitiberiu.chordnotepad.ui.icons.IconTints
+import io.github.chibicitiberiu.chordnotepad.ui.icons.MdiIcon
+import io.github.chibicitiberiu.chordnotepad.ui.theme.appColors
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.Orientation
@@ -14,7 +27,6 @@ import androidx.compose.foundation.gestures.scrollable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -27,10 +39,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.PlainTooltip
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TooltipAnchorPosition
 import androidx.compose.material3.TooltipBox
 import androidx.compose.material3.TooltipDefaults
@@ -81,15 +91,11 @@ import kotlinx.coroutines.flow.combine
 
 private const val TAG = "CNChordSheet"
 
+/** `renderer_interface.NOTE_INK`: the colour of untinted glyph images. */
+private const val NOTE_INK = "#22323a"
+
 /** The marker lane's height until the first buffer says otherwise (`marker_lane.LANE_HEIGHT`). */
 private const val DEFAULT_LANE_HEIGHT = 20f
-
-// The desktop's chrome colours (constants.py UI_*): the strip paper itself
-// comes from the buffer.
-private val TabIdle = Color(0xFFE7E7E7)
-private val TabSelected = Color(0xFFFBFBF8)
-private val TextDisabled = Color(0xFFA3A3A3)
-private val PaneBackground = Color(0xFFF3F3F3)
 
 /**
  * The chord sheet: view tabs and zoom buttons above a horizontally scrolling
@@ -141,7 +147,7 @@ fun ChordSheetPane(
         Box(modifier)
         return
     }
-    Column(modifier.background(PaneBackground)) {
+    Column(modifier.background(appColors.surfaceLow)) {
         ChordSheetHeader(
             state = current,
             onSelect = commands::setChordSheetView,
@@ -151,6 +157,7 @@ fun ChordSheetPane(
             controller = controller,
             glyphs = glyphs,
             currentIndex = current.currentIndex,
+            cursorIndex = current.cursorIndex,
             zoom = current.zoom,
             zoomSupported = current.zoomSupported,
             onAudition = commands::audition,
@@ -165,12 +172,13 @@ fun ChordSheetPane(
 @Composable
 private fun ChordSheetHeader(state: ChordSheetState, onSelect: (String) -> Unit, onZoom: (Int) -> Unit) {
     Row(
-        Modifier.fillMaxWidth().height(36.dp).padding(start = 4.dp, end = 4.dp, top = 4.dp),
-        verticalAlignment = Alignment.Bottom,
+        Modifier.fillMaxWidth().height(32.dp).padding(horizontal = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         Row(
             Modifier.weight(1f).fillMaxHeight().horizontalScroll(rememberScrollState()),
-            verticalAlignment = Alignment.Bottom,
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(2.dp),
         ) {
             for (view in state.views) {
                 ViewTab(
@@ -181,27 +189,32 @@ private fun ChordSheetHeader(state: ChordSheetState, onSelect: (String) -> Unit,
                 )
             }
         }
-        ZoomButton("−", "Zoom out", state.zoomSupported) { onZoom(-1) }
-        ZoomButton("+", "Zoom in", state.zoomSupported) { onZoom(1) }
+        ZoomButton(R.drawable.mdi_magnify_minus, stringResource(R.string.sheet_zoom_out), state.zoomSupported) { onZoom(-1) }
+        ZoomButton(R.drawable.mdi_magnify_plus, stringResource(R.string.sheet_zoom_in), state.zoomSupported) { onZoom(1) }
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ViewTab(view: ChordSheetView, selected: Boolean, reason: String?, onClick: () -> Unit) {
+    val colors = appColors
     val tab = @Composable {
         Box(
             Modifier
-                .padding(end = 2.dp)
-                .clip(RoundedCornerShape(topStart = 6.dp, topEnd = 6.dp))
-                .background(if (selected) TabSelected else TabIdle)
+                .clip(RoundedCornerShape(8.dp))
+                .background(if (selected) colors.surfaceHigh else Color.Transparent)
                 .selectable(selected = selected, enabled = view.available, role = Role.Tab, onClick = onClick)
-                .padding(horizontal = if (selected) 12.dp else 10.dp, vertical = if (selected) 6.dp else 4.dp),
+                .padding(horizontal = 10.dp, vertical = 4.dp),
         ) {
             Text(
                 view.label,
-                style = MaterialTheme.typography.labelLarge,
-                color = if (view.available) Color(0xFF1F1F1F) else TextDisabled,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Medium,
+                color = when {
+                    !view.available -> colors.muted.copy(alpha = 0.5f)
+                    selected -> colors.text
+                    else -> colors.muted
+                },
             )
         }
     }
@@ -217,15 +230,16 @@ private fun ViewTab(view: ChordSheetView, selected: Boolean, reason: String?, on
 }
 
 @Composable
-private fun ZoomButton(label: String, description: String, enabled: Boolean, onClick: () -> Unit) {
-    TextButton(
-        onClick = onClick,
-        enabled = enabled,
-        // The label is a glyph; say what the button does.
-        modifier = Modifier.size(width = 40.dp, height = 32.dp).semantics { contentDescription = description },
-        contentPadding = PaddingValues(0.dp),
+private fun ZoomButton(icon: Int, description: String, enabled: Boolean, onClick: () -> Unit) {
+    Box(
+        Modifier
+            .size(30.dp)
+            .clip(CircleShape)
+            .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
+            .semantics { contentDescription = description },
+        contentAlignment = Alignment.Center,
     ) {
-        Text(label, style = MaterialTheme.typography.titleMedium)
+        MdiIcon(icon, IconTints.Zoom.copy(alpha = if (enabled) 1f else 0.38f), size = 19.dp)
     }
 }
 
@@ -241,6 +255,7 @@ private fun ChordSheetStrip(
     controller: ChordSheetController,
     glyphs: GlyphCache,
     currentIndex: Int?,
+    cursorIndex: Int?,
     zoom: Double,
     zoomSupported: Boolean,
     onAudition: (Int) -> Unit,
@@ -249,12 +264,21 @@ private fun ChordSheetStrip(
     modifier: Modifier,
 ) {
     val sheet = controller.sheet
+    val colors = appColors
     val density = LocalDensity.current.density
+    // The buffer's colours for this theme, and the sheet's own background and playing column.
+    val palette = remember(sheet, colors) {
+        sheet?.colors?.mapValues { (spec, c) -> themedSheetColor(spec, c, colors) }.orEmpty()
+    }
     val fontFamilyResolver = LocalFontFamilyResolver.current
     val painter = remember(fontFamilyResolver) {
         // Density 1, font scale 1: layouts measure in dp (see SheetPainter).
         SheetPainter(TextMeasurer(fontFamilyResolver, Density(1f, 1f), LayoutDirection.Ltr, cacheSize = 0), glyphs)
     }
+    painter.defaultImageTint = if (colors.dark) {
+        ColorFilter.tint(themedSheetColor(NOTE_INK, Color(0xFF22323A), colors), BlendMode.SrcIn)
+    } else null
+    painter.themeColor = { spec, c -> themedSheetColor(spec, c, colors) }
     val scroll = remember { StripScroll() }
     var viewportPx by remember { mutableIntStateOf(0) }
     var pinch by remember { mutableStateOf<Pinch?>(null) }
@@ -307,12 +331,12 @@ private fun ChordSheetStrip(
     val zoomable by rememberUpdatedState(zoomSupported)
     val laneHeight = sheet?.buffer?.laneHeight ?: DEFAULT_LANE_HEIGHT
     val gutterWidth = sheet?.buffer?.gutterWidth ?: 0f
-    val background = sheet?.background ?: TabSelected
+    val background = colors.surfaceLow
 
     Box(modifier.background(background)) {
         val failure = controller.failure
         if (failure != null) {
-            Text(failure, Modifier.align(Alignment.Center).padding(8.dp), color = TextDisabled)
+            Text(failure, Modifier.align(Alignment.Center).padding(8.dp), color = colors.muted)
         }
         Row(Modifier.fillMaxSize()) {
             if (gutterWidth > 0f && sheet != null) {
@@ -322,7 +346,9 @@ private fun ChordSheetStrip(
                         translate(0f, laneHeight * density)
                         scale(density, density, Offset.Zero)
                     }) {
-                        with(painter) { drawOps(variant, sheet.colors, Float.NEGATIVE_INFINITY, Float.POSITIVE_INFINITY, density) }
+                        // The piano roll's keyboard keeps its own look (its labels sit on white keys).
+                        val gutterColors = if (sheet.buffer.viewId == "keyboard") sheet.colors else palette
+                        with(painter) { drawOps(variant, gutterColors, Float.NEGATIVE_INFINITY, Float.POSITIVE_INFINITY, density) }
                     }
                 }
             }
@@ -375,7 +401,11 @@ private fun ChordSheetStrip(
                 ) {
                     val s = sheet ?: return@Canvas
                     perf.frame {
-                        drawStrip(s, painter, scroll.offset, density, currentIndex)
+                        drawStrip(
+                            s, painter, palette, scroll.offset, density, currentIndex,
+                            // The playhead's edge mark while nothing plays.
+                            cursorIndex.takeIf { currentIndex == null }, colors.sheetPlaying, colors.primary,
+                        )
                     }
                 }
             }
@@ -383,8 +413,22 @@ private fun ChordSheetStrip(
     }
 }
 
-/** Lane, highlight and content ops for the visible range, at scroll offset [scrollPx]. */
-private fun DrawScope.drawStrip(sheet: PreparedSheet, painter: SheetPainter, scrollPx: Float, density: Float, currentIndex: Int?) {
+/**
+ * Lane, highlight and content ops for the visible range, at scroll offset
+ * [scrollPx]: the playing column behind the chord sounding, else a primary
+ * edge on the left of the playhead's chord ([cursorIndex]).
+ */
+private fun DrawScope.drawStrip(
+    sheet: PreparedSheet,
+    painter: SheetPainter,
+    palette: Map<String, Color>,
+    scrollPx: Float,
+    density: Float,
+    currentIndex: Int?,
+    cursorIndex: Int?,
+    playingColor: Color,
+    edgeColor: Color,
+) {
     val buffer = sheet.buffer
     val left = scrollPx / density
     val right = (scrollPx + size.width) / density
@@ -393,12 +437,15 @@ private fun DrawScope.drawStrip(sheet: PreparedSheet, painter: SheetPainter, scr
         scale(density, density, Offset.Zero)
     }) {
         with(painter) {
-            drawOps(sheet.lane, sheet.colors, left, right, density)
+            drawOps(sheet.lane, palette, left, right, density)
             translate(top = buffer.laneHeight) {
                 currentIndex?.let(buffer::slotFor)?.let { slot ->
-                    drawRect(sheet.highlight, Offset(slot.x, 0f), Size(slot.width, buffer.contentHeight))
+                    drawRoundRect(playingColor, Offset(slot.x, 2f), Size(slot.width, buffer.contentHeight - 4f), CornerRadius(6f))
                 }
-                drawOps(sheet.content, sheet.colors, left, right, density)
+                drawOps(sheet.content, palette, left, right, density)
+                cursorIndex?.let(buffer::slotFor)?.let { slot ->
+                    drawRoundRect(edgeColor, Offset(slot.x, 2f), Size(3f, buffer.contentHeight - 4f), CornerRadius(1.5f))
+                }
             }
         }
     }

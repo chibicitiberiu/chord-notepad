@@ -141,6 +141,7 @@ fun InsertDirectiveDialog(
     units: List<Int>,
     check: DirectiveCheck?,
     onCheck: (Map<String, String>) -> Unit,
+    onSuggestCapo: () -> Unit = {},
     onAnswer: (Map<String, String>?) -> Unit,
 ) {
     val kind = DirectiveKind.of(request.kind)
@@ -180,7 +181,16 @@ fun InsertDirectiveDialog(
             TextButton(onClick = submit, enabled = verdict.canInsert) { Text(stringResource(R.string.insert_button)) }
         },
         dismissButton = {
-            TextButton(onClick = { onAnswer(null) }) { Text(stringResource(android.R.string.cancel)) }
+            Row {
+                if (kind == DirectiveKind.CAPO) {
+                    // Suggest: drop this request and let Suggest Capo pick (and insert) the fret.
+                    TextButton(onClick = {
+                        onAnswer(null)
+                        onSuggestCapo()
+                    }) { Text(stringResource(R.string.insert_capo_suggest)) }
+                }
+                TextButton(onClick = { onAnswer(null) }) { Text(stringResource(android.R.string.cancel)) }
+            }
         },
     )
 }
@@ -192,6 +202,7 @@ private val DirectiveKind.title: Int
         DirectiveKind.KEY -> R.string.insert_key_title
         DirectiveKind.LABEL -> R.string.insert_label_title
         DirectiveKind.LOOP -> R.string.insert_loop_title
+        DirectiveKind.CAPO -> R.string.insert_capo_title
     }
 
 private val DirectiveKind.hint: Int
@@ -201,6 +212,7 @@ private val DirectiveKind.hint: Int
         DirectiveKind.KEY -> R.string.insert_key_hint
         DirectiveKind.LABEL -> R.string.insert_label_hint
         DirectiveKind.LOOP -> R.string.insert_loop_hint
+        DirectiveKind.CAPO -> R.string.insert_capo_hint
     }
 
 @Composable
@@ -230,6 +242,9 @@ private fun DirectiveFields(
         }
         DirectiveKind.LABEL -> TypedField(stringResource(R.string.insert_label_field), form.label, KeyboardType.Ascii, onSubmit) {
             onChange(form.copy(label = it))
+        }
+        DirectiveKind.CAPO -> TypedField(stringResource(R.string.insert_capo_field), form.capo, KeyboardType.Number, onSubmit) {
+            onChange(form.copy(capo = it))
         }
         DirectiveKind.LOOP -> Column {
             Picker(stringResource(R.string.insert_loop_label), form.loopLabel, loopChoices(request)) {

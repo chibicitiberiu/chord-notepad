@@ -39,13 +39,14 @@ data class TransposeForm(val semitones: Int = 0) {
     }
 }
 
-/** The directive kinds of Tools › Insert (`session.directives.DirectiveKind`). */
+/** The directive kinds of ＋ Insert (`session.directives.DirectiveKind`). */
 enum class DirectiveKind(val wire: String) {
     BPM("bpm"),
     TIME("time"),
     KEY("key"),
     LABEL("label"),
     LOOP("loop"),
+    CAPO("capo"),
     ;
 
     companion object {
@@ -71,6 +72,8 @@ data class DirectiveForm(
     /** Loop: `@start` or a label. */
     val loopLabel: String = LOOP_START,
     val count: Int = 2,
+    /** Capo: the fret, typed (`0`-`12`; Python checks it). */
+    val capo: String = "",
 ) {
     /** The answer to the request. */
     fun answer(): Map<String, String> = when (kind) {
@@ -79,6 +82,7 @@ data class DirectiveForm(
         DirectiveKind.KEY -> mapOf("key" to key)
         DirectiveKind.LABEL -> mapOf("label" to label)
         DirectiveKind.LOOP -> mapOf("label" to loopLabel, "count" to count.toString())
+        DirectiveKind.CAPO -> mapOf("capo" to capo.trim())
     }
 
     /** One more loop repeat (stops at 100). */
@@ -89,7 +93,7 @@ data class DirectiveForm(
 
     /** As a list of strings for `rememberSaveable` ([restore] reads it back). */
     fun save(): List<String> =
-        listOf(kind.name, bpm, beats.toString(), unit.toString(), key, label, loopLabel, count.toString())
+        listOf(kind.name, bpm, beats.toString(), unit.toString(), key, label, loopLabel, count.toString(), capo)
 
     companion object {
         /** The loop target meaning the song's start (`session.directives.LOOP_START`). */
@@ -110,7 +114,7 @@ data class DirectiveForm(
 
         /** The form [save] wrote, or null if it isn't one. */
         fun restore(saved: List<String>): DirectiveForm? {
-            if (saved.size != 8) return null
+            if (saved.size != 9) return null
             val kind = DirectiveKind.entries.firstOrNull { it.name == saved[0] } ?: return null
             return DirectiveForm(
                 kind = kind,
@@ -121,6 +125,7 @@ data class DirectiveForm(
                 label = saved[5],
                 loopLabel = saved[6],
                 count = saved[7].toIntOrNull() ?: 2,
+                capo = saved[8],
             )
         }
     }

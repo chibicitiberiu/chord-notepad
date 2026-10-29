@@ -4,26 +4,45 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import io.github.chibicitiberiu.chordnotepad.bridge.DocumentRef
 import io.github.chibicitiberiu.chordnotepad.bridge.SessionCommands
 import io.github.chibicitiberiu.chordnotepad.ui.editor.EditorController
+import io.github.chibicitiberiu.chordnotepad.ui.main.ModeController
 
 /**
- * What the main screen's buttons, menus and shortcuts do: session commands,
- * with the editor's text sent first where the command reads it (the desktop
- * sends `set_text` before Play and the file commands too). Main thread.
+ * What the main screen's buttons, drawer, sheets and shortcuts do: session
+ * commands, with the editor's text sent first where the command reads it
+ * (the desktop sends `set_text` before Play and the file commands too).
+ * Opening and creating documents tell [mode] what to expect (existing songs
+ * open in Play, new ones in Edit). Main thread.
  */
-class MainActions(private val commands: SessionCommands, private val editor: EditorController) {
+class MainActions(
+    private val commands: SessionCommands,
+    private val editor: EditorController,
+    private val mode: ModeController = ModeController(),
+) {
     // -- transport --------------------------------------------------------------
 
-    /** Play from the top, pause or resume. */
+    /** Play from the playhead, pause or resume. */
     fun playPause() {
         editor.syncNow()
         commands.playPause()
     }
 
-    /** Play from the cursor when idle (long-press on Play; the desktop's Shift+click). */
-    fun playFromCursor() = commands.playPause(editor.cursorCodePoint())
+    /** ⏮: stop and put the playhead back on the first chord. */
+    fun rewind() {
+        editor.syncNow()
+        commands.rewind()
+    }
 
     /** Stop. */
     fun stop() = commands.stop()
+
+    /** Move the playhead to the chord at UTF-16 offset [utf16] (silent). */
+    fun setPlayhead(utf16: Int) {
+        editor.syncNow()
+        commands.setPlayhead(editor.codePointAt(utf16))
+    }
+
+    /** A tapped chord at UTF-16 offset [utf16]: the playhead goes there and it sounds. */
+    fun tapChord(utf16: Int) = editor.tapAt(utf16)
 
     // -- toolbar ----------------------------------------------------------------
 
@@ -76,8 +95,16 @@ class MainActions(private val commands: SessionCommands, private val editor: Edi
     /** View › Font…: the family to configure and the size in points. */
     fun setFont(family: String, size: Int) = commands.setFont(family, size)
 
-    /** View › Chord Sheet. */
+    /** The player's ▭: show or hide the chord sheet. */
     fun setChordSheetVisible(visible: Boolean) = commands.setChordSheetVisible(visible)
+
+    // -- song defaults --------------------------------------------------------------
+
+    /** Write the starting values no directive sets into the top of the song. */
+    fun writeSongDefaults() {
+        editor.syncNow()
+        commands.writeSongDefaults()
+    }
 
     // -- edit -------------------------------------------------------------------
 
@@ -91,35 +118,50 @@ class MainActions(private val commands: SessionCommands, private val editor: Edi
 
     // -- files (the requests they raise are presented by the screen) -------------
 
-    /** New document. */
+    /** New document (it opens in Edit). */
     fun newDocument() {
         editor.syncNow()
+        mode.expectNew()
         commands.newDocument()
     }
 
-    /** Open a document (asks for it with a picker request). */
+    /** Open a document (asks for it with a picker request; it opens in Play). */
     fun openDocument() {
         editor.syncNow()
+        mode.expectOpen()
         commands.openDocument()
     }
 
-    /** Open a recent document. */
+    /** Open a recent document (in Play). */
     fun openRecent(ref: DocumentRef) {
         editor.syncNow()
+        mode.expectOpen()
         commands.openRecent(ref)
     }
 
     /** Save. */
     fun save() {
         editor.syncNow()
+        mode.expectSave()
         commands.save()
     }
 
     /** Save under a new name. */
     fun saveAs() {
         editor.syncNow()
+        mode.expectSave()
         commands.saveAs()
     }
+
+    /** Save As, suggesting [name] (after a rename the storage refused). */
+    fun saveAs(name: String) {
+        editor.syncNow()
+        mode.expectSave()
+        commands.saveAs(name)
+    }
+
+    /** Rename the document to [name] (typed without the extension). */
+    fun rename(name: String) = commands.renameDocument(name)
 
     /** Export the song as MIDI. */
     fun exportMidi() {

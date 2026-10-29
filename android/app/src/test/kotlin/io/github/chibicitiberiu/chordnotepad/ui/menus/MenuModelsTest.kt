@@ -107,3 +107,29 @@ class MenuModelsTest {
         assertTrue(sent.isEmpty())
     }
 }
+
+class VoicingGroupsTest {
+    @Test
+    fun `voicings are grouped by their values, missing groups left out`() {
+        val state = VoicingMenuState(
+            selected = "voicing:Trio",
+            groups = listOf(
+                listOf(MenuItem("Piano", "piano")),
+                listOf(MenuItem("Guitar (standard)", "guitar:standard")),
+                listOf(MenuItem("Trio", "voicing:Trio")),
+            ),
+        )
+        val groups = voicingGroups(state)
+        assertEquals(listOf(VoicingGroupKind.PIANO, VoicingGroupKind.FRETTED, VoicingGroupKind.YOURS), groups.map { it.kind })
+        assertTrue(groups.last().choices.single().selected)
+        assertEquals("Trio", selectedVoicingLabel(state))
+    }
+
+    @Test
+    fun `program labels split into name and number`() {
+        assertEquals("Nylon Guitar" to "24", programParts(ProgramRow("24 - Nylon Guitar", 24, false)))
+        assertEquals("Odd" to "7", programParts(ProgramRow("Odd", 7, false)))
+        val families = listOf(FamilyRow("Guitar", true, listOf(ProgramRow("25 - Steel Guitar", 25, true))))
+        assertEquals("Steel Guitar", currentProgramName(families))
+    }
+}

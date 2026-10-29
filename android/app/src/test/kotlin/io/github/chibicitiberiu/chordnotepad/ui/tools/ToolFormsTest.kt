@@ -82,7 +82,8 @@ class ToolFormsTest {
     @Test
     fun `directive kinds by wire name`() {
         assertEquals(DirectiveKind.TIME, DirectiveKind.of("time"))
-        assertNull(DirectiveKind.of("capo"))
+        assertEquals(DirectiveKind.CAPO, DirectiveKind.of("capo"))
+        assertNull(DirectiveKind.of("chord"))
     }
 
     @Test

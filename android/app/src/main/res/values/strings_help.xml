@@ -1,8 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Help › User Guide and Quick Start (M5). -->
 <resources>
-    <string name="menu_user_guide">User Guide</string>
-    <string name="menu_quick_start">Quick Start</string>
     <string name="user_guide_title">User Guide</string>
     <string name="quick_start_title">Quick Start</string>
     <string name="quick_start_show_at_startup">Show at startup</string>

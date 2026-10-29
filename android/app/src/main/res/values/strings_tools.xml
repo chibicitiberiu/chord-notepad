@@ -1,21 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- ⋮ › Tools and its dialogs (M5). Names and paths as help/*.rst tells
-     Android users (⋮ → Tools → Transpose, Suggest Capo, Insert, Convert
-     notation, Identify Chord); dialog texts as the desktop's. -->
+<!-- The Edit ribbon's tools and their dialogs (Transpose, Insert, Capo,
+     Identify); dialog texts as the desktop's. -->
 <resources>
-    <string name="menu_tools">Tools</string>
-    <string name="menu_identify_chord">Identify Chord…</string>
-    <string name="menu_insert">Insert</string>
-    <string name="menu_insert_bpm">BPM/Tempo Change…</string>
-    <string name="menu_insert_time">Time Signature Change…</string>
-    <string name="menu_insert_key">Key Change…</string>
-    <string name="menu_insert_label">Label…</string>
-    <string name="menu_insert_loop">Loop…</string>
-    <string name="menu_transpose">Transpose…</string>
-    <string name="menu_suggest_capo">Suggest Capo…</string>
-    <string name="menu_convert">Convert notation</string>
-    <string name="menu_convert_american">Convert to American Notation</string>
-    <string name="menu_convert_european">Convert to European Notation</string>
 
     <!-- Transpose (ui/dialogs/transpose_dialog.py) -->
     <string name="transpose_title">Transpose</string>
@@ -47,7 +33,11 @@
     <string name="insert_label_hint">Inserts a label which can be used for making loops.\n\nEnter a unique label name (letters, numbers, and underscores only).</string>
     <string name="insert_label_field">Label</string>
     <string name="insert_loop_title">Insert Loop</string>
-    <string name="insert_loop_hint">Placed at the end of a loop.\n\nTo set the beginning of a loop, use a label directive (Tools → Insert → Label).\nUse \'@start\' as a special keyword for the beginning of the song.</string>
+    <string name="insert_capo_title">Insert Capo</string>
+    <string name="insert_capo_hint">From this point on, chord boxes and tabs are shown for a capo on this fret. It changes the shapes, not the sound.\n\nEnter a fret from 0 to 12 (0: no capo), or let Suggest pick the easiest one.</string>
+    <string name="insert_capo_field">Fret</string>
+    <string name="insert_capo_suggest">Suggest</string>
+    <string name="insert_loop_hint">Placed at the end of a loop.\n\nTo set the beginning of a loop, use a label directive (＋ Insert → Label).\nUse \'@start\' as a special keyword for the beginning of the song.</string>
     <string name="insert_loop_label">Label</string>
     <string name="insert_loop_count">Count</string>
     <string name="insert_loop_fewer">One repeat fewer</string>

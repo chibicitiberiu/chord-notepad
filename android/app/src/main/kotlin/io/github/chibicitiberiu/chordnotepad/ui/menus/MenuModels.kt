@@ -54,3 +54,47 @@ fun initialFamilyIndex(families: List<FamilyRow>): Int = families.indexOfFirst {
  * capped the list at `max_recent_files`); empty shows "(No recent files)".
  */
 fun recentEntries(state: RecentDocumentsState?): List<DocumentRef> = state?.items.orEmpty()
+
+/** The Voicing sheet's group headings. */
+enum class VoicingGroupKind { PIANO, FRETTED, ENSEMBLES, YOURS }
+
+/** One heading of the Voicing sheet and its radio rows. */
+data class VoicingGroup(val kind: VoicingGroupKind, val choices: List<VoicingRow.Choice>)
+
+/**
+ * The Voicing sheet: Piano, Fretted, Ensembles and Your voicings, each with
+ * its choices. The heading comes from the values (`piano`, `guitar:…`,
+ * `ensemble:…`, `voicing:…`), so a group the session leaves out (no user
+ * voicings) doesn't shift the others; anything unknown joins Your voicings.
+ */
+fun voicingGroups(state: VoicingMenuState): List<VoicingGroup> {
+    val byKind = linkedMapOf<VoicingGroupKind, MutableList<VoicingRow.Choice>>()
+    for (item in state.groups.flatten()) {
+        val kind = when {
+            item.value == "piano" -> VoicingGroupKind.PIANO
+            item.value.startsWith("guitar:") -> VoicingGroupKind.FRETTED
+            item.value.startsWith("ensemble:") -> VoicingGroupKind.ENSEMBLES
+            else -> VoicingGroupKind.YOURS
+        }
+        byKind.getOrPut(kind) { mutableListOf() } += VoicingRow.Choice(item.label, item.value, item.value == state.selected)
+    }
+    return VoicingGroupKind.entries.mapNotNull { k -> byKind[k]?.let { VoicingGroup(k, it) } }
+}
+
+/** The label of the voicing in use, or null. */
+fun selectedVoicingLabel(state: VoicingMenuState?): String? =
+    state?.groups?.flatten()?.firstOrNull { it.value == state.selected }?.label
+
+/**
+ * A program's label split for the instrument sheet: `"24 - Nylon Guitar"` →
+ * (`"Nylon Guitar"`, `"24"`), the number as the desktop menu shows it. A
+ * label without the number keeps [ProgramRow.program].
+ */
+fun programParts(row: ProgramRow): Pair<String, String> {
+    val m = Regex("""^\s*(\d+)\s*-\s*(.+)$""").find(row.label)
+    return if (m != null) m.groupValues[2].trim() to m.groupValues[1] else row.label to row.program.toString()
+}
+
+/** The name of the instrument in use (`"Steel Guitar"`), or null. */
+fun currentProgramName(families: List<FamilyRow>): String? =
+    families.flatMap { it.programs }.firstOrNull { it.selected }?.let { programParts(it).first }

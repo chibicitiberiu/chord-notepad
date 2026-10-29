@@ -24,6 +24,9 @@ object Pages {
     /** ⋮ › Settings (its own pages are inside `SettingsScreen`; Back there is its own). */
     const val SETTINGS = "settings"
 
+    /** Settings opened at Voicings (the Voicing sheet's "Edit voicings…"). */
+    const val SETTINGS_VOICINGS = "settings/voicings"
+
     private const val DETAIL = "licence/"
 
     /** The page of licence entry [id]. */

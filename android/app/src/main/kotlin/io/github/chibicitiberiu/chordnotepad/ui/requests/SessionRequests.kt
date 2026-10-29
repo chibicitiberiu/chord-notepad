@@ -26,9 +26,15 @@ import kotlinx.coroutines.flow.StateFlow
  *
  * @param repo The states the Insert directive dialogs choose from (the key
  *   lists and beat units of `SettingsState`, the toolbar's keys as a fallback).
+ * @param onSuggestCapo The Capo dialog's Suggest (after it cancelled its request).
  */
 @Composable
-fun SessionRequests(pending: StateFlow<SessionRequest?>, controller: RequestController, repo: SessionRepository) {
+fun SessionRequests(
+    pending: StateFlow<SessionRequest?>,
+    controller: RequestController,
+    repo: SessionRepository,
+    onSuggestCapo: () -> Unit = {},
+) {
     val request by pending.collectAsState()
     val dialog = request?.let(::presentationOf) as? RequestPresentation.Dialog ?: return
     when (val r = dialog.request) {
@@ -44,6 +50,7 @@ fun SessionRequests(pending: StateFlow<SessionRequest?>, controller: RequestCont
                 units = settings?.timeSignatureUnits?.takeIf { it.isNotEmpty() } ?: DEFAULT_UNITS,
                 check = check,
                 onCheck = { controller.checkDirective(r, it) },
+                onSuggestCapo = onSuggestCapo,
             ) { controller.answerDirective(r, it) }
         }
         else -> Unit

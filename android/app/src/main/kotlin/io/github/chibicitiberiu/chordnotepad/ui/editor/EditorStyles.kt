@@ -5,6 +5,7 @@ import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextDecoration
 import io.github.chibicitiberiu.chordnotepad.bridge.SpanKind
+import io.github.chibicitiberiu.chordnotepad.ui.theme.AppColors
 
 // The desktop editor's look (src/constants.py, src/ui/text_editor.py), which
 // the port keeps as is: Tk's named colours, black text on white.
@@ -47,6 +48,25 @@ val PlayingStyle = SpanStyle(
     textDecoration = TextDecoration.Underline,
 )
 
+/**
+ * [SpanStyles] in [colors]: the desktop's colours in the light theme,
+ * readable variants of the same hues in the dark one.
+ */
+fun spanStylesFor(colors: AppColors): List<Pair<SpanKind, SpanStyle>> = listOf(
+    SpanKind.CHORD to SpanStyle(color = colors.chord, textDecoration = TextDecoration.Underline),
+    SpanKind.CHORD_INVALID to SpanStyle(color = colors.chordInvalid, textDecoration = TextDecoration.Underline),
+    SpanKind.DIRECTIVE to SpanStyle(color = colors.directive, textDecoration = TextDecoration.None),
+    SpanKind.DIRECTIVE_INVALID to SpanStyle(color = colors.directiveInvalid, textDecoration = TextDecoration.Underline),
+    SpanKind.COMMENT to SpanStyle(color = colors.comment),
+)
+
+/** [PlayingStyle] in [colors]. */
+fun playingStyleFor(colors: AppColors): SpanStyle = SpanStyle(
+    color = colors.editorText,
+    background = colors.playing,
+    textDecoration = TextDecoration.Underline,
+)
+
 /** Paint order: lower first, so higher-priority kinds win on overlap. */
 val SpanPriority: Map<SpanKind, Int> = SpanStyles.mapIndexed { i, (kind, _) -> kind to i }.toMap()
 
@@ -82,3 +102,16 @@ fun fontKindFor(family: String): EditorFontKind {
  * sp, so the editor reads the same size as the desktop's at 1 px = 1 dp.
  */
 fun editorFontSizeSp(points: Int): Float = points * 4f / 3f
+
+/**
+ * The configured family to send for [kind]. Keeps [current] when it already
+ * maps to [kind] (a desktop config's `Consolas` stays as it is); otherwise
+ * the desktop default `TkFixedFont` for Monospace, `Sans` or `Serif`. The
+ * settings visibility rule: Monospace, Sans or Serif only.
+ */
+fun configFamilyFor(kind: EditorFontKind, current: String): String = when {
+    fontKindFor(current) == kind -> current
+    kind == EditorFontKind.MONOSPACE -> "TkFixedFont"
+    kind == EditorFontKind.SANS -> "Sans"
+    else -> "Serif"
+}

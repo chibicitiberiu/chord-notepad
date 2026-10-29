@@ -72,12 +72,18 @@ private val PagesPaneWidth = 240.dp
  * leaving → `cancel_settings_edit`, asking first when something changed).
  * Full screen on phones (pages list → page → voicing form), list/detail
  * panes on tablets. [onClosed] once the edit ended (saved or cancelled).
+ * [initialPage] opens a page at once (Voicings, from the Voicing sheet).
  */
 @Composable
-fun SettingsScreen(repo: SessionRepository, commands: ScreenCommands, onClosed: () -> Unit) {
+fun SettingsScreen(
+    repo: SessionRepository,
+    commands: ScreenCommands,
+    onClosed: () -> Unit,
+    initialPage: SettingsPage? = null,
+) {
     val controller = rememberSaveable(
         saver = Saver<SettingsController, String>({ it.snapshot() }, { SettingsController.restore(commands, it) }),
-    ) { SettingsController(commands) }
+    ) { SettingsController(commands, SettingsUi(nav = SettingsNav(initialPage))) }
     val schemaEvent by repo.voicingEditorSchema.collectAsState()
     val schema = remember(schemaEvent) { schemaEvent?.let { EditorSchema.parse(it.schema) } }
     val limits by repo.settings.collectAsState()

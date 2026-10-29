@@ -174,6 +174,12 @@ class SheetPainter(private val measurer: TextMeasurer, private val glyphs: Glyph
     private val layouts = HashMap<TextKey, TextLayoutResult>()
     private val strokes = HashMap<Pair<Float, StrokeJoin>, Stroke>()
 
+    /**
+     * The tint for glyph images whose key names no colour (black ink), or
+     * null to draw them as they are. The dark theme sets the themed ink.
+     */
+    var defaultImageTint: ColorFilter? = null
+
     /** Ops drawn by the last [drawOps] calls since [resetCounter] (perf logging). */
     var drawnOps = 0
         private set
@@ -259,14 +265,20 @@ class SheetPainter(private val measurer: TextMeasurer, private val glyphs: Glyph
         val image = glyphs.image(key, density) ?: return
         val size = glyphs.sizeDp(key) ?: return
         val (x, y) = anchoredTopLeft(op.x, op.y, size.width, size.height, op.anchor)
-        val filter = key.tint?.let(::tintFor)
+        val filter = key.tint?.let(::tintFor) ?: defaultImageTint
         // Undo the dp scale so the pre-scaled bitmap maps 1:1 onto pixels.
         withTransform({ scale(1f / density, 1f / density, Offset.Zero) }) {
             drawImage(image, Offset((x * density).roundToInt().toFloat(), (y * density).roundToInt().toFloat()), colorFilter = filter)
         }
     }
 
-    private fun tintFor(tint: String): ColorFilter? = parseTkColor(tint)?.let { glyphs.tint(tint, Color(it)) }
+    /** Maps a buffer colour for the theme before a tint is made from it (identity by default). */
+    var themeColor: (String, Color) -> Color = { _, c -> c }
+
+    private fun tintFor(tint: String): ColorFilter? =
+        parseTkColor(tint)?.let { glyphs.tint(tint + themeKey, themeColor(tint, Color(it))) }
+
+    private val themeKey: String get() = if (defaultImageTint != null) ":dark" else ""
 
     private fun stroke(width: Float, join: StrokeJoin): Stroke =
         strokes.getOrPut(width to join) { Stroke(width, cap = StrokeCap.Butt, join = join) }

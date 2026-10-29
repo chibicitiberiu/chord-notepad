@@ -40,4 +40,23 @@ class EditorLookTest {
         assertEquals(6, pinchFontSize(11, 0.1f))
         assertEquals(72, pinchFontSize(40, 3f))
     }
+
+    @Test
+    fun `the configured family is kept when it already is the chosen kind`() {
+        assertEquals("TkFixedFont", configFamilyFor(EditorFontKind.MONOSPACE, "TkFixedFont"))
+        assertEquals("Consolas", configFamilyFor(EditorFontKind.MONOSPACE, "Consolas"))
+        assertEquals("Times New Roman", configFamilyFor(EditorFontKind.SERIF, "Times New Roman"))
+    }
+
+    @Test
+    fun `another kind sends a family that maps back to it`() {
+        for (kind in EditorFontKind.entries) {
+            for (current in listOf("TkFixedFont", "Sans", "Serif", "Arial")) {
+                assertEquals(kind, fontKindFor(configFamilyFor(kind, current)))
+            }
+        }
+        assertEquals("TkFixedFont", configFamilyFor(EditorFontKind.MONOSPACE, "Arial"))
+        assertEquals("Sans", configFamilyFor(EditorFontKind.SANS, "TkFixedFont"))
+        assertEquals("Serif", configFamilyFor(EditorFontKind.SERIF, "TkFixedFont"))
+    }
 }

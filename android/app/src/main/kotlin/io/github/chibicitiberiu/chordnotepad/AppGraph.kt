@@ -19,11 +19,14 @@ import io.github.chibicitiberiu.chordnotepad.lifecycle.PlaybackAudioPolicy
 import io.github.chibicitiberiu.chordnotepad.ui.ErrorQueue
 import io.github.chibicitiberiu.chordnotepad.ui.editor.EditorController
 import io.github.chibicitiberiu.chordnotepad.ui.editor.bind
+import io.github.chibicitiberiu.chordnotepad.ui.main.ModeController
+import io.github.chibicitiberiu.chordnotepad.ui.main.UiPreferences
 import io.github.chibicitiberiu.chordnotepad.ui.requests.CloseCoordinator
 import io.github.chibicitiberiu.chordnotepad.ui.requests.RequestController
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
 import java.io.File
 
@@ -82,6 +85,12 @@ class AppGraph(context: Context) {
     /** The editor's text and highlighting (app-scoped: survives rotation). */
     val editor = EditorController(commands)
 
+    /** Edit or Play (app-scoped: survives rotation; follows the opened document). */
+    val mode = ModeController()
+
+    /** View-only preferences (the landscape chord sheet column's width). */
+    val uiPreferences = UiPreferences(app)
+
     /**
      * Whether the Quick Start tour was already opened on its own since this
      * process started (main thread). Kept here, not in the UI, so a rotation
@@ -110,6 +119,7 @@ class AppGraph(context: Context) {
     fun install() {
         editorText = editor::currentText
         editor.bind(scope, repository)
+        scope.launch { repository.document.filterNotNull().collect(mode::onDocument) }
         errorQueue.bind(scope, repository.errors)
         close.bind(scope, repository.closeApproved)
         ProcessLifecycleOwner.get().lifecycle.addObserver(AppLifecycleHooks(commands))

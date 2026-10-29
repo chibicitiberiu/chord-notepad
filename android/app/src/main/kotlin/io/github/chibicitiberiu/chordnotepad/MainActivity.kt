@@ -7,9 +7,9 @@ import androidx.activity.enableEdgeToEdge
 import io.github.chibicitiberiu.chordnotepad.lifecycle.DraftHook
 import io.github.chibicitiberiu.chordnotepad.lifecycle.DraftPolicy
 import io.github.chibicitiberiu.chordnotepad.spike.SpikeScreen
-import io.github.chibicitiberiu.chordnotepad.ui.ChordNotepadTheme
 import io.github.chibicitiberiu.chordnotepad.ui.MainScreen
 import io.github.chibicitiberiu.chordnotepad.ui.requests.RequestPickers
+import io.github.chibicitiberiu.chordnotepad.ui.theme.ChordNotepadTheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
