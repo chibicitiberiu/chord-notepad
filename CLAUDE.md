@@ -38,7 +38,7 @@ src/
 ├── constants.py         # Global constants, colors, tags
 ├── exceptions.py        # Custom exception hierarchy
 ├── models/              # Dataclasses (Song, Line, ChordInfo, Directive, Config)
-├── views → ui/          # Tkinter widgets (MainWindow, ChordTextEditor)
+├── views → ui/          # Tkinter widgets (thin views over AppSession)
 ├── viewmodels/          # Business logic (MainWindowViewModel, TextEditorViewModel, SettingsViewModel)
 ├── services/            # Cross-cutting concerns
 │   ├── playback_service.py    # Audio orchestration
@@ -56,6 +56,9 @@ src/
 │   ├── chord_tones.py         # Shared chord-tone role taxonomy (root/third/...)
 │   ├── voicing_optimizer.py   # Beam-Viterbi harness for whole-song voicing
 │   └── event_buffer.py        # Bounded event queue feeding the player
+├── session/             # AppSession: shared app layer both UIs sit on (docs/architecture/session.md)
+├── chord_sheet/         # Headless chord-sheet renderers, draw ops, op buffer for Android
+├── settings_forms/      # Tk-free voicings editor schema/validation (JSON in/out)
 ├── chord/               # Chord detection
 │   ├── detector.py            # Regex-based detection
 │   ├── helper.py              # pychord/music21 validation
