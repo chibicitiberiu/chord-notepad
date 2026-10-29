@@ -2,6 +2,7 @@ package io.github.chibicitiberiu.chordnotepad.ui.help
 
 import android.annotation.SuppressLint
 import android.graphics.Bitmap
+import android.view.ContextThemeWrapper
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebView
@@ -23,6 +24,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.viewinterop.AndroidView
@@ -30,6 +32,7 @@ import androidx.webkit.WebViewAssetLoader
 import io.github.chibicitiberiu.chordnotepad.R
 import io.github.chibicitiberiu.chordnotepad.ui.about.openLink
 import io.github.chibicitiberiu.chordnotepad.ui.icons.AppIcons
+import io.github.chibicitiberiu.chordnotepad.ui.theme.appColors
 
 /**
  * Help › User Guide: the Sphinx guide built into `assets/help/`, shown in a
@@ -42,6 +45,12 @@ import io.github.chibicitiberiu.chordnotepad.ui.icons.AppIcons
  * search; no file or content access is allowed and nothing is loaded from
  * the network.
  *
+ * Dark mode: the guide's stylesheet (help/_static/android.css) follows
+ * `prefers-color-scheme`, which WebView takes from the `isLightTheme`
+ * attribute of its context's theme (apps targeting 33+). The activity's
+ * theme is always the light one (Compose draws its own), so the WebView gets
+ * a context themed to match the app.
+ *
  * @param onClose Leave the screen.
  */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -53,6 +62,7 @@ fun UserGuideScreen(onClose: () -> Unit) {
     // The page shown, kept over rotation (the WebView's own history is not).
     var lastUrl by rememberSaveable { mutableStateOf(HelpLinks.START_URL) }
     val webView = remember { arrayOfNulls<WebView>(1) }
+    val colors = appColors
 
     BackHandler {
         val view = webView[0]
@@ -78,7 +88,13 @@ fun UserGuideScreen(onClose: () -> Unit) {
                     .setDomain(HelpLinks.HOST)
                     .addPathHandler("/assets/", WebViewAssetLoader.AssetsPathHandler(ctx))
                     .build()
-                WebView(ctx).apply {
+                val theme = if (colors.dark) {
+                    android.R.style.Theme_Material_NoActionBar
+                } else {
+                    android.R.style.Theme_Material_Light_NoActionBar
+                }
+                WebView(ContextThemeWrapper(ctx, theme)).apply {
+                    setBackgroundColor(colors.surface.toArgb()) // no white flash before the page
                     settings.javaScriptEnabled = true
                     settings.domStorageEnabled = true // Sphinx scripts read sessionStorage; null without it
                     settings.allowFileAccess = false
