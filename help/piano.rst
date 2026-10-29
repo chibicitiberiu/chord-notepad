@@ -44,16 +44,32 @@ the Voicings page, this is what you've been hearing all along.
 Defining a Custom Piano Voicing
 =====================================
 
-If you want the piano to sit in a different register, spread the hands
-further apart, or trade completeness for a sparser texture, add a custom
-piano voicing from :menuselection:`Tools --> Settings...` --> Voicings:
-load **Grand Piano** as a starting point, change what's different (ranges,
-span, weights), and save. See :doc:`settings` for the page itself.
+.. only:: desktop
 
-Power users can also edit the configuration file directly -- the same
-mechanism used for custom fretted instruments and ensembles. The file lives
-at ``~/.config/chord-notepad/settings.json`` on Linux, or the equivalent
-per-user application-data folder on Windows and macOS.
+   If you want the piano to sit in a different register, spread the hands
+   further apart, or trade completeness for a sparser texture, add a custom
+   piano voicing from :menuselection:`Tools --> Settings...` --> Voicings:
+   load **Grand Piano** as a starting point, change what's different (ranges,
+   span, weights), and save. See :doc:`settings` for the page itself.
+
+.. only:: android
+
+   If you want the piano to sit in a different register, spread the hands
+   further apart, or trade completeness for a sparser texture, add a custom
+   piano voicing from ⋮ → Settings → Voicings:
+   load **Grand Piano** as a starting point, change what's different (ranges,
+   span, weights), and save. See :doc:`settings` for the page itself.
+
+.. only:: desktop
+
+   Power users can also edit the configuration file directly -- the same
+   mechanism used for custom fretted instruments and ensembles. The file lives
+   at ``~/.config/chord-notepad/settings.json`` on Linux, or the equivalent
+   per-user application-data folder on Windows and macOS.
+
+.. only:: android
+
+   Voicings are edited in ⋮ → Settings → Voicings; the configuration file is not something you edit by hand on Android.
 
 Add a ``voicings`` object at the top level, keyed by a short slug you'll use
 internally; each entry needs a ``"model": "piano"`` and describes one
@@ -93,20 +109,38 @@ closer together, suited to a slow, intimate ballad:
   change, and everything else keeps its default. See the parameter
   reference below for the full list of keys.
 
-Custom piano voicings appear in :menuselection:`Playback --> Voicing`
-automatically the next time Chord Notepad starts, sorted alongside every
-other voicing -- built-in or custom, piano, fretted, or ensemble -- by model
-and then name.
+.. only:: desktop
+
+   Custom piano voicings appear in :menuselection:`Playback --> Voicing`
+   automatically the next time Chord Notepad starts, sorted alongside every
+   other voicing -- built-in or custom, piano, fretted, or ensemble -- by model
+   and then name.
+
+.. only:: android
+
+   Custom piano voicings appear in ⋮ → Playback → Voicing
+   automatically the next time Chord Notepad starts, sorted alongside every
+   other voicing -- built-in or custom, piano, fretted, or ensemble -- by model
+   and then name.
 
 
 How to Change Voicing
 =========================
 
-1. Open the **Playback** menu.
-2. Click **Voicing**.
-3. Select **Grand Piano**, or any custom piano voicing you've defined (see
-   above).
-4. Play your chords to hear the difference.
+.. only:: desktop
+
+   1. Open the **Playback** menu.
+   2. Click **Voicing**.
+   3. Select **Grand Piano**, or any custom piano voicing you've defined (see
+      above).
+   4. Play your chords to hear the difference.
+
+.. only:: android
+
+   1. Open **⋮ → Playback → Voicing**.
+   2. Select **Grand Piano**, or any custom piano voicing you've defined (see
+      above).
+   3. Play your chords to hear the difference.
 
 A checkmark shows the current voicing, the same as for :doc:`playback`.
 
@@ -114,12 +148,22 @@ A checkmark shows the current voicing, the same as for :doc:`playback`.
 Voicing Parameters
 =======================
 
-Every piano voicing, built-in or custom, is steered by the same physical
-hand limits, the same scoring anchors, and the same set of numeric weights.
-These are the controls the Voicings page of :menuselection:`Options -->
-Settings...` exposes, one control per row -- see :doc:`settings` for the
-page itself; they can also be set directly in a voicing's entry in
-``settings.json``.
+.. only:: desktop
+
+   Every piano voicing, built-in or custom, is steered by the same physical
+   hand limits, the same scoring anchors, and the same set of numeric weights.
+   These are the controls the Voicings page of :menuselection:`Options -->
+   Settings...` exposes, one control per row -- see :doc:`settings` for the
+   page itself; they can also be set directly in a voicing's entry in
+   ``settings.json``.
+
+.. only:: android
+
+   Every piano voicing, built-in or custom, is steered by the same physical
+   hand limits, the same scoring anchors, and the same set of numeric weights.
+   These are the controls the Voicings page of ⋮ → Settings exposes, one control per row -- see :doc:`settings` for the
+   page itself; they can also be set directly in a voicing's entry in
+   ``settings.json``.
 
 Hands and Range
 ------------------

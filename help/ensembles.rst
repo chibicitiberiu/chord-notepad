@@ -158,38 +158,73 @@ finds something an ensemble could actually sing or play.
 How to Change Voicing
 =======================
 
-1. Open the **Playback** menu.
-2. Click **Voicing**.
-3. Select **Choir (SATB)**, **Male Choir (TTBB)**, **Treble Choir (SSA)**,
-   **String Quartet**, or any custom ensemble you've defined (see below).
-4. Play your chords to hear the difference.
+.. only:: desktop
+
+   1. Open the **Playback** menu.
+   2. Click **Voicing**.
+   3. Select **Choir (SATB)**, **Male Choir (TTBB)**, **Treble Choir (SSA)**,
+      **String Quartet**, or any custom ensemble you've defined (see below).
+   4. Play your chords to hear the difference.
+
+.. only:: android
+
+   1. Open **⋮ → Playback → Voicing**.
+   2. Select **Choir (SATB)**, **Male Choir (TTBB)**, **Treble Choir (SSA)**,
+      **String Quartet**, or any custom ensemble you've defined (see below).
+   3. Play your chords to hear the difference.
 
 A checkmark shows the current voicing, the same as for :doc:`playback`.
 
-A suitable instrument sound makes ensemble voicings much more convincing --
-try **Choir Aahs** or **Voice Oohs** for the choir presets, or **String
-Ensemble** for the quartet. Change it under
-:menuselection:`Playback --> Instrument`; see :ref:`changing-instruments`.
+.. only:: desktop
+
+   A suitable instrument sound makes ensemble voicings much more convincing --
+   try **Choir Aahs** or **Voice Oohs** for the choir presets, or **String
+   Ensemble** for the quartet. Change it under
+   :menuselection:`Playback --> Instrument`; see :ref:`changing-instruments`.
+
+.. only:: android
+
+   A suitable instrument sound makes ensemble voicings much more convincing --
+   try **Choir Aahs** or **Voice Oohs** for the choir presets, or **String
+   Ensemble** for the quartet. Change it under
+   ⋮ → Playback → Instrument; see :ref:`changing-instruments`.
 
 
 Custom Ensembles
 ==================
 
-If the four presets don't match the group you're writing for, define your
-own from :menuselection:`Tools --> Settings...` --> Voicings: load a
-built-in ensemble as a starting point, change the voices, spacing, or
-weights, and save. See :doc:`settings` for the page itself and a worked
-example (built there for a fretted instrument, but the same steps apply
-to an ensemble).
+.. only:: desktop
 
-Power users can also edit the configuration file directly -- the same
-schema the Settings window reads and writes. Chord Notepad keeps every
-non-built-in voicing -- ensemble or fretted instrument alike -- in a
-single ``voicings`` object in its configuration file; the same registry
-holds custom guitar tunings and other fretted instruments (see
-:doc:`fretted`). The file lives at ``~/.config/chord-notepad/settings.json``
-on Linux, or the equivalent per-user application-data folder on Windows
-and macOS.
+   If the four presets don't match the group you're writing for, define your
+   own from :menuselection:`Tools --> Settings...` --> Voicings: load a
+   built-in ensemble as a starting point, change the voices, spacing, or
+   weights, and save. See :doc:`settings` for the page itself and a worked
+   example (built there for a fretted instrument, but the same steps apply
+   to an ensemble).
+
+.. only:: android
+
+   If the four presets don't match the group you're writing for, define your
+   own from ⋮ → Settings → Voicings: load a
+   built-in ensemble as a starting point, change the voices, spacing, or
+   weights, and save. See :doc:`settings` for the page itself and a worked
+   example (built there for a fretted instrument, but the same steps apply
+   to an ensemble).
+
+.. only:: desktop
+
+   Power users can also edit the configuration file directly -- the same
+   schema the Settings window reads and writes. Chord Notepad keeps every
+   non-built-in voicing -- ensemble or fretted instrument alike -- in a
+   single ``voicings`` object in its configuration file; the same registry
+   holds custom guitar tunings and other fretted instruments (see
+   :doc:`fretted`). The file lives at ``~/.config/chord-notepad/settings.json``
+   on Linux, or the equivalent per-user application-data folder on Windows
+   and macOS.
+
+.. only:: android
+
+   Voicings are edited in ⋮ → Settings → Voicings; the configuration file is not something you edit by hand on Android.
 
 Add a ``voicings`` object at the top level, keyed by a short slug you'll
 use internally; each entry needs a ``"model": "ensemble"`` and describes
@@ -245,9 +280,17 @@ one ensemble:
   change, and everything else keeps its default. See the parameter
   reference below for the full list of keys.
 
-Custom ensembles appear in :menuselection:`Playback --> Voicing` automatically
-the next time Chord Notepad starts, sorted alongside every other voicing --
-built-in or custom, ensemble or fretted -- by model and then name.
+.. only:: desktop
+
+   Custom ensembles appear in :menuselection:`Playback --> Voicing` automatically
+   the next time Chord Notepad starts, sorted alongside every other voicing --
+   built-in or custom, ensemble or fretted -- by model and then name.
+
+.. only:: android
+
+   Custom ensembles appear in ⋮ → Playback → Voicing automatically
+   the next time Chord Notepad starts, sorted alongside every other voicing --
+   built-in or custom, ensemble or fretted -- by model and then name.
 
 .. note::
    Upgrading from an older version? Chord Notepad moves any entries it
@@ -259,15 +302,29 @@ built-in or custom, ensemble or fretted -- by model and then name.
 Voicing Parameters
 ====================
 
-Every ensemble, built-in or custom, is steered by the same set of
-numeric parameters. These are the controls the Voicings page of
-:menuselection:`Tools --> Settings...` exposes, one control per row --
-see :doc:`settings` for the page itself; they can also be set directly in
-the ``weights`` object for an ensemble in ``settings.json``. Every weight
-is a signed number added to the voicing's score. Positive values make that
-trait more likely, negative values less likely, and higher is always more
-preferred. A trait you want the engine to seek gets a positive weight; one
-you want it to avoid gets a negative one; zero is neutral.
+.. only:: desktop
+
+   Every ensemble, built-in or custom, is steered by the same set of
+   numeric parameters. These are the controls the Voicings page of
+   :menuselection:`Tools --> Settings...` exposes, one control per row --
+   see :doc:`settings` for the page itself; they can also be set directly in
+   the ``weights`` object for an ensemble in ``settings.json``. Every weight
+   is a signed number added to the voicing's score. Positive values make that
+   trait more likely, negative values less likely, and higher is always more
+   preferred. A trait you want the engine to seek gets a positive weight; one
+   you want it to avoid gets a negative one; zero is neutral.
+
+.. only:: android
+
+   Every ensemble, built-in or custom, is steered by the same set of
+   numeric parameters. These are the controls the Voicings page of
+   ⋮ → Settings exposes, one control per row --
+   see :doc:`settings` for the page itself; they can also be set directly in
+   the ``weights`` object for an ensemble in ``settings.json``. Every weight
+   is a signed number added to the voicing's score. Positive values make that
+   trait more likely, negative values less likely, and higher is always more
+   preferred. A trait you want the engine to seek gets a positive weight; one
+   you want it to avoid gets a negative one; zero is neutral.
 
 .. list-table::
    :header-rows: 1

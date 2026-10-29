@@ -8,43 +8,75 @@ By the end, you'll know how to write chords, play them back, and save your work.
 Opening the Application
 -----------------------
 
-Launch Chord Notepad like any other application. It opens to an empty document
-(or the last file you had open) with a toolbar across the top, a large text
-area in the middle, and a status bar along the bottom -- see the next section
-for a labelled tour.
+.. only:: desktop
+
+   Launch Chord Notepad like any other application. It opens to an empty document
+   (or the last file you had open) with a toolbar across the top, a large text
+   area in the middle, and a status bar along the bottom -- see the next section
+   for a labelled tour.
+
+.. only:: android
+
+   Open Chord Notepad like any other app. You get an empty document with a
+   toolbar across the top and a large text area below it. The menus are in the
+   ⋮ (overflow) menu at the top right.
 
 The Main Window
 ---------------
 
-.. figure:: /images/main-window-labeled.png
-   :alt: The Chord Notepad window with numbered callouts on the menu bar,
-         toolbar controls, text editor, and status bar.
-   :align: center
-   :width: 100%
+.. only:: desktop
 
-   The main window at a glance.
+   .. figure:: /images/main-window-labeled.png
+      :alt: The Chord Notepad window with numbered callouts on the menu bar,
+            toolbar controls, text editor, and status bar.
+      :align: center
+      :width: 100%
 
-#. **Menu bar** -- File, Edit, View, Playback, Tools, and Help. Everything the
-   toolbar does (and more) lives here too.
-#. **Notation toggle (AB / Do)** -- switch the editor between American and
-   European note names. Roman numerals work in either mode. See
-   :doc:`writing_chords`.
-#. **Tempo controls** -- the base **BPM** and a **speed %** multiplier
-   (covered under *Adjusting the Tempo* below).
-#. **Key selector** -- the current key, used to resolve roman numerals like
-   ``V`` or ``vi``.
-#. **Time signature** -- beats per bar and the beat unit (4/4, 3/4, 6/8, ...).
-#. **Playback controls** -- the metronome toggle, **Play/Pause** (▶), and
-   **Stop** (⏹).
-#. **Text editor** -- your workspace. Type here as in any text editor; Chord
-   Notepad colours what you write:
+      The main window at a glance.
 
-   * **Blue, underlined** = valid chord (plays, and is clickable)
-   * **Gray, underlined** = something that looks like a chord but isn't
-   * **Gray** = a ``//`` comment (never plays)
-   * **Purple** = a valid ``{directive}``; **red** = an invalid one
+   #. **Menu bar** -- File, Edit, View, Playback, Tools, and Help. Everything the
+      toolbar does (and more) lives here too.
+   #. **Notation toggle (AB / Do)** -- switch the editor between American and
+      European note names. Roman numerals work in either mode. See
+      :doc:`writing_chords`.
+   #. **Tempo controls** -- the base **BPM** and a **speed %** multiplier
+      (covered under *Adjusting the Tempo* below).
+   #. **Key selector** -- the current key, used to resolve roman numerals like
+      ``V`` or ``vi``.
+   #. **Time signature** -- beats per bar and the beat unit (4/4, 3/4, 6/8, ...).
+   #. **Playback controls** -- the metronome toggle, **Play/Pause** (▶), and
+      **Stop** (⏹).
+   #. **Text editor** -- your workspace. Type here as in any text editor; Chord
+      Notepad colours what you write:
 
-#. **Status bar** -- the current file, playback state, and messages.
+      * **Blue, underlined** = valid chord (plays, and is clickable)
+      * **Gray, underlined** = something that looks like a chord but isn't
+      * **Gray** = a ``//`` comment (never plays)
+      * **Purple** = a valid ``{directive}``; **red** = an invalid one
+
+   #. **Status bar** -- the current file, playback state, and messages.
+
+.. only:: android
+
+   #. **⋮ menu** -- File, Edit, View, Playback, Tools, Settings and Help live
+      here, under the same names as on the desktop.
+   #. **Notation toggle (AB / Do)** -- switch the editor between American and
+      European note names. Roman numerals work in either mode. See
+      :doc:`writing_chords`.
+   #. **Tempo controls** -- the base **BPM** and a **speed %** multiplier
+      (covered under *Adjusting the Tempo* below).
+   #. **Key selector** -- the current key, used to resolve roman numerals like
+      ``V`` or ``vi``.
+   #. **Time signature** -- beats per bar and the beat unit (4/4, 3/4, 6/8, ...).
+   #. **Playback controls** -- the metronome toggle, **Play/Pause** (▶), and
+      **Stop** (⏹).
+   #. **Text editor** -- your workspace. Type here as in any text editor; Chord
+      Notepad colours what you write:
+
+      * **Blue, underlined** = valid chord (plays, and a tap plays it)
+      * **Gray, underlined** = something that looks like a chord but isn't
+      * **Gray** = a ``//`` comment (never plays)
+      * **Purple** = a valid ``{directive}``; **red** = an invalid one
 
 Every control is described in full in :doc:`interface`.
 
@@ -53,9 +85,17 @@ Your First Chord Sheet
 
 Let's create a simple chord progression:
 
-1. Click in the text area
-2. Type: ``C  Am  F  G``
-3. Each chord turns blue when recognized
+.. only:: desktop
+
+   1. Click in the text area
+   2. Type: ``C  Am  F  G``
+   3. Each chord turns blue when recognized
+
+.. only:: android
+
+   1. Tap in the text area
+   2. Type: ``C  Am  F  G``
+   3. Each chord turns blue when recognized
 
 This is the "50s progression," a common chord sequence.
 
@@ -76,14 +116,31 @@ Playing Your First Chord
 
 Now let's hear it:
 
-1. Click the **Play** button (▶) in the toolbar (callout **6** above)
-2. Listen as each chord plays in sequence
-3. Watch the **yellow highlight** move through your chords
-4. Click **Stop** (⏹) when you're done
+.. only:: desktop
 
-You can also click any single chord to hear it on its own, even while a song is
-playing. :doc:`playback` covers playing from the cursor, looping sections, and
-the metronome.
+   1. Click the **Play** button (▶) in the toolbar (callout **6** above)
+   2. Listen as each chord plays in sequence
+   3. Watch the **yellow highlight** move through your chords
+   4. Click **Stop** (⏹) when you're done
+
+.. only:: android
+
+   1. Tap the **Play** button (▶) in the toolbar
+   2. Listen as each chord plays in sequence
+   3. Watch the **yellow highlight** move through your chords
+   4. Tap **Stop** (⏹) when you're done
+
+.. only:: desktop
+
+   You can also click any single chord to hear it on its own, even while a song is
+   playing. :doc:`playback` covers playing from the cursor, looping sections, and
+   the metronome.
+
+.. only:: android
+
+   You can also tap any single chord to hear it on its own, even while a song is
+   playing. :doc:`playback` covers playing from the cursor, looping sections, and
+   the metronome.
 
 Adjusting the Tempo
 -------------------
@@ -96,13 +153,25 @@ There are two separate tempo controls, side by side:
 
    The two tempo controls.
 
-#. **BPM** -- the song's *base* tempo in beats per minute. This is what a
-   ``{bpm: ...}`` directive sets, and the number written on the page. Drag it,
-   click to type an exact value, or scroll to nudge it (default 120).
-#. **Speed %** -- a *multiplier* applied on top of the BPM, a practice knob.
-   ``100%`` plays at the written tempo; ``50%`` plays it at half speed without
-   changing the underlying BPM. Unlike the BPM, this one stays adjustable while
-   a song is playing, so you can slow a tricky passage down on the fly.
+.. only:: desktop
+
+   #. **BPM** -- the song's *base* tempo in beats per minute. This is what a
+      ``{bpm: ...}`` directive sets, and the number written on the page. Drag it,
+      click to type an exact value, or scroll to nudge it (default 120).
+   #. **Speed %** -- a *multiplier* applied on top of the BPM, a practice knob.
+      ``100%`` plays at the written tempo; ``50%`` plays it at half speed without
+      changing the underlying BPM. Unlike the BPM, this one stays adjustable while
+      a song is playing, so you can slow a tricky passage down on the fly.
+
+.. only:: android
+
+   #. **BPM** -- the song's *base* tempo in beats per minute. This is what a
+      ``{bpm: ...}`` directive sets, and the number written on the page. Drag it,
+      tap to type an exact value, or long-press to reset it (default 120).
+   #. **Speed %** -- a *multiplier* applied on top of the BPM, a practice knob.
+      ``100%`` plays at the written tempo; ``50%`` plays it at half speed without
+      changing the underlying BPM. Unlike the BPM, this one stays adjustable while
+      a song is playing, so you can slow a tricky passage down on the fly.
 
 So the actual playback speed is *BPM × %*. See :doc:`directives` for changing
 tempo mid-song, and :doc:`interface` for the full behaviour of each control.
@@ -110,35 +179,66 @@ tempo mid-song, and :doc:`interface` for the full behaviour of each control.
 Changing the Sound
 ------------------
 
-Want a different instrument? Open the **Playback → Instrument** menu and pick
-one from any category:
+.. only:: desktop
 
-.. figure:: /images/instrument-menu.png
-   :alt: The Playback menu open at the Instrument submenu, listing categories
-         such as Piano, Organ, Guitar, Bass, Strings, and more.
-   :align: center
-   :width: 90%
+   Want a different instrument? Open the **Playback → Instrument** menu and pick
+   one from any category:
 
-   Instruments are grouped by General MIDI category.
+.. only:: android
 
-1. Go to the **Playback** menu
-2. Open **Instrument** and browse the categories (Piano, Guitar, Strings, ...)
-3. Click an instrument to select it
-4. Play your chords to hear the new sound
+   Want a different instrument? Open **⋮ → Playback → Instrument** and pick one
+   from any category.
 
-Separately, the **Playback → Voicing** submenu chooses *how* chords are laid
-out -- piano-style, or a guitar fingering in one of several tunings. Voicing
-and instrument are independent, and both are explained in :doc:`playback`.
+.. only:: desktop
+
+   .. figure:: /images/instrument-menu.png
+      :alt: The Playback menu open at the Instrument submenu, listing categories
+            such as Piano, Organ, Guitar, Bass, Strings, and more.
+      :align: center
+      :width: 90%
+
+      Instruments are grouped by General MIDI category.
+
+   1. Go to the **Playback** menu
+   2. Open **Instrument** and browse the categories (Piano, Guitar, Strings, ...)
+   3. Click an instrument to select it
+   4. Play your chords to hear the new sound
+
+.. only:: android
+
+   Instruments are grouped by General MIDI category (Piano, Guitar, Strings, ...).
+   Tap one to select it, then play your chords to hear the new sound.
+
+.. only:: desktop
+
+   Separately, the **Playback → Voicing** submenu chooses *how* chords are laid
+   out -- piano-style, or a guitar fingering in one of several tunings. Voicing
+   and instrument are independent, and both are explained in :doc:`playback`.
+
+.. only:: android
+
+   Separately, **⋮ → Playback → Voicing** chooses *how* chords are laid
+   out -- piano-style, or a guitar fingering in one of several tunings. Voicing
+   and instrument are independent, and both are explained in :doc:`playback`.
 
 Saving Your Work
 ----------------
 
 To save your chord sheet:
 
-1. Press **Ctrl+S** (or go to File → Save)
-2. Choose where to save the file
-3. Enter a filename
-4. Click Save
+.. only:: desktop
+
+   1. Press **Ctrl+S** (or go to File → Save)
+   2. Choose where to save the file
+   3. Enter a filename
+   4. Click Save
+
+.. only:: android
+
+   1. Open **⋮ → File → Save** (or press Ctrl+S on a hardware keyboard)
+   2. For a new song, the system file picker opens: choose where to save it
+      (Downloads, Drive, or any document provider) and enter a filename
+   3. Confirm
 
 Your chord sheet is saved as a plain text file. You can open it in any text
 editor, but only Chord Notepad will play it back.
@@ -148,11 +248,20 @@ Opening Existing Files
 
 To open a saved chord sheet:
 
-1. Press **Ctrl+O** (or go to File → Open)
-2. Find your file
-3. Click Open
+.. only:: desktop
 
-Recent files appear in the **File → Recent Files** menu for quick access.
+   1. Press **Ctrl+O** (or go to File → Open)
+   2. Find your file
+   3. Click Open
+
+   Recent files appear in the **File → Recent Files** menu for quick access.
+
+.. only:: android
+
+   1. Open **⋮ → File → Open…** (or press Ctrl+O on a hardware keyboard)
+   2. Pick your file in the system file picker
+
+   Recent files appear in **⋮ → File → Recent Files** for quick access.
 
 Next Steps
 ----------
@@ -162,7 +271,14 @@ For more details, see:
 * :doc:`writing_chords` - Learn all the chord types you can write
 * :doc:`directives` - Control tempo, time signature, and create song sections
 * :doc:`playback` - Explore different voicings and instruments
-* :doc:`shortcuts` - Speed up your workflow with keyboard shortcuts
+
+.. only:: desktop
+
+   * :doc:`shortcuts` - Speed up your workflow with keyboard shortcuts
+
+.. only:: android
+
+   * :doc:`shortcuts` - Keyboard shortcuts for an attached hardware keyboard
 
 Practice Exercise
 -----------------

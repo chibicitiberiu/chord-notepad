@@ -11,46 +11,90 @@ Playing Your Song
 Starting Playback
 -----------------
 
-Click the **Play** button (▶) in the toolbar. By default playback starts from
-the first chord in your document and runs to the end. The button turns into a
-**Pause** button (⏸) while a song is playing.
+.. only:: desktop
+
+   Click the **Play** button (▶) in the toolbar. By default playback starts from
+   the first chord in your document and runs to the end. The button turns into a
+   **Pause** button (⏸) while a song is playing.
+
+.. only:: android
+
+   Tap the **Play** button (▶) in the toolbar. By default playback starts from
+   the first chord in your document and runs to the end. The button turns into a
+   **Pause** button (⏸) while a song is playing.
 
 Playing from the Cursor
 -----------------------
 
 Want to start from a specific point?
 
-1. Click in the text where you want to start
-2. **Shift+Click** the Play button
-3. Playback begins from that position
+.. only:: desktop
+
+   1. Click in the text where you want to start
+   2. **Shift+Click** the Play button
+   3. Playback begins from that position
+
+.. only:: android
+
+   1. Tap in the text where you want to start
+   2. **Long-press** the Play button
+   3. Playback begins from that position
 
 This lets you start from a specific section without playing the entire document.
 
 Pausing and Resuming
 --------------------
 
-* Click the **Pause button** (⏸) to pause playback
-* Click the **Play button** (▶) to resume from where you stopped
-* The currently playing chord stays highlighted
+.. only:: desktop
+
+   * Click the **Pause button** (⏸) to pause playback
+   * Click the **Play button** (▶) to resume from where you stopped
+   * The currently playing chord stays highlighted
+
+.. only:: android
+
+   * Tap the **Pause button** (⏸) to pause playback
+   * Tap the **Play button** (▶) to resume from where you stopped
+   * The currently playing chord stays highlighted
 
 Stopping Playback
 -----------------
 
-* Click the **Stop button** (⏹) to stop completely
-* The highlight clears and playback resets
+.. only:: desktop
+
+   * Click the **Stop button** (⏹) to stop completely
+   * The highlight clears and playback resets
+
+.. only:: android
+
+   * Tap the **Stop button** (⏹) to stop completely
+   * The highlight clears and playback resets
 
 During Playback
 ---------------
 
 While playing:
 
-* The text editor becomes **read-only** (you can't edit while playing).
-  Tools that change the text (Transpose, Suggest Capo, the notation
-  conversions, the Insert menu and the chord identifier's Insert) leave it
-  unchanged until you stop.
-* The **current chord** is highlighted in yellow
-* The **status bar** shows: bar number, BPM, time signature, key, and chord name
-* The editor **auto-scrolls** to keep the playing chord visible
+.. only:: desktop
+
+   * The text editor becomes **read-only** (you can't edit while playing).
+     Tools that change the text (Transpose, Suggest Capo, the notation
+     conversions, the Insert menu and the chord identifier's Insert) leave it
+     unchanged until you stop.
+   * The **current chord** is highlighted in yellow
+   * The **status bar** shows: bar number, BPM, time signature, key, and chord name
+   * The editor **auto-scrolls** to keep the playing chord visible
+
+.. only:: android
+
+   * The text editor becomes **read-only** (you can't edit while playing).
+     Tools that change the text (Transpose, Suggest Capo, the notation
+     conversions, the Insert menu and the chord identifier's Insert) leave it
+     unchanged until you stop.
+   * The **current chord** is highlighted in yellow
+   * The editor **auto-scrolls** to keep the playing chord visible
+   * Playback **pauses** when the app leaves the screen, when headphones are
+     unplugged, or when another app takes audio focus. Tap Play to resume.
 
 
 Click-to-Play
@@ -61,9 +105,17 @@ You can play individual chords without starting full playback.
 Clicking Individual Chords
 --------------------------
 
-1. Move your mouse over any valid chord (the cursor changes to a hand pointer)
-2. Click the chord
-3. The chord plays
+.. only:: desktop
+
+   1. Move your mouse over any valid chord (the cursor changes to a hand pointer)
+   2. Click the chord
+   3. The chord plays
+
+.. only:: android
+
+   1. Find any valid chord (blue and underlined)
+   2. Tap the chord
+   3. The chord plays
 
 This works even when playback is stopped. Uses include:
 
@@ -74,7 +126,13 @@ This works even when playback is stopped. Uses include:
 Clicking During Playback
 ------------------------
 
-Clicking a chord while the song is playing will:
+.. only:: desktop
+
+   Clicking a chord while the song is playing will:
+
+.. only:: android
+
+   Tapping a chord while the song is playing will:
 
 * Play that chord immediately
 * Not interrupt the ongoing playback
@@ -91,13 +149,25 @@ second step, turning the set of notes into something that sounds like a person
 played it. Chord Notepad does it several different ways, because a keyboard,
 a fretboard, and a section of singers or players don't think alike.
 
-Switch between them under :menuselection:`Playback --> Voicing`: pick **Piano**,
-one of the fretted-instrument voicings (guitar in various tunings, **Ukulele**,
-or an instrument you've configured yourself) covered in :doc:`fretted`, or one
-of the ensemble presets (a four-part choir, a string quartet) covered in
-:doc:`ensembles`. Voicing is independent of the **instrument** you choose (see
-:ref:`changing-instruments`) -- you can play a piano voicing through a
-saxophone, or a guitar voicing through a synth pad.
+.. only:: desktop
+
+   Switch between them under :menuselection:`Playback --> Voicing`: pick **Piano**,
+   one of the fretted-instrument voicings (guitar in various tunings, **Ukulele**,
+   or an instrument you've configured yourself) covered in :doc:`fretted`, or one
+   of the ensemble presets (a four-part choir, a string quartet) covered in
+   :doc:`ensembles`. Voicing is independent of the **instrument** you choose (see
+   :ref:`changing-instruments`) -- you can play a piano voicing through a
+   saxophone, or a guitar voicing through a synth pad.
+
+.. only:: android
+
+   Switch between them under **⋮ → Playback → Voicing**: pick **Piano**,
+   one of the fretted-instrument voicings (guitar in various tunings, **Ukulele**,
+   or an instrument you've configured yourself) covered in :doc:`fretted`, or one
+   of the ensemble presets (a four-part choir, a string quartet) covered in
+   :doc:`ensembles`. Voicing is independent of the **instrument** you choose (see
+   :ref:`changing-instruments`) -- you can play a piano voicing through a
+   saxophone, or a guitar voicing through a synth pad.
 
 Piano Voicing
 -------------
@@ -206,10 +276,19 @@ Built-in Fretted-Instrument Voicings
      - G C E A (re-entrant)
      - Uke songs, standard "my dog has fleas" tuning
 
-Beyond these five, you can define a voicing for any fretted instrument with
-3 to 12 strings -- a baritone ukulele, a banjo, a seven-string guitar in a
-tuning of your own -- by adding it to the config file. See :doc:`fretted`
-for a worked example and the full list of tunable parameters.
+.. only:: desktop
+
+   Beyond these five, you can define a voicing for any fretted instrument with
+   3 to 12 strings -- a baritone ukulele, a banjo, a seven-string guitar in a
+   tuning of your own -- by adding it to the config file. See :doc:`fretted`
+   for a worked example and the full list of tunable parameters.
+
+.. only:: android
+
+   Beyond these five, you can define a voicing for any fretted instrument with
+   3 to 12 strings -- a baritone ukulele, a banjo, a seven-string guitar in a
+   tuning of your own -- in the Voicings editor under ⋮ → Settings. See
+   :doc:`fretted` for a worked example and the full list of tunable parameters.
 
 .. figure:: /images/voicings.png
    :alt: Piano keyboard and guitar chord-box diagrams for C, G, Am, and F,
@@ -263,16 +342,34 @@ affects the handful of tall jazz chords where it matters.
 How to Change Voicing
 ---------------------
 
-1. Open the **Playback** menu.
-2. Click **Voicing**.
-3. Select **Piano**, one of the fretted-instrument voicings (guitar
-   tunings, **Ukulele**, or a custom instrument), or one of the ensemble
-   presets -- see :doc:`fretted` for how each fretted voicing plays and how
-   to define your own, and :doc:`ensembles` for the same on ensembles.
-4. Play your chords to hear the difference.
+.. only:: desktop
 
-A checkmark shows the current voicing. It applies to full playback and to
-single chords you click.
+   1. Open the **Playback** menu.
+   2. Click **Voicing**.
+   3. Select **Piano**, one of the fretted-instrument voicings (guitar
+      tunings, **Ukulele**, or a custom instrument), or one of the ensemble
+      presets -- see :doc:`fretted` for how each fretted voicing plays and how
+      to define your own, and :doc:`ensembles` for the same on ensembles.
+   4. Play your chords to hear the difference.
+
+.. only:: android
+
+   1. Open **⋮ → Playback → Voicing**.
+   2. Select **Piano**, one of the fretted-instrument voicings (guitar
+      tunings, **Ukulele**, or a custom instrument), or one of the ensemble
+      presets -- see :doc:`fretted` for how each fretted voicing plays and how
+      to define your own, and :doc:`ensembles` for the same on ensembles.
+   3. Play your chords to hear the difference.
+
+.. only:: desktop
+
+   A checkmark shows the current voicing. It applies to full playback and to
+   single chords you click.
+
+.. only:: android
+
+   A checkmark shows the current voicing. It applies to full playback and to
+   single chords you tap.
 
 
 .. _changing-instruments:
@@ -286,10 +383,18 @@ standard provides 128 instruments.
 How to Change Instruments
 -------------------------
 
-1. Go to **Playback** menu
-2. Click **Instrument**
-3. Browse through the categories
-4. Click an instrument to select it
+.. only:: desktop
+
+   1. Go to **Playback** menu
+   2. Click **Instrument**
+   3. Browse through the categories
+   4. Click an instrument to select it
+
+.. only:: android
+
+   1. Open **⋮ → Playback → Instrument**
+   2. Browse through the categories
+   3. Tap an instrument to select it
 
 A checkmark (✓) shows the currently selected instrument.
 
@@ -352,15 +457,23 @@ Different instruments can highlight different aspects of a chord progression.
 The Status Bar
 ==============
 
-During playback, the status bar at the bottom shows useful information:
+.. only:: desktop
 
-* **Bar number** - Which measure you're in (e.g., "Bar 3/8")
-* **BPM** - Current tempo
-* **Time signature** - Current time signature
-* **Key** - Current key
-* **Playing chord** - Name of the chord currently sounding
+   During playback, the status bar at the bottom shows useful information:
 
-Watch the status bar to keep track of where you are in longer songs.
+   * **Bar number** - Which measure you're in (e.g., "Bar 3/8")
+   * **BPM** - Current tempo
+   * **Time signature** - Current time signature
+   * **Key** - Current key
+   * **Playing chord** - Name of the chord currently sounding
+
+   Watch the status bar to keep track of where you are in longer songs.
+
+.. only:: android
+
+   The desktop app shows the bar number, tempo, time signature, key and playing
+   chord in a status bar during playback. On Android the yellow highlight in the
+   editor and the toolbar show where you are.
 
 
 Playback Tips
@@ -396,7 +509,13 @@ Start slow and gradually increase:
 A/B Testing Chords
 ------------------
 
-Write two versions and click between them:
+.. only:: desktop
+
+   Write two versions and click between them:
+
+.. only:: android
+
+   Write two versions and tap between them:
 
 .. code-block:: chord
 
@@ -406,7 +525,13 @@ Write two versions and click between them:
    // Option B
    C  Am  Dm  G
 
-Click each chord to compare the sounds.
+.. only:: desktop
+
+   Click each chord to compare the sounds.
+
+.. only:: android
+
+   Tap each chord to compare the sounds.
 
 Checking Voice Leading
 ----------------------

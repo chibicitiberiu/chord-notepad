@@ -10,23 +10,36 @@ lyrics with the chords on the line above them, the way you'd jot a song on the
 back of an envelope or find it written online. As you type, the application
 highlights the chords and can play them back using synthesized instruments.
 
-.. figure:: /images/editor-main-window.png
-   :alt: The Chord Notepad main window: a chord sheet with chord symbols
-         highlighted in blue above the lyrics, directives in braces, and a
-         toolbar across the top.
-   :align: center
-   :width: 100%
+.. only:: desktop
 
-   A chord sheet open in Chord Notepad. Chord symbols are highlighted in blue
-   above the lyric lines; ``{directives}`` and ``// comments`` are colored
-   differently and never play.
+   .. figure:: /images/editor-main-window.png
+      :alt: The Chord Notepad main window: a chord sheet with chord symbols
+            highlighted in blue above the lyrics, directives in braces, and a
+            toolbar across the top.
+      :align: center
+      :width: 100%
 
-It works like a regular text editor, but with chord detection and audio
-playback built in. You don't mark up your text or press a "detect" button:
-Chord Notepad reads each line and works out on its own which lines are chords
-and which are lyrics, so a word like *Am* in a sentence isn't mistaken for a
-chord. Click any highlighted chord to hear it, or press **Play** to run through
-the whole sheet in time.
+      A chord sheet open in Chord Notepad. Chord symbols are highlighted in blue
+      above the lyric lines; ``{directives}`` and ``// comments`` are colored
+      differently and never play.
+
+.. only:: desktop
+
+   It works like a regular text editor, but with chord detection and audio
+   playback built in. You don't mark up your text or press a "detect" button:
+   Chord Notepad reads each line and works out on its own which lines are chords
+   and which are lyrics, so a word like *Am* in a sentence isn't mistaken for a
+   chord. Click any highlighted chord to hear it, or press **Play** to run through
+   the whole sheet in time.
+
+.. only:: android
+
+   It works like a regular text editor, but with chord detection and audio
+   playback built in. You don't mark up your text or press a "detect" button:
+   Chord Notepad reads each line and works out on its own which lines are chords
+   and which are lyrics, so a word like *Am* in a sentence isn't mistaken for a
+   chord. Tap any highlighted chord to hear it, or press **Play** to run through
+   the whole sheet in time.
 
 See :doc:`getting_started` to make your first chord sheet, and
 :doc:`writing_chords` for the full notation.
@@ -75,11 +88,21 @@ and European note names:
 
    The notation toggle. **AB** is American, **Do** is European.
 
-Roman numerals are **not** part of this toggle -- they are always recognized,
-in either mode, and are resolved against the current ``{key: ...}``. Switching
-the toggle only changes how the editor reads and shows note names; it does not
-rewrite text you have already typed (use :menuselection:`Tools --> Convert to
-...` for that). All three notations are covered in :doc:`writing_chords`.
+.. only:: desktop
+
+   Roman numerals are **not** part of this toggle -- they are always recognized,
+   in either mode, and are resolved against the current ``{key: ...}``. Switching
+   the toggle only changes how the editor reads and shows note names; it does not
+   rewrite text you have already typed (use :menuselection:`Tools --> Convert to
+   ...` for that). All three notations are covered in :doc:`writing_chords`.
+
+.. only:: android
+
+   Roman numerals are **not** part of this toggle -- they are always recognized,
+   in either mode, and are resolved against the current ``{key: ...}``. Switching
+   the toggle only changes how the editor reads and shows note names; it does not
+   rewrite text you have already typed (use ⋮ → Tools → Convert notation for
+   that). All three notations are covered in :doc:`writing_chords`.
 
 Playback
 ~~~~~~~~
@@ -137,25 +160,40 @@ frets yourself.
 System Requirements
 -------------------
 
-Chord Notepad runs on:
+.. only:: desktop
 
-* **Linux** (requires libfluidsynth)
-* **Windows**
-* **macOS**
+   Chord Notepad runs on:
 
-Audio playback requires a working sound system. The application uses FluidSynth
-for instrument synthesis.
+   * **Linux** (requires libfluidsynth)
+   * **Windows**
+   * **macOS**
+
+   Audio playback requires a working sound system. The application uses FluidSynth
+   for instrument synthesis.
+
+.. only:: android
+
+   This variant of the guide describes the Android app. Chord Notepad also runs
+   on Linux, Windows and macOS, and the chord notation is the same on every
+   platform.
 
 Getting Chord Notepad
 ---------------------
 
-Chord Notepad is free and open source. Downloads for every platform are on the
-`GitHub releases page <https://github.com/chibicitiberiu/chord-notepad/releases>`_.
+.. only:: desktop
 
-It is also available from:
+   Chord Notepad is free and open source. Downloads for every platform are on the
+   `GitHub releases page <https://github.com/chibicitiberiu/chord-notepad/releases>`_.
 
-* **Snap Store** (Linux): https://snapcraft.io/chord-notepad, or run
-  ``sudo snap install chord-notepad``
-* **Microsoft Store** (Windows): https://apps.microsoft.com/detail/9nb07qdfwjf4.
-  This is a paid supporter edition. It is the same app as the free download and
-  updates automatically. Buying it helps support development.
+   It is also available from:
+
+   * **Snap Store** (Linux): https://snapcraft.io/chord-notepad, or run
+     ``sudo snap install chord-notepad``
+   * **Microsoft Store** (Windows): https://apps.microsoft.com/detail/9nb07qdfwjf4.
+     This is a paid supporter edition. It is the same app as the free download and
+     updates automatically. Buying it helps support development.
+
+.. only:: android
+
+   Chord Notepad is free and open source. The project lives on the
+   `GitHub releases page <https://github.com/chibicitiberiu/chord-notepad/releases>`_.

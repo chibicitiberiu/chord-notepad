@@ -17,6 +17,11 @@ with open(os.path.join(os.path.dirname(__file__), '..', 'VERSION')) as _vf:
 version = release
 
 # -- General configuration ---------------------------------------------------
+# The guide builds in two variants: ``-t desktop`` and ``-t android``. A plain
+# build (CI) is the desktop guide.
+if not (tags.has('desktop') or tags.has('android')):  # noqa: F821
+    tags.add('desktop')  # noqa: F821
+
 extensions = []
 
 # Optional: PDF generation via rinohtype (only needed for make docs-pdf)

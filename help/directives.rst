@@ -245,10 +245,11 @@ Change keys within a song:
    {key: D}
    D  Bm  G  A    // Same progression, new key
 
-.. note::
-   The key directive also updates the "Key" display in the status bar during
-   playback.
+.. only:: desktop
 
+   .. note::
+      The key directive also updates the "Key" display in the status bar during
+      playback.
 
 Capo
 ====
@@ -284,9 +285,17 @@ ensemble voicings.
 Finding the Best Capo
 ---------------------
 
-You don't have to guess: :menuselection:`Tools --> Suggest Capo...` scores capo
-positions for a voicing you choose and inserts the ``{capo}`` directive for you.
-See :doc:`chord_sheet` for details.
+.. only:: desktop
+
+   You don't have to guess: :menuselection:`Tools --> Suggest Capo...` scores capo
+   positions for a voicing you choose and inserts the ``{capo}`` directive for you.
+   See :doc:`chord_sheet` for details.
+
+.. only:: android
+
+   You don't have to guess: ⋮ → Tools → Suggest Capo scores capo
+   positions for a voicing you choose and inserts the ``{capo}`` directive for you.
+   See :doc:`chord_sheet` for details.
 
 
 Labels and Loops

@@ -26,30 +26,60 @@ parentheses: ``V7`` in the key of C is labeled ``V7 (G7)``. If the key
 changes mid-song, each card resolves against the key in effect at that
 point.
 
-Click any chord in the strip to hear that exact voicing once, the same
-way clicking a chord in the editor plays it.
+.. only:: desktop
+
+   Click any chord in the strip to hear that exact voicing once, the same
+   way clicking a chord in the editor plays it.
+
+.. only:: android
+
+   Tap any chord in the strip to hear that exact voicing once, the same
+   way tapping a chord in the editor plays it.
 
 
 Showing and Resizing the Strip
 ==================================
 
-Toggle the strip from :menuselection:`View --> Chord Sheet`. Hiding it stops
-the (fairly expensive) voicing work the strip does in the background; showing
-it again picks up whatever you've typed since and renders it.
+.. only:: desktop
 
-A sash between the editor and the strip lets you drag it taller or shorter to
-suit how much of the song you want visible at once. Both the panel's height
-and the view you last picked (see below) are remembered between sessions.
+   Toggle the strip from :menuselection:`View --> Chord Sheet`. Hiding it stops
+   the (fairly expensive) voicing work the strip does in the background; showing
+   it again picks up whatever you've typed since and renders it.
+
+   A sash between the editor and the strip lets you drag it taller or shorter to
+   suit how much of the song you want visible at once. Both the panel's height
+   and the view you last picked (see below) are remembered between sessions.
+
+.. only:: android
+
+   Toggle the strip from **⋮ → View → Chord Sheet**. Hiding it stops
+   the (fairly expensive) voicing work the strip does in the background; showing
+   it again picks up whatever you've typed since and renders it.
+
+   Drag the divider between the editor and the strip to make it taller or
+   shorter, to suit how much of the song you want visible at once. Both the
+   panel's height and the view you last picked (see below) are remembered between
+   sessions.
 
 
 The Four Views
 ==================
 
-The tabs above the strip switch between four ways of drawing the same voiced
-chords. Which ones are available depends on the active voicing; a tab that
-can't be used right now is greyed out, and hovering it tells you why (the
-song has no chords yet, or it needs a fretted voicing such as Guitar, picked
-from :menuselection:`Playback --> Voicing`):
+.. only:: desktop
+
+   The tabs above the strip switch between four ways of drawing the same voiced
+   chords. Which ones are available depends on the active voicing; a tab that
+   can't be used right now is greyed out, and hovering it tells you why (the
+   song has no chords yet, or it needs a fretted voicing such as Guitar, picked
+   from :menuselection:`Playback --> Voicing`):
+
+.. only:: android
+
+   The tabs above the strip switch between four ways of drawing the same voiced
+   chords. Which ones are available depends on the active voicing; a tab that
+   can't be used right now is greyed out, and tells you why (the song has no
+   chords yet, or it needs a fretted voicing such as Guitar, picked from
+   ⋮ → Playback → Voicing):
 
 Piano roll
 -------------
@@ -82,12 +112,23 @@ treble); everything else splits at middle C.
 Fret cards
 ------------
 
-A standard vertical chord diagram: strings, frets, and finger positions,
-nut at the top. Only available when a fretboard-model voicing (guitar or
-another fretted instrument, see :doc:`fretted`) is active, because this view
-needs fingering data -- a specific fret per string -- that only a fretboard
-voicing produces. Pick a guitar or other fretted voicing under
-:menuselection:`Playback --> Voicing` to unlock it.
+.. only:: desktop
+
+   A standard vertical chord diagram: strings, frets, and finger positions,
+   nut at the top. Only available when a fretboard-model voicing (guitar or
+   another fretted instrument, see :doc:`fretted`) is active, because this view
+   needs fingering data -- a specific fret per string -- that only a fretboard
+   voicing produces. Pick a guitar or other fretted voicing under
+   :menuselection:`Playback --> Voicing` to unlock it.
+
+.. only:: android
+
+   A standard vertical chord diagram: strings, frets, and finger positions,
+   nut at the top. Only available when a fretboard-model voicing (guitar or
+   another fretted instrument, see :doc:`fretted`) is active, because this view
+   needs fingering data -- a specific fret per string -- that only a fretboard
+   voicing produces. Pick a guitar or other fretted voicing under
+   ⋮ → Playback → Voicing to unlock it.
 
 Tab
 ------
@@ -105,9 +146,17 @@ while the strip scrolls: the piano roll's keyboard, and the staff's clefs
 and key signature (which switches to show the key in effect at the first
 visible chord once you scroll past a ``{key}`` change).
 
-The Staff, Fret cards, and Tab views have **−** / **+** buttons at the right
-end of the strip's header to make their drawing smaller or larger. The zoom
-level is remembered per view.
+.. only:: desktop
+
+   The Staff, Fret cards, and Tab views have **−** / **+** buttons at the right
+   end of the strip's header to make their drawing smaller or larger. The zoom
+   level is remembered per view.
+
+.. only:: android
+
+   The Staff, Fret cards, and Tab views have **−** / **+** buttons at the right
+   end of the strip's header to make their drawing smaller or larger, or you can
+   pinch the strip. The zoom level is remembered per view.
 
 
 Capo
@@ -126,14 +175,27 @@ unaffected, and non-fretboard voicings ignore it.
 Suggesting a Capo
 -----------------
 
-To find a good capo, use :menuselection:`Tools --> Suggest Capo...`. It asks
-which fretboard voicing to optimize for -- defaulting to the current one, or
-standard guitar when the active voicing is not a fretboard voicing -- then
-scores capo positions over the selection (or the whole song when nothing is
-selected) and inserts the ``{capo: N}`` directive at that point, as a single
-undo step. It looks for the position that makes the part easiest to play:
-fewest barres, lowest on the neck, most open strings. If no capo helps, it says
-so and inserts nothing.
+.. only:: desktop
+
+   To find a good capo, use :menuselection:`Tools --> Suggest Capo...`. It asks
+   which fretboard voicing to optimize for -- defaulting to the current one, or
+   standard guitar when the active voicing is not a fretboard voicing -- then
+   scores capo positions over the selection (or the whole song when nothing is
+   selected) and inserts the ``{capo: N}`` directive at that point, as a single
+   undo step. It looks for the position that makes the part easiest to play:
+   fewest barres, lowest on the neck, most open strings. If no capo helps, it says
+   so and inserts nothing.
+
+.. only:: android
+
+   To find a good capo, use **⋮ → Tools → Suggest Capo**. It asks
+   which fretboard voicing to optimize for -- defaulting to the current one, or
+   standard guitar when the active voicing is not a fretboard voicing -- then
+   scores capo positions over the selection (or the whole song when nothing is
+   selected) and inserts the ``{capo: N}`` directive at that point, as a single
+   undo step. It looks for the position that makes the part easiest to play:
+   fewest barres, lowest on the neck, most open strings. If no capo helps, it says
+   so and inserts nothing.
 
 
 Following Playback

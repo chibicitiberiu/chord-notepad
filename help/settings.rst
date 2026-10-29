@@ -2,18 +2,34 @@
 Settings
 ========
 
-:menuselection:`Tools --> Settings...` opens the Settings window, where
-everything that used to mean hand-editing the config file now has a form.
-It has three pages -- **General**, **Playback & Audio**, and **Voicings** --
-plus **Save** and **Cancel** at the bottom. Save writes every page at once;
-Cancel discards whatever you changed and closes the window.
+.. only:: desktop
+
+   :menuselection:`Tools --> Settings...` opens the Settings window, where
+   everything that used to mean hand-editing the config file now has a form.
+   It has three pages -- **General**, **Playback & Audio**, and **Voicings** --
+   plus **Save** and **Cancel** at the bottom. Save writes every page at once;
+   Cancel discards whatever you changed and closes the window.
+
+.. only:: android
+
+   **⋮ → Settings** opens the settings screens, where everything that used to
+   mean hand-editing the config file now has a form. There are two pages,
+   **General** and **Playback**, plus the **Voicings** editor. Field help shows
+   as supporting text under each field.
 
 
 General
 =======
 
-**Font family** and **Font size**
-   The editor's font, the same setting as :menuselection:`View --> Font...`.
+.. only:: desktop
+
+   **Font family** and **Font size**
+      The editor's font, the same setting as :menuselection:`View --> Font...`.
+
+.. only:: android
+
+   **Font family** and **Font size**
+      The editor's font, the same setting as ⋮ → View → Font….
 
 **Chord notation**
    American or European, the same toggle as the AB/Do buttons in the
@@ -22,17 +38,28 @@ General
 **Default key**
    The key a new document starts in.
 
-**Show quick start at startup**
-   Whether the quick-start reference (also reachable from
-   :menuselection:`Help --> Quick Start`) opens automatically when Chord
-   Notepad launches.
+.. only:: desktop
 
-**Number of recent files**
-   How many entries :menuselection:`File --> Recent Files` remembers.
+   **Show quick start at startup**
+      Whether the quick-start reference (also reachable from
+      :menuselection:`Help --> Quick Start`) opens automatically when Chord
+      Notepad launches.
 
-**Log level**
-   How much detail Chord Notepad writes to its log file. Takes effect the
-   next time you start the application.
+   **Number of recent files**
+      How many entries :menuselection:`File --> Recent Files` remembers.
+
+   **Log level**
+      How much detail Chord Notepad writes to its log file. Takes effect the
+      next time you start the application.
+
+.. only:: android
+
+   **Show quick start at startup**
+      Whether the quick-start reference (also reachable from
+      ⋮ → Quick Start) opens automatically when Chord Notepad launches.
+
+   **Number of recent files**
+      How many entries ⋮ → File → Recent Files remembers.
 
 
 Playback & Audio
@@ -44,22 +71,33 @@ Playback & Audio
 **Default time signature**
    The time signature a new document starts at.
 
-**Soundfont path**
-   The ``.sf2`` file FluidSynth loads for playback. Leave it empty to use
-   the soundfont bundled with Chord Notepad. Takes effect after restarting
-   the application.
+.. only:: desktop
 
-**Audio driver**
-   The FluidSynth audio driver to try first (for example ``alsa``,
-   ``pulseaudio`` or ``jack``). If it can't start, Chord Notepad falls back to
-   the usual drivers for your system, and tells you when none of them works.
-   Leave it empty to use the usual drivers only. Takes effect after restarting
-   the application.
+   **Soundfont path**
+      The ``.sf2`` file FluidSynth loads for playback. Leave it empty to use
+      the soundfont bundled with Chord Notepad. Takes effect after restarting
+      the application.
 
-.. note::
-   Capo handling moved out of Settings: a capo is now a ``{capo: N}`` directive
-   in the song, and :menuselection:`Tools --> Suggest Capo...` finds and inserts
-   a good one. See :doc:`chord_sheet` and :doc:`directives`.
+   **Audio driver**
+      The FluidSynth audio driver to try first (for example ``alsa``,
+      ``pulseaudio`` or ``jack``). If it can't start, Chord Notepad falls back to
+      the usual drivers for your system, and tells you when none of them works.
+      Leave it empty to use the usual drivers only. Takes effect after restarting
+      the application.
+
+.. only:: desktop
+
+   .. note::
+      Capo handling moved out of Settings: a capo is now a ``{capo: N}`` directive
+      in the song, and :menuselection:`Tools --> Suggest Capo...` finds and inserts
+      a good one. See :doc:`chord_sheet` and :doc:`directives`.
+
+.. only:: android
+
+   .. note::
+      Capo handling moved out of Settings: a capo is now a ``{capo: N}`` directive
+      in the song, and ⋮ → Tools → Suggest Capo finds and inserts a good one.
+      See :doc:`chord_sheet` and :doc:`directives`.
 
 
 Voicings
@@ -80,9 +118,17 @@ four ensemble presets, the default piano -- aren't listed here since
 they're not yours to edit, but they are available as starting points (see
 below).
 
-The right side edits whichever voicing is selected. Every control has a
-hover tooltip explaining what it does, so if a field's purpose isn't
-obvious, point at it before consulting :doc:`fretted` or :doc:`ensembles`.
+.. only:: desktop
+
+   The right side edits whichever voicing is selected. Every control has a
+   hover tooltip explaining what it does, so if a field's purpose isn't
+   obvious, point at it before consulting :doc:`fretted` or :doc:`ensembles`.
+
+.. only:: android
+
+   The right side edits whichever voicing is selected. Every field has a line
+   of supporting text under it explaining what it does, so if a field's purpose
+   isn't obvious, read that before consulting :doc:`fretted` or :doc:`ensembles`.
 
 **Load config**
    Copies every parameter from an existing voicing -- any built-in preset
@@ -116,18 +162,35 @@ obvious, point at it before consulting :doc:`fretted` or :doc:`ensembles`.
    defaults suit most music, so leave them alone unless you have a specific
    reason not to.
 
-Mistakes are flagged as you type, not just when you click Save: an
-invalid field turns red immediately, and a problem that spans two fields
--- a relaxed span smaller than the normal span, a voice whose low note is
-above its high note -- shows up as a message at the top of the editor.
-Save stays blocked until every field on the page is valid. On top of
-that, Save also validates every *other* voicing on the page, not just the
-one you're currently editing, and if something's wrong there it names
-exactly which voicing and which field. Renaming or deleting the voicing
-you're currently playing with is handled: a rename follows the selection
-so playback keeps using it, and a delete falls back to piano. Once you
-save, any new or changed custom voicing shows up in
-:menuselection:`Playback --> Voicing` immediately -- no restart needed.
+.. only:: desktop
+
+   Mistakes are flagged as you type, not just when you click Save: an
+   invalid field turns red immediately, and a problem that spans two fields
+   -- a relaxed span smaller than the normal span, a voice whose low note is
+   above its high note -- shows up as a message at the top of the editor.
+   Save stays blocked until every field on the page is valid. On top of
+   that, Save also validates every *other* voicing on the page, not just the
+   one you're currently editing, and if something's wrong there it names
+   exactly which voicing and which field. Renaming or deleting the voicing
+   you're currently playing with is handled: a rename follows the selection
+   so playback keeps using it, and a delete falls back to piano. Once you
+   save, any new or changed custom voicing shows up in
+   :menuselection:`Playback --> Voicing` immediately -- no restart needed.
+
+.. only:: android
+
+   Mistakes are flagged as you type, not just when you save: an
+   invalid field turns red immediately, and a problem that spans two fields
+   -- a relaxed span smaller than the normal span, a voice whose low note is
+   above its high note -- shows up as a message at the top of the editor.
+   Save stays blocked until every field on the page is valid. On top of
+   that, Save also validates every *other* voicing on the page, not just the
+   one you're currently editing, and if something's wrong there it names
+   exactly which voicing and which field. Renaming or deleting the voicing
+   you're currently playing with is handled: a rename follows the selection
+   so playback keeps using it, and a delete falls back to piano. Once you
+   save, any new or changed custom voicing shows up in
+   ⋮ → Playback → Voicing immediately -- no restart needed.
 
 Worked Example: A Seven-String Guitar
 --------------------------------------
@@ -137,15 +200,31 @@ with an extra low B string, the same instrument used as the custom-voicing
 example in :doc:`fretted`. Here's how to build it from the Voicings page
 instead of editing JSON by hand:
 
-1. Open :menuselection:`Tools --> Settings...` and go to the
-   **Voicings** page.
-2. Click **+** to add a new voicing.
-3. Click **Load config** and pick **Guitar (Standard - EADGBE)**. This
-   fills in the standard tuning and all its defaults as a starting point.
-4. In **Name**, type ``My 7-String``.
-5. In the strings field, change the tuning from ``E2 A2 D3 G3 B3 E4`` to
-   ``B1 E2 A2 D3 G3 B3 E4`` -- the same six strings with a low B added at
-   the top.
-6. Click **Save**.
-7. Open :menuselection:`Playback --> Voicing` -- **My 7-String** is now in
-   the list, under Fretboard. Select it and play some chords.
+.. only:: desktop
+
+   1. Open :menuselection:`Tools --> Settings...` and go to the
+      **Voicings** page.
+   2. Click **+** to add a new voicing.
+   3. Click **Load config** and pick **Guitar (Standard - EADGBE)**. This
+      fills in the standard tuning and all its defaults as a starting point.
+   4. In **Name**, type ``My 7-String``.
+   5. In the strings field, change the tuning from ``E2 A2 D3 G3 B3 E4`` to
+      ``B1 E2 A2 D3 G3 B3 E4`` -- the same six strings with a low B added at
+      the top.
+   6. Click **Save**.
+   7. Open :menuselection:`Playback --> Voicing` -- **My 7-String** is now in
+      the list, under Fretboard. Select it and play some chords.
+
+.. only:: android
+
+   1. Open **⋮ → Settings** and go to the **Voicings** editor.
+   2. Add a new voicing.
+   3. Use **Load config** and pick **Guitar (Standard - EADGBE)**. This
+      fills in the standard tuning and all its defaults as a starting point.
+   4. In **Name**, type ``My 7-String``.
+   5. In the strings field, change the tuning from ``E2 A2 D3 G3 B3 E4`` to
+      ``B1 E2 A2 D3 G3 B3 E4`` -- the same six strings with a low B added at
+      the top.
+   6. Save.
+   7. Open **⋮ → Playback → Voicing** -- **My 7-String** is now in the list,
+      under Fretboard. Select it and play some chords.

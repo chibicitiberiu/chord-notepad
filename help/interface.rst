@@ -8,8 +8,15 @@ This section covers all the menus, toolbars, and special tools in Chord Notepad.
 The Toolbar
 ===========
 
-The toolbar at the top of the window gives you quick access to the most common
-controls.
+.. only:: desktop
+
+   The toolbar at the top of the window gives you quick access to the most common
+   controls.
+
+.. only:: android
+
+   The toolbar at the top of the screen gives you quick access to the most common
+   controls.
 
 Notation Toggle (AB/Do)
 -----------------------
@@ -19,18 +26,33 @@ Two buttons on the left let you switch notation systems:
 * **AB** - American notation (C, D, E, F, G, A, B)
 * **Do** - European notation (Do, Re, Mi, Fa, Sol, La, Si)
 
-The selected button appears highlighted. Clicking switches your notation and
-updates the key selector to match.
+.. only:: desktop
+
+   The selected button appears highlighted. Clicking switches your notation and
+   updates the key selector to match.
+
+.. only:: android
+
+   The selected button appears highlighted. Tapping switches your notation and
+   updates the key selector to match.
 
 BPM Control
 -----------
 
 The BPM value is shown as underlined text in the toolbar.
 
-* **Drag left/right** to change the value (range 20-400 BPM)
-* **Click** to type a precise value
-* **Middle-click** to reset to the default (120 BPM)
-* **Scroll** with the mouse wheel to step by 1
+.. only:: desktop
+
+   * **Drag left/right** to change the value (range 20-400 BPM)
+   * **Click** to type a precise value
+   * **Middle-click** to reset to the default (120 BPM)
+   * **Scroll** with the mouse wheel to step by 1
+
+.. only:: android
+
+   * **Drag left/right** to change the value (range 20-400 BPM)
+   * **Tap** to type a precise value
+   * **Long-press** to reset to the default (120 BPM)
 
 During playback the BPM control becomes read-only and shows the **effective
 BPM** — what's actually playing right now, including any changes from
@@ -44,9 +66,17 @@ Next to the BPM is the speed multiplier (``100%`` by default), which scales
 the playback speed on top of the BPM (whether you set it manually or via a
 directive). Use it as a "practice slowdown" knob.
 
-* **Drag left/right** to change the value (range 12.5% - 400%, snapping every 12.5%)
-* **Click** to type a precise value — accepts ``150``, ``150%``, or ``1.5x``
-* **Middle-click** to reset to ``100%``
+.. only:: desktop
+
+   * **Drag left/right** to change the value (range 12.5% - 400%, snapping every 12.5%)
+   * **Click** to type a precise value — accepts ``150``, ``150%``, or ``1.5x``
+   * **Middle-click** to reset to ``100%``
+
+.. only:: android
+
+   * **Drag left/right** to change the value (range 12.5% - 400%, snapping every 12.5%)
+   * **Tap** to type a precise value — accepts ``150``, ``150%``, or ``1.5x``
+   * **Long-press** to reset to ``100%``
 
 Unlike the BPM control, the multiplier **stays editable during playback** and
 takes effect immediately on the next chord. For example, set the multiplier
@@ -57,9 +87,17 @@ Key Selector
 
 A dropdown menu lets you choose the musical key:
 
-* Click to open the list of keys
-* Select the key for your song
-* This affects how roman numerals are interpreted
+.. only:: desktop
+
+   * Click to open the list of keys
+   * Select the key for your song
+   * This affects how roman numerals are interpreted
+
+.. only:: android
+
+   * Tap to open the list of keys
+   * Select the key for your song
+   * This affects how roman numerals are interpreted
 
 The keys shown match your notation choice (C-D-E-F-G-A-B for American,
 Do-Re-Mi-Fa-Sol-La-Si for European).
@@ -67,7 +105,13 @@ Do-Re-Mi-Fa-Sol-La-Si for European).
 Time Signature Controls
 -----------------------
 
-Two spinboxes let you set the time signature:
+.. only:: desktop
+
+   Two spinboxes let you set the time signature:
+
+.. only:: android
+
+   Two pickers let you set the time signature:
 
 * **First box** - Beats per measure (1-16)
 * **Second box** - Beat unit (1, 2, 4, 8, or 16)
@@ -95,12 +139,23 @@ sounds *during song playback*.
 Playback Buttons
 ----------------
 
-**Play/Pause Button (▶/⏸)**
+.. only:: desktop
 
-* Shows ▶ when stopped or paused
-* Click to start playing from the beginning
-* **Shift+Click** to play from the cursor position
-* Shows ⏸ when playing - click to pause
+   **Play/Pause Button (▶/⏸)**
+
+   * Shows ▶ when stopped or paused
+   * Click to start playing from the beginning
+   * **Shift+Click** to play from the cursor position
+   * Shows ⏸ when playing - click to pause
+
+.. only:: android
+
+   **Play/Pause Button (▶/⏸)**
+
+   * Shows ▶ when stopped or paused
+   * Tap to start playing from the beginning
+   * **Long-press** to play from the cursor position
+   * Shows ⏸ when playing - tap to pause
 
 **Stop Button (⏹)**
 
@@ -115,188 +170,268 @@ The Menus
 File Menu
 ---------
 
-**New** (Ctrl+N)
-   Create a new, empty document. If you have unsaved changes, you'll be asked
-   to save them first.
+.. only:: desktop
 
-**Open...** (Ctrl+O)
-   Open an existing chord sheet file. Browse to find your file and click Open.
+   **New** (Ctrl+N)
+      Create a new, empty document. If you have unsaved changes, you'll be asked
+      to save them first.
 
-**Save** (Ctrl+S)
-   Save the current document. If it's a new file, you'll be asked where to
-   save it.
+   **Open...** (Ctrl+O)
+      Open an existing chord sheet file. Browse to find your file and click Open.
 
-**Save As...** (Ctrl+Shift+S)
-   Save the current document with a new name or location.
+   **Save** (Ctrl+S)
+      Save the current document. If it's a new file, you'll be asked where to
+      save it.
 
-**Export MIDI...**
-   Save the song as a standard MIDI file. Opens a save dialog for a ``.mid``
-   file containing the same voicings, timing, tempo, and instrument as
-   playback, with loops unrolled into their repeats. See
-   :doc:`midi_export` for details.
+   **Save As...** (Ctrl+Shift+S)
+      Save the current document with a new name or location.
 
-**Recent Files**
-   A submenu showing up to 10 recently opened files. Click any file to open it
-   quickly.
+   **Export MIDI...**
+      Save the song as a standard MIDI file. Opens a save dialog for a ``.mid``
+      file containing the same voicings, timing, tempo, and instrument as
+      playback, with loops unrolled into their repeats. See
+      :doc:`midi_export` for details.
 
-**Exit** (Ctrl+Q)
-   Close Chord Notepad. You'll be asked to save any unsaved changes.
+   **Recent Files**
+      A submenu showing up to 10 recently opened files. Click any file to open it
+      quickly.
+
+   **Exit** (Ctrl+Q)
+      Close Chord Notepad. You'll be asked to save any unsaved changes.
+
+.. only:: android
+
+   **⋮ → File** holds New, Open…, Save, Save As…, Export MIDI… and Recent
+   Files. Open and Save use the system file picker (Downloads, Drive or any
+   document provider). Recent Files keeps access to the documents you picked,
+   and a document that has disappeared drops off the list. Export MIDI is
+   described in :doc:`midi_export`. There is no Exit; leave the app the usual
+   Android way.
 
 Edit Menu
 ---------
 
-**Undo** (Ctrl+Z)
-   Undo your last action. You can undo multiple times to go back through your
-   edit history.
+.. only:: desktop
 
-**Redo** (Ctrl+Y)
-   Redo an action you just undid.
+   **Undo** (Ctrl+Z)
+      Undo your last action. You can undo multiple times to go back through your
+      edit history.
 
-**Cut** (Ctrl+X)
-   Cut the selected text to the clipboard.
+   **Redo** (Ctrl+Y)
+      Redo an action you just undid.
 
-**Copy** (Ctrl+C)
-   Copy the selected text to the clipboard.
+   **Cut** (Ctrl+X)
+      Cut the selected text to the clipboard.
 
-**Paste** (Ctrl+V)
-   Paste text from the clipboard at the cursor position.
+   **Copy** (Ctrl+C)
+      Copy the selected text to the clipboard.
 
-**Select All** (Ctrl+A)
-   Select all text in the document.
+   **Paste** (Ctrl+V)
+      Paste text from the clipboard at the cursor position.
+
+   **Select All** (Ctrl+A)
+      Select all text in the document.
+
+.. only:: android
+
+   **⋮ → Edit** holds Undo, Redo and Select All. Cut, copy and paste are in
+   the editor's own text-selection menu. The editor is read-only while a song
+   plays.
 
 View Menu
 ---------
 
-**Font...**
-   Opens a dialog to change the font:
+.. only:: desktop
 
-   * **Font family** - Choose from any font installed on your system
-   * **Font size** - Choose from 6 to 72 points
+   **Font...**
+      Opens a dialog to change the font:
 
-   Your choice is saved and remembered for next time.
+      * **Font family** - Choose from any font installed on your system
+      * **Font size** - Choose from 6 to 72 points
 
-**Chord Sheet**
-   Shows or hides the chord sheet strip docked under the editor, with the
-   song's voiced chords laid out left to right as they'll actually play.
-   See :doc:`chord_sheet`.
+      Your choice is saved and remembered for next time.
 
-**Increase Font Size** (Ctrl+Plus)
-   Make the text one size larger.
+   **Chord Sheet**
+      Shows or hides the chord sheet strip docked under the editor, with the
+      song's voiced chords laid out left to right as they'll actually play.
+      See :doc:`chord_sheet`.
 
-**Decrease Font Size** (Ctrl+Minus)
-   Make the text one size smaller.
+   **Increase Font Size** (Ctrl+Plus)
+      Make the text one size larger.
 
-**Reset Font Size** (Ctrl+0)
-   Return to the default font size (11 points).
+   **Decrease Font Size** (Ctrl+Minus)
+      Make the text one size smaller.
 
-You can also zoom using **Ctrl+Mouse Wheel** (scroll up to zoom in, down to
-zoom out).
+   **Reset Font Size** (Ctrl+0)
+      Return to the default font size (11 points).
+
+   You can also zoom using **Ctrl+Mouse Wheel** (scroll up to zoom in, down to
+   zoom out).
+
+.. only:: android
+
+   **⋮ → View** holds Font…, Chord Sheet, and Increase, Decrease and Reset
+   Font Size. You can also pinch the editor to change the font size. Chord
+   Sheet shows or hides the strip under the editor (see :doc:`chord_sheet`).
 
 Playback Menu
 -------------
 
-**Voicing**
-   A submenu to select the chord voicing style:
+.. only:: desktop
 
-   * **Piano** - Keyboard-style voicing (default)
-   * **Guitar (Standard - EADGBE)** - standard tuning
-   * **Guitar (Drop D)** - DADGBE tuning
-   * **Guitar (DADGAD)** - Celtic tuning
-   * **Guitar (Open G)** - Blues/slide tuning
-   * **Ukulele** - standard G C E A (re-entrant) tuning
-   * **Choir (SATB)** - four-part mixed choir
-   * **Male Choir (TTBB)** - four-part male choir
-   * **Treble Choir (SSA)** - three-part treble choir
-   * **String Quartet** - two violins, viola, cello
-   * Any custom voicings you've added to the config file -- a fretted
-     instrument or an ensemble
+   **Voicing**
+      A submenu to select the chord voicing style:
 
-   A checkmark shows the current selection. See :doc:`fretted` for how the
-   fretted-instrument voicings (guitar and beyond) work and how to define
-   your own, and :doc:`ensembles` for the same on ensembles.
+      * **Piano** - Keyboard-style voicing (default)
+      * **Guitar (Standard - EADGBE)** - standard tuning
+      * **Guitar (Drop D)** - DADGBE tuning
+      * **Guitar (DADGAD)** - Celtic tuning
+      * **Guitar (Open G)** - Blues/slide tuning
+      * **Ukulele** - standard G C E A (re-entrant) tuning
+      * **Choir (SATB)** - four-part mixed choir
+      * **Male Choir (TTBB)** - four-part male choir
+      * **Treble Choir (SSA)** - three-part treble choir
+      * **String Quartet** - two violins, viola, cello
+      * Any custom voicings you've added to the config file -- a fretted
+        instrument or an ensemble
 
-**Instrument**
-   A submenu organized by instrument category:
+      A checkmark shows the current selection. See :doc:`fretted` for how the
+      fretted-instrument voicings (guitar and beyond) work and how to define
+      your own, and :doc:`ensembles` for the same on ensembles.
 
-   * Piano, Chromatic Percussion, Organ, Guitar, Bass, Strings, Ensemble,
-     Brass, Reed, Pipe, Synth Lead, Synth Pad, Synth Effects, Ethnic,
-     Percussive, Sound Effects
+   **Instrument**
+      A submenu organized by instrument category:
 
-   Browse categories to find instruments. A checkmark shows the current
-   selection.
+      * Piano, Chromatic Percussion, Organ, Guitar, Bass, Strings, Ensemble,
+        Brass, Reed, Pipe, Synth Lead, Synth Pad, Synth Effects, Ethnic,
+        Percussive, Sound Effects
+
+      Browse categories to find instruments. A checkmark shows the current
+      selection.
+
+.. only:: android
+
+   **⋮ → Playback** holds **Voicing** (piano, guitar tunings, ukulele, choirs,
+   string quartet and your own custom voicings; see :doc:`fretted` and
+   :doc:`ensembles`) and **Instrument** (grouped by General MIDI category). A
+   checkmark shows the current selection.
 
 Tools Menu
 ----------
 
-**Identify Chord...**
-   Opens the Chord Identifier tool (see below).
+.. only:: desktop
 
-**Insert**
-   A submenu with shortcuts to insert directives:
+   **Identify Chord...**
+      Opens the Chord Identifier tool (see below).
 
-   * **BPM/Tempo Change...** - Insert a ``{bpm}`` directive
-   * **Time Signature Change...** - Insert a ``{time}`` directive
-   * **Key Change...** - Insert a ``{key}`` directive
-   * **Label...** - Insert a ``{label}`` directive
-   * **Loop...** - Insert a ``{loop}`` directive
+   **Insert**
+      A submenu with shortcuts to insert directives:
 
-   Each option opens a dialog where you fill in the value, then the directive
-   is inserted at your cursor position.
+      * **BPM/Tempo Change...** - Insert a ``{bpm}`` directive
+      * **Time Signature Change...** - Insert a ``{time}`` directive
+      * **Key Change...** - Insert a ``{key}`` directive
+      * **Label...** - Insert a ``{label}`` directive
+      * **Loop...** - Insert a ``{loop}`` directive
 
-**Convert to American Notation**
-   Converts all European notation chords (Do, Re, Mi...) in your document to
-   American notation (C, D, E...).
+      Each option opens a dialog where you fill in the value, then the directive
+      is inserted at your cursor position.
 
-**Convert to European Notation**
-   Converts all American notation chords (C, D, E...) in your document to
-   European notation (Do, Re, Mi...).
+   **Convert to American Notation**
+      Converts all European notation chords (Do, Re, Mi...) in your document to
+      American notation (C, D, E...).
+
+   **Convert to European Notation**
+      Converts all American notation chords (C, D, E...) in your document to
+      European notation (Do, Re, Mi...).
+
+.. only:: android
+
+   **⋮ → Tools** holds Transpose, Suggest Capo, Insert (the directive
+   shortcuts below), Convert notation and Identify Chord.
 
 Options Menu
 ------------
 
-**Settings...**
-   Opens the Settings window: general preferences, playback and audio
-   defaults, and the full voicing editor, across three pages with
-   Save/Cancel. See :doc:`settings`.
+.. only:: desktop
+
+   **Settings...**
+      Opens the Settings window: general preferences, playback and audio
+      defaults, and the full voicing editor, across three pages with
+      Save/Cancel. See :doc:`settings`.
+
+.. only:: android
+
+   **⋮ → Settings** opens the settings screens. See :doc:`settings`.
 
 Help Menu
 ---------
 
-**User Guide** (F1)
-   Opens this user guide.
+.. only:: desktop
 
-**Quick Start**
-   Opens a short quick-start reference.
+   **User Guide** (F1)
+      Opens this user guide.
 
-**About**
-   Shows information about Chord Notepad:
+   **Quick Start**
+      Opens a short quick-start reference.
 
-   * Version number
-   * Build information
-   * Description of the application
+   **About**
+      Shows information about Chord Notepad:
+
+      * Version number
+      * Build information
+      * Description of the application
+
+.. only:: android
+
+   **⋮ → Help** opens this guide, **Quick Start** opens a short quick-start
+   reference, and **About** shows the version and a description of the app.
 
 
 The Chord Identifier
 ====================
 
-The Chord Identifier helps you figure out what chord you're hearing or playing.
-Access it through **Tools → Identify Chord...**.
+.. only:: desktop
+
+   The Chord Identifier helps you figure out what chord you're hearing or playing.
+   Access it through **Tools → Identify Chord...**.
+
+.. only:: android
+
+   The Chord Identifier helps you figure out what chord you're hearing or playing.
+   Open it from **⋮ → Tools → Identify Chord**.
 
 The Piano Keyboard
 ------------------
 
-A visual two-octave piano keyboard appears at the top of the window.
+.. only:: desktop
 
-**Left-click a key:**
+   A visual two-octave piano keyboard appears at the top of the window.
 
-* Toggles that note's selection (on/off)
-* Plays the note so you can hear it
-* Selected keys appear highlighted
+   **Left-click a key:**
 
-**Right-click a key:**
+   * Toggles that note's selection (on/off)
+   * Plays the note so you can hear it
+   * Selected keys appear highlighted
 
-* Plays the note without selecting it
-* Useful for testing notes before adding them
+   **Right-click a key:**
+
+   * Plays the note without selecting it
+   * Useful for testing notes before adding them
+
+.. only:: android
+
+   A visual two-octave piano keyboard appears at the top of the screen.
+
+   **Tap a key:**
+
+   * Toggles that note's selection (on/off)
+   * Plays the note so you can hear it
+   * Selected keys appear highlighted
+
+   **Long-press a key:**
+
+   * Plays the note without selecting it
+   * Useful for testing notes before adding them
 
 The Notes Input Field
 ---------------------
@@ -316,33 +451,65 @@ As you select notes, Chord Notepad analyzes them and shows matching chords:
 * Multiple chords may match the same notes (inversions, enharmonic names)
 * More common chords appear first
 
-**Single-click a result:**
-   Plays that chord so you can hear it.
+.. only:: desktop
 
-**Double-click a result:**
-   Inserts that chord into your document at the cursor position.
+   **Single-click a result:**
+      Plays that chord so you can hear it.
+
+   **Double-click a result:**
+      Inserts that chord into your document at the cursor position.
+
+.. only:: android
+
+   **Tap a result:**
+      Plays that chord so you can hear it. Press **Insert** to put it in your
+      document.
 
 The Insert Button
 -----------------
 
-Click **Insert into Editor** to add the selected chord to your document.
+.. only:: desktop
+
+   Click **Insert into Editor** to add the selected chord to your document.
+
+.. only:: android
+
+   Tap **Insert** to put the selected chord, followed by a space, at the cursor
+   in your document.
 
 The Clear Button
 ----------------
 
-Click **Clear** to reset all selections and start over.
+.. only:: desktop
+
+   Click **Clear** to reset all selections and start over.
+
+.. only:: android
+
+   Tap **Clear** to reset all selections and start over.
 
 Using the Chord Identifier
 --------------------------
 
 **Example: "What chord am I playing?"**
 
-1. Open the Chord Identifier (Tools → Identify Chord...)
-2. Play the chord on your instrument
-3. Click the notes on the piano keyboard (or type them)
-4. Look at the results list
-5. Click results to hear which one sounds right
-6. Double-click (or click Insert) to add it to your document
+.. only:: desktop
+
+   1. Open the Chord Identifier (Tools → Identify Chord...)
+   2. Play the chord on your instrument
+   3. Click the notes on the piano keyboard (or type them)
+   4. Look at the results list
+   5. Click results to hear which one sounds right
+   6. Double-click (or click Insert) to add it to your document
+
+.. only:: android
+
+   1. Open the Chord Identifier (⋮ → Tools → Identify Chord)
+   2. Play the chord on your instrument
+   3. Tap the notes on the piano keyboard (or type them)
+   4. Look at the results list
+   5. Tap results to hear which one sounds right
+   6. Tap Insert to add it to your document
 
 **Example: "What notes are in this chord?"**
 
@@ -393,7 +560,14 @@ underline. This means:
 
 * The chord is valid
 * It will play during playback
-* You can click it to play it
+
+.. only:: desktop
+
+   * You can click it to play it
+
+.. only:: android
+
+   * You can tap it to play it
 
 Invalid Chords (Gray, Underlined)
 ---------------------------------
@@ -429,24 +603,35 @@ This helps you follow along with the music.
 Mouse Cursor Changes
 --------------------
 
-* Over normal text: Standard text cursor
-* Over a valid chord: Hand pointer (indicating you can click to play)
+.. only:: desktop
+
+   * Over normal text: Standard text cursor
+   * Over a valid chord: Hand pointer (indicating you can click to play)
 
 Window Title
 ------------
 
-The window title shows:
+.. only:: desktop
 
-* **filename - Chord Notepad** for saved files
-* **filename* - Chord Notepad** if there are unsaved changes (note the asterisk)
-* **Untitled - Chord Notepad** for new, unsaved documents
+   The window title shows:
+
+   * **filename - Chord Notepad** for saved files
+   * **filename* - Chord Notepad** if there are unsaved changes (note the asterisk)
+   * **Untitled - Chord Notepad** for new, unsaved documents
 
 
 Insert Directive Dialogs
 ========================
 
-The Tools → Insert menu provides dialogs to help you insert directives without
-remembering the exact syntax.
+.. only:: desktop
+
+   The Tools → Insert menu provides dialogs to help you insert directives without
+   remembering the exact syntax.
+
+.. only:: android
+
+   ⋮ → Tools → Insert provides dialogs to help you insert directives without
+   remembering the exact syntax.
 
 Insert BPM Dialog
 -----------------
@@ -459,23 +644,47 @@ Enter a tempo value:
 * **Multiplier:** ``2x`` or ``0.5x``
 * **Reset:** Type ``reset`` or ``original``
 
-Click Insert to add ``{bpm: value}`` at your cursor.
+.. only:: desktop
+
+   Click Insert to add ``{bpm: value}`` at your cursor.
+
+.. only:: android
+
+   Tap Insert to add ``{bpm: value}`` at your cursor.
 
 Insert Time Signature Dialog
 ----------------------------
 
-Two spinboxes let you set:
+.. only:: desktop
 
-* Beats (1-16)
-* Unit (1, 2, 4, 8, or 16)
+   Two spinboxes let you set:
 
-Click Insert to add ``{time: beats/unit}`` at your cursor.
+   * Beats (1-16)
+   * Unit (1, 2, 4, 8, or 16)
+
+   Click Insert to add ``{time: beats/unit}`` at your cursor.
+
+.. only:: android
+
+   Two pickers let you set:
+
+   * Beats (1-16)
+   * Unit (1, 2, 4, 8, or 16)
+
+   Tap Insert to add ``{time: beats/unit}`` at your cursor.
 
 Insert Key Dialog
 -----------------
 
-A dropdown shows all valid keys in your current notation.
-Select one and click Insert to add ``{key: note}`` at your cursor.
+.. only:: desktop
+
+   A dropdown shows all valid keys in your current notation.
+   Select one and click Insert to add ``{key: note}`` at your cursor.
+
+.. only:: android
+
+   A dropdown shows all valid keys in your current notation.
+   Select one and tap Insert to add ``{key: note}`` at your cursor.
 
 Insert Label Dialog
 -------------------
@@ -485,7 +694,13 @@ Type a name for your label. The name should:
 * Contain only letters, numbers, and underscores
 * Be unique (not already used in the document)
 
-Click Insert to add ``{label: name}`` at your cursor.
+.. only:: desktop
+
+   Click Insert to add ``{label: name}`` at your cursor.
+
+.. only:: android
+
+   Tap Insert to add ``{label: name}`` at your cursor.
 
 Insert Loop Dialog
 ------------------
@@ -493,6 +708,15 @@ Insert Loop Dialog
 Two controls:
 
 * **Label dropdown:** Shows ``@start`` plus all labels in your document
-* **Count spinbox:** How many times to repeat (1-100)
 
-Click Insert to add ``{loop: label count}`` at your cursor.
+.. only:: desktop
+
+   * **Count spinbox:** How many times to repeat (1-100)
+
+   Click Insert to add ``{loop: label count}`` at your cursor.
+
+.. only:: android
+
+   * **Count:** How many times to repeat (1-100)
+
+   Tap Insert to add ``{loop: label count}`` at your cursor.

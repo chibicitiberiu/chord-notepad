@@ -80,17 +80,33 @@ shapes: C as 0003, G as 0232, G7 as 0212, F as 2010.
 Defining a Custom Fretted Voicing
 ======================================
 
-If none of the five match the instrument you're writing for, add one from
-:menuselection:`Tools --> Settings...` --> Voicings: load a built-in
-preset as a starting point, change what's different (tuning, span,
-weights), and save. See :doc:`settings` for the full walkthrough,
-including a seven-string guitar built from the Guitar (Standard) preset.
+.. only:: desktop
 
-Power users can also edit the configuration file directly -- the same
-mechanism used for custom ensembles, and the same schema the Settings
-window reads and writes. The file lives at
-``~/.config/chord-notepad/settings.json`` on Linux, or the equivalent
-per-user application-data folder on Windows and macOS.
+   If none of the five match the instrument you're writing for, add one from
+   :menuselection:`Tools --> Settings...` --> Voicings: load a built-in
+   preset as a starting point, change what's different (tuning, span,
+   weights), and save. See :doc:`settings` for the full walkthrough,
+   including a seven-string guitar built from the Guitar (Standard) preset.
+
+.. only:: android
+
+   If none of the five match the instrument you're writing for, add one from
+   ⋮ → Settings → Voicings: load a built-in
+   preset as a starting point, change what's different (tuning, span,
+   weights), and save. See :doc:`settings` for the full walkthrough,
+   including a seven-string guitar built from the Guitar (Standard) preset.
+
+.. only:: desktop
+
+   Power users can also edit the configuration file directly -- the same
+   mechanism used for custom ensembles, and the same schema the Settings
+   window reads and writes. The file lives at
+   ``~/.config/chord-notepad/settings.json`` on Linux, or the equivalent
+   per-user application-data folder on Windows and macOS.
+
+.. only:: android
+
+   Voicings are edited in ⋮ → Settings → Voicings; the configuration file is not something you edit by hand on Android.
 
 Add a ``voicings`` object at the top level, keyed by a short slug you'll
 use internally; each entry needs a ``"model": "fretboard"`` and describes
@@ -134,10 +150,19 @@ with an extra low B string):
   change, and everything else keeps its default. See the parameter
   reference below for the full list of keys.
 
-Custom fretted voicings appear in :menuselection:`Playback --> Voicing`
-automatically the next time Chord Notepad starts, sorted alongside every
-other voicing -- built-in or custom, fretted or ensemble -- by model and
-then name.
+.. only:: desktop
+
+   Custom fretted voicings appear in :menuselection:`Playback --> Voicing`
+   automatically the next time Chord Notepad starts, sorted alongside every
+   other voicing -- built-in or custom, fretted or ensemble -- by model and
+   then name.
+
+.. only:: android
+
+   Custom fretted voicings appear in ⋮ → Playback → Voicing
+   automatically the next time Chord Notepad starts, sorted alongside every
+   other voicing -- built-in or custom, fretted or ensemble -- by model and
+   then name.
 
 .. note::
    Upgrading from an older version? Chord Notepad moves any entries it
@@ -149,12 +174,22 @@ then name.
 How to Change Voicing
 =========================
 
-1. Open the **Playback** menu.
-2. Click **Voicing**.
-3. Select **Guitar (Standard - EADGBE)**, **Guitar (Drop D)**,
-   **Guitar (DADGAD)**, **Guitar (Open G)**, **Ukulele**, or any custom
-   fretted voicing you've defined (see above).
-4. Play your chords to hear the difference.
+.. only:: desktop
+
+   1. Open the **Playback** menu.
+   2. Click **Voicing**.
+   3. Select **Guitar (Standard - EADGBE)**, **Guitar (Drop D)**,
+      **Guitar (DADGAD)**, **Guitar (Open G)**, **Ukulele**, or any custom
+      fretted voicing you've defined (see above).
+   4. Play your chords to hear the difference.
+
+.. only:: android
+
+   1. Open **⋮ → Playback → Voicing**.
+   2. Select **Guitar (Standard - EADGBE)**, **Guitar (Drop D)**,
+      **Guitar (DADGAD)**, **Guitar (Open G)**, **Ukulele**, or any custom
+      fretted voicing you've defined (see above).
+   3. Play your chords to hear the difference.
 
 A checkmark shows the current voicing, the same as for :doc:`playback`.
 
@@ -162,11 +197,21 @@ A checkmark shows the current voicing, the same as for :doc:`playback`.
 Voicing Parameters
 ======================
 
-Every fretted voicing, built-in or custom, is steered by the same
-physical limits and the same set of numeric weights. These are the
-controls the Voicings page of :menuselection:`Tools --> Settings...`
-exposes, one control per row -- see :doc:`settings` for the page itself;
-they can also be set directly in a voicing's entry in ``settings.json``.
+.. only:: desktop
+
+   Every fretted voicing, built-in or custom, is steered by the same
+   physical limits and the same set of numeric weights. These are the
+   controls the Voicings page of :menuselection:`Tools --> Settings...`
+   exposes, one control per row -- see :doc:`settings` for the page itself;
+   they can also be set directly in a voicing's entry in ``settings.json``.
+
+.. only:: android
+
+   Every fretted voicing, built-in or custom, is steered by the same
+   physical limits and the same set of numeric weights. These are the
+   controls the Voicings page of ⋮ → Settings
+   exposes, one control per row -- see :doc:`settings` for the page itself;
+   they can also be set directly in a voicing's entry in ``settings.json``.
 
 Physical Parameters
 ------------------------

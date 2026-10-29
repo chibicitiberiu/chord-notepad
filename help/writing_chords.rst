@@ -84,8 +84,15 @@ Switching Notations
 The **AB / Do** toggle in the toolbar decides which system Chord Notepad *reads
 and displays*:
 
-1. Click **AB** for American note names (C, D, E ...).
-2. Click **Do** for European solfège (Do, Re, Mi ...).
+.. only:: desktop
+
+   1. Click **AB** for American note names (C, D, E ...).
+   2. Click **Do** for European solfège (Do, Re, Mi ...).
+
+.. only:: android
+
+   1. Tap **AB** for American note names (C, D, E ...).
+   2. Tap **Do** for European solfège (Do, Re, Mi ...).
 
 The key selector updates to match, and from that point on the editor recognizes
 and highlights chords in the notation you picked.
@@ -96,10 +103,18 @@ and highlights chords in the notation you picked.
    changes what the editor expects going forward, so your existing ``C`` chords
    simply stop being recognized until you toggle back.
 
-   To actually rewrite the chords in your document from one system to the other,
-   use :menuselection:`Tools --> Convert to American Notation` or
-   :menuselection:`Tools --> Convert to European Notation`. Those commands
-   rewrite every chord in place; the toggle never does.
+   .. only:: desktop
+
+      To actually rewrite the chords in your document from one system to the other,
+      use :menuselection:`Tools --> Convert to American Notation` or
+      :menuselection:`Tools --> Convert to European Notation`. Those commands
+      rewrite every chord in place; the toggle never does.
+
+   .. only:: android
+
+      To actually rewrite the chords in your document from one system to the other,
+      use ⋮ → Tools → Convert notation. It rewrites every chord in place; the toggle
+      never does.
 
 Roman numerals (see :ref:`roman-numerals`) are independent of this toggle. They
 are recognized in both modes and always resolve against the current key.

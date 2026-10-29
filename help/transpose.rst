@@ -11,17 +11,33 @@ lower.
 Transposing a Song
 ==================
 
-1. Go to :menuselection:`Tools --> Transpose...`
-2. Choose the number of **semitones** to shift by. Positive numbers move the
-   chords up, negative numbers move them down (a value of ``2`` raises
-   everything by a whole step; ``-1`` lowers it by a half step).
-3. Click **OK**.
+.. only:: desktop
+
+   1. Go to :menuselection:`Tools --> Transpose...`
+   2. Choose the number of **semitones** to shift by. Positive numbers move the
+      chords up, negative numbers move them down (a value of ``2`` raises
+      everything by a whole step; ``-1`` lowers it by a half step).
+   3. Click **OK**.
+
+.. only:: android
+
+   1. Go to **⋮ → Tools → Transpose**
+   2. Choose the number of **semitones** to shift by. Positive numbers move the
+      chords up, negative numbers move them down (a value of ``2`` raises
+      everything by a whole step; ``-1`` lowers it by a half step).
+   3. Tap **OK**.
 
 If you have text selected, only the chords inside the selection are
 transposed, and the dialog says *Transpose selection*. With nothing selected
 the whole document is transposed, and the dialog says *Transpose whole song*.
 
-The change is a single undo step -- one :kbd:`Ctrl+Z` puts everything back.
+.. only:: desktop
+
+   The change is a single undo step -- one :kbd:`Ctrl+Z` puts everything back.
+
+.. only:: android
+
+   The change is a single undo step -- one ⋮ → Edit → Undo puts everything back.
 
 
 What Changes

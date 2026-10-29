@@ -134,8 +134,15 @@ Mixing American and European notation in the same file is confusing:
    // or
    Do  Lam  Fa  Sol  // All European
 
-Use the **Convert to American/European** options in the Tools menu to switch
-an entire document at once.
+.. only:: desktop
+
+   Use the **Convert to American/European** options in the Tools menu to switch
+   an entire document at once.
+
+.. only:: android
+
+   Use the **Convert notation** options in ⋮ → Tools to switch an entire
+   document at once.
 
 
 Workflow Tips
@@ -170,7 +177,13 @@ repeat. Written out, it climbs as intended:
 Comparing Options
 -----------------
 
-Write multiple versions and click to compare:
+.. only:: desktop
+
+   Write multiple versions and click to compare:
+
+.. only:: android
+
+   Write multiple versions and tap to compare:
 
 .. code-block:: chord
 
@@ -183,7 +196,13 @@ Write multiple versions and click to compare:
    // Option C - jazzy
    Am7  Fmaj7  Cmaj7  G7
 
-Click individual chords or play each section to hear the differences.
+.. only:: desktop
+
+   Click individual chords or play each section to hear the differences.
+
+.. only:: android
+
+   Tap individual chords or play each section to hear the differences.
 
 Quick Chord Testing
 -------------------
@@ -201,8 +220,15 @@ Keep a "scratch pad" area at the bottom of your file:
    Dm7  Em7  Fmaj7  G7
    Dm9  Em9
 
-Click chords in the scratch pad to test them, then copy the ones you like
-into your song.
+.. only:: desktop
+
+   Click chords in the scratch pad to test them, then copy the ones you like
+   into your song.
+
+.. only:: android
+
+   Tap chords in the scratch pad to test them, then copy the ones you like
+   into your song.
 
 
 Troubleshooting
@@ -211,19 +237,41 @@ Troubleshooting
 No Sound?
 ---------
 
-**Check your system volume:**
-Make sure your computer's volume is turned up and not muted.
+.. only:: desktop
+
+   **Check your system volume:**
+   Make sure your computer's volume is turned up and not muted.
+
+.. only:: android
+
+   **Check your device volume:**
+   Make sure the media volume is turned up and not muted.
 
 **Check the instrument:**
 Some instruments are quieter than others. Try switching to Acoustic Grand
 Piano (the default) to test.
 
-**Verify FluidSynth is working:**
-Chord Notepad needs FluidSynth for audio. On Linux, make sure ``libfluidsynth``
-is installed.
+.. only:: desktop
 
-**Try restarting the application:**
-Sometimes audio systems need a fresh start.
+   **Verify FluidSynth is working:**
+   Chord Notepad needs FluidSynth for audio. On Linux, make sure ``libfluidsynth``
+   is installed.
+
+.. only:: android
+
+   **Check that nothing else holds the audio:**
+   Playback pauses when another app takes audio focus or headphones are
+   unplugged. Tap Play to resume.
+
+.. only:: desktop
+
+   **Try restarting the application:**
+   Sometimes audio systems need a fresh start.
+
+.. only:: android
+
+   **Try restarting the application:**
+   Sometimes audio systems need a fresh start.
 
 Chords Not Detected?
 --------------------
@@ -305,18 +353,29 @@ File Won't Open?
 Chord Notepad works with UTF-8 text files. Files in other encodings might
 cause issues.
 
-**Check the file extension:**
-While Chord Notepad can open any text file, if the file has a strange extension,
-you might need to select "All Files" in the Open dialog.
+.. only:: desktop
 
-**Open/Save dialog looks different on Linux:**
-On Linux, Chord Notepad uses your desktop's own file dialog (through the
-XDG Desktop Portal) when one is available, and its built-in dialog
-otherwise. The Flatpak version always goes through the portal, since that's
-the only way it can reach your files. If the desktop dialog misbehaves, you
-can force the built-in one by starting the app with the environment variable
-``CHORD_NOTEPAD_FILE_DIALOG=tk`` (or ``CHORD_NOTEPAD_FILE_DIALOG=portal`` to
-force the desktop one).
+   **Check the file extension:**
+   While Chord Notepad can open any text file, if the file has a strange extension,
+   you might need to select "All Files" in the Open dialog.
+
+.. only:: android
+
+   **Check the file extension:**
+   While Chord Notepad can open any text file, if the file has a strange extension,
+   make sure the system file picker is showing all files, not just a filtered
+   type.
+
+.. only:: desktop
+
+   **Open/Save dialog looks different on Linux:**
+   On Linux, Chord Notepad uses your desktop's own file dialog (through the
+   XDG Desktop Portal) when one is available, and its built-in dialog
+   otherwise. The Flatpak version always goes through the portal, since that's
+   the only way it can reach your files. If the desktop dialog misbehaves, you
+   can force the built-in one by starting the app with the environment variable
+   ``CHORD_NOTEPAD_FILE_DIALOG=tk`` (or ``CHORD_NOTEPAD_FILE_DIALOG=portal`` to
+   force the desktop one).
 
 
 Common Mistakes
@@ -325,8 +384,14 @@ Common Mistakes
 Forgetting to Save
 ------------------
 
-The asterisk (*) in the title bar indicates unsaved changes. Save regularly
-with Ctrl+S.
+.. only:: desktop
+
+   The asterisk (*) in the title bar indicates unsaved changes. Save regularly
+   with Ctrl+S.
+
+.. only:: android
+
+   Save regularly with ⋮ → File → Save (or Ctrl+S on a hardware keyboard).
 
 Using Wrong Notation Toggle
 ---------------------------
@@ -338,8 +403,15 @@ and vice versa.
 Editing During Playback
 -----------------------
 
-You can't edit while playing - the editor is locked. Stop playback first
-(click ⏹), then make your changes.
+.. only:: desktop
+
+   You can't edit while playing - the editor is locked. Stop playback first
+   (click ⏹), then make your changes.
+
+.. only:: android
+
+   You can't edit while playing - the editor is locked. Stop playback first
+   (tap ⏹), then make your changes.
 
 Copy-Pasting Without Checking
 -----------------------------
@@ -367,13 +439,29 @@ Getting Help
 Most questions are answered in :doc:`writing_chords`, :doc:`directives`, or
 :doc:`playback`.
 
-**Use the Chord Identifier:**
-If you're not sure how to write a chord, use Tools → Identify Chord to build
-it from notes.
+.. only:: desktop
 
-**Try things out:**
-Invalid input is handled safely. You can click chords and test different
-options without risk.
+   **Use the Chord Identifier:**
+   If you're not sure how to write a chord, use Tools → Identify Chord to build
+   it from notes.
+
+.. only:: android
+
+   **Use the Chord Identifier:**
+   If you're not sure how to write a chord, use ⋮ → Tools → Identify Chord to
+   build it from notes.
+
+.. only:: desktop
+
+   **Try things out:**
+   Invalid input is handled safely. You can click chords and test different
+   options without risk.
+
+.. only:: android
+
+   **Try things out:**
+   Invalid input is handled safely. You can tap chords and test different
+   options without risk.
 
 **Report a bug or ask a question:**
 Chord Notepad is open source. If you hit a bug, have a chord that should be

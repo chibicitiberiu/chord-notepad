@@ -1,4 +1,4 @@
-.PHONY: run test tests build clean setup-dev icons docs docs-html docs-pdf flatpak flatpak-check snap snap-check
+.PHONY: run test tests build clean setup-dev icons docs docs-html docs-html-android docs-pdf flatpak flatpak-check snap snap-check
 
 # Tools directory for local dependencies
 TOOLS_DIR := .tools
@@ -99,12 +99,17 @@ docs: docs-html docs-pdf
 
 # Build HTML documentation
 docs-html:
-	$(SPHINX_BUILD) -b html $(DOCS_SOURCE) $(DOCS_BUILD)/html
+	$(SPHINX_BUILD) -t desktop -b html $(DOCS_SOURCE) $(DOCS_BUILD)/html
 	@echo "HTML documentation built in $(DOCS_BUILD)/html"
+
+# Build the Android variant of the HTML documentation
+docs-html-android:
+	$(SPHINX_BUILD) -t android -b html $(DOCS_SOURCE) $(DOCS_BUILD)/html-android
+	@echo "Android HTML documentation built in $(DOCS_BUILD)/html-android"
 
 # Build PDF documentation using rinohtype
 docs-pdf:
-	$(SPHINX_BUILD) -b rinoh $(DOCS_SOURCE) $(DOCS_BUILD)/rinoh
+	$(SPHINX_BUILD) -t desktop -b rinoh $(DOCS_SOURCE) $(DOCS_BUILD)/rinoh
 	@echo "PDF documentation built in $(DOCS_BUILD)/rinoh"
 
 # Build executable (works for both Windows and Linux)

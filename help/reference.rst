@@ -457,16 +457,23 @@ Special Syntax
 Keyboard Shortcuts Summary
 ==========================
 
-::
+.. only:: desktop
 
-   FILE                 EDIT                 VIEW
-   Ctrl+N  New          Ctrl+Z  Undo         Ctrl++  Zoom In
-   Ctrl+O  Open         Ctrl+Y  Redo         Ctrl+-  Zoom Out
-   Ctrl+S  Save         Ctrl+X  Cut          Ctrl+0  Reset Zoom
-   Ctrl+Shift+S  As     Ctrl+C  Copy
-   Ctrl+Q  Exit         Ctrl+V  Paste
-                        Ctrl+A  Select All
+   ::
 
+      FILE                 EDIT                 VIEW
+      Ctrl+N  New          Ctrl+Z  Undo         Ctrl++  Zoom In
+      Ctrl+O  Open         Ctrl+Y  Redo         Ctrl+-  Zoom Out
+      Ctrl+S  Save         Ctrl+X  Cut          Ctrl+0  Reset Zoom
+      Ctrl+Shift+S  As     Ctrl+C  Copy
+      Ctrl+Q  Exit         Ctrl+V  Paste
+                           Ctrl+A  Select All
+
+.. only:: android
+
+   With a hardware keyboard attached: Ctrl+N New, Ctrl+O Open, Ctrl+S Save,
+   Ctrl+Shift+S Save As, Ctrl+Z Undo, Ctrl+Y Redo, Ctrl+A Select All,
+   Ctrl+Plus / Ctrl+Minus / Ctrl+0 for the font size.
 
 Color Coding Summary
 ====================
