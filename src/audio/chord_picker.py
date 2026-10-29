@@ -349,7 +349,11 @@ class ChordNotePicker(INotePicker):
             core.append((exts.pop(0) if exts else root_pc, 'root'))
 
         left_hands = self._enumerate_left_hands(bass_pc)
-        right_hands = self._enumerate_right_hands(core, exts)
+        # The root may only leave the right hand when the left hand plays it.
+        # Over a slash bass that isn't the root (G#5/C, C/E) dropping it would
+        # leave the chord without its root at all.
+        bass_covers_root = self.add_bass and bass_pc == root_pc
+        right_hands = self._enumerate_right_hands(core, exts, allow_root_drop=bass_covers_root)
 
         candidates: List[Voicing] = []
         seen: set = set()
@@ -384,8 +388,12 @@ class ChordNotePicker(INotePicker):
         return hands
 
     def _enumerate_right_hands(self, core: List[Tuple[int, str]],
-                               exts: List[int]) -> List[Tuple[int, ...]]:
-        """Enumerate right-hand chord-tone voicings across inversions/anchors."""
+                               exts: List[int],
+                               allow_root_drop: bool = True) -> List[Tuple[int, ...]]:
+        """Enumerate right-hand chord-tone voicings across inversions/anchors.
+
+        ``allow_root_drop`` is passed through to :meth:`_core_reductions`.
+        """
         results: List[Tuple[int, ...]] = []
         seen: set = set()
 
@@ -396,7 +404,7 @@ class ChordNotePicker(INotePicker):
             anchors = [m for m in range(self.RH_LOW_ANCHOR_MIN, self.RH_LOW_ANCHOR_MAX + 1)
                        if m % 12 == low_pc]
             for anchor in anchors:
-                for core_kept in self._core_reductions(order):
+                for core_kept in self._core_reductions(order, allow_root_drop):
                     rh = self._stack_right_hand(core_kept, exts, anchor)
                     if rh is None:
                         continue
@@ -407,12 +415,14 @@ class ChordNotePicker(INotePicker):
                     results.append(key)
         return results
 
-    def _core_reductions(self, order: List[Tuple[int, str]]) -> List[List[Tuple[int, str]]]:
+    def _core_reductions(self, order: List[Tuple[int, str]],
+                         allow_root_drop: bool = True) -> List[List[Tuple[int, str]]]:
         """Yield the full core plus fifth-/root-omitted variants.
 
         Only the fifth and the root may be dropped, and never the lowest tone of
         the inversion (it defines the anchor). The third, seventh and colour
-        tones are never dropped here.
+        tones are never dropped here. The root is dropped only when
+        ``allow_root_drop`` is set, i.e. when the left hand already plays it.
         """
         variants = [list(order)]
         lowest = order[0]
@@ -420,6 +430,9 @@ class ChordNotePicker(INotePicker):
         no_fifth = [t for t in order if not (t is not lowest and t[1] == 'fifth')]
         if no_fifth != order and no_fifth:
             variants.append(no_fifth)
+
+        if not allow_root_drop:
+            return variants
 
         no_fifth_root = [t for t in no_fifth if not (t is not lowest and t[1] == 'root')]
         if no_fifth_root != no_fifth and no_fifth_root:

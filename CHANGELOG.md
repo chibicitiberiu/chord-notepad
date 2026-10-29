@@ -36,6 +36,10 @@ moved to CHANGELOG_HISTORY.md and this file is reset.
 - If an audio driver can't start, Chord Notepad now tries the next one, and
   tells you when there's no working audio output at all. Before, a failed
   driver could leave playback silently doing nothing.
+- Piano playback no longer drops a chord's root over a slash bass that isn't
+  the root. A power chord with another bass note, such as `Ab5/C`, could come
+  out as just C and Eb. The root is now left out only when the bass already
+  plays it.
 
 ### Changed
 

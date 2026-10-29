@@ -1273,3 +1273,50 @@ class TestPianoTwoHandModel:
 
         assert fresh == after
         assert fresh == self.P().voice_sequence(seq)
+
+
+class TestPianoRootOverSlashBass:
+    """The piano only drops the root from the right hand when the left hand plays it.
+
+    Regression for a fuzz failure: after an A major voicing (A2 | A3 C#4 E4), a
+    G#5/C came out as C3 + D#4 -- no G# anywhere, so it sounded like a bare
+    C-minor fragment instead of a G# power chord over C.
+    """
+
+    SLASH_CHORDS_NON_ROOT_BASS = ['G#5/C', 'C5/D', 'C/E', 'C/G', 'Am/G', 'D/C',
+                                  'Cmaj7/E', 'C7/Bb', 'Fsus4/G', 'Dm9/C']
+
+    def test_slash_power_chord_keeps_root_after_a_major(self):
+        """G#5/C following A2|A3 C#4 E4 still sounds the G#."""
+        from audio.chord_picker import ChordPickerState
+        picker = ChordNotePicker()
+        picker.state = ChordPickerState(previous_chord_midi=[45, 57, 61, 64],
+                                        previous_chord_notes=['A', 'C#', 'E'])
+        chord = ChordHelper().compute_chord_notes('G#5/C')
+
+        midi = picker.chord_to_midi(chord)
+
+        assert midi[0] % 12 == 0  # C still in the bass
+        assert midi_list_to_note_classes(midi) >= {'C', 'G#', 'D#'}
+
+    @pytest.mark.parametrize('symbol', SLASH_CHORDS_NON_ROOT_BASS)
+    def test_every_candidate_keeps_root_when_bass_is_not_root(self, symbol):
+        """No candidate voicing loses the root when the slash bass is another note."""
+        picker = ChordNotePicker()
+        chord = ChordHelper().compute_chord_notes(symbol)
+        root = normalize_note(chord.root)
+
+        for voicing in picker._get_candidates(chord):
+            assert root in midi_list_to_note_classes(list(voicing.lh) + list(voicing.rh)), \
+                f'{symbol}: candidate {voicing} drops the root {root}'
+
+    def test_root_may_leave_right_hand_when_bass_plays_it(self):
+        """Without a slash, the rootless right hand stays available (LH has the root)."""
+        picker = ChordNotePicker()
+        chord = ChordHelper().compute_chord_notes('G#5')
+
+        rootless_rh = [v for v in picker._get_candidates(chord)
+                       if 'G#' not in midi_list_to_note_classes(list(v.rh))]
+
+        assert rootless_rh
+        assert all(v.lh and v.lh[0] % 12 == 8 for v in rootless_rh)
