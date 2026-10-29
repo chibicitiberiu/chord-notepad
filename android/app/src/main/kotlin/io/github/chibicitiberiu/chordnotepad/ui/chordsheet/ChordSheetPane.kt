@@ -358,7 +358,10 @@ private fun ChordSheetStrip(
                         detectTapGestures { pos ->
                             val buffer = currentSheet?.buffer ?: return@detectTapGestures
                             if (pos.y < buffer.laneHeight * density) return@detectTapGestures
-                            buffer.slotAt((scroll.offset + pos.x) / density)?.let { onAudition(it.chordIndex) }
+                            buffer.slotAt((scroll.offset + pos.x) / density)?.let {
+                                Log.i(TAG, "audition ${it.chordIndex}")
+                                onAudition(it.chordIndex)
+                            }
                         }
                     },
             ) {

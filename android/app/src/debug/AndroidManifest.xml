@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Debug builds only: the chord sheet on its own, with the sample song
+         loaded, for emulator checks over adb (ChordSheetDebugActivity). -->
+    <application>
+        <activity
+            android:name=".ui.chordsheet.ChordSheetDebugActivity"
+            android:exported="true" />
+    </application>
+
+</manifest>
