@@ -1,6 +1,6 @@
 # Privacy Policy
 
-_Last updated: 27 October 2026_
+_Last updated: 29 October 2026_
 
 Chord Notepad does not collect or send any personal information. Nothing you
 do in the app is shared with the developer or anyone else.
@@ -14,12 +14,32 @@ do in the app is shared with the developer or anyone else.
   what the app did, such as which audio driver it started and the paths of
   files you open or save, but not the contents of your songs.
 
+## Android
+
+The Android app follows the same rules, with these specifics:
+
+- **Permissions.** It asks for none. It has no internet permission, so it
+  can't connect to anything. Playing audio uses the system's audio focus,
+  which needs no permission.
+- **Your songs.** The app sees only the files you pick in the system's file
+  picker (Open, Save as, Export MIDI). It keeps access to those files so the
+  Recent list works; you can revoke that by removing the app.
+- **Settings and the log** stay in the app's private storage on your device,
+  which other apps can't read. The log holds the same kind of information as
+  on the desktop (no song contents) and is deleted with the app.
+- **Backups.** If Android backup is turned on for your device, Android may
+  back up the app's settings (only `settings.json`) to your Google account or
+  copy them to a new phone. The log, the recent-files list and the copied
+  sound font are excluded. That backup is handled by Google under your
+  account's settings; the developer can't see it.
+- **The user guide** is built into the app and opens without any network.
+
 ## Network
 
 Chord Notepad has no accounts, analytics, telemetry, ads or online features.
-It does not connect to the internet. To show the built-in user guide, it runs a
-small web server reachable only from your own computer (127.0.0.1) and opens the
-guide in your web browser.
+It does not connect to the internet. On the desktop, to show the built-in user
+guide, it runs a small web server reachable only from your own computer
+(127.0.0.1) and opens the guide in your web browser.
 
 ## Purchases
 
@@ -27,6 +47,12 @@ If you buy Chord Notepad from the Microsoft Store, the purchase is handled
 entirely by Microsoft under the
 [Microsoft Privacy Statement](https://privacy.microsoft.com/privacystatement).
 The developer receives no personal or payment information from it.
+
+If you buy Chord Notepad on Google Play, the purchase is handled by Google
+under the [Google Privacy Policy](https://policies.google.com/privacy).
+Google gives the developer order and sales reports (for example the buyer's
+country, which taxes depend on); the app itself sends nothing.
+The free Android download from GitHub involves no purchase at all.
 
 ## Contact
 

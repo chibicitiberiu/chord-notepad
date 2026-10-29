@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Auto Backup on Android 6-11 (android:fullBackupContent). Only the
+     settings are backed up: files/config/chord-notepad/ (settings.json).
+     With an <include>, everything else is left out: the log
+     (files/data/chord-notepad/logs), the SoundFont copied from the APK,
+     Chaquopy's extracted Python, and recent_documents.json (its file grants
+     don't carry over to another device). Songs live wherever the user saved
+     them, outside the app. Keep in step with data_extraction_rules.xml and
+     PRIVACY.md. -->
+<full-backup-content>
+    <include domain="file" path="config/" />
+</full-backup-content>
