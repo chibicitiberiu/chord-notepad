@@ -69,6 +69,11 @@ class PlaybackService:
         # a stopped render never starts the player, and a player it started
         # is stopped. stop_playback never waits for a render to finish.
         self._start_lock = threading.Lock()
+        # True while a render is in flight and hasn't started the player yet.
+        # A pause in that window is remembered and applied once it starts,
+        # instead of reaching a player that isn't playing (and being lost).
+        self._starting = False
+        self._pause_pending = False
 
         self._metronome_enabled: bool = False
 
@@ -409,16 +414,25 @@ class PlaybackService:
         self.play_notes_immediate(midi_notes)
 
     def pause_playback(self) -> None:
-        """Pause ongoing playback."""
-        if self._player:
-            self._logger.debug("Pausing playback")
-            self._player.pause_playback()
+        """Pause ongoing playback, or a song still being rendered."""
+        with self._start_lock:
+            if self._starting:
+                self._logger.debug("Pausing playback (applied once the render starts it)")
+                self._pause_pending = True
+                return
+            if self._player:
+                self._logger.debug("Pausing playback")
+                self._player.pause_playback()
 
     def resume_playback(self) -> None:
         """Resume paused playback."""
-        if self._player:
-            self._logger.debug("Resuming playback")
-            self._player.resume_playback()
+        with self._start_lock:
+            if self._starting:
+                self._pause_pending = False
+                return
+            if self._player:
+                self._logger.debug("Resuming playback")
+                self._player.resume_playback()
 
     def stop_playback(self) -> None:
         """Stop ongoing playback, including a song still being rendered.
@@ -431,6 +445,8 @@ class PlaybackService:
             if self._render_cancel is not None:
                 self._render_cancel.set()
             self._render_cancel = None
+            self._starting = False
+            self._pause_pending = False
             buffer, self._event_buffer = self._event_buffer, None
 
         # Close the event buffer (if the render thread got as far as creating it)
@@ -701,7 +717,10 @@ class PlaybackService:
 
         has_callback = on_event_callback is not None
         cancel_event = threading.Event()
-        self._render_cancel = cancel_event
+        with self._start_lock:
+            self._render_cancel = cancel_event
+            self._starting = True
+            self._pause_pending = False
         note_picker = self._note_picker
         player = self._player
         # A stopped render may still be winding down (stop doesn't wait for
@@ -754,12 +773,20 @@ class PlaybackService:
                     if on_finished_callback:
                         player.set_playback_finished_callback(on_finished_callback)
                     player.start_playback()
+                    if self._render_cancel is cancel_event:
+                        self._starting = False
+                        if self._pause_pending:
+                            self._pause_pending = False
+                            player.pause_playback()
                 self._logger.info("Render complete, playback started")
             except Exception as e:
                 self._logger.error(f"Error rendering song for playback: {e}", exc_info=True)
                 with self._start_lock:
                     if cancel_event.is_set():
                         return  # stopped meanwhile; nobody is waiting on this render
+                    if self._render_cancel is cancel_event:
+                        self._starting = False
+                        self._pause_pending = False
                     # Playback never started, so the player won't call these.
                     if on_finished_callback:
                         on_finished_callback()

@@ -188,3 +188,36 @@ def test_cleanup_cancels_a_render_in_flight():
         service._render_thread.join(10)
 
     assert "start" not in player.calls
+
+
+def _paused_during_render(resume_too):
+    service, player = make_service()
+    entered, release = threading.Event(), threading.Event()
+    real_render = SongRenderer.render
+
+    def slow_render(self, *args, **kwargs):
+        entered.set()
+        release.wait(10)
+        return real_render(self, *args, **kwargs)
+
+    with patch.object(SongRenderer, "render", slow_render):
+        assert service.start_song_playback(song(), None)
+        assert entered.wait(10)
+        service.pause_playback()  # still rendering: the player hasn't started
+        if resume_too:
+            service.resume_playback()
+        release.set()
+        service._render_thread.join(10)
+    return player
+
+
+def test_a_pause_while_still_rendering_pauses_the_player_once_it_starts():
+    player = _paused_during_render(resume_too=False)
+    assert [c for c in player.calls if c != "stop"] == ["start", "pause"]
+    assert player.is_paused
+
+
+def test_a_resume_before_the_render_finishes_cancels_the_pending_pause():
+    player = _paused_during_render(resume_too=True)
+    assert "pause" not in player.calls
+    assert player.is_playing and not player.is_paused
