@@ -275,6 +275,7 @@ Each area is built only after its logic is in the core (most of it already is, a
   - `attach-android`: uploads the APK and source tarball to the release. An Android failure never blocks the desktop release.
   - Release tags are plain `v<VERSION>`. Nightlies are never signed with release keys.
   - setup-gradle uses `cache-provider: basic`.
+- **Done (2026-10-29), waiting on Tibi's keys:** versionCode literal checked against `VERSION` (Gradle + `tests/test_android_version.py`); `-PcnSigning=debug|none|upload|foss` with keystores from env/Gradle properties; `android/tools/make_keys.sh`; `android/tools/make_source_tarball.py`; the `android-release` and `attach-android` CI jobs; Auto Backup of settings only; the PRIVACY.md and `docs/RELEASE.md` Android sections. An unsigned build plus the FOSS-signed APK's signature (apksigcopier) gives the signed APK byte for byte locally; CI-vs-local is still unchecked.
 - **Play:**
   - account type per the decision below;
   - payments profile → price → promo codes → closed test (testers must otherwise pay), with the internal track for real testing;

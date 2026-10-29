@@ -84,6 +84,7 @@ Before creating a release tag:
 - [ ] Local build succeeds (`make build`)
 - [ ] CHANGELOG updated (if applicable)
 - [ ] Version number follows semantic versioning
+- [ ] Android `versionCode` bumped with `VERSION` (see "Android" below)
 - [ ] All changes committed and pushed
 - [ ] CI tests pass on GitHub
 
@@ -335,6 +336,258 @@ make snap-check     # installs it with --dangerous and runs the smoke test
 CI then uploads every Linux build: tagged releases to `stable`, nightlies and
 manual dispatches to `edge`. Without the secret the snap is still built and
 kept as the `ChordNotepad-snap` workflow artifact.
+
+## Android
+
+One app, two channels, two signing keys:
+
+- **Google Play** (paid): CI builds an AAB signed with the **upload key**.
+  You upload it to Play Console by hand, like the MSIX. Google re-signs it
+  with the app signing key it keeps (Play App Signing).
+- **GitHub release** (free): CI builds a universal APK (arm64-v8a + x86_64)
+  signed with the offline **FOSS key** and attaches it as
+  `ChordNotepad-android.apk`, together with the full source tarball.
+
+Because the keys differ, a Play install and a GitHub install can't update
+each other. Switching channels means uninstalling first (songs are ordinary
+files and stay where the user saved them; settings may not carry over).
+
+F-Droid is not set up; see "F-Droid" below. Build details (toolchain,
+natives, wheelhouse) are in `docs/ANDROID.md`.
+
+### Version numbers
+
+- `versionName` is the `VERSION` file.
+- `versionCode` is `(MAJOR*10000 + MINOR*100 + PATCH)*10 + rebuild`, written as
+  a plain number in `android/app/build.gradle.kts` (`versionCode = 4010` for
+  0.4.1). It stays a literal because F-Droid's tooling reads it from that file
+  with a regex; deriving it in Gradle would hide it from F-Droid.
+- **Bump both together.** If `VERSION` changes and the literal doesn't, every
+  Gradle build fails with the value to use, and so does
+  `tests/test_android_version.py` (part of `make test`).
+- The last digit is for re-releasing the same `VERSION` on Play (Play never
+  accepts a versionCode twice): 4010, then 4011. Normally it's 0.
+- Builds carry no run number or date. The About screen shows the commit
+  (`BuildConfig.COMMIT`, which CI passes as `-PcnCommit`).
+
+### Keys and GitHub setup (one time)
+
+1. **Generate the keys** on your machine, into a directory outside the repo.
+   Run it yourself (in Claude Code, prefix with `!`) so the passwords stay out
+   of any transcript:
+   ```bash
+   source android/local.env
+   android/tools/make_keys.sh /some/private/dir/chord-notepad-android-keys
+   ```
+   It creates `foss.p12` and `upload.p12` (PKCS12, RSA-4096, valid 50 years,
+   aliases `foss` and `upload`), their public certificates and
+   `fingerprints.txt`, then prints the next commands.
+2. **Back up the directory twice**, encrypted, on two offline media in two
+   places, with the passwords in your password manager. Test that one backup
+   restores. Losing the FOSS key means GitHub installs can never be updated
+   again. Losing the upload key is recoverable (Play Console lets you request
+   an upload key reset).
+3. **Create the environment**: repo Settings > Environments > New environment
+   `android-release`. Under *Deployment branches and tags* choose *Selected
+   branches and tags* and add the tag rule `v*` and the branch `main` (release
+   dispatches run on `main`; without it they get a failed `android-release`
+   job, while the desktop release still goes out). A required reviewer is
+   optional; it would pause only the Android job.
+4. **Add the secrets** to that environment with the `gh secret set ... --env
+   android-release` commands the script printed. The password ones prompt for
+   the value, so nothing lands in your shell history.
+
+   | Secret | Value |
+   |---|---|
+   | `ANDROID_FOSS_KEYSTORE_B64` | `base64 -w0 foss.p12` |
+   | `ANDROID_FOSS_STORE_PASSWORD` | FOSS keystore password |
+   | `ANDROID_UPLOAD_KEYSTORE_B64` | `base64 -w0 upload.p12` |
+   | `ANDROID_UPLOAD_STORE_PASSWORD` | upload keystore password |
+
+5. **Pin the FOSS certificate** (optional, recommended): add the variable
+   `ANDROID_FOSS_CERT_SHA256` (environment or repo variable) with the FOSS
+   certificate's SHA-256 as lowercase hex without colons (the form `apksigner
+   verify --print-certs` prints). CI then refuses an APK signed with anything
+   else, for example after a mixed-up secret.
+6. **Record the fingerprints** in "Signing certificates" below.
+
+Note that CI holds the FOSS key as an environment secret so the GitHub APK is
+signed automatically. If you'd rather keep it strictly offline, leave the FOSS
+secrets unset: CI then builds an unsigned APK (and attaches only the source
+tarball), and you sign locally and upload the APK yourself (see "Signing
+locally").
+
+### Each Android release
+
+- [ ] `VERSION` and `versionCode` bumped in the same commit.
+- [ ] CHANGELOG entries for Android-only changes start with "Android:".
+- [ ] `make test` and, in `android/`, `./gradlew testDebugUnitTest lint assembleDebug`.
+- [ ] Tag `v<VERSION>` (exactly the `VERSION` file) and push it, or run the
+      *release* dispatch.
+
+On a `v<VERSION>` tag push or a *release* dispatch, the `android-release` job
+(environment `android-release`) builds, checks and uploads:
+
+| Artifact | Contents | Where it goes |
+|---|---|---|
+| `ChordNotepad-android-play` | `ChordNotepad-<v>-play.aab`, upload-key signed | Workflow artifact only; upload to Play by hand |
+| `ChordNotepad-android` | `ChordNotepad-android.apk` (FOSS-signed, v2 + v3), `ChordNotepad-<v>-source.tar.gz`, `SHA256SUMS` | `attach-android` puts them on the GitHub release |
+
+Checks before upload: `apksigner verify --print-certs` (v2 and v3 present,
+certificate pin if set), `jarsigner -verify` on the AAB, 16 KB page alignment
+(`check_16k.py`, `zipalign -c -P 16`) and the merged manifest
+(`check_manifest.py`: no INTERNET, no Play services).
+
+- A tag that isn't exactly `v<VERSION>` fails the Android job only.
+- Without the secrets the job still builds, warns, and produces unsigned
+  outputs; an unsigned APK is never attached.
+- `attach-android` runs only after both `create-release` and
+  `android-release` succeeded, then adds an "Android" section to the release
+  notes (APK, certificate SHA-256, source tarball). An Android failure never
+  blocks or fails the desktop release.
+- Nightlies, test dispatches and pushes never use the release keys; the
+  `android` job keeps building debug APKs there.
+- The source tarball is the AGPL-3.0 section 6 / LGPL source offer: the app,
+  build scripts and every checked-out submodule (FluidSynth, libsndfile and
+  its codecs, Oboe) at the built commit, made by
+  `android/tools/make_source_tarball.py` (reproducible: same commit, same
+  bytes). The pinned Python packages are pure-Python wheels whose source is
+  the wheel itself (`android/requirements.txt`).
+
+Then, for Play, download `ChordNotepad-android-play` from the workflow run and
+upload the `.aab` in Play Console (Test and release > the track > Create new
+release).
+
+### Google Play (first time)
+
+The account type (personal, or organization with a D-U-N-S number) is still
+open: decide once there's a working APK to test with. Things to know first:
+
+- **The developer address is public.** An account that sells apps must show a
+  contact address on the store listing. Use one you're happy to publish (an
+  organization or business address rather than your home).
+- **Payments profile before pricing.** Link a payments (merchant) profile, then
+  set the app to **Paid** before the first production release. An app that was
+  ever published free can't become paid later.
+- **Personal accounts** (created after November 2023) must run a closed test
+  with at least 12 testers opted in for 14 days in a row before they can apply
+  for production access. Organization accounts skip this.
+- **Testers pay** for a paid app unless they get **promo codes** (Play
+  Console > Promo codes, up to 500 per quarter). Use the **internal testing**
+  track for your own installs (no review wait) and the closed track for the
+  12-tester run, handing out promo codes.
+
+Setup, roughly in order:
+
+1. Create the app: name "Chord Notepad", app (not game), **Paid**, category
+   Music & Audio.
+2. App signing: keep Play App Signing with a Google-generated app signing key.
+   The first uploaded AAB registers the upload key (or upload
+   `upload-cert.pem` when asked for the upload certificate).
+3. App content: privacy policy URL (the GitHub link to `PRIVACY.md`); ads: no;
+   **Data safety: no data collected, no data shared**; content rating (IARC
+   questionnaire: a music utility, no user-generated content shared, no
+   violence, no purchases inside the app); target audience 13+ (not designed
+   for children, to stay out of the Families program).
+4. Store listing: short and full description, 512 px icon, 1024x500 feature
+   graphic, phone and tablet screenshots. The full description includes the
+   licence notice and source link, for example: "Chord Notepad is free
+   software under the GNU AGPL-3.0. Buying it here supports development;
+   the source code and a free build are at
+   https://github.com/chibicitiberiu/chord-notepad".
+5. Internal testing release with the CI AAB; install from Play on your phone
+   and check audio, file open/save and the About screen's version and commit.
+6. Closed test (personal account: 12 testers, 14 days), then production.
+
+### Developer verification
+
+Google's developer verification requires apps on certified Android devices
+to come from a registered developer. Register the package name
+`io.github.chibicitiberiu.chordnotepad` as soon as the keys exist:
+
+- for the GitHub APK, in the Android Developer Console with the **FOSS key's**
+  SHA-256 (from `fingerprints.txt`), following its proof-of-ownership step
+  (it may ask for an APK signed with that key);
+- for Play, the Play Console account covers it; the relevant key is Play's app
+  signing key (Play Console > Test and release > App integrity).
+
+The console's flow is still changing; follow what it asks for at the time.
+
+### Signing locally
+
+Rarely needed (CI signs). With the keystore paths and passwords in the
+environment, never on the command line:
+
+```bash
+cd android && source local.env
+export CN_FOSS_STORE_FILE=/some/private/dir/chord-notepad-android-keys/foss.p12 CN_FOSS_KEY_ALIAS=foss
+read -rs CN_FOSS_STORE_PASSWORD && export CN_FOSS_STORE_PASSWORD
+nice -n 10 ./gradlew --no-configuration-cache assembleRelease -PcnSigning=foss -PcnCommit=$(git rev-parse --short=9 HEAD)
+```
+
+`-PcnSigning` is `debug` (default, so local release builds install), `none`
+(unsigned), `upload` or `foss`; the `CN_UPLOAD_*` variables work the same way.
+`--no-configuration-cache` keeps the passwords out of Gradle's configuration
+cache.
+
+### Reproducing the GitHub APK
+
+Anyone can check that `ChordNotepad-android.apk` was built from the published
+source: build it unsigned with the same toolchain and compare everything but
+the signature.
+
+1. Get the source: the release's `ChordNotepad-<v>-source.tar.gz`, or a clone
+   of the tag with its submodules (`docs/ANDROID.md`, "Native sources"). The
+   tarball names its commit: `zcat ChordNotepad-<v>-source.tar.gz | git
+   get-tar-commit-id`.
+2. Use CI's toolchain (`.github/workflows/build.yml`, job `android-release`):
+   Linux x86_64, Temurin JDK 21, Python 3.14.8 as `CHAQUOPY_BUILD_PYTHON`
+   (with `android/docs-requirements.txt` installed), NDK 27.3.13750724, CMake
+   3.31.6, build-tools 36.1.0, platform `android-37.0`.
+3. Build:
+   ```bash
+   cd android
+   export PYTHONHASHSEED=0 SOURCE_DATE_EPOCH=1700000000   # any value; it must be set
+   "$CHAQUOPY_BUILD_PYTHON" -I tools/build_wheelhouse.py fetch
+   ./gradlew assembleRelease -PcnSigning=none -PcnCommit=<first 9 characters of the commit>
+   ```
+4. Compare with the release APK:
+   ```bash
+   python3 tools/compare_apks.py ChordNotepad-android.apk app/build/outputs/apk/release/app-release-unsigned.apk
+   # -> "entries identical; difference is in zip structure/signature only"
+   apksigcopier compare ChordNotepad-android.apk --unsigned app/build/outputs/apk/release/app-release-unsigned.apk
+   # -> exit 0: byte-identical once the signature is copied over
+   ```
+
+Status: on the dev machine, an unsigned build plus the FOSS-signed build's
+signature (`apksigcopier copy`) gives the signed APK byte for byte, and two
+clean builds in different paths give identical APKs (`docs/ANDROID.md`,
+"Reproducibility"). Not yet checked: a CI build against a local one (different
+machine, user and Python micro build). Do that on the first tagged release
+before claiming reproducibility anywhere.
+
+### F-Droid
+
+Not submitted; Tibi decides at release time (the F-Droid AI-policy question,
+`docs/ANDROID_PORT_PLAN.md`). IzzyOnDroid is out: its policy rejects
+AI-written code. If F-Droid goes ahead, its recipe builds with
+`-PcnSigning=none` (the output is `app-release-unsigned.apk`). With a
+verified reproducible build it can publish the FOSS-signed GitHub APK
+(`Binaries:`), so F-Droid and GitHub installs update each other; otherwise
+F-Droid signs with its own key, permanently. Fastlane metadata and
+changelogs are not written yet.
+
+### Signing certificates
+
+Fill in from `fingerprints.txt` after running `make_keys.sh`, and the Play
+app signing key from Play Console > Test and release > App integrity. These
+are public; users can compare them with `apksigner verify --print-certs`.
+
+| Key | SHA-256 |
+|---|---|
+| FOSS (GitHub APK) | _not generated yet_ |
+| Play upload | _not generated yet_ |
+| Play app signing (Google) | _after the first Play upload_ |
 
 ## Manual Release (Not Recommended)
 

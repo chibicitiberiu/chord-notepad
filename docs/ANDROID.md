@@ -134,7 +134,7 @@ the pinned NDK and CMake through `sdkmanager` if they're missing.
 source android/local.env
 cd android
 nice -n 10 ./gradlew :app:assembleDebug
-nice -n 10 ./gradlew :app:assembleRelease               # debug-signed for now (real keys: M6)
+nice -n 10 ./gradlew :app:assembleRelease               # debug-signed (-PcnSigning=none|upload|foss: docs/RELEASE.md, "Android")
 nice -n 10 ./gradlew :app:assembleRelease -PcnMusic21=full   # untrimmed music21, for size comparison
 nice -n 10 ./gradlew :app:assembleRelease -PcnNatives=prebuilt  # upstream 2.6.0 natives (no submodules needed)
 nice -n 10 ./gradlew --offline :app:assembleRelease     # no network: the wheelhouse step only checks
@@ -165,6 +165,11 @@ python3 tools/check_manifest.py $OUT/release/app-release.apk
 $ANDROID_HOME/build-tools/36.1.0/zipalign -c -P 16 -v 4 $OUT/release/app-release.apk
 python3 tools/compare_apks.py a.apk b.apk          # reproducibility diff
 ```
+
+Release builds, signing keys, the source tarball and how to reproduce the
+GitHub APK are in `docs/RELEASE.md`, "Android". Auto Backup covers only
+`files/config/` (settings); the rules are in `res/xml/backup_rules.xml`
+(Android 6-11) and `res/xml/data_extraction_rules.xml` (12+).
 
 ## Bridge contract (Kotlin <-> Python)
 
