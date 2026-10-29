@@ -585,8 +585,8 @@ are public; users can compare them with `apksigner verify --print-certs`.
 
 | Key | SHA-256 |
 |---|---|
-| FOSS (GitHub APK) | _not generated yet_ |
-| Play upload | _not generated yet_ |
+| FOSS (GitHub APK) | `BB:DF:72:E7:70:C1:48:E7:2B:5A:C1:CC:3B:15:2E:9F:1A:5C:96:FA:0C:C5:28:92:CC:8F:BE:05:62:1D:30:B1` |
+| Play upload | `96:E1:3E:EA:10:B9:FE:67:54:68:DB:2C:42:08:70:31:90:70:A8:C5:6C:52:45:32:8E:54:2F:C2:0A:53:D2:2C` |
 | Play app signing (Google) | _after the first Play upload_ |
 
 ## Manual Release (Not Recommended)
