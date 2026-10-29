@@ -233,5 +233,5 @@ def test_editor_schema_event_per_platform(tmp_path):
     assert event.schema["help"]["name"] == (
         "The name of this voicing, shown in the Playback → Voicing menu.")
     android = voicing_form.editor_schema("android")
-    assert android["help"]["name"] == "The name of this voicing, shown in ⋮ → Playback → Voicing."
+    assert android["help"]["name"] == "The name of this voicing, shown in the player's Voicing sheet."
     assert android["forms"] == event.schema["forms"]

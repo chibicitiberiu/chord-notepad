@@ -36,7 +36,7 @@ class VoicingFormTest {
         assertEquals(listOf("fretboard", "piano", "ensemble"), schema.treeGroups.map { it.model })
         assertEquals("Name", schema.text("name_label"))
         assertEquals("Remove voicing '{name}'?", schema.text("remove_confirm"))
-        assertTrue(schema.help.getValue("name").contains("⋮ → Playback → Voicing"))
+        assertTrue(schema.help.getValue("name").contains("the player's Voicing sheet"))
         assertEquals(setOf("fretboard", "ensemble", "piano"), schema.forms.keys)
         // Unknown models fall back to the piano form, as in Python.
         assertEquals("piano", schema.form("harp")!!.model)

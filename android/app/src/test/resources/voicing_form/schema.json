@@ -1059,7 +1059,7 @@
    "help": {
     "load": "Replace this voicing's parameters with those of a built-in preset or another voicing. The name is kept.",
     "model": "The engine that renders this voicing: fretboard (a fretted instrument), ensemble (independent voices), or piano.",
-    "name": "The name of this voicing, shown in ⋮ → Playback → Voicing.",
+    "name": "The name of this voicing, shown in the player's Voicing sheet.",
     "tree_add": "Add a new voicing.",
     "tree_remove": "Remove the selected voicing."
    },

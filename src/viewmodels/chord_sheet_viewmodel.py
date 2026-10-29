@@ -63,7 +63,7 @@ _SCROLL_EPSILON = 0.5    # px; scroll deltas smaller than this are treated as no
 #: Why the fretted views are off for a song without fingerings, per platform.
 _PICK_FRETTED_INSTRUMENT = {
     DESKTOP: "Pick a fretted instrument (e.g. Guitar) in Playback \u2192 Voicing to use this view.",
-    ANDROID: "Pick a fretted instrument (e.g. Guitar) in \u22ee \u2192 Playback \u2192 Voicing "
+    ANDROID: "Pick a fretted instrument (e.g. Guitar) with the player's Voicing button "
              "to use this view.",
 }
 

@@ -277,7 +277,7 @@ TOOLTIPS: Dict[str, str] = {
 
 #: Help texts worded differently on Android (they name a menu path).
 ANDROID_TOOLTIPS: Dict[str, str] = {
-    'name': "The name of this voicing, shown in ⋮ → Playback → Voicing.",
+    'name': "The name of this voicing, shown in the player's Voicing sheet.",
 }
 
 
