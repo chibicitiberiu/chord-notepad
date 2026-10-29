@@ -344,31 +344,67 @@ Directive Reference
 All Directives
 --------------
 
-.. list-table::
-   :header-rows: 1
-   :widths: 20 35 45
+.. only:: desktop
 
-   * - Directive
-     - Purpose
-     - Syntax
-   * - {bpm}
-     - Set or change tempo
-     - See below
-   * - {tempo}
-     - Same as bpm
-     - Same as bpm
-   * - {time}
-     - Set time signature
-     - ``{time: beats/unit}``
-   * - {key}
-     - Set musical key
-     - ``{key: note}``
-   * - {label}
-     - Mark a position
-     - ``{label: name}``
-   * - {loop}
-     - Repeat a section
-     - ``{loop: name count}``
+   .. list-table::
+      :header-rows: 1
+      :widths: 20 35 45
+
+      * - Directive
+        - Purpose
+        - Syntax
+      * - {bpm}
+        - Set or change tempo
+        - See below
+      * - {tempo}
+        - Same as bpm
+        - Same as bpm
+      * - {time}
+        - Set time signature
+        - ``{time: beats/unit}``
+      * - {key}
+        - Set musical key
+        - ``{key: note}``
+      * - {label}
+        - Mark a position
+        - ``{label: name}``
+      * - {loop}
+        - Repeat a section
+        - ``{loop: name count}``
+
+.. only:: android
+
+   .. list-table::
+      :header-rows: 1
+      :widths: 20 35 45
+
+      * - Directive
+        - Purpose
+        - Syntax
+      * - {bpm}
+        - Set or change tempo
+        - See below
+      * - {tempo}
+        - Same as bpm
+        - Same as bpm
+      * - {time}
+        - Set time signature
+        - ``{time: beats/unit}``
+      * - {key}
+        - Set musical key
+        - ``{key: note}``
+      * - {capo}
+        - Capo for Fret cards and Tab
+        - ``{capo: fret}`` (0-12)
+      * - {label}
+        - Mark a position
+        - ``{label: name}``
+      * - {loop}
+        - Repeat a section
+        - ``{loop: name count}``
+
+   In the Edit tab, **＋ Insert** writes any of these except ``{tempo}`` for
+   you (see :doc:`directives`).
 
 BPM Directive Values
 --------------------
@@ -471,9 +507,33 @@ Keyboard Shortcuts Summary
 
 .. only:: android
 
-   With a hardware keyboard attached: Ctrl+N New, Ctrl+O Open, Ctrl+S Save,
-   Ctrl+Shift+S Save As, Ctrl+Z Undo, Ctrl+Y Redo, Ctrl+A Select All,
-   Ctrl+Plus / Ctrl+Minus / Ctrl+0 for the font size.
+   With a hardware keyboard attached (a Bluetooth or USB keyboard, or a
+   tablet's keyboard cover):
+
+   .. list-table::
+      :header-rows: 1
+      :widths: 45 55
+
+      * - Keys
+        - Does
+      * - Ctrl+N
+        - New song
+      * - Ctrl+O
+        - Open
+      * - Ctrl+S
+        - Save
+      * - Ctrl+Shift+S
+        - Save as
+      * - Ctrl++ / Ctrl+- / Ctrl+0
+        - Bigger, smaller, default text size
+      * - F1
+        - User guide
+      * - Ctrl+Z, Ctrl+Y
+        - Undo, redo (Edit tab)
+      * - Ctrl+X, Ctrl+C, Ctrl+V
+        - Cut, copy, paste (Edit tab)
+      * - Ctrl+A
+        - Select all (Edit tab)
 
 Color Coding Summary
 ====================
@@ -503,6 +563,11 @@ Color Coding Summary
    * - Yellow
      - Background
      - Currently playing
+
+.. only:: android
+
+   In the dark theme the same roles use lighter shades (light blue chords,
+   lilac directives) and a dark yellow for the playing chord.
 
 
 Guitar Tunings
@@ -557,3 +622,7 @@ Application Limits
    * - Recent files
      - —
      - 10
+
+.. only:: android
+
+   The player's playback speed goes from 25% to 400%.
