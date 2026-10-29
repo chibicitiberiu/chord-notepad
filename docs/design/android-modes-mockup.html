@@ -555,7 +555,7 @@ function layout() {
   tb.style.display = mode === 'play' ? 'flex' : 'none';
 
   const wide = W >= 700;
-  const sheetOn = mode === 'play' ? sheetVisible : !kbdUp && (wide || landscape);
+  const sheetOn = mode === 'play' && sheetVisible;  // the chord sheet is a Play-mode view only
   $('sheet').style.display = sheetOn ? 'flex' : 'none';
   const side = landscape && sheetOn;
   $('rightcol').style.width = sideW + '%';

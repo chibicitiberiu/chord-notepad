@@ -24,6 +24,7 @@ underline indicator.
 | Pinch | text size | text size |
 | Toolbar | editing ribbon | none (the player is at the bottom) |
 | Status | snackbars only | inside the player |
+| Chord sheet | never shown | shown (▭ hides it) |
 
 - Existing songs open in Play; new ones open in Edit.
 - Switching to Edit while playing stops playback.
@@ -98,7 +99,8 @@ The ⋮ menu is gone; the drawer holds everything it had.
 - The sheet's tabs, the − / + buttons and the disabled-tab reason stay as built.
 - Show or hide it with the player's ▭ button.
 - **Portrait:** below the text, with a horizontal drag handle for its height.
-- **Landscape** (phones and tablets): always side by side. The text is on the left. The right column holds the chord sheet, with the player at its bottom in Play mode. A vertical drag handle sets the column width (30–70%, default 50%). In the narrower column the player's buttons shrink so all seven fit.
+- **Edit mode:** never shown, on any device. The text gets the whole screen.
+- **Landscape** (phones and tablets, Play mode): always side by side. The text is on the left. The right column holds the chord sheet, with the player at its bottom in Play mode. A vertical drag handle sets the column width (30–70%, default 50%). In the narrower column the player's buttons shrink so all seven fit.
 
 ## Icons
 
