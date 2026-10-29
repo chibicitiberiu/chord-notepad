@@ -1888,16 +1888,23 @@ class AppSession:
         if status is self._playback.status:
             return
         if status is PlaybackStatus.IDLE:
+            # A stop (unlike the song ending) posts no "finished" ping, so the
+            # chord sheet's playhead would stay on the last chord.
+            self._clear_playhead()
             self._publish_playback(PlaybackState(PlaybackStatus.IDLE))
             self._set_status(formatting.READY)
         else:
             self._publish_playback(dataclasses.replace(self._playback, status=status))
 
+    def _clear_playhead(self) -> None:
+        """Take the chord sheet's playhead off the last chord (once)."""
+        if self._chord_sheet is not None and self._chord_sheet.current_index is not None:
+            self._chord_sheet.on_playback_chord(None)
+
     def _on_playback_event(self, event: Optional[PlaybackEventArgs]) -> None:
         """A progress ping from the player, or None when a song finished."""
         if event is None:
-            if self._chord_sheet is not None:
-                self._chord_sheet.on_playback_chord(None)
+            self._clear_playhead()
             self._set_status(formatting.READY)
             return
         if self._playback.status is PlaybackStatus.IDLE:

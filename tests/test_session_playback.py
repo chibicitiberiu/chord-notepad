@@ -199,7 +199,9 @@ def test_stop_returns_to_idle_and_drops_pings_posted_before_it():
     env.recorder.clear()
 
     env.session.stop()
-    assert env.recorder.compact() == [
+    items = env.recorder.compact()
+    assert items[0][0] == "ChordSheetState"  # the playhead comes off the last chord
+    assert items[1:] == [
         ("PlaybackState", "idle", None, None, 0, 0),
         _editor(False),
         _toolbar("play"),
@@ -211,7 +213,9 @@ def test_stop_returns_to_idle_and_drops_pings_posted_before_it():
     env.player.play(chords=1)
     env.host.run_pending()
     assert env.recorder.items == []
-    assert env.sheet.pings == [("C", 0)]
+    # The stop cleared the chord sheet's playhead; the late ping didn't move it.
+    assert env.sheet.pings == [("C", 0), (None, None)]
+    assert env.sheet.current_index is None
 
 
 def test_pings_and_the_end_of_a_stopped_run_are_dropped_during_the_next_run():
