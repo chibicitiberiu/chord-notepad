@@ -32,6 +32,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -45,6 +46,8 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
@@ -58,6 +61,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogWindowProvider
+import androidx.core.view.WindowCompat
 import androidx.compose.ui.window.DialogProperties
 import io.github.chibicitiberiu.chordnotepad.R
 import io.github.chibicitiberiu.chordnotepad.bridge.IdentifierState
@@ -106,6 +111,7 @@ fun ChordIdentifierDialog(
     val status by repo.status.collectAsState()
 
     Dialog(onDismissRequest = onClose, properties = identifierDialogProperties(compact)) {
+        if (compact) SystemBarIcons(MaterialTheme.colorScheme.surface.luminance() > 0.5f)
         Surface(
             modifier = if (compact) Modifier.fillMaxSize() else Modifier.widthIn(max = 640.dp).heightIn(max = 720.dp),
             shape = if (compact) MaterialTheme.shapes.extraSmall else MaterialTheme.shapes.extraLarge,
@@ -124,6 +130,24 @@ fun ChordIdentifierDialog(
  */
 internal fun identifierDialogProperties(compact: Boolean) =
     DialogProperties(usePlatformDefaultWidth = !compact, decorFitsSystemWindows = !compact)
+
+/**
+ * Status and navigation bar icons for the full-screen dialog's own window
+ * (it doesn't inherit the activity's `enableEdgeToEdge` styling, so its
+ * clock and battery were white on the light surface): dark icons on a light
+ * surface, light icons on a dark one.
+ */
+@Composable
+private fun SystemBarIcons(lightSurface: Boolean) {
+    val view = LocalView.current
+    SideEffect {
+        val window = (view.parent as? DialogWindowProvider)?.window ?: return@SideEffect
+        WindowCompat.getInsetsController(window, view).apply {
+            isAppearanceLightStatusBars = lightSurface
+            isAppearanceLightNavigationBars = lightSurface
+        }
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
