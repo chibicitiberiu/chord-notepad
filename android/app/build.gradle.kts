@@ -14,12 +14,23 @@ plugins {
 
 // ---------------------------------------------------------------------------
 // Version: versionName comes from the repo's VERSION file. versionCode is
-// (MAJ*10000 + MIN*100 + PATCH)*10 + rebuild, written as a literal on purpose
-// (docs/ANDROID_PORT_PLAN.md, "Version scheme"); a test will check the pair.
+// (MAJ*10000 + MIN*100 + PATCH)*10 + rebuild and is written as a number literal
+// in defaultConfig below, because F-Droid's tooling reads it from this file
+// with a regex. Bumping VERSION means bumping that literal too: the check in
+// defaultConfig fails the build otherwise, and tests/test_android_version.py
+// checks the same thing (docs/RELEASE.md, "Android").
 // ---------------------------------------------------------------------------
 val repoRoot: Directory = rootProject.layout.projectDirectory.dir("..")
 val appVersionName: String = providers.fileContents(repoRoot.file("VERSION")).asText.get().trim()
-val appVersionCode = 4010
+
+/** VERSION "MAJ.MIN.PATCH" -> MAJ*10000 + MIN*100 + PATCH (the versionCode without its rebuild digit). */
+fun versionCodeBase(version: String): Int {
+    val parts = Regex("""^(\d+)\.(\d+)\.(\d+)$""").find(version)?.groupValues?.drop(1)?.map { it.toInt() }
+        ?: error("VERSION must be MAJOR.MINOR.PATCH, not '$version'")
+    val (major, minor, patch) = parts
+    check(minor < 100 && patch < 100) { "versionCode scheme needs MINOR and PATCH below 100 ($version)" }
+    return major * 10000 + minor * 100 + patch
+}
 
 // Shown in About: the commit the build was made from (never a date, so builds
 // stay reproducible). "unknown" outside a git checkout; -PcnCommit=<id> sets it.
@@ -33,6 +44,29 @@ val appCommit: String = providers.gradleProperty("cnCommit").orElse(
 // ABIs: arm64-v8a (phones) + x86_64 (emulator). `-PcnAbis=x86_64` builds one.
 val appAbis: List<String> = providers.gradleProperty("cnAbis")
     .orElse("arm64-v8a,x86_64").get().split(",").map { it.trim() }.filter { it.isNotEmpty() }
+
+// ---------------------------------------------------------------------------
+// Release signing (docs/RELEASE.md, "Android"). -PcnSigning picks the key the
+// release build type signs with:
+//   debug (default): the debug key, so a local release APK installs;
+//   none:            unsigned (app-release-unsigned.apk), for F-Droid and for
+//                    reproducing the GitHub APK;
+//   upload:          the Play upload key (CI signs the AAB with it);
+//   foss:            the offline FOSS key (CI signs the GitHub APK with it).
+// The keystore path and password come from Gradle properties or environment
+// variables CN_<KEY>_STORE_FILE / _STORE_PASSWORD / _KEY_ALIAS (optional
+// _KEY_PASSWORD, defaults to the store password, as in a PKCS12 keystore), with
+// <KEY> = UPLOAD or FOSS. Never in the repo: android/tools/make_keys.sh puts
+// the keystores outside it. Sign with --no-configuration-cache, or the
+// passwords end up (encrypted) in android/.gradle/configuration-cache.
+// ---------------------------------------------------------------------------
+val signingMode: String = providers.gradleProperty("cnSigning").orElse("debug").get()
+check(signingMode in setOf("debug", "none", "upload", "foss")) {
+    "cnSigning must be debug, none, upload or foss, not '$signingMode'"
+}
+
+fun signingSecret(name: String): String? =
+    providers.gradleProperty(name).orElse(providers.environmentVariable(name)).orNull?.takeIf { it.isNotEmpty() }
 
 // Downloads/prebuilts cache shared with android/tools (see local.env.example).
 val androidCacheDir: String = providers.environmentVariable("CHORD_NOTEPAD_ANDROID_CACHE")
@@ -78,20 +112,53 @@ android {
         applicationId = "io.github.chibicitiberiu.chordnotepad"
         minSdk = 24
         targetSdk = 36
-        versionCode = appVersionCode
+        // (0*10000 + 4*100 + 1)*10 + 0 for VERSION 0.4.1. Keep it a plain literal.
+        versionCode = 4010
         versionName = appVersionName
+        check(versionCode!! / 10 == versionCodeBase(appVersionName)) {
+            "versionCode $versionCode doesn't match VERSION $appVersionName: set it to " +
+                "${versionCodeBase(appVersionName) * 10} (last digit = rebuild of the same VERSION)"
+        }
         buildConfigField("String", "COMMIT", "\"$appCommit\"")
         ndk {
             abiFilters += appAbis
         }
     }
 
+    signingConfigs {
+        if (signingMode == "upload" || signingMode == "foss") {
+            val prefix = "CN_${signingMode.uppercase()}"
+            val storeFilePath = signingSecret("${prefix}_STORE_FILE")
+            val storePass = signingSecret("${prefix}_STORE_PASSWORD")
+            val alias = signingSecret("${prefix}_KEY_ALIAS")
+            check(storeFilePath != null && storePass != null && alias != null) {
+                "cnSigning=$signingMode needs ${prefix}_STORE_FILE, ${prefix}_STORE_PASSWORD and " +
+                    "${prefix}_KEY_ALIAS (Gradle properties or environment variables)"
+            }
+            check(File(storeFilePath).isFile) { "${prefix}_STORE_FILE: no keystore at $storeFilePath" }
+            create(signingMode) {
+                storeFile = File(storeFilePath)
+                storePassword = storePass
+                keyAlias = alias
+                keyPassword = signingSecret("${prefix}_KEY_PASSWORD") ?: storePass
+                // minSdk 24 needs no v1 (JAR) signature; v2 + v3 only, so the
+                // APK's entries stay identical to an unsigned build's.
+                enableV1Signing = false
+                enableV2Signing = true
+                enableV3Signing = true
+                enableV4Signing = false
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
-            // M2 spike: debug-signed so the release APK installs. Real signing
-            // (upload key / offline FOSS key) is M6.
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = when (signingMode) {
+                "none" -> null
+                "debug" -> signingConfigs.getByName("debug")
+                else -> signingConfigs.getByName(signingMode)
+            }
         }
     }
 
