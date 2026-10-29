@@ -15,6 +15,12 @@ object Pages {
     /** The open source licences list. */
     const val LICENCES = "licences"
 
+    /** Help › User Guide (the offline WebView; it handles Back itself). */
+    const val USER_GUIDE = "user_guide"
+
+    /** Help › Quick Start (also opens on its own the first time, see `QuickStartLaunch`). */
+    const val QUICK_START = "quick_start"
+
     /** ⋮ › Settings (its own pages are inside `SettingsScreen`; Back there is its own). */
     const val SETTINGS = "settings"
 

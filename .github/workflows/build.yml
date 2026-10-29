@@ -834,6 +834,11 @@ jobs:
         with:
           cache-provider: basic
 
+      # The User Guide (help/*.rst, sphinx -t android) is built into the APK's
+      # assets by Gradle with the same Python; hashes pinned from Pipfile.lock.
+      - name: Install Sphinx for the User Guide
+        run: python -m pip install --require-hashes -r docs-requirements.txt
+
       - name: Build environment
         run: |
           {

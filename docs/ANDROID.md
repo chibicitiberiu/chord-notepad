@@ -832,6 +832,45 @@ and reopening shows a fresh Untitled document. It also turns the non-replaying
 `CloseApproved` event into a `finishRequested` state, so a close approved
 during a rotation still finishes the new activity once.
 
+## Help: User Guide and Quick Start (M5)
+
+**User Guide.** The Gradle task `buildAndroidHelp` runs
+`python -m sphinx -t android -b html -W` on `help/` (the same as
+`make docs-html-android`) into the generated assets, so the APK has
+`assets/help/index.html` and friends (build bookkeeping and the unused
+`.ttf/.eot/.svg` fonts are removed; about 6 MB unpacked). A docs warning fails the
+build. The output is reproducible: the theme prints no build time and the task
+pins `SOURCE_DATE_EPOCH`. The Python needs the desktop docs stack:
+
+- locally, `CHORD_NOTEPAD_DOCS_PYTHON` in `android/local.env` points at the
+  pipenv venv's python (`pipenv --venv`); without it the task uses
+  `CHAQUOPY_BUILD_PYTHON`;
+- CI installs `android/docs-requirements.txt` (hash-pinned from `Pipfile.lock`;
+  regenerate when Sphinx or the theme changes there) into that Python before
+  Gradle runs.
+
+`UserGuideScreen` shows it in a WebView through `androidx.webkit`'s
+`WebViewAssetLoader` on `https://appassets.androidplatform.net/assets/help/`.
+Only that origin loads (anything else gets a 403), file and content access are
+off, and there is no INTERNET permission. JavaScript is on because the
+sphinx_rtd_theme menu and search need it. A tapped link to another site opens
+through `ACTION_VIEW` (`HelpLinks.isExternal`). Back goes back through the
+WebView history, then leaves; the page survives rotation (the history does
+not). Help > User Guide opens it, and so does F1 on a hardware keyboard.
+`HelpAssetsTest` checks that the generated `help/` has `index.html` and no
+`file://` links or build paths.
+
+**Quick Start.** `QuickStartRoute` sends `request_quick_start` and renders
+`QuickStartContent` page by page in Compose (`QuickStartPager` holds the page;
+snippets are `snippetRuns`: the session's code-point spans converted to UTF-16
+and styled with the editor's `SpanStyles`, on the editor's white background in
+monospace, read only). Previous/Next/Done and a "Show at startup" checkbox that
+sends `set_show_quick_start_on_startup`. Help > Quick Start opens it; it also
+opens on its own when `SettingsState.values.show_quick_start_on_startup` is true
+(`QuickStartLaunch.shouldAutoShow`), once per process start: the flag
+`AppGraph.quickStartShown` lives in the app-scoped graph, so rotation does not
+show it again.
+
 ## Natives from source and offline packages (M6 groundwork)
 
 **Date:** 2026-10-29. Nothing in a default build now comes from a prebuilt

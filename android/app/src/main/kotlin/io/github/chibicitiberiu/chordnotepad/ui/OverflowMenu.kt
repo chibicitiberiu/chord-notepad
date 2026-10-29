@@ -46,8 +46,7 @@ private enum class MenuPopup { NONE, VOICING_SHEET, INSTRUMENT_SHEET, FONT }
  * The app bar's overflow menu: File, Edit, View and Playback as on the
  * desktop, each a page of its own (Android menus don't cascade). On phones
  * ([compact]) Voicing and Instrument open bottom sheets instead of pages.
- * Tools comes with M5; Help has About so far, with User Guide and Quick
- * Start to join it. There is no File › Exit: Back closes the app, asking
+ * Help has User Guide, Quick Start and About. There is no File › Exit: Back closes the app, asking
  * about unsaved changes first (`MainScreen`).
  *
  * @param repo The session's states the menus show.
@@ -56,6 +55,8 @@ private enum class MenuPopup { NONE, VOICING_SHEET, INSTRUMENT_SHEET, FONT }
  * @param onSelectAll Select the whole text in the editor.
  * @param compact Phone-sized window: pickers as bottom sheets.
  * @param onAbout Open Help › About.
+ * @param onUserGuide Open Help › User Guide.
+ * @param onQuickStart Open Help › Quick Start.
  * @param tools What Tools does (its pages are in `ui/tools/ToolsMenu.kt`).
  * @param onSettings Open ⋮ › Settings.
  */
@@ -68,6 +69,8 @@ fun OverflowMenu(
     onSelectAll: () -> Unit,
     compact: Boolean,
     onAbout: () -> Unit,
+    onUserGuide: () -> Unit,
+    onQuickStart: () -> Unit,
     tools: ToolActions,
     onSettings: () -> Unit,
 ) {
@@ -119,7 +122,9 @@ fun OverflowMenu(
                 }
                 MenuPage.HELP -> {
                     Back(stringResource(R.string.menu_help)) { page = MenuPage.ROOT }
-                    // M5 adds User Guide and Quick Start above About, as on the desktop.
+                    Item(stringResource(R.string.menu_user_guide), "F1", run(onUserGuide))
+                    Item(stringResource(R.string.menu_quick_start), null, run(onQuickStart))
+                    HorizontalDivider()
                     Item(stringResource(R.string.menu_about), null, run(onAbout))
                 }
                 MenuPage.TOOLS -> {

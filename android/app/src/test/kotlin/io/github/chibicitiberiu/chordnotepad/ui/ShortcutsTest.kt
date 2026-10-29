@@ -19,6 +19,12 @@ class ShortcutsTest {
     }
 
     @Test
+    fun `F1 opens the user guide with or without modifiers`() {
+        assertEquals(Shortcut.HELP, shortcutFor(Key.F1, ctrl = false, shift = false))
+        assertEquals(Shortcut.HELP, shortcutFor(Key.F1, ctrl = true, shift = true))
+    }
+
+    @Test
     fun `plain keys and the text field's own shortcuts pass through`() {
         assertNull(shortcutFor(Key.S, ctrl = false, shift = false))
         assertNull(shortcutFor(Key.Z, ctrl = true, shift = false))

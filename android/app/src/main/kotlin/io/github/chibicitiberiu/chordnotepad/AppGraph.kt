@@ -82,6 +82,13 @@ class AppGraph(context: Context) {
     /** The editor's text and highlighting (app-scoped: survives rotation). */
     val editor = EditorController(commands)
 
+    /**
+     * Whether the Quick Start tour was already opened on its own since this
+     * process started (main thread). Kept here, not in the UI, so a rotation
+     * doesn't reopen it.
+     */
+    var quickStartShown: Boolean = false
+
     /** The session's errors waiting to be shown. */
     val errorQueue = ErrorQueue()
 

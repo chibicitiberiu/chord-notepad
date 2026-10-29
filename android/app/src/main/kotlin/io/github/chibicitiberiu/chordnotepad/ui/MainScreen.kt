@@ -65,6 +65,9 @@ import io.github.chibicitiberiu.chordnotepad.ui.about.LicencesScreen
 import io.github.chibicitiberiu.chordnotepad.ui.about.Pages
 import io.github.chibicitiberiu.chordnotepad.ui.chordsheet.ChordSheetSplit
 import io.github.chibicitiberiu.chordnotepad.ui.editor.ChordEditor
+import io.github.chibicitiberiu.chordnotepad.ui.help.QuickStartLaunch
+import io.github.chibicitiberiu.chordnotepad.ui.help.QuickStartRoute
+import io.github.chibicitiberiu.chordnotepad.ui.help.UserGuideScreen
 import io.github.chibicitiberiu.chordnotepad.ui.icons.AppIcons
 import io.github.chibicitiberiu.chordnotepad.ui.requests.SessionRequests
 import io.github.chibicitiberiu.chordnotepad.ui.settings.SettingsScreen
@@ -109,14 +112,32 @@ fun MainScreen(graph: AppGraph, onCloseApproved: () -> Unit) {
         actions.requestClose()
     }
     // Settings handles Back itself (up a page, or leave asking about changes).
-    BackHandler(enabled = page != Pages.MAIN && page != Pages.SETTINGS) { page = Pages.parent(page) }
+    // The User Guide goes back through its own pages first (UserGuideScreen).
+    BackHandler(enabled = page != Pages.MAIN && page != Pages.SETTINGS && page != Pages.USER_GUIDE) {
+        page = Pages.parent(page)
+    }
+
+    // First run: the Quick Start tour opens once per process start, when the
+    // setting (known a moment after launch) says so. The flag lives in the
+    // app-scoped graph, so a rotation does not bring it back.
+    val settings by graph.repository.settings.collectAsState()
+    LaunchedEffect(settings, page) {
+        if (page == Pages.MAIN && QuickStartLaunch.shouldAutoShow(settings, graph.quickStartShown)) {
+            graph.quickStartShown = true
+            page = Pages.QUICK_START
+        }
+    }
 
     when {
         page == Pages.MAIN -> MainContent(
             graph, actions, snackbars,
             onAbout = { page = Pages.ABOUT },
+            onUserGuide = { page = Pages.USER_GUIDE },
+            onQuickStart = { page = Pages.QUICK_START },
             onSettings = { page = Pages.SETTINGS },
         )
+        page == Pages.USER_GUIDE -> UserGuideScreen(onClose = { page = Pages.MAIN })
+        page == Pages.QUICK_START -> QuickStartRoute(graph, onClose = { page = Pages.MAIN })
         page == Pages.SETTINGS -> SettingsScreen(
             repo = graph.repository,
             commands = remember(graph) { ScreenCommands(graph.pyHost) },
@@ -146,6 +167,8 @@ private fun MainContent(
     actions: MainActions,
     snackbars: SnackbarHostState,
     onAbout: () -> Unit,
+    onUserGuide: () -> Unit,
+    onQuickStart: () -> Unit,
     onSettings: () -> Unit,
 ) {
     val repo = graph.repository
@@ -159,7 +182,7 @@ private fun MainContent(
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val compact = maxWidth < CompactWidth
         Scaffold(
-            modifier = Modifier.onPreviewKeyEvent { actions.handleShortcut(it) },
+            modifier = Modifier.onPreviewKeyEvent { actions.handleShortcut(it, onHelp = onUserGuide) },
             topBar = {
                 TopAppBar(
                     title = { Text(titleOf(document), maxLines = 1, overflow = TextOverflow.Ellipsis) },
@@ -190,6 +213,8 @@ private fun MainContent(
                             },
                             compact = compact,
                             onAbout = onAbout,
+                            onUserGuide = onUserGuide,
+                            onQuickStart = onQuickStart,
                             tools = remember(graph) { ToolActions(graph.commands, ScreenCommands(graph.pyHost), graph.editor) },
                             onSettings = onSettings,
                         )

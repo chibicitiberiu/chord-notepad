@@ -117,6 +117,8 @@ android {
                 // The licence data the app bundles (AboutLibrariesTest, LicenceCatalogTest).
                 it.systemProperty("cn.licensesDir", file("src/main/assets/licenses").path)
                 it.systemProperty("cn.requirements", pythonRequirements.asFile.path)
+                // The generated User Guide (HelpAssetsTest).
+                it.systemProperty("cn.helpDir", layout.buildDirectory.dir("generated/help/assets/help").get().asFile.path)
             }
         }
     }
@@ -425,9 +427,71 @@ val exportClefGlyphs = tasks.register<ExportClefGlyphs>("exportClefGlyphs") {
     outputDir.set(layout.buildDirectory.dir("generated/chordSheetGlyphs/assets"))
 }
 
+// ---------------------------------------------------------------------------
+// User Guide: the Sphinx help (help/*.rst) built with `-t android` (the same
+// as `make docs-html-android`) into assets/help/, shown offline in a WebView.
+// Needs a Python with the Sphinx stack of the desktop docs build: set
+// CHORD_NOTEPAD_DOCS_PYTHON (android/local.env.example) to the pipenv venv's
+// python, or install android/docs-requirements.txt into CHAQUOPY_BUILD_PYTHON
+// (what CI does). SOURCE_DATE_EPOCH is set, so the HTML is reproducible.
+// ---------------------------------------------------------------------------
+val docsPythonExe: String = providers.environmentVariable("CHORD_NOTEPAD_DOCS_PYTHON").orElse(buildPythonExe).get()
+
+abstract class BuildAndroidHelp @Inject constructor(
+    private val execOps: ExecOperations,
+) : DefaultTask() {
+    @get:Input abstract val pythonExe: Property<String>
+    @get:InputDirectory @get:PathSensitive(PathSensitivity.RELATIVE) abstract val helpDir: DirectoryProperty
+    @get:InputFile @get:PathSensitive(PathSensitivity.RELATIVE) abstract val versionFile: RegularFileProperty
+    @get:Internal abstract val scratchDir: DirectoryProperty
+    @get:OutputDirectory abstract val outputDir: DirectoryProperty
+
+    @TaskAction
+    fun run() {
+        val out = outputDir.get().asFile
+        out.deleteRecursively()
+        val html = File(out, "help")
+        val scratch = scratchDir.get().asFile.apply { deleteRecursively(); mkdirs() }
+        try {
+            execOps.exec {
+                // -W: a docs warning fails the build. Reproducible: no
+                // timestamps in the theme's output; the epoch pins the rest.
+                environment("SOURCE_DATE_EPOCH", "1700000000")
+                environment("PYTHONHASHSEED", "0")
+                commandLine(
+                    pythonExe.get(), "-m", "sphinx", "-t", "android", "-b", "html", "-q", "-W", "--keep-going",
+                    "-d", File(scratch, "doctrees").path, helpDir.get().asFile.path, html.path,
+                )
+            }
+        } catch (e: Exception) {
+            throw GradleException(
+                "Building the Android help failed. It needs Sphinx (see android/local.env.example: " +
+                    "CHORD_NOTEPAD_DOCS_PYTHON, or pip install -r android/docs-requirements.txt). ${e.message}",
+                e,
+            )
+        }
+        // Keep the APK lean: build bookkeeping, and the font formats WebView
+        // never asks for (it takes the woff2/woff the theme's CSS lists first).
+        File(html, ".buildinfo").delete()
+        File(html, "objects.inv").delete()
+        html.walkBottomUp().filter { it.isFile && it.extension in setOf("ttf", "eot", "otf") }.forEach { it.delete() }
+        File(html, "_static/css/fonts").listFiles { f -> f.extension == "svg" }?.forEach { it.delete() }
+    }
+}
+
+val buildAndroidHelp = tasks.register<BuildAndroidHelp>("buildAndroidHelp") {
+    description = "Builds the Android User Guide (sphinx -t android) into generated assets/help"
+    pythonExe.set(docsPythonExe)
+    helpDir.set(repoRoot.dir("help"))
+    versionFile.set(repoRoot.file("VERSION"))
+    scratchDir.set(layout.buildDirectory.dir("tmp/helpDoctrees"))
+    outputDir.set(layout.buildDirectory.dir("generated/help/assets"))
+}
+
 androidComponents {
     onVariants { variant ->
         variant.sources.assets?.addGeneratedSourceDirectory(exportClefGlyphs, ExportClefGlyphs::outputDir)
+        variant.sources.assets?.addGeneratedSourceDirectory(buildAndroidHelp, BuildAndroidHelp::outputDir)
         variant.sources.assets?.addGeneratedSourceDirectory(copySoundfont, CopyIntoAssets::outputDir)
         variant.sources.assets?.addGeneratedSourceDirectory(copySpikeSample, CopyIntoAssets::outputDir)
         variant.sources.jniLibs?.addGeneratedSourceDirectory(prepareNativeLibs, PrepareNativeLibs::outputDir)
@@ -439,6 +503,7 @@ dependencies {
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.process)
+    implementation(libs.androidx.webkit)
     implementation(libs.kotlinx.serialization.json)
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.compose.ui)
@@ -470,6 +535,7 @@ aboutLibraries {
 val aboutLibrariesJsonPath: String =
     layout.buildDirectory.file("generated/aboutLibraries/debug/res/raw/aboutlibraries.json").get().asFile.path
 tasks.matching { it.name == "testDebugUnitTest" }.configureEach {
+    dependsOn(buildAndroidHelp)
     dependsOn(tasks.matching { it.name == "prepareLibraryDefinitionsDebug" })
     (this as Test).systemProperty("cn.aboutLibrariesJson", aboutLibrariesJsonPath)
 }

@@ -8,14 +8,15 @@ import androidx.compose.ui.input.key.isShiftPressed
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.type
 
-/** The desktop's window shortcuts that M4 covers (main_window.py, `bind_all`). */
-enum class Shortcut { NEW, OPEN, SAVE, SAVE_AS, FONT_BIGGER, FONT_SMALLER, FONT_RESET }
+/** The desktop's window shortcuts that M4 covers (main_window.py, `bind_all`), and F1 for the User Guide. */
+enum class Shortcut { NEW, OPEN, SAVE, SAVE_AS, FONT_BIGGER, FONT_SMALLER, FONT_RESET, HELP }
 
 /**
  * The shortcut for a key pressed with these modifiers, or null. Undo, redo,
  * cut, copy, paste and select all are the text field's own.
  */
 fun shortcutFor(key: Key, ctrl: Boolean, shift: Boolean): Shortcut? {
+    if (key == Key.F1) return Shortcut.HELP
     if (!ctrl) return null
     return when (key) {
         Key.N -> Shortcut.NEW
@@ -29,8 +30,8 @@ fun shortcutFor(key: Key, ctrl: Boolean, shift: Boolean): Shortcut? {
     }
 }
 
-/** Run the shortcut for [event] (key down only); true if there was one. */
-fun MainActions.handleShortcut(event: KeyEvent): Boolean {
+/** Run the shortcut for [event] (key down only; F1 calls [onHelp]); true if there was one. */
+fun MainActions.handleShortcut(event: KeyEvent, onHelp: () -> Unit = {}): Boolean {
     if (event.type != KeyEventType.KeyDown) return false
     val shortcut = shortcutFor(event.key, event.isCtrlPressed, event.isShiftPressed) ?: return false
     when (shortcut) {
@@ -41,6 +42,7 @@ fun MainActions.handleShortcut(event: KeyEvent): Boolean {
         Shortcut.FONT_BIGGER -> stepFontSize(1)
         Shortcut.FONT_SMALLER -> stepFontSize(-1)
         Shortcut.FONT_RESET -> resetFontSize()
+        Shortcut.HELP -> onHelp()
     }
     return true
 }
