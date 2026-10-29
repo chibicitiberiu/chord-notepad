@@ -64,9 +64,18 @@ The exported file contains exactly what playback would play:
 
 Tempo, meter, and key come from the same directives that drive playback:
 
-* The starting tempo is the toolbar BPM. Every ``{bpm}`` change in the song
-  is written at the point it occurs, so the file speeds up and slows down
-  exactly where the song does.
+.. only:: desktop
+
+   * The starting tempo is the toolbar BPM. Every ``{bpm}`` change in the song
+     is written at the point it occurs, so the file speeds up and slows down
+     exactly where the song does.
+
+.. only:: android
+
+   * The starting tempo is the song's BPM (the song pill, or Song defaults).
+     Every ``{bpm}`` change in the song is written at the point it occurs, so
+     the file speeds up and slows down exactly where the song does.
+
 * Each ``{time: beats/unit}`` becomes a MIDI time-signature event.
 * Each ``{key: note}`` becomes a MIDI key-signature event.
 
@@ -114,7 +123,17 @@ A Couple of Gotchas
   chorus, because there's nowhere else for the repeats to live once loops
   are gone. If the file plays longer than you expect, check for loop
   directives.
-* **The speed multiplier doesn't affect the file.** The toolbar's ``x0.5``
-  / ``x2`` multiplier (see :doc:`playback`) is a practice control for live
-  playback only. Export always uses the song's real tempo -- the BPM from
-  the toolbar and any ``{bpm}`` directives, with the multiplier ignored.
+
+.. only:: desktop
+
+   * **The speed multiplier doesn't affect the file.** The toolbar's ``x0.5``
+     / ``x2`` multiplier (see :doc:`playback`) is a practice control for live
+     playback only. Export always uses the song's real tempo -- the BPM from
+     the toolbar and any ``{bpm}`` directives, with the multiplier ignored.
+
+.. only:: android
+
+   * **The speed multiplier doesn't affect the file.** The player's Speed
+     setting (see :doc:`playback`) is a practice control for live playback
+     only. Export always uses the song's real tempo -- the song's BPM and any
+     ``{bpm}`` directives, with the multiplier ignored.

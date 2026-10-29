@@ -11,6 +11,7 @@ lower.
 Transposing a Song
 ==================
 
+
 .. only:: desktop
 
    1. Go to :menuselection:`Tools --> Transpose...`
@@ -50,10 +51,21 @@ What Changes
   ``Bm*4``).
 * **Notation is preserved.** European chords stay European -- ``Do`` up two
   becomes ``Re``, and the minor form is kept (``rem`` becomes ``mim``).
-* **Key directives shift.** A ``{key: C}`` or ``{key: Am}`` inside the
-  transposed range moves with the chords (and keeps its major or minor form).
-  When you transpose the whole song, the toolbar **Key** shifts too, so
-  roman-numeral chords keep sounding the same.
+
+.. only:: desktop
+
+   * **Key directives shift.** A ``{key: C}`` or ``{key: Am}`` inside the
+     transposed range moves with the chords (and keeps its major or minor form).
+     When you transpose the whole song, the toolbar **Key** shifts too, so
+     roman-numeral chords keep sounding the same.
+
+.. only:: android
+
+   * **Key directives shift.** A ``{key: C}`` or ``{key: Am}`` inside the
+     transposed range moves with the chords (and keeps its major or minor form).
+     When you transpose the whole song, the song's key (the **Key** in the song
+     pill and in Song defaults) shifts too, so roman-numeral chords keep
+     sounding the same.
 
 What stays put:
 
