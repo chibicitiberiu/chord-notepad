@@ -83,6 +83,8 @@ class SessionCommandsTest {
         assertSent("respond", """{"request_id": 4, "value": "guitar:standard"}""")
         commands.respondDirective(5, mapOf("label" to "chorus", "count" to "2"))
         assertSent("respond", """{"request_id": 5, "value": {"label": "chorus", "count": "2"}}""")
+        commands.checkDirective("bpm", mapOf("value" to "99"), 5)
+        assertSent("check_directive", """{"kind": "bpm", "fields": {"value": "99"}, "request_id": 5}""")
         commands.respondDirective(6, null)
         assertSent("respond", """{"request_id": 6, "value": null}""")
         assertEquals(listOf(1, 2, 3, 4, 5, 6), answered)
@@ -108,7 +110,7 @@ class SessionCommandsTest {
     fun `every command name is listed`() {
         // Each builder's name must be in CommandNames.ALL (the contract test's list).
         with(commands) {
-            setText("", 0); insertText(0, ""); requestInsertDirective("bpm", 0); transpose(1)
+            setText("", 0); insertText(0, ""); requestInsertDirective("bpm", 0); checkDirective("bpm", mapOf(), 1); transpose(1)
             requestSuggestCapo(); convertNotation("american"); playPause(); stop(); tapChordAt(0)
             setBpm(100.0); setMultiplierPct(100.0); setBpmText("1"); setMultiplierText("1x"); resetBpm()
             resetMultiplier(); setKey("C"); setTimeSignature(4, 4); toggleMetronome()

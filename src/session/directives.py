@@ -56,10 +56,12 @@ class DirectiveProblem:
     Attributes:
         title: A short title (the error dialog's title on desktop).
         message: What to fix.
+        field: The field the message is about (``""`` if none in particular).
     """
 
     title: str
     message: str
+    field: str = ""
 
 
 class InvalidDirective(ValueError):
@@ -113,7 +115,7 @@ def check_directive(kind: str, values: Mapping[str, Any], *,
     if kind is DirectiveKind.KEY:
         key = _field(values, "key")
         if key not in key_options(notation):
-            return _invalid("Please select a key.")
+            return _invalid("Please select a key.", "key")
         return None
     if kind is DirectiveKind.LABEL:
         return _check_label(_field(values, "label"), set(existing_labels))
@@ -162,8 +164,8 @@ def _field(values: Mapping[str, Any], name: str) -> str:
     return "" if value is None else str(value).strip()
 
 
-def _invalid(message: str) -> DirectiveProblem:
-    return DirectiveProblem(INVALID_INPUT, message)
+def _invalid(message: str, field: str = "") -> DirectiveProblem:
+    return DirectiveProblem(INVALID_INPUT, message, field)
 
 
 def _is_float(text: str) -> bool:
@@ -183,51 +185,51 @@ def _as_int(text: str) -> Optional[int]:
 
 def _check_bpm(value: str) -> Optional[DirectiveProblem]:
     if not value:
-        return _invalid("Please enter a BPM value.")
+        return _invalid("Please enter a BPM value.", "value")
     if value.lower() in ("reset", "original"):
         return None
     if value.endswith("%"):
-        return None if _is_float(value[:-1]) else _invalid("Invalid percentage value.")
+        return None if _is_float(value[:-1]) else _invalid("Invalid percentage value.", "value")
     if value.endswith("x"):
-        return None if _is_float(value[:-1]) else _invalid("Invalid multiplier value.")
+        return None if _is_float(value[:-1]) else _invalid("Invalid multiplier value.", "value")
     if value.startswith(("+", "-")):
-        return None if _as_int(value) is not None else _invalid("Invalid relative BPM value.")
+        return None if _as_int(value) is not None else _invalid("Invalid relative BPM value.", "value")
     bpm = _as_int(value)
     if bpm is None:
-        return _invalid("Invalid BPM value.")
+        return _invalid("Invalid BPM value.", "value")
     if bpm < 20 or bpm > 300:
-        return _invalid("BPM must be between 20 and 300.")
+        return _invalid("BPM must be between 20 and 300.", "value")
     return None
 
 
 def _check_time(beats: str, unit: str) -> Optional[DirectiveProblem]:
     beats_n = _as_int(beats)
     if beats_n is None or not 1 <= beats_n <= 16:
-        return _invalid("Beats must be between 1 and 16.")
+        return _invalid("Beats must be between 1 and 16.", "beats")
     if _as_int(unit) not in _UNITS:
-        return _invalid("Beat unit must be 1, 2, 4, 8, or 16.")
+        return _invalid("Beat unit must be 1, 2, 4, 8, or 16.", "unit")
     return None
 
 
 def _check_label(label: str, existing: set) -> Optional[DirectiveProblem]:
     if not label:
-        return _invalid("Please enter a label name.")
+        return _invalid("Please enter a label name.", "label")
     if not _LABEL_RE.match(label):
-        return _invalid("Label name can only contain letters, numbers, and underscores.")
+        return _invalid("Label name can only contain letters, numbers, and underscores.", "label")
     if label in existing:
         return DirectiveProblem(
             DUPLICATE_LABEL,
-            f"A label named '{label}' already exists. Please use a unique name.")
+            f"A label named '{label}' already exists. Please use a unique name.", "label")
     return None
 
 
 def _check_loop(label: str, count: str) -> Optional[DirectiveProblem]:
     if not label:
-        return _invalid("Please select a label.")
+        return _invalid("Please select a label.", "label")
     if label != LOOP_START and not _LABEL_RE.match(label):
-        return _invalid("Please select a label.")
+        return _invalid("Please select a label.", "label")
     count_n = _as_int(count)
     if count_n is None or count_n < 1:
-        return _invalid("Loop count must be at least 1.")
+        return _invalid("Loop count must be at least 1.", "count")
     return None
 

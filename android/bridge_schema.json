@@ -20,6 +20,11 @@
     },
     "begin_settings_edit": {},
     "cancel_settings_edit": {},
+    "check_directive": {
+      "fields": "json",
+      "kind": "str",
+      "request_id": "int"
+    },
     "chord_sheet_zoom": {
       "step": "int"
     },
@@ -182,6 +187,7 @@
     "audition",
     "begin_settings_edit",
     "cancel_settings_edit",
+    "check_directive",
     "chord_sheet_zoom",
     "convert_notation",
     "export_midi",
@@ -319,6 +325,16 @@
         "request_id": "int"
       },
       "kind": "request"
+    },
+    "DirectiveCheck": {
+      "fields": {
+        "errors": "json",
+        "fields": "json",
+        "form_error": "str",
+        "kind": "str",
+        "request_id": "int"
+      },
+      "kind": "event"
     },
     "DocumentRef": {
       "fields": {

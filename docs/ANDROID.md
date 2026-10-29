@@ -229,7 +229,7 @@ Types Kotlin decodes (`BridgeCodec.serializers`):
 | Kind | Types |
 |---|---|
 | States | `DocumentState`, `EditorState`, `HighlightState`, `PlaybackState`, `ToolbarState`, `StatusState`, `VoicingMenuState`, `InstrumentMenuState`, `RecentDocumentsState`, `ChordSheetState`; M5: `IdentifierState`, `SettingsState`, `VoicingEditorState` |
-| Events | `TextEdited`, `UserError`, `AudioUnavailable`, `UnexpectedError`, `CloseApproved`; M5 replies: `VoicingEditorSchema`, `QuickStartContent` |
+| Events | `TextEdited`, `UserError`, `AudioUnavailable`, `UnexpectedError`, `CloseApproved`; M5 replies: `VoicingEditorSchema`, `QuickStartContent`, `DirectiveCheck` |
 | Requests | `ConfirmDiscardRequest`, `PickDocumentRequest`, `CapoChoiceRequest`, `InsertDirectiveRequest` |
 
 **Step 14 added two things to the DTOs** (Kotlin already had them):
@@ -259,7 +259,7 @@ Kotlin side, `session/bridge.py`, `bootstrap.py` and `threaded_host.py` by
 step 14.)
 
 `set_text {text, client_token}`, `insert_text {at, text}`,
-`request_insert_directive {kind, at}`, `transpose {semitones, selection}`,
+`request_insert_directive {kind, at}`, `check_directive {kind, fields, request_id}`, `transpose {semitones, selection}`,
 `request_suggest_capo {selection}`, `convert_notation {target}`,
 `play_pause {from_offset}`, `stop {}`, `tap_chord_at {offset}`,
 `set_bpm {bpm}`, `set_multiplier_pct {pct}`, `set_bpm_text {text}`,
@@ -542,11 +542,15 @@ committed schema (2026-10-29).
     title, text and fields (BPM and Label typed; Time beats 1–16 and the
     `SettingsState` units; Key from `SettingsState`'s list for the
     request's notation; Loop `@start` + the request's labels and a count
-    1–100) → `respond {field: value}`. The values go as entered: there is
-    no per-keystroke check over the bridge, so a bad BPM or a duplicate
-    label comes back as Python's `UserError` after Insert (the dialog has
-    closed by then, unlike the desktop's, which stays open). Only the
-    pickers' ranges and `@start` are mirrored in Kotlin (`ToolForms.kt`).
+    1–100) → `respond {field: value}`. The values go as entered. As they
+    change the dialog sends `check_directive {kind, fields, request_id}`
+    (the request stays pending) and Python replies `DirectiveCheck {kind,
+    request_id, fields, errors: {field: msg}, form_error}` from
+    `session.directives.check_directive`; the dialog shows the messages
+    and keeps Insert disabled until a clean reply for the current fields
+    (`DirectiveVerdict`), so it stays open on a bad value like the
+    desktop's. The session still checks on `respond`. Only the pickers'
+    ranges and `@start` are mirrored in Kotlin (`ToolForms.kt`).
   - *Suggest Capo* sends `request_suggest_capo {selection}`; the
     `CapoChoiceRequest` opens a radio list of its options, the default
     chosen → `respond(value)`. "Finding a capo…", the result and "No capo

@@ -120,6 +120,10 @@ class RequestController(
     fun answerDirective(request: InsertDirectiveRequest, fields: Map<String, String>?) =
         commands.respondDirective(request.requestId, fields)
 
+    /** Ask the session whether an Insert dialog's [fields] make a valid directive. */
+    fun checkDirective(request: InsertDirectiveRequest, fields: Map<String, String>) =
+        commands.checkDirective(request.kind, fields, request.requestId)
+
     /** Cancel [request] (the user dismissed it, or there's no UI for it). */
     fun cancel(request: SessionRequest) = when (request) {
         is ConfirmDiscardRequest -> answerDiscard(request, DiscardChoice.CANCEL)

@@ -111,6 +111,20 @@ data class QuickStartContent(
     @SerialName("show_on_startup") val showOnStartup: Boolean,
 ) : SessionEvent
 
+/**
+ * The live check of an Insert dialog's fields (`check_directive`). [fields]
+ * echoes what was checked, so a late reply can be told from the current one.
+ * [errors] maps a field to its message; [formError] is a problem about none.
+ */
+@Serializable
+data class DirectiveCheck(
+    val kind: String,
+    @SerialName("request_id") val requestId: Int,
+    val fields: Map<String, String>,
+    val errors: Map<String, String>,
+    @SerialName("form_error") val formError: String,
+) : SessionEvent
+
 /** Wire type name → serializer for the M5 outputs ([BridgeCodec.serializers] includes them). */
 internal val screenSerializers: Map<String, KSerializer<out SessionOutput>> = mapOf(
     "IdentifierState" to IdentifierState.serializer(),
@@ -118,4 +132,5 @@ internal val screenSerializers: Map<String, KSerializer<out SessionOutput>> = ma
     "VoicingEditorState" to VoicingEditorState.serializer(),
     "VoicingEditorSchema" to VoicingEditorSchema.serializer(),
     "QuickStartContent" to QuickStartContent.serializer(),
+    "DirectiveCheck" to DirectiveCheck.serializer(),
 )

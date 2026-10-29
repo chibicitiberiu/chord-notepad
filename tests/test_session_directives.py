@@ -57,7 +57,8 @@ def test_label_rules():
         "Label name can only contain letters, numbers, and underscores.")
     problem = check_directive("label", {"label": "verse"}, existing_labels=["verse"])
     assert problem == DirectiveProblem(
-        "Duplicate Label", "A label named 'verse' already exists. Please use a unique name.")
+        "Duplicate Label", "A label named 'verse' already exists. Please use a unique name.",
+        "label")
 
 
 def test_loop_rules():

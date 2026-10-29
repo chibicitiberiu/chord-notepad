@@ -46,6 +46,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import io.github.chibicitiberiu.chordnotepad.R
 import io.github.chibicitiberiu.chordnotepad.bridge.CapoChoiceRequest
+import io.github.chibicitiberiu.chordnotepad.bridge.DirectiveCheck
 import io.github.chibicitiberiu.chordnotepad.bridge.InsertDirectiveRequest
 import io.github.chibicitiberiu.chordnotepad.ui.icons.AppIcons
 
@@ -124,9 +125,11 @@ fun CapoDialog(request: CapoChoiceRequest, onAnswer: (String?) -> Unit) {
 
 /**
  * Tools › Insert ▸ …: the fields of one directive, as the desktop's dialogs
- * have them. Insert answers with [DirectiveForm.answer]; the session checks
- * the values and shows what's wrong as a `UserError` (rules aren't repeated
- * here). Cancel or dismiss answers null.
+ * have them. Python checks the fields as they change ([onCheck], reply
+ * [check]; rules aren't repeated here): what's wrong shows under the fields
+ * and Insert stays disabled, so the dialog stays open until the values are
+ * valid. Insert answers with [DirectiveForm.answer]. Cancel or dismiss
+ * answers null.
  *
  * @param keys The key choices of the request's notation ([keyChoices]).
  * @param units The beat units the time signature offers (`SettingsState`).
@@ -136,6 +139,8 @@ fun InsertDirectiveDialog(
     request: InsertDirectiveRequest,
     keys: List<String>,
     units: List<Int>,
+    check: DirectiveCheck?,
+    onCheck: (Map<String, String>) -> Unit,
     onAnswer: (Map<String, String>?) -> Unit,
 ) {
     val kind = DirectiveKind.of(request.kind)
@@ -148,7 +153,12 @@ fun InsertDirectiveDialog(
     fun update(f: DirectiveForm) {
         saved = f.save()
     }
-    val submit = { onAnswer(form.answer()) }
+    val answer = form.answer()
+    // Python checks the fields as they change; Insert waits for a clean reply.
+    LaunchedEffect(request.requestId, answer) { onCheck(answer) }
+    val changed = form != DirectiveForm.initial(kind, keys)
+    val verdict = DirectiveVerdict.of(request.kind, request.requestId, answer, check, showErrors = changed)
+    val submit = { if (verdict.canInsert) onAnswer(answer) }
     AlertDialog(
         onDismissRequest = { onAnswer(null) },
         title = { Text(stringResource(kind.title)) },
@@ -156,10 +166,18 @@ fun InsertDirectiveDialog(
             Column(Modifier.verticalScroll(rememberScrollState())) {
                 Text(stringResource(kind.hint), Modifier.padding(bottom = 12.dp))
                 DirectiveFields(form, request, keys, units, ::update, submit)
+                for (message in verdict.messages) {
+                    Text(
+                        message,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(top = 8.dp),
+                    )
+                }
             }
         },
         confirmButton = {
-            TextButton(onClick = submit) { Text(stringResource(R.string.insert_button)) }
+            TextButton(onClick = submit, enabled = verdict.canInsert) { Text(stringResource(R.string.insert_button)) }
         },
         dismissButton = {
             TextButton(onClick = { onAnswer(null) }) { Text(stringResource(android.R.string.cancel)) }

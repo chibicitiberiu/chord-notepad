@@ -20,6 +20,7 @@ object CommandNames {
     const val SET_TEXT = "set_text"
     const val INSERT_TEXT = "insert_text"
     const val REQUEST_INSERT_DIRECTIVE = "request_insert_directive"
+    const val CHECK_DIRECTIVE = "check_directive"
     const val TRANSPOSE = "transpose"
     const val REQUEST_SUGGEST_CAPO = "request_suggest_capo"
     const val CONVERT_NOTATION = "convert_notation"
@@ -65,7 +66,7 @@ object CommandNames {
 
     /** Every command Kotlin may submit (the contract test checks Python knows them all). */
     val ALL: Set<String> = setOf(
-        SET_TEXT, INSERT_TEXT, REQUEST_INSERT_DIRECTIVE, TRANSPOSE, REQUEST_SUGGEST_CAPO,
+        SET_TEXT, INSERT_TEXT, REQUEST_INSERT_DIRECTIVE, CHECK_DIRECTIVE, TRANSPOSE, REQUEST_SUGGEST_CAPO,
         CONVERT_NOTATION, PLAY_PAUSE, STOP, TAP_CHORD_AT, SET_BPM, SET_MULTIPLIER_PCT,
         SET_BPM_TEXT, SET_MULTIPLIER_TEXT, RESET_BPM, RESET_MULTIPLIER,
         SET_KEY, SET_TIME_SIGNATURE, TOGGLE_METRONOME, SET_VOICING, SET_INSTRUMENT,
@@ -119,6 +120,13 @@ class SessionCommands(
     fun requestInsertDirective(kind: String, at: Int) = send(CommandNames.REQUEST_INSERT_DIRECTIVE) {
         put("kind", kind)
         put("at", at)
+    }
+
+    /** Check an Insert dialog's [fields] (reply: `DirectiveCheck`); the request stays pending. */
+    fun checkDirective(kind: String, fields: Map<String, String>, requestId: Int) = send(CommandNames.CHECK_DIRECTIVE) {
+        put("kind", kind)
+        put("fields", buildJsonObject { fields.forEach { (k, v) -> put(k, v) } })
+        put("request_id", requestId)
     }
 
     /** Transpose the selection (or the whole song when null) by [semitones]. */

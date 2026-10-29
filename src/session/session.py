@@ -37,7 +37,8 @@ from session.documents import DocumentRef
 from session.events import (
     AudioUnavailable, CapoChoiceRequest, CloseApproved, ConfirmDiscardRequest, DiscardChoice,
     InsertDirectiveRequest, PickDocumentRequest, PickMode, QuickStartBlock, QuickStartContent,
-    QuickStartPage, TextEdited, UndoPolicy, UnexpectedError, UserError, VoicingEditorSchema,
+    DirectiveCheck, QuickStartPage, TextEdited, UndoPolicy, UnexpectedError, UserError,
+    VoicingEditorSchema,
 )
 from session.flows import Flow, FlowRunner
 from session.highlighting import chord_at, compute_spans
@@ -1031,6 +1032,24 @@ class AppSession:
         self._settings_edit = None
         self._emitter.set_state(INACTIVE_VOICING_EDITOR)
         self._apply_changes(changes)
+
+    @_command
+    def check_directive(self, kind: str, fields: Any, request_id: int) -> None:
+        """Check an Insert dialog's fields as the user types (:class:`DirectiveCheck`).
+
+        Uses the same check as the final insert, with the pending request's
+        labels and notation.
+        """
+        request = self.pending_request
+        if (request is None or request.request_id != request_id
+                or not isinstance(request, InsertDirectiveRequest) or request.kind != kind):
+            return
+        values = {str(k): str(v) for k, v in fields.items()} if isinstance(fields, dict) else {}
+        problem = directives.check_directive(
+            kind, values, existing_labels=request.existing_labels, notation=request.notation)
+        errors = {problem.field: problem.message} if problem and problem.field else {}
+        form_error = problem.message if problem and not problem.field else ""
+        self._emitter.emit(DirectiveCheck(kind, request_id, values, errors, form_error))
 
     @_command
     def request_voicing_editor_schema(self) -> None:

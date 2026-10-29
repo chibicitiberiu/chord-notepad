@@ -131,6 +131,26 @@ class InsertDirectiveRequest:
 
 
 @dataclass(frozen=True)
+class DirectiveCheck:
+    """The live check of a directive's fields (reply to ``check_directive``).
+
+    Attributes:
+        kind: The directive kind that was checked.
+        request_id: The id of the Insert request the check is for.
+        fields: The fields that were checked, echoed so a view can tell
+            a late reply from one for what is typed now.
+        errors: ``{field: message}`` for a problem about one field.
+        form_error: A problem about no particular field, else "".
+    """
+
+    kind: str
+    request_id: int
+    fields: Any
+    errors: Any
+    form_error: str
+
+
+@dataclass(frozen=True)
 class CapoChoiceRequest:
     """Ask which fretboard voicing a capo suggestion should optimize for.
 

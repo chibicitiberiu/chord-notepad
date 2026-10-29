@@ -61,6 +61,7 @@ class SessionRepository {
     private val _voicingEditor = MutableStateFlow<VoicingEditorState?>(null)
     private val _voicingEditorSchema = MutableStateFlow<VoicingEditorSchema?>(null)
     private val _quickStart = MutableStateFlow<QuickStartContent?>(null)
+    private val _directiveCheck = MutableStateFlow<DirectiveCheck?>(null)
     private val _hostStatus = MutableStateFlow<HostStatus>(HostStatus.NotStarted)
     private val _pendingRequest = MutableStateFlow<SessionRequest?>(null)
     private val _textEdits = Channel<TextEdited>(Channel.UNLIMITED)
@@ -125,6 +126,9 @@ class SessionRepository {
     val pendingRequest: StateFlow<SessionRequest?> = _pendingRequest.asStateFlow()
 
     /** Programmatic edits, in order (one collector). */
+    /** The latest live check of an Insert directive dialog (`DirectiveCheck`). */
+    val directiveCheck: StateFlow<DirectiveCheck?> = _directiveCheck.asStateFlow()
+
     val textEdits: Flow<TextEdited> = _textEdits.receiveAsFlow()
 
     /** Errors to show (user errors, audio unavailable, unexpected errors). */
@@ -151,6 +155,7 @@ class SessionRepository {
             is VoicingEditorState -> _voicingEditor.value = output
             is VoicingEditorSchema -> _voicingEditorSchema.value = output
             is QuickStartContent -> _quickStart.value = output
+            is DirectiveCheck -> _directiveCheck.value = output
             is TextEdited -> _textEdits.trySend(output)
             is SessionRequest -> _pendingRequest.value = output
             is SessionError -> _errors.tryEmit(output)

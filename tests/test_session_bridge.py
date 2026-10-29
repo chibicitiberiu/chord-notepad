@@ -470,6 +470,33 @@ def test_insert_directive_answer_is_a_dict_of_strings(env):
     assert edit["replacement"] == "{bpm: 100} " and edit["undo"] == "plain"
 
 
+def test_check_directive_replies_with_field_errors_and_stays_pending(env):
+    env.send("request_insert_directive", kind="bpm", at=0)
+    request = env.expect("InsertDirectiveRequest")
+    rid = request["request_id"]
+    env.send("check_directive", kind="bpm", fields={"value": "999"}, request_id=rid)
+    check = env.expect("DirectiveCheck")
+    assert check == {"kind": "bpm", "request_id": rid, "fields": {"value": "999"},
+                     "errors": {"value": "BPM must be between 20 and 300."}, "form_error": ""}
+    env.send("check_directive", kind="bpm", fields={"value": "100"}, request_id=rid)
+    ok = env.expect("DirectiveCheck", lambda d: not d["errors"])
+    assert ok["form_error"] == ""
+    # still answerable
+    env.send("respond", request_id=rid, value={"value": "100"})
+    assert env.expect("TextEdited")["replacement"] == "{bpm: 100} "
+
+
+def test_check_directive_duplicate_label_uses_the_songs_labels(env):
+    env.send("set_text", text="{label: verse}\n", client_token=1)
+    env.expect("HighlightState", lambda d: d["client_token"] == 1 and d["spans"])
+    env.send("request_insert_directive", kind="label", at=0)
+    rid = env.expect("InsertDirectiveRequest")["request_id"]
+    env.send("check_directive", kind="label", fields={"label": "verse"}, request_id=rid)
+    check = env.expect("DirectiveCheck")
+    assert check["errors"] == {
+        "label": "A label named 'verse' already exists. Please use a unique name."}
+
+
 def test_capo_choice_answer_is_an_option_value(env):
     env.send("set_text", text="F Bb C Dm\n", client_token=1)
     env.expect("HighlightState", lambda d: d["client_token"] == 1 and d["spans"])
@@ -658,6 +685,8 @@ def test_every_output_type_crosses_the_bridge_as_plain_values(tmp_path):
         env.send("play_pause", from_offset=None)                 # AudioUnavailable again
         env.send("request_insert_directive", kind="label", at=0)
         request = env.expect("InsertDirectiveRequest")
+        env.send("check_directive", kind="label", fields={"label": "a"},
+                 request_id=request["request_id"])             # DirectiveCheck
         env.send("respond", request_id=request["request_id"], value={"label": "a"})  # UserError
         env.send("request_suggest_capo", selection=None)
         request = env.expect("CapoChoiceRequest")
