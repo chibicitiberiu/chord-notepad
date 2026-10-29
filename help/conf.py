@@ -122,6 +122,17 @@ html_css_files = ['custom.css']
 html_show_sourcelink = False
 html_copy_source = False
 
+if tags.has('android'):  # noqa: F821
+    # The in-app WebView (android/.../ui/help/UserGuideScreen.kt): a phone
+    # stylesheet with the app's colours and dark mode, instead of the desktop
+    # guide's coral.
+    html_css_files = ['android.css']
+    # No "Built with Sphinx ... Read the Docs" links out of the app.
+    html_show_sphinx = False
+    # An image wrapped in a link can't sit in a <picture> (dark variants);
+    # the full-size image adds nothing on a phone anyway.
+    html_scaled_image_link = False
+
 # -- Options for rinohtype PDF output ----------------------------------------
 rinoh_documents = [
     dict(

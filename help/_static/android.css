@@ -1,0 +1,598 @@
+/*
+ * The Android edition of the User Guide, shown in the app's WebView
+ * (android/.../ui/help/UserGuideScreen.kt). Only the android build links it
+ * (help/conf.py), on top of sphinx_rtd_theme; custom.css (the desktop's coral
+ * look) is left out there.
+ *
+ * Colours are the app's tokens (docs/design/android-ui-spec.md, "Colour and
+ * themes"; AppTheme.kt). Dark mode follows prefers-color-scheme, which the
+ * WebView sets from the app's light/dark theme.
+ */
+
+:root {
+    color-scheme: light dark;
+    --surface: #fbfbff;
+    --surface-low: #f4f5fa;
+    --surface2: #eceef5;
+    --surface-high: #e2e5ef;
+    --line: #d5d8e2;
+    --text: #1a1b20;
+    --muted: #5c5f6b;
+    --icon: #454852;
+    --primary: #3f51b5;
+    --on-primary: #ffffff;
+    --primary-soft: #dde1ff;
+    /* The editor's colours: the desktop's Tk colours in light mode. */
+    --chord: #0000ff;
+    --directive: #8b4789;
+    --comment: #bebebe;
+    --editor-text: #000000;
+    /* Admonition accents. */
+    --warn: #8a5a00;
+    --warn-soft: #fff1d6;
+    --danger: #b3261e;
+    --danger-soft: #fde7e5;
+    /* Behind transparent diagrams, so dark keys stay visible in dark mode. */
+    --paper: #fbfbff;
+    --radius: 12px;
+    --font: system-ui, -apple-system, "Roboto", "Segoe UI", sans-serif;
+    --mono: ui-monospace, "Roboto Mono", "Droid Sans Mono", "DejaVu Sans Mono", monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        --surface: #121318;
+        --surface-low: #191b21;
+        --surface2: #202229;
+        --surface-high: #2a2c34;
+        --line: #353842;
+        --text: #e3e4eb;
+        --muted: #a3a7b3;
+        --icon: #c8cbd5;
+        --primary: #b6c3ff;
+        --on-primary: #1b2a6b;
+        --primary-soft: #2e3a72;
+        --chord: #8ab4f8;
+        --directive: #d39be0;
+        --comment: #7f848f;
+        --editor-text: #e3e4eb;
+        --warn: #f2c063;
+        --warn-soft: #3a2f14;
+        --danger: #ffb4ab;
+        --danger-soft: #3d1f1c;
+    }
+}
+
+/* ---- Page ------------------------------------------------------------- */
+
+html, body,
+.wy-body-for-nav,
+.wy-nav-content-wrap,
+.wy-nav-content {
+    background: var(--surface);
+}
+
+body,
+.rst-content,
+.wy-nav-content {
+    color: var(--text);
+    font-family: var(--font);
+}
+
+body {
+    font-size: 16px;
+    line-height: 1.6;
+    -webkit-text-size-adjust: 100%;
+}
+
+.wy-nav-content {
+    max-width: none;
+    padding: 16px 16px 24px;
+}
+
+.rst-content p,
+.rst-content li,
+.rst-content dd {
+    font-size: 16px;
+    line-height: 1.6;
+}
+
+.rst-content p {
+    margin-bottom: 14px;
+}
+
+h1, h2, h3, h4, h5, h6,
+.rst-content .toctree-wrapper > p.caption {
+    font-family: var(--font);
+    color: var(--text);
+    font-weight: 600;
+    line-height: 1.3;
+}
+
+.rst-content h1 { font-size: 26px; margin: 4px 0 16px; }
+.rst-content h2 { font-size: 21px; margin: 28px 0 12px; }
+.rst-content h3 { font-size: 18px; margin: 22px 0 10px; }
+.rst-content h4,
+.rst-content h5,
+.rst-content h6 { font-size: 16px; margin: 18px 0 8px; }
+
+/* The ¶ anchors only show on hover, which a phone doesn't have. */
+.rst-content .headerlink {
+    display: none !important;
+}
+
+hr {
+    border-top: 1px solid var(--line);
+}
+
+a,
+a:visited,
+.rst-content a,
+.rst-content a:visited {
+    color: var(--primary);
+}
+
+a:hover,
+.rst-content a:hover {
+    color: var(--primary);
+    text-decoration: underline;
+}
+
+.rst-content strong,
+.rst-content b {
+    font-weight: 600;
+}
+
+/* ---- Navigation --------------------------------------------------------- */
+
+/* The phone bar under the app's own app bar: ☰ opens the contents. */
+.wy-nav-top {
+    background: var(--surface-low);
+    color: var(--text);
+    border-bottom: 1px solid var(--line);
+    padding: 6px 12px;
+    font-size: 16px;
+    line-height: 36px;
+    text-align: left;
+}
+
+.wy-nav-top a,
+.wy-nav-top a:visited {
+    color: var(--text);
+    font-weight: 600;
+    font-size: 16px;
+}
+
+.wy-nav-top i {
+    color: var(--icon);
+    font-size: 22px;
+    padding: 0 14px 0 4px;
+    vertical-align: middle;
+}
+
+/* The contents drawer. */
+.wy-nav-side,
+.wy-side-scroll,
+.wy-menu-vertical {
+    background: var(--surface-low);
+}
+
+.wy-side-nav-search {
+    background: var(--surface-low);
+    border-bottom: 1px solid var(--line);
+    padding: 16px 12px;
+}
+
+.wy-side-nav-search > a,
+.wy-side-nav-search > a:visited,
+.wy-side-nav-search .wy-dropdown > a {
+    color: var(--text);
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.wy-side-nav-search > div.version {
+    color: var(--muted);
+}
+
+.wy-side-nav-search input[type="text"] {
+    background: var(--surface);
+    color: var(--text);
+    border: 1px solid var(--line);
+    border-radius: 24px;
+    box-shadow: none;
+    font-size: 16px;
+    padding: 8px 16px;
+}
+
+.wy-menu-vertical p.caption {
+    color: var(--muted);
+}
+
+.wy-menu-vertical a,
+.wy-menu-vertical li.current a,
+.wy-menu-vertical li.toctree-l2.current > a,
+.wy-menu-vertical li.toctree-l2.current li.toctree-l3 > a,
+.wy-menu-vertical li.toctree-l3.current li.toctree-l4 > a {
+    color: var(--text);
+    background: transparent;
+    border: none;
+    font-size: 15px;
+    line-height: 22px;
+    padding-top: 8px;
+    padding-bottom: 8px;
+}
+
+.wy-menu-vertical li.current {
+    background: transparent;
+}
+
+.wy-menu-vertical li.current > a,
+.wy-menu-vertical li.on a,
+.wy-menu-vertical li.toctree-l1.current > a {
+    background: var(--primary-soft);
+    color: var(--text);
+    font-weight: 600;
+    border: none;
+}
+
+.wy-menu-vertical a:hover,
+.wy-menu-vertical li.current a:hover {
+    background: var(--surface-high);
+}
+
+.wy-menu-vertical a button.toctree-expand,
+.wy-menu-vertical li.current > a button.toctree-expand {
+    color: var(--muted);
+}
+
+/* The page under an open drawer. */
+.wy-nav-content-wrap.shift {
+    background: var(--surface);
+}
+
+/* Breadcrumbs repeat the page title. */
+.rst-content > div[role="navigation"],
+.wy-breadcrumbs {
+    display: none;
+}
+
+/* Previous / Next as tonal buttons. */
+footer {
+    color: var(--muted);
+    font-size: 13px;
+}
+
+.rst-footer-buttons {
+    display: flex;
+    gap: 12px;
+    justify-content: space-between;
+    margin-top: 24px;
+}
+
+/* The clearfix pseudo-elements would be flex items and centre the buttons. */
+.rst-footer-buttons::before,
+.rst-footer-buttons::after {
+    display: none !important;
+}
+
+.rst-footer-buttons .btn,
+.rst-footer-buttons .btn-neutral {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--surface2) !important;
+    color: var(--text) !important;
+    border: none;
+    border-radius: 20px;
+    box-shadow: none;
+    font-family: var(--font);
+    font-size: 15px;
+    line-height: 20px;
+    padding: 10px 18px;
+    white-space: nowrap;
+}
+
+.rst-footer-buttons .btn .fa {
+    color: var(--primary);
+}
+
+.rst-footer-buttons .float-right {
+    margin-left: auto;
+}
+
+footer hr {
+    margin: 16px 0;
+}
+
+/* ---- Figures -------------------------------------------------------------- */
+
+.rst-content figure,
+.rst-content div.figure {
+    margin: 16px 0 20px;
+    text-align: center;
+}
+
+/* Never wider than the screen, and a tall phone screenshot never taller
+   than most of it (the :width: set for the desktop is ignored here). */
+.rst-content img {
+    width: auto !important;
+    height: auto !important;
+    max-width: 100%;
+    max-height: 80vh;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--paper);
+    box-sizing: border-box;
+}
+
+.rst-content picture {
+    display: inline-block;
+    max-width: 100%;
+}
+
+.rst-content figcaption,
+.rst-content figure .caption,
+.rst-content figure p.caption {
+    color: var(--muted);
+    font-size: 14px;
+    line-height: 1.45;
+    margin-top: 8px;
+    font-style: normal;
+}
+
+.rst-content figcaption p,
+.rst-content figcaption .caption-text {
+    font-size: 14px;
+    font-style: normal;
+}
+
+/* ---- Code ----------------------------------------------------------------- */
+
+.rst-content div[class^="highlight"],
+.rst-content pre.literal-block {
+    background: var(--surface-low);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    margin: 0 0 16px;
+    overflow: hidden;
+}
+
+.rst-content div[class^="highlight"] div[class^="highlight"] {
+    border: none;
+    margin: 0;
+}
+
+.highlight,
+.rst-content .highlight {
+    background: transparent;
+}
+
+.rst-content pre,
+.rst-content div[class^="highlight"] pre,
+.rst-content pre.literal-block {
+    font-family: var(--mono);
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--editor-text);
+    padding: 12px 14px;
+    overflow-x: auto;
+}
+
+/* Chord sheets look the way the editor paints them. */
+.highlight-chord .k {
+    color: var(--chord);
+    font-weight: normal;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+.highlight-chord .nd {
+    color: var(--directive);
+}
+
+.highlight-chord .c,
+.highlight-chord .c1 {
+    color: var(--comment);
+    font-style: normal;
+}
+
+/* Other languages (JSON, mostly): pygments' light colours are too dark on a
+   dark page. */
+@media (prefers-color-scheme: dark) {
+    .highlight .nt, .highlight .na, .highlight .nb { color: #8ab4f8; }
+    .highlight .s, .highlight .s1, .highlight .s2 { color: #a5d6a7; }
+    .highlight .m, .highlight .mi, .highlight .mf { color: #f2c063; }
+    .highlight .k, .highlight .kc, .highlight .kn, .highlight .ow { color: #d39be0; }
+    .highlight .c, .highlight .c1, .highlight .cm { color: #7f848f; }
+    .highlight .p, .highlight .o, .highlight .n { color: var(--editor-text); }
+    .highlight .err { border: none; color: #ffb4ab; }
+    .highlight-chord .k { color: var(--chord); }
+    .highlight-chord .c, .highlight-chord .c1 { color: var(--comment); }
+}
+
+/* Inline ``code`` and :menuselection:. */
+.rst-content code,
+.rst-content tt,
+.rst-content code.literal,
+.rst-content tt.literal {
+    font-family: var(--mono);
+    font-size: 0.88em;
+    color: var(--text);
+    background: var(--surface-high);
+    border: none;
+    border-radius: 6px;
+    padding: 1px 5px;
+    white-space: normal;
+}
+
+.rst-content .menuselection,
+.rst-content .guilabel {
+    background: var(--surface-high);
+    border: none;
+    border-radius: 6px;
+    color: var(--text);
+    font-weight: 600;
+    padding: 1px 5px;
+}
+
+.rst-content kbd,
+kbd {
+    background: var(--surface-high);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    box-shadow: none;
+    color: var(--text);
+    font-family: var(--mono);
+}
+
+/* ---- Tables --------------------------------------------------------------- */
+
+/* Wide tables scroll sideways inside their own box. */
+.wy-table-responsive {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    margin-bottom: 16px;
+}
+
+.wy-table-responsive table {
+    margin-bottom: 0 !important;
+}
+
+.rst-content table.docutils,
+.wy-table-bordered-all {
+    border: 1px solid var(--line);
+    color: var(--text);
+}
+
+.rst-content table.docutils td,
+.rst-content table.docutils th,
+.rst-content table.docutils thead th,
+.wy-table-responsive table td,
+.wy-table-responsive table th {
+    white-space: normal;
+    min-width: 7em;
+    font-size: 14px;
+    line-height: 1.45;
+    padding: 8px 10px;
+    border: 1px solid var(--line) !important;
+    background: var(--surface);
+    color: var(--text);
+}
+
+.rst-content table.docutils thead th,
+.rst-content table.docutils thead td {
+    background: var(--surface2);
+    font-weight: 600;
+}
+
+.rst-content table.docutils:not(.field-list) tr:nth-child(2n-1) td,
+.wy-table-striped tr:nth-child(2n-1) td {
+    background: var(--surface-low);
+}
+
+.rst-content table.docutils td p,
+.rst-content table.docutils th p {
+    font-size: 14px;
+    margin-bottom: 4px;
+}
+
+/* ---- Admonitions ---------------------------------------------------------- */
+
+.rst-content .admonition,
+.rst-content .note,
+.rst-content .tip,
+.rst-content .hint,
+.rst-content .important,
+.rst-content .seealso,
+.rst-content .warning,
+.rst-content .caution,
+.rst-content .attention,
+.rst-content .danger,
+.rst-content .error {
+    background: var(--surface-low);
+    border: 1px solid var(--line);
+    border-left: 4px solid var(--primary);
+    border-radius: var(--radius);
+    color: var(--text);
+    padding: 12px 14px;
+    margin-bottom: 16px;
+}
+
+.rst-content .admonition-title,
+.rst-content .admonition .admonition-title {
+    background: transparent;
+    color: var(--primary);
+    font-weight: 600;
+    margin: 0 0 6px;
+    padding: 0;
+}
+
+.rst-content .warning,
+.rst-content .caution,
+.rst-content .attention {
+    background: var(--warn-soft);
+    border-left-color: var(--warn);
+}
+
+.rst-content .warning .admonition-title,
+.rst-content .caution .admonition-title,
+.rst-content .attention .admonition-title {
+    color: var(--warn);
+}
+
+.rst-content .danger,
+.rst-content .error {
+    background: var(--danger-soft);
+    border-left-color: var(--danger);
+}
+
+.rst-content .danger .admonition-title,
+.rst-content .error .admonition-title {
+    color: var(--danger);
+}
+
+.rst-content .admonition p:last-child {
+    margin-bottom: 0;
+}
+
+/* ---- Lists, definition lists, search ------------------------------------- */
+
+.rst-content ul,
+.rst-content ol {
+    margin-bottom: 14px;
+}
+
+.rst-content dl dt {
+    background: transparent;
+    border: none;
+    color: var(--text);
+    font-weight: 600;
+}
+
+.rst-content .section ul li,
+.rst-content section ul li {
+    margin-bottom: 4px;
+}
+
+#search-results .context {
+    color: var(--muted);
+}
+
+#search-results ul.search li {
+    border-color: var(--line);
+}
+
+.rst-content input[type="text"],
+.rst-content input[type="search"] {
+    background: var(--surface);
+    color: var(--text);
+    border: 1px solid var(--line);
+    border-radius: 24px;
+    padding: 8px 16px;
+}
+
+.rst-content .highlighted {
+    background: var(--primary-soft);
+    color: var(--text);
+}
