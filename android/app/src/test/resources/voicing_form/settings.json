@@ -1,0 +1,66 @@
+{
+ "json": {
+  "american_keys": [
+   "C",
+   "C#",
+   "Db",
+   "D",
+   "D#",
+   "Eb",
+   "E",
+   "F",
+   "F#",
+   "Gb",
+   "G",
+   "G#",
+   "Ab",
+   "A",
+   "A#",
+   "Bb",
+   "B"
+  ],
+  "bpm_max": 400,
+  "bpm_min": 20,
+  "european_keys": [
+   "Do",
+   "Do#",
+   "Reb",
+   "Re",
+   "Re#",
+   "Mib",
+   "Mi",
+   "Fa",
+   "Fa#",
+   "Solb",
+   "Sol",
+   "Sol#",
+   "Lab",
+   "La",
+   "La#",
+   "Sib",
+   "Si"
+  ],
+  "font_size_max": 72,
+  "font_size_min": 6,
+  "max_recent_files_max": 50,
+  "time_signature_units": [
+   1,
+   2,
+   4,
+   8,
+   16
+  ],
+  "values": {
+   "bpm": 120,
+   "font_family": "TkFixedFont",
+   "font_size": 11,
+   "key": "C",
+   "max_recent_files": 10,
+   "notation": "american",
+   "show_quick_start_on_startup": true,
+   "time_signature_beats": 4,
+   "time_signature_unit": 4
+  }
+ },
+ "type": "SettingsState"
+}

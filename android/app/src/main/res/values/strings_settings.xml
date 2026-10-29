@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- ⋮ → Settings (M5): General, Playback and the Voicings editor. Labels
+     and supporting texts as help/settings.rst words them for Android; the
+     voicing form's own texts come from Python (settings_forms). -->
+<resources>
+    <string name="menu_settings">Settings</string>
+    <string name="settings_title">Settings</string>
+    <string name="settings_save">Save</string>
+    <string name="settings_save_blocked">Save (some voicings are invalid)</string>
+    <string name="settings_back">Back</string>
+
+    <string name="settings_page_general">General</string>
+    <string name="settings_page_general_summary">Font, chord notation, default key, quick start, recent files</string>
+    <string name="settings_page_playback">Playback</string>
+    <string name="settings_page_playback_summary">Default BPM and time signature</string>
+    <string name="settings_page_voicings">Voicings</string>
+    <string name="settings_page_voicings_summary">Your custom fretboard, piano and ensemble voicings</string>
+
+    <!-- General -->
+    <string name="settings_font_family">Font family</string>
+    <string name="settings_font_family_help">The editor\'s font, the same setting as ⋮ → View → Font….</string>
+    <string name="settings_font_size">Font size</string>
+    <string name="settings_notation">Chord notation</string>
+    <string name="settings_notation_help">American or European, the same toggle as the AB/Do buttons in the toolbar.</string>
+    <string name="settings_notation_american">American</string>
+    <string name="settings_notation_european">European</string>
+    <string name="settings_default_key">Default key</string>
+    <string name="settings_default_key_help">The key a new document starts in.</string>
+    <string name="settings_key_none">None</string>
+    <string name="settings_quick_start">Show quick start at startup</string>
+    <string name="settings_quick_start_help">Whether the quick-start reference (also reachable from ⋮ → Quick Start) opens automatically when Chord Notepad launches.</string>
+    <string name="settings_recent_files">Number of recent files</string>
+    <string name="settings_recent_files_help">How many entries ⋮ → File → Recent Files remembers.</string>
+
+    <!-- Playback -->
+    <string name="settings_default_bpm">Default BPM</string>
+    <string name="settings_default_bpm_help">The tempo a new document starts at.</string>
+    <string name="settings_time_signature">Default time signature</string>
+    <string name="settings_time_signature_help">The time signature a new document starts at.</string>
+    <string name="settings_beats">Beats</string>
+    <string name="settings_beat_unit">Beat unit</string>
+    <string name="settings_number_range">Enter a whole number from %1$d to %2$d.</string>
+    <string name="settings_decrease">Decrease %1$s</string>
+    <string name="settings_increase">Increase %1$s</string>
+
+    <!-- Discard -->
+    <string name="settings_discard_title">Discard changes?</string>
+    <string name="settings_discard_message">Your changes to the settings haven\'t been saved.</string>
+    <string name="settings_discard">Discard</string>
+    <string name="settings_keep_editing">Keep editing</string>
+
+    <!-- Voicings -->
+    <string name="voicings_add">Add voicing</string>
+    <string name="voicings_remove">Remove voicing</string>
+    <string name="voicings_rename">Rename</string>
+    <string name="voicings_invalid">Has errors</string>
+    <string name="voicings_empty_group">No voicings</string>
+    <string name="voicings_invalid_banner">Fix the voicings marked with errors before saving.</string>
+    <string name="voicings_preset_custom">Your voicings</string>
+</resources>

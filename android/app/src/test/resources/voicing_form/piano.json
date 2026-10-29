@@ -1,0 +1,113 @@
+{
+ "json": {
+  "active": true,
+  "dirty": true,
+  "field_errors": {},
+  "form_errors": [],
+  "groups": [
+   {
+    "label": "Fretboard",
+    "model": "fretboard",
+    "names": []
+   },
+   {
+    "label": "Piano",
+    "model": "piano",
+    "names": [
+     "New voicing"
+    ]
+   },
+   {
+    "label": "Ensemble",
+    "model": "ensemble",
+    "names": []
+   }
+  ],
+  "hints": {},
+  "invalid": [],
+  "model": "piano",
+  "presets": [
+   {
+    "group": "fretboard",
+    "label": "Guitar (Standard - EADGBE)"
+   },
+   {
+    "group": "fretboard",
+    "label": "Guitar (Drop D)"
+   },
+   {
+    "group": "fretboard",
+    "label": "Guitar (DADGAD)"
+   },
+   {
+    "group": "fretboard",
+    "label": "Guitar (Open G)"
+   },
+   {
+    "group": "fretboard",
+    "label": "Ukulele"
+   },
+   {
+    "group": "ensemble",
+    "label": "Choir (SATB)"
+   },
+   {
+    "group": "ensemble",
+    "label": "Male Choir (TTBB)"
+   },
+   {
+    "group": "ensemble",
+    "label": "Treble Choir (SSA)"
+   },
+   {
+    "group": "ensemble",
+    "label": "String Quartet"
+   },
+   {
+    "group": "piano",
+    "label": "Piano (default)"
+   },
+   {
+    "group": "custom",
+    "label": "New voicing"
+   }
+  ],
+  "revision": 5,
+  "selected": "New voicing",
+  "values": {
+   "add_bass": true,
+   "hand_gap_floor": "2",
+   "hand_span": "14",
+   "max_notes_per_hand": "5",
+   "max_total_notes": "10",
+   "nested:omit:color": "-30.0",
+   "nested:omit:extension": "-7.0",
+   "nested:omit:fifth": "-8.0",
+   "nested:omit:root": "-4.0",
+   "nested:omit:seventh": "-40.0",
+   "nested:omit:third": "-40.0",
+   "range:bass_range:high": "B2",
+   "range:bass_range:low": "C2",
+   "range:lh_range:high": "C3",
+   "range:lh_range:low": "C1",
+   "range:rh_low_anchor:high": "E4",
+   "range:rh_low_anchor:low": "C3",
+   "range:rh_range:high": "C6",
+   "range:rh_range:low": "C3",
+   "rh_center": "63.0",
+   "rh_low_interval_floor": "52",
+   "weight:common_tone_bonus": "1.5",
+   "weight:lh_above_bass_penalty": "-1.5",
+   "weight:lh_below_bass_penalty": "-1.5",
+   "weight:lh_double_low_penalty": "-1.0",
+   "weight:lh_double_penalty": "-1.0",
+   "weight:movement_penalty": "-0.35",
+   "weight:muddy_gap_penalty": "-1.5",
+   "weight:rh_center_penalty": "-1.4",
+   "weight:rh_low_interval_penalty": "-2.0",
+   "weight:rh_note_bonus": "0.6",
+   "weight:rh_wide_gap_penalty": "-0.6"
+  }
+ },
+ "type": "VoicingEditorState"
+}

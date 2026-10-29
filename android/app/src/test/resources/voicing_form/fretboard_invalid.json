@@ -1,0 +1,108 @@
+{
+ "json": {
+  "active": true,
+  "dirty": true,
+  "field_errors": {
+   "tuning": "Not a valid note name"
+  },
+  "form_errors": [
+   "Fretboard 'New voicing', string 0: invalid note name 'E'"
+  ],
+  "groups": [
+   {
+    "label": "Fretboard",
+    "model": "fretboard",
+    "names": [
+     "New voicing"
+    ]
+   },
+   {
+    "label": "Piano",
+    "model": "piano",
+    "names": []
+   },
+   {
+    "label": "Ensemble",
+    "model": "ensemble",
+    "names": []
+   }
+  ],
+  "hints": {
+   "tuning": "(note names or MIDI numbers, e.g. E2 A2 D3 G3 B3 E4)"
+  },
+  "invalid": [
+   "New voicing"
+  ],
+  "model": "fretboard",
+  "presets": [
+   {
+    "group": "fretboard",
+    "label": "Guitar (Standard - EADGBE)"
+   },
+   {
+    "group": "fretboard",
+    "label": "Guitar (Drop D)"
+   },
+   {
+    "group": "fretboard",
+    "label": "Guitar (DADGAD)"
+   },
+   {
+    "group": "fretboard",
+    "label": "Guitar (Open G)"
+   },
+   {
+    "group": "fretboard",
+    "label": "Ukulele"
+   },
+   {
+    "group": "ensemble",
+    "label": "Choir (SATB)"
+   },
+   {
+    "group": "ensemble",
+    "label": "Male Choir (TTBB)"
+   },
+   {
+    "group": "ensemble",
+    "label": "Treble Choir (SSA)"
+   },
+   {
+    "group": "ensemble",
+    "label": "String Quartet"
+   },
+   {
+    "group": "piano",
+    "label": "Piano (default)"
+   },
+   {
+    "group": "custom",
+    "label": "New voicing"
+   }
+  ],
+  "revision": 2,
+  "selected": "New voicing",
+  "values": {
+   "allow_barres": true,
+   "fingers": "4",
+   "max_fret": "12",
+   "max_span": "4",
+   "relaxed_span": "2",
+   "tuning": "E2 A2 X9 G3",
+   "weight:awkward_stretch_penalty": "-6.0",
+   "weight:barre_penalty": "-1.0",
+   "weight:bass_note_bonus": "8.0",
+   "weight:fretted_finger_penalty": "-0.5",
+   "weight:interior_mute_penalty": "-4.0",
+   "weight:kept_finger_bonus": "0.4",
+   "weight:movement_penalty": "-1.0",
+   "weight:open_string_bonus": "0.5",
+   "weight:position_penalty": "-0.6",
+   "weight:slash_bass_bonus": "12.0",
+   "weight:sounding_string_bonus": "1.2",
+   "weight:span_penalty": "-1.2",
+   "weight:stretch_penalty": "-0.7"
+  }
+ },
+ "type": "VoicingEditorState"
+}
