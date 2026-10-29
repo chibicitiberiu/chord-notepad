@@ -27,6 +27,7 @@ from services.playback_service import PlaybackService
 from services.song_parser_service import SongParserService
 from session.documents import DocumentStore
 from session.host import Host, HostDispatch
+from session.platform import DESKTOP
 from session.session import AppSession
 from session.workers import BackgroundWorker
 
@@ -84,6 +85,7 @@ def create_session(host: Host, services: CoreServices, documents: DocumentStore,
                    dispatch: Any = None, chord_sheet: bool = True,
                    worker: Optional[BackgroundWorker] = None,
                    detection_delay_s: float = CHORD_DETECTION_DEBOUNCE_MS / 1000,
+                   platform: str = DESKTOP,
                    ) -> AppSession:
     """Build the viewmodels over ``services`` and the session that composes them.
 
@@ -102,6 +104,8 @@ def create_session(host: Host, services: CoreServices, documents: DocumentStore,
             chord-sheet drawing code).
         worker: The session's background worker; a new one by default.
         detection_delay_s: The typing debounce before chords are re-detected.
+        platform: ``desktop`` or ``android`` (``session.platform``): which
+            variant of the texts naming gestures and menus the UI gets.
     """
     from viewmodels.main_window_viewmodel import MainWindowViewModel
     from viewmodels.text_editor_viewmodel import TextEditorViewModel
@@ -115,7 +119,8 @@ def create_session(host: Host, services: CoreServices, documents: DocumentStore,
         # Renders through the playback service's note picker off the session
         # thread; debounces and marshals its results through the host.
         from viewmodels.chord_sheet_viewmodel import ChordSheetViewModel
-        sheet = ChordSheetViewModel(services.config, services.playback, host=host)
+        sheet = ChordSheetViewModel(services.config, services.playback, host=host,
+                                    platform=platform)
     return AppSession(
         host,
         main_window_viewmodel=main,
@@ -124,4 +129,5 @@ def create_session(host: Host, services: CoreServices, documents: DocumentStore,
         worker=worker,
         detection_delay_s=detection_delay_s,
         services=services,
+        platform=platform,
     )

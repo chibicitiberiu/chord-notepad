@@ -299,11 +299,11 @@ def ref_json(name):
 
 
 def test_subscribing_replays_every_state_first(env):
-    names = [name for name, _ in env.out[:10]]
+    names = [name for name, _ in env.out[:11]]
     assert set(names) == {"HighlightState", "PlaybackState", "StatusState", "EditorState",
                           "ToolbarState", "VoicingMenuState", "InstrumentMenuState",
-                          "DocumentState", "RecentDocumentsState"} | ({"ChordSheetState"}
-                                                                        & set(names))
+                          "DocumentState", "RecentDocumentsState",
+                          "IdentifierState"} | ({"ChordSheetState"} & set(names))
     assert env.out[0][0] == "HighlightState"
     assert env.latest("DocumentState") == {
         "display_name": "Untitled", "location": None, "is_modified": False,

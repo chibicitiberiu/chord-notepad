@@ -26,10 +26,11 @@ from typing import (
 )
 
 from constants import CHORD_DETECTION_DEBOUNCE_MS, MAX_FONT_SIZE, MIN_FONT_SIZE
-from exceptions import AudioInitializationError
+from exceptions import AudioInitializationError, ChordNotepadError
 from models.notation import Notation
 from models.playback_event import PlaybackEventArgs, PlaybackEventType
 from session import directives, errors, formatting, toolbar
+from session.platform import DESKTOP, check_platform
 from session.audio_policy import AudioFailurePolicy
 from session.emitter import Emitter, Listener
 from session.documents import DocumentRef
@@ -45,8 +46,9 @@ from session.settings import SettingsValues
 from session.workers import BackgroundWorker, Job, Outcome
 from session.state import (
     ChordSheetState, ChordSheetView, DocumentState, EditorState, HighlightState,
-    InstrumentMenuState, MenuItem, PlayAction, PlaybackState, PlaybackStatus,
-    RecentDocumentsState, Span, SpanKind, StatusState, ToolbarState, VoicingMenuState,
+    IdentifierNote, IdentifierState, InstrumentMenuState, MenuItem, PlayAction, PlaybackState,
+    PlaybackStatus, RecentDocumentsState, Span, SpanKind, StatusState, ToolbarState,
+    VoicingMenuState,
 )
 
 if TYPE_CHECKING:
@@ -106,7 +108,8 @@ class AppSession:
                  detection_delay_s: float = CHORD_DETECTION_DEBOUNCE_MS / 1000,
                  audio_failure_policy: Optional[AudioFailurePolicy] = None,
                  worker: Optional[BackgroundWorker] = None,
-                 services: Optional["CoreServices"] = None) -> None:
+                 services: Optional["CoreServices"] = None,
+                 platform: str = DESKTOP) -> None:
         """Create the session. Nothing is delivered or scheduled until used.
 
         Args:
@@ -133,7 +136,13 @@ class AppSession:
                 :meth:`chord_identifier_model`), the settings commands and
                 :meth:`save_config` need them; tests that don't use those
                 leave them out.
+            platform: ``desktop`` or ``android`` (``session.platform``):
+                picks the variant of the texts that name gestures or menus.
+
+        Raises:
+            ValueError: For an unknown platform.
         """
+        self._platform = check_platform(platform)
         self._host = host
         self._emitter = Emitter()
         self._main = main_window_viewmodel
@@ -230,6 +239,11 @@ class AppSession:
         self._main.observe("current_playback_event", self._on_progress)
         self._main.observe("playback_error", self._on_render_error)
 
+        # The chord identifier (Android's screen; the desktop dialog keeps a
+        # model of its own): created on first use, since it needs services.
+        self._identifier_model: Optional["ChordIdentifierViewModel"] = None
+        self._identifier_error: Optional[str] = None
+
         with self._emitter.batch():
             self._emitter.set_state(HighlightState(0, 0, ()))
             self._emitter.set_state(self._playback)
@@ -241,6 +255,10 @@ class AppSession:
             self._publish_chord_sheet()
             self._publish_document()
             self._publish_recent()
+            if services is not None:
+                # The screens that need the services (Android's identifier).
+                self._emitter.set_state(IdentifierState(
+                    (), "", None, (), formatting.IDENTIFIER_PROMPT))
 
     # -- lifecycle ------------------------------------------------------------
 
@@ -678,6 +696,81 @@ class AppSession:
         """
         self._report_audio_failure(reason, from_click)
 
+    # -- chord identifier ---------------------------------------------------------
+    #
+    # The identifier's notes and candidates are an IdentifierState. Inserting
+    # a candidate is insert_chord. Audio that can't start is reported by the
+    # click-to-hear policy, like a chord tap.
+
+    @_command
+    def identifier_toggle_note(self, note: str, octave: int) -> None:
+        """Select or deselect a piano key; a key that became selected sounds.
+
+        Args:
+            note: A note name (``C``, ``C#``, ``Db``...).
+            octave: Its octave (C4 is middle C).
+
+        Raises:
+            ValueError: For something that isn't a note, or a note outside MIDI.
+        """
+        octave = int(octave)
+        name = self._identifier_note(note, octave)
+        model = self._identifier()
+        selecting = (name, octave) not in model.selected_notes
+        model.toggle_note(name, octave)
+        self._identifier_error = None
+        self._publish_identifier()
+        if selecting:
+            self._play_identifier_note(name, octave)
+
+    @_command
+    def identifier_set_notes_text(self, text: str) -> None:
+        """The typed-notes field changed: select the notes it names.
+
+        Parsed forgivingly (``"C E G"``, ``"C4, E4, G4"``; octave 4 when left
+        out); what isn't a note is skipped and named in
+        ``IdentifierState.typed_text_error``. Nothing sounds.
+        """
+        from viewmodels.chord_identifier_viewmodel import parse_notes
+
+        notes, not_understood = parse_notes(str(text))
+        self._identifier().set_notes(notes)
+        self._identifier_error = (formatting.identifier_not_notes(not_understood)
+                                  if not_understood else None)
+        self._publish_identifier()
+
+    @_command
+    def identifier_clear(self) -> None:
+        """Deselect every note (the Clear button; also a fresh identifier)."""
+        if self._identifier_model is not None:
+            self._identifier_model.clear_selection()
+        self._identifier_error = None
+        self._publish_identifier()
+
+    @_command
+    def play_note(self, note: str, octave: int) -> None:
+        """Sound one note without selecting it (right-click, long-press).
+
+        Raises:
+            ValueError: For something that isn't a note, or a note outside MIDI.
+        """
+        octave = int(octave)
+        name = self._identifier_note(note, octave)
+        self._play_identifier_note(name, octave)
+
+    @_command
+    def play_identified_chord(self, chord: str) -> None:
+        """Sound a chord by name (a candidate the user tapped).
+
+        A chord whose notes can't be worked out is a :class:`UserError`.
+        """
+        try:
+            self._identifier().play_chord(str(chord), duration=2.0)
+        except AudioInitializationError as e:
+            self._report_audio_failure(str(e), from_click=True)
+        except ChordNotepadError as e:
+            self._emitter.emit(UserError(formatting.IDENTIFIER_TITLE, str(e)))
+
     # -- toolbar ----------------------------------------------------------------
 
     @_command
@@ -880,13 +973,11 @@ class AppSession:
     @_command
     def chord_sheet_zoom(self, step: int) -> None:
         """Zoom the active chord-sheet view in (positive) or out (negative)
-        one step; ignored for views that don't zoom."""
+        by ``|step|`` steps at once (a pinch sends one command); ignored for
+        views that don't zoom. ``step`` 0 does nothing."""
         if self._chord_sheet is None or step == 0:
             return
-        if step > 0:
-            self._chord_sheet.zoom_in()
-        else:
-            self._chord_sheet.zoom_out()
+        self._chord_sheet.zoom_steps(int(step))
 
     @_command
     def audition(self, index: int) -> None:
@@ -1053,6 +1144,52 @@ class AppSession:
         if self._services is None:
             raise RuntimeError(f"the session was built without services, which {what} needs")
         return self._services
+
+    def _identifier(self) -> "ChordIdentifierViewModel":
+        if self._identifier_model is None:
+            self._identifier_model = self.chord_identifier_model()
+        return self._identifier_model
+
+    @staticmethod
+    def _identifier_note(note: str, octave: int) -> str:
+        """``note`` spelled as the identifier spells it, checked."""
+        from viewmodels.chord_identifier_viewmodel import (
+            NOTE_NAMES, normalize_note_name, note_to_midi,
+        )
+
+        name = normalize_note_name(str(note).strip())
+        if name not in NOTE_NAMES:
+            raise ValueError(f"not a note name: {note!r}")
+        if not 0 <= note_to_midi(name, int(octave)) <= 127:
+            raise ValueError(f"{name}{octave} is outside the MIDI range")
+        return name
+
+    def _play_identifier_note(self, name: str, octave: int) -> None:
+        try:
+            self._identifier().play_note(name, octave, duration=1.0)
+        except AudioInitializationError as e:
+            self._report_audio_failure(str(e), from_click=True)
+
+    def _publish_identifier(self) -> None:
+        from viewmodels.chord_identifier_viewmodel import note_to_midi
+
+        model = self._identifier()
+        notes = sorted(
+            (IdentifierNote(name, octave, note_to_midi(name, octave))
+             for name, octave in model.selected_notes),
+            key=lambda n: n.midi)
+        names = []
+        for note in sorted(notes, key=lambda n: n.midi % 12):
+            if note.name not in names:
+                names.append(note.name)
+        info = model.info_lines
+        self._emitter.set_state(IdentifierState(
+            notes=tuple(notes),
+            notes_text=" ".join(names),
+            typed_text_error=self._identifier_error,
+            candidates=tuple(model.candidates),
+            message="\n".join(info) if info else None,
+        ))
 
     def _commit_settings(self, values: SettingsValues) -> "SettingsChanges":
         """Write ``values`` to the config like the Settings dialog does."""
@@ -1503,7 +1640,7 @@ class AppSession:
         if not self._audio_policy.should_report(from_click):
             logger.warning(f"Audio unavailable (already reported): {reason}")
             return
-        message = formatting.audio_unavailable_message(reason, from_click)
+        message = formatting.audio_unavailable_message(reason, from_click, self._platform)
         self._emitter.emit(AudioUnavailable(message, from_click))
 
     def _on_transport_changed(self, _value: Any = None) -> None:

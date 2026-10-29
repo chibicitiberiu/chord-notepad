@@ -21,6 +21,7 @@ from services.appdata_service import AppDataService
 from services.logging_service import LoggingService
 from session import errors
 from session.bootstrap import CoreServices, build_core_services, create_session
+from session.platform import ANDROID
 from session.bridge import ErrorEvents, SessionBridge
 from session.host import HostDispatch
 from session.threaded_host import ThreadedHost
@@ -161,7 +162,8 @@ def start(files_dir: str, native_lib_dir: str, document_store, event_sink, audio
         event_sink.onEvent(type_name, payload)
 
     def build() -> SessionBridge:
-        session = create_session(host, services, store, chord_sheet=_chord_sheet_available())
+        session = create_session(host, services, store, chord_sheet=_chord_sheet_available(),
+                                 platform=ANDROID)
         bridge = SessionBridge(host, session, sink)
         session.start()
         return bridge

@@ -972,3 +972,41 @@ def test_injected_seams_win_over_the_host():
     vm.set_song(["a"], None)
     assert scheduler.pending is not None
     assert host.pending_timers == 0
+
+
+def test_zoom_steps_equal_that_many_clicks_applied_once():
+    for steps in (1, 3, -2, 9, -9):
+        clicked, _, _ = make_vm(renderers=[ZoomRenderer()])
+        for _ in range(abs(steps)):
+            clicked.zoom_in() if steps > 0 else clicked.zoom_out()
+        pinched, _, _ = make_vm(renderers=[ZoomRenderer()])
+        seen = []
+        pinched.observe("zoom", seen.append)
+        pinched.zoom_steps(steps)
+        assert pinched.zoom == clicked.zoom
+        assert seen == [clicked.zoom]
+    vm, _, _ = make_vm(renderers=[ZoomRenderer()])
+    vm.zoom_steps(0)
+    assert vm.zoom == 1.0
+
+
+def test_the_fretted_reason_per_platform():
+    renderers = [PlainRenderer(), FingeringRenderer()]
+    piano = RenderedSong(chords=[make_chord("C", fingering=None)])
+    reasons = {}
+    for platform in ("desktop", "android"):
+        scheduler = ManualScheduler()
+        vm = ChordSheetViewModel(
+            FakeConfig(chord_sheet_visible=True), FakeAudio(rendered=piano), application=None,
+            renderers=renderers, scheduler=scheduler, executor=inline_executor,
+            marshal=direct_marshal, platform=platform)
+        vm.set_song([], None)
+        scheduler.flush()
+        reasons[platform] = vm.fretted_views_unavailable_reason
+    # Desktop: exactly the text it always had.
+    assert reasons["desktop"] == ("Pick a fretted instrument (e.g. Guitar) in "
+                                  "Playback → Voicing to use this view.")
+    assert reasons["android"] == ("Pick a fretted instrument (e.g. Guitar) in "
+                                  "⋮ → Playback → Voicing to use this view.")
+    with pytest.raises(ValueError):
+        ChordSheetViewModel(FakeConfig(), FakeAudio(), platform="ios")

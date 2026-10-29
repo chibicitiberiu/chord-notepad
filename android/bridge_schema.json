@@ -21,6 +21,14 @@
       "target": "str"
     },
     "export_midi": {},
+    "identifier_clear": {},
+    "identifier_set_notes_text": {
+      "text": "str"
+    },
+    "identifier_toggle_note": {
+      "note": "str",
+      "octave": "int"
+    },
     "insert_chord": {
       "at": "int",
       "chord": "str"
@@ -37,6 +45,13 @@
       "ref": "DocumentRef"
     },
     "pause": {},
+    "play_identified_chord": {
+      "chord": "str"
+    },
+    "play_note": {
+      "note": "str",
+      "octave": "int"
+    },
     "play_pause": {
       "from_offset": "int|null"
     },
@@ -131,12 +146,17 @@
     "chord_sheet_zoom",
     "convert_notation",
     "export_midi",
+    "identifier_clear",
+    "identifier_set_notes_text",
+    "identifier_toggle_note",
     "insert_chord",
     "insert_text",
     "new_document",
     "open_document",
     "open_recent",
     "pause",
+    "play_identified_chord",
+    "play_note",
     "play_pause",
     "request_close",
     "request_insert_directive",
@@ -283,6 +303,24 @@
         "client_token": "int",
         "spans": "list[Span]",
         "text_revision": "int"
+      },
+      "kind": "state"
+    },
+    "IdentifierNote": {
+      "fields": {
+        "midi": "int",
+        "name": "str",
+        "octave": "int"
+      },
+      "kind": "value"
+    },
+    "IdentifierState": {
+      "fields": {
+        "candidates": "list[str]",
+        "message": "str|null",
+        "notes": "list[IdentifierNote]",
+        "notes_text": "str",
+        "typed_text_error": "str|null"
       },
       "kind": "state"
     },

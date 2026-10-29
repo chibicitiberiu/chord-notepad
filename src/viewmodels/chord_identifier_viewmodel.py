@@ -1,12 +1,84 @@
-"""ViewModel for the chord identifier window."""
+"""ViewModel for the chord identifier window (desktop dialog and Android screen).
+
+The note helpers at module level (:func:`note_to_midi`, :func:`bass_note`,
+:func:`parse_notes`) are plain functions both UIs share; the desktop piano
+widget calls them too.
+"""
 
 import logging
-from typing import List, Tuple, Set, Optional
+import re
+from typing import Iterable, List, Tuple, Set, Optional
 from utils.observable import Observable
 from services.song_parser_service import SongParserService
 from exceptions import ChordDetectionError
 
 logger = logging.getLogger(__name__)
+
+#: The note names the identifier works with (sharps only), in pitch order.
+NOTE_NAMES = ('C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B')
+
+#: What the results list shows before any note is selected.
+SELECT_NOTES_PROMPT = "Select notes to identify chords..."
+
+_FLAT_TO_SHARP = {'Db': 'C#', 'Eb': 'D#', 'Gb': 'F#', 'Ab': 'G#', 'Bb': 'A#'}
+_NOTE_TOKEN = re.compile(r'([A-Ga-g][#b]?)(\d+)?')
+
+
+def note_to_midi(note_name: str, octave: int) -> int:
+    """The MIDI number of a note (C4 = 60); an unknown name counts as C."""
+    offset = NOTE_NAMES.index(note_name) if note_name in NOTE_NAMES else 0
+    return (octave + 1) * 12 + offset
+
+
+def bass_note(notes: Iterable[Tuple[str, int]]) -> Optional[str]:
+    """The name of the lowest of ``(name, octave)`` notes, or None for none."""
+    lowest = None
+    lowest_midi = float('inf')
+    for note_name, octave in notes:
+        midi = note_to_midi(note_name, octave)
+        if midi < lowest_midi:
+            lowest_midi = midi
+            lowest = note_name
+    return lowest
+
+
+def normalize_note_name(note_name: str) -> str:
+    """Capitalize a note name and spell flats as sharps (``db`` -> ``C#``)."""
+    if not note_name:
+        return note_name
+    normalized = note_name[0].upper() + note_name[1:]
+    if 'b' in normalized:
+        normalized = _FLAT_TO_SHARP.get(normalized, normalized)
+    return normalized
+
+
+def parse_notes(note_string: str) -> Tuple[List[Tuple[str, int]], List[str]]:
+    """Parse typed notes ("C4, E4, G4", "C E G"; octave 4 when left out).
+
+    Forgiving like the desktop field: a token that starts with a note name
+    counts as that note (``Cm`` reads as ``C``), anything else is skipped.
+
+    Returns:
+        ``(notes, not_understood)``: the ``(name, octave)`` notes in typed
+        order, and the tokens that weren't exactly a note (skipped or only
+        partly read).
+    """
+    notes: List[Tuple[str, int]] = []
+    not_understood: List[str] = []
+    for part in re.split(r'[,\s;/|]+', note_string.strip()):
+        part = part.strip()
+        if not part:
+            continue
+        match = _NOTE_TOKEN.match(part)
+        name = normalize_note_name(match.group(1)) if match else ''
+        if match and name in NOTE_NAMES:
+            octave = int(match.group(2)) if match.group(2) else 4
+            notes.append((name, octave))
+            if match.end() != len(part):
+                not_understood.append(part)
+        else:
+            not_understood.append(part)
+    return notes, not_understood
 
 
 class ChordIdentifierViewModel(Observable):
@@ -31,6 +103,10 @@ class ChordIdentifierViewModel(Observable):
         # Observable state
         self._selected_notes: Set[Tuple[str, int]] = set()  # (note_name, octave) = []
         self._identified_chords: List[str] = []
+        # The same result split in two: the chord names alone, and the
+        # explanation shown instead of (or for lack of) chords.
+        self._candidates: List[str] = []
+        self._info_lines: List[str] = [SELECT_NOTES_PROMPT]
         self._notation: str = "american"
 
     @property
@@ -42,6 +118,17 @@ class ChordIdentifierViewModel(Observable):
     def identified_chords(self) -> List[str]:
         """Get the identified chord names."""
         return self._identified_chords
+
+    @property
+    def candidates(self) -> List[str]:
+        """The identified chord names only (no explanation lines)."""
+        return list(self._candidates)
+
+    @property
+    def info_lines(self) -> List[str]:
+        """What to say instead of chords (a prompt, "no chord found", an error);
+        empty when there are candidates."""
+        return list(self._info_lines)
 
     @property
     def notation(self) -> str:
@@ -84,6 +171,8 @@ class ChordIdentifierViewModel(Observable):
         logger.debug("Clearing note selection")
         self._selected_notes.clear()
         self._identified_chords.clear()
+        self._candidates = []
+        self._info_lines = [SELECT_NOTES_PROMPT]
         self.notify("selected_notes", self._selected_notes.copy())
         self.notify("identified_chords", self._identified_chords.copy())
 
@@ -95,8 +184,10 @@ class ChordIdentifierViewModel(Observable):
         - Special handling for symmetric chords (diminished 7th)
         - Bass note detection for slash chords
         """
+        self._candidates = []
         if not self._selected_notes:
-            self._identified_chords = ["Select notes to identify chords..."]
+            self._identified_chords = [SELECT_NOTES_PROMPT]
+            self._info_lines = list(self._identified_chords)
             self.notify("identified_chords", self._identified_chords.copy())
             return
 
@@ -134,6 +225,7 @@ class ChordIdentifierViewModel(Observable):
                 chord_list = sorted(all_chords, key=lambda c: (len(c), c))
                 logger.info(f"Identified {len(chord_list)} possible chords from notes: {note_names}")
                 self._identified_chords = chord_list
+                self._candidates = list(chord_list)
             else:
                 logger.info(f"No chords identified from notes: {note_names}")
                 self._identified_chords = [
@@ -152,6 +244,7 @@ class ChordIdentifierViewModel(Observable):
                 "Make sure you've selected valid notes."
             ]
 
+        self._info_lines = [] if self._candidates else list(self._identified_chords)
         # Notify observers directly (don't use set_and_notify since _identified_chords already has underscore)
         self.notify("identified_chords", self._identified_chords.copy())
 
@@ -161,24 +254,7 @@ class ChordIdentifierViewModel(Observable):
         Returns:
             The note name of the lowest selected note, or None if no selection
         """
-        if not self._selected_notes:
-            return None
-
-        # Find the note with the lowest MIDI number
-        # MIDI formula: (octave + 1) * 12 + note_offset
-        NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
-
-        lowest = None
-        lowest_midi = float('inf')
-
-        for note_name, octave in self._selected_notes:
-            note_offset = NOTE_NAMES.index(note_name) if note_name in NOTE_NAMES else 0
-            midi = (octave + 1) * 12 + note_offset
-            if midi < lowest_midi:
-                lowest_midi = midi
-                lowest = note_name
-
-        return lowest
+        return bass_note(self._selected_notes)
 
     def _is_diminished_seventh(self, note_names: List[str]) -> bool:
         """Check if the notes form a diminished seventh chord.
@@ -238,33 +314,7 @@ class ChordIdentifierViewModel(Observable):
         Returns:
             List of (note_name, octave) tuples
         """
-        import re
-
-        # Split by spaces, commas, or other punctuation
-        parts = re.split(r'[,\s;/|]+', note_string.strip())
-
-        notes = []
-        for part in parts:
-            part = part.strip()
-            if not part:
-                continue
-
-            # Match note name and optional octave
-            match = re.match(r'([A-Ga-g][#b]?)(\d+)?', part)
-            if match:
-                note_name = match.group(1)
-                octave_str = match.group(2)
-                octave = int(octave_str) if octave_str else 4  # Default to octave 4
-
-                # Normalize note name (capitalize and convert flats to sharps)
-                note_name = self.normalize_note_name(note_name)
-
-                # Validate it's a real note
-                NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
-                if note_name in NOTE_NAMES:
-                    notes.append((note_name, octave))
-
-        return notes
+        return parse_notes(note_string)[0]
 
     def set_notes_from_string(self, note_string: str) -> None:
         """Set selected notes from a comma-separated string.
@@ -325,20 +375,7 @@ class ChordIdentifierViewModel(Observable):
         Returns:
             Normalized note name (e.g., "C#")
         """
-        if not note_name or len(note_name) < 1:
-            return note_name
-
-        # Capitalize first letter
-        normalized = note_name[0].upper() + note_name[1:]
-
-        # Convert flats to sharps for consistency
-        if 'b' in normalized:
-            flat_to_sharp = {
-                'Db': 'C#', 'Eb': 'D#', 'Gb': 'F#', 'Ab': 'G#', 'Bb': 'A#'
-            }
-            normalized = flat_to_sharp.get(normalized, normalized)
-
-        return normalized
+        return normalize_note_name(note_name)
 
     def play_note(self, note_name: str, octave: int, duration: float = 1.0) -> None:
         """Play a single note.
@@ -400,13 +437,7 @@ class ChordIdentifierViewModel(Observable):
             logger.warning("No notes selected to play")
             return
 
-        # Convert selected notes to MIDI
-        NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
-        midi_notes = []
-        for note_name, octave in self._selected_notes:
-            note_offset = NOTE_NAMES.index(note_name) if note_name in NOTE_NAMES else 0
-            midi = (octave + 1) * 12 + note_offset
-            midi_notes.append(midi)
+        midi_notes = [note_to_midi(name, octave) for name, octave in self._selected_notes]
 
         # Play as chord
         self._audio_service.play_chord_from_midi(midi_notes, duration)

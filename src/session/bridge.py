@@ -43,8 +43,9 @@ from session.host import Host
 from session.settings import SettingsValues
 from session.state import (
     ChordSheetState, ChordSheetView, DocumentState, EditorState, HighlightState,
-    InstrumentFamily, InstrumentMenuState, MenuItem, PlayAction, PlaybackState, PlaybackStatus,
-    RecentDocumentsState, Span, SpanKind, StatusState, ToolbarState, VoicingMenuState,
+    IdentifierNote, IdentifierState, InstrumentFamily, InstrumentMenuState, MenuItem, PlayAction,
+    PlaybackState, PlaybackStatus, RecentDocumentsState, Span, SpanKind, StatusState,
+    ToolbarState, VoicingMenuState,
 )
 
 logger = logging.getLogger(__name__)
@@ -59,6 +60,7 @@ BRIDGE_CONTEXT = "bridge"
 STATE_TYPES: Tuple[type, ...] = (
     DocumentState, EditorState, HighlightState, PlaybackState, ToolbarState, StatusState,
     VoicingMenuState, InstrumentMenuState, RecentDocumentsState, ChordSheetState,
+    IdentifierState,
 )
 EVENT_TYPES: Tuple[type, ...] = (
     TextEdited, UserError, AudioUnavailable, UnexpectedError, CloseApproved,
@@ -69,6 +71,7 @@ REQUEST_TYPES: Tuple[type, ...] = (
 #: Nested in outputs, or sent in commands.
 VALUE_TYPES: Tuple[type, ...] = (
     Span, MenuItem, InstrumentFamily, ChordSheetView, DocumentRef, SettingsValues,
+    IdentifierNote,
 )
 ENUM_TYPES: Tuple[Type[Enum], ...] = (
     SpanKind, PlaybackStatus, PlayAction, UndoPolicy, DiscardChoice, PickMode,
@@ -237,6 +240,12 @@ SESSION_COMMANDS: Dict[str, Dict[str, str]] = {
     "set_chord_sheet_view": {"view_id": "str"},
     "chord_sheet_zoom": {"step": "int"},
     "audition": {"index": "int"},
+    # chord identifier
+    "identifier_toggle_note": {"note": "str", "octave": "int"},
+    "identifier_set_notes_text": {"text": "str"},
+    "identifier_clear": {},
+    "play_note": {"note": "str", "octave": "int"},
+    "play_identified_chord": {"chord": "str"},
     # documents and requests
     "new_document": {},
     "open_document": {"ref": "DocumentRef|null"},

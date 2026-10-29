@@ -622,6 +622,15 @@ class FakeChordSheet(Observable):
         if self.zoom_supported:
             self.set_and_notify("zoom", round(self._zoom / 1.25, 3))
 
+    def zoom_steps(self, steps: int) -> None:
+        """Zoom ``steps`` times by 1.25 (positive in), notifying once."""
+        if self.zoom_supported and steps:
+            factor = 1.25 if steps > 0 else 1 / 1.25
+            value = self._zoom
+            for _ in range(abs(steps)):
+                value = round(value * factor, 3)
+            self.set_and_notify("zoom", value)
+
     def audition(self, chord_index: int) -> None:
         """Record the audition, or fail like broken audio."""
         if self.audition_error is not None:

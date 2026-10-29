@@ -8,6 +8,7 @@ from tkinter import ttk, messagebox
 import re
 
 from exceptions import AudioInitializationError, ChordNotepadError
+from viewmodels.chord_identifier_viewmodel import bass_note, note_to_midi
 
 logger = logging.getLogger(__name__)
 
@@ -193,11 +194,7 @@ class PianoRoll(tk.Canvas):
         Returns:
             MIDI note number
         """
-        # MIDI note 60 = C4 (middle C)
-        # Each octave is 12 semitones
-        note_offset = self.NOTE_NAMES.index(note_name)
-        midi_note = 12 + (octave * 12) + note_offset
-        return midi_note
+        return note_to_midi(note_name, octave)
 
     def set_notes(self, note_names):
         """
@@ -218,20 +215,7 @@ class PianoRoll(tk.Canvas):
 
     def get_bass_note(self):
         """Get the lowest selected note (actual bass note)"""
-        if not self.selected_notes:
-            return None
-
-        # Find the note with the lowest MIDI number
-        lowest = None
-        lowest_midi = float('inf')
-
-        for note_name, octave in self.selected_notes:
-            midi = self.note_to_midi(note_name, octave)
-            if midi < lowest_midi:
-                lowest_midi = midi
-                lowest = note_name
-
-        return lowest
+        return bass_note(self.selected_notes)
 
 
 class ChordIdentifierWindow(tk.Toplevel):

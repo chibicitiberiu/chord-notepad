@@ -9,6 +9,7 @@ from typing import Iterable, Mapping, Optional, Sequence, Tuple, Union
 
 from models.ensemble_spec import BUILTIN_ENSEMBLES
 from models.fretboard_spec import BUILTIN_FRETBOARDS
+from session.platform import ANDROID, DESKTOP, pick
 from session.state import InstrumentFamily, MenuItem
 
 READY = "Ready"
@@ -69,18 +70,25 @@ def playback_error_message(reason: str) -> str:
     return f"Could not play the song.\n\n{reason}"
 
 
-def audio_unavailable_message(reason: str, from_click: bool) -> str:
+_CLICKS_SILENT = {
+    DESKTOP: "\n\nClicked chords won't play until this is fixed.",
+    ANDROID: "\n\nTapped chords won't play until this is fixed.",
+}
+
+
+def audio_unavailable_message(reason: str, from_click: bool, platform: str = DESKTOP) -> str:
     """The message for audio that couldn't be started.
 
     Args:
         reason: Why, usually the ``AudioInitializationError`` text; empty for
             a generic message.
         from_click: True for click-to-hear actions, which are reported only
-            once per session, so the message says clicks stay silent.
+            once per session, so the message says clicks (taps) stay silent.
+        platform: ``desktop`` or ``android`` (``session.platform``).
     """
     message = reason or "Audio is not available."
     if from_click:
-        message += "\n\nClicked chords won't play until this is fixed."
+        message += pick(_CLICKS_SILENT, platform)
     return message
 
 
@@ -201,6 +209,19 @@ def finding_capo_status(has_selection: bool, voicing: str) -> str:
 
 #: The status when the text changed while Suggest Capo was scoring it.
 CAPO_STALE_STATUS = "The song changed while finding a capo; nothing was inserted"
+
+
+# -- chord identifier --------------------------------------------------------------
+
+IDENTIFIER_TITLE = "Identify Chord"
+#: What the identifier shows before any note is selected.
+IDENTIFIER_PROMPT = "Select notes to identify chords..."
+
+
+def identifier_not_notes(tokens: Sequence[str]) -> str:
+    """The typed-notes error naming what wasn't a note, e.g. ``Not a note: H, x7``."""
+    label = "Not a note" if len(tokens) == 1 else "Not notes"
+    return f"{label}: {', '.join(tokens)}"
 
 
 # -- menus -------------------------------------------------------------------------

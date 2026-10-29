@@ -297,3 +297,47 @@ class RecentDocumentsState:
     """
 
     items: Tuple[DocumentRef, ...]
+
+
+@dataclass(frozen=True)
+class IdentifierNote:
+    """A note selected in the chord identifier.
+
+    Attributes:
+        name: The note name, with sharps (``C``, ``C#`` ... ``B``).
+        octave: Its octave (C4 is middle C).
+        midi: Its MIDI number (C4 = 60).
+    """
+
+    name: str
+    octave: int
+    midi: int
+
+
+@dataclass(frozen=True)
+class IdentifierState:
+    """The chord identifier: the selected notes and the chords they make.
+
+    Attributes:
+        notes: The selected notes, lowest first. A piano shows these; typed
+            notes keep the octave typed (4 when left out), which may lie
+            outside the keys a piano shows.
+        notes_text: The selection as the typed-notes field shows it after a
+            key was toggled: the distinct note names in pitch-class order,
+            space separated (``"C E G"``). Don't overwrite the field with it
+            while the user types there.
+        typed_text_error: Set when the typed notes had something that isn't a
+            note (it was skipped); None otherwise, and after a key toggle.
+        candidates: The chords the notes make, simplest first. Tap one to
+            hear it (``play_identified_chord``), insert it with
+            ``insert_chord``.
+        message: What to show instead of (or for lack of) candidates: the
+            prompt to select notes, "no standard chord found", an error; None
+            when there are candidates.
+    """
+
+    notes: Tuple[IdentifierNote, ...]
+    notes_text: str
+    typed_text_error: Optional[str]
+    candidates: Tuple[str, ...]
+    message: Optional[str]

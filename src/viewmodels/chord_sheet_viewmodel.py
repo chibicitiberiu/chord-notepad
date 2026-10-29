@@ -46,6 +46,7 @@ from models.chord import ChordInfo
 from models.line import Line
 from models.rendered_song import RenderedSong
 from session.host import Host
+from session.platform import ANDROID, DESKTOP, check_platform, pick
 from chord_sheet.registry import default_renderers
 from chord_sheet.renderer_interface import StripRenderer
 from utils.observable import Observable
@@ -59,6 +60,13 @@ _SCROLL_TRIGGER = 0.70   # playhead past this fraction triggers a forward snap
 _SCROLL_EPSILON = 0.5    # px; scroll deltas smaller than this are treated as no-op
 
 # Display-zoom step/bounds for zoom-capable renderers (staff, piano roll, ...).
+#: Why the fretted views are off for a song without fingerings, per platform.
+_PICK_FRETTED_INSTRUMENT = {
+    DESKTOP: "Pick a fretted instrument (e.g. Guitar) in Playback \u2192 Voicing to use this view.",
+    ANDROID: "Pick a fretted instrument (e.g. Guitar) in \u22ee \u2192 Playback \u2192 Voicing "
+             "to use this view.",
+}
+
 _ZOOM_STEP = 1.2   # multiplicative factor per zoom-in/out click
 _ZOOM_MIN = 0.5
 _ZOOM_MAX = 2.5
@@ -135,6 +143,7 @@ class ChordSheetViewModel(Observable):
         executor: Optional[Callable[[Callable[[], None]], None]] = None,
         marshal: Optional[Callable[[Callable[[], None]], None]] = None,
         debounce_ms: int = CHORD_SHEET_RERENDER_DEBOUNCE_MS,
+        platform: str = DESKTOP,
     ) -> None:
         """Create the viewmodel.
 
@@ -165,8 +174,11 @@ class ChordSheetViewModel(Observable):
             marshal: Injectable UI-thread marshal; defaults to ``host.post``,
                 else ``application.queue_ui_callback``, else a direct call.
             debounce_ms: Debounce window in milliseconds.
+            platform: ``desktop`` or ``android`` (``session.platform``): the
+                wording of :attr:`fretted_views_unavailable_reason`.
         """
         super().__init__()
+        self._platform = check_platform(platform)
 
         self._config = config_service
         self._audio = audio_service
@@ -257,7 +269,7 @@ class ChordSheetViewModel(Observable):
             return None
         if song is None or not song.chords:
             return "Add some chords to see this view."
-        return "Pick a fretted instrument (e.g. Guitar) in Playback \u2192 Voicing to use this view."
+        return pick(_PICK_FRETTED_INSTRUMENT, self._platform)
 
     @property
     def visible(self) -> bool:
@@ -315,6 +327,18 @@ class ChordSheetViewModel(Observable):
     def zoom_out(self) -> None:
         """Zoom the active view out one multiplicative step (no-op if unsupported)."""
         self._set_zoom(self._zoom / _ZOOM_STEP)
+
+    def zoom_steps(self, steps: int) -> None:
+        """Zoom ``steps`` steps at once (positive in, negative out): the same
+        factor as that many :meth:`zoom_in`/:meth:`zoom_out` calls, applied
+        (and repainted) once. No-op if unsupported or ``steps`` is 0."""
+        if not steps or not self.zoom_supported:
+            return
+        value = self._zoom
+        factor = _ZOOM_STEP if steps > 0 else 1 / _ZOOM_STEP
+        for _ in range(abs(int(steps))):
+            value = round(min(_ZOOM_MAX, max(_ZOOM_MIN, value * factor)), 3)
+        self._set_zoom(value)
 
     def _set_zoom(self, value: float) -> None:
         """Clamp/round and apply a zoom factor to the active view, then notify.
