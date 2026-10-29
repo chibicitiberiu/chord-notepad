@@ -998,6 +998,16 @@ not). ☰ → User guide opens it, and so does F1 on a hardware keyboard.
 `HelpAssetsTest` checks that the generated `help/` has `index.html` and no
 `file://` links or build paths.
 
+The Android edition has its own look and screenshots: `help/_static/android.css`
+(the app's colour tokens, phone layout, dark mode through
+`prefers-color-scheme`) and `help/images/android/` (optional `<name>.dark.png`
+variants for dark mode). WebView sets `prefers-color-scheme` from its
+context's `isLightTheme`, and the activity's theme is always light, so
+`UserGuideScreen` creates the WebView with a `ContextThemeWrapper` on
+`Theme.Material` or `Theme.Material.Light` to match the app (Android 10+;
+older versions show the light guide). How to write for both editions:
+[HELP_AUTHORING.md](HELP_AUTHORING.md).
+
 **Quick Start.** `QuickStartRoute` sends `request_quick_start` and renders
 `QuickStartContent` page by page in Compose (`QuickStartPager` holds the page;
 snippets are `snippetRuns`: the session's code-point spans converted to UTF-16

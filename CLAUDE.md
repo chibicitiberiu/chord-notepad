@@ -168,4 +168,5 @@ FluidSynth library required:
 PyInstaller builds are platform-specific. Build on target platform.
 - Don't forget to:
 * use automated tests for testing feature
-* add user documentation in help/ directory
+* add user documentation in help/ directory (one source, desktop and Android editions: see
+  docs/HELP_AUTHORING.md; `make docs-check` must pass)
