@@ -63,11 +63,12 @@ class QuickStartModelTest {
         Fixtures.settings.let { it.copy(values = it.values.copy(showQuickStartOnStartup = show)) }
 
     @Test
-    fun `the tour opens on its own only when the setting says so and once per process`() {
-        assertFalse(QuickStartLaunch.shouldAutoShow(null, shownThisProcess = false))
-        assertTrue(QuickStartLaunch.shouldAutoShow(settings(true), shownThisProcess = false))
-        assertFalse(QuickStartLaunch.shouldAutoShow(settings(true), shownThisProcess = true))
-        assertFalse(QuickStartLaunch.shouldAutoShow(settings(false), shownThisProcess = false))
+    fun `the tour opens on its own only when the setting says so, decided once per process`() {
+        assertEquals(QuickStartLaunch.Decision(open = false, decided = false), QuickStartLaunch.decide(null, false))
+        assertEquals(QuickStartLaunch.Decision(open = true, decided = true), QuickStartLaunch.decide(settings(true), false))
+        assertEquals(QuickStartLaunch.Decision(open = false, decided = true), QuickStartLaunch.decide(settings(false), false))
+        // Already decided: turning the setting on later (Settings, the tour's own box) opens nothing.
+        assertEquals(QuickStartLaunch.Decision(open = false, decided = true), QuickStartLaunch.decide(settings(true), true))
     }
 
     @Test

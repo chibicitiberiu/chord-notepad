@@ -122,9 +122,10 @@ fun MainScreen(graph: AppGraph, onCloseApproved: () -> Unit) {
     // app-scoped graph, so a rotation does not bring it back.
     val settings by graph.repository.settings.collectAsState()
     LaunchedEffect(settings, page) {
-        if (page == Pages.MAIN && QuickStartLaunch.shouldAutoShow(settings, graph.quickStartShown)) {
-            graph.quickStartShown = true
-            page = Pages.QUICK_START
+        if (page == Pages.MAIN) {
+            val decision = QuickStartLaunch.decide(settings, graph.quickStartShown)
+            graph.quickStartShown = decision.decided
+            if (decision.open) page = Pages.QUICK_START
         }
     }
 
