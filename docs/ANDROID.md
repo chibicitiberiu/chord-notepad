@@ -1450,11 +1450,8 @@ volume.
   deep-buffer output (`audio.deep_buffer.media=true`, I/O 21), which has no
   effect chain. A leveler that ramps its gain up after digital silence fits
   the report; I couldn't listen or capture the device's output to confirm.
-- **Change:** below API 27 the host asks Oboe for no performance mode
-  (`chordnotepad_android.host.oboe_settings`), so the stream is an ordinary
-  music track on the deep-buffer output like every music player's. Cost on
-  the HTC 10: output latency 80 ms instead of 50 ms (tap to sound); timing
-  within a song is sample-clocked and unaffected. AAudio devices (8.1+) keep
-  `LowLatency`. To check: play, then `adb shell dumpsys media.audio_flinger`
-  should list the app's track under `AudioOut_15` (deep buffer), not
-  `AudioOut_D`.
+- **Tried and reverted:** asking Oboe for no performance mode below API 27
+  (an ordinary deep-buffer music track) did not remove the fade on the
+  HTC 10, so it was reverted; the stream is `LowLatency` everywhere again.
+  The cause is still open (next suspects: the device's speaker amplifier or
+  another vendor stage handling silence). Tibi chose to leave it as is.

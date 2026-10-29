@@ -315,19 +315,6 @@ def test_audio_options_from_kotlins_dict():
     assert (defaults.sample_rate, defaults.period_size) == (None, None)
 
 
-def test_opensl_devices_get_an_ordinary_music_stream():
-    """Android 8.0 and older play through OpenSL ES; a LowLatency stream there
-    lands on the primary output with the vendor's effects (HTC 10: Dolby DAP,
-    which faded the first notes in), so it asks for no performance mode."""
-    mode = "audio.oboe.performance-mode"
-    assert android_host.oboe_settings(26) == {mode: "None"}
-    assert android_host.oboe_settings(24) == {mode: "None"}
-    assert android_host.oboe_settings(27) == {mode: "LowLatency"}
-    assert android_host.oboe_settings(None) == {mode: "LowLatency"}
-    options = android_host.audio_options_from({"sample_rate": 48000, "sdk_int": 26})
-    assert options.settings[mode] == "None"
-
-
 def test_chord_sheet_buffer_is_packed_on_the_callers_thread(started):
     from chord_sheet.pack import unpack
 
