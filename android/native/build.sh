@@ -12,6 +12,8 @@
 #   - source and build paths are mapped out of the binaries (-ffile-prefix-map)
 #     and DEFAULT_SOUNDFONT is fixed, so the output doesn't depend on where the
 #     checkout lives;
+#   - git is hidden from FLAC's and opus's CMake (they stamp `git describe` into
+#     the library), so shallow CI clones and full local clones build the same bytes;
 #   - libsndfile's MPEG support is off explicitly (upstream has no mpg123/lame,
 #     so it's off there too, but by not finding them).
 #
@@ -35,6 +37,9 @@ NDK_VERSION=27.3.13750724
 CMAKE_VERSION=3.31.6
 ANDROID_API=24
 OBOE_VERSION=1.10.0
+# Keep in step with the opus submodule's tag: CI's shallow submodule clones have
+# no tags, so opus's CMake can't ask git for it (see the cmi opus call below).
+OPUS_VERSION=1.5.2
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ANDROID_DIR="$(dirname "$HERE")"
@@ -203,9 +208,11 @@ build_abi() {
     cmi "$HERE/ogg" ogg -DINSTALL_DOCS=0
     cmi "$HERE/vorbis" vorbis
     cmi "$HERE/flac" flac -DCMAKE_C_STANDARD=99 -DCMAKE_C_STANDARD_REQUIRED=1 -DWITH_ASM=0 \
+        -DHAVE_GIT=OFF \
         -DBUILD_CXXLIBS=0 -DBUILD_PROGRAMS=0 -DBUILD_EXAMPLES=0 -DBUILD_DOCS=0 \
         -DINSTALL_MANPAGES=0
-    cmi "$HERE/opus" opus -DBUILD_PROGRAMS=0 -DOPUS_MAY_HAVE_NEON=1 \
+    cmi "$HERE/opus" opus -DCMAKE_DISABLE_FIND_PACKAGE_Git=ON -DOPUS_PACKAGE_VERSION="$OPUS_VERSION" \
+        -DBUILD_PROGRAMS=0 -DOPUS_MAY_HAVE_NEON=1 \
         -DCMAKE_C_STANDARD=99 -DCMAKE_C_STANDARD_REQUIRED=1
     cmi "$HERE/libsndfile" libsndfile -DBUILD_PROGRAMS=0 -DBUILD_EXAMPLES=0 \
         -DENABLE_MPEG=0 -DENABLE_CPACK=0 -DENABLE_EXTERNAL_LIBS=1
