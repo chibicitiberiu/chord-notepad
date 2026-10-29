@@ -62,6 +62,10 @@ fun zoomStepsForScale(scale: Float, currentZoom: Double): Int {
     return raw.coerceIn(-downRoom, upRoom)
 }
 
+/** [zoomStepsForScale] for a view that zooms; 0 (a pinch does nothing) where the core says it doesn't. */
+fun pinchZoomSteps(zoomSupported: Boolean, scale: Float, currentZoom: Double): Int =
+    if (zoomSupported) zoomStepsForScale(scale, currentZoom) else 0
+
 /** Steps of [ZOOM_STEP] needed to cover [ratio] (the last one may be clamped). */
 private fun stepsUntil(ratio: Double): Int =
     if (ratio <= 1.0 + 1e-6) 0 else ceil(ln(ratio) / ln(ZOOM_STEP) - 1e-6).toInt()

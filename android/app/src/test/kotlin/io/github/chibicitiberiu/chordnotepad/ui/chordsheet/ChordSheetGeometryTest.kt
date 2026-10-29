@@ -188,6 +188,12 @@ class ChordSheetGeometryTest {
     }
 
     @Test
+    fun `a pinch does nothing on a view that does not zoom`() {
+        assertEquals(0, pinchZoomSteps(false, 2f, 1.0))
+        assertEquals(2, pinchZoomSteps(true, 1.5f, 1.0))
+    }
+
+    @Test
     fun `a zoom keeps the music under the focus in place`() {
         // Content x 600 at viewport x 100 stays there when the strip doubles.
         assertEquals(1100f, rescaleScroll(500f, 100f, 5000f, 10000f, 400f))

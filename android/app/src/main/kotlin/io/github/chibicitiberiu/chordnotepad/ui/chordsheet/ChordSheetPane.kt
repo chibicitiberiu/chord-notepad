@@ -189,8 +189,11 @@ private fun ChordSheetHeader(state: ChordSheetState, onSelect: (String) -> Unit,
                 )
             }
         }
-        ZoomButton(R.drawable.mdi_magnify_minus, stringResource(R.string.sheet_zoom_out), state.zoomSupported) { onZoom(-1) }
-        ZoomButton(R.drawable.mdi_magnify_plus, stringResource(R.string.sheet_zoom_in), state.zoomSupported) { onZoom(1) }
+        // Views the core says don't zoom (the piano roll) show no zoom buttons; pinch follows the same flag.
+        if (state.zoomSupported) {
+            ZoomButton(R.drawable.mdi_magnify_minus, stringResource(R.string.sheet_zoom_out)) { onZoom(-1) }
+            ZoomButton(R.drawable.mdi_magnify_plus, stringResource(R.string.sheet_zoom_in)) { onZoom(1) }
+        }
     }
 }
 
@@ -230,16 +233,16 @@ private fun ViewTab(view: ChordSheetView, selected: Boolean, reason: String?, on
 }
 
 @Composable
-private fun ZoomButton(icon: Int, description: String, enabled: Boolean, onClick: () -> Unit) {
+private fun ZoomButton(icon: Int, description: String, onClick: () -> Unit) {
     Box(
         Modifier
             .size(30.dp)
             .clip(CircleShape)
-            .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
+            .clickable(role = Role.Button, onClick = onClick)
             .semantics { contentDescription = description },
         contentAlignment = Alignment.Center,
     ) {
-        MdiIcon(icon, IconTints.Zoom.copy(alpha = if (enabled) 1f else 0.38f), size = 19.dp)
+        MdiIcon(icon, IconTints.Zoom, size = 19.dp)
     }
 }
 
@@ -366,7 +369,7 @@ private fun ChordSheetStrip(
                             onPinch = { scale, focus -> if (zoomable) pinch = Pinch(scale, focus) },
                             onEnd = { scale, focus ->
                                 if (!zoomable) return@detectPinch
-                                val steps = zoomStepsForScale(scale, currentZoom)
+                                val steps = pinchZoomSteps(zoomable, scale, currentZoom)
                                 Log.i(TAG, "pinch scale=$scale -> $steps zoom steps")
                                 if (steps == 0) {
                                     pinch = null
