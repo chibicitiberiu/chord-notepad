@@ -11,3 +11,7 @@ captures/
 *.iml
 .cxx/
 .externalNativeBuild/
+# Release-step outputs (CI writes these too)
+dist-android/
+apksigner.txt
+jarsigner.txt
