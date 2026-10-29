@@ -319,7 +319,7 @@ footer hr {
     width: auto !important;
     height: auto !important;
     max-width: 100%;
-    max-height: 80vh;
+    max-height: 70vh;
     border: 1px solid var(--line);
     border-radius: var(--radius);
     background: var(--paper);
