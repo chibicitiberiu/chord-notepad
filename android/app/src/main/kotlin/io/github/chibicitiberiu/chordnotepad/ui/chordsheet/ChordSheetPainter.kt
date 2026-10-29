@@ -26,6 +26,7 @@ import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
+import androidx.core.graphics.scale
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.math.max
 import kotlin.math.roundToInt
@@ -131,7 +132,7 @@ class GlyphCache(private val assets: AssetManager) {
         scaled[cacheKey]?.let { return it }
         val base = base(key.asset) ?: return null
         val widthPx = max(1, (base.width.toFloat() * heightPx / base.height).roundToInt())
-        return Bitmap.createScaledBitmap(base, widthPx, heightPx, true).asImageBitmap()
+        return base.scale(widthPx, heightPx, filter = true).asImageBitmap()
             .also { scaled[cacheKey] = it }
     }
 
