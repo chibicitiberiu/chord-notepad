@@ -67,6 +67,13 @@ class EditorController(
     var identity: TextIdentity = TextIdentity(0, null)
         private set
 
+    /**
+     * Test seam: called inside [applyEdit]'s `edit {}` with the text being
+     * committed, standing in for the snapshot collector that runs there on a
+     * device (a JVM test has no such collector).
+     */
+    internal var beforeCommit: ((String) -> Unit)? = null
+
     // The text the session has, as far as the editor knows.
     private var syncedText: String = state.text.toString()
     // The text `spans` are laid out for.
@@ -118,6 +125,8 @@ class EditorController(
             identity = TextIdentity(0, edit.textRevision)
         }
         state.edit {
+            // Where the device's snapshot collector can already see the new text.
+            beforeCommit?.invoke(after)
             replace(e.start, e.end, e.replacement)
             selection = TextRange(e.cursor.coerceIn(0, length))
         }

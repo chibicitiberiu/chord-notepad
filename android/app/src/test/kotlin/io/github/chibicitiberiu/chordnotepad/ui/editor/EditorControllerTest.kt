@@ -101,6 +101,20 @@ class EditorControllerTest {
     }
 
     @Test
+    fun `a session edit is not echoed back when the text collector runs inside edit`() {
+        type(0, "C G")
+        editor.onHighlight(HighlightState(1, 1, listOf(chord(0, 1), chord(2, 3))))
+        sent.clear()
+        // On a device the collector sees the new text before edit {} returns.
+        editor.beforeCommit = { committing -> editor.observeText(committing) }
+        editor.applyEdit(TextEdited(textRevision = 2, start = 0, end = 3, replacement = "D A", undo = UndoPolicy.GROUP, cursor = 3))
+        assertEquals(emptyList<Pair<String, Int>>(), setTexts())
+        assertEquals(TextIdentity(0, 2), editor.identity)
+        editor.onHighlight(HighlightState(2, 0, listOf(chord(0, 1), chord(2, 3))))
+        assertEquals(listOf(0 to 1, 2 to 3), editor.spans.map { it.start to it.end })
+    }
+
+    @Test
     fun `highlight for a session edit is taken by revision, even if it arrives first`() {
         type(0, "C G")
         val hs = HighlightState(textRevision = 2, clientToken = 0, spans = listOf(chord(0, 1), chord(2, 3)))
