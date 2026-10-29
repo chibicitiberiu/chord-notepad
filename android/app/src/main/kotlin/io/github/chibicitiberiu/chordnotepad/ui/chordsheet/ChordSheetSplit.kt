@@ -37,14 +37,17 @@ const val MIN_CHORD_SHEET_HEIGHT_DP = 120f
 private const val MAX_SCREEN_FRACTION = 0.6f
 
 /** The editor keeps at least this much height, whatever the sheet's stored height (keyboard up, landscape). */
-internal const val MIN_EDITOR_HEIGHT_DP = 120f
+internal const val MIN_EDITOR_HEIGHT_DP = 96f
+
+/** Below this height the sheet is hidden instead (a phone in landscape with the keyboard up). */
+internal const val MIN_SHOWN_CHORD_SHEET_HEIGHT_DP = 80f
 
 /** What the split's neighbours below the sheet take: the handle (16), the divider and the status line. */
 private const val RESERVED_BELOW_DP = 16f + 40f
 
 /**
  * The sheet's height in dp, or null when there's no room for it (the editor
- * then keeps the screen: a soft keyboard on a phone leaves little).
+ * then keeps the screen: a soft keyboard on a phone leaves little, and so does a phone in landscape).
  *
  * @param wanted The stored height.
  * @param availableDp The height left for the editor and the sheet (the column
@@ -53,8 +56,8 @@ private const val RESERVED_BELOW_DP = 16f + 40f
  */
 internal fun chordSheetHeightDp(wanted: Float, availableDp: Float, windowHeightDp: Float): Float? {
     val cap = minOf(windowHeightDp * MAX_SCREEN_FRACTION, availableDp - MIN_EDITOR_HEIGHT_DP - RESERVED_BELOW_DP)
-    if (cap < MIN_CHORD_SHEET_HEIGHT_DP) return null
-    return wanted.coerceIn(MIN_CHORD_SHEET_HEIGHT_DP, cap)
+    if (cap < MIN_SHOWN_CHORD_SHEET_HEIGHT_DP) return null
+    return wanted.coerceIn(minOf(MIN_CHORD_SHEET_HEIGHT_DP, cap), cap)
 }
 
 /**
@@ -81,11 +84,11 @@ fun ChordSheetSplit(host: PyHost, modifier: Modifier = Modifier) {
     BoxWithConstraints(modifier) {
         val height = chordSheetHeightDp(dragged ?: current.height.toFloat(), maxHeight.value, windowHeightDp)
             ?: return@BoxWithConstraints
-        val maxDrag = (minOf(windowHeightDp * MAX_SCREEN_FRACTION, maxHeight.value - MIN_EDITOR_HEIGHT_DP - RESERVED_BELOW_DP))
-            .coerceAtLeast(MIN_CHORD_SHEET_HEIGHT_DP)
+        val maxDrag = minOf(windowHeightDp * MAX_SCREEN_FRACTION, maxHeight.value - MIN_EDITOR_HEIGHT_DP - RESERVED_BELOW_DP)
+        val minDrag = minOf(MIN_CHORD_SHEET_HEIGHT_DP, maxDrag)
         Column {
             SplitHandle(
-                onDrag = { dy -> dragged = ((dragged ?: height) - dy / density).coerceIn(MIN_CHORD_SHEET_HEIGHT_DP, maxDrag) },
+                onDrag = { dy -> dragged = ((dragged ?: height) - dy / density).coerceIn(minDrag, maxDrag) },
                 onDragEnd = { dragged?.let { host.commands.setChordSheetHeight(it.roundToInt()) } },
             )
             ChordSheetPane(host, Modifier.fillMaxWidth().height(height.dp))
