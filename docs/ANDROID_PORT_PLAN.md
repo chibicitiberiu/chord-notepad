@@ -1,5 +1,36 @@
 # Chord Notepad for Android: port plan (revised after review)
 
+## Status (2026-10-29)
+
+**Done:** M0 through M6, apart from the steps only Tibi can do. That covers the
+shared session layer (desktop now runs on it), sequencer playback, natives built
+from source with reproducible APKs, the Kotlin bridge, every screen in the port
+checklist, About/licences, User Guide, Quick Start, CI build and release jobs,
+signing plumbing, PRIVACY and RELEASE docs. An end-to-end pass on the phone and
+tablet emulators passed the parity checklist after 7 fixes.
+
+**Waiting on Tibi:**
+1. Create the keys (`android/tools/make_keys.sh`), the `android-release`
+   environment and the secrets (docs/RELEASE.md, Android section).
+2. Test on a real phone: audible timing, pinch zoom, audio focus, real file
+   providers, the soft keyboard, 16 KB pages (list in docs/ANDROID.md).
+3. Run the desktop manual checks for the session migration and the audio-driver
+   change (Flatpak, Snap, Windows, macOS).
+4. Decide the Play account type, then do the Play setup (docs/RELEASE.md).
+5. Push, then tag a release. The CI release jobs have not run on GitHub yet.
+6. F-Droid: decide at release time.
+
+**Known open items:**
+- The voicings tuning help text repeats in its hint.
+- Tapping a chord raises the soft keyboard.
+- Settings are only saved when the app goes to the background or Settings is
+  saved.
+- Hardware shortcuts need focus first.
+- Playback pauses when the app goes to the background; there is no foreground
+  service.
+- A pre-existing fuzz test (`test_piano_note_completeness`) fails locally on a
+  stored hypothesis example: 94.7% vs its 95% threshold.
+
 ## Context
 
 Chord Notepad is a desktop app: Python/Tkinter UI, FluidSynth audio, AGPL licence, and Tibi is the sole copyright holder. Tibi wants it on mobile, starting with Android, which they can test (emulator plus their Android phone). iPad comes later and will reuse the same core.
