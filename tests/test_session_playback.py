@@ -18,6 +18,7 @@ from session.host import HostDispatch
 from session.session import AppSession
 from session.state import (
     ChordSheetState, EditorState, PlaybackState, PlaybackStatus, StatusState, ToolbarState,
+    VoicingMenuState,
 )
 from session.testing import (
     EventRecorder, FakeChordSheet, FakePlayer, InMemoryDocumentStore, ManualHost,
@@ -39,6 +40,13 @@ class FakeConfig:
 
     def set(self, key, value):
         self._values[key] = value
+
+
+class Recorder(EventRecorder):
+    """Goldens here are about playback: the voicing menu's lock isn't in them."""
+
+    def compact(self, skip=()):
+        return super().compact(skip=tuple(skip) + (VoicingMenuState,))
 
 
 class Env:
@@ -63,7 +71,7 @@ class Env:
             self.host, main_window_viewmodel=self.main,
             text_editor_viewmodel=TextEditorViewModel(parser),
             chord_sheet_viewmodel=self.sheet)
-        self.recorder = EventRecorder()
+        self.recorder = Recorder()
         self.session.subscribe(self.recorder)
         self.session.start()
         self.session.set_text(text)

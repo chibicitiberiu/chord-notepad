@@ -22,6 +22,7 @@ TIMEOUT = 3.0
 class FakeSynth:
     def __init__(self):
         self.calls = []
+        self.programs = []
         self.audio_driver = None
 
     def noteon(self, channel, key, velocity):
@@ -34,6 +35,7 @@ class FakeSynth:
         self.calls.append(("all_off", channel))
 
     def program_select(self, *args):
+        self.programs.append(args)
         return 0
 
     def cc(self, channel, control, value):
@@ -274,3 +276,23 @@ def test_metronome_channel_is_set_up_before_play(player):
     load(player, two_chords())
     player.start_playback()
     assert ("cc", 9, 7, 0) in player.fs.calls
+
+
+def test_instrument_change_while_paused_applies_on_resume_without_a_rewind(player):
+    load(player, two_chords())
+    player.start_playback()
+    player.pause_playback()
+    player.set_instrument(24)
+    assert player.fs.programs[-1] == (0, 1, 0, 24)  # the synth channel switches at once
+    player.resume_playback()
+    assert player.instrument == 24
+    assert player.fs.programs[-1] == (0, 1, 0, 24)  # resume doesn't put the old one back
+
+
+def test_instrument_change_while_playing_applies_to_the_notes_that_follow(player):
+    load(player, two_chords())
+    player.start_playback()
+    assert player.is_playing and not player.is_paused
+    player.set_instrument(40)
+    assert player.fs.programs[-1] == (0, 1, 0, 40)
+    assert player.instrument == 40

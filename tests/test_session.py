@@ -77,7 +77,7 @@ def test_type_text_no_spans_before_the_debounce_spans_after(env):
         ("StatusState", "Ready"),
         ("EditorState", "TkFixedFont", 11, False, "american"),
         ("ToolbarState", "american", 120, 120, True, 100.0, "C", 4, 4, False, "play"),
-        ("VoicingMenuState", "piano", ANY),
+        ("VoicingMenuState", "piano", ANY, None),
         ("InstrumentMenuState", 0, ANY),
         ("DocumentState", "Untitled", None, False, "Untitled - Chord Notepad", None),
         ("RecentDocumentsState", ()),

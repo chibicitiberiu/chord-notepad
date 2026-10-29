@@ -194,10 +194,15 @@ class VoicingMenuState:
             fretboards, the built-in ensembles, then the user's voicings (a
             group that would be empty is left out). Send a value back with
             ``set_voicing``.
+        locked_reason: None while the voicing can be changed; while a song
+            plays (not paused: it is rendered up front, so a change applies
+            to a paused song when it resumes) the reason it can't, which a
+            view shows on the disabled menu. ``set_voicing`` is refused then.
     """
 
     selected: str
     groups: Tuple[Tuple[MenuItem, ...], ...]
+    locked_reason: Optional[str] = None
 
 
 @dataclass(frozen=True)

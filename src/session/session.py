@@ -246,6 +246,12 @@ class AppSession:
         self._main.observe("font_size", self._on_editor_input)
         self._on_voicing = self._entry(self._publish_voicing_menu)
         self._main.observe("voicing", self._on_voicing)
+        # A voicing change while a song is paused: it was rendered with the
+        # old one, so Play re-renders from the paused chord.
+        self._voicing_stale = False
+        self._voicing_locked = False
+        self._on_voicing_stale = self._entry(self._on_voicing_changed)
+        self._main.observe("voicing", self._on_voicing_stale)
 
         # The strip's own state (visibility, view, zoom, playhead) and a
         # revision that goes up with every song it rendered. What the op
@@ -368,6 +374,7 @@ class AppSession:
         self._main.unobserve("font_family", self._on_editor_input)
         self._main.unobserve("font_size", self._on_editor_input)
         self._main.unobserve("voicing", self._on_voicing)
+        self._main.unobserve("voicing", self._on_voicing_stale)
         if self._chord_sheet is not None:
             for name in _CHORD_SHEET_INPUTS:
                 self._chord_sheet.unobserve(name, self._on_sheet_change)
@@ -779,6 +786,14 @@ class AppSession:
             logger.info("Pausing playback")
             self._main.pause_playback()
             self._set_paused_status()
+        elif status is PlaybackStatus.PAUSED and self._voicing_stale:
+            # The paused song was rendered with the old voicing: start again
+            # from the chord it stopped on, rendered with the new one.
+            span = self._playback.playing_span
+            from_offset = span.start if span is not None else self._playhead
+            logger.info("Resuming playback re-rendered (the voicing changed while paused)")
+            self._main.stop_playback()
+            self._start_playback(from_offset)
         elif status is PlaybackStatus.PAUSED:
             logger.info("Resuming playback")
             self._main.resume_playback()
@@ -1079,6 +1094,11 @@ class AppSession:
         values = {item.value for group in self._voicing_groups() for item in group}
         if voicing not in values:
             raise ValueError(f"unknown voicing {voicing!r}")
+        if self._playback_status() is PlaybackStatus.PLAYING:
+            # The song is pre-rendered with the voicing it started with.
+            logger.info("Not changing the voicing while a song plays")
+            self._set_status(formatting.VOICING_LOCKED_REASON)
+            return
         self._main.set_voicing(voicing)
 
     @_command
@@ -2020,8 +2040,14 @@ class AppSession:
         return formatting.voicing_menu_groups(self._main.get_voicings())
 
     def _publish_voicing_menu(self, _changed: Any = None) -> None:
+        locked = self._voicing_locked = self._playback_status() is PlaybackStatus.PLAYING
         self._emitter.set_state(VoicingMenuState(
-            selected=self._main.get_voicing(), groups=self._voicing_groups()))
+            selected=self._main.get_voicing(), groups=self._voicing_groups(),
+            locked_reason=formatting.VOICING_LOCKED_REASON if locked else None))
+
+    def _on_voicing_changed(self, _changed: Any = None) -> None:
+        if self._playback_status() is PlaybackStatus.PAUSED:
+            self._voicing_stale = True
 
     def _publish_instrument_menu(self) -> None:
         current = self._main.get_instrument()
@@ -2243,10 +2269,14 @@ class AppSession:
             # A stop (unlike the song ending) posts no "finished" ping, so the
             # chord sheet's playhead would stay on the last chord.
             self._clear_playhead()
+            self._voicing_stale = False
             self._publish_playback(PlaybackState(PlaybackStatus.IDLE))
             self._set_idle_status()
         else:
             self._publish_playback(dataclasses.replace(self._playback, status=status))
+        # The voicing menu is locked only while a song plays.
+        if self._voicing_locked != (status is PlaybackStatus.PLAYING):
+            self._publish_voicing_menu()
 
     def _clear_playhead(self) -> None:
         """Take the chord sheet's playhead off the last chord (once)."""

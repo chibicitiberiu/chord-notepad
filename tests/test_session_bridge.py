@@ -60,7 +60,8 @@ def test_encode_states_with_enums_tuples_and_nested_dtos():
 
     name, payload = encode(VoicingMenuState("piano", ((MenuItem("Piano", "piano"),), ())))
     assert json.loads(payload) == {"selected": "piano",
-                                   "groups": [[{"label": "Piano", "value": "piano"}], []]}
+                                   "groups": [[{"label": "Piano", "value": "piano"}], []],
+                                   "locked_reason": None}
     assert json.loads(encode(PlaybackState(PlaybackStatus.IDLE))[1])["playing_span"] is None
 
 

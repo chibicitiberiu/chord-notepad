@@ -485,6 +485,7 @@ class MainWindow(tk.Tk):
 
         playback_menu = tk.Menu(menubar, tearoff=0)
         playback_menu.add_cascade(label="Voicing", menu=self.voicing_menu)
+        self._playback_menu = playback_menu
         playback_menu.add_cascade(label="Instrument", menu=self.instrument_menu)
 
         menubar.add_cascade(label="Playback", menu=playback_menu)
@@ -1053,6 +1054,9 @@ class MainWindow(tk.Tk):
                         label=item.label, variable=self.voicing_var, value=item.value,
                         command=self.on_voicing_change)
         self.voicing_var.set(state.selected)
+        # Locked while a song plays (it is rendered up front); pausing unlocks.
+        self._playback_menu.entryconfigure(
+            "Voicing", state=tk.DISABLED if state.locked_reason else tk.NORMAL)
 
     def on_instrument_change(self) -> None:
         """The user picked an instrument in the menu."""

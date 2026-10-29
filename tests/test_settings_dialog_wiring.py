@@ -258,7 +258,7 @@ class TestInstrumentMenuModel:
 def test_tk_voicing_menu_is_rebuilt_from_the_state():
     from ui.main_window import MainWindow
 
-    window = SimpleNamespace(voicing_menu=Mock(), voicing_var=Mock(), _voicing_groups=None,
+    window = SimpleNamespace(voicing_menu=Mock(), voicing_var=Mock(), _voicing_groups=None, _playback_menu=Mock(),
                              on_voicing_change=Mock())
     groups = formatting.voicing_menu_groups({"MyGuitar": GUITAR})
     MainWindow.rebuild_voicing_menu(window, VoicingMenuState("voicing:MyGuitar", groups))

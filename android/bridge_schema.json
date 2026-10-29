@@ -627,6 +627,7 @@
     "VoicingMenuState": {
       "fields": {
         "groups": "list[list[MenuItem]]",
+        "locked_reason": "str|null",
         "selected": "str"
       },
       "kind": "state"

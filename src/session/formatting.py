@@ -75,6 +75,8 @@ def tapped_chord_status(chord: str) -> str:
 POSITION_SEPARATOR = " · "
 #: Android's status while a song is being rendered before its first chord.
 STARTING = "Starting…"
+#: Why the voicing can't change while a song plays (it is rendered up front).
+VOICING_LOCKED_REASON = "Pause to change the voicing"
 
 
 def position_status(bar: int, total_bars: int, activity: Optional[str] = None) -> str:
