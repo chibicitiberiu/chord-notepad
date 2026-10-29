@@ -102,6 +102,25 @@ The ⋮ menu is gone; the drawer holds everything it had.
 - **Edit mode:** never shown, on any device. The text gets the whole screen.
 - **Landscape** (phones and tablets, Play mode): always side by side. The text is on the left. The right column holds the chord sheet, with the player at its bottom in Play mode. A vertical drag handle sets the column width (30–70%, default 50%). In the narrower column the player's buttons shrink so all seven fit.
 
+## Colour and themes
+
+The UI uses one Material 3-style tonal family: neutral surfaces with a hint of the indigo primary. Each surface has a fixed role, and the app follows the system light/dark setting.
+
+| Token | Role | Light | Dark |
+|---|---|---|---|
+| surface | text, app bar | #fbfbff | #121318 |
+| surface-low | chord sheet, bottom sheets, drawer | #f4f5fa | #191b21 |
+| surface2 | Edit ribbon, player | #eceef5 | #202229 |
+| surface-high | selected chips, dialogs | #e2e5ef | #2a2c34 |
+| line | dividers | #d5d8e2 | #353842 |
+| text / muted / icon | | #1a1b20 / #5c5f6b / #454852 | #e3e4eb / #a3a7b3 / #c8cbd5 |
+| primary / on-primary / primary-soft | | #3f51b5 / #fff / #dde1ff | #b6c3ff / #1b2a6b / #2e3a72 |
+| song pill text | | #6a5a99 | #c4b5f2 |
+
+**Editor colours.** Light mode uses the desktop colours unchanged: chord #1565c0, directive #7b1fa2, comment #9e9e9e, playing #fff176. Dark mode needs readable variants of the same hues: #8ab4f8, #d39be0, #7f848f and a dark-yellow playing highlight #5a4f00. This is the one place the "don't change the editor colours" rule bends, and only for dark mode.
+
+**Chord sheet.** The bars keep their blue and brown, slightly lighter in dark mode (#78a6d8 / #d09a6c). The playing column is translucent yellow in both themes.
+
 ## Icons
 
 - **Library:** Pictogrammers Material Design Icons, 7.4.x, Apache-2.0. Add an entry to the licences screen.
