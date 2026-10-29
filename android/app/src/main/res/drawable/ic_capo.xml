@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Capo, drawn for Chord Notepad in the Material Design Icons style (24-unit
+     grid, one flat colour, rounded ends): three strings, the clamp bar across
+     them and its lever. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- Strings, broken where the bar presses them. -->
+    <path
+        android:fillColor="#FF000000"
+        android:pathData="M4.1,2.9A0.9,0.9 0 0,1 5.9,2.9V7.5H4.1Z
+            M8.6,2.9A0.9,0.9 0 0,1 10.4,2.9V7.5H8.6Z
+            M13.1,2.9A0.9,0.9 0 0,1 14.9,2.9V7.5H13.1Z
+            M4.1,16H5.9V21.1A0.9,0.9 0 0,1 4.1,21.1Z
+            M8.6,16H10.4V21.1A0.9,0.9 0 0,1 8.6,21.1Z
+            M13.1,16H14.9V21.1A0.9,0.9 0 0,1 13.1,21.1Z" />
+    <!-- The bar. -->
+    <path
+        android:fillColor="#FF000000"
+        android:pathData="M5.25,9H15.25A2.75,2.75 0 0,1 15.25,14.5H5.25A2.75,2.75 0 0,1 5.25,9Z" />
+    <!-- The lever. -->
+    <path
+        android:strokeColor="#FF000000"
+        android:strokeWidth="3"
+        android:strokeLineCap="round"
+        android:pathData="M16.6,12.4L20.4,20.2" />
+</vector>

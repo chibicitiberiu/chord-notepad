@@ -3,7 +3,7 @@
 
 Each text is the upstream file, verbatim, except where SOURCES says otherwise.
 Sources: the pinned wheels in the offline wheelhouse, the native submodules,
-this repository, and (for components with no source tree here) a distribution's
+this repository, the pinned @mdi/svg tarball (tools/mdi_icons.py), and (for components with no source tree here) a distribution's
 licence directory. The result is committed, so this only needs to run when a
 component or its version changes; ``--check`` verifies the committed files.
 
@@ -27,6 +27,7 @@ FEDORA = Path("/usr/share/licenses")
 
 # dest name -> ("file", path) | ("wheel", package, member regex) | ("python",)
 #            | ("until", path, marker line prefix: text before it)
+#            | ("mdi", member): a file of the @mdi/svg tarball in the cache
 SOURCES = {
     "AGPL-3.0.txt": ("file", REPO / "LICENSE"),
     "GeneralUser-GS.txt": ("file", REPO / "resources/soundfont/GeneralUser-GS.LICENSE.txt"),
@@ -65,6 +66,7 @@ SOURCES = {
     "idna-BSD.txt": ("wheel", "idna", r"licenses/LICENSE.md$"),
     "certifi-MPL-2.0.txt": ("wheel", "certifi", r"licenses/LICENSE$"),
     "charset-normalizer-MIT.txt": ("wheel", "charset_normalizer", r"licenses/LICENSE$"),
+    "mdi-Pictogrammers-Free-License.txt": ("mdi", "package/LICENSE"),
 }
 
 # Downloaded once, kept as committed (no local source):
@@ -94,6 +96,16 @@ def read(spec, wheelhouse: Path) -> str:
             if len(names) != 1:
                 raise SystemExit(f"{spec[1]}: {spec[2]!r} matched {names}")
             return z.read(names[0]).decode("utf-8")
+    if kind == "mdi":
+        import tarfile
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        import mdi_icons
+        with tarfile.open(mdi_icons.tarball()) as tar:
+            member = tar.extractfile(spec[1])
+            if member is None:
+                raise SystemExit(f"@mdi/svg: no {spec[1]}")
+            # Its LICENSE has CRLF line ends; kept as LF like the other texts.
+            return member.read().decode("utf-8").replace("\r\n", "\n")
     raise SystemExit(f"bad source {spec}")
 
 

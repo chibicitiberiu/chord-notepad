@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Transpose: Material Design Icons 7.4.47 "swap-vertical" and "music-note"
+     (Pictogrammers, Apache-2.0), overlapping, as in the agreed mockup. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="32dp"
+    android:height="24dp"
+    android:viewportWidth="32"
+    android:viewportHeight="24">
+    <group
+        android:scaleX="0.8333"
+        android:scaleY="0.8333"
+        android:translateY="2">
+        <path
+            android:fillColor="#FF000000"
+            android:pathData="M9,3L5,7H8V14H10V7H13M16,17V10H14V17H11L15,21L19,17H16Z" />
+    </group>
+    <group
+        android:scaleX="0.875"
+        android:scaleY="0.875"
+        android:translateX="12"
+        android:translateY="1.5">
+        <path
+            android:fillColor="#FF000000"
+            android:pathData="M12 3V13.55C11.41 13.21 10.73 13 10 13C7.79 13 6 14.79 6 17S7.79 21 10 21 14 19.21 14 17V7H18V3H12Z" />
+    </group>
+</vector>
