@@ -248,7 +248,7 @@ Each area is built only after its logic is in the core (most of it already is, a
 - Convert notation.
 - Chord Identifier: piano, typed notes, play without selecting (long-press), insert chord plus a space.
 - **Settings:** General and Playback (after the visibility rule).
-- **Voicings editor**, driven by a declarative form schema that moves into the core (labels, tooltips → supporting text, parse rules, field errors; `test_voicings_page_logic.py` moves with it).
+- **Voicings editor**, driven by a declarative form schema that moves into the core (labels, tooltips → supporting text, parse rules, field errors; `test_voicings_page_logic.py` moves with it). **Core done (2026-10-29):** `src/settings_forms/voicing_form.py` holds the per-model schemas (sections, fields, kinds, spinner ranges, defaults, help), values ↔ voicing conversion, field and cross-field errors, record add/remove and the Load config presets, all plain JSON; the Tk page renders from it (`tests/test_voicing_form*.py`). Still to do: bridge calls and the Compose renderer.
 - **Quick Start:** first-run auto-show and "don't show again", with per-platform text variants in the core.
 - **Help:**
   - the same `help/*.rst` with `.. only:: desktop` / `.. only:: android` blocks;

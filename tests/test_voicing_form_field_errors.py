@@ -1,18 +1,13 @@
-"""Headless unit tests for the pure inline-validation helper of the Voicings page.
+"""Headless tests for the voicings editor's parse-error detection.
 
-Only the module-level pure function :func:`field_errors` (and the parsing
-helpers it relies on) is exercised here -- no Tkinter widgets are constructed,
-so these tests run without a display. The import is tk-safe: importing the
-module only *defines* the widget class and the tooltip helpers, it never
-instantiates a root window.
-
-``field_errors`` runs on *collected* data (the output of a form's
-``collect()``), where a valid note name has already become an int and only an
-unparseable leftover stays a raw string. So the tests below feed ints for
-valid pitches and raw strings for the deliberate parse failures.
+``collected_field_errors`` runs on *parsed* voicing data (the output of
+``voicing_from_values``), where a valid note name has already become an int
+and only an unparseable leftover stays a raw string. So the tests below feed
+ints for valid pitches and raw strings for the deliberate parse failures.
+Moved from the Tk page with the logic (docs/ANDROID_PORT_PLAN.md, M5).
 """
 
-from ui.dialogs.voicings_page import field_errors
+from settings_forms.voicing_form import collected_field_errors as field_errors
 
 
 # ---------------------------------------------------------------------------

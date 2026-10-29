@@ -17,10 +17,8 @@ import logging
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
 
-from models.ensemble_spec import BUILTIN_ENSEMBLES, EnsembleSpec
-from models.fretboard_spec import BUILTIN_FRETBOARDS, FretboardSpec
-from models.piano_spec import DEFAULT_PIANO, PianoSpec
 from services.config_service import ConfigService
+from settings_forms.voicing_form import load_presets, voicing_error
 
 logger = logging.getLogger(__name__)
 
@@ -172,6 +170,14 @@ class SettingsViewModel:
         """Replace a voicing's entry wholesale (``data`` must include ``'model'``)."""
         self._working_voicings[name] = data
 
+    def get_load_presets(self) -> List[Dict[str, Any]]:
+        """Return the "Load config" entries: ``{'label', 'group', 'data'}`` dicts.
+
+        Built-ins first, then the current custom voicings sorted by name; see
+        :func:`settings_forms.voicing_form.load_presets`.
+        """
+        return load_presets(self._working_voicings)
+
     def get_load_sources(self) -> List[Tuple[str, dict]]:
         """Return ``(display_label, params)`` pairs for the "Load config" menu.
 
@@ -180,18 +186,7 @@ class SettingsViewModel:
         sorted by name. Each ``params`` dict includes its ``'model'`` and is a
         complete parameter set ready to load into the editor form.
         """
-        sources: List[Tuple[str, dict]] = []
-
-        for spec in BUILTIN_FRETBOARDS.values():
-            sources.append((spec.label, {'model': 'fretboard', **spec.to_dict()}))
-        for spec in BUILTIN_ENSEMBLES.values():
-            sources.append((spec.label, {'model': 'ensemble', **spec.to_dict()}))
-        sources.append(('Piano (default)', {'model': 'piano', **DEFAULT_PIANO.to_dict()}))
-
-        for name in sorted(self._working_voicings):
-            sources.append((name, copy.deepcopy(self._working_voicings[name])))
-
-        return sources
+        return [(preset['label'], preset['data']) for preset in self.get_load_presets()]
 
     def validate_voicing(self, name: str) -> Optional[str]:
         """Validate one working voicing; return an error message, or ``None`` if valid.
@@ -204,19 +199,7 @@ class SettingsViewModel:
         data = self._working_voicings.get(name)
         if data is None:
             return f"No voicing named '{name}'."
-        model = data.get('model')
-        try:
-            if model == 'fretboard':
-                FretboardSpec.from_dict(name, data)
-            elif model == 'ensemble':
-                EnsembleSpec.from_dict(name, data)
-            elif model == 'piano':
-                PianoSpec.from_dict(name, data)
-            else:
-                return f"Unknown voicing model: {model!r}"
-        except Exception as exc:  # noqa: BLE001 - surface any parse failure as text
-            return str(exc)
-        return None
+        return voicing_error(name, data)
 
     def validate_all(self) -> List[Tuple[str, str]]:
         """Return ``(name, error_message)`` for every invalid working voicing."""
