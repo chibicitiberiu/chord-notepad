@@ -35,10 +35,21 @@ drifting up or down over a long song or a repeated section.
 The Built-in Voicing
 =========================
 
-Chord Notepad ships with one built-in piano voicing, **Grand Piano**, and it's
-the default instrument for a new song. Its parameters reproduce the piano
-engine's original, hand-tuned behavior exactly, so if you've never touched
-the Voicings page, this is what you've been hearing all along.
+.. only:: desktop
+
+   Chord Notepad ships with one built-in piano voicing, **Grand Piano**, and it's
+   the default instrument for a new song. Its parameters reproduce the piano
+   engine's original, hand-tuned behavior exactly, so if you've never touched
+   the Voicings page, this is what you've been hearing all along.
+
+.. only:: android
+
+   Chord Notepad ships with one built-in piano voicing, listed as **Piano** in
+   the player's Voicing sheet and as **Piano (default)** under Load config in
+   the Voicings editor. It's the voicing a fresh install starts with. Its
+   parameters reproduce the piano engine's original, hand-tuned behavior
+   exactly, so if you've never touched the Voicings page, this is what you've
+   been hearing all along.
 
 
 Defining a Custom Piano Voicing
@@ -55,10 +66,20 @@ Defining a Custom Piano Voicing
 .. only:: android
 
    If you want the piano to sit in a different register, spread the hands
-   further apart, or trade completeness for a sparser texture, add a custom
-   piano voicing from ☰ → Settings → Voicings:
-   load **Grand Piano** as a starting point, change what's different (ranges,
-   span, weights), and save. See :doc:`settings` for the page itself.
+   further apart, or trade completeness for a sparser texture, make a custom
+   piano voicing:
+
+   1. Open **☰ → Settings → Voicings** and tap **Add voicing**. The new
+      voicing starts out as a guitar.
+   2. Tap **Load config** and pick **Piano (default)**. The form switches to
+      the piano's fields, with the built-in values filled in. (Picking
+      **Piano** under **Model** gives you the same values.)
+   3. Tap the **Name** field to name the voicing.
+   4. Change what's different: the hand ranges, the hand span, the weights.
+   5. Tap **Save**.
+
+   See :doc:`fretted` for how errors are shown, and :doc:`settings` for the
+   page itself.
 
 .. only:: desktop
 
@@ -67,47 +88,71 @@ Defining a Custom Piano Voicing
    at ``~/.config/chord-notepad/settings.json`` on Linux, or the equivalent
    per-user application-data folder on Windows and macOS.
 
+.. only:: desktop
+
+   Add a ``voicings`` object at the top level, keyed by a short slug you'll use
+   internally; each entry needs a ``"model": "piano"`` and describes one
+   keyboard configuration. Here's a voicing that keeps both hands lower and
+   closer together, suited to a slow, intimate ballad:
+
+   .. code-block:: json
+
+      {
+        "voicings": {
+          "close_low": {
+            "model": "piano",
+            "label": "Close & Low",
+            "rh_range": ["C3", "C6"],
+            "rh_center": 55,
+            "hand_gap_floor": 4,
+            "weights": {
+              "rh_wide_gap_penalty": -1.2
+            }
+          }
+        }
+      }
+
+   * ``model`` is required and must be ``"piano"`` for a voicing defined this
+     way (a fretted instrument uses ``"model": "fretboard"``, and an ensemble
+     uses ``"model": "ensemble"`` -- see :doc:`fretted` and :doc:`ensembles`).
+   * ``label`` is what shows up in the Voicing menu (defaults to the slug if
+     omitted).
+   * ``lh_range``, ``rh_range``, ``bass_range``, and ``rh_low_anchor`` are all
+     optional ``[low, high]`` pairs. Give each endpoint as a note name
+     (``"C3"``, ``"E4"``) or a raw MIDI number; middle C is ``C4``.
+   * ``rh_center``, ``rh_low_interval_floor``, ``hand_span``,
+     ``max_notes_per_hand``, ``max_total_notes``, ``hand_gap_floor``, and
+     ``add_bass`` are all optional -- see the parameter reference below for
+     what each controls and its default.
+   * ``weights`` is optional and partial -- give only the settings you want to
+     change, and everything else keeps its default. See the parameter
+     reference below for the full list of keys.
+
 .. only:: android
 
-   Voicings are edited in ☰ → Settings → Voicings; the configuration file is not something you edit by hand on Android.
+   Here's a voicing that keeps both hands lower and closer together, suited
+   to a slow, intimate ballad. Start from **Piano (default)** and change these
+   fields:
 
-Add a ``voicings`` object at the top level, keyed by a short slug you'll use
-internally; each entry needs a ``"model": "piano"`` and describes one
-keyboard configuration. Here's a voicing that keeps both hands lower and
-closer together, suited to a slow, intimate ballad:
+   .. list-table::
+      :header-rows: 1
+      :widths: 50 50
 
-.. code-block:: json
+      * - Field
+        - Value
+      * - Name
+        - Close & Low
+      * - Right hand (Low / High, under Hands & range)
+        - C3 / C6
+      * - RH center
+        - 55
+      * - Hand gap floor
+        - 4
+      * - Wide right-hand gap (under Weights)
+        - -1.2
 
-   {
-     "voicings": {
-       "close_low": {
-         "model": "piano",
-         "label": "Close & Low",
-         "rh_range": ["C3", "C6"],
-         "rh_center": 55,
-         "hand_gap_floor": 4,
-         "weights": {
-           "rh_wide_gap_penalty": -1.2
-         }
-       }
-     }
-   }
-
-* ``model`` is required and must be ``"piano"`` for a voicing defined this
-  way (a fretted instrument uses ``"model": "fretboard"``, and an ensemble
-  uses ``"model": "ensemble"`` -- see :doc:`fretted` and :doc:`ensembles`).
-* ``label`` is what shows up in the Voicing menu (defaults to the slug if
-  omitted).
-* ``lh_range``, ``rh_range``, ``bass_range``, and ``rh_low_anchor`` are all
-  optional ``[low, high]`` pairs. Give each endpoint as a note name
-  (``"C3"``, ``"E4"``) or a raw MIDI number; middle C is ``C4``.
-* ``rh_center``, ``rh_low_interval_floor``, ``hand_span``,
-  ``max_notes_per_hand``, ``max_total_notes``, ``hand_gap_floor``, and
-  ``add_bass`` are all optional -- see the parameter reference below for
-  what each controls and its default.
-* ``weights`` is optional and partial -- give only the settings you want to
-  change, and everything else keeps its default. See the parameter
-  reference below for the full list of keys.
+   Notes are written as note names (``C3``, ``E4``) or MIDI numbers; middle
+   C is ``C4``, MIDI 60. The parameter reference below explains every field.
 
 .. only:: desktop
 
@@ -118,8 +163,8 @@ closer together, suited to a slow, intimate ballad:
 
 .. only:: android
 
-   Custom piano voicings appear in the Voicing sheet of the Play tab, under
-   **Your voicings**, as soon as you save them.
+   Custom piano voicings appear in the player's Voicing sheet, under **Your
+   voicings**, as soon as you save them.
 
 
 How to Change Voicing
@@ -136,11 +181,18 @@ How to Change Voicing
 .. only:: android
 
    1. In the Play tab, tap **Voicing** in the player.
-   2. Select **Grand Piano**, or any custom piano voicing you've defined (see
+   2. Select **Piano**, or any custom piano voicing you've defined (see
       above).
    3. Play your chords to hear the difference.
 
-A checkmark shows the current voicing, the same as for :doc:`playback`.
+.. only:: desktop
+
+   A checkmark shows the current voicing, the same as for :doc:`playback`.
+
+.. only:: android
+
+   A filled radio button marks the current voicing. While a song plays the
+   Voicing button is greyed out: pause first (see :doc:`playback`).
 
 
 Voicing Parameters
@@ -159,9 +211,11 @@ Voicing Parameters
 
    Every piano voicing, built-in or custom, is steered by the same physical
    hand limits, the same scoring anchors, and the same set of numeric weights.
-   These are the controls the Voicings page of ☰ → Settings exposes, one control per row -- see :doc:`settings` for the
-   page itself; they can also be set directly in a voicing's entry in
-   ``settings.json``.
+   These are the fields of a piano voicing's form in ☰ → Settings → Voicings
+   (see :doc:`settings`). The four ranges are under **Hands & range**, each
+   with a Low and a High note. The **Config key** column is the setting's
+   name in the app's configuration file; you only need it if you share
+   voicings with the desktop version of Chord Notepad.
 
 Hands and Range
 ------------------
@@ -174,32 +228,32 @@ Hands and Range
      - What it does
      - Config key
      - Default
-   * - Left-hand range
+   * - :plat:`Left-hand range|Left hand`
      - The lowest and highest key the left hand will ever play.
      - ``lh_range``
      - C1 - C3
-   * - Right-hand range
+   * - :plat:`Right-hand range|Right hand`
      - The lowest and highest key the right hand will ever play.
      - ``rh_range``
      - C3 - C6
-   * - Preferred bass range
+   * - :plat:`Preferred bass range|Bass (preferred)`
      - Where the bass note should ideally sit. It isn't a hard limit --
        sitting outside this window costs the below/above-bass weights per
        semitone, so the left hand can still stray from it when the chord
        demands.
      - ``bass_range``
      - C2 - B2
-   * - Right-hand low anchor
+   * - :plat:`Right-hand low anchor|RH lowest-note anchor`
      - The window the right hand's *lowest* note is anchored within when the
        optimizer places a voicing at a given octave.
      - ``rh_low_anchor``
      - C3 - E4
-   * - Right-hand center
+   * - :plat:`Right-hand center|RH center`
      - The ideal mean pitch of the right hand. Drifting away from this costs
        the center-penalty weight per semitone.
      - ``rh_center``
      - 63 (Eb4)
-   * - Low-interval floor
+   * - :plat:`Low-interval floor|Muddy floor`
      - Below this pitch, a close right-hand interval (a third or narrower)
        starts to sound muddy rather than rich. Costs the low-interval-penalty
        weight per such interval.
@@ -209,7 +263,7 @@ Hands and Range
      - The widest reach of a single hand, in semitones -- a ninth by default.
      - ``hand_span``
      - 14
-   * - Max notes per hand
+   * - :plat:`Max notes per hand|Max notes/hand`
      - The most notes one hand may hold at once -- five fingers, five notes.
      - ``max_notes_per_hand``
      - 5
@@ -223,7 +277,7 @@ Hands and Range
        of shortfall.
      - ``hand_gap_floor``
      - 2
-   * - Add bass
+   * - :plat:`Add bass|Add bass note`
      - Whether the left hand plays a bass note at all. Turn this off for a
        right-hand-only texture, e.g. when something else is already covering
        the bass.
@@ -249,17 +303,17 @@ you want it to steer clear of gets a negative one; zero leaves it neutral.
        voicings; less positive lets the picker thin them out.
      - ``rh_note_bonus``
      - +0.6
-   * - Right-hand centering
+   * - :plat:`Right-hand centering|Right-hand center`
      - Subtracted per semitone the right hand's mean pitch strays from
-       "Right-hand center".
+       ":plat:`Right-hand center|RH center`".
      - ``rh_center_penalty``
      - -1.4
    * - Bass below range
-     - Subtracted per semitone the bass sits below "Preferred bass range".
+     - Subtracted per semitone the bass sits below ":plat:`Preferred bass range|Bass (preferred)`".
      - ``lh_below_bass_penalty``
      - -1.5
    * - Bass above range
-     - Subtracted per semitone the bass sits above "Preferred bass range".
+     - Subtracted per semitone the bass sits above ":plat:`Preferred bass range|Bass (preferred)`".
      - ``lh_above_bass_penalty``
      - -1.5
    * - Doubled bass
@@ -267,21 +321,21 @@ you want it to steer clear of gets a negative one; zero leaves it neutral.
        hand.
      - ``lh_double_penalty``
      - -1.0
-   * - Doubled bass, low
+   * - :plat:`Doubled bass, low|Doubled bass low`
      - An extra cost per semitone an octave-doubled bass sits below
-       "Preferred bass range", on top of "Doubled bass".
+       ":plat:`Preferred bass range|Bass (preferred)`", on top of "Doubled bass".
      - ``lh_double_low_penalty``
      - -1.0
-   * - Muddy interval
+   * - :plat:`Muddy interval|Muddy low interval`
      - Subtracted per close right-hand interval (a third or narrower)
-       sounding below "Low-interval floor".
+       sounding below ":plat:`Low-interval floor|Muddy floor`".
      - ``rh_low_interval_penalty``
      - -2.0
    * - Wide right-hand gap
      - Subtracted per interior right-hand gap wider than an octave.
      - ``rh_wide_gap_penalty``
      - -0.6
-   * - Muddy hand gap
+   * - :plat:`Muddy hand gap|Hands too close`
      - Subtracted per semitone the hands clear each other by less than
        "Hand gap floor".
      - ``muddy_gap_penalty``
@@ -290,13 +344,13 @@ you want it to steer clear of gets a negative one; zero leaves it neutral.
      - Added per common tone held across a chord change (voice leading).
      - ``common_tone_bonus``
      - +1.5
-   * - Movement
+   * - :plat:`Movement|Voice movement`
      - Subtracted per semitone of nearest-neighbour movement across a chord
        change (voice leading). More negative keeps both hands stiller from
        one chord to the next.
      - ``movement_penalty``
      - -0.35
-   * - Omission (by tone role)
+   * - :plat:`Omission (by tone role)|Omission`
      - Added to the score for dropping a chord tone entirely when the hand
        and note limits don't leave room for everything. The values are
        negative, so a more negative one keeps that tone more insistently.
