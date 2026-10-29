@@ -55,6 +55,7 @@ import io.github.chibicitiberiu.chordnotepad.R
 import io.github.chibicitiberiu.chordnotepad.bridge.DocumentState
 import io.github.chibicitiberiu.chordnotepad.bridge.HostStatus
 import io.github.chibicitiberiu.chordnotepad.bridge.PlayAction
+import io.github.chibicitiberiu.chordnotepad.ui.chordsheet.ChordSheetSplit
 import io.github.chibicitiberiu.chordnotepad.ui.editor.ChordEditor
 import io.github.chibicitiberiu.chordnotepad.ui.icons.AppIcons
 import io.github.chibicitiberiu.chordnotepad.ui.toolbar.SessionToolbar
@@ -144,6 +145,7 @@ fun MainScreen(graph: AppGraph, onCloseApproved: () -> Unit) {
                     onStepFontSize = actions::stepFontSize,
                     modifier = Modifier.weight(1f).fillMaxWidth().padding(horizontal = 6.dp),
                 )
+                ChordSheetSplit(graph.pyHost, Modifier.fillMaxWidth())
                 HorizontalDivider(Modifier.padding(top = 4.dp))
                 Text(
                     statusText(host, status?.text),
