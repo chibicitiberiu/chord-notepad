@@ -29,15 +29,18 @@ from constants import (
 )
 from chord_sheet.marker_lane import LANE_HEIGHT, build_marker_lane
 from chord_sheet.ops import DrawOps, ImageOp
-from chord_sheet.renderer_interface import SheetContext, STRIP_BG, StripLayout
+from chord_sheet.renderer_interface import (
+    PLAYHEAD_HIGHLIGHT,
+    SheetContext,
+    STRIP_BG,
+    StripLayout,
+)
 from ui.base.tooltip import TabToolTip
 from ui.chord_sheet.clef_images import image_for_clef_key
 from ui.chord_sheet.tk_replay import replay
 
 logger = logging.getLogger(__name__)
 
-#: Highlight fill drawn behind the chord slot under the playhead.
-_HIGHLIGHT_FILL = "#ffe58a"
 
 
 class ChordSheetPanel(ttk.Frame):
@@ -489,7 +492,7 @@ class ChordSheetPanel(ttk.Frame):
             0,
             slot.x + slot.width,
             layout.height,
-            fill=_HIGHLIGHT_FILL,
+            fill=PLAYHEAD_HIGHLIGHT,
             outline="",
             tags=("playhead-highlight",),
         )

@@ -692,6 +692,24 @@ class StaffCardRenderer(StripRenderer):
         fifths = self._key_at_scroll(ctx, height, scroll_x)
         self._paint_signature(ops, x_sig, fifths, geom, ("gutter",))
 
+    def gutter_breakpoints(self, ctx: SheetContext, height: float,
+                           layout: StripLayout) -> List[float]:
+        """Scroll positions where the gutter's key signature changes.
+
+        :meth:`_key_at_scroll` shows the key of the first slot whose left edge
+        is at or past ``scroll_x``, so the key of slot ``j`` takes over once
+        ``scroll_x`` passes slot ``j - 1``'s left edge. A breakpoint is that
+        edge, for every ``j`` whose key signature differs from slot ``j - 1``'s.
+        """
+        chords = ctx.song.chords
+        slots = layout.slots
+        breakpoints: List[float] = []
+        for j in range(1, len(slots)):
+            if (_key_fifths(chords[slots[j].chord_index].key)
+                    != _key_fifths(chords[slots[j - 1].chord_index].key)):
+                breakpoints.append(slots[j - 1].x)
+        return breakpoints
+
     def _key_at_scroll(self, ctx: SheetContext, height: float,
                        scroll_x: float) -> Optional[int]:
         """Circle-of-fifths of the key in effect at the first visible chord.

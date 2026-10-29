@@ -118,6 +118,20 @@ class StripRenderer(ABC):
         """
         return None
 
+    def gutter_breakpoints(self, ctx: 'SheetContext', height: float,
+                           layout: 'StripLayout') -> List[float]:
+        """Scroll positions where :meth:`paint_gutter` may start painting
+        something different.
+
+        The gutter painted for any ``scroll_x`` greater than one breakpoint
+        and not greater than the next is the same, so a host that cannot call
+        :meth:`paint_gutter` on every scroll (Android, through the op buffer)
+        paints one gutter per range instead. Breakpoints are content x
+        values; the default, ``[]``, means the gutter ignores ``scroll_x``.
+        Pure function of (ctx, height, layout).
+        """
+        return []
+
     requires_fingering: bool = False
     """When ``True`` the renderer only makes sense for songs that carry
     fretboard fingering data (``RenderedChord.fingering``); the viewmodel hides
@@ -197,6 +211,9 @@ NOTE_INK = "#22323a"
 #: Background color of the whole strip (panel canvases and any cutout rects a
 #: renderer draws behind glyphs/numbers must use this so they blend in).
 STRIP_BG = "#fbfbf8"
+
+#: Fill the panel draws behind the chord slot under the playhead.
+PLAYHEAD_HIGHLIGHT = "#ffe58a"
 
 
 def measure_boundaries(song: RenderedSong) -> List[float]:

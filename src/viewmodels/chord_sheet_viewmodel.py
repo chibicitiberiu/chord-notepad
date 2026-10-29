@@ -46,29 +46,12 @@ from models.chord import ChordInfo
 from models.line import Line
 from models.rendered_song import RenderedSong
 from session.host import Host
-from chord_sheet.fret_card import FretCardRenderer
-from chord_sheet.piano_roll import PianoRollRenderer
+from chord_sheet.registry import default_renderers
 from chord_sheet.renderer_interface import StripRenderer
-from chord_sheet.staff_card import StaffCardRenderer
-from chord_sheet.tab_strip import TabStripRenderer
 from utils.observable import Observable
 
 logger = logging.getLogger(__name__)
 
-
-def _default_renderers() -> List[StripRenderer]:
-    """Build the standard renderer set, in view-picker order.
-
-    Piano roll, Staff, Chord box, then Tab. The two fretted views declare
-    ``requires_fingering`` so the viewmodel gates them out for songs voiced
-    without fingering data (e.g. piano/ensemble).
-    """
-    return [
-        PianoRollRenderer(),
-        StaffCardRenderer(),
-        FretCardRenderer(),
-        TabStripRenderer(),
-    ]
 
 # Snap band for the auto-scroll rule (fractions of the viewport width).
 _SCROLL_SNAP_TO = 0.25   # where the playhead is placed after a snap
@@ -165,7 +148,8 @@ class ChordSheetViewModel(Observable):
                 scheduler (:class:`HostScheduler`) and the default marshal
                 (``host.post``).
             renderers: Strip renderers to offer; defaults to the standard set
-                (:func:`_default_renderers`: keyboard, staff, chord box, tab).
+                (:func:`~chord_sheet.registry.default_renderers`: keyboard, staff,
+                chord box, tab).
             render_fn: Injectable ``(lines, key, should_abort=None) ->
                 RenderedSong | None`` seam; defaults to a private-picker render
                 through ``audio_service.render_song`` (so a background strip
@@ -189,7 +173,7 @@ class ChordSheetViewModel(Observable):
         self._application = application
 
         self._renderers: List[StripRenderer] = (
-            list(renderers) if renderers is not None else _default_renderers()
+            list(renderers) if renderers is not None else default_renderers()
         )
         self._render_fn = render_fn or self._default_render
         self._audition_fn = audition_fn or audio_service.play_notes_immediate

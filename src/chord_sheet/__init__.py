@@ -8,6 +8,8 @@
 - :mod:`marker_lane` -- the pure geometry for the timeline marker lane drawn
   above every view.
 - :mod:`clef_assets` -- embedded clef images + placement math for the staff view.
+- :mod:`registry` -- the standard renderer set, in view-picker order.
+- :mod:`pack` -- packs one view into the compact op buffer Android draws from.
 
 The Tk side (the panel and the canvas replay) lives in :mod:`ui.chord_sheet`.
 """
