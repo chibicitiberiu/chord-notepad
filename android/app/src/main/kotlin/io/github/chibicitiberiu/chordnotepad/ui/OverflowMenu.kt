@@ -57,6 +57,7 @@ private enum class MenuPopup { NONE, VOICING_SHEET, INSTRUMENT_SHEET, FONT }
  * @param compact Phone-sized window: pickers as bottom sheets.
  * @param onAbout Open Help › About.
  * @param tools What Tools does (its pages are in `ui/tools/ToolsMenu.kt`).
+ * @param onSettings Open ⋮ › Settings.
  */
 @Composable
 fun OverflowMenu(
@@ -68,6 +69,7 @@ fun OverflowMenu(
     compact: Boolean,
     onAbout: () -> Unit,
     tools: ToolActions,
+    onSettings: () -> Unit,
 ) {
     val recent by repo.recentDocuments.collectAsState()
     val voicing by repo.voicingMenu.collectAsState()
@@ -111,7 +113,8 @@ fun OverflowMenu(
                     Submenu(stringResource(R.string.menu_view)) { page = MenuPage.VIEW }
                     Submenu(stringResource(R.string.menu_playback)) { page = MenuPage.PLAYBACK }
                     Submenu(stringResource(R.string.menu_tools)) { page = MenuPage.TOOLS }
-                    // Settings (M5c) goes here: help/*.rst names it ⋮ → Settings.
+                    // help/settings.rst: ⋮ → Settings (the desktop's Tools › Settings…).
+                    Item(stringResource(R.string.menu_settings), null, run(onSettings))
                     Submenu(stringResource(R.string.menu_help)) { page = MenuPage.HELP }
                 }
                 MenuPage.HELP -> {

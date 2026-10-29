@@ -15,6 +15,9 @@ object Pages {
     /** The open source licences list. */
     const val LICENCES = "licences"
 
+    /** ⋮ › Settings (its own pages are inside `SettingsScreen`; Back there is its own). */
+    const val SETTINGS = "settings"
+
     private const val DETAIL = "licence/"
 
     /** The page of licence entry [id]. */

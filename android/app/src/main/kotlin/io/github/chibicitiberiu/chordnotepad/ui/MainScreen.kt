@@ -67,6 +67,7 @@ import io.github.chibicitiberiu.chordnotepad.ui.chordsheet.ChordSheetSplit
 import io.github.chibicitiberiu.chordnotepad.ui.editor.ChordEditor
 import io.github.chibicitiberiu.chordnotepad.ui.icons.AppIcons
 import io.github.chibicitiberiu.chordnotepad.ui.requests.SessionRequests
+import io.github.chibicitiberiu.chordnotepad.ui.settings.SettingsScreen
 import io.github.chibicitiberiu.chordnotepad.ui.toolbar.SessionToolbar
 import io.github.chibicitiberiu.chordnotepad.ui.tools.ToolActions
 
@@ -79,10 +80,10 @@ private val StopCoral = Color(0xFFF08080)
 private val CompactWidth = 600.dp
 
 /**
- * The main screen, or the About pages over it (Help › About). The About
- * pages replace the editor rather than cover it, so nothing underneath keeps
+ * The main screen, or the About pages (Help › About) or Settings over it.
+ * They replace the editor rather than cover it, so nothing underneath keeps
  * the keyboard focus. Back closes the app (asking about unsaved changes) from
- * the editor, and goes up one page from About.
+ * the editor, and goes up one page from About; Settings handles it itself.
  */
 @Composable
 fun MainScreen(graph: AppGraph, onCloseApproved: () -> Unit) {
@@ -107,10 +108,20 @@ fun MainScreen(graph: AppGraph, onCloseApproved: () -> Unit) {
         graph.close.onCloseRequested()
         actions.requestClose()
     }
-    BackHandler(enabled = page != Pages.MAIN) { page = Pages.parent(page) }
+    // Settings handles Back itself (up a page, or leave asking about changes).
+    BackHandler(enabled = page != Pages.MAIN && page != Pages.SETTINGS) { page = Pages.parent(page) }
 
     when {
-        page == Pages.MAIN -> MainContent(graph, actions, snackbars, onAbout = { page = Pages.ABOUT })
+        page == Pages.MAIN -> MainContent(
+            graph, actions, snackbars,
+            onAbout = { page = Pages.ABOUT },
+            onSettings = { page = Pages.SETTINGS },
+        )
+        page == Pages.SETTINGS -> SettingsScreen(
+            repo = graph.repository,
+            commands = remember(graph) { ScreenCommands(graph.pyHost) },
+            onClosed = { page = Pages.MAIN },
+        )
         page == Pages.ABOUT -> AboutScreen(
             info = BuildInfo.current,
             onBack = { page = Pages.MAIN },
@@ -130,7 +141,13 @@ fun MainScreen(graph: AppGraph, onCloseApproved: () -> Unit) {
 /** The app bar, toolbar, editor, chord sheet and status line over the session's states. */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
-private fun MainContent(graph: AppGraph, actions: MainActions, snackbars: SnackbarHostState, onAbout: () -> Unit) {
+private fun MainContent(
+    graph: AppGraph,
+    actions: MainActions,
+    snackbars: SnackbarHostState,
+    onAbout: () -> Unit,
+    onSettings: () -> Unit,
+) {
     val repo = graph.repository
     val host by repo.hostStatus.collectAsState()
     val document by repo.document.collectAsState()
@@ -174,6 +191,7 @@ private fun MainContent(graph: AppGraph, actions: MainActions, snackbars: Snackb
                             compact = compact,
                             onAbout = onAbout,
                             tools = remember(graph) { ToolActions(graph.commands, ScreenCommands(graph.pyHost), graph.editor) },
+                            onSettings = onSettings,
                         )
                     },
                 )
