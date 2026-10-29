@@ -248,13 +248,13 @@ Each area is built only after its logic is in the core (most of it already is, a
 - Transpose and Capo (selection vs whole song, voicing chooser, "no capo helps").
 - Insert directives: BPM in 4 forms (20–300), Label with the duplicate check, Loop picking from existing labels.
 - Convert notation.
-- Chord Identifier: piano, typed notes, play without selecting (long-press), insert chord plus a space.
-- **Settings:** General and Playback (after the visibility rule).
-- **Voicings editor**, driven by a declarative form schema that moves into the core (labels, tooltips → supporting text, parse rules, field errors; `test_voicings_page_logic.py` moves with it). **Core done (2026-10-29):** `src/settings_forms/voicing_form.py` holds the per-model schemas (sections, fields, kinds, spinner ranges, defaults, help), values ↔ voicing conversion, field and cross-field errors, record add/remove and the Load config presets, all plain JSON; the Tk page renders from it (`tests/test_voicing_form*.py`). Still to do: bridge calls and the Compose renderer.
-- **Quick Start:** first-run auto-show and "don't show again", with per-platform text variants in the core.
+- Chord Identifier: piano, typed notes, play without selecting (long-press), insert chord plus a space. **Core done (2026-10-29):** `identifier_*`, `play_note`, `play_identified_chord` and `IdentifierState` (docs/ANDROID.md, "M5 screens").
+- **Settings:** General and Playback (after the visibility rule). **Core done (2026-10-29):** `SettingsState` and a settings edit (`begin_settings_edit` … `save_settings`).
+- **Voicings editor**, driven by a declarative form schema that moves into the core (labels, tooltips → supporting text, parse rules, field errors; `test_voicings_page_logic.py` moves with it). **Core done (2026-10-29):** `src/settings_forms/voicing_form.py` holds the per-model schemas (sections, fields, kinds, spinner ranges, defaults, help), values ↔ voicing conversion, field and cross-field errors, record add/remove and the Load config presets, all plain JSON; the Tk page renders from it (`tests/test_voicing_form*.py`). Bridge calls done too (2026-10-29: `VoicingEditorSchema`, `VoicingEditorState` and the voicing commands inside a settings edit); still to do: the Compose renderer.
+- **Quick Start:** first-run auto-show and "don't show again", with per-platform text variants in the core. **Core done (2026-10-29):** `request_quick_start` → `QuickStartContent`; the flag is in `SettingsState`; the host passes `platform="android"` at bootstrap.
 - **Help:**
   - the same `help/*.rst` with `.. only:: desktop` / `.. only:: android` blocks;
-  - a `make docs-html-android` target (`-t android`);
+  - a `make docs-html-android` target (`-t android`); **done (2026-10-29)**, the desktop build passes `-t desktop` (and `conf.py` defaults to it);
   - bundled in an offline WebView.
 - **About:** AGPL notice, source link, build info.
 - **Open source licences screen** (compliance): AboutLibraries offline, plus manual entries for the Python packages, CPython and Chaquopy's bundled libraries, FluidSynth/libsndfile (LGPL), Oboe, the codecs, GeneralUser GS and Bravura.

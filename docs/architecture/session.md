@@ -552,19 +552,41 @@ desktop-only services (resources, logging setup) and the document store.
   calls it directly through `SessionHandle.chord_sheet_buffer` without
   waiting for the session thread. The renderers are shared with the strip;
   they are treated as pure (as `pack_view` requires), which nothing checks.
-- **Dialog-scoped models are desktop-only.** `settings_model()` and
-  `chord_identifier_model()` return live viewmodels. Android has the
-  settings path above; what M5 still needs from the bridge:
-  - the voicings registry (the voicings editor's form schema, M5);
-  - the chord identifier: a command that identifies a note list (or a
-    typed note string) and a reply state with the candidates, plus
-    play-note/play-chord commands through the session's
-    `AudioFailurePolicy` (inserting already works: `insert_chord`);
-  - Quick Start text variants and the first-run flag
-    (`set_show_quick_start_on_startup` is a bridge command; reading it
-    needs a state or the settings values);
-  - an output type for each of these, which the Kotlin contract test will
-    then ask Kotlin to decode.
+- **Dialog-scoped models: desktop dialogs vs session-held screens.** The
+  desktop Settings dialog and chord identifier still hold live viewmodels
+  (`settings_model()`, `chord_identifier_model()`). Bridge views get the
+  same logic held by the session instead (M5 core, 2026-10-29):
+  - the chord identifier is a session-owned `ChordIdentifierViewModel`
+    behind `identifier_*` / `play_note` / `play_identified_chord` commands
+    and an `IdentifierState`; the note helpers (`note_to_midi`,
+    `bass_note`, `parse_notes`) are module functions the Tk piano widget
+    uses too. The desktop dialog doesn't go through the session path yet:
+    it would need to subscribe to the session for `IdentifierState`, and
+    its listbox mixes chords with explanation lines, so it was left as is
+    (same viewmodel, so the same answers).
+  - a Settings screen is a `SettingsEdit` (`session/settings_edit.py`): a
+    `SettingsViewModel` working copy plus the voicing in the form, edited
+    through `settings_forms.voicing_form` exactly as the Tk Voicings page
+    does, saved with the dialog's gate (`validate_all`, then `commit`, then
+    the same apply as `apply_settings`). One edit at a time; begin drops an
+    older one.
+  - `SettingsState` is re-read from the config at the end of every
+    outermost command (`Emitter.set_before_flush`), because several
+    viewmodels write the config and none notifies; an unchanged value is
+    dropped, so this costs nine attribute reads per command.
+  - these three states are published only by a session built with
+    services (Android always is; the headless test sessions without
+    services keep their old replay).
+  - `VoicingEditorState` and the editor schema carry plain JSON in fields
+    typed `Any` (schema type `json`): the voicing form is a dict keyed by
+    field id, and mirroring every field as a DTO would duplicate the schema.
+- **Per-platform texts.** `create_session(platform=...)` (`desktop` by
+  default, `android` from the Android host) picks the wording of the few
+  strings that name a gesture or a menu: the click-to-hear audio message,
+  the chord sheet's disabled-tab reason, the voicing editor's name help and
+  the Quick Start pages (`session/quick_start.py`, which the Tk dialog now
+  reads too). The desktop variant is always the old text; tests pin it
+  (`tests/fixtures/quick_start_desktop.json`).
 - **Click-to-hear and the shared picker.** `play_chord_immediate` still
   voices with the shared note picker on the session thread while a playback
   render may be using it (as before step 12). On Android the session thread

@@ -190,7 +190,11 @@ class SessionHandle:
 - `start` runs once per process, on Kotlin's `python-bridge` thread, after
   `System.loadLibrary("fluidsynth")` and `Python.start`. It builds the core
   (`bootstrap.build_core_services`), starts a `ThreadedHost`, creates the
-  session with an `AndroidDocumentStore` (below), subscribes a listener that
+  session with an `AndroidDocumentStore` (below) and `platform="android"`
+  (`session.platform`: the texts that name a gesture or a menu path get
+  their Android wording, e.g. "Tapped chords won't play…", "⋮ → Playback →
+  Voicing"; the desktop passes nothing and keeps its exact texts),
+  subscribes a listener that
   forwards every output to `event_sink`, installs the `session.errors`
   handler (emits `UnexpectedError`, throttled) and returns. It may block for
   the imports; it must not wait for anything on the session thread that needs
@@ -224,8 +228,8 @@ Types Kotlin decodes (`BridgeCodec.serializers`):
 
 | Kind | Types |
 |---|---|
-| States | `DocumentState`, `EditorState`, `HighlightState`, `PlaybackState`, `ToolbarState`, `StatusState`, `VoicingMenuState`, `InstrumentMenuState`, `RecentDocumentsState`, `ChordSheetState` |
-| Events | `TextEdited`, `UserError`, `AudioUnavailable`, `UnexpectedError`, `CloseApproved` |
+| States | `DocumentState`, `EditorState`, `HighlightState`, `PlaybackState`, `ToolbarState`, `StatusState`, `VoicingMenuState`, `InstrumentMenuState`, `RecentDocumentsState`, `ChordSheetState`; M5: `IdentifierState`, `SettingsState`, `VoicingEditorState` |
+| Events | `TextEdited`, `UserError`, `AudioUnavailable`, `UnexpectedError`, `CloseApproved`; M5 replies: `VoicingEditorSchema`, `QuickStartContent` |
 | Requests | `ConfirmDiscardRequest`, `PickDocumentRequest`, `CapoChoiceRequest`, `InsertDirectiveRequest` |
 
 **Step 14 added two things to the DTOs** (Kotlin already had them):
@@ -276,16 +280,78 @@ input is ignored; the speed accepts `150`, `150%`, `1.5x`), `set_key {key}`,
 `PickDocumentRequest` → `DocumentRef` or None; `ConfirmDiscardRequest` →
 `"save"`/`"discard"`/`"cancel"` or None; `CapoChoiceRequest` → the option
 value or None; `InsertDirectiveRequest` → a `{field: str}` dict or None.
-Python also accepts three commands Kotlin doesn't send yet (M5):
-`insert_chord {at, chord}` (the chord identifier's insert),
-`apply_settings {changes}` with `changes` a whole `SettingsValues` object
-(the General/Playback settings: font family and size, notation, key, Quick
-Start at startup, recent-list length, tempo, time signature; out-of-range
-values are an `UnexpectedError` and nothing is written) and
-`set_show_quick_start_on_startup {show}`. A parameter that has a default in
+The M5 screens' commands are below ("M5 screens"). A parameter that has a default in
 `AppSession` may be left out; any other missing, unknown or mistyped
 argument is an `UnexpectedError(context="bridge")`, and a command that
 raises is an `UnexpectedError` whose `context` is the command name.
+
+**M5 screens** (Python side done 2026-10-29; Kotlin builders in
+`bridge/ScreenCommands.kt`, DTOs in `bridge/ScreenOutputs.kt`, flows in
+`SessionRepository`; the Compose screens are still to build):
+
+- *Chord identifier.* `identifier_toggle_note {note, octave}` (a key tap:
+  select or deselect; a newly selected key sounds), `play_note {note,
+  octave}` (long-press: sound without selecting), `identifier_set_notes_text
+  {text}` (the typed field: `"C E G"`, `"C4, E4, G4"`, octave 4 by default;
+  silent), `identifier_clear {}` (Clear, and when the screen opens),
+  `play_identified_chord {chord}` (a tapped candidate; an unplayable chord is
+  a `UserError`), `insert_chord {at, chord}` (inserts `chord + " "`, says
+  "Inserted chord: X"). Note names may be flats or lower case; they come back
+  spelled with sharps. Audio that can't start follows the click policy
+  (`AudioUnavailable` once per session). Output: `IdentifierState {notes:
+  [{name, octave, midi}] lowest first, notes_text, typed_text_error,
+  candidates, message}`. `notes_text` is what the typed field shows after a
+  key toggle (don't overwrite the field while the user types there);
+  typed notes keep their octave, which may lie outside the keys a piano
+  shows; `message` replaces the candidate list when there are none.
+- *Settings values.* `SettingsState {values: SettingsValues, american_keys,
+  european_keys, font_size_min/max, bpm_min/max, max_recent_files_max,
+  time_signature_units}` is published at subscribe and again whenever the
+  config changed at the end of a command (the toolbar writes tempo, key,
+  time signature and notation into it too). `values` holds exactly the
+  settings Android shows (the visibility rule: no log level, audio driver,
+  SoundFont path or window geometry), so visibility needs no extra flag;
+  Kotlin maps the font family to Monospace/Sans/Serif. Quick Start's
+  first-run flag is `values.show_quick_start_on_startup`.
+  `apply_settings {changes: SettingsValues}` writes and applies them at once
+  (out-of-range values: `UnexpectedError`, nothing written);
+  `set_show_quick_start_on_startup {show}` is "Don't show this again".
+- *Settings edit (the Settings screen, with the voicings editor).*
+  `begin_settings_edit {}` opens a working copy (a `SettingsViewModel`, as
+  the desktop dialog), `cancel_settings_edit {}` drops it, `save_settings
+  {values: SettingsValues|null}` saves: every voicing is validated first (the
+  desktop's gate: a `UserError` "Invalid Voicing" naming the first bad one,
+  which gets selected, and the edit stays open), then one config write, then
+  the same apply as `apply_settings` (font, Voicing menu, the voicing in use
+  followed through renames or reset when removed). `null` keeps the
+  General/Playback values as the config has them. The edit ends with
+  `VoicingEditorState.active == false`; a config that can't be written is a
+  `UserError` "Settings" and the edit stays open.
+- *Voicings editor* (inside an edit; outside one these raise →
+  `UnexpectedError`): `request_voicing_editor_schema {}` → `VoicingEditorSchema
+  {version, schema}` (`voicing_form.editor_schema("android")`: models, list
+  groups, fixed texts incl. the confirmation dialogs, header help, and per
+  model the sections and fields with kinds, labels, help, ranges, defaults;
+  static, keep it per `version`), `select_voicing {name}`, `add_voicing {}`
+  (a guitar fretboard named "New voicing", selected), `remove_voicing
+  {name}`, `rename_voicing {old, new}` (refused names: `UserError` "Rename
+  Voicing"), `set_voicing_values {values}` (a JSON object of the changed
+  fields, or all; merged, parsed forgivingly), `set_voicing_model {model}`
+  (that model's defaults; confirm first when `dirty`), `add_voicing_record
+  {field_id}` / `remove_voicing_record {index, field_id}` (`field_id`
+  defaults to `voices`), `load_voicing_preset {group, label}`. Every one
+  republishes `VoicingEditorState {active, revision, groups: [{model, label,
+  names}], invalid, presets: [{label, group}], selected, model, values,
+  field_errors, form_errors, hints, dirty}`: `values` / `field_errors` /
+  `hints` are JSON objects keyed by field id (`voice:<i>:<column>` for a
+  records cell), recomputed on every edit, so Kotlin never parses or
+  validates. `revision` goes up on every command (also a refused rename),
+  so the screen can reset its fields from the state.
+- *Quick Start.* `request_quick_start {}` → `QuickStartContent {pages:
+  [{title, blocks: [{kind: text|snippet|image, text, notation, spans,
+  image}]}], show_on_startup}`, worded for the platform (taps, the ⋮ menu;
+  no desktop screenshot). Snippet blocks carry the editor's highlight spans
+  (code points), so they paint like the editor.
 
 **Host commands** (the lifecycle). `pause` and `restore_draft` are
 `AppSession` commands; `app_background` and `app_foreground` are run by
@@ -364,9 +430,12 @@ dump:
 ```
 
 `kind` is `state`, `event`, `request` or `value` (nested types: `Span`,
-`MenuItem`, `InstrumentFamily`, `ChordSheetView`, `DocumentRef`, and
-`SettingsValues`, which only travels inbound). Field types are `str`, `int`,
-`float`, `bool`, an enum or DTO name, `list[X]` and `X|null`. Two more keys
+`MenuItem`, `InstrumentFamily`, `ChordSheetView`, `DocumentRef`,
+`SettingsValues`, `IdentifierNote`, `VoicingGroup`, `VoicingPreset`,
+`QuickStartPage`, `QuickStartBlock`). Field types are `str`, `int`,
+`float`, `bool`, an enum or DTO name, `list[X]`, `X|null` and `json` (any
+JSON value, a Python field typed `Any`: the voicing form's values, errors
+and hints and the editor schema; Kotlin uses `JsonObject`). Two more keys
 document the inbound side: `command_params` (each command's parameters and
 their types; `selection` is `[start, end]` or null, `any` is `respond`'s
 value) and `answers` (what `respond` takes for each request type).
@@ -376,9 +445,10 @@ the committed file is stale. The Kotlin
 `BridgeSchemaContractTest` (skipped while the file is missing) checks that
 every output type has exactly the same field names on both sides, that
 Kotlin decodes every output the schema lists, the value types and enum
-values, and that `commands` covers every command Kotlin sends. Checked on
-2026-10-29 against a schema generated from the current `state.py`/`events.py`
-plus the two additions above: all pass.
+values, and that `commands` covers every command Kotlin sends;
+`ScreenBridgeTest` does the same for the M5 value types and
+`ScreenCommandNames`, and checks the builders' JSON. Both pass against the
+committed schema (2026-10-29).
 
 ### Kotlin side
 
@@ -471,7 +541,10 @@ plus the two additions above: all pass.
 
 **Status:** the Python half is built (`src/chord_sheet/pack.py`, format
 version 1), and the bridge hands it out (`SessionHandle.chord_sheet_buffer`,
-"Bridge contract" above); the Kotlin decoder is M4.
+"Bridge contract" above); the Kotlin decoder, cache and painter are built
+too (M4: `ui/chordsheet/ChordSheetBuffer.kt`, `ChordSheetController.kt`,
+`ChordSheetPainter.kt`). A pinch sends its whole step count as one
+`chord_sheet_zoom {step}`, which applies `|step|` steps and repaints once.
 
 The chord sheet's renderers (`src/chord_sheet/`) are headless: they record
 draw ops (`chord_sheet/ops.py`) that the Tk panel replays onto a canvas.
