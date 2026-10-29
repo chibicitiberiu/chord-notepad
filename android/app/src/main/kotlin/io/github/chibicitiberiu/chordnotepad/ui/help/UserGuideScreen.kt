@@ -80,6 +80,7 @@ fun UserGuideScreen(onClose: () -> Unit) {
                     .build()
                 WebView(ctx).apply {
                     settings.javaScriptEnabled = true
+                    settings.domStorageEnabled = true // Sphinx scripts read sessionStorage; null without it
                     settings.allowFileAccess = false
                     settings.allowContentAccess = false
                     settings.setGeolocationEnabled(false)
