@@ -33,7 +33,7 @@ Starting Playback
 .. only:: android
 
    1. **Song pill**: the tempo, time signature and key the song starts with.
-      Tap it for Song defaults (see :ref:`song-defaults`).
+      Tap it for Song defaults (see :ref:`playback-song-defaults`).
    2. **Voicing**: how each chord is spread into notes. Greyed out while a
       song plays.
    3. **Instrument**: the sound.
@@ -160,7 +160,7 @@ While playing:
      timeout.
    * You can change the instrument, the speed and the metronome while the song
      plays. The voicing and the tempo wait until you pause or stop (see
-     `Voicing Options`_ and :ref:`song-defaults`).
+     `Voicing Options`_ and :ref:`playback-song-defaults`).
 
    Chord Notepad doesn't play in the background. Playback pauses, and stays
    paused until you tap **▶**, when:
@@ -641,7 +641,7 @@ Instrument Suggestions
 Different instruments can highlight different aspects of a chord progression.
 
 
-.. _song-defaults:
+.. _playback-song-defaults:
 
 :plat:`The Status Bar|The Status Line and Song Defaults`
 ========================================================
