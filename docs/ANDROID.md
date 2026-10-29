@@ -38,15 +38,17 @@ android/
   tools/check_16k.py                16 KB page-size check for an APK
   tools/check_manifest.py           no INTERNET, no Play services, no emoji2 font initializer in an APK
   tools/compare_apks.py             entry-by-entry APK diff (reproducibility)
+  tools/export_clef_glyphs.py       the chord sheet's six base clef/glyph PNGs (Gradle: exportClefGlyphs)
 ```
 
 The Python core is not copied: Chaquopy reads `../../src` directly, minus
 `ui/**` and the desktop-only modules (`main.py`, `application.py`,
 `utils/display_scaling.py`, `utils/file_dialogs.py`, `utils/icon_loader.py`,
 `utils/ui_helpers.py`; the same list as `tests/test_core_import_guard.py`).
-The SoundFont (`resources/soundfont/GeneralUser-GS.sf2`) and the spike's sample
-song (`examples/02_american_complete.txt`) are copied into the APK's assets by
-Gradle tasks, not duplicated in git.
+The SoundFont (`resources/soundfont/GeneralUser-GS.sf2`), the spike's sample
+song (`examples/02_american_complete.txt`) and the chord sheet's clef/glyph
+PNGs (exported from `src/chord_sheet/clef_assets.py`) are put into the APK's
+assets by Gradle tasks, not duplicated in git.
 
 ## Toolchain
 
@@ -373,6 +375,191 @@ wheelhouse with `--require-hashes`, runs `./gradlew testDebugUnitTest lint
 assembleDebug`, then `check_16k.py`, `zipalign -c -P 16` and
 `check_manifest.py` on the debug APK.
 
+## Chord sheet op buffer
+
+**Status:** the Python half is built (`src/chord_sheet/pack.py`, format
+version 1). The bridge command that returns the buffer is not wired yet (the
+session owns that); the Kotlin decoder is M4.
+
+The chord sheet's renderers (`src/chord_sheet/`) are headless: they record
+draw ops (`chord_sheet/ops.py`) that the Tk panel replays onto a canvas.
+Android gets the same ops as one `bytes` object per (view, zoom, height):
+
+```python
+from chord_sheet.pack import pack_view
+data = pack_view(rendered_song, view_id, zoom, height, renderers=None)
+```
+
+`view_id` is `keyboard`, `staff`, `fret` or `tab`; `zoom` is the view's zoom
+factor (ignored by views without zoom support); `height` is the strip's
+content height in dp, the marker lane excluded. `renderers` defaults to the
+standard set (`chord_sheet.registry.default_renderers()`); the session passes
+the chord sheet viewmodel's own list. Packing is deterministic (same inputs,
+same bytes). `chord_sheet.pack.unpack()` is the reference decoder and
+`tests/test_chord_sheet_pack.py` pins the layout (`test_format_golden`) and
+each view's bytes for a sample song (`test_view_golden`).
+
+Kotlin decodes a buffer once, keeps it, and draws only the ops inside the
+visible range. A new buffer is needed when the rendered song, the view, the
+zoom or the strip height changes, never on scroll.
+
+### What a buffer holds
+
+- **Content ops**: the view's strip, in content coordinates (x from the
+  strip's left edge, right of the gutter; scrolls horizontally).
+- **Lane ops**: the marker lane (sections, loops, tempo, meter and key
+  changes), `lane_height` tall, drawn above the content and scrolled with it.
+- **Slots**: one per chord, in song order, rests included: `chord_index`
+  (index into `RenderedSong.chords`, the same index `audition` and the
+  playhead use), `x` and `width`. Tap hit-test: content x = scroll offset +
+  tap x; the slot with `x <= cx <= x + width` is auditioned. The playhead
+  highlight is a rect in the `highlight` colour over the current slot's
+  `x .. x + width`, full content height, drawn *behind* the content ops.
+- **Gutter variants and runs**: the frozen left gutter (piano-roll keyboard,
+  staff clefs + key signature), `gutter_width` wide, drawn in gutter-local
+  coordinates in a pane that does not scroll; above it, a `lane_height` corner
+  filled with `background`. The staff gutter shows the key signature in
+  effect at the first visible chord, so a buffer carries one pre-painted
+  variant per distinct gutter and a list of runs `(start_x, variant)` sorted
+  by `start_x`, the first at `-inf`. For a scroll offset `s` (content x at the
+  viewport's left edge) draw the variant of the **last run with
+  `start_x < s`**. A static gutter is one variant and one run; a view with no
+  gutter (`fret`, `tab`) has `gutter_width = 0` and no variants.
+- `background` (the strip colour, `#fbfbf8`) and `highlight` (`#ffe58a`).
+
+### Byte layout (version 1)
+
+Little-endian throughout, no padding or alignment (read with absolute offsets
+from a `ByteBuffer` in `LITTLE_ENDIAN` order). `f32` is IEEE 754 float32;
+`str` is a `u16` index into the string table, `0xFFFF` meaning "none".
+
+Header (`header_size` bytes; 48 in version 1, a later minor addition may
+append fields, so always continue at `header_size`):
+
+| Offset | Type | Field |
+|---|---|---|
+| 0 | 4 bytes | magic `CNSB` |
+| 4 | u16 | version (1) |
+| 6 | u16 | header_size (48) |
+| 8 | str | view_id |
+| 10 | str | background colour |
+| 12 | str | highlight colour |
+| 14 | u16 | flags (0, reserved) |
+| 16 | f32 | zoom |
+| 20 | f32 | height (as requested) |
+| 24 | f32 | content_width |
+| 28 | f32 | content_height |
+| 32 | f32 | gutter_width (0 = no gutter) |
+| 36 | f32 | lane_height |
+| 40 | u32 | string_count |
+| 44 | u32 | slot_count |
+
+Then, in order:
+
+1. **String table**: `string_count` × (`u16` byte length, UTF-8 bytes).
+   Strings are numbered from 0 in first-use order: colours, text, image
+   keys and tags all share it.
+2. **Slots**: `slot_count` × (`u32` chord_index, `f32` x, `f32` width).
+3. **Content op list.**
+4. **Lane op list.**
+5. `u16` variant_count, then variant_count **gutter op lists**.
+6. `u16` run_count, then run_count × (`f32` start_x, `u16` variant). The
+   first run's start_x is `-inf`.
+
+The buffer ends exactly there. An **op list** is `u32` op_count, `u32`
+byte_length (of the ops that follow, so a list can be skipped), then the
+ops. Each op is a `u8` opcode, its fields, then its tags (`u8` count, count ×
+`str`):
+
+| Opcode | Op | Fields after the opcode |
+|---|---|---|
+| 1 | rect | `f32` x, y, w, h; `str` fill; `str` outline; `f32` width |
+| 2 | oval | same as rect; the ellipse inscribed in the box |
+| 3 | line | `str` fill; `f32` width; `u16` n; n × (`f32` x, `f32` y) |
+| 4 | polygon | `str` fill; `u8` smooth; `u16` n; n × (`f32` x, `f32` y) |
+| 5 | text | `f32` x, y; `str` text; `u8` anchor; `u8` bold; `f32` size (pt); `str` fill |
+| 6 | image | `f32` x, y; `str` key; `u8` anchor |
+
+Anchors: 0 `nw`, 1 `n`, 2 `ne`, 3 `w`, 4 `center`, 5 `e`, 6 `sw`, 7 `s`,
+8 `se`. An unknown opcode or version is an error (don't guess at sizes).
+
+**Colours** are Tk colour strings; every renderer today uses `#rrggbb`.
+Rect/oval fill or outline "none" (`0xFFFF`) or `""` means don't paint that
+part. Line, polygon and text never come without a fill today; if one does,
+Tk's default is black.
+
+**Image keys** (staff view only): `clef_<kind>:<h>`, `glyph_<name>:<h>` and
+`glyph_<name>:<h>:<rrggbb>` (`chord_sheet.clef_assets.parse_image_key`).
+The part before the first `:` names one of six base PNGs that the
+`exportClefGlyphs` Gradle task puts in `assets/chord_sheet/<name>.png`
+(from `android/tools/export_clef_glyphs.py`, with a `glyphs.json` of base
+sizes). Draw it `h` dp tall and `max(1, round(base_w * h / base_h))` wide,
+anchored like text (only `nw` today). A colour tints the black ink, keeping
+the alpha (`ColorFilter.tint(colour, BlendMode.SrcIn)`). Keys repeat a lot;
+cache one scaled bitmap per key.
+
+Limits: 65535 strings and 255 tags per op (`pack_view` raises `ValueError`
+past them), 65535 points per line or polygon. Per-chord tags (`slot:<i>`)
+use one string each, so the string table grows with the song; a 2,000-chord
+song stays far below.
+
+### Sizes and timings
+
+`examples/02_american_complete.txt` (133 chords, 15 markers), height 130,
+zoom 1. Desktop, Python 3.14.8, median of 15 runs, host load average ~13 on
+24 threads. "Render" is layout + paint + lane + gutter variants
+(`collect_view`); "pack" is the serialisation alone. Guitar voicing (all four
+views) and, for the views that don't need fingerings, piano voicing:
+
+| View | Voicing | Ops (content + lane + gutter) | Bytes | zlib -6 | Render | Pack |
+|---|---|---|---|---|---|---|
+| keyboard | guitar | 946 + 44 + 40 | 33,645 | 8,912 | 3.2 ms | 2.2 ms |
+| staff | guitar | 1,078 + 44 + 15 | 25,028 | 8,366 | 11.0 ms | 2.2 ms |
+| fret | guitar | 2,600 + 44 | 76,358 | 19,899 | 3.4 ms | 3.5 ms |
+| tab | guitar | 1,820 + 44 | 50,542 | 9,284 | 2.8 ms | 1.8 ms |
+| keyboard | piano | 883 + 44 + 50 | 33,327 | 8,759 | 2.0 ms | 1.4 ms |
+| staff | piano | 1,246 + 44 + 15 | 30,724 | 10,118 | 8.3 ms | 1.5 ms |
+
+Height and zoom barely change the size (staff at zoom 2.5: 25,030 bytes;
+height 260: 25,029) since the op count stays the same. The sample has a single
+key, so the staff gutter is one variant; each extra key signature adds one
+gutter list of about 15 ops (~400 bytes). Expect the emulator to be ~3 to 4×
+slower (the M2 render ratio). Compression isn't worth it in-process; the
+`bytes` crosses Chaquopy as one `byte[]`.
+
+### Units and calibration for Kotlin
+
+- **Coordinates and widths** are Tk canvas pixels, designed at 96 DPI. Map
+  1 px to **1 dp**. The same goes for `height` and `gutter_width`, and for
+  the strip height the session stores.
+- **Font sizes** are points (`size`); Tk turns them into pixels at 96 DPI,
+  i.e. 4/3 px per pt. Use **sp = size × 4/3** (8 pt → 10.67 sp, 12 pt → 16
+  sp). The font is `TkDefaultFont` (a sans serif on every desktop), so use
+  `FontFamily.SansSerif`, bold when `bold` is set. Desktop HiDPI scaling
+  enlarges Tk fonts but not canvas geometry; the 96 DPI baseline above is
+  what the renderers are laid out for.
+- **Text anchors** place the text's bounding box, Tk style: the box is the
+  measured advance width × the font's line spacing (ascent + descent), and
+  `(x, y)` is the box's anchor point (`nw` = top-left, `n` = top-centre, `w`
+  = left-middle, `center`, `e` = right-middle, ...). Emulate with
+  `TextMeasurer`: measure with `includeFontPadding = false`, then draw at
+  `(x - fx × width, y - fy × height)` with `fx`, `fy` in {0, ½, 1} from the
+  anchor. Text is single-line.
+- **Strokes**: line width in dp, butt caps (Tk's default), round joins. Rect
+  and oval outlines are centred on the box edge.
+- **Polygon `smooth`** (unused by the renderers today) is Tk's quadratic
+  B-spline: start at the midpoint of the last and first points, then
+  `quadraticTo(p[i], mid(p[i], p[i+1]))` around the ring.
+- **Marker lane label widths** are not measured: `marker_lane._CHAR_W = 5.5`
+  px per character at 8 pt is the estimate the lane uses to keep the next
+  flag clear (plus an 8 px gap). Android's sans serif measures differently
+  from the desktop font, so a long label can run into the next flag. Clip
+  each lane label at the next lane text op's x minus 2 dp rather than
+  re-laying out the lane.
+- The ops are in content dp before any pinch: during a pinch, scale with
+  `graphicsLayer`, then ask for a new buffer at the new zoom (plan: one
+  re-render per gesture).
+
 ## Natives from source and offline packages (M6 groundwork)
 
 **Date:** 2026-10-29. Nothing in a default build now comes from a prebuilt
@@ -577,7 +764,10 @@ synth settings through `AudioOptions` (`android_shim.audio_options()`).
    (tkinter) at module level (M1 step 2; not hit by the spike's import path, but
    it blocks every viewmodel), and `ui/chord_sheet` must move to
    `src/chord_sheet` with a guarded PIL import before the op buffer can run on
-   the device (the APK excludes `ui/**`).
+   the device (the APK excludes `ui/**`). **Done:** the renderers are in
+   `src/chord_sheet/`, `clef_assets.py` no longer imports PIL (Tk decoding is
+   `ui/chord_sheet/clef_images.py`), and the op buffer is
+   `chord_sheet/pack.py` (see "Chord sheet op buffer").
 
 Build-side notes, not core changes:
 - `charset-normalizer` 3.5.2 resolved to an Android binary wheel
@@ -701,7 +891,10 @@ of the 133-chord sample is 1,246 ops, 12.8 ms to lay out and paint, and
 1.7 ms to pack into a 22.5 KB buffer (struct-packed, string table). At 266
 chords it's 2,482 ops, 24.9 ms + 3.5 ms, 44 KB. Expect ~3 to 4× that on the
 emulator (the render ratio above). Marshalling one `bytes` object through
-Chaquopy is cheap, so the packed-buffer design looks fine.
+Chaquopy is cheap, so the packed-buffer design looks fine. The real packer
+(format version 1, with tags, the marker lane, slots and gutter variants) is
+measured under "Chord sheet op buffer": 25 to 76 KB and 1.4 to 3.5 ms per view
+for this sample.
 
 ### Reproducibility
 
