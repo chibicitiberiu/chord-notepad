@@ -55,6 +55,13 @@ jobs:
       - name: Run tests
         run: pipenv run pytest tests/ -v
 
+      # Both editions of the User Guide must build without warnings (e.g. a
+      # screenshot missing for one edition). docs/HELP_AUTHORING.md.
+      - name: Check the User Guide (desktop and Android editions)
+        run: |
+          pipenv run sphinx-build -q -W --keep-going -t desktop -b html help "$RUNNER_TEMP/help-desktop"
+          pipenv run sphinx-build -q -W --keep-going -t android -b html help "$RUNNER_TEMP/help-android"
+
   check-changes:
     name: Check for Recent Changes
     runs-on: ubuntu-latest

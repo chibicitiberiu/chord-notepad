@@ -1,4 +1,4 @@
-.PHONY: run test tests build clean setup-dev icons docs docs-html docs-html-android docs-pdf flatpak flatpak-check snap snap-check
+.PHONY: run test tests build clean setup-dev icons docs docs-html docs-html-android docs-pdf docs-check flatpak flatpak-check snap snap-check
 
 # Tools directory for local dependencies
 TOOLS_DIR := .tools
@@ -106,6 +106,19 @@ docs-html:
 docs-html-android:
 	$(SPHINX_BUILD) -t android -b html $(DOCS_SOURCE) $(DOCS_BUILD)/html-android
 	@echo "Android HTML documentation built in $(DOCS_BUILD)/html-android"
+
+# Check both editions of the guide: warnings (a missing screenshot for an
+# edition, a broken link, ...) fail the build. The PDF too when rinohtype is
+# installed. See docs/HELP_AUTHORING.md.
+docs-check:
+	$(SPHINX_BUILD) -W --keep-going -t desktop -b html $(DOCS_SOURCE) $(DOCS_BUILD)/html
+	$(SPHINX_BUILD) -W --keep-going -t android -b html $(DOCS_SOURCE) $(DOCS_BUILD)/html-android
+	@if pipenv run python -c "import rinoh" 2>/dev/null; then \
+		$(SPHINX_BUILD) -q -W --keep-going -t desktop -b rinoh $(DOCS_SOURCE) $(DOCS_BUILD)/rinoh >/dev/null; \
+	else \
+		echo "rinohtype not installed: PDF not checked"; \
+	fi
+	@echo "Both editions of the guide build cleanly"
 
 # Build PDF documentation using rinohtype
 docs-pdf:
