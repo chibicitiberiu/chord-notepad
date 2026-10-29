@@ -25,9 +25,12 @@ android/
     files/                          SafDocumentStore (SAF I/O, persisted grants, recent list), picker mapping
     lifecycle/                      process start/stop hooks, audio focus + noisy, draft restore
     audio/                          SoundFont install, device sample rate
-    ui/                             main screen (app bar, toolbar, status line, menu, errors)
-    ui/editor/                      the song editor: EditorController, highlighting, taps, pinch zoom
-    ui/toolbar/                     notation, BPM/speed scrubbers, key, time signature, metronome
+    ui/                             MainScreen (pages), MainActions, errors, shortcuts
+    ui/main/                        Edit/Play screen: app bar + tabs, Edit ribbon, drawer, rename, layout rules
+    ui/play/                        the player, playhead gestures
+    ui/sheets/                      bottom sheets: song defaults, voicing, instrument, speed, insert
+    ui/theme/                       the tonal light/dark tokens (AppColors) and ChordNotepadTheme
+    ui/editor/                      the song text (editable in Edit, frozen in Play), highlighting, pinch zoom
     spike/                          M2 test screen (throwaway; `--ez spike true` or `--es spike_auto ...`)
   app/src/main/python/chordnotepad_android/
     host.py                         bridge entry point: start() -> SessionHandle (submit, shutdown)
@@ -42,6 +45,7 @@ android/
   tools/check_manifest.py           no INTERNET, no Play services, no emoji2 font initializer in an APK
   tools/compare_apks.py             entry-by-entry APK diff (reproducibility)
   tools/export_clef_glyphs.py       the chord sheet's six base clef/glyph PNGs (Gradle: exportClefGlyphs)
+  tools/mdi_icons.py                Material Design Icons -> res/drawable/mdi_*.xml (pinned @mdi/svg, sha256)
 ```
 
 The Python core is not copied: Chaquopy reads `../../src` directly, minus
@@ -573,19 +577,51 @@ committed schema (2026-10-29).
     playing chord on top); `OutputTransformation.addStyle` paints them.
     Font: `TkFixedFont`/monospaced names → Monospace, sans → Sans, serif →
     Serif; size in sp = pt × 4/3.
-  - A tap (no drag, shorter than a long press) sends `tap_chord_at` with the
-    offset under the finger; the field still moves the cursor. A pinch sends
-    `step_font_size`. Long-press on Play sends `play_pause(from_offset)`
-    with the cursor.
+  - Edit mode is the text field: a tap only moves the cursor. Play mode
+    (`ChordEditor` with `AppMode.PLAY`) is a plain `BasicText` over the same
+    text and spans, so nothing focuses or opens the keyboard. A tap on a
+    chord sends `tap_chord_at`; elsewhere `set_playhead` with the nearest
+    chord (`ui/play/PlayheadGestures.kt`: vertical gap × 4 + horizontal gap,
+    the mockup's rule); a drag that starts within 12 dp of the playhead
+    marker scrubs it (drawn locally, one `set_playhead` on release; not
+    while playing); other drags scroll. Both modes share one `ScrollState`.
+    A pinch sends `step_font_size` in both.
+  - Dark theme: the editor's colours are readable variants of the desktop
+    hues (`AppColors.Dark`); light mode keeps the desktop's Tk colours.
   - Paste normalization is the one rule set duplicated in Kotlin
     (`PasteNormalization`, the cases of `test_paste_normalization.py`):
     Compose has no paste hook for `TextFieldState`, so it applies to every
     inserted text.
-- **Toolbar**: the scrubbers send raw dragged values (`set_bpm`,
-  `set_multiplier_pct`; the session snaps them), typed text
-  (`set_bpm_text`, `set_multiplier_text`; Python parses) and long-press
-  resets (`reset_bpm`, `reset_multiplier`). The drag step (4 dp per unit)
-  and the time signature choices mirror `session/toolbar.py`.
+- **Edit / Play** (`ui/main/`, spec `docs/design/android-ui-spec.md`): the
+  tab is app-scoped (`AppGraph.mode`, `ModeController`): the first document
+  decides (saved → Play, untitled → Edit), then a document that arrives
+  after Open/Recent opens in Play and one after New in Edit; Save/Save As
+  never switch. Edit while a song plays or is paused sends `stop` first.
+  `ScreenLayout` holds the layout rules (phone = smallest width < 600 dp;
+  phone landscape in Edit puts the tabs and the ribbon on one line; the
+  chord sheet only in Play, below the text in portrait, beside it in
+  landscape) and `collapseHeader` the keyboard rule (Edit, IME up, < 170 dp
+  of text: the header hides and a floating Undo/Redo chip sits above the
+  keyboard). The landscape column width (30–70 %, default 50 %) is a device
+  preference (`UiPreferences`, `shared_prefs/ui.xml`), not the session's
+  `set_chord_sheet_height` (that stays the portrait height, shared with
+  the desktop's sash).
+- **Player** (`ui/play/Player.kt`): the song pill (`SongDefaultsState.summary`)
+  opens Song defaults; voicing, instrument, ⏮ (`rewind`), ▶/⏸
+  (`play_pause {}`: from the playhead), metronome, speed (badge when ≠ 100 %),
+  ▭ (`set_chord_sheet_visible`); the status line is `StatusState.text`. In
+  Edit mode each new status shows as a snackbar instead.
+- **Sheets** (`ui/sheets/`, route in `SheetRoute`, saved across rotation):
+  Song defaults (`set_bpm_text`, `set_time_signature`, `set_key` for the
+  editable defaults, `write_song_defaults`, Edit → Edit mode with the cursor
+  at `directive_offset`), Voicing (groups by value prefix, "Edit voicings…"
+  → Settings at Voicings), Instrument (families → programs, ← back, Done
+  closes), Speed (slider 25–400 % in 5 % steps → `set_multiplier_pct`,
+  Reset, Manual… with `parseSpeedPct` 25–400), Insert (the six directive
+  kinds → `request_insert_directive`). Rename (the title) sends
+  `rename_document {name}`; `RenameFailed` without `can_save_as` keeps the
+  dialog open with the reason, with it the dialog closes and offers
+  `save_as {name}`.
 - **Requests (M4b)**: `ui/requests/`. `presentationOf` decides how each
   request is shown: `ConfirmDiscardRequest` as a dialog (the desktop's
   "Unsaved Changes / Do you want to save your changes?", buttons Save /
@@ -602,21 +638,18 @@ committed schema (2026-10-29).
   name; Export MIDI: `audio/midi`), follows `pendingRequest` while STARTED,
   and answers with `SafDocumentStore.adopt` (grant persisted, ref
   described) off the main thread; backing out answers null.
-- **Menus**: the overflow menu has File, Edit, View, Playback, Tools and Help pages.
-  View: Font… (Monospace/Sans/Serif per the settings visibility rule;
-  `TkFixedFont` is sent for Monospace unless the configured family already
-  maps to the chosen kind; size 6-72), Chord Sheet (check), font size
-  +/−/reset. Playback: Voicing (groups with dividers, radio on the
-  selection) and Instrument (16 families, dot on the current family, radio
-  on the program). Below 600 dp they open bottom sheets (the instrument
-  sheet is an accordion, the current family open), wider as dropdown pages.
-  The rows come from `ui/menus/MenuModels.kt`.
-- **Tools (M5)**: `ui/tools/`, `ui/identifier/`. ⋮ › Tools has Identify
-  Chord…, Insert ▸ (BPM/Tempo Change…, Time Signature Change…, Key
-  Change…, Label…, Loop…), Transpose…, Suggest Capo… and Convert notation ▸
-  (to American / to European), the paths help/*.rst gives. The desktop's
-  Tools › Settings… is ⋮ › Settings on Android (a root entry, as the help
-  says). `ToolActions` sends the commands with the editor's selection
+- **Drawer** (☰, `ui/main/AppDrawer.kt`) replaces the old ⋮ menu: New
+  song, Open…, Recent (inline), Save as…, Export MIDI…, Settings, User
+  guide, Quick start, About. The desktop's View menu has no Android entry:
+  the font size is the pinch, the family is in Settings › General, the
+  chord sheet is the player's ▭. The voicing and instrument rows come from
+  `ui/menus/MenuModels.kt`.
+- **Tools (M5)**: `ui/tools/`, `ui/identifier/`. The Edit ribbon has
+  ＋ Insert (Tempo, Time signature, Key, Capo, Label, Loop), Transpose,
+  Identify, AB/Do and Convert (to the other notation; the session switches
+  AB/Do with it). Suggest Capo is the Capo dialog's Suggest (it cancels the
+  insert request, then `request_suggest_capo`). The desktop's Tools ›
+  Settings… is ☰ → Settings. `ToolActions` sends the commands with the editor's selection
   (`selectionOf`: UTF-16 → code points through `OffsetMapper`; an empty one
   is null, the whole song) or cursor, the text synced first.
   - *Transpose* is a local dialog (−11..+11, "Transpose selection/whole
@@ -875,7 +908,7 @@ assembleDebug`, then `check_16k.py`, `zipalign -c -P 16` and
 
 ## About and the licences screen
 
-Help > About shows the name, `versionName` (the `VERSION` file), the build type,
+☰ → About shows the name, `versionName` (the `VERSION` file), the build type,
 `versionCode`, the git commit (`BuildConfig.COMMIT`, from `git rev-parse`; set
 `-PcnCommit=<id>` outside a checkout) and no date, so builds stay reproducible.
 Links open only when tapped, through an `ACTION_VIEW` intent; the app has no
@@ -944,7 +977,7 @@ off, and there is no INTERNET permission. JavaScript is on because the
 sphinx_rtd_theme menu and search need it. A tapped link to another site opens
 through `ACTION_VIEW` (`HelpLinks.isExternal`). Back goes back through the
 WebView history, then leaves; the page survives rotation (the history does
-not). Help > User Guide opens it, and so does F1 on a hardware keyboard.
+not). ☰ → User guide opens it, and so does F1 on a hardware keyboard.
 `HelpAssetsTest` checks that the generated `help/` has `index.html` and no
 `file://` links or build paths.
 
@@ -953,7 +986,7 @@ not). Help > User Guide opens it, and so does F1 on a hardware keyboard.
 snippets are `snippetRuns`: the session's code-point spans converted to UTF-16
 and styled with the editor's `SpanStyles`, on the editor's white background in
 monospace, read only). Previous/Next/Done and a "Show at startup" checkbox that
-sends `set_show_quick_start_on_startup`. Help > Quick Start opens it; it also
+sends `set_show_quick_start_on_startup`. ☰ → Quick start opens it; it also
 opens on its own when `SettingsState.values.show_quick_start_on_startup` is true
 (`QuickStartLaunch.shouldAutoShow`), once per process start: the flag
 `AppGraph.quickStartShown` lives in the app-scoped graph, so rotation does not

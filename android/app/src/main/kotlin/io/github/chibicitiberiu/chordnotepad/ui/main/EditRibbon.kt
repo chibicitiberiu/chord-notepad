@@ -216,7 +216,7 @@ fun FloatingUndoChip(actions: RibbonActions, canUndo: Boolean, canRedo: Boolean,
     androidx.compose.material3.Surface(
         modifier,
         shape = RoundedCornerShape(22.dp),
-        color = colors.surface,
+        color = colors.surfaceHigh,
         shadowElevation = 4.dp,
     ) {
         Row {

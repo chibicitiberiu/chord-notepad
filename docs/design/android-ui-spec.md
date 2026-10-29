@@ -1,6 +1,7 @@
 # Android UI: Edit / Play redesign
 
-Status: agreed with Tibi on 2026-10-29, not built yet. The interactive mockup is
+Status: agreed with Tibi on 2026-10-29; built on Android the same day (see
+"Implementation notes" at the end). The interactive mockup is
 `docs/design/android-modes-mockup.html`. Open it in a browser; it has a device
 picker and a portrait/landscape switch.
 
@@ -131,3 +132,22 @@ The UI uses one Material 3-style tonal family: neutral surfaces with a hint of t
 ## Desktop impact
 
 None needed. The playhead (tap to position, ⏮ to rewind) would be a good desktop addition later.
+
+## Implementation notes
+
+Where the build differs from the text above, and why:
+
+- **Light editor colours.** The light theme keeps the desktop's real colours
+  (Tk `blue`, `#8B4789`, `gray`, `yellow` from `src/constants.py`), not the
+  hex values listed under "Editor colours", which don't match the desktop.
+  "Unchanged" won over the list. The dark variants are as listed.
+- **Phone landscape in Play** shows the title: the one-line header exists to
+  make room for the Edit ribbon, and Play has no ribbon.
+- **Taps while playing** jump playback to the tapped chord (the session's
+  rule); the marker can't be dragged while a song plays, since it follows
+  playback.
+- **Landscape column width** is kept on the device (`shared_prefs/ui.xml`),
+  not in the session's settings: the desktop has no such value.
+- **Icons.** `swap-vertical` and `music-note` only appear inside the
+  Transpose composite drawable, so they have no drawables of their own. The
+  Instrument sheet's family markers use MDI `circle` / `circle-outline`.
