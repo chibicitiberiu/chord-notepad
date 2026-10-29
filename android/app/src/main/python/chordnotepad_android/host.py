@@ -33,6 +33,18 @@ logger = logging.getLogger("chordnotepad_android.host")
 #: Oboe stream settings (the M2 spike's measurements were taken with these).
 OBOE_SETTINGS = {"audio.oboe.performance-mode": "LowLatency"}
 
+#: Below this API level Oboe plays through OpenSL ES (AAudio from 8.1).
+AAUDIO_MIN_SDK = 27
+
+#: Oboe stream settings on OpenSL ES devices (Android 7.x-8.0). A
+#: "LowLatency" OpenSL stream asks for a FAST track, so it lands on the
+#: primary output, where vendors insert their effects (on the HTC 10 a Dolby
+#: DAP, which faded the first notes in after silence); there the FAST flag
+#: was denied anyway (a normal 1924-frame track). With no performance mode
+#: the stream is an ordinary music track and goes where every music player's
+#: does (the deep-buffer output), with ~30 ms more latency on that phone.
+OPENSL_OBOE_SETTINGS = {"audio.oboe.performance-mode": "None"}
+
 #: Settings are written this long after the last change, so a process kill
 #: (not only leaving the screen) keeps the toolbar's state.
 AUTOSAVE_DELAY_S = 1.5
@@ -41,18 +53,42 @@ AUTOSAVE_DELAY_S = 1.5
 START_TIMEOUT_S = 120.0
 
 
+def oboe_settings(sdk_int: Optional[int]) -> dict:
+    """The Oboe stream settings for an Android API level (None: unknown)."""
+    if sdk_int is not None and sdk_int < AAUDIO_MIN_SDK:
+        return dict(OPENSL_OBOE_SETTINGS)
+    return dict(OBOE_SETTINGS)
+
+
+def android_sdk_int() -> Optional[int]:
+    """``Build.VERSION.SDK_INT`` through Chaquopy; None off Android."""
+    try:
+        from java import jclass  # type: ignore[import-not-found]
+
+        return int(jclass("android.os.Build$VERSION").SDK_INT)
+    except Exception:
+        return None
+
+
 def audio_options_from(options: Mapping[str, Any]) -> AudioOptions:
     """The synth settings for Kotlin's ``audio_options`` dict.
 
     ``sample_rate`` is the device's native output rate (no resampler);
-    ``frames_per_buffer`` becomes ``audio.period-size`` when positive.
+    ``frames_per_buffer`` becomes ``audio.period-size`` when positive. The
+    Oboe performance mode depends on the API level (:func:`oboe_settings`):
+    ``sdk_int`` from the dict if given (tests), else the device's.
     """
     sample_rate = int(options.get("sample_rate") or 0)
     frames = int(options.get("frames_per_buffer") or 0)
+    sdk_int = options.get("sdk_int")
+    sdk_int = int(sdk_int) if sdk_int is not None else android_sdk_int()
+    settings = oboe_settings(sdk_int)
+    logger.info("Android API %s: Oboe performance mode %s",
+                sdk_int, settings["audio.oboe.performance-mode"])
     return AudioOptions(
         sample_rate=sample_rate or None,
         period_size=frames or None,
-        settings=dict(OBOE_SETTINGS),
+        settings=settings,
     )
 
 

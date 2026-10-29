@@ -233,8 +233,8 @@ Types Kotlin decodes (`BridgeCodec.serializers`):
 
 | Kind | Types |
 |---|---|
-| States | `DocumentState`, `EditorState`, `HighlightState`, `PlaybackState`, `ToolbarState`, `StatusState`, `VoicingMenuState`, `InstrumentMenuState`, `RecentDocumentsState`, `ChordSheetState`; M5: `IdentifierState`, `SettingsState`, `VoicingEditorState` |
-| Events | `TextEdited`, `UserError`, `AudioUnavailable`, `UnexpectedError`, `CloseApproved`; M5 replies: `VoicingEditorSchema`, `QuickStartContent`, `DirectiveCheck` |
+| States | `DocumentState`, `EditorState`, `HighlightState`, `PlaybackState`, `ToolbarState`, `StatusState`, `VoicingMenuState`, `InstrumentMenuState`, `RecentDocumentsState`, `ChordSheetState`; M5: `IdentifierState`, `SettingsState`, `VoicingEditorState`; Edit/Play: `SongDefaultsState` |
+| Events | `TextEdited`, `UserError`, `AudioUnavailable`, `UnexpectedError`, `CloseApproved`; M5 replies: `VoicingEditorSchema`, `QuickStartContent`, `DirectiveCheck`; Edit/Play: `RenameFailed` |
 | Requests | `ConfirmDiscardRequest`, `PickDocumentRequest`, `CapoChoiceRequest`, `InsertDirectiveRequest` |
 
 **Step 14 added two things to the DTOs** (Kotlin already had them):
@@ -358,6 +358,75 @@ raises is an `UnexpectedError` whose `context` is the command name.
   no desktop screenshot). Snippet blocks carry the editor's highlight spans
   (code points), so they paint like the editor.
 
+**Edit/Play redesign** (`docs/design/android-ui-spec.md`; Python side and
+Kotlin DTOs/builders done 2026-10-29: `bridge/PlayerBridge.kt`):
+
+- *Playhead.* `PlaybackState.playhead_offset: int|null` is the start (code
+  points) of the chord ▶ plays from; `ChordSheetState.cursor_index:
+  int|null` is that chord's index in the strip's rendered song (its first
+  occurrence when loops repeat it), for the edge mark while nothing plays
+  (null until the strip rendered the current text). Commands:
+  `set_playhead {offset}` (a tap or a scrub release in Play mode: snaps to
+  the chord covering `offset`, else the nearest on its line, a tie going to
+  the later chord, else on the nearest line with chords, a tie going to the
+  line above, at the tap's column; silent; while paused the paused song is
+  dropped so ▶ starts at the new playhead; while playing, playback restarts
+  there; nothing without chords), `rewind {}` (⏮: stop if playing or
+  paused, playhead on the first chord), `play_pause {}` (no `from_offset`:
+  from the playhead; an explicit `from_offset` still wins),
+  `tap_chord_at {offset}` (on a chord: playhead there and the chord sounds;
+  while playing it jumps there instead of sounding; not on a chord: nothing,
+  send `set_playhead` for taps elsewhere). On Android the playhead also
+  follows playback (each chord sounding), returns to the first chord at
+  the end of the song, stays on ⏸ and on `stop {}` (switching to Edit),
+  defaults to the first chord whenever the song has chords (an opened song
+  starts there; no chords: null), and moves with edits (re-snapped to a
+  chord after detection). Send scrubbing as one `set_playhead` on release,
+  not per step: while playing each one restarts the render.
+- *Status line.* On Android `StatusState.text` is position + activity while
+  playback matters: `Bar 6/24 · Playing Em`, `Bar 6/24 · Paused`,
+  `Starting…` (before the first chord sounds), and while idle the
+  playhead's bar, `Bar 6/24`, or `Ready` when its bar isn't known (the strip
+  hasn't rendered the text and no run played that chord). Bars count from
+  the top of the song even when playback started later. Other statuses
+  (`Saved: …`, `Inserted: …`, `Renamed to …`) are unchanged; Edit mode shows
+  those as snackbars. The desktop wording is untouched.
+- *Song defaults.* `SongDefaultsState {tempo, time, key, summary}`, each of
+  the three `SongDefault {value: str, from_directive: bool,
+  directive_offset: int|null}`. `value` is what the song starts with:
+  `"90"`, `"3/4"`, `"G"` (`""` for the key when neither the song nor the
+  toolbar sets one). `from_directive` is true when a directive before the
+  song's first chord sets it (show it read-only, "Set by `{bpm: 90}` in the
+  song · Edit"; Edit switches to Edit mode and puts the cursor at
+  `directive_offset`, the start of the first such directive). Otherwise the
+  value is the toolbar default: change it with the existing `set_bpm`,
+  `set_time_signature`, `set_key` (not saved with the file).
+  `summary` is the pill text, the values joined by `" · "`
+  (`"90 · 3/4 · G"`, an empty key left out); Kotlin needn't format it.
+  `write_song_defaults {}` (Write into song) inserts the missing directives
+  as one line at the top (`{bpm: 120} {time: 4/4} {key: G}`), one `group`
+  `TextEdited` followed by its `HighlightState`; refused while a song plays
+  or is paused; with nothing missing the status says so.
+- *Capo in Insert.* `request_insert_directive {kind: "capo", at}` →
+  `InsertDirectiveRequest(kind="capo")`, answered with `{"capo": "N"}`;
+  `check_directive {kind: "capo", fields: {"capo": …}, request_id}` checks
+  0-12 live ("The capo must be on a fret from 0 to 12 (0 means no capo).",
+  field `capo`). The dialog's Suggest button answers the insert request with
+  null (`respond` cancel) and sends `request_suggest_capo {selection}`.
+- *Rename.* `rename_document {name}`: `name` without the extension (the
+  document's own is kept; `.txt` for an untitled one; a name already ending
+  in it isn't doubled). Success: `DocumentState` (new `display_name` and
+  `document_id`), `RecentDocumentsState`, `StatusState` "Renamed to X.txt".
+  An untitled document just takes the name: `DocumentState.display_name`
+  becomes `X.txt` (`document_id` stays null) and the first save's
+  `PickDocumentRequest.suggested_name` is `X.txt`. Failure: `RenameFailed
+  {name, reason, can_save_as}` (`name` as typed). `can_save_as` false: the
+  name itself is invalid (empty, `/` or `\`, control characters, `.`/`..`,
+  over 255 bytes): keep the dialog open with `reason`. True: the provider
+  refused (it can't rename, a name in use, permissions): explain `reason`
+  and offer `save_as {name}`, which suggests `name` + extension in the
+  picker (`save_as {}` keeps suggesting the document's own name).
+
 **Host commands** (the lifecycle). `pause` and `restore_draft` are
 `AppSession` commands; `app_background` and `app_foreground` are run by
 `session.bridge` on them, so all four are tested with the core:
@@ -405,7 +474,17 @@ fun recent(): String                      // JSON array of {"id", "display_name"
 fun addRecent(id: String, displayName: String, location: String)
 fun setMaxRecent(count: Int)              // max_recent_files; Kotlin defaults to 10
 fun describe(id: String): String?         // ref JSON for an id, or null if unreachable (ref_for)
+fun rename(id: String, displayName: String): String  // the renamed doc's ref JSON (Edit/Play)
 ```
+
+`rename` calls `DocumentsContract.renameDocument` after checking the
+provider's `FLAG_SUPPORTS_RENAME`; a provider that can't rename throws
+`RenameUnsupportedException` (a `DocumentStoreException`, which Python maps
+to `RenameNotSupported` by its class name), any other failure a
+`DocumentStoreException`. The URI may change (the provider grants the new
+one; Kotlin tries to persist that grant and moves the recent-list entry to
+the new ref). Providers pick their own name on a clash (`song (1).txt`) rather
+than overwrite, so the returned `display_name` is what the provider made.
 
 Step 14 wraps it in an `AndroidDocumentStore` implementing
 `session.documents.DocumentStore`: `read_text` applies
@@ -1312,3 +1391,37 @@ natives build from source, and the check still gives byte-identical APKs; see
   scrolling a 300-line song while typing. The highlighting itself is proven:
   Python spans render through `OutputTransformation` + `addStyle` on a
   `TextFieldState` field.
+
+### Fade-in at the start of playback (HTC 10, Android 8.0; 2026-10-29)
+
+Reported: the first notes after Play fade in instead of starting at full
+volume.
+
+- **The synth output is clean.** The real `PlaybackService` + `NotePlayer`
+  path rendered through FluidSynth's `file` driver (44.1 and 48 kHz, cold
+  and warmed-up synth) gives the first chord the same RMS envelope and peak
+  as later chords that also follow silence (within 0.2 dB, 50 ms windows).
+  Nothing in our code ramps (no CC7/CC11 ramp, gain is set once, the click
+  channel is separate).
+- **The stream isn't (re)started at Play.** AudioFlinger's thread log shows
+  our track added when the app comes to the foreground (`resume_audio`, or
+  at session start) and removed when it leaves, so Play writes into a stream
+  that has been running silence.
+- **On this phone our stream is the one that goes through Dolby.** Oboe
+  uses OpenSL ES below API 27; `performance-mode=LowLatency` asks for a FAST
+  track, which AudioFlinger denied ("AUDIO_OUTPUT_FLAG_FAST denied by
+  server; frameCount 1924"), but the track still lands on the primary output
+  (I/O 13, `PRIMARY|FAST`). That output carries a global Dolby DAP effect
+  (`dumpsys media.audio_policy`: "Effect 11, I/O 13, Session 0, DAP,
+  Enabled"; `vendor.audio.dolby.ds2.enabled=1`). Ordinary music goes to the
+  deep-buffer output (`audio.deep_buffer.media=true`, I/O 21), which has no
+  effect chain. A leveler that ramps its gain up after digital silence fits
+  the report; I couldn't listen or capture the device's output to confirm.
+- **Change:** below API 27 the host asks Oboe for no performance mode
+  (`chordnotepad_android.host.oboe_settings`), so the stream is an ordinary
+  music track on the deep-buffer output like every music player's. Cost on
+  the HTC 10: output latency 80 ms instead of 50 ms (tap to sound); timing
+  within a song is sample-clocked and unaffected. AAudio devices (8.1+) keep
+  `LowLatency`. To check: play, then `adb shell dumpsys media.audio_flinger`
+  should list the app's track under `AudioOut_15` (deep buffer), not
+  `AudioOut_D`.
