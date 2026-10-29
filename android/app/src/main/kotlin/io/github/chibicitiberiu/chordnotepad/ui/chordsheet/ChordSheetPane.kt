@@ -78,8 +78,6 @@ import io.github.chibicitiberiu.chordnotepad.bridge.SessionCommands
 import io.github.chibicitiberiu.chordnotepad.bridge.SessionRepository
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.combine
-import kotlin.math.abs
-import kotlin.math.sign
 
 private const val TAG = "CNChordSheet"
 
@@ -156,7 +154,7 @@ fun ChordSheetPane(
             zoom = current.zoom,
             zoomSupported = current.zoomSupported,
             onAudition = commands::audition,
-            onZoomSteps = { steps -> repeat(abs(steps)) { commands.chordSheetZoom(steps.sign) } },
+            onZoomSteps = commands::chordSheetZoom,
             onContentHeight = { contentHeightDp = it },
             modifier = Modifier.weight(1f).fillMaxWidth().padding(horizontal = 4.dp).padding(bottom = 4.dp),
         )

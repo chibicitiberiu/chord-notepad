@@ -56,6 +56,11 @@ class SessionRepository {
     private val _instrumentMenu = MutableStateFlow<InstrumentMenuState?>(null)
     private val _recentDocuments = MutableStateFlow<RecentDocumentsState?>(null)
     private val _chordSheet = MutableStateFlow<ChordSheetState?>(null)
+    private val _identifier = MutableStateFlow<IdentifierState?>(null)
+    private val _settings = MutableStateFlow<SettingsState?>(null)
+    private val _voicingEditor = MutableStateFlow<VoicingEditorState?>(null)
+    private val _voicingEditorSchema = MutableStateFlow<VoicingEditorSchema?>(null)
+    private val _quickStart = MutableStateFlow<QuickStartContent?>(null)
     private val _hostStatus = MutableStateFlow<HostStatus>(HostStatus.NotStarted)
     private val _pendingRequest = MutableStateFlow<SessionRequest?>(null)
     private val _textEdits = Channel<TextEdited>(Channel.UNLIMITED)
@@ -98,6 +103,21 @@ class SessionRepository {
     /** The chord-sheet strip. */
     val chordSheet: StateFlow<ChordSheetState?> = _chordSheet.asStateFlow()
 
+    /** The chord identifier (M5). */
+    val identifier: StateFlow<IdentifierState?> = _identifier.asStateFlow()
+
+    /** The settings Android shows, with their limits (M5). */
+    val settings: StateFlow<SettingsState?> = _settings.asStateFlow()
+
+    /** The voicings editor of the open settings edit (M5). */
+    val voicingEditor: StateFlow<VoicingEditorState?> = _voicingEditor.asStateFlow()
+
+    /** The latest voicings-editor schema the session sent (an event; kept, it's static). */
+    val voicingEditorSchema: StateFlow<VoicingEditorSchema?> = _voicingEditorSchema.asStateFlow()
+
+    /** The latest Quick Start tour the session sent (an event, kept for the screen). */
+    val quickStart: StateFlow<QuickStartContent?> = _quickStart.asStateFlow()
+
     /** Whether Python is up. */
     val hostStatus: StateFlow<HostStatus> = _hostStatus.asStateFlow()
 
@@ -126,6 +146,11 @@ class SessionRepository {
             is InstrumentMenuState -> _instrumentMenu.value = output
             is RecentDocumentsState -> _recentDocuments.value = output
             is ChordSheetState -> _chordSheet.value = output
+            is IdentifierState -> _identifier.value = output
+            is SettingsState -> _settings.value = output
+            is VoicingEditorState -> _voicingEditor.value = output
+            is VoicingEditorSchema -> _voicingEditorSchema.value = output
+            is QuickStartContent -> _quickStart.value = output
             is TextEdited -> _textEdits.trySend(output)
             is SessionRequest -> _pendingRequest.value = output
             is SessionError -> _errors.tryEmit(output)

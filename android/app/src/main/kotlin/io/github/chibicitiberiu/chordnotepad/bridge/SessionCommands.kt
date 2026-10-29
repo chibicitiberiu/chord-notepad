@@ -210,7 +210,7 @@ class SessionCommands(
     /** Switch the chord sheet's view (a `ChordSheetView.viewId`). */
     fun setChordSheetView(viewId: String) = send(CommandNames.SET_CHORD_SHEET_VIEW) { put("view_id", viewId) }
 
-    /** Zoom the chord sheet by [step] (+1/-1, 0 resets). */
+    /** Zoom the chord sheet [step] steps (positive in; a whole pinch is one command; 0 does nothing). */
     fun chordSheetZoom(step: Int) = send(CommandNames.CHORD_SHEET_ZOOM) { put("step", step) }
 
     /** Play the chord sheet's chord [index]. */
