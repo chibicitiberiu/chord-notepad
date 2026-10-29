@@ -17,10 +17,29 @@ Exporting a Song
 
 .. only:: android
 
-   1. Open **☰ → Export MIDI…**
-   2. In the system file picker, choose a location (Downloads, Drive, or any
-      document provider) and a filename, and save with a ``.mid`` extension.
-   3. Chord Notepad writes the file.
+   1. Tap **☰** at the top left and choose **Export MIDI…**.
+   2. Android's file picker opens, with the song's name and ``.mid`` filled
+      in (``Untitled.mid`` for a song you haven't saved yet). Pick a folder,
+      on the phone or in any storage app such as Google Drive, change the
+      name if you like, and tap **Save**.
+   3. Chord Notepad renders the song and writes the file. The status says
+      "Exporting MIDI: …" while it works and "Exported MIDI: …" when the file
+      is written: on the player's status line in the Play tab, or at the
+      bottom of the screen in the Edit tab.
+
+.. platform-figure:: drawer
+   :platforms: android
+   :alt: The open drawer: New song, Open, the recent songs, Save as, Export
+         MIDI, Settings, User guide, Quick start and About.
+
+   **Export MIDI…** is in the ☰ drawer, under Save as….
+
+.. only:: android
+
+   The exported file is a copy: the song you're editing stays open as it was,
+   and the ``.mid`` file doesn't join the recent songs. If the export fails
+   (a song without chords, or a folder the app can't write to), a message
+   says why.
 
 There's no dialog to configure -- the export uses whatever is currently set
 for voicing, instrument, and tempo, described below.
@@ -72,9 +91,11 @@ Tempo, meter, and key come from the same directives that drive playback:
 
 .. only:: android
 
-   * The starting tempo is the song's BPM (the song pill, or Song defaults).
-     Every ``{bpm}`` change in the song is written at the point it occurs, so
-     the file speeds up and slows down exactly where the song does.
+   * The starting tempo is the one in the player's song pill: the song's
+     first ``{bpm}``, or the tempo default in Song defaults when the song has
+     none (see :doc:`playback`). Every ``{bpm}`` change in the song is
+     written at the point it occurs, so the file speeds up and slows down
+     exactly where the song does.
 
 * Each ``{time: beats/unit}`` becomes a MIDI time-signature event.
 * Each ``{key: note}`` becomes a MIDI key-signature event.
@@ -113,6 +134,12 @@ notation program like MuseScore, or GarageBand. The chords all sit on one
 track, and the tempo and meter changes come along with them, so a program
 that reads MIDI tempo maps will follow the song's tempo changes rather than
 playing everything at a single flat speed.
+
+.. only:: android
+
+   On the phone, open the file from the folder you saved it to with any app
+   that plays or edits MIDI files. To work on it on a computer, save it to a
+   cloud folder (or copy it over USB) and open it there.
 
 
 A Couple of Gotchas
