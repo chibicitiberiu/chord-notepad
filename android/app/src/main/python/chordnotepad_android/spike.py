@@ -343,10 +343,10 @@ def set_switch_interval(ms: float) -> str:
 
 
 def op_buffer() -> str:
-    """Optional op-buffer probe: the chord-sheet renderers live in src/ui/chord_sheet,
-    which the APK excludes (ui/**), and clef_assets imports PIL at module level."""
+    """Optional op-buffer probe: whether the headless chord-sheet renderers
+    (src/chord_sheet, Pillow-free since the move out of ui/) import here."""
     try:
-        import ui.chord_sheet.staff_card  # noqa: F401
-    except Exception as exc:  # expected in the M2 build
+        import chord_sheet.staff_card  # noqa: F401
+    except Exception as exc:
         return json.dumps({"available": False, "error": f"{type(exc).__name__}: {exc}"})
     return json.dumps({"available": True})

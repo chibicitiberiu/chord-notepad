@@ -28,7 +28,8 @@ android/
     ui/                             M3 placeholder screen (M4 replaces it)
     spike/                          M2 test screen (throwaway; `--ez spike true` or `--es spike_auto ...`)
   app/src/main/python/chordnotepad_android/
-    host.py                         bridge entry point (a stub until session step 14)
+    host.py                         bridge entry point: start() -> SessionHandle (submit, shutdown)
+    android_store.py                AndroidDocumentStore: session DocumentStore over Kotlin's SafDocumentStore
     android_shim.py                 runtime patches standing in for core changes
     spike.py                        M2 test glue (throwaway)
   native/                           FluidSynth + dependencies as pinned git submodules
@@ -165,10 +166,10 @@ python3 tools/compare_apks.py a.apk b.apk          # reproducibility diff
 
 ## Bridge contract (Kotlin <-> Python)
 
-**Status:** the Kotlin half is built (M3, 2026-10-29). The Python half is
-session step 14; until then `chordnotepad_android/host.py` is a stub that
-sends one `StatusState` and logs every command it ignores. This section is
-what step 14 implements. Kotlin's copy of it is
+**Status:** both halves are built (2026-10-29): the Kotlin half in M3, the
+Python half in session step 14 (`session/threaded_host.py`,
+`session/bootstrap.py`, `session/bridge.py`, and
+`chordnotepad_android/host.py` + `android_store.py`). Kotlin's copy of it is
 `bridge/BridgeContract.kt`, `bridge/SessionCommands.kt` and the DTOs in
 `bridge/Session{Output,States,Events}.kt`.
 
@@ -225,7 +226,7 @@ Types Kotlin decodes (`BridgeCodec.serializers`):
 | Events | `TextEdited`, `UserError`, `AudioUnavailable`, `UnexpectedError`, `CloseApproved` |
 | Requests | `ConfirmDiscardRequest`, `PickDocumentRequest`, `CapoChoiceRequest`, `InsertDirectiveRequest` |
 
-**Step 14 adds two things to the DTOs** (Kotlin already has them):
+**Step 14 added two things to the DTOs** (Kotlin already had them):
 - `UnexpectedError(message: str, context: Optional[str])` in `events.py`
   (designed, not defined yet);
 - `DocumentState.document_id: Optional[str]`, the open document's
@@ -270,9 +271,20 @@ step 14.)
 `PickDocumentRequest` → `DocumentRef` or None; `ConfirmDiscardRequest` →
 `"save"`/`"discard"`/`"cancel"` or None; `CapoChoiceRequest` → the option
 value or None; `InsertDirectiveRequest` → a `{field: str}` dict or None.
-`apply_settings` isn't sent yet (Settings is M5).
+Python also accepts three commands Kotlin doesn't send yet (M5):
+`insert_chord {at, chord}` (the chord identifier's insert),
+`apply_settings {changes}` with `changes` a whole `SettingsValues` object
+(the General/Playback settings: font family and size, notation, key, Quick
+Start at startup, recent-list length, tempo, time signature; out-of-range
+values are an `UnexpectedError` and nothing is written) and
+`set_show_quick_start_on_startup {show}`. A parameter that has a default in
+`AppSession` may be left out; any other missing, unknown or mistyped
+argument is an `UnexpectedError(context="bridge")`, and a command that
+raises is an `UnexpectedError` whose `context` is the command name.
 
-**Host commands** are handled in `host.py`:
+**Host commands** (the lifecycle). `pause` and `restore_draft` are
+`AppSession` commands; `app_background` and `app_foreground` are run by
+`session.bridge` on them, so all four are tested with the core:
 
 | Command | Args | Does |
 |---|---|---|
@@ -282,6 +294,26 @@ value or None; `InsertDirectiveRequest` → a `{field: str}` dict or None.
 | `restore_draft` | `{text, document, modified}` | After process death: replace the text as a `reset` edit (`TextEdited` + `HighlightState`), make `document` (a `DocumentRef` or null) the open document without reading it, and set the modified flag. Publishes `DocumentState`. |
 
 An unknown command is logged and emits `UnexpectedError(context="bridge")`.
+
+### Chord sheet: `chord_sheet_buffer(height)`
+
+The chord sheet's drawing doesn't travel as JSON. Kotlin calls the handle
+directly, on its bridge thread:
+
+```kotlin
+val bytes: ByteArray? = handle.callAttr("chord_sheet_buffer", heightDp)
+    ?.toJava(ByteArray::class.java)
+```
+
+It returns the active view packed as draw ops ("Chord sheet op buffer"
+below), or None without a rendered song. It packs on the calling thread
+(10 to 40 ms on the emulator) from a snapshot of the last rendered song,
+view and zoom that the session thread replaces whenever `ChordSheetState`
+changes, so it never waits for the session thread. Refetch when
+`song_revision`, `active_view`, `zoom` or the height changes. A failure is
+reported as `UnexpectedError(context="chord_sheet_buffer")` and returns
+None. (`AppSession.chord_sheet_buffer(height)` is the core method behind
+it.)
 
 ### Documents: `document_store`
 
@@ -327,7 +359,15 @@ dump:
 ```
 
 `kind` is `state`, `event`, `request` or `value` (nested types: `Span`,
-`MenuItem`, `InstrumentFamily`, `ChordSheetView`, `DocumentRef`). The Kotlin
+`MenuItem`, `InstrumentFamily`, `ChordSheetView`, `DocumentRef`, and
+`SettingsValues`, which only travels inbound). Field types are `str`, `int`,
+`float`, `bool`, an enum or DTO name, `list[X]` and `X|null`. Two more keys
+document the inbound side: `command_params` (each command's parameters and
+their types; `selection` is `[start, end]` or null, `any` is `respond`'s
+value) and `answers` (what `respond` takes for each request type).
+Regenerate with `cd src && python -m session.bridge --schema >
+../android/bridge_schema.json`; `tests/test_session_bridge.py` fails while
+the committed file is stale. The Kotlin
 `BridgeSchemaContractTest` (skipped while the file is missing) checks that
 every output type has exactly the same field names on both sides, that
 Kotlin decodes every output the schema lists, the value types and enum
@@ -356,30 +396,11 @@ plus the two additions above: all pass.
   `AppGraph.editorText`; until then no draft is saved.
 - **No Google Play services.** emoji2's `EmojiCompatInitializer` is removed
   from the manifest (it fetched a downloadable font from the Play services
-  fonts provider; that is what killed the first emulator launch). The app
-  has no INTERNET permission. CI checks both with `tools/check_manifest.py`.
-- **Checked on the emulator** (2026-10-29, stub host): Python starts off
-  Main, the stub's `StatusState` reaches the placeholder screen, and Stop,
-  `app_background` and `app_foreground` reach Python on the bridge thread.
-
-### CI
-
-The `android` job in `.github/workflows/build.yml` runs on pushes, pull
-requests and manual dispatches, independent of the desktop jobs (nothing
-needs it; it attaches nothing to releases). It checks out the native
-submodules with the two-step init above, sets up Temurin 21, Python 3.14.8
-(as `CHAQUOPY_BUILD_PYTHON`), Gradle (`cache-provider: basic`) and the
-pinned NDK/CMake/platform/build-tools, caches the native libraries (keyed by
-`build.sh` and the submodule commits) and the wheelhouse, fetches the
-wheelhouse with `--require-hashes`, runs `./gradlew testDebugUnitTest lint
-assembleDebug`, then `check_16k.py`, `zipalign -c -P 16` and
-`check_manifest.py` on the debug APK.
-
 ## Chord sheet op buffer
 
 **Status:** the Python half is built (`src/chord_sheet/pack.py`, format
-version 1). The bridge command that returns the buffer is not wired yet (the
-session owns that); the Kotlin decoder is M4.
+version 1), and the bridge hands it out (`SessionHandle.chord_sheet_buffer`,
+"Bridge contract" above); the Kotlin decoder is M4.
 
 The chord sheet's renderers (`src/chord_sheet/`) are headless: they record
 draw ops (`chord_sheet/ops.py`) that the Tk panel replays onto a canvas.
@@ -560,6 +581,33 @@ slower (the M2 render ratio). Compression isn't worth it in-process; the
   `graphicsLayer`, then ask for a new buffer at the new zoom (plan: one
   re-render per gesture).
 
+  fonts provider; that is what killed the first emulator launch). The app
+  has no INTERNET permission. CI checks both with `tools/check_manifest.py`.
+- **Checked on the emulator** (2026-10-29, stub host): Python starts off
+  Main, the stub's `StatusState` reaches the placeholder screen, and Stop,
+  `app_background` and `app_foreground` reach Python on the bridge thread.
+- **Checked on the emulator with the real host** (2026-10-29, step 14,
+  debug APK, `cn_phone`): the session starts in about 5 s after launch
+  (FluidSynth on `oboe`, the SoundFont from `filesDir`); Open through the
+  SAF picker reads `Download/e2e_song.txt` through `AndroidDocumentStore`,
+  and `DocumentState`, `HighlightState` (10 spans), the toolbar from the
+  file's directives and the recent list come back; Play runs to the end
+  with `PlaybackState`/`StatusState` updates; Home (`app_background`) writes
+  `files/config/chord-notepad/settings.json`. No `UnexpectedError`.
+
+### CI
+
+The `android` job in `.github/workflows/build.yml` runs on pushes, pull
+requests and manual dispatches, independent of the desktop jobs (nothing
+needs it; it attaches nothing to releases). It checks out the native
+submodules with the two-step init above, sets up Temurin 21, Python 3.14.8
+(as `CHAQUOPY_BUILD_PYTHON`), Gradle (`cache-provider: basic`) and the
+pinned NDK/CMake/platform/build-tools, caches the native libraries (keyed by
+`build.sh` and the submodule commits) and the wheelhouse, fetches the
+wheelhouse with `--require-hashes`, runs `./gradlew testDebugUnitTest lint
+assembleDebug`, then `check_16k.py`, `zipalign -c -P 16` and
+`check_manifest.py` on the debug APK.
+
 ## Natives from source and offline packages (M6 groundwork)
 
 **Date:** 2026-10-29. Nothing in a default build now comes from a prebuilt
@@ -732,9 +780,11 @@ synth settings through `AudioOptions` (`android_shim.audio_options()`).
    emulator and most phones) avoids a resampler. The host should pass the
    sample rate and extra settings (`audio.oboe.performance-mode=LowLatency`,
    later `synth.dynamic-sample-loading`).
-5. **App data directories from the host.** `AppDataService` falls into the
-   Linux/XDG branch on Android; the shim points `XDG_*` at `filesDir`. The
-   planned `utils/paths.py` (M1 step 4) should take the directory from the host.
+5. **Done (session step 14):** `AppDataService(root=filesDir)`, same layout
+   as the shim's (`filesDir/config/chord-notepad`, `filesDir/data/
+   chord-notepad`). **App data directories from the host.** `AppDataService`
+   fell into the Linux/XDG branch on Android; the shim pointed `XDG_*` at
+   `filesDir` (still used by the throwaway spike).
 6. **Done (M1b), by item 7:** there is no Python timing loop any more.
    **Playback loop re-anchors on every event, so lateness accumulates.**
    After each event the loop sets `_wall_anchor = time.time()`, so each event's

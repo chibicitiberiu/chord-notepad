@@ -4,11 +4,12 @@ M2 spike: each patch here stands in for a core change that the port still
 needs (listed in docs/ANDROID.md, "Required core changes"). When the core
 change lands, the matching shim is deleted.
 
-Remaining:
+Remaining, for the spike only:
 
-1. Data directories: AppDataService resolves XDG_* on non-Windows/macOS
-   platforms, so point those at the app's private filesDir (core change 5,
-   ``utils/paths.py`` taking the directory from the host).
+1. Data directories: the spike's AppDataService resolves XDG_*, so they are
+   pointed at the app's private filesDir. The session host (``host.py``)
+   doesn't need this: it passes filesDir as ``AppDataService(root=...)``,
+   which gives the same layout (core change 5, done with session step 14).
 
 Gone with M1b (now in the core):
 - library lookup: ``audio/fluidsynth_import.py`` accepts the bare soname and
