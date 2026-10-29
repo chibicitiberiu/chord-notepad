@@ -173,7 +173,14 @@ How to Change Voicing
       **String Quartet**, or any custom ensemble you've defined (see below).
    3. Play your chords to hear the difference.
 
-A checkmark shows the current voicing, the same as for :doc:`playback`.
+.. only:: desktop
+
+   A checkmark shows the current voicing, the same as for :doc:`playback`.
+
+.. only:: android
+
+   A filled radio button marks the current voicing. While a song plays the
+   Voicing button is greyed out: pause first (see :doc:`playback`).
 
 .. only:: desktop
 
@@ -205,11 +212,20 @@ Custom Ensembles
 .. only:: android
 
    If the four presets don't match the group you're writing for, define your
-   own from ☰ → Settings → Voicings: load a
-   built-in ensemble as a starting point, change the voices, spacing, or
-   weights, and save. See :doc:`settings` for the page itself and a worked
-   example (built there for a fretted instrument, but the same steps apply
-   to an ensemble).
+   own:
+
+   1. Open **☰ → Settings → Voicings** and tap **Add voicing**. The new
+      voicing starts out as a guitar.
+   2. Tap **Load config** and pick the built-in ensemble closest to what you
+      want, such as **Choir (SATB)**. Or set **Model** to **Ensemble** to
+      start from two plain voices.
+   3. Tap the **Name** field to name the voicing.
+   4. Change the voices, the spacing or the weights (see below).
+   5. Tap **Save**.
+
+   See :doc:`fretted` for how errors are shown, and :doc:`settings` for the
+   page itself and a worked example (built there for a fretted instrument,
+   but the same steps apply to an ensemble).
 
 .. only:: desktop
 
@@ -222,63 +238,115 @@ Custom Ensembles
    on Linux, or the equivalent per-user application-data folder on Windows
    and macOS.
 
+.. only:: desktop
+
+   Add a ``voicings`` object at the top level, keyed by a short slug you'll
+   use internally; each entry needs a ``"model": "ensemble"`` and describes
+   one ensemble:
+
+   .. code-block:: json
+
+      {
+        "voicings": {
+          "jazz_trio": {
+            "model": "ensemble",
+            "label": "Jazz Vocal Trio",
+            "voices": [
+              {"name": "Lead", "range": ["A3", "F5"]},
+              {"name": "Harmony", "range": ["F3", "D5"]},
+              {"name": "Bass", "range": ["E2", "C4"]}
+            ],
+            "max_spacing": [12, 19],
+            "allow_unisons": false,
+            "weights": {
+              "movement": -0.6,
+              "common_tone_bonus": 2.5,
+              "parallel_perfect_penalty": -15.0
+            }
+          }
+        }
+      }
+
+   * ``model`` is required and must be ``"ensemble"`` for a voicing defined
+     this way (a fretted instrument uses ``"model": "fretboard"`` instead --
+     see :doc:`fretted`).
+   * ``label`` is what shows up in the Voicing menu (defaults to the slug if
+     omitted).
+   * ``voices`` is required: 2 to 8 entries, listed top voice first, each with
+     a ``name`` and a ``range`` of ``[low, high]``. Give the range as note
+     names (``"C4"``, ``"F#3"``) or raw MIDI numbers; middle C is ``C4``. Each
+     voice also takes an optional ``staff`` (``"treble"`` or ``"bass"``),
+     used by the chord sheet's Staff view (see :doc:`chord_sheet`) to draw a
+     voicing on a grand staff.
+     Leave it out and Chord Notepad picks the staff automatically from the
+     voice's range: ``"bass"`` if the range center sits below middle C,
+     ``"treble"`` otherwise. The built-in Choir (SATB) pins soprano and alto
+     to ``"treble"`` and tenor and bass to ``"bass"`` explicitly; every other
+     built-in leaves it to the automatic rule.
+   * ``max_spacing`` is optional: the maximum semitone gap allowed between
+     each pair of neighbouring voices, one entry per gap (so one fewer entry
+     than there are voices). Leave it out and Chord Notepad defaults every
+     gap to an octave, except the bottom gap, which gets an octave and a
+     fifth to leave the bass room to move.
+   * ``allow_unisons`` is optional (default ``true``): set it to ``false`` if
+     you never want two neighbouring voices landing on the same pitch.
+   * ``weights`` is optional and partial -- give only the settings you want to
+     change, and everything else keeps its default. See the parameter
+     reference below for the full list of keys.
+
 .. only:: android
 
-   Voicings are edited in ☰ → Settings → Voicings; the configuration file is not something you edit by hand on Android.
+   An ensemble's form starts with its **Voices**, top voice first. On a phone
+   each voice is a small card:
 
-Add a ``voicings`` object at the top level, keyed by a short slug you'll
-use internally; each entry needs a ``"model": "ensemble"`` and describes
-one ensemble:
+   * **Name**: what the voice is called, for example Soprano. MIDI export
+     names the voice's track after it.
+   * **Low** and **High**: the voice's range, as note names (``C4``,
+     ``F#3``) or MIDI numbers; middle C is ``C4``.
+   * **Staff**: where the chord sheet's Staff view draws the voice (see
+     :doc:`chord_sheet`). **Auto** picks it from the range: the bass staff
+     if the middle of the range is below middle C, the treble staff
+     otherwise. The built-in Choir (SATB) sets soprano and alto to Treble
+     and tenor and bass to Bass; every other built-in leaves it on Auto.
 
-.. code-block:: json
+   **Add voice** adds a voice at the bottom and **✕** removes one. An
+   ensemble has 2 to 8 voices.
 
-   {
-     "voicings": {
-       "jazz_trio": {
-         "model": "ensemble",
-         "label": "Jazz Vocal Trio",
-         "voices": [
-           {"name": "Lead", "range": ["A3", "F5"]},
-           {"name": "Harmony", "range": ["F3", "D5"]},
-           {"name": "Bass", "range": ["E2", "C4"]}
-         ],
-         "max_spacing": [12, 19],
-         "allow_unisons": false,
-         "weights": {
-           "movement": -0.6,
-           "common_tone_bonus": 2.5,
-           "parallel_perfect_penalty": -15.0
-         }
-       }
-     }
-   }
+   Under the voices:
 
-* ``model`` is required and must be ``"ensemble"`` for a voicing defined
-  this way (a fretted instrument uses ``"model": "fretboard"`` instead --
-  see :doc:`fretted`).
-* ``label`` is what shows up in the Voicing menu (defaults to the slug if
-  omitted).
-* ``voices`` is required: 2 to 8 entries, listed top voice first, each with
-  a ``name`` and a ``range`` of ``[low, high]``. Give the range as note
-  names (``"C4"``, ``"F#3"``) or raw MIDI numbers; middle C is ``C4``. Each
-  voice also takes an optional ``staff`` (``"treble"`` or ``"bass"``),
-  used by the chord sheet's Staff view (see :doc:`chord_sheet`) to draw a
-  voicing on a grand staff.
-  Leave it out and Chord Notepad picks the staff automatically from the
-  voice's range: ``"bass"`` if the range center sits below middle C,
-  ``"treble"`` otherwise. The built-in Choir (SATB) pins soprano and alto
-  to ``"treble"`` and tenor and bass to ``"bass"`` explicitly; every other
-  built-in leaves it to the automatic rule.
-* ``max_spacing`` is optional: the maximum semitone gap allowed between
-  each pair of neighbouring voices, one entry per gap (so one fewer entry
-  than there are voices). Leave it out and Chord Notepad defaults every
-  gap to an octave, except the bottom gap, which gets an octave and a
-  fifth to leave the bass room to move.
-* ``allow_unisons`` is optional (default ``true``): set it to ``false`` if
-  you never want two neighbouring voices landing on the same pitch.
-* ``weights`` is optional and partial -- give only the settings you want to
-  change, and everything else keeps its default. See the parameter
-  reference below for the full list of keys.
+   * **Max spacing**: the largest gap, in semitones, allowed between each
+     pair of neighbouring voices, as a comma-separated list with one number
+     fewer than there are voices. The hint under the field says how many it
+     expects. Left empty, every gap is an octave, except the bottom one,
+     which gets an octave and a fifth to leave the bass room to move.
+   * **Allow unisons**: turn it off if you never want two neighbouring
+     voices on the same pitch.
+   * **Weights**, then **Doubling**, **Omission** and **Inversion**: see the
+     parameter reference below. Change only the ones you want to.
+
+   As an example, a jazz vocal trio. Start from **Model: Ensemble**, add a
+   third voice, and fill in:
+
+   .. list-table::
+      :header-rows: 1
+      :widths: 50 50
+
+      * - Field
+        - Value
+      * - Name
+        - Jazz Vocal Trio
+      * - Voices (Name, Low, High)
+        - Lead, A3, F5; Harmony, F3, D5; Bass, E2, C4
+      * - Max spacing
+        - 12, 19
+      * - Allow unisons
+        - off
+      * - Voice movement (under Weights)
+        - -0.6
+      * - Common tone held
+        - 2.5
+      * - Parallel fifths/octaves
+        - -15.0
 
 .. only:: desktop
 
@@ -288,14 +356,16 @@ one ensemble:
 
 .. only:: android
 
-   Custom ensembles appear in the Voicing sheet of the Play tab, under **Your
+   Custom ensembles appear in the player's Voicing sheet, under **Your
    voicings**, as soon as you save them.
 
-.. note::
-   Upgrading from an older version? Chord Notepad moves any entries it
-   finds under the old ``custom_tunings`` or ``custom_ensembles`` keys into
-   ``voicings`` automatically the first time it starts, including
-   whichever voicing you had selected. There's nothing to do by hand.
+.. only:: desktop
+
+   .. note::
+      Upgrading from an older version? Chord Notepad moves any entries it
+      finds under the old ``custom_tunings`` or ``custom_ensembles`` keys into
+      ``voicings`` automatically the first time it starts, including
+      whichever voicing you had selected. There's nothing to do by hand.
 
 
 Voicing Parameters
@@ -316,10 +386,11 @@ Voicing Parameters
 .. only:: android
 
    Every ensemble, built-in or custom, is steered by the same set of
-   numeric parameters. These are the controls the Voicings page of
-   ☰ → Settings exposes, one control per row --
-   see :doc:`settings` for the page itself; they can also be set directly in
-   the ``weights`` object for an ensemble in ``settings.json``. Every weight
+   numeric parameters. These are the fields under **Weights**, **Doubling**,
+   **Omission** and **Inversion** in an ensemble's form in ☰ → Settings →
+   Voicings (see :doc:`settings`). The **Config key** column is the
+   setting's name in the app's configuration file; you only need it if you
+   share voicings with the desktop version of Chord Notepad. Every weight
    is a signed number added to the voicing's score. Positive values make that
    trait more likely, negative values less likely, and higher is always more
    preferred. A trait you want the engine to seek gets a positive weight; one
