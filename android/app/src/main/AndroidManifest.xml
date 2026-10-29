@@ -1,5 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- No INTERNET permission and no Google Play services: the app must run on
+         de-Googled devices (F-Droid/GitHub builds). CI checks the merged
+         manifest (android/tools/check_manifest.py). -->
 
     <application
         android:name=".ChordNotepadApp"
@@ -16,6 +21,21 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- androidx.startup stays (ProcessLifecycleOwner needs it), but not
+             emoji2's initializer: it fetches a downloadable emoji font from the
+             Google Play services fonts provider, which crashed the first
+             emulator launch and doesn't exist on de-Googled devices. Text
+             falls back to the platform's emoji font. -->
+        <provider
+            android:name="androidx.startup.InitializationProvider"
+            android:authorities="${applicationId}.androidx-startup"
+            android:exported="false"
+            tools:node="merge">
+            <meta-data
+                android:name="androidx.emoji2.text.EmojiCompatInitializer"
+                tools:node="remove" />
+        </provider>
     </application>
 
 </manifest>

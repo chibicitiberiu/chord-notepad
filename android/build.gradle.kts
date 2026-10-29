@@ -5,5 +5,6 @@ plugins {
     // pins the Kotlin compiler version it uses.
     alias(libs.plugins.kotlin.android) apply false
     alias(libs.plugins.kotlin.compose) apply false
+    alias(libs.plugins.kotlin.serialization) apply false
     alias(libs.plugins.chaquopy) apply false
 }

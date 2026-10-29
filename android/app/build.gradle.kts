@@ -6,6 +6,7 @@ import java.util.zip.ZipFile
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.chaquopy)
 }
 
@@ -32,6 +33,10 @@ val music21Mode: String = providers.gradleProperty("cnMusic21").orElse("trimmed"
 val music21Version = "10.3.0"
 val music21TrimmedWheel: Provider<RegularFile> =
     layout.buildDirectory.file("wheels/music21-$music21Version+cnstrip1-py3-none-any.whl")
+
+// The Python bridge's DTO schema (session.bridge's dump), checked by the
+// Kotlin contract test (BridgeSchemaContractTest).
+val bridgeSchemaPath: String = repoRoot.file("android/bridge_schema.json").asFile.path
 
 val buildPythonExe: String = providers.environmentVariable("CHAQUOPY_BUILD_PYTHON")
     .orElse("python3.14").get()
@@ -85,6 +90,19 @@ android {
 
     buildFeatures {
         compose = true
+    }
+
+    testOptions {
+        unitTests {
+            // android.util.Log and friends return defaults in JVM tests; the
+            // tested logic itself stays Android-free.
+            isReturnDefaultValues = true
+            all {
+                // The bridge contract (step 14 commits it; the test skips
+                // while it is missing). See docs/ANDROID.md, "Bridge contract".
+                it.systemProperty("cn.bridgeSchema", bridgeSchemaPath)
+            }
+        }
     }
 
     // No signed dependency blob in the APK (reproducibility, F-Droid).
@@ -364,8 +382,13 @@ dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.lifecycle.runtime.ktx)
+    implementation(libs.androidx.lifecycle.process)
+    implementation(libs.kotlinx.serialization.json)
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.foundation)
     implementation(libs.androidx.compose.material3)
+
+    testImplementation(libs.junit)
+    testImplementation(libs.kotlinx.coroutines.test)
 }

@@ -1,0 +1,80 @@
+package io.github.chibicitiberiu.chordnotepad
+
+import android.content.Context
+import androidx.lifecycle.ProcessLifecycleOwner
+import io.github.chibicitiberiu.chordnotepad.audio.audioLaunchOptions
+import io.github.chibicitiberiu.chordnotepad.bridge.ChaquopySessionLauncher
+import io.github.chibicitiberiu.chordnotepad.bridge.LaunchEnvironment
+import io.github.chibicitiberiu.chordnotepad.bridge.PyHost
+import io.github.chibicitiberiu.chordnotepad.bridge.SessionCommands
+import io.github.chibicitiberiu.chordnotepad.bridge.SessionRepository
+import io.github.chibicitiberiu.chordnotepad.files.ContentResolverDocumentAccess
+import io.github.chibicitiberiu.chordnotepad.files.RecentDocumentsFile
+import io.github.chibicitiberiu.chordnotepad.files.SafDocumentStore
+import io.github.chibicitiberiu.chordnotepad.lifecycle.AndroidAudioFocusGateway
+import io.github.chibicitiberiu.chordnotepad.lifecycle.AndroidNoisyGateway
+import io.github.chibicitiberiu.chordnotepad.lifecycle.AppLifecycleHooks
+import io.github.chibicitiberiu.chordnotepad.lifecycle.Draft
+import io.github.chibicitiberiu.chordnotepad.lifecycle.PlaybackAudioPolicy
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import java.io.File
+
+/**
+ * The app's long-lived objects, created once in [ChordNotepadApp.onCreate].
+ * Python doesn't start until [pyHost]'s `start()` (the activity calls it).
+ */
+class AppGraph(context: Context) {
+    private val app = context.applicationContext
+
+    /** Main-thread scope for app-lifetime collectors. */
+    val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+
+    /** The session's output, as flows. */
+    val repository = SessionRepository()
+
+    /** SAF documents and the recent list. */
+    val documents = SafDocumentStore(
+        ContentResolverDocumentAccess(app),
+        RecentDocumentsFile(File(app.filesDir, "recent_documents.json")),
+    )
+
+    /** The Python session. */
+    val pyHost = PyHost(
+        launcher = ChaquopySessionLauncher(app),
+        environment = {
+            LaunchEnvironment(
+                filesDir = app.filesDir.path,
+                nativeLibDir = app.applicationInfo.nativeLibraryDir,
+                audio = audioLaunchOptions(app),
+            )
+        },
+        store = documents,
+        repository = repository,
+    )
+
+    /** Commands to the session. */
+    val commands: SessionCommands get() = pyHost.commands
+
+    /**
+     * The editor's current text, for the draft kept across process death.
+     * Set by the editor (M4); while null no draft is saved.
+     */
+    @Volatile
+    var editorText: (() -> String)? = null
+
+    /** The draft to save now, or null (main thread). */
+    fun currentDraft(): Draft? {
+        val text = editorText?.invoke() ?: return null
+        val doc = repository.document.value
+        return Draft(text, doc?.documentId, doc?.isModified ?: false)
+    }
+
+    /** Hook the process lifecycle and the audio policy (main thread, once). */
+    fun install() {
+        ProcessLifecycleOwner.get().lifecycle.addObserver(AppLifecycleHooks(commands))
+        PlaybackAudioPolicy(AndroidAudioFocusGateway(app), AndroidNoisyGateway(app), commands::pause)
+            .bind(scope, repository.playback)
+    }
+}

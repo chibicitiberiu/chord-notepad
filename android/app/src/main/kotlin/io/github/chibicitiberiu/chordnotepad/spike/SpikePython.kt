@@ -8,8 +8,8 @@ import android.os.SystemClock
 import android.util.Log
 import com.chaquo.python.PyObject
 import com.chaquo.python.Python
-import com.chaquo.python.android.AndroidPlatform
 import io.github.chibicitiberiu.chordnotepad.ChordNotepadApp
+import io.github.chibicitiberiu.chordnotepad.bridge.PythonRuntime
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.withContext
@@ -33,7 +33,8 @@ object SpikePython {
         // Resolves liboboe, libsndfile (+codecs) and libc++_shared from the APK.
         System.loadLibrary("fluidsynth")
         val t1 = SystemClock.elapsedRealtimeNanos()
-        if (!Python.isStarted()) Python.start(AndroidPlatform(app))
+        // Shared with PyHost, so the two never race on Python.start.
+        PythonRuntime.ensureStarted(app)
         val t2 = SystemClock.elapsedRealtimeNanos()
         val sf2 = copySoundfont(app)
         val t3 = SystemClock.elapsedRealtimeNanos()
