@@ -1115,6 +1115,37 @@ the compact layout) and loading `examples/02_american_complete.txt` through
 the picker. The first launch right after the install was lost while the system
 was still settling after boot (the process was gone; a second start was fine).
 
+**Second pass, 2026-10-29** (debug APK, x86_64, headless 2 GB, `cn_phone` and
+`cn_phone_16k`):
+
+- *First launch after a fresh install.* Not reproduced: `adb uninstall`,
+  `install`, `am start -W` twice on `cn_phone` (TotalTime 2.7 s, 1.8 s) and
+  three times on `cn_phone_16k` (including one right after `adb reboot`;
+  2.2 s, 2.3 s, 4.0 s). The process was alive 25 s later every time, with no
+  `FATAL EXCEPTION`, native crash, python traceback or ANR from the app. On
+  the 16 KB image lmkd was busy right after the install (75 and 102 kills of
+  cached system and Google apps, "min watermark is breached"; free memory
+  176 MB of 2.4 GB), but the app was never among them. So the earlier loss was
+  an lmkd kill under 2 GB emulator memory pressure, not an app bug. Not
+  retried with `-memory 3072` since nothing failed. Logs: not kept in git.
+- *Autosave.* BPM 90 and the Do notation toggled, 3 s wait, `force-stop`:
+  `settings.json` held `"bpm": 90` and `"notation": "european"`, and both came
+  back after relaunch.
+- *Hardware keys.* With the Quick Start switched off, F1 one second after
+  launch opens the User Guide; Ctrl+N (`input keycombination 113 42`) shows
+  "New file created".
+- *User Guide.* Renders (not blank) and links navigate (Getting Started). One
+  console error: `sphinx_highlight.js` read `sessionStorage`, which is null
+  with DOM storage off. Fixed by `domStorageEnabled = true` (the pages are
+  local assets, nothing else changes); the error is gone. No 404s or CSP
+  errors.
+- *16 KB, file and chord sheet.* `02_american_complete.txt` opened through the
+  system picker (Downloads); View, Chord Sheet shows the piano roll and staff;
+  Play highlights the chord in the editor and the sheet ("Bar 4/125 ...
+  Playing: C"). Fret cards and Tab are greyed out for the piano instrument, so
+  they were not switched to. No crash. In the Do (European) notation the
+  American chords are not highlighted, which is expected.
+
 ## Spike measurements (M2)
 
 **Date:** 2026-10-29. **Device:** Android emulator `cn_phone` (Pixel 8 profile,
