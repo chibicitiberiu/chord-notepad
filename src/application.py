@@ -14,15 +14,13 @@ from services.playback_service import PlaybackService
 from services.song_parser_service import SongParserService
 from services.file_service import FileService
 from services.resource_service import ResourceService
+from session.bootstrap import CoreServices, build_core_services, create_session
 from session.documents import FileSystemDocumentStore
 from session.session import AppSession
 from ui.tk_host import TkHost
 # Imported here, before anything can fail, so the error dialog is installed
 # as the session error handler (see utils.error_reporting).
 from utils import error_reporting
-from viewmodels.main_window_viewmodel import MainWindowViewModel
-from viewmodels.text_editor_viewmodel import TextEditorViewModel
-from viewmodels.chord_sheet_viewmodel import ChordSheetViewModel
 
 
 class Application:
@@ -35,7 +33,9 @@ class Application:
     """
 
     def __init__(self):
-        # Private service instances (initialized in on_initialize_services)
+        # Private service instances (initialized in on_initialize_services);
+        # the Tk-free ones are the shared core (session.bootstrap)
+        self._core: Optional[CoreServices] = None
         self._appdata_service: Optional[AppDataService] = None
         self._config_service: Optional[ConfigService] = None
         self._logging_service: Optional[LoggingService] = None
@@ -45,12 +45,8 @@ class Application:
         self._resource_service: Optional[ResourceService] = None
         self._document_store: Optional[FileSystemDocumentStore] = None
 
-        # ViewModels (initialized in on_initialize_ui)
-        self._main_window_viewmodel: Optional[MainWindowViewModel] = None
-        self._text_editor_viewmodel: Optional[TextEditorViewModel] = None
-        self._chord_sheet_viewmodel: Optional[ChordSheetViewModel] = None
-
-        # The application layer the window drives (initialized in on_initialize_ui)
+        # The application layer the window drives, with the viewmodels it
+        # composes (initialized in on_initialize_ui)
         self._session: Optional[AppSession] = None
 
         # Runs callbacks on the Tk main thread (cross-thread queue, timers).
@@ -178,23 +174,20 @@ class Application:
 
     def on_initialize_services(self) -> None:
         """Initialize all application services in dependency order."""
-        # Infrastructure services (no dependencies)
-        self._appdata_service = AppDataService()
-        self._appdata_service.ensure_directories_exist()
+        # The shared core: data directories, config (loaded), parser,
+        # playback (pings posted through this application), file I/O
+        core = build_core_services(AppDataService(), self)
+        self._core = core
+        self._appdata_service = core.appdata
+        self._config_service = core.config
+        self._song_parser_service = core.song_parser
+        self._audio_service = core.playback
+        self._file_service = core.files
+        self._document_store = FileSystemDocumentStore(core.files)
+
+        # Desktop-only: icons and other bundled resources, logging setup
         self._resource_service = ResourceService()
-
-        # Config service (depends on appdata)
-        self._config_service = ConfigService(self._appdata_service)
-        self._config_service.load_config()
-
-        # Logging service (no dependencies, but needs appdata for configuration)
         self._logging_service = LoggingService()
-
-        # Business services (depend on infrastructure)
-        self._song_parser_service = SongParserService()
-        self._audio_service = PlaybackService(self._config_service, application=self)
-        self._file_service = FileService(self._config_service)
-        self._document_store = FileSystemDocumentStore(self._file_service)
 
     def on_configure_logging(self) -> None:
         """Configure the logging system."""
@@ -216,39 +209,15 @@ class Application:
         logger = logging.getLogger(__name__)
         logger.info("Creating ViewModels")
 
-        # Create ViewModels with service dependencies
-        self._main_window_viewmodel = MainWindowViewModel(
-            self.config_service,
-            self.audio_service,
-            self.documents,
-            self.song_parser_service,
-            self  # Pass application for cross-thread callbacks
-        )
-
-        self._text_editor_viewmodel = TextEditorViewModel(
-            self.song_parser_service
-        )
-
-        # Chord-sheet strip viewmodel (headless; renders via the audio service's
-        # active note picker off the UI thread; debounces and marshals results
-        # back through the Tk host).
-        self._chord_sheet_viewmodel = ChordSheetViewModel(
-            self.config_service,
-            self.audio_service,
-            host=self._host,
-        )
-
-        # The session composes the viewmodels. It only uses the host's timers
-        # once started, after the main window has attached itself.
-        self._session = AppSession(
-            self._host,
-            main_window_viewmodel=self._main_window_viewmodel,
-            text_editor_viewmodel=self._text_editor_viewmodel,
-            chord_sheet_viewmodel=self._chord_sheet_viewmodel,
-            config_service=self.config_service,
-            song_parser_service=self.song_parser_service,
-            playback_service=self.audio_service,
-        )
+        # The viewmodels over the core services (cross-thread callbacks go
+        # through this application) and the session that composes them. It
+        # only uses the host's timers once started, after the main window
+        # has attached itself.
+        if self._core is None:
+            raise ServiceNotInitializedError(
+                "Core services not initialized. Call on_initialize() first."
+            )
+        self._session = create_session(self._host, self._core, self.documents, dispatch=self)
 
         logger.info("ViewModels created successfully")
 
@@ -279,12 +248,9 @@ class Application:
         self._running = False
         self._host.stop()
         if self._session is not None:
+            # Also drops what still observes its viewmodels (the chord-sheet
+            # panel observed the strip directly).
             self._session.shutdown()
-        # Nothing observes the viewmodels any more (the chord-sheet panel
-        # observed the strip directly); drop what's left.
-        for viewmodel in (self._main_window_viewmodel, self._chord_sheet_viewmodel):
-            if viewmodel is not None:
-                viewmodel.clear_observers()
 
         # Cleanup audio service
         if self._audio_service is not None:

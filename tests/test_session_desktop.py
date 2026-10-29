@@ -10,6 +10,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from services.song_parser_service import SongParserService
+from session.bootstrap import CoreServices
 from session.host import HostDispatch
 from session.session import AppSession
 from session.state import StatusState
@@ -85,8 +86,9 @@ def test_dialog_models_are_new_each_time_and_use_the_services():
     config = MagicMock()
     config.config = Config(font_size=17)
     audio = MagicMock()
-    session, _, _ = make_session(config_service=config, song_parser_service=SongParserService(),
-                                 playback_service=audio)
+    services = CoreServices(appdata=MagicMock(), config=config, song_parser=SongParserService(),
+                            playback=audio, files=MagicMock())
+    session, _, _ = make_session(services=services)
     settings = session.settings_model()
     assert isinstance(settings, SettingsViewModel)
     assert settings.font_size == 17

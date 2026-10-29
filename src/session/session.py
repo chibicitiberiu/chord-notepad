@@ -35,11 +35,13 @@ from session.emitter import Emitter, Listener
 from session.documents import DocumentRef
 from session.events import (
     AudioUnavailable, CapoChoiceRequest, CloseApproved, ConfirmDiscardRequest, DiscardChoice,
-    InsertDirectiveRequest, PickDocumentRequest, PickMode, TextEdited, UndoPolicy, UserError,
+    InsertDirectiveRequest, PickDocumentRequest, PickMode, TextEdited, UndoPolicy,
+    UnexpectedError, UserError,
 )
 from session.flows import Flow, FlowRunner
 from session.highlighting import chord_at, compute_spans
 from session.host import Cancellable, Host
+from session.settings import SettingsValues
 from session.workers import BackgroundWorker, Job, Outcome
 from session.state import (
     ChordSheetState, ChordSheetView, DocumentState, EditorState, HighlightState,
@@ -50,9 +52,7 @@ from session.state import (
 if TYPE_CHECKING:
     # Type-only: the chord-sheet viewmodel still imports PIL (see the core
     # import guard), so the session must not import it at run time.
-    from services.config_service import ConfigService
-    from services.playback_service import PlaybackService
-    from services.song_parser_service import SongParserService
+    from session.bootstrap import CoreServices
     from viewmodels.chord_identifier_viewmodel import ChordIdentifierViewModel
     from viewmodels.chord_sheet_viewmodel import ChordSheetViewModel
     from viewmodels.main_window_viewmodel import MainWindowViewModel
@@ -106,9 +106,7 @@ class AppSession:
                  detection_delay_s: float = CHORD_DETECTION_DEBOUNCE_MS / 1000,
                  audio_failure_policy: Optional[AudioFailurePolicy] = None,
                  worker: Optional[BackgroundWorker] = None,
-                 config_service: Optional["ConfigService"] = None,
-                 song_parser_service: Optional["SongParserService"] = None,
-                 playback_service: Optional["PlaybackService"] = None) -> None:
+                 services: Optional["CoreServices"] = None) -> None:
         """Create the session. Nothing is delivered or scheduled until used.
 
         Args:
@@ -129,20 +127,19 @@ class AppSession:
             worker: Runs the renders the user waits for (MIDI export,
                 Suggest Capo) off the session thread; a new one on ``host``
                 by default. Shut down with the session.
-            config_service: For the Settings dialog's model
-                (:meth:`settings_model`).
-            song_parser_service: For the chord identifier's model
-                (:meth:`chord_identifier_model`).
-            playback_service: Plays the chord identifier's notes.
+            services: The core services the viewmodels were built over
+                (``session.bootstrap.create_session`` passes them). The
+                dialog-scoped models (:meth:`settings_model`,
+                :meth:`chord_identifier_model`), the settings commands and
+                :meth:`save_config` need them; tests that don't use those
+                leave them out.
         """
         self._host = host
         self._emitter = Emitter()
         self._main = main_window_viewmodel
         self._detector = text_editor_viewmodel
         self._chord_sheet = chord_sheet_viewmodel
-        self._config = config_service
-        self._parser = song_parser_service
-        self._playback_service = playback_service
+        self._services = services
         self._started = False
         self._detection_delay_s = detection_delay_s
 
@@ -206,8 +203,11 @@ class AppSession:
         self._main.observe("voicing", self._on_voicing)
 
         # The strip's own state (visibility, view, zoom, playhead) and a
-        # revision that goes up with every song it rendered.
+        # revision that goes up with every song it rendered. What the op
+        # buffer is packed from is kept as one tuple, replaced (never
+        # mutated) on the session thread, so other threads can read it.
         self._sheet_revision = 0
+        self._sheet_snapshot: Optional[Tuple[Any, str, float, Any]] = None
         self._on_sheet_change = self._entry(self._publish_chord_sheet)
         self._on_sheet_song = self._entry(self._on_chord_sheet_song)
         if self._chord_sheet is not None:
@@ -298,6 +298,11 @@ class AppSession:
         self._main.unobserve("is_paused", self._on_transport)
         self._main.unobserve("current_playback_event", self._on_progress)
         self._main.unobserve("playback_error", self._on_render_error)
+        # The session is the viewmodels' only observer; drop whatever is
+        # left (the Tk chord-sheet panel observes the strip for repaints).
+        self._main.clear_observers()
+        if self._chord_sheet is not None:
+            self._chord_sheet.clear_observers()
         self._emitter.close()
 
     # -- editing ----------------------------------------------------------------
@@ -460,6 +465,52 @@ class AppSession:
         """
         self._flows.respond(request_id, value)
 
+    @_command
+    def restore_draft(self, text: str, document: Optional[DocumentRef], modified: bool) -> None:
+        """Put back the editor a killed process had (Android draft restore).
+
+        The text replaces the session's as a ``reset`` edit (a fresh undo
+        history), ``document`` becomes the open document without being
+        read (its saved content may differ from the draft) and the modified
+        flag is set as given. A pending request is dropped. Refused while a
+        song plays, like every programmatic edit.
+
+        Args:
+            text: The draft text.
+            document: The document it belongs to, or None for a new one.
+            modified: Whether the draft has unsaved changes.
+
+        Raises:
+            TypeError: If ``document`` isn't a DocumentRef or None.
+        """
+        document = self._as_ref(document)
+        if not self._edits_allowed("restore draft"):
+            return
+        self._flows.cancel()
+        revision = self._revision
+        with self._undo_policy(UndoPolicy.RESET):
+            self._main.restore_document(str(text), document, bool(modified))
+        if self._revision == revision:
+            # Same text as the session's: still a new undo history in the views.
+            self._splice(0, len(self._text), self._text, UndoPolicy.RESET)
+
+    @_command
+    def report_unexpected(self, message: str, context: Optional[str] = None) -> None:
+        """Emit an :class:`UnexpectedError` (for hosts whose error handler
+        reports through the session, and for the bridge's own failures)."""
+        self._emitter.emit(UnexpectedError(str(message), context))
+
+    @_command
+    def save_config(self) -> None:
+        """Write the settings to disk now (Android: when the app leaves the
+        screen, as the process may be killed afterwards).
+
+        Raises:
+            RuntimeError: If the session was built without services.
+            ConfigurationError: If the config can't be written.
+        """
+        self._require_services("saving the config").config.save_config()
+
     # -- documents ----------------------------------------------------------------
     #
     # Each command is a flow (see session.flows): the unsaved-changes question
@@ -560,6 +611,19 @@ class AppSession:
         """Stop playback (also silences notes still ringing when idle)."""
         self._main.stop_playback()
         self._set_status(formatting.STOPPED)
+
+    @_command
+    def pause(self) -> None:
+        """Pause if a song is playing; otherwise do nothing.
+
+        For interruptions rather than the Play/Pause button (Android: audio
+        focus lost, headphones unplugged, the app left the screen), which
+        must never start or resume playback.
+        """
+        if self._playback_status() is PlaybackStatus.PLAYING:
+            logger.info("Pausing playback (interrupted)")
+            self._main.pause_playback()
+            self._set_status(formatting.PAUSED)
 
     @_command
     def tap_chord_at(self, offset: int) -> None:
@@ -700,21 +764,32 @@ class AppSession:
         self._main.reset_font_size()
 
     @_command
-    def apply_settings(self, changes: "SettingsChanges") -> None:
-        """Bring the running app in line with settings the Settings dialog saved.
+    def apply_settings(self, changes: "SettingsChanges | SettingsValues") -> None:
+        """Bring the running app in line with new settings.
 
-        The dialog writes the config itself (``SettingsViewModel.commit``) and
-        hands over what changed: a new font is applied, the Voicing menu is
-        rebuilt from the edited registry, and the voicing in use is
-        re-applied when it was renamed or removed (the new value) or may have
-        been edited in place (a user voicing). ``general_changed`` and
-        ``audio_changed`` are ignored, as they always were: those settings
-        are defaults for the next start (the dialog says so where it
-        matters).
+        Desktop: the Settings dialog writes the config itself
+        (``SettingsViewModel.commit``) and hands over what changed. Bridge
+        views send a whole :class:`SettingsValues` instead (start from
+        :meth:`settings_values`); the session checks it and commits it
+        through a ``SettingsViewModel``, so the config writes are the same.
+
+        Then a new font is applied, the Voicing menu is rebuilt from the
+        edited registry, and the voicing in use is re-applied when it was
+        renamed or removed (the new value) or may have been edited in place
+        (a user voicing). ``general_changed`` and ``audio_changed`` are
+        ignored, as they always were: those settings are defaults for the
+        next start (the dialog says so where it matters).
 
         Args:
-            changes: What :meth:`SettingsViewModel.commit` reported.
+            changes: What :meth:`SettingsViewModel.commit` reported, or the
+                new values.
+
+        Raises:
+            ValueError: If a :class:`SettingsValues` is out of range
+                (nothing is written then).
         """
+        if isinstance(changes, SettingsValues):
+            changes = self._commit_settings(changes)
         if changes.font_changed:
             self._main.reload_font_settings()
         if changes.voicings_changed:
@@ -807,26 +882,55 @@ class AppSession:
         :meth:`apply_settings`.
 
         Raises:
-            RuntimeError: If the session was built without a config service.
+            RuntimeError: If the session was built without services.
         """
         from viewmodels.settings_viewmodel import SettingsViewModel
 
-        if self._config is None:
-            raise RuntimeError("the session has no config service for the Settings dialog")
-        return SettingsViewModel(self._config)
+        return SettingsViewModel(self._require_services("the Settings dialog").config)
 
     def chord_identifier_model(self) -> "ChordIdentifierViewModel":
         """A new model for a chord identifier window.
 
         Raises:
-            RuntimeError: If the session was built without a song parser.
+            RuntimeError: If the session was built without services.
         """
         from viewmodels.chord_identifier_viewmodel import ChordIdentifierViewModel
 
-        if self._parser is None:
-            raise RuntimeError("the session has no song parser for the chord identifier")
+        services = self._require_services("the chord identifier")
         return ChordIdentifierViewModel(
-            song_parser_service=self._parser, audio_service=self._playback_service)
+            song_parser_service=services.song_parser, audio_service=services.playback)
+
+    def settings_values(self) -> SettingsValues:
+        """The current settings as plain values (for :meth:`apply_settings`).
+
+        Raises:
+            RuntimeError: If the session was built without services.
+        """
+        return SettingsValues.read(self._require_services("settings").config.config)
+
+    def chord_sheet_buffer(self, height: float) -> Optional[bytes]:
+        """The active chord-sheet view packed as draw ops, for Android.
+
+        Safe to call from any thread, and meant to be called off the
+        session thread: it packs (10-40 ms on the emulator) the song the
+        strip rendered last, in the view and zoom it shows, from a snapshot
+        the session thread replaces whenever ``ChordSheetState`` changes.
+        Refetch when ``song_revision``, ``active_view``, ``zoom`` or the
+        height changes. Format: docs/ANDROID.md, "Chord sheet op buffer".
+
+        Args:
+            height: The strip's content height in dp (marker lane excluded).
+
+        Returns:
+            The buffer, or None without a chord sheet or a rendered song.
+        """
+        snapshot = self._sheet_snapshot
+        if snapshot is None or snapshot[0] is None:
+            return None
+        from chord_sheet.pack import pack_view
+
+        song, view_id, zoom, renderers = snapshot
+        return pack_view(song, view_id, zoom, float(height), renderers=renderers)
 
     @property
     def has_chord_sheet(self) -> bool:
@@ -860,6 +964,12 @@ class AppSession:
         return self._documents.ref_for(document_id)
 
     @property
+    def pending_request(self) -> Optional[object]:
+        """The request waiting for an answer, or None (the bridge decodes
+        ``respond``'s value by its type)."""
+        return self._flows.pending_request
+
+    @property
     def text(self) -> str:
         """The session's copy of the editor text."""
         return self._text
@@ -882,6 +992,21 @@ class AppSession:
         return Span(chord.start, chord.end, kind)
 
     # -- internals --------------------------------------------------------------
+
+    def _require_services(self, what: str) -> "CoreServices":
+        if self._services is None:
+            raise RuntimeError(f"the session was built without services, which {what} needs")
+        return self._services
+
+    def _commit_settings(self, values: SettingsValues) -> "SettingsChanges":
+        """Write ``values`` to the config like the Settings dialog does."""
+        from viewmodels.settings_viewmodel import SettingsViewModel
+
+        values.check()
+        model = SettingsViewModel(self._require_services("applying settings").config)
+        for name, value in values.as_dict().items():
+            setattr(model, name, value)
+        return model.commit()
 
     def _require_session_thread(self, name: str) -> None:
         if not self._host.is_session_thread():
@@ -1188,6 +1313,7 @@ class AppSession:
             location=ref.location if ref is not None else None,
             is_modified=modified,
             title=formatting.window_title(name, modified),
+            document_id=ref.id if ref is not None else None,
         ))
 
     def _publish_recent(self) -> None:
@@ -1248,6 +1374,8 @@ class AppSession:
         if sheet is None:
             return
         available = set(sheet.available_views)
+        self._sheet_snapshot = (sheet.rendered_song, sheet.active_view,
+                                sheet.zoom, tuple(sheet.renderers))
         self._emitter.set_state(ChordSheetState(
             visible=sheet.visible,
             height=sheet.height,

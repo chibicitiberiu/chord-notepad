@@ -24,7 +24,17 @@ class AppDataService:
     Provides platform-specific directory resolution for config, logs, and cache.
     """
 
-    def __init__(self):
+    def __init__(self, root: Optional[Path] = None):
+        """Create the service.
+
+        Args:
+            root: A private directory the host gives the app (Android's
+                ``filesDir``). Data then lives in ``root/data/chord-notepad``
+                and the config in ``root/config/chord-notepad``, the layout
+                the platform rules below give Linux with ``XDG_*`` pointed at
+                ``root``. None (desktop) follows the platform rules.
+        """
+        self._root: Optional[Path] = Path(root) if root is not None else None
         self._app_data_dir: Optional[Path] = None
         self._config_dir: Optional[Path] = None
         self._logs_dir: Optional[Path] = None
@@ -40,7 +50,9 @@ class AppDataService:
             - Windows: %APPDATA%/ChordNotepad
         """
         if self._app_data_dir is None:
-            if sys.platform == "win32":
+            if self._root is not None:
+                self._app_data_dir = self._root / "data" / APP_ID
+            elif sys.platform == "win32":
                 base = Path.home() / "AppData" / "Roaming"
                 self._app_data_dir = base / "ChordNotepad"
             elif sys.platform == "darwin":
@@ -62,7 +74,9 @@ class AppDataService:
             - Windows: %APPDATA%/ChordNotepad
         """
         if self._config_dir is None:
-            if sys.platform == "win32" or sys.platform == "darwin":
+            if self._root is not None:
+                self._config_dir = self._root / "config" / APP_ID
+            elif sys.platform == "win32" or sys.platform == "darwin":
                 # On Windows and macOS, config is in the same location as app data
                 self._config_dir = self.get_app_data_dir()
             else:  # Linux

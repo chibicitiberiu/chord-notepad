@@ -2,6 +2,7 @@
 
 import json
 import logging
+import os
 from pathlib import Path
 from typing import Any, Optional
 
@@ -192,9 +193,19 @@ class ConfigService:
             # Ensure directory exists
             self._config_file_path.parent.mkdir(parents=True, exist_ok=True)
 
-            # Write to file with pretty formatting
-            with open(self._config_file_path, 'w', encoding='utf-8') as f:
-                json.dump(self._config.to_dict(), f, indent=2, ensure_ascii=False)
+            # Write a temporary file and swap it in, so a crash or a killed
+            # process (Android may stop the app any time once it is in the
+            # background) never leaves a half-written config behind.
+            temp_path = self._config_file_path.with_name(self._config_file_path.name + ".tmp")
+            try:
+                with open(temp_path, 'w', encoding='utf-8') as f:
+                    json.dump(self._config.to_dict(), f, indent=2, ensure_ascii=False)
+                    f.flush()
+                    os.fsync(f.fileno())
+                os.replace(temp_path, self._config_file_path)
+            finally:
+                if temp_path.exists():
+                    temp_path.unlink()
 
             self._logger.debug("Configuration saved successfully")
 

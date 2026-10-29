@@ -14,7 +14,7 @@ Requests (``...Request``) carry a ``request_id``: the view answers each with
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Tuple
+from typing import Optional, Tuple
 
 from session.state import MenuItem
 
@@ -48,6 +48,25 @@ class AudioUnavailable:
 
     message: str
     from_click: bool
+
+
+@dataclass(frozen=True)
+class UnexpectedError:
+    """Something failed that nothing handled: a bug, not the user's doing.
+
+    Emitted on hosts whose error handler reports through the session
+    (Android: ``session.bridge.ErrorEvents``); the desktop shows its own
+    dialog instead (``utils.error_reporting``).
+
+    Attributes:
+        message: A one-line description (exception type and text).
+        context: What was running (``"bridge"`` for a command the bridge
+            couldn't decode or doesn't know, a command name, a callback);
+            None if unknown.
+    """
+
+    message: str
+    context: Optional[str] = None
 
 
 class UndoPolicy(str, Enum):

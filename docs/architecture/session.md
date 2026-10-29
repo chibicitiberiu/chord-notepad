@@ -1,9 +1,10 @@
 # AppSession: the shared application layer
 
-Status: design, approved 2026-10-28. Steps 1–13 of the migration (below) are
-implemented; "Where the desktop stands after step 13" says what is final and
-what is left for step 14. This document is the reference for that work and
-for the Android port (`docs/ANDROID_PORT_PLAN.md`).
+Status: design, approved 2026-10-28. All 14 steps of the migration (below)
+are implemented, so M1 is complete (2026-10-29). "Where the session stands
+after M1" says what is final and what stays interim, and why. This document
+is the reference for the Android port (`docs/ANDROID_PORT_PLAN.md`); the wire
+format Kotlin sees is in `docs/ANDROID.md`, "Bridge contract".
 
 ## Why
 
@@ -79,6 +80,7 @@ exists once.
 src/session/
   host.py          Host protocol, Cancellable, HostDispatch (queue_ui_callback shim)
   threaded_host.py ThreadedHost (queue + timer heap; Android/headless)
+  settings.py      SettingsValues: the settings as plain values (bridge views)
   testing.py       ManualHost (virtual clock), InMemoryDocumentStore, FakePlayer, EventRecorder
   errors.py        Tk-free unexpected-error routing (handler registry; the handler throttles)
   documents.py     DocumentRef, DocumentStore, FileSystemDocumentStore
@@ -92,8 +94,10 @@ src/session/
   highlighting.py  find_comments, compute_spans(lines, text), chord_at(lines, offset)
   flows.py         generator-based request/response FlowRunner
   workers.py       BackgroundWorker (single-thread executor, results via host.post)
-  bootstrap.py     CoreServices + build_core_services(appdata, player=None)
-  bridge.py        encode(event) -> (type_name, json); schema dump for Kotlin
+  bootstrap.py     CoreServices, build_core_services(appdata, dispatch, player=, audio_options=),
+                   create_session(host, services, documents, chord_sheet=)
+  bridge.py        encode(dto) -> (type_name, json); decode_args/dispatch; SessionBridge;
+                   ErrorEvents (throttled UnexpectedError); schema dump for Kotlin
   session.py       AppSession
 src/ui/tk_host.py  TkHost (the queue drain that used to live in application.py)
 src/utils/paths.py display_path / is_document_portal_path (moved from utils/file_dialogs.py)
@@ -125,6 +129,16 @@ There are three implementations:
   - `run_pending()` runs posted callbacks.
   - `advance(seconds)` moves the virtual clock forward.
 - **`ThreadedHost`** (Android, headless): `start()`, `shutdown()`.
+  - One daemon thread. Each round fires the timers due at that moment
+    (deadline order, ties in scheduling order), then runs what was posted by
+    then (FIFO), so neither starves the other. A timer cancelled by a
+    callback earlier in the same round doesn't fire.
+  - A callback that raises goes to `session.errors` and the thread goes on.
+  - `shutdown()` runs what was already posted, drops pending timers and
+    later posts, and joins (returns at once on the session thread).
+  - `call(fn, timeout)` runs `fn` on the session thread and waits for its
+    result: the Android host builds the session that way, because the
+    session and the chord sheet arm timers.
 
 `HostDispatch(host).queue_ui_callback = host.post` keeps `PlaybackService`,
 `NotePlayer` and `MainWindowViewModel` unchanged.
@@ -176,7 +190,7 @@ and exports never join.
 class SpanKind(str, Enum): CHORD, CHORD_INVALID, DIRECTIVE, DIRECTIVE_INVALID, COMMENT
 Span(start, end, kind)
 MenuItem(label, value)
-DocumentState(display_name, location, is_modified, title)
+DocumentState(display_name, location, is_modified, title, document_id)
 EditorState(font_family, font_size, read_only, notation)
 HighlightState(text_revision, client_token, spans)
 PlaybackState(status, playing_span, chord_index, bar, total_bars)      # idle|playing|paused
@@ -207,7 +221,7 @@ CapoChoiceRequest(request_id, options, default)
 InsertDirectiveRequest(request_id, kind, existing_labels, notation)
 UserError(title, message)
 AudioUnavailable(message, from_click)
-UnexpectedError(message, context)
+UnexpectedError(message, context)                                  # context: "bridge", a command, a callback
 CloseApproved()
 ```
 
@@ -224,7 +238,9 @@ Every programmatic edit is a splice-shaped `TextEdited`, with an undo policy:
 
 ```python
 class AppSession:
-    def __init__(self, host: Host, services: CoreServices, documents: DocumentStore) -> None
+    def __init__(self, host: Host, *, main_window_viewmodel, text_editor_viewmodel,
+                 chord_sheet_viewmodel=None, worker=None, services: CoreServices | None = None)
+                 # built by bootstrap.create_session(host, services, documents)
     def subscribe(self, listener: Callable[[object], None]) -> Cancellable   # replays current states first
     def start(self) -> None;  def shutdown(self) -> None
     # editing
@@ -248,7 +264,11 @@ class AppSession:
     def new_document(self) -> None;  def open_document(self, ref: DocumentRef | None = None) -> None
     def save(self) -> None;  def save_as(self) -> None;  def export_midi(self) -> None;  def request_close(self) -> None
     def respond(self, request_id: int, value: object) -> None
-    def apply_settings(self, changes: SettingsChanges) -> None
+    def apply_settings(self, changes: SettingsChanges | SettingsValues) -> None
+    # lifecycle (Android)
+    def pause(self) -> None                                               # only if playing
+    def restore_draft(self, text: str, document: DocumentRef | None, modified: bool) -> None
+    def save_config(self) -> None;  def report_unexpected(self, message: str, context: str | None) -> None
 ```
 
 Desktop-only queries and commands (the Tk window's needs; Android ignores
@@ -258,8 +278,11 @@ them): `window_geometry` / `set_window_geometry(geometry)`,
 `has_chord_sheet` and `chord_sheet_model` (the panel's painting read; see
 "Still interim"). Queries the views call synchronously on the session thread:
 `text`, `text_revision`, `chord_at(offset) -> Span | None` (the Tk hand
-cursor) and `document_ref(id) -> DocumentRef` (a picker's answer;
-`DocumentStore.ref_for`). Other commands added on the way:
+cursor), `document_ref(id) -> DocumentRef` (a picker's answer;
+`DocumentStore.ref_for`), `pending_request` (the bridge decodes `respond`'s
+value by its type) and `settings_values() -> SettingsValues`; plus
+`chord_sheet_buffer(height) -> bytes | None`, the one query meant for other
+threads. Other commands added on the way:
 `open_recent(ref)`, `insert_chord(at, chord)` (the chord identifier: inserts
 `chord + " "` and says "Inserted chord: X") and
 `report_audio_failure(reason, from_click)`.
@@ -287,10 +310,10 @@ by convention.
 - Payloads never contain live objects (`ChordInfo`, `Line`, `Path`,
   `RenderedSong`).
 
-## Where the desktop stands after step 13
+## Where the session stands after M1
 
-Steps 1–13 are in. What follows is what each area does now, then what is
-still interim and goes with step 14 (or later Android work).
+Steps 1–14 are in. What follows is what each area does now, then what is
+still interim, and why.
 
 ### Final
 
@@ -451,45 +474,105 @@ viewmodels, services and the `Application`. The chord identifier gets its
 model from `session.chord_identifier_model()`, inserts with `insert_chord`
 and reports audio failures with `report_audio_failure`. The Quick Start
 snippets paint `compute_spans` with the dialog's own parser (display only).
-`Application.on_shutdown` clears the viewmodels' remaining observers (the
-window used to).
+`AppSession.shutdown` clears the viewmodels' remaining observers (the
+window used to, then `Application.on_shutdown`).
 
-### Still interim (step 14, or Android work after it)
+**Construction (step 14).** `bootstrap.build_core_services(appdata,
+dispatch, player=None, audio_options=None)` is the Tk-free half of the old
+`Application.on_initialize_services`: it creates the data directories,
+loads the config and builds `CoreServices(appdata, config, song_parser,
+playback, files)`. `create_session(host, services, documents, dispatch=None,
+chord_sheet=True)` builds `MainWindowViewModel`, `TextEditorViewModel`, the
+chord-sheet strip (imported only when asked for) and the `AppSession`, whose
+optional `services` argument replaced `config_service`,
+`song_parser_service` and `playback_service`. The desktop `Application`
+uses both (passing itself as `dispatch`, as before) and keeps only the
+desktop-only services (resources, logging setup) and the document store.
+`AppSession.shutdown` now also drops whatever still observes its viewmodels
+(the Tk panel observes the strip), which `Application` used to do.
+`AppDataService(root=...)` takes the data directory from the host (Android:
+`filesDir`; the same layout the `XDG_*` shim gave). Config writes are atomic
+(temp file, `fsync`, `os.replace`).
 
-- **Construction.** `AppSession(host, *, main_window_viewmodel,
-  text_editor_viewmodel, chord_sheet_viewmodel=None, worker=None,
-  config_service=None, song_parser_service=None, playback_service=None)`,
-  built by `Application`. Step 14 replaces the viewmodel and service
-  arguments with `CoreServices` (`bootstrap.build_core_services`).
-  `Application.on_run` calls `start()` once the window has attached the host.
+**The bridge (step 14).** `session/bridge.py`:
+- `encode(dto) -> (type_name, json)` for every state, event and request:
+  field names as in the dataclasses, enums as values, tuples as arrays,
+  nested DTOs as objects. Anything else raises `TypeError`. `EventRecorder`
+  encodes every item it records and the test suite fails a test that
+  recorded something that doesn't encode, so every golden flow is also a
+  DTO-purity test.
+- `dispatch(session, command, args_json)` decodes the arguments by the
+  command's declared types (`SESSION_COMMANDS`, `HOST_COMMANDS`): ints
+  (never bools), floats, strings, bools, `[start, end]` selections,
+  `DocumentRef` and `SettingsValues` objects (exact field sets), `|null`.
+  `respond`'s value is decoded by the pending request's type (picker:
+  `DocumentRef`/null; unsaved changes: `save|discard|cancel`/null; capo: a
+  string/null; directive: an object of strings/null). An unknown command or
+  argument, a missing one or a wrong type emits
+  `UnexpectedError(context="bridge")`; a command that raises emits
+  `UnexpectedError(context=<command>)`. Nothing reaches the session thread
+  as an exception. Parameters with a default may be left out.
+- Lifecycle: `pause` and `restore_draft` are session commands;
+  `app_background` (pause if playing, save the config) and `app_foreground`
+  (nothing yet) run on them.
+- `SessionBridge(host, session, sink)` subscribes `sink(type_name, json)`
+  and posts every `submit(command, args_json)` to the session thread.
+  `ErrorEvents` is the Android `session.errors` handler: it posts an
+  `UnexpectedError`, at most once per message and context per 30 s and five
+  per minute.
+- `python -m session.bridge --schema` dumps types, enums, commands with
+  their parameter types and the answer types; the committed
+  `android/bridge_schema.json` is checked against it in both test suites.
+- Settings over the bridge: `settings_values()` reads a `SettingsValues`
+  (the General and Playback settings that carry over to Android), and
+  `apply_settings(SettingsValues)` range-checks it and commits it through a
+  `SettingsViewModel`, so the config writes and change flags are the
+  dialog's. The desktop path (`SettingsChanges`) is unchanged.
+- The Android host (`android/app/src/main/python/chordnotepad_android/
+  host.py`) wires these: `ThreadedHost`, `AppDataService(root=filesDir)`,
+  `build_core_services`, an `AndroidDocumentStore` over Kotlin's SAF store,
+  `create_session` on the session thread, `SessionBridge`, `ErrorEvents`.
+
+### Still interim, and why
+
 - **`MainWindowViewModel` still owns the values.** It holds the document
-  text, the modified flag and the open document, does the document I/O
-  (`open_file`, `save_file_as`, `finish_midi_export`, `new_file`; the reason
-  of a failure is its `last_error`), owns the toolbar values and their config
-  writes, the font, the notation preference, the window preferences, and runs
-  playback (including the generation token). The session keeps its own text
-  copy and forwards every change to `on_text_changed`, and observes
-  `current_text`, `current_document`, `is_modified`, `notation`, `bpm`,
-  `bpm_multiplier`, `metronome_enabled`, `key`, the time signature,
-  `font_family`, `font_size`, `voicing`, `is_playing`, `is_paused`,
-  `current_playback_event` and `playback_error`. The session uses the
-  viewmodel's store (`MainWindowViewModel.documents`).
-- **The chord-sheet panel still paints from the strip.** `ChordSheetPanel`
-  reads `session.chord_sheet_model` (the renderers and the `RenderedSong`
-  are live objects) and observes it for repaints; it never changes it, all
-  its commands go through the session. Draw ops cross the bridge with the
-  Android work. Apart from the dialog-scoped models below, this is the one
-  read of shared state past the session left in the Tk UI, and it lives in
-  `ui/chord_sheet/panel.py`, not in the window.
+  text, the modified flag and the open document, does the document I/O,
+  owns the toolbar values and their config writes, the font, the notation
+  preference, the window preferences, and runs playback (including the
+  generation token). The session observes 16 of its properties and keeps
+  its own text copy in step. Moving the values into the session would
+  touch about 15 test files for no behaviour change; the viewmodel is now
+  reachable only through the session, so this can happen any time.
+- **The Tk panel still paints from the strip** (`session.chord_sheet_model`,
+  live renderers and `RenderedSong`). Android gets the drawing as bytes
+  instead: `AppSession.chord_sheet_buffer(height)` packs the active view
+  (`chord_sheet.pack.pack_view`) from a snapshot the session thread
+  replaces with every `ChordSheetState`, on the caller's thread, so Kotlin
+  calls it directly through `SessionHandle.chord_sheet_buffer` without
+  waiting for the session thread. The renderers are shared with the strip;
+  they are treated as pure (as `pack_view` requires), which nothing checks.
 - **Dialog-scoped models are desktop-only.** `settings_model()` and
-  `chord_identifier_model()` return live viewmodels for the Tk dialogs; the
-  Android UI will need commands (or its own models) for those screens.
-- **The bridge.** `PickDocumentRequest` answers are `DocumentRef` objects;
-  `bridge.encode`/decoding (via `document_ref`/`DocumentStore.ref_for`) and
-  `ThreadedHost` come with step 14.
+  `chord_identifier_model()` return live viewmodels. Android has the
+  settings path above; what M5 still needs from the bridge:
+  - the voicings registry (the voicings editor's form schema, M5);
+  - the chord identifier: a command that identifies a note list (or a
+    typed note string) and a reply state with the candidates, plus
+    play-note/play-chord commands through the session's
+    `AudioFailurePolicy` (inserting already works: `insert_chord`);
+  - Quick Start text variants and the first-run flag
+    (`set_show_quick_start_on_startup` is a bridge command; reading it
+    needs a state or the settings values);
+  - an output type for each of these, which the Kotlin contract test will
+    then ask Kotlin to decode.
 - **Click-to-hear and the shared picker.** `play_chord_immediate` still
   voices with the shared note picker on the session thread while a playback
-  render may be using it (as before step 12).
+  render may be using it (as before step 12). On Android the session thread
+  is not the UI thread, so a slow voicing delays the next command, not the
+  UI.
+- **Audio across the app lifecycle.** `app_background` pauses and saves the
+  config; it doesn't close the audio stream, and `app_foreground` does
+  nothing. Closing and reopening the stream (plan, "Lifecycle") is M3/M4
+  work once it is measured on the phone.
 
 ## Threading contract
 
@@ -561,7 +644,7 @@ window used to).
 | 11 | Document flows as generators + requests, `DocumentState`/title | High |
 | 12 | `BackgroundWorker` for export/capo; non-blocking `stop_playback` | Med |
 | 13 | `MainWindow(session, host, resources)`; remove compatibility shims | Low |
-| 14 | `ThreadedHost`, `bootstrap`, `bridge.encode` + schema | Med |
+| 14 | `ThreadedHost`, `bootstrap`, `bridge.encode` + schema (done) | Med |
 
 Manual check after each step (`make run`):
 - open a file with directives;
@@ -588,8 +671,16 @@ Behaviour changes to call out in commit messages:
   - transpose → re-detect → key shift;
   - open a file with directives → toolbar state;
   - unsaved changes → save → cancel.
+- **Bridge flows** (`tests/test_session_bridge.py`, `tests/test_android_host.py`):
+  a `ThreadedHost` session built by `bootstrap`, driven only through
+  `submit(command, json)` and read only as `(type_name, json)`: typing →
+  `HighlightState`; play → `PlaybackState` sequence → idle; open through a
+  `PickDocumentRequest` answered with a ref object; transpose → `TextEdited`;
+  restore draft; lifecycle commands; bad input → `UnexpectedError`.
 - **Guard tests:**
   - `session` imports without tkinter;
-  - DTO purity;
+  - DTO purity (every `EventRecorder` item, and every output type emitted
+    over the bridge at least once);
+  - the committed bridge schema matches the code;
   - no viewmodel, service or `Application` references in
     `ui/main_window.py` (`tests/test_main_window_guard.py`, since step 13).

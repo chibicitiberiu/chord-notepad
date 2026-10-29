@@ -275,12 +275,16 @@ class DocumentState:
             document.
         is_modified: Whether it has unsaved changes.
         title: The window title, e.g. ``song.txt* - Chord Notepad``.
+        document_id: The open document's ``DocumentRef.id``, or None for a
+            new document (Android keeps it with its draft, to restore it
+            after the process was killed).
     """
 
     display_name: str
     location: Optional[str]
     is_modified: bool
     title: str
+    document_id: Optional[str] = None
 
 
 @dataclass(frozen=True)

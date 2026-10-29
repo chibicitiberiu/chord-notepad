@@ -45,11 +45,17 @@ class FlowRunner:
         self._ids = itertools.count(1)
         self._flow: Optional[Flow] = None
         self._request_id: Optional[int] = None
+        self._request: Any = None
 
     @property
     def pending_request_id(self) -> Optional[int]:
         """The id of the request waiting for an answer, or None."""
         return self._request_id
+
+    @property
+    def pending_request(self) -> Any:
+        """The request waiting for an answer (with its ``request_id``), or None."""
+        return self._request if self._flow is not None else None
 
     def start(self, flow: Flow) -> None:
         """Run ``flow`` up to its first request (or to its end).
@@ -104,5 +110,5 @@ class FlowRunner:
         except TypeError:
             flow.close()
             raise TypeError(f"a flow must yield a dataclass with a request_id, not {request!r}")
-        self._flow, self._request_id = flow, request_id
+        self._flow, self._request_id, self._request = flow, request_id, request
         self._emit(request)

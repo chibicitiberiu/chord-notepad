@@ -248,10 +248,19 @@ def compact(item: Any) -> Any:
     return item
 
 
+#: What :class:`EventRecorder` recorded that can't cross the bridge, as
+#: ``(type name, reason)``; the test suite fails a test that leaves any
+#: (``tests/conftest.py``), so every golden flow doubles as a DTO-purity test.
+BRIDGE_FAILURES: List[Tuple[str, str]] = []
+
+
 class EventRecorder:
     """A session listener that records everything delivered to it.
 
-    Pass the recorder itself to ``session.subscribe``.
+    Pass the recorder itself to ``session.subscribe``. Each session DTO (a
+    class from ``session.state`` or ``session.events``) is also encoded as
+    the bridge would (``session.bridge.encode``); one that can't be is
+    noted in :data:`BRIDGE_FAILURES`.
     """
 
     def __init__(self) -> None:
@@ -260,7 +269,15 @@ class EventRecorder:
 
     def __call__(self, item: Any) -> None:
         """Record one delivered item."""
+        from session.bridge import encode
+
         self.items.append(item)
+        if type(item).__module__ not in ("session.state", "session.events"):
+            return  # a test's own stand-in (emitter tests)
+        try:
+            encode(item)
+        except Exception as e:
+            BRIDGE_FAILURES.append((type(item).__name__, str(e)))
 
     def clear(self) -> None:
         """Forget what was recorded so far."""

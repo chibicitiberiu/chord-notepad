@@ -79,7 +79,7 @@ def test_type_text_no_spans_before_the_debounce_spans_after(env):
         ("ToolbarState", "american", 120, 120, True, 100.0, "C", 4, 4, False, "play"),
         ("VoicingMenuState", "piano", ANY),
         ("InstrumentMenuState", 0, ANY),
-        ("DocumentState", "Untitled", None, False, "Untitled - Chord Notepad"),
+        ("DocumentState", "Untitled", None, False, "Untitled - Chord Notepad", None),
         ("RecentDocumentsState", ()),
     ]
     env.recorder.clear()
@@ -87,7 +87,7 @@ def test_type_text_no_spans_before_the_debounce_spans_after(env):
     env.session.set_text("C G\nla la {bpm: 90} // x")
     # Only the title's "modified" mark comes at once.
     assert env.recorder.compact() == [
-        ("DocumentState", "Untitled", None, True, "Untitled* - Chord Notepad")]
+        ("DocumentState", "Untitled", None, True, "Untitled* - Chord Notepad", None)]
     env.recorder.clear()
 
     env.host.advance(0.499)

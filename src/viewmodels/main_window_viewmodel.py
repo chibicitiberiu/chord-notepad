@@ -239,6 +239,23 @@ class MainWindowViewModel(Observable):
             self._last_error = _describe_error(e)
             return False
 
+    def restore_document(self, text: str, ref: Optional[DocumentRef], modified: bool) -> None:
+        """Take back a draft: its text, its document (not read) and its modified flag.
+
+        For a process that was killed with unsaved work (Android). Unlike
+        :meth:`open_file`, the document isn't read and its directives don't
+        change the toolbar (the toolbar values were kept in the config).
+
+        Args:
+            text: The draft's text.
+            ref: The document the draft belongs to, or None for a new one.
+            modified: Whether the draft has unsaved changes.
+        """
+        logger.info("Restoring a draft%s", f" of {ref.location}" if ref is not None else "")
+        self.set_and_notify("current_text", text)
+        self.set_and_notify("is_modified", bool(modified))
+        self.set_and_notify("current_document", ref)
+
     def save_file(self) -> bool:
         """Save the current file.
 

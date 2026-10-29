@@ -182,7 +182,7 @@ def test_open_unmodified_asks_for_a_document_then_loads_it():
     toolbar = env.recorder.last(ToolbarState)
     assert (toolbar.bpm, toolbar.beats, toolbar.unit, toolbar.key) == (90, 3, 4, "G")
     assert env.document() == DocumentState(
-        "song.txt", "song.txt", False, "song.txt - Chord Notepad")
+        "song.txt", "song.txt", False, "song.txt - Chord Notepad", "memory:song.txt")
     assert env.recent() == ["song.txt"]
     assert env.status() == "Opened: song.txt"
     assert env.session.text == SONG
@@ -348,7 +348,8 @@ def test_save_without_a_name_asks_for_one():
     assert (request.mode, request.suggested_name) == (PickMode.SAVE, "Untitled.txt")
     env.answer(env.ref("new.txt"))
     assert env.store.contents[env.ref("new.txt").id] == "C G"
-    assert env.document() == DocumentState("new.txt", "new.txt", False, "new.txt - Chord Notepad")
+    assert env.document() == DocumentState("new.txt", "new.txt", False, "new.txt - Chord Notepad",
+                                         "memory:new.txt")
     assert env.recent() == ["new.txt"]
     assert env.errors() == []
 

@@ -1,0 +1,410 @@
+{
+  "answers": {
+    "CapoChoiceRequest": "str|null",
+    "ConfirmDiscardRequest": "DiscardChoice|null",
+    "InsertDirectiveRequest": "dict[str,str]|null",
+    "PickDocumentRequest": "DocumentRef|null"
+  },
+  "command_params": {
+    "app_background": {},
+    "app_foreground": {},
+    "apply_settings": {
+      "changes": "SettingsValues"
+    },
+    "audition": {
+      "index": "int"
+    },
+    "chord_sheet_zoom": {
+      "step": "int"
+    },
+    "convert_notation": {
+      "target": "str"
+    },
+    "export_midi": {},
+    "insert_chord": {
+      "at": "int",
+      "chord": "str"
+    },
+    "insert_text": {
+      "at": "int",
+      "text": "str"
+    },
+    "new_document": {},
+    "open_document": {
+      "ref": "DocumentRef|null"
+    },
+    "open_recent": {
+      "ref": "DocumentRef"
+    },
+    "pause": {},
+    "play_pause": {
+      "from_offset": "int|null"
+    },
+    "request_close": {},
+    "request_insert_directive": {
+      "at": "int",
+      "kind": "str"
+    },
+    "request_suggest_capo": {
+      "selection": "selection"
+    },
+    "reset_font_size": {},
+    "respond": {
+      "request_id": "int",
+      "value": "any"
+    },
+    "restore_draft": {
+      "document": "DocumentRef|null",
+      "modified": "bool",
+      "text": "str"
+    },
+    "save": {},
+    "save_as": {},
+    "set_bpm": {
+      "bpm": "float"
+    },
+    "set_chord_sheet_height": {
+      "px": "int"
+    },
+    "set_chord_sheet_view": {
+      "view_id": "str"
+    },
+    "set_chord_sheet_visible": {
+      "visible": "bool"
+    },
+    "set_font": {
+      "family": "str",
+      "size": "int"
+    },
+    "set_instrument": {
+      "program": "int"
+    },
+    "set_key": {
+      "key": "str|null"
+    },
+    "set_multiplier_pct": {
+      "pct": "float"
+    },
+    "set_notation": {
+      "notation": "str"
+    },
+    "set_show_quick_start_on_startup": {
+      "show": "bool"
+    },
+    "set_text": {
+      "client_token": "int",
+      "text": "str"
+    },
+    "set_time_signature": {
+      "beats": "int",
+      "unit": "int"
+    },
+    "set_voicing": {
+      "voicing": "str"
+    },
+    "step_font_size": {
+      "delta": "int"
+    },
+    "stop": {},
+    "tap_chord_at": {
+      "offset": "int"
+    },
+    "toggle_metronome": {},
+    "transpose": {
+      "selection": "selection",
+      "semitones": "int"
+    }
+  },
+  "commands": [
+    "app_background",
+    "app_foreground",
+    "apply_settings",
+    "audition",
+    "chord_sheet_zoom",
+    "convert_notation",
+    "export_midi",
+    "insert_chord",
+    "insert_text",
+    "new_document",
+    "open_document",
+    "open_recent",
+    "pause",
+    "play_pause",
+    "request_close",
+    "request_insert_directive",
+    "request_suggest_capo",
+    "reset_font_size",
+    "respond",
+    "restore_draft",
+    "save",
+    "save_as",
+    "set_bpm",
+    "set_chord_sheet_height",
+    "set_chord_sheet_view",
+    "set_chord_sheet_visible",
+    "set_font",
+    "set_instrument",
+    "set_key",
+    "set_multiplier_pct",
+    "set_notation",
+    "set_show_quick_start_on_startup",
+    "set_text",
+    "set_time_signature",
+    "set_voicing",
+    "step_font_size",
+    "stop",
+    "tap_chord_at",
+    "toggle_metronome",
+    "transpose"
+  ],
+  "enums": {
+    "DiscardChoice": [
+      "save",
+      "discard",
+      "cancel"
+    ],
+    "PickMode": [
+      "open",
+      "save",
+      "export_midi"
+    ],
+    "PlayAction": [
+      "play",
+      "pause",
+      "resume"
+    ],
+    "PlaybackStatus": [
+      "idle",
+      "playing",
+      "paused"
+    ],
+    "SpanKind": [
+      "chord",
+      "chord_invalid",
+      "directive",
+      "directive_invalid",
+      "comment"
+    ],
+    "UndoPolicy": [
+      "group",
+      "plain",
+      "reset"
+    ]
+  },
+  "types": {
+    "AudioUnavailable": {
+      "fields": {
+        "from_click": "bool",
+        "message": "str"
+      },
+      "kind": "event"
+    },
+    "CapoChoiceRequest": {
+      "fields": {
+        "default": "str",
+        "options": "list[MenuItem]",
+        "request_id": "int"
+      },
+      "kind": "request"
+    },
+    "ChordSheetState": {
+      "fields": {
+        "active_view": "str",
+        "current_index": "int|null",
+        "disabled_reason": "str|null",
+        "height": "int",
+        "song_revision": "int",
+        "views": "list[ChordSheetView]",
+        "visible": "bool",
+        "zoom": "float",
+        "zoom_supported": "bool"
+      },
+      "kind": "state"
+    },
+    "ChordSheetView": {
+      "fields": {
+        "available": "bool",
+        "label": "str",
+        "view_id": "str"
+      },
+      "kind": "value"
+    },
+    "CloseApproved": {
+      "fields": {},
+      "kind": "event"
+    },
+    "ConfirmDiscardRequest": {
+      "fields": {
+        "request_id": "int"
+      },
+      "kind": "request"
+    },
+    "DocumentRef": {
+      "fields": {
+        "display_name": "str",
+        "id": "str",
+        "location": "str"
+      },
+      "kind": "value"
+    },
+    "DocumentState": {
+      "fields": {
+        "display_name": "str",
+        "document_id": "str|null",
+        "is_modified": "bool",
+        "location": "str|null",
+        "title": "str"
+      },
+      "kind": "state"
+    },
+    "EditorState": {
+      "fields": {
+        "font_family": "str",
+        "font_size": "int",
+        "notation": "str",
+        "read_only": "bool"
+      },
+      "kind": "state"
+    },
+    "HighlightState": {
+      "fields": {
+        "client_token": "int",
+        "spans": "list[Span]",
+        "text_revision": "int"
+      },
+      "kind": "state"
+    },
+    "InsertDirectiveRequest": {
+      "fields": {
+        "existing_labels": "list[str]",
+        "kind": "str",
+        "notation": "str",
+        "request_id": "int"
+      },
+      "kind": "request"
+    },
+    "InstrumentFamily": {
+      "fields": {
+        "is_current": "bool",
+        "items": "list[MenuItem]",
+        "name": "str"
+      },
+      "kind": "value"
+    },
+    "InstrumentMenuState": {
+      "fields": {
+        "current": "int",
+        "families": "list[InstrumentFamily]"
+      },
+      "kind": "state"
+    },
+    "MenuItem": {
+      "fields": {
+        "label": "str",
+        "value": "str"
+      },
+      "kind": "value"
+    },
+    "PickDocumentRequest": {
+      "fields": {
+        "mode": "PickMode",
+        "request_id": "int",
+        "suggested_name": "str"
+      },
+      "kind": "request"
+    },
+    "PlaybackState": {
+      "fields": {
+        "bar": "int",
+        "chord_index": "int|null",
+        "playing_span": "Span|null",
+        "status": "PlaybackStatus",
+        "total_bars": "int"
+      },
+      "kind": "state"
+    },
+    "RecentDocumentsState": {
+      "fields": {
+        "items": "list[DocumentRef]"
+      },
+      "kind": "state"
+    },
+    "SettingsValues": {
+      "fields": {
+        "bpm": "int",
+        "font_family": "str",
+        "font_size": "int",
+        "key": "str",
+        "max_recent_files": "int",
+        "notation": "str",
+        "show_quick_start_on_startup": "bool",
+        "time_signature_beats": "int",
+        "time_signature_unit": "int"
+      },
+      "kind": "value"
+    },
+    "Span": {
+      "fields": {
+        "end": "int",
+        "kind": "SpanKind",
+        "start": "int"
+      },
+      "kind": "value"
+    },
+    "StatusState": {
+      "fields": {
+        "text": "str"
+      },
+      "kind": "state"
+    },
+    "TextEdited": {
+      "fields": {
+        "cursor": "int",
+        "end": "int",
+        "replacement": "str",
+        "start": "int",
+        "text_revision": "int",
+        "undo": "UndoPolicy"
+      },
+      "kind": "event"
+    },
+    "ToolbarState": {
+      "fields": {
+        "beats": "int",
+        "bpm": "int",
+        "bpm_display": "int",
+        "bpm_editable": "bool",
+        "key": "str",
+        "key_options": "list[str]",
+        "metronome": "bool",
+        "multiplier_pct": "float",
+        "notation": "str",
+        "play_action": "PlayAction",
+        "unit": "int"
+      },
+      "kind": "state"
+    },
+    "UnexpectedError": {
+      "fields": {
+        "context": "str|null",
+        "message": "str"
+      },
+      "kind": "event"
+    },
+    "UserError": {
+      "fields": {
+        "message": "str",
+        "title": "str"
+      },
+      "kind": "event"
+    },
+    "VoicingMenuState": {
+      "fields": {
+        "groups": "list[list[MenuItem]]",
+        "selected": "str"
+      },
+      "kind": "state"
+    }
+  },
+  "version": 1
+}

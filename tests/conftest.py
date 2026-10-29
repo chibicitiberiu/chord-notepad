@@ -36,3 +36,15 @@ def european_detector():
 def song_parser():
     """Create a SongParserService."""
     return SongParserService()
+
+
+@pytest.fixture(autouse=True)
+def _session_output_crosses_the_bridge():
+    """Every session output a test recorded must encode for the bridge (DTO purity)."""
+    from session import testing
+
+    testing.BRIDGE_FAILURES.clear()
+    yield
+    failures = list(testing.BRIDGE_FAILURES)
+    testing.BRIDGE_FAILURES.clear()
+    assert not failures, f"session outputs that can't cross the bridge: {failures}"
