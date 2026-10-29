@@ -238,6 +238,10 @@ class FretboardSpec:
                 value).
         """
         raw_tuning = data.get('tuning')
+        if isinstance(raw_tuning, str):
+            # An unparsed entry string (e.g. from a settings form): judge it
+            # token by token, not character by character.
+            raw_tuning = raw_tuning.replace(',', ' ').split()
         if not raw_tuning:
             raise ConfigurationError(f"Fretboard {name!r}: 'tuning' is required and must be non-empty")
         if not (3 <= len(raw_tuning) <= 12):

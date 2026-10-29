@@ -301,3 +301,17 @@ def test_load_presets_copy_custom_voicings():
     preset = vf.load_presets(custom)[-1]
     preset['data']['weights']['omit']['third'] = 0
     assert custom['a']['weights']['omit']['third'] == -3.0
+
+
+def test_unparsed_tuning_error_names_the_bad_token():
+    """A raw tuning string is judged per token, not per character."""
+    from src.settings_forms.voicing_form import voicing_error
+    msg = voicing_error('t', {'model': 'fretboard', 'tuning': 'E2 A2 X9 G3'})
+    assert msg is not None
+    assert "'X9'" in msg and "string 2" in msg
+
+
+def test_unparsed_tuning_error_counts_tokens_not_characters():
+    from src.settings_forms.voicing_form import voicing_error
+    msg = voicing_error('t', {'model': 'fretboard', 'tuning': 'E2 A2'})
+    assert msg is not None and 'got 2' in msg

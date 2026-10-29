@@ -9,6 +9,9 @@ moved to CHANGELOG_HISTORY.md and this file is reset.
 
 ### Fixed
 
+- A mistyped string in a custom voicing's tuning (for example `E2 A2 X9 G3`)
+  now reports the actual bad note (`X9`) instead of a confusing message about
+  the letter `E` or "20 strings".
 - If the selected custom voicing can no longer be built (for example after
   editing settings.json by hand), Chord Notepad starts with piano voicing
   instead of failing to start.
