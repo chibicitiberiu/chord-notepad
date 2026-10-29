@@ -17,6 +17,9 @@ import kotlin.math.min
 private const val HAND_RH = "#2a6f8a"
 private const val HAND_LH = "#8a5a3a"
 
+/** `renderer_interface.STRIP_BG`. */
+private const val STRIP_BG = "#fbfbf8"
+
 /** The piano-roll gutter's keys keep their look (an inverted keyboard reads wrong). */
 private const val GUTTER_WHITE = "#ffffff"
 private const val GUTTER_BLACK = "#31424a"
@@ -30,6 +33,8 @@ private const val NEUTRAL_SATURATION = 0.3f
 
 /** A buffer colour as the sheet paints it in [colors]' theme. */
 fun themedSheetColor(spec: String, parsed: Color, colors: AppColors): Color {
+    // The strip's paper (also the staff gutter's) is the sheet's surface.
+    if (spec.equals(STRIP_BG, ignoreCase = true)) return colors.surfaceLow
     if (!colors.dark) return parsed
     return when (spec.lowercase()) {
         HAND_RH -> DarkRh
@@ -56,6 +61,9 @@ fun darkVariant(color: Color): Color {
         hi == g -> 60f * ((b - r) / d + 2f)
         else -> 60f * ((r - g) / d + 4f)
     }.let { if (it < 0f) it + 360f else it }
-    val newL = if (s < NEUTRAL_SATURATION) 0.92f - 0.82f * l else max(l, 0.66f)
-    return Color.hsl(h, s.coerceIn(0f, 1f), newL.coerceIn(0f, 1f), color.alpha)
+    // Neutrals flip and lose most of their tint (a warm off-white must not turn olive).
+    val neutral = s < NEUTRAL_SATURATION
+    val newL = if (neutral) 0.92f - 0.82f * l else max(l, 0.66f)
+    val newS = if (neutral) s * 0.3f else s
+    return Color.hsl(h, newS.coerceIn(0f, 1f), newL.coerceIn(0f, 1f), color.alpha)
 }

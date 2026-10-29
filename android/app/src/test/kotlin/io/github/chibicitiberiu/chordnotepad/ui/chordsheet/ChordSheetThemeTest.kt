@@ -32,3 +32,11 @@ class ChordSheetThemeTest {
         assertTrue(voice.red > voice.green)
     }
 }
+
+class ChordSheetPaperTest {
+    @Test
+    fun `the strip's paper is the sheet surface in both themes`() {
+        assertEquals(AppColors.Light.surfaceLow, themedSheetColor("#fbfbf8", Color(0xFFFBFBF8), AppColors.Light))
+        assertEquals(AppColors.Dark.surfaceLow, themedSheetColor("#FBFBF8", Color(0xFFFBFBF8), AppColors.Dark))
+    }
+}
