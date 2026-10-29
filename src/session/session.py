@@ -511,6 +511,26 @@ class AppSession:
         """
         self._require_services("saving the config").config.save_config()
 
+    @_command
+    def suspend_audio(self) -> None:
+        """Release the audio output (Android: the app left the screen).
+
+        Does nothing while a song is playing or rendering. The next play,
+        tap or audition reopens the output lazily.
+        """
+        released = self._require_services("suspending the audio").playback.suspend_audio()
+        logger.info("Audio output suspended" if released else "Audio output left open")
+
+    @_command
+    def resume_audio(self) -> None:
+        """Reopen the audio output released by :meth:`suspend_audio`.
+
+        A failure isn't reported here; the next play reports it.
+        """
+        reopened = self._require_services("resuming the audio").playback.resume_audio()
+        if not reopened:
+            logger.warning("The audio output could not be reopened")
+
     # -- documents ----------------------------------------------------------------
     #
     # Each command is a flow (see session.flows): the unsaved-changes question
@@ -695,6 +715,42 @@ class AppSession:
         snapped like the toolbar's control (``toolbar.MULTIPLIER_SCALE``).
         """
         self._main.set_bpm_multiplier(toolbar.MULTIPLIER_SCALE.normalize(pct) / 100.0)
+
+    @_command
+    def set_bpm_text(self, text: str) -> None:
+        """Set the base tempo from typed text; bad input is ignored.
+
+        Parsed like the desktop scrubber (``toolbar.parse_bpm``), then
+        behaves like :meth:`set_bpm`.
+        """
+        try:
+            bpm = toolbar.parse_bpm(text)
+        except (ValueError, TypeError, OverflowError):
+            logger.info("Ignoring an unreadable tempo: %r", text)
+            return
+        self.set_bpm(bpm)
+
+    @_command
+    def set_multiplier_text(self, text: str) -> None:
+        """Set the speed multiplier from typed text ("150", "150%", "1.5x");
+        bad input is ignored. Otherwise like :meth:`set_multiplier_pct`."""
+        try:
+            pct = toolbar.parse_multiplier_pct(text)
+        except (ValueError, TypeError, OverflowError):
+            logger.info("Ignoring an unreadable speed: %r", text)
+            return
+        self.set_multiplier_pct(pct)
+
+    @_command
+    def reset_bpm(self) -> None:
+        """Reset the tempo to its default (the scrubber's middle-click);
+        ignored while a song plays or is paused, like :meth:`set_bpm`."""
+        self.set_bpm(toolbar.BPM_SCALE.default)
+
+    @_command
+    def reset_multiplier(self) -> None:
+        """Reset the speed multiplier to its default (100%)."""
+        self.set_multiplier_pct(toolbar.MULTIPLIER_SCALE.default)
 
     @_command
     def set_key(self, key: Optional[str]) -> None:

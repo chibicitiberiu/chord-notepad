@@ -30,6 +30,9 @@ logger = logging.getLogger(__name__)
 class NotePlayer(IPlayer):
     """Audio player for MIDI notes using FluidSynth"""
 
+    _audio_suspended = False
+    _driver_candidates: List[str] = []
+
     def __init__(
         self,
         soundfont_path: Optional[str] = None,
@@ -50,6 +53,9 @@ class NotePlayer(IPlayer):
         self.fs = None
         #: The audio driver that actually started.
         self.driver_name: Optional[str] = None
+        #: The driver candidates tried at init, to retry on resume_audio().
+        self._driver_candidates: List[str] = []
+        self._audio_suspended = False
         self.sfid = None
         self.channel = 0
         self.instrument = 0  # Acoustic Grand Piano by default
@@ -145,6 +151,7 @@ class NotePlayer(IPlayer):
 
             # Try the preferred driver, then the platform's usual ones
             drivers = options.driver_candidates(sys.platform)
+            self._driver_candidates = list(drivers)
             self.driver_name = None
             for driver in drivers:
                 if self._start_audio_driver(driver):
@@ -173,6 +180,69 @@ class NotePlayer(IPlayer):
             if isinstance(e, AudioInitializationError):
                 raise
             raise AudioInitializationError(f"FluidSynth failed to start: {e}") from e
+
+    @property
+    def audio_suspended(self) -> bool:
+        """True while the audio driver is released by :meth:`suspend_audio`."""
+        return self._audio_suspended
+
+    def suspend_audio(self) -> bool:
+        """Release the audio driver (the device) but keep the synth.
+
+        The SoundFont, program and sequencer stay loaded. The sequencer runs
+        on the synth's sample clock, so its time freezes while no driver
+        renders; a paused song's scheduler resumes from ``sequencer.now()``,
+        so playback continues from where it was after :meth:`resume_audio`.
+
+        Returns:
+            True if suspended (or already); False when a song is playing
+            or there is no synth.
+        """
+        if self._audio_suspended:
+            return True
+        if self.fs is None:
+            return False
+        if self.is_playing and not self.is_paused:
+            logger.info("Not suspending the audio output while a song plays")
+            return False
+        self.stop_all_notes()
+        fs = self.fs
+        try:
+            if fs.audio_driver:
+                fluidsynth.delete_fluid_audio_driver(fs.audio_driver)
+        except Exception:
+            logger.debug("Could not free the audio driver", exc_info=True)
+        fs.audio_driver = None
+        self._audio_suspended = True
+        logger.info("Audio output released (suspended)")
+        return True
+
+    def resume_audio(self) -> bool:
+        """Reopen the audio driver released by :meth:`suspend_audio`.
+
+        Tries the driver that ran before, then the other candidates.
+
+        Returns:
+            True if the output is running; False if no driver started (the
+            player stays suspended).
+        """
+        if not self._audio_suspended:
+            return True
+        if self.fs is None:
+            return False
+        candidates = list(self._driver_candidates)
+        if self.driver_name in candidates:
+            candidates.remove(self.driver_name)
+        if self.driver_name:
+            candidates.insert(0, self.driver_name)
+        for driver in candidates:
+            if self._start_audio_driver(driver):
+                self.driver_name = driver
+                self._audio_suspended = False
+                logger.info(f"Audio output reopened with driver: {driver}")
+                return True
+        logger.warning("The audio output could not be reopened")
+        return False
 
     def _create_sequencer(self) -> None:
         """Create the sample-clocked sequencer and its two source clients."""

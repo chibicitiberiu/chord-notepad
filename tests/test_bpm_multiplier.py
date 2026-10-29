@@ -83,3 +83,53 @@ class TestNotePlayerMultiplier:
         assert p._bpm_multiplier > 0
         p.set_bpm_multiplier(-1)
         assert p._bpm_multiplier > 0
+
+
+class TestPlaybackServiceAudioLifecycle:
+    def _service(self, player):
+        from exceptions import AudioInitializationError  # noqa: F401
+        from session.testing import FakePlayer  # noqa: F401
+        config = Mock(spec=ConfigService)
+        config.get.return_value = "piano"
+        service = PlaybackService(config_service=config, player=player)
+        service._initialized = True
+        return service
+
+    def test_require_audio_reopens_a_suspended_output(self):
+        from session.testing import FakePlayer
+        player = FakePlayer()
+        service = self._service(player)
+        assert service.suspend_audio() is True and player.audio_suspended
+        service._require_audio()
+        assert not player.audio_suspended
+
+    def test_require_audio_raises_when_the_reopen_fails(self):
+        import pytest
+        from exceptions import AudioInitializationError
+        from session.testing import FakePlayer
+        player = FakePlayer()
+        service = self._service(player)
+        service.suspend_audio()
+        player.resume_succeeds = False
+        with pytest.raises(AudioInitializationError, match="could not be reopened"):
+            service._require_audio()
+
+    def test_suspend_refused_without_a_player_or_during_a_render(self):
+        import threading
+        from session.testing import FakePlayer
+        config = Mock(spec=ConfigService)
+        config.get.return_value = "piano"
+        assert PlaybackService(config_service=config).suspend_audio() is False
+        assert PlaybackService(config_service=config).resume_audio() is True
+        player = FakePlayer()
+        service = self._service(player)
+        stop = threading.Event()
+        thread = threading.Thread(target=stop.wait)
+        thread.start()
+        service._render_thread = thread
+        try:
+            assert service.suspend_audio() is False
+            assert player.audio_calls == []
+        finally:
+            stop.set()
+            thread.join()

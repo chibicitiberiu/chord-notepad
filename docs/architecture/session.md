@@ -514,7 +514,8 @@ desktop-only services (resources, logging setup) and the document store.
   as an exception. Parameters with a default may be left out.
 - Lifecycle: `pause` and `restore_draft` are session commands;
   `app_background` (pause if playing, save the config) and `app_foreground`
-  (nothing yet) run on them.
+  (reopens the audio output) run on them; `app_background` also releases it
+  (`suspend_audio`).
 - `SessionBridge(host, session, sink)` subscribes `sink(type_name, json)`
   and posts every `submit(command, args_json)` to the session thread.
   `ErrorEvents` is the Android `session.errors` handler: it posts an
@@ -569,10 +570,16 @@ desktop-only services (resources, logging setup) and the document store.
   render may be using it (as before step 12). On Android the session thread
   is not the UI thread, so a slow voicing delays the next command, not the
   UI.
-- **Audio across the app lifecycle.** `app_background` pauses and saves the
-  config; it doesn't close the audio stream, and `app_foreground` does
-  nothing. Closing and reopening the stream (plan, "Lifecycle") is M3/M4
-  work once it is measured on the phone.
+- **Audio across the app lifecycle.** `app_background` pauses, saves the
+  config, then calls `suspend_audio`, which deletes only the FluidSynth audio
+  driver (the synth, SoundFont, program and sequencer stay; the sequencer
+  runs on the synth's sample clock, so a paused song resumes where it was).
+  It is refused while a song plays or renders. `app_foreground` calls
+  `resume_audio`; `PlaybackService._require_audio` also reopens lazily, so a
+  play/tap/audition after a background without a foreground still works, and
+  a failed reopen raises `AudioInitializationError` ("The audio output could
+  not be reopened."). Whether the stream should close at all is still to be
+  measured on the phone.
 
 ## Threading contract
 

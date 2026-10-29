@@ -256,7 +256,10 @@ step 14.)
 `request_insert_directive {kind, at}`, `transpose {semitones, selection}`,
 `request_suggest_capo {selection}`, `convert_notation {target}`,
 `play_pause {from_offset}`, `stop {}`, `tap_chord_at {offset}`,
-`set_bpm {bpm}`, `set_multiplier_pct {pct}`, `set_key {key}`,
+`set_bpm {bpm}`, `set_multiplier_pct {pct}`, `set_bpm_text {text}`,
+`reset_bpm {}`, `reset_multiplier {}` (the scrubber's reset to the default),
+`set_multiplier_text {text}` (typed scrubber values, parsed in Python; bad
+input is ignored; the speed accepts `150`, `150%`, `1.5x`), `set_key {key}`,
 `set_time_signature {beats, unit}`, `toggle_metronome {}`,
 `set_voicing {voicing}`, `set_instrument {program}`,
 `set_notation {notation}`, `set_font {family, size}`,
@@ -288,8 +291,8 @@ raises is an `UnexpectedError` whose `context` is the command name.
 
 | Command | Args | Does |
 |---|---|---|
-| `app_background` | `{}` | The app left the screen (ProcessLifecycleOwner ON_STOP; the process may die any time after). Pause playback if playing, save the config atomically (temp file + `os.replace`). May also close the audio stream (plan, "Lifecycle"); then reopen it lazily. |
-| `app_foreground` | `{}` | ON_START. Nothing required today; reopen the audio stream here if `app_background` closed it. |
+| `app_background` | `{}` | The app left the screen (ProcessLifecycleOwner ON_STOP; the process may die any time after). Pause playback if playing, save the config atomically (temp file + `os.replace`). Then release the audio output (`suspend_audio`: only the FluidSynth audio driver is deleted; the synth, SoundFont and sequencer stay). Refused while a song plays or renders. The next play/tap/audition reopens it lazily. |
+| `app_foreground` | `{}` | ON_START. Reopen the audio output (`resume_audio`). A failure is not reported here; the next play reports `AudioUnavailable`. |
 | `pause` | `{}` | Pause if a song is playing, else nothing. Sent on audio focus loss and `ACTION_AUDIO_BECOMING_NOISY`. |
 | `restore_draft` | `{text, document, modified}` | After process death: replace the text as a `reset` edit (`TextEdited` + `HighlightState`), make `document` (a `DocumentRef` or null) the open document without reading it, and set the modified flag. Publishes `DocumentState`. |
 

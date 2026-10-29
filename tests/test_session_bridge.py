@@ -550,6 +550,62 @@ def test_app_background_pauses_and_saves_the_config_atomically(tmp_path):
         env.close()
 
 
+def test_background_suspends_the_audio_and_foreground_resumes_it(tmp_path):
+    env = BridgeEnv(tmp_path)
+    try:
+        env.send("set_text", text="C G", client_token=1)
+        env.expect("HighlightState", lambda d: d["client_token"] == 1 and d["spans"])
+        env.send("tap_chord_at", offset=0)  # creates the player lazily
+        env.settle()
+        env.send("app_background")
+        env.settle()
+        assert env.player.audio_suspended
+        env.send("app_foreground")
+        env.settle()
+        assert not env.player.audio_suspended
+        assert env.player.audio_calls == ["suspend", "resume"]
+    finally:
+        env.close()
+
+
+def test_play_after_background_without_foreground_reopens_lazily(tmp_path):
+    env = BridgeEnv(tmp_path)
+    try:
+        env.send("set_text", text="C G", client_token=1)
+        env.expect("HighlightState", lambda d: d["client_token"] == 1 and d["spans"])
+        env.send("tap_chord_at", offset=0)
+        env.settle()
+        env.send("app_background")
+        env.settle()
+        assert env.player.audio_suspended
+        env.send("play_pause", from_offset=None)
+        env.expect("PlaybackState", lambda d: d["status"] in ("playing", "idle") and
+                   not env.player.audio_suspended)
+        assert not env.player.audio_suspended
+    finally:
+        env.close()
+
+
+def test_typed_bpm_and_multiplier(env):
+    env.send("set_bpm_text", text="133")
+    env.expect("ToolbarState", lambda d: d["bpm"] == 133)
+    env.send("set_multiplier_text", text="1.5x")
+    env.expect("ToolbarState", lambda d: d["multiplier_pct"] == 150)
+    env.send("set_multiplier_text", text="75%")
+    env.expect("ToolbarState", lambda d: d["multiplier_pct"] == 75)
+    # Bad input leaves the values alone and reports nothing.
+    env.send("set_bpm_text", text="fast")
+    env.send("set_multiplier_text", text="")
+    env.settle()
+    toolbar = env.latest("ToolbarState")
+    assert toolbar["bpm"] == 133 and toolbar["multiplier_pct"] == 75
+    assert not [o for o in env.out if o[0] == "UnexpectedError"]
+    env.send("reset_bpm")
+    env.expect("ToolbarState", lambda d: d["bpm"] == 120)
+    env.send("reset_multiplier")
+    env.expect("ToolbarState", lambda d: d["multiplier_pct"] == 100)
+
+
 def test_settings_round_trip_as_values(env):
     values = env.host.call(env.session.settings_values)
     assert isinstance(values, SettingsValues)

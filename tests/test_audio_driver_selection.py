@@ -259,3 +259,84 @@ class TestPlaybackServiceOptions:
             cls.return_value = MagicMock()
             service.initialize_player(audio_options=host)
         assert cls.call_args.kwargs["options"] == AudioOptions(driver="opensles", sample_rate=48000)
+
+
+class TestSuspendResume:
+    """suspend_audio / resume_audio on a NotePlayer with a fake synth."""
+
+    def _ready(self, handles=None):
+        from audio.player import NotePlayer
+
+        player = _bare_player()
+        player.is_playing = False
+        player.is_paused = False
+        player._audio_suspended = False
+        player._driver_candidates = []
+        player._immediate_timer = None
+        player.driver_name = None
+        synth = FakeSynth()
+        synth.all_notes_off = lambda ch: None
+        log = []
+        _init(player, synth, handles or {"pulseaudio": 7, "alsa": 8}, log=log)
+        assert isinstance(player, NotePlayer)
+        player._sequencer.remove = lambda source: None
+        player._click_source = 0
+        return player, synth, log
+
+    def test_suspend_deletes_only_the_driver(self):
+        player, synth, _ = self._ready()
+        with patch("audio.player.fluidsynth.delete_fluid_audio_driver") as delete:
+            assert player.suspend_audio() is True
+            assert player.suspend_audio() is True  # idempotent
+        delete.assert_called_once_with(7)
+        assert synth.audio_driver is None
+        assert player.fs is synth and not synth.deleted
+        assert player.sfid == 1 and player.audio_suspended
+
+    def test_suspend_refused_while_playing(self):
+        player, synth, _ = self._ready()
+        player.is_playing = True
+        with patch("audio.player.fluidsynth.delete_fluid_audio_driver") as delete:
+            assert player.suspend_audio() is False
+        delete.assert_not_called()
+        assert synth.audio_driver == 7 and not player.audio_suspended
+
+    def test_suspend_allowed_while_paused(self):
+        player, _, _ = self._ready()
+        player.is_playing, player.is_paused = True, True
+        with patch("audio.player.fluidsynth.delete_fluid_audio_driver"):
+            assert player.suspend_audio() is True
+
+    def test_resume_reuses_the_previous_driver_first(self):
+        player, synth, _ = self._ready()
+        with patch("audio.player.fluidsynth.delete_fluid_audio_driver"):
+            player.suspend_audio()
+        synth.started.clear()
+        synth.handles = {"pulseaudio": 9}
+        assert player.resume_audio() is True
+        assert synth.started == ["pulseaudio"]
+        assert synth.audio_driver == 9 and not player.audio_suspended
+
+    def test_resume_retries_other_candidates(self):
+        player, synth, _ = self._ready()
+        with patch("audio.player.fluidsynth.delete_fluid_audio_driver"):
+            player.suspend_audio()
+        synth.started.clear()
+        synth.handles = {"alsa": 5}
+        assert player.resume_audio() is True
+        assert synth.started == ["pulseaudio", "alsa"]
+        assert player.driver_name == "alsa"
+
+    def test_resume_failure_stays_suspended(self):
+        player, synth, _ = self._ready()
+        with patch("audio.player.fluidsynth.delete_fluid_audio_driver"):
+            player.suspend_audio()
+        synth.handles = {}
+        assert player.resume_audio() is False
+        assert player.audio_suspended
+
+    def test_resume_when_not_suspended_is_a_no_op(self):
+        player, synth, _ = self._ready()
+        synth.started.clear()
+        assert player.resume_audio() is True
+        assert synth.started == []

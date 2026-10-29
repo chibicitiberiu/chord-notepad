@@ -48,7 +48,9 @@
     "request_suggest_capo": {
       "selection": "selection"
     },
+    "reset_bpm": {},
     "reset_font_size": {},
+    "reset_multiplier": {},
     "respond": {
       "request_id": "int",
       "value": "any"
@@ -62,6 +64,9 @@
     "save_as": {},
     "set_bpm": {
       "bpm": "float"
+    },
+    "set_bpm_text": {
+      "text": "str"
     },
     "set_chord_sheet_height": {
       "px": "int"
@@ -84,6 +89,9 @@
     },
     "set_multiplier_pct": {
       "pct": "float"
+    },
+    "set_multiplier_text": {
+      "text": "str"
     },
     "set_notation": {
       "notation": "str"
@@ -133,12 +141,15 @@
     "request_close",
     "request_insert_directive",
     "request_suggest_capo",
+    "reset_bpm",
     "reset_font_size",
+    "reset_multiplier",
     "respond",
     "restore_draft",
     "save",
     "save_as",
     "set_bpm",
+    "set_bpm_text",
     "set_chord_sheet_height",
     "set_chord_sheet_view",
     "set_chord_sheet_visible",
@@ -146,6 +157,7 @@
     "set_instrument",
     "set_key",
     "set_multiplier_pct",
+    "set_multiplier_text",
     "set_notation",
     "set_show_quick_start_on_startup",
     "set_text",

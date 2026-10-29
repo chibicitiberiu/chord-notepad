@@ -342,6 +342,36 @@ class FakePlayer(IPlayer):
         self.bpm_multiplier = 1.0
         self.instrument = 0
         self.metronome_enabled = False
+        #: ``suspend`` / ``resume`` calls in order (kept apart from ``calls``).
+        self.audio_calls: List[str] = []
+        #: Set False to make :meth:`resume_audio` fail.
+        self.resume_succeeds = True
+        self._audio_suspended = False
+
+    # -- audio lifecycle ----------------------------------------------------
+
+    def suspend_audio(self) -> bool:
+        """Record the call; refuse while a song is actively playing."""
+        self.audio_calls.append("suspend")
+        if self.is_playing and not self.is_paused:
+            return False
+        self._audio_suspended = True
+        return True
+
+    def resume_audio(self) -> bool:
+        """Record the call; fail when ``resume_succeeds`` is False."""
+        self.audio_calls.append("resume")
+        if not self._audio_suspended:
+            return True
+        if not self.resume_succeeds:
+            return False
+        self._audio_suspended = False
+        return True
+
+    @property
+    def audio_suspended(self) -> bool:
+        """True between a successful suspend and a successful resume."""
+        return self._audio_suspended
 
     # -- what PlaybackService wires up -------------------------------------
 

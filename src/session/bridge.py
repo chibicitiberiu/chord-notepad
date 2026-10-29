@@ -218,6 +218,10 @@ SESSION_COMMANDS: Dict[str, Dict[str, str]] = {
     "tap_chord_at": {"offset": "int"},
     "set_bpm": {"bpm": "float"},
     "set_multiplier_pct": {"pct": "float"},
+    "set_bpm_text": {"text": "str"},
+    "set_multiplier_text": {"text": "str"},
+    "reset_bpm": {},
+    "reset_multiplier": {},
     "set_key": {"key": "str|null"},
     "set_time_signature": {"beats": "int", "unit": "int"},
     "toggle_metronome": {},
@@ -300,13 +304,17 @@ def _session_call(session: Any, command: str, kwargs: Dict[str, Any]) -> None:
 
 
 def _app_background(session: Any) -> None:
-    """The app left the screen and may be killed: pause, keep the settings."""
+    """The app left the screen and may be killed: pause, keep the settings,
+    release the audio output (refused while a song plays or renders)."""
     session.pause()
     session.save_config()
+    session.suspend_audio()
 
 
 def _app_foreground(session: Any) -> None:
-    """The app is back on screen; nothing to do (audio reopens lazily)."""
+    """The app is back on screen: reopen the audio output. A failure isn't
+    reported here; the next play reports AudioUnavailable."""
+    session.resume_audio()
 
 
 _HOST_HANDLERS: Dict[str, Callable[[Any], None]] = {

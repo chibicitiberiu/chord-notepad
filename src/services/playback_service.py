@@ -539,6 +539,32 @@ class PlaybackService:
         if not self._ensure_initialized():
             reason = self._init_error or "The audio player could not be started."
             raise AudioInitializationError(f"Audio is not available.\n\n{reason}")
+        player = self._player
+        if player is not None and player.audio_suspended and not player.resume_audio():
+            raise AudioInitializationError(
+                "Audio is not available.\n\nThe audio output could not be reopened.")
+
+    def suspend_audio(self) -> bool:
+        """Release the audio output (Android: app in the background).
+
+        Returns:
+            False when there is no player, a song is rendering or playing;
+            True if the output was released.
+        """
+        if self._player is None:
+            return False
+        thread = self._render_thread
+        if thread is not None and thread.is_alive():
+            self._logger.info("Not suspending audio while a song renders")
+            return False
+        return self._player.suspend_audio()
+
+    def resume_audio(self) -> bool:
+        """Reopen the audio output (True if there is no player yet: it is
+        created lazily)."""
+        if self._player is None:
+            return True
+        return self._player.resume_audio()
 
     @property
     def audio_error(self) -> Optional[str]:

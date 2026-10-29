@@ -62,3 +62,28 @@ class IPlayer(ABC):
             callback: Function to call when playback ends
         """
         pass
+
+    def suspend_audio(self) -> bool:
+        """Release the audio output device while keeping the loaded state.
+
+        For hosts whose app can be backgrounded (Android). Desktop never
+        calls it. Refuses while a song is actively playing.
+
+        Returns:
+            True if the output was released; False if nothing was released.
+        """
+        return False
+
+    def resume_audio(self) -> bool:
+        """Reopen the audio output released by :meth:`suspend_audio`.
+
+        Returns:
+            True if the output is open (or never was released); False if it
+            could not be reopened (the player stays suspended).
+        """
+        return True
+
+    @property
+    def audio_suspended(self) -> bool:
+        """True while the audio output is released by :meth:`suspend_audio`."""
+        return False
