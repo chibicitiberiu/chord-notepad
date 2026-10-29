@@ -112,6 +112,13 @@
  },
  "shots": [
   {
+   "name": "editor-main-window",
+   "page": "introduction: What is Chord Notepad?",
+   "what": "Play tab of a phone in portrait while a song plays (frozen on Em, bar 6): text with the playhead and yellow highlight, chord sheet (piano roll), player. No callouts (the Android counterpart of the desktop's hero shot).",
+   "scene": "grace_playing",
+   "dark": true
+  },
+  {
    "name": "main-play-labeled",
    "page": "getting_started: The Main Window; interface: Edit and Play",
    "what": "Play tab of a phone in portrait while a song plays (frozen on Em, bar 6): app bar, text with the playhead and yellow highlight, chord sheet (piano roll), player. Callouts: 1 drawer, 2 title, 3 Edit/Play tabs, 4 Save, 6 text, 7 player, 8 chord sheet (5 is the ribbon, only in Edit).",
