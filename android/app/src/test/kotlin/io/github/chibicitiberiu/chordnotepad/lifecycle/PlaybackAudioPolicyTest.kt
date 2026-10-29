@@ -57,10 +57,19 @@ class PlaybackAudioPolicyTest {
     }
 
     @Test
-    fun `pause keeps focus, resume asks again`() {
+    fun `pause keeps focus, resume does not ask again`() {
         go(PLAYING, PAUSED)
         assertEquals(listOf("register", "request"), events)
         go(PLAYING)
+        assertEquals(listOf("register", "request", "register"), events)
+        assertEquals(0, pauses)
+    }
+
+    @Test
+    fun `resume after a focus loss asks again`() {
+        go(PLAYING)
+        onLoss!!()
+        go(PAUSED, PLAYING)
         assertEquals(listOf("register", "request", "register", "request"), events)
     }
 

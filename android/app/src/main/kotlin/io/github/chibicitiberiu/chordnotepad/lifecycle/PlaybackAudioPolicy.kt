@@ -38,7 +38,9 @@ interface NoisyGateway {
  *   listening for "becoming noisy";
  * - losing focus or the headphones → [pause];
  * - back to IDLE abandons focus and stops listening. PAUSED keeps both, so a
- *   resume doesn't fight another app for focus it never lost.
+ *   resume doesn't ask again: a second request from the same app makes the
+ *   system send the first one a focus loss, which paused the song at once.
+ *   After a real loss, the next resume does ask.
  *
  * Ducking is left to the system (Android 8+ ducks music on its own).
  *
@@ -51,6 +53,7 @@ class PlaybackAudioPolicy(
 ) {
     private var last: PlaybackStatus = PlaybackStatus.IDLE
     private var engaged = false
+    private var focusHeld = false
 
     /** Follow [playback] in [scope] (main thread). */
     fun bind(scope: CoroutineScope, playback: StateFlow<PlaybackState?>): Job = scope.launch {
@@ -71,11 +74,17 @@ class PlaybackAudioPolicy(
     private fun startPlaying() {
         engaged = true
         noisy.register(pause)
-        if (!focus.request(onLoss = pause)) pause()
+        if (focusHeld) return // a resume after pause: asking again would take focus from ourselves
+        focusHeld = focus.request(onLoss = {
+            focusHeld = false
+            pause()
+        })
+        if (!focusHeld) pause()
     }
 
     private fun release() {
         engaged = false
+        focusHeld = false
         focus.abandon()
         noisy.unregister()
     }
