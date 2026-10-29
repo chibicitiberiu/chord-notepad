@@ -7,6 +7,12 @@
         <activity
             android:name=".ui.chordsheet.ChordSheetDebugActivity"
             android:exported="true" />
+        <!-- Debug builds only: the main screen set up from a scene, for the
+             user guide's screenshots (android/tools/help_screenshots.py). -->
+        <activity
+            android:name=".helpshot.HelpShotActivity"
+            android:exported="true"
+            android:windowSoftInputMode="adjustResize" />
     </application>
 
 </manifest>

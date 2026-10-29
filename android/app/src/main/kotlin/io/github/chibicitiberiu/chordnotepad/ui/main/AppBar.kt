@@ -23,6 +23,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -35,6 +36,7 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.chibicitiberiu.chordnotepad.R
+import io.github.chibicitiberiu.chordnotepad.ui.UiTags
 import io.github.chibicitiberiu.chordnotepad.ui.icons.IconTints
 import io.github.chibicitiberiu.chordnotepad.ui.icons.MdiIcon
 import io.github.chibicitiberiu.chordnotepad.ui.theme.appColors
@@ -59,16 +61,16 @@ fun AppBar(
 ) {
     val colors = appColors
     Row(
-        modifier.height(BAR_HEIGHT_DP.dp).background(colors.surface).padding(start = 2.dp),
+        modifier.height(BAR_HEIGHT_DP.dp).background(colors.surface).padding(start = 2.dp).testTag(UiTags.APP_BAR),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        BarIconButton(R.drawable.mdi_menu, stringResource(R.string.drawer_open), colors.muted, onMenu)
+        BarIconButton(R.drawable.mdi_menu, stringResource(R.string.drawer_open), colors.muted, onMenu, Modifier.testTag(UiTags.MENU))
         if (showTitle) {
-            SongTitle(title, modified, onRename, Modifier.weight(1f))
+            SongTitle(title, modified, onRename, Modifier.weight(1f).testTag(UiTags.TITLE))
         }
         ModeTabs(mode, onMode)
         if (!showTitle && trailing == null) Box(Modifier.weight(1f))
-        BarIconButton(R.drawable.mdi_content_save, stringResource(R.string.menu_save), IconTints.Save, onSave)
+        BarIconButton(R.drawable.mdi_content_save, stringResource(R.string.menu_save), IconTints.Save, onSave, Modifier.testTag(UiTags.SAVE))
         trailing?.invoke(this)
     }
 }
@@ -118,6 +120,7 @@ private fun ModeTab(target: AppMode, icon: Int, label: String, selected: Boolean
     Box(
         Modifier
             .fillMaxHeight()
+            .testTag(if (target == AppMode.EDIT) UiTags.TAB_EDIT else UiTags.TAB_PLAY)
             .selectable(selected = selected, role = Role.Tab, onClick = { onMode(target) })
             .padding(horizontal = 12.dp),
         contentAlignment = Alignment.Center,

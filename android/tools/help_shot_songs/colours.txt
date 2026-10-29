@@ -1,0 +1,9 @@
+{bpm: 100} {time: 4/4} {key: C}
+{tempo: fast}
+
+// A comment, never played
+{label: verse}
+C        Am       F        G7
+Chords on one line, the words below
+C        Am       Dm7      Gsus5  G
+Blue ones play, grey ones are not chords

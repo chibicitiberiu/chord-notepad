@@ -23,6 +23,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -30,6 +31,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.chibicitiberiu.chordnotepad.R
 import io.github.chibicitiberiu.chordnotepad.bridge.DocumentRef
+import io.github.chibicitiberiu.chordnotepad.ui.UiTags
 import io.github.chibicitiberiu.chordnotepad.ui.icons.IconTints
 import io.github.chibicitiberiu.chordnotepad.ui.icons.MdiIcon
 import io.github.chibicitiberiu.chordnotepad.ui.sheets.SheetSection
@@ -61,7 +63,7 @@ fun AppDrawer(recent: List<DocumentRef>, actions: DrawerActions, close: () -> Un
         action()
     }
     ModalDrawerSheet(
-        modifier = Modifier.widthIn(max = 300.dp).fillMaxHeight(),
+        modifier = Modifier.widthIn(max = 300.dp).fillMaxHeight().testTag(UiTags.DRAWER),
         drawerContainerColor = colors.surfaceLow,
         drawerContentColor = colors.text,
         drawerShape = RoundedCornerShape(topEnd = 16.dp, bottomEnd = 16.dp),

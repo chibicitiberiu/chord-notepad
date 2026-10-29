@@ -59,6 +59,7 @@ import androidx.compose.foundation.focusable
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalWindowInfo
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -75,6 +76,7 @@ import io.github.chibicitiberiu.chordnotepad.bridge.SongDefaultsState
 import io.github.chibicitiberiu.chordnotepad.bridge.ToolbarState
 import io.github.chibicitiberiu.chordnotepad.text.OffsetMapper
 import io.github.chibicitiberiu.chordnotepad.ui.MainActions
+import io.github.chibicitiberiu.chordnotepad.ui.UiTags
 import io.github.chibicitiberiu.chordnotepad.ui.chordsheet.ChordSheetPane
 import io.github.chibicitiberiu.chordnotepad.ui.chordsheet.ChordSheetSplit
 import io.github.chibicitiberiu.chordnotepad.ui.editor.ChordEditor
@@ -304,7 +306,7 @@ fun SongScreen(graph: AppGraph, actions: MainActions, snackbars: SnackbarHostSta
                             },
                             onScrub = actions::setPlayhead,
                             focusRequester = textFocus,
-                            modifier = m,
+                            modifier = m.testTag(UiTags.EDITOR),
                         )
                     }
                     when {
@@ -431,6 +433,7 @@ private fun SideBySide(
             Modifier
                 .width(14.dp)
                 .fillMaxHeight()
+                .testTag(UiTags.SIDE_HANDLE)
                 .background(colors.surface)
                 .semantics { contentDescription = "Resize the chord sheet" }
                 .draggable(

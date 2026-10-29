@@ -23,10 +23,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalWindowInfo
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import io.github.chibicitiberiu.chordnotepad.bridge.PyHost
+import io.github.chibicitiberiu.chordnotepad.ui.UiTags
 import io.github.chibicitiberiu.chordnotepad.ui.theme.appColors
 import kotlin.math.roundToInt
 
@@ -104,6 +106,7 @@ private fun SplitHandle(onDrag: (Float) -> Unit, onDragEnd: () -> Unit) {
         Modifier
             .fillMaxWidth()
             .height(14.dp)
+            .testTag(UiTags.CHORD_SHEET_HANDLE)
             .background(colors.surfaceLow)
             .semantics { contentDescription = "Resize the chord sheet" }
             .draggable(

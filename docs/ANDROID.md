@@ -1019,6 +1019,16 @@ opens on its own when `SettingsState.values.show_quick_start_on_startup` is true
 `AppGraph.quickStartShown` lives in the app-scoped graph, so rotation does not
 show it again.
 
+### Screenshots for the guide
+
+`help/images/android/` is produced by `android/tools/help_screenshots.py`
+from the shot list `android/tools/help_shots.json`, on the emulator, with the
+debug-only `HelpShotActivity` (`src/debug`) setting up each scene. It takes
+the shared emulator lock (`$ANDROID_ROOT/emulator.lock`). How to run it, the
+manifest format and which image belongs to which page:
+`android/tools/HELP_SHOTS.md`. The main screen's controls carry Compose test
+tags (`ui/UiTags.kt`) for it.
+
 ## Natives from source and offline packages (M6 groundwork)
 
 **Date:** 2026-10-29. Nothing in a default build now comes from a prebuilt

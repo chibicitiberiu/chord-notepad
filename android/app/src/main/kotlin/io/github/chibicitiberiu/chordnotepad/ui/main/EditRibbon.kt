@@ -33,6 +33,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -41,6 +42,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.chibicitiberiu.chordnotepad.R
+import io.github.chibicitiberiu.chordnotepad.ui.UiTags
 import io.github.chibicitiberiu.chordnotepad.ui.icons.ConvertIcon
 import io.github.chibicitiberiu.chordnotepad.ui.icons.IconTints
 import io.github.chibicitiberiu.chordnotepad.ui.icons.MdiIcon
@@ -81,34 +83,34 @@ fun EditRibbon(
     val edges by remember(scroll) { derivedStateOf { RibbonEdges.of(scroll.value, scroll.maxValue) } }
     val scope = rememberCoroutineScope()
     val morePx = with(LocalDensity.current) { MORE_SCROLL_DP.dp.toPx() }
-    Box(modifier.height(BAR_HEIGHT_DP.dp).background(colors.surface2)) {
+    Box(modifier.height(BAR_HEIGHT_DP.dp).background(colors.surface2).testTag(UiTags.RIBBON)) {
         Row(
             Modifier.fillMaxHeight().horizontalScroll(scroll).padding(horizontal = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(1.dp),
         ) {
-            RibbonButton(stringResource(R.string.menu_undo), enabled = canUndo, onClick = actions::undo) {
+            RibbonButton(stringResource(R.string.menu_undo), UiTags.RIBBON_UNDO, enabled = canUndo, onClick = actions::undo) {
                 MdiIcon(R.drawable.mdi_undo, IconTints.Undo)
             }
-            RibbonButton(stringResource(R.string.menu_redo), enabled = canRedo, onClick = actions::redo) {
+            RibbonButton(stringResource(R.string.menu_redo), UiTags.RIBBON_REDO, enabled = canRedo, onClick = actions::redo) {
                 MdiIcon(R.drawable.mdi_redo, IconTints.Undo)
             }
             RibbonSeparator()
-            RibbonButton(stringResource(R.string.ribbon_insert), onClick = actions::insert) {
+            RibbonButton(stringResource(R.string.ribbon_insert), UiTags.RIBBON_INSERT, onClick = actions::insert) {
                 MdiIcon(R.drawable.mdi_plus, IconTints.Insert)
             }
-            RibbonButton(stringResource(R.string.ribbon_transpose), onClick = actions::transpose) {
+            RibbonButton(stringResource(R.string.ribbon_transpose), UiTags.RIBBON_TRANSPOSE, onClick = actions::transpose) {
                 androidx.compose.material3.Icon(
                     painterResource(R.drawable.ic_transpose), null,
                     Modifier.size(width = 32.dp, height = 24.dp), tint = IconTints.Transpose,
                 )
             }
-            RibbonButton(stringResource(R.string.ribbon_identify), onClick = actions::identify) {
+            RibbonButton(stringResource(R.string.ribbon_identify), UiTags.RIBBON_IDENTIFY, onClick = actions::identify) {
                 MdiIcon(R.drawable.mdi_piano, IconTints.Identify)
             }
             RibbonSeparator()
             NotationSegments(notation, actions::setNotation)
-            RibbonButton(stringResource(R.string.ribbon_convert), onClick = actions::convert) {
+            RibbonButton(stringResource(R.string.ribbon_convert), UiTags.RIBBON_CONVERT, onClick = actions::convert) {
                 ConvertIcon()
             }
             // Room for the chevron at the very end.
@@ -130,6 +132,7 @@ fun EditRibbon(
                     .align(Alignment.CenterEnd)
                     .width(28.dp)
                     .fillMaxHeight()
+                    .testTag(UiTags.RIBBON_MORE)
                     .clickable(onClickLabel = stringResource(R.string.ribbon_more)) {
                         scope.launch { scroll.animateScrollTo((scroll.value + morePx).toInt()) }
                     },
@@ -143,10 +146,11 @@ fun EditRibbon(
 
 /** One ribbon button: the icon over a small caption. */
 @Composable
-private fun RibbonButton(label: String, enabled: Boolean = true, onClick: () -> Unit, icon: @Composable () -> Unit) {
+private fun RibbonButton(label: String, tag: String, enabled: Boolean = true, onClick: () -> Unit, icon: @Composable () -> Unit) {
     val colors = appColors
     Column(
         Modifier
+            .testTag(tag)
             .heightIn(min = 44.dp)
             .widthIn(min = 44.dp)
             .clip(RoundedCornerShape(10.dp))
@@ -186,6 +190,7 @@ private fun NotationSegments(notation: String?, onSelect: (String) -> Unit) {
             .height(30.dp)
             .clip(shape)
             .border(1.dp, colors.line, shape)
+            .testTag(UiTags.RIBBON_NOTATION)
             .selectableGroup(),
     ) {
         for ((value, label) in listOf("american" to R.string.notation_american, "european" to R.string.notation_european)) {
@@ -214,7 +219,7 @@ private fun NotationSegments(notation: String?, onSelect: (String) -> Unit) {
 fun FloatingUndoChip(actions: RibbonActions, canUndo: Boolean, canRedo: Boolean, modifier: Modifier = Modifier) {
     val colors = appColors
     androidx.compose.material3.Surface(
-        modifier,
+        modifier.testTag(UiTags.UNDO_CHIP),
         shape = RoundedCornerShape(22.dp),
         color = colors.surfaceHigh,
         shadowElevation = 4.dp,

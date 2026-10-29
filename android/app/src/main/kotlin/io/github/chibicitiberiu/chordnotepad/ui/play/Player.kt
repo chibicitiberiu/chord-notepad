@@ -29,6 +29,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -41,6 +42,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.chibicitiberiu.chordnotepad.R
+import io.github.chibicitiberiu.chordnotepad.ui.UiTags
 import io.github.chibicitiberiu.chordnotepad.ui.icons.IconTints
 import io.github.chibicitiberiu.chordnotepad.ui.icons.MdiIcon
 import io.github.chibicitiberiu.chordnotepad.ui.theme.appColors
@@ -88,7 +90,7 @@ interface PlayerActions {
 @Composable
 fun Player(state: PlayerState, actions: PlayerActions, compact: Boolean, modifier: Modifier = Modifier) {
     val colors = appColors
-    Column(modifier.background(colors.surface2)) {
+    Column(modifier.background(colors.surface2).testTag(UiTags.PLAYER)) {
         HorizontalDivider(color = colors.line)
         Column(Modifier.fillMaxWidth().padding(start = 10.dp, end = 10.dp, top = 2.dp, bottom = 4.dp)) {
             Row(Modifier.fillMaxWidth().height(26.dp).padding(top = 2.dp), horizontalArrangement = Arrangement.Center) {
@@ -102,26 +104,26 @@ fun Player(state: PlayerState, actions: PlayerActions, compact: Boolean, modifie
             ) {
                 SideButton(
                     R.drawable.mdi_music, stringResource(R.string.player_voicing, state.voicingLabel), false, side,
-                    actions::voicing, lockedReason = state.voicingLockedReason,
+                    actions::voicing, lockedReason = state.voicingLockedReason, tag = UiTags.PLAYER_VOICING,
                 )
-                SideButton(R.drawable.mdi_guitar_acoustic, stringResource(R.string.player_instrument, state.instrumentLabel), false, side, actions::instrument)
-                SideButton(R.drawable.mdi_skip_previous, stringResource(R.string.player_rewind), false, side, actions::rewind)
+                SideButton(R.drawable.mdi_guitar_acoustic, stringResource(R.string.player_instrument, state.instrumentLabel), false, side, actions::instrument, tag = UiTags.PLAYER_INSTRUMENT)
+                SideButton(R.drawable.mdi_skip_previous, stringResource(R.string.player_rewind), false, side, actions::rewind, tag = UiTags.PLAYER_REWIND)
                 PlayButton(state.playing, state.starting, if (compact) 48.dp else 54.dp, actions::playPause)
-                SideButton(R.drawable.mdi_metronome, stringResource(R.string.player_metronome), state.metronome, side, actions::toggleMetronome)
+                SideButton(R.drawable.mdi_metronome, stringResource(R.string.player_metronome), state.metronome, side, actions::toggleMetronome, tag = UiTags.PLAYER_METRONOME)
                 SideButton(
                     R.drawable.mdi_speedometer,
                     stringResource(R.string.player_speed),
-                    state.speedBadge != null, side, actions::speed, badge = state.speedBadge,
+                    state.speedBadge != null, side, actions::speed, badge = state.speedBadge, tag = UiTags.PLAYER_SPEED,
                 )
                 SideButton(
                     R.drawable.mdi_dock_bottom,
                     stringResource(if (state.sheetVisible) R.string.player_sheet_hide else R.string.player_sheet_show),
-                    state.sheetVisible, side, actions::toggleSheet,
+                    state.sheetVisible, side, actions::toggleSheet, tag = UiTags.PLAYER_SHEET,
                 )
             }
             Text(
                 state.status,
-                Modifier.fillMaxWidth().height(16.dp),
+                Modifier.fillMaxWidth().height(16.dp).testTag(UiTags.PLAYER_STATUS),
                 color = colors.muted,
                 fontSize = 11.sp,
                 lineHeight = 16.sp,
@@ -139,6 +141,7 @@ private fun SongPill(text: String, onClick: () -> Unit) {
     val colors = appColors
     Row(
         Modifier
+            .testTag(UiTags.PLAYER_PILL)
             .height(26.dp)
             .clip(RoundedCornerShape(13.dp))
             .clickable(onClickLabel = stringResource(R.string.song_defaults_title), onClick = onClick)
@@ -157,10 +160,11 @@ private fun SongPill(text: String, onClick: () -> Unit) {
 private fun SideButton(
     icon: Int, label: String, on: Boolean, size: Dp, onClick: () -> Unit, badge: String? = null,
     lockedReason: String? = null,
+    tag: String,
 ) {
     val colors = appColors
     val locked = lockedReason != null
-    Box(Modifier.size(size)) {
+    Box(Modifier.size(size).testTag(tag)) {
         val button = @Composable {
             Box(
                 Modifier
@@ -216,6 +220,7 @@ private fun PlayButton(playing: Boolean, starting: Boolean, size: Dp, onClick: (
     val label = stringResource(if (playing) R.string.player_pause else R.string.player_play)
     Box(
         Modifier
+            .testTag(UiTags.PLAYER_PLAY)
             .padding(horizontal = if (size < 50.dp) 2.dp else 4.dp)
             .size(size)
             .shadow(3.dp, CircleShape)

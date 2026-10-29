@@ -8,10 +8,12 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import io.github.chibicitiberiu.chordnotepad.R
+import io.github.chibicitiberiu.chordnotepad.ui.UiTags
 import io.github.chibicitiberiu.chordnotepad.ui.icons.IconTints
 import io.github.chibicitiberiu.chordnotepad.ui.icons.MdiIcon
 import io.github.chibicitiberiu.chordnotepad.ui.theme.appColors
@@ -148,7 +150,7 @@ fun ChordSheetPane(
         Box(modifier)
         return
     }
-    Column(modifier.background(appColors.surfaceLow)) {
+    Column(modifier.background(appColors.surfaceLow).testTag(UiTags.CHORD_SHEET)) {
         ChordSheetHeader(
             state = current,
             onSelect = commands::setChordSheetView,
@@ -181,7 +183,7 @@ private fun ChordSheetHeader(state: ChordSheetState, onSelect: (String) -> Unit,
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Row(
-            Modifier.weight(1f).fillMaxHeight().horizontalScroll(rememberScrollState()),
+            Modifier.weight(1f).fillMaxHeight().horizontalScroll(rememberScrollState()).testTag(UiTags.CHORD_SHEET_TABS),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(2.dp),
         ) {
@@ -196,8 +198,10 @@ private fun ChordSheetHeader(state: ChordSheetState, onSelect: (String) -> Unit,
         }
         // Views the core says don't zoom (the piano roll) show no zoom buttons; pinch follows the same flag.
         if (state.zoomSupported) {
-            ZoomButton(R.drawable.mdi_magnify_minus, stringResource(R.string.sheet_zoom_out)) { onZoom(-1) }
-            ZoomButton(R.drawable.mdi_magnify_plus, stringResource(R.string.sheet_zoom_in)) { onZoom(1) }
+            Row(Modifier.testTag(UiTags.CHORD_SHEET_ZOOM)) {
+                ZoomButton(R.drawable.mdi_magnify_minus, stringResource(R.string.sheet_zoom_out)) { onZoom(-1) }
+                ZoomButton(R.drawable.mdi_magnify_plus, stringResource(R.string.sheet_zoom_in)) { onZoom(1) }
+            }
         }
     }
 }

@@ -1,0 +1,1484 @@
+{
+ "devices": {
+  "phone": {
+   "avd": "cn_phone",
+   "density": 2.625,
+   "scale": 0.6667
+  },
+  "tablet": {
+   "avd": "cn_tablet",
+   "density": 2.0,
+   "scale": 0.5,
+   "natural": "landscape"
+  }
+ },
+ "config": {
+  "show_quick_start_on_startup": false,
+  "voicing": "piano",
+  "instrument": 0,
+  "notation": "american",
+  "bpm": 120,
+  "bpm_multiplier": 1.0,
+  "key": "C",
+  "time_signature_beats": 4,
+  "time_signature_unit": 4,
+  "font_size": 11,
+  "chord_sheet_visible": true,
+  "chord_sheet_view": "keyboard",
+  "chord_sheet_height": 330,
+  "chord_sheet_zoom": {},
+  "voicings": {
+   "My 7-String": {
+    "model": "fretboard",
+    "tuning": [
+     "B1",
+     "E2",
+     "A2",
+     "D3",
+     "G3",
+     "B3",
+     "E4"
+    ]
+   }
+  }
+ },
+ "scenes": {
+  "grace_play": [
+   {
+    "do": "song",
+    "file": "android/tools/help_shot_songs/amazing_grace.txt",
+    "name": "Amazing Grace.txt"
+   },
+   {
+    "do": "mode",
+    "mode": "play"
+   },
+   {
+    "do": "playhead",
+    "chord": 0
+   }
+  ],
+  "grace_playing": [
+   {
+    "do": "song",
+    "file": "android/tools/help_shot_songs/amazing_grace.txt",
+    "name": "Amazing Grace.txt"
+   },
+   {
+    "do": "mode",
+    "mode": "play"
+   },
+   {
+    "do": "freeze",
+    "chord": 5,
+    "state": "playing"
+   }
+  ],
+  "grace_edit": [
+   {
+    "do": "song",
+    "file": "android/tools/help_shot_songs/amazing_grace.txt",
+    "name": "Amazing Grace.txt"
+   },
+   {
+    "do": "mode",
+    "mode": "edit"
+   },
+   {
+    "do": "wait",
+    "ms": 4500
+   }
+  ],
+  "grace_edit_cursor": [
+   {
+    "do": "song",
+    "file": "android/tools/help_shot_songs/amazing_grace.txt",
+    "name": "Amazing Grace.txt"
+   },
+   {
+    "do": "mode",
+    "mode": "edit"
+   },
+   {
+    "do": "select",
+    "text": "me\n",
+    "cursor": true
+   },
+   {
+    "do": "wait",
+    "ms": 4500
+   }
+  ]
+ },
+ "shots": [
+  {
+   "name": "main-play-labeled",
+   "page": "getting_started: The Main Window; interface: Edit and Play",
+   "what": "Play tab of a phone in portrait while a song plays (frozen on Em, bar 6): app bar, text with the playhead and yellow highlight, chord sheet (piano roll), player. Callouts: 1 drawer, 2 title, 3 Edit/Play tabs, 4 Save, 6 text, 7 player, 8 chord sheet (5 is the ribbon, only in Edit).",
+   "scene": "grace_playing",
+   "dark": true,
+   "callouts": [
+    {
+     "n": 1,
+     "target": {
+      "tag": "menu",
+      "at": [
+       0.5,
+       0.0
+      ]
+     },
+     "offset": [
+      0,
+      -16
+     ]
+    },
+    {
+     "n": 2,
+     "target": {
+      "tag": "title",
+      "at": [
+       0.3,
+       0.0
+      ]
+     },
+     "offset": [
+      0,
+      -16
+     ]
+    },
+    {
+     "n": 3,
+     "target": {
+      "tag": "tab_edit",
+      "at": [
+       1.0,
+       0.0
+      ]
+     },
+     "offset": [
+      0,
+      -16
+     ]
+    },
+    {
+     "n": 4,
+     "target": {
+      "tag": "save",
+      "at": [
+       0.5,
+       0.0
+      ]
+     },
+     "offset": [
+      0,
+      -16
+     ]
+    },
+    {
+     "n": 6,
+     "target": {
+      "tag": "editor",
+      "at": [
+       0.9,
+       0.45
+      ]
+     }
+    },
+    {
+     "n": 7,
+     "target": {
+      "tag": "player",
+      "at": [
+       0.06,
+       0.45
+      ]
+     }
+    },
+    {
+     "n": 8,
+     "target": {
+      "tag": "chord_sheet",
+      "at": [
+       0.94,
+       0.05
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "main-edit-labeled",
+   "page": "getting_started: The Main Window; interface: The Edit Ribbon",
+   "what": "Edit tab of a phone in portrait: app bar, Edit ribbon, editable text. Callouts: 1 drawer, 2 title, 3 Edit/Play tabs, 4 Save, 5 Edit ribbon, 6 text.",
+   "scene": "grace_edit_cursor",
+   "dark": true,
+   "callouts": [
+    {
+     "n": 1,
+     "target": {
+      "tag": "menu",
+      "at": [
+       0.5,
+       0.0
+      ]
+     },
+     "offset": [
+      0,
+      -16
+     ]
+    },
+    {
+     "n": 2,
+     "target": {
+      "tag": "title",
+      "at": [
+       0.3,
+       0.0
+      ]
+     },
+     "offset": [
+      0,
+      -16
+     ]
+    },
+    {
+     "n": 3,
+     "target": {
+      "tag": "tab_edit",
+      "at": [
+       1.0,
+       0.0
+      ]
+     },
+     "offset": [
+      0,
+      -16
+     ]
+    },
+    {
+     "n": 4,
+     "target": {
+      "tag": "save",
+      "at": [
+       0.5,
+       0.0
+      ]
+     },
+     "offset": [
+      0,
+      -16
+     ]
+    },
+    {
+     "n": 5,
+     "target": {
+      "tag": "ribbon",
+      "at": [
+       0.243,
+       0.5
+      ]
+     }
+    },
+    {
+     "n": 6,
+     "target": {
+      "tag": "editor",
+      "at": [
+       0.9,
+       0.6
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "player-labeled",
+   "page": "interface: The Player; getting_started: Playing Your First Chord / Adjusting the Tempo",
+   "what": "The player alone while playing, metronome on and speed 125% (badge 1.25x). Callouts: 1 song pill, 2 Voicing (greyed while playing), 3 Instrument, 4 back to start, 5 play/pause, 6 metronome, 7 speed, 8 chord sheet button, 9 status line.",
+   "scene": "grace_playing",
+   "config": {
+    "bpm_multiplier": 1.25
+   },
+   "scene_extra": [
+    {
+     "do": "metronome",
+     "on": true
+    }
+   ],
+   "dark": true,
+   "crop": {
+    "nodes": [
+     {
+      "tag": "player"
+     }
+    ],
+    "pad_dp": 0,
+    "full_width": true
+   },
+   "callouts": [
+    {
+     "n": 1,
+     "target": {
+      "tag": "player_pill",
+      "at": [
+       0.0,
+       0.5
+      ]
+     },
+     "offset": [
+      -26,
+      0
+     ]
+    },
+    {
+     "n": 2,
+     "target": {
+      "tag": "player_voicing",
+      "at": [
+       0.5,
+       0.0
+      ]
+     },
+     "offset": [
+      0,
+      -18
+     ]
+    },
+    {
+     "n": 3,
+     "target": {
+      "tag": "player_instrument",
+      "at": [
+       0.5,
+       0.0
+      ]
+     },
+     "offset": [
+      0,
+      -18
+     ]
+    },
+    {
+     "n": 4,
+     "target": {
+      "tag": "player_rewind",
+      "at": [
+       0.5,
+       0.0
+      ]
+     },
+     "offset": [
+      0,
+      -18
+     ]
+    },
+    {
+     "n": 5,
+     "target": {
+      "tag": "player_play",
+      "at": [
+       0.85,
+       0.85
+      ]
+     },
+     "offset": [
+      16,
+      14
+     ]
+    },
+    {
+     "n": 6,
+     "target": {
+      "tag": "player_metronome",
+      "at": [
+       0.5,
+       0.0
+      ]
+     },
+     "offset": [
+      0,
+      -18
+     ]
+    },
+    {
+     "n": 7,
+     "target": {
+      "tag": "player_speed",
+      "at": [
+       0.35,
+       0.0
+      ]
+     },
+     "offset": [
+      -14,
+      -16
+     ]
+    },
+    {
+     "n": 8,
+     "target": {
+      "tag": "player_sheet",
+      "at": [
+       0.5,
+       0.0
+      ]
+     },
+     "offset": [
+      0,
+      -18
+     ]
+    },
+    {
+     "n": 9,
+     "target": {
+      "tag": "player_status",
+      "at": [
+       0.34,
+       0.5
+      ]
+     },
+     "offset": [
+      -40,
+      0
+     ]
+    }
+   ]
+  },
+  {
+   "name": "edit-ribbon",
+   "page": "interface: The Edit Ribbon",
+   "what": "The Edit ribbon on a phone: Undo, Redo, Insert, Transpose, Identify, AB/Do, Convert, and the › chevron (more to the right).",
+   "scene": "grace_edit",
+   "crop": {
+    "nodes": [
+     {
+      "tag": "ribbon"
+     }
+    ],
+    "pad_dp": 0,
+    "full_width": true
+   }
+  },
+  {
+   "name": "notation-toggle",
+   "page": "introduction: Multiple Notation Systems; writing_chords: Switching Notations",
+   "what": "Close-up of the AB/Do notation switch and the Convert button in the Edit ribbon.",
+   "scene": "grace_edit",
+   "steps": [
+    {
+     "tap": {
+      "tag": "ribbon_more"
+     }
+    }
+   ],
+   "crop": {
+    "nodes": [
+     {
+      "tag": "ribbon_notation"
+     },
+     {
+      "tag": "ribbon_convert"
+     }
+    ],
+    "pads_dp": [
+     6,
+     2,
+     6,
+     4
+    ]
+   }
+  },
+  {
+   "name": "editor-colours",
+   "page": "interface: Color Coding",
+   "what": "Edit tab text showing every colour: purple directives, a red invalid directive ({tempo: fast}), a grey comment, blue underlined chords and a grey underlined non-chord (Gsus5).",
+   "scene": [
+    {
+     "do": "song",
+     "file": "android/tools/help_shot_songs/colours.txt",
+     "name": "Colours.txt"
+    },
+    {
+     "do": "mode",
+     "mode": "edit"
+    },
+    {
+     "do": "wait",
+     "ms": 4500
+    }
+   ],
+   "crop": {
+    "nodes": [
+     {
+      "tag": "editor"
+     }
+    ],
+    "pad_dp": 0,
+    "full_width": true,
+    "height_dp": 200
+   }
+  },
+  {
+   "name": "playhead",
+   "page": "interface: The Playhead; playback: Playing from the Cursor",
+   "what": "Play tab text with the playhead (primary-coloured bar and triangle) before the Em chord.",
+   "scene": [
+    {
+     "do": "song",
+     "file": "android/tools/help_shot_songs/amazing_grace.txt",
+     "name": "Amazing Grace.txt"
+    },
+    {
+     "do": "mode",
+     "mode": "play"
+    },
+    {
+     "do": "playhead",
+     "chord": 5
+    }
+   ],
+   "crop": {
+    "nodes": [
+     {
+      "tag": "editor"
+     }
+    ],
+    "pad_dp": 0,
+    "full_width": true,
+    "height_dp": 160,
+    "top_dp": 40
+   }
+  },
+  {
+   "name": "song-defaults",
+   "page": "interface: The Player; getting_started: Adjusting the Tempo; playback: The Status Bar",
+   "what": "Song defaults sheet (tap the song pill): Tempo set by {bpm: 90} in the song (read-only, with Edit), Time signature and Key as editable defaults, Write into song, Done.",
+   "config": {
+    "time_signature_beats": 3,
+    "key": "G"
+   },
+   "scene": [
+    {
+     "do": "song",
+     "file": "android/tools/help_shot_songs/amazing_grace_tempo_only.txt",
+     "name": "Amazing Grace.txt"
+    },
+    {
+     "do": "mode",
+     "mode": "play"
+    }
+   ],
+   "steps": [
+    {
+     "tap": {
+      "tag": "player_pill"
+     }
+    }
+   ]
+  },
+  {
+   "name": "voicing-sheet",
+   "page": "playback: Voicing Options; fretted, piano, ensembles: How to Change Voicing; settings: Voicings",
+   "what": "Voicing sheet: Piano, Fretted (four guitars, Ukulele), Ensembles (four presets) and Your voicings (My 7-String), with Edit voicings… and Done.",
+   "scene": "grace_play",
+   "steps": [
+    {
+     "tap": {
+      "tag": "player_voicing"
+     }
+    }
+   ]
+  },
+  {
+   "name": "instrument-families",
+   "page": "getting_started: Changing the Sound; playback: Changing Instruments",
+   "what": "Instrument sheet, first level: the 16 General MIDI families, the current one marked with its instrument on the right.",
+   "scene": "grace_play",
+   "steps": [
+    {
+     "tap": {
+      "tag": "player_instrument"
+     }
+    }
+   ]
+  },
+  {
+   "name": "instrument-programs",
+   "page": "getting_started: Changing the Sound; playback: How to Change Instruments",
+   "what": "Instrument sheet, second level: the Guitar family's eight instruments with program numbers, Steel Guitar selected, ← back.",
+   "scene": "grace_play",
+   "config": {
+    "instrument": 25
+   },
+   "steps": [
+    {
+     "tap": {
+      "tag": "player_instrument"
+     }
+    },
+    {
+     "tap": {
+      "text": "Guitar"
+     }
+    }
+   ]
+  },
+  {
+   "name": "speed-sheet",
+   "page": "getting_started: Adjusting the Tempo; interface: The Player",
+   "what": "Speed sheet at 125%: the value, the 25–400% slider, Reset, Manual… and Done.",
+   "scene": "grace_play",
+   "config": {
+    "bpm_multiplier": 1.25
+   },
+   "steps": [
+    {
+     "tap": {
+      "tag": "player_speed"
+     }
+    }
+   ]
+  },
+  {
+   "name": "speed-manual",
+   "page": "getting_started: Adjusting the Tempo",
+   "what": "The Manual… speed dialog: a number field (25 to 400) with Cancel / OK.",
+   "scene": "grace_play",
+   "config": {
+    "bpm_multiplier": 1.25
+   },
+   "steps": [
+    {
+     "tap": {
+      "tag": "player_speed"
+     }
+    },
+    {
+     "tap": {
+      "text": "Manual…"
+     }
+    }
+   ],
+   "crop": {
+    "nodes": [
+     {
+      "window": true
+     }
+    ],
+    "pad_dp": 4
+   }
+  },
+  {
+   "name": "insert-sheet",
+   "page": "interface: Insert Directive Dialogs",
+   "what": "＋ Insert sheet: Tempo, Time signature, Key, Capo, Label (section), Loop, each with its directive.",
+   "scene": "grace_edit_cursor",
+   "steps": [
+    {
+     "tap": {
+      "tag": "ribbon_insert"
+     }
+    }
+   ]
+  },
+  {
+   "name": "insert-tempo",
+   "page": "interface: Insert Directive Dialogs",
+   "what": "Insert BPM/Tempo Change dialog: the accepted formats and the BPM field.",
+   "scene": "grace_edit_cursor",
+   "steps": [
+    {
+     "tap": {
+      "tag": "ribbon_insert"
+     }
+    },
+    {
+     "tap": {
+      "text": "Tempo"
+     }
+    }
+   ],
+   "crop": {
+    "nodes": [
+     {
+      "window": true
+     }
+    ],
+    "pad_dp": 4
+   }
+  },
+  {
+   "name": "insert-time",
+   "page": "interface: Insert Directive Dialogs",
+   "what": "Insert Time Signature Change dialog: Beats / Unit pickers.",
+   "scene": "grace_edit_cursor",
+   "steps": [
+    {
+     "tap": {
+      "tag": "ribbon_insert"
+     }
+    },
+    {
+     "tap": {
+      "text": "Time signature"
+     }
+    }
+   ],
+   "crop": {
+    "nodes": [
+     {
+      "window": true
+     }
+    ],
+    "pad_dp": 4
+   }
+  },
+  {
+   "name": "insert-key",
+   "page": "interface: Insert Directive Dialogs",
+   "what": "Insert Key Change dialog: the key list.",
+   "scene": "grace_edit_cursor",
+   "steps": [
+    {
+     "tap": {
+      "tag": "ribbon_insert"
+     }
+    },
+    {
+     "tap": {
+      "text": "Key"
+     }
+    }
+   ],
+   "crop": {
+    "nodes": [
+     {
+      "window": true
+     }
+    ],
+    "pad_dp": 4
+   }
+  },
+  {
+   "name": "insert-capo",
+   "page": "interface: Insert Directive Dialogs; chord_sheet: Suggesting a Capo; directives: Capo",
+   "what": "Insert Capo dialog: the Fret field (0–12) and Suggest.",
+   "scene": "grace_edit_cursor",
+   "steps": [
+    {
+     "tap": {
+      "tag": "ribbon_insert"
+     }
+    },
+    {
+     "tap": {
+      "text": "Capo"
+     }
+    }
+   ],
+   "crop": {
+    "nodes": [
+     {
+      "window": true
+     }
+    ],
+    "pad_dp": 4
+   }
+  },
+  {
+   "name": "insert-label",
+   "page": "interface: Insert Directive Dialogs",
+   "what": "Insert Label dialog: the label name field.",
+   "scene": "grace_edit_cursor",
+   "steps": [
+    {
+     "tap": {
+      "tag": "ribbon_insert"
+     }
+    },
+    {
+     "tap": {
+      "text": "Label (section)"
+     }
+    }
+   ],
+   "crop": {
+    "nodes": [
+     {
+      "window": true
+     }
+    ],
+    "pad_dp": 4
+   }
+  },
+  {
+   "name": "insert-loop",
+   "page": "interface: Insert Directive Dialogs",
+   "what": "Insert Loop dialog: label and count fields.",
+   "scene": "grace_edit_cursor",
+   "steps": [
+    {
+     "tap": {
+      "tag": "ribbon_insert"
+     }
+    },
+    {
+     "tap": {
+      "text": "Loop"
+     }
+    }
+   ],
+   "crop": {
+    "nodes": [
+     {
+      "window": true
+     }
+    ],
+    "pad_dp": 4
+   }
+  },
+  {
+   "name": "capo-suggest",
+   "page": "chord_sheet: Suggesting a Capo; directives: Finding the Best Capo",
+   "what": "Suggest Capo dialog (＋ Insert → Capo → Suggest): pick the fretboard voicing to optimize for.",
+   "scene": "grace_edit_cursor",
+   "steps": [
+    {
+     "tap": {
+      "tag": "ribbon_insert"
+     }
+    },
+    {
+     "tap": {
+      "text": "Capo"
+     }
+    },
+    {
+     "tap": {
+      "text": "Suggest"
+     }
+    }
+   ],
+   "crop": {
+    "nodes": [
+     {
+      "window": true
+     }
+    ],
+    "pad_dp": 4
+   }
+  },
+  {
+   "name": "transpose",
+   "page": "transpose: Transposing a Song",
+   "what": "Transpose dialog (whole song): semitones with − / +, Cancel / OK.",
+   "scene": "grace_edit",
+   "steps": [
+    {
+     "tap": {
+      "tag": "ribbon_transpose"
+     }
+    },
+    {
+     "tap": {
+      "desc": "One semitone up"
+     }
+    },
+    {
+     "tap": {
+      "desc": "One semitone up"
+     }
+    }
+   ],
+   "crop": {
+    "nodes": [
+     {
+      "window": true
+     }
+    ],
+    "pad_dp": 4
+   }
+  },
+  {
+   "name": "identify",
+   "page": "interface: The Chord Identifier",
+   "what": "Chord Identifier (Edit ribbon → Identify): C, E, G and B selected on the keyboard, the Notes field, Possible Chords with Cmaj7 picked, Clear and Insert.",
+   "scene": "grace_edit_cursor",
+   "steps": [
+    {
+     "tap": {
+      "tag": "ribbon_identify"
+     }
+    },
+    {
+     "tap": {
+      "desc": "Piano keyboard, two octaves from C4",
+      "at": [
+       0.03571428571428571,
+       0.85
+      ]
+     }
+    },
+    {
+     "tap": {
+      "desc": "Piano keyboard, two octaves from C4",
+      "at": [
+       0.17857142857142858,
+       0.85
+      ]
+     }
+    },
+    {
+     "tap": {
+      "desc": "Piano keyboard, two octaves from C4",
+      "at": [
+       0.32142857142857145,
+       0.85
+      ]
+     }
+    },
+    {
+     "tap": {
+      "desc": "Piano keyboard, two octaves from C4",
+      "at": [
+       0.4642857142857143,
+       0.85
+      ]
+     }
+    },
+    {
+     "tap": {
+      "text": "Cmaj7"
+     }
+    }
+   ]
+  },
+  {
+   "name": "drawer",
+   "page": "interface: The Drawer; getting_started: Saving Your Work / Opening Existing Files; midi_export: Exporting a Song",
+   "what": "The ☰ drawer: New song, Open…, Recent (three songs), Save as…, Export MIDI…, Settings, User guide, Quick start, About.",
+   "scene": "grace_play",
+   "scene_extra": [
+    {
+     "do": "recent",
+     "names": [
+      "Amazing Grace.txt",
+      "Twinkle.txt",
+      "Greensleeves.txt"
+     ]
+    }
+   ],
+   "steps": [
+    {
+     "tap": {
+      "tag": "menu"
+     }
+    }
+   ]
+  },
+  {
+   "name": "rename",
+   "page": "interface: The App Bar; interface: The Song Title",
+   "what": "Rename dialog (tap the title): the name field and 'Saved as \"Amazing Grace.txt\"'.",
+   "scene": "grace_play",
+   "steps": [
+    {
+     "tap": {
+      "tag": "title"
+     }
+    }
+   ],
+   "crop": {
+    "nodes": [
+     {
+      "window": true
+     }
+    ],
+    "pad_dp": 4
+   }
+  },
+  {
+   "name": "chord-sheet-piano-roll",
+   "page": "chord_sheet: The Four Views",
+   "what": "Piano roll view: the voiced notes on a keyboard grid, bass in brown, upper voices in blue, the label lane on top.",
+   "config": {
+    "voicing": "piano",
+    "chord_sheet_view": "keyboard",
+    "chord_sheet_zoom": {}
+   },
+   "scene": [
+    {
+     "do": "song",
+     "file": "android/tools/help_shot_songs/amazing_grace.txt",
+     "name": "Amazing Grace.txt"
+    },
+    {
+     "do": "mode",
+     "mode": "play"
+    },
+    {
+     "do": "playhead",
+     "chord": 0
+    }
+   ],
+   "crop": {
+    "nodes": [
+     {
+      "tag": "chord_sheet"
+     }
+    ],
+    "pad_dp": 0,
+    "full_width": true
+   }
+  },
+  {
+   "name": "chord-sheet-staff",
+   "page": "chord_sheet: The Four Views",
+   "what": "Staff view: grand staff in the song's key; Fret cards and Tab are greyed out because the voicing is Piano.",
+   "config": {
+    "voicing": "piano",
+    "chord_sheet_view": "staff",
+    "chord_sheet_zoom": {
+     "staff": 0.85
+    }
+   },
+   "scene": [
+    {
+     "do": "song",
+     "file": "android/tools/help_shot_songs/amazing_grace.txt",
+     "name": "Amazing Grace.txt"
+    },
+    {
+     "do": "mode",
+     "mode": "play"
+    },
+    {
+     "do": "playhead",
+     "chord": 0
+    }
+   ],
+   "crop": {
+    "nodes": [
+     {
+      "tag": "chord_sheet"
+     }
+    ],
+    "pad_dp": 0,
+    "full_width": true
+   }
+  },
+  {
+   "name": "chord-sheet-fret-cards",
+   "page": "chord_sheet: The Four Views",
+   "what": "Fret cards view (Guitar Standard voicing): a chord diagram per chord with zoom − / +.",
+   "config": {
+    "voicing": "guitar:standard",
+    "chord_sheet_view": "fret",
+    "chord_sheet_zoom": {
+     "fret": 0.6
+    }
+   },
+   "scene": [
+    {
+     "do": "song",
+     "file": "android/tools/help_shot_songs/amazing_grace.txt",
+     "name": "Amazing Grace.txt"
+    },
+    {
+     "do": "mode",
+     "mode": "play"
+    },
+    {
+     "do": "playhead",
+     "chord": 0
+    }
+   ],
+   "crop": {
+    "nodes": [
+     {
+      "tag": "chord_sheet"
+     }
+    ],
+    "pad_dp": 0,
+    "full_width": true
+   }
+  },
+  {
+   "name": "chord-sheet-tab",
+   "page": "chord_sheet: The Four Views",
+   "what": "Tab view (Guitar Standard voicing): six-line tablature.",
+   "config": {
+    "voicing": "guitar:standard",
+    "chord_sheet_view": "tab",
+    "chord_sheet_zoom": {}
+   },
+   "scene": [
+    {
+     "do": "song",
+     "file": "android/tools/help_shot_songs/amazing_grace.txt",
+     "name": "Amazing Grace.txt"
+    },
+    {
+     "do": "mode",
+     "mode": "play"
+    },
+    {
+     "do": "playhead",
+     "chord": 0
+    }
+   ],
+   "crop": {
+    "nodes": [
+     {
+      "tag": "chord_sheet"
+     }
+    ],
+    "pad_dp": 0,
+    "full_width": true
+   }
+  },
+  {
+   "name": "landscape-play",
+   "page": "chord_sheet: Showing and Resizing the Strip; interface: Edit and Play",
+   "what": "Phone in landscape, Play tab: text on the left, the chord sheet and the compact player in the right column, the vertical resize handle between them.",
+   "orientation": "landscape",
+   "scene": "grace_playing",
+   "dark": true,
+   "scale": 0.5
+  },
+  {
+   "name": "landscape-edit",
+   "page": "interface: The App Bar (phone held sideways)",
+   "what": "Phone in landscape, Edit tab: the tabs and the Edit ribbon share one line, the title is hidden.",
+   "orientation": "landscape",
+   "scene": "grace_edit",
+   "scale": 0.5
+  },
+  {
+   "name": "edit-keyboard",
+   "page": "getting_started: Your First Chord Sheet",
+   "what": "A new song in the Edit tab with the keyboard open, after typing C Am F G (each chord blue).",
+   "scene": [
+    {
+     "do": "mode",
+     "mode": "edit"
+    },
+    {
+     "do": "wait",
+     "ms": 4500
+    }
+   ],
+   "steps": [
+    {
+     "tap": {
+      "tag": "editor",
+      "at": [
+       0.5,
+       0.2
+      ]
+     }
+    },
+    {
+     "sleep": 1.5
+    },
+    {
+     "type": "C  Am  F  G"
+    },
+    {
+     "sleep": 2
+    }
+   ]
+  },
+  {
+   "name": "edit-keyboard-collapsed",
+   "page": "interface: The Edit Ribbon",
+   "what": "Phone in landscape typing in Edit: the keyboard leaves little room, so the app bar and ribbon hide and the floating Undo / Redo chip sits above the keyboard.",
+   "orientation": "landscape",
+   "scale": 0.5,
+   "scene": "grace_edit",
+   "steps": [
+    {
+     "tap": {
+      "tag": "editor",
+      "at": [
+       0.7,
+       0.35
+      ]
+     }
+    },
+    {
+     "sleep": 1.5
+    },
+    {
+     "type": " x"
+    },
+    {
+     "sleep": 1.5
+    }
+   ]
+  },
+  {
+   "name": "tablet-play",
+   "page": "chord_sheet: Showing and Resizing the Strip; interface: Edit and Play",
+   "what": "Tablet in landscape, Play tab while playing: text on the left, chord sheet and player on the right.",
+   "device": "tablet",
+   "orientation": "landscape",
+   "scene": "grace_playing"
+  },
+  {
+   "name": "settings-pages",
+   "page": "settings: Settings",
+   "what": "☰ → Settings on a phone: the list of pages (General, Playback, Voicings).",
+   "scene": "grace_play",
+   "steps": [
+    {
+     "tap": {
+      "tag": "menu"
+     }
+    },
+    {
+     "tap": {
+      "text": "Settings"
+     }
+    }
+   ],
+   "crop": {
+    "rect_dp": [
+     0,
+     0,
+     412,
+     330
+    ],
+    "pad_dp": 0
+   }
+  },
+  {
+   "name": "settings-general",
+   "page": "settings: General",
+   "what": "Settings › General: font family and size, chord notation, default key, show quick start at startup, number of recent files.",
+   "scene": "grace_play",
+   "config": {
+    "show_quick_start_on_startup": true
+   },
+   "steps": [
+    {
+     "tap": {
+      "tag": "menu"
+     }
+    },
+    {
+     "tap": {
+      "text": "Settings"
+     }
+    },
+    {
+     "tap": {
+      "text": "General"
+     }
+    }
+   ]
+  },
+  {
+   "name": "settings-playback",
+   "page": "settings: Playback & Audio",
+   "what": "Settings › Playback: default BPM and time signature.",
+   "scene": "grace_play",
+   "steps": [
+    {
+     "tap": {
+      "tag": "menu"
+     }
+    },
+    {
+     "tap": {
+      "text": "Settings"
+     }
+    },
+    {
+     "tap": {
+      "text": "Playback"
+     }
+    }
+   ],
+   "crop": {
+    "rect_dp": [
+     0,
+     0,
+     412,
+     380
+    ],
+    "pad_dp": 0
+   }
+  },
+  {
+   "name": "settings-voicings",
+   "page": "settings: Voicings",
+   "what": "Settings › Voicings on a phone: Add voicing and the custom voicings grouped by model (My 7-String under Fretboard).",
+   "scene": "grace_play",
+   "steps": [
+    {
+     "tap": {
+      "tag": "menu"
+     }
+    },
+    {
+     "tap": {
+      "text": "Settings"
+     }
+    },
+    {
+     "tap": {
+      "text": "Voicings"
+     }
+    }
+   ],
+   "crop": {
+    "rect_dp": [
+     0,
+     0,
+     412,
+     420
+    ],
+    "pad_dp": 0
+   }
+  },
+  {
+   "name": "settings-voicing-form",
+   "page": "settings: Voicings; settings: Worked Example: A Seven-String Guitar",
+   "what": "The voicing form for My 7-String on a phone: Name, Model, Load config, Remove voicing, Strings (B1 E2 A2 D3 G3 B3 E4), Max fret, Fingers, spans…, Save in the top bar.",
+   "scene": "grace_play",
+   "steps": [
+    {
+     "tap": {
+      "tag": "menu"
+     }
+    },
+    {
+     "tap": {
+      "text": "Settings"
+     }
+    },
+    {
+     "tap": {
+      "text": "Voicings"
+     }
+    },
+    {
+     "tap": {
+      "text": "My 7-String"
+     }
+    }
+   ]
+  },
+  {
+   "name": "settings-voicings-tablet",
+   "page": "settings: Voicings",
+   "what": "Settings › Voicings on a tablet: the list on the left and My 7-String's form on the right.",
+   "device": "tablet",
+   "orientation": "landscape",
+   "scene": "grace_play",
+   "steps": [
+    {
+     "tap": {
+      "tag": "menu"
+     }
+    },
+    {
+     "tap": {
+      "text": "Settings"
+     }
+    },
+    {
+     "tap": {
+      "text": "Voicings"
+     }
+    },
+    {
+     "tap": {
+      "text": "My 7-String"
+     }
+    }
+   ]
+  },
+  {
+   "name": "quick-start",
+   "page": "getting_started: Opening the Application; interface: The Drawer",
+   "what": "Quick Start, page 1 of 7: Welcome, a highlighted snippet, Show at startup, Previous / Next.",
+   "scene": "grace_play",
+   "steps": [
+    {
+     "tap": {
+      "tag": "menu"
+     }
+    },
+    {
+     "tap": {
+      "text": "Quick start"
+     }
+    }
+   ]
+  },
+  {
+   "name": "about",
+   "page": "interface: The Drawer",
+   "what": "About: version, build, commit, licence, source link and Open source licences.",
+   "scene": "grace_play",
+   "steps": [
+    {
+     "tap": {
+      "tag": "menu"
+     }
+    },
+    {
+     "tap": {
+      "text": "About"
+     }
+    }
+   ]
+  },
+  {
+   "name": "licences",
+   "page": "interface: The Drawer",
+   "what": "Open source licences: the components grouped (this app, Python runtime, audio libraries, …).",
+   "scene": "grace_play",
+   "steps": [
+    {
+     "tap": {
+      "tag": "menu"
+     }
+    },
+    {
+     "tap": {
+      "text": "About"
+     }
+    },
+    {
+     "tap": {
+      "text": "Open source licences"
+     }
+    }
+   ]
+  },
+  {
+   "name": "user-guide",
+   "page": "shortcuts: Help; interface: The Drawer",
+   "what": "☰ → User guide: this guide, offline, in the app.",
+   "scene": "grace_play",
+   "steps": [
+    {
+     "tap": {
+      "tag": "menu"
+     }
+    },
+    {
+     "tap": {
+      "text": "User guide"
+     }
+    },
+    {
+     "sleep": 3
+    }
+   ]
+  }
+ ]
+}
