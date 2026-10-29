@@ -21,7 +21,7 @@ Transposing a Song
 
 .. only:: android
 
-   1. Go to **⋮ → Tools → Transpose**
+   1. In the Edit tab, tap **Transpose** in the ribbon
    2. Choose the number of **semitones** to shift by. Positive numbers move the
       chords up, negative numbers move them down (a value of ``2`` raises
       everything by a whole step; ``-1`` lowers it by a half step).
@@ -37,7 +37,7 @@ the whole document is transposed, and the dialog says *Transpose whole song*.
 
 .. only:: android
 
-   The change is a single undo step -- one ⋮ → Edit → Undo puts everything back.
+   The change is a single undo step -- one **Undo** in the Edit ribbon puts everything back.
 
 
 What Changes
@@ -76,11 +76,21 @@ Because of this, transposing up and then back down by the same amount returns
 plain chords to exactly where they started, but a chord that was spelled with
 an unusual accidental may come back with the more conventional spelling.
 
-Key names (the toolbar key and ``{key}`` directives) follow the same
-preference with one extra rule: the result must be a real key. A chord can be
-spelled ``D#`` freely, but there is no D# major key signature, so a key that
-would land there comes out ``Eb`` instead -- likewise ``Gbm`` becomes ``F#m``,
-``Dbm`` becomes ``C#m``, ``G#`` becomes ``Ab``, and ``A#`` becomes ``Bb``.
+.. only:: desktop
+
+   Key names (the toolbar key and ``{key}`` directives) follow the same
+   preference with one extra rule: the result must be a real key. A chord can be
+   spelled ``D#`` freely, but there is no D# major key signature, so a key that
+   would land there comes out ``Eb`` instead -- likewise ``Gbm`` becomes ``F#m``,
+   ``Dbm`` becomes ``C#m``, ``G#`` becomes ``Ab``, and ``A#`` becomes ``Bb``.
+
+.. only:: android
+
+   Key names (the song's key and ``{key}`` directives) follow the same
+   preference with one extra rule: the result must be a real key. A chord can be
+   spelled ``D#`` freely, but there is no D# major key signature, so a key that
+   would land there comes out ``Eb`` instead -- likewise ``Gbm`` becomes ``F#m``,
+   ``Dbm`` becomes ``C#m``, ``G#`` becomes ``Ab``, and ``A#`` becomes ``Bb``.
 
 
 Keeping Chords Over the Lyrics

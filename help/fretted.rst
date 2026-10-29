@@ -91,7 +91,7 @@ Defining a Custom Fretted Voicing
 .. only:: android
 
    If none of the five match the instrument you're writing for, add one from
-   ⋮ → Settings → Voicings: load a built-in
+   ☰ → Settings → Voicings: load a built-in
    preset as a starting point, change what's different (tuning, span,
    weights), and save. See :doc:`settings` for the full walkthrough,
    including a seven-string guitar built from the Guitar (Standard) preset.
@@ -106,7 +106,7 @@ Defining a Custom Fretted Voicing
 
 .. only:: android
 
-   Voicings are edited in ⋮ → Settings → Voicings; the configuration file is not something you edit by hand on Android.
+   Voicings are edited in ☰ → Settings → Voicings; the configuration file is not something you edit by hand on Android.
 
 Add a ``voicings`` object at the top level, keyed by a short slug you'll
 use internally; each entry needs a ``"model": "fretboard"`` and describes
@@ -159,10 +159,8 @@ with an extra low B string):
 
 .. only:: android
 
-   Custom fretted voicings appear in ⋮ → Playback → Voicing
-   automatically the next time Chord Notepad starts, sorted alongside every
-   other voicing -- built-in or custom, fretted or ensemble -- by model and
-   then name.
+   Custom fretted voicings appear in the Voicing sheet of the Play tab, under
+   **Your voicings**, as soon as you save them.
 
 .. note::
    Upgrading from an older version? Chord Notepad moves any entries it
@@ -185,7 +183,7 @@ How to Change Voicing
 
 .. only:: android
 
-   1. Open **⋮ → Playback → Voicing**.
+   1. In the Play tab, tap **Voicing** in the player.
    2. Select **Guitar (Standard - EADGBE)**, **Guitar (Drop D)**,
       **Guitar (DADGAD)**, **Guitar (Open G)**, **Ukulele**, or any custom
       fretted voicing you've defined (see above).
@@ -209,7 +207,7 @@ Voicing Parameters
 
    Every fretted voicing, built-in or custom, is steered by the same
    physical limits and the same set of numeric weights. These are the
-   controls the Voicings page of ⋮ → Settings
+   controls the Voicings page of ☰ → Settings
    exposes, one control per row -- see :doc:`settings` for the page itself;
    they can also be set directly in a voicing's entry in ``settings.json``.
 

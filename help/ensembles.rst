@@ -168,7 +168,7 @@ How to Change Voicing
 
 .. only:: android
 
-   1. Open **⋮ → Playback → Voicing**.
+   1. In the Play tab, tap **Voicing** in the player.
    2. Select **Choir (SATB)**, **Male Choir (TTBB)**, **Treble Choir (SSA)**,
       **String Quartet**, or any custom ensemble you've defined (see below).
    3. Play your chords to hear the difference.
@@ -186,8 +186,8 @@ A checkmark shows the current voicing, the same as for :doc:`playback`.
 
    A suitable instrument sound makes ensemble voicings much more convincing --
    try **Choir Aahs** or **Voice Oohs** for the choir presets, or **String
-   Ensemble** for the quartet. Change it under
-   ⋮ → Playback → Instrument; see :ref:`changing-instruments`.
+   Ensemble** for the quartet. Change it with the
+   **Instrument** button in the Play tab's player; see :ref:`changing-instruments`.
 
 
 Custom Ensembles
@@ -205,7 +205,7 @@ Custom Ensembles
 .. only:: android
 
    If the four presets don't match the group you're writing for, define your
-   own from ⋮ → Settings → Voicings: load a
+   own from ☰ → Settings → Voicings: load a
    built-in ensemble as a starting point, change the voices, spacing, or
    weights, and save. See :doc:`settings` for the page itself and a worked
    example (built there for a fretted instrument, but the same steps apply
@@ -224,7 +224,7 @@ Custom Ensembles
 
 .. only:: android
 
-   Voicings are edited in ⋮ → Settings → Voicings; the configuration file is not something you edit by hand on Android.
+   Voicings are edited in ☰ → Settings → Voicings; the configuration file is not something you edit by hand on Android.
 
 Add a ``voicings`` object at the top level, keyed by a short slug you'll
 use internally; each entry needs a ``"model": "ensemble"`` and describes
@@ -288,9 +288,8 @@ one ensemble:
 
 .. only:: android
 
-   Custom ensembles appear in ⋮ → Playback → Voicing automatically
-   the next time Chord Notepad starts, sorted alongside every other voicing --
-   built-in or custom, ensemble or fretted -- by model and then name.
+   Custom ensembles appear in the Voicing sheet of the Play tab, under **Your
+   voicings**, as soon as you save them.
 
 .. note::
    Upgrading from an older version? Chord Notepad moves any entries it
@@ -318,7 +317,7 @@ Voicing Parameters
 
    Every ensemble, built-in or custom, is steered by the same set of
    numeric parameters. These are the controls the Voicings page of
-   ⋮ → Settings exposes, one control per row --
+   ☰ → Settings exposes, one control per row --
    see :doc:`settings` for the page itself; they can also be set directly in
    the ``weights`` object for an ensemble in ``settings.json``. Every weight
    is a signed number added to the voicing's score. Positive values make that

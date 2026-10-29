@@ -11,8 +11,8 @@ Keyboard Shortcuts
 .. only:: android
 
    Keyboard shortcuts only work on Android when a hardware keyboard is
-   attached. Every action is also in the ⋮ menu, and the editor and toolbar
-   are touch-driven (see each section below).
+   attached. Every action is also in the ☰ drawer or the Edit ribbon, and the text and
+   the player are touch-driven (see each section below).
 
 
 File Operations
@@ -120,8 +120,9 @@ Playback
 
 .. only:: android
 
-   Tap Play/Pause and Stop in the toolbar. Long-press Play to play from the
-   cursor. Tap a chord to hear it.
+   In the Play tab, tap ▶/⏸ in the player to play or pause, and ⏮ to go back to
+   the first chord. Tap a chord to move the playhead there and hear it;
+   playback starts from the playhead.
 
 
 Text Editor
@@ -168,7 +169,7 @@ Help
 .. only:: android
 
    With a hardware keyboard, F1 opens the user guide. Otherwise open it from
-   **⋮ → Help → User Guide**.
+   **☰ → User guide**.
 
 
 Quick Reference Card

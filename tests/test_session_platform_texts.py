@@ -68,18 +68,18 @@ def test_desktop_quick_start_is_the_dialogs_text_byte_for_byte():
     assert QuickStartDialog.PAGES == quick_start.pages(DESKTOP)
 
 
-def test_android_quick_start_names_taps_and_the_overflow_menu():
+def test_android_quick_start_names_taps_and_the_drawer():
     from session import quick_start
 
     desktop, android = quick_start.pages(DESKTOP), quick_start.pages(ANDROID)
     assert [p["title"] for p in android] == [p["title"] for p in desktop]
     text = " ".join(b[1] for p in android for b in p["blocks"] if b[0] == "text")
-    for desktop_only in ("Click", "F1", "Help menu"):
+    for desktop_only in ("Click", "F1", "Help menu", "⋮", "toolbar"):
         assert desktop_only not in text
-    assert "Tap any chord" in text and "⋮ → Tools → Insert" in text
-    assert "⋮ → Help → User Guide" in text and "⋮ → Help → Quick Start" in text
-    assert "⋮ → Playback → Voicing" in text
-    assert " Help → Quick Start" not in text.replace("⋮ → Help → Quick Start", "")
+    assert "tap any chord" in text and "＋ Insert" in text
+    assert "☰ → User guide" in text and "☰ → Quick start" in text
+    assert "Voicing button in the Play tab" in text
+    assert "Edit ribbon" in text and "song pill" in text
     assert not any(b[0] == "image" for p in android for b in p["blocks"])
     # Snippets are the same on both.
     snippets = lambda pages: [b for p in pages for b in p["blocks"] if b[0] == "snippet"]
@@ -113,4 +113,4 @@ def test_quick_start_content_carries_snippet_spans(tmp_path):
     chords = [first.text[s.start:s.end] for s in first.spans if s.kind is SpanKind.CHORD]
     assert chords == ["C", "C/E", "F", "C", "Dm", "Am", "G", "C"]
     assert content.pages[0].blocks[2].text.startswith("The app recognizes")
-    assert "Tap any chord" in content.pages[0].blocks[2].text
+    assert "tap any chord" in content.pages[0].blocks[2].text

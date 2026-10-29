@@ -56,7 +56,7 @@ Defining a Custom Piano Voicing
 
    If you want the piano to sit in a different register, spread the hands
    further apart, or trade completeness for a sparser texture, add a custom
-   piano voicing from ⋮ → Settings → Voicings:
+   piano voicing from ☰ → Settings → Voicings:
    load **Grand Piano** as a starting point, change what's different (ranges,
    span, weights), and save. See :doc:`settings` for the page itself.
 
@@ -69,7 +69,7 @@ Defining a Custom Piano Voicing
 
 .. only:: android
 
-   Voicings are edited in ⋮ → Settings → Voicings; the configuration file is not something you edit by hand on Android.
+   Voicings are edited in ☰ → Settings → Voicings; the configuration file is not something you edit by hand on Android.
 
 Add a ``voicings`` object at the top level, keyed by a short slug you'll use
 internally; each entry needs a ``"model": "piano"`` and describes one
@@ -118,10 +118,8 @@ closer together, suited to a slow, intimate ballad:
 
 .. only:: android
 
-   Custom piano voicings appear in ⋮ → Playback → Voicing
-   automatically the next time Chord Notepad starts, sorted alongside every
-   other voicing -- built-in or custom, piano, fretted, or ensemble -- by model
-   and then name.
+   Custom piano voicings appear in the Voicing sheet of the Play tab, under
+   **Your voicings**, as soon as you save them.
 
 
 How to Change Voicing
@@ -137,7 +135,7 @@ How to Change Voicing
 
 .. only:: android
 
-   1. Open **⋮ → Playback → Voicing**.
+   1. In the Play tab, tap **Voicing** in the player.
    2. Select **Grand Piano**, or any custom piano voicing you've defined (see
       above).
    3. Play your chords to hear the difference.
@@ -161,7 +159,7 @@ Voicing Parameters
 
    Every piano voicing, built-in or custom, is steered by the same physical
    hand limits, the same scoring anchors, and the same set of numeric weights.
-   These are the controls the Voicings page of ⋮ → Settings exposes, one control per row -- see :doc:`settings` for the
+   These are the controls the Voicings page of ☰ → Settings exposes, one control per row -- see :doc:`settings` for the
    page itself; they can also be set directly in a voicing's entry in
    ``settings.json``.
 

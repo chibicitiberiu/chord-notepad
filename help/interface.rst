@@ -5,141 +5,97 @@ The User Interface
 This section covers all the menus, toolbars, and special tools in Chord Notepad.
 
 
-The Toolbar
-===========
-
 .. only:: desktop
+
+   The Toolbar
+   ===========
 
    The toolbar at the top of the window gives you quick access to the most common
    controls.
 
-.. only:: android
+   Notation Toggle (AB/Do)
+   -----------------------
 
-   The toolbar at the top of the screen gives you quick access to the most common
-   controls.
+   Two buttons on the left let you switch notation systems:
 
-Notation Toggle (AB/Do)
------------------------
-
-Two buttons on the left let you switch notation systems:
-
-* **AB** - American notation (C, D, E, F, G, A, B)
-* **Do** - European notation (Do, Re, Mi, Fa, Sol, La, Si)
-
-.. only:: desktop
+   * **AB** - American notation (C, D, E, F, G, A, B)
+   * **Do** - European notation (Do, Re, Mi, Fa, Sol, La, Si)
 
    The selected button appears highlighted. Clicking switches your notation and
    updates the key selector to match.
 
-.. only:: android
+   BPM Control
+   -----------
 
-   The selected button appears highlighted. Tapping switches your notation and
-   updates the key selector to match.
-
-BPM Control
------------
-
-The BPM value is shown as underlined text in the toolbar.
-
-.. only:: desktop
+   The BPM value is shown as underlined text in the toolbar.
 
    * **Drag left/right** to change the value (range 20-400 BPM)
    * **Click** to type a precise value
    * **Middle-click** to reset to the default (120 BPM)
    * **Scroll** with the mouse wheel to step by 1
 
-.. only:: android
+   During playback the BPM control becomes read-only and shows the **effective
+   BPM** — what's actually playing right now, including any changes from
+   ``{bpm}`` directives in the song. When playback stops, it goes back to
+   showing your base BPM and is editable again.
 
-   * **Drag left/right** to change the value (range 20-400 BPM)
-   * **Tap** to type a precise value
-   * **Long-press** to reset to the default (120 BPM)
+   Speed Multiplier
+   ----------------
 
-During playback the BPM control becomes read-only and shows the **effective
-BPM** — what's actually playing right now, including any changes from
-``{bpm}`` directives in the song. When playback stops, it goes back to
-showing your base BPM and is editable again.
-
-Speed Multiplier
-----------------
-
-Next to the BPM is the speed multiplier (``100%`` by default), which scales
-the playback speed on top of the BPM (whether you set it manually or via a
-directive). Use it as a "practice slowdown" knob.
-
-.. only:: desktop
+   Next to the BPM is the speed multiplier (``100%`` by default), which scales
+   the playback speed on top of the BPM (whether you set it manually or via a
+   directive). Use it as a "practice slowdown" knob.
 
    * **Drag left/right** to change the value (range 12.5% - 400%, snapping every 12.5%)
    * **Click** to type a precise value — accepts ``150``, ``150%``, or ``1.5x``
    * **Middle-click** to reset to ``100%``
 
-.. only:: android
+   Unlike the BPM control, the multiplier **stays editable during playback** and
+   takes effect immediately on the next chord. For example, set the multiplier
+   to ``50%`` to play a song at half speed without changing its underlying BPM.
 
-   * **Drag left/right** to change the value (range 12.5% - 400%, snapping every 12.5%)
-   * **Tap** to type a precise value — accepts ``150``, ``150%``, or ``1.5x``
-   * **Long-press** to reset to ``100%``
+   Key Selector
+   ------------
 
-Unlike the BPM control, the multiplier **stays editable during playback** and
-takes effect immediately on the next chord. For example, set the multiplier
-to ``50%`` to play a song at half speed without changing its underlying BPM.
-
-Key Selector
-------------
-
-A dropdown menu lets you choose the musical key:
-
-.. only:: desktop
+   A dropdown menu lets you choose the musical key:
 
    * Click to open the list of keys
    * Select the key for your song
    * This affects how roman numerals are interpreted
 
-.. only:: android
+   The keys shown match your notation choice (C-D-E-F-G-A-B for American,
+   Do-Re-Mi-Fa-Sol-La-Si for European).
 
-   * Tap to open the list of keys
-   * Select the key for your song
-   * This affects how roman numerals are interpreted
-
-The keys shown match your notation choice (C-D-E-F-G-A-B for American,
-Do-Re-Mi-Fa-Sol-La-Si for European).
-
-Time Signature Controls
------------------------
-
-.. only:: desktop
+   Time Signature Controls
+   -----------------------
 
    Two spinboxes let you set the time signature:
 
-.. only:: android
+   * **First box** - Beats per measure (1-16)
+   * **Second box** - Beat unit (1, 2, 4, 8, or 16)
 
-   Two pickers let you set the time signature:
+   Common settings:
 
-* **First box** - Beats per measure (1-16)
-* **Second box** - Beat unit (1, 2, 4, 8, or 16)
+   * 4/4 - Standard time (four quarter-note beats)
+   * 3/4 - Waltz time (three quarter-note beats)
+   * 6/8 - Compound duple (six eighth-note beats)
 
-Common settings:
+   Metronome
+   ---------
 
-* 4/4 - Standard time (four quarter-note beats)
-* 3/4 - Waltz time (three quarter-note beats)
-* 6/8 - Compound duple (six eighth-note beats)
+   The metronome toggle (next to the time signature) arms a click track that
+   sounds *during song playback*.
 
-Metronome
----------
+   * High wood-block on the downbeat, low one on offbeats
+   * The click is scheduled by the playback engine itself, so it always lines
+     up with the song's beats — including changes made by ``{time: X/Y}`` and
+     ``{bpm: ...}`` directives mid-song
+   * Toggle it on, then press Play. Turning it off does not pause playback,
+     it just silences the click
+   * Always starts off when you open the app
 
-The metronome toggle (next to the time signature) arms a click track that
-sounds *during song playback*.
-
-* High wood-block on the downbeat, low one on offbeats
-* The click is scheduled by the playback engine itself, so it always lines
-  up with the song's beats — including changes made by ``{time: X/Y}`` and
-  ``{bpm: ...}`` directives mid-song
-* Toggle it on, then press Play. Turning it off does not pause playback,
-  it just silences the click
-* Always starts off when you open the app
-
-Playback Buttons
-----------------
-
-.. only:: desktop
+   Playback Buttons
+   ----------------
 
    **Play/Pause Button (▶/⏸)**
 
@@ -148,29 +104,18 @@ Playback Buttons
    * **Shift+Click** to play from the cursor position
    * Shows ⏸ when playing - click to pause
 
-.. only:: android
+   **Stop Button (⏹)**
 
-   **Play/Pause Button (▶/⏸)**
-
-   * Shows ▶ when stopped or paused
-   * Tap to start playing from the beginning
-   * **Long-press** to play from the cursor position
-   * Shows ⏸ when playing - tap to pause
-
-**Stop Button (⏹)**
-
-* Stops playback completely
-* Clears the yellow highlight
-* Resets the playback position
+   * Stops playback completely
+   * Clears the yellow highlight
+   * Resets the playback position
 
 
-The Menus
-=========
+   The Menus
+   =========
 
-File Menu
----------
-
-.. only:: desktop
+   File Menu
+   ---------
 
    **New** (Ctrl+N)
       Create a new, empty document. If you have unsaved changes, you'll be asked
@@ -199,19 +144,8 @@ File Menu
    **Exit** (Ctrl+Q)
       Close Chord Notepad. You'll be asked to save any unsaved changes.
 
-.. only:: android
-
-   **⋮ → File** holds New, Open…, Save, Save As…, Export MIDI… and Recent
-   Files. Open and Save use the system file picker (Downloads, Drive or any
-   document provider). Recent Files keeps access to the documents you picked,
-   and a document that has disappeared drops off the list. Export MIDI is
-   described in :doc:`midi_export`. There is no Exit; leave the app the usual
-   Android way.
-
-Edit Menu
----------
-
-.. only:: desktop
+   Edit Menu
+   ---------
 
    **Undo** (Ctrl+Z)
       Undo your last action. You can undo multiple times to go back through your
@@ -232,16 +166,8 @@ Edit Menu
    **Select All** (Ctrl+A)
       Select all text in the document.
 
-.. only:: android
-
-   **⋮ → Edit** holds Undo, Redo and Select All. Cut, copy and paste are in
-   the editor's own text-selection menu. The editor is read-only while a song
-   plays.
-
-View Menu
----------
-
-.. only:: desktop
+   View Menu
+   ---------
 
    **Font...**
       Opens a dialog to change the font:
@@ -268,16 +194,8 @@ View Menu
    You can also zoom using **Ctrl+Mouse Wheel** (scroll up to zoom in, down to
    zoom out).
 
-.. only:: android
-
-   **⋮ → View** holds Font…, Chord Sheet, and Increase, Decrease and Reset
-   Font Size. You can also pinch the editor to change the font size. Chord
-   Sheet shows or hides the strip under the editor (see :doc:`chord_sheet`).
-
-Playback Menu
--------------
-
-.. only:: desktop
+   Playback Menu
+   -------------
 
    **Voicing**
       A submenu to select the chord voicing style:
@@ -309,17 +227,8 @@ Playback Menu
       Browse categories to find instruments. A checkmark shows the current
       selection.
 
-.. only:: android
-
-   **⋮ → Playback** holds **Voicing** (piano, guitar tunings, ukulele, choirs,
-   string quartet and your own custom voicings; see :doc:`fretted` and
-   :doc:`ensembles`) and **Instrument** (grouped by General MIDI category). A
-   checkmark shows the current selection.
-
-Tools Menu
-----------
-
-.. only:: desktop
+   Tools Menu
+   ----------
 
    **Identify Chord...**
       Opens the Chord Identifier tool (see below).
@@ -344,29 +253,16 @@ Tools Menu
       Converts all American notation chords (C, D, E...) in your document to
       European notation (Do, Re, Mi...).
 
-.. only:: android
-
-   **⋮ → Tools** holds Transpose, Suggest Capo, Insert (the directive
-   shortcuts below), Convert notation and Identify Chord.
-
-Options Menu
-------------
-
-.. only:: desktop
+   Options Menu
+   ------------
 
    **Settings...**
       Opens the Settings window: general preferences, playback and audio
       defaults, and the full voicing editor, across three pages with
       Save/Cancel. See :doc:`settings`.
 
-.. only:: android
-
-   **⋮ → Settings** opens the settings screens. See :doc:`settings`.
-
-Help Menu
----------
-
-.. only:: desktop
+   Help Menu
+   ---------
 
    **User Guide** (F1)
       Opens this user guide.
@@ -381,12 +277,178 @@ Help Menu
       * Build information
       * Description of the application
 
+
 .. only:: android
 
-   **⋮ → Help** holds **User Guide** (this guide, which works offline; F1 on
-   a hardware keyboard opens it too), **Quick Start** (a short quick-start
-   reference), and **About** (the version, a description of the app and the
-   open source licences).
+   The App Bar
+   ===========
+
+   The bar across the top of the screen holds, from left to right:
+
+   * **☰** opens the drawer (see *The Drawer* below).
+   * **The song title.** A • after the name means there are unsaved changes. Tap
+     the title to **Rename** the song. The dialog shows "Saved as name.txt". If
+     the storage the file lives in can't rename it, the app offers **Save as…**
+     instead. A new, untitled song gets its name when you first save it.
+   * **The Edit and Play tabs.**
+   * **Save** (the disk icon).
+
+   On a phone held sideways the tabs and the Edit ribbon share one line, and the
+   title is hidden. The colours follow the system's light or dark theme.
+
+   Edit and Play
+   =============
+
+   The two tabs are two modes of the same song. Edit is for writing, Play is for
+   listening and practising.
+
+   .. list-table::
+      :header-rows: 1
+      :widths: 24 38 38
+
+      * -
+        - Edit
+        - Play
+      * - Text
+        - Editable. A tap places the cursor and opens the keyboard.
+        - Frozen: read-only, and the keyboard stays hidden.
+      * - Tap a chord
+        - Moves the cursor only. Nothing plays.
+        - Moves the playhead there and plays the chord.
+      * - Tap elsewhere
+        - Moves the cursor.
+        - Moves the playhead to the nearest chord.
+      * - Drag
+        - Selects or scrolls, as usual.
+        - Scrolls. A drag that starts on the playhead marker moves it chord by
+          chord.
+      * - Pinch
+        - Changes the text size.
+        - Changes the text size.
+      * - Controls
+        - The Edit ribbon under the app bar.
+        - The player at the bottom of the screen.
+      * - Messages
+        - Shown briefly at the bottom of the screen.
+        - Shown in the player's status line.
+      * - Chord sheet
+        - Never shown.
+        - Shown (the **▭** button hides it).
+
+   Songs you saved before open in the Play tab, and new songs open in Edit.
+   Switching to Edit while a song plays stops playback.
+
+   The Edit Ribbon
+   ===============
+
+   A single row of buttons under the app bar, in the Edit tab:
+
+   * **Undo** and **Redo**
+   * **＋ Insert**, which opens a sheet of directives (see *Insert Directive
+     Dialogs* below)
+   * **Transpose**, which opens the dialog described in :doc:`transpose`
+   * **Identify**, which opens the Chord Identifier (see below)
+   * **AB / Do**, the notation the text is read in
+   * **Convert**, which rewrites every chord in the document into the other
+     notation and switches AB / Do to match
+
+   The ribbon scrolls sideways. A **›** at its right edge means there are more
+   buttons off screen.
+
+   The notation switch and Convert do different jobs. Switching AB / Do changes
+   how the editor reads what you type and leaves the text alone, so a ``C`` on
+   the page stops being recognized after you switch to **Do**. Convert changes
+   the text itself.
+
+   Cut, copy and paste are in the text's own selection menu. Status messages
+   appear briefly at the bottom of the screen.
+
+   When the soft keyboard leaves little room for the text, the app bar and the
+   ribbon hide so the text gets the space. A small floating **Undo / Redo** chip
+   sits above the keyboard until it closes, and the bars come back.
+
+   The Player
+   ==========
+
+   In the Play tab the player sits at the bottom of the screen. From top to
+   bottom it has the song pill, a row of buttons and a status line.
+
+   **The song pill** reads something like "𝄞 90 · 3/4 · G ⌄": the tempo, time
+   signature and key the song starts with. Tap it to open **Song defaults**:
+
+   * A value the song sets with a directive is read-only. It shows "Set by
+     ``{bpm: 90}`` in the song · Edit". **Edit** switches to the Edit tab with the
+     cursor on that directive.
+   * A value the song doesn't set is an editable default. It is not saved with
+     the file.
+   * **Write into song** inserts the missing directives at the top of the song.
+
+   **The buttons**, left to right:
+
+   * **Voicing** opens a sheet with the voicings grouped as Piano, Fretted,
+     Ensembles and Your voicings. **Edit voicings…** at the bottom opens
+     Settings › Voicings. See :doc:`fretted` and :doc:`ensembles`.
+   * **Instrument** opens a sheet with the 16 General MIDI families. Tap a family
+     to see its eight instruments with their program numbers, and tap one to
+     select it. The ← button goes back to the families.
+   * **⏮** stops playback and returns the playhead to the first chord.
+   * **▶ / ⏸**, the big button, plays from the playhead. Pause keeps the playhead
+     where it is.
+   * **Metronome** toggles a click track that sounds during playback.
+   * **Speed** opens a sheet with a slider from 25% to 400%, **Reset** and
+     **Manual…**, which lets you type a value. The button shows a badge such as
+     "1.25×" when the speed isn't 100%. Speed stays adjustable during playback.
+   * **▭** shows or hides the chord sheet (see :doc:`chord_sheet`).
+
+   There is no Stop button: **⏸** pauses, and **⏮** stops and rewinds.
+
+   **The status line** under the buttons shows the position and what is
+   happening, for example "Bar 6/24 · Playing Em" or "Bar 6/24 · Paused".
+
+   **The playhead** is a small coloured bar with a triangle, drawn before the
+   chord where playback starts. It follows the music while a song plays, and the
+   same chord gets an edge mark in the chord sheet. While a song plays, tapping
+   a chord jumps playback there.
+
+   The Drawer
+   ==========
+
+   The ☰ button opens the drawer. There is no ⋮ menu; everything lives here.
+
+   **New song**
+      Start a new, empty song. It opens in the Edit tab.
+
+   **Open…**
+      Pick a song with the system file picker (Downloads, Drive or any document
+      provider).
+
+   **Recent**
+      The songs you opened recently, listed right in the drawer. Tap one to open
+      it. The app keeps access to the documents you picked, and a document that
+      has disappeared drops off the list.
+
+   **Save as…**
+      Save the song under a new name or in a new place. (Plain Save is the disk
+      icon in the app bar.)
+
+   **Export MIDI…**
+      Write the song as a ``.mid`` file. See :doc:`midi_export`.
+
+   Below those, the app's own entries:
+
+   **Settings**
+      The settings screens, including the Voicings editor. See :doc:`settings`.
+
+   **User guide**
+      This guide. It works offline, and F1 on a hardware keyboard opens it too.
+
+   **Quick start**
+      A short tour of the main ideas.
+
+   **About**
+      The version, a description of the app and the open source licences.
+
+   There is no Exit entry; leave the app the usual Android way.
 
 
 The Chord Identifier
@@ -400,7 +462,7 @@ The Chord Identifier
 .. only:: android
 
    The Chord Identifier helps you figure out what chord you're hearing or playing.
-   Open it from **⋮ → Tools → Identify Chord**.
+   Open it with **Identify** (the piano icon) in the Edit ribbon.
 
 The Piano Keyboard
 ------------------
@@ -506,7 +568,7 @@ Using the Chord Identifier
 
 .. only:: android
 
-   1. Open the Chord Identifier (⋮ → Tools → Identify Chord)
+   1. Open the Chord Identifier (Edit tab → Identify)
    2. Play the chord on your instrument
    3. Tap the notes on the piano keyboard (or type them)
    4. Look at the results list
@@ -569,7 +631,7 @@ underline. This means:
 
 .. only:: android
 
-   * You can tap it to play it
+   * In the Play tab you can tap it to play it
 
 Invalid Chords (Gray, Underlined)
 ---------------------------------
@@ -602,24 +664,37 @@ Currently Playing (Yellow Highlight)
 During playback, the chord that's currently sounding has a yellow background.
 This helps you follow along with the music.
 
-Mouse Cursor Changes
---------------------
-
 .. only:: desktop
+
+   Mouse Cursor Changes
+   --------------------
 
    * Over normal text: Standard text cursor
    * Over a valid chord: Hand pointer (indicating you can click to play)
 
-Window Title
-------------
-
-.. only:: desktop
+   Window Title
+   ------------
 
    The window title shows:
 
    * **filename - Chord Notepad** for saved files
    * **filename* - Chord Notepad** if there are unsaved changes (note the asterisk)
    * **Untitled - Chord Notepad** for new, unsaved documents
+
+.. only:: android
+
+   The Playhead
+   ------------
+
+   In the Play tab, a small coloured marker (a bar with a triangle) sits before
+   the chord where playback starts. Tapping a chord or the text moves it, and
+   dragging the marker steps it chord by chord. See *The Player* above.
+
+   The Song Title
+   --------------
+
+   The title in the app bar shows the file name. A • after it means there are
+   unsaved changes. Tap the title to rename the song.
 
 
 Insert Directive Dialogs
@@ -632,8 +707,11 @@ Insert Directive Dialogs
 
 .. only:: android
 
-   ⋮ → Tools → Insert provides dialogs to help you insert directives without
-   remembering the exact syntax.
+   The **＋ Insert** button in the Edit ribbon opens a sheet with **Tempo**
+   ``{bpm}``, **Time signature** ``{time}``, **Key** ``{key}``, **Capo**
+   ``{capo}``, **Label** ``{label}`` and **Loop** ``{loop}``. Each one opens a
+   small dialog where you fill in the value; the directive is then inserted at
+   the cursor. The dialogs are described below.
 
 Insert BPM Dialog
 -----------------
@@ -722,3 +800,12 @@ Two controls:
    * **Count:** How many times to repeat (1-100)
 
    Tap Insert to add ``{loop: label count}`` at your cursor.
+
+.. only:: android
+
+   Insert Capo Dialog
+   ------------------
+
+   Enter the fret the capo sits on (0 to 12), then tap Insert to add
+   ``{capo: N}`` at your cursor. Tap **Suggest** instead to let Chord Notepad
+   pick the easiest capo for a fretboard voicing; see :doc:`chord_sheet`.

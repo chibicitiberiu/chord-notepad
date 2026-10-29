@@ -81,8 +81,15 @@ is A minor 7.
 Switching Notations
 -------------------
 
-The **AB / Do** toggle in the toolbar decides which system Chord Notepad *reads
-and displays*:
+.. only:: desktop
+
+   The **AB / Do** toggle in the toolbar decides which system Chord Notepad *reads
+   and displays*:
+
+.. only:: android
+
+   The **AB / Do** switch in the Edit ribbon decides which system Chord Notepad
+   *reads and displays*:
 
 .. only:: desktop
 
@@ -94,8 +101,15 @@ and displays*:
    1. Tap **AB** for American note names (C, D, E ...).
    2. Tap **Do** for European solfège (Do, Re, Mi ...).
 
-The key selector updates to match, and from that point on the editor recognizes
-and highlights chords in the notation you picked.
+.. only:: desktop
+
+   The key selector updates to match, and from that point on the editor recognizes
+   and highlights chords in the notation you picked.
+
+.. only:: android
+
+   From that point on the editor recognizes and highlights chords in the notation
+   you picked.
 
 .. important::
    The toggle does **not** rewrite text you have already typed. Flipping from
@@ -113,8 +127,9 @@ and highlights chords in the notation you picked.
    .. only:: android
 
       To actually rewrite the chords in your document from one system to the other,
-      use ⋮ → Tools → Convert notation. It rewrites every chord in place; the toggle
-      never does.
+      use **Convert** in the Edit ribbon. It rewrites every chord into the other
+      notation in place, and switches AB / Do to match; the switch alone never
+      rewrites anything.
 
 Roman numerals (see :ref:`roman-numerals`) are independent of this toggle. They
 are recognized in both modes and always resolve against the current key.
@@ -555,8 +570,16 @@ Roman numerals make it easy to write progressions that work in any key:
    ii  V   I            // Jazz turnaround
    I   vi  IV  V        // 50s progression
 
-Set the key using the key selector in the toolbar (or a ``{key:}`` directive),
-and Chord Notepad will play the right chords.
+.. only:: desktop
+
+   Set the key using the key selector in the toolbar (or a ``{key:}`` directive),
+   and Chord Notepad will play the right chords.
+
+.. only:: android
+
+   Set the key with a ``{key:}`` directive (＋ Insert → Key in the Edit ribbon), or
+   pick a default in the song pill's **Song defaults**, and Chord Notepad will play
+   the right chords.
 
 Using Accidentals
 -----------------

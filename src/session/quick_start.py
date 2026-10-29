@@ -8,8 +8,8 @@ A page is a title plus a list of blocks. A block is one of
 * ``("image", resource_path)``: a bundled picture.
 
 The desktop pages are the ones the Tk dialog always showed; the Android ones
-differ only where the desktop names a gesture or a menu (and leave out the
-desktop screenshot).
+differ only where the desktop names a gesture, a menu or a toolbar control (and
+leave out the desktop screenshot).
 """
 
 from typing import Any, Dict, List
@@ -44,9 +44,10 @@ def pages(platform: str = DESKTOP) -> List[Dict[str, Any]]:
             "Fret cards and Tab need a fretted instrument, picked in Playback "
             "→ Voicing (for example Guitar). Show or hide the panel with "
             "View → Chord Sheet.",
-            "Fret cards and Tab need a fretted instrument, picked in ⋮ → "
-            "Playback → Voicing (for example Guitar). Show or hide the panel "
-            "with ⋮ → View → Chord Sheet.")))
+            "Fret cards and Tab need a fretted instrument, picked with the "
+            "Voicing button in the Play tab (for example Guitar). The panel "
+            "shows in the Play tab only; the ▭ button there shows or hides "
+            "it.")))
 
     return [
         {
@@ -67,8 +68,9 @@ def pages(platform: str = DESKTOP) -> List[Dict[str, Any]]:
                     "chords; lyric lines are left alone. Click any chord in the editor "
                     "to hear it, or press ▶ in the toolbar to play the whole song.",
                     "The app recognizes chord lines on its own and highlights their "
-                    "chords; lyric lines are left alone. Tap any chord in the editor "
-                    "to hear it, or press ▶ in the toolbar to play the whole song.")),
+                    "chords; lyric lines are left alone. In the Play tab, tap any "
+                    "chord to hear it, or press ▶ at the bottom to play the whole "
+                    "song.")),
             ],
         },
         {
@@ -92,20 +94,27 @@ def pages(platform: str = DESKTOP) -> List[Dict[str, Any]]:
         {
             "title": "Do-Re-Mi and Roman Numerals",
             "blocks": [
-                ("text",
-                 "Prefer solfège? Switch to European notation with the Do button "
-                 "in the toolbar and write chords as Do, Re, Mi… with a lowercase "
-                 "m for minor."),
+                ("text", variant(
+                    "Prefer solfège? Switch to European notation with the Do button "
+                    "in the toolbar and write chords as Do, Re, Mi… with a lowercase "
+                    "m for minor.",
+                    "Prefer solfège? Switch to European notation with the Do button "
+                    "in the Edit ribbon and write chords as Do, Re, Mi… with a "
+                    "lowercase m for minor. Convert rewrites a whole song from one "
+                    "notation to the other.")),
                 ("snippet",
                  "Do        Lam       Rem7      Sol7\n"
                  "Somewhere a melody is calling\n"
                  "Fa        Do/Mi     Rem       Sol\n"
                  "Every note is coming home",
                  "european"),
-                ("text",
-                 "Roman numerals write chords relative to the key, set with "
-                 "{key: …} or the Key box. Change the key and the same song plays "
-                 "in the new key."),
+                ("text", variant(
+                    "Roman numerals write chords relative to the key, set with "
+                    "{key: …} or the Key box. Change the key and the same song plays "
+                    "in the new key.",
+                    "Roman numerals write chords relative to the key, set with "
+                    "{key: …} or the key in the song pill (Play tab). Change the key "
+                    "and the same song plays in the new key.")),
                 ("snippet",
                  "{key: G}\n"
                  "I         vi        IV        V7\n"
@@ -129,11 +138,16 @@ def pages(platform: str = DESKTOP) -> List[Dict[str, Any]]:
                  "D7*1.5   C*1.5    G     NC\n"
                  "step and turn and home",
                  "american"),
-                ("text",
-                 "Each chord lasts one bar unless you add *beats after it: C*6 holds "
-                 "for two bars of 3/4, D7*1.5 for a beat and a half. NC is a bar of "
-                 "silence. The toolbar's Speed, Key and Time controls set the "
-                 "defaults for the whole song."),
+                ("text", variant(
+                    "Each chord lasts one bar unless you add *beats after it: C*6 holds "
+                    "for two bars of 3/4, D7*1.5 for a beat and a half. NC is a bar of "
+                    "silence. The toolbar's Speed, Key and Time controls set the "
+                    "defaults for the whole song.",
+                    "Each chord lasts one bar unless you add *beats after it: C*6 holds "
+                    "for two bars of 3/4, D7*1.5 for a beat and a half. NC is a bar of "
+                    "silence. The song pill in the Play tab sets the tempo, key and "
+                    "time defaults for the whole song, and Speed slows it down "
+                    "for practice.")),
             ],
         },
         {
@@ -155,8 +169,8 @@ def pages(platform: str = DESKTOP) -> List[Dict[str, Any]]:
                 ("text", variant(
                     "Tools → Insert has small dialogs for adding labels, loops and "
                     "other directives if you'd rather not type them.",
-                    "⋮ → Tools → Insert has small dialogs for adding labels, loops and "
-                    "other directives if you'd rather not type them.")),
+                    "In the Edit tab, ＋ Insert has small dialogs for adding labels, loops "
+                    "and other directives if you'd rather not type them.")),
             ],
         },
         {
@@ -171,9 +185,9 @@ def pages(platform: str = DESKTOP) -> List[Dict[str, Any]]:
                     "Press F1 any time for the full User Guide (also in the Help menu). "
                     "Tools → Identify Chord names a chord from the notes you pick, "
                     "and Help → Quick Start brings this tour back.",
-                    "The full User Guide is in ⋮ → Help → User Guide. ⋮ → Tools → "
-                    "Identify Chord names a chord from the notes you pick, and "
-                    "⋮ → Help → Quick Start brings this tour back.")),
+                    "The full User Guide is in ☰ → User guide. Identify in the Edit "
+                    "ribbon names a chord from the notes you pick, and "
+                    "☰ → Quick start brings this tour back.")),
                 ("text", "Have fun making music!"),
             ],
         },

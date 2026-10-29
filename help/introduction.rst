@@ -38,8 +38,8 @@ highlights the chords and can play them back using synthesized instruments.
    playback built in. You don't mark up your text or press a "detect" button:
    Chord Notepad reads each line and works out on its own which lines are chords
    and which are lyrics, so a word like *Am* in a sentence isn't mistaken for a
-   chord. Tap any highlighted chord to hear it, or press **Play** to run through
-   the whole sheet in time.
+   chord. In the Play tab, tap any highlighted chord to hear it, or press **▶** to
+   run through the whole sheet in time.
 
 See :doc:`getting_started` to make your first chord sheet, and
 :doc:`writing_chords` for the full notation.
@@ -78,15 +78,22 @@ Use the notation you're comfortable with:
 * **European notation** (solfège): Do, Re, Mi, Fa, Sol, La, Si
 * **Roman numerals**: I, IV, V, vi -- played relative to the current key
 
-The toolbar toggle (labelled **AB / Do**) switches the editor between American
-and European note names:
+.. only:: desktop
 
-.. figure:: /images/notation-toggle.png
-   :alt: The AB / Do notation toggle at the left of the toolbar, with AB
-         (American) selected.
-   :align: center
+   The toolbar toggle (labelled **AB / Do**) switches the editor between American
+   and European note names:
 
-   The notation toggle. **AB** is American, **Do** is European.
+   .. figure:: /images/notation-toggle.png
+      :alt: The AB / Do notation toggle at the left of the toolbar, with AB
+            (American) selected.
+      :align: center
+
+      The notation toggle. **AB** is American, **Do** is European.
+
+.. only:: android
+
+   The **AB / Do** switch in the Edit ribbon sets the notation the text is read
+   in: American or European note names.
 
 .. only:: desktop
 
@@ -101,7 +108,7 @@ and European note names:
    Roman numerals are **not** part of this toggle -- they are always recognized,
    in either mode, and are resolved against the current ``{key: ...}``. Switching
    the toggle only changes how the editor reads and shows note names; it does not
-   rewrite text you have already typed (use ⋮ → Tools → Convert notation for
+   rewrite text you have already typed (use **Convert** in the Edit ribbon for
    that). All three notations are covered in :doc:`writing_chords`.
 
 Playback

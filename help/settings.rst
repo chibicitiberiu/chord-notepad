@@ -12,10 +12,11 @@ Settings
 
 .. only:: android
 
-   **⋮ → Settings** opens the settings screens, where everything that used to
+   **☰ → Settings** opens the settings screens, where everything that used to
    mean hand-editing the config file now has a form. There are two pages,
    **General** and **Playback**, plus the **Voicings** editor. Field help shows
-   as supporting text under each field.
+   as supporting text under each field. The Voicing sheet in the Play tab has an
+   **Edit voicings…** entry that opens the Voicings editor directly.
 
 
 General
@@ -29,11 +30,18 @@ General
 .. only:: android
 
    **Font family** and **Font size**
-      The editor's font, the same setting as ⋮ → View → Font….
+      The editor's font. You can also change the size by pinching the text.
 
-**Chord notation**
-   American or European, the same toggle as the AB/Do buttons in the
-   toolbar.
+.. only:: desktop
+
+   **Chord notation**
+      American or European, the same toggle as the AB/Do buttons in the
+      toolbar.
+
+.. only:: android
+
+   **Chord notation**
+      American or European, the same switch as AB / Do in the Edit ribbon.
 
 **Default key**
    The key a new document starts in.
@@ -56,10 +64,10 @@ General
 
    **Show quick start at startup**
       Whether the quick-start reference (also reachable from
-      ⋮ → Help → Quick Start) opens automatically when Chord Notepad launches.
+      ☰ → Quick start) opens automatically when Chord Notepad launches.
 
    **Number of recent files**
-      How many entries ⋮ → File → Recent Files remembers.
+      How many entries ☰ → Recent remembers.
 
 
 Playback & Audio
@@ -96,8 +104,8 @@ Playback & Audio
 
    .. note::
       Capo handling moved out of Settings: a capo is now a ``{capo: N}`` directive
-      in the song, and ⋮ → Tools → Suggest Capo finds and inserts a good one.
-      See :doc:`chord_sheet` and :doc:`directives`.
+      in the song, and ＋ Insert → Capo → Suggest in the Edit ribbon finds and inserts a good
+      one. See :doc:`chord_sheet` and :doc:`directives`.
 
 
 Voicings
@@ -211,8 +219,8 @@ you there.
    fixing. Renaming or deleting the voicing
    you're currently playing with is handled: a rename follows the selection
    so playback keeps using it, and a delete falls back to piano. Once you
-   save, any new or changed custom voicing shows up in
-   ⋮ → Playback → Voicing immediately -- no restart needed.
+   save, any new or changed custom voicing shows up in the Voicing sheet of
+   the Play tab (under Your voicings) immediately -- no restart needed.
 
 Worked Example: A Seven-String Guitar
 --------------------------------------
@@ -239,7 +247,7 @@ instead of editing JSON by hand:
 
 .. only:: android
 
-   1. Open **⋮ → Settings** and go to the **Voicings** editor.
+   1. Open **☰ → Settings** and go to the **Voicings** editor.
    2. Tap **Add voicing**. The new voicing opens (full screen on a phone).
    3. Tap **Load config** and pick **Guitar (Standard - EADGBE)**. This
       fills in the standard tuning and all its defaults as a starting point.
@@ -248,5 +256,5 @@ instead of editing JSON by hand:
       ``B1 E2 A2 D3 G3 B3 E4`` -- the same six strings with a low B added at
       the top.
    6. Tap **Save** in the top bar.
-   7. Open **⋮ → Playback → Voicing** -- **My 7-String** is now in the list,
-      under Fretboard. Select it and play some chords.
+   7. Switch to the Play tab and tap **Voicing** in the player -- **My 7-String**
+      is now in the list, under Your voicings. Select it and play some chords.

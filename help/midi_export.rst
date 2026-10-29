@@ -17,7 +17,7 @@ Exporting a Song
 
 .. only:: android
 
-   1. Go to **⋮ → File → Export MIDI…**
+   1. Open **☰ → Export MIDI…**
    2. In the system file picker, choose a location (Downloads, Drive, or any
       document provider) and a filename, and save with a ``.mid`` extension.
    3. Chord Notepad writes the file.
@@ -60,8 +60,7 @@ The exported file contains exactly what playback would play:
    * **Rests as silence.** ``NC`` sections play nothing, so they become gaps in
      the file rather than notes.
    * **The whole song, from the top.** Export always renders the entire
-     document from the beginning, no matter where your cursor is or what you
-     last tapped.
+     document from the beginning, no matter where the playhead or your cursor is.
 
 Tempo, meter, and key come from the same directives that drive playback:
 
@@ -80,7 +79,7 @@ Tempo, meter, and key come from the same directives that drive playback:
 
 .. only:: android
 
-   The **Instrument** selected under **⋮ → Playback → Instrument** is
+   The **Instrument** picked in the Play tab's player is
    written as the track's MIDI program, so a General MIDI player or synth picks
    a matching sound automatically. The metronome click is never written to the
    file, even if it's turned on and audible during playback.

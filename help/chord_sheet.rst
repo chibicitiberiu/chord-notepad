@@ -33,8 +33,7 @@ point.
 
 .. only:: android
 
-   Tap any chord in the strip to hear that exact voicing once, the same
-   way tapping a chord in the editor plays it.
+   Tap any chord in the strip to hear that exact voicing once.
 
 
 Showing and Resizing the Strip
@@ -52,14 +51,18 @@ Showing and Resizing the Strip
 
 .. only:: android
 
-   Toggle the strip from **⋮ → View → Chord Sheet**. Hiding it stops
-   the (fairly expensive) voicing work the strip does in the background; showing
-   it again picks up whatever you've typed since and renders it.
+   The chord sheet belongs to the **Play** tab. It is never shown in Edit, so
+   the text gets the whole screen while you write. In Play, the **▭** button
+   in the player shows or hides it. Hiding it stops the (fairly expensive)
+   voicing work the strip does in the background; showing it again picks up
+   whatever you've typed since and renders it.
 
-   Drag the divider between the editor and the strip to make it taller or
-   shorter, to suit how much of the song you want visible at once. Both the
-   panel's height and the view you last picked (see below) are remembered between
-   sessions.
+   In portrait, the sheet sits below the text. Drag the handle between them
+   to make the sheet taller or shorter. In landscape (phones and tablets),
+   the text is on the left, and the chord sheet and the player share the
+   right column. Drag the vertical handle to change the width of that column
+   (between 30% and 70% of the screen). The view you last picked (see below)
+   is remembered between sessions.
 
 
 The Four Views
@@ -78,8 +81,8 @@ The Four Views
    The tabs above the strip switch between four ways of drawing the same voiced
    chords. Which ones are available depends on the active voicing; a tab that
    can't be used right now is greyed out, and tells you why (the song has no
-   chords yet, or it needs a fretted voicing such as Guitar, picked from
-   ⋮ → Playback → Voicing):
+   chords yet, or it needs a fretted voicing such as Guitar, picked in
+   the player's Voicing sheet):
 
 Piano roll
 -------------
@@ -127,8 +130,8 @@ Fret cards
    nut at the top. Only available when a fretboard-model voicing (guitar or
    another fretted instrument, see :doc:`fretted`) is active, because this view
    needs fingering data -- a specific fret per string -- that only a fretboard
-   voicing produces. Pick a guitar or other fretted voicing under
-   ⋮ → Playback → Voicing to unlock it.
+   voicing produces. Pick a guitar or other fretted voicing in the player's Voicing
+   sheet to unlock it.
 
 Tab
 ------
@@ -156,7 +159,7 @@ visible chord once you scroll past a ``{key}`` change).
 
    The Staff, Fret cards, and Tab views have **−** / **+** buttons at the right
    end of the strip's header to make their drawing smaller or larger, or you can
-   pinch the strip. The zoom level is remembered per view.
+   pinch the sheet. The zoom level is remembered per view.
 
 
 Capo
@@ -188,14 +191,15 @@ Suggesting a Capo
 
 .. only:: android
 
-   To find a good capo, use **⋮ → Tools → Suggest Capo**. It asks
-   which fretboard voicing to optimize for -- defaulting to the current one, or
+   To find a good capo, go to the Edit tab, tap **＋ Insert → Capo** and
+   then **Suggest**. It asks which fretboard voicing to optimize for -- defaulting to the current one, or
    standard guitar when the active voicing is not a fretboard voicing -- then
    scores capo positions over the selection (or the whole song when nothing is
    selected) and inserts the ``{capo: N}`` directive at that point, as a single
    undo step. It looks for the position that makes the part easiest to play:
    fewest barres, lowest on the neck, most open strings. If no capo helps, it says
-   so and inserts nothing.
+   so and inserts nothing. If you already know the fret, type it instead
+   (0 to 12).
 
 
 Following Playback

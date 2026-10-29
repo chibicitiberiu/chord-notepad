@@ -25,9 +25,17 @@ Setting Tempo
    {bpm: 90}      // Slower - 90 BPM
    {bpm: 160}     // Faster - 160 BPM
 
-Valid range: 20-400 BPM. The toolbar's speed multiplier is applied on top of
-this value, so a song written at ``{bpm: 120}`` with the multiplier set to
-50% plays at 60 BPM.
+.. only:: desktop
+
+   Valid range: 20-400 BPM. The toolbar's speed multiplier is applied on top of
+   this value, so a song written at ``{bpm: 120}`` with the multiplier set to
+   50% plays at 60 BPM.
+
+.. only:: android
+
+   Valid range: 20-400 BPM. The player's Speed multiplier is applied on top of
+   this value, so a song written at ``{bpm: 120}`` with the multiplier set to
+   50% plays at 60 BPM.
 
 Place the directive before the chords it should affect:
 
@@ -293,7 +301,7 @@ Finding the Best Capo
 
 .. only:: android
 
-   You don't have to guess: ⋮ → Tools → Suggest Capo scores capo
+   You don't have to guess: in the Edit tab, ＋ Insert → Capo → Suggest scores capo
    positions for a voicing you choose and inserts the ``{capo}`` directive for you.
    See :doc:`chord_sheet` for details.
 

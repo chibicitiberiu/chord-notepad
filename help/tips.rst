@@ -141,8 +141,7 @@ Mixing American and European notation in the same file is confusing:
 
 .. only:: android
 
-   Use the **Convert notation** options in ⋮ → Tools to switch an entire
-   document at once.
+   Use **Convert** in the Edit ribbon to switch an entire document at once.
 
 
 Workflow Tips
@@ -183,7 +182,7 @@ Comparing Options
 
 .. only:: android
 
-   Write multiple versions and tap to compare:
+   Write multiple versions and, in the Play tab, tap to compare:
 
 .. code-block:: chord
 
@@ -227,7 +226,7 @@ Keep a "scratch pad" area at the bottom of your file:
 
 .. only:: android
 
-   Tap chords in the scratch pad to test them, then copy the ones you like
+   In the Play tab, tap chords in the scratch pad to test them, then copy the ones you like
    into your song.
 
 
@@ -261,7 +260,7 @@ Piano (the default) to test.
 
    **Check that nothing else holds the audio:**
    Playback pauses when another app takes audio focus or headphones are
-   unplugged. Tap Play to resume.
+   unplugged. Tap ▶ to resume.
 
 .. only:: desktop
 
@@ -310,9 +309,17 @@ minor rather than C-sharp major. If a chord sounds unexpectedly minor (or major)
 check whether you capitalized the root. In roman numerals the same rule sets the
 quality: ``V`` is major, ``v`` is minor.
 
-**Check the key for roman numerals:**
-If you're using roman numerals (I, IV, V, etc.), make sure the key is set
-correctly in the toolbar or with a ``{key}`` directive.
+.. only:: desktop
+
+   **Check the key for roman numerals:**
+   If you're using roman numerals (I, IV, V, etc.), make sure the key is set
+   correctly in the toolbar or with a ``{key}`` directive.
+
+.. only:: android
+
+   **Check the key for roman numerals:**
+   If you're using roman numerals (I, IV, V, etc.), make sure the key is set
+   correctly in the song pill's Song defaults or with a ``{key}`` directive.
 
 **Check your time signature:**
 If rhythms feel off, verify the time signature matches your intention.
@@ -391,7 +398,8 @@ Forgetting to Save
 
 .. only:: android
 
-   Save regularly with ⋮ → File → Save (or Ctrl+S on a hardware keyboard).
+   Save regularly with the Save button (the disk icon) in the app bar, or Ctrl+S
+   on a hardware keyboard.
 
 Using Wrong Notation Toggle
 ---------------------------
@@ -410,8 +418,8 @@ Editing During Playback
 
 .. only:: android
 
-   You can't edit while playing - the editor is locked. Stop playback first
-   (tap ⏹), then make your changes.
+   The Play tab is read-only. Switch to the Edit tab (this stops playback) to
+   make your changes.
 
 Copy-Pasting Without Checking
 -----------------------------
@@ -448,7 +456,7 @@ Most questions are answered in :doc:`writing_chords`, :doc:`directives`, or
 .. only:: android
 
    **Use the Chord Identifier:**
-   If you're not sure how to write a chord, use ⋮ → Tools → Identify Chord to
+   If you're not sure how to write a chord, use **Identify** in the Edit ribbon to
    build it from notes.
 
 .. only:: desktop
