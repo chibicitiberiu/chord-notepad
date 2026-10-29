@@ -31,9 +31,14 @@ data class PlaybackState(
     /** The chord sounding, in code points of the text playback started from. */
     @SerialName("playing_span") val playingSpan: Span? = null,
     @SerialName("chord_index") val chordIndex: Int? = null,
-    /** 1-based; 0 when idle. */
+    /** 1-based; 0 when idle. On Android counted from the top of the song. */
     val bar: Int = 0,
     @SerialName("total_bars") val totalBars: Int = 0,
+    /**
+     * The playhead: start (code points) of the chord ▶ plays from, or null
+     * (no chords). Follows playback; `set_playhead`, `rewind`, taps move it.
+     */
+    @SerialName("playhead_offset") val playheadOffset: Int? = null,
 ) : SessionState
 
 /** What the Play/Pause button does when pressed. */
@@ -116,6 +121,8 @@ data class ChordSheetState(
     @SerialName("zoom_supported") val zoomSupported: Boolean,
     @SerialName("current_index") val currentIndex: Int? = null,
     @SerialName("song_revision") val songRevision: Int,
+    /** The playhead's chord in the rendered song (first occurrence), for the edge mark when idle. */
+    @SerialName("cursor_index") val cursorIndex: Int? = null,
 ) : SessionState
 
 /** The open document, for the title and the Save As suggestion. */

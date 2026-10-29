@@ -85,10 +85,28 @@ interface DocumentStoreBridge {
      * the document can't be reached (Python's `DocumentStore.ref_for`).
      */
     fun describe(id: String): String?
+
+    /**
+     * Rename the document in place to [displayName] (with its extension);
+     * returns the renamed document's ref JSON `{"id", "display_name",
+     * "location"}` (the id may change, and the provider may adjust the name
+     * rather than replace another document). The recent list follows.
+     *
+     * @throws RenameUnsupportedException if the provider can't rename it.
+     * @throws DocumentStoreException for any other failure.
+     */
+    fun rename(id: String, displayName: String): String
 }
 
 /** A document operation failed; [message] is shown to the user. */
-class DocumentStoreException(message: String, cause: Throwable? = null) : Exception(message, cause)
+open class DocumentStoreException(message: String, cause: Throwable? = null) : Exception(message, cause)
+
+/**
+ * The provider can't rename the document; Python maps it (by its simple class
+ * name) to `RenameNotSupported`, and the UI offers Save As instead.
+ */
+class RenameUnsupportedException(message: String, cause: Throwable? = null) :
+    DocumentStoreException(message, cause)
 
 /**
  * Device facts Python needs to start the session.

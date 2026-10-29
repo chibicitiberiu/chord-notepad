@@ -3,6 +3,7 @@ package io.github.chibicitiberiu.chordnotepad.files
 import io.github.chibicitiberiu.chordnotepad.bridge.DocumentRef
 import io.github.chibicitiberiu.chordnotepad.bridge.DocumentStoreException
 import io.github.chibicitiberiu.chordnotepad.bridge.PickMode
+import io.github.chibicitiberiu.chordnotepad.bridge.RenameUnsupportedException
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
@@ -29,6 +30,8 @@ class FakeDocumentAccess : DocumentAccess {
     val grants = mutableSetOf<String>()
     val released = mutableListOf<String>()
     val denied = mutableSetOf<String>()
+    /** Documents whose provider can't rename them. */
+    val noRename = mutableSetOf<String>()
 
     fun add(id: String, name: String, text: String = "", granted: Boolean = true) {
         content[id] = text.toByteArray()
@@ -63,6 +66,23 @@ class FakeDocumentAccess : DocumentAccess {
     override fun releaseGrant(id: String) {
         grants -= id
         released += id
+    }
+
+    override fun supportsRename(id: String) = id in names && id !in noRename
+
+    /** Like ExternalStorageProvider: a path-like id that changes, a clash refused. */
+    override fun rename(id: String, displayName: String): String? {
+        if (id in denied) throw SecurityException("denied")
+        if (id !in names) throw FileNotFoundException(id)
+        val renamed = id.substringBeforeLast('/') + "/" + displayName
+        val folder = id.substringBeforeLast('/')
+        val clash = names.any { (other, name) -> other != id && name == displayName && other.startsWith("$folder/") }
+        if (clash || (renamed != id && renamed in names)) throw IllegalStateException("Already exists")
+        content[renamed] = content.remove(id)!!
+        names.remove(id)
+        names[renamed] = displayName
+        grants -= id
+        return renamed
     }
 }
 
@@ -111,6 +131,37 @@ class SafDocumentStoreTest {
         access.denied += "content://d/1"
         expectError("Permission denied") { store.writeText("content://d/1", "x") }
         expectError("Failed to write file") { store.writeText("content://d/gone", "x") }
+    }
+
+    @Test
+    fun `rename returns the new ref, keeps the grant and moves the recent entry`() {
+        access.add("content://d/1", "a.txt", "C G")
+        access.add("content://d/2", "b.txt")
+        store.addRecent("content://d/2", "b.txt", "b.txt")
+        store.addRecent("content://d/1", "a.txt", "a.txt")
+        val json = Json.parseToJsonElement(store.rename("content://d/1", "Tune.txt")).jsonObject
+        assertEquals("content://d/Tune.txt", json.getValue("id").jsonPrimitive.content)
+        assertEquals("Tune.txt", json.getValue("display_name").jsonPrimitive.content)
+        assertEquals("C G", access.content.getValue("content://d/Tune.txt").decodeToString())
+        assertTrue("content://d/Tune.txt" in access.grants)
+        assertEquals(listOf("content://d/Tune.txt", "content://d/2"), ids(store.recent()))
+    }
+
+    @Test
+    fun `rename failures`() {
+        access.add("content://d/1", "a.txt")
+        access.add("content://d/2", "b.txt")
+        access.noRename += "content://d/2"
+        try {
+            store.rename("content://d/2", "x.txt")
+            fail("expected RenameUnsupportedException")
+        } catch (e: RenameUnsupportedException) {
+            assertTrue(e.message!!, "can't rename" in e.message!!)
+        }
+        expectError("Couldn't rename to b.txt") { store.rename("content://d/1", "b.txt") }
+        access.denied += "content://d/1"
+        expectError("Permission denied: a.txt (Example)") { store.rename("content://d/1", "c.txt") }
+        expectError("can't rename") { store.rename("content://d/missing", "c.txt") }
     }
 
     @Test

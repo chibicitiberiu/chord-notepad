@@ -151,6 +151,30 @@ class BridgeCodecTest {
         assertEquals("x", s.text)
     }
 
+    @Test
+    fun `the player's outputs`() {
+        val playback = decode<PlaybackState>(
+            "PlaybackState",
+            """{"status": "idle", "playing_span": null, "chord_index": null, "bar": 0, "total_bars": 0,
+               "playhead_offset": 12}""",
+        )
+        assertEquals(12, playback.playheadOffset)
+        val defaults = decode<SongDefaultsState>(
+            "SongDefaultsState",
+            """{"tempo": {"value": "90", "from_directive": true, "directive_offset": 0},
+               "time": {"value": "3/4", "from_directive": false, "directive_offset": null},
+               "key": {"value": "", "from_directive": false, "directive_offset": null},
+               "summary": "90 · 3/4"}""",
+        )
+        assertEquals(SongDefault("90", true, 0), defaults.tempo)
+        assertEquals("90 · 3/4", defaults.summary)
+        val failed = decode<RenameFailed>(
+            "RenameFailed",
+            """{"name": "a/b", "reason": "A name can't contain / or \\.", "can_save_as": false}""",
+        )
+        assertEquals(RenameFailed("a/b", "A name can't contain / or \\.", false), failed)
+    }
+
     @Test(expected = BridgeDecodeException::class)
     fun `unknown type`() {
         BridgeCodec.decode("NoSuchState", "{}")

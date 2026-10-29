@@ -107,6 +107,24 @@ class SessionCommandsTest {
     }
 
     @Test
+    fun `player, song defaults and rename`() {
+        commands.setPlayhead(7)
+        assertSent("set_playhead", """{"offset": 7}""")
+        commands.rewind()
+        assertSent("rewind", "{}")
+        commands.writeSongDefaults()
+        assertSent("write_song_defaults", "{}")
+        commands.renameDocument("My song")
+        assertSent("rename_document", """{"name": "My song"}""")
+        commands.saveAs("My song")
+        assertSent("save_as", """{"name": "My song"}""")
+        commands.saveAs()
+        assertSent("save_as", """{"name": null}""")
+        commands.requestInsertDirective("capo", at = 3)
+        assertSent("request_insert_directive", """{"kind": "capo", "at": 3}""")
+    }
+
+    @Test
     fun `every command name is listed`() {
         // Each builder's name must be in CommandNames.ALL (the contract test's list).
         with(commands) {
@@ -119,6 +137,7 @@ class SessionCommandsTest {
             setChordSheetView("staff"); chordSheetZoom(1); audition(0); newDocument(); openDocument()
             openRecent(DocumentRef("a", "a", "a")); save(); saveAs(); exportMidi(); requestClose()
             respondDiscard(1, null); appBackground(); appForeground(); pause(); restoreDraft("", null, false)
+            writeSongDefaults(); rewind(); setPlayhead(0); renameDocument("a")
         }
         assertEquals(CommandNames.ALL, sent.map { it.first }.toSet())
     }

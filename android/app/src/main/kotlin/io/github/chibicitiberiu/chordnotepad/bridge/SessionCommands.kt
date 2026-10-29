@@ -24,9 +24,12 @@ object CommandNames {
     const val TRANSPOSE = "transpose"
     const val REQUEST_SUGGEST_CAPO = "request_suggest_capo"
     const val CONVERT_NOTATION = "convert_notation"
+    const val WRITE_SONG_DEFAULTS = "write_song_defaults"
     // AppSession: playback and toolbar
     const val PLAY_PAUSE = "play_pause"
     const val STOP = "stop"
+    const val REWIND = "rewind"
+    const val SET_PLAYHEAD = "set_playhead"
     const val TAP_CHORD_AT = "tap_chord_at"
     const val SET_BPM = "set_bpm"
     const val SET_MULTIPLIER_PCT = "set_multiplier_pct"
@@ -55,6 +58,7 @@ object CommandNames {
     const val OPEN_RECENT = "open_recent"
     const val SAVE = "save"
     const val SAVE_AS = "save_as"
+    const val RENAME_DOCUMENT = "rename_document"
     const val EXPORT_MIDI = "export_midi"
     const val REQUEST_CLOSE = "request_close"
     const val RESPOND = "respond"
@@ -74,6 +78,7 @@ object CommandNames {
         SET_CHORD_SHEET_HEIGHT, SET_CHORD_SHEET_VIEW, CHORD_SHEET_ZOOM, AUDITION,
         NEW_DOCUMENT, OPEN_DOCUMENT, OPEN_RECENT, SAVE, SAVE_AS, EXPORT_MIDI,
         REQUEST_CLOSE, RESPOND, APP_BACKGROUND, APP_FOREGROUND, PAUSE, RESTORE_DRAFT,
+        WRITE_SONG_DEFAULTS, REWIND, SET_PLAYHEAD, RENAME_DOCUMENT,
     )
 }
 
@@ -116,7 +121,10 @@ class SessionCommands(
         put("text", text)
     }
 
-    /** Ask for an `InsertDirectiveRequest` of [kind] (`bpm`, `time`, `key`, `label`, `loop`) at [at]. */
+    /**
+     * Ask for an `InsertDirectiveRequest` of [kind] (`bpm`, `time`, `key`, `capo`, `label`, `loop`)
+     * at [at]. Capo answers `{"capo": "0".."12"}`.
+     */
     fun requestInsertDirective(kind: String, at: Int) = send(CommandNames.REQUEST_INSERT_DIRECTIVE) {
         put("kind", kind)
         put("at", at)
@@ -143,15 +151,28 @@ class SessionCommands(
     /** Convert the song's chords to [target] notation (`american`/`european`). */
     fun convertNotation(target: String) = send(CommandNames.CONVERT_NOTATION) { put("target", target) }
 
+    /** Song defaults › Write into song: insert the directives the song doesn't set, at the top. */
+    fun writeSongDefaults() = send(CommandNames.WRITE_SONG_DEFAULTS)
+
     // -- playback and toolbar -------------------------------------------------
 
-    /** Play, pause or resume; [fromOffset] plays from that code point. */
+    /** Play, pause or resume; without [fromOffset] from the playhead, else from that code point. */
     fun playPause(fromOffset: Int? = null) = send(CommandNames.PLAY_PAUSE) { put("from_offset", fromOffset) }
 
-    /** Stop playback. */
+    /** Stop playback (switching to Edit); the playhead stays. */
     fun stop() = send(CommandNames.STOP)
 
-    /** Play the chord at code point [offset], if any. */
+    /** ⏮: stop if playing or paused, playhead to the first chord. */
+    fun rewind() = send(CommandNames.REWIND)
+
+    /**
+     * Put the playhead on the chord a tap at code point [offset] means (silent).
+     * Paused: the paused song is dropped; playing: playback restarts there, so
+     * send a scrub once, on release.
+     */
+    fun setPlayhead(offset: Int) = send(CommandNames.SET_PLAYHEAD) { put("offset", offset) }
+
+    /** Play the chord at code point [offset], if any; it becomes the playhead (playing: a jump). */
     fun tapChordAt(offset: Int) = send(CommandNames.TAP_CHORD_AT) { put("offset", offset) }
 
     /** Set the base tempo (clamped and snapped by the session). */
@@ -238,8 +259,11 @@ class SessionCommands(
     /** Save (Save As for a never-saved document). */
     fun save() = send(CommandNames.SAVE)
 
-    /** Save under a new name. */
-    fun saveAs() = send(CommandNames.SAVE_AS)
+    /** Save under a new name; [name] (no extension) is suggested instead of the document's. */
+    fun saveAs(name: String? = null) = send(CommandNames.SAVE_AS) { put("name", name) }
+
+    /** Rename the document to [name] (no extension); failures come back as `RenameFailed`. */
+    fun renameDocument(name: String) = send(CommandNames.RENAME_DOCUMENT) { put("name", name) }
 
     /** Export the song as MIDI. */
     fun exportMidi() = send(CommandNames.EXPORT_MIDI)

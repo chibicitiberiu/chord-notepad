@@ -161,5 +161,6 @@ class PyHostTest {
         override fun addRecent(id: String, displayName: String, location: String) = Unit
         override fun setMaxRecent(count: Int) = Unit
         override fun describe(id: String): String? = null
+        override fun rename(id: String, displayName: String) = error("unused")
     }
 }

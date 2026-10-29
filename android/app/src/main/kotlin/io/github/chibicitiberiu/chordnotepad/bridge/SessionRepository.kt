@@ -62,6 +62,11 @@ class SessionRepository {
     private val _voicingEditorSchema = MutableStateFlow<VoicingEditorSchema?>(null)
     private val _quickStart = MutableStateFlow<QuickStartContent?>(null)
     private val _directiveCheck = MutableStateFlow<DirectiveCheck?>(null)
+    private val _songDefaults = MutableStateFlow<SongDefaultsState?>(null)
+    private val _renameFailed = MutableSharedFlow<RenameFailed>(
+        extraBufferCapacity = 4,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST,
+    )
     private val _hostStatus = MutableStateFlow<HostStatus>(HostStatus.NotStarted)
     private val _pendingRequest = MutableStateFlow<SessionRequest?>(null)
     private val _textEdits = Channel<TextEdited>(Channel.UNLIMITED)
@@ -119,6 +124,12 @@ class SessionRepository {
     /** The latest Quick Start tour the session sent (an event, kept for the screen). */
     val quickStart: StateFlow<QuickStartContent?> = _quickStart.asStateFlow()
 
+    /** What the song starts with (the player's pill and the Song defaults sheet). */
+    val songDefaults: StateFlow<SongDefaultsState?> = _songDefaults.asStateFlow()
+
+    /** Failed renames (hot: only collectors present at the time get one). */
+    val renameFailed: SharedFlow<RenameFailed> = _renameFailed.asSharedFlow()
+
     /** Whether Python is up. */
     val hostStatus: StateFlow<HostStatus> = _hostStatus.asStateFlow()
 
@@ -156,6 +167,8 @@ class SessionRepository {
             is VoicingEditorSchema -> _voicingEditorSchema.value = output
             is QuickStartContent -> _quickStart.value = output
             is DirectiveCheck -> _directiveCheck.value = output
+            is SongDefaultsState -> _songDefaults.value = output
+            is RenameFailed -> _renameFailed.tryEmit(output)
             is TextEdited -> _textEdits.trySend(output)
             is SessionRequest -> _pendingRequest.value = output
             is SessionError -> _errors.tryEmit(output)

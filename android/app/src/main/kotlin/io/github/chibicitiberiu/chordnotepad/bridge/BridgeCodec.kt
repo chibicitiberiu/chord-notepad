@@ -42,7 +42,7 @@ object BridgeCodec {
         "ConfirmDiscardRequest" to ConfirmDiscardRequest.serializer(),
         "PickDocumentRequest" to PickDocumentRequest.serializer(),
         "CloseApproved" to CloseApproved.serializer(),
-    ) + screenSerializers
+    ) + screenSerializers + playerSerializers
 
     /**
      * Decodes one output.

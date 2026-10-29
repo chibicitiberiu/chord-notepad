@@ -84,6 +84,21 @@ class ContentResolverDocumentAccess(context: Context) : DocumentAccess {
         }
     }
 
+    override fun supportsRename(id: String): Boolean = try {
+        val uri = id.toUri()
+        DocumentsContract.isDocumentUri(app, uri) &&
+            resolver.query(uri, arrayOf(DocumentsContract.Document.COLUMN_FLAGS), null, null, null)?.use { c ->
+                c.moveToFirst() && !c.isNull(0) &&
+                    (c.getInt(0) and DocumentsContract.Document.FLAG_SUPPORTS_RENAME) != 0
+            } == true
+    } catch (e: Exception) {
+        Log.i(TAG, "Can't read the flags of $id ($e)")
+        false
+    }
+
+    override fun rename(id: String, displayName: String): String? =
+        DocumentsContract.renameDocument(resolver, id.toUri(), displayName)?.toString()
+
     private fun providerLabel(authority: String): String? = try {
         val pm = app.packageManager
         pm.resolveContentProvider(authority, 0)?.loadLabel(pm)?.toString()

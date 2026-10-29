@@ -45,6 +45,19 @@ class SessionRepositoryTest {
     }
 
     @Test
+    fun `song defaults and failed renames have their flows`() = runTest(UnconfinedTestDispatcher()) {
+        val defaults = SongDefaultsState(
+            SongDefault("90", true, 0), SongDefault("3/4", false), SongDefault("", false), "90 · 3/4",
+        )
+        repo.publish(defaults)
+        assertEquals(defaults, repo.songDefaults.value)
+        val failures = mutableListOf<RenameFailed>()
+        backgroundScope.launch { repo.renameFailed.collect { failures += it } }
+        repo.publish(RenameFailed("a/b", "A name can't contain / or \\.", canSaveAs = false))
+        assertEquals(listOf("a/b"), failures.map { it.name })
+    }
+
+    @Test
     fun `errors and close go to their shared flows`() = runTest(UnconfinedTestDispatcher()) {
         val errors = mutableListOf<SessionError>()
         var closed = 0

@@ -40,4 +40,15 @@ interface DocumentAccess {
 
     /** Give a persisted grant back (the document left the recent list). */
     fun releaseGrant(id: String)
+
+    /** Whether the provider says it can rename the document (`FLAG_SUPPORTS_RENAME`). */
+    fun supportsRename(id: String): Boolean
+
+    /**
+     * Rename the document to [displayName]; returns its id afterwards (it may
+     * change), or null when the provider refused. Throws
+     * `FileNotFoundException`/`SecurityException`/`IllegalStateException`/
+     * `UnsupportedOperationException` like `DocumentsContract.renameDocument`.
+     */
+    fun rename(id: String, displayName: String): String?
 }

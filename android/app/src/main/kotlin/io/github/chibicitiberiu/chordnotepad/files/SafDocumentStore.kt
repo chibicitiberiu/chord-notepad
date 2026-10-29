@@ -6,6 +6,7 @@ import io.github.chibicitiberiu.chordnotepad.bridge.DocumentRef
 import io.github.chibicitiberiu.chordnotepad.bridge.DocumentStoreBridge
 import io.github.chibicitiberiu.chordnotepad.bridge.DocumentStoreException
 import io.github.chibicitiberiu.chordnotepad.bridge.PickMode
+import io.github.chibicitiberiu.chordnotepad.bridge.RenameUnsupportedException
 import kotlinx.serialization.builtins.ListSerializer
 import java.io.FileNotFoundException
 import java.io.IOException
@@ -105,6 +106,34 @@ class SafDocumentStore(
 
     override fun describe(id: String): String? =
         refFor(id)?.let { BridgeCodec.json.encodeToString(DocumentRef.serializer(), it) }
+
+    override fun rename(id: String, displayName: String): String {
+        if (!access.supportsRename(id)) {
+            throw RenameUnsupportedException("${where(id)} is stored where Chord Notepad can't rename it.")
+        }
+        val renamed = try {
+            access.rename(id, displayName)
+        } catch (e: UnsupportedOperationException) {
+            throw RenameUnsupportedException("${where(id)} is stored where Chord Notepad can't rename it.", e)
+        } catch (e: FileNotFoundException) {
+            throw DocumentStoreException("File not found: ${where(id)}", e)
+        } catch (e: SecurityException) {
+            throw DocumentStoreException("Permission denied: ${where(id)}", e)
+        } catch (e: IllegalStateException) {
+            // Providers report a name in use this way (and other refusals).
+            throw DocumentStoreException("Couldn't rename to $displayName: ${e.message}", e)
+        } catch (e: IllegalArgumentException) {
+            throw DocumentStoreException("Couldn't rename to $displayName: ${e.message}", e)
+        } ?: throw DocumentStoreException("Couldn't rename ${where(id)} to $displayName.")
+        // The provider granted the new URI for this run; keep it across restarts.
+        if (renamed != id) access.persistGrant(renamed)
+        val ref = refFor(renamed) ?: DocumentRef(renamed, displayName, displayName)
+        synchronized(lock) {
+            val saved = recentFile.load()
+            if (saved.any { it.id == id }) store(saved.map { if (it.id == id) ref else it })
+        }
+        return BridgeCodec.json.encodeToString(DocumentRef.serializer(), ref)
+    }
 
     /**
      * The recent list, newest first, without documents whose grant was
