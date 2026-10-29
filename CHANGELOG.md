@@ -7,6 +7,18 @@ of this file are used as the GitHub release description, then automatically
 moved to CHANGELOG_HISTORY.md and this file is reset.
 -->
 
+### Added
+
+- Android: Chord Notepad now runs on Android phones and tablets (Android 7.0
+  or newer, 64-bit). It's the same app as on the desktop: chord detection
+  with highlighting, playback with the same sound font, transpose, capo
+  suggestions, the chord sheet (piano roll, staff, chord boxes and tab),
+  custom voicings, MIDI export and the built-in user guide. Songs are opened
+  and saved through Android's file picker. It needs no permissions and works
+  offline. The free APK (`ChordNotepad-android.apk`) and the full source code
+  are attached to this release; a paid edition on Google Play will follow.
+  The two are signed differently, so one can't update the other.
+
 ### Fixed
 
 - A mistyped string in a custom voicing's tuning (for example `E2 A2 X9 G3`)
