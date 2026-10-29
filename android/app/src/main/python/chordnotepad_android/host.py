@@ -33,6 +33,10 @@ logger = logging.getLogger("chordnotepad_android.host")
 #: Oboe stream settings (the M2 spike's measurements were taken with these).
 OBOE_SETTINGS = {"audio.oboe.performance-mode": "LowLatency"}
 
+#: Settings are written this long after the last change, so a process kill
+#: (not only leaving the screen) keeps the toolbar's state.
+AUTOSAVE_DELAY_S = 1.5
+
 #: How long start() waits for the session thread to build the session.
 START_TIMEOUT_S = 120.0
 
@@ -164,7 +168,7 @@ def start(files_dir: str, native_lib_dir: str, document_store, event_sink, audio
     def build() -> SessionBridge:
         session = create_session(host, services, store, chord_sheet=_chord_sheet_available(),
                                  platform=ANDROID)
-        bridge = SessionBridge(host, session, sink)
+        bridge = SessionBridge(host, session, sink, autosave_s=AUTOSAVE_DELAY_S)
         session.start()
         return bridge
 

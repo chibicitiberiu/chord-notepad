@@ -325,6 +325,19 @@ def _decode_answer(request: Any, value: Any) -> Any:
     raise BridgeError(f"no answer decoding for {type(request).__name__}")
 
 
+#: Commands that can change a persisted setting. After one of them runs, a
+#: bridge with autosave on writes the config shortly after (debounced).
+CONFIG_COMMANDS = frozenset({
+    "set_bpm", "set_multiplier_pct", "set_bpm_text", "set_multiplier_text",
+    "reset_bpm", "reset_multiplier", "set_key", "set_time_signature",
+    "toggle_metronome", "set_voicing", "set_instrument", "set_notation",
+    "set_font", "step_font_size", "reset_font_size", "set_chord_sheet_visible",
+    "set_chord_sheet_height", "set_chord_sheet_view", "chord_sheet_zoom",
+    "convert_notation", "apply_settings", "save_settings",
+    "set_show_quick_start_on_startup", "open_document", "open_recent", "save", "save_as",
+})
+
+
 def _session_call(session: Any, command: str, kwargs: Dict[str, Any]) -> None:
     if command == "respond":
         request = session.pending_request
@@ -464,14 +477,20 @@ class SessionBridge:
     replay of every state.
     """
 
-    def __init__(self, host: Host, session: Any, sink: Sink) -> None:
+    def __init__(self, host: Host, session: Any, sink: Sink,
+                 autosave_s: Optional[float] = None) -> None:
         """Subscribe ``sink`` to ``session``'s output.
 
         Args:
             host: The session's host.
             session: The session (already built on ``host``'s thread).
             sink: Gets each output as ``(type_name, json)``.
+            autosave_s: If set, the config is saved this many seconds after the
+                last command that may change a setting (a process kill then
+                loses at most that). None leaves saving to the caller.
         """
+        self._autosave_s = autosave_s
+        self._autosave_timer: Any = None
         self._host = host
         self._session = session
         self._sink = sink
@@ -484,10 +503,30 @@ class SessionBridge:
 
     def submit(self, command: str, args_json: str) -> None:
         """Queue a command for the session thread and return at once."""
-        self._host.post(lambda: dispatch(self._session, command, args_json))
+        self._host.post(lambda: self._run(command, args_json))
+
+    def _run(self, command: str, args_json: str) -> None:
+        dispatch(self._session, command, args_json)
+        if self._autosave_s is not None and command in CONFIG_COMMANDS:
+            self._schedule_autosave()
+
+    def _schedule_autosave(self) -> None:
+        if self._autosave_timer is not None:
+            self._autosave_timer.cancel()
+        self._autosave_timer = self._host.call_later(self._autosave_s, self._autosave)
+
+    def _autosave(self) -> None:
+        self._autosave_timer = None
+        try:
+            self._session.save_config()
+        except Exception:
+            logger.exception("Autosaving the config failed")
 
     def close(self) -> None:
-        """Stop forwarding output (on the session thread)."""
+        """Stop forwarding output and drop a pending autosave (on the session thread)."""
+        if self._autosave_timer is not None:
+            self._autosave_timer.cancel()
+            self._autosave_timer = None
         self._subscription.cancel()
 
     def _forward(self, dto: Any) -> None:
