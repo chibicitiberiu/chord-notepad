@@ -901,3 +901,293 @@ jobs:
             android/app/build/reports/
             android/app/build/test-results/
           retention-days: 14
+
+  # --- Android release (M6) ----------------------------------------------
+  # Plain v<VERSION> tag pushes and release dispatches only; nightlies and
+  # other dispatches never touch the release keys. Produces, as workflow
+  # artifacts:
+  #   ChordNotepad-android-play: the AAB signed with the Play upload key,
+  #     uploaded to Play Console by hand (like the MSIX), never attached;
+  #   ChordNotepad-android: the universal APK signed with the FOSS key, the
+  #     full source tarball (submodules included) and SHA256SUMS, which
+  #     attach-android puts on the GitHub release.
+  # The keys live in the `android-release` environment's secrets
+  # (docs/RELEASE.md, "Android"); without them the outputs are unsigned and the
+  # job warns. Nothing desktop depends on this job, so an Android failure never
+  # blocks the desktop release.
+  android-release:
+    name: Android release (signed AAB and APK, source tarball)
+    runs-on: ubuntu-latest
+    if: |
+      startsWith(github.ref, 'refs/tags/v') ||
+      (github.event_name == 'workflow_dispatch' && inputs.build_type == 'release')
+    environment: android-release
+    permissions:
+      contents: read
+    timeout-minutes: 120
+    outputs:
+      apk_signed: ${{ steps.keys.outputs.foss }}
+      apk_cert_sha256: ${{ steps.verify-apk.outputs.cert_sha256 }}
+      version: ${{ steps.version.outputs.version }}
+    env:
+      # Keep in step with the android job above, android/native/build.sh and
+      # android/app/build.gradle.kts.
+      NDK_VERSION: 27.3.13750724
+      CMAKE_VERSION: 3.31.6
+      BUILD_TOOLS: 36.1.0
+      PYTHONHASHSEED: '0'
+    defaults:
+      run:
+        working-directory: android
+    steps:
+      - uses: actions/checkout@v5
+
+      # Releases are plain v<VERSION> tags; the versionCode check in Gradle
+      # then guarantees the AAB/APK carry the matching version.
+      - name: Check the tag against VERSION
+        id: version
+        run: |
+          VERSION=$(tr -d '[:space:]' < ../VERSION)
+          if [[ "$GITHUB_REF" == refs/tags/* && "$GITHUB_REF_NAME" != "v$VERSION" ]]; then
+            echo "::error::Android releases come from plain v<VERSION> tags: tag $GITHUB_REF_NAME, VERSION $VERSION"
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Check out the native sources
+        working-directory: .
+        run: |
+          git submodule update --init --depth 1 android/native
+          git -C android/native/fluidsynth submodule update --init --depth 1 gcem signalsmith-audio-basics
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Set up Python
+        id: python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.14.8'
+
+      # Restore only: a release build doesn't write the shared Gradle cache.
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          cache-provider: basic
+          cache-read-only: true
+
+      - name: Install Sphinx for the User Guide
+        run: python -m pip install --require-hashes -r docs-requirements.txt
+
+      # Reproducible-build inputs: the commit's time as SOURCE_DATE_EPOCH (it
+      # makes pip write hash-based .pyc files), PYTHONHASHSEED=0 (job env) and
+      # the commit id passed to Gradle explicitly (BuildConfig.COMMIT).
+      - name: Build environment
+        run: |
+          {
+            echo "CHAQUOPY_BUILD_PYTHON=${{ steps.python.outputs.python-path }}"
+            echo "CHORD_NOTEPAD_ANDROID_CACHE=$RUNNER_TEMP/android-cache"
+            echo "SOURCE_DATE_EPOCH=$(git log -1 --format=%ct)"
+            echo "CN_COMMIT=$(git rev-parse --short=9 HEAD)"
+          } >> "$GITHUB_ENV"
+
+      - name: Install SDK packages (NDK, CMake, platform, build-tools)
+        run: |
+          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          yes 2>/dev/null | "$SDKMANAGER" --licenses > /dev/null || true
+          "$SDKMANAGER" --install "platforms;android-37.0" "build-tools;$BUILD_TOOLS" \
+            "ndk;$NDK_VERSION" "cmake;$CMAKE_VERSION" > /dev/null
+
+      # The wheelhouse is hash-checked after restoring, so its cache is safe to
+      # use. The natives are deliberately built from the submodules here, not
+      # restored from the cache the android job fills.
+      - name: Restore Python wheelhouse
+        uses: actions/cache/restore@v6
+        with:
+          path: ${{ runner.temp }}/android-cache/wheelhouse
+          key: android-wheelhouse-${{ hashFiles('android/requirements.txt') }}
+
+      - name: Fetch Python wheelhouse
+        run: |
+          "$CHAQUOPY_BUILD_PYTHON" -I tools/build_wheelhouse.py fetch
+          "$CHAQUOPY_BUILD_PYTHON" -I tools/build_wheelhouse.py check
+
+      - name: Decode signing keys
+        id: keys
+        env:
+          UPLOAD_KEYSTORE_B64: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_B64 }}
+          UPLOAD_STORE_PASSWORD: ${{ secrets.ANDROID_UPLOAD_STORE_PASSWORD }}
+          FOSS_KEYSTORE_B64: ${{ secrets.ANDROID_FOSS_KEYSTORE_B64 }}
+          FOSS_STORE_PASSWORD: ${{ secrets.ANDROID_FOSS_STORE_PASSWORD }}
+        run: |
+          KEYS="$RUNNER_TEMP/android-keys"
+          mkdir -p -m 700 "$KEYS"
+          for key in upload foss; do
+            upper=${key^^}
+            b64_var="${upper}_KEYSTORE_B64"; pw_var="${upper}_STORE_PASSWORD"
+            if [[ -n "${!b64_var}" && -n "${!pw_var}" ]]; then
+              printf '%s' "${!b64_var}" | base64 -d > "$KEYS/$key.p12"
+              chmod 600 "$KEYS/$key.p12"
+              echo "$key=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "::warning::ANDROID_${upper}_KEYSTORE_B64 / ANDROID_${upper}_STORE_PASSWORD not set in the android-release environment; the $key build stays unsigned"
+              echo "$key=false" >> "$GITHUB_OUTPUT"
+            fi
+          done
+          echo "KEYS_DIR=$KEYS" >> "$GITHUB_ENV"
+
+      - name: Build the Play bundle (AAB, upload key)
+        env:
+          CN_UPLOAD_STORE_FILE: ${{ env.KEYS_DIR }}/upload.p12
+          CN_UPLOAD_STORE_PASSWORD: ${{ secrets.ANDROID_UPLOAD_STORE_PASSWORD }}
+          CN_UPLOAD_KEY_ALIAS: upload
+          SIGNING: ${{ steps.keys.outputs.upload == 'true' && 'upload' || 'none' }}
+        run: ./gradlew --no-configuration-cache bundleRelease -PcnSigning="$SIGNING" -PcnCommit="$CN_COMMIT"
+
+      - name: Build the GitHub APK (universal, FOSS key)
+        env:
+          CN_FOSS_STORE_FILE: ${{ env.KEYS_DIR }}/foss.p12
+          CN_FOSS_STORE_PASSWORD: ${{ secrets.ANDROID_FOSS_STORE_PASSWORD }}
+          CN_FOSS_KEY_ALIAS: foss
+          SIGNING: ${{ steps.keys.outputs.foss == 'true' && 'foss' || 'none' }}
+        run: ./gradlew --no-configuration-cache assembleRelease -PcnSigning="$SIGNING" -PcnCommit="$CN_COMMIT"
+
+      - name: Remove the decoded keys
+        if: always()
+        run: rm -rf "$KEYS_DIR"
+
+      - name: Collect outputs
+        run: |
+          V=${{ steps.version.outputs.version }}
+          mkdir -p dist-android
+          if [[ "${{ steps.keys.outputs.foss }}" == "true" ]]; then
+            cp app/build/outputs/apk/release/app-release.apk dist-android/ChordNotepad-android.apk
+          else
+            cp app/build/outputs/apk/release/app-release-unsigned.apk dist-android/ChordNotepad-android-unsigned.apk
+          fi
+          cp app/build/outputs/bundle/release/app-release.aab "dist-android/ChordNotepad-$V-play.aab"
+          python3 tools/make_source_tarball.py --repo .. --out "dist-android/ChordNotepad-$V-source.tar.gz"
+          ls -l dist-android
+
+      # v2 + v3 signature, 16 KB page alignment, and the merged manifest (no
+      # INTERNET, no Play services). ANDROID_FOSS_CERT_SHA256 (environment or
+      # repo variable, lowercase hex) pins the expected certificate.
+      - name: Verify the APK
+        id: verify-apk
+        env:
+          EXPECTED_CERT: ${{ vars.ANDROID_FOSS_CERT_SHA256 }}
+        run: |
+          APK=$(ls dist-android/*.apk)
+          BT="$ANDROID_HOME/build-tools/$BUILD_TOOLS"
+          python3 tools/check_16k.py "$APK"
+          "$BT/zipalign" -c -P 16 4 "$APK"
+          python3 tools/check_manifest.py --aapt2 "$BT/aapt2" "$APK"
+          if [[ "${{ steps.keys.outputs.foss }}" != "true" ]]; then
+            echo "::warning::The APK is unsigned (no FOSS key); it won't be attached to the release"
+            exit 0
+          fi
+          "$BT/apksigner" verify --verbose --print-certs "$APK" | grep -v '^WARNING' | tee apksigner.txt
+          grep -q 'Verified using v2 scheme (APK Signature Scheme v2): true' apksigner.txt
+          grep -q 'Verified using v3 scheme (APK Signature Scheme v3): true' apksigner.txt
+          CERT=$(sed -n 's/^Signer #1 certificate SHA-256 digest: //p' apksigner.txt)
+          if [[ -n "$EXPECTED_CERT" && "$CERT" != "$EXPECTED_CERT" ]]; then
+            echo "::error::APK signed with certificate $CERT, expected ANDROID_FOSS_CERT_SHA256 $EXPECTED_CERT"
+            exit 1
+          fi
+          echo "cert_sha256=$CERT" >> "$GITHUB_OUTPUT"
+
+      - name: Verify the AAB
+        run: |
+          AAB=$(ls dist-android/*.aab)
+          if [[ "${{ steps.keys.outputs.upload }}" != "true" ]]; then
+            echo "::warning::The AAB is unsigned (no upload key); Play Console won't accept it"
+            exit 0
+          fi
+          # An AAB always draws jarsigner warnings (self-signed, entry order);
+          # only "jar verified." matters.
+          jarsigner -verify "$AAB" > jarsigner.txt 2>&1 || { cat jarsigner.txt; exit 1; }
+          grep -q '^jar verified' jarsigner.txt || { cat jarsigner.txt; exit 1; }
+          keytool -printcert -jarfile "$AAB" | grep -E 'Owner:|SHA256:'
+
+      - name: Checksums
+        working-directory: android/dist-android
+        run: sha256sum ChordNotepad-android*.apk ChordNotepad-*-source.tar.gz | tee SHA256SUMS
+
+      - name: Upload Play bundle
+        uses: actions/upload-artifact@v6
+        with:
+          name: ChordNotepad-android-play
+          path: android/dist-android/*.aab
+          retention-days: 90
+
+      - name: Upload APK and source tarball
+        uses: actions/upload-artifact@v6
+        with:
+          name: ChordNotepad-android
+          path: |
+            android/dist-android/*.apk
+            android/dist-android/*-source.tar.gz
+            android/dist-android/SHA256SUMS
+          retention-days: 90
+
+  # Puts the FOSS-signed APK and the source tarball on the GitHub release that
+  # create-release made. Runs only when both succeeded, so it can't hold up or
+  # fail the desktop release; an unsigned APK is never attached.
+  attach-android:
+    name: Attach Android to the release
+    needs: [create-release, android-release]
+    if: |
+      always() &&
+      needs.create-release.result == 'success' &&
+      needs.android-release.result == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download Android artifacts
+        uses: actions/download-artifact@v8
+        with:
+          name: ChordNotepad-android
+          path: android-dist
+
+      - name: Upload to the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          APK_SIGNED: ${{ needs.android-release.outputs.apk_signed }}
+          CERT: ${{ needs.android-release.outputs.apk_cert_sha256 }}
+          VERSION: ${{ needs.android-release.outputs.version }}
+        run: |
+          # Same tag as create-release: the pushed tag, or v<VERSION>-build<run>.
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            TAG="$GITHUB_REF_NAME"
+          else
+            TAG="v${VERSION}-build${{ github.run_number }}"
+          fi
+          cd android-dist
+          FILES=("ChordNotepad-$VERSION-source.tar.gz")
+          if [[ "$APK_SIGNED" == "true" ]]; then
+            FILES+=(ChordNotepad-android.apk SHA256SUMS)
+          else
+            echo "::warning::No FOSS-signed APK; attaching only the source tarball"
+          fi
+          gh release upload "$TAG" "${FILES[@]}" --clobber --repo "$GITHUB_REPOSITORY"
+
+          # Add an Android section to the release notes (once).
+          gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json body -q .body > notes.md
+          if ! grep -q '^### Android' notes.md; then
+            {
+              echo ""
+              echo "### Android"
+              if [[ "$APK_SIGNED" == "true" ]]; then
+                echo "- **Android**: \`ChordNotepad-android.apk\` (Android 7.0 or newer, 64-bit ARM or x86_64)."
+                echo "  Signing certificate SHA-256: \`$CERT\`"
+                echo "  Google Play and this APK are signed with different keys, so one can't update the other;"
+                echo "  to switch, uninstall first."
+              fi
+              echo "- **Source code** (app, build scripts and the native libraries' sources): \`ChordNotepad-$VERSION-source.tar.gz\`"
+            } >> notes.md
+            gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --notes-file notes.md
+          fi
