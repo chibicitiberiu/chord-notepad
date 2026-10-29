@@ -7,7 +7,7 @@ from models.chord import ChordInfo
 from models.rendered_song import RenderedChord, RenderedSong
 from services.song_parser_service import SongParserService
 from services.song_renderer import SongRenderer
-from ui.chord_sheet.fret_card import (
+from chord_sheet.fret_card import (
     DEFAULT_ROWS,
     MAX_CONTENT_HEIGHT,
     REST_WIDTH,
@@ -16,8 +16,8 @@ from ui.chord_sheet.fret_card import (
     _compute_geometry,
     _song_geometry_inputs,
 )
-from ui.chord_sheet.ops import DrawOps, LineOp, OvalOp, RectOp, TextOp
-from ui.chord_sheet.renderer_interface import SheetContext
+from chord_sheet.ops import DrawOps, LineOp, OvalOp, RectOp, TextOp
+from chord_sheet.renderer_interface import SheetContext
 
 HEIGHT = 120.0
 

@@ -4,7 +4,7 @@
 chord diagram (strings vertical, frets horizontal, nut/fret-position marker at
 top) with the chord symbol printed above it. Rests and chords voiced without
 fingering data (``RenderedChord.fingering is None``) get a slim empty card,
-matching :class:`~ui.chord_sheet.name_card.NameCardRenderer`'s rest handling.
+matching :class:`~chord_sheet.name_card.NameCardRenderer`'s rest handling.
 
 The diagram logic is a direct port of the user's own ``guitar_svg`` generator
 (``scripts/music/chord_diagrams.py`` in the tibich.com blog repo): strings are
@@ -37,8 +37,8 @@ from dataclasses import dataclass
 from typing import List, Optional, Tuple
 
 from models.rendered_song import RenderedChord, RenderedSong
-from ui.chord_sheet.ops import DrawOps
-from ui.chord_sheet.renderer_interface import (
+from chord_sheet.ops import DrawOps
+from chord_sheet.renderer_interface import (
     SheetContext,
     chord_symbol_label,
     SlotBox,

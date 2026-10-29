@@ -1,4 +1,4 @@
-"""Tests for the chord-sheet draw-op recorder (``ui.chord_sheet.ops``).
+"""Tests for the chord-sheet draw-op recorder (``chord_sheet.ops``) and its Tk replay.
 
 Recording is headless and exercised in full. Replay onto a real ``tk.Canvas``
 needs a display, so that check is skipped gracefully when Tk cannot open a root
@@ -7,7 +7,7 @@ needs a display, so that check is skipped gracefully when Tk cannot open a root
 
 import pytest
 
-from ui.chord_sheet.ops import (
+from chord_sheet.ops import (
     DrawOps,
     RectOp,
     LineOp,
@@ -15,8 +15,8 @@ from ui.chord_sheet.ops import (
     PolygonOp,
     TextOp,
     ImageOp,
-    replay,
 )
+from ui.chord_sheet.tk_replay import replay
 
 
 def test_records_ops_in_call_order():

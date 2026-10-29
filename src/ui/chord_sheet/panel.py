@@ -27,11 +27,12 @@ from constants import (
     UI_TAB_IDLE,
     UI_TEXT_DISABLED,
 )
+from chord_sheet.clef_assets import image_for_clef_key
+from chord_sheet.marker_lane import LANE_HEIGHT, build_marker_lane
+from chord_sheet.ops import DrawOps, ImageOp
+from chord_sheet.renderer_interface import SheetContext, STRIP_BG, StripLayout
 from ui.base.tooltip import TabToolTip
-from ui.chord_sheet.clef_assets import image_for_clef_key
-from ui.chord_sheet.marker_lane import LANE_HEIGHT, build_marker_lane
-from ui.chord_sheet.ops import DrawOps, ImageOp, replay
-from ui.chord_sheet.renderer_interface import SheetContext, STRIP_BG, StripLayout
+from ui.chord_sheet.tk_replay import replay
 
 logger = logging.getLogger(__name__)
 
@@ -402,7 +403,7 @@ class ChordSheetPanel(ttk.Frame):
         """Size, show, and repaint the frozen left gutter for the active view.
 
         The gutter is a non-scrolling pane whose width comes from the renderer's
-        :meth:`~ui.chord_sheet.renderer_interface.StripRenderer.gutter_width`
+        :meth:`~chord_sheet.renderer_interface.StripRenderer.gutter_width`
         (0 collapses it entirely). Its ops are painted in gutter-local
         coordinates with ``scroll_x`` = the content x currently at the strip
         viewport's left edge, so scroll-dependent gutters can redraw. Identical

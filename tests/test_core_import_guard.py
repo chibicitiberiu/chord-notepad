@@ -29,7 +29,9 @@ DESKTOP_ONLY = {
 # these one by one (docs/ANDROID_PORT_PLAN.md); the test fails when one starts
 # importing cleanly, so the entry gets deleted instead of going stale.
 KNOWN_LEAKS = {
-    "viewmodels.chord_sheet_viewmodel",  # ui.chord_sheet -> clef_assets -> PIL
+    "chord_sheet.clef_assets",  # PIL at module level
+    "chord_sheet.staff_card",  # -> clef_assets -> PIL
+    "viewmodels.chord_sheet_viewmodel",  # -> staff_card -> clef_assets -> PIL
 }
 
 _PROBE = r"""

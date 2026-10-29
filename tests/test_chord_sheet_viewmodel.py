@@ -11,7 +11,7 @@ import pytest
 
 from models.rendered_song import RenderedSong, RenderedChord
 from models.chord import ChordInfo
-from ui.chord_sheet.renderer_interface import (
+from chord_sheet.renderer_interface import (
     SheetContext,
     SlotBox,
     StripLayout,

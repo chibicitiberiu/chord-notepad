@@ -7,9 +7,9 @@ from models.chord import ChordInfo
 from models.rendered_song import RenderedChord, RenderedSong
 from services.song_parser_service import SongParserService
 from services.song_renderer import SongRenderer
-from ui.chord_sheet.ops import DrawOps, LineOp, RectOp, TextOp
-from ui.chord_sheet.renderer_interface import SheetContext, STRIP_BG
-from ui.chord_sheet.tab_strip import (
+from chord_sheet.ops import DrawOps, LineOp, RectOp, TextOp
+from chord_sheet.renderer_interface import SheetContext, STRIP_BG
+from chord_sheet.tab_strip import (
     BOTTOM_MARGIN,
     LABEL_BOX_H,
     MAX_SLOT_WIDTH,

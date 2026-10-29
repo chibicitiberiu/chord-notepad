@@ -7,7 +7,7 @@ bar line mid-chord, so two measures read as one.
 from services.song_parser_service import SongParserService
 from services.song_renderer import SongRenderer
 from audio.chord_picker import ChordNotePicker
-from ui.chord_sheet.renderer_interface import (
+from chord_sheet.renderer_interface import (
     SlotBox,
     StripLayout,
     bar_line_xs,

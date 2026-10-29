@@ -2,7 +2,7 @@
 
 :class:`PianoRollRenderer` replaces the earlier per-chord mini-keyboard cards
 (``KeyboardCardRenderer``) with a single continuous lane, in the spirit of
-:class:`~ui.chord_sheet.tab_strip.TabStripRenderer`: one row per semitone,
+:class:`~chord_sheet.tab_strip.TabStripRenderer`: one row per semitone,
 spanning the song-wide voiced pitch range, with duration-proportional slots
 carrying horizontal note bars instead of a repeated keyboard diagram. The
 per-card keyboard read poorly once several cards were on screen at once (too
@@ -32,7 +32,7 @@ Layout:
 - **Slots:** one per chord in song order (rests included, as gaps -- nothing
   is drawn for them beyond the shared bar-line/shading passes), duration-
   proportional using the same ``PX_PER_BEAT``/min/max clamp values as
-  :mod:`~ui.chord_sheet.tab_strip` for cross-view consistency.
+  :mod:`~chord_sheet.tab_strip` for cross-view consistency.
 - **Note bars:** one horizontal bar per sounding note, positioned by row.
   Ensemble voicings (``voice_notes`` present) color each bar by voice index
   low-to-high via ``VOICE_COLORS`` (iterating ``voice_notes`` rather than the
@@ -43,7 +43,7 @@ Layout:
 - **Chord symbols** (``chord_symbol_label``) sit in a band above the roll,
   centered over each slot.
 - **Bar lines:** a vertical light rule at every measure boundary, placed by the
-  shared :func:`~ui.chord_sheet.renderer_interface.bar_line_xs` helper. A
+  shared :func:`~chord_sheet.renderer_interface.bar_line_xs` helper. A
   boundary that falls inside a long chord (e.g. ``A*8`` in 4/4) is interpolated
   mid-slot, so held chords still show the measure line.
 """
@@ -51,8 +51,8 @@ Layout:
 from typing import List, Tuple
 
 from models.rendered_song import RenderedChord, RenderedSong
-from ui.chord_sheet.ops import DrawOps
-from ui.chord_sheet.renderer_interface import (
+from chord_sheet.ops import DrawOps
+from chord_sheet.renderer_interface import (
     HAND_COLORS,
     NOTE_INK,
     STRIP_BG,

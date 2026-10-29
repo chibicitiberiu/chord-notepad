@@ -20,15 +20,15 @@ just past the previous flag's estimated right edge, whichever is further right.
 Only the flag shifts -- the rule always stays at the group's true x.
 
 Pure and headless-testable: :func:`build_marker_lane` records into a
-:class:`~ui.chord_sheet.ops.DrawOps` and returns it; the panel replays it onto
+:class:`~chord_sheet.ops.DrawOps` and returns it; the panel replays it onto
 the lane's canvas.
 """
 
 from typing import List, Sequence, Tuple
 
 from models.rendered_song import RenderedChord, SongMarker
-from ui.chord_sheet.ops import DrawOps
-from ui.chord_sheet.renderer_interface import SlotBox
+from chord_sheet.ops import DrawOps
+from chord_sheet.renderer_interface import SlotBox
 
 #: Height of the lane, px (the panel reserves this above the renderer content).
 LANE_HEIGHT = 20.0

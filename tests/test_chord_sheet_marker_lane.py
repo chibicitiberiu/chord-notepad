@@ -9,9 +9,9 @@ import pytest
 
 from models.chord import ChordInfo
 from models.rendered_song import RenderedChord, RenderedSong, SongMarker
-from ui.chord_sheet.ops import LineOp, RectOp, TextOp
-from ui.chord_sheet.renderer_interface import SlotBox
-from ui.chord_sheet.marker_lane import (
+from chord_sheet.ops import LineOp, RectOp, TextOp
+from chord_sheet.renderer_interface import SlotBox
+from chord_sheet.marker_lane import (
     LANE_HEIGHT,
     beat_to_x,
     build_marker_lane,

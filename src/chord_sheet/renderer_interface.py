@@ -2,7 +2,7 @@
 
 This module is the frozen seam between the chord-sheet machinery (viewmodel +
 panel) and the individual strip renderers. The placeholder
-:class:`~ui.chord_sheet.name_card.NameCardRenderer` implements it today; the
+:class:`~chord_sheet.name_card.NameCardRenderer` implements it today; the
 four real renderers (keyboard diagram, grand staff, guitar fret box, and tab
 view) plug in later **without changing this interface**.
 
@@ -16,7 +16,7 @@ Design rules for renderers:
   lets tests exercise renderers headlessly.
 - ``layout`` returns one :class:`SlotBox` per rendered chord, **in song order**,
   including rests. Rests (``RenderedChord.is_rest``) get slim slots.
-- ``paint`` draws into a :class:`~ui.chord_sheet.ops.DrawOps` recorder using the
+- ``paint`` draws into a :class:`~chord_sheet.ops.DrawOps` recorder using the
   geometry from the matching :class:`StripLayout` -- it never recomputes x
   positions independently, so hit-testing (which uses the layout) and painting
   stay consistent.
@@ -27,7 +27,7 @@ from dataclasses import dataclass
 from typing import List, Tuple
 
 from models.rendered_song import RenderedChord, RenderedSong
-from ui.chord_sheet.ops import DrawOps
+from chord_sheet.ops import DrawOps
 
 
 @dataclass(frozen=True)

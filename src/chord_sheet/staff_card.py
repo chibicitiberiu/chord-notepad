@@ -8,7 +8,7 @@ slot; the chord symbol sits in a band above the treble staff. This replaces the
 old one-card-per-chord layout with a continuous lane like the tab view.
 
 The renderer stays a pure function of ``(ctx, height)`` per the
-:class:`~ui.chord_sheet.renderer_interface.StripRenderer` contract: all vertical
+:class:`~chord_sheet.renderer_interface.StripRenderer` contract: all vertical
 geometry derives from ``height`` (which fixes the staff-space size) and all
 horizontal geometry from the song's durations/keys, so ``layout`` and ``paint``
 agree without sharing state.
@@ -16,7 +16,7 @@ agree without sharing state.
 Engraving detail:
 
 - **Glyphs are Bravura images, not hand-drawn shapes.** Noteheads and
-  accidentals come from :func:`~ui.chord_sheet.clef_assets.glyph_placement`
+  accidentals come from :func:`~chord_sheet.clef_assets.glyph_placement`
   (embedded, SMuFL-registered PNGs), tinted per voice/hand.
 - **Wide staff gap.** The two staves are separated by more than three staff
   spaces so they never read as merged at middle C; a middle C gets its single
@@ -71,9 +71,9 @@ from typing import Dict, List, NamedTuple, Optional, Tuple
 
 from chord.midi_converter import parse_note_to_semitone
 from models.rendered_song import RenderedChord, RenderedSong
-from ui.chord_sheet.clef_assets import clef_placement, glyph_placement
-from ui.chord_sheet.ops import DrawOps
-from ui.chord_sheet.renderer_interface import (
+from chord_sheet.clef_assets import clef_placement, glyph_placement
+from chord_sheet.ops import DrawOps
+from chord_sheet.renderer_interface import (
     HAND_COLORS,
     NOTE_INK,
     STRIP_BG,
@@ -86,7 +86,7 @@ from ui.chord_sheet.renderer_interface import (
 )
 # Duration->width constants are shared with the tab lane so both continuous
 # views scale time identically.
-from ui.chord_sheet.tab_strip import (
+from chord_sheet.tab_strip import (
     MAX_SLOT_WIDTH,
     MIN_SLOT_WIDTH,
     PX_PER_BEAT,

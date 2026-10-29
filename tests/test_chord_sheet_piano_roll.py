@@ -5,15 +5,15 @@ from services.song_parser_service import SongParserService
 from services.song_renderer import SongRenderer
 from models.rendered_song import RenderedSong, RenderedChord
 from models.chord import ChordInfo
-from ui.chord_sheet.ops import DrawOps, TextOp, RectOp, LineOp
-from ui.chord_sheet.piano_roll import (
+from chord_sheet.ops import DrawOps, TextOp, RectOp, LineOp
+from chord_sheet.piano_roll import (
     PianoRollRenderer,
     GUTTER_W,
     WHITE_PC,
     _pitch_range,
     _slot_width,
 )
-from ui.chord_sheet.renderer_interface import (
+from chord_sheet.renderer_interface import (
     HAND_COLORS,
     NOTE_INK,
     SheetContext,

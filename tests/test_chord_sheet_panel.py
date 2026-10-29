@@ -14,7 +14,7 @@ tk = pytest.importorskip("tkinter")
 from audio.chord_picker import ChordNotePicker
 from services.song_parser_service import SongParserService
 from services.song_renderer import SongRenderer
-from ui.chord_sheet.renderer_interface import (
+from chord_sheet.renderer_interface import (
     STRIP_BG,
     SheetContext,
     SlotBox,

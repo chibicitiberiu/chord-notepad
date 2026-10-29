@@ -17,16 +17,16 @@ from models.chord_notes import ChordNotes
 from models.line import Line
 from models.rendered_song import RenderedChord, RenderedSong
 from services.song_renderer import SongRenderer
-from ui.chord_sheet.ops import DrawOps, ImageOp, LineOp, TextOp
-from ui.chord_sheet.renderer_interface import (
+from chord_sheet.ops import DrawOps, ImageOp, LineOp, TextOp
+from chord_sheet.renderer_interface import (
     HAND_COLORS,
     NOTE_INK,
     SheetContext,
     VOICE_COLORS,
 )
-from ui.chord_sheet import clef_assets as ca
-from ui.chord_sheet import staff_card as sc
-from ui.chord_sheet.staff_card import StaffCardRenderer, REST_WIDTH
+from chord_sheet import clef_assets as ca
+from chord_sheet import staff_card as sc
+from chord_sheet.staff_card import StaffCardRenderer, REST_WIDTH
 
 
 # --------------------------------------------------------------------------

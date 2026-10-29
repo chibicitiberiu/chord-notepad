@@ -8,14 +8,14 @@ its fret numbers onto those lines at its slot. Per the tab convention, the
 string, so string ``i`` is drawn on line ``len(fingering) - 1 - i`` from the
 top.
 
-Unlike :class:`~ui.chord_sheet.fret_card.FretCardRenderer`'s uniform cards,
+Unlike :class:`~chord_sheet.fret_card.FretCardRenderer`'s uniform cards,
 slot width here is proportional to ``duration_beats`` (clamped so a whole note
 doesn't dwarf a sixteenth), and rests are empty gaps in the lane rather than
 their own slim card -- the string lines simply continue underneath them, and
 no glyphs are drawn.
 
 Bar lines are measure-accurate, not chord-accurate: they are placed via the
-shared :func:`~ui.chord_sheet.renderer_interface.bar_line_xs` helper, which
+shared :func:`~chord_sheet.renderer_interface.bar_line_xs` helper, which
 walks the song's meter map rather than each chord's ``bar`` field, so a chord
 held across a measure boundary (e.g. ``A*8`` in 4/4) still shows a bar line
 mid-chord instead of only at the next chord's start.
@@ -30,8 +30,8 @@ that's needed.
 from typing import List, Tuple
 
 from models.rendered_song import RenderedSong
-from ui.chord_sheet.ops import DrawOps
-from ui.chord_sheet.renderer_interface import (
+from chord_sheet.ops import DrawOps
+from chord_sheet.renderer_interface import (
     bar_line_xs,
     chord_symbol_label,
     SheetContext,

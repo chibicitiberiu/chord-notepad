@@ -46,11 +46,11 @@ from models.chord import ChordInfo
 from models.line import Line
 from models.rendered_song import RenderedSong
 from session.host import Host
-from ui.chord_sheet.fret_card import FretCardRenderer
-from ui.chord_sheet.piano_roll import PianoRollRenderer
-from ui.chord_sheet.renderer_interface import StripRenderer
-from ui.chord_sheet.staff_card import StaffCardRenderer
-from ui.chord_sheet.tab_strip import TabStripRenderer
+from chord_sheet.fret_card import FretCardRenderer
+from chord_sheet.piano_roll import PianoRollRenderer
+from chord_sheet.renderer_interface import StripRenderer
+from chord_sheet.staff_card import StaffCardRenderer
+from chord_sheet.tab_strip import TabStripRenderer
 from utils.observable import Observable
 
 logger = logging.getLogger(__name__)
@@ -312,7 +312,7 @@ class ChordSheetViewModel(Observable):
     @property
     def zoom_for_active_view(self) -> float:
         """The active view's zoom factor (the value the panel threads into
-        :class:`~ui.chord_sheet.renderer_interface.SheetContext`)."""
+        :class:`~chord_sheet.renderer_interface.SheetContext`)."""
         return self._zoom
 
     @property

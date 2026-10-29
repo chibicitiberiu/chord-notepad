@@ -9,9 +9,9 @@ from chord.helper import ChordHelper
 from services.song_parser_service import SongParserService
 from services.song_renderer import SongRenderer
 from audio.chord_picker import ChordNotePicker
-from ui.chord_sheet.piano_roll import PianoRollRenderer
-from ui.chord_sheet.ops import DrawOps, TextOp
-from ui.chord_sheet.renderer_interface import SheetContext, chord_symbol_label
+from chord_sheet.piano_roll import PianoRollRenderer
+from chord_sheet.ops import DrawOps, TextOp
+from chord_sheet.renderer_interface import SheetContext, chord_symbol_label
 
 
 # ---------------------------------------------------------------------------
