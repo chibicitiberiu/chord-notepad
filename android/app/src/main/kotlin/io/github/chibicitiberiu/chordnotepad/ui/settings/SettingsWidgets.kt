@@ -38,9 +38,11 @@ import io.github.chibicitiberiu.chordnotepad.ui.icons.AppIcons
 /**
  * A text field over a [value] that lives elsewhere (the draft, or the voicing
  * form's state plus edits not echoed yet). What the user types stays as typed
- * (even when it isn't valid); [value] replaces it only when it changes to
+ * (even when it isn't valid); [value] replaces it only when it becomes
  * something this field didn't send (a stepper, a preset, a model switch).
- * [key] resets it (another voicing).
+ * Values it sent are remembered until [value] catches up with the text, so a
+ * late echo of an earlier keystroke never undoes a later one. [key] resets it
+ * (another voicing).
  */
 @Composable
 fun StateTextField(
@@ -55,13 +57,21 @@ fun StateTextField(
     trailing: (@Composable () -> Unit)? = null,
 ) {
     var text by rememberSaveable(key) { mutableStateOf(value) }
-    var sent by remember(key) { mutableStateOf<String?>(null) }
-    LaunchedEffect(value) { if (value != sent) text = value }
+    val sent = remember(key) { mutableSetOf<String>() }
+    LaunchedEffect(value) {
+        when {
+            value == text -> sent.clear()
+            value !in sent -> {
+                text = value
+                sent.clear()
+            }
+        }
+    }
     OutlinedTextField(
         value = text,
         onValueChange = {
             text = it
-            sent = it
+            sent += it
             onValueChange(it)
         },
         label = { Text(label) },

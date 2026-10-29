@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 
 /** Where the Settings screen is in its life. */
@@ -311,6 +312,16 @@ class SettingsController(private val commands: ScreenCommands, saved: SettingsUi
         pending.record(payload)
         touch { commands.setVoicingValues(payload) }
         _editor.value?.let { _editor.value = it.copy(values = pending.applyTo(it.state.values)) }
+    }
+
+    /**
+     * A records cell changed: the whole list goes out, built on the rows shown
+     * now (with edits not echoed yet), so quick edits of two cells both stay.
+     */
+    fun editCell(fieldId: String, index: Int, column: String, value: JsonElement) {
+        val view = _editor.value ?: return
+        val rows = pending.applyTo(view.state.values)[fieldId].asRecords()
+        edit(VoicingEdits.cell(fieldId, rows, index, column, value))
     }
 
     /** Add a row to records field [fieldId]. */

@@ -47,6 +47,7 @@ import androidx.compose.ui.unit.dp
 import io.github.chibicitiberiu.chordnotepad.R
 import io.github.chibicitiberiu.chordnotepad.bridge.VoicingEditorState
 import io.github.chibicitiberiu.chordnotepad.bridge.VoicingPreset
+import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 
 /**
@@ -131,6 +132,8 @@ private fun VoicingDetail(schema: EditorSchema, view: EditorView, wide: Boolean,
     val actions = remember(controller) {
         object : FormActions {
             override fun edit(payload: JsonObject) = controller.edit(payload)
+            override fun editCell(fieldId: String, index: Int, column: String, value: JsonElement) =
+                controller.editCell(fieldId, index, column, value)
             override fun addRecord(fieldId: String) = controller.addRecord(fieldId)
             override fun removeRecord(index: Int, fieldId: String) = controller.removeRecord(index, fieldId)
         }
@@ -172,7 +175,7 @@ private fun VoicingDetail(schema: EditorSchema, view: EditorView, wide: Boolean,
         schema.help["load"]?.let { HelpLine(it) }
         if (state.formErrors.isNotEmpty()) ErrorBanner(state.formErrors)
         HorizontalDivider(Modifier.padding(top = 8.dp))
-        VoicingFormItems(items, view.values, "$name:${state.model}", wide, actions)
+        VoicingFormItems(items, "$name:${state.model}", wide, actions)
     }
 }
 

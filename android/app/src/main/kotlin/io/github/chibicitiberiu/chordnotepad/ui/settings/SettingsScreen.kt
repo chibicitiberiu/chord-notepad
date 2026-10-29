@@ -40,6 +40,10 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -272,10 +276,14 @@ private fun ConfirmDialog(
     )
 }
 
-/** Rename a voicing; a refused name comes back from Python as a "Rename Voicing" error. */
+/** Rename a voicing (the name selected, ready to type over); a refused name comes back as a "Rename Voicing" error. */
 @Composable
 private fun RenameDialog(name: String, schema: EditorSchema?, controller: SettingsController) {
-    var text by rememberSaveable(name) { mutableStateOf(name) }
+    var text by rememberSaveable(name, stateSaver = TextFieldValue.Saver) {
+        mutableStateOf(TextFieldValue(name, selection = TextRange(0, name.length)))
+    }
+    val focus = remember { FocusRequester() }
+    LaunchedEffect(Unit) { focus.requestFocus() }
     AlertDialog(
         onDismissRequest = controller::dismissDialog,
         title = { Text(stringResource(R.string.voicings_rename)) },
@@ -286,10 +294,11 @@ private fun RenameDialog(name: String, schema: EditorSchema?, controller: Settin
                 singleLine = true,
                 label = { Text(schema?.text("name_label", "Name") ?: "Name") },
                 supportingText = schema?.help?.get("name")?.let { { Text(it) } },
+                modifier = Modifier.focusRequester(focus),
             )
         },
         confirmButton = {
-            TextButton(onClick = { controller.confirmDialog(text) }, enabled = text.isNotBlank()) {
+            TextButton(onClick = { controller.confirmDialog(text.text) }, enabled = text.text.isNotBlank()) {
                 Text(stringResource(android.R.string.ok))
             }
         },

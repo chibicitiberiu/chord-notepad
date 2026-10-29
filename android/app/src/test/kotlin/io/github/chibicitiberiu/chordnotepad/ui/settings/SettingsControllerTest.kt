@@ -267,6 +267,22 @@ class SettingsControllerTest {
     }
 
     @Test
+    fun `two quick cell edits both stay before any echo`() {
+        val c = editing()
+        c.onEditor(Fixtures.ensemble)
+        c.editCell("voices", 0, "name", JsonPrimitive("Bass"))
+        c.editCell("voices", 1, "low", JsonPrimitive("G2"))
+        // The (late) echo of the first edit doesn't undo the second.
+        val first = submitter.sent[0].second.getValue("values").jsonObject
+        c.onEditor(Fixtures.ensemble.copy(revision = 50, values = first))
+        val rows = c.editor.value!!.values.getValue("voices").asRecords()
+        assertEquals("Bass", rows[0].getValue("name").jsonPrimitive.content)
+        assertEquals("G2", rows[1].getValue("low").jsonPrimitive.content)
+        val last = submitter.sent.last().second.getValue("values").jsonObject.getValue("voices").jsonArray
+        assertEquals("Bass", last[0].jsonObject.getValue("name").jsonPrimitive.content)
+    }
+
+    @Test
     fun `a lost edit (process restarted under the screen) is opened again`() {
         val c = editing()
         c.onEditor(inactive.copy(revision = 3))

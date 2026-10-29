@@ -30,6 +30,9 @@ interface FormActions {
     /** A `set_voicing_values` payload ([VoicingEdits]). */
     fun edit(payload: JsonObject)
 
+    /** Records cell ([index], [column]) of [fieldId] changed to [value]. */
+    fun editCell(fieldId: String, index: Int, column: String, value: JsonElement)
+
     /** Add a row to records field [fieldId]. */
     fun addRecord(fieldId: String)
 
@@ -38,13 +41,12 @@ interface FormActions {
 }
 
 /**
- * The voicing form: every [FormItem] of [buildForm], drawn by kind. [values]
- * are the form's current values (records edits send whole rows), [formKey]
+ * The voicing form: every [FormItem] of [buildForm], drawn by kind. [formKey]
  * names the voicing and model (the fields reset when it changes), [wide]
  * puts grids in two columns and records in a table.
  */
 @Composable
-fun VoicingFormItems(items: List<FormItem>, values: JsonObject, formKey: String, wide: Boolean, actions: FormActions) {
+fun VoicingFormItems(items: List<FormItem>, formKey: String, wide: Boolean, actions: FormActions) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         for (item in items) {
             when (item) {
@@ -52,7 +54,7 @@ fun VoicingFormItems(items: List<FormItem>, values: JsonObject, formKey: String,
                 is FormItem.Stack -> for (field in item.fields) FieldInput(field, "$formKey:${field.spec.id}", actions, Modifier.fillMaxWidth())
                 is FormItem.Grid -> FieldGrid(item.fields, formKey, wide, actions)
                 is FormItem.Range -> RangeInput(item, formKey, actions)
-                is FormItem.Records -> RecordsInput(item, values, formKey, wide, actions)
+                is FormItem.Records -> RecordsInput(item, formKey, wide, actions)
             }
         }
     }
@@ -149,9 +151,8 @@ private fun RangeInput(item: FormItem.Range, formKey: String, actions: FormActio
 }
 
 @Composable
-private fun RecordsInput(item: FormItem.Records, values: JsonObject, formKey: String, wide: Boolean, actions: FormActions) {
+private fun RecordsInput(item: FormItem.Records, formKey: String, wide: Boolean, actions: FormActions) {
     val spec = item.spec
-    val rows = values[spec.id].asRecords()
     // Each column's help once, above the rows.
     for (column in spec.columns) {
         if (column.help.isNotBlank()) {
@@ -171,7 +172,7 @@ private fun RecordsInput(item: FormItem.Records, values: JsonObject, formKey: St
                 actions = actions,
                 modifier = modifier,
                 withHelp = false,
-                onValue = { actions.edit(VoicingEdits.cell(spec.id, rows, row.index, field.spec.id, it)) },
+                onValue = { actions.editCell(spec.id, row.index, field.spec.id, it) },
             )
         }
         val remove: @Composable () -> Unit = {
