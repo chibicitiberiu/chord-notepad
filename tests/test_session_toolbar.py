@@ -215,7 +215,7 @@ def test_set_notation_respells_the_key_and_redetects():
     env.session.set_notation("european")
 
     kinds = [type(item).__name__ for item in env.recorder.items]
-    assert kinds == ["HighlightState", "EditorState", "ToolbarState"]
+    assert kinds == ["HighlightState", "EditorState", "ToolbarState", "SongDefaultsState"]
     assert len(env.recorder.last(HighlightState).spans) == 2
     state = env.toolbar()
     assert (state.notation, state.key) == ("european", "Sol")
@@ -236,7 +236,7 @@ def test_convert_sends_the_edit_first_then_its_highlight_and_the_toolbar():
     env.session.convert_notation("european")
     kinds = [type(item).__name__ for item in env.recorder.items]
     assert kinds == ["TextEdited", "HighlightState", "EditorState", "ToolbarState",
-                     "StatusState"]
+                     "SongDefaultsState", "StatusState"]
     assert env.toolbar().key == "Fa"
 
 

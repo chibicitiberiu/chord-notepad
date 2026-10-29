@@ -81,6 +81,13 @@ class PlaybackState:
             list (loop passes have distinct indices), or None.
         bar: The current bar, 1-based (0 when idle).
         total_bars: Bars in the played song (0 when idle).
+        playhead_offset: Where the playhead is: the start of the chord Play
+            starts from (``play_pause`` without an offset), in code points;
+            None for no playhead (Play starts at the top). Set with
+            ``set_playhead`` or ``rewind``; on Android also by chord taps,
+            by playback (it follows the chord sounding) and by the end of
+            the song (back to the first chord). Kept on chord spans across
+            edits.
 
     The effective tempo of the chord sounding is the toolbar's
     (``ToolbarState.bpm_display``).
@@ -91,6 +98,7 @@ class PlaybackState:
     chord_index: Optional[int] = None
     bar: int = 0
     total_bars: int = 0
+    playhead_offset: Optional[int] = None
 
 
 class PlayAction(str, Enum):
@@ -255,6 +263,10 @@ class ChordSheetState:
             rendered song), or None.
         song_revision: Goes up whenever the strip rendered a new song, so a
             view knows to repaint.
+        cursor_index: The rendered-song index of the playhead's chord
+            (``PlaybackState.playhead_offset``), its first occurrence when
+            loops repeat it, for the edge mark while nothing plays; None
+            without a playhead or before the strip rendered that text.
     """
 
     visible: bool
@@ -266,6 +278,52 @@ class ChordSheetState:
     zoom_supported: bool
     current_index: Optional[int]
     song_revision: int
+    cursor_index: Optional[int] = None
+
+
+@dataclass(frozen=True)
+class SongDefault:
+    """One value a song starts with (tempo, time signature or key).
+
+    Attributes:
+        value: The value at the start of the song, as written in a
+            directive: ``"90"``, ``"3/4"``, ``"G"``. ``""`` for a key when
+            neither the song nor the toolbar sets one.
+        from_directive: Whether a directive before the song's first chord
+            sets it (then it is read-only in Song defaults); otherwise the
+            value is the toolbar default (``set_bpm``,
+            ``set_time_signature``, ``set_key`` change it; it is not saved
+            with the song).
+        directive_offset: The start of the first such directive (code
+            points), for "Edit" to put the cursor there; None otherwise.
+    """
+
+    value: str
+    from_directive: bool
+    directive_offset: Optional[int] = None
+
+
+@dataclass(frozen=True)
+class SongDefaultsState:
+    """What the song starts with: the Song defaults sheet and its pill.
+
+    Republished when the text is detected again and when the toolbar values
+    change. ``write_song_defaults`` writes the values no directive sets into
+    the top of the song.
+
+    Attributes:
+        tempo: The starting tempo in BPM (directives before the first chord
+            applied, relative ones too).
+        time: The starting time signature, ``"beats/unit"``.
+        key: The starting key (``""`` when none is set anywhere).
+        summary: The pill's text, the values joined by ``" · "``
+            (``"90 · 3/4 · G"``; an empty key is left out).
+    """
+
+    tempo: SongDefault
+    time: SongDefault
+    key: SongDefault
+    summary: str
 
 
 @dataclass(frozen=True)

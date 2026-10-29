@@ -17,6 +17,7 @@ kind      fields
 ``key``   ``key``: one of the key options of the notation
 ``label`` ``label``: letters, digits and underscores
 ``loop``  ``label``: ``@start`` or a label, ``count``
+``capo``  ``capo``: a fret, ``0``-``12`` (0: no capo)
 ========  ===========================================
 """
 
@@ -37,6 +38,8 @@ DUPLICATE_LABEL = "Duplicate Label"
 
 _LABEL_RE = re.compile(r"^[a-zA-Z0-9_]+$")
 _UNITS = (1, 2, 4, 8, 16)
+#: The frets a ``{capo: N}`` may name (the parser's range; 0 means no capo).
+MIN_CAPO, MAX_CAPO = 0, 12
 
 
 class DirectiveKind(str, Enum):
@@ -47,6 +50,7 @@ class DirectiveKind(str, Enum):
     KEY = "key"
     LABEL = "label"
     LOOP = "loop"
+    CAPO = "capo"
 
 
 @dataclass(frozen=True)
@@ -119,6 +123,8 @@ def check_directive(kind: str, values: Mapping[str, Any], *,
         return None
     if kind is DirectiveKind.LABEL:
         return _check_label(_field(values, "label"), set(existing_labels))
+    if kind is DirectiveKind.CAPO:
+        return _check_capo(_field(values, "capo"))
     return _check_loop(_field(values, "label"), _field(values, "count"))
 
 
@@ -137,6 +143,8 @@ def directive_text(kind: str, values: Mapping[str, Any]) -> str:
         return f"{{key: {_field(values, 'key')}}}"
     if kind is DirectiveKind.LABEL:
         return f"{{label: {_field(values, 'label')}}}"
+    if kind is DirectiveKind.CAPO:
+        return f"{{capo: {int(_field(values, 'capo'))}}}"
     return f"{{loop: {_field(values, 'label')} {int(_field(values, 'count'))}}}"
 
 
@@ -220,6 +228,14 @@ def _check_label(label: str, existing: set) -> Optional[DirectiveProblem]:
         return DirectiveProblem(
             DUPLICATE_LABEL,
             f"A label named '{label}' already exists. Please use a unique name.", "label")
+    return None
+
+
+def _check_capo(capo: str) -> Optional[DirectiveProblem]:
+    fret = _as_int(capo)
+    if fret is None or not MIN_CAPO <= fret <= MAX_CAPO:
+        return _invalid(f"The capo must be on a fret from {MIN_CAPO} to {MAX_CAPO} "
+                        "(0 means no capo).", "capo")
     return None
 
 

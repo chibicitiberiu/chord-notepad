@@ -21,6 +21,12 @@ class FileOperationError(ChordNotepadError):
     pass
 
 
+class RenameNotSupported(FileOperationError):
+    """The document's storage can't rename it (an Android provider without
+    rename support); the message says so in the user's terms."""
+    pass
+
+
 class ChordDetectionError(ChordNotepadError):
     """Chord detection and parsing errors."""
     pass

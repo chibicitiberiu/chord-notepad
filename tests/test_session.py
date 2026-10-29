@@ -73,7 +73,7 @@ def load(env, text):
 def test_type_text_no_spans_before_the_debounce_spans_after(env):
     assert env.recorder.compact() == [
         ("HighlightState", 0, 0, ()),
-        ("PlaybackState", "idle", None, None, 0, 0),
+        ("PlaybackState", "idle", None, None, 0, 0, None),
         ("StatusState", "Ready"),
         ("EditorState", "TkFixedFont", 11, False, "american"),
         ("ToolbarState", "american", 120, 120, True, 100.0, "C", 4, 4, False, "play"),
@@ -81,6 +81,8 @@ def test_type_text_no_spans_before_the_debounce_spans_after(env):
         ("InstrumentMenuState", 0, ANY),
         ("DocumentState", "Untitled", None, False, "Untitled - Chord Notepad", None),
         ("RecentDocumentsState", ()),
+        ("SongDefaultsState", ("SongDefault", "120", False, None),
+         ("SongDefault", "4/4", False, None), ("SongDefault", "", False, None), "120 · 4/4"),
     ]
     env.recorder.clear()
 

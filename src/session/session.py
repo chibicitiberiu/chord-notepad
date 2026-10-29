@@ -21,27 +21,31 @@ import contextlib
 import dataclasses
 import functools
 import logging
+import os
 from typing import (
-    TYPE_CHECKING, Any, Callable, Generator, Iterator, Optional, Sequence, Tuple, TypeVar,
+    TYPE_CHECKING, Any, Callable, Dict, Generator, Iterator, Optional, Sequence, Tuple, TypeVar,
 )
 
 from constants import CHORD_DETECTION_DEBOUNCE_MS, MAX_FONT_SIZE, MIN_FONT_SIZE
-from exceptions import AudioInitializationError, ChordNotepadError, ConfigurationError
+from exceptions import (
+    AudioInitializationError, ChordNotepadError, ConfigurationError, FileOperationError,
+    RenameNotSupported,
+)
 from models.notation import Notation
 from models.playback_event import PlaybackEventArgs, PlaybackEventType
-from session import directives, errors, formatting, quick_start, toolbar
-from session.platform import DESKTOP, check_platform
+from session import directives, errors, formatting, quick_start, song_defaults, toolbar
+from session.platform import ANDROID, DESKTOP, TRACKS_PLAYHEAD, check_platform, pick
 from session.audio_policy import AudioFailurePolicy
 from session.emitter import Emitter, Listener
 from session.documents import DocumentRef
 from session.events import (
     AudioUnavailable, CapoChoiceRequest, CloseApproved, ConfirmDiscardRequest, DiscardChoice,
     InsertDirectiveRequest, PickDocumentRequest, PickMode, QuickStartBlock, QuickStartContent,
-    DirectiveCheck, QuickStartPage, TextEdited, UndoPolicy, UnexpectedError, UserError,
-    VoicingEditorSchema,
+    DirectiveCheck, QuickStartPage, RenameFailed, TextEdited, UndoPolicy, UnexpectedError,
+    UserError, VoicingEditorSchema,
 )
 from session.flows import Flow, FlowRunner
-from session.highlighting import chord_at, compute_spans
+from session.highlighting import chord_at, compute_spans, first_chord, nearest_chord
 from session.host import Cancellable, Host
 from session.settings import TIME_SIGNATURE_UNITS, MAX_RECENT_LIMIT, SettingsValues
 from session.settings_edit import SettingsEdit
@@ -49,8 +53,8 @@ from session.workers import BackgroundWorker, Job, Outcome
 from session.state import (
     ChordSheetState, ChordSheetView, DocumentState, EditorState, HighlightState,
     IdentifierNote, IdentifierState, InstrumentMenuState, MenuItem, PlayAction, PlaybackState,
-    INACTIVE_VOICING_EDITOR, PlaybackStatus, RecentDocumentsState, SettingsState, Span,
-    SpanKind, StatusState, ToolbarState, VoicingMenuState,
+    INACTIVE_VOICING_EDITOR, PlaybackStatus, RecentDocumentsState, SettingsState,
+    SongDefaultsState, Span, SpanKind, StatusState, ToolbarState, VoicingMenuState,
 )
 
 if TYPE_CHECKING:
@@ -86,6 +90,33 @@ _PLAY_ACTIONS = {
     PlaybackStatus.PLAYING: PlayAction.PAUSE,
     PlaybackStatus.PAUSED: PlayAction.RESUME,
 }
+
+
+def _common_prefix(a: str, b: str) -> int:
+    """The length of the longest common prefix of ``a`` and ``b``."""
+    n = min(len(a), len(b))
+    i, step = 0, 256
+    while i + step <= n and a[i:i + step] == b[i:i + step]:
+        i += step
+    while i < n and a[i] == b[i]:
+        i += 1
+    return i
+
+
+def _shift_offset(old: str, new: str, offset: int) -> int:
+    """Where ``offset`` into ``old`` lands in ``new`` (one edited range assumed).
+
+    The edit is the span between the common prefix and suffix. An offset at
+    or after its end moves by the length difference; one inside it goes to
+    the edit's start; one before it stays.
+    """
+    prefix = _common_prefix(old, new)
+    limit = min(len(old), len(new)) - prefix
+    suffix = _common_prefix(old[::-1][:limit], new[::-1][:limit]) if limit > 0 else 0
+    old_end = len(old) - suffix
+    if offset >= old_end:
+        return offset + len(new) - len(old)
+    return min(offset, prefix)
 
 
 def _command(method: F) -> F:
@@ -139,12 +170,15 @@ class AppSession:
                 :meth:`save_config` need them; tests that don't use those
                 leave them out.
             platform: ``desktop`` or ``android`` (``session.platform``):
-                picks the variant of the texts that name gestures or menus.
+                picks the variant of the texts that name gestures or menus,
+                whether the playhead follows playback and taps
+                (``TRACKS_PLAYHEAD``) and the player's short status texts.
 
         Raises:
             ValueError: For an unknown platform.
         """
         self._platform = check_platform(platform)
+        self._android = self._platform == ANDROID
         self._host = host
         self._emitter = Emitter()
         self._main = main_window_viewmodel
@@ -193,7 +227,7 @@ class AppSession:
         # The toolbar mirrors the viewmodel's tempo, key, time signature and
         # metronome, whoever changed them (a command, an opened file's
         # directives, a whole-song transpose).
-        self._on_toolbar_input = self._entry(self._publish_toolbar)
+        self._on_toolbar_input = self._entry(self._on_toolbar_value)
         for name in _TOOLBAR_INPUTS:
             self._main.observe(name, self._on_toolbar_input)
 
@@ -225,6 +259,22 @@ class AppSession:
             for name in _CHORD_SHEET_INPUTS:
                 self._chord_sheet.observe(name, self._on_sheet_change)
             self._chord_sheet.observe("rendered_song", self._on_sheet_song)
+
+        # The playhead: the start of the chord Play starts from (None: the
+        # top). Kept on a chord across edits; on Android it also follows
+        # playback and taps (TRACKS_PLAYHEAD).
+        self._tracks_playhead = pick(TRACKS_PLAYHEAD, self._platform)
+        self._playhead: Optional[int] = None
+        # Android's status line holds the playhead's position while idle; it
+        # is refreshed only while the status still shows a position.
+        self._position_status = False
+        # Bars of chords seen in playback pings, by chord start, for the
+        # idle position when the strip hasn't rendered (same text revision).
+        self._ping_bars: Dict[int, Tuple[int, int]] = {}
+        self._ping_bars_revision = -1
+        self._playing_chord: Optional[str] = None
+        # The name an untitled document takes when it is first saved.
+        self._pending_name: Optional[str] = None
 
         # Playback: the viewmodel runs it, the session turns its transport
         # flags and progress pings into states.
@@ -259,6 +309,7 @@ class AppSession:
             self._publish_chord_sheet()
             self._publish_document()
             self._publish_recent()
+            self._publish_song_defaults()
             if services is not None:
                 # The screens that need the services (Android's identifier
                 # and Settings).
@@ -450,7 +501,7 @@ class AppSession:
         while a song plays.
 
         Args:
-            kind: ``bpm``, ``time``, ``key``, ``label`` or ``loop``.
+            kind: ``bpm``, ``time``, ``key``, ``label``, ``loop`` or ``capo``.
             at: Where to insert (the cursor), in code points.
 
         Raises:
@@ -460,6 +511,26 @@ class AppSession:
         if not 0 <= at <= len(self._text):
             raise ValueError(f"insert offset {at} outside the text (length {len(self._text)})")
         self._flows.start(self._insert_directive_flow(kind, at))
+
+    @_command
+    def write_song_defaults(self) -> None:
+        """Write the starting values the song doesn't set into its top.
+
+        Inserts the missing ``{bpm}``, ``{time}`` and ``{key}`` directives
+        (:class:`SongDefaultsState`'s values; no key directive without a key)
+        as one line at the top, one undo step, highlighted at once. Refused
+        while a song plays or is paused.
+        """
+        if not self._edits_allowed("write song defaults"):
+            return
+        state = self._song_defaults()
+        missing = song_defaults.missing_directives(state)
+        if not missing:
+            self._set_status(formatting.NOTHING_TO_WRITE_STATUS)
+            return
+        text = " ".join(missing)
+        self._splice(0, 0, text + "\n", UndoPolicy.GROUP)
+        self._set_status(formatting.inserted_status(text))
 
     @_command
     def request_suggest_capo(self, selection: Selection = None) -> None:
@@ -517,6 +588,7 @@ class AppSession:
         if not self._edits_allowed("restore draft"):
             return
         self._flows.cancel()
+        self._pending_name = None
         revision = self._revision
         with self._undo_policy(UndoPolicy.RESET):
             self._main.restore_document(str(text), document, bool(modified))
@@ -611,9 +683,66 @@ class AppSession:
         self._flows.start(self._as_flow(self._save_flow()))
 
     @_command
-    def save_as(self) -> None:
-        """Save the document under a name the user picks (it becomes the open document)."""
-        self._flows.start(self._as_flow(self._save_as_flow()))
+    def save_as(self, name: Optional[str] = None) -> None:
+        """Save the document under a name the user picks (it becomes the open document).
+
+        Args:
+            name: The name to suggest instead of the document's, as typed
+                (without the extension; the document's, or ``.txt``, is
+                added): Android's way out of a :class:`RenameFailed`.
+
+        Raises:
+            ValueError: If ``name`` isn't a valid document name.
+        """
+        suggested = None
+        if name is not None:
+            problem = self._name_problem(name)
+            if problem is not None:
+                raise ValueError(problem)
+            suggested = self._with_extension(name)
+        self._flows.start(self._as_flow(self._save_as_flow(suggested)))
+
+    @_command
+    def rename_document(self, name: str) -> None:
+        """Rename the open document to ``name`` (the title's Rename dialog).
+
+        ``name`` is typed without the extension; the document's own is kept
+        (``.txt`` for an untitled one), and a name that already ends with it
+        isn't doubled. The document is renamed where it is
+        (``DocumentStore.rename``); it stays open under the new ref, the
+        recent list and :class:`DocumentState` follow and the status says
+        "Renamed to X". An untitled document only takes the name: Save
+        suggests it, and the title shows it. A name that isn't valid, or a
+        storage that refuses (a name in use, no rename support), emits
+        :class:`RenameFailed`; nothing changes then.
+        """
+        name = str(name)
+        problem = self._name_problem(name)
+        if problem is not None:
+            self._emitter.emit(RenameFailed(name, problem, False))
+            return
+        display_name = self._with_extension(name)
+        current = self._main.current_document
+        if current is None:
+            self._pending_name = display_name
+            self._publish_document()
+            self._set_status(formatting.renamed_status(display_name))
+            return
+        if display_name == current.display_name:
+            return
+        try:
+            renamed = self._documents.rename(current, display_name)
+        except RenameNotSupported as e:
+            logger.info("Rename refused by the storage: %s", e)
+            self._emitter.emit(RenameFailed(name, str(e), True))
+            return
+        except FileOperationError as e:
+            logger.warning("Rename failed: %s", e)
+            self._emitter.emit(RenameFailed(name, str(e), True))
+            return
+        self._main.document_renamed(renamed)
+        self._remember(renamed)
+        self._set_status(formatting.renamed_status(renamed.display_name))
 
     @_command
     def export_midi(self) -> None:
@@ -641,26 +770,70 @@ class AppSession:
 
         Args:
             from_offset: When idle, start at the first chord ending after this
-                code-point offset (the cursor) instead of at the top. Ignored
-                while playing or paused.
+                code-point offset (the cursor) instead of at the playhead
+                (``PlaybackState.playhead_offset``), or at the top without
+                one. Ignored while playing or paused.
         """
         status = self._playback_status()
         if status is PlaybackStatus.PLAYING:
             logger.info("Pausing playback")
             self._main.pause_playback()
-            self._set_status(formatting.PAUSED)
+            self._set_paused_status()
         elif status is PlaybackStatus.PAUSED:
             logger.info("Resuming playback")
             self._main.resume_playback()
-            self._set_status(formatting.RESUMED)
+            if self._android and self._playing_chord is not None:
+                self._set_status(formatting.position_status(
+                    self._playback.bar, self._playback.total_bars,
+                    formatting.playing_activity(self._playing_chord)))
+            else:
+                self._set_status(formatting.RESUMED)
         else:
+            if from_offset is None and self._playhead is not None:
+                from_offset = self._playhead
             self._start_playback(from_offset)
 
     @_command
     def stop(self) -> None:
-        """Stop playback (also silences notes still ringing when idle)."""
+        """Stop playback (also silences notes still ringing when idle).
+
+        The playhead stays where it is (on the chord that was sounding when
+        it follows playback).
+        """
         self._main.stop_playback()
-        self._set_status(formatting.STOPPED)
+        if self._android:
+            self._set_idle_status()
+        else:
+            self._set_status(formatting.STOPPED)
+
+    @_command
+    def rewind(self) -> None:
+        """The player's ⏮: stop if a song plays or is paused, and put the
+        playhead on the first chord (no playhead without chords)."""
+        if self._playback_status() is not PlaybackStatus.IDLE:
+            logger.info("Rewinding: stopping playback")
+            self._main.stop_playback()
+        chord = first_chord(self._detector.detected_lines)
+        self._move_playhead(chord.start if chord is not None else None)
+        self._set_idle_status()
+
+    @_command
+    def set_playhead(self, offset: int) -> None:
+        """Put the playhead on the chord a tap at ``offset`` means.
+
+        The chord covering ``offset``, else the nearest one on its line,
+        else on the nearest line with chords (``highlighting.nearest_chord``).
+        Silent. While paused, the paused song is dropped (stopped), so Play
+        starts at the new playhead; while playing, playback jumps there
+        (it restarts from that chord). Nothing happens without chords.
+
+        Args:
+            offset: A code-point offset into the text (clamped to it).
+        """
+        chord = nearest_chord(self._detector.detected_lines, self._text, offset)
+        if chord is None:
+            return
+        self._seek(chord.start)
 
     @_command
     def pause(self) -> None:
@@ -673,7 +846,7 @@ class AppSession:
         if self._playback_status() is PlaybackStatus.PLAYING:
             logger.info("Pausing playback (interrupted)")
             self._main.pause_playback()
-            self._set_status(formatting.PAUSED)
+            self._set_paused_status()
 
     @_command
     def tap_chord_at(self, offset: int) -> None:
@@ -681,17 +854,31 @@ class AppSession:
 
         Works while a song plays too. If audio can't start, the first tap in
         a session emits :class:`AudioUnavailable`; later ones only log.
+
+        Where the playhead follows taps (Android) the tapped chord also
+        becomes the playhead, like :meth:`set_playhead`: idle or paused it
+        moves there (a paused song is dropped) and the chord sounds; while a
+        song plays, playback jumps there instead of sounding the chord over
+        it.
         """
         chord = chord_at(self._detector.detected_lines, offset)
         if chord is None or not chord.is_valid:
             return
+        if self._tracks_playhead:
+            if self._playback_status() is PlaybackStatus.PLAYING:
+                self._seek(chord.start)
+                return
+            self._seek(chord.start)
         try:
             self._main.on_chord_clicked(chord)
         except AudioInitializationError as e:
             self._set_status(formatting.AUDIO_UNAVAILABLE_STATUS)
             self._report_audio_failure(str(e), from_click=True)
             return
-        self._set_status(formatting.tapped_chord_status(chord.chord))
+        if self._android:
+            self._set_idle_status()
+        else:
+            self._set_status(formatting.tapped_chord_status(chord.chord))
 
     @_command
     def report_audio_failure(self, reason: str, from_click: bool = True) -> None:
@@ -1456,7 +1643,16 @@ class AppSession:
         return run
 
     def _replace_mirror(self, text: str, client_token: int) -> None:
-        """Take a new text: bump the revision and keep the viewmodel in step."""
+        """Take a new text: bump the revision and keep the viewmodel in step.
+
+        The playhead moves with the text around it (re-snapped to a chord at
+        the next detection).
+        """
+        if self._playhead is not None:
+            moved = _shift_offset(self._text, text, self._playhead)
+            if moved != self._playhead:
+                self._playhead = moved
+                self._publish_playback(self._playback)
         self._text = text
         self._revision += 1
         self._client_token = client_token
@@ -1482,6 +1678,8 @@ class AppSession:
         self._cancel_detection()
         self._detector.on_text_changed(self._text)
         self._publish_highlight()
+        self._publish_song_defaults()
+        self._snap_playhead()
 
     def _publish_highlight(self) -> None:
         self._spans = compute_spans(self._detector.detected_lines, self._text)
@@ -1526,6 +1724,9 @@ class AppSession:
         with the same text was opened): the views still start a new undo
         history.
         """
+        if undo is UndoPolicy.RESET:
+            # Another document (or a restored draft): its playhead starts over.
+            self._playhead = None
         if start != end or replacement or undo is UndoPolicy.RESET:
             old = self._text
             self._replace_mirror(old[:start] + replacement + old[end:], 0)
@@ -1619,6 +1820,33 @@ class AppSession:
     # -- document internals -----------------------------------------------------
 
     @staticmethod
+    def _name_problem(name: str) -> Optional[str]:
+        """Why ``name`` can't name a document, or None if it can."""
+        stripped = name.strip()
+        if not stripped:
+            return formatting.NAME_EMPTY
+        if "/" in name or "\\" in name:
+            return formatting.NAME_HAS_SEPARATOR
+        if any(ord(c) < 32 or ord(c) == 127 for c in name):
+            return formatting.NAME_CONTROL
+        if stripped in (".", ".."):
+            return formatting.NAME_RESERVED
+        if len(name.encode("utf-8")) > formatting.MAX_NAME_BYTES:
+            return formatting.NAME_TOO_LONG
+        return None
+
+    def _with_extension(self, name: str) -> str:
+        """``name`` (stripped) with the open document's extension (``.txt``
+        for a new one), unless it already ends with it."""
+        name = name.strip()
+        current = self._main.current_document
+        source = current.display_name if current is not None else formatting.UNTITLED_FILE_NAME
+        extension = os.path.splitext(source)[1]
+        if extension and not name.lower().endswith(extension.lower()):
+            name += extension
+        return name
+
+    @staticmethod
     def _as_ref(value: object) -> Optional[DocumentRef]:
         """A document a view handed over (a command argument or an answer)."""
         if value is None or isinstance(value, DocumentRef):
@@ -1653,12 +1881,14 @@ class AppSession:
             return (yield from self._save_as_flow())
         return self._write_document(ref)
 
-    def _save_as_flow(self) -> SubFlow:
-        """Ask where to save, then save there."""
+    def _save_as_flow(self, suggested: Optional[str] = None) -> SubFlow:
+        """Ask where to save (suggesting ``suggested``), then save there."""
         current = self._main.current_document
         # A name with its extension: the Flatpak's portal dialog only grants
         # access to the exact name chosen, so ".txt" can't be added later.
-        suggested = current.display_name if current is not None else formatting.UNTITLED_FILE_NAME
+        if suggested is None:
+            suggested = (current.display_name if current is not None
+                         else self._pending_name or formatting.UNTITLED_FILE_NAME)
         ref = self._as_ref((yield PickDocumentRequest(0, PickMode.SAVE, suggested)))
         if ref is None:
             return False
@@ -1669,6 +1899,7 @@ class AppSession:
         if not self._main.save_file_as(ref):
             self._file_error(formatting.SAVE_FAILED, ref)
             return False
+        self._pending_name = None
         self._remember(ref)
         self._set_status(formatting.saved_status(ref.location))
         return True
@@ -1676,8 +1907,10 @@ class AppSession:
     def _new_flow(self) -> Flow:
         if not (yield from self._confirm_discard()):
             return
+        self._pending_name = None
         with self._undo_policy(UndoPolicy.PLAIN):
             self._main.new_file()
+        self._publish_document()
         self._set_status(formatting.NEW_DOCUMENT_STATUS)
 
     def _open_flow(self, ref: Optional[DocumentRef]) -> Flow:
@@ -1698,6 +1931,7 @@ class AppSession:
         if self._revision == revision:
             # Same text as before: still a new undo history in the views.
             self._splice(0, len(self._text), self._text, UndoPolicy.RESET)
+        self._pending_name = None
         self._remember(ref)
         self._set_status(formatting.opened_status(ref.location))
 
@@ -1739,7 +1973,7 @@ class AppSession:
     def _publish_document(self, _changed: Any = None) -> None:
         ref = self._main.current_document
         modified = self._main.is_modified
-        name = ref.display_name if ref is not None else None
+        name = ref.display_name if ref is not None else self._pending_name
         self._emitter.set_state(DocumentState(
             display_name=name or formatting.UNTITLED,
             location=ref.location if ref is not None else None,
@@ -1800,6 +2034,26 @@ class AppSession:
     def _on_chord_sheet_song(self, _song: Any) -> None:
         self._sheet_revision += 1
         self._publish_chord_sheet()
+        # The new song may know the playhead's bar.
+        if self._position_status and self._playback.status is PlaybackStatus.IDLE:
+            self._set_idle_status()
+
+    def _cursor_index(self) -> Optional[int]:
+        """The strip's index of the playhead's chord (its first occurrence)."""
+        found = self._strip_chord(self._playhead)
+        return found[0] if found is not None else None
+
+    def _strip_chord(self, start: Optional[int]) -> Optional[Tuple[int, int, int]]:
+        """``(index, bar, total_bars)`` of the first strip chord starting at ``start``."""
+        sheet = self._chord_sheet
+        song = sheet.rendered_song if sheet is not None else None
+        if start is None or song is None:
+            return None
+        for index, rendered in enumerate(song.chords):
+            source = rendered.chord_info
+            if source is not None and source.start == start and not rendered.skipped:
+                return index, rendered.song_bar or rendered.bar, song.total_bars
+        return None
 
     def _publish_chord_sheet(self, _changed: Any = None) -> None:
         sheet = self._chord_sheet
@@ -1819,7 +2073,22 @@ class AppSession:
             zoom_supported=sheet.zoom_supported,
             current_index=sheet.current_index,
             song_revision=self._sheet_revision,
+            cursor_index=self._cursor_index(),
         ))
+
+    def _on_toolbar_value(self, _changed: Any = None) -> None:
+        """A toolbar value changed: the toolbar and the song's defaults follow."""
+        self._publish_toolbar()
+        self._publish_song_defaults()
+
+    def _song_defaults(self) -> SongDefaultsState:
+        return song_defaults.song_defaults(
+            self._detector.detected_lines, self._main.bpm,
+            (self._main.time_signature_beats, self._main.time_signature_unit),
+            self._main.key)
+
+    def _publish_song_defaults(self) -> None:
+        self._emitter.set_state(self._song_defaults())
 
     def _publish_toolbar(self, _changed: Any = None) -> None:
         status = self._playback.status
@@ -1849,26 +2118,109 @@ class AppSession:
         return PlaybackStatus.PAUSED if self._main.is_paused else PlaybackStatus.PLAYING
 
     def _set_status(self, text: str) -> None:
+        self._position_status = False
         self._emitter.set_state(StatusState(text))
 
+    def _set_idle_status(self) -> None:
+        """The status while nothing plays: Android shows the playhead's bar
+        (``Bar 6/24``) when it is known, else (and on desktop) "Ready"."""
+        if not self._android:
+            self._set_status(formatting.READY)
+            return
+        bar, total = self._playhead_bar()
+        self._set_status(formatting.position_status(bar, total))
+        self._position_status = True
+
+    def _set_paused_status(self) -> None:
+        if self._android:
+            self._set_status(formatting.position_status(
+                self._playback.bar, self._playback.total_bars, formatting.PAUSED_ACTIVITY))
+        else:
+            self._set_status(formatting.PAUSED)
+
+    def _playhead_bar(self) -> Tuple[int, int]:
+        """``(bar, total_bars)`` of the playhead's chord, ``(0, 0)`` if unknown.
+
+        From the strip's song when it has rendered this text, else from the
+        pings of the last run over the same text.
+        """
+        found = self._strip_chord(self._playhead)
+        if found is not None:
+            return found[1], found[2]
+        if self._playhead is not None and self._ping_bars_revision == self._revision:
+            return self._ping_bars.get(self._playhead, (0, 0))
+        return 0, 0
+
     def _publish_playback(self, playback: PlaybackState) -> None:
+        playback = dataclasses.replace(playback, playhead_offset=self._playhead)
         self._playback = playback
         if playback.status is PlaybackStatus.IDLE:
             self._effective_bpm = None
+            self._playing_chord = None
         self._emitter.set_state(playback)
         self._publish_editor()
         self._publish_toolbar()
 
+    def _move_playhead(self, start: Optional[int]) -> None:
+        """Put the playhead at ``start`` (a chord's start, or None)."""
+        if start == self._playhead:
+            return
+        self._playhead = start
+        self._publish_playback(self._playback)
+        self._publish_chord_sheet()
+
+    def _seek(self, start: int) -> None:
+        """Move the playhead to the chord at ``start`` (set_playhead, a tap).
+
+        Paused: the paused song is dropped, so Play starts here. Playing:
+        playback restarts here.
+        """
+        status = self._playback_status()
+        if status is not PlaybackStatus.IDLE:
+            logger.info("Moving the playhead %s", "while playing: restarting there"
+                        if status is PlaybackStatus.PLAYING else "while paused: stopping")
+            self._main.stop_playback()
+        self._move_playhead(start)
+        if status is PlaybackStatus.PLAYING:
+            self._start_playback(start)
+        else:
+            self._set_idle_status()
+
+    def _snap_playhead(self) -> None:
+        """Keep the playhead on a chord of the text just detected.
+
+        A playhead the edits left off a chord snaps to the nearest one;
+        where the playhead follows playback (Android) a song with chords
+        always has one (the first chord by default). Not while a song plays:
+        playback moves it then.
+        """
+        if self._playback.status is not PlaybackStatus.IDLE:
+            return
+        lines = self._detector.detected_lines
+        if self._playhead is not None:
+            chord = nearest_chord(lines, self._text, self._playhead)
+        elif self._tracks_playhead:
+            chord = first_chord(lines)
+        else:
+            return
+        before = self._playhead
+        self._move_playhead(chord.start if chord is not None else None)
+        if self._playhead != before and self._position_status:
+            self._set_idle_status()
+
     def _start_playback(self, from_offset: Optional[int]) -> None:
         from_cursor = from_offset is not None
         logger.info("Playing from %s", "the cursor" if from_cursor else "the start")
+        self._playing_chord = None
         try:
             started = self._main.start_playback(from_char_offset=from_offset or 0)
         except AudioInitializationError as e:
             self._set_status(formatting.AUDIO_UNAVAILABLE_STATUS)
             self._report_audio_failure(str(e), from_click=False)
             return
-        if started:
+        if started and self._android:
+            self._set_status(formatting.STARTING)
+        elif started:
             # Counted from the latest detection, as the status always has.
             count = sum(1 for c in self._detector.get_all_chords() if c.is_valid)
             self._set_status(formatting.playback_started_status(count, from_cursor))
@@ -1892,7 +2244,7 @@ class AppSession:
             # chord sheet's playhead would stay on the last chord.
             self._clear_playhead()
             self._publish_playback(PlaybackState(PlaybackStatus.IDLE))
-            self._set_status(formatting.READY)
+            self._set_idle_status()
         else:
             self._publish_playback(dataclasses.replace(self._playback, status=status))
 
@@ -1904,8 +2256,12 @@ class AppSession:
     def _on_playback_event(self, event: Optional[PlaybackEventArgs]) -> None:
         """A progress ping from the player, or None when a song finished."""
         if event is None:
+            # The song finished.
             self._clear_playhead()
-            self._set_status(formatting.READY)
+            if self._tracks_playhead:
+                chord = first_chord(self._detector.detected_lines)
+                self._move_playhead(chord.start if chord is not None else None)
+            self._set_idle_status()
             return
         if self._playback.status is PlaybackStatus.IDLE:
             # Posted by the player before a Stop reached it.
@@ -1921,16 +2277,33 @@ class AppSession:
         if not (is_chord_start and chord is not None):
             self._publish_toolbar()
             return
+        # Android counts bars from the top of the song even when playback
+        # started later (the desktop's status restarts at bar 1 there).
+        bar = event.current_bar
+        if self._android and event.song_bar:
+            bar = event.song_bar
+            if self._ping_bars_revision != self._revision:
+                self._ping_bars = {}
+                self._ping_bars_revision = self._revision
+            self._ping_bars.setdefault(chord.start, (event.song_bar, event.total_bars))
+        self._playing_chord = chord.chord
+        if self._tracks_playhead and self._playhead != chord.start:
+            self._playhead = chord.start
+            self._publish_chord_sheet()
         self._publish_playback(dataclasses.replace(
             self._playback,
             playing_span=Span(chord.start, chord.end, SpanKind.CHORD),
             chord_index=event.chord_index,
-            bar=event.current_bar,
+            bar=bar,
             total_bars=event.total_bars,
         ))
-        self._set_status(formatting.playing_chord_status(
-            event.current_bar, event.total_bars, event.bpm,
-            event.time_signature_beats, event.time_signature_unit, event.key, chord.chord))
+        if self._android:
+            self._set_status(formatting.position_status(
+                bar, event.total_bars, formatting.playing_activity(chord.chord)))
+        else:
+            self._set_status(formatting.playing_chord_status(
+                event.current_bar, event.total_bars, event.bpm,
+                event.time_signature_beats, event.time_signature_unit, event.key, chord.chord))
 
     def _on_playback_error(self, message: str) -> None:
         """Rendering the song failed on the render thread (posted here)."""

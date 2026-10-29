@@ -55,3 +55,7 @@ class PlaybackEventArgs:
 
     total_bars: int = 0
     """Total number of bars/measures in the song"""
+
+    song_bar: Optional[int] = None
+    """The bar counted from the top of the song (``current_bar`` restarts at
+    1 when playback starts from a later chord); None if unknown."""

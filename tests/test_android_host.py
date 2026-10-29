@@ -35,6 +35,10 @@ class DocumentStoreException(Exception):
         return self._message
 
 
+class RenameUnsupportedException(DocumentStoreException):
+    """Kotlin's exception for a provider that can't rename (by simple name)."""
+
+
 class FakeKotlinStore:
     """The Kotlin DocumentStoreBridge's methods, over a dict keyed by URI."""
 
@@ -79,6 +83,17 @@ class FakeKotlinStore:
 
     def describe(self, uri):
         return json.dumps(self._ref(uri)) if uri in self.docs else None
+
+    def rename(self, uri, display_name):
+        """Like DocumentsContract.renameDocument: a new URI, the recent entry moved."""
+        if "/readonly" in uri:
+            raise RenameUnsupportedException("This storage can't rename documents.")
+        new = uri.rsplit("/", 1)[0] + "/" + display_name
+        if new in self.docs:
+            raise DocumentStoreException(f"A file named {display_name} already exists there.")
+        self.docs[new] = self.docs.pop(uri)
+        self.recent_list = [new if u == uri else u for u in self.recent_list]
+        return json.dumps(self._ref(new))
 
 
 class FakeSink:
@@ -135,6 +150,21 @@ def test_store_writes_and_keeps_the_recent_list():
     assert kotlin.max_recent == 5
 
 
+def test_store_rename_maps_the_result_and_the_failures():
+    from exceptions import RenameNotSupported
+
+    kotlin = FakeKotlinStore({URI: "C", "content://x/readonly/a.txt": "G",
+                              "content://x/b.txt": "D", "content://x/c.txt": "E"})
+    store = AndroidDocumentStore(kotlin)
+    new = store.rename(store.ref_for(URI), "tune.txt")
+    assert new == DocumentRef("content://com.android.providers.downloads/document/tune.txt",
+                              "tune.txt", "Documents/tune.txt")
+    with pytest.raises(RenameNotSupported, match=r"^This storage can't rename documents.$"):
+        store.rename(store.ref_for("content://x/readonly/a.txt"), "z.txt")
+    with pytest.raises(FileOperationError, match=r"^A file named c.txt already exists there.$"):
+        store.rename(store.ref_for("content://x/b.txt"), "c.txt")
+
+
 def test_store_survives_a_broken_recent_list():
     kotlin = FakeKotlinStore()
     kotlin.recent = lambda: "not json"
@@ -187,6 +217,42 @@ def test_open_a_content_uri_and_save(started):
     assert sink.events[-1][0] in ("DocumentState", "StatusState")
     assert [d for n, d in sink.events if n == "DocumentState"][-1]["is_modified"] is False
     assert kotlin.docs[URI] == "Dm {bpm: 100}\nC G Am F\n"
+
+
+def test_rename_through_the_bridge(started):
+    handle, kotlin, sink, _ = started
+    ref = {"id": URI, "display_name": "song.txt", "location": "Documents/song.txt"}
+    handle.submit("open_document", json.dumps({"ref": ref}))
+    sink.wait_for("DocumentState", lambda d: d["document_id"] == URI)
+    handle.submit("rename_document", json.dumps({"name": "Tune"}))
+    state = sink.wait_for("DocumentState", lambda d: d["display_name"] == "Tune.txt")
+    assert state["document_id"].endswith("/Tune.txt")
+    assert sink.wait_for("StatusState", lambda d: d["text"] == "Renamed to Tune.txt")
+    recent = sink.wait_for("RecentDocumentsState", lambda d: d["items"]
+                           and d["items"][0]["display_name"] == "Tune.txt")
+    assert len(recent["items"]) == 1
+    handle.submit("rename_document", json.dumps({"name": "a/b"}))
+    assert sink.wait_for("RenameFailed") == {
+        "name": "a/b", "reason": "A name can't contain / or \\.", "can_save_as": False}
+
+
+def test_android_player_flow_through_the_bridge(started):
+    handle, _, sink, _ = started
+    handle.submit("set_text", json.dumps({"text": "C G\nAm F", "client_token": 1}))
+    # Android: a song with chords has a playhead, on its first chord.
+    sink.wait_for("PlaybackState", lambda d: d["playhead_offset"] == 0)
+    handle.submit("set_playhead", json.dumps({"offset": 5}))
+    sink.wait_for("PlaybackState", lambda d: d["playhead_offset"] == 4)
+    handle.submit("rewind", "{}")
+    sink.wait_for("PlaybackState", lambda d: d["playhead_offset"] == 0)
+    handle.submit("write_song_defaults", "{}")
+    edit = sink.wait_for("TextEdited", lambda d: d["undo"] == "group")
+    assert edit["replacement"] == "{bpm: 120} {time: 4/4} {key: C}\n"
+    defaults = sink.wait_for("SongDefaultsState", lambda d: d["tempo"]["from_directive"])
+    assert defaults["tempo"] == {"value": "120", "from_directive": True, "directive_offset": 0}
+    assert defaults["summary"] == "120 · 4/4 · C"
+    # The playhead moved with the text.
+    sink.wait_for("PlaybackState", lambda d: d["playhead_offset"] == 32)
 
 
 def test_failures_and_unknown_commands_are_events(started):

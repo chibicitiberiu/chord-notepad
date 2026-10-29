@@ -37,16 +37,17 @@ from session.documents import DocumentRef
 from session.events import (
     AudioUnavailable, CapoChoiceRequest, CloseApproved, ConfirmDiscardRequest, DiscardChoice,
     InsertDirectiveRequest, PickDocumentRequest, PickMode, QuickStartBlock, QuickStartContent,
-    DirectiveCheck, QuickStartPage, TextEdited, UndoPolicy, UnexpectedError, UserError,
-    VoicingEditorSchema,
+    DirectiveCheck, QuickStartPage, RenameFailed, TextEdited, UndoPolicy, UnexpectedError,
+    UserError, VoicingEditorSchema,
 )
 from session.host import Host
 from session.settings import SettingsValues
 from session.state import (
     ChordSheetState, ChordSheetView, DocumentState, EditorState, HighlightState,
     IdentifierNote, IdentifierState, InstrumentFamily, InstrumentMenuState, MenuItem, PlayAction,
-    PlaybackState, PlaybackStatus, RecentDocumentsState, SettingsState, Span, SpanKind,
-    StatusState, ToolbarState, VoicingEditorState, VoicingGroup, VoicingMenuState, VoicingPreset,
+    PlaybackState, PlaybackStatus, RecentDocumentsState, SettingsState, SongDefault,
+    SongDefaultsState, Span, SpanKind, StatusState, ToolbarState, VoicingEditorState,
+    VoicingGroup, VoicingMenuState, VoicingPreset,
 )
 
 logger = logging.getLogger(__name__)
@@ -61,11 +62,11 @@ BRIDGE_CONTEXT = "bridge"
 STATE_TYPES: Tuple[type, ...] = (
     DocumentState, EditorState, HighlightState, PlaybackState, ToolbarState, StatusState,
     VoicingMenuState, InstrumentMenuState, RecentDocumentsState, ChordSheetState,
-    IdentifierState, SettingsState, VoicingEditorState,
+    IdentifierState, SettingsState, VoicingEditorState, SongDefaultsState,
 )
 EVENT_TYPES: Tuple[type, ...] = (
     TextEdited, UserError, AudioUnavailable, UnexpectedError, CloseApproved,
-    VoicingEditorSchema, QuickStartContent, DirectiveCheck,
+    VoicingEditorSchema, QuickStartContent, DirectiveCheck, RenameFailed,
 )
 REQUEST_TYPES: Tuple[type, ...] = (
     ConfirmDiscardRequest, PickDocumentRequest, CapoChoiceRequest, InsertDirectiveRequest,
@@ -73,7 +74,7 @@ REQUEST_TYPES: Tuple[type, ...] = (
 #: Nested in outputs, or sent in commands.
 VALUE_TYPES: Tuple[type, ...] = (
     Span, MenuItem, InstrumentFamily, ChordSheetView, DocumentRef, SettingsValues,
-    IdentifierNote, VoicingGroup, VoicingPreset, QuickStartPage, QuickStartBlock,
+    IdentifierNote, VoicingGroup, VoicingPreset, QuickStartPage, QuickStartBlock, SongDefault,
 )
 ENUM_TYPES: Tuple[Type[Enum], ...] = (
     SpanKind, PlaybackStatus, PlayAction, UndoPolicy, DiscardChoice, PickMode,
@@ -224,10 +225,13 @@ SESSION_COMMANDS: Dict[str, Dict[str, str]] = {
     "transpose": {"semitones": "int", "selection": "selection"},
     "request_suggest_capo": {"selection": "selection"},
     "convert_notation": {"target": "str"},
+    "write_song_defaults": {},
     # playback and toolbar
     "play_pause": {"from_offset": "int|null"},
     "stop": {},
     "pause": {},
+    "rewind": {},
+    "set_playhead": {"offset": "int"},
     "tap_chord_at": {"offset": "int"},
     "set_bpm": {"bpm": "float"},
     "set_multiplier_pct": {"pct": "float"},
@@ -261,7 +265,8 @@ SESSION_COMMANDS: Dict[str, Dict[str, str]] = {
     "open_document": {"ref": "DocumentRef|null"},
     "open_recent": {"ref": "DocumentRef"},
     "save": {},
-    "save_as": {},
+    "save_as": {"name": "str|null"},
+    "rename_document": {"name": "str"},
     "export_midi": {},
     "request_close": {},
     "respond": {"request_id": "int", "value": "any"},
@@ -335,6 +340,7 @@ CONFIG_COMMANDS = frozenset({
     "set_chord_sheet_height", "set_chord_sheet_view", "chord_sheet_zoom",
     "convert_notation", "apply_settings", "save_settings",
     "set_show_quick_start_on_startup", "open_document", "open_recent", "save", "save_as",
+    "rename_document",
 })
 
 

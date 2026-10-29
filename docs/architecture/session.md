@@ -91,7 +91,9 @@ src/session/
   formatting.py    titles, status strings, voicing/instrument menu models
   toolbar.py       key list + key respelling, BPM/multiplier parse+format, ScrubScale (clamp/snap/quantize)
   directives.py    Insert-menu directives: field validation + messages, directive text, labels, loop choices
-  highlighting.py  find_comments, compute_spans(lines, text), chord_at(lines, offset)
+  highlighting.py  find_comments, compute_spans(lines, text), chord_at(lines, offset),
+                   nearest_chord(lines, text, offset) (the playhead's snap), first_chord
+  song_defaults.py song_defaults(lines, bpm, time, key) -> SongDefaultsState; missing_directives
   flows.py         generator-based request/response FlowRunner
   workers.py       BackgroundWorker (single-thread executor, results via host.post)
   bootstrap.py     CoreServices, build_core_services(appdata, dispatch, player=, audio_options=),
@@ -162,6 +164,8 @@ class DocumentStore(Protocol):
     def recent(self) -> list[DocumentRef]: ...                # prunes unavailable ones
     def add_recent(self, ref: DocumentRef) -> None: ...       # capped (max_recent_files)
     def ref_for(self, document_id: str) -> DocumentRef: ...   # a picker's answer as a ref
+    def rename(self, ref: DocumentRef, display_name: str) -> DocumentRef: ...
+        # in place, never over another document; RenameNotSupported / FileOperationError
 ```
 
 Reading and writing never touch the recent list (since step 11): the
@@ -193,7 +197,7 @@ MenuItem(label, value)
 DocumentState(display_name, location, is_modified, title, document_id)
 EditorState(font_family, font_size, read_only, notation)
 HighlightState(text_revision, client_token, spans)
-PlaybackState(status, playing_span, chord_index, bar, total_bars)      # idle|playing|paused
+PlaybackState(status, playing_span, chord_index, bar, total_bars, playhead_offset)  # idle|playing|paused
 ToolbarState(notation, bpm, bpm_display, bpm_editable, multiplier_pct, key, key_options,
              beats, unit, metronome, play_action)                       # play|pause|resume
 StatusState(text)
@@ -201,7 +205,8 @@ VoicingMenuState(selected, groups)
 InstrumentMenuState(current, families)                                  # InstrumentFamily(name, is_current, items)
 RecentDocumentsState(items)
 ChordSheetState(visible, height, active_view, views, disabled_reason, zoom, zoom_supported,
-                current_index, song_revision)
+                current_index, song_revision, cursor_index)
+SongDefaultsState(tempo, time, key, summary)                            # SongDefault(value, from_directive, directive_offset)
 ```
 
 `HighlightState.text_revision` is the session's revision of the text the spans
@@ -223,6 +228,7 @@ UserError(title, message)
 AudioUnavailable(message, from_click)
 UnexpectedError(message, context)                                  # context: "bridge", a command, a callback
 CloseApproved()
+RenameFailed(name, reason, can_save_as)
 ```
 
 Every programmatic edit is a splice-shaped `TextEdited`, with an undo policy:
@@ -252,7 +258,9 @@ class AppSession:
     def convert_notation(self, target: str) -> None
     # playback / toolbar
     def play_pause(self, from_offset: int | None = None) -> None;  def stop(self) -> None
+    def set_playhead(self, offset: int) -> None;  def rewind(self) -> None
     def tap_chord_at(self, offset: int) -> None
+    def write_song_defaults(self) -> None
     def set_bpm(self, bpm: int) -> None;  def set_multiplier_pct(self, pct: float) -> None
     def set_key(self, key: str | None) -> None;  def set_time_signature(self, beats: int, unit: int) -> None
     def toggle_metronome(self) -> None;  def set_voicing(self, voicing: str) -> None;  def set_instrument(self, program: int) -> None
@@ -262,7 +270,9 @@ class AppSession:
     def set_chord_sheet_view(self, view_id: str) -> None;  def chord_sheet_zoom(self, step: int) -> None;  def audition(self, index: int) -> None
     # documents / app
     def new_document(self) -> None;  def open_document(self, ref: DocumentRef | None = None) -> None
-    def save(self) -> None;  def save_as(self) -> None;  def export_midi(self) -> None;  def request_close(self) -> None
+    def save(self) -> None;  def save_as(self, name: str | None = None) -> None
+    def rename_document(self, name: str) -> None
+    def export_midi(self) -> None;  def request_close(self) -> None
     def respond(self, request_id: int, value: object) -> None
     def apply_settings(self, changes: SettingsChanges | SettingsValues) -> None
     # lifecycle (Android)
@@ -370,6 +380,62 @@ a stop is dropped during the next run too. The Tk Play button sends
 `set_text`, then `play_pause(from_offset)` with the Shift+click cursor as a
 code-point offset (`ChordTextEditor.offset_of`); the old `"line.col"` API
 (`start_playback_from_cursor`) is gone.
+
+**The player (Android Edit/Play redesign, 2026-10-29).** The session owns a
+playhead: the start of the chord Play starts from (`PlaybackState.
+playhead_offset`; `ChordSheetState.cursor_index` is that chord's first index
+in the strip's song, for the edge mark). `play_pause()` without an offset
+starts there (an explicit `from_offset` still wins; none at all plays from
+the top). `set_playhead(offset)` snaps with `highlighting.nearest_chord`:
+the valid chord covering the offset, else the nearest on its line (a tie:
+the later chord), else on the nearest line with chords (a tie: the line
+above, as lyrics sit under their chords), at the offset's column. While
+paused it drops the paused run (so Play starts at the new playhead); while
+playing it restarts playback there. `rewind()` stops and puts it on the
+first chord. Edits carry it with the text (`_shift_offset`: one diffed
+range per change), and the next detection re-snaps it to a chord. What
+moves it on its own is a platform behaviour (`platform.TRACKS_PLAYHEAD`):
+on Android, playback (it follows the chord sounding), the end of the song
+(back to the first chord), chord taps (`tap_chord_at` moves it and
+auditions; while playing it jumps there instead), and a default on the
+first chord whenever the song has chords (an opened document starts
+there). The desktop has none of these, so its Play, Shift+Play, click and
+status behave as before; it would only get a playhead from an explicit
+`set_playhead`/`rewind`, which the Tk window doesn't send yet. Android's
+status line is position + activity (`formatting.position_status`): "Bar
+6/24 · Playing Em", "Bar 6/24 · Paused", "Starting…" before the first
+chord, and while idle the playhead's bar ("Bar 6/24", from the strip's song
+or the last run's pings over the same text) or "Ready"; Android counts bars
+from the top of the song even when playback started later
+(`RenderedChord.song_bar`, carried in the pings as
+`PlaybackEventArgs.song_bar`), the desktop keeps its rebased bars.
+
+**Song defaults.** `SongDefaultsState(tempo, time, key, summary)`: each value
+is what the song starts with. A valid directive before the first chord sets
+it (`from_directive`, `directive_offset` = the first such directive; relative
+tempo directives apply to the toolbar tempo); otherwise it is the toolbar
+value. The key is `""` when neither sets one. `summary` is the pill text,
+`"90 · 3/4 · G"`. Republished after every detection and toolbar change.
+`write_song_defaults()` inserts the missing directives as one line at the
+top, one `group` edit, highlighted at once (no `{key}` without a key).
+
+**Rename.** `rename_document(name)`: the name is typed without the
+extension; the document's own is kept (a name already ending in it isn't
+doubled). `DocumentStore.rename` renames in place (desktop: `os.rename` in
+the same folder, refusing to replace another file; Android: Kotlin's
+`DocumentsContract.renameDocument`); the viewmodel's `document_renamed(ref)`
+switches the open document without reading or writing, then the recent list,
+`DocumentState` and the status ("Renamed to X") follow. An invalid name
+(empty, `/` or `\`, control characters, `.`/`..`, over 255 bytes) or a refusal
+emits `RenameFailed(name, reason, can_save_as)`: `can_save_as` is True when
+the storage refused (no rename support, a name in use), so the view offers
+`save_as(name)`, which suggests that name with the extension. An untitled
+document only takes the name (`DocumentState.display_name`, the Save
+suggestion) until its first save; New, Open and a restored draft forget it.
+
+**Capo in Insert.** `request_insert_directive("capo", at)` answers with
+`{"capo": "N"}`, 0-12 (`directives.check_directive`, same message live and
+at answer time). Suggest Capo is unchanged.
 
 **Audio failures.** `AudioUnavailable.message` is the full user-facing text.
 Play, chord taps, chord-sheet auditions and the chord identifier all go

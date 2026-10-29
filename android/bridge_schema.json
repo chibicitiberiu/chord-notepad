@@ -77,6 +77,9 @@
       "field_id": "str",
       "index": "int"
     },
+    "rename_document": {
+      "name": "str"
+    },
     "rename_voicing": {
       "new": "str",
       "old": "str"
@@ -103,8 +106,11 @@
       "modified": "bool",
       "text": "str"
     },
+    "rewind": {},
     "save": {},
-    "save_as": {},
+    "save_as": {
+      "name": "str|null"
+    },
     "save_settings": {
       "values": "SettingsValues|null"
     },
@@ -145,6 +151,9 @@
     "set_notation": {
       "notation": "str"
     },
+    "set_playhead": {
+      "offset": "int"
+    },
     "set_show_quick_start_on_startup": {
       "show": "bool"
     },
@@ -176,7 +185,8 @@
     "transpose": {
       "selection": "selection",
       "semitones": "int"
-    }
+    },
+    "write_song_defaults": {}
   },
   "commands": [
     "add_voicing",
@@ -206,6 +216,7 @@
     "play_pause",
     "remove_voicing",
     "remove_voicing_record",
+    "rename_document",
     "rename_voicing",
     "request_close",
     "request_insert_directive",
@@ -217,6 +228,7 @@
     "reset_multiplier",
     "respond",
     "restore_draft",
+    "rewind",
     "save",
     "save_as",
     "save_settings",
@@ -232,6 +244,7 @@
     "set_multiplier_pct",
     "set_multiplier_text",
     "set_notation",
+    "set_playhead",
     "set_show_quick_start_on_startup",
     "set_text",
     "set_time_signature",
@@ -242,7 +255,8 @@
     "stop",
     "tap_chord_at",
     "toggle_metronome",
-    "transpose"
+    "transpose",
+    "write_song_defaults"
   ],
   "enums": {
     "DiscardChoice": [
@@ -298,6 +312,7 @@
       "fields": {
         "active_view": "str",
         "current_index": "int|null",
+        "cursor_index": "int|null",
         "disabled_reason": "str|null",
         "height": "int",
         "song_revision": "int",
@@ -432,6 +447,7 @@
       "fields": {
         "bar": "int",
         "chord_index": "int|null",
+        "playhead_offset": "int|null",
         "playing_span": "Span|null",
         "status": "PlaybackStatus",
         "total_bars": "int"
@@ -468,6 +484,14 @@
       },
       "kind": "state"
     },
+    "RenameFailed": {
+      "fields": {
+        "can_save_as": "bool",
+        "name": "str",
+        "reason": "str"
+      },
+      "kind": "event"
+    },
     "SettingsState": {
       "fields": {
         "american_keys": "list[str]",
@@ -495,6 +519,23 @@
         "time_signature_unit": "int"
       },
       "kind": "value"
+    },
+    "SongDefault": {
+      "fields": {
+        "directive_offset": "int|null",
+        "from_directive": "bool",
+        "value": "str"
+      },
+      "kind": "value"
+    },
+    "SongDefaultsState": {
+      "fields": {
+        "key": "SongDefault",
+        "summary": "str",
+        "tempo": "SongDefault",
+        "time": "SongDefault"
+      },
+      "kind": "state"
     },
     "Span": {
       "fields": {

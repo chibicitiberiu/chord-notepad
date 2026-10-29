@@ -65,6 +65,42 @@ def tapped_chord_status(chord: str) -> str:
     return f"Playing: {chord}"
 
 
+# -- the Android player's status line ----------------------------------------------
+#
+# Android shows the status inside the player, so while something plays (or
+# a playhead is set) it holds only the position and what is happening:
+# "Bar 6/24 · Playing Em". The desktop keeps its longer texts above.
+
+#: Between the position and the activity in the player's status.
+POSITION_SEPARATOR = " · "
+#: Android's status while a song is being rendered before its first chord.
+STARTING = "Starting…"
+
+
+def position_status(bar: int, total_bars: int, activity: Optional[str] = None) -> str:
+    """The player's status: ``Bar 6/24``, or ``Bar 6/24 · Playing Em``.
+
+    Args:
+        bar: The bar, 1-based; 0 when unknown (then only the activity, or
+            :data:`READY` without one).
+        total_bars: Bars in the song.
+        activity: What is happening (``Playing Em``, ``Paused``), or None.
+    """
+    if bar <= 0 or total_bars <= 0:
+        return activity or READY
+    position = f"Bar {bar}/{total_bars}"
+    return f"{position}{POSITION_SEPARATOR}{activity}" if activity else position
+
+
+def playing_activity(chord: str) -> str:
+    """The player's activity while ``chord`` sounds: ``Playing Em``."""
+    return f"Playing {chord}"
+
+
+#: The player's activity while paused.
+PAUSED_ACTIVITY = "Paused"
+
+
 def playback_error_message(reason: str) -> str:
     """The message for a song that couldn't be rendered for playback."""
     return f"Could not play the song.\n\n{reason}"
@@ -157,6 +193,23 @@ def file_error_message(action: str, location: str, reason: Optional[str]) -> str
     if reason:
         message += f"\n\n{reason}"
     return message
+
+
+def renamed_status(display_name: str) -> str:
+    """The status after the document was renamed (or an untitled one named)."""
+    return f"Renamed to {display_name}"
+
+
+#: The extension a never-saved document gets with its name.
+DEFAULT_EXTENSION = ".txt"
+#: The longest document name accepted, in UTF-8 bytes (common file systems).
+MAX_NAME_BYTES = 255
+NAME_EMPTY = "Please enter a name."
+NAME_HAS_SEPARATOR = "A name can't contain / or \\."
+NAME_RESERVED = "That name isn't allowed."
+NAME_CONTROL = "A name can't contain control characters."
+NAME_TOO_LONG = "That name is too long."
+NOTHING_TO_WRITE_STATUS = "The song already sets its tempo, time signature and key"
 
 
 # -- editing commands ------------------------------------------------------------

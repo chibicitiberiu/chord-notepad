@@ -5,15 +5,16 @@ Storage Access Framework I/O and keeps the recent list; this wrapper gives it
 the shape of ``session.documents.DocumentStore``. Text normalization stays in
 Python. A failure arrives as a Java ``DocumentStoreException`` whose message
 is user-facing; it is raised again as ``FileOperationError`` with that
-message, like ``FileService`` does on desktop. Called on the session thread
-only.
+message, like ``FileService`` does on desktop; Kotlin's
+``RenameUnsupportedException`` (a provider that can't rename) becomes
+``RenameNotSupported``. Called on the session thread only.
 """
 
 import json
 import logging
 from typing import Any, Callable, List, Optional
 
-from exceptions import FileOperationError
+from exceptions import FileOperationError, RenameNotSupported
 from session.documents import DocumentRef
 from utils.text_normalization import normalize_song_text
 
@@ -31,6 +32,21 @@ def _message(exc: BaseException) -> str:
         if message:
             return str(message)
     return str(exc) or type(exc).__name__
+
+
+#: Kotlin's exception for a provider without rename support (simple class name).
+RENAME_UNSUPPORTED = "RenameUnsupportedException"
+
+
+def _java_name(exc: BaseException) -> str:
+    """The simple class name of a Java exception (Chaquopy), else the Python one."""
+    get_class = getattr(exc, "getClass", None)
+    if callable(get_class):
+        try:
+            return str(get_class().getSimpleName())
+        except Exception:
+            pass
+    return type(exc).__name__
 
 
 def _ref(data: Any) -> DocumentRef:
@@ -103,6 +119,25 @@ class AndroidDocumentStore:
         """Move ``ref`` to the front of the recent list."""
         self.sync_max_recent()
         self._call(self._bridge.addRecent, ref.id, ref.display_name, ref.location)
+
+    def rename(self, ref: DocumentRef, display_name: str) -> DocumentRef:
+        """Rename the document (``DocumentsContract.renameDocument``).
+
+        The provider may change the id and adjust the name (``song (1).txt``
+        rather than replace another document); Kotlin moves the recent-list
+        entry to the new ref.
+
+        Raises:
+            RenameNotSupported: The provider can't rename it.
+            FileOperationError: Anything else, with Kotlin's message.
+        """
+        try:
+            data = self._bridge.rename(ref.id, display_name)
+        except Exception as e:
+            if _java_name(e) == RENAME_UNSUPPORTED:
+                raise RenameNotSupported(_message(e)) from e
+            raise FileOperationError(_message(e)) from e
+        return _ref(json.loads(str(data)))
 
     @staticmethod
     def _call(method: Callable[..., Any], *args: Any) -> Any:

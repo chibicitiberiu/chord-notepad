@@ -75,3 +75,61 @@ def chord_at(lines: Sequence[Line], offset: int) -> Optional[ChordInfo]:
             if chord.start <= offset < chord.end:
                 return chord
     return None
+
+
+def _playable(lines: Sequence[Line]) -> List[Tuple[int, ChordInfo]]:
+    """The valid chords of chord lines as ``(line_number, chord)``, in text order."""
+    return [(line.line_number, chord) for line in lines if line.is_chord_line()
+            for chord in line.chords if chord.is_valid]
+
+
+def first_chord(lines: Sequence[Line]) -> Optional[ChordInfo]:
+    """The first valid chord (where playback from the top starts), or None."""
+    chords = _playable(lines)
+    return chords[0][1] if chords else None
+
+
+def nearest_chord(lines: Sequence[Line], text: str, offset: int) -> Optional[ChordInfo]:
+    """The valid chord a tap at ``offset`` means (the playhead's snap rule).
+
+    1. A valid chord covering ``offset`` (``start <= offset < end``).
+    2. Else the nearest valid chord on the same line, by distance in code
+       points to its span; on a tie the later one (the chord being heading
+       to).
+    3. Else the nearest line with valid chords (a lyric line's chords are on
+       the line above it, so on a tie the line above wins), and on it the
+       chord nearest the tap's column (a tie: the later one).
+
+    Args:
+        lines: The detected lines of ``text``.
+        text: The text (for line starts and columns).
+        offset: A code-point offset; clamped to the text.
+
+    Returns:
+        The chord, or None if the text has no valid chord.
+    """
+    chords = _playable(lines)
+    if not chords:
+        return None
+    offset = max(0, min(int(offset), len(text)))
+    for _number, chord in chords:
+        if chord.start <= offset < chord.end:
+            return chord
+    line_number = text.count("\n", 0, offset) + 1
+    line_start = text.rfind("\n", 0, offset) + 1
+    column = offset - line_start
+
+    def distance(chord: ChordInfo, at: int) -> int:
+        return chord.start - at if at < chord.start else max(0, at - (chord.end - 1))
+
+    same_line = [c for n, c in chords if n == line_number]
+    if same_line:
+        # min() keeps the first of equals; reversed, that is the later chord.
+        return min(reversed(same_line), key=lambda c: distance(c, offset))
+    numbers = sorted({n for n, _c in chords})
+    # On a tie the smaller line number (the line above) comes first.
+    target = min(numbers, key=lambda n: (abs(n - line_number), n))
+    target_start = sum(len(part) + 1 for part in text.split("\n")[:target - 1])
+    on_target = [c for n, c in chords if n == target]
+    return min(reversed(on_target),
+               key=lambda c: distance(c, target_start + column))

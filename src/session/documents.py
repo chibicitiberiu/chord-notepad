@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Protocol, Union
 
+from exceptions import FileOperationError
 from utils.paths import display_path
 
 logger = logging.getLogger(__name__)
@@ -90,6 +91,25 @@ class DocumentStore(Protocol):
         """Move ``ref`` to the front of the recent list (capped in length)."""
         ...
 
+    def rename(self, ref: DocumentRef, display_name: str) -> DocumentRef:
+        """Rename the document in place (same folder), never over another one.
+
+        Args:
+            ref: The document.
+            display_name: Its new name with the extension (``"song.txt"``),
+                already checked (no path separators).
+
+        Returns:
+            The renamed document's ref (its id may change). A recent-list
+            entry for ``ref`` may be left for :meth:`recent` to prune.
+
+        Raises:
+            RenameNotSupported: If the storage can't rename documents.
+            FileOperationError: With a user-facing reason (a document of that
+                name exists, permission denied...).
+        """
+        ...
+
 
 class FileSystemDocumentStore:
     """:class:`DocumentStore` over local files, delegating to ``FileService``.
@@ -146,3 +166,33 @@ class FileSystemDocumentStore:
     def add_recent(self, ref: DocumentRef) -> None:
         """Add the file to the front of the recent-files list."""
         self._files.add_recent_file(Path(ref.id))
+
+    def rename(self, ref: DocumentRef, display_name: str) -> DocumentRef:
+        """Rename the file within its folder, refusing to replace another file.
+
+        A change of case only ("song.txt" -> "Song.txt") is allowed on file
+        systems that ignore case. The old path drops out of the recent list
+        on its own (it no longer exists).
+        """
+        source = os.path.abspath(ref.id)
+        target = os.path.join(os.path.dirname(source), display_name)
+        if os.path.lexists(target) and not _same_file(source, target):
+            raise FileOperationError(f"A file named {display_name} already exists there.")
+        try:
+            os.rename(source, target)
+        except FileNotFoundError as e:
+            raise FileOperationError(f"File not found: {ref.location}") from e
+        except PermissionError as e:
+            raise FileOperationError(f"Permission denied: {ref.location}") from e
+        except OSError as e:
+            raise FileOperationError(f"Failed to rename file: {e.strerror or e}") from e
+        logger.info("Renamed %s to %s", source, target)
+        return self.ref_for_path(target)
+
+
+def _same_file(a: str, b: str) -> bool:
+    """Whether two paths name the same file (a case-only rename)."""
+    try:
+        return os.path.samefile(a, b)
+    except OSError:
+        return False

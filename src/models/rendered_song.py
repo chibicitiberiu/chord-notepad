@@ -68,6 +68,11 @@ class RenderedChord:
     """True for chords before the playback start position: they advance beat
     accounting but are never voiced and emit no events."""
 
+    song_bar: int = 0
+    """1-based bar number at the chord's start counted from the top of the
+    song, never rebased (``bar`` restarts at 1 when playback starts later);
+    skipped chords have it too. 0 if unknown."""
+
     capo: int = 0
     """Capo fret in effect at this chord (0 = none), from ``{capo}`` directives.
 

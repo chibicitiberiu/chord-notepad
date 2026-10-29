@@ -206,7 +206,8 @@ def test_module_prints_the_schema(capsys):
 class BridgeEnv:
     """A session as Android runs it, driven only through the bridge's strings."""
 
-    def __init__(self, tmp_path, documents=None, chord_sheet=False, audio_works=True):
+    def __init__(self, tmp_path, documents=None, chord_sheet=False, audio_works=True,
+                 platform="desktop"):
         self.host = ThreadedHost(name="test-session")
         self.host.start()
         self.player = FakePlayer()
@@ -229,7 +230,8 @@ class BridgeEnv:
 
         def build():
             session = create_session(self.host, self.services, self.store,
-                                     chord_sheet=chord_sheet, detection_delay_s=0.02)
+                                     chord_sheet=chord_sheet, detection_delay_s=0.02,
+                                     platform=platform)
             session.subscribe(self.dtos.append)
             b = SessionBridge(self.host, session, self._sink)
             session.start()
@@ -300,10 +302,11 @@ def ref_json(name):
 
 
 def test_subscribing_replays_every_state_first(env):
-    names = [name for name, _ in env.out[:13]]
+    names = [name for name, _ in env.out[:14]]
     assert set(names) == {"HighlightState", "PlaybackState", "StatusState", "EditorState",
                           "ToolbarState", "VoicingMenuState", "InstrumentMenuState",
-                          "DocumentState", "RecentDocumentsState", "IdentifierState",
+                          "DocumentState", "RecentDocumentsState", "SongDefaultsState",
+                          "IdentifierState",
                           "SettingsState", "VoicingEditorState"} | ({"ChordSheetState"}
                                                                      & set(names))
     assert env.out[0][0] == "HighlightState"
@@ -693,6 +696,7 @@ def test_every_output_type_crosses_the_bridge_as_plain_values(tmp_path):
         env.send("respond", request_id=request["request_id"], value=None)
         env.send("transpose", semitones=1, selection=[11, 14])   # TextEdited
         env.send("bogus")                                       # UnexpectedError
+        env.send("rename_document", name="a/b")                 # RenameFailed
         env.send("save")
         request = env.expect("PickDocumentRequest")
         env.send("respond", request_id=request["request_id"], value=None)

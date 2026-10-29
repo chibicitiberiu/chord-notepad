@@ -290,3 +290,22 @@ class QuickStartContent:
 
     pages: Tuple[QuickStartPage, ...]
     show_on_startup: bool
+
+
+@dataclass(frozen=True)
+class RenameFailed:
+    """``rename_document`` couldn't rename the document.
+
+    Attributes:
+        name: The name the user typed (without the extension), so the view
+            can keep it in the field or pass it to ``save_as(name)``.
+        reason: Why, worded for the user (an invalid name, a name already
+            in use, storage that can't rename).
+        can_save_as: True when the name itself is fine and Save As under it
+            is the way out (the storage refused); False when the name has
+            to change.
+    """
+
+    name: str
+    reason: str
+    can_save_as: bool

@@ -30,7 +30,7 @@ from enum import Enum
 from typing import Any, Callable, Deque, Dict, List, Optional, Tuple, Type, TypeVar, Union
 
 from audio.player_interface import IPlayer
-from exceptions import AudioInitializationError, FileOperationError
+from exceptions import AudioInitializationError, FileOperationError, RenameNotSupported
 from models.playback_event import PlaybackEventArgs, PlaybackEventType
 from models.playback_event_internal import MidiEventType
 from session.documents import DocumentRef
@@ -168,6 +168,9 @@ class InMemoryDocumentStore:
         self.contents: Dict[str, Union[str, bytes]] = {}
         #: When set, every write fails with this reason (a full disk...).
         self.write_error: Optional[str] = None
+        #: When False, :meth:`rename` raises ``RenameNotSupported`` (a
+        #: provider without rename support).
+        self.can_rename = True
         self._recent: List[DocumentRef] = []
         self._max_recent = max_recent
         for name, data in (documents or {}).items():
@@ -217,6 +220,18 @@ class InMemoryDocumentStore:
         """Move ``ref`` to the front of the recent list."""
         self._recent = [ref] + [r for r in self.recent() if r.id != ref.id]
         del self._recent[self._max_recent:]
+
+    def rename(self, ref: DocumentRef, display_name: str) -> DocumentRef:
+        """Move the document to ``display_name``; refuses a name in use."""
+        if not self.can_rename:
+            raise RenameNotSupported("This storage can't rename documents.")
+        if ref.id not in self.contents:
+            raise FileOperationError(f"File not found: {ref.location}")
+        new = self.ref(display_name)
+        if new.id != ref.id and new.id in self.contents:
+            raise FileOperationError(f"A file named {display_name} already exists there.")
+        self.contents[new.id] = self.contents.pop(ref.id)
+        return new
 
 
 T = TypeVar("T")
@@ -439,6 +454,7 @@ class FakePlayer(IPlayer):
             key=meta.get("key"),
             current_line=meta.get("line_index"),
             current_bar=meta.get("bar"),
+            song_bar=meta.get("song_bar"),
             total_bars=meta.get("total_bars"),
         )
         callback = self.on_event_callback

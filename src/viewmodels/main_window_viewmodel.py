@@ -256,6 +256,14 @@ class MainWindowViewModel(Observable):
         self.set_and_notify("is_modified", bool(modified))
         self.set_and_notify("current_document", ref)
 
+    def document_renamed(self, ref: DocumentRef) -> None:
+        """The open document was renamed: keep working on it under ``ref``.
+
+        Nothing is read or written and the modified flag stays as it is.
+        """
+        logger.info(f"Document renamed: {ref.location}")
+        self.set_and_notify("current_document", ref)
+
     def save_file(self) -> bool:
         """Save the current file.
 

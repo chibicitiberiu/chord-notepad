@@ -72,6 +72,7 @@ def _compile_rest(
             'duration_seconds': rc.duration_seconds,
             'line_index': rc.line_index,
             'bar': rc.bar,
+            'song_bar': rc.song_bar,
             'bpm': rc.bpm,
             'time_signature_beats': rc.time_sig[0],
             'time_signature_unit': rc.time_sig[1],
@@ -108,6 +109,7 @@ def _compile_chord(
             'duration_seconds': rc.duration_seconds,
             'line_index': rc.line_index,
             'bar': rc.bar,
+            'song_bar': rc.song_bar,
             'bpm': rc.bpm,
             'time_signature_beats': rc.time_sig[0],
             'time_signature_unit': rc.time_sig[1],
@@ -126,6 +128,7 @@ def _compile_chord(
             # Preserve the streaming producer's line_index - 1 quirk exactly.
             'line_index': rc.line_index - 1,
             'bar': rc.bar,
+            'song_bar': rc.song_bar,
         },
     )
     ticks = _build_metronome_ticks(

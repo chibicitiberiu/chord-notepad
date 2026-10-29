@@ -98,6 +98,10 @@ def test_golden_transpose_is_one_grouped_edit_then_immediate_spans_and_key_shift
         ("HighlightState", 2, 0, (chord(0, 1), chord(2, 3), chord(10, 12))),
         # The toolbar key moved with the song.
         ("ToolbarState", "american", 120, 120, True, 100.0, "D", 4, 4, False, "play"),
+        # So did the song's starting key.
+        ("SongDefaultsState", ("SongDefault", "120", False, None),
+         ("SongDefault", "4/4", False, None), ("SongDefault", "D", False, None),
+         "120 · 4/4 · D"),
         ("StatusState", "Transposed whole song by +2 semitones"),
     ]
     assert env.session.text == env.main.current_text == "D A\nla la\nBm"
@@ -338,7 +342,7 @@ def test_capo_response_inserts_the_directive_as_one_grouped_edit():
     assert (edit.start, edit.end, edit.undo) == (0, len(BARRE_SONG), UndoPolicy.GROUP)
     assert edit.replacement == f"{{capo: {capo}}}\n{BARRE_SONG}"
     assert [type(i).__name__ for i in env.recorder.items] == [
-        "TextEdited", "HighlightState", "StatusState"]
+        "TextEdited", "HighlightState", "SongDefaultsState", "StatusState"]
     assert env.status() == f"Suggested capo {capo} for the whole song on Guitar (Standard - EADGBE)"
 
 
