@@ -100,6 +100,13 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
+    androidResources {
+        // aapt's default pattern drops every directory starting with "_",
+        // which would lose the User Guide's _static (CSS, JS, fonts) and
+        // _images. This is the default pattern without that "<dir>_*" entry.
+        ignoreAssetsPattern = "!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~"
+    }
+
     buildFeatures {
         compose = true
         buildConfig = true
