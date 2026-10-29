@@ -16,6 +16,9 @@ import io.github.chibicitiberiu.chordnotepad.lifecycle.AndroidNoisyGateway
 import io.github.chibicitiberiu.chordnotepad.lifecycle.AppLifecycleHooks
 import io.github.chibicitiberiu.chordnotepad.lifecycle.Draft
 import io.github.chibicitiberiu.chordnotepad.lifecycle.PlaybackAudioPolicy
+import io.github.chibicitiberiu.chordnotepad.ui.ErrorQueue
+import io.github.chibicitiberiu.chordnotepad.ui.editor.EditorController
+import io.github.chibicitiberiu.chordnotepad.ui.editor.bind
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -57,9 +60,15 @@ class AppGraph(context: Context) {
     /** Commands to the session. */
     val commands: SessionCommands get() = pyHost.commands
 
+    /** The editor's text and highlighting (app-scoped: survives rotation). */
+    val editor = EditorController(commands)
+
+    /** The session's errors waiting to be shown. */
+    val errorQueue = ErrorQueue()
+
     /**
-     * The editor's current text, for the draft kept across process death.
-     * Set by the editor (M4); while null no draft is saved.
+     * The editor's current text, for the draft kept across process death
+     * (main thread); while null no draft is saved.
      */
     @Volatile
     var editorText: (() -> String)? = null
@@ -71,8 +80,11 @@ class AppGraph(context: Context) {
         return Draft(text, doc?.documentId, doc?.isModified ?: false)
     }
 
-    /** Hook the process lifecycle and the audio policy (main thread, once). */
+    /** Hook the process lifecycle, the audio policy and the editor (main thread, once). */
     fun install() {
+        editorText = editor::currentText
+        editor.bind(scope, repository)
+        errorQueue.bind(scope, repository.errors)
         ProcessLifecycleOwner.get().lifecycle.addObserver(AppLifecycleHooks(commands))
         PlaybackAudioPolicy(AndroidAudioFocusGateway(app), AndroidNoisyGateway(app), commands::pause)
             .bind(scope, repository.playback)

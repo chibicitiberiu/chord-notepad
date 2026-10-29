@@ -29,6 +29,10 @@ object CommandNames {
     const val TAP_CHORD_AT = "tap_chord_at"
     const val SET_BPM = "set_bpm"
     const val SET_MULTIPLIER_PCT = "set_multiplier_pct"
+    const val SET_BPM_TEXT = "set_bpm_text"
+    const val SET_MULTIPLIER_TEXT = "set_multiplier_text"
+    const val RESET_BPM = "reset_bpm"
+    const val RESET_MULTIPLIER = "reset_multiplier"
     const val SET_KEY = "set_key"
     const val SET_TIME_SIGNATURE = "set_time_signature"
     const val TOGGLE_METRONOME = "toggle_metronome"
@@ -63,6 +67,7 @@ object CommandNames {
     val ALL: Set<String> = setOf(
         SET_TEXT, INSERT_TEXT, REQUEST_INSERT_DIRECTIVE, TRANSPOSE, REQUEST_SUGGEST_CAPO,
         CONVERT_NOTATION, PLAY_PAUSE, STOP, TAP_CHORD_AT, SET_BPM, SET_MULTIPLIER_PCT,
+        SET_BPM_TEXT, SET_MULTIPLIER_TEXT, RESET_BPM, RESET_MULTIPLIER,
         SET_KEY, SET_TIME_SIGNATURE, TOGGLE_METRONOME, SET_VOICING, SET_INSTRUMENT,
         SET_NOTATION, SET_FONT, STEP_FONT_SIZE, RESET_FONT_SIZE, SET_CHORD_SHEET_VISIBLE,
         SET_CHORD_SHEET_HEIGHT, SET_CHORD_SHEET_VIEW, CHORD_SHEET_ZOOM, AUDITION,
@@ -146,6 +151,18 @@ class SessionCommands(
 
     /** Set the speed multiplier in percent. */
     fun setMultiplierPct(pct: Double) = send(CommandNames.SET_MULTIPLIER_PCT) { put("pct", pct) }
+
+    /** A typed tempo (`"120"`); Python parses it and ignores text that isn't a number. */
+    fun setBpmText(text: String) = send(CommandNames.SET_BPM_TEXT) { put("text", text) }
+
+    /** A typed speed (`"150"`, `"150%"`, `"1.5x"`); Python parses it and ignores anything else. */
+    fun setMultiplierText(text: String) = send(CommandNames.SET_MULTIPLIER_TEXT) { put("text", text) }
+
+    /** Back to the default tempo (the desktop scrubber's middle-click). */
+    fun resetBpm() = send(CommandNames.RESET_BPM)
+
+    /** Back to 100 % speed (the desktop scrubber's middle-click). */
+    fun resetMultiplier() = send(CommandNames.RESET_MULTIPLIER)
 
     /** Set the key for roman numerals; null clears it. */
     fun setKey(key: String?) = send(CommandNames.SET_KEY) { put("key", key) }

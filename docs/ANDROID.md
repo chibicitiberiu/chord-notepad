@@ -25,7 +25,9 @@ android/
     files/                          SafDocumentStore (SAF I/O, persisted grants, recent list), picker mapping
     lifecycle/                      process start/stop hooks, audio focus + noisy, draft restore
     audio/                          SoundFont install, device sample rate
-    ui/                             M3 placeholder screen (M4 replaces it)
+    ui/                             main screen (app bar, toolbar, status line, menu, errors)
+    ui/editor/                      the song editor: EditorController, highlighting, taps, pinch zoom
+    ui/toolbar/                     notation, BPM/speed scrubbers, key, time signature, metronome
     spike/                          M2 test screen (throwaway; `--ez spike true` or `--es spike_auto ...`)
   app/src/main/python/chordnotepad_android/
     host.py                         bridge entry point: start() -> SessionHandle (submit, shutdown)
@@ -395,8 +397,44 @@ plus the two additions above: all pass.
   PLAYING, kept while PAUSED, abandoned on IDLE; loss, denial or noisy →
   `pause`); `DraftHook` keeps `(text, document_id, modified)` in the
   activity's saved state (texts over 100,000 chars are not kept) and sends
-  `restore_draft` only when the saving process is gone. The editor (M4) sets
-  `AppGraph.editorText`; until then no draft is saved.
+  `restore_draft` only when the saving process is gone. The editor sets
+  `AppGraph.editorText`.
+- **The editor (M4a)** is app-scoped (`AppGraph.editor`, an
+  `EditorController` over one `TextFieldState`), so rotation loses nothing
+  and the session's edits are applied even with no activity on screen.
+  - User edits (seen through `snapshotFlow`) go out as `set_text` with an
+    increasing `client_token`; commands that read the text (Play, a tap,
+    the file commands) send it first (`syncNow`), as the desktop does.
+  - `TextEdited` is applied inside `TextFieldState.edit {}`, which records
+    one never-merged undo step: right for `group`, close enough for
+    `plain`; `reset` then clears the history. It isn't sent back. If the
+    user typed something the session hadn't seen yet, the editor's text
+    wins and is sent with a new token.
+  - A `HighlightState` is painted only when it was computed for the text on
+    screen: same `client_token` after a user edit, or token 0 and the
+    edit's `text_revision` after a session edit (it may arrive before the
+    `TextEdited`; it is re-checked once the edit is applied). Until then
+    the painted spans move with the edits like Tk tags.
+  - Styles are the desktop's (Tk's named colours, the tag priority, the
+    playing chord on top); `OutputTransformation.addStyle` paints them.
+    Font: `TkFixedFont`/monospaced names → Monospace, sans → Sans, serif →
+    Serif; size in sp = pt × 4/3.
+  - A tap (no drag, shorter than a long press) sends `tap_chord_at` with the
+    offset under the finger; the field still moves the cursor. A pinch sends
+    `step_font_size`. Long-press on Play sends `play_pause(from_offset)`
+    with the cursor.
+  - Paste normalization is the one rule set duplicated in Kotlin
+    (`PasteNormalization`, the cases of `test_paste_normalization.py`):
+    Compose has no paste hook for `TextFieldState`, so it applies to every
+    inserted text.
+- **Toolbar**: the scrubbers send raw dragged values (`set_bpm`,
+  `set_multiplier_pct`; the session snaps them), typed text
+  (`set_bpm_text`, `set_multiplier_text`; Python parses) and long-press
+  resets (`reset_bpm`, `reset_multiplier`). The drag step (4 dp per unit)
+  and the time signature choices mirror `session/toolbar.py`.
+- **Errors** are collected app-wide (`ErrorQueue`) so a rotation drops
+  none: `UserError` and `AudioUnavailable` show as dialogs, `UnexpectedError`
+  as a snackbar.
 - **No Google Play services.** emoji2's `EmojiCompatInitializer` is removed
   from the manifest (it fetched a downloadable font from the Play services
 ## Chord sheet op buffer

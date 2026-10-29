@@ -7,7 +7,8 @@ import androidx.activity.enableEdgeToEdge
 import io.github.chibicitiberiu.chordnotepad.lifecycle.DraftHook
 import io.github.chibicitiberiu.chordnotepad.lifecycle.DraftPolicy
 import io.github.chibicitiberiu.chordnotepad.spike.SpikeScreen
-import io.github.chibicitiberiu.chordnotepad.ui.PlaceholderScreen
+import io.github.chibicitiberiu.chordnotepad.ui.ChordNotepadTheme
+import io.github.chibicitiberiu.chordnotepad.ui.MainScreen
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
@@ -37,7 +38,6 @@ class MainActivity : ComponentActivity() {
             },
         ).attach(savedStateRegistry)
 
-        // M3 placeholder over the repository's states; M4 replaces it.
-        setContent { PlaceholderScreen(graph, onCloseApproved = ::finish) }
+        setContent { ChordNotepadTheme { MainScreen(graph, onCloseApproved = ::finish) } }
     }
 }

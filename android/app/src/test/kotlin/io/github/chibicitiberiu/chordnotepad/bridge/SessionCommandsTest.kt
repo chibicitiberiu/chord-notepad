@@ -48,6 +48,18 @@ class SessionCommandsTest {
     }
 
     @Test
+    fun `typed and reset toolbar values`() {
+        commands.setBpmText("150")
+        assertSent("set_bpm_text", """{"text": "150"}""")
+        commands.setMultiplierText("1.5x")
+        assertSent("set_multiplier_text", """{"text": "1.5x"}""")
+        commands.resetBpm()
+        assertSent("reset_bpm", "{}")
+        commands.resetMultiplier()
+        assertSent("reset_multiplier", "{}")
+    }
+
+    @Test
     fun `documents carry refs as objects`() {
         val ref = DocumentRef("content://p/doc%3A1", "song.txt", "song.txt (Drive)")
         commands.openRecent(ref)
@@ -98,7 +110,8 @@ class SessionCommandsTest {
         with(commands) {
             setText("", 0); insertText(0, ""); requestInsertDirective("bpm", 0); transpose(1)
             requestSuggestCapo(); convertNotation("american"); playPause(); stop(); tapChordAt(0)
-            setBpm(100.0); setMultiplierPct(100.0); setKey("C"); setTimeSignature(4, 4); toggleMetronome()
+            setBpm(100.0); setMultiplierPct(100.0); setBpmText("1"); setMultiplierText("1x"); resetBpm()
+            resetMultiplier(); setKey("C"); setTimeSignature(4, 4); toggleMetronome()
             setVoicing("piano"); setInstrument(0); setNotation("american"); setFont("Monospace", 12)
             stepFontSize(1); resetFontSize(); setChordSheetVisible(true); setChordSheetHeight(100)
             setChordSheetView("staff"); chordSheetZoom(1); audition(0); newDocument(); openDocument()

@@ -1,4 +1,60 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Chord Notepad</string>
+
+    <!-- Transport (app bar) -->
+    <string name="play">Play from start (long-press: play from cursor)</string>
+    <string name="pause">Pause playback</string>
+    <string name="resume">Resume playback</string>
+    <string name="play_from_cursor">Play from cursor</string>
+    <string name="stop">Stop playback</string>
+    <string name="toolbar_show">Show toolbar</string>
+    <string name="toolbar_hide">Hide toolbar</string>
+
+    <!-- Toolbar (labels and tooltips as on the desktop) -->
+    <string name="notation_american">AB</string>
+    <string name="notation_european">Do</string>
+    <string name="toolbar_speed">Speed</string>
+    <string name="toolbar_bpm_unit">bpm</string>
+    <string name="toolbar_bpm_description">Beats per minute. Drag to change, tap to type, long-press to reset to 120. Read-only during playback.</string>
+    <string name="toolbar_speed_description">Speed multiplier applied on top of BPM. Long-press to reset to 100%. Adjustable during playback.</string>
+    <string name="toolbar_key">Key</string>
+    <string name="toolbar_key_description">Key signature for roman numeral chords</string>
+    <string name="toolbar_time">Time</string>
+    <string name="toolbar_beats_description">Beats per measure</string>
+    <string name="toolbar_unit_description">Beat unit (4 = quarter note)</string>
+    <string name="metronome_off">Click track during playback: off. Toggle this on, then press Play.</string>
+    <string name="metronome_on">Click track during playback: on</string>
+
+    <!-- Status line -->
+    <string name="status_starting">Starting…</string>
+    <string name="status_failed">Chord Notepad couldn\'t start: %1$s</string>
+
+    <!-- Menu -->
+    <string name="menu_more">More options</string>
+    <string name="menu_back">Back</string>
+    <string name="menu_file">File</string>
+    <string name="menu_new">New</string>
+    <string name="menu_open">Open…</string>
+    <string name="menu_save">Save</string>
+    <string name="menu_save_as">Save As…</string>
+    <string name="menu_export_midi">Export MIDI…</string>
+    <string name="menu_recent">Recent Files</string>
+    <string name="menu_no_recent">(No recent files)</string>
+    <string name="menu_edit">Edit</string>
+    <string name="menu_undo">Undo</string>
+    <string name="menu_redo">Redo</string>
+    <string name="menu_select_all">Select All</string>
+    <string name="menu_view">View</string>
+    <string name="menu_font_bigger">Increase Font Size</string>
+    <string name="menu_font_smaller">Decrease Font Size</string>
+    <string name="menu_font_reset">Reset Font Size</string>
+
+    <!-- Dialogs -->
+    <string name="audio_error_title">Audio Error</string>
+    <string name="unexpected_error">Something went wrong: %1$s</string>
+    <string name="unsaved_title">Unsaved changes</string>
+    <string name="unsaved_message">Save the changes to %1$s?</string>
+    <string name="unsaved_save">Save</string>
+    <string name="unsaved_discard">Discard</string>
 </resources>
