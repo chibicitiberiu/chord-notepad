@@ -37,6 +37,21 @@ Fixed after the first status note:
 
 Also verified on the 16 KB-page emulator.
 
+## Android UI redesign (agreed 2026-10-29)
+
+The M4/M5 screens copied the desktop layout. They're being reworked into Edit /
+Play modes:
+- a music-player bar with a playhead;
+- bottom sheets for every picker;
+- a drawer instead of the ⋮ menu;
+- tap the title to rename;
+- landscape side by side.
+
+The full spec is in `docs/design/android-ui-spec.md`, with an interactive mockup
+in `docs/design/android-modes-mockup.html`. Fitting the UI to the platform is
+part of the port (Tibi), so these are deliberate Android/desktop differences,
+not scope creep. The Android help and Quick Start text need to cover them.
+
 ## Context
 
 Chord Notepad is a desktop app: Python/Tkinter UI, FluidSynth audio, AGPL licence, and Tibi is the sole copyright holder. Tibi wants it on mobile, starting with Android, which they can test (emulator plus their Android phone). iPad comes later and will reuse the same core.

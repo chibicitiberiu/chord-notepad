@@ -1,0 +1,811 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chord Notepad Android: Edit/Play mockup</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@mdi/font@7.4.47/css/materialdesignicons.min.css">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,400,1,0&family=Roboto:wght@400;500;700&family=Roboto+Mono:wght@400;500&family=Noto+Music&display=block">
+<style>
+  :root {
+    --bg: #e8eaf0; --surface: #fdfbff; --surface2: #f1f0f7; --line: #d9d8e3;
+    --text: #1b1b21; --muted: #5d5e6b; --primary: #3f51b5; --primary-soft: #dfe3ff;
+    --chord: #1565c0; --dir: #7b1fa2; --comment: #9e9e9e; --playing: #fff176;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: Roboto, system-ui, sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; flex-direction: column; }
+  .ms { font-family: 'Material Symbols Rounded'; font-weight: normal; font-style: normal; font-size: 24px; line-height: 1; white-space: nowrap; -webkit-font-smoothing: antialiased; font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24; user-select: none; display: inline-block; }
+  svg.ic { width: 24px; height: 24px; display: block; }
+  .mdi { font-size: 24px; line-height: 1; display: inline-block; }
+  .mdi::before { display: block; }
+
+  .controls { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; padding: 10px 16px; background: #fff; border-bottom: 1px solid var(--line); font-size: 14px; }
+  .controls label { display: flex; gap: 6px; align-items: center; }
+  .controls select, .controls button { font: inherit; padding: 5px 10px; border-radius: 8px; border: 1px solid var(--line); background: #fff; cursor: pointer; }
+  .controls button.on { background: var(--primary-soft); border-color: var(--primary); }
+  .stage { flex: 1; display: flex; align-items: center; justify-content: center; overflow: hidden; position: relative; }
+  .device-wrap { transform-origin: center center; }
+  .device { background: #111; border-radius: 30px; padding: 12px; box-shadow: 0 18px 50px rgba(0,0,0,.25); }
+  .screen { position: relative; background: var(--surface); border-radius: 20px; overflow: hidden; display: flex; flex-direction: column; }
+  .sysbar { height: 24px; flex: none; display: flex; justify-content: space-between; align-items: center; padding: 0 14px; font-size: 12px; color: var(--muted); }
+
+  /* ---- header: app bar with tabs, then the ribbon ---- */
+  .header { flex: none; display: flex; flex-direction: column; border-bottom: 1px solid var(--line); background: var(--surface); }
+  .header.oneline { flex-direction: row; align-items: stretch; }
+  .appbar { height: 48px; flex: none; display: flex; align-items: stretch; gap: 0; padding-left: 2px; }
+  .iconbtn { width: 44px; height: 44px; align-self: center; flex: none; border: 0; background: transparent; border-radius: 50%; display: grid; place-items: center; cursor: pointer; color: var(--muted); }
+  .iconbtn:hover { background: var(--surface2); }
+  .title { border: 0; background: transparent; text-align: left; cursor: pointer; border-radius: 8px; color: var(--text); font-family: Roboto; flex: 1 1 auto; min-width: 0; align-self: center; font-size: 17px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 0 6px 0 2px; }
+  .title .dot { color: var(--primary); }
+  .tabs { display: flex; flex: none; align-self: stretch; }
+  .tab { position: relative; border: 0; background: transparent; padding: 0 12px; display: flex; align-items: center; gap: 4px; font: 500 14px Roboto; color: var(--muted); cursor: pointer; letter-spacing: .02em; }
+  .tab .ms { font-size: 20px; }
+  .tab.active { color: var(--primary); }
+  .tab.active::after { content: ''; position: absolute; left: 10px; right: 10px; bottom: 0; height: 3px; border-radius: 3px 3px 0 0; background: var(--primary); }
+  .oneline .appbar { flex: none; }
+  .oneline .title { display: none; }
+
+  .ribbon { flex: 1; min-width: 0; height: 48px; display: flex; align-items: center; gap: 1px; overflow-x: auto; scrollbar-width: none; padding: 0 4px; background: var(--surface2); }
+  .oneline .rwrap { border-left: 1px solid var(--line); }
+  .rwrap { position: relative; flex: 1; min-width: 0; display: flex; background: var(--surface2); }
+  .rwrap::before, .rwrap::after { content: ''; position: absolute; top: 0; bottom: 0; width: 36px; pointer-events: none; opacity: 0; transition: opacity .15s; z-index: 1; }
+  .rwrap::before { left: 0; background: linear-gradient(to right, var(--surface2), rgba(241,240,247,0)); }
+  .rwrap::after { right: 0; background: linear-gradient(to left, var(--surface2) 30%, rgba(241,240,247,0)); }
+  .rwrap.less::before, .rwrap.more::after { opacity: 1; }
+  .rmore { position: absolute; right: 0; top: 0; bottom: 0; width: 28px; border: 0; background: transparent; z-index: 2; display: none; place-items: center; cursor: pointer; color: var(--muted); }
+  .rmore .mdi { font-size: 22px; }
+  .rwrap.more .rmore { display: grid; }
+  .ribbon.dragging { cursor: grabbing; }
+  .ribbon.two { height: auto; flex-direction: column; align-items: stretch; padding: 2px 4px; }
+  .rrow2 { display: flex; align-items: center; height: 46px; gap: 1px; overflow-x: auto; scrollbar-width: none; }
+  .rrow2 + .rrow2 { border-top: 1px solid var(--line); }
+  .ribbon::-webkit-scrollbar { display: none; }
+  .rb { flex: none; height: 44px; min-width: 44px; border: 0; background: transparent; border-radius: 10px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; cursor: pointer; font: 500 10px Roboto; color: var(--text); padding: 0 5px; }
+  .rb:hover { background: rgba(0,0,0,.06); }
+  .rb .cap { max-width: 70px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .rb.on { background: #fff3c4; }
+  .sep { width: 1px; height: 28px; background: var(--line); margin: 0 4px; flex: none; }
+  .seg { flex: none; display: flex; border: 1px solid var(--line); border-radius: 15px; overflow: hidden; height: 30px; margin: 0 2px; }
+  .seg button { border: 0; background: var(--surface); font: 500 12px Roboto; padding: 0 9px; cursor: pointer; color: var(--muted); }
+  .seg button.on { background: var(--primary-soft); color: var(--primary); }
+  .tbtn { flex: none; width: 34px; height: 34px; border-radius: 50%; border: 0; display: grid; place-items: center; cursor: pointer; margin: 0 5px; }
+  .tbtn .ms { font-size: 22px; color: #fff; }
+  .speed { flex: none; display: flex; align-items: center; justify-content: center; gap: 3px; padding: 0 8px 0 4px; height: 34px; border-radius: 17px; background: transparent; font: 500 14px/1 Roboto; color: #6a1b9a; cursor: ew-resize; margin: 0 3px; }
+  .speed .ms { font-size: 19px; }
+  .songchip { flex: none; display: flex; align-items: center; gap: 6px; height: 34px; padding: 0 10px 0 6px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); font: 500 13px Roboto; cursor: pointer; margin: 0 2px; color: var(--text); }
+  .songchip .ms { font-size: 18px; color: var(--muted); }
+
+  /* composed icons */
+  .combo { display: flex; align-items: center; height: 24px; }
+  .combo .ms { font-size: 20px; }
+  .cbox { position: relative; width: 24px; height: 24px; display: block; }
+  .cl { position: absolute; font: 500 12px/1 Roboto, sans-serif; letter-spacing: .01em; }
+  .ct { position: absolute; font-family: Roboto; font-weight: 700; line-height: 1; letter-spacing: -.02em; }
+
+  .content { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+  .content.side { flex-direction: row; }
+  .editor { flex: 1; min-height: 0; min-width: 0; overflow: auto; padding: 8px 12px; font: 15px/1.5 'Roboto Mono', monospace; white-space: pre; background: #fff; }
+  .editor.frozen { background: #fbfbfd; }
+  .ch { color: var(--chord); text-decoration: underline; text-underline-offset: 3px; border-radius: 3px; }
+  .frozen { cursor: default; }
+  .phead .grab { position: absolute; left: -12px; top: -12px; width: 24px; height: calc(100% + 16px); cursor: grab; touch-action: none; }
+  .frozen .ch { cursor: pointer; }
+  .phead { display: inline-block; position: relative; width: 0; height: 1.3em; vertical-align: text-bottom; margin-right: 1px; }
+  .phead::after { content: ''; position: absolute; left: -2px; top: 0; bottom: 0; width: 3px; border-radius: 2px; background: var(--primary); }
+  .phead::before { content: ''; position: absolute; left: -6px; top: -7px; border: 5.5px solid transparent; border-top: 7px solid var(--primary); }
+  .ch.playing { background: var(--playing); }
+  .dir { color: var(--dir); } .cm { color: var(--comment); }
+  .caret { display: inline-block; width: 2px; height: 1.2em; background: var(--primary); vertical-align: text-bottom; animation: blink 1s steps(1) infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  .sheet { flex: none; border-top: 1px solid var(--line); background: #f9faf6; display: flex; flex-direction: column; }
+  .rightcol { display: none; }
+  .vgrip { display: none; flex: none; width: 14px; cursor: col-resize; align-items: center; justify-content: center; background: var(--surface); border-left: 1px solid var(--line); touch-action: none; }
+  .vgrip::after { content: ''; width: 4px; height: 36px; border-radius: 2px; background: #c5c5cf; }
+  .side .vgrip { display: flex; }
+  .side .rightcol { display: flex; flex-direction: column; flex: none; min-height: 0; }
+  .side .player { gap: 0; }
+  .side .pbtn { width: 38px; height: 38px; }
+  .side .pplay { width: 48px; height: 48px; margin: 0 2px; }
+  .side .rightcol .sheet { flex: 1; border-top: 0; }
+  .grip { height: 14px; flex: none; display: grid; place-items: center; cursor: row-resize; }
+  .grip::after { content: ''; width: 36px; height: 4px; border-radius: 2px; background: #c5c5cf; }
+  .sheet-tabs { display: flex; gap: 2px; padding: 0 6px; align-items: center; height: 30px; }
+  .stab { border: 0; background: transparent; border-radius: 8px; padding: 4px 10px; font: 500 12px Roboto; cursor: pointer; color: var(--muted); }
+  .stab.on { background: #e6e9dc; color: var(--text); }
+  .sheet-body { flex: 1; position: relative; overflow: hidden; }
+  .bar { position: absolute; height: 6px; border-radius: 3px; background: #4a7fb5; }
+  .bar.lh { background: #b57a4a; }
+  .slot { position: absolute; top: 2px; bottom: 2px; border-radius: 6px; }
+  .slot.playing { background: rgba(255, 241, 118, .6); }
+  .slot.head { box-shadow: inset 3px 0 0 var(--primary); }
+  .slot-label { position: absolute; top: 4px; font: 700 12px Roboto; color: #263238; }
+
+  .transport { flex: none; display: flex; flex-direction: column; padding: 2px 10px 4px; border-top: 1px solid var(--line); background: var(--surface2); }
+  .transport.top { border-top: 1px solid var(--line); background: var(--surface2); }
+  .player { display: flex; align-items: center; justify-content: center; gap: 6px; height: 60px; }
+  .pbtn { position: relative; flex: none; width: 42px; height: 42px; border-radius: 50%; border: 0; background: transparent; display: grid; place-items: center; cursor: pointer; }
+  .pbtn:hover { background: var(--surface2); }
+  .pbtn.on { background: var(--primary-soft); }
+  .pbadge { position: absolute; right: -4px; top: 2px; background: var(--primary); color: #fff; font: 500 9px/1 Roboto; padding: 2px 3px; border-radius: 6px; }
+  .pplay { flex: none; width: 54px; height: 54px; border-radius: 50%; border: 0; background: var(--primary); display: grid; place-items: center; cursor: pointer; box-shadow: 0 2px 6px rgba(63,81,181,.35); margin: 0 4px; }
+  .prow2 { display: flex; justify-content: center; align-items: center; height: 26px; margin-top: 2px; }
+  .pstat { font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pstat.right { text-align: right; }
+  .pstatus { text-align: center; font-size: 11px; color: var(--muted); height: 16px; line-height: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .songpill { display: flex; align-items: center; gap: 4px; height: 26px; padding: 0 8px; border: 0; border-radius: 13px; background: transparent; color: #6f5a9a; font: 500 13px Roboto; cursor: pointer; }
+  .songpill:hover { background: var(--surface2); }
+  .tstat { min-width: 0; font-size: 12px; line-height: 1.3; color: var(--muted); overflow: hidden; text-align: center; }
+  .tbtns { display: flex; align-items: center; gap: 4px; }
+  .tplay { width: 44px; height: 44px; border-radius: 50%; border: 0; display: grid; place-items: center; cursor: pointer; }
+  .tstop { width: 40px; height: 40px; border-radius: 50%; border: 0; background: transparent; display: grid; place-items: center; cursor: pointer; }
+  .tstop:hover { background: #f1f0f7; }
+  .tstop.metro-on { background: #fff3c4; }
+  .transport .speed { justify-self: end; }
+  .status { flex: none; height: 22px; display: flex; align-items: center; padding: 0 12px; font-size: 11px; color: var(--muted); border-top: 1px solid var(--line); background: var(--surface); white-space: nowrap; overflow: hidden; }
+
+  .floatundo { position: absolute; right: 10px; z-index: 4; display: none; background: var(--surface); border-radius: 22px; box-shadow: 0 2px 10px rgba(0,0,0,.18); }
+  .floatundo .iconbtn { width: 40px; height: 40px; }
+  .kbd { flex: none; background: #d6d9df; display: grid; grid-template-rows: 30px repeat(4, 1fr); gap: 5px; padding: 5px; }
+  .kbd .sugg { display: flex; justify-content: space-around; align-items: center; font-size: 13px; color: #333; }
+  .krow { display: flex; gap: 4px; justify-content: center; }
+  .key { flex: 1; max-width: 46px; background: #fff; border-radius: 5px; display: grid; place-items: center; font-size: 14px; box-shadow: 0 1px 0 rgba(0,0,0,.2); }
+  .key.wide { max-width: 260px; flex: 4; }
+
+  .scrim { position: absolute; inset: 0; background: rgba(0,0,0,.32); opacity: 0; pointer-events: none; transition: opacity .2s; z-index: 5; }
+  .scrim.on { opacity: 1; pointer-events: auto; }
+  .drawer { position: absolute; top: 0; bottom: 0; left: 0; width: min(300px, 82%); background: var(--surface); transform: translateX(-102%); transition: transform .22s; z-index: 6; display: flex; flex-direction: column; padding: 24px 10px 10px; overflow-y: auto; border-radius: 0 16px 16px 0; }
+  .drawer.on { transform: none; }
+  .drawer h3 { margin: 4px 14px 10px; font: 500 18px Roboto; }
+  .ditem { display: flex; align-items: center; gap: 14px; min-height: 46px; padding: 0 14px; border-radius: 23px; cursor: pointer; font-size: 14px; }
+  .ditem:hover { background: var(--surface2); }
+  .ditem small { margin-left: auto; color: var(--muted); font-size: 12px; }
+  .dsec { margin: 10px 14px 4px; font: 500 11px Roboto; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+  .dsep { height: 1px; background: var(--line); margin: 8px 10px; }
+  .pop { position: absolute; z-index: 7; background: var(--surface); border-radius: 12px; box-shadow: 0 8px 28px rgba(0,0,0,.22); padding: 6px 0; min-width: 210px; display: none; }
+  .pop.on { display: block; }
+  .pop .ditem { border-radius: 0; }
+  .sheetpop { position: absolute; left: 0; right: 0; bottom: 0; z-index: 7; background: var(--surface); border-radius: 18px 18px 0 0; box-shadow: 0 -6px 24px rgba(0,0,0,.18); padding: 10px 18px 18px; transform: translateY(105%); transition: transform .22s; max-height: 78%; display: flex; flex-direction: column; }
+  .sheetpop::before { content: ''; flex: none; align-self: center; width: 32px; height: 4px; border-radius: 2px; background: #c5c5cf; margin-bottom: 8px; }
+  .sbody { overflow-y: auto; margin: 0 -18px; padding: 0 18px; flex: 1; min-height: 0; }
+  .shead { display: flex; align-items: center; gap: 8px; margin: 2px 0 6px; }
+  .shead h4 { margin: 0; flex: 1; }
+  .srow { display: flex; align-items: center; gap: 14px; min-height: 46px; cursor: pointer; font-size: 14px; border-radius: 10px; padding: 0 6px; margin: 0 -6px; }
+  .srow:hover { background: var(--surface2); }
+  .srow .sub { margin-left: auto; color: var(--muted); font-size: 12px; text-align: right; }
+  .srow .mdi { font-size: 22px; }
+  .sfoot { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); }
+  .tbtn2 { font: 500 14px Roboto; border-radius: 20px; padding: 9px 14px; border: 0; cursor: pointer; background: transparent; color: var(--primary); display: flex; align-items: center; gap: 6px; }
+  .slinks { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 0; }
+  .slink { border: 0; background: transparent; color: #1a73e8; font: 500 14px Roboto; padding: 6px 4px; border-radius: 8px; cursor: pointer; }
+  .slink:hover { background: #e8f0fe; text-decoration: underline; }
+  .slink.on { color: var(--text); font-weight: 700; text-decoration: none; background: var(--surface2); }
+  .spfield { display: flex; align-items: center; gap: 8px; margin-top: 12px; font-size: 14px; }
+  .spfield input { width: 90px; font: 500 16px Roboto; padding: 8px 10px; border: 1px solid var(--primary); border-radius: 8px; }
+  .dialog { position: absolute; inset: 0; z-index: 9; background: rgba(0,0,0,.32); display: none; align-items: center; justify-content: center; }
+  .dialog.on { display: flex; }
+  .dlg { background: var(--surface); border-radius: 26px; padding: 22px 22px 12px; width: min(300px, 86%); box-shadow: 0 10px 30px rgba(0,0,0,.25); }
+  .dlg h4 { margin: 0 0 14px; font: 400 22px Roboto; }
+  .dlg .spfield { margin: 0; }
+  .dlg-hint { font-size: 12px; color: var(--muted); margin: 6px 0 0 2px; }
+  .dlg-actions { display: flex; justify-content: flex-end; gap: 4px; margin-top: 14px; }
+  .fbtn { font: 500 14px Roboto; border-radius: 20px; padding: 9px 18px; border: 0; cursor: pointer; background: var(--primary); color: #fff; }
+  .sheetpop.on { transform: none; }
+  .sheetpop h4 { margin: 4px 0 2px; font: 500 16px Roboto; }
+  .sheetpop p { margin: 0 0 12px; font-size: 12px; color: var(--muted); line-height: 1.4; }
+  .field { display: flex; align-items: center; gap: 12px; height: 46px; border-bottom: 1px solid var(--line); font-size: 14px; }
+  .field .val { margin-left: auto; font-weight: 500; color: var(--muted); }
+  .valbtn { margin-left: auto; font: 500 14px Roboto; border: 1px solid var(--line); background: var(--surface); border-radius: 8px; padding: 5px 10px; cursor: pointer; }
+  .fnote { font-size: 11px; color: var(--muted); margin: -6px 0 6px 36px; }
+  .fnote code { color: var(--dir); font-family: 'Roboto Mono'; }
+  .fnote a { color: var(--primary); }
+  .field .from { font-size: 11px; color: var(--dir); margin-left: 8px; }
+  .sheetpop .actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
+  .sheetpop .actions button { font: 500 14px Roboto; border-radius: 20px; padding: 9px 16px; border: 0; cursor: pointer; }
+  .snack { position: absolute; left: 12px; right: 12px; bottom: 12px; background: #303036; color: #fff; padding: 11px 14px; border-radius: 8px; font-size: 13px; z-index: 8; opacity: 0; transition: opacity .2s; pointer-events: none; }
+  .snack.on { opacity: 1; }
+
+  .notes { position: absolute; right: 16px; bottom: 16px; width: 320px; max-height: calc(100% - 32px); overflow: auto; background: #fff; border-radius: 12px; padding: 12px 14px; font-size: 13px; line-height: 1.45; box-shadow: 0 4px 16px rgba(0,0,0,.12); }
+  .notes h4 { margin: 0 0 6px; font-size: 14px; }
+  .notes ul { margin: 0 0 8px; padding-left: 18px; }
+  @media (max-width: 1150px) { .notes { display: none !important; } }
+</style>
+</head>
+<body>
+<div class="controls">
+  <label>Device
+    <select id="device">
+      <option value="360x640" selected>HTC 10 (360×640 dp)</option>
+      <option value="360x780">Small phone (360×780)</option>
+      <option value="412x915">Pixel 8 (412×915)</option>
+      <option value="600x960">7" tablet (600×960)</option>
+      <option value="800x1280">10" tablet (800×1280)</option>
+    </select>
+  </label>
+  <label>Orientation <span><button id="portrait" class="on">Portrait</button> <button id="landscape">Landscape</button></span></label>
+  <label><input type="checkbox" id="kbd" checked> Keyboard up (Edit)</label>
+  <label>Transpose icon
+    <select id="tIcon"><option value="swap_vert">swap-vertical + music-note (MDI)</option></select>
+  </label>
+  <label>Convert icon
+    <select id="cIcon">
+      <option value="diagonal" selected>C ↘ ↖ Do (refined)</option>
+      <option value="swap">C ⇄ Do (swap_horiz)</option>
+      <option value="badge">C + Do badge (like “translate”)</option>
+      <option value="swapdiag">C ↘ Do with swap_horiz</option>
+      <option value="slash">C / Do</option>
+      
+    </select>
+  </label>
+  <label>Player
+    <select id="tPos"><option value="bottom" selected>bottom of the screen</option><option value="toolbar">in the toolbar (top)</option><option value="text">under the text</option></select>
+  </label>
+  <label><input type="checkbox" id="showNotes" checked> Notes</label>
+</div>
+
+<div class="stage" id="stage">
+  <div class="device-wrap" id="wrap">
+    <div class="device">
+      <div class="screen" id="screen">
+        <div class="sysbar"><span>9:41</span><span class="ms" style="font-size:14px">signal_cellular_alt wifi battery_5_bar</span></div>
+        <div class="header" id="header">
+          <div class="appbar">
+            <button class="iconbtn" id="menuBtn" aria-label="Open the drawer"><span class="mdi mdi-menu"></span></button>
+            <button class="title" id="title" aria-label="Rename the song"><span id="titleText">Amazing Grace</span><span class="dot" id="dirty"> •</span></button>
+            <div class="tabs" role="tablist">
+              <button class="tab" role="tab" data-mode="edit"><span class="mdi mdi-pencil" style="font-size:19px"></span>Edit</button>
+              <button class="tab" role="tab" data-mode="play"><span class="mdi mdi-play-circle" style="font-size:19px"></span>Play</button>
+            </div>
+            <button class="iconbtn" id="saveBtn" aria-label="Save"><span class="mdi mdi-content-save" style="color:#1e88e5"></span></button>
+          </div>
+          <div class="rwrap" id="rwrap"><div class="ribbon" id="ribbon"></div><button class="rmore" id="rmore" aria-label="Show more tools"><span class="mdi mdi-chevron-right"></span></button></div>
+        </div>
+
+        <div class="content" id="content">
+          <div class="editor" id="editor"></div>
+          <div class="transport" id="transport"></div>
+          <div class="vgrip" id="vgrip" role="separator" aria-label="Resize the chord sheet"></div>
+          <div class="rightcol" id="rightcol"></div>
+          <div class="sheet" id="sheet">
+            <div class="grip" id="grip"></div>
+            <div class="sheet-tabs">
+              <button class="stab on">Roll</button><button class="stab">Staff</button><button class="stab">Fret</button><button class="stab">Tab</button>
+              <span style="flex:1"></span>
+              <button class="iconbtn" style="width:30px;height:30px" aria-label="Zoom out"><span class="mdi mdi-magnify-minus" style="font-size:19px;color:#546e7a"></span></button>
+              <button class="iconbtn" style="width:30px;height:30px" aria-label="Zoom in"><span class="mdi mdi-magnify-plus" style="font-size:19px;color:#546e7a"></span></button>
+            </div>
+            <div class="sheet-body" id="sheetBody"></div>
+          </div>
+        </div>
+        <div class="status" id="status">Ready</div>
+
+        <div class="floatundo" id="floatundo"><button class="iconbtn" aria-label="Undo"><span class="mdi mdi-undo" style="color:#5c6bc0"></span></button><button class="iconbtn" aria-label="Redo"><span class="mdi mdi-redo" style="color:#5c6bc0"></span></button></div>
+        <div class="kbd" id="keyboard">
+          <div class="sugg"><span>Am</span><span>|</span><span>Amazing</span><span>|</span><span>Am7</span></div>
+          <div class="krow"><span class="key">q</span><span class="key">w</span><span class="key">e</span><span class="key">r</span><span class="key">t</span><span class="key">y</span><span class="key">u</span><span class="key">i</span><span class="key">o</span><span class="key">p</span></div>
+          <div class="krow"><span class="key">a</span><span class="key">s</span><span class="key">d</span><span class="key">f</span><span class="key">g</span><span class="key">h</span><span class="key">j</span><span class="key">k</span><span class="key">l</span></div>
+          <div class="krow"><span class="key">⇧</span><span class="key">z</span><span class="key">x</span><span class="key">c</span><span class="key">v</span><span class="key">b</span><span class="key">n</span><span class="key">m</span><span class="key">⌫</span></div>
+          <div class="krow"><span class="key">?123</span><span class="key">,</span><span class="key wide">space</span><span class="key">.</span><span class="key">⏎</span></div>
+        </div>
+
+        <div class="scrim" id="scrim"></div>
+        <nav class="drawer" id="drawer" aria-label="Documents and app">
+          <h3>Chord Notepad</h3>
+          <div class="ditem"><span class="mdi mdi-file-plus" style="color:#2e7d32"></span>New song</div>
+          <div class="ditem"><span class="mdi mdi-folder-open" style="color:#1e88e5"></span>Open…</div>
+          <div class="dsec">Recent</div>
+          <div class="ditem"><span class="mdi mdi-file-music" style="color:#8e24aa"></span>Amazing Grace<small>now</small></div>
+          <div class="ditem"><span class="mdi mdi-file-music" style="color:#8e24aa"></span>How Great Thou Art<small>2 d</small></div>
+          <div class="ditem"><span class="mdi mdi-file-music" style="color:#8e24aa"></span>Blues in G<small>1 w</small></div>
+          <div class="dsep"></div>
+          <div class="ditem"><span class="mdi mdi-content-save-edit" style="color:#1e88e5"></span>Save as…</div>
+          <div class="ditem"><span class="mdi mdi-export" style="color:#ef6c00"></span>Export MIDI…</div>
+          <div class="dsep"></div>
+          <div class="ditem"><span class="mdi mdi-cog" style="color:#546e7a"></span>Settings</div>
+          <div class="ditem"><span class="mdi mdi-book-open-variant" style="color:#00897b"></span>User guide</div>
+          <div class="ditem"><span class="mdi mdi-school" style="color:#f9a825"></span>Quick start</div>
+          <div class="ditem"><span class="mdi mdi-information" style="color:#5c6bc0"></span>About</div>
+        </nav>
+        <div class="pop" id="insertPop"></div>
+        <div class="pop" id="voicingPop">
+          <div class="dsec">Piano</div>
+          <div class="ditem"><span class="mdi mdi-radiobox-marked" style="color:#1e88e5"></span>Piano</div>
+          <div class="dsec">Fretted</div>
+          <div class="ditem"><span class="mdi mdi-radiobox-blank" style="color:#9e9e9e"></span>Guitar (standard)</div>
+          <div class="ditem"><span class="mdi mdi-radiobox-blank" style="color:#9e9e9e"></span>Ukulele</div>
+          <div class="dsec">Ensembles</div>
+          <div class="ditem"><span class="mdi mdi-radiobox-blank" style="color:#9e9e9e"></span>SATB choir</div>
+        </div>
+        <div class="pop" id="speedPop" style="padding:12px 16px;min-width:240px">
+          <div style="font:500 14px Roboto;margin-bottom:8px">Playback speed</div>
+          <input type="range" min="25" max="400" step="5" value="100" id="speedRange" style="width:100%">
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px" id="speedPresets"></div>
+        </div>
+        <div class="sheetpop" id="gsheet"></div>
+        <div class="dialog" id="dialog"></div>
+        <div class="sheetpop" id="songPop">
+          <h4>Song defaults</h4>
+          <p>Defaults apply where the song has no directive; they aren't saved with the file. Values the song sets are shown for reference.</p>
+          <div class="field"><span id="ic-tempo"></span>Tempo<span class="val">90 bpm</span></div>
+          <div class="fnote">Set by <code>{bpm: 90}</code> in the song · <a href="#" class="editdir">Edit</a></div>
+          <div class="field"><span id="ic-time"></span>Time signature<button class="valbtn">3/4 ▾</button></div>
+          <div class="fnote">Default; the song has no <code>{time}</code></div>
+          <div class="field"><span id="ic-key"></span>Key<span class="val">G</span></div>
+          <div class="fnote">Set by <code>{key: G}</code> in the song · <a href="#" class="editdir">Edit</a></div>
+          <div class="actions">
+            <button style="background:transparent;color:var(--primary)" id="songWrite">Write into song</button>
+            <button style="background:var(--primary);color:#fff" id="songDone">Done</button>
+          </div>
+        </div>
+        <div class="snack" id="snack"></div>
+      </div>
+    </div>
+  </div>
+
+  <aside class="notes" id="notes">
+    <h4>What changed</h4>
+    <ul>
+      <li>Edit / Play are tabs in the app bar; ribbon is one 48 dp row.</li>
+      <li>Edit: no status line (messages are snackbars). If the keyboard leaves too little room, the header collapses and only the text shows.</li>
+      <li>Phone landscape: tabs and ribbon share one line.</li>
+      <li>Play: a music-player bar under the text: voicing · instrument · ▶/⏸ · metronome · speed (popup). No Stop: a playhead marker sits in the text; tap anywhere to move it to the nearest chord, drag to scrub; ▶ plays from it. Tapping a chord also plays it.</li>
+      <li>Play: tempo, time and key fold into one “Song” chip (♩ 90 · 3/4 · G) that opens a sheet; purple tag = value comes from a directive.</li>
+      <li>Capo moved to ＋ Insert (it changes fret/tab shapes, never the sound).</li>
+      <li>“Sheet” button removed: drag the chord sheet's handle to collapse it.</li>
+    </ul>
+    <h4>Icons</h4>
+    <ul><li>Pictogrammers Material Design Icons (Apache-2.0) for everything except the capo and the 3/4 time signature, which MDI lacks (ours).</li></ul>
+  </aside>
+</div>
+
+<script>
+/* ---------- original icons (24×24) ---------- */
+const SVG = {
+  // MDI style: 24-unit grid, one flat colour, rounded 2-unit strokes.
+  capo: c => `<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><g fill="${c}">
+      <rect x="4" y="2" width="2" height="20" rx="1"/><rect x="9" y="2" width="2" height="20" rx="1"/><rect x="14" y="2" width="2" height="20" rx="1"/>
+      <rect x="2" y="8" width="17" height="5" rx="2.5"/>
+      <path d="M17.5 8.6a1 1 0 0 1 1.4 0l2.5 2.5a1 1 0 0 1 0 1.4l-1.6 1.6l1.9 5.2a1 1 0 0 1-1.9.7l-2.1-5.8a1 1 0 0 1 .2-1z"/></g></svg>`,
+  clef: c => `<span style="font:29px/24px 'Noto Music';color:${c};display:block;height:24px;margin-top:-3px">𝄞</span>`,
+  metronome: c => `<svg class="ic" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M8.6 3.2 h6.8 L19.6 21 H4.4 Z" fill="${c}"/>
+      <rect x="4" y="18.4" width="16" height="2.8" rx="1" fill="#000" opacity=".25"/>
+      <line x1="12" y1="17" x2="16.8" y2="5.5" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/>
+      <rect x="13.6" y="9.4" width="3" height="2.4" rx=".6" fill="#fff" transform="rotate(22 15.1 10.6)"/></svg>`,
+  notes: c => `<svg class="ic" viewBox="0 0 24 24" aria-hidden="true">
+      <g fill="${c}"><ellipse cx="5" cy="19" rx="2.6" ry="2" transform="rotate(-20 5 19)"/><rect x="6.9" y="9" width="1.3" height="10"/>
+      <ellipse cx="12" cy="14" rx="2.6" ry="2" transform="rotate(-20 12 14)"/><rect x="13.9" y="4.5" width="1.3" height="9.5"/>
+      <ellipse cx="19" cy="9" rx="2.6" ry="2" transform="rotate(-20 19 9)"/><rect x="20.9" y="1.5" width="1.3" height="7.5"/></g></svg>`,
+  guitar: c => `<svg class="ic" viewBox="0 0 24 24" aria-hidden="true">
+      <g transform="rotate(45 12 12)">
+        <rect x="11" y="-1" width="2" height="12" fill="#6d4c41"/><rect x="10.2" y="-2.4" width="3.6" height="3" rx="1" fill="#4e342e"/>
+        <circle cx="12" cy="13.4" r="4.1" fill="${c}"/><circle cx="12" cy="19.2" r="5.1" fill="${c}"/>
+        <circle cx="12" cy="15.6" r="1.5" fill="#3e2723"/><rect x="10.2" y="19.6" width="3.6" height="1.1" rx=".5" fill="#3e2723"/></g></svg>`,
+  timesig: c => `<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><g fill="${c}" font-family="Roboto, sans-serif" font-weight="900" font-size="12.5" text-anchor="middle"><text x="12" y="11">3</text><text x="12" y="22">4</text></g></svg>`,
+};
+const mdi = (n, c, s) => `<span class="mdi mdi-${n}" style="color:${c}${s ? ';font-size:' + s + 'px' : ''}"></span>`;
+const ms = (n, c, s) => `<span class="ms" style="color:${c}${s ? ';font-size:' + s + 'px' : ''}">${n}</span>`;
+
+const SONG = [
+  [['dir','{title: Amazing Grace}']],
+  [['dir','{bpm: 90}'],['t','  '],['dir','{key: G}']],
+  [],
+  [['dir','{label: verse}']],
+  [['ch','G'],['t','       '],['ch','G7'],['t','      '],['ch','C'],['t','      '],['ch','G']],
+  [['t','Amazing grace, how sweet the sound']],
+  [['ch','G'],['t','        '],['ch','Em'],['t','     '],['ch','A7'],['t','     '],['ch','D']],
+  [['t','That saved a wretch like me']],
+  [['ch','G'],['t','       '],['ch','G7'],['t','      '],['ch','C'],['t','      '],['ch','G']],
+  [['t','I once was lost, but now am found']],
+  [['ch','Em'],['t','      '],['ch','D'],['t','       '],['ch','G'],['t','   '],['cm','// ritardando']],
+  [['t','Was blind, but now I see']],
+  [],
+  [['dir','{loop: verse 2}']],
+];
+const VOICINGS = [
+  ['Piano', ['Piano']],
+  ['Fretted', ['Guitar (standard)', 'Guitar (drop D)', 'Guitar (DADGAD)', 'Ukulele', 'Mandolin', 'Bass guitar']],
+  ['Ensembles', ['SATB choir', 'String quartet', 'Brass quintet', 'Barbershop quartet']],
+  ['Your voicings', ['My Trio']],
+];
+const GM = [
+  ['Piano', ['Acoustic Grand Piano', 'Bright Acoustic Piano', 'Electric Grand Piano', 'Honky-tonk Piano', 'Electric Piano 1', 'Electric Piano 2', 'Harpsichord', 'Clavinet']],
+  ['Chromatic Percussion', ['Celesta', 'Glockenspiel', 'Music Box', 'Vibraphone', 'Marimba', 'Xylophone', 'Tubular Bells', 'Dulcimer']],
+  ['Organ', ['Drawbar Organ', 'Percussive Organ', 'Rock Organ', 'Church Organ', 'Reed Organ', 'Accordion', 'Harmonica', 'Tango Accordion']],
+  ['Guitar', ['Nylon Guitar', 'Steel Guitar', 'Jazz Guitar', 'Clean Electric Guitar', 'Muted Guitar', 'Overdriven Guitar', 'Distortion Guitar', 'Guitar Harmonics']],
+  ['Bass', ['Acoustic Bass', 'Fingered Bass', 'Picked Bass', 'Fretless Bass', 'Slap Bass 1', 'Slap Bass 2', 'Synth Bass 1', 'Synth Bass 2']],
+  ['Strings', ['Violin', 'Viola', 'Cello', 'Contrabass', 'Tremolo Strings', 'Pizzicato Strings', 'Orchestral Harp', 'Timpani']],
+  ['Ensemble', ['String Ensemble 1', 'String Ensemble 2', 'Synth Strings 1', 'Synth Strings 2', 'Choir Aahs', 'Voice Oohs', 'Synth Voice', 'Orchestra Hit']],
+  ['Brass', ['Trumpet', 'Trombone', 'Tuba', 'Muted Trumpet', 'French Horn', 'Brass Section', 'Synth Brass 1', 'Synth Brass 2']],
+  ['Reed', ['Soprano Sax', 'Alto Sax', 'Tenor Sax', 'Baritone Sax', 'Oboe', 'English Horn', 'Bassoon', 'Clarinet']],
+  ['Pipe', ['Piccolo', 'Flute', 'Recorder', 'Pan Flute', 'Blown Bottle', 'Shakuhachi', 'Whistle', 'Ocarina']],
+  ['Synth Lead', ['Square Lead', 'Sawtooth Lead', 'Calliope Lead', 'Chiff Lead', 'Charang Lead', 'Voice Lead', 'Fifths Lead', 'Bass + Lead']],
+  ['Synth Pad', ['New Age Pad', 'Warm Pad', 'Polysynth Pad', 'Choir Pad', 'Bowed Pad', 'Metallic Pad', 'Halo Pad', 'Sweep Pad']],
+  ['Synth Effects', ['Rain', 'Soundtrack', 'Crystal', 'Atmosphere', 'Brightness', 'Goblins', 'Echoes', 'Sci-fi']],
+  ['Ethnic', ['Sitar', 'Banjo', 'Shamisen', 'Koto', 'Kalimba', 'Bagpipe', 'Fiddle', 'Shanai']],
+  ['Percussive', ['Tinkle Bell', 'Agogo', 'Steel Drums', 'Woodblock', 'Taiko Drum', 'Melodic Tom', 'Synth Drum', 'Reverse Cymbal']],
+  ['Sound Effects', ['Guitar Fret Noise', 'Breath Noise', 'Seashore', 'Bird Tweet', 'Telephone Ring', 'Helicopter', 'Applause', 'Gunshot']],
+];
+let voicing = 'Piano', program = 0;
+const CHORDS = SONG.flat().filter(s => s[0] === 'ch').map(s => s[1]);
+
+let sideW = 50, textSize = 15, sheetZoom = 1, sheetVisible = true, head = 0, speed = 100, statusText = 'Ready', mode = 'edit', playing = false, playIdx = -1, timer = null, landscape = false, metro = false;
+const $ = id => document.getElementById(id);
+const rb = (iconHtml, cap, extra = '') => `<button class="rb" ${extra}>${iconHtml}<span class="cap">${cap}</span></button>`;
+
+function transposeIcon() {
+  return `<span class="combo">${mdi('swap-vertical', '#8e24aa', 20)}<span style="margin-left:-8px">${mdi('music-note', '#8e24aa', 21)}</span></span>`;
+}
+function convertIcon() {
+  const C1 = '#1e88e5', C2 = '#fb8c00';
+  const lab = (t, c, size, pos) => `<span class="cl" style="color:${c};font-size:${size}px;${pos}">${t}</span>`;
+  const sym = (n, c, size, pos) => `<span class="ms" style="position:absolute;${pos};font-size:${size}px;color:${c}">${n}</span>`;
+  switch ($('cIcon').value) {
+    case 'swap':     // C  ⇄  Do: Material's swap_horiz is already two separate arrows
+      return `<span class="combo" style="gap:1px">${lab('C', C1, 13, 'position:static')}<span class="ms" style="font-size:16px;color:#78909c">swap_horiz</span>${lab('Do', C2, 12, 'position:static')}</span>`;
+    case 'badge':    // like Material's "translate": big C, a small Do badge at the bottom right
+      return `<span class="cbox">${lab('C', C1, 17, 'left:1px;top:0')}
+        <span style="position:absolute;right:-2px;bottom:-1px;background:${C2};color:#fff;border-radius:4px;padding:1px 2px;font:500 9px/1 Roboto">Do</span></span>`;
+    case 'swapdiag': // C top-left, Do bottom-right, swap_horiz between them
+      return `<span class="cbox">${lab('C', C1, 12, 'left:0;top:0')}${sym('swap_horiz', '#78909c', 14, 'left:5px;top:5px')}${lab('Do', C2, 10.5, 'right:0;bottom:1px')}</span>`;
+    case 'slash':    // C / Do in two colours, like a key/value pair
+      return `<span class="combo">${lab('C', C1, 13, 'position:static')}<span class="cl" style="position:static;color:#9e9e9e;font-size:14px;margin:0 1px">/</span>${lab('Do', C2, 12, 'position:static')}</span>`;
+    case 'diagonal':
+    default: {
+      // arrow_right_alt is the arrow swap_horiz is drawn with; rotate it to point ↘ and ↖.
+      const arrow = (c, deg, pos) => `<span class="ms" style="position:absolute;${pos};font-size:15px;color:${c};transform:rotate(${deg}deg)">arrow_right_alt</span>`;
+      const t = (txt, c, size, pos) => `<span style="position:absolute;${pos};color:${c};font:700 ${size}px/1 Roboto, sans-serif">${txt}</span>`;
+      return `<span class="cbox" style="width:26px">${t('C', C1, 13, 'left:2px;top:0')}${arrow(C1, 45, 'left:10px;top:-1px')}
+        ${arrow(C2, 225, 'left:0;bottom:-1px')}${t('Do', C2, 11, 'right:0;bottom:1px')}</span>`;
+    }
+  }
+}
+function editRibbon() {
+  return rb(mdi('undo', '#5c6bc0'), 'Undo') + rb(mdi('redo', '#5c6bc0'), 'Redo') + '<div class="sep"></div>' +
+    rb(mdi('plus', '#2e7d32'), 'Insert', 'id="insertBtn"') +
+    rb(transposeIcon(), 'Transpose') +
+    rb(mdi('piano', '#00897b'), 'Identify') + '<div class="sep"></div>' +
+    `<div class="seg" title="Notation the text is read in"><button class="on">AB</button><button>Do</button></div>` +
+    rb(convertIcon(), 'Convert');
+}
+function playRibbon() { return ''; }  // Play mode has no ribbon: everything lives in the player
+const speedLabel = () => speed === 100 ? '' : `<span class="pbadge">${(speed / 100).toFixed(2).replace(/0$/, '')}×</span>`;
+function transportBar() {
+  const side = (id, icon, label, on) => `<button class="pbtn${on ? ' on' : ''}" id="${id}" aria-label="${label}" title="${label}">${mdi(icon, on ? 'var(--primary)' : '#49454f', 26)}${id === 'speedBtn' ? speedLabel() : ''}</button>`;
+  return `<div class="prow2">
+      <button class="songpill" id="songChip" aria-label="Song tempo, time signature and key">${mdi('music-clef-treble', '#7e57c2', 15)}90 · 3/4 · G${mdi('chevron-down', '#9e9e9e', 15)}</button>
+    </div>
+    <div class="player">
+      ${side('voicingBtn', 'music', 'Voicing: ' + voicing)}
+      ${side('instrBtn', 'guitar-acoustic', 'Instrument: ' + GM[Math.floor(program / 8)][1][program % 8])}
+      ${side('rewindBtn', 'skip-previous', 'Back to the start (stops playback)')}
+      <button class="pplay" id="playBtn" aria-label="${playing ? 'Pause' : 'Play'}">${mdi(playing ? 'pause' : 'play', '#fff', 34)}</button>
+      ${side('metroBtn', 'metronome', 'Metronome', metro)}
+      ${side('speedBtn', 'speedometer', 'Speed ' + speed + '%', speed !== 100)}
+      ${side('sheetBtn', 'dock-bottom', sheetVisible ? 'Hide the chord sheet' : 'Show the chord sheet', sheetVisible)}
+    </div>
+    <div class="pstatus" id="pstatus">${statusText}</div>`;
+}
+function insertMenu() {
+  const it = (icon, label) => `<div class="ditem">${icon}${label}</div>`;
+  return it(mdi('metronome', '#e53935'), 'Tempo {bpm}') + it(SVG.timesig('#ef6c00'), 'Time signature {time}') +
+    it(mdi('music-clef-treble', '#00897b'), 'Key {key}') + it(SVG.capo('#ef6c00'), 'Capo… {capo}') +
+    it(mdi('label', '#8e24aa'), 'Label {label}') + it(mdi('repeat', '#1e88e5'), 'Loop {loop}');
+}
+
+function renderEditor() {
+  const frozen = mode === 'play';
+  let ci = 0, html = '';
+  SONG.forEach((line, li) => {
+    line.forEach(([k, txt]) => {
+      if (k === 'ch') { html += (frozen && ci === head ? '<span class="phead"><span class="grab"></span></span>' : '') + `<span class="ch${ci === playIdx ? ' playing' : ''}" data-i="${ci}">${txt}</span>`; ci++; }
+      else if (k === 'dir') html += `<span class="dir">${txt}</span>`;
+      else if (k === 'cm') html += `<span class="cm">${txt}</span>`;
+      else html += txt;
+    });
+    if (!frozen && li === 5) html += '<span class="caret"></span>';
+    html += '\n';
+  });
+  $('editor').innerHTML = html;
+  $('editor').className = 'editor' + (frozen ? ' frozen' : '');
+  const cur = $('editor').querySelector('.ch.playing');
+  if (cur) cur.scrollIntoView({ block: 'nearest' });
+}
+function renderSheet() {
+  const w = Math.round(86 * sheetZoom), notes = { G: [55, 62, 67, 71], G7: [55, 62, 65, 71], C: [48, 64, 67, 72], Em: [52, 64, 67, 71], A7: [57, 61, 64, 67], D: [50, 62, 66, 69] };
+  let html = '';
+  CHORDS.forEach((c, i) => {
+    const x = 8 + i * w;
+    html += `<div class="slot${i === playIdx ? ' playing' : ''}${mode === 'play' && i === head && playIdx < 0 ? ' head' : ''}" style="left:${x - 4}px;width:${w - 8}px"></div><div class="slot-label" style="left:${x}px">${c}</div>`;
+    (notes[c] || []).forEach((n, j) => {
+      html += `<div class="bar${j === 0 ? ' lh' : ''}" style="left:${x}px;width:${w - 16}px;top:${96 - (n - 46) * 2.4}px"></div>`;
+    });
+  });
+  $('sheetBody').innerHTML = `<div style="position:absolute;inset:0;transform:translateX(${playIdx > 2 ? -(playIdx - 2) * w : 0}px)">${html}</div>`;
+}
+
+function layout() {
+  const [dw, dh] = $('device').value.split('x').map(Number);
+  const W = landscape ? dh : dw, H = landscape ? dw : dh;
+  $('screen').style.width = W + 'px'; $('screen').style.height = H + 'px';
+  const phone = Math.min(W, H) < 500;
+  const kbdUp = mode === 'edit' && $('kbd').checked;
+  // Keyboards take ~40% of a portrait phone and ~55% of a landscape one.
+  const kbdH = !kbdUp ? 0 : Math.round(H * (phone ? (landscape ? 0.56 : 0.42) : (landscape ? 0.42 : 0.32)));
+  const oneLine = phone && landscape;
+  const playerTop = mode === 'play' && $('tPos').value === 'toolbar' && !oneLine;
+  const headerH = oneLine ? 48 : mode === 'play' ? (playerTop ? 48 + 108 : 48) : 96;
+  const statusH = mode === 'play' && !playerTop ? 108 : 0;  // the player, status included
+  const textRoom = H - 24 - headerH - statusH - kbdH;
+  const collapse = kbdUp && textRoom < 170;
+
+  document.querySelectorAll('.tab').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
+  $('header').className = 'header' + (oneLine ? ' oneline' : '');
+  $('header').style.display = collapse ? 'none' : '';
+  $('floatundo').style.display = collapse ? 'flex' : 'none';
+  $('floatundo').style.bottom = (kbdH + 8) + 'px';
+  $('ribbon').innerHTML = mode === 'edit' ? editRibbon() : playRibbon();
+  $('rwrap').style.display = mode === 'play' ? 'none' : '';
+  $('insertPop').innerHTML = insertMenu();
+  $('keyboard').style.display = kbdUp ? 'grid' : 'none';
+  $('keyboard').style.height = kbdH + 'px';
+  $('status').style.display = 'none';  // the status lives in the player now
+  const tb = $('transport');
+  tb.innerHTML = transportBar();
+  tb.style.display = mode === 'play' ? 'flex' : 'none';
+
+  const wide = W >= 700;
+  const sheetOn = mode === 'play' ? sheetVisible : !kbdUp && (wide || landscape);
+  $('sheet').style.display = sheetOn ? 'flex' : 'none';
+  const side = landscape && sheetOn;
+  $('rightcol').style.width = sideW + '%';
+  $('content').className = 'content' + (side ? ' side' : '');
+  $('grip').style.display = side ? 'none' : 'grid';
+  $('sheet').style.height = side ? '' : (phone && landscape ? 120 : 160) + 'px';
+  ['ic-tempo', 'ic-time', 'ic-key'].forEach((id, i) => $(id).innerHTML = [mdi('metronome', '#e53935'), SVG.timesig('#ef6c00'), mdi('music-clef-treble', '#00897b')][i]);
+  // Transport bar: right under the text, or at the very bottom of the screen.
+  if (!side && $('sheet').parentNode !== $('content')) $('content').appendChild($('sheet'));
+  tb.classList.toggle('top', playerTop);
+  if (playerTop) $('header').appendChild(tb);
+  else if (side) { $('rightcol').appendChild($('sheet')); $('rightcol').appendChild(tb); }
+  else if ($('tPos').value === 'bottom') $('screen').insertBefore(tb, $('floatundo'));
+  else $('content').insertBefore(tb, $('sheet'));
+  renderEditor(); renderSheet(); wire(); ribbonFades();
+
+  const st = $('stage').getBoundingClientRect();
+  const notesW = $('showNotes').checked && st.width > 1150 ? 340 : 0;
+  const s = Math.min((st.width - notesW - 40) / (W + 24), (st.height - 30) / (H + 24), 1.2);
+  $('wrap').style.transform = `scale(${s})`;
+  $('wrap').style.marginRight = notesW + 'px';
+  $('notes').style.display = $('showNotes').checked ? '' : 'none';
+}
+
+function snack(msg) { const t = $('snack'); t.textContent = msg; t.classList.add('on'); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('on'), 1600); }
+function setStatus(m) { statusText = m; const e = $('pstatus'); if (e) e.textContent = m; }
+function stop() { playing = false; clearInterval(timer); playIdx = -1; head = 0; setStatus('Ready'); layout(); }
+function tick() { head = playIdx; setStatus(`Bar ${playIdx + 1}/${CHORDS.length} · Playing ${CHORDS[playIdx]}`); }
+function startPlay(from = 0) {
+  playing = true; playIdx = from; clearInterval(timer); tick(); layout();
+  timer = setInterval(() => { playIdx++; if (playIdx >= CHORDS.length) return stop(); tick(); renderEditor(); renderSheet(); }, 900);
+}
+// Play mode: tap anywhere moves the playhead to the nearest chord; drag scrubs it like a joystick.
+// A tap that lands on a chord also plays that chord.
+function nearestChord(x, y) {
+  let best = 0, bestD = Infinity;
+  document.querySelectorAll('.frozen .ch').forEach(el => {
+    const r = el.getBoundingClientRect();
+    const dy = y < r.top ? r.top - y : y > r.bottom ? y - r.bottom : 0;
+    const dx = x < r.left ? r.left - x : x > r.right ? x - r.right : 0;
+    const d = dy * 4 + dx;                    // prefer the same line
+    if (d < bestD) { bestD = d; best = +el.dataset.i; }
+  });
+  return best;
+}
+function wireChords() {
+  const ed = $('editor');
+  if (!ed.classList.contains('frozen')) { ed.onpointerdown = null; return; }
+  ed.onpointerdown = e => {
+    if (playing) return;                      // pause first to move the playhead
+    const onMarker = e.target.closest && e.target.closest('.phead');
+    const startX = e.clientX, startY = e.clientY, startTop = ed.scrollTop; let moved = false;
+    if (onMarker) e.preventDefault();         // grab the marker: scrub instead of scrolling
+    const move = ev => {
+      if (Math.hypot(ev.clientX - startX, ev.clientY - startY) > 6) moved = true;
+      if (onMarker) {
+        const i = nearestChord(ev.clientX, ev.clientY);
+        if (i !== head) { head = i; renderEditor(); renderSheet(); setStatus(`Bar ${head + 1}/${CHORDS.length}`); }
+      } else if (moved && e.pointerType === 'mouse') ed.scrollTop = startTop - (ev.clientY - startY);  // touch scrolls natively
+    };
+    const up = ev => {
+      window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up);
+      if (moved) return;                        // it was a scroll or a scrub
+      head = nearestChord(ev.clientX, ev.clientY);
+      const onChord = ev.target.classList && ev.target.classList.contains('ch');
+      if (onChord) {                            // tap on a chord: move there and hear it
+        playIdx = head; renderEditor(); renderSheet(); setStatus('Playing ' + CHORDS[head]);
+        setTimeout(() => { if (!playing) { playIdx = -1; renderEditor(); renderSheet(); setStatus(`Bar ${head + 1}/${CHORDS.length}`); } }, 600);
+      } else { renderEditor(); renderSheet(); setStatus(`Bar ${head + 1}/${CHORDS.length}`); }
+    };
+    window.addEventListener('pointermove', move); window.addEventListener('pointerup', up);
+  };
+}
+function wire() {
+  wireChords();
+  const on = (id, f) => { const e = $(id); if (e) e.onclick = f; };
+  on('playBtn', () => { if (playing) { playing = false; clearInterval(timer); setStatus('Paused'); layout(); } else startPlay(head); });
+  on('stopBtn', stop);
+  on('insertBtn', insertSheet);
+  on('voicingBtn', voicingSheet);
+  on('metroBtn', () => { metro = !metro; layout(); });
+  on('speedBtn', speedSheet);
+  on('instrBtn', () => instrumentSheet(null));
+  on('sheetBtn', () => { sheetVisible = !sheetVisible; layout(); });
+  on('rewindBtn', () => { playing = false; clearInterval(timer); playIdx = -1; head = 0; setStatus(`Bar 1/${CHORDS.length}`); layout(); $('editor').scrollTop = 0; });
+  on('songChip', () => { $('songPop').classList.add('on'); $('scrim').classList.add('on'); });
+  document.querySelectorAll('.rb').forEach(b => { if (!b.id) b.onclick = () => snack(b.textContent.trim() + '…'); });
+  document.querySelectorAll('#insertPop .ditem, #voicingPop .ditem, .drawer .ditem').forEach(d => d.onclick = () => { closeAll(); snack(d.textContent.trim()); });
+}
+function ribbonFades() {
+  const r = $('ribbon'), w = $('rwrap');
+  w.classList.toggle('less', r.scrollLeft > 2);
+  w.classList.toggle('more', r.scrollLeft + r.clientWidth < r.scrollWidth - 2);
+}
+(() => {
+  const r = $('ribbon'); let x0 = null, s0 = 0, moved = false;
+  r.addEventListener('scroll', ribbonFades);
+  r.addEventListener('pointerdown', e => { x0 = e.clientX; s0 = r.scrollLeft; moved = false; });
+  window.addEventListener('pointermove', e => {
+    if (x0 === null) return;
+    const scale = $('screen').getBoundingClientRect().width / $('screen').offsetWidth;
+    const dx = (e.clientX - x0) / scale;
+    if (Math.abs(dx) > 4) { moved = true; r.classList.add('dragging'); }
+    if (moved) r.scrollLeft = s0 - dx;
+  });
+  window.addEventListener('pointerup', () => { x0 = null; r.classList.remove('dragging'); });
+  r.addEventListener('click', e => { if (moved) { e.stopPropagation(); e.preventDefault(); moved = false; } }, true);
+  $('rmore').onclick = () => r.scrollBy({ left: 140, behavior: 'smooth' });
+})();
+function popover(id, anchor) {
+  const pop = $(id), scr = $('screen'), sr = scr.getBoundingClientRect(), r = anchor.getBoundingClientRect(), s = sr.width / scr.offsetWidth;
+  pop.style.left = Math.max(6, Math.min((r.left - sr.left) / s, scr.offsetWidth - 220)) + 'px';
+  pop.style.top = ((r.bottom - sr.top) / s + 2) + 'px';
+  pop.classList.add('on'); $('scrim').classList.add('on'); $('scrim').style.background = 'transparent';
+}
+function openSheet(html, wireFn) {
+  const el = $('gsheet'); el.innerHTML = html; el.classList.add('on'); $('scrim').classList.add('on');
+  el.querySelectorAll('[data-close]').forEach(b => b.onclick = closeAll);
+  if (wireFn) wireFn(el);
+}
+const radio = on => mdi(on ? 'radiobox-marked' : 'radiobox-blank', on ? 'var(--primary)' : '#9e9e9e');
+function voicingSheet() {
+  const groups = VOICINGS.map(([g, names]) => `<div class="dsec" style="margin:12px 0 2px">${g}</div>` +
+    names.map(n => `<div class="srow" data-v="${n}">${radio(n === voicing)}${n}</div>`).join('')).join('');
+  openSheet(`<div class="shead"><h4>Voicing</h4></div>
+    <p style="margin:0 0 4px">Which notes play for each chord.</p>
+    <div class="sbody">${groups}</div>
+    <div class="sfoot"><button class="tbtn2" id="editVoicings">${mdi('pencil', 'var(--primary)', 18)}Edit voicings…</button><button class="fbtn" data-close>Done</button></div>`,
+    el => {
+      el.querySelectorAll('.srow').forEach(r => r.onclick = () => { voicing = r.dataset.v; voicingSheet(); });
+      el.querySelector('#editVoicings').onclick = () => { closeAll(); snack('Settings › Voicings'); };
+    });
+}
+function instrumentSheet(family = null) {
+  const curFam = Math.floor(program / 8);
+  if (family === null) {
+    const rows = GM.map(([f, list], i) => `<div class="srow" data-f="${i}">${mdi(i === curFam ? 'circle' : 'circle-outline', i === curFam ? 'var(--primary)' : '#c5c5cf', 12)}<span>${f}</span>
+      <span class="sub">${i === curFam ? GM[i][1][program % 8] : ''}</span>${mdi('chevron-right', '#9e9e9e', 20)}</div>`).join('');
+    openSheet(`<div class="shead"><h4>Instrument</h4></div><div class="sbody">${rows}</div>
+      <div class="sfoot"><span></span><button class="fbtn" data-close>Done</button></div>`,
+      el => el.querySelectorAll('.srow').forEach(r => r.onclick = () => instrumentSheet(+r.dataset.f)));
+  } else {
+    const rows = GM[family][1].map((n, j) => { const p = family * 8 + j;
+      return `<div class="srow" data-p="${p}">${radio(p === program)}<span>${n}</span><span class="sub">${p + 1}</span></div>`; }).join('');
+    openSheet(`<div class="shead"><button class="iconbtn" id="famBack" aria-label="Back to families" style="width:36px;height:36px">${mdi('arrow-left', 'var(--text)', 22)}</button><h4>${GM[family][0]}</h4></div>
+      <div class="sbody">${rows}</div>
+      <div class="sfoot"><span></span><button class="fbtn" data-close>Done</button></div>`,
+      el => { el.querySelector('#famBack').onclick = () => instrumentSheet(null);
+              el.querySelectorAll('.srow').forEach(r => r.onclick = () => { program = +r.dataset.p; instrumentSheet(family); }); });
+  }
+}
+function speedSheet() {
+  openSheet(`<div class="shead"><h4>Playback speed</h4><span style="font:500 20px Roboto;color:var(--primary)" id="spVal">${speed}%</span></div>
+    <input type="range" min="25" max="400" step="5" value="${speed}" id="spRange" style="width:100%;margin:10px 0 4px">
+    <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted)"><span>25%</span><span>400%</span></div>
+    <div class="sfoot"><span style="display:flex;gap:4px"><button class="tbtn2" id="spReset">Reset</button><button class="tbtn2" id="spManual">Manual…</button></span><button class="fbtn" data-close>Done</button></div>`,
+    el => {
+      el.querySelector('#spRange').oninput = e => { speed = +e.target.value; el.querySelector('#spVal').textContent = speed + '%'; };
+      el.querySelector('#spReset').onclick = () => { speed = 100; speedSheet(); };
+      el.querySelector('#spManual').onclick = speedDialog;
+    });
+}
+// A small dialog for typing the speed, on top of the sheet.
+function renameDialog() {
+  const d = $('dialog'), name = $('titleText').textContent;
+  d.innerHTML = `<div class="dlg" role="dialog" aria-label="Rename">
+      <h4>Rename</h4>
+      <label class="spfield" style="display:block"><input type="text" id="rnInput" value="${name}" style="width:100%;box-sizing:border-box"></label>
+      <div class="dlg-hint">Saved as “<span id="rnFile">${name}</span>.txt”</div>
+      <div class="dlg-actions"><button class="tbtn2" id="dlgCancel">Cancel</button><button class="tbtn2" id="dlgOk">Rename</button></div>
+    </div>`;
+  d.classList.add('on');
+  const inp = $('rnInput'); setTimeout(() => { inp.focus(); inp.select(); }, 30);
+  inp.oninput = () => $('rnFile').textContent = inp.value.trim() || 'Untitled';
+  const ok = () => { const v = inp.value.trim(); if (v) { $('titleText').textContent = v; snack('Renamed to ' + v + '.txt'); } d.classList.remove('on'); };
+  $('dlgOk').onclick = ok; inp.onkeydown = e => { if (e.key === 'Enter') ok(); };
+  $('dlgCancel').onclick = () => d.classList.remove('on');
+}
+function speedDialog() {
+  const d = $('dialog');
+  d.innerHTML = `<div class="dlg" role="dialog" aria-label="Playback speed">
+      <h4>Playback speed</h4>
+      <label class="spfield"><input type="number" id="spInput" min="25" max="400" step="1" value="${speed}" inputmode="numeric"> %</label>
+      <div class="dlg-hint" id="spHint">25 to 400</div>
+      <div class="dlg-actions"><button class="tbtn2" id="dlgCancel">Cancel</button><button class="tbtn2" id="dlgOk">OK</button></div>
+    </div>`;
+  d.classList.add('on');
+  const inp = $('spInput'); setTimeout(() => { inp.focus(); inp.select(); }, 30);
+  const ok = () => {
+    const v = Math.round(+inp.value);
+    if (!(v >= 25 && v <= 400)) { $('spHint').textContent = 'Enter a number from 25 to 400'; $('spHint').style.color = '#c62828'; return; }
+    speed = v; d.classList.remove('on'); speedSheet();
+  };
+  $('dlgOk').onclick = ok; inp.onkeydown = e => { if (e.key === 'Enter') ok(); };
+  $('dlgCancel').onclick = () => d.classList.remove('on');
+}
+function insertSheet() {
+  const row = (icon, label, code) => `<div class="srow">${icon}<span>${label}</span><span class="sub" style="font-family:'Roboto Mono'">${code}</span></div>`;
+  openSheet(`<div class="shead"><h4>Insert</h4></div><div class="sbody">
+      ${row(mdi('metronome', '#e53935'), 'Tempo', '{bpm}')}${row(SVG.timesig('#ef6c00'), 'Time signature', '{time}')}
+      ${row(mdi('music-clef-treble', '#00897b'), 'Key', '{key}')}${row(SVG.capo('#ef6c00'), 'Capo', '{capo}')}
+      ${row(mdi('label', '#8e24aa'), 'Label (section)', '{label}')}${row(mdi('repeat', '#1e88e5'), 'Loop', '{loop}')}</div>
+    <div class="sfoot"><span></span><button class="tbtn2" data-close>Cancel</button></div>`,
+    el => el.querySelectorAll('.srow').forEach(r => r.onclick = () => { closeAll(); snack(r.textContent.trim() + '…'); }));
+}
+function closeAll() {
+  const wasSheet = $('gsheet').classList.contains('on');
+  $('gsheet').classList.remove('on');
+  if (wasSheet) setTimeout(layout, 0);
+  document.querySelectorAll('.pop, .sheetpop, .drawer').forEach(p => p.classList.remove('on'));
+  $('scrim').classList.remove('on'); $('scrim').style.background = '';
+}
+
+document.querySelectorAll('.tab').forEach(b => b.onclick = () => { if (b.dataset.mode === 'edit' && playing) stop(); mode = b.dataset.mode; layout(); });
+$('title').onclick = renameDialog;
+// Landscape: drag the handle between the text and the chord sheet to set the sheet's width.
+$('vgrip').addEventListener('pointerdown', e => {
+  e.preventDefault();
+  const content = $('content').getBoundingClientRect();
+  const move = ev => {
+    sideW = Math.min(70, Math.max(30, (content.right - ev.clientX) / content.width * 100));
+    $('rightcol').style.width = sideW + '%'; renderSheet();
+  };
+  const up = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); };
+  window.addEventListener('pointermove', move); window.addEventListener('pointerup', up);
+});
+$('editor').addEventListener('wheel', e => {
+  if (!e.ctrlKey) return;
+  e.preventDefault();
+  textSize = Math.min(28, Math.max(10, textSize + (e.deltaY < 0 ? 1 : -1)));
+  $('editor').style.fontSize = textSize + 'px';
+}, { passive: false });
+$('sheetBody').addEventListener('wheel', e => {
+  if (!e.ctrlKey) return;               // trackpad pinch arrives as ctrl+wheel
+  e.preventDefault();
+  sheetZoom = Math.min(2.5, Math.max(0.5, sheetZoom * (e.deltaY < 0 ? 1.1 : 0.9)));
+  renderSheet();
+}, { passive: false });
+$('menuBtn').onclick = () => { $('drawer').classList.add('on'); $('scrim').classList.add('on'); };
+$('scrim').onclick = closeAll;
+$('songDone').onclick = closeAll;
+$('songWrite').onclick = () => { closeAll(); snack('Added {time: 3/4} at the top'); };
+document.querySelectorAll('.editdir').forEach(a => a.onclick = e => { e.preventDefault(); closeAll(); mode = 'edit'; layout(); snack('Cursor on the directive'); });
+$('saveBtn').onclick = () => { $('dirty').style.display = 'none'; snack('Saved'); };
+['device', 'kbd', 'showNotes', 'tIcon', 'cIcon', 'tPos'].forEach(id => $(id).onchange = layout);
+$('portrait').onclick = () => { landscape = false; $('portrait').classList.add('on'); $('landscape').classList.remove('on'); layout(); };
+$('landscape').onclick = () => { landscape = true; $('landscape').classList.add('on'); $('portrait').classList.remove('on'); layout(); };
+window.addEventListener('resize', layout);
+document.fonts.ready.then(layout);
+layout();
+</script>
+</body>
+</html>
