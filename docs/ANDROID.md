@@ -19,9 +19,16 @@ android/
   requirements.txt                  Python packages for the APK, pinned with sha256 hashes
   app/build.gradle.kts              app module: Chaquopy, natives, wheelhouse, SoundFont
   app/src/main/kotlin/io/github/chibicitiberiu/chordnotepad/
-    ChordNotepadApp.kt, MainActivity.kt
-    spike/                          M2 test screen (throwaway)
+    ChordNotepadApp.kt, AppGraph.kt, MainActivity.kt
+    bridge/                         PyHost, the Python contract, DTOs, codec, commands, SessionRepository
+    text/                           OffsetMapper (code points <-> UTF-16), TextEdited/Span conversion
+    files/                          SafDocumentStore (SAF I/O, persisted grants, recent list), picker mapping
+    lifecycle/                      process start/stop hooks, audio focus + noisy, draft restore
+    audio/                          SoundFont install, device sample rate
+    ui/                             M3 placeholder screen (M4 replaces it)
+    spike/                          M2 test screen (throwaway; `--ez spike true` or `--es spike_auto ...`)
   app/src/main/python/chordnotepad_android/
+    host.py                         bridge entry point (a stub until session step 14)
     android_shim.py                 runtime patches standing in for core changes
     spike.py                        M2 test glue (throwaway)
   native/                           FluidSynth + dependencies as pinned git submodules
@@ -29,6 +36,7 @@ android/
   tools/strip_music21.py            builds the data-trimmed music21 wheel
   tools/build_wheelhouse.py         fills/checks the offline wheelhouse, refreshes pins
   tools/check_16k.py                16 KB page-size check for an APK
+  tools/check_manifest.py           no INTERNET, no Play services, no emoji2 font initializer in an APK
   tools/compare_apks.py             entry-by-entry APK diff (reproducibility)
 ```
 
@@ -148,9 +156,222 @@ Checks:
 
 ```bash
 python3 tools/check_16k.py $OUT/release/app-release.apk
+python3 tools/check_manifest.py $OUT/release/app-release.apk
 $ANDROID_HOME/build-tools/36.1.0/zipalign -c -P 16 -v 4 $OUT/release/app-release.apk
 python3 tools/compare_apks.py a.apk b.apk          # reproducibility diff
 ```
+
+## Bridge contract (Kotlin <-> Python)
+
+**Status:** the Kotlin half is built (M3, 2026-10-29). The Python half is
+session step 14; until then `chordnotepad_android/host.py` is a stub that
+sends one `StatusState` and logs every command it ignores. This section is
+what step 14 implements. Kotlin's copy of it is
+`bridge/BridgeContract.kt`, `bridge/SessionCommands.kt` and the DTOs in
+`bridge/Session{Output,States,Events}.kt`.
+
+### Entry point
+
+```python
+# chordnotepad_android/host.py
+def start(files_dir: str, native_lib_dir: str, document_store, event_sink,
+          audio_options: dict) -> SessionHandle: ...
+
+class SessionHandle:
+    def submit(self, command: str, args_json: str) -> None: ...  # enqueue only, returns at once
+    def shutdown(self) -> None: ...                               # stop the session thread, release audio
+```
+
+- `start` runs once per process, on Kotlin's `python-bridge` thread, after
+  `System.loadLibrary("fluidsynth")` and `Python.start`. It builds the core
+  (`bootstrap.build_core_services`), starts a `ThreadedHost`, creates the
+  session with an `AndroidDocumentStore` (below), subscribes a listener that
+  forwards every output to `event_sink`, installs the `session.errors`
+  handler (emits `UnexpectedError`, throttled) and returns. It may block for
+  the imports; it must not wait for anything on the session thread that needs
+  the bridge thread.
+- `files_dir` replaces the `XDG_*` shim (`android_shim.py`) for config, logs
+  and data. `native_lib_dir` is `ApplicationInfo.nativeLibraryDir`; the
+  `.so` files stay in the APK, so FluidSynth still loads by soname.
+- `audio_options`: `{"sample_rate": int, "frames_per_buffer": int,
+  "soundfont_path": str}`. The SoundFont is already copied to `filesDir`.
+  Python builds its `AudioOptions` from these (the Oboe settings stay in
+  Python, as in `android_shim.audio_options`).
+- `submit` posts to the session thread (`host.post`) and returns. Kotlin
+  calls it only from the bridge thread, in order, never from Main. Commands
+  submitted after `start` began wait behind it.
+
+### Output: `event_sink.onEvent(type_name, json)`
+
+Called on the session thread, at flush points, in delivery order (states
+coalesced, events in order, the replay of every state first when the
+listener subscribes). The Kotlin side never blocks in it and never throws
+back.
+
+- `type_name` is the DTO's Python class name: `HighlightState`.
+- `json` is the dataclass's fields as a JSON object, with the Python field
+  names: enums as their `.value`, tuples as arrays, nested dataclasses as
+  objects (`DocumentRef` is `{"id", "display_name", "location"}`), None as
+  `null`. `CloseApproved` is `{}`. In short,
+  `json.dumps(dataclasses.asdict(dto))` with an enum-aware default.
+
+Types Kotlin decodes (`BridgeCodec.serializers`):
+
+| Kind | Types |
+|---|---|
+| States | `DocumentState`, `EditorState`, `HighlightState`, `PlaybackState`, `ToolbarState`, `StatusState`, `VoicingMenuState`, `InstrumentMenuState`, `RecentDocumentsState`, `ChordSheetState` |
+| Events | `TextEdited`, `UserError`, `AudioUnavailable`, `UnexpectedError`, `CloseApproved` |
+| Requests | `ConfirmDiscardRequest`, `PickDocumentRequest`, `CapoChoiceRequest`, `InsertDirectiveRequest` |
+
+**Step 14 adds two things to the DTOs** (Kotlin already has them):
+- `UnexpectedError(message: str, context: Optional[str])` in `events.py`
+  (designed, not defined yet);
+- `DocumentState.document_id: Optional[str]`, the open document's
+  `DocumentRef.id` (None for a never-saved one). The draft restore needs it:
+  Kotlin can't ask Python for it synchronously from Main.
+
+Unknown keys are ignored by Kotlin (a newer core doesn't crash an older
+view); an unknown type or a missing field is logged and shown as an
+`UnexpectedError` with `context="bridge"`.
+
+### Commands: `submit(command, args_json)`
+
+`args_json` is always a JSON object. Offsets and selections are code points;
+a selection is `[start, end]` or `null`.
+
+**Session commands** are the public `AppSession` method names, called with
+the object's keys (the method's parameter names) as keyword arguments, after
+decoding `ref`/`document` objects to `DocumentRef` and `selection` arrays to
+tuples. Kotlin always sends the whole ref object, so Python needn't look an id
+up; `session.document_ref(id)` / `ref_for` remain available for that.
+(Agreed with the coordinator for step 14, 2026-10-29: names and keys as
+here, lifecycle commands host-level, `host.py`'s signature owned by the
+Kotlin side, `session/bridge.py`, `bootstrap.py` and `threaded_host.py` by
+step 14.)
+
+`set_text {text, client_token}`, `insert_text {at, text}`,
+`request_insert_directive {kind, at}`, `transpose {semitones, selection}`,
+`request_suggest_capo {selection}`, `convert_notation {target}`,
+`play_pause {from_offset}`, `stop {}`, `tap_chord_at {offset}`,
+`set_bpm {bpm}`, `set_multiplier_pct {pct}`, `set_key {key}`,
+`set_time_signature {beats, unit}`, `toggle_metronome {}`,
+`set_voicing {voicing}`, `set_instrument {program}`,
+`set_notation {notation}`, `set_font {family, size}`,
+`step_font_size {delta}`, `reset_font_size {}`,
+`set_chord_sheet_visible {visible}`, `set_chord_sheet_height {px}`,
+`set_chord_sheet_view {view_id}`, `chord_sheet_zoom {step}`,
+`audition {index}`, `new_document {}`, `open_document {ref}`,
+`open_recent {ref}`, `save {}`, `save_as {}`, `export_midi {}`,
+`request_close {}`, `respond {request_id, value}`.
+
+`respond`'s `value` is decoded by the type of the pending request:
+`PickDocumentRequest` → `DocumentRef` or None; `ConfirmDiscardRequest` →
+`"save"`/`"discard"`/`"cancel"` or None; `CapoChoiceRequest` → the option
+value or None; `InsertDirectiveRequest` → a `{field: str}` dict or None.
+`apply_settings` isn't sent yet (Settings is M5).
+
+**Host commands** are handled in `host.py`:
+
+| Command | Args | Does |
+|---|---|---|
+| `app_background` | `{}` | The app left the screen (ProcessLifecycleOwner ON_STOP; the process may die any time after). Pause playback if playing, save the config atomically (temp file + `os.replace`). May also close the audio stream (plan, "Lifecycle"); then reopen it lazily. |
+| `app_foreground` | `{}` | ON_START. Nothing required today; reopen the audio stream here if `app_background` closed it. |
+| `pause` | `{}` | Pause if a song is playing, else nothing. Sent on audio focus loss and `ACTION_AUDIO_BECOMING_NOISY`. |
+| `restore_draft` | `{text, document, modified}` | After process death: replace the text as a `reset` edit (`TextEdited` + `HighlightState`), make `document` (a `DocumentRef` or null) the open document without reading it, and set the modified flag. Publishes `DocumentState`. |
+
+An unknown command is logged and emits `UnexpectedError(context="bridge")`.
+
+### Documents: `document_store`
+
+Kotlin's `SafDocumentStore` implements `DocumentStoreBridge`, called on the
+session thread (blocking provider I/O is fine there):
+
+```kotlin
+fun readText(id: String): String          // raw UTF-8 text, not normalized
+fun writeText(id: String, text: String)
+fun writeBytes(id: String, data: ByteArray)
+fun isAvailable(id: String): Boolean
+fun recent(): String                      // JSON array of {"id", "display_name", "location"}, pruned
+fun addRecent(id: String, displayName: String, location: String)
+fun setMaxRecent(count: Int)              // max_recent_files; Kotlin defaults to 10
+fun describe(id: String): String?         // ref JSON for an id, or null if unreachable (ref_for)
+```
+
+Step 14 wraps it in an `AndroidDocumentStore` implementing
+`session.documents.DocumentStore`: `read_text` applies
+`normalize_song_text` (normalization stays in Python), `recent` turns the
+JSON into `DocumentRef`s, `add_recent(ref)` passes the three fields,
+`ref_for(id)` is `describe` (None when it returns null), and
+`start` calls `setMaxRecent` with the configured value. Failures arrive as
+Java `DocumentStoreException`s whose message is user-facing, worded like
+`FileService` ("File not found: …", "Permission denied: …", "Cannot read
+file (encoding issue): …", "Failed to write file: …"); the wrapper raises
+`FileOperationError(e.getMessage())`. Ids are content URIs; the UI takes the
+persistable grant when the picker returns, so the store never launches
+anything.
+
+### Schema and contract test
+
+Step 14 commits `android/bridge_schema.json`, dumped from the dataclasses by
+`session.bridge`, with a Python test that the committed file matches a fresh
+dump:
+
+```json
+{"version": 1,
+ "types": {"HighlightState": {"kind": "state", "fields": {"text_revision": "int", "...": "..."}},
+           "DocumentRef": {"kind": "value", "fields": {"id": "str", "...": "..."}}},
+ "enums": {"SpanKind": ["chord", "chord_invalid", "..."]},
+ "commands": ["set_text", "...", "app_background", "restore_draft"]}
+```
+
+`kind` is `state`, `event`, `request` or `value` (nested types: `Span`,
+`MenuItem`, `InstrumentFamily`, `ChordSheetView`, `DocumentRef`). The Kotlin
+`BridgeSchemaContractTest` (skipped while the file is missing) checks that
+every output type has exactly the same field names on both sides, that
+Kotlin decodes every output the schema lists, the value types and enum
+values, and that `commands` covers every command Kotlin sends. Checked on
+2026-10-29 against a schema generated from the current `state.py`/`events.py`
+plus the two additions above: all pass.
+
+### Kotlin side
+
+- **`PyHost`** (app-scoped, in `AppGraph`): `start()` (from `MainActivity`)
+  and every `submit` run on one `python-bridge` thread; Main never calls
+  Python. Status is `SessionRepository.hostStatus`.
+- **`SessionRepository`**: one `StateFlow` per state (null until the first
+  replay), `textEdits` (unbounded channel, one collector: the editor),
+  `pendingRequest` (`StateFlow`, survives rotation, cleared by answering),
+  `errors` and `closeApproved` (`SharedFlow`s; collect them in a
+  ViewModel-scoped place so rotation doesn't drop one).
+- **`OffsetMapper`**: the only code-point/UTF-16 conversion; identity (no
+  allocation) for text without surrogate pairs.
+- **Lifecycle**: `AppLifecycleHooks` on `ProcessLifecycleOwner`;
+  `PlaybackAudioPolicy` follows `PlaybackState` (focus requested on entering
+  PLAYING, kept while PAUSED, abandoned on IDLE; loss, denial or noisy →
+  `pause`); `DraftHook` keeps `(text, document_id, modified)` in the
+  activity's saved state (texts over 100,000 chars are not kept) and sends
+  `restore_draft` only when the saving process is gone. The editor (M4) sets
+  `AppGraph.editorText`; until then no draft is saved.
+- **No Google Play services.** emoji2's `EmojiCompatInitializer` is removed
+  from the manifest (it fetched a downloadable font from the Play services
+  fonts provider; that is what killed the first emulator launch). The app
+  has no INTERNET permission. CI checks both with `tools/check_manifest.py`.
+- **Checked on the emulator** (2026-10-29, stub host): Python starts off
+  Main, the stub's `StatusState` reaches the placeholder screen, and Stop,
+  `app_background` and `app_foreground` reach Python on the bridge thread.
+
+### CI
+
+The `android` job in `.github/workflows/build.yml` runs on pushes, pull
+requests and manual dispatches, independent of the desktop jobs (nothing
+needs it; it attaches nothing to releases). It checks out the native
+submodules with the two-step init above, sets up Temurin 21, Python 3.14.8
+(as `CHAQUOPY_BUILD_PYTHON`), Gradle (`cache-provider: basic`) and the
+pinned NDK/CMake/platform/build-tools, caches the native libraries (keyed by
+`build.sh` and the submodule commits) and the wheelhouse, fetches the
+wheelhouse with `--require-hashes`, runs `./gradlew testDebugUnitTest lint
+assembleDebug`, then `check_16k.py`, `zipalign -c -P 16` and
+`check_manifest.py` on the debug APK.
 
 ## Natives from source and offline packages (M6 groundwork)
 
