@@ -187,6 +187,12 @@ a fretboard, and a section of singers or players don't think alike.
    (see :ref:`changing-instruments`) -- you can play a piano voicing through a
    saxophone, or a guitar voicing through a synth pad.
 
+The voicing can't change while a song is playing, because the whole song is
+worked out before the first note (the Voicing control is greyed out until you
+pause). Pause, pick another voicing, and press Play: the song starts again from
+the chord where you paused, with the new voicing. The instrument can change at
+any time, including during playback.
+
 Piano Voicing
 -------------
 
