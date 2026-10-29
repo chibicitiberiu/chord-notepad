@@ -463,7 +463,7 @@
        "fields": [
         {
          "default": "E2 A2 D3 G3 B3 E4",
-         "help": "Open-string pitches in string order, lowest string first (note names or MIDI numbers, e.g. E2 A2 D3 G3 B3 E4). Required.",
+         "help": "Open-string pitches in string order, lowest string first. Required.",
          "hint": "(note names or MIDI numbers, e.g. E2 A2 D3 G3 B3 E4)",
          "id": "tuning",
          "kind": "pitch_list",

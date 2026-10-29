@@ -131,8 +131,7 @@ TOOLTIPS: Dict[str, str] = {
     'tree_remove': "Remove the selected voicing.",
 
     # Fretboard physical parameters.
-    'tuning': ("Open-string pitches in string order, lowest string first "
-               "(note names or MIDI numbers, e.g. E2 A2 D3 G3 B3 E4). Required."),
+    'tuning': "Open-string pitches in string order, lowest string first. Required.",
     'max_fret': "Highest fret the picker will reach; higher allows shapes further up the neck.",
     'fingers': "How many fretting fingers the hand has available.",
     'max_span': "Widest fret stretch the hand holds on a normal pass.",
