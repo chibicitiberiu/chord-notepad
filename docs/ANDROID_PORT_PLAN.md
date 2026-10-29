@@ -20,16 +20,22 @@ tablet emulators passed the parity checklist after 7 fixes.
 5. Push, then tag a release. The CI release jobs have not run on GitHub yet.
 6. F-Droid: decide at release time.
 
-**Known open items:**
-- The voicings tuning help text repeats in its hint.
-- Tapping a chord raises the soft keyboard.
-- Settings are only saved when the app goes to the background or Settings is
-  saved.
-- Hardware shortcuts need focus first.
-- Playback pauses when the app goes to the background; there is no foreground
-  service.
-- A pre-existing fuzz test (`test_piano_note_completeness`) fails locally on a
-  stored hypothesis example: 94.7% vs its 95% threshold.
+**Known open items** (choices for Tibi, not defects):
+- Tapping a chord in the editor also raises the soft keyboard, as any
+  editable field does.
+- Playback pauses when the app goes to the background (the plan's lifecycle
+  rule). Continuing in the background would need a foreground media service.
+
+Fixed after the first status note:
+- the piano dropping the root over a non-root slash bass (6818c78, desktop
+  too);
+- a pause during rendering being lost (f439f5f);
+- settings are now autosaved on Android;
+- the duplicated tuning help;
+- hardware shortcuts working without tapping first;
+- User Guide DOM storage.
+
+Also verified on the 16 KB-page emulator.
 
 ## Context
 
