@@ -383,8 +383,10 @@ Help Menu
 
 .. only:: android
 
-   **⋮ → Help** opens this guide, **Quick Start** opens a short quick-start
-   reference, and **About** shows the version and a description of the app.
+   **⋮ → Help** holds **User Guide** (this guide, which works offline; F1 on
+   a hardware keyboard opens it too), **Quick Start** (a short quick-start
+   reference), and **About** (the version, a description of the app and the
+   open source licences).
 
 
 The Chord Identifier

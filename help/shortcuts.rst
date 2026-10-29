@@ -167,7 +167,8 @@ Help
 
 .. only:: android
 
-   There is no F1 key. Open the guide from ⋮ → Help.
+   With a hardware keyboard, F1 opens the user guide. Otherwise open it from
+   **⋮ → Help → User Guide**.
 
 
 Quick Reference Card

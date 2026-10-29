@@ -56,7 +56,7 @@ General
 
    **Show quick start at startup**
       Whether the quick-start reference (also reachable from
-      ⋮ → Quick Start) opens automatically when Chord Notepad launches.
+      ⋮ → Help → Quick Start) opens automatically when Chord Notepad launches.
 
    **Number of recent files**
       How many entries ⋮ → File → Recent Files remembers.
@@ -111,12 +111,26 @@ underneath -- fretboard, ensemble, or piano. See those three pages for what
 each parameter actually does; this page only covers the controls that get
 you there.
 
-The left side lists your custom voicings, grouped by model (Fretboard,
-Piano, Ensemble), with **+** and **-** buttons to add a new one or remove
-the selected one. Built-in voicings -- the four guitars, the ukulele, the
-four ensemble presets, the default piano -- aren't listed here since
-they're not yours to edit, but they are available as starting points (see
-below).
+.. only:: desktop
+
+   The left side lists your custom voicings, grouped by model (Fretboard,
+   Piano, Ensemble), with **+** and **-** buttons to add a new one or remove
+   the selected one. Built-in voicings -- the four guitars, the ukulele, the
+   four ensemble presets, the default piano -- aren't listed here since
+   they're not yours to edit, but they are available as starting points (see
+   below).
+
+.. only:: android
+
+   The list shows your custom voicings, grouped by model (Fretboard, Piano,
+   Ensemble). **Add voicing** at the top of the list adds a new one and opens
+   it; the **Remove voicing** button is in the voicing's own form. On a
+   tablet the list is on the left and the form on the right. On a phone the
+   list is a screen of its own: tap a voicing to open its form full screen,
+   and Back returns to the list. Built-in voicings -- the four guitars, the
+   ukulele, the four ensemble presets, the default piano -- aren't listed
+   here since they're not yours to edit, but they are available as starting
+   points (see below).
 
 .. only:: desktop
 
@@ -138,7 +152,14 @@ below).
    editor, it asks you to confirm first.
 
 **Name**
-   The voicing's name. Editing it renames the voicing.
+   .. only:: desktop
+
+      The voicing's name. Editing it renames the voicing.
+
+   .. only:: android
+
+      The voicing's name. Tap the field (or the pencil beside it) to rename
+      the voicing in a dialog.
 
 **Model**
    Fretboard, Ensemble, or Piano. Switching models changes which
@@ -183,10 +204,11 @@ below).
    invalid field turns red immediately, and a problem that spans two fields
    -- a relaxed span smaller than the normal span, a voice whose low note is
    above its high note -- shows up as a message at the top of the editor.
-   Save stays blocked until every field on the page is valid. On top of
-   that, Save also validates every *other* voicing on the page, not just the
-   one you're currently editing, and if something's wrong there it names
-   exactly which voicing and which field. Renaming or deleting the voicing
+   A voicing with a mistake is marked *Has errors* in the list. While any
+   voicing is invalid, the **Save** button in the top bar looks blocked
+   (its label reads "Save (some voicings are invalid)"); tapping it still
+   works as a check, and names exactly which voicing and which field need
+   fixing. Renaming or deleting the voicing
    you're currently playing with is handled: a rename follows the selection
    so playback keeps using it, and a delete falls back to piano. Once you
    save, any new or changed custom voicing shows up in
@@ -218,13 +240,13 @@ instead of editing JSON by hand:
 .. only:: android
 
    1. Open **⋮ → Settings** and go to the **Voicings** editor.
-   2. Add a new voicing.
-   3. Use **Load config** and pick **Guitar (Standard - EADGBE)**. This
+   2. Tap **Add voicing**. The new voicing opens (full screen on a phone).
+   3. Tap **Load config** and pick **Guitar (Standard - EADGBE)**. This
       fills in the standard tuning and all its defaults as a starting point.
    4. In **Name**, type ``My 7-String``.
    5. In the strings field, change the tuning from ``E2 A2 D3 G3 B3 E4`` to
       ``B1 E2 A2 D3 G3 B3 E4`` -- the same six strings with a low B added at
       the top.
-   6. Save.
+   6. Tap **Save** in the top bar.
    7. Open **⋮ → Playback → Voicing** -- **My 7-String** is now in the list,
       under Fretboard. Select it and play some chords.

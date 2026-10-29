@@ -74,10 +74,12 @@ def test_android_quick_start_names_taps_and_the_overflow_menu():
     desktop, android = quick_start.pages(DESKTOP), quick_start.pages(ANDROID)
     assert [p["title"] for p in android] == [p["title"] for p in desktop]
     text = " ".join(b[1] for p in android for b in p["blocks"] if b[0] == "text")
-    for desktop_only in ("Click", "F1", "Help menu", "Help → Quick Start"):
+    for desktop_only in ("Click", "F1", "Help menu"):
         assert desktop_only not in text
     assert "Tap any chord" in text and "⋮ → Tools → Insert" in text
-    assert "⋮ → Help" in text and "⋮ → Playback → Voicing" in text
+    assert "⋮ → Help → User Guide" in text and "⋮ → Help → Quick Start" in text
+    assert "⋮ → Playback → Voicing" in text
+    assert " Help → Quick Start" not in text.replace("⋮ → Help → Quick Start", "")
     assert not any(b[0] == "image" for p in android for b in p["blocks"])
     # Snippets are the same on both.
     snippets = lambda pages: [b for p in pages for b in p["blocks"] if b[0] == "snippet"]

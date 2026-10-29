@@ -28,7 +28,7 @@
     <string name="settings_default_key_help">The key a new document starts in.</string>
     <string name="settings_key_none">None</string>
     <string name="settings_quick_start">Show quick start at startup</string>
-    <string name="settings_quick_start_help">Whether the quick-start reference (also reachable from ⋮ → Quick Start) opens automatically when Chord Notepad launches.</string>
+    <string name="settings_quick_start_help">Whether the quick-start reference (also reachable from ⋮ → Help → Quick Start) opens automatically when Chord Notepad launches.</string>
     <string name="settings_recent_files">Number of recent files</string>
     <string name="settings_recent_files_help">How many entries ⋮ → File → Recent Files remembers.</string>
 

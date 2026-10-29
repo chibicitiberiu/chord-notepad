@@ -171,9 +171,9 @@ def pages(platform: str = DESKTOP) -> List[Dict[str, Any]]:
                     "Press F1 any time for the full User Guide (also in the Help menu). "
                     "Tools → Identify Chord names a chord from the notes you pick, "
                     "and Help → Quick Start brings this tour back.",
-                    "The full User Guide is in ⋮ → Help. ⋮ → Tools → Identify Chord "
-                    "names a chord from the notes you pick, and ⋮ → Quick Start "
-                    "brings this tour back.")),
+                    "The full User Guide is in ⋮ → Help → User Guide. ⋮ → Tools → "
+                    "Identify Chord names a chord from the notes you pick, and "
+                    "⋮ → Help → Quick Start brings this tour back.")),
                 ("text", "Have fun making music!"),
             ],
         },
