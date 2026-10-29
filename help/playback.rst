@@ -19,14 +19,45 @@ Starting Playback
 
 .. only:: android
 
-   Switch to the **Play** tab and tap the big **▶** button in the player at the
-   bottom of the screen. Playback starts at the **playhead**, the small marker (a
-   coloured bar with a triangle) before the chord where playback begins. A song
-   you just opened has it on the first chord. The button turns into **⏸** while a
-   song is playing.
+   Playback lives in the **Play** tab. A song you open starts there; a new song
+   starts in Edit, so tap **Play** in the app bar once you have some chords.
+   The player sits at the bottom of the screen:
 
-Playing from the Cursor
------------------------
+.. platform-figure:: player-labeled
+   :platforms: android
+   :alt: The player while a song plays: the song pill on top, seven buttons in
+         a row, and the status line underneath.
+
+   The player while a song plays, with the metronome on and the speed at 125%.
+
+.. only:: android
+
+   1. **Song pill**: the tempo, time signature and key the song starts with.
+      Tap it for Song defaults (see :ref:`song-defaults`).
+   2. **Voicing**: how each chord is spread into notes. Greyed out while a
+      song plays.
+   3. **Instrument**: the sound.
+   4. **⏮**: stop and go back to the first chord.
+   5. **▶ / ⏸**: play and pause.
+   6. **Metronome**: a click on every beat.
+   7. **Speed**: play slower or faster than written. The badge shows the
+      speed when it isn't 100%.
+   8. **Chord sheet**: show or hide it (see :doc:`chord_sheet`).
+   9. **Status line**: the bar you're in and what's happening.
+
+.. only:: android
+
+   Tap the big **▶** button. Playback starts at the **playhead**, the small
+   marker (a coloured bar with a triangle) before the chord where playback
+   begins. A song you just opened has it on the first chord.
+
+   Chord Notepad works out the whole song before the first note sounds, so a
+   ring spins around the button for a moment (longer for a long song on a slow
+   phone). Taps on the button are ignored until the music starts. Then the
+   button turns into **⏸**.
+
+:plat:`Playing from the Cursor|Playing from the Playhead`
+---------------------------------------------------------
 
 Want to start from a specific point?
 
@@ -39,11 +70,24 @@ Want to start from a specific point?
 .. only:: android
 
    1. In the Play tab, tap the chord you want to start from. The playhead moves
-      there and the chord plays. (Tapping anywhere else moves the playhead to the
-      nearest chord, and you can drag the marker itself to step through the song
-      chord by chord.)
-   2. Tap **▶**
-   3. Playback begins from the playhead
+      there and the chord plays once.
+   2. Tap **▶**.
+   3. Playback begins from the playhead.
+
+   There are two other ways to move the playhead, both silent:
+
+   * Tap anywhere that isn't a chord. The playhead goes to the nearest chord,
+     preferring one on the line you tapped.
+   * Put your finger on the marker and drag it. It steps through the song
+     chord by chord. This works while nothing plays; during playback the
+     marker follows the music.
+
+.. platform-figure:: playhead
+   :platforms: android
+   :alt: Song text in the Play tab with the playhead marker, a bar with a
+         small triangle on top, just before the Em chord.
+
+   The playhead before **Em**. Playback starts here.
 
 This lets you start from a specific section without playing the entire document.
 
@@ -58,9 +102,13 @@ Pausing and Resuming
 
 .. only:: android
 
-   * Tap **⏸** to pause playback. The playhead stays where it is.
-   * Tap **▶** to resume from there
-   * The currently playing chord stays highlighted
+   * Tap **⏸** to pause playback. The playhead stays on the chord that was
+     sounding.
+   * Tap **▶** to resume from there.
+   * The chord that was playing stays highlighted.
+
+   Moving the playhead while paused (a tap, or a drag of the marker) drops the
+   paused song, so the next **▶** starts from the new position.
 
 Stopping Playback
 -----------------
@@ -72,10 +120,15 @@ Stopping Playback
 
 .. only:: android
 
-   * Tap **⏮** to stop playback and send the playhead back to the first chord.
-     There is no separate Stop button.
-   * The highlight clears
-   * When a song reaches its end, the playhead returns to the start by itself
+   There is no Stop button. Pause (**⏸**) when you want to carry on from the
+   same place later, and use **⏮** to start over:
+
+   * **⏮** stops playback and sends the playhead back to the first chord. The
+     highlight clears.
+   * When a song reaches its end, the playhead returns to the first chord by
+     itself.
+   * Switching to the **Edit** tab also stops playback, paused or not. The
+     playhead stays where it was.
 
 During Playback
 ---------------
@@ -96,21 +149,74 @@ While playing:
 
    * The text is frozen: the Play tab never opens the keyboard. To change
      something, switch to the **Edit** tab, which stops playback.
-   * The **current chord** is highlighted in yellow
+   * The **current chord** is highlighted in yellow (dark yellow in the dark
+     theme).
    * The player's status line shows the bar and the chord, for example
-     "Bar 6/24 · Playing Em" (or "· Paused")
-   * The text **auto-scrolls** to keep the playing chord visible
-   * Playback **pauses** when the app leaves the screen, when headphones are
-     unplugged, or when another app takes audio focus. Tap ▶ to resume.
+     "Bar 6/24 · Playing Em", or "Bar 6/24 · Paused". Bars are counted from
+     the top of the song, even when you started further down.
+   * The text **auto-scrolls** to keep the playing chord visible.
+   * The screen stays on while a song plays, so it doesn't dim halfway through
+     a verse. Once you pause or stop, the screen goes back to its usual
+     timeout.
+   * You can change the instrument, the speed and the metronome while the song
+     plays. The voicing and the tempo wait until you pause or stop (see
+     `Voicing Options`_ and :ref:`song-defaults`).
+
+   Chord Notepad doesn't play in the background. Playback pauses, and stays
+   paused until you tap **▶**, when:
+
+   * the app leaves the screen (you switch apps, go to the home screen or turn
+     the screen off);
+   * a call comes in, or another app starts playing audio;
+   * headphones are unplugged or a Bluetooth headset disconnects, so the song
+     doesn't suddenly play out loud through the speaker.
+
+   A short sound from another app, such as a navigation prompt, doesn't pause
+   it: Android lowers the volume for a moment instead.
+
+.. only:: android
+
+   .. rubric:: Metronome
+
+   The **metronome** button adds a click on every beat. You can turn it on or
+   off during playback too, and it takes effect at once. The button gets a tinted background while the metronome is on. The
+   click is only for practice: it is never written into an exported MIDI file.
+
+   .. rubric:: Playback Speed
+
+   The **speed** button plays the song slower or faster than written, without
+   changing the song. It scales every tempo in the song, including each
+   ``{bpm}`` change, so a slow verse and a fast chorus stay in proportion.
+   Tap the button to open the speed sheet:
+
+.. platform-figure:: speed-sheet
+   :platforms: android
+   :alt: The Playback speed sheet at 125%, with a slider from 25% to 400% and
+         the Reset, Manual and Done buttons.
+
+   The speed sheet.
+
+.. only:: android
+
+   * Drag the slider (25% to 400%, in steps of 5%). The new speed applies
+     right away, also while a song plays.
+   * **Reset** goes back to 100%.
+   * **Manual…** lets you type an exact value from 25 to 400.
+   * **Done** closes the sheet.
+
+   When the speed isn't 100%, the button shows it as a badge (``1.25×``) and
+   gets a tinted background, so you can see at a glance that you're not
+   hearing the written tempo. The speed only affects what you hear: MIDI
+   export always uses the song's real tempo (see :doc:`midi_export`).
 
 
-Click-to-Play
-=============
+|Click|-to-Play
+===============
 
 You can play individual chords without starting full playback.
 
-Clicking Individual Chords
---------------------------
+|Clicking| Individual Chords
+----------------------------
 
 .. only:: desktop
 
@@ -120,12 +226,17 @@ Clicking Individual Chords
 
 .. only:: android
 
-   1. Switch to the **Play** tab
-   2. Find any valid chord (blue and underlined)
-   3. Tap the chord
-   4. The playhead moves to it and the chord plays
+   1. Switch to the **Play** tab.
+   2. Find any valid chord (blue and underlined).
+   3. Tap the chord.
+   4. The playhead moves to it and the chord plays.
 
    In the Edit tab a tap on a chord only places the cursor and stays silent.
+   If a song is paused, tapping a chord drops the paused song and plays the
+   chord, and the next **▶** starts from it.
+
+   The chord sheet has its own version: tap a chord in the sheet to hear that
+   exact voicing once, without moving the playhead (see :doc:`chord_sheet`).
 
 This works even when playback is stopped. Uses include:
 
@@ -133,8 +244,8 @@ This works even when playback is stopped. Uses include:
 * Comparing different chord options
 * Chord ear training
 
-Clicking During Playback
-------------------------
+|Clicking| During Playback
+--------------------------
 
 .. only:: desktop
 
@@ -151,7 +262,8 @@ Clicking During Playback
 
 .. only:: android
 
-   * Jump playback to that chord, which keeps playing from there
+   * Jumps playback to that chord, which keeps playing from there. The
+     playhead moves with it.
 
 
 Voicing Options
@@ -177,14 +289,30 @@ a fretboard, and a section of singers or players don't think alike.
 
 .. only:: android
 
-   Switch between them with the **Voicing** button in the Play tab's player. The
-   sheet groups the voicings as Piano, Fretted, Ensembles and Your voicings. Pick
-   **Piano**, one of the fretted-instrument voicings (guitar in various tunings,
-   **Ukulele**, or an instrument you've configured yourself) covered in
-   :doc:`fretted`, or one of the ensemble presets (a four-part choir, a string
-   quartet) covered in :doc:`ensembles`. **Edit voicings…** at the bottom opens
-   Settings › Voicings. Voicing is independent of the **instrument** you choose
-   (see :ref:`changing-instruments`) -- you can play a piano voicing through a
+   Switch between them with the **Voicing** button (the note icon on the left
+   of the player). The sheet groups the voicings as **Piano**, **Fretted**,
+   **Ensembles** and **Your voicings**:
+
+   * **Piano**: the two-hand piano voicing described below.
+   * **Fretted**: guitar in four tunings and **Ukulele** (see :doc:`fretted`).
+   * **Ensembles**: the choir and string quartet presets (see
+     :doc:`ensembles`).
+   * **Your voicings**: the ones you made in ☰ → Settings → Voicings. The
+     group is missing until you add one.
+
+   **Edit voicings…** at the bottom of the sheet opens Settings › Voicings.
+
+.. platform-figure:: voicing-sheet
+   :platforms: android
+   :alt: The Voicing sheet with radio buttons grouped under Piano, Fretted,
+         Ensembles and Your voicings, and Edit voicings and Done at the bottom.
+
+   The Voicing sheet. Piano is selected; My 7-String is a custom voicing.
+
+.. only:: android
+
+   Voicing is independent of the **instrument** you choose (see
+   :ref:`changing-instruments`): you can play a piano voicing through a
    saxophone, or a guitar voicing through a synth pad.
 
 The voicing can't change while a song is playing, because the whole song is
@@ -192,6 +320,11 @@ worked out before the first note (the Voicing control is greyed out until you
 pause). Pause, pick another voicing, and press Play: the song starts again from
 the chord where you paused, with the new voicing. The instrument can change at
 any time, including during playback.
+
+.. only:: android
+
+   Touch and hold the greyed-out Voicing button to see why it is disabled
+   ("Pause to change the voicing").
 
 Piano Voicing
 -------------
@@ -312,7 +445,7 @@ Built-in Fretted-Instrument Voicings
 
    Beyond these five, you can define a voicing for any fretted instrument with
    3 to 12 strings -- a baritone ukulele, a banjo, a seven-string guitar in a
-   tuning of your own -- in the Voicings editor under ☰ → Settings. See
+   tuning of your own -- in ☰ → Settings → Voicings. See
    :doc:`fretted` for a worked example and the full list of tunable parameters.
 
 .. platform-figure:: voicings
@@ -381,12 +514,15 @@ How to Change Voicing
 
 .. only:: android
 
-   1. In the Play tab, tap **Voicing** in the player.
-   2. Select **Piano**, one of the fretted-instrument voicings (guitar
+   1. In the Play tab, pause or stop the song if it is playing.
+   2. Tap **Voicing** in the player.
+   3. Select **Piano**, one of the fretted-instrument voicings (guitar
       tunings, **Ukulele**, or a custom instrument), or one of the ensemble
-      presets -- see :doc:`fretted` for how each fretted voicing plays and how
+      presets. See :doc:`fretted` for how each fretted voicing plays and how
       to define your own, and :doc:`ensembles` for the same on ensembles.
-   3. Play your chords to hear the difference.
+      The choice applies at once; the sheet stays open so you can try
+      another.
+   4. Tap **Done**, then play your chords to hear the difference.
 
 .. only:: desktop
 
@@ -395,8 +531,8 @@ How to Change Voicing
 
 .. only:: android
 
-   The sheet marks the current voicing. It applies to full playback and to
-   single chords you tap.
+   A filled radio button marks the current voicing. It applies to full
+   playback, to single chords you tap, to the chord sheet and to MIDI export.
 
 
 .. _changing-instruments:
@@ -419,12 +555,35 @@ How to Change Instruments
 
 .. only:: android
 
-   1. In the Play tab, tap **Instrument** in the player
-   2. Pick one of the 16 General MIDI families
-   3. Tap an instrument to select it (each family has eight, listed with their
-      program numbers). The ← button goes back to the families.
+   1. In the Play tab, tap **Instrument** in the player (the guitar icon).
+   2. Pick one of the 16 General MIDI families. A filled dot marks the family
+      in use, with the current instrument's name on the right.
+   3. Tap an instrument to select it. Each family has eight, listed with their
+      General MIDI program numbers (0 to 127). The new sound applies at once,
+      even in the middle of a song.
+   4. **←** goes back to the families; **Done** closes the sheet.
 
-A checkmark (✓) shows the currently selected instrument.
+.. platform-figure:: instrument-families
+   :platforms: android
+   :alt: The Instrument sheet listing the 16 General MIDI families, with Piano
+         marked and Grand Piano shown on its right.
+
+   The first level: the families. Piano is in use, playing Grand Piano.
+
+.. platform-figure:: instrument-programs
+   :platforms: android
+   :alt: The Guitar family's eight instruments with their program numbers 24
+         to 31; Steel Guitar is selected.
+
+   The second level: the Guitar family, with Steel Guitar selected.
+
+.. only:: desktop
+
+   A checkmark (✓) shows the currently selected instrument.
+
+.. only:: android
+
+   A filled radio button shows the currently selected instrument.
 
 Instrument Categories
 ---------------------
@@ -482,8 +641,10 @@ Instrument Suggestions
 Different instruments can highlight different aspects of a chord progression.
 
 
-The Status Bar
-==============
+.. _song-defaults:
+
+:plat:`The Status Bar|The Status Line and Song Defaults`
+========================================================
 
 .. only:: desktop
 
@@ -500,16 +661,42 @@ The Status Bar
 .. only:: android
 
    Under the player's buttons a status line shows where you are, for example
-   "Bar 6/24 · Playing Em" (or "· Paused"). Above the buttons, the song pill
-   (something like "𝄞 90 · 3/4 · G") shows the tempo, time signature and key the
-   song starts with. Tap it to open **Song defaults**:
+   "Bar 6/24 · Playing Em" or "Bar 6/24 · Paused". While nothing plays it
+   shows the bar the playhead is in. Messages such as "Exported MIDI: …" show
+   there too while you're in the Play tab; in the Edit tab they pop up at the
+   bottom of the screen instead.
+
+   Above the buttons, the **song pill** (something like "𝄞 90 · 3/4 · G")
+   shows the tempo, time signature and key the song starts with. Tap it to
+   open **Song defaults**:
+
+.. platform-figure:: song-defaults
+   :platforms: android
+   :alt: The Song defaults sheet: Tempo 90 bpm set by a bpm directive in the
+         song, with an Edit link; Time signature 3/4 and Key G as drop-down
+         defaults; Write into song and Done at the bottom.
+
+   This song sets its tempo with ``{bpm: 90}``. The time signature and the
+   key are defaults you can change here.
+
+.. only:: android
 
    * A value the song sets with a directive is read-only and reads "Set by
-     ``{bpm: 90}`` in the song · Edit". **Edit** switches to the Edit tab with the
-     cursor on that directive.
-   * A value the song doesn't set is an editable default. It is not saved with
-     the file.
-   * **Write into song** inserts the missing directives at the top of the song.
+     ``{bpm: 90}`` in the song · Edit". **Edit** switches to the Edit tab with
+     the cursor on that directive, so you can change it there.
+   * A value the song doesn't set is a default you can change: tap it to type
+     a tempo (20 to 400), or to pick a time signature or a key from a list.
+     A default applies only where the song has no directive, and it is not
+     saved with the file. New songs start from the defaults in ☰ → Settings
+     → Playback and General.
+   * **Write into song** inserts the missing directives at the top of the
+     song as one line, so the file keeps them. It is greyed out when the
+     song already sets all three.
+
+   The tempo and **Write into song** don't work while a song plays or is
+   paused: tap **⏮** first. A time signature or key you change during
+   playback is heard once you stop and play again. To play faster or slower
+   without touching the song, use the **speed** button instead.
 
 
 Playback Tips
@@ -541,6 +728,11 @@ Start slow and gradually increase:
    {bpm: +10}
    C  Am  F  G
    // Keep adding {bpm: +10} blocks
+
+.. only:: android
+
+   To practise a finished song without editing it, use the **speed** button
+   instead: start at 50% and step it up as the song gets comfortable.
 
 A/B Testing Chords
 ------------------
@@ -580,3 +772,8 @@ Play a progression slowly to hear how voices move:
    Cmaj7  Am7  Dm7  G7
 
 Slow tempos make voice leading transitions more audible.
+
+.. only:: android
+
+   With the chord sheet's **Staff** view open (see :doc:`chord_sheet`) you can
+   also watch each voice move while you listen.
