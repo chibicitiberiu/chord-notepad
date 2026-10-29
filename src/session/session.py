@@ -26,29 +26,30 @@ from typing import (
 )
 
 from constants import CHORD_DETECTION_DEBOUNCE_MS, MAX_FONT_SIZE, MIN_FONT_SIZE
-from exceptions import AudioInitializationError, ChordNotepadError
+from exceptions import AudioInitializationError, ChordNotepadError, ConfigurationError
 from models.notation import Notation
 from models.playback_event import PlaybackEventArgs, PlaybackEventType
-from session import directives, errors, formatting, toolbar
+from session import directives, errors, formatting, quick_start, toolbar
 from session.platform import DESKTOP, check_platform
 from session.audio_policy import AudioFailurePolicy
 from session.emitter import Emitter, Listener
 from session.documents import DocumentRef
 from session.events import (
     AudioUnavailable, CapoChoiceRequest, CloseApproved, ConfirmDiscardRequest, DiscardChoice,
-    InsertDirectiveRequest, PickDocumentRequest, PickMode, TextEdited, UndoPolicy,
-    UnexpectedError, UserError,
+    InsertDirectiveRequest, PickDocumentRequest, PickMode, QuickStartBlock, QuickStartContent,
+    QuickStartPage, TextEdited, UndoPolicy, UnexpectedError, UserError, VoicingEditorSchema,
 )
 from session.flows import Flow, FlowRunner
 from session.highlighting import chord_at, compute_spans
 from session.host import Cancellable, Host
-from session.settings import SettingsValues
+from session.settings import TIME_SIGNATURE_UNITS, MAX_RECENT_LIMIT, SettingsValues
+from session.settings_edit import SettingsEdit
 from session.workers import BackgroundWorker, Job, Outcome
 from session.state import (
     ChordSheetState, ChordSheetView, DocumentState, EditorState, HighlightState,
     IdentifierNote, IdentifierState, InstrumentMenuState, MenuItem, PlayAction, PlaybackState,
-    PlaybackStatus, RecentDocumentsState, Span, SpanKind, StatusState, ToolbarState,
-    VoicingMenuState,
+    INACTIVE_VOICING_EDITOR, PlaybackStatus, RecentDocumentsState, SettingsState, Span,
+    SpanKind, StatusState, ToolbarState, VoicingMenuState,
 )
 
 if TYPE_CHECKING:
@@ -243,6 +244,8 @@ class AppSession:
         # model of its own): created on first use, since it needs services.
         self._identifier_model: Optional["ChordIdentifierViewModel"] = None
         self._identifier_error: Optional[str] = None
+        # A Settings screen's working copy (Android), while one is open.
+        self._settings_edit: Optional[SettingsEdit] = None
 
         with self._emitter.batch():
             self._emitter.set_state(HighlightState(0, 0, ()))
@@ -256,9 +259,17 @@ class AppSession:
             self._publish_document()
             self._publish_recent()
             if services is not None:
-                # The screens that need the services (Android's identifier).
+                # The screens that need the services (Android's identifier
+                # and Settings).
                 self._emitter.set_state(IdentifierState(
                     (), "", None, (), formatting.IDENTIFIER_PROMPT))
+                self._publish_settings()
+                self._emitter.set_state(INACTIVE_VOICING_EDITOR)
+        if services is not None:
+            # Several viewmodels write the config (the toolbar, the font,
+            # Quick Start's preference), none notifies: re-read it at the
+            # end of every command (an unchanged value is dropped).
+            self._emitter.set_before_flush(self._publish_settings)
 
     # -- lifecycle ------------------------------------------------------------
 
@@ -939,6 +950,10 @@ class AppSession:
         """
         if isinstance(changes, SettingsValues):
             changes = self._commit_settings(changes)
+        self._apply_changes(changes)
+
+    def _apply_changes(self, changes: "SettingsChanges") -> None:
+        """Bring the app in line with committed settings (see :meth:`apply_settings`)."""
         if changes.font_changed:
             self._main.reload_font_settings()
         if changes.voicings_changed:
@@ -948,6 +963,178 @@ class AppSession:
         elif changes.voicings_changed and self._main.get_voicing().startswith("voicing:"):
             # Possibly edited in place: rebuild the picker from the new values.
             self._main.set_voicing(self._main.get_voicing())
+
+    # -- the Settings screen (bridge views) ---------------------------------------
+    #
+    # Android's Settings screen edits a working copy the session keeps, like
+    # the desktop dialog's SettingsViewModel: begin_settings_edit opens it,
+    # the voicing commands edit it (VoicingEditorState shows it), and
+    # save_settings validates every voicing, commits and applies, or
+    # cancel_settings_edit drops it. SettingsState carries the plain values.
+
+    @_command
+    def begin_settings_edit(self) -> None:
+        """Open a settings working copy (dropping one already open).
+
+        Raises:
+            RuntimeError: If the session was built without services.
+        """
+        self._settings_edit = SettingsEdit(self.settings_model())
+        self._publish_voicing_editor()
+
+    @_command
+    def cancel_settings_edit(self) -> None:
+        """Drop the working copy; nothing is written."""
+        self._settings_edit = None
+        self._emitter.set_state(INACTIVE_VOICING_EDITOR)
+
+    @_command
+    def save_settings(self, values: Optional[SettingsValues] = None) -> None:
+        """Save the working copy: the voicings, plus ``values`` if given.
+
+        Like the desktop dialog's Save: if a voicing is invalid, a
+        :class:`UserError` names the first one, it is selected, and the edit
+        stays open. Otherwise everything is committed (one config write) and
+        applied like :meth:`apply_settings`, and the edit ends
+        (``VoicingEditorState.active`` goes False). A config that can't be
+        written is a :class:`UserError` and the edit stays open.
+
+        Args:
+            values: The General/Playback settings; None keeps them as the
+                config has them now.
+
+        Raises:
+            RuntimeError: If no settings edit is open.
+            ValueError: If ``values`` are out of range (nothing is written).
+        """
+        edit = self._require_settings_edit()
+        if values is None:
+            values = SettingsValues.read(self._require_services("settings").config.config)
+        values.check()
+        for name, value in values.as_dict().items():
+            setattr(edit.model, name, value)
+        problem = edit.first_invalid()
+        if problem is not None:
+            name, message = problem
+            edit.select(name)
+            edit.bump()
+            self._emitter.emit(UserError(formatting.INVALID_VOICING_TITLE, f"{name}: {message}"))
+            self._publish_voicing_editor()
+            return
+        try:
+            changes = edit.model.commit()
+        except ConfigurationError as e:
+            logger.error(f"Could not save settings: {e}")
+            self._emitter.emit(UserError(formatting.SETTINGS_TITLE,
+                                         formatting.settings_save_failed(str(e))))
+            return
+        self._settings_edit = None
+        self._emitter.set_state(INACTIVE_VOICING_EDITOR)
+        self._apply_changes(changes)
+
+    @_command
+    def request_voicing_editor_schema(self) -> None:
+        """Emit the voicings editor's form schemas (:class:`VoicingEditorSchema`)."""
+        from settings_forms.voicing_form import SCHEMA_VERSION, editor_schema
+
+        self._emitter.emit(VoicingEditorSchema(SCHEMA_VERSION, editor_schema(self._platform)))
+
+    @_command
+    def select_voicing(self, name: str) -> None:
+        """Show voicing ``name`` in the form.
+
+        Raises:
+            RuntimeError: If no settings edit is open.
+            ValueError: If there is no such voicing.
+        """
+        self._edit_voicings(lambda edit: edit.select(name))
+
+    @_command
+    def add_voicing(self) -> None:
+        """Add a voicing (a guitar fretboard, named "New voicing", "New voicing 2"...)
+        and select it."""
+        self._edit_voicings(lambda edit: edit.add())
+
+    @_command
+    def remove_voicing(self, name: str) -> None:
+        """Remove a voicing from the working copy (the view asks first)."""
+        self._edit_voicings(lambda edit: edit.remove(name))
+
+    @_command
+    def rename_voicing(self, old: str, new: str) -> None:
+        """Rename a voicing; an empty or taken name is a :class:`UserError`
+        and nothing changes (the state's ``revision`` still goes up)."""
+        def rename(edit: SettingsEdit) -> None:
+            try:
+                edit.rename(old, new)
+            except ValueError as e:
+                from settings_forms.voicing_texts import EDITOR_TEXTS
+
+                self._emitter.emit(UserError(EDITOR_TEXTS["rename_error_title"], str(e)))
+
+        self._edit_voicings(rename)
+
+    @_command
+    def set_voicing_values(self, values: Any) -> None:
+        """The form changed: ``values`` are the changed fields (or all of them).
+
+        Merged into the form's values and parsed forgivingly into the
+        voicing; the state comes back with the field and form errors.
+
+        Raises:
+            RuntimeError: If no settings edit is open or nothing is selected.
+            TypeError: If ``values`` isn't an object.
+        """
+        self._edit_voicings(lambda edit: edit.set_values(values))
+
+    @_command
+    def set_voicing_model(self, model: str) -> None:
+        """Switch the selected voicing to ``model`` with its defaults (the view
+        confirms first when ``dirty``)."""
+        self._edit_voicings(lambda edit: edit.set_model(model))
+
+    @_command
+    def add_voicing_record(self, field_id: str = "voices") -> None:
+        """Add a row to a records field of the form (an ensemble voice)."""
+        self._edit_voicings(lambda edit: edit.add_record(field_id))
+
+    @_command
+    def remove_voicing_record(self, index: int, field_id: str = "voices") -> None:
+        """Remove row ``index`` of a records field of the form."""
+        self._edit_voicings(lambda edit: edit.remove_record(int(index), field_id))
+
+    @_command
+    def load_voicing_preset(self, group: str, label: str) -> None:
+        """Replace the selected voicing's parameters with a "Load config" entry
+        (a ``VoicingEditorState.presets`` item; the view confirms first)."""
+        self._edit_voicings(lambda edit: edit.load_preset(group, label))
+
+    # -- Quick Start ----------------------------------------------------------------
+
+    @_command
+    def request_quick_start(self) -> None:
+        """Emit the Quick Start tour for this platform (:class:`QuickStartContent`).
+
+        Raises:
+            RuntimeError: If the session was built without services.
+        """
+        parser = self._require_services("Quick Start").song_parser
+        pages = []
+        for page in quick_start.pages(self._platform):
+            blocks = []
+            for block in page["blocks"]:
+                kind = block[0]
+                if kind == "snippet":
+                    text, notation = block[1], block[2]
+                    lines = parser.detect_chords_in_text(text, notation)
+                    blocks.append(QuickStartBlock("snippet", text, notation,
+                                                  compute_spans(lines, text), None))
+                elif kind == "image":
+                    blocks.append(QuickStartBlock("image", "", None, (), block[1]))
+                else:
+                    blocks.append(QuickStartBlock("text", block[1], None, (), None))
+            pages.append(QuickStartPage(page["title"], tuple(blocks)))
+        self._emitter.emit(QuickStartContent(tuple(pages), self.show_quick_start_on_startup))
 
     # -- chord sheet ------------------------------------------------------------
 
@@ -1144,6 +1331,39 @@ class AppSession:
         if self._services is None:
             raise RuntimeError(f"the session was built without services, which {what} needs")
         return self._services
+
+    def _require_settings_edit(self) -> SettingsEdit:
+        if self._settings_edit is None:
+            raise RuntimeError("no settings edit is open (begin_settings_edit first)")
+        return self._settings_edit
+
+    def _edit_voicings(self, change: Callable[[SettingsEdit], Any]) -> None:
+        """Run one voicings-editor command and publish the editor."""
+        edit = self._require_settings_edit()
+        try:
+            change(edit)
+        finally:
+            edit.bump()
+            self._publish_voicing_editor()
+
+    def _publish_voicing_editor(self) -> None:
+        if self._settings_edit is not None:
+            self._emitter.set_state(self._settings_edit.state())
+
+    def _publish_settings(self) -> None:
+        if self._services is None:
+            return
+        self._emitter.set_state(SettingsState(
+            values=SettingsValues.read(self._services.config.config),
+            american_keys=toolbar.key_options("american"),
+            european_keys=toolbar.key_options("european"),
+            font_size_min=MIN_FONT_SIZE,
+            font_size_max=MAX_FONT_SIZE,
+            bpm_min=int(toolbar.BPM_SCALE.min_value),
+            bpm_max=int(toolbar.BPM_SCALE.max_value),
+            max_recent_files_max=MAX_RECENT_LIMIT,
+            time_signature_units=TIME_SIGNATURE_UNITS,
+        ))
 
     def _identifier(self) -> "ChordIdentifierViewModel":
         if self._identifier_model is None:

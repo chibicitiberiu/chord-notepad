@@ -64,6 +64,7 @@ class Emitter:
         self._pending_state_at: Dict[type, int] = {}
         self._depth = 0
         self._delivering = False
+        self._before_flush: Optional[Callable[[], None]] = None
 
     @contextmanager
     def batch(self) -> Iterator[None]:
@@ -76,9 +77,26 @@ class Emitter:
         try:
             yield
         finally:
+            if self._depth == 1 and self._before_flush is not None:
+                self._run_before_flush()
             self._depth -= 1
             if self._depth == 0:
                 self._flush()
+
+    def set_before_flush(self, hook: Optional[Callable[[], None]]) -> None:
+        """Run ``hook`` at the end of every outermost batch, before the flush.
+
+        For states derived from something nobody notifies about (the
+        settings, which several viewmodels write): the hook re-publishes
+        them, and an unchanged value is dropped as usual.
+        """
+        self._before_flush = hook
+
+    def _run_before_flush(self) -> None:
+        try:
+            self._before_flush()
+        except Exception:
+            errors.report_from_any_thread(sys.exc_info(), "session before-flush hook")
 
     @property
     def in_batch(self) -> bool:

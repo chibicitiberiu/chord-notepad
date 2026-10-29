@@ -6,6 +6,10 @@
     "PickDocumentRequest": "DocumentRef|null"
   },
   "command_params": {
+    "add_voicing": {},
+    "add_voicing_record": {
+      "field_id": "str"
+    },
     "app_background": {},
     "app_foreground": {},
     "apply_settings": {
@@ -14,6 +18,8 @@
     "audition": {
       "index": "int"
     },
+    "begin_settings_edit": {},
+    "cancel_settings_edit": {},
     "chord_sheet_zoom": {
       "step": "int"
     },
@@ -37,6 +43,10 @@
       "at": "int",
       "text": "str"
     },
+    "load_voicing_preset": {
+      "group": "str",
+      "label": "str"
+    },
     "new_document": {},
     "open_document": {
       "ref": "DocumentRef|null"
@@ -55,14 +65,27 @@
     "play_pause": {
       "from_offset": "int|null"
     },
+    "remove_voicing": {
+      "name": "str"
+    },
+    "remove_voicing_record": {
+      "field_id": "str",
+      "index": "int"
+    },
+    "rename_voicing": {
+      "new": "str",
+      "old": "str"
+    },
     "request_close": {},
     "request_insert_directive": {
       "at": "int",
       "kind": "str"
     },
+    "request_quick_start": {},
     "request_suggest_capo": {
       "selection": "selection"
     },
+    "request_voicing_editor_schema": {},
     "reset_bpm": {},
     "reset_font_size": {},
     "reset_multiplier": {},
@@ -77,6 +100,12 @@
     },
     "save": {},
     "save_as": {},
+    "save_settings": {
+      "values": "SettingsValues|null"
+    },
+    "select_voicing": {
+      "name": "str"
+    },
     "set_bpm": {
       "bpm": "float"
     },
@@ -125,6 +154,12 @@
     "set_voicing": {
       "voicing": "str"
     },
+    "set_voicing_model": {
+      "model": "str"
+    },
+    "set_voicing_values": {
+      "values": "json"
+    },
     "step_font_size": {
       "delta": "int"
     },
@@ -139,10 +174,14 @@
     }
   },
   "commands": [
+    "add_voicing",
+    "add_voicing_record",
     "app_background",
     "app_foreground",
     "apply_settings",
     "audition",
+    "begin_settings_edit",
+    "cancel_settings_edit",
     "chord_sheet_zoom",
     "convert_notation",
     "export_midi",
@@ -151,6 +190,7 @@
     "identifier_toggle_note",
     "insert_chord",
     "insert_text",
+    "load_voicing_preset",
     "new_document",
     "open_document",
     "open_recent",
@@ -158,9 +198,14 @@
     "play_identified_chord",
     "play_note",
     "play_pause",
+    "remove_voicing",
+    "remove_voicing_record",
+    "rename_voicing",
     "request_close",
     "request_insert_directive",
+    "request_quick_start",
     "request_suggest_capo",
+    "request_voicing_editor_schema",
     "reset_bpm",
     "reset_font_size",
     "reset_multiplier",
@@ -168,6 +213,8 @@
     "restore_draft",
     "save",
     "save_as",
+    "save_settings",
+    "select_voicing",
     "set_bpm",
     "set_bpm_text",
     "set_chord_sheet_height",
@@ -183,6 +230,8 @@
     "set_text",
     "set_time_signature",
     "set_voicing",
+    "set_voicing_model",
+    "set_voicing_values",
     "step_font_size",
     "stop",
     "tap_chord_at",
@@ -373,9 +422,47 @@
       },
       "kind": "state"
     },
+    "QuickStartBlock": {
+      "fields": {
+        "image": "str|null",
+        "kind": "str",
+        "notation": "str|null",
+        "spans": "list[Span]",
+        "text": "str"
+      },
+      "kind": "value"
+    },
+    "QuickStartContent": {
+      "fields": {
+        "pages": "list[QuickStartPage]",
+        "show_on_startup": "bool"
+      },
+      "kind": "event"
+    },
+    "QuickStartPage": {
+      "fields": {
+        "blocks": "list[QuickStartBlock]",
+        "title": "str"
+      },
+      "kind": "value"
+    },
     "RecentDocumentsState": {
       "fields": {
         "items": "list[DocumentRef]"
+      },
+      "kind": "state"
+    },
+    "SettingsState": {
+      "fields": {
+        "american_keys": "list[str]",
+        "bpm_max": "int",
+        "bpm_min": "int",
+        "european_keys": "list[str]",
+        "font_size_max": "int",
+        "font_size_min": "int",
+        "max_recent_files_max": "int",
+        "time_signature_units": "list[int]",
+        "values": "SettingsValues"
       },
       "kind": "state"
     },
@@ -448,12 +535,51 @@
       },
       "kind": "event"
     },
+    "VoicingEditorSchema": {
+      "fields": {
+        "schema": "json",
+        "version": "int"
+      },
+      "kind": "event"
+    },
+    "VoicingEditorState": {
+      "fields": {
+        "active": "bool",
+        "dirty": "bool",
+        "field_errors": "json",
+        "form_errors": "list[str]",
+        "groups": "list[VoicingGroup]",
+        "hints": "json",
+        "invalid": "list[str]",
+        "model": "str|null",
+        "presets": "list[VoicingPreset]",
+        "revision": "int",
+        "selected": "str|null",
+        "values": "json"
+      },
+      "kind": "state"
+    },
+    "VoicingGroup": {
+      "fields": {
+        "label": "str",
+        "model": "str",
+        "names": "list[str]"
+      },
+      "kind": "value"
+    },
     "VoicingMenuState": {
       "fields": {
         "groups": "list[list[MenuItem]]",
         "selected": "str"
       },
       "kind": "state"
+    },
+    "VoicingPreset": {
+      "fields": {
+        "group": "str",
+        "label": "str"
+      },
+      "kind": "value"
     }
   },
   "version": 1

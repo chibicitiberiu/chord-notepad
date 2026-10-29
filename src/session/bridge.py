@@ -3,7 +3,7 @@
 Outbound, :func:`encode` turns every state, event and request into
 ``(type_name, json)``: the DTO's class name and its fields as a JSON object
 (enums as their values, tuples as arrays, nested DTOs as objects, None as
-null). Inbound, :func:`dispatch` takes a command name and its keyword
+null; a field typed ``Any`` is plain JSON data, schema type ``json``). Inbound, :func:`dispatch` takes a command name and its keyword
 arguments as a JSON object, decodes them by the command's parameter types and
 calls the session. :class:`SessionBridge` puts the two on a host: commands
 are posted to the session thread, output goes to a sink.
@@ -36,16 +36,16 @@ from session import errors
 from session.documents import DocumentRef
 from session.events import (
     AudioUnavailable, CapoChoiceRequest, CloseApproved, ConfirmDiscardRequest, DiscardChoice,
-    InsertDirectiveRequest, PickDocumentRequest, PickMode, TextEdited, UndoPolicy,
-    UnexpectedError, UserError,
+    InsertDirectiveRequest, PickDocumentRequest, PickMode, QuickStartBlock, QuickStartContent,
+    QuickStartPage, TextEdited, UndoPolicy, UnexpectedError, UserError, VoicingEditorSchema,
 )
 from session.host import Host
 from session.settings import SettingsValues
 from session.state import (
     ChordSheetState, ChordSheetView, DocumentState, EditorState, HighlightState,
     IdentifierNote, IdentifierState, InstrumentFamily, InstrumentMenuState, MenuItem, PlayAction,
-    PlaybackState, PlaybackStatus, RecentDocumentsState, Span, SpanKind, StatusState,
-    ToolbarState, VoicingMenuState,
+    PlaybackState, PlaybackStatus, RecentDocumentsState, SettingsState, Span, SpanKind,
+    StatusState, ToolbarState, VoicingEditorState, VoicingGroup, VoicingMenuState, VoicingPreset,
 )
 
 logger = logging.getLogger(__name__)
@@ -60,10 +60,11 @@ BRIDGE_CONTEXT = "bridge"
 STATE_TYPES: Tuple[type, ...] = (
     DocumentState, EditorState, HighlightState, PlaybackState, ToolbarState, StatusState,
     VoicingMenuState, InstrumentMenuState, RecentDocumentsState, ChordSheetState,
-    IdentifierState,
+    IdentifierState, SettingsState, VoicingEditorState,
 )
 EVENT_TYPES: Tuple[type, ...] = (
     TextEdited, UserError, AudioUnavailable, UnexpectedError, CloseApproved,
+    VoicingEditorSchema, QuickStartContent,
 )
 REQUEST_TYPES: Tuple[type, ...] = (
     ConfirmDiscardRequest, PickDocumentRequest, CapoChoiceRequest, InsertDirectiveRequest,
@@ -71,7 +72,7 @@ REQUEST_TYPES: Tuple[type, ...] = (
 #: Nested in outputs, or sent in commands.
 VALUE_TYPES: Tuple[type, ...] = (
     Span, MenuItem, InstrumentFamily, ChordSheetView, DocumentRef, SettingsValues,
-    IdentifierNote,
+    IdentifierNote, VoicingGroup, VoicingPreset, QuickStartPage, QuickStartBlock,
 )
 ENUM_TYPES: Tuple[Type[Enum], ...] = (
     SpanKind, PlaybackStatus, PlayAction, UndoPolicy, DiscardChoice, PickMode,
@@ -107,6 +108,11 @@ def to_json_value(value: Any) -> Any:
         return {f.name: to_json_value(getattr(value, f.name)) for f in dataclasses.fields(value)}
     if isinstance(value, (tuple, list)):
         return [to_json_value(v) for v in value]
+    if isinstance(value, dict):
+        # Only in fields typed Any (plain JSON data, e.g. the voicing form).
+        if not all(isinstance(k, str) for k in value):
+            raise TypeError(f"JSON objects need str keys: {value!r}")
+        return {k: to_json_value(v) for k, v in value.items()}
     raise TypeError(f"{type(value).__name__} can't cross the bridge: {value!r}")
 
 
@@ -127,7 +133,8 @@ def encode(dto: Any) -> Tuple[str, str]:
 #
 # A parameter type is a small string, the same one the schema shows:
 # "int", "float", "str", "bool", "selection" ([start, end] or null),
-# "DocumentRef", "SettingsValues", "any", and "<type>|null".
+# "DocumentRef", "SettingsValues", "any" (respond's value, decoded later),
+# "json" (any JSON value, passed on as is), and "<type>|null".
 
 _Decoder = Callable[[Any], Any]
 
@@ -189,6 +196,7 @@ _DECODERS: Dict[str, _Decoder] = {
     "bool": _decode_bool,
     "selection": _decode_selection,
     "any": lambda value: value,
+    "json": lambda value: value,
 }
 _DECODERS["DocumentRef"] = _decode_dataclass(DocumentRef)
 _DECODERS["SettingsValues"] = _decode_dataclass(SettingsValues)
@@ -259,6 +267,21 @@ SESSION_COMMANDS: Dict[str, Dict[str, str]] = {
     # settings and preferences
     "apply_settings": {"changes": "SettingsValues"},
     "set_show_quick_start_on_startup": {"show": "bool"},
+    "request_quick_start": {},
+    # the Settings screen's working copy and its voicings editor
+    "begin_settings_edit": {},
+    "cancel_settings_edit": {},
+    "save_settings": {"values": "SettingsValues|null"},
+    "request_voicing_editor_schema": {},
+    "select_voicing": {"name": "str"},
+    "add_voicing": {},
+    "remove_voicing": {"name": "str"},
+    "rename_voicing": {"old": "str", "new": "str"},
+    "set_voicing_values": {"values": "json"},
+    "set_voicing_model": {"model": "str"},
+    "add_voicing_record": {"field_id": "str"},
+    "remove_voicing_record": {"index": "int", "field_id": "str"},
+    "load_voicing_preset": {"group": "str", "label": "str"},
 }
 
 #: Host commands: the app's lifecycle, run on the session's primitives.
@@ -543,6 +566,8 @@ def _type_name(hint: Any) -> str:
         return f"list[{_type_name(args[0])}]"
     if hint in (str, int, float, bool):
         return hint.__name__
+    if hint is typing.Any:
+        return "json"
     if isinstance(hint, type) and (issubclass(hint, Enum) or dataclasses.is_dataclass(hint)):
         return hint.__name__
     raise TypeError(f"{hint!r} can't cross the bridge")

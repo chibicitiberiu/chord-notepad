@@ -77,3 +77,54 @@ def test_one_pinch_zooms_several_steps_in_one_command(tmp_path):
         assert state["zoom"] == round(1.44 / 1.2 / 1.2 / 1.2, 3)
     finally:
         env.close()
+
+
+def test_settings_screen_over_the_bridge(env):
+    settings = env.expect("SettingsState")
+    assert settings["values"]["show_quick_start_on_startup"] is True
+    assert env.latest("VoicingEditorState")["active"] is False
+
+    env.send("request_voicing_editor_schema")
+    schema = env.expect("VoicingEditorSchema")
+    assert set(schema["schema"]["forms"]) == {"fretboard", "ensemble", "piano"}
+
+    env.send("begin_settings_edit")
+    env.send("add_voicing")
+    state = env.expect("VoicingEditorState", lambda d: d["selected"] == "New voicing")
+    assert state["model"] == "fretboard" and state["values"]["max_fret"] == "12"
+    env.send("set_voicing_values", values={"max_fret": "x"})
+    state = env.expect("VoicingEditorState", lambda d: d["field_errors"])
+    assert state["field_errors"] == {"max_fret": "Must be a whole number"}
+    env.send("set_voicing_model", model="ensemble")
+    env.send("add_voicing_record", field_id="voices")
+    state = env.expect("VoicingEditorState", lambda d: len(d["values"].get("voices", [])) == 3)
+    env.send("remove_voicing_record", index=2)                 # field_id has a default
+    env.expect("VoicingEditorState", lambda d: len(d["values"].get("voices", [])) == 2)
+    env.send("set_voicing_values", values={"voices": [
+        {"name": "Hi", "low": "C4", "high": "C5", "staff": "treble"},
+        {"name": "Lo", "low": "C3", "high": "C4", "staff": None}]})
+    env.send("rename_voicing", old="New voicing", new="Duo")
+    env.expect("VoicingEditorState", lambda d: d["selected"] == "Duo")
+
+    values = dict(settings["values"], bpm=111)
+    env.send("save_settings", values=values)
+    env.expect("VoicingEditorState", lambda d: d["active"] is False)
+    env.expect("SettingsState", lambda d: d["values"]["bpm"] == 111)
+    env.settle()
+    config = env.services.config.config
+    assert config.voicings["Duo"]["voices"][0]["staff"] == "treble"
+    menu = env.latest("VoicingMenuState")
+    assert ["Duo"] == [item["label"] for item in menu["groups"][-1]]
+
+    env.send("set_voicing_values", values={})                  # no edit open
+    assert env.expect("UnexpectedError")["context"] == "set_voicing_values"
+
+
+def test_quick_start_over_the_bridge(env):
+    env.send("set_show_quick_start_on_startup", show=False)
+    env.expect("SettingsState", lambda d: d["values"]["show_quick_start_on_startup"] is False)
+    env.send("request_quick_start")
+    content = env.expect("QuickStartContent")
+    assert content["show_on_startup"] is False
+    block = content["pages"][0]["blocks"][1]
+    assert block["kind"] == "snippet" and block["spans"][0]["kind"] in ("chord", "comment")

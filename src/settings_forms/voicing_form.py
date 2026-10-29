@@ -57,6 +57,7 @@ from models.piano_spec import (
     PianoSpec,
 )
 from settings_forms.voicing_texts import (
+    ANDROID_TOOLTIPS,
     EDITOR_TEXTS,
     ENSEMBLE_WEIGHT_LABELS,
     FRETBOARD_WEIGHT_LABELS,
@@ -467,8 +468,12 @@ def form_schema(model: str) -> Dict[str, Any]:
     return _piano_schema()
 
 
-def editor_schema() -> Dict[str, Any]:
+def editor_schema(platform: str = 'desktop') -> Dict[str, Any]:
     """Everything a view needs to build the voicings editor, as plain data.
+
+    Args:
+        platform: ``desktop`` or ``android`` (``session.platform``): the
+            header help that names a menu is worded for it.
 
     Returns:
         ``{'version', 'models': [{'value', 'label'}], 'tree_groups': [{'model',
@@ -483,8 +488,9 @@ def editor_schema() -> Dict[str, Any]:
         'models': [{'value': m, 'label': MODEL_LABELS[m]} for m in MODELS],
         'tree_groups': [{'model': m, 'label': MODEL_LABELS[m]} for m in TREE_GROUPS],
         'texts': dict(EDITOR_TEXTS),
-        'help': {key: TOOLTIPS[key] for key in ('name', 'model', 'load', 'tree_add',
-                                                'tree_remove')},
+        'help': {key: (ANDROID_TOOLTIPS.get(key, TOOLTIPS[key]) if platform == 'android'
+                       else TOOLTIPS[key])
+                 for key in ('name', 'model', 'load', 'tree_add', 'tree_remove')},
         'forms': {m: form_schema(m) for m in MODELS},
     }
 

@@ -2,7 +2,10 @@
 
 States are frozen dataclasses holding only ``str``/``int``/``float``/``bool``/
 ``None``, tuples of those and ``str`` enums, so the bridge can serialize them
-and no live object (a ``ChordInfo``, a ``Line``) leaks to a view. The session
+and no live object (a ``ChordInfo``, a ``Line``) leaks to a view. A field
+typed ``Any`` holds plain JSON data (dicts with ``str`` keys, lists, scalars;
+the voicing form's values), copied when the state is made and never changed
+after. The session
 keeps the latest value of each state type, replays them to a new listener,
 and coalesces repeated changes (see :mod:`session.emitter`).
 
@@ -13,9 +16,10 @@ that publish them.
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Optional, Tuple
+from typing import Any, Optional, Tuple
 
 from session.documents import DocumentRef
+from session.settings import SettingsValues
 
 
 class SpanKind(str, Enum):
@@ -341,3 +345,114 @@ class IdentifierState:
     typed_text_error: Optional[str]
     candidates: Tuple[str, ...]
     message: Optional[str]
+
+
+@dataclass(frozen=True)
+class SettingsState:
+    """The settings a mobile Settings screen shows, and their limits.
+
+    Published when the session starts and whenever the config changes
+    (the toolbar writes the tempo, key, time signature and notation; Quick
+    Start's "don't show again"; a save). ``values`` holds exactly the
+    settings Android shows (the visibility rule: no log level, audio
+    driver, SoundFont path or window geometry); send changed values back
+    with ``save_settings`` (or ``apply_settings``).
+
+    Attributes:
+        values: The current settings.
+        american_keys: The key choices in American notation (``values.key``
+            may also be "" for none).
+        european_keys: The key choices in European notation.
+        font_size_min: Smallest editor font size.
+        font_size_max: Largest editor font size.
+        bpm_min: Slowest tempo.
+        bpm_max: Fastest tempo.
+        max_recent_files_max: Longest recent list (the shortest is 1).
+        time_signature_units: The beat units to choose from.
+    """
+
+    values: SettingsValues
+    american_keys: Tuple[str, ...]
+    european_keys: Tuple[str, ...]
+    font_size_min: int
+    font_size_max: int
+    bpm_min: int
+    bpm_max: int
+    max_recent_files_max: int
+    time_signature_units: Tuple[int, ...]
+
+
+@dataclass(frozen=True)
+class VoicingGroup:
+    """One model's voicings in the voicings editor's list.
+
+    Attributes:
+        model: ``fretboard``, ``piano`` or ``ensemble``.
+        label: The group's heading.
+        names: The working copy's voicings of that model, sorted.
+    """
+
+    model: str
+    label: str
+    names: Tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class VoicingPreset:
+    """An entry of the "Load config" menu; send both back with ``load_voicing_preset``.
+
+    Attributes:
+        label: What the menu shows.
+        group: ``fretboard``, ``ensemble``, ``piano`` or ``custom`` (a view
+            separates the groups).
+    """
+
+    label: str
+    group: str
+
+
+@dataclass(frozen=True)
+class VoicingEditorState:
+    """The voicings editor of a Settings screen (``begin_settings_edit``).
+
+    Attributes:
+        active: Whether a settings edit is open. It ends (``active`` False)
+            when ``save_settings`` succeeded or ``cancel_settings_edit`` ran.
+        revision: Goes up with every edit command, also one that changed
+            nothing (a refused rename), so a view can reset its fields from
+            this state.
+        groups: The working copy's voicings by model, in list order.
+        invalid: The voicings Save would refuse.
+        presets: The "Load config" entries.
+        selected: The voicing in the form, or None (show the placeholder).
+        model: Its form's model (``voicing_editor_schema``'s ``forms`` key),
+            or None.
+        values: The form's values, keyed by field id (JSON; see
+            ``settings_forms.voicing_form``); ``{}`` with nothing selected.
+        field_errors: ``{field_id: message}`` for values that don't parse
+            (``voice:<i>:<column>`` for a records cell).
+        form_errors: Errors of the whole form (the spec's message).
+        hints: ``{field_id: text}``: the grey hint under fields that have
+            one, filled in from the values.
+        dirty: Whether the selected voicing was edited since it was
+            selected (a model switch asks for confirmation then).
+    """
+
+    active: bool
+    revision: int
+    groups: Tuple[VoicingGroup, ...]
+    invalid: Tuple[str, ...]
+    presets: Tuple[VoicingPreset, ...]
+    selected: Optional[str]
+    model: Optional[str]
+    values: Any
+    field_errors: Any
+    form_errors: Tuple[str, ...]
+    hints: Any
+    dirty: bool
+
+
+#: The voicings editor while no settings edit is open.
+INACTIVE_VOICING_EDITOR = VoicingEditorState(
+    active=False, revision=0, groups=(), invalid=(), presets=(), selected=None, model=None,
+    values={}, field_errors={}, form_errors=(), hints={}, dirty=False)

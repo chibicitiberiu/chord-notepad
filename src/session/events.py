@@ -14,9 +14,9 @@ Requests (``...Request``) carry a ``request_id``: the view answers each with
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Optional, Tuple
+from typing import Any, Optional, Tuple
 
-from session.state import MenuItem
+from session.state import MenuItem, Span
 
 
 @dataclass(frozen=True)
@@ -212,3 +212,61 @@ class CloseApproved:
     Emitted by ``request_close``. The view tears itself down; the session
     doesn't stop anything itself.
     """
+
+
+@dataclass(frozen=True)
+class VoicingEditorSchema:
+    """The voicings editor's form schemas (``request_voicing_editor_schema``).
+
+    Static for a given ``version`` and platform; a view keeps it.
+
+    Attributes:
+        version: ``settings_forms.voicing_form.SCHEMA_VERSION``.
+        schema: ``voicing_form.editor_schema()`` as JSON: ``models``,
+            ``tree_groups``, ``texts``, ``help`` and ``forms`` (model ->
+            sections -> fields).
+    """
+
+    version: int
+    schema: Any
+
+
+@dataclass(frozen=True)
+class QuickStartBlock:
+    """One block of a Quick Start page.
+
+    Attributes:
+        kind: ``text``, ``snippet`` or ``image``.
+        text: The paragraph, or the snippet's song text ("" for an image).
+        notation: A snippet's notation, else None.
+        spans: A snippet's highlight spans (as the editor paints them).
+        image: An image's resource path (``resources/...``), else None.
+    """
+
+    kind: str
+    text: str
+    notation: Optional[str]
+    spans: Tuple[Span, ...]
+    image: Optional[str]
+
+
+@dataclass(frozen=True)
+class QuickStartPage:
+    """A Quick Start page: a title and its blocks."""
+
+    title: str
+    blocks: Tuple[QuickStartBlock, ...]
+
+
+@dataclass(frozen=True)
+class QuickStartContent:
+    """The Quick Start tour for this platform (``request_quick_start``).
+
+    Attributes:
+        pages: The pages, in order.
+        show_on_startup: Whether Quick Start opens at startup; "Don't show
+            this again" sends ``set_show_quick_start_on_startup(false)``.
+    """
+
+    pages: Tuple[QuickStartPage, ...]
+    show_on_startup: bool

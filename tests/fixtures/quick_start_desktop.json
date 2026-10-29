@@ -1,0 +1,131 @@
+[
+ {
+  "title": "Welcome to Chord Notepad",
+  "blocks": [
+   [
+    "text",
+    "Chord Notepad is a text editor for musicians. Write a song the way a chord sheet looks: chords on their own line, right above the lyrics they go with."
+   ],
+   [
+    "snippet",
+    "C        C/E      F      C\nTwinkle, twinkle, little star,\nDm    Am     G        C\nHow I wonder what you are!",
+    "american"
+   ],
+   [
+    "text",
+    "The app recognizes chord lines on its own and highlights their chords; lyric lines are left alone. Click any chord in the editor to hear it, or press ▶ in the toolbar to play the whole song."
+   ]
+  ]
+ },
+ {
+  "title": "How Chord Lines Are Detected",
+  "blocks": [
+   [
+    "text",
+    "There is nothing to mark up. A line counts as a chord line when most of its words are chords, so a lyric that happens to contain a word like “A” stays plain text."
+   ],
+   [
+    "snippet",
+    "G              D/F#        Em          C\nA song for you, a melody I made\nAm7   Dsus4   Cmaj7   G/B   F#m7b5   E7#9",
+    "american"
+   ],
+   [
+    "text",
+    "Chords can be as rich as you need: sevenths, suspended and added notes, extensions, altered notes, and slash chords for a specific bass note."
+   ]
+  ]
+ },
+ {
+  "title": "Do-Re-Mi and Roman Numerals",
+  "blocks": [
+   [
+    "text",
+    "Prefer solfège? Switch to European notation with the Do button in the toolbar and write chords as Do, Re, Mi… with a lowercase m for minor."
+   ],
+   [
+    "snippet",
+    "Do        Lam       Rem7      Sol7\nSomewhere a melody is calling\nFa        Do/Mi     Rem       Sol\nEvery note is coming home",
+    "european"
+   ],
+   [
+    "text",
+    "Roman numerals write chords relative to the key, set with {key: …} or the Key box. Change the key and the same song plays in the new key."
+   ],
+   [
+    "snippet",
+    "{key: G}\nI         vi        IV        V7\nHere's a tune in any key you like\nii7       V7        I\nPlay it high or play it low",
+    "american"
+   ]
+  ]
+ },
+ {
+  "title": "Tempo, Meter and Timing",
+  "blocks": [
+   [
+    "text",
+    "Directives in {braces} set the tempo, time signature and key. They can go anywhere, so a song can speed up or change key halfway through."
+   ],
+   [
+    "snippet",
+    "{bpm: 90} {time: 3/4}\nG         G7        C*6\nWalking slow in waltz time,\nD7*1.5   C*1.5    G     NC\nstep and turn and home",
+    "american"
+   ],
+   [
+    "text",
+    "Each chord lasts one bar unless you add *beats after it: C*6 holds for two bars of 3/4, D7*1.5 for a beat and a half. NC is a bar of silence. The toolbar's Speed, Key and Time controls set the defaults for the whole song."
+   ]
+  ]
+ },
+ {
+  "title": "Song Structure",
+  "blocks": [
+   [
+    "text",
+    "Name a section with {label: …} and repeat it with {loop: name times}. Lines starting with // are comments: they're notes for you and are never played."
+   ],
+   [
+    "snippet",
+    "{label: chorus}\nF         C         G         Am\nSing it loud and sing it clear,\nF         C         G\neverybody gather near\n// Chorus twice at the end\n{loop: chorus 2}",
+    "american"
+   ],
+   [
+    "text",
+    "Tools → Insert has small dialogs for adding labels, loops and other directives if you'd rather not type them."
+   ]
+  ]
+ },
+ {
+  "title": "The Chord Sheet",
+  "blocks": [
+   [
+    "text",
+    "The panel under the editor draws the song's chords as you write: as a piano roll, on a music staff, as guitar chord diagrams (Fret cards), or as tab. It follows along while the song plays."
+   ],
+   [
+    "image",
+    "resources/quickstart/chord_sheet.png"
+   ],
+   [
+    "text",
+    "Fret cards and Tab need a fretted instrument, picked in Playback → Voicing (for example Guitar). Show or hide the panel with View → Chord Sheet."
+   ]
+  ]
+ },
+ {
+  "title": "You're Ready!",
+  "blocks": [
+   [
+    "text",
+    "That's all you need to get started."
+   ],
+   [
+    "text",
+    "Press F1 any time for the full User Guide (also in the Help menu). Tools → Identify Chord names a chord from the notes you pick, and Help → Quick Start brings this tour back."
+   ],
+   [
+    "text",
+    "Have fun making music!"
+   ]
+  ]
+ }
+]

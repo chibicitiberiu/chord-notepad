@@ -11,6 +11,7 @@ import inspect
 import json
 import re
 import threading
+import typing
 from enum import Enum
 from pathlib import Path
 
@@ -181,7 +182,7 @@ def test_schema_describes_every_dto_and_command():
     assert data["enums"]["DiscardChoice"] == ["save", "discard", "cancel"]
     assert set(data["commands"]) == set(data["command_params"])
     # Every type name the schema uses is a primitive, an enum or a listed DTO.
-    known = {"str", "int", "float", "bool", "any", "selection",
+    known = {"str", "int", "float", "bool", "any", "json", "selection",
              "dict[str,str]"} | set(types) | set(data["enums"])
     used = [t for ty in types.values() for t in ty["fields"].values()]
     used += [t for params in data["command_params"].values() for t in params.values()]
@@ -299,11 +300,12 @@ def ref_json(name):
 
 
 def test_subscribing_replays_every_state_first(env):
-    names = [name for name, _ in env.out[:11]]
+    names = [name for name, _ in env.out[:13]]
     assert set(names) == {"HighlightState", "PlaybackState", "StatusState", "EditorState",
                           "ToolbarState", "VoicingMenuState", "InstrumentMenuState",
-                          "DocumentState", "RecentDocumentsState",
-                          "IdentifierState"} | ({"ChordSheetState"} & set(names))
+                          "DocumentState", "RecentDocumentsState", "IdentifierState",
+                          "SettingsState", "VoicingEditorState"} | ({"ChordSheetState"}
+                                                                     & set(names))
     assert env.out[0][0] == "HighlightState"
     assert env.latest("DocumentState") == {
         "display_name": "Untitled", "location": None, "is_modified": False,
@@ -665,6 +667,10 @@ def test_every_output_type_crosses_the_bridge_as_plain_values(tmp_path):
         env.send("save")
         request = env.expect("PickDocumentRequest")
         env.send("respond", request_id=request["request_id"], value=None)
+        env.send("request_voicing_editor_schema")              # VoicingEditorSchema
+        env.send("request_quick_start")                        # QuickStartContent
+        env.send("begin_settings_edit")                        # VoicingEditorState (json)
+        env.send("add_voicing")
         env.send("request_close")
         request = env.expect("ConfirmDiscardRequest")
         env.send("respond", request_id=request["request_id"], value="discard")
@@ -687,8 +693,24 @@ _DTO_TYPES = set(bridge.STATE_TYPES + bridge.EVENT_TYPES + bridge.REQUEST_TYPES
                  + bridge.VALUE_TYPES)
 
 
+def _assert_json(value, path):
+    """Plain JSON data: what a field typed Any may hold."""
+    if value is None or isinstance(value, (str, bool, int, float)):
+        assert not isinstance(value, Enum), path
+        return
+    if isinstance(value, (list, tuple)):
+        for i, item in enumerate(value):
+            _assert_json(item, f"{path}[{i}]")
+        return
+    assert isinstance(value, dict), f"{path}: {type(value).__name__}"
+    for key, item in value.items():
+        assert isinstance(key, str), path
+        _assert_json(item, f"{path}.{key}")
+
+
 def _assert_plain(value, path="dto"):
-    """Only str/int/float/bool/None, tuples, str enums and bridge DTOs."""
+    """Only str/int/float/bool/None, tuples, str enums and bridge DTOs (and
+    plain JSON data in fields typed Any)."""
     if value is None or isinstance(value, (str, bool, int, float)):
         if isinstance(value, Enum):
             assert type(value) in bridge.ENUM_TYPES, path
@@ -699,5 +721,9 @@ def _assert_plain(value, path="dto"):
         return
     assert type(value) in _DTO_TYPES, f"{path}: {type(value).__name__}"
     assert dataclasses.is_dataclass(value) and value.__dataclass_params__.frozen, path
+    hints = typing.get_type_hints(type(value))
     for f in dataclasses.fields(value):
-        _assert_plain(getattr(value, f.name), f"{path}.{f.name}")
+        if hints[f.name] is typing.Any:
+            _assert_json(getattr(value, f.name), f"{path}.{f.name}")
+        else:
+            _assert_plain(getattr(value, f.name), f"{path}.{f.name}")

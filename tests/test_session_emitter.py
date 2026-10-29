@@ -206,3 +206,44 @@ def test_a_state_changed_and_changed_back_before_a_flush_is_delivered_once():
         emitter.set_state(StateA(1))
     # Already queued, so it still goes out, carrying the latest value.
     assert rec.compact() == [("StateA", 1)]
+
+
+def test_the_before_flush_hook_runs_once_per_outermost_batch():
+    emitter = Emitter()
+    recorder = EventRecorder()
+    source = {"value": 1}
+    calls = []
+
+    def hook():
+        calls.append(emitter.in_batch)
+        emitter.set_state(StateA(source["value"]))
+
+    emitter.set_before_flush(hook)
+    with emitter.batch():
+        emitter.subscribe(recorder)
+        with emitter.batch():
+            emitter.emit(Ping(1))
+    assert calls == [True]
+    assert recorder.items == [Ping(1), StateA(1)]
+    with emitter.batch():
+        pass                                     # unchanged: nothing delivered
+    source["value"] = 2
+    with emitter.batch():
+        emitter.emit(Ping(2))
+    assert recorder.items == [Ping(1), StateA(1), Ping(2), StateA(2)]
+
+
+def test_a_failing_before_flush_hook_is_reported_and_output_still_flows():
+    emitter = Emitter()
+    recorder = EventRecorder()
+    reported = []
+    previous = errors.set_handler(lambda exc_info, context: reported.append(context))
+    try:
+        emitter.set_before_flush(lambda: 1 / 0)
+        with emitter.batch():
+            emitter.subscribe(recorder)
+            emitter.emit(Ping(1))
+    finally:
+        errors.set_handler(previous)
+    assert recorder.items == [Ping(1)]
+    assert reported == ["session before-flush hook"]

@@ -276,6 +276,12 @@ TOOLTIPS: Dict[str, str] = {
 }
 
 
+#: Help texts worded differently on Android (they name a menu path).
+ANDROID_TOOLTIPS: Dict[str, str] = {
+    'name': "The name of this voicing, shown in ⋮ → Playback → Voicing.",
+}
+
+
 def nested_tooltip(group: str, role: str) -> str:
     """Build a per-role tooltip for a nested-weight spinbox."""
     role_label = ROLE_LABELS.get(role, role).lower()

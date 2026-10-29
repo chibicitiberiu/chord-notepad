@@ -211,6 +211,18 @@ def finding_capo_status(has_selection: bool, voicing: str) -> str:
 CAPO_STALE_STATUS = "The song changed while finding a capo; nothing was inserted"
 
 
+# -- settings ------------------------------------------------------------------------
+
+#: The title of the error naming the first invalid voicing at Save.
+INVALID_VOICING_TITLE = "Invalid Voicing"
+SETTINGS_TITLE = "Settings"
+
+
+def settings_save_failed(reason: str) -> str:
+    """The message for a config that couldn't be written at Save."""
+    return f"Could not save settings.\n\n{reason}"
+
+
 # -- chord identifier --------------------------------------------------------------
 
 IDENTIFIER_TITLE = "Identify Chord"
