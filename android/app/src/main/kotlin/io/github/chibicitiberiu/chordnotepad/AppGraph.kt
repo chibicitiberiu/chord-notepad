@@ -19,9 +19,11 @@ import io.github.chibicitiberiu.chordnotepad.lifecycle.PlaybackAudioPolicy
 import io.github.chibicitiberiu.chordnotepad.ui.ErrorQueue
 import io.github.chibicitiberiu.chordnotepad.ui.editor.EditorController
 import io.github.chibicitiberiu.chordnotepad.ui.editor.bind
+import io.github.chibicitiberiu.chordnotepad.ui.requests.RequestController
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import java.io.File
 
 /**
@@ -59,6 +61,14 @@ class AppGraph(context: Context) {
 
     /** Commands to the session. */
     val commands: SessionCommands get() = pyHost.commands
+
+    /** Answers the session's requests (app-scoped: a rotation loses no picker result). */
+    val requests = RequestController(
+        pending = repository.pendingRequest,
+        commands = pyHost.commands,
+        adopt = documents::adopt,
+        runOffMain = { block -> scope.launch(Dispatchers.IO) { block() } },
+    )
 
     /** The editor's text and highlighting (app-scoped: survives rotation). */
     val editor = EditorController(commands)

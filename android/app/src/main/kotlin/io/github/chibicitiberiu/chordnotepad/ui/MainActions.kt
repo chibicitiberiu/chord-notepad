@@ -57,6 +57,14 @@ class MainActions(private val commands: SessionCommands, private val editor: Edi
     /** Click track on or off. */
     fun toggleMetronome() = commands.toggleMetronome()
 
+    // -- playback menu ----------------------------------------------------------
+
+    /** Playback › Voicing: a `VoicingMenuState` item value. */
+    fun setVoicing(voicing: String) = commands.setVoicing(voicing)
+
+    /** Playback › Instrument: a General MIDI program. */
+    fun setInstrument(program: Int) = commands.setInstrument(program)
+
     // -- view -------------------------------------------------------------------
 
     /** Grow or shrink the editor font. */
@@ -64,6 +72,12 @@ class MainActions(private val commands: SessionCommands, private val editor: Edi
 
     /** The configured font size again. */
     fun resetFontSize() = commands.resetFontSize()
+
+    /** View › Font…: the family to configure and the size in points. */
+    fun setFont(family: String, size: Int) = commands.setFont(family, size)
+
+    /** View › Chord Sheet. */
+    fun setChordSheetVisible(visible: Boolean) = commands.setChordSheetVisible(visible)
 
     // -- edit -------------------------------------------------------------------
 
@@ -111,5 +125,14 @@ class MainActions(private val commands: SessionCommands, private val editor: Edi
     fun exportMidi() {
         editor.syncNow()
         commands.exportMidi()
+    }
+
+    /**
+     * Ask to close (Back with unsaved changes; the desktop's window close):
+     * the session asks about the changes, then answers with `CloseApproved`.
+     */
+    fun requestClose() {
+        editor.syncNow()
+        commands.requestClose()
     }
 }

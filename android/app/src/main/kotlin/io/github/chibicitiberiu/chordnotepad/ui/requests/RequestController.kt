@@ -1,0 +1,124 @@
+package io.github.chibicitiberiu.chordnotepad.ui.requests
+
+import android.util.Log
+import io.github.chibicitiberiu.chordnotepad.bridge.CapoChoiceRequest
+import io.github.chibicitiberiu.chordnotepad.bridge.ConfirmDiscardRequest
+import io.github.chibicitiberiu.chordnotepad.bridge.DiscardChoice
+import io.github.chibicitiberiu.chordnotepad.bridge.DocumentRef
+import io.github.chibicitiberiu.chordnotepad.bridge.InsertDirectiveRequest
+import io.github.chibicitiberiu.chordnotepad.bridge.PickDocumentRequest
+import io.github.chibicitiberiu.chordnotepad.bridge.PickMode
+import io.github.chibicitiberiu.chordnotepad.bridge.SessionCommands
+import io.github.chibicitiberiu.chordnotepad.bridge.SessionRequest
+import io.github.chibicitiberiu.chordnotepad.files.PickerLaunch
+import io.github.chibicitiberiu.chordnotepad.files.pickerFor
+import kotlinx.coroutines.flow.StateFlow
+
+/** How the UI presents a pending [SessionRequest]. */
+sealed interface RequestPresentation {
+    /** The screen shows a dialog for it (Compose, from the pending request). */
+    data class Dialog(val request: SessionRequest) : RequestPresentation
+
+    /** The activity launches a system picker for it ([RequestController.takePickerLaunch]). */
+    data class Picker(val request: PickDocumentRequest) : RequestPresentation
+
+    /**
+     * Not presented yet: its dialog comes with the M5 tools, so it's
+     * cancelled at once. M5 moves each kind to [Dialog] and adds the dialog
+     * to `SessionRequests`.
+     */
+    data class NotYetSupported(val request: SessionRequest) : RequestPresentation
+}
+
+/** Which presentation [request] gets. */
+fun presentationOf(request: SessionRequest): RequestPresentation = when (request) {
+    is ConfirmDiscardRequest -> RequestPresentation.Dialog(request)
+    is PickDocumentRequest -> RequestPresentation.Picker(request)
+    // M5: Transpose/Capo and Insert directive dialogs.
+    is CapoChoiceRequest, is InsertDirectiveRequest -> RequestPresentation.NotYetSupported(request)
+}
+
+/**
+ * Answers the session's requests. App-scoped (in `AppGraph`), so what it
+ * remembers survives rotation: the pending request itself lives in the
+ * repository's `pendingRequest`, and this class remembers which picker was
+ * already launched, so a recreated activity doesn't open the same picker
+ * twice and the result delivered to it still answers the right request.
+ *
+ * Main thread, except that [adopt] runs through [runOffMain].
+ *
+ * @param pending The repository's pending request.
+ * @param adopt Persists a picked document's grant and describes it
+ *   (`SafDocumentStore.adopt`); provider I/O.
+ * @param runOffMain Runs provider I/O away from the main thread.
+ */
+class RequestController(
+    private val pending: StateFlow<SessionRequest?>,
+    private val commands: SessionCommands,
+    private val adopt: (uri: String, mode: PickMode) -> DocumentRef,
+    private val runOffMain: (block: () -> Unit) -> Unit,
+) {
+    private var launchedPickerId: Int? = null
+
+    /**
+     * Handle a request that just became pending: cancels the ones not
+     * presented yet. Returns the picker to launch for a pick request that
+     * hasn't had one yet (marking it launched), else null.
+     */
+    fun onPending(request: SessionRequest?): PickerLaunch? = when (val p = request?.let(::presentationOf)) {
+        is RequestPresentation.NotYetSupported -> {
+            cancel(p.request)
+            null
+        }
+        is RequestPresentation.Picker -> takePickerLaunch()
+        is RequestPresentation.Dialog, null -> null
+    }
+
+    /** The picker for the pending pick request, once per request; null otherwise. */
+    fun takePickerLaunch(): PickerLaunch? {
+        val request = pending.value as? PickDocumentRequest ?: return null
+        if (launchedPickerId == request.requestId) return null
+        launchedPickerId = request.requestId
+        return pickerFor(request)
+    }
+
+    /**
+     * The picker returned [uri], or null when the user backed out. Answers
+     * the pick request it was launched for; a result for anything else (a
+     * request the session already dropped, or one from before the process
+     * died) is ignored.
+     */
+    fun onPicked(uri: String?) {
+        val request = pending.value as? PickDocumentRequest ?: return
+        if (request.requestId != launchedPickerId) return
+        if (uri == null) {
+            commands.respondPick(request.requestId, null)
+            return
+        }
+        runOffMain {
+            val ref = try {
+                adopt(uri, request.mode)
+            } catch (e: RuntimeException) {
+                Log.w(TAG, "Can't use the picked document $uri", e)
+                null
+            }
+            commands.respondPick(request.requestId, ref)
+        }
+    }
+
+    /** The unsaved-changes dialog's answer; null (dismissed) cancels like Cancel. */
+    fun answerDiscard(request: ConfirmDiscardRequest, choice: DiscardChoice?) =
+        commands.respondDiscard(request.requestId, choice ?: DiscardChoice.CANCEL)
+
+    /** Cancel [request] (the user dismissed it, or there's no UI for it). */
+    fun cancel(request: SessionRequest) = when (request) {
+        is ConfirmDiscardRequest -> commands.respondDiscard(request.requestId, DiscardChoice.CANCEL)
+        is PickDocumentRequest -> commands.respondPick(request.requestId, null)
+        is CapoChoiceRequest -> commands.respondCapo(request.requestId, null)
+        is InsertDirectiveRequest -> commands.respondDirective(request.requestId, null)
+    }
+
+    private companion object {
+        const val TAG = "CNRequests"
+    }
+}

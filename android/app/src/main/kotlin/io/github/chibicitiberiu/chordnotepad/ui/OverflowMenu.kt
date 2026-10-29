@@ -1,6 +1,7 @@
 package io.github.chibicitiberiu.chordnotepad.ui
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
@@ -9,38 +10,63 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.res.stringResource
 import io.github.chibicitiberiu.chordnotepad.R
-import io.github.chibicitiberiu.chordnotepad.bridge.DocumentRef
+import io.github.chibicitiberiu.chordnotepad.bridge.SessionRepository
 import io.github.chibicitiberiu.chordnotepad.ui.icons.AppIcons
+import io.github.chibicitiberiu.chordnotepad.ui.menus.FamilyMenuItems
+import io.github.chibicitiberiu.chordnotepad.ui.menus.InstrumentSheet
+import io.github.chibicitiberiu.chordnotepad.ui.menus.ProgramMenuItems
+import io.github.chibicitiberiu.chordnotepad.ui.menus.VoicingMenuItems
+import io.github.chibicitiberiu.chordnotepad.ui.menus.VoicingSheet
+import io.github.chibicitiberiu.chordnotepad.ui.menus.instrumentFamilies
+import io.github.chibicitiberiu.chordnotepad.ui.menus.recentEntries
+import io.github.chibicitiberiu.chordnotepad.ui.menus.voicingRows
 
 /** The submenus of the overflow menu (the desktop's menu bar, as far as M4 goes). */
-private enum class MenuPage { ROOT, FILE, RECENT, EDIT, VIEW }
+private enum class MenuPage { ROOT, FILE, RECENT, EDIT, VIEW, PLAYBACK, VOICING, INSTRUMENT, FAMILY }
+
+/** What the overflow menu opened outside itself. */
+private enum class MenuPopup { NONE, VOICING_SHEET, INSTRUMENT_SHEET, FONT }
 
 /**
- * The app bar's overflow menu: File, Edit and View as on the desktop, each a
- * page of its own (Android menus don't cascade). Playback, Tools and Help
- * come with their milestones (pickers in M4, the rest in M5).
+ * The app bar's overflow menu: File, Edit, View and Playback as on the
+ * desktop, each a page of its own (Android menus don't cascade). On phones
+ * ([compact]) Voicing and Instrument open bottom sheets instead of pages.
+ * Tools and Help come with M5. There is no File › Exit: Back closes the
+ * app, asking about unsaved changes first (`MainScreen`).
  *
- * @param recent The Recent Files submenu.
+ * @param repo The session's states the menus show.
  * @param canUndo Whether Edit › Undo does anything now.
  * @param canRedo Whether Edit › Redo does anything now.
  * @param onSelectAll Select the whole text in the editor.
+ * @param compact Phone-sized window: pickers as bottom sheets.
  */
 @Composable
 fun OverflowMenu(
     actions: MainActions,
-    recent: List<DocumentRef>,
+    repo: SessionRepository,
     canUndo: Boolean,
     canRedo: Boolean,
     onSelectAll: () -> Unit,
+    compact: Boolean,
 ) {
+    val recent by repo.recentDocuments.collectAsState()
+    val voicing by repo.voicingMenu.collectAsState()
+    val instrument by repo.instrumentMenu.collectAsState()
+    val chordSheet by repo.chordSheet.collectAsState()
+    val editor by repo.editor.collectAsState()
     var open by remember { mutableStateOf(false) }
     var page by remember { mutableStateOf(MenuPage.ROOT) }
+    var family by remember { mutableIntStateOf(0) }
+    var popup by rememberSaveable { mutableStateOf(MenuPopup.NONE) }
     fun close() {
         open = false
         page = MenuPage.ROOT
@@ -48,6 +74,10 @@ fun OverflowMenu(
     fun run(action: () -> Unit): () -> Unit = {
         close()
         action()
+    }
+    fun show(p: MenuPopup) {
+        close()
+        popup = p
     }
 
     Box {
@@ -60,6 +90,7 @@ fun OverflowMenu(
                     Submenu(stringResource(R.string.menu_file)) { page = MenuPage.FILE }
                     Submenu(stringResource(R.string.menu_edit)) { page = MenuPage.EDIT }
                     Submenu(stringResource(R.string.menu_view)) { page = MenuPage.VIEW }
+                    Submenu(stringResource(R.string.menu_playback)) { page = MenuPage.PLAYBACK }
                 }
                 MenuPage.FILE -> {
                     Back(stringResource(R.string.menu_file)) { page = MenuPage.ROOT }
@@ -73,14 +104,15 @@ fun OverflowMenu(
                 }
                 MenuPage.RECENT -> {
                     Back(stringResource(R.string.menu_recent)) { page = MenuPage.FILE }
-                    if (recent.isEmpty()) {
+                    val items = recentEntries(recent)
+                    if (items.isEmpty()) {
                         DropdownMenuItem(
                             text = { Text(stringResource(R.string.menu_no_recent)) },
                             onClick = {},
                             enabled = false,
                         )
                     }
-                    for (ref in recent) {
+                    for (ref in items) {
                         DropdownMenuItem(
                             text = { Text(ref.displayName) },
                             onClick = run { actions.openRecent(ref) },
@@ -96,10 +128,85 @@ fun OverflowMenu(
                 }
                 MenuPage.VIEW -> {
                     Back(stringResource(R.string.menu_view)) { page = MenuPage.ROOT }
+                    Item(stringResource(R.string.menu_font), null, { show(MenuPopup.FONT) }, enabled = editor != null)
+                    HorizontalDivider()
+                    val sheet = chordSheet
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.menu_chord_sheet)) },
+                        onClick = run { if (sheet != null) actions.setChordSheetVisible(!sheet.visible) },
+                        enabled = sheet != null,
+                        trailingIcon = { Checkbox(checked = sheet?.visible == true, onCheckedChange = null) },
+                    )
+                    HorizontalDivider()
                     Item(stringResource(R.string.menu_font_bigger), "Ctrl+Plus", run { actions.stepFontSize(1) })
                     Item(stringResource(R.string.menu_font_smaller), "Ctrl+Minus", run { actions.stepFontSize(-1) })
                     Item(stringResource(R.string.menu_font_reset), "Ctrl+0", run(actions::resetFontSize))
                 }
+                MenuPage.PLAYBACK -> {
+                    Back(stringResource(R.string.menu_playback)) { page = MenuPage.ROOT }
+                    Submenu(stringResource(R.string.menu_voicing), enabled = voicing != null) {
+                        if (compact) show(MenuPopup.VOICING_SHEET) else page = MenuPage.VOICING
+                    }
+                    Submenu(stringResource(R.string.menu_instrument), enabled = instrument != null) {
+                        if (compact) show(MenuPopup.INSTRUMENT_SHEET) else page = MenuPage.INSTRUMENT
+                    }
+                }
+                MenuPage.VOICING -> {
+                    Back(stringResource(R.string.menu_voicing)) { page = MenuPage.PLAYBACK }
+                    voicing?.let { VoicingMenuItems(voicingRows(it)) { value ->
+                            close()
+                            actions.setVoicing(value)
+                        } }
+                }
+                MenuPage.INSTRUMENT -> {
+                    Back(stringResource(R.string.menu_instrument)) { page = MenuPage.PLAYBACK }
+                    instrument?.let {
+                        FamilyMenuItems(instrumentFamilies(it)) { index ->
+                            family = index
+                            page = MenuPage.FAMILY
+                        }
+                    }
+                }
+                MenuPage.FAMILY -> {
+                    val row = instrument?.let { instrumentFamilies(it).getOrNull(family) }
+                    Back(row?.name.orEmpty()) { page = MenuPage.INSTRUMENT }
+                    row?.let { ProgramMenuItems(it) { program ->
+                            close()
+                            actions.setInstrument(program)
+                        } }
+                }
+            }
+        }
+    }
+
+    MenuPopups(popup, actions, repo) { popup = MenuPopup.NONE }
+}
+
+/** The bottom sheets and the font dialog the menu opened; [onClose] when they're done. */
+@Composable
+private fun MenuPopups(popup: MenuPopup, actions: MainActions, repo: SessionRepository, onClose: () -> Unit) {
+    when (popup) {
+        MenuPopup.NONE -> Unit
+        MenuPopup.VOICING_SHEET -> {
+            val state by repo.voicingMenu.collectAsState()
+            state?.let { VoicingSheet(voicingRows(it), actions::setVoicing, onClose) }
+        }
+        MenuPopup.INSTRUMENT_SHEET -> {
+            val state by repo.instrumentMenu.collectAsState()
+            state?.let { InstrumentSheet(instrumentFamilies(it), actions::setInstrument, onClose) }
+        }
+        MenuPopup.FONT -> {
+            val state by repo.editor.collectAsState()
+            state?.let { editor ->
+                FontDialog(
+                    family = editor.fontFamily,
+                    size = editor.fontSize,
+                    onApply = { family, size ->
+                        actions.setFont(family, size)
+                        onClose()
+                    },
+                    onDismiss = onClose,
+                )
             }
         }
     }
@@ -118,10 +225,11 @@ private fun Item(label: String, shortcut: String?, onClick: () -> Unit, enabled:
 }
 
 @Composable
-private fun Submenu(label: String, onOpen: () -> Unit) {
+private fun Submenu(label: String, enabled: Boolean = true, onOpen: () -> Unit) {
     DropdownMenuItem(
         text = { Text(label) },
         onClick = onOpen,
+        enabled = enabled,
         trailingIcon = { Icon(AppIcons.ChevronRight, contentDescription = null) },
     )
 }

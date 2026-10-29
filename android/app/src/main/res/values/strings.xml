@@ -49,12 +49,25 @@
     <string name="menu_font_bigger">Increase Font Size</string>
     <string name="menu_font_smaller">Decrease Font Size</string>
     <string name="menu_font_reset">Reset Font Size</string>
+    <string name="menu_font">Font…</string>
+    <string name="menu_chord_sheet">Chord Sheet</string>
+    <string name="menu_playback">Playback</string>
+    <string name="menu_voicing">Voicing</string>
+    <string name="menu_instrument">Instrument</string>
 
     <!-- Dialogs -->
     <string name="audio_error_title">Audio Error</string>
     <string name="unexpected_error">Something went wrong: %1$s</string>
-    <string name="unsaved_title">Unsaved changes</string>
-    <string name="unsaved_message">Save the changes to %1$s?</string>
+    <!-- The desktop's wording (session/formatting.py, CONFIRM_DISCARD_*) -->
+    <string name="unsaved_title">Unsaved Changes</string>
+    <string name="unsaved_message">Do you want to save your changes?</string>
     <string name="unsaved_save">Save</string>
-    <string name="unsaved_discard">Discard</string>
+    <string name="unsaved_discard">Don\'t save</string>
+    <!-- View > Font… (the desktop's Choose Font dialog) -->
+    <string name="font_title">Choose Font</string>
+    <string name="font_family">Font Family</string>
+    <string name="font_size">Font Size</string>
+    <string name="font_monospace">Monospace</string>
+    <string name="font_sans">Sans</string>
+    <string name="font_serif">Serif</string>
 </resources>

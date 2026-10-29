@@ -1,6 +1,7 @@
 package io.github.chibicitiberiu.chordnotepad.ui
 
 import android.os.Build
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -58,6 +59,7 @@ import io.github.chibicitiberiu.chordnotepad.bridge.PlayAction
 import io.github.chibicitiberiu.chordnotepad.ui.chordsheet.ChordSheetSplit
 import io.github.chibicitiberiu.chordnotepad.ui.editor.ChordEditor
 import io.github.chibicitiberiu.chordnotepad.ui.icons.AppIcons
+import io.github.chibicitiberiu.chordnotepad.ui.requests.SessionRequests
 import io.github.chibicitiberiu.chordnotepad.ui.toolbar.SessionToolbar
 
 // The desktop transport icons' pastel tints (main_window.py).
@@ -83,11 +85,14 @@ fun MainScreen(graph: AppGraph, onCloseApproved: () -> Unit) {
     val editorState by repo.editor.collectAsState()
     val toolbar by repo.toolbar.collectAsState()
     val status by repo.status.collectAsState()
-    val recent by repo.recentDocuments.collectAsState()
     val snackbars = remember { SnackbarHostState() }
     var toolbarShown by rememberSaveable { mutableStateOf(true) }
 
     LaunchedEffect(Unit) { repo.closeApproved.collect { onCloseApproved() } }
+    // Android has no File > Exit: Back is the desktop's window close. With
+    // unsaved changes it asks first (request_close -> the unsaved-changes
+    // dialog -> CloseApproved -> finish); otherwise the system handles it.
+    BackHandler(enabled = document?.isModified == true, onBack = actions::requestClose)
 
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val compact = maxWidth < CompactWidth
@@ -115,12 +120,13 @@ fun MainScreen(graph: AppGraph, onCloseApproved: () -> Unit) {
                         }
                         OverflowMenu(
                             actions = actions,
-                            recent = recent?.items.orEmpty(),
+                            repo = repo,
                             canUndo = graph.editor.state.undoState.canUndo,
                             canRedo = graph.editor.state.undoState.canRedo,
                             onSelectAll = {
                                 graph.editor.state.edit { selection = TextRange(0, length) }
                             },
+                            compact = compact,
                         )
                     },
                 )
@@ -158,7 +164,7 @@ fun MainScreen(graph: AppGraph, onCloseApproved: () -> Unit) {
         }
     }
 
-    InterimRequests(graph)
+    SessionRequests(repo.pendingRequest, graph.requests)
     ErrorPresenter(graph.errorQueue, snackbars)
 }
 

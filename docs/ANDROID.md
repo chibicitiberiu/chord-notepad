@@ -432,6 +432,36 @@ plus the two additions above: all pass.
   (`set_bpm_text`, `set_multiplier_text`; Python parses) and long-press
   resets (`reset_bpm`, `reset_multiplier`). The drag step (4 dp per unit)
   and the time signature choices mirror `session/toolbar.py`.
+- **Requests (M4b)**: `ui/requests/`. `presentationOf` decides how each
+  request is shown: `ConfirmDiscardRequest` as a dialog (the desktop's
+  "Unsaved Changes / Do you want to save your changes?", buttons Save /
+  Don't save / Cancel, dismiss = cancel), `PickDocumentRequest` as a SAF
+  picker, Capo and Insert directive as `NotYetSupported` (cancelled at once
+  until M5 adds their dialogs to `SessionRequests`). `RequestController`
+  (app-scoped, in `AppGraph`) remembers which pick request already got a
+  picker, so a recreated activity doesn't open a second one and a result
+  delivered after a rotation still answers it; a result for anything else
+  (a request from before process death) is ignored. `RequestPickers`
+  registers the three launchers on the activity in `onCreate` (Open:
+  `text/plain`, `text/*`, `*/*`; Save As: `text/plain` with the suggested
+  name; Export MIDI: `audio/midi`), follows `pendingRequest` while STARTED,
+  and answers with `SafDocumentStore.adopt` (grant persisted, ref
+  described) off the main thread; backing out answers null.
+- **Menus**: the overflow menu has File, Edit, View and Playback pages.
+  View: Font… (Monospace/Sans/Serif per the settings visibility rule;
+  `TkFixedFont` is sent for Monospace unless the configured family already
+  maps to the chosen kind; size 6-72), Chord Sheet (check), font size
+  +/−/reset. Playback: Voicing (groups with dividers, radio on the
+  selection) and Instrument (16 families, dot on the current family, radio
+  on the program). Below 600 dp they open bottom sheets (the instrument
+  sheet is an accordion, the current family open), wider as dropdown pages.
+  The rows come from `ui/menus/MenuModels.kt`.
+- **Close**: Android has no File › Exit. Back on the main screen is the
+  desktop's window close: with unsaved changes it sends `request_close`
+  (the unsaved-changes dialog, then `CloseApproved` finishes the activity);
+  without, the system handles Back (predictive back works). The process
+  and session live on after `finish()`, so reopening the app shows the
+  same text (still marked modified after "Don't save").
 - **Errors** are collected app-wide (`ErrorQueue`) so a rotation drops
   none: `UserError` and `AudioUnavailable` show as dialogs, `UnexpectedError`
   as a snackbar.

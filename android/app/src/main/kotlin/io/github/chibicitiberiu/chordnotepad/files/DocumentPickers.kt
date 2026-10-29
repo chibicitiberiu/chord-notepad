@@ -23,12 +23,16 @@ const val SONG_MIME_TYPE = "text/plain"
 const val MIDI_MIME_TYPE = "audio/midi"
 
 /**
- * The picker for [request]. Opening shows every file: songs are plain text,
- * but providers label `.cho`/`.chordpro` files inconsistently and hiding
- * them would be worse than letting the core report a file it can't read.
+ * What Open asks the picker for: text first, then anything, as the desktop's
+ * "Text Files / All Files" dialog allows any file. Songs are plain text, but
+ * providers label `.cho`/`.chordpro` files inconsistently and hiding them
+ * would be worse than letting the core report a file it can't read.
  */
+val OPEN_MIME_TYPES = listOf(SONG_MIME_TYPE, "text/*", "*/*")
+
+/** The picker for [request]. */
 fun pickerFor(request: PickDocumentRequest): PickerLaunch = when (request.mode) {
-    PickMode.OPEN -> PickerLaunch.Open(listOf("*/*"))
+    PickMode.OPEN -> PickerLaunch.Open(OPEN_MIME_TYPES)
     PickMode.SAVE -> PickerLaunch.Create(SONG_MIME_TYPE, request.suggestedName.ifEmpty { "Untitled.txt" })
     PickMode.EXPORT_MIDI -> PickerLaunch.Create(MIDI_MIME_TYPE, request.suggestedName.ifEmpty { "Untitled.mid" })
 }

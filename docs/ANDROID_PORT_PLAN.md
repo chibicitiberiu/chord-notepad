@@ -241,6 +241,8 @@ Each area is built only after its logic is in the core (most of it already is, a
 4. **Chord sheet:** views with disabled reasons, zoom, marker lane, fixed gutter, tap to audition, playhead, show/hide, resizable split (stored in dp).
 5. **Files:** new/open/save/save as, the unsaved-changes request, recent files, MIDI export, and the title as file name plus a modified marker.
 
+**Done (2026-10-29), items 3 and 5 (M4b):** real request handling (SAF launchers on the activity, rotation-safe), the Playback menu (bottom sheets on phones, dropdown pages on tablets), View › Font… and Chord Sheet. No File › Exit: Back with unsaved changes asks first, then finishes the activity (details in `docs/ANDROID.md`). Left for M5: the Capo and Insert directive dialogs (their requests are cancelled for now), F1 once Help exists.
+
 ### M5: parity beta
 
 - Transpose and Capo (selection vs whole song, voicing chooser, "no capo helps").

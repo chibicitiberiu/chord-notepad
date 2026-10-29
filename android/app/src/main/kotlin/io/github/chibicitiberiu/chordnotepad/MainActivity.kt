@@ -9,6 +9,7 @@ import io.github.chibicitiberiu.chordnotepad.lifecycle.DraftPolicy
 import io.github.chibicitiberiu.chordnotepad.spike.SpikeScreen
 import io.github.chibicitiberiu.chordnotepad.ui.ChordNotepadTheme
 import io.github.chibicitiberiu.chordnotepad.ui.MainScreen
+import io.github.chibicitiberiu.chordnotepad.ui.requests.RequestPickers
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
@@ -37,6 +38,7 @@ class MainActivity : ComponentActivity() {
                 }
             },
         ).attach(savedStateRegistry)
+        RequestPickers(this, graph.repository.pendingRequest, graph.requests).attach()
 
         setContent { ChordNotepadTheme { MainScreen(graph, onCloseApproved = ::finish) } }
     }
