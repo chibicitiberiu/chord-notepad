@@ -506,8 +506,9 @@ committed schema (2026-10-29).
   request is shown: `ConfirmDiscardRequest` as a dialog (the desktop's
   "Unsaved Changes / Do you want to save your changes?", buttons Save /
   Don't save / Cancel, dismiss = cancel), `PickDocumentRequest` as a SAF
-  picker, Capo and Insert directive as `NotYetSupported` (cancelled at once
-  until M5 adds their dialogs to `SessionRequests`). `RequestController`
+  picker, `CapoChoiceRequest` and `InsertDirectiveRequest` as the Tools
+  dialogs (M5, below; `NotYetSupported` is left for a request type a newer
+  core may add: cancelled at once). `RequestController`
   (app-scoped, in `AppGraph`) remembers which pick request already got a
   picker, so a recreated activity doesn't open a second one and a result
   delivered after a rotation still answers it; a result for anything else
@@ -517,7 +518,7 @@ committed schema (2026-10-29).
   name; Export MIDI: `audio/midi`), follows `pendingRequest` while STARTED,
   and answers with `SafDocumentStore.adopt` (grant persisted, ref
   described) off the main thread; backing out answers null.
-- **Menus**: the overflow menu has File, Edit, View and Playback pages.
+- **Menus**: the overflow menu has File, Edit, View, Playback, Tools and Help pages.
   View: Font… (Monospace/Sans/Serif per the settings visibility rule;
   `TkFixedFont` is sent for Monospace unless the configured family already
   maps to the chosen kind; size 6-72), Chord Sheet (check), font size
@@ -526,6 +527,38 @@ committed schema (2026-10-29).
   on the program). Below 600 dp they open bottom sheets (the instrument
   sheet is an accordion, the current family open), wider as dropdown pages.
   The rows come from `ui/menus/MenuModels.kt`.
+- **Tools (M5)**: `ui/tools/`, `ui/identifier/`. ⋮ › Tools has Identify
+  Chord…, Insert ▸ (BPM/Tempo Change…, Time Signature Change…, Key
+  Change…, Label…, Loop…), Transpose…, Suggest Capo… and Convert notation ▸
+  (to American / to European), the paths help/*.rst gives. The desktop's
+  Tools › Settings… is ⋮ › Settings on Android (a root entry, as the help
+  says). `ToolActions` sends the commands with the editor's selection
+  (`selectionOf`: UTF-16 → code points through `OffsetMapper`; an empty one
+  is null, the whole song) or cursor, the text synced first.
+  - *Transpose* is a local dialog (−11..+11, "Transpose selection/whole
+    song" from the selection when it opened) → `transpose`.
+  - *Insert* sends `request_insert_directive {kind, at}`; the
+    `InsertDirectiveRequest` opens the kind's dialog with the desktop's
+    title, text and fields (BPM and Label typed; Time beats 1–16 and the
+    `SettingsState` units; Key from `SettingsState`'s list for the
+    request's notation; Loop `@start` + the request's labels and a count
+    1–100) → `respond {field: value}`. The values go as entered: there is
+    no per-keystroke check over the bridge, so a bad BPM or a duplicate
+    label comes back as Python's `UserError` after Insert (the dialog has
+    closed by then, unlike the desktop's, which stays open). Only the
+    pickers' ranges and `@start` are mirrored in Kotlin (`ToolForms.kt`).
+  - *Suggest Capo* sends `request_suggest_capo {selection}`; the
+    `CapoChoiceRequest` opens a radio list of its options, the default
+    chosen → `respond(value)`. "Finding a capo…", the result and "No capo
+    makes …" are the session's status line.
+  - *Identify Chord* is full screen below 600 dp, a dialog wider: the
+    two-octave keyboard from C4 (`PianoKeyboard`: tap →
+    `identifier_toggle_note`, long-press → `play_note`), the notes field
+    (`identifier_set_notes_text`, `typed_text_error` under it; it takes
+    `notes_text` only after a key tap), Clear, the candidates (tap picks and
+    plays, double-tap or Insert → `insert_chord {at: cursor}`) or
+    `message`, and the status line at the bottom ("Inserted chord: C").
+    `identifier_clear` when it opens.
 - **Close**: Android has no File › Exit. Back on the main screen is the
   desktop's window close: with unsaved changes it sends `request_close`
   (the unsaved-changes dialog, then `CloseApproved` finishes the activity);

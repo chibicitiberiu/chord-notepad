@@ -104,6 +104,19 @@ class EditorController(
         val before = currentText()
         val unsent = before != syncedText
         val e = edit.toUtf16(before)
+        val after = before.substring(0, e.start) + e.replacement + before.substring(e.end)
+        // Bookkeeping first: committing the edit can run the snapshot
+        // collector (observeText) before `edit {}` returns, and it must find
+        // the new text already synced and painted for, or it would send the
+        // session's own edit back as a user edit (and the highlight for it
+        // would never match).
+        if (paintedText != before) diffTexts(paintedText, before)?.let { spans = spans.shiftedBy(it) }
+        spans = spans.shiftedBy(TextChange(e.start, e.end, e.start + e.replacement.length))
+        paintedText = after
+        if (!unsent) {
+            syncedText = after
+            identity = TextIdentity(0, edit.textRevision)
+        }
         state.edit {
             replace(e.start, e.end, e.replacement)
             selection = TextRange(e.cursor.coerceIn(0, length))
@@ -111,17 +124,10 @@ class EditorController(
         // `edit {}` records one undo step of its own (never merged): right for
         // `group` (transpose, capo) and close enough for `plain`.
         if (edit.undo == UndoPolicy.RESET) state.undoState.clearHistory()
-        val after = currentText()
-        if (paintedText != before) diffTexts(paintedText, before)?.let { spans = spans.shiftedBy(it) }
-        spans = spans.shiftedBy(TextChange(e.start, e.end, e.start + e.replacement.length))
-        paintedText = after
         if (unsent) {
             // The user typed after the session last heard from the editor;
             // the editor's text wins, the session re-syncs to it.
-            sendUserText(after)
-        } else {
-            syncedText = after
-            identity = TextIdentity(0, edit.textRevision)
+            sendUserText(currentText())
         }
         repaintHighlight()
         repaintPlaying()
