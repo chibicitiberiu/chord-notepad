@@ -147,6 +147,40 @@ Mixing American and European notation in the same file is confusing:
 Workflow Tips
 =============
 
+.. only:: android
+
+   .. rubric:: On a Phone or Tablet
+
+   * **Write in Edit, listen in Play.** Edit is for typing; Play freezes the
+     text so a tap plays a chord instead of opening the keyboard. Songs you
+     open start in Play, so you can't change them by accident while you
+     practise. Switch to Edit when you want to change something.
+   * **Turn the phone sideways for the chord sheet.** In landscape the sheet
+     sits beside the text instead of under it, so you see more of both.
+     Drag the handle between them to give the sheet more or less room (see
+     :doc:`chord_sheet`). On a tablet the same layout shows a lot more of
+     the song.
+   * **Pinch the text** with two fingers to make it bigger or smaller, in
+     either tab. On a music stand, a bigger font is easier to read.
+   * **Use a hardware keyboard** for longer songs. Ctrl+S saves, Ctrl+Z
+     undoes, and the other shortcuts are listed in :doc:`reference`.
+   * **Typing in landscape** leaves little room above the keyboard, so the
+     app bar and the Edit ribbon step aside and a small Undo / Redo chip
+     floats above the keyboard. They come back when the keyboard closes.
+   * **The screen stays on while a song plays**, so you can play along
+     without touching the phone. Pausing lets it time out again.
+   * **Practise with the speed button** rather than editing ``{bpm}``: slow
+     the song down, then bring it back to 100% with Reset (see
+     :doc:`playback`).
+
+.. platform-figure:: tablet-play
+   :platforms: android
+   :alt: A tablet held sideways in the Play tab while a song plays: the whole
+         song text on the left, a tall piano roll and the player on the right.
+
+   A tablet in landscape: the whole song on the left, the chord sheet and the
+   player on the right.
+
 Practice Mode
 -------------
 
@@ -246,9 +280,17 @@ No Sound?
    **Check your device volume:**
    Make sure the media volume is turned up and not muted.
 
-**Check the instrument:**
-Some instruments are quieter than others. Try switching to Acoustic Grand
-Piano (the default) to test.
+.. only:: desktop
+
+   **Check the instrument:**
+   Some instruments are quieter than others. Try switching to Acoustic Grand
+   Piano (the default) to test.
+
+.. only:: android
+
+   **Check the instrument:**
+   Some instruments are quieter than others. Try switching to **Grand Piano**
+   (in the Piano family, the default) to test.
 
 .. only:: desktop
 
@@ -258,9 +300,14 @@ Piano (the default) to test.
 
 .. only:: android
 
-   **Check that nothing else holds the audio:**
-   Playback pauses when another app takes audio focus or headphones are
-   unplugged. Tap ▶ to resume.
+   **Check where the sound goes:**
+   If headphones or a Bluetooth speaker are connected, the sound plays there.
+
+   **Check whether playback was paused:**
+   Playback pauses when you leave the app, when a call comes in or another
+   app starts playing, and when headphones are unplugged or a Bluetooth
+   device disconnects. The status line then says "Paused". Tap **▶** to
+   resume.
 
 .. only:: desktop
 
@@ -270,7 +317,8 @@ Piano (the default) to test.
 .. only:: android
 
    **Try restarting the application:**
-   Sometimes audio systems need a fresh start.
+   Sometimes audio systems need a fresh start. Close Chord Notepad from the
+   recent apps screen and open it again.
 
 Chords Not Detected?
 --------------------
@@ -368,10 +416,11 @@ cause issues.
 
 .. only:: android
 
-   **Check the file extension:**
-   While Chord Notepad can open any text file, if the file has a strange extension,
-   make sure the system file picker is showing all files, not just a filtered
-   type.
+   **Check the file type:**
+   The file picker in **☰ → Open…** lists every file, so a song with an
+   unusual extension still shows up and opens as text. A file that isn't
+   plain text (a PDF or a word-processor document, say) won't open as a
+   song: copy its text into a new song instead.
 
 .. only:: desktop
 
@@ -398,8 +447,13 @@ Forgetting to Save
 
 .. only:: android
 
-   Save regularly with the Save button (the disk icon) in the app bar, or Ctrl+S
-   on a hardware keyboard.
+   A dot (•) after the song's title in the app bar means there are unsaved
+   changes. Save regularly with the Save button (the disk icon) in the app
+   bar, or Ctrl+S on a hardware keyboard.
+
+   If Android closes Chord Notepad while it's in the background, your unsaved
+   text is still there when you come back. That's a safety net, not a save:
+   swiping the app away from the recent apps screen drops it.
 
 Using Wrong Notation Toggle
 ---------------------------
