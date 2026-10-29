@@ -235,16 +235,15 @@ def test_new_file_clears_the_document():
     vm.open_file(store.ref("song.txt"))
     vm.new_file()
     assert vm.current_document is None
-    assert vm.current_file is None
 
 
-def test_current_file_compatibility_property_is_the_path(tmp_path):
-    song = tmp_path / "song.txt"
-    song.write_text("C\n", encoding="utf-8")
+def test_ref_for_an_id_is_the_ref_for_that_document(tmp_path):
     store, _ = _fs(tmp_path)
-    vm = _viewmodel(store)
-    vm.open_file(store.ref_for_path(song))
-    assert vm.current_file == song
+    path = str(tmp_path / "song.txt")
+    assert store.ref_for(path) == store.ref_for_path(path)
+    memory = InMemoryDocumentStore()
+    assert memory.ref_for(memory.ref("a.txt").id) == memory.ref("a.txt")
+    assert memory.ref_for("a.txt") == memory.ref("a.txt")
 
 
 # --------------------------------------------------------------------------

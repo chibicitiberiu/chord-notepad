@@ -62,8 +62,7 @@ def wired():
     editor.pack()
     # Only the editor is real; the other widgets the session's states map
     # to are stand-ins.
-    window = SimpleNamespace(text_editor=editor, session=session, viewmodel=Mock(),
-                             update_statusbar=Mock(), statusbar=Mock(),
+    window = SimpleNamespace(text_editor=editor, session=session, statusbar=Mock(),
                              _apply_playback=Mock(), _apply_toolbar=Mock(),
                              _apply_editor=Mock(), rebuild_voicing_menu=Mock(),
                              build_instrument_menu=Mock(), _apply_chord_sheet=Mock())
@@ -437,4 +436,4 @@ def test_identifier_insert_is_refused_while_playing(wired):
     MainWindow._on_insert_chord_from_identifier(wired.window, "Am")
     assert editor.get_text() == "C "
     assert wired.session.text == "C "
-    wired.window.update_statusbar.assert_not_called()
+    assert not any("Inserted chord" in str(c) for c in wired.window.statusbar.config.call_args_list)

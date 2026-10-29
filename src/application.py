@@ -245,6 +245,9 @@ class Application:
             main_window_viewmodel=self._main_window_viewmodel,
             text_editor_viewmodel=self._text_editor_viewmodel,
             chord_sheet_viewmodel=self._chord_sheet_viewmodel,
+            config_service=self.config_service,
+            song_parser_service=self.song_parser_service,
+            playback_service=self.audio_service,
         )
 
         logger.info("ViewModels created successfully")
@@ -277,6 +280,11 @@ class Application:
         self._host.stop()
         if self._session is not None:
             self._session.shutdown()
+        # Nothing observes the viewmodels any more (the chord-sheet panel
+        # observed the strip directly); drop what's left.
+        for viewmodel in (self._main_window_viewmodel, self._chord_sheet_viewmodel):
+            if viewmodel is not None:
+                viewmodel.clear_observers()
 
         # Cleanup audio service
         if self._audio_service is not None:
@@ -377,16 +385,9 @@ class Application:
             logger.info(f"Build Date:   {BUILD_DATE}")
             logger.info("=" * 60)
 
-            # Create main window with ViewModels
+            # The main window is a view over the session
             from ui.main_window import MainWindow
-            root = MainWindow(
-                viewmodel=app._main_window_viewmodel,
-                text_editor_viewmodel=app._text_editor_viewmodel,
-                chord_sheet_viewmodel=app._chord_sheet_viewmodel,
-                application=app,
-                resource_service=app.resource_service,
-                session=app.session,
-            )
+            root = MainWindow(app.session, app.host, app.resource_service)
             app.set_main_window(root)
 
             # Show quick start dialog if this is the first run

@@ -1,7 +1,6 @@
 """ViewModel for the main application window."""
 
 import logging
-from pathlib import Path
 from typing import Optional, List, Callable
 from utils.observable import Observable
 from services.config_service import ConfigService
@@ -115,17 +114,6 @@ class MainWindowViewModel(Observable):
     def current_document(self) -> Optional[DocumentRef]:
         """The open document, or None for an unsaved new one."""
         return self._current_document
-
-    @property
-    def current_file(self) -> Optional[Path]:
-        """The open document as a local path (desktop compatibility shim).
-
-        Only meaningful for refs from ``FileSystemDocumentStore``, whose id is
-        the path. Goes away once the window works on refs (session step 13).
-        """
-        if self._current_document is None:
-            return None
-        return Path(self._current_document.id)
 
     @property
     def is_modified(self) -> bool:
@@ -494,41 +482,6 @@ class MainWindowViewModel(Observable):
             self.set_and_notify("is_paused", False)
 
         return success
-
-    def start_playback_from_cursor(self, cursor_position: str) -> bool:
-        """Start playback from a specific cursor position.
-
-        Args:
-            cursor_position: Tkinter cursor position (e.g., "9.2" = line 9, char 2)
-
-        Returns:
-            True if playback started, False otherwise
-
-        Raises:
-            AudioInitializationError: If the audio output can't be started.
-        """
-        # Convert cursor position to character offset
-        # cursor_position format: "line.column" (1-indexed)
-        try:
-            line_num, col_num = cursor_position.split('.')
-            line_num = int(line_num)
-            col_num = int(col_num)
-        except (ValueError, AttributeError):
-            logger.error(f"Invalid cursor position: {cursor_position}")
-            return False
-
-        # Calculate character offset
-        # Count characters in all lines before the cursor line, plus column offset
-        lines = self._current_text.split('\n')
-        char_offset = 0
-        for i in range(line_num - 1):  # line_num is 1-indexed
-            if i < len(lines):
-                char_offset += len(lines[i]) + 1  # +1 for newline
-
-        char_offset += col_num
-
-        logger.info(f"Cursor position {cursor_position} = character offset {char_offset}")
-        return self.start_playback(from_char_offset=char_offset)
 
     def pause_playback(self) -> None:
         """Pause ongoing playback."""

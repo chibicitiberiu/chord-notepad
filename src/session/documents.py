@@ -46,6 +46,11 @@ class DocumentStore(Protocol):
     flows decide what joins it (opened and saved songs, not exports).
     """
 
+    def ref_for(self, document_id: str) -> DocumentRef:
+        """The reference for a document id, e.g. what a file picker returned
+        (desktop: a path; Android: a content URI)."""
+        ...
+
     def read_text(self, ref: DocumentRef) -> str:
         """Read a song, normalized for the editor.
 
@@ -113,6 +118,10 @@ class FileSystemDocumentStore:
             display_name=os.path.basename(absolute),
             location=display_path(absolute),
         )
+
+    def ref_for(self, document_id: str) -> DocumentRef:
+        """:meth:`ref_for_path` for a path given as the id."""
+        return self.ref_for_path(document_id)
 
     def read_text(self, ref: DocumentRef) -> str:
         """Read a song through ``FileService.open_file``."""

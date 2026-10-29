@@ -178,6 +178,11 @@ class InMemoryDocumentStore:
         """A reference to the document called ``name``."""
         return DocumentRef(id=f"memory:{name}", display_name=name, location=name)
 
+    def ref_for(self, document_id: str) -> DocumentRef:
+        """The reference for an id from :meth:`ref` (or a bare name)."""
+        return self.ref(document_id[len("memory:"):] if document_id.startswith("memory:")
+                        else document_id)
+
     def read_text(self, ref: DocumentRef) -> str:
         """Return the normalized text, like reading a file does."""
         if ref.id not in self.contents:

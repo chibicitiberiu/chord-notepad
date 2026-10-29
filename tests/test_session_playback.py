@@ -403,13 +403,14 @@ def test_initial_states():
         "VoicingMenuState", "InstrumentMenuState", "DocumentState", "RecentDocumentsState"]
 
 
-def test_show_status_goes_through_the_status_state():
-    env = Env()
-    env.session.show_status("Saved: song.txt")
+def test_an_inserted_chord_status_goes_through_the_status_state():
+    env = Env(text="C G ")
+    env.session.insert_chord(4, "Am")
     env.session.tap_chord_at(0)
-    env.session.show_status("Saved: song.txt")
+    env.session.insert_chord(0, "F")
     assert [s.text for s in env.recorder.of_type(StatusState)] == [
-        "Saved: song.txt", "Playing: C", "Saved: song.txt"]
+        "Inserted chord: Am", "Playing: C", "Inserted chord: F"]
+    assert env.session.text == "F C G Am "
 
 
 def test_playback_commands_need_the_session_thread():

@@ -173,6 +173,11 @@ def inserted_status(text: str) -> str:
     return f"Inserted: {text}"
 
 
+def inserted_chord_status(chord: str) -> str:
+    """The status after the chord identifier inserted ``chord``."""
+    return f"Inserted chord: {chord}"
+
+
 def capo_suggested_status(capo: int, has_selection: bool, voicing: str) -> str:
     """The status after Suggest Capo inserted ``{capo: N}``.
 

@@ -58,6 +58,7 @@ from constants import (
 
 if TYPE_CHECKING:
     from session.session import AppSession
+    from ui.tk_host import TkHost
 
 logger = logging.getLogger(__name__)
 
@@ -92,20 +93,24 @@ except ImportError:
 
 
 class MainWindow(tk.Tk):
-    """Main application window"""
+    """Main application window: a Tk view over the application session.
 
-    def __init__(self, viewmodel: Any, text_editor_viewmodel: Any, application: Any, resource_service: Any,
-                 chord_sheet_viewmodel: Any = None, *, session: "AppSession") -> None:
+    It sends the session commands and maps the states and events it
+    subscribes to onto widgets. Everything else here is a view concern:
+    widgets and theme, dialogs and pickers, pixel/cursor to offset
+    conversion, the sash and the window geometry.
+    """
+
+    def __init__(self, session: "AppSession", host: "TkHost", resources: Any) -> None:
         """Initialize the main window.
 
         Args:
-            viewmodel: MainWindowViewModel for MVVM pattern
-            text_editor_viewmodel: TextEditorViewModel
-            application: Application instance for event queue access
-            resource_service: ResourceService for resolving resource paths
-            chord_sheet_viewmodel: ChordSheetViewModel for the bottom strip
-            session: The application session (text, detection, highlighting,
-                playback, status line)
+            session: The application session: every command goes to it and
+                everything shown comes from it.
+            host: The Tk host; this window becomes its root, so the
+                session's timers and posted callbacks run on it.
+            resources: ResourceService for resolving resource paths (icons,
+                help).
         """
         # On Linux the class becomes the X11 WM_CLASS, which desktops match to
         # the .desktop file (StartupWMClass) to show the right icon and name.
@@ -118,15 +123,11 @@ class MainWindow(tk.Tk):
 
         # The host's timers run on this window. Attach before building the
         # chord sheet, which arms its debounce timer through the host.
-        application.host.attach(self)
+        host.attach(self)
 
         # Set platform-native ttk theme
         self._setup_theme()
 
-        # Store ViewModels and Services
-        self.viewmodel = viewmodel
-        self.text_editor_viewmodel = text_editor_viewmodel
-        self.chord_sheet_viewmodel = chord_sheet_viewmodel
         self.session = session
         # The latest editor and chord-sheet states (fonts for dialogs, the
         # strip's height for the sash) and the voicing groups last built.
@@ -135,9 +136,8 @@ class MainWindow(tk.Tk):
         self._voicing_groups: Optional[tuple] = None
         # The playing chord last painted: (span, chord index, bar).
         self._shown_progress: Optional[tuple] = None
-        self.application = application
-        self.resource_service = resource_service
-        self._icons = IconLoader(resource_service)
+        self.resource_service = resources
+        self._icons = IconLoader(resources)
         self.chord_sheet_panel = None
         self._closing = False
 
@@ -149,7 +149,7 @@ class MainWindow(tk.Tk):
         self._set_window_icon()
 
         # Apply saved window geometry
-        saved_geometry = self.viewmodel.get_window_geometry()
+        saved_geometry = self.session.window_geometry
         if saved_geometry:
             self.geometry(saved_geometry)
 
@@ -182,7 +182,7 @@ class MainWindow(tk.Tk):
 
     def show_quick_start_if_needed(self) -> None:
         """Show the Quick Start dialog if this is the first run."""
-        if self.viewmodel.get_show_quick_start_on_startup():
+        if self.session.show_quick_start_on_startup:
             # Use after() to show the dialog after the main window is fully displayed
             self.after(100, self.show_quick_start)
 
@@ -758,20 +758,20 @@ class MainWindow(tk.Tk):
     def create_chord_sheet(self) -> None:
         """Create the chord-sheet strip and dock it under the editor.
 
-        The panel is added to the content paned window only when the viewmodel
-        reports it visible (hidden = removed from the pane, not just blanked).
-        The session feeds it the parsed song and moves its playhead; the
-        window persists its height on sash drags.
+        The panel is added to the content paned window only while the
+        session's ChordSheetState says it is visible (hidden = removed from
+        the pane, not just blanked). The session feeds it the parsed song and
+        moves its playhead; the window persists its height on sash drags.
         """
-        vm = self.chord_sheet_viewmodel
-        if vm is None:
+        if not self.session.has_chord_sheet:
             return
 
         from ui.chord_sheet.panel import ChordSheetPanel
 
-        # The panel paints the strip viewmodel's rendered song; its zoom, tab
+        # The panel paints the strip's rendered song (the one read it still
+        # makes past the session, see ui/chord_sheet/panel.py); its zoom, tab
         # and click commands go through the session.
-        self.chord_sheet_panel = ChordSheetPanel(self.content_paned, vm, session=self.session)
+        self.chord_sheet_panel = ChordSheetPanel(self.content_paned, session=self.session)
 
         # Persist the strip height whenever the sash is released.
         self.content_paned.bind('<ButtonRelease-1>', self._on_content_sash_moved)
@@ -899,7 +899,7 @@ class MainWindow(tk.Tk):
                 filetypes=filetypes,
                 initialfile=request.suggested_name,
             )
-        ref = self.application.documents.ref_for_path(filename) if filename else None
+        ref = self.session.document_ref(filename) if filename else None
         self.session.respond(request.request_id, ref)
 
     def select_all(self) -> str:
@@ -1111,10 +1111,6 @@ class MainWindow(tk.Tk):
                     command=lambda r=ref: self._open_recent(r)
                 )
 
-    def update_statusbar(self, message: str) -> None:
-        """Show ``message`` in the status bar (through the session's status line)."""
-        self.session.show_status(message)
-
     def on_close(self) -> None:
         """The window's close button, File > Exit, Ctrl+Q: ask the session.
 
@@ -1125,23 +1121,21 @@ class MainWindow(tk.Tk):
         self.session.request_close()
 
     def _close_window(self) -> None:
-        """Tear the window and the application down (the session approved)."""
+        """Tear the window down (the session approved).
+
+        Destroying the root ends the main loop; the application then shuts
+        the session and the services down and saves the config.
+        """
         if self._closing:
             return  # a second approval queued before the first ran
         self._closing = True
         # Save window geometry before closing
-        self.viewmodel.set_window_geometry(self.geometry())
+        self.session.set_window_geometry(self.geometry())
         # Persist the chord-sheet height while the pane still exists
         self._on_content_sash_moved(None)
         # Stop playback
         self.session.stop()
-        # Clean up observers to prevent memory leaks
-        self.viewmodel.clear_observers()
         self._session_subscription.cancel()
-        if self.chord_sheet_viewmodel is not None:
-            self.chord_sheet_viewmodel.clear_observers()
-        # Trigger application shutdown (handles cleanup and config save)
-        self.application.on_shutdown()
         self.destroy()
 
     def create_tooltip(self, widget: tk.Widget, text: str) -> None:
@@ -1149,19 +1143,10 @@ class MainWindow(tk.Tk):
         create_tooltip(widget, text)
 
     def open_chord_identifier(self) -> None:
-        """Open the chord identifier window"""
-        from viewmodels.chord_identifier_viewmodel import ChordIdentifierViewModel
-
-        # Create ViewModel for chord identifier (with audio service for playback)
-        chord_id_viewmodel = ChordIdentifierViewModel(
-            song_parser_service=self.application.song_parser_service,
-            audio_service=self.application.audio_service
-        )
-
-        # Create window with ViewModel and insert callback
+        """Open the chord identifier window (with a model of its own)."""
         ChordIdentifierWindow(
-            parent=self,
-            viewmodel=chord_id_viewmodel,
+            self,
+            self.session.chord_identifier_model(),
             on_insert_chord=self._on_insert_chord_from_identifier,
             on_audio_error=self._on_identifier_audio_error,
         )
@@ -1180,12 +1165,10 @@ class MainWindow(tk.Tk):
             # Make sure the session's copy matches the widget before splicing
             # (a no-op unless an edit's <<Modified>> is still queued).
             self.session.set_text(self.text_editor.get_text())
-            revision = self.session.text_revision
-            # The session inserts it into the editor (refused while playing)
-            self.session.insert_text(self.text_editor.offset_of(tk.INSERT), chord_name + " ")
+            # The session inserts it into the editor and says so (refused
+            # while playing).
+            self.session.insert_chord(self.text_editor.offset_of(tk.INSERT), chord_name)
             self.text_editor.focus_set()
-            if self.session.text_revision != revision:
-                self.update_statusbar(f"Inserted chord: {chord_name}")
         except Exception as e:
             logger.error(f"Error inserting chord: {e}", exc_info=True)
             messagebox.showerror("Error", f"Could not insert the chord {chord_name}.\n\n{e}", parent=self)
@@ -1204,17 +1187,18 @@ class MainWindow(tk.Tk):
         from ui.dialogs import QuickStartDialog
         family, size = self._editor_font()
         editor_font = (resolve_font_family(self.text_editor, family), size)
-        dialog = QuickStartDialog(self, self.application.song_parser_service, editor_font,
-                                  self.resource_service)
+        # The snippets are display only: the dialog highlights them itself.
+        dialog = QuickStartDialog(self, editor_font=editor_font,
+                                  resource_service=self.resource_service)
         self.wait_window(dialog)
 
         # Update config if user chose not to show again
         if dialog.get_dont_show_again():
-            self.viewmodel.set_show_quick_start_on_startup(False)
+            self.session.set_show_quick_start_on_startup(False)
 
     def show_options(self) -> None:
         """Show the Settings dialog; the session applies what it saved."""
-        dialog = OptionsDialog(self, self.application.config_service,
+        dialog = OptionsDialog(self, self.session.settings_model(),
                                on_apply=self.session.apply_settings)
         self.wait_window(dialog)
 

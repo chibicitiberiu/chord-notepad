@@ -8,7 +8,9 @@ chord-sheet feed, playback (transport, playing chord, status line, editor
 lock, audio-failure reporting), the programmatic edits (transpose, capo,
 convert notation, inserts), which it sends to the views as ``TextEdited``,
 the toolbar, the menus, settings, and the document flows (new, open, save,
-save as, export MIDI, close; the recent list and the window title).
+save as, export MIDI, close; the recent list and the window title). Renders
+the user waits for (MIDI export, Suggest Capo) run on a background worker.
+The Tk window talks to nothing else (``tests/test_main_window_guard.py``).
 
 Every public command and every callback the session schedules runs inside
 :meth:`Emitter.batch`, so output is delivered at the outermost exit and never
@@ -48,9 +50,13 @@ from session.state import (
 if TYPE_CHECKING:
     # Type-only: the chord-sheet viewmodel still imports PIL (see the core
     # import guard), so the session must not import it at run time.
+    from services.config_service import ConfigService
+    from services.playback_service import PlaybackService
+    from services.song_parser_service import SongParserService
+    from viewmodels.chord_identifier_viewmodel import ChordIdentifierViewModel
     from viewmodels.chord_sheet_viewmodel import ChordSheetViewModel
     from viewmodels.main_window_viewmodel import MainWindowViewModel
-    from viewmodels.settings_viewmodel import SettingsChanges
+    from viewmodels.settings_viewmodel import SettingsChanges, SettingsViewModel
     from viewmodels.text_editor_viewmodel import TextEditorViewModel
 
 logger = logging.getLogger(__name__)
@@ -99,7 +105,10 @@ class AppSession:
                  chord_sheet_viewmodel: Optional["ChordSheetViewModel"] = None,
                  detection_delay_s: float = CHORD_DETECTION_DEBOUNCE_MS / 1000,
                  audio_failure_policy: Optional[AudioFailurePolicy] = None,
-                 worker: Optional[BackgroundWorker] = None) -> None:
+                 worker: Optional[BackgroundWorker] = None,
+                 config_service: Optional["ConfigService"] = None,
+                 song_parser_service: Optional["SongParserService"] = None,
+                 playback_service: Optional["PlaybackService"] = None) -> None:
         """Create the session. Nothing is delivered or scheduled until used.
 
         Args:
@@ -120,12 +129,20 @@ class AppSession:
             worker: Runs the renders the user waits for (MIDI export,
                 Suggest Capo) off the session thread; a new one on ``host``
                 by default. Shut down with the session.
+            config_service: For the Settings dialog's model
+                (:meth:`settings_model`).
+            song_parser_service: For the chord identifier's model
+                (:meth:`chord_identifier_model`).
+            playback_service: Plays the chord identifier's notes.
         """
         self._host = host
         self._emitter = Emitter()
         self._main = main_window_viewmodel
         self._detector = text_editor_viewmodel
         self._chord_sheet = chord_sheet_viewmodel
+        self._config = config_service
+        self._parser = song_parser_service
+        self._playback_service = playback_service
         self._started = False
         self._detection_delay_s = detection_delay_s
 
@@ -323,6 +340,23 @@ class AppSession:
         if not self._edits_allowed("insert"):
             return
         self._splice(at, at, text)
+
+    @_command
+    def insert_chord(self, at: int, chord: str) -> None:
+        """Insert ``chord`` and a space at offset ``at`` (the chord identifier).
+
+        Like :meth:`insert_text`, and says "Inserted chord: X" in the status
+        line when it went in (refused while a song plays or is paused).
+
+        Raises:
+            ValueError: If ``at`` is outside the text.
+        """
+        if not 0 <= at <= len(self._text):
+            raise ValueError(f"insert offset {at} outside the text (length {len(self._text)})")
+        if not self._edits_allowed("insert chord"):
+            return
+        self._splice(at, at, chord + " ")
+        self._set_status(formatting.inserted_chord_status(chord))
 
     @_command
     def transpose(self, semitones: int, selection: Selection = None) -> None:
@@ -737,14 +771,78 @@ class AppSession:
         except AudioInitializationError as e:
             self._report_audio_failure(str(e), from_click=True)
 
-    @_command
-    def show_status(self, text: str) -> None:
-        """Show ``text`` in the status line.
+    # -- desktop window preferences --------------------------------------------
 
-        Transitional: the Tk view still words the chord identifier's
-        "Inserted chord: X". Goes away with step 13.
+    @property
+    def window_geometry(self) -> str:
+        """The saved main-window geometry (Tk ``WxH+X+Y``)."""
+        return self._main.get_window_geometry()
+
+    @_command
+    def set_window_geometry(self, geometry: str) -> None:
+        """Remember the main window's geometry for the next start."""
+        self._main.set_window_geometry(str(geometry))
+
+    @property
+    def show_quick_start_on_startup(self) -> bool:
+        """Whether Quick Start opens when the app starts."""
+        return bool(self._main.get_show_quick_start_on_startup())
+
+    @_command
+    def set_show_quick_start_on_startup(self, show: bool) -> None:
+        """Open Quick Start at startup (or not) from now on."""
+        self._main.set_show_quick_start_on_startup(bool(show))
+
+    # -- dialog-scoped models ---------------------------------------------------
+    #
+    # The Settings dialog and the chord identifier keep a viewmodel of their
+    # own for as long as they are open (desktop). The session hands them out
+    # so the window needn't reach the services; what they change comes back
+    # through commands (apply_settings, insert_chord, report_audio_failure).
+
+    def settings_model(self) -> "SettingsViewModel":
+        """A new working copy of the settings for a Settings dialog.
+
+        Commit it with ``SettingsViewModel.commit()`` and hand the changes to
+        :meth:`apply_settings`.
+
+        Raises:
+            RuntimeError: If the session was built without a config service.
         """
-        self._set_status(text)
+        from viewmodels.settings_viewmodel import SettingsViewModel
+
+        if self._config is None:
+            raise RuntimeError("the session has no config service for the Settings dialog")
+        return SettingsViewModel(self._config)
+
+    def chord_identifier_model(self) -> "ChordIdentifierViewModel":
+        """A new model for a chord identifier window.
+
+        Raises:
+            RuntimeError: If the session was built without a song parser.
+        """
+        from viewmodels.chord_identifier_viewmodel import ChordIdentifierViewModel
+
+        if self._parser is None:
+            raise RuntimeError("the session has no song parser for the chord identifier")
+        return ChordIdentifierViewModel(
+            song_parser_service=self._parser, audio_service=self._playback_service)
+
+    @property
+    def has_chord_sheet(self) -> bool:
+        """Whether there is a chord sheet (a ``ChordSheetState`` is published)."""
+        return self._chord_sheet is not None
+
+    @property
+    def chord_sheet_model(self) -> Optional["ChordSheetViewModel"]:
+        """The chord-sheet strip, for the Tk panel's painting only.
+
+        Interim (desktop): the panel replays the strip's renderers over its
+        rendered song, which are live objects, so it reads them here and
+        observes the strip for repaints. Its commands go through the session.
+        Android paints from draw ops sent over the bridge instead.
+        """
+        return self._chord_sheet
 
     @property
     def audio_failure_policy(self) -> AudioFailurePolicy:
@@ -752,6 +850,14 @@ class AppSession:
         return self._audio_policy
 
     # -- queries ----------------------------------------------------------------
+
+    def document_ref(self, document_id: str) -> DocumentRef:
+        """The :class:`DocumentRef` for a document the view's picker chose.
+
+        Args:
+            document_id: The store's id for it (desktop: the file's path).
+        """
+        return self._documents.ref_for(document_id)
 
     @property
     def text(self) -> str:

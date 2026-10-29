@@ -8,6 +8,11 @@ playback by auto-scrolling, and turns clicks into auditions. All layout/paint
 logic lives in the renderers and all state lives in the viewmodel; this class
 only bridges them to Tkinter. The user's commands (zoom, view tabs, clicks to
 audition) go through the session, which owns the audio-failure reporting.
+
+Interim (``docs/architecture/session.md``): the panel still reads the strip
+directly to paint it (its rendered song, renderers, zoom and playhead, and
+change notifications for repaints), because those are live objects until
+draw ops cross the Android bridge. It never changes the strip itself.
 """
 
 import logging
@@ -37,20 +42,21 @@ _HIGHLIGHT_FILL = "#ffe58a"
 class ChordSheetPanel(ttk.Frame):
     """Tk shell hosting the scrolling chord-sheet strip."""
 
-    def __init__(self, parent: tk.Widget, viewmodel, *, session, **kwargs) -> None:
+    def __init__(self, parent: tk.Widget, viewmodel=None, *, session, **kwargs) -> None:
         """Build the panel and wire it to the viewmodel.
 
         Args:
             parent: Parent widget.
             viewmodel: A :class:`ChordSheetViewModel`, whose rendered song
-                and display state the panel paints.
+                and display state the panel paints; by default the session's
+                (``session.chord_sheet_model``).
             session: Takes the panel's commands: ``chord_sheet_zoom(step)``,
                 ``set_chord_sheet_view(view_id)`` and ``audition(index)``
                 (an :class:`~session.session.AppSession`).
             **kwargs: Passed through to ``ttk.Frame``.
         """
         super().__init__(parent, **kwargs)
-        self._vm = viewmodel
+        self._vm = viewmodel if viewmodel is not None else session.chord_sheet_model
         self._session = session
         self._layout: Optional[StripLayout] = None
         # Resolved Tk images by ops image key. These MUST stay referenced or Tk

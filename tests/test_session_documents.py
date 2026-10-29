@@ -582,9 +582,9 @@ def test_tk_open_picker_answers_with_a_ref():
     with patch("ui.main_window.ask_open_filename", return_value="/a/song.txt") as ask:
         MainWindow._present_pick_document(window, PickDocumentRequest(2, PickMode.OPEN, ""))
     assert ask.call_args.kwargs["title"] == "Open File"
-    window.application.documents.ref_for_path.assert_called_once_with("/a/song.txt")
+    window.session.document_ref.assert_called_once_with("/a/song.txt")
     window.session.respond.assert_called_once_with(
-        2, window.application.documents.ref_for_path.return_value)
+        2, window.session.document_ref.return_value)
 
 
 @pytest.mark.parametrize("mode, title, extension", [
@@ -658,7 +658,8 @@ def test_tk_close_window_shuts_down_and_destroys():
     window.geometry.return_value = "900x600+0+0"
     MainWindow._close_window(window)
     MainWindow._close_window(window)       # a second approval does nothing
-    window.viewmodel.set_window_geometry.assert_called_once_with("900x600+0+0")
+    window.session.set_window_geometry.assert_called_once_with("900x600+0+0")
     window.session.stop.assert_called_once()
-    window.application.on_shutdown.assert_called_once()
+    window._session_subscription.cancel.assert_called_once()
+    # Destroying the root ends the main loop; the application shuts down then.
     window.destroy.assert_called_once()

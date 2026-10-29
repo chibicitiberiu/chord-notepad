@@ -48,24 +48,24 @@ class OptionsDialog(tk.Toplevel):
     def __init__(
         self,
         parent: tk.Misc,
-        config_service: Any,
+        settings: SettingsViewModel,
         on_apply: Optional[Callable[[Any], None]] = None,
     ) -> None:
         """Initialize the Settings dialog.
 
         Args:
             parent: Parent window (MainWindow).
-            config_service: ConfigService used to build the working-copy
-                SettingsViewModel. Nothing is read from or written to it
-                directly by this dialog.
+            settings: The dialog's working copy of the settings (scoped to
+                it; ``AppSession.settings_model()``). Only its ``commit()``
+                writes the config.
             on_apply: Optional callback invoked with the SettingsChanges
                 returned by SettingsViewModel.commit() after a successful
-                Save.
+                Save (``AppSession.apply_settings``).
         """
         super().__init__(parent)
 
         self.on_apply = on_apply
-        self._viewmodel = SettingsViewModel(config_service)
+        self._viewmodel = settings
 
         self.title("Settings")
         self.transient(parent)
