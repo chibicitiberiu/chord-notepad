@@ -26,7 +26,8 @@ The Main Window
 
 .. only:: desktop
 
-   .. figure:: /images/main-window-labeled.png
+   .. platform-figure:: main-window-labeled
+      :platforms: desktop
       :alt: The Chord Notepad window with numbered callouts on the menu bar,
             toolbar controls, text editor, and status bar.
       :align: center
@@ -158,7 +159,8 @@ Adjusting the Tempo
 
    There are two separate tempo controls, side by side:
 
-   .. figure:: /images/speed-controls-labeled.png
+   .. platform-figure:: speed-controls-labeled
+      :platforms: desktop
       :alt: The Speed controls: 190 bpm labelled 1, and 100% labelled 2.
       :align: center
 
@@ -212,7 +214,8 @@ Changing the Sound
 
 .. only:: desktop
 
-   .. figure:: /images/instrument-menu.png
+   .. platform-figure:: instrument-menu
+      :platforms: desktop
       :alt: The Playback menu open at the Instrument submenu, listing categories
             such as Piano, Organ, Guitar, Bass, Strings, and more.
       :align: center

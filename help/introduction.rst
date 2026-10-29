@@ -12,7 +12,8 @@ highlights the chords and can play them back using synthesized instruments.
 
 .. only:: desktop
 
-   .. figure:: /images/editor-main-window.png
+   .. platform-figure:: editor-main-window
+      :platforms: desktop
       :alt: The Chord Notepad main window: a chord sheet with chord symbols
             highlighted in blue above the lyrics, directives in braces, and a
             toolbar across the top.
@@ -83,7 +84,8 @@ Use the notation you're comfortable with:
    The toolbar toggle (labelled **AB / Do**) switches the editor between American
    and European note names:
 
-   .. figure:: /images/notation-toggle.png
+   .. platform-figure:: notation-toggle
+      :platforms: desktop
       :alt: The AB / Do notation toggle at the left of the toolbar, with AB
             (American) selected.
       :align: center

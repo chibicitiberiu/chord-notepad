@@ -216,7 +216,8 @@ song at once**. That keeps the right hand anchored in a stable central register
 from start to finish: a chord that comes back on a looped verse is voiced the
 same way it was the first time, instead of drifting an octave lower each pass.
 
-.. figure:: /images/voiceleading.png
+.. platform-figure:: voiceleading
+   :shared:
    :alt: Four piano keyboards for C, Am, F, and G shown twice: with voice
          leading the shapes stay close together; without it every chord snaps
          to root position and the top notes leap around.
@@ -314,7 +315,8 @@ Built-in Fretted-Instrument Voicings
    tuning of your own -- in the Voicings editor under ☰ → Settings. See
    :doc:`fretted` for a worked example and the full list of tunable parameters.
 
-.. figure:: /images/voicings.png
+.. platform-figure:: voicings
+   :shared:
    :alt: Piano keyboard and guitar chord-box diagrams for C, G, Am, and F,
          showing the notes each picker chose.
    :align: center
@@ -342,7 +344,8 @@ E is the major third and the F is the eleventh, and they sit a semitone apart,
 which grinds. Pianists drop the third and let the eleventh speak. Chord Notepad
 does the same:
 
-.. figure:: /images/jazz-clash.png
+.. platform-figure:: jazz-clash
+   :shared:
    :alt: Two piano keyboards for a dominant eleventh. On the left the major
          third is left in and marked as clashing; on the right it is dropped.
    :align: center

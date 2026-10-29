@@ -22,7 +22,23 @@ version = release
 if not (tags.has('desktop') or tags.has('android')):  # noqa: F821
     tags.add('desktop')  # noqa: F821
 
-extensions = []
+import sys
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '_ext'))
+
+# Platform editions: platform-figure, :plat:, |terms|, per-platform pages
+# (docs/HELP_AUTHORING.md).
+extensions = ['editions']
+
+# |name| substitutions: (desktop text, android text). Use them where only a
+# word differs; anything longer goes in ``.. only::`` blocks.
+help_terms = {
+    'click': ('click', 'tap'),
+    'Click': ('Click', 'Tap'),
+    'clicks': ('clicks', 'taps'),
+    'clicking': ('clicking', 'tapping'),
+    'Clicking': ('Clicking', 'Tapping'),
+    'settings': (':menuselection:`Tools --> Settings...`', '**☰ → Settings**'),
+}
 
 # Optional: PDF generation via rinohtype (only needed for make docs-pdf)
 try:
