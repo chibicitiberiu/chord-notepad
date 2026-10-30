@@ -100,3 +100,55 @@ class TestDialogModuleSmoke:
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
+
+
+class TestReplaceExistingCapo:
+    """A {capo} between the start and the first chord is replaced (Tibi,
+    2026-10-30); otherwise the directive goes at the start."""
+
+    @staticmethod
+    def spans(text):
+        import re
+        return [(m.start(), m.end()) for m in re.finditer(r"\{capo:[^}]*\}", text)]
+
+    def test_capo_before_the_first_chord_is_replaced(self):
+        text = "{title: x}\n{capo: 2}\nC  G\n"
+        out, offset = insert_capo_directive(
+            text, 5, None, capo_spans=self.spans(text), first_chord=text.index("C  G"))
+        assert out == "{title: x}\n{capo: 5}\nC  G\n"
+        assert offset == text.index("{capo")
+
+    def test_capo_after_the_first_chord_is_left_alone(self):
+        text = "C  G\n{capo: 2}\nAm F\n"
+        out, offset = insert_capo_directive(
+            text, 5, None, capo_spans=self.spans(text), first_chord=0)
+        assert out == "{capo: 5}\n" + text
+        assert offset == 0
+
+    def test_no_capo_inserts_at_the_very_start(self):
+        text = "{key: G}\nG  D\n"
+        out, offset = insert_capo_directive(
+            text, 3, None, capo_spans=[], first_chord=text.index("G  D"))
+        assert out == "{capo: 3}\n" + text
+
+    def test_selection_replaces_a_capo_between_its_start_and_its_first_chord(self):
+        text = "C  G\n{capo: 1}\nverse words\n{capo: 4}\nAm F\n"
+        sel = text.index("verse")
+        out, offset = insert_capo_directive(
+            text, 2, sel, capo_spans=self.spans(text), first_chord=text.index("Am F"))
+        assert out == "C  G\n{capo: 1}\nverse words\n{capo: 2}\nAm F\n"
+        assert offset == text.index("{capo: 4}")
+
+    def test_selection_without_a_capo_inserts_at_its_start(self):
+        text = "{capo: 1}\nC  G\nAm F\n"
+        sel = text.index("Am F")
+        out, offset = insert_capo_directive(
+            text, 2, sel, capo_spans=self.spans(text), first_chord=sel)
+        assert out == "{capo: 1}\nC  G\n{capo: 2}\nAm F\n"
+        assert offset == sel
+
+    def test_without_chords_any_capo_after_the_start_counts(self):
+        text = "words\n{capo: 1}\n"
+        out, _ = insert_capo_directive(text, 3, None, capo_spans=self.spans(text),
+                                       first_chord=None)
+        assert out == "words\n{capo: 3}\n"

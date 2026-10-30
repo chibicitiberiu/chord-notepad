@@ -905,15 +905,26 @@ class MainWindowViewModel(Observable):
         Mirrors :meth:`transpose`: it calls the pure
         :func:`services.capo_insert.insert_capo_directive` and
         ``set_and_notify("current_text", ...)`` so the editor swaps its content
-        (the view groups this into one undo step). The directive lands at the
-        start of the line containing the selection (or the top of the document
-        when ``region`` is ``None``).
+        (the view groups this into one undo step). A ``{capo}`` between the
+        start (the top, or the selection's line) and the first chord after it
+        is replaced; otherwise the directive lands at that start.
         """
-        from services.capo_insert import insert_capo_directive
+        from models.chord import ChordInfo
+        from models.directive import DirectiveType
+        from services.capo_insert import line_start_offset, insert_capo_directive
 
+        text = self._current_text
         selection_start = region[0] if region is not None else None
+        start = 0 if selection_start is None else line_start_offset(text, selection_start)
+        capo_spans = [(d.start, d.end) for d in self._chord.parse_directives(text)
+                      if d.type == DirectiveType.CAPO]
+        chord_starts = [item.start
+                        for line in self._chord.detect_chords_in_text(text, self._notation)
+                        for item in line.items
+                        if isinstance(item, ChordInfo) and item.start >= start]
         new_text, _offset = insert_capo_directive(
-            self._current_text, capo, selection_start)
+            text, capo, selection_start, capo_spans=capo_spans,
+            first_chord=min(chord_starts) if chord_starts else None)
         self.set_and_notify("current_text", new_text)
         if not self._is_modified:
             self.set_and_notify("is_modified", True)

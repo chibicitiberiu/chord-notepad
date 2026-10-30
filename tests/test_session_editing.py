@@ -376,6 +376,32 @@ def test_capo_response_inserts_the_directive_as_one_grouped_edit():
     assert env.status() == f"Suggested capo {capo} for the whole song on Guitar (Standard - EADGBE)"
 
 
+def _suggest(env, region=None):
+    env.session.request_suggest_capo(region)
+    env.session.respond(env.request(CapoChoiceRequest).request_id, "guitar:standard")
+    env.settle()
+
+
+def test_suggest_capo_replaces_a_capo_before_the_first_chord():
+    song = "{capo: 0}\n" + BARRE_SONG
+    env = Env(song)
+    _suggest(env)
+    lines = env.session.text.split("\n")
+    assert lines[0].startswith("{capo: ") and lines[0] != "{capo: 0}"
+    assert "\n".join(lines[1:]) == BARRE_SONG
+    assert env.session.text.count("{capo") == 1
+
+
+def test_suggest_capo_for_a_selection_replaces_its_own_capo():
+    song = "C G\n{capo: 0}\n" + BARRE_SONG
+    env = Env(song)
+    start = song.index("{capo")
+    _suggest(env, (start, len(song)))
+    text = env.session.text
+    assert text.startswith("C G\n{capo: ") and not text.startswith("C G\n{capo: 0}")
+    assert text.count("{capo") == 1 and text.endswith(BARRE_SONG)
+
+
 def test_no_capo_helps_only_says_so():
     env = Env("C G Am F")
     env.session.request_suggest_capo((0, 3))

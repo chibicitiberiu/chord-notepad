@@ -301,13 +301,14 @@ capo set at the top applies to the whole song, and you can change it mid-song
 What It Does
 ------------
 
-A capo only changes the *shapes you play*, never the sound. With a capo on the
+A capo changes the *shapes you play*, never the key. With a capo on the
 2nd fret, a song in F# can be played with open E-shape chords instead of
 barres. When a ``{capo}`` is in effect and a fretboard voicing is active, the
 **Fret cards** and **Tab** views draw those capo-relative shapes (the top of a
-fret diagram is the capo) and show a small ``Capo N`` marker; the piano roll,
-staff, and the playback pitch are unaffected. It is ignored for piano and
-ensemble voicings.
+fret diagram is the capo) and show a small ``Capo N`` marker. The voicing also
+plays those shapes, so playback, the piano roll and the staff follow them (the
+same chord can come out with different notes than without the capo). It is
+ignored for piano and ensemble voicings.
 
 Finding the Best Capo
 ---------------------
@@ -315,7 +316,9 @@ Finding the Best Capo
 .. only:: desktop
 
    You don't have to guess: :menuselection:`Tools --> Suggest Capo...` scores capo
-   positions for a voicing you choose and inserts the ``{capo}`` directive for you.
+   positions for a voicing you choose and inserts the ``{capo}`` directive for you,
+   at the top of the song or the start of the selection (replacing a ``{capo}``
+   that already sits there, before the first chord).
    See :doc:`chord_sheet` for details.
 
 .. only:: android
@@ -324,7 +327,8 @@ Finding the Best Capo
    positions for a voicing you choose and inserts the ``{capo}`` directive for you.
    With nothing selected it looks at the whole song and puts the directive at
    the top. Select part of the song first to get a suggestion for just that
-   part, inserted at the start of its first line.
+   part, inserted at the start of its first line. A ``{capo}`` already sitting
+   between that point and the first chord is replaced instead.
    See :doc:`chord_sheet` for details.
 
    .. platform-figure:: capo-suggest

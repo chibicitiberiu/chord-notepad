@@ -253,10 +253,14 @@ Suggesting a Capo
    which fretboard voicing to optimize for -- defaulting to the current one, or
    standard guitar when the active voicing is not a fretboard voicing -- then
    scores capo positions over the selection (or the whole song when nothing is
-   selected) and inserts the ``{capo: N}`` directive at that point, as a single
-   undo step. It looks for the position that makes the part easiest to play:
-   fewest barres, lowest on the neck, most open strings. If no capo helps, it says
-   so and inserts nothing.
+   selected) and writes the ``{capo: N}`` directive, as a single undo step. It
+   looks for the position that makes the part easiest to play: fewest barres,
+   lowest on the neck, most open strings. If no capo helps, it says so and
+   changes nothing.
+
+   The directive goes at the very top of the song, or at the start of the
+   selection's first line. If a ``{capo}`` already sits between there and the
+   first chord, it is replaced instead of adding a second one.
 
 .. only:: android
 
@@ -282,10 +286,12 @@ Suggesting a Capo
 .. only:: android
 
    Chord Notepad then scores capo positions over the selection (or the whole
-   song) and inserts the ``{capo: N}`` directive at that point, as a single
-   undo step. It looks for the position that makes the part easiest to play:
-   fewest barres, lowest on the neck, most open strings. If no capo helps, it
-   says so and inserts nothing. Switch back to Play and pick a fretted
+   song) and writes the ``{capo: N}`` directive, as a single undo step. It
+   looks for the position that makes the part easiest to play: fewest barres,
+   lowest on the neck, most open strings. If no capo helps, it says so and
+   changes nothing. The directive goes at the very top of the song, or at the
+   start of the selection's first line; a ``{capo}`` already sitting between
+   there and the first chord is replaced instead. Switch back to Play and pick a fretted
    voicing to see the new shapes in Fret cards or Tab.
 
 

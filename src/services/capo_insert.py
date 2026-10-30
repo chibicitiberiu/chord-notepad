@@ -16,8 +16,14 @@ offset is snapped back to the start of its line before the text is inserted, so
 the directive always lands at column 0. When ``selection_start`` is ``None`` the
 directive is inserted at the very top of the document (offset 0).
 
-All existing characters are preserved verbatim; the only change is the inserted
-line. The returned offset is the char position of the inserted ``{`` (equal to
+A ``{capo}`` the song already has in the right place is replaced instead: one
+that sits between that start (the top, or the selection's line) and the first
+chord after it. With several there, the last one (the one in effect at that
+chord) is rewritten in place. A ``{capo}`` after the first chord is left alone,
+since it changes the capo later in the song.
+
+All other characters are preserved verbatim; the only change is the inserted
+line (or the rewritten directive). The returned offset is the char position of the inserted ``{`` (equal to
 the start-of-line offset), which lets a caller reposition the cursor or select
 the freshly inserted directive for undo.
 
@@ -29,12 +35,12 @@ Whether a particular value is worth inserting is a decision for the caller.
 """
 
 import logging
-from typing import Optional, Tuple
+from typing import Iterable, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
 
-def _line_start_offset(text: str, offset: int) -> int:
+def line_start_offset(text: str, offset: int) -> int:
     """Return the char offset of the start of the line containing ``offset``.
 
     ``offset`` is clamped into ``[0, len(text)]`` first. The result is the index
@@ -49,6 +55,8 @@ def insert_capo_directive(
     text: str,
     capo: int,
     selection_start: Optional[int] = None,
+    capo_spans: Iterable[Tuple[int, int]] = (),
+    first_chord: Optional[int] = None,
 ) -> Tuple[str, int]:
     """Insert a ``{capo: N}`` directive on its own line into ``text``.
 
@@ -63,6 +71,10 @@ def insert_capo_directive(
             are inserted as-is (the caller decides whether that is desired).
         selection_start: Char offset of the selection/cursor. ``None`` inserts
             at offset 0. Values outside ``[0, len(text)]`` are clamped.
+        capo_spans: ``(start, end)`` of every ``{capo}`` directive in ``text``.
+        first_chord: Offset of the first chord at or after the insertion
+            point, or None when there is none (then any ``{capo}`` after the
+            insertion point counts as before the first chord).
 
     Returns:
         A ``(new_text, directive_char_offset)`` tuple. ``directive_char_offset``
@@ -72,7 +84,14 @@ def insert_capo_directive(
     if selection_start is None:
         insert_at = 0
     else:
-        insert_at = _line_start_offset(text, selection_start)
+        insert_at = line_start_offset(text, selection_start)
+
+    limit = len(text) if first_chord is None else first_chord
+    before_chord = sorted(span for span in capo_spans
+                          if insert_at <= span[0] and span[1] <= limit)
+    if before_chord:
+        start, end = before_chord[-1]
+        return text[:start] + f"{{capo: {capo}}}" + text[end:], start
 
     directive = f"{{capo: {capo}}}\n"
     new_text = text[:insert_at] + directive + text[insert_at:]
