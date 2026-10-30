@@ -391,6 +391,11 @@ class ChordHelper:
         Returns:
             ChordNotes object with notes, bass_note, and root, or None if invalid
         """
+        # Keys are resolved in American spelling ('Lam' -> 'Am'); ChordNotes.key
+        # carries that spelling so key-aware voicing rules can read it.
+        from chord.keys import american_key
+        key = american_key(key)
+
         # Handle roman numeral chords
         if is_relative:
             if not key:

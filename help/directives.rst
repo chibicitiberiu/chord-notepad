@@ -235,6 +235,18 @@ Setting the Key
    {key: Am}      // Key of A minor
    {key: F#}      // Key of F# major
    {key: Bb}      // Key of Bb major
+   {key: Sol}     // European names work too (Do, Re, Mi, Fa, Sol, La, Si)
+   {key: Lam}     // A minor, European
+
+A key is a note name with an optional ``#`` or ``b`` and an optional ``m`` for
+minor. Anything else (``{key: Xyz}``, ``{key: C7}``) is an invalid directive: it
+shows in red, and Roman numerals after it keep using the key that was in effect
+before it.
+
+.. only:: android
+
+   With no key at all (Default key set to None in Settings and no ``{key}``
+   directive), Roman numerals stay unresolved and play nothing.
 
 Why Key Matters
 ---------------

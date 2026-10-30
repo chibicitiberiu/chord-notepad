@@ -8,6 +8,7 @@ from typing import List, Union, Optional
 from chord.detector import ChordDetector
 from chord.helper import ChordHelper
 from chord.converter import NotationConverter
+from chord.keys import is_valid_key
 from constants import MAX_BEATS, MAX_BPM, MIN_BEATS, MIN_BPM, TIME_SIGNATURE_UNITS
 from models.line import Line
 from models.chord import ChordInfo
@@ -104,6 +105,8 @@ class SongParserService:
                         raise ValueError(f"Invalid time signature format: {value}")
 
                 elif keyword == 'key':
+                    if not is_valid_key(value):
+                        raise ValueError(f"Not a key: {value}")
                     directive = Directive(
                         type=DirectiveType.KEY,
                         start=start,
