@@ -37,7 +37,8 @@ from session.documents import DocumentRef
 from session.events import (
     AudioUnavailable, CapoChoiceRequest, CloseApproved, ConfirmDiscardRequest, DiscardChoice,
     InsertDirectiveRequest, PickDocumentRequest, PickMode, QuickStartBlock, QuickStartContent,
-    DirectiveCheck, QuickStartPage, RenameFailed, TextEdited, UndoPolicy, UnexpectedError,
+    DirectiveCheck, DirectiveHint, QuickStartPage, RenameFailed, TextEdited, UndoPolicy,
+    UnexpectedError,
     UserError, VoicingEditorSchema,
 )
 from session.host import Host
@@ -66,7 +67,7 @@ STATE_TYPES: Tuple[type, ...] = (
 )
 EVENT_TYPES: Tuple[type, ...] = (
     TextEdited, UserError, AudioUnavailable, UnexpectedError, CloseApproved,
-    VoicingEditorSchema, QuickStartContent, DirectiveCheck, RenameFailed,
+    VoicingEditorSchema, QuickStartContent, DirectiveCheck, RenameFailed, DirectiveHint,
 )
 REQUEST_TYPES: Tuple[type, ...] = (
     ConfirmDiscardRequest, PickDocumentRequest, CapoChoiceRequest, InsertDirectiveRequest,
@@ -222,6 +223,7 @@ SESSION_COMMANDS: Dict[str, Dict[str, str]] = {
     "insert_chord": {"at": "int", "chord": "str"},
     "request_insert_directive": {"kind": "str", "at": "int"},
     "check_directive": {"kind": "str", "fields": "json", "request_id": "int"},
+    "request_directive_hint": {"offset": "int"},
     "transpose": {"semitones": "int", "selection": "selection"},
     "request_suggest_capo": {"selection": "selection"},
     "convert_notation": {"target": "str"},

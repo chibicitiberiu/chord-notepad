@@ -47,9 +47,12 @@ enum class SpanKind {
     @SerialName("comment") COMMENT,
 }
 
-/** A highlighted range `[start, end)` of the text, in code points. */
+/**
+ * A highlighted range `[start, end)` of the text, in code points. [message]
+ * says why an invalid directive is invalid (for a tooltip); "" otherwise.
+ */
 @Serializable
-data class Span(val start: Int, val end: Int, val kind: SpanKind)
+data class Span(val start: Int, val end: Int, val kind: SpanKind, val message: String = "")
 
 /** One choice in a menu or list; send [value] back. */
 @Serializable

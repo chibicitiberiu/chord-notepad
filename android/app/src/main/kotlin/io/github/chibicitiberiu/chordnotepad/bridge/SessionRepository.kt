@@ -62,6 +62,7 @@ class SessionRepository {
     private val _voicingEditorSchema = MutableStateFlow<VoicingEditorSchema?>(null)
     private val _quickStart = MutableStateFlow<QuickStartContent?>(null)
     private val _directiveCheck = MutableStateFlow<DirectiveCheck?>(null)
+    private val _directiveHint = MutableStateFlow<DirectiveHint?>(null)
     private val _songDefaults = MutableStateFlow<SongDefaultsState?>(null)
     private val _renameFailed = MutableSharedFlow<RenameFailed>(
         extraBufferCapacity = 4,
@@ -140,6 +141,9 @@ class SessionRepository {
     /** The latest live check of an Insert directive dialog (`DirectiveCheck`). */
     val directiveCheck: StateFlow<DirectiveCheck?> = _directiveCheck.asStateFlow()
 
+    /** The latest directive hint (`request_directive_hint`), for a syntax tooltip. */
+    val directiveHint: StateFlow<DirectiveHint?> = _directiveHint.asStateFlow()
+
     val textEdits: Flow<TextEdited> = _textEdits.receiveAsFlow()
 
     /** Errors to show (user errors, audio unavailable, unexpected errors). */
@@ -167,6 +171,7 @@ class SessionRepository {
             is VoicingEditorSchema -> _voicingEditorSchema.value = output
             is QuickStartContent -> _quickStart.value = output
             is DirectiveCheck -> _directiveCheck.value = output
+            is DirectiveHint -> _directiveHint.value = output
             is SongDefaultsState -> _songDefaults.value = output
             is RenameFailed -> _renameFailed.tryEmit(output)
             is TextEdited -> _textEdits.trySend(output)

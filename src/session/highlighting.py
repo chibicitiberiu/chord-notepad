@@ -12,7 +12,10 @@ import re
 from typing import List, Optional, Sequence, Tuple
 
 from models.chord import ChordInfo
+from models.directive import (
+    DIRECTIVE_KEYWORDS, DIRECTIVE_SYNTAX, UNKNOWN_DIRECTIVE_SYNTAX, directive_syntax)
 from models.line import Line
+from session.events import DirectiveHint
 from session.state import Span, SpanKind
 
 _COMMENT = re.compile(r"//[^\n]*")
@@ -53,9 +56,55 @@ def compute_spans(lines: Sequence[Line], text: str) -> Tuple[Span, ...]:
                 spans.append(Span(chord.start, chord.end, kind))
     for line in lines:
         for directive in line.directives:
-            kind = SpanKind.DIRECTIVE if directive.is_valid else SpanKind.DIRECTIVE_INVALID
-            spans.append(Span(directive.start, directive.end, kind))
+            if directive.is_valid:
+                spans.append(Span(directive.start, directive.end, SpanKind.DIRECTIVE))
+            else:
+                spans.append(Span(directive.start, directive.end, SpanKind.DIRECTIVE_INVALID,
+                                  directive.message or ""))
     return tuple(spans)
+
+
+def directive_hint(text: str, offset: int) -> Optional[DirectiveHint]:
+    """The directive at ``offset`` with its syntax hint, or None.
+
+    ``text`` is parsed afresh (directives only, which is quick), so the
+    answer matches the text as it is now even while chord detection is
+    still debounced.
+
+    A parsed directive counts when ``start <= offset <= end`` (so right after
+    its ``}`` too). Otherwise a directive being typed counts: a ``{`` earlier
+    on the same line with no ``}`` after it, outside a comment or a
+    plain-text line; its keyword is what follows the brace (up to ``:``),
+    and the hint lists every directive that keyword could still become.
+
+    Args:
+        text: The text.
+        offset: A code-point offset into it.
+    """
+    from services.song_parser_service import SongParserService
+
+    for directive in SongParserService().parse_directives(text):
+        if directive.start <= offset <= directive.end:
+            return DirectiveHint(offset, directive.start, directive.end,
+                                 directive.keyword or "", directive.syntax,
+                                 "" if directive.is_valid else (directive.message or ""))
+    line_start = text.rfind("\n", 0, offset) + 1
+    before = text[line_start:offset]
+    brace = before.rfind("{")
+    if brace < 0 or "}" in before[brace:] or "//" in before[:brace]:
+        return None
+    if before.lstrip().startswith("."):
+        return None
+    typed = before[brace + 1:]
+    keyword, colon, _value = typed.partition(":")
+    keyword = keyword.strip().lower()
+    if colon or not keyword:
+        syntax = directive_syntax(keyword) if keyword else UNKNOWN_DIRECTIVE_SYNTAX
+    else:
+        matches = [k for k in DIRECTIVE_KEYWORDS if k.startswith(keyword)]
+        syntax = ("\n".join(DIRECTIVE_SYNTAX[k] for k in matches) if matches
+                  else UNKNOWN_DIRECTIVE_SYNTAX)
+    return DirectiveHint(offset, line_start + brace, offset, keyword, syntax, "")
 
 
 def chord_at(lines: Sequence[Line], offset: int) -> Optional[ChordInfo]:

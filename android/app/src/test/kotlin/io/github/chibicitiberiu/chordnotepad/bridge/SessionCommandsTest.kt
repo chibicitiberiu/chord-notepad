@@ -128,7 +128,8 @@ class SessionCommandsTest {
     fun `every command name is listed`() {
         // Each builder's name must be in CommandNames.ALL (the contract test's list).
         with(commands) {
-            setText("", 0); insertText(0, ""); requestInsertDirective("bpm", 0); checkDirective("bpm", mapOf(), 1); transpose(1)
+            setText("", 0); insertText(0, ""); requestInsertDirective("bpm", 0); checkDirective("bpm", mapOf(), 1); requestDirectiveHint(0)
+            transpose(1)
             requestSuggestCapo(); convertNotation("american"); playPause(); stop(); tapChordAt(0)
             setBpm(100.0); setMultiplierPct(100.0); setBpmText("1"); setMultiplierText("1x"); resetBpm()
             resetMultiplier(); setKey("C"); setTimeSignature(4, 4); toggleMetronome()

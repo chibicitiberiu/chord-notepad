@@ -125,6 +125,22 @@ data class DirectiveCheck(
     @SerialName("form_error") val formError: String,
 ) : SessionEvent
 
+/**
+ * The directive at a text offset, or one being typed there
+ * (`request_directive_hint`): its range, [keyword] as typed, the correct
+ * [syntax] and, when invalid, the [message] saying why. [syntax] is "" when
+ * there is no directive at [offset].
+ */
+@Serializable
+data class DirectiveHint(
+    val offset: Int,
+    val start: Int,
+    val end: Int,
+    val keyword: String,
+    val syntax: String,
+    val message: String,
+) : SessionEvent
+
 /** Wire type name → serializer for the M5 outputs ([BridgeCodec.serializers] includes them). */
 internal val screenSerializers: Map<String, KSerializer<out SessionOutput>> = mapOf(
     "IdentifierState" to IdentifierState.serializer(),
@@ -133,4 +149,5 @@ internal val screenSerializers: Map<String, KSerializer<out SessionOutput>> = ma
     "VoicingEditorSchema" to VoicingEditorSchema.serializer(),
     "QuickStartContent" to QuickStartContent.serializer(),
     "DirectiveCheck" to DirectiveCheck.serializer(),
+    "DirectiveHint" to DirectiveHint.serializer(),
 )

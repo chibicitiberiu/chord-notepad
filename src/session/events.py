@@ -151,6 +151,33 @@ class DirectiveCheck:
 
 
 @dataclass(frozen=True)
+class DirectiveHint:
+    """The directive at a text offset, for a tooltip (reply to
+    ``request_directive_hint``; ``AppSession.directive_hint_at`` returns it).
+
+    It covers a whole directive, or one still being typed (from its ``{`` to
+    the offset, no ``}`` yet). With no directive at the offset, ``syntax`` is
+    "" and ``start == end == offset``.
+
+    Attributes:
+        offset: The offset that was asked about.
+        start: Where the directive starts (its ``{``).
+        end: Where it ends (after ``}``), or the offset while being typed.
+        keyword: The directive's name as typed, lower-cased (may be partial).
+        syntax: The correct syntax: examples for the keyword, or for every
+            directive the partial keyword could become.
+        message: Why the directive is invalid, else "".
+    """
+
+    offset: int
+    start: int
+    end: int
+    keyword: str
+    syntax: str
+    message: str
+
+
+@dataclass(frozen=True)
 class CapoChoiceRequest:
     """Ask which fretboard voicing a capo suggestion should optimize for.
 

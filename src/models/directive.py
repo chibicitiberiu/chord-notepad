@@ -34,6 +34,31 @@ class BPMModifierType(IntEnum):
     RESET = 4           # {bpm: reset} or {bpm: original} - restore initial
 
 
+#: The directive keywords and what each is called in the text (``tempo`` is
+#: another name for ``bpm``).
+DIRECTIVE_KEYWORDS = ('bpm', 'tempo', 'time', 'key', 'capo', 'label', 'loop')
+
+#: The correct syntax of each directive, for hints while typing and for the
+#: tooltip of an invalid one.
+DIRECTIVE_SYNTAX = {
+    'bpm': '{bpm: 120} · {bpm: +10} · {bpm: 50%} · {bpm: 2x} · {bpm: reset}',
+    'tempo': '{tempo: 120} · {tempo: +10} · {tempo: 50%} · {tempo: 2x} · {tempo: reset}',
+    'time': '{time: 4/4} · {time: 3/4} · {time: 6/8}',
+    'key': '{key: G} · {key: Am} · {key: F#m} · {key: Sol}',
+    'capo': '{capo: 3} · {capo: 0}',
+    'label': '{label: verse}',
+    'loop': '{loop: verse} · {loop: verse 3} · {loop: @start 2}',
+}
+#: The hint for a directive whose keyword isn't one of the above.
+UNKNOWN_DIRECTIVE_SYNTAX = '{bpm: …} · {time: …} · {key: …} · {capo: …} · {label: …} · {loop: …}'
+
+
+def directive_syntax(keyword: Optional[str]) -> str:
+    """The syntax hint for ``keyword`` (any case), or the list of directives
+    when it isn't one."""
+    return DIRECTIVE_SYNTAX.get((keyword or '').strip().lower(), UNKNOWN_DIRECTIVE_SYNTAX)
+
+
 @dataclass
 class Directive:
     """Represents a directive instruction in the song.
@@ -81,6 +106,19 @@ class Directive:
     capo: Optional[int] = None
     """Capo fret position (for DirectiveType.CAPO). 0 means no capo. Applies to
     fretboard voicings only; the fret/tab views draw shapes relative to it."""
+
+    keyword: Optional[str] = None
+    """The directive's name as written, lower-cased (``bpm``, ``tempo``,
+    ``soc``...); None for directives built in code."""
+
+    message: Optional[str] = None
+    """Why the directive is invalid (``Tempo must be 20-400``), for the
+    user; None when it is valid."""
+
+    @property
+    def syntax(self) -> str:
+        """The correct syntax for this directive's keyword (a hint)."""
+        return directive_syntax(self.keyword)
 
     def apply_bpm(self, current: int, reset_bpm: int) -> int:
         """The tempo after this ``{bpm}`` directive.

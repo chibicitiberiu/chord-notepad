@@ -55,8 +55,8 @@ def test_encode_states_with_enums_tuples_and_nested_dtos():
     assert name == "HighlightState"
     assert json.loads(payload) == {
         "text_revision": 3, "client_token": 7,
-        "spans": [{"start": 0, "end": 1, "kind": "chord"},
-                  {"start": 2, "end": 4, "kind": "comment"}]}
+        "spans": [{"start": 0, "end": 1, "kind": "chord", "message": ""},
+                  {"start": 2, "end": 4, "kind": "comment", "message": ""}]}
 
     name, payload = encode(VoicingMenuState("piano", ((MenuItem("Piano", "piano"),), ())))
     assert json.loads(payload) == {"selected": "piano",
@@ -320,9 +320,9 @@ def test_typing_comes_back_as_highlight_spans(env):
     env.send("set_text", text="C Am\n// a comment", client_token=7)
     state = env.expect("HighlightState", lambda d: d["client_token"] == 7 and d["spans"])
     assert state["spans"] == [
-        {"start": 5, "end": 17, "kind": "comment"},
-        {"start": 0, "end": 1, "kind": "chord"},
-        {"start": 2, "end": 4, "kind": "chord"},
+        {"start": 5, "end": 17, "kind": "comment", "message": ""},
+        {"start": 0, "end": 1, "kind": "chord", "message": ""},
+        {"start": 2, "end": 4, "kind": "chord", "message": ""},
     ]
     assert env.latest("DocumentState")["is_modified"] is True
 
@@ -691,6 +691,7 @@ def test_every_output_type_crosses_the_bridge_as_plain_values(tmp_path):
         request = env.expect("InsertDirectiveRequest")
         env.send("check_directive", kind="label", fields={"label": "a"},
                  request_id=request["request_id"])             # DirectiveCheck
+        env.send("request_directive_hint", offset=0)             # DirectiveHint
         env.send("respond", request_id=request["request_id"], value={"label": "a"})  # UserError
         env.send("request_suggest_capo", selection=None)
         request = env.expect("CapoChoiceRequest")
@@ -761,3 +762,15 @@ def _assert_plain(value, path="dto"):
             _assert_json(getattr(value, f.name), f"{path}.{f.name}")
         else:
             _assert_plain(getattr(value, f.name), f"{path}.{f.name}")
+
+
+def test_a_directive_hint_crosses_the_bridge(env):
+    env.send("set_text", text="{bpm: 0}\nC G", client_token=3)
+    state = env.expect("HighlightState", lambda d: d["client_token"] == 3 and d["spans"])
+    assert {"start": 0, "end": 8, "kind": "directive_invalid",
+            "message": "Tempo must be 20-400"} in state["spans"]
+    env.send("request_directive_hint", offset=2)
+    hint = env.expect("DirectiveHint")
+    assert hint == {"offset": 2, "start": 0, "end": 8, "keyword": "bpm",
+                    "syntax": "{bpm: 120} · {bpm: +10} · {bpm: 50%} · {bpm: 2x} · {bpm: reset}",
+                    "message": "Tempo must be 20-400"}

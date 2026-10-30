@@ -34,11 +34,16 @@ class SpanKind(str, Enum):
 
 @dataclass(frozen=True)
 class Span:
-    """A highlighted range ``[start, end)`` of the text, in code points."""
+    """A highlighted range ``[start, end)`` of the text, in code points.
+
+    ``message`` says why an invalid directive is invalid (``Tempo must be
+    20-400``), for a tooltip; it is "" for every other span.
+    """
 
     start: int
     end: int
     kind: SpanKind
+    message: str = ""
 
 
 @dataclass(frozen=True)

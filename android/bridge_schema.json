@@ -85,6 +85,9 @@
       "old": "str"
     },
     "request_close": {},
+    "request_directive_hint": {
+      "offset": "int"
+    },
     "request_insert_directive": {
       "at": "int",
       "kind": "str"
@@ -219,6 +222,7 @@
     "rename_document",
     "rename_voicing",
     "request_close",
+    "request_directive_hint",
     "request_insert_directive",
     "request_quick_start",
     "request_suggest_capo",
@@ -349,6 +353,17 @@
         "form_error": "str",
         "kind": "str",
         "request_id": "int"
+      },
+      "kind": "event"
+    },
+    "DirectiveHint": {
+      "fields": {
+        "end": "int",
+        "keyword": "str",
+        "message": "str",
+        "offset": "int",
+        "start": "int",
+        "syntax": "str"
       },
       "kind": "event"
     },
@@ -543,6 +558,7 @@
       "fields": {
         "end": "int",
         "kind": "SpanKind",
+        "message": "str",
         "start": "int"
       },
       "kind": "value"

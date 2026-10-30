@@ -286,14 +286,13 @@ C F G Am"""
         assert "verse1" in song.labels
 
     def test_empty_label(self, song_parser):
-        """Test that empty label directive is ignored."""
+        """An empty label directive is invalid ("Label needs a name"), so it
+        names no label."""
         text = """{label: }
 C F G Am"""
         song = song_parser.build_song(text)
 
-        # Empty label should create a label with empty string name
-        # (parse_directives doesn't validate - that's expected behavior)
-        assert len(song.labels) == 1
+        assert len(song.labels) == 0
 
     def test_song_with_only_labels(self, song_parser):
         """Test song with only label directives."""

@@ -41,11 +41,13 @@ from session.documents import DocumentRef
 from session.events import (
     AudioUnavailable, CapoChoiceRequest, CloseApproved, ConfirmDiscardRequest, DiscardChoice,
     InsertDirectiveRequest, PickDocumentRequest, PickMode, QuickStartBlock, QuickStartContent,
-    DirectiveCheck, QuickStartPage, RenameFailed, TextEdited, UndoPolicy, UnexpectedError,
+    DirectiveCheck, DirectiveHint, QuickStartPage, RenameFailed, TextEdited, UndoPolicy,
+    UnexpectedError,
     UserError, VoicingEditorSchema,
 )
 from session.flows import Flow, FlowRunner
-from session.highlighting import chord_at, compute_spans, first_chord, nearest_chord
+from session.highlighting import (
+    chord_at, compute_spans, directive_hint, first_chord, nearest_chord)
 from session.host import Cancellable, Host
 from session.settings import TIME_SIGNATURE_UNITS, MAX_RECENT_LIMIT, SettingsValues
 from session.settings_edit import SettingsEdit
@@ -1267,6 +1269,19 @@ class AppSession:
         errors = {problem.field: problem.message} if problem and problem.field else {}
         form_error = problem.message if problem and not problem.field else ""
         self._emitter.emit(DirectiveCheck(kind, request_id, values, errors, form_error))
+
+    def directive_hint_at(self, offset: int) -> DirectiveHint:
+        """The directive at ``offset`` (or being typed there) with its syntax
+        hint and, when invalid, the reason; ``syntax`` is "" when there is no
+        directive there. For a tooltip while typing."""
+        hint = directive_hint(self._text, offset)
+        return hint or DirectiveHint(offset, offset, offset, "", "", "")
+
+    @_command
+    def request_directive_hint(self, offset: int) -> None:
+        """Emit :meth:`directive_hint_at` for ``offset`` (a bridge view's way
+        to ask; the reply is a :class:`DirectiveHint` event)."""
+        self._emitter.emit(self.directive_hint_at(offset))
 
     @_command
     def request_voicing_editor_schema(self) -> None:

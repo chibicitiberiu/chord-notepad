@@ -33,17 +33,30 @@ class SongParserService:
         self._converter = NotationConverter()
         self._logger = logging.getLogger(__name__)
 
+    # Anything in braces is a directive: {keyword: value}, or {keyword} with
+    # the value missing. Unknown keywords and bad values are invalid ones.
+    # Empty braces ({}) aren't a directive at all.
+    DIRECTIVE_PATTERN = re.compile(r'\{([^}]*[^}\s][^}]*)\}')
+
+    _KEYWORD_TYPES = {
+        'bpm': DirectiveType.BPM, 'tempo': DirectiveType.BPM,
+        'time': DirectiveType.TIME_SIGNATURE, 'key': DirectiveType.KEY,
+        'capo': DirectiveType.CAPO, 'label': DirectiveType.LABEL, 'loop': DirectiveType.LOOP,
+    }
+
     def parse_directives(self, text: str) -> List[Directive]:
         """Parse directives from text.
 
-        Directives follow the format: {keyword: value}
-        Supported directives:
-        - {bpm: 120}
-        - {time: 4/4}
-        - {key: C}
-        - {loop: label count}
+        Directives follow the format ``{keyword: value}``: ``bpm`` (or
+        ``tempo``), ``time``, ``key``, ``capo``, ``label`` and ``loop``. Each
+        one comes back valid, or invalid with ``message`` saying why (a value
+        out of range, the wrong format, a missing value, an unknown keyword,
+        a loop to a label that isn't above it...). Every directive carries its
+        ``keyword``, so a view can show the correct syntax
+        (:attr:`Directive.syntax`).
 
-        Comments (// to end of line) are stripped before parsing.
+        Directives in comments (// to end of line) and on plain-text lines
+        (first non-space character '.') are skipped.
 
         Args:
             text: Text to parse
@@ -66,135 +79,108 @@ class SongParserService:
                     return True
             return False
 
-        # Pattern to match {keyword: value}
-        pattern = r'\{([^:}]+):\s*([^}]+)\}'
-
-        for match in re.finditer(pattern, text):
-            # Skip directives inside comments
+        for match in self.DIRECTIVE_PATTERN.finditer(text):
             if is_in_comment(match.start()):
                 continue
-            start = match.start()
-            end = match.end()
-            keyword = match.group(1).strip().lower()
-            value = match.group(2).strip()
+            directives.append(self._parse_one(match.group(1), match.start(), match.end()))
 
-            directive_created = False
-
-            try:
-                if keyword in ('bpm', 'tempo'):
-                    directive = self._parse_bpm_directive(value, start, end)
-                    directives.append(directive)
-                    directive_created = True
-
-                elif keyword == 'time':
-                    # Parse time signature like "4/4"
-                    parts = value.split('/')
-                    if len(parts) == 2:
-                        beats = int(parts[0])
-                        unit = int(parts[1])
-                        if not MIN_BEATS <= beats <= MAX_BEATS or unit not in TIME_SIGNATURE_UNITS:
-                            raise ValueError(f"Unsupported time signature: {value}")
-                        directive = Directive(
-                            type=DirectiveType.TIME_SIGNATURE,
-                            start=start,
-                            end=end,
-                            beats=beats,
-                            unit=unit
-                        )
-                        directives.append(directive)
-                        directive_created = True
-                    else:
-                        # Invalid time signature format
-                        raise ValueError(f"Invalid time signature format: {value}")
-
-                elif keyword == 'key':
-                    if not is_valid_key(value):
-                        raise ValueError(f"Not a key: {value}")
-                    directive = Directive(
-                        type=DirectiveType.KEY,
-                        start=start,
-                        end=end,
-                        key=value
-                    )
-                    directives.append(directive)
-                    directive_created = True
-
-                elif keyword == 'capo':
-                    # Parse capo directive: {capo: N} where N is a fret 0..12
-                    # (0 means no capo). Out-of-range or non-integer is invalid.
-                    fret = int(value)
-                    if not 0 <= fret <= 12:
-                        raise ValueError(f"Capo out of range (0-12): {value}")
-                    directive = Directive(
-                        type=DirectiveType.CAPO,
-                        start=start,
-                        end=end,
-                        capo=fret
-                    )
-                    directives.append(directive)
-                    directive_created = True
-
-                elif keyword == 'loop':
-                    # "label [count]": the count is the last word when it is a
-                    # whole number; the label is everything before it, so a
-                    # label may contain spaces ({loop: my verse 2}).
-                    label, count = self._split_loop_value(value)
-                    if not label:
-                        raise ValueError(f"Invalid loop format: {value}")
-                    directive = Directive(
-                        type=DirectiveType.LOOP,
-                        start=start,
-                        end=end,
-                        label=label,
-                        loop_count=count
-                    )
-                    directives.append(directive)
-                    directive_created = True
-
-                elif keyword == 'label':
-                    # Parse label directive: {label: name}
-                    directive = Directive(
-                        type=DirectiveType.LABEL,
-                        start=start,
-                        end=end,
-                        label=value
-                    )
-                    directives.append(directive)
-                    directive_created = True
-
-                else:
-                    # Unknown directive keyword
-                    raise ValueError(f"Unknown directive keyword: {keyword}")
-
-            except (ValueError, IndexError) as e:
-                self._logger.warning(f"Failed to parse directive at position {start}: {e}")
-                # Create an invalid directive
-                if not directive_created:
-                    directive = Directive(
-                        type=DirectiveType.UNKNOWN,
-                        start=start,
-                        end=end,
-                        is_valid=False
-                    )
-                    directives.append(directive)
-
-        self._check_labels_and_loops(directives)
+        self._check_labels_and_loops(directives, text)
         return directives
 
-    def _check_labels_and_loops(self, directives: List[Directive]) -> None:
+    def _parse_one(self, body: str, start: int, end: int) -> Directive:
+        """One directive from the text between its braces."""
+        keyword, colon, value = body.partition(':')
+        keyword = keyword.strip().lower()
+        value = value.strip()
+        kind = self._KEYWORD_TYPES.get(keyword, DirectiveType.UNKNOWN)
+        try:
+            if kind == DirectiveType.UNKNOWN:
+                if not keyword:
+                    raise ValueError("Empty directive")
+                raise ValueError(f"Unknown directive '{keyword}'")
+            if not colon or not value:
+                raise ValueError(self._MISSING_VALUE[kind])
+            directive = self._parse_value(kind, value, start, end)
+        except (ValueError, IndexError) as e:
+            self._logger.debug(f"Invalid directive at position {start}: {e}")
+            # An invalid tempo keeps its type; other invalid directives are
+            # UNKNOWN (``keyword`` still says what they were meant to be).
+            invalid_type = kind if kind == DirectiveType.BPM else DirectiveType.UNKNOWN
+            return Directive(type=invalid_type, start=start, end=end, is_valid=False,
+                             keyword=keyword, message=str(e))
+        directive.keyword = keyword
+        return directive
+
+    _MISSING_VALUE = {
+        DirectiveType.BPM: "Tempo needs a value",
+        DirectiveType.TIME_SIGNATURE: "Time signature needs a value such as 4/4",
+        DirectiveType.KEY: "Key needs a note name",
+        DirectiveType.CAPO: "Capo needs a fret from 0 to 12",
+        DirectiveType.LABEL: "Label needs a name",
+        DirectiveType.LOOP: "Loop needs a label to repeat",
+    }
+
+    def _parse_value(self, kind: DirectiveType, value: str, start: int, end: int) -> Directive:
+        """A valid directive of ``kind``; ValueError (the reason) if the value is bad."""
+        if kind == DirectiveType.BPM:
+            return self._parse_bpm_directive(value, start, end)
+        if kind == DirectiveType.TIME_SIGNATURE:
+            beats_text, slash, unit_text = value.partition('/')
+            try:
+                beats, unit = int(beats_text), int(unit_text)
+            except ValueError:
+                raise ValueError("Time signature must be beats/unit, such as 4/4")
+            if not slash:
+                raise ValueError("Time signature must be beats/unit, such as 4/4")
+            if not MIN_BEATS <= beats <= MAX_BEATS:
+                raise ValueError(f"Beats must be {MIN_BEATS}-{MAX_BEATS}")
+            if unit not in TIME_SIGNATURE_UNITS:
+                units = ', '.join(str(u) for u in TIME_SIGNATURE_UNITS[:-1])
+                raise ValueError(f"Beat unit must be {units} or {TIME_SIGNATURE_UNITS[-1]}")
+            return Directive(type=kind, start=start, end=end, beats=beats, unit=unit)
+        if kind == DirectiveType.KEY:
+            if not is_valid_key(value):
+                raise ValueError("Key must be a note name such as G, Am, F#m or Sol")
+            return Directive(type=kind, start=start, end=end, key=value)
+        if kind == DirectiveType.CAPO:
+            # {capo: N}: a fret 0..12 (0 means no capo).
+            try:
+                fret = int(value)
+            except ValueError:
+                fret = -1
+            if not 0 <= fret <= 12:
+                raise ValueError("Capo must be a fret from 0 to 12")
+            return Directive(type=kind, start=start, end=end, capo=fret)
+        if kind == DirectiveType.LOOP:
+            # "label [count]": the count is the last word when it is a whole
+            # number; the label is everything before it, so a label may
+            # contain spaces ({loop: my verse 2}).
+            label, count = self._split_loop_value(value)
+            if not label:
+                raise ValueError("Loop needs a label to repeat")
+            return Directive(type=kind, start=start, end=end, label=label, loop_count=count)
+        # DirectiveType.LABEL
+        return Directive(type=kind, start=start, end=end, label=value)
+
+    def _check_labels_and_loops(self, directives: List[Directive], text: str) -> None:
         """Mark repeated labels and loops that can't be played invalid.
 
         A label name may be used once; a repeat is invalid (loops go to the
         first). A loop must name a label above it (or ``@start``): a loop
-        names a section that has just played. A loop to a missing label, or
+        repeats a section that has just played. A loop to a missing label, or
         one that would jump forward, is invalid; this also rules out loops
         that send each other back and forth forever.
         """
+        def line_of(pos: int) -> int:
+            return text.count('\n', 0, pos) + 1
+
         labels = {}
         for directive in directives:
             if directive.type == DirectiveType.LABEL and directive.is_valid:
                 if directive.label in labels:
                     directive.is_valid = False
+                    directive.message = (f"Label '{directive.label}' is already used on "
+                                         f"line {line_of(labels[directive.label])}")
                 else:
                     labels[directive.label] = directive.start
         for directive in directives:
@@ -203,18 +189,25 @@ class SongParserService:
             if directive.label == '@start':
                 continue
             label_start = labels.get(directive.label)
-            if label_start is None or label_start > directive.start:
+            if label_start is None:
                 directive.is_valid = False
+                directive.message = f"No label '{directive.label}' in the song"
+            elif label_start > directive.start:
+                directive.is_valid = False
+                directive.message = (f"Label '{directive.label}' comes after the loop; "
+                                     f"a loop repeats a section above it")
 
     def _parse_bpm_directive(self, value: str, start: int, end: int) -> Directive:
         """Parse a BPM directive value into a Directive object.
 
         Supports multiple formats:
-        - Absolute: "120" -> set BPM to 120 (MIN_BPM-MAX_BPM; outside is invalid)
+        - Absolute: "120" -> set BPM to 120 (MIN_BPM-MAX_BPM)
         - Relative: "+20" or "-20" -> add/subtract from current BPM
         - Percentage: "50%" -> set to 50% of current BPM (above 0)
         - Multiplier: "2x" or "0.5x" -> multiply current BPM (above 0)
-        - Reset: "reset" or "original" -> restore initial BPM
+        - Reset: "reset" or "original" -> restore the song's starting tempo
+
+        Relative results are clamped to MIN_BPM-MAX_BPM when played.
 
         Args:
             value: The BPM value string to parse
@@ -222,99 +215,47 @@ class SongParserService:
             end: End position in text
 
         Returns:
-            Directive object (valid or invalid)
+            A valid BPM Directive.
+
+        Raises:
+            ValueError: With the reason, for a value that isn't one of these.
         """
         value = value.strip()
 
-        # Check for reset keywords
         if value.lower() in ('reset', 'original'):
-            return Directive(
-                type=DirectiveType.BPM,
-                start=start,
-                end=end,
-                bpm_modifier_type=BPMModifierType.RESET
-            )
+            return Directive(type=DirectiveType.BPM, start=start, end=end,
+                             bpm_modifier_type=BPMModifierType.RESET)
 
-        # Check for percentage (e.g., "50%")
         if value.endswith('%'):
-            try:
-                percentage = self._positive_float(value[:-1])
-                return Directive(
-                    type=DirectiveType.BPM,
-                    start=start,
-                    end=end,
-                    bpm_modifier_type=BPMModifierType.PERCENTAGE,
-                    bpm_modifier_value=percentage
-                )
-            except ValueError:
-                self._logger.warning(f"Invalid percentage BPM value: {value}")
-                return Directive(
-                    type=DirectiveType.BPM,
-                    start=start,
-                    end=end,
-                    is_valid=False
-                )
+            percentage = self._positive_float(value[:-1], "A percentage")
+            return Directive(type=DirectiveType.BPM, start=start, end=end,
+                             bpm_modifier_type=BPMModifierType.PERCENTAGE,
+                             bpm_modifier_value=percentage)
 
-        # Check for multiplier (e.g., "2x", "0.5x")
         if value.endswith('x'):
-            try:
-                multiplier = self._positive_float(value[:-1])
-                return Directive(
-                    type=DirectiveType.BPM,
-                    start=start,
-                    end=end,
-                    bpm_modifier_type=BPMModifierType.MULTIPLIER,
-                    bpm_modifier_value=multiplier
-                )
-            except ValueError:
-                self._logger.warning(f"Invalid multiplier BPM value: {value}")
-                return Directive(
-                    type=DirectiveType.BPM,
-                    start=start,
-                    end=end,
-                    is_valid=False
-                )
+            multiplier = self._positive_float(value[:-1], "A multiplier")
+            return Directive(type=DirectiveType.BPM, start=start, end=end,
+                             bpm_modifier_type=BPMModifierType.MULTIPLIER,
+                             bpm_modifier_value=multiplier)
 
-        # Check for relative adjustment (e.g., "+20", "-10")
         if value.startswith(('+', '-')):
             try:
                 relative_value = int(value)
-                return Directive(
-                    type=DirectiveType.BPM,
-                    start=start,
-                    end=end,
-                    bpm_modifier_type=BPMModifierType.RELATIVE,
-                    bpm_modifier_value=float(relative_value)
-                )
             except ValueError:
-                self._logger.warning(f"Invalid relative BPM value: {value}")
-                return Directive(
-                    type=DirectiveType.BPM,
-                    start=start,
-                    end=end,
-                    is_valid=False
-                )
+                raise ValueError("A tempo change must be a whole number, such as +10")
+            return Directive(type=DirectiveType.BPM, start=start, end=end,
+                             bpm_modifier_type=BPMModifierType.RELATIVE,
+                             bpm_modifier_value=float(relative_value))
 
-        # Default: absolute BPM value, within the app's tempo range
         try:
             bpm_value = int(value)
-            if not MIN_BPM <= bpm_value <= MAX_BPM:
-                raise ValueError(f"BPM out of range ({MIN_BPM}-{MAX_BPM}): {value}")
-            return Directive(
-                type=DirectiveType.BPM,
-                start=start,
-                end=end,
-                bpm=bpm_value,
-                bpm_modifier_type=BPMModifierType.ABSOLUTE
-            )
         except ValueError:
-            self._logger.warning(f"Invalid BPM value: {value}")
-            return Directive(
-                type=DirectiveType.BPM,
-                start=start,
-                end=end,
-                is_valid=False
-            )
+            raise ValueError(f"Tempo must be a whole number from {MIN_BPM} to {MAX_BPM}, "
+                             f"a change (+10, 50%, 2x) or reset")
+        if not MIN_BPM <= bpm_value <= MAX_BPM:
+            raise ValueError(f"Tempo must be {MIN_BPM}-{MAX_BPM}")
+        return Directive(type=DirectiveType.BPM, start=start, end=end, bpm=bpm_value,
+                         bpm_modifier_type=BPMModifierType.ABSOLUTE)
 
     _LOOP_COUNT = re.compile(r'^(.*?)\s+([+-]?\d+)$')
 
@@ -331,15 +272,18 @@ class SongParserService:
             return value.strip(), 2
         count = int(match.group(2))
         if count < 1:
-            raise ValueError(f"Loop count must be at least 1: {value}")
+            raise ValueError("Loop count must be at least 1")
         return match.group(1).strip(), count
 
     @staticmethod
-    def _positive_float(text: str) -> float:
+    def _positive_float(text: str, what: str = "A number") -> float:
         """``text`` as a finite number above zero; ValueError otherwise."""
-        number = float(text)
+        try:
+            number = float(text)
+        except ValueError:
+            raise ValueError(f"{what} must be a number, such as 50% or 0.5x")
         if not math.isfinite(number) or number <= 0:
-            raise ValueError(f"Not a positive number: {text}")
+            raise ValueError(f"{what} must be above 0")
         return number
 
     def is_roman_numeral_chord(self, chord_str: str) -> bool:
@@ -673,7 +617,7 @@ class SongParserService:
             line_directives = self.parse_directives(line_content)
 
             for directive in line_directives:
-                if directive.type == DirectiveType.LABEL:
+                if directive.type == DirectiveType.LABEL and directive.is_valid:
                     # Calculate offset within the line
                     offset = directive.start
 
