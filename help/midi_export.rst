@@ -12,8 +12,11 @@ Exporting a Song
 .. only:: desktop
 
    1. Go to :menuselection:`File --> Export MIDI...`
-   2. Choose a location and filename, and save with a ``.mid`` extension.
-   3. Chord Notepad writes the file.
+   2. The save dialog suggests the song's name with ``.mid`` (``Untitled.mid``
+      for a song you haven't saved yet). Choose a folder, change the name if
+      you like, and save.
+   3. Chord Notepad renders the song and writes the file. The status bar says
+      "Exporting MIDI: …" while it works and "Exported MIDI: …" when it's done.
 
 .. only:: android
 
@@ -41,7 +44,7 @@ Exporting a Song
    (a song without chords, or a folder the app can't write to), a message
    says why.
 
-There's no dialog to configure -- the export uses whatever is currently set
+There are no export options to set: the export uses whatever is currently set
 for voicing, instrument, and tempo, described below.
 
 
@@ -85,20 +88,26 @@ Tempo, meter, and key come from the same directives that drive playback:
 
 .. only:: desktop
 
-   * The starting tempo is the toolbar BPM. Every ``{bpm}`` change in the song
-     is written at the point it occurs, so the file speeds up and slows down
-     exactly where the song does.
+   * The starting tempo is the toolbar BPM, unless a ``{bpm}`` before the
+     first chord sets it. Every ``{bpm}`` change in the song is written at the
+     point it occurs, so the file speeds up and slows down exactly where the
+     song does.
 
 .. only:: android
 
-   * The starting tempo is the one in the player's song pill: the song's
-     first ``{bpm}``, or the tempo default in Song defaults when the song has
-     none (see :doc:`playback`). Every ``{bpm}`` change in the song is
-     written at the point it occurs, so the file speeds up and slows down
-     exactly where the song does.
+   * The starting tempo is the one in the player's song pill: set by a
+     ``{bpm}`` before the song's first chord, or the Tempo in Song defaults
+     when there's none (see :doc:`playback`). Every ``{bpm}`` change in the
+     song is written at the point it occurs, so the file speeds up and slows
+     down exactly where the song does.
 
-* Each ``{time: beats/unit}`` becomes a MIDI time-signature event.
-* Each ``{key: note}`` becomes a MIDI key-signature event.
+* The starting time signature, and each ``{time: beats/unit}``, becomes a MIDI
+  time-signature event. A unit MIDI can't store (``{time: 4/3}``, say) is left
+  out; the timing is still right.
+* The starting key, and each ``{key: note}``, becomes a MIDI key-signature
+  event, placed at the first chord in that key. Only keys in American notation
+  (``G``, ``Bb``, ``F#m``) are written: with European keys such as ``Sol`` the
+  file has no key signature.
 
 .. only:: desktop
 
@@ -121,17 +130,20 @@ most software expects.
 **Ensemble voicings export one track per voice.** If an :doc:`ensemble
 voicing <ensembles>` (Choir, Male Choir, Treble Choir, String Quartet, or a
 custom ensemble) is selected instead of piano or guitar, the single chord
-track is replaced by one named track per voice -- Soprano, Alto, Tenor,
-and Bass each get their own track, top voice first, so the file opens in
-a notation program as separate parts rather than one stack of chords.
+track is replaced by one track per voice, named after it and top voice first:
+Soprano, Alto, Tenor and Bass for the Choir, Violin I, Violin II, Viola and
+Cello for the String Quartet. The file opens in a notation program as separate
+parts rather than one stack of chords. Every voice track gets the same
+instrument, the one selected for playback.
 
 
 Working with the Exported File
 ===============================
 
 Any MIDI-aware program can open the file: a DAW like Reaper or Ableton, a
-notation program like MuseScore, or GarageBand. The chords all sit on one
-track, and the tempo and meter changes come along with them, so a program
+notation program like MuseScore, or GarageBand. The chords sit on one track
+(one per voice for an ensemble), and the tempo and meter changes come along
+with them, so a program
 that reads MIDI tempo maps will follow the song's tempo changes rather than
 playing everything at a single flat speed.
 
@@ -153,9 +165,9 @@ A Couple of Gotchas
 
 .. only:: desktop
 
-   * **The speed multiplier doesn't affect the file.** The toolbar's ``x0.5``
-     / ``x2`` multiplier (see :doc:`playback`) is a practice control for live
-     playback only. Export always uses the song's real tempo -- the BPM from
+   * **The speed multiplier doesn't affect the file.** The toolbar's speed
+     percentage (see :doc:`playback`) is a practice control for live playback
+     only. Export always uses the song's real tempo -- the BPM from
      the toolbar and any ``{bpm}`` directives, with the multiplier ignored.
 
 .. only:: android
