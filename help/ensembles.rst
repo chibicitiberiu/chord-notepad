@@ -312,6 +312,17 @@ Custom Ensembles
    **Add voice** adds a voice at the bottom and **✕** removes one. An
    ensemble has 2 to 8 voices.
 
+.. platform-figure:: settings-voicing-ensemble
+   :platforms: android
+   :alt: The Jazz Vocal Trio form scrolled to Voices: short help lines for
+         Name, Low, High and Staff, then a card per voice: Lead, A3 to F5,
+         and Harmony, F3 to D5, each with Staff set to Auto and an X to
+         remove it.
+
+   The voices of a custom ensemble, one card each.
+
+.. only:: android
+
    Under the voices:
 
    * **Max spacing**: the largest gap, in semitones, allowed between each
