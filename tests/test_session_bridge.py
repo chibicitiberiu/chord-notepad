@@ -481,7 +481,7 @@ def test_check_directive_replies_with_field_errors_and_stays_pending(env):
     env.send("check_directive", kind="bpm", fields={"value": "999"}, request_id=rid)
     check = env.expect("DirectiveCheck")
     assert check == {"kind": "bpm", "request_id": rid, "fields": {"value": "999"},
-                     "errors": {"value": "BPM must be between 20 and 300."}, "form_error": ""}
+                     "errors": {"value": "BPM must be between 20 and 400."}, "form_error": ""}
     env.send("check_directive", kind="bpm", fields={"value": "100"}, request_id=rid)
     ok = env.expect("DirectiveCheck", lambda d: not d["errors"])
     assert ok["form_error"] == ""

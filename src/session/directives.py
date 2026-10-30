@@ -26,7 +26,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Iterable, Mapping, Optional, Tuple
 
-from constants import MAX_BEATS, MIN_BEATS, TIME_SIGNATURE_UNITS
+from constants import MAX_BEATS, MAX_BPM, MIN_BEATS, MIN_BPM, TIME_SIGNATURE_UNITS
 from models.directive import DirectiveType
 from models.notation import Notation
 from session.toolbar import key_options
@@ -206,8 +206,8 @@ def _check_bpm(value: str) -> Optional[DirectiveProblem]:
     bpm = _as_int(value)
     if bpm is None:
         return _invalid("Invalid BPM value.", "value")
-    if bpm < 20 or bpm > 300:
-        return _invalid("BPM must be between 20 and 300.", "value")
+    if not MIN_BPM <= bpm <= MAX_BPM:
+        return _invalid(f"BPM must be between {MIN_BPM} and {MAX_BPM}.", "value")
     return None
 
 

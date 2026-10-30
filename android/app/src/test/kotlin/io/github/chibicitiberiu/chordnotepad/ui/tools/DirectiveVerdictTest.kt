@@ -28,10 +28,10 @@ class DirectiveVerdictTest {
 
     @Test
     fun `an error keeps Insert disabled and is shown once the user changed something`() {
-        val bad = check(errors = mapOf("value" to "BPM must be between 20 and 300."))
+        val bad = check(errors = mapOf("value" to "BPM must be between 20 and 400."))
         val shown = DirectiveVerdict.of("bpm", 3, answer, bad, showErrors = true)
         assertFalse(shown.canInsert)
-        assertEquals(listOf("BPM must be between 20 and 300."), shown.messages)
+        assertEquals(listOf("BPM must be between 20 and 400."), shown.messages)
         assertEquals(emptyList<String>(), DirectiveVerdict.of("bpm", 3, answer, bad, showErrors = false).messages)
     }
 

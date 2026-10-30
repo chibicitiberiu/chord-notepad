@@ -929,7 +929,7 @@ Insert Tempo (BPM) Dialog
 
 Enter a tempo value:
 
-* **Absolute:** Just a number from 20 to 300, like ``120``
+* **Absolute:** Just a number from 20 to 400, like ``120``
 * **Relative:** ``+20`` or ``-10``
 * **Percentage:** ``50%``
 * **Multiplier:** ``2x`` or ``0.5x``

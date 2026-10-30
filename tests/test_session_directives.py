@@ -29,11 +29,16 @@ def test_valid_bpm(value, text):
     ("fastx", "Invalid multiplier value."),
     ("+abc", "Invalid relative BPM value."),
     ("fast", "Invalid BPM value."),
-    ("19", "BPM must be between 20 and 300."),
-    ("301", "BPM must be between 20 and 300."),
+    ("19", "BPM must be between 20 and 400."),
+    ("401", "BPM must be between 20 and 400."),
 ])
 def test_invalid_bpm(value, message):
     assert _message("bpm", value=value) == message
+
+
+@pytest.mark.parametrize("value", ["20", "300", "301", "400"])
+def test_bpm_range_is_the_apps_tempo_range(value):
+    assert _message("bpm", value=value) is None
 
 
 def test_time_signature():
