@@ -1,0 +1,24 @@
+# Microsoft Store listing, Romanian (ro-RO). Reviewed by Tibi 2026-10-30.
+# Title stays "Chord Notepad" in every language.
+
+== Description ==
+Chord Notepad este un editor de text pentru muzicieni, amatori sau profesioniști. Scrii cântecele împreună cu acordurile deasupra versurilor, iar Chord Notepad recunoaște acordurile pe măsură ce scrii. Apasă pe orice acord ca să-l auzi sau apasă Play ca să asculți tot cântecul în ritm.
+
+Programul înțelege mai multe notații pentru acorduri: americană (C, Am7, Dsus4, G/B, F#m7b5), solfegiu (Do, Re, Mi) sau relativă, prin cifre romane (I, vi, IV, vii°), care urmează tonalitatea pe care o alegi. Directive precum {bpm: 90}, {time: 3/4} și {key: G} stabilesc tempoul, măsura și tonalitatea. Poți denumi secțiunile cu {label: eticheta} și le poți repeta în buclă cu {loop: eticheta 2}.
+
+Acordurile pot fi vizualizate și ca piano roll, pe portativ, ca diagrame de acorduri pentru chitară sau ca tabulatură. Programul adaptează redarea acordurilor pentru mai multe tipuri de instrumente: claviatură, instrumente cu coarde sau cor pe 4 voci.
+
+Uneltele incluse te pot ajuta să transpui un cântec, să găsești cea mai bună poziție pentru capodastru, să identifici un acord după notele lui și să exporți în MIDI.
+
+Aceasta este ediția de susținere a Chord Notepad. Aplicația este open source și disponibilă gratuit pe GitHub. Cumpărând-o de aici primești actualizări automate prin Store și ajuți la dezvoltarea ei.
+
+Interfața aplicației este în limba engleză.
+
+== Features ==
+Scrii acordurile deasupra versurilor; rândurile cu acorduri sunt recunoscute automat
+Apasă pe orice acord ca să-l auzi sau ascultă tot cântecul în ritm
+Notație americană (C, Am7), solfegiu (Do, Re, Mi) și cifre romane (I, vi, IV, viio)
+Tempo, măsură, tonalitate, secțiuni și repetări prin directive simple
+Foaia de acorduri: piano roll, portativ, diagrame pentru chitară și tabulatură
+Acorduri adaptate pentru claviatură, chitară sau cor pe 4 voci, cu o conducere lină a vocilor
+Transpunere, sugestie de capodastru, identificare de acorduri și export MIDI
