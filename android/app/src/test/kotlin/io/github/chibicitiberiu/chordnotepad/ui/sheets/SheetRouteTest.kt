@@ -34,25 +34,35 @@ class SheetRouteTest {
     }
 
     @Test
-    fun `typed speed is a whole percentage from 25 to 400`() {
-        assertEquals(125, parseSpeedPct("125"))
-        assertEquals(125, parseSpeedPct(" 125 % "))
-        assertEquals(25, parseSpeedPct("25"))
-        assertEquals(400, parseSpeedPct("400"))
-        assertNull(parseSpeedPct("24"))
+    fun `typed speed is a percentage from 12,5 to 400 like the session's`() {
+        assertEquals(125.0, parseSpeedPct("125"))
+        assertEquals(125.0, parseSpeedPct(" 125 % "))
+        assertEquals(12.5, parseSpeedPct("12.5"))
+        assertEquals(12.5, parseSpeedPct("12,5"))
+        assertEquals(25.0, parseSpeedPct("25"))
+        assertEquals(400.0, parseSpeedPct("400"))
+        assertNull(parseSpeedPct("12.4"))
+        assertNull(parseSpeedPct("12"))
         assertNull(parseSpeedPct("401"))
         assertNull(parseSpeedPct("1.5"))
         assertNull(parseSpeedPct("-50"))
         assertNull(parseSpeedPct(""))
+        assertNull(parseSpeedPct("."))
+        assertNull(parseSpeedPct("1..5"))
         assertNull(parseSpeedPct("abc"))
         assertNull(parseSpeedPct("99999999999"))
     }
 
     @Test
-    fun `the slider snaps to 5 percent steps`() {
-        assertEquals(125, snapSpeedPct(123.4f))
-        assertEquals(25, snapSpeedPct(10f))
-        assertEquals(400, snapSpeedPct(420f))
+    fun `the slider snaps to 5 percent steps from 12,5`() {
+        assertEquals(125.0, snapSpeedPct(123.4f), 0.0)
+        assertEquals(12.5, snapSpeedPct(5f), 0.0)
+        assertEquals(12.5, snapSpeedPct(13.5f), 0.0)
+        assertEquals(15.0, snapSpeedPct(14f), 0.0)
+        assertEquals(400.0, snapSpeedPct(420f), 0.0)
+        assertEquals("12.5", speedPctText(SPEED_MIN_PCT))
+        assertEquals("400", speedPctText(SPEED_MAX_PCT))
+        assertEquals("133.3", speedPctText(133.3333))
     }
 
     @Test
@@ -62,6 +72,7 @@ class SheetRouteTest {
         assertEquals("0.5×", speedBadge(50.0))
         assertEquals("2×", speedBadge(200.0))
         assertEquals("0.25×", speedBadge(25.0))
+        assertEquals("0.125×", speedBadge(12.5))
     }
 
     @Test

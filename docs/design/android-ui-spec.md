@@ -85,7 +85,7 @@ Every sheet has a drag handle, a title, a scrollable body and actions at the bot
 - **Instrument:** two levels.
   - The first level lists the 16 General MIDI families, with a marker on the current family and its current instrument shown on the right.
   - Tapping a family opens its 8 instruments with program numbers. ← goes back.
-- **Speed:** the value in large type, a slider (25–400%), then **Reset**, **Manual…** and **Done**. Manual… opens a small dialog with a number field (25–400, validated) and Cancel / OK.
+- **Speed:** the value in large type, a slider (12.5–400%, the session's and the desktop's range), then **Reset**, **Manual…** and **Done**. Manual… opens a small dialog with a number field (12.5–400, validated) and Cancel / OK.
 
 ## Drawer (☰)
 

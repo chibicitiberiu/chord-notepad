@@ -46,7 +46,6 @@ import io.github.chibicitiberiu.chordnotepad.ui.menus.VoicingGroup
 import io.github.chibicitiberiu.chordnotepad.ui.menus.VoicingGroupKind
 import io.github.chibicitiberiu.chordnotepad.ui.menus.programParts
 import io.github.chibicitiberiu.chordnotepad.ui.theme.appColors
-import kotlin.math.roundToInt
 
 /** A radio mark: filled in the primary colour when [on], else a grey ring. */
 @Composable
@@ -174,23 +173,23 @@ fun InstrumentPickerSheet(
 }
 
 /**
- * Playback speed: the value in large type, a 25–400 % slider (5 % steps;
+ * Playback speed: the value in large type, a 12.5–400 % slider (5 % steps;
  * the session gets each new value), then Reset, Manual… and Done.
  *
  * @param pct The session's speed.
  */
 @Composable
-fun SpeedSheet(pct: Double, onSpeed: (Int) -> Unit, onReset: () -> Unit, onManual: () -> Unit, onDismiss: () -> Unit) {
+fun SpeedSheet(pct: Double, onSpeed: (Double) -> Unit, onReset: () -> Unit, onManual: () -> Unit, onDismiss: () -> Unit) {
     val colors = appColors
     // The thumb follows the finger; the session's value takes over when it changes.
-    var dragged by remember { mutableStateOf<Float?>(null) }
-    LaunchedEffect(pct) { if (dragged?.roundToInt() == pct.roundToInt()) dragged = null }
-    val shown = dragged ?: pct.toFloat()
+    var dragged by remember { mutableStateOf<Double?>(null) }
+    LaunchedEffect(pct) { if (dragged?.let { Math.abs(it - pct) < 0.01 } == true) dragged = null }
+    val shown = dragged ?: pct
     PickerSheet(
         title = stringResource(R.string.speed_title),
         onDismiss = onDismiss,
         trailing = {
-            Text("${shown.roundToInt()}%", fontSize = 20.sp, fontWeight = FontWeight.Medium, color = colors.primary)
+            Text("${speedPctText(shown)}%", fontSize = 20.sp, fontWeight = FontWeight.Medium, color = colors.primary)
         },
         actions = {
             SheetTextButton(stringResource(R.string.speed_reset), onReset)
@@ -200,11 +199,11 @@ fun SpeedSheet(pct: Double, onSpeed: (Int) -> Unit, onReset: () -> Unit, onManua
         },
     ) {
         Slider(
-            value = shown.coerceIn(SPEED_MIN_PCT.toFloat(), SPEED_MAX_PCT.toFloat()),
+            value = shown.toFloat().coerceIn(SPEED_MIN_PCT.toFloat(), SPEED_MAX_PCT.toFloat()),
             onValueChange = { v ->
                 val snapped = snapSpeedPct(v)
-                if (dragged?.roundToInt() != snapped) {
-                    dragged = snapped.toFloat()
+                if (dragged != snapped) {
+                    dragged = snapped
                     onSpeed(snapped)
                 }
             },
@@ -213,17 +212,17 @@ fun SpeedSheet(pct: Double, onSpeed: (Int) -> Unit, onReset: () -> Unit, onManua
             modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
         )
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text("$SPEED_MIN_PCT%", fontSize = 11.sp, color = colors.muted)
-            Text("$SPEED_MAX_PCT%", fontSize = 11.sp, color = colors.muted)
+            Text("${speedPctText(SPEED_MIN_PCT)}%", fontSize = 11.sp, color = colors.muted)
+            Text("${speedPctText(SPEED_MAX_PCT)}%", fontSize = 11.sp, color = colors.muted)
         }
     }
 }
 
-/** The small dialog Manual… opens: a number field, 25–400, checked before OK. */
+/** The small dialog Manual… opens: a number field, 12.5–400, checked before OK. */
 @Composable
-fun SpeedDialog(pct: Double, onApply: (Int) -> Unit, onDismiss: () -> Unit) {
+fun SpeedDialog(pct: Double, onApply: (Double) -> Unit, onDismiss: () -> Unit) {
     val colors = appColors
-    val initial = pct.roundToInt().toString()
+    val initial = speedPctText(pct)
     var field by remember { mutableStateOf(TextFieldValue(initial, TextRange(0, initial.length))) }
     var showError by rememberSaveable { mutableStateOf(false) }
     val focus = remember { FocusRequester() }

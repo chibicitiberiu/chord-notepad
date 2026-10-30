@@ -585,7 +585,7 @@ private fun Sheets(
             val pct = toolbar?.multiplierPct ?: 100.0
             SpeedSheet(
                 pct,
-                onSpeed = { actions.setMultiplierPct(it.toDouble()) },
+                onSpeed = actions::setMultiplierPct,
                 onReset = actions::resetMultiplier,
                 onManual = { go(SheetRoute.Speed(manual = true)) },
                 onDismiss = close,
@@ -594,7 +594,7 @@ private fun Sheets(
                 SpeedDialog(
                     pct,
                     onApply = {
-                        actions.setMultiplierPct(it.toDouble())
+                        actions.setMultiplierPct(it)
                         go(SheetRoute.Speed())
                     },
                     onDismiss = { go(SheetRoute.Speed()) },

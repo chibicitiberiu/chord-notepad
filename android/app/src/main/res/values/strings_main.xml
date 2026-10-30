@@ -46,8 +46,8 @@
     <string name="speed_title">Playback speed</string>
     <string name="speed_reset">Reset</string>
     <string name="speed_manual">Manual…</string>
-    <string name="speed_manual_hint">25 to 400</string>
-    <string name="speed_manual_error">Enter a number from 25 to 400</string>
+    <string name="speed_manual_hint">12.5 to 400</string>
+    <string name="speed_manual_error">Enter a number from 12.5 to 400</string>
     <string name="insert_tempo">Tempo</string>
     <string name="insert_time">Time signature</string>
     <string name="insert_key">Key</string>

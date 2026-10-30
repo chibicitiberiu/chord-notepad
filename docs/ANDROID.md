@@ -633,8 +633,8 @@ committed schema (2026-10-29).
   editable defaults, `write_song_defaults`, Edit → Edit mode with the cursor
   at `directive_offset`), Voicing (groups by value prefix, "Edit voicings…"
   → Settings at Voicings), Instrument (families → programs, ← back, Done
-  closes), Speed (slider 25–400 % in 5 % steps → `set_multiplier_pct`,
-  Reset, Manual… with `parseSpeedPct` 25–400), Insert (the six directive
+  closes), Speed (slider 12.5–400 % in 5 % steps → `set_multiplier_pct`,
+  Reset, Manual… with `parseSpeedPct` 12.5–400, the session's range), Insert (the six directive
   kinds → `request_insert_directive`). Rename (the title) sends
   `rename_document {name}`; `RenameFailed` without `can_save_as` keeps the
   dialog open with the reason, with it the dialog closes and offers
