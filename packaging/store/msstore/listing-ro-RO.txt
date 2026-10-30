@@ -10,7 +10,7 @@ Acordurile pot fi vizualizate și ca piano roll, pe portativ, ca diagrame de aco
 
 Uneltele incluse te pot ajuta să transpui un cântec, să găsești cea mai bună poziție pentru capodastru, să identifici un acord după notele lui și să exporți în MIDI.
 
-Aceasta este ediția de susținere a Chord Notepad. Aplicația este open source și disponibilă gratuit pe GitHub. Cumpărând-o de aici primești actualizări automate prin Store și ajuți la dezvoltarea ei.
+Aceasta este ediția de susținere a Chord Notepad. Aplicația este software liber, sub licența GNU AGPL-3.0, iar codul sursă și versiunea gratuită sunt pe GitHub: https://github.com/chibicitiberiu/chord-notepad. Cumpărând-o de aici primești actualizări automate prin Store și ajuți la dezvoltarea ei.
 
 Interfața aplicației este în limba engleză.
 
