@@ -87,6 +87,12 @@ _MARKER_GAP_FACTOR = 0.5
 _DOT_RADIUS_FACTOR = 0.34
 _OPEN_RADIUS_FACTOR = 0.24
 _NUT_HEIGHT_FACTOR = 0.12
+#: Clear space between the bottom of the chord symbol's text and the top of
+#: the open/muted string markers, px.
+_NAME_MARKER_GAP = 3.0
+#: Text sizes are points; the views draw 1 pt as 4/3 px (Tk at 96 dpi, and
+#: Android's sp = pt x 4/3 on a dp canvas).
+_PT_TO_PX = 4.0 / 3.0
 
 
 @dataclass(frozen=True)
@@ -150,12 +156,42 @@ def _song_geometry_inputs(song: RenderedSong) -> tuple:
     return rows, (string_count or DEFAULT_STRING_COUNT)
 
 
+def _text_half_height(size_pt: float) -> float:
+    """Half the line box of a ``size_pt`` text run in px (1 pt = 4/3 px):
+    how far a vertically centred label reaches above and below its centre."""
+    return size_pt * _PT_TO_PX / 2.0
+
+
 def _compute_geometry(height: float, rows: int, string_count: int) -> _Geometry:
     """Derive every pixel length from the content ``height`` alone (plus the
     song-wide ``rows``/``string_count``), so painting is a pure function of
-    ``(ctx, height)``."""
+    ``(ctx, height)``.
+
+    Top to bottom: the chord symbol (centred in ``symbol_h``), a gap, the
+    open/muted string markers, the nut and the grid. The markers' band is
+    reserved below the symbol's text, so an open-string circle never runs
+    into the name at any height or zoom. Its size follows the row height,
+    which in turn depends on what the band leaves, so the two are settled
+    by a few fixed-point steps (they converge fast: the band is under one
+    row out of ``rows``).
+    """
     symbol_h = max(14.0, height * _SYMBOL_FRAC)
-    grid_h = max(24.0, height - symbol_h - 2 * _GRID_VPAD)
+    symbol_size = int(max(9, min(16, round(height * 0.11))))
+    label_size = int(max(7, min(11, round(height * 0.08))))
+    name_bottom = symbol_h / 2.0 + _text_half_height(symbol_size)
+    marker_top = max(symbol_h, name_bottom + _NAME_MARKER_GAP)
+
+    grid_top = symbol_h + _GRID_VPAD
+    for _ in range(6):
+        grid_h = max(24.0, height - grid_top - _GRID_VPAD)
+        row_h = grid_h / rows
+        string_gap = row_h * _SG_TO_ROW
+        marker_gap = max(6.0, row_h * _MARKER_GAP_FACTOR)
+        open_r = max(2.0, string_gap * _OPEN_RADIUS_FACTOR)
+        marker_reach = max(open_r, _text_half_height(label_size))
+        grid_top = max(symbol_h + _GRID_VPAD, marker_top + marker_reach + marker_gap)
+
+    grid_h = max(24.0, height - grid_top - _GRID_VPAD)
     row_h = grid_h / rows
     string_gap = row_h * _SG_TO_ROW
     box_w = string_gap * (string_count - 1) if string_count > 1 else string_gap
@@ -163,7 +199,7 @@ def _compute_geometry(height: float, rows: int, string_count: int) -> _Geometry:
     return _Geometry(
         card_width=box_w + 2 * side_pad,
         symbol_h=symbol_h,
-        grid_top=symbol_h + _GRID_VPAD,
+        grid_top=grid_top,
         grid_left=side_pad,
         row_h=row_h,
         string_gap=string_gap,
@@ -173,8 +209,8 @@ def _compute_geometry(height: float, rows: int, string_count: int) -> _Geometry:
         marker_gap=max(6.0, row_h * _MARKER_GAP_FACTOR),
         dot_r=max(2.5, string_gap * _DOT_RADIUS_FACTOR),
         open_r=max(2.0, string_gap * _OPEN_RADIUS_FACTOR),
-        symbol_size=int(max(9, min(16, round(height * 0.11)))),
-        label_size=int(max(7, min(11, round(height * 0.08)))),
+        symbol_size=symbol_size,
+        label_size=label_size,
     )
 
 

@@ -254,7 +254,7 @@ def test_packing_is_deterministic(song):
 VIEW_GOLDEN = {
     "keyboard": (5943, "baa0c981900aeb18fdf3bffaec7383b71b8a1eb3f5a701b468f09cf47fa0e57d"),
     "staff": (5107, "d8bf0af9da6622e18bfc8e3d6c824ccc437527b5a31217568aa26243d33cae5a"),
-    "fret": (9378, "0d86117ac8fa0197ebd13c1dc35a2e058e93b616aba53d8bc6b07b17c29114c2"),
+    "fret": (9378, "09ccddc9544d0408d2da9e77acf5486fbc250c5e89f439a6d99aefaba6eaca2b"),
     "tab": (6547, "1b3d3fce7c458373b3dd45f602e281e476c21f24aeb085c3d1840398144cc9ea"),
 }
 

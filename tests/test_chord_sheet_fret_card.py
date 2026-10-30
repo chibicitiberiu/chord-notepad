@@ -401,3 +401,31 @@ def test_card_does_not_grow_unbounded_past_the_cap():
     for tall_height in (400.0, 600.0, 1200.0):
         layout = renderer.layout(ctx, height=tall_height)
         assert layout.slots[0].width == pytest.approx(capped_geo.card_width)
+
+
+@pytest.mark.parametrize("zoom", [0.5, 0.75, 1.0, 1.5, 2.0, 3.0])
+@pytest.mark.parametrize("height", [60.0, 90.0, 120.0, 160.0, 230.0, 330.0, 600.0])
+def test_open_and_muted_markers_clear_the_chord_name(height, zoom):
+    # G (open strings) and C (a muted one): the markers above the nut sit
+    # below the name's text box (size pt x 4/3 px, centred) with a gap, and
+    # the grid still fits the panel.
+    song = make_song(make_chord("G", fingering=[3, 2, 0, 0, 0, 3]),
+                     make_chord("C", fingering=[-1, 3, 2, 0, 1, 0]))
+    renderer = FretCardRenderer()
+    ctx = SheetContext(song=song, zoom=zoom)
+    layout = renderer.layout(ctx, height=height)
+    ops = DrawOps()
+    renderer.paint(ops, ctx, layout)
+    for index, name in ((0, "G"), (1, "C")):
+        card_ops = slot_ops(ops, index)
+        symbol = next(t for t in card_ops if isinstance(t, TextOp) and t.s == name)
+        name_bottom = symbol.y + symbol.size * 4.0 / 3.0 / 2.0
+        circles = [o for o in card_ops if isinstance(o, OvalOp) and o.outline and not o.fill]
+        muted = [t for t in card_ops if isinstance(t, TextOp) and t.s == "×"]
+        assert circles or muted
+        for circle in circles:
+            assert circle.y >= name_bottom + 2.0
+        for mark in muted:
+            assert mark.y - mark.size * 4.0 / 3.0 / 2.0 >= name_bottom + 2.0
+        grid_bottom = max(op.points[0][1] for op in horizontal_lines(card_ops))
+        assert grid_bottom <= height
