@@ -9,7 +9,7 @@ parameters. The fretboard model can voice any instrument with 3 to 12
 strings and frets -- guitar in any tuning, ukulele, banjo, a baritone
 ukulele, a seven-string guitar -- as long as you can describe its open
 strings. The other two models are covered elsewhere: piano in
-:doc:`playback`, and groups of independent singers or players in
+:doc:`piano`, and groups of independent singers or players in
 :doc:`ensembles`.
 
 
@@ -74,7 +74,10 @@ lowered to +1.0 (within the uke's single octave there is rarely a true low
 root to chase, and insisting on one drags shapes up the neck) and the
 *Sounding string* weight is raised to +2.5 (with only four strings, every one that rings
 counts). With these values the picker lands on the familiar chord-book
-shapes: C as 0003, G as 0232, G7 as 0212, F as 2010.
+shapes when it voices a progression: C as 0003, G as 0232, G7 as 0212, F as
+2010. (An F played on its own, with no chord before it, comes out as 5550
+instead, which puts the root at the bottom; within a song, staying near the
+nut wins.)
 
 
 Defining a Custom Fretted Voicing
@@ -140,18 +143,17 @@ Defining a Custom Fretted Voicing
 
 .. only:: desktop
 
-   Add a ``voicings`` object at the top level, keyed by a short slug you'll
-   use internally; each entry needs a ``"model": "fretboard"`` and describes
-   one instrument. Here's a seven-string guitar (a standard six-string guitar
-   with an extra low B string):
+   Add a ``voicings`` object at the top level, keyed by the voicing's name;
+   each entry needs a ``"model": "fretboard"`` and describes one instrument.
+   Here's a seven-string guitar (a standard six-string guitar with an extra
+   low B string):
 
    .. code-block:: json
 
       {
         "voicings": {
-          "seven_string": {
+          "7-String Guitar": {
             "model": "fretboard",
-            "label": "7-String Guitar",
             "tuning": ["B1", "E2", "A2", "D3", "G3", "B3", "E4"],
             "max_fret": 12,
             "fingers": 4,
@@ -168,8 +170,8 @@ Defining a Custom Fretted Voicing
    * ``model`` is required and must be ``"fretboard"`` for a voicing defined
      this way (an ensemble uses ``"model": "ensemble"`` instead -- see
      :doc:`ensembles`).
-   * ``label`` is what shows up in the Voicing menu (defaults to the slug if
-     omitted).
+   * The key (``"7-String Guitar"`` here) is the voicing's name, the one the
+     Voicing menu and the Settings window show.
    * ``tuning`` is required: 3 to 12 entries, listed in **string order** --
      the order a player would strike the strings, not sorted by pitch. Each
      entry is a note name (``"E2"``, ``"B1"``) or a raw MIDI number; middle C
@@ -223,9 +225,10 @@ Defining a Custom Fretted Voicing
 .. only:: desktop
 
    Custom fretted voicings appear in :menuselection:`Playback --> Voicing`
-   automatically the next time Chord Notepad starts, sorted alongside every
-   other voicing -- built-in or custom, fretted or ensemble -- by model and
-   then name.
+   the next time Chord Notepad starts (or as soon as you save them in the
+   Settings window), in the last group of the menu with your other custom
+   voicings, sorted by model and then name. They are also offered in Suggest
+   Capo (see :doc:`chord_sheet`).
 
 .. only:: android
 
@@ -256,7 +259,8 @@ How to Change Voicing
 
 .. only:: android
 
-   1. In the Play tab, tap **Voicing** in the player.
+   1. In the Play tab, tap the **Voicing** button (the music note, first in
+      the player's row of buttons).
    2. Select **Guitar (Standard - EADGBE)**, **Guitar (Drop D)**,
       **Guitar (DADGAD)**, **Guitar (Open G)**, **Ukulele**, or any custom
       fretted voicing you've defined (see above).
@@ -363,11 +367,13 @@ while pushing it more negative clamps down on them.
      - ``open_string_bonus``
      - +0.5
    * - Correct bass note
-     - Added when the chord's root lands on the lowest sounding string.
+     - Added when the chord's root is the lowest sounding note (by pitch, not
+       by string), and subtracted when it isn't.
      - ``bass_note_bonus``
      - +8.0
    * - Correct slash bass
-     - The same, but for a slash chord's named bass note (the G in
+     - The same, added or subtracted, but for a slash chord's named bass
+       note (the G in
        ``C/G``). Set more positive than "Correct bass note" since a slash
        bass is a deliberate instruction, not just a preference.
      - ``slash_bass_bonus``
@@ -399,8 +405,9 @@ while pushing it more negative clamps down on them.
      - ``position_penalty``
      - -0.6
    * - Fretted finger
-     - Subtracted per fretted finger the fingering requires. More negative
-       favors fingerings that leave more strings open or muted.
+     - Subtracted per fretted string (a barre counts every string it holds
+       down). More negative favors fingerings that leave more strings open
+       or muted.
      - ``fretted_finger_penalty``
      - -0.5
    * - Barre
@@ -423,8 +430,8 @@ while pushing it more negative clamps down on them.
      - ``movement_penalty``
      - -1.0
    * - Kept finger
-     - Added per finger that can stay on the same string and fret from one
-       chord to the next.
+     - Added per fretted string that stays on the same fret from one chord
+       to the next.
      - ``kept_finger_bonus``
      - +0.4
 
