@@ -38,6 +38,6 @@ App bugs and questions found while fact-checking the user guide (2026-10-30). No
 17. **`bVI` in C plays G# major** instead of Ab.
 18. **`{loop: my verse 2}` can't reach `{label: my verse}`**, so labels with spaces can't be looped.
 
-## To design: song structure (Tibi's idea, 2026-10-30)
+## After the release: song structure (Tibi's idea, 2026-10-30; not before the Android release)
 - Reusable parts that can be called from anywhere, e.g. `{part: verse1}` … `{endpart}` then `{call: verse1}`. Or the ChordPro-like alternative: `{play: chorus}` replays a section that's already labelled. Avoid `goto`.
 - Label-less repeat blocks, `{loop: 3}` … `{endloop}`.
