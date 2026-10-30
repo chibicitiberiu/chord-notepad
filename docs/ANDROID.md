@@ -1069,11 +1069,29 @@ older versions show the light guide). How to write for both editions:
 snippets are `snippetRuns`: the session's code-point spans converted to UTF-16
 and styled with the editor's `SpanStyles`, on the editor's white background in
 monospace, read only). Previous/Next/Done and a "Show at startup" checkbox that
-sends `set_show_quick_start_on_startup`. ☰ → Quick start opens it; it also
-opens on its own when `SettingsState.values.show_quick_start_on_startup` is true
-(`QuickStartLaunch.shouldAutoShow`), once per process start: the flag
-`AppGraph.quickStartShown` lives in the app-scoped graph, so rotation does not
-show it again.
+sends `set_show_quick_start_on_startup`. ☰ → Quick start opens it. Whether it
+opens on its own is the session's call, not Kotlin's: see "Startup screen and
+support prompt" below.
+
+### Startup screen and support prompt
+
+Design: `docs/design/android-support-plan.md`. Each activity creation sends
+`app_started(launch_kind, today, installed_on, can_ask_for_support)` through
+`AppGraph.reportLaunch` (`lifecycle/AppLaunch.kt` classifies the launch:
+`direct`, `document` for an Open with, `restore` for recreation and the debug
+activities; dates are local ISO dates from `Calendar` and
+`firstInstallTime`). The play build first waits up to 2 s for billing
+(`SupportBilling.awaitReady`), so `can_ask_for_support` is only true when Play
+answered with a price and no purchase. Only the session's first `app_started`
+counts, so rotation is a no-op; it answers with `StartupState(screen)`:
+`support_prompt` from day 7 after install, at most once a calendar day, only
+on a direct launch; otherwise `quick_start` if that setting is on; otherwise
+`none`. Closing either screen sends `dismiss_startup_screen`, which for the
+prompt records `support_prompt_last_shown` in the config and saves it.
+
+To test it, the debug-only `DebugLaunchOverride` provider (`src/debug`) takes
+`debug_today`, `debug_installed_on`, `debug_can_ask` and `debug_reset` extras;
+they apply on a launch that starts the process, so `am force-stop` first.
 
 ### Screenshots for the guide
 
