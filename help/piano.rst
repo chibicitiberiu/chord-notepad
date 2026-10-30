@@ -15,8 +15,9 @@ How the Two Hands Are Voiced
 
 The left hand plays the bass -- a single note or an octave-doubled one, down
 in the low register -- and the right hand plays a voicing of the chord's core
-tones (root, third, fifth, seventh where present), tried in root position and
-every inversion, at a few different octave placements. Any extensions a
+tones (everything inside the octave: root, third, fifth, and a seventh, sixth
+or suspended tone where present), tried in root position and every inversion,
+at a few different octave placements. Any extensions a
 chord carries -- a 9th, an 11th, a 13th -- always stack on top of that core
 voicing rather than displacing it, so a dense jazz chord still reads as the
 plain triad or seventh underneath with color added above.
@@ -92,19 +93,18 @@ Defining a Custom Piano Voicing
 
 .. only:: desktop
 
-   Add a ``voicings`` object at the top level, keyed by a short slug you'll use
-   internally; each entry needs a ``"model": "piano"`` and describes one
-   keyboard configuration. Here's a voicing that keeps both hands lower and
-   closer together, suited to a slow, intimate ballad:
+   Add a ``voicings`` object at the top level, keyed by the voicing's name;
+   each entry needs a ``"model": "piano"`` and describes one keyboard
+   configuration. Here's a voicing that moves the right hand down toward the
+   left without letting the hands crowd each other, suited to a slow, intimate
+   ballad:
 
    .. code-block:: json
 
       {
         "voicings": {
-          "close_low": {
+          "Close & Low": {
             "model": "piano",
-            "label": "Close & Low",
-            "rh_range": ["C3", "C6"],
             "rh_center": 55,
             "hand_gap_floor": 4,
             "weights": {
@@ -117,8 +117,8 @@ Defining a Custom Piano Voicing
    * ``model`` is required and must be ``"piano"`` for a voicing defined this
      way (a fretted instrument uses ``"model": "fretboard"``, and an ensemble
      uses ``"model": "ensemble"`` -- see :doc:`fretted` and :doc:`ensembles`).
-   * ``label`` is what shows up in the Voicing menu (defaults to the slug if
-     omitted).
+   * The key (``"Close & Low"`` here) is the voicing's name, the one the
+     Voicing menu and the Settings window show.
    * ``lh_range``, ``rh_range``, ``bass_range``, and ``rh_low_anchor`` are all
      optional ``[low, high]`` pairs. Give each endpoint as a note name
      (``"C3"``, ``"E4"``) or a raw MIDI number; middle C is ``C4``.
@@ -132,9 +132,9 @@ Defining a Custom Piano Voicing
 
 .. only:: android
 
-   Here's a voicing that keeps both hands lower and closer together, suited
-   to a slow, intimate ballad. Start from **Piano (default)** and change these
-   fields:
+   Here's a voicing that moves the right hand down toward the left without
+   letting the hands crowd each other, suited to a slow, intimate ballad.
+   Start from **Piano (default)** and change these fields:
 
    .. list-table::
       :header-rows: 1
@@ -144,8 +144,6 @@ Defining a Custom Piano Voicing
         - Value
       * - Name
         - Close & Low
-      * - Right hand (Low / High, under Hands & range)
-        - C3 / C6
       * - RH center
         - 55
       * - Hand gap floor
@@ -159,9 +157,9 @@ Defining a Custom Piano Voicing
 .. only:: desktop
 
    Custom piano voicings appear in :menuselection:`Playback --> Voicing`
-   automatically the next time Chord Notepad starts, sorted alongside every
-   other voicing -- built-in or custom, piano, fretted, or ensemble -- by model
-   and then name.
+   the next time Chord Notepad starts (or as soon as you save them in the
+   Settings window), in the last group of the menu with your other custom
+   voicings, sorted by model and then name.
 
 .. only:: android
 
@@ -182,7 +180,8 @@ How to Change Voicing
 
 .. only:: android
 
-   1. In the Play tab, tap **Voicing** in the player.
+   1. In the Play tab, tap the **Voicing** button (the music note, first in
+      the player's row of buttons).
    2. Select **Piano**, or any custom piano voicing you've defined (see
       above).
    3. Play your chords to hear the difference.
@@ -274,9 +273,9 @@ Hands and Range
      - ``max_total_notes``
      - 10
    * - Hand gap floor
-     - The right hand should clear the bass note by more than this many
-       semitones. Closer than that costs the muddy-gap weight per semitone
-       of shortfall.
+     - The right hand should clear the left hand's top note by more than
+       this many semitones. A gap of this many or fewer costs the "Hands
+       too close" weight.
      - ``hand_gap_floor``
      - 2
    * - Add bass note
@@ -338,8 +337,9 @@ you want it to steer clear of gets a negative one; zero leaves it neutral.
      - ``rh_wide_gap_penalty``
      - -0.6
    * - Hands too close
-     - Subtracted per semitone the hands clear each other by less than
-       "Hand gap floor".
+     - Subtracted when the gap between the hands is no wider than "Hand gap
+       floor": once at exactly the floor, and once more per semitone
+       closer.
      - ``muddy_gap_penalty``
      - -1.5
    * - Common tone held
@@ -356,6 +356,9 @@ you want it to steer clear of gets a negative one; zero leaves it neutral.
      - Added to the score for dropping a chord tone entirely when the hand
        and note limits don't leave room for everything. The values are
        negative, so a more negative one keeps that tone more insistently.
+       The piano only ever leaves out the fifth, the root (and only when the
+       left hand plays it), or an extension that won't fit, so the third,
+       seventh and color weights rarely come into play.
        Same role taxonomy as the ensemble model's omission weights (see
        :doc:`ensembles`): ``root`` (-4.0), ``third`` (-40.0), ``fifth``
        (-8.0), ``seventh`` (-40.0), ``color`` (-30.0), ``extension`` (-7.0).
