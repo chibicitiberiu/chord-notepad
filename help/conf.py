@@ -8,6 +8,16 @@ import os
 
 project = 'Chord Notepad User Guide'
 copyright = '2024-2026, Chord Notepad'
+_COPYRIGHT = copyright
+
+
+def setup(app):
+    # Sphinx rewrites the copyright's last year to SOURCE_DATE_EPOCH's
+    # (config-inited, priority 800). The APK build pins that epoch to 2023
+    # for reproducible HTML, which turned the footer into "2024-2023".
+    def keep_copyright(_app, config):
+        config.copyright = _COPYRIGHT
+    app.connect('config-inited', keep_copyright, priority=900)
 author = 'Chord Notepad'
 
 # Keep the guide's version in sync with the application's VERSION file so the
