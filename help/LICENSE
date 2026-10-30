@@ -9,7 +9,7 @@ Chord Notepad, link to the licence, say if you made changes, and share your
 version under the same licence.
 
 The Chord Notepad logo is not covered by this licence, including where it
-appears in screenshots; see LICENSE.ARTWORK at the root of the repository.
+appears in screenshots; see ARTWORK-TERMS.txt at the root of the repository.
 The Sphinx configuration and extensions (conf.py, _ext/, and code in _static/) are
 part of the program and licensed under the GNU AGPL-3.0 with the permissions
-in LICENSE.ADDITIONAL.
+in ADDITIONAL-TERMS.txt.

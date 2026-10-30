@@ -7,4 +7,4 @@
 - [ ] Tests pass (`make test`), and new behaviour has tests
 - [ ] User guide in `help/` updated if users will see the change (`make docs-check` passes)
 
-By submitting this pull request, I agree that my code is licensed under the GNU AGPL-3.0 with the additional permissions and terms in [LICENSE.ADDITIONAL](https://github.com/chibicitiberiu/chord-notepad/blob/main/LICENSE.ADDITIONAL), that my documentation changes are licensed under CC BY-SA 4.0, and that I have the right to submit it. See [CONTRIBUTING.md](https://github.com/chibicitiberiu/chord-notepad/blob/main/CONTRIBUTING.md).
+By submitting this pull request, I agree that my code is licensed under the GNU AGPL-3.0 with the additional permissions and terms in [ADDITIONAL-TERMS.txt](https://github.com/chibicitiberiu/chord-notepad/blob/main/ADDITIONAL-TERMS.txt), that my documentation text is licensed under CC BY-SA 4.0, that it may be distributed with the logo under ARTWORK-TERMS.txt, and that I have the right to submit it. See [CONTRIBUTING.md](https://github.com/chibicitiberiu/chord-notepad/blob/main/CONTRIBUTING.md).

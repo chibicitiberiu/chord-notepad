@@ -257,12 +257,12 @@ The project uses standard Python conventions with:
 
 Licensed under [GNU Affero General Public License v3.0](LICENSE), with additional
 permissions for app stores and terms about the project's name and logos (see
-[LICENSE.ADDITIONAL](LICENSE.ADDITIONAL)).
+[ADDITIONAL-TERMS.txt](ADDITIONAL-TERMS.txt)).
 
 - The user guide (`help/`) and the developer docs (`docs/`) are under
   [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/).
 - The logo and the store material are not free to reuse: forks need their own name and
-  icon. See [LICENSE.ARTWORK](LICENSE.ARTWORK).
+  icon. See [ARTWORK-TERMS.txt](ARTWORK-TERMS.txt).
 
 ## Contributing
 

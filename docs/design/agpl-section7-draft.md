@@ -1,11 +1,11 @@
 # Draft: AGPL-3.0 section 7 additional permissions for app stores
 
-Status: adopted 2026-10-30 as LICENSE.ADDITIONAL (term 3 kept, official-builds
+Status: adopted 2026-10-30 as ADDITIONAL-TERMS.txt (term 3 kept, official-builds
 fallback dropped). Later the same day Tibi widened term 3 to all modified
 builds (forks need their own name and logo anywhere, not only in stores),
-moved the logo and store material out of the AGPL into LICENSE.ARTWORK, put
+moved the logo and store material out of the AGPL into ARTWORK-TERMS.txt, put
 help/ and docs/ under CC BY-SA 4.0, and added a section 14 proxy (term 4).
-LICENSE.ADDITIONAL is the authoritative text; the quote below is the earlier
+ADDITIONAL-TERMS.txt is the authoritative text; the quote below is the earlier
 draft. Revised after two independent
 reviews. LICENSE itself is unchanged.
 
@@ -210,24 +210,37 @@ as they would a CLA.
 
 ## Where it would go
 
-- **A new file, `LICENSE.ADDITIONAL`**, with the text above. Keeping `LICENSE`
+- **A new file, `ADDITIONAL-TERMS.txt`**, with the text above. Keeping `LICENSE`
   verbatim matters: `android/tools/gather_licenses.py` copies it byte for byte
   into the app as `AGPL-3.0.txt`, and GitHub's licence detection reads it.
 - **README.md**, "License" section: "Licensed under GNU Affero General Public
   License v3.0, with additional permissions for app stores and terms about the
-  project's name (see `LICENSE.ADDITIONAL`)." The README's "Contributing"
+  project's name (see `ADDITIONAL-TERMS.txt`)." The README's "Contributing"
   section points to CONTRIBUTING.md.
 - **A new CONTRIBUTING.md:** "By submitting a contribution you license it
   under the GNU AGPL-3.0-only together with the additional permissions and
-  terms in LICENSE.ADDITIONAL, and you certify the Developer Certificate of
+  terms in ADDITIONAL-TERMS.txt, and you certify the Developer Certificate of
   Origin 1.1 (sign off your commits with `git commit -s`)." Optionally a CI
   check that commits from others carry a sign-off.
-- **SPDX id:** the `chord-notepad` entry in
-  `android/app/src/main/assets/licenses/components.json` becomes
-  `AGPL-3.0-only WITH LicenseRef-ChordNotepad-Store-Permissions`, and its
-  `texts` gets the new file as a second text, added to gather_licenses.py's
-  table. Shown in both flavours, and in the desktop licences view once it
-  exists.
+- **Licence screens and SPDX ids** (to do once the desktop licences view
+  lands; review round 3, 2026-10-30):
+  - App: `AGPL-3.0-only WITH AdditionRef-ChordNotepad-Section7` (SPDX 3.0);
+    for SPDX 2.x tools, `LicenseRef-ChordNotepad-Section7`. `WITH
+    LicenseRef-...` isn't valid in SPDX 2.x.
+  - User guide and docs prose: `CC-BY-SA-4.0`. Docs code samples:
+    `CC-BY-SA-4.0 OR (AGPL-3.0-only WITH AdditionRef-ChordNotepad-Section7)`.
+  - Logo and store material: `LicenseRef-ChordNotepad-Artwork`.
+  - The `chord-notepad` entry in `components.json` gets ADDITIONAL-TERMS.txt
+    as a second text; the bundled user guide gets a CC BY-SA 4.0 entry (with
+    the legal code), and the logo an Artwork entry. Add all three to
+    `SOURCES` in `android/tools/gather_licenses.py`, and show the same in the
+    desktop licences view. Permission 2(b) needs ADDITIONAL-TERMS.txt among
+    the Appropriate Legal Notices.
+  - Optional: a `REUSE.toml` to make the per-path licensing machine-checkable.
+- **File names:** the extra terms are in `ADDITIONAL-TERMS.txt` and
+  `ARTWORK-TERMS.txt`, not `LICENSE.*`. GitHub's licence detection (Licensee)
+  treats any root `LICENSE.*` as a licence file, and several different ones
+  make the repo show as "other"/"Unknown licenses found" instead of AGPL-3.0.
 
 ## Open points for Tibi
 

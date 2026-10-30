@@ -69,23 +69,41 @@ This permission does not limit any right the License gives to any recipient,
 including one who obtained the work through an App Store. Section 3 of the
 License continues to apply to you.
 
-3. Names and logos. Under sections 7(c) and 7(e) of the License: this
-License grants no right to use the name "Chord Notepad" or its logos as trade
-names or trademarks. A modified version that you convey in object code form
-must be marked as modified and must be presented to users under a name other
-than Chord Notepad's, and without Chord Notepad's logos. You may say that it
-is based on Chord Notepad. This does not apply to a version changed only as
-needed to build, package or install it for a particular operating system,
-distribution or App Store, without changing what it does for its users.
+3. Names, logos and authorship. Under sections 7(b), 7(c) and 7(e) of the
+License:
 
-The logos and promotional material listed in LICENSE.ARTWORK are separate
-works. They are not licensed under the License or under these permissions;
-LICENSE.ARTWORK gives their terms.
+(a) This License grants no right to use the name "Chord Notepad" or its logos
+as trade names or trademarks.
+
+(b) A modified version is one that differs from a release published by
+Tiberiu Chibici. A modified version that you convey in object code form must
+be marked as modified, and must be presented to users under a name that
+neither contains "Chord Notepad" nor is confusingly similar to it, without
+Chord Notepad's logos, and under its own application identifier where the
+platform uses one. You may say that it is based on Chord Notepad.
+
+(c) Term 3(b) does not apply to builds conveyed only to test or review
+changes proposed for Chord Notepad, outside any App Store. Nor does it apply
+to a version changed only to build, package or install it for a particular
+operating system, distribution or App Store, to fix defects, or to remove
+parts the distributor's policies don't allow, without adding features.
+
+(d) Whoever conveys this Program, modified or not, must keep its author
+attributions and must not present anyone other than Tiberiu Chibici as its
+original author.
+
+The logos and promotional material listed in ARTWORK-TERMS.txt are separate
+and independent works, forming an aggregate with this Program in the sense of
+section 5 of the License. They are not licensed under the License or under
+these permissions; ARTWORK-TERMS.txt gives their terms.
 
 4. Future versions of the License. Under section 14 of the License, Tiberiu
-Chibici is the proxy who may decide whether future versions of the GNU Affero
-General Public License can be used for this Program. Until that proxy
-publicly accepts a later version, only version 3 applies.
+Chibici is the proxy who can decide which future versions of the GNU Affero
+General Public License can be used for this Program. Until Tiberiu Chibici
+publicly accepts a later version, this Program is licensed under version 3
+only. If a later version is accepted, these permissions and terms continue to
+apply, as far as that version allows, with section references read as that
+version's corresponding sections.
 
 Scope. Permissions 1 and 2 extend to no non-free library other than a Store
 Library, and they neither add to nor take away from what the License itself
