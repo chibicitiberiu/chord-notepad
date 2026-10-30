@@ -72,30 +72,36 @@ License continues to apply to you.
 3. Names, logos and authorship. Under sections 7(b), 7(c) and 7(e) of the
 License:
 
-(a) This License grants no right to use the name "Chord Notepad" or its logos
+(a) The License grants no right to use the name "Chord Notepad" or its logos
 as trade names or trademarks.
 
-(b) A modified version is one that differs from a release published by
-Tiberiu Chibici. A modified version that you convey in object code form must
-be marked as modified, and must be presented to users under a name that
-neither contains "Chord Notepad" nor is confusingly similar to it, without
-Chord Notepad's logos, and under its own application identifier where the
-platform uses one. You may say that it is based on Chord Notepad.
+(b) In this term 3, a modified version is one that differs from the source
+code Tiberiu Chibici publishes for this Program (a release, or a commit in
+its official repository). A modified version that you convey as a program for
+users to install or run, in object code or source form, must be marked as
+modified, and must be presented to users under a name that neither contains
+"Chord Notepad" nor is confusingly similar to it, without Chord Notepad's
+logos, and under its own application identifier where the platform uses one.
+You may say that it is based on Chord Notepad. This term does not apply to
+source code conveyed for developing the work, such as a fork's repository or
+a pull request branch.
 
 (c) Term 3(b) does not apply to builds conveyed only to test or review
 changes proposed for Chord Notepad, outside any App Store. Nor does it apply
 to a version changed only to build, package or install it for a particular
-operating system, distribution or App Store, to fix defects, or to remove
-parts the distributor's policies don't allow, without adding features.
+operating system or distribution, or for an App Store that builds it from its
+published source and names Tiberiu Chibici as its author, to fix defects, or
+to remove parts that the distributor's published policy for all the software
+it distributes doesn't allow, without adding features.
 
 (d) Whoever conveys this Program, modified or not, must keep its author
 attributions and must not present anyone other than Tiberiu Chibici as its
 original author.
 
-The logos and promotional material listed in ARTWORK-TERMS.txt are separate
-and independent works, forming an aggregate with this Program in the sense of
-section 5 of the License. They are not licensed under the License or under
-these permissions; ARTWORK-TERMS.txt gives their terms.
+Artwork. The logos and promotional material listed in ARTWORK-TERMS.txt are
+separate and independent works, forming an aggregate with this Program in the
+sense of section 5 of the License. They are not licensed under the License or
+under these permissions; ARTWORK-TERMS.txt gives their terms.
 
 4. Future versions of the License. Under section 14 of the License, Tiberiu
 Chibici is the proxy who can decide which future versions of the GNU Affero

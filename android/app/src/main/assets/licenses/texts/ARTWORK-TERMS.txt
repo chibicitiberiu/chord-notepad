@@ -30,15 +30,16 @@ You may:
 1. Copy and distribute the Artwork unmodified as part of Chord Notepad
    itself, or of a version of it changed only as described in term 3(c) of
    ADDITIONAL-TERMS.txt (to build, package or install it, fix defects, or
-   remove parts a distributor's policies don't allow, without adding
-   features). Through an App Store (as defined in ADDITIONAL-TERMS.txt), this
-   covers only a store that builds the work from its published source and
-   names Tiberiu Chibici as its author, such as F-Droid or Flathub. Other App
-   Store distribution with the Artwork needs written permission.
+   remove parts a distributor's published policy doesn't allow, without
+   adding features). Through an App Store (as defined in
+   ADDITIONAL-TERMS.txt), this covers only a store that builds the work from
+   its published source and names Tiberiu Chibici as its author, such as
+   F-Droid or Flathub. Other App Store distribution with the Artwork needs
+   written permission.
 2. Copy and distribute the Artwork unmodified as part of the source code of
-   Chord Notepad, or of a modified version of it, as long as object code of a
-   modified version that you distribute to others neither includes nor
-   displays it.
+   Chord Notepad, or of a modified version of it, as long as a modified
+   version that you distribute to others as a program to install or run
+   neither includes nor displays it, except as grants 1 and 3 allow.
 3. Use the Artwork unmodified to build, run and test modified versions of
    Chord Notepad, for yourself or in builds conveyed only to test or review
    changes proposed for Chord Notepad, outside any App Store.
@@ -47,5 +48,6 @@ You may:
    to identify or promote other software, including a modified version.
 
 Anything else needs written permission from Tiberiu Chibici. In particular, a
-modified version of Chord Notepad that you distribute in object code form
-must use its own name, logo and icons (see term 3 of ADDITIONAL-TERMS.txt).
+modified version of Chord Notepad that you distribute as a program to install
+or run must use its own name, logo and icons (see term 3 of
+ADDITIONAL-TERMS.txt).

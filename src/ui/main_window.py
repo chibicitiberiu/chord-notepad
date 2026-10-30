@@ -1317,7 +1317,9 @@ class MainWindow(tk.Tk):
 
         # Copyright
         copyright_label = tk.Label(main_frame,
-                                  text="© 2025–2026 Tiberiu Chibici\nGNU AGPL-3.0 · github.com/chibicitiberiu/chord-notepad",
+                                  text="© 2025–2026 Tiberiu Chibici\nGNU AGPL-3.0 · github.com/chibicitiberiu/chord-notepad\n"
+                                       "Free software with ABSOLUTELY NO WARRANTY. You may share and change it\n"
+                                       "under the GNU AGPL-3.0 with the additional terms in Open Source Licences.",
                                   font=('TkDefaultFont', 8),
                                   fg='gray')
         copyright_label.pack(pady=5)

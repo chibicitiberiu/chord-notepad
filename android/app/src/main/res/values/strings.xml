@@ -43,6 +43,7 @@
     <string name="about_copyright">© 2025–2026 Tiberiu Chibici</string>
     <string name="about_license">GNU AGPL-3.0</string>
     <string name="about_source">github.com/chibicitiberiu/chord-notepad</string>
+    <string name="about_warranty">Free software with ABSOLUTELY NO WARRANTY. You may share and change it under the GNU AGPL-3.0 with the additional terms in Open source licences.</string>
     <string name="about_licences">Open source licences</string>
     <!-- foss flavour only: the donation page (SupportBilling.supportUrl). -->
     <string name="about_support">Support development</string>

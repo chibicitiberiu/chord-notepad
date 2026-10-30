@@ -313,6 +313,7 @@ The User Interface
       * Version number
       * Build information
       * Description of the application
+      * Copyright, licence, source code link, and the no-warranty notice
 
       Its **Open Source Licences** button opens the same list.
 
@@ -644,9 +645,9 @@ The User Interface
       The short tour that opens the first time you start the app.
 
    **About**
-      The version and build, the licence (GNU AGPL-3.0), a link to the source
-      code, and **Open source licences**: the licences of everything the app is
-      built from.
+      The version and build, the licence (GNU AGPL-3.0 with additional terms),
+      a link to the source code, the no-warranty notice, and **Open source
+      licences**: the licences of everything the app is built from.
 
    There is no Exit entry. Press Back on the main screen to leave the app; if
    the song has unsaved changes, it asks whether to save them first.

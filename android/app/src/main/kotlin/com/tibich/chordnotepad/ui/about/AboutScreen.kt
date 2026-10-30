@@ -103,6 +103,12 @@ fun AboutScreen(
             LinkText(stringResource(R.string.about_source)) {
                 if (!openLink(context, SOURCE_URL)) Toast.makeText(context, linkFailed, Toast.LENGTH_SHORT).show()
             }
+            Text(
+                stringResource(R.string.about_warranty),
+                style = MaterialTheme.typography.bodySmall,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(top = 8.dp),
+            )
             if (supportUrl != null) {
                 LinkText(stringResource(R.string.about_support)) {
                     if (!openLink(context, supportUrl)) Toast.makeText(context, linkFailed, Toast.LENGTH_SHORT).show()

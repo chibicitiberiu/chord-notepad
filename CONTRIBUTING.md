@@ -9,8 +9,9 @@ first so we can agree on the approach before you spend time on it.
 Chord Notepad is licensed under the [GNU AGPL-3.0](LICENSE) together with the
 additional permissions and terms in [ADDITIONAL-TERMS.txt](ADDITIONAL-TERMS.txt).
 They let the app use app stores' purchase libraries and be distributed through
-app stores, and they keep the "Chord Notepad" name and logo for the original
-project.
+app stores, and they keep the "Chord Notepad" name for the original project.
+The logo and store material are covered separately by
+[ARTWORK-TERMS.txt](ARTWORK-TERMS.txt).
 
 By submitting a contribution (a pull request, a patch or code in an issue),
 you agree that:
