@@ -138,7 +138,8 @@ Switching Notations
       To actually rewrite the chords in your document from one system to the other,
       use **Convert** in the Edit ribbon. It rewrites every chord into the other
       notation in place, and switches AB / Do to match; the switch alone never
-      rewrites anything.
+      rewrites anything. Convert reads the song in the notation the switch
+      shows, so set the switch to the notation the song is written in first.
 
 Roman numerals (see :ref:`roman-numerals`) are independent of this toggle. They
 are recognized in both modes and always resolve against the current key.

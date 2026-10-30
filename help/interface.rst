@@ -412,7 +412,10 @@ The User Interface
    The notation switch and Convert do different jobs. Switching AB / Do changes
    how the editor reads what you type and leaves the text alone, so a ``C`` on
    the page stops being recognized after you switch to **Do**. Convert changes
-   the text itself.
+   the text itself, starting from the notation the switch shows: with **AB**
+   on it turns American chords into European ones, with **Do** on the other
+   way round. So to convert a song written in solfège, switch to **Do** first
+   (its chords turn blue), then tap Convert.
 
    Cut, copy, paste and select all are in the text's own menu: long-press or
    select some text to see it. Messages from the app, such as the one that
