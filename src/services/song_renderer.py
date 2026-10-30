@@ -472,7 +472,15 @@ class SongRenderer:
         Only the absolute beat position and the whole-song bar count advance --
         NOT the time position (so playback starts immediately at the start
         position) and NOT the rebased playback bar counter.
+
+        A chord that doesn't resolve (a roman numeral without a key) is left
+        out, as :meth:`_render_chord` leaves it out, so the chord indices of a
+        render from the cursor match those of a render from the top (the
+        chord-sheet strip places the playhead by them).
         """
+        if not chord.is_rest and not self._resolve_chord_notes(chord, state['current_key']):
+            self._logger.warning(f"Could not resolve chord: {chord.chord}")
+            return None
         duration_beats = self._duration_beats(chord, state)
         start_beat = state['current_beat_position']
         time_sig = state['current_time_sig']

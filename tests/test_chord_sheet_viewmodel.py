@@ -504,15 +504,48 @@ def test_carried_index_out_of_range_falls_back_to_span():
 
 def test_new_render_clears_stale_index():
     song = RenderedSong(chords=[make_chord("C", start=0, end=1)])
-    vm, _, scheduler = make_vm(rendered=song)
+    vm, audio, scheduler = make_vm(rendered=song)
     vm.set_song([], None)
     scheduler.flush()
     vm.on_playback_chord(ChordInfo(chord="C", start=0, end=1))
     assert vm.current_index == 0
 
+    # The new song no longer has the sounding chord: no playhead.
+    audio.rendered = RenderedSong(chords=[make_chord("G", start=4, end=5)])
     vm.set_song([], None)
     scheduler.flush()
     assert vm.current_index is None
+
+
+def test_new_render_places_the_sounding_chord():
+    # A render landing while a chord sounds (e.g. the strip's whole-song
+    # render finishing after playback from mid-song started) lights it.
+    vm, audio, scheduler = make_vm(rendered=None)
+    vm.on_playback_chord(ChordInfo(chord="G", start=2, end=3), chord_index=1)
+    assert vm.current_index is None
+    audio.rendered = RenderedSong(chords=[make_chord("C", start=0, end=1),
+                                          make_chord("G", start=2, end=3)])
+    vm.set_song([], None)
+    scheduler.flush()
+    assert vm.current_index == 1
+
+    # Once playback stopped, a new render has no playhead.
+    vm.on_playback_chord(None)
+    vm.set_song([], None)
+    scheduler.flush()
+    assert vm.current_index is None
+
+
+def test_carried_index_of_another_chord_falls_back_to_span():
+    # The played song's index points at a different chord of the strip's
+    # song (they were rendered from different text): match the span.
+    song = RenderedSong(chords=[make_chord("C", start=0, end=1),
+                                make_chord("G", start=2, end=3)])
+    vm, _, scheduler = make_vm(rendered=song)
+    vm.set_song([], None)
+    scheduler.flush()
+    vm.on_playback_chord(ChordInfo(chord="G", start=2, end=3), chord_index=0)
+    assert vm.current_index == 1
 
 
 # --------------------------------------------------------------------------

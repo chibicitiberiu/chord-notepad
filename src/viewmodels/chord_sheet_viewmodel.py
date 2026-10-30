@@ -220,6 +220,9 @@ class ChordSheetViewModel(Observable):
         # Observable state (private storage with leading underscore).
         self._rendered_song: Optional[RenderedSong] = None
         self._current_index: Optional[int] = None
+        # The last playback ping (chord, index in the played song), kept until
+        # playback stops so a song rendered after it can still place it.
+        self._last_ping: Optional[tuple] = None
         # The view the user last picked (persisted) vs. the one shown now. They
         # differ while the picked view is gated out, e.g. Fret cards on startup
         # before any chords render; the strip returns to it once available.
@@ -487,9 +490,12 @@ class ChordSheetViewModel(Observable):
         Runs on the UI thread (via the marshal seam).
         """
         self.set_and_notify("rendered_song", rendered)
-        # A new song can invalidate the current playhead index.
-        if self._current_index is not None:
-            self.set_and_notify("current_index", None)
+        # A new song moves the playhead: onto the chord sounding now when it
+        # has one (a render that lands after playback started, which is usual
+        # for a whole-song render racing a mid-song one), else off.
+        index = self._resolve_index(*self._last_ping) if self._last_ping is not None else None
+        if index != self._current_index:
+            self.set_and_notify("current_index", index)
         self._refresh_available_views()
 
     # -- Playback ping ------------------------------------------------------
@@ -517,8 +523,10 @@ class ChordSheetViewModel(Observable):
                 list, or ``None`` if unavailable.
         """
         if chord_info is None:
+            self._last_ping = None
             self.set_and_notify("current_index", None)
             return
+        self._last_ping = (chord_info, chord_index)
         self.set_and_notify("current_index", self._resolve_index(chord_info, chord_index))
 
     def _resolve_index(
@@ -526,14 +534,18 @@ class ChordSheetViewModel(Observable):
     ) -> Optional[int]:
         """Resolve the played chord to an index in the displayed song.
 
-        Prefers the carried ``chord_index`` (loop-accurate); falls back to a
-        char-span match when it is missing or out of range.
+        Prefers the carried ``chord_index`` (loop-accurate) when the displayed
+        song has the played chord there; falls back to a char-span match (the
+        first occurrence) when it is missing, out of range or points at another
+        chord (the strip rendered other text than the run played).
         """
         song = self._rendered_song
         if song is None:
             return None
         if chord_index is not None and 0 <= chord_index < len(song.chords):
-            return chord_index
+            source = song.chords[chord_index].chord_info
+            if source is None or _same_span(source, chord_info):
+                return chord_index
         return self._index_for_chord(chord_info)
 
     def _index_for_chord(self, chord_info: ChordInfo) -> Optional[int]:
@@ -549,8 +561,7 @@ class ChordSheetViewModel(Observable):
             return None
         for index, rendered in enumerate(song.chords):
             source = rendered.chord_info
-            if source is not None and source.start == chord_info.start \
-                    and source.end == chord_info.end:
+            if source is not None and _same_span(source, chord_info):
                 return index
         return None
 
@@ -768,3 +779,8 @@ class ChordSheetViewModel(Observable):
         """
         return self._audio.render_song(
             lines, key, should_abort=should_abort, private_picker=True)
+
+
+def _same_span(a: ChordInfo, b: ChordInfo) -> bool:
+    """Whether two parses' chords are the same chord of the text (same span)."""
+    return a.start == b.start and a.end == b.end

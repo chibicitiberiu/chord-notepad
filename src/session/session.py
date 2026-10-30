@@ -259,6 +259,8 @@ class AppSession:
         # mutated) on the session thread, so other threads can read it.
         self._sheet_revision = 0
         self._sheet_snapshot: Optional[Tuple[Any, str, float, Any]] = None
+        # Whether the strip has had a playback ping since it was last cleared.
+        self._sheet_pinged = False
         self._on_sheet_change = self._entry(self._publish_chord_sheet)
         self._on_sheet_song = self._entry(self._on_chord_sheet_song)
         if self._chord_sheet is not None:
@@ -2279,8 +2281,14 @@ class AppSession:
             self._publish_voicing_menu()
 
     def _clear_playhead(self) -> None:
-        """Take the chord sheet's playhead off the last chord (once)."""
-        if self._chord_sheet is not None and self._chord_sheet.current_index is not None:
+        """Take the chord sheet's playhead off the last chord (once).
+
+        Also when the strip shows none (its song rendered after the last ping
+        or not at all): it remembers the ping for its next song until told.
+        """
+        if self._chord_sheet is not None and (
+                self._sheet_pinged or self._chord_sheet.current_index is not None):
+            self._sheet_pinged = False
             self._chord_sheet.on_playback_chord(None)
 
     def _on_playback_event(self, event: Optional[PlaybackEventArgs]) -> None:
@@ -2301,6 +2309,7 @@ class AppSession:
         if is_chord_start and self._chord_sheet is not None:
             # chord_index keeps the strip's playhead right on loop passes.
             self._chord_sheet.on_playback_chord(event.chord_info, event.chord_index)
+            self._sheet_pinged = True
         if event.bpm is not None:
             self._effective_bpm = int(event.bpm)
         chord = event.chord_info
