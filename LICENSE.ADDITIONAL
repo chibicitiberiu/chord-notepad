@@ -69,18 +69,28 @@ This permission does not limit any right the License gives to any recipient,
 including one who obtained the work through an App Store. Section 3 of the
 License continues to apply to you.
 
-3. Names. Under sections 7(c) and 7(e) of the License: this License
-grants no right to use the name "Chord Notepad" or its icon as trade names
-or trademarks. A modified version conveyed through an App Store must be
-marked as modified and must be presented to users under a name and icon
-other than Chord Notepad's. This does not apply to a version changed only as
+3. Names and logos. Under sections 7(c) and 7(e) of the License: this
+License grants no right to use the name "Chord Notepad" or its logos as trade
+names or trademarks. A modified version that you convey in object code form
+must be marked as modified and must be presented to users under a name other
+than Chord Notepad's, and without Chord Notepad's logos. You may say that it
+is based on Chord Notepad. This does not apply to a version changed only as
 needed to build, package or install it for a particular operating system,
 distribution or App Store, without changing what it does for its users.
 
-Scope. Permissions 1 and 2 extend to no non-free library other than a
-Store Library, and they neither add to nor take away from what the License
-itself allows, for example for System Libraries. When you convey a copy of a
-covered work, you may remove permissions 1 and 2 from that copy, or from any
-part of it, as section 7 of the License allows; a version without them is
-governed by the License and term 3 alone. If you remove permission 1, you may
-no longer convey a combination with a Store Library.
+The logos and promotional material listed in LICENSE.ARTWORK are separate
+works. They are not licensed under the License or under these permissions;
+LICENSE.ARTWORK gives their terms.
+
+4. Future versions of the License. Under section 14 of the License, Tiberiu
+Chibici is the proxy who may decide whether future versions of the GNU Affero
+General Public License can be used for this Program. Until that proxy
+publicly accepts a later version, only version 3 applies.
+
+Scope. Permissions 1 and 2 extend to no non-free library other than a Store
+Library, and they neither add to nor take away from what the License itself
+allows, for example for System Libraries. When you convey a copy of a covered
+work, you may remove permissions 1 and 2 from that copy, or from any part of
+it, as section 7 of the License allows; a version without them is governed by
+the License and terms 3 and 4 alone. If you remove permission 1, you may no
+longer convey a combination with a Store Library.

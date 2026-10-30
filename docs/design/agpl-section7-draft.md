@@ -1,7 +1,12 @@
 # Draft: AGPL-3.0 section 7 additional permissions for app stores
 
 Status: adopted 2026-10-30 as LICENSE.ADDITIONAL (term 3 kept, official-builds
-fallback dropped). Revised after two independent
+fallback dropped). Later the same day Tibi widened term 3 to all modified
+builds (forks need their own name and logo anywhere, not only in stores),
+moved the logo and store material out of the AGPL into LICENSE.ARTWORK, put
+help/ and docs/ under CC BY-SA 4.0, and added a section 14 proxy (term 4).
+LICENSE.ADDITIONAL is the authoritative text; the quote below is the earlier
+draft. Revised after two independent
 reviews. LICENSE itself is unchanged.
 
 ## Why it's needed

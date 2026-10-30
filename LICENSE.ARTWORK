@@ -1,0 +1,33 @@
+Chord Notepad logos and promotional material
+
+Copyright (C) 2025-2026 Tiberiu Chibici. All rights reserved, except as
+permitted below.
+
+These files are not licensed under the GNU Affero General Public License or
+the permissions in LICENSE.ADDITIONAL. The rest of the repository is.
+
+Covered files ("the Artwork"):
+
+- The Chord Notepad logo: resources/chord-notepad-icon.svg, and every image
+  generated from it, including resources/icon-*.png,
+  resources/chord-notepad-icon.ico, the Android launcher icons
+  (android/app/src/main/res/mipmap-*/ic_launcher*), and the icons in the
+  Windows, MSIX, macOS, Flatpak and Snap packages.
+- Store and promotional material in packaging/store/: screenshots, feature
+  graphics and other images, and the store listing texts (listing-*.txt).
+
+You may:
+
+1. Copy and distribute the Artwork unmodified, as part of Chord Notepad
+   itself, or of a version of it changed only as needed to build, package or
+   install it for a particular operating system, distribution or app store,
+   without changing what it does for its users.
+2. Use the Artwork unmodified to build, run and test modified versions of
+   Chord Notepad for yourself, as long as you don't distribute those versions
+   with the Artwork.
+3. Show the logo and the screenshots to refer to Chord Notepad, for example
+   in reviews, articles, package listings, or a link to the project.
+
+Anything else needs written permission from Tiberiu Chibici. In particular, a
+modified version of Chord Notepad that you distribute must use its own name,
+logo and icons (see term 3 of LICENSE.ADDITIONAL).
