@@ -1,0 +1,24 @@
+{bpm: 100} {time: 3/4} {key: Am}
+
+// Scarborough Fair (traditional)
+{label: verse}
+Am           G          Am
+Are you going to Scarborough Fair?
+C        G         Am    Em
+Parsley, sage, rosemary and thyme
+Am         C        G
+Remember me to one who lives there
+Am        G         D       Am
+For once she was a true love of mine
+
+{label: verse 2}
+Am         G          Am
+Tell her to make me a cambric shirt
+C        G         Am    Em
+Parsley, sage, rosemary and thyme
+Am          C          G
+Without any seam or needlework
+Am        G         D       Am
+And then she'll be a true love of mine
+
+{loop: verse 2}

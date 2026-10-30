@@ -64,7 +64,7 @@
   {
    "name": "p-01-play-fret-cards",
    "out": "01-play-fret-cards",
-   "what": "Play tab, Rising Sun on guitar fret cards, mid-playback with the playhead and a chord lit",
+   "what": "Play tab, Scarborough Fair on guitar fret cards, mid-playback with the playhead and a chord lit",
    "page": "Google Play listing",
    "device": "phone",
    "orientation": "portrait",
@@ -78,8 +78,8 @@
    "scene": [
     {
      "do": "song",
-     "file": "android/tools/help_shot_songs/rising_sun.txt",
-     "name": "Rising Sun.txt"
+     "file": "android/tools/help_shot_songs/scarborough_fair.txt",
+     "name": "Scarborough Fair.txt"
     },
     {
      "do": "mode",
@@ -106,8 +106,8 @@
    "scene": [
     {
      "do": "song",
-     "file": "android/tools/help_shot_songs/rising_sun.txt",
-     "name": "Rising Sun.txt"
+     "file": "android/tools/help_shot_songs/scarborough_fair.txt",
+     "name": "Scarborough Fair.txt"
     },
     {
      "do": "mode",
@@ -115,7 +115,7 @@
     },
     {
      "do": "select",
-     "text": "Rising Sun\n",
+     "text": "thyme\n",
      "cursor": true
     },
     {
@@ -158,7 +158,7 @@
   {
    "name": "p-04-piano-roll",
    "out": "04-piano-roll",
-   "what": "Rising Sun on the piano roll while playing",
+   "what": "Scarborough Fair on the piano roll while playing",
    "page": "Google Play listing",
    "device": "phone",
    "orientation": "portrait",
@@ -169,8 +169,8 @@
    "scene": [
     {
      "do": "song",
-     "file": "android/tools/help_shot_songs/rising_sun.txt",
-     "name": "Rising Sun.txt"
+     "file": "android/tools/help_shot_songs/scarborough_fair.txt",
+     "name": "Scarborough Fair.txt"
     },
     {
      "do": "mode",
@@ -200,8 +200,8 @@
    "scene": [
     {
      "do": "song",
-     "file": "android/tools/help_shot_songs/rising_sun.txt",
-     "name": "Rising Sun.txt"
+     "file": "android/tools/help_shot_songs/scarborough_fair.txt",
+     "name": "Scarborough Fair.txt"
     },
     {
      "do": "mode",
@@ -238,8 +238,8 @@
    "scene": [
     {
      "do": "song",
-     "file": "android/tools/help_shot_songs/rising_sun.txt",
-     "name": "Rising Sun.txt"
+     "file": "android/tools/help_shot_songs/scarborough_fair.txt",
+     "name": "Scarborough Fair.txt"
     },
     {
      "do": "mode",
@@ -269,7 +269,7 @@
    "scene": [
     {
      "do": "song",
-     "file": "android/tools/help_shot_songs/amazing_grace.txt",
+     "file": "android/tools/help_shot_songs/amazing_grace_store.txt",
      "name": "Amazing Grace.txt"
     },
     {
@@ -317,8 +317,8 @@
    "scene": [
     {
      "do": "song",
-     "file": "android/tools/help_shot_songs/rising_sun.txt",
-     "name": "Rising Sun.txt"
+     "file": "android/tools/help_shot_songs/scarborough_fair.txt",
+     "name": "Scarborough Fair.txt"
     },
     {
      "do": "mode",
@@ -345,7 +345,7 @@
   {
    "name": "t10-01-play-fret-cards",
    "out": "01-play-fret-cards",
-   "what": "Play tab, Rising Sun on guitar fret cards, mid-playback with the playhead and a chord lit",
+   "what": "Play tab, Scarborough Fair on guitar fret cards, mid-playback with the playhead and a chord lit",
    "page": "Google Play listing",
    "device": "tablet10",
    "orientation": "landscape",
@@ -359,8 +359,8 @@
    "scene": [
     {
      "do": "song",
-     "file": "android/tools/help_shot_songs/rising_sun.txt",
-     "name": "Rising Sun.txt"
+     "file": "android/tools/help_shot_songs/scarborough_fair.txt",
+     "name": "Scarborough Fair.txt"
     },
     {
      "do": "mode",
@@ -387,8 +387,8 @@
    "scene": [
     {
      "do": "song",
-     "file": "android/tools/help_shot_songs/rising_sun.txt",
-     "name": "Rising Sun.txt"
+     "file": "android/tools/help_shot_songs/scarborough_fair.txt",
+     "name": "Scarborough Fair.txt"
     },
     {
      "do": "mode",
@@ -396,7 +396,7 @@
     },
     {
      "do": "select",
-     "text": "Rising Sun\n",
+     "text": "thyme\n",
      "cursor": true
     },
     {
@@ -408,7 +408,7 @@
   {
    "name": "t10-04-piano-roll",
    "out": "04-piano-roll",
-   "what": "Rising Sun on the piano roll while playing",
+   "what": "Scarborough Fair on the piano roll while playing",
    "page": "Google Play listing",
    "device": "tablet10",
    "orientation": "landscape",
@@ -419,8 +419,8 @@
    "scene": [
     {
      "do": "song",
-     "file": "android/tools/help_shot_songs/rising_sun.txt",
-     "name": "Rising Sun.txt"
+     "file": "android/tools/help_shot_songs/scarborough_fair.txt",
+     "name": "Scarborough Fair.txt"
     },
     {
      "do": "mode",
@@ -451,8 +451,8 @@
    "scene": [
     {
      "do": "song",
-     "file": "android/tools/help_shot_songs/rising_sun.txt",
-     "name": "Rising Sun.txt"
+     "file": "android/tools/help_shot_songs/scarborough_fair.txt",
+     "name": "Scarborough Fair.txt"
     },
     {
      "do": "mode",
@@ -468,7 +468,7 @@
   {
    "name": "t7-01-play-fret-cards",
    "out": "01-play-fret-cards",
-   "what": "Play tab, Rising Sun on guitar fret cards, mid-playback with the playhead and a chord lit",
+   "what": "Play tab, Scarborough Fair on guitar fret cards, mid-playback with the playhead and a chord lit",
    "page": "Google Play listing",
    "device": "tablet7",
    "orientation": "landscape",
@@ -482,8 +482,8 @@
    "scene": [
     {
      "do": "song",
-     "file": "android/tools/help_shot_songs/rising_sun.txt",
-     "name": "Rising Sun.txt"
+     "file": "android/tools/help_shot_songs/scarborough_fair.txt",
+     "name": "Scarborough Fair.txt"
     },
     {
      "do": "mode",
@@ -510,8 +510,8 @@
    "scene": [
     {
      "do": "song",
-     "file": "android/tools/help_shot_songs/rising_sun.txt",
-     "name": "Rising Sun.txt"
+     "file": "android/tools/help_shot_songs/scarborough_fair.txt",
+     "name": "Scarborough Fair.txt"
     },
     {
      "do": "mode",
@@ -519,7 +519,7 @@
     },
     {
      "do": "select",
-     "text": "Rising Sun\n",
+     "text": "thyme\n",
      "cursor": true
     },
     {
@@ -531,7 +531,7 @@
   {
    "name": "t7-04-piano-roll",
    "out": "04-piano-roll",
-   "what": "Rising Sun on the piano roll while playing",
+   "what": "Scarborough Fair on the piano roll while playing",
    "page": "Google Play listing",
    "device": "tablet7",
    "orientation": "landscape",
@@ -542,8 +542,8 @@
    "scene": [
     {
      "do": "song",
-     "file": "android/tools/help_shot_songs/rising_sun.txt",
-     "name": "Rising Sun.txt"
+     "file": "android/tools/help_shot_songs/scarborough_fair.txt",
+     "name": "Scarborough Fair.txt"
     },
     {
      "do": "mode",
@@ -574,8 +574,8 @@
    "scene": [
     {
      "do": "song",
-     "file": "android/tools/help_shot_songs/rising_sun.txt",
-     "name": "Rising Sun.txt"
+     "file": "android/tools/help_shot_songs/scarborough_fair.txt",
+     "name": "Scarborough Fair.txt"
     },
     {
      "do": "mode",
