@@ -46,11 +46,15 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y fluidsynth libfluidsynth3
 
+      # Pinned to the pipenv that wrote Pipfile.lock: newer ones hash the Pipfile
+      # differently, call the lock out of date and re-lock to newer packages.
+      # sync installs exactly the lock and never re-locks, so the builds and the
+      # licence inventory (tests/test_licences.py) see the same versions.
       - name: Install pipenv
-        run: pip install pipenv
+        run: pip install pipenv==2025.0.4
 
       - name: Install dependencies
-        run: pipenv install --dev
+        run: pipenv sync --dev
 
       - name: Run tests
         run: pipenv run pytest tests/ -v
@@ -182,10 +186,10 @@ jobs:
           Get-ChildItem -Path $binPath.FullName
 
       - name: Install pipenv
-        run: pip install pipenv
+        run: pip install pipenv==2025.0.4
 
       - name: Install dependencies
-        run: pipenv install --dev
+        run: pipenv sync --dev
 
       - name: Build HTML documentation
         run: |
@@ -594,10 +598,10 @@ jobs:
           python-version: '3.14'
 
       - name: Install pipenv
-        run: pip install pipenv
+        run: pip install pipenv==2025.0.4
 
       - name: Install dependencies
-        run: pipenv install --dev
+        run: pipenv sync --dev
 
       - name: Build PDF documentation
         run: |
