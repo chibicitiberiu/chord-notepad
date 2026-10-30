@@ -91,6 +91,14 @@ Switching Notations
    The **AB / Do** switch in the Edit ribbon decides which system Chord Notepad
    *reads and displays*:
 
+   .. platform-figure:: notation-toggle
+      :platforms: android
+      :alt: The AB / Do switch and the Convert button in the Edit ribbon, with
+            AB (American) selected.
+      :align: center
+
+      **AB** and **Do** in the Edit ribbon, with **Convert** next to them.
+
 .. only:: desktop
 
    1. Click **AB** for American note names (C, D, E ...).
@@ -109,7 +117,8 @@ Switching Notations
 .. only:: android
 
    From that point on the editor recognizes and highlights chords in the notation
-   you picked.
+   you picked, and keys are named in it too (in Song defaults and in the Insert
+   Key dialog). The same choice is in **☰ → Settings → General**.
 
 .. important::
    The toggle does **not** rewrite text you have already typed. Flipping from

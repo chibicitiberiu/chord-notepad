@@ -14,9 +14,26 @@ Settings
 
    **☰ → Settings** opens the settings screens, where everything that used to
    mean hand-editing the config file now has a form. There are two pages,
-   **General** and **Playback**, plus the **Voicings** editor. Field help shows
-   as supporting text under each field. The Voicing sheet in the Play tab has an
-   **Edit voicings…** entry that opens the Voicings editor directly.
+   **General** and **Playback**, plus the **Voicings** editor. Each field has a
+   line of help under it.
+
+   .. platform-figure:: settings-pages
+      :platforms: android
+      :alt: The Settings screen listing three pages: General, Playback and
+            Voicings, each with a one-line summary, and Save at the top right.
+
+      Settings on a phone. Tap a page to open it.
+
+   On a phone each page is a screen of its own, and the ← at the top goes back
+   to the list. On a tablet, or a phone held sideways, the list stays on the
+   left and the page opens beside it.
+
+   Nothing changes until you tap **Save** at the top right; it saves every page
+   at once and closes Settings. If you leave with ← or Back instead and have
+   changed something, the app asks whether to discard your changes.
+
+   The Voicing sheet in the Play tab has an **Edit voicings…** entry that opens
+   the Voicings editor directly.
 
 
 General
@@ -29,8 +46,19 @@ General
 
 .. only:: android
 
+   .. platform-figure:: settings-general
+      :platforms: android
+      :alt: The General page: Font family Monospace, Font size 11 with minus
+            and plus buttons, Chord notation American or European, Default
+            key C, a Show quick start at startup switch, and Number of recent
+            files 10.
+
+      The General page.
+
    **Font family** and **Font size**
-      The editor's font. You can also change the size by pinching the text.
+      The editor's font: Monospace, Sans or Serif, from 6 to 72 points.
+      Monospace keeps chords lined up over the lyrics. You can also change the
+      size by pinching the text.
 
 .. only:: desktop
 
@@ -63,21 +91,38 @@ General
 .. only:: android
 
    **Show quick start at startup**
-      Whether the quick-start reference (also reachable from
-      ☰ → Quick start) opens automatically when Chord Notepad launches.
+      Whether the Quick Start tour (also in ☰ → Quick start) opens
+      automatically when Chord Notepad starts. The **Show at startup** box at the
+      bottom of the tour is the same setting.
 
    **Number of recent files**
-      How many entries ☰ → Recent remembers.
+      How many songs ☰ → Recent remembers, from 1 to 50.
 
 
-Playback & Audio
-=================
+:plat:`Playback & Audio|Playback`
+==================================
 
 **Default BPM**
    The tempo a new document starts at.
 
 **Default time signature**
    The time signature a new document starts at.
+
+.. only:: android
+
+   .. platform-figure:: settings-playback
+      :platforms: android
+      :alt: The Playback page: Default BPM 120 with minus and plus buttons, and
+            the default time signature as Beats 4 and Beat unit 4.
+
+      The Playback page.
+
+   These are the starting values. A song's own ``{bpm}`` and ``{time}``
+   directives always win, and the song pill's **Song defaults** sheet changes
+   the defaults for the song that's open (see :doc:`interface`).
+
+   The sound itself has no settings on Android: the app always uses its
+   built-in instruments and the phone's normal audio output.
 
 .. only:: desktop
 
@@ -132,13 +177,32 @@ you there.
 
    The list shows your custom voicings, grouped by model (Fretboard, Piano,
    Ensemble). **Add voicing** at the top of the list adds a new one and opens
-   it; the **Remove voicing** button is in the voicing's own form. On a
-   tablet the list is on the left and the form on the right. On a phone the
-   list is a screen of its own: tap a voicing to open its form full screen,
-   and Back returns to the list. Built-in voicings -- the four guitars, the
-   ukulele, the four ensemble presets, the default piano -- aren't listed
-   here since they're not yours to edit, but they are available as starting
-   points (see below).
+   it; the **Remove voicing** button is in the voicing's own form, and asks
+   before it removes anything. On a phone the list is a screen of its own:
+   tap a voicing to open its form full screen, and ← or Back returns to the
+   list. Built-in voicings -- the four guitars, the ukulele, the four
+   ensemble presets, the default piano -- aren't listed here since they're
+   not yours to edit, but they are available as starting points (see below).
+
+   .. platform-figure:: settings-voicings
+      :platforms: android
+      :alt: The Voicings page on a phone: an Add voicing button, then the
+            groups Fretboard with My 7-String, Piano with no voicings, and
+            Ensemble with no voicings.
+
+      The Voicings list on a phone, with one custom voicing.
+
+   On a tablet held sideways, the pages, the list and the form all fit on one
+   screen:
+
+   .. platform-figure:: settings-voicings-tablet
+      :platforms: android
+      :alt: Settings on a tablet in landscape: the pages on the left, the
+            Voicings list in the middle with My 7-String selected, and its
+            form on the right with Name, Model, Load config, Remove voicing,
+            Strings and the fret and span fields.
+
+      Settings › Voicings on a tablet.
 
 .. only:: desktop
 
@@ -148,9 +212,21 @@ you there.
 
 .. only:: android
 
-   The right side edits whichever voicing is selected. Every field has a line
-   of supporting text under it explaining what it does, so if a field's purpose
+   The form edits the voicing you picked. Every field has a line of
+   supporting text under it explaining what it does, so if a field's purpose
    isn't obvious, read that before consulting :doc:`fretted` or :doc:`ensembles`.
+   Number fields have **−** and **+** buttons beside them, and you can also type
+   the value.
+
+   .. platform-figure:: settings-voicing-form
+      :platforms: android
+      :alt: The form for the voicing My 7-String on a phone: Name with a
+            pencil button, Model Fretboard, Load config and Remove voicing
+            buttons, Strings B1 E2 A2 D3 G3 B3 E4, then Max fret, Fingers and
+            Max span with minus and plus buttons. Save at the top right.
+
+      A fretboard voicing's form on a phone (the top of it; the weights are
+      further down).
 
 **Load config**
    Copies every parameter from an existing voicing -- any built-in preset
@@ -258,3 +334,11 @@ instead of editing JSON by hand:
    6. Tap **Save** in the top bar.
    7. Switch to the Play tab and tap **Voicing** in the player -- **My 7-String**
       is now in the list, under Your voicings. Select it and play some chords.
+
+   .. platform-figure:: voicing-sheet
+      :platforms: android
+      :alt: The Voicing sheet: Piano; under Fretted, four guitar tunings and
+            Ukulele; under Ensembles, four choir and string presets; under Your
+            voicings, My 7-String. Edit voicings and Done at the bottom.
+
+      The Voicing sheet, with the new voicing under Your voicings.

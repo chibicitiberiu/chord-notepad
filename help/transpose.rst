@@ -22,11 +22,20 @@ Transposing a Song
 
 .. only:: android
 
-   1. In the Edit tab, tap **Transpose** in the ribbon
-   2. Choose the number of **semitones** to shift by. Positive numbers move the
-      chords up, negative numbers move them down (a value of ``2`` raises
-      everything by a whole step; ``-1`` lowers it by a half step).
+   1. In the Edit tab, tap **Transpose** in the ribbon. (To transpose only part
+      of the song, select that part first.)
+   2. Choose the number of **semitones** to shift by with **−** and **+**, from
+      -11 to +11. Positive numbers move the chords up, negative numbers move
+      them down (a value of ``2`` raises everything by a whole step; ``-1``
+      lowers it by a half step).
    3. Tap **OK**.
+
+   .. platform-figure:: transpose
+      :platforms: android
+      :alt: The Transpose dialog: Transpose whole song, a short explanation,
+            Semitones +2 between minus and plus buttons, and Cancel and OK.
+
+      Transposing the whole song up a whole step.
 
 If you have text selected, only the chords inside the selection are
 transposed, and the dialog says *Transpose selection*. With nothing selected
@@ -38,7 +47,8 @@ the whole document is transposed, and the dialog says *Transpose whole song*.
 
 .. only:: android
 
-   The change is a single undo step -- one **Undo** in the Edit ribbon puts everything back.
+   The change is a single undo step -- one **Undo** in the Edit ribbon puts
+   everything back.
 
 
 What Changes

@@ -8,6 +8,14 @@ written in curly braces and don't produce sound themselves - they change the
 
 Directives appear in **purple** in the editor when valid.
 
+.. only:: android
+
+   You can type them, or let the app write them. In the Edit tab, **＋ Insert**
+   in the ribbon adds a tempo, time signature, key, capo, label or loop at the
+   cursor through a small dialog (see :doc:`interface`). In the Play tab, the
+   song pill's **Song defaults** sheet has **Write into song**, which puts the
+   missing ``{bpm}``, ``{time}`` and ``{key}`` at the top of the song.
+
 
 Tempo (BPM)
 ===========
@@ -303,7 +311,18 @@ Finding the Best Capo
 
    You don't have to guess: in the Edit tab, ＋ Insert → Capo → Suggest scores capo
    positions for a voicing you choose and inserts the ``{capo}`` directive for you.
+   With nothing selected it looks at the whole song and puts the directive at
+   the top. Select part of the song first to get a suggestion for just that
+   part, inserted at the start of its first line.
    See :doc:`chord_sheet` for details.
+
+   .. platform-figure:: capo-suggest
+      :platforms: android
+      :alt: The Suggest Capo dialog: a short explanation and a list of
+            fretboard voicings (four guitar tunings, Ukulele and My 7-String)
+            with Guitar Standard selected, and Cancel and OK.
+
+      Pick the instrument the capo is for.
 
 
 Labels and Loops
