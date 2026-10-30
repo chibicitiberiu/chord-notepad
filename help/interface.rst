@@ -1062,4 +1062,5 @@ Two controls:
       :alt: The Insert Capo dialog: an explanation, an empty Fret field, and
             the Suggest, Cancel and Insert buttons.
 
-      The Capo dialog. A capo changes the chord shapes, not the sound.
+      The Capo dialog. The key stays the same; a fretboard voicing plays the
+      capo shapes.

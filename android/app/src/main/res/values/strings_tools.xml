@@ -34,7 +34,7 @@
     <string name="insert_label_field">Label</string>
     <string name="insert_loop_title">Insert Loop</string>
     <string name="insert_capo_title">Insert Capo</string>
-    <string name="insert_capo_hint">From this point on, chord boxes and tabs are shown for a capo on this fret. It changes the shapes, not the sound.\n\nEnter a fret from 0 to 12 (0: no capo), or let Suggest pick the easiest one.</string>
+    <string name="insert_capo_hint">From this point on, chord boxes and tabs are shown for a capo on this fret. The key stays the same, but a fretboard voicing plays these shapes, so its notes can change.\n\nEnter a fret from 0 to 12 (0: no capo), or let Suggest pick the easiest one.</string>
     <string name="insert_capo_field">Fret</string>
     <string name="insert_capo_suggest">Suggest</string>
     <string name="insert_loop_hint">Placed at the end of a loop.\n\nTo set the beginning of a loop, use a label directive (＋ Insert → Label).\nUse \'@start\' as a special keyword for the beginning of the song.</string>
