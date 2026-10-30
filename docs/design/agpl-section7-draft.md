@@ -201,7 +201,13 @@ as they would a CLA.
    own copyright holders can waive it. Relinking (LGPL-2.1 section 6) can be
    met, since the whole app builds from public source. The usage-rules
    conflict on Apple's store can't be fixed from here. Before any iOS work,
-   choose: accept the risk, ask upstream, or replace the components. A small
+   choose: accept the risk, ask upstream, or replace the components.
+   Suggested (2026-10-31): on iOS, play through Apple's AVAudioUnitSampler,
+   which is a system library and loads the same SF2 soundfont, so no LGPL
+   code ships. Leave chardet out, and ask the FluidSynth maintainers publicly
+   whether they object anyway. TinySoundFont (MIT) is the cross-platform
+   alternative. If FluidSynth is shipped after all, use it under LGPL-2.1
+   (it's -or-later), which avoids LGPL-3's installation-information duty. A small
    step: requests, chardet and urllib3 may be droppable from the Android/iOS
    bundle (no network access), if music21 allows it.
 3. **Console stores** (Nintendo, Sony) ship SDKs under NDA. Their source can't
