@@ -27,7 +27,7 @@ The Four Presets
 Chord Notepad ships with four built-in ensembles, each a fixed set of
 voices with its own comfortable range. Voices are listed top to bottom
 (highest to lowest); "max gap below" is the largest interval the engine
-will ever put between that voice and the one under it -- ensembles are
+normally puts between that voice and the one under it -- ensembles are
 usually allowed to spread wider at the bottom of the texture than at the
 top, since a big gap between bass and tenor is normal but the same gap
 between soprano and alto sounds hollow.
@@ -138,21 +138,28 @@ How Voicing Decisions Are Made
 ================================
 
 Each voice tries to keep the note it's already singing (a common tone),
-and moves by the smallest useful step when it has to move at all. Two
-voices are never allowed to slide in parallel fifths or parallel octaves --
-that one motion is the fastest way to make four-part harmony sound wrong.
-When a ``{key:}`` is set, the leading tone resolves up to the tonic instead
-of wandering off somewhere else. If a chord has more notes than there are
-voices, the least characteristic tone is dropped first -- the fifth goes
-before the third or seventh, and a suspended fourth is always kept, since
-losing it would erase the whole point of the ``sus`` chord. If a chord has
-fewer notes than voices, something gets doubled, and the engine reaches for
-the root first. A slash chord's bass note always lands in the bottom
-voice. And when a chord simply won't fit the ensemble as written -- an
-awkward key, a tight cluster of notes and not enough room to spread them --
-the engine doesn't give up; it relaxes its rules one step at a time
-(a wider gap here, a parallel it would normally avoid there) until it
-finds something an ensemble could actually sing or play.
+and moves by the smallest useful step when it has to move at all. Parallel
+fifths and octaves between two voices carry a heavy penalty -- that one
+motion is the fastest way to make four-part harmony sound wrong -- so the
+engine avoids them whenever another voicing is available. When a key is in
+effect (``{key:}``), the leading tone earns a bonus for resolving up to the
+tonic, and doubling it is avoided.
+
+If a chord has more notes than there are voices, the tone with the
+cheapest Omission weight is left out. With the defaults that's the root:
+the chord is then sung in inversion, so a G7 for three voices comes out as
+B, D, F. Next come a 9th or other extension, then the fifth; the third, the
+seventh and a ``sus`` chord's suspended tone are kept. If a chord has fewer
+notes than voices, something gets doubled, and the engine reaches for the
+root first. Any chord tone may go in the bass, though the Inversion weights
+favor root position; a slash chord's bass note always lands in the bottom
+voice.
+
+And when a chord simply won't fit the ensemble as written -- an awkward
+key, a tight cluster of notes and not enough room to spread them -- the
+engine doesn't give up. It first lets each voice go up to two semitones past
+its range, then drops the "max gap below" limits, and as a last resort
+stacks the chord in close position.
 
 
 How to Change Voicing
@@ -168,7 +175,8 @@ How to Change Voicing
 
 .. only:: android
 
-   1. In the Play tab, tap **Voicing** in the player.
+   1. In the Play tab, tap the **Voicing** button (the music note, first in
+      the player's row of buttons).
    2. Select **Choir (SATB)**, **Male Choir (TTBB)**, **Treble Choir (SSA)**,
       **String Quartet**, or any custom ensemble you've defined (see below).
    3. Play your chords to hear the difference.
@@ -185,16 +193,18 @@ How to Change Voicing
 .. only:: desktop
 
    A suitable instrument sound makes ensemble voicings much more convincing --
-   try **Choir Aahs** or **Voice Oohs** for the choir presets, or **String
-   Ensemble** for the quartet. Change it under
-   :menuselection:`Playback --> Instrument`; see :ref:`changing-instruments`.
+   try **52 - Concert Choir** or **53 - Voice Oohs** for the choir presets, or
+   **48 - Fast Strings** or **49 - Slow Strings** for the quartet. Change it
+   under :menuselection:`Playback --> Instrument` (they're in the Ensemble
+   family); see :ref:`changing-instruments`.
 
 .. only:: android
 
    A suitable instrument sound makes ensemble voicings much more convincing --
-   try **Choir Aahs** or **Voice Oohs** for the choir presets, or **String
-   Ensemble** for the quartet. Change it with the
-   **Instrument** button in the Play tab's player; see :ref:`changing-instruments`.
+   try **52 - Concert Choir** or **53 - Voice Oohs** for the choir presets, or
+   **48 - Fast Strings** or **49 - Slow Strings** for the quartet. They're in
+   the **Ensemble** family under the **Instrument** button in the Play tab's
+   player; see :ref:`changing-instruments`.
 
 
 Custom Ensembles
@@ -240,17 +250,15 @@ Custom Ensembles
 
 .. only:: desktop
 
-   Add a ``voicings`` object at the top level, keyed by a short slug you'll
-   use internally; each entry needs a ``"model": "ensemble"`` and describes
-   one ensemble:
+   Add a ``voicings`` object at the top level, keyed by the voicing's name;
+   each entry needs a ``"model": "ensemble"`` and describes one ensemble:
 
    .. code-block:: json
 
       {
         "voicings": {
-          "jazz_trio": {
+          "Jazz Vocal Trio": {
             "model": "ensemble",
-            "label": "Jazz Vocal Trio",
             "voices": [
               {"name": "Lead", "range": ["A3", "F5"]},
               {"name": "Harmony", "range": ["F3", "D5"]},
@@ -270,8 +278,8 @@ Custom Ensembles
    * ``model`` is required and must be ``"ensemble"`` for a voicing defined
      this way (a fretted instrument uses ``"model": "fretboard"`` instead --
      see :doc:`fretted`).
-   * ``label`` is what shows up in the Voicing menu (defaults to the slug if
-     omitted).
+   * The key (``"Jazz Vocal Trio"`` here) is the voicing's name, the one the
+     Voicing menu and the Settings window show.
    * ``voices`` is required: 2 to 8 entries, listed top voice first, each with
      a ``name`` and a ``range`` of ``[low, high]``. Give the range as note
      names (``"C4"``, ``"F#3"``) or raw MIDI numbers; middle C is ``C4``. Each
@@ -361,9 +369,10 @@ Custom Ensembles
 
 .. only:: desktop
 
-   Custom ensembles appear in :menuselection:`Playback --> Voicing` automatically
-   the next time Chord Notepad starts, sorted alongside every other voicing --
-   built-in or custom, ensemble or fretted -- by model and then name.
+   Custom ensembles appear in :menuselection:`Playback --> Voicing` the next
+   time Chord Notepad starts (or as soon as you save them in the Settings
+   window), in the last group of the menu with your other custom voicings,
+   sorted by model and then name.
 
 .. only:: android
 
@@ -418,7 +427,9 @@ Voicing Parameters
    * - Voice movement
      - Added per semitone an inner or upper voice moves from one chord to
        the next. It's negative, so a more negative value makes those voices
-       sit stiller; nearer zero lets them roam more freely.
+       sit stiller; nearer zero lets them roam more freely. You can also
+       give one value per voice, top voice first, separated by commas; that
+       list then sets the bottom voice too, in place of "Bass movement".
      - ``movement``
      - -0.4
    * - Bass movement
@@ -433,7 +444,8 @@ Voicing Parameters
      - ``leap_penalty``
      - -2.0
    * - Octave leap
-     - Subtracted when a voice jumps a full octave or more.
+     - Subtracted when a voice jumps more than an octave, on top of "Large
+       leap". A leap of exactly an octave pays only "Large leap".
      - ``octave_leap_penalty``
      - -6.0
    * - Tritone leap
@@ -442,8 +454,9 @@ Voicing Parameters
      - ``tritone_leap_penalty``
      - -3.0
    * - Common tone held
-     - Added when a voice holds the same pitch class it just sang. More
-       positive keeps more notes "tied over" between chords.
+     - Added when a voice holds the same note it just sang (the same pitch,
+       not the same note an octave away). More positive keeps more notes
+       "tied over" between chords.
      - ``common_tone_bonus``
      - +1.5
    * - Parallel fifths/octaves
@@ -472,16 +485,16 @@ Voicing Parameters
        traditionally produces awkward parallel octaves at the resolution.
      - ``double_leading_tone_penalty``
      - -8.0
-   * - Doubling (by tone role)
+   * - Doubling (Root, Fifth, Third, Seventh, Color, Extension)
      - Added to the score for which chord tone gets doubled when there are
-       more voices than notes in the chord. Positive favors doubling that
-       tone, negative avoids it. Keys: ``root`` (+2.0), ``fifth``
+       more voices than notes in the chord, once per extra copy. Positive
+       favors doubling that tone, negative avoids it. Keys: ``root`` (+2.0), ``fifth``
        (+0.5), ``third`` (-2.0), ``seventh`` (-6.0), ``color`` (-6.0),
        ``extension`` (-6.0).
      - ``doubling.root`` / ``.fifth`` / ``.third`` / ``.seventh`` /
        ``.color`` / ``.extension``
      - :plat:`see left|per key, above`
-   * - Omission (by tone role)
+   * - Omission (Root, Third, Fifth, Seventh, Color, Extension)
      - Added to the score for dropping a chord tone entirely when there are
        fewer voices than notes. The values are negative, so a more negative
        one keeps that tone more insistently. Keys: ``root`` (-4.0),
@@ -490,10 +503,12 @@ Voicing Parameters
      - ``omit.root`` / ``.third`` / ``.fifth`` / ``.seventh`` /
        ``.color`` / ``.extension``
      - :plat:`see left|per key, above`
-   * - Inversion (by bass tone)
-     - Added to the score for the bass note's chosen inversion. Keys:
-       ``root`` (0.0), ``first`` (-1.5), ``second`` (-5.0), ``third``
-       (-3.0); nearer zero favors that inversion, more negative avoids it.
+   * - Inversion (Root, First, Second, Third)
+     - Added to the score for the bass note's chosen inversion (not used for
+       slash chords, whose bass is fixed). Keys: ``root`` (0.0), ``first``
+       (-1.5), ``second`` (-5.0), ``third`` (-3.0); nearer zero favors that
+       inversion, more negative avoids it. A sixth, sus tone or extension in
+       the bass counts as ``second``.
      - ``inversion.root`` / ``.first`` / ``.second`` / ``.third``
      - :plat:`see left|per key, above`
    * - Out-of-comfort range
@@ -508,9 +523,10 @@ Voicing Parameters
      - ``unison_penalty``
      - -0.5
    * - Wide upper spacing
-     - Subtracted per semitone that a gap between two upper voices exceeds
-       an octave. Separate from ``max_spacing``, which is a hard limit; this
-       is a soft nudge toward closer spacing above the bass.
+     - Subtracted per semitone that a gap between two neighbouring voices
+       above the bass exceeds a perfect fifth (7 semitones). Separate from
+       ``max_spacing``, which is a hard limit; this is a soft nudge toward
+       closer spacing above the bass.
      - ``upper_spacing_penalty``
      - -0.15
 
