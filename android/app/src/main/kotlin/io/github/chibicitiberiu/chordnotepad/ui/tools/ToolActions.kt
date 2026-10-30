@@ -6,8 +6,9 @@ import io.github.chibicitiberiu.chordnotepad.bridge.SessionCommands
 import io.github.chibicitiberiu.chordnotepad.ui.editor.EditorController
 
 /**
- * What ⋮ › Tools does: session commands with the editor's selection or
- * cursor in code points, the text sent first (the session reads it). The
+ * What the Edit ribbon's tools (Insert, Transpose, Convert) and Suggest Capo
+ * do: session commands with the editor's selection or cursor in code points,
+ * the text sent first (the session reads it). The
  * dialogs that follow a request (Insert, Suggest Capo) are presented from
  * the pending request (`SessionRequests`). Main thread.
  *

@@ -67,7 +67,7 @@ private val SplitWidth = 840.dp
 private val PagesPaneWidth = 240.dp
 
 /**
- * ⋮ › Settings: General, Playback and the Voicings editor over a settings
+ * ☰ drawer › Settings: General, Playback and the Voicings editor over a settings
  * edit (`begin_settings_edit` when it opens; Save → `save_settings`, Back or
  * leaving → `cancel_settings_edit`, asking first when something changed).
  * Full screen on phones (pages list → page → voicing form), list/detail

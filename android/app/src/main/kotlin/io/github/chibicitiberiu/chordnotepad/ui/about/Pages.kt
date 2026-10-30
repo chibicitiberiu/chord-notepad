@@ -21,7 +21,7 @@ object Pages {
     /** Help › Quick Start (also opens on its own the first time, see `QuickStartLaunch`). */
     const val QUICK_START = "quick_start"
 
-    /** ⋮ › Settings (its own pages are inside `SettingsScreen`; Back there is its own). */
+    /** ☰ drawer › Settings (its own pages are inside `SettingsScreen`; Back there is its own). */
     const val SETTINGS = "settings"
 
     /** Settings opened at Voicings (the Voicing sheet's "Edit voicings…"). */
