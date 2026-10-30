@@ -15,6 +15,11 @@ class ChordDetector:
     # Comment pattern - matches // and everything after it
     COMMENT_PATTERN = re.compile(r'//.*$')
 
+    # A line whose first non-space character is '.' is plain text: no chords
+    # or directives are detected on it (a lyric line like "la la la" that
+    # would otherwise read as European chords). The dot stays in the text.
+    TEXT_LINE_PATTERN = re.compile(r'^[^\S\n]*\..*$', re.MULTILINE)
+
     # NC (No Chord) pattern - matches NC with optional duration
     # NC represents silence/rest during playback
     NC_PATTERN = re.compile(r'\b(NC(?:\*[\d.]+)?)(?![A-Za-z0-9])')
@@ -63,6 +68,11 @@ class ChordDetector:
         self.notation = notation
         self.chord_helper = ChordHelper()
 
+    @classmethod
+    def is_text_line(cls, line: str) -> bool:
+        """Whether ``line`` is forced to plain text by a leading ``.``."""
+        return line.lstrip().startswith('.')
+
     def _strip_comment(self, line: str) -> str:
         """Strip comment from a line.
 
@@ -99,7 +109,9 @@ class ChordDetector:
         char_offset = 0  # Track character position in full text
 
         for line_num, line in enumerate(lines, start=1):
-            if self._is_chord_line(line):
+            if self.is_text_line(line):
+                pass
+            elif self._is_chord_line(line):
                 # Process all words on this chord line
                 chords = self._extract_chords_from_line(line, line_num, char_offset)
                 results.extend(chords)

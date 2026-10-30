@@ -53,8 +53,11 @@ class SongParserService:
         """
         directives = []
 
-        # Find all comment regions to skip directives inside them
+        # Find all comment regions to skip directives inside them; a line
+        # starting with '.' is plain text, so it counts as one whole region.
         comment_regions = [(m.start(), m.end()) for m in self.COMMENT_PATTERN.finditer(text)]
+        comment_regions += [(m.start(), m.end())
+                            for m in ChordDetector.TEXT_LINE_PATTERN.finditer(text)]
 
         def is_in_comment(pos: int) -> bool:
             """Check if a position is inside a comment."""

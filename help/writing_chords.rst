@@ -803,9 +803,25 @@ up and plays; the lyric line is displayed but never played, no ``//`` required.
 A lyric that happens to contain a chord-like word -- an *Am*, a *La*, a *Do* --
 is still left alone, because the line as a whole doesn't read as chords. A
 line made only of such words does read as chords, though: with **Do** notation
-on, a lyric line of just ``la la la`` turns blue and plays.
+on, a lyric line of just ``la la la`` turns blue and plays. For that, see
+:ref:`forcing-text` below.
 
 So keep ``//`` for things that genuinely aren't part of the song.
+
+.. _forcing-text:
+
+Forcing a Line to Be Text
+-------------------------
+
+Start a line with a dot (``.``) to make it plain text, whatever it looks like.
+Nothing on it is read as a chord or a directive: it isn't highlighted, doesn't
+play, and Transpose and Convert leave its words alone. The dot stays in the
+text. Spaces before the dot are fine; a dot later in the line doesn't count.
+
+.. code-block:: chord
+
+   Do        Fa        Sol
+   .la la la la la la la    // a lyric, not three La chords
 
 Using Comments for Notes
 ------------------------

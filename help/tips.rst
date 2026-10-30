@@ -341,6 +341,11 @@ If you're using European notation, make sure the toggle is set to "Do", not
 may not mean what you expect (``c#`` is C-sharp *minor*; see the case note under
 :ref:`playback-sounds-wrong`).
 
+**A lyric line read as chords:**
+A lyric line in European notation such as ``la la la`` (or ``do re mi``) can be
+read as chords: it turns blue, plays, and Transpose changes it. Start the line
+with a dot (``.la la la``) to keep it as text (see :ref:`forcing-text`).
+
 **Check for unsupported chords:**
 Chord Notepad recognizes a wide range of chords, including dense jazz voicings
 like ``Cmaj13#11``, but a few unusual spellings still slip through. If a name

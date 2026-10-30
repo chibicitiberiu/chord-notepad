@@ -490,6 +490,9 @@ Special Syntax
    * - ``//``
      - Comment (to end of line)
      - ``C Am // verse chords``
+   * - ``.`` (first on the line)
+     - Plain-text line: no chords or directives
+     - ``.la la la``
    * - ``/``
      - Slash chord (bass note)
      - ``C/G``, ``Am/E``
