@@ -199,12 +199,10 @@ While playing:
 .. only:: android
 
    * Drag the slider (12.5% to 400%, in steps of 5%). The new speed applies
-     right away, also while a song plays. A speed within 3 points of a
-     multiple of 12.5% snaps to it: 35% and 40% both play at 37.5%, 110% and
-     115% at 112.5%. The badge on the button shows the speed you hear.
+     right away, also while a song plays, and plays exactly as shown.
    * **Reset** goes back to 100%.
-   * **Manual…** lets you type a value from 12.5 to 400, such as 12.5 or 33.
-     The same snapping applies.
+   * **Manual…** lets you type any value from 12.5 to 400, such as 12.5, 33
+     or 87.5.
    * **Done** closes the sheet.
 
    When the speed isn't 100%, the button shows it as a badge (``1.25×``) and

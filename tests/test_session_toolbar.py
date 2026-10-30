@@ -67,15 +67,20 @@ def test_bpm_parse_and_format():
     assert toolbar.format_multiplier_pct(150.0) == "150"
 
 
-def test_scale_clamps_and_snaps_magnetically():
-    scale = toolbar.MULTIPLIER_SCALE  # grid 12.5 from 12.5, tolerance 3
+@pytest.mark.parametrize("pct", [12.5, 15, 35, 40, 60, 65, 98, 110, 115, 87.5, 33.3, 400])
+def test_the_speed_keeps_any_value_in_range(pct):
+    # Nothing downstream needs a grid (the scheduler takes any multiplier),
+    # so a speed plays as set: the Android slider's 5 % stops included.
+    assert toolbar.MULTIPLIER_SCALE.normalize(pct) == pct
+
+
+def test_the_speed_is_clamped_and_drags_in_whole_percent():
+    scale = toolbar.MULTIPLIER_SCALE
     assert scale.normalize(1000) == 400
     assert scale.normalize(0) == 12.5
-    assert scale.normalize(98) == 100       # within 3 of 100
-    assert scale.normalize(93) == 93        # 6.25 from the grid: kept
-    assert scale.stepped(100, 2) == 100     # still within the pull of 100
-    assert scale.stepped(100, 4) == 104     # four 1% increments break free
-    assert scale.stepped(98, 1) == 100      # latches onto the grid point
+    assert scale.stepped(100, 2) == 102
+    assert scale.stepped(98, 1) == 99
+    assert scale.stepped(13, -1) == 12.5
 
 
 def test_scale_without_tolerance_is_a_strict_grid():
@@ -172,10 +177,18 @@ def test_set_multiplier_applies_during_playback():
     env = Env("C G")
     env.play()
     env.recorder.clear()
-    env.session.set_multiplier_pct(149)  # within 3 of 150
-    assert [t.multiplier_pct for t in env.recorder.of_type(ToolbarState)] == [150.0]
-    assert env.player.bpm_multiplier == 1.5
-    assert env.config.get("bpm_multiplier") == 1.5
+    env.session.set_multiplier_pct(110)
+    assert [t.multiplier_pct for t in env.recorder.of_type(ToolbarState)] == [110.0]
+    assert env.player.bpm_multiplier == 1.1
+    assert env.config.get("bpm_multiplier") == 1.1
+
+
+@pytest.mark.parametrize("text, pct", [("35", 35.0), ("115%", 115.0), ("0.375x", 37.5)])
+def test_a_typed_speed_plays_as_typed(text, pct):
+    env = Env("C G")
+    env.session.set_multiplier_text(text)
+    assert env.toolbar().multiplier_pct == pct
+    assert env.player.bpm_multiplier == pct / 100
 
 
 def test_set_key():

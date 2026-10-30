@@ -1028,8 +1028,8 @@ class AppSession:
     def set_multiplier_pct(self, pct: float) -> None:
         """Set the speed multiplier, in percent (100 = as written).
 
-        Applies during playback too. The value is clamped to 12.5-400 and
-        snapped like the toolbar's control (``toolbar.MULTIPLIER_SCALE``).
+        Applies during playback too. The value is clamped to 12.5-400
+        (``toolbar.MULTIPLIER_SCALE``) and otherwise played as given.
         """
         self._main.set_bpm_multiplier(toolbar.MULTIPLIER_SCALE.normalize(pct) / 100.0)
 

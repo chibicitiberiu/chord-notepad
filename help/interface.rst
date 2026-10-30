@@ -46,8 +46,9 @@ The User Interface
    the playback speed on top of the BPM (whether you set it manually or via a
    directive). Use it as a "practice slowdown" knob.
 
-   * **Drag left/right** to change the value (range 12.5% - 400%, snapping every 12.5%)
-   * **Click** to type a precise value — accepts ``150``, ``150%``, or ``1.5x``
+   * **Drag left/right** to change the value in 1% steps (range 12.5% - 400%)
+   * **Click** to type a precise value, kept as typed: ``150``, ``150%``, ``87.5``
+     or ``1.5x``
    * **Middle-click** to reset to ``100%``
 
    Unlike the BPM control, the multiplier **stays editable during playback** and

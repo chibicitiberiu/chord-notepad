@@ -127,9 +127,11 @@ class ScrubScale:
 #: The BPM control: 20-400, magnetic to tens.
 BPM_SCALE = ScrubScale(min_value=MIN_BPM, max_value=MAX_BPM, step=10, drag_step=1,
                        snap_tolerance=1, default=DEFAULT_BPM)
-#: The speed multiplier, in percent: 12.5-400, magnetic to eighths.
-MULTIPLIER_SCALE = ScrubScale(min_value=12.5, max_value=400, step=12.5, drag_step=1,
-                              snap_tolerance=3, default=100)
+#: The speed multiplier, in percent: 12.5-400, kept as set (a drag moves it
+#: by 1 %). No grid: the scheduler takes any multiplier, and a grid made the
+#: Android slider's 5 % stops play at other speeds (110 % as 112.5 %).
+MULTIPLIER_SCALE = ScrubScale(min_value=12.5, max_value=400, step=0, drag_step=1,
+                              default=100)
 
 
 def normalize_bpm(bpm: float) -> int:
