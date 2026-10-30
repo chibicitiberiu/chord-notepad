@@ -199,7 +199,8 @@ EditorState(font_family, font_size, read_only, notation)
 HighlightState(text_revision, client_token, spans)
 PlaybackState(status, playing_span, chord_index, bar, total_bars, playhead_offset)  # idle|playing|paused
 ToolbarState(notation, bpm, bpm_display, bpm_editable, multiplier_pct, key, key_options,
-             beats, unit, metronome, play_action)                       # play|pause|resume
+             beats, unit, metronome, play_action,                       # play|pause|resume
+             bpm_set_by, time_set_by, key_set_by)                       # "{bpm: 90}" or None
 StatusState(text)
 VoicingMenuState(selected, groups)
 InstrumentMenuState(current, families)                                  # InstrumentFamily(name, is_current, items)
@@ -410,11 +411,27 @@ from the top of the song even when playback started later
 (`RenderedChord.song_bar`, carried in the pings as
 `PlaybackEventArgs.song_bar`), the desktop keeps its rebased bars.
 
+**Defaults vs. the song's values** (Tibi, 2026-10-30). The Settings
+defaults (tempo, time signature, key) live in the config and only Settings
+writes them. The viewmodel's `bpm`, `key` and time signature are the current
+document's: the defaults until changed from the toolbar or Song defaults, for
+that document only; `new_file`/`open_file` reload them from the config
+(`MainWindowViewModel.load_defaults`, the key respelled in the current
+notation) and nothing copies an opened song's directives into them (or into
+the config). A value the song sets with a directive before its first chord is
+the song's: `set_bpm`, `set_time_signature` and `set_key` ignore it
+(`song_defaults.setting_directives`). Playback, MIDI export and Suggest Capo
+start from the document's values (`start_song_playback(initial_bpm=,
+initial_time_sig=)`), and the config saves (desktop exit, Android
+`app_background`) never carry them. A Settings change shows from the next
+New/Open (`general_changed` is still ignored by `apply_settings`).
+
 **Song defaults.** `SongDefaultsState(tempo, time, key, summary)`: each value
 is what the song starts with. A valid directive before the first chord sets
 it (`from_directive`, `directive_offset` = the first such directive; relative
-tempo directives apply to the toolbar tempo); otherwise it is the toolbar
-value. The key is `""` when neither sets one. `summary` is the pill text,
+tempo directives apply to the document's tempo); otherwise it is the
+document's value. A mid-song change doesn't count: the value stays the
+starting one. The key is `""` when neither sets one. `summary` is the pill text,
 `"90 · 3/4 · G"`. Republished after every detection and toolbar change,
 and when playback starts or stops: `locked_reason` says why the tempo and
 the write wait while a song plays or is paused (None when idle).
@@ -446,10 +463,17 @@ click-to-hear once per session); playback render failures are `UserError`.
 The Tk window parents that dialog to the focused toplevel.
 
 **Toolbar.** `ToolbarState(notation, bpm, bpm_display, bpm_editable,
-multiplier_pct, key, key_options, beats, unit, metronome, play_action)`;
-`bpm_display` is the effective tempo of the chord sounding while a song
-plays, `bpm_editable` is `status == idle`, `play_action` drives the Play/Pause
-icon and tooltip. `key` is the first key option when none is set. `set_bpm`
+multiplier_pct, key, key_options, beats, unit, metronome, play_action,
+bpm_set_by, time_set_by, key_set_by)`. `bpm`, `beats`/`unit` and `key` are
+what the song starts with (the same values as `SongDefaultsState`);
+`*_set_by` is the directive that sets one, as written in the song (`"{bpm:
+90}"`), or None. The Tk toolbar greys a set value out (key and time
+disabled, the BPM scrubber read-only) with the tooltip "Set by {bpm: 90} in
+the song". `bpm_display` is the effective tempo of the chord sounding while
+a song plays (it follows mid-song changes; after a stop it is `bpm` again),
+`bpm_editable` is `status == idle` and no `{bpm}` sets the start,
+`play_action` drives the Play/Pause icon and tooltip. `key` is the first key
+option when none is set. The toolbar is republished after every detection. `set_bpm`
 is ignored while playing or paused; `set_bpm` and `set_multiplier_pct` clamp
 and snap with the scrubber's own `ScrubScale`. The notation observer
 re-detects, respells the key (`toolbar.convert_key`) and publishes the new
@@ -486,8 +510,9 @@ suggested_name)` answered with a `DocumentRef` or None (anything else raises
 `session.document_ref(picked path)`. Semantics as before: unsaved changes
 ask first; "save" on a never-saved document goes through Save As; a failed
 or cancelled save stops the New/Open/close. Save As suggests the document's
-name (`Untitled.txt`), Export MIDI `<stem>.mid`. Open's first tempo, key and
-time-signature directives set the toolbar. `request_close` emits
+name (`Untitled.txt`), Export MIDI `<stem>.mid`. New and Open start the
+document from the Settings defaults; the song's own directives show on the
+toolbar through `ToolbarState`, not by changing any value. `request_close` emits
 `CloseApproved()`; the Tk window saves its geometry through
 `set_window_geometry`, stops playback, cancels its subscription and
 destroys itself; the application then shuts the session and services down

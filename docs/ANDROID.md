@@ -404,9 +404,15 @@ Kotlin DTOs/builders done 2026-10-29: `bridge/PlayerBridge.kt`):
   toolbar sets one). `from_directive` is true when a directive before the
   song's first chord sets it (show it read-only, "Set by `{bpm: 90}` in the
   song · Edit"; Edit switches to Edit mode and puts the cursor at
-  `directive_offset`, the start of the first such directive). Otherwise the
-  value is the toolbar default: change it with the existing `set_bpm`,
-  `set_time_signature`, `set_key` (not saved with the file).
+  `directive_offset`, the start of the first such directive; `set_bpm`,
+  `set_time_signature` and `set_key` are ignored for it). Otherwise the
+  value is the document's: the Settings default unless changed with the
+  existing `set_bpm`, `set_time_signature`, `set_key`, which last for the
+  current document only (not saved with the file, never written to the
+  config: New and Open start again from the Settings defaults, and only
+  `save_settings`/`apply_settings` change those). `ToolbarState` carries the
+  same values (`bpm`, `beats`/`unit`, `key`) and `bpm_set_by`,
+  `time_set_by`, `key_set_by` (the directive as written, or null).
   `summary` is the pill text, the values joined by `" · "`
   (`"90 · 3/4 · G"`, an empty key left out); Kotlin needn't format it.
   `write_song_defaults {}` (Write into song) inserts the missing directives

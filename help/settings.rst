@@ -72,10 +72,10 @@ General
       American or European, the same switch as AB / Do in the Edit ribbon.
 
 **Default key**
-   The key Chord Notepad starts in. It is the same value as the key
-   :plat:`in the toolbar|in the song pill's Song defaults`, so it also
-   changes when you pick a key there or open a song with a ``{key}``
-   directive, and a new song keeps the key the last one left.
+   The key a song starts in when it has no ``{key}`` directive before its
+   first chord. Picking a key :plat:`in the toolbar|in the song pill's Song
+   defaults` changes it for the song you're working on only, and opening a
+   song with a ``{key}`` directive leaves this setting alone.
 
 .. only:: desktop
 
@@ -106,16 +106,19 @@ General
 ==================================
 
 **Default BPM**
-   The tempo Chord Notepad starts at.
+   The tempo a song starts at when it has no ``{bpm}`` directive before its
+   first chord.
 
 **Default time signature**
-   The time signature Chord Notepad starts at.
+   The time signature a song starts with when it has no ``{time}`` directive
+   before its first chord.
 
-Like the default key, these are the same values as the tempo and time
-signature :plat:`in the toolbar|in the song pill's Song defaults`. Changing
-them there, or opening a song whose ``{bpm}`` or ``{time}`` directive sets
-them, changes these settings too, and a new song starts from whatever the
-last song left.
+Only Settings changes the defaults (the key, tempo and time signature). The
+values :plat:`in the toolbar|in the song pill's Song defaults` belong to the
+song you're working on: a change there isn't saved, and opening a song
+doesn't touch the defaults either. A new song, and every song you open,
+starts again from the defaults here, so a change on this page shows from the
+next new or opened song.
 
 .. only:: android
 

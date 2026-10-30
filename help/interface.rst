@@ -24,6 +24,24 @@ The User Interface
    The selected button appears highlighted. Clicking switches your notation and
    updates the key selector to match.
 
+   Tempo, Key and Time Signature
+   -----------------------------
+
+   The BPM, key and time signature in the toolbar are what the song starts
+   with.
+
+   * When the song sets one with a directive before its first chord, such as
+     ``{bpm: 90}``, ``{key: D}`` or ``{time: 6/8}``, the toolbar shows the
+     song's value greyed out. Hover over it to see which directive sets it
+     ("Set by {bpm: 90} in the song"); edit that directive to change it. A
+     later change, like a second ``{bpm}`` halfway through, doesn't show
+     here: the toolbar keeps the starting value.
+   * A value the song doesn't set comes from the defaults in
+     :menuselection:`Tools --> Settings...`, and you can change it in the
+     toolbar. The change is for the current song only: it isn't saved with
+     the file or in Settings, and **New** and **Open** start again from the
+     defaults. Only Settings changes the defaults; opening a song doesn't.
+
    BPM Control
    -----------
 
@@ -35,9 +53,9 @@ The User Interface
    * **Scroll** with the mouse wheel to step by 1
 
    During playback the BPM control becomes read-only and shows the **effective
-   BPM** — what's actually playing right now, including any changes from
-   ``{bpm}`` directives in the song. When playback stops, it goes back to
-   showing your base BPM and is editable again.
+   BPM**: what's actually playing right now, including any changes from
+   ``{bpm}`` directives in the song. When playback stops, it goes back to the
+   tempo the song starts at, and is editable again unless the song sets it.
 
    Speed Multiplier
    ----------------
@@ -511,10 +529,10 @@ The User Interface
    * A value the song sets with a directive is read-only. It shows "Set by
      ``{bpm: 90}`` in the song · Edit". **Edit** switches to the Edit tab with
      the cursor on that directive.
-   * A value the song doesn't set is an editable default: tap it to change it.
-     Defaults apply wherever the song has no directive, and they aren't saved
-     with the file. A new song starts with the defaults from
-     :doc:`settings`.
+   * A value the song doesn't set comes from the defaults in :doc:`settings`,
+     and you can tap it to change it. The change is for this song only: it
+     isn't saved with the file or in Settings, and a new song or one you open
+     starts again from the defaults.
    * **Write into song** inserts the missing directives at the top of the
      song, so the values travel with the file.
 

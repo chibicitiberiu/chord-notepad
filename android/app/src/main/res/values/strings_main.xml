@@ -28,7 +28,7 @@
     <!-- Sheets -->
     <string name="sheet_done">Done</string>
     <string name="song_defaults_title">Song defaults</string>
-    <string name="song_defaults_subtitle">Defaults apply where the song has no directive; they aren\'t saved with the file. Values the song sets are shown for reference.</string>
+    <string name="song_defaults_subtitle">Values the song doesn\'t set come from Settings; a change here is for this song only and isn\'t saved. Values the song sets are shown for reference.</string>
     <string name="song_defaults_write">Write into song</string>
     <string name="song_defaults_bpm">%1$s bpm</string>
     <string name="song_defaults_no_key">None</string>
