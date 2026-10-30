@@ -247,7 +247,7 @@ Types Kotlin decodes (`BridgeCodec.serializers`):
 
 | Kind | Types |
 |---|---|
-| States | `DocumentState`, `EditorState`, `HighlightState`, `PlaybackState`, `ToolbarState`, `StatusState`, `VoicingMenuState`, `InstrumentMenuState`, `RecentDocumentsState`, `ChordSheetState`; M5: `IdentifierState`, `SettingsState`, `VoicingEditorState`; Edit/Play: `SongDefaultsState` |
+| States | `DocumentState`, `EditorState`, `HighlightState`, `PlaybackState`, `ToolbarState`, `StatusState`, `VoicingMenuState`, `InstrumentMenuState`, `RecentDocumentsState`, `ChordSheetState`; M5: `IdentifierState`, `SettingsState`, `VoicingEditorState`; Edit/Play: `SongDefaultsState`; startup: `StartupState` |
 | Events | `TextEdited`, `UserError`, `AudioUnavailable`, `UnexpectedError`, `CloseApproved`; M5 replies: `VoicingEditorSchema`, `QuickStartContent`, `DirectiveCheck`; Edit/Play: `RenameFailed`; editor: `DirectiveHint` (reply to `request_directive_hint`) |
 | Requests | `ConfirmDiscardRequest`, `PickDocumentRequest`, `CapoChoiceRequest`, `InsertDirectiveRequest` |
 
@@ -257,6 +257,10 @@ Types Kotlin decodes (`BridgeCodec.serializers`):
 - `DocumentState.document_id: Optional[str]`, the open document's
   `DocumentRef.id` (None for a never-saved one). The draft restore needs it:
   Kotlin can't ask Python for it synchronously from Main.
+
+`DocumentState.read_only: bool` (2026-10-30) is true for a document opened
+with `open_document {ref, read_only: true}` (Open with, read-only grant) or
+restored as read-only; Save on it runs Save As. The draft keeps it.
 
 Unknown keys are ignored by Kotlin (a newer core doesn't crash an older
 view); an unknown type or a missing field is logged and shown as an
@@ -292,7 +296,8 @@ input is ignored; the speed accepts `150`, `150%`, `1.5x`), `set_key {key}`,
 `step_font_size {delta}`, `reset_font_size {}`,
 `set_chord_sheet_visible {visible}`, `set_chord_sheet_height {px}`,
 `set_chord_sheet_view {view_id}`, `chord_sheet_zoom {step}`,
-`audition {index}`, `new_document {}`, `open_document {ref}`,
+`audition {index}`, `new_document {}`, `open_document {ref, read_only}`
+(`read_only` defaults to false; ignored with a null `ref`),
 `open_recent {ref}`, `save {}`, `save_as {}`, `export_midi {}`,
 `request_close {}`, `respond {request_id, value}`.
 
@@ -372,6 +377,26 @@ raises is an `UnexpectedError` whose `context` is the command name.
   image}]}], show_on_startup}`, worded for the platform (taps, the ⋮ menu;
   no desktop screenshot). Snippet blocks carry the editor's highlight spans
   (code points), so they paint like the editor.
+
+**Startup screen** (2026-10-30; `docs/design/android-support-plan.md`;
+policy in `session/support.py`, Kotlin in `lifecycle/AppLaunch.kt`):
+
+- `app_started {launch_kind, today, installed_on, can_ask_for_support}`:
+  sent on every activity creation. `launch_kind` is `direct` (launcher or
+  recents), `document` (Open with) or `restore` (recreation, the debug
+  activities, anything else); `today` and `installed_on` are local ISO dates
+  (`installed_on` from `firstInstallTime`); `can_ask_for_support` is
+  `SupportBilling.canAskForSupport()` (always false in the foss build). Only
+  the first call of a session counts; it always publishes `StartupState
+  {screen: none|quick_start|support_prompt}`, later ones are ignored.
+  `direct` gives `support_prompt` from day 7 after the install day, at most
+  once a calendar day (a last-shown date after today, from a clock moved
+  back, doesn't block it), else `quick_start` if
+  `show_quick_start_on_startup`, else `none`. `document` and `restore` give
+  `none`.
+- `dismiss_startup_screen {}`: back to `none`. For the support prompt it
+  records `support_prompt_last_shown` (today, in the config; not a setting,
+  so Settings never writes it) and saves the config at once.
 
 **Edit/Play redesign** (`docs/design/android-ui-spec.md`; Python side and
 Kotlin DTOs/builders done 2026-10-29: `bridge/PlayerBridge.kt`):
@@ -462,7 +487,7 @@ Kotlin DTOs/builders done 2026-10-29: `bridge/PlayerBridge.kt`):
 | `app_background` | `{}` | The app left the screen (ProcessLifecycleOwner ON_STOP; the process may die any time after). Pause playback if playing, save the config atomically (temp file + `os.replace`). Then release the audio output (`suspend_audio`: only the FluidSynth audio driver is deleted; the synth, SoundFont and sequencer stay). Refused while a song plays or renders. The next play/tap/audition reopens it lazily. |
 | `app_foreground` | `{}` | ON_START. Reopen the audio output (`resume_audio`). A failure is not reported here; the next play reports `AudioUnavailable`. |
 | `pause` | `{}` | Pause if a song is playing, else nothing. Sent on audio focus loss and `ACTION_AUDIO_BECOMING_NOISY`. |
-| `restore_draft` | `{text, document, modified}` | After process death: replace the text as a `reset` edit (`TextEdited` + `HighlightState`), make `document` (a `DocumentRef` or null) the open document without reading it, and set the modified flag. Publishes `DocumentState`. |
+| `restore_draft` | `{text, document, modified, read_only}` | After process death: replace the text as a `reset` edit (`TextEdited` + `HighlightState`), make `document` (a `DocumentRef` or null) the open document without reading it, and set the modified flag; `read_only` (default false) as `DocumentState.read_only` had it. Publishes `DocumentState`. |
 
 An unknown command is logged and emits `UnexpectedError(context="bridge")`.
 

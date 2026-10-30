@@ -64,6 +64,7 @@ class SessionRepository {
     private val _directiveCheck = MutableStateFlow<DirectiveCheck?>(null)
     private val _directiveHint = MutableStateFlow<DirectiveHint?>(null)
     private val _songDefaults = MutableStateFlow<SongDefaultsState?>(null)
+    private val _startup = MutableStateFlow<StartupState?>(null)
     private val _renameFailed = MutableSharedFlow<RenameFailed>(
         extraBufferCapacity = 4,
         onBufferOverflow = BufferOverflow.DROP_OLDEST,
@@ -128,6 +129,9 @@ class SessionRepository {
     /** What the song starts with (the player's pill and the Song defaults sheet). */
     val songDefaults: StateFlow<SongDefaultsState?> = _songDefaults.asStateFlow()
 
+    /** What opens over the editor at startup; null until the session answers `app_started`. */
+    val startup: StateFlow<StartupState?> = _startup.asStateFlow()
+
     /** Failed renames (hot: only collectors present at the time get one). */
     val renameFailed: SharedFlow<RenameFailed> = _renameFailed.asSharedFlow()
 
@@ -173,6 +177,7 @@ class SessionRepository {
             is DirectiveCheck -> _directiveCheck.value = output
             is DirectiveHint -> _directiveHint.value = output
             is SongDefaultsState -> _songDefaults.value = output
+            is StartupState -> _startup.value = output
             is RenameFailed -> _renameFailed.tryEmit(output)
             is TextEdited -> _textEdits.trySend(output)
             is SessionRequest -> _pendingRequest.value = output
@@ -184,6 +189,14 @@ class SessionRepository {
     /** The view answered [requestId]; forget it if it's still the pending one. */
     fun requestAnswered(requestId: Int) {
         _pendingRequest.update { if (it?.requestId == requestId) null else it }
+    }
+
+    /**
+     * The startup screen was closed (`dismiss_startup_screen` is on its way):
+     * show nothing now rather than wait for the session's answer.
+     */
+    fun startupDismissed() {
+        _startup.update { it?.copy(screen = StartupScreen.NONE) }
     }
 
     /** Set by [PyHost]. */

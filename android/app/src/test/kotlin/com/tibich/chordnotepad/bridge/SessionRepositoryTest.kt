@@ -45,6 +45,17 @@ class SessionRepositoryTest {
     }
 
     @Test
+    fun `the startup screen, and dismissing it before the session answers`() {
+        assertNull(repo.startup.value)
+        repo.startupDismissed() // nothing decided yet: stays null
+        assertNull(repo.startup.value)
+        repo.publish(StartupState(StartupScreen.SUPPORT_PROMPT))
+        assertEquals(StartupScreen.SUPPORT_PROMPT, repo.startup.value?.screen)
+        repo.startupDismissed()
+        assertEquals(StartupScreen.NONE, repo.startup.value?.screen)
+    }
+
+    @Test
     fun `song defaults and failed renames have their flows`() = runTest(UnconfinedTestDispatcher()) {
         val defaults = SongDefaultsState(
             SongDefault("90", true, 0), SongDefault("3/4", false), SongDefault("", false), "90 · 3/4",

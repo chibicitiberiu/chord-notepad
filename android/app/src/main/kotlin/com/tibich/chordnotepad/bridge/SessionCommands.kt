@@ -68,6 +68,9 @@ object CommandNames {
     const val APP_FOREGROUND = "app_foreground"
     const val PAUSE = "pause"
     const val RESTORE_DRAFT = "restore_draft"
+    // AppSession: the startup screen
+    const val APP_STARTED = "app_started"
+    const val DISMISS_STARTUP_SCREEN = "dismiss_startup_screen"
 
     /** Every command Kotlin may submit (the contract test checks Python knows them all). */
     val ALL: Set<String> = setOf(
@@ -80,7 +83,8 @@ object CommandNames {
         SET_CHORD_SHEET_HEIGHT, SET_CHORD_SHEET_VIEW, CHORD_SHEET_ZOOM, AUDITION,
         NEW_DOCUMENT, OPEN_DOCUMENT, OPEN_RECENT, SAVE, SAVE_AS, EXPORT_MIDI,
         REQUEST_CLOSE, RESPOND, APP_BACKGROUND, APP_FOREGROUND, PAUSE, RESTORE_DRAFT,
-        WRITE_SONG_DEFAULTS, REWIND, SET_PLAYHEAD, RENAME_DOCUMENT,
+        WRITE_SONG_DEFAULTS, REWIND, SET_PLAYHEAD, RENAME_DOCUMENT, APP_STARTED,
+        DISMISS_STARTUP_SCREEN,
     )
 }
 
@@ -257,8 +261,14 @@ class SessionCommands(
     /** New document (asks about unsaved changes first). */
     fun newDocument() = send(CommandNames.NEW_DOCUMENT)
 
-    /** Open [ref], or ask with a `PickDocumentRequest` when null. */
-    fun openDocument(ref: DocumentRef? = null) = send(CommandNames.OPEN_DOCUMENT) { put("ref", ref.toJson()) }
+    /**
+     * Open [ref], or ask with a `PickDocumentRequest` when null. With [readOnly]
+     * (a read-only grant) Save runs Save As; ignored without [ref].
+     */
+    fun openDocument(ref: DocumentRef? = null, readOnly: Boolean = false) = send(CommandNames.OPEN_DOCUMENT) {
+        put("ref", ref.toJson())
+        put("read_only", readOnly)
+    }
 
     /** Open a recent document. */
     fun openRecent(ref: DocumentRef) = send(CommandNames.OPEN_RECENT) { put("ref", ref.toJson()) }
@@ -318,14 +328,34 @@ class SessionCommands(
 
     /**
      * After process death: put back the text the user had, the document it
-     * belongs to ([document], null for a never-saved one) and its modified flag.
+     * belongs to ([document], null for a never-saved one), its modified flag
+     * and whether it was open read-only.
      */
-    fun restoreDraft(text: String, document: DocumentRef?, modified: Boolean) =
+    fun restoreDraft(text: String, document: DocumentRef?, modified: Boolean, readOnly: Boolean = false) =
         send(CommandNames.RESTORE_DRAFT) {
             put("text", text)
             put("document", document.toJson())
             put("modified", modified)
+            put("read_only", readOnly)
         }
+
+    // -- startup screen -------------------------------------------------------------
+
+    /**
+     * The activity was created ([launchKind]: `direct`, `document` or `restore`).
+     * The session answers the first call with a `StartupState`; [today] and
+     * [installedOn] are local ISO dates.
+     */
+    fun appStarted(launchKind: String, today: String, installedOn: String, canAskForSupport: Boolean) =
+        send(CommandNames.APP_STARTED) {
+            put("launch_kind", launchKind)
+            put("today", today)
+            put("installed_on", installedOn)
+            put("can_ask_for_support", canAskForSupport)
+        }
+
+    /** The startup screen (Quick Start or the support prompt) was closed. */
+    fun dismissStartupScreen() = send(CommandNames.DISMISS_STARTUP_SCREEN)
 }
 
 private fun Selection?.toJson(): JsonElement =

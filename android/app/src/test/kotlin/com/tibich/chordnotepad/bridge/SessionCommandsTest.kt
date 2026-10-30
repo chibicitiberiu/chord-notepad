@@ -68,7 +68,13 @@ class SessionCommandsTest {
             """{"ref": {"id": "content://p/doc%3A1", "display_name": "song.txt", "location": "song.txt (Drive)"}}""",
         )
         commands.openDocument()
-        assertSent("open_document", """{"ref": null}""")
+        assertSent("open_document", """{"ref": null, "read_only": false}""")
+        commands.openDocument(ref, readOnly = true)
+        assertSent(
+            "open_document",
+            """{"ref": {"id": "content://p/doc%3A1", "display_name": "song.txt", "location": "song.txt (Drive)"},
+               "read_only": true}""",
+        )
     }
 
     @Test
@@ -102,8 +108,20 @@ class SessionCommandsTest {
         assertSent(
             "restore_draft",
             """{"text": "G 😀", "document": {"id": "content://a", "display_name": "a.txt", "location": "a.txt"},
-               "modified": true}""",
+               "modified": true, "read_only": false}""",
         )
+    }
+
+    @Test
+    fun `startup screen`() {
+        commands.appStarted("direct", "2026-10-30", "2026-10-23", canAskForSupport = true)
+        assertSent(
+            "app_started",
+            """{"launch_kind": "direct", "today": "2026-10-30", "installed_on": "2026-10-23",
+               "can_ask_for_support": true}""",
+        )
+        commands.dismissStartupScreen()
+        assertSent("dismiss_startup_screen", "{}")
     }
 
     @Test
@@ -139,6 +157,7 @@ class SessionCommandsTest {
             openRecent(DocumentRef("a", "a", "a")); save(); saveAs(); exportMidi(); requestClose()
             respondDiscard(1, null); appBackground(); appForeground(); pause(); restoreDraft("", null, false)
             writeSongDefaults(); rewind(); setPlayhead(0); renameDocument("a")
+            appStarted("restore", "2026-10-30", "2026-10-30", false); dismissStartupScreen()
         }
         assertEquals(CommandNames.ALL, sent.map { it.first }.toSet())
     }

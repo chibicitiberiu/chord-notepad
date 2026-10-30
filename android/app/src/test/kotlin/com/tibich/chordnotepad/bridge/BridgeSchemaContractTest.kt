@@ -76,6 +76,7 @@ class BridgeSchemaContractTest {
             "UndoPolicy" to UndoPolicy.serializer(),
             "DiscardChoice" to DiscardChoice.serializer(),
             "PickMode" to PickMode.serializer(),
+            "StartupScreen" to StartupScreen.serializer(),
         )
         for ((name, serializer) in kotlin) {
             val python = enums.getValue(name).jsonArray.map { it.jsonPrimitive.content }.toSet()

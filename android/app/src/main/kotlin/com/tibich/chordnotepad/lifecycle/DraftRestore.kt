@@ -12,8 +12,9 @@ import java.util.UUID
  *
  * @property documentId The open document's id (`DocumentState.documentId`), or null.
  * @property modified Whether it had unsaved changes.
+ * @property readOnly The document was open read-only (`DocumentState.readOnly`).
  */
-data class Draft(val text: String, val documentId: String?, val modified: Boolean)
+data class Draft(val text: String, val documentId: String?, val modified: Boolean, val readOnly: Boolean = false)
 
 /** A [Draft] tagged with the process that saved it. */
 data class SavedDraft(val processToken: String, val draft: Draft)
@@ -55,7 +56,7 @@ object DraftPolicy {
     fun restore(draft: Draft, resolve: (String) -> DocumentRef?, commands: SessionCommands) {
         val ref = draft.documentId?.let(resolve)
         val modified = draft.modified || (draft.documentId != null && ref == null)
-        commands.restoreDraft(draft.text, ref, modified)
+        commands.restoreDraft(draft.text, ref, modified, readOnly = ref != null && draft.readOnly)
     }
 }
 
@@ -83,12 +84,16 @@ class DraftHook(
         putString(TEXT, saved.draft.text)
         putString(DOCUMENT_ID, saved.draft.documentId)
         putBoolean(MODIFIED, saved.draft.modified)
+        putBoolean(READ_ONLY, saved.draft.readOnly)
     }
 
     private fun fromBundle(b: Bundle): SavedDraft? {
         val token = b.getString(TOKEN) ?: return null
         val text = b.getString(TEXT) ?: return null
-        return SavedDraft(token, Draft(text, b.getString(DOCUMENT_ID), b.getBoolean(MODIFIED)))
+        return SavedDraft(
+            token,
+            Draft(text, b.getString(DOCUMENT_ID), b.getBoolean(MODIFIED), b.getBoolean(READ_ONLY)),
+        )
     }
 
     private companion object {
@@ -97,5 +102,6 @@ class DraftHook(
         const val TEXT = "text"
         const val DOCUMENT_ID = "document_id"
         const val MODIFIED = "modified"
+        const val READ_ONLY = "read_only"
     }
 }

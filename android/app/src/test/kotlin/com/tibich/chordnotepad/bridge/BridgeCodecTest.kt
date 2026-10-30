@@ -108,13 +108,20 @@ class BridgeCodecTest {
             """{"display_name": "Untitled", "location": null, "is_modified": false,
                "title": "Untitled - Chord Notepad"}""",
         )
-        assertEquals(null, d.documentId) // until step 14 adds document_id
+        assertEquals(null, d.documentId)
+        assertEquals(false, d.readOnly)
         val withId = decode<DocumentState>(
             "DocumentState",
             """{"display_name": "a.txt", "location": "Internal storage/a.txt", "is_modified": true,
                "title": "a.txt* - Chord Notepad", "document_id": "content://x/a"}""",
         )
         assertEquals("content://x/a", withId.documentId)
+        val readOnly = decode<DocumentState>(
+            "DocumentState",
+            """{"display_name": "a.txt", "location": "a.txt", "is_modified": false,
+               "title": "a.txt - Chord Notepad", "document_id": "content://x/a", "read_only": true}""",
+        )
+        assertEquals(true, readOnly.readOnly)
         val r = decode<RecentDocumentsState>(
             "RecentDocumentsState",
             """{"items": [{"id": "content://x/a", "display_name": "a.txt", "location": "Internal storage/a.txt"}]}""",
@@ -193,6 +200,17 @@ class BridgeCodecTest {
             """{"name": "a/b", "reason": "A name can't contain / or \\.", "can_save_as": false}""",
         )
         assertEquals(RenameFailed("a/b", "A name can't contain / or \\.", false), failed)
+    }
+
+    @Test
+    fun `the startup screen`() {
+        for ((wire, screen) in listOf(
+            "none" to StartupScreen.NONE,
+            "quick_start" to StartupScreen.QUICK_START,
+            "support_prompt" to StartupScreen.SUPPORT_PROMPT,
+        )) {
+            assertEquals(StartupState(screen), decode<StartupState>("StartupState", """{"screen": "$wire"}"""))
+        }
     }
 
     @Test(expected = BridgeDecodeException::class)

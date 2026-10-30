@@ -141,11 +141,10 @@ data class DocumentState(
     val location: String? = null,
     @SerialName("is_modified") val isModified: Boolean,
     val title: String,
-    /**
-     * The open document's [DocumentRef.id], or null for a never-saved one.
-     * Not in state.py yet: step 14 adds it (the draft restore needs it).
-     */
+    /** The open document's [DocumentRef.id], or null for a never-saved one (the draft keeps it). */
     @SerialName("document_id") val documentId: String? = null,
+    /** Opened without write access (Open with, read-only grant): Save runs Save As. */
+    @SerialName("read_only") val readOnly: Boolean = false,
 ) : SessionState
 
 /** Recently opened or saved documents, newest first; send one back with `open_recent`. */

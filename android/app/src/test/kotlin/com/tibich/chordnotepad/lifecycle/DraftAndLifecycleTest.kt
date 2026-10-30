@@ -6,6 +6,9 @@ import com.tibich.chordnotepad.bridge.DocumentRef
 import com.tibich.chordnotepad.bridge.SessionCommands
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.boolean
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
@@ -38,17 +41,24 @@ class DraftAndLifecycleTest {
         assertEquals(
             Json.parseToJsonElement(
                 """{"text": "C G", "document": {"id": "content://a", "display_name": "a.txt", "location": "a.txt"},
-                   "modified": false}""",
+                   "modified": false, "read_only": false}""",
             ),
             sent.single().second,
         )
     }
 
     @Test
+    fun `a read-only document stays read-only`() {
+        val ref = DocumentRef("content://a", "a.txt", "a.txt")
+        DraftPolicy.restore(Draft("C G", "content://a", true, readOnly = true), { ref }, commands)
+        assertEquals(true, sent.single().second.jsonObject["read_only"]?.jsonPrimitive?.boolean)
+    }
+
+    @Test
     fun `an unreachable document is dropped and the text kept as unsaved`() {
         DraftPolicy.restore(Draft("C G", "content://gone", false), { null }, commands)
         assertEquals(
-            Json.parseToJsonElement("""{"text": "C G", "document": null, "modified": true}"""),
+            Json.parseToJsonElement("""{"text": "C G", "document": null, "modified": true, "read_only": false}"""),
             sent.single().second,
         )
     }
