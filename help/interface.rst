@@ -151,7 +151,7 @@ The User Interface
       Undo your last action. You can undo multiple times to go back through your
       edit history.
 
-   **Redo** (Ctrl+Y)
+   **Redo** (Ctrl+Y on Windows, Ctrl+Shift+Z on Linux)
       Redo an action you just undid.
 
    **Cut** (Ctrl+X)
@@ -245,6 +245,14 @@ The User Interface
       Each option opens a dialog where you fill in the value, then the directive
       is inserted at your cursor position.
 
+   **Transpose...**
+      Shifts the chords up or down by a number of semitones. See
+      :doc:`transpose`.
+
+   **Suggest Capo...**
+      Picks the easiest capo position for a fretboard voicing and inserts a
+      ``{capo}`` directive. See :doc:`directives`.
+
    **Convert to American Notation**
       Converts all European notation chords (Do, Re, Mi...) in your document to
       American notation (C, D, E...).
@@ -252,9 +260,6 @@ The User Interface
    **Convert to European Notation**
       Converts all American notation chords (C, D, E...) in your document to
       European notation (Do, Re, Mi...).
-
-   Options Menu
-   ------------
 
    **Settings...**
       Opens the Settings window: general preferences, playback and audio
@@ -289,7 +294,7 @@ The User Interface
 
    * **☰** opens the drawer (see :ref:`android-drawer` below).
    * **The song title.** A • after the name means there are unsaved changes.
-     An untitled song shows "Untitled" until you first save it.
+     An untitled song shows "Untitled" until you save it or give it a name.
    * **The Edit and Play tabs.**
    * **Save** (the disk icon).
 
@@ -648,7 +653,7 @@ The Piano Keyboard
    **Left-click a key:**
 
    * Toggles that note's selection (on/off)
-   * Plays the note so you can hear it
+   * Plays the note when it becomes selected, so you can hear it
    * Selected keys appear highlighted
 
    **Right-click a key:**
@@ -663,7 +668,7 @@ The Piano Keyboard
    **Tap a key:**
 
    * Toggles that note's selection (on/off)
-   * Plays the note so you can hear it
+   * Plays the note when it becomes selected, so you can hear it
    * Selected keys appear highlighted
 
    **Long-press a key:**
@@ -686,8 +691,9 @@ The Results List
 As you select notes, Chord Notepad analyzes them and shows matching chords:
 
 * The list updates automatically as you add or remove notes
-* Multiple chords may match the same notes (inversions, enharmonic names)
-* More common chords appear first
+* Several chords may match the same notes, for example ``Am`` and ``Am/C``
+  when C is the lowest note
+* Shorter chord names come first
 
 .. only:: desktop
 
@@ -752,12 +758,6 @@ Using the Chord Identifier
    5. Tap results to hear which one sounds right
    6. Double-tap it (or tap Insert) to add it to your document
 
-**Example: "What notes are in this chord?"**
-
-1. Open the Chord Identifier
-2. Type the chord in the results search, or
-3. Build it from notes and see when it matches
-
 
 Visual Guide
 ============
@@ -802,9 +802,9 @@ Color Coding
             label, blue underlined chords, a grey underlined Gsus5, and black
             lyrics.
 
-      Every colour in one place. ``{tempo: fast}`` is red because there is no
-      ``tempo`` directive (it's ``bpm``), and ``Gsus5`` is grey because it
-      isn't a chord.
+      Every colour in one place. ``{tempo: fast}`` is red because ``fast``
+      isn't a tempo value (``{tempo: 100}`` would be purple), and ``Gsus5`` is
+      grey because it isn't a chord.
 
    In the dark theme the same colours are a little lighter, and the playing
    chord is a dark yellow, so everything stays readable on the dark
@@ -833,7 +833,7 @@ Invalid Chords (Gray, Underlined)
 If something looks like a chord but isn't valid, it appears gray with an
 underline. This might mean:
 
-* A typo (``Cmaaj7`` instead of ``Cmaj7``)
+* A typo (``Cmm7`` instead of ``Cm7``)
 * An unsupported chord type
 * Something that looks like a chord but isn't
 
@@ -919,12 +919,12 @@ Insert Directive Dialogs
    reason shows in red under the field and **Insert** stays greyed out until
    you fix it. The dialogs are described below.
 
-Insert BPM Dialog
------------------
+Insert Tempo (BPM) Dialog
+-------------------------
 
 Enter a tempo value:
 
-* **Absolute:** Just a number, like ``120``
+* **Absolute:** Just a number from 20 to 300, like ``120``
 * **Relative:** ``+20`` or ``-10``
 * **Percentage:** ``50%``
 * **Multiplier:** ``2x`` or ``0.5x``
