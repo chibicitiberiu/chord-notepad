@@ -99,8 +99,10 @@ public domain; the colour demo is our own text).
   strip's chord one ahead (a bug to look at; playback from the start is
   right).
 
-- `about.png` shows the debug build (build type, build number, commit), so
-  it changes with every commit; retake it when the version changes.
+- There is no About shot. The HelpShot route runs the debug build, so the
+  About screen shows "debug", a build number and a commit that change with
+  every commit and that a release never shows; the guide describes About in
+  words instead (interface: The Drawer).
 - Text fields in the Insert dialogs are captured without the keyboard
   (the crop keeps only the dialog).
 
@@ -155,6 +157,5 @@ legend. Pages are named `file: section`.
 | `settings-voicing-ensemble.png` | The form of a custom ensemble (Jazz Vocal Trio) on a phone, scrolled to its Voices: the help lines, then one card per voice with Name, Low, High, Staff and ✕. (phone) | ensembles: Custom Ensembles |
 | `settings-voicings-tablet.png` | Settings › Voicings on a tablet: the list on the left and My 7-String's form on the right. (tablet, landscape) | settings: Voicings |
 | `quick-start.png` | Quick Start, page 1 of 7: Welcome, a highlighted snippet, Show at startup, Previous / Next. (phone) | getting_started: Opening the Application; interface: The Drawer |
-| `about.png` | About: version, build, commit, licence, source link and Open source licences. (phone) | interface: The Drawer |
 | `licences.png` | Open source licences: the components grouped (this app, Python runtime, audio libraries, …). (phone) | interface: The Drawer |
 | `user-guide.png` | ☰ → User guide: this guide, offline, in the app. (phone) | shortcuts: Help; interface: The Drawer |

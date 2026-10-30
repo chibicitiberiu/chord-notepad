@@ -1545,24 +1545,6 @@
    ]
   },
   {
-   "name": "about",
-   "page": "interface: The Drawer",
-   "what": "About: version, build, commit, licence, source link and Open source licences.",
-   "scene": "grace_play",
-   "steps": [
-    {
-     "tap": {
-      "tag": "menu"
-     }
-    },
-    {
-     "tap": {
-      "text": "About"
-     }
-    }
-   ]
-  },
-  {
    "name": "licences",
    "page": "interface: The Drawer",
    "what": "Open source licences: the components grouped (this app, Python runtime, audio libraries, …).",
