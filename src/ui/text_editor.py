@@ -26,6 +26,13 @@ _SPAN_TAGS: Dict[SpanKind, str] = {
     SpanKind.COMMENT: TAG_COMMENT,
 }
 
+#: The keys that redo, on every platform: Tk's own <<Redo>> is Ctrl+Shift+Z on
+#: Linux and macOS and Ctrl+Y on Windows (the Lock forms keep Caps Lock working).
+REDO_SEQUENCES = ('<Control-Key-y>', '<Control-Lock-Key-Y>',
+                  '<Control-Key-Z>', '<Control-Lock-Key-z>')
+#: What the Edit menu shows for Redo.
+REDO_ACCELERATOR = "Ctrl+Y"
+
 
 class ChordTextEditor(tk.Text):
     """Text editor widget that shows chord highlighting.
@@ -78,6 +85,15 @@ class ChordTextEditor(tk.Text):
 
         # Fix paste to replace selection
         self.bind('<<Paste>>', self._on_paste)
+
+        # Ctrl+Y and Ctrl+Shift+Z both redo, whatever the platform. Tk's X11
+        # bindings also make Ctrl+Y paste (emacs "yank"): not here.
+        for virtual in self.event_info():
+            if virtual != '<<Redo>>':
+                taken = [seq for seq in REDO_SEQUENCES if seq in self.event_info(virtual)]
+                if taken:
+                    self.event_delete(virtual, *taken)
+        self.event_add('<<Redo>>', *REDO_SEQUENCES)
 
     def get_text(self) -> str:
         """The whole text, without Tk's trailing newline."""

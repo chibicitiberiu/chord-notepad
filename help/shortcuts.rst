@@ -73,7 +73,7 @@ Edit Operations
         - Action
       * - Ctrl+Z
         - Undo
-      * - Ctrl+Y (Windows), Ctrl+Shift+Z (Linux)
+      * - Ctrl+Y or Ctrl+Shift+Z
         - Redo
       * - Ctrl+X
         - Cut selected text
@@ -274,12 +274,12 @@ Quick Reference Card
       FILE                    EDIT
       ----                    ----
       Ctrl+N    New           Ctrl+Z    Undo
-      Ctrl+O    Open          Ctrl+Y    Redo (Windows)
+      Ctrl+O    Open          Ctrl+Y    Redo
       Ctrl+S    Save          Ctrl+X    Cut
       Ctrl+Shift+S  Save As   Ctrl+C    Copy
       Ctrl+Q    Exit          Ctrl+V    Paste
                               Ctrl+A    Select All
-                              Ctrl+Shift+Z  Redo (Linux)
+                              Ctrl+Shift+Z  Redo
 
       VIEW                    PLAYBACK
       ----                    --------

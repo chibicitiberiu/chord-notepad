@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING, Any, Optional
 from PIL import Image, ImageTk
 from ui.scrubber import Scrubber
 from utils import error_reporting
-from ui.text_editor import ChordTextEditor
+from ui.text_editor import ChordTextEditor, REDO_ACCELERATOR
 from ui.chord_identifier import ChordIdentifierWindow
 from ui.builders.menu_builder import MenuBuilder
 from ui.audio_errors import present_audio_unavailable
@@ -453,7 +453,7 @@ class MainWindow(tk.Tk):
         # Edit menu
         edit_menu = MenuBuilder(menubar) \
             .add_command("Undo", self.text_editor.edit_undo, accelerator="Ctrl+Z") \
-            .add_command("Redo", self.text_editor.edit_redo, accelerator="Ctrl+Y") \
+            .add_command("Redo", self.text_editor.edit_redo, accelerator=REDO_ACCELERATOR) \
             .add_separator() \
             .add_command("Cut", lambda: self.text_editor.event_generate("<<Cut>>"), accelerator="Ctrl+X") \
             .add_command("Copy", lambda: self.text_editor.event_generate("<<Copy>>"), accelerator="Ctrl+C") \
