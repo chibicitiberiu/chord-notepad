@@ -33,4 +33,14 @@ class DirectiveHintTest {
         )
         assertEquals(DirectiveHint(2, 0, 8, "bpm", "{bpm: 120} · {bpm: +10}", "Tempo must be 20-400"), out)
     }
+
+    @Test
+    fun `a redundant directive's hint says so`() {
+        val out = BridgeCodec.decode(
+            "DirectiveHint",
+            """{"offset": 1, "start": 0, "end": 9, "keyword": "capo", "syntax": "{capo: 3}",
+               "message": "Has no effect", "redundant": true}""",
+        )
+        assertEquals(true, (out as DirectiveHint).redundant)
+    }
 }

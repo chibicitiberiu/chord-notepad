@@ -9,11 +9,11 @@ Offsets are Unicode code points into the text the lines were detected in.
 """
 
 import re
-from typing import List, Optional, Sequence, Tuple
+from typing import Iterable, List, Optional, Sequence, Tuple
 
 from models.chord import ChordInfo
 from models.directive import (
-    DIRECTIVE_KEYWORDS, DIRECTIVE_SYNTAX, UNKNOWN_DIRECTIVE_SYNTAX, directive_syntax)
+    DIRECTIVE_KEYWORDS, DIRECTIVE_SYNTAX, UNKNOWN_DIRECTIVE_SYNTAX, Directive, directive_syntax)
 from models.line import Line
 from session.events import DirectiveHint
 from session.state import Span, SpanKind
@@ -67,8 +67,8 @@ def compute_spans(lines: Sequence[Line], text: str) -> Tuple[Span, ...]:
     return tuple(spans)
 
 
-def directive_hint(text: str, offset: int,
-                   notation: str = "american") -> Optional[DirectiveHint]:
+def directive_hint(text: str, offset: int, notation: str = "american",
+                   directives: Optional[Iterable[Directive]] = None) -> Optional[DirectiveHint]:
     """The directive at ``offset`` with its syntax hint, or None.
 
     ``text`` is detected afresh in ``notation``, so the answer matches the
@@ -86,15 +86,22 @@ def directive_hint(text: str, offset: int,
         text: The text.
         offset: A code-point offset into it.
         notation: ``american`` or ``european``.
+        directives: The directives of ``text`` when the caller already has
+            them (the session's last detection, or a quick
+            ``parse_directives``), so nothing is detected again; None
+            detects ``text`` here.
     """
-    from services.song_parser_service import SongParserService
+    if directives is None:
+        from services.song_parser_service import SongParserService
 
-    lines = SongParserService().detect_chords_in_text(text, notation)
-    for directive in (d for line in lines for d in line.directives):
+        lines = SongParserService().detect_chords_in_text(text, notation)
+        directives = (d for line in lines for d in line.directives)
+    for directive in directives:
         if directive.start <= offset <= directive.end:
+            redundant = directive.is_valid and directive.redundant
             return DirectiveHint(offset, directive.start, directive.end,
                                  directive.keyword or "", directive.syntax,
-                                 directive.message or "")
+                                 directive.message or "", redundant)
     line_start = text.rfind("\n", 0, offset) + 1
     before = text[line_start:offset]
     brace = before.rfind("{")

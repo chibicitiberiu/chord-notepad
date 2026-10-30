@@ -1293,8 +1293,20 @@ class AppSession:
     def directive_hint_at(self, offset: int) -> DirectiveHint:
         """The directive at ``offset`` (or being typed there) with its syntax
         hint and, when invalid, the reason; ``syntax`` is "" when there is no
-        directive there. For a tooltip while typing."""
-        hint = directive_hint(self._text, offset, self._main.notation.value)
+        directive there. For a tooltip while typing.
+
+        Cheap enough for every cursor move: nothing is detected again. When
+        the last detection is for the current text its directives are used
+        (with the "has no effect" reasons, which need the chords); while the
+        text is newer (detection is debounced) the directives are parsed
+        afresh on their own, which takes a fraction of a millisecond, and a
+        redundant directive's reason arrives with the next detection."""
+        if self._detected_text == self._text:
+            directives = [d for line in self._detector.detected_lines for d in line.directives]
+        else:
+            from services.song_parser_service import SongParserService
+            directives = SongParserService().parse_directives(self._text)
+        hint = directive_hint(self._text, offset, self._main.notation.value, directives)
         return hint or DirectiveHint(offset, offset, offset, "", "", "")
 
     @_command

@@ -119,6 +119,33 @@ def playing_activity(chord: str) -> str:
 #: The player's activity while paused.
 PAUSED_ACTIVITY = "Paused"
 
+#: Between a directive's reason and its syntax in a one-line hint.
+HINT_REASON_SEPARATOR = " — "
+
+
+def directive_hint_status(message: str, syntax: str) -> str:
+    """A directive hint (``DirectiveHint``) on one line, for a status bar:
+    ``Tempo must be 20-400 — {bpm: 120} · {bpm: +10} · …``.
+
+    The reason (invalid, or has no effect) goes first; the syntax's lines
+    (one per directive a half-typed keyword could become) are joined with
+    " · ". "" when there is no hint (``syntax`` is "").
+
+    Args:
+        message: Why the directive is invalid or has no effect, or "".
+        syntax: The directive's correct syntax, one line per directive.
+    """
+    if not syntax:
+        return ""
+    examples = POSITION_SEPARATOR.join(line for line in syntax.splitlines() if line)
+    return f"{message}{HINT_REASON_SEPARATOR}{examples}" if message else examples
+
+
+def directive_hint_tooltip(message: str, syntax: str) -> str:
+    """A directive hint for a hover tooltip: the reason, then the syntax on
+    its own line(s). "" when there is neither."""
+    return "\n".join(part for part in (message, syntax) if part)
+
 
 def playback_error_message(reason: str) -> str:
     """The message for a song that couldn't be rendered for playback."""

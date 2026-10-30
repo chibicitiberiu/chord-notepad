@@ -166,7 +166,10 @@ class DirectiveHint:
         keyword: The directive's name as typed, lower-cased (may be partial).
         syntax: The correct syntax: examples for the keyword, or for every
             directive the partial keyword could become.
-        message: Why the directive is invalid, else "".
+        message: Why the directive is invalid or has no effect, else "".
+        redundant: True when the directive is valid but has no effect (its
+            ``message`` says what replaces it); a view shows it muted rather
+            than as an error.
     """
 
     offset: int
@@ -175,6 +178,7 @@ class DirectiveHint:
     keyword: str
     syntax: str
     message: str
+    redundant: bool = False
 
 
 @dataclass(frozen=True)

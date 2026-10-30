@@ -776,4 +776,4 @@ def test_a_directive_hint_crosses_the_bridge(env):
     hint = env.expect("DirectiveHint")
     assert hint == {"offset": 2, "start": 0, "end": 8, "keyword": "bpm",
                     "syntax": "{bpm: 120} · {bpm: +10} · {bpm: 50%} · {bpm: 2x} · {bpm: reset}",
-                    "message": "Tempo must be 20-400"}
+                    "message": "Tempo must be 20-400", "redundant": False}

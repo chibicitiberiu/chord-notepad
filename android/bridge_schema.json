@@ -363,6 +363,7 @@
         "keyword": "str",
         "message": "str",
         "offset": "int",
+        "redundant": "bool",
         "start": "int",
         "syntax": "str"
       },

@@ -128,8 +128,10 @@ data class DirectiveCheck(
 /**
  * The directive at a text offset, or one being typed there
  * (`request_directive_hint`): its range, [keyword] as typed, the correct
- * [syntax] and, when invalid, the [message] saying why. [syntax] is "" when
- * there is no directive at [offset].
+ * [syntax] (one line per directive a half-typed keyword could become) and,
+ * when invalid or without effect, the [message] saying why. [redundant]
+ * marks a valid directive that has no effect. [syntax] is "" when there is
+ * no directive at [offset].
  */
 @Serializable
 data class DirectiveHint(
@@ -139,6 +141,7 @@ data class DirectiveHint(
     val keyword: String,
     val syntax: String,
     val message: String,
+    val redundant: Boolean = false,
 ) : SessionEvent
 
 /** Wire type name → serializer for the M5 outputs ([BridgeCodec.serializers] includes them). */
