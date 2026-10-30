@@ -251,10 +251,11 @@ you there.
 
 **Parameters**
    For a fretboard voicing: strings, frets, fingers, spans, and barres,
-   plus all eleven weights (see :doc:`fretted`), laid out in a compact
-   multi-column form. For an ensemble voicing: the voices table -- a row
-   per voice with Name, Low, and High columns, an **Add voice** button,
-   and a remove button on each row -- plus spacing, unisons, and all the
+   plus all thirteen weights :plat:`in a compact multi-column form|` (see
+   :doc:`fretted`). For an ensemble voicing: the voices
+   :plat:`table -- a row per voice with Name, Low, High and Staff columns|-- a
+   card per voice with Name, Low, High and Staff`, an **Add voice** button,
+   and a remove button on each :plat:`row|card` -- plus spacing, unisons, and all the
    weights, including the doubling, omission, and inversion groups (see
    :doc:`ensembles`). For a piano voicing: the left- and right-hand ranges,
    the preferred bass range, the right-hand low anchor and center, the
