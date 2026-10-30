@@ -255,7 +255,9 @@ The project uses standard Python conventions with:
 
 ## License
 
-Licensed under [GNU Affero General Public License v3.0](LICENSE).
+Licensed under [GNU Affero General Public License v3.0](LICENSE), with additional
+permissions for app stores and a term about the project's name and icon (see
+[LICENSE.ADDITIONAL](LICENSE.ADDITIONAL)).
 
 ## Contributing
 

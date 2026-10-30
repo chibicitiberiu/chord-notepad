@@ -1,0 +1,86 @@
+Additional permissions and terms under GNU AGPL version 3 section 7
+
+Copyright (C) 2025-2026 Tiberiu Chibici
+
+These permissions and terms are added to the GNU Affero General Public
+License version 3 ("the License") for Chord Notepad ("this Program"). Terms
+defined in the License have the same meaning here.
+
+Definitions.
+
+"App Store" means an online service through which many developers who are
+not affiliated with its operator distribute software, to the public or to a
+group of users the developer chooses (such as testers or the members of an
+organisation), and which is operated by someone other than you or any entity
+that controls, is controlled by, or is under common control with you.
+Examples are Google Play, the Microsoft Store, Apple's App Store (iOS, iPadOS
+and macOS) and TestFlight, the Amazon Appstore, the Samsung Galaxy Store,
+Huawei AppGallery and Steam.
+
+"Store Library" means an unmodified library, framework or software
+development kit, as published by the operator of an App Store, used only to
+integrate a work with that App Store: selling the work or features of it,
+verifying or restoring purchases, updates delivered by the App Store, and
+review prompts. It includes the libraries it requires in order to work, as
+published by the same operator. Examples are the Google Play Billing Library
+(with the Google Play services, Google Data Transport and Firebase encoder
+libraries it requires), Apple StoreKit, and the Microsoft Store APIs
+(Windows.Services.Store). This definition does not cover the work's own use
+of any library for advertising, analytics, crash reporting, user tracking, or
+preventing the copying or modification of the work, even if that library is
+also part of a Store Library.
+
+1. Linking Store Libraries. If you modify this Program, or any covered
+work, by linking or combining it with a Store Library, the licensors of this
+Program grant you additional permission to convey the resulting work. For all
+purposes of the License, including sections 6 and 13, the Corresponding
+Source of such a combination need not include the source code of the Store
+Library; it shall include the source code of the covered work.
+
+2. App Stores and platform requirements. The licensors of this Program
+grant you additional permission to convey this Program, or any covered work,
+in object code form through an App Store, or in a form that a platform's
+operator requires before the work can be installed or run on that platform
+(such as code signing, notarisation or developer verification), and to accept
+that operator's terms for doing so, even where those terms or the operator's
+technical measures (such as digital rights management, limits on the number
+of devices, or trial periods) restrict recipients in a way that section 10 or
+section 12 of the License would otherwise forbid. This permission applies
+only if you comply with every other condition of the License, including
+sections 4 to 6, and:
+
+(a) you make the Corresponding Source of each version you convey this way
+available to everyone, at no charge, under the terms of the License, from a
+publicly accessible network server, for as long as you offer that version;
+
+(b) you state, in the App Store listing for the work (where there is one)
+and in its Appropriate Legal Notices, that it is licensed under the License
+and where its Corresponding Source can be obtained;
+
+(c) the restrictions are set by the operator, including through features of
+the App Store you choose to use; where the operator lets you supply your own
+licence terms for the work, any terms you supply add no restriction beyond
+the License; and
+
+(d) you do not assert those restrictions against anyone in respect of the
+Corresponding Source, or of copies obtained in any other way.
+
+This permission does not limit any right the License gives to any recipient,
+including one who obtained the work through an App Store. Section 3 of the
+License continues to apply to you.
+
+3. Names. Under sections 7(c) and 7(e) of the License: this License
+grants no right to use the name "Chord Notepad" or its icon as trade names
+or trademarks. A modified version conveyed through an App Store must be
+marked as modified and must be presented to users under a name and icon
+other than Chord Notepad's. This does not apply to a version changed only as
+needed to build, package or install it for a particular operating system,
+distribution or App Store, without changing what it does for its users.
+
+Scope. Permissions 1 and 2 extend to no non-free library other than a
+Store Library, and they neither add to nor take away from what the License
+itself allows, for example for System Libraries. When you convey a copy of a
+covered work, you may remove permissions 1 and 2 from that copy, or from any
+part of it, as section 7 of the License allows; a version without them is
+governed by the License and term 3 alone. If you remove permission 1, you may
+no longer convey a combination with a Store Library.

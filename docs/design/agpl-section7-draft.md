@@ -1,7 +1,8 @@
 # Draft: AGPL-3.0 section 7 additional permissions for app stores
 
-Status: draft for Tibi to approve or edit, revised after two independent
-reviews (2026-10-30). Nothing in LICENSE, README or the app has been changed.
+Status: adopted 2026-10-30 as LICENSE.ADDITIONAL (term 3 kept, official-builds
+fallback dropped). Revised after two independent
+reviews. LICENSE itself is unchanged.
 
 ## Why it's needed
 
