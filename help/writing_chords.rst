@@ -603,6 +603,9 @@ Put accidentals **before** the numeral:
    #IV      // Sharp four (major chord)
    #iv°     // Sharp four diminished
 
+The chord is named after the degree, so the chord sheet spells it the way a
+musician would: in C, ``bVI`` is Ab (not G#) and ``#IV`` is F#.
+
 **Example - a rock progression:**
 
 .. code-block:: chord

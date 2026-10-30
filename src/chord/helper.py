@@ -576,23 +576,28 @@ class ChordHelper:
         if not key_root:
             return None
 
-        # Calculate absolute note for this degree
-        # Major scale intervals: W-W-H-W-W-W-H (2-2-1-2-2-2-1 semitones)
-        major_scale_intervals = [0, 2, 4, 5, 7, 9, 11]
-        interval = major_scale_intervals[degree]
-
-        # Apply accidental if present
-        if accidental == 'b':
-            interval -= 1  # Flat: lower by 1 semitone
-        elif accidental == '#':
-            interval += 1  # Sharp: raise by 1 semitone
+        # Spell the root by degree: the letter comes from the scale degree (VI
+        # of C is A) and the accidental from the numeral, so bVI in C is Ab and
+        # #IV is F#. Transposing by a diatonic interval does exactly that.
+        # Roman numerals count from the tonic's major scale.
+        degree_intervals = ['P1', 'M2', 'M3', 'P4', 'P5', 'M6', 'M7']
+        interval_name = degree_intervals[degree]
+        if accidental:
+            perfect = interval_name[0] == 'P'
+            if accidental == 'b':
+                interval_name = ('d' if perfect else 'm') + interval_name[1:]
+            else:
+                interval_name = 'A' + interval_name[1:]
 
         try:
-            key_pitch = pitch.Pitch(key_root)
-            root_pitch = key_pitch.transpose(interval)
+            root_pitch = pitch.Pitch(key_root).transpose(interval_name)
+            if abs(root_pitch.alter) > 1:
+                # A double accidental (Bbb, C##) has no chord name of its own;
+                # write the plain enharmonic note instead.
+                root_pitch = root_pitch.simplifyEnharmonic(mostCommon=True)
             # music21 uses "-" for flats, convert to "b" for consistency
             root = root_pitch.name.replace('-', 'b')
-        except:
+        except Exception:
             return None
 
         # Build quality.
