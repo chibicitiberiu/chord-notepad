@@ -62,7 +62,7 @@ General
 
 .. only:: desktop
 
-   **Chord notation**
+   **Notation**
       American or European, the same toggle as the AB/Do buttons in the
       toolbar.
 
@@ -72,7 +72,10 @@ General
       American or European, the same switch as AB / Do in the Edit ribbon.
 
 **Default key**
-   The key a new document starts in.
+   The key Chord Notepad starts in. It is the same value as the key
+   :plat:`in the toolbar|in the song pill's Song defaults`, so it also
+   changes when you pick a key there or open a song with a ``{key}``
+   directive, and a new song keeps the key the last one left.
 
 .. only:: desktop
 
@@ -81,7 +84,7 @@ General
       :menuselection:`Help --> Quick Start`) opens automatically when Chord
       Notepad launches.
 
-   **Number of recent files**
+   **Max recent files**
       How many entries :menuselection:`File --> Recent Files` remembers.
 
    **Log level**
@@ -103,10 +106,16 @@ General
 ==================================
 
 **Default BPM**
-   The tempo a new document starts at.
+   The tempo Chord Notepad starts at.
 
 **Default time signature**
-   The time signature a new document starts at.
+   The time signature Chord Notepad starts at.
+
+Like the default key, these are the same values as the tempo and time
+signature :plat:`in the toolbar|in the song pill's Song defaults`. Changing
+them there, or opening a song whose ``{bpm}`` or ``{time}`` directive sets
+them, changes these settings too, and a new song starts from whatever the
+last song left.
 
 .. only:: android
 
@@ -117,9 +126,8 @@ General
 
       The Playback page.
 
-   These are the starting values. A song's own ``{bpm}`` and ``{time}``
-   directives always win, and the song pill's **Song defaults** sheet changes
-   the defaults for the song that's open (see :doc:`interface`).
+   A song's own ``{bpm}`` and ``{time}`` directives always win over them
+   while it plays (see :doc:`interface`).
 
    The sound itself has no settings on Android: the app always uses its
    built-in instruments and the phone's normal audio output.
@@ -246,8 +254,8 @@ you there.
       the voicing in a dialog.
 
 **Model**
-   Fretboard, Ensemble, or Piano. Switching models changes which
-   parameters appear below.
+   Fretboard, Ensemble, or Piano. Switching models asks first, then replaces
+   the parameters with the new model's defaults.
 
 **Parameters**
    For a fretboard voicing: strings, frets, fingers, spans, and barres,
@@ -274,10 +282,9 @@ you there.
    invalid field turns red immediately, and a problem that spans two fields
    -- a relaxed span smaller than the normal span, a voice whose low note is
    above its high note -- shows up as a message at the top of the editor.
-   Save stays blocked until every field on the page is valid. On top of
-   that, Save also validates every *other* voicing on the page, not just the
-   one you're currently editing, and if something's wrong there it names
-   exactly which voicing and which field. Renaming or deleting the voicing
+   Save checks every voicing, not just the one you're editing: if one is
+   invalid, it names the voicing and the problem, selects it, and saves
+   nothing. Renaming or deleting the voicing
    you're currently playing with is handled: a rename follows the selection
    so playback keeps using it, and a delete falls back to piano. Once you
    save, any new or changed custom voicing shows up in
@@ -290,10 +297,9 @@ you there.
    -- a relaxed span smaller than the normal span, a voice whose low note is
    above its high note -- shows up as a message at the top of the editor.
    A voicing with a mistake is marked *Has errors* in the list. While any
-   voicing is invalid, the **Save** button in the top bar looks blocked
-   (its label reads "Save (some voicings are invalid)"); tapping it still
-   works as a check, and names exactly which voicing and which field need
-   fixing. Renaming or deleting the voicing
+   voicing is invalid, the **Save** button in the top bar looks greyed out,
+   but tapping it still works as a check: it opens the first invalid
+   voicing and names what's wrong with it. Renaming or deleting the voicing
    you're currently playing with is handled: a rename follows the selection
    so playback keeps using it, and a delete falls back to piano. Once you
    save, any new or changed custom voicing shows up in the Voicing sheet of
@@ -316,8 +322,8 @@ instead of editing JSON by hand:
       fills in the standard tuning and all its defaults as a starting point.
    4. In **Name**, type ``My 7-String``.
    5. In the strings field, change the tuning from ``E2 A2 D3 G3 B3 E4`` to
-      ``B1 E2 A2 D3 G3 B3 E4`` -- the same six strings with a low B added at
-      the top.
+      ``B1 E2 A2 D3 G3 B3 E4`` -- the same six strings with a low B added in
+      front (the list starts at the lowest string).
    6. Click **Save**.
    7. Open :menuselection:`Playback --> Voicing` -- **My 7-String** is now in
       the list, under Fretboard. Select it and play some chords.
@@ -330,8 +336,8 @@ instead of editing JSON by hand:
       fills in the standard tuning and all its defaults as a starting point.
    4. In **Name**, type ``My 7-String``.
    5. In the strings field, change the tuning from ``E2 A2 D3 G3 B3 E4`` to
-      ``B1 E2 A2 D3 G3 B3 E4`` -- the same six strings with a low B added at
-      the top.
+      ``B1 E2 A2 D3 G3 B3 E4`` -- the same six strings with a low B added in
+      front (the list starts at the lowest string).
    6. Tap **Save** in the top bar.
    7. Switch to the Play tab and tap **Voicing** in the player -- **My 7-String**
       is now in the list, under Your voicings. Select it and play some chords.
