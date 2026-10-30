@@ -2,10 +2,17 @@
 
 App bugs and questions found while fact-checking the user guide (2026-10-30). Nothing below has been changed in the app yet; each needs Tibi's call. Details and evidence: the fact-check records (scratchpad factcheck_A.md / factcheck_B.md, summarised here).
 
-## Questions
-- **Suggest Capo insert position:** it inserts `{capo: N}` at the top of the song (or the start of the selection), never at the cursor. Keep it, or insert at the cursor?
-- **Desktop has no Capo in Tools → Insert** (Android's Insert sheet does). Add it?
-- **Two BPM ranges:** the Insert dialog takes 20–300, the toolbar and Song defaults take 20–400. Unify?
+## Decided by Tibi (2026-10-30)
+- **Suggest Capo:** if a `{capo}` directive comes before the first chord, replace it; otherwise insert at the beginning (in progress).
+- **Desktop:** add Capo to Tools → Insert (in progress).
+- **Tempo range:** 20–400 everywhere, including typed `{bpm}` (in progress).
+- **Invalid directives** (out of range, bad format, wrong/missing parameters) are highlighted red and ignored during playback (in progress). Each gets a reason and the correct syntax in the core. **To design:** a tooltip that suggests the syntax while typing, on desktop and Android.
+- **Defaults:** opening a song must NOT change the defaults in Settings. Values the song sets are shown as overridden and can't be edited from the UI (to do).
+- **"la la la" lyric lines detected as chords:** a known issue. A marker prefix is being considered (to discuss).
+
+## Questions still open
+- **`iim7`:** accept it? (Discussed 2026-10-30.)
+- **Voicing `label`:** show it as the display name, or drop it?
 
 ## Bugs (from fact-check A)
 1. **Chord Identifier and flats:** "Bb D F" gives `D`, "Eb G Bb" gives `G`, `G/D#`, "Db F Ab" gives `F`, `F/C#`. The notes are rewritten as sharps before identification.
