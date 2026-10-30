@@ -178,7 +178,7 @@ one has a European and a roman equivalent:
    * - Minor 7
      - ``Dm7``
      - ``Rem7``
-     - ``iim7``
+     - ``ii7``
    * - Major 7
      - ``Cmaj7``
      - ``Domaj7``
@@ -622,7 +622,7 @@ Add chord extensions just like with regular chords:
    ii7      // Minor 7 -- lowercase stays minor (Dm7 in C)
    V7       // Dominant 7 -- uppercase (G7 in C)
    II7      // Secondary dominant -- uppercase forces major (D7 in C)
-   viim7b5  // Half-diminished (natural in minor keys)
+   vii7b5   // Half-diminished (B D F A in C)
 
 .. note::
    The case of the numeral sets the chord quality, and it carries through to the
@@ -687,7 +687,7 @@ Combine different durations on the same line:
 
 .. code-block:: chord
 
-   C*2  F  G*2         // C for 2 beats, F for 1, G for 2
+   C*2  F  G*2         // C for 2 beats, F for a whole bar, G for 2
    Am*4 G*2 F*2        // Am for 4, G for 2, F for 2
 
 **Example - a waltz feel (3/4 time):**
@@ -791,7 +791,9 @@ Chord Notepad reads the sheet line by line and works out on its own which lines
 are chords and which are lyrics (see :doc:`introduction`). The chord line lights
 up and plays; the lyric line is displayed but never played, no ``//`` required.
 A lyric that happens to contain a chord-like word -- an *Am*, a *La*, a *Do* --
-is still left alone, because the line as a whole doesn't read as chords.
+is still left alone, because the line as a whole doesn't read as chords. A
+line made only of such words does read as chords, though: with **Do** notation
+on, a lyric line of just ``la la la`` turns blue and plays.
 
 So keep ``//`` for things that genuinely aren't part of the song.
 
