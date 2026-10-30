@@ -297,7 +297,7 @@ a fretboard, and a section of singers or players don't think alike.
    * **Fretted**: guitar in four tunings and **Ukulele** (see :doc:`fretted`).
    * **Ensembles**: the choir and string quartet presets (see
      :doc:`ensembles`).
-   * **Your voicings**: the ones you made in ☰ → Settings → Voicings. The
+   * **Your voicings**: the ones you made in |voicings_settings|. The
      group is missing until you add one.
 
    **Edit voicings…** at the bottom of the sheet opens Settings › Voicings.
@@ -445,7 +445,7 @@ Built-in Fretted-Instrument Voicings
 
    Beyond these five, you can define a voicing for any fretted instrument with
    3 to 12 strings -- a baritone ukulele, a banjo, a seven-string guitar in a
-   tuning of your own -- in ☰ → Settings → Voicings. See
+   tuning of your own -- in |voicings_settings|. See
    :doc:`fretted` for a worked example and the full list of tunable parameters.
 
 .. platform-figure:: voicings

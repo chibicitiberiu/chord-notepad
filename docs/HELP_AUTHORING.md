@@ -40,6 +40,7 @@ the same swap appears on several pages.
 |---|---|---|
 | `\|click\|`, `\|Click\|`, `\|clicks\|`, `\|clicking\|`, `\|Clicking\|` | click... | tap... |
 | `\|settings\|` | :menuselection:`Tools --> Settings...` | **☰ → Settings** |
+| `\|voicings_settings\|` | :menuselection:`Tools --> Settings...` --> Voicings | **☰ → Settings → Voicings** |
 
 ```rst
 |Click| any chord to play it. Voicings live under |settings|.

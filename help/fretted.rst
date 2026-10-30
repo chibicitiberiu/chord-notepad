@@ -83,7 +83,7 @@ Defining a Custom Fretted Voicing
 .. only:: desktop
 
    If none of the five match the instrument you're writing for, add one from
-   :menuselection:`Tools --> Settings...` --> Voicings: load a built-in
+   |voicings_settings|: load a built-in
    preset as a starting point, change what's different (tuning, span,
    weights), and save. See :doc:`settings` for the full walkthrough,
    including a seven-string guitar built from the Guitar (Standard) preset.
@@ -93,7 +93,7 @@ Defining a Custom Fretted Voicing
    If none of the five match the instrument you're writing for, make your own
    in the Voicings editor:
 
-   1. Open **☰ → Settings → Voicings**. (From the player, **Voicing → Edit
+   1. Open |voicings_settings|. (From the player, **Voicing → Edit
       voicings…** gets you there too.)
    2. Tap **Add voicing**. A new voicing called "New voicing" appears under
       **Fretboard**, already set up as a six-string guitar in standard
@@ -287,7 +287,7 @@ Voicing Parameters
 
    Every fretted voicing, built-in or custom, is steered by the same
    physical limits and the same set of numeric weights. These are the fields
-   of a fretted voicing's form in ☰ → Settings → Voicings (see
+   of a fretted voicing's form in |voicings_settings| (see
    :doc:`settings`). The **Config key** column is the setting's name in the
    app's configuration file; you only need it if you share voicings with the
    desktop version of Chord Notepad.

@@ -38,6 +38,8 @@ help_terms = {
     'clicking': ('clicking', 'tapping'),
     'Clicking': ('Clicking', 'Tapping'),
     'settings': (':menuselection:`Tools --> Settings...`', '**☰ → Settings**'),
+    'voicings_settings': (':menuselection:`Tools --> Settings...` --> Voicings',
+                          '**☰ → Settings → Voicings**'),
 }
 
 # Optional: PDF generation via rinohtype (only needed for make docs-pdf)

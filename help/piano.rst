@@ -59,7 +59,7 @@ Defining a Custom Piano Voicing
 
    If you want the piano to sit in a different register, spread the hands
    further apart, or trade completeness for a sparser texture, add a custom
-   piano voicing from :menuselection:`Tools --> Settings...` --> Voicings:
+   piano voicing from |voicings_settings|:
    load **Grand Piano** as a starting point, change what's different (ranges,
    span, weights), and save. See :doc:`settings` for the page itself.
 
@@ -69,7 +69,7 @@ Defining a Custom Piano Voicing
    further apart, or trade completeness for a sparser texture, make a custom
    piano voicing:
 
-   1. Open **☰ → Settings → Voicings** and tap **Add voicing**. The new
+   1. Open |voicings_settings| and tap **Add voicing**. The new
       voicing starts out as a guitar.
    2. Tap **Load config** and pick **Piano (default)**. The form switches to
       the piano's fields, with the built-in values filled in. (Picking
@@ -211,7 +211,7 @@ Voicing Parameters
 
    Every piano voicing, built-in or custom, is steered by the same physical
    hand limits, the same scoring anchors, and the same set of numeric weights.
-   These are the fields of a piano voicing's form in ☰ → Settings → Voicings
+   These are the fields of a piano voicing's form in |voicings_settings|
    (see :doc:`settings`). The four ranges are under **Hands & range**, each
    with a Low and a High note. The **Config key** column is the setting's
    name in the app's configuration file; you only need it if you share

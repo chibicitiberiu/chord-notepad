@@ -203,7 +203,7 @@ Custom Ensembles
 .. only:: desktop
 
    If the four presets don't match the group you're writing for, define your
-   own from :menuselection:`Tools --> Settings...` --> Voicings: load a
+   own from |voicings_settings|: load a
    built-in ensemble as a starting point, change the voices, spacing, or
    weights, and save. See :doc:`settings` for the page itself and a worked
    example (built there for a fretted instrument, but the same steps apply
@@ -214,7 +214,7 @@ Custom Ensembles
    If the four presets don't match the group you're writing for, define your
    own:
 
-   1. Open **☰ → Settings → Voicings** and tap **Add voicing**. The new
+   1. Open |voicings_settings| and tap **Add voicing**. The new
       voicing starts out as a guitar.
    2. Tap **Load config** and pick the built-in ensemble closest to what you
       want, such as **Choir (SATB)**. Or set **Model** to **Ensemble** to
@@ -398,8 +398,8 @@ Voicing Parameters
 
    Every ensemble, built-in or custom, is steered by the same set of
    numeric parameters. These are the fields under **Weights**, **Doubling**,
-   **Omission** and **Inversion** in an ensemble's form in ☰ → Settings →
-   Voicings (see :doc:`settings`). The **Config key** column is the
+   **Omission** and **Inversion** in an ensemble's form in
+   |voicings_settings| (see :doc:`settings`). The **Config key** column is the
    setting's name in the app's configuration file; you only need it if you
    share voicings with the desktop version of Chord Notepad. Every weight
    is a signed number added to the voicing's score. Positive values make that

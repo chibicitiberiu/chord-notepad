@@ -323,7 +323,7 @@ instead of editing JSON by hand:
 
 .. only:: android
 
-   1. Open **☰ → Settings** and go to the **Voicings** editor.
+   1. Open |voicings_settings|.
    2. Tap **Add voicing**. The new voicing opens (full screen on a phone).
    3. Tap **Load config** and pick **Guitar (Standard - EADGBE)**. This
       fills in the standard tuning and all its defaults as a starting point.
