@@ -288,7 +288,7 @@ Voicing Parameters
    Every fretted voicing, built-in or custom, is steered by the same
    physical limits and the same set of numeric weights. These are the fields
    of a fretted voicing's form in |voicings_settings| (see
-   :doc:`settings`). The **Config key** column is the setting's name in the
+   :doc:`settings`). **Config key** is the setting's name in the
    app's configuration file; you only need it if you share voicings with the
    desktop version of Chord Notepad.
 

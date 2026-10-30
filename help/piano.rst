@@ -215,7 +215,7 @@ Voicing Parameters
    hand limits, the same scoring anchors, and the same set of numeric weights.
    These are the fields of a piano voicing's form in |voicings_settings|
    (see :doc:`settings`). The four ranges are under **Hands & range**, each
-   with a Low and a High note. The **Config key** column is the setting's
+   with a Low and a High note. **Config key** is the setting's
    name in the app's configuration file; you only need it if you share
    voicings with the desktop version of Chord Notepad.
 

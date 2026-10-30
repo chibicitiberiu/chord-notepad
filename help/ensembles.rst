@@ -399,7 +399,7 @@ Voicing Parameters
    Every ensemble, built-in or custom, is steered by the same set of
    numeric parameters. These are the fields under **Weights**, **Doubling**,
    **Omission** and **Inversion** in an ensemble's form in
-   |voicings_settings| (see :doc:`settings`). The **Config key** column is the
+   |voicings_settings| (see :doc:`settings`). **Config key** is the
    setting's name in the app's configuration file; you only need it if you
    share voicings with the desktop version of Chord Notepad. Every weight
    is a signed number added to the voicing's score. Positive values make that
