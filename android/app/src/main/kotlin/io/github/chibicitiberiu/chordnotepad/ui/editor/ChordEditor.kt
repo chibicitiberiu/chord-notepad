@@ -28,6 +28,16 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.foundation.layout.offset
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.unit.IntSize
+import io.github.chibicitiberiu.chordnotepad.text.OffsetMapper
+import io.github.chibicitiberiu.chordnotepad.ui.play.explainableAt
+import io.github.chibicitiberiu.chordnotepad.ui.play.explainableDirectives
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Size
@@ -84,9 +94,14 @@ private val ChordSlop = 4.dp
  *   that starts on the marker scrubs it (the marker follows the finger,
  *   [onScrub] gets the chord on release); other drags scroll. While
  *   a song plays ([playing]) a tap makes playback jump there (the session's
- *   rule) and the marker can't be dragged.
+ *   rule) and the marker can't be dragged. A long-press on a red or faded
+ *   directive asks for its explanation ([onExplain], code points); while
+ *   [explained] is set it shows in a small card by that directive, until
+ *   [onDismissExplained] (the next touch).
  *
- * Both modes share [scroll], so switching keeps the place. Offsets are UTF-16.
+ * Both modes share [scroll], so switching keeps the place. Offsets are UTF-16
+ * except where said. [onTextFocus] tells whether the Edit-mode field has the
+ * focus (the hint strip shows only then).
  */
 @Composable
 fun ChordEditor(
@@ -101,6 +116,10 @@ fun ChordEditor(
     onScrub: (Int) -> Unit,
     modifier: Modifier = Modifier,
     focusRequester: FocusRequester? = null,
+    onTextFocus: (Boolean) -> Unit = {},
+    explained: ExplainedDirective? = null,
+    onExplain: (Int) -> Unit = {},
+    onDismissExplained: () -> Unit = {},
 ) {
     val colors = appColors
     val fontPoints = editorState?.fontSize ?: DEFAULT_FONT_POINTS
@@ -138,7 +157,9 @@ fun ChordEditor(
         when (mode) {
             AppMode.EDIT -> BasicTextField(
                 state = controller.state,
-                modifier = Modifier.fillMaxSize().let { m -> focusRequester?.let { m.focusRequester(it) } ?: m },
+                modifier = Modifier.fillMaxSize()
+                    .let { m -> focusRequester?.let { m.focusRequester(it) } ?: m }
+                    .onFocusChanged { onTextFocus(it.isFocused) },
                 readOnly = editorState?.readOnly ?: false,
                 inputTransformation = PasteNormalization,
                 textStyle = textStyle,
@@ -167,6 +188,9 @@ fun ChordEditor(
                 onLayout = { layout = it },
                 onPlayTap = onPlayTap,
                 onScrub = onScrub,
+                explained = explained,
+                onExplain = onExplain,
+                onDismissExplained = onDismissExplained,
             )
         }
     }
@@ -188,8 +212,12 @@ private fun PlayText(
     onLayout: (TextLayoutResult) -> Unit,
     onPlayTap: (PlayTap) -> Unit,
     onScrub: (Int) -> Unit,
+    explained: ExplainedDirective?,
+    onExplain: (Int) -> Unit,
+    onDismissExplained: () -> Unit,
 ) {
     val colors = appColors
+    val haptics = LocalHapticFeedback.current
     val density = LocalDensity.current
     val text = controller.state.text.toString()
     val spans = controller.spans
@@ -200,6 +228,10 @@ private fun PlayText(
     val chords = remember(spans) { playableChords(spans) }
     var layout by remember { mutableStateOf<TextLayoutResult?>(null) }
     val boxes = remember(layout, chords) { layout?.let { l -> chords.mapNotNull { chordBox(l, it.start, it.end) } }.orEmpty() }
+    // Red and faded directives: a long-press on one explains it.
+    val directiveBoxes = remember(layout, spans) {
+        layout?.let { l -> explainableDirectives(spans).mapNotNull { chordBox(l, it.start, it.end) } }.orEmpty()
+    }
     // The marker moves at once under the finger; the session's playhead takes over when it changes.
     var localHead by remember { mutableStateOf<Int?>(null) }
     LaunchedEffect(playhead) { localHead = null }
@@ -207,6 +239,9 @@ private fun PlayText(
     val marker = markerChord(chords, head)?.let { m -> boxes.firstOrNull { it.start == m.start } }
 
     val currentBoxes by rememberUpdatedState(boxes)
+    val currentDirectives by rememberUpdatedState(directiveBoxes)
+    val currentText by rememberUpdatedState(text)
+    val explaining by rememberUpdatedState(explained != null)
     val currentMarker by rememberUpdatedState(marker)
     val currentHead by rememberUpdatedState(head)
     val isPlaying by rememberUpdatedState(playing)
@@ -224,19 +259,41 @@ private fun PlayText(
                 .pointerInput(Unit) {
                     awaitEachGesture {
                         val down = awaitFirstDown(requireUnconsumed = false)
+                        // Any touch puts an explanation away.
+                        if (explaining) onDismissExplained()
                         val start = down.position - Offset(padX, padY)
                         // The marker follows playback while a song plays: no scrubbing then.
                         val grabbed = !isPlaying && grabsMarker(currentMarker, start.x, start.y, grabPx)
                         if (grabbed) down.consume()
+                        // A red or faded directive under the finger: holding it explains it.
+                        val directive = if (grabbed) null else explainableAt(currentDirectives, start.x, start.y, slopPx)
+                        val deadline = down.uptimeMillis + viewConfiguration.longPressTimeoutMillis
+                        var now = down.uptimeMillis
+                        var longPressed = false
                         var moved = false
                         var multi = false
                         // Where a scrub has taken the marker; sent once, on release
                         // (set_playhead restarts playback, so not per step).
                         var scrubbed: Int? = null
                         while (true) {
-                            val event = awaitPointerEvent()
+                            val waitForHold = directive != null && !moved && !multi && !longPressed
+                            val event = if (waitForHold) {
+                                withTimeoutOrNull((deadline - now).coerceAtLeast(1L)) { awaitPointerEvent() }
+                            } else {
+                                awaitPointerEvent()
+                            }
+                            if (event == null) {
+                                // Held still on the directive: explain it (code points), and the
+                                // release won't count as a tap.
+                                longPressed = true
+                                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                                directive?.let { onExplain(OffsetMapper.of(currentText).toCodePoint(it.start)) }
+                                continue
+                            }
                             if (event.changes.count { it.pressed } > 1) multi = true
                             val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                            now = change.uptimeMillis
+                            if (longPressed) change.consume()
                             if ((change.position - down.position).getDistance() > viewConfiguration.touchSlop) moved = true
                             if (grabbed && !multi) {
                                 change.consume()
@@ -250,7 +307,7 @@ private fun PlayText(
                             }
                             if (!change.pressed) {
                                 scrubbed?.let(onScrub)
-                                if (!moved && !multi) {
+                                if (!moved && !multi && !longPressed) {
                                     val p = change.position - Offset(padX, padY)
                                     resolveTap(currentBoxes, p.x, p.y, slopPx)?.let { tap ->
                                         localHead = when (tap) {
@@ -279,6 +336,38 @@ private fun PlayText(
                     .padding(TextPadding)
                     .drawPlayhead(marker, markerColor),
             )
+            // The long-pressed directive's explanation, anchored on it.
+            val shown = explained
+            val anchor = remember(shown, layout, text) {
+                val l = layout
+                if (shown == null || l == null) {
+                    null
+                } else {
+                    val mapper = OffsetMapper.of(text)
+                    chordBox(l, mapper.toUtf16(shown.start), mapper.toUtf16(shown.end))
+                }
+            }
+            if (shown != null && anchor != null) {
+                // Under the directive, or above it near the bottom of the view;
+                // inside the text, so it scrolls with it.
+                var cardSize by remember(shown) { mutableStateOf(IntSize.Zero) }
+                val gap = with(density) { 6.dp.toPx() }
+                val margin = with(density) { 8.dp.roundToPx() }
+                val top = explainCardTop(
+                    anchor.top + padY, anchor.bottom + padY, cardSize.height.toFloat(),
+                    scroll.value.toFloat(), (scroll.value + scroll.viewportSize).toFloat(), gap,
+                )
+                val widthPx = this@BoxWithConstraints.constraints.maxWidth
+                DirectiveHintCard(
+                    shown.card,
+                    Modifier
+                        .onSizeChanged { cardSize = it }
+                        .offset {
+                            val left = (anchor.left + padX).roundToInt()
+                            IntOffset(left.coerceAtMost(widthPx - cardSize.width - margin).coerceAtLeast(margin), top.roundToInt())
+                        },
+                )
+            }
         }
     }
 }

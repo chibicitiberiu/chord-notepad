@@ -151,3 +151,14 @@ Where the build differs from the text above, and why:
 - **Icons.** `swap-vertical` and `music-note` only appear inside the
   Transpose composite drawable, so they have no drawables of their own. The
   Instrument sheet's family markers use MDI `circle` / `circle-outline`.
+- **Directive hints** (2026-10-30). Edit: the hint strip sits in the
+  layout under the text, not over it, so it never covers the line being
+  typed (the text area gets shorter while it shows); with the header
+  collapsed, the floating undo chip moves up above it. It shows only while
+  the text field has the focus and the selection is a cursor, debounced by
+  150 ms. Play: a long-press (the system's long-press time) on a red or
+  faded directive shows a small card just under the directive (above it
+  near the bottom of the view), drawn inside the text so it scrolls with
+  it, not in the status line, which is one short line and would cut the
+  syntax off. The card goes after 6 s or on the next touch; the
+  long-press never moves the playhead.

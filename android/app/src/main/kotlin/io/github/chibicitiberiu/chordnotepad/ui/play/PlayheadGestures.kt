@@ -95,3 +95,16 @@ fun markerChord(chords: List<PaintedSpan>, playhead: Int?): PaintedSpan? {
     if (playhead == null) return null
     return chords.firstOrNull { playhead >= it.start && playhead < it.end } ?: chords.firstOrNull { it.start >= playhead }
 }
+
+/**
+ * The directives a long-press explains in Play mode: the invalid (red) and
+ * the redundant (faded) ones, in text order.
+ */
+fun explainableDirectives(spans: List<PaintedSpan>): List<PaintedSpan> =
+    spans.filter {
+        (it.kind == SpanKind.DIRECTIVE_INVALID || it.kind == SpanKind.DIRECTIVE_REDUNDANT) && it.end > it.start
+    }.sortedBy { it.start }
+
+/** The explainable directive under ([x], [y]) (within [slop] px), or null. */
+fun explainableAt(boxes: List<ChordBox>, x: Float, y: Float, slop: Float): ChordBox? =
+    boxes.firstOrNull { it.contains(x, y) } ?: boxes.firstOrNull { it.contains(x, y, slop) }

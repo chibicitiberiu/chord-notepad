@@ -28,6 +28,8 @@ object UiTags {
     const val UNDO_CHIP = "undo_chip"
 
     const val EDITOR = "editor"
+    const val HINT_STRIP = "hint_strip"
+    const val HINT_POPUP = "hint_popup"
 
     const val PLAYER = "player"
     const val PLAYER_PILL = "player_pill"

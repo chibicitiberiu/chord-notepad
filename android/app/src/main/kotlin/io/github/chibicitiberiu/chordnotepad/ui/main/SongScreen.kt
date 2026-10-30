@@ -36,6 +36,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.runtime.DisposableEffect
@@ -80,6 +81,10 @@ import io.github.chibicitiberiu.chordnotepad.ui.UiTags
 import io.github.chibicitiberiu.chordnotepad.ui.chordsheet.ChordSheetPane
 import io.github.chibicitiberiu.chordnotepad.ui.chordsheet.ChordSheetSplit
 import io.github.chibicitiberiu.chordnotepad.ui.editor.ChordEditor
+import io.github.chibicitiberiu.chordnotepad.ui.editor.DirectiveHintController
+import io.github.chibicitiberiu.chordnotepad.ui.editor.DirectiveHintStrip
+import io.github.chibicitiberiu.chordnotepad.ui.editor.EXPLAIN_SHOWN_MS
+import io.github.chibicitiberiu.chordnotepad.ui.editor.bind
 import io.github.chibicitiberiu.chordnotepad.ui.handleShortcut
 import io.github.chibicitiberiu.chordnotepad.ui.identifier.ChordIdentifierDialog
 import io.github.chibicitiberiu.chordnotepad.ui.menus.currentProgramName
@@ -183,6 +188,36 @@ fun SongScreen(graph: AppGraph, actions: MainActions, snackbars: SnackbarHostSta
     val rootFocus = remember { FocusRequester() }
     LaunchedEffect(Unit) { runCatching { rootFocus.requestFocus() } }
     val playbackStatus = playback?.status ?: PlaybackStatus.IDLE
+
+    // Directive hints: Edit's strip while the cursor is in a directive, Play's
+    // long-press explanation. Asked for debounced; the session thread answers.
+    val hints = remember(graph) {
+        DirectiveHintController { offset ->
+            editor.syncNow()
+            graph.commands.requestDirectiveHint(offset)
+        }
+    }
+    var textFocused by remember { mutableStateOf(false) }
+    val currentMode by rememberUpdatedState(mode)
+    LaunchedEffect(hints) {
+        hints.bind(this, repo, snapshotFlow {
+            val selection = editor.state.selection
+            if (currentMode == AppMode.EDIT && textFocused && selection.collapsed) {
+                editor.codePointAt(selection.start)
+            } else {
+                null
+            }
+        })
+    }
+    LaunchedEffect(hints.explained, mode) {
+        if (hints.explained != null) {
+            if (mode != AppMode.PLAY) hints.dismiss() else {
+                delay(EXPLAIN_SHOWN_MS)
+                hints.dismiss()
+            }
+        }
+    }
+    var stripPx by remember { mutableIntStateOf(0) }
 
     fun selectMode(target: AppMode) {
         if (graph.mode.select(target, playbackStatus)) actions.stop()
@@ -307,6 +342,10 @@ fun SongScreen(graph: AppGraph, actions: MainActions, snackbars: SnackbarHostSta
                             onScrub = actions::setPlayhead,
                             focusRequester = textFocus,
                             modifier = m.testTag(UiTags.EDITOR),
+                            onTextFocus = { textFocused = it },
+                            explained = hints.explained,
+                            onExplain = hints::explain,
+                            onDismissExplained = hints::dismiss,
                         )
                     }
                     when {
@@ -317,6 +356,12 @@ fun SongScreen(graph: AppGraph, actions: MainActions, snackbars: SnackbarHostSta
                         }
                         else -> text(Modifier.weight(1f).fillMaxWidth())
                     }
+                    // Under the text, so above the keyboard when it's open: it takes its
+                    // own room and never covers the line being typed.
+                    val strip = hints.strip.takeIf { mode == AppMode.EDIT }
+                    if (strip != null) {
+                        DirectiveHintStrip(strip, Modifier.fillMaxWidth().onSizeChanged { stripPx = it.height })
+                    }
                     if (mode == AppMode.PLAY && !layout.sideBySide) {
                         Player(
                             playerState(toolbar, playback?.status, playback.isStarting, chordSheet?.visible, status?.text, host, songDefaults, graph),
@@ -326,9 +371,11 @@ fun SongScreen(graph: AppGraph, actions: MainActions, snackbars: SnackbarHostSta
                     }
                 }
                 if (collapsed) {
+                    // Stacked above the hint strip when it shows.
+                    val stripDp = if (mode == AppMode.EDIT && hints.strip != null) with(density) { stripPx.toDp() } else 0.dp
                     FloatingUndoChip(
                         ribbonActions, canUndo, canRedo,
-                        Modifier.align(Alignment.BottomEnd).imePadding().padding(end = 10.dp, bottom = 8.dp),
+                        Modifier.align(Alignment.BottomEnd).imePadding().padding(end = 10.dp, bottom = 8.dp + stripDp),
                     )
                 }
             }

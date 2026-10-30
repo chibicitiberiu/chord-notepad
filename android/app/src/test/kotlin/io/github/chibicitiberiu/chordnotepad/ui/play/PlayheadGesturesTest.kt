@@ -64,4 +64,18 @@ class PlayheadGesturesTest {
         assertNull(markerChord(chords, 40))
         assertNull(markerChord(chords, null))
     }
+
+    @Test
+    fun `a long-press explains only red and faded directives`() {
+        val spans = listOf(
+            PaintedSpan(20, 28, SpanKind.DIRECTIVE_REDUNDANT),
+            PaintedSpan(0, 8, SpanKind.DIRECTIVE_INVALID),
+            PaintedSpan(9, 18, SpanKind.DIRECTIVE),
+            PaintedSpan(30, 31, SpanKind.CHORD),
+        )
+        assertEquals(listOf(0, 20), explainableDirectives(spans).map { it.start })
+        val red = ChordBox(0, 8, 0f, 0f, 80f, 20f)
+        assertEquals(red, explainableAt(listOf(red), 82f, 10f, slop = 4f))
+        assertNull(explainableAt(listOf(red), 90f, 10f, slop = 4f))
+    }
 }
