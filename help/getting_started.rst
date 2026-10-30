@@ -114,7 +114,7 @@ The Main :plat:`Window|Screen`
       * **Purple** = a valid ``{directive}``; **red** = an invalid one
 
    #. **Player** (Play tab only) -- the song's tempo, time signature and key,
-      the Voicing and Instrument buttons, ⏮, the big ▶/⏸, the metronome, the
+      the Voicing and Instrument buttons, ⏮, the big ▶/❚❚, the metronome, the
       speed and the chord sheet button. The status line at the bottom shows the
       bar and the chord that's playing.
    #. **Chord sheet** (Play tab only) -- the song's chords drawn as a piano
@@ -184,7 +184,7 @@ Now let's hear it:
       moment while the song is prepared.)
    3. Listen as each chord plays in sequence
    4. Watch the **yellow highlight** move through your chords
-   5. Tap **⏸** to pause, or **⏮** to stop and go back to the first chord
+   5. Tap **❚❚** to pause, or **⏮** to stop and go back to the first chord
 
    .. platform-figure:: player-labeled
       :platforms: android

@@ -467,7 +467,7 @@ The User Interface
       family to see its eight instruments with their program numbers, and tap
       one to select it. The ← button goes back to the families.
    #. **⏮** stops playback and returns the playhead to the first chord.
-   #. **▶ / ⏸**, the big button, plays from the playhead, pauses, and resumes.
+   #. **▶ / ❚❚**, the big button, plays from the playhead, pauses, and resumes.
       Pause keeps the playhead where it is. When you press ▶, a ring spins
       around the button for a moment while the song is prepared.
    #. **Metronome** turns on a click track that sounds during playback. It is
@@ -480,7 +480,7 @@ The User Interface
       example "Bar 6/24 · Playing Em" or "Bar 6/24 · Paused", and any message
       from the app.
 
-   There is no Stop button: **⏸** pauses, and **⏮** stops and rewinds. When a
+   There is no Stop button: **❚❚** pauses, and **⏮** stops and rewinds. When a
    song reaches its end, the playhead goes back to the first chord.
 
    .. _song-defaults:
@@ -510,6 +510,9 @@ The User Interface
      :doc:`settings`.
    * **Write into song** inserts the missing directives at the top of the
      song, so the values travel with the file.
+
+   While a song plays or is paused, the tempo and **Write into song** are
+   greyed out, with a note to stop playback first (**⏮**).
 
    The Speed Sheet
    ---------------

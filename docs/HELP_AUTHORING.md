@@ -66,6 +66,10 @@ dropped), so a reference that only exists in one edition still has to be
 valid in both. `platform-figure` knows about this and doesn't look for an
 image inside an `.. only::` block the current build drops.
 
+**Symbols on Android.** The app's WebView draws ⏸ and ⏹ as orange emoji
+(no text font on the device has them). In Android text write the pause
+button as ❚❚; ▶ and ⏮ are fine.
+
 ## Figures
 
 ```rst

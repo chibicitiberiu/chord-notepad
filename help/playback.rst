@@ -38,7 +38,7 @@ Starting Playback
       song plays.
    3. **Instrument**: the sound.
    4. **⏮**: stop and go back to the first chord.
-   5. **▶ / ⏸**: play and pause.
+   5. **▶ / ❚❚**: play and pause.
    6. **Metronome**: a click on every beat.
    7. **Speed**: play slower or faster than written. The badge shows the
       speed when it isn't 100%.
@@ -54,7 +54,7 @@ Starting Playback
    Chord Notepad works out the whole song before the first note sounds, so a
    ring spins around the button for a moment (longer for a long song on a slow
    phone). Taps on the button are ignored until the music starts. Then the
-   button turns into **⏸**.
+   button turns into **❚❚**.
 
 :plat:`Playing from the Cursor|Playing from the Playhead`
 ---------------------------------------------------------
@@ -102,7 +102,7 @@ Pausing and Resuming
 
 .. only:: android
 
-   * Tap **⏸** to pause playback. The playhead stays on the chord that was
+   * Tap **❚❚** to pause playback. The playhead stays on the chord that was
      sounding.
    * Tap **▶** to resume from there.
    * The chord that was playing stays highlighted.
@@ -120,7 +120,7 @@ Stopping Playback
 
 .. only:: android
 
-   There is no Stop button. Pause (**⏸**) when you want to carry on from the
+   There is no Stop button. Pause (**❚❚**) when you want to carry on from the
    same place later, and use **⏮** to start over:
 
    * **⏮** stops playback and sends the playhead back to the first chord. The
@@ -684,10 +684,11 @@ Different instruments can highlight different aspects of a chord progression.
      song as one line, so the file keeps them. It is greyed out when the
      song already sets all three.
 
-   The tempo and **Write into song** don't work while a song plays or is
-   paused: tap **⏮** first. A time signature or key you change during
-   playback is heard once you stop and play again. To play faster or slower
-   without touching the song, use the **speed** button instead.
+   While a song plays or is paused, the tempo and **Write into song** are
+   greyed out, and the sheet says to stop playback first: tap **⏮**. A
+   time signature or key you change during playback is heard once you stop
+   and play again. To play faster or slower without touching the song, use
+   the **speed** button instead.
 
 
 Playback Tips

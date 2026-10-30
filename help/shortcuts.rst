@@ -184,7 +184,7 @@ Playback
 
       * - Gesture
         - Action
-      * - Tap ▶ / ⏸
+      * - Tap ▶ / ❚❚
         - Play from the playhead, pause, resume
       * - Tap ⏮
         - Stop and put the playhead back on the first chord
