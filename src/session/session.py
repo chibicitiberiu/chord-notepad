@@ -479,6 +479,9 @@ class AppSession:
     def convert_notation(self, target: str) -> None:
         """Rewrite the chords in ``target`` notation and switch detection to it.
 
+        When the text has no chords in the other notation nothing changes
+        (text, notation, modified flag) and the status says so.
+
         Args:
             target: ``american`` or ``european``.
 
@@ -495,10 +498,15 @@ class AppSession:
         if self._detect_timer is None and self._detector.current_notation == source.value:
             lines = self._detector.detected_lines or None
         if notation is Notation.AMERICAN:
-            self._main.convert_text_to_american(lines)
+            converted = self._main.convert_text_to_american(lines)
         else:
-            self._main.convert_text_to_european(lines)
-        self._set_status(formatting.converted_status(notation.value))
+            converted = self._main.convert_text_to_european(lines)
+        if converted:
+            self._set_status(formatting.converted_status(notation.value))
+        else:
+            # Nothing in the source notation (e.g. Android's Convert on a
+            # solfège song with the AB switch on): say so, change nothing.
+            self._set_status(formatting.nothing_to_convert_status(source.value))
 
     @_command
     def request_insert_directive(self, kind: str, at: int) -> None:

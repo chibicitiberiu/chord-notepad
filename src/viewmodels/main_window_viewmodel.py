@@ -724,7 +724,7 @@ class MainWindowViewModel(Observable):
             self._config.set("notation", notation.value)
             self.set_and_notify("notation", notation)
 
-    def convert_text_to_american(self, lines: Optional[List[Line]] = None) -> None:
+    def convert_text_to_american(self, lines: Optional[List[Line]] = None) -> bool:
         """Convert the current text from European to American notation.
 
         Also switches the editor's notation preference to American so the
@@ -733,17 +733,25 @@ class MainWindowViewModel(Observable):
         Args:
             lines: Optional pre-parsed document model. If provided, the
                 detector is not re-run for the substitution step.
+
+        Returns:
+            False (and nothing changes, not even the notation) when the text
+            has no European chords to convert.
         """
         logger.info("Converting text to American notation")
         converted_text = self._chord.convert_to_american(self._current_text, lines)
+        if converted_text == self._current_text:
+            logger.info("No European chords to convert")
+            return False
         self.set_and_notify("current_text", converted_text)
         # Flip the toolbar / editor notation so detection re-runs with the
         # target notation against the freshly-substituted text.
         self.set_notation(Notation.AMERICAN)
         if not self._is_modified:
             self.set_and_notify("is_modified", True)
+        return True
 
-    def convert_text_to_european(self, lines: Optional[List[Line]] = None) -> None:
+    def convert_text_to_european(self, lines: Optional[List[Line]] = None) -> bool:
         """Convert the current text from American to European notation.
 
         Also switches the editor's notation preference to European so the
@@ -752,13 +760,21 @@ class MainWindowViewModel(Observable):
         Args:
             lines: Optional pre-parsed document model. If provided, the
                 detector is not re-run for the substitution step.
+
+        Returns:
+            False (and nothing changes, not even the notation) when the text
+            has no American chords to convert.
         """
         logger.info("Converting text to European notation")
         converted_text = self._chord.convert_to_european(self._current_text, lines)
+        if converted_text == self._current_text:
+            logger.info("No American chords to convert")
+            return False
         self.set_and_notify("current_text", converted_text)
         self.set_notation(Notation.EUROPEAN)
         if not self._is_modified:
             self.set_and_notify("is_modified", True)
+        return True
 
     def transpose(self, semitones: int, region: Optional[tuple] = None) -> None:
         """Transpose chords by ``semitones`` and replace the document text.

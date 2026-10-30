@@ -181,6 +181,36 @@ def test_convert_with_typing_still_pending_uses_the_current_text():
     assert env.session.text == "Do Sol Lam"
 
 
+@pytest.mark.parametrize("text, notation, target, status", [
+    # Android's Convert with AB on a solfège song: no American chords.
+    ("Do Sol\nla la", "american", "european", "No American chords to convert"),
+    ("C G\nhello there", "european", "american", "No European chords to convert"),
+    ("just lyrics", "american", "european", "No American chords to convert"),
+    ("", "european", "american", "No European chords to convert"),
+])
+def test_convert_with_nothing_to_convert_says_so_and_changes_nothing(
+        text, notation, target, status):
+    env = Env(text, notation=notation)
+    assert env.main.notation.value == notation
+    modified = env.main.is_modified
+    env.recorder.clear()
+    env.session.convert_notation(target)
+
+    assert env.recorder.compact() == [("StatusState", status)]
+    assert env.session.text == env.main.current_text == text
+    assert env.main.notation.value == notation
+    assert env.main.is_modified is modified
+
+
+def test_convert_after_nothing_to_convert_still_converts():
+    env = Env("Do Sol", notation="american")
+    env.session.convert_notation("european")
+    env.session.set_notation("european")
+    env.session.convert_notation("american")
+    assert env.session.text == "C G"
+    assert env.status() == "Converted to American notation"
+
+
 def test_convert_to_an_unknown_notation_is_rejected():
     env = Env("C")
     with pytest.raises(ValueError):

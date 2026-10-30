@@ -231,6 +231,12 @@ def converted_status(notation: str) -> str:
     return f"Converted to {notation.capitalize()} notation"
 
 
+def nothing_to_convert_status(source: str) -> str:
+    """The status when a convert from ``source`` notation changed nothing,
+    e.g. ``No American chords to convert``."""
+    return f"No {source.capitalize()} chords to convert"
+
+
 def inserted_status(text: str) -> str:
     """The status after a directive was inserted, e.g. ``Inserted: {bpm: 90}``."""
     return f"Inserted: {text}"
