@@ -599,3 +599,9 @@ def test_licence_copies_are_the_repository_files_byte_for_byte(copy, original):
         f"android/.../texts/{copy}: run android/tools/gather_licenses.py")
     assert (LICENSES / "texts" / copy).read_bytes() == (REPO / original).read_bytes(), (
         f"resources/licenses/texts/{copy}: run packaging/licenses/gather_texts.py")
+
+
+@pytest.mark.parametrize("dest", ["Tcl", "Tk", "Tcl.framework/Versions/9.0/Tcl", "_tk_data/tk.tcl"])
+def test_macos_tcl_tk_frameworks_are_covered(dest):
+    """python.org's macOS Python bundles Tcl and Tk as frameworks named plain Tcl and Tk."""
+    assert inv.match(dest, BY_ID["tcl-tk"]["files"])

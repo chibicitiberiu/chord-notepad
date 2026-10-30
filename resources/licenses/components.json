@@ -73,7 +73,7 @@
       "url": "https://www.tcl-lang.org/",
       "texts": ["Tcl-license", "Tk-license"],
       "builds": ["windows", "macos", "linux"],
-      "files": ["tcl8*.dll", "tk8*.dll", "tcl9*.dll", "libtommath*", "libtcl*", "libtk*", "_tcl_data/*", "_tk_data/*", "tcl8/*", "tcl9/*"],
+      "files": ["tcl8*.dll", "tk8*.dll", "tcl9*.dll", "libtommath*", "libtcl*", "libtk*", "_tcl_data/*", "_tk_data/*", "tcl8/*", "tcl9/*", "Tcl", "Tk", "Tcl.framework/*", "Tk.framework/*"],
       "note": "The toolkit the windows and menus are drawn with, as bundled with Python."
     },
     {
