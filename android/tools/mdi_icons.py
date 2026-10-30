@@ -32,7 +32,7 @@ REPO = Path(__file__).resolve().parents[2]
 OUT = REPO / "android/app/src/main/res/drawable"
 
 # The names docs/design/android-ui-spec.md lists, plus the instrument sheet's
-# family markers (circle, circle-outline). swap-vertical and music-note are
+# family markers (circle, circle-outline) and the support prompt's heart. swap-vertical and music-note are
 # only used inside the Transpose composite (res/drawable/ic_transpose.xml,
 # written by hand with their paths), so they get no drawable of their own.
 ICONS = [
@@ -43,6 +43,7 @@ ICONS = [
     "content-save-edit", "export", "cog", "book-open-variant", "school",
     "information", "magnify-plus", "magnify-minus", "arrow-left", "chevron-right",
     "chevron-down", "radiobox-marked", "radiobox-blank", "circle", "circle-outline",
+    "heart",
 ]
 
 TEMPLATE = """<?xml version="1.0" encoding="utf-8"?>

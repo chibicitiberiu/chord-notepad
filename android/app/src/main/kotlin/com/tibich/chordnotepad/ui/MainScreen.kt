@@ -28,6 +28,7 @@ import com.tibich.chordnotepad.ui.requests.SessionRequests
 import com.tibich.chordnotepad.ui.settings.SettingsPage
 import com.tibich.chordnotepad.ui.settings.SettingsScreen
 import com.tibich.chordnotepad.ui.support.SupportPrompt
+import com.tibich.chordnotepad.ui.support.SupportThankYou
 import com.tibich.chordnotepad.ui.tools.ToolActions
 
 /**
@@ -148,4 +149,6 @@ fun MainScreen(graph: AppGraph, onCloseApproved: () -> Unit) {
             onDismiss = dismissStartup,
         )
     }
+    // After a purchase that completed while the app runs (from the prompt or Settings).
+    SupportThankYou(graph.supportBilling)
 }

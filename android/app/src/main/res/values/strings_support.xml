@@ -5,4 +5,14 @@
     <string name="support_prompt_not_now">Not now</string>
     <string name="support_prompt_support">Support</string>
     <string name="support_prompt_support_price">Support · %1$s</string>
+    <string name="support_prompt_message">I build Chord Notepad on my own time. It\'s free with every feature included, and it\'ll stay that way. If it\'s useful to you, a one-time purchase (no subscription) helps pay for the hours that go into it. Supporters get a badge in Settings, and my thanks.</string>
+    <!-- After a purchase completes while the app runs. -->
+    <string name="support_thanks_title">Thank you!</string>
+    <string name="support_thanks_message">Your support keeps Chord Notepad going.</string>
+    <!-- Settings: the card at the top of the pages list (play flavour). -->
+    <string name="support_card_offer">Free with every feature included. A one-time purchase (no subscription) helps pay for its development.</string>
+    <string name="support_card_supporter">Supporter</string>
+    <string name="support_card_thanks">Thank you for supporting Chord Notepad.</string>
+    <string name="support_card_error">Google Play couldn\'t start the purchase. Try again later.</string>
+    <string name="support_pending">Payment pending. Your badge appears once Google Play confirms it.</string>
 </resources>

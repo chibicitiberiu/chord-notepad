@@ -16,6 +16,11 @@
             android:exported="true" />
         <!-- Debug builds only: the main screen set up from a scene, for the
              user guide's screenshots (android/tools/help_screenshots.py). -->
+        <!-- Debug builds only: the support card and dialogs over a fake billing
+             state, for emulator screenshots (SupportDebugActivity). -->
+        <activity
+            android:name=".ui.support.SupportDebugActivity"
+            android:exported="true" />
         <activity
             android:name=".helpshot.HelpShotActivity"
             android:exported="true"

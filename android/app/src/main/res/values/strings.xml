@@ -44,6 +44,8 @@
     <string name="about_license">GNU AGPL-3.0</string>
     <string name="about_source">github.com/chibicitiberiu/chord-notepad</string>
     <string name="about_licences">Open source licences</string>
+    <!-- foss flavour only: the donation page (SupportBilling.supportUrl). -->
+    <string name="about_support">Support development</string>
     <string name="about_open_failed">No app can open this link</string>
     <string name="licences_title">Open source licences</string>
     <string name="licences_intro">Chord Notepad is free software. It is built from the components below.</string>

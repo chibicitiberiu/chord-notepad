@@ -29,6 +29,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import com.tibich.chordnotepad.R
+import com.tibich.chordnotepad.appGraph
 import com.tibich.chordnotepad.about.BuildInfo
 import com.tibich.chordnotepad.about.SOURCE_URL
 import com.tibich.chordnotepad.ui.icons.AppIcons
@@ -43,6 +44,7 @@ const val APP_LICENCE_ID = "chord-notepad"
  * @param onBack Leave the screen.
  * @param onOpenLicence Show the app's own licence text.
  * @param onOpenLicences Show the list of open source licences.
+ * @param supportUrl A donation page to link after the source (foss flavour; null in play).
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -51,6 +53,7 @@ fun AboutScreen(
     onBack: () -> Unit,
     onOpenLicence: () -> Unit,
     onOpenLicences: () -> Unit,
+    supportUrl: String? = LocalContext.current.appGraph.supportBilling.supportUrl,
 ) {
     val context = LocalContext.current
     val linkFailed = stringResource(R.string.about_open_failed)
@@ -99,6 +102,11 @@ fun AboutScreen(
             LinkText(stringResource(R.string.about_license), onOpenLicence)
             LinkText(stringResource(R.string.about_source)) {
                 if (!openLink(context, SOURCE_URL)) Toast.makeText(context, linkFailed, Toast.LENGTH_SHORT).show()
+            }
+            if (supportUrl != null) {
+                LinkText(stringResource(R.string.about_support)) {
+                    if (!openLink(context, supportUrl)) Toast.makeText(context, linkFailed, Toast.LENGTH_SHORT).show()
+                }
             }
             HorizontalDivider(Modifier.padding(vertical = 16.dp))
             ListItem(

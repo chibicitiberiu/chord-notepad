@@ -42,6 +42,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.res.stringResource
@@ -50,11 +51,14 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.tibich.chordnotepad.R
+import com.tibich.chordnotepad.appGraph
 import com.tibich.chordnotepad.bridge.ScreenCommands
 import com.tibich.chordnotepad.bridge.SessionRepository
 import com.tibich.chordnotepad.bridge.UnexpectedError
 import com.tibich.chordnotepad.bridge.UserError
+import com.tibich.chordnotepad.support.SupportBilling
 import com.tibich.chordnotepad.ui.icons.AppIcons
+import com.tibich.chordnotepad.ui.support.SupportCard
 import kotlinx.coroutines.flow.filterNotNull
 
 /** From this width the pages list stays on the left (tablets, phones in landscape). */
@@ -73,6 +77,8 @@ private val PagesPaneWidth = 240.dp
  * Full screen on phones (pages list → page → voicing form), list/detail
  * panes on tablets. [onClosed] once the edit ended (saved or cancelled).
  * [initialPage] opens a page at once (Voicings, from the Voicing sheet).
+ * [supportBilling] feeds the support card above the pages (play flavour only;
+ * it hides itself when there's nothing to sell).
  */
 @Composable
 fun SettingsScreen(
@@ -80,6 +86,7 @@ fun SettingsScreen(
     commands: ScreenCommands,
     onClosed: () -> Unit,
     initialPage: SettingsPage? = null,
+    supportBilling: SupportBilling = LocalContext.current.appGraph.supportBilling,
 ) {
     val controller = rememberSaveable(
         saver = Saver<SettingsController, String>({ it.snapshot() }, { SettingsController.restore(commands, it) }),
@@ -121,12 +128,12 @@ fun SettingsScreen(
             val shown = ui.nav.shown(twoPane)
             if (twoPane) {
                 Row(Modifier.fillMaxSize()) {
-                    PagesList(shown, controller, Modifier.width(PagesPaneWidth).fillMaxHeight())
+                    PagesList(shown, controller, supportBilling, Modifier.width(PagesPaneWidth).fillMaxHeight())
                     VerticalDivider()
                     Box(Modifier.weight(1f)) { shown?.let { page(it) } }
                 }
             } else if (shown == null) {
-                PagesList(null, controller, Modifier.fillMaxSize())
+                PagesList(null, controller, supportBilling, Modifier.fillMaxSize())
             } else {
                 page(shown)
             }
@@ -199,10 +206,14 @@ private fun SaveButton(ui: SettingsUi, blocked: Boolean, onSave: () -> Unit) {
     ) { Text(label) }
 }
 
-/** The pages: General, Playback, Voicings ([selected] highlighted in two-pane mode). */
+/**
+ * The pages: General, Playback, Voicings ([selected] highlighted in two-pane
+ * mode), under the support card when [support] has one to show.
+ */
 @Composable
-private fun PagesList(selected: SettingsPage?, controller: SettingsController, modifier: Modifier) {
+private fun PagesList(selected: SettingsPage?, controller: SettingsController, support: SupportBilling, modifier: Modifier) {
     Column(modifier) {
+        SupportCard(support, Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
         for (page in SettingsPage.entries) {
             ListItem(
                 headlineContent = { Text(pageTitle(page)) },
