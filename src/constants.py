@@ -78,6 +78,7 @@ TAG_CHORD_INVALID = "chord_invalid"
 TAG_CHORD_PLAYING = "chord_playing"
 TAG_DIRECTIVE_VALID = "directive_valid"
 TAG_DIRECTIVE_INVALID = "directive_invalid"
+TAG_DIRECTIVE_REDUNDANT = "directive_redundant"
 TAG_COMMENT = "comment"
 
 # Colors
@@ -87,6 +88,9 @@ COLOR_COMMENT = "gray"
 COLOR_CHORD_PLAYING_BG = "yellow"
 COLOR_DIRECTIVE_VALID = "#8B4789"  # Purple for directives
 COLOR_DIRECTIVE_INVALID = "red"
+# A redundant directive (no effect) is the directive colour at this strength
+# over the editor background (Tk text has no alpha).
+DIRECTIVE_REDUNDANT_STRENGTH = 0.45
 
 # Audio settings
 DEFAULT_OCTAVE = 4

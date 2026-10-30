@@ -288,7 +288,8 @@
       "chord_invalid",
       "directive",
       "directive_invalid",
-      "comment"
+      "comment",
+      "directive_redundant"
     ],
     "UndoPolicy": [
       "group",

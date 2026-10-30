@@ -574,6 +574,9 @@ Color Coding Summary
    * - Red
      - Underlined
      - Invalid directive
+   * - Faded purple
+     - Plain
+     - Directive with no effect
    * - Yellow
      - Background
      - Currently playing

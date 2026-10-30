@@ -29,6 +29,9 @@ val PlayingYellow = Color(0xFFFFFF00)
 val EditorText = Color.Black
 val EditorBackground = Color.White
 
+/** How strongly a redundant directive is painted: the directive colour, faded (desktop blends 45 %). */
+const val REDUNDANT_ALPHA = 0.45f
+
 /**
  * The style of each span kind, in the desktop's tag priority order: a later
  * entry wins where spans overlap (Tk raises later-created tags).
@@ -38,6 +41,9 @@ val SpanStyles: List<Pair<SpanKind, SpanStyle>> = listOf(
     SpanKind.CHORD_INVALID to SpanStyle(color = TkGray, textDecoration = TextDecoration.Underline),
     SpanKind.DIRECTIVE to SpanStyle(color = DirectivePurple, textDecoration = TextDecoration.None),
     SpanKind.DIRECTIVE_INVALID to SpanStyle(color = TkRed, textDecoration = TextDecoration.Underline),
+    SpanKind.DIRECTIVE_REDUNDANT to SpanStyle(
+        color = DirectivePurple.copy(alpha = REDUNDANT_ALPHA), textDecoration = TextDecoration.None,
+    ),
     SpanKind.COMMENT to SpanStyle(color = TkGray),
 )
 
@@ -57,6 +63,9 @@ fun spanStylesFor(colors: AppColors): List<Pair<SpanKind, SpanStyle>> = listOf(
     SpanKind.CHORD_INVALID to SpanStyle(color = colors.chordInvalid, textDecoration = TextDecoration.Underline),
     SpanKind.DIRECTIVE to SpanStyle(color = colors.directive, textDecoration = TextDecoration.None),
     SpanKind.DIRECTIVE_INVALID to SpanStyle(color = colors.directiveInvalid, textDecoration = TextDecoration.Underline),
+    SpanKind.DIRECTIVE_REDUNDANT to SpanStyle(
+        color = colors.directive.copy(alpha = REDUNDANT_ALPHA), textDecoration = TextDecoration.None,
+    ),
     SpanKind.COMMENT to SpanStyle(color = colors.comment),
 )
 

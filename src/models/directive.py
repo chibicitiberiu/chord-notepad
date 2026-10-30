@@ -112,8 +112,12 @@ class Directive:
     ``soc``...); None for directives built in code."""
 
     message: Optional[str] = None
-    """Why the directive is invalid (``Tempo must be 20-400``), for the
-    user; None when it is valid."""
+    """Why the directive is invalid (``Tempo must be 20-400``) or has no
+    effect (see ``redundant``), for the user; None otherwise."""
+
+    redundant: bool = False
+    """A valid value directive that another of its kind replaces before any
+    chord plays, so it has no effect (``message`` says by which)."""
 
     @property
     def syntax(self) -> str:

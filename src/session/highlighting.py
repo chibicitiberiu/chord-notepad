@@ -56,7 +56,10 @@ def compute_spans(lines: Sequence[Line], text: str) -> Tuple[Span, ...]:
                 spans.append(Span(chord.start, chord.end, kind))
     for line in lines:
         for directive in line.directives:
-            if directive.is_valid:
+            if directive.is_valid and directive.redundant:
+                spans.append(Span(directive.start, directive.end, SpanKind.DIRECTIVE_REDUNDANT,
+                                  directive.message or ""))
+            elif directive.is_valid:
                 spans.append(Span(directive.start, directive.end, SpanKind.DIRECTIVE))
             else:
                 spans.append(Span(directive.start, directive.end, SpanKind.DIRECTIVE_INVALID,
@@ -64,12 +67,14 @@ def compute_spans(lines: Sequence[Line], text: str) -> Tuple[Span, ...]:
     return tuple(spans)
 
 
-def directive_hint(text: str, offset: int) -> Optional[DirectiveHint]:
+def directive_hint(text: str, offset: int,
+                   notation: str = "american") -> Optional[DirectiveHint]:
     """The directive at ``offset`` with its syntax hint, or None.
 
-    ``text`` is parsed afresh (directives only, which is quick), so the
-    answer matches the text as it is now even while chord detection is
-    still debounced.
+    ``text`` is detected afresh in ``notation``, so the answer matches the
+    text as it is now even while the editor's chord detection is still
+    debounced (and a redundant directive's reason, which depends on the
+    chords around it, is right).
 
     A parsed directive counts when ``start <= offset <= end`` (so right after
     its ``}`` too). Otherwise a directive being typed counts: a ``{`` earlier
@@ -80,14 +85,16 @@ def directive_hint(text: str, offset: int) -> Optional[DirectiveHint]:
     Args:
         text: The text.
         offset: A code-point offset into it.
+        notation: ``american`` or ``european``.
     """
     from services.song_parser_service import SongParserService
 
-    for directive in SongParserService().parse_directives(text):
+    lines = SongParserService().detect_chords_in_text(text, notation)
+    for directive in (d for line in lines for d in line.directives):
         if directive.start <= offset <= directive.end:
             return DirectiveHint(offset, directive.start, directive.end,
                                  directive.keyword or "", directive.syntax,
-                                 "" if directive.is_valid else (directive.message or ""))
+                                 directive.message or "")
     line_start = text.rfind("\n", 0, offset) + 1
     before = text[line_start:offset]
     brace = before.rfind("{")

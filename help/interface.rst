@@ -814,6 +814,10 @@ Color Coding
    * - Red
      - Underlined
      - Invalid directive
+   * - Faded purple
+     - Normal
+     - Directive with no effect (another of its kind replaces it before any
+       chord plays)
    * - Yellow
      - Background
      - Currently playing chord
@@ -827,9 +831,10 @@ Color Coding
             label, blue underlined chords, a grey underlined Gsus5, and black
             lyrics.
 
-      Every colour in one place. ``{tempo: fast}`` is red because ``fast``
-      isn't a tempo value (``{tempo: 100}`` would be purple), and ``Gsus5`` is
-      grey because it isn't a chord.
+      Every colour in one place but one. ``{tempo: fast}`` is red because
+      ``fast`` isn't a tempo value (``{tempo: 100}`` would be purple), and
+      ``Gsus5`` is grey because it isn't a chord. Not shown: a faded purple
+      directive, one that another of its kind replaces before any chord plays.
 
    In the dark theme the same colours are a little lighter, and the playing
    chord is a dark yellow, so everything stays readable on the dark
@@ -876,6 +881,11 @@ Directives (Purple or Red)
 Valid directives appear in purple: ``{bpm: 120}``
 
 Invalid directives appear in red: ``{invalid: something}``
+
+A directive that has no effect appears in faded purple: one that another
+directive of the same kind replaces before any chord plays, such as the first
+of ``{capo: 2}`` and ``{capo: 3}`` written one after the other. It does no harm;
+you can delete it.
 
 Currently Playing (Yellow Highlight)
 ------------------------------------

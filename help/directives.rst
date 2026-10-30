@@ -11,6 +11,9 @@ braces is read as a directive, so one that can't be used shows in **red** and
 playback ignores it: an unknown name (``{soc}``), a missing value (``{bpm}``),
 the wrong format (``{time: 7}``) or a value out of range (``{capo: 30}``). The
 sections below give each directive's format and limits.
+A directive in **faded purple** has no effect: another one of the same kind
+(``{bpm}`` with a number, ``{time}``, ``{key}`` or ``{capo}``) replaces it before
+any chord plays.
 
 .. only:: android
 

@@ -450,7 +450,54 @@ class SongParserService:
 
             lines.append(line)
 
+        self._mark_redundant(lines, text)
         return lines
+
+    def _mark_redundant(self, lines: List[Line], text: str) -> None:
+        """Mark value directives that have no effect.
+
+        A ``{capo}``, ``{key}``, ``{time}`` or absolute ``{bpm}`` is redundant
+        when a valid directive of the same kind (an absolute one, for
+        ``{bpm}``) replaces it before anything else happens: no chord (valid
+        or not, rests too), label or loop in between, and for ``{bpm}`` no
+        relative change or reset either. Conservative on purpose: anything
+        that might make the first one matter keeps it unmarked. Playback is
+        unchanged; this is for the highlight.
+        """
+        def kind_of(directive: Directive) -> Optional[DirectiveType]:
+            if directive.type == DirectiveType.BPM:
+                if directive.bpm_modifier_type == BPMModifierType.ABSOLUTE:
+                    return DirectiveType.BPM
+                return None
+            if directive.type in (DirectiveType.CAPO, DirectiveType.KEY,
+                                  DirectiveType.TIME_SIGNATURE):
+                return directive.type
+            return None
+
+        pending = {}
+        for line in lines:
+            for item in line.items:
+                if isinstance(item, ChordInfo):
+                    pending.clear()
+                    continue
+                if item.type in (DirectiveType.LABEL, DirectiveType.LOOP):
+                    pending.clear()
+                    continue
+                if not item.is_valid:
+                    continue
+                kind = kind_of(item)
+                if kind is None:
+                    if item.type == DirectiveType.BPM:
+                        # A relative change or reset builds on what came before.
+                        pending.pop(DirectiveType.BPM, None)
+                    continue
+                earlier = pending.get(kind)
+                if earlier is not None:
+                    earlier.redundant = True
+                    earlier.message = (
+                        f"Has no effect: replaced by {text[item.start:item.end]} on line "
+                        f"{line.line_number} before any chord plays")
+                pending[kind] = item
 
     def validate_chord(self, chord_text: str, notation: str = "american") -> bool:
         """Validate if a string is a valid chord.

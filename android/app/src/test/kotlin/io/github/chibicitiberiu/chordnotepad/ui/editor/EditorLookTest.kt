@@ -1,6 +1,7 @@
 package io.github.chibicitiberiu.chordnotepad.ui.editor
 
 import io.github.chibicitiberiu.chordnotepad.bridge.SpanKind
+import io.github.chibicitiberiu.chordnotepad.ui.theme.AppColors
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -27,10 +28,24 @@ class EditorLookTest {
     @Test
     fun `span kinds paint in the desktop's tag priority`() {
         assertEquals(
-            listOf(SpanKind.CHORD, SpanKind.CHORD_INVALID, SpanKind.DIRECTIVE, SpanKind.DIRECTIVE_INVALID, SpanKind.COMMENT),
+            listOf(
+                SpanKind.CHORD, SpanKind.CHORD_INVALID, SpanKind.DIRECTIVE, SpanKind.DIRECTIVE_INVALID,
+                SpanKind.DIRECTIVE_REDUNDANT, SpanKind.COMMENT,
+            ),
             SpanStyles.map { it.first },
         )
         assertEquals(SpanKind.entries.toSet(), SpanStyles.map { it.first }.toSet())
+    }
+
+    @Test
+    fun `a redundant directive is the directive colour, faded, in both themes`() {
+        for (styles in listOf(SpanStyles, spanStylesFor(AppColors.Light), spanStylesFor(AppColors.Dark))) {
+            val byKind = styles.toMap()
+            assertEquals(
+                byKind.getValue(SpanKind.DIRECTIVE).color.copy(alpha = REDUNDANT_ALPHA),
+                byKind.getValue(SpanKind.DIRECTIVE_REDUNDANT).color,
+            )
+        }
     }
 
     @Test

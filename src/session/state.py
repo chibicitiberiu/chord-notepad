@@ -30,6 +30,9 @@ class SpanKind(str, Enum):
     DIRECTIVE = "directive"
     DIRECTIVE_INVALID = "directive_invalid"
     COMMENT = "comment"
+    #: A valid directive with no effect: another of its kind replaces it
+    #: before any chord plays. Shown faded.
+    DIRECTIVE_REDUNDANT = "directive_redundant"
 
 
 @dataclass(frozen=True)
@@ -37,7 +40,8 @@ class Span:
     """A highlighted range ``[start, end)`` of the text, in code points.
 
     ``message`` says why an invalid directive is invalid (``Tempo must be
-    20-400``), for a tooltip; it is "" for every other span.
+    20-400``) or a redundant one has no effect, for a tooltip; it is "" for
+    every other span.
     """
 
     start: int

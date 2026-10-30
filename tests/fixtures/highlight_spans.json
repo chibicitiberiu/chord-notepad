@@ -1,5 +1,5 @@
 {
- "_comment": "Highlight ranges painted by the pre-AppSession Tk ChordTextEditor (captured from the widget's tags before step 5 removed its highlighting code). kinds: chord, chord_invalid, directive, directive_invalid, comment; offsets are code points. 'chords' is the editor's hit-test list (chords on chord lines, in detection order).",
+ "_comment": "Highlight ranges painted by the pre-AppSession Tk ChordTextEditor (captured from the widget's tags before step 5 removed its highlighting code). kinds: chord, chord_invalid, directive, directive_invalid, comment, plus directive_redundant (added later: in the European reading of 02_american_complete the American chord lines are text, so two {time} directives are replaced before any chord plays); offsets are code points. 'chords' is the editor's hit-test list (chords on chord lines, in detection order).",
  "cases": [
   {
    "name": "examples/01_quick_start.txt",
@@ -2243,12 +2243,12 @@
      3697
     ],
     [
-     "directive",
+     "directive_redundant",
      3698,
      3709
     ],
     [
-     "directive",
+     "directive_redundant",
      3776,
      3787
     ],

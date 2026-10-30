@@ -9,9 +9,10 @@ from session.state import HighlightState, Span, SpanKind
 from utils.text_normalization import normalize_song_text
 from constants import (
     TAG_CHORD_VALID, TAG_CHORD_INVALID, TAG_CHORD_PLAYING,
-    TAG_DIRECTIVE_VALID, TAG_DIRECTIVE_INVALID, TAG_COMMENT,
+    TAG_DIRECTIVE_VALID, TAG_DIRECTIVE_INVALID, TAG_DIRECTIVE_REDUNDANT, TAG_COMMENT,
     COLOR_CHORD_VALID, COLOR_CHORD_INVALID, COLOR_CHORD_PLAYING_BG,
     COLOR_DIRECTIVE_VALID, COLOR_DIRECTIVE_INVALID, COLOR_COMMENT,
+    DIRECTIVE_REDUNDANT_STRENGTH,
 )
 
 if TYPE_CHECKING:
@@ -23,8 +24,18 @@ _SPAN_TAGS: Dict[SpanKind, str] = {
     SpanKind.CHORD_INVALID: TAG_CHORD_INVALID,
     SpanKind.DIRECTIVE: TAG_DIRECTIVE_VALID,
     SpanKind.DIRECTIVE_INVALID: TAG_DIRECTIVE_INVALID,
+    SpanKind.DIRECTIVE_REDUNDANT: TAG_DIRECTIVE_REDUNDANT,
     SpanKind.COMMENT: TAG_COMMENT,
 }
+
+
+def blend_rgb(fg: tuple, bg: tuple, strength: float) -> str:
+    """``fg`` laid over ``bg`` at ``strength`` (0-1), as ``#rrggbb``.
+
+    Both colours are 16-bit ``(r, g, b)`` tuples, as ``winfo_rgb`` returns.
+    """
+    mixed = [round((f * strength + b * (1.0 - strength)) / 257) for f, b in zip(fg, bg)]
+    return "#%02x%02x%02x" % tuple(max(0, min(255, c)) for c in mixed)
 
 #: The keys that redo, on every platform: Tk's own <<Redo>> is Ctrl+Shift+Z on
 #: Linux and macOS and Ctrl+Y on Windows (the Lock forms keep Caps Lock working).
@@ -73,6 +84,10 @@ class ChordTextEditor(tk.Text):
         # Configure tags for directive highlighting
         self.tag_config(TAG_DIRECTIVE_VALID, foreground=COLOR_DIRECTIVE_VALID, underline=False)
         self.tag_config(TAG_DIRECTIVE_INVALID, foreground=COLOR_DIRECTIVE_INVALID, underline=True, underlinefg=COLOR_DIRECTIVE_INVALID)
+        # A redundant directive: the directive colour, faded into the background.
+        self.tag_config(TAG_DIRECTIVE_REDUNDANT, foreground=blend_rgb(
+            self.winfo_rgb(COLOR_DIRECTIVE_VALID), self.winfo_rgb(self.cget('background')),
+            DIRECTIVE_REDUNDANT_STRENGTH), underline=False)
 
         # Configure tag for comments
         self.tag_config(TAG_COMMENT, foreground=COLOR_COMMENT)

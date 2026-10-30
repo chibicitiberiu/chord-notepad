@@ -45,11 +45,14 @@ enum class SpanKind {
     @SerialName("directive") DIRECTIVE,
     @SerialName("directive_invalid") DIRECTIVE_INVALID,
     @SerialName("comment") COMMENT,
+    /** A valid directive with no effect (replaced before any chord plays); painted faded. */
+    @SerialName("directive_redundant") DIRECTIVE_REDUNDANT,
 }
 
 /**
  * A highlighted range `[start, end)` of the text, in code points. [message]
- * says why an invalid directive is invalid (for a tooltip); "" otherwise.
+ * says why an invalid directive is invalid or a redundant one has no effect
+ * (for a tooltip); "" otherwise.
  */
 @Serializable
 data class Span(val start: Int, val end: Int, val kind: SpanKind, val message: String = "")

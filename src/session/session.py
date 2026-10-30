@@ -1294,7 +1294,7 @@ class AppSession:
         """The directive at ``offset`` (or being typed there) with its syntax
         hint and, when invalid, the reason; ``syntax`` is "" when there is no
         directive there. For a tooltip while typing."""
-        hint = directive_hint(self._text, offset)
+        hint = directive_hint(self._text, offset, self._main.notation.value)
         return hint or DirectiveHint(offset, offset, offset, "", "", "")
 
     @_command
