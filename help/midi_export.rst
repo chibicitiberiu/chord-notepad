@@ -104,9 +104,9 @@ Tempo, meter, and key come from the same directives that drive playback:
 * The starting time signature, and each ``{time: beats/unit}``, becomes a MIDI
   time-signature event.
 * The starting key, and each ``{key: note}``, becomes a MIDI key-signature
-  event, placed at the first chord in that key. Only keys in American notation
-  (``G``, ``Bb``, ``F#m``) are written: with European keys such as ``Sol`` the
-  file has no key signature.
+  event, placed at the first chord in that key. European keys are written as
+  their American equivalent (``Sol`` as G, ``Lam`` as A minor), and a key MIDI
+  has no signature for is written as its enharmonic twin (``D#`` as Eb).
 
 .. only:: desktop
 

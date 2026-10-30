@@ -30,6 +30,8 @@ from typing import Callable, List, Optional, Tuple
 
 import mido
 
+from chord.keys import american_key
+
 from models.rendered_song import RenderedChord, RenderedSong
 from exceptions import FileOperationError
 
@@ -75,6 +77,23 @@ class _BeatToTick:
                 break
         rate = PPQ * 4 / self._units[i]
         return round(self._cum[i] + (beat - self._starts[i]) * rate)
+
+
+# The spelling MIDI stores for a key mido can't encode as written (D# major
+# has no key signature of its own; Eb major is the same key).
+_ENHARMONIC_KEYS = {
+    'D#': 'Eb', 'G#': 'Ab', 'A#': 'Bb', 'E#': 'F', 'B#': 'C', 'Fb': 'E',
+    'Gbm': 'F#m', 'Dbm': 'C#m', 'Cbm': 'Bm', 'Fbm': 'Em', 'E#m': 'Fm', 'B#m': 'Cm',
+}
+
+
+def _midi_key(key: str) -> str:
+    """``key`` as a MIDI key-signature name: American spelling (``Lam`` ->
+    ``Am``), and the enharmonic key when MIDI has no signature for the
+    spelling (``D#`` -> ``Eb``). An unknown key is passed through (and then
+    skipped by the caller)."""
+    american = american_key(key) or key
+    return _ENHARMONIC_KEYS.get(american, american)
 
 
 def _latest_value(change_map: list, beat: float):
@@ -140,7 +159,7 @@ def _build_conductor_track(
         if rc.key is None or rc.key == prev_key:
             continue
         try:
-            msg = mido.MetaMessage('key_signature', key=rc.key, time=0)
+            msg = mido.MetaMessage('key_signature', key=_midi_key(rc.key), time=0)
         except (ValueError, KeyError):
             logger.warning("Skipping unencodable key signature '%s'", rc.key)
             prev_key = rc.key

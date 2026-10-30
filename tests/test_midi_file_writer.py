@@ -508,3 +508,27 @@ def test_skipped_and_rest_chords_ignored_by_voice_notes_guard(tmp_path):
     assert len(midi.tracks) == 5
     names = [messages_of_type(t, "track_name")[0][1].name for t in midi.tracks]
     assert names == ["Chord Notepad export", "Soprano", "Alto", "Tenor", "Bass"]
+
+
+@pytest.mark.parametrize("song_key, written", [
+    ("Do", "C"), ("Lam", "Am"), ("Sib", "Bb"), ("Fa#m", "F#m"), ("Sol", "G"),
+    ("D#", "Eb"), ("Gbm", "F#m"), ("A#", "Bb"),
+])
+def test_keys_are_written_in_american_spelling(tmp_path, song_key, written):
+    rendered = RenderedSong(chords=[make_chord("C", key=song_key)], total_beats=4.0)
+    midi = read_back(rendered, tmp_path)
+    keys = messages_of_type(midi.tracks[0], "key_signature")
+    assert [m.key for _t, m in keys] == [written]
+
+
+def test_european_key_change_is_written(tmp_path):
+    rendered = RenderedSong(
+        chords=[
+            make_chord("Do", start_beat=0.0, duration_beats=4.0, key="Do"),
+            make_chord("Sol", start_beat=4.0, duration_beats=4.0, key="Sol"),
+        ],
+        total_beats=8.0,
+    )
+    midi = read_back(rendered, tmp_path)
+    keys = messages_of_type(midi.tracks[0], "key_signature")
+    assert [(t, m.key) for t, m in keys] == [(0, "C"), (1920, "G")]
