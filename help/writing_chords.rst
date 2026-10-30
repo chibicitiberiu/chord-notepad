@@ -623,6 +623,7 @@ Add chord extensions just like with regular chords:
    V7       // Dominant 7 -- uppercase (G7 in C)
    II7      // Secondary dominant -- uppercase forces major (D7 in C)
    vii7b5   // Half-diminished (B D F A in C)
+   viiø     // The same, with the ø symbol (iiø7 is Dm7b5 in C)
 
 .. note::
    The case of the numeral sets the chord quality, and it carries through to the

@@ -404,6 +404,8 @@ class ChordHelper:
             resolved_name = self._resolve_roman_numeral(chord_name, key)
             if not resolved_name:
                 return None
+            if self._has_unknown_extension(resolved_name):
+                return None
             # Apply symbol conversions to resolved chord (+ → aug, ° → dim, etc.)
             chord_name = self._convert_symbols_to_text(resolved_name)
             result = self._build_from_normalized(chord_name, key=key)
@@ -430,6 +432,22 @@ class ChordHelper:
             return self._normalize_and_build(chord_name, key=key)
         return None
 
+    # Extension numbers that may stand on their own after the root/quality
+    # (C7, Cm9, C13, C69 = 6/9, C2, C4, C5). Numbers after add/no/omit/sus,
+    # an accidental or inside parentheses are checked by the parsers.
+    _BARE_EXTENSIONS = frozenset({'2', '4', '5', '6', '7', '9', '11', '13', '69'})
+
+    @classmethod
+    def _has_unknown_extension(cls, chord_name: str) -> bool:
+        """Whether ``chord_name`` has a run-together or unknown extension
+        number, such as ``C77`` or ``C79``, which the libraries would
+        otherwise half-parse into a chord nobody meant."""
+        body = chord_name.split('/')[0]
+        body = re.sub(r'^[A-Ga-g][#b♯♭]?', '', body)
+        body = re.sub(r'\([^)]*\)', '', body)
+        body = re.sub(r'(?:add|no|omit|sus|[#b♯♭+\-])\d+', '', body)
+        return any(n not in cls._BARE_EXTENSIONS for n in re.findall(r'\d+', body))
+
     def _normalize_and_build(self, chord_name: str, key: Optional[str] = None) -> Optional[ChordNotes]:
         """Normalize an absolute (American) chord symbol and resolve it.
 
@@ -443,6 +461,8 @@ class ChordHelper:
                 ``ChordNotes.key`` (not used for resolution here; only roman
                 numerals need a key to resolve against).
         """
+        if self._has_unknown_extension(chord_name):
+            return None
         # Normalize unicode and alternative symbols
         chord_name = self._normalize_unicode_symbols(chord_name)
         # Normalize enharmonic equivalents (Cb → B, E# → F, etc.)
@@ -585,7 +605,7 @@ class ChordHelper:
         if not is_major and not diminished_symbol:
             if not quality:
                 quality = 'm'
-            elif not quality.startswith(('m', 'M', 'sus', 'dim', 'aug', '+')):
+            elif not quality.startswith(('m', 'M', 'sus', 'dim', 'aug', '+', 'ø')):
                 quality = 'm' + quality
 
         # Handle diminished symbol
