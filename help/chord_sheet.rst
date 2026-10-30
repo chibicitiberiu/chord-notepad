@@ -186,7 +186,7 @@ Fret cards
    :alt: Fret cards: one chord diagram per chord, with open and muted string
          marks above the nut and dots for the fretted notes.
 
-   Fret cards with the Guitar (Standard) voicing.
+   Fret cards with the Guitar (Standard - EADGBE) voicing.
 
 Tab
 ------
@@ -200,11 +200,12 @@ needs fingering data and is only available for a fretboard-model voicing.
    :alt: The Tab view: six string lines with each chord's fret numbers written
          on them under the chord name.
 
-   Tab with the Guitar (Standard) voicing.
+   Tab with the Guitar (Standard - EADGBE) voicing.
 
 If you switch to a voicing that doesn't produce fingering data (piano or an
 ensemble) while Fret cards or Tab is active, the strip falls back to
-the Piano roll automatically.
+the Piano roll automatically, and goes back to your view when you pick a
+fretted voicing again.
 
 Parts of a view that you need for orientation stay pinned at the left edge
 while the strip scrolls: the piano roll's keyboard, and the staff's clefs
@@ -237,9 +238,11 @@ the **Fret cards** and **Tab** views draw the chord shapes *relative to the
 capo* -- the top of a fret diagram becomes the capo, and the fret numbers are
 counted from there, so an awkward barre song reads as the easy open shapes you
 would actually play. A small ``Capo N`` marker appears by the chord it starts
-at (and again wherever a mid-song ``{capo}`` changes it). The capo changes only
-the shapes shown, never the pitch: playback, the piano roll, and the staff are
-unaffected, and non-fretboard voicings ignore it.
+at (and again wherever a mid-song ``{capo}`` changes it). The capo never
+changes the key: a written ``Eb`` still sounds as E♭. It does change which
+shapes a fretboard voicing picks, so playback, the piano roll and the staff
+follow those shapes (the same chord can come out with different notes than
+without the capo). Piano and ensemble voicings ignore it.
 
 Suggesting a Capo
 -----------------
