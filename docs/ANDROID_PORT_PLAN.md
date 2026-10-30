@@ -59,7 +59,7 @@ Chord Notepad is a desktop app: Python/Tkinter UI, FluidSynth audio, AGPL licenc
 Constraints:
 - **Port the app as it stands today.** Add no extra features.
 - **Keep the repo well organized**, with a single shared Python core.
-- **Distribution:** paid on Google Play; free as a FOSS APK on GitHub releases and, if possible, on F-Droid.
+- **Distribution:** free on Google Play with an optional supporter purchase (changed from paid on 2026-10-30, see `docs/design/android-support-plan.md`); free as a FOSS APK on GitHub releases and, if possible, on F-Droid.
 - **Layout:** phones and tablets.
 - **music21 stays.**
 - **Disk space:** all Android tooling and caches go under `/mnt/data_linux/Bin/` (`~` is low on space).
@@ -183,7 +183,7 @@ docs/ANDROID.md, docs/architecture/session.md
 ```
 
 - **Project basics:**
-  - applicationId `com.tibich.chordnotepad`, one build (no flavors);
+  - applicationId `com.tibich.chordnotepad`; two flavours since 2026-10-30, `play` (Play Billing for the supporter purchase) and `foss` (no Google libraries), see `docs/design/android-support-plan.md`;
   - minSdk 24, targetSdk 36, Python 3.14 (pinned micro version), ABIs arm64-v8a and x86_64.
 - **Version scheme:**
   - versionName comes from `VERSION`;
@@ -330,7 +330,7 @@ Each area is built only after its logic is in the core (most of it already is, a
 - **Done (2026-10-29), waiting on Tibi's keys:** versionCode literal checked against `VERSION` (Gradle + `tests/test_android_version.py`); `-PcnSigning=debug|none|upload|foss` with keystores from env/Gradle properties; `android/tools/make_keys.sh`; `android/tools/make_source_tarball.py`; the `android-release` and `attach-android` CI jobs; Auto Backup of settings only; the PRIVACY.md and `docs/RELEASE.md` Android sections. An unsigned build plus the FOSS-signed APK's signature (apksigcopier) gives the signed APK byte for byte locally; CI-vs-local is still unchecked.
 - **Play:**
   - account type per the decision below;
-  - payments profile → price → promo codes → closed test (testers must otherwise pay), with the internal track for real testing;
+  - the app is free; payments profile → the `supporter` in-app product (€4.99) → license testers → closed test, with the internal track for real testing;
   - Music & Audio listing with the AGPL notice and source link;
   - Data safety: no data collected;
   - privacy policy;

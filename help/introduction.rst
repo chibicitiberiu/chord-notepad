@@ -221,3 +221,11 @@ Getting Chord Notepad
    Chord Notepad is free and open source. The source code, and the downloads
    for every platform, are on
    `GitHub <https://github.com/chibicitiberiu/chord-notepad/releases>`_.
+
+   Every feature is free, wherever you got the app. The version from Google
+   Play offers an optional one-time purchase that supports development: from
+   a week after you install it, the app asks about it at most once a day, when
+   you open the app itself (never when you open a song from another app). Tap
+   **Not now** to carry on. After you buy it, the app stops asking and
+   **☰ → Settings** shows a supporter badge. The purchase is tied to your
+   Google account, so it comes back when you reinstall or change phones.

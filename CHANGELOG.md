@@ -15,9 +15,15 @@ moved to CHANGELOG_HISTORY.md and this file is reset.
   suggestions, the chord sheet (piano roll, staff, chord boxes and tab),
   custom voicings, MIDI export and the built-in user guide. Songs are opened
   and saved through Android's file picker. It needs no permissions and works
-  offline. The free APK (`ChordNotepad-android.apk`) and the full source code
-  are attached to this release; a paid edition on Google Play will follow.
-  The two are signed differently, so one can't update the other.
+  offline. The APK (`ChordNotepad-android.apk`) and the full source code
+  are attached to this release; a Google Play version will follow. Both are
+  free with every feature. The Play version asks for support once a day,
+  starting a week after install, and offers an optional one-time supporter
+  purchase that adds a badge in Settings; the GitHub version has a
+  donation link in About instead. The two are signed differently, so one
+  can't update the other.
+- Android: open `.txt` files from a file manager or another app with
+  "Open with" Chord Notepad.
 
 ### Fixed
 

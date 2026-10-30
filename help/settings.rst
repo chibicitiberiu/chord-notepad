@@ -35,6 +35,9 @@ Settings
    The Voicing sheet in the Play tab has an **Edit voicings…** entry that opens
    the Voicings editor directly.
 
+   In the version from Google Play, a card above the pages offers the optional
+   supporter purchase, or shows your supporter badge once you've bought it.
+
 
 General
 =======

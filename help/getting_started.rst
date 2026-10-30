@@ -20,7 +20,8 @@ Opening the Application
    Open Chord Notepad like any other app. The first time, a short **Quick
    Start** tour opens: seven pages with the main ideas and a small example on
    each. Clear **Show at startup** at the bottom if you don't want it to come
-   back; you can always reopen it from **☰ → Quick start**.
+   back; you can always reopen it from **☰ → Quick start**. The tour doesn't
+   open when you start the app by opening a song from another app.
 
    .. platform-figure:: quick-start
       :platforms: android
@@ -389,7 +390,14 @@ To open a saved chord sheet:
    2. Pick your file in the system file picker
 
    Recent songs are listed right in the drawer, under **Recent**; tap one to
-   open it. A song you open either way starts in the Play tab, ready to play.
+   open it.
+
+   You can also open a ``.txt`` song from a file manager or another app: tap
+   the file and choose Chord Notepad under **Open with**. Some apps only let
+   Chord Notepad read the file; in that case **Save** asks where to save a
+   copy, like **Save as…**.
+
+   A song you open any of these ways starts in the Play tab, ready to play.
 
 Next Steps
 ----------

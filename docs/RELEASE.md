@@ -339,14 +339,23 @@ kept as the `ChordNotepad-snap` workflow artifact.
 
 ## Android
 
-One app, two channels, two signing keys:
+One app, two build flavours, two channels, two signing keys. Both are free
+with every feature; they differ only in how people can support development
+(`docs/design/android-support-plan.md`):
 
-- **Google Play** (paid): CI builds an AAB signed with the **upload key**.
-  You upload it to Play Console by hand, like the MSIX. Google re-signs it
-  with the app signing key it keeps (Play App Signing).
-- **GitHub release** (free): CI builds a universal APK (arm64-v8a + x86_64)
-  signed with the offline **FOSS key** and attaches it as
+- **Google Play** (`play` flavour): free, with an optional one-time
+  "supporter" purchase through Google Play Billing and a support prompt from
+  day 7 after install. CI builds an AAB signed with the **upload key**. You
+  upload it to Play Console by hand, like the MSIX. Google re-signs it with
+  the app signing key it keeps (Play App Signing).
+- **GitHub release** (`foss` flavour): no Google libraries, no prompt, a
+  Ko-fi link in About. CI builds a universal APK (arm64-v8a + x86_64) signed
+  with the offline **FOSS key** and attaches it as
   `ChordNotepad-android.apk`, together with the full source tarball.
+
+Play policy forbids pointing users to outside payment pages, so the Ko-fi
+link lives only in the `foss` flavour's source set; the shared User Guide
+never mentions it.
 
 Because the keys differ, a Play install and a GitHub install can't update
 each other. Switching channels means uninstalling first (songs are ordinary
@@ -460,44 +469,70 @@ release).
 
 ### Google Play (first time)
 
-The account type (personal, or organization with a D-U-N-S number) is still
-open: decide once there's a working APK to test with. Things to know first:
+The account is a personal one (registered 2026-10, identity verification
+pending at the time of writing). Things to know first:
 
-- **The developer address is public.** An account that sells apps must show a
-  contact address on the store listing. Use one you're happy to publish (an
-  organization or business address rather than your home).
-- **Payments profile before pricing.** Link a payments (merchant) profile, then
-  set the app to **Paid** before the first production release. An app that was
-  ever published free can't become paid later.
+- **The app is Free, and that's final.** An app published free can never
+  become paid. Support comes from the in-app purchase instead.
+- **The developer address is public.** An account that sells anything,
+  in-app purchases included, must show a contact address on the store
+  listing, and in the EU must declare **trader status** (Digital Services
+  Act) with a public address, phone and email. Use ones you're happy to
+  publish.
+- **Payments profile before the product.** In-app products need a linked
+  payments (merchant) profile.
 - **Personal accounts** (created after November 2023) must run a closed test
   with at least 12 testers opted in for 14 days in a row before they can apply
   for production access. Organization accounts skip this.
-- **Testers pay** for a paid app unless they get **promo codes** (Play
-  Console > Promo codes, up to 500 per quarter). Use the **internal testing**
-  track for your own installs (no review wait) and the closed track for the
-  12-tester run, handing out promo codes.
+- **Testing purchases**: add your Google account (and any helpers) as
+  **license testers** (Play Console > Settings > License testing). Their
+  purchases use test cards and are never charged. Use the **internal
+  testing** track for your own installs (no review wait) and the closed track
+  for the 12-tester run. The app is free, so testers need no promo codes.
 
 Setup, roughly in order:
 
-1. Create the app: name "Chord Notepad", app (not game), **Paid**, category
-   Music & Audio.
+1. Create the app: name "Chord Notepad", app (not game), **Free**, category
+   Music & Audio. Package name `com.tibich.chordnotepad`.
 2. App signing: keep Play App Signing with a Google-generated app signing key.
    The first uploaded AAB registers the upload key (or upload
    `upload-cert.pem` when asked for the upload certificate).
 3. App content: privacy policy URL (the GitHub link to `PRIVACY.md`); ads: no;
    **Data safety: no data collected, no data shared**; content rating (IARC
    questionnaire: a music utility, no user-generated content shared, no
-   violence, no purchases inside the app); target audience 13+ (not designed
-   for children, to stay out of the Families program).
+   violence, **digital purchases inside the app: yes**); target audience 13+
+   (not designed for children, to stay out of the Families program, whose
+   rules restrict purchase prompts).
+
+   Data safety reasoning, so it can be re-checked on each billing-library
+   update: the Play Billing library brings Google Play services and Google's
+   `datatransport` telemetry, but the `play` manifest removes INTERNET and
+   ACCESS_NETWORK_STATE (`check_manifest.py --flavor play` enforces it), so
+   nothing in the app's process can send data. The purchase itself happens in
+   the Play Store app, under Google's own data handling. The app stores only
+   the date it last showed the support prompt, on the device.
 4. Store listing: short and full description, 512 px icon, 1024x500 feature
    graphic, phone and tablet screenshots. The full description includes the
-   licence notice and source link, for example: "Chord Notepad is free
-   software under the GNU AGPL-3.0. Buying it here supports development;
-   the source code and a free build are at
-   https://github.com/chibicitiberiu/chord-notepad".
-5. Internal testing release with the CI AAB; install from Play on your phone
-   and check audio, file open/save and the About screen's version and commit.
-6. Closed test (personal account: 12 testers, 14 days), then production.
+   licence notice and source link (`packaging/store/play/listing-en-US.txt`).
+   It may mention the optional purchase but must not link to any outside
+   payment page.
+5. Internal testing release with the CI AAB. Play only lets you create
+   in-app products once an AAB with the BILLING permission is uploaded, so
+   do this before step 6.
+6. Monetize > Products > One-time products: create `supporter` ("Chord
+   Notepad supporter"), €4.99, activate it. Play converts the price for other
+   countries; check the converted prices.
+7. Install from Play on your phone as a license tester and check: audio, file
+   open/save, Open with on a `.txt`, the About screen's version and commit,
+   and the purchase:
+   - buy: the thank-you appears and Settings shows the supporter badge;
+   - a slow test card (pending): kill the app, let the payment complete,
+     reopen: the badge appears and the purchase is acknowledged (not refunded
+     after 3 days);
+   - uninstall and reinstall: the badge comes back;
+   - refund the test order with "remove entitlement" (Order management): the
+     badge goes away on the next start.
+8. Closed test (personal account: 12 testers, 14 days), then production.
 
 ### Developer verification
 
@@ -570,8 +605,11 @@ before claiming reproducibility anywhere.
 
 Not submitted; Tibi decides at release time (the F-Droid AI-policy question,
 `docs/ANDROID_PORT_PLAN.md`). IzzyOnDroid is out: its policy rejects
-AI-written code. If F-Droid goes ahead, its recipe builds with
-`-PcnSigning=none` (the output is `app-release-unsigned.apk`). With a
+AI-written code. If F-Droid goes ahead, its recipe builds the `foss`
+flavour (`gradle: [foss]`) with `-PcnSigning=none` (the output is
+`app-foss-release-unsigned.apk`); run `fdroid scanner` on it locally first,
+since the `play` flavour's billing dependency sits in the same
+`build.gradle.kts`. With a
 verified reproducible build it can publish the FOSS-signed GitHub APK
 (`Binaries:`), so F-Droid and GitHub installs update each other; otherwise
 F-Droid signs with its own key, permanently. Fastlane metadata and

@@ -77,6 +77,10 @@ It is also available from app stores:
 - **Windows**: [Microsoft Store](https://apps.microsoft.com/detail/9nb07qdfwjf4).
   This is a paid supporter edition: the same app as the free download, with
   automatic updates. Buying it is a way to support development.
+- **Android**: Google Play (coming soon). Free, with every feature; an
+  optional one-time purchase inside the app supports development. The
+  Android APK on the GitHub releases page has no purchase and no Google
+  libraries.
 
 ### Option 2: Run from Source
 

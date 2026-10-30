@@ -1,6 +1,6 @@
 # Privacy Policy
 
-_Last updated: 29 October 2026_
+_Last updated: 30 October 2026_
 
 Chord Notepad does not collect or send any personal information. Nothing you
 do in the app is shared with the developer or anyone else.
@@ -20,12 +20,18 @@ The Android app follows the same rules, with these specifics:
 
 - **Permissions.** It asks for none. It has no internet permission, so it
   can't connect to anything. Playing audio uses the system's audio focus,
-  which needs no permission.
+  which needs no permission. The Google Play version also declares Google
+  Play's billing permission, which only lets it ask the Play Store app to
+  handle the optional supporter purchase; it can't be used to send data.
+- **Opening files from other apps.** When you open a `.txt` file with Chord
+  Notepad from a file manager, the app gets access to that one file only.
 - **Your songs.** The app sees only the files you pick in the system's file
   picker (Open, Save as, Export MIDI). It keeps access to those files so the
   Recent list works; you can revoke that by removing the app.
 - **Settings and the log** stay in the app's private storage on your device,
-  which other apps can't read. The log holds the same kind of information as
+  which other apps can't read. In the Google Play version, the settings also
+  hold the date the app last asked for support, so it asks at most once a
+  day. The log holds the same kind of information as
   on the desktop (no song contents) and is deleted with the app.
 - **Backups.** If Android backup is turned on for your device, Android may
   back up the app's settings (only `settings.json`) to your Google account or
@@ -48,11 +54,16 @@ entirely by Microsoft under the
 [Microsoft Privacy Statement](https://privacy.microsoft.com/privacystatement).
 The developer receives no personal or payment information from it.
 
-If you buy Chord Notepad on Google Play, the purchase is handled by Google
-under the [Google Privacy Policy](https://policies.google.com/privacy).
-Google gives the developer order and sales reports (for example the buyer's
-country, which taxes depend on); the app itself sends nothing.
-The free Android download from GitHub involves no purchase at all.
+Chord Notepad on Google Play is free. If you make the optional supporter
+purchase inside it, the purchase is handled by Google under the
+[Google Privacy Policy](https://policies.google.com/privacy). Google gives
+the developer order and sales reports (for example the buyer's country,
+which taxes depend on); the app itself sends nothing. To show the supporter
+badge, the app asks the Play Store app on your phone whether you made the
+purchase; that check stays on your device.
+The Android download from GitHub has no purchase at all; it links to a
+donation page in its About screen, which opens in your browser only if you
+tap it.
 
 ## Contact
 

@@ -26,7 +26,7 @@ Chord Notepad is a text editor for musicians. Type chord symbols above your lyri
 • Songs are plain text files, opened and saved through the Android file picker (local storage or cloud providers); songs can be exported as MIDI files
 • No account, no ads and no internet permission; your songs stay on your device
 
-Chord Notepad is free software under the GNU AGPL-3.0. Buying it here supports its development. The source code and free builds for Android, Windows, macOS and Linux are at https://github.com/chibicitiberiu/chord-notepad
+Chord Notepad is free, with every feature included, and it's free software under the GNU AGPL-3.0. If you find it useful, an optional one-time purchase inside the app supports its development and adds a supporter badge. The source code and free builds for Android, Windows, macOS and Linux are at https://github.com/chibicitiberiu/chord-notepad
 
 ## Release notes (first release)
 First Android release: Edit and Play modes, chord playback with voice-led piano, guitar and ensemble voicings, a chord sheet (piano roll, staff, chord boxes, tab), transpose, capo suggestions, MIDI export, light and dark themes.
