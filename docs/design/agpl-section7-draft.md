@@ -106,9 +106,11 @@ purpose (Tibi, 2026-10-30: no lock-in to today's stores).
 >
 > **3. Names.** Under sections 7(c) and 7(e) of the License: this License
 > grants no right to use the name "Chord Notepad" or its icon as trade names
-> or trademarks. A modified version conveyed in object code form must be
+> or trademarks. A modified version conveyed through an App Store must be
 > marked as modified and must be presented to users under a name and icon
-> other than Chord Notepad's.
+> other than Chord Notepad's. This does not apply to a version changed only as
+> needed to build, package or install it for a particular operating system,
+> distribution or App Store, without changing what it does for its users.
 >
 > **Scope.** Permissions 1 and 2 extend to no non-free library other than a
 > Store Library, and they neither add to nor take away from what the License
@@ -142,7 +144,10 @@ Notes on the text:
   where 1 and 2 are removed. It's the clone protection: a fork can't
   re-publish the paid Microsoft Store edition under the same name and icon.
   Store impersonation policies back it up. It doesn't stop a fork from
-  existing, or from being sold under its own name.
+  existing, or from being sold under its own name. It's limited to App Stores,
+  and packaging changes are exempt, so Linux distributions and F-Droid can
+  patch the build to package it without renaming (the Firefox/Iceweasel
+  problem).
 
 ### Fallback option: store permission for official builds only
 
