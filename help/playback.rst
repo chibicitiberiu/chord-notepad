@@ -199,10 +199,12 @@ While playing:
 .. only:: android
 
    * Drag the slider (12.5% to 400%, in steps of 5%). The new speed applies
-     right away, also while a song plays.
+     right away, also while a song plays. A speed within 3 points of a
+     multiple of 12.5% snaps to it: 35% and 40% both play at 37.5%, 110% and
+     115% at 112.5%. The badge on the button shows the speed you hear.
    * **Reset** goes back to 100%.
-   * **Manual…** lets you type an exact value from 12.5 to 400, such as 12.5
-     or 33.
+   * **Manual…** lets you type a value from 12.5 to 400, such as 12.5 or 33.
+     The same snapping applies.
    * **Done** closes the sheet.
 
    When the speed isn't 100%, the button shows it as a badge (``1.25×``) and
@@ -266,6 +268,8 @@ This works even when playback is stopped. Uses include:
    * Jumps playback to that chord, which keeps playing from there. The
      playhead moves with it.
 
+   A tap between chords does the same with the nearest chord.
+
 
 Voicing Options
 ===============
@@ -283,7 +287,7 @@ a fretboard, and a section of singers or players don't think alike.
    Switch between them under :menuselection:`Playback --> Voicing`: pick **Piano**,
    one of the fretted-instrument voicings (guitar in various tunings, **Ukulele**,
    or an instrument you've configured yourself) covered in :doc:`fretted`, or one
-   of the ensemble presets (a four-part choir, a string quartet) covered in
+   of the ensemble presets (three choirs and a string quartet) covered in
    :doc:`ensembles`. Voicing is independent of the **instrument** you choose (see
    :ref:`changing-instruments`) -- you can play a piano voicing through a
    saxophone, or a guitar voicing through a synth pad.
@@ -296,8 +300,8 @@ a fretboard, and a section of singers or players don't think alike.
 
    * **Piano**: the two-hand piano voicing described below.
    * **Fretted**: guitar in four tunings and **Ukulele** (see :doc:`fretted`).
-   * **Ensembles**: the choir and string quartet presets (see
-     :doc:`ensembles`).
+   * **Ensembles**: the three choirs (SATB, TTBB and SSA) and the string
+     quartet (see :doc:`ensembles`).
    * **Your voicings**: the ones you made in |voicings_settings|. The
      group is missing until you add one.
 
@@ -419,7 +423,7 @@ Built-in Fretted-Instrument Voicings
    * - Voicing
      - Strings (in string order)
      - Best For
-   * - Guitar (Standard)
+   * - Guitar (Standard - EADGBE)
      - E A D G B E
      - Most music, default choice
    * - Guitar (Drop D)
@@ -484,7 +488,7 @@ The same reasoning is applied to a small set of extended chords:
 
 * ``C11`` and ``Cmaj11`` drop the **third**, which clashes with the eleventh.
 * ``C13``, ``Cm13``, and ``Cmaj13`` drop the **eleventh**, a practical voicing
-  players use.
+  players use. So does ``C7b9b13``.
 * Minor elevenths (``Cm11``) keep their flat third, since a minor third against
   the eleventh doesn't clash.
 
@@ -589,45 +593,59 @@ Instruments are organized by family:
    * - Category
      - Includes
    * - Piano
-     - Acoustic Grand, Bright Acoustic, Electric Grand, Honky-tonk, etc.
+     - Grand Piano, Bright Grand Piano, Electric Grand Piano, Honky-Tonk Piano,
+       Tine and FM Electric Piano, Harpsichord, Clavinet
    * - Chromatic Percussion
-     - Celesta, Glockenspiel, Music Box, Vibraphone, Marimba, Xylophone
+     - Celeste, Glockenspiel, Music Box, Vibraphone, Marimba, Xylophone,
+       Tubular Bells, Dulcimer
    * - Organ
-     - Drawbar Organ, Percussive Organ, Rock Organ, Church Organ, etc.
+     - Tonewheel Organ, Percussive Organ, Rock Organ, Pipe Organ, Reed Organ,
+       Accordion, Harmonica, Bandoneon
    * - Guitar
-     - Acoustic Nylon, Acoustic Steel, Jazz Guitar, Clean Electric, etc.
+     - Nylon Guitar, Steel Guitar, Jazz Guitar, Clean Guitar, Muted Guitar,
+       Overdrive Guitar, Distortion Guitar, Guitar Harmonics
    * - Bass
-     - Acoustic Bass, Electric Bass (finger/pick), Fretless, Slap Bass
+     - Acoustic Bass, Finger Bass, Pick Bass, Fretless Bass, Slap Bass,
+       Synth Bass
    * - Strings
-     - Violin, Viola, Cello, Contrabass, Tremolo/Pizzicato Strings
+     - Violin, Viola, Cello, Double Bass, Tremolo and Pizzicato Strings,
+       Orchestral Harp, Timpani
    * - Ensemble
-     - String Ensemble, Synth Strings, Choir Aahs, Voice Oohs
+     - Fast Strings, Slow Strings, Synth Strings, Concert Choir, Voice Oohs,
+       Synth Voice, Orchestra Hit
    * - Brass
-     - Trumpet, Trombone, Tuba, French Horn, Brass Section
+     - Trumpet, Trombone, Tuba, Muted Trumpet, French Horns, Brass Section,
+       Synth Brass
    * - Reed
-     - Soprano/Alto/Tenor/Baritone Sax, Oboe, Clarinet, Bassoon
+     - Soprano, Alto, Tenor and Baritone Sax, Oboe, English Horn, Bassoon,
+       Clarinet
    * - Pipe
-     - Piccolo, Flute, Recorder, Pan Flute, Ocarina
+     - Piccolo, Flute, Recorder, Pan Flute, Bottle Blow, Shakuhachi, Whistle,
+       Ocarina
    * - Synth Lead
-     - Square, Sawtooth, Calliope, Chiff, Charang
+     - Square Lead, Saw Lead, Synth Calliope, Chiffer Lead, Charang, Solo Vox,
+       etc.
    * - Synth Pad
-     - New Age, Warm, Polysynth, Choir, Bowed, Metallic
+     - Fantasia, Warm Pad, Polysynth, Space Voice, Bowed Glass, Metal Pad,
+       Halo Pad, Sweep Pad
    * - Synth Effects
-     - Rain, Soundtrack, Crystal, Atmosphere, Brightness
+     - Ice Rain, Soundtrack, Crystal, Atmosphere, Brightness, Goblin, etc.
    * - Ethnic
-     - Sitar, Banjo, Shamisen, Koto, Kalimba, Bagpipe
+     - Sitar, Banjo, Shamisen, Koto, Kalimba, Bagpipes, Fiddle, Shenai
    * - Percussive
-     - Tinkle Bell, Agogo, Steel Drums, Woodblock, Taiko
+     - Tinker Bell, Agogo, Steel Drums, Wood Block, Taiko Drum, Melodic Tom,
+       etc.
    * - Sound Effects
-     - Guitar Fret Noise, Breath Noise, Seashore, Bird Tweet
+     - Fret Noise, Breath Noise, Seashore, Birds, Telephone, Helicopter,
+       Applause, Gun Shot
 
 Instrument Suggestions
 ----------------------
 
-* **General use**: Acoustic Grand Piano (the default)
-* **Pop/rock**: Electric Piano or Clean Guitar
+* **General use**: Grand Piano (the default)
+* **Pop/rock**: Tine Electric Piano or Clean Guitar
 * **Jazz**: Jazz Guitar or Vibraphone
-* **Classical**: String Ensemble or Acoustic Grand
+* **Classical**: Slow Strings or Grand Piano
 * **Electronic**: Synth leads or pads
 
 Different instruments can highlight different aspects of a chord progression.
@@ -682,11 +700,13 @@ Different instruments can highlight different aspects of a chord progression.
      saved with the file. New songs start from the defaults in ☰ → Settings
      → Playback and General.
    * **Write into song** inserts the missing directives at the top of the
-     song as one line, so the file keeps them. It is greyed out when the
-     song already sets all three.
+     song as one line, so the file keeps them. It is greyed out when there
+     is nothing to write: the song sets all three, or it sets the tempo and
+     time signature and the key is None.
 
    While a song plays or is paused, the tempo and **Write into song** are
-   greyed out, and the sheet says to stop playback first: tap **⏮**. A
+   greyed out, and the sheet says "Stop playback to change the tempo or
+   write into the song": tap **⏮**. A
    time signature or key you change during playback is heard once you stop
    and play again. To play faster or slower without touching the song, use
    the **speed** button instead.
@@ -705,7 +725,7 @@ Use ``{label}`` and ``{loop}`` to repeat difficult sections:
    {label: tricky_part}
    Am7  D9  Gmaj7  Cmaj7
 
-   {loop: tricky_part 10}    // Repeat 10 times
+   {loop: tricky_part 10}    // Plays it 10 times in all
 
 Tempo Training
 --------------
