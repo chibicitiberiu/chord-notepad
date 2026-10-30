@@ -47,8 +47,8 @@ from session.state import (
     ChordSheetState, ChordSheetView, DocumentState, EditorState, HighlightState,
     IdentifierNote, IdentifierState, InstrumentFamily, InstrumentMenuState, MenuItem, PlayAction,
     PlaybackState, PlaybackStatus, RecentDocumentsState, SettingsState, SongDefault,
-    SongDefaultsState, Span, SpanKind, StatusState, ToolbarState, VoicingEditorState,
-    VoicingGroup, VoicingMenuState, VoicingPreset,
+    SongDefaultsState, Span, SpanKind, StartupScreen, StartupState, StatusState, ToolbarState,
+    VoicingEditorState, VoicingGroup, VoicingMenuState, VoicingPreset,
 )
 
 logger = logging.getLogger(__name__)
@@ -63,7 +63,7 @@ BRIDGE_CONTEXT = "bridge"
 STATE_TYPES: Tuple[type, ...] = (
     DocumentState, EditorState, HighlightState, PlaybackState, ToolbarState, StatusState,
     VoicingMenuState, InstrumentMenuState, RecentDocumentsState, ChordSheetState,
-    IdentifierState, SettingsState, VoicingEditorState, SongDefaultsState,
+    IdentifierState, SettingsState, VoicingEditorState, SongDefaultsState, StartupState,
 )
 EVENT_TYPES: Tuple[type, ...] = (
     TextEdited, UserError, AudioUnavailable, UnexpectedError, CloseApproved,
@@ -78,7 +78,7 @@ VALUE_TYPES: Tuple[type, ...] = (
     IdentifierNote, VoicingGroup, VoicingPreset, QuickStartPage, QuickStartBlock, SongDefault,
 )
 ENUM_TYPES: Tuple[Type[Enum], ...] = (
-    SpanKind, PlaybackStatus, PlayAction, UndoPolicy, DiscardChoice, PickMode,
+    SpanKind, PlaybackStatus, PlayAction, UndoPolicy, DiscardChoice, PickMode, StartupScreen,
 )
 
 _KINDS: Dict[type, str] = {
@@ -264,7 +264,7 @@ SESSION_COMMANDS: Dict[str, Dict[str, str]] = {
     "play_identified_chord": {"chord": "str"},
     # documents and requests
     "new_document": {},
-    "open_document": {"ref": "DocumentRef|null"},
+    "open_document": {"ref": "DocumentRef|null", "read_only": "bool"},
     "open_recent": {"ref": "DocumentRef"},
     "save": {},
     "save_as": {"name": "str|null"},
@@ -272,11 +272,16 @@ SESSION_COMMANDS: Dict[str, Dict[str, str]] = {
     "export_midi": {},
     "request_close": {},
     "respond": {"request_id": "int", "value": "any"},
-    "restore_draft": {"text": "str", "document": "DocumentRef|null", "modified": "bool"},
+    "restore_draft": {"text": "str", "document": "DocumentRef|null", "modified": "bool",
+                      "read_only": "bool"},
     # settings and preferences
     "apply_settings": {"changes": "SettingsValues"},
     "set_show_quick_start_on_startup": {"show": "bool"},
     "request_quick_start": {},
+    # the startup screen (Android)
+    "app_started": {"launch_kind": "str", "today": "str", "installed_on": "str",
+                    "can_ask_for_support": "bool"},
+    "dismiss_startup_screen": {},
     # the Settings screen's working copy and its voicings editor
     "begin_settings_edit": {},
     "cancel_settings_edit": {},

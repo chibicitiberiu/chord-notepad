@@ -40,8 +40,8 @@ from session.threaded_host import ThreadedHost
 
 ROOT = Path(__file__).parent.parent
 SCHEMA_PATH = ROOT / "android" / "bridge_schema.json"
-KOTLIN_COMMANDS = (ROOT / "android" / "app" / "src" / "main" / "kotlin" / "io" / "github"
-                   / "chibicitiberiu" / "chordnotepad" / "bridge" / "SessionCommands.kt")
+KOTLIN_COMMANDS = (ROOT / "android" / "app" / "src" / "main" / "kotlin" / "com" / "tibich"
+                   / "chordnotepad" / "bridge" / "SessionCommands.kt")
 
 SONG = "{bpm: 90}\n{time: 3/4}\n{key: G}\nG D Em C\n"
 
@@ -313,7 +313,7 @@ def test_subscribing_replays_every_state_first(env):
     assert env.out[0][0] == "HighlightState"
     assert env.latest("DocumentState") == {
         "display_name": "Untitled", "location": None, "is_modified": False,
-        "title": "Untitled - Chord Notepad", "document_id": None}
+        "title": "Untitled - Chord Notepad", "document_id": None, "read_only": False}
 
 
 def test_typing_comes_back_as_highlight_spans(env):
@@ -361,7 +361,8 @@ def test_open_through_the_picker_with_a_ref_object(env):
     env.settle()
     assert env.latest("DocumentState") == {
         "display_name": "song.txt", "location": "song.txt", "is_modified": False,
-        "title": "song.txt - Chord Notepad", "document_id": "memory:song.txt"}
+        "title": "song.txt - Chord Notepad", "document_id": "memory:song.txt",
+        "read_only": False}
     toolbar = env.latest("ToolbarState")
     assert (toolbar["bpm"], toolbar["beats"], toolbar["unit"], toolbar["key"]) == (90, 3, 4, "G")
     assert env.latest("RecentDocumentsState") == {"items": [ref_json("song.txt")]}
@@ -523,7 +524,8 @@ def test_restore_draft_resets_the_text_and_takes_the_document(env):
     env.settle()
     assert env.latest("DocumentState") == {
         "display_name": "song.txt", "location": "song.txt", "is_modified": True,
-        "title": "song.txt* - Chord Notepad", "document_id": "memory:song.txt"}
+        "title": "song.txt* - Chord Notepad", "document_id": "memory:song.txt",
+        "read_only": False}
     # The stored document wasn't read (or written).
     assert env.store.contents["memory:song.txt"] == SONG
     # Save goes to that document.
@@ -707,6 +709,8 @@ def test_every_output_type_crosses_the_bridge_as_plain_values(tmp_path):
         env.send("respond", request_id=request["request_id"], value=None)
         env.send("request_voicing_editor_schema")              # VoicingEditorSchema
         env.send("request_quick_start")                        # QuickStartContent
+        env.send("app_started", launch_kind="direct", today="2026-10-30",
+                 installed_on="2026-10-30", can_ask_for_support=False)  # StartupState
         env.send("begin_settings_edit")                        # VoicingEditorState (json)
         env.send("add_voicing")
         env.send("request_close")

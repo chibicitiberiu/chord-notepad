@@ -374,6 +374,8 @@ class DocumentState:
         document_id: The open document's ``DocumentRef.id``, or None for a
             new document (Android keeps it with its draft, to restore it
             after the process was killed).
+        read_only: It was opened without write access (Android: Open with
+            granted read only); Save asks where to save a copy.
     """
 
     display_name: str
@@ -381,6 +383,7 @@ class DocumentState:
     is_modified: bool
     title: str
     document_id: Optional[str] = None
+    read_only: bool = False
 
 
 @dataclass(frozen=True)
@@ -548,3 +551,26 @@ class VoicingEditorState:
 INACTIVE_VOICING_EDITOR = VoicingEditorState(
     active=False, revision=0, groups=(), invalid=(), presets=(), selected=None, model=None,
     values={}, field_errors={}, form_errors=(), hints={}, dirty=False)
+
+
+class StartupScreen(str, Enum):
+    """What opens over the editor when the app starts."""
+
+    NONE = "none"
+    QUICK_START = "quick_start"
+    #: Android's request for the optional supporter purchase.
+    SUPPORT_PROMPT = "support_prompt"
+
+
+@dataclass(frozen=True)
+class StartupState:
+    """The screen to show at startup, decided by the first ``app_started``.
+
+    Not published before that command (the desktop never sends it). Back to
+    ``none`` after ``dismiss_startup_screen``.
+
+    Attributes:
+        screen: What to show.
+    """
+
+    screen: StartupScreen

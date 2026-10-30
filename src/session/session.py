@@ -33,7 +33,7 @@ from exceptions import (
 )
 from models.notation import Notation
 from models.playback_event import PlaybackEventArgs, PlaybackEventType
-from session import directives, errors, formatting, quick_start, song_defaults, toolbar
+from session import directives, errors, formatting, quick_start, song_defaults, support, toolbar
 from session.platform import ANDROID, DESKTOP, TRACKS_PLAYHEAD, check_platform, pick
 from session.audio_policy import AudioFailurePolicy
 from session.emitter import Emitter, Listener
@@ -56,7 +56,8 @@ from session.state import (
     ChordSheetState, ChordSheetView, DocumentState, EditorState, HighlightState,
     IdentifierNote, IdentifierState, InstrumentMenuState, MenuItem, PlayAction, PlaybackState,
     INACTIVE_VOICING_EDITOR, PlaybackStatus, RecentDocumentsState, SettingsState,
-    SongDefaultsState, Span, SpanKind, StatusState, ToolbarState, VoicingMenuState,
+    SongDefaultsState, Span, SpanKind, StartupScreen, StartupState, StatusState, ToolbarState,
+    VoicingMenuState,
 )
 
 if TYPE_CHECKING:
@@ -289,6 +290,14 @@ class AppSession:
         self._playing_chord: Optional[str] = None
         # The name an untitled document takes when it is first saved.
         self._pending_name: Optional[str] = None
+        # The id of a document opened without write access (Save asks for a
+        # copy's location instead); None when the open one is writable.
+        self._read_only_id: Optional[str] = None
+
+        # The startup screen: decided by the first app_started (Android).
+        self._startup_decided = False
+        self._startup_screen = StartupScreen.NONE
+        self._startup_today: Optional[str] = None
 
         # Playback: the viewmodel runs it, the session turns its transport
         # flags and progress pings into states.
@@ -590,7 +599,8 @@ class AppSession:
         self._flows.respond(request_id, value)
 
     @_command
-    def restore_draft(self, text: str, document: Optional[DocumentRef], modified: bool) -> None:
+    def restore_draft(self, text: str, document: Optional[DocumentRef], modified: bool,
+                      read_only: bool = False) -> None:
         """Put back the editor a killed process had (Android draft restore).
 
         The text replaces the session's as a ``reset`` edit (a fresh undo
@@ -603,6 +613,8 @@ class AppSession:
             text: The draft text.
             document: The document it belongs to, or None for a new one.
             modified: Whether the draft has unsaved changes.
+            read_only: The document was open read-only
+                (``DocumentState.read_only``).
 
         Raises:
             TypeError: If ``document`` isn't a DocumentRef or None.
@@ -612,9 +624,11 @@ class AppSession:
             return
         self._flows.cancel()
         self._pending_name = None
+        self._read_only_id = document.id if document is not None and read_only else None
         revision = self._revision
         with self._undo_policy(UndoPolicy.RESET):
             self._main.restore_document(str(text), document, bool(modified))
+        self._publish_document()
         if self._revision == revision:
             # Same text as the session's: still a new undo history in the views.
             self._splice(0, len(self._text), self._text, UndoPolicy.RESET)
@@ -674,7 +688,7 @@ class AppSession:
         self._flows.start(self._new_flow())
 
     @_command
-    def open_document(self, ref: Optional[DocumentRef] = None) -> None:
+    def open_document(self, ref: Optional[DocumentRef] = None, read_only: bool = False) -> None:
         """Open a document: ``ref``, or one the user picks.
 
         Asks about unsaved changes first, then (without ``ref``) emits a
@@ -683,10 +697,17 @@ class AppSession:
         over) and its first tempo, key and time-signature directives set the
         toolbar. A failure is a :class:`UserError`.
 
+        Args:
+            ref: The document, or None to ask for one.
+            read_only: ``ref`` can be read but not written (Android: a file
+                another app opened with a read-only grant). Save then runs
+                Save As. Ignored without ``ref``.
+
         Raises:
             TypeError: If ``ref`` isn't a DocumentRef.
         """
-        self._flows.start(self._open_flow(self._as_ref(ref)))
+        ref = self._as_ref(ref)
+        self._flows.start(self._open_flow(ref, bool(read_only) and ref is not None))
 
     @_command
     def open_recent(self, ref: DocumentRef) -> None:
@@ -702,7 +723,8 @@ class AppSession:
 
     @_command
     def save(self) -> None:
-        """Save the document; one that was never saved asks for a name first."""
+        """Save the document; one that was never saved, or that was opened
+        read-only, asks where to save first (Save As)."""
         self._flows.start(self._as_flow(self._save_flow()))
 
     @_command
@@ -763,6 +785,8 @@ class AppSession:
             logger.warning("Rename failed: %s", e)
             self._emitter.emit(RenameFailed(name, str(e), True))
             return
+        if self._read_only_id == current.id:
+            self._read_only_id = renamed.id
         self._main.document_renamed(renamed)
         self._remember(renamed)
         self._set_status(formatting.renamed_status(renamed.display_name))
@@ -1392,6 +1416,67 @@ class AppSession:
         (a ``VoicingEditorState.presets`` item; the view confirms first)."""
         self._edit_voicings(lambda edit: edit.load_preset(group, label))
 
+    # -- startup screen (Android) ------------------------------------------------
+
+    @_command
+    def app_started(self, launch_kind: str, today: str, installed_on: str,
+                    can_ask_for_support: bool) -> None:
+        """The app's screen came up: decide what opens over the editor.
+
+        Only the first call of a session counts (a rotation or a second
+        activity sends it again); it always publishes :class:`StartupState`.
+        A ``document`` or ``restore`` launch shows nothing. A ``direct`` one
+        shows the support prompt when :func:`support.should_show_support_prompt`
+        allows it, else Quick Start if it opens at startup, else nothing.
+
+        Args:
+            launch_kind: ``direct``, ``document`` or ``restore``
+                (:class:`support.LaunchKind`).
+            today: Today's local date (ISO, ``"2026-10-30"``).
+            installed_on: The local date the app was first installed (ISO).
+            can_ask_for_support: Billing works, the price is known and the
+                user hasn't bought the supporter purchase.
+
+        Raises:
+            ValueError: For an unknown ``launch_kind``.
+            RuntimeError: If the session was built without services.
+        """
+        kind = support.LaunchKind(launch_kind)
+        if self._startup_decided:
+            logger.debug("app_started(%s) after the startup screen was decided; ignored", kind.value)
+            return
+        config = self._require_services("the startup screen").config.config
+        self._startup_decided = True
+        self._startup_today = str(today)
+        screen = StartupScreen.NONE
+        if kind == support.LaunchKind.DIRECT:
+            if support.should_show_support_prompt(str(today), str(installed_on),
+                                                  config.support_prompt_last_shown,
+                                                  bool(can_ask_for_support)):
+                screen = StartupScreen.SUPPORT_PROMPT
+            elif self.show_quick_start_on_startup:
+                screen = StartupScreen.QUICK_START
+        logger.info("Startup (%s): %s", kind.value, screen.value)
+        self._set_startup_screen(screen)
+
+    @_command
+    def dismiss_startup_screen(self) -> None:
+        """The startup screen was closed. For the support prompt, today is
+        remembered as the day it was last shown and the config saved at once
+        (the process may be killed before the next autosave). Ignored before
+        ``app_started``."""
+        if not self._startup_decided:
+            return
+        if self._startup_screen == StartupScreen.SUPPORT_PROMPT:
+            services = self._require_services("the support prompt")
+            services.config.config.support_prompt_last_shown = self._startup_today
+            services.config.save_config()
+        self._set_startup_screen(StartupScreen.NONE)
+
+    def _set_startup_screen(self, screen: StartupScreen) -> None:
+        self._startup_screen = screen
+        self._emitter.set_state(StartupState(screen))
+
     # -- Quick Start ----------------------------------------------------------------
 
     @_command
@@ -1958,9 +2043,10 @@ class AppSession:
         return False
 
     def _save_flow(self) -> SubFlow:
-        """Save to the open document, or ask for a name if there is none."""
+        """Save to the open document, or ask for a name if there is none or
+        it is read-only."""
         ref = self._main.current_document
-        if ref is None:
+        if ref is None or self._is_read_only(ref):
             return (yield from self._save_as_flow())
         return self._write_document(ref)
 
@@ -1983,6 +2069,9 @@ class AppSession:
             self._file_error(formatting.SAVE_FAILED, ref)
             return False
         self._pending_name = None
+        # Written, so writable (Save As may pick the same document).
+        self._read_only_id = None
+        self._publish_document()
         self._remember(ref)
         self._set_status(formatting.saved_status(ref.location))
         return True
@@ -1996,7 +2085,7 @@ class AppSession:
         self._publish_document()
         self._set_status(formatting.NEW_DOCUMENT_STATUS)
 
-    def _open_flow(self, ref: Optional[DocumentRef]) -> Flow:
+    def _open_flow(self, ref: Optional[DocumentRef], read_only: bool = False) -> Flow:
         if not (yield from self._confirm_discard()):
             return
         if ref is None:
@@ -2006,9 +2095,12 @@ class AppSession:
         # The text arrives through the viewmodel (_on_text_replaced) as one
         # reset edit, highlighted at once; the directives then set the toolbar.
         revision = self._revision
+        previous_read_only = self._read_only_id
+        self._read_only_id = ref.id if read_only else None
         with self._undo_policy(UndoPolicy.RESET):
             opened = self._main.open_file(ref)
         if not opened:
+            self._read_only_id = previous_read_only
             self._file_error(formatting.OPEN_FAILED, ref)
             return
         if self._revision == revision:
@@ -2053,6 +2145,10 @@ class AppSession:
             formatting.FILE_ERROR_TITLE,
             formatting.file_error_message(action, ref.location, self._main.last_error)))
 
+    def _is_read_only(self, ref: Optional[DocumentRef]) -> bool:
+        """Whether ``ref`` was opened without write access."""
+        return ref is not None and ref.id == self._read_only_id
+
     def _publish_document(self, _changed: Any = None) -> None:
         ref = self._main.current_document
         modified = self._main.is_modified
@@ -2063,6 +2159,7 @@ class AppSession:
             is_modified=modified,
             title=formatting.window_title(name, modified),
             document_id=ref.id if ref is not None else None,
+            read_only=self._is_read_only(ref),
         ))
 
     def _publish_recent(self) -> None:

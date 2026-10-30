@@ -91,6 +91,7 @@ src/session/
   formatting.py    titles, status strings, voicing/instrument menu models
   toolbar.py       key list + key respelling, BPM/multiplier parse+format, ScrubScale (clamp/snap/quantize)
   directives.py    Insert-menu directives: field validation + messages, directive text, labels, loop choices
+  support.py       the Android support prompt's policy (should_show_support_prompt, NAG_DELAY_DAYS), LaunchKind
   highlighting.py  find_comments, compute_spans(lines, text), chord_at(lines, offset),
                    nearest_chord(lines, text, offset) (the playhead's snap), first_chord
   song_defaults.py song_defaults(lines, bpm, time, key) -> SongDefaultsState; missing_directives
@@ -194,7 +195,7 @@ and exports never join.
 class SpanKind(str, Enum): CHORD, CHORD_INVALID, DIRECTIVE, DIRECTIVE_INVALID, COMMENT
 Span(start, end, kind)
 MenuItem(label, value)
-DocumentState(display_name, location, is_modified, title, document_id)
+DocumentState(display_name, location, is_modified, title, document_id, read_only)
 EditorState(font_family, font_size, read_only, notation)
 HighlightState(text_revision, client_token, spans)
 PlaybackState(status, playing_span, chord_index, bar, total_bars, playhead_offset)  # idle|playing|paused
@@ -208,6 +209,7 @@ RecentDocumentsState(items)
 ChordSheetState(visible, height, active_view, views, disabled_reason, zoom, zoom_supported,
                 current_index, song_revision, cursor_index)
 SongDefaultsState(tempo, time, key, summary, locked_reason)             # SongDefault(value, from_directive, directive_offset)
+StartupState(screen)                                                    # none|quick_start|support_prompt (Android)
 ```
 
 `HighlightState.text_revision` is the session's revision of the text the spans
@@ -270,7 +272,7 @@ class AppSession:
     def set_chord_sheet_visible(self, v: bool) -> None;  def set_chord_sheet_height(self, px: int) -> None
     def set_chord_sheet_view(self, view_id: str) -> None;  def chord_sheet_zoom(self, step: int) -> None;  def audition(self, index: int) -> None
     # documents / app
-    def new_document(self) -> None;  def open_document(self, ref: DocumentRef | None = None) -> None
+    def new_document(self) -> None;  def open_document(self, ref: DocumentRef | None = None, read_only: bool = False) -> None
     def save(self) -> None;  def save_as(self, name: str | None = None) -> None
     def rename_document(self, name: str) -> None
     def export_midi(self) -> None;  def request_close(self) -> None
@@ -278,7 +280,9 @@ class AppSession:
     def apply_settings(self, changes: SettingsChanges | SettingsValues) -> None
     # lifecycle (Android)
     def pause(self) -> None                                               # only if playing
-    def restore_draft(self, text: str, document: DocumentRef | None, modified: bool) -> None
+    def restore_draft(self, text: str, document: DocumentRef | None, modified: bool, read_only: bool = False) -> None
+    def app_started(self, launch_kind: str, today: str, installed_on: str, can_ask_for_support: bool) -> None
+    def dismiss_startup_screen(self) -> None                              # startup screen (Android)
     def save_config(self) -> None;  def report_unexpected(self, message: str, context: str | None) -> None
 ```
 

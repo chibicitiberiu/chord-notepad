@@ -12,6 +12,12 @@
     },
     "app_background": {},
     "app_foreground": {},
+    "app_started": {
+      "can_ask_for_support": "bool",
+      "installed_on": "str",
+      "launch_kind": "str",
+      "today": "str"
+    },
     "apply_settings": {
       "changes": "SettingsValues"
     },
@@ -31,6 +37,7 @@
     "convert_notation": {
       "target": "str"
     },
+    "dismiss_startup_screen": {},
     "export_midi": {},
     "identifier_clear": {},
     "identifier_set_notes_text": {
@@ -54,6 +61,7 @@
     },
     "new_document": {},
     "open_document": {
+      "read_only": "bool",
       "ref": "DocumentRef|null"
     },
     "open_recent": {
@@ -107,6 +115,7 @@
     "restore_draft": {
       "document": "DocumentRef|null",
       "modified": "bool",
+      "read_only": "bool",
       "text": "str"
     },
     "rewind": {},
@@ -196,6 +205,7 @@
     "add_voicing_record",
     "app_background",
     "app_foreground",
+    "app_started",
     "apply_settings",
     "audition",
     "begin_settings_edit",
@@ -203,6 +213,7 @@
     "check_directive",
     "chord_sheet_zoom",
     "convert_notation",
+    "dismiss_startup_screen",
     "export_midi",
     "identifier_clear",
     "identifier_set_notes_text",
@@ -290,6 +301,11 @@
       "directive_invalid",
       "comment",
       "directive_redundant"
+    ],
+    "StartupScreen": [
+      "none",
+      "quick_start",
+      "support_prompt"
     ],
     "UndoPolicy": [
       "group",
@@ -383,6 +399,7 @@
         "document_id": "str|null",
         "is_modified": "bool",
         "location": "str|null",
+        "read_only": "bool",
         "title": "str"
       },
       "kind": "state"
@@ -564,6 +581,12 @@
         "start": "int"
       },
       "kind": "value"
+    },
+    "StartupState": {
+      "fields": {
+        "screen": "StartupScreen"
+      },
+      "kind": "state"
     },
     "StatusState": {
       "fields": {

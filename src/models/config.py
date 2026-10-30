@@ -1,5 +1,6 @@
 """Application configuration model."""
 
+import datetime
 import logging
 from dataclasses import dataclass, field
 from typing import List, Optional, Literal, Dict
@@ -58,6 +59,9 @@ class Config:
 
     # UI/UX
     show_quick_start_on_startup: bool = True  # Show quick start dialog on first launch
+    # Android: the local date (ISO) the support prompt was last dismissed.
+    # Not a setting: the Settings screen never writes it.
+    support_prompt_last_shown: Optional[str] = None
 
     # Chord sheet strip (bottom-docked voiced-chord panel)
     chord_sheet_visible: bool = False  # Whether the chord sheet panel is shown
@@ -115,6 +119,7 @@ class Config:
             "audio_driver": self.audio_driver,
             "log_level": self.log_level,
             "show_quick_start_on_startup": self.show_quick_start_on_startup,
+            "support_prompt_last_shown": self.support_prompt_last_shown,
             "chord_sheet_visible": self.chord_sheet_visible,
             "chord_sheet_view": self.chord_sheet_view,
             "chord_sheet_height": self.chord_sheet_height,
@@ -165,11 +170,23 @@ class Config:
             audio_driver=data.get("audio_driver"),
             log_level=data.get("log_level", "INFO"),
             show_quick_start_on_startup=data.get("show_quick_start_on_startup", True),
+            support_prompt_last_shown=cls._iso_date_or_none(data.get("support_prompt_last_shown")),
             chord_sheet_visible=data.get("chord_sheet_visible", False),
             chord_sheet_view=data.get("chord_sheet_view", "keyboard"),
             chord_sheet_height=data.get("chord_sheet_height", 160),
             chord_sheet_zoom=cls._sanitize_chord_sheet_zoom(data.get("chord_sheet_zoom")),
         )
+
+    @staticmethod
+    def _iso_date_or_none(raw) -> Optional[str]:
+        """``raw`` if it is an ISO date string (``"2026-10-30"``), else None."""
+        if not isinstance(raw, str):
+            return None
+        try:
+            datetime.date.fromisoformat(raw)
+        except ValueError:
+            return None
+        return raw
 
     @staticmethod
     def _sanitize_chord_sheet_zoom(raw) -> Dict[str, float]:
