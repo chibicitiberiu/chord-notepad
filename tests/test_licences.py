@@ -355,14 +355,85 @@ def test_bad_group_and_duplicate_ids_are_errors(tmp_path):
         cat.load_catalog(tmp_path)
 
 
+# Shaped like snapcraft's snap/manifest.yaml (SNAPCRAFT_BUILD_INFO=1): each
+# part repeats its stage-packages and lists the build container's packages.
+SNAP_MANIFEST = """\
+snapcraft-version: 8.12.1
+snapcraft-started-at: '2026-10-30T21:14:03.118263Z'
+snapcraft-os-release-id: ubuntu
+snapcraft-os-release-version-id: '26.04'
+name: chord-notepad
+version: 0.4.1
+summary: A text editor for musicians
+base: core26
+grade: stable
+confinement: strict
+apps:
+  chord-notepad:
+    command: bin/chord-notepad
+    plugs:
+    - x11
+parts:
+  audio:
+    plugin: nil
+    stage-packages:
+    - libfluidsynth3=2.5.1-1
+    - libpulse0=1:17.0-1
+    stage: []
+    prime: []
+    build-packages: []
+    uname: Linux 6.8.0-1017-azure #20-Ubuntu SMP x86_64 GNU/Linux
+    installed-packages:
+    - adduser=3.137ubuntu1
+    - apt=3.1.6ubuntu2
+    - libc6=2.42-0ubuntu3
+    - libglib2.0-0t64=2.86.0-2
+    installed-snaps:
+    - core26=1234
+    - snapcraft=8.12.1
+  chord-notepad:
+    plugin: python
+    stage-packages: []
+    build-packages:
+    - findutils=4.10.0-3
+    - python3-dev=3.14.0-1
+    installed-packages:
+    - adduser=3.137ubuntu1
+    - gcc-15=15.2.0-4ubuntu1
+architectures:
+- amd64
+build-packages: []
+build-snaps: []
+primed-stage-packages:
+- libfluidsynth3=2.5.1-1
+- libglib2.0-0t64:amd64=2.86.0-2ubuntu1
+- libpulse0=1:17.0-1
+image-info:
+  build-request-id: lp-123
+"""
+
+
+def test_snap_manifest_lists_only_the_primed_stage_packages(tmp_path):
+    """Not the build container's packages (installed-packages, build-packages)."""
+    expected = [("libfluidsynth3", "2.5.1-1"), ("libglib2.0-0t64", "2.86.0-2ubuntu1"), ("libpulse0", "1:17.0-1")]
+    assert cat.primed_stage_packages(SNAP_MANIFEST) == expected
+    import make_source_bundle
+
+    manifest = tmp_path / "manifest.yaml"
+    manifest.write_text(SNAP_MANIFEST)
+    assert make_source_bundle.snap_packages(manifest) == expected
+    assert cat.primed_stage_packages("primed-stage-packages: []\nparts: {}\n") == []
+    assert cat.primed_stage_packages("parts:\n  a:\n    primed-stage-packages:\n    - x=1\n") == []
+    assert cat.primed_stage_packages(SNAP_MANIFEST.replace("primed-stage-packages:\n", "primed:\n")) == []
+
+
 def test_snap_packages_come_from_their_copyright_files(tmp_path):
     for name, licence in (("libfluidsynth3", "LGPL-2.1+"), ("libpulse0", "LGPL-2.1+")):
         doc = tmp_path / "usr/share/doc" / name
         doc.mkdir(parents=True)
         (doc / "copyright").write_text(f"Files: *\nLicense: {licence}\n\nFiles: x\nLicense: MIT\n")
     (tmp_path / "snap").mkdir()
-    (tmp_path / "snap/manifest.yaml").write_text(
-        "parts:\n  audio:\n    stage-packages:\n    - libfluidsynth3=2.5.1-1\n    - libpulse0:amd64=1:17.0-1\n")
+    (tmp_path / "snap/manifest.yaml").write_text(SNAP_MANIFEST)
     entries = cat.snap_packages(tmp_path)
     assert [(e.name, e.version, e.license) for e in entries] == [
         ("libfluidsynth3", "2.5.1-1", "LGPL-2.1+ / MIT"), ("libpulse0", "1:17.0-1", "LGPL-2.1+ / MIT")]

@@ -28,6 +28,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import io
 import json
 import re
@@ -43,6 +44,19 @@ sys.path.insert(0, str(HERE))
 
 from licence_inventory import COMPONENTS, LICENSES, REPO, load_components  # noqa: E402
 from licence_sources import DEFAULT_CACHE, fetch  # noqa: E402
+
+
+def _load_catalog_module():
+    """src/services/licence_catalog.py on its own (stdlib only; services/__init__ pulls in the app)."""
+    path = REPO / "src" / "services" / "licence_catalog.py"
+    spec = importlib.util.spec_from_file_location("licence_catalog", path)
+    module = importlib.util.module_from_spec(spec)
+    sys.modules.setdefault("licence_catalog", module)
+    spec.loader.exec_module(module)
+    return module
+
+
+licence_catalog = _load_catalog_module()
 
 LAUNCHPAD = "https://api.launchpad.net/1.0/ubuntu/+archive/primary"
 COPYLEFT = re.compile(r"\b(L?GPL|AGPL|MPL)-")
@@ -85,12 +99,12 @@ def ubuntu_source_of(binary: str, version: str) -> tuple:
 
 
 def snap_packages(manifest: Path) -> list:
-    """(binary package, version) pairs from a snap's manifest.yaml."""
-    pairs = set()
-    for match in re.finditer(r"^\s*-\s*([a-z0-9][a-z0-9+.-]*)(?::[a-z0-9]+)?=(\S+)\s*$",
-                             manifest.read_text(encoding="utf-8"), re.M):
-        pairs.add((match.group(1), match.group(2)))
-    return sorted(pairs)
+    """(binary package, version) pairs primed into a snap, from its manifest.yaml.
+
+    Only the ``primed-stage-packages`` list counts: the manifest also lists the
+    build container's packages (see licence_catalog.primed_stage_packages).
+    """
+    return licence_catalog.primed_stage_packages(manifest.read_text(encoding="utf-8"))
 
 
 def ubuntu_packages(system_jsons: list, snap_manifests: list) -> list:

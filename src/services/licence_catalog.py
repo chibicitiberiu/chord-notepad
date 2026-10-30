@@ -200,16 +200,58 @@ def parse_system_packages(data: dict, base_dir: Path) -> List[LicenceEntry]:
     return entries
 
 
+#: One ``primed-stage-packages`` item: ``package[:arch]=version``.
+_SNAP_PACKAGE = re.compile(r"([a-z0-9][a-z0-9+.-]*)(?::[a-z0-9]+)?=(\S+)")
+
+
+def primed_stage_packages(manifest_text: str) -> List[tuple]:
+    """``(package, version)`` pairs of the Ubuntu packages primed into a snap.
+
+    Reads only the top-level ``primed-stage-packages`` list of snapcraft's
+    manifest.yaml (written with SNAPCRAFT_BUILD_INFO=1). The same file also
+    lists each part's ``build-packages``, ``stage-packages`` and
+    ``installed-packages`` (the latter is the whole build container), and the
+    top-level ``build-packages``: none of those are what the snap ships.
+    No YAML library (the app doesn't bundle one): snapcraft writes this list
+    in block style, one ``- name=version`` per line, and a flow-style list
+    (``[]``) is understood too.
+    """
+    pairs = set()
+    inside = False
+    for line in manifest_text.splitlines():
+        if not inside:
+            # A top-level key starts at column 0; the parts' keys are indented.
+            match = re.match(r"primed-stage-packages:(.*)$", line)
+            if not match:
+                continue
+            rest = match.group(1).split(" #")[0].strip()
+            if rest.startswith("["):
+                items = rest.strip("[]").split(",")
+                pairs.update(m.groups() for m in (_SNAP_PACKAGE.fullmatch(i.strip().strip("'\"")) for i in items)
+                             if m)
+                break
+            inside = True
+            continue
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        if stripped == "-" or stripped.startswith("- "):
+            item = stripped[1:].split(" #")[0].strip().strip("'\"")
+            found = _SNAP_PACKAGE.fullmatch(item)
+            if found:
+                pairs.add(found.groups())
+            continue
+        break  # the next key: the list is over
+    return sorted(pairs)
+
+
 def _snap_versions(manifest: Path) -> Dict[str, str]:
     """Package -> version from the snap's build manifest (snap/manifest.yaml), if it has one."""
-    versions: Dict[str, str] = {}
     try:
         text = manifest.read_text(encoding="utf-8")
     except OSError:
-        return versions
-    for match in re.finditer(r"^\s*-\s*([a-z0-9][a-z0-9+.-]*)(?::[a-z0-9]+)?=(\S+)\s*$", text, re.M):
-        versions.setdefault(match.group(1), match.group(2))
-    return versions
+        return {}
+    return dict(primed_stage_packages(text))
 
 
 def snap_packages(snap_root: Path) -> List[LicenceEntry]:
