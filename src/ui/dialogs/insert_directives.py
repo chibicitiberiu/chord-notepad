@@ -15,7 +15,8 @@ from tkinter import ttk, messagebox
 from typing import Dict, Iterable, Optional
 from session.toolbar import key_options
 from models.notation import Notation
-from session.directives import DirectiveKind, check_directive, loop_label_choices
+from session.directives import (
+    MAX_CAPO, MIN_CAPO, DirectiveKind, check_directive, loop_label_choices)
 from session.events import InsertDirectiveRequest
 
 logger = logging.getLogger(__name__)
@@ -51,6 +52,8 @@ class BaseInsertDialog(tk.Toplevel):
 
         # The fields, set when the user clicks Insert
         self.result: Optional[Dict[str, str]] = None
+        # True when the user asked for a suggestion instead (Insert Capo).
+        self.suggest = False
 
         # Main frame with padding
         main_frame = ttk.Frame(self, padding="20")
@@ -292,6 +295,45 @@ class InsertLoopDialog(BaseInsertDialog):
         return {"label": self.label_var.get(), "count": self.count_spin.get()}
 
 
+class InsertCapoDialog(BaseInsertDialog):
+    """Dialog for inserting a Capo directive (Android's Insert > Capo)."""
+
+    kind = DirectiveKind.CAPO
+
+    def __init__(self, parent):
+        description = (
+            "From this point on, chord boxes and tabs are shown for a capo on this fret. "
+            "The key stays the same, but a fretboard voicing plays these shapes, so its "
+            "notes can change.\n\n"
+            f"Enter a fret from {MIN_CAPO} to {MAX_CAPO} (0: no capo), or let Suggest "
+            "pick the easiest one."
+        )
+        super().__init__(parent, "Insert Capo", description)
+
+        input_frame = ttk.Frame(self.content_frame)
+        input_frame.pack()
+        ttk.Label(input_frame, text="Fret:").pack(side=tk.LEFT, padx=(0, 5))
+        self.fret_var = tk.StringVar(value="")
+        self.fret_spin = ttk.Spinbox(input_frame, from_=MIN_CAPO, to=MAX_CAPO,
+                                     textvariable=self.fret_var, width=5)
+        self.fret_spin.pack(side=tk.LEFT, padx=5)
+        ttk.Button(input_frame, text="Suggest", command=self._on_suggest).pack(
+            side=tk.LEFT, padx=(10, 0))
+
+        self.fret_spin.focus_set()
+        self.fret_spin.bind('<Return>', lambda e: self._on_insert())
+
+    def _on_suggest(self) -> None:
+        """Close without a fret: the window runs Suggest Capo instead."""
+        self.result = None
+        self.suggest = True
+        self.destroy()
+
+    def get_values(self) -> Dict[str, str]:
+        """The fret field"""
+        return {"capo": self.fret_var.get().strip()}
+
+
 def dialog_for_request(parent, request: InsertDirectiveRequest) -> BaseInsertDialog:
     """Open the dialog that presents ``request`` (not waited for).
 
@@ -311,4 +353,6 @@ def dialog_for_request(parent, request: InsertDirectiveRequest) -> BaseInsertDia
         return InsertKeyDialog(parent, notation=Notation(request.notation))
     if kind is DirectiveKind.LABEL:
         return InsertLabelDialog(parent, existing_labels=request.existing_labels)
+    if kind is DirectiveKind.CAPO:
+        return InsertCapoDialog(parent)
     return InsertLoopDialog(parent, existing_labels=request.existing_labels)

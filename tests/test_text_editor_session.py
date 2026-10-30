@@ -409,6 +409,59 @@ def test_cancelled_directive_dialog_answers_none(wired):
     assert wired.session.text == "C G"
 
 
+def test_insert_capo_round_trip(wired):
+    _type(wired, "C G")
+    wired.editor.mark_set("insert", "1.0")
+    window = _presenting_window(wired)
+    window.open_suggest_capo_dialog = Mock()
+    window._request_directive = lambda kind: MainWindow._request_directive(window, kind)
+    MainWindow.insert_capo(window)
+    _, request = window.after_idle.call_args.args
+    assert request.kind == "capo"
+    with patch("ui.main_window.dialog_for_request",
+               return_value=SimpleNamespace(result={"capo": "3"}, suggest=False)):
+        MainWindow._present_directive_request(window, request)
+    assert wired.editor.get_text() == "{capo: 3} C G"
+    window.open_suggest_capo_dialog.assert_not_called()
+
+
+def test_insert_capo_suggest_hands_over_to_suggest_capo(wired):
+    _type(wired, "C G")
+    window = _presenting_window(wired)
+    window.open_suggest_capo_dialog = Mock()
+    window._request_directive = lambda kind: MainWindow._request_directive(window, kind)
+    MainWindow.insert_capo(window)
+    _, request = window.after_idle.call_args.args
+    with patch("ui.main_window.dialog_for_request",
+               return_value=SimpleNamespace(result=None, suggest=True)):
+        MainWindow._present_directive_request(window, request)
+    assert wired.session.text == "C G"
+    window.open_suggest_capo_dialog.assert_called_once_with()
+
+
+def test_the_insert_capo_dialog(wired):
+    from session.events import InsertDirectiveRequest
+    from ui.dialogs.insert_directives import InsertCapoDialog, dialog_for_request
+
+    request = InsertDirectiveRequest(1, "capo", (), "american")
+    dialog = dialog_for_request(wired.root, request)
+    try:
+        assert isinstance(dialog, InsertCapoDialog)
+        dialog.fret_var.set("4")
+        assert dialog.get_values() == {"capo": "4"}
+        dialog._on_suggest()
+        assert dialog.result is None and dialog.suggest
+    finally:
+        if dialog.winfo_exists():
+            dialog.destroy()
+
+
+def test_tools_insert_menu_offers_capo():
+    import inspect
+    source = inspect.getsource(MainWindow.create_menu)
+    assert '.add_command("Capo...", self.insert_capo)' in source
+
+
 def test_capo_dialog_answers_with_the_chosen_voicing(wired):
     from session.events import CapoChoiceRequest
     from session.state import MenuItem

@@ -239,6 +239,7 @@ The User Interface
       * **BPM/Tempo Change...** - Insert a ``{bpm}`` directive
       * **Time Signature Change...** - Insert a ``{time}`` directive
       * **Key Change...** - Insert a ``{key}`` directive
+      * **Capo...** - Insert a ``{capo}`` directive, or let Suggest pick the fret
       * **Label...** - Insert a ``{label}`` directive
       * **Loop...** - Insert a ``{loop}`` directive
 
@@ -1047,10 +1048,18 @@ Two controls:
 
       The Loop dialog.
 
-.. only:: android
+Insert Capo Dialog
+------------------
 
-   Insert Capo Dialog
-   ------------------
+.. only:: desktop
+
+   Enter the fret the capo sits on (0 to 12, where 0 means no capo), then click
+   Insert to add ``{capo: N}`` at your cursor. Click **Suggest** instead to let
+   Chord Notepad pick the easiest capo for a fretboard voicing and insert it
+   for you (the same as :menuselection:`Tools --> Suggest Capo...`); see
+   :doc:`chord_sheet`.
+
+.. only:: android
 
    Enter the fret the capo sits on (0 to 12, where 0 means no capo), then tap
    Insert to add ``{capo: N}`` at your cursor. Tap **Suggest** instead to let

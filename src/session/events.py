@@ -117,7 +117,7 @@ class InsertDirectiveRequest:
 
     Attributes:
         request_id: Pass back to ``respond``.
-        kind: ``bpm``, ``time``, ``key``, ``label`` or ``loop``.
+        kind: ``bpm``, ``time``, ``key``, ``capo``, ``label`` or ``loop``.
         existing_labels: The song's labels, sorted (a new label must differ;
             a loop jumps back to one of them, see
             :func:`session.directives.loop_label_choices`).

@@ -495,6 +495,7 @@ class MainWindow(tk.Tk):
             .add_command("BPM/Tempo Change...", self.insert_bpm) \
             .add_command("Time Signature Change...", self.insert_time_signature) \
             .add_command("Key Change...", self.insert_key) \
+            .add_command("Capo...", self.insert_capo) \
             .add_separator() \
             .add_command("Label...", self.insert_label) \
             .add_command("Loop...", self.insert_loop) \
@@ -1373,6 +1374,10 @@ class MainWindow(tk.Tk):
         """Open dialog to insert a Key change directive"""
         self._request_directive("key")
 
+    def insert_capo(self) -> None:
+        """Open dialog to insert a Capo directive (or hand over to Suggest Capo)"""
+        self._request_directive("capo")
+
     def insert_label(self) -> None:
         """Open dialog to insert a Label directive"""
         self._request_directive("label")
@@ -1393,3 +1398,6 @@ class MainWindow(tk.Tk):
         self.session.respond(request.request_id, dialog.result)
         if dialog.result:
             self.text_editor.focus_set()
+        elif getattr(dialog, "suggest", False):
+            # Insert Capo's Suggest: let Suggest Capo pick (and insert) the fret.
+            self.open_suggest_capo_dialog()
