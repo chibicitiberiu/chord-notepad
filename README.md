@@ -37,39 +37,37 @@ A text editor for chord notation. Write chord symbols above your lyrics and Chor
 - File operations, recent files, adjustable font size
 - Export the song as a standard MIDI file, for use in DAWs or notation software
 
-## Requirements
+## Documentation
 
-### Runtime Requirements
-- **Linux**: FluidSynth library (`libfluidsynth` package)
-  ```bash
-  # Fedora/RHEL
-  sudo dnf install fluidsynth
+**For users**, the [User Guide](https://github.com/chibicitiberiu/chord-notepad/releases/latest/download/ChordNotepad-UserGuide.pdf) covers everything: writing chords, directives, playback, instruments and ensembles, the chord sheet, transpose and capo, MIDI export, settings and shortcuts. The same guide is built into the app (**Help → User Guide**, or F1; on Android, **Help** in the menu). Its source is in [`help/`](help/). Good places to start:
 
-  # Ubuntu/Debian
-  sudo apt install libfluidsynth3
+- [Getting started](help/getting_started.rst)
+- [Writing chords](help/writing_chords.rst) and [directives](help/directives.rst) (`{bpm}`, `{key}`, `{label}`, `{loop}` and the rest)
+- [Keyboard shortcuts](help/shortcuts.rst)
 
-  # Arch
-  sudo pacman -S fluidsynth
-  ```
+**For developers:**
 
-- **Windows**: No additional dependencies needed (FluidSynth DLL will be bundled with the executable)
-
-### Development Requirements
-- Python 3.10+
-- Pipenv for dependency management
+- [Architecture: the session layer](docs/architecture/session.md) both UIs sit on
+- [Android port](docs/ANDROID.md): building, the Kotlin/Compose UI, the Python bridge
+- [Writing the User Guide](docs/HELP_AUTHORING.md) (one source, desktop and Android editions)
+- [Releasing](docs/RELEASE.md): CI, signing, the stores
+- [Contributing](CONTRIBUTING.md), [Privacy](PRIVACY.md), [Changelog](CHANGELOG.md) ([older releases](CHANGELOG_HISTORY.md))
 
 ## Installation
 
-### Option 1: Use Pre-built Executables (Recommended)
+### Pre-built downloads (recommended)
 
-Download the latest release from the [Releases](../../releases) page:
+Download the latest release from the [Releases](https://github.com/chibicitiberiu/chord-notepad/releases/latest) page:
 - **Linux**: `ChordNotepad-linux-x64.flatpak` (sandboxed; install with
   `flatpak install --user ChordNotepad-linux-x64.flatpak`, which also fetches
-  the runtime from Flathub), or `ChordNotepad-linux-x64` (standalone executable)
-- **Windows**: `ChordNotepad-windows-x64.exe`
-- **macOS**: `ChordNotepad-macos-arm64`
+  the runtime from Flathub), or `ChordNotepad-linux-x64` (standalone
+  executable; needs the FluidSynth library, see below)
+- **Windows**: `ChordNotepad-windows-x64.exe` (FluidSynth is bundled)
+- **macOS**: `ChordNotepad-macos-arm64` (needs FluidSynth from Homebrew:
+  `brew install fluid-synth`)
 
-All releases are automatically built and tested using GitHub Actions.
+Every release is built and tested by GitHub Actions, and comes with the full
+source code and the source of the bundled libraries.
 
 It is also available from app stores:
 - **Linux**: [Snap Store](https://snapcraft.io/chord-notepad)
@@ -82,176 +80,51 @@ It is also available from app stores:
   Android APK on the GitHub releases page has no purchase and no Google
   libraries.
 
-### Option 2: Run from Source
+The standalone Linux executable needs FluidSynth installed:
 
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/chibicitiberiu/chord-notepad.git
-   cd chord-notepad
-   ```
-
-2. Install dependencies:
-   ```bash
-   pipenv install
-   ```
-
-3. Run the application:
-   ```bash
-   make run
-   # or
-   pipenv run python src/main.py
-   ```
-
-## Building from Source
-
-### Prerequisites
-Install development dependencies:
 ```bash
+sudo dnf install fluidsynth        # Fedora/RHEL
+sudo apt install libfluidsynth3    # Ubuntu/Debian
+sudo pacman -S fluidsynth          # Arch
+```
+
+### Run from source
+
+You need Python 3.14 (the version in the [Pipfile](Pipfile)), Pipenv, and
+FluidSynth as above.
+
+```bash
+git clone https://github.com/chibicitiberiu/chord-notepad.git
+cd chord-notepad
 pipenv install --dev
+make run          # or: pipenv run python src/main.py
+make test         # run the tests
+make docs-check   # build both editions of the User Guide
 ```
 
-### Build for Your Platform
+### Build a standalone executable
 
-Build a standalone executable for your current platform:
 ```bash
-make build
+make build        # Linux: dist/ChordNotepad
 ```
 
-The executable will be created in the `dist/` directory:
-- **Linux**: `dist/ChordNotepad`
-- **Windows**: `dist/ChordNotepad.exe`
+On Windows, run `pipenv run pyinstaller --clean chord-notepad.spec`
+(output: `dist\ChordNotepad.exe`). PyInstaller only builds for the platform it
+runs on. The Android app has its own build; see [docs/ANDROID.md](docs/ANDROID.md).
 
-### Cross-Platform Build Notes
-
-**Building on Linux for Linux:**
-```bash
-make build
-# Output: dist/ChordNotepad
-```
-
-**Building on Windows for Windows:**
-```cmd
-pipenv install --dev
-pipenv run pyinstaller --clean chord-notepad.spec
-REM Output: dist\ChordNotepad.exe
-```
-
-Note: PyInstaller creates platform-specific executables. To build for Windows, you must run the build on a Windows machine. To build for Linux, run on a Linux machine.
-
-## Usage
-
-### Basic Workflow
-
-1. **Create or Open a File**: Use File > New or File > Open
-2. **Write Lyrics with Chords**: Type chord symbols above lyrics
-   ```
-   C       Am      F       G
-   This is a simple song
-
-   Dm7     G7      Cmaj7
-   With jazz chords too
-   ```
-
-3. **Click Chords**: Click any highlighted chord to hear it
-4. **Auto-Play**: Click the Play button to auto-play all chords sequentially
-5. **Configure Settings**:
-   - Settings > BPM: Adjust playback speed (default: 120)
-   - Settings > Font Size: Adjust editor font size
-
-### Supported Chord Types
-
-- **Major**: C, D, E, F, G, A, B
-- **Minor**: Cm, Dm, Em, Am
-- **Seventh**: C7, Dm7, Gmaj7, Am7
-- **Diminished**: C°, Ddim, Cdim7
-- **Augmented**: C+, Daug
-- **Suspended**: Csus2, Csus4, Dsus
-- **Extended**: C9, D11, E13
-- **Alterations**: C7b5, D7#9, Em7b5
-- **Half-diminished**: Cø7, Dm7b5
-- **Add chords**: Cadd9, Dadd11
-- **Slash chords / inversions**: C/E, Am/G, G/B
-
-### Keyboard Shortcuts
-
-- `Ctrl+N`: New file
-- `Ctrl+O`: Open file
-- `Ctrl+S`: Save file
-- `Ctrl+Shift+S`: Save As
-- `Ctrl+Q`: Quit
-- `Ctrl+MouseWheel`: Zoom in/out
-
-## Project Structure
+## Project structure
 
 ```
 chord-notepad/
-├── src/
-│   ├── main.py                 # Application entry point
-│   ├── ui/
-│   │   ├── main_window.py      # Main window with menu and toolbar
-│   │   └── text_editor.py      # Custom text editor widget
-│   ├── audio/
-│   │   ├── player.py               # FluidSynth playback engine
-│   │   ├── chord_picker.py         # Piano voice-leading picker
-│   │   └── guitar_chord_picker.py  # Guitar fingering search
-│   ├── services/                   # Song parsing, playback, event production
-│   ├── viewmodels/                 # MVVM view-models
-│   └── chord/
-│       ├── helper.py               # Symbol -> notes, notes -> chord name
-│       └── detector.py             # Line classification and detection
-├── resources/
-│   └── soundfont/
-│       └── GeneralUser-GS.sf2  # Bundled soundfont
-├── chord-notepad.spec          # PyInstaller spec file
-├── Pipfile                     # Python dependencies
-├── Makefile                    # Build commands
-└── README.md
+├── src/            # The app: Tk UI, view-models, services, audio, chord detection
+│   └── session/    # AppSession, the shared layer the desktop and Android UIs sit on
+├── android/        # Android app (Kotlin/Compose over the same Python core)
+├── help/           # User Guide source (Sphinx, desktop and Android editions)
+├── docs/           # Developer docs
+├── tests/          # pytest suite
+├── resources/      # Soundfont, icons, licence texts
+└── packaging/      # Flatpak, snap, MSIX and store material
 ```
-
-## Development
-
-### Running Tests
-```bash
-make test
-```
-
-### Clean Build Artifacts
-```bash
-make clean
-```
-
-### Code Style
-The project uses standard Python conventions with:
-- 4-space indentation
-- Clear, descriptive variable names
-- Docstrings for all public methods
-
-## Architecture
-
-### Threading Model
-- **Main thread**: Tkinter GUI event loop
-- **Producer thread**: walks the song ahead of time and pushes a single merged, timestamped stream of events (chord notes plus metronome ticks) into a bounded buffer
-- **Player thread**: pops events, waits for each one's moment, and fires FluidSynth; the GUI stays out of the timing loop and is signalled through a queue
-
-### Audio Playback
-- FluidSynth MIDI synthesis, both for click-to-play and full-song playback
-- Every event is anchored to an absolute time, so tempo and key can change mid-song without drift
-- Chord durations are set per chord in the text (a bare chord is one beat, `C*2` is two)
-
-## Dependencies
-
-### Runtime
-- `pyfluidsynth`: Python bindings for FluidSynth
-- `pychord`: fast chord parsing (the first-pass parser)
-- `music21`: fallback parser for more exotic chord spellings
-- `pillow`: image handling
-- `tkinter`: GUI framework (included with Python)
-
-### Development
-- `pyinstaller`: creates standalone executables
-- `pytest`: test runner
-- `hypothesis`: property-based tests (fuzzes the voicing, asserting it never plays a note outside the chord)
-- `sphinx` / `rinohtype`: build the user guide
 
 ## License
 
@@ -270,6 +143,9 @@ Contributions are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for how to sen
 
 ## Acknowledgments
 
-- FluidSynth for MIDI synthesis
-- PyChord for chord parsing
-- GeneralUser GS soundfont by S. Christian Collins
+- [FluidSynth](https://www.fluidsynth.org/) for MIDI synthesis
+- [PyChord](https://github.com/yuma-m/pychord) and [music21](https://web.mit.edu/music21/) for chord parsing
+- [GeneralUser GS](https://schristiancollins.com/generaluser.php) soundfont by S. Christian Collins
+
+The full list of bundled components and their licences is in the app
+(**Help → Open Source Licences**).
