@@ -333,6 +333,15 @@ footer hr {
     max-width: 100%;
 }
 
+/* A light-theme screenshot with no dark variant sits straight in its figure
+   (variants come in a <picture>): a little dimmer on a dark page, so it
+   doesn't glare. */
+@media (prefers-color-scheme: dark) {
+    .rst-content figure > img {
+        filter: brightness(0.85);
+    }
+}
+
 .rst-content figcaption,
 .rst-content figure .caption,
 .rst-content figure p.caption {
