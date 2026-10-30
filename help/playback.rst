@@ -434,19 +434,10 @@ Built-in Fretted-Instrument Voicings
      - G C E A (re-entrant)
      - Uke songs, standard "my dog has fleas" tuning
 
-.. only:: desktop
-
-   Beyond these five, you can define a voicing for any fretted instrument with
-   3 to 12 strings -- a baritone ukulele, a banjo, a seven-string guitar in a
-   tuning of your own -- by adding it to the config file. See :doc:`fretted`
-   for a worked example and the full list of tunable parameters.
-
-.. only:: android
-
-   Beyond these five, you can define a voicing for any fretted instrument with
-   3 to 12 strings -- a baritone ukulele, a banjo, a seven-string guitar in a
-   tuning of your own -- in |voicings_settings|. See
-   :doc:`fretted` for a worked example and the full list of tunable parameters.
+Beyond these five, you can define a voicing for any fretted instrument with
+3 to 12 strings -- a baritone ukulele, a banjo, a seven-string guitar in a
+tuning of your own -- in |voicings_settings|. See :doc:`fretted` for a worked
+example and the full list of tunable parameters.
 
 .. platform-figure:: voicings
    :shared:
