@@ -371,7 +371,8 @@ All Directives
      - ``{label: name}``
    * - {loop}
      - Repeat a section
-     - ``{loop: name count}``
+     - ``{loop: name count}`` (count defaults to 2; ``@start`` is the top of
+       the song)
 
 .. only:: android
 
@@ -389,23 +390,27 @@ BPM Directive Values
      - Format
      - Example
    * - Absolute
-     - Number (20-400)
+     - Whole number
      - ``{bpm: 120}``
    * - Relative add
-     - +number
+     - +whole number
      - ``{bpm: +20}``
    * - Relative subtract
-     - -number
+     - -whole number
      - ``{bpm: -15}``
    * - Percentage
      - number%
-     - ``{bpm: 50%}``
+     - ``{bpm: 50%}``, ``{bpm: 75.5%}``
    * - Multiplier
      - numberx
-     - ``{bpm: 2x}``
+     - ``{bpm: 2x}``, ``{bpm: 0.5x}``
    * - Reset
      - reset or original
      - ``{bpm: reset}``
+
+A tempo you type isn't range-checked: ``{bpm: 500}`` plays at 500 BPM. Keep
+the result above zero. The :plat:`Insert dialog|＋ Insert form` only accepts
+an absolute tempo from 20 to 300.
 
 
 Duration Reference
@@ -474,8 +479,8 @@ Keyboard Shortcuts Summary
       Ctrl+O  Open         Ctrl+Y  Redo         Ctrl+-  Zoom Out
       Ctrl+S  Save         Ctrl+X  Cut          Ctrl+0  Reset Zoom
       Ctrl+Shift+S  As     Ctrl+C  Copy
-      Ctrl+Q  Exit         Ctrl+V  Paste
-                           Ctrl+A  Select All
+      Ctrl+Q  Exit         Ctrl+V  Paste        HELP
+                           Ctrl+A  Select All   F1      User Guide
 
 .. only:: android
 
@@ -564,6 +569,9 @@ Guitar Tunings
    * - Open G
      - D G D G B D
      - D2 G2 D3 G3 B3 D4
+   * - Ukulele
+     - G C E A (strings 4→1)
+     - G4 C4 E4 A4 (the G is the high, re-entrant string)
 
 
 Application Limits
@@ -576,24 +584,34 @@ Application Limits
    * - Setting
      - Minimum
      - Maximum
-   * - BPM (tempo)
+   * - Tempo (:plat:`toolbar and Settings|Song defaults and Settings`)
      - 20
      - 400
+   * - Tempo in the :plat:`Insert dialog|＋ Insert form`
+     - 20
+     - 300
    * - Font size
      - 6 pt
      - 72 pt
    * - Time signature beats
      - 1
      - 16
-   * - Time signature unit
+   * - Time signature unit (1, 2, 4, 8 or 16)
      - 1
      - 16
-   * - Loop count
+   * - Loop count (:plat:`Insert dialog|＋ Insert form`)
      - 1
      - 100
-   * - Recent files
-     - —
-     - 10
+   * - Capo fret
+     - 0
+     - 12
+   * - Recent files (default 10)
+     - 1
+     - :plat:`30|50`
+
+These are the limits of the app's controls and forms. A directive you type
+yourself is only checked for its format, except ``{capo}``, which must be a
+fret from 0 to 12.
 
 .. only:: android
 
