@@ -509,8 +509,11 @@ Setup, roughly in order:
    Data safety reasoning, so it can be re-checked on each billing-library
    update: the Play Billing library brings Google Play services and Google's
    `datatransport` telemetry, but the `play` manifest removes INTERNET and
-   ACCESS_NETWORK_STATE (`check_manifest.py --flavor play` enforces it), so
-   nothing in the app's process can send data. The purchase itself happens in
+   ACCESS_NETWORK_STATE, plus datatransport's CCT backend registration and
+   its two schedulers (`android/app/src/play/AndroidManifest.xml`;
+   `check_manifest.py --flavor play` enforces it). Telemetry events are then
+   dropped before they are stored, and nothing in the app's process can send
+   data. The purchase itself happens in
    the Play Store app, under Google's own data handling. The app stores only
    the date it last showed the support prompt, on the device.
 4. Store listing: short and full description, 512 px icon, 1024x500 feature

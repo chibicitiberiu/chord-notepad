@@ -162,3 +162,17 @@ Where the build differs from the text above, and why:
   it, not in the status line, which is one short line and would cut the
   syntax off. The card goes after 6 s or on the next touch; the
   long-press never moves the playhead.
+- **Startup screen and support** (2026-10-30, design in
+  `docs/design/android-support-plan.md`). The session picks what opens over
+  the editor at launch: Quick Start, the support prompt, or nothing. Open
+  with (a `.txt` from a file manager) and recreation never show either.
+  - Support prompt (play flavour only, from day 7 after install, at most once
+    a day): an AlertDialog with a heart icon, the title "Support Chord
+    Notepad", a scrolling body, **Not now** and **Support · {price}**. Back
+    or a tap outside means Not now. A completed purchase shows a "Thank you!"
+    dialog.
+  - Settings: a card above the page list (play only, hidden when billing is
+    unavailable). It offers the purchase, shows "Payment pending", or
+    becomes the "♥ Supporter" badge with a thank-you line.
+  - About (foss only): a "Support development" row after the source link,
+    opening Ko-fi in the browser.
