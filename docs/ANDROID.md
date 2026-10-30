@@ -238,7 +238,7 @@ Types Kotlin decodes (`BridgeCodec.serializers`):
 | Kind | Types |
 |---|---|
 | States | `DocumentState`, `EditorState`, `HighlightState`, `PlaybackState`, `ToolbarState`, `StatusState`, `VoicingMenuState`, `InstrumentMenuState`, `RecentDocumentsState`, `ChordSheetState`; M5: `IdentifierState`, `SettingsState`, `VoicingEditorState`; Edit/Play: `SongDefaultsState` |
-| Events | `TextEdited`, `UserError`, `AudioUnavailable`, `UnexpectedError`, `CloseApproved`; M5 replies: `VoicingEditorSchema`, `QuickStartContent`, `DirectiveCheck`; Edit/Play: `RenameFailed` |
+| Events | `TextEdited`, `UserError`, `AudioUnavailable`, `UnexpectedError`, `CloseApproved`; M5 replies: `VoicingEditorSchema`, `QuickStartContent`, `DirectiveCheck`; Edit/Play: `RenameFailed`; editor: `DirectiveHint` (reply to `request_directive_hint`) |
 | Requests | `ConfirmDiscardRequest`, `PickDocumentRequest`, `CapoChoiceRequest`, `InsertDirectiveRequest` |
 
 **Step 14 added two things to the DTOs** (Kotlin already had them):
@@ -268,7 +268,8 @@ Kotlin side, `session/bridge.py`, `bootstrap.py` and `threaded_host.py` by
 step 14.)
 
 `set_text {text, client_token}`, `insert_text {at, text}`,
-`request_insert_directive {kind, at}`, `check_directive {kind, fields, request_id}`, `transpose {semitones, selection}`,
+`request_insert_directive {kind, at}`, `check_directive {kind, fields, request_id}`,
+`request_directive_hint {offset}`, `transpose {semitones, selection}`,
 `request_suggest_capo {selection}`, `convert_notation {target}`,
 `play_pause {from_offset}`, `stop {}`, `tap_chord_at {offset}`,
 `set_bpm {bpm}`, `set_multiplier_pct {pct}`, `set_bpm_text {text}`,
