@@ -597,4 +597,4 @@ Application Limits
 
 .. only:: android
 
-   The player's playback speed goes from 25% to 400%.
+   The player's playback speed goes from 12.5% to 400%.

@@ -518,14 +518,14 @@ The User Interface
    ---------------
 
    The Speed button opens a sheet with the speed in large type and a slider
-   from 25% to 400%. **Reset** puts it back to 100%, and **Manual…** opens a
-   small dialog where you type a value from 25 to 400. Speed multiplies the
+   from 12.5% to 400%. **Reset** puts it back to 100%, and **Manual…** opens a
+   small dialog where you type a value from 12.5 to 400. Speed multiplies the
    tempo, and unlike the tempo it can change while a song plays.
 
    .. platform-figure:: speed-manual
       :platforms: android
       :alt: The Manual speed dialog: a field holding 125 with a percent sign,
-            the hint 25 to 400, and Cancel and OK buttons.
+            the hint 12.5 to 400, and Cancel and OK buttons.
 
       Typing an exact speed.
 

@@ -650,7 +650,7 @@
   {
    "name": "speed-sheet",
    "page": "getting_started: Adjusting the Tempo; interface: The Player",
-   "what": "Speed sheet at 125%: the value, the 25–400% slider, Reset, Manual… and Done.",
+   "what": "Speed sheet at 125%: the value, the 12.5–400% slider, Reset, Manual… and Done.",
    "scene": "grace_play",
    "config": {
     "bpm_multiplier": 1.25
@@ -683,7 +683,7 @@
   {
    "name": "speed-manual",
    "page": "getting_started: Adjusting the Tempo",
-   "what": "The Manual… speed dialog: a number field (25 to 400) with Cancel / OK.",
+   "what": "The Manual… speed dialog: a number field (12.5 to 400) with Cancel / OK.",
    "scene": "grace_play",
    "config": {
     "bpm_multiplier": 1.25

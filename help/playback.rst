@@ -191,17 +191,18 @@ While playing:
 
 .. platform-figure:: speed-sheet
    :platforms: android
-   :alt: The Playback speed sheet at 125%, with a slider from 25% to 400% and
+   :alt: The Playback speed sheet at 125%, with a slider from 12.5% to 400% and
          the Reset, Manual and Done buttons.
 
    The speed sheet.
 
 .. only:: android
 
-   * Drag the slider (25% to 400%, in steps of 5%). The new speed applies
+   * Drag the slider (12.5% to 400%, in steps of 5%). The new speed applies
      right away, also while a song plays.
    * **Reset** goes back to 100%.
-   * **Manual…** lets you type an exact value from 25 to 400.
+   * **Manual…** lets you type an exact value from 12.5 to 400, such as 12.5
+     or 33.
    * **Done** closes the sheet.
 
    When the speed isn't 100%, the button shows it as a badge (``1.25×``) and

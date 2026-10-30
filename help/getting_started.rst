@@ -262,7 +262,7 @@ Adjusting the Tempo
       there (it starts at 120). A default isn't saved with the file unless you
       tap **Write into song**, which adds the missing directives at the top.
    #. **Speed** -- a *multiplier* applied on top of the tempo, a practice knob.
-      Tap the **Speed** button in the player and drag the slider (25% to 400%),
+      Tap the **Speed** button in the player and drag the slider (12.5% to 400%),
       or tap **Manual…** to type a value. **Reset** goes back to 100%.
       ``100%`` plays at the written tempo; ``50%`` plays it at half speed
       without changing the underlying tempo. The button shows a badge such as
