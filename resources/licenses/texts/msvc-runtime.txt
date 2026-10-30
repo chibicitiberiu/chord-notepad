@@ -1,0 +1,14 @@
+Microsoft Visual C++ Runtime
+
+The Windows build of Chord Notepad includes runtime files of the Microsoft
+Visual C++ Redistributable and the Universal C Runtime (vcruntime140.dll,
+vcruntime140_1.dll and, where present, msvcp140.dll, ucrtbase.dll and the
+api-ms-win-*.dll forwarders). Python for Windows is compiled against them.
+
+They are Copyright (c) Microsoft Corporation and are redistributed under the
+"Distributable Code" terms of the Microsoft Visual Studio license, which allow
+a program built with Visual Studio to ship them alongside it. They are not
+open source and are not covered by the licence of Chord Notepad or of any
+other component listed here. Microsoft's terms:
+https://visualstudio.microsoft.com/license-terms/
+https://learn.microsoft.com/visualstudio/releases/2022/redistribution

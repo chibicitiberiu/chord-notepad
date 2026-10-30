@@ -559,6 +559,7 @@ class MainWindow(tk.Tk):
             .add_command("User Guide", self.show_help, accelerator="F1") \
             .add_command("Quick Start", self.show_quick_start) \
             .add_separator() \
+            .add_command("Open Source Licences", self.show_licences) \
             .add_command("About", self.show_about) \
             .build()
         menubar.add_cascade(label="Help", menu=help_menu)
@@ -1246,11 +1247,24 @@ class MainWindow(tk.Tk):
                                on_apply=self.session.apply_settings)
         self.wait_window(dialog)
 
+    def show_licences(self, parent: Optional[tk.Misc] = None) -> None:
+        """Show the licences of everything this build is made of."""
+        from ui.dialogs import LicencesDialog
+        try:
+            catalog = self.session.licence_catalog(self.resource_service.get_base_path())
+        except (OSError, ValueError) as e:
+            logger.error(f"Could not load the licence list: {e}", exc_info=True)
+            messagebox.showerror("Licences Unavailable", f"Could not read the licence list.\n\n{e}",
+                                 parent=parent or self)
+            return
+        dialog = LicencesDialog(parent or self, catalog)
+        self.wait_window(dialog)
+
     def show_about(self) -> None:
         """Show About dialog with version information"""
         about_dialog = tk.Toplevel(self)
         about_dialog.title("About Chord Notepad")
-        about_dialog.geometry("450x400")
+        about_dialog.geometry("450x420")
         about_dialog.transient(self)
         about_dialog.grab_set()
         about_dialog.resizable(False, False)
@@ -1311,7 +1325,9 @@ class MainWindow(tk.Tk):
         # Close button
         button_frame = ttk.Frame(main_frame)
         button_frame.pack(pady=(15, 0))
-        ttk.Button(button_frame, text="Close", command=about_dialog.destroy).pack()
+        ttk.Button(button_frame, text="Open Source Licences",
+                   command=lambda: self.show_licences(about_dialog)).pack(side=tk.LEFT, padx=5)
+        ttk.Button(button_frame, text="Close", command=about_dialog.destroy).pack(side=tk.LEFT, padx=5)
 
         # Center the dialog
         about_dialog.update_idletasks()

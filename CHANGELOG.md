@@ -24,6 +24,13 @@ moved to CHANGELOG_HISTORY.md and this file is reset.
   can't update the other.
 - Android: open `.txt` files from a file manager or another app with
   "Open with" Chord Notepad.
+- Desktop: **Help → Open Source Licences** (also a button in About) lists
+  every component the app is built from, with its version, licence and full
+  licence text, including the additional terms of Chord Notepad's own
+  licence, the logo's terms and the user guide's CC BY-SA 4.0 licence. Each
+  release now also carries the source code of Chord Notepad
+  (`ChordNotepad-<version>-source.tar.gz`) and of the bundled third-party
+  libraries (`ChordNotepad-<version>-third-party-sources.tar`).
 
 ### Fixed
 
@@ -52,6 +59,9 @@ moved to CHANGELOG_HISTORY.md and this file is reset.
 
 ### Changed
 
+- The Windows, macOS and Linux downloads are smaller: they no longer bundle
+  numpy, matplotlib and other packages the app never used, and on Windows two
+  unused FluidSynth libraries (libinstpatch and libgobject).
 - The help and README say where to get Chord Notepad: the GitHub releases, the
   Snap Store, and the Microsoft Store (a paid supporter edition of the same
   app). The help's "Limitations" section no longer claims there is no staff or

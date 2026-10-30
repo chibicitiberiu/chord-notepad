@@ -295,12 +295,26 @@ The User Interface
    **Quick Start**
       Opens a short quick-start reference.
 
+   **Open Source Licences**
+      Lists everything this copy of Chord Notepad is built from: the app
+      itself, Python, FluidSynth and the other libraries, the Python packages,
+      the sound font and the icons. Select one to see its version, its licence
+      and the full licence text. The list matches your build, so the Windows,
+      macOS, Flatpak and snap versions each show their own parts; on Linux it
+      also lists the system libraries that came with the app.
+
+      Select **Source code** at the top to find out where to get the source
+      of each part. Every release on GitHub has the source of Chord Notepad
+      and of the bundled libraries next to the downloads.
+
    **About**
       Shows information about Chord Notepad:
 
       * Version number
       * Build information
       * Description of the application
+
+      Its **Open Source Licences** button opens the same list.
 
 
 .. only:: android

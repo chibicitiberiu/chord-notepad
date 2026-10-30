@@ -63,6 +63,7 @@ from session.state import (
 if TYPE_CHECKING:
     # Type-only: the chord-sheet viewmodel still imports PIL (see the core
     # import guard), so the session must not import it at run time.
+    from services.licence_catalog import LicenceCatalog
     from session.bootstrap import CoreServices
     from viewmodels.chord_identifier_viewmodel import ChordIdentifierViewModel
     from viewmodels.chord_sheet_viewmodel import ChordSheetViewModel
@@ -1589,6 +1590,20 @@ class AppSession:
         from viewmodels.settings_viewmodel import SettingsViewModel
 
         return SettingsViewModel(self._require_services("the Settings dialog").config)
+
+    def licence_catalog(self, base_path: str) -> "LicenceCatalog":
+        """The licences of this build, for the Licences window (desktop).
+
+        Args:
+            base_path: The app's resource root (the folder holding
+                ``resources/licenses``).
+
+        Raises:
+            OSError, ValueError: The licence data is missing or malformed.
+        """
+        from services.licence_catalog import load_for_this_app
+
+        return load_for_this_app(base_path)
 
     def chord_identifier_model(self) -> "ChordIdentifierViewModel":
         """A new model for a chord identifier window.

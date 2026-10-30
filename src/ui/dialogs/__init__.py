@@ -11,6 +11,7 @@ from .quick_start import QuickStartDialog
 from .options_dialog import OptionsDialog
 from .transpose_dialog import TransposeDialog
 from .capo_dialog import CapoDialog
+from .licences_dialog import LicencesDialog
 
 __all__ = [
     'InsertBpmDialog',
@@ -22,4 +23,5 @@ __all__ = [
     'OptionsDialog',
     'TransposeDialog',
     'CapoDialog',
+    'LicencesDialog',
 ]

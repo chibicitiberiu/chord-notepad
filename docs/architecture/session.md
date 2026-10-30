@@ -290,6 +290,8 @@ Desktop-only queries and commands (the Tk window's needs; Android ignores
 them): `window_geometry` / `set_window_geometry(geometry)`,
 `show_quick_start_on_startup` / `set_show_quick_start_on_startup(show)`,
 `settings_model()` and `chord_identifier_model()` (new dialog-scoped models),
+`licence_catalog(base_path)` (the Licences window's list, from
+`services.licence_catalog`; Android reads the same kind of data in Kotlin),
 `has_chord_sheet` and `chord_sheet_model` (the panel's painting read; see
 "Still interim"). Queries the views call synchronously on the session thread:
 `text`, `text_revision`, `chord_at(offset) -> Span | None` (the Tk hand

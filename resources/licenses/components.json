@@ -1,0 +1,671 @@
+{
+  "about": "What each desktop build of Chord Notepad bundles, with licences. Read by src/services/licence_catalog.py (the Licences window), chord-notepad.spec and packaging/licenses/*.py; checked by tests/test_licences.py. builds: windows (onefile exe and the Microsoft Store MSIX), macos, linux (the PyInstaller binary), flatpak, snap. files: glob patterns of bundle paths (PyInstaller destination names) the component covers. texts: files under texts/ without .txt. sources: the corresponding source the release bundle carries (packaging/licenses/make_source_bundle.py).",
+  "components": [
+    {
+      "id": "chord-notepad",
+      "name": "Chord Notepad",
+      "group": "app",
+      "license": "AGPL-3.0-only AND LicenseRef-ChordNotepad-Section7",
+      "copyright": "2025-2026 Tiberiu Chibici",
+      "url": "https://github.com/chibicitiberiu/chord-notepad",
+      "sourceUrl": "https://github.com/chibicitiberiu/chord-notepad",
+      "texts": ["AGPL-3.0", "ADDITIONAL-TERMS"],
+      "builds": ["windows", "macos", "linux", "flatpak", "snap"],
+      "note": "Free software: you may use, study, share and change it under the GNU Affero General Public License, version 3, with the additional permissions and terms under its section 7 that follow the licence text (ADDITIONAL-TERMS.txt). Each release on GitHub carries the complete source code of that version."
+    },
+    {
+      "id": "chord-notepad-guide",
+      "name": "Chord Notepad user guide",
+      "group": "app",
+      "license": "CC-BY-SA-4.0",
+      "copyright": "2025-2026 Tiberiu Chibici",
+      "url": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "texts": ["help-LICENSE", "CC-BY-SA-4.0"],
+      "builds": ["windows", "macos", "linux", "flatpak", "snap"],
+      "files": ["help/*"],
+      "note": "The built-in user guide (Help > User Guide) is under the Creative Commons Attribution-ShareAlike 4.0 licence; its Sphinx configuration and extensions are part of the program."
+    },
+    {
+      "id": "chord-notepad-logo",
+      "name": "Chord Notepad logo",
+      "group": "app",
+      "license": "LicenseRef-ChordNotepad-Artwork",
+      "copyright": "2025-2026 Tiberiu Chibici",
+      "texts": ["ARTWORK-TERMS"],
+      "builds": ["windows", "macos", "linux", "flatpak", "snap"],
+      "files": ["resources/icon-*.png", "resources/chord-notepad-icon.*"],
+      "note": "The logo (the app icon) is not under the AGPL: the terms below say what you may do with it."
+    },
+    {
+      "id": "cpython",
+      "name": "CPython",
+      "group": "runtime",
+      "versionFrom": "python",
+      "license": "PSF-2.0",
+      "copyright": "2001 Python Software Foundation",
+      "url": "https://www.python.org/",
+      "texts": ["PSF-Python"],
+      "builds": ["windows", "macos", "linux"],
+      "files": ["python3*.dll", "libpython3*", "Python", "Python.framework/*", "base_library.zip", "python3.*/lib-dynload/*"],
+      "note": "The Python interpreter and standard library."
+    },
+    {
+      "id": "pyinstaller",
+      "name": "PyInstaller bootloader",
+      "group": "runtime",
+      "version": "6.20.0",
+      "pypi": "pyinstaller",
+      "license": "GPL-2.0-or-later WITH Bootloader-exception AND Apache-2.0",
+      "copyright": "2010-2023 PyInstaller Development Team",
+      "url": "https://pyinstaller.org/",
+      "texts": ["pyinstaller-COPYING"],
+      "builds": ["windows", "macos", "linux"],
+      "sourceNote": "The bootloader exception allows distributing the bootloader inside a combined executable without restriction; the runtime hooks are under the Apache License.",
+      "note": "Starts the app from the single executable and unpacks the Python runtime."
+    },
+    {
+      "id": "tcl-tk",
+      "name": "Tcl/Tk",
+      "group": "runtime",
+      "versionFrom": "tcl",
+      "license": "TCL",
+      "copyright": "The Regents of the University of California, Sun Microsystems, Inc., Scriptics Corporation, ActiveState Corporation and other parties",
+      "url": "https://www.tcl-lang.org/",
+      "texts": ["Tcl-license", "Tk-license"],
+      "builds": ["windows", "macos", "linux"],
+      "files": ["tcl8*.dll", "tk8*.dll", "tcl9*.dll", "libtommath*", "libtcl*", "libtk*", "_tcl_data/*", "_tk_data/*", "tcl8/*", "tcl9/*"],
+      "note": "The toolkit the windows and menus are drawn with, as bundled with Python."
+    },
+    {
+      "id": "openssl",
+      "name": "OpenSSL",
+      "group": "runtime",
+      "versionFrom": "openssl",
+      "license": "Apache-2.0",
+      "copyright": "The OpenSSL Project Authors",
+      "url": "https://www.openssl.org/",
+      "texts": ["openssl-Apache-2.0"],
+      "builds": ["windows", "macos"],
+      "files": ["libcrypto-3*.dll", "libssl-3*.dll", "libcrypto.*dylib", "libssl.*dylib"],
+      "note": "Bundled with Python for its ssl and hashlib modules."
+    },
+    {
+      "id": "libffi",
+      "name": "libffi",
+      "group": "runtime",
+      "license": "MIT",
+      "url": "https://sourceware.org/libffi/",
+      "texts": ["libffi-MIT"],
+      "builds": ["windows", "macos"],
+      "files": ["libffi-*.dll", "libffi.*dylib"],
+      "note": "Used by Python's ctypes module, which talks to FluidSynth."
+    },
+    {
+      "id": "sqlite",
+      "name": "SQLite",
+      "group": "runtime",
+      "license": "blessing",
+      "url": "https://sqlite.org/",
+      "texts": ["sqlite-public-domain"],
+      "builds": ["windows", "macos"],
+      "files": ["sqlite3.dll", "libsqlite3*"],
+      "note": "Bundled with Python for its sqlite3 module."
+    },
+    {
+      "id": "zlib",
+      "name": "zlib",
+      "group": "runtime",
+      "license": "Zlib",
+      "url": "https://zlib.net/",
+      "texts": ["zlib"],
+      "builds": ["windows", "macos"],
+      "files": ["zlib*.dll", "libz.*dylib"],
+      "note": "Compression, built into Python."
+    },
+    {
+      "id": "bzip2",
+      "name": "bzip2",
+      "group": "runtime",
+      "license": "bzip2-1.0.6",
+      "url": "https://sourceware.org/bzip2/",
+      "texts": ["bzip2-BSD"],
+      "builds": ["windows", "macos"],
+      "files": ["libbz2*"],
+      "note": "Used by Python's bz2 module."
+    },
+    {
+      "id": "xz",
+      "name": "XZ Utils (liblzma)",
+      "group": "runtime",
+      "license": "0BSD",
+      "url": "https://tukaani.org/xz/",
+      "texts": ["xz-0BSD"],
+      "builds": ["windows", "macos"],
+      "files": ["liblzma*"],
+      "note": "Used by Python's lzma module. liblzma is in the public domain or under 0BSD."
+    },
+    {
+      "id": "expat",
+      "name": "Expat",
+      "group": "runtime",
+      "license": "MIT",
+      "url": "https://libexpat.github.io/",
+      "texts": ["expat-MIT"],
+      "builds": ["windows", "macos", "linux"],
+      "files": ["libexpat*"],
+      "note": "XML parser in Python's pyexpat module."
+    },
+    {
+      "id": "libmpdec",
+      "name": "mpdecimal (libmpdec)",
+      "group": "runtime",
+      "license": "BSD-2-Clause",
+      "url": "https://www.bytereef.org/mpdecimal/",
+      "texts": ["mpdecimal-BSD"],
+      "builds": ["windows", "macos", "linux"],
+      "files": ["libmpdec*"],
+      "note": "Decimal arithmetic in Python's decimal module."
+    },
+    {
+      "id": "zstd",
+      "name": "Zstandard",
+      "group": "runtime",
+      "license": "BSD-3-Clause",
+      "url": "https://facebook.github.io/zstd/",
+      "texts": ["zstd-BSD"],
+      "builds": ["windows", "macos"],
+      "files": ["libzstd*"],
+      "note": "Used by Python's compression.zstd module. Zstandard is dual-licensed (BSD or GPL-2.0); the BSD licence applies here."
+    },
+    {
+      "id": "msvc-runtime",
+      "name": "Microsoft Visual C++ Runtime",
+      "group": "runtime",
+      "license": "LicenseRef-Microsoft-VC-Redistributable",
+      "copyright": "Microsoft Corporation",
+      "url": "https://learn.microsoft.com/cpp/windows/latest-supported-vc-redist",
+      "texts": ["msvc-runtime"],
+      "builds": ["windows"],
+      "files": ["vcruntime140*.dll", "msvcp140*.dll", "concrt140*.dll", "ucrtbase.dll", "api-ms-win-*.dll"],
+      "note": "The C and C++ runtime Python is built against, redistributed as Microsoft allows. Not open source."
+    },
+    {
+      "id": "fluidsynth-windows",
+      "name": "FluidSynth",
+      "group": "native",
+      "version": "2.3.4",
+      "license": "LGPL-2.1-or-later",
+      "copyright": "FluidSynth contributors",
+      "url": "https://www.fluidsynth.org/",
+      "sourceUrl": "https://github.com/FluidSynth/fluidsynth/tree/v2.3.4",
+      "texts": ["LGPL-2.1"],
+      "builds": ["windows"],
+      "files": ["fluidsynth/libfluidsynth-3.dll"],
+      "sources": [
+        {
+          "file": "fluidsynth-2.3.4-win10-x64.zip",
+          "urls": ["https://github.com/FluidSynth/fluidsynth/releases/download/v2.3.4/fluidsynth-2.3.4-win10-x64.zip"],
+          "sha256": "e12ec080379c8a0e470c1e7cd1e067b9a1eb938b3deb7e2f7874bd835017cb8a",
+          "role": "The upstream binary package the Windows build takes its DLLs from, unchanged."
+        },
+        {
+          "file": "fluidsynth-2.3.4.tar.gz",
+          "urls": ["https://github.com/FluidSynth/fluidsynth/archive/refs/tags/v2.3.4.tar.gz"],
+          "sha256": "1529ef5bc3b9ef3adc2a7964505912f7305103e269e50cc0316f500b22053ac9",
+          "role": "Source of libfluidsynth-3.dll (built by FluidSynth's own CI, .azure/azure-pipelines-win.yml, job WindowsMinGW)."
+        }
+      ],
+      "note": "The synthesizer that plays the chords: the upstream FluidSynth 2.3.4 Windows build (fluidsynth-2.3.4-win10-x64.zip), unchanged. The DLLs sit in the fluidsynth folder of the bundle, so you can swap in your own build."
+    },
+    {
+      "id": "glib-windows",
+      "name": "GLib",
+      "group": "native",
+      "version": "2.26.1",
+      "license": "LGPL-2.0-or-later",
+      "copyright": "1995-2010 Peter Mattis, Spencer Kimball, Josh MacDonald and others",
+      "url": "https://docs.gtk.org/glib/",
+      "texts": ["LGPL-2.0"],
+      "builds": ["windows"],
+      "files": ["fluidsynth/libglib-2.0-0.dll", "fluidsynth/libgthread-2.0-0.dll"],
+      "sources": [
+        {
+          "file": "glib-2.26.1.tar.bz2",
+          "urls": ["https://download.gnome.org/sources/glib/2.26/glib-2.26.1.tar.bz2"],
+          "sha256": "7a74ff12b6b9dee1f2d0e520b56b68b621920c4f4250bdf23468e515625c28d5"
+        },
+        {
+          "file": "gtk+-bundle_2.22.1-20101229_win64.zip",
+          "urls": ["https://download.gnome.org/binaries/win64/gtk+/2.22/gtk+-bundle_2.22.1-20101229_win64.zip"],
+          "sha256": "347c488e266927140c7eb8c90c230d23469b63f74ee1ac403f6783fa68d38435",
+          "extract": ["src/tml/packaging/glib_2.26.1-1_win64.sh", "src/tml/packaging/glib_2.26.1-1_win64.log"],
+          "role": "The GNOME win64 build the DLLs come from (byte-identical to bin/ in this zip); its build script and log."
+        }
+      ],
+      "note": "Utility library FluidSynth uses (libglib and libgthread). Part of FluidSynth's Windows package; built by the GNOME project (glib_2.26.1-1_win64)."
+    },
+    {
+      "id": "libintl-windows",
+      "name": "GNU gettext runtime (libintl)",
+      "group": "native",
+      "version": "0.18.1.1",
+      "license": "LGPL-2.0-or-later",
+      "copyright": "1995-2010 Free Software Foundation, Inc.",
+      "url": "https://www.gnu.org/software/gettext/",
+      "texts": ["LGPL-2.0"],
+      "builds": ["windows"],
+      "files": ["fluidsynth/libintl-8.dll"],
+      "sources": [
+        {
+          "file": "gettext-0.18.1.1.tar.gz",
+          "urls": ["https://ftp.gnu.org/pub/gnu/gettext/gettext-0.18.1.1.tar.gz"],
+          "sha256": "93ac71a7afa5b70c1b1032516663658c51e653087f42a3fc8044752c026443e9"
+        },
+        {
+          "file": "gtk+-bundle_2.22.1-20101229_win64.zip",
+          "urls": ["https://download.gnome.org/binaries/win64/gtk+/2.22/gtk+-bundle_2.22.1-20101229_win64.zip"],
+          "sha256": "347c488e266927140c7eb8c90c230d23469b63f74ee1ac403f6783fa68d38435",
+          "extract": ["src/tml/packaging/gettext_0.18.1.1-2_win64.sh"],
+          "role": "Build script of the GNOME win64 build the DLL comes from, with the patch it applies."
+        }
+      ],
+      "note": "Message translation library GLib needs. Part of FluidSynth's Windows package; built by the GNOME project (gettext_0.18.1.1-2_win64)."
+    },
+    {
+      "id": "libsndfile-windows",
+      "name": "libsndfile",
+      "group": "native",
+      "version": "1.0.28",
+      "license": "LGPL-2.1-or-later",
+      "copyright": "1999-2017 Erik de Castro Lopo and others",
+      "url": "https://libsndfile.github.io/libsndfile/",
+      "texts": ["LGPL-2.1"],
+      "builds": ["windows"],
+      "files": ["fluidsynth/libsndfile-1.dll"],
+      "sources": [
+        {
+          "file": "libsndfile-1.0.28.tar.gz",
+          "urls": [
+            "http://www.mega-nerd.com/libsndfile/files/libsndfile-1.0.28.tar.gz",
+            "https://deb.debian.org/debian/pool/main/libs/libsndfile/libsndfile_1.0.28.orig.tar.gz"
+          ],
+          "sha256": "1ff33929f042fa333aed1e8923aa628c3ee9e1eb85512686c55092d1e5a9dfa9"
+        }
+      ],
+      "note": "Reads the SoundFont for FluidSynth. Part of FluidSynth's Windows package (the upstream libsndfile 1.0.28 64-bit Windows build), with FLAC, Ogg and Vorbis built in."
+    },
+    {
+      "id": "flac-windows",
+      "name": "FLAC (libFLAC)",
+      "group": "native",
+      "version": "1.3.2",
+      "license": "BSD-3-Clause",
+      "copyright": "2000-2009 Josh Coalson, 2011-2016 Xiph.Org Foundation",
+      "url": "https://xiph.org/flac/",
+      "texts": ["flac-BSD"],
+      "builds": ["windows"],
+      "sources": [
+        {
+          "file": "flac-1.3.2.tar.xz",
+          "urls": ["https://downloads.xiph.org/releases/flac/flac-1.3.2.tar.xz"],
+          "sha256": "91cfc3ed61dc40f47f050a109b08610667d73477af6ef36dcad31c31a4a8d53f"
+        }
+      ],
+      "note": "Built into libsndfile-1.dll."
+    },
+    {
+      "id": "vorbis-windows",
+      "name": "libvorbis",
+      "group": "native",
+      "version": "1.3.5",
+      "license": "BSD-3-Clause",
+      "copyright": "2002-2015 Xiph.org Foundation",
+      "url": "https://xiph.org/vorbis/",
+      "texts": ["vorbis-BSD"],
+      "builds": ["windows"],
+      "sources": [
+        {
+          "file": "libvorbis-1.3.5.tar.xz",
+          "urls": ["https://downloads.xiph.org/releases/vorbis/libvorbis-1.3.5.tar.xz"],
+          "sha256": "54f94a9527ff0a88477be0a71c0bab09a4c3febe0ed878b24824906cd4b0e1d1"
+        }
+      ],
+      "note": "Built into libsndfile-1.dll."
+    },
+    {
+      "id": "ogg-windows",
+      "name": "libogg",
+      "group": "native",
+      "version": "1.3.2",
+      "license": "BSD-3-Clause",
+      "copyright": "2002 Xiph.org Foundation",
+      "url": "https://xiph.org/ogg/",
+      "texts": ["ogg-BSD"],
+      "builds": ["windows"],
+      "sources": [
+        {
+          "file": "libogg-1.3.2.tar.xz",
+          "urls": ["https://downloads.xiph.org/releases/ogg/libogg-1.3.2.tar.xz"],
+          "sha256": "3f687ccdd5ac8b52d76328fbbfebc70c459a40ea891dbf3dccb74a210826e79b"
+        }
+      ],
+      "note": "Built into libsndfile-1.dll. The binary doesn't record the libogg version; 1.3.2 was the release current when libsndfile 1.0.28 was built."
+    },
+    {
+      "id": "gcc-runtime-windows",
+      "name": "GCC runtime libraries (MinGW-w64)",
+      "group": "native",
+      "version": "8.1.0",
+      "license": "GPL-3.0-or-later WITH GCC-exception-3.1",
+      "copyright": "Free Software Foundation, Inc.",
+      "url": "https://gcc.gnu.org/",
+      "texts": ["GPL-3.0", "GCC-exception-3.1"],
+      "builds": ["windows"],
+      "files": ["fluidsynth/libgcc_s_*.dll", "fluidsynth/libstdc++-6.dll", "fluidsynth/libgomp-1.dll"],
+      "sourceNote": "The GCC Runtime Library Exception lets these libraries be conveyed with programs compiled by GCC under terms of the distributor's choice. Source: https://ftp.gnu.org/gnu/gcc/gcc-8.1.0/ (MinGW-W64 build x86_64-win32-sjlj-rev0).",
+      "note": "libgcc, libstdc++ and libgomp, which FluidSynth was compiled against. Part of FluidSynth's Windows package."
+    },
+    {
+      "id": "winpthreads-windows",
+      "name": "MinGW-w64 winpthreads",
+      "group": "native",
+      "license": "MIT AND BSD-3-Clause",
+      "copyright": "2011 mingw-w64 project, 2010 Lockless Inc.",
+      "url": "https://www.mingw-w64.org/",
+      "texts": ["winpthreads"],
+      "builds": ["windows"],
+      "files": ["fluidsynth/libwinpthread-1.dll"],
+      "note": "POSIX threads for Windows, used by libgomp. Part of FluidSynth's Windows package."
+    },
+    {
+      "id": "fluidsynth-flatpak",
+      "name": "FluidSynth",
+      "group": "native",
+      "version": "2.6.1",
+      "license": "LGPL-2.1-or-later",
+      "copyright": "FluidSynth contributors",
+      "url": "https://www.fluidsynth.org/",
+      "sourceUrl": "https://github.com/FluidSynth/fluidsynth/tree/v2.6.1",
+      "texts": ["LGPL-2.1"],
+      "builds": ["flatpak"],
+      "sources": [
+        {
+          "file": "fluidsynth-2.6.1.tar.gz",
+          "urls": ["https://github.com/FluidSynth/fluidsynth/archive/refs/tags/v2.6.1.tar.gz"],
+          "sha256": "3d258a3bf97cc20c59eeebfe62c2432fae88adda74d3ad098681c76e0ebf446b",
+          "role": "Built unchanged by packaging/flatpak/io.github.chibicitiberiu.ChordNotepad.yml (the build options are there)."
+        },
+        {
+          "file": "gcem-012ae73c6d0a2cb09ffe86475f5c6fba3926e200.tar.gz",
+          "urls": ["https://github.com/kthohr/gcem/archive/012ae73c6d0a2cb09ffe86475f5c6fba3926e200.tar.gz"],
+          "sha256": "34ab0ee87a9eb26d3087fa9b49c2572ea8ee03db0c9705b83648301a3a3fc172",
+          "role": "FluidSynth's gcem submodule, which its release tarball leaves out."
+        }
+      ],
+      "note": "The synthesizer that plays the chords, built from source for the Flatpak."
+    },
+    {
+      "id": "gcem-flatpak",
+      "name": "GCE-Math (gcem)",
+      "group": "native",
+      "license": "Apache-2.0",
+      "copyright": "Keith O'Hara",
+      "url": "https://github.com/kthohr/gcem",
+      "texts": ["gcem-Apache-2.0"],
+      "builds": ["flatpak"],
+      "note": "Header-only maths library, compiled into FluidSynth."
+    },
+    {
+      "id": "tcl-tk-flatpak",
+      "name": "Tcl/Tk",
+      "group": "runtime",
+      "version": "9.0.3",
+      "license": "TCL",
+      "copyright": "The Regents of the University of California, Sun Microsystems, Inc., Scriptics Corporation, ActiveState Corporation and other parties",
+      "url": "https://www.tcl-lang.org/",
+      "texts": ["Tcl-license", "Tk-license"],
+      "builds": ["flatpak"],
+      "note": "The toolkit the windows and menus are drawn with, built from source for the Flatpak (the Flatpak runtime has none)."
+    },
+    {
+      "id": "tkinter-flatpak",
+      "name": "tkinter (from CPython 3.14.7)",
+      "group": "runtime",
+      "version": "3.14.7",
+      "license": "PSF-2.0",
+      "copyright": "2001 Python Software Foundation",
+      "url": "https://www.python.org/",
+      "texts": ["PSF-Python"],
+      "builds": ["flatpak"],
+      "note": "Python's Tk bindings, built for the Flatpak. Python itself and the other libraries come from the Freedesktop runtime, which Flatpak installs and updates separately."
+    },
+    {
+      "id": "pychord",
+      "name": "pychord",
+      "group": "python",
+      "version": "1.4.0",
+      "pypi": "pychord",
+      "license": "MIT",
+      "url": "https://github.com/yuma-m/pychord",
+      "texts": ["pychord-MIT"],
+      "builds": ["windows", "macos", "linux", "flatpak", "snap"]
+    },
+    {
+      "id": "music21",
+      "name": "music21",
+      "group": "python",
+      "version": "10.3.0",
+      "pypi": "music21",
+      "license": "BSD-3-Clause",
+      "url": "https://github.com/cuthbertlab/music21",
+      "texts": ["music21-BSD"],
+      "builds": ["windows", "macos", "linux", "flatpak", "snap"],
+      "note": "Without its optional extras (numpy, matplotlib and friends), which this app doesn't use."
+    },
+    {
+      "id": "chardet",
+      "name": "chardet",
+      "group": "python",
+      "version": "7.4.3",
+      "pypi": "chardet",
+      "license": "0BSD",
+      "url": "https://github.com/chardet/chardet",
+      "texts": ["chardet-0BSD"],
+      "builds": ["windows", "macos", "linux", "flatpak", "snap"],
+      "note": "Guesses the text encoding of opened files."
+    },
+    {
+      "id": "more-itertools",
+      "name": "more-itertools",
+      "group": "python",
+      "version": "11.1.0",
+      "pypi": "more-itertools",
+      "license": "MIT",
+      "url": "https://github.com/more-itertools/more-itertools",
+      "texts": ["more-itertools-MIT"],
+      "builds": ["windows", "macos", "linux", "flatpak", "snap"]
+    },
+    {
+      "id": "requests",
+      "name": "Requests",
+      "group": "python",
+      "version": "2.34.2",
+      "pypi": "requests",
+      "license": "Apache-2.0",
+      "url": "https://github.com/psf/requests",
+      "texts": ["requests-Apache-2.0", "requests-NOTICE"],
+      "builds": ["windows", "macos", "linux", "flatpak", "snap"],
+      "note": "A dependency of music21."
+    },
+    {
+      "id": "certifi",
+      "name": "certifi",
+      "group": "python",
+      "version": "2026.5.20",
+      "pypi": "certifi",
+      "license": "MPL-2.0",
+      "url": "https://github.com/certifi/python-certifi",
+      "sourceUrl": "https://github.com/certifi/python-certifi",
+      "texts": ["certifi-MPL-2.0"],
+      "builds": ["windows", "macos", "linux", "flatpak", "snap"],
+      "sources": [
+        {
+          "file": "certifi-2026.5.20.tar.gz",
+          "urls": ["https://files.pythonhosted.org/packages/source/c/certifi/certifi-2026.5.20.tar.gz"],
+          "sha256": "69dea482ab64caa7b9f6aba1c6bf48bb6a5448d1c0f1b17ab42ad8c763a5344d"
+        }
+      ],
+      "note": "Mozilla's CA certificate bundle, a dependency of Requests."
+    },
+    {
+      "id": "charset-normalizer",
+      "name": "charset-normalizer",
+      "group": "python",
+      "version": "3.4.7",
+      "pypi": "charset-normalizer",
+      "license": "MIT",
+      "url": "https://github.com/jawah/charset_normalizer",
+      "texts": ["charset-normalizer-MIT"],
+      "builds": ["windows", "macos", "linux", "flatpak", "snap"]
+    },
+    {
+      "id": "idna",
+      "name": "idna",
+      "group": "python",
+      "version": "3.17",
+      "pypi": "idna",
+      "license": "BSD-3-Clause",
+      "url": "https://github.com/kjd/idna",
+      "texts": ["idna-BSD"],
+      "builds": ["windows", "macos", "linux", "flatpak", "snap"]
+    },
+    {
+      "id": "urllib3",
+      "name": "urllib3",
+      "group": "python",
+      "version": "2.7.0",
+      "pypi": "urllib3",
+      "license": "MIT",
+      "url": "https://github.com/urllib3/urllib3",
+      "texts": ["urllib3-MIT"],
+      "builds": ["windows", "macos", "linux", "flatpak", "snap"]
+    },
+    {
+      "id": "webcolors",
+      "name": "webcolors",
+      "group": "python",
+      "version": "25.10.0",
+      "pypi": "webcolors",
+      "license": "BSD-3-Clause",
+      "url": "https://github.com/ubernostrum/webcolors",
+      "texts": ["webcolors-BSD"],
+      "builds": ["windows", "macos", "linux", "flatpak", "snap"]
+    },
+    {
+      "id": "pyfluidsynth",
+      "name": "pyFluidSynth",
+      "group": "python",
+      "version": "1.4.0",
+      "pypi": "pyfluidsynth",
+      "license": "LGPL-2.1-or-later",
+      "copyright": "2008-2024 Nathan Whitehead and others",
+      "url": "https://github.com/nwhitehead/pyfluidsynth",
+      "sourceUrl": "https://github.com/nwhitehead/pyfluidsynth",
+      "texts": ["pyfluidsynth-LGPL-2.1"],
+      "builds": ["windows", "macos", "linux", "flatpak", "snap"],
+      "sources": [
+        {
+          "file": "pyfluidsynth-1.4.0.tar.gz",
+          "urls": ["https://files.pythonhosted.org/packages/source/p/pyfluidsynth/pyfluidsynth-1.4.0.tar.gz"],
+          "sha256": "6a9e1dbaf469fd11f45184f37ec28e198b1d6495ad74f61dc4a57726b2b1ba31"
+        }
+      ],
+      "note": "Python bindings for FluidSynth. The package metadata says MIT, but its LICENSE file is the LGPL 2.1, so that is what applies."
+    },
+    {
+      "id": "mido",
+      "name": "Mido",
+      "group": "python",
+      "version": "1.3.3",
+      "pypi": "mido",
+      "license": "MIT",
+      "url": "https://github.com/mido/mido",
+      "texts": ["mido-MIT"],
+      "builds": ["windows", "macos", "linux", "flatpak", "snap"],
+      "note": "Writes MIDI files (Export MIDI)."
+    },
+    {
+      "id": "packaging",
+      "name": "packaging",
+      "group": "python",
+      "version": "26.2",
+      "pypi": "packaging",
+      "license": "Apache-2.0 OR BSD-2-Clause",
+      "url": "https://github.com/pypa/packaging",
+      "texts": ["packaging-Apache-2.0", "packaging-BSD"],
+      "builds": ["windows", "macos", "linux", "flatpak", "snap"],
+      "note": "A dependency of Mido."
+    },
+    {
+      "id": "pillow",
+      "name": "Pillow",
+      "group": "python",
+      "version": "12.2.0",
+      "pypi": "pillow",
+      "license": "MIT-CMU",
+      "copyright": "1997-2011 Secret Labs AB, 1995-2011 Fredrik Lundh and contributors, 2010 Jeffrey A. Clark and contributors",
+      "url": "https://python-pillow.github.io/",
+      "texts": ["pillow"],
+      "builds": ["windows", "macos", "linux", "flatpak", "snap"],
+      "note": "Loads the toolbar icons and chord sheet images. Pillow's wheels have image libraries built in (libjpeg-turbo, libpng, libtiff, libwebp, FreeType, Little CMS and others); their licences follow Pillow's in the text."
+    },
+    {
+      "id": "jeepney",
+      "name": "Jeepney",
+      "group": "python",
+      "version": "0.9.0",
+      "pypi": "jeepney",
+      "license": "MIT",
+      "url": "https://gitlab.com/takluyver/jeepney",
+      "texts": ["jeepney-MIT"],
+      "builds": ["linux", "flatpak", "snap"],
+      "note": "Talks to the desktop's file chooser portal (Linux only)."
+    },
+    {
+      "id": "generaluser-gs",
+      "name": "GeneralUser GS",
+      "group": "data",
+      "version": "2.0.1",
+      "license": "LicenseRef-GeneralUser-GS-2.0",
+      "copyright": "S. Christian Collins",
+      "url": "https://www.schristiancollins.com/generaluser.php",
+      "texts": ["GeneralUser-GS"],
+      "builds": ["windows", "macos", "linux", "flatpak", "snap"],
+      "files": ["resources/soundfont/*"],
+      "note": "The SoundFont (instrument sounds) the app plays with."
+    },
+    {
+      "id": "phosphor-icons",
+      "name": "Phosphor Icons",
+      "group": "data",
+      "license": "MIT",
+      "copyright": "2020-2024 Phosphor Icons",
+      "url": "https://phosphoricons.com/",
+      "texts": ["phosphor-MIT"],
+      "builds": ["windows", "macos", "linux", "flatpak", "snap"],
+      "files": ["resources/icons/*"],
+      "note": "The play, pause, stop and metronome toolbar icons."
+    },
+    {
+      "id": "bravura",
+      "name": "Bravura",
+      "group": "data",
+      "license": "OFL-1.1",
+      "copyright": "Steinberg Media Technologies GmbH",
+      "url": "https://github.com/steinbergmedia/bravura",
+      "texts": ["Bravura-OFL"],
+      "builds": ["windows", "macos", "linux", "flatpak", "snap"],
+      "note": "The clef and note head images in the chord sheet's staff view are rendered from the Bravura music font (SMuFL)."
+    }
+  ]
+}

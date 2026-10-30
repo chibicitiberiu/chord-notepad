@@ -8,6 +8,13 @@ block_cipher = None
 # Get absolute path to src directory
 src_path = os.path.abspath('src')
 
+# Licence inventory helpers (packaging/licenses/licence_inventory.py). cwd is
+# the project root when PyInstaller exec()s this spec.
+sys.path.insert(0, os.path.abspath(os.path.join('packaging', 'licenses')))
+import licence_inventory  # noqa: E402
+
+licence_build = licence_inventory.build_for_platform(sys.platform)
+
 # Collect data files (soundfont, icons, and documentation)
 datas = [
     ('resources/soundfont/GeneralUser-GS.sf2', 'resources/soundfont'),
@@ -16,20 +23,21 @@ datas = [
     ('resources/icon-256.png', 'resources'),
     ('resources/icons', 'resources/icons'),
     ('resources/quickstart', 'resources/quickstart'),
+    # Licence notices: Help > Open Source Licences (src/services/licence_catalog.py)
+    ('resources/licenses', 'resources/licenses'),
     # Bundle HTML documentation for in-app help
     ('help/build/html', 'help/build/html'),
 ]
 
-# Collect FluidSynth DLLs on Windows
+# Collect FluidSynth DLLs on Windows: the ones the licence inventory lists
+# (libfluidsynth-3.dll and what it loads), not every DLL in the package.
 binaries = []
 if sys.platform == 'win32':
     # Look for FluidSynth DLLs in the environment variable set by the build workflow
     fluidsynth_path = os.environ.get('FLUIDSYNTH_PATH', '')
     if fluidsynth_path and os.path.isdir(fluidsynth_path):
-        # Collect all DLLs from the FluidSynth bin directory
-        for dll in glob.glob(os.path.join(fluidsynth_path, '*.dll')):
-            binaries.append((dll, 'fluidsynth'))
-        print(f"Found {len(binaries)} FluidSynth DLLs in {fluidsynth_path}")
+        binaries = licence_inventory.fluidsynth_dlls(fluidsynth_path)
+        print(f"Bundling {len(binaries)} FluidSynth DLLs from {fluidsynth_path}")
     else:
         # Try common local development paths (cwd is the project root when
         # PyInstaller exec()s this spec; __file__ is not defined in that context).
@@ -39,8 +47,12 @@ if sys.platform == 'win32':
         ]
         for path in local_paths:
             if os.path.isdir(path):
-                for dll in glob.glob(os.path.join(path, '*.dll')):
-                    binaries.append((dll, 'fluidsynth'))
+                try:
+                    binaries = licence_inventory.fluidsynth_dlls(path)
+                except SystemExit as e:
+                    # A local FluidSynth that isn't the 2.3.4 package CI uses.
+                    print(f"WARNING: {e}; bundling every DLL in {path}")
+                    binaries = [(dll, 'fluidsynth') for dll in glob.glob(os.path.join(path, '*.dll'))]
                 print(f"Found {len(binaries)} FluidSynth DLLs in {path}")
                 break
         if not binaries:
@@ -88,6 +100,9 @@ excludes = [
     'PySide2',
     'PySide6',
     'wx',
+    # music21's optional extras, the dev tools in the same venv and readline:
+    # see PYINSTALLER_EXCLUDES in packaging/licenses/licence_inventory.py.
+    *licence_inventory.PYINSTALLER_EXCLUDES,
 ]
 if sys.platform != 'win32':
     # Windows-only timezone support (pulled in via matplotlib -> dateutil).
@@ -117,6 +132,31 @@ a = Analysis(
     cipher=block_cipher,
     noarchive=False,
 )
+
+# Licence check: every collected file must belong to a component of
+# resources/licenses/components.json for this platform. CI sets
+# CHORD_NOTEPAD_LICENCE_CHECK=strict, which fails the build on a gap; local
+# builds only warn. On Linux the system libraries PyInstaller copied in are
+# looked up in dpkg (or rpm), and their packages' licence files go into the
+# bundle (resources/licenses/system.json, read by the Licences window).
+licence_report = licence_inventory.classify(
+    list(a.pure) + list(a.scripts) + list(a.binaries) + list(a.datas),
+    licence_build,
+    resolve_system=licence_inventory.system_resolver() if licence_build == 'linux' else None,
+)
+if licence_report.system:
+    licence_dir = os.path.join(workpath, 'licenses-system')
+    for src, dest_dir in licence_inventory.write_system_notices(licence_report.system, licence_dir):
+        a.datas.append((dest_dir + '/' + os.path.basename(src), src, 'DATA'))
+    print(f"Licences: {len(licence_report.system)} system packages listed in {licence_dir}/system.json")
+if licence_report.uncovered:
+    message = ("Bundled files with no licence entry in resources/licenses/components.json "
+               f"(build '{licence_build}'):\n" + licence_inventory.format_uncovered(licence_report))
+    if os.environ.get('CHORD_NOTEPAD_LICENCE_CHECK') == 'strict':
+        raise SystemExit(message)
+    print("WARNING: " + message)
+else:
+    print(f"Licences: all bundled files covered ({len(licence_report.covered)} components)")
 
 pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
 

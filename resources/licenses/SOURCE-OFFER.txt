@@ -1,0 +1,34 @@
+Chord Notepad is free software under the GNU Affero General Public License 3.0.
+Some of the components it is built from are under the GNU LGPL or GPL
+(FluidSynth, GLib, libsndfile and pyFluidSynth among them) or the Mozilla
+Public License (certifi). Their licences entitle you to the source code of the
+exact versions in this app. Here is where to get it.
+
+Every release at https://github.com/chibicitiberiu/chord-notepad/releases
+carries two source files next to the downloads:
+
+  ChordNotepad-<version>-source.tar.gz
+      Chord Notepad itself, with its build scripts (chord-notepad.spec,
+      packaging/, .github/workflows/build.yml).
+
+  ChordNotepad-<version>-third-party-sources.tar
+      The source of every LGPL, GPL and MPL component listed here, for the
+      Windows, macOS, Linux and Flatpak builds. For Windows it also holds the
+      unmodified upstream FluidSynth package the DLLs come from. For the Linux
+      binary and the snap, whose libraries come from Ubuntu, it lists the exact
+      Ubuntu source packages and versions; Ubuntu keeps every published source
+      package at https://launchpad.net/ubuntu.
+
+The Microsoft Store and Snap Store editions are built from the GitHub release
+with the same version number: use that release's source files.
+
+Written offer: for three years after the last time this version is
+distributed, the author will also send anyone who asks a copy of its
+complete corresponding source, as a download or on a physical medium, for
+no more than the cost of making and sending it. Ask at
+https://github.com/chibicitiberiu/chord-notepad/issues.
+
+Replacing a library: the LGPL libraries are loaded at run time, not built
+into Chord Notepad. On Windows they are the DLLs in the bundle's fluidsynth
+folder; to use your own build, put it there and rebuild the app from the
+source above (make build), or run Chord Notepad from source.

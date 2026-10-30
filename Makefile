@@ -153,8 +153,10 @@ flatpak-check:
 	flatpak run --command=python3 $(FLATPAK_ID) - < packaging/linux/smoke_test.py
 
 # Build the snap (snap/snapcraft.yaml) into dist/. Needs snapcraft and LXD;
-# CI passes SNAPCRAFT="sudo snapcraft".
-SNAPCRAFT ?= snapcraft
+# CI passes SNAPCRAFT="sudo SNAPCRAFT_BUILD_INFO=1 snapcraft". Build info puts
+# snap/manifest.yaml (the staged Ubuntu packages) in the snap, for the
+# Licences window and the release's source bundle.
+SNAPCRAFT ?= SNAPCRAFT_BUILD_INFO=1 snapcraft
 
 snap: icons docs-html
 	mkdir -p dist

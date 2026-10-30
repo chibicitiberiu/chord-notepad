@@ -126,6 +126,9 @@ modules:
       - install -Dm644 packaging/linux/${FLATPAK_ID}.metainfo.xml ${FLATPAK_DEST}/share/metainfo/${FLATPAK_ID}.metainfo.xml
       - install -Dm644 LICENSE ${FLATPAK_DEST}/share/licenses/${FLATPAK_ID}/LICENSE
       - install -Dm644 resources/soundfont/GeneralUser-GS.LICENSE.txt ${FLATPAK_DEST}/share/licenses/${FLATPAK_ID}/GeneralUser-GS.LICENSE.txt
+      - install -Dm644 -t ${FLATPAK_DEST}/share/licenses/${FLATPAK_ID} ADDITIONAL-TERMS.txt ARTWORK-TERMS.txt
+      # Every bundled component's licence (also in the app: Help > Open Source Licences)
+      - cp -r resources/licenses ${FLATPAK_DEST}/share/licenses/${FLATPAK_ID}/components
     sources:
       - type: dir
         path: ../..
