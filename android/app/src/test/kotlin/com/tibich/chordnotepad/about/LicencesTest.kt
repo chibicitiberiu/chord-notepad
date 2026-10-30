@@ -79,8 +79,16 @@ class LicencesTest {
     @Test
     fun `the app is AGPL and the SoundFont carries its own licence`() {
         val app = components.single { it.id == "chord-notepad" }
-        assertEquals("AGPL-3.0-only", app.license)
-        assertTrue(Licences.textOf(app, assets).contains("GNU AFFERO GENERAL PUBLIC LICENSE"))
+        assertEquals("AGPL-3.0-only AND LicenseRef-ChordNotepad-Section7", app.license)
+        val appText = Licences.textOf(app, assets)
+        assertTrue(appText.contains("GNU AFFERO GENERAL PUBLIC LICENSE"))
+        // ADDITIONAL-TERMS.txt must be among the Appropriate Legal Notices (its permission 2(b)).
+        assertTrue(appText.contains("Additional permissions and terms under GNU AGPL version 3 section 7"))
+        val logo = components.single { it.id == "chord-notepad-logo" }
+        assertTrue(Licences.textOf(logo, assets).contains("Chord Notepad logos and promotional material"))
+        val guide = components.single { it.id == "chord-notepad-guide" }
+        assertEquals("CC-BY-SA-4.0", guide.license)
+        assertTrue(Licences.textOf(guide, assets).contains("Attribution-ShareAlike 4.0 International"))
         val font = components.single { it.id == "generaluser-gs" }
         assertTrue(Licences.textOf(font, assets).contains("GeneralUser GS"))
     }

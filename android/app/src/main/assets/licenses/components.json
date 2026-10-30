@@ -4,14 +4,39 @@
       "id": "chord-notepad",
       "name": "Chord Notepad",
       "group": "app",
-      "license": "AGPL-3.0-only",
+      "license": "AGPL-3.0-only AND LicenseRef-ChordNotepad-Section7",
       "copyright": "2025-2026 Tiberiu Chibici",
       "url": "https://github.com/chibicitiberiu/chord-notepad",
       "sourceUrl": "https://github.com/chibicitiberiu/chord-notepad",
       "texts": [
-        "AGPL-3.0"
+        "AGPL-3.0",
+        "ADDITIONAL-TERMS"
       ],
-      "note": "Free software: you may use, study, share and change it under the GNU Affero General Public License, version 3. The complete source code of this version is in the repository above."
+      "note": "Free software: you may use, study, share and change it under the GNU Affero General Public License, version 3, with the additional permissions and terms under its section 7 that follow the licence text (ADDITIONAL-TERMS.txt). The complete source code of this version is in the repository above."
+    },
+    {
+      "id": "chord-notepad-guide",
+      "name": "Chord Notepad user guide",
+      "group": "app",
+      "license": "CC-BY-SA-4.0",
+      "copyright": "2025-2026 Tiberiu Chibici",
+      "url": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "texts": [
+        "help-LICENSE",
+        "CC-BY-SA-4.0"
+      ],
+      "note": "The built-in user guide (☰ → User guide) is under the Creative Commons Attribution-ShareAlike 4.0 licence; its Sphinx configuration and extensions are part of the program."
+    },
+    {
+      "id": "chord-notepad-logo",
+      "name": "Chord Notepad logo",
+      "group": "app",
+      "license": "LicenseRef-ChordNotepad-Artwork",
+      "copyright": "2025-2026 Tiberiu Chibici",
+      "texts": [
+        "ARTWORK-TERMS"
+      ],
+      "note": "The logo (the launcher icon) is not under the AGPL: the terms below say what you may do with it."
     },
     {
       "id": "cpython",

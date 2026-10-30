@@ -33,6 +33,12 @@ FEDORA = Path("/usr/share/licenses")
 #            | ("mdi", member): a file of the @mdi/svg tarball in the cache
 SOURCES = {
     "AGPL-3.0.txt": ("file", REPO / "LICENSE"),
+    "ADDITIONAL-TERMS.txt": ("file", REPO / "ADDITIONAL-TERMS.txt"),
+    "ARTWORK-TERMS.txt": ("file", REPO / "ARTWORK-TERMS.txt"),
+    "help-LICENSE.txt": ("file", REPO / "help/LICENSE"),
+    # The official plain-text legal code, as gathered for the desktop
+    # (packaging/licenses/gather_texts.py records where it comes from).
+    "CC-BY-SA-4.0.txt": ("file", REPO / "resources/licenses/texts/CC-BY-SA-4.0.txt"),
     "GeneralUser-GS.txt": ("file", REPO / "resources/soundfont/GeneralUser-GS.LICENSE.txt"),
     "Apache-2.0.txt": ("file", NATIVE / "oboe/LICENSE"),
     "Apache-2.0-LLVM-exception.txt": ("until", FEDORA / "llvm-libs/LICENSE.TXT", "Software from third parties"),
