@@ -1322,7 +1322,7 @@ class MainWindow(tk.Tk):
             (o.label for o in request.options if o.value == request.default),
             labels[0] if labels else "",
         )
-        dialog = CapoDialog(self, labels, default_label)
+        dialog = CapoDialog(self, labels, default_label, scope=request.scope)
         self.wait_window(dialog)
         value = next((o.value for o in request.options if o.label == dialog.result), None)
         self.session.respond(request.request_id, value)

@@ -40,6 +40,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -104,6 +105,13 @@ fun CapoDialog(request: CapoChoiceRequest, onAnswer: (String?) -> Unit) {
         text = {
             Column(Modifier.verticalScroll(rememberScrollState())) {
                 Text(stringResource(R.string.capo_hint), Modifier.padding(bottom = 12.dp))
+                if (request.scope.isNotEmpty()) {
+                    Text(
+                        request.scope,
+                        Modifier.padding(bottom = 12.dp),
+                        fontWeight = FontWeight.Bold,
+                    )
+                }
                 Text(stringResource(R.string.capo_voicing), style = MaterialTheme.typography.labelLarge)
                 Column(Modifier.selectableGroup()) {
                     for (option in request.options) {

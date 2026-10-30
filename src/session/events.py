@@ -161,11 +161,14 @@ class CapoChoiceRequest:
         request_id: Pass back to ``respond``.
         options: The fretboard voicings.
         default: The value to preselect.
+        scope: One line saying where the capo goes: the selected part only,
+            or the whole song (:func:`session.formatting.capo_scope_text`).
     """
 
     request_id: int
     options: Tuple[MenuItem, ...]
     default: str
+    scope: str = ""
 
 
 class DiscardChoice(str, Enum):

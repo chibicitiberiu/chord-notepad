@@ -9,6 +9,8 @@ silent FakePlayer), so playback can lock the editor.
 
 import pytest
 
+from session import formatting
+
 from services.playback_service import PlaybackService
 from services.song_parser_service import SongParserService
 from session.events import (
@@ -344,6 +346,16 @@ def test_capo_request_lists_the_fretboard_voicings_with_the_active_one_preselect
     assert request.default == "guitar:drop_d"
     assert MenuItem("Guitar (Standard - EADGBE)", "guitar:standard") in request.options
     assert all(o.value.startswith(("guitar:", "voicing:")) for o in request.options)
+
+
+def test_capo_request_says_where_the_capo_goes():
+    env = Env("C G Am F")
+    env.session.request_suggest_capo(None)
+    assert env.request(CapoChoiceRequest).scope == formatting.capo_scope_text(False)
+    assert "top of the song" in formatting.capo_scope_text(False)
+    env.session.request_suggest_capo((2, 5))
+    assert env.request(CapoChoiceRequest).scope == formatting.capo_scope_text(True)
+    assert "selected part only" in formatting.capo_scope_text(True)
 
 
 def test_capo_defaults_to_standard_guitar_for_a_piano_voicing():

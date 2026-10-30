@@ -271,6 +271,13 @@ def finding_capo_status(has_selection: bool, voicing: str) -> str:
     return f"Finding a capo for the {_scope(has_selection)} on {voicing}..."
 
 
+def capo_scope_text(has_selection: bool) -> str:
+    """The Suggest Capo dialog's line on where the capo goes."""
+    if has_selection:
+        return "Applies to the selected part only: inserted at the start of the selection."
+    return "Applies to the whole song: inserted at the top of the song, replacing a capo there."
+
+
 #: The status when the text changed while Suggest Capo was scoring it.
 CAPO_STALE_STATUS = "The song changed while finding a capo; nothing was inserted"
 

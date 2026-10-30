@@ -17,13 +17,15 @@ class CapoDialog(tk.Toplevel):
     expected to resolve the returned name to a voicing and run the suggestion.
     """
 
-    def __init__(self, parent, voicing_names: List[str], default_name: str):
+    def __init__(self, parent, voicing_names: List[str], default_name: str,
+                 scope: str = ""):
         """Initialize the dialog.
 
         Args:
             parent: Parent window.
             voicing_names: Display names of the available fretboard voicings.
             default_name: Voicing name to preselect in the combobox.
+            scope: One line on where the capo goes (selection or whole song).
         """
         super().__init__(parent)
 
@@ -45,7 +47,12 @@ class CapoDialog(tk.Toplevel):
         ttk.Label(
             main_frame, text=desc, font=('TkDefaultFont', 9),
             wraplength=320, justify=tk.LEFT
-        ).pack(pady=(0, 15))
+        ).pack(pady=(0, 15 if not scope else 8))
+        if scope:
+            ttk.Label(
+                main_frame, text=scope, font=('TkDefaultFont', 9, 'bold'),
+                wraplength=320, justify=tk.LEFT
+            ).pack(anchor=tk.W, pady=(0, 15))
 
         row = ttk.Frame(main_frame)
         row.pack()

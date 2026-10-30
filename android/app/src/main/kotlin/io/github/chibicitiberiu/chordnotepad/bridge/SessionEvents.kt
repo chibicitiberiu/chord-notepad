@@ -62,6 +62,8 @@ data class CapoChoiceRequest(
     @SerialName("request_id") override val requestId: Int,
     val options: List<MenuItem>,
     val default: String,
+    /** One line on where the capo goes: the selected part only, or the whole song. */
+    val scope: String = "",
 ) : SessionRequest
 
 /** The answers to [ConfirmDiscardRequest]. */

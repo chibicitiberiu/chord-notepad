@@ -468,11 +468,13 @@ def test_capo_dialog_answers_with_the_chosen_voicing(wired):
 
     window = SimpleNamespace(wait_window=Mock(), session=Mock())
     request = CapoChoiceRequest(5, (MenuItem("Standard", "guitar:standard"),
-                                    MenuItem("Drop D", "guitar:drop_d")), "guitar:drop_d")
+                                    MenuItem("Drop D", "guitar:drop_d")), "guitar:drop_d",
+                                "Applies to the whole song.")
     dialog = SimpleNamespace(result="Standard")
     with patch("ui.main_window.CapoDialog", return_value=dialog) as make:
         MainWindow._present_capo_request(window, request)
-    make.assert_called_once_with(window, ["Standard", "Drop D"], "Drop D")
+    make.assert_called_once_with(window, ["Standard", "Drop D"], "Drop D",
+                                 scope="Applies to the whole song.")
     window.session.respond.assert_called_once_with(5, "guitar:standard")
 
     dialog.result = None

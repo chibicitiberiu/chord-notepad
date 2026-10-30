@@ -1805,7 +1805,8 @@ class AppSession:
         default = self._main.default_capo_voicing()
         if default not in values:
             default = values[0] if values else ""
-        voicing = yield CapoChoiceRequest(0, options, default)
+        voicing = yield CapoChoiceRequest(0, options, default,
+                                          formatting.capo_scope_text(region is not None))
         label = next((o.label for o in options if o.value == voicing), None)
         if voicing is None or label is None:
             return
