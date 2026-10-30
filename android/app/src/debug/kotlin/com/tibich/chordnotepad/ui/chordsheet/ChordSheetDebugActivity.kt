@@ -22,6 +22,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.tibich.chordnotepad.appGraph
+import com.tibich.chordnotepad.lifecycle.LaunchKind
 import com.tibich.chordnotepad.bridge.HostStatus
 
 /**
@@ -40,6 +41,8 @@ class ChordSheetDebugActivity : ComponentActivity() {
         enableEdgeToEdge()
         val graph = appGraph
         graph.pyHost.start()
+        // A debug screen: a later MainActivity in this process shows no startup screen.
+        graph.reportLaunch(LaunchKind.RESTORE, intent)
         val heightDp = intent.getIntExtra("height", 240)
         val view = intent.getStringExtra("view")
         val voicing = intent.getStringExtra("voicing")

@@ -27,6 +27,7 @@ import com.tibich.chordnotepad.bridge.PlaybackStatus
 import com.tibich.chordnotepad.bridge.RecentDocumentsState
 import com.tibich.chordnotepad.bridge.SessionOutput
 import com.tibich.chordnotepad.bridge.SpanKind
+import com.tibich.chordnotepad.lifecycle.LaunchKind
 import com.tibich.chordnotepad.ui.MainScreen
 import com.tibich.chordnotepad.ui.main.AppMode
 import com.tibich.chordnotepad.ui.requests.RequestPickers
@@ -84,9 +85,10 @@ class HelpShotActivity : ComponentActivity() {
             "portrait" -> requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
         }
         val graph = appGraph
-        // The tour only opens when a scene asks for it (through the drawer).
-        graph.quickStartShown = true
         graph.pyHost.start()
+        // Neither the tour nor the support prompt opens on its own; a scene
+        // opens the tour through the drawer.
+        graph.reportLaunch(LaunchKind.RESTORE, intent)
         RequestPickers(this, graph.repository.pendingRequest, graph.requests).attach()
         setContent {
             ChordNotepadTheme {

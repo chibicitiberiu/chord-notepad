@@ -1,7 +1,6 @@
 package com.tibich.chordnotepad.ui.help
 
 import com.tibich.chordnotepad.bridge.QuickStartBlock
-import com.tibich.chordnotepad.bridge.SettingsState
 import com.tibich.chordnotepad.bridge.SpanKind
 import com.tibich.chordnotepad.text.OffsetMapper
 import com.tibich.chordnotepad.ui.editor.SpanPriority
@@ -49,25 +48,4 @@ fun snippetRuns(block: QuickStartBlock): List<SnippetRun> {
         .map { SnippetRun(mapper.toUtf16(it.start), mapper.toUtf16(it.end), it.kind) }
         .filter { it.start < it.end }
         .sortedBy { SpanPriority[it.kind] ?: 0 }
-}
-
-/** First-run rule for the tour. */
-object QuickStartLaunch {
-    /** What to do with the latest settings: [open] the tour now, and whether the once-per-process [decided] flag is now set. */
-    data class Decision(val open: Boolean, val decided: Boolean)
-
-    /**
-     * Decide once per process, when the settings first arrive: open the tour
-     * if the setting says so. Turning the setting on later (Settings, or the
-     * tour's own "Show at startup" box) must not open it again at once.
-     * The settings state comes from the session shortly after launch; until
-     * then (null) nothing is decided and the caller asks again when it comes.
-     *
-     * @param settings The latest settings state, or null before it is known.
-     * @param decided Whether this process already decided.
-     */
-    fun decide(settings: SettingsState?, decided: Boolean): Decision {
-        if (decided || settings == null) return Decision(open = false, decided = decided)
-        return Decision(open = settings.values.showQuickStartOnStartup, decided = true)
-    }
 }

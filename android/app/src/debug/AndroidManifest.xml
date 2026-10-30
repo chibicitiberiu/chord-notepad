@@ -4,6 +4,13 @@
     <!-- Debug builds only: the chord sheet on its own, with the sample song
          loaded, for emulator checks over adb (ChordSheetDebugActivity). -->
     <application>
+        <!-- Debug builds only: fakes the dates (and the billing answer) the
+             support prompt is decided from, for emulator checks
+             (DebugLaunchOverride). -->
+        <provider
+            android:name=".debug.DebugLaunchOverrideProvider"
+            android:authorities="${applicationId}.debuglaunch"
+            android:exported="false" />
         <activity
             android:name=".ui.chordsheet.ChordSheetDebugActivity"
             android:exported="true" />

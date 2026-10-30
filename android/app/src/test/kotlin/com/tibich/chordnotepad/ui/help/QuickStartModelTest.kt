@@ -1,10 +1,8 @@
 package com.tibich.chordnotepad.ui.help
 
 import com.tibich.chordnotepad.bridge.QuickStartBlock
-import com.tibich.chordnotepad.bridge.SettingsState
 import com.tibich.chordnotepad.bridge.Span
 import com.tibich.chordnotepad.bridge.SpanKind
-import com.tibich.chordnotepad.ui.settings.Fixtures
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -57,18 +55,6 @@ class QuickStartModelTest {
         assertEquals(3, runs.size)
         // CHORD < CHORD_INVALID < DIRECTIVE in the editor's priority order.
         assertEquals(listOf(SpanKind.CHORD, SpanKind.CHORD_INVALID, SpanKind.DIRECTIVE), runs.map { it.kind })
-    }
-
-    private fun settings(show: Boolean): SettingsState =
-        Fixtures.settings.let { it.copy(values = it.values.copy(showQuickStartOnStartup = show)) }
-
-    @Test
-    fun `the tour opens on its own only when the setting says so, decided once per process`() {
-        assertEquals(QuickStartLaunch.Decision(open = false, decided = false), QuickStartLaunch.decide(null, false))
-        assertEquals(QuickStartLaunch.Decision(open = true, decided = true), QuickStartLaunch.decide(settings(true), false))
-        assertEquals(QuickStartLaunch.Decision(open = false, decided = true), QuickStartLaunch.decide(settings(false), false))
-        // Already decided: turning the setting on later (Settings, the tour's own box) opens nothing.
-        assertEquals(QuickStartLaunch.Decision(open = false, decided = true), QuickStartLaunch.decide(settings(true), true))
     }
 
     @Test
