@@ -7,7 +7,10 @@ App bugs and questions found while fact-checking the user guide (2026-10-30). No
 - **Desktop:** add Capo to Tools → Insert (in progress).
 - **Tempo range:** 20–400 everywhere, including typed `{bpm}` (in progress).
 - **Invalid directives** (out of range, bad format, wrong/missing parameters) are highlighted red and ignored during playback (in progress). Each gets a reason and the correct syntax in the core. **To design:** a tooltip that suggests the syntax while typing, on desktop and Android.
-- **Defaults:** opening a song must NOT change the defaults in Settings. Values the song sets are shown as overridden and can't be edited from the UI (to do).
+- **Defaults:** opening a song must NOT change the defaults in Settings. Values the song sets are shown as overridden and can't be edited from the UI. Changing a value the song doesn't set (toolbar / Song defaults) is an immediate, temporary change only, not saved to Settings. Only Settings changes the defaults. With a mid-song tempo change, the toolbar shows the song's starting value, greyed out (to do).
+- **Relative tempo out of 20–400** (e.g. `{bpm: +50}` at 380, or inside loops): clamp it and warn in the status bar; it isn't red (in progress).
+- **Suggest Capo on a selection** applies to that part only, and the dialog says so (in progress).
+- **A loop above its label** is invalid (red).
 - **"la la la" lyric lines detected as chords:** a known issue, too ambiguous for a heuristic (chord lines can have directions and "?" too). Workaround: a line starting with `.` is plain text (in progress).
 - **`iim7` and Berklee-style `IIm7`:** accept both as minor (in progress).
 - **Voicing `label`:** keep it internal and never show it. The name is the display name. No change.
@@ -34,3 +37,7 @@ App bugs and questions found while fact-checking the user guide (2026-10-30). No
 16. **A voicing's `label` is stored** (and Load config copies it), but it isn't shown anywhere.
 17. **`bVI` in C plays G# major** instead of Ab.
 18. **`{loop: my verse 2}` can't reach `{label: my verse}`**, so labels with spaces can't be looped.
+
+## To design: song structure (Tibi's idea, 2026-10-30)
+- Reusable parts that can be called from anywhere, e.g. `{part: verse1}` … `{endpart}` then `{call: verse1}`. Or the ChordPro-like alternative: `{play: chorus}` replays a section that's already labelled. Avoid `goto`.
+- Label-less repeat blocks, `{loop: 3}` … `{endloop}`.
