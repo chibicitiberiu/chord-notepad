@@ -18,7 +18,7 @@ object Pages {
     /** Help › User Guide (the offline WebView; it handles Back itself). */
     const val USER_GUIDE = "user_guide"
 
-    /** Help › Quick Start (also opens on its own the first time, see `QuickStartLaunch`). */
+    /** Help › Quick Start (also opens on its own when the session's StartupState says so). */
     const val QUICK_START = "quick_start"
 
     /** ☰ drawer › Settings (its own pages are inside `SettingsScreen`; Back there is its own). */
