@@ -69,7 +69,8 @@ Automatic Chord Detection
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Chord Notepad recognizes chord symbols as you write. Valid chords appear in
-blue with an underline; unrecognized text stays gray. Detection works line by
+blue with an underline; a word that looks like a chord but isn't one turns gray,
+and lyrics stay in the normal text colour. Detection works line by
 line, so a chord line like ``C  Am  F  G`` lights up while the lyric under it
 is left alone even when it contains chord-like words (an *Am* in a sentence, a
 *La* or a *Si*). See :doc:`writing_chords` for what counts as a valid chord.
