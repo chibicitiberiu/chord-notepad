@@ -11,7 +11,7 @@ Opening the Application
 .. only:: desktop
 
    Launch Chord Notepad like any other application. It opens to an empty document
-   (or the last file you had open) with a toolbar across the top, a large text
+   with a toolbar across the top, a large text
    area in the middle, and a status bar along the bottom -- see the next section
    for a labelled tour.
 
@@ -259,7 +259,8 @@ Adjusting the Tempo
       If the song has a ``{bpm}`` directive, the tempo is shown with "Set by
       ``{bpm: 90}`` in the song"; tap **Edit** to jump to that directive and
       change it. If it hasn't, the tempo is a default you can change right
-      there (it starts at 120). A default isn't saved with the file unless you
+      there (it starts at the Default BPM from Settings, 120 unless you changed
+      it). A default isn't saved with the file unless you
       tap **Write into song**, which adds the missing directives at the top.
    #. **Speed** -- a *multiplier* applied on top of the tempo, a practice knob.
       Tap the **Speed** button in the player and drag the slider (12.5% to 400%),
