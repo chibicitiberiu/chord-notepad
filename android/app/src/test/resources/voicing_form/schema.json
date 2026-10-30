@@ -337,7 +337,7 @@
         {
          "fields": [
           {
-           "default": "-4.0",
+           "default": "-20.0",
            "help": "How reluctant the picker is to drop the root when there are fewer voices than chord tones. More negative keeps it; nearer zero allows dropping it.",
            "id": "nested:omit:root",
            "kind": "float",
@@ -357,7 +357,7 @@
            "step": 0.1
           },
           {
-           "default": "-8.0",
+           "default": "-3.0",
            "help": "How reluctant the picker is to drop the fifth when there are fewer voices than chord tones. More negative keeps it; nearer zero allows dropping it.",
            "id": "nested:omit:fifth",
            "kind": "float",
@@ -387,7 +387,7 @@
            "step": 0.1
           },
           {
-           "default": "-7.0",
+           "default": "-6.0",
            "help": "How reluctant the picker is to drop the extension when there are fewer voices than chord tones. More negative keeps it; nearer zero allows dropping it.",
            "id": "nested:omit:extension",
            "kind": "float",

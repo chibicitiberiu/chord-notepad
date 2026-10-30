@@ -64,6 +64,34 @@ def _bump_default_interior_mute(data: dict) -> None:
             weights['interior_mute_penalty'] = _INTERIOR_MUTE_V3_DEFAULT
 
 
+def _move_ensemble_omission_defaults(data: dict) -> None:
+    """Move ensemble voicings from the old to the ensemble ``omit`` defaults, in-place.
+
+    Ensembles used to share the piano's omission weights, which drop the root
+    first; they now drop the fifth first (``ENSEMBLE_OMIT_WEIGHTS``). Saved
+    voicings persist their weights, so an ``omit`` mapping whose every value
+    is still the old default follows the new defaults. One with any value
+    changed was tuned by the user and is left alone as a whole.
+    """
+    from models.ensemble_spec import ENSEMBLE_OMIT_WEIGHTS, PREVIOUS_ENSEMBLE_OMIT_WEIGHTS
+
+    voicings = data.get('voicings')
+    if not isinstance(voicings, dict):
+        return
+
+    for entry in voicings.values():
+        if not isinstance(entry, dict) or entry.get('model') != 'ensemble':
+            continue
+        weights = entry.get('weights')
+        omit = weights.get('omit') if isinstance(weights, dict) else None
+        if not isinstance(omit, dict) or not omit:
+            continue
+        if all(_is_number(value) and PREVIOUS_ENSEMBLE_OMIT_WEIGHTS.get(role) == value
+               for role, value in omit.items()):
+            for role in omit:
+                omit[role] = ENSEMBLE_OMIT_WEIGHTS[role]
+
+
 def _negate_signed_weights(data: dict) -> None:
     """Negate v1 positive-magnitude penalty weights in-place for the v2 convention.
 
@@ -292,6 +320,13 @@ class ConfigService:
         # config's +2.0 (the old positive-magnitude default) chains to -4.0.
         if from_version < 3:
             _bump_default_interior_mute(data)
+
+        # v3 -> v4: ensembles got their own omission order (the fifth goes
+        # first, not the root). Ensembles still on the old omission defaults
+        # follow it; tuned ones are left alone. Runs after the sign flip, so
+        # a v1 config's positive old defaults chain through.
+        if from_version < 4:
+            _move_ensemble_omission_defaults(data)
 
         # Ensure version is set to current
         data["version"] = CONFIG_VERSION

@@ -146,10 +146,12 @@ effect (``{key:}``), the leading tone earns a bonus for resolving up to the
 tonic, and doubling it is avoided.
 
 If a chord has more notes than there are voices, the tone with the
-cheapest Omission weight is left out. With the defaults that's the root:
-the chord is then sung in inversion, so a G7 for three voices comes out as
-B, D, F. Next come a 9th or other extension, then the fifth; the third, the
-seventh and a ``sus`` chord's suspended tone are kept. If a chord has fewer
+cheapest Omission weight is left out. With the defaults that's the fifth,
+as in four-part writing: a G7 for three voices comes out as G, B and F, and
+a C9 for four voices as C, E, B♭ and D. Next comes a 9th or other extension,
+then the root; the third, the seventh and a ``sus`` chord's suspended tone
+are kept. (The piano drops the root before the fifth, because its left hand
+plays the root; an ensemble keeps it.) If a chord has fewer
 notes than voices, something gets doubled, and the engine reaches for the
 root first. Any chord tone may go in the bass, though the Inversion weights
 favor root position; a slash chord's bass note always lands in the bottom
@@ -497,9 +499,9 @@ Voicing Parameters
    * - Omission (Root, Third, Fifth, Seventh, Color, Extension)
      - Added to the score for dropping a chord tone entirely when there are
        fewer voices than notes. The values are negative, so a more negative
-       one keeps that tone more insistently. Keys: ``root`` (-4.0),
-       ``third`` (-40.0), ``fifth`` (-8.0), ``seventh`` (-40.0), ``color``
-       (-30.0), ``extension`` (-7.0).
+       one keeps that tone more insistently. Keys: ``root`` (-20.0),
+       ``third`` (-40.0), ``fifth`` (-3.0), ``seventh`` (-40.0), ``color``
+       (-30.0), ``extension`` (-6.0).
      - ``omit.root`` / ``.third`` / ``.fifth`` / ``.seventh`` /
        ``.color`` / ``.extension``
      - :plat:`see left|per key, above`

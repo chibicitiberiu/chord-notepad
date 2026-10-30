@@ -16,6 +16,7 @@ user-tuned values stay. A v1 config chains through both steps (+2.0 -> -2.0 ->
 import copy
 from pathlib import Path
 
+from constants import CONFIG_VERSION
 from services.config_service import ConfigService
 
 
@@ -131,8 +132,9 @@ def test_ensemble_flat_penalties_and_omit_negated(tmp_path):
     assert w["unison_penalty"] == -0.5
     assert w["upper_spacing_penalty"] == -0.15
 
-    # omit sub-keys all negated.
-    assert w["omit"] == {"root": -4.0, "third": -40.0, "fifth": -8.0}
+    # omit sub-keys all negated; that lands on the old defaults, which the v4
+    # step then moves to the ensemble's own omission order.
+    assert w["omit"] == {"root": -20.0, "third": -40.0, "fifth": -3.0}
 
 
 def test_ensemble_bonuses_doubling_inversion_untouched(tmp_path):
@@ -166,7 +168,7 @@ def test_unknown_model_untouched(tmp_path):
 def test_version_bumped_to_current(tmp_path):
     service = _service(tmp_path)
     migrated = service._migrate_config(copy.deepcopy(_v1_config()), 1)
-    assert migrated["version"] == 3
+    assert migrated["version"] == CONFIG_VERSION
 
 
 def test_migration_is_idempotent_via_version_gate(tmp_path):
@@ -215,7 +217,7 @@ def test_v2_interior_mute_default_bumped_to_v3(tmp_path):
     assert migrated["voicings"]["tuned_by_hand"]["weights"]["interior_mute_penalty"] == -2.5
     # Non-fretboard models are never touched.
     assert migrated["voicings"]["my_choir"]["weights"] == {"movement": -0.4}
-    assert migrated["version"] == 3
+    assert migrated["version"] == CONFIG_VERSION
 
 
 def test_v2_to_v3_does_not_renegate_signs(tmp_path):
@@ -254,3 +256,49 @@ def test_only_overridden_keys_negated_missing_inherit_defaults(tmp_path):
     w = migrated["voicings"]["sparse"]["weights"]
     assert w == {"barre_penalty": -1.0}
     assert "span_penalty" not in w
+
+
+_OLD_ENSEMBLE_OMIT = {"root": -4.0, "third": -40.0, "fifth": -8.0,
+                      "seventh": -40.0, "color": -30.0, "extension": -7.0}
+
+
+def _choir(omit):
+    return {"model": "ensemble",
+            "voices": [{"name": "S", "range": ["C4", "G5"]},
+                       {"name": "A", "range": ["F3", "D5"]}],
+            "weights": {"omit": dict(omit), "movement": -0.4}}
+
+
+def test_v3_ensemble_omission_moves_to_the_ensemble_order(tmp_path):
+    """Ensembles got their own omission order (fifth first, todo #14). Saved
+    ensembles still on the old (piano) defaults follow it; tuned ones stay."""
+    from models.ensemble_spec import ENSEMBLE_OMIT_WEIGHTS
+    service = _service(tmp_path)
+    tuned = dict(_OLD_ENSEMBLE_OMIT, third=-35.0)
+    data = {
+        "version": 3,
+        "voicings": {
+            "copied_defaults": _choir(_OLD_ENSEMBLE_OMIT),
+            "partial_defaults": _choir({"root": -4.0}),
+            "tuned": _choir(tuned),
+            "a_piano": {"model": "piano", "weights": {"omit": dict(_OLD_ENSEMBLE_OMIT)}},
+        },
+    }
+    migrated = service._migrate_config(data, 3)
+    v = migrated["voicings"]
+    assert v["copied_defaults"]["weights"]["omit"] == ENSEMBLE_OMIT_WEIGHTS
+    assert v["copied_defaults"]["weights"]["movement"] == -0.4
+    assert v["partial_defaults"]["weights"]["omit"] == {"root": ENSEMBLE_OMIT_WEIGHTS["root"]}
+    assert v["tuned"]["weights"]["omit"] == tuned
+    assert v["a_piano"]["weights"]["omit"] == _OLD_ENSEMBLE_OMIT
+    assert migrated["version"] == CONFIG_VERSION
+
+
+def test_v1_ensemble_omission_chains_to_the_ensemble_order(tmp_path):
+    from models.ensemble_spec import ENSEMBLE_OMIT_WEIGHTS
+    service = _service(tmp_path)
+    v1_magnitudes = {role: -value for role, value in _OLD_ENSEMBLE_OMIT.items()}
+    data = {"version": 1, "voicings": {"c": _choir(v1_magnitudes)}}
+    data["voicings"]["c"]["weights"]["movement"] = 0.4
+    migrated = service._migrate_config(data, 1)
+    assert migrated["voicings"]["c"]["weights"]["omit"] == ENSEMBLE_OMIT_WEIGHTS

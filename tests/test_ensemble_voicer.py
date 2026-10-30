@@ -199,7 +199,7 @@ def test_omission_keeps_color_tone():
 
 
 def test_drop_set_ranking_prefers_expendable_tones():
-    """The cheapest drop-sets sacrifice the extension/fifth, never colour/seventh."""
+    """The cheapest drop-sets sacrifice the fifth/extension, never colour/seventh."""
     voicer = EnsembleVoicer(BUILTIN_ENSEMBLES['satb'])
     chord = cn(['C', 'F', 'G', 'Bb', 'D'], intervals=[0, 5, 7, 10, 14])
     meta = voicer._build_meta(chord)
@@ -207,11 +207,11 @@ def test_drop_set_ranking_prefers_expendable_tones():
     to_place = [(pc, role) for pc, role in meta.tones if pc != 0]
     ranked = voicer._ranked_drop_sets(to_place, 1)
 
-    # Cheapest two singletons drop the extension D (pc 2) and the fifth G (pc 7).
-    # Omit weights are now signed (negative); the cheapest to drop is the one
-    # closest to zero: extension -7.0, then fifth -8.0.
-    assert ranked[0] == (2,)   # extension, omit weight -7.0
-    assert ranked[1] == (7,)   # fifth, omit weight -8.0
+    # Cheapest two singletons drop the fifth G (pc 7) and the extension D (pc 2).
+    # Omit weights are signed (negative); the cheapest to drop is the one
+    # closest to zero: the fifth, then the extension.
+    assert ranked[0] == (7,)   # fifth
+    assert ranked[1] == (2,)   # extension
     # Colour F (-30.0) and seventh Bb (-40.0) are the most expensive to drop.
     assert ranked.index((5,)) > ranked.index((7,))
     assert ranked.index((10,)) > ranked.index((5,))
@@ -352,3 +352,71 @@ def test_voice_labels_top_first_and_voicings_low_to_high():
 
     voicing = voicer.voice_sequence([cn(['C', 'E', 'G'])])[0]
     assert voicing == sorted(voicing)  # low to high
+
+
+# ---------------------------------------------------------------------------
+# Ensemble omission order: the fifth goes first; root, third and 7th stay
+# ---------------------------------------------------------------------------
+TWO_VOICE_SPEC = EnsembleSpec.from_dict('duo', {
+    'label': 'Duo',
+    'voices': [
+        {'name': 'Upper', 'range': ['C4', 'G5']},
+        {'name': 'Lower', 'range': ['C3', 'C4']},
+    ],
+    'max_spacing': [19],
+})
+
+
+@pytest.mark.parametrize('spec,chord,kept,dropped', [
+    # G7 in three voices: G, B and F, not the rootless B D F.
+    (BUILTIN_ENSEMBLES['ssa'], cn(['G', 'B', 'D', 'F'], intervals=[0, 4, 7, 10]),
+     {7, 11, 5}, {2}),
+    (BUILTIN_ENSEMBLES['ssa'], cn(['C', 'E', 'G', 'Bb'], intervals=[0, 4, 7, 10]),
+     {0, 4, 10}, {7}),
+    (BUILTIN_ENSEMBLES['ssa'], cn(['A', 'C', 'E', 'G'], intervals=[0, 3, 7, 10]),
+     {9, 0, 7}, {4}),
+    (BUILTIN_ENSEMBLES['ssa'], cn(['C', 'E', 'G', 'B'], intervals=[0, 4, 7, 11]),
+     {0, 4, 11}, {7}),
+    # C9 in four voices: C, E, Bb and D, not the rootless E G Bb D.
+    (BUILTIN_ENSEMBLES['satb'], cn(['C', 'E', 'G', 'Bb', 'D'], intervals=[0, 4, 7, 10, 14]),
+     {0, 4, 10, 2}, {7}),
+    (BUILTIN_ENSEMBLES['ttbb'], cn(['G', 'B', 'D', 'F', 'A'], intervals=[0, 4, 7, 10, 14]),
+     {7, 11, 5, 9}, {2}),
+    # C9 in three voices: root, third and 7th.
+    (BUILTIN_ENSEMBLES['ssa'], cn(['C', 'E', 'G', 'Bb', 'D'], intervals=[0, 4, 7, 10, 14]),
+     {0, 4, 10}, {7, 2}),
+    # A triad in two voices keeps the root and the third.
+    (TWO_VOICE_SPEC, cn(['C', 'E', 'G']), {0, 4}, {7}),
+    (TWO_VOICE_SPEC, cn(['A', 'C', 'E'], intervals=[0, 3, 7]), {9, 0}, {4}),
+])
+def test_ensembles_omit_the_fifth_first(spec, chord, kept, dropped):
+    voicing = EnsembleVoicer(spec).voice_sequence([chord])[0]
+    pcs = {m % 12 for m in voicing}
+    assert kept <= pcs, f"{voicing} lacks {kept - pcs}"
+    assert not (dropped & pcs), f"{voicing} keeps {dropped & pcs}"
+
+
+def test_ensemble_omission_defaults_differ_from_the_piano():
+    from models.ensemble_spec import DEFAULT_WEIGHTS
+    omit = DEFAULT_WEIGHTS['omit']
+    # Cheapest to drop first: fifth, then extension, then root.
+    assert omit['fifth'] > omit['extension'] > omit['root']
+    assert omit['root'] > omit['color'] >= omit['third']
+    assert omit['root'] > omit['seventh']
+
+
+def test_user_omission_weights_still_win():
+    """A saved voicing that tuned its own omission weights keeps them."""
+    spec = EnsembleSpec.from_dict('mine', {
+        'label': 'Mine',
+        'voices': [
+            {'name': 'S1', 'range': ['C4', 'A5']},
+            {'name': 'S2', 'range': ['A3', 'F5']},
+            {'name': 'A', 'range': ['F3', 'D5']},
+        ],
+        'max_spacing': [12, 12],
+        'weights': {'omit': {'root': -1.0, 'fifth': -30.0}},
+    })
+    g7 = cn(['G', 'B', 'D', 'F'], intervals=[0, 4, 7, 10])
+    pcs = {m % 12 for m in EnsembleVoicer(spec).voice_sequence([g7])[0]}
+    assert 7 not in pcs and {11, 2, 5} <= pcs

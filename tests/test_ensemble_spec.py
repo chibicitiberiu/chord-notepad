@@ -356,10 +356,10 @@ class TestWeightMerging:
         assert DEFAULT_WEIGHTS["contrary_motion_bonus"] == 0.8
         assert DEFAULT_WEIGHTS["seventh_resolution_bonus"] == 1.5
         assert DEFAULT_WEIGHTS["leading_tone_resolution_bonus"] == 1.5
-        # omit flipped to all-negative.
+        # omit is all-negative, in the ensemble's own order (fifth first).
         assert DEFAULT_WEIGHTS["omit"] == {
-            "root": -4.0, "third": -40.0, "fifth": -8.0,
-            "seventh": -40.0, "color": -30.0, "extension": -7.0,
+            "root": -20.0, "third": -40.0, "fifth": -3.0,
+            "seventh": -40.0, "color": -30.0, "extension": -6.0,
         }
         # doubling and inversion untouched (already signed).
         assert DEFAULT_WEIGHTS["doubling"] == {

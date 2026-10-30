@@ -3,9 +3,11 @@
 A chord's identity is carried unequally by its tones. This module classifies a
 tone (given as a register-preserving interval above the root) into one of six
 *roles*, and supplies the default completeness penalties that say how badly a
-voicing suffers when a tone of each role is dropped. The piano picker uses it
-today; the upcoming ensemble (SATB) voicer reuses the same taxonomy so both
-agree on what a chord "needs".
+voicing suffers when a tone of each role is dropped. The piano picker and
+the ensemble (SATB) voicer share the taxonomy, so both agree on what a tone
+is; the penalties below are the piano's. An ensemble has no left hand to
+cover the root, so it keeps its own omission order (fifth first; see
+``models.ensemble_spec.ENSEMBLE_OMIT_WEIGHTS``).
 
 The roles:
 
@@ -44,8 +46,8 @@ def classify_role(interval: int) -> str:
     return 'color'  # sus2/sus4/6th and other defining colour tones
 
 
-# Completeness: penalty (subtracted) for each chord tone missing from the
-# whole voicing, keyed by the tone's harmonic role. The bass covers the root,
+# Completeness (piano): penalty (subtracted) for each chord tone missing from
+# the whole voicing, keyed by the tone's harmonic role. The bass covers the root,
 # so an omitted root is cheap; the third, seventh and colour tones define the
 # chord and are effectively never dropped.
 DEFAULT_OMIT_PENALTY: Dict[str, float] = {

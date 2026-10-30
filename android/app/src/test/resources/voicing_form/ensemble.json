@@ -97,9 +97,9 @@
    "nested:inversion:second": "-5.0",
    "nested:inversion:third": "-3.0",
    "nested:omit:color": "-30.0",
-   "nested:omit:extension": "-7.0",
-   "nested:omit:fifth": "-8.0",
-   "nested:omit:root": "-4.0",
+   "nested:omit:extension": "-6.0",
+   "nested:omit:fifth": "-3.0",
+   "nested:omit:root": "-20.0",
    "nested:omit:seventh": "-40.0",
    "nested:omit:third": "-40.0",
    "voices": [

@@ -141,7 +141,8 @@ def _resolve_pitch(value: Union[int, str], *, context: str) -> int:
 #: - ``double_leading_tone_penalty``: cost for doubling the leading tone.
 #: - ``doubling``: per-chord-tone-role bonus/penalty for which tone gets
 #:   doubled when there are more voices than chord tones.
-#: - ``omit``: per-role penalty for omitting a chord tone entirely.
+#: - ``omit``: per-role penalty for omitting a chord tone entirely. The
+#:   ensemble's own order (:data:`ENSEMBLE_OMIT_WEIGHTS`), not the piano's.
 #: - ``inversion``: per-inversion bonus/penalty for the chosen bass note.
 #: - ``range_comfort_penalty``: cost per semitone a voice sits inside the
 #:   outer 2 semitones of its configured range.
@@ -154,6 +155,32 @@ def _resolve_pitch(value: Union[int, str], *, context: str) -> int:
 #: The ``doubling`` and ``inversion`` sub-mappings were already signed this
 #: way; the flat penalties and every ``omit`` sub-key are stored negative to
 #: match, so the engine can add every weight uniformly.
+#: The order an ensemble drops chord tones when it has fewer voices than the
+#: chord has tones: the fifth first, then an extension (9th/11th/13th), and the
+#: root, third and 7th are kept, as in four-part writing. The piano's order
+#: (:data:`audio.chord_tones.DEFAULT_OMIT_PENALTY`) drops the root early
+#: because the left hand plays it; an ensemble has no left hand, so a dropped
+#: root left rootless inversions (G7 in three voices as B D F).
+ENSEMBLE_OMIT_WEIGHTS: Dict[str, float] = {
+    'root': -20.0,
+    'third': -40.0,
+    'fifth': -3.0,
+    'seventh': -40.0,
+    'color': -30.0,
+    'extension': -6.0,
+}
+
+#: The ensemble ``omit`` defaults before they got their own order (the piano's
+#: values); the config migration moves saved voicings still on them.
+PREVIOUS_ENSEMBLE_OMIT_WEIGHTS: Dict[str, float] = {
+    'root': -4.0,
+    'third': -40.0,
+    'fifth': -8.0,
+    'seventh': -40.0,
+    'color': -30.0,
+    'extension': -7.0,
+}
+
 DEFAULT_WEIGHTS: Dict[str, Any] = {
     'movement': -0.4,
     'bass_movement': -0.15,
@@ -174,14 +201,7 @@ DEFAULT_WEIGHTS: Dict[str, Any] = {
         'color': -6.0,
         'extension': -6.0,
     },
-    'omit': {
-        'root': -4.0,
-        'third': -40.0,
-        'fifth': -8.0,
-        'seventh': -40.0,
-        'color': -30.0,
-        'extension': -7.0,
-    },
+    'omit': dict(ENSEMBLE_OMIT_WEIGHTS),
     'inversion': {
         'root': 0.0,
         'first': -1.5,
