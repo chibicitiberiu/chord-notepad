@@ -5,9 +5,12 @@ The note helpers at module level (:func:`note_to_midi`, :func:`bass_note`,
 widget calls them too.
 """
 
+import itertools
 import logging
 import re
-from typing import Iterable, List, Tuple, Set, Optional
+from typing import Dict, Iterable, List, Tuple, Set, Optional
+
+from music21 import chord as m21_chord
 from utils.observable import Observable
 from services.song_parser_service import SongParserService
 from exceptions import ChordDetectionError
@@ -21,6 +24,15 @@ NOTE_NAMES = ('C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B')
 SELECT_NOTES_PROMPT = "Select notes to identify chords..."
 
 _FLAT_TO_SHARP = {'Db': 'C#', 'Eb': 'D#', 'Gb': 'F#', 'Ab': 'G#', 'Bb': 'A#'}
+_SHARP_TO_FLAT = {sharp: flat for flat, sharp in _FLAT_TO_SHARP.items()}
+
+#: How a chord's root is usually spelled, for notes that read as a chord
+#: either way (F# rather than Gb, Eb minor rather than D# minor).
+_USUAL_ROOTS = frozenset(('C', 'Db', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B'))
+
+#: Spelling preferences: what the typed notes used.
+FLATS = "flats"
+SHARPS = "sharps"
 _NOTE_TOKEN = re.compile(r'([A-Ga-g][#b]?)(\d+)?')
 
 
@@ -50,6 +62,83 @@ def normalize_note_name(note_name: str) -> str:
     if 'b' in normalized:
         normalized = _FLAT_TO_SHARP.get(normalized, normalized)
     return normalized
+
+
+def spelling_preference(note_string: str) -> Optional[str]:
+    """Whether typed notes lean on flats or sharps (:data:`FLATS`,
+    :data:`SHARPS`), or None when they use neither or as many of each."""
+    flats = sharps = 0
+    for part in re.split(r'[,\s;/|]+', note_string.strip()):
+        match = _NOTE_TOKEN.match(part)
+        if match and len(match.group(1)) == 2:
+            if match.group(1)[1] == 'b':
+                flats += 1
+            else:
+                sharps += 1
+    if flats == sharps:
+        return None
+    return FLATS if flats > sharps else SHARPS
+
+
+def _music21_name(name: str) -> str:
+    return name.replace('b', '-') if len(name) == 2 else name
+
+
+def _app_name(name: str) -> str:
+    """A music21 note or chord name in the app's spelling (``B-`` -> ``Bb``)."""
+    return name.replace('-', 'b')
+
+
+def spell_for_identification(names: Iterable[str], bass: Optional[str] = None,
+                             preference: Optional[str] = None) -> Dict[str, str]:
+    """Spell sharp-named keys so the chord they make stacks in thirds.
+
+    music21 finds a chord's root from how its notes are spelled: A# D F is
+    not stacked in thirds, so it reads as some kind of D, while Bb D F reads
+    as Bb major. Each black key is tried as a sharp and as a flat, and the
+    spellings music21 calls a plain chord (not an "enharmonic equivalent")
+    win. Among those, the typed ``preference`` comes first, then a usual
+    root spelling (Eb minor over D# minor), a root in the bass, fewer
+    accidentals, and sharps.
+
+    Args:
+        names: Note names spelled with sharps (:data:`NOTE_NAMES`).
+        bass: The lowest note's name, also with a sharp.
+        preference: :data:`FLATS`, :data:`SHARPS` or None.
+
+    Returns:
+        Each name mapped to its spelling. When no spelling reads as a plain
+        chord, the preferred accidental is used throughout (sharps by default).
+    """
+    names = sorted(set(names), key=NOTE_NAMES.index)
+    black = [n for n in names if n in _SHARP_TO_FLAT]
+    best_key = None
+    best: Optional[Dict[str, str]] = None
+    if 2 <= len(names) <= 7:
+        for flats in itertools.product((False, True), repeat=len(black)):
+            flat = {n for n, f in zip(black, flats) if f}
+            spelled = {n: _SHARP_TO_FLAT[n] if n in flat else n for n in names}
+            try:
+                c = m21_chord.Chord([_music21_name(spelled[n]) for n in names])
+                if c.commonName.startswith('enharmonic'):
+                    continue
+                root = _app_name(c.root().name)
+            except Exception:  # music21 can't read it: not a chord
+                continue
+            sharps = len(black) - len(flat)
+            key = (
+                sharps if preference == FLATS else len(flat) if preference == SHARPS else 0,
+                root not in _USUAL_ROOTS,
+                bass is not None and root != spelled.get(bass),
+                len(flat),
+            )
+            if best_key is None or key < best_key:
+                best_key, best = key, spelled
+    if best is not None:
+        return best
+    if preference == FLATS:
+        return {n: _SHARP_TO_FLAT.get(n, n) for n in names}
+    return {n: n for n in names}
 
 
 def parse_notes(note_string: str) -> Tuple[List[Tuple[str, int]], List[str]]:
@@ -108,6 +197,9 @@ class ChordIdentifierViewModel(Observable):
         self._candidates: List[str] = []
         self._info_lines: List[str] = [SELECT_NOTES_PROMPT]
         self._notation: str = "american"
+        # How the last typed notes were spelled (FLATS/SHARPS), so the answer
+        # is spelled the same way; None after a key tap.
+        self._spelling: Optional[str] = None
 
     @property
     def selected_notes(self) -> Set[Tuple[str, int]]:
@@ -143,6 +235,7 @@ class ChordIdentifierViewModel(Observable):
             octave: Octave number
         """
         note_tuple = (note_name, octave)
+        self._spelling = None
 
         if note_tuple in self._selected_notes:
             self._selected_notes.remove(note_tuple)
@@ -156,12 +249,16 @@ class ChordIdentifierViewModel(Observable):
         # Re-identify chords with new selection
         self._identify_chords()
 
-    def set_notes(self, notes: List[Tuple[str, int]]) -> None:
+    def set_notes(self, notes: List[Tuple[str, int]], spelling: Optional[str] = None) -> None:
         """Set the selected notes.
 
         Args:
             notes: List of (note_name, octave) tuples
+            spelling: How the notes were typed (:func:`spelling_preference`),
+                so the chords are named with the same accidentals; None
+                for piano keys.
         """
+        self._spelling = spelling
         self._selected_notes = set(notes)
         self.notify("selected_notes", self._selected_notes.copy())
         self._identify_chords()
@@ -170,6 +267,7 @@ class ChordIdentifierViewModel(Observable):
         """Clear all selected notes."""
         logger.debug("Clearing note selection")
         self._selected_notes.clear()
+        self._spelling = None
         self._identified_chords.clear()
         self._candidates = []
         self._info_lines = [SELECT_NOTES_PROMPT]
@@ -191,22 +289,30 @@ class ChordIdentifierViewModel(Observable):
             self.notify("identified_chords", self._identified_chords.copy())
             return
 
-        # Extract just the note names (ignore octaves for chord identification)
-        note_names = sorted(set(note for note, _ in self._selected_notes))
-
-        # Get the actual lowest note for bass/slash chord detection
-        bass_note = self._get_bass_note_from_selection()
+        # The selection is piano keys, spelled with sharps. Respell them so
+        # the chord they make stacks in thirds (A# D F is Bb D F): music21
+        # finds the root from the spelling. Octaves don't matter here.
+        keys = sorted(set(note for note, _ in self._selected_notes), key=NOTE_NAMES.index)
+        lowest = self._get_bass_note_from_selection()
+        spelled = spell_for_identification(keys, lowest, self._spelling)
+        note_names = [spelled[n] for n in keys]
+        bass_note = spelled.get(lowest) if lowest else None
 
         try:
             all_chords = set()
 
+            # music21 spells flats with '-': hand it its own spelling, so a
+            # root and a bass compare equal (B- vs B-, not B- vs Bb).
+            m21_notes = [_music21_name(n) for n in note_names]
+            m21_bass = _music21_name(bass_note) if bass_note else None
+
             # Try the notes in their original order
-            chord_names = self._chord_service.identify_chord_from_notes(note_names, bass_note)
+            chord_names = self._chord_service.identify_chord_from_notes(m21_notes, m21_bass)
             all_chords.update(chord_names)
 
             # Check if this is a symmetric chord (diminished 7th)
             # For these chords, manually add all possible root interpretations
-            if self._is_diminished_seventh(note_names):
+            if self._is_diminished_seventh(keys):
                 # All notes can be the root of a dim7 chord
                 for note in note_names:
                     if bass_note and bass_note != note:
@@ -214,12 +320,13 @@ class ChordIdentifierViewModel(Observable):
                     all_chords.add(f"{note}dim7")
 
             # For better coverage, try all inversions/rotations for non-symmetric chords
-            if not self._is_diminished_seventh(note_names):
-                for i in range(1, len(note_names)):
-                    rotated = note_names[i:] + note_names[:i]
-                    chord_names = self._chord_service.identify_chord_from_notes(rotated, bass_note)
+            if not self._is_diminished_seventh(keys):
+                for i in range(1, len(m21_notes)):
+                    rotated = m21_notes[i:] + m21_notes[:i]
+                    chord_names = self._chord_service.identify_chord_from_notes(rotated, m21_bass)
                     all_chords.update(chord_names)
 
+            all_chords = {_app_name(name) for name in all_chords}
             if all_chords:
                 # Sort chords: prioritize simpler chords, then alphabetically
                 chord_list = sorted(all_chords, key=lambda c: (len(c), c))
@@ -267,17 +374,10 @@ class ChordIdentifierViewModel(Observable):
         Returns:
             True if the notes form a diminished 7th chord
         """
-        if len(note_names) != 4:
+        if len(set(note_names)) != 4:
             return False
-
-        # Check if any interpretation is a diminished 7th chord
-        for note in note_names:
-            chord_name = f"{note}dim7"
-            chord_notes = self._chord_service.get_chord_notes(chord_name)
-            if chord_notes and set(chord_notes) == set(note_names):
-                return True
-
-        return False
+        steps = sorted(NOTE_NAMES.index(_FLAT_TO_SHARP.get(n, n)) for n in set(note_names))
+        return all(b - a == 3 for a, b in zip(steps, steps[1:]))
 
     def identify_chords_from_notes(self) -> List[str]:
         """Manually trigger chord identification.
@@ -324,7 +424,7 @@ class ChordIdentifierViewModel(Observable):
         """
         try:
             notes = self.parse_note_string(note_string)
-            self.set_notes(notes)
+            self.set_notes(notes, spelling_preference(note_string))
             logger.debug(f"Set notes from string: {note_string} -> {notes}")
         except Exception as e:
             logger.error(f"Error parsing note string '{note_string}': {e}", exc_info=True)

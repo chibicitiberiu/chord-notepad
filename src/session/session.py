@@ -955,10 +955,10 @@ class AppSession:
         out); what isn't a note is skipped and named in
         ``IdentifierState.typed_text_error``. Nothing sounds.
         """
-        from viewmodels.chord_identifier_viewmodel import parse_notes
+        from viewmodels.chord_identifier_viewmodel import parse_notes, spelling_preference
 
         notes, not_understood = parse_notes(str(text))
-        self._identifier().set_notes(notes)
+        self._identifier().set_notes(notes, spelling_preference(str(text)))
         self._identifier_error = (formatting.identifier_not_notes(not_understood)
                                   if not_understood else None)
         self._publish_identifier()

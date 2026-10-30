@@ -685,6 +685,11 @@ Below the piano, you can type note names directly:
 * Or with commas: ``C, E, G``
 * Include sharps and flats: ``C Eb G``
 
+The chords are named with the accidentals you typed: ``Bb D F`` gives ``Bb``,
+``A# D F`` gives ``Bb`` as well (it can't be spelled as a chord with A#), and
+``F# A# C#`` gives ``F#``. Notes picked on the keyboard get the usual names:
+``Bb``, ``Eb``, ``Ab`` and ``Db`` major, ``F#`` major, ``Eb`` minor.
+
 The Results List
 ----------------
 
