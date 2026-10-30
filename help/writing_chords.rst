@@ -568,6 +568,12 @@ The case tells you the chord quality:
    IV   // Major chord on the fourth degree
    iv   // Minor chord on the fourth degree
 
+You can also mark a minor chord with an ``m``, the way jazz charts often do:
+``IIm7`` (uppercase plus ``m``) and ``iim7`` (lowercase plus a redundant ``m``)
+are both the same chord as ``ii7``, Dm7 in C. This works with accidentals
+(``bIIIm7``, ``#ivm7b5``) and slash bass (``IIm7/V``). A dash for minor
+(``ii-7``) isn't recognized.
+
 Common Progressions
 -------------------
 

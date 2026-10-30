@@ -353,7 +353,7 @@ class SongParserService:
         # Remove accidentals from the beginning
         base = re.sub(r'^[#b♭♯]', '', base)
         # Remove quality markers (including 'o' for diminished)
-        base = re.sub(r'[o°+Δ∆]|[Mm]?[79]|sus[24]|add[0-9]|maj|min|dim|aug', '', base)
+        base = re.sub(r'[o°+Δ∆]|[Mm]?[79]|sus[24]|add[0-9]|maj|min|dim|aug|m', '', base)
 
         # Check if base matches roman numeral pattern
         roman_pattern = r'^[IViv]+$'

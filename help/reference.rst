@@ -337,6 +337,38 @@ Common Alterations
      - Sharp 4, diminished
      - F#dim
 
+Minor Spellings
+---------------
+
+A minor chord can also be written with an ``m``: on a lowercase numeral it is
+redundant, and on an uppercase one it is the jazz (Berklee) style. All of these
+mean the same chord.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 30 30 40
+
+   * - Spellings
+     - Meaning
+     - Example (Key of C)
+   * - ``ii7``, ``iim7``, ``IIm7``
+     - Minor 7th on degree 2
+     - Dm7
+   * - ``vi``, ``vim``, ``VIm``
+     - Minor on degree 6
+     - Am
+   * - ``bIIIm7``
+     - Minor 7th on flat 3
+     - Ebm7
+   * - ``#ivm7b5``, ``#ivø``
+     - Half-diminished on sharp 4
+     - F#m7b5
+   * - ``IIm7/V``
+     - Minor 7th on 2, fifth in the bass
+     - Dm7/G
+
+``ii-7`` (a dash for minor) isn't recognized; use ``ii7`` or ``IIm7``.
+
 
 Directive Reference
 ===================
