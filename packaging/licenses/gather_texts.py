@@ -127,7 +127,6 @@ SOURCES = {
                             "gcem-012ae73c6d0a2cb09ffe86475f5c6fba3926e200/LICENSE"),
     "pychord-MIT.txt": ("dist", "pychord", r"licenses/LICENSE$"),
     "music21-BSD.txt": ("dist", "music21", r"licenses/LICENSE$"),
-    "chardet-0BSD.txt": ("dist", "chardet", r"licenses/LICENSE$"),
     "more-itertools-MIT.txt": ("dist", "more-itertools", r"licenses/LICENSE$"),
     "requests-Apache-2.0.txt": ("dist", "requests", r"licenses/LICENSE$"),
     "requests-NOTICE.txt": ("dist", "requests", r"licenses/NOTICE$"),

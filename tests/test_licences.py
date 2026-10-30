@@ -117,8 +117,11 @@ def test_every_runtime_package_in_pipfile_lock_has_an_entry_or_is_left_out():
         if name in entries:
             assert entries[name]["version"] == version, f"{name}: inventory says {entries[name]['version']}"
             continue
+        # mypyc-compiled packages also ship a "<hash>__mypyc" runtime module
+        # that only the package itself imports.
         top = {module for module, dists in modules.items()
-               if name in {inv.normalize(d) for d in dists} and not module.startswith("__")}
+               if name in {inv.normalize(d) for d in dists}
+               and not module.startswith("__") and not module.endswith("__mypyc")}
         assert top and top <= set(inv.PYINSTALLER_EXCLUDES), (
             f"{name} {version} is in Pipfile.lock but has no licence entry and isn't excluded "
             f"from the PyInstaller builds (modules {sorted(top)})")
@@ -336,7 +339,7 @@ def test_excluded_modules_are_not_needed_by_the_app():
         sys.path.insert(0, src)
         names = [m.name for m in pkgutil.walk_packages([src])]
         failures = []
-        for name in sorted(set(names)) + ["mido", "music21.harmony", "music21.chord", "PIL.ImageTk"]:
+        for name in sorted(set(names)) + ["mido", "music21.harmony", "music21.chord", "PIL.ImageTk", "requests"]:
             try:
                 importlib.import_module(name)
             except Exception as exc:

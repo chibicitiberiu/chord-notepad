@@ -25,11 +25,11 @@ LOCK = HERE.parent.parent / "Pipfile.lock"
 
 # Everything the app imports at runtime, plus their runtime deps. Deliberately
 # left out: numpy, matplotlib, joblib, jsonpickle (music21 extras we never hit)
-# and numpy for pyfluidsynth (only its get_samples/raw_audio helpers use it).
+# and numpy for pyfluidsynth (only its get_samples/raw_audio helpers use it),
+# and chardet (see PYINSTALLER_EXCLUDES in packaging/licenses/licence_inventory.py).
 PACKAGES = [
     "pychord",
     "music21",
-    "chardet",
     "more-itertools",
     "requests",
     "certifi",

@@ -464,18 +464,6 @@
       "note": "Without its optional extras (numpy, matplotlib and friends), which this app doesn't use."
     },
     {
-      "id": "chardet",
-      "name": "chardet",
-      "group": "python",
-      "version": "7.4.3",
-      "pypi": "chardet",
-      "license": "0BSD",
-      "url": "https://github.com/chardet/chardet",
-      "texts": ["chardet-0BSD"],
-      "builds": ["windows", "macos", "linux", "flatpak", "snap"],
-      "note": "A dependency of music21 (music21.common.fileTools uses it to guess the encoding of files music21 reads). Chord Notepad itself never imports it."
-    },
-    {
       "id": "more-itertools",
       "name": "more-itertools",
       "group": "python",

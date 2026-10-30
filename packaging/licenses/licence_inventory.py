@@ -76,6 +76,10 @@ PYINSTALLER_EXCLUDES = (
     # CPython's readline module links GNU readline (GPL-3.0) on Linux; only
     # the interactive interpreter uses it.
     "readline",
+    # chardet 7's relicensing (LGPL to 0BSD) is disputed. Only music21's
+    # fileTools imports it, lazily, for files music21 reads itself, which the
+    # app never does; requests falls back to charset-normalizer.
+    "chardet",
 )
 
 

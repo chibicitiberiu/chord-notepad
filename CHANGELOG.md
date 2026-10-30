@@ -65,8 +65,9 @@ moved to CHANGELOG_HISTORY.md and this file is reset.
 ### Changed
 
 - The Windows, macOS and Linux downloads are smaller: they no longer bundle
-  numpy, matplotlib and other packages the app never used, and on Windows two
-  unused FluidSynth libraries (libinstpatch and libgobject).
+  numpy, matplotlib, chardet and other packages the app never used, and on
+  Windows two unused FluidSynth libraries (libinstpatch and libgobject). The
+  Flatpak and snap no longer include chardet either.
 - The help and README say where to get Chord Notepad: the GitHub releases, the
   Snap Store, and the Microsoft Store (a paid supporter edition of the same
   app). The help's "Limitations" section no longer claims there is no staff or
