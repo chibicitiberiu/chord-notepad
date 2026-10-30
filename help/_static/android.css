@@ -499,6 +499,52 @@ kbd {
     margin-bottom: 4px;
 }
 
+/* Voicing parameter tables (Control | What it does | Config key | Default,
+   always `:widths: 28 40 20 12`) are four squeezed columns on a phone: one
+   card per row instead, the control name on top, its text below, and the
+   config key and default on one small line. */
+.rst-content table.docutils:has(> colgroup > col:nth-child(4)[style*="12.0%"]) {
+    display: block;
+    border: none;
+}
+.rst-content table.docutils:has(> colgroup > col:nth-child(4)[style*="12.0%"]) :is(colgroup, thead) {
+    display: none;
+}
+.rst-content table.docutils:has(> colgroup > col:nth-child(4)[style*="12.0%"]) :is(tbody, tr) {
+    display: block;
+}
+.rst-content table.docutils:has(> colgroup > col:nth-child(4)[style*="12.0%"]) tr {
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    margin-bottom: 8px;
+    padding: 8px 12px;
+    background: var(--surface-low);
+}
+.rst-content table.docutils:has(> colgroup > col:nth-child(4)[style*="12.0%"]) tr td {
+    display: block;
+    min-width: 0;
+    padding: 0;
+    border: none !important;
+    background: transparent !important;
+}
+.rst-content table.docutils:has(> colgroup > col:nth-child(4)[style*="12.0%"]) td:nth-child(1) {
+    font-weight: 600;
+}
+.rst-content table.docutils:has(> colgroup > col:nth-child(4)[style*="12.0%"]) :is(td:nth-child(3), td:nth-child(4)) {
+    display: inline-block;
+    margin-right: 16px;
+    color: var(--muted);
+}
+.rst-content table.docutils:has(> colgroup > col:nth-child(4)[style*="12.0%"]) td:nth-child(3)::before {
+    content: "Config key ";
+}
+.rst-content table.docutils:has(> colgroup > col:nth-child(4)[style*="12.0%"]) td:nth-child(4)::before {
+    content: "Default ";
+}
+.rst-content table.docutils:has(> colgroup > col:nth-child(4)[style*="12.0%"]) td p {
+    display: inline;
+}
+
 /* ---- Admonitions ---------------------------------------------------------- */
 
 .rst-content .admonition,

@@ -480,7 +480,7 @@ Voicing Parameters
        ``extension`` (-6.0).
      - ``doubling.root`` / ``.fifth`` / ``.third`` / ``.seventh`` /
        ``.color`` / ``.extension``
-     - see left
+     - :plat:`see left|per key, above`
    * - Omission (by tone role)
      - Added to the score for dropping a chord tone entirely when there are
        fewer voices than notes. The values are negative, so a more negative
@@ -489,13 +489,13 @@ Voicing Parameters
        (-30.0), ``extension`` (-7.0).
      - ``omit.root`` / ``.third`` / ``.fifth`` / ``.seventh`` /
        ``.color`` / ``.extension``
-     - see left
+     - :plat:`see left|per key, above`
    * - Inversion (by bass tone)
      - Added to the score for the bass note's chosen inversion. Keys:
        ``root`` (0.0), ``first`` (-1.5), ``second`` (-5.0), ``third``
        (-3.0); nearer zero favors that inversion, more negative avoids it.
      - ``inversion.root`` / ``.first`` / ``.second`` / ``.third``
-     - see left
+     - :plat:`see left|per key, above`
    * - Out-of-comfort range
      - Subtracted per semitone a voice sits within the outermost 2 semitones
        of its configured range. More negative keeps voices away from the

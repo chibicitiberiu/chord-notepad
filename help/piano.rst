@@ -361,7 +361,7 @@ you want it to steer clear of gets a negative one; zero leaves it neutral.
        (-8.0), ``seventh`` (-40.0), ``color`` (-30.0), ``extension`` (-7.0).
      - ``omit.root`` / ``.third`` / ``.fifth`` / ``.seventh`` / ``.color`` /
        ``.extension``
-     - see left
+     - :plat:`see left|per key, above`
 
 .. note::
    These weights apply per piano voicing. A custom piano voicing that omits
