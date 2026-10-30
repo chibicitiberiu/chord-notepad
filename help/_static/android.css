@@ -314,12 +314,14 @@ footer hr {
 }
 
 /* Never wider than the screen, and a tall phone screenshot never taller
-   than most of it (the :width: set for the desktop is ignored here). */
+   than most of it (the :width: set for the desktop is ignored here). No vh:
+   in the app's WebView it is 0, so android.js sets --img-max-h to 70% of
+   the screen height; 560px is the fallback without script. */
 .rst-content img {
     width: auto !important;
     height: auto !important;
     max-width: 100%;
-    max-height: 70vh;
+    max-height: var(--img-max-h, 560px);
     border: 1px solid var(--line);
     border-radius: var(--radius);
     background: var(--paper);

@@ -132,6 +132,8 @@ if tags.has('android'):  # noqa: F821
     # stylesheet with the app's colours and dark mode, instead of the desktop
     # guide's coral.
     html_css_files = ['android.css']
+    # Image height cap from the screen size (vh is 0 in the app's WebView).
+    html_js_files = ['android.js']
     # No "Built with Sphinx ... Read the Docs" links out of the app.
     html_show_sphinx = False
     # An image wrapped in a link can't sit in a <picture> (dark variants);
