@@ -62,7 +62,11 @@ def wired():
     editor.pack()
     # Only the editor is real; the other widgets the session's states map
     # to are stand-ins.
-    window = SimpleNamespace(text_editor=editor, session=session, statusbar=Mock(),
+    from ui.directive_hints import DirectiveHints
+
+    statusbar = Mock()
+    window = SimpleNamespace(text_editor=editor, session=session, statusbar=statusbar,
+                             directive_hints=DirectiveHints(editor, statusbar, session),
                              _apply_playback=Mock(), _apply_toolbar=Mock(),
                              _apply_editor=Mock(), rebuild_voicing_menu=Mock(),
                              build_instrument_menu=Mock(), _apply_chord_sheet=Mock())
@@ -233,7 +237,7 @@ def test_highlight_state_from_the_session_is_painted(wired):
 def _playback_window(wired):
     """A window whose playback widgets are stand-ins around the real editor."""
     return SimpleNamespace(
-        text_editor=wired.editor, _shown_progress=None, session=Mock())
+        text_editor=wired.editor, _shown_progress=None, session=Mock(), directive_hints=Mock())
 
 
 def test_playing_state_highlights_and_scrolls_to_the_chord(wired):

@@ -110,8 +110,13 @@ class ToolTip:
                 pass
             self._after_id = None
 
+    def _position(self) -> tuple:
+        """Where the tip's top-left corner goes, in screen coordinates:
+        below-right of the pointer."""
+        return self.widget.winfo_pointerx() + 12, self.widget.winfo_pointery() + 16
+
     def _show(self) -> None:
-        """Create and display the tooltip Toplevel below-right of the pointer."""
+        """Create and display the tooltip Toplevel (see :meth:`_position`)."""
         self._after_id = None
 
         if self._tip_window is not None:
@@ -120,8 +125,7 @@ class ToolTip:
             return
 
         try:
-            x = self.widget.winfo_pointerx() + 12
-            y = self.widget.winfo_pointery() + 16
+            x, y = self._position()
 
             tip_window = tk.Toplevel(self.widget)
             tip_window.wm_overrideredirect(True)
@@ -205,6 +209,75 @@ class TabToolTip(ToolTip):
         if text is not None:
             self.text = text
             self._after_id = self.widget.after(self.delay_ms, self._show)
+
+
+class RegionToolTip(ToolTip):
+    """A tooltip for regions inside one widget (ranges of a text, say).
+
+    Uses the same look as :class:`ToolTip`. ``region_at(x, y)`` names the
+    region under the pointer (any hashable value, or ``None`` for none) and
+    is called on every ``<Motion>``, so it must be cheap. ``text_for(region)``
+    gives the tip's text and is called only when the tip is about to show
+    (``None`` or "" shows nothing). ``position_for(region)``, when given,
+    places the tip (screen coordinates; ``None`` falls back to the pointer),
+    e.g. under the hovered text rather than over it. Moving to another region
+    hides the tip and re-arms it; leaving the widget or clicking hides it.
+    """
+
+    def __init__(self, widget: tk.Widget, region_at, text_for,
+                 delay_ms: int = 500, wraplength: int = 480, position_for=None) -> None:
+        """Create and arm the per-region tooltip.
+
+        Args:
+            widget: The widget whose regions get tooltips.
+            region_at: Callable ``(x, y) -> Optional[Hashable]`` in widget
+                coordinates.
+            text_for: Callable ``(region) -> Optional[str]``.
+            delay_ms: Hover delay before the tip appears.
+            wraplength: Maximum pixel width before the tip text wraps.
+            position_for: Optional callable ``(region) -> Optional[(x, y)]``.
+        """
+        super().__init__(widget, '', delay_ms=delay_ms, wraplength=wraplength)
+        self._region_at = region_at
+        self._text_for = text_for
+        self._position_for = position_for
+        self.region = None
+        widget.bind('<Motion>', self._on_motion, add='+')
+
+    def _on_enter(self, _event: Optional[tk.Event] = None) -> None:
+        """No-op: showing is driven by ``<Motion>`` over a region."""
+
+    def _on_leave(self, _event: Optional[tk.Event] = None) -> None:
+        """Hide and forget the hovered region."""
+        self.region = None
+        self.hide()
+
+    def _on_motion(self, event: tk.Event) -> None:
+        """Track the hovered region; (re)arm the tip when it changes."""
+        region = self._region_at(event.x, event.y)
+        if region == self.region:
+            return
+        self.region = region
+        self.hide()
+        if region is not None:
+            self._after_id = self.widget.after(self.delay_ms, self._show_region)
+
+    def _show_region(self) -> None:
+        """Look the hovered region's text up and show it, if it has any."""
+        self._after_id = None
+        text = self._text_for(self.region) if self.region is not None else None
+        if not text:
+            return
+        self.text = text
+        self._show()
+
+    def _position(self) -> tuple:
+        """Where ``position_for`` puts the hovered region's tip, else by the pointer."""
+        if self._position_for is not None and self.region is not None:
+            position = self._position_for(self.region)
+            if position is not None:
+                return position
+        return super()._position()
 
 
 def add_tooltip(widget: tk.Widget, text: str, **kwargs) -> ToolTip:

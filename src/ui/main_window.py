@@ -12,6 +12,7 @@ from PIL import Image, ImageTk
 from ui.scrubber import Scrubber
 from utils import error_reporting
 from ui.text_editor import ChordTextEditor, REDO_ACCELERATOR
+from ui.directive_hints import DirectiveHints
 from ui.chord_identifier import ChordIdentifierWindow
 from ui.builders.menu_builder import MenuBuilder
 from ui.audio_errors import present_audio_unavailable
@@ -34,7 +35,7 @@ from session.events import (
 )
 from session.state import (
     ChordSheetState, DocumentState, EditorState, HighlightState, InstrumentMenuState,
-    PlayAction, PlaybackState, RecentDocumentsState, StatusState, ToolbarState,
+    PlayAction, PlaybackState, PlaybackStatus, RecentDocumentsState, StatusState, ToolbarState,
     VoicingMenuState,
 )
 from session.toolbar import (
@@ -340,12 +341,14 @@ class MainWindow(tk.Tk):
             self.text_editor.apply_edit(item)
         elif isinstance(item, HighlightState):
             self.text_editor.apply_highlight(item)
+            # A directive's "has no effect" reason needs the new detection.
+            self.directive_hints.schedule()
         elif isinstance(item, PlaybackState):
             self._apply_playback(item)
         elif isinstance(item, ToolbarState):
             self._apply_toolbar(item)
         elif isinstance(item, StatusState):
-            self.statusbar.config(text=item.text)
+            self.directive_hints.set_status(item.text)
         elif isinstance(item, EditorState):
             self._apply_editor(item)
         elif isinstance(item, VoicingMenuState):
@@ -431,6 +434,8 @@ class MainWindow(tk.Tk):
 
     def _apply_playback(self, state: PlaybackState) -> None:
         """Highlight (and scroll to) the chord that is sounding."""
+        # Playback's status wins over the directive hint.
+        self.directive_hints.set_playing(state.status is not PlaybackStatus.IDLE)
         # Repaint (and scroll to) the playing chord only when playback moved
         # on, not when it was merely paused.
         progress = (state.playing_span, state.chord_index, state.bar)
@@ -787,6 +792,9 @@ class MainWindow(tk.Tk):
         ttk.Separator(status_frame, orient=tk.HORIZONTAL).pack(side=tk.TOP, fill=tk.X)
         self.statusbar = ttk.Label(status_frame, text="Ready", anchor=tk.W, style='Status.TLabel')
         self.statusbar.pack(side=tk.TOP, fill=tk.X)
+        # The directive under the cursor shows its syntax here; a red or
+        # faded directive explains itself on hover.
+        self.directive_hints = DirectiveHints(self.text_editor, self.statusbar, self.session)
 
     def create_chord_sheet(self) -> None:
         """Create the chord-sheet strip and dock it under the editor.
