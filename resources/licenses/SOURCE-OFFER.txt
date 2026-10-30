@@ -14,21 +14,33 @@ carries two source files next to the downloads:
   ChordNotepad-<version>-third-party-sources.tar
       The source of every LGPL, GPL and MPL component listed here, for the
       Windows, macOS, Linux and Flatpak builds. For Windows it also holds the
-      unmodified upstream FluidSynth package the DLLs come from. For the Linux
-      binary and the snap, whose libraries come from Ubuntu, it lists the exact
-      Ubuntu source packages and versions; Ubuntu keeps every published source
-      package at https://launchpad.net/ubuntu.
+      unmodified upstream FluidSynth package the DLLs come from. The Linux
+      binary and the snap take their libraries from Ubuntu: the bundle holds
+      the Ubuntu source packages of the GPL and LGPL ones and lists every
+      Ubuntu package with its exact version; Ubuntu keeps every published
+      source package at https://launchpad.net/ubuntu.
 
 The Microsoft Store and Snap Store editions are built from the GitHub release
 with the same version number: use that release's source files.
 
 Written offer: for three years after the last time this version is
-distributed, the author will also send anyone who asks a copy of its
+distributed, Tiberiu Chibici will also send anyone who asks a copy of its
 complete corresponding source, as a download or on a physical medium, for
-no more than the cost of making and sending it. Ask at
-https://github.com/chibicitiberiu/chord-notepad/issues.
+no more than the cost of making and sending it. Ask by email or on GitHub:
 
-Replacing a library: the LGPL libraries are loaded at run time, not built
-into Chord Notepad. On Windows they are the DLLs in the bundle's fluidsynth
-folder; to use your own build, put it there and rebuild the app from the
-source above (make build), or run Chord Notepad from source.
+  Email: chibicitiberiu@gmail.com
+  GitHub: https://github.com/chibicitiberiu/chord-notepad/issues
+
+Using your own FluidSynth: the LGPL libraries (FluidSynth and the GLib,
+libintl and libsndfile libraries it uses) are loaded at run time, not built
+into Chord Notepad. To run Chord Notepad with your own build of them, set
+the environment variable CHORD_NOTEPAD_LIBFLUIDSYNTH to the full path of
+your libfluidsynth (on Windows, libfluidsynth-3.dll, with the DLLs it needs
+in the same folder) before starting the app. This works with the Windows
+download and the Microsoft Store edition, on macOS, with the Linux binary
+and with the Flatpak (flatpak run --env=CHORD_NOTEPAD_LIBFLUIDSYNTH=...
+--filesystem=<its folder>). The snap sets this variable itself: rebuild it
+from the source above (snap/snapcraft.yaml) instead. Your build needs to be
+FluidSynth 2.x. pyFluidSynth (LGPL) is part of the app's bundled Python
+code: to change it, rebuild Chord Notepad from the source above (make build)
+or run it from source.

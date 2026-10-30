@@ -77,7 +77,7 @@ def test_appropriate_legal_notices_of_the_app():
     """ADDITIONAL-TERMS.txt (its permission 2(b)) follows the AGPL; logo and guide have their own."""
     app = BY_ID["chord-notepad"]
     assert app["texts"] == ["AGPL-3.0", "ADDITIONAL-TERMS"]
-    assert app["license"] == "AGPL-3.0-only AND LicenseRef-ChordNotepad-Section7"
+    assert app["license"] == "AGPL-3.0-only WITH AdditionRef-ChordNotepad-Section7"
     assert (LICENSES / "texts/ADDITIONAL-TERMS.txt").read_text() == (REPO / "ADDITIONAL-TERMS.txt").read_text()
     assert BY_ID["chord-notepad-logo"]["texts"] == ["ARTWORK-TERMS"]
     assert BY_ID["chord-notepad-guide"]["license"] == "CC-BY-SA-4.0"
@@ -511,3 +511,88 @@ def test_session_hands_out_the_catalog():
 
     catalog = AppSession.licence_catalog(None, str(REPO))  # uses no session state
     assert catalog.get("chord-notepad") is not None
+
+
+def test_malformed_components_are_value_errors(tmp_path):
+    """The Licences window shows an error for ValueError (main_window.show_licences), not a traceback."""
+    (tmp_path / "texts").mkdir()
+    good = {"id": "a", "name": "A", "group": "app", "license": "MIT", "texts": [], "builds": []}
+    for broken in ({k: v for k, v in good.items() if k != "name"}, {**good, "license": ""},
+                   {k: v for k, v in good.items() if k != "id"}, {**good, "texts": "MIT"}, "a string"):
+        with pytest.raises(ValueError):
+            cat.parse_components({"components": [broken]}, tmp_path / "texts", None)
+    for data in ({}, {"components": {}}, []):
+        with pytest.raises(ValueError):
+            cat.parse_components(data, tmp_path / "texts", None)
+    (tmp_path / "components.json").write_text(json.dumps({"components": [{"id": "a", "group": "app"}]}))
+    with pytest.raises(ValueError, match="missing name, license"):
+        cat.load_catalog(tmp_path)
+
+
+def test_resolve_dpkg_survives_an_unreadable_copyright_file(monkeypatch):
+    def run(*args):
+        if args[1] == "-S":
+            return "zlib1g:amd64: /usr/lib/x86_64-linux-gnu/libz.so.1"
+        return "zlib1g\t1:1.3.dfsg-3\tzlib\t1:1.3.dfsg-3"
+
+    class Unreadable(type(Path())):
+        def is_file(self):
+            return True
+
+        def read_text(self, *args, **kwargs):
+            raise PermissionError(13, "Permission denied", str(self))
+
+    monkeypatch.setattr(inv, "_run", run)
+    monkeypatch.setattr(inv, "Path", Unreadable)
+    pkg = inv.resolve_dpkg("/usr/lib/x86_64-linux-gnu/libz.so.1")
+    assert (pkg.name, pkg.source_name, pkg.license, pkg.licence_files) == ("zlib1g", "zlib", "Unknown", [])
+
+
+def test_source_bundle_fetches_only_gpl_family_ubuntu_sources(tmp_path, monkeypatch):
+    import make_source_bundle as msb
+
+    assert msb.wants_source({"LGPL-2.1+"}) and msb.wants_source({"BSD-3-clause / GPL-2+"})
+    assert msb.wants_source({"GPL-3.0-or-later"}) and msb.wants_source({"LGPL-2.1-only"})
+    assert msb.wants_source({"GPL (free-form copyright file)"}) and msb.wants_source({None, "MIT"})
+    assert not msb.wants_source({"MIT", "Expat / BSD-3-clause"}) and not msb.wants_source({"AGPL-3+"})
+    assert not msb.wants_source({"PSF-2.0 / GFDL-1.2+"})
+    assert msb.copyright_licences("Files: *\nLicense: LGPL-2.1+\n\nLicense: LGPL-2.1+\n text\n") == "LGPL-2.1+"
+    assert msb.copyright_licences("This package is under the GNU Lesser General Public License.") is not None
+    assert msb.copyright_licences("Copyright 2001 X. Permission is hereby granted, free of charge") is None
+
+    system = tmp_path / "system.json"
+    system.write_text(json.dumps({"packageFormat": "deb", "packages": [
+        {"name": "libglib2.0-0t64", "version": "2.80.0-6", "sourcePackage": "glib2.0", "sourceVersion": "2.80.0-6",
+         "license": "LGPL-2.1+ / Expat"},
+        {"name": "libexpat1", "version": "2.6.1-2", "sourcePackage": "expat", "sourceVersion": "2.6.1-2",
+         "license": "MIT"}]}))
+    manifest = tmp_path / "manifest.yaml"
+    manifest.write_text(SNAP_MANIFEST)
+    docs = tmp_path / "doc"
+    for name, text in (("libfluidsynth3", "License: LGPL-2.1+\n"), ("libpulse0", "License: LGPL-2.1+\n")):
+        (docs / name).mkdir(parents=True)
+        (docs / name / "copyright").write_text(text)
+    monkeypatch.setattr(msb, "ubuntu_source_of", lambda binary, version: (binary.split(":")[0] + "-src", version))
+    items = {i["source"]: i for i in msb.ubuntu_packages([system], [manifest], docs)}
+    assert set(items) == {"glib2.0", "expat", "libfluidsynth3-src", "libglib2.0-0t64-src", "libpulse0-src"}
+    wanted = sorted(s for s, i in items.items() if msb.wants_source(i["licences"]))
+    # libglib2.0-0t64 has no copyright file in the snap: unknown licence, fetched to be safe
+    assert wanted == ["glib2.0", "libfluidsynth3-src", "libglib2.0-0t64-src", "libpulse0-src"]
+    assert items["expat"]["licences"] == {"MIT"} and items["libpulse0-src"]["builds"] == {"snap"}
+
+
+ANDROID_TEXTS = REPO / "android/app/src/main/assets/licenses/texts"
+
+
+@pytest.mark.parametrize("copy, original", [
+    ("AGPL-3.0.txt", "LICENSE"),
+    ("ADDITIONAL-TERMS.txt", "ADDITIONAL-TERMS.txt"),
+    ("ARTWORK-TERMS.txt", "ARTWORK-TERMS.txt"),
+    ("help-LICENSE.txt", "help/LICENSE"),
+])
+def test_licence_copies_are_the_repository_files_byte_for_byte(copy, original):
+    """The Android app and the desktop builds show these, so they must be exactly the files at the root."""
+    assert (ANDROID_TEXTS / copy).read_bytes() == (REPO / original).read_bytes(), (
+        f"android/.../texts/{copy}: run android/tools/gather_licenses.py")
+    assert (LICENSES / "texts" / copy).read_bytes() == (REPO / original).read_bytes(), (
+        f"resources/licenses/texts/{copy}: run packaging/licenses/gather_texts.py")

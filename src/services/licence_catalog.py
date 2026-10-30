@@ -165,10 +165,29 @@ def _runtime_version(key: str) -> Optional[str]:
         return None
 
 
+#: What every components.json entry must have, as non-empty strings.
+REQUIRED_FIELDS = ("id", "name", "group", "license")
+
+
 def parse_components(data: dict, texts_dir: Path, build: Optional[str]) -> List[LicenceEntry]:
-    """The entries of components.json for ``build`` (every component when None)."""
+    """The entries of components.json for ``build`` (every component when None).
+
+    Raises:
+        ValueError: The file isn't a list of components, or an entry lacks a
+            required field or has an unknown group.
+    """
+    components = data.get("components") if isinstance(data, dict) else None
+    if not isinstance(components, list):
+        raise ValueError("components.json has no list of components")
     entries = []
-    for c in data["components"]:
+    for index, c in enumerate(components):
+        if not isinstance(c, dict):
+            raise ValueError(f"component {index}: not an object")
+        missing = [k for k in REQUIRED_FIELDS if not isinstance(c.get(k), str) or not c[k].strip()]
+        if missing:
+            raise ValueError(f"component {c.get('id') or index}: missing {', '.join(missing)}")
+        if not isinstance(c.get("texts", []), list) or not isinstance(c.get("builds", []), list):
+            raise ValueError(f"{c['id']}: texts and builds must be lists")
         if build is not None and build not in c.get("builds", []):
             continue
         if c["group"] not in GROUPS:

@@ -27,10 +27,15 @@ moved to CHANGELOG_HISTORY.md and this file is reset.
 - Desktop: **Help → Open Source Licences** (also a button in About) lists
   every component the app is built from, with its version, licence and full
   licence text, including the additional terms of Chord Notepad's own
-  licence, the logo's terms and the user guide's CC BY-SA 4.0 licence. Each
-  release now also carries the source code of Chord Notepad
-  (`ChordNotepad-<version>-source.tar.gz`) and of the bundled third-party
-  libraries (`ChordNotepad-<version>-third-party-sources.tar`).
+  licence, the logo's terms, the user guide's CC BY-SA 4.0 licence and the
+  guide's fonts and scripts. Each release now also carries the source code
+  of Chord Notepad (`ChordNotepad-<version>-source.tar.gz`) and of the
+  bundled LGPL, GPL and MPL libraries
+  (`ChordNotepad-<version>-third-party-sources.tar`); for the Linux binary
+  and the snap, whose libraries come from Ubuntu, that's the Ubuntu source
+  packages of the GPL and LGPL ones, and a list of the others. To use your
+  own FluidSynth build, set `CHORD_NOTEPAD_LIBFLUIDSYNTH` to its path (not
+  in the snap).
 
 ### Fixed
 

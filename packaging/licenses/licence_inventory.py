@@ -277,15 +277,20 @@ def _run(*args: str) -> Optional[str]:
     return out.stdout.strip()
 
 
-def _dep5_licenses(text: str) -> str:
-    """The short licence names of a Debian (DEP-5) copyright file, in order."""
+def dep5_licence_names(text: str) -> list:
+    """The short licence names of a Debian (DEP-5) copyright file, in order, without repeats."""
     seen = []
     for line in text.splitlines():
         if line.startswith("License:"):
             value = line[len("License:"):].strip()
             if value and value not in seen:
                 seen.append(value)
-    return " / ".join(seen) or "See the copyright file"
+    return seen
+
+
+def _dep5_licenses(text: str) -> str:
+    """The short licence names of a Debian (DEP-5) copyright file, as one string."""
+    return " / ".join(dep5_licence_names(text)) or "See the copyright file"
 
 
 def resolve_dpkg(path: str) -> Optional[SystemPackage]:
@@ -308,8 +313,13 @@ def resolve_dpkg(path: str) -> Optional[SystemPackage]:
     name, version, src_name, src_version = (fields.split("\t") + ["", "", "", ""])[:4]
     base = owner.split(":")[0]
     copyright_file = Path("/usr/share/doc") / base / "copyright"
-    texts = [str(copyright_file)] if copyright_file.is_file() else []
-    licence = _dep5_licenses(copyright_file.read_text(encoding="utf-8", errors="replace")) if texts else "Unknown"
+    texts, licence = [], "Unknown"
+    if copyright_file.is_file():
+        try:
+            licence = _dep5_licenses(copyright_file.read_text(encoding="utf-8", errors="replace"))
+            texts = [str(copyright_file)]
+        except OSError as exc:  # unreadable: list the package anyway, the build goes on
+            print(f"warning: can't read {copyright_file}: {exc}", file=sys.stderr)
     return SystemPackage(base, version, src_name or base, src_version or version, licence, texts)
 
 

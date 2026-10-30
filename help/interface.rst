@@ -305,8 +305,17 @@ The User Interface
       libraries that came with the app.
 
       Select **Source code** at the top to find out where to get the source
-      of each part. Every release on GitHub has the source of Chord Notepad
-      and of the bundled libraries next to the downloads.
+      of each part. Every release on GitHub has, next to the downloads, the
+      source of Chord Notepad and of the bundled libraries whose licences
+      ask for it (the LGPL, GPL and MPL ones). The Linux download and the
+      snap use libraries from Ubuntu: for those, the release has the source
+      of the GPL and LGPL ones and lists the others with their versions.
+
+      To run Chord Notepad with your own build of FluidSynth, set the
+      environment variable ``CHORD_NOTEPAD_LIBFLUIDSYNTH`` to the full path of
+      your FluidSynth library before you start the app. This doesn't work in
+      the snap, which sets the variable itself; **Source code** has the
+      details.
 
    **About**
       Shows information about Chord Notepad:

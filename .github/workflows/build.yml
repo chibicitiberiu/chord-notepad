@@ -424,9 +424,17 @@ jobs:
         run: |
           mkdir -p dist/licence-data
           rm -rf "$RUNNER_TEMP/snap-root"
-          if unsquashfs -q -n -d "$RUNNER_TEMP/snap-root" dist/ChordNotepad-linux-x64.snap snap/manifest.yaml \
+          if unsquashfs -q -n -d "$RUNNER_TEMP/snap-root" dist/ChordNotepad-linux-x64.snap snap/manifest.yaml usr/share/doc \
               && [ -f "$RUNNER_TEMP/snap-root/snap/manifest.yaml" ]; then
             cp "$RUNNER_TEMP/snap-root/snap/manifest.yaml" dist/licence-data/snap-manifest.yaml
+            # The staged packages' copyright files: their licences decide which
+            # Ubuntu source packages the source bundle carries (GPL and LGPL).
+            for f in "$RUNNER_TEMP"/snap-root/usr/share/doc/*/copyright; do
+              [ -f "$f" ] || continue
+              pkg=$(basename "$(dirname "$f")")
+              mkdir -p "dist/licence-data/snap-doc/$pkg"
+              cp -L "$f" "dist/licence-data/snap-doc/$pkg/copyright"
+            done
           else
             echo "::warning::The snap has no snap/manifest.yaml; its Ubuntu source packages won't be listed"
           fi
@@ -645,9 +653,13 @@ jobs:
           mkdir -p artifacts/sources
           python3 android/tools/make_source_tarball.py \
             --out "artifacts/sources/ChordNotepad-${VERSION}-source.tar.gz" --prefix "ChordNotepad-${VERSION}"
-          ARGS=()
+          # The Ubuntu source packages of the GPL and LGPL libraries in the
+          # Linux binary and the snap go into the bundle (--fetch-ubuntu=gpl);
+          # the rest are listed with their Launchpad URLs.
+          ARGS=(--fetch-ubuntu=gpl)
           [ -f artifacts/licence-data/linux-system.json ] && ARGS+=(--system-json artifacts/licence-data/linux-system.json)
           [ -f artifacts/licence-data/snap-manifest.yaml ] && ARGS+=(--snap-manifest artifacts/licence-data/snap-manifest.yaml)
+          [ -d artifacts/licence-data/snap-doc ] && ARGS+=(--snap-docs artifacts/licence-data/snap-doc)
           python3 packaging/licenses/make_source_bundle.py \
             --out "artifacts/sources/ChordNotepad-${VERSION}-third-party-sources.tar" "${ARGS[@]}"
           ls -l artifacts/sources

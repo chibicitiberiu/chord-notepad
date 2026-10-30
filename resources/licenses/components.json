@@ -5,7 +5,7 @@
       "id": "chord-notepad",
       "name": "Chord Notepad",
       "group": "app",
-      "license": "AGPL-3.0-only AND LicenseRef-ChordNotepad-Section7",
+      "license": "AGPL-3.0-only WITH AdditionRef-ChordNotepad-Section7",
       "copyright": "2025-2026 Tiberiu Chibici",
       "url": "https://github.com/chibicitiberiu/chord-notepad",
       "sourceUrl": "https://github.com/chibicitiberiu/chord-notepad",
@@ -41,7 +41,7 @@
       "name": "CPython",
       "group": "runtime",
       "versionFrom": "python",
-      "license": "PSF-2.0",
+      "license": "Python-2.0.1",
       "copyright": "2001 Python Software Foundation",
       "url": "https://www.python.org/",
       "texts": ["PSF-Python"],
@@ -215,7 +215,7 @@
           "role": "Source of libfluidsynth-3.dll (built by FluidSynth's own CI, .azure/azure-pipelines-win.yml, job WindowsMinGW)."
         }
       ],
-      "note": "The synthesizer that plays the chords: the upstream FluidSynth 2.3.4 Windows build (fluidsynth-2.3.4-win10-x64.zip), unchanged. The DLLs sit in the fluidsynth folder of the bundle, so you can swap in your own build."
+      "note": "The synthesizer that plays the chords: the upstream FluidSynth 2.3.4 Windows build (fluidsynth-2.3.4-win10-x64.zip), unchanged. It is loaded at run time: to use your own build instead, set CHORD_NOTEPAD_LIBFLUIDSYNTH to the full path of your libfluidsynth-3.dll, with the DLLs it needs in the same folder (see Source code)."
     },
     {
       "id": "glib-windows",
@@ -287,7 +287,8 @@
           "file": "libsndfile-1.0.28.tar.gz",
           "urls": [
             "http://www.mega-nerd.com/libsndfile/files/libsndfile-1.0.28.tar.gz",
-            "https://deb.debian.org/debian/pool/main/libs/libsndfile/libsndfile_1.0.28.orig.tar.gz"
+            "https://archive.debian.org/debian/pool/main/libs/libsndfile/libsndfile_1.0.28.orig.tar.gz",
+            "https://snapshot.debian.org/archive/debian/20170620T161335Z/pool/main/libs/libsndfile/libsndfile_1.0.28.orig.tar.gz"
           ],
           "sha256": "1ff33929f042fa333aed1e8923aa628c3ee9e1eb85512686c55092d1e5a9dfa9"
         }
@@ -432,7 +433,7 @@
       "name": "tkinter (from CPython 3.14.7)",
       "group": "runtime",
       "version": "3.14.7",
-      "license": "PSF-2.0",
+      "license": "Python-2.0.1",
       "copyright": "2001 Python Software Foundation",
       "url": "https://www.python.org/",
       "texts": ["PSF-Python"],
@@ -472,7 +473,7 @@
       "url": "https://github.com/chardet/chardet",
       "texts": ["chardet-0BSD"],
       "builds": ["windows", "macos", "linux", "flatpak", "snap"],
-      "note": "Guesses the text encoding of opened files."
+      "note": "A dependency of music21 (music21.common.fileTools uses it to guess the encoding of files music21 reads). Chord Notepad itself never imports it."
     },
     {
       "id": "more-itertools",

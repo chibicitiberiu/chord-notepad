@@ -4,7 +4,7 @@
       "id": "chord-notepad",
       "name": "Chord Notepad",
       "group": "app",
-      "license": "AGPL-3.0-only AND LicenseRef-ChordNotepad-Section7",
+      "license": "AGPL-3.0-only WITH AdditionRef-ChordNotepad-Section7",
       "copyright": "2025-2026 Tiberiu Chibici",
       "url": "https://github.com/chibicitiberiu/chord-notepad",
       "sourceUrl": "https://github.com/chibicitiberiu/chord-notepad",
@@ -43,7 +43,7 @@
       "name": "CPython",
       "group": "runtime",
       "version": "3.14.8",
-      "license": "PSF-2.0",
+      "license": "Python-2.0.1",
       "copyright": "2001 Python Software Foundation",
       "url": "https://www.python.org/",
       "texts": [
@@ -83,7 +83,7 @@
       "name": "SQLite",
       "group": "runtime",
       "version": "3.53.4",
-      "license": "Public domain",
+      "license": "blessing",
       "url": "https://sqlite.org/",
       "texts": [
         "sqlite-public-domain"
