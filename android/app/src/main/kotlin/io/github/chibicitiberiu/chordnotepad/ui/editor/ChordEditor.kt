@@ -353,16 +353,17 @@ private fun PlayText(
                 var cardSize by remember(shown) { mutableStateOf(IntSize.Zero) }
                 val gap = with(density) { 6.dp.toPx() }
                 val margin = with(density) { 8.dp.roundToPx() }
-                val top = explainCardTop(
-                    anchor.top + padY, anchor.bottom + padY, cardSize.height.toFloat(),
-                    scroll.value.toFloat(), (scroll.value + scroll.viewportSize).toFloat(), gap,
-                )
                 val widthPx = this@BoxWithConstraints.constraints.maxWidth
                 DirectiveHintCard(
                     shown.card,
                     Modifier
                         .onSizeChanged { cardSize = it }
                         .offset {
+                            // Read while placing, so scrolling doesn't recompose.
+                            val top = explainCardTop(
+                                anchor.top + padY, anchor.bottom + padY, cardSize.height.toFloat(),
+                                scroll.value.toFloat(), (scroll.value + scroll.viewportSize).toFloat(), gap,
+                            )
                             val left = (anchor.left + padX).roundToInt()
                             IntOffset(left.coerceAtMost(widthPx - cardSize.width - margin).coerceAtLeast(margin), top.roundToInt())
                         },
