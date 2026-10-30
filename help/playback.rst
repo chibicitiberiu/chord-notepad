@@ -697,8 +697,10 @@ Different instruments can highlight different aspects of a chord progression.
    * A value the song doesn't set is a default you can change: tap it to type
      a tempo (20 to 400), or to pick a time signature or a key from a list.
      A default applies only where the song has no directive, and it is not
-     saved with the file. New songs start from the defaults in ☰ → Settings
-     → Playback and General.
+     saved with the file. It is the same value as the default tempo, time
+     signature and key in ☰ → Settings → Playback and General, so it stays
+     for the next song. Opening a song that sets one with a directive
+     changes the default too.
    * **Write into song** inserts the missing directives at the top of the
      song as one line, so the file keeps them. It is greyed out when there
      is nothing to write: the song sets all three, or it sets the tempo and
