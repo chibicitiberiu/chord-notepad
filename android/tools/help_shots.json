@@ -594,7 +594,24 @@
       "tag": "player_voicing"
      }
     }
-   ]
+   ],
+   "crop": {
+    "nodes": [
+     {
+      "text": "Voicing"
+     },
+     {
+      "text": "Done"
+     }
+    ],
+    "full_width": true,
+    "pads_dp": [
+     0,
+     24,
+     0,
+     16
+    ]
+   }
   },
   {
    "name": "instrument-families",
@@ -644,7 +661,24 @@
       "tag": "player_speed"
      }
     }
-   ]
+   ],
+   "crop": {
+    "nodes": [
+     {
+      "text": "Playback speed"
+     },
+     {
+      "text": "Done"
+     }
+    ],
+    "full_width": true,
+    "pads_dp": [
+     0,
+     24,
+     0,
+     16
+    ]
+   }
   },
   {
    "name": "speed-manual",
