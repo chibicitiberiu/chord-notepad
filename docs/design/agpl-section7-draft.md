@@ -202,12 +202,30 @@ as they would a CLA.
    met, since the whole app builds from public source. The usage-rules
    conflict on Apple's store can't be fixed from here. Before any iOS work,
    choose: accept the risk, ask upstream, or replace the components.
-   Suggested (2026-10-31): on iOS, play through Apple's AVAudioUnitSampler,
-   which is a system library and loads the same SF2 soundfont, so no LGPL
-   code ships. Leave chardet out, and ask the FluidSynth maintainers publicly
-   whether they object anyway. TinySoundFont (MIT) is the cross-platform
-   alternative. If FluidSynth is shipped after all, use it under LGPL-2.1
-   (it's -or-later), which avoids LGPL-3's installation-information duty. A small
+   Decided 2026-10-31 (Tibi), after checking upstream: FluidSynth has
+   already answered this. Its Licensing FAQ (doc/wiki/LicensingFAQ.md, "iOS
+   and the App Store", from a 2011 fluid-dev thread) lists nine copyright
+   holders who agreed not to complain about App Store apps. They include the
+   original author Peter Hanappe and the current maintainer Tom Moebert. The
+   conditions are that changes to FluidSynth are released under the LGPL,
+   and that the rest of the app is released as source or linkable objects so
+   users can relink. Chord Notepad is AGPL, so it meets both. The FAQ says
+   this isn't a guarantee, since there are many other contributors. No issue
+   or discussion on GitHub asks the question again, so there is nothing to
+   post.
+   - Plan for iOS: ship FluidSynth under LGPL-2.1 (it's -or-later, which
+     avoids LGPL-3's installation-information duty), as a dynamic framework,
+     with its source in the release.
+   - Build it without libsndfile. The app plays .sf2 and never renders audio
+     files, so libsndfile (an LGPL library not covered by that statement) is
+     only needed for .sf3. Android could drop it the same way.
+   - pyFluidSynth (LGPL) isn't covered either. Ask its maintainer, or
+     replace it with a small ctypes binding of our own.
+   - Leave chardet out, as on the desktop.
+   - Backup if a FluidSynth copyright holder ever objects: play through
+     Apple's AVAudioUnitSampler. It's a system library and loads the same SF2
+     soundfont, so no LGPL code ships. TinySoundFont (MIT) is the
+     cross-platform alternative. A small
    step: requests, chardet and urllib3 may be droppable from the Android/iOS
    bundle (no network access), if music21 allows it.
 3. **Console stores** (Nintendo, Sony) ship SDKs under NDA. Their source can't
