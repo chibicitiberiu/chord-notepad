@@ -414,6 +414,38 @@ def test_write_song_defaults_is_refused_while_playing():
     assert env.session.text == SONG
 
 
+@pytest.mark.parametrize("platform", [ANDROID, DESKTOP])
+def test_song_defaults_lock_while_playing_or_paused_says_why(platform):
+    env = Env(platform=platform, auto_play=False)
+    reason = "Stop playback to change the tempo or write into the song"
+    assert defaults(env).locked_reason is None
+    env.session.play_pause()
+    env.rendered()
+    assert defaults(env).locked_reason == reason
+    env.session.play_pause()  # pause
+    assert env.session._playback.status is PlaybackStatus.PAUSED
+    assert defaults(env).locked_reason == reason
+    # What the lock stands for: the tempo is ignored, the write refused.
+    env.session.set_bpm(90)
+    env.session.write_song_defaults()
+    assert defaults(env).tempo.value == "120"
+    assert env.session.text == SONG
+    env.session.stop()
+    assert defaults(env).locked_reason is None
+    env.session.set_bpm(90)
+    assert defaults(env).tempo.value == "90"
+
+
+def test_song_defaults_unlock_when_the_song_ends():
+    env = Env()
+    env.session.play_pause()
+    env.rendered()
+    assert env.session._playback.status is PlaybackStatus.IDLE
+    assert defaults(env).locked_reason is None
+    locks = [s.locked_reason for s in env.everything.of_type(SongDefaultsState)]
+    assert locks[-2:] == ["Stop playback to change the tempo or write into the song", None]
+
+
 # -- capo in the Insert menu ------------------------------------------------------------
 
 

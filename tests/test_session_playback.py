@@ -108,6 +108,14 @@ def _toolbar(action="play", bpm_display=120):
             4, 4, False, action)
 
 
+def _defaults(locked):
+    """The compacted SongDefaultsState for the defaults; the tempo and
+    "Write into song" are locked while a song plays or is paused."""
+    return ("SongDefaultsState", ("SongDefault", "120", False, None),
+            ("SongDefault", "4/4", False, None), ("SongDefault", "", False, None), "120 · 4/4",
+            "Stop playback to change the tempo or write into the song" if locked else None)
+
+
 # -- golden: play -> progress -> finished ------------------------------------------
 
 
@@ -120,6 +128,7 @@ def test_play_progress_finished():
         _editor(True),
         # The tempo is read-only now and the button pauses.
         _toolbar("pause"),
+        _defaults(locked=True),
         ("StatusState", "Playing 4 chords..."),
     ]
     env.recorder.clear()
@@ -140,6 +149,7 @@ def test_play_progress_finished():
         ("PlaybackState", "idle", None, None, 0, 0, None),
         _editor(False),
         _toolbar("play"),
+        _defaults(locked=False),
         ("StatusState", "Ready"),
     ]
     assert env.main.is_playing is False
@@ -213,6 +223,7 @@ def test_stop_returns_to_idle_and_drops_pings_posted_before_it():
         ("PlaybackState", "idle", None, None, 0, 0, None),
         _editor(False),
         _toolbar("play"),
+        _defaults(locked=False),
         ("StatusState", "Stopped playback"),
     ]
     env.recorder.clear()
@@ -389,6 +400,7 @@ def test_render_failure_returns_to_idle_and_reports_a_user_error():
         ("PlaybackState", "idle", None, None, 0, 0, None),
         _editor(False),
         _toolbar("play"),
+        _defaults(locked=False),
         ("StatusState", "Ready"),
         ("StatusState", "Playback failed"),
         ("UserError", "Playback Error", "Could not play the song.\n\nrender broke"),

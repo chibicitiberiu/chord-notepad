@@ -77,6 +77,9 @@ POSITION_SEPARATOR = " · "
 STARTING = "Starting…"
 #: Why the voicing can't change while a song plays (it is rendered up front).
 VOICING_LOCKED_REASON = "Pause to change the voicing"
+#: Why the song defaults' tempo and "Write into song" wait while a song plays
+#: or is paused (the tempo is rendered up front; the text is locked).
+SONG_DEFAULTS_LOCKED_REASON = "Stop playback to change the tempo or write into the song"
 
 
 def position_status(bar: int, total_bars: int, activity: Optional[str] = None) -> str:

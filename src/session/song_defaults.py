@@ -46,7 +46,7 @@ def _apply_bpm(directive: Directive, current: int, initial: int) -> int:
 
 
 def song_defaults(lines: Sequence[Line], bpm: int, time_signature: Tuple[int, int],
-                  key: Optional[str]) -> SongDefaultsState:
+                  key: Optional[str], locked_reason: Optional[str] = None) -> SongDefaultsState:
     """The values the song starts with.
 
     Args:
@@ -55,6 +55,8 @@ def song_defaults(lines: Sequence[Line], bpm: int, time_signature: Tuple[int, in
             directives apply to).
         time_signature: The toolbar's ``(beats, unit)``.
         key: The toolbar key, or None.
+        locked_reason: Why the tempo and "Write into song" can't be used
+            now (a song plays or is paused), or None.
     """
     tempo, tempo_at = int(bpm), None
     beats, unit = time_signature
@@ -79,7 +81,8 @@ def song_defaults(lines: Sequence[Line], bpm: int, time_signature: Tuple[int, in
         SongDefault(song_key, key_at is not None, key_at),
     )
     summary = SEPARATOR.join(v.value for v in values if v.value)
-    return SongDefaultsState(tempo=values[0], time=values[1], key=values[2], summary=summary)
+    return SongDefaultsState(tempo=values[0], time=values[1], key=values[2], summary=summary,
+                             locked_reason=locked_reason)
 
 
 def missing_directives(state: SongDefaultsState) -> List[str]:

@@ -75,6 +75,10 @@ class SheetRouteTest {
         assertTrue(allSet.copy(time = SongDefaultValue("4/4", false)).anythingToWrite)
         // An empty default key writes nothing.
         assertEquals(false, allSet.copy(key = SongDefaultValue("", false)).anythingToWrite)
+        // While a song plays or is paused nothing can be written.
+        val unset = allSet.copy(time = SongDefaultValue("4/4", false))
+        assertTrue(unset.canWrite)
+        assertEquals(false, unset.copy(lockedReason = "Stop playback").canWrite)
         assertEquals("{bpm: 90}", directiveCode(SongDefaultKind.TEMPO, "90"))
         assertEquals("{time: 3/4}", directiveCode(SongDefaultKind.TIME, "3/4"))
     }

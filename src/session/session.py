@@ -2118,10 +2118,12 @@ class AppSession:
         self._publish_song_defaults()
 
     def _song_defaults(self) -> SongDefaultsState:
+        locked = self._playback_status() is not PlaybackStatus.IDLE
         return song_defaults.song_defaults(
             self._detector.detected_lines, self._main.bpm,
             (self._main.time_signature_beats, self._main.time_signature_unit),
-            self._main.key)
+            self._main.key,
+            formatting.SONG_DEFAULTS_LOCKED_REASON if locked else None)
 
     def _publish_song_defaults(self) -> None:
         self._emitter.set_state(self._song_defaults())
@@ -2281,9 +2283,12 @@ class AppSession:
             self._clear_playhead()
             self._voicing_stale = False
             self._publish_playback(PlaybackState(PlaybackStatus.IDLE))
+            # The song defaults' tempo and "Write into song" wait for a stop.
+            self._publish_song_defaults()
             self._set_idle_status()
         else:
             self._publish_playback(dataclasses.replace(self._playback, status=status))
+            self._publish_song_defaults()
         # The voicing menu is locked only while a song plays.
         if self._voicing_locked != (status is PlaybackStatus.PLAYING):
             self._publish_voicing_menu()

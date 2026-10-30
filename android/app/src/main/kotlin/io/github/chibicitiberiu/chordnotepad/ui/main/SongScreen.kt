@@ -646,5 +646,5 @@ private fun Modifier.handleKeys(actions: MainActions, nav: Navigation): Modifier
 /** The sheet's model of the session's [SongDefaultsState]. */
 private fun songDefaultsOf(s: SongDefaultsState): SongDefaults {
     fun v(d: SongDefault) = SongDefaultValue(d.value, d.fromDirective, d.directiveOffset)
-    return SongDefaults(v(s.tempo), v(s.time), v(s.key), s.summary)
+    return SongDefaults(v(s.tempo), v(s.time), v(s.key), s.summary, s.lockedReason)
 }

@@ -323,12 +323,17 @@ class SongDefaultsState:
         key: The starting key (``""`` when none is set anywhere).
         summary: The pill's text, the values joined by ``" · "``
             (``"90 · 3/4 · G"``; an empty key is left out).
+        locked_reason: None while the tempo and "Write into song" can be
+            used; while a song plays or is paused (``set_bpm`` is ignored and
+            ``write_song_defaults`` refused) the sentence saying why, e.g.
+            "Stop playback to change the tempo or write into the song".
     """
 
     tempo: SongDefault
     time: SongDefault
     key: SongDefault
     summary: str
+    locked_reason: Optional[str] = None
 
 
 @dataclass(frozen=True)

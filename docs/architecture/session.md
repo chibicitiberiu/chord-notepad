@@ -206,7 +206,7 @@ InstrumentMenuState(current, families)                                  # Instru
 RecentDocumentsState(items)
 ChordSheetState(visible, height, active_view, views, disabled_reason, zoom, zoom_supported,
                 current_index, song_revision, cursor_index)
-SongDefaultsState(tempo, time, key, summary)                            # SongDefault(value, from_directive, directive_offset)
+SongDefaultsState(tempo, time, key, summary, locked_reason)             # SongDefault(value, from_directive, directive_offset)
 ```
 
 `HighlightState.text_revision` is the session's revision of the text the spans
@@ -415,7 +415,9 @@ is what the song starts with. A valid directive before the first chord sets
 it (`from_directive`, `directive_offset` = the first such directive; relative
 tempo directives apply to the toolbar tempo); otherwise it is the toolbar
 value. The key is `""` when neither sets one. `summary` is the pill text,
-`"90 · 3/4 · G"`. Republished after every detection and toolbar change.
+`"90 · 3/4 · G"`. Republished after every detection and toolbar change,
+and when playback starts or stops: `locked_reason` says why the tempo and
+the write wait while a song plays or is paused (None when idle).
 `write_song_defaults()` inserts the missing directives as one line at the
 top, one `group` edit, highlighted at once (no `{key}` without a key).
 

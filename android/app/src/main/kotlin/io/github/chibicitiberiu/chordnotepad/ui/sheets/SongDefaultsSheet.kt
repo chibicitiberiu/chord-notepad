@@ -56,10 +56,22 @@ import io.github.chibicitiberiu.chordnotepad.ui.theme.appColors
 /** One value a song starts with: as written in a directive (`90`, `3/4`, `G`), and where it comes from. */
 data class SongDefaultValue(val value: String, val fromDirective: Boolean, val directiveOffset: Int? = null)
 
-/** What the Song defaults sheet and the player's pill show. */
-data class SongDefaults(val tempo: SongDefaultValue, val time: SongDefaultValue, val key: SongDefaultValue, val summary: String) {
+/**
+ * What the Song defaults sheet and the player's pill show. [lockedReason]:
+ * while a song plays or is paused, why the tempo and Write into song are off.
+ */
+data class SongDefaults(
+    val tempo: SongDefaultValue,
+    val time: SongDefaultValue,
+    val key: SongDefaultValue,
+    val summary: String,
+    val lockedReason: String? = null,
+) {
     /** Whether "Write into song" has anything to write (a value no directive sets). */
     val anythingToWrite: Boolean get() = !tempo.fromDirective || !time.fromDirective || (!key.fromDirective && key.value.isNotEmpty())
+
+    /** Whether "Write into song" can be pressed now. */
+    val canWrite: Boolean get() = lockedReason == null && anythingToWrite
 
     companion object {
         /** The pill's text: the values joined by " · ", an empty key left out. */
@@ -99,7 +111,9 @@ val TIME_CHOICES: List<Pair<Int, Int>> = listOf(2 to 4, 3 to 4, 4 to 4, 5 to 4, 
  * Song defaults (the player's song pill): Tempo, Time signature and Key.
  * A value set by a directive is read-only with "Set by `{bpm: 90}` in the
  * song · Edit"; the others are editable defaults (not saved with the file).
- * **Write into song** inserts the missing directives at the top.
+ * **Write into song** inserts the missing directives at the top. While a
+ * song plays or is paused the tempo and Write into song are off and the
+ * sheet says why ([SongDefaults.lockedReason]).
  */
 @Composable
 fun SongDefaultsSheet(defaults: SongDefaults, keys: List<String>, actions: SongDefaultsActions, onDismiss: () -> Unit) {
@@ -109,15 +123,25 @@ fun SongDefaultsSheet(defaults: SongDefaults, keys: List<String>, actions: SongD
         subtitle = stringResource(R.string.song_defaults_subtitle),
         onDismiss = onDismiss,
         actions = {
-            SheetTextButton(stringResource(R.string.song_defaults_write), { actions.writeIntoSong(); onDismiss() }, enabled = defaults.anythingToWrite)
+            SheetTextButton(stringResource(R.string.song_defaults_write), { actions.writeIntoSong(); onDismiss() }, enabled = defaults.canWrite)
             ActionsSpacer()
             SheetDoneButton(stringResource(R.string.sheet_done), onDismiss)
         },
     ) {
+        defaults.lockedReason?.let { reason ->
+            Text(
+                reason,
+                Modifier.fillMaxWidth().padding(bottom = 4.dp),
+                fontSize = 12.sp,
+                lineHeight = 16.sp,
+                color = appColors.muted,
+            )
+        }
         DefaultRow(
             SongDefaultKind.TEMPO, R.drawable.mdi_metronome, IconTints.Tempo, stringResource(R.string.insert_tempo),
             defaults.tempo, display = stringResource(R.string.song_defaults_bpm, defaults.tempo.value),
             onEdit = actions::editDirective,
+            enabled = defaults.lockedReason == null,
         ) { tempoDialog = true }
         DefaultRow(
             SongDefaultKind.TIME, R.drawable.ic_time_signature, IconTints.Time, stringResource(R.string.insert_time),
@@ -133,7 +157,7 @@ fun SongDefaultsSheet(defaults: SongDefaults, keys: List<String>, actions: SongD
             onChoose = actions::setKey,
         )
     }
-    if (tempoDialog) {
+    if (tempoDialog && defaults.lockedReason == null) {
         TempoDialog(defaults.tempo.value, onApply = { actions.setTempoText(it); tempoDialog = false }, onDismiss = { tempoDialog = false })
     }
 }
@@ -149,6 +173,7 @@ private fun DefaultRow(
     onEdit: (Int) -> Unit,
     choices: List<String> = emptyList(),
     onChoose: (String) -> Unit = {},
+    enabled: Boolean = true,
     onOpen: (() -> Unit)? = null,
 ) {
     val colors = appColors
@@ -171,11 +196,11 @@ private fun DefaultRow(
                         Modifier
                             .clip(shape)
                             .border(1.dp, colors.line, shape)
-                            .clickable(role = Role.Button) { if (onOpen != null) onOpen() else open = true }
+                            .clickable(enabled = enabled, role = Role.Button) { if (onOpen != null) onOpen() else open = true }
                             .padding(horizontal = 10.dp, vertical = 5.dp),
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Medium,
-                        color = colors.text,
+                        color = if (enabled) colors.text else colors.muted,
                     )
                     DropdownMenu(expanded = open, onDismissRequest = { open = false }, modifier = Modifier.heightIn(max = 320.dp)) {
                         for (choice in choices) {

@@ -395,7 +395,8 @@ Kotlin DTOs/builders done 2026-10-29: `bridge/PlayerBridge.kt`):
   the top of the song even when playback started later. Other statuses
   (`Saved: …`, `Inserted: …`, `Renamed to …`) are unchanged; Edit mode shows
   those as snackbars. The desktop wording is untouched.
-- *Song defaults.* `SongDefaultsState {tempo, time, key, summary}`, each of
+- *Song defaults.* `SongDefaultsState {tempo, time, key, summary,
+  locked_reason}`, each of
   the three `SongDefault {value: str, from_directive: bool,
   directive_offset: int|null}`. `value` is what the song starts with:
   `"90"`, `"3/4"`, `"G"` (`""` for the key when neither the song nor the
@@ -410,7 +411,11 @@ Kotlin DTOs/builders done 2026-10-29: `bridge/PlayerBridge.kt`):
   `write_song_defaults {}` (Write into song) inserts the missing directives
   as one line at the top (`{bpm: 120} {time: 4/4} {key: G}`), one `group`
   `TextEdited` followed by its `HighlightState`; refused while a song plays
-  or is paused; with nothing missing the status says so.
+  or is paused; with nothing missing the status says so. `locked_reason:
+  str|null` is set while a song plays or is paused ("Stop playback to change
+  the tempo or write into the song"): `set_bpm` is ignored and the write
+  refused then, so the sheet turns the Tempo row and Write into song off
+  and shows the reason (like `VoicingMenuState.locked_reason`).
 - *Capo in Insert.* `request_insert_directive {kind: "capo", at}` →
   `InsertDirectiveRequest(kind="capo")`, answered with `{"capo": "N"}`;
   `check_directive {kind: "capo", fields: {"capo": …}, request_id}` checks

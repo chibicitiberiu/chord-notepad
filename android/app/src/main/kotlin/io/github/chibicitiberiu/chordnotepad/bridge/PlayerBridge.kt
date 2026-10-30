@@ -29,7 +29,9 @@ data class SongDefault(
  * What the song starts with: the Song defaults sheet. [summary] is the
  * pill's text (`"90 · 3/4 · G"`). Values not [SongDefault.fromDirective] are
  * the toolbar defaults (`setBpm`, `setTimeSignature`, `setKey`);
- * `writeSongDefaults` writes them into the song.
+ * `writeSongDefaults` writes them into the song. [lockedReason] is set
+ * while a song plays or is paused: the tempo and Write into song wait for
+ * a stop (the session ignores them), and it says why.
  */
 @Serializable
 data class SongDefaultsState(
@@ -37,6 +39,7 @@ data class SongDefaultsState(
     val time: SongDefault,
     val key: SongDefault,
     val summary: String,
+    @SerialName("locked_reason") val lockedReason: String? = null,
 ) : SessionState
 
 /**

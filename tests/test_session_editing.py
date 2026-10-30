@@ -101,7 +101,7 @@ def test_golden_transpose_is_one_grouped_edit_then_immediate_spans_and_key_shift
         # So did the song's starting key.
         ("SongDefaultsState", ("SongDefault", "120", False, None),
          ("SongDefault", "4/4", False, None), ("SongDefault", "D", False, None),
-         "120 · 4/4 · D"),
+         "120 · 4/4 · D", None),
         ("StatusState", "Transposed whole song by +2 semitones"),
     ]
     assert env.session.text == env.main.current_text == "D A\nla la\nBm"

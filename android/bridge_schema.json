@@ -531,6 +531,7 @@
     "SongDefaultsState": {
       "fields": {
         "key": "SongDefault",
+        "locked_reason": "str|null",
         "summary": "str",
         "tempo": "SongDefault",
         "time": "SongDefault"

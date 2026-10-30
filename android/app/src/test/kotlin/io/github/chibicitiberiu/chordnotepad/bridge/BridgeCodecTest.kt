@@ -1,6 +1,7 @@
 package io.github.chibicitiberiu.chordnotepad.bridge
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -174,6 +175,16 @@ class BridgeCodecTest {
         )
         assertEquals(SongDefault("90", true, 0), defaults.tempo)
         assertEquals("90 · 3/4", defaults.summary)
+        assertNull(defaults.lockedReason)
+        val locked = decode<SongDefaultsState>(
+            "SongDefaultsState",
+            """{"tempo": {"value": "90", "from_directive": false, "directive_offset": null},
+               "time": {"value": "3/4", "from_directive": false, "directive_offset": null},
+               "key": {"value": "", "from_directive": false, "directive_offset": null},
+               "summary": "90 · 3/4",
+               "locked_reason": "Stop playback to change the tempo or write into the song"}""",
+        )
+        assertEquals("Stop playback to change the tempo or write into the song", locked.lockedReason)
         val failed = decode<RenameFailed>(
             "RenameFailed",
             """{"name": "a/b", "reason": "A name can't contain / or \\.", "can_save_as": false}""",
