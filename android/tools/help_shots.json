@@ -1378,6 +1378,91 @@
    ]
   },
   {
+   "name": "settings-voicing-ensemble",
+   "page": "ensembles: Custom Ensembles",
+   "what": "The form of a custom ensemble (Jazz Vocal Trio) on a phone, scrolled to its Voices: the help lines, then one card per voice with Name, Low, High, Staff and ✕.",
+   "config": {
+    "voicings": {
+     "My 7-String": {
+      "model": "fretboard",
+      "tuning": [
+       "B1",
+       "E2",
+       "A2",
+       "D3",
+       "G3",
+       "B3",
+       "E4"
+      ]
+     },
+     "Jazz Vocal Trio": {
+      "model": "ensemble",
+      "voices": [
+       {
+        "name": "Lead",
+        "range": [
+         "A3",
+         "F5"
+        ]
+       },
+       {
+        "name": "Harmony",
+        "range": [
+         "F3",
+         "D5"
+        ]
+       },
+       {
+        "name": "Bass",
+        "range": [
+         "E2",
+         "C4"
+        ]
+       }
+      ],
+      "max_spacing": [
+       12,
+       19
+      ],
+      "allow_unisons": false
+     }
+    }
+   },
+   "scene": "grace_play",
+   "steps": [
+    {
+     "tap": {
+      "tag": "menu"
+     }
+    },
+    {
+     "tap": {
+      "text": "Settings"
+     }
+    },
+    {
+     "tap": {
+      "text": "Voicings"
+     }
+    },
+    {
+     "tap": {
+      "text": "Jazz Vocal Trio"
+     }
+    },
+    {
+     "swipe": {
+      "text": "Load config"
+     },
+     "by": [
+      0,
+      -560
+     ],
+     "sleep": 1.5
+    }
+   ]
+  },
+  {
    "name": "settings-voicings-tablet",
    "page": "settings: Voicings",
    "what": "Settings › Voicings on a tablet: the list on the left and My 7-String's form on the right.",

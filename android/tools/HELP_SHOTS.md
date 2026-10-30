@@ -152,6 +152,7 @@ legend. Pages are named `file: section`.
 | `settings-playback.png` | Settings › Playback: default BPM and time signature. (phone) | settings: Playback & Audio |
 | `settings-voicings.png` | Settings › Voicings on a phone: Add voicing and the custom voicings grouped by model (My 7-String under Fretboard). (phone) | settings: Voicings |
 | `settings-voicing-form.png` | The voicing form for My 7-String on a phone: Name, Model, Load config, Remove voicing, Strings (B1 E2 A2 D3 G3 B3 E4), Max fret, Fingers, spans…, Save in the top bar. (phone) | settings: Voicings; settings: Worked Example: A Seven-String Guitar |
+| `settings-voicing-ensemble.png` | The form of a custom ensemble (Jazz Vocal Trio) on a phone, scrolled to its Voices: the help lines, then one card per voice with Name, Low, High, Staff and ✕. (phone) | ensembles: Custom Ensembles |
 | `settings-voicings-tablet.png` | Settings › Voicings on a tablet: the list on the left and My 7-String's form on the right. (tablet, landscape) | settings: Voicings |
 | `quick-start.png` | Quick Start, page 1 of 7: Welcome, a highlighted snippet, Show at startup, Previous / Next. (phone) | getting_started: Opening the Application; interface: The Drawer |
 | `about.png` | About: version, build, commit, licence, source link and Open source licences. (phone) | interface: The Drawer |
