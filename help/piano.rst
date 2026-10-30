@@ -37,10 +37,12 @@ The Built-in Voicing
 
 .. only:: desktop
 
-   Chord Notepad ships with one built-in piano voicing, **Grand Piano**, and it's
-   the default instrument for a new song. Its parameters reproduce the piano
-   engine's original, hand-tuned behavior exactly, so if you've never touched
-   the Voicings page, this is what you've been hearing all along.
+   Chord Notepad ships with one built-in piano voicing, listed as **Piano** in
+   the :menuselection:`Playback --> Voicing` menu and as **Piano (default)**
+   under Load config in the Voicings editor. It's the voicing a fresh install
+   starts with. Its parameters reproduce the piano engine's original,
+   hand-tuned behavior exactly, so if you've never touched the Voicings page,
+   this is what you've been hearing all along.
 
 .. only:: android
 
@@ -60,7 +62,7 @@ Defining a Custom Piano Voicing
    If you want the piano to sit in a different register, spread the hands
    further apart, or trade completeness for a sparser texture, add a custom
    piano voicing from |voicings_settings|:
-   load **Grand Piano** as a starting point, change what's different (ranges,
+   load **Piano (default)** as a starting point, change what's different (ranges,
    span, weights), and save. See :doc:`settings` for the page itself.
 
 .. only:: android
@@ -174,7 +176,7 @@ How to Change Voicing
 
    1. Open the **Playback** menu.
    2. Click **Voicing**.
-   3. Select **Grand Piano**, or any custom piano voicing you've defined (see
+   3. Select **Piano**, or any custom piano voicing you've defined (see
       above).
    4. Play your chords to hear the difference.
 
@@ -202,7 +204,7 @@ Voicing Parameters
 
    Every piano voicing, built-in or custom, is steered by the same physical
    hand limits, the same scoring anchors, and the same set of numeric weights.
-   These are the controls the Voicings page of :menuselection:`Options -->
+   These are the controls the Voicings page of :menuselection:`Tools -->
    Settings...` exposes, one control per row -- see :doc:`settings` for the
    page itself; they can also be set directly in a voicing's entry in
    ``settings.json``.
@@ -228,32 +230,32 @@ Hands and Range
      - What it does
      - Config key
      - Default
-   * - :plat:`Left-hand range|Left hand`
+   * - Left hand
      - The lowest and highest key the left hand will ever play.
      - ``lh_range``
      - C1 - C3
-   * - :plat:`Right-hand range|Right hand`
+   * - Right hand
      - The lowest and highest key the right hand will ever play.
      - ``rh_range``
      - C3 - C6
-   * - :plat:`Preferred bass range|Bass (preferred)`
+   * - Bass (preferred)
      - Where the bass note should ideally sit. It isn't a hard limit --
        sitting outside this window costs the below/above-bass weights per
        semitone, so the left hand can still stray from it when the chord
        demands.
      - ``bass_range``
      - C2 - B2
-   * - :plat:`Right-hand low anchor|RH lowest-note anchor`
+   * - RH lowest-note anchor
      - The window the right hand's *lowest* note is anchored within when the
        optimizer places a voicing at a given octave.
      - ``rh_low_anchor``
      - C3 - E4
-   * - :plat:`Right-hand center|RH center`
+   * - RH center
      - The ideal mean pitch of the right hand. Drifting away from this costs
        the center-penalty weight per semitone.
      - ``rh_center``
      - 63 (Eb4)
-   * - :plat:`Low-interval floor|Muddy floor`
+   * - Muddy floor
      - Below this pitch, a close right-hand interval (a third or narrower)
        starts to sound muddy rather than rich. Costs the low-interval-penalty
        weight per such interval.
@@ -263,7 +265,7 @@ Hands and Range
      - The widest reach of a single hand, in semitones -- a ninth by default.
      - ``hand_span``
      - 14
-   * - :plat:`Max notes per hand|Max notes/hand`
+   * - Max notes/hand
      - The most notes one hand may hold at once -- five fingers, five notes.
      - ``max_notes_per_hand``
      - 5
@@ -277,7 +279,7 @@ Hands and Range
        of shortfall.
      - ``hand_gap_floor``
      - 2
-   * - :plat:`Add bass|Add bass note`
+   * - Add bass note
      - Whether the left hand plays a bass note at all. Turn this off for a
        right-hand-only texture, e.g. when something else is already covering
        the bass.
@@ -303,17 +305,17 @@ you want it to steer clear of gets a negative one; zero leaves it neutral.
        voicings; less positive lets the picker thin them out.
      - ``rh_note_bonus``
      - +0.6
-   * - :plat:`Right-hand centering|Right-hand center`
+   * - Right-hand center
      - Subtracted per semitone the right hand's mean pitch strays from
-       ":plat:`Right-hand center|RH center`".
+       "RH center".
      - ``rh_center_penalty``
      - -1.4
    * - Bass below range
-     - Subtracted per semitone the bass sits below ":plat:`Preferred bass range|Bass (preferred)`".
+     - Subtracted per semitone the bass sits below "Bass (preferred)".
      - ``lh_below_bass_penalty``
      - -1.5
    * - Bass above range
-     - Subtracted per semitone the bass sits above ":plat:`Preferred bass range|Bass (preferred)`".
+     - Subtracted per semitone the bass sits above "Bass (preferred)".
      - ``lh_above_bass_penalty``
      - -1.5
    * - Doubled bass
@@ -321,21 +323,21 @@ you want it to steer clear of gets a negative one; zero leaves it neutral.
        hand.
      - ``lh_double_penalty``
      - -1.0
-   * - :plat:`Doubled bass, low|Doubled bass low`
+   * - Doubled bass low
      - An extra cost per semitone an octave-doubled bass sits below
-       ":plat:`Preferred bass range|Bass (preferred)`", on top of "Doubled bass".
+       "Bass (preferred)", on top of "Doubled bass".
      - ``lh_double_low_penalty``
      - -1.0
-   * - :plat:`Muddy interval|Muddy low interval`
+   * - Muddy low interval
      - Subtracted per close right-hand interval (a third or narrower)
-       sounding below ":plat:`Low-interval floor|Muddy floor`".
+       sounding below "Muddy floor".
      - ``rh_low_interval_penalty``
      - -2.0
    * - Wide right-hand gap
      - Subtracted per interior right-hand gap wider than an octave.
      - ``rh_wide_gap_penalty``
      - -0.6
-   * - :plat:`Muddy hand gap|Hands too close`
+   * - Hands too close
      - Subtracted per semitone the hands clear each other by less than
        "Hand gap floor".
      - ``muddy_gap_penalty``
@@ -344,13 +346,13 @@ you want it to steer clear of gets a negative one; zero leaves it neutral.
      - Added per common tone held across a chord change (voice leading).
      - ``common_tone_bonus``
      - +1.5
-   * - :plat:`Movement|Voice movement`
+   * - Voice movement
      - Subtracted per semitone of nearest-neighbour movement across a chord
        change (voice leading). More negative keeps both hands stiller from
        one chord to the next.
      - ``movement_penalty``
      - -0.35
-   * - :plat:`Omission (by tone role)|Omission`
+   * - Omission
      - Added to the score for dropping a chord tone entirely when the hand
        and note limits don't leave room for everything. The values are
        negative, so a more negative one keeps that tone more insistently.

@@ -344,64 +344,36 @@ Directive Reference
 All Directives
 --------------
 
-.. only:: desktop
+.. list-table::
+   :header-rows: 1
+   :widths: 20 35 45
 
-   .. list-table::
-      :header-rows: 1
-      :widths: 20 35 45
-
-      * - Directive
-        - Purpose
-        - Syntax
-      * - {bpm}
-        - Set or change tempo
-        - See below
-      * - {tempo}
-        - Same as bpm
-        - Same as bpm
-      * - {time}
-        - Set time signature
-        - ``{time: beats/unit}``
-      * - {key}
-        - Set musical key
-        - ``{key: note}``
-      * - {label}
-        - Mark a position
-        - ``{label: name}``
-      * - {loop}
-        - Repeat a section
-        - ``{loop: name count}``
+   * - Directive
+     - Purpose
+     - Syntax
+   * - {bpm}
+     - Set or change tempo
+     - See below
+   * - {tempo}
+     - Same as bpm
+     - Same as bpm
+   * - {time}
+     - Set time signature
+     - ``{time: beats/unit}``
+   * - {key}
+     - Set musical key
+     - ``{key: note}``
+   * - {capo}
+     - Capo for Fret cards and Tab
+     - ``{capo: fret}`` (0-12)
+   * - {label}
+     - Mark a position
+     - ``{label: name}``
+   * - {loop}
+     - Repeat a section
+     - ``{loop: name count}``
 
 .. only:: android
-
-   .. list-table::
-      :header-rows: 1
-      :widths: 20 35 45
-
-      * - Directive
-        - Purpose
-        - Syntax
-      * - {bpm}
-        - Set or change tempo
-        - See below
-      * - {tempo}
-        - Same as bpm
-        - Same as bpm
-      * - {time}
-        - Set time signature
-        - ``{time: beats/unit}``
-      * - {key}
-        - Set musical key
-        - ``{key: note}``
-      * - {capo}
-        - Capo for Fret cards and Tab
-        - ``{capo: fret}`` (0-12)
-      * - {label}
-        - Mark a position
-        - ``{label: name}``
-      * - {loop}
-        - Repeat a section
-        - ``{loop: name count}``
 
    In the Edit tab, **＋ Insert** writes any of these except ``{tempo}`` for
    you (see :doc:`directives`).

@@ -303,12 +303,12 @@ Physical Parameters
      - What it does
      - Config key
      - Default
-   * - :plat:`Tuning|Strings`
+   * - Strings
      - The open-string pitches, in string order. Required -- there is no
        default.
      - ``tuning``
      - --
-   * - :plat:`Fret range|Max fret`
+   * - Max fret
      - The highest fret considered when searching for a fingering. Higher
        lets the picker reach further up the neck; lower keeps everything
        close to the nut.
@@ -318,17 +318,17 @@ Physical Parameters
      - How many fretting fingers the hand has available.
      - ``fingers``
      - 4
-   * - :plat:`Stretch|Max span`
+   * - Max span
      - The widest fret span the hand holds on a normal pass.
      - ``max_span``
      - 4
-   * - :plat:`Relaxed stretch|Relaxed span`
+   * - Relaxed span
      - The widest span the picker will accept as a last resort, when
-       nothing fits within ":plat:`Stretch|Max span`". Must be at least as
-       large as ":plat:`Stretch|Max span`".
+       nothing fits within "Max span". Must be at least as
+       large as "Max span".
      - ``relaxed_span``
      - 5
-   * - :plat:`Allow barres|Allow barre chords`
+   * - Allow barre chords
      - Whether a single finger flattened across several strings can stand
        in for several fretted fingers at once.
      - ``allow_barres``
