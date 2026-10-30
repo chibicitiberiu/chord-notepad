@@ -261,7 +261,7 @@ permissions for app stores and a term about the project's name and icon (see
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+Contributions are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for how to send one and the licence terms it comes under.
 
 ## Acknowledgments
 
