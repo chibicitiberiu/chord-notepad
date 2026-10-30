@@ -34,6 +34,19 @@ COMPONENTS = LICENSES / "components.json"
 
 BUILDS = ("windows", "macos", "linux", "flatpak", "snap")
 
+# The user guide's Sphinx output: its _static folder holds Sphinx's, the
+# theme's and their fonts' files (each with its own component) next to the
+# few the repository's help/_static adds. The rest of the guide lies under
+# the repository too, so without this a new third-party file there would
+# quietly count as the app's.
+GUIDE_STATIC = "help/build/html/_static/"
+
+
+def guide_own_static(repo: Path = REPO) -> set:
+    """The guide's _static files that come from help/_static (the app's own), lower-cased."""
+    base = Path(repo) / "help" / "_static"
+    return {p.relative_to(base).as_posix().lower() for p in base.rglob("*") if p.is_file()} if base.is_dir() else set()
+
 # Imported by music21 (optionally) or present only because the build venv
 # also holds the dev tools. The app never imports them: the Flatpak and the
 # snap ship without them (packaging/flatpak/gen_python_deps.py), and
@@ -180,6 +193,7 @@ def classify(
     pyinstaller_root: Optional[str] = None,
     repo: Path = REPO,
     resolve_system: Optional[Callable[[str], Optional[SystemPackage]]] = None,
+    own_static: Optional[set] = None,
 ) -> Report:
     """Map each ``(dest, src, typecode)`` PyInstaller entry to a component.
 
@@ -187,7 +201,9 @@ def classify(
     installed distribution that owns ``src`` (by its ``pypi`` name), this
     repository (the app), PyInstaller itself, the Python standard library
     (not for binaries: those need their own entry), and on Linux the system
-    package owning a shared library (``resolve_system``).
+    package owning a shared library (``resolve_system``). A file in the user
+    guide's ``_static`` folder that no pattern covers and that isn't one of
+    ``own_static`` (default: :func:`guide_own_static`) is uncovered, not the app's.
     """
     comps = components_for(build, components)
     by_pypi = {normalize(c["pypi"]): c["id"] for c in comps if c.get("pypi")}
@@ -201,6 +217,8 @@ def classify(
         except ImportError:
             pyinstaller_root = ""
     repo_root = _key(str(repo))
+    if own_static is None:
+        own_static = guide_own_static(repo)
     app_id = "chord-notepad"
     report = Report()
 
@@ -214,6 +232,9 @@ def classify(
         hit = next((c["id"] for c in comps if typecode != "PYMODULE" and match(dest, c.get("files", []))), None)
         if hit:
             add(hit, dest)
+            continue
+        if dest.lower().startswith(GUIDE_STATIC) and dest[len(GUIDE_STATIC):].lower() not in own_static:
+            report.uncovered.append((dest, src, typecode, "user guide asset (Sphinx or its theme) with no entry"))
             continue
         real = _key(src) if src and src != "-" else ""
         dist = owners.get(real)

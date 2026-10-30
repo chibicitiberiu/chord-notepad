@@ -72,6 +72,7 @@ private fun LicenceGroup.title(): Int = when (this) {
     LicenceGroup.NATIVE -> R.string.licences_group_native
     LicenceGroup.PYTHON -> R.string.licences_group_python
     LicenceGroup.DATA -> R.string.licences_group_data
+    LicenceGroup.GUIDE -> R.string.licences_group_guide
     LicenceGroup.ANDROID -> R.string.licences_group_android
 }
 

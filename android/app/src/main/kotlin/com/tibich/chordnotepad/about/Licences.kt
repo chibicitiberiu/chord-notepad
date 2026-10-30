@@ -18,6 +18,7 @@ enum class LicenceGroup(val key: String) {
     NATIVE("native"),
     PYTHON("python"),
     DATA("data"),
+    GUIDE("guide"),
     ANDROID("android"),
     ;
 

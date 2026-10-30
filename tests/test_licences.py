@@ -180,6 +180,44 @@ def test_flatpak_manifest_sources_match_the_inventory():
     assert "v" + BY_ID["fluidsynth-flatpak"]["version"] + ".tar.gz" in manifest
 
 
+def test_guide_asset_entries_match_the_sphinx_stack_in_pipfile_lock():
+    """The guide's _static files come from the docs toolchain the lock pins (installed in the venv)."""
+    from importlib import metadata
+
+    develop = locked("develop")
+    for cid, dist in (("sphinx", "sphinx"), ("sphinx-rtd-theme", "sphinx-rtd-theme"), ("pygments", "pygments")):
+        assert BY_ID[cid]["version"] == develop[dist], cid
+    jquery = metadata.distribution("sphinxcontrib-jquery").locate_file("sphinxcontrib/jquery/jquery.js")
+    assert f"jQuery v{BY_ID['jquery']['version']} " in Path(jquery).read_text(encoding="utf-8")[:200]
+    stemmer = metadata.distribution("sphinx").locate_file("sphinx/search/non-minified-js/english-stemmer.js")
+    assert f"Snowball {BY_ID['snowball-stemmers']['version']} " in Path(stemmer).read_text(encoding="utf-8")[:200]
+    theme = Path(metadata.distribution("sphinx-rtd-theme").locate_file("sphinx_rtd_theme/static/css/theme.css"))
+    assert f"Font Awesome {BY_ID['font-awesome']['version']} " in theme.read_text(encoding="utf-8")
+    assert BY_ID["chord-notepad-guide"]["files"] and not any(
+        inv.match("help/build/html/_static/x.js", [p]) for p in BY_ID["chord-notepad-guide"]["files"])
+
+
+def test_android_lists_the_same_guide_assets():
+    android = json.loads((REPO / "android/app/src/main/assets/licenses/components.json").read_text(encoding="utf-8"))
+    guide = {c["id"]: c for c in android["components"] if c["group"] == "guide"}
+    assert set(guide) == {c["id"] for c in COMPONENTS if c["group"] == "guide"}
+    for cid, c in guide.items():
+        assert (c["version"], c["license"], c["texts"]) == (
+            BY_ID[cid]["version"], BY_ID[cid]["license"], BY_ID[cid]["texts"]), cid
+
+
+@pytest.mark.skipif(not (REPO / "help/build/html/_static").is_dir(), reason="user guide not built (make docs-html)")
+def test_every_file_of_the_built_guide_has_an_entry():
+    """What the strict build check sees for the guide (help/build/html, as the spec bundles it)."""
+    root = REPO / "help/build/html"
+    entries = [("help/build/html/" + p.relative_to(root).as_posix(), str(p), "DATA")
+               for p in sorted(root.rglob("*")) if p.is_file()]
+    report = inv.classify(entries, "linux", owners={}, stdlib_roots=[], pyinstaller_root="")
+    assert report.uncovered == [], inv.format_uncovered(report)
+    assert {"sphinx", "sphinx-rtd-theme", "jquery", "snowball-stemmers", "pygments", "font-awesome", "lato",
+            "roboto-slab", "chord-notepad-guide"} <= set(report.covered)
+
+
 # --- The build-time check (chord-notepad.spec) --------------------------------
 
 def test_fluidsynth_dlls_takes_only_the_listed_ones(tmp_path):
@@ -221,8 +259,12 @@ def test_classify_maps_files_to_components():
         ("pyi_rth_inspect", "/site/PyInstaller/hooks/rthooks/pyi_rth_inspect.py", "PYSOURCE"),
         ("_tcl_data/init.tcl", "/py/tcl/tcl8.6/init.tcl", "DATA"),
         ("libfoo.so", "libbar.so", "SYMLINK"),
+        ("help/build/html/_static/jquery.js", "/repo/help/build/html/_static/jquery.js", "DATA"),
+        ("help/build/html/_static/css/fonts/lato-bold.woff2", "/repo/help/build/html/_static/css/fonts/lato-bold.woff2",
+         "DATA"),
+        ("help/build/html/_static/custom.css", "/repo/help/build/html/_static/custom.css", "DATA"),
     ]
-    report = classify(entries, "windows", owners=owners)
+    report = classify(entries, "windows", owners=owners, own_static={"custom.css"})
     assert report.uncovered == []
     assert report.covered["fluidsynth-windows"] == ["fluidsynth/libfluidsynth-3.dll"]
     assert report.covered["msvc-runtime"] == ["VCRUNTIME140.dll"]
@@ -232,7 +274,9 @@ def test_classify_maps_files_to_components():
     assert report.covered["generaluser-gs"] == ["resources/soundfont/GeneralUser-GS.sf2"]
     assert report.covered["chord-notepad-logo"] == ["resources/icon-32.png"]
     assert report.covered["chord-notepad-guide"] == ["help/build/html/index.html"]
-    assert report.covered["chord-notepad"] == ["main"]
+    assert report.covered["chord-notepad"] == ["main", "help/build/html/_static/custom.css"]
+    assert report.covered["jquery"] == ["help/build/html/_static/jquery.js"]
+    assert report.covered["lato"] == ["help/build/html/_static/css/fonts/lato-bold.woff2"]
     assert report.covered["pyinstaller"] == ["pyi_rth_inspect"]
     assert report.covered["tcl-tk"] == ["_tcl_data/init.tcl"]
 
@@ -244,12 +288,14 @@ def test_classify_reports_what_nothing_covers():
         ("libmystery.dll", "/py/DLLs/libmystery.dll", "BINARY"),   # under the stdlib, still needs an entry
         ("fluidsynth/libinstpatch-2.dll", "/fs/libinstpatch-2.dll", "BINARY"),
         ("jeepney", "/site/jeepney/__init__.py", "PYMODULE"),
+        # A file the next Sphinx or theme release adds is not the app's, though it lies under the repository
+        ("help/build/html/_static/new-widget.js", "/repo/help/build/html/_static/new-widget.js", "DATA"),
     ]
     owners[os.path.normcase("/site/jeepney/__init__.py")] = "jeepney"
-    report = classify(entries, "windows", owners=owners)
+    report = classify(entries, "windows", owners=owners, own_static={"custom.css"})
     assert [u[0] for u in report.uncovered] == [e[0] for e in entries]
     assert "numpy" in inv.format_uncovered(report)
-    assert classify(entries[3:], "linux", owners=owners).uncovered == []  # jeepney is Linux-only
+    assert classify(entries[3:4], "linux", owners=owners).uncovered == []  # jeepney is Linux-only
 
 
 def test_classify_lists_system_packages_on_linux():

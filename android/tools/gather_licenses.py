@@ -40,6 +40,19 @@ SOURCES = {
     # (packaging/licenses/gather_texts.py records where it comes from).
     "CC-BY-SA-4.0.txt": ("file", REPO / "resources/licenses/texts/CC-BY-SA-4.0.txt"),
     "GeneralUser-GS.txt": ("file", REPO / "resources/soundfont/GeneralUser-GS.LICENSE.txt"),
+    # The user guide's web assets (Sphinx, its theme, jQuery, the fonts):
+    # the same Sphinx stack as the desktop guide (android/docs-requirements.txt),
+    # so the same texts packaging/licenses/gather_texts.py gathered.
+    "sphinx-BSD.txt": ("file", REPO / "resources/licenses/texts/sphinx-BSD.txt"),
+    "sphinx-rtd-theme-MIT.txt": ("file", REPO / "resources/licenses/texts/sphinx-rtd-theme-MIT.txt"),
+    "pygments-BSD.txt": ("file", REPO / "resources/licenses/texts/pygments-BSD.txt"),
+    "jquery-MIT.txt": ("file", REPO / "resources/licenses/texts/jquery-MIT.txt"),
+    "snowball-BSD.txt": ("file", REPO / "resources/licenses/texts/snowball-BSD.txt"),
+    "fontawesome-license.txt": ("file", REPO / "resources/licenses/texts/fontawesome-license.txt"),
+    "OFL-1.1.txt": ("file", REPO / "resources/licenses/texts/OFL-1.1.txt"),
+    "MIT.txt": ("file", REPO / "resources/licenses/texts/MIT.txt"),
+    "Lato-OFL.txt": ("file", REPO / "resources/licenses/texts/Lato-OFL.txt"),
+    "roboto-slab-Apache-2.0.txt": ("file", REPO / "resources/licenses/texts/roboto-slab-Apache-2.0.txt"),
     "Apache-2.0.txt": ("file", NATIVE / "oboe/LICENSE"),
     "Apache-2.0-LLVM-exception.txt": ("until", FEDORA / "llvm-libs/LICENSE.TXT", "Software from third parties"),
     "LGPL-2.1.txt": ("file", NATIVE / "fluidsynth/LICENSE"),

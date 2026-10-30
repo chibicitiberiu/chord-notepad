@@ -57,6 +57,7 @@
     <string name="licences_group_native">Audio libraries</string>
     <string name="licences_group_python">Python packages</string>
     <string name="licences_group_data">Sounds and graphics</string>
+    <string name="licences_group_guide">User guide</string>
     <string name="licences_group_android">Android libraries</string>
     <string name="licences_copyright">Copyright %1$s</string>
     <string name="licences_website">Website</string>

@@ -41,6 +41,7 @@ GROUPS: Dict[str, str] = {
     "native": "Audio libraries",
     "python": "Python packages",
     "data": "Sounds, fonts and icons",
+    "guide": "User guide",
     "system": "System libraries",
 }
 
