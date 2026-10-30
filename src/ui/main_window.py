@@ -1264,7 +1264,8 @@ class MainWindow(tk.Tk):
         """Show About dialog with version information"""
         about_dialog = tk.Toplevel(self)
         about_dialog.title("About Chord Notepad")
-        about_dialog.geometry("450x420")
+        # No fixed size: the window takes the size its content asks for (set
+        # below), so nothing is cut off whatever the fonts and scaling.
         about_dialog.transient(self)
         about_dialog.grab_set()
         about_dialog.resizable(False, False)
@@ -1331,11 +1332,13 @@ class MainWindow(tk.Tk):
                    command=lambda: self.show_licences(about_dialog)).pack(side=tk.LEFT, padx=5)
         ttk.Button(button_frame, text="Close", command=about_dialog.destroy).pack(side=tk.LEFT, padx=5)
 
-        # Center the dialog
+        # Size to the content and center over the main window. Before the
+        # dialog is mapped only its requested size is known.
         about_dialog.update_idletasks()
-        x = self.winfo_x() + (self.winfo_width() // 2) - (about_dialog.winfo_width() // 2)
-        y = self.winfo_y() + (self.winfo_height() // 2) - (about_dialog.winfo_height() // 2)
-        about_dialog.geometry(f"+{x}+{y}")
+        width, height = about_dialog.winfo_reqwidth(), about_dialog.winfo_reqheight()
+        x = max(0, self.winfo_x() + (self.winfo_width() - width) // 2)
+        y = max(0, self.winfo_y() + (self.winfo_height() - height) // 2)
+        about_dialog.geometry(f"{width}x{height}+{x}+{y}")
 
     def convert_to_american(self) -> None:
         """Convert all chords in the text to American notation"""
