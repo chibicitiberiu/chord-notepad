@@ -358,7 +358,9 @@ Creating Labels
 
 Label names:
 
-* Can contain letters, numbers, and underscores
+* Can contain letters, numbers, underscores and spaces (``{label: verse 1}``).
+  The :plat:`Insert dialog|＋ Insert form` only takes letters, numbers and
+  underscores; a label with spaces has to be typed.
 * Are case-sensitive (``verse`` and ``Verse`` are different)
 * Should be descriptive (``verse``, ``chorus``, ``bridge``, ``intro``, etc.)
 
@@ -372,6 +374,12 @@ Creating Loops
    {loop: verse}        // Play "verse" section 2 times (default)
    {loop: verse 3}      // Play "verse" section 3 times
    {loop: chorus 1}     // Play "chorus" section 1 time
+   {loop: my verse 2}   // A label with spaces works too
+
+The count is the last word when it is a whole number, and the label is
+everything before it. So for a label that itself ends in a number, give the
+count: ``{loop: verse 1 2}`` plays ``verse 1`` twice, while ``{loop: verse 1}``
+means the label ``verse``, once. The count must be at least 1.
 
 Building Song Structure
 -----------------------

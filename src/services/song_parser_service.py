@@ -129,22 +129,21 @@ class SongParserService:
                     directive_created = True
 
                 elif keyword == 'loop':
-                    # Parse loop directive: "label count"
-                    parts = value.split()
-                    if len(parts) >= 1:
-                        label = parts[0]
-                        count = int(parts[1]) if len(parts) >= 2 else 2
-                        directive = Directive(
-                            type=DirectiveType.LOOP,
-                            start=start,
-                            end=end,
-                            label=label,
-                            loop_count=count
-                        )
-                        directives.append(directive)
-                        directive_created = True
-                    else:
+                    # "label [count]": the count is the last word when it is a
+                    # whole number; the label is everything before it, so a
+                    # label may contain spaces ({loop: my verse 2}).
+                    label, count = self._split_loop_value(value)
+                    if not label:
                         raise ValueError(f"Invalid loop format: {value}")
+                    directive = Directive(
+                        type=DirectiveType.LOOP,
+                        start=start,
+                        end=end,
+                        label=label,
+                        loop_count=count
+                    )
+                    directives.append(directive)
+                    directive_created = True
 
                 elif keyword == 'label':
                     # Parse label directive: {label: name}
@@ -284,6 +283,24 @@ class SongParserService:
                 end=end,
                 is_valid=False
             )
+
+    _LOOP_COUNT = re.compile(r'^(.*?)\s+([+-]?\d+)$')
+
+    @classmethod
+    def _split_loop_value(cls, value: str) -> tuple:
+        """Split a ``{loop}`` value into ``(label, count)``.
+
+        The count is the last whitespace-separated token when it is an integer
+        (default 2); the label is the rest. Raises ValueError for a count
+        below 1.
+        """
+        match = cls._LOOP_COUNT.match(value.strip())
+        if not match:
+            return value.strip(), 2
+        count = int(match.group(2))
+        if count < 1:
+            raise ValueError(f"Loop count must be at least 1: {value}")
+        return match.group(1).strip(), count
 
     @staticmethod
     def _positive_float(text: str) -> float:

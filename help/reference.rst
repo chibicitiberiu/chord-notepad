@@ -371,8 +371,8 @@ All Directives
      - ``{label: name}``
    * - {loop}
      - Repeat a section
-     - ``{loop: name count}`` (count defaults to 2; ``@start`` is the top of
-       the song)
+     - ``{loop: name count}`` (count defaults to 2; the name may contain
+       spaces; ``@start`` is the top of the song)
 
 .. only:: android
 
