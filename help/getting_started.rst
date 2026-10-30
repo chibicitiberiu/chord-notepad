@@ -35,8 +35,8 @@ Opening the Application
    that isn't on the screen is in the menu behind the **☰** button at the top
    left.
 
-The Main Window
----------------
+The Main :plat:`Window|Screen`
+------------------------------
 
 .. only:: desktop
 
