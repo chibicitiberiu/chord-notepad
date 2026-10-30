@@ -49,7 +49,7 @@ val appAbis: List<String> = providers.gradleProperty("cnAbis")
 // Release signing (docs/RELEASE.md, "Android"). -PcnSigning picks the key the
 // release build type signs with:
 //   debug (default): the debug key, so a local release APK installs;
-//   none:            unsigned (app-release-unsigned.apk), for F-Droid and for
+//   none:            unsigned (app-<flavour>-release-unsigned.apk), for F-Droid and for
 //                    reproducing the GitHub APK;
 //   upload:          the Play upload key (CI signs the AAB with it);
 //   foss:            the offline FOSS key (CI signs the GitHub APK with it).
@@ -125,6 +125,17 @@ android {
         }
     }
 
+    // Where the build is distributed (docs/design/android-support-plan.md):
+    //   play: Google Play, with the optional supporter purchase (Play Billing);
+    //   foss: the GitHub APK and F-Droid, no Google libraries, a donation link.
+    // Same applicationId and versionCode; the difference is src/play and
+    // src/foss (each provides createSupportBilling), plus play's dependency.
+    flavorDimensions += "store"
+    productFlavors {
+        create("play") { dimension = "store" }
+        create("foss") { dimension = "store" }
+    }
+
     signingConfigs {
         if (signingMode == "upload" || signingMode == "foss") {
             val prefix = "CN_${signingMode.uppercase()}"
@@ -188,8 +199,8 @@ android {
                 // The bridge contract (step 14 commits it; the test skips
                 // while it is missing). See docs/ANDROID.md, "Bridge contract".
                 it.systemProperty("cn.bridgeSchema", bridgeSchemaPath)
-                // The licence data the app bundles (AboutLibrariesTest, LicenceCatalogTest).
-                it.systemProperty("cn.licensesDir", file("src/main/assets/licenses").path)
+                // The licence data (LicencesTest): cn.licensesDirs and
+                // cn.aboutLibrariesJson are per variant, set at the end of this file.
                 it.systemProperty("cn.requirements", pythonRequirements.asFile.path)
                 // The generated User Guide (HelpAssetsTest).
                 it.systemProperty("cn.helpDir", layout.buildDirectory.dir("generated/help/assets/help").get().asFile.path)
@@ -604,12 +615,24 @@ aboutLibraries {
     }
 }
 
-// The unit tests check the generated Maven licence data against the texts we
-// bundle, so they run after the plugin task and get its output path.
-val aboutLibrariesJsonPath: String =
-    layout.buildDirectory.file("generated/aboutLibraries/debug/res/raw/aboutlibraries.json").get().asFile.path
-tasks.matching { it.name == "testDebugUnitTest" }.configureEach {
-    dependsOn(buildAndroidHelp)
-    dependsOn(tasks.matching { it.name == "prepareLibraryDefinitionsDebug" })
-    (this as Test).systemProperty("cn.aboutLibrariesJson", aboutLibrariesJsonPath)
+// The unit tests check the generated Maven licence data against the texts the
+// variant bundles (src/main's plus its flavour's: the Play libraries' licences
+// live in src/play/assets/licenses), so each variant's test task runs after its
+// AboutLibraries task and gets its paths.
+androidComponents {
+    onVariants { variant ->
+        val name = variant.name
+        val testTask = "test${name.replaceFirstChar { it.uppercase() }}UnitTest"
+        val definitionsTask = "prepareLibraryDefinitions${name.replaceFirstChar { it.uppercase() }}"
+        val mavenJson = layout.buildDirectory.file("generated/aboutLibraries/$name/res/raw/aboutlibraries.json")
+            .get().asFile.path
+        val licenceDirs = listOfNotNull("main", variant.flavorName)
+            .joinToString(File.pathSeparator) { file("src/$it/assets/licenses").path }
+        tasks.matching { it.name == testTask }.configureEach {
+            dependsOn(buildAndroidHelp)
+            dependsOn(tasks.matching { it.name == definitionsTask })
+            (this as Test).systemProperty("cn.aboutLibrariesJson", mavenJson)
+            systemProperty("cn.licensesDirs", licenceDirs)
+        }
+    }
 }

@@ -4,28 +4,36 @@ import com.tibich.chordnotepad.ui.about.Pages
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
-import org.junit.Assume.assumeTrue
 import org.junit.Test
 import java.io.File
 import java.io.FileNotFoundException
 
 /**
- * The licence data the app bundles (`src/main/assets/licenses`): it parses,
- * every text it names exists and every text is used. Gradle passes the paths
- * (`cn.licensesDir`, `cn.requirements`, `cn.aboutLibrariesJson`).
+ * The licence data the variant under test bundles: `src/main/assets/licenses`
+ * plus its flavour's (`src/play/assets/licenses`: the Play libraries' texts).
+ * It parses, every text it names exists and every text is used. Gradle passes
+ * the paths per variant (`cn.licensesDirs`, `cn.aboutLibrariesJson`) and
+ * `cn.requirements`.
  */
 class LicencesTest {
-    private val dir = File(System.getProperty("cn.licensesDir") ?: error("cn.licensesDir not set"))
+    /** main first, then the flavour's directory if it has one; assets merge like this in the APK. */
+    private val dirs = (System.getProperty("cn.licensesDirs") ?: error("cn.licensesDirs not set"))
+        .split(File.pathSeparator).map(::File).filter { it.isDirectory }
     private val assets = LicenceAssets { path ->
-        val file = File(dir, path)
-        if (!file.isFile) throw FileNotFoundException(file.path)
+        val file = dirs.reversed().map { File(it, path) }.firstOrNull { it.isFile }
+            ?: throw FileNotFoundException("$path in $dirs")
         file.inputStream()
     }
-    private val componentsText = File(dir, Licences.COMPONENTS).readText()
+    private val componentsText = assets.open(Licences.COMPONENTS).use { it.readBytes().decodeToString() }
     private val components = Licences.parseComponents(componentsText)
 
-    private fun mavenJson(): String? =
-        System.getProperty("cn.aboutLibrariesJson")?.let(::File)?.takeIf { it.isFile }?.readText()
+    /** AboutLibraries' export for this variant; Gradle runs its task first, so it must exist. */
+    private fun mavenJson(): String {
+        val path = System.getProperty("cn.aboutLibrariesJson") ?: error("cn.aboutLibrariesJson not set")
+        val file = File(path)
+        assertTrue("$path missing (prepareLibraryDefinitions<Variant> should have made it)", file.isFile)
+        return file.readText()
+    }
 
     @Test
     fun `every custom entry parses and has the fields the screen needs`() {
@@ -50,8 +58,9 @@ class LicencesTest {
     @Test
     fun `no bundled licence text is unused`() {
         val used = components.flatMap { it.textFiles }.toMutableSet()
-        mavenJson()?.let { json -> used += Licences.parseMaven(json).flatMap { it.textFiles } }
-        val onDisk = File(dir, Licences.TEXTS).listFiles().orEmpty().map { it.name.removeSuffix(".txt") }.toSet()
+        used += Licences.parseMaven(mavenJson()).flatMap { it.textFiles }
+        val onDisk = dirs.flatMap { File(it, Licences.TEXTS).listFiles().orEmpty().toList() }
+            .map { it.name.removeSuffix(".txt") }.toSet()
         assertEquals("texts nothing refers to", emptySet<String>(), onDisk - used)
         assertEquals("texts that are missing", emptySet<String>(), used - onDisk)
     }
@@ -98,8 +107,7 @@ class LicencesTest {
     @Test
     fun `the Maven libraries AboutLibraries exports all have a licence text`() {
         val json = mavenJson()
-        assumeTrue("aboutlibraries.json not generated", json != null)
-        val libs = Licences.parseMaven(json!!)
+        val libs = Licences.parseMaven(json)
         assertTrue(libs.size > 20)
         val all = Licences.entries(componentsText, json)
         assertEquals(libs.size + components.size, all.size)
