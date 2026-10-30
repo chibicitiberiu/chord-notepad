@@ -69,45 +69,38 @@ class ChordLexer(RegexLexer):
     name = 'chord'
     aliases = ['chord']
 
+    # The chord shapes of src/chord/detector.py, without the text-line
+    # heuristics: a root, any run of quality/extension tokens (longest
+    # alternatives first), a slash bass and a duration, ending the word.
+    _mods = (r'(?:°|ø|\+|Δ|-|maj|min|mi|dim|aug|dom|alt|sus[24]?|add\d+|no\d+'
+             r'|omit\d+|m|M|\d+|[#b♯♭]\d+|\([^)]+\))*')
+    _euro = r'(?:D[oóò]|R[eéèê]|Mi|F[aáà]|Sol|L[aáà]|Si)[#b♯♭]?'
+    _amer = r'[A-G][#b♯♭]?'
+    _numeral = r'[#b♭]?(?:VII|VI|IV|III|II|I|vii|vi|iv|iii|ii|i|V|v)'
+    _duration = r'(?:\*[\d.]+)?'
+    _end = r'(?![\w#])'
+
     tokens = {
         'root': [
             # Comments - everything after //
             (r'//.*$', Comment),
             # Directives - {anything}
             (r'\{[^}]+\}', Name.Decorator),
-            # Chords - American notation with optional modifiers and duration
-            # Matches: C, Am, G7, Cmaj7, F#m7b5, C/G, Am*2, etc.
-            (r'[A-G][#b]?'                    # Root note (C, C#, Db, etc.)
-             r'(?:m|min|maj|dim|aug)?'        # Quality (m, min, maj, dim, aug)
-             r'(?:M|Δ)?'                      # Major 7 symbols
-             r'(?:sus[24]?)?'                 # Suspended
-             r'(?:add)?'                      # Add chords
-             r'(?:[2679]|11|13)?'             # Extensions
-             r'(?:b5|#5|b9|#9|#11|b13)?'      # Alterations
-             r'(?:/[A-G][#b]?)?'              # Slash bass note
-             r'(?:\*[\d.]+)?',                # Duration modifier
-             Keyword),
-            # European notation chords (Do, Re, Mi, Fa, Sol, La, Si)
-            (r'(?:Do|Re|Mi|Fa|Sol|La|Si)[#b]?'
-             r'(?:m|min|maj|dim|aug)?'
-             r'(?:M|Δ)?'
-             r'(?:sus[24]?)?'
-             r'(?:add)?'
-             r'(?:[2679]|11|13)?'
-             r'(?:b5|#5|b9|#9|#11|b13)?'
-             r'(?:/(?:Do|Re|Mi|Fa|Sol|La|Si)[#b]?)?'
-             r'(?:\*[\d.]+)?',
-             Keyword),
-            # Roman numerals (I, ii, IV, V7, etc.)
-            (r'[#b]?'                         # Optional accidental
-             r'(?:VII|VII|VI|IV|III|II|I|vii|vi|iv|iii|ii|i|V|v)'  # Numeral
-             r'(?:°|dim|aug|maj|m)?'          # Quality
-             r'(?:[2679]|11|13)?'             # Extensions
-             r'(?:b5|#5)?'                    # Alterations
-             r'(?:/[#b]?(?:VII|VI|IV|III|II|I|vii|vi|iv|iii|ii|i|V|v))?',  # Slash
-             Keyword),
+            # No chord (a rest): NC, NC*2
+            (r'NC' + _duration + _end, Keyword),
+            # European chords (Do, Re, Mi, Fa, Sol, La, Si): before American,
+            # which would take the D of Do and the F of Fa
+            (_euro + _mods + r'(?:/' + _euro + r')?' + _duration + _end, Keyword),
+            # American chords: C, Am, Cmaj7, F#m7b5, C5, C7b9b13, C/G, Am*2
+            (_amer + _mods + r'(?:/' + _amer + r')?' + _duration + _end, Keyword),
+            # Roman numerals: I, ii, V7, vii°, vi/I, bVII
+            (_numeral + r'(?:°|ø|\+|dim|aug|maj|m)?(?:\d+)?(?:[#b]\d+)?'
+             r'(?:/' + _numeral + r')?' + _duration + _end, Keyword),
             # Whitespace
             (r'\s+', Whitespace),
+            # Any other word (lyrics, Gsus5): whole, so no chord is found
+            # inside it
+            (r'\w+', Text),
             # Everything else
             (r'.', Text),
         ]
