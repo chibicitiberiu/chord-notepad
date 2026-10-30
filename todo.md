@@ -11,6 +11,7 @@ App bugs and questions found while fact-checking the user guide (2026-10-30). No
 - **Relative tempo out of 20–400** (e.g. `{bpm: +50}` at 380, or inside loops): clamp it and warn in the status bar; it isn't red (in progress).
 - **Suggest Capo on a selection** applies to that part only, and the dialog says so (in progress).
 - **A loop above its label** is invalid (red).
+- **Redundant directives** (a `{capo}`/`{bpm}`/`{time}`/`{key}` overridden by another of the same kind before any chord plays) are shown faded, semi-transparent, with a "has no effect" hint (in progress).
 - **"la la la" lyric lines detected as chords:** a known issue, too ambiguous for a heuristic (chord lines can have directions and "?" too). Workaround: a line starting with `.` is plain text (in progress).
 - **`iim7` and Berklee-style `IIm7`:** accept both as minor (in progress).
 - **Voicing `label`:** keep it internal and never show it. The name is the display name. No change.
