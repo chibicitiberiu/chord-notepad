@@ -541,17 +541,31 @@ Setup, roughly in order:
 
 ### Developer verification
 
-Google's developer verification requires apps on certified Android devices
-to come from a registered developer. Register the package name
-`com.tibich.chordnotepad` as soon as the keys exist:
+Google's developer verification requires apps on certified Android devices to
+come from a registered developer: from September 2026 in Brazil, Indonesia,
+Singapore and Thailand, and worldwide from 2027. A Play developer account does
+this in Play Console, and one package name can have several signing keys, so
+the Play build and the GitHub/F-Droid APK both stay installable under
+`com.tibich.chordnotepad`. Play's help page for this:
+https://support.google.com/googleplay/android-developer/answer/16762301
 
-- for the GitHub APK, in the Android Developer Console with the **FOSS key's**
-  SHA-256 (from `fingerprints.txt`), following its proof-of-ownership step
-  (it may ask for an APK signed with that key);
-- for Play, the Play Console account covers it; the relevant key is Play's app
-  signing key (Play Console > Test and release > App integrity).
-
-The console's flow is still changing; follow what it asks for at the time.
+1. **Play build.** Play registers the package with Play's app signing key once
+   the first AAB is uploaded (Play App Signing, Google-managed key). Check it
+   under Play Console > **Android developer verification** > **Package
+   names**. If the package isn't listed, register it there.
+2. **The FOSS key** (GitHub APK, F-Droid). On that page, select
+   `com.tibich.chordnotepad` > **Add key**, enter the FOSS key's SHA-256
+   (`ANDROID_FOSS_CERT_SHA256`, also in `fingerprints.txt`):
+   `BB:DF:72:E7:70:C1:48:E7:2B:5A:C1:CC:3B:15:2E:9F:1A:5C:96:FA:0C:C5:28:92:CC:8F:BE:05:62:1D:30:B1`,
+   and select **Add key**. It takes a few minutes to reach the registry.
+3. **Proof of ownership, if the console asks for it.** Select **Verify** next
+   to the key and copy the snippet. Put it in
+   `android/app/src/foss/assets/adi-registration.properties`, then build a foss
+   release APK signed with the FOSS key: either locally, as in "Signing
+   locally" below, or with a release dispatch, which signs
+   `ChordNotepad-android.apk` with the FOSS key. Select **Upload** on the same
+   page and upload that APK. The snippet only identifies the developer
+   account, so the file can stay in the repo.
 
 ### Signing locally
 
