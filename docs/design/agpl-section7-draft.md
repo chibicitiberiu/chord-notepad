@@ -39,18 +39,20 @@ terms are in the repo when it's contributed) and for forks.
 >
 > **Definitions.**
 >
-> "App Store" means each of the following, including its successors run by the
-> same company: Google Play, operated by Google LLC; the Microsoft Store,
-> operated by Microsoft Corporation; and the App Store, operated by Apple Inc.,
-> in its iOS, iPadOS and macOS editions.
+> "App Store" means any online service that distributes software to the
+> public, for free or for payment, and is operated by someone other than the
+> person conveying the work through it. Examples are Google Play, the Microsoft
+> Store, Apple's App Store (iOS, iPadOS and macOS), the Amazon Appstore, the
+> Samsung Galaxy Store, Huawei AppGallery and Steam.
 >
 > "Store Library" means a library, framework or software development kit
-> published by the operator of an App Store for in-app purchases, licensing or
-> other integration with that App Store, together with the libraries it depends
-> on as published by the same operator. Examples are the Google Play Billing
+> published by the operator of an App Store, or by the maker of the platform
+> that App Store serves, for in-app purchases, payments, licensing or other
+> integration with that App Store, together with the libraries it depends on
+> as published by the same company. Examples are the Google Play Billing
 > Library with Google Play services, Google Data Transport and the Firebase
-> encoders it depends on; Apple StoreKit; and the Microsoft Store APIs
-> (Windows.Services.Store).
+> encoders it depends on; Apple StoreKit; the Microsoft Store APIs
+> (Windows.Services.Store); and the Steamworks SDK.
 >
 > **1. Linking Store Libraries.** If you modify this Program, or any covered
 > work, by linking or combining it with a Store Library (or a modified version
@@ -132,10 +134,11 @@ as they would a CLA.
 
 1. Store permission for anyone (as drafted) or for official builds only (the
    option above).
-2. The defined "Store Library" covers future store SDKs automatically but is
-   broader than naming each Maven artifact. The CI manifest check still flags
-   new Google components, so a change is noticed either way.
+2. Both definitions are general on purpose (Tibi, 2026-10-30: no lock-in to
+   today's stores). Any future store and its purchase SDK are covered without
+   collecting contributor consent, which would be needed to widen the
+   permissions later. The named stores are examples only. "Operated by someone
+   other than the person conveying" keeps a fork from calling its own DRM'd
+   download page a store. The CI manifest check still flags new Google
+   components, so an SDK change is noticed either way.
 3. Copyright years and holder line as they should read.
-4. Whether to add other stores later (Amazon Appstore, Samsung Galaxy Store,
-   Snap Store). The Snap Store and Flathub don't restrict recipients, so they
-   don't need it.
