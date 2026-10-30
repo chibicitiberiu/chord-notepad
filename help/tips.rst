@@ -122,12 +122,14 @@ Notation Consistency
 
 **Stick to one notation system:**
 
-Mixing American and European notation in the same file is confusing:
+Chord Notepad reads one notation at a time (the AB/Do toggle), so chords in the
+other notation aren't recognized. A line that mixes the two may not count as a
+chord line at all:
 
 .. code-block:: chord
 
    // Don't do this
-   C  Am  Fa  Sol    // Mixed notation - confusing!
+   C  Am  Fa  Sol    // Mixed notation: not detected in either mode
 
    // Do this instead
    C  Am  F  G       // All American
@@ -283,8 +285,8 @@ No Sound?
 .. only:: desktop
 
    **Check the instrument:**
-   Some instruments are quieter than others. Try switching to Acoustic Grand
-   Piano (the default) to test.
+   Some instruments are quieter than others. Try switching to **Grand Piano**
+   (in the Piano family, the default) to test.
 
 .. only:: android
 
@@ -405,8 +407,9 @@ File Won't Open?
 ----------------
 
 **Check the file encoding:**
-Chord Notepad works with UTF-8 text files. Files in other encodings might
-cause issues.
+Chord Notepad reads UTF-8 text files. A file in another encoding (an older
+Windows file with accented letters, say) won't open; save it as UTF-8 in
+another editor first.
 
 .. only:: desktop
 
@@ -478,20 +481,21 @@ Editing During Playback
 Copy-Pasting Without Checking
 -----------------------------
 
-When pasting chords from the web, watch out for:
-
-* Fancy quote characters (`` ' `` instead of plain ``'``)
-* Non-breaking spaces
-* HTML formatting
-
-If pasted chords aren't detected, try retyping them.
+When you paste, Chord Notepad turns non-breaking spaces into plain spaces,
+drops invisible zero-width characters and fixes Windows line endings, so chords
+copied from a web page usually come through as they are. If pasted chords
+aren't detected, check that they're separated by spaces rather than dashes or
+other punctuation, and that the line isn't mostly lyrics or other words. If
+that doesn't help, retype them.
 
 Loops That Never End
 --------------------
 
-If you loop to a label that contains another loop back to itself, you create
-a circular reference. The application handles this, but the song structure
-may not behave as intended.
+Two loops that keep sending each other back make a song with no end: for
+example a ``{loop: b}`` that jumps forward to ``{label: b}``, followed by a
+``{loop: a}`` that jumps back to a label above the first loop. Chord Notepad
+doesn't catch this yet, and such a song can't be played or exported. Point each
+loop back at a label above it.
 
 
 Getting Help
