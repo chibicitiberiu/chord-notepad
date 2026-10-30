@@ -8,11 +8,10 @@ App bugs and questions found while fact-checking the user guide (2026-10-30). No
 - **Tempo range:** 20–400 everywhere, including typed `{bpm}` (in progress).
 - **Invalid directives** (out of range, bad format, wrong/missing parameters) are highlighted red and ignored during playback (in progress). Each gets a reason and the correct syntax in the core. **To design:** a tooltip that suggests the syntax while typing, on desktop and Android.
 - **Defaults:** opening a song must NOT change the defaults in Settings. Values the song sets are shown as overridden and can't be edited from the UI (to do).
-- **"la la la" lyric lines detected as chords:** a known issue. A marker prefix is being considered (to discuss).
-
-## Questions still open
-- **`iim7`:** accept it? (Discussed 2026-10-30.)
-- **Voicing `label`:** show it as the display name, or drop it?
+- **"la la la" lyric lines detected as chords:** a known issue, too ambiguous for a heuristic (chord lines can have directions and "?" too). Workaround: a line starting with `.` is plain text (in progress).
+- **`iim7` and Berklee-style `IIm7`:** accept both as minor (in progress).
+- **Voicing `label`:** keep it internal and never show it. The name is the display name. No change.
+- **Syntax tooltip, design approved.** Desktop: the hint in the status bar while the cursor is in a directive, and a hover tooltip on a red directive. Android Edit mode: a hint strip above the keyboard, and long-press a red directive for the reason. To build after the core part lands.
 
 ## Bugs (from fact-check A)
 1. **Chord Identifier and flats:** "Bb D F" gives `D`, "Eb G Bb" gives `G`, `G/D#`, "Db F Ab" gives `F`, `F/C#`. The notes are rewritten as sharps before identification.
