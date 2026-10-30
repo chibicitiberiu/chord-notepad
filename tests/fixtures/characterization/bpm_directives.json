@@ -206,34 +206,34 @@
       "chord_start": 64,
       "chord_end": 65,
       "bar": 5,
-      "bpm": 120,
+      "bpm": 90,
       "key": null,
       "total_bars": 5,
       "time_signature_beats": 4,
       "time_signature_unit": 4,
-      "duration_seconds": 2.0
+      "duration_seconds": 2.666667
     },
     {
       "event_type": "METRONOME_TICK",
-      "timestamp": 11.166667,
+      "timestamp": 11.333333,
       "velocity": 0,
       "is_downbeat": false
     },
     {
       "event_type": "METRONOME_TICK",
-      "timestamp": 11.666667,
+      "timestamp": 12.0,
       "velocity": 0,
       "is_downbeat": false
     },
     {
       "event_type": "METRONOME_TICK",
-      "timestamp": 12.166667,
+      "timestamp": 12.666667,
       "velocity": 0,
       "is_downbeat": false
     },
     {
       "event_type": "NOTE_OFF",
-      "timestamp": 12.666667,
+      "timestamp": 13.333333,
       "velocity": 0,
       "chord": "C",
       "chord_start": 64,
@@ -242,7 +242,7 @@
     },
     {
       "event_type": "END_OF_SONG",
-      "timestamp": 12.666667,
+      "timestamp": 13.333333,
       "velocity": 100
     }
   ],

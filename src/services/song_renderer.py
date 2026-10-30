@@ -46,6 +46,25 @@ def _dedupe_preserve_order(notes: List[int]) -> List[int]:
     return result
 
 
+def song_start_bpm(lines: List[Line], initial_bpm: int) -> int:
+    """The tempo the song's first chord plays at.
+
+    The valid ``{bpm}`` directives before the first valid chord apply, in
+    order, to ``initial_bpm`` (the toolbar tempo); a ``reset`` among them goes
+    back to ``initial_bpm``. This is the tempo ``{bpm: reset}`` returns to
+    later in the song, and the one Song defaults shows.
+    """
+    bpm = initial_bpm
+    for line in lines:
+        for item in line.items:
+            if isinstance(item, ChordInfo):
+                if item.is_valid and line.is_chord_line():
+                    return bpm
+            elif item.is_valid and item.type == DirectiveType.BPM:
+                bpm = item.apply_bpm(bpm, initial_bpm)
+    return bpm
+
+
 class SongRenderer:
     """Renders a parsed song into a fully pre-computed :class:`RenderedSong`."""
 
@@ -91,6 +110,9 @@ class SongRenderer:
         self._initial_key = initial_key
         self._initial_bpm = initial_bpm
         self._initial_time_sig = initial_time_sig
+        # What {bpm: reset} returns to: the song's starting tempo, so it is the
+        # same whether or not the toolbar was set from the song's first {bpm}.
+        self._reset_bpm = song_start_bpm(lines, initial_bpm)
 
         state = {
             'lines': lines,
@@ -249,7 +271,7 @@ class SongRenderer:
             self._handle_label_directive(directive, state)
 
     def _handle_bpm_directive(self, directive: Directive, state: dict) -> None:
-        new_bpm = directive.apply_bpm(state['current_bpm'], self._initial_bpm)
+        new_bpm = directive.apply_bpm(state['current_bpm'], self._reset_bpm)
         state['current_bpm'] = new_bpm
         self._record_tempo(state, new_bpm)
 

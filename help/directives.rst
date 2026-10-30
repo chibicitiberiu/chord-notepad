@@ -122,7 +122,9 @@ The result stays within 20-400: ``{bpm: -200}`` at 100 BPM plays at 20.
 Resetting Tempo
 ---------------
 
-Return to the original tempo you started with:
+Return to the tempo the song started at: the one its first chord plays at,
+set by a ``{bpm}`` before the first chord, or the :plat:`toolbar tempo|Tempo in
+Song defaults` when there's none:
 
 .. code-block:: chord
 

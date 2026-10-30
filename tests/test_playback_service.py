@@ -449,17 +449,18 @@ class TestEnhancedBPMDirectives:
         assert _note_on_bpms(service) == [240]
 
     def test_reset_bpm_after_changes(self, initialized_service, song_parser):
-        """Test reset BPM returns to initial value."""
+        """Reset returns to the song's starting tempo (its first chord's)."""
         service, mock_player = initialized_service
 
-        text = "{bpm: 180} C\n{bpm: reset} G"
+        text = "{bpm: 180} C\n{bpm: 90} G\n{bpm: reset} Am"
         lines = song_parser.detect_chords_in_text(text)
 
         service.start_song_playback(lines, initial_key="C")
         time.sleep(0.2)
 
-        # BPM set to 180, then reset to 120.
-        assert _note_on_bpms(service) == [180, 120]
+        # The song starts at 180, slows to 90, then resets to 180 (not the
+        # toolbar's 120).
+        assert _note_on_bpms(service) == [180, 90, 180]
 
     def test_chained_bpm_modifiers(self, initialized_service, song_parser):
         """Test multiple BPM modifiers applied in sequence."""

@@ -155,7 +155,8 @@ CASES = {
     # 2. Explicit + fractional durations and an NC rest.
     "durations_and_rests": ("C*2 G*1 NC*1 Am*4.5 F\n", {}),
 
-    # 3. All BPM directive flavours mid-song, starting from 120.
+    # 3. All BPM directive flavours mid-song, starting from 120. The song's
+    #    starting tempo is 90, so reset returns to 90.
     "bpm_directives": (
         "{bpm: 90} C\n"
         "{bpm: +30} G\n"
