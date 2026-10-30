@@ -81,7 +81,7 @@ make_key upload "Play upload"
 fingerprints="$dir/fingerprints.txt"
 {
     echo "Chord Notepad Android signing certificates (public data; safe to publish)"
-    echo "Package: io.github.chibicitiberiu.chordnotepad"
+    echo "Package: com.tibich.chordnotepad"
     for name in foss upload; do
         echo
         echo "[$name]"

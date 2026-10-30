@@ -4,7 +4,7 @@ Status: **M2 toolchain spike**, plus the M6 build groundwork: natives built
 from source and Python packages installed offline (see "Natives from source and
 offline packages" below, and `docs/ANDROID_PORT_PLAN.md`). The Gradle
 project under `android/` is the kept skeleton; everything in the
-`io.github.chibicitiberiu.chordnotepad.spike` package and
+`com.tibich.chordnotepad.spike` package and
 `android/app/src/main/python/chordnotepad_android/spike.py` is throwaway test
 code that M4 replaces.
 
@@ -18,7 +18,7 @@ android/
   local.env.example                 toolchain paths; copy to local.env (gitignored)
   requirements.txt                  Python packages for the APK, pinned with sha256 hashes
   app/build.gradle.kts              app module: Chaquopy, natives, wheelhouse, SoundFont
-  app/src/main/kotlin/io/github/chibicitiberiu/chordnotepad/
+  app/src/main/kotlin/com/tibich/chordnotepad/
     ChordNotepadApp.kt, AppGraph.kt, MainActivity.kt
     bridge/                         PyHost, the Python contract, DTOs, codec, commands, SessionRepository
     text/                           OffsetMapper (code points <-> UTF-16), TextEdited/Span conversion
@@ -153,11 +153,11 @@ adb wait-for-device
 # local.env sets CHORD_NOTEPAD_ANDROID_BUILD_ROOT, so outputs land outside the repo:
 OUT=$CHORD_NOTEPAD_ANDROID_BUILD_ROOT/$(pwd | sed 's|^/||; s|/|_|g')/app/outputs/apk
 adb install -r $OUT/release/app-release.apk
-adb shell am start -W -n io.github.chibicitiberiu.chordnotepad/.MainActivity
+adb shell am start -W -n com.tibich.chordnotepad/.MainActivity
 adb logcat -s CNSPIKE:I python.stdout:I python.stderr:W
 
 # Scripted measurement run (60 s of the sample song, then 5 chord taps)
-adb shell am start -n io.github.chibicitiberiu.chordnotepad/.MainActivity --es spike_auto play:60
+adb shell am start -n com.tibich.chordnotepad/.MainActivity --es spike_auto play:60
 adb emu kill
 ```
 

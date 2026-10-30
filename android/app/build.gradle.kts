@@ -100,7 +100,7 @@ check(pythonPins.any { it.first == "music21" && it.second == music21Version }) {
 }
 
 android {
-    namespace = "io.github.chibicitiberiu.chordnotepad"
+    namespace = "com.tibich.chordnotepad"
     // Current AndroidX/Compose releases require compiling against API 37;
     // the app still targets 36.
     compileSdk = 37
@@ -109,7 +109,7 @@ android {
     ndkVersion = "27.3.13750724"
 
     defaultConfig {
-        applicationId = "io.github.chibicitiberiu.chordnotepad"
+        applicationId = "com.tibich.chordnotepad"
         minSdk = 24
         targetSdk = 36
         // (0*10000 + 4*100 + 1)*10 + 0 for VERSION 0.4.1. Keep it a plain literal.

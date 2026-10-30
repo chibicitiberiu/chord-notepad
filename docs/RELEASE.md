@@ -503,7 +503,7 @@ Setup, roughly in order:
 
 Google's developer verification requires apps on certified Android devices
 to come from a registered developer. Register the package name
-`io.github.chibicitiberiu.chordnotepad` as soon as the keys exist:
+`com.tibich.chordnotepad` as soon as the keys exist:
 
 - for the GitHub APK, in the Android Developer Console with the **FOSS key's**
   SHA-256 (from `fingerprints.txt`), following its proof-of-ownership step

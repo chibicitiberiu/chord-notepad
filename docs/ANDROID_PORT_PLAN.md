@@ -174,7 +174,7 @@ src/                       shared Python core
   chord_sheet/             headless renderers + ops + clef data (git mv from src/ui/chord_sheet)
   ui/                      Tk only (tk_host, panel, Tk replay, dialogs)
 android/                   Gradle project (Kotlin DSL, version catalog)
-  app/src/main/kotlin/io/github/chibicitiberiu/chordnotepad/{bridge,ui/...,files,audio}
+  app/src/main/kotlin/com/tibich/chordnotepad/{bridge,ui/...,files,audio}
   app/src/main/python/chordnotepad_android/   host glue (paths, ThreadedHost wiring, loadLibrary hand-off)
   native/                  fluidsynth + deps as pinned git submodules, build.sh (16 KB pages)
   tools/                   strip_music21.py, build_wheelhouse.py (pins in android/requirements.txt, hash-checked)
@@ -183,7 +183,7 @@ docs/ANDROID.md, docs/architecture/session.md
 ```
 
 - **Project basics:**
-  - applicationId `io.github.chibicitiberiu.chordnotepad`, one build (no flavors);
+  - applicationId `com.tibich.chordnotepad`, one build (no flavors);
   - minSdk 24, targetSdk 36, Python 3.14 (pinned micro version), ABIs arm64-v8a and x86_64.
 - **Version scheme:**
   - versionName comes from `VERSION`;
