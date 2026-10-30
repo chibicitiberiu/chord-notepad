@@ -3,7 +3,7 @@ base: core26
 adopt-info: chord-notepad
 grade: stable
 confinement: strict
-license: AGPL-3.0-or-later
+license: AGPL-3.0-only
 # Title, summary, description and icon come from the AppStream metainfo
 # (parse-info below); the version from the VERSION file.
 
