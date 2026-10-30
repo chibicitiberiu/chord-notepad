@@ -219,7 +219,7 @@ def ensure_installed(dev: Device, apk: Path) -> None:
     dev.sh(f"echo {digest} > {APK_MARK}")
 
 
-def prepare_device(dev: Device) -> None:
+def prepare_device(dev: Device, device_cfg: dict | None = None) -> None:
     """Clean status bar, no animations, fixed fonts and density, screen on."""
     cmds = [
         "settings put global sysui_demo_allowed 1",
@@ -238,6 +238,14 @@ def prepare_device(dev: Device) -> None:
     ]
     for c in cmds:
         dev.sh(c, check=False)
+    # A manifest device can override the screen ("size": "1080x1920", "dpi": 420),
+    # e.g. the store manifest's 9:16 phone and its 7-inch tablet.
+    cfg = device_cfg or {}
+    if cfg.get("size"):
+        dev.sh(f"wm size {cfg['size']}", check=False)
+    if cfg.get("dpi"):
+        dev.sh(f"wm density {cfg['dpi']}", check=False)
+    time.sleep(1)
     # Leave and re-enter demo mode: entering right after boot can leave a
     # second Wi-Fi icon behind.
     demo = [
@@ -498,9 +506,9 @@ def draw_callouts(img: Image.Image, callouts: list[dict], nodes: list[Node], box
         draw.text((cx, cy + 0.5), str(c["n"]), fill=on_primary, font=font, anchor="mm")
 
 
-def save_png(img: Image.Image, path: Path) -> None:
+def save_png(img: Image.Image, path: Path, quantize: bool = True) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    if features.check("libimagequant"):
+    if quantize and features.check("libimagequant"):
         out = img.quantize(colors=256, method=Image.Quantize.LIBIMAGEQUANT, dither=Image.Dither.FLOYDSTEINBERG)
     else:
         out = img
@@ -520,13 +528,14 @@ def expand(manifest: dict) -> list[dict]:
     """One entry per image: a shot with ``dark: true`` gives a light and a dark capture."""
     out = []
     for shot in manifest["shots"]:
-        out.append({**shot, "theme": "light", "file": f"{shot['name']}.png"})
+        base = shot.get("out", shot["name"])
+        out.append({"theme": "light", **shot, "file": f"{base}.png"})
         if shot.get("dark"):
             out.append({**shot, "theme": "dark", "file": f"{shot['name']}.dark.png"})
     return out
 
 
-def capture(dev: Device, manifest: dict, shot: dict, debug_dir: Path | None) -> Path:
+def capture(dev: Device, manifest: dict, shot: dict, debug_dir: Path | None, out_dir: Path) -> Path:
     device_cfg = manifest["devices"][shot.get("device", "phone")]
     orientation = shot.get("orientation", "portrait")
     config = {**manifest["config"], **shot.get("config", {})}
@@ -559,13 +568,15 @@ def capture(dev: Device, manifest: dict, shot: dict, debug_dir: Path | None) -> 
         img = img.resize((round(img.width * scale), round(img.height * scale)), Image.Resampling.LANCZOS)
     if shot.get("callouts"):
         draw_callouts(img, shot["callouts"], nodes, box, scale, shot["theme"])
-    path = OUT_DIR / shot["file"]
-    save_png(img, path)
+    path = out_dir / device_cfg.get("dir", "") / shot["file"]
+    save_png(img, path, manifest.get("quantize", True))
     return path
 
 
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
+    ap.add_argument("--manifest", type=Path, default=MANIFEST, help="shot list (default help_shots.json; store_shots.json for Play)")
+    ap.add_argument("--out-dir", type=Path, help="output directory (default: the manifest's out_dir, else help/images/android)")
     ap.add_argument("--list", action="store_true", help="list the shots and exit")
     ap.add_argument("--markdown", action="store_true", help="print the shot table for HELP_SHOTS.md and exit")
     ap.add_argument("--only", help="comma-separated shot names")
@@ -575,7 +586,8 @@ def main() -> None:
     ap.add_argument("--lock-wait", type=int, default=1800, help="seconds to wait for the emulator lock")
     args = ap.parse_args()
 
-    manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
+    manifest = json.loads(args.manifest.read_text(encoding="utf-8"))
+    out_dir = args.out_dir or (REPO / manifest["out_dir"] if "out_dir" in manifest else OUT_DIR)
     shots = expand(manifest)
     if args.list:
         for s in manifest["shots"]:
@@ -614,11 +626,11 @@ def main() -> None:
                 if fresh:
                     started.append(dev.serial)
                 ensure_installed(dev, apk)
-                prepare_device(dev)
+                prepare_device(dev, manifest["devices"][device])
                 for shot in group:
                     t0 = time.time()
                     try:
-                        path = capture(dev, manifest, shot, debug_dir)
+                        path = capture(dev, manifest, shot, debug_dir, out_dir)
                         log(f"{shot['file']:<34} {path.stat().st_size // 1024:>4} KB  {time.time() - t0:4.0f} s")
                     except Exception as e:  # noqa: BLE001 - report and go on with the next shot
                         failures.append(shot["file"])

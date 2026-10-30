@@ -37,6 +37,28 @@ python3 android/tools/help_screenshots.py --markdown       # the table below
   shots to half size. A run that produces identical bytes leaves the file
   untouched.
 
+## Google Play listing screenshots
+
+The same tool makes the Play Store screenshots from a second manifest,
+`android/tools/store_shots.json` (own devices, config and shots; songs in
+`help_shot_songs/`):
+
+```bash
+python3 android/tools/help_screenshots.py --manifest android/tools/store_shots.json            # all 16
+python3 android/tools/help_screenshots.py --manifest android/tools/store_shots.json --only p-03-staff
+python3 android/tools/help_screenshots.py --manifest android/tools/store_shots.json --out-dir /some/dir
+```
+
+- `--manifest FILE` picks the shot list; `--out-dir DIR` overrides the output
+  folder (default: the manifest's `out_dir`, else `help/images/android`).
+- Manifest keys the help manifest doesn't use: `out_dir` (repo-relative),
+  `quantize: false` (full-colour PNGs instead of 256 colours), per device
+  `size` / `dpi` (applied with `wm size` / `wm density`, so a phone is 9:16 and
+  the one tablet AVD also serves as a 7-inch tablet) and `dir` (a sub-folder of
+  the output), per shot `out` (the file name, without `.png`) and `theme`.
+- Output goes to `packaging/store/play/screenshots/{phone,tablet7,tablet10}/`;
+  see the README there.
+
 ## How a shot is set up
 
 Each shot starts from a clean app: force-stop, a fresh `settings.json`
