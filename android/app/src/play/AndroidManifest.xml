@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- Play Billing (src/play) brings Play services and Google's datatransport
+         telemetry. The app stays offline: billing talks to the Play Store app
+         over IPC and needs no network. tools/check_manifest.py checks the merged
+         result (flavour play). -->
+    <uses-permission android:name="android.permission.INTERNET" tools:node="remove" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" tools:node="remove" />
+
+    <application>
+        <!-- datatransport: without its CCT backend registered, billing's log
+             events are dropped before they are stored or scheduled for upload
+             (DefaultScheduler reports "not registered" to the caller), so the
+             upload job and its fallback alarm have nothing to do either. -->
+        <service
+            android:name="com.google.android.datatransport.runtime.backends.TransportBackendDiscovery"
+            tools:node="remove" />
+        <service
+            android:name="com.google.android.datatransport.runtime.scheduling.jobscheduling.JobInfoSchedulerService"
+            tools:node="remove" />
+        <receiver
+            android:name="com.google.android.datatransport.runtime.scheduling.jobscheduling.AlarmManagerSchedulerBroadcastReceiver"
+            tools:node="remove" />
+    </application>
+</manifest>

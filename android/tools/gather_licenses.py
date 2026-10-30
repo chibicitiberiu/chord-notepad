@@ -3,8 +3,10 @@
 
 Each text is the upstream file, verbatim, except where SOURCES says otherwise.
 Sources: the pinned wheels in the offline wheelhouse, the native submodules,
-this repository, the pinned @mdi/svg tarball (tools/mdi_icons.py), and (for components with no source tree here) a distribution's
-licence directory. The result is committed, so this only needs to run when a
+this repository, the pinned @mdi/svg tarball (tools/mdi_icons.py), (for components with no source tree here) a distribution's
+licence directory, and the Android SDK's own license agreement. The texts only
+the play flavour needs (Play Billing and the Play services libraries it pulls
+in) go to src/play/assets/licenses/texts instead. The result is committed, so this only needs to run when a
 component or its version changes; ``--check`` verifies the committed files.
 
 Usage:
@@ -22,6 +24,7 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
 OUT = REPO / "android/app/src/main/assets/licenses/texts"
+PLAY_OUT = REPO / "android/app/src/play/assets/licenses/texts"
 NATIVE = REPO / "android/native"
 FEDORA = Path("/usr/share/licenses")
 
@@ -69,6 +72,13 @@ SOURCES = {
     "mdi-Pictogrammers-Free-License.txt": ("mdi", "package/LICENSE"),
 }
 
+# Play flavour only. AboutLibraries names the Play libraries' POM licence
+# ("Android Software Development Kit License") ASDKL; the text is the SDK
+# License Agreement that sdkmanager stores with each installed package.
+PLAY_SOURCES = {
+    "ASDKL.txt": ("sdk-license", "android-sdk-license"),
+}
+
 # Downloaded once, kept as committed (no local source):
 #   Chaquopy-MIT.txt <- https://raw.githubusercontent.com/chaquo/chaquopy/master/LICENSE.txt
 #   Bravura-OFL.txt  <- https://raw.githubusercontent.com/steinbergmedia/bravura/master/LICENSE.txt
@@ -106,6 +116,16 @@ def read(spec, wheelhouse: Path) -> str:
                 raise SystemExit(f"@mdi/svg: no {spec[1]}")
             # Its LICENSE has CRLF line ends; kept as LF like the other texts.
             return member.read().decode("utf-8").replace("\r\n", "\n")
+    if kind == "sdk-license":
+        import xml.etree.ElementTree as ET
+        sdk = os.environ.get("ANDROID_HOME") or os.environ.get("ANDROID_SDK_ROOT")
+        if not sdk:
+            raise SystemExit("set ANDROID_HOME (source android/local.env) for the SDK license text")
+        for package in sorted(Path(sdk, "platforms").glob("*/package.xml")):
+            for element in ET.parse(package).iter():
+                if element.tag.endswith("license") and element.get("id") == spec[1] and element.text:
+                    return element.text.strip() + "\n"
+        raise SystemExit(f"no {spec[1]} in {sdk}/platforms/*/package.xml")
     raise SystemExit(f"bad source {spec}")
 
 
@@ -115,25 +135,26 @@ def main() -> int:
     ap.add_argument("--wheelhouse", default=os.path.join(
         os.environ.get("CHORD_NOTEPAD_ANDROID_CACHE", ""), "wheelhouse"))
     args = ap.parse_args()
-    OUT.mkdir(parents=True, exist_ok=True)
     bad = 0
-    for dest, spec in SOURCES.items():
-        text = read(spec, Path(args.wheelhouse))
-        target = OUT / dest
-        if args.check:
-            if not target.exists() or target.read_text(encoding="utf-8") != text:
-                print(f"differs: {dest}")
+    for out, sources, one_off in ((OUT, SOURCES, ONE_OFF), (PLAY_OUT, PLAY_SOURCES, [])):
+        out.mkdir(parents=True, exist_ok=True)
+        for dest, spec in sources.items():
+            text = read(spec, Path(args.wheelhouse))
+            target = out / dest
+            if args.check:
+                if not target.exists() or target.read_text(encoding="utf-8") != text:
+                    print(f"differs: {target.relative_to(REPO)}")
+                    bad += 1
+            else:
+                target.write_text(text, encoding="utf-8")
+        for name in one_off:
+            if not (out / name).exists():
+                print(f"missing: {name}")
                 bad += 1
-        else:
-            target.write_text(text, encoding="utf-8")
-    for name in ONE_OFF:
-        if not (OUT / name).exists():
-            print(f"missing: {name}")
+        known = set(sources) | set(one_off)
+        for extra in sorted(p.name for p in out.iterdir() if p.name not in known):
+            print(f"not in the table: {out.relative_to(REPO)}/{extra}")
             bad += 1
-    known = set(SOURCES) | set(ONE_OFF)
-    for extra in sorted(p.name for p in OUT.iterdir() if p.name not in known):
-        print(f"not in the table: {extra}")
-        bad += 1
     return 1 if bad else 0
 
 

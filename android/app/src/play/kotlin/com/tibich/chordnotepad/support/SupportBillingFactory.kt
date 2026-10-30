@@ -4,4 +4,4 @@ import android.content.Context
 import kotlinx.coroutines.CoroutineScope
 
 /** The play build: the supporter purchase through Google Play Billing. */
-fun createSupportBilling(context: Context, scope: CoroutineScope): SupportBilling = NoSupportBilling()
+fun createSupportBilling(context: Context, scope: CoroutineScope): SupportBilling = PlayBilling(context)

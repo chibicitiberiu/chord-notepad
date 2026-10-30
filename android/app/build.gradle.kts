@@ -595,6 +595,15 @@ dependencies {
     implementation(libs.androidx.compose.foundation)
     implementation(libs.androidx.compose.material3)
 
+    // The supporter purchase (src/play). Pulls in Play services and Google's
+    // datatransport; src/play/AndroidManifest.xml strips their network permissions.
+    "playImplementation"(libs.billing.ktx)
+    constraints {
+        "playImplementation"(libs.androidx.fragment) {
+            because("play-services-base asks for fragment 1.1; ActivityResult needs 1.3 or newer")
+        }
+    }
+
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
 }

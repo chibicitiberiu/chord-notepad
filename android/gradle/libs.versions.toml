@@ -12,6 +12,11 @@ kotlinxSerialization = "1.11.0"
 # Matches what AndroidX resolves for kotlinx-coroutines-core on the main classpath.
 kotlinxCoroutines = "1.9.0"
 junit = "4.13.2"
+# Play flavour only (the supporter purchase).
+billing = "9.1.0"
+# Only as a constraint: Play services asks for fragment 1.1, older than the
+# ActivityResult APIs need (lint's InvalidFragmentVersionForActivityResult).
+fragment = "1.9.1"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -21,6 +26,8 @@ androidx-webkit = { group = "androidx.webkit", name = "webkit", version.ref = "w
 androidx-lifecycle-process = { group = "androidx.lifecycle", name = "lifecycle-process", version.ref = "lifecycle" }
 kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinxSerialization" }
 kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "kotlinxCoroutines" }
+billing-ktx = { group = "com.android.billingclient", name = "billing-ktx", version.ref = "billing" }
+androidx-fragment = { group = "androidx.fragment", name = "fragment", version.ref = "fragment" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-compose-bom = { group = "androidx.compose", name = "compose-bom", version.ref = "composeBom" }
 androidx-compose-ui = { group = "androidx.compose.ui", name = "ui" }
