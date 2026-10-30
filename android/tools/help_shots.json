@@ -108,6 +108,40 @@
     "do": "wait",
     "ms": 4500
    }
+  ],
+  "typo_edit": [
+   {
+    "do": "song",
+    "text": "{bpm: 500} {time: 3/4} {key: G}\n\n// Amazing Grace (John Newton, 1779)\n{label: verse}\nG           G7        C      G\nAmazing grace, how sweet the sound\nG               Em      D\nThat saved a wretch like me\nG            G7       C      G\nI once was lost, but now am found\nG      Em       D       G\nWas blind, but now I see\n",
+    "name": "Amazing Grace.txt"
+   },
+   {
+    "do": "mode",
+    "mode": "edit"
+   },
+   {
+    "do": "wait",
+    "ms": 4500
+   }
+  ],
+  "typo_play": [
+   {
+    "do": "song",
+    "text": "{bpm: 500} {time: 3/4} {key: G}\n\n// Amazing Grace (John Newton, 1779)\n{label: verse}\nG           G7        C      G\nAmazing grace, how sweet the sound\nG               Em      D\nThat saved a wretch like me\nG            G7       C      G\nI once was lost, but now am found\nG      Em       D       G\nWas blind, but now I see\n",
+    "name": "Amazing Grace.txt"
+   },
+   {
+    "do": "mode",
+    "mode": "play"
+   },
+   {
+    "do": "playhead",
+    "chord": 0
+   },
+   {
+    "do": "wait",
+    "ms": 1500
+   }
   ]
  },
  "shots": [
@@ -1257,6 +1291,73 @@
      "sleep": 1.5
     }
    ]
+  },
+  {
+   "name": "directive-hint",
+   "page": "interface: Directive Hints",
+   "what": "Edit tab with the keyboard open, the cursor inside a red {bpm: 500}: the hint strip above the keyboard says 'Tempo must be 20-400' in red, then the {bpm} forms in monospace.",
+   "scene": "typo_edit",
+   "steps": [
+    {
+     "tap": {
+      "tag": "editor",
+      "at": [
+       0.5,
+       0.75
+      ]
+     }
+    },
+    {
+     "sleep": 1.5
+    },
+    {
+     "actions": [
+      {
+       "do": "select",
+       "text": "{bpm: 50",
+       "cursor": true
+      }
+     ]
+    },
+    {
+     "sleep": 1.5
+    }
+   ]
+  },
+  {
+   "name": "directive-explain",
+   "page": "interface: Directive Hints",
+   "what": "Play tab after touching and holding the red {bpm: 500}: a small card under it with the reason and the {bpm} forms.",
+   "scene": "typo_play",
+   "steps": [
+    {
+     "swipe": {
+      "tag": "editor",
+      "at": [
+       0.08,
+       0.035
+      ]
+     },
+     "by": [
+      0,
+      0
+     ],
+     "ms": 900
+    },
+    {
+     "sleep": 1.2
+    }
+   ],
+   "crop": {
+    "nodes": [
+     {
+      "tag": "editor"
+     }
+    ],
+    "pad_dp": 0,
+    "full_width": true,
+    "height_dp": 240
+   }
   },
   {
    "name": "tablet-play",

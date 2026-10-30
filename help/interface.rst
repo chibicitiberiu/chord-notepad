@@ -887,6 +887,63 @@ directive of the same kind replaces before any chord plays, such as the first
 of ``{capo: 2}`` and ``{capo: 3}`` written one after the other. It does no harm;
 you can delete it.
 
+.. _directive-hints:
+
+Directive Hints
+---------------
+
+You don't have to remember how a directive is written: the app shows its
+syntax while you write one, and a red or faded directive tells you what's
+wrong with it.
+
+.. only:: desktop
+
+   While the text cursor is inside a directive, the status bar at the bottom
+   of the window shows how that directive is written, for example
+   ``{bpm: 120} · {bpm: +10} · {bpm: 50%} · {bpm: 2x} · {bpm: reset}``. It
+   works for one you're still typing too: after ``{lo`` it shows the ``{loop}``
+   forms, and after a lone ``{`` it lists every directive. If the directive is
+   red or faded, the reason comes first, for example "Tempo must be 20-400 —
+   {bpm: 120} · …". When the cursor leaves the directive, the status bar shows
+   what it showed before. While a song plays, the status bar keeps showing
+   playback.
+
+   Rest the mouse pointer on a red or faded directive for a moment, and a
+   tooltip shows the reason and the correct syntax.
+
+.. only:: android
+
+   In the Edit tab, while the cursor is inside a directive, a slim strip
+   under the text shows how that directive is written, for example
+   ``{bpm: 120} · {bpm: +10} · {bpm: 50%} · {bpm: 2x} · {bpm: reset}``. With
+   the keyboard open, the strip sits just above it. It works for one you're
+   still typing too: after ``{lo`` it shows the ``{loop}`` forms, and after a
+   lone ``{`` it lists every directive. If the directive is red, the reason
+   comes first, in red ("Tempo must be 20-400"); for a faded one it says what
+   replaces it. The strip goes away when the cursor leaves the directive. When
+   the header is folded away for the keyboard, the undo / redo button sits
+   above the strip.
+
+   .. platform-figure:: directive-hint
+      :platforms: android
+      :alt: The Edit tab with the keyboard open. The cursor is inside a red
+            {bpm: 500}, and a strip just above the keyboard says "Tempo must
+            be 20-400" in red, then the {bpm} forms in a monospace font.
+
+      The hint strip for an invalid tempo.
+
+   In the Play tab the text can't be edited, so there's no cursor: touch and
+   hold a red or faded directive instead. A small card under it shows the
+   reason and the correct syntax. It goes away after a few seconds, or when
+   you touch the screen again. Holding a directive doesn't move the playhead.
+
+   .. platform-figure:: directive-explain
+      :platforms: android
+      :alt: The Play tab after touching and holding a red {bpm: 500}: a card
+            under it says "Tempo must be 20-400" in red, then the {bpm} forms.
+
+      Holding an invalid directive in the Play tab.
+
 Currently Playing (Yellow Highlight)
 ------------------------------------
 

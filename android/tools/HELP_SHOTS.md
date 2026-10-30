@@ -67,7 +67,7 @@ actions after it. Then the `steps` run from outside, through adb:
 | `{"wait_for": {...}}` | waits for a node |
 | `{"type": "C  Am  F  G"}` | types with the soft keyboard |
 | `{"key": "BACK"}` | a key event |
-| `{"swipe": {...}, "by": [0, -600]}` | drags from a node's centre |
+| `{"swipe": {...}, "by": [0, -600]}` | drags from a node's centre (or its `"at": [fx, fy]`); `"by": [0, 0]` with `"ms": 900` is a long-press |
 | `{"actions": [...]}` | more in-app actions, through a broadcast |
 | `{"sleep": 2}` | waits (every step is followed by 0.8 s unless it sets `sleep`) |
 
@@ -126,8 +126,8 @@ legend. Pages are named `file: section`.
 | `voicing-sheet.png` | Voicing sheet: Piano, Fretted (four guitars, Ukulele), Ensembles (four presets) and Your voicings (My 7-String), with Edit voicings… and Done. (phone) | playback: Voicing Options; fretted, piano, ensembles: How to Change Voicing; settings: Voicings |
 | `instrument-families.png` | Instrument sheet, first level: the 16 General MIDI families, the current one marked with its instrument on the right. (phone) | getting_started: Changing the Sound; playback: Changing Instruments |
 | `instrument-programs.png` | Instrument sheet, second level: the Guitar family's eight instruments with program numbers, Steel Guitar selected, ← back. (phone) | getting_started: Changing the Sound; playback: How to Change Instruments |
-| `speed-sheet.png` | Speed sheet at 125%: the value, the 25–400% slider, Reset, Manual… and Done. (phone) | getting_started: Adjusting the Tempo; interface: The Player |
-| `speed-manual.png` | The Manual… speed dialog: a number field (25 to 400) with Cancel / OK. (phone) | getting_started: Adjusting the Tempo |
+| `speed-sheet.png` | Speed sheet at 125%: the value, the 12.5–400% slider, Reset, Manual… and Done. (phone) | getting_started: Adjusting the Tempo; interface: The Player |
+| `speed-manual.png` | The Manual… speed dialog: a number field (12.5 to 400) with Cancel / OK. (phone) | getting_started: Adjusting the Tempo |
 | `insert-sheet.png` | ＋ Insert sheet: Tempo, Time signature, Key, Capo, Label (section), Loop, each with its directive. (phone) | interface: Insert Directive Dialogs |
 | `insert-tempo.png` | Insert BPM/Tempo Change dialog: the accepted formats and the BPM field. (phone) | interface: Insert Directive Dialogs |
 | `insert-time.png` | Insert Time Signature Change dialog: Beats / Unit pickers. (phone) | interface: Insert Directive Dialogs |
@@ -148,6 +148,8 @@ legend. Pages are named `file: section`.
 | `landscape-edit.png` | Phone in landscape, Edit tab: the tabs and the Edit ribbon share one line, the title is hidden. (phone, landscape) | interface: The App Bar (phone held sideways) |
 | `edit-keyboard.png` | A new song in the Edit tab with the keyboard open, after typing C Am F G (each chord blue). (phone) | getting_started: Your First Chord Sheet |
 | `edit-keyboard-collapsed.png` | Phone in landscape typing in Edit: the keyboard leaves little room, so the app bar and ribbon hide and the floating Undo / Redo chip sits above the keyboard. (phone, landscape) | interface: The Edit Ribbon |
+| `directive-hint.png` | Edit tab with the keyboard open, the cursor inside a red {bpm: 500}: the hint strip above the keyboard says 'Tempo must be 20-400' in red, then the {bpm} forms in monospace. (phone) | interface: Directive Hints |
+| `directive-explain.png` | Play tab after touching and holding the red {bpm: 500}: a small card under it with the reason and the {bpm} forms. (phone) | interface: Directive Hints |
 | `tablet-play.png` | Tablet in landscape, Play tab while playing: text on the left, chord sheet and player on the right. (tablet, landscape) | chord_sheet: Showing and Resizing the Strip; interface: Edit and Play |
 | `settings-pages.png` | ☰ → Settings on a phone: the list of pages (General, Playback, Voicings). (phone) | settings: Settings |
 | `settings-general.png` | Settings › General: font family and size, chord notation, default key, show quick start at startup, number of recent files. (phone) | settings: General |

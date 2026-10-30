@@ -15,7 +15,7 @@ App bugs and questions found while fact-checking the user guide (2026-10-30). No
 - **"la la la" lyric lines detected as chords:** a known issue, too ambiguous for a heuristic (chord lines can have directions and "?" too). Workaround: a line starting with `.` is plain text (done).
 - **`iim7` and Berklee-style `IIm7`:** accept both as minor (done).
 - **Voicing `label`:** keep it internal and never show it. The name is the display name. No change.
-- **Syntax tooltip, design approved.** Desktop: the hint in the status bar while the cursor is in a directive, and a hover tooltip on a red directive. Android Edit mode: a hint strip above the keyboard, and long-press a red directive for the reason. Core done (f13a3c0, b69234c); UI in progress.
+- **Syntax tooltip, design approved.** Desktop: the hint in the status bar while the cursor is in a directive, and a hover tooltip on a red directive. Android Edit mode: a hint strip above the keyboard, and long-press a red directive for the reason. Core done (f13a3c0, b69234c); UI built 2026-10-30 (Play's long-press shows a small card by the directive; see docs/design/android-ui-spec.md, Implementation notes).
 
 ## Bugs (from fact-check A): all fixed 2026-10-30 except where noted
 1. **Chord Identifier and flats:** "Bb D F" gives `D`, "Eb G Bb" gives `G`, `G/D#`, "Db F Ab" gives `F`, `F/C#`. The notes are rewritten as sharps before identification.

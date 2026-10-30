@@ -410,7 +410,9 @@ def run_steps(dev: Device, steps: list[dict], shot: str) -> None:
             dev.sh(f"input keyevent {step['key']}")
         elif "swipe" in step:
             node, _ = find_or_fail(dev, step["swipe"])
-            x, y = node.center
+            fx, fy = step["swipe"].get("at", (0.5, 0.5))
+            x0, y0, x1, y1 = node.bounds
+            x, y = x0 + (x1 - x0) * fx, y0 + (y1 - y0) * fy
             dx, dy = step.get("by", (0, 0))
             dev.sh(f"input swipe {x:.0f} {y:.0f} {x + dx:.0f} {y + dy:.0f} {step.get('ms', 400)}")
         elif "actions" in step:

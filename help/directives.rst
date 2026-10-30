@@ -13,7 +13,7 @@ the wrong format (``{time: 7}``) or a value out of range (``{capo: 30}``). The
 sections below give each directive's format and limits.
 A directive in **faded purple** has no effect: another one of the same kind
 (``{bpm}`` with a number, ``{time}``, ``{key}`` or ``{capo}``) replaces it before
-any chord plays.
+any chord plays. :plat:`Put the cursor inside a directive to see its syntax in the status bar, or rest the pointer on a red or faded one to see why|Put the cursor inside a directive in the Edit tab to see its syntax, or hold a red or faded one in the Play tab to see why` (see :ref:`directive-hints`).
 
 .. only:: android
 
