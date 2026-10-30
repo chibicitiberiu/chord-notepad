@@ -42,7 +42,7 @@ android/
   tools/strip_music21.py            builds the data-trimmed music21 wheel
   tools/build_wheelhouse.py         fills/checks the offline wheelhouse, refreshes pins
   tools/check_16k.py                16 KB page-size check for an APK
-  tools/check_manifest.py           no INTERNET, no Play services, no emoji2 font initializer in an APK
+  tools/check_manifest.py           per flavour: no INTERNET, no emoji2 font initializer, only billing's Play entries (play)
   tools/compare_apks.py             entry-by-entry APK diff (reproducibility)
   tools/export_clef_glyphs.py       the chord sheet's six base clef/glyph PNGs (Gradle: exportClefGlyphs)
   tools/mdi_icons.py                Material Design Icons -> res/drawable/mdi_*.xml (pinned @mdi/svg, sha256)
@@ -134,14 +134,23 @@ the pinned NDK and CMake through `sdkmanager` if they're missing.
 
 ## Build, install, run
 
+Two product flavours (dimension `store`, same `applicationId` and
+`versionCode`): **foss** for the GitHub APK and F-Droid (no Google libraries;
+About links to a donation page) and **play** for Google Play (Play Billing for
+the optional supporter purchase). Task and output names carry the flavour:
+`assembleFossDebug`, `assemblePlayRelease`, `outputs/apk/foss/release/...`.
+The flavour code is in `app/src/foss` and `app/src/play`, each with its own
+`createSupportBilling` (docs/design/android-support-plan.md).
+
 ```bash
 source android/local.env
 cd android
-nice -n 10 ./gradlew :app:assembleDebug
-nice -n 10 ./gradlew :app:assembleRelease               # debug-signed (-PcnSigning=none|upload|foss: docs/RELEASE.md, "Android")
-nice -n 10 ./gradlew :app:assembleRelease -PcnMusic21=full   # untrimmed music21, for size comparison
-nice -n 10 ./gradlew :app:assembleRelease -PcnNatives=prebuilt  # upstream 2.6.0 natives (no submodules needed)
-nice -n 10 ./gradlew --offline :app:assembleRelease     # no network: the wheelhouse step only checks
+nice -n 10 ./gradlew :app:assembleFossDebug                # or assemblePlayDebug
+nice -n 10 ./gradlew :app:assembleFossRelease              # debug-signed (-PcnSigning=none|upload|foss: docs/RELEASE.md, "Android")
+nice -n 10 ./gradlew :app:assembleFossRelease -PcnMusic21=full   # untrimmed music21, for size comparison
+nice -n 10 ./gradlew :app:assembleFossRelease -PcnNatives=prebuilt  # upstream 2.6.0 natives (no submodules needed)
+nice -n 10 ./gradlew --offline :app:assembleFossRelease    # no network: the wheelhouse step only checks
+nice -n 10 ./gradlew :app:bundlePlayRelease                # the Play AAB
 nice -n 10 native/build.sh --abis x86_64                # natives by hand; same output dir Gradle uses
 ./gradlew --stop                                        # when done (shared machine)
 
@@ -152,7 +161,7 @@ nice -n 10 emulator -avd cn_phone -no-window -no-snapshot -no-boot-anim \
 adb wait-for-device
 # local.env sets CHORD_NOTEPAD_ANDROID_BUILD_ROOT, so outputs land outside the repo:
 OUT=$CHORD_NOTEPAD_ANDROID_BUILD_ROOT/$(pwd | sed 's|^/||; s|/|_|g')/app/outputs/apk
-adb install -r $OUT/release/app-release.apk
+adb install -r $OUT/foss/release/app-foss-release.apk
 adb shell am start -W -n com.tibich.chordnotepad/.MainActivity
 adb logcat -s CNSPIKE:I python.stdout:I python.stderr:W
 
@@ -164,9 +173,10 @@ adb emu kill
 Checks:
 
 ```bash
-python3 tools/check_16k.py $OUT/release/app-release.apk
-python3 tools/check_manifest.py $OUT/release/app-release.apk
-$ANDROID_HOME/build-tools/36.1.0/zipalign -c -P 16 -v 4 $OUT/release/app-release.apk
+python3 tools/check_16k.py $OUT/foss/release/app-foss-release.apk
+python3 tools/check_manifest.py --flavor foss $OUT/foss/release/app-foss-release.apk
+python3 tools/check_manifest.py --flavor play $OUT/play/release/app-play-release.apk   # aapt2 can't read the AAB
+$ANDROID_HOME/build-tools/36.1.0/zipalign -c -P 16 -v 4 $OUT/foss/release/app-foss-release.apk
 python3 tools/compare_apks.py a.apk b.apk          # reproducibility diff
 ```
 
@@ -931,9 +941,10 @@ submodules with the two-step init above, sets up Temurin 21, Python 3.14.8
 (as `CHAQUOPY_BUILD_PYTHON`), Gradle (`cache-provider: basic`) and the
 pinned NDK/CMake/platform/build-tools, caches the native libraries (keyed by
 `build.sh` and the submodule commits) and the wheelhouse, fetches the
-wheelhouse with `--require-hashes`, runs `./gradlew testDebugUnitTest lint
-assembleDebug`, then `check_16k.py`, `zipalign -c -P 16` and
-`check_manifest.py` on the debug APK.
+wheelhouse with `--require-hashes`, runs `./gradlew testFossDebugUnitTest
+testPlayDebugUnitTest lintFossDebug lintPlayDebug assembleFossDebug
+assemblePlayDebug`, then `check_16k.py`, `zipalign -c -P 16` and
+`check_manifest.py --flavor foss|play` on both debug APKs.
 
 ## About and the licences screen
 
@@ -949,7 +960,9 @@ INTERNET permission.
   (`com.mikepenz.aboutlibraries.plugin.android`, build time only, no runtime
   dependency) writes `res/raw/aboutlibraries.json`. `offlineMode` is on, so it
   reads POM data only and needs no network beyond the Maven artifacts. It adds
-  no permission and no Play services (`tools/check_manifest.py` passes).
+  no permission and no Play services (`tools/check_manifest.py` passes). The
+  export is per variant, so only the play flavour lists Play Billing and the
+  Play services libraries it pulls in.
 - *Everything it can't see*: `app/src/main/assets/licenses/components.json`
   (Python, Chaquopy and the libraries it bundles, the audio libraries, the
   Python packages, the SoundFont, Bravura, the app itself). Each entry names
@@ -957,16 +970,22 @@ INTERNET permission.
   LGPL and MPL components, where the source is.
 - *Texts*: `assets/licenses/texts/`, produced by `tools/gather_licenses.py`
   (wheels from the wheelhouse, the native submodules, this repo, distribution
-  licence directories; `--check` verifies). Three texts are kept by hand (see
-  `ONE_OFF` in the script).
+  licence directories, the SDK's own license agreement; `--check` verifies).
+  Three texts are kept by hand (see `ONE_OFF` in the script). Texts only the
+  play flavour needs (`ASDKL.txt`, the Android SDK License Agreement that the
+  Play libraries' POMs name) are in `app/src/play/assets/licenses/texts/`;
+  assets merge, so the play APK has both directories' texts.
 
 To update: bump a pinned Python package in `requirements.txt`, then change its
 `version` in `components.json` (a unit test fails until they agree) and run
 `gather_licenses.py`; for a native submodule or a Chaquopy bump, check the
 version strings against the APK (`strings` on the `.so` files) and edit the
 entry. A new bundled component needs an entry, with a text file added to the
-script's table. `LicencesTest` checks that every entry parses, every named text
-exists, no text is unused, the Python entries match `requirements.txt`, and
+script's table. `LicencesTest` runs per variant (`testFossDebugUnitTest`,
+`testPlayDebugUnitTest`) against that variant's AboutLibraries export and
+licence directories, and fails rather than skips when the export is missing.
+It checks that every entry parses, every named text exists, no text is unused,
+the Python entries match `requirements.txt`, and
 that every Maven licence id the plugin exports has a text. The Maven list
 changes with dependencies; the rest only when you edit these files.
 

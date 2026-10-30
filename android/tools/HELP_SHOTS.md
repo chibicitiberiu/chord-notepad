@@ -11,7 +11,7 @@ whenever the UI changes. Don't edit the PNGs by hand.
 
 ```bash
 source android/local.env
-(cd android && nice -n 10 ./gradlew :app:assembleDebug)   # the debug APK has the scene hooks
+(cd android && nice -n 10 ./gradlew :app:assembleFossDebug)   # the debug APK has the scene hooks (--flavor play for the other)
 python3 android/tools/help_screenshots.py --list           # the shots
 python3 android/tools/help_screenshots.py                  # all of them (about 15 minutes)
 python3 android/tools/help_screenshots.py --only drawer,player-labeled

@@ -22,10 +22,11 @@ The emulator is shared: the tool takes an exclusive lock
 (``$ANDROID_ROOT/emulator.lock``) for as long as it uses it, boots the AVD
 headless if it isn't running (``nice``, 2 GB, 2 cores, ``swangle_indirect``),
 installs the debug APK when the device has another build, and stops the
-emulator at the end unless ``--keep-emulator``.
+emulator at the end unless ``--keep-emulator``. The APK is the foss flavour's
+unless ``--flavor play``; the guide's shots don't show anything that differs.
 
 Usage (``source android/local.env`` first, build with
-``./gradlew :app:assembleDebug``)::
+``./gradlew :app:assembleFossDebug``)::
 
     python3 android/tools/help_screenshots.py --list
     python3 android/tools/help_screenshots.py                 # every shot
@@ -197,18 +198,19 @@ def ensure_emulator(avd: str) -> tuple[Device, bool]:
     sys.exit(f"{avd} did not boot in 5 minutes")
 
 
-def apk_path(variant: str = "debug") -> Path:
+def apk_path(flavor: str = "foss", build_type: str = "debug") -> Path:
     root = os.environ.get("CHORD_NOTEPAD_ANDROID_BUILD_ROOT")
     android = REPO / "android"
+    name = f"app-{flavor}-{build_type}.apk"
     if root:
         sub = str(android).lstrip("/").replace("/", "_")
-        return Path(root) / sub / "app" / "outputs" / "apk" / variant / f"app-{variant}.apk"
-    return android / "app" / "build" / "outputs" / "apk" / variant / f"app-{variant}.apk"
+        return Path(root) / sub / "app" / "outputs" / "apk" / flavor / build_type / name
+    return android / "app" / "build" / "outputs" / "apk" / flavor / build_type / name
 
 
-def ensure_installed(dev: Device, apk: Path) -> None:
+def ensure_installed(dev: Device, apk: Path, flavor: str) -> None:
     if not apk.exists():
-        sys.exit(f"{apk} is missing: build it (cd android && ./gradlew :app:assembleDebug)")
+        sys.exit(f"{apk} is missing: build it (cd android && ./gradlew :app:assemble{flavor.capitalize()}Debug)")
     digest = hashlib.sha256(apk.read_bytes()).hexdigest()
     installed = dev.sh(f"cat {APK_MARK} 2>/dev/null", check=False).strip()
     has_pkg = PACKAGE in dev.sh(f"pm list packages {PACKAGE}", check=False)
@@ -580,6 +582,7 @@ def main() -> None:
     ap.add_argument("--list", action="store_true", help="list the shots and exit")
     ap.add_argument("--markdown", action="store_true", help="print the shot table for HELP_SHOTS.md and exit")
     ap.add_argument("--only", help="comma-separated shot names")
+    ap.add_argument("--flavor", choices=["foss", "play"], default="foss", help="which debug APK to install (default foss)")
     ap.add_argument("--theme", choices=["light", "dark"], help="only this theme")
     ap.add_argument("--keep-emulator", action="store_true", help="leave the emulator running")
     ap.add_argument("--debug", action="store_true", help="keep raw captures and UI dumps in $ANDROID_ROOT/helpshot-debug")
@@ -613,7 +616,7 @@ def main() -> None:
 
     android_root = env_path("ANDROID_ROOT")
     debug_dir = android_root / "helpshot-debug" if args.debug else None
-    apk = apk_path()
+    apk = apk_path(args.flavor)
     failures = []
     with emulator_lock(android_root / "emulator.lock", args.lock_wait):
         started: list[str] = []
@@ -625,7 +628,7 @@ def main() -> None:
                 dev, fresh = ensure_emulator(manifest["devices"][device]["avd"])
                 if fresh:
                     started.append(dev.serial)
-                ensure_installed(dev, apk)
+                ensure_installed(dev, apk, args.flavor)
                 prepare_device(dev, manifest["devices"][device])
                 for shot in group:
                     t0 = time.time()

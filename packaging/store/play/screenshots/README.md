@@ -10,8 +10,8 @@ Regenerate everything (about 6 minutes):
 
 ```bash
 source android/local.env
-(cd android && nice -n 10 ./gradlew :app:assembleDebug && ./gradlew --stop)
-nice -n 10 python3 android/tools/help_screenshots.py --manifest android/tools/store_shots.json
+(cd android && nice -n 10 ./gradlew :app:assemblePlayDebug && ./gradlew --stop)
+nice -n 10 python3 android/tools/help_screenshots.py --flavor play --manifest android/tools/store_shots.json
 ```
 
 One shot: add `--only p-03-staff` (shot names are in `--list`; the prefix is

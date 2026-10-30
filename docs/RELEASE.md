@@ -430,7 +430,8 @@ locally").
 
 - [ ] `VERSION` and `versionCode` bumped in the same commit.
 - [ ] CHANGELOG entries for Android-only changes start with "Android:".
-- [ ] `make test` and, in `android/`, `./gradlew testDebugUnitTest lint assembleDebug`.
+- [ ] `make test` and, in `android/`, `./gradlew testFossDebugUnitTest testPlayDebugUnitTest
+      lintFossDebug lintPlayDebug assembleFossDebug assemblePlayDebug`.
 - [ ] Tag `v<VERSION>` (exactly the `VERSION` file) and push it, or run the
       *release* dispatch.
 
@@ -444,8 +445,9 @@ On a `v<VERSION>` tag push or a *release* dispatch, the `android-release` job
 
 Checks before upload: `apksigner verify --print-certs` (v2 and v3 present,
 certificate pin if set), `jarsigner -verify` on the AAB, 16 KB page alignment
-(`check_16k.py`, `zipalign -c -P 16`) and the merged manifest
-(`check_manifest.py`: no INTERNET, no Play services).
+(`check_16k.py`, `zipalign -c -P 16`) and the merged manifests
+(`check_manifest.py --flavor foss` on the APK; `--flavor play` on an unsigned
+`assemblePlayRelease` APK, since aapt2 can't read the AAB).
 
 - A tag that isn't exactly `v<VERSION>` fails the Android job only.
 - Without the secrets the job still builds, warns, and produces unsigned
@@ -557,7 +559,7 @@ environment, never on the command line:
 cd android && source local.env
 export CN_FOSS_STORE_FILE=/some/private/dir/chord-notepad-android-keys/foss.p12 CN_FOSS_KEY_ALIAS=foss
 read -rs CN_FOSS_STORE_PASSWORD && export CN_FOSS_STORE_PASSWORD
-nice -n 10 ./gradlew --no-configuration-cache assembleRelease -PcnSigning=foss -PcnCommit=$(git rev-parse --short=9 HEAD)
+nice -n 10 ./gradlew --no-configuration-cache assembleFossRelease -PcnSigning=foss -PcnCommit=$(git rev-parse --short=9 HEAD)
 ```
 
 `-PcnSigning` is `debug` (default, so local release builds install), `none`
@@ -584,13 +586,13 @@ the signature.
    cd android
    export PYTHONHASHSEED=0 SOURCE_DATE_EPOCH=1700000000   # any value; it must be set
    "$CHAQUOPY_BUILD_PYTHON" -I tools/build_wheelhouse.py fetch
-   ./gradlew assembleRelease -PcnSigning=none -PcnCommit=<first 9 characters of the commit>
+   ./gradlew assembleFossRelease -PcnSigning=none -PcnCommit=<first 9 characters of the commit>
    ```
 4. Compare with the release APK:
    ```bash
-   python3 tools/compare_apks.py ChordNotepad-android.apk app/build/outputs/apk/release/app-release-unsigned.apk
+   python3 tools/compare_apks.py ChordNotepad-android.apk app/build/outputs/apk/foss/release/app-foss-release-unsigned.apk
    # -> "entries identical; difference is in zip structure/signature only"
-   apksigcopier compare ChordNotepad-android.apk --unsigned app/build/outputs/apk/release/app-release-unsigned.apk
+   apksigcopier compare ChordNotepad-android.apk --unsigned app/build/outputs/apk/foss/release/app-foss-release-unsigned.apk
    # -> exit 0: byte-identical once the signature is copied over
    ```
 
