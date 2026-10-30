@@ -48,7 +48,7 @@ help_terms = {
     'clicking': ('clicking', 'tapping'),
     'Clicking': ('Clicking', 'Tapping'),
     'settings': (':menuselection:`Tools --> Settings...`', '**☰ → Settings**'),
-    'voicings_settings': (':menuselection:`Tools --> Settings...` --> Voicings',
+    'voicings_settings': (':menuselection:`Tools --> Settings... --> Voicings`',
                           '**☰ → Settings → Voicings**'),
 }
 
