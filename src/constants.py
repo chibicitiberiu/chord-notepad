@@ -17,8 +17,15 @@ CONFIG_VERSION = 3  # Increment when config structure changes
 
 # Limits
 MAX_RECENT_FILES = 10
-# BPM is validated in Config (20-400); the scrubber uses the same range.
+# The tempo range: Config, the toolbar scrubber and in-song {bpm} directives
+# all use it (a relative tempo change is clamped to it).
+MIN_BPM = 20
+MAX_BPM = 400
 DEFAULT_BPM = 120
+# The time signatures the app supports: 1-16 beats over one of these units.
+MIN_BEATS = 1
+MAX_BEATS = 16
+TIME_SIGNATURE_UNITS = (1, 2, 4, 8, 16)
 MIN_FONT_SIZE = 6
 MAX_FONT_SIZE = 72
 DEFAULT_FONT_SIZE = 11

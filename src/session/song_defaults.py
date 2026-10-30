@@ -10,7 +10,7 @@ the song.
 from typing import List, Optional, Sequence, Tuple
 
 from models.chord import ChordInfo
-from models.directive import BPMModifierType, Directive, DirectiveType
+from models.directive import Directive, DirectiveType
 from models.line import Line
 from session.state import SongDefault, SongDefaultsState
 
@@ -29,20 +29,6 @@ def _directives_before_first_chord(lines: Sequence[Line]) -> List[Directive]:
             elif item.is_valid:
                 found.append(item)
     return found
-
-
-def _apply_bpm(directive: Directive, current: int, initial: int) -> int:
-    """The tempo after a ``{bpm}`` directive (as the song renderer applies it)."""
-    kind, value = directive.bpm_modifier_type, directive.bpm_modifier_value
-    if kind == BPMModifierType.RELATIVE:
-        return int(current + value)
-    if kind == BPMModifierType.PERCENTAGE:
-        return int(current * value / 100)
-    if kind == BPMModifierType.MULTIPLIER:
-        return int(current * value)
-    if kind == BPMModifierType.RESET:
-        return initial
-    return int(directive.bpm) if directive.bpm is not None else current
 
 
 def song_defaults(lines: Sequence[Line], bpm: int, time_signature: Tuple[int, int],
@@ -64,7 +50,7 @@ def song_defaults(lines: Sequence[Line], bpm: int, time_signature: Tuple[int, in
     song_key, key_at = key or "", None
     for directive in _directives_before_first_chord(lines):
         if directive.type == DirectiveType.BPM:
-            tempo = _apply_bpm(directive, tempo, int(bpm))
+            tempo = directive.apply_bpm(tempo, int(bpm))
             if tempo_at is None:
                 tempo_at = directive.start
         elif directive.type == DirectiveType.TIME_SIGNATURE:

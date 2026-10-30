@@ -102,8 +102,7 @@ Tempo, meter, and key come from the same directives that drive playback:
      down exactly where the song does.
 
 * The starting time signature, and each ``{time: beats/unit}``, becomes a MIDI
-  time-signature event. A unit MIDI can't store (``{time: 4/3}``, say) is left
-  out; the timing is still right.
+  time-signature event.
 * The starting key, and each ``{key: note}``, becomes a MIDI key-signature
   event, placed at the first chord in that key. Only keys in American notation
   (``G``, ``Bb``, ``F#m``) are written: with European keys such as ``Sol`` the

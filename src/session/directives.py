@@ -26,6 +26,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Iterable, Mapping, Optional, Tuple
 
+from constants import MAX_BEATS, MIN_BEATS, TIME_SIGNATURE_UNITS
 from models.directive import DirectiveType
 from models.notation import Notation
 from session.toolbar import key_options
@@ -37,7 +38,7 @@ INVALID_INPUT = "Invalid Input"
 DUPLICATE_LABEL = "Duplicate Label"
 
 _LABEL_RE = re.compile(r"^[a-zA-Z0-9_]+$")
-_UNITS = (1, 2, 4, 8, 16)
+_UNITS = TIME_SIGNATURE_UNITS
 #: The frets a ``{capo: N}`` may name (the parser's range; 0 means no capo).
 MIN_CAPO, MAX_CAPO = 0, 12
 
@@ -212,8 +213,8 @@ def _check_bpm(value: str) -> Optional[DirectiveProblem]:
 
 def _check_time(beats: str, unit: str) -> Optional[DirectiveProblem]:
     beats_n = _as_int(beats)
-    if beats_n is None or not 1 <= beats_n <= 16:
-        return _invalid("Beats must be between 1 and 16.", "beats")
+    if beats_n is None or not MIN_BEATS <= beats_n <= MAX_BEATS:
+        return _invalid(f"Beats must be between {MIN_BEATS} and {MAX_BEATS}.", "beats")
     if _as_int(unit) not in _UNITS:
         return _invalid("Beat unit must be 1, 2, 4, 8, or 16.", "unit")
     return None

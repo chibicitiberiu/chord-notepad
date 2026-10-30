@@ -35,17 +35,17 @@ Setting Tempo
 
 .. only:: desktop
 
-   Use a whole number. The toolbar's BPM control takes 20-400 and the Insert
-   dialog 20-300; a value you type into the song isn't checked, so keep it in
-   that range. The toolbar's speed multiplier is applied on top of
+   Use a whole number from 20 to 400, the toolbar's range (the Insert dialog
+   takes 20-300). A tempo outside 20-400 shows in red as an invalid directive
+   and playback ignores it. The toolbar's speed multiplier is applied on top of
    this value, so a song written at ``{bpm: 120}`` with the multiplier set to
    50% plays at 60 BPM.
 
 .. only:: android
 
-   Use a whole number. The tempo in Song defaults takes 20-400 and ＋ Insert →
-   Tempo 20-300; a value you type into the song isn't checked, so keep it in
-   that range. The player's Speed multiplier is applied on top of
+   Use a whole number from 20 to 400, the range of the tempo in Song defaults
+   (＋ Insert → Tempo takes 20-300). A tempo outside 20-400 shows in red as an
+   invalid directive and playback ignores it. The player's Speed multiplier is applied on top of
    this value, so a song written at ``{bpm: 120}`` with the multiplier set to
    50% plays at 60 BPM.
 
@@ -79,7 +79,8 @@ You can change tempo anywhere in your song:
 Relative Tempo Changes
 ----------------------
 
-Instead of setting an exact BPM, you can adjust relative to the current tempo:
+Instead of setting an exact BPM, you can adjust relative to the current tempo.
+The result stays within 20-400: ``{bpm: -200}`` at 100 BPM plays at 20.
 
 **Add or subtract:**
 
@@ -160,6 +161,10 @@ Setting Time Signature
    {time: 3/4}    // Three beats - waltz time
    {time: 6/8}    // Six eighth-note beats - compound duple
    {time: 2/2}    // Two half-note beats - cut time
+
+The beats go from 1 to 16 and the unit is 1, 2, 4, 8 or 16, the same choices
+the :plat:`toolbar|Song defaults` offers. Anything else (``{time: 0/4}``,
+``{time: 4/3}``) shows in red as an invalid directive and playback ignores it.
 
 Common Time Signatures
 ----------------------

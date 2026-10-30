@@ -408,9 +408,11 @@ BPM Directive Values
      - reset or original
      - ``{bpm: reset}``
 
-A tempo you type isn't range-checked: ``{bpm: 500}`` plays at 500 BPM. Keep
-the result above zero. The :plat:`Insert dialog|＋ Insert form` only accepts
-an absolute tempo from 20 to 300.
+An absolute tempo must be from 20 to 400: ``{bpm: 500}`` or ``{bpm: 0}`` is an
+invalid directive (shown in red) that playback ignores. A relative change can't
+take the tempo outside 20-400 either: it stops at the limit. A percentage or
+multiplier must be above zero. The :plat:`Insert dialog|＋ Insert form` only
+accepts an absolute tempo from 20 to 300.
 
 
 Duration Reference
@@ -610,8 +612,9 @@ Application Limits
      - :plat:`30|50`
 
 These are the limits of the app's controls and forms. A directive you type
-yourself is only checked for its format, except ``{capo}``, which must be a
-fret from 0 to 12.
+yourself follows the tempo (20-400), time signature and capo limits too; a
+value outside them makes it an invalid directive. The Insert loop count is
+not a limit on typed loops.
 
 .. only:: android
 

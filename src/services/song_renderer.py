@@ -24,7 +24,7 @@ from typing import Callable, List, Optional, Tuple
 from models.line import Line
 from models.chord import ChordInfo
 from models.chord_notes import ChordNotes
-from models.directive import Directive, DirectiveType, BPMModifierType
+from models.directive import Directive, DirectiveType
 from models.rendered_song import RenderedSong, RenderedChord, SongMarker
 from audio.note_picker_interface import INotePicker
 from exceptions import RenderAborted
@@ -249,22 +249,15 @@ class SongRenderer:
             self._handle_label_directive(directive, state)
 
     def _handle_bpm_directive(self, directive: Directive, state: dict) -> None:
-        current = state['current_bpm']
-        new_bpm = current
-        if directive.bpm_modifier_type == BPMModifierType.ABSOLUTE:
-            new_bpm = directive.bpm
-        elif directive.bpm_modifier_type == BPMModifierType.RELATIVE:
-            new_bpm = int(current + directive.bpm_modifier_value)
-        elif directive.bpm_modifier_type == BPMModifierType.PERCENTAGE:
-            new_bpm = int(current * directive.bpm_modifier_value / 100)
-        elif directive.bpm_modifier_type == BPMModifierType.MULTIPLIER:
-            new_bpm = int(current * directive.bpm_modifier_value)
-        elif directive.bpm_modifier_type == BPMModifierType.RESET:
-            new_bpm = self._initial_bpm
+        new_bpm = directive.apply_bpm(state['current_bpm'], self._initial_bpm)
         state['current_bpm'] = new_bpm
         self._record_tempo(state, new_bpm)
 
     def _handle_time_signature_directive(self, directive: Directive, state: dict) -> None:
+        # The parser marks unsupported meters invalid; a zero-beat bar would
+        # also never roll over, so never take one here.
+        if not directive.beats or directive.beats < 1 or not directive.unit or directive.unit < 1:
+            return
         # Flush the playback bar accumulator so beats don't lump across meters.
         if state.get('beats_in_bar', 0.0) > 0:
             state['current_bar'] = state.get('current_bar', 1) + 1

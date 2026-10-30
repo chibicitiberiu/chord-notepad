@@ -6,6 +6,13 @@ from dataclasses import dataclass
 from enum import IntEnum
 from typing import Optional
 
+from constants import MAX_BPM, MIN_BPM
+
+
+def clamp_bpm(bpm: float) -> int:
+    """``bpm`` as a whole tempo within the app's range (MIN_BPM-MAX_BPM)."""
+    return int(min(MAX_BPM, max(MIN_BPM, int(bpm))))
+
 
 class DirectiveType(IntEnum):
     """Enum for directive types."""
@@ -74,6 +81,28 @@ class Directive:
     capo: Optional[int] = None
     """Capo fret position (for DirectiveType.CAPO). 0 means no capo. Applies to
     fretboard voicings only; the fret/tab views draw shapes relative to it."""
+
+    def apply_bpm(self, current: int, reset_bpm: int) -> int:
+        """The tempo after this ``{bpm}`` directive.
+
+        Relative changes (+N, N%, Nx) apply to ``current`` and are clamped to
+        the app's tempo range; ``reset`` returns ``reset_bpm``. The parser
+        only lets absolute values within the range through.
+
+        Args:
+            current: The tempo in effect before the directive.
+            reset_bpm: The tempo ``{bpm: reset}`` goes back to.
+        """
+        kind, value = self.bpm_modifier_type, self.bpm_modifier_value
+        if kind == BPMModifierType.RELATIVE:
+            return clamp_bpm(current + value)
+        if kind == BPMModifierType.PERCENTAGE:
+            return clamp_bpm(current * value / 100)
+        if kind == BPMModifierType.MULTIPLIER:
+            return clamp_bpm(current * value)
+        if kind == BPMModifierType.RESET:
+            return reset_bpm
+        return int(self.bpm) if self.bpm is not None else current
 
     def __repr__(self) -> str:
         """String representation of the directive."""

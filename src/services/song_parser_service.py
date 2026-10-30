@@ -1,12 +1,14 @@
 """Song parser service for parsing chords, directives, and labels."""
 
 import logging
+import math
 import re
 from typing import List, Union, Optional
 
 from chord.detector import ChordDetector
 from chord.helper import ChordHelper
 from chord.converter import NotationConverter
+from constants import MAX_BEATS, MAX_BPM, MIN_BEATS, MIN_BPM, TIME_SIGNATURE_UNITS
 from models.line import Line
 from models.chord import ChordInfo
 from models.directive import Directive, DirectiveType, BPMModifierType
@@ -86,6 +88,8 @@ class SongParserService:
                     if len(parts) == 2:
                         beats = int(parts[0])
                         unit = int(parts[1])
+                        if not MIN_BEATS <= beats <= MAX_BEATS or unit not in TIME_SIGNATURE_UNITS:
+                            raise ValueError(f"Unsupported time signature: {value}")
                         directive = Directive(
                             type=DirectiveType.TIME_SIGNATURE,
                             start=start,
@@ -175,10 +179,10 @@ class SongParserService:
         """Parse a BPM directive value into a Directive object.
 
         Supports multiple formats:
-        - Absolute: "120" -> set BPM to 120
+        - Absolute: "120" -> set BPM to 120 (MIN_BPM-MAX_BPM; outside is invalid)
         - Relative: "+20" or "-20" -> add/subtract from current BPM
-        - Percentage: "50%" -> set to 50% of current BPM
-        - Multiplier: "2x" or "0.5x" -> multiply current BPM
+        - Percentage: "50%" -> set to 50% of current BPM (above 0)
+        - Multiplier: "2x" or "0.5x" -> multiply current BPM (above 0)
         - Reset: "reset" or "original" -> restore initial BPM
 
         Args:
@@ -203,7 +207,7 @@ class SongParserService:
         # Check for percentage (e.g., "50%")
         if value.endswith('%'):
             try:
-                percentage = float(value[:-1])
+                percentage = self._positive_float(value[:-1])
                 return Directive(
                     type=DirectiveType.BPM,
                     start=start,
@@ -223,7 +227,7 @@ class SongParserService:
         # Check for multiplier (e.g., "2x", "0.5x")
         if value.endswith('x'):
             try:
-                multiplier = float(value[:-1])
+                multiplier = self._positive_float(value[:-1])
                 return Directive(
                     type=DirectiveType.BPM,
                     start=start,
@@ -260,9 +264,11 @@ class SongParserService:
                     is_valid=False
                 )
 
-        # Default: absolute BPM value
+        # Default: absolute BPM value, within the app's tempo range
         try:
             bpm_value = int(value)
+            if not MIN_BPM <= bpm_value <= MAX_BPM:
+                raise ValueError(f"BPM out of range ({MIN_BPM}-{MAX_BPM}): {value}")
             return Directive(
                 type=DirectiveType.BPM,
                 start=start,
@@ -278,6 +284,14 @@ class SongParserService:
                 end=end,
                 is_valid=False
             )
+
+    @staticmethod
+    def _positive_float(text: str) -> float:
+        """``text`` as a finite number above zero; ValueError otherwise."""
+        number = float(text)
+        if not math.isfinite(number) or number <= 0:
+            raise ValueError(f"Not a positive number: {text}")
+        return number
 
     def is_roman_numeral_chord(self, chord_str: str) -> bool:
         """Check if a chord string is a roman numeral chord.

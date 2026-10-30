@@ -9,7 +9,7 @@ from services.song_parser_service import SongParserService
 from session.documents import DocumentRef, DocumentStore
 from models.line import Line
 from models.chord import ChordInfo
-from models.directive import DirectiveType
+from models.directive import BPMModifierType, DirectiveType
 from models.notation import Notation
 from models.playback_event import PlaybackEventArgs, PlaybackEventType
 
@@ -1065,8 +1065,12 @@ class MainWindowViewModel(Observable):
 
         for line in lines:
             for directive in line.directives:
+                if not directive.is_valid:
+                    continue
                 if directive.type == DirectiveType.BPM and not found['bpm']:
-                    settings['bpm'] = directive.bpm
+                    # Only an absolute tempo names a toolbar value.
+                    if directive.bpm_modifier_type == BPMModifierType.ABSOLUTE:
+                        settings['bpm'] = directive.bpm
                     found['bpm'] = True
 
                 elif directive.type == DirectiveType.KEY and not found['key']:

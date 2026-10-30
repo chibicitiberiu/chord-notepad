@@ -11,6 +11,10 @@ from dataclasses import dataclass
 from typing import Optional, Tuple
 
 from chord.converter import NotationConverter
+# TIME_SIGNATURE_UNITS and MIN_BEATS/MAX_BEATS are re-exported: the beat units
+# a time signature may have and the beats a bar may have.
+from constants import (  # noqa: F401
+    DEFAULT_BPM, MAX_BEATS, MAX_BPM, MIN_BEATS, MIN_BPM, TIME_SIGNATURE_UNITS)
 from models.notation import Notation
 
 _AMERICAN_KEYS = (
@@ -21,11 +25,6 @@ _EUROPEAN_KEYS = (
     "Do", "Do#", "Reb", "Re", "Re#", "Mib", "Mi", "Fa", "Fa#",
     "Solb", "Sol", "Sol#", "Lab", "La", "La#", "Sib", "Si",
 )
-
-#: The beat units a time signature may have.
-TIME_SIGNATURE_UNITS = (1, 2, 4, 8, 16)
-#: The beats a bar may have.
-MIN_BEATS, MAX_BEATS = 1, 16
 
 
 def key_options(notation: str) -> Tuple[str, ...]:
@@ -126,8 +125,8 @@ class ScrubScale:
 
 
 #: The BPM control: 20-400, magnetic to tens.
-BPM_SCALE = ScrubScale(min_value=20, max_value=400, step=10, drag_step=1,
-                       snap_tolerance=1, default=120)
+BPM_SCALE = ScrubScale(min_value=MIN_BPM, max_value=MAX_BPM, step=10, drag_step=1,
+                       snap_tolerance=1, default=DEFAULT_BPM)
 #: The speed multiplier, in percent: 12.5-400, magnetic to eighths.
 MULTIPLIER_SCALE = ScrubScale(min_value=12.5, max_value=400, step=12.5, drag_step=1,
                               snap_tolerance=3, default=100)

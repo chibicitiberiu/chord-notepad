@@ -17,11 +17,9 @@ registry has its own editor (M5) and isn't here either.
 from dataclasses import dataclass, fields
 from typing import Any, Dict
 
-from constants import MAX_FONT_SIZE, MIN_FONT_SIZE
+from constants import MAX_FONT_SIZE, MIN_FONT_SIZE, TIME_SIGNATURE_UNITS  # noqa: F401
 from session import toolbar
 
-#: Beat units the time signature accepts.
-TIME_SIGNATURE_UNITS = (1, 2, 4, 8, 16)
 #: Upper bound of the recent-documents list length.
 MAX_RECENT_LIMIT = 50
 

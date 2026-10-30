@@ -4,6 +4,7 @@ import logging
 from dataclasses import dataclass, field
 from typing import List, Optional, Literal, Dict
 
+from constants import MAX_BPM, MIN_BPM
 from models.ensemble_spec import BUILTIN_ENSEMBLES
 
 logger = logging.getLogger(__name__)
@@ -68,8 +69,8 @@ class Config:
 
     def validate(self) -> None:
         """Validate configuration values."""
-        if not (20 <= self.bpm <= 400):
-            raise ValueError(f"BPM must be between 20 and 400, got {self.bpm}")
+        if not (MIN_BPM <= self.bpm <= MAX_BPM):
+            raise ValueError(f"BPM must be between {MIN_BPM} and {MAX_BPM}, got {self.bpm}")
 
         if not (0.125 <= self.bpm_multiplier <= 4.0):
             raise ValueError(
