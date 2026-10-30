@@ -887,17 +887,27 @@ jobs:
           "$CHAQUOPY_BUILD_PYTHON" -I tools/build_wheelhouse.py fetch
           "$CHAQUOPY_BUILD_PYTHON" -I tools/build_wheelhouse.py check
 
+      # Both flavours: foss (GitHub APK, F-Droid) and play (Google Play, with
+      # Play Billing). docs/design/android-support-plan.md.
       - name: Unit tests, lint, debug APK
-        run: ./gradlew testDebugUnitTest lint assembleDebug
+        run: >-
+          ./gradlew
+          testFossDebugUnitTest testPlayDebugUnitTest
+          lintFossDebug lintPlayDebug
+          assembleFossDebug assemblePlayDebug
 
       - name: Check 16 KB page alignment
         run: |
-          APK=app/build/outputs/apk/debug/app-debug.apk
-          python3 tools/check_16k.py "$APK"
-          "$ANDROID_HOME/build-tools/36.1.0/zipalign" -c -P 16 4 "$APK"
+          for APK in app/build/outputs/apk/foss/debug/app-foss-debug.apk app/build/outputs/apk/play/debug/app-play-debug.apk; do
+            python3 tools/check_16k.py "$APK"
+            "$ANDROID_HOME/build-tools/36.1.0/zipalign" -c -P 16 4 "$APK"
+          done
 
       - name: Check the merged manifest (no INTERNET, no Play services)
-        run: python3 tools/check_manifest.py --aapt2 "$ANDROID_HOME/build-tools/36.1.0/aapt2" app/build/outputs/apk/debug/app-debug.apk
+        run: |
+          AAPT2="$ANDROID_HOME/build-tools/36.1.0/aapt2"
+          python3 tools/check_manifest.py --flavor foss --aapt2 "$AAPT2" app/build/outputs/apk/foss/debug/app-foss-debug.apk
+          python3 tools/check_manifest.py --flavor play --aapt2 "$AAPT2" app/build/outputs/apk/play/debug/app-play-debug.apk
 
       - name: Upload test and lint reports
         if: failure()
@@ -913,9 +923,10 @@ jobs:
   # Plain v<VERSION> tag pushes and release dispatches only; nightlies and
   # other dispatches never touch the release keys. Produces, as workflow
   # artifacts:
-  #   ChordNotepad-android-play: the AAB signed with the Play upload key,
-  #     uploaded to Play Console by hand (like the MSIX), never attached;
-  #   ChordNotepad-android: the universal APK signed with the FOSS key, the
+  #   ChordNotepad-android-play: the play flavour's AAB signed with the Play
+  #     upload key, uploaded to Play Console by hand (like the MSIX), never
+  #     attached;
+  #   ChordNotepad-android: the foss flavour's universal APK signed with the FOSS key, the
   #     full source tarball (submodules included) and SHA256SUMS, which
   #     attach-android puts on the GitHub release.
   # The keys live in the `android-release` environment's secrets
@@ -1052,7 +1063,7 @@ jobs:
           CN_UPLOAD_STORE_PASSWORD: ${{ secrets.ANDROID_UPLOAD_STORE_PASSWORD }}
           CN_UPLOAD_KEY_ALIAS: upload
           SIGNING: ${{ steps.keys.outputs.upload == 'true' && 'upload' || 'none' }}
-        run: ./gradlew --no-configuration-cache bundleRelease -PcnSigning="$SIGNING" -PcnCommit="$CN_COMMIT"
+        run: ./gradlew --no-configuration-cache bundlePlayRelease -PcnSigning="$SIGNING" -PcnCommit="$CN_COMMIT"
 
       - name: Build the GitHub APK (universal, FOSS key)
         env:
@@ -1060,22 +1071,30 @@ jobs:
           CN_FOSS_STORE_PASSWORD: ${{ secrets.ANDROID_FOSS_STORE_PASSWORD }}
           CN_FOSS_KEY_ALIAS: foss
           SIGNING: ${{ steps.keys.outputs.foss == 'true' && 'foss' || 'none' }}
-        run: ./gradlew --no-configuration-cache assembleRelease -PcnSigning="$SIGNING" -PcnCommit="$CN_COMMIT"
+        run: ./gradlew --no-configuration-cache assembleFossRelease -PcnSigning="$SIGNING" -PcnCommit="$CN_COMMIT"
 
       - name: Remove the decoded keys
         if: always()
         run: rm -rf "$KEYS_DIR"
+
+      # aapt2 can't read an AAB, so the play flavour's merged manifest is
+      # checked through an unsigned APK of the same variant (never shipped).
+      - name: Check the Play build's merged manifest
+        run: |
+          ./gradlew assemblePlayRelease -PcnSigning=none -PcnCommit="$CN_COMMIT"
+          python3 tools/check_manifest.py --flavor play --aapt2 "$ANDROID_HOME/build-tools/$BUILD_TOOLS/aapt2" \
+            app/build/outputs/apk/play/release/app-play-release-unsigned.apk
 
       - name: Collect outputs
         run: |
           V=${{ steps.version.outputs.version }}
           mkdir -p dist-android
           if [[ "${{ steps.keys.outputs.foss }}" == "true" ]]; then
-            cp app/build/outputs/apk/release/app-release.apk dist-android/ChordNotepad-android.apk
+            cp app/build/outputs/apk/foss/release/app-foss-release.apk dist-android/ChordNotepad-android.apk
           else
-            cp app/build/outputs/apk/release/app-release-unsigned.apk dist-android/ChordNotepad-android-unsigned.apk
+            cp app/build/outputs/apk/foss/release/app-foss-release-unsigned.apk dist-android/ChordNotepad-android-unsigned.apk
           fi
-          cp app/build/outputs/bundle/release/app-release.aab "dist-android/ChordNotepad-$V-play.aab"
+          cp app/build/outputs/bundle/playRelease/app-play-release.aab "dist-android/ChordNotepad-$V-play.aab"
           python3 tools/make_source_tarball.py --repo .. --out "dist-android/ChordNotepad-$V-source.tar.gz"
           ls -l dist-android
 
@@ -1091,7 +1110,7 @@ jobs:
           BT="$ANDROID_HOME/build-tools/$BUILD_TOOLS"
           python3 tools/check_16k.py "$APK"
           "$BT/zipalign" -c -P 16 4 "$APK"
-          python3 tools/check_manifest.py --aapt2 "$BT/aapt2" "$APK"
+          python3 tools/check_manifest.py --flavor foss --aapt2 "$BT/aapt2" "$APK"
           if [[ "${{ steps.keys.outputs.foss }}" != "true" ]]; then
             echo "::warning::The APK is unsigned (no FOSS key); it won't be attached to the release"
             exit 0

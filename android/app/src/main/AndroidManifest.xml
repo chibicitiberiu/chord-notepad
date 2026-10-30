@@ -2,9 +2,11 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- No INTERNET permission and no Google Play services: the app must run on
-         de-Googled devices (F-Droid/GitHub builds). CI checks the merged
-         manifest (android/tools/check_manifest.py). -->
+    <!-- No INTERNET permission in either flavour. The foss flavour (GitHub
+         APK, F-Droid) has no Google Play services and must run on de-Googled
+         devices; the play flavour adds Play Billing and only what its manifest
+         (src/play/AndroidManifest.xml) leaves of it. CI checks each flavour's
+         merged manifest (android/tools/check_manifest.py). -->
 
     <application
         android:name=".ChordNotepadApp"
