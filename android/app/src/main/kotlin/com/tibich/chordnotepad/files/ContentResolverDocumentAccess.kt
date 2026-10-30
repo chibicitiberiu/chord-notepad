@@ -3,6 +3,8 @@ package com.tibich.chordnotepad.files
 import android.content.ContentResolver
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Process
 import android.provider.DocumentsContract
 import android.provider.OpenableColumns
 import android.util.Log
@@ -51,6 +53,34 @@ class ContentResolverDocumentAccess(context: Context) : DocumentAccess {
         // Providers throw all sorts for a missing or revoked document.
         Log.i(TAG, "Document unavailable: $id ($e)")
         null
+    }
+
+    override fun size(id: String): Long? = try {
+        resolver.query(id.toUri(), arrayOf(OpenableColumns.SIZE), null, null, null)?.use { c ->
+            if (c.moveToFirst() && !c.isNull(0)) c.getLong(0) else null
+        }
+    } catch (e: Exception) {
+        Log.i(TAG, "Can't read the size of $id ($e)")
+        null
+    }
+
+    override fun canWrite(id: String): Boolean {
+        val uri = id.toUri()
+        val granted = app.checkUriPermission(
+            uri, Process.myPid(), Process.myUid(), Intent.FLAG_GRANT_WRITE_URI_PERMISSION,
+        ) == PackageManager.PERMISSION_GRANTED
+        if (!granted) return false
+        // A document provider can still refuse writes to this one document.
+        return try {
+            !DocumentsContract.isDocumentUri(app, uri) ||
+                resolver.query(uri, arrayOf(DocumentsContract.Document.COLUMN_FLAGS), null, null, null)?.use { c ->
+                    !c.moveToFirst() || c.isNull(0) ||
+                        (c.getInt(0) and DocumentsContract.Document.FLAG_SUPPORTS_WRITE) != 0
+                } ?: true
+        } catch (e: Exception) {
+            Log.i(TAG, "Can't read the flags of $id ($e)")
+            true
+        }
     }
 
     override fun hasPersistedGrant(id: String): Boolean {

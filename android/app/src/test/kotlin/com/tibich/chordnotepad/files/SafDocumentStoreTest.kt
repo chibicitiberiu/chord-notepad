@@ -32,6 +32,12 @@ class FakeDocumentAccess : DocumentAccess {
     val denied = mutableSetOf<String>()
     /** Documents whose provider can't rename them. */
     val noRename = mutableSetOf<String>()
+    /** Sizes the provider reports (none: unknown). */
+    val sizes = mutableMapOf<String, Long>()
+    /** Documents granted read only (Open with). */
+    val readOnly = mutableSetOf<String>()
+    /** Grants that can't be persisted (an Open with grant without the persistable flag). */
+    val notPersistable = mutableSetOf<String>()
 
     fun add(id: String, name: String, text: String = "", granted: Boolean = true) {
         content[id] = text.toByteArray()
@@ -57,10 +63,14 @@ class FakeDocumentAccess : DocumentAccess {
     override fun query(id: String): DocumentInfo? =
         names[id]?.let { DocumentInfo(it, "com.example.docs", id.substringAfterLast('/'), "Example") }
 
+    override fun size(id: String): Long? = sizes[id]
+
+    override fun canWrite(id: String) = id !in readOnly
+
     override fun hasPersistedGrant(id: String) = id in grants
 
     override fun persistGrant(id: String) {
-        grants += id
+        if (id !in notPersistable) grants += id
     }
 
     override fun releaseGrant(id: String) {
@@ -119,6 +129,41 @@ class SafDocumentStoreTest {
         access.add("content://d/locked", "locked.txt")
         access.denied += "content://d/locked"
         expectError("Permission denied: locked.txt (Example)") { store.readText("content://d/locked") }
+    }
+
+    @Test
+    fun `reads stop at 5 MB, by the provider's size or by the bytes read`() {
+        val limit = SafDocumentStore.MAX_READ_BYTES
+        access.add("content://d/big", "big.txt")
+        access.sizes["content://d/big"] = limit + 1L
+        expectError("File too large to open (over 5 MB): big.txt (Example)") { store.readText("content://d/big") }
+        // No size from the provider (or a wrong one): the read itself stops.
+        access.add("content://d/huge", "huge.txt")
+        access.content["content://d/huge"] = ByteArray(limit + 1) { 'a'.code.toByte() }
+        expectError("File too large to open (over 5 MB): huge.txt (Example)") { store.readText("content://d/huge") }
+        access.sizes["content://d/huge"] = 10
+        expectError("File too large") { store.readText("content://d/huge") }
+        access.content["content://d/huge"] = ByteArray(limit) { 'a'.code.toByte() }
+        access.sizes.remove("content://d/huge")
+        assertEquals(limit, store.readText("content://d/huge").length)
+    }
+
+    @Test
+    fun `write access as the provider grants it`() {
+        access.add("content://d/1", "a.txt")
+        access.add("content://d/2", "b.txt")
+        access.readOnly += "content://d/2"
+        assertTrue(store.canWrite("content://d/1"))
+        assertFalse(store.canWrite("content://d/2"))
+    }
+
+    @Test
+    fun `an opened file whose grant can't be kept leaves the recent list`() {
+        access.add("content://d/view", "v.txt", granted = false)
+        access.notPersistable += "content://d/view"
+        val ref = store.adopt("content://d/view", PickMode.OPEN)
+        store.addRecent(ref.id, ref.displayName, ref.location)
+        assertEquals(emptyList<String>(), ids(store.recent()))
     }
 
     @Test

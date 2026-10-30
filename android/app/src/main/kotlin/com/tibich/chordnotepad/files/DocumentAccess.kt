@@ -32,6 +32,15 @@ interface DocumentAccess {
     /** The document's metadata, or null if it's gone or no longer accessible. */
     fun query(id: String): DocumentInfo?
 
+    /** The document's size in bytes (`OpenableColumns.SIZE`), or null when the provider doesn't say. */
+    fun size(id: String): Long? = null
+
+    /**
+     * Whether the app may write the document: it holds a write grant and the
+     * provider doesn't mark the document read-only.
+     */
+    fun canWrite(id: String): Boolean = true
+
     /** Whether the app holds a persisted read grant for it. */
     fun hasPersistedGrant(id: String): Boolean
 

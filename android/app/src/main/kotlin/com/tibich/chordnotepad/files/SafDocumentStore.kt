@@ -8,8 +8,10 @@ import com.tibich.chordnotepad.bridge.DocumentStoreException
 import com.tibich.chordnotepad.bridge.PickMode
 import com.tibich.chordnotepad.bridge.RenameUnsupportedException
 import kotlinx.serialization.builtins.ListSerializer
+import java.io.ByteArrayOutputStream
 import java.io.FileNotFoundException
 import java.io.IOException
+import java.io.InputStream
 import java.nio.ByteBuffer
 import java.nio.charset.CharacterCodingException
 import java.nio.charset.CodingErrorAction
@@ -47,6 +49,12 @@ class SafDocumentStore(
         return refFor(id) ?: DocumentRef(id, fallbackName(id), fallbackName(id))
     }
 
+    /**
+     * Whether the app may write [id] (Open with may grant read only). Does
+     * provider I/O; call it off the main thread.
+     */
+    fun canWrite(id: String): Boolean = access.canWrite(id)
+
     /** A ref for a document the app can still reach (draft restore), or null. */
     fun refFor(id: String): DocumentRef? {
         val info = access.query(id) ?: return null
@@ -57,15 +65,20 @@ class SafDocumentStore(
     // -- Python side ------------------------------------------------------------
 
     override fun readText(id: String): String {
+        // A song is a few kilobytes; this keeps a huge file (Open with any
+        // .txt) from exhausting memory. The provider's size can be missing or
+        // wrong, so the read itself stops at the limit too.
+        val declared = access.size(id)
+        if (declared != null && declared > MAX_READ_BYTES) throw tooLarge(id)
         val bytes = try {
-            access.openInput(id).use { it.readBytes() }
+            access.openInput(id).use { readAtMost(it, MAX_READ_BYTES) }
         } catch (e: FileNotFoundException) {
             throw DocumentStoreException("File not found: ${where(id)}", e)
         } catch (e: SecurityException) {
             throw DocumentStoreException("Permission denied: ${where(id)}", e)
         } catch (e: IOException) {
             throw DocumentStoreException("Failed to read file: ${e.message}", e)
-        }
+        } ?: throw tooLarge(id)
         return try {
             Charsets.UTF_8.newDecoder()
                 .onMalformedInput(CodingErrorAction.REPORT)
@@ -161,6 +174,21 @@ class SafDocumentStore(
         return kept
     }
 
+    private fun tooLarge(id: String) =
+        DocumentStoreException("File too large to open (over ${MAX_READ_BYTES / MB} MB): ${where(id)}")
+
+    // The stream's bytes, or null if there are more than [limit].
+    private fun readAtMost(input: InputStream, limit: Int): ByteArray? {
+        val out = ByteArrayOutputStream()
+        val buffer = ByteArray(BUFFER_BYTES)
+        while (true) {
+            val n = input.read(buffer)
+            if (n < 0) return out.toByteArray()
+            if (out.size() + n > limit) return null
+            out.write(buffer, 0, n)
+        }
+    }
+
     private fun where(id: String): String = try {
         refFor(id)?.location ?: fallbackName(id)
     } catch (e: RuntimeException) {
@@ -170,6 +198,11 @@ class SafDocumentStore(
     companion object {
         /** The desktop's default `max_recent_files`. */
         const val DEFAULT_MAX_RECENT = 10
+
+        /** The largest document [readText] reads (5 MB). */
+        const val MAX_READ_BYTES = 5 * 1024 * 1024
+        private const val MB = 1024 * 1024
+        private const val BUFFER_BYTES = 64 * 1024
         private const val TAG = "CNDocuments"
     }
 }
