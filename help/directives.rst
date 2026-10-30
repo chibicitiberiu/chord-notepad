@@ -35,13 +35,17 @@ Setting Tempo
 
 .. only:: desktop
 
-   Valid range: 20-400 BPM. The toolbar's speed multiplier is applied on top of
+   Use a whole number. The toolbar's BPM control takes 20-400 and the Insert
+   dialog 20-300; a value you type into the song isn't checked, so keep it in
+   that range. The toolbar's speed multiplier is applied on top of
    this value, so a song written at ``{bpm: 120}`` with the multiplier set to
    50% plays at 60 BPM.
 
 .. only:: android
 
-   Valid range: 20-400 BPM. The player's Speed multiplier is applied on top of
+   Use a whole number. The tempo in Song defaults takes 20-400 and ＋ Insert →
+   Tempo 20-300; a value you type into the song isn't checked, so keep it in
+   that range. The player's Speed multiplier is applied on top of
    this value, so a song written at ``{bpm: 120}`` with the multiplier set to
    50% plays at 60 BPM.
 
