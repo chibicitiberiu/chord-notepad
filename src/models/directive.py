@@ -4,7 +4,7 @@ Directive model for song instructions like BPM, time signature, etc.
 
 from dataclasses import dataclass
 from enum import IntEnum
-from typing import Optional
+from typing import Optional, Tuple
 
 from constants import MAX_BPM, MIN_BPM
 
@@ -93,16 +93,23 @@ class Directive:
             current: The tempo in effect before the directive.
             reset_bpm: The tempo ``{bpm: reset}`` goes back to.
         """
+        return self.apply_bpm_checked(current, reset_bpm)[0]
+
+    def apply_bpm_checked(self, current: int, reset_bpm: int) -> Tuple[int, bool]:
+        """:meth:`apply_bpm`, plus whether the result had to be clamped."""
         kind, value = self.bpm_modifier_type, self.bpm_modifier_value
         if kind == BPMModifierType.RELATIVE:
-            return clamp_bpm(current + value)
-        if kind == BPMModifierType.PERCENTAGE:
-            return clamp_bpm(current * value / 100)
-        if kind == BPMModifierType.MULTIPLIER:
-            return clamp_bpm(current * value)
-        if kind == BPMModifierType.RESET:
-            return reset_bpm
-        return int(self.bpm) if self.bpm is not None else current
+            raw = current + value
+        elif kind == BPMModifierType.PERCENTAGE:
+            raw = current * value / 100
+        elif kind == BPMModifierType.MULTIPLIER:
+            raw = current * value
+        elif kind == BPMModifierType.RESET:
+            return reset_bpm, False
+        else:
+            return (int(self.bpm) if self.bpm is not None else current), False
+        bpm = clamp_bpm(raw)
+        return bpm, bpm != int(raw)
 
     def __repr__(self) -> str:
         """String representation of the directive."""

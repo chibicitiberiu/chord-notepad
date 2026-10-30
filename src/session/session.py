@@ -2351,12 +2351,14 @@ class AppSession:
             total_bars=event.total_bars,
         ))
         if self._android:
-            self._set_status(formatting.position_status(
-                bar, event.total_bars, formatting.playing_activity(chord.chord)))
+            self._set_status(formatting.with_tempo_clamp(formatting.position_status(
+                bar, event.total_bars, formatting.playing_activity(chord.chord)),
+                event.tempo_clamp, formatting.POSITION_SEPARATOR))
         else:
-            self._set_status(formatting.playing_chord_status(
+            self._set_status(formatting.with_tempo_clamp(formatting.playing_chord_status(
                 event.current_bar, event.total_bars, event.bpm,
-                event.time_signature_beats, event.time_signature_unit, event.key, chord.chord))
+                event.time_signature_beats, event.time_signature_unit, event.key, chord.chord),
+                event.tempo_clamp, " | "))
 
     def _on_playback_error(self, message: str) -> None:
         """Rendering the song failed on the render thread (posted here)."""

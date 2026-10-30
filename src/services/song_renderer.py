@@ -128,6 +128,11 @@ class SongRenderer:
             'current_key': initial_key,
             'current_time_sig': initial_time_sig,
             'current_bpm': initial_bpm,
+            # (bpm, line_number) when current_bpm came from a clamped relative
+            # {bpm} change; it rides on each chord for the status warning.
+            'tempo_clamp': None,
+            # The line of the directive being handled (for tempo_clamp).
+            'directive_line': 0,
             # Active capo fret (0 = none). Set only by {capo} directives; drives
             # capo-relative voicing of fretboard chords in the voicing pass.
             'current_capo': 0,
@@ -201,6 +206,7 @@ class SongRenderer:
                     state['in_playback_range'] = True
 
             if isinstance(item, Directive):
+                state['directive_line'] = line.line_number
                 self._handle_directive(item, state)
                 continue
 
@@ -263,6 +269,7 @@ class SongRenderer:
         state['labels'].setdefault('@start', (0, 0))
         state['label_states'].setdefault('@start', {
             'bpm': state['current_bpm'],
+            'tempo_clamp': state['tempo_clamp'],
             'time_sig': state['current_time_sig'],
             'key': state['current_key'],
             'capo': state['current_capo'],
@@ -289,8 +296,9 @@ class SongRenderer:
             self._handle_label_directive(directive, state)
 
     def _handle_bpm_directive(self, directive: Directive, state: dict) -> None:
-        new_bpm = directive.apply_bpm(state['current_bpm'], self._reset_bpm)
+        new_bpm, clamped = directive.apply_bpm_checked(state['current_bpm'], self._reset_bpm)
         state['current_bpm'] = new_bpm
+        state['tempo_clamp'] = (new_bpm, state['directive_line']) if clamped else None
         self._record_tempo(state, new_bpm)
 
     def _handle_time_signature_directive(self, directive: Directive, state: dict) -> None:
@@ -360,6 +368,7 @@ class SongRenderer:
             return
         saved = state['label_states'][label]
         state['current_bpm'] = saved['bpm']
+        state['tempo_clamp'] = saved.get('tempo_clamp')
         state['current_time_sig'] = saved['time_sig']
         state['current_key'] = saved['key']
         # Capo restores with the rest of the state; it drives no marker, so
@@ -373,6 +382,7 @@ class SongRenderer:
         if directive.label not in state['label_states']:
             state['label_states'][directive.label] = {
                 'bpm': state['current_bpm'],
+                'tempo_clamp': state['tempo_clamp'],
                 'time_sig': state['current_time_sig'],
                 'key': state['current_key'],
                 'capo': state['current_capo'],
@@ -543,6 +553,7 @@ class SongRenderer:
             is_rest=chord.is_rest,
             skipped=True,
             capo=state['current_capo'],
+            tempo_clamp=state['tempo_clamp'],
         )
         state['current_beat_position'] += duration_beats
         self._advance_total_bar_counter(state, duration_beats, time_sig[0])
@@ -579,6 +590,7 @@ class SongRenderer:
                 is_rest=True,
                 skipped=False,
                 capo=state['current_capo'],
+                tempo_clamp=state['tempo_clamp'],
             )
             state['current_time_position'] += duration_seconds
             state['current_beat_position'] += duration_beats
@@ -611,6 +623,7 @@ class SongRenderer:
             is_rest=False,
             skipped=False,
             capo=state['current_capo'],
+            tempo_clamp=state['tempo_clamp'],
         )
         state['current_time_position'] += duration_seconds
         state['current_beat_position'] += duration_beats

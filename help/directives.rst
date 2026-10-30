@@ -80,7 +80,9 @@ Relative Tempo Changes
 ----------------------
 
 Instead of setting an exact BPM, you can adjust relative to the current tempo.
-The result stays within 20-400: ``{bpm: -200}`` at 100 BPM plays at 20.
+The result stays within 20-400: ``{bpm: -200}`` at 100 BPM plays at 20. The
+directive is still valid, and while the clamped tempo plays the status line
+says so, for example "Tempo clamped to 20 BPM at line 5".
 
 **Add or subtract:**
 

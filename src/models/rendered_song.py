@@ -73,6 +73,11 @@ class RenderedChord:
     song, never rebased (``bar`` restarts at 1 when playback starts later);
     skipped chords have it too. 0 if unknown."""
 
+    tempo_clamp: Optional[Tuple[int, int]] = None
+    """``(bpm, line_number)`` when the tempo this chord plays at came from a
+    relative ``{bpm}`` change that had to be clamped to the app's range (the
+    clamped tempo and the directive's 1-based line); None otherwise."""
+
     capo: int = 0
     """Capo fret in effect at this chord (0 = none), from ``{capo}`` directives.
 

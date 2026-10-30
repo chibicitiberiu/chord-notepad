@@ -3,7 +3,7 @@ Playback event data model for visual feedback during playback
 """
 
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, Tuple
 from enum import Enum
 
 from models.chord import ChordInfo
@@ -59,3 +59,7 @@ class PlaybackEventArgs:
     song_bar: Optional[int] = None
     """The bar counted from the top of the song (``current_bar`` restarts at
     1 when playback starts from a later chord); None if unknown."""
+
+    tempo_clamp: Optional[Tuple[int, int]] = None
+    """``(bpm, line_number)`` when the current tempo comes from a relative
+    ``{bpm}`` change that was clamped to the app's range; None otherwise."""

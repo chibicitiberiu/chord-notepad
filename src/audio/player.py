@@ -688,6 +688,7 @@ class NotePlayer(IPlayer):
                     current_line=meta.get('line_index'),
                     current_bar=meta.get('bar'),
                     song_bar=meta.get('song_bar'),
+                    tempo_clamp=meta.get('tempo_clamp'),
                     total_bars=meta.get('total_bars')
                 )
                 self.application.queue_ui_callback(lambda args=event_args: callback(args))

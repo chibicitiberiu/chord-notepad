@@ -60,6 +60,20 @@ def playing_chord_status(bar: int, total_bars: int, bpm: Union[int, float, None]
     return " | ".join(parts)
 
 
+def tempo_clamped_warning(bpm: int, line: int) -> str:
+    """The status note while a clamped relative tempo change plays:
+    ``Tempo clamped to 400 BPM at line 5``."""
+    return f"Tempo clamped to {bpm} BPM at line {line}"
+
+
+def with_tempo_clamp(status: str, tempo_clamp, separator: str) -> str:
+    """``status`` with the clamped-tempo note appended when ``tempo_clamp``
+    (``(bpm, line)``) is set."""
+    if not tempo_clamp:
+        return status
+    return f"{status}{separator}{tempo_clamped_warning(*tempo_clamp)}"
+
+
 def tapped_chord_status(chord: str) -> str:
     """The status after a tapped chord was played."""
     return f"Playing: {chord}"
