@@ -124,7 +124,7 @@
        "fields": [
         {
          "default": "-0.4",
-         "help": "How the picker treats an inner or upper voice moving between chords (a single number, or one per voice). More negative discourages movement; positive would encourage it.",
+         "help": "How the picker treats an inner or upper voice moving between chords, per semitone (a single number, or one per voice, top first). More negative discourages movement; positive would encourage it.",
          "id": "movement",
          "kind": "float_or_list",
          "label": "Voice movement",
@@ -132,7 +132,7 @@
         },
         {
          "default": "-0.15",
-         "help": "How the picker treats the bottom voice moving between chords, normally set less negative than the inner-voice movement weight.",
+         "help": "How the picker treats the bottom voice moving between chords, per semitone; normally set less negative than the inner-voice movement weight. Ignored when Voice movement lists one value per voice.",
          "id": "weight:bass_movement",
          "kind": "float",
          "label": "Bass movement",
@@ -152,7 +152,7 @@
         },
         {
          "default": "-6.0",
-         "help": "How the picker treats a voice jumping a full octave or more. More negative avoids octave leaps.",
+         "help": "How the picker treats a voice jumping more than an octave, on top of the large-leap weight. More negative avoids octave leaps.",
          "id": "weight:octave_leap_penalty",
          "kind": "float",
          "label": "Octave leap",
@@ -172,7 +172,7 @@
         },
         {
          "default": "1.5",
-         "help": "How the picker treats a voice holding the pitch class it just sang. More positive rewards holding common tones.",
+         "help": "How the picker treats a voice singing the same note again (same pitch, same octave) on the next chord. More positive rewards holding common tones.",
          "id": "weight:common_tone_bonus",
          "kind": "float",
          "label": "Common tone held",
@@ -212,7 +212,7 @@
         },
         {
          "default": "1.5",
-         "help": "How the picker treats the leading tone resolving up to the tonic. More positive encourages it.",
+         "help": "How the picker treats the leading tone rising a semitone to the tonic, in the same voice. Only applies when the song sets a key. More positive encourages it.",
          "id": "weight:leading_tone_resolution_bonus",
          "kind": "float",
          "label": "Leading tone resolves",
@@ -222,7 +222,7 @@
         },
         {
          "default": "-8.0",
-         "help": "How the picker treats two voices doubling the leading tone. More negative avoids doubling it.",
+         "help": "How the picker treats two or more voices on the leading tone. Only applies when the song sets a key. More negative avoids doubling it.",
          "id": "weight:double_leading_tone_penalty",
          "kind": "float",
          "label": "Doubled leading tone",
@@ -232,7 +232,7 @@
         },
         {
          "default": "-0.5",
-         "help": "How the picker treats a voice sitting in the outer 2 semitones of its range. More negative keeps voices off their extremes.",
+         "help": "How the picker treats a voice sitting in the outer 2 semitones of its range, per semitone into that edge. More negative keeps voices off their extremes.",
          "id": "weight:range_comfort_penalty",
          "kind": "float",
          "label": "Out-of-comfort range",
@@ -252,7 +252,7 @@
         },
         {
          "default": "-0.15",
-         "help": "How the picker treats an upper-voice gap exceeding an octave. More negative favors closer spacing above the bass.",
+         "help": "How the picker treats a gap wider than a fifth (7 semitones) between two neighbouring voices above the bass, per semitone beyond it. More negative favors closer spacing above the bass.",
          "id": "weight:upper_spacing_penalty",
          "kind": "float",
          "label": "Wide upper spacing",
@@ -271,7 +271,7 @@
          "fields": [
           {
            "default": "2.0",
-           "help": "How much to favor doubling the root when there are more voices than chord tones. Positive encourages it, negative avoids it.",
+           "help": "How much to favor doubling the root when there are more voices than chord tones, per extra copy. Positive encourages it, negative avoids it.",
            "id": "nested:doubling:root",
            "kind": "float",
            "label": "Root",
@@ -281,7 +281,7 @@
           },
           {
            "default": "0.5",
-           "help": "How much to favor doubling the fifth when there are more voices than chord tones. Positive encourages it, negative avoids it.",
+           "help": "How much to favor doubling the fifth when there are more voices than chord tones, per extra copy. Positive encourages it, negative avoids it.",
            "id": "nested:doubling:fifth",
            "kind": "float",
            "label": "Fifth",
@@ -291,7 +291,7 @@
           },
           {
            "default": "-2.0",
-           "help": "How much to favor doubling the third when there are more voices than chord tones. Positive encourages it, negative avoids it.",
+           "help": "How much to favor doubling the third when there are more voices than chord tones, per extra copy. Positive encourages it, negative avoids it.",
            "id": "nested:doubling:third",
            "kind": "float",
            "label": "Third",
@@ -301,7 +301,7 @@
           },
           {
            "default": "-6.0",
-           "help": "How much to favor doubling the seventh when there are more voices than chord tones. Positive encourages it, negative avoids it.",
+           "help": "How much to favor doubling the seventh when there are more voices than chord tones, per extra copy. Positive encourages it, negative avoids it.",
            "id": "nested:doubling:seventh",
            "kind": "float",
            "label": "Seventh",
@@ -311,7 +311,7 @@
           },
           {
            "default": "-6.0",
-           "help": "How much to favor doubling the color when there are more voices than chord tones. Positive encourages it, negative avoids it.",
+           "help": "How much to favor doubling the color when there are more voices than chord tones, per extra copy. Positive encourages it, negative avoids it.",
            "id": "nested:doubling:color",
            "kind": "float",
            "label": "Color",
@@ -321,7 +321,7 @@
           },
           {
            "default": "-6.0",
-           "help": "How much to favor doubling the extension when there are more voices than chord tones. Positive encourages it, negative avoids it.",
+           "help": "How much to favor doubling the extension when there are more voices than chord tones, per extra copy. Positive encourages it, negative avoids it.",
            "id": "nested:doubling:extension",
            "kind": "float",
            "label": "Extension",
@@ -405,7 +405,7 @@
          "fields": [
           {
            "default": "0.0",
-           "help": "How much to favor putting the root in the bass. Higher is more preferred; 0 is neutral.",
+           "help": "How much to favor root position (the root in the bass). Not used for slash chords, whose bass is fixed. Higher is more preferred; 0 is neutral.",
            "id": "nested:inversion:root",
            "kind": "float",
            "label": "Root",
@@ -415,7 +415,7 @@
           },
           {
            "default": "-1.5",
-           "help": "How much to favor putting the first in the bass. Higher is more preferred; 0 is neutral.",
+           "help": "How much to favor first inversion (the third in the bass). Not used for slash chords, whose bass is fixed. Higher is more preferred; 0 is neutral.",
            "id": "nested:inversion:first",
            "kind": "float",
            "label": "First",
@@ -425,7 +425,7 @@
           },
           {
            "default": "-5.0",
-           "help": "How much to favor putting the second in the bass. Higher is more preferred; 0 is neutral.",
+           "help": "How much to favor second inversion (the fifth in the bass; also a 6th, sus tone or extension in the bass). Not used for slash chords, whose bass is fixed. Higher is more preferred; 0 is neutral.",
            "id": "nested:inversion:second",
            "kind": "float",
            "label": "Second",
@@ -435,7 +435,7 @@
           },
           {
            "default": "-3.0",
-           "help": "How much to favor putting the third in the bass. Higher is more preferred; 0 is neutral.",
+           "help": "How much to favor third inversion (the 7th in the bass). Not used for slash chords, whose bass is fixed. Higher is more preferred; 0 is neutral.",
            "id": "nested:inversion:third",
            "kind": "float",
            "label": "Third",
@@ -463,7 +463,7 @@
        "fields": [
         {
          "default": "E2 A2 D3 G3 B3 E4",
-         "help": "Open-string pitches in string order, lowest string first. Required.",
+         "help": "Open-string pitches in string order, starting with the string you strum first (the thickest on a guitar), so a ukulele is G4 C4 E4 A4. 3 to 12 strings. Required.",
          "hint": "(note names or MIDI numbers, e.g. E2 A2 D3 G3 B3 E4)",
          "id": "tuning",
          "kind": "pitch_list",
@@ -510,7 +510,7 @@
         },
         {
          "default": "5",
-         "help": "Widest stretch accepted as a last resort when nothing fits the normal span; must be at least the stretch.",
+         "help": "Widest stretch accepted as a last resort when no shape fits Max span; must be at least Max span.",
          "id": "relaxed_span",
          "kind": "int",
          "label": "Relaxed span",
@@ -562,7 +562,7 @@
         },
         {
          "default": "8.0",
-         "help": "How the picker treats the chord's root landing on the lowest sounding string. More positive encourages it.",
+         "help": "How the picker treats the root as the lowest-sounding note, judged by pitch, not string. Added when it is and subtracted when it isn't; more positive insists on a root bass.",
          "id": "weight:bass_note_bonus",
          "kind": "float",
          "label": "Correct bass note",
@@ -572,7 +572,7 @@
         },
         {
          "default": "12.0",
-         "help": "How the picker treats a slash chord's named bass note landing in the bass (the G in C/G). More positive encourages it.",
+         "help": "How the picker treats a slash chord's named bass (the G in C/G) as the lowest-sounding note, judged by pitch. Added when it is and subtracted when it isn't; more positive insists on it.",
          "id": "weight:slash_bass_bonus",
          "kind": "float",
          "label": "Correct slash bass",
@@ -582,7 +582,7 @@
         },
         {
          "default": "-1.2",
-         "help": "How the picker treats wide finger stretches. More negative avoids them; positive would seek them out.",
+         "help": "How the picker treats each fret between a shape's lowest and highest fretted notes (open strings don't count). More negative favors compact shapes.",
          "id": "weight:span_penalty",
          "kind": "float",
          "label": "Wide stretch",
@@ -602,7 +602,7 @@
         },
         {
          "default": "-6.0",
-         "help": "How the picker treats a three-fret shape that isn't a clean index-to-pinky reach on an outer string -- one that would force an inner finger to make the stretch. Set strongly negative to reject shapes no hand can hold.",
+         "help": "How the picker treats a shape spanning exactly three frets (say 2 to 5), unless one finger on an outer string makes the reach and the rest stay within a fret of the lowest. Set strongly negative to reject shapes no hand can hold.",
          "id": "weight:awkward_stretch_penalty",
          "kind": "float",
          "label": "Awkward stretch",
@@ -622,7 +622,7 @@
         },
         {
          "default": "-0.5",
-         "help": "How the picker treats fretted fingers. More negative favors shapes that leave more strings open or muted.",
+         "help": "How the picker treats each fretted string; a barre counts every string it holds down. More negative favors shapes with more open or muted strings.",
          "id": "weight:fretted_finger_penalty",
          "kind": "float",
          "label": "Fretted finger",
@@ -632,7 +632,7 @@
         },
         {
          "default": "-1.0",
-         "help": "How the picker treats fingerings that need a barre, on top of the fretted-finger weight. More negative avoids barres.",
+         "help": "How the picker treats a shape that frets more strings than there are fingers, so it needs a barre; charged once, on top of the fretted-finger weight. More negative avoids barres.",
          "id": "weight:barre_penalty",
          "kind": "float",
          "label": "Barre",
@@ -716,7 +716,7 @@
          "fields": [
           {
            "default": "C3",
-           "help": "Lowest note the right hand may play (note name or MIDI number).",
+           "help": "Lowest note of the right-hand range, used only by the fallback voicing; the RH lowest-note anchor sets where the right hand really starts.",
            "id": "range:rh_range:low",
            "kind": "pitch",
            "label": "Low",
@@ -731,7 +731,7 @@
            "width": 8
           }
          ],
-         "help": "Lowest note the right hand may play (note name or MIDI number).",
+         "help": "Lowest note of the right-hand range, used only by the fallback voicing; the RH lowest-note anchor sets where the right hand really starts.",
          "id": "rh_range",
          "label": "Right hand"
         },
@@ -762,7 +762,7 @@
          "fields": [
           {
            "default": "C3",
-           "help": "Lowest note the right hand's lowest note is anchored within.",
+           "help": "Lowest pitch the right hand's bottom note may sit on; a hard limit.",
            "id": "range:rh_low_anchor:low",
            "kind": "pitch",
            "label": "Low",
@@ -770,14 +770,14 @@
           },
           {
            "default": "E4",
-           "help": "Highest note the right hand's lowest note is anchored within.",
+           "help": "Highest pitch the right hand's bottom note may sit on; a hard limit.",
            "id": "range:rh_low_anchor:high",
            "kind": "pitch",
            "label": "High",
            "width": 8
           }
          ],
-         "help": "Lowest note the right hand's lowest note is anchored within.",
+         "help": "Lowest pitch the right hand's bottom note may sit on; a hard limit.",
          "id": "rh_low_anchor",
          "label": "RH lowest-note anchor"
         }
@@ -798,7 +798,7 @@
         },
         {
          "default": "52",
-         "help": "Right-hand close intervals sounding below this note are considered muddy and cost the muddy-low-interval weight.",
+         "help": "Neighbouring right-hand notes 4 semitones or less apart, with the lower one below this note, count as muddy and cost the muddy-low-interval weight.",
          "id": "rh_low_interval_floor",
          "kind": "int",
          "label": "Muddy floor",
@@ -808,7 +808,7 @@
         },
         {
          "default": "14",
-         "help": "Widest reach of one hand, in semitones (a ninth by default).",
+         "help": "Widest reach of the right hand, in semitones (a ninth by default); extensions that won't fit are dropped. The left hand plays one bass note or an octave.",
          "id": "hand_span",
          "kind": "int",
          "label": "Hand span",
@@ -818,7 +818,7 @@
         },
         {
          "default": "5",
-         "help": "Most notes one hand may play at once.",
+         "help": "Most notes the right hand may play at once; extensions are dropped first. The left hand plays one bass note or an octave.",
          "id": "max_notes_per_hand",
          "kind": "int",
          "label": "Max notes/hand",
@@ -838,7 +838,7 @@
         },
         {
          "default": "2",
-         "help": "The right hand should clear the bass by more than this many semitones, or it costs the hands-too-close weight.",
+         "help": "The right hand's lowest note should sit more than this many semitones above the left hand's top note, or it costs the hands-too-close weight.",
          "id": "hand_gap_floor",
          "kind": "int",
          "label": "Hand gap floor",
@@ -855,7 +855,7 @@
        "fields": [
         {
          "default": true,
-         "help": "Whether to include the left-hand bass note at all.",
+         "help": "Whether the left hand plays a bass note. Off, the right hand plays alone, so a slash chord's bass note isn't heard.",
          "id": "add_bass",
          "kind": "bool",
          "label": "Add bass note"
@@ -930,7 +930,7 @@
         },
         {
          "default": "-2.0",
-         "help": "How the picker treats a close right-hand interval sounding below the muddy-interval floor. More negative avoids muddy low intervals.",
+         "help": "How the picker treats neighbouring right-hand notes 4 semitones or less apart whose lower note is below the muddy floor, per pair. More negative avoids muddy low intervals.",
          "id": "weight:rh_low_interval_penalty",
          "kind": "float",
          "label": "Muddy low interval",
@@ -940,7 +940,7 @@
         },
         {
          "default": "-0.6",
-         "help": "How the picker treats an interior right-hand gap wider than an octave. More negative avoids wide gaps.",
+         "help": "How the picker treats a right-hand gap wider than an octave. Rarely applies: the right hand is stacked within an octave, so only the fallback voicing can leave such a gap.",
          "id": "weight:rh_wide_gap_penalty",
          "kind": "float",
          "label": "Wide right-hand gap",
@@ -950,7 +950,7 @@
         },
         {
          "default": "-1.5",
-         "help": "How the picker treats the hands clearing each other by less than the hand gap floor. More negative keeps the hands apart.",
+         "help": "How the picker treats the right hand sitting within the hand gap floor of the left hand's top note, per semitone. More negative keeps the hands apart.",
          "id": "weight:muddy_gap_penalty",
          "kind": "float",
          "label": "Hands too close",
@@ -984,7 +984,7 @@
          "fields": [
           {
            "default": "-4.0",
-           "help": "How reluctant the picker is to drop the root when there are fewer voices than chord tones. More negative keeps it; nearer zero allows dropping it.",
+           "help": "How much the picker loses when the root is missing from both hands; the right hand may leave out the fifth, or extensions that won't fit. More negative keeps it; nearer zero allows dropping it.",
            "id": "nested:omit:root",
            "kind": "float",
            "label": "Root",
@@ -994,7 +994,7 @@
           },
           {
            "default": "-40.0",
-           "help": "How reluctant the picker is to drop the third when there are fewer voices than chord tones. More negative keeps it; nearer zero allows dropping it.",
+           "help": "How much the picker loses when the third is missing from both hands; the right hand may leave out the fifth, or extensions that won't fit. More negative keeps it; nearer zero allows dropping it.",
            "id": "nested:omit:third",
            "kind": "float",
            "label": "Third",
@@ -1004,7 +1004,7 @@
           },
           {
            "default": "-8.0",
-           "help": "How reluctant the picker is to drop the fifth when there are fewer voices than chord tones. More negative keeps it; nearer zero allows dropping it.",
+           "help": "How much the picker loses when the fifth is missing from both hands; the right hand may leave out the fifth, or extensions that won't fit. More negative keeps it; nearer zero allows dropping it.",
            "id": "nested:omit:fifth",
            "kind": "float",
            "label": "Fifth",
@@ -1014,7 +1014,7 @@
           },
           {
            "default": "-40.0",
-           "help": "How reluctant the picker is to drop the seventh when there are fewer voices than chord tones. More negative keeps it; nearer zero allows dropping it.",
+           "help": "How much the picker loses when the seventh is missing from both hands; the right hand may leave out the fifth, or extensions that won't fit. More negative keeps it; nearer zero allows dropping it.",
            "id": "nested:omit:seventh",
            "kind": "float",
            "label": "Seventh",
@@ -1024,7 +1024,7 @@
           },
           {
            "default": "-30.0",
-           "help": "How reluctant the picker is to drop the color when there are fewer voices than chord tones. More negative keeps it; nearer zero allows dropping it.",
+           "help": "How much the picker loses when the color is missing from both hands; the right hand may leave out the fifth, or extensions that won't fit. More negative keeps it; nearer zero allows dropping it.",
            "id": "nested:omit:color",
            "kind": "float",
            "label": "Color",
@@ -1034,7 +1034,7 @@
           },
           {
            "default": "-7.0",
-           "help": "How reluctant the picker is to drop the extension when there are fewer voices than chord tones. More negative keeps it; nearer zero allows dropping it.",
+           "help": "How much the picker loses when the extension is missing from both hands; the right hand may leave out the fifth, or extensions that won't fit. More negative keeps it; nearer zero allows dropping it.",
            "id": "nested:omit:extension",
            "kind": "float",
            "label": "Extension",
@@ -1057,7 +1057,7 @@
     }
    },
    "help": {
-    "load": "Replace this voicing's parameters with those of a built-in preset or another voicing. The name is kept.",
+    "load": "Replace this voicing's model and parameters with those of a built-in preset or another of your voicings. The name is kept.",
     "model": "The engine that renders this voicing: fretboard (a fretted instrument), ensemble (independent voices), or piano.",
     "name": "The name of this voicing, shown in the player's Voicing sheet.",
     "tree_add": "Add a new voicing.",

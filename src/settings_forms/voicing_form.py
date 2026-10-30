@@ -286,7 +286,8 @@ def _weight_field(field_id: str, label: str, help_text: str, default: Any) -> Di
                   min=_WEIGHT_MIN, max=_WEIGHT_MAX, step=_WEIGHT_STEP)
 
 
-def _nested_group(group: str, defaults: Mapping[str, Any]) -> Dict[str, Any]:
+def _nested_group(group: str, defaults: Mapping[str, Any],
+                  model: str = 'ensemble') -> Dict[str, Any]:
     """A titled grid of per-role weights (doubling / omit / inversion)."""
     return {
         'id': f'nested:{group}',
@@ -294,7 +295,7 @@ def _nested_group(group: str, defaults: Mapping[str, Any]) -> Dict[str, Any]:
         'title': NESTED_WEIGHT_TITLES[group],
         'fields': [
             _weight_field(f'nested:{group}:{role}', ROLE_LABELS.get(role, role),
-                          nested_tooltip(group, role), value)
+                          nested_tooltip(group, role, model), value)
             for role, value in defaults.items()
         ],
     }
@@ -435,7 +436,7 @@ def _piano_schema() -> Dict[str, Any]:
             ]},
             {'id': 'weights', 'kind': SECTION_GRID, 'title': 'Weights', 'blurb': WEIGHTS_BLURB,
              'fields': flat_weights,
-             'groups': [_nested_group('omit', PIANO_DEFAULT_WEIGHTS['omit'])]},
+             'groups': [_nested_group('omit', PIANO_DEFAULT_WEIGHTS['omit'], 'piano')]},
         ],
     }
 
