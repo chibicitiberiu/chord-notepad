@@ -36,7 +36,7 @@ Setting Tempo
 .. only:: desktop
 
    Use a whole number from 20 to 400, the toolbar's range (the Insert dialog
-   takes 20-300). A tempo outside 20-400 shows in red as an invalid directive
+   takes the same). A tempo outside 20-400 shows in red as an invalid directive
    and playback ignores it. The toolbar's speed multiplier is applied on top of
    this value, so a song written at ``{bpm: 120}`` with the multiplier set to
    50% plays at 60 BPM.
@@ -44,7 +44,7 @@ Setting Tempo
 .. only:: android
 
    Use a whole number from 20 to 400, the range of the tempo in Song defaults
-   (＋ Insert → Tempo takes 20-300). A tempo outside 20-400 shows in red as an
+   (＋ Insert → Tempo takes the same). A tempo outside 20-400 shows in red as an
    invalid directive and playback ignores it. The player's Speed multiplier is applied on top of
    this value, so a song written at ``{bpm: 120}`` with the multiplier set to
    50% plays at 60 BPM.
@@ -430,6 +430,11 @@ If you want a verse-chorus-verse-chorus form where sections come back later, you
 write them out in that order -- looping cannot fetch a section that has already
 gone by.
 
+A loop must come *after* its label. A loop above its label, or to a label that
+doesn't exist, is an invalid directive: it shows in red and playback ignores
+it. Each label name can be used once; a repeated ``{label}`` is red too, and
+loops go to the first one.
+
 Special Label: @start
 ---------------------
 
@@ -455,8 +460,9 @@ Step by step, when playback reaches a ``{loop: label N}`` directive:
    total.
 4. Playback then continues past the loop directive to the rest of the song.
 
-A ``count`` of ``1`` (or no valid label) is a no-op -- the section simply plays
-its single inline pass. Labels and loops are also handy for drilling one tricky
+A ``count`` of ``1`` is a no-op -- the section simply plays its single inline
+pass. A very large count is cut short: a song stops after 5,000 chords once its
+loops are played out. Labels and loops are also handy for drilling one tricky
 section over and over while you practice.
 
 

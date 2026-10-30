@@ -65,6 +65,13 @@ def song_start_bpm(lines: List[Line], initial_bpm: int) -> int:
     return bpm
 
 
+#: Safety net on the expanded song: rendering stops after this many chords
+#: (over an hour at one chord a second) or this many walk steps, so a
+#: runaway loop count can't make a render take forever.
+MAX_RENDERED_CHORDS = 5_000
+MAX_WALK_STEPS = 1_000_000
+
+
 class SongRenderer:
     """Renders a parsed song into a fully pre-computed :class:`RenderedSong`."""
 
@@ -158,10 +165,18 @@ class SongRenderer:
         state['meter_map'] = meter_map
         state['key_map'] = key_map
 
+        steps = 0
         while True:
             if cancel_event is not None and cancel_event.is_set():
                 self._logger.debug("Render cancelled")
                 return None
+
+            steps += 1
+            if len(rendered) >= MAX_RENDERED_CHORDS or steps > MAX_WALK_STEPS:
+                self._logger.warning(
+                    "Song too long once its loops are expanded; rendering stops "
+                    "after %d chords", len(rendered))
+                break
 
             # End of song
             if state['line_index'] >= len(state['lines']):
@@ -235,8 +250,11 @@ class SongRenderer:
         """Index labels for loop jumps and snapshot the built-in '@start'."""
         for line_idx, line in enumerate(state['lines']):
             for item_idx, item in enumerate(line.items):
-                if isinstance(item, Directive) and item.type == DirectiveType.LABEL:
-                    state['labels'][item.label] = (line_idx, item_idx)
+                if (isinstance(item, Directive) and item.type == DirectiveType.LABEL
+                        and item.is_valid):
+                    # The first label of a name wins (the parser marks repeats
+                    # invalid; this keeps hand-built lines consistent).
+                    state['labels'].setdefault(item.label, (line_idx, item_idx))
 
         # '@start' is a built-in label for the top of the document; snapshot the
         # initial state so a loop back to it restores the starting BPM/time/key.
@@ -302,6 +320,11 @@ class SongRenderer:
         if completed_key in state:
             return
         loop_stack = state['loop_stack']
+        if any(entry['directive_pos'] == directive.start for entry in loop_stack[:-1]):
+            # Re-entering a loop that is already being expanded (loops sending
+            # each other back and forth) would never end: ignore it.
+            self._logger.warning(f"Ignoring recursive loop to '{directive.label}'")
+            return
         already_looping = bool(loop_stack) and loop_stack[-1].get('directive_pos') == directive.start
         if not already_looping:
             loop_stack.append({
@@ -461,22 +484,25 @@ class SongRenderer:
     def _advance_bar_counter(self, state: dict, duration_beats: float, time_sig_beats: int) -> None:
         """Advance the playback bar counter, rolling over on each completed bar."""
         beats_in_bar = state.get('beats_in_bar', 0.0) + duration_beats
-        bar = state.get('current_bar', 1)
-        while beats_in_bar >= time_sig_beats:
-            bar += 1
-            beats_in_bar -= time_sig_beats
-        state['current_bar'] = bar
+        bars, beats_in_bar = self._whole_bars(beats_in_bar, time_sig_beats)
+        state['current_bar'] = state.get('current_bar', 1) + bars
         state['beats_in_bar'] = beats_in_bar
+
+    @staticmethod
+    def _whole_bars(beats: float, time_sig_beats: int) -> Tuple[int, float]:
+        """``(complete bars, leftover beats)`` in ``beats`` (no loop, so a huge
+        duration can't stall the render)."""
+        if time_sig_beats <= 0 or beats < time_sig_beats:
+            return 0, beats
+        bars = int(beats // time_sig_beats)
+        return bars, beats - bars * time_sig_beats
 
     def _advance_total_bar_counter(self, state: dict, duration_beats: float, time_sig_beats: int) -> None:
         """Advance the whole-song bar counter (counts every valid chord,
         including those skipped before the start position)."""
-        beats_in_bar = state['total_beats_in_bar'] + duration_beats
-        count = state['total_bar_count']
-        while beats_in_bar >= time_sig_beats:
-            count += 1
-            beats_in_bar -= time_sig_beats
-        state['total_bar_count'] = count
+        bars, beats_in_bar = self._whole_bars(
+            state['total_beats_in_bar'] + duration_beats, time_sig_beats)
+        state['total_bar_count'] += bars
         state['total_beats_in_bar'] = beats_in_bar
 
     def _render_skipped_chord(

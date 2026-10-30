@@ -172,7 +172,33 @@ class SongParserService:
                     )
                     directives.append(directive)
 
+        self._check_labels_and_loops(directives)
         return directives
+
+    def _check_labels_and_loops(self, directives: List[Directive]) -> None:
+        """Mark repeated labels and loops that can't be played invalid.
+
+        A label name may be used once; a repeat is invalid (loops go to the
+        first). A loop must name a label above it (or ``@start``): a loop
+        names a section that has just played. A loop to a missing label, or
+        one that would jump forward, is invalid; this also rules out loops
+        that send each other back and forth forever.
+        """
+        labels = {}
+        for directive in directives:
+            if directive.type == DirectiveType.LABEL and directive.is_valid:
+                if directive.label in labels:
+                    directive.is_valid = False
+                else:
+                    labels[directive.label] = directive.start
+        for directive in directives:
+            if directive.type != DirectiveType.LOOP or not directive.is_valid:
+                continue
+            if directive.label == '@start':
+                continue
+            label_start = labels.get(directive.label)
+            if label_start is None or label_start > directive.start:
+                directive.is_valid = False
 
     def _parse_bpm_directive(self, value: str, start: int, end: int) -> Directive:
         """Parse a BPM directive value into a Directive object.

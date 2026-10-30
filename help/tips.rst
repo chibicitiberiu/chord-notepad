@@ -488,15 +488,17 @@ aren't detected, check that they're separated by spaces rather than dashes or
 other punctuation, and that the line isn't mostly lyrics or other words. If
 that doesn't help, retype them.
 
-Loops That Never End
---------------------
+Loops Shown in Red
+------------------
 
-Two loops that keep sending each other back make a song with no end: for
-example a ``{loop: b}`` that jumps forward to ``{label: b}``, followed by a
-``{loop: a}`` that jumps back to a label above the first loop. Chord Notepad
-doesn't catch this yet, and such a song can't be played or exported. Point each
-loop back at a label above it.
+A loop has to come after its label, because it repeats a section that has just
+played. A ``{loop: b}`` above its ``{label: b}`` is shown in red and ignored, and
+so is a loop to a label that doesn't exist (check the spelling and the case).
+This also means two loops can't keep sending each other back forever. A label
+name can be used once; a second ``{label}`` with the same name is red too.
 
+A huge loop count is cut short: a song stops after 5,000 chords once its loops
+are played out.
 
 Getting Help
 ============

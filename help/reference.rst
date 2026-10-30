@@ -411,8 +411,8 @@ BPM Directive Values
 An absolute tempo must be from 20 to 400: ``{bpm: 500}`` or ``{bpm: 0}`` is an
 invalid directive (shown in red) that playback ignores. A relative change can't
 take the tempo outside 20-400 either: it stops at the limit. A percentage or
-multiplier must be above zero. The :plat:`Insert dialog|＋ Insert form` only
-accepts an absolute tempo from 20 to 300.
+multiplier must be above zero. The :plat:`Insert dialog|＋ Insert form` takes
+the same 20-400 range.
 
 
 Duration Reference
@@ -586,12 +586,9 @@ Application Limits
    * - Setting
      - Minimum
      - Maximum
-   * - Tempo (:plat:`toolbar and Settings|Song defaults and Settings`)
+   * - Tempo (:plat:`toolbar, Settings and the Insert dialog|Song defaults, Settings and the ＋ Insert form`)
      - 20
      - 400
-   * - Tempo in the :plat:`Insert dialog|＋ Insert form`
-     - 20
-     - 300
    * - Font size
      - 6 pt
      - 72 pt
@@ -614,7 +611,8 @@ Application Limits
 These are the limits of the app's controls and forms. A directive you type
 yourself follows the tempo (20-400), time signature and capo limits too; a
 value outside them makes it an invalid directive. The Insert loop count is
-not a limit on typed loops.
+not a limit on typed loops, but a song stops after 5,000 chords once its loops
+are played out.
 
 .. only:: android
 
