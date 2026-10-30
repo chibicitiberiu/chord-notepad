@@ -102,9 +102,11 @@ def test_settings_values_read_from_a_config():
 def test_save_config_and_pause_commands(tmp_path):
     _, services, session, recorder = make(tmp_path)
     session.set_bpm(140)
+    session.set_multiplier_pct(150)
     session.save_config()
     saved = json.loads(services.appdata.get_config_file_path().read_text())
-    assert saved["bpm"] == 140
+    assert saved["bpm_multiplier"] == 1.5
+    assert saved["bpm"] == 120   # the document's tempo isn't a default
     recorder.clear()
     session.pause()  # idle: nothing happens
     assert recorder.items == []

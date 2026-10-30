@@ -1,13 +1,15 @@
 """What a song starts with: its tempo, time signature and key.
 
 A song may set them with directives before its first chord; whatever it
-doesn't set comes from the toolbar (the user's defaults, not saved with the
-song). Android's player shows the result as a pill ("90 · 3/4 · G") and a
-Song defaults sheet, from which the missing directives can be written into
-the song.
+doesn't set comes from the toolbar: the Settings defaults, or a value changed
+from the toolbar for the current document only (not saved with the song or to
+the defaults). A value the song sets is the song's, and the toolbar shows it
+locked. The desktop toolbar shows the result; Android's player shows it as a
+pill ("90 · 3/4 · G") and a Song defaults sheet, from which the missing
+directives can be written into the song.
 """
 
-from typing import List, Optional, Sequence, Tuple
+from typing import List, NamedTuple, Optional, Sequence, Tuple
 
 from models.chord import ChordInfo
 from models.directive import Directive, DirectiveType
@@ -29,6 +31,28 @@ def _directives_before_first_chord(lines: Sequence[Line]) -> List[Directive]:
             elif item.is_valid:
                 found.append(item)
     return found
+
+
+class SettingDirectives(NamedTuple):
+    """The first directive before the song's first chord that sets each value
+    (None where the song doesn't set it)."""
+
+    tempo: Optional[Directive]
+    time: Optional[Directive]
+    key: Optional[Directive]
+
+
+def setting_directives(lines: Sequence[Line]) -> SettingDirectives:
+    """Which directives make the song set its starting tempo, time and key."""
+    tempo = time = key = None
+    for directive in _directives_before_first_chord(lines):
+        if directive.type == DirectiveType.BPM and tempo is None:
+            tempo = directive
+        elif directive.type == DirectiveType.TIME_SIGNATURE and time is None:
+            time = directive
+        elif directive.type == DirectiveType.KEY and directive.key and key is None:
+            key = directive
+    return SettingDirectives(tempo, time, key)
 
 
 def song_defaults(lines: Sequence[Line], bpm: int, time_signature: Tuple[int, int],

@@ -198,7 +198,9 @@ def test_open_sets_the_document_text():
     assert vm.current_document == ref
     assert seen == [ref]
     assert vm.current_text == "{bpm: 90}\nC G\n"
-    assert vm.bpm == 90
+    # The song's directives stay in the song: the document starts from the
+    # defaults (the session shows the song's 90 over them).
+    assert vm.bpm == 120
     assert store.recent() == []   # the session's flows add it
 
 

@@ -76,7 +76,7 @@ def test_type_text_no_spans_before_the_debounce_spans_after(env):
         ("PlaybackState", "idle", None, None, 0, 0, None),
         ("StatusState", "Ready"),
         ("EditorState", "TkFixedFont", 11, False, "american"),
-        ("ToolbarState", "american", 120, 120, True, 100.0, "C", 4, 4, False, "play"),
+        ("ToolbarState", "american", 120, 120, True, 100.0, "C", 4, 4, False, "play", None, None, None),
         ("VoicingMenuState", "piano", ANY, None),
         ("InstrumentMenuState", 0, ANY),
         ("DocumentState", "Untitled", None, False, "Untitled - Chord Notepad", None),
@@ -212,7 +212,7 @@ def test_notation_change_redetects_immediately(env):
     assert env.recorder.compact() == [
         ("HighlightState", 1, 0, (chord(0, 2), chord(3, 5), chord(6, 8))),
         ("EditorState", "TkFixedFont", 11, False, "european"),
-        ("ToolbarState", "european", 120, 120, True, 100.0, "Do", 4, 4, False, "play")]
+        ("ToolbarState", "european", 120, 120, True, 100.0, "Do", 4, 4, False, "play", None, None, None)]
 
 
 def test_detection_starts_in_the_saved_notation():

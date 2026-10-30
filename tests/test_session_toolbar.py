@@ -154,12 +154,12 @@ def test_initial_state_comes_from_the_config():
         beats=3, unit=8, metronome=False, play_action=PlayAction.PLAY)
 
 
-def test_set_bpm_snaps_like_the_scrubber_and_saves():
-    env = Env()
+def test_set_bpm_snaps_like_the_scrubber_and_is_not_a_default():
+    env = Env(bpm=120)
     env.session.set_bpm(131)
     assert env.toolbar().bpm == 130
     assert env.main.bpm == 130
-    assert env.config.get("bpm") == 130
+    assert env.config.get("bpm") == 120   # only Settings changes the default
     assert env.player.bpm == 130
     env.session.set_bpm(1000)
     assert env.toolbar().bpm == 400
@@ -274,11 +274,18 @@ def test_whole_song_transpose_moves_the_toolbar_key():
 def test_tk_toolbar_maps_the_state():
     from ui.main_window import MainWindow
 
+    class Combo(dict):
+        def configure(self, **options):
+            self.update(options)
+
     window = SimpleNamespace(
         update_notation_buttons=Mock(), bpm_scrubber=Mock(), multiplier_scrubber=Mock(),
-        key_combo={}, key_var=Mock(), time_sig_beats_var=Mock(), time_sig_unit_var=Mock(),
+        key_combo=Combo(), key_var=Mock(), time_sig_beats_var=Mock(), time_sig_unit_var=Mock(),
+        time_sig_beats_spin=Mock(), time_sig_unit_spin=Mock(),
         _refresh_metronome_button=Mock(), play_pause_button=Mock(),
-        _icon_play="play", _icon_pause="pause", _play_pause_tooltip=SimpleNamespace(text=""))
+        _icon_play="play", _icon_pause="pause", _play_pause_tooltip=SimpleNamespace(text=""),
+        _bpm_tooltip=SimpleNamespace(text=""), _key_tooltip=SimpleNamespace(text=""),
+        _beats_tooltip=SimpleNamespace(text=""), _unit_tooltip=SimpleNamespace(text=""))
     playing = ToolbarState(
         notation="european", bpm=120, bpm_display=96, bpm_editable=False,
         multiplier_pct=150.0, key="Sol", key_options=toolbar.key_options("european"),

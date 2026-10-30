@@ -49,7 +49,11 @@ enum class PlayAction {
     @SerialName("resume") RESUME,
 }
 
-/** The toolbar: notation, tempo, key, time signature, metronome, transport. */
+/**
+ * The toolbar: notation, tempo, key, time signature, metronome, transport.
+ * The tempo, time and key are what the song starts with; `*SetBy` is the
+ * directive that sets one (`"{bpm: 90}"`), null when the song doesn't.
+ */
 @Serializable
 data class ToolbarState(
     val notation: String,
@@ -63,6 +67,9 @@ data class ToolbarState(
     val unit: Int,
     val metronome: Boolean,
     @SerialName("play_action") val playAction: PlayAction,
+    @SerialName("bpm_set_by") val bpmSetBy: String? = null,
+    @SerialName("time_set_by") val timeSetBy: String? = null,
+    @SerialName("key_set_by") val keySetBy: String? = null,
 ) : SessionState
 
 /** The status line under the editor. */

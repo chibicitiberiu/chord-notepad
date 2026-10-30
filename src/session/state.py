@@ -118,22 +118,34 @@ class PlayAction(str, Enum):
 class ToolbarState:
     """The toolbar: notation, tempo, key, time signature, metronome, transport.
 
+    The tempo, time signature and key are what the song starts with (as in
+    :class:`SongDefaultsState`): a directive before the first chord sets
+    them, else the current document's value (the Settings default unless
+    changed from the toolbar, for this document only). A value the song sets
+    is locked: ``*_set_by`` names the directive and ``set_bpm``,
+    ``set_time_signature`` and ``set_key`` are ignored for it.
+
     Attributes:
         notation: ``american`` or ``european`` (detection and the key list).
-        bpm: The user's base tempo.
+        bpm: The tempo the song starts at.
         bpm_display: The tempo to show: while a song plays, that of the
             chord sounding (directives applied) once known; else ``bpm``.
-        bpm_editable: False while a song plays or is paused (the tempo field
-            then only displays ``bpm_display``).
+        bpm_editable: False while a song plays or is paused, and when the
+            song sets its tempo (the tempo field then only displays
+            ``bpm_display``).
         multiplier_pct: The speed multiplier in percent (100 = as written);
             adjustable during playback.
-        key: The key for roman numerals, in ``notation`` (the first key
+        key: The key the song starts in, in ``notation`` (the first key
             option when none is set).
         key_options: The keys to choose from, in ``notation``.
-        beats: Time-signature numerator.
-        unit: Time-signature denominator.
+        beats: Time-signature numerator the song starts with.
+        unit: Time-signature denominator the song starts with.
         metronome: Whether the click track plays with the song.
         play_action: What the Play/Pause button does now.
+        bpm_set_by: The directive that sets the starting tempo, as written
+            (``"{bpm: 90}"``), or None when the song doesn't set it.
+        time_set_by: Likewise for the time signature (``"{time: 6/8}"``).
+        key_set_by: Likewise for the key (``"{key: D}"``).
     """
 
     notation: str
@@ -147,6 +159,9 @@ class ToolbarState:
     unit: int
     metronome: bool
     play_action: PlayAction
+    bpm_set_by: Optional[str] = None
+    time_set_by: Optional[str] = None
+    key_set_by: Optional[str] = None
 
 
 @dataclass(frozen=True)

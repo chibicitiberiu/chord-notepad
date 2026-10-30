@@ -58,10 +58,11 @@ def test_settings_state_from_the_start_and_after_every_config_write(tmp_path):
 
     session.set_show_quick_start_on_startup(False)
     assert recorder.last(SettingsState).values.show_quick_start_on_startup is False
-    session.set_bpm(90)
+    default_bpm = services.config.config.bpm
+    session.set_bpm(90)          # the document's tempo, not the default
     session.step_font_size(2)
     values = recorder.last(SettingsState).values
-    assert values.bpm == 90 and values.font_size == services.config.config.font_size
+    assert values.bpm == default_bpm and values.font_size == services.config.config.font_size
     # An unchanged config publishes nothing.
     count = len(recorder.of_type(SettingsState))
     session.set_text("C G")
@@ -208,9 +209,10 @@ def test_save_is_gated_by_every_voicing_then_commits_and_applies(tmp_path):
 def test_save_without_values_keeps_the_current_config_values(tmp_path):
     session, services, _ = make(tmp_path)
     session.begin_settings_edit()
-    session.set_bpm(150)                                       # after the edit began
+    session.step_font_size(2)                                  # after the edit began
+    size = services.config.config.font_size
     session.save_settings(None)
-    assert services.config.config.bpm == 150
+    assert services.config.config.font_size == size
 
 
 def test_save_rejects_out_of_range_values(tmp_path):

@@ -567,6 +567,7 @@ def test_app_background_pauses_and_saves_the_config_atomically(tmp_path):
         config_file = env.services.appdata.get_config_file_path()
         assert config_file.parent == tmp_path / "config" / "chord-notepad"
         env.send("set_bpm", bpm=150)
+        env.send("set_multiplier_pct", pct=150)
         env.send("set_text", text="C G", client_token=1)
         env.expect("HighlightState", lambda d: d["client_token"] == 1 and d["spans"])
         env.send("play_pause", from_offset=None)
@@ -574,7 +575,9 @@ def test_app_background_pauses_and_saves_the_config_atomically(tmp_path):
         env.send("app_background")
         env.expect("PlaybackState", lambda d: d["status"] == "paused")
         env.settle()
-        assert json.loads(config_file.read_text())["bpm"] == 150
+        saved = json.loads(config_file.read_text())
+        # Saved, without the document's tempo going into the default.
+        assert (saved["bpm_multiplier"], saved["bpm"]) == (1.5, 120)
         assert not list(config_file.parent.glob("*.tmp"))
         env.send("app_foreground")
         env.settle()

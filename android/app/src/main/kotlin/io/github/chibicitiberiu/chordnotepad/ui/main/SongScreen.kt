@@ -493,7 +493,8 @@ private fun fallbackDefaults(t: ToolbarState): SongDefaults {
     val tempo = t.bpmDisplay.toString()
     val time = "${t.beats}/${t.unit}"
     return SongDefaults(
-        SongDefaultValue(tempo, false), SongDefaultValue(time, false), SongDefaultValue(t.key, false),
+        SongDefaultValue(tempo, t.bpmSetBy != null), SongDefaultValue(time, t.timeSetBy != null),
+        SongDefaultValue(t.key, t.keySetBy != null),
         SongDefaults.summaryOf(tempo, time, t.key),
     )
 }

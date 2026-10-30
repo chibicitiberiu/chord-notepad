@@ -105,7 +105,7 @@ def _editor(read_only):
 def _toolbar(action="play", bpm_display=120):
     """The compacted ToolbarState for the defaults (120 BPM, key C, 4/4)."""
     return ("ToolbarState", "american", 120, bpm_display, action == "play", 100.0, "C",
-            4, 4, False, action)
+            4, 4, False, action, None, None, None)
 
 
 def _defaults(locked):
@@ -166,11 +166,12 @@ def test_directive_tempo_reaches_the_toolbar_and_the_status():
     env = Env(text="{bpm: 90}\nC G")
     env.session.play_pause()
     env.rendered()
-    # Read-only 120 until the first chord, then the directive's 90, then
-    # the user's 120 again once the song is over.
-    assert [(t.bpm_display, t.bpm_editable) for t in env.recorder.of_type(ToolbarState)] == [
-        (120, False), (90, False), (120, True)]
-    assert all(t.bpm == 120 for t in env.recorder.of_type(ToolbarState))
+    # The song sets its tempo: 90, read-only, while playing and after
+    # (only the Play/Pause action changes).
+    assert [(t.bpm_display, t.bpm_editable, t.play_action.value)
+            for t in env.recorder.of_type(ToolbarState)] == [
+        (90, False, "pause"), (90, False, "play")]
+    assert all(t.bpm == 90 for t in env.recorder.of_type(ToolbarState))
     assert "90 BPM" in env.recorder.of_type(StatusState)[1].text
 
 

@@ -99,7 +99,7 @@ def test_golden_transpose_is_one_grouped_edit_then_immediate_spans_and_key_shift
         ("TextEdited", 2, 0, 12, "D A\nla la\nBm", "group", 12),
         ("HighlightState", 2, 0, (chord(0, 1), chord(2, 3), chord(10, 12))),
         # The toolbar key moved with the song.
-        ("ToolbarState", "american", 120, 120, True, 100.0, "D", 4, 4, False, "play"),
+        ("ToolbarState", "american", 120, 120, True, 100.0, "D", 4, 4, False, "play", None, None, None),
         # So did the song's starting key.
         ("SongDefaultsState", ("SongDefault", "120", False, None),
          ("SongDefault", "4/4", False, None), ("SongDefault", "D", False, None),
@@ -165,7 +165,7 @@ def test_convert_is_a_plain_edit_and_switches_detection():
         # Detection and the toolbar follow the target notation (no key set:
         # the first option).
         ("EditorState", "TkFixedFont", 11, False, "european"),
-        ("ToolbarState", "european", 120, 120, True, 100.0, "Do", 4, 4, False, "play"),
+        ("ToolbarState", "european", 120, 120, True, 100.0, "Do", 4, 4, False, "play", None, None, None),
         ("StatusState", "Converted to European notation"),
     ]
     assert env.main.notation.value == "european"

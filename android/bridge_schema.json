@@ -586,12 +586,15 @@
         "bpm": "int",
         "bpm_display": "int",
         "bpm_editable": "bool",
+        "bpm_set_by": "str|null",
         "key": "str",
         "key_options": "list[str]",
+        "key_set_by": "str|null",
         "metronome": "bool",
         "multiplier_pct": "float",
         "notation": "str",
         "play_action": "PlayAction",
+        "time_set_by": "str|null",
         "unit": "int"
       },
       "kind": "state"

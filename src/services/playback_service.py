@@ -478,7 +478,6 @@ class PlaybackService:
         if self._player:
             self._logger.debug(f"Setting BPM to {bpm}")
             self._player.set_bpm(bpm)
-            self._config.set("bpm", bpm)
 
         # Update playback state
         self._playback_state.set_bpm(bpm)
@@ -678,6 +677,8 @@ class PlaybackService:
         start_line_index: int = 0,
         start_item_index: int = 0,
         on_error_callback: Optional[Callable[[str], None]] = None,
+        initial_bpm: Optional[int] = None,
+        initial_time_sig: Optional[Tuple[int, int]] = None,
     ) -> bool:
         """Start playback of a song with lines containing chords and directives.
 
@@ -691,6 +692,9 @@ class PlaybackService:
             on_error_callback: Called with a message if rendering fails on the
                 render thread (after ``on_finished_callback``, so the caller's
                 playing state is reset first). Runs on the render thread.
+            initial_bpm: The tempo the song starts at unless it sets one (the
+                document's); None uses the playback state's.
+            initial_time_sig: Likewise the ``(beats, unit)``.
 
         Returns:
             True if playback started, False if there was nothing to play
@@ -712,8 +716,10 @@ class PlaybackService:
         self._logger.info(f"Starting song playback with {total_chords} chords (pre-render)")
 
         # Get initial playback parameters
-        initial_bpm = self._playback_state.bpm
-        initial_time_sig = self.get_time_signature()
+        if initial_bpm is None:
+            initial_bpm = self._playback_state.bpm
+        if initial_time_sig is None:
+            initial_time_sig = self.get_time_signature()
 
         has_callback = on_event_callback is not None
         cancel_event = threading.Event()

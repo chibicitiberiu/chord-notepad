@@ -51,10 +51,13 @@ class BridgeCodecTest {
             "ToolbarState",
             """{"notation": "american", "bpm": 120, "bpm_display": 90, "bpm_editable": false,
                "multiplier_pct": 100.0, "key": "C", "key_options": ["C", "G"], "beats": 3, "unit": 4,
-               "metronome": true, "play_action": "pause"}""",
+               "metronome": true, "play_action": "pause", "bpm_set_by": "{bpm: 120}",
+               "time_set_by": null, "key_set_by": null}""",
         )
         assertEquals(PlayAction.PAUSE, t.playAction)
         assertEquals(listOf("C", "G"), t.keyOptions)
+        assertEquals("{bpm: 120}", t.bpmSetBy)
+        assertEquals(null, t.timeSetBy)
         val e = decode<EditorState>(
             "EditorState",
             """{"font_family": "TkFixedFont", "font_size": 12, "read_only": true, "notation": "european"}""",

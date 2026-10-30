@@ -279,6 +279,7 @@ def test_errors_on_the_session_thread_reach_the_sink(started):
 def test_lifecycle_commands(started):
     handle, _, sink, tmp_path = started
     handle.submit("set_bpm", json.dumps({"bpm": 133.0}))
+    handle.submit("set_multiplier_pct", json.dumps({"pct": 150.0}))
     handle.submit("app_background", "{}")
     handle.submit("app_foreground", "{}")
     handle.submit("pause", "{}")
@@ -286,7 +287,9 @@ def test_lifecycle_commands(started):
         {"text": "G D\n", "document": None, "modified": True}))
     sink.wait_for("DocumentState", lambda d: d["is_modified"] and d["document_id"] is None)
     config = json.loads((tmp_path / "config" / "chord-notepad" / "settings.json").read_text())
-    assert config["bpm"] == 133
+    # Saved on app_background, but the tempo is the document's, not a default.
+    assert config["bpm_multiplier"] == 1.5
+    assert config["bpm"] == 120
     assert not [e for e in sink.events if e[0] == "UnexpectedError"]
 
 

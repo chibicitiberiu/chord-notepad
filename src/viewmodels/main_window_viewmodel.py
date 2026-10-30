@@ -1,15 +1,16 @@
 """ViewModel for the main application window."""
 
 import logging
-from typing import Optional, List, Callable
+from typing import Optional, List, Callable, Tuple
 from utils.observable import Observable
 from services.config_service import ConfigService
 from services.playback_service import PlaybackService
 from services.song_parser_service import SongParserService
 from session.documents import DocumentRef, DocumentStore
+from session.toolbar import convert_key, key_options
+from constants import DEFAULT_BPM
 from models.line import Line
 from models.chord import ChordInfo
-from models.directive import BPMModifierType, DirectiveType
 from models.notation import Notation
 from models.playback_event import PlaybackEventArgs, PlaybackEventType
 
@@ -71,7 +72,6 @@ class MainWindowViewModel(Observable):
         self._is_modified: bool = False
         self._is_playing: bool = False
         self._is_paused: bool = False
-        self._bpm: int = self._config.get("bpm", 120)
         self._bpm_multiplier: float = float(self._config.get("bpm_multiplier", 1.0))
         self._metronome_enabled: bool = False  # Always starts off per session
         # Convert string notation to enum
@@ -80,9 +80,12 @@ class MainWindowViewModel(Observable):
         self._font_size: int = self._config.get("font_size", 11)
         self._font_family: str = self._config.get("font_family", "TkFixedFont")
         self._current_text: str = ""
-        self._key: Optional[str] = self._config.get("key", None)
-        self._time_signature_beats: int = self._config.get("time_signature_beats", 4)
-        self._time_signature_unit: int = self._config.get("time_signature_unit", 4)
+        # The current document's tempo, key and time signature: the Settings
+        # defaults until changed from the toolbar, for this document only
+        # (never written back to the config; New and Open start over from
+        # the defaults, see load_defaults).
+        self._bpm, self._key, (self._time_signature_beats, self._time_signature_unit) = (
+            self._default_values())
 
         # Playback state
         self._current_chord_index: int = 0
@@ -205,6 +208,7 @@ class MainWindowViewModel(Observable):
             pass
 
         logger.info("Creating new file")
+        self.load_defaults()
         self.set_and_notify("current_text", "")
         self.set_and_notify("is_modified", False)
         self.set_and_notify("current_document", None)
@@ -225,12 +229,12 @@ class MainWindowViewModel(Observable):
             logger.info(f"Opening file: {ref.location}")
             content = self._documents.read_text(ref)
 
+            # The song's own directives aren't copied anywhere: what it sets
+            # is read from its text (session.song_defaults).
+            self.load_defaults()
             self.set_and_notify("current_text", content)
             self.set_and_notify("is_modified", False)
             self.set_and_notify("current_document", ref)
-
-            # Extract and apply initial settings from first directives in the file
-            self._apply_initial_settings_from_content(content)
 
             return True
 
@@ -243,8 +247,8 @@ class MainWindowViewModel(Observable):
         """Take back a draft: its text, its document (not read) and its modified flag.
 
         For a process that was killed with unsaved work (Android). Unlike
-        :meth:`open_file`, the document isn't read and its directives don't
-        change the toolbar (the toolbar values were kept in the config).
+        :meth:`open_file`, the document isn't read. The tempo, key and time
+        signature stay as they are (a new process starts from the defaults).
 
         Args:
             text: The draft's text.
@@ -341,9 +345,8 @@ class MainWindowViewModel(Observable):
         text, notation, key = self._current_text, self._notation, self._key
         program = self._config.get("instrument", 0)
         title = self._current_document.stem if self._current_document is not None else "Untitled"
-        playback = self._audio.get_playback_state()
-        bpm = playback.bpm
-        time_signature = (playback.time_signature_beats, playback.time_signature_unit)
+        bpm = self._bpm
+        time_signature = (self._time_signature_beats, self._time_signature_unit)
         # Its own picker: the shared one may be voicing a playback render on
         # the render thread meanwhile.
         picker = self._audio.create_note_picker()
@@ -495,6 +498,8 @@ class MainWindowViewModel(Observable):
         success = self._audio.start_song_playback(
             lines=self._playback_lines,
             initial_key=self._key,
+            initial_bpm=self._bpm,
+            initial_time_sig=(self._time_signature_beats, self._time_signature_unit),
             on_finished_callback=on_finished_wrapper,
             on_event_callback=on_event_wrapper,
             start_line_index=start_line_index,
@@ -573,7 +578,7 @@ class MainWindowViewModel(Observable):
         self._audio.play_chord_immediate(chord_info, self._key)
 
     def set_bpm(self, bpm: int) -> None:
-        """Set playback tempo.
+        """Set the current document's tempo (not saved to the defaults).
 
         Args:
             bpm: Beats per minute (20-400)
@@ -584,7 +589,6 @@ class MainWindowViewModel(Observable):
 
         logger.debug(f"Setting BPM to {bpm}")
         self._audio.set_bpm(bpm)
-        self._config.set("bpm", bpm)
         self.set_and_notify("bpm", bpm)
 
     def toggle_metronome(self) -> None:
@@ -616,18 +620,17 @@ class MainWindowViewModel(Observable):
         self.set_and_notify("bpm_multiplier", multiplier)
 
     def set_key(self, key: Optional[str]) -> None:
-        """Set the key signature.
+        """Set the current document's key (not saved to the defaults).
 
         Args:
             key: Key signature (e.g., 'C', 'Am', 'G') or None
         """
         logger.debug(f"Setting key to {key}")
         self._audio.set_key(key) if key else None
-        self._config.set("key", key)
         self.set_and_notify("key", key)
 
     def set_time_signature(self, beats: int, unit: int) -> None:
-        """Set the time signature.
+        """Set the current document's time signature (not saved to the defaults).
 
         Args:
             beats: Number of beats per measure
@@ -642,8 +645,6 @@ class MainWindowViewModel(Observable):
 
         logger.debug(f"Setting time signature to {beats}/{unit}")
         self._audio.set_time_signature_from_state(beats, unit)
-        self._config.set("time_signature_beats", beats)
-        self._config.set("time_signature_unit", unit)
         self.set_and_notify("time_signature_beats", beats)
         self.set_and_notify("time_signature_unit", unit)
 
@@ -872,9 +873,8 @@ class MainWindowViewModel(Observable):
             return None
 
         text, notation, key = self._current_text, self._notation, self._key
-        playback = self._audio.get_playback_state()
-        bpm = playback.bpm
-        time_signature = (playback.time_signature_beats, playback.time_signature_unit)
+        bpm = self._bpm
+        time_signature = (self._time_signature_beats, self._time_signature_unit)
 
         def score() -> Optional[int]:
             from audio.guitar_chord_picker import GuitarChordPicker
@@ -1025,75 +1025,27 @@ class MainWindowViewModel(Observable):
         """
         self._config.set("show_quick_start_on_startup", show)
 
-    def _apply_initial_settings_from_content(self, content: str) -> None:
-        """Parse content and apply initial settings from first directives.
+    def _default_values(self) -> Tuple[int, Optional[str], Tuple[int, int]]:
+        """The Settings defaults: tempo, key (in the current notation, or
+        None) and ``(beats, unit)``."""
+        bpm = int(self._config.get("bpm", DEFAULT_BPM))
+        key = self._config.get("key", None) or None
+        if key and key not in key_options(self._notation.value):
+            # Saved in the other notation ("Sol" while detecting American).
+            key = convert_key(key, self._notation.value)
+        beats = int(self._config.get("time_signature_beats", 4))
+        unit = int(self._config.get("time_signature_unit", 4))
+        return bpm, key, (beats, unit)
 
-        This is called when loading a file to set toolbar values based on
-        the first occurrence of each directive type in the document.
+    def load_defaults(self) -> None:
+        """Start the current document over from the Settings defaults.
 
-        Args:
-            content: The text content of the file
+        New and Open call this: a tempo, key or time signature changed from
+        the toolbar only lasted for the document it was changed in. Nothing
+        is written to the config.
         """
-        try:
-            # Parse the content to extract lines with directives
-            lines = self._chord.detect_chords_in_text(content, self._notation)
-
-            # Extract initial settings from first directives
-            settings = self._extract_initial_settings_from_lines(lines)
-
-            # Apply settings to toolbar (UI state)
-            if 'bpm' in settings:
-                logger.info(f"Setting initial BPM from directive: {settings['bpm']}")
-                self.set_bpm(settings['bpm'])
-
-            if 'key' in settings:
-                logger.info(f"Setting initial key from directive: {settings['key']}")
-                self.set_key(settings['key'])
-
-            if 'time_signature' in settings:
-                beats, unit = settings['time_signature']
-                logger.info(f"Setting initial time signature from directive: {beats}/{unit}")
-                self.set_time_signature(beats, unit)
-
-        except Exception as e:
-            logger.warning(f"Failed to extract initial settings from content: {e}")
-            # Not critical - just continue with default settings
-
-    def _extract_initial_settings_from_lines(self, lines: List[Line]) -> dict:
-        """Extract initial playback settings from first directives in document.
-
-        Scans through lines sequentially and finds the first occurrence of each
-        directive type (BPM, KEY, TIME_SIGNATURE). Returns these as initial settings.
-
-        Args:
-            lines: Parsed lines from the document
-
-        Returns:
-            Dict with 'bpm', 'key', and/or 'time_signature' if found
-        """
-        settings = {}
-        found = {'bpm': False, 'key': False, 'time': False}
-
-        for line in lines:
-            for directive in line.directives:
-                if not directive.is_valid:
-                    continue
-                if directive.type == DirectiveType.BPM and not found['bpm']:
-                    # Only an absolute tempo names a toolbar value.
-                    if directive.bpm_modifier_type == BPMModifierType.ABSOLUTE:
-                        settings['bpm'] = directive.bpm
-                    found['bpm'] = True
-
-                elif directive.type == DirectiveType.KEY and not found['key']:
-                    settings['key'] = directive.key
-                    found['key'] = True
-
-                elif directive.type == DirectiveType.TIME_SIGNATURE and not found['time']:
-                    settings['time_signature'] = (directive.beats, directive.unit)
-                    found['time'] = True
-
-            # Early exit if we found all directive types
-            if all(found.values()):
-                break
-
-        return settings
+        bpm, key, (beats, unit) = self._default_values()
+        logger.debug(f"Loading the defaults: {bpm} BPM, {beats}/{unit}, key {key}")
+        self.set_bpm(bpm)
+        self.set_key(key)
+        self.set_time_signature(beats, unit)

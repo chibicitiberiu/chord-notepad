@@ -192,6 +192,9 @@ class AppSession:
 
         # The session's copy of the editor text, and its revision.
         self._text = self._main.current_text
+        # The text the detected lines were found in (their offsets point
+        # into it; the session's copy may have moved on since).
+        self._detected_text = ""
         self._revision = 0
         self._client_token = 0
         self._detect_timer: Optional[Cancellable] = None
@@ -227,8 +230,9 @@ class AppSession:
         self._main.observe("notation", self._on_notation)
 
         # The toolbar mirrors the viewmodel's tempo, key, time signature and
-        # metronome, whoever changed them (a command, an opened file's
-        # directives, a whole-song transpose).
+        # metronome, whoever changed them (a command, New/Open going back to
+        # the defaults, a whole-song transpose), with the song's own
+        # directives on top (see _publish_toolbar).
         self._on_toolbar_input = self._entry(self._on_toolbar_value)
         for name in _TOOLBAR_INPUTS:
             self._main.observe(name, self._on_toolbar_input)
@@ -1016,13 +1020,18 @@ class AppSession:
 
     @_command
     def set_bpm(self, bpm: float) -> None:
-        """Set the base tempo; ignored while a song plays or is paused.
+        """Set the current document's tempo (not the default in Settings).
 
-        The value is clamped to 20-400 and snapped like the toolbar's tempo
-        control (``toolbar.BPM_SCALE``).
+        Ignored while a song plays or is paused, and when the song sets its
+        starting tempo with a directive (``ToolbarState.bpm_set_by``). The
+        value is clamped to 20-400 and snapped like the toolbar's tempo
+        control (``toolbar.BPM_SCALE``). New and Open go back to the default.
         """
         if self._playback_status() is not PlaybackStatus.IDLE:
             logger.info("Ignoring a tempo change while a song is playing")
+            return
+        if self._setting_directives().tempo is not None:
+            logger.info("Ignoring a tempo change: the song sets its tempo")
             return
         self._main.set_bpm(toolbar.normalize_bpm(bpm))
 
@@ -1073,17 +1082,28 @@ class AppSession:
 
     @_command
     def set_key(self, key: Optional[str]) -> None:
-        """Set the key roman numerals resolve in (None or empty: no key)."""
+        """Set the current document's key, which roman numerals resolve in
+        (None or empty: no key). Not the default in Settings; ignored when
+        the song sets its starting key (``ToolbarState.key_set_by``)."""
+        if self._setting_directives().key is not None:
+            logger.info("Ignoring a key change: the song sets its key")
+            return
         self._main.set_key(key or None)
 
     @_command
     def set_time_signature(self, beats: int, unit: int) -> None:
-        """Set the time signature; invalid values are logged and ignored.
+        """Set the current document's time signature (not the default in
+        Settings); invalid values are logged and ignored, and so is any
+        change when the song sets its time signature
+        (``ToolbarState.time_set_by``).
 
         Args:
             beats: Beats per bar, 1-16.
             unit: The beat unit: 1, 2, 4, 8 or 16.
         """
+        if self._setting_directives().time is not None:
+            logger.info("Ignoring a time-signature change: the song sets it")
+            return
         self._main.set_time_signature(int(beats), int(unit))
 
     @_command
@@ -1719,11 +1739,16 @@ class AppSession:
         self._detect_timer = None
         self._detect_now()
 
-    def _detect_now(self) -> None:
+    def _detect_now(self, publish_toolbar: bool = True) -> None:
+        """Detect the text now. The toolbar follows (the song's directives
+        set its values) unless the caller publishes it itself, later."""
         self._cancel_detection()
         self._detector.on_text_changed(self._text)
+        self._detected_text = self._text
         self._publish_highlight()
         self._publish_song_defaults()
+        if publish_toolbar:
+            self._publish_toolbar()
         self._snap_playhead()
 
     def _publish_highlight(self) -> None:
@@ -2045,7 +2070,7 @@ class AppSession:
         the views get the edit first and then its highlight.
         """
         self._detector.set_notation(notation.value)
-        self._detect_now()
+        self._detect_now(publish_toolbar=False)
         self._publish_editor()
         key = self._main.key
         if key:
@@ -2144,24 +2169,41 @@ class AppSession:
     def _publish_song_defaults(self) -> None:
         self._emitter.set_state(self._song_defaults())
 
+    def _setting_directives(self) -> song_defaults.SettingDirectives:
+        """The directives with which the song sets its starting values."""
+        return song_defaults.setting_directives(self._detector.detected_lines)
+
+    def _directive_text(self, directive: Any) -> Optional[str]:
+        """``directive`` as written in the song, or None."""
+        if directive is None:
+            return None
+        return self._detected_text[directive.start:directive.end]
+
     def _publish_toolbar(self, _changed: Any = None) -> None:
         status = self._playback.status
         idle = status is PlaybackStatus.IDLE
-        bpm = self._main.bpm
         notation = self._main.notation.value
+        # What the song starts with: its directives over the document's values.
+        start = self._song_defaults()
+        setting = self._setting_directives()
+        bpm = int(start.tempo.value)
+        beats, unit = (int(v) for v in start.time.value.split("/"))
         self._emitter.set_state(ToolbarState(
             notation=notation,
             bpm=bpm,
             bpm_display=(self._effective_bpm
                          if not idle and self._effective_bpm is not None else bpm),
-            bpm_editable=idle,
+            bpm_editable=idle and setting.tempo is None,
             multiplier_pct=round(self._main.bpm_multiplier * 100.0, 6),
-            key=toolbar.shown_key(self._main.key, notation),
+            key=toolbar.shown_key(start.key.value or None, notation),
             key_options=toolbar.key_options(notation),
-            beats=self._main.time_signature_beats,
-            unit=self._main.time_signature_unit,
+            beats=beats,
+            unit=unit,
             metronome=self._main.metronome_enabled,
             play_action=_PLAY_ACTIONS[status],
+            bpm_set_by=self._directive_text(setting.tempo),
+            time_set_by=self._directive_text(setting.time),
+            key_set_by=self._directive_text(setting.key),
         ))
 
     # -- playback internals -----------------------------------------------------
