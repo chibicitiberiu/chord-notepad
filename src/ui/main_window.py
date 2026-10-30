@@ -63,6 +63,20 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 # The Play/Pause button's tooltip for what pressing it does.
+# The tempo, key and time-signature tooltips; a value the song sets shows
+# set_by_tooltip(directive) instead.
+_BPM_TOOLTIP = ("Beats per minute for this song (the default is in Settings). Drag to change, "
+                "click to type, middle-click to reset to 120. Read-only during playback.")
+_KEY_TOOLTIP = "Key for roman numeral chords in this song (the default is in Settings)"
+_BEATS_TOOLTIP = "Beats per measure"
+_UNIT_TOOLTIP = "Beat unit (4 = quarter note)"
+
+
+def set_by_tooltip(directive: str) -> str:
+    """The tooltip of a toolbar value the song sets with ``directive``."""
+    return f"Set by {directive} in the song"
+
+
 _PLAY_PAUSE_TOOLTIPS = {
     PlayAction.PLAY: "Play from start (Shift+Click to play from cursor)",
     PlayAction.PAUSE: "Pause playback",
@@ -290,10 +304,12 @@ class MainWindow(tk.Tk):
         self.option_add('*Listbox.selectBackground', UI_ACCENT)
         self.option_add('*Listbox.selectForeground', 'white')
         # Readonly comboboxes (Key) read as a plain white field, not a grey slab.
+        # Disabled (the song sets the key) greys the text like the spinboxes.
         style.map('TCombobox',
                   fieldbackground=[('readonly', 'white')],
                   selectbackground=[('readonly', 'white')],
-                  selectforeground=[('readonly', 'black')],
+                  foreground=[('disabled', Scrubber.READONLY_COLOR)],
+                  selectforeground=[('disabled', Scrubber.READONLY_COLOR), ('readonly', 'black')],
                   background=[('active', UI_HOVER)])
         style.configure('TCombobox', arrowcolor=UI_TEXT_MUTED)
         style.configure('TSpinbox', arrowcolor=UI_TEXT_MUTED)
@@ -380,18 +396,33 @@ class MainWindow(tk.Tk):
         self._notation = state.notation
         self.update_notation_buttons()
 
-        # While a song plays the BPM scrubber is a read-only display of the
-        # effective tempo; afterwards it shows the user's base value again.
+        # The tempo, key and time signature are what the song starts with. A
+        # value the song sets with a directive is greyed out (the tooltip
+        # names the directive). While a song plays the BPM scrubber is a
+        # read-only display of the effective tempo; afterwards it shows the
+        # starting value again.
         self.bpm_scrubber.set_readonly(not state.bpm_editable)
         self.bpm_scrubber.set_value(state.bpm)
         if not state.bpm_editable:
             self.bpm_scrubber.set_display_text(format_bpm(state.bpm_display))
+        self._bpm_tooltip.text = (set_by_tooltip(state.bpm_set_by) if state.bpm_set_by
+                                  else _BPM_TOOLTIP)
         self.multiplier_scrubber.set_value(state.multiplier_pct)
 
         self.key_combo['values'] = state.key_options
         self.key_var.set(state.key)
+        self.key_combo.configure(state="disabled" if state.key_set_by else "readonly")
+        self._key_tooltip.text = (set_by_tooltip(state.key_set_by) if state.key_set_by
+                                  else _KEY_TOOLTIP)
         self.time_sig_beats_var.set(state.beats)
         self.time_sig_unit_var.set(state.unit)
+        time_state = "disabled" if state.time_set_by else "normal"
+        self.time_sig_beats_spin.configure(state=time_state)
+        self.time_sig_unit_spin.configure(state=time_state)
+        if state.time_set_by:
+            self._beats_tooltip.text = self._unit_tooltip.text = set_by_tooltip(state.time_set_by)
+        else:
+            self._beats_tooltip.text, self._unit_tooltip.text = _BEATS_TOOLTIP, _UNIT_TOOLTIP
         self._refresh_metronome_button(state.metronome)
 
         pausing = state.play_action is PlayAction.PAUSE
@@ -587,7 +618,7 @@ class MainWindow(tk.Tk):
         self.bpm_scrubber = self._make_scrubber(
             BPM_SCALE, format_bpm, parse_bpm, self._on_bpm_scrubber_change, width=4)
         self.bpm_scrubber.pack(side=tk.LEFT)
-        self.create_tooltip(self.bpm_scrubber, "Beats per minute. Drag to change, click to type, middle-click to reset to 120. Read-only during playback.")
+        self._bpm_tooltip = create_tooltip(self.bpm_scrubber, _BPM_TOOLTIP)
         self.bpm_unit_label = ttk.Label(self.toolbar, text="bpm")
         self.bpm_unit_label.pack(side=tk.LEFT, padx=(1, 6))
 
@@ -610,7 +641,7 @@ class MainWindow(tk.Tk):
         self.key_combo.pack(side=tk.LEFT)
         # Only a user's pick is sent; the session's state sets the variable.
         self.key_combo.bind('<<ComboboxSelected>>', self.on_key_change)
-        self.create_tooltip(self.key_combo, "Key signature for roman numeral chords")
+        self._key_tooltip = create_tooltip(self.key_combo, _KEY_TOOLTIP)
 
         # Time signature control
         self._toolbar_separator()
@@ -620,7 +651,7 @@ class MainWindow(tk.Tk):
                                                textvariable=self.time_sig_beats_var,
                                                width=3, command=self.on_time_signature_change)
         self.time_sig_beats_spin.pack(side=tk.LEFT)
-        self.create_tooltip(self.time_sig_beats_spin, "Beats per measure")
+        self._beats_tooltip = create_tooltip(self.time_sig_beats_spin, _BEATS_TOOLTIP)
 
         ttk.Label(self.toolbar, text="/", style='Muted.TLabel').pack(side=tk.LEFT, padx=3)
 
@@ -629,7 +660,7 @@ class MainWindow(tk.Tk):
                                               textvariable=self.time_sig_unit_var,
                                               width=3, command=self.on_time_signature_change)
         self.time_sig_unit_spin.pack(side=tk.LEFT)
-        self.create_tooltip(self.time_sig_unit_spin, "Beat unit (4 = quarter note)")
+        self._unit_tooltip = create_tooltip(self.time_sig_unit_spin, _UNIT_TOOLTIP)
 
         # Cache icons up front so PhotoImage refs survive
         ICON_SIZE = 24
