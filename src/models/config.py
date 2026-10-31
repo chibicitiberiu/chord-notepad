@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 from typing import List, Optional, Literal, Dict
 
 from constants import MAX_BPM, MIN_BPM
+from models.notation import american_key
 from models.ensemble_spec import BUILTIN_ENSEMBLES
 
 logger = logging.getLogger(__name__)
@@ -40,7 +41,7 @@ class Config:
 
     # Notation
     notation: Literal["american", "european"] = "american"
-    key: str = "C"  # Default key signature
+    key: str = "C"  # Default key, always American spelling ("G", not "Sol"); "" for none
 
     # Window
     window_geometry: str = "900x600"
@@ -110,7 +111,7 @@ class Config:
             "voicings": self.voicings,
             "instrument": self.instrument,
             "notation": self.notation,
-            "key": self.key,
+            "key": american_key(self.key),
             "window_geometry": self.window_geometry,
             "window_maximized": self.window_maximized,
             "recent_files": self.recent_files,
@@ -132,6 +133,10 @@ class Config:
 
         Note: Version is extracted but not used in construction here.
         The ConfigService handles version migration before calling this method.
+
+        A default ``key`` saved in European spelling by older versions
+        ("Sol") is read as American ("G"): the config stores keys in
+        American spelling, whatever the notation.
 
         Migrates the legacy ``custom_tunings``/``custom_ensembles`` keys (if
         present) into the unified ``voicings`` registry: each
@@ -161,7 +166,8 @@ class Config:
             voicings=voicings,
             instrument=data.get("instrument", 0),
             notation=data.get("notation", "american"),
-            key=data.get("key", "C"),
+            # Older versions saved the key in the notation's spelling.
+            key=american_key(data.get("key", "C")),
             window_geometry=data.get("window_geometry", "900x600"),
             window_maximized=data.get("window_maximized", False),
             recent_files=data.get("recent_files", []),

@@ -17,6 +17,7 @@ import logging
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
 
+from models.notation import american_key, key_names, spell_key
 from services.config_service import ConfigService
 from settings_forms.voicing_form import load_presets, voicing_error
 
@@ -74,7 +75,8 @@ class SettingsViewModel:
         self.font_family: str = config.font_family
         self.font_size: int = config.font_size
         self.notation: str = config.notation
-        self.key: str = config.key
+        # American spelling, whatever the notation (see shown_key).
+        self.key: str = american_key(config.key)
         self.show_quick_start_on_startup: bool = config.show_quick_start_on_startup
         self.max_recent_files: int = config.max_recent_files
         self.log_level: str = config.log_level
@@ -98,6 +100,22 @@ class SettingsViewModel:
         # string can be followed through a rename chain at commit.
         self._original_names = set(config.voicings.keys())
         self._rename_map: Dict[str, str] = {}
+
+    # -- Default key -----------------------------------------------------------
+
+    def key_choices(self) -> Tuple[str, ...]:
+        """The default keys to pick from, spelled in the working notation."""
+        return key_names(self.notation)
+
+    @property
+    def shown_key(self) -> str:
+        """The default key spelled in the working notation ("Sol" for G in European)."""
+        return spell_key(self.key, self.notation)
+
+    @shown_key.setter
+    def shown_key(self, key: str) -> None:
+        """Take a key picked from :meth:`key_choices` (stored American)."""
+        self.key = american_key(key)
 
     # -- Voicings registry ---------------------------------------------------
 
@@ -239,6 +257,8 @@ class SettingsViewModel:
         """
         config = self._config_service.config
         registry = self._working_voicings if voicings is None else voicings
+        # The key goes in American spelling, whatever the notation.
+        self.key = american_key(self.key)
 
         changes = SettingsChanges()
         changes.font_changed = self._group_changed(_FONT_FIELDS)

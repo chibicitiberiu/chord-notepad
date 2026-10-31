@@ -10,6 +10,7 @@ from typing import Any, Callable, Dict, Optional
 
 from constants import MIN_FONT_SIZE, MAX_FONT_SIZE
 from exceptions import ConfigurationError
+from models.notation import key_names, spell_key
 from viewmodels.settings_viewmodel import SettingsViewModel
 from ui.dialogs.voicings_page import VoicingsPage
 from utils.file_dialogs import ask_open_filename
@@ -32,11 +33,6 @@ AUDIO_DRIVERS = ["", "alsa", "pulseaudio", "jack", "dsound", "coreaudio"]
 # smaller than session.toolbar.key_options(), which lists every
 # enharmonic spelling for the toolbar's roman-numeral key selector; the
 # Settings default key just needs a single sane starting point.
-DEFAULT_KEY_OPTIONS = [
-    "C", "C#", "Db", "D", "Eb", "E", "F", "F#",
-    "Gb", "G", "Ab", "A", "Bb", "B",
-]
-
 RESTART_HINT = "Takes effect after restart."
 
 _HINT_FG = "#666666"
@@ -172,14 +168,23 @@ class OptionsDialog(tk.Toplevel):
         self._bind_var(notation_var, "notation")
         row += 1
 
-        # Default key
+        # Default key: shown in the notation picked above, stored American.
         ttk.Label(page, text="Default key:").grid(row=row, column=0, sticky="w", pady=6)
-        key_var = tk.StringVar(value=self._viewmodel.key)
+        key_var = tk.StringVar(value=self._viewmodel.shown_key)
         key_combo = ttk.Combobox(
-            page, textvariable=key_var, state="readonly", values=DEFAULT_KEY_OPTIONS, width=6,
+            page, textvariable=key_var, state="readonly",
+            values=list(self._viewmodel.key_choices()), width=6,
         )
         key_combo.grid(row=row, column=1, sticky="w", pady=6)
-        self._bind_var(key_var, "key")
+        self._bind_var(key_var, "shown_key")
+
+        def respell_key(*_args: Any) -> None:
+            # Runs before the notation reaches the viewmodel (newest trace first).
+            notation = notation_var.get()
+            key_combo["values"] = list(key_names(notation))
+            key_var.set(spell_key(self._viewmodel.key, notation))
+
+        notation_var.trace_add("write", respell_key)
         row += 1
 
         # Show quick start on startup

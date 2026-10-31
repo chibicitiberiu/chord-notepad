@@ -7,11 +7,10 @@ from services.config_service import ConfigService
 from services.playback_service import PlaybackService
 from services.song_parser_service import SongParserService
 from session.documents import DocumentRef, DocumentStore
-from session.toolbar import convert_key, key_options
 from constants import DEFAULT_BPM
 from models.line import Line
 from models.chord import ChordInfo
-from models.notation import Notation
+from models.notation import Notation, spell_key
 from models.playback_event import PlaybackEventArgs, PlaybackEventType
 
 logger = logging.getLogger(__name__)
@@ -1029,10 +1028,8 @@ class MainWindowViewModel(Observable):
         """The Settings defaults: tempo, key (in the current notation, or
         None) and ``(beats, unit)``."""
         bpm = int(self._config.get("bpm", DEFAULT_BPM))
-        key = self._config.get("key", None) or None
-        if key and key not in key_options(self._notation.value):
-            # Saved in the other notation ("Sol" while detecting American).
-            key = convert_key(key, self._notation.value)
+        # Stored in American spelling: shown in the current notation.
+        key = spell_key(self._config.get("key", None) or "", self._notation.value) or None
         beats = int(self._config.get("time_signature_beats", 4))
         unit = int(self._config.get("time_signature_unit", 4))
         return bpm, key, (beats, unit)

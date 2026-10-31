@@ -18,6 +18,7 @@ from dataclasses import dataclass, fields, replace
 from typing import Any, Dict
 
 from constants import MAX_FONT_SIZE, MIN_FONT_SIZE, TIME_SIGNATURE_UNITS  # noqa: F401
+from models.notation import AMERICAN_KEYS, american_key
 from session import toolbar
 
 #: Upper bound of the recent-documents list length.
@@ -38,7 +39,8 @@ class SettingsValues:
             Monospace, Sans or Serif).
         font_size: The editor font's size, 6-72 points.
         notation: Chord notation at startup: ``american`` or ``european``.
-        key: Key at startup for roman numerals ("" for none).
+        key: Key at startup for roman numerals ("" for none), in American
+            spelling whatever the notation ("G", shown as "Sol" in European).
         show_quick_start_on_startup: Whether Quick Start opens at startup.
         max_recent_files: How many recent documents to keep, 1-50.
         bpm: Tempo at startup, 20-400.
@@ -64,8 +66,8 @@ class SettingsValues:
             raise ValueError(f"font_size {self.font_size} outside {MIN_FONT_SIZE}-{MAX_FONT_SIZE}")
         if self.notation not in ("american", "european"):
             raise ValueError(f"notation must be 'american' or 'european', not {self.notation!r}")
-        if self.key and self.key not in toolbar.key_options(self.notation):
-            raise ValueError(f"unknown key {self.key!r} in {self.notation} notation")
+        if self.key and self.key not in AMERICAN_KEYS:
+            raise ValueError(f"unknown key {self.key!r} (keys are in American spelling)")
         if not 1 <= self.max_recent_files <= MAX_RECENT_LIMIT:
             raise ValueError(f"max_recent_files {self.max_recent_files} outside 1-{MAX_RECENT_LIMIT}")
         bpm_scale = toolbar.BPM_SCALE
@@ -87,15 +89,8 @@ class SettingsValues:
         """Take the values from anything with these attributes (a ``Config``,
         a ``SettingsViewModel``).
 
-        A key spelled in the other notation is respelled in ``notation``'s:
-        the AB / Do switch changes the stored notation but not the stored
-        key, so a config can hold European notation with key ``C``.
+        The key comes in American spelling whatever the notation (an older
+        config may hold "Sol"); views show it in their notation.
         """
         values = cls(**{f.name: getattr(source, f.name) for f in fields(cls)})
-        if values.key and values.notation in ("american", "european"):
-            options = toolbar.key_options(values.notation)
-            if values.key not in options:
-                respelled = toolbar.convert_key(values.key, values.notation)
-                if respelled in options:
-                    values = replace(values, key=respelled)
-        return values
+        return replace(values, key=american_key(values.key))

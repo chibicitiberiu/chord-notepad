@@ -365,7 +365,11 @@ raises is an `UnexpectedError` whose `context` is the command name.
   time signature and notation into it too). `values` holds exactly the
   settings Android shows (the visibility rule: no log level, audio driver,
   SoundFont path or window geometry), so visibility needs no extra flag;
-  Kotlin maps the font family to Monospace/Sans/Serif. Quick Start's
+  Kotlin maps the font family to Monospace/Sans/Serif. `values.key` is
+  always American (the config stores note and key names in American
+  spelling; an older European one is read as American); Kotlin shows it
+  through the index-aligned `european_keys` when the notation is European,
+  and switching notation doesn't change it. Quick Start's
   first-run flag is `values.show_quick_start_on_startup`.
   `apply_settings {changes: SettingsValues}` writes and applies them at once
   (out-of-range values: `UnexpectedError`, nothing written);

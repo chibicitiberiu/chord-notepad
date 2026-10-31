@@ -456,8 +456,10 @@ class SettingsState:
     Attributes:
         values: The current settings.
         american_keys: The key choices in American notation (``values.key``
-            may also be "" for none).
-        european_keys: The key choices in European notation.
+            is one of these, always American, or "" for none).
+        european_keys: The key choices in European notation, index-aligned
+            with ``american_keys``: a view shows ``values.key`` this way
+            when ``values.notation`` is European.
         font_size_min: Smallest editor font size.
         font_size_max: Largest editor font size.
         bpm_min: Slowest tempo.

@@ -15,16 +15,7 @@ from chord.converter import NotationConverter
 # a time signature may have and the beats a bar may have.
 from constants import (  # noqa: F401
     DEFAULT_BPM, MAX_BEATS, MAX_BPM, MIN_BEATS, MIN_BPM, TIME_SIGNATURE_UNITS)
-from models.notation import Notation
-
-_AMERICAN_KEYS = (
-    "C", "C#", "Db", "D", "D#", "Eb", "E", "F", "F#",
-    "Gb", "G", "G#", "Ab", "A", "A#", "Bb", "B",
-)
-_EUROPEAN_KEYS = (
-    "Do", "Do#", "Reb", "Re", "Re#", "Mib", "Mi", "Fa", "Fa#",
-    "Solb", "Sol", "Sol#", "Lab", "La", "La#", "Sib", "Si",
-)
+from models.notation import Notation, key_names
 
 
 def key_options(notation: str) -> Tuple[str, ...]:
@@ -38,7 +29,7 @@ def key_options(notation: str) -> Tuple[str, ...]:
     Raises:
         ValueError: For any other notation.
     """
-    return _EUROPEAN_KEYS if Notation(notation) is Notation.EUROPEAN else _AMERICAN_KEYS
+    return key_names(notation)
 
 
 def convert_key(key: str, notation: str) -> str:

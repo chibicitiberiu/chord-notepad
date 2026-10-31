@@ -44,17 +44,11 @@ data class SettingsDraft(
         timeSignatureUnit = timeSignatureUnit,
     )
 
-    /**
-     * Switch notation, respelling the key (the two key lists are parallel:
-     * C ↔ Do, C# ↔ Do#...). An unknown key becomes "" (none).
-     */
-    fun withNotation(notation: String, limits: SettingsState): SettingsDraft {
-        if (notation == this.notation) return this
-        return copy(notation = notation, key = respellKey(key, notation, limits))
-    }
+    /** Switch notation; the key stays (it is American, only its spelling on screen changes). */
+    fun withNotation(notation: String): SettingsDraft = copy(notation = notation)
 
     companion object {
-        /** The draft of [state]'s values (a key that doesn't fit the notation is respelled). */
+        /** The draft of [state]'s values (the key in American spelling, as Python sends it). */
         fun of(state: SettingsState): SettingsDraft {
             val v = state.values
             return SettingsDraft(
@@ -62,7 +56,7 @@ data class SettingsDraft(
                 fontKind = fontKindFor(v.fontFamily),
                 fontSize = v.fontSize,
                 notation = v.notation,
-                key = respellKey(v.key, v.notation, state),
+                key = respellKey(v.key, AMERICAN, state),
                 showQuickStartOnStartup = v.showQuickStartOnStartup,
                 maxRecentFiles = v.maxRecentFiles,
                 bpm = v.bpm,
@@ -76,6 +70,9 @@ data class SettingsDraft(
 /** The key choices of [notation] ("" = none comes first in the UI). */
 fun keysFor(notation: String, limits: SettingsState): List<String> =
     if (notation == EUROPEAN) limits.europeanKeys else limits.americanKeys
+
+/** How [key] (American, as the draft and config keep it) shows in [notation]: Sol for G in European. */
+fun shownKey(key: String, notation: String, limits: SettingsState): String = respellKey(key, notation, limits)
 
 /** [key] spelled in [notation]: kept if it's one of its keys, else mapped by position, else "". */
 fun respellKey(key: String, notation: String, limits: SettingsState): String {

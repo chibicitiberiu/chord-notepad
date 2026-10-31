@@ -272,11 +272,8 @@ class SettingsController(private val commands: ScreenCommands, saved: SettingsUi
         saveDraft()
     }
 
-    /** Switch the draft's notation (the key is respelled). */
-    fun setNotation(notation: String) {
-        val l = limits ?: return
-        updateDraft { it.withNotation(notation, l) }
-    }
+    /** Switch the draft's notation (the key stays; it shows in the new spelling). */
+    fun setNotation(notation: String) = updateDraft { it.withNotation(notation) }
 
     /**
      * A number field's text: a whole number in range goes into the draft

@@ -71,11 +71,11 @@ def test_apply_settings_with_values_commits_like_the_dialog(tmp_path):
     host, services, session, recorder = make(tmp_path)
     values = session.settings_values()
     session.apply_settings(dataclasses.replace(values, font_family="Serif", font_size=18,
-                                               notation="european", key="Re"))
+                                               notation="european", key="D"))
     assert recorder.last(EditorState).font_size == 18
     assert recorder.last(EditorState).font_family == "Serif"
     saved = json.loads(services.appdata.get_config_file_path().read_text())
-    assert (saved["font_size"], saved["notation"], saved["key"]) == (18, "european", "Re")
+    assert (saved["font_size"], saved["notation"], saved["key"]) == (18, "european", "D")
 
 
 @pytest.mark.parametrize("field,value", [

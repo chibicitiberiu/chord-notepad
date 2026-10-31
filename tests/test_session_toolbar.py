@@ -154,6 +154,13 @@ def test_initial_state_comes_from_the_config():
         beats=3, unit=8, metronome=False, play_action=PlayAction.PLAY)
 
 
+def test_the_stored_american_key_shows_in_the_notation():
+    env = Env(key="G", notation="european")
+    assert env.toolbar().key == "Sol"
+    env = Env(key="Sib", notation="american")              # an older config
+    assert env.toolbar().key == "Bb"
+
+
 def test_set_bpm_snaps_like_the_scrubber_and_is_not_a_default():
     env = Env(bpm=120)
     env.session.set_bpm(131)

@@ -58,8 +58,8 @@ fun GeneralPage(draft: SettingsDraft, limits: SettingsState, numbers: Map<Number
         DropdownField(
             label = stringResource(R.string.settings_default_key),
             selected = draft.key,
-            options = listOf("") + keysFor(draft.notation, limits),
-            optionLabel = { it.ifEmpty { none } },
+            options = listOf("") + limits.americanKeys,
+            optionLabel = { if (it.isEmpty()) none else shownKey(it, draft.notation, limits) },
             onSelect = { key -> controller.updateDraft { it.copy(key = key) } },
             supporting = stringResource(R.string.settings_default_key_help),
             modifier = Modifier.fillMaxWidth(),

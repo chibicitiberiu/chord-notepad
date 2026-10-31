@@ -59,6 +59,10 @@ moved to CHANGELOG_HISTORY.md and this file is reset.
 
 ### Fixed
 
+- Settings: the Default key list now follows the chord notation (Do, Re,
+  Mi... when European is picked, switching as soon as you change it) instead
+  of always showing American names. The key is saved the same way in either
+  notation, so it stays right when you switch notation later.
 - Converting to European notation kept lowercase minor chords minor only in
   name: `c c# f#` became `Do Do# Fa#`, which are major. They now become
   `do do# fa#` and convert back to `Cm C#m F#m`.

@@ -87,8 +87,9 @@ class SettingsControllerTest {
         assertEquals("Serif", commits[0].jsonObject.getValue("font_family").jsonPrimitive.content)
         val values = commits[1].jsonObject
         assertEquals("european", values.getValue("notation").jsonPrimitive.content)
-        // C respelled in European notation.
-        assertEquals("Do", values.getValue("key").jsonPrimitive.content)
+        // The key stays American (shown as Do); the config never holds European names.
+        assertEquals("C", values.getValue("key").jsonPrimitive.content)
+        assertEquals("Do", shownKey(c.ui.value.draft!!.key, EUROPEAN, Fixtures.settings))
         assertFalse(c.ui.value.draftPending)
         assertEquals(SettingsPhase.EDITING, c.ui.value.phase)
     }
@@ -429,6 +430,19 @@ class SettingsControllerTest {
         assertEquals(emptyList<String>(), submitter.names)
         assertEquals(SettingsPhase.EDITING, restored.ui.value.phase)
         assertTrue(restored.ui.value.draftPending)
+    }
+
+    @Test
+    fun `the draft keeps the key American whatever the notation`() {
+        val s = Fixtures.settings
+        // An older config could send a European key: the draft takes it as American.
+        val old = s.copy(values = s.values.copy(notation = EUROPEAN, key = "Sol"))
+        assertEquals("G", SettingsDraft.of(old).key)
+        val draft = SettingsDraft.of(s).copy(key = "Bb")
+        assertEquals("Bb", draft.withNotation(EUROPEAN).key)
+        assertEquals("Bb", draft.withNotation(EUROPEAN).toValues().key)
+        assertEquals("Sib", shownKey("Bb", EUROPEAN, s))
+        assertEquals("Bb", shownKey("Bb", AMERICAN, s))
     }
 
     @Test
