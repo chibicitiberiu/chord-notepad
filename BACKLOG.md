@@ -16,7 +16,6 @@ it's done (git history keeps it); release mechanics live in `docs/RELEASE.md`.
 
 ## Next
 
-- CI credentials: delete the repo-level `SNAPCRAFT_STORE_CREDENTIALS` once a dispatch shows `snapcraft upload` succeeding with the `release` environment copy (the environment policy and the `main`/`v*` rulesets are in place).
 - CI signing isolation: Windows signing in its own job that alone holds `id-token: write`; Android signing in a minimal job after an unsigned build; Gradle dependency verification.
 - Local signing (`docs/RELEASE.md`, "Signing locally"): read passwords in a subshell, accept them from the environment only (not `-P`), fail when `cnSigning=upload|foss` meets the configuration cache.
 - Local MSIX test recipe (`docs/RELEASE.md`): import only the `.cer`, not the PFX with its private key, and clean up afterwards, as `smoke_test.ps1` does.
