@@ -9,7 +9,6 @@ import com.tibich.chordnotepad.bridge.PickMode
 import com.tibich.chordnotepad.lifecycle.DraftHook
 import com.tibich.chordnotepad.lifecycle.DraftPolicy
 import com.tibich.chordnotepad.lifecycle.LaunchRules
-import com.tibich.chordnotepad.spike.SpikeScreen
 import com.tibich.chordnotepad.ui.MainScreen
 import com.tibich.chordnotepad.ui.requests.RequestPickers
 import com.tibich.chordnotepad.ui.theme.ChordNotepadTheme
@@ -18,15 +17,6 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-
-        // M2 spike screen (throwaway), for scripted measurements over adb:
-        // `--es spike_auto <mode>` or `--ez spike true`. It drives Python on
-        // its own, so the session isn't started.
-        val auto = intent?.getStringExtra("spike_auto")
-        if (auto != null || intent?.getBooleanExtra("spike", false) == true) {
-            setContent { SpikeScreen(autoRun = auto, onFullyDrawn = { reportFullyDrawn() }) }
-            return
-        }
 
         val graph = appGraph
         graph.pyHost.start()

@@ -440,8 +440,8 @@ val prepareNativeLibs = tasks.register<PrepareNativeLibs>("prepareNativeLibs") {
 
 // ---------------------------------------------------------------------------
 // Assets shared with the desktop app, copied into the APK at build time instead
-// of duplicated in git: the SoundFont (resources/soundfont) and, for the M2
-// spike screen, a sample song (examples/).
+// of duplicated in git: the SoundFont (resources/soundfont) and, for the debug
+// chord-sheet screen (debug builds only), a sample song (examples/).
 // ---------------------------------------------------------------------------
 abstract class CopyIntoAssets : DefaultTask() {
     @get:InputFile abstract val source: RegularFileProperty
@@ -465,12 +465,12 @@ val copySoundfont = tasks.register<CopyIntoAssets>("copySoundfont") {
     outputDir.set(layout.buildDirectory.dir("generated/soundfont/assets"))
 }
 
-// M2 spike only.
-val copySpikeSample = tasks.register<CopyIntoAssets>("copySpikeSample") {
-    description = "Copies the spike screen's sample song into generated assets"
+// Debug builds only: the sample song ChordSheetDebugActivity (src/debug) loads.
+val copyDebugSample = tasks.register<CopyIntoAssets>("copyDebugSample") {
+    description = "Copies the debug chord-sheet screen's sample song into generated assets"
     source.set(repoRoot.file("examples/02_american_complete.txt"))
-    targetPath.set("spike/sample.txt")
-    outputDir.set(layout.buildDirectory.dir("generated/spike/assets"))
+    targetPath.set("debug/sample.txt")
+    outputDir.set(layout.buildDirectory.dir("generated/debugSample/assets"))
 }
 
 // ---------------------------------------------------------------------------
@@ -578,7 +578,9 @@ androidComponents {
         variant.sources.assets?.addGeneratedSourceDirectory(exportClefGlyphs, ExportClefGlyphs::outputDir)
         variant.sources.assets?.addGeneratedSourceDirectory(buildAndroidHelp, BuildAndroidHelp::outputDir)
         variant.sources.assets?.addGeneratedSourceDirectory(copySoundfont, CopyIntoAssets::outputDir)
-        variant.sources.assets?.addGeneratedSourceDirectory(copySpikeSample, CopyIntoAssets::outputDir)
+        if (variant.buildType == "debug") {
+            variant.sources.assets?.addGeneratedSourceDirectory(copyDebugSample, CopyIntoAssets::outputDir)
+        }
         variant.sources.jniLibs?.addGeneratedSourceDirectory(prepareNativeLibs, PrepareNativeLibs::outputDir)
     }
 }

@@ -30,7 +30,7 @@ from chordnotepad_android.android_store import AndroidDocumentStore
 
 logger = logging.getLogger("chordnotepad_android.host")
 
-#: Oboe stream settings (the M2 spike's measurements were taken with these).
+#: Oboe stream settings (the M2 latency measurements in docs/ANDROID.md were taken with these).
 OBOE_SETTINGS = {"audio.oboe.performance-mode": "LowLatency"}
 
 #: Settings are written this long after the last change, so a process kill

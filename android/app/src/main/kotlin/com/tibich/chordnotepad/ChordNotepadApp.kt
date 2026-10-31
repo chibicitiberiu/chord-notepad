@@ -2,7 +2,6 @@ package com.tibich.chordnotepad
 
 import android.app.Application
 import android.content.Context
-import android.os.SystemClock
 
 /** Application entry point: owns the [AppGraph]. */
 class ChordNotepadApp : Application() {
@@ -12,15 +11,7 @@ class ChordNotepadApp : Application() {
 
     override fun onCreate() {
         super.onCreate()
-        createdAtUptimeMs = SystemClock.uptimeMillis()
         graph = AppGraph(this).also { it.install() }
-    }
-
-    companion object {
-        /** SystemClock.uptimeMillis() when Application.onCreate ran (spike measurements). */
-        @Volatile
-        var createdAtUptimeMs: Long = 0L
-            private set
     }
 }
 

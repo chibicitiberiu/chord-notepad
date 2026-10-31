@@ -7,7 +7,7 @@ import com.chaquo.python.Python
 
 /**
  * Starts the session through `chordnotepad_android.host.start`. The only
- * place outside the spike that holds a [PyObject].
+ * place that holds a [PyObject].
  */
 class ChaquopySessionLauncher(private val context: Context) : SessionLauncher {
     override fun launch(env: LaunchEnvironment, store: DocumentStoreBridge, sink: EventSink): SessionHandle {

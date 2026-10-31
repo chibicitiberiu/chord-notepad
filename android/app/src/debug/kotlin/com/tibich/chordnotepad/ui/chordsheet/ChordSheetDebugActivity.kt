@@ -27,7 +27,8 @@ import com.tibich.chordnotepad.bridge.HostStatus
 
 /**
  * DEBUG BUILDS ONLY (src/debug): the chord sheet pane on its own, with the
- * sample song (examples/02_american_complete.txt, the spike asset) loaded
+ * sample song (examples/02_american_complete.txt, copied into debug builds' assets
+ * as debug/sample.txt) loaded
  * into the session, for emulator checks:
  *
  * ```
@@ -46,7 +47,7 @@ class ChordSheetDebugActivity : ComponentActivity() {
         val heightDp = intent.getIntExtra("height", 240)
         val view = intent.getStringExtra("view")
         val voicing = intent.getStringExtra("voicing")
-        val sample = assets.open("spike/sample.txt").use { it.readBytes().decodeToString() }
+        val sample = assets.open("debug/sample.txt").use { it.readBytes().decodeToString() }
 
         setContent {
             val host by graph.repository.hostStatus.collectAsState()
