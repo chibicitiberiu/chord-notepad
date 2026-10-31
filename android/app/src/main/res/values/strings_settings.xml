@@ -19,7 +19,7 @@
     <string name="settings_font_family_help">The editor\'s font. Pinching the text changes its size too.</string>
     <string name="settings_font_size">Font size</string>
     <string name="settings_notation">Chord notation</string>
-    <string name="settings_notation_help">American or European, the same switch as AB / Do in the Edit ribbon.</string>
+    <string name="settings_notation_help">The notation new and opened songs are read in. AB / Do in the Edit ribbon switches only the song you have open.</string>
     <string name="settings_notation_american">American</string>
     <string name="settings_notation_european">European</string>
     <string name="settings_default_key">Default key</string>

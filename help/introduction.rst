@@ -87,13 +87,15 @@ Use the notation you're comfortable with:
 .. only:: desktop
 
    The toolbar toggle (labelled **AB / Do**) switches the editor between American
-   and European note names:
+   and European note names for the song you have open (new songs start in the
+   notation chosen in Settings):
 
 .. only:: android
 
    The **AB / Do** switch in the Edit ribbon sets the notation the text is read
-   in: American or European note names. **Convert**, right next to it, rewrites
-   the chords themselves from one notation to the other.
+   in: American or European note names, for the song you have open (new songs
+   start in the notation chosen in Settings). **Convert**, right next to it,
+   rewrites the chords themselves from one notation to the other.
 
 .. platform-figure:: notation-toggle
    :alt: The AB / Do notation toggle at the left of the toolbar, with AB

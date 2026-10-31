@@ -21,8 +21,9 @@ The User Interface
    * **AB** - American notation (C, D, E, F, G, A, B)
    * **Do** - European notation (Do, Re, Mi, Fa, Sol, La, Si)
 
-   The selected button appears highlighted. Clicking switches your notation and
-   updates the key selector to match.
+   The selected button appears highlighted. Clicking switches the notation of
+   the song you have open and updates the key selector to match. New and Open
+   start again in the notation set in Settings.
 
    Tempo, Key and Time Signature
    -----------------------------
@@ -451,7 +452,8 @@ The User Interface
      Directive Dialogs* below)
    * **Transpose**, which opens the dialog described in :doc:`transpose`
    * **Identify**, which opens the Chord Identifier (see below)
-   * **AB / Do**, the notation the text is read in
+   * **AB / Do**, the notation the text is read in, for this song only (a new
+     or opened song starts in the one set in Settings)
    * **Convert**, which rewrites every chord in the document into the other
      notation and switches AB / Do to match
 

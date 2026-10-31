@@ -241,7 +241,7 @@ def test_set_notation_respells_the_key_and_redetects():
     assert (state.notation, state.key) == ("european", "Sol")
     assert state.key_options == toolbar.key_options("european")
     assert env.main.key == "Sol"
-    assert env.config.get("notation") == "european"
+    assert env.config.get("notation") is None             # for this song only
 
 
 def test_set_notation_rejects_unknown_ones():

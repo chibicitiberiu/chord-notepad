@@ -73,9 +73,13 @@ class MainWindowViewModel(Observable):
         self._is_paused: bool = False
         self._bpm_multiplier: float = float(self._config.get("bpm_multiplier", 1.0))
         self._metronome_enabled: bool = False  # Always starts off per session
-        # Convert string notation to enum
-        notation_str = self._config.get("notation", "american")
-        self._notation: Notation = Notation(notation_str)
+        # The current song's notation: the Settings default until switched
+        # from the toolbar, for this song only (never written back to the
+        # config; New and Open go back to the default, see load_defaults).
+        self._notation: Notation = self._default_notation()
+        # Switched by the user (toolbar, convert): a new default in Settings
+        # then leaves it alone (follow_default_notation).
+        self._notation_chosen = False
         self._font_size: int = self._config.get("font_size", 11)
         self._font_family: str = self._config.get("font_family", "TkFixedFont")
         self._current_text: str = ""
@@ -710,24 +714,41 @@ class MainWindowViewModel(Observable):
         self.set_notation(new_notation)
 
     def set_notation(self, notation: Notation) -> None:
-        """Set the notation system preference.
+        """Detect chords in ``notation`` in the current song (the toolbar switch).
 
-        Note: This only changes the notation preference for new chord detection.
-        It does NOT convert existing text. Use convert_text_to_american() or
-        convert_text_to_european() methods for explicit conversion.
+        For this song only: the default is a setting (``notation`` in the
+        config, changed in Settings), and New and Open go back to it. It does
+        NOT convert existing text; use convert_text_to_american() or
+        convert_text_to_european() for that.
 
         Args:
             notation: Notation enum value
         """
+        self._notation_chosen = True
+        self._switch_notation(notation)
+
+    def follow_default_notation(self) -> None:
+        """The Settings default may have changed: a song still on the default
+        follows it; one switched from the toolbar keeps its notation."""
+        if not self._notation_chosen:
+            self._switch_notation(self._default_notation())
+
+    def _switch_notation(self, notation: Notation) -> None:
         if notation != self._notation:
-            logger.info(f"Changing notation preference to {notation.value}")
-            self._config.set("notation", notation.value)
+            logger.info(f"Detecting in {notation.value} notation")
             self.set_and_notify("notation", notation)
+
+    def _default_notation(self) -> Notation:
+        """The notation a song starts in (the Settings default)."""
+        try:
+            return Notation(self._config.get("notation", "american"))
+        except ValueError:
+            return Notation.AMERICAN
 
     def convert_text_to_american(self, lines: Optional[List[Line]] = None) -> bool:
         """Convert the current text from European to American notation.
 
-        Also switches the editor's notation preference to American so the
+        Also switches the song's notation to American so the
         new chords get highlighted, clickable, and parsed correctly.
 
         Args:
@@ -754,7 +775,7 @@ class MainWindowViewModel(Observable):
     def convert_text_to_european(self, lines: Optional[List[Line]] = None) -> bool:
         """Convert the current text from American to European notation.
 
-        Also switches the editor's notation preference to European so the
+        Also switches the song's notation to European so the
         new chords get highlighted, clickable, and parsed correctly.
 
         Args:
@@ -1037,10 +1058,12 @@ class MainWindowViewModel(Observable):
     def load_defaults(self) -> None:
         """Start the current document over from the Settings defaults.
 
-        New and Open call this: a tempo, key or time signature changed from
-        the toolbar only lasted for the document it was changed in. Nothing
-        is written to the config.
+        New and Open call this: a notation, tempo, key or time signature
+        changed from the toolbar only lasted for the document it was changed
+        in. Nothing is written to the config.
         """
+        self._notation_chosen = False
+        self._switch_notation(self._default_notation())
         bpm, key, (beats, unit) = self._default_values()
         logger.debug(f"Loading the defaults: {bpm} BPM, {beats}/{unit}, key {key}")
         self.set_bpm(bpm)

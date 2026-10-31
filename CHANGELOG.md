@@ -130,6 +130,10 @@ moved to CHANGELOG_HISTORY.md and this file is reset.
   sets itself are shown as set by the song; a change you make that the song
   doesn't set lasts until you close the song. Only Settings changes the
   defaults.
+- The AB / Do notation toggle in the toolbar now switches only the song you
+  have open; it no longer changes your default. New and Open start in the
+  notation set in Settings, and changing it there also switches a song you
+  haven't switched by hand.
 - Suggest Capo replaces a `{capo}` that comes before the first chord instead
   of adding a second one, and on a selection it changes only that part.
 - The Windows, macOS and Linux downloads are smaller: they no longer bundle

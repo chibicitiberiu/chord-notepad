@@ -276,3 +276,50 @@ def test_toolbar_commands_do_not_write_the_defaults_even_after_playing(command, 
     getattr(env.session, command)(*args)
     env.play()
     assert env.saved_defaults() == (110, 3, 4, "C")
+
+
+# -- the notation: the default is a setting, the switch is for this song -------------------
+
+
+def notation(env):
+    return env.toolbar().notation
+
+
+def test_the_notation_switch_is_for_the_current_song_only():
+    env = Env("Do Re", notation="american")
+    env.session.set_notation("european")
+    assert notation(env) == "european"
+    assert env.config.values["notation"] == "american"
+    assert "notation" not in env.config.writes
+    env.session.convert_notation("american")
+    assert "notation" not in env.config.writes
+
+
+def test_new_and_open_go_back_to_the_default_notation():
+    env = Env(documents={"song.txt": SONG, "plain.txt": "Am F\n"}, notation="european")
+    assert notation(env) == "european"
+    env.session.set_notation("american")
+    env.new()
+    assert notation(env) == "european"
+    assert env.toolbar().key == "Do"                       # the default key, in the default notation
+    env.session.set_notation("american")
+    env.open("plain.txt")
+    assert notation(env) == "european"
+
+
+def test_a_new_default_notation_applies_to_new_songs():
+    env = Env("C G", notation="american")
+    env.session.set_notation("american")                 # chosen for this song
+    env.config.values["notation"] = "european"
+    env.session.apply_settings(SettingsChanges(general_changed=True))
+    assert notation(env) == "american"                   # switched by hand: kept
+    env.new()
+    assert notation(env) == "european"
+
+
+def test_a_new_default_notation_switches_a_song_still_on_the_default():
+    env = Env("C G", notation="american", key="G")
+    env.config.values["notation"] = "european"
+    env.session.apply_settings(SettingsChanges(general_changed=True))
+    assert notation(env) == "european"
+    assert env.toolbar().key == "Sol"                    # the song's key, respelled

@@ -108,15 +108,24 @@ class TestApplyFont:
         assert env.voicings_set == []
         assert env.main.font_family != "Consolas"
 
-    def test_general_changes_are_left_for_the_next_start(self):
-        # As before the session: the dialog saves them as defaults; the
-        # running toolbar keeps its values.
+    def test_general_changes_are_left_for_the_next_song(self):
+        # The dialog saves them as defaults; the running toolbar keeps its
+        # tempo and key. The notation is the exception: a song still on the
+        # default follows the new one.
         env = Env(bpm=120)
         env.commit(bpm=90, notation="european", key="G")
         env.session.apply_settings(SettingsChanges(general_changed=True, audio_changed=True))
 
-        assert env.recorder.items == []
         assert env.main.bpm == 120
+        assert env.main.key is None                   # the song's own key (none here)
+        assert env.main.notation.value == "european"
+
+    def test_a_song_switched_by_hand_keeps_its_notation(self):
+        env = Env(bpm=120)
+        env.session.set_notation("american")
+        env.commit(notation="european")
+        env.session.apply_settings(SettingsChanges(general_changed=True))
+
         assert env.main.notation.value == "american"
 
 

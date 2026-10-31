@@ -77,13 +77,16 @@ General
 .. only:: desktop
 
    **Notation**
-      American or European, the same toggle as the AB/Do buttons in the
-      toolbar.
+      American or European: the notation a new or opened song is read in.
+      The AB/Do buttons in the toolbar switch only the song you have open.
+      The Default key list below follows this setting.
 
 .. only:: android
 
    **Chord notation**
-      American or European, the same switch as AB / Do in the Edit ribbon.
+      American or European: the notation a new or opened song is read in.
+      AB / Do in the Edit ribbon switches only the song you have open. The
+      Default key list follows this setting.
 
 **Default key**
    The key a song starts in when it has no ``{key}`` directive before its

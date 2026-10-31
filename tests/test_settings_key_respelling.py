@@ -64,7 +64,7 @@ def test_settings_save_after_the_notation_switch(tmp_path):
     session.start()
 
     session.set_notation("european")
-    assert services.config.config.notation == "european"
+    assert services.config.config.notation == "american"   # the switch is for the song only
     session.begin_settings_edit()
     session.save_settings()
     assert services.config.config.key == "C"
@@ -72,7 +72,7 @@ def test_settings_save_after_the_notation_switch(tmp_path):
     session.commit_settings(dataclasses.replace(session.settings_values(), key="G"))
     assert services.config.config.key == "G"
     saved = json.loads(services.appdata.get_config_file_path().read_text())
-    assert saved["key"] == "G" and saved["notation"] == "european"
+    assert saved["key"] == "G" and saved["notation"] == "american"
 
 
 def test_an_older_config_with_a_european_key_reads_as_american(tmp_path):

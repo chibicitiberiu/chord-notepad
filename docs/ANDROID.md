@@ -321,7 +321,8 @@ step 14.)
 input is ignored; the speed accepts `150`, `150%`, `1.5x`), `set_key {key}`,
 `set_time_signature {beats, unit}`, `toggle_metronome {}`,
 `set_voicing {voicing}`, `set_instrument {program}`,
-`set_notation {notation}`, `set_font {family, size}`,
+`set_notation {notation}` (the current song's notation; the default is
+`SettingsValues.notation`, and New/Open go back to it), `set_font {family, size}`,
 `step_font_size {delta}`, `reset_font_size {}`,
 `set_chord_sheet_visible {visible}`, `set_chord_sheet_height {px}`,
 `set_chord_sheet_view {view_id}`, `chord_sheet_zoom {step}`,
@@ -361,8 +362,13 @@ raises is an `UnexpectedError` whose `context` is the command name.
 - *Settings values.* `SettingsState {values: SettingsValues, american_keys,
   european_keys, font_size_min/max, bpm_min/max, max_recent_files_max,
   time_signature_units}` is published at subscribe and again whenever the
-  config changed at the end of a command (the toolbar writes tempo, key,
-  time signature and notation into it too). `values` holds exactly the
+  config changed at the end of a command. The toolbar writes none of the
+  defaults: its tempo, key, time signature and notation are the current
+  song's (`ToolbarState`), while `values.notation` is the default a new or
+  opened song starts in. Settings shows its key list in `values.notation`,
+  never the song's.
+  Changing the default in Settings also switches the current song when it
+  hasn't been switched by hand. `values` holds exactly the
   settings Android shows (the visibility rule: no log level, audio driver,
   SoundFont path or window geometry), so visibility needs no extra flag;
   Kotlin maps the font family to Monospace/Sans/Serif. `values.key` is

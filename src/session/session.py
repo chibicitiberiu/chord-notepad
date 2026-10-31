@@ -1048,7 +1048,9 @@ class AppSession:
 
     @_command
     def set_notation(self, notation: str) -> None:
-        """Detect chords in ``notation`` from now on (the text is not rewritten).
+        """Detect chords in ``notation`` in the current song (the text is not
+        rewritten). For this song only, like the tempo: the default notation
+        is a setting, and New and Open go back to it.
 
         The toolbar key is respelled in the new notation and the key list
         swapped; the text is re-detected at once.
@@ -1219,9 +1221,11 @@ class AppSession:
         Then a new font is applied, the Voicing menu is rebuilt from the
         edited registry, and the voicing in use is re-applied when it was
         renamed or removed (the new value) or may have been edited in place
-        (a user voicing). ``general_changed`` and ``audio_changed`` are
+        (a user voicing). A new default notation also switches the current
+        song when it is still on the default (not switched from the
+        toolbar). Otherwise ``general_changed`` and ``audio_changed`` are
         ignored, as they always were: those settings are defaults for the
-        next start (the dialog says so where it matters).
+        next song or start (the dialog says so where it matters).
 
         Args:
             changes: What :meth:`SettingsViewModel.commit` reported, or the
@@ -1239,6 +1243,8 @@ class AppSession:
         """Bring the app in line with committed settings (see :meth:`apply_settings`)."""
         if changes.font_changed:
             self._main.reload_font_settings()
+        if changes.general_changed:
+            self._main.follow_default_notation()
         if changes.voicings_changed:
             self._publish_voicing_menu()
         if changes.new_active_voicing is not None:
