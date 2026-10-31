@@ -26,6 +26,9 @@ CHILD_TIMEOUT_S = 60.0
 CASES = {
     # A failing chord token with a long digit run (exponential backtracking).
     'digit_run': "'C' + '1' * 40 + 'x'",
+    # The same after an added tone's accidental, and a long run of added tones.
+    'added_tone_digit_run': "'Caddb' + '1' * 40 + 'x'",
+    'added_tone_run': "'C' + 'addb9add#11' * 20000 + 'x'",
     # Unclosed braces: the old directive pattern crossed them and backtracked.
     'open_braces': "'{' * 20000",
     'brace_x_line': "'{x' * 100000",

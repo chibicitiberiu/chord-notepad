@@ -36,6 +36,8 @@ class ChordDetector:
     # the bare number alternative (the same strings as the old sus[24]?).
     # Atomic groups would be wrong here: "m" is listed before "maj", and
     # "maj7" only matches by backtracking out of "m".
+    # An added tone may carry an accidental after "add" (Caddb6, Cadd#11):
+    # straight after the root it would read as part of the root (Eb6).
 
     # Basic chord pattern for initial detection (American notation, supports lowercase for minor)
     # Supports: ° (diminished), ø (half-diminished), + (augmented)
@@ -45,7 +47,7 @@ class ChordDetector:
     # Supports M (uppercase) for minor-major: mM7, mM9
     # Supports duration: C*2, Am*4.5
     CHORD_PATTERN_AMERICAN = re.compile(
-        r'\b([A-Ga-g][#b♯♭]?(?:°|ø|\+|Δ|-|m|M|maj|min|mi|dim|aug|dom|alt|sus|add\d+(?!\d)|no\d+(?!\d)|omit\d+(?!\d)|\d+(?!\d)|[#b♯♭]\d+(?!\d)|\([^)]+\))*(?:/[A-Ga-g][#b♯♭]?)?(?:\*[\d.]+)?)(?![A-Za-z0-9])'
+        r'\b([A-Ga-g][#b♯♭]?(?:°|ø|\+|Δ|-|m|M|maj|min|mi|dim|aug|dom|alt|sus|add[#b♯♭]?\d+(?!\d)|no\d+(?!\d)|omit\d+(?!\d)|\d+(?!\d)|[#b♯♭]\d+(?!\d)|\([^)]+\))*(?:/[A-Ga-g][#b♯♭]?)?(?:\*[\d.]+)?)(?![A-Za-z0-9])'
     )
 
     # European notation pattern (Do/do for Major/minor, DoM explicit major, Dom explicit minor)
@@ -56,7 +58,7 @@ class ChordDetector:
     # Supports accents: Dó, Ré, Fá, Lá
     # Supports duration: Do*2, rem*4.5
     CHORD_PATTERN_EUROPEAN = re.compile(
-        r'\b((?:D[oóò]|R[eéèê]|Mi|F[aáà]|Sol|L[aáà]|Si|d[oóò]|r[eéèê]|mi|f[aáà]|sol|l[aáà]|si)[#b♯♭]?(?:°|ø|\+|Δ|M|m|maj|min|mi|dim|aug|dom|alt|sus|add\d+(?!\d)|no\d+(?!\d)|omit\d+(?!\d)|\d+(?!\d)|[#b♯♭]\d+(?!\d)|\([^)]+\))*(?:/(?:D[oóò]|R[eéèê]|Mi|F[aáà]|Sol|L[aáà]|Si|d[oóò]|r[eéèê]|mi|f[aáà]|sol|l[aáà]|si)[#b♯♭]?)?(?:\*[\d.]+)?)(?![A-Za-z0-9])'
+        r'\b((?:D[oóò]|R[eéèê]|Mi|F[aáà]|Sol|L[aáà]|Si|d[oóò]|r[eéèê]|mi|f[aáà]|sol|l[aáà]|si)[#b♯♭]?(?:°|ø|\+|Δ|M|m|maj|min|mi|dim|aug|dom|alt|sus|add[#b♯♭]?\d+(?!\d)|no\d+(?!\d)|omit\d+(?!\d)|\d+(?!\d)|[#b♯♭]\d+(?!\d)|\([^)]+\))*(?:/(?:D[oóò]|R[eéèê]|Mi|F[aáà]|Sol|L[aáà]|Si|d[oóò]|r[eéèê]|mi|f[aáà]|sol|l[aáà]|si)[#b♯♭]?)?(?:\*[\d.]+)?)(?![A-Za-z0-9])'
     )
 
     # Roman numeral chord pattern (I, ii, V7, vi/I, ♭III, #ivo, etc.)
@@ -66,7 +68,7 @@ class ChordDetector:
     # Supports duration: I*2, vi*4.5, ♭III*2
     # Note: Using lookbehind instead of \b to properly handle Unicode and # characters
     CHORD_PATTERN_ROMAN = re.compile(
-        r'(?<![A-Za-z0-9#b♭♯])([#b♭♯]?[IViv]+(?:o|°|ø|\+|maj|min|dim|aug|sus|add\d+(?!\d)|m|\d+(?!\d)|[#b]\d+(?!\d))*(?:/[#b♭♯]?[IViv]+(?:o|°)?)?(?:\*[\d.]+)?)(?![A-Za-z0-9])'
+        r'(?<![A-Za-z0-9#b♭♯])([#b♭♯]?[IViv]+(?:o|°|ø|\+|maj|min|dim|aug|sus|add[#b♯♭]?\d+(?!\d)|m|\d+(?!\d)|[#b]\d+(?!\d))*(?:/[#b♭♯]?[IViv]+(?:o|°)?)?(?:\*[\d.]+)?)(?![A-Za-z0-9])'
     )
 
     def __init__(self, threshold: float = 0.6, notation: Literal['american', 'european'] = 'american') -> None:

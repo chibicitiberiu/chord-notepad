@@ -743,7 +743,12 @@ As you select notes, Chord Notepad analyzes them and shows matching chords:
 * The list updates automatically as you add or remove notes
 * Several chords may match the same notes, for example ``Am`` and ``Am/C``
   when C is the lowest note
-* Shorter chord names come first
+* Each note is also tried as the root, with any extra notes named as added
+  notes: E G# B C gives ``Eaddb6`` (E major with an added flat 6th) as well
+  as ``Caugmaj7/E``
+* Shorter chord names come first. Between names of the same length, a chord
+  built on the lowest note comes before one built on another note, and that
+  before its slash form
 
 .. only:: desktop
 

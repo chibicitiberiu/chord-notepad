@@ -2,11 +2,12 @@
 Unified chord handling that wraps pychord, music21, and adds custom support
 """
 
+import itertools
 import re
 from typing import List, Optional, Set, Tuple
 from pychord import Chord as PyChord
 from music21 import chord as m21_chord, pitch
-from chord.midi_converter import ChordToMidiConverter, intervals_from_note_names
+from chord.midi_converter import ChordToMidiConverter, intervals_from_note_names, parse_note_to_semitone
 from models.chord_notes import ChordNotes
 
 
@@ -64,6 +65,7 @@ class ChordHelper:
     def __init__(self) -> None:
         """Initialize chord helper"""
         self.midi_converter = ChordToMidiConverter()
+        self._pitch_class_cache = {}  # chord name -> pitch classes (_pitch_classes)
 
     def is_valid_chord(self, chord_name: str) -> bool:
         """
@@ -149,7 +151,10 @@ class ChordHelper:
         # Try music21 as fallback (supports omit notation and more)
         try:
             import music21
-            chord_obj = music21.harmony.ChordSymbol(chord_name)
+            # music21 writes a flat root or bass as '-': it would read Ebaddb6
+            # as E plus an unknown 'baddb6', and Eb7b13 as E7b13.
+            chord_obj = music21.harmony.ChordSymbol(
+                re.sub(r'(^|/)([A-G])b', r'\1\2-', chord_name))
             names = [p.name.replace('-', 'b') for p in chord_obj.pitches]
             if names:
                 intervals = self._music21_intervals(chord_obj, names)
@@ -203,7 +208,8 @@ class ChordHelper:
             actual_bass_note: Optional bass note for slash chord detection
 
         Returns:
-            set: Set of possible chord names
+            set: Set of possible chord names, in the app's spelling (``Bb``,
+            not music21's ``B-``). Each one resolves to exactly these notes.
         """
         if not notes:
             return set()
@@ -214,23 +220,145 @@ class ChordHelper:
             # Use music21 for identification
             c = m21_chord.Chord(notes)
             common_name = c.commonName
-
-            # Get root and convert to shorthand
-            root = c.root().name
             shorthand = self._music21_type_to_shorthand(common_name)
 
             if shorthand is not None:
-                # Add basic chord
-                chord_names.add(f"{root}{shorthand}")
+                # music21's root can be wrong for an unusual spelling (E Ab B C
+                # comes out as Ab augmented major 7, which is Ab C E G), and a
+                # name can mean other notes in this app. Keep the name only on
+                # a root where it resolves to exactly these notes, trying
+                # music21's root first.
+                app_notes = [n.replace('-', 'b') for n in notes]
+                wanted = frozenset(parse_note_to_semitone(n) for n in app_notes)
+                first = c.root().name.replace('-', 'b')
+                root = next((r for r in [first] + app_notes
+                             if self._pitch_classes(r + shorthand) == wanted), None)
+                if root is not None:
+                    chord_names.add(f"{root}{shorthand}")
 
-                # Add slash chord if bass differs from root
-                bass_note = actual_bass_note if actual_bass_note else c.bass().name
-                if bass_note != root:
-                    chord_names.add(f"{root}{shorthand}/{bass_note}")
+                    # Add slash chord if bass differs from root
+                    bass_note = (actual_bass_note if actual_bass_note else c.bass().name).replace('-', 'b')
+                    if parse_note_to_semitone(bass_note) != parse_note_to_semitone(root):
+                        chord_names.add(f"{root}{shorthand}/{bass_note}")
         except:
             pass
 
         return chord_names
+
+    # Qualities the root-by-root pass names a whole set of notes with, in order
+    # of preference (the first whose notes match wins: 9sus4 over the app's
+    # 3rd-less 11, which has the same notes).
+    _ROOTED_QUALITIES = (
+        '', 'm', 'dim', 'aug', 'sus4', 'sus2',
+        '6', 'm6', '7', 'maj7', 'm7', 'mM7', 'm7b5', 'dim7', '7sus4',
+        'aug7', 'augmaj7', '7b5', '69', 'm69', 'add9', 'madd9', 'add11', 'madd11',
+        '7#5', '9', 'maj9', 'm9', 'mM9', '9sus4', '7b9', '7#9', '7#11', '7b13',
+        'maj7#11', 'm7add11', '9#11', 'maj9#11', '11', 'm11', '13', 'm13', 'maj13',
+    )
+
+    # Chords an added-tone reading is built on, with how many tones each may
+    # take. Symmetric dim7 is left out: every note of it is a root.
+    _ADDED_TONE_BASES = {
+        '': 2, 'm': 2, 'sus4': 2, 'sus2': 2, 'dim': 1, 'aug': 1,
+        '6': 1, 'm6': 1, '7': 1, 'maj7': 1, 'm7': 1, 'mM7': 1, 'm7b5': 1, '7sus4': 1,
+    }
+
+    # Semitones above the root (within the octave) -> the added tone's name.
+    # A minor sixth is b6 on a triad and b13 over a seventh, sounding inside
+    # the octave or above it as written; a major sixth on a triad is a 6 chord.
+    _ADDED_TONES = {1: 'b9', 2: '9', 3: '#9', 5: '11', 6: '#11', 8: 'b6', 9: '13'}
+
+    _quality_pitch_sets = None  # pitch-class set -> quality, built on first use
+
+    def _pitch_classes(self, chord_name: str) -> Optional[frozenset]:
+        """The pitch classes of a chord as this app resolves it, or None.
+
+        Cached: the identifier asks about the same few names on every key."""
+        cache = self._pitch_class_cache
+        if chord_name not in cache:
+            chord_notes = self.compute_chord_notes(chord_name)
+            classes = None
+            if chord_notes is not None:
+                classes = {parse_note_to_semitone(n) for n in chord_notes.notes}
+                classes = None if None in classes else frozenset(classes)
+            cache[chord_name] = classes
+        return cache[chord_name]
+
+    def _qualities_by_pitch_set(self) -> dict:
+        """Map each :attr:`_ROOTED_QUALITIES` entry's notes above C to it."""
+        if ChordHelper._quality_pitch_sets is None:
+            table = {}
+            for quality in self._ROOTED_QUALITIES:
+                classes = self._pitch_classes('C' + quality)
+                if classes is not None:
+                    table.setdefault(classes, quality)
+            ChordHelper._quality_pitch_sets = table
+        return ChordHelper._quality_pitch_sets
+
+    def identify_by_root(self, notes: List[str]) -> List[Tuple[str, str]]:
+        """Name a set of notes from each of its notes taken as the root.
+
+        music21 names a chord from the one root that stacks in thirds, so
+        E G# B C only comes out as Caugmaj7/E. This tries every note: when
+        the notes above it are a known quality, that names them (C E G A is
+        C6); otherwise, when taking away one or two notes leaves a triad, a
+        sixth or a seventh chord on it, the rest are added tones (Eaddb6,
+        Cadd#11, Cmaddb9). A known quality always wins, so a 6 chord never
+        comes out as add13. Every name is checked to resolve to exactly
+        these notes.
+
+        Args:
+            notes: Distinct note names in the app's spelling (``Bb``, not ``B-``).
+
+        Returns:
+            ``(root, chord name)`` pairs, at most one per root, without a
+            slash bass (the caller knows the lowest note).
+        """
+        classes = {}
+        for name in notes:
+            pc = parse_note_to_semitone(name)
+            if pc is not None:
+                classes.setdefault(pc, name)
+        if len(classes) < 3:
+            return []
+        known = self._qualities_by_pitch_set()
+        full = frozenset(classes)
+        readings = []
+        for root_pc, root in classes.items():
+            above = frozenset((pc - root_pc) % 12 for pc in full)
+            name = None
+            if above in known:
+                name = root + known[above]
+            else:
+                name = self._added_tone_name(root, above, known)
+            if name and self._pitch_classes(name) == full:
+                readings.append((root, name))
+        return readings
+
+    def _added_tone_name(self, root: str, above: frozenset, known: dict) -> Optional[str]:
+        """``root`` + a base chord + added tones for the intervals ``above``
+        it, using the fewest added tones (then the base listed first)."""
+        others = sorted(above - {0})
+        best = None
+        for count in (1, 2):
+            for tones in itertools.combinations(others, count):
+                base = known.get(above - set(tones))
+                if base not in self._ADDED_TONE_BASES or self._ADDED_TONE_BASES[base] < count:
+                    continue
+                if any(t not in self._ADDED_TONES for t in tones):
+                    continue
+                order = list(self._ADDED_TONE_BASES).index(base)
+                if best is None or order < best[0]:
+                    best = (order, base, tones)
+            if best:
+                break
+        if best is None:
+            return None
+        _, base, tones = best
+        seventh = '7' in base
+        names = ['b13' if seventh and t == 8 else self._ADDED_TONES[t] for t in tones]
+        names.sort(key=lambda n: int(n.lstrip('#b')))
+        return root + base + ''.join('add' + n for n in names)
 
     def extract_root(self, chord_name: str) -> Optional[str]:
         """Extract root note from chord name"""
@@ -290,7 +418,7 @@ class ChordHelper:
             'augmented triad': 'aug',
             'suspended-second triad': 'sus2',
             'suspended-fourth triad': 'sus4',
-            'quartal trichord': 'sus',
+            'quartal trichord': 'sus4',     # read on the right root: C F Bb is Fsus4
             'whole-tone trichord': 'sus2',
 
             # Seventh chords
@@ -328,7 +456,7 @@ class ChordHelper:
             'major-eleventh chord': 'maj11',
             'dominant-thirteenth': '13',
             'dominant-13th': '13',
-            'augmented-eleventh': '13',
+            'augmented-eleventh': '9#11',   # D F# A C E G#
 
             # Add chords
             'major-second major tetrachord': 'add9',
@@ -745,8 +873,8 @@ class ChordHelper:
             return chord_name
 
         # Skip omit notation - these are handled by _normalize_omit_notation()
-        # Don't process C(no3), C(omit3), C(add9), etc.
-        if re.search(r'\((?:no|omit|add)\d+', chord_name):
+        # Don't process C(no3), C(omit3), C(add9), C(addb6), etc.
+        if re.search(r'\((?:no|omit|add[#b]?)\d+', chord_name):
             return chord_name
 
         # Match root, quality, and parentheses extension
@@ -986,8 +1114,8 @@ class ChordHelper:
         Returns:
             Normalized chord (music21 compatible format)
         """
-        # Handle (add...) notation: C(add9) → Cadd9
-        chord_name = re.sub(r'\(add(\d+[#b]?)\)', r'add\1', chord_name)
+        # Handle (add...) notation: C(add9) → Cadd9, E(addb6) → Eaddb6
+        chord_name = re.sub(r'\(add([#b]?\d+[#b]?)\)', r'add\1', chord_name)
 
         # Special case: just (no3) or (omit3) with no other quality → power chord
         if re.match(r'^[A-Ga-g][#b]?\((?:no|omit)3\)$', chord_name):

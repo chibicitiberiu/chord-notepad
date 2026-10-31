@@ -5,7 +5,7 @@ import itertools
 import logging
 import math
 import re
-from typing import List, Union, Optional
+from typing import List, Tuple, Union, Optional
 
 from chord.detector import ChordDetector
 from chord.helper import ChordHelper
@@ -640,6 +640,19 @@ class SongParserService:
         """
         chords = self._helper.identify_chord(notes, bass_note)
         return chords if chords else []
+
+    def identify_by_root(self, notes: List[str]) -> List[Tuple[str, str]]:
+        """Name a set of notes from each of its notes as the root, with added
+        tones where needed (E G# B C gives ``Eaddb6``).
+
+        Args:
+            notes: Distinct note names (e.g., ['E', 'G#', 'B', 'C'])
+
+        Returns:
+            ``(root, chord name)`` pairs without a slash bass; see
+            :py:meth:`chord.helper.ChordHelper.identify_by_root`.
+        """
+        return self._helper.identify_by_root(notes)
 
     def chord_to_midi(self, chord_name: str, base_octave: int = 4) -> List[int]:
         """Convert a chord name to MIDI note numbers.

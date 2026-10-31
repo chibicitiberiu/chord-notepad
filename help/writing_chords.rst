@@ -446,6 +446,25 @@ The difference between ``C9`` and ``Cadd9``:
 * ``C9`` = C + E + G + Bb + D (includes the 7th)
 * ``Cadd9`` = C + E + G + D (no 7th)
 
+An added note can be sharp or flat. Put the ``#`` or ``b`` after ``add``, not
+straight after the root: ``Eb6`` is an E-flat 6th chord, while ``Eaddb6`` is E
+major with an added flat 6th.
+
+.. code-block:: chord
+
+   Eaddb6        // E major + C, inside the octave (b6)
+   Eaddb13       // E major + C, an octave higher (b13)
+   Cadd#11       // C major + F#
+   Cmaddb9       // C minor + Db
+   Cadd#9        // C major + D#
+   Cadd9add#11   // Two added notes: D and F#
+   Em7addb13     // An added note over a seventh chord
+
+The number sets where the added note sounds: a 6th sits inside the chord, a
+9th, 11th or 13th above the octave. Brackets work too: ``E(addb6)``,
+``C(add#11)``, ``Cm(addb9)``. The same spellings work in European notation
+(``Miaddb6``, ``domaddb9``) and with roman numerals (``Iaddb6``, ``iiaddb9``).
+
 Power Chords
 ------------
 

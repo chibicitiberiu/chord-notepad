@@ -158,6 +158,15 @@ Add Chords
    * - madd9
      - Minor add 9th
      - Cmadd9, Amadd9
+   * - addb9, add#9
+     - Add flat or sharp 9th
+     - Caddb9, Cmaddb9, Cadd#9
+   * - add#11
+     - Add sharp 11th
+     - Cadd#11, Cmadd#11
+   * - addb6, addb13
+     - Add flat 6th (inside the octave) or flat 13th (an octave up)
+     - Eaddb6, Emaddb6, Eaddb13
 
 Altered Chords
 --------------

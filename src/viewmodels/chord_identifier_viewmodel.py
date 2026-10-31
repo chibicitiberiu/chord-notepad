@@ -89,6 +89,12 @@ def _app_name(name: str) -> str:
     return name.replace('-', 'b')
 
 
+def _root_of(chord_name: str) -> str:
+    """The root note of a chord name (``Bbm7`` -> ``Bb``)."""
+    match = _NOTE_TOKEN.match(chord_name)
+    return match.group(1) if match else ''
+
+
 def spell_for_identification(names: Iterable[str], bass: Optional[str] = None,
                              preference: Optional[str] = None) -> Dict[str, str]:
     """Spell sharp-named keys so the chord they make stacks in thirds.
@@ -281,6 +287,7 @@ class ChordIdentifierViewModel(Observable):
         - Trying all inversions/rotations
         - Special handling for symmetric chords (diminished 7th)
         - Bass note detection for slash chords
+        - Every note as the root, with added tones (Eaddb6, Cadd#11)
         """
         self._candidates = []
         if not self._selected_notes:
@@ -327,9 +334,36 @@ class ChordIdentifierViewModel(Observable):
                     all_chords.update(chord_names)
 
             all_chords = {_app_name(name) for name in all_chords}
+
+            # Every note as the root, with added tones where needed: E G# B C
+            # is also Eaddb6, and C E G A is also C6 (music21 only says Am7).
+            # A reading on another root than the lowest note is a slash chord,
+            # and only worth offering when nothing is rooted on that note.
+            readings = self._chord_service.identify_by_root(note_names)
+            on_bass = any(root == bass_note for root, _ in readings) or any(
+                '/' not in name and _root_of(name) == bass_note for name in all_chords)
+            for root, name in readings:
+                if not bass_note or root == bass_note:
+                    all_chords.add(name)
+                elif not on_bass:
+                    all_chords.update((name, f"{name}/{bass_note}"))
+
             if all_chords:
-                # Sort chords: prioritize simpler chords, then alphabetically
-                chord_list = sorted(all_chords, key=lambda c: (len(c), c))
+                # Simpler (shorter) qualities first, not counting the root's
+                # accidental (F#dim7 is as simple as Adim7); at the same
+                # length a chord rooted on the lowest note, then one on
+                # another root, then its slash form.
+                def rank(name: str):
+                    body = name.split('/')[0]
+                    if '/' in name:
+                        place = 2
+                    elif bass_note and _root_of(body) != bass_note:
+                        place = 1
+                    else:
+                        place = 0
+                    return (len(body) - len(_root_of(body)), place, name)
+
+                chord_list = sorted(all_chords, key=rank)
                 logger.info(f"Identified {len(chord_list)} possible chords from notes: {note_names}")
                 self._identified_chords = chord_list
                 self._candidates = list(chord_list)

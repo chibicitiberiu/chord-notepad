@@ -82,7 +82,7 @@ class ChordLexer(RegexLexer):
     # The chord shapes of src/chord/detector.py, without the text-line
     # heuristics: a root, any run of quality/extension tokens (longest
     # alternatives first), a slash bass and a duration, ending the word.
-    _mods = (r'(?:°|ø|\+|Δ|-|maj|min|mi|dim|aug|dom|alt|sus[24]?|add\d+|no\d+'
+    _mods = (r'(?:°|ø|\+|Δ|-|maj|min|mi|dim|aug|dom|alt|sus[24]?|add[#b♯♭]?\d+|no\d+'
              r'|omit\d+|m|M|\d+|[#b♯♭]\d+|\([^)]+\))*')
     _euro = r'(?:D[oóò]|R[eéèê]|Mi|F[aáà]|Sol|L[aáà]|Si)[#b♯♭]?'
     _amer = r'[A-G][#b♯♭]?'

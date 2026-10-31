@@ -50,6 +50,12 @@ moved to CHANGELOG_HISTORY.md and this file is reset.
   "la la la" that would otherwise be read as chords.
 - Roman numerals accept `iim7` and Berklee-style `IIm7` as minor chords.
 - Desktop: **Tools → Insert → Capo**.
+- The Chord Identifier also offers added-tone readings, trying each note as
+  the root: E G# B C gives `Eaddb6` (E major with an added flat 6th) before
+  `Caugmaj7/E`, C E G F# gives `Cadd#11`, and C E G A gives `C6` as well as
+  `Am7/C`. Songs can now use sharp and flat added notes too, written after
+  `add` (`Eaddb6`, `Eaddb13`, `Cadd#11`, `Cmaddb9`, or in brackets like
+  `E(addb6)`), in American and European notation and with roman numerals.
 
 ### Fixed
 
@@ -80,7 +86,8 @@ moved to CHANGELOG_HISTORY.md and this file is reset.
   plays it.
 
 - The Chord Identifier names chords with flats correctly: "Bb D F" is Bb,
-  not D.
+  not D. It no longer offers a name that means other notes: E Ab B C was
+  `Abaugmaj7` (now `Caugmaj7`), D F# A C E G# was `D13` (now `D9#11`).
 - `{bpm: 0}`, a negative tempo or `{time: 0/4}` no longer crash or hang
   playback, and two loops that point at each other no longer render
   forever.

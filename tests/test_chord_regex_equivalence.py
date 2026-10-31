@@ -7,6 +7,9 @@ The old patterns (kept inline below) let a run of digits split between the
 user could type changes: every chord-like token in the tests, the examples and
 the user guide, and random short tokens, give the same ``fullmatch`` and
 ``finditer`` results under both.
+
+The old patterns below carry one later change to the language, made to both:
+an added tone may take an accidental after ``add`` (``Caddb6``, ``Cadd#11``).
 """
 
 import re
@@ -19,13 +22,13 @@ from chord.detector import ChordDetector
 ROOT = Path(__file__).resolve().parent.parent
 
 OLD_AMERICAN = re.compile(
-    r'\b([A-Ga-g][#b♯♭]?(?:°|ø|\+|Δ|-|m|M|maj|min|mi|dim|aug|dom|alt|sus[24]?|add\d+|no\d+|omit\d+|\d+|[#b♯♭]\d+|\([^)]+\))*(?:/[A-Ga-g][#b♯♭]?)?(?:\*[\d.]+)?)(?![A-Za-z0-9])'
+    r'\b([A-Ga-g][#b♯♭]?(?:°|ø|\+|Δ|-|m|M|maj|min|mi|dim|aug|dom|alt|sus[24]?|add[#b♯♭]?\d+|no\d+|omit\d+|\d+|[#b♯♭]\d+|\([^)]+\))*(?:/[A-Ga-g][#b♯♭]?)?(?:\*[\d.]+)?)(?![A-Za-z0-9])'
 )
 OLD_EUROPEAN = re.compile(
-    r'\b((?:D[oóò]|R[eéèê]|Mi|F[aáà]|Sol|L[aáà]|Si|d[oóò]|r[eéèê]|mi|f[aáà]|sol|l[aáà]|si)[#b♯♭]?(?:°|ø|\+|Δ|M|m|maj|min|mi|dim|aug|dom|alt|sus[24]?|add\d+|no\d+|omit\d+|\d+|[#b♯♭]\d+|\([^)]+\))*(?:/(?:D[oóò]|R[eéèê]|Mi|F[aáà]|Sol|L[aáà]|Si|d[oóò]|r[eéèê]|mi|f[aáà]|sol|l[aáà]|si)[#b♯♭]?)?(?:\*[\d.]+)?)(?![A-Za-z0-9])'
+    r'\b((?:D[oóò]|R[eéèê]|Mi|F[aáà]|Sol|L[aáà]|Si|d[oóò]|r[eéèê]|mi|f[aáà]|sol|l[aáà]|si)[#b♯♭]?(?:°|ø|\+|Δ|M|m|maj|min|mi|dim|aug|dom|alt|sus[24]?|add[#b♯♭]?\d+|no\d+|omit\d+|\d+|[#b♯♭]\d+|\([^)]+\))*(?:/(?:D[oóò]|R[eéèê]|Mi|F[aáà]|Sol|L[aáà]|Si|d[oóò]|r[eéèê]|mi|f[aáà]|sol|l[aáà]|si)[#b♯♭]?)?(?:\*[\d.]+)?)(?![A-Za-z0-9])'
 )
 OLD_ROMAN = re.compile(
-    r'(?<![A-Za-z0-9#b♭♯])([#b♭♯]?[IViv]+(?:o|°|ø|\+|maj|min|dim|aug|sus[24]?|add\d+|m|\d+|[#b]\d+)*(?:/[#b♭♯]?[IViv]+(?:o|°)?)?(?:\*[\d.]+)?)(?![A-Za-z0-9])'
+    r'(?<![A-Za-z0-9#b♭♯])([#b♭♯]?[IViv]+(?:o|°|ø|\+|maj|min|dim|aug|sus[24]?|add[#b♯♭]?\d+|m|\d+|[#b]\d+)*(?:/[#b♭♯]?[IViv]+(?:o|°)?)?(?:\*[\d.]+)?)(?![A-Za-z0-9])'
 )
 
 PAIRS = {
