@@ -21,6 +21,8 @@ data class IdentifierNote(val name: String, val octave: Int, val midi: Int)
  * the MIDI notes played last (a candidate or Play), to highlight for
  * [soundingSeconds]; a new [soundingToken] restarts that timer, and
  * [soundingBelow]/[soundingAbove] mark notes off either end of the piano.
+ * Every name is spelled in [notation], the open song's (`american` or
+ * `european`), and the piano labels its keys in it.
  */
 @Serializable
 data class IdentifierState(
@@ -34,6 +36,7 @@ data class IdentifierState(
     @SerialName("sounding_seconds") val soundingSeconds: Double = 3.0,
     @SerialName("sounding_below") val soundingBelow: String? = null,
     @SerialName("sounding_above") val soundingAbove: String? = null,
+    val notation: String = "american",
 ) : SessionState
 
 /** The settings Android shows (General and Playback); `commit_settings`/`apply_settings` take it back. */

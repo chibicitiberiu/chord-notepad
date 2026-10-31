@@ -12,7 +12,9 @@ import com.tibich.chordnotepad.bridge.ScreenCommands
  * The notes, candidates and messages all come from Python. Main thread.
  *
  * The field follows the session only after a key tap (`notes_text` is what
- * it should show then); while the user types there it keeps their text.
+ * it should show then); while the user types there it keeps their text. When
+ * the song's notation changes, a field showing the selection and the picked
+ * candidate are respelled with everything else.
  *
  * @param commands The identifier's commands.
  * @param insertAtCursor Inserts a chord (and a space) at the editor's cursor
@@ -35,6 +37,7 @@ class IdentifierModel(
         private set
 
     private var followKeys = false
+    private var last: IdentifierState? = null
 
     /** The screen opened: start from no notes, as the desktop's fresh dialog does. */
     fun open() {
@@ -46,11 +49,25 @@ class IdentifierModel(
 
     /** A new [IdentifierState] arrived. */
     fun onState(state: IdentifierState) {
+        val before = last
+        last = state
+        if (before != null && before.notation != state.notation) respell(before, state)
         if (followKeys) {
             typed = state.notesText
             followKeys = false
         }
         if (picked != null && picked !in state.candidates) picked = null
+    }
+
+    /**
+     * The same notes in the other notation: the field follows if it showed
+     * the selection, and the pick moves to the same candidate respelled
+     * (the list keeps its order).
+     */
+    private fun respell(before: IdentifierState, state: IdentifierState) {
+        if (typed.trim() == before.notesText) typed = state.notesText
+        val index = picked?.let(before.candidates::indexOf) ?: -1
+        if (index >= 0 && before.candidates.size == state.candidates.size) picked = state.candidates[index]
     }
 
     /** Tap on a key: select or deselect it (a newly selected key sounds). */

@@ -445,6 +445,7 @@
       "fields": {
         "candidates": "list[str]",
         "message": "str|null",
+        "notation": "str",
         "notes": "list[IdentifierNote]",
         "notes_text": "str",
         "sounding": "list[int]",

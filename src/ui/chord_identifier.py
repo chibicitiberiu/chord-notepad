@@ -10,7 +10,7 @@ import re
 from exceptions import AudioInitializationError, ChordNotepadError
 from ui.base.tooltip import ToolTip
 from viewmodels.chord_identifier_viewmodel import (
-    SOUNDING_SECONDS, bass_note, note_to_midi, outside_piano,
+    SOUNDING_SECONDS, bass_note, note_to_midi, outside_piano, spell,
 )
 
 logger = logging.getLogger(__name__)
@@ -63,6 +63,8 @@ class PianoRoll(tk.Canvas):
         self.selected_notes = set()
         # MIDI notes of the candidate played last (highlighted for a while)
         self.sounding = set()
+        # The notation the keys are labelled in (the song's)
+        self.notation = "american"
 
         # Key rectangles for hit testing
         # List of (note_name, octave, x1, y1, x2, y2, canvas_id)
@@ -107,7 +109,7 @@ class PianoRoll(tk.Canvas):
                     self.create_text(
                         white_x + self.white_key_width // 2,
                         self.white_key_height - 10,
-                        text=note_name, font=('Arial', 8),
+                        text=spell(note_name, self.notation), font=('Arial', 8),
                         fill='white' if is_selected else 'black'
                     )
                     if is_selected and is_sounding:
@@ -149,7 +151,7 @@ class PianoRoll(tk.Canvas):
                 self.create_text(
                     black_x + self.black_key_width // 2,
                     self.black_key_height - 10,
-                    text=note_name, font=('Arial', 7),
+                    text=spell(note_name, self.notation), font=('Arial', 7),
                     fill='black' if is_sounding and not is_selected else 'white'
                 )
                 if is_selected and is_sounding:
@@ -169,6 +171,11 @@ class PianoRoll(tk.Canvas):
         r = 5
         self.create_oval(x - r, y - r, x + r, y + r,
                          fill=SOUNDING_FILL, outline=SOUNDING_OUTLINE, width=1)
+
+    def set_notation(self, notation):
+        """Label the keys in ``notation`` (``american`` or ``european``)."""
+        self.notation = notation
+        self.draw_piano()
 
     def set_sounding(self, midi_notes):
         """Highlight the keys of these MIDI notes (empty to stop)."""
@@ -280,6 +287,7 @@ class ChordIdentifierWindow(tk.Toplevel):
         self.viewmodel.observe("identified_chords", self._on_chords_identified)
         self.viewmodel.observe("sounding", self._on_sounding)
         self.viewmodel.observe("selected_notes", self._on_selection)
+        self.viewmodel.observe("notation", self._on_notation)
         self._sounding_timer = None
 
         # Set up window close handler to clean up observers
@@ -296,13 +304,13 @@ class ChordIdentifierWindow(tk.Toplevel):
     def create_widgets(self):
         """Create window widgets"""
         # Instructions
-        instructions = tk.Label(
+        self.instructions = tk.Label(
             self,
-            text="Select notes on the piano or type them below (e.g., C E G or C, E, G)",
+            text=self._instructions(self.viewmodel.notation),
             font=('Arial', 10),
             wraplength=550
         )
-        instructions.pack(pady=10)
+        self.instructions.pack(pady=10)
 
         # Piano roll
         piano_frame = ttk.Frame(self)
@@ -314,6 +322,8 @@ class ChordIdentifierWindow(tk.Toplevel):
             on_change=self.on_piano_change,
             on_play_note=self._on_play_note
         )
+        self.piano_roll.notation = self.viewmodel.notation
+        self.piano_roll.draw_piano()
         self.piano_roll.pack()
 
         # Markers for sounding notes the piano doesn't show ("◂ C3", "D6 ▸")
@@ -383,12 +393,31 @@ class ChordIdentifierWindow(tk.Toplevel):
         self.results_listbox.insert(tk.END, "Select notes to identify chords...")
         self.results_listbox.config(state=tk.DISABLED)
 
+    @staticmethod
+    def _instructions(notation):
+        example = "Do Mi Sol or Do, Mi, Sol" if notation == "european" else "C E G or C, E, G"
+        return f"Select notes on the piano or type them below (e.g., {example})"
+
+    def _notes_text(self, notation):
+        """The selected keys as the entry shows them, spelled in ``notation``."""
+        return ' '.join(spell(n, notation) for n in self.piano_roll.get_notes())
+
+    def _on_notation(self, notation):
+        """The song's notation changed: relabel everything (the list comes
+        respelled through identified_chords)."""
+        old = self.piano_roll.notation
+        # The entry follows when it shows the keys (not other typed text)
+        if self.note_entry.get().strip() == self._notes_text(old):
+            self.note_entry.delete(0, tk.END)
+            self.note_entry.insert(0, self._notes_text(notation))
+        self.instructions.config(text=self._instructions(notation))
+        self.piano_roll.set_notation(notation)
+        self._show_sounding(self.piano_roll.sounding)
+
     def on_piano_change(self):
         """Handle piano roll selection change"""
-        notes = self.piano_roll.get_notes()
         self.note_entry.delete(0, tk.END)
-        if notes:
-            self.note_entry.insert(0, ' '.join(notes))
+        self.note_entry.insert(0, self._notes_text(self.viewmodel.notation))
 
         # Update ViewModel with actual selected notes (with their octaves from piano roll)
         note_tuples = list(self.piano_roll.selected_notes)
@@ -433,7 +462,7 @@ class ChordIdentifierWindow(tk.Toplevel):
 
     def _show_sounding(self, midi_notes):
         self.piano_roll.set_sounding(midi_notes)
-        below, above = outside_piano(midi_notes)
+        below, above = outside_piano(midi_notes, notation=self.viewmodel.notation)
         self.below_marker.config(text=below or "")
         self.above_marker.config(text=above or "")
 

@@ -78,6 +78,14 @@ class PianoKeyboard(val baseOctave: Int = 4, val octaves: Int = 2) {
         /** Note names by semitone above C, spelled with sharps (the desktop's `NOTE_NAMES`). */
         val NOTE_NAMES: List<String> = listOf("C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B")
 
+        /** The same in European notation (solfège), for the key labels of a European song. */
+        val EUROPEAN_NOTE_NAMES: List<String> =
+            listOf("Do", "Do#", "Re", "Re#", "Mi", "Fa", "Fa#", "Sol", "Sol#", "La", "La#", "Si")
+
+        /** What [key] is labelled in [notation] (`IdentifierState.notation`): `Sol#` for G# in `european`. */
+        fun label(key: PianoKey, notation: String): String =
+            if (notation == "european") EUROPEAN_NOTE_NAMES[Math.floorMod(key.midi, 12)] else key.name
+
         /** A black key's width, in white-key widths (20 px of 30 on the desktop). */
         const val BLACK_WIDTH: Float = 2f / 3f
 

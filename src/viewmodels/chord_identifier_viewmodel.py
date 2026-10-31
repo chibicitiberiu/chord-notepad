@@ -8,9 +8,11 @@ widget calls them too.
 import itertools
 import logging
 import re
+import unicodedata
 from typing import Callable, Dict, Iterable, List, Tuple, Set, Optional
 
 from music21 import chord as m21_chord
+from chord.converter import NotationConverter
 from utils.observable import Observable
 from services.song_parser_service import SongParserService
 from exceptions import ChordDetectionError
@@ -33,7 +35,12 @@ _USUAL_ROOTS = frozenset(('C', 'Db', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 
 #: Spelling preferences: what the typed notes used.
 FLATS = "flats"
 SHARPS = "sharps"
-_NOTE_TOKEN = re.compile(r'([A-Ga-g][#b]?)(\d+)?')
+#: A typed note: an American letter or a solfège syllable (either case), an
+#: accidental, an octave.
+_NOTE_TOKEN = re.compile(r'((?i:sol|do|re|mi|fa|la|si)|[A-Ga-g])([#b]?)(\d+)?')
+_SOLFEGE = {'do': 'C', 're': 'D', 'mi': 'E', 'fa': 'F', 'sol': 'G', 'la': 'A', 'si': 'B'}
+#: The root of an (American) chord name.
+_ROOT = re.compile(r'[A-G][#b]?')
 
 #: The identifier's piano, on the desktop and Android: C4 to B5.
 PIANO_LOWEST_MIDI = 60
@@ -53,23 +60,33 @@ def note_to_midi(note_name: str, octave: int) -> int:
     return (octave + 1) * 12 + offset
 
 
-def midi_name(midi: int) -> str:
-    """A MIDI number as a note name with its octave (48 -> ``C3``)."""
-    return f"{NOTE_NAMES[midi % 12]}{midi // 12 - 1}"
+def spell(name: str, notation: str) -> str:
+    """An American note or chord name as ``notation`` writes it: in European
+    ``C#`` is ``Do#``, ``Bb4`` is ``Sib4`` and ``Cmaj7/E`` is ``Domaj7/Mi``.
+    The identifier works in American; this is only for showing names."""
+    return NotationConverter.format_for_display(name, notation)
+
+
+def midi_name(midi: int, notation: str = "american") -> str:
+    """A MIDI number as a note name with its octave (48 -> ``C3``, ``Do3``
+    in European)."""
+    return spell(f"{NOTE_NAMES[midi % 12]}{midi // 12 - 1}", notation)
 
 
 def outside_piano(midi_notes: Iterable[int], lowest: int = PIANO_LOWEST_MIDI,
-                  highest: int = PIANO_HIGHEST_MIDI) -> Tuple[Optional[str], Optional[str]]:
+                  highest: int = PIANO_HIGHEST_MIDI,
+                  notation: str = "american") -> Tuple[Optional[str], Optional[str]]:
     """Markers for the sounding notes the piano doesn't draw.
 
     Returns:
         ``(below, above)``: ``"◂ C3"`` for the notes under the lowest key and
         ``"D6 ▸"`` for those over the highest (several names, lowest
-        first, when more than one), or None for an end with none.
+        first, when more than one), or None for an end with none. The
+        names are spelled in ``notation``.
     """
     notes = sorted(set(midi_notes))
-    below = [midi_name(m) for m in notes if m < lowest]
-    above = [midi_name(m) for m in notes if m > highest]
+    below = [midi_name(m, notation) for m in notes if m < lowest]
+    above = [midi_name(m, notation) for m in notes if m > highest]
     return ("◂ " + " ".join(below) if below else None,
             " ".join(above) + " ▸" if above else None)
 
@@ -101,9 +118,9 @@ def spelling_preference(note_string: str) -> Optional[str]:
     :data:`SHARPS`), or None when they use neither or as many of each."""
     flats = sharps = 0
     for part in re.split(r'[,\s;/|]+', note_string.strip()):
-        match = _NOTE_TOKEN.match(part)
-        if match and len(match.group(1)) == 2:
-            if match.group(1)[1] == 'b':
+        match = _NOTE_TOKEN.match(_without_accents(part))
+        if match and match.group(2):
+            if match.group(2) == 'b':
                 flats += 1
             else:
                 sharps += 1
@@ -123,8 +140,8 @@ def _app_name(name: str) -> str:
 
 def _root_of(chord_name: str) -> str:
     """The root note of a chord name (``Bbm7`` -> ``Bb``)."""
-    match = _NOTE_TOKEN.match(chord_name)
-    return match.group(1) if match else ''
+    match = _ROOT.match(chord_name)
+    return match.group(0) if match else ''
 
 
 def spell_for_identification(names: Iterable[str], bass: Optional[str] = None,
@@ -184,7 +201,10 @@ _HIGHEST_TYPED_OCTAVE = 5
 
 
 def parse_notes(note_string: str) -> Tuple[List[Tuple[str, int]], List[str]]:
-    """Parse typed notes ("C4, E4, G4", "C E G").
+    """Parse typed notes ("C4, E4, G4", "C E G", "Do Mi Sol", "Sib4 Re5").
+
+    Either notation is read, whatever the song's: American letters and
+    solfège syllables (accents are ignored, ``Ré`` is ``Re``).
 
     A note without an octave goes just above the note typed before it, so
     "E G# B C" is E4 G#4 B4 C5 (E in the bass, as typed); the first one is
@@ -205,11 +225,15 @@ def parse_notes(note_string: str) -> Tuple[List[Tuple[str, int]], List[str]]:
         part = part.strip()
         if not part:
             continue
+        part = _without_accents(part)
         match = _NOTE_TOKEN.match(part)
-        name = normalize_note_name(match.group(1)) if match else ''
+        name = ''
+        if match:
+            letter = _SOLFEGE.get(match.group(1).lower(), match.group(1))
+            name = normalize_note_name(letter + match.group(2))
         if match and name in NOTE_NAMES:
-            if match.group(2):
-                octave = int(match.group(2))
+            if match.group(3):
+                octave = int(match.group(3))
             elif previous is None:
                 octave = 4
             else:
@@ -223,6 +247,12 @@ def parse_notes(note_string: str) -> Tuple[List[Tuple[str, int]], List[str]]:
         else:
             not_understood.append(part)
     return notes, not_understood
+
+
+def _without_accents(text: str) -> str:
+    """``text`` with its accents dropped (``Ré`` -> ``Re``)."""
+    return ''.join(c for c in unicodedata.normalize('NFD', text)
+                   if unicodedata.category(c) != 'Mn')
 
 
 #: How unusual a chord quality is (lower is more common), for the order of
@@ -291,6 +321,11 @@ class ChordIdentifierViewModel(Observable):
 
     Manages note selection, chord identification, and playback for the
     chord identifier UI.
+
+    Identification and the likelihood order work in American names; what
+    the views get (:attr:`candidates`, :attr:`info_lines`,
+    :attr:`identified_chords`) is spelled in :attr:`notation`, the open
+    song's, and :meth:`play_chord` takes a candidate in either spelling.
     """
 
     def __init__(self, song_parser_service: SongParserService, audio_service=None):
@@ -307,11 +342,12 @@ class ChordIdentifierViewModel(Observable):
 
         # Observable state
         self._selected_notes: Set[Tuple[str, int]] = set()  # (note_name, octave) = []
-        self._identified_chords: List[str] = []
-        # The same result split in two: the chord names alone, and the
-        # explanation shown instead of (or for lack of) chords.
+        # The result: the chord names (American), or the explanation shown
+        # for lack of them: the notes it names (American, spelled for
+        # identification) and the lines after them.
         self._candidates: List[str] = []
-        self._info_lines: List[str] = [SELECT_NOTES_PROMPT]
+        self._message_notes: List[str] = []
+        self._message: List[str] = [SELECT_NOTES_PROMPT]
         self._notation: str = "american"
         # How the last typed notes were spelled (FLATS/SHARPS), so the answer
         # is spelled the same way; None after a key tap.
@@ -328,24 +364,46 @@ class ChordIdentifierViewModel(Observable):
 
     @property
     def identified_chords(self) -> List[str]:
-        """Get the identified chord names."""
-        return self._identified_chords
+        """What the results list shows: :attr:`candidates`, or
+        :attr:`info_lines` when there are none."""
+        return self.candidates if self._candidates else self.info_lines
 
     @property
     def candidates(self) -> List[str]:
-        """The identified chord names only (no explanation lines)."""
-        return list(self._candidates)
+        """The identified chord names only (no explanation lines), likeliest
+        first, spelled in :attr:`notation`."""
+        return [spell(name, self._notation) for name in self._candidates]
 
     @property
     def info_lines(self) -> List[str]:
         """What to say instead of chords (a prompt, "no chord found", an error);
-        empty when there are candidates."""
-        return list(self._info_lines)
+        empty when there are candidates. Note names are in :attr:`notation`."""
+        if self._candidates:
+            return []
+        lines = list(self._message)
+        if self._message_notes:
+            names = ', '.join(spell(n, self._notation) for n in self._message_notes)
+            lines[:0] = [f"Notes: {names}", ""]
+        return lines
 
     @property
     def notation(self) -> str:
-        """Get the current notation system."""
+        """The notation names are shown in (the open song's): ``american``
+        or ``european``."""
         return self._notation
+
+    def american_chord(self, chord_name: str) -> str:
+        """The American name of a candidate shown in either spelling
+        (``Lam7`` -> ``Am7`` while European). A name that isn't a candidate
+        is read as written in :attr:`notation`."""
+        if chord_name in self._candidates:
+            return chord_name
+        for name in self._candidates:
+            if spell(name, self._notation) == chord_name:
+                return name
+        if self._notation == "european":
+            return NotationConverter.chord_european_to_american(chord_name)
+        return chord_name
 
     @property
     def sounding(self) -> Tuple[int, ...]:
@@ -408,14 +466,14 @@ class ChordIdentifierViewModel(Observable):
         logger.debug("Clearing note selection")
         self._selected_notes.clear()
         self._spelling = None
-        self._identified_chords.clear()
         self._candidates = []
-        self._info_lines = [SELECT_NOTES_PROMPT]
+        self._message_notes = []
+        self._message = [SELECT_NOTES_PROMPT]
         if self._sounding and self._audio_service is not None:
             self._audio_service.stop_click_notes()  # a roll still going stops
         self._clear_sounding()
         self.notify("selected_notes", self._selected_notes.copy())
-        self.notify("identified_chords", self._identified_chords.copy())
+        self.notify("identified_chords", self.identified_chords)
 
     def _identify_chords(self) -> None:
         """Identify possible chords from selected notes with advanced logic.
@@ -427,10 +485,10 @@ class ChordIdentifierViewModel(Observable):
         - Every note as the root, with added tones (Eaddb6, Cadd#11)
         """
         self._candidates = []
+        self._message_notes = []
         if not self._selected_notes:
-            self._identified_chords = [SELECT_NOTES_PROMPT]
-            self._info_lines = list(self._identified_chords)
-            self.notify("identified_chords", self._identified_chords.copy())
+            self._message = [SELECT_NOTES_PROMPT]
+            self.notify("identified_chords", self.identified_chords)
             return
 
         # The selection is piano keys, spelled with sharps. Respell them so
@@ -484,29 +542,19 @@ class ChordIdentifierViewModel(Observable):
             if all_chords:
                 chord_list = sorted(all_chords, key=lambda name: _likelihood(name, bass_note, self._pitch_classes))
                 logger.info(f"Identified {len(chord_list)} possible chords from notes: {note_names}")
-                self._identified_chords = chord_list
-                self._candidates = list(chord_list)
+                self._candidates = chord_list
             else:
                 logger.info(f"No chords identified from notes: {note_names}")
-                self._identified_chords = [
-                    f"Notes: {', '.join(note_names)}",
-                    "",
-                    "No standard chord found.",
-                    "Try adding or removing notes."
-                ]
+                self._message_notes = list(note_names)
+                self._message = ["No standard chord found.", "Try adding or removing notes."]
 
         except Exception as e:
             logger.error(f"Error identifying chords: {e}", exc_info=True)
-            self._identified_chords = [
-                f"Notes: {', '.join(note_names)}",
-                "",
-                f"Error: {str(e)}",
-                "Make sure you've selected valid notes."
-            ]
+            self._candidates = []
+            self._message_notes = list(note_names)
+            self._message = [f"Error: {str(e)}", "Make sure you've selected valid notes."]
 
-        self._info_lines = [] if self._candidates else list(self._identified_chords)
-        # Notify observers directly (don't use set_and_notify since _identified_chords already has underscore)
-        self.notify("identified_chords", self._identified_chords.copy())
+        self.notify("identified_chords", self.identified_chords)
 
     def _get_bass_note_from_selection(self) -> Optional[str]:
         """Get the lowest selected note (actual bass note).
@@ -543,16 +591,26 @@ class ChordIdentifierViewModel(Observable):
             List of identified chord names
         """
         self._identify_chords()
-        return self._identified_chords
+        return self.identified_chords
 
     def set_notation(self, notation: str) -> None:
-        """Set the notation system.
+        """Show names in ``notation`` from now on (the open song's).
+
+        Observers get ``notation``, then ``identified_chords`` respelled;
+        nothing is identified again.
 
         Args:
             notation: "american" or "european"
+
+        Raises:
+            ValueError: For any other notation.
         """
-        if notation in ("american", "european"):
-            self.set_and_notify("notation", notation)
+        if notation not in ("american", "european"):
+            raise ValueError(f"unknown notation: {notation!r}")
+        if notation == self._notation:
+            return
+        self.set_and_notify("notation", notation)
+        self.notify("identified_chords", self.identified_chords)
 
     def get_note_list(self) -> List[str]:
         """Get selected notes as a formatted list.
@@ -676,7 +734,8 @@ class ChordIdentifierViewModel(Observable):
         """Play a chord by name, on the piano's keys (:meth:`chord_midi_for_piano`).
 
         Args:
-            chord_name: Chord name (e.g., "C", "Am7", "D/F#")
+            chord_name: Chord name (e.g., "C", "Am7", "D/F#"), or a candidate
+                as shown in European (:meth:`american_chord`)
             duration: Duration in seconds
             rolled: Play the notes one at a time from the lowest up,
                 :data:`ROLL_GAP_SECONDS` apart, each held
@@ -690,7 +749,7 @@ class ChordIdentifierViewModel(Observable):
             return
 
         # Get MIDI notes for the chord, on the piano's keys
-        midi_notes = self.chord_midi_for_piano(chord_name)
+        midi_notes = self.chord_midi_for_piano(self.american_chord(chord_name))
         if not midi_notes:
             logger.warning(f"Cannot play chord: No MIDI notes for '{chord_name}'")
             raise ChordDetectionError(f"Could not work out the notes of {chord_name}.")

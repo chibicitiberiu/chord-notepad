@@ -201,11 +201,16 @@ private fun ChordIdentifier(
             },
         )
         Column(Modifier.weight(1f).padding(horizontal = 16.dp)) {
-            Text(stringResource(R.string.identifier_hint), style = MaterialTheme.typography.bodyMedium)
+            val european = state?.notation == "european"
+            Text(
+                stringResource(if (european) R.string.identifier_hint_european else R.string.identifier_hint),
+                style = MaterialTheme.typography.bodyMedium,
+            )
             Spacer(Modifier.height(12.dp))
             Keyboard(
                 selectedMidi = state?.notes?.map { it.midi }.orEmpty().toSet(),
                 soundingMidi = sounding,
+                notation = state?.notation ?: "american",
                 onTap = model::tapKey,
                 onLongPress = model::pressKey,
                 modifier = Modifier.fillMaxWidth().height(132.dp),
@@ -366,12 +371,13 @@ private fun Candidates(
 /**
  * The two-octave piano: tap toggles a key, long-press sounds it. Selected keys
  * are blue; [soundingMidi] (what played last) amber, or an amber dot on a
- * selected key.
+ * selected key. Keys are labelled in [notation], the song's.
  */
 @Composable
 private fun Keyboard(
     selectedMidi: Set<Int>,
     soundingMidi: Set<Int>,
+    notation: String,
     onTap: (PianoKey) -> Unit,
     onLongPress: (PianoKey) -> Unit,
     modifier: Modifier = Modifier,
@@ -411,7 +417,7 @@ private fun Keyboard(
                 else -> Color.White
             }
             val label = measurer.measure(
-                key.name,
+                PianoKeyboard.label(key, notation),
                 TextStyle(fontSize = if (key.isBlack) 8.sp else 10.sp, color = labelColor),
             )
             labelKey(label, topLeft, keySize)

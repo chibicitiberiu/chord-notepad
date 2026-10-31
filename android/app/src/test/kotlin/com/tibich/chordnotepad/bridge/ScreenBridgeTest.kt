@@ -57,6 +57,7 @@ class ScreenBridgeTest {
                "candidates":["C5"],"message":null}""",
         ) as IdentifierState
         assertEquals(60, identifier.notes.single().midi)
+        assertEquals("american", identifier.notation)
         assertNull(identifier.message)
 
         val editor = BridgeCodec.decode(

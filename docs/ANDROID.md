@@ -349,11 +349,12 @@ raises is an `UnexpectedError` whose `context` is the command name.
 - *Chord identifier.* `identifier_toggle_note {note, octave}` (a key tap:
   select or deselect; a newly selected key sounds), `play_note {note,
   octave}` (long-press: sound without selecting), `identifier_set_notes_text
-  {text}` (the typed field: `"C E G"`, `"C4, E4, G4"`; a note without an
-  octave goes just above the one before, the first in octave 4; silent),
+  {text}` (the typed field: `"C E G"`, `"C4, E4, G4"`, `"Do Mi Sol"`,
+  either notation; a note without an octave goes just above the one
+  before, the first in octave 4; silent),
   `identifier_clear {}` (Clear, and when the screen opens; stops a roll),
-  `play_identified_chord {chord, rolled}` (a tapped candidate, `rolled` on a
-  long press; an unplayable chord is a `UserError`),
+  `play_identified_chord {chord, rolled}` (a tapped candidate as shown,
+  `rolled` on a long press; an unplayable chord is a `UserError`),
   `identifier_play_selection {rolled}` (the Play button: the selected keys
   in their octaves; nothing with none selected), `insert_chord {at, chord}`
   (inserts `chord + " "`, says
@@ -362,7 +363,13 @@ raises is an `UnexpectedError` whose `context` is the command name.
   (`AudioUnavailable` once per session). Output: `IdentifierState {notes:
   [{name, octave, midi}] lowest first, notes_text, typed_text_error,
   candidates, message, sounding, sounding_token, sounding_seconds,
-  sounding_below, sounding_above}`. `sounding` is the MIDI notes the last
+  sounding_below, sounding_above, notation}`. `notation` is the open
+  song's (`ToolbarState`'s AB / Do, not the Settings default):
+  `notes_text`, `candidates` (`Lam7`, `Domaj7/Mi`), `message` and the
+  markers are spelled in it, the piano labels its keys in it, and the state
+  is republished when it changes. `notes[].name` stays American with
+  sharps. Identification and the order of the candidates are American
+  underneath; the inserted chord is the candidate as shown. `sounding` is the MIDI notes the last
   play sent to the synth (the piano lights them for `sounding_seconds`,
   restarting when `sounding_token` changes); `sounding_below`/`_above` name
   the ones outside C4-B5 ("◂ E3 G#3"). `notes_text` is what the typed field shows after a
@@ -824,7 +831,9 @@ committed schema (2026-10-29).
     two-octave keyboard from C4 (`PianoKeyboard`: tap →
     `identifier_toggle_note`, long-press → `play_note`), the notes field
     (`identifier_set_notes_text`, `typed_text_error` under it; it takes
-    `notes_text` only after a key tap), Clear, Play (tap →
+    `notes_text` only after a key tap, or on a notation change when it
+    showed the old `notes_text`; the picked candidate moves to its
+    respelled name), key labels and the hint in `notation`, Clear, Play (tap →
     `identifier_play_selection {rolled: false}`, long press → rolled), the
     candidates (tap picks and plays, long press plays rolled, double-tap or
     Insert → `insert_chord {at: cursor}`) or

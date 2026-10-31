@@ -147,6 +147,11 @@ moved to CHANGELOG_HISTORY.md and this file is reset.
 - Settings › Voicings shows note names (strings, voice ranges, hand ranges)
   in the notation chosen in Settings, so `Mi2 La2 Re3` with European, and
   accepts either spelling when you type one.
+- Identify Chord names chords and notes in the notation of the song you
+  have open: in a European song the keys, the notes and the results read
+  `Do Mi Sol`, `Lam7`, `Domaj7/Mi`, and an inserted chord goes in that way.
+  Typed notes can be in either notation (`Do Mi Sol` or `C E G`). On the
+  desktop, switching AB / Do while it's open renames everything at once.
 - Suggest Capo replaces a `{capo}` that comes before the first chord instead
   of adding a second one, and on a selection it changes only that part.
 - The Windows, macOS and Linux downloads are smaller: they no longer bundle

@@ -54,6 +54,15 @@ class IdentifierTest {
     }
 
     @Test
+    fun `keys are labelled in the song's notation`() {
+        val labels = piano.keys.take(7).map { PianoKeyboard.label(it, "european") }
+        assertEquals(listOf("Do", "Re", "Mi", "Fa", "Sol", "La", "Si"), labels)
+        val gSharp = piano.keys.first { it.midi == 68 }
+        assertEquals("Sol#", PianoKeyboard.label(gSharp, "european"))
+        assertEquals("G#", PianoKeyboard.label(gSharp, "american"))
+    }
+
+    @Test
     fun `selected keys by midi, notes off the keyboard skipped`() {
         assertEquals(setOf("C", "E", "G"), piano.selected(listOf(60, 64, 67, 100)).map { it.name }.toSet())
     }
@@ -135,6 +144,22 @@ class IdentifierTest {
     }
 
     @Test
+    fun `a notation switch respells the field and the pick`() {
+        model.tapKey(piano.keys.first())
+        model.onState(state("A C E", "Am", "C6"))
+        model.pick("C6")
+        model.onState(state("Do Mi La", "Lam", "Do6").copy(notation = "european"))
+        assertEquals("Do Mi La", model.typed)
+        assertEquals("Do6", model.picked)
+
+        // Typed text of the user's own stays as they wrote it.
+        model.type("A4, C5, E5")
+        model.onState(state("A C E", "Am", "C6"))
+        assertEquals("A4, C5, E5", model.typed)
+        assertEquals("C6", model.picked)
+    }
+
+    @Test
     fun `play sends the selection, rolled on a long press`() {
         model.play()
         assertSent("identifier_play_selection", """{"rolled": false}""")
@@ -166,8 +191,9 @@ class IdentifierTest {
     fun `the sounding fields decode from the session`() {
         val json = """{"notes": [], "notes_text": "", "typed_text_error": null, "candidates": ["C"],
             "message": null, "sounding": [48, 52, 55], "sounding_token": 2, "sounding_seconds": 3.0,
-            "sounding_below": "◂ C3 E3 G3", "sounding_above": null}"""
+            "sounding_below": "◂ C3 E3 G3", "sounding_above": null, "notation": "european"}"""
         val decoded = Json.decodeFromString(IdentifierState.serializer(), json)
+        assertEquals("european", decoded.notation)
         assertEquals(listOf(48, 52, 55), decoded.sounding)
         assertEquals(2, decoded.soundingToken)
         assertEquals("◂ C3 E3 G3", decoded.soundingBelow)

@@ -47,6 +47,7 @@
     <string name="identifier_title">Identify Chord</string>
     <string name="identifier_close">Close</string>
     <string name="identifier_hint">Tap keys on the piano or type notes below (e.g., C E G or C, E, G). Long-press a key to hear it without selecting it, and long-press Play or a chord to hear it rolled.</string>
+    <string name="identifier_hint_european">Tap keys on the piano or type notes below (e.g., Do Mi Sol or Do, Mi, Sol). Long-press a key to hear it without selecting it, and long-press Play or a chord to hear it rolled.</string>
     <string name="identifier_notes">Notes</string>
     <string name="identifier_clear">Clear</string>
     <string name="identifier_play">Play</string>

@@ -742,6 +742,23 @@ The chords are named with the accidentals you typed: ``Bb D F`` gives ``Bb``,
 ``F# A# C#`` gives ``F#``. Notes picked on the keyboard get the usual names:
 ``Bb``, ``Eb``, ``Ab`` and ``Db`` major, ``F#`` major, ``Eb`` minor.
 
+You can type the notes in either notation, whatever the song uses: ``Do Mi
+Sol``, ``Sib Re Fa`` and ``Do4 Mi4 Sol4`` work as well as ``C E G``.
+
+Song Notation
+-------------
+
+The identifier names notes and chords in the notation of the song you have
+open (**AB / Do**). In a European song the keys are labelled ``Do Re Mi``,
+the Notes field shows ``Do Mi Sol``, and the results read ``Do``, ``Lam7``,
+``Miaddb6`` or ``Domaj7/Mi``. A chord you insert goes into the song spelled
+that way.
+
+.. only:: desktop
+
+   Switching **AB / Do** while the identifier is open renames everything at
+   once; the chords found and their order stay the same.
+
 The Results List
 ----------------
 

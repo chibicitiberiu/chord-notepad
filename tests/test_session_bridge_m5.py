@@ -21,7 +21,8 @@ def test_identifier_over_the_bridge(env):
     assert first == {"notes": [], "notes_text": "", "typed_text_error": None,
                      "candidates": [], "message": "Select notes to identify chords...",
                      "sounding": [], "sounding_token": 0, "sounding_seconds": 3.0,
-                     "sounding_below": None, "sounding_above": None}
+                     "sounding_below": None, "sounding_above": None,
+                     "notation": "american"}
     env.send("identifier_toggle_note", note="A", octave=4)
     env.send("identifier_toggle_note", note="C", octave=5)
     env.send("identifier_toggle_note", note="E", octave=5)

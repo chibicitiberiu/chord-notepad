@@ -423,16 +423,17 @@ class IdentifierState:
             outside the keys a piano shows.
         notes_text: The selection as the typed-notes field shows it after a
             key was toggled: the distinct note names in pitch-class order,
-            space separated (``"C E G"``). Don't overwrite the field with it
-            while the user types there.
+            in ``notation``, space separated (``"C E G"``, ``"Do Mi Sol"``).
+            Don't overwrite the field with it while the user types there.
         typed_text_error: Set when the typed notes had something that isn't a
             note (it was skipped); None otherwise, and after a key toggle.
-        candidates: The chords the notes make, simplest first. Tap one to
-            hear it (``play_identified_chord``), insert it with
+        candidates: The chords the notes make, likeliest first, named in
+            ``notation`` (``Lam7`` in European). Tap one to hear it
+            (``play_identified_chord`` takes it as shown), insert it with
             ``insert_chord``.
         message: What to show instead of (or for lack of) candidates: the
             prompt to select notes, "no standard chord found", an error; None
-            when there are candidates.
+            when there are candidates. Notes it names are in ``notation``.
         sounding: The MIDI notes the candidate played last sent to the
             synth, lowest first. Highlight their keys in a second colour for
             ``sounding_seconds``, then stop by yourself; empty once the
@@ -443,6 +444,10 @@ class IdentifierState:
         sounding_below: A marker for the sounding notes under the piano's
             lowest key (C4), such as ``"◂ C3"``; None when there are none.
         sounding_above: The same over its highest key (B5): ``"D6 ▸"``.
+        notation: The open song's notation (the toolbar's AB / Do switch,
+            not the Settings default), ``american`` or ``european``: the
+            names above are spelled in it, and a piano labels its keys in it.
+            Republished when it changes. Typed notes may use either.
     """
 
     notes: Tuple[IdentifierNote, ...]
@@ -455,6 +460,7 @@ class IdentifierState:
     sounding_seconds: float = 3.0
     sounding_below: Optional[str] = None
     sounding_above: Optional[str] = None
+    notation: str = "american"
 
 
 @dataclass(frozen=True)

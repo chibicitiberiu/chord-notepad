@@ -23,6 +23,7 @@ import dataclasses
 import functools
 import logging
 import os
+import weakref
 from pathlib import Path
 from typing import (
     TYPE_CHECKING, Any, Callable, Dict, Generator, Iterator, Mapping, Optional, Sequence, Tuple,
@@ -336,6 +337,11 @@ class AppSession:
         # model of its own): created on first use, since it needs services.
         self._identifier_model: Optional["ChordIdentifierViewModel"] = None
         self._identifier_error: Optional[str] = None
+        # Every identifier model handed out, so all of them show names in
+        # the song's notation when it changes.
+        self._identifier_models: "weakref.WeakSet[ChordIdentifierViewModel]" = weakref.WeakSet()
+        self._on_identifier_notation = self._entry(self._respell_identifier)
+        self._main.observe("notation", self._on_identifier_notation)
         # A Settings screen's working copy (Android), while one is open.
         self._settings_edit: Optional[SettingsEdit] = None
         self._staging: Optional[SettingsStaging] = None
@@ -355,8 +361,7 @@ class AppSession:
             if services is not None:
                 # The screens that need the services (Android's identifier
                 # and Settings).
-                self._emitter.set_state(IdentifierState(
-                    (), "", None, (), formatting.IDENTIFIER_PROMPT))
+                self._publish_identifier()
                 self._publish_settings()
                 self._emitter.set_state(INACTIVE_VOICING_EDITOR)
         if services is not None:
@@ -405,6 +410,7 @@ class AppSession:
         self._main.unobserve("current_document", self._on_document)
         self._main.unobserve("is_modified", self._on_document)
         self._main.unobserve("notation", self._on_notation)
+        self._main.unobserve("notation", self._on_identifier_notation)
         for name in _TOOLBAR_INPUTS:
             self._main.unobserve(name, self._on_toolbar_input)
         self._main.unobserve("font_family", self._on_editor_input)
@@ -980,7 +986,8 @@ class AppSession:
     #
     # The identifier's notes and candidates are an IdentifierState. Inserting
     # a candidate is insert_chord. Audio that can't start is reported by the
-    # click-to-hear policy, like a chord tap.
+    # click-to-hear policy, like a chord tap. Names are shown in the song's
+    # notation (MainWindowViewModel.notation); identification is American.
 
     @_command
     def identifier_toggle_note(self, note: str, octave: int) -> None:
@@ -1007,9 +1014,10 @@ class AppSession:
     def identifier_set_notes_text(self, text: str) -> None:
         """The typed-notes field changed: select the notes it names.
 
-        Parsed forgivingly (``"C E G"``, ``"C4, E4, G4"``; octave 4 when left
-        out); what isn't a note is skipped and named in
-        ``IdentifierState.typed_text_error``. Nothing sounds.
+        Parsed forgivingly (``"C E G"``, ``"C4, E4, G4"``, ``"Do Mi Sol"``:
+        either notation; octave 4 when left out); what isn't a note is
+        skipped and named in ``IdentifierState.typed_text_error``. Nothing
+        sounds.
         """
         from viewmodels.chord_identifier_viewmodel import parse_notes, spelling_preference
 
@@ -1046,7 +1054,8 @@ class AppSession:
         The notes that sound are published as ``IdentifierState.sounding``.
 
         Args:
-            chord: The candidate.
+            chord: The candidate, as ``IdentifierState.candidates`` spells
+                it (or in American).
             rolled: One note at a time from the lowest up (a long press).
         """
         try:
@@ -1778,8 +1787,12 @@ class AppSession:
         from viewmodels.chord_identifier_viewmodel import ChordIdentifierViewModel
 
         services = self._require_services("the chord identifier")
-        return ChordIdentifierViewModel(
+        model = ChordIdentifierViewModel(
             song_parser_service=services.song_parser, audio_service=services.playback)
+        # Names in the song's notation, now and when it changes.
+        model.set_notation(self._main.notation.value)
+        self._identifier_models.add(model)
+        return model
 
     def settings_values(self) -> SettingsValues:
         """The current settings as plain values (for :meth:`apply_settings`).
@@ -1951,21 +1964,34 @@ class AppSession:
         except AudioInitializationError as e:
             self._report_audio_failure(str(e), from_click=True)
 
+    def _respell_identifier(self, notation: Notation) -> None:
+        """The song's notation changed: every identifier shows its names in it."""
+        for model in list(self._identifier_models):
+            model.set_notation(notation.value)
+        if self._services is not None:
+            self._publish_identifier()
+
     def _publish_identifier(self) -> None:
         from viewmodels.chord_identifier_viewmodel import (
-            SOUNDING_SECONDS, note_to_midi, outside_piano,
+            SOUNDING_SECONDS, note_to_midi, outside_piano, spell,
         )
 
-        model = self._identifier()
-        below, above = outside_piano(model.sounding)
+        notation = self._main.notation.value
+        model = self._identifier_model
+        if model is None:
+            self._emitter.set_state(IdentifierState(
+                (), "", None, (), formatting.IDENTIFIER_PROMPT, notation=notation))
+            return
+        below, above = outside_piano(model.sounding, notation=notation)
         notes = sorted(
             (IdentifierNote(name, octave, note_to_midi(name, octave))
              for name, octave in model.selected_notes),
             key=lambda n: n.midi)
         names = []
         for note in sorted(notes, key=lambda n: n.midi % 12):
-            if note.name not in names:
-                names.append(note.name)
+            name = spell(note.name, notation)
+            if name not in names:
+                names.append(name)
         info = model.info_lines
         self._emitter.set_state(IdentifierState(
             notes=tuple(notes),
@@ -1978,6 +2004,7 @@ class AppSession:
             sounding_seconds=SOUNDING_SECONDS,
             sounding_below=below,
             sounding_above=above,
+            notation=notation,
         ))
 
     def _commit_settings(self, values: SettingsValues) -> "SettingsChanges":
