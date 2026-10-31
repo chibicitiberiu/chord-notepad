@@ -118,8 +118,9 @@ class NotationConverter:
             root = chord_part[0]
             suffix = chord_part[1:]
 
-        # Convert root
-        root_letter = root[0].upper()
+        # Convert root, keeping its case: a lowercase root is a minor chord
+        # (c -> do), which converts back to Cm.
+        root_letter = root[0]
         if root_letter in cls.AMERICAN_TO_EUROPEAN:
             european_root = cls.AMERICAN_TO_EUROPEAN[root_letter]
             if len(root) > 1:  # Has sharp/flat

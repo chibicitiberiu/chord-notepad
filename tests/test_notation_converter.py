@@ -34,6 +34,14 @@ class TestChordAmericanToEuropean:
     def test_slash_with_quality(self):
         assert NotationConverter.chord_american_to_european("Am7/E") == "Lam7/Mi"
 
+    @pytest.mark.parametrize("american, european", [
+        ("c", "do"), ("c#", "do#"), ("f#", "fa#"), ("bb", "sib"), ("a7", "la7"),
+    ])
+    def test_lowercase_minor_stays_lowercase(self, american, european):
+        """A lowercase root is a minor chord and stays one."""
+        assert NotationConverter.chord_american_to_european(american) == european
+        assert NotationConverter.chord_european_to_american(european)[0].isupper()
+
     def test_unknown_letter_unchanged(self):
         """Letters outside the chord alphabet pass through unchanged."""
         assert NotationConverter.chord_american_to_european("X") == "X"

@@ -53,6 +53,9 @@ moved to CHANGELOG_HISTORY.md and this file is reset.
 
 ### Fixed
 
+- Converting to European notation kept lowercase minor chords minor only in
+  name: `c c# f#` became `Do Do# Fa#`, which are major. They now become
+  `do do# fa#` and convert back to `Cm C#m F#m`.
 - Pressing Pause right after Play, while the song is still being prepared,
   now pauses it. Before, the song started playing anyway while the Play
   button showed it as paused.

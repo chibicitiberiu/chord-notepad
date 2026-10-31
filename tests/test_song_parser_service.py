@@ -513,6 +513,12 @@ class TestNotationConversion:
         expected = "Do Lam Fa Sol\nDomaj7 Lam7 Fa Sol\nDo/Mi Lam/Sol Fa Sol"
         assert song_parser.convert_to_european(text) == expected
 
+    def test_lowercase_minors_survive_american_to_european(self, song_parser):
+        """Reported on Android: c, c# and f# came out as major Do, Do#, Fa#."""
+        result = song_parser.convert_to_european("Bb c c# Eb f f#")
+        assert result == "Sib do do# Mib fa fa#"
+        assert song_parser.convert_to_american(result) == "Bb Cm C#m Eb Fm F#m"
+
     def test_lyric_line_is_not_touched(self, song_parser):
         """The whole point of using the detector: never touch lyric text."""
         text = "C    Am   F    G\nA week ago I saw a dolphin"
