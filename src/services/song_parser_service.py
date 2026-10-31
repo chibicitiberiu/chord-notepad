@@ -10,7 +10,7 @@ from typing import List, Tuple, Union, Optional
 from chord.detector import ChordDetector
 from chord.helper import ChordHelper
 from chord.converter import NotationConverter
-from chord.keys import is_valid_key
+from chord.keys import american_key, is_valid_key
 from constants import MAX_BEATS, MAX_BPM, MIN_BEATS, MIN_BPM, TIME_SIGNATURE_UNITS
 from models.line import Line
 from models.chord import ChordInfo
@@ -18,6 +18,17 @@ from models.directive import Directive, DirectiveType, BPMModifierType
 from models.song import Song
 from models.label import Label
 from models.notation import Notation
+
+
+#: A ``{key: ...}`` directive's value, without the spaces around it.
+_KEY_VALUE = re.compile(r'\{[^:}]*:\s*([^{}]*?)\s*\}')
+
+
+def _european_key(key: str) -> str:
+    """A key in European spelling (``F#m`` -> ``Fa#m``); one that already is
+    stays as it is."""
+    american = american_key(key)
+    return NotationConverter.chord_american_to_european(american) if american else key
 
 
 def _line_starts(text: str) -> List[int]:
@@ -563,7 +574,8 @@ class SongParserService:
         if lines is None:
             lines = self.detect_chords_in_text(text, notation="european")
         return self._apply_chord_conversion(
-            text, lines, self._converter.chord_european_to_american
+            text, lines, self._converter.chord_european_to_american,
+            lambda key: american_key(key) or key
         )
 
     def convert_to_european(self, text: str, lines: Optional[List[Line]] = None) -> str:
@@ -576,7 +588,8 @@ class SongParserService:
         if lines is None:
             lines = self.detect_chords_in_text(text, notation="american")
         return self._apply_chord_conversion(
-            text, lines, self._converter.chord_american_to_european
+            text, lines, self._converter.chord_american_to_european,
+            _european_key
         )
 
     @staticmethod
@@ -613,20 +626,32 @@ class SongParserService:
         return result
 
     @staticmethod
-    def _apply_chord_conversion(text: str, lines: List[Line], convert_chord) -> str:
-        """Substitute each detected chord with its converted form.
+    def _apply_chord_conversion(text: str, lines: List[Line], convert_chord, convert_key) -> str:
+        """Substitute each detected chord, and the key of each valid
+        ``{key: ...}`` directive, with its converted form.
 
         Builds the chord spans from the pre-detected chord lines (valid,
-        non-relative chords only) and delegates the splice to
-        :py:meth:`rewrite_chord_spans`.
+        non-relative chords only) and the key spans from every line, and
+        splices each with its own converter (as :py:meth:`rewrite_chord_spans`
+        does with one).
         """
         spans = [
-            (chord.start, chord.end, chord.chord)
+            (chord.start, chord.start + len(chord.chord), (convert_chord, chord.chord))
             for line in lines if line.is_chord_line()
             for chord in line.get_valid_chords()
             if not chord.is_relative
         ]
-        return SongParserService.rewrite_chord_spans(text, spans, convert_chord)
+        for line in lines:
+            for directive in line.directives:
+                if directive.type == DirectiveType.KEY and directive.is_valid:
+                    # The value's span: "{key: Sol }" -> "Sol".
+                    match = _KEY_VALUE.match(text, directive.start, directive.end)
+                    if match:
+                        spans.append((match.start(1), match.end(1), (convert_key, match.group(1))))
+        result = text
+        for start, end, (convert, part) in sorted(spans, key=lambda s: s[0], reverse=True):
+            result = result[:start] + convert(part) + result[end:]
+        return result
 
     def identify_chord_from_notes(self, notes: List[str], bass_note: str = None) -> List[str]:
         """Identify possible chord names from a set of notes.

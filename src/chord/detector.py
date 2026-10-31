@@ -376,6 +376,10 @@ class ChordDetector:
         # ø = half-diminished (m7b5)
         # + = augmented
 
+        # ♯ and ♭ anywhere (root, bass, alterations): the rest of the code
+        # reads # and b only, so c♯ and C/G♭ had no notes.
+        chord_str = chord_str.replace('♯', '#').replace('♭', 'b')
+
         # Handle ° (diminished)
         if '°' in chord_str:
             chord_str = chord_str.replace('°', 'dim')
@@ -405,7 +409,7 @@ class ChordDetector:
             # Lowercase = minor chord
             # Check for sharp/flat
             if len(chord_str) > 1 and chord_str[1] in ['#', 'b']:
-                root = chord_str[:2].upper()
+                root = chord_str[0].upper() + chord_str[1]  # bb is Bb, not BB
                 suffix = chord_str[2:]
             else:
                 root = chord_str[0].upper()

@@ -141,7 +141,7 @@ class NotationConverter:
             if chord_part.startswith(european):
                 # Check for sharp/flat after European root
                 suffix_start = len(european)
-                if suffix_start < len(chord_part) and chord_part[suffix_start] in ['#', 'b']:
+                if suffix_start < len(chord_part) and chord_part[suffix_start] in ['#', 'b', '♯', '♭']:
                     suffix_start += 1
                     american_root = american + chord_part[len(european)]
                 else:
@@ -156,8 +156,8 @@ class NotationConverter:
                     if not suffix or (len(suffix) > 0 and suffix[0] not in ['m', 'M'] and not suffix.startswith('maj') and not suffix.startswith('min')):
                         # Add 'm' for minor if no quality is specified
                         suffix = 'm' + suffix
-                    # Convert lowercase american to uppercase
-                    american_root = american_root.upper()
+                    # Uppercase the letter only: sib is Bbm, not BBm
+                    american_root = american_root[0].upper() + american_root[1:]
 
                 # Normalize European "M" (major) to "maj" for PyChord compatibility
                 # DoM -> Cmaj, but Do -> C (major is implied)

@@ -74,6 +74,13 @@ moved to CHANGELOG_HISTORY.md and this file is reset.
 - Pressing Pause right after Play, while the song is still being prepared,
   now pauses it. Before, the song started playing anyway while the Play
   button showed it as paused.
+- Lowercase minor chords with a flat root (`bb`, `eb`, `ab`, and `sib`,
+  `mib` in European) are now chords. Before, they weren't highlighted or
+  played, and transposing `A b c` down a tone gave `G a bb`, which didn't
+  work. Chords written with `♯` or `♭` after a lowercase root or in a slash
+  bass (`c♯`, `C/G♭`) also play and transpose correctly now.
+- Converting between American and European notation also converts `{key}`
+  directives: `{key: G}` becomes `{key: Sol}`.
 - Opening another song or starting a new one while a song plays or is
   paused now stops it. Before, Play went on with the old song and lit up
   its chords in the new text.

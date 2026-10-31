@@ -455,9 +455,10 @@ The User Interface
    * **Transpose**, which opens the dialog described in :doc:`transpose`
    * **Identify**, which opens the Chord Identifier (see below)
    * **AB / Do**, the notation the text is read in, for this song only (a new
-     or opened song starts in the one set in Settings)
-   * **Convert**, which rewrites every chord in the document into the other
-     notation and switches AB / Do to match
+     song starts in the one set in Settings, an opened one in the one its
+     chords are written in)
+   * **Convert**, which rewrites every chord and ``{key}`` directive in the
+     document into the other notation and switches AB / Do to match
 
    When the buttons don't all fit, drag the ribbon sideways. A **›** at its
    right edge means there are more buttons off screen; tapping it scrolls them

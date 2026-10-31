@@ -710,3 +710,21 @@ def test_guess_notation(text, expected):
     from chord.detector import guess_notation
 
     assert guess_notation(text) == expected
+
+
+@pytest.mark.parametrize("american, european", [
+    ("{key: G}\nG D\n", "{key: Sol}\nSol Re\n"),
+    ("{key:F#m}\n", "{key:Fa#m}\n"),
+    ("{key: Bb }  {bpm: 90}\nBb\n", "{key: Sib }  {bpm: 90}\nSib\n"),
+    ("C\n{key: A}\nA E\n", "Do\n{key: La}\nLa Mi\n"),
+])
+def test_converting_notation_converts_key_directives(american, european):
+    parser = SongParserService()
+    assert parser.convert_to_european(american) == european
+    assert parser.convert_to_american(european) == american
+
+
+def test_converting_leaves_an_invalid_key_and_a_commented_one_alone():
+    parser = SongParserService()
+    text = "{key: H}\n// {key: G}\nG\n"
+    assert parser.convert_to_european(text) == "{key: H}\n// {key: G}\nSol\n"

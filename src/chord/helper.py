@@ -779,7 +779,7 @@ class ChordHelper:
 
         # Check for sharp/flat after root
         if len(chord_name) > 1 and chord_name[1] in ['#', 'b']:
-            root = chord_name[:2].upper()
+            root = chord_name[0].upper() + chord_name[1]  # bb is Bb, not BB
             suffix = chord_name[2:]
         else:
             root = chord_name[0].upper()
@@ -806,6 +806,9 @@ class ChordHelper:
         Returns:
             Chord with text (e.g., "Adim7", "Bm7b5", "Caug")
         """
+        # ♯ and ♭ anywhere (root, bass, alterations): read as # and b.
+        chord_name = chord_name.replace('♯', '#').replace('♭', 'b')
+
         # Handle ° (diminished)
         if '°' in chord_name:
             chord_name = chord_name.replace('°', 'dim')

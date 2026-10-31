@@ -132,13 +132,14 @@ Switching Notations
       To actually rewrite the chords in your document from one system to the other,
       use :menuselection:`Tools --> Convert to American Notation` or
       :menuselection:`Tools --> Convert to European Notation`. Those commands
-      rewrite every chord in place; the toggle never does.
+      rewrite every chord and every ``{key}`` directive in place; the toggle
+      never does.
 
    .. only:: android
 
       To actually rewrite the chords in your document from one system to the other,
-      use **Convert** in the Edit ribbon. It rewrites every chord into the other
-      notation in place, and switches AB / Do to match; the switch alone never
+      use **Convert** in the Edit ribbon. It rewrites every chord and every
+      ``{key}`` directive into the other notation in place, and switches AB / Do to match; the switch alone never
       rewrites anything. Convert reads the song in the notation the switch
       shows, so set the switch to the notation the song is written in first.
 
@@ -269,9 +270,10 @@ You can also write minor chords with a lowercase letter:
 
 .. code-block:: chord
 
-   c    f    g    d    a    e
+   c    f    g    d    a    e    bb   f#
 
-Both ``Cm`` and ``c`` produce the same C minor chord.
+Both ``Cm`` and ``c`` produce the same C minor chord, and ``bb`` is B flat
+minor (``Bbm``).
 
 Seventh Chords
 --------------
