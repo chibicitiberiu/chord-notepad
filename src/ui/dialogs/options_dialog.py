@@ -183,6 +183,9 @@ class OptionsDialog(tk.Toplevel):
             notation = notation_var.get()
             key_combo["values"] = list(key_names(notation))
             key_var.set(spell_key(self._viewmodel.key, notation))
+            voicings = getattr(self, "_voicings_page", None)
+            if voicings is not None:
+                voicings.set_notation(notation)
 
         notation_var.trace_add("write", respell_key)
         row += 1

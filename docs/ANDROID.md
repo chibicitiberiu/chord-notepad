@@ -373,8 +373,8 @@ raises is an `UnexpectedError` whose `context` is the command name.
   config changed at the end of a command. The toolbar writes none of the
   defaults: its tempo, key, time signature and notation are the current
   song's (`ToolbarState`), while `values.notation` is the default a new or
-  opened song starts in. Settings shows its key list in `values.notation`,
-  never the song's.
+  opened song starts in. Settings shows its key list and the voicing
+  form's note names in `values.notation`, never the song's.
   Changing the default in Settings also switches the current song when it
   hasn't been switched by hand. `values` holds exactly the
   settings Android shows (the visibility rule: no log level, audio driver,
@@ -451,7 +451,11 @@ raises is an `UnexpectedError` whose `context` is the command name.
   field_errors, form_errors, hints, dirty, problems, staged_numbers,
   restored}`: `values` / `field_errors` /
   `hints` are JSON objects keyed by field id (`voice:<i>:<column>` for a
-  records cell), recomputed on every edit, so Kotlin never parses or
+  records cell). Note names in `values`, `hints` and the problem texts are
+  in the working copy's notation (the Settings notation, which follows the
+  draft through `commit_settings` and respells the form when it changes);
+  typed names parse in either spelling and are stored as MIDI numbers.
+  They're recomputed on every edit, so Kotlin never parses or
   validates. `revision` goes up on every command (also a refused rename),
   so the screen can reset its fields from the state.
 - *Quick Start.* `request_quick_start {}` → `QuickStartContent {pages:

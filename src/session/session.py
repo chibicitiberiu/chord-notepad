@@ -1425,8 +1425,13 @@ class AppSession:
         values.check()
         if invalid_numbers is not None:
             edit.staged_numbers = _number_texts(invalid_numbers)
+        notation = edit.notation
         for name, value in values.as_dict().items():
             setattr(edit.model, name, value)
+        if edit.notation != notation:
+            # The voicing form shows note names in the Settings notation.
+            edit.respell()
+            edit.bump()
         plans = edit.plans(config.voicings)
         registry = edit.registry(plans, config.voicings)
         changes = None

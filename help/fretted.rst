@@ -216,8 +216,9 @@ Defining a Custom Fretted Voicing
 
    * **Strings** lists the open strings in **string order**: the order a
      player would strike them, not sorted by pitch. Separate them with
-     spaces. Each is a note name (``E2``, ``B1``) or a MIDI number; middle C
-     is ``C4``. You need 3 to 12 strings. Re-entrant tunings, like the
+     spaces. Each is a note name (``E2``, ``B1``, or in European notation
+     ``Mi2``, ``Si1``) or a MIDI number; middle C is ``C4``. You need 3 to 12
+     strings. Re-entrant tunings, like the
      ukulele's, are fine and are kept in the order you give them.
    * The other fields have defaults; see the parameter reference below for
      what each one does.

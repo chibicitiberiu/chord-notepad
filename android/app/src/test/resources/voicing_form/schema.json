@@ -463,7 +463,7 @@
        "fields": [
         {
          "default": "E2 A2 D3 G3 B3 E4",
-         "help": "Open-string pitches in string order, starting with the string you strum first (the thickest on a guitar), so a ukulele is G4 C4 E4 A4. 3 to 12 strings. Required.",
+         "help": "Open-string pitches in string order, starting with the string you strum first (the thickest on a guitar), so a ukulele is G4 C4 E4 A4 (Sol4 Do4 Mi4 La4). 3 to 12 strings. Required.",
          "hint": "(note names or MIDI numbers, e.g. E2 A2 D3 G3 B3 E4)",
          "id": "tuning",
          "kind": "pitch_list",

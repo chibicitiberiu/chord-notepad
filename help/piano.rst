@@ -151,8 +151,8 @@ Defining a Custom Piano Voicing
       * - Wide right-hand gap (under Weights)
         - -1.2
 
-   Notes are written as note names (``C3``, ``E4``) or MIDI numbers; middle
-   C is ``C4``, MIDI 60. The parameter reference below explains every field.
+   Notes are written as note names (``C3``, ``E4``, or ``Do3``, ``Mi4`` in
+   European notation) or MIDI numbers; middle C is ``C4``, MIDI 60. The parameter reference below explains every field.
 
 .. only:: desktop
 

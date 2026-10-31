@@ -575,3 +575,74 @@ def test_each_blamed_field_gets_the_rule_it_breaks():
     assert [p.field_id for p in plan.problems] == ["voice:0:low", "voice:0:high"]
     assert all(p.message.endswith("got 72 >= 60.") for p in plan.problems)
     assert plan.data["voices"][0]["range"] == [60, 72]
+
+
+# -- note names in the Settings notation ---------------------------------------------------
+
+
+def test_note_names_parse_in_either_notation_and_show_in_the_one_asked():
+    assert voicing_form.parse_pitch_token("Do4") == 60
+    assert voicing_form.parse_pitch_token("sol#3") == 56
+    assert voicing_form.parse_pitch_token("Sib2") == 46
+    assert voicing_form.parse_pitch_token("E2") == 40
+    assert voicing_form.parse_pitch_token("Re") is None
+    assert voicing_form.pitch_to_text(61, "european") == "Do#4"
+    assert voicing_form.pitch_to_text("C4", "european") == "Do4"     # a stored name
+    assert voicing_form.pitch_to_text("H9", "european") == "H9"      # being typed
+    guitar = {"model": "fretboard", "tuning": [40, 45, 50, 55, 59, 64]}
+    assert voicing_form.values_from_voicing("fretboard", guitar, "european")["tuning"] == (
+        "Mi2 La2 Re3 Sol3 Si3 Mi4")
+    assert voicing_form.voicing_from_values(
+        "fretboard", {"tuning": "Mi2 La2 Re3 Sol3 Si3 Mi4"})["tuning"] == guitar["tuning"]
+    tuning = voicing_form.iter_fields(voicing_form.form_schema("fretboard"))[0]
+    assert voicing_form.field_hint(tuning, {}, "european") == (
+        "(note names or MIDI numbers, e.g. Mi2 La2 Re3 Sol3 Si3 Mi4)")
+
+
+def test_the_voicing_form_follows_the_settings_notation(tmp_path):
+    session, services, recorder = make(tmp_path, voicings={"Bass": BASS})
+    services.config.config.notation = "european"
+    session.set_notation("american")                       # the song's: Settings ignores it
+    session.begin_settings_edit()
+    session.select_voicing("Bass")
+    state = editor(recorder)
+    assert state.values["tuning"] == "Mi1 La1 Re2 Sol2"
+    assert "Mi2 La2 Re3" in state.hints["tuning"]
+
+    # Typed in either spelling, stored as MIDI.
+    session.set_voicing_values({"tuning": "Mi1 La1 D2 Sol2 Do3"})
+    session.commit_settings(None)
+    assert services.config.config.voicings["Bass"]["tuning"] == [28, 33, 38, 43, 48]
+
+    # A wrong value is worded in the Settings notation.
+    session.set_voicing_values({"tuning": "Mi1 X9"})
+    session.commit_settings(None)
+    assert editor(recorder).problems[0].text.endswith(
+        "Use note names or MIDI numbers, e.g. Mi2 La2 Re3 Sol3 Si3 Mi4, 3 to 12 strings.")
+
+    # Switching the Settings notation respells the form at once (the typing stays).
+    session.set_voicing_values({"tuning": "Mi1 La1 Re2 Sol2 Do3"})
+    values = dataclasses.replace(session.settings_values(), notation="american")
+    session.commit_settings(values)
+    state = editor(recorder)
+    assert state.values["tuning"] == "E1 A1 D2 G2 C3"
+    assert "E2 A2 D3" in state.hints["tuning"]
+    assert services.config.config.notation == "american"
+
+
+def test_an_ensemble_cell_and_a_piano_range_in_european(tmp_path):
+    session, services, recorder = make(tmp_path)
+    services.config.config.notation = "european"
+    session.begin_settings_edit()
+    session.add_voicing()
+    session.set_voicing_model("ensemble")
+    voices = editor(recorder).values["voices"]
+    assert (voices[0]["low"], voices[0]["high"]) == ("Do4", "Do5")
+    session.add_voicing_record()
+    assert editor(recorder).values["voices"][2]["low"] == "Do3"
+    session.set_voicing_values({"voices": [dict(voices[0], low="H9"), voices[1]]})
+    session.commit_settings(None)
+    assert "e.g. Do4 or 60." in editor(recorder).problems[0].text
+
+    session.set_voicing_model("piano")
+    assert editor(recorder).values["range:lh_range:low"] == "Do1"

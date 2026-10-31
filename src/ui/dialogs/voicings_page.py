@@ -92,6 +92,9 @@ class VoicingsPage(ttk.Frame):
         super().__init__(parent, padding=10)
 
         self._vm = viewmodel
+        # Note names show in the dialog's notation (set_notation follows its
+        # radio); they are stored as MIDI numbers either way.
+        self._notation: str = viewmodel.notation
         self._current_name: Optional[str] = None
         self._current_label: Optional[str] = None
         self._dirty = False
@@ -334,6 +337,19 @@ class VoicingsPage(ttk.Frame):
 
     # -- Editor load / clear -------------------------------------------------
 
+    def set_notation(self, notation: str) -> None:
+        """Show note names in ``notation`` (the dialog's notation changed)."""
+        if notation == self._notation:
+            return
+        # Keep anything typed (an entry commits when it loses focus, so this
+        # is normally a no-op); the voicing isn't edited by a respelling.
+        dirty = self._dirty
+        self._commit_form()
+        self._dirty = dirty
+        self._notation = notation
+        if self._current_name is not None:
+            self._build_form(self._vm.get_voicings()[self._current_name])
+
     def select_voicing(self, name: str) -> None:
         """Select ``name`` in the tree and load it into the editor."""
         if name in self._vm.get_voicings():
@@ -493,7 +509,7 @@ class VoicingsPage(ttk.Frame):
         self._loading_form = True
         try:
             model = form_model(data.get('model', 'piano'))
-            values = values_from_voicing(model, data)
+            values = values_from_voicing(model, data, self._notation)
             inner = self._new_scroll_area()
             self._value_getters = {}
             self._record_getters = {}
@@ -600,7 +616,7 @@ class VoicingsPage(ttk.Frame):
             self._register_field(fid, entry, field['help'])
             self._value_getters[fid] = var.get
             row += 1
-            hint = field_hint(field, values)
+            hint = field_hint(field, values, self._notation)
             if hint:
                 ttk.Label(inner, text=hint, foreground=_HINT_COLOR).grid(
                     row=row, column=1, sticky='w')

@@ -139,6 +139,9 @@ moved to CHANGELOG_HISTORY.md and this file is reset.
   have open; it no longer changes your default. New and Open start in the
   notation set in Settings, and changing it there also switches a song you
   haven't switched by hand.
+- Settings › Voicings shows note names (strings, voice ranges, hand ranges)
+  in the notation chosen in Settings, so `Mi2 La2 Re3` with European, and
+  accepts either spelling when you type one.
 - Suggest Capo replaces a `{capo}` that comes before the first chord instead
   of adding a second one, and on a selection it changes only that part.
 - The Windows, macOS and Linux downloads are smaller: they no longer bundle

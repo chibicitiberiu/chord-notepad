@@ -63,6 +63,21 @@ class SettingsEdit:
             if name in old:
                 model.set_voicing_data(name, copy.deepcopy(old[name]))
 
+    @property
+    def notation(self) -> str:
+        """The notation the form shows note names in: the Settings notation
+        being edited (``model.notation``), not the open song's."""
+        return "european" if self.model.notation == "european" else "american"
+
+    def respell(self) -> None:
+        """Show the form's note names in :attr:`notation` again (it changed).
+
+        The form is rebuilt from the voicing, so a value being typed that
+        doesn't parse stays as it is."""
+        if self._selected is not None:
+            self._values = form.values_from_voicing(
+                self._form_model, self.model.get_voicings()[self._selected], self.notation)
+
     # -- the voicings list -----------------------------------------------------
 
     @property
@@ -151,12 +166,14 @@ class SettingsEdit:
     def add_record(self, field_id: str = "voices") -> None:
         """Append a row to a records field (the ensemble's voices)."""
         self._require_selected()
-        self._replace_values(form.add_record(self._form_model, self._values, field_id))
+        self._replace_values(form.add_record(self._form_model, self._values, field_id,
+                                             self.notation))
 
     def remove_record(self, index: int, field_id: str = "voices") -> None:
         """Remove row ``index`` of a records field (nothing if out of range)."""
         self._require_selected()
-        self._replace_values(form.remove_record(self._form_model, self._values, index, field_id))
+        self._replace_values(form.remove_record(self._form_model, self._values, index, field_id,
+                                                self.notation))
 
     def presets(self) -> List[Dict[str, Any]]:
         """The "Load config" entries (built-ins, then the working voicings)."""
@@ -203,8 +220,9 @@ class SettingsEdit:
                 model, values, label, recent = self._form_model, self._values, self._label, self._recent
             else:
                 model = form.form_model(data.get('model', 'piano'))
-                values, label, recent = form.values_from_voicing(model, data), data.get('label'), []
-            out[name] = plan_voicing(name, model, values, label, saved, recent)
+                values = form.values_from_voicing(model, data, self.notation)
+                label, recent = data.get('label'), []
+            out[name] = plan_voicing(name, model, values, label, saved, recent, self.notation)
         return out
 
     def registry(self, plans: Mapping[str, VoicingPlan],
@@ -281,7 +299,7 @@ class SettingsEdit:
             if problem.field_id is not None:
                 field_errors.setdefault(problem.field_id, problem.message)
         schema = form.form_schema(self._form_model)
-        hints = {f["id"]: form.field_hint(f, self._values)
+        hints = {f["id"]: form.field_hint(f, self._values, self.notation)
                  for f in form.iter_fields(schema) if f.get("hint")}
         return VoicingEditorState(
             selected=self._selected, model=self._form_model,
@@ -294,8 +312,9 @@ class SettingsEdit:
         else:
             data = self.model.get_voicings()[name]
             model = form.form_model(data.get("model", "piano"))
-            values = form.values_from_voicing(model, data)
-        return tuple(SettingsProblem(name, p.field_id, problem_text(name, model, p, values))
+            values = form.values_from_voicing(model, data, self.notation)
+        return tuple(SettingsProblem(name, p.field_id,
+                                     problem_text(name, model, p, values, self.notation))
                      for p in plan.problems)
 
     # -- internals ---------------------------------------------------------------
@@ -306,7 +325,7 @@ class SettingsEdit:
 
     def _load(self, data: Mapping[str, Any], keep_label: bool = False) -> None:
         self._form_model = form.form_model(data.get("model", "piano"))
-        self._values = form.values_from_voicing(self._form_model, data)
+        self._values = form.values_from_voicing(self._form_model, data, self.notation)
         if not keep_label:
             self._label = data.get("label")
 

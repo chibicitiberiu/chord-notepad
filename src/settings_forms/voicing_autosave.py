@@ -126,7 +126,8 @@ def _text(value: Any) -> str:
 
 
 def plan_voicing(name: str, model: str, values: Mapping[str, Any], label: Optional[str],
-                 saved: Optional[Mapping[str, Any]], recent: Sequence[str] = ()) -> VoicingPlan:
+                 saved: Optional[Mapping[str, Any]], recent: Sequence[str] = (),
+                 notation: str = 'american') -> VoicingPlan:
     """Work out what to save of one voicing whose form holds ``values``.
 
     Args:
@@ -138,15 +139,16 @@ def plan_voicing(name: str, model: str, values: Mapping[str, Any], label: Option
             (a different model counts as not there: the defaults stand in).
         recent: Top-level field ids, most recently edited last; a rule that
             spans fields blames these first.
+        notation: The notation the form shows note names in (old values
+            put back into it are spelled the same way).
 
     Returns:
         The voicing to write and what's wrong with the form.
     """
     model = form.form_model(model)
-    if saved is not None and form.form_model(saved.get('model')) == model:
-        base = form.values_from_voicing(model, saved)
-    else:
-        base = form.default_values(model)
+    if saved is None or form.form_model(saved.get('model')) != model:
+        saved = form.default_voicing(model)
+    base = form.values_from_voicing(model, saved, notation)
     ids = _field_ids(model, values)
     order = {field_id: i for i, field_id in enumerate(ids)}
 
@@ -323,8 +325,10 @@ def _number(value: Any) -> str:
     return f'{value:g}' if isinstance(value, float) else str(value)
 
 
-def field_syntax(field: Optional[Mapping[str, Any]], values: Mapping[str, Any]) -> str:
-    """How to write a value of ``field`` (its syntax or range), or "" when it's obvious."""
+def field_syntax(field: Optional[Mapping[str, Any]], values: Mapping[str, Any],
+                 notation: str = 'american') -> str:
+    """How to write a value of ``field`` (its syntax or range, example notes
+    in ``notation``), or "" when it's obvious."""
     if not field:
         return ''
     kind = field['kind']
@@ -334,9 +338,9 @@ def field_syntax(field: Optional[Mapping[str, Any]], values: Mapping[str, Any]) 
             return f"Enter {what} from {_number(field['min'])} to {_number(field['max'])}."
         return f"Enter {what}."
     if kind == form.KIND_PITCH:
-        return 'Use a note name or a MIDI number, e.g. C4 or 60.'
+        return f"Use a note name or a MIDI number, e.g. {form.note_name(60, notation)} or 60."
     if kind == form.KIND_PITCH_LIST:
-        hint = field.get('hint', '').strip('()') or 'note names or MIDI numbers'
+        hint = form.field_hint(field, values, notation).strip('()') or 'note names or MIDI numbers'
         count = ''
         if 'min_items' in field and 'max_items' in field:
             count = f", {field['min_items']} to {field['max_items']} {field['label'].lower()}"
@@ -356,14 +360,14 @@ def field_syntax(field: Optional[Mapping[str, Any]], values: Mapping[str, Any]) 
 
 
 def problem_text(voicing: str, model: str, problem: FieldProblem,
-                 values: Mapping[str, Any]) -> str:
+                 values: Mapping[str, Any], notation: str = 'american') -> str:
     """One line of the problem list, e.g. "Voicing 'Bass', Strings: E2 X9. X9
     isn't a note name. Use note names or MIDI numbers, e.g. E2 A2 D3 G3 B3 E4,
     3 to 12 strings." """
     model = form.form_model(model)
     if problem.field_id is None:
         return f"Voicing '{voicing}': {problem.message}"
-    syntax = field_syntax(_field_of(model, problem.field_id), values)
+    syntax = field_syntax(_field_of(model, problem.field_id), values, notation)
     typed = problem.typed.strip() or '(empty)'
     line = f"Voicing '{voicing}', {_label_of(model, problem.field_id)}: {typed}. {problem.message}"
     return f'{line} {syntax}' if syntax else line

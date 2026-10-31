@@ -79,14 +79,16 @@ General
    **Notation**
       American or European: the notation a new or opened song is read in.
       The AB/Do buttons in the toolbar switch only the song you have open.
-      The Default key list below follows this setting.
+      The Default key list below and the note names on the Voicings page
+      follow this setting, as soon as you change it.
 
 .. only:: android
 
    **Chord notation**
       American or European: the notation a new or opened song is read in.
       AB / Do in the Edit ribbon switches only the song you have open. The
-      Default key list follows this setting.
+      Default key list and the note names in the Voicings editor follow this
+      setting, as soon as you change it.
 
 **Default key**
    The key a song starts in when it has no ``{key}`` directive before its
@@ -295,6 +297,11 @@ you there.
    negative ones less likely, higher is always more preferred, and the
    defaults suit most music, so leave them alone unless you have a specific
    reason not to.
+
+Note names (strings, voice ranges, the piano's hand ranges) show in the
+notation chosen on the General page, ``E2`` or ``Mi2``, and you can type
+either spelling or a MIDI number. They're saved as MIDI numbers, so switching
+notation never changes a voicing.
 
 .. only:: desktop
 

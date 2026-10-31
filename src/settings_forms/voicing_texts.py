@@ -132,7 +132,8 @@ TOOLTIPS: Dict[str, str] = {
 
     # Fretboard physical parameters.
     'tuning': ("Open-string pitches in string order, starting with the string you strum first "
-               "(the thickest on a guitar), so a ukulele is G4 C4 E4 A4. 3 to 12 strings. "
+               "(the thickest on a guitar), so a ukulele is G4 C4 E4 A4 (Sol4 Do4 Mi4 La4). "
+               "3 to 12 strings. "
                "Required."),
     'max_fret': "Highest fret the picker will reach; higher allows shapes further up the neck.",
     'fingers': "How many fretting fingers the hand has available.",

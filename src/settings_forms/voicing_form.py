@@ -51,6 +51,7 @@ from models.fretboard_spec import (
     DEFAULT_WEIGHTS as FRETBOARD_DEFAULT_WEIGHTS,
     FretboardSpec,
 )
+from models.notation import spell_key
 from models.piano_spec import (
     DEFAULT_PIANO,
     DEFAULT_WEIGHTS as PIANO_DEFAULT_WEIGHTS,
@@ -127,30 +128,64 @@ _FRETBOARD_INT_KEYS = ('max_fret', 'fingers', 'max_span', 'relaxed_span')
 # ---------------------------------------------------------------------------
 
 
-def pitch_to_text(value: Any) -> str:
-    """Render a single pitch (MIDI int or already-a-string) as a note name."""
+#: Solfège syllables and their letters, for note names typed in European notation.
+_SOLFEGE = {'do': 'C', 're': 'D', 'mi': 'E', 'fa': 'F', 'sol': 'G', 'la': 'A', 'si': 'B'}
+_SOLFEGE_NOTE = re.compile(r'^(do|re|mi|fa|sol|la|si)([#b]*)(-?\d+)$', re.IGNORECASE)
+_AMERICAN_NOTE = re.compile(r'\b([A-G][#b]?)(-?\d+)\b')
+
+
+def note_name(midi: int, notation: str = 'american') -> str:
+    """MIDI note ``midi`` as a note name in ``notation`` (60 -> "C4", or "Do4")."""
+    name = midi_to_note_name(midi)
+    return in_notation(name, notation)
+
+
+def in_notation(text: str, notation: str) -> str:
+    """``text`` with its American note names with an octave ("E2", "C#4")
+    spelled in ``notation`` ("Mi2", "Do#4" in European); the rest is kept."""
+    if notation != 'european':
+        return text
+    return _AMERICAN_NOTE.sub(lambda m: spell_key(m.group(1), notation) + m.group(2), text)
+
+
+def pitch_to_text(value: Any, notation: str = 'american') -> str:
+    """Render a single pitch (MIDI int, or a string) as a note name in ``notation``.
+
+    A string that is a pitch ("C4", "Do4", "60") is shown like the MIDI note
+    it means; any other string is shown as it is (a value being typed).
+    """
     if isinstance(value, bool):
         return str(value)
     if isinstance(value, int):
-        return midi_to_note_name(value)
-    return str(value)
+        return note_name(value, notation)
+    midi = parse_pitch_token(str(value)) if str(value).strip() else None
+    return note_name(midi, notation) if midi is not None and 0 <= midi <= 127 else str(value)
 
 
-def tuning_to_text(tuning: Any) -> str:
+def tuning_to_text(tuning: Any, notation: str = 'american') -> str:
     """Render a tuning (list of pitches, or a raw in-progress string) for the entry."""
     if isinstance(tuning, str):
         return tuning
     if isinstance(tuning, (list, tuple)):
-        return ' '.join(pitch_to_text(p) for p in tuning)
+        return ' '.join(pitch_to_text(p, notation) for p in tuning)
     return ''
 
 
 def parse_pitch_token(token: str) -> Optional[int]:
-    """Parse one pitch token to a MIDI int, or return None if unparseable."""
+    """Parse one pitch token to a MIDI int, or return None if unparseable.
+
+    Takes a MIDI number, or a note name in either notation ("E2", "Mi2").
+    """
     token = token.strip()
     if re.fullmatch(r'-?\d+', token):
         return int(token)
-    return parse_note_name(token)
+    midi = parse_note_name(token)
+    if midi is None:
+        solfege = _SOLFEGE_NOTE.match(token)
+        if solfege:
+            midi = parse_note_name(_SOLFEGE[solfege.group(1).lower()] + solfege.group(2)
+                                   + solfege.group(3))
+    return midi
 
 
 def parse_pitch_list(text: str) -> Any:
@@ -512,14 +547,16 @@ def iter_fields(schema: Mapping[str, Any]) -> List[Dict[str, Any]]:
     return out
 
 
-def field_hint(field: Mapping[str, Any], values: Mapping[str, Any]) -> str:
-    """The grey hint under a field, with any ``{count}`` filled in from ``values``."""
+def field_hint(field: Mapping[str, Any], values: Mapping[str, Any],
+               notation: str = 'american') -> str:
+    """The grey hint under a field, with any ``{count}`` filled in from
+    ``values`` and its example notes in ``notation``."""
     hint = field.get('hint', '')
     count_rule = field.get('hint_count')
     if count_rule:
         count = max(len(values.get(count_rule['records']) or []) + count_rule['offset'], 0)
         hint = hint.format(count=count)
-    return hint
+    return in_notation(hint, notation)
 
 
 def choice_label(field: Mapping[str, Any], value: Any) -> str:
@@ -584,13 +621,16 @@ def _weights_of(data: Mapping[str, Any]) -> Mapping[str, Any]:
     return weights if isinstance(weights, Mapping) else {}
 
 
-def values_from_voicing(model: str, data: Mapping[str, Any]) -> Dict[str, Any]:
+def values_from_voicing(model: str, data: Mapping[str, Any],
+                        notation: str = 'american') -> Dict[str, Any]:
     """Format a stored voicing dict as form values (missing keys get their defaults).
 
     Args:
         model: The model whose form shows ``data`` (normally ``data['model']``).
         data: A voicing dict as stored in the config (may hold raw strings
             left by an earlier forgiving edit; they are shown as typed).
+        notation: The notation note names are shown in (they are stored as
+            MIDI numbers either way).
 
     Returns:
         The form values, keyed by field id.
@@ -601,7 +641,7 @@ def values_from_voicing(model: str, data: Mapping[str, Any]) -> Dict[str, Any]:
     if model == 'fretboard':
         weights = dict(FRETBOARD_DEFAULT_WEIGHTS)
         weights.update(_weights_of(data))
-        values['tuning'] = tuning_to_text(data.get('tuning', []))
+        values['tuning'] = tuning_to_text(data.get('tuning', []), notation)
         for key, default in zip(_FRETBOARD_INT_KEYS, (12, 4, 4, 5)):
             values[key] = str(data.get(key, default))
         values['allow_barres'] = bool(data.get('allow_barres', True))
@@ -620,8 +660,8 @@ def values_from_voicing(model: str, data: Mapping[str, Any]) -> Dict[str, Any]:
             high = vrange[1] if len(vrange) > 1 else None
             rows.append({
                 'name': str(voice.get('name', '')) if is_dict else '',
-                'low': pitch_to_text(low) if low is not None else '',
-                'high': pitch_to_text(high) if high is not None else '',
+                'low': pitch_to_text(low, notation) if low is not None else '',
+                'high': pitch_to_text(high, notation) if high is not None else '',
                 'staff': voice.get('staff') if is_dict else None,
             })
         values['voices'] = rows
@@ -645,8 +685,8 @@ def values_from_voicing(model: str, data: Mapping[str, Any]) -> Dict[str, Any]:
     populated = _piano_render_data(data)
     for key in _PIANO_RANGE_KEYS:
         low, high = populated.get(key, (0, 0))
-        values[f'range:{key}:low'] = pitch_to_text(low)
-        values[f'range:{key}:high'] = pitch_to_text(high)
+        values[f'range:{key}:low'] = pitch_to_text(low, notation)
+        values[f'range:{key}:high'] = pitch_to_text(high, notation)
     for key in ('rh_center',) + _PIANO_INT_KEYS:
         values[key] = str(populated.get(key))
     values['add_bass'] = bool(populated.get('add_bass', True))
@@ -763,21 +803,23 @@ def voicing_with_record_removed(data: Mapping[str, Any], index: int,
     return out
 
 
-def add_record(model: str, values: Mapping[str, Any], field_id: str = 'voices') -> Dict[str, Any]:
+def add_record(model: str, values: Mapping[str, Any], field_id: str = 'voices',
+               notation: str = 'american') -> Dict[str, Any]:
     """Form values with a new row appended to a records field.
 
     Goes through the voicing dict, so the other values come back normalised
-    exactly as after the desktop's add (``'Db4'`` becomes ``'C#4'``).
+    exactly as after the desktop's add (``'Db4'`` becomes ``'C#4'``), in
+    ``notation``.
     """
     data = voicing_with_record_added(voicing_from_values(model, values), field_id)
-    return values_from_voicing(model, data)
+    return values_from_voicing(model, data, notation)
 
 
 def remove_record(model: str, values: Mapping[str, Any], index: int,
-                  field_id: str = 'voices') -> Dict[str, Any]:
+                  field_id: str = 'voices', notation: str = 'american') -> Dict[str, Any]:
     """Form values without row ``index`` of a records field (normalised like :func:`add_record`)."""
     data = voicing_with_record_removed(voicing_from_values(model, values), index, field_id)
-    return values_from_voicing(model, data)
+    return values_from_voicing(model, data, notation)
 
 
 # ---------------------------------------------------------------------------

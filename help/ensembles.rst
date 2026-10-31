@@ -312,7 +312,8 @@ Custom Ensembles
    * **Name**: what the voice is called, for example Soprano. MIDI export
      names the voice's track after it.
    * **Low** and **High**: the voice's range, as note names (``C4``,
-     ``F#3``) or MIDI numbers; middle C is ``C4``.
+     ``F#3``, or ``Do4``, ``Fa#3`` in European notation) or MIDI numbers;
+     middle C is ``C4``.
    * **Staff**: where the chord sheet's Staff view draws the voice (see
      :doc:`chord_sheet`). **Auto** picks it from the range: the bass staff
      if the middle of the range is below middle C, the treble staff
