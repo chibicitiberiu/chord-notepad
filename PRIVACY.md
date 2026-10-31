@@ -43,9 +43,10 @@ The Android app follows the same rules, with these specifics:
 ## Network
 
 Chord Notepad has no accounts, analytics, telemetry, ads or online features.
-It does not connect to the internet. On the desktop, to show the built-in user
-guide, it runs a small web server reachable only from your own computer
-(127.0.0.1) and opens the guide in your web browser.
+It does not connect to the internet. On the desktop it opens the built-in user
+guide in your web browser as local files. The Flatpak and Snap versions can't
+hand local files to the browser from their sandbox, so there it runs a small
+web server reachable only from your own computer (127.0.0.1) instead.
 
 ## Purchases
 

@@ -135,6 +135,52 @@ The version is determined by:
 
 Make sure you're pushing the correct tag format: `v*.*.*`
 
+## Licence compliance
+
+`LICENSE` (AGPL-3.0, verbatim), `ADDITIONAL-TERMS.txt` (the section 7
+permissions for app stores and the terms about the name) and
+`ARTWORK-TERMS.txt` (logo and store material) are the authoritative texts.
+What a release has to do to stay within them:
+
+- **Every store listing**, in every language (Play, Microsoft Store, Snap
+  Store, later Apple), states that the app is licensed under the GNU
+  AGPL-3.0 and gives the source URL, https://github.com/chibicitiberiu/chord-notepad.
+  The listing texts are in `packaging/store/` (Play's English listing, the
+  Microsoft Store's Romanian one); the English Microsoft Store listing exists
+  only in Partner Center, so check it there. The About screens (desktop and
+  both Android flavours) show both too.
+- **Never upload a custom EULA** in Partner Center or App Store Connect: keep
+  the store's standard licence terms, or leave the custom licence field empty
+  (or set it to the AGPL). Permission 2(c) only covers restrictions the store
+  operator sets.
+- **Licence inventory (desktop).** `resources/licenses/components.json` lists
+  every component each desktop build bundles (`windows`, `macos`, `linux`,
+  `flatpak`, `snap`) with its version, licence texts and, for copyleft
+  components, pinned source downloads. `packaging/licenses/licence_inventory.py`
+  reads it; the Licences window (`src/services/licence_catalog.py`) shows
+  it. The texts in `resources/licenses/texts/` are committed copies made by
+  `pipenv run python packaging/licenses/gather_texts.py` (`--check` verifies
+  them); rerun it when a component or its version changes.
+  `tests/test_licences.py` keeps the inventory in step with `Pipfile.lock`,
+  the spec, CI's FluidSynth zip, the Flatpak manifest and the built guide.
+- **Strict PyInstaller check.** `chord-notepad.spec` maps every collected
+  file to a component of the inventory. CI sets
+  `CHORD_NOTEPAD_LICENCE_CHECK=strict`, so a file without an entry fails the
+  build; local builds only warn. On Linux the spec also looks up the system
+  libraries it copied (dpkg or rpm) and bundles their packages' licence files
+  (`resources/licenses/system.json` in the build).
+- **Source bundles.** Each release carries `ChordNotepad-<version>-source.tar.gz`
+  (`android/tools/make_source_tarball.py`: the app, build scripts and every
+  submodule at the built commit) and
+  `ChordNotepad-<version>-third-party-sources.tar`
+  (`packaging/licenses/make_source_bundle.py`: every `sources` entry of the
+  inventory, SHA-256-checked, plus the Ubuntu source packages of the GPL and
+  LGPL libraries in the Linux binary and the snap). The written offer the
+  apps show is `resources/licenses/SOURCE-OFFER.txt`. The `create-release`
+  job builds both bundles from the licence data the build jobs upload.
+- **Android** has its own inventory and licences screen (`docs/ANDROID.md`,
+  "About and the licences screen").
+
 ## Microsoft Store (Supporter Edition)
 
 The Store listing is a paid "supporter edition" of the **same app** as the free
@@ -341,7 +387,7 @@ kept as the `ChordNotepad-snap` workflow artifact.
 
 One app, two build flavours, two channels, two signing keys. Both are free
 with every feature; they differ only in how people can support development
-(`docs/design/android-support-plan.md`):
+(`docs/ANDROID.md`, "Startup screen and support prompt"):
 
 - **Google Play** (`play` flavour): free, with an optional one-time
   "supporter" purchase through Google Play Billing and a support prompt from
@@ -623,7 +669,7 @@ before claiming reproducibility anywhere.
 ### F-Droid
 
 Not submitted; Tibi decides at release time (the F-Droid AI-policy question,
-`docs/ANDROID_PORT_PLAN.md`). IzzyOnDroid is out: its policy rejects
+`docs/ANDROID.md`, "Decisions and constraints"). IzzyOnDroid is out: its policy rejects
 AI-written code. If F-Droid goes ahead, its recipe builds the `foss`
 flavour (`gradle: [foss]`) with `-PcnSigning=none` (the output is
 `app-foss-release-unsigned.apk`); run `fdroid scanner` on it locally first,
