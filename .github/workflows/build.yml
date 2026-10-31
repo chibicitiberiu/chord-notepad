@@ -389,7 +389,7 @@ jobs:
           timestamp-digest: SHA256
 
       - name: Upload artifact
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ${{ matrix.artifact_name }}
           path: dist/${{ matrix.asset_name }}
@@ -450,7 +450,7 @@ jobs:
 
       - name: Upload licence data
         if: runner.os == 'Linux'
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: licence-data
           path: dist/licence-data/
@@ -462,7 +462,7 @@ jobs:
 
       - name: Upload snap
         if: runner.os == 'Linux'
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ChordNotepad-snap
           path: dist/ChordNotepad-linux-x64.snap
@@ -510,7 +510,7 @@ jobs:
 
       - name: Upload Flatpak bundle
         if: runner.os == 'Linux'
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ChordNotepad-flatpak
           path: dist/ChordNotepad-linux-x64.flatpak
@@ -568,7 +568,7 @@ jobs:
 
       - name: Upload Store package
         if: runner.os == 'Windows' && (startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch')
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ChordNotepad-store-msix
           path: dist-store/*.msix
@@ -614,7 +614,7 @@ jobs:
           echo "PDF documentation built"
 
       - name: Upload PDF artifact
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: documentation-pdf
           path: help/build/rinoh/*.pdf
@@ -1009,7 +1009,7 @@ jobs:
 
       - name: Upload test and lint reports
         if: failure()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: android-reports
           path: |
@@ -1241,14 +1241,14 @@ jobs:
         run: sha256sum ChordNotepad-android*.apk ChordNotepad-*-source.tar.gz | tee SHA256SUMS
 
       - name: Upload Play bundle
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ChordNotepad-android-play
           path: android/dist-android/*.aab
           retention-days: 90
 
       - name: Upload APK and source tarball
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ChordNotepad-android
           path: |
