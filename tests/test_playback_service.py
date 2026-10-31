@@ -1170,3 +1170,108 @@ Am"""
         # Event callback should have been queued
         ui_callback_count = mock_application.queue_ui_callback.call_count
         assert ui_callback_count >= 1, "Event callback should have been queued"
+
+
+class _DictConfig:
+    """Just enough ConfigService for the voicing to round-trip."""
+
+    def __init__(self, **values):
+        self._values = dict(values)
+
+    def get(self, key, default=None):
+        return self._values.get(key, default)
+
+    def set(self, key, value):
+        self._values[key] = value
+
+
+def _chord(name):
+    return ChordInfo(chord=name, start=0, end=len(name), is_valid=True, is_relative=False)
+
+
+class TestClickToHearPicker:
+    """Click-to-hear voices chords with its own picker, never the render's."""
+
+    def test_a_click_during_a_render_does_not_touch_the_render_picker(self, mock_player):
+        import threading
+        from audio.chord_picker import ChordNotePicker
+        from services.song_parser_service import SongParserService
+
+        class BlockingPicker(ChordNotePicker):
+            """Holds the render inside voice_sequence_details until released."""
+
+            def __init__(self):
+                super().__init__()
+                self.entered = threading.Event()
+                self.release = threading.Event()
+                self.chord_to_midi_calls = 0
+
+            def voice_sequence_details(self, *args, **kwargs):
+                self.entered.set()
+                assert self.release.wait(10), "test never released the render"
+                return super().voice_sequence_details(*args, **kwargs)
+
+            def chord_to_midi(self, chord_notes):
+                self.chord_to_midi_calls += 1
+                return super().chord_to_midi(chord_notes)
+
+        service = PlaybackService(config_service=_DictConfig(voicing="piano"), player=mock_player)
+        render_picker = BlockingPicker()
+        service._note_picker = render_picker
+        lines = SongParserService().detect_chords_in_text("C G Am F")
+
+        assert service.start_song_playback(lines, initial_key="C")
+        try:
+            assert render_picker.entered.wait(10), "render never reached the voicing"
+            service.play_chord_immediate(_chord("Am"))
+            assert render_picker.chord_to_midi_calls == 0
+            assert service._click_picker is not None
+            assert service._click_picker is not render_picker
+            mock_player.play_notes_immediate.assert_called_once()
+        finally:
+            render_picker.release.set()
+            service._render_thread.join(10)
+        assert not service._render_thread.is_alive()
+        mock_player.start_playback.assert_called_once()
+        assert render_picker.chord_to_midi_calls == 0
+        service.stop_playback()
+
+    def test_the_click_picker_is_built_on_the_first_click(self, mock_player):
+        service = PlaybackService(config_service=_DictConfig(voicing="piano"), player=mock_player)
+        assert service._click_picker is None
+        service.play_chord_immediate(_chord("C"))
+        first = service._click_picker
+        assert first is not None and first is not service._note_picker
+        service.play_chord_immediate(_chord("G"))
+        assert service._click_picker is first
+
+    def test_after_set_voicing_the_next_click_builds_a_picker_for_that_voicing(self, mock_player):
+        from audio.chord_picker import ChordNotePicker
+        from audio.guitar_chord_picker import GuitarChordPicker
+
+        service = PlaybackService(config_service=_DictConfig(voicing="piano"), player=mock_player)
+        service.play_chord_immediate(_chord("C"))
+        assert isinstance(service._click_picker, ChordNotePicker)
+
+        service.set_voicing("guitar:standard")
+        assert service._click_picker is None
+        service.play_chord_immediate(_chord("C"))
+        assert isinstance(service._click_picker, GuitarChordPicker)
+        assert service._click_picker is not service._note_picker
+
+    def test_clicks_voice_lead_from_one_to_the_next(self, mock_player):
+        from audio.chord_picker import ChordNotePicker
+        from chord.helper import ChordHelper
+
+        def distance(previous, notes):
+            return sum(min(abs(n - p) for p in previous) for n in notes)
+
+        service = PlaybackService(config_service=_DictConfig(voicing="piano"), player=mock_player)
+        service.play_chord_immediate(_chord("C"))
+        service.play_chord_immediate(_chord("B"))
+        first, second = [c.args[0] for c in mock_player.play_notes_immediate.call_args_list]
+        fresh = ChordNotePicker().chord_to_midi(
+            ChordHelper().compute_chord_notes("B", key=None, is_relative=False))
+
+        assert second != fresh
+        assert distance(first, second) < distance(first, fresh)

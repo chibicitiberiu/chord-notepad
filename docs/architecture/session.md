@@ -557,8 +557,8 @@ may be using.
   never starts the player, and one it did start is stopped; a failed render
   reports under the same lock, so a stopped one reports nothing. `cleanup()`
   cancels a render in flight the same way. A new render waits, on its own
-  thread, for the previous one to finish before it resets and uses the
-  shared note picker.
+  thread, for the previous one to finish before it resets and uses
+  playback's note picker.
 
 **The Tk window.** `MainWindow(session, host, resources)` talks only to the
 session (commands, subscribed states and events, the queries above) and does
@@ -682,11 +682,12 @@ desktop-only services (resources, logging setup) and the document store.
   the Quick Start pages (`session/quick_start.py`, which the Tk dialog now
   reads too). The desktop variant is always the old text; tests pin it
   (`tests/fixtures/quick_start_desktop.json`).
-- **Click-to-hear and the shared picker.** `play_chord_immediate` still
-  voices with the shared note picker on the session thread while a playback
-  render may be using it (a thread race; see BACKLOG.md). On Android the session thread
-  is not the UI thread, so a slow voicing delays the next command, not the
-  UI.
+- **Click-to-hear has its own picker.** `play_chord_immediate` voices on the
+  session thread with `PlaybackService._click_picker`, built on the first
+  click and dropped by `set_voicing`, never with the picker a playback render
+  uses on the RenderThread. Clicks voice-lead from one to the next, across
+  playback. On Android the session thread is not the UI thread, so a slow
+  voicing delays the next command, not the UI.
 - **Audio across the app lifecycle.** `app_background` pauses, saves the
   config, then calls `suspend_audio`, which deletes only the FluidSynth audio
   driver (the synth, SoundFont, program and sequencer stay; the sequencer

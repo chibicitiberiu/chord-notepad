@@ -28,6 +28,11 @@ class PlaybackService:
     """High-level audio playback orchestration service.
 
     Provides business-level API for audio playback, abstracting FluidSynth/NotePlayer details.
+
+    Note pickers carry voice-leading state and caches, so each user has its
+    own: ``_note_picker`` is playback's (renders on the RenderThread),
+    ``_click_picker`` is click-to-hear's (the session thread), and the
+    chord-sheet strip, MIDI export and Suggest Capo build their own.
     """
 
     def __init__(
@@ -53,6 +58,10 @@ class PlaybackService:
         # Before the note picker: building a configured voicing that fails logs a warning.
         self._logger = logging.getLogger(__name__)
         self._note_picker = self._create_note_picker(self._config.get("voicing", "piano"))
+        # Click-to-hear's picker, built on the first click (see _notes_to_midi)
+        # so start-up builds one picker, not two. Never the render's picker: a
+        # click during a render would change state that thread is using.
+        self._click_picker: Optional[INotePicker] = None
         self._initialized = player is not None
         # Why the last initialize_player() failed, for the error dialog.
         self._init_error: Optional[str] = None
@@ -217,13 +226,14 @@ class PlaybackService:
         """
         self._logger.debug(f"Setting voicing to {voicing}")
         self._note_picker = self._create_note_picker(voicing)
+        self._click_picker = None  # the next click builds one for this voicing
         self._config.set("voicing", voicing)
 
     def create_note_picker(self) -> INotePicker:
         """A new note picker for the configured voicing, not shared with playback.
 
         For renders on other threads (MIDI export): pickers carry voice-leading
-        state and caches, and the shared one may be in use by a playback render.
+        state and caches, and playback's may be in use by a playback render.
         """
         return self._create_note_picker(self._config.get("voicing", "piano"))
 
@@ -601,31 +611,6 @@ class PlaybackService:
         """Check if playback is paused."""
         return self._player.is_paused if self._player else False
 
-    def reset_playback_state(self) -> None:
-        """Reset playback state for new playback session.
-
-        Resets line position, chord index, and loop stack while preserving
-        BPM, time signature, and key settings. Also resets chord picker state
-        for consistent voice leading.
-        """
-        self._logger.debug("Resetting playback state")
-        bpm = self._playback_state.bpm
-        initial_bpm = self._playback_state.initial_bpm
-        time_sig_beats = self._playback_state.time_signature_beats
-        time_sig_unit = self._playback_state.time_signature_unit
-        key = self._playback_state.key
-
-        self._playback_state = PlaybackState(
-            bpm=bpm,
-            initial_bpm=initial_bpm,
-            time_signature_beats=time_sig_beats,
-            time_signature_unit=time_sig_unit,
-            key=key
-        )
-
-        # Reset chord picker state for consistent voice leading
-        self._note_picker.reset()
-
     def set_time_signature_from_state(self, beats: int, unit: int) -> None:
         """Update time signature in both playback state and player.
 
@@ -731,7 +716,7 @@ class PlaybackService:
         player = self._player
         # A stopped render may still be winding down (stop doesn't wait for
         # it); this one waits for it on its own thread, so the two never use
-        # the shared note picker at once.
+        # playback's note picker at once.
         previous = self._render_thread
 
         def _render_and_play() -> None:
@@ -859,14 +844,14 @@ class PlaybackService:
                 superseded render bails promptly (raising
                 :class:`~exceptions.RenderAborted`, which this method re-raises).
             private_picker: When ``True``, render with a *freshly created* note
-                picker for the current voicing instead of the shared
+                picker for the current voicing instead of playback's
                 ``self._note_picker``. Pickers carry mutable voice-leading state
                 and per-instance caches, so the strip -- which can render on a
                 background thread concurrently with a playback render -- must not
-                share the playback picker. Playback and export keep the shared
-                picker (default ``False``) so their goldens are unchanged.
-            note_picker: Explicit picker to render with, overriding both the
-                shared picker and ``private_picker``. Used by the Suggest Capo
+                share the playback picker. The default (``False``) renders with
+                playback's picker, on the caller's thread.
+            note_picker: Explicit picker to render with, overriding both
+                playback's picker and ``private_picker``. Used by the Suggest Capo
                 tool to render (and thus resolve the chords of) a *chosen*
                 fretboard voicing that need not be the active one.
             raise_errors: Re-raise rendering errors instead of logging them and
@@ -955,8 +940,13 @@ class PlaybackService:
         Args:
             chord_notes: ChordNotes object with notes, bass_note, and root
 
+        Uses click-to-hear's own picker (built here on first use), so clicks
+        voice-lead from one to the next and never touch the picker a playback
+        render may be using on the RenderThread.
+
         Returns:
             List of MIDI note numbers or None
         """
-        # Use the injected note picker
-        return self._note_picker.chord_to_midi(chord_notes)
+        if self._click_picker is None:
+            self._click_picker = self._create_note_picker(self._config.get("voicing", "piano"))
+        return self._click_picker.chord_to_midi(chord_notes)
