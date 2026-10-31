@@ -37,6 +37,20 @@ moved to CHANGELOG_HISTORY.md and this file is reset.
   own FluidSynth build, set `CHORD_NOTEPAD_LIBFLUIDSYNTH` to its path (not
   in the snap).
 
+- Directives that can't work are now shown in red and skipped during
+  playback: an out-of-range or badly formatted value, a missing parameter,
+  an unknown key, or a loop placed above its label. While the cursor is in a
+  directive, the status bar (on Android, a strip above the keyboard) shows
+  its correct syntax; hover over a red one (on Android, long-press it) to see
+  what's wrong.
+- A `{capo}`, `{bpm}`, `{time}` or `{key}` that another of the same kind
+  overrides before any chord plays is shown faded, with a "has no effect"
+  hint.
+- A line that starts with `.` is always plain text, for lyric lines such as
+  "la la la" that would otherwise be read as chords.
+- Roman numerals accept `iim7` and Berklee-style `IIm7` as minor chords.
+- Desktop: **Tools → Insert → Capo**.
+
 ### Fixed
 
 - Pressing Pause right after Play, while the song is still being prepared,
@@ -62,8 +76,40 @@ moved to CHANGELOG_HISTORY.md and this file is reset.
   out as just C and Eb. The root is now left out only when the bass already
   plays it.
 
+- The Chord Identifier names chords with flats correctly: "Bb D F" is Bb,
+  not D.
+- `{bpm: 0}`, a negative tempo or `{time: 0/4}` no longer crash or hang
+  playback, and two loops that point at each other no longer render
+  forever.
+- Roman numerals with `ø` (`viiø`, `iiø7`) play, and `bVI` in C plays Ab
+  major, not G#. Symbols such as `C77`, `C79` and `Cadd4` are no longer
+  accepted as chords.
+- `{bpm: reset}` returns to the song's first tempo in a typed song too, not
+  only in one opened from a file.
+- `{loop: my verse 2}` finds `{label: my verse}`: labels can contain spaces.
+- MIDI export includes songs written with European keys (Do, Lam).
+- The speed control shows the speed the song actually plays at after
+  snapping (112.5%, not the 110% you dragged to).
+- Ensembles keep the chord's root when a chord has more notes than voices,
+  so a 3-voice G7 is no longer rootless.
+- The help texts of some custom voicing fields now match what the voicing
+  engine does.
+- The Insert Capo dialog no longer claims a capo never changes the sound:
+  with a fretted voicing it does.
+- Desktop on Linux: the Edit menu shows the Redo shortcut that actually
+  works (Ctrl+Shift+Z).
+
 ### Changed
 
+- Tempo can be 20 to 400 BPM everywhere, including a typed `{bpm}`. A
+  relative change such as `{bpm: +50}` that would leave that range is
+  clamped, with a warning in the status bar.
+- Opening a song no longer changes your defaults in Settings. Values the song
+  sets itself are shown as set by the song; a change you make that the song
+  doesn't set lasts until you close the song. Only Settings changes the
+  defaults.
+- Suggest Capo replaces a `{capo}` that comes before the first chord instead
+  of adding a second one, and on a selection it changes only that part.
 - The Windows, macOS and Linux downloads are smaller: they no longer bundle
   numpy, matplotlib, chardet and other packages the app never used, and on
   Windows two unused FluidSynth libraries (libinstpatch and libgobject). The
