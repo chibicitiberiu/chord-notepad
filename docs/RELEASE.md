@@ -87,6 +87,10 @@ Before creating a release tag:
 - [ ] Android `versionCode` bumped with `VERSION` (see "Android" below)
 - [ ] All changes committed and pushed
 - [ ] CI tests pass on GitHub
+- [ ] A `test` dispatch is green on every platform (Actions → Build and Release →
+      Run workflow, Build type `test`)
+- [ ] An `android-signing` dispatch is green: it builds and verifies the signed Play
+      AAB and FOSS APK as workflow artifacts and publishes nothing
 
 ## Post-Release
 
