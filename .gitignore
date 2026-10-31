@@ -60,3 +60,7 @@ build-store/
 /stage/
 /prime/
 *.snap
+
+# Claude Code project instructions (kept in ~/Documents/chord-notepad/CLAUDE.md)
+CLAUDE.md
+CLAUDE.local.md

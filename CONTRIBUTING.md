@@ -44,6 +44,19 @@ and what licence it's under, so it can be checked and credited.
 - If you changed what users see, update the user guide in `help/`
   (see [docs/HELP_AUTHORING.md](docs/HELP_AUTHORING.md)) and check that
   `make docs-check` passes.
-- Code style: see "Code Conventions" in [CLAUDE.md](CLAUDE.md) and the
-  architecture notes in [README.md](README.md). The Android app's notes are in
-  [docs/ANDROID.md](docs/ANDROID.md).
+- Follow the conventions below. The architecture is described in
+  [docs/architecture/session.md](docs/architecture/session.md), and the
+  Android app in [docs/ANDROID.md](docs/ANDROID.md).
+
+## Conventions
+
+- Python naming: classes `PascalCase`, functions `snake_case`, constants
+  `UPPER_SNAKE_CASE`, private names with a leading underscore.
+- Public functions have type hints and docstrings.
+- One `logger = logging.getLogger(__name__)` per module.
+- Logic lives in the shared Python core. Both UIs (Tk and the Android
+  Kotlin/Compose app) stay thin: app flows and cross-view wiring belong in
+  `src/session/`, not in `src/ui/` or Kotlin.
+- Don't change the editor's text typography or colours (font, text colours,
+  chord highlighting). The chrome around it is fair game.
+- Errors use the exceptions in `src/exceptions.py`.
