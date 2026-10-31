@@ -5,11 +5,7 @@ it's done (git history keeps it); release mechanics live in `docs/RELEASE.md`.
 
 ## Before the next release (v0.5.0)
 
-- Windows: the app doesn't start in the MSIX smoke test (`packaging/msix/smoke_test.ps1` finds no startup log). Under investigation; check the onefile exe too.
-- Green CI on a full dispatch, including the strict licence check on Windows, macOS and Linux (Windows and macOS have never passed it).
 - Bump `VERSION` to 0.5.0 and `versionCode` to 5000 (`android/app/build.gradle.kts`) in one commit; `tests/test_android_version.py` checks them.
-- CHANGELOG.md is missing the 2026-10-30 fact-check fixes: invalid directives in red, tempo 20-400 everywhere, relative-tempo clamp with a warning, `iim7`/`IIm7`, the Chord Identifier with flats, `.`-prefixed plain-text lines, directive syntax hints, opening a song no longer changes the Settings defaults, Capo in Tools › Insert, the Linux redo shortcut, European keys in MIDI export, `bVI` as A♭, loops over labels with spaces, mutual loops and `{time: 0/4}` no longer hanging, the snapped speed shown, ensemble omission weights.
-- Security: the directive regex backtracks catastrophically. `DIRECTIVE_PATTERN` in `src/services/song_parser_service.py:39` stalls 8.5 s on 1,500 `{`, and Android's Open with accepts 5 MB files. Use `\{([^{}\n]*)\}`, fix `src/chord/detector.py:136,191` and `_LOOP_COUNT` (`song_parser_service.py:260`), and add a `'{' * 10_000` timing test.
 - Tibi: approve the AGPL section 7 wording as shipped, and edit the support-prompt text (`android/.../ui/support/`).
 - GitHub: create or confirm the `android-release` environment and its four secrets; tag `v0.5.0` and check that `android-release` and `attach-android` run (they never have).
 - Play Console: identity verification (long lead), listing, payments profile, the `supporter` product, license testers (including pending and refund), IARC, Data safety, then the 12-tester, 14-day closed test (`docs/RELEASE.md`, "Google Play (first time)", "Developer verification").
@@ -20,11 +16,8 @@ it's done (git history keeps it); release mechanics live in `docs/RELEASE.md`.
 
 ## Next
 
-- Thread race: click-to-hear (`PlaybackService._notes_to_midi`, `src/services/playback_service.py:962`) uses the shared `_note_picker` while a render mutates it (`:730`). Give it its own `create_note_picker()` or a lock.
-- CI credentials: a deployment policy on the `release` environment (branch `main`, tags `v*`), `SNAPCRAFT_STORE_CREDENTIALS` moved into it, rulesets for `v*` tags and `main` (no force-push or deletion).
-- CI permissions: `contents: read` at the top of `build.yml` (`:27-28`), `write` only for `build`, `create-release`, `rotate-changelog`, `cleanup-nightly` and `attach-android`; pin third-party actions to commit SHAs with Dependabot.
+- CI credentials: delete the repo-level `SNAPCRAFT_STORE_CREDENTIALS` once a dispatch shows `snapcraft upload` succeeding with the `release` environment copy (the environment policy and the `main`/`v*` rulesets are in place).
 - CI signing isolation: Windows signing in its own job that alone holds `id-token: write`; Android signing in a minimal job after an unsigned build; Gradle dependency verification.
-- CI shell hygiene: pass `${{ github.ref_name }}` through `env:` (`build.yml:264,683`) and use a random delimiter for the CHANGELOG output (`:723`).
 - Local signing (`docs/RELEASE.md`, "Signing locally"): read passwords in a subshell, accept them from the environment only (not `-P`), fail when `cnSigning=upload|foss` meets the configuration cache.
 - Local MSIX test recipe (`docs/RELEASE.md`): import only the `.cer`, not the PFX with its private key, and clean up afterwards, as `smoke_test.ps1` does.
 - Desktop file I/O: atomic save (temp file and `os.replace`) and a 5 MB cap, as on Android (`src/services/file_service.py:38,73`).
@@ -39,7 +32,6 @@ it's done (git history keeps it); release mechanics live in `docs/RELEASE.md`.
 - Bridge contract test (`BridgeSchemaContractTest.kt`): fail instead of `assumeTrue` when the schema is missing; compare types, nullability and command argument shapes.
 - A stress test for `AppSession.chord_sheet_buffer` packing on a second thread while the session re-feeds (renderers are assumed pure, unchecked).
 - `tests/test_android_requirements.py`: compare versions with `Pipfile.lock`, not just names (allow-list chardet).
-- Delete the M2 spike: `android/.../spike/`, `chordnotepad_android/spike.py` and `android_shim.py`, `copySpikeSample` in `app/build.gradle.kts`, the spike branch in `MainActivity.kt`; then its mentions in `docs/ANDROID.md`.
 - Kotlin comments: the stale `TODO(step 14)` in `bridge/SessionOutput.kt:11`, the misplaced KDoc in `SessionRepository.kt` (~`:136`).
 - `{}` (empty braces) should be marked invalid, not ignored.
 - Android: the capo icon needs a better drawing.

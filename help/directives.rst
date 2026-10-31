@@ -7,7 +7,7 @@ written in curly braces and don't produce sound themselves - they change the
 *context* of playback.
 
 Directives appear in **purple** in the editor when valid. Anything in curly
-braces is read as a directive, so one that can't be used shows in **red** and
+braces on one line is read as a directive, so one that can't be used shows in **red** and
 playback ignores it: an unknown name (``{soc}``), a missing value (``{bpm}``),
 the wrong format (``{time: 7}``) or a value out of range (``{capo: 30}``). The
 sections below give each directive's format and limits.

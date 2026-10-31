@@ -99,6 +99,14 @@ moved to CHANGELOG_HISTORY.md and this file is reset.
 - Desktop on Linux: the Edit menu shows the Redo shortcut that actually
   works (Ctrl+Shift+Z).
 
+- Unusual song text can no longer freeze Chord Notepad. A chord with a long
+  run of digits, many unclosed `{`, or a very large file with many
+  directives and comments used to take seconds to minutes to read; it's now
+  instant. A directive has to fit on one line.
+- Clicking a chord to hear it while the song is playing no longer interferes
+  with playback, and clicked chords keep their smooth voice leading from one
+  click to the next instead of starting over each time you press Play.
+
 ### Changed
 
 - Tempo can be 20 to 400 BPM everywhere, including a typed `{bpm}`. A
