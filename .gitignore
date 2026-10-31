@@ -61,6 +61,5 @@ build-store/
 /prime/
 *.snap
 
-# Claude Code project instructions (kept in ~/Documents/chord-notepad/CLAUDE.md)
+# Claude Code project instructions are kept outside the repo
 CLAUDE.md
-CLAUDE.local.md
