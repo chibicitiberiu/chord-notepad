@@ -35,6 +35,11 @@ if sys.platform == 'win32' and not getattr(sys, 'frozen', False):
             os.environ['PATH'] = path + os.pathsep + os.environ.get('PATH', '')
             break
 
+from utils.std_streams import ensure_std_streams
+
+# Before anything else is imported: see utils/std_streams.py.
+ensure_std_streams()
+
 from application import Application
 
 
