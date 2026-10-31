@@ -9,7 +9,7 @@ hold a live object, so it reads :class:`SettingsValues` (``AppSession
 so the config writes and change flags are the desktop's.
 
 Only the settings that carry over to Android are here (the "settings
-visibility rule" in ``docs/ANDROID_PORT_PLAN.md``): not the log level, the
+visibility rule" in ``docs/ANDROID.md``): not the log level, the
 audio driver, the SoundFont path or the window geometry. The voicings
 registry has its own editor (M5) and isn't here either.
 """

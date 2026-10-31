@@ -1,6 +1,6 @@
 """Android's startup screen: the support prompt policy, app_started and its dismissal.
 
-Design: docs/design/android-support-plan.md, section 1. The desktop never
+Design: docs/ANDROID.md, "Startup screen and support prompt". The desktop never
 sends ``app_started``, so it never gets a StartupState.
 """
 

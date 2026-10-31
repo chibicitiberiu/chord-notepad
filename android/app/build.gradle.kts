@@ -125,7 +125,7 @@ android {
         }
     }
 
-    // Where the build is distributed (docs/design/android-support-plan.md):
+    // Where the build is distributed (docs/ANDROID.md, "Startup screen and support prompt"):
     //   play: Google Play, with the optional supporter purchase (Play Billing);
     //   foss: the GitHub APK and F-Droid, no Google libraries, a donation link.
     // Same applicationId and versionCode; the difference is src/play and

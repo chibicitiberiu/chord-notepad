@@ -7,7 +7,7 @@ import java.util.TimeZone
 
 /**
  * How an activity came up, sent as `app_started`'s `launch_kind`. The session
- * decides the startup screen from the first one (docs/design/android-support-plan.md, §2).
+ * decides the startup screen from the first one (docs/ANDROID.md, "Startup screen and support prompt").
  */
 enum class LaunchKind(val wire: String) {
     /** The launcher, or the recents list: may show Quick Start or the support prompt. */

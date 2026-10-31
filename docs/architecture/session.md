@@ -1,10 +1,8 @@
 # AppSession: the shared application layer
 
-Status: design, approved 2026-10-28. All 14 steps of the migration (below)
-are implemented, so M1 is complete (2026-10-29). "Where the session stands
-after M1" says what is final and what stays interim, and why. This document
-is the reference for the Android port (`docs/ANDROID_PORT_PLAN.md`); the wire
-format Kotlin sees is in `docs/ANDROID.md`, "Bridge contract".
+The shared layer both the Tk UI and the Android UI sit on. "Where the session
+stands" says what each area does and what is still interim, and why. The
+wire format Kotlin sees is in `docs/ANDROID.md`, "Bridge contract".
 
 ## Why
 
@@ -169,7 +167,7 @@ class DocumentStore(Protocol):
         # in place, never over another document; RenameNotSupported / FileOperationError
 ```
 
-Reading and writing never touch the recent list (since step 11): the
+Reading and writing never touch the recent list: the
 session's document flows call `add_recent` after a successful open or save,
 and exports never join.
 
@@ -186,8 +184,7 @@ and exports never join.
   ("Permission denied: …", "Failed to write file: …") like a failed save.
 - **`ref_for(id)`** makes the ref for a document a picker returned
   (`FileSystemDocumentStore`: `ref_for_path`); the views reach it through
-  `session.document_ref(id)`. The viewmodel's `current_file` shim is gone
-  (step 13).
+  `session.document_ref(id)`.
 
 ### States (frozen; only str/int/float/bool/None, tuples, str-Enums)
 
@@ -327,10 +324,9 @@ by convention.
 - Payloads never contain live objects (`ChordInfo`, `Line`, `Path`,
   `RenderedSong`).
 
-## Where the session stands after M1
+## Where the session stands
 
-Steps 1–14 are in. What follows is what each area does now, then what is
-still interim, and why.
+What each area does now, then what is still interim, and why.
 
 ### Final
 
@@ -381,7 +377,7 @@ and the toolbar. Status texts come from `formatting.py`; the chord count in
 "Playing N chords..." is taken from the latest detection. It forwards each
 `CHORD_START` ping to the strip's playhead (cleared when a song finishes,
 kept after Stop). Pings that arrive after the session went idle are dropped;
-since step 12 each run's pings, end and render error also carry a
+each run's pings, end and render error also carry a
 generation (`MainWindowViewModel`), so what an old run posted before it saw
 a stop is dropped during the next run too. The Tk Play button sends
 `set_text`, then `play_pause(from_offset)` with the Shift+click cursor as a
@@ -527,7 +523,7 @@ and saves the config. Failures are `UserError("Error", "<action>:\n<location>
 title)`; `RecentDocumentsState(items)` has one owner, the flows'
 `add_recent` after a successful open or save.
 
-**Background work** (step 12). `BackgroundWorker(host)` (`workers.py`) runs
+**Background work.** `BackgroundWorker(host)` (`workers.py`) runs
 jobs one at a time on a daemon thread started by the first `submit`;
 `submit(fn, on_done)` returns a `Job` whose `cancel()` drops the outcome
 (skipping the job if it hasn't started). The `Outcome(value, error)` comes
@@ -576,7 +572,7 @@ snippets paint `compute_spans` with the dialog's own parser (display only).
 `AppSession.shutdown` clears the viewmodels' remaining observers (the
 window used to, then `Application.on_shutdown`).
 
-**Construction (step 14).** `bootstrap.build_core_services(appdata,
+**Construction.** `bootstrap.build_core_services(appdata,
 dispatch, player=None, audio_options=None)` is the Tk-free half of the old
 `Application.on_initialize_services`: it creates the data directories,
 loads the config and builds `CoreServices(appdata, config, song_parser,
@@ -593,7 +589,7 @@ desktop-only services (resources, logging setup) and the document store.
 `filesDir`; the same layout the `XDG_*` shim gave). Config writes are atomic
 (temp file, `fsync`, `os.replace`).
 
-**The bridge (step 14).** `session/bridge.py`:
+**The bridge.** `session/bridge.py`:
 - `encode(dto) -> (type_name, json)` for every state, event and request:
   field names as in the dataclasses, enums as values, tuples as arrays,
   nested DTOs as objects. Anything else raises `TypeError`. `EventRecorder`
@@ -654,7 +650,7 @@ desktop-only services (resources, logging setup) and the document store.
 - **Dialog-scoped models: desktop dialogs vs session-held screens.** The
   desktop Settings dialog and chord identifier still hold live viewmodels
   (`settings_model()`, `chord_identifier_model()`). Bridge views get the
-  same logic held by the session instead (M5 core, 2026-10-29):
+  same logic held by the session instead:
   - the chord identifier is a session-owned `ChordIdentifierViewModel`
     behind `identifier_*` / `play_note` / `play_identified_chord` commands
     and an `IdentifierState`; the note helpers (`note_to_midi`,
@@ -688,7 +684,7 @@ desktop-only services (resources, logging setup) and the document store.
   (`tests/fixtures/quick_start_desktop.json`).
 - **Click-to-hear and the shared picker.** `play_chord_immediate` still
   voices with the shared note picker on the session thread while a playback
-  render may be using it (as before step 12). On Android the session thread
+  render may be using it (a thread race; see BACKLOG.md). On Android the session thread
   is not the UI thread, so a slow voicing delays the next command, not the
   UI.
 - **Audio across the app lifecycle.** `app_background` pauses, saves the
@@ -753,41 +749,7 @@ desktop-only services (resources, logging setup) and the document store.
 - **Expected failures are events:** `last_error` becomes `UserError`, and
   `AudioInitializationError` becomes `AudioUnavailable`. The session owns the
   "report click failures once per session" policy (`AudioFailurePolicy`;
-  playback render failures are `UserError` since step 7).
-
-## Migration (desktop, one commit per step, full test suite green each time)
-
-| # | Step | Risk |
-|---|---|---|
-| 1 | `Host`, `ManualHost`, `TkHost`; `Application.queue_ui_callback` delegates | Low |
-| 2 | `session/errors.py`; `Observable` uses it; Tk presenter registers itself | Low–med |
-| 3 | Chord-sheet debounce/marshal through the host | Med |
-| 4 | `DocumentRef`/`DocumentStore`/FS store, `utils/paths.py`, `render_midi_bytes` | Med |
-| 5 | AppSession skeleton: emitter/flush, `set_text`, detection debounce, `HighlightState` | High |
-| 6 | Chord-sheet feed into the session | Low |
-| 7 | Playback commands/state/status/playhead, `AudioUnavailable` | High |
-| 8 | Programmatic edits with undo policy (transpose, capo, convert, insert) | High |
-| 9 | `ToolbarState`, notation/key conversion, multiplier parse | Med |
-| 10 | Settings apply, voicing/instrument menu models | Med |
-| 11 | Document flows as generators + requests, `DocumentState`/title | High |
-| 12 | `BackgroundWorker` for export/capo; non-blocking `stop_playback` | Med |
-| 13 | `MainWindow(session, host, resources)`; remove compatibility shims | Low |
-| 14 | `ThreadedHost`, `bootstrap`, `bridge.encode` + schema (done) | Med |
-
-Manual check after each step (`make run`):
-- open a file with directives;
-- type;
-- play, loop and shift-play;
-- transpose, then undo;
-- toggle the chord sheet and switch voicing;
-- change settings;
-- close with unsaved changes.
-
-Behaviour changes to call out in commit messages:
-- an inserted directive is highlighted after the debounce (steps 5-7; since
-  step 8 it is highlighted at once again);
-- navigation keys no longer trigger re-detection;
-- stopping playback no longer blocks for up to 2 s.
+  playback render failures are `UserError`).
 
 ## Tests
 
@@ -811,4 +773,4 @@ Behaviour changes to call out in commit messages:
     over the bridge at least once);
   - the committed bridge schema matches the code;
   - no viewmodel, service or `Application` references in
-    `ui/main_window.py` (`tests/test_main_window_guard.py`, since step 13).
+    `ui/main_window.py` (`tests/test_main_window_guard.py`).

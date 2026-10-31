@@ -977,7 +977,7 @@ jobs:
           "$CHAQUOPY_BUILD_PYTHON" -I tools/build_wheelhouse.py check
 
       # Both flavours: foss (GitHub APK, F-Droid) and play (Google Play, with
-      # Play Billing). docs/design/android-support-plan.md.
+      # Play Billing). docs/ANDROID.md, "Startup screen and support prompt".
       - name: Unit tests, lint, debug APK
         run: >-
           ./gradlew

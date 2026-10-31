@@ -14,7 +14,7 @@ enum class PurchaseState { IDLE, PENDING, ERROR }
  * [supportUrl] instead. One instance lives in [com.tibich.chordnotepad.AppGraph],
  * so purchase results survive activity recreation.
  *
- * Design: docs/design/android-support-plan.md.
+ * Design: docs/ANDROID.md, "Startup screen and support prompt".
  */
 interface SupportBilling {
     /** True when this build can sell the supporter purchase at all. */

@@ -2,7 +2,7 @@
 
 The free Android app asks for an optional supporter purchase at startup, a
 week after it was installed and at most once a calendar day
-(docs/design/android-support-plan.md). The view knows the dates and whether
+(docs/ANDROID.md, "Startup screen and support prompt"). The view knows the dates and whether
 billing can sell the purchase; this module decides. Dates are local calendar
 dates as ISO strings (``"2026-10-30"``), so the decision doesn't depend on
 time zones or the time of day.

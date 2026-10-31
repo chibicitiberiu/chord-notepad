@@ -55,7 +55,7 @@ interface BillingGateway {
  * The supporter purchase's state machine, free of Android and Play classes so
  * the JVM tests drive it directly.
  *
- * Rules (docs/design/android-support-plan.md, "Billing"):
+ * Rules (docs/ANDROID.md, "Startup screen and support prompt"):
  * - one [process] path for purchase updates and purchase queries: PURCHASED
  *   makes the user a supporter and is acknowledged if it isn't yet; PENDING is
  *   shown as pending and never granted; nothing is ever consumed;

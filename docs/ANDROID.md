@@ -1,12 +1,51 @@
 # Android build
 
-Status: **M2 toolchain spike**, plus the M6 build groundwork: natives built
-from source and Python packages installed offline (see "Natives from source and
-offline packages" below, and `docs/ANDROID_PORT_PLAN.md`). The Gradle
-project under `android/` is the kept skeleton; everything in the
-`com.tibich.chordnotepad.spike` package and
-`android/app/src/main/python/chordnotepad_android/spike.py` is throwaway test
-code that M4 replaces.
+The Android app: a Kotlin/Compose UI over the shared Python core (Chaquopy),
+with FluidSynth built from source and Python packages installed offline. This
+file covers the decisions behind the port, the build, the Kotlin <-> Python
+bridge and the measurements. Releasing and signing are in `docs/RELEASE.md`,
+"Android"; the UI is specified in `docs/design/android-ui-spec.md`.
+
+Everything in the `com.tibich.chordnotepad.spike` package and
+`android/app/src/main/python/chordnotepad_android/spike.py` is the throwaway
+measurement screen from the toolchain spike (see BACKLOG.md).
+
+## Decisions and constraints
+
+- **A straight port of the desktop app**, no new features, but fitted to the
+  platform: Edit/Play modes, bottom sheets, a drawer and tap-to-rename are
+  deliberate Android/desktop differences (`docs/design/android-ui-spec.md`).
+- **Logic lives in the shared Python core.** Kotlin is view-only: it never
+  re-implements wiring, formatting or highlighting, never holds `PyObject`s
+  outside the bridge, and never calls Python on the main thread. App flows
+  belong in `src/session/` (`docs/architecture/session.md`).
+- **Offsets are code points in Python**; `OffsetMapper` is the only place
+  that converts to UTF-16.
+- **Settings visibility rule:** Android shows every setting whose meaning
+  carries over and hides the rest without replacements: no log level, audio
+  driver, SoundFont path or window geometry. The editor font is Monospace,
+  Sans or Serif (`TkFixedFont` maps to Monospace); editor colours are the
+  desktop's.
+- **Distribution:** free on Google Play (flavour `play`, optional supporter
+  purchase) and as a free FOSS APK on GitHub releases (flavour `foss`).
+  IzzyOnDroid is out: its policy rejects AI-written code. F-Droid's AI policy
+  is in flux, so Tibi decides at release time whether to submit; until then
+  the build stays F-Droid-friendly (offline wheelhouse, natives from source,
+  reproducible) but no recipe or Request for Packaging work is done.
+- **Signing:** Play uses Google-managed app signing with an upload key; an
+  offline FOSS key signs the GitHub APK (and F-Droid's, if it builds
+  reproducibly). Play and FOSS installs don't update each other.
+- **music21 stays**, shipped trimmed of data files only (`corpus/*.py` and
+  `test/*.py` are imported, so they stay), installed `--no-deps` with only
+  the pure-Python packages it really imports. chardet is pinned below 7 (its
+  licence change is disputed).
+- **Lifecycle:** playback pauses when the app goes to the background and on
+  audio-focus loss or `AUDIO_BECOMING_NOISY`; the config is saved on
+  `ON_STOP` and a draft restored after process death. Playing in the
+  background would need a foreground media service (not planned).
+- **Test devices:** the emulator day to day, Tibi's phone (HTC 10) for audio,
+  touch and performance. 32-bit devices (the Nexus 7) are out.
+- **Tooling and caches** live under `/mnt/data_linux/Bin/android/`, never `~`.
 
 ## Layout
 
@@ -140,7 +179,7 @@ About links to a donation page) and **play** for Google Play (Play Billing for
 the optional supporter purchase). Task and output names carry the flavour:
 `assembleFossDebug`, `assemblePlayRelease`, `outputs/apk/foss/release/...`.
 The flavour code is in `app/src/foss` and `app/src/play`, each with its own
-`createSupportBilling` (docs/design/android-support-plan.md).
+`createSupportBilling` ("Startup screen and support prompt" below).
 
 ```bash
 source android/local.env
@@ -378,7 +417,7 @@ raises is an `UnexpectedError` whose `context` is the command name.
   no desktop screenshot). Snippet blocks carry the editor's highlight spans
   (code points), so they paint like the editor.
 
-**Startup screen** (2026-10-30; `docs/design/android-support-plan.md`;
+**Startup screen** ("Startup screen and support prompt" below;
 policy in `session/support.py`, Kotlin in `lifecycle/AppLaunch.kt`):
 
 - `app_started {launch_kind, today, installed_on, can_ask_for_support}`:
@@ -1075,7 +1114,29 @@ support prompt" below.
 
 ### Startup screen and support prompt
 
-Design: `docs/design/android-support-plan.md`. Each activity creation sends
+Decisions (Tibi, 2026-10-30): Android is free with every feature. The
+`play` flavour offers one one-time in-app product, `supporter` (€4.99,
+through Play Billing), from the support prompt and from a card at the top of
+Settings; supporters get a badge there and a thank-you. Play policy forbids
+links to outside payment pages, so the Ko-fi link lives only in the `foss`
+flavour's About ("Support development"), which never shows the prompt. The
+prompt starts on day 7 after install, shows at most once a calendar day,
+only on a direct launch, never for supporters, with "Support · {price}" and
+"Not now" and no opt-out. Open with accepts `.txt` (`text/plain`) only; no
+ChordPro types and no Share target. The desktop has none of this.
+
+The flavour code: a `SupportBilling` interface in `main` with a Play Billing
+implementation in `src/play` and an unavailable one plus the Ko-fi row in
+`src/foss`, so the Ko-fi URL never reaches the Play dex. The play manifest
+removes `INTERNET` and `ACCESS_NETWORK_STATE` (`tools:node="remove"`);
+billing talks to the Play Store app over IPC. The purchase rules
+(`SupporterLogic.kt`): one path for purchase updates and queries; PURCHASED
+grants and is acknowledged, PENDING is shown and never granted, nothing is
+consumed; the badge goes only after an OK query without the purchase (a
+refund), never on an error. The supporter status isn't stored in the config:
+Play Billing caches purchases and is the source of truth.
+
+Each activity creation sends
 `app_started(launch_kind, today, installed_on, can_ask_for_support)` through
 `AppGraph.reportLaunch` (`lifecycle/AppLaunch.kt` classifies the launch:
 `direct`, `document` for an Open with, `restore` for recreation and the debug
@@ -1247,82 +1308,22 @@ The copies were deleted afterwards; the APK and both build logs are kept in
 
 ## Required core changes (found by the spike)
 
-The spike ran the core unmodified; `chordnotepad_android/android_shim.py`
-patched around these at runtime. Each becomes a real core change, after which
-its shim goes away. Items 1 to 4, 6 and 7 landed with M1b (2026-10-29); the
-shim now only sets the data directories (item 5), and the spike passes its
-synth settings through `AudioOptions` (`android_shim.audio_options()`).
+The spike ran the core unmodified, with `chordnotepad_android/android_shim.py`
+patching around the gaps at runtime. All of them are now core changes:
+`audio/fluidsynth_import.py` accepts a bare soname (`libfluidsynth.so` by
+default on Android); `NotePlayer` tries `oboe` then `opensles`, checks for a
+NULL audio driver after `start()` and logs the driver that actually started;
+the host passes the sample rate and Oboe settings through `AudioOptions`
+(`audio/audio_options.py`) and the data directory through
+`AppDataService(root=filesDir)`; song notes and metronome clicks are
+scheduled on FluidSynth's sequencer (`audio/sequencer.py`,
+`audio/song_scheduler.py`), so no Python timing loop is left to drift. The
+shim only remains for the throwaway spike's data directories.
 
-1. **Done (M1b).** **`audio/fluidsynth_import.py`: accept a bare soname.** On Android the
-   native libraries stay inside the APK, so there is no file path; only
-   `libfluidsynth.so` (resolved by the linker from the app's namespace) works.
-   CPython 3.14's `ctypes.util.find_library` on Android only looks in
-   `/system/lib64`, and the `CHORD_NOTEPAD_LIBFLUIDSYNTH` override requires an
-   existing file. Fix: if the value has no `/`, skip the `exists` check; on
-   `sys.platform == "android"` default to `libfluidsynth.so`.
-2. **Done (M1b).** **`audio/player.py`: Android driver list.** `sys.platform` is `"android"`,
-   which falls into the Linux branch (`pulseaudio`, `alsa`, `oss`). It must be
-   `["oboe", "opensles"]`. (Also log the driver that actually started; today it
-   logs the requested one.)
-3. **Done (M1b).** **NULL audio driver check.** pyfluidsynth's
-   `Synth.start()` returns `FLUID_OK` even when `new_fluid_audio_driver()`
-   returned NULL, so the fallback and the "audio unavailable" path never run.
-   Check `synth.audio_driver` after `start()`.
-4. **Done (M1b):** `AudioOptions(sample_rate, period_size, settings)`, passed
-   to `PlaybackService(..., audio_options=)` or `initialize_player()`.
-   **Synth settings from the host.** `NotePlayer` creates `fluidsynth.Synth()`
-   at pyfluidsynth's default 44.1 kHz; the device's native rate (48 kHz on the
-   emulator and most phones) avoids a resampler. The host should pass the
-   sample rate and extra settings (`audio.oboe.performance-mode=LowLatency`,
-   later `synth.dynamic-sample-loading`).
-5. **Done (session step 14):** `AppDataService(root=filesDir)`, same layout
-   as the shim's (`filesDir/config/chord-notepad`, `filesDir/data/
-   chord-notepad`). **App data directories from the host.** `AppDataService`
-   fell into the Linux/XDG branch on Android; the shim pointed `XDG_*` at
-   `filesDir` (still used by the throwaway spike).
-6. **Done (M1b), by item 7:** there is no Python timing loop any more.
-   **Playback loop re-anchors on every event, so lateness accumulates.**
-   After each event the loop sets `_wall_anchor = time.time()`, so each event's
-   lateness shifts every later event. Measured drift: +80 to +90 ms over 60 s
-   when idle, **+5.65 s over 60 s** with a concurrent Python render. Schedule
-   against the song start (re-anchor only on pause and multiplier changes) and
-   use a monotonic clock (`perf_counter`, already planned in M1b).
-7. **Done (M1b):** song notes and metronome clicks are scheduled on
-   FluidSynth's sequencer at absolute ticks of its sample clock
-   (`audio/sequencer.py`, `audio/song_scheduler.py`). A `PlaybackClock` thread
-   only feeds it 2 s ahead and posts the UI pings; FluidSynth's audio thread
-   never calls into Python. Pause, stop and live speed changes remove the
-   queued events and resend from the current position. Click-to-hear
-   note-offs go through the sequencer too (no timer thread per click).
-   Measured below ("After the Sequencer, desktop").
-   **GIL contention during playback** (see measurements): any Python work on
-   another thread (a chord-sheet render, detection while typing) delays the
-   player thread by tens of ms per event. Either keep the timing loop out of
-   Python (pyfluidsynth's `Sequencer`, the plan's first fallback) or avoid
-   Python work during playback. See the attribution runs below.
-8. **Play renders the whole song before the first note.** Play to first note
-   was 1.4 s for the 133-chord sample on the emulator, almost all of it
-   `SongRenderer` (0.8 to 1.3 s here vs 0.32 s on the desktop). Options: render
-   the first bars first and stream the rest, or reuse the `RenderedSong` that
-   the chord sheet already renders after each edit.
-9. Known, already planned: `utils/observable.py` imports `utils/error_reporting`
-   (tkinter) at module level (M1 step 2; not hit by the spike's import path, but
-   it blocks every viewmodel), and `ui/chord_sheet` must move to
-   `src/chord_sheet` with a guarded PIL import before the op buffer can run on
-   the device (the APK excludes `ui/**`). **Done:** the renderers are in
-   `src/chord_sheet/`, `clef_assets.py` no longer imports PIL (Tk decoding is
-   `ui/chord_sheet/clef_images.py`), and the op buffer is
-   `chord_sheet/pack.py` (see "Chord sheet op buffer").
-
-Build-side notes, not core changes:
-- `charset-normalizer` 3.5.2 resolved to an Android binary wheel
-  (`md.cpython-314-*.so`) from chaquo.com's index. **Done (M6 groundwork):**
-  the wheelhouse pins its pure-Python wheel.
-- Release builds are not minified yet; R8 would cut the 7.7 MB of dex
-  substantially (Chaquopy ships its own keep rules).
-- The SF2 is 29 MB of every APK. An SF3 (Ogg-compressed) GeneralUser GS would
-  shrink it severalfold; FluidSynth 2.6 with libsndfile/vorbis loads SF3.
-  Check the licence before converting.
+Still open (BACKLOG.md): Play renders the whole song before the first note
+(1.4 s for the 133-chord sample on the emulator, almost all `SongRenderer`);
+release builds aren't minified (R8 would cut the 7.7 MB of dex); the 29 MB
+SF2 could become an SF3 if its licence allows.
 
 ## 16 KB page verification
 
@@ -1384,7 +1385,7 @@ trimmed music21, unless noted. Phone numbers: still to do (see below).
 |---|---|
 | Chaquopy + core works? | **Go.** Python 3.14.8 starts; music21, the core, detection, render and playback all run unmodified, with the runtime shims listed above. |
 | Audio plays? | **Go (pipeline-level).** FluidSynth 2.6.0 starts on `oboe` (AAudio stream at 48 kHz, active in AudioFlinger); SF2 loads from `filesDir`. On the emulator the host audio backend didn't initialise ("Could not init `pa'"), so nothing was audible. Audible output must be checked on the phone. |
-| Scheduling jitter OK? | **Go only while Python is idle; No-go under concurrent Python work.** Idle: interval error p99 0.9 to 1.4 ms. With one other Python thread busy (a render loop as a stand-in for a chord-sheet render): p50 26 ms, p99 49 to 76 ms, drift +5.5 s per minute. See below. Recommendation: move to pyfluidsynth's `Sequencer` (sample-clock timing in C) as planned, and fix the drift (core change 6). **Done in M1b**; see "After the Sequencer, desktop". |
+| Scheduling jitter OK? | **Go only while Python is idle; No-go under concurrent Python work.** Idle: interval error p99 0.9 to 1.4 ms. With one other Python thread busy (a render loop as a stand-in for a chord-sheet render): p50 26 ms, p99 49 to 76 ms, drift +5.5 s per minute. See below. Fixed by scheduling on FluidSynth's sequencer; see "After the Sequencer, desktop". |
 | APK size? | **Acceptable, with easy wins left.** 91.0 MB universal, 69.8 MB arm64-v8a only (trimmed music21). The SF2 is 29 MB of that; R8 and an SF3 would cut a further ~25 to 30 MB. |
 | 16 KB pages? | **Go.** All 160 ELF files (APK `lib/` plus Chaquopy's nested extension modules) have 16 KB `PT_LOAD` alignment; `zipalign -c -P 16` passes; the app runs and plays on the `google_apis_ps16k` image (`getconf PAGESIZE` = 16384). |
 | Reproducible? | **Yes, on one machine.** Two clean release builds from different checkout paths are byte-identical, signature included, after two fixes (see below). Re-checked with source-built natives and the offline wheelhouse: still identical. |
@@ -1409,7 +1410,7 @@ trimmed music21, unless noted. Phone numbers: still to do (see below).
 | Process start → highlights painted (`reportFullyDrawn`) | 4.7 / 4.8 / 6.3 s | Python start + imports + first detection |
 | Detection, 125-line sample (133 chords) | 85 ms (debug build 106 ms) | desktop: 28 ms |
 | Render (`SongRenderer`), same sample | 0.80 to 1.28 s; `compile_events` 2 to 4 ms | desktop: 0.32 s |
-| Play → first note (sample song) | 1.41 s | the whole song renders first (core change 8) |
+| Play → first note (sample song) | 1.41 s | the whole song renders first (see "Required core changes") |
 | Play → first note (short 32-bar song) | 0.13 to 0.23 s; 0.41 to 0.44 s with a concurrent render | |
 | Tap → `noteon` (chord tap, through the bridge) | 1.2 to 4.7 ms (typically 1.5 ms) | Kotlin → Python ≈ 0.6 ms; plus audio output latency |
 | Emulator audio output latency (AudioFlinger) | ~181 ms | shared-mode track, 4360-frame buffer, no low-latency path on the emulator |
@@ -1435,16 +1436,9 @@ the audio-recording test on the phone.
 | Dense + concurrent render, `sys.setswitchinterval(1 ms)` | 237 | 4.9 / 6.6 / 46.6 / 63.0 | +1.32 s |
 | 16 KB emulator, dense, 20 s | 81 | 0.35 / 0.51 / 0.99 / 6.3 | +37 ms |
 
-The metronome's per-tick `threading.Timer` costs nothing measurable. The
-problem is the GIL. The player loop wakes several times per event (50 ms
-sleep chunks, locks, `pop_event` timeouts), and each wake waits up to one
-switch interval (5 ms) for the GIL when another Python thread is busy. That
-adds ~26 ms per event, and because the loop re-anchors after every event, the
-delay accumulates into seconds of drift. A shorter switch interval helps the
-median but not the tail. Rendering the chord sheet, detecting while typing, or
-session work during playback would all trigger this. **Sequencer fallback
-recommended** (timing in FluidSynth's C sequencer, Python only enqueues
-ahead), plus core change 6 regardless.
+That was the old Python sleep loop: under GIL contention each wake waited a
+switch interval and the loop re-anchored after every event, so the delay
+added up to seconds of drift. The sequencer replaced it (below).
 
 ### After the Sequencer, desktop (M1b)
 
@@ -1471,20 +1465,6 @@ The sequencer's remaining error is FluidSynth's render block (64 samples,
 load. GIL contention now only delays the UI pings (chord highlighting,
 status), by about a switch interval per wake. Still to do on the phone: the
 recorded-output metronome test from the plan.
-
-### Op buffer (optional item)
-
-Not run on the device: the chord-sheet renderers are still in `src/ui/`, which
-the APK excludes, and `clef_assets.py` imports PIL at module level. Both are
-already planned for M1. Desktop proxy (Python 3.14, this host): the staff view
-of the 133-chord sample is 1,246 ops, 12.8 ms to lay out and paint, and
-1.7 ms to pack into a 22.5 KB buffer (struct-packed, string table). At 266
-chords it's 2,482 ops, 24.9 ms + 3.5 ms, 44 KB. Expect ~3 to 4× that on the
-emulator (the render ratio above). Marshalling one `bytes` object through
-Chaquopy is cheap, so the packed-buffer design looks fine. The real packer
-(format version 1, with tags, the marker lane, slots and gutter variants) is
-measured under "Chord sheet op buffer": 25 to 76 KB and 1.4 to 3.5 ms per view
-for this sample.
 
 ### Reproducibility
 
@@ -1520,49 +1500,13 @@ natives build from source, and the check still gives byte-identical APKs; see
 
 ### Needs the phone
 
-- Audible playback; **real output latency** (tap → sound) and the 2-minute
-  metronome **recorded from the audio output** (p50/p99, with and without a
-  concurrent chord-sheet render).
-- Cold start, `Python.start()` and music21 import on real ARM hardware (the
-  emulator numbers are inflated by host load).
-- Whether Oboe gets the low-latency (MMAP/exclusive) path with
-  `performance-mode=LowLatency`.
-- The tablet AVD (`cn_tablet`) is created but was not exercised in M2.
-- Peak RSS on the actual device, and lmkd behaviour on a 16 KB device if
-  available.
-- Editor items from the plan that a scripted spike can't cover: IME, tap →
-  offset, whole-text replace as one undo step, paste hook, read-only mode,
-  scrolling a 300-line song while typing. The highlighting itself is proven:
-  Python spans render through `OutputTransformation` + `addStyle` on a
-  `TextFieldState` field.
+Audible output, real tap-to-sound latency, the recorded-output metronome
+test, cold start and RSS on ARM hardware, the low-latency Oboe path, IME and
+long-song scrolling: listed as release checks in BACKLOG.md.
 
-### Fade-in at the start of playback (HTC 10, Android 8.0; 2026-10-29)
-
-Reported: the first notes after Play fade in instead of starting at full
-volume.
-
-- **The synth output is clean.** The real `PlaybackService` + `NotePlayer`
-  path rendered through FluidSynth's `file` driver (44.1 and 48 kHz, cold
-  and warmed-up synth) gives the first chord the same RMS envelope and peak
-  as later chords that also follow silence (within 0.2 dB, 50 ms windows).
-  Nothing in our code ramps (no CC7/CC11 ramp, gain is set once, the click
-  channel is separate).
-- **The stream isn't (re)started at Play.** AudioFlinger's thread log shows
-  our track added when the app comes to the foreground (`resume_audio`, or
-  at session start) and removed when it leaves, so Play writes into a stream
-  that has been running silence.
-- **On this phone our stream is the one that goes through Dolby.** Oboe
-  uses OpenSL ES below API 27; `performance-mode=LowLatency` asks for a FAST
-  track, which AudioFlinger denied ("AUDIO_OUTPUT_FLAG_FAST denied by
-  server; frameCount 1924"), but the track still lands on the primary output
-  (I/O 13, `PRIMARY|FAST`). That output carries a global Dolby DAP effect
-  (`dumpsys media.audio_policy`: "Effect 11, I/O 13, Session 0, DAP,
-  Enabled"; `vendor.audio.dolby.ds2.enabled=1`). Ordinary music goes to the
-  deep-buffer output (`audio.deep_buffer.media=true`, I/O 21), which has no
-  effect chain. A leveler that ramps its gain up after digital silence fits
-  the report; I couldn't listen or capture the device's output to confirm.
-- **Tried and reverted:** asking Oboe for no performance mode below API 27
-  (an ordinary deep-buffer music track) did not remove the fade on the
-  HTC 10, so it was reverted; the stream is `LowLatency` everywhere again.
-  The cause is still open (next suspects: the device's speaker amplifier or
-  another vendor stage handling silence). Tibi chose to leave it as is.
+Known issue: on the HTC 10 (Android 8.0) the first notes after Play fade in.
+The synth output is clean (same envelope as later chords, rendered through
+the `file` driver); the likely cause is the device's Dolby DAP effect on the
+primary output, which our low-latency stream uses. Asking Oboe for no
+performance mode below API 27 didn't help and was reverted. Tibi chose to
+leave it.

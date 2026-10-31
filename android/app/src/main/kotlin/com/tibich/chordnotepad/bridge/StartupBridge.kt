@@ -4,7 +4,7 @@ import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
-// The startup screen (docs/design/android-support-plan.md; contract in
+// The startup screen (docs/ANDROID.md, "Startup screen and support prompt"; contract in
 // docs/ANDROID.md, "Bridge contract", "Startup screen"). Mirrors
 // src/session/state.py: the session decides what opens over the editor.
 

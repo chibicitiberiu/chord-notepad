@@ -26,7 +26,7 @@ DESKTOP_ONLY = {
 }
 
 # Core modules that still reach a blocked library. The Android port removes
-# these one by one (docs/ANDROID_PORT_PLAN.md); the test fails when one starts
+# these one by one; the test fails when one starts
 # importing cleanly, so the entry gets deleted instead of going stale.
 KNOWN_LEAKS: set = set()
 

@@ -79,7 +79,7 @@ fun playingStyleFor(colors: AppColors): SpanStyle = SpanStyle(
 /** Paint order: lower first, so higher-priority kinds win on overlap. */
 val SpanPriority: Map<SpanKind, Int> = SpanStyles.mapIndexed { i, (kind, _) -> kind to i }.toMap()
 
-/** The three families Android offers for the editor (docs/ANDROID_PORT_PLAN.md, settings visibility). */
+/** The three families Android offers for the editor (docs/ANDROID.md, "Decisions and constraints", settings visibility). */
 enum class EditorFontKind(val family: FontFamily) {
     MONOSPACE(FontFamily.Monospace),
     SANS(FontFamily.SansSerif),

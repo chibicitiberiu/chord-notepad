@@ -162,8 +162,8 @@ Where the build differs from the text above, and why:
   it, not in the status line, which is one short line and would cut the
   syntax off. The card goes after 6 s or on the next touch; the
   long-press never moves the playhead.
-- **Startup screen and support** (2026-10-30, design in
-  `docs/design/android-support-plan.md`). The session picks what opens over
+- **Startup screen and support** (2026-10-30, decisions in
+  `docs/ANDROID.md`, "Startup screen and support prompt"). The session picks what opens over
   the editor at launch: Quick Start, the support prompt, or nothing. Open
   with (a `.txt` from a file manager) and recreation never show either.
   - Support prompt (play flavour only, from day 7 after install, at most once
