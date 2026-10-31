@@ -20,10 +20,10 @@ make setup-dev
 
 ## Tech Stack
 
-- **Language:** Python 3.10+
+- **Language:** Python 3.14 (Pipfile `python_version`)
 - **GUI:** Tkinter
 - **Audio:** FluidSynth (pyfluidsynth)
-- **Music theory:** pychord, mingus, music21
+- **Music theory:** pychord, music21
 - **Testing:** pytest, hypothesis
 - **Packaging:** PyInstaller, Pipenv
 
@@ -75,14 +75,17 @@ Services created in `Application.on_initialize_services()` in dependency order. 
 ViewModels inherit from `Observable`. Views subscribe: `viewmodel.observe('property', callback)`.
 
 ### Threading
-- Main thread: Tkinter GUI
-- Playback thread: FluidSynth with precise timing
-- Cross-thread: Queue-based via `Application._event_queue`
+- One session thread owns all state (Tk: the main thread; Android: a `ThreadedHost` thread)
+- Background threads (render, `PlaybackClock`, chord-sheet job, `BackgroundWorker`) only
+  `host.post`; timing runs on FluidSynth's sequencer, not in Python
+- Cross-thread: `Application.queue_ui_callback` → `TkHost.post` (`src/ui/tk_host.py`);
+  details in docs/architecture/session.md, "Threading contract"
 
 ### Pre-Render Pipeline (Audio)
 `SongRenderer` (whole-song → `RenderedSong`) → `compile_events` (→ `MidiEvent` list)
-→ `EventBuffer` → `NotePlayer` (FluidSynth). A short-lived RenderThread renders and
-compiles, fills the buffer, then starts the player.
+→ `EventBuffer` → `NotePlayer`, whose `SongScheduler` queues the notes on FluidSynth's
+sequencer (sample clock; `audio/sequencer.py`, `audio/song_scheduler.py`). A short-lived
+RenderThread renders and compiles, fills the buffer, then starts the player.
 
 ## Code Conventions
 
@@ -103,11 +106,11 @@ compiles, fills the buffer, then starts the player.
 - The repo only holds docs that are relevant and up to date. Delete finished plans,
   research notes and stale docs (git history keeps them); fix or remove docs that
   drift from the code.
-- Planning is one prioritised backlog file, no milestones or phase plans.
+- Planning is one prioritised backlog file, `BACKLOG.md`, no milestones or phase plans.
 - Reviews, audits and research reports stay out of the repo
   (/mnt/data_linux/Bin/chord-notepad-reviews/).
 
-### Android port (in progress, see docs/ANDROID_PORT_PLAN.md)
+### Android app (docs/ANDROID.md)
 - Logic lives in the shared Python core. Views (Tk and the Kotlin/Compose UI)
   stay thin: cross-viewmodel wiring and app flows belong in `src/session/`
   (design: docs/architecture/session.md), never in `main_window.py` or Kotlin.
@@ -133,10 +136,11 @@ Key fixtures in `tests/conftest.py`:
 ## Important Constants
 
 From `src/constants.py`:
-- `MIN_BPM=60`, `MAX_BPM=240`, `DEFAULT_BPM=120`
+- `MIN_BPM=20`, `MAX_BPM=400`, `DEFAULT_BPM=120`
 - `MIN_FONT_SIZE=6`, `MAX_FONT_SIZE=72`
 - `CHORD_DETECTION_DEBOUNCE_MS=500`
-- Tag names: `TAG_CHORD_VALID`, `TAG_CHORD_INVALID`, `TAG_CHORD_PLAYING`, `TAG_DIRECTIVE_VALID`
+- Tag names: `TAG_CHORD_VALID`, `TAG_CHORD_INVALID`, `TAG_CHORD_PLAYING`, `TAG_DIRECTIVE_VALID`,
+  `TAG_DIRECTIVE_INVALID`, `TAG_DIRECTIVE_REDUNDANT`, `TAG_COMMENT`
 
 ## Chord Detection
 
@@ -145,7 +149,8 @@ Supports:
 - **European:** Do, rem, Fa#, Sol (with accents)
 - **Roman numerals:** I, ii, V7, vi/I, ♭III
 - **Duration:** C*2 (2 beats), Am*4.5
-- **ChordPro directives:** `{bpm: 120}`, `{time: 4/4}`, `{key: C}`, `{label: chorus}`, `{loop: chorus 2}`
+- **ChordPro directives:** `{bpm: 120}` (alias `{tempo: 120}`), `{time: 4/4}`, `{key: C}`, `{capo: 3}`,
+  `{label: chorus}`, `{loop: chorus 2}`
 
 ## Adding Features
 
@@ -163,8 +168,10 @@ Use custom exceptions from `src/exceptions.py`:
 - `ConfigurationError`
 - `AudioInitializationError`
 - `FileOperationError`
+  - `RenameNotSupported` (the document's storage can't rename it)
 - `ChordDetectionError`
 - `ServiceNotInitializedError`
+- `RenderAborted` (a newer render superseded a voicing search)
 
 ## Platform Notes
 

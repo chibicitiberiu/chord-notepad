@@ -48,9 +48,10 @@ A text editor for chord notation. Write chord symbols above your lyrics and Chor
 **For developers:**
 
 - [Architecture: the session layer](docs/architecture/session.md) both UIs sit on
-- [Android port](docs/ANDROID.md): building, the Kotlin/Compose UI, the Python bridge
+- [Android app](docs/ANDROID.md): decisions, building, the Kotlin/Compose UI, the Python bridge
 - [Writing the User Guide](docs/HELP_AUTHORING.md) (one source, desktop and Android editions)
-- [Releasing](docs/RELEASE.md): CI, signing, the stores
+- [Releasing](docs/RELEASE.md): CI, signing, the stores, licence compliance
+- [Backlog](BACKLOG.md): what's planned, in priority order; pick something from here if you want to help
 - [Contributing](CONTRIBUTING.md), [Privacy](PRIVACY.md), [Changelog](CHANGELOG.md) ([older releases](CHANGELOG_HISTORY.md))
 
 ## Installation
