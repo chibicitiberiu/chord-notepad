@@ -37,6 +37,12 @@ def make(tmp_path, audio_works=True, platform="desktop"):
     return session, player, recorder
 
 
+def test_typed_notes_without_an_octave_go_above_the_one_before():
+    assert parse_notes("E G# B C")[0] == [("E", 4), ("G#", 4), ("B", 4), ("C", 5)]
+    assert parse_notes("G3 C E")[0] == [("G", 3), ("C", 4), ("E", 4)]
+    assert parse_notes("A B C D E F G A")[0][-1] == ("A", 5)
+
+
 def test_the_empty_identifier_is_published_from_the_start(tmp_path):
     _, _, recorder = make(tmp_path)
     state = recorder.last(IdentifierState)
@@ -130,7 +136,8 @@ def test_the_shared_note_helpers():
     assert note_to_midi("C", 4) == 60 and note_to_midi("B", -1) == 11
     assert bass_note([("G", 4), ("E", 3), ("C", 4)]) == "E"
     assert bass_note([]) is None
-    assert parse_notes("C, Db4 e5 Cm Q") == ([("C", 4), ("C#", 4), ("E", 5), ("C", 4)],
+    # Cm has no octave: above E5 would be past the piano, so it stays in 5.
+    assert parse_notes("C, Db4 e5 Cm Q") == ([("C", 4), ("C#", 4), ("E", 5), ("C", 5)],
                                              ["Cm", "Q"])
 
 

@@ -8,7 +8,7 @@ widget calls them too.
 import itertools
 import logging
 import re
-from typing import Dict, Iterable, List, Tuple, Set, Optional
+from typing import Callable, Dict, Iterable, List, Tuple, Set, Optional
 
 from music21 import chord as m21_chord
 from utils.observable import Observable
@@ -147,8 +147,16 @@ def spell_for_identification(names: Iterable[str], bass: Optional[str] = None,
     return {n: n for n in names}
 
 
+#: The piano's top octave (two octaves from C4): typed notes stack up to it.
+_HIGHEST_TYPED_OCTAVE = 5
+
+
 def parse_notes(note_string: str) -> Tuple[List[Tuple[str, int]], List[str]]:
-    """Parse typed notes ("C4, E4, G4", "C E G"; octave 4 when left out).
+    """Parse typed notes ("C4, E4, G4", "C E G").
+
+    A note without an octave goes just above the note typed before it, so
+    "E G# B C" is E4 G#4 B4 C5 (E in the bass, as typed); the first one is
+    in octave 4. One that would go past the piano (octave 5) stays in 5.
 
     Forgiving like the desktop field: a token that starts with a note name
     counts as that note (``Cm`` reads as ``C``), anything else is skipped.
@@ -160,6 +168,7 @@ def parse_notes(note_string: str) -> Tuple[List[Tuple[str, int]], List[str]]:
     """
     notes: List[Tuple[str, int]] = []
     not_understood: List[str] = []
+    previous: Optional[int] = None
     for part in re.split(r'[,\s;/|]+', note_string.strip()):
         part = part.strip()
         if not part:
@@ -167,13 +176,82 @@ def parse_notes(note_string: str) -> Tuple[List[Tuple[str, int]], List[str]]:
         match = _NOTE_TOKEN.match(part)
         name = normalize_note_name(match.group(1)) if match else ''
         if match and name in NOTE_NAMES:
-            octave = int(match.group(2)) if match.group(2) else 4
+            if match.group(2):
+                octave = int(match.group(2))
+            elif previous is None:
+                octave = 4
+            else:
+                octave = 4
+                while octave < _HIGHEST_TYPED_OCTAVE and note_to_midi(name, octave) <= previous:
+                    octave += 1
+            previous = note_to_midi(name, octave)
             notes.append((name, octave))
             if match.end() != len(part):
                 not_understood.append(part)
         else:
             not_understood.append(part)
     return notes, not_understood
+
+
+#: How unusual a chord quality is (lower is more common), for the order of
+#: the candidates. A quality not listed counts as 3.
+_QUALITY_RARITY = {
+    '': 0, 'm': 0, '7': 1, 'm7': 1, 'maj7': 1,
+    '6': 1.5, 'm6': 1.5, 'sus4': 1.5, 'sus2': 1.5, 'add9': 1.5, 'madd9': 1.5,
+    '9': 2, 'm9': 2, 'maj9': 2, '7sus4': 2, 'dim': 2, 'dim7': 2, 'm7b5': 2,
+    'aug': 2.5, '7b9': 2.5, 'mmaj7': 2.5,
+}
+
+#: Cost of an added tone: a plain one (add9, add11, add13) or an altered
+#: one (addb6, addb9, add#11), which is rarer.
+_ADDED_COST = 1.5
+_ALTERED_ADDED_COST = 3
+
+#: Extra cost of a root that isn't the bass, when the bass is a note of the
+#: chord before its added tones, by its interval above the root: the 3rd
+#: (first inversion), the 5th, else (a 7th, 6th or altered 5th). A bass
+#: that is an added tone, or no note of the chord, costs the most.
+_INVERSION_COST = {3: 1.5, 4: 1.5, 7: 2}
+_OTHER_INVERSION_COST = 2.5
+_ADDED_BASS_COST = 4
+
+
+def _likelihood(name: str, bass: Optional[str],
+                base_pitches: Callable[[str], Set[int]]) -> Tuple[float, str]:
+    """Sort key for a candidate: most likely first.
+
+    A chord rooted on the bass beats an inversion, which beats a reading
+    whose bass is an added tone (E G# B C: Eaddb6, then Caugmaj7/E, then
+    G#augadd#9/E). Common qualities beat rare ones and each added tone
+    costs a little, an altered one more. On another root than the bass,
+    the slash form (which says where the bass is) comes just before the
+    plain name.
+
+    Args:
+        name: The candidate.
+        bass: The lowest selected note, or None.
+        base_pitches: The pitch classes of a chord name (``"Em"``).
+    """
+    body, _, slash = name.partition('/')
+    root = _root_of(body)
+    quality = body[len(root):]
+    base, *added = quality.split('add')
+    cost = _QUALITY_RARITY.get(base, 3)
+    cost += sum(_ALTERED_ADDED_COST if tone[:1] in ('b', '#') else _ADDED_COST for tone in added)
+    if bass and root and _pitch(root) != _pitch(bass):
+        interval = (_pitch(bass) - _pitch(root)) % 12
+        if _pitch(bass) in base_pitches(root + base):
+            cost += _INVERSION_COST.get(interval, _OTHER_INVERSION_COST)
+        else:
+            cost += _ADDED_BASS_COST
+        if not slash:
+            cost += 0.1
+    return (cost, name)
+
+
+def _pitch(name: str) -> int:
+    """The pitch class of a note name (flats too)."""
+    return NOTE_NAMES.index(normalize_note_name(name))
 
 
 class ChordIdentifierViewModel(Observable):
@@ -337,33 +415,15 @@ class ChordIdentifierViewModel(Observable):
 
             # Every note as the root, with added tones where needed: E G# B C
             # is also Eaddb6, and C E G A is also C6 (music21 only says Am7).
-            # A reading on another root than the lowest note is a slash chord,
-            # and only worth offering when nothing is rooted on that note.
-            readings = self._chord_service.identify_by_root(note_names)
-            on_bass = any(root == bass_note for root, _ in readings) or any(
-                '/' not in name and _root_of(name) == bass_note for name in all_chords)
-            for root, name in readings:
-                if not bass_note or root == bass_note:
-                    all_chords.add(name)
-                elif not on_bass:
-                    all_chords.update((name, f"{name}/{bass_note}"))
+            # Every root's reading is offered; on another root than the
+            # lowest note it also comes as a slash chord over that note.
+            for root, name in self._chord_service.identify_by_root(note_names):
+                all_chords.add(name)
+                if bass_note and root != bass_note:
+                    all_chords.add(f"{name}/{bass_note}")
 
             if all_chords:
-                # Simpler (shorter) qualities first, not counting the root's
-                # accidental (F#dim7 is as simple as Adim7); at the same
-                # length a chord rooted on the lowest note, then one on
-                # another root, then its slash form.
-                def rank(name: str):
-                    body = name.split('/')[0]
-                    if '/' in name:
-                        place = 2
-                    elif bass_note and _root_of(body) != bass_note:
-                        place = 1
-                    else:
-                        place = 0
-                    return (len(body) - len(_root_of(body)), place, name)
-
-                chord_list = sorted(all_chords, key=rank)
+                chord_list = sorted(all_chords, key=lambda name: _likelihood(name, bass_note, self._pitch_classes))
                 logger.info(f"Identified {len(chord_list)} possible chords from notes: {note_names}")
                 self._identified_chords = chord_list
                 self._candidates = list(chord_list)
@@ -412,6 +472,10 @@ class ChordIdentifierViewModel(Observable):
             return False
         steps = sorted(NOTE_NAMES.index(_FLAT_TO_SHARP.get(n, n)) for n in set(note_names))
         return all(b - a == 3 for a, b in zip(steps, steps[1:]))
+
+    def _pitch_classes(self, chord_name: str) -> Set[int]:
+        """The pitch classes of ``chord_name`` (empty if it doesn't resolve)."""
+        return {midi % 12 for midi in self._chord_service.chord_to_midi(chord_name)}
 
     def identify_chords_from_notes(self) -> List[str]:
         """Manually trigger chord identification.

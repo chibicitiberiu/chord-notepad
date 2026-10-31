@@ -729,6 +729,9 @@ Below the piano, you can type note names directly:
 * Type notes separated by spaces: ``C E G``
 * Or with commas: ``C, E, G``
 * Include sharps and flats: ``C Eb G``
+* Add an octave to place a note: ``E3 G#3 B3 C4``. A note without one goes
+  just above the note before it, so the first note you type is the lowest:
+  ``E G# B C`` is read with E in the bass
 
 The chords are named with the accidentals you typed: ``Bb D F`` gives ``Bb``,
 ``A# D F`` gives ``Bb`` as well (it can't be spelled as a chord with A#), and
@@ -746,9 +749,12 @@ As you select notes, Chord Notepad analyzes them and shows matching chords:
 * Each note is also tried as the root, with any extra notes named as added
   notes: E G# B C gives ``Eaddb6`` (E major with an added flat 6th) as well
   as ``Caugmaj7/E``
-* Shorter chord names come first. Between names of the same length, a chord
-  built on the lowest note comes before one built on another note, and that
-  before its slash form
+* The likeliest chords come first. A chord built on the lowest note leads,
+  then inversions (the lowest note is the chord's 3rd, 5th or 7th), and
+  last the readings that would put an added note in the bass. Common
+  chords come before rare ones, and each added note counts against a
+  reading. A reading built on another note comes as a slash chord first
+  (``Caugmaj7/E``), then without the bass (``Caugmaj7``)
 
 .. only:: desktop
 

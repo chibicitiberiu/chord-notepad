@@ -47,7 +47,10 @@ def pitch_classes(helper, name):
 # --- The identifier ---------------------------------------------------------
 
 def test_e_major_with_an_added_flat_six_comes_before_the_slash_chord(vm):
-    assert typed(vm, "E3 G#3 B3 C4") == ['Eaddb6', 'Caugmaj7', 'Caugmaj7/E']
+    # E is the bass: E's own reading, then the inversion that says so, then
+    # the plain C chord, then the reading whose bass is its added tone.
+    assert typed(vm, "E3 G#3 B3 C4") == [
+        'Eaddb6', 'Caugmaj7/E', 'Caugmaj7', 'G#augadd#9/E', 'G#augadd#9']
 
 
 def test_piano_keys_give_the_same_added_tone_reading(vm):
@@ -73,37 +76,36 @@ def test_an_added_tone_over_a_seventh_is_a_thirteenth(vm):
 
 def test_a_major_sixth_stays_a_six_chord(vm):
     found = typed(vm, "C4 E4 G4 A4")
-    assert found == ['C6', 'Am7', 'Am7/C']
+    assert found == ['C6', 'Am7/C', 'Am7']
     assert not any('add13' in name for name in found)
 
 
 def test_a_reading_on_another_root_is_offered_as_a_slash_chord(vm):
-    # Nothing is rooted on E, so the C reading comes with its slash form.
-    assert typed(vm, "E4 G4 C5 F#5") == ['Cadd#11', 'Cadd#11/E']
+    # Nothing is rooted on E: the slash form, which says E is the bass, first.
+    assert typed(vm, "E4 G4 C5 F#5") == ['Cadd#11/E', 'Cadd#11']
 
 
-def test_no_added_tone_oddities_when_the_lowest_note_is_a_root(vm):
-    # G#aug with an added #9 has the same notes, but E is the lowest note.
-    found = typed(vm, "E3 G#3 B3 C4")
-    assert not any(name.startswith('G#') for name in found)
-    # Bb7: D diminished with an added b6 is the same four notes.
-    assert typed(vm, "Bb4 D5 F5 Ab5") == ['Bb7']
+def test_a_reading_with_an_added_tone_in_the_bass_comes_last(vm):
+    # Bb7: D diminished with an added b6 is the same four notes, but its
+    # bass would be the added tone.
+    assert typed(vm, "Bb4 D5 F5 Ab5") == ['Bb7', 'Ddimaddb6/Bb', 'Ddimaddb6']
 
 
 def test_plain_chords_are_unchanged(vm):
     assert typed(vm, "C4 E4 G4") == ['C']
-    assert typed(vm, "E3 G3 C4") == ['C', 'C/E']
-    assert typed(vm, "C4 E4 G4 B4") == ['Cmaj7']
-    assert typed(vm, "C4 E4 G4 D5") == ['Cadd9']
+    assert typed(vm, "E3 G3 C4") == ['C/E', 'C']
+    # Other readings follow (Emaddb6/C), but the plain chord leads.
+    assert typed(vm, "C4 E4 G4 B4")[0] == 'Cmaj7'
+    assert typed(vm, "C4 E4 G4 D5")[0] == 'Cadd9'
 
 
 def test_a_cluster_is_still_no_chord(vm):
     assert typed(vm, "C4 C#4 D4") == []
 
 
-def test_shorter_names_first_then_the_root_in_the_bass_then_slash(vm):
-    # Cmaj7/E is shorter than Emaddb6, so it comes first.
-    assert typed(vm, "E3 G3 B3 C4") == ['Cmaj7', 'Cmaj7/E', 'Emaddb6']
+def test_a_common_inversion_beats_a_rare_root_position(vm):
+    # Cmaj7 in first inversion is likelier than E minor with an added b6.
+    assert typed(vm, "E3 G3 B3 C4") == ['Cmaj7/E', 'Cmaj7', 'Emaddb6']
     # A dim7 chord on the lowest note leads the four equal-length names.
     assert typed(vm, "C4 Eb4 Gb4 A4")[0] == 'Cdim7'
 
@@ -280,7 +282,7 @@ def test_e_ab_b_c_reads_the_same_in_both_spellings(vm):
     sharps = typed(vm, "E4 G#4 B4 C5")
     flats = typed(vm, "E4 Ab4 B4 C5")
     assert {_root_classes(n) for n in flats} == {_root_classes(n) for n in sharps}
-    assert flats == ['Eaddb6', 'Caugmaj7', 'Caugmaj7/E']
+    assert flats[:3] == ['Eaddb6', 'Caugmaj7/E', 'Caugmaj7']
 
 
 def test_music21_root_is_corrected(helper):
@@ -303,3 +305,9 @@ def test_a_sharp_or_flat_root_on_the_bass_isnt_ranked_down():
     vm = ChordIdentifierViewModel(SongParserService())
     vm.set_notes_from_string("F#3 A3 C4 Eb4")
     assert vm.identify_chords_from_notes()[0] == "F#dim7"
+
+
+def test_typed_notes_without_octaves_stack_from_the_first(vm):
+    """E G# B C typed as is: E is the bass (Tibi's case on the phone)."""
+    assert typed(vm, "E G# B C")[0] == 'Eaddb6'
+    assert typed(vm, "C E G# B")[0] == 'Caugmaj7'
