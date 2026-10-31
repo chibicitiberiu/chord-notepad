@@ -7,7 +7,9 @@ so the session keeps them here: :class:`SettingsEdit` wraps the same
 the voicing loaded in the form, and every edit goes through the viewmodel
 exactly as the desktop page does (``add_voicing``, ``remove_voicing``,
 ``rename_voicing``, ``set_voicing_data(name, voicing_from_values(...))``).
-``save`` runs ``validate_all`` as the gate and then ``commit``.
+``save`` runs ``validate_all`` as the gate and then ``commit``; an autosave
+(``AppSession.commit_settings``) does the same and then :meth:`SettingsEdit.rebase`
+onto a fresh working copy, keeping the form.
 
 What the view draws comes out as :class:`~session.state.VoicingEditorState`
 (:meth:`SettingsEdit.state`); the form schema it draws with is static
@@ -37,6 +39,11 @@ class SettingsEdit:
         self._label: Optional[str] = None
         self._dirty = False
         self._revision = 0
+
+    def rebase(self, model: "SettingsViewModel") -> None:
+        """Carry on with ``model``, a fresh working copy of what was just
+        committed; the form (the voicing shown, its values, ``dirty``) stays."""
+        self.model = model
 
     # -- the voicings list -----------------------------------------------------
 

@@ -9,17 +9,14 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
@@ -46,19 +43,16 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.tibich.chordnotepad.R
 import com.tibich.chordnotepad.appGraph
 import com.tibich.chordnotepad.bridge.ScreenCommands
 import com.tibich.chordnotepad.bridge.SessionRepository
-import com.tibich.chordnotepad.bridge.UnexpectedError
-import com.tibich.chordnotepad.bridge.UserError
 import com.tibich.chordnotepad.support.SupportBilling
 import com.tibich.chordnotepad.ui.icons.AppIcons
 import com.tibich.chordnotepad.ui.support.SupportCard
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.filterNotNull
 
 /** From this width the pages list stays on the left (tablets, phones in landscape). */
@@ -72,10 +66,10 @@ private val PagesPaneWidth = 240.dp
 
 /**
  * ☰ drawer › Settings: General, Playback and the Voicings editor over a settings
- * edit (`begin_settings_edit` when it opens; Save → `save_settings`, Back or
- * leaving → `cancel_settings_edit`, asking first when something changed).
- * Full screen on phones (pages list → page → voicing form), list/detail
- * panes on tablets. [onClosed] once the edit ended (saved or cancelled).
+ * edit (`begin_settings_edit` when it opens; every change is saved as it is
+ * made with `commit_settings`; leaving → `cancel_settings_edit`, asking first
+ * only while a voicing is invalid). Full screen on phones (pages list → page
+ * → voicing form), list/detail panes on tablets. [onClosed] once the edit ended.
  * [initialPage] opens a page at once (Voicings, from the Voicing sheet).
  * [supportBilling] feeds the support card above the pages (play flavour only;
  * it hides itself when there's nothing to sell).
@@ -102,8 +96,12 @@ fun SettingsScreen(
         repo.settings.filterNotNull().collect(controller::onSettings)
     }
     LaunchedEffect(controller) { repo.voicingEditor.filterNotNull().collect(controller::onEditor) }
-    LaunchedEffect(controller) {
-        repo.errors.collect { if (it is UserError || it is UnexpectedError) controller.onError() }
+    // A number being typed is saved once it rests; the rest is saved at once.
+    LaunchedEffect(ui.draft, ui.saved, ui.phase, editor != null) {
+        if (ui.draftPending) {
+            delay(DRAFT_SAVE_DELAY_MS)
+            controller.saveDraft()
+        }
     }
     LaunchedEffect(ui.phase) { if (ui.phase == SettingsPhase.CLOSED) onClosed() }
 
@@ -142,7 +140,7 @@ fun SettingsScreen(
     SettingsDialogs(ui.dialog, schema, controller)
 }
 
-/** The app bar (Back, the page's title, Save) over [content]. */
+/** The app bar (Back, the page's title) over [content]. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SettingsScaffold(
@@ -169,7 +167,6 @@ private fun SettingsScaffold(
                         Icon(AppIcons.ArrowBack, stringResource(R.string.settings_back))
                     }
                 },
-                actions = { SaveButton(ui, blocked = editor?.state?.invalid?.isNotEmpty() == true, onSave = controller::save) },
             )
         },
     ) { padding ->
@@ -180,30 +177,9 @@ private fun SettingsScaffold(
                 .consumeWindowInsets(padding)
                 .imePadding(),
         ) {
-            if (ui.phase == SettingsPhase.SAVING) LinearProgressIndicator(Modifier.fillMaxWidth())
             content()
         }
     }
-}
-
-/**
- * Save. With invalid voicings it looks disabled but still sends: Python is
- * the gate, and its "Invalid Voicing" names and selects the first bad one.
- */
-@Composable
-private fun SaveButton(ui: SettingsUi, blocked: Boolean, onSave: () -> Unit) {
-    val label = stringResource(R.string.settings_save)
-    val description = if (blocked) stringResource(R.string.settings_save_blocked) else label
-    TextButton(
-        onClick = onSave,
-        enabled = ui.canSave,
-        colors = if (blocked) {
-            ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f))
-        } else {
-            ButtonDefaults.textButtonColors()
-        },
-        modifier = Modifier.semantics { contentDescription = description },
-    ) { Text(label) }
 }
 
 /**
@@ -245,7 +221,7 @@ private fun pageSummary(page: SettingsPage): String = stringResource(
     },
 )
 
-/** The open [dialog]: discard, or the voicings editor's confirmations (texts from the schema). */
+/** The open [dialog]: discard an invalid voicing's edits, or the voicings editor's confirmations (texts from the schema). */
 @Composable
 private fun SettingsDialogs(dialog: SettingsDialog?, schema: EditorSchema?, controller: SettingsController) {
     when (dialog) {
@@ -256,6 +232,7 @@ private fun SettingsDialogs(dialog: SettingsDialog?, schema: EditorSchema?, cont
             confirm = stringResource(R.string.settings_discard),
             dismiss = stringResource(R.string.settings_keep_editing),
             controller = controller,
+            onDismiss = controller::keepEditing,
         )
         is SettingsDialog.RemoveVoicing -> ConfirmDialog(
             title = schema?.text("remove_confirm_title").orEmpty(),
@@ -283,13 +260,14 @@ private fun ConfirmDialog(
     controller: SettingsController,
     confirm: String = stringResource(android.R.string.ok),
     dismiss: String = stringResource(android.R.string.cancel),
+    onDismiss: () -> Unit = controller::dismissDialog,
 ) {
     AlertDialog(
-        onDismissRequest = controller::dismissDialog,
+        onDismissRequest = onDismiss,
         title = { Text(title) },
         text = { Text(message) },
         confirmButton = { TextButton(onClick = { controller.confirmDialog() }) { Text(confirm) } },
-        dismissButton = { TextButton(onClick = controller::dismissDialog) { Text(dismiss) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(dismiss) } },
     )
 }
 

@@ -16,10 +16,16 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** The Settings screen's state holder: the edit's life, the draft, navigation, voicing commands. */
+/** The Settings screen's state holder: the edit's life, autosave, the draft, navigation, voicing commands. */
 class SettingsControllerTest {
     private val submitter = RecordingSubmitter()
     private val commands = ScreenCommands(submitter)
+
+    /** What was sent apart from the autosaves. */
+    private val voicingCommands get() = submitter.sent.filter { it.first != ScreenCommandNames.COMMIT_SETTINGS }
+
+    /** The `values` of every `commit_settings` sent. */
+    private val commits get() = submitter.sent.filter { it.first == ScreenCommandNames.COMMIT_SETTINGS }.map { it.second.getValue("values") }
 
     private val inactive = Fixtures.piano.copy(
         active = false, revision = 0, groups = emptyList(), invalid = emptyList(), presets = emptyList(),
@@ -60,117 +66,134 @@ class SettingsControllerTest {
         assertEquals(EditorFontKind.MONOSPACE, draft.fontKind)
         assertEquals(11, draft.fontSize)
         assertEquals("C", draft.key)
-        assertFalse(c.ui.value.changed)
-        // A later SettingsState (the toolbar) doesn't reset the draft.
+        assertFalse(c.ui.value.draftPending)
+        // A later SettingsState (the toolbar, or our own save) doesn't reset the draft.
         c.updateDraft { it.copy(bpm = 90) }
         c.onSettings(Fixtures.settings)
         assertEquals(90, c.ui.value.draft!!.bpm)
     }
 
     @Test
-    fun `save sends the changed values, then closes when the edit ends`() {
+    fun `a General or Playback change is saved at once`() {
         val c = editing()
         c.updateDraft { it.copy(fontKind = EditorFontKind.SERIF) }
         c.setNotation(EUROPEAN)
-        c.setNumber(NumberSetting.BPM, "96")
-        c.save()
-        val (name, args) = submitter.sent.single()
-        assertEquals(ScreenCommandNames.SAVE_SETTINGS, name)
-        val values = args.getValue("values").jsonObject
-        assertEquals("Serif", values.getValue("font_family").jsonPrimitive.content)
+        assertEquals(2, commits.size)
+        assertEquals("Serif", commits[0].jsonObject.getValue("font_family").jsonPrimitive.content)
+        val values = commits[1].jsonObject
         assertEquals("european", values.getValue("notation").jsonPrimitive.content)
         // C respelled in European notation.
         assertEquals("Do", values.getValue("key").jsonPrimitive.content)
-        assertEquals(96, values.getValue("bpm").jsonPrimitive.content.toInt())
-        assertEquals(SettingsPhase.SAVING, c.ui.value.phase)
-        c.onEditor(inactive)
-        assertEquals(SettingsPhase.CLOSED, c.ui.value.phase)
-    }
-
-    @Test
-    fun `save with nothing changed on General sends null values`() {
-        val c = editing()
-        c.save()
-        assertEquals(JsonNull, submitter.sent.single().second.getValue("values"))
-    }
-
-    @Test
-    fun `an invalid voicing keeps the screen open with it selected`() {
-        val c = editing()
-        c.onEditor(Fixtures.piano)
-        c.openPage(SettingsPage.GENERAL)
-        c.save()
-        val refused = Fixtures.fretboardInvalid.copy(revision = Fixtures.piano.revision + 1)
-        // The UserError and the state may come in either order.
-        for (errorFirst in listOf(true, false)) {
-            val c2 = SettingsController.restore(commands, c.snapshot())
-            if (errorFirst) c2.onError()
-            c2.onEditor(refused)
-            if (!errorFirst) c2.onError()
-            val ui = c2.ui.value
-            assertEquals(SettingsPhase.EDITING, ui.phase)
-            assertEquals(SettingsNav(SettingsPage.VOICINGS, voicingDetail = true), ui.nav)
-            // Later states (the user's own commands) don't move the screen again.
-            c2.openPage(SettingsPage.GENERAL)
-            c2.edit(VoicingEdits.text("tuning", "E2 A2 D3"))
-            c2.onEditor(refused.copy(revision = refused.revision + 1))
-            assertEquals(SettingsNav(SettingsPage.GENERAL), c2.ui.value.nav)
-        }
-    }
-
-    @Test
-    fun `a config that can't be written leaves the screen open`() {
-        val c = editing()
-        c.save()
-        c.onError()
+        assertFalse(c.ui.value.draftPending)
         assertEquals(SettingsPhase.EDITING, c.ui.value.phase)
-        assertTrue(c.ui.value.canSave)
     }
 
     @Test
-    fun `an out of range number blocks Save`() {
+    fun `a number waits for saveDraft, and only a valid one is saved`() {
         val c = editing()
+        c.setNumber(NumberSetting.BPM, "9")
+        c.setNumber(NumberSetting.BPM, "96")
+        assertEquals(emptyList<String>(), submitter.names)
+        assertTrue(c.ui.value.draftPending)
+        c.saveDraft()
+        assertEquals(96, commits.single().jsonObject.getValue("bpm").jsonPrimitive.content.toInt())
+        c.saveDraft()
+        assertEquals(1, commits.size)
+
+        submitter.clear()
         c.setNumber(NumberSetting.BPM, "1000")
-        assertFalse(c.ui.value.canSave)
-        c.save()
+        assertEquals(setOf(NumberSetting.BPM), c.ui.value.invalidNumbers)
+        assertEquals(96, c.ui.value.draft!!.bpm)
+        c.saveDraft()
         assertEquals(emptyList<String>(), submitter.names)
         c.setNumber(NumberSetting.BPM, " 100 ")
-        assertTrue(c.ui.value.canSave)
-        assertEquals(100, c.ui.value.draft!!.bpm)
+        assertEquals(emptySet<NumberSetting>(), c.ui.value.invalidNumbers)
+        c.saveDraft()
+        assertEquals(100, commits.single().jsonObject.getValue("bpm").jsonPrimitive.content.toInt())
     }
 
     @Test
-    fun `leaving unchanged cancels at once`() {
+    fun `a valid number typed on the way to an invalid one isn't saved`() {
         val c = editing()
+        val saved = c.ui.value.saved!!.bpm
+        // Typing 2500 a digit at a time: 25 and 250 are in range, 2500 isn't.
+        for (text in listOf("2", "25", "250", "2500")) c.setNumber(NumberSetting.BPM, text)
+        assertEquals(saved, c.ui.value.draft!!.bpm)
+        assertFalse(c.ui.value.draftPending)
+        c.saveDraft()
+        assertEquals(emptyList<String>(), submitter.names)
+    }
+
+    @Test
+    fun `every voicing command but select is followed by an autosave`() {
+        val c = editing()
+        c.selectVoicing("New voicing")
+        assertEquals(listOf(ScreenCommandNames.SELECT_VOICING), submitter.names)
+        c.onEditor(Fixtures.piano)
+        c.edit(VoicingEdits.text("rh_center", "60"))
+        c.addVoicing()
+        assertEquals(
+            listOf(
+                ScreenCommandNames.SELECT_VOICING, ScreenCommandNames.SET_VOICING_VALUES,
+                ScreenCommandNames.COMMIT_SETTINGS, ScreenCommandNames.ADD_VOICING, ScreenCommandNames.COMMIT_SETTINGS,
+            ),
+            submitter.names,
+        )
+        // Nothing pending on General: the config's values stay.
+        assertEquals(listOf(JsonNull, JsonNull), commits)
+        // A number still being typed goes out with the voicing's save.
+        c.setNumber(NumberSetting.FONT_SIZE, "14")
+        c.edit(VoicingEdits.text("rh_center", "62"))
+        assertEquals(14, commits.last().jsonObject.getValue("font_size").jsonPrimitive.content.toInt())
+        assertFalse(c.ui.value.draftPending)
+    }
+
+    @Test
+    fun `leaving with nothing invalid ends the edit at once, saving a pending number first`() {
+        val c = editing()
+        c.onEditor(Fixtures.piano)
+        c.setNumber(NumberSetting.MAX_RECENT_FILES, "7")
         c.requestClose()
-        assertEquals(listOf(ScreenCommandNames.CANCEL_SETTINGS_EDIT), submitter.names)
+        assertNull(c.ui.value.dialog)
+        assertEquals(listOf(ScreenCommandNames.COMMIT_SETTINGS, ScreenCommandNames.CANCEL_SETTINGS_EDIT), submitter.names)
+        assertEquals(7, commits.single().jsonObject.getValue("max_recent_files").jsonPrimitive.content.toInt())
         assertEquals(SettingsPhase.CLOSED, c.ui.value.phase)
     }
 
     @Test
-    fun `leaving with changes asks first - keep editing or discard`() {
+    fun `leaving with an invalid voicing asks - keep editing opens it, or discard`() {
         val c = editing()
-        c.updateDraft { it.copy(showQuickStartOnStartup = false) }
+        c.onEditor(Fixtures.fretboardInvalid.copy(selected = null, model = null))
+        c.openPage(SettingsPage.GENERAL)
         c.requestClose()
         assertEquals(SettingsDialog.Discard, c.ui.value.dialog)
         assertEquals(emptyList<String>(), submitter.names)
-        c.dismissDialog()
+        c.keepEditing()
         assertNull(c.ui.value.dialog)
         assertEquals(SettingsPhase.EDITING, c.ui.value.phase)
-        c.requestClose()
+        assertEquals(SettingsNav(SettingsPage.VOICINGS, voicingDetail = true), c.ui.value.nav)
+        val bad = Fixtures.fretboardInvalid.invalid.first()
+        assertEquals(ScreenCommandNames.SELECT_VOICING to bad, submitter.sent.single().let { it.first to it.second.getValue("name").jsonPrimitive.content })
+
+        submitter.clear()
+        c.onEditor(Fixtures.fretboardInvalid)
+        c.back(twoPane = true, split = true)
+        assertEquals(SettingsDialog.Discard, c.ui.value.dialog)
         c.confirmDialog()
         assertEquals(listOf(ScreenCommandNames.CANCEL_SETTINGS_EDIT), submitter.names)
         assertEquals(SettingsPhase.CLOSED, c.ui.value.phase)
     }
 
     @Test
-    fun `a voicing edit counts as a change, selecting one doesn't`() {
-        val c = editing()
-        c.selectVoicing("New voicing")
-        assertFalse(c.ui.value.changed)
-        c.onEditor(Fixtures.piano)
-        c.edit(VoicingEdits.text("rh_center", "60"))
-        assertTrue(c.ui.value.changed)
+    fun `leaving before the edit opened just ends it`() {
+        val c = SettingsController(commands)
+        c.start(needSchema = false)
+        c.onSettings(Fixtures.settings)
+        c.setNumber(NumberSetting.BPM, "90")
+        submitter.clear()
+        c.requestClose()
+        assertEquals(listOf(ScreenCommandNames.CANCEL_SETTINGS_EDIT), submitter.names)
+        assertEquals(SettingsPhase.CLOSED, c.ui.value.phase)
     }
 
     @Test
@@ -216,33 +239,34 @@ class SettingsControllerTest {
         c.askRemove("New voicing")
         assertEquals(SettingsDialog.RemoveVoicing("New voicing"), c.ui.value.dialog)
         c.confirmDialog()
-        assertEquals(ScreenCommandNames.REMOVE_VOICING to "New voicing", submitter.sent.last().let { it.first to it.second.getValue("name").jsonPrimitive.content })
+        assertEquals(ScreenCommandNames.REMOVE_VOICING to "New voicing", voicingCommands.last().let { it.first to it.second.getValue("name").jsonPrimitive.content })
+        assertEquals(ScreenCommandNames.COMMIT_SETTINGS, submitter.names.last())
 
         c.askRename("A")
         c.confirmDialog("A")
-        assertEquals(1, submitter.sent.size) // same name: nothing sent
+        assertEquals(1, voicingCommands.size) // same name: nothing sent
         c.askRename("A")
         c.confirmDialog("B")
-        assertEquals(ScreenCommandNames.RENAME_VOICING, submitter.names.last())
-        assertEquals("B", submitter.sent.last().second.getValue("new").jsonPrimitive.content)
+        assertEquals(ScreenCommandNames.RENAME_VOICING, voicingCommands.last().first)
+        assertEquals("B", voicingCommands.last().second.getValue("new").jsonPrimitive.content)
 
         // dirty → ask before switching model.
         c.askModel("piano")
         assertEquals(SettingsDialog.ChangeModel("piano"), c.ui.value.dialog)
         c.confirmDialog()
-        assertEquals(ScreenCommandNames.SET_VOICING_MODEL, submitter.names.last())
+        assertEquals(ScreenCommandNames.SET_VOICING_MODEL, voicingCommands.last().first)
         // Not dirty → no question; the same model → nothing.
         c.onEditor(Fixtures.fretboardInvalid.copy(dirty = false, revision = 20))
         c.askModel("ensemble")
         assertNull(c.ui.value.dialog)
-        assertEquals("ensemble", submitter.sent.last().second.getValue("model").jsonPrimitive.content)
+        assertEquals("ensemble", voicingCommands.last().second.getValue("model").jsonPrimitive.content)
         val before = submitter.sent.size
         c.askModel("fretboard")
         assertEquals(before, submitter.sent.size)
 
         c.askPreset(VoicingPreset("Ukulele", "fretboard"))
         c.confirmDialog()
-        val (name, args) = submitter.sent.last()
+        val (name, args) = voicingCommands.last()
         assertEquals(ScreenCommandNames.LOAD_VOICING_PRESET, name)
         assertEquals("Ukulele", args.getValue("label").jsonPrimitive.content)
         assertEquals("fretboard", args.getValue("group").jsonPrimitive.content)
@@ -254,7 +278,7 @@ class SettingsControllerTest {
         c.onEditor(Fixtures.ensemble)
         val rows = c.editor.value!!.values.getValue("voices").asRecords()
         c.edit(VoicingEdits.cell("voices", rows, 1, "low", JsonPrimitive("G2")))
-        val (name, args) = submitter.sent.single()
+        val (name, args) = voicingCommands.single()
         assertEquals(ScreenCommandNames.SET_VOICING_VALUES, name)
         assertEquals("G2", args.getValue("values").jsonObject.getValue("voices").jsonArray[1].jsonObject.getValue("low").jsonPrimitive.content)
         val shown = c.editor.value!!.values.getValue("voices").asRecords()[1].getValue("low").jsonPrimitive.content
@@ -262,8 +286,8 @@ class SettingsControllerTest {
 
         c.addRecord("voices")
         c.removeRecord(0, "voices")
-        assertEquals(listOf(ScreenCommandNames.ADD_VOICING_RECORD, ScreenCommandNames.REMOVE_VOICING_RECORD), submitter.names.drop(1))
-        assertEquals(0, submitter.sent.last().second.getValue("index").jsonPrimitive.content.toInt())
+        assertEquals(listOf(ScreenCommandNames.ADD_VOICING_RECORD, ScreenCommandNames.REMOVE_VOICING_RECORD), voicingCommands.drop(1).map { it.first })
+        assertEquals(0, voicingCommands.last().second.getValue("index").jsonPrimitive.content.toInt())
     }
 
     @Test
@@ -273,12 +297,12 @@ class SettingsControllerTest {
         c.editCell("voices", 0, "name", JsonPrimitive("Bass"))
         c.editCell("voices", 1, "low", JsonPrimitive("G2"))
         // The (late) echo of the first edit doesn't undo the second.
-        val first = submitter.sent[0].second.getValue("values").jsonObject
+        val first = voicingCommands[0].second.getValue("values").jsonObject
         c.onEditor(Fixtures.ensemble.copy(revision = 50, values = first))
         val rows = c.editor.value!!.values.getValue("voices").asRecords()
         assertEquals("Bass", rows[0].getValue("name").jsonPrimitive.content)
         assertEquals("G2", rows[1].getValue("low").jsonPrimitive.content)
-        val last = submitter.sent.last().second.getValue("values").jsonObject.getValue("voices").jsonArray
+        val last = voicingCommands.last().second.getValue("values").jsonObject.getValue("voices").jsonArray
         assertEquals("Bass", last[0].jsonObject.getValue("name").jsonPrimitive.content)
     }
 
@@ -291,10 +315,27 @@ class SettingsControllerTest {
     }
 
     @Test
+    fun `a number not saved yet is saved after the process restarted, once the new edit is open`() {
+        val c = editing()
+        c.setNumber(NumberSetting.BPM, "88")
+        val restored = SettingsController.restore(commands, c.snapshot())
+        restored.start(needSchema = false)
+        // No edit in this process yet: nothing goes out.
+        restored.saveDraft()
+        assertEquals(emptyList<String>(), submitter.names)
+        restored.onEditor(inactive)
+        restored.saveDraft()
+        assertEquals(listOf(ScreenCommandNames.BEGIN_SETTINGS_EDIT), submitter.names)
+        restored.onEditor(opened)
+        restored.saveDraft()
+        assertEquals(88, commits.single().jsonObject.getValue("bpm").jsonPrimitive.content.toInt())
+    }
+
+    @Test
     fun `the state survives a rotation`() {
         val c = editing()
         c.openPage(SettingsPage.PLAYBACK)
-        c.updateDraft { it.copy(timeSignatureBeats = 3) }
+        c.setNumber(NumberSetting.TIME_SIGNATURE_BEATS, "3")
         val restored = SettingsController.restore(commands, c.snapshot())
         assertEquals(c.ui.value, restored.ui.value)
         // No second begin: the edit lives on in Python.
@@ -302,7 +343,7 @@ class SettingsControllerTest {
         restored.onEditor(opened)
         assertEquals(emptyList<String>(), submitter.names)
         assertEquals(SettingsPhase.EDITING, restored.ui.value.phase)
-        assertTrue(restored.ui.value.changed)
+        assertTrue(restored.ui.value.draftPending)
     }
 
     @Test

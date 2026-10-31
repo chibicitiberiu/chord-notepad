@@ -20,7 +20,7 @@ Settings
    .. platform-figure:: settings-pages
       :platforms: android
       :alt: The Settings screen listing three pages: General, Playback and
-            Voicings, each with a one-line summary, and Save at the top right.
+            Voicings, each with a one-line summary.
 
       Settings on a phone. Tap a page to open it.
 
@@ -28,9 +28,13 @@ Settings
    to the list. On a tablet, or a phone held sideways, the list stays on the
    left and the page opens beside it.
 
-   Nothing changes until you tap **Save** at the top right; it saves every page
-   at once and closes Settings. If you leave with ← or Back instead and have
-   changed something, the app asks whether to discard your changes.
+   There's no Save button: each change is saved as you make it and takes
+   effect straight away. A number you type is saved once it's a whole number
+   in range; until then the field shows the range it accepts. A voicing with
+   a mistake in it isn't saved until you fix it (see `Voicings`_). Leave
+   with ← or Back when you're done; the app only asks first if a voicing
+   still has a mistake, and then you can discard its latest changes or keep
+   editing.
 
    The Voicing sheet in the Play tab has an **Edit voicings…** entry that opens
    the Voicings editor directly.
@@ -237,7 +241,7 @@ you there.
       :alt: The form for the voicing My 7-String on a phone: Name with a
             pencil button, Model Fretboard, Load config and Remove voicing
             buttons, Strings B1 E2 A2 D3 G3 B3 E4, then Max fret, Fingers and
-            Max span with minus and plus buttons. Save at the top right.
+            Max span with minus and plus buttons.
 
       A fretboard voicing's form on a phone (the top of it; the weights are
       further down).
@@ -298,18 +302,20 @@ you there.
 
 .. only:: android
 
-   Mistakes are flagged as you type, not just when you save: an
+   Mistakes are flagged as you type: an
    invalid field turns red immediately, and a problem that spans two fields
    -- a relaxed span smaller than the normal span, a voice whose low note is
    above its high note -- shows up as a message at the top of the editor.
-   A voicing with a mistake is marked *Has errors* in the list. While any
-   voicing is invalid, the **Save** button in the top bar looks greyed out,
-   but tapping it still works as a check: it opens the first invalid
-   voicing and names what's wrong with it. Renaming or deleting the voicing
+   A voicing with a mistake is marked *Has errors* in the list. Your voicings
+   are saved after every change, but only while all of them are free of
+   mistakes; until you fix one, the last version without mistakes is what's
+   kept. If you leave Settings before fixing it, the app asks whether to
+   discard those changes or keep editing, and **Keep editing** opens that
+   voicing. Renaming or deleting the voicing
    you're currently playing with is handled: a rename follows the selection
-   so playback keeps using it, and a delete falls back to piano. Once you
-   save, any new or changed custom voicing shows up in the Voicing sheet of
-   the Play tab (under Your voicings) immediately -- no restart needed.
+   so playback keeps using it, and a delete falls back to piano. A new or
+   changed custom voicing shows up in the Voicing sheet of the Play tab
+   (under Your voicings) as soon as it's saved -- no restart needed.
 
 Worked Example: A Seven-String Guitar
 --------------------------------------
@@ -344,7 +350,7 @@ instead of editing JSON by hand:
    5. In the strings field, change the tuning from ``E2 A2 D3 G3 B3 E4`` to
       ``B1 E2 A2 D3 G3 B3 E4`` -- the same six strings with a low B added in
       front (the list starts at the lowest string).
-   6. Tap **Save** in the top bar.
+   6. That's it: the voicing is saved as you go. Leave Settings with ←.
    7. Switch to the Play tab and tap **Voicing** in the player -- **My 7-String**
       is now in the list, under Your voicings. Select it and play some chords.
 

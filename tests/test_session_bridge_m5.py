@@ -120,6 +120,18 @@ def test_settings_screen_over_the_bridge(env):
     assert env.expect("UnexpectedError")["context"] == "set_voicing_values"
 
 
+def test_settings_autosave_over_the_bridge(env):
+    settings = env.expect("SettingsState")
+    env.send("begin_settings_edit")
+    env.send("add_voicing")
+    env.send("commit_settings", values=None)
+    env.send("commit_settings", values=dict(settings["values"], bpm=97))
+    env.expect("SettingsState", lambda d: d["values"]["bpm"] == 97)
+    assert env.latest("VoicingEditorState")["active"] is True
+    env.settle()
+    assert "New voicing" in env.services.config.config.voicings
+
+
 def test_quick_start_over_the_bridge(env):
     env.send("set_show_quick_start_on_startup", show=False)
     env.expect("SettingsState", lambda d: d["values"]["show_quick_start_on_startup"] is False)

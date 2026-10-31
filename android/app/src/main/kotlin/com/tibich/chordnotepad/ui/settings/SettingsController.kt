@@ -21,15 +21,15 @@ enum class SettingsPhase {
     /** `begin_settings_edit` sent, waiting for an active `VoicingEditorState`. */
     OPENING,
 
-    /** Editing. */
+    /** Editing; every change is saved as it is made (`commit_settings`). */
     EDITING,
 
-    /** `save_settings` sent: the edit ends (closed) or comes back with an error. */
-    SAVING,
-
-    /** Saved or cancelled: the screen goes away. */
+    /** Left: the edit ended and the screen goes away. */
     CLOSED,
 }
+
+/** How long a number setting's text rests before it is saved ([SettingsController.saveDraft]). */
+const val DRAFT_SAVE_DELAY_MS = 400L
 
 /** The screen's pages (help/settings.rst: General, Playback, and the Voicings editor). */
 enum class SettingsPage { GENERAL, PLAYBACK, VOICINGS }
@@ -58,7 +58,7 @@ data class SettingsNav(val page: SettingsPage? = null, val voicingDetail: Boolea
 /** A dialog the Settings screen shows over itself. */
 @Serializable
 sealed interface SettingsDialog {
-    /** Leave without saving? */
+    /** Leave with a voicing still invalid, dropping its edits? */
     @Serializable
     data object Discard : SettingsDialog
 
@@ -82,38 +82,36 @@ sealed interface SettingsDialog {
 /**
  * What the Settings screen shows, apart from the voicings editor state.
  *
- * @property initial The values the screen opened with ([changed] compares).
- * @property invalidNumbers Number fields whose text isn't a value in range (Save is off).
- * @property voicingsTouched A voicing command other than select was sent.
- * @property saveRevision The editor revision when Save was sent (a newer active state = refused).
+ * @property saved The General/Playback values Python has: what the screen
+ *   opened with, then the last ones sent with `commit_settings`.
+ * @property invalidNumbers Number fields whose text isn't a value in range (not saved).
  */
 @Serializable
 data class SettingsUi(
     val phase: SettingsPhase = SettingsPhase.NEW,
     val nav: SettingsNav = SettingsNav(),
     val draft: SettingsDraft? = null,
-    val initial: SettingsDraft? = null,
+    val saved: SettingsDraft? = null,
     val invalidNumbers: Set<NumberSetting> = emptySet(),
-    val voicingsTouched: Boolean = false,
     val dialog: SettingsDialog? = null,
-    val saveRevision: Int = -1,
 ) {
-    /** Whether leaving now would lose something. */
-    val changed: Boolean get() = draft != initial || voicingsTouched
-
-    /** Whether Save can be sent (the voicings' validity is Python's gate). */
-    val canSave: Boolean get() = phase == SettingsPhase.EDITING && draft != null && invalidNumbers.isEmpty()
+    /** The draft has changes not sent yet (a number being typed: [SettingsController.saveDraft]). */
+    val draftPending: Boolean get() = draft != null && draft != saved
 }
 
 /** The voicings editor as the form draws it: the state plus local edits not echoed yet. */
 data class EditorView(val state: VoicingEditorState, val values: JsonObject)
 
 /**
- * The Settings screen's state holder: the settings edit's life (begin, save,
- * cancel, the discard question), the General/Playback draft, navigation, and
- * the voicing commands. Plain Kotlin, fed by the repository's flows
- * ([onSettings], [onEditor], [onError]); [snapshot]/[restore] keep it across
- * a rotation (the edit itself lives on in Python).
+ * The Settings screen's state holder: the settings edit's life (begin,
+ * autosave, leaving), the General/Playback draft, navigation, and the
+ * voicing commands. Every change is saved as it is made: a voicing command
+ * is followed by `commit_settings` (Python writes the voicings while all of
+ * them are valid), and a General/Playback change goes out at once, or
+ * after [DRAFT_SAVE_DELAY_MS] for a number being typed (the screen calls
+ * [saveDraft]). Plain Kotlin, fed by the repository's flows ([onSettings],
+ * [onEditor]); [snapshot]/[restore] keep it across a rotation (the edit
+ * itself lives on in Python).
  */
 class SettingsController(private val commands: ScreenCommands, saved: SettingsUi = SettingsUi()) {
     private val _ui = MutableStateFlow(saved)
@@ -140,7 +138,7 @@ class SettingsController(private val commands: ScreenCommands, saved: SettingsUi
         limits = state
         if (_ui.value.draft == null) {
             val draft = SettingsDraft.of(state)
-            _ui.update { it.copy(draft = draft, initial = draft) }
+            _ui.update { it.copy(draft = draft, saved = draft) }
         }
     }
 
@@ -156,21 +154,9 @@ class SettingsController(private val commands: ScreenCommands, saved: SettingsUi
             SettingsPhase.EDITING -> if (!state.active) {
                 pending.clear()
                 commands.beginSettingsEdit()
-                next = ui.copy(phase = SettingsPhase.OPENING, voicingsTouched = false)
+                next = ui.copy(phase = SettingsPhase.OPENING)
             }
-            SettingsPhase.SAVING -> if (!state.active) next = ui.copy(phase = SettingsPhase.CLOSED, dialog = null)
             SettingsPhase.NEW, SettingsPhase.CLOSED -> Unit
-        }
-        // Save refused ("Invalid Voicing"): the bad voicing is selected now. Its
-        // UserError may arrive before or after this state ([onError]).
-        if (state.active && next.saveRevision >= 0 && state.revision > next.saveRevision &&
-            (next.phase == SettingsPhase.SAVING || next.phase == SettingsPhase.EDITING)
-        ) {
-            next = next.copy(
-                phase = SettingsPhase.EDITING,
-                nav = SettingsNav(SettingsPage.VOICINGS, voicingDetail = state.selected != null),
-                saveRevision = -1,
-            )
         }
         if (state.active && state.selected == null && next.nav.voicingDetail) {
             next = next.copy(nav = next.nav.copy(voicingDetail = false))
@@ -179,41 +165,53 @@ class SettingsController(private val commands: ScreenCommands, saved: SettingsUi
         _editor.value = if (state.active) EditorView(state, pending.applyTo(state.values)) else null
     }
 
-    /**
-     * The session reported an error: a Save that failed leaves the screen
-     * open (the refusal's state, if any, still moves to the bad voicing).
-     */
-    fun onError() {
-        _ui.update { if (it.phase == SettingsPhase.SAVING) it.copy(phase = SettingsPhase.EDITING) else it }
-    }
-
     // -- saving and leaving -------------------------------------------------------
 
-    /** Save: the draft's values when changed (null keeps the config's), then Python validates every voicing. */
-    fun save() {
-        val ui = _ui.value
-        if (!ui.canSave) return
-        val values = ui.draft?.takeIf { it != ui.initial }?.toValues()
-        _ui.value = ui.copy(phase = SettingsPhase.SAVING, saveRevision = _editor.value?.state?.revision ?: -1)
-        commands.saveSettings(values)
+    /** Whether commands can go to the edit now (it is open in this process). */
+    private val live: Boolean get() = _ui.value.phase == SettingsPhase.EDITING && _editor.value != null
+
+    /** Send the draft's General/Playback values if they changed since the last save. */
+    fun saveDraft() {
+        if (live && _ui.value.draftPending) commit()
     }
 
-    /** Cancel / Back out of the screen: ask first when something changed. */
+    /** `commit_settings`, with the draft's values when they changed (null keeps the config's). */
+    private fun commit() {
+        val ui = _ui.value
+        val values = ui.draft?.takeIf { ui.draftPending }?.toValues()
+        if (values != null) _ui.value = ui.copy(saved = ui.draft)
+        commands.commitSettings(values)
+    }
+
+    /** Back out of the screen: asks first only while a voicing is invalid (its edits aren't saved). */
     fun requestClose() {
         val ui = _ui.value
         when {
-            ui.phase == SettingsPhase.SAVING || ui.phase == SettingsPhase.CLOSED -> Unit
-            ui.changed -> _ui.value = ui.copy(dialog = SettingsDialog.Discard)
-            else -> cancel()
+            ui.phase == SettingsPhase.CLOSED -> Unit
+            _editor.value?.state?.invalid?.isNotEmpty() == true -> _ui.value = ui.copy(dialog = SettingsDialog.Discard)
+            else -> close()
         }
     }
 
-    /** Leave without saving. */
-    fun cancel() {
+    /** Leave: save what the draft still holds, then end the edit (an invalid voicing's edits are dropped). */
+    fun close() {
         if (_ui.value.phase == SettingsPhase.CLOSED) return
+        saveDraft()
         commands.cancelSettingsEdit()
         pending.clear()
         _ui.update { it.copy(phase = SettingsPhase.CLOSED, dialog = null) }
+    }
+
+    /** "Keep editing" in the Discard dialog: open the first invalid voicing. */
+    fun keepEditing() {
+        _ui.update { it.copy(dialog = null) }
+        val state = _editor.value?.state ?: return
+        val name = state.invalid.firstOrNull() ?: return
+        if (name == state.selected) {
+            _ui.update { it.copy(nav = SettingsNav(SettingsPage.VOICINGS, voicingDetail = true)) }
+        } else {
+            selectVoicing(name)
+        }
     }
 
     /** System Back: up one page, or [requestClose]. */
@@ -228,9 +226,11 @@ class SettingsController(private val commands: ScreenCommands, saved: SettingsUi
     /** Show [page]. */
     fun openPage(page: SettingsPage) = _ui.update { it.copy(nav = SettingsNav(page)) }
 
-    /** Change the draft. */
-    fun updateDraft(change: (SettingsDraft) -> SettingsDraft) =
+    /** Change the draft and save it at once. */
+    fun updateDraft(change: (SettingsDraft) -> SettingsDraft) {
         _ui.update { ui -> ui.draft?.let { ui.copy(draft = change(it)) } ?: ui }
+        saveDraft()
+    }
 
     /** Switch the draft's notation (the key is respelled). */
     fun setNotation(notation: String) {
@@ -238,14 +238,21 @@ class SettingsController(private val commands: ScreenCommands, saved: SettingsUi
         updateDraft { it.withNotation(notation, l) }
     }
 
-    /** A number field's text: a whole number in range goes into the draft, anything else blocks Save. */
+    /**
+     * A number field's text: a whole number in range goes into the draft
+     * (saved once the typing rests, [saveDraft]); anything else is marked
+     * invalid and not saved.
+     */
     fun setNumber(setting: NumberSetting, text: String) {
         val l = limits ?: return
         val value = text.trim().toIntOrNull()?.takeIf { it in setting.range(l) }
         _ui.update { ui ->
             val draft = ui.draft ?: return@update ui
             if (value == null) {
-                ui.copy(invalidNumbers = ui.invalidNumbers + setting)
+                // Back to the saved value: a number typed on the way (the 9
+                // of 999) must not be saved when the typing rests.
+                val kept = ui.saved?.let { setting.set(draft, setting.get(it)) } ?: draft
+                ui.copy(draft = kept, invalidNumbers = ui.invalidNumbers + setting)
             } else {
                 ui.copy(draft = setting.set(draft, value), invalidNumbers = ui.invalidNumbers - setting)
             }
@@ -262,7 +269,7 @@ class SettingsController(private val commands: ScreenCommands, saved: SettingsUi
         val dialog = _ui.value.dialog ?: return
         _ui.update { it.copy(dialog = null) }
         when (dialog) {
-            SettingsDialog.Discard -> cancel()
+            SettingsDialog.Discard -> close()
             is SettingsDialog.RemoveVoicing -> touch { commands.removeVoicing(dialog.name) }
             is SettingsDialog.Rename -> if (newName != dialog.name) touch { commands.renameVoicing(dialog.name, newName) }
             is SettingsDialog.ChangeModel -> setModel(dialog.model)
@@ -278,7 +285,6 @@ class SettingsController(private val commands: ScreenCommands, saved: SettingsUi
     /** Show voicing [name] in the form (on phones, open the form). */
     fun selectVoicing(name: String) {
         pending.clear()
-        forgetSave()
         commands.selectVoicing(name)
         _ui.update { it.copy(nav = SettingsNav(SettingsPage.VOICINGS, voicingDetail = true)) }
     }
@@ -341,14 +347,11 @@ class SettingsController(private val commands: ScreenCommands, saved: SettingsUi
         touch { commands.setVoicingModel(model) }
     }
 
+    /** Send a voicing command, then save (Python writes it once every voicing is valid). */
     private inline fun touch(send: () -> Unit) {
-        forgetSave()
         send()
-        _ui.update { it.copy(voicingsTouched = true) }
+        commit()
     }
-
-    /** A new command: states from now on answer it, not a refused Save. */
-    private fun forgetSave() = _ui.update { if (it.phase == SettingsPhase.EDITING) it.copy(saveRevision = -1) else it }
 
     /** The state to keep across a rotation ([restore] takes it back). */
     fun snapshot(): String = codec.encodeToString(SettingsUi.serializer(), _ui.value)

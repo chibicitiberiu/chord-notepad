@@ -5,8 +5,6 @@
 <resources>
     <string name="menu_settings">Settings</string>
     <string name="settings_title">Settings</string>
-    <string name="settings_save">Save</string>
-    <string name="settings_save_blocked">Save (some voicings are invalid)</string>
     <string name="settings_back">Back</string>
 
     <string name="settings_page_general">General</string>
@@ -43,9 +41,9 @@
     <string name="settings_decrease">Decrease %1$s</string>
     <string name="settings_increase">Increase %1$s</string>
 
-    <!-- Discard -->
-    <string name="settings_discard_title">Discard changes?</string>
-    <string name="settings_discard_message">Your changes to the settings haven\'t been saved.</string>
+    <!-- Leaving while a voicing is invalid (everything else saves as you go) -->
+    <string name="settings_discard_title">Discard voicing changes?</string>
+    <string name="settings_discard_message">A voicing has errors, so its latest changes haven\'t been saved. Discard them, or keep editing to fix it.</string>
     <string name="settings_discard">Discard</string>
     <string name="settings_keep_editing">Keep editing</string>
 
@@ -55,6 +53,6 @@
     <string name="voicings_rename">Rename</string>
     <string name="voicings_invalid">Has errors</string>
     <string name="voicings_empty_group">No voicings</string>
-    <string name="voicings_invalid_banner">Fix the voicings marked with errors before saving.</string>
+    <string name="voicings_invalid_banner">Changes to a voicing marked with errors are saved once it\'s fixed.</string>
     <string name="voicings_preset_custom">Your voicings</string>
 </resources>

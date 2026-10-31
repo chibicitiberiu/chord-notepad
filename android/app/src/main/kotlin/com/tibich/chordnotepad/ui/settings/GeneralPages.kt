@@ -126,7 +126,7 @@ private fun HelpText(text: String) {
     )
 }
 
-/** A whole-number setting with − / + buttons; text out of range shows an error and blocks Save. */
+/** A whole-number setting with − / + buttons; text out of range shows an error and isn't saved. */
 @Composable
 private fun NumberSettingField(
     setting: NumberSetting,

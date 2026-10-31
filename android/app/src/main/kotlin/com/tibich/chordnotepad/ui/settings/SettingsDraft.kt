@@ -31,7 +31,7 @@ data class SettingsDraft(
     val timeSignatureBeats: Int,
     val timeSignatureUnit: Int,
 ) {
-    /** What `save_settings` sends. */
+    /** What `commit_settings` sends. */
     fun toValues(): SettingsValues = SettingsValues(
         fontFamily = configFamilyFor(fontKind, configuredFamily),
         fontSize = fontSize,

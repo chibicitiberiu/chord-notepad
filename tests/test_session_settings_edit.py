@@ -237,3 +237,121 @@ def test_editor_schema_event_per_platform(tmp_path):
     android = voicing_form.editor_schema("android")
     assert android["help"]["name"] == "The name of this voicing, shown in the player's Voicing sheet."
     assert android["forms"] == event.schema["forms"]
+
+
+# -- autosave (Android) ----------------------------------------------------------
+
+
+def config_writes(services, monkeypatch):
+    """Count the config writes from now on."""
+    writes = []
+    save = services.config.save_config
+    monkeypatch.setattr(services.config, "save_config", lambda *a: (writes.append(1), save(*a)))
+    return writes
+
+
+def test_commit_saves_and_applies_and_keeps_the_edit_open(tmp_path, monkeypatch):
+    session, services, recorder = make(tmp_path, voicings={"Bass": BASS})
+    session.set_voicing("voicing:Bass")
+    session.begin_settings_edit()
+    writes = config_writes(services, monkeypatch)
+    values = recorder.last(SettingsState).values
+    session.commit_settings(dataclasses.replace(values, font_size=19))
+    config = services.config.config
+    assert config.font_size == 19 and len(writes) == 1
+    assert recorder.last(EditorState).font_size == 19
+    assert recorder.last(SettingsState).values.font_size == 19
+    assert editor(recorder).active
+
+    session.select_voicing("Bass")
+    session.set_voicing_values({"max_fret": "15"})
+    session.commit_settings(None)
+    assert config.voicings["Bass"]["max_fret"] == 15 and config.font_size == 19
+    saved = json.loads(services.appdata.get_config_file_path().read_text())
+    assert saved["voicings"]["Bass"]["max_fret"] == 15
+    state = editor(recorder)
+    assert state.active and state.selected == "Bass" and state.values["max_fret"] == "15"
+
+    # Nothing new: nothing written.
+    session.commit_settings(None)
+    session.commit_settings(dataclasses.replace(values, font_size=19))
+    assert len(writes) == 2
+
+
+def test_commit_keeps_the_last_valid_voicings_but_saves_the_other_settings(tmp_path):
+    session, services, recorder = make(tmp_path, voicings={"Bass": BASS})
+    session.begin_settings_edit()
+    session.select_voicing("Bass")
+    session.set_voicing_values({"max_fret": "15"})
+    session.commit_settings(None)
+    session.set_voicing_values({"relaxed_span": "1"})          # below max_span: invalid
+    errors = len(recorder.of_type(UserError))
+    session.commit_settings(None)
+    config = services.config.config
+    span = config.voicings["Bass"]["relaxed_span"]
+    assert span != 1 and config.voicings["Bass"]["max_fret"] == 15
+    assert len(recorder.of_type(UserError)) == errors           # no dialog per keystroke
+    state = editor(recorder)
+    assert state.active and state.invalid == ("Bass",) and state.form_errors
+
+    values = recorder.last(SettingsState).values
+    session.commit_settings(dataclasses.replace(values, bpm=96))
+    assert config.bpm == 96 and config.voicings["Bass"]["relaxed_span"] == span
+
+    # Fixed: the voicing goes out with the values the edit has.
+    session.set_voicing_values({"relaxed_span": str(span + 1)})
+    session.commit_settings(None)
+    assert config.voicings["Bass"]["relaxed_span"] == span + 1 and config.bpm == 96
+
+    # Leaving with an invalid voicing drops only that edit.
+    session.set_voicing_values({"max_fret": "x"})
+    session.commit_settings(None)
+    session.cancel_settings_edit()
+    assert config.voicings["Bass"]["max_fret"] == 15 and config.bpm == 96
+
+
+def test_commits_follow_the_voicing_in_use_through_renames_and_removal(tmp_path):
+    session, services, recorder = make(tmp_path, voicings={"Bass": BASS})
+    session.set_voicing("voicing:Bass")
+    session.begin_settings_edit()
+    session.select_voicing("Bass")
+    config = services.config.config
+    for new in ("Bass 4", "Bass 5"):                           # each rename saved
+        session.rename_voicing(editor(recorder).selected, new)
+        session.commit_settings(None)
+        assert set(config.voicings) == {new} and config.voicing == f"voicing:{new}"
+        assert recorder.last(VoicingMenuState).selected == f"voicing:{new}"
+    session.add_voicing()
+    session.commit_settings(None)
+    assert set(config.voicings) == {"Bass 5", "New voicing"}
+    session.remove_voicing("Bass 5")
+    session.commit_settings(None)
+    assert set(config.voicings) == {"New voicing"} and config.voicing == "piano"
+    assert editor(recorder).active
+
+
+def test_commit_needs_an_edit_and_values_in_range(tmp_path):
+    session, services, recorder = make(tmp_path)
+    with pytest.raises(RuntimeError):
+        session.commit_settings(None)
+    session.begin_settings_edit()
+    values = recorder.last(SettingsState).values
+    with pytest.raises(ValueError):
+        session.commit_settings(dataclasses.replace(values, bpm=5))
+    assert services.config.config.bpm == values.bpm
+
+
+def test_commit_that_cant_write_is_a_user_error_and_the_edit_stays(tmp_path, monkeypatch):
+    from exceptions import ConfigurationError
+
+    session, services, recorder = make(tmp_path)
+    session.begin_settings_edit()
+
+    def fail(*_):
+        raise ConfigurationError("disk full")
+
+    monkeypatch.setattr(services.config, "save_config", fail)
+    values = recorder.last(SettingsState).values
+    session.commit_settings(dataclasses.replace(values, max_recent_files=3))
+    assert recorder.last(UserError).title == "Settings"
+    assert editor(recorder).active

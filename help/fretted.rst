@@ -107,8 +107,8 @@ Defining a Custom Fretted Voicing
    4. Tap the **Name** field (or its pencil) to give the voicing a name. That
       name is what the Voicing sheet shows.
    5. Change what's different: the strings, the fret range, the stretch, the
-      weights. Each field explains itself in the small text under it.
-   6. Tap **Save** at the top right.
+      weights. Each field explains itself in the small text under it. There's
+      no Save button: each change is saved as you make it.
 
 .. platform-figure:: settings-voicing-form
    :platforms: android
@@ -124,11 +124,11 @@ Defining a Custom Fretted Voicing
    Problems show up in red as you type: under the field for a value the app
    can't read (a misspelt note name, say), or at the top of the form for
    values that don't fit together (a relaxed span smaller than the normal
-   one). A voicing with errors is marked **Has errors** in the list, and
-   **Save** is greyed out until it's fixed; tap it anyway and the app tells
-   you what's wrong and opens that voicing. **Remove voicing** deletes the
-   voicing after asking. If you leave Settings with unsaved changes, the app
-   asks whether to discard them.
+   one). A voicing with errors is marked **Has errors** in the list, and its
+   changes aren't saved until it's fixed: the last version without errors
+   is kept. **Remove voicing** deletes the voicing after asking. If you leave
+   Settings while a voicing still has errors, the app asks whether to
+   discard its changes or keep editing.
 
    See :doc:`settings` for the whole Settings screen, including a seven-string
    guitar built step by step.
@@ -233,7 +233,7 @@ Defining a Custom Fretted Voicing
 .. only:: android
 
    Custom fretted voicings appear in the player's Voicing sheet, under **Your
-   voicings**, as soon as you save them. They are also offered in Suggest
+   voicings**, as soon as they're saved. They are also offered in Suggest
    Capo (see :doc:`chord_sheet`).
 
 .. only:: desktop

@@ -79,7 +79,7 @@ Defining a Custom Piano Voicing
       **Piano** under **Model** gives you the same values.)
    3. Tap the **Name** field to name the voicing.
    4. Change what's different: the hand ranges, the hand span, the weights.
-   5. Tap **Save**.
+      Each change is saved as you make it.
 
    See :doc:`fretted` for how errors are shown, and :doc:`settings` for the
    page itself.
@@ -164,7 +164,7 @@ Defining a Custom Piano Voicing
 .. only:: android
 
    Custom piano voicings appear in the player's Voicing sheet, under **Your
-   voicings**, as soon as you save them.
+   voicings**, as soon as they're saved.
 
 
 How to Change Voicing

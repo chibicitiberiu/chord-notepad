@@ -451,7 +451,7 @@ class SettingsState:
     Start's "don't show again"; a save). ``values`` holds exactly the
     settings Android shows (the visibility rule: no log level, audio
     driver, SoundFont path or window geometry); send changed values back
-    with ``save_settings`` (or ``apply_settings``).
+    with ``commit_settings`` or ``save_settings`` (or ``apply_settings``).
 
     Attributes:
         values: The current settings.
@@ -517,7 +517,8 @@ class VoicingEditorState:
             nothing (a refused rename), so a view can reset its fields from
             this state.
         groups: The working copy's voicings by model, in list order.
-        invalid: The voicings Save would refuse.
+        invalid: The voicings Save would refuse (``commit_settings``
+            keeps the last valid voicings in the config until there are none).
         presets: The "Load config" entries.
         selected: The voicing in the form, or None (show the placeholder).
         model: Its form's model (``voicing_editor_schema``'s ``forms`` key),

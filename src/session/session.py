@@ -1236,6 +1236,8 @@ class AppSession:
     # the voicing commands edit it (VoicingEditorState shows it), and
     # save_settings validates every voicing, commits and applies, or
     # cancel_settings_edit drops it. SettingsState carries the plain values.
+    # Android saves as it goes: commit_settings after every change writes
+    # what is valid and keeps the edit open.
 
     @_command
     def begin_settings_edit(self) -> None:
@@ -1296,6 +1298,55 @@ class AppSession:
         self._settings_edit = None
         self._emitter.set_state(INACTIVE_VOICING_EDITOR)
         self._apply_changes(changes)
+
+    @_command
+    def commit_settings(self, values: Optional[SettingsValues] = None) -> None:
+        """Save what is valid in the working copy now and keep editing (autosave).
+
+        ``values`` (the General/Playback settings) are written and applied
+        whenever they differ from the config. The voicings are written with
+        them only while every voicing is valid; otherwise the config keeps
+        the last valid voicings, and nothing is said: the form shows the
+        problem (``VoicingEditorState.invalid`` and the field errors). With
+        nothing to write, nothing is written. What is written is applied
+        like :meth:`apply_settings`. A config that can't be written is a
+        :class:`UserError`; the edit stays open either way.
+
+        Args:
+            values: The General/Playback settings; None keeps them as the
+                config has them now.
+
+        Raises:
+            RuntimeError: If no settings edit is open.
+            ValueError: If ``values`` are out of range (nothing is written).
+        """
+        edit = self._require_settings_edit()
+        config = self._require_services("settings").config.config
+        on_disk = SettingsValues.read(config)
+        if values is None:
+            values = on_disk
+        values.check()
+        for name, value in values.as_dict().items():
+            setattr(edit.model, name, value)
+        try:
+            if edit.first_invalid() is None:
+                if values == on_disk and edit.model.get_voicings() == config.voicings:
+                    return
+                changes = edit.model.commit()
+                # A fresh working copy of what was just written, so the next
+                # commit's change flags and renames start from here.
+                edit.rebase(self.settings_model())
+            elif values != on_disk:
+                changes = self._commit_settings(values)
+            else:
+                return
+        except ConfigurationError as e:
+            logger.error(f"Could not save settings: {e}")
+            self._emitter.emit(UserError(formatting.SETTINGS_TITLE,
+                                         formatting.settings_save_failed(str(e))))
+            return
+        self._apply_changes(changes)
+        self._publish_voicing_editor()
 
     @_command
     def check_directive(self, kind: str, fields: Any, request_id: int) -> None:

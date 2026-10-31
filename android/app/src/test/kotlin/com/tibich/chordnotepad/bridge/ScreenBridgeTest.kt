@@ -108,15 +108,15 @@ class ScreenBridgeTest {
         assertSent("insert_chord", """{"at":4,"chord":"Am"}""")
 
         val values = SettingsValues("TkFixedFont", 11, "american", "", true, 10, 120, 4, 4)
-        commands.saveSettings(values)
+        commands.commitSettings(values)
         assertSent(
-            "save_settings",
+            "commit_settings",
             """{"values":{"font_family":"TkFixedFont","font_size":11,"notation":"american","key":"",
                "show_quick_start_on_startup":true,"max_recent_files":10,"bpm":120,
                "time_signature_beats":4,"time_signature_unit":4}}""",
         )
-        commands.saveSettings(null)
-        assertSent("save_settings", """{"values":null}""")
+        commands.commitSettings(null)
+        assertSent("commit_settings", """{"values":null}""")
         commands.setVoicingValues(JsonObject(mapOf("max_fret" to JsonPrimitive("14"))))
         assertSent("set_voicing_values", """{"values":{"max_fret":"14"}}""")
         commands.removeVoicingRecord(1)

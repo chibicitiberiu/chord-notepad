@@ -232,8 +232,8 @@ Custom Ensembles
       want, such as **Choir (SATB)**. Or set **Model** to **Ensemble** to
       start from two plain voices.
    3. Tap the **Name** field to name the voicing.
-   4. Change the voices, the spacing or the weights (see below).
-   5. Tap **Save**.
+   4. Change the voices, the spacing or the weights (see below). Each change
+      is saved as you make it.
 
    See :doc:`fretted` for how errors are shown, and :doc:`settings` for the
    page itself and a worked example (built there for a fretted instrument,
@@ -379,7 +379,7 @@ Custom Ensembles
 .. only:: android
 
    Custom ensembles appear in the player's Voicing sheet, under **Your
-   voicings**, as soon as you save them.
+   voicings**, as soon as they're saved.
 
 .. only:: desktop
 

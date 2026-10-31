@@ -13,6 +13,7 @@ it's done (git history keeps it); release mechanics live in `docs/RELEASE.md`.
 - Real phone: audible timing and tap-to-sound latency, the recorded-output metronome test, audio focus, SAF providers, soft keyboard and IME, Open with `.txt`, cold start and RSS, whether the stream should close in the background, a 16 KB-page device if available.
 - Desktop manual checks of the session migration and the sequencer/audio-driver change on Flatpak, Snap, Windows and macOS: open a song with directives, type, play/loop/shift-play, transpose and undo, chord sheet and voicing, settings, close with unsaved changes.
 - Decide F-Droid before tagging (see "Needs a decision").
+- Retake the `settings-pages` and `settings-voicing-form` guide screenshots (`android/tools/help_shots.json`): they still show the Settings Save button, which autosave removed.
 
 ## Next
 

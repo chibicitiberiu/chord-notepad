@@ -28,7 +28,7 @@ data class IdentifierState(
     val message: String? = null,
 ) : SessionState
 
-/** The settings Android shows (General and Playback); `save_settings`/`apply_settings` take it back. */
+/** The settings Android shows (General and Playback); `commit_settings`/`apply_settings` take it back. */
 @Serializable
 data class SettingsValues(
     @SerialName("font_family") val fontFamily: String,

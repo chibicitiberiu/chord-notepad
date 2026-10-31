@@ -22,7 +22,7 @@ object ScreenCommandNames {
     const val REQUEST_QUICK_START = "request_quick_start"
     const val BEGIN_SETTINGS_EDIT = "begin_settings_edit"
     const val CANCEL_SETTINGS_EDIT = "cancel_settings_edit"
-    const val SAVE_SETTINGS = "save_settings"
+    const val COMMIT_SETTINGS = "commit_settings"
     // voicings editor
     const val REQUEST_VOICING_EDITOR_SCHEMA = "request_voicing_editor_schema"
     const val SELECT_VOICING = "select_voicing"
@@ -39,7 +39,7 @@ object ScreenCommandNames {
     val ALL: Set<String> = setOf(
         IDENTIFIER_TOGGLE_NOTE, IDENTIFIER_SET_NOTES_TEXT, IDENTIFIER_CLEAR, PLAY_NOTE,
         PLAY_IDENTIFIED_CHORD, INSERT_CHORD, APPLY_SETTINGS, SET_SHOW_QUICK_START_ON_STARTUP,
-        REQUEST_QUICK_START, BEGIN_SETTINGS_EDIT, CANCEL_SETTINGS_EDIT, SAVE_SETTINGS,
+        REQUEST_QUICK_START, BEGIN_SETTINGS_EDIT, CANCEL_SETTINGS_EDIT, COMMIT_SETTINGS,
         REQUEST_VOICING_EDITOR_SCHEMA, SELECT_VOICING, ADD_VOICING, REMOVE_VOICING,
         RENAME_VOICING, SET_VOICING_VALUES, SET_VOICING_MODEL, ADD_VOICING_RECORD,
         REMOVE_VOICING_RECORD, LOAD_VOICING_PRESET,
@@ -104,11 +104,14 @@ class ScreenCommands(private val submitter: CommandSubmitter) {
     /** Open a settings working copy (the Settings screen opened). */
     fun beginSettingsEdit() = send(ScreenCommandNames.BEGIN_SETTINGS_EDIT)
 
-    /** Drop the working copy (Cancel / back without saving). */
+    /** End the edit (leaving Settings); voicing edits not saved yet are dropped. */
     fun cancelSettingsEdit() = send(ScreenCommandNames.CANCEL_SETTINGS_EDIT)
 
-    /** Save: validates every voicing, then writes and applies; null keeps the General/Playback values. */
-    fun saveSettings(values: SettingsValues?) = send(ScreenCommandNames.SAVE_SETTINGS) {
+    /**
+     * Autosave and keep editing: writes and applies [values] (null keeps the
+     * config's), and the voicings too while every one is valid.
+     */
+    fun commitSettings(values: SettingsValues?) = send(ScreenCommandNames.COMMIT_SETTINGS) {
         put("values", values?.let { BridgeCodec.json.encodeToJsonElement(it) } ?: JsonNull)
     }
 

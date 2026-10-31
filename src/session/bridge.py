@@ -286,6 +286,7 @@ SESSION_COMMANDS: Dict[str, Dict[str, str]] = {
     "begin_settings_edit": {},
     "cancel_settings_edit": {},
     "save_settings": {"values": "SettingsValues|null"},
+    "commit_settings": {"values": "SettingsValues|null"},
     "request_voicing_editor_schema": {},
     "select_voicing": {"name": "str"},
     "add_voicing": {},

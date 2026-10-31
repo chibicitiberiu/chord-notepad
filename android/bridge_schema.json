@@ -34,6 +34,9 @@
     "chord_sheet_zoom": {
       "step": "int"
     },
+    "commit_settings": {
+      "values": "SettingsValues|null"
+    },
     "convert_notation": {
       "target": "str"
     },
@@ -212,6 +215,7 @@
     "cancel_settings_edit",
     "check_directive",
     "chord_sheet_zoom",
+    "commit_settings",
     "convert_notation",
     "dismiss_startup_screen",
     "export_midi",

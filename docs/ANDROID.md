@@ -380,7 +380,19 @@ raises is an `UnexpectedError` whose `context` is the command name.
   followed through renames or reset when removed). `null` keeps the
   General/Playback values as the config has them. The edit ends with
   `VoicingEditorState.active == false`; a config that can't be written is a
-  `UserError` "Settings" and the edit stays open.
+  `UserError` "Settings" and the edit stays open. Android's screen saves as
+  it goes instead (no Save button, the platform's way): `commit_settings
+  {values: SettingsValues|null}` after every General/Playback change and
+  every voicing command but select. It writes and applies the values when
+  they differ from the config, and the voicings with them only while every
+  voicing is valid; otherwise the config keeps the last valid voicings and
+  nothing is said (the form shows the errors, `VoicingEditorState.invalid`
+  lists the voicings). Nothing to write, no write. The edit stays open; it
+  carries on from a fresh `SettingsViewModel` of what was written, so the
+  next commit's renames and change flags start from there. Leaving sends
+  `cancel_settings_edit`, which drops only an invalid voicing's edits (the
+  screen asks first then). Kotlin saves a typed number once it rests for
+  400 ms; switches and pickers go at once.
 - *Voicings editor* (inside an edit; outside one these raise →
   `UnexpectedError`): `request_voicing_editor_schema {}` → `VoicingEditorSchema
   {version, schema}` (`voicing_form.editor_schema("android")`: models, list
@@ -474,7 +486,7 @@ Kotlin DTOs/builders done 2026-10-29: `bridge/PlayerBridge.kt`):
   existing `set_bpm`, `set_time_signature`, `set_key`, which last for the
   current document only (not saved with the file, never written to the
   config: New and Open start again from the Settings defaults, and only
-  `save_settings`/`apply_settings` change those). `ToolbarState` carries the
+  `commit_settings`/`save_settings`/`apply_settings` change those). `ToolbarState` carries the
   same values (`bpm`, `beats`/`unit`, `key`) and `bpm_set_by`,
   `time_set_by`, `key_set_by` (the directive as written, or null).
   `summary` is the pill text, the values joined by `" · "`
