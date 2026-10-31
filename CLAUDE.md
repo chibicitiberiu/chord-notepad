@@ -108,7 +108,7 @@ RenderThread renders and compiles, fills the buffer, then starts the player.
   drift from the code.
 - Planning is one prioritised backlog file, `BACKLOG.md`, no milestones or phase plans.
 - Reviews, audits and research reports stay out of the repo
-  (/mnt/data_linux/Bin/chord-notepad-reviews/).
+  (~/Documents/chord-notepad/: reviews/, research/), never spread across disks.
 
 ### Android app (docs/ANDROID.md)
 - Logic lives in the shared Python core. Views (Tk and the Kotlin/Compose UI)

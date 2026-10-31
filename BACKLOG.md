@@ -56,7 +56,7 @@ it's done (git history keeps it); release mechanics live in `docs/RELEASE.md`.
 - Split `AppSession` (`src/session/session.py`, 2,548 lines) into per-area components, with one observer-registration helper that shutdown mirrors.
 - Then move value ownership (text, document, toolbar, playback) from `MainWindowViewModel` into the session, one value at a time.
 - Desktop Settings and Chord Identifier onto the session paths (`SettingsEdit`, `identifier_*`); `ConfigService` emits changed keys instead of the per-command re-read.
-- Repo layout: `core/` and `desktop/` source roots (layer, not store, folders), desktop-only `utils/` modules into `ui/platform/`, the spec and `hooks/` into `packaging/pyinstaller/`; drop `src/__init__.py`.
+- Repo layout: all sources under `src/` (Tibi, 2026-10-31), split by layer rather than by store (e.g. `src/core/`, `src/desktop/`, with the Android app's sources there too if Gradle allows), desktop-only `utils/` modules into the desktop tree, the spec and `hooks/` into `packaging/pyinstaller/`. To be planned as its own step, after the reviews; one change at a time.
 - Build consolidation: `scripts/make_icons.py`, `scripts/gen_build_info.py` (untracked output), `scripts/bump_version.py` shared by Make and CI; a composite setup action and venv cache; `build.yml` split into `ci.yml`, `release.yml` and reusable workflows; drop the tag-push release path and RELEASE.md's "Quick Release Guide".
 - pipenv to `pyproject.toml` + uv, generating `android/docs-requirements.txt` from a dependency group.
 - Type and lint more: mypy on `session` and `models`, ktlint, hints and docstrings in `ui/chord_identifier.py`, `ui/chord_sheet/panel.py`, `voicings_page.py`, `insert_directives.py`.
