@@ -14,7 +14,7 @@ audio driver, the SoundFont path or the window geometry. The voicings
 registry has its own editor (M5) and isn't here either.
 """
 
-from dataclasses import dataclass, fields
+from dataclasses import dataclass, fields, replace
 from typing import Any, Dict
 
 from constants import MAX_FONT_SIZE, MIN_FONT_SIZE, TIME_SIGNATURE_UNITS  # noqa: F401
@@ -80,5 +80,17 @@ class SettingsValues:
     @classmethod
     def read(cls, source: Any) -> "SettingsValues":
         """Take the values from anything with these attributes (a ``Config``,
-        a ``SettingsViewModel``)."""
-        return cls(**{f.name: getattr(source, f.name) for f in fields(cls)})
+        a ``SettingsViewModel``).
+
+        A key spelled in the other notation is respelled in ``notation``'s:
+        the AB / Do switch changes the stored notation but not the stored
+        key, so a config can hold European notation with key ``C``.
+        """
+        values = cls(**{f.name: getattr(source, f.name) for f in fields(cls)})
+        if values.key and values.notation in ("american", "european"):
+            options = toolbar.key_options(values.notation)
+            if values.key not in options:
+                respelled = toolbar.convert_key(values.key, values.notation)
+                if respelled in options:
+                    values = replace(values, key=respelled)
+        return values
