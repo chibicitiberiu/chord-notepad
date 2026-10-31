@@ -112,10 +112,13 @@ class IdentifierTest {
         model.insert()
         assertTrue(inserted.isEmpty()) // nothing picked
         model.pick("C")
-        assertSent("play_identified_chord", """{"chord": "C"}""")
+        assertSent("play_identified_chord", """{"chord": "C", "rolled": false}""")
+        model.pick("Am7", rolled = true) // long press
+        assertSent("play_identified_chord", """{"chord": "Am7", "rolled": true}""")
+        assertEquals("Am7", model.picked)
         model.insert()
-        model.insert("Am7") // double tap
-        assertEquals(listOf("C", "Am7"), inserted)
+        model.insert("C") // double tap
+        assertEquals(listOf("Am7", "C"), inserted)
     }
 
     @Test
@@ -129,5 +132,45 @@ class IdentifierTest {
         model.clear()
         assertEquals("", model.typed)
         assertEquals("identifier_clear", sent.last().first)
+    }
+
+    @Test
+    fun `play sends the selection, rolled on a long press`() {
+        model.play()
+        assertSent("identifier_play_selection", """{"rolled": false}""")
+        model.play(rolled = true)
+        assertSent("identifier_play_selection", """{"rolled": true}""")
+    }
+
+    @Test
+    fun `a key is blue when selected, amber when sounding, blue with a dot when both`() {
+        assertEquals(KeyLook.PLAIN, KeyLook.of(selected = false, sounding = false))
+        assertEquals(KeyLook.SELECTED, KeyLook.of(selected = true, sounding = false))
+        assertEquals(KeyLook.SOUNDING, KeyLook.of(selected = false, sounding = true))
+        assertEquals(KeyLook.SELECTED_AND_SOUNDING, KeyLook.of(selected = true, sounding = true))
+    }
+
+    @Test
+    fun `sounding keys show until their token expires`() {
+        val played = state("E", "Eaddb6").copy(sounding = listOf(64, 68, 71, 72), soundingToken = 3)
+        assertEquals(setOf(64, 68, 71, 72), shownSounding(played, expiredToken = 2))
+        assertEquals(emptySet<Int>(), shownSounding(played, expiredToken = 3))
+        // Played again: a new token shows it again.
+        assertEquals(4, shownSounding(played.copy(soundingToken = 4), expiredToken = 3).size)
+        // New notes: Python sends no sounding notes.
+        assertEquals(emptySet<Int>(), shownSounding(state("E"), expiredToken = 3))
+        assertEquals(emptySet<Int>(), shownSounding(null, expiredToken = 0))
+    }
+
+    @Test
+    fun `the sounding fields decode from the session`() {
+        val json = """{"notes": [], "notes_text": "", "typed_text_error": null, "candidates": ["C"],
+            "message": null, "sounding": [48, 52, 55], "sounding_token": 2, "sounding_seconds": 3.0,
+            "sounding_below": "◂ C3 E3 G3", "sounding_above": null}"""
+        val decoded = Json.decodeFromString(IdentifierState.serializer(), json)
+        assertEquals(listOf(48, 52, 55), decoded.sounding)
+        assertEquals(2, decoded.soundingToken)
+        assertEquals("◂ C3 E3 G3", decoded.soundingBelow)
+        assertNull(decoded.soundingAbove)
     }
 }

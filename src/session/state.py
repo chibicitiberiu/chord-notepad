@@ -433,6 +433,16 @@ class IdentifierState:
         message: What to show instead of (or for lack of) candidates: the
             prompt to select notes, "no standard chord found", an error; None
             when there are candidates.
+        sounding: The MIDI notes the candidate played last sent to the
+            synth, lowest first. Highlight their keys in a second colour for
+            ``sounding_seconds``, then stop by yourself; empty once the
+            notes change or are cleared.
+        sounding_token: Changes with every candidate played, so the timer
+            restarts when the same notes play again.
+        sounding_seconds: How long to show ``sounding``.
+        sounding_below: A marker for the sounding notes under the piano's
+            lowest key (C4), such as ``"◂ C3"``; None when there are none.
+        sounding_above: The same over its highest key (B5): ``"D6 ▸"``.
     """
 
     notes: Tuple[IdentifierNote, ...]
@@ -440,6 +450,11 @@ class IdentifierState:
     typed_text_error: Optional[str]
     candidates: Tuple[str, ...]
     message: Optional[str]
+    sounding: Tuple[int, ...] = ()
+    sounding_token: int = 0
+    sounding_seconds: float = 3.0
+    sounding_below: Optional[str] = None
+    sounding_above: Optional[str] = None
 
 
 @dataclass(frozen=True)

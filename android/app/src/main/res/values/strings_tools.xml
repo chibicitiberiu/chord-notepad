@@ -46,9 +46,11 @@
     <!-- Chord identifier (ui/chord_identifier.py, Android wording from help/interface.rst) -->
     <string name="identifier_title">Identify Chord</string>
     <string name="identifier_close">Close</string>
-    <string name="identifier_hint">Tap keys on the piano or type notes below (e.g., C E G or C, E, G). Long-press a key to hear it without selecting it.</string>
+    <string name="identifier_hint">Tap keys on the piano or type notes below (e.g., C E G or C, E, G). Long-press a key to hear it without selecting it, and long-press Play or a chord to hear it rolled.</string>
     <string name="identifier_notes">Notes</string>
     <string name="identifier_clear">Clear</string>
+    <string name="identifier_play">Play</string>
+    <string name="identifier_play_rolled">Play rolled</string>
     <string name="identifier_candidates">Possible Chords</string>
     <string name="identifier_insert">Insert</string>
     <string name="identifier_keyboard">Piano keyboard, two octaves from C4</string>

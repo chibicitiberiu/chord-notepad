@@ -347,15 +347,23 @@ raises is an `UnexpectedError` whose `context` is the command name.
 - *Chord identifier.* `identifier_toggle_note {note, octave}` (a key tap:
   select or deselect; a newly selected key sounds), `play_note {note,
   octave}` (long-press: sound without selecting), `identifier_set_notes_text
-  {text}` (the typed field: `"C E G"`, `"C4, E4, G4"`, octave 4 by default;
-  silent), `identifier_clear {}` (Clear, and when the screen opens),
-  `play_identified_chord {chord}` (a tapped candidate; an unplayable chord is
-  a `UserError`), `insert_chord {at, chord}` (inserts `chord + " "`, says
+  {text}` (the typed field: `"C E G"`, `"C4, E4, G4"`; a note without an
+  octave goes just above the one before, the first in octave 4; silent),
+  `identifier_clear {}` (Clear, and when the screen opens; stops a roll),
+  `play_identified_chord {chord, rolled}` (a tapped candidate, `rolled` on a
+  long press; an unplayable chord is a `UserError`),
+  `identifier_play_selection {rolled}` (the Play button: the selected keys
+  in their octaves; nothing with none selected), `insert_chord {at, chord}`
+  (inserts `chord + " "`, says
   "Inserted chord: X"). Note names may be flats or lower case; they come back
   spelled with sharps. Audio that can't start follows the click policy
   (`AudioUnavailable` once per session). Output: `IdentifierState {notes:
   [{name, octave, midi}] lowest first, notes_text, typed_text_error,
-  candidates, message}`. `notes_text` is what the typed field shows after a
+  candidates, message, sounding, sounding_token, sounding_seconds,
+  sounding_below, sounding_above}`. `sounding` is the MIDI notes the last
+  play sent to the synth (the piano lights them for `sounding_seconds`,
+  restarting when `sounding_token` changes); `sounding_below`/`_above` name
+  the ones outside C4-B5 ("◂ E3 G#3"). `notes_text` is what the typed field shows after a
   key toggle (don't overwrite the field while the user types there);
   typed notes keep their octave, which may lie outside the keys a piano
   shows; `message` replaces the candidate list when there are none.
@@ -809,8 +817,10 @@ committed schema (2026-10-29).
     two-octave keyboard from C4 (`PianoKeyboard`: tap →
     `identifier_toggle_note`, long-press → `play_note`), the notes field
     (`identifier_set_notes_text`, `typed_text_error` under it; it takes
-    `notes_text` only after a key tap), Clear, the candidates (tap picks and
-    plays, double-tap or Insert → `insert_chord {at: cursor}`) or
+    `notes_text` only after a key tap), Clear, Play (tap →
+    `identifier_play_selection {rolled: false}`, long press → rolled), the
+    candidates (tap picks and plays, long press plays rolled, double-tap or
+    Insert → `insert_chord {at: cursor}`) or
     `message`, and the status line at the bottom ("Inserted chord: C").
     `identifier_clear` when it opens.
 - **Close**: Android has no File › Exit. Back on the main screen is the

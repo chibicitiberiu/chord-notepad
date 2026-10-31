@@ -19,7 +19,9 @@ def env(tmp_path):
 def test_identifier_over_the_bridge(env):
     first = env.expect("IdentifierState")
     assert first == {"notes": [], "notes_text": "", "typed_text_error": None,
-                     "candidates": [], "message": "Select notes to identify chords..."}
+                     "candidates": [], "message": "Select notes to identify chords...",
+                     "sounding": [], "sounding_token": 0, "sounding_seconds": 3.0,
+                     "sounding_below": None, "sounding_above": None}
     env.send("identifier_toggle_note", note="A", octave=4)
     env.send("identifier_toggle_note", note="C", octave=5)
     env.send("identifier_toggle_note", note="E", octave=5)
@@ -28,7 +30,12 @@ def test_identifier_over_the_bridge(env):
     assert state["notes_text"] == "C E A" and "Am" in state["candidates"]
     assert env.player.immediate == [[69], [72], [76]]
 
-    env.send("play_identified_chord", chord="Am")
+    env.send("play_identified_chord", chord="Am", rolled=False)
+    state = env.expect("IdentifierState", lambda d: d["sounding"])
+    assert state["sounding"] == env.player.immediate[-1] and state["sounding_token"] == 1
+    env.send("identifier_play_selection", rolled=True)
+    state = env.expect("IdentifierState", lambda d: d["sounding_token"] == 2)
+    assert env.player.rolled[-1][0] == state["sounding"] == [69, 72, 76]
     env.send("play_note", note="G", octave=3)
     env.settle()
     assert env.player.immediate[-1] == [55]
@@ -54,7 +61,7 @@ def test_identifier_audio_failure_is_reported_once(tmp_path):
         failure = env.expect("AudioUnavailable")
         assert failure["from_click"] is True
         assert failure["message"].endswith("Clicked chords won't play until this is fixed.")
-        env.send("play_identified_chord", chord="C")
+        env.send("play_identified_chord", chord="C", rolled=False)
         env.send("play_note", note="C", octave=4)
         env.settle()
         assert [name for name, _ in env.out].count("AudioUnavailable") == 1

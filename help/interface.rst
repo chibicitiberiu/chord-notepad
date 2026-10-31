@@ -763,6 +763,9 @@ As you select notes, Chord Notepad analyzes them and shows matching chords:
    **Single-click a result:**
       Plays that chord so you can hear it.
 
+   **Shift+click a result:**
+      Plays it rolled: one note at a time from the lowest, like a quick strum.
+
    **Double-click a result:**
       Inserts that chord into your document at the cursor position.
 
@@ -771,8 +774,19 @@ As you select notes, Chord Notepad analyzes them and shows matching chords:
    **Tap a result:**
       Picks that chord and plays it so you can hear it.
 
+   **Long-press a result:**
+      Picks it and plays it rolled: one note at a time from the lowest, like
+      a quick strum.
+
    **Double-tap a result:**
       Inserts that chord into your document at the cursor position.
+
+While a chord plays, the keys it actually sounds light up in amber for a few
+seconds (a key that is also selected keeps its blue and gets an amber dot),
+so you can see when what you hear isn't what you picked. The chord plays on
+the piano's two octaves, starting on your lowest key when the chord starts
+there. A note that falls off either end of the keyboard is named beside it,
+for example ``◂ E3``.
 
 The Insert Button
 -----------------
@@ -797,6 +811,22 @@ The Clear Button
 .. only:: android
 
    Tap **Clear** to reset all selections and start over.
+
+The Play Button
+---------------
+
+**Play** sounds exactly the keys you selected, in their octaves, and lights
+them up like a played chord. It is greyed out until a key is selected.
+
+.. only:: desktop
+
+   Click **Play** to hear the selected keys together. Shift+click or
+   right-click it to hear them rolled, one at a time from the lowest.
+
+.. only:: android
+
+   Tap **Play** to hear the selected keys together. Long-press it to hear
+   them rolled, one at a time from the lowest.
 
 Using the Chord Identifier
 --------------------------

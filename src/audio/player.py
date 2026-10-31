@@ -392,6 +392,50 @@ class NotePlayer(IPlayer):
             for midi_note in midi_notes:
                 self._sequencer.note_off(release, self.channel, midi_note, self._click_source)
 
+    def play_notes_rolled(self, midi_notes: List[int], gap: float, duration: float = 2.0) -> None:
+        """Play notes one after another, ``gap`` seconds apart (a rolled chord).
+
+        The first sounds at once; the others are note-ons on the sequencer's
+        click source, so nothing waits here, and the next click (which drops
+        that source's pending events) stops a roll still going. Every note is
+        held until ``duration`` after the last one starts.
+
+        Args:
+            midi_notes: MIDI note numbers, in the order they sound
+            gap: Seconds between one note and the next
+            duration: Seconds the last note is held
+        """
+        if self._sequencer is None or len(midi_notes) < 2:
+            self.play_notes_immediate(midi_notes, duration)
+            return
+        if not self.fs:
+            logger.warning("FluidSynth not initialized, cannot play notes")
+            return
+
+        self._cancel_immediate_release()
+        for midi_note in self._immediate_notes:
+            self.fs.noteoff(self.channel, midi_note)
+
+        velocity = 100
+        step = int(round(gap * TICKS_PER_SECOND))
+        start = self._sequencer.now()
+        self.fs.noteon(self.channel, midi_notes[0], velocity)
+        for i, midi_note in enumerate(midi_notes[1:], start=1):
+            self._sequencer.note_on(start + i * step, self.channel, midi_note, velocity,
+                                    self._click_source)
+        self._immediate_notes = list(midi_notes)
+        release = start + (len(midi_notes) - 1) * step + int(round(duration * TICKS_PER_SECOND))
+        for midi_note in midi_notes:
+            self._sequencer.note_off(release, self.channel, midi_note, self._click_source)
+
+    def stop_immediate_notes(self) -> None:
+        """Silence the click-to-play notes and drop a roll's pending notes."""
+        self._cancel_immediate_release()
+        if self.fs:
+            for midi_note in self._immediate_notes:
+                self.fs.noteoff(self.channel, midi_note)
+        self._immediate_notes = []
+
     def _cancel_immediate_release(self) -> None:
         if self._sequencer is not None:
             self._sequencer.remove(self._click_source)

@@ -78,11 +78,14 @@ class IdentifierModel(
         commands.identifierClear()
     }
 
-    /** Tap on a candidate: pick it and play it. */
-    fun pick(chord: String) {
+    /** Tap on a candidate: pick it and play it; long press ([rolled]) plays it rolled. */
+    fun pick(chord: String, rolled: Boolean = false) {
         picked = chord
-        commands.playIdentifiedChord(chord)
+        commands.playIdentifiedChord(chord, rolled)
     }
+
+    /** Play: the selected keys as they are; long press ([rolled]) plays them rolled. */
+    fun play(rolled: Boolean = false) = commands.identifierPlaySelection(rolled)
 
     /** Insert [chord] (default: the picked one) at the editor's cursor; nothing when none. */
     fun insert(chord: String? = picked) {
@@ -91,3 +94,10 @@ class IdentifierModel(
         insertAtCursor(c)
     }
 }
+
+/**
+ * The keys to highlight as sounding: [IdentifierState.sounding], until the
+ * screen's timer has marked its token [expiredToken].
+ */
+fun shownSounding(state: IdentifierState?, expiredToken: Int): Set<Int> =
+    if (state == null || state.soundingToken == expiredToken) emptySet() else state.sounding.toSet()

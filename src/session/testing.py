@@ -352,6 +352,10 @@ class FakePlayer(IPlayer):
         self.is_paused = False
         self.calls: List[str] = []
         self.immediate: List[List[int]] = []
+        #: Rolled click-to-hear chords: ``(notes, gap in seconds)``.
+        self.rolled: List[Tuple[List[int], float]] = []
+        #: How often click-to-hear notes were silenced (Clear in the identifier).
+        self.click_stops = 0
         self.played: List[Any] = []
         self.bpm: Optional[int] = None
         self.bpm_multiplier = 1.0
@@ -482,6 +486,14 @@ class FakePlayer(IPlayer):
     def play_notes_immediate(self, midi_notes: List[int]) -> None:
         """Record a click-to-hear chord."""
         self.immediate.append(list(midi_notes))
+
+    def play_notes_rolled(self, midi_notes: List[int], gap: float) -> None:
+        """Record a rolled click-to-hear chord."""
+        self.rolled.append((list(midi_notes), gap))
+
+    def stop_immediate_notes(self) -> None:
+        """Count a silenced click-to-hear chord."""
+        self.click_stops += 1
 
     def stop_all_notes(self) -> None:
         """Nothing rings, so nothing to silence."""

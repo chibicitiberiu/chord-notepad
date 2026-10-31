@@ -262,7 +262,8 @@ SESSION_COMMANDS: Dict[str, Dict[str, str]] = {
     "identifier_set_notes_text": {"text": "str"},
     "identifier_clear": {},
     "play_note": {"note": "str", "octave": "int"},
-    "play_identified_chord": {"chord": "str"},
+    "play_identified_chord": {"chord": "str", "rolled": "bool"},
+    "identifier_play_selection": {"rolled": "bool"},
     # documents and requests
     "new_document": {},
     "open_document": {"ref": "DocumentRef|null", "read_only": "bool"},

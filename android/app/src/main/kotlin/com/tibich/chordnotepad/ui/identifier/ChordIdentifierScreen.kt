@@ -1,5 +1,6 @@
 package com.tibich.chordnotepad.ui.identifier
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -7,6 +8,7 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -36,6 +38,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -43,6 +46,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.CornerRadius
@@ -56,6 +60,7 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
@@ -73,10 +78,14 @@ import com.tibich.chordnotepad.bridge.IdentifierState
 import com.tibich.chordnotepad.bridge.ScreenCommands
 import com.tibich.chordnotepad.bridge.SessionRepository
 import com.tibich.chordnotepad.ui.icons.AppIcons
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.filterNotNull
 
-// The desktop's selected-key blue (ui/chord_identifier.py).
+// The desktop's selected-key blue and sounding amber (ui/chord_identifier.py).
+// The keys are white and black in either theme, so these read in both.
 private val SelectedKey = Color(0xFF4A90E2)
+private val SoundingKey = Color(0xFFF5A623)
+private val SoundingDotOutline = Color(0xFF9A6200)
 
 /**
  * Tools › Identify Chord: the chord identifier, full screen on phones
@@ -172,6 +181,18 @@ private fun ChordIdentifier(
         initialFocus.requestFocus()
         keyboard?.hide()
     }
+    // What played last stays lit for sounding_seconds; a new play (a new
+    // token) restarts the wait, new notes clear it in Python.
+    var expiredToken by rememberSaveable { mutableIntStateOf(0) }
+    val token = state?.soundingToken ?: 0
+    val seconds = state?.soundingSeconds ?: 0.0
+    LaunchedEffect(token) {
+        if (token != expiredToken) {
+            delay((seconds * 1000).toLong())
+            expiredToken = token
+        }
+    }
+    val sounding = shownSounding(state, expiredToken)
     Column(modifier.fillMaxSize().focusRequester(initialFocus).focusable()) {
         TopAppBar(
             title = { Text(stringResource(R.string.identifier_title)) },
@@ -184,15 +205,36 @@ private fun ChordIdentifier(
             Spacer(Modifier.height(12.dp))
             Keyboard(
                 selectedMidi = state?.notes?.map { it.midi }.orEmpty().toSet(),
+                soundingMidi = sounding,
                 onTap = model::tapKey,
                 onLongPress = model::pressKey,
                 modifier = Modifier.fillMaxWidth().height(132.dp),
             )
-            Spacer(Modifier.height(12.dp))
-            NotesRow(model.typed, state?.typedTextError, model::type, model::clear)
+            // Sounding notes the keys don't reach ("◂ C3", "D6 ▸")
+            Row(Modifier.fillMaxWidth().heightIn(min = 16.dp)) {
+                val shown = sounding.isNotEmpty()
+                Text(
+                    if (shown) state?.soundingBelow.orEmpty() else "",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.weight(1f))
+                Text(
+                    if (shown) state?.soundingAbove.orEmpty() else "",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            NotesRow(
+                model.typed, state?.typedTextError, model::type, model::clear,
+                canPlay = !state?.notes.isNullOrEmpty(), onPlay = { model.play() }, onPlayRolled = { model.play(rolled = true) },
+            )
             Spacer(Modifier.height(8.dp))
             Text(stringResource(R.string.identifier_candidates), style = MaterialTheme.typography.titleSmall)
-            Candidates(state, model.picked, model::pick, model::insert, Modifier.weight(1f).fillMaxWidth())
+            Candidates(
+                state, model.picked, { model.pick(it) }, { model.pick(it, rolled = true) }, model::insert,
+                Modifier.weight(1f).fillMaxWidth(),
+            )
         }
         HorizontalDivider()
         Row(
@@ -215,7 +257,15 @@ private fun ChordIdentifier(
 }
 
 @Composable
-private fun NotesRow(text: String, error: String?, onType: (String) -> Unit, onClear: () -> Unit) {
+private fun NotesRow(
+    text: String,
+    error: String?,
+    onType: (String) -> Unit,
+    onClear: () -> Unit,
+    canPlay: Boolean,
+    onPlay: () -> Unit,
+    onPlayRolled: () -> Unit,
+) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         OutlinedTextField(
             value = text,
@@ -230,16 +280,52 @@ private fun NotesRow(text: String, error: String?, onType: (String) -> Unit, onC
         OutlinedButton(onClick = onClear, modifier = Modifier.padding(start = 8.dp)) {
             Text(stringResource(R.string.identifier_clear))
         }
+        PlayButton(canPlay, onPlay, onPlayRolled, Modifier.padding(start = 8.dp))
     }
 }
 
-/** The candidates (tap plays, double-tap inserts), or the session's message when there are none. */
+/**
+ * Play: tap sounds the selected keys, long press sounds them rolled. An
+ * outlined button drawn by hand, since Material buttons take no long press.
+ */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun PlayButton(enabled: Boolean, onPlay: () -> Unit, onPlayRolled: () -> Unit, modifier: Modifier = Modifier) {
+    val colors = MaterialTheme.colorScheme
+    val content = if (enabled) colors.primary else colors.onSurface.copy(alpha = 0.38f)
+    val border = if (enabled) colors.outline else colors.onSurface.copy(alpha = 0.12f)
+    Surface(
+        shape = MaterialTheme.shapes.extraLarge,
+        border = BorderStroke(1.dp, border),
+        color = Color.Transparent,
+        modifier = modifier
+            .heightIn(min = 40.dp)
+            .clip(MaterialTheme.shapes.extraLarge)
+            .combinedClickable(
+                enabled = enabled,
+                role = Role.Button,
+                onLongClickLabel = stringResource(R.string.identifier_play_rolled),
+                onClick = onPlay,
+                onLongClick = onPlayRolled,
+            ),
+    ) {
+        Box(Modifier.padding(horizontal = 24.dp, vertical = 10.dp), contentAlignment = Alignment.Center) {
+            Text(stringResource(R.string.identifier_play), color = content, style = MaterialTheme.typography.labelLarge)
+        }
+    }
+}
+
+/**
+ * The candidates (tap plays, long press plays rolled, double-tap inserts), or
+ * the session's message when there are none.
+ */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun Candidates(
     state: IdentifierState?,
     picked: String?,
     onPick: (String) -> Unit,
+    onRoll: (String) -> Unit,
     onInsert: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -253,6 +339,7 @@ private fun Candidates(
         )
         return
     }
+    val rollLabel = stringResource(R.string.identifier_play_rolled)
     LazyColumn(modifier) {
         items(candidates, key = { it }) { chord ->
             val selected = chord == picked
@@ -263,7 +350,12 @@ private fun Candidates(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(if (selected) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent)
-                    .combinedClickable(onClick = { onPick(chord) }, onDoubleClick = { onInsert(chord) })
+                    .combinedClickable(
+                        onLongClickLabel = rollLabel,
+                        onClick = { onPick(chord) },
+                        onLongClick = { onRoll(chord) },
+                        onDoubleClick = { onInsert(chord) },
+                    )
                     .heightIn(min = 48.dp)
                     .padding(horizontal = 12.dp, vertical = 12.dp),
             )
@@ -271,10 +363,15 @@ private fun Candidates(
     }
 }
 
-/** The two-octave piano: tap toggles a key, long-press sounds it. */
+/**
+ * The two-octave piano: tap toggles a key, long-press sounds it. Selected keys
+ * are blue; [soundingMidi] (what played last) amber, or an amber dot on a
+ * selected key.
+ */
 @Composable
 private fun Keyboard(
     selectedMidi: Set<Int>,
+    soundingMidi: Set<Int>,
     onTap: (PianoKey) -> Unit,
     onLongPress: (PianoKey) -> Unit,
     modifier: Modifier = Modifier,
@@ -296,22 +393,34 @@ private fun Keyboard(
     ) {
         val unit = size.width / piano.whiteKeyCount
         for (key in piano.keys) {
-            val selected = key.midi in selectedMidi
+            val look = KeyLook.of(key.midi in selectedMidi, key.midi in soundingMidi)
             val h = if (key.isBlack) size.height * PianoKeyboard.BLACK_HEIGHT else size.height
             val topLeft = Offset(key.left * unit, 0f)
             val keySize = Size(key.width * unit, h)
             val fill = when {
-                selected -> SelectedKey
+                look == KeyLook.SELECTED || look == KeyLook.SELECTED_AND_SOUNDING -> SelectedKey
+                look == KeyLook.SOUNDING -> SoundingKey
                 key.isBlack -> Color.Black
                 else -> Color.White
             }
             drawRoundRect(fill, topLeft, keySize, CornerRadius(3.dp.toPx()))
             drawRoundRect(if (key.isBlack) Color.Black else outline, topLeft, keySize, CornerRadius(3.dp.toPx()), Stroke(1.dp.toPx()))
+            val labelColor = when (look) {
+                KeyLook.SOUNDING -> Color.Black
+                KeyLook.PLAIN -> if (key.isBlack) Color.White else Color.Black
+                else -> Color.White
+            }
             val label = measurer.measure(
                 key.name,
-                TextStyle(fontSize = if (key.isBlack) 8.sp else 10.sp, color = if (selected || key.isBlack) Color.White else Color.Black),
+                TextStyle(fontSize = if (key.isBlack) 8.sp else 10.sp, color = labelColor),
             )
             labelKey(label, topLeft, keySize)
+            if (look == KeyLook.SELECTED_AND_SOUNDING) {
+                val r = minOf(keySize.width * 0.22f, 5.dp.toPx())
+                val c = Offset(topLeft.x + keySize.width / 2f, topLeft.y + keySize.height - label.size.height - 4.dp.toPx() - r - 3.dp.toPx())
+                drawCircle(SoundingKey, r, c)
+                drawCircle(SoundingDotOutline, r, c, style = Stroke(1.dp.toPx()))
+            }
         }
     }
 }

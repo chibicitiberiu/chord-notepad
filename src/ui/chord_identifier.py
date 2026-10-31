@@ -8,9 +8,18 @@ from tkinter import ttk, messagebox
 import re
 
 from exceptions import AudioInitializationError, ChordNotepadError
-from viewmodels.chord_identifier_viewmodel import bass_note, note_to_midi
+from ui.base.tooltip import ToolTip
+from viewmodels.chord_identifier_viewmodel import (
+    SOUNDING_SECONDS, bass_note, note_to_midi, outside_piano,
+)
 
 logger = logging.getLogger(__name__)
+
+# Selected keys are blue; the keys of the candidate played last are amber,
+# or carry an amber dot when they are selected too.
+SELECTED_FILL = '#4a90e2'
+SOUNDING_FILL = '#f5a623'
+SOUNDING_OUTLINE = '#9a6200'
 
 
 class PianoRoll(tk.Canvas):
@@ -52,6 +61,8 @@ class PianoRoll(tk.Canvas):
 
         # Selected notes with octave (e.g., ('C', 4), ('E', 4), ('G', 5))
         self.selected_notes = set()
+        # MIDI notes of the candidate played last (highlighted for a while)
+        self.sounding = set()
 
         # Key rectangles for hit testing
         # List of (note_name, octave, x1, y1, x2, y2, canvas_id)
@@ -81,7 +92,9 @@ class PianoRoll(tk.Canvas):
 
                     # Determine if this note (with octave) is selected
                     is_selected = (note_name, current_octave) in self.selected_notes
-                    fill_color = '#4a90e2' if is_selected else 'white'
+                    is_sounding = note_to_midi(note_name, current_octave) in self.sounding
+                    fill_color = (SELECTED_FILL if is_selected
+                                  else SOUNDING_FILL if is_sounding else 'white')
                     outline_color = '#2a5a92' if is_selected else 'black'
 
                     rect_id = self.create_rectangle(
@@ -97,6 +110,9 @@ class PianoRoll(tk.Canvas):
                         text=note_name, font=('Arial', 8),
                         fill='white' if is_selected else 'black'
                     )
+                    if is_selected and is_sounding:
+                        self._sounding_dot(white_x + self.white_key_width // 2,
+                                           self.white_key_height - 28)
 
                     self.key_rects.append((
                         note_name, current_octave, white_x, 0,
@@ -119,7 +135,9 @@ class PianoRoll(tk.Canvas):
                 black_x = x + int(pos * self.white_key_width)
 
                 is_selected = (note_name, current_octave) in self.selected_notes
-                fill_color = '#4a90e2' if is_selected else 'black'
+                is_sounding = note_to_midi(note_name, current_octave) in self.sounding
+                fill_color = (SELECTED_FILL if is_selected
+                              else SOUNDING_FILL if is_sounding else 'black')
 
                 rect_id = self.create_rectangle(
                     black_x, 0,
@@ -131,8 +149,12 @@ class PianoRoll(tk.Canvas):
                 self.create_text(
                     black_x + self.black_key_width // 2,
                     self.black_key_height - 10,
-                    text=note_name, font=('Arial', 7), fill='white'
+                    text=note_name, font=('Arial', 7),
+                    fill='black' if is_sounding and not is_selected else 'white'
                 )
+                if is_selected and is_sounding:
+                    self._sounding_dot(black_x + self.black_key_width // 2,
+                                       self.black_key_height - 26)
 
                 self.key_rects.append((
                     note_name, current_octave, black_x, 0,
@@ -141,6 +163,17 @@ class PianoRoll(tk.Canvas):
                 ))
 
             x = white_x
+
+    def _sounding_dot(self, x, y):
+        """The amber dot on a selected key that also sounds."""
+        r = 5
+        self.create_oval(x - r, y - r, x + r, y + r,
+                         fill=SOUNDING_FILL, outline=SOUNDING_OUTLINE, width=1)
+
+    def set_sounding(self, midi_notes):
+        """Highlight the keys of these MIDI notes (empty to stop)."""
+        self.sounding = set(midi_notes)
+        self.draw_piano()
 
     def on_click(self, event):
         """Handle left mouse click on piano - toggle and play"""
@@ -245,6 +278,9 @@ class ChordIdentifierWindow(tk.Toplevel):
 
         # Wire up ViewModel observers
         self.viewmodel.observe("identified_chords", self._on_chords_identified)
+        self.viewmodel.observe("sounding", self._on_sounding)
+        self.viewmodel.observe("selected_notes", self._on_selection)
+        self._sounding_timer = None
 
         # Set up window close handler to clean up observers
         self.protocol("WM_DELETE_WINDOW", self._on_close)
@@ -280,6 +316,14 @@ class ChordIdentifierWindow(tk.Toplevel):
         )
         self.piano_roll.pack()
 
+        # Markers for sounding notes the piano doesn't show ("◂ C3", "D6 ▸")
+        markers = ttk.Frame(piano_frame)
+        markers.pack(fill=tk.X)
+        self.below_marker = ttk.Label(markers, text="", font=('Arial', 9))
+        self.below_marker.pack(side=tk.LEFT)
+        self.above_marker = ttk.Label(markers, text="", font=('Arial', 9))
+        self.above_marker.pack(side=tk.RIGHT)
+
         # Note input
         input_frame = ttk.Frame(self)
         input_frame.pack(pady=10, padx=20, fill=tk.X)
@@ -292,6 +336,15 @@ class ChordIdentifierWindow(tk.Toplevel):
 
         clear_button = ttk.Button(input_frame, text="Clear", command=self.clear_all)
         clear_button.pack(side=tk.LEFT, padx=5)
+
+        # Play: the selected keys; Shift+click or right-click plays them rolled
+        self.play_button = ttk.Button(input_frame, text="Play", state=tk.DISABLED,
+                                      command=self.play_selection)
+        self.play_button.pack(side=tk.LEFT, padx=5)
+        self.play_button.bind("<Shift-Button-1>", self._play_selection_rolled)
+        self.play_button.bind("<Button-3>", self._play_selection_rolled)
+        ToolTip(self.play_button, "Plays the selected keys. Shift+click or right-click "
+                                  "plays them rolled, one at a time from the lowest.")
 
         # Results area
         results_frame = ttk.LabelFrame(self, text="Possible Chords", padding=10)
@@ -311,8 +364,11 @@ class ChordIdentifierWindow(tk.Toplevel):
         self.results_listbox.pack(fill=tk.BOTH, expand=True)
         scroll.config(command=self.results_listbox.yview)
 
-        # Bind single-click to play chord
+        # Bind single-click to play chord, Shift+click to play it rolled
         self.results_listbox.bind("<Button-1>", self.on_chord_click)
+        self.results_listbox.bind("<Shift-Button-1>", self.on_chord_shift_click)
+        ToolTip(self.results_listbox, "Click a chord to hear it, Shift+click to hear it "
+                                      "rolled, double-click to insert it.")
         # Bind double-click to insert
         self.results_listbox.bind("<Double-Button-1>", self.on_chord_double_click)
 
@@ -362,6 +418,25 @@ class ChordIdentifierWindow(tk.Toplevel):
         except AudioInitializationError as e:
             self._report_audio_error(e)
 
+    def _on_sounding(self, midi_notes):
+        """Highlight a played candidate's keys for a few seconds."""
+        if self._sounding_timer is not None:
+            self.after_cancel(self._sounding_timer)
+            self._sounding_timer = None
+        self._show_sounding(midi_notes)
+        if midi_notes:
+            self._sounding_timer = self.after(int(SOUNDING_SECONDS * 1000), self._end_sounding)
+
+    def _end_sounding(self):
+        self._sounding_timer = None
+        self._show_sounding(())
+
+    def _show_sounding(self, midi_notes):
+        self.piano_roll.set_sounding(midi_notes)
+        below, above = outside_piano(midi_notes)
+        self.below_marker.config(text=below or "")
+        self.above_marker.config(text=above or "")
+
     def _report_audio_error(self, error):
         """Hand an audio failure to the owner (it applies the reporting policy)."""
         if self.on_audio_error is not None:
@@ -397,12 +472,40 @@ class ChordIdentifierWindow(tk.Toplevel):
         # Let the click select the item first
         self.after(10, self.play_selected_chord)
 
+    def on_chord_shift_click(self, event):
+        """Shift+click on a chord: pick it and play it rolled."""
+        if str(self.results_listbox.cget("state")) == tk.DISABLED:
+            return "break"
+        index = self.results_listbox.nearest(event.y)
+        if index >= 0:
+            self.results_listbox.selection_clear(0, tk.END)
+            self.results_listbox.selection_set(index)
+            self.results_listbox.activate(index)
+            self.play_selected_chord(rolled=True)
+        return "break"
+
+    def _on_selection(self, selected_notes):
+        """Play is only for a selection."""
+        self.play_button.config(state=tk.NORMAL if selected_notes else tk.DISABLED)
+
+    def play_selection(self, rolled=False):
+        """Play the selected keys as they are (the Play button)."""
+        try:
+            self.viewmodel.play_selected_notes(duration=2.0, rolled=rolled)
+        except AudioInitializationError as e:
+            self._report_audio_error(e)
+
+    def _play_selection_rolled(self, event=None):
+        if str(self.play_button.cget("state")) != tk.DISABLED:
+            self.play_selection(rolled=True)
+        return "break"
+
     def on_chord_double_click(self, event=None):
         """Handle double-click on a chord in the list"""
         self.insert_selected_chord()
 
-    def play_selected_chord(self):
-        """Play the currently selected chord"""
+    def play_selected_chord(self, rolled=False):
+        """Play the currently selected chord (one note at a time when ``rolled``)"""
         selection = self.results_listbox.curselection()
         if not selection:
             return
@@ -417,7 +520,7 @@ class ChordIdentifierWindow(tk.Toplevel):
 
         # Delegate to ViewModel
         try:
-            self.viewmodel.play_chord(chord_name, duration=2.0)
+            self.viewmodel.play_chord(chord_name, duration=2.0, rolled=rolled)
         except AudioInitializationError as e:
             self._report_audio_error(e)
         except ChordNotepadError as e:
@@ -454,5 +557,7 @@ class ChordIdentifierWindow(tk.Toplevel):
         """Handle window close and clean up observers"""
         # Clean up observers to prevent memory leaks
         self.viewmodel.clear_observers()
+        if self._sounding_timer is not None:
+            self.after_cancel(self._sounding_timer)
         # Destroy the window
         self.destroy()

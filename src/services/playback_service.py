@@ -413,6 +413,32 @@ class PlaybackService:
         self._logger.debug(f"Playing note: {note_name}{octave} (MIDI {midi_note})")
         self._player.play_notes_immediate([midi_note])
 
+    def play_notes_rolled(self, midi_notes: List[int], gap: float) -> None:
+        """Play MIDI notes one after another, ``gap`` seconds apart, each held.
+
+        Scheduled on the synth's sequencer, so this returns at once; the next
+        click-to-hear stops a roll that's still going.
+
+        Args:
+            midi_notes: MIDI note numbers, in the order they sound
+            gap: Seconds between one note and the next
+
+        Raises:
+            AudioInitializationError: If the audio output can't be started.
+        """
+        self._require_audio()
+
+        if midi_notes:
+            self._logger.debug(f"Playing MIDI notes rolled: {midi_notes}")
+            self._player.play_notes_rolled(midi_notes, gap)
+        else:
+            self._logger.warning("No MIDI notes provided to play")
+
+    def stop_click_notes(self) -> None:
+        """Silence click-to-hear notes (a roll still going too), not a song."""
+        if self._player is not None:
+            self._player.stop_immediate_notes()
+
     def play_chord_from_midi(self, midi_notes: List[int], duration: float = 2.0) -> None:
         """Play a chord from MIDI note numbers.
 

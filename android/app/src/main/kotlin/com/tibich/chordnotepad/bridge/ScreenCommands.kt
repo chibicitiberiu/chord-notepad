@@ -15,6 +15,7 @@ object ScreenCommandNames {
     const val IDENTIFIER_CLEAR = "identifier_clear"
     const val PLAY_NOTE = "play_note"
     const val PLAY_IDENTIFIED_CHORD = "play_identified_chord"
+    const val IDENTIFIER_PLAY_SELECTION = "identifier_play_selection"
     const val INSERT_CHORD = "insert_chord"
     // settings and Quick Start
     const val APPLY_SETTINGS = "apply_settings"
@@ -39,7 +40,7 @@ object ScreenCommandNames {
     /** Every command these builders send (the contract test checks Python knows them all). */
     val ALL: Set<String> = setOf(
         IDENTIFIER_TOGGLE_NOTE, IDENTIFIER_SET_NOTES_TEXT, IDENTIFIER_CLEAR, PLAY_NOTE,
-        PLAY_IDENTIFIED_CHORD, INSERT_CHORD, APPLY_SETTINGS, SET_SHOW_QUICK_START_ON_STARTUP,
+        PLAY_IDENTIFIED_CHORD, IDENTIFIER_PLAY_SELECTION, INSERT_CHORD, APPLY_SETTINGS, SET_SHOW_QUICK_START_ON_STARTUP,
         REQUEST_QUICK_START, BEGIN_SETTINGS_EDIT, CANCEL_SETTINGS_EDIT, COMMIT_SETTINGS,
         DISCARD_SETTINGS_PROBLEMS,
         REQUEST_VOICING_EDITOR_SCHEMA, SELECT_VOICING, ADD_VOICING, REMOVE_VOICING,
@@ -79,8 +80,16 @@ class ScreenCommands(private val submitter: CommandSubmitter) {
         put("octave", octave)
     }
 
-    /** Sound a candidate chord. */
-    fun playIdentifiedChord(chord: String) = send(ScreenCommandNames.PLAY_IDENTIFIED_CHORD) { put("chord", chord) }
+    /** Sound a candidate chord; [rolled] plays its notes one at a time from the lowest. */
+    fun playIdentifiedChord(chord: String, rolled: Boolean = false) = send(ScreenCommandNames.PLAY_IDENTIFIED_CHORD) {
+        put("chord", chord)
+        put("rolled", rolled)
+    }
+
+    /** Play: sound the selected keys as they are ([rolled]: one at a time from the lowest). */
+    fun identifierPlaySelection(rolled: Boolean = false) = send(ScreenCommandNames.IDENTIFIER_PLAY_SELECTION) {
+        put("rolled", rolled)
+    }
 
     /** Insert [chord] and a space at code point [at]. */
     fun insertChord(at: Int, chord: String) = send(ScreenCommandNames.INSERT_CHORD) {

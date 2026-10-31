@@ -103,7 +103,11 @@ class ScreenBridgeTest {
         commands.playNote("A", 3)
         assertSent("play_note", """{"note":"A","octave":3}""")
         commands.playIdentifiedChord("Am")
-        assertSent("play_identified_chord", """{"chord":"Am"}""")
+        assertSent("play_identified_chord", """{"chord":"Am","rolled":false}""")
+        commands.playIdentifiedChord("Am", rolled = true)
+        assertSent("play_identified_chord", """{"chord":"Am","rolled":true}""")
+        commands.identifierPlaySelection(rolled = true)
+        assertSent("identifier_play_selection", """{"rolled":true}""")
         commands.insertChord(4, "Am")
         assertSent("insert_chord", """{"at":4,"chord":"Am"}""")
 

@@ -35,11 +35,43 @@ FLATS = "flats"
 SHARPS = "sharps"
 _NOTE_TOKEN = re.compile(r'([A-Ga-g][#b]?)(\d+)?')
 
+#: The identifier's piano, on the desktop and Android: C4 to B5.
+PIANO_LOWEST_MIDI = 60
+PIANO_HIGHEST_MIDI = 83
+
+#: How long the keys of a played candidate stay highlighted, in seconds.
+SOUNDING_SECONDS = 3.0
+
+#: Seconds between the notes of a rolled chord (lowest first), like a quick
+#: strum or a spread chord.
+ROLL_GAP_SECONDS = 0.06
+
 
 def note_to_midi(note_name: str, octave: int) -> int:
     """The MIDI number of a note (C4 = 60); an unknown name counts as C."""
     offset = NOTE_NAMES.index(note_name) if note_name in NOTE_NAMES else 0
     return (octave + 1) * 12 + offset
+
+
+def midi_name(midi: int) -> str:
+    """A MIDI number as a note name with its octave (48 -> ``C3``)."""
+    return f"{NOTE_NAMES[midi % 12]}{midi // 12 - 1}"
+
+
+def outside_piano(midi_notes: Iterable[int], lowest: int = PIANO_LOWEST_MIDI,
+                  highest: int = PIANO_HIGHEST_MIDI) -> Tuple[Optional[str], Optional[str]]:
+    """Markers for the sounding notes the piano doesn't draw.
+
+    Returns:
+        ``(below, above)``: ``"◂ C3"`` for the notes under the lowest key and
+        ``"D6 ▸"`` for those over the highest (several names, lowest
+        first, when more than one), or None for an end with none.
+    """
+    notes = sorted(set(midi_notes))
+    below = [midi_name(m) for m in notes if m < lowest]
+    above = [midi_name(m) for m in notes if m > highest]
+    return ("◂ " + " ".join(below) if below else None,
+            " ".join(above) + " ▸" if above else None)
 
 
 def bass_note(notes: Iterable[Tuple[str, int]]) -> Optional[str]:
@@ -284,6 +316,10 @@ class ChordIdentifierViewModel(Observable):
         # How the last typed notes were spelled (FLATS/SHARPS), so the answer
         # is spelled the same way; None after a key tap.
         self._spelling: Optional[str] = None
+        # The MIDI notes of the candidate played last, for the piano to
+        # highlight; a new token for each play restarts the views' timers.
+        self._sounding: Tuple[int, ...] = ()
+        self._sounding_token: int = 0
 
     @property
     def selected_notes(self) -> Set[Tuple[str, int]]:
@@ -311,6 +347,24 @@ class ChordIdentifierViewModel(Observable):
         """Get the current notation system."""
         return self._notation
 
+    @property
+    def sounding(self) -> Tuple[int, ...]:
+        """The MIDI notes :meth:`play_chord` sent to the synth last, lowest
+        first; empty once the selection changes. The views highlight them
+        for :data:`SOUNDING_SECONDS` (``observe("sounding", ...)``)."""
+        return self._sounding
+
+    @property
+    def sounding_token(self) -> int:
+        """Changes with every :meth:`play_chord`, so a view can restart its
+        timer when the same notes play again."""
+        return self._sounding_token
+
+    def _clear_sounding(self) -> None:
+        if self._sounding:
+            self._sounding = ()
+            self.notify("sounding", self._sounding)
+
     def toggle_note(self, note_name: str, octave: int) -> None:
         """Toggle a note selection on/off.
 
@@ -328,6 +382,7 @@ class ChordIdentifierViewModel(Observable):
             self._selected_notes.add(note_tuple)
             logger.debug(f"Selected note: {note_name}{octave}")
 
+        self._clear_sounding()
         self.notify("selected_notes", self._selected_notes.copy())
 
         # Re-identify chords with new selection
@@ -344,6 +399,7 @@ class ChordIdentifierViewModel(Observable):
         """
         self._spelling = spelling
         self._selected_notes = set(notes)
+        self._clear_sounding()
         self.notify("selected_notes", self._selected_notes.copy())
         self._identify_chords()
 
@@ -355,6 +411,9 @@ class ChordIdentifierViewModel(Observable):
         self._identified_chords.clear()
         self._candidates = []
         self._info_lines = [SELECT_NOTES_PROMPT]
+        if self._sounding and self._audio_service is not None:
+            self._audio_service.stop_click_notes()  # a roll still going stops
+        self._clear_sounding()
         self.notify("selected_notes", self._selected_notes.copy())
         self.notify("identified_chords", self._identified_chords.copy())
 
@@ -564,6 +623,26 @@ class ChordIdentifierViewModel(Observable):
             logger.error(f"Error converting chord to MIDI: {e}", exc_info=True)
             return []
 
+    def chord_midi_for_piano(self, chord_name: str) -> List[int]:
+        """The MIDI notes a candidate plays, placed on the identifier's piano.
+
+        A chord whose lowest note is the selected bass starts on that key
+        (E4 G#4 B4 C5 plays Eaddb6 from E4); any other starts in octave 4.
+        Notes can still fall outside the piano (:func:`outside_piano`).
+
+        Returns:
+            MIDI note numbers, lowest first, or an empty list if the chord
+            isn't recognized.
+        """
+        midi_notes = self.get_chord_midi_notes(chord_name, base_octave=4)
+        if not midi_notes or not self._selected_notes:
+            return sorted(midi_notes)
+        lowest = min(note_to_midi(name, octave) for name, octave in self._selected_notes)
+        if min(midi_notes) % 12 == lowest % 12:
+            shift = 12 * (lowest // 12 - 5)  # from octave 4 to the bass's octave
+            midi_notes = [m + shift for m in midi_notes if 0 <= m + shift <= 127]
+        return sorted(midi_notes)
+
     def normalize_note_name(self, note_name: str) -> str:
         """Normalize a note name (convert flats to sharps, capitalize).
 
@@ -593,12 +672,14 @@ class ChordIdentifierViewModel(Observable):
         self._audio_service.play_note(note_name, octave, duration)
         logger.debug(f"Playing note: {note_name}{octave}")
 
-    def play_chord(self, chord_name: str, duration: float = 2.0) -> None:
-        """Play a chord by name.
+    def play_chord(self, chord_name: str, duration: float = 2.0, rolled: bool = False) -> None:
+        """Play a chord by name, on the piano's keys (:meth:`chord_midi_for_piano`).
 
         Args:
             chord_name: Chord name (e.g., "C", "Am7", "D/F#")
             duration: Duration in seconds
+            rolled: Play the notes one at a time from the lowest up,
+                :data:`ROLL_GAP_SECONDS` apart, each held
 
         Raises:
             ChordDetectionError: If the chord's notes can't be worked out.
@@ -608,21 +689,24 @@ class ChordIdentifierViewModel(Observable):
             logger.warning("Cannot play chord: AudioService not available")
             return
 
-        # Get MIDI notes for the chord
-        midi_notes = self.get_chord_midi_notes(chord_name)
+        # Get MIDI notes for the chord, on the piano's keys
+        midi_notes = self.chord_midi_for_piano(chord_name)
         if not midi_notes:
             logger.warning(f"Cannot play chord: No MIDI notes for '{chord_name}'")
             raise ChordDetectionError(f"Could not work out the notes of {chord_name}.")
 
-        # Play the chord
-        self._audio_service.play_chord_from_midi(midi_notes, duration)
+        self._sound(midi_notes, duration, rolled)
         logger.debug(f"Playing chord: {chord_name}")
 
-    def play_selected_notes(self, duration: float = 2.0) -> None:
-        """Play all currently selected notes as a chord.
+    def play_selected_notes(self, duration: float = 2.0, rolled: bool = False) -> None:
+        """Play the selected keys, in their octaves (the Play button).
+
+        Nothing happens with no notes selected.
 
         Args:
             duration: Duration in seconds
+            rolled: Play them one at a time from the lowest up (see
+                :meth:`play_chord`)
 
         Raises:
             AudioInitializationError: If the audio output can't be started.
@@ -635,8 +719,17 @@ class ChordIdentifierViewModel(Observable):
             logger.warning("No notes selected to play")
             return
 
-        midi_notes = [note_to_midi(name, octave) for name, octave in self._selected_notes]
-
-        # Play as chord
-        self._audio_service.play_chord_from_midi(midi_notes, duration)
+        midi_notes = sorted(note_to_midi(name, octave) for name, octave in self._selected_notes)
+        self._sound(midi_notes, duration, rolled)
         logger.debug(f"Playing selected notes: {self._selected_notes}")
+
+    def _sound(self, midi_notes: List[int], duration: float, rolled: bool) -> None:
+        """Send ``midi_notes`` (lowest first) to the synth, then publish them
+        as :attr:`sounding`, so the piano highlights exactly what was sent."""
+        if rolled:
+            self._audio_service.play_notes_rolled(midi_notes, ROLL_GAP_SECONDS)
+        else:
+            self._audio_service.play_chord_from_midi(midi_notes, duration)
+        self._sounding = tuple(midi_notes)
+        self._sounding_token += 1
+        self.notify("sounding", self._sounding)

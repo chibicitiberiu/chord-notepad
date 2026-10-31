@@ -45,6 +45,9 @@
     "dismiss_startup_screen": {},
     "export_midi": {},
     "identifier_clear": {},
+    "identifier_play_selection": {
+      "rolled": "bool"
+    },
     "identifier_set_notes_text": {
       "text": "str"
     },
@@ -74,7 +77,8 @@
     },
     "pause": {},
     "play_identified_chord": {
-      "chord": "str"
+      "chord": "str",
+      "rolled": "bool"
     },
     "play_note": {
       "note": "str",
@@ -223,6 +227,7 @@
     "dismiss_startup_screen",
     "export_midi",
     "identifier_clear",
+    "identifier_play_selection",
     "identifier_set_notes_text",
     "identifier_toggle_note",
     "insert_chord",
@@ -442,6 +447,11 @@
         "message": "str|null",
         "notes": "list[IdentifierNote]",
         "notes_text": "str",
+        "sounding": "list[int]",
+        "sounding_above": "str|null",
+        "sounding_below": "str|null",
+        "sounding_seconds": "float",
+        "sounding_token": "int",
         "typed_text_error": "str|null"
       },
       "kind": "state"

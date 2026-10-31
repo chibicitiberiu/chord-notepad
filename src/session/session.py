@@ -1032,17 +1032,42 @@ class AppSession:
         self._play_identifier_note(name, octave)
 
     @_command
-    def play_identified_chord(self, chord: str) -> None:
+    def play_identified_chord(self, chord: str, rolled: bool = False) -> None:
         """Sound a chord by name (a candidate the user tapped).
 
         A chord whose notes can't be worked out is a :class:`UserError`.
+        The notes that sound are published as ``IdentifierState.sounding``.
+
+        Args:
+            chord: The candidate.
+            rolled: One note at a time from the lowest up (a long press).
         """
         try:
-            self._identifier().play_chord(str(chord), duration=2.0)
+            self._identifier().play_chord(str(chord), duration=2.0, rolled=bool(rolled))
         except AudioInitializationError as e:
             self._report_audio_failure(str(e), from_click=True)
         except ChordNotepadError as e:
             self._emitter.emit(UserError(formatting.IDENTIFIER_TITLE, str(e)))
+        else:
+            self._publish_identifier()
+
+    @_command
+    def identifier_play_selection(self, rolled: bool = False) -> None:
+        """Sound the selected keys in their octaves (the Play button);
+        nothing with no keys selected. Published like a candidate.
+
+        Args:
+            rolled: One note at a time from the lowest up (a long press).
+        """
+        model = self._identifier()
+        if not model.selected_notes:
+            return
+        try:
+            model.play_selected_notes(duration=2.0, rolled=bool(rolled))
+        except AudioInitializationError as e:
+            self._report_audio_failure(str(e), from_click=True)
+        else:
+            self._publish_identifier()
 
     # -- toolbar ----------------------------------------------------------------
 
@@ -1913,9 +1938,12 @@ class AppSession:
             self._report_audio_failure(str(e), from_click=True)
 
     def _publish_identifier(self) -> None:
-        from viewmodels.chord_identifier_viewmodel import note_to_midi
+        from viewmodels.chord_identifier_viewmodel import (
+            SOUNDING_SECONDS, note_to_midi, outside_piano,
+        )
 
         model = self._identifier()
+        below, above = outside_piano(model.sounding)
         notes = sorted(
             (IdentifierNote(name, octave, note_to_midi(name, octave))
              for name, octave in model.selected_notes),
@@ -1931,6 +1959,11 @@ class AppSession:
             typed_text_error=self._identifier_error,
             candidates=tuple(model.candidates),
             message="\n".join(info) if info else None,
+            sounding=tuple(model.sounding),
+            sounding_token=model.sounding_token,
+            sounding_seconds=SOUNDING_SECONDS,
+            sounding_below=below,
+            sounding_above=above,
         ))
 
     def _commit_settings(self, values: SettingsValues) -> "SettingsChanges":

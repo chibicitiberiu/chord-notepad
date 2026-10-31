@@ -16,6 +16,23 @@ data class PianoKey(
 )
 
 /**
+ * How a key is drawn. Selected keys are blue; the keys of what played last
+ * are amber, and a key that is both stays blue with an amber dot.
+ */
+enum class KeyLook {
+    PLAIN, SELECTED, SOUNDING, SELECTED_AND_SOUNDING;
+
+    companion object {
+        fun of(selected: Boolean, sounding: Boolean): KeyLook = when {
+            selected && sounding -> SELECTED_AND_SOUNDING
+            selected -> SELECTED
+            sounding -> SOUNDING
+            else -> PLAIN
+        }
+    }
+}
+
+/**
  * The desktop identifier's keyboard (`ui/chord_identifier.py`, `PianoRoll`):
  * [octaves] octaves from C of [baseOctave], seven white keys each, the black
  * keys two thirds as wide and two thirds as tall as a white key, their left

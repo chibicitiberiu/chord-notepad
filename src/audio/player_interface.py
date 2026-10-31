@@ -16,6 +16,21 @@ class IPlayer(ABC):
         """
         pass
 
+    def play_notes_rolled(self, midi_notes: List[int], gap: float) -> None:
+        """Play notes one after another, ``gap`` seconds apart, each held
+        (a rolled chord, for click-to-play). Without a way to schedule the
+        later notes, plays them together.
+
+        Args:
+            midi_notes: MIDI note numbers, in the order they sound
+            gap: Seconds between one note and the next
+        """
+        self.play_notes_immediate(midi_notes)
+
+    def stop_immediate_notes(self) -> None:
+        """Silence the click-to-play notes, and the rest of a roll still
+        going; a playing song is left alone. Nothing by default."""
+
     @abstractmethod
     def start_playback(self) -> None:
         """Start playback."""

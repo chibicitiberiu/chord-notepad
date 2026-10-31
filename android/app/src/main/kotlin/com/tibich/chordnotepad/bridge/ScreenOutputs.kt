@@ -17,7 +17,10 @@ data class IdentifierNote(val name: String, val octave: Int, val midi: Int)
 /**
  * The chord identifier. [notesText] is what the typed-notes field shows after
  * a key toggle (don't overwrite the field while the user types there);
- * [message] replaces the candidate list when there are none.
+ * [message] replaces the candidate list when there are none. [sounding] are
+ * the MIDI notes played last (a candidate or Play), to highlight for
+ * [soundingSeconds]; a new [soundingToken] restarts that timer, and
+ * [soundingBelow]/[soundingAbove] mark notes off either end of the piano.
  */
 @Serializable
 data class IdentifierState(
@@ -26,6 +29,11 @@ data class IdentifierState(
     @SerialName("typed_text_error") val typedTextError: String? = null,
     val candidates: List<String>,
     val message: String? = null,
+    val sounding: List<Int> = emptyList(),
+    @SerialName("sounding_token") val soundingToken: Int = 0,
+    @SerialName("sounding_seconds") val soundingSeconds: Double = 3.0,
+    @SerialName("sounding_below") val soundingBelow: String? = null,
+    @SerialName("sounding_above") val soundingAbove: String? = null,
 ) : SessionState
 
 /** The settings Android shows (General and Playback); `commit_settings`/`apply_settings` take it back. */

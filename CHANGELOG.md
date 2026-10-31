@@ -56,6 +56,11 @@ moved to CHANGELOG_HISTORY.md and this file is reset.
   `Am7/C`. Songs can now use sharp and flat added notes too, written after
   `add` (`Eaddb6`, `Eaddb13`, `Cadd#11`, `Cmaddb9`, or in brackets like
   `E(addb6)`), in American and European notation and with roman numerals.
+- Desktop: in the Chord Identifier, the keys a chord actually sounds light
+  up in amber for a few seconds when you click it, and a note off either end
+  of the piano is named beside it. A new **Play** button plays the selected
+  keys as they are. Shift+click a chord, or Shift+click or right-click Play,
+  to hear the notes rolled, one at a time from the lowest.
 
 ### Fixed
 
