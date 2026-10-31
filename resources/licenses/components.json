@@ -53,7 +53,7 @@
       "id": "pyinstaller",
       "name": "PyInstaller bootloader",
       "group": "runtime",
-      "version": "6.20.0",
+      "version": "6.22.3",
       "pypi": "pyinstaller",
       "license": "GPL-2.0-or-later WITH Bootloader-exception AND Apache-2.0",
       "copyright": "2010-2023 PyInstaller Development Team",
