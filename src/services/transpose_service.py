@@ -24,8 +24,26 @@ What does NOT transpose
 
 Enharmonic policy
 -----------------
-Results are spelled with the conventional mixed transposer table. The default
-spelling for each pitch class (used when the source root had no accidental) is::
+Each moved root and slash bass is spelled by its scale degree in the key the
+chord lands in (:mod:`services.key_spelling`), so a song moved into B gets
+``F# C# G#m``, not ``Gb Db Abm``. The key at a chord is:
+
+* the last valid ``{key: ...}`` before it, moved with the song (as
+  :func:`transpose_key` rewrites it), whether or not the directive is in the
+  transposed region;
+* before the first one, the key detected from the chords before it, when the
+  detection is sure (:func:`services.key_spelling.detected_target`);
+* otherwise none. The toolbar / Settings key is never used.
+
+Major keys use the key's letters, lowered 2, 3, 6, 7 and raised 4; minor keys
+lowered 2 and raised 3, 4, 6, 7. A diminished chord whose next chord's root or
+bass is a semitone above it takes a sharp (``D#dim7 Em7`` in D, not
+``Ebdim7``). A degree spelling of E#/B#/Cb/Fb or a double accidental is
+refused and the plain table below spells that note instead.
+
+Without a key (and for callers of :func:`transpose_chord_token` that pass
+none) the plain table applies. The default spelling for each pitch class (used
+when the source root had no accidental) is::
 
     0=C  1=C#  2=D  3=Eb  4=E  5=F  6=F#  7=G  8=Ab  9=A  10=Bb  11=B
 
@@ -38,10 +56,12 @@ never emits double accidentals nor E#/Cb/Fb/B#.
 Examples: ``C#`` +2 -> ``D#`` (style kept), ``Db`` +2 -> ``Eb``, ``Bb`` +1 ->
 ``B``, ``F#`` +1 -> ``G``, ``C`` +1 -> ``C#`` (default).
 
-*Keys* get one extra rule on top of this: the result must name a real key
-signature, so style preservation is overridden where it would produce D#/G#/A#
-major or Dbm/Gbm minor (see :func:`transpose_key`). Chord roots are exempt --
-a D# chord is unremarkable; D# major as a key is not.
+*Keys* (``{key}`` directives and the toolbar key) are named by
+:func:`services.key_spelling.key_tonic`: the signature with fewer accidentals
+(``C`` +1 -> ``Db``, ``Am`` -1 -> ``G#m``), the source's style breaking a tie
+(``F#``/``Gb``, ``D#m``/``Ebm``). A key with no real signature (D#/G#/A# major,
+Dbm/Gbm minor) is never written; a D# chord is unremarkable, D# major as a
+key is not.
 
 Chord-line / lyric-line alignment
 ---------------------------------
@@ -64,21 +84,19 @@ still sit above the same lyric character it did before.
 
 import re
 import unicodedata
-from typing import List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union
 
 from models.notation import Notation
 from models.line import LineType
 from models.directive import DirectiveType
+from services.key_spelling import (
+    Key, detected_target, key_tonic, leads_up, plain_spelling, spell_in_key)
 from services.song_parser_service import SongParserService
 
 
 # --- pitch-class tables -----------------------------------------------------
 
 _NATURAL_PC = {'C': 0, 'D': 2, 'E': 4, 'F': 5, 'G': 7, 'A': 9, 'B': 11}
-_PC_NATURAL = {0: 'C', 2: 'D', 4: 'E', 5: 'F', 7: 'G', 9: 'A', 11: 'B'}
-_SHARP_SPELL = {1: 'C#', 3: 'D#', 6: 'F#', 8: 'G#', 10: 'A#'}
-_FLAT_SPELL = {1: 'Db', 3: 'Eb', 6: 'Gb', 8: 'Ab', 10: 'Bb'}
-_DEFAULT_BLACK = {1: 'C#', 3: 'Eb', 6: 'F#', 8: 'Ab', 10: 'Bb'}
 
 _AMERICAN_TO_EUROPEAN = {'C': 'Do', 'D': 'Re', 'E': 'Mi', 'F': 'Fa',
                          'G': 'Sol', 'A': 'La', 'B': 'Si'}
@@ -148,17 +166,24 @@ def _parse_root(token: str, notation: str) -> Optional[Tuple[int, Optional[str],
     return (pc, _acc_style(acc), is_lower, consumed)
 
 
-def _spell(pc: int, style: Optional[str], notation: str, is_lower: bool) -> str:
-    """Spell a pitch class back into a root note in the given notation."""
-    if pc in _PC_NATURAL:
-        american = _PC_NATURAL[pc]
-    elif style == 'sharp':
-        american = _SHARP_SPELL[pc]
-    elif style == 'flat':
-        american = _FLAT_SPELL[pc]
-    else:
-        american = _DEFAULT_BLACK[pc]
+def _spell(pc: int, style: Optional[str], notation: str, is_lower: bool,
+           key: Optional[Key] = None, leading: bool = False) -> str:
+    """Spell a pitch class back into a root note in the given notation.
 
+    With a ``key`` the note is spelled by its degree in that key
+    (:func:`services.key_spelling.spell_in_key`; ``leading`` raises a flat
+    for a diminished chord leading up); without one, or when the degree
+    spelling is refused, by the plain table and the source's ``style``
+    (:func:`services.key_spelling.plain_spelling`).
+    """
+    american = spell_in_key(pc, key, leading) if key is not None else None
+    if american is None:
+        american = plain_spelling(pc, style)
+    return _in_notation(american, notation, is_lower)
+
+
+def _in_notation(american: str, notation: str, is_lower: bool) -> str:
+    """An American note name (``F#``) in ``notation`` and case."""
     letter, acc = american[0], american[1:]
     if notation == 'european':
         spelled = _AMERICAN_TO_EUROPEAN[letter] + acc
@@ -167,72 +192,83 @@ def _spell(pc: int, style: Optional[str], notation: str, is_lower: bool) -> str:
     return spelled.lower() if is_lower else spelled
 
 
-def _transpose_note(token: str, semitones: int, notation: str) -> str:
+def _transpose_note(token: str, semitones: int, notation: str, key: Optional[Key] = None) -> str:
     """Transpose a bare note token (root + accidental, e.g. a slash bass)."""
     parsed = _parse_root(token, notation)
     if parsed is None:
         return token
     pc, style, is_lower, consumed = parsed
-    new_root = _spell((pc + semitones) % 12, style, notation, is_lower)
+    new_root = _spell((pc + semitones) % 12, style, notation, is_lower, key)
     return new_root + token[consumed:]
 
 
-def transpose_chord_token(chord_part: str, semitones: int, notation: Union[Notation, str]) -> str:
+def transpose_chord_token(chord_part: str, semitones: int, notation: Union[Notation, str],
+                          key: Optional[Key] = None, next_chord: Optional[str] = None) -> str:
     """Transpose a single chord string (root + optional slash bass).
 
     Quality/extensions/parentheses are preserved verbatim; the root and any
     slash-bass note shift. This is the per-token transform that could feed
     :py:meth:`SongParserService.rewrite_chord_spans`.
+
+    Args:
+        chord_part: The chord, without any ``*duration``.
+        semitones: Number of semitones to shift (positive = up).
+        notation: The chord's notation.
+        key: The key the chord lands in (American); its root and bass are then
+            spelled by degree. None spells them by the plain table.
+        next_chord: The chord after this one, as written. A diminished chord
+            whose next chord's root or bass is a semitone above it is spelled
+            with a sharp (``D#dim7 Em7``, not ``Ebdim7``). Used only with
+            ``key``.
     """
     notation = _notation_str(notation)
     parsed = _parse_root(chord_part, notation)
     if parsed is None:
         return chord_part
     pc, style, is_lower, consumed = parsed
-    new_root = _spell((pc + semitones) % 12, style, notation, is_lower)
+    leading = key is not None and leads_up(chord_part, next_chord)
+    new_root = _spell((pc + semitones) % 12, style, notation, is_lower, key, leading)
     rest = chord_part[consumed:]
     if '/' in rest:
         pre, bass = rest.split('/', 1)
-        return new_root + pre + '/' + _transpose_note(bass, semitones, notation)
+        return new_root + pre + '/' + _transpose_note(bass, semitones, notation, key)
     return new_root + rest
 
 
-#: Pitch classes whose style-preserved spelling would name a key with no real
-#: signature, per mode. D#/G#/A# major and Dbm/Gbm minor would need 8+
-#: accidentals (double-flat/-sharp territory); their enharmonic twins are the
-#: keys that actually exist, so the style preference is overridden for them.
-_NO_SUCH_MAJOR_SHARP = {3, 8, 10}   # D#, G#, A#  -> Eb, Ab, Bb
-_NO_SUCH_MINOR_FLAT = {1, 6}        # Dbm, Gbm    -> C#m, F#m
+def _moved_key(key_str: str, semitones: int, notation: str):
+    """Read a key name and move it: ``(Key, is_lower, rest)`` with the moved
+    key in American spelling and ``rest`` whatever followed the root, or None
+    when ``key_str`` doesn't start with a note."""
+    minor = key_str.endswith('m')
+    root_str = key_str[:-1] if minor else key_str
+    parsed = _parse_root(root_str, notation)
+    if parsed is None:
+        return None
+    pc, style, is_lower, consumed = parsed
+    tonic = key_tonic((pc + semitones) % 12, minor, style)
+    return Key(tonic, minor), is_lower, root_str[consumed:]
 
 
 def transpose_key(key_str: str, semitones: int, notation: Union[Notation, str]) -> str:
     """Transpose a key name (e.g. 'C', 'Am', 'Do', 'Lam'), preserving form.
 
-    A trailing 'm' marks a minor key and is kept; the root is respelled with
-    the same enharmonic policy as chords, with one extra rule: the result must
-    name a real key signature. A chord can be spelled D# or Gbm freely, but as
-    *keys* those don't exist (their signatures would need more than seven
-    accidentals), so the source's accidental style is overridden where it
-    would produce one: sharp-style majors landing on D#/G#/A# come out Eb/Ab/
-    Bb, and flat-style minors landing on Dbm/Gbm come out C#m/F#m.
+    A trailing 'm' marks a minor key and is kept. The new tonic is named by
+    :func:`services.key_spelling.key_tonic`: the key with fewer accidentals
+    (C up one is ``Db``, not ``C#``; Am down one is ``G#m``, not ``Abm``),
+    the source's accidental style breaking a tie (``F#``/``Gb``,
+    ``D#m``/``Ebm``). A key with no real signature is never written: a chord
+    can be spelled D# or Gbm freely, but as *keys* those would need more
+    than seven accidentals.
     """
     notation = _notation_str(notation)
     key_str = key_str.strip()
     if not key_str:
         return key_str
-    minor = key_str.endswith('m')
-    root_str = key_str[:-1] if minor else key_str
-    parsed = _parse_root(root_str, notation)
-    if parsed is None:
+    moved = _moved_key(key_str, semitones, notation)
+    if moved is None:
         return key_str
-    pc, style, is_lower, consumed = parsed
-    new_pc = (pc + semitones) % 12
-    if minor and style == 'flat' and new_pc in _NO_SUCH_MINOR_FLAT:
-        style = 'sharp'
-    elif not minor and style == 'sharp' and new_pc in _NO_SUCH_MAJOR_SHARP:
-        style = 'flat'
-    new_root = _spell(new_pc, style, notation, is_lower)
-    return new_root + root_str[consumed:] + ('m' if minor else '')
+    key, is_lower, rest = moved
+    return _in_notation(key.tonic, notation, is_lower) + rest + ('m' if key.minor else '')
 
 
 def _transpose_key_directive(directive_text: str, semitones: int, notation: str) -> str:
@@ -302,6 +338,61 @@ class _Anchor:
         self.old_text = old_text
 
 
+def _transposable(chord) -> bool:
+    return chord.is_valid and not chord.is_relative and not chord.is_rest
+
+
+def _directive_key(value: str, semitones: int, notation: str) -> Optional[Key]:
+    """The key a ``{key: value}`` directive names after the transpose, as
+    :func:`transpose_key` writes it; None when transpose can't read it (it
+    then leaves the directive as it is)."""
+    moved = _moved_key(value.strip(), semitones, notation)
+    if moved is None or moved[2]:
+        return None
+    return moved[0]
+
+
+def _spelling_plan(lines_model, semitones: int, notation: str
+                   ) -> Dict[int, Tuple[Optional[Key], Optional[str]]]:
+    """For each chord transpose can move, by its start offset: the key it
+    lands in (None: spell by the plain table) and the chord after it.
+
+    A chord's key is the last ``{key: ...}`` before it, moved with the song.
+    Chords before the first one are in the key detected from them, when the
+    detection is sure (:func:`services.key_spelling.detected_target`).
+    """
+    events = []
+    for model in lines_model:
+        for chord in model.chords:
+            if _transposable(chord):
+                events.append((chord.start, None, chord))
+        for directive in model.directives:
+            if directive.type == DirectiveType.KEY and directive.is_valid and directive.key:
+                key = _directive_key(directive.key, semitones, notation)
+                if key is not None:
+                    events.append((directive.start, key, None))
+    events.sort(key=lambda e: e[0])
+
+    chords = [chord for _, _, chord in events if chord is not None]
+    next_of = {chord.start: after.chord for chord, after in zip(chords, chords[1:])}
+    plan: Dict[int, Tuple[Optional[Key], Optional[str]]] = {}
+    head = []          # the chords before the first {key}
+    key = None
+    for _, directive_key, chord in events:
+        if directive_key is not None:
+            key = directive_key
+        elif key is None:
+            head.append(chord)
+        else:
+            plan[chord.start] = (key, next_of.get(chord.start))
+    if head:
+        pairs = [(chord.chord, next_of.get(chord.start)) for chord in head]
+        detected = detected_target(pairs, semitones)
+        for chord, (_, next_chord) in zip(head, pairs):
+            plan[chord.start] = (detected, next_chord)
+    return plan
+
+
 def transpose_text(
     text: str,
     semitones: int,
@@ -326,6 +417,9 @@ def transpose_text(
     notation = _notation_str(notation)
     parser = SongParserService()
     lines_model = parser.detect_chords_in_text(text, notation)
+    # Keys come from the whole song even for a region: a selection is still
+    # in the key of the song around it.
+    plan = _spelling_plan(lines_model, semitones, notation)
 
     text_lines = text.split('\n')
     n = len(text)
@@ -370,10 +464,11 @@ def transpose_text(
         for chord in model.chords:
             rs, re_ = chord.start - base, chord.end - base
             old = raw[rs:re_]
-            if (chord.is_valid and not chord.is_relative and not chord.is_rest
-                    and _intersects(chord.start, chord.end)):
+            if _transposable(chord) and _intersects(chord.start, chord.end):
                 trailing = old[len(chord.chord):]
-                new = transpose_chord_token(chord.chord, semitones, notation) + trailing
+                key, next_chord = plan.get(chord.start, (None, None))
+                new = transpose_chord_token(chord.chord, semitones, notation,
+                                            key, next_chord) + trailing
             else:
                 new = old
             anchors.append(_Anchor(rs, re_, new, old))

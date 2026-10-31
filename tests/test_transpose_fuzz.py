@@ -14,7 +14,7 @@ from hypothesis import assume, given, settings, strategies as st
 
 from chord.detector import ChordDetector
 from services.transpose_service import transpose_text
-from tests.test_transpose_exhaustive import notes_of
+from tests.test_transpose_exhaustive import bad_spellings, notes_of
 
 _LETTERS = 'CDEFGAB'
 _EUROPEAN = {'C': 'Do', 'D': 'Re', 'E': 'Mi', 'F': 'Fa', 'G': 'Sol', 'A': 'La', 'B': 'Si'}
@@ -138,6 +138,10 @@ def test_a_random_song_transposes_every_chord_and_nothing_else(data, notation, s
     for old, new in zip(before, after):
         assert notes_of(new.chord, notation) == moved(old.chord, shift, notation), (
             f"{old.chord} {shift:+d} -> {new.chord} in {text!r}")
+
+    # Spelled by a {key}, a detected key or the plain table, a moved chord is
+    # never E#, B#, Cb, Fb or a double accidental.
+    assert not bad_spellings(text, notation), f"{song!r} {shift:+d} -> {text!r}"
 
     # Roman numerals, NC, comments, lyrics and other directives are as they
     # were (spacing aside: a longer chord may push a lyric along with "-").

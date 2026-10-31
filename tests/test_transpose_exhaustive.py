@@ -6,7 +6,11 @@ Reported on Android: ``A b c c c`` down a tone gave ``G a bb bb bb``, and
 lowercase flat minors (``bb``, ``eb``, ``sib``) weren't valid chords. Each
 test below runs one source token through ``transpose_text`` for all 23
 shifts and checks the result the way the editor and playback read it.
+The last one spells a line of chords under every ``{key}`` and checks no
+awkward name (E#, B#, Cb, Fb, double accidentals) comes out.
 """
+
+import re
 
 import pytest
 
@@ -127,3 +131,64 @@ def test_the_reported_song():
     # Back up, each shorter chord keeps its column (padded with a space).
     assert transpose_text("G a bb bb bb\n", 2, "american").split() == "A b c c c".split()
     assert transpose_text("La si do do do\n", -2, "european") == "Sol la sib sib sib\n"
+
+
+_SYLLABLES = {'do': 'C', 're': 'D', 'mi': 'E', 'fa': 'F', 'sol': 'G', 'la': 'A', 'si': 'B'}
+_NOTE = {'american': re.compile(r'([A-Ga-g])([#b♯♭]*)'),
+         'european': re.compile(r'(sol|do|re|mi|fa|la|si)([#b♯♭]*)', re.IGNORECASE)}
+BANNED = {'E#', 'B#', 'Cb', 'Fb'}
+
+
+def spelled_notes(chord, notation):
+    """The root and slash bass of ``chord`` as written, in American spelling
+    (``Sol#m/Si`` -> ``['G#', 'B']``)."""
+    names = []
+    for part in [chord] + chord.split('/')[1:]:
+        m = _NOTE[notation].match(part)
+        if m is None:   # C6/9
+            continue
+        letter = _SYLLABLES[m.group(1).lower()] if notation == 'european' else m.group(1).upper()
+        names.append(letter + m.group(2).replace('♯', '#').replace('♭', 'b'))
+    return names
+
+
+def bad_spellings(text, notation):
+    """The transposed chords in ``text`` whose root or bass is E#, B#, Cb, Fb
+    or has a double accidental."""
+    bad = []
+    for chord in ChordDetector(notation=notation).detect_chords_in_text(text):
+        if chord.is_valid and not chord.is_relative and not chord.is_rest:
+            if any(n in BANNED or len(n) > 2 for n in spelled_notes(chord.chord, notation)):
+                bad.append(chord.chord)
+    return bad
+
+
+#: A line with a chord on every pitch class (and slash basses, diminished
+#: chords leading up a semitone), as written in a sharp and a flat song.
+KEYED_LINES = [
+    'C C#m Dm D#dim7 Em F F#m7b5 G G#dim Am Bb Bdim7 C/E F/A G/B Am/G D/F# E7/G#',
+    'C Dbm Dm Ebdim7 E Fm Gb Gm Abdim A Bbm B Ab/C Db/F Eb/G Bb/D Bdim7 C',
+]
+
+
+@pytest.mark.parametrize("notation, keys", [("american", AMERICAN_KEYS), ("european", EUROPEAN_KEYS)])
+def test_keyed_spelling_never_writes_awkward_names(notation, keys):
+    """Spelled by a {key} (every key, both modes), every shift: no E#, B#,
+    Cb, Fb or double accidental, and every chord keeps its notes."""
+    problems = []
+    for line in KEYED_LINES:
+        line = ' '.join('/'.join(spell(part, notation, False) for part in chord.split('/'))
+                        for chord in line.split())
+        before = [notes_of(c, notation) for c in line.split()]
+        for key in keys:
+            for mode in ('', 'm'):
+                for shift in SHIFTS:
+                    text = transpose_text(f"{{key: {key}{mode}}}\n{line}\n", shift, notation)
+                    bad = bad_spellings(text, notation)
+                    if bad:
+                        problems.append(f"{key}{mode} {shift:+d}: {bad}")
+                    after = text.split('\n')[1].split()
+                    if [notes_of(c, notation) for c in after] != [
+                            sorted((pc + shift) % 12 for pc in notes) for notes in before]:
+                        problems.append(f"{key}{mode} {shift:+d}: notes changed in {after}")
+    assert not problems, "\n".join(problems[:20])

@@ -162,6 +162,13 @@ moved to CHANGELOG_HISTORY.md and this file is reset.
   `Do Mi Sol`, `Lam7`, `Domaj7/Mi`, and an inserted chord goes in that way.
   Typed notes can be in either notation (`Do Mi Sol` or `C E G`). On the
   desktop, switching AB / Do while it's open renames everything at once.
+- Transpose spells chords for the key they land in: a song moved into B now
+  gets `F#`, `C#` and `G#m` instead of `Gb`, `Db` and `Abm`, and one moved
+  into Db gets `Gb` and `Ab7`. The key comes from the song's `{key}`, or
+  from its chords when there is none. A diminished chord leading up a
+  semitone gets a sharp (`D#dim7 Em7`). Transposed keys take the spelling
+  with fewer sharps or flats, so C up a semitone is `Db` and Am down one is
+  `G#m`, in the `{key}` and the toolbar key alike.
 - Suggest Capo replaces a `{capo}` that comes before the first chord instead
   of adding a second one, and on a selection it changes only that part.
 - The Windows, macOS and Linux downloads are smaller: they no longer bundle
