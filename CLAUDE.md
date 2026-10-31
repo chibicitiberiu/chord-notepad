@@ -99,6 +99,14 @@ compiles, fills the buffer, then starts the player.
   highlighting/tag styles). Its border, scrollbar and surrounding chrome are
   fair game for UI polish. (Tibi, 2026-10-26)
 
+### Docs and planning (Tibi, 2026-10-31)
+- The repo only holds docs that are relevant and up to date. Delete finished plans,
+  research notes and stale docs (git history keeps them); fix or remove docs that
+  drift from the code.
+- Planning is one prioritised backlog file, no milestones or phase plans.
+- Reviews, audits and research reports stay out of the repo
+  (/mnt/data_linux/Bin/chord-notepad-reviews/).
+
 ### Android port (in progress, see docs/ANDROID_PORT_PLAN.md)
 - Logic lives in the shared Python core. Views (Tk and the Kotlin/Compose UI)
   stay thin: cross-viewmodel wiring and app flows belong in `src/session/`

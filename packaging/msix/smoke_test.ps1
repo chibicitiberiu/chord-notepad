@@ -80,6 +80,35 @@ if (-not $log) {
         Get-ChildItem $realLogs | ForEach-Object { Get-Content $_.FullName -Tail 50 }
     }
     Get-Process | Where-Object { $_.ProcessName -like '*ChordNotepad*' } | Format-Table Id, ProcessName, StartTime
+
+    # A windowed build that fails before logging starts shows its error in a
+    # dialog ("Unhandled exception in script"); print every text in the app's
+    # windows, and what the package data folder does contain.
+    Write-Host '----- package data -----'
+    Get-ChildItem -Path $packageData -Recurse -File -ErrorAction SilentlyContinue |
+        ForEach-Object { Write-Host $_.FullName }
+    Write-Host '----- app windows -----'
+    Add-Type -AssemblyName UIAutomationClient, UIAutomationTypes
+    $root = [System.Windows.Automation.AutomationElement]::RootElement
+    foreach ($proc in Get-Process | Where-Object { $_.ProcessName -like '*ChordNotepad*' }) {
+        $cond = New-Object System.Windows.Automation.PropertyCondition(
+            [System.Windows.Automation.AutomationElement]::ProcessIdProperty, $proc.Id)
+        foreach ($window in $root.FindAll([System.Windows.Automation.TreeScope]::Children, $cond)) {
+            Write-Host "Window: $($window.Current.Name)"
+            $all = $window.FindAll([System.Windows.Automation.TreeScope]::Descendants,
+                [System.Windows.Automation.Condition]::TrueCondition)
+            foreach ($el in $all) {
+                $name = $el.Current.Name
+                if ($name) { Write-Host "  $name" }
+                $pattern = $null
+                if ($el.TryGetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern, [ref]$pattern)) {
+                    $value = $pattern.Current.Value
+                    if ($value) { Write-Host "  $value" }
+                }
+            }
+        }
+    }
+    Write-Host '-----------------------'
 }
 else {
     Write-Host "Log written to $($log.FullName)"
