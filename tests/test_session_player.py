@@ -216,6 +216,101 @@ def test_android_opening_a_document_puts_the_playhead_on_its_first_chord():
     assert env.playhead() == 9
 
 
+#        0123456789012345
+OTHER = "{key: G}\nG  D"
+# Chords: G 9-10, D 12-13.
+
+
+def playing_mid_song(env, paused):
+    """Play SONG up to Am (its third chord), then pause there if ``paused``."""
+    env.session.play_pause()
+    env.rendered()
+    env.player.play(3)
+    env.host.run_pending()
+    if paused:
+        env.session.play_pause()
+    assert env.playback().status is (PlaybackStatus.PAUSED if paused else PlaybackStatus.PLAYING)
+    assert env.playback().playing_span.start == 12
+
+
+def open_other(env):
+    env.main.documents.contents["memory:other.txt"] = OTHER
+    env.session.open_document(InMemoryDocumentStore.ref("other.txt"))
+    env.session.respond(env.session.pending_request.request_id, "discard")
+
+
+@pytest.mark.parametrize("paused", [True, False])
+def test_android_opening_a_document_mid_song_stops_and_play_starts_the_new_song(paused):
+    env = Env(auto_play=False)
+    playing_mid_song(env, paused)
+    open_other(env)
+    assert env.session.text == OTHER
+    assert env.main.is_playing is False
+    assert env.player.calls[-1] == "stop"
+    playback = env.playback()
+    assert playback.status is PlaybackStatus.IDLE
+    assert playback.playing_span is None
+    assert playback.chord_index is None
+    assert env.playhead() == 9
+    assert env.sheet.current_index is None
+    # Play starts the new song at its first chord and highlights its chords.
+    env.player.played.clear()
+    env.recorder.clear()
+    env.session.play_pause()
+    env.rendered()
+    env.player.play()
+    env.host.run_pending()
+    assert env.first_played_chord() == "G"
+    spans = [s.playing_span.start for s in env.recorder.of_type(PlaybackState)
+             if s.playing_span is not None]
+    assert spans == [9, 12]
+
+
+def test_android_new_document_mid_song_stops():
+    env = Env(auto_play=False)
+    playing_mid_song(env, paused=True)
+    env.session.new_document()
+    env.session.respond(env.session.pending_request.request_id, "discard")
+    assert env.session.text == ""
+    assert env.main.is_playing is False
+    assert env.playback() == PlaybackState(PlaybackStatus.IDLE)
+    # Typed afresh: Play starts at the top of the new text.
+    env.session.set_text("D  A")
+    env.host.advance(0.5)
+    assert env.playhead() == 0
+    env.player.played.clear()
+    env.session.play_pause()
+    env.rendered()
+    env.player.play()
+    assert env.first_played_chord() == "D"
+
+
+def test_a_failed_open_leaves_the_paused_song_alone():
+    env = Env(auto_play=False)
+    playing_mid_song(env, paused=True)
+    env.recorder.clear()
+    env.session.open_document(InMemoryDocumentStore.ref("missing.txt"))
+    env.session.respond(env.session.pending_request.request_id, "discard")
+    assert env.recorder.last(UserError) is not None
+    assert env.session.text == SONG
+    assert env.playback().status is PlaybackStatus.PAUSED
+    assert env.playhead() == 12
+
+
+def test_desktop_opening_a_document_while_playing_stops():
+    env = Env(DESKTOP, auto_play=False)
+    playing_mid_song(env, paused=False)
+    open_other(env)
+    assert env.main.is_playing is False
+    assert env.playback() == PlaybackState(PlaybackStatus.IDLE)
+    assert env.status() == "Opened: other.txt"
+    env.player.played.clear()
+    env.session.play_pause()
+    env.rendered()
+    env.player.play()
+    assert env.first_played_chord() == "G"
+
+
 def test_android_tap_moves_the_playhead_and_sounds_the_chord():
     env = Env()
     env.session.tap_chord_at(13)

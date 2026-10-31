@@ -218,6 +218,7 @@ class MainWindowViewModel(Observable):
             pass
 
         logger.info("Creating new file")
+        self._stop_for_another_song()
         self.load_defaults()
         self.set_and_notify("current_text", "")
         self.set_and_notify("is_modified", False)
@@ -238,6 +239,7 @@ class MainWindowViewModel(Observable):
         try:
             logger.info(f"Opening file: {ref.location}")
             content = self._documents.read_text(ref)
+            self._stop_for_another_song()
 
             # The song's own directives aren't copied anywhere: what it sets
             # is read from its text (session.song_defaults). Its notation is
@@ -269,11 +271,22 @@ class MainWindowViewModel(Observable):
             modified: Whether the draft has unsaved changes.
         """
         logger.info("Restoring a draft%s", f" of {ref.location}" if ref is not None else "")
+        self._stop_for_another_song()
         # The song's notation isn't kept with the draft: read from its chords.
         self.notation_from_text(text)
         self.set_and_notify("current_text", text)
         self.set_and_notify("is_modified", bool(modified))
         self.set_and_notify("current_document", ref)
+
+    def _stop_for_another_song(self) -> None:
+        """Stop a song that plays or is paused before another text replaces it.
+
+        What it rendered and the offsets its pings carry belong to the old
+        text, so resuming it would sound and highlight the old song.
+        """
+        if self._is_playing:
+            logger.info("Stopping playback: another song replaces this one")
+            self.stop_playback()
 
     def document_renamed(self, ref: DocumentRef) -> None:
         """The open document was renamed: keep working on it under ``ref``.

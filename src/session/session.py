@@ -714,8 +714,9 @@ class AppSession:
     def new_document(self) -> None:
         """Start a new, empty document.
 
-        Asks about unsaved changes first. The text is cleared with a plain
-        edit (Undo brings the old text back, as it always has).
+        Asks about unsaved changes first. A song playing or paused stops.
+        The text is cleared with a plain edit (Undo brings the old text
+        back, as it always has).
         """
         self._flows.start(self._new_flow())
 
@@ -727,7 +728,9 @@ class AppSession:
         :class:`PickDocumentRequest` in ``open`` mode. The opened text
         replaces the editor's with a ``reset`` edit (the undo history starts
         over) and its first tempo, key and time-signature directives set the
-        toolbar. A failure is a :class:`UserError`.
+        toolbar. A song playing or paused stops, so Play starts the new one
+        at its first chord. A failure is a :class:`UserError` (the song
+        playing goes on).
 
         Args:
             ref: The document, or None to ask for one.
