@@ -355,7 +355,8 @@ def transpose_text(
         s = text_lines[idx]
         if not s.strip():
             return False
-        stripped = re.sub(r'\{[^}]*\}', '', s)
+        # [^{}]: linear on a line of unclosed braces; * so "{}" alone isn't a lyric.
+        stripped = re.sub(r'\{[^{}]*\}', '', s)
         stripped = re.sub(r'//.*$', '', stripped)
         return bool(stripped.strip())
 

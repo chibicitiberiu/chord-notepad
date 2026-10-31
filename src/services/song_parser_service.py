@@ -1,5 +1,7 @@
 """Song parser service for parsing chords, directives, and labels."""
 
+import bisect
+import itertools
 import logging
 import math
 import re
@@ -18,6 +20,16 @@ from models.label import Label
 from models.notation import Notation
 
 
+def _line_starts(text: str) -> List[int]:
+    """The offset where each line of ``text`` starts (the first is 0)."""
+    return [0] + list(itertools.accumulate(len(line) + 1 for line in text.split('\n')[:-1]))
+
+
+def _line_of(starts: List[int], pos: int) -> int:
+    """The 1-based line number of offset ``pos``, given :func:`_line_starts`."""
+    return bisect.bisect_right(starts, pos)
+
+
 class SongParserService:
     """Manages song parsing operations.
 
@@ -33,10 +45,13 @@ class SongParserService:
         self._converter = NotationConverter()
         self._logger = logging.getLogger(__name__)
 
-    # Anything in braces is a directive: {keyword: value}, or {keyword} with
-    # the value missing. Unknown keywords and bad values are invalid ones.
-    # Empty braces ({}) aren't a directive at all.
-    DIRECTIVE_PATTERN = re.compile(r'\{([^}]*[^}\s][^}]*)\}')
+    # Anything in braces on one line is a directive: {keyword: value}, or
+    # {keyword} with the value missing. Unknown keywords and bad values are
+    # invalid ones. Empty braces ({}, { }) aren't a directive at all
+    # (parse_directives skips them). The body can't hold a brace or a newline,
+    # so in "{a{bpm: 90}" only "{bpm: 90}" is a directive, and the scan stays
+    # linear on text full of unclosed braces.
+    DIRECTIVE_PATTERN = re.compile(r'\{([^{}\n]*)\}')
 
     _KEYWORD_TYPES = {
         'bpm': DirectiveType.BPM, 'tempo': DirectiveType.BPM,
@@ -71,16 +86,24 @@ class SongParserService:
         comment_regions = [(m.start(), m.end()) for m in self.COMMENT_PATTERN.finditer(text)]
         comment_regions += [(m.start(), m.end())
                             for m in ChordDetector.TEXT_LINE_PATTERN.finditer(text)]
+        # Merged and sorted (a plain-text line may hold a "//"), so one bisect
+        # finds the only region that can contain a position.
+        region_starts: List[int] = []
+        region_ends: List[int] = []
+        for start, end in sorted(comment_regions):
+            if region_ends and start <= region_ends[-1]:
+                region_ends[-1] = max(region_ends[-1], end)
+            else:
+                region_starts.append(start)
+                region_ends.append(end)
 
         def is_in_comment(pos: int) -> bool:
             """Check if a position is inside a comment."""
-            for start, end in comment_regions:
-                if start <= pos < end:
-                    return True
-            return False
+            i = bisect.bisect_right(region_starts, pos) - 1
+            return i >= 0 and pos < region_ends[i]
 
         for match in self.DIRECTIVE_PATTERN.finditer(text):
-            if is_in_comment(match.start()):
+            if not match.group(1).strip() or is_in_comment(match.start()):
                 continue
             directives.append(self._parse_one(match.group(1), match.start(), match.end()))
 
@@ -171,8 +194,13 @@ class SongParserService:
         one that would jump forward, is invalid; this also rules out loops
         that send each other back and forth forever.
         """
+        starts = None
+
         def line_of(pos: int) -> int:
-            return text.count('\n', 0, pos) + 1
+            nonlocal starts
+            if starts is None:
+                starts = _line_starts(text)
+            return _line_of(starts, pos)
 
         labels = {}
         for directive in directives:
@@ -257,23 +285,24 @@ class SongParserService:
         return Directive(type=DirectiveType.BPM, start=start, end=end, bpm=bpm_value,
                          bpm_modifier_type=BPMModifierType.ABSOLUTE)
 
-    _LOOP_COUNT = re.compile(r'^(.*?)\s+([+-]?\d+)$')
+    _LOOP_COUNT = re.compile(r'[+-]?\d+')
 
     @classmethod
     def _split_loop_value(cls, value: str) -> tuple:
         """Split a ``{loop}`` value into ``(label, count)``.
 
         The count is the last whitespace-separated token when it is an integer
-        (default 2); the label is the rest. Raises ValueError for a count
-        below 1.
+        (default 2); the label is the rest, with its inner whitespace kept as
+        typed (labels compare exactly). Raises ValueError for a count below 1.
         """
-        match = cls._LOOP_COUNT.match(value.strip())
-        if not match:
-            return value.strip(), 2
-        count = int(match.group(2))
+        stripped = value.strip()
+        parts = stripped.rsplit(None, 1)
+        if len(parts) < 2 or not cls._LOOP_COUNT.fullmatch(parts[1]):
+            return stripped, 2
+        count = int(parts[1])
         if count < 1:
             raise ValueError("Loop count must be at least 1")
-        return match.group(1).strip(), count
+        return parts[0], count
 
     @staticmethod
     def _positive_float(text: str, what: str = "A number") -> float:
@@ -409,21 +438,12 @@ class SongParserService:
         # Parse all directives from text
         all_directives = self.parse_directives(text)
 
-        # Group directives by line number
+        # Group directives by line number (a directive starts at its "{",
+        # never on a newline, so it belongs to the line holding that offset)
         directives_by_line = {}
-        char_offset = 0
-        for line_num, content in enumerate(text_lines, start=1):
-            # Find directives that fall within this line's character range
-            line_start = char_offset
-            line_end = char_offset + len(content)
-
-            for directive in all_directives:
-                if line_start <= directive.start < line_end:
-                    if line_num not in directives_by_line:
-                        directives_by_line[line_num] = []
-                    directives_by_line[line_num].append(directive)
-
-            char_offset += len(content) + 1  # +1 for newline
+        starts = _line_starts(text)
+        for directive in all_directives:
+            directives_by_line.setdefault(_line_of(starts, directive.start), []).append(directive)
 
         # Create Line objects for each text line
         for line_num, content in enumerate(text_lines, start=1):

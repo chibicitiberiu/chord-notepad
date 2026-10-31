@@ -26,6 +26,17 @@ CHILD_TIMEOUT_S = 60.0
 CASES = {
     # A failing chord token with a long digit run (exponential backtracking).
     'digit_run': "'C' + '1' * 40 + 'x'",
+    # Unclosed braces: the old directive pattern crossed them and backtracked.
+    'open_braces': "'{' * 20000",
+    'brace_x_line': "'{x' * 100000",
+    # The old loop-count regex was quadratic on a long run of spaces.
+    'loop_spaces': "'{loop: a' + ' ' * 200000 + 'x}'",
+    # Each repeated label counted the newlines up to the first one (4 MB in;
+    # the whole text stays under Android's 5 MB Open-with limit).
+    'duplicate_labels': "'// ' + 'x' * 4000000 + '\\n' + '{label: a}\\n' * 25000",
+    # Every directive was checked against every comment, and every line
+    # against every directive.
+    'directives_and_comments': "'{bpm: 100}\\n// c\\n' * 20000",
 }
 
 _CHILD = r'''

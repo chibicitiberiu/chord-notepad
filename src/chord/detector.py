@@ -8,6 +8,10 @@ from chord.helper import ChordHelper
 from chord.converter import NotationConverter
 from models.chord import ChordInfo
 
+# A directive's text on a line, braces included: "{key: G}". The body can't
+# hold a brace, so a line full of unclosed "{" is scanned in linear time.
+DIRECTIVE_SPAN = re.compile(r'\{[^{}]+\}')
+
 
 class ChordDetector:
     """Detects chords in text using line-based classification"""
@@ -142,7 +146,7 @@ class ChordDetector:
         """
         # Find all directive regions
         directives = []
-        for match in re.finditer(r'\{[^}]+\}', line):
+        for match in DIRECTIVE_SPAN.finditer(line):
             directives.append((match.start(), match.end()))
 
         # Find comment region (// to end of line)
@@ -197,7 +201,7 @@ class ChordDetector:
 
         # Remove all directive text {keyword: value} before word splitting
         # This prevents content inside directives from being counted
-        line_without_directives = re.sub(r'\{[^}]+\}', '', line)
+        line_without_directives = DIRECTIVE_SPAN.sub('', line)
 
         # Split into words
         words = line_without_directives.split()

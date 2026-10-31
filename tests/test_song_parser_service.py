@@ -614,3 +614,79 @@ Am Dm G // chorus"""
         assert len(lines[0].chords) == 3
         # The commented directive should not be parsed
         assert len(lines[0].directives) == 0
+
+
+class TestDirectiveScanning:
+    """Where a directive starts and ends (one line, no braces inside)."""
+
+    def test_empty_braces_are_not_directives(self, song_parser):
+        assert song_parser.parse_directives("{}") == []
+        assert song_parser.parse_directives("{ }") == []
+        lines = song_parser.detect_chords_in_text("C G {} { }")
+        assert lines[0].directives == []
+
+    def test_only_the_innermost_braces_are_a_directive(self, song_parser):
+        text = "{a{bpm: 90}"
+        [directive] = song_parser.parse_directives(text)
+        assert directive.type == DirectiveType.BPM
+        assert directive.is_valid
+        assert directive.bpm == 90
+        assert (directive.start, directive.end) == (2, 11)
+        assert text[directive.start:directive.end] == "{bpm: 90}"
+
+    def test_a_directive_cannot_span_lines(self, song_parser):
+        assert song_parser.parse_directives("{bpm:\n90}") == []
+        lines = song_parser.detect_chords_in_text("{bpm:\n90}")
+        assert all(not line.directives for line in lines)
+
+    def test_an_unclosed_brace_does_not_hide_the_next_lines_directive(self, song_parser):
+        text = "C G { oops\n{bpm: 90}"
+        [directive] = song_parser.parse_directives(text)
+        assert directive.is_valid and directive.bpm == 90
+        assert directive.start == text.index("{bpm")
+        lines = song_parser.detect_chords_in_text(text)
+        assert [(d.start, d.bpm) for d in lines[1].directives] == [(directive.start, 90)]
+
+    def test_loop_label_keeps_its_inner_spaces(self, song_parser):
+        text = "{label: my  verse}\nC G\n{loop: my  verse 3}"
+        label, loop = song_parser.parse_directives(text)
+        assert label.is_valid and label.label == "my  verse"
+        assert loop.is_valid
+        assert loop.label == "my  verse"
+        assert loop.loop_count == 3
+
+    def test_loop_value_split(self):
+        split = SongParserService._split_loop_value
+        assert split("chorus 2") == ("chorus", 2)
+        assert split("  my verse\t 4 ") == ("my verse", 4)
+        assert split("my  verse +3") == ("my  verse", 3)
+        assert split("chorus") == ("chorus", 2)
+        assert split("3") == ("3", 2)
+        assert split("verse two") == ("verse two", 2)
+        with pytest.raises(ValueError):
+            split("chorus 0")
+        with pytest.raises(ValueError):
+            split("chorus -1")
+
+    def test_duplicate_label_message_names_the_first_line(self, song_parser):
+        text = "x\n\n{label: a}\nC\n{label: a}\n{label: a}"
+        directives = song_parser.parse_directives(text)
+        assert directives[0].is_valid
+        for repeat in directives[1:]:
+            assert not repeat.is_valid
+            assert repeat.message == "Label 'a' is already used on line 3"
+
+    def test_directives_land_on_their_own_lines(self, song_parser):
+        text = "{bpm: 90}\n\nC G {key: G} {capo: 2}\n// {bpm: 80}\n. {bpm: 70}\n{time: 3/4}"
+        lines = song_parser.detect_chords_in_text(text)
+        by_line = {line.line_number: [text[d.start:d.end] for d in line.directives]
+                   for line in lines}
+        assert by_line == {1: ["{bpm: 90}"], 2: [], 3: ["{key: G}", "{capo: 2}"],
+                           4: [], 5: [], 6: ["{time: 3/4}"]}
+
+    def test_a_braces_only_line_is_not_a_lyric_line_for_transpose(self):
+        from services.transpose_service import transpose_text
+        # The chords grow and can't take the space between them, so a lyric
+        # line below would be stretched; a line of empty braces is left alone.
+        assert transpose_text("C D\nabcdef", 1, "american") == "C# Eb\nab-cdef"
+        assert transpose_text("C D\n{}  {}", 1, "american") == "C# Eb\n{}  {}"
