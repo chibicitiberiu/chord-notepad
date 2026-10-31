@@ -86,13 +86,23 @@ fun respellKey(key: String, notation: String, limits: SettingsState): String {
     return other.indexOf(key).takeIf { it >= 0 }?.let { target.getOrNull(it) } ?: ""
 }
 
-/** The whole numbers the number fields of the General and Playback pages accept. */
-enum class NumberSetting {
-    FONT_SIZE,
-    MAX_RECENT_FILES,
-    BPM,
-    TIME_SIGNATURE_BEATS,
+/**
+ * The whole numbers the number fields of the General and Playback pages
+ * accept, in page order. [key] is the setting's name in Python
+ * (`SettingsValues`, `NUMBER_SETTINGS`), [page] the page it is on.
+ */
+enum class NumberSetting(val key: String, val page: SettingsPage) {
+    FONT_SIZE("font_size", SettingsPage.GENERAL),
+    MAX_RECENT_FILES("max_recent_files", SettingsPage.GENERAL),
+    BPM("bpm", SettingsPage.PLAYBACK),
+    TIME_SIGNATURE_BEATS("time_signature_beats", SettingsPage.PLAYBACK),
     ;
+
+    companion object {
+        /** [texts] keyed by [key], as settings (unknown keys are skipped). */
+        fun fromKeys(texts: Map<String, String>): Map<NumberSetting, String> =
+            entries.mapNotNull { setting -> texts[setting.key]?.let { setting to it } }.toMap()
+    }
 
     /** The accepted range ([limits] from `SettingsState`). */
     fun range(limits: SettingsState): IntRange = when (this) {

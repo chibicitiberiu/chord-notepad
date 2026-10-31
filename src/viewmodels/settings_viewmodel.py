@@ -166,6 +166,16 @@ class SettingsViewModel:
             self._rename_map[old] = new
         # else: `old` was an added-this-session voicing; nothing to track.
 
+    def original_name(self, name: str) -> Optional[str]:
+        """The config name of working voicing ``name`` (followed back through
+        renames), or None for a voicing added since the config was read."""
+        for original, current in self._rename_map.items():
+            if current == name:
+                return original
+        if name in self._original_names and name not in self._rename_map:
+            return name
+        return None
+
     def set_voicing_data(self, name: str, data: dict) -> None:
         """Replace a voicing's entry wholesale (``data`` must include ``'model'``)."""
         self._working_voicings[name] = data
@@ -212,7 +222,7 @@ class SettingsViewModel:
 
     # -- Commit --------------------------------------------------------------
 
-    def commit(self) -> SettingsChanges:
+    def commit(self, voicings: Optional[Dict[str, dict]] = None) -> SettingsChanges:
         """Write the working copy into the config, save it, and report changes.
 
         Scalars and the voicings registry are pushed into
@@ -221,8 +231,14 @@ class SettingsViewModel:
         through a rename chain) or a deleted one (reset to ``"piano"``); either
         case is reported via ``new_active_voicing``. Finally the config is
         saved. Intended to be called once.
+
+        Args:
+            voicings: The registry to write instead of the working copy's
+                (an Android autosave writes only what is valid of it), named
+                as in the working copy. None writes the working copy.
         """
         config = self._config_service.config
+        registry = self._working_voicings if voicings is None else voicings
 
         changes = SettingsChanges()
         changes.font_changed = self._group_changed(_FONT_FIELDS)
@@ -234,16 +250,16 @@ class SettingsViewModel:
             setattr(config, field, getattr(self, field))
 
         # Push voicings registry.
-        config.voicings = copy.deepcopy(self._working_voicings)
+        config.voicings = copy.deepcopy(registry)
 
         # Fix up the selected voicing pointer if it was renamed/deleted.
-        new_active = self._resolve_active_voicing(config.voicing)
+        new_active = self._resolve_active_voicing(config.voicing, registry)
         if new_active is not None:
             config.voicing = new_active
             changes.new_active_voicing = new_active
 
         changes.voicings_changed = (
-            self._working_voicings != self._orig_voicings
+            registry != self._orig_voicings
             or changes.new_active_voicing is not None
         )
 
@@ -256,7 +272,8 @@ class SettingsViewModel:
         """True if any working scalar in ``fields`` differs from the original snapshot."""
         return any(getattr(self, field) != self._orig_scalars[field] for field in fields)
 
-    def _resolve_active_voicing(self, current: str) -> Optional[str]:
+    def _resolve_active_voicing(self, current: str,
+                                registry: Dict[str, dict]) -> Optional[str]:
         """Compute a rewritten ``voicing`` string, or ``None`` if it stays put.
 
         Only ``"voicing:<name>"`` strings are subject to rewriting; built-in
@@ -269,7 +286,7 @@ class SettingsViewModel:
         name = current.split(":", 1)[1]
 
         target = self._rename_map.get(name, name)
-        if target in self._working_voicings:
+        if target in registry:
             new_string = f"voicing:{target}"
             return new_string if new_string != current else None
         # Target no longer exists (deleted, possibly after a rename).

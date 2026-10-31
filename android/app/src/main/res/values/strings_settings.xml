@@ -41,11 +41,16 @@
     <string name="settings_decrease">Decrease %1$s</string>
     <string name="settings_increase">Increase %1$s</string>
 
-    <!-- Leaving while a voicing is invalid (everything else saves as you go) -->
-    <string name="settings_discard_title">Discard voicing changes?</string>
-    <string name="settings_discard_message">A voicing has errors, so its latest changes haven\'t been saved. Discard them, or keep editing to fix it.</string>
-    <string name="settings_discard">Discard</string>
-    <string name="settings_keep_editing">Keep editing</string>
+    <!-- Wrong values: everything else saves as you go. Leaving asks first;
+         values kept from last time show a banner. -->
+    <string name="settings_problems_title">Some values aren\'t saved</string>
+    <string name="settings_problems_intro">These have mistakes, so they aren\'t saved:</string>
+    <string name="settings_problems_edit">Edit</string>
+    <string name="settings_problems_discard">Discard</string>
+    <!-- Page, field label, what was typed, the accepted range. -->
+    <string name="settings_problem_number">%1$s, %2$s: %3$s. %4$s</string>
+    <string name="settings_problem_empty">(empty)</string>
+    <string name="settings_restored">Some values you typed last time have mistakes and weren\'t saved. They\'re back in their fields: fix them, or discard them.</string>
 
     <!-- Voicings -->
     <string name="voicings_add">Add voicing</string>
@@ -53,6 +58,6 @@
     <string name="voicings_rename">Rename</string>
     <string name="voicings_invalid">Has errors</string>
     <string name="voicings_empty_group">No voicings</string>
-    <string name="voicings_invalid_banner">Changes to a voicing marked with errors are saved once it\'s fixed.</string>
+    <string name="voicings_invalid_banner">A field with an error isn\'t saved until it\'s fixed; the rest of the voicing is.</string>
     <string name="voicings_preset_custom">Your voicings</string>
 </resources>

@@ -27,6 +27,11 @@ class SettingsControllerTest {
     /** The `values` of every `commit_settings` sent. */
     private val commits get() = submitter.sent.filter { it.first == ScreenCommandNames.COMMIT_SETTINGS }.map { it.second.getValue("values") }
 
+    /** The `invalid_numbers` of every `commit_settings` sent. */
+    private val numberCommits get() = submitter.sent.filter { it.first == ScreenCommandNames.COMMIT_SETTINGS }.map { it.second.getValue("invalid_numbers") }
+
+    private fun texts(vararg pairs: Pair<String, String>) = JsonObject(pairs.associate { it.first to JsonPrimitive(it.second) })
+
     private val inactive = Fixtures.piano.copy(
         active = false, revision = 0, groups = emptyList(), invalid = emptyList(), presets = emptyList(),
         selected = null, model = null, values = JsonObject(emptyMap()), fieldErrors = JsonObject(emptyMap()),
@@ -102,14 +107,19 @@ class SettingsControllerTest {
 
         submitter.clear()
         c.setNumber(NumberSetting.BPM, "1000")
-        assertEquals(setOf(NumberSetting.BPM), c.ui.value.invalidNumbers)
+        assertEquals(mapOf(NumberSetting.BPM to "1000"), c.ui.value.numberTexts)
         assertEquals(96, c.ui.value.draft!!.bpm)
         c.saveDraft()
-        assertEquals(emptyList<String>(), submitter.names)
+        // Not saved: only kept by Python, for next time.
+        assertEquals(listOf(JsonNull), commits)
+        assertEquals(listOf(texts("bpm" to "1000")), numberCommits)
         c.setNumber(NumberSetting.BPM, " 100 ")
-        assertEquals(emptySet<NumberSetting>(), c.ui.value.invalidNumbers)
+        assertEquals(emptyMap<NumberSetting, String>(), c.ui.value.numberTexts)
         c.saveDraft()
-        assertEquals(100, commits.single().jsonObject.getValue("bpm").jsonPrimitive.content.toInt())
+        assertEquals(100, commits.last().jsonObject.getValue("bpm").jsonPrimitive.content.toInt())
+        assertEquals(texts(), numberCommits.last())
+        c.saveDraft()
+        assertEquals(2, commits.size)
     }
 
     @Test
@@ -121,7 +131,8 @@ class SettingsControllerTest {
         assertEquals(saved, c.ui.value.draft!!.bpm)
         assertFalse(c.ui.value.draftPending)
         c.saveDraft()
-        assertEquals(emptyList<String>(), submitter.names)
+        assertEquals(listOf(JsonNull), commits)
+        assertEquals(listOf(texts("bpm" to "2500")), numberCommits)
     }
 
     @Test
@@ -161,27 +172,101 @@ class SettingsControllerTest {
     }
 
     @Test
-    fun `leaving with an invalid voicing asks - keep editing opens it, or discard`() {
+    fun `leaving with a wrong voicing value asks - Edit opens that voicing`() {
         val c = editing()
-        c.onEditor(Fixtures.fretboardInvalid.copy(selected = null, model = null))
+        val bad = Fixtures.fretboardInvalid
+        assertTrue(bad.problems.isNotEmpty())
+        c.onEditor(bad.copy(selected = null, model = null))
         c.openPage(SettingsPage.GENERAL)
         c.requestClose()
-        assertEquals(SettingsDialog.Discard, c.ui.value.dialog)
+        assertEquals(SettingsDialog.Problems, c.ui.value.dialog)
         assertEquals(emptyList<String>(), submitter.names)
-        c.keepEditing()
+        c.editProblems()
         assertNull(c.ui.value.dialog)
         assertEquals(SettingsPhase.EDITING, c.ui.value.phase)
         assertEquals(SettingsNav(SettingsPage.VOICINGS, voicingDetail = true), c.ui.value.nav)
-        val bad = Fixtures.fretboardInvalid.invalid.first()
-        assertEquals(ScreenCommandNames.SELECT_VOICING to bad, submitter.sent.single().let { it.first to it.second.getValue("name").jsonPrimitive.content })
+        assertEquals(ScreenCommandNames.SELECT_VOICING to bad.problems.first().voicing, submitter.sent.single().let { it.first to it.second.getValue("name").jsonPrimitive.content })
 
+        // Already shown: Edit just opens the form.
         submitter.clear()
+        c.onEditor(bad)
+        c.openPage(SettingsPage.VOICINGS)
+        c.requestClose()
+        c.editProblems()
+        assertEquals(SettingsNav(SettingsPage.VOICINGS, voicingDetail = true), c.ui.value.nav)
+        assertEquals(emptyList<String>(), submitter.names)
+    }
+
+    @Test
+    fun `Discard in the leave dialog drops the wrong values and leaves`() {
+        val c = editing()
         c.onEditor(Fixtures.fretboardInvalid)
+        c.setNumber(NumberSetting.FONT_SIZE, "999")
         c.back(twoPane = true, split = true)
-        assertEquals(SettingsDialog.Discard, c.ui.value.dialog)
+        assertEquals(SettingsDialog.Problems, c.ui.value.dialog)
         c.confirmDialog()
-        assertEquals(listOf(ScreenCommandNames.CANCEL_SETTINGS_EDIT), submitter.names)
+        assertEquals(ScreenCommandNames.CANCEL_SETTINGS_EDIT, submitter.names.last())
         assertEquals(SettingsPhase.CLOSED, c.ui.value.phase)
+        assertEquals(emptyMap<NumberSetting, String>(), c.ui.value.numberTexts)
+    }
+
+    @Test
+    fun `a wrong number counts as a problem and Edit opens its page`() {
+        val c = editing()
+        c.onEditor(Fixtures.piano)
+        c.setNumber(NumberSetting.BPM, "1000")
+        c.setNumber(NumberSetting.FONT_SIZE, "")
+        c.requestClose()
+        assertEquals(SettingsDialog.Problems, c.ui.value.dialog)
+        // General comes before Playback.
+        c.editProblems()
+        assertEquals(SettingsNav(SettingsPage.GENERAL), c.ui.value.nav)
+        c.setNumber(NumberSetting.FONT_SIZE, "12")
+        c.requestClose()
+        c.editProblems()
+        assertEquals(SettingsNav(SettingsPage.PLAYBACK), c.ui.value.nav)
+        // Nothing wrong left: Back just leaves.
+        c.setNumber(NumberSetting.BPM, "100")
+        c.requestClose()
+        assertEquals(SettingsPhase.CLOSED, c.ui.value.phase)
+    }
+
+    @Test
+    fun `values kept from last time come back on entry and can be discarded`() {
+        val c = SettingsController(commands)
+        c.start(needSchema = false)
+        c.onSettings(Fixtures.settings)
+        c.onEditor(inactive)
+        val restored = Fixtures.fretboardInvalid.copy(selected = null, model = null, restored = true, stagedNumbers = mapOf("bpm" to "5"))
+        c.onEditor(restored)
+        assertEquals(mapOf(NumberSetting.BPM to "5"), c.ui.value.numberTexts)
+        // Python has them already: nothing to send.
+        assertFalse(c.ui.value.numbersPending)
+        assertTrue(c.hasProblems)
+        submitter.clear()
+        c.discardProblems()
+        assertEquals(listOf(ScreenCommandNames.DISCARD_SETTINGS_PROBLEMS), submitter.names)
+        assertEquals(emptyMap<NumberSetting, String>(), c.ui.value.numberTexts)
+        c.onEditor(Fixtures.piano.copy(revision = 30))
+        assertFalse(c.hasProblems)
+        c.requestClose()
+        assertEquals(SettingsPhase.CLOSED, c.ui.value.phase)
+    }
+
+    @Test
+    fun `a reopened edit after a restart keeps this screen's number texts`() {
+        val c = editing()
+        c.setNumber(NumberSetting.BPM, "7")
+        c.saveDraft()
+        c.setNumber(NumberSetting.BPM, "120")
+        submitter.clear()
+        // Process restarted: the new edit has the texts sent before (bpm 7), the screen has none.
+        c.onEditor(inactive.copy(revision = 3))
+        c.onEditor(opened.copy(stagedNumbers = mapOf("bpm" to "7")))
+        assertEquals(emptyMap<NumberSetting, String>(), c.ui.value.numberTexts)
+        assertTrue(c.ui.value.numbersPending)
+        c.saveDraft()
+        assertEquals(texts(), numberCommits.last())
     }
 
     @Test

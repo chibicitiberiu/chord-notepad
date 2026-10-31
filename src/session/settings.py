@@ -23,6 +23,11 @@ from session import toolbar
 #: Upper bound of the recent-documents list length.
 MAX_RECENT_LIMIT = 50
 
+#: The whole-number settings a view types in (General and Playback). While
+#: the text of one isn't valid, the view sends it to ``commit_settings`` as
+#: ``invalid_numbers`` so it can be kept for next time.
+NUMBER_SETTINGS = ('font_size', 'max_recent_files', 'bpm', 'time_signature_beats')
+
 
 @dataclass(frozen=True)
 class SettingsValues:

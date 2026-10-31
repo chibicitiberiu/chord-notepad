@@ -507,6 +507,23 @@ class VoicingPreset:
 
 
 @dataclass(frozen=True)
+class SettingsProblem:
+    """A value of the Settings screen that isn't saved because it's wrong.
+
+    Attributes:
+        voicing: The voicing it is in.
+        field_id: Its form field (``voice:<i>:<column>`` for a records cell),
+            or None for the voicing as a whole.
+        text: The line to show: where it is, what was typed, what's wrong,
+            and the field's syntax or range.
+    """
+
+    voicing: str
+    field_id: Optional[str]
+    text: str
+
+
+@dataclass(frozen=True)
 class VoicingEditorState:
     """The voicings editor of a Settings screen (``begin_settings_edit``).
 
@@ -517,8 +534,9 @@ class VoicingEditorState:
             nothing (a refused rename), so a view can reset its fields from
             this state.
         groups: The working copy's voicings by model, in list order.
-        invalid: The voicings Save would refuse (``commit_settings``
-            keeps the last valid voicings in the config until there are none).
+        invalid: The voicings with something wrong (``problems``); Save
+            would refuse them, and ``commit_settings`` keeps their wrong
+            fields at the value on disk.
         presets: The "Load config" entries.
         selected: The voicing in the form, or None (show the placeholder).
         model: Its form's model (``voicing_editor_schema``'s ``forms`` key),
@@ -526,12 +544,19 @@ class VoicingEditorState:
         values: The form's values, keyed by field id (JSON; see
             ``settings_forms.voicing_form``); ``{}`` with nothing selected.
         field_errors: ``{field_id: message}`` for values that don't parse
-            (``voice:<i>:<column>`` for a records cell).
+            (``voice:<i>:<column>`` for a records cell), and for the fields a
+            rule across fields blames.
         form_errors: Errors of the whole form (the spec's message).
         hints: ``{field_id: text}``: the grey hint under fields that have
             one, filled in from the values.
         dirty: Whether the selected voicing was edited since it was
             selected (a model switch asks for confirmation then).
+        problems: Every wrong value in every voicing, in list order.
+        staged_numbers: ``{setting: text}``: General/Playback number fields
+            whose text isn't valid (``commit_settings``'s
+            ``invalid_numbers``, or kept from last time).
+        restored: The edit opened with wrong values kept from last time
+            (the app went away before they were fixed or discarded).
     """
 
     active: bool
@@ -546,12 +571,16 @@ class VoicingEditorState:
     form_errors: Tuple[str, ...]
     hints: Any
     dirty: bool
+    problems: Tuple[SettingsProblem, ...]
+    staged_numbers: Any
+    restored: bool
 
 
 #: The voicings editor while no settings edit is open.
 INACTIVE_VOICING_EDITOR = VoicingEditorState(
     active=False, revision=0, groups=(), invalid=(), presets=(), selected=None, model=None,
-    values={}, field_errors={}, form_errors=(), hints={}, dirty=False)
+    values={}, field_errors={}, form_errors=(), hints={}, dirty=False, problems=(),
+    staged_numbers={}, restored=False)
 
 
 class StartupScreen(str, Enum):

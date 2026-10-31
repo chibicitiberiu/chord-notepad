@@ -124,11 +124,12 @@ Defining a Custom Fretted Voicing
    Problems show up in red as you type: under the field for a value the app
    can't read (a misspelt note name, say), or at the top of the form for
    values that don't fit together (a relaxed span smaller than the normal
-   one). A voicing with errors is marked **Has errors** in the list, and its
-   changes aren't saved until it's fixed: the last version without errors
-   is kept. **Remove voicing** deletes the voicing after asking. If you leave
-   Settings while a voicing still has errors, the app asks whether to
-   discard its changes or keep editing.
+   one). A voicing with errors is marked **Has errors** in the list. Only the
+   fields with errors go unsaved, keeping their old values; the rest of the
+   voicing is saved as you go. **Remove voicing** deletes the voicing after
+   asking. If you leave Settings while something still has an error, the
+   app lists what's wrong and how to write it, then offers **Edit** (go and
+   fix it) or **Discard** (drop those values).
 
    See :doc:`settings` for the whole Settings screen, including a seven-string
    guitar built step by step.

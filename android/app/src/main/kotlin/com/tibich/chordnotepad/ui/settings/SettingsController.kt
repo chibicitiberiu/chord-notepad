@@ -58,9 +58,9 @@ data class SettingsNav(val page: SettingsPage? = null, val voicingDetail: Boolea
 /** A dialog the Settings screen shows over itself. */
 @Serializable
 sealed interface SettingsDialog {
-    /** Leave with a voicing still invalid, dropping its edits? */
+    /** Leaving with wrong values: Edit (go to the first) or Discard (drop them and leave). */
     @Serializable
-    data object Discard : SettingsDialog
+    data object Problems : SettingsDialog
 
     /** Remove voicing [name]? (`remove_confirm`) */
     @Serializable
@@ -84,7 +84,11 @@ sealed interface SettingsDialog {
  *
  * @property saved The General/Playback values Python has: what the screen
  *   opened with, then the last ones sent with `commit_settings`.
- * @property invalidNumbers Number fields whose text isn't a value in range (not saved).
+ * @property numberTexts Number fields whose text isn't a whole number in
+ *   range, with that text (not saved; the draft keeps the saved value).
+ * @property sentNumbers The [numberTexts] Python has (`invalid_numbers`, kept for next time).
+ * @property adoptStaged This screen began the edit: take the number texts
+ *   Python kept from last time when it opens.
  */
 @Serializable
 data class SettingsUi(
@@ -92,11 +96,16 @@ data class SettingsUi(
     val nav: SettingsNav = SettingsNav(),
     val draft: SettingsDraft? = null,
     val saved: SettingsDraft? = null,
-    val invalidNumbers: Set<NumberSetting> = emptySet(),
+    val numberTexts: Map<NumberSetting, String> = emptyMap(),
+    val sentNumbers: Map<NumberSetting, String> = emptyMap(),
+    val adoptStaged: Boolean = false,
     val dialog: SettingsDialog? = null,
 ) {
     /** The draft has changes not sent yet (a number being typed: [SettingsController.saveDraft]). */
     val draftPending: Boolean get() = draft != null && draft != saved
+
+    /** The wrong number texts changed since they were last sent. */
+    val numbersPending: Boolean get() = numberTexts != sentNumbers
 }
 
 /** The voicings editor as the form draws it: the state plus local edits not echoed yet. */
@@ -106,10 +115,11 @@ data class EditorView(val state: VoicingEditorState, val values: JsonObject)
  * The Settings screen's state holder: the settings edit's life (begin,
  * autosave, leaving), the General/Playback draft, navigation, and the
  * voicing commands. Every change is saved as it is made: a voicing command
- * is followed by `commit_settings` (Python writes the voicings while all of
- * them are valid), and a General/Playback change goes out at once, or
- * after [DRAFT_SAVE_DELAY_MS] for a number being typed (the screen calls
- * [saveDraft]). Plain Kotlin, fed by the repository's flows ([onSettings],
+ * is followed by `commit_settings` (Python writes each voicing's valid
+ * fields), and a General/Playback change goes out at once, or after
+ * [DRAFT_SAVE_DELAY_MS] for a number being typed (the screen calls
+ * [saveDraft]). Wrong values aren't saved; Python keeps them for next time,
+ * and leaving asks what to do with them ([SettingsDialog.Problems]). Plain Kotlin, fed by the repository's flows ([onSettings],
  * [onEditor]); [snapshot]/[restore] keep it across a rotation (the edit
  * itself lives on in Python).
  */
@@ -130,7 +140,7 @@ class SettingsController(private val commands: ScreenCommands, saved: SettingsUi
         if (needSchema) commands.requestVoicingEditorSchema()
         if (_ui.value.phase != SettingsPhase.NEW) return
         commands.beginSettingsEdit()
-        _ui.update { it.copy(phase = SettingsPhase.OPENING) }
+        _ui.update { it.copy(phase = SettingsPhase.OPENING, adoptStaged = true) }
     }
 
     /** A `SettingsState` arrived: the draft starts from the first one. */
@@ -148,7 +158,17 @@ class SettingsController(private val commands: ScreenCommands, saved: SettingsUi
         val ui = _ui.value
         var next = ui
         when (ui.phase) {
-            SettingsPhase.OPENING -> if (state.active) next = ui.copy(phase = SettingsPhase.EDITING)
+            SettingsPhase.OPENING -> if (state.active) {
+                // Python's number texts: kept from last time (adopted when
+                // this screen began the edit) or after a restart.
+                val staged = NumberSetting.fromKeys(state.stagedNumbers)
+                next = ui.copy(
+                    phase = SettingsPhase.EDITING,
+                    sentNumbers = staged,
+                    numberTexts = if (ui.adoptStaged && ui.numberTexts.isEmpty()) staged else ui.numberTexts,
+                    adoptStaged = false,
+                )
+            }
             // The edit is gone though nobody ended it: the process was
             // restarted under a restored screen. Open a new one.
             SettingsPhase.EDITING -> if (!state.active) {
@@ -170,48 +190,68 @@ class SettingsController(private val commands: ScreenCommands, saved: SettingsUi
     /** Whether commands can go to the edit now (it is open in this process). */
     private val live: Boolean get() = _ui.value.phase == SettingsPhase.EDITING && _editor.value != null
 
-    /** Send the draft's General/Playback values if they changed since the last save. */
+    /** Send the draft's General/Playback values and the wrong number texts if they changed since the last save. */
     fun saveDraft() {
-        if (live && _ui.value.draftPending) commit()
+        val ui = _ui.value
+        if (live && (ui.draftPending || ui.numbersPending)) commit()
     }
 
-    /** `commit_settings`, with the draft's values when they changed (null keeps the config's). */
+    /**
+     * `commit_settings`, with the draft's values when they changed (null keeps
+     * the config's) and the wrong number texts when they changed.
+     */
     private fun commit() {
         val ui = _ui.value
         val values = ui.draft?.takeIf { ui.draftPending }?.toValues()
-        if (values != null) _ui.value = ui.copy(saved = ui.draft)
-        commands.commitSettings(values)
+        val numbers = ui.numberTexts.takeIf { ui.numbersPending }
+        _ui.value = ui.copy(saved = if (values != null) ui.draft else ui.saved, sentNumbers = ui.numberTexts)
+        commands.commitSettings(values, numbers?.mapKeys { it.key.key })
     }
 
-    /** Back out of the screen: asks first only while a voicing is invalid (its edits aren't saved). */
+    /** Whether something wrong isn't saved: a number field's text or a voicing value. */
+    val hasProblems: Boolean
+        get() = _ui.value.numberTexts.isNotEmpty() || _editor.value?.state?.problems?.isNotEmpty() == true
+
+    /** Back out of the screen: asks first ([SettingsDialog.Problems]) while something wrong isn't saved. */
     fun requestClose() {
         val ui = _ui.value
         when {
             ui.phase == SettingsPhase.CLOSED -> Unit
-            _editor.value?.state?.invalid?.isNotEmpty() == true -> _ui.value = ui.copy(dialog = SettingsDialog.Discard)
+            hasProblems -> _ui.value = ui.copy(dialog = SettingsDialog.Problems)
             else -> close()
         }
     }
 
-    /** Leave: save what the draft still holds, then end the edit (an invalid voicing's edits are dropped). */
+    /** Leave: save what the draft still holds, then end the edit (Python drops the wrong values). */
     fun close() {
         if (_ui.value.phase == SettingsPhase.CLOSED) return
         saveDraft()
         commands.cancelSettingsEdit()
         pending.clear()
-        _ui.update { it.copy(phase = SettingsPhase.CLOSED, dialog = null) }
+        _ui.update { it.copy(phase = SettingsPhase.CLOSED, dialog = null, numberTexts = emptyMap()) }
     }
 
-    /** "Keep editing" in the Discard dialog: open the first invalid voicing. */
-    fun keepEditing() {
+    /** Edit (the leave dialog, or the banner of values kept from last time): go to the first problem. */
+    fun editProblems() {
         _ui.update { it.copy(dialog = null) }
+        val number = NumberSetting.entries.firstOrNull { it in _ui.value.numberTexts }
+        if (number != null) {
+            openPage(number.page)
+            return
+        }
         val state = _editor.value?.state ?: return
-        val name = state.invalid.firstOrNull() ?: return
+        val name = state.problems.firstOrNull()?.voicing ?: return
         if (name == state.selected) {
             _ui.update { it.copy(nav = SettingsNav(SettingsPage.VOICINGS, voicingDetail = true)) }
         } else {
             selectVoicing(name)
         }
+    }
+
+    /** Drop the wrong values and stay (the banner of values kept from last time). */
+    fun discardProblems() {
+        commands.discardSettingsProblems()
+        _ui.update { it.copy(numberTexts = emptyMap(), sentNumbers = emptyMap()) }
     }
 
     /** System Back: up one page, or [requestClose]. */
@@ -252,9 +292,9 @@ class SettingsController(private val commands: ScreenCommands, saved: SettingsUi
                 // Back to the saved value: a number typed on the way (the 9
                 // of 999) must not be saved when the typing rests.
                 val kept = ui.saved?.let { setting.set(draft, setting.get(it)) } ?: draft
-                ui.copy(draft = kept, invalidNumbers = ui.invalidNumbers + setting)
+                ui.copy(draft = kept, numberTexts = ui.numberTexts + (setting to text))
             } else {
-                ui.copy(draft = setting.set(draft, value), invalidNumbers = ui.invalidNumbers - setting)
+                ui.copy(draft = setting.set(draft, value), numberTexts = ui.numberTexts - setting)
             }
         }
     }
@@ -269,7 +309,10 @@ class SettingsController(private val commands: ScreenCommands, saved: SettingsUi
         val dialog = _ui.value.dialog ?: return
         _ui.update { it.copy(dialog = null) }
         when (dialog) {
-            SettingsDialog.Discard -> close()
+            SettingsDialog.Problems -> {
+                _ui.update { it.copy(numberTexts = emptyMap()) }
+                close()
+            }
             is SettingsDialog.RemoveVoicing -> touch { commands.removeVoicing(dialog.name) }
             is SettingsDialog.Rename -> if (newName != dialog.name) touch { commands.renameVoicing(dialog.name, newName) }
             is SettingsDialog.ChangeModel -> setModel(dialog.model)

@@ -382,17 +382,39 @@ raises is an `UnexpectedError` whose `context` is the command name.
   `VoicingEditorState.active == false`; a config that can't be written is a
   `UserError` "Settings" and the edit stays open. Android's screen saves as
   it goes instead (no Save button, the platform's way): `commit_settings
-  {values: SettingsValues|null}` after every General/Playback change and
-  every voicing command but select. It writes and applies the values when
-  they differ from the config, and the voicings with them only while every
-  voicing is valid; otherwise the config keeps the last valid voicings and
-  nothing is said (the form shows the errors, `VoicingEditorState.invalid`
-  lists the voicings). Nothing to write, no write. The edit stays open; it
-  carries on from a fresh `SettingsViewModel` of what was written, so the
-  next commit's renames and change flags start from there. Leaving sends
-  `cancel_settings_edit`, which drops only an invalid voicing's edits (the
-  screen asks first then). Kotlin saves a typed number once it rests for
-  400 ms; switches and pickers go at once.
+  {values: SettingsValues|null, invalid_numbers: {setting: text}|null}`
+  after every General/Playback change and every voicing command but
+  select. It writes and applies the values when they differ from the
+  config. Each voicing that differs from the config is written field by
+  field (`settings_forms/voicing_autosave.py`): a field that doesn't parse
+  takes its value on disk (a new voicing's: the model's default); if the
+  result still fails a rule across fields, the changed fields are put back
+  one at a time, the most recently edited first, until it validates, and
+  those (pruned to the ones needed) count as wrong too. A voicing that
+  won't validate even then keeps its version on disk. Nothing is said: the
+  form shows the errors, and `VoicingEditorState.problems` lists every wrong
+  value as `SettingsProblem {voicing, field_id, text}`, `text` naming the
+  voicing and field, what was typed, what's wrong and the field's syntax or
+  range. Nothing to write, no write. The edit stays open; it carries on from
+  a fresh `SettingsViewModel` of what was written plus the working data of
+  the voicings with wrong values, so the next commit's renames and change
+  flags start from there. `invalid_numbers` are the number fields whose
+  text isn't valid (`NUMBER_SETTINGS`), all of them; Kotlin words those
+  lines itself (its labels and limits). Kotlin saves a typed number once it
+  rests for 400 ms; switches and pickers go at once.
+- *Wrong values across the app going away.* The wrong voicing data and
+  `invalid_numbers` are kept in `settings-staged.json` next to the config
+  (`session/settings_staging.py`), rewritten whenever they change and
+  removed when nothing is wrong, never applied. `begin_settings_edit` puts
+  them back into the working copy (staged voicings that no longer exist, or
+  are no longer wrong, are dropped) and sets `VoicingEditorState.restored`;
+  `staged_numbers` carries the number texts, which Kotlin takes into its
+  fields when its own screen began the edit. The screen shows a banner then,
+  with Edit and Discard. `discard_settings_problems {}` drops the wrong
+  values and keeps editing; `cancel_settings_edit` (leaving) drops them too.
+  Leaving with something wrong asks first: a dialog lists the problems,
+  Edit goes to the first (a number's page, or the voicing's form), Discard
+  drops them and leaves.
 - *Voicings editor* (inside an edit; outside one these raise →
   `UnexpectedError`): `request_voicing_editor_schema {}` → `VoicingEditorSchema
   {version, schema}` (`voicing_form.editor_schema("android")`: models, list
@@ -408,7 +430,8 @@ raises is an `UnexpectedError` whose `context` is the command name.
   defaults to `voices`), `load_voicing_preset {group, label}`. Every one
   republishes `VoicingEditorState {active, revision, groups: [{model, label,
   names}], invalid, presets: [{label, group}], selected, model, values,
-  field_errors, form_errors, hints, dirty}`: `values` / `field_errors` /
+  field_errors, form_errors, hints, dirty, problems, staged_numbers,
+  restored}`: `values` / `field_errors` /
   `hints` are JSON objects keyed by field id (`voice:<i>:<column>` for a
   records cell), recomputed on every edit, so Kotlin never parses or
   validates. `revision` goes up on every command (also a refused rename),

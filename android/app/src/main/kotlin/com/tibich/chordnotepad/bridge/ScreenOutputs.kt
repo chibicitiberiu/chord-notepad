@@ -66,9 +66,24 @@ data class VoicingGroup(val model: String, val label: String, val names: List<St
 data class VoicingPreset(val label: String, val group: String)
 
 /**
+ * A voicing value that isn't saved because it's wrong; [text] says where it
+ * is, what was typed, what's wrong and the field's syntax or range. [fieldId]
+ * is null for the voicing as a whole.
+ */
+@Serializable
+data class SettingsProblem(
+    val voicing: String,
+    @SerialName("field_id") val fieldId: String? = null,
+    val text: String,
+)
+
+/**
  * The voicings editor of an open settings edit (`begin_settings_edit`).
  * [values], [fieldErrors] and [hints] are keyed by the form schema's field
  * ids (`voice:<i>:<column>` for a records cell in [fieldErrors]).
+ * [problems]: every wrong voicing value; [stagedNumbers]: number fields'
+ * wrong texts as Python keeps them; [restored]: the edit opened with wrong
+ * values kept from last time.
  */
 @Serializable
 data class VoicingEditorState(
@@ -84,6 +99,9 @@ data class VoicingEditorState(
     @SerialName("form_errors") val formErrors: List<String>,
     val hints: JsonObject,
     val dirty: Boolean,
+    val problems: List<SettingsProblem> = emptyList(),
+    @SerialName("staged_numbers") val stagedNumbers: Map<String, String> = emptyMap(),
+    val restored: Boolean = false,
 ) : SessionState
 
 /** The voicings editor's form schemas (`settings_forms.voicing_form.editor_schema`); keep it. */

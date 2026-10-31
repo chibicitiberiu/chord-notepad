@@ -7,9 +7,16 @@ so the session keeps them here: :class:`SettingsEdit` wraps the same
 the voicing loaded in the form, and every edit goes through the viewmodel
 exactly as the desktop page does (``add_voicing``, ``remove_voicing``,
 ``rename_voicing``, ``set_voicing_data(name, voicing_from_values(...))``).
-``save`` runs ``validate_all`` as the gate and then ``commit``; an autosave
-(``AppSession.commit_settings``) does the same and then :meth:`SettingsEdit.rebase`
-onto a fresh working copy, keeping the form.
+``save`` runs ``validate_all`` as the gate and then ``commit``.
+
+Android saves as it goes instead (``AppSession.commit_settings``): every
+voicing that differs from the config gets a plan
+(``settings_forms.voicing_autosave``), which writes its valid fields and
+keeps its wrong ones at the value on disk; :meth:`SettingsEdit.registry`
+is what gets written. The edit then :meth:`SettingsEdit.rebase` s onto a
+fresh working copy of the config, carrying over the voicings that still have
+wrong values (:meth:`SettingsEdit.staged_voicings`, which the session also
+keeps in a staging file for when the app goes away before they are fixed).
 
 What the view draws comes out as :class:`~session.state.VoicingEditorState`
 (:meth:`SettingsEdit.state`); the form schema it draws with is static
@@ -17,10 +24,11 @@ What the view draws comes out as :class:`~session.state.VoicingEditorState`
 """
 
 import copy
-from typing import TYPE_CHECKING, Any, Dict, List, Mapping, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Mapping, Optional, Tuple
 
 from settings_forms import voicing_form as form
-from session.state import VoicingEditorState, VoicingGroup, VoicingPreset
+from settings_forms.voicing_autosave import VoicingPlan, plan_voicing, problem_text
+from session.state import SettingsProblem, VoicingEditorState, VoicingGroup, VoicingPreset
 from settings_forms.voicing_texts import MODEL_LABELS
 
 if TYPE_CHECKING:
@@ -39,11 +47,21 @@ class SettingsEdit:
         self._label: Optional[str] = None
         self._dirty = False
         self._revision = 0
+        self._recent: List[str] = []
+        #: General/Playback number fields whose text isn't valid, ``{setting: text}``.
+        self.staged_numbers: Dict[str, str] = {}
+        #: Whether the edit opened with wrong values kept from last time.
+        self.restored = False
 
-    def rebase(self, model: "SettingsViewModel") -> None:
+    def rebase(self, model: "SettingsViewModel", keep: Iterable[str] = ()) -> None:
         """Carry on with ``model``, a fresh working copy of what was just
-        committed; the form (the voicing shown, its values, ``dirty``) stays."""
+        committed; the working data of the voicings in ``keep`` (those with
+        wrong values) carries over, and the form stays as it is."""
+        old = self.model.get_voicings()
         self.model = model
+        for name in keep:
+            if name in old:
+                model.set_voicing_data(name, copy.deepcopy(old[name]))
 
     # -- the voicings list -----------------------------------------------------
 
@@ -65,6 +83,7 @@ class SettingsEdit:
         self._selected = name
         self._load(data)
         self._dirty = False
+        self._recent = []
 
     def add(self) -> str:
         """Add a voicing (a guitar fretboard, uniquely named) and select it."""
@@ -106,6 +125,10 @@ class SettingsEdit:
         merged = dict(self._values)
         merged.update(copy.deepcopy(dict(values)))
         self._values = merged
+        for key in values:
+            if key in self._recent:
+                self._recent.remove(key)
+            self._recent.append(key)
         self._store(form.voicing_from_values(self._form_model, merged, self._label))
 
     def set_model(self, model: str) -> None:
@@ -163,14 +186,74 @@ class SettingsEdit:
         errors = self.model.validate_all()
         return errors[0] if errors else None
 
+    def saved_voicing(self, name: str, disk: Mapping[str, Any]) -> Optional[Dict[str, Any]]:
+        """Working voicing ``name`` as the config ``disk`` has it (through a
+        rename), or None if it isn't there."""
+        original = self.model.original_name(name)
+        return disk.get(original) if original is not None else None
+
+    def plans(self, disk: Mapping[str, Any]) -> Dict[str, VoicingPlan]:
+        """An autosave plan for every working voicing that differs from ``disk``."""
+        out: Dict[str, VoicingPlan] = {}
+        for name, data in self.model.get_voicings().items():
+            saved = self.saved_voicing(name, disk)
+            if saved is not None and data == saved:
+                continue
+            if name == self._selected:
+                model, values, label, recent = self._form_model, self._values, self._label, self._recent
+            else:
+                model = form.form_model(data.get('model', 'piano'))
+                values, label, recent = form.values_from_voicing(model, data), data.get('label'), []
+            out[name] = plan_voicing(name, model, values, label, saved, recent)
+        return out
+
+    def registry(self, plans: Mapping[str, VoicingPlan],
+                 disk: Mapping[str, Any]) -> Dict[str, Dict[str, Any]]:
+        """The voicings an autosave writes: each planned one's valid version
+        (or what's on disk, when even that won't validate), the rest as they are."""
+        out: Dict[str, Dict[str, Any]] = {}
+        for name, data in self.model.get_voicings().items():
+            plan = plans.get(name)
+            if plan is None:
+                out[name] = copy.deepcopy(data)
+            elif plan.data is not None:
+                out[name] = plan.data
+            else:
+                saved = self.saved_voicing(name, disk)
+                if saved is not None:
+                    out[name] = copy.deepcopy(saved)
+        return out
+
+    def staged_voicings(self, plans: Mapping[str, VoicingPlan]) -> Dict[str, Dict[str, Any]]:
+        """The working data of the voicings with wrong values (what isn't saved)."""
+        voicings = self.model.get_voicings()
+        return {name: copy.deepcopy(voicings[name]) for name, plan in plans.items()
+                if plan.problems and name in voicings}
+
+    def discard_problems(self, disk: Mapping[str, Any]) -> None:
+        """Put every voicing with wrong values back as ``disk`` has it, and
+        forget the number texts."""
+        for name, plan in self.plans(disk).items():
+            if not plan.problems:
+                continue
+            saved = self.saved_voicing(name, disk)
+            if saved is None:
+                self.remove(name)
+            else:
+                self.model.set_voicing_data(name, copy.deepcopy(saved))
+                if name == self._selected:
+                    self.select(name)
+        self.staged_numbers = {}
+        self.restored = False
+
     # -- output ------------------------------------------------------------------
 
     def bump(self) -> None:
         """Count one more command (the state's ``revision``)."""
         self._revision += 1
 
-    def state(self) -> VoicingEditorState:
-        """What the voicings editor shows now."""
+    def state(self, disk: Mapping[str, Any]) -> VoicingEditorState:
+        """What the voicings editor shows now (``disk``: the config's voicings)."""
         voicings = self.model.get_voicings()
         by_group: Dict[str, List[str]] = {group: [] for group in form.TREE_GROUPS}
         for name in sorted(voicings):
@@ -178,22 +261,42 @@ class SettingsEdit:
             by_group[model if model in form.TREE_GROUPS else "piano"].append(name)
         groups = tuple(VoicingGroup(group, MODEL_LABELS[group], tuple(by_group[group]))
                        for group in form.TREE_GROUPS)
-        invalid = tuple(name for name, _ in self.model.validate_all())
+        plans = self.plans(disk)
+        listed = [name for group in groups for name in group.names]
+        broken = {name for name, _ in self.model.validate_all()}
+        invalid = tuple(name for name in listed
+                        if name in broken or (name in plans and plans[name].problems))
+        problems = tuple(self._problems(name, plans[name]) for name in listed if name in plans)
         presets = tuple(VoicingPreset(p["label"], p["group"]) for p in self.presets())
+        common = dict(active=True, revision=self._revision, groups=groups, invalid=invalid,
+                      presets=presets, problems=tuple(p for ps in problems for p in ps),
+                      staged_numbers=dict(self.staged_numbers), restored=self.restored)
         if self._selected is None:
             return VoicingEditorState(
-                active=True, revision=self._revision, groups=groups, invalid=invalid,
-                presets=presets, selected=None, model=None, values={}, field_errors={},
-                form_errors=(), hints={}, dirty=False)
+                selected=None, model=None, values={}, field_errors={},
+                form_errors=(), hints={}, dirty=False, **common)
         checked = form.validate_form(self._selected, self._form_model, self._values, self._label)
+        field_errors = dict(checked["fields"])
+        for problem in plans[self._selected].problems if self._selected in plans else ():
+            if problem.field_id is not None:
+                field_errors.setdefault(problem.field_id, problem.message)
         schema = form.form_schema(self._form_model)
         hints = {f["id"]: form.field_hint(f, self._values)
                  for f in form.iter_fields(schema) if f.get("hint")}
         return VoicingEditorState(
-            active=True, revision=self._revision, groups=groups, invalid=invalid,
-            presets=presets, selected=self._selected, model=self._form_model,
-            values=copy.deepcopy(self._values), field_errors=checked["fields"],
-            form_errors=tuple(checked["form"]), hints=hints, dirty=self._dirty)
+            selected=self._selected, model=self._form_model,
+            values=copy.deepcopy(self._values), field_errors=field_errors,
+            form_errors=tuple(checked["form"]), hints=hints, dirty=self._dirty, **common)
+
+    def _problems(self, name: str, plan: VoicingPlan) -> Tuple[SettingsProblem, ...]:
+        if name == self._selected:
+            model, values = self._form_model, self._values
+        else:
+            data = self.model.get_voicings()[name]
+            model = form.form_model(data.get("model", "piano"))
+            values = form.values_from_voicing(model, data)
+        return tuple(SettingsProblem(name, p.field_id, problem_text(name, model, p, values))
+                     for p in plan.problems)
 
     # -- internals ---------------------------------------------------------------
 
@@ -216,6 +319,7 @@ class SettingsEdit:
         self._store(form.voicing_from_values(self._form_model, values, self._label))
 
     def _clear(self) -> None:
+        self._recent = []
         self._selected = None
         self._form_model = None
         self._values = {}

@@ -72,8 +72,11 @@
     "label": "New voicing"
    }
   ],
+  "problems": [],
+  "restored": false,
   "revision": 5,
   "selected": "New voicing",
+  "staged_numbers": {},
   "values": {
    "add_bass": true,
    "hand_gap_floor": "2",

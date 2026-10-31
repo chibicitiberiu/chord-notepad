@@ -35,11 +35,13 @@
       "step": "int"
     },
     "commit_settings": {
+      "invalid_numbers": "json|null",
       "values": "SettingsValues|null"
     },
     "convert_notation": {
       "target": "str"
     },
+    "discard_settings_problems": {},
     "dismiss_startup_screen": {},
     "export_midi": {},
     "identifier_clear": {},
@@ -217,6 +219,7 @@
     "chord_sheet_zoom",
     "commit_settings",
     "convert_notation",
+    "discard_settings_problems",
     "dismiss_startup_screen",
     "export_midi",
     "identifier_clear",
@@ -531,6 +534,14 @@
       },
       "kind": "event"
     },
+    "SettingsProblem": {
+      "fields": {
+        "field_id": "str|null",
+        "text": "str",
+        "voicing": "str"
+      },
+      "kind": "value"
+    },
     "SettingsState": {
       "fields": {
         "american_keys": "list[str]",
@@ -660,8 +671,11 @@
         "invalid": "list[str]",
         "model": "str|null",
         "presets": "list[VoicingPreset]",
+        "problems": "list[SettingsProblem]",
+        "restored": "bool",
         "revision": "int",
         "selected": "str|null",
+        "staged_numbers": "json",
         "values": "json"
       },
       "kind": "state"

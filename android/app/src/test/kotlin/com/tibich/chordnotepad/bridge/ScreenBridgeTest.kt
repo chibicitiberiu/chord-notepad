@@ -113,10 +113,14 @@ class ScreenBridgeTest {
             "commit_settings",
             """{"values":{"font_family":"TkFixedFont","font_size":11,"notation":"american","key":"",
                "show_quick_start_on_startup":true,"max_recent_files":10,"bpm":120,
-               "time_signature_beats":4,"time_signature_unit":4}}""",
+               "time_signature_beats":4,"time_signature_unit":4},"invalid_numbers":null}""",
         )
         commands.commitSettings(null)
-        assertSent("commit_settings", """{"values":null}""")
+        assertSent("commit_settings", """{"values":null,"invalid_numbers":null}""")
+        commands.commitSettings(null, mapOf("font_size" to "999"))
+        assertSent("commit_settings", """{"values":null,"invalid_numbers":{"font_size":"999"}}""")
+        commands.discardSettingsProblems()
+        assertSent("discard_settings_problems", "{}")
         commands.setVoicingValues(JsonObject(mapOf("max_fret" to JsonPrimitive("14"))))
         assertSent("set_voicing_values", """{"values":{"max_fret":"14"}}""")
         commands.removeVoicingRecord(1)

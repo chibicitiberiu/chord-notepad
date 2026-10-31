@@ -101,7 +101,9 @@ class VoicingFormTest {
         val row1 = records.rows[1].cells.associateBy { it.spec.id }
         assertEquals("H9", row1.getValue("low").text)
         assertEquals("Not a valid note name", row1.getValue("low").error)
-        assertNull(records.rows[0].cells.first { it.spec.id == "low" }.error)
+        // Voice 0's low is above its high: the rule blames both cells.
+        assertTrue(records.rows[0].cells.first { it.spec.id == "low" }.error!!.contains("low < high"))
+        assertNull(records.rows[0].cells.first { it.spec.id == "name" }.error)
         // staff is a choice whose value is null: "Auto".
         assertEquals("Auto", row1.getValue("staff").choice!!.label)
         assertEquals("voice:1:low", records.spec.cellErrorKey(1, "low"))

@@ -18,12 +18,15 @@ in the middle of a command. All of it runs on the session thread.
 """
 
 import contextlib
+import copy
 import dataclasses
 import functools
 import logging
 import os
+from pathlib import Path
 from typing import (
-    TYPE_CHECKING, Any, Callable, Dict, Generator, Iterator, Optional, Sequence, Tuple, TypeVar,
+    TYPE_CHECKING, Any, Callable, Dict, Generator, Iterator, Mapping, Optional, Sequence, Tuple,
+    TypeVar,
 )
 
 from constants import CHORD_DETECTION_DEBOUNCE_MS, MAX_FONT_SIZE, MIN_FONT_SIZE
@@ -49,8 +52,11 @@ from session.flows import Flow, FlowRunner
 from session.highlighting import (
     chord_at, compute_spans, directive_hint, first_chord, nearest_chord)
 from session.host import Cancellable, Host
-from session.settings import TIME_SIGNATURE_UNITS, MAX_RECENT_LIMIT, SettingsValues
+from session.settings import (
+    MAX_RECENT_LIMIT, NUMBER_SETTINGS, TIME_SIGNATURE_UNITS, SettingsValues,
+)
 from session.settings_edit import SettingsEdit
+from session.settings_staging import SettingsStaging
 from session.workers import BackgroundWorker, Job, Outcome
 from session.state import (
     ChordSheetState, ChordSheetView, DocumentState, EditorState, HighlightState,
@@ -121,6 +127,17 @@ def _shift_offset(old: str, new: str, offset: int) -> int:
     if offset >= old_end:
         return offset + len(new) - len(old)
     return min(offset, prefix)
+
+
+def _number_texts(value: Any) -> Dict[str, str]:
+    """``commit_settings``'s ``invalid_numbers``, checked."""
+    if not isinstance(value, dict) or not all(
+            isinstance(k, str) and isinstance(v, str) for k, v in value.items()):
+        raise ValueError(f"invalid_numbers must be an object of strings, not {value!r}")
+    unknown = sorted(set(value) - set(NUMBER_SETTINGS))
+    if unknown:
+        raise ValueError(f"invalid_numbers names unknown settings: {unknown}")
+    return dict(value)
 
 
 def _command(method: F) -> F:
@@ -321,6 +338,7 @@ class AppSession:
         self._identifier_error: Optional[str] = None
         # A Settings screen's working copy (Android), while one is open.
         self._settings_edit: Optional[SettingsEdit] = None
+        self._staging: Optional[SettingsStaging] = None
 
         with self._emitter.batch():
             self._emitter.set_state(HighlightState(0, 0, ()))
@@ -1237,23 +1255,61 @@ class AppSession:
     # save_settings validates every voicing, commits and applies, or
     # cancel_settings_edit drops it. SettingsState carries the plain values.
     # Android saves as it goes: commit_settings after every change writes
-    # what is valid and keeps the edit open.
+    # what is valid and keeps the edit open; the wrong values stay in the
+    # working copy and in a staging file (settings_staging) until they are
+    # fixed, or dropped with discard_settings_problems / cancel_settings_edit.
 
     @_command
     def begin_settings_edit(self) -> None:
         """Open a settings working copy (dropping one already open).
 
+        Wrong values staged last time (the app went away before they were
+        fixed or discarded) come back into it, not applied:
+        ``VoicingEditorState.restored`` says so. A staged voicing that no
+        longer exists, or that is no longer wrong, is dropped.
+
         Raises:
             RuntimeError: If the session was built without services.
         """
-        self._settings_edit = SettingsEdit(self.settings_model())
+        edit = SettingsEdit(self.settings_model())
+        disk = self._require_services("settings").config.config.voicings
+        voicings, numbers = self._settings_staging().load()
+        for name, data in voicings.items():
+            if edit.saved_voicing(name, disk) is not None:
+                edit.model.set_voicing_data(name, data)
+        for name, plan in edit.plans(disk).items():
+            if not plan.problems:
+                edit.model.set_voicing_data(name, copy.deepcopy(disk[name]))
+        edit.staged_numbers = dict(numbers)
+        plans = edit.plans(disk)
+        edit.restored = bool(edit.staged_voicings(plans) or edit.staged_numbers)
+        self._settings_edit = edit
+        self._stage_settings(edit, plans)
         self._publish_voicing_editor()
 
     @_command
     def cancel_settings_edit(self) -> None:
-        """Drop the working copy; nothing is written."""
+        """End the edit: what is valid is saved already, the wrong values
+        are dropped (also from the staging file); nothing is written."""
         self._settings_edit = None
+        if self._services is not None:
+            self._settings_staging().clear()
         self._emitter.set_state(INACTIVE_VOICING_EDITOR)
+
+    @_command
+    def discard_settings_problems(self) -> None:
+        """Drop the wrong values and keep editing: every voicing with one goes
+        back to its saved version, the number texts are forgotten, and the
+        staging file goes.
+
+        Raises:
+            RuntimeError: If no settings edit is open.
+        """
+        edit = self._require_settings_edit()
+        edit.discard_problems(self._require_services("settings").config.config.voicings)
+        edit.bump()
+        self._settings_staging().clear()
+        self._publish_voicing_editor()
 
     @_command
     def save_settings(self, values: Optional[SettingsValues] = None) -> None:
@@ -1300,25 +1356,35 @@ class AppSession:
         self._apply_changes(changes)
 
     @_command
-    def commit_settings(self, values: Optional[SettingsValues] = None) -> None:
+    def commit_settings(self, values: Optional[SettingsValues] = None,
+                        invalid_numbers: Optional[Mapping[str, str]] = None) -> None:
         """Save what is valid in the working copy now and keep editing (autosave).
 
         ``values`` (the General/Playback settings) are written and applied
-        whenever they differ from the config. The voicings are written with
-        them only while every voicing is valid; otherwise the config keeps
-        the last valid voicings, and nothing is said: the form shows the
-        problem (``VoicingEditorState.invalid`` and the field errors). With
-        nothing to write, nothing is written. What is written is applied
-        like :meth:`apply_settings`. A config that can't be written is a
-        :class:`UserError`; the edit stays open either way.
+        whenever they differ from the config. Each voicing that differs from
+        the config is written field by field: a field that is wrong (it
+        doesn't parse, or a rule across fields blames it) keeps its value on
+        disk, a new voicing's default if it isn't there yet, and the rest is
+        written if it validates (``settings_forms.voicing_autosave``). The
+        wrong values stay in the working copy, show as problems
+        (``VoicingEditorState.problems``), and are kept in the staging file
+        with ``invalid_numbers`` in case the app goes away. Nothing is said
+        about them here: the form shows them. With nothing to write, nothing
+        is written. What is written is applied like :meth:`apply_settings`.
+        A config that can't be written is a :class:`UserError`; the edit
+        stays open either way.
 
         Args:
             values: The General/Playback settings; None keeps them as the
                 config has them now.
+            invalid_numbers: ``{setting: text}`` for the number fields whose
+                text isn't valid (``NUMBER_SETTINGS``), all of them; None
+                keeps the ones sent last.
 
         Raises:
             RuntimeError: If no settings edit is open.
-            ValueError: If ``values`` are out of range (nothing is written).
+            ValueError: If ``values`` are out of range, or ``invalid_numbers``
+                names an unknown setting (nothing is written).
         """
         edit = self._require_settings_edit()
         config = self._require_services("settings").config.config
@@ -1326,26 +1392,28 @@ class AppSession:
         if values is None:
             values = on_disk
         values.check()
+        if invalid_numbers is not None:
+            edit.staged_numbers = _number_texts(invalid_numbers)
         for name, value in values.as_dict().items():
             setattr(edit.model, name, value)
-        try:
-            if edit.first_invalid() is None:
-                if values == on_disk and edit.model.get_voicings() == config.voicings:
-                    return
-                changes = edit.model.commit()
+        plans = edit.plans(config.voicings)
+        registry = edit.registry(plans, config.voicings)
+        changes = None
+        if values != on_disk or registry != config.voicings:
+            try:
+                changes = edit.model.commit(registry)
+            except ConfigurationError as e:
+                logger.error(f"Could not save settings: {e}")
+                self._emitter.emit(UserError(formatting.SETTINGS_TITLE,
+                                             formatting.settings_save_failed(str(e))))
+            else:
                 # A fresh working copy of what was just written, so the next
                 # commit's change flags and renames start from here.
-                edit.rebase(self.settings_model())
-            elif values != on_disk:
-                changes = self._commit_settings(values)
-            else:
-                return
-        except ConfigurationError as e:
-            logger.error(f"Could not save settings: {e}")
-            self._emitter.emit(UserError(formatting.SETTINGS_TITLE,
-                                         formatting.settings_save_failed(str(e))))
-            return
-        self._apply_changes(changes)
+                edit.rebase(self.settings_model(),
+                            keep=[name for name, plan in plans.items() if plan.problems])
+        self._stage_settings(edit, plans)
+        if changes is not None:
+            self._apply_changes(changes)
         self._publish_voicing_editor()
 
     @_command
@@ -1782,7 +1850,21 @@ class AppSession:
 
     def _publish_voicing_editor(self) -> None:
         if self._settings_edit is not None:
-            self._emitter.set_state(self._settings_edit.state())
+            disk = self._require_services("settings").config.config.voicings
+            self._emitter.set_state(self._settings_edit.state(disk))
+
+    def _settings_staging(self) -> SettingsStaging:
+        if self._staging is None:
+            config_path = self._require_services("settings").appdata.get_config_file_path()
+            self._staging = SettingsStaging.beside(Path(config_path))
+        return self._staging
+
+    def _stage_settings(self, edit: SettingsEdit, plans: Mapping[str, Any]) -> None:
+        """Keep the edit's wrong values in the staging file (or remove it)."""
+        voicings = edit.staged_voicings(plans)
+        if not voicings and not edit.staged_numbers:
+            edit.restored = False
+        self._settings_staging().save(voicings, edit.staged_numbers)
 
     def _publish_settings(self) -> None:
         if self._services is None:

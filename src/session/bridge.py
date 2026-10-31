@@ -46,9 +46,9 @@ from session.settings import SettingsValues
 from session.state import (
     ChordSheetState, ChordSheetView, DocumentState, EditorState, HighlightState,
     IdentifierNote, IdentifierState, InstrumentFamily, InstrumentMenuState, MenuItem, PlayAction,
-    PlaybackState, PlaybackStatus, RecentDocumentsState, SettingsState, SongDefault,
-    SongDefaultsState, Span, SpanKind, StartupScreen, StartupState, StatusState, ToolbarState,
-    VoicingEditorState, VoicingGroup, VoicingMenuState, VoicingPreset,
+    PlaybackState, PlaybackStatus, RecentDocumentsState, SettingsProblem, SettingsState,
+    SongDefault, SongDefaultsState, Span, SpanKind, StartupScreen, StartupState, StatusState,
+    ToolbarState, VoicingEditorState, VoicingGroup, VoicingMenuState, VoicingPreset,
 )
 
 logger = logging.getLogger(__name__)
@@ -75,7 +75,8 @@ REQUEST_TYPES: Tuple[type, ...] = (
 #: Nested in outputs, or sent in commands.
 VALUE_TYPES: Tuple[type, ...] = (
     Span, MenuItem, InstrumentFamily, ChordSheetView, DocumentRef, SettingsValues,
-    IdentifierNote, VoicingGroup, VoicingPreset, QuickStartPage, QuickStartBlock, SongDefault,
+    IdentifierNote, VoicingGroup, VoicingPreset, SettingsProblem, QuickStartPage, QuickStartBlock,
+    SongDefault,
 )
 ENUM_TYPES: Tuple[Type[Enum], ...] = (
     SpanKind, PlaybackStatus, PlayAction, UndoPolicy, DiscardChoice, PickMode, StartupScreen,
@@ -286,7 +287,8 @@ SESSION_COMMANDS: Dict[str, Dict[str, str]] = {
     "begin_settings_edit": {},
     "cancel_settings_edit": {},
     "save_settings": {"values": "SettingsValues|null"},
-    "commit_settings": {"values": "SettingsValues|null"},
+    "commit_settings": {"values": "SettingsValues|null", "invalid_numbers": "json|null"},
+    "discard_settings_problems": {},
     "request_voicing_editor_schema": {},
     "select_voicing": {"name": "str"},
     "add_voicing": {},

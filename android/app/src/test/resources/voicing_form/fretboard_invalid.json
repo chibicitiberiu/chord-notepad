@@ -3,6 +3,7 @@
   "active": true,
   "dirty": true,
   "field_errors": {
+   "relaxed_span": "Relaxed span (2) must be >= Max span (4).",
    "tuning": "Not a valid note name"
   },
   "form_errors": [
@@ -80,8 +81,22 @@
     "label": "New voicing"
    }
   ],
+  "problems": [
+   {
+    "field_id": "tuning",
+    "text": "Voicing 'New voicing', Strings: E2 A2 X9 G3. X9 isn't a note name. Use note names or MIDI numbers, e.g. E2 A2 D3 G3 B3 E4, 3 to 12 strings.",
+    "voicing": "New voicing"
+   },
+   {
+    "field_id": "relaxed_span",
+    "text": "Voicing 'New voicing', Relaxed span: 2. Relaxed span (2) must be >= Max span (4). Enter a whole number from 1 to 10.",
+    "voicing": "New voicing"
+   }
+  ],
+  "restored": false,
   "revision": 2,
   "selected": "New voicing",
+  "staged_numbers": {},
   "values": {
    "allow_barres": true,
    "fingers": "4",

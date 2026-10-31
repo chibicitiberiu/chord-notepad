@@ -29,12 +29,19 @@ Settings
    left and the page opens beside it.
 
    There's no Save button: each change is saved as you make it and takes
-   effect straight away. A number you type is saved once it's a whole number
-   in range; until then the field shows the range it accepts. A voicing with
-   a mistake in it isn't saved until you fix it (see `Voicings`_). Leave
-   with ← or Back when you're done; the app only asks first if a voicing
-   still has a mistake, and then you can discard its latest changes or keep
-   editing.
+   effect straight away. A value with a mistake in it isn't saved, and
+   everything else still is: a number you type is saved once it's a whole
+   number in range (until then the field shows the range it accepts), and in
+   a voicing only the field with the mistake keeps its old value (see
+   `Voicings`_). Leave with ← or Back when you're done. If something still
+   has a mistake, the app lists each one first: where it is, what you typed,
+   what's wrong, and what the field accepts. **Edit** takes you to the first
+   one; **Discard** drops those values and leaves.
+
+   If the app closes before you've done either (you switch away and Android
+   stops it, say), the values with mistakes are kept, not used. The next time
+   you open Settings they're back in their fields, still marked, and a note at
+   the top offers **Edit** and **Discard** again.
 
    The Voicing sheet in the Play tab has an **Edit voicings…** entry that opens
    the Voicings editor directly.
@@ -307,10 +314,11 @@ you there.
    -- a relaxed span smaller than the normal span, a voice whose low note is
    above its high note -- shows up as a message at the top of the editor.
    A voicing with a mistake is marked *Has errors* in the list. Your voicings
-   are saved after every change, but only while all of them are free of
-   mistakes; until you fix one, the last version without mistakes is what's
-   kept. If you leave Settings before fixing it, the app asks whether to
-   discard those changes or keep editing, and **Keep editing** opens that
+   are saved after every change, field by field: a field with a mistake
+   keeps the value it had before (a new voicing's default, if it's new), and
+   the rest of the voicing is saved. When two fields don't fit together, the
+   one you changed is the one that counts as wrong. Leaving Settings with a
+   mistake left asks first, as described above, and **Edit** opens the
    voicing. Renaming or deleting the voicing
    you're currently playing with is handled: a rename follows the selection
    so playback keeps using it, and a delete falls back to piano. A new or

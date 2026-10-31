@@ -1,5 +1,6 @@
 package com.tibich.chordnotepad.ui.settings
 
+import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -25,7 +26,7 @@ import com.tibich.chordnotepad.ui.editor.EditorFontKind
 
 /** Settings › General: font, chord notation, default key, quick start, recent files. */
 @Composable
-fun GeneralPage(draft: SettingsDraft, limits: SettingsState, invalid: Set<NumberSetting>, controller: SettingsController) {
+fun GeneralPage(draft: SettingsDraft, limits: SettingsState, numbers: Map<NumberSetting, String>, controller: SettingsController) {
     val fontLabels = EditorFontKind.entries.associateWith { fontKindLabel(it) }
     PageColumn {
         DropdownField(
@@ -39,7 +40,7 @@ fun GeneralPage(draft: SettingsDraft, limits: SettingsState, invalid: Set<Number
         )
         NumberSettingField(
             NumberSetting.FONT_SIZE, R.string.settings_font_size, null,
-            draft, limits, invalid, controller, Modifier.fillMaxWidth(),
+            draft, limits, numbers, controller, Modifier.fillMaxWidth(),
         )
         Text(stringResource(R.string.settings_notation), style = MaterialTheme.typography.bodyLarge)
         val notations = listOf(AMERICAN to R.string.settings_notation_american, EUROPEAN to R.string.settings_notation_european)
@@ -71,24 +72,24 @@ fun GeneralPage(draft: SettingsDraft, limits: SettingsState, invalid: Set<Number
         )
         NumberSettingField(
             NumberSetting.MAX_RECENT_FILES, R.string.settings_recent_files, R.string.settings_recent_files_help,
-            draft, limits, invalid, controller, Modifier.fillMaxWidth(),
+            draft, limits, numbers, controller, Modifier.fillMaxWidth(),
         )
     }
 }
 
 /** Settings › Playback: default BPM and time signature. */
 @Composable
-fun PlaybackPage(draft: SettingsDraft, limits: SettingsState, invalid: Set<NumberSetting>, controller: SettingsController) {
+fun PlaybackPage(draft: SettingsDraft, limits: SettingsState, numbers: Map<NumberSetting, String>, controller: SettingsController) {
     PageColumn {
         NumberSettingField(
             NumberSetting.BPM, R.string.settings_default_bpm, R.string.settings_default_bpm_help,
-            draft, limits, invalid, controller, Modifier.fillMaxWidth(),
+            draft, limits, numbers, controller, Modifier.fillMaxWidth(),
         )
         Text(stringResource(R.string.settings_time_signature), style = MaterialTheme.typography.bodyLarge)
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.Top) {
             NumberSettingField(
                 NumberSetting.TIME_SIGNATURE_BEATS, R.string.settings_beats, null,
-                draft, limits, invalid, controller, Modifier.weight(1f),
+                draft, limits, numbers, controller, Modifier.weight(1f),
             )
             DropdownField(
                 label = stringResource(R.string.settings_beat_unit),
@@ -134,16 +135,17 @@ private fun NumberSettingField(
     help: Int?,
     draft: SettingsDraft,
     limits: SettingsState,
-    invalid: Set<NumberSetting>,
+    numbers: Map<NumberSetting, String>,
     controller: SettingsController,
     modifier: Modifier = Modifier,
 ) {
     val range = setting.range(limits)
     val value = setting.get(draft)
-    val error = setting in invalid
+    val wrong = numbers[setting]
+    val error = wrong != null
     val name = stringResource(label)
     StateTextField(
-        value = value.toString(),
+        value = wrong ?: value.toString(),
         onValueChange = { controller.setNumber(setting, it) },
         label = name,
         key = setting,
@@ -171,3 +173,12 @@ private fun fontKindLabel(kind: EditorFontKind): String = stringResource(
         EditorFontKind.SERIF -> R.string.font_serif
     },
 )
+
+/** The label of a number setting's field. */
+@StringRes
+fun NumberSetting.labelRes(): Int = when (this) {
+    NumberSetting.FONT_SIZE -> R.string.settings_font_size
+    NumberSetting.MAX_RECENT_FILES -> R.string.settings_recent_files
+    NumberSetting.BPM -> R.string.settings_default_bpm
+    NumberSetting.TIME_SIGNATURE_BEATS -> R.string.settings_beats
+}

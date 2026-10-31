@@ -355,3 +355,223 @@ def test_commit_that_cant_write_is_a_user_error_and_the_edit_stays(tmp_path, mon
     session.commit_settings(dataclasses.replace(values, max_recent_files=3))
     assert recorder.last(UserError).title == "Settings"
     assert editor(recorder).active
+
+
+# -- field by field, and the staging file (Android) -------------------------------
+
+
+def staging_file(services):
+    config = services.appdata.get_config_file_path()
+    return config.with_name(f"{config.stem}-staged.json")
+
+
+def test_a_wrong_field_keeps_its_saved_value_and_the_others_are_saved(tmp_path):
+    session, services, recorder = make(tmp_path, voicings={"Bass": BASS})
+    session.begin_settings_edit()
+    session.select_voicing("Bass")
+    session.set_voicing_values({"tuning": "E1 X9 D2 G2", "max_fret": "15"})
+    session.commit_settings(None)
+    saved = services.config.config.voicings["Bass"]
+    assert saved["tuning"] == BASS["tuning"] and saved["max_fret"] == 15
+    state = editor(recorder)
+    assert state.invalid == ("Bass",)
+    assert state.values["tuning"] == "E1 X9 D2 G2"            # the form keeps the typing
+    assert [p.field_id for p in state.problems] == ["tuning"]
+    assert state.problems[0].text == (
+        "Voicing 'Bass', Strings: E1 X9 D2 G2. X9 isn't a note name. Use note names or "
+        "MIDI numbers, e.g. E2 A2 D3 G3 B3 E4, 3 to 12 strings.")
+    assert len(recorder.of_type(UserError)) == 0
+
+
+def test_a_new_voicing_takes_the_default_for_a_wrong_field(tmp_path):
+    session, services, recorder = make(tmp_path)
+    session.begin_settings_edit()
+    session.add_voicing()
+    session.set_voicing_values({"max_fret": "abc", "fingers": "3"})
+    session.commit_settings(None)
+    saved = services.config.config.voicings["New voicing"]
+    assert saved["max_fret"] == 12 and saved["fingers"] == 3
+    assert editor(recorder).problems[0].text == (
+        "Voicing 'New voicing', Max fret: abc. abc isn't a whole number. "
+        "Enter a whole number from 5 to 24.")
+
+
+def test_a_rule_across_fields_blames_the_field_just_edited(tmp_path):
+    session, services, recorder = make(tmp_path, voicings={"Bass": BASS})
+    session.begin_settings_edit()
+    session.select_voicing("Bass")
+    session.set_voicing_values({"max_fret": "15"})
+    session.set_voicing_values({"relaxed_span": "1"})          # below max span (4)
+    session.commit_settings(None)
+    saved = services.config.config.voicings["Bass"]
+    assert saved["max_fret"] == 15 and saved.get("relaxed_span", 5) == 5
+    state = editor(recorder)
+    assert state.field_errors["relaxed_span"].startswith("Relaxed span (1) must be >= Max span (4)")
+    assert [p.field_id for p in state.problems] == ["relaxed_span"]
+
+    # Too few strings: the strings are blamed, not the fret just saved.
+    session.set_voicing_values({"relaxed_span": "5"})
+    session.set_voicing_values({"tuning": "E1 A1"})
+    session.commit_settings(None)
+    assert services.config.config.voicings["Bass"]["tuning"] == BASS["tuning"]
+    text = editor(recorder).problems[0].text
+    assert text.startswith("Voicing 'Bass', Strings: E1 A1. Must have between 3 and 12 strings")
+
+
+def test_an_ensemble_cell_falls_back_cell_by_cell(tmp_path):
+    session, services, recorder = make(tmp_path)
+    session.begin_settings_edit()
+    session.add_voicing()
+    session.set_voicing_model("ensemble")
+    session.commit_settings(None)
+    voices = [{"name": "Top", "low": "H9", "high": "C5", "staff": None},
+              {"name": "Low", "low": "C3", "high": "C4", "staff": None}]
+    session.set_voicing_values({"voices": voices})
+    session.commit_settings(None)
+    saved = services.config.config.voicings["New voicing"]["voices"]
+    assert [v["name"] for v in saved] == ["Top", "Low"]       # the names are saved
+    assert saved[0]["range"][0] == 60                         # the bad low stays C4
+    problem = editor(recorder).problems[0]
+    assert problem.field_id == "voice:0:low"
+    assert problem.text.startswith("Voicing 'New voicing', Voice 1, Low: H9. H9 isn't a note name.")
+
+
+def test_wrong_values_are_staged_and_come_back_next_time(tmp_path):
+    session, services, recorder = make(tmp_path, voicings={"Bass": BASS})
+    session.begin_settings_edit()
+    session.select_voicing("Bass")
+    session.set_voicing_values({"tuning": "E1 X9 D2 G2"})
+    session.commit_settings(None, invalid_numbers={"font_size": "999"})
+    staged = json.loads(staging_file(services).read_text())
+    assert staged["numbers"] == {"font_size": "999"}
+    assert staged["voicings"]["Bass"]["tuning"] == "E1 X9 D2 G2"
+    assert services.config.config.voicings["Bass"]["tuning"] == BASS["tuning"]
+    assert editor(recorder).staged_numbers == {"font_size": "999"}
+    assert not editor(recorder).restored
+
+    # The app goes away without leaving Settings: a new session finds them.
+    session2, services2, recorder2 = make(tmp_path)
+    assert services2.config.config.voicings["Bass"]["tuning"] == BASS["tuning"]
+    session2.begin_settings_edit()
+    state = editor(recorder2)
+    assert state.restored and state.invalid == ("Bass",)
+    assert state.staged_numbers == {"font_size": "999"}
+    session2.select_voicing("Bass")
+    assert editor(recorder2).values["tuning"] == "E1 X9 D2 G2"
+    assert editor(recorder2).field_errors["tuning"]
+
+    # Fixed: saved, nothing staged any more.
+    session2.set_voicing_values({"tuning": "E1 A1 D2 G2 C3"})
+    session2.commit_settings(None, invalid_numbers={})
+    assert services2.config.config.voicings["Bass"]["tuning"] == [28, 33, 38, 43, 48]
+    assert not staging_file(services2).exists()
+    assert not editor(recorder2).restored and editor(recorder2).problems == ()
+
+
+def test_a_staged_voicing_that_is_gone_is_dropped(tmp_path):
+    session, services, recorder = make(tmp_path, voicings={"Bass": BASS})
+    staging_file(services).write_text(json.dumps({
+        "version": 1,
+        "voicings": {"Gone": {"model": "fretboard", "tuning": "X1"},
+                     "Bass": dict(BASS, max_fret="abc")},
+        "numbers": {"bpm": "5", "nope": "1"}}))
+    session.begin_settings_edit()
+    state = editor(recorder)
+    assert state.restored and "Gone" not in [n for g in state.groups for n in g.names]
+    assert [(p.voicing, p.field_id) for p in state.problems] == [("Bass", "max_fret")]
+    assert state.staged_numbers == {"bpm": "5"}
+    staged = json.loads(staging_file(services).read_text())
+    assert set(staged["voicings"]) == {"Bass"} and staged["numbers"] == {"bpm": "5"}
+
+
+def test_a_damaged_staging_file_is_ignored(tmp_path):
+    session, services, recorder = make(tmp_path)
+    staging_file(services).write_text("{not json")
+    session.begin_settings_edit()
+    assert editor(recorder).active and not editor(recorder).restored
+
+
+def test_discard_drops_the_wrong_values_and_the_staging_file(tmp_path):
+    session, services, recorder = make(tmp_path, voicings={"Bass": BASS})
+    session.begin_settings_edit()
+    session.select_voicing("Bass")
+    session.set_voicing_values({"max_fret": "15"})
+    session.set_voicing_values({"tuning": "E1 X9"})
+    session.commit_settings(None, invalid_numbers={"bpm": "1000"})
+    assert staging_file(services).exists()
+    session.discard_settings_problems()
+    state = editor(recorder)
+    assert state.active and state.problems == () and state.staged_numbers == {}
+    assert state.values["tuning"] == "E1 A1 D2 G2" and state.values["max_fret"] == "15"
+    assert not staging_file(services).exists()
+    assert services.config.config.voicings["Bass"]["max_fret"] == 15
+
+    # Leaving drops them too.
+    session.set_voicing_values({"tuning": "E1 X9"})
+    session.commit_settings(None)
+    assert staging_file(services).exists()
+    session.cancel_settings_edit()
+    assert not staging_file(services).exists()
+
+
+def test_commit_rejects_unknown_number_settings(tmp_path):
+    session, _, _ = make(tmp_path)
+    session.begin_settings_edit()
+    with pytest.raises(ValueError):
+        session.commit_settings(None, invalid_numbers={"volume": "11"})
+
+
+def test_problem_texts_give_the_syntax_or_range():
+    from settings_forms.voicing_autosave import plan_voicing, problem_text
+
+    values = voicing_form.default_values("piano")
+    values.update({"range:lh_range:low": "C9", "rh_center": "x"})
+    plan = plan_voicing("P", "piano", values, None, None, ["range:lh_range:low"])
+    texts = [problem_text("P", "piano", p, values) for p in plan.problems]
+    assert texts == [
+        "Voicing 'P', Left hand low: C9. Left hand must have low < high, got 120 >= 48. "
+        "Use a note name or a MIDI number, e.g. C4 or 60.",
+        "Voicing 'P', RH center: x. x isn't a number. Enter a number from 0 to 127.",
+    ]
+    assert plan.data["lh_range"] == [24, 48] and plan.data["rh_center"] == 63.0
+
+    spacing = voicing_form.default_values("ensemble")
+    spacing["max_spacing"] = "12, y"
+    plan = plan_voicing("E", "ensemble", spacing, None, None)
+    assert problem_text("E", "ensemble", plan.problems[0], spacing) == (
+        "Voicing 'E', Max spacing: 12, y. y isn't a whole number. "
+        "Use whole numbers separated by commas, 1 of them.")
+
+
+def test_renaming_a_voicing_with_a_wrong_field_keeps_its_saved_values(tmp_path):
+    session, services, recorder = make(tmp_path, voicings={"Bass": BASS})
+    session.set_voicing("voicing:Bass")
+    session.begin_settings_edit()
+    session.select_voicing("Bass")
+    session.set_voicing_values({"tuning": "E1 X9"})
+    session.commit_settings(None)
+    session.rename_voicing("Bass", "Bass 4")
+    session.commit_settings(None)
+    config = services.config.config
+    assert set(config.voicings) == {"Bass 4"} and config.voicing == "voicing:Bass 4"
+    assert config.voicings["Bass 4"]["tuning"] == BASS["tuning"]
+    assert [p.voicing for p in editor(recorder).problems] == ["Bass 4"]
+    staged = json.loads(staging_file(services).read_text())
+    assert set(staged["voicings"]) == {"Bass 4"}
+
+
+def test_each_blamed_field_gets_the_rule_it_breaks():
+    from settings_forms.voicing_autosave import plan_voicing
+
+    values = voicing_form.values_from_voicing("fretboard", BASS)
+    values.update({"max_fret": "30", "relaxed_span": "1"})        # two rules
+    plan = plan_voicing("Bass", "fretboard", values, None, BASS, ["max_fret", "relaxed_span"])
+    assert {p.field_id: p.message.split(" must")[0] for p in plan.problems} == {
+        "max_fret": "Max fret", "relaxed_span": "Relaxed span (1)"}
+
+    voices = voicing_form.default_values("ensemble")
+    voices["voices"][0].update(low="C5", high="C4")                # low and high swapped
+    plan = plan_voicing("E", "ensemble", voices, None, None, ["voices"])
+    assert [p.field_id for p in plan.problems] == ["voice:0:low", "voice:0:high"]
+    assert all(p.message.endswith("got 72 >= 60.") for p in plan.problems)
+    assert plan.data["voices"][0]["range"] == [60, 72]

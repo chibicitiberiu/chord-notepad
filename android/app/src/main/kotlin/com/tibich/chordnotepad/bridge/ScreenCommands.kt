@@ -23,6 +23,7 @@ object ScreenCommandNames {
     const val BEGIN_SETTINGS_EDIT = "begin_settings_edit"
     const val CANCEL_SETTINGS_EDIT = "cancel_settings_edit"
     const val COMMIT_SETTINGS = "commit_settings"
+    const val DISCARD_SETTINGS_PROBLEMS = "discard_settings_problems"
     // voicings editor
     const val REQUEST_VOICING_EDITOR_SCHEMA = "request_voicing_editor_schema"
     const val SELECT_VOICING = "select_voicing"
@@ -40,6 +41,7 @@ object ScreenCommandNames {
         IDENTIFIER_TOGGLE_NOTE, IDENTIFIER_SET_NOTES_TEXT, IDENTIFIER_CLEAR, PLAY_NOTE,
         PLAY_IDENTIFIED_CHORD, INSERT_CHORD, APPLY_SETTINGS, SET_SHOW_QUICK_START_ON_STARTUP,
         REQUEST_QUICK_START, BEGIN_SETTINGS_EDIT, CANCEL_SETTINGS_EDIT, COMMIT_SETTINGS,
+        DISCARD_SETTINGS_PROBLEMS,
         REQUEST_VOICING_EDITOR_SCHEMA, SELECT_VOICING, ADD_VOICING, REMOVE_VOICING,
         RENAME_VOICING, SET_VOICING_VALUES, SET_VOICING_MODEL, ADD_VOICING_RECORD,
         REMOVE_VOICING_RECORD, LOAD_VOICING_PRESET,
@@ -104,16 +106,23 @@ class ScreenCommands(private val submitter: CommandSubmitter) {
     /** Open a settings working copy (the Settings screen opened). */
     fun beginSettingsEdit() = send(ScreenCommandNames.BEGIN_SETTINGS_EDIT)
 
-    /** End the edit (leaving Settings); voicing edits not saved yet are dropped. */
+    /** End the edit (leaving Settings); wrong values, which aren't saved, are dropped. */
     fun cancelSettingsEdit() = send(ScreenCommandNames.CANCEL_SETTINGS_EDIT)
 
     /**
      * Autosave and keep editing: writes and applies [values] (null keeps the
-     * config's), and the voicings too while every one is valid.
+     * config's) and every voicing's valid fields. [invalidNumbers] are the
+     * number fields whose text isn't valid, `{setting: text}` (all of them;
+     * null keeps the ones sent last), kept for next time but not applied.
      */
-    fun commitSettings(values: SettingsValues?) = send(ScreenCommandNames.COMMIT_SETTINGS) {
-        put("values", values?.let { BridgeCodec.json.encodeToJsonElement(it) } ?: JsonNull)
-    }
+    fun commitSettings(values: SettingsValues?, invalidNumbers: Map<String, String>? = null) =
+        send(ScreenCommandNames.COMMIT_SETTINGS) {
+            put("values", values?.let { BridgeCodec.json.encodeToJsonElement(it) } ?: JsonNull)
+            put("invalid_numbers", invalidNumbers?.let { BridgeCodec.json.encodeToJsonElement(it) } ?: JsonNull)
+        }
+
+    /** Drop the wrong values (voicing fields and number texts) and keep editing. */
+    fun discardSettingsProblems() = send(ScreenCommandNames.DISCARD_SETTINGS_PROBLEMS)
 
     // -- voicings editor --------------------------------------------------------------
 

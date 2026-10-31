@@ -2,6 +2,7 @@ package com.tibich.chordnotepad.ui.settings
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -9,10 +10,15 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -40,15 +46,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.tibich.chordnotepad.R
 import com.tibich.chordnotepad.appGraph
 import com.tibich.chordnotepad.bridge.ScreenCommands
 import com.tibich.chordnotepad.bridge.SessionRepository
+import com.tibich.chordnotepad.bridge.SettingsState
 import com.tibich.chordnotepad.support.SupportBilling
 import com.tibich.chordnotepad.ui.icons.AppIcons
 import com.tibich.chordnotepad.ui.support.SupportCard
@@ -97,8 +104,8 @@ fun SettingsScreen(
     }
     LaunchedEffect(controller) { repo.voicingEditor.filterNotNull().collect(controller::onEditor) }
     // A number being typed is saved once it rests; the rest is saved at once.
-    LaunchedEffect(ui.draft, ui.saved, ui.phase, editor != null) {
-        if (ui.draftPending) {
+    LaunchedEffect(ui.draft, ui.saved, ui.numberTexts, ui.sentNumbers, ui.phase, editor != null) {
+        if (ui.draftPending || ui.numbersPending) {
             delay(DRAFT_SAVE_DELAY_MS)
             controller.saveDraft()
         }
@@ -118,8 +125,8 @@ fun SettingsScreen(
             }
             val page: @Composable (SettingsPage) -> Unit = { p ->
                 when (p) {
-                    SettingsPage.GENERAL -> GeneralPage(draft, l, ui.invalidNumbers, controller)
-                    SettingsPage.PLAYBACK -> PlaybackPage(draft, l, ui.invalidNumbers, controller)
+                    SettingsPage.GENERAL -> GeneralPage(draft, l, ui.numberTexts, controller)
+                    SettingsPage.PLAYBACK -> PlaybackPage(draft, l, ui.numberTexts, controller)
                     SettingsPage.VOICINGS -> VoicingsPage(schema, editor, ui.nav.voicingDetail, split, controller)
                 }
             }
@@ -137,7 +144,7 @@ fun SettingsScreen(
             }
         }
     }
-    SettingsDialogs(ui.dialog, schema, controller)
+    SettingsDialogs(ui, editor, limits, schema, controller)
 }
 
 /** The app bar (Back, the page's title) over [content]. */
@@ -177,6 +184,8 @@ private fun SettingsScaffold(
                 .consumeWindowInsets(padding)
                 .imePadding(),
         ) {
+            val problems = ui.numberTexts.isNotEmpty() || editor?.state?.problems?.isNotEmpty() == true
+            if (editor?.state?.restored == true && problems) RestoredBanner(controller)
             content()
         }
     }
@@ -221,19 +230,78 @@ private fun pageSummary(page: SettingsPage): String = stringResource(
     },
 )
 
-/** The open [dialog]: discard an invalid voicing's edits, or the voicings editor's confirmations (texts from the schema). */
+/**
+ * Wrong values kept from last time (the app went away before they were
+ * fixed or discarded): Edit goes to the first, Discard drops them.
+ */
 @Composable
-private fun SettingsDialogs(dialog: SettingsDialog?, schema: EditorSchema?, controller: SettingsController) {
-    when (dialog) {
+private fun RestoredBanner(controller: SettingsController) {
+    Card(
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.errorContainer,
+            contentColor = MaterialTheme.colorScheme.onErrorContainer,
+        ),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+    ) {
+        Column(Modifier.padding(start = 16.dp, top = 12.dp, end = 8.dp)) {
+            Text(stringResource(R.string.settings_restored), style = MaterialTheme.typography.bodyMedium)
+            Row(Modifier.align(Alignment.End)) {
+                TextButton(onClick = controller::discardProblems) { Text(stringResource(R.string.settings_problems_discard)) }
+                TextButton(onClick = controller::editProblems) { Text(stringResource(R.string.settings_problems_edit)) }
+            }
+        }
+    }
+}
+
+/**
+ * Leaving with wrong values: each one listed (numbers worded here, voicing
+ * values as Python words them), Edit goes to the first, Discard drops them
+ * and leaves.
+ */
+@Composable
+private fun ProblemsDialog(ui: SettingsUi, editor: EditorView?, limits: SettingsState?, controller: SettingsController) {
+    val empty = stringResource(R.string.settings_problem_empty)
+    val lines = buildList {
+        for ((setting, text) in ui.numberTexts.entries.sortedBy { it.key.ordinal }) {
+            val range = limits?.let { setting.range(it) }
+            add(
+                stringResource(
+                    R.string.settings_problem_number,
+                    pageTitle(setting.page),
+                    stringResource(setting.labelRes()),
+                    text.trim().ifEmpty { empty },
+                    range?.let { stringResource(R.string.settings_number_range, it.first, it.last) }.orEmpty(),
+                ).trim(),
+            )
+        }
+        editor?.state?.problems?.forEach { add(it.text) }
+    }
+    AlertDialog(
+        onDismissRequest = controller::dismissDialog,
+        title = { Text(stringResource(R.string.settings_problems_title)) },
+        text = {
+            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(stringResource(R.string.settings_problems_intro))
+                for (line in lines) Text("• $line", style = MaterialTheme.typography.bodyMedium)
+            }
+        },
+        confirmButton = { TextButton(onClick = controller::editProblems) { Text(stringResource(R.string.settings_problems_edit)) } },
+        dismissButton = { TextButton(onClick = { controller.confirmDialog() }) { Text(stringResource(R.string.settings_problems_discard)) } },
+    )
+}
+
+/** The open dialog: leaving with wrong values, or the voicings editor's confirmations (texts from the schema). */
+@Composable
+private fun SettingsDialogs(
+    ui: SettingsUi,
+    editor: EditorView?,
+    limits: SettingsState?,
+    schema: EditorSchema?,
+    controller: SettingsController,
+) {
+    when (val dialog = ui.dialog) {
         null -> Unit
-        SettingsDialog.Discard -> ConfirmDialog(
-            title = stringResource(R.string.settings_discard_title),
-            message = stringResource(R.string.settings_discard_message),
-            confirm = stringResource(R.string.settings_discard),
-            dismiss = stringResource(R.string.settings_keep_editing),
-            controller = controller,
-            onDismiss = controller::keepEditing,
-        )
+        SettingsDialog.Problems -> ProblemsDialog(ui, editor, limits, controller)
         is SettingsDialog.RemoveVoicing -> ConfirmDialog(
             title = schema?.text("remove_confirm_title").orEmpty(),
             message = schema?.text("remove_confirm")?.replace("{name}", dialog.name).orEmpty(),
@@ -260,14 +328,13 @@ private fun ConfirmDialog(
     controller: SettingsController,
     confirm: String = stringResource(android.R.string.ok),
     dismiss: String = stringResource(android.R.string.cancel),
-    onDismiss: () -> Unit = controller::dismissDialog,
 ) {
     AlertDialog(
-        onDismissRequest = onDismiss,
+        onDismissRequest = controller::dismissDialog,
         title = { Text(title) },
         text = { Text(message) },
         confirmButton = { TextButton(onClick = { controller.confirmDialog() }) { Text(confirm) } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(dismiss) } },
+        dismissButton = { TextButton(onClick = controller::dismissDialog) { Text(dismiss) } },
     )
 }
 
