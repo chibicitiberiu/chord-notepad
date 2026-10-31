@@ -696,3 +696,17 @@ class TestDirectiveScanning:
         # line below would be stretched; a line of empty braces is left alone.
         assert transpose_text("C D\nabcdef", 1, "american") == "C# Eb\nab-cdef"
         assert transpose_text("C D\n{}  {}", 1, "american") == "C# Eb\n{}  {}"
+
+
+@pytest.mark.parametrize("text, expected", [
+    ("Sol Re Mim Do\nAmazing grace\n", "european"),
+    ("do re mi\nla la la\n", "european"),
+    ("C G Am F\nla la la la\nC G F\n", "american"),
+    ("{key: G}\nI IV V I\n", None),
+    ("Just words\n", None),
+    ("", None),
+])
+def test_guess_notation(text, expected):
+    from chord.detector import guess_notation
+
+    assert guess_notation(text) == expected

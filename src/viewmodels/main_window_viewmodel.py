@@ -10,6 +10,7 @@ from session.documents import DocumentRef, DocumentStore
 from constants import DEFAULT_BPM
 from models.line import Line
 from models.chord import ChordInfo
+from chord.detector import guess_notation
 from models.notation import Notation, spell_key
 from models.playback_event import PlaybackEventArgs, PlaybackEventType
 
@@ -157,6 +158,12 @@ class MainWindowViewModel(Observable):
         return self._notation
 
     @property
+    def notation_chosen(self) -> bool:
+        """Whether the song's notation was switched by hand or read from its
+        chords (a new Settings default then leaves it alone)."""
+        return self._notation_chosen
+
+    @property
     def font_size(self) -> int:
         """Get the current font size."""
         return self._font_size
@@ -233,8 +240,10 @@ class MainWindowViewModel(Observable):
             content = self._documents.read_text(ref)
 
             # The song's own directives aren't copied anywhere: what it sets
-            # is read from its text (session.song_defaults).
+            # is read from its text (session.song_defaults). Its notation is
+            # the one its chords are written in, when that's clear.
             self.load_defaults()
+            self.notation_from_text(content)
             self.set_and_notify("current_text", content)
             self.set_and_notify("is_modified", False)
             self.set_and_notify("current_document", ref)
@@ -251,7 +260,8 @@ class MainWindowViewModel(Observable):
 
         For a process that was killed with unsaved work (Android). Unlike
         :meth:`open_file`, the document isn't read. The tempo, key and time
-        signature stay as they are (a new process starts from the defaults).
+        signature stay as they are (a new process starts from the defaults);
+        the notation is read from the text, as on Open.
 
         Args:
             text: The draft's text.
@@ -259,6 +269,8 @@ class MainWindowViewModel(Observable):
             modified: Whether the draft has unsaved changes.
         """
         logger.info("Restoring a draft%s", f" of {ref.location}" if ref is not None else "")
+        # The song's notation isn't kept with the draft: read from its chords.
+        self.notation_from_text(text)
         self.set_and_notify("current_text", text)
         self.set_and_notify("is_modified", bool(modified))
         self.set_and_notify("current_document", ref)
@@ -717,7 +729,8 @@ class MainWindowViewModel(Observable):
         """Detect chords in ``notation`` in the current song (the toolbar switch).
 
         For this song only: the default is a setting (``notation`` in the
-        config, changed in Settings), and New and Open go back to it. It does
+        config, changed in Settings), and New goes back to it (Open to the
+        notation the song is written in, see notation_from_text). It does
         NOT convert existing text; use convert_text_to_american() or
         convert_text_to_european() for that.
 
@@ -732,6 +745,25 @@ class MainWindowViewModel(Observable):
         follows it; one switched from the toolbar keeps its notation."""
         if not self._notation_chosen:
             self._switch_notation(self._default_notation())
+
+    def notation_from_text(self, text: str) -> bool:
+        """Detect chords in the notation ``text`` is written in (Open, a
+        restored draft, a song pasted into an empty document).
+
+        A notation found this way belongs to the song like one switched from
+        the toolbar: a new Settings default leaves it alone. When the text
+        doesn't tell (see :func:`chord.detector.guess_notation`), nothing
+        changes.
+
+        Returns:
+            True when the text told.
+        """
+        found = guess_notation(text)
+        if found is None:
+            return False
+        self._notation_chosen = True
+        self._switch_notation(Notation(found))
+        return True
 
     def _switch_notation(self, notation: Notation) -> None:
         if notation != self._notation:

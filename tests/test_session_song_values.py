@@ -15,7 +15,7 @@ from services.song_parser_service import SongParserService
 from session.events import ConfirmDiscardRequest, DiscardChoice
 from session.host import HostDispatch
 from session.session import AppSession
-from session.state import PlaybackStatus, SongDefaultsState, ToolbarState
+from session.state import HighlightState, PlaybackStatus, SongDefaultsState, ToolbarState
 from session.testing import EventRecorder, FakePlayer, InMemoryDocumentStore, ManualHost
 from viewmodels.main_window_viewmodel import MainWindowViewModel
 from viewmodels.settings_viewmodel import SettingsChanges
@@ -296,7 +296,7 @@ def test_the_notation_switch_is_for_the_current_song_only():
 
 
 def test_new_and_open_go_back_to_the_default_notation():
-    env = Env(documents={"song.txt": SONG, "plain.txt": "Am F\n"}, notation="european")
+    env = Env(documents={"song.txt": SONG, "plain.txt": "Just words\n"}, notation="european")
     assert notation(env) == "european"
     env.session.set_notation("american")
     env.new()
@@ -323,3 +323,58 @@ def test_a_new_default_notation_switches_a_song_still_on_the_default():
     env.session.apply_settings(SettingsChanges(general_changed=True))
     assert notation(env) == "european"
     assert env.toolbar().key == "Sol"                    # the song's key, respelled
+
+
+# -- a song's notation read from its chords (Open, a restored draft, a paste) ---------------
+
+EUROPEAN_SONG = "Sol Re Mim Do\nAmazing grace\nSol Do Sol\n"
+AMERICAN_SONG = "G D Em C\nAmazing grace\nla la la la\nG C G\n"
+
+
+def test_open_takes_the_notation_the_song_is_written_in():
+    env = Env(documents={"eu.txt": EUROPEAN_SONG, "am.txt": AMERICAN_SONG, "roman.txt": "I IV V\n"},
+              notation="american", key="G")
+    env.open("eu.txt")
+    assert notation(env) == "european"
+    assert env.toolbar().key == "Sol"                    # the default key, respelled
+    assert "notation" not in env.config.writes
+    env.open("am.txt")                                   # its "la la la" line reads fewer chords
+    assert notation(env) == "american"
+    env.session.set_notation("european")
+    env.open("roman.txt")                                # roman numerals don't tell
+    assert notation(env) == "american"
+
+
+def test_a_new_default_leaves_a_song_read_as_european_alone():
+    env = Env(documents={"eu.txt": EUROPEAN_SONG}, notation="american")
+    env.open("eu.txt")
+    env.config.values["notation"] = "american"
+    env.session.apply_settings(SettingsChanges(general_changed=True))
+    assert notation(env) == "european"
+
+
+def test_a_restored_draft_takes_the_notation_of_its_chords():
+    env = Env(notation="american")
+    env.session.restore_draft(EUROPEAN_SONG, None, True)
+    assert notation(env) == "european"
+
+
+def test_a_song_pasted_into_an_empty_document_takes_its_notation():
+    env = Env(notation="american")
+    env.type(EUROPEAN_SONG)
+    assert notation(env) == "european"
+    assert any(span for span in env.recorder.last(HighlightState).spans)
+
+
+def test_typing_into_an_empty_document_does_not_switch_the_notation():
+    env = Env(notation="american")
+    env.type("Do")
+    env.type("Do Re\n")                                 # the text was no longer empty
+    assert notation(env) == "american"
+
+
+def test_a_paste_keeps_a_notation_switched_by_hand():
+    env = Env(notation="american")
+    env.session.set_notation("american")
+    env.type(EUROPEAN_SONG)
+    assert notation(env) == "american"

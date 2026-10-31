@@ -435,6 +435,10 @@ class AppSession:
     def set_text(self, text: str, client_token: int = 0) -> None:
         """The user changed the text; re-detect once typing pauses.
 
+        Several lines put into an empty document at once (a pasted song)
+        switch it to the notation their chords are written in, as Open does,
+        unless the notation was switched by hand.
+
         Args:
             text: The editor's whole text.
             client_token: An opaque number the view picks (e.g. its own edit
@@ -449,7 +453,10 @@ class AppSession:
                     self._emitter.set_state(
                         HighlightState(self._revision, client_token, self._spans))
             return
+        pasted_song = not self._text.strip() and "\n" in text.strip()
         self._replace_mirror(text, client_token)
+        if pasted_song and not self._main.notation_chosen:
+            self._main.notation_from_text(text)
         self._arm_detection()
 
     @_command
@@ -1075,7 +1082,9 @@ class AppSession:
     def set_notation(self, notation: str) -> None:
         """Detect chords in ``notation`` in the current song (the text is not
         rewritten). For this song only, like the tempo: the default notation
-        is a setting, and New and Open go back to it.
+        is a setting, and New goes back to it. Open, a restored draft and a
+        song pasted into an empty document take the notation their chords
+        are written in (the default when that isn't clear).
 
         The toolbar key is respelled in the new notation and the key list
         swapped; the text is re-detected at once.

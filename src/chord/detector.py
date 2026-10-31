@@ -439,3 +439,22 @@ class ChordDetector:
                 chord_for_validation = self._normalize_american_chord(chord_str)
             return self.chord_helper.get_notes(chord_for_validation)
         return None
+
+
+def guess_notation(text: str) -> Optional[Literal['american', 'european']]:
+    """The notation the chords in ``text`` are written in, or None when the
+    text doesn't tell (no chords, roman numerals only, a tie).
+
+    The text is read in each notation and the one that finds more chord
+    names wins (roman numerals and NC count for neither): "Sol Re Mim" has
+    no American chords, and a "la la la" line in an American song finds
+    fewer European chords than the song has American ones.
+    """
+    counts = {}
+    for notation in ('american', 'european'):
+        counts[notation] = sum(
+            1 for info in ChordDetector(notation=notation).detect_chords_in_text(text)
+            if info.is_valid and not info.is_relative and not info.is_rest)
+    if counts['american'] == counts['european']:
+        return None
+    return max(counts, key=counts.get)

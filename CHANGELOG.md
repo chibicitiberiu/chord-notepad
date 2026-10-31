@@ -136,9 +136,14 @@ moved to CHANGELOG_HISTORY.md and this file is reset.
   doesn't set lasts until you close the song. Only Settings changes the
   defaults.
 - The AB / Do notation toggle in the toolbar now switches only the song you
-  have open; it no longer changes your default. New and Open start in the
+  have open; it no longer changes your default. A new song starts in the
   notation set in Settings, and changing it there also switches a song you
   haven't switched by hand.
+- Opening a song, or pasting one into an empty document, picks the notation
+  its chords are written in: a song in `Sol Re Mim Do` opens in European
+  even when American is the default. On Android this also covers a song
+  restored after the system closed the app in the background. A song
+  without chord names starts in the Settings default.
 - Settings › Voicings shows note names (strings, voice ranges, hand ranges)
   in the notation chosen in Settings, so `Mi2 La2 Re3` with European, and
   accepts either spelling when you type one.

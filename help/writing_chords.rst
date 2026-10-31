@@ -118,7 +118,8 @@ Switching Notations
 
    From that point on the editor recognizes and highlights chords in the notation
    you picked, and keys are named in it too (in Song defaults and in the Insert
-   Key dialog). The same choice is in **☰ → Settings → General**.
+   Key dialog). The switch is for the song you have open; the notation a new
+   song starts in is set in **☰ → Settings → General**.
 
 .. important::
    The toggle does **not** rewrite text you have already typed. Flipping from
@@ -140,6 +141,18 @@ Switching Notations
       notation in place, and switches AB / Do to match; the switch alone never
       rewrites anything. Convert reads the song in the notation the switch
       shows, so set the switch to the notation the song is written in first.
+
+.. _notation-autodetect:
+
+Songs in the Other Notation
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+When you open a song, Chord Notepad reads it both ways and picks the notation
+that finds more chords, so a song written as ``Sol Re Mim Do`` opens in
+European even when American is your default. The same happens when you paste
+several lines into an empty document. A song with no chord names (only lyrics,
+or only roman numerals) starts in the default from Settings. Whichever
+notation a song starts in, the switch still changes it.
 
 Roman numerals (see :ref:`roman-numerals`) are independent of this toggle. They
 are recognized in both modes and always resolve against the current key.

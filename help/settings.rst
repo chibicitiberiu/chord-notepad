@@ -77,7 +77,8 @@ General
 .. only:: desktop
 
    **Notation**
-      American or European: the notation a new or opened song is read in.
+      American or European: the notation a new song is read in, and an
+      opened one whose chords don't show which it uses.
       The AB/Do buttons in the toolbar switch only the song you have open.
       The Default key list below and the note names on the Voicings page
       follow this setting, as soon as you change it.
@@ -85,7 +86,8 @@ General
 .. only:: android
 
    **Chord notation**
-      American or European: the notation a new or opened song is read in.
+      American or European: the notation a new song is read in, and an
+      opened one whose chords don't show which it uses.
       AB / Do in the Edit ribbon switches only the song you have open. The
       Default key list and the note names in the Voicings editor follow this
       setting, as soon as you change it.

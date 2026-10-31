@@ -192,7 +192,10 @@ def test_convert_with_typing_still_pending_uses_the_current_text():
 ])
 def test_convert_with_nothing_to_convert_says_so_and_changes_nothing(
         text, notation, target, status):
-    env = Env(text, notation=notation)
+    env = Env(notation=notation)
+    env.session.set_notation(notation)       # by hand, or the paste would switch to the song's
+    env.session.set_text(text)
+    env.host.advance(0.5)
     assert env.main.notation.value == notation
     modified = env.main.is_modified
     env.recorder.clear()

@@ -22,8 +22,10 @@ The User Interface
    * **Do** - European notation (Do, Re, Mi, Fa, Sol, La, Si)
 
    The selected button appears highlighted. Clicking switches the notation of
-   the song you have open and updates the key selector to match. New and Open
-   start again in the notation set in Settings.
+   the song you have open and updates the key selector to match. A new song
+   starts in the notation set in Settings. An opened song, or one you paste
+   into an empty document, starts in the notation its chords are written in
+   (see :ref:`notation-autodetect`).
 
    Tempo, Key and Time Signature
    -----------------------------
