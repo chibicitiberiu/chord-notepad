@@ -22,7 +22,7 @@ from make_launcher_icons import BACKGROUND, NOTE_INK, ROOT, place, render_source
 OUT = ROOT / "packaging" / "store" / "play" / "graphics"
 SHOT = ROOT / "packaging" / "store" / "play" / "screenshots" / "phone" / "01-play-fret-cards.png"
 FONTS = Path("/usr/share/fonts/rsms-inter-fonts")
-TAGLINE = ("Write chords above your lyrics", "and hear them played.")
+TAGLINE = ("Write lyrics with chords.", "Hear them. Learn to play them.")
 
 # Play masks the icon with a 30% corner radius. The notepad has a defining
 # shape, so it sits on Material's square keyline (about 79% of the icon)

@@ -6,7 +6,7 @@
 Chord Notepad
 
 ## Short description
-Write chords above your lyrics and hear them played, voiced like a musician.
+Write lyrics with chords, then hear each chord and learn how to play it
 
 ## Full description
 Chord Notepad is a text editor for musicians. Type chord symbols above your lyrics; the app recognises them, highlights them and plays them back, voiced the way a pianist or guitarist would play them.
