@@ -9,6 +9,7 @@ license: AGPL-3.0-only
 
 platforms:
   amd64:
+  arm64:
 
 apps:
   chord-notepad:

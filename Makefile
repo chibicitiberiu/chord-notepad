@@ -136,7 +136,9 @@ build: icons docs-html
 	@echo "On Windows: dist/ChordNotepad.exe"
 	@echo "On Linux: dist/ChordNotepad"
 
-# Clean build artifacts
+# The Linux packages are named per CPU: x64 (default) or arm64 (CI's arm64 runner).
+LINUX_ARCH ?= x64
+
 # Build the Flatpak and export a single-file bundle to dist/.
 # Uses flatpak-builder if installed, else the org.flatpak.Builder flatpak.
 FLATPAK_ID := io.github.chibicitiberiu.ChordNotepad
@@ -148,12 +150,12 @@ flatpak: icons docs-html
 		--disable-rofiles-fuse --force-clean --repo=repo build-dir $(FLATPAK_ID).yml
 	mkdir -p dist
 	flatpak build-bundle --runtime-repo=https://dl.flathub.org/repo/flathub.flatpakrepo \
-		$(FLATPAK_DIR)/repo dist/ChordNotepad-linux-x64.flatpak $(FLATPAK_ID)
-	@echo "Bundle: dist/ChordNotepad-linux-x64.flatpak"
+		$(FLATPAK_DIR)/repo dist/ChordNotepad-linux-$(LINUX_ARCH).flatpak $(FLATPAK_ID)
+	@echo "Bundle: dist/ChordNotepad-linux-$(LINUX_ARCH).flatpak"
 
 # Install the bundle (user) and import every app module on the real runtime.
 flatpak-check:
-	flatpak install --user -y --noninteractive --reinstall dist/ChordNotepad-linux-x64.flatpak
+	flatpak install --user -y --noninteractive --reinstall dist/ChordNotepad-linux-$(LINUX_ARCH).flatpak
 	flatpak run --command=python3 $(FLATPAK_ID) - < packaging/linux/smoke_test.py
 
 # Build the snap (snap/snapcraft.yaml) into dist/. Needs snapcraft and LXD;
@@ -164,14 +166,15 @@ SNAPCRAFT ?= SNAPCRAFT_BUILD_INFO=1 snapcraft
 
 snap: icons docs-html
 	mkdir -p dist
-	$(SNAPCRAFT) pack --use-lxd --output dist/ChordNotepad-linux-x64.snap
-	@echo "Snap: dist/ChordNotepad-linux-x64.snap"
+	$(SNAPCRAFT) pack --use-lxd --output dist/ChordNotepad-linux-$(LINUX_ARCH).snap
+	@echo "Snap: dist/ChordNotepad-linux-$(LINUX_ARCH).snap"
 
 # Install the local snap and import every app module inside its confinement.
 snap-check:
-	sudo snap install --dangerous dist/ChordNotepad-linux-x64.snap
+	sudo snap install --dangerous dist/ChordNotepad-linux-$(LINUX_ARCH).snap
 	snap run --shell chord-notepad -c '"$$SNAP/bin/python3" - "$$SNAP/share/chord-notepad"' < packaging/linux/smoke_test.py
 
+# Clean build artifacts
 clean:
 	rm -rf build/ dist/ __pycache__ .pytest_cache
 	rm -rf $(DOCS_BUILD)

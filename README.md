@@ -62,7 +62,8 @@ Download the latest release from the [Releases](https://github.com/chibicitiberi
 - **Linux**: `ChordNotepad-linux-x64.flatpak` (sandboxed; install with
   `flatpak install --user ChordNotepad-linux-x64.flatpak`, which also fetches
   the runtime from Flathub), or `ChordNotepad-linux-x64` (standalone
-  executable; needs the FluidSynth library, see below)
+  executable; needs the FluidSynth library, see below). On ARM64 machines
+  (Raspberry Pi 5, Asahi, ARM servers) use the `-linux-arm64` files instead.
 - **Windows**: `ChordNotepad-windows-x64.exe` (FluidSynth is bundled)
 - **macOS**: `ChordNotepad-macos-arm64` (needs FluidSynth from Homebrew:
   `brew install fluid-synth`)

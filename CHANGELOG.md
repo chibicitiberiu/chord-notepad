@@ -7,4 +7,4 @@ of this file are used as the GitHub release description, then automatically
 moved to CHANGELOG_HISTORY.md and this file is reset.
 -->
 
-_No changes yet._
+- Linux: ARM64 builds (a standalone `ChordNotepad-linux-arm64`, a Flatpak and a snap) next to the x64 ones.

@@ -315,9 +315,24 @@ Add-AppxPackage dist-store/ChordNotepad.msix
 - **Install folder is read-only.** Nothing may be written next to the exe.
   The app only writes under `%APPDATA%` today; keep it that way.
 
+## Linux on ARM64
+
+The `build` job's matrix has a second Linux entry on GitHub's free
+`ubuntu-24.04-arm` runner. It runs the same steps as x64 and produces
+`ChordNotepad-linux-arm64` (PyInstaller, attached to the release),
+`ChordNotepad-linux-arm64.flatpak` (attached) and an arm64 snap (workflow
+artifact `ChordNotepad-snap-arm64`, published to the same Snap Store channel
+as the x64 one: the store keeps one revision per architecture). Nothing in the
+manifests is x86-specific: the Flatpak's Python packages are universal wheels
+plus Pillow built from its sdist, and the snap resolves library paths with
+`$CRAFT_ARCH_TRIPLET_BUILD_FOR`. Only the x64 job uploads `licence-data`; the
+arm64 packages come from the same Ubuntu source packages. The arm64 builds are
+CI-built only and have not been run on real ARM hardware.
+
 ## Flatpak bundle (Linux)
 
-Every Linux CI build also produces `ChordNotepad-linux-x64.flatpak`, attached
+Every Linux CI build also produces `ChordNotepad-linux-x64.flatpak` (and
+`ChordNotepad-linux-arm64.flatpak` from the arm64 runner), attached
 to the GitHub release next to the PyInstaller binary. It is a single-file
 bundle; installing it pulls the `org.freedesktop.Platform` runtime from
 Flathub. Bundles don't auto-update; a self-hosted Flatpak repo would fix that.
@@ -331,7 +346,7 @@ earlier in the job, so run `make flatpak` (which builds docs and icons first),
 not flatpak-builder directly.
 
 ```bash
-make flatpak        # -> dist/ChordNotepad-linux-x64.flatpak
+make flatpak        # -> dist/ChordNotepad-linux-x64.flatpak (LINUX_ARCH=arm64 on an ARM machine)
 flatpak install --user dist/ChordNotepad-linux-x64.flatpak
 flatpak run io.github.chibicitiberiu.ChordNotepad
 ```
@@ -376,7 +391,7 @@ summary, description and icon come from the metainfo), and the smoke test.
   user's sound server; inside a snap `XDG_RUNTIME_DIR` is per-snap.
 
 ```bash
-make snap           # -> dist/ChordNotepad-linux-x64.snap (needs snapcraft + LXD)
+make snap           # -> dist/ChordNotepad-linux-x64.snap (needs snapcraft + LXD; LINUX_ARCH=arm64 on an ARM machine)
 make snap-check     # installs it with --dangerous and runs the smoke test
 ```
 
