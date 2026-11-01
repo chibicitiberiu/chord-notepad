@@ -8,6 +8,14 @@
          (src/play/AndroidManifest.xml) leaves of it. CI checks each flavour's
          merged manifest (android/tools/check_manifest.py). -->
 
+    <!-- Chromebooks and other keyboard-and-mouse devices: without this,
+         Android assumes a touchscreen is required and Play hides the app from
+         devices that have none. Mouse, trackpad and keyboard cover every
+         action. CI checks that no hardware feature is required. -->
+    <uses-feature
+        android:name="android.hardware.touchscreen"
+        android:required="false" />
+
     <application
         android:name=".ChordNotepadApp"
         android:allowBackup="true"

@@ -74,7 +74,7 @@ android/
   tools/strip_music21.py            builds the data-trimmed music21 wheel
   tools/build_wheelhouse.py         fills/checks the offline wheelhouse, refreshes pins
   tools/check_16k.py                16 KB page-size check for an APK
-  tools/check_manifest.py           per flavour: no INTERNET, no emoji2 font initializer, only billing's Play entries (play)
+  tools/check_manifest.py           per flavour: no INTERNET, no emoji2 font initializer, only billing's Play entries (play), touchscreen not required
   tools/compare_apks.py             entry-by-entry APK diff (reproducibility)
   tools/export_clef_glyphs.py       the chord sheet's six base clef/glyph PNGs (Gradle: exportClefGlyphs)
   tools/mdi_icons.py                Material Design Icons -> res/drawable/mdi_*.xml (pinned @mdi/svg, sha256)

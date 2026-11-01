@@ -12,7 +12,8 @@ Keyboard Shortcuts
 
    The keyboard shortcuts on this page work when a hardware keyboard is
    attached to your phone or tablet (over Bluetooth or USB, or a tablet's
-   keyboard cover). You never need them: everything they do is also on the
+   keyboard cover), and on a Chromebook, where a mouse or trackpad also does
+   everything a tap does. You never need them: everything they do is also on the
    screen, in the ☰ drawer, the Edit ribbon or the player. The touch gestures
    are listed too, where they apply.
 

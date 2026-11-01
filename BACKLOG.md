@@ -11,7 +11,7 @@ it's done (git history keeps it); release mechanics live in `docs/RELEASE.md`.
 - Desktop manual checks of the session migration and the sequencer/audio-driver change on Flatpak, Snap, Windows and macOS: open a song with directives, type, play/loop/shift-play, transpose and undo, chord sheet and voicing, settings, close with unsaved changes.
 - Linux ARM64 (new CI builds): after the first CI run, check the three arm64 artifacts on real ARM hardware (binary starts and plays, Flatpak installs, snap installs from the store), and that `snapcraft pack` built only arm64 on the arm runner.
 - Decide F-Droid before tagging (see "Needs a decision").
-- ChromeOS: add `<uses-feature android:name="android.hardware.touchscreen" android:required="false" />` to `android/app/src/main/AndroidManifest.xml` (without it Play hides the app from Chromebooks with no touchscreen) and make `check_manifest.py` require it. After uploading the AAB, check Play Console > Reach and devices > Device catalog for Chromebooks. Mouse, trackpad and window resizing are untested on real ChromeOS.
+- ChromeOS: after uploading the next AAB (touchscreen now optional, `check_manifest.py` enforces it), check Play Console > Reach and devices > Device catalog for Chromebooks. Mouse, keyboard and freeform window resizing were tried on the tablet emulator only, not on real ChromeOS.
 
 ## Next
 

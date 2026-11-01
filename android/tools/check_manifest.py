@@ -6,7 +6,11 @@ Both flavours (a hard check):
 - no ``android.permission.INTERNET`` and no ``ACCESS_NETWORK_STATE``: the app
   works fully offline;
 - no emoji2 ``EmojiCompatInitializer``: it fetches a downloadable font from the
-  Play services fonts provider (the manifest removes it; this keeps it removed).
+  Play services fonts provider (the manifest removes it; this keeps it removed);
+- the touchscreen declared not required, and no other required hardware
+  feature, declared or implied, except ``faketouch`` (basic tap and drag,
+  which a mouse or trackpad provides): otherwise Play hides the app from
+  Chromebooks and other devices without a touchscreen.
 
 ``--flavor foss`` (GitHub APK, F-Droid): nothing from Google Play services
 (``com.google.android.gms``), Play Billing or the Play Store app: the app must
@@ -40,6 +44,8 @@ FORBIDDEN_PERMISSIONS = (
     "android.permission.ACCESS_NETWORK_STATE",
 )
 FORBIDDEN_TEXT = ("androidx.emoji2.text.EmojiCompatInitializer",)
+NOT_REQUIRED_FEATURES = ("android.hardware.touchscreen",)
+ALLOWED_REQUIRED_FEATURES = frozenset({"android.hardware.faketouch"})
 
 # Names from Google's Play libraries: Play services, Play Billing, the Play
 # Store app, datatransport and Firebase.
@@ -79,9 +85,20 @@ def aapt2(tool: str, *args: str) -> str:
     return subprocess.run([tool, *args], check=True, capture_output=True, text=True).stdout
 
 
-def check_manifest_text(flavor: str, permissions: str, manifest: str) -> list:
-    """Return the problems, given aapt2's ``dump permissions`` and ``dump xmltree`` output."""
+def check_manifest_text(flavor: str, permissions: str, manifest: str, badging: str) -> list:
+    """Return the problems, given aapt2's ``dump permissions``, ``dump xmltree``
+    and ``dump badging`` output."""
     problems = []
+    # badging lists every required feature, implied ones included, as
+    # "uses-feature: name='...'" (indented under a feature-group), and optional
+    # ones as "uses-feature-not-required".
+    for name in re.findall(r"^\s*uses-feature: name='([^']+)'", badging, flags=re.M):
+        if name not in ALLOWED_REQUIRED_FEATURES:
+            problems.append(f"requires the hardware feature {name}")
+    optional = set(re.findall(r"^\s*uses-feature-not-required: name='([^']+)'", badging, flags=re.M))
+    for name in NOT_REQUIRED_FEATURES:
+        if name not in optional:
+            problems.append(f"doesn't declare {name} as not required")
     declared = set(re.findall(r"name='([^']+)'", permissions))
     for perm in FORBIDDEN_PERMISSIONS:
         if perm in declared or perm in permissions:
@@ -99,7 +116,8 @@ def check_apk(tool: str, flavor: str, apk: str) -> list:
     """Return the problems found in ``apk``."""
     permissions = aapt2(tool, "dump", "permissions", apk)
     manifest = aapt2(tool, "dump", "xmltree", "--file", "AndroidManifest.xml", apk)
-    return check_manifest_text(flavor, permissions, manifest)
+    badging = aapt2(tool, "dump", "badging", apk)
+    return check_manifest_text(flavor, permissions, manifest, badging)
 
 
 def main(argv: list) -> int:
@@ -110,8 +128,8 @@ def main(argv: list) -> int:
     args = parser.parse_args(argv[1:])
     tool = args.aapt2 or find_aapt2()
     summary = {
-        "foss": "no network permissions, no Play services or billing, no emoji2 initializer",
-        "play": "no network permissions, only Play Billing's own entries, no emoji2 initializer",
+        "foss": "no network permissions, no Play services or billing, no emoji2 initializer, touchscreen optional",
+        "play": "no network permissions, only Play Billing's own entries, no emoji2 initializer, touchscreen optional",
     }[args.flavor]
     failed = False
     for apk in args.apks:
