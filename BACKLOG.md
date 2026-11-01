@@ -5,7 +5,6 @@ it's done (git history keeps it); release mechanics live in `docs/RELEASE.md`.
 
 ## Before the next release (v0.5.0)
 
-- GitHub: check that `android-release` and `attach-android` ran on the `v0.5.0` tag (their first run; the environment and its four secrets are in place).
 - Play Console: identity verification (long lead), listing, payments profile, the `supporter` product, license testers (including pending and refund), IARC, Data safety, then the 12-tester, 14-day closed test (`docs/RELEASE.md`, "Google Play (first time)", "Developer verification").
 - Microsoft Store: upload the 0.5.0 MSIX; check that every listing language has the AGPL notice and source URL (`docs/RELEASE.md`, "Licence compliance").
 - Real phone: audible timing and tap-to-sound latency, the recorded-output metronome test, audio focus, SAF providers, soft keyboard and IME, Open with `.txt`, cold start and RSS, whether the stream should close in the background, a 16 KB-page device if available.
