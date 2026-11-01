@@ -43,6 +43,10 @@ REDO_SEQUENCES = ('<Control-Key-y>', '<Control-Lock-Key-Y>',
                   '<Control-Key-Z>', '<Control-Lock-Key-z>')
 #: What the Edit menu shows for Redo.
 REDO_ACCELERATOR = "Ctrl+Y"
+#: How strongly the placeholder's text colour shows over the background (0-1).
+PLACEHOLDER_STRENGTH = 0.45
+#: Editor options the placeholder copies (a change to one restyles it).
+_PLACEHOLDER_OPTIONS = {'font', 'background', 'bg', 'foreground', 'fg'}
 
 
 class ChordTextEditor(tk.Text):
@@ -54,13 +58,17 @@ class ChordTextEditor(tk.Text):
     the session's own edits to :meth:`apply_edit`.
     """
 
-    def __init__(self, parent: Any, session: Optional["AppSession"] = None, **kwargs: Any) -> None:
+    def __init__(self, parent: Any, session: Optional["AppSession"] = None,
+                 placeholder: Optional[str] = None, **kwargs: Any) -> None:
         """Initialize the text editor.
 
         Args:
             parent: Parent widget
             session: Answers "is there a chord here?" for the hand cursor.
                 None for a display-only editor (no hand cursor).
+            placeholder: Grey text shown while the editor is empty, over the
+                text rather than in it (never saved, played or converted).
+                None for no placeholder.
             **kwargs: Additional keyword arguments passed to tk.Text
         """
         # Enable undo by default
@@ -109,6 +117,48 @@ class ChordTextEditor(tk.Text):
                 if taken:
                     self.event_delete(virtual, *taken)
         self.event_add('<<Redo>>', *REDO_SEQUENCES)
+
+        # Every change fires <<Modified>> (the window clears the flag after
+        # each one), so the placeholder follows typing, pasting and undo.
+        self._placeholder: Optional[tk.Label] = None
+        if placeholder:
+            self._placeholder = tk.Label(self, text=placeholder, bd=0, padx=0, pady=0,
+                                         cursor='xterm', anchor='nw', justify=tk.LEFT)
+            self._placeholder.bind('<Button-1>', self._on_placeholder_click)
+            self.bind('<<Modified>>', lambda _e: self.update_placeholder(), add='+')
+            self.update_placeholder()
+
+    def configure(self, cnf: Any = None, **kw: Any) -> Any:
+        """``tk.Text.configure``; a new font or colours reach the placeholder too."""
+        result = super().configure(cnf, **kw)
+        changed = set(kw) | (set(cnf) if isinstance(cnf, dict) else set())
+        if getattr(self, '_placeholder', None) is not None and changed & _PLACEHOLDER_OPTIONS:
+            self.update_placeholder()
+        return result
+
+    config = configure
+
+    def update_placeholder(self) -> None:
+        """Show the placeholder while the text is empty, in the editor's font,
+        at the first character's place; hide it otherwise."""
+        label = self._placeholder
+        if label is None:
+            return
+        if self.get('1.0', 'end-1c'):
+            label.place_forget()
+            return
+        background = self.cget('background')
+        label.config(font=self.cget('font'), background=background, foreground=blend_rgb(
+            self.winfo_rgb(self.cget('foreground')), self.winfo_rgb(background), PLACEHOLDER_STRENGTH))
+        # Placed inside the editor's internal border, which already counts
+        # the border, highlight ring and padding: (0, 0) is the first character.
+        label.place(x=0, y=0)
+
+    def _on_placeholder_click(self, _event: Any) -> str:
+        """A click on the placeholder puts the cursor in the (empty) text."""
+        self.focus_set()
+        self.mark_set(tk.INSERT, '1.0')
+        return 'break'
 
     def get_text(self) -> str:
         """The whole text, without Tk's trailing newline."""
@@ -161,6 +211,7 @@ class ChordTextEditor(tk.Text):
         # through the event queue and only sends the text when the flag is
         # set, so clearing it here keeps the edit from coming back as typing.
         self.edit_modified(False)
+        self.update_placeholder()
 
     def _splice(self, start: str, end: str, replacement: str) -> None:
         if self.compare(start, '<', end):

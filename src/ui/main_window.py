@@ -190,7 +190,7 @@ class MainWindow(tk.Tk):
         self.bind("<Control-MouseWheel>", self.on_mouse_wheel_zoom)
 
         # Track modifications
-        self.text_editor.bind("<<Modified>>", self.on_text_modified)
+        self.text_editor.bind("<<Modified>>", self.on_text_modified, add="+")
 
         # Make chords clickable
         self.text_editor.bind("<Button-1>", self.on_chord_click)
@@ -766,6 +766,7 @@ class MainWindow(tk.Tk):
         self.text_editor = ChordTextEditor(
             editor_frame,
             session=self.session,
+            placeholder="Type or paste a song here",
             yscrollcommand=scrollbar.set,
             relief=tk.FLAT,
             bd=0,

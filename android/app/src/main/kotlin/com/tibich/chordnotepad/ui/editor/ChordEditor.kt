@@ -56,6 +56,8 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.stringResource
+import com.tibich.chordnotepad.R
 import com.tibich.chordnotepad.bridge.EditorState
 import com.tibich.chordnotepad.bridge.SpanKind
 import com.tibich.chordnotepad.ui.main.AppMode
@@ -74,6 +76,9 @@ private const val DEFAULT_FONT_POINTS = 11
 
 /** The text's padding inside the editor (the mockup's 8 px × 12 px). */
 private val TextPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
+
+/** The empty editor's "Type or paste a song here": the editor text, faded. */
+private const val PLACEHOLDER_ALPHA = 0.45f
 
 /** The playhead marker's grab strip, centred on it. */
 private val MarkerGrabWidth = 24.dp
@@ -174,7 +179,16 @@ fun ChordEditor(
                 },
                 scrollState = scroll,
                 decorator = TextFieldDecorator { innerTextField ->
-                    Box(Modifier.fillMaxSize().padding(TextPadding)) { innerTextField() }
+                    Box(Modifier.fillMaxSize().padding(TextPadding)) {
+                        // An empty song says what goes here; never part of the text.
+                        if (controller.state.text.isEmpty()) {
+                            BasicText(
+                                stringResource(R.string.editor_placeholder),
+                                style = textStyle.copy(color = colors.editorText.copy(alpha = PLACEHOLDER_ALPHA)),
+                            )
+                        }
+                        innerTextField()
+                    }
                 },
             )
             AppMode.PLAY -> PlayText(

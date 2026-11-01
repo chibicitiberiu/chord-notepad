@@ -5,6 +5,9 @@
     <string name="mode_edit">Edit</string>
     <string name="mode_play">Play</string>
 
+    <!-- The editor while the song is empty (grey; gone at the first character) -->
+    <string name="editor_placeholder">Type or paste a song here</string>
+
     <!-- Edit ribbon -->
     <string name="ribbon_insert">Insert</string>
     <string name="ribbon_transpose">Transpose</string>

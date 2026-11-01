@@ -61,6 +61,8 @@ moved to CHANGELOG_HISTORY.md and this file is reset.
 - A line that starts with `.` is always plain text, for lyric lines such as
   "la la la" that would otherwise be read as chords.
 - Desktop: **Tools → Insert → Capo**.
+- An empty song shows "Type or paste a song here" in grey until you type or
+  paste; it isn't part of the text.
 
 ### Changed
 
