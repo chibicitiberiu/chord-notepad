@@ -5,7 +5,6 @@ it's done (git history keeps it); release mechanics live in `docs/RELEASE.md`.
 
 ## Before the next release (v0.5.0)
 
-- Bump `VERSION` to 0.5.0 and `versionCode` to 5000 (`android/app/build.gradle.kts`) in one commit; `tests/test_android_version.py` checks them.
 - Tibi: approve the AGPL section 7 wording as shipped, and edit the support-prompt text (`android/.../ui/support/`).
 - GitHub: create or confirm the `android-release` environment and its four secrets; tag `v0.5.0` and check that `android-release` and `attach-android` run (they never have).
 - Play Console: identity verification (long lead), listing, payments profile, the `supporter` product, license testers (including pending and refund), IARC, Data safety, then the 12-tester, 14-day closed test (`docs/RELEASE.md`, "Google Play (first time)", "Developer verification").

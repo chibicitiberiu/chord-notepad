@@ -82,7 +82,13 @@ Before creating a release tag:
 - [ ] All tests pass locally (`make test`), and the fuzz tests (`make fuzz`, not run in CI)
 - [ ] Application runs correctly (`make run`)
 - [ ] Local build succeeds (`make build`)
-- [ ] CHANGELOG updated (if applicable)
+- [ ] CHANGELOG updated (if applicable); it becomes the GitHub release notes as is
+- [ ] A `<release>` entry for the version in
+      `packaging/linux/io.github.chibicitiberiu.ChordNotepad.metainfo.xml`,
+      dated the day you tag (`appstreamcli validate` it)
+- [ ] Store texts for the version: Microsoft Store "What's new"
+      (`packaging/store/msstore/whats-new-<version>.txt`), Play release notes
+      (`packaging/store/play/listing-en-US.txt`, checked by `count_listing.py`)
 - [ ] Version number follows semantic versioning
 - [ ] Android `versionCode` bumped with `VERSION` (see "Android" below)
 - [ ] All changes committed and pushed
@@ -231,7 +237,9 @@ certificate, so Trusted Signing is not involved and SmartScreen does not apply.
 3. Download the `ChordNotepad-store-msix` artifact from the workflow run. It is
    never attached to the GitHub release.
 4. In Partner Center, start a new submission, upload the `.msix` under
-   **Packages**, and submit for certification (usually 1-3 days).
+   **Packages**, paste each language's "What's new in this version" from
+   `packaging/store/msstore/whats-new-<version>.txt` (check the lengths with
+   `count_whats_new.py`), and submit for certification (usually 1-3 days).
 
 After building, CI runs `packaging/msix/smoke_test.ps1`: it signs a throwaway
 copy with a self-signed cert, installs it on the runner, launches the app

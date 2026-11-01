@@ -1,0 +1,34 @@
+# Microsoft Store, "What's new in this version" for 0.5.0. Paste each block into
+# Partner Center > the submission > Store listings > <language> > What's new in
+# this version (limit 1500 characters; check with
+# `python3 packaging/store/msstore/count_whats_new.py`).
+
+== en-US ==
+Directives are checked as you type: one that can't work is shown in red, and hovering it tells you what's wrong.
+
+Transpose spells chords for the key they land in, so a song moved into B gets F# and G#m instead of Gb and Abm.
+
+The AB / Do notation now belongs to each song, and an opened or pasted song starts in the notation its chords are written in.
+
+The Chord Identifier lights up the keys a chord sounds, plays the selected keys, and rolls them with Shift+click. It also offers added-tone readings such as Eaddb6.
+
+New chord spellings: Eaddb6, Cadd#11, C6/9, Cmmaj9, Cdim(maj7) and Csus2sus4.
+
+Help > Open Source Licences lists every component the app is built from.
+
+Fixes: chords that played wrong notes (13b9, 11b9, power chords over another bass), lowercase flat minors such as bb that weren't read, playback timing that drifted on long songs, Pause right after Play, and song text that could freeze the app.
+
+== ro-RO ==
+Directivele sunt verificate pe măsură ce scrii: una care nu poate funcționa apare cu roșu, iar dacă ții mouse-ul deasupra ei afli ce e greșit.
+
+Transpunerea scrie acordurile în tonalitatea în care ajung, așa că un cântec mutat în Si primește F# și G#m în loc de Gb și Abm.
+
+Notația AB / Do ține acum de fiecare cântec, iar un cântec deschis sau lipit pornește în notația în care îi sunt scrise acordurile.
+
+Identificatorul de acorduri luminează clapele pe care le cântă un acord, cântă clapele selectate și le arpegiază cu Shift+click. Propune și citiri cu note adăugate, cum ar fi Eaddb6.
+
+Notații noi pentru acorduri: Eaddb6, Cadd#11, C6/9, Cmmaj9, Cdim(maj7) și Csus2sus4.
+
+Help > Open Source Licences listează toate componentele din care e construită aplicația.
+
+Corecturi: acorduri care se auzeau cu note greșite (13b9, 11b9, power chords peste alt bas), minore scrise cu literă mică și bemol, precum bb, care nu erau recunoscute, tempoul care o lua încet razna pe cântecele lungi, Pause apăsat imediat după Play și texte care puteau bloca aplicația.

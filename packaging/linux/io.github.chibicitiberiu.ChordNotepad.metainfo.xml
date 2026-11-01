@@ -72,6 +72,28 @@
   </supports>
 
   <releases>
+    <release version="0.5.0" date="2026-11-01">
+      <description>
+        <p>
+          Directives are checked as you type: one that can't work is shown in
+          red with what's wrong. Transpose spells chords for the key they land
+          in (a song moved into B gets F#, not Gb). The AB / Do notation is
+          now per song, and an opened or pasted song starts in the notation
+          its chords are written in. The Chord Identifier lights up the keys a
+          chord sounds, plays the selected keys and can roll them, and offers
+          added-tone readings. New chord spellings include Eaddb6, C6/9 and
+          Csus2sus4. Help, Open Source Licences lists every component, and
+          each release carries the full source code.
+        </p>
+        <p>
+          Fixes chords that played wrong notes (13b9, 11b9, slash chords over
+          a power chord), lowercase flat minors such as bb that weren't read,
+          playback timing that slowly drifted, Pause right after Play, and
+          song text that could freeze the app. Chord Notepad is also
+          available for Android.
+        </p>
+      </description>
+    </release>
     <release version="0.4.1" date="2026-10-28">
       <description>
         <p>
