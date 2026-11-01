@@ -78,6 +78,9 @@ modules:
     config-opts:
       - -DCMAKE_BUILD_TYPE=Release
       - -DLIB_SUFFIX=
+      # GNUInstallDirs picks lib64 on aarch64; the runtime only searches
+      # /app/lib, where the x86_64 build already lands.
+      - -DCMAKE_INSTALL_LIBDIR=lib
       - -Denable-alsa=OFF
       - -Denable-dbus=OFF
       - -Denable-jack=OFF
