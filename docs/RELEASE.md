@@ -575,7 +575,9 @@ Setup, roughly in order:
    the Play Store app, under Google's own data handling. The app stores only
    the date it last showed the support prompt, on the device.
 4. Store listing: short and full description, 512 px icon, 1024x500 feature
-   graphic, phone and tablet screenshots. The full description includes the
+   graphic (both in `packaging/store/play/graphics/`, made by
+   `android/tools/make_play_graphics.py`), phone and tablet screenshots. The
+   full description includes the
    licence notice and source link (`packaging/store/play/listing-en-US.txt`).
    It may mention the optional purchase but must not link to any outside
    payment page.
