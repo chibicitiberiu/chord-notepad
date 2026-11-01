@@ -133,7 +133,9 @@ Switching Notations
       use :menuselection:`Tools --> Convert to American Notation` or
       :menuselection:`Tools --> Convert to European Notation`. Those commands
       rewrite every chord and every ``{key}`` directive in place; the toggle
-      never does.
+      never does. A lyric line that would read as chords in the other
+      notation (``la la la`` is three ``La`` chords) gets a ``.`` in front,
+      so it stays a lyric.
 
    .. only:: android
 
@@ -142,6 +144,8 @@ Switching Notations
       ``{key}`` directive into the other notation in place, and switches AB / Do to match; the switch alone never
       rewrites anything. Convert reads the song in the notation the switch
       shows, so set the switch to the notation the song is written in first.
+      A lyric line that would read as chords in the other notation (``la la
+      la`` is three ``La`` chords) gets a ``.`` in front, so it stays a lyric.
 
 .. _notation-autodetect:
 
@@ -273,7 +277,9 @@ You can also write minor chords with a lowercase letter:
    c    f    g    d    a    e    bb   f#
 
 Both ``Cm`` and ``c`` produce the same C minor chord, and ``bb`` is B flat
-minor (``Bbm``).
+minor (``Bbm``). A lowercase root is always minor, whatever follows it:
+``c7`` is ``Cm7``, and ``cmaj7`` (or ``cM7``, ``cΔ``) is C minor-major 7,
+``CmM7``.
 
 Seventh Chords
 --------------
@@ -308,7 +314,7 @@ A minor triad with a minor seventh.
 
 .. code-block:: chord
 
-   CmM7   AmM7
+   CmM7   AmM7   Cm(maj7)   Cmmaj7
 
 A minor triad with a major seventh.
 
@@ -318,7 +324,8 @@ A minor triad with a major seventh.
 
    Cdim7   Ddim7   Bdim7
 
-All intervals are minor thirds.
+All intervals are minor thirds. With a major seventh instead, write
+``Cdim(maj7)`` (C + Eb + Gb + B).
 
 **Half-Diminished** - Add ``m7b5`` or use ``ø``:
 
@@ -346,6 +353,12 @@ heard at the end of a phrase:
 .. code-block:: chord
 
    Cm6   Am6   Dm6   // Cm6 = C + Eb + G + A
+
+**Six-nine** - Add ``69`` or ``6/9`` (a sixth and a ninth, no seventh):
+
+.. code-block:: chord
+
+   C69   C6/9   C6/9/E   // C + E + G + A + D; the last with E in the bass
 
 Extended Chords (9th, 11th, 13th)
 ---------------------------------
@@ -402,6 +415,12 @@ Suspended chords replace the third with another note:
 .. code-block:: chord
 
    Csus2   Gsus2   Dsus2
+
+**Sus2sus4** - Both, with no third:
+
+.. code-block:: chord
+
+   Csus2sus4   Csus24   // C + D + F + G
 
 **Sus** by itself means sus4:
 
@@ -671,11 +690,12 @@ Add chord extensions just like with regular chords:
 .. note::
    The case of the numeral sets the chord quality, and it carries through to the
    extension. A lowercase numeral stays minor: ``ii7`` is a minor seventh (Dm7
-   in C), ``ii9`` a minor ninth, ``ii6`` a minor sixth. An uppercase numeral
-   stays major, so its seventh is dominant (``V7`` is G7). To write a
-   **secondary dominant** -- a major-quality seventh on a degree that is
-   normally minor -- use an uppercase numeral: ``II7`` in C is D7, the V-of-V. A
-   ``maj7`` is major either way (``iimaj7`` is D major 7).
+   in C), ``ii9`` a minor ninth, ``ii6`` a minor sixth, and ``iimaj7`` a
+   minor-major seventh (D F A C#), just as a lowercase letter root is minor
+   (``dmaj7``). An uppercase numeral stays major, so its seventh is dominant
+   (``V7`` is G7) and ``IImaj7`` is D major 7. To write a **secondary
+   dominant** -- a major-quality seventh on a degree that is normally minor --
+   use an uppercase numeral: ``II7`` in C is D7, the V-of-V.
 
 Slash Bass with Roman Numerals
 ------------------------------

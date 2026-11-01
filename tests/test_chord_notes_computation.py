@@ -156,16 +156,18 @@ class TestRomanNumeralChords:
         assert result.root == "D"
         assert set(result.notes) == {"D", "F#", "A", "C"}
 
-    def test_lowercase_sus_and_maj7_not_forced_minor(self, chord_helper):
-        """sus and maj7 qualities are not turned into minor chords."""
+    def test_lowercase_sus_not_forced_minor_but_maj7_is(self, chord_helper):
+        """sus isn't turned into a minor chord; maj7 on a lowercase numeral is
+        minor-major 7, as on a lowercase letter ('dmaj7')."""
         # sus has no third, so it isn't rewritten into a (nonexistent) minor-sus
         sus = chord_helper.compute_chord_notes("iisus4", key="C", is_relative=True)
         assert sus is not None
         assert set(sus.notes) == {"D", "G", "A"}
-        # maj7 keeps its major third, matching the absolute 'dmaj7' spelling
+        # A lowercase numeral is always minor: the maj7 is the seventh only
         maj7 = chord_helper.compute_chord_notes("iimaj7", key="C", is_relative=True)
         assert maj7 is not None
-        assert set(maj7.notes) == {"D", "F#", "A", "C#"}
+        assert set(maj7.notes) == {"D", "F", "A", "C#"}
+        assert set(chord_helper.compute_chord_notes("dmaj7").notes) == {"D", "F", "A", "C#"}
 
     def test_roman_different_keys(self, chord_helper):
         """Test same roman numeral in different keys."""

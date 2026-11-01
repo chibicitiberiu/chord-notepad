@@ -11,6 +11,10 @@ from chord.midi_converter import ChordToMidiConverter, intervals_from_note_names
 from models.chord_notes import ChordNotes
 
 
+#: The 6/9 quality, as distinct from a slash bass.
+_SIX_NINE = re.compile(r'6/9(?![0-9])')
+
+
 class ChordHelper:
     """
     Unified chord helper that combines pychord, music21, and custom chord handling
@@ -42,6 +46,10 @@ class ChordHelper:
         'm13':    [0, 3, 7, 10, 14, 21],     # drop 11th
         'maj13':  [0, 4, 7, 11, 14, 21],     # drop 11th
         '7b9b13': [0, 4, 7, 10, 13, 20],     # altered dominant - drop natural 11th
+        '13b9':   [0, 4, 7, 10, 13, 21],     # drop 11th, as in 13
+        '13#9':   [0, 4, 7, 10, 15, 21],     # drop 11th
+        '13b5':   [0, 4, 6, 10, 14, 21],     # drop 11th
+        '11b9':   [0, 7, 10, 13, 17],        # drop 3rd, as in 11 (the libraries lost the b9)
 
         # --- Library-unknown for every root (only the table resolves these) ---
         'maj9#11':   [0, 4, 7, 11, 14, 18],       # Major 9 #11
@@ -51,6 +59,10 @@ class ChordHelper:
         'm7b5(b9)':  [0, 3, 6, 10, 13],           # Half-diminished flat 9
         'dim(maj9)': [0, 3, 6, 11, 14],           # Diminished with maj7 and 9
         'dimm9':     [0, 3, 6, 10, 14],           # Diminished minor 9th
+        'dim(maj7)': [0, 3, 6, 11],               # Diminished with a major 7th
+        'mmaj9':     [0, 3, 7, 11, 14],           # Minor-major 9th (also mM9)
+        'sus2sus4':  [0, 2, 5, 7],                # Both suspensions
+        'sus24':     [0, 2, 5, 7],                # Same, short form
 
         # --- Library-unknown for flat roots (Db/Eb/Gb/Ab/Bb); the libraries
         #     only parse these with sharp/natural roots, so the table has to
@@ -60,6 +72,14 @@ class ChordHelper:
         'aug7b9':  [0, 4, 8, 10, 13],   # Augmented 7th flat 9
         'dim7#9':  [0, 3, 6, 9, 15],    # Diminished 7th sharp 9
         'mM9':     [0, 3, 7, 11, 14],   # Minor-major 9th
+    }
+
+    #: The interval each register-preserving number in QUALITY_INTERVALS
+    #: stands for (9 is a major 6th, or a diminished 7th in a dim7 chord).
+    _INTERVAL_NAMES = {
+        1: 'm2', 2: 'M2', 3: 'm3', 4: 'M3', 5: 'P4', 6: 'd5', 7: 'P5', 8: 'A5',
+        9: 'M6', 10: 'm7', 11: 'M7', 13: 'm9', 14: 'M9', 15: 'A9', 17: 'P11',
+        18: 'A11', 20: 'm13', 21: 'M13',
     }
 
     def __init__(self) -> None:
@@ -89,7 +109,8 @@ class ChordHelper:
     #   dominant/major forms; libraries include it and produce the clash).
     # - 7b9b13 drops the natural 11th (which pychord includes) for the same
     #   reason; this is what a 7alt symbol expands to.
-    _CUSTOM_VOICING_QUALITIES = frozenset({'11', 'maj11', '13', 'm13', 'maj13', '7b9b13'})
+    _CUSTOM_VOICING_QUALITIES = frozenset({'11', 'maj11', '13', 'm13', 'maj13', '7b9b13',
+                                           '13b9', '13#9', '13b5', '11b9'})
 
     def get_notes(self, chord_name: str) -> Optional[List[str]]:
         """
@@ -98,11 +119,21 @@ class ChordHelper:
         Args:
             chord_name: Chord string (e.g., "Cmaj7", "Am/G")
 
+        Read like playback reads it (:meth:`compute_chord_notes`: ``C-7``
+        is C minor 7, ``C°7``, ``Cø`` and ``Cm(maj7)`` resolve), not by the
+        libraries alone, which took the ``-`` in ``C-7`` for music21's flat.
+
         Returns:
-            list: Note names (e.g., ['C', 'E', 'G', 'B']) or None if invalid
+            list: Note names (e.g., ['C', 'E', 'G', 'B']) or None if invalid.
+            A slash bass that isn't the root comes first (``C/E`` is
+            ``['E', 'C', 'G']``).
         """
-        resolved = self._resolve_notes(chord_name)
-        return resolved[0] if resolved else None
+        result = self.compute_chord_notes(chord_name)
+        if result is None:
+            return None
+        if result.bass_note == result.root:
+            return list(result.notes)
+        return [result.bass_note] + [n for n in result.notes if n != result.bass_note]
 
     def _resolve_notes(self, chord_name: str) -> Optional[Tuple[List[str], List[int]]]:
         """Resolve a chord to (note names, register-preserving intervals).
@@ -393,19 +424,26 @@ class ChordHelper:
         if not intervals:
             return None
 
-        # Build notes from intervals
+        # Build notes from intervals, each spelled as the interval it is (a
+        # 3rd two letters up, a #9 one letter up: C#13 has E#, C7b9b13 Db),
+        # which the register-preserving numbers tell apart (b5 is 6, #11 18).
+        # Transposing by semitones alone left the letter to chance.
         try:
             root_pitch = pitch.Pitch(root)
             notes = [root]
+            diminished_seventh = 3 in intervals and 6 in intervals and 9 in intervals
 
             for interval in intervals[1:]:
-                new_pitch = root_pitch.transpose(interval)
+                name = self._INTERVAL_NAMES.get(interval)
+                if interval == 9 and diminished_seventh:
+                    name = 'd7'
+                new_pitch = root_pitch.transpose(name or interval)
                 # music21 uses '-' for flats; normalize to 'b' for consistency
                 # with the rest of the codebase and pychord output.
                 notes.append(new_pitch.name.replace('-', 'b'))
 
             return notes, list(intervals)
-        except:
+        except Exception:
             return None
 
     def _music21_type_to_shorthand(self, chord_type: str) -> Optional[str]:
@@ -523,6 +561,9 @@ class ChordHelper:
         # carries that spelling so key-aware voicing rules can read it.
         from chord.keys import american_key
         key = american_key(key)
+        # 6/9 is a quality (6 and 9 added), not a slash bass: read it as 69
+        # before anything splits at the slash (C6/9/E is C69/E).
+        chord_name = _SIX_NINE.sub('69', chord_name)
 
         # Handle roman numeral chords
         if is_relative:
@@ -730,15 +771,17 @@ class ChordHelper:
 
         # Build quality.
         # A lowercase roman numeral is minor, and that carries through to any
-        # extension: prepend 'm' to the quality unless it already sets the third
-        # (m/M/maj/min) or replaces it (sus/dim/aug/+). This makes 'ii7' a minor
-        # seventh (Dm7), not a dominant (D7), while leaving 'iisus4', 'iidim',
-        # and uppercase 'II7' untouched. A secondary dominant is written with an
-        # uppercase numeral ('II7' -> D7).
+        # extension: prepend 'm' to the quality unless it already says minor
+        # (m/min) or replaces the third (sus/dim/aug/+). This makes 'ii7' a minor
+        # seventh (Dm7), not a dominant (D7), and 'iimaj7' D minor-major 7, as
+        # a lowercase letter root does ('dmaj7'), while leaving 'iisus4',
+        # 'iidim', and uppercase 'II7' untouched. A secondary dominant is written
+        # with an uppercase numeral ('II7' -> D7).
         if not is_major and not diminished_symbol:
             if not quality:
                 quality = 'm'
-            elif not quality.startswith(('m', 'M', 'sus', 'dim', 'aug', '+', 'ø')):
+            elif (not quality.startswith(('m', 'M', 'sus', 'dim', 'aug', '+', 'ø'))
+                  or quality.startswith(('maj', 'M'))):
                 quality = 'm' + quality
 
         # Handle diminished symbol
@@ -767,6 +810,7 @@ class ChordHelper:
         - 'c' -> 'Cm' (C minor)
         - 'd7' -> 'Dm7' (D minor 7)
         - 'c#m7' -> 'C#m7' (already has 'm', keep as is)
+        - 'cmaj7' -> 'Cmmaj7' (always minor: C minor-major 7)
 
         Args:
             chord_name: Original chord string
@@ -785,12 +829,8 @@ class ChordHelper:
             root = chord_name[0].upper()
             suffix = chord_name[1:]
 
-        # Add 'm' for minor if no quality is specified
-        # Check if suffix already starts with quality indicator
-        if not suffix or (suffix and suffix[0] not in ['m', 'M'] and not suffix.startswith('maj') and not suffix.startswith('min')):
-            return root + 'm' + suffix
-        else:
-            return root + suffix
+        from chord.converter import lowercase_minor
+        return root + lowercase_minor(suffix)
 
     def _convert_symbols_to_text(self, chord_name: str) -> str:
         """Convert chord symbols to text equivalents.

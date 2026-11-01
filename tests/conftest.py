@@ -20,6 +20,26 @@ settings.register_profile("default", deadline=None)
 settings.load_profile("default")
 
 
+# Long fuzz and exhaustive grids (transpose, notation conversion) run on
+# demand, not in CI: `make fuzz`, or `pytest --fuzz`.
+def pytest_addoption(parser):
+    parser.addoption("--fuzz", action="store_true",
+                     help="also run the long fuzz and exhaustive tests (marked 'fuzz')")
+
+
+def pytest_configure(config):
+    config.addinivalue_line("markers", "fuzz: long fuzz/exhaustive test, run with --fuzz")
+
+
+def pytest_collection_modifyitems(config, items):
+    if config.getoption("--fuzz"):
+        return
+    skip = pytest.mark.skip(reason="long fuzz test: run with --fuzz (make fuzz)")
+    for item in items:
+        if "fuzz" in item.keywords:
+            item.add_marker(skip)
+
+
 @pytest.fixture
 def american_detector():
     """Create a ChordDetector with American notation."""

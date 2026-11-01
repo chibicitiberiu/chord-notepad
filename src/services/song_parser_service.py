@@ -24,11 +24,22 @@ from models.notation import Notation
 _KEY_VALUE = re.compile(r'\{[^:}]*:\s*([^{}]*?)\s*\}')
 
 
+def _is_american_key(key: str) -> bool:
+    return bool(re.fullmatch(r'[A-G][#b♯♭]?m?', key))
+
+
 def _european_key(key: str) -> str:
-    """A key in European spelling (``F#m`` -> ``Fa#m``); one that already is
-    stays as it is."""
-    american = american_key(key)
-    return NotationConverter.chord_american_to_european(american) if american else key
+    """An American key in European spelling, as written (``F#m`` ->
+    ``Fa#m``, ``C♯`` -> ``Do♯``); anything else stays as it is."""
+    return NotationConverter.chord_american_to_european(key) if _is_american_key(key) else key
+
+
+def _american_key(key: str) -> str:
+    """A European key in American spelling, as written (``Fa#m`` ->
+    ``F#m``, ``Do♯`` -> ``C♯``); anything else stays as it is."""
+    if _is_american_key(key) or american_key(key) is None:
+        return key
+    return NotationConverter.chord_european_to_american(key, as_written=True)
 
 
 def _line_starts(text: str) -> List[int]:
@@ -569,14 +580,16 @@ class SongParserService:
         Uses the document's pre-detected chord positions to substitute only
         valid chords on chord lines — lyrics like "A week ago" are not touched.
         If `lines` is not supplied, the text is parsed with the European
-        detector before substituting.
+        detector before substituting. A lyric that would read as chords in
+        American ("a b c") gets the "." text-line marker.
         """
         if lines is None:
             lines = self.detect_chords_in_text(text, notation="european")
-        return self._apply_chord_conversion(
-            text, lines, self._converter.chord_european_to_american,
-            lambda key: american_key(key) or key
+        converted = self._apply_chord_conversion(
+            text, lines, lambda chord: self._converter.chord_european_to_american(chord, as_written=True),
+            _american_key
         )
+        return self._keep_lyrics(lines, text, converted, "american")
 
     def convert_to_european(self, text: str, lines: Optional[List[Line]] = None) -> str:
         """Convert text from American to European notation.
@@ -584,13 +597,39 @@ class SongParserService:
         Uses the document's pre-detected chord positions to substitute only
         valid chords on chord lines — lyrics are not touched. If `lines` is
         not supplied, the text is parsed with the American detector first.
+        A lyric that would read as chords in European ("la la la") gets the
+        "." text-line marker.
         """
         if lines is None:
             lines = self.detect_chords_in_text(text, notation="american")
-        return self._apply_chord_conversion(
+        converted = self._apply_chord_conversion(
             text, lines, self._converter.chord_american_to_european,
             _european_key
         )
+        return self._keep_lyrics(lines, text, converted, "european")
+
+    def _keep_lyrics(self, lines: List[Line], text: str, converted: str, target: str) -> str:
+        """Mark the lyric lines of ``converted`` that would read as chords in
+        ``target`` ("la la la" is La La La in European) as text lines, so
+        the song means what it did and converting back leaves them alone.
+
+        The "." takes the place of a leading space when there is one, so a
+        lyric keeps its columns under the chords above it. When nothing was
+        converted, nothing is marked (the song wasn't in the source notation).
+        """
+        if converted == text:
+            return converted        # nothing converted: nothing to protect
+        target_lines = self.detect_chords_in_text(converted, target)
+        out = converted.split('\n')
+        changed = False
+        for i, (before, after) in enumerate(zip(lines, target_lines)):
+            if before.is_chord_line() or not after.is_chord_line():
+                continue
+            line = out[i]
+            indent = len(line) - len(line.lstrip(' '))
+            out[i] = (line[:indent - 1] + '.' + line[indent:]) if indent else '.' + line
+            changed = True
+        return '\n'.join(out) if changed else converted
 
     @staticmethod
     def rewrite_chord_spans(text: str, spans, transform) -> str:

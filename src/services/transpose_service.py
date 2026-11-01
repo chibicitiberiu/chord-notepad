@@ -86,6 +86,7 @@ import re
 import unicodedata
 from typing import Dict, List, Optional, Tuple, Union
 
+from chord.converter import split_bass
 from models.notation import Notation
 from models.line import LineType
 from models.directive import DirectiveType
@@ -229,8 +230,8 @@ def transpose_chord_token(chord_part: str, semitones: int, notation: Union[Notat
     leading = key is not None and leads_up(chord_part, next_chord)
     new_root = _spell((pc + semitones) % 12, style, notation, is_lower, key, leading)
     rest = chord_part[consumed:]
-    if '/' in rest:
-        pre, bass = rest.split('/', 1)
+    pre, bass = split_bass(rest)
+    if bass is not None:
         return new_root + pre + '/' + _transpose_note(bass, semitones, notation, key)
     return new_root + rest
 

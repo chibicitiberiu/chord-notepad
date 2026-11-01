@@ -79,7 +79,7 @@ Build Date: 2024-11-21 12:34:56 UTC
 
 Before creating a release tag:
 
-- [ ] All tests pass locally (`make test`)
+- [ ] All tests pass locally (`make test`), and the fuzz tests (`make fuzz`, not run in CI)
 - [ ] Application runs correctly (`make run`)
 - [ ] Local build succeeds (`make build`)
 - [ ] CHANGELOG updated (if applicable)

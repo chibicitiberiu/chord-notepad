@@ -100,6 +100,7 @@ cd chord-notepad
 pipenv install --dev
 make run          # or: pipenv run python src/main.py
 make test         # run the tests
+make fuzz         # the long fuzz tests (transpose, notation conversion)
 make docs-check   # build both editions of the User Guide
 ```
 

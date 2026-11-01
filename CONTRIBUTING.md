@@ -39,7 +39,9 @@ and what licence it's under, so it can be checked and credited.
 
 ## Before you send a pull request
 
-- Run the tests: `make test`.
+- Run the tests: `make test`. If you changed how chords are read, transposed
+  or converted, also run `make fuzz` (the long fuzz and exhaustive tests,
+  about 10 minutes; they don't run in CI).
 - Add or update tests for what you changed.
 - If you changed what users see, update the user guide in `help/`
   (see [docs/HELP_AUTHORING.md](docs/HELP_AUTHORING.md)) and check that

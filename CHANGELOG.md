@@ -61,8 +61,26 @@ moved to CHANGELOG_HISTORY.md and this file is reset.
   of the piano is named beside it. A new **Play** button plays the selected
   keys as they are. Shift+click a chord, or Shift+click or right-click Play,
   to hear the notes rolled, one at a time from the lowest.
+- More chord spellings: `C6/9` (also with a bass, `C6/9/E`), `Cmmaj9`,
+  `Cdim(maj7)` and `Csus2sus4` (or `Csus24`).
 
 ### Fixed
+
+- `C13b9`, `C13#9` and `C13b5` no longer play the natural 11th, which
+  clashed with the 3rd (a 13th chord leaves it out, as `C13` always did),
+  and `C11b9` plays its flat 9th; it played a natural 9th instead.
+- The staff writes the notes of 11th, 13th and some altered chords with
+  the right letters: the flat 9th of `C7b9b13` is D♭, not C♯, and the
+  third of `C#13` is E♯, not F.
+- Converting `C-` (minor written with a dash) to European gave `Do-`, which
+  wasn't read as a chord. European notation now takes `-` for minor too.
+- Converting from European to American keeps the song as you wrote it:
+  lowercase minors stay lowercase (`do7` becomes `c7`, not `Cm7`), `DoM7`
+  becomes `CM7` and `♯` stays `♯`, so converting there and back gives the
+  same text.
+- Convert puts a `.` in front of a lyric line that would read as chords in
+  the other notation, so `la la la` stays a lyric in a European song and
+  isn't turned into `a a a` when you convert back.
 
 - Settings: the Default key list now follows the chord notation (Do, Re,
   Mi... when European is picked, switching as soon as you change it) instead
@@ -138,6 +156,9 @@ moved to CHANGELOG_HISTORY.md and this file is reset.
 
 ### Changed
 
+- A lowercase root is always minor: `cmaj7`, `cM7` and `cΔ` are now C
+  minor-major 7 (they played C major 7), like `c7` is `Cm7`. Roman numerals
+  follow the same rule: `iimaj7` in C is D F A C#.
 - Tempo can be 20 to 400 BPM everywhere, including a typed `{bpm}`. A
   relative change such as `{bpm: +50}` that would leave that range is
   clamped, with a warning in the status bar.

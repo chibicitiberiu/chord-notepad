@@ -505,7 +505,7 @@ class TestNotationConversion:
 
     def test_full_song_european_to_american(self, song_parser):
         text = "Do Lam Fa Sol\nDoM7 Lam7 Fa Sol\nDo/Mi Lam/Sol Fa Sol"
-        expected = "C Am F G\nCmaj7 Am7 F G\nC/E Am/G F G"
+        expected = "C Am F G\nCM7 Am7 F G\nC/E Am/G F G"   # M7 as written
         assert song_parser.convert_to_american(text) == expected
 
     def test_full_song_american_to_european(self, song_parser):
@@ -517,7 +517,8 @@ class TestNotationConversion:
         """Reported on Android: c, c# and f# came out as major Do, Do#, Fa#."""
         result = song_parser.convert_to_european("Bb c c# Eb f f#")
         assert result == "Sib do do# Mib fa fa#"
-        assert song_parser.convert_to_american(result) == "Bb Cm C#m Eb Fm F#m"
+        # And back as written: lowercase stays lowercase (still minor).
+        assert song_parser.convert_to_american(result) == "Bb c c# Eb f f#"
 
     def test_lyric_line_is_not_touched(self, song_parser):
         """The whole point of using the detector: never touch lyric text."""

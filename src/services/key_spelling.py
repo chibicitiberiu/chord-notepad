@@ -50,6 +50,7 @@ sections (69 right, no relative major/minor mix-ups).
 from collections import Counter
 from functools import lru_cache
 from typing import Dict, Iterable, List, NamedTuple, Optional, Sequence, Tuple
+from chord.converter import split_bass
 
 
 LETTERS = 'CDEFGAB'
@@ -235,7 +236,7 @@ def chord_facts(chord: str) -> Optional[ChordFacts]:
     else:
         intervals = [(pitch_class(n.replace('-', 'b')) - root) % 12 for n in notes.notes]
     pitches = frozenset(pitch_class(n.replace('-', 'b')) for n in notes.notes)
-    bass = pitch_class(bass_name) if '/' in chord else None
+    bass = pitch_class(bass_name) if split_bass(chord)[1] is not None else None
     return ChordFacts(root, _quality(intervals), pitches, bass, root_name, bass_name)
 
 

@@ -3,7 +3,27 @@ Notation converter between American and European chord notation
 """
 
 import unicodedata
-from typing import Literal
+from typing import Literal, Optional, Tuple
+
+
+def lowercase_minor(suffix: str) -> str:
+    """The quality of a chord written with a lowercase root, which is always
+    minor (as in roman numerals): ``c`` is Cm, ``c7`` Cm7, ``cmaj7`` and
+    ``cM7`` C minor-major 7. A quality that already says minor (``m``,
+    ``min``, ``mi``, ``mM7``, ``-``) is kept as it is."""
+    if suffix.startswith('-') or (suffix.startswith('m') and not suffix.startswith('maj')):
+        return suffix
+    return 'm' + suffix
+
+
+def split_bass(chord: str) -> Tuple[str, Optional[str]]:
+    """``chord`` split at its slash bass: ``("C", "E")`` for ``C/E``,
+    ``("C6/9", "E")`` for ``C6/9/E``, and no bass for ``C6/9``, whose slash
+    belongs to the quality (6 and 9 added)."""
+    i = chord.rfind('/')
+    if i < 0 or chord[i - 1:i] == '6' and chord[i + 1:] == '9':
+        return chord, None
+    return chord[:i], chord[i + 1:]
 
 
 class NotationConverter:
@@ -70,16 +90,16 @@ class NotationConverter:
         result = chord_str
 
         # Handle slash chords (e.g., C/E -> Do/Mi)
-        if '/' in result:
-            parts = result.split('/', 1)
-            root_part = cls._convert_root_american_to_european(parts[0])
-            bass_part = cls._convert_root_american_to_european(parts[1])
+        body, bass = split_bass(result)
+        if bass is not None:
+            root_part = cls._convert_root_american_to_european(body)
+            bass_part = cls._convert_root_american_to_european(bass)
             return f"{root_part}/{bass_part}"
         else:
             return cls._convert_root_american_to_european(result)
 
     @classmethod
-    def chord_european_to_american(cls, chord_str: str) -> str:
+    def chord_european_to_american(cls, chord_str: str, as_written: bool = False) -> str:
         """
         Convert a single European-notation chord to American.
 
@@ -89,6 +109,11 @@ class NotationConverter:
 
         Args:
             chord_str: Chord in European notation (e.g., "Domaj7", "Lam/Sol")
+            as_written: Keep the writer's spelling, for rewriting a song: a
+                lowercase root stays lowercase (``do7`` -> ``c7``, minor in
+                both) and ``M`` stays ``M`` (``DoM7`` -> ``CM7``), so
+                converting back gives the same text. Otherwise the result is
+                normalized for reading (``do7`` -> ``Cm7``, ``DoM7`` -> ``Cmaj7``).
 
         Returns:
             Chord in American notation (e.g., "Cmaj7", "Am/G")
@@ -96,13 +121,16 @@ class NotationConverter:
         result = chord_str
 
         # Handle slash chords
-        if '/' in result:
-            parts = result.split('/', 1)
-            root_part = cls._convert_root_european_to_american(parts[0])
-            bass_part = cls._convert_root_european_to_american(parts[1])
+        body, bass = split_bass(result)
+        if bass is not None:
+            root_part = cls._convert_root_european_to_american(body, as_written)
+            # A bass is a note, never a minor chord: si is B.
+            bass_part = cls._convert_root_european_to_american(bass, True)
+            if not as_written:
+                bass_part = bass_part[:1].upper() + bass_part[1:]
             return f"{root_part}/{bass_part}"
         else:
-            return cls._convert_root_european_to_american(result)
+            return cls._convert_root_european_to_american(result, as_written)
 
     @classmethod
     def _convert_root_american_to_european(cls, chord_part: str) -> str:
@@ -130,7 +158,7 @@ class NotationConverter:
         return chord_part  # Return unchanged if not found
 
     @classmethod
-    def _convert_root_european_to_american(cls, chord_part: str) -> str:
+    def _convert_root_european_to_american(cls, chord_part: str, as_written: bool = False) -> str:
         """Convert root note from European to American"""
         # Normalize accents first (Dó -> Do, Ré -> Re, etc.)
         chord_part = cls._normalize_to_ascii(chord_part)
@@ -148,14 +176,14 @@ class NotationConverter:
                     american_root = american
 
                 suffix = chord_part[suffix_start:]
+                if as_written:
+                    return american_root + suffix
 
                 # Handle capitalization convention (lowercase = minor)
                 if european and european[0].islower():
                     # Lowercase European notation means minor
                     # do -> Cm, re -> Dm (unless suffix already specifies quality)
-                    if not suffix or (len(suffix) > 0 and suffix[0] not in ['m', 'M'] and not suffix.startswith('maj') and not suffix.startswith('min')):
-                        # Add 'm' for minor if no quality is specified
-                        suffix = 'm' + suffix
+                    suffix = lowercase_minor(suffix)
                     # Uppercase the letter only: sib is Bbm, not BBm
                     american_root = american_root[0].upper() + american_root[1:]
 

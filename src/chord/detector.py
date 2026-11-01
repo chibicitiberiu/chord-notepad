@@ -5,7 +5,7 @@ Chord detection using line-based classification and ChordHelper validation
 import re
 from typing import List, Tuple, Optional, Literal, Dict
 from chord.helper import ChordHelper
-from chord.converter import NotationConverter
+from chord.converter import NotationConverter, lowercase_minor
 from models.chord import ChordInfo
 
 # A directive's text on a line, braces included: "{key: G}". The body can't
@@ -47,10 +47,11 @@ class ChordDetector:
     # Supports M (uppercase) for minor-major: mM7, mM9
     # Supports duration: C*2, Am*4.5
     CHORD_PATTERN_AMERICAN = re.compile(
-        r'\b([A-Ga-g][#b♯♭]?(?:°|ø|\+|Δ|-|m|M|maj|min|mi|dim|aug|dom|alt|sus|add[#b♯♭]?\d+(?!\d)|no\d+(?!\d)|omit\d+(?!\d)|\d+(?!\d)|[#b♯♭]\d+(?!\d)|\([^)]+\))*(?:/[A-Ga-g][#b♯♭]?)?(?:\*[\d.]+)?)(?![A-Za-z0-9])'
+        r'\b([A-Ga-g][#b♯♭]?(?:°|ø|\+|Δ|-|m|M|maj|min|mi|dim|aug|dom|alt|sus|add[#b♯♭]?\d+(?!\d)|no\d+(?!\d)|omit\d+(?!\d)|6/9(?!\d)|\d+(?!\d)|[#b♯♭]\d+(?!\d)|\([^)]+\))*(?:/[A-Ga-g][#b♯♭]?)?(?:\*[\d.]+)?)(?![A-Za-z0-9])'
     )
 
-    # European notation pattern (Do/do for Major/minor, DoM explicit major, Dom explicit minor)
+    # European notation pattern (Do/do for Major/minor, DoM explicit major, Dom explicit minor;
+    # Do- is minor too, as C- is in American, so converting C- keeps it a chord)
     # Supports: ° (diminished), ø (half-diminished), + (augmented)
     # Supports unicode: ♯, ♭ (in addition to #, b)
     # Supports alterations: 7b5, 7#9, 9#11, etc.
@@ -58,7 +59,7 @@ class ChordDetector:
     # Supports accents: Dó, Ré, Fá, Lá
     # Supports duration: Do*2, rem*4.5
     CHORD_PATTERN_EUROPEAN = re.compile(
-        r'\b((?:D[oóò]|R[eéèê]|Mi|F[aáà]|Sol|L[aáà]|Si|d[oóò]|r[eéèê]|mi|f[aáà]|sol|l[aáà]|si)[#b♯♭]?(?:°|ø|\+|Δ|M|m|maj|min|mi|dim|aug|dom|alt|sus|add[#b♯♭]?\d+(?!\d)|no\d+(?!\d)|omit\d+(?!\d)|\d+(?!\d)|[#b♯♭]\d+(?!\d)|\([^)]+\))*(?:/(?:D[oóò]|R[eéèê]|Mi|F[aáà]|Sol|L[aáà]|Si|d[oóò]|r[eéèê]|mi|f[aáà]|sol|l[aáà]|si)[#b♯♭]?)?(?:\*[\d.]+)?)(?![A-Za-z0-9])'
+        r'\b((?:D[oóò]|R[eéèê]|Mi|F[aáà]|Sol|L[aáà]|Si|d[oóò]|r[eéèê]|mi|f[aáà]|sol|l[aáà]|si)[#b♯♭]?(?:°|ø|\+|Δ|-|M|m|maj|min|mi|dim|aug|dom|alt|sus|add[#b♯♭]?\d+(?!\d)|no\d+(?!\d)|omit\d+(?!\d)|6/9(?!\d)|\d+(?!\d)|[#b♯♭]\d+(?!\d)|\([^)]+\))*(?:/(?:D[oóò]|R[eéèê]|Mi|F[aáà]|Sol|L[aáà]|Si|d[oóò]|r[eéèê]|mi|f[aáà]|sol|l[aáà]|si)[#b♯♭]?)?(?:\*[\d.]+)?)(?![A-Za-z0-9])'
     )
 
     # Roman numeral chord pattern (I, ii, V7, vi/I, ♭III, #ivo, etc.)
@@ -415,11 +416,8 @@ class ChordDetector:
                 root = chord_str[0].upper()
                 suffix = chord_str[1:]
 
-            # Add 'm' for minor if no quality is specified
-            if not suffix or (len(suffix) > 0 and suffix[0] not in ['m', 'M'] and not suffix.startswith('maj') and not suffix.startswith('min')):
-                return root + 'm' + suffix
-            else:
-                return root + suffix
+            # Always minor: c7 is Cm7, cmaj7 C minor-major 7
+            return root + lowercase_minor(suffix)
 
         return chord_str
 

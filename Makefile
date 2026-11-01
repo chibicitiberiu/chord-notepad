@@ -1,4 +1,4 @@
-.PHONY: run test tests build clean setup-dev icons docs docs-html docs-html-android docs-pdf docs-check flatpak flatpak-check snap snap-check
+.PHONY: run test tests fuzz build clean setup-dev icons docs docs-html docs-html-android docs-pdf docs-check flatpak flatpak-check snap snap-check
 
 # Tools directory for local dependencies
 TOOLS_DIR := .tools
@@ -21,6 +21,10 @@ test:
 
 # Run tests (alias)
 tests: test
+
+# The long fuzz and exhaustive tests (transpose, notation conversion), on demand
+fuzz:
+	$(PYTHON) -m pytest tests/ --fuzz -m fuzz -v
 
 # Set up development environment
 setup-dev:

@@ -10,11 +10,14 @@ mixed lines, directives and regions).
 
 import re
 
+import pytest
 from hypothesis import assume, given, settings, strategies as st
 
 from chord.detector import ChordDetector
 from services.transpose_service import transpose_text
 from tests.test_transpose_exhaustive import bad_spellings, notes_of
+
+pytestmark = pytest.mark.fuzz
 
 _LETTERS = 'CDEFGAB'
 _EUROPEAN = {'C': 'Do', 'D': 'Re', 'E': 'Mi', 'F': 'Fa', 'G': 'Sol', 'A': 'La', 'B': 'Si'}

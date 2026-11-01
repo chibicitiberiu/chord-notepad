@@ -76,6 +76,7 @@ def cases():
                         yield pytest.param(chord, notation, id=f"{notation}-{chord}")
 
 
+@pytest.mark.fuzz
 @pytest.mark.parametrize("chord, notation", list(cases()))
 def test_every_shift_gives_a_valid_chord_with_the_notes_moved(chord, notation):
     detector = ChordDetector(notation=notation)
@@ -171,6 +172,7 @@ KEYED_LINES = [
 ]
 
 
+@pytest.mark.fuzz
 @pytest.mark.parametrize("notation, keys", [("american", AMERICAN_KEYS), ("european", EUROPEAN_KEYS)])
 def test_keyed_spelling_never_writes_awkward_names(notation, keys):
     """Spelled by a {key} (every key, both modes), every shift: no E#, B#,

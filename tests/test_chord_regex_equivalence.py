@@ -22,10 +22,12 @@ from chord.detector import ChordDetector
 ROOT = Path(__file__).resolve().parent.parent
 
 OLD_AMERICAN = re.compile(
-    r'\b([A-Ga-g][#b♯♭]?(?:°|ø|\+|Δ|-|m|M|maj|min|mi|dim|aug|dom|alt|sus[24]?|add[#b♯♭]?\d+|no\d+|omit\d+|\d+|[#b♯♭]\d+|\([^)]+\))*(?:/[A-Ga-g][#b♯♭]?)?(?:\*[\d.]+)?)(?![A-Za-z0-9])'
+    r'\b([A-Ga-g][#b♯♭]?(?:°|ø|\+|Δ|-|m|M|maj|min|mi|dim|aug|dom|alt|sus[24]?|add[#b♯♭]?\d+|no\d+|omit\d+|6/9|\d+|[#b♯♭]\d+|\([^)]+\))*(?:/[A-Ga-g][#b♯♭]?)?(?:\*[\d.]+)?)(?![A-Za-z0-9])'
 )
+# With what both patterns gained later: "-" (minor) in European as in
+# American, and the 6/9 quality.
 OLD_EUROPEAN = re.compile(
-    r'\b((?:D[oóò]|R[eéèê]|Mi|F[aáà]|Sol|L[aáà]|Si|d[oóò]|r[eéèê]|mi|f[aáà]|sol|l[aáà]|si)[#b♯♭]?(?:°|ø|\+|Δ|M|m|maj|min|mi|dim|aug|dom|alt|sus[24]?|add[#b♯♭]?\d+|no\d+|omit\d+|\d+|[#b♯♭]\d+|\([^)]+\))*(?:/(?:D[oóò]|R[eéèê]|Mi|F[aáà]|Sol|L[aáà]|Si|d[oóò]|r[eéèê]|mi|f[aáà]|sol|l[aáà]|si)[#b♯♭]?)?(?:\*[\d.]+)?)(?![A-Za-z0-9])'
+    r'\b((?:D[oóò]|R[eéèê]|Mi|F[aáà]|Sol|L[aáà]|Si|d[oóò]|r[eéèê]|mi|f[aáà]|sol|l[aáà]|si)[#b♯♭]?(?:°|ø|\+|Δ|-|M|m|maj|min|mi|dim|aug|dom|alt|sus[24]?|add[#b♯♭]?\d+|no\d+|omit\d+|6/9|\d+|[#b♯♭]\d+|\([^)]+\))*(?:/(?:D[oóò]|R[eéèê]|Mi|F[aáà]|Sol|L[aáà]|Si|d[oóò]|r[eéèê]|mi|f[aáà]|sol|l[aáà]|si)[#b♯♭]?)?(?:\*[\d.]+)?)(?![A-Za-z0-9])'
 )
 OLD_ROMAN = re.compile(
     r'(?<![A-Za-z0-9#b♭♯])([#b♭♯]?[IViv]+(?:o|°|ø|\+|maj|min|dim|aug|sus[24]?|add[#b♯♭]?\d+|m|\d+|[#b]\d+)*(?:/[#b♭♯]?[IViv]+(?:o|°)?)?(?:\*[\d.]+)?)(?![A-Za-z0-9])'
