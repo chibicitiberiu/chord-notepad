@@ -3,13 +3,14 @@
 The one prioritised list of open work, most urgent first. Delete a line when
 it's done (git history keeps it); release mechanics live in `docs/RELEASE.md`.
 
-## Before the next release (v0.5.0)
+## Before the next release
 
 - Play Console: identity verification (long lead), listing, payments profile, the `supporter` product, license testers (including pending and refund), IARC, Data safety, then the 12-tester, 14-day closed test (`docs/RELEASE.md`, "Google Play (first time)", "Developer verification").
 - Microsoft Store: upload the 0.5.0 MSIX; check that every listing language has the AGPL notice and source URL (`docs/RELEASE.md`, "Licence compliance").
 - Real phone: audible timing and tap-to-sound latency, the recorded-output metronome test, audio focus, SAF providers, soft keyboard and IME, Open with `.txt`, cold start and RSS, whether the stream should close in the background, a 16 KB-page device if available.
 - Desktop manual checks of the session migration and the sequencer/audio-driver change on Flatpak, Snap, Windows and macOS: open a song with directives, type, play/loop/shift-play, transpose and undo, chord sheet and voicing, settings, close with unsaved changes.
 - Decide F-Droid before tagging (see "Needs a decision").
+- ChromeOS: add `<uses-feature android:name="android.hardware.touchscreen" android:required="false" />` to `android/app/src/main/AndroidManifest.xml` (without it Play hides the app from Chromebooks with no touchscreen) and make `check_manifest.py` require it. After uploading the AAB, check Play Console > Reach and devices > Device catalog for Chromebooks. Mouse, trackpad and window resizing are untested on real ChromeOS.
 
 ## Next
 
