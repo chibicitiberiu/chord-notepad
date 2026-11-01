@@ -57,13 +57,14 @@ import com.tibich.chordnotepad.ui.icons.AppIcons
 
 /**
  * Help › Quick Start: the tour's pages one at a time (title, paragraphs and
- * read-only example snippets drawn with the editor's colours), Previous/Next
- * and a "Show at startup" checkbox.
+ * read-only example snippets drawn with the editor's colours), Previous/Next,
+ * a "Show at startup" checkbox and an X that closes it from any page.
  *
  * @param content The tour from the session, or null while it is being fetched.
  * @param showAtStartup The checkbox state.
  * @param onShowAtStartupChange The user toggled the checkbox.
- * @param onClose Leave the tour (Done, the arrow or Back).
+ * @param onClose Leave the tour (Done, the X or Back), at any page; the
+ *   checkbox is already saved.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -80,7 +81,7 @@ fun QuickStartScreen(
                 title = { Text(stringResource(R.string.quick_start_title)) },
                 navigationIcon = {
                     IconButton(onClick = onClose) {
-                        Icon(AppIcons.ArrowBack, contentDescription = stringResource(R.string.licences_back))
+                        Icon(AppIcons.Close, contentDescription = stringResource(R.string.quick_start_close))
                     }
                 },
             )

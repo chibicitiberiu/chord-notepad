@@ -19,8 +19,9 @@ Opening the Application
 
    Open Chord Notepad like any other app. The first time, a short **Quick
    Start** tour opens: seven pages with the main ideas and a small example on
-   each. Clear **Show at startup** at the bottom if you don't want it to come
-   back; you can always reopen it from **☰ → Quick start**. The tour doesn't
+   each. Tap **✕** at the top to close it from any page. Clear **Show at
+   startup** at the bottom if you don't want it to come back; you can always
+   reopen it from **☰ → Quick start**. The tour doesn't
    open when you start the app by opening a song from another app.
 
    .. platform-figure:: quick-start

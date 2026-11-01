@@ -1168,8 +1168,10 @@ older versions show the light guide). How to write for both editions:
 `QuickStartContent` page by page in Compose (`QuickStartPager` holds the page;
 snippets are `snippetRuns`: the session's code-point spans converted to UTF-16
 and styled with the editor's `SpanStyles`, on the editor's white background in
-monospace, read only). Previous/Next/Done and a "Show at startup" checkbox that
-sends `set_show_quick_start_on_startup`. ☰ → Quick start opens it. Whether it
+monospace, read only). Previous/Next/Done, an X in the top bar that closes it
+from any page (a tour, so a close button rather than a back arrow), and a "Show
+at startup" checkbox that sends `set_show_quick_start_on_startup` as soon as it
+changes, so closing early keeps it. ☰ → Quick start opens it. Whether it
 opens on its own is the session's call, not Kotlin's: see "Startup screen and
 support prompt" below.
 

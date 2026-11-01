@@ -51,6 +51,12 @@ object AppIcons {
     /** Back from a screen. */
     val ArrowBack: ImageVector = icon("ArrowBack", "M20,11H7.83l5.59,-5.59L12,4l-8,8 8,8 1.41,-1.41L7.83,13H20v-2z")
 
+    /** Close a screen you step through (the Quick Start tour). */
+    val Close: ImageVector = icon(
+        "Close",
+        "M19,6.41L17.59,5 12,10.59 6.41,5 5,6.41 10.59,12 5,17.59 6.41,19 12,13.41 17.59,19 19,17.59 13.41,12z",
+    )
+
     /** Drop-down caret. */
     val ArrowDropDown: ImageVector = icon("ArrowDropDown", "M7,10l5,5 5,-5z")
 
