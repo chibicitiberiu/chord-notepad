@@ -15,6 +15,7 @@ it's done (git history keeps it); release mechanics live in `docs/RELEASE.md`.
 
 ## Next
 
+- After v0.5.0: the Dependabot action bumps (PRs #1-#5: upload-artifact 7, setup-python 7, azure/login 3, checkout 7, setup-java 6), all majors. Put them on one branch, run a `test` dispatch (every platform, MSIX smoke test) and a `nightly` (signed Windows build, snap upload), then merge. Consider `groups` in `.github/dependabot.yml` for one weekly PR.
 - CI signing isolation: Windows signing in its own job that alone holds `id-token: write`; Android signing in a minimal job after an unsigned build; Gradle dependency verification.
 - Local signing (`docs/RELEASE.md`, "Signing locally"): read passwords in a subshell, accept them from the environment only (not `-P`), fail when `cnSigning=upload|foss` meets the configuration cache.
 - Local MSIX test recipe (`docs/RELEASE.md`): import only the `.cer`, not the PFX with its private key, and clean up afterwards, as `smoke_test.ps1` does.
