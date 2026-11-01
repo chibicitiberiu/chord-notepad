@@ -78,6 +78,9 @@ endif
 	@echo ""
 	@echo "Setup complete! Run 'make run' to start the application."
 
+# ImageMagick 7 is `magick`; Ubuntu's ImageMagick 6 package only has `convert`.
+MAGICK ?= $(shell command -v magick >/dev/null 2>&1 && echo magick || echo convert)
+
 # Generate icon files from SVG
 icons:
 	@echo "Generating icon files from SVG..."
@@ -88,13 +91,13 @@ icons:
 		for size in 16 32 48 64 128 256; do \
 			rsvg-convert -w $$size -h $$size chord-notepad-icon.svg -o icon-$$size.png || exit 1; \
 		done && \
-		magick icon-256.png icon-128.png icon-64.png icon-48.png icon-32.png icon-16.png chord-notepad-icon.ico && \
+		$(MAGICK) icon-256.png icon-128.png icon-64.png icon-48.png icon-32.png icon-16.png chord-notepad-icon.ico && \
 		rm icon-16.png icon-48.png icon-64.png; \
 	else \
-		magick -background none -density 300 chord-notepad-icon.svg -resize 32x32 -quality 100 icon-32.png && \
-		magick -background none -density 300 chord-notepad-icon.svg -resize 128x128 -quality 100 icon-128.png && \
-		magick -background none -density 600 chord-notepad-icon.svg -resize 256x256 -quality 100 icon-256.png && \
-		magick -background none -density 600 chord-notepad-icon.svg -define icon:auto-resize=256,128,64,48,32,16 chord-notepad-icon.ico; \
+		$(MAGICK) -background none -density 300 chord-notepad-icon.svg -resize 32x32 -quality 100 icon-32.png && \
+		$(MAGICK) -background none -density 300 chord-notepad-icon.svg -resize 128x128 -quality 100 icon-128.png && \
+		$(MAGICK) -background none -density 600 chord-notepad-icon.svg -resize 256x256 -quality 100 icon-256.png && \
+		$(MAGICK) -background none -density 600 chord-notepad-icon.svg -define icon:auto-resize=256,128,64,48,32,16 chord-notepad-icon.ico; \
 	fi
 	@echo "Icon files generated in resources/"
 
