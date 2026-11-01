@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Render the Google Play listing graphics into packaging/store/play/graphics/:
 
-- icon-512.png: the 512 px store icon. A full square on the launcher's cream;
-  Play rounds the corners and adds the shadow itself.
+- icon-512.png: the 512 px store icon, a full opaque square on the launcher's
+  cream, saved as 32-bit PNG (Play's spec). Play rounds the corners and adds
+  the drop shadow itself.
 - feature-graphic.png: the 1024x500 banner. The icon, name and tagline on the
   left, the top of the first phone screenshot on the right.
 
@@ -23,13 +24,14 @@ SHOT = ROOT / "packaging" / "store" / "play" / "screenshots" / "phone" / "01-pla
 FONTS = Path("/usr/share/fonts/rsms-inter-fonts")
 TAGLINE = ("Write chords above your lyrics", "and hear them played.")
 
-# Play shows the icon with rounded corners (about 20% radius), so the notepad
-# keeps a margin from them, matching its size inside the adaptive icon's mask.
+# Play masks the icon with a 30% corner radius. The notepad has a defining
+# shape, so it sits on Material's square keyline (about 79% of the icon)
+# instead of filling the square, which keeps the rings clear of the corners.
 ICON_CONTENT = 0.78
 
 
 def store_icon(source: Image.Image) -> Image.Image:
-    return place(source, 512, ICON_CONTENT, BACKGROUND).convert("RGB")
+    return place(source, 512, ICON_CONTENT, BACKGROUND)
 
 
 def rounded(img: Image.Image, radius: int) -> Image.Image:
