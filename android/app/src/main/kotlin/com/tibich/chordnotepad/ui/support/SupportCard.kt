@@ -30,7 +30,7 @@ enum class SupportCardKind {
     /** No card: a build without the purchase, or billing that can't sell it (no Play, no price). */
     HIDDEN,
 
-    /** "Support Chord Notepad" and the Support button. */
+    /** "Become a supporter" and the Support button. */
     OFFER,
 
     /** A payment Google Play hasn't confirmed yet. */
