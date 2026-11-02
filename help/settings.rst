@@ -285,10 +285,11 @@ you there.
    For a fretboard voicing: strings, frets, fingers, spans, and barres,
    plus all thirteen weights :plat:`in a compact multi-column form|` (see
    :doc:`fretted`). For an ensemble voicing: the voices
-   :plat:`table -- a row per voice with Name, Low, High and Staff columns|-- a
-   card per voice with Name, Low, High and Staff`, an **Add voice** button,
-   and a remove button on each :plat:`row|card` -- plus the upper staff's
-   clef (Treble, or Treble, octave lower for tenors), spacing, unisons, and all the
+   :plat:`table -- a row per voice with Name, Low, High, Staff and Max gap to
+   next voice columns|-- a card per voice with Name, Low, High, Staff and Max
+   gap to next voice`, an **Add voice** button, and move up, move down and
+   remove buttons on each :plat:`row|card` -- plus the upper staff's
+   clef (Treble, or Treble, octave lower for tenors), unisons, and all the
    weights, including the doubling, omission, and inversion groups (see
    :doc:`ensembles`). For a piano voicing: the left- and right-hand ranges,
    the preferred bass range, the right-hand low anchor and center, the
@@ -309,9 +310,11 @@ notation never changes a voicing.
 .. only:: desktop
 
    Mistakes are flagged as you type, not just when you click Save: an
-   invalid field turns red immediately, and a problem that spans two fields
+   invalid field turns red immediately (point at it to see what's wrong).
+   Once you leave the field, a red banner at the top of the editor says
+   **Fix these errors to apply changes**; a problem that spans two fields
    -- a relaxed span smaller than the normal span, a voice whose low note is
-   above its high note -- shows up as a message at the top of the editor.
+   above its high note -- is described in it.
    Save checks every voicing, not just the one you're editing: if one is
    invalid, it names the voicing and the problem, selects it, and saves
    nothing. Renaming or deleting the voicing
@@ -323,14 +326,16 @@ notation never changes a voicing.
 .. only:: android
 
    Mistakes are flagged as you type: an
-   invalid field turns red immediately, and a problem that spans two fields
-   -- a relaxed span smaller than the normal span, a voice whose low note is
-   above its high note -- shows up as a message at the top of the editor.
+   invalid field turns red, with what's wrong under it, and a banner above
+   the form says **Fix these errors to apply changes**. The banner stays in
+   view while you scroll, and goes once everything is fixed. When two
+   fields don't fit together -- a relaxed span smaller than the normal
+   span, a voice whose low note is above its high note -- the field you
+   changed is the one marked.
    A voicing with a mistake is marked *Has errors* in the list. Your voicings
    are saved after every change, field by field: a field with a mistake
    keeps the value it had before (a new voicing's default, if it's new), and
-   the rest of the voicing is saved. When two fields don't fit together, the
-   one you changed is the one that counts as wrong. Leaving Settings with a
+   the rest of the voicing is saved. Leaving Settings with a
    mistake left asks first, as described above, and **Edit** opens the
    voicing. Renaming or deleting the voicing
    you're currently playing with is handled: a rename follows the selection

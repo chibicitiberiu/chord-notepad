@@ -85,19 +85,24 @@ class VoicingFormTest {
         assertEquals("(note names or MIDI numbers, e.g. E2 A2 D3 G3 B3 E4)", fields.getValue("tuning").hint)
         assertNull(fields.getValue("max_fret").error)
         assertNull(fields.getValue("max_fret").hint)
-        assertEquals(1, Fixtures.fretboardInvalid.formErrors.size)
+        // The relaxed span below the normal span: blamed on the field just edited.
+        assertTrue(fields.getValue("relaxed_span").error!!.contains("Relaxed span"))
+        // Python leaves the form errors out while a field has one.
+        assertTrue(Fixtures.fretboardInvalid.formErrors.isEmpty())
+        assertTrue(Fixtures.fretboardInvalid.hasErrors)
     }
 
     @Test
-    fun `ensemble form - records rows with cell errors from error_path, hint with a count`() {
+    fun `ensemble form - records rows with cell errors from error_path`() {
         val items = formOf(Fixtures.ensemble)
         val records = items.filterIsInstance<FormItem.Records>().single()
         assertEquals("voices", records.spec.id)
-        assertEquals(listOf("name", "low", "high", "staff"), records.spec.columns.map { it.id })
-        assertEquals(2, records.rows.size)
-        // min_items 2, max_items 8: may add, may not remove.
+        assertEquals(listOf("name", "low", "high", "staff", "gap"), records.spec.columns.map { it.id })
+        // Voice 3 was added and moved up one place.
+        assertEquals(listOf("Voice 1", "Voice 3", "Voice 2"), records.rows.map { r -> r.cells.first { it.spec.id == "name" }.text })
+        // min_items 2, max_items 8: may add and remove.
         assertTrue(records.canAdd)
-        assertFalse(records.canRemove)
+        assertTrue(records.canRemove)
         val row1 = records.rows[1].cells.associateBy { it.spec.id }
         assertEquals("H9", row1.getValue("low").text)
         assertEquals("Not a valid note name", row1.getValue("low").error)
@@ -108,8 +113,8 @@ class VoicingFormTest {
         assertEquals("Auto", row1.getValue("staff").choice!!.label)
         assertEquals("voice:1:low", records.spec.cellErrorKey(1, "low"))
         val fields = items.fields().associateBy { it.spec.id }
-        assertEquals(FieldKind.INT_LIST, fields.getValue("max_spacing").spec.kind)
-        assertEquals("(comma-separated, 1 values expected)", fields.getValue("max_spacing").hint)
+        // No spacing field: the gaps are per voice.
+        assertFalse("max_spacing" in fields)
         assertEquals(FieldKind.FLOAT_OR_LIST, fields.getValue("movement").spec.kind)
         // The upper staff's clef: a choice in its own stack, plain treble by default.
         val clef = fields.getValue("upper_clef")
@@ -121,7 +126,44 @@ class VoicingFormTest {
         // The nested groups (doubling, omit, inversion) are titled sub-grids.
         val subTitles = items.filterIsInstance<FormItem.Header>().filter { it.level == 1 }.map { it.title }
         assertEquals(3, subTitles.size)
-        assertTrue(Fixtures.ensemble.formErrors.single().contains("low < high"))
+        assertTrue(Fixtures.ensemble.formErrors.isEmpty())
+    }
+
+    @Test
+    fun `each voice has a gap to the next one, off in the last row`() {
+        val records = formOf(Fixtures.ensemble).filterIsInstance<FormItem.Records>().single()
+        val gap = records.spec.columns.first { it.id == "gap" }
+        assertEquals(FieldKind.INT, gap.kind)
+        assertEquals("Max gap to next voice", gap.label)
+        assertTrue(gap.disabledInLastRow)
+        assertFalse(records.spec.columns.first { it.id == "low" }.disabledInLastRow)
+        val gaps = records.rows.map { r -> r.cells.first { it.spec.id == "gap" } }
+        assertEquals(listOf("19", "0", ""), gaps.map { it.text })
+        assertEquals(listOf(true, true, false), gaps.map { it.enabled })
+        assertEquals("Must be from 1 to 127", gaps[1].error)
+        // The last row's gap is off and empty, though Python keeps its value.
+        assertNull(gaps[2].error)
+        val kept = Fixtures.ensemble.values.getValue("voices").asRecords()[2].getValue("gap").jsonPrimitive.content
+        assertEquals("12", kept)
+    }
+
+    @Test
+    fun `move buttons are off at the ends and say what they do`() {
+        val records = formOf(Fixtures.ensemble).filterIsInstance<FormItem.Records>().single()
+        assertEquals(listOf(false, true, true), records.rows.map { it.canMoveUp })
+        assertEquals(listOf(true, true, false), records.rows.map { it.canMoveDown })
+        assertEquals("Move up", records.spec.moveUpHelp)
+        assertEquals("Move down", records.spec.moveDownHelp)
+    }
+
+    @Test
+    fun `the errors banner shows while a field or the form has an error`() {
+        assertTrue(Fixtures.ensemble.hasErrors)
+        assertFalse(Fixtures.piano.hasErrors)
+        val none = JsonObject(emptyMap())
+        assertTrue(Fixtures.piano.copy(fieldErrors = none, formErrors = listOf("Ensemble 'x': no")).hasErrors)
+        assertFalse(Fixtures.ensemble.copy(fieldErrors = none, formErrors = emptyList()).hasErrors)
+        assertEquals("Fix these errors to apply changes", schema.text("errors_banner"))
     }
 
     @Test
@@ -147,9 +189,9 @@ class VoicingFormTest {
         val rows = Fixtures.ensemble.values.getValue("voices").asRecords()
         val payload = VoicingEdits.cell("voices", rows, 1, "low", JsonPrimitive("G2"))
         val sent = payload.getValue("voices").jsonArray
-        assertEquals(2, sent.size)
+        assertEquals(3, sent.size)
         assertEquals("G2", sent[1].jsonObject.getValue("low").jsonPrimitive.content)
-        assertEquals("Voice 2", sent[1].jsonObject.getValue("name").jsonPrimitive.content)
+        assertEquals("Voice 3", sent[1].jsonObject.getValue("name").jsonPrimitive.content)
         assertEquals(rows[0], sent[0])
         assertEquals(setOf("voices"), payload.keys)
     }
@@ -176,7 +218,7 @@ class VoicingFormTest {
         pending.record(first)
         val second = VoicingEdits.cell("voices", pending.applyTo(state).getValue("voices").asRecords(), 1, "low", JsonPrimitive("G2"))
         val rows = (second.getValue("voices") as JsonArray).map { it.jsonObject.getValue("low").jsonPrimitive.content }
-        assertEquals(listOf("C3", "G2"), rows)
+        assertEquals(listOf("C3", "G2", "C3"), rows)
     }
 
     @Test

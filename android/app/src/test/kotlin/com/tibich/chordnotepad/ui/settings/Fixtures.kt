@@ -31,7 +31,11 @@ object Fixtures {
     /** "New voicing" (fretboard): tuning "E2 A2 X9 G3" (field error), relaxed span 2 (form error). */
     val fretboardInvalid: VoicingEditorState by lazy { load("fretboard_invalid") as VoicingEditorState }
 
-    /** The same as an ensemble: voice 1 low "H9" (cell error), voice 0 low above high (form error). */
+    /**
+     * The same as an ensemble with a third voice moved up (Voice 1, Voice 3,
+     * Voice 2): voice 1 low "H9" and gap "0" (cell errors), voice 0 low above
+     * high (a rule across fields, blamed on both cells).
+     */
     val ensemble: VoicingEditorState by lazy { load("ensemble") as VoicingEditorState }
 
     /** The same as a piano, untouched. */

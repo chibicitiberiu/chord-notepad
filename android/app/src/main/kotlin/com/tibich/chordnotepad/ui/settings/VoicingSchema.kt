@@ -24,7 +24,6 @@ enum class FieldKind(val wire: String) {
     CHOICE("choice"),
     PITCH("pitch"),
     PITCH_LIST("pitch_list"),
-    INT_LIST("int_list"),
     FLOAT_OR_LIST("float_or_list"),
     RECORDS("records"),
     ;
@@ -61,6 +60,9 @@ data class ChoiceOption(val value: JsonElement, val label: String)
  *
  * @property min Spinner lower bound (a hint; Python reports what's really wrong).
  * @property errorPath For records: the error key of a cell, `voice:{index}:{column}`.
+ * @property disabledInLastRow A column that is off in a records field's last
+ *   row (a voice's gap to the next voice: the bottom voice has none).
+ * @property moveUpHelp For records: the move-up button's accessible name (also [moveDownHelp]).
  */
 data class FieldSpec(
     val id: String,
@@ -80,6 +82,9 @@ data class FieldSpec(
     val addHelp: String? = null,
     val removeLabel: String? = null,
     val removeHelp: String? = null,
+    val moveUpHelp: String? = null,
+    val moveDownHelp: String? = null,
+    val disabledInLastRow: Boolean = false,
 ) {
     /** The error key of records cell ([index], [column]); the field id itself for other fields. */
     fun cellErrorKey(index: Int, column: String): String =
@@ -180,6 +185,9 @@ private fun parseField(json: JsonObject): FieldSpec = FieldSpec(
     addHelp = json.str("add_help"),
     removeLabel = json.str("remove_label"),
     removeHelp = json.str("remove_help"),
+    moveUpHelp = json.str("move_up_help"),
+    moveDownHelp = json.str("move_down_help"),
+    disabledInLastRow = (json["disabled_in_last_row"] as? JsonPrimitive)?.booleanOrNull ?: false,
 )
 
 private fun JsonObject.str(key: String): String? = (this[key] as? JsonPrimitive)?.takeIf { it.isString }?.content

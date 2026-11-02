@@ -15,3 +15,7 @@ moved to CHANGELOG_HISTORY.md and this file is reset.
 - Android: tapping a chord in the chord sheet moves the playhead there too, like tapping it in the text. During playback the song jumps to it.
 - Chord sheet: the Staff view draws the key signature for keys in European notation (Sol, Fa, Mib...) too; before, those songs showed none.
 - Chord sheet: an ensemble's upper staff can use a treble clef with a small 8 below (**Upper staff** in the voicing's settings), so tenors are written an octave above how they sound, as in men's choir music. The Male Choir (TTBB) preset uses it, with its tenors on the upper staff; the Treble Choir and String Quartet presets now set each voice's staff too (the viola stays on Auto).
+- Ensemble voicings: each voice has ↑ and ↓ buttons to move it, so a voice added at the bottom can become the new top voice.
+- Ensemble voicings: the **Max spacing** list is gone. Each voice now has its own **Max gap to next voice** (in semitones), so there's no count of values to get right. A voice that gets a voice below it starts at an octave. Saved voicings are unchanged.
+- Chord sheet: with the octave-lower upper staff, a voice on Auto goes on the upper staff from C3 up (written as middle C), instead of from middle C.
+- Voicings editor: when something needs fixing, a banner says "Fix these errors to apply changes" and the fields with errors are marked red. On Android the banner stays in view while the form scrolls.

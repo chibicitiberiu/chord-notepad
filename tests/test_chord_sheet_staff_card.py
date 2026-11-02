@@ -388,6 +388,14 @@ class TestEnsembleRouting:
         pairs = [(m, st) for m, st, _ in sc._voiced(chord, song)]
         assert pairs == [(48, 'bass'), (55, 'bass'), (64, 'treble'), (67, 'treble')]
 
+    def test_missing_voice_staves_split_at_c3_under_the_octave_lower_treble(self):
+        chord = make_chord(
+            "C", midi_notes=[43, 48, 55, 64],
+            chord_notes=C_MAJOR, voice_notes=[43, 48, 55, 64])
+        song = make_song(chord, voice_staves=None, upper_clef='treble_8vb')
+        pairs = [(m, st) for m, st, _ in sc._voiced(chord, song)]
+        assert pairs == [(43, 'bass'), (48, 'treble'), (55, 'treble'), (64, 'treble')]
+
     def test_ensemble_notes_carry_per_voice_tint(self):
         chord = make_chord(
             "C", midi_notes=[43, 55, 60, 64],

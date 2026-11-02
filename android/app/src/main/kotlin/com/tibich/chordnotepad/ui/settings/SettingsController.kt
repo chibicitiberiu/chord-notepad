@@ -382,6 +382,12 @@ class SettingsController(private val commands: ScreenCommands, saved: SettingsUi
         touch { commands.removeVoicingRecord(index, fieldId) }
     }
 
+    /** Move row [index] of records field [fieldId] by [offset] rows (-1 up, +1 down). */
+    fun moveRecord(index: Int, offset: Int, fieldId: String) {
+        pending.clear(fieldId)
+        touch { commands.moveVoicingRecord(index, offset, fieldId) }
+    }
+
     private fun setModel(model: String) {
         pending.clear()
         touch { commands.setVoicingModel(model) }

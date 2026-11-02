@@ -299,6 +299,7 @@ SESSION_COMMANDS: Dict[str, Dict[str, str]] = {
     "set_voicing_model": {"model": "str"},
     "add_voicing_record": {"field_id": "str"},
     "remove_voicing_record": {"index": "int", "field_id": "str"},
+    "move_voicing_record": {"index": "int", "offset": "int", "field_id": "str"},
     "load_voicing_preset": {"group": "str", "label": "str"},
 }
 

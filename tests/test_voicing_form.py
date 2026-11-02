@@ -162,15 +162,19 @@ def test_every_parseable_field_reports_with_a_schema_id(model):
     broken = {}
     for key, value in values.items():
         if key == 'voices':
-            broken[key] = [{**row, 'low': 'zz', 'high': 'zz', 'staff': 'alto'} for row in value]
+            broken[key] = [{**row, 'low': 'zz', 'high': 'zz', 'staff': 'alto', 'gap': 'zz'}
+                           for row in value]
         elif isinstance(value, str):
             broken[key] = 'zz'
         else:
             broken[key] = value
     errors = vf.field_errors(model, broken)
+    # The bottom voice's gap is never saved, so never wrong.
+    last_gap = f"voice:{len(broken.get('voices', [])) - 1}:gap"
     expected = {
         fid for fid in _leaf_ids(model, broken)
-        if not fid.endswith(':name') and fid not in ('allow_barres', 'allow_unisons', 'add_bass')
+        if not fid.endswith(':name') and fid != last_gap
+        and fid not in ('allow_barres', 'allow_unisons', 'add_bass')
     }
     assert set(errors) == expected
 
@@ -184,12 +188,12 @@ def test_error_wording_per_kind():
         'weight:barre_penalty': 'Must be a number',
     }
     ens = vf.default_values('ensemble')
-    ens['voices'][0] = {**ens['voices'][0], 'low': 'Q', 'staff': 'alto'}
-    ens.update({'max_spacing': 'x', 'movement': 'a,b', 'nested:doubling:third': 'bad'})
+    ens['voices'][0] = {**ens['voices'][0], 'low': 'Q', 'staff': 'alto', 'gap': 'x'}
+    ens.update({'movement': 'a,b', 'nested:doubling:third': 'bad'})
     assert vf.field_errors('ensemble', ens) == {
         'voice:0:low': 'Not a valid note name',
         'voice:0:staff': "Must be 'treble', 'bass', or omitted",
-        'max_spacing': 'Must be whole numbers',
+        'voice:0:gap': 'Must be a whole number',
         'movement': 'Must be a number or list of numbers',
         'nested:doubling:third': 'Must be a number',
     }
@@ -210,9 +214,15 @@ def test_cross_field_error_wording():
     values['voices'][0] = {**values['voices'][0], 'low': 'C5', 'high': 'C4'}
     assert vf.cross_field_errors('Duo', 'ensemble', values) == [
         "Ensemble 'Duo': voice 'Voice 1' range must have low < high, got 72 >= 60"]
-    values = {**vf.default_values('ensemble'), 'max_spacing': '12, 19'}
-    assert vf.cross_field_errors('Duo', 'ensemble', values) == [
-        "Ensemble 'Duo': 'max_spacing' must have 1 entries (one per adjacent voice gap), got 2"]
+
+
+def test_form_errors_wait_for_the_fields():
+    values = vf.default_values('ensemble')
+    values['voices'][1] = {**values['voices'][1], 'low': 'Q'}
+    checked = vf.validate_form('Duo', 'ensemble', values)
+    assert checked == {'fields': {'voice:1:low': 'Not a valid note name'}, 'form': []}
+    # The spec's own message is still there for a view that asks.
+    assert vf.cross_field_errors('Duo', 'ensemble', values)
 
 
 def test_voicing_error_unknown_model():
@@ -224,12 +234,132 @@ def test_voicing_error_unknown_model():
 # ---------------------------------------------------------------------------
 
 
-def test_max_spacing_hint_counts_gaps():
-    schema = vf.form_schema('ensemble')
-    field = next(f for f in vf.iter_fields(schema) if f['id'] == 'max_spacing')
-    values = vf.default_values('ensemble')
-    assert vf.field_hint(field, values) == '(comma-separated, 1 values expected)'
-    assert vf.field_hint(field, {'voices': []}) == '(comma-separated, 0 values expected)'
+def _voices_field():
+    return next(f for f in vf.iter_fields(vf.form_schema('ensemble')) if f['id'] == 'voices')
+
+
+def _gaps(values):
+    return [row['gap'] for row in values['voices']]
+
+
+def _names(values):
+    return [row['name'] for row in values['voices']]
+
+
+def _four(spacing=(12, 12, 19)):
+    data = {'model': 'ensemble', 'max_spacing': list(spacing), 'voices': [
+        {'name': name, 'range': [low, low + 12]}
+        for name, low in (('S', 72), ('A', 64), ('T', 52), ('B', 40))]}
+    return vf.values_from_voicing('ensemble', data)
+
+
+def test_spacing_is_a_gap_per_voice_not_a_field():
+    ids = {f['id'] for f in vf.iter_fields(vf.form_schema('ensemble'))}
+    assert 'max_spacing' not in ids
+    gap = next(c for c in _voices_field()['columns'] if c['id'] == 'gap')
+    assert gap['kind'] == vf.KIND_INT and gap['label'] == 'Max gap to next voice'
+    assert (gap['min'], gap['max'], gap['step']) == (1, 127, 1)
+    assert gap['disabled_in_last_row'] is True
+    assert not any(c.get('disabled_in_last_row') for c in _voices_field()['columns']
+                   if c['id'] != 'gap')
+    field = _voices_field()
+    assert (field['move_up_help'], field['move_down_help']) == ('Move up', 'Move down')
+
+
+def test_gaps_map_to_max_spacing_and_back():
+    values = _four((10, 11, 19))
+    assert _gaps(values) == ['10', '11', '19', '']
+    assert vf.voicing_from_values('ensemble', values)['max_spacing'] == [10, 11, 19]
+    # The bottom voice's gap is never saved.
+    values['voices'][3]['gap'] = '7'
+    assert vf.voicing_from_values('ensemble', values)['max_spacing'] == [10, 11, 19]
+    assert vf.field_errors('ensemble', values) == {}
+
+
+def test_missing_max_spacing_shows_the_spec_defaults():
+    data = {'model': 'ensemble', 'voices': [
+        {'name': 'A', 'range': [60, 72]}, {'name': 'B', 'range': [52, 64]},
+        {'name': 'C', 'range': [40, 52]}]}
+    values = vf.values_from_voicing('ensemble', data)
+    assert _gaps(values) == ['12', '19', '']
+    assert EnsembleSpec.from_dict('x', vf.voicing_from_values('ensemble', values)) == \
+        EnsembleSpec.from_dict('x', data)
+
+
+def test_a_raw_spacing_list_shows_entry_by_entry():
+    data = {'model': 'ensemble', 'max_spacing': '12, y', 'voices': [
+        {'name': 'A', 'range': [60, 72]}, {'name': 'B', 'range': [52, 64]},
+        {'name': 'C', 'range': [40, 52]}]}
+    values = vf.values_from_voicing('ensemble', data)
+    assert _gaps(values) == ['12', 'y', '']
+    assert vf.field_errors('ensemble', values) == {'voice:1:gap': 'Must be a whole number'}
+
+
+def test_a_gap_must_be_a_whole_number_in_range():
+    values = _four()
+    for text, message in (('', 'Must be a whole number'), ('x', 'Must be a whole number'),
+                          ('1.5', 'Must be a whole number'), ('0', 'Must be from 1 to 127'),
+                          ('128', 'Must be from 1 to 127')):
+        values['voices'][1]['gap'] = text
+        assert vf.field_errors('ensemble', values) == {'voice:1:gap': message}, text
+    values['voices'][1]['gap'] = '127'
+    assert vf.validate_form('x', 'ensemble', values) == {'fields': {}, 'form': []}
+
+
+def test_a_row_without_a_gap_cell_gets_the_default():
+    values = _four()
+    for row in values['voices']:
+        del row['gap']
+    assert vf.voicing_from_values('ensemble', values)['max_spacing'] == [12, 12, 12]
+
+
+def test_add_gives_the_old_bottom_voice_an_octave():
+    values = _four((10, 11, 19))
+    added = vf.add_record('ensemble', values)
+    assert _gaps(added) == ['10', '11', '19', '12', '']
+    assert vf.voicing_from_values('ensemble', added)['max_spacing'] == [10, 11, 19, 12]
+
+
+def test_new_voice_moved_to_the_top_keeps_the_gaps_with_their_voices():
+    values = vf.add_record('ensemble', _four((10, 11, 19)))
+    for _ in range(4):
+        values = vf.move_record('ensemble', values, 4 - _, -1)
+    assert _names(values) == ['Voice 5', 'S', 'A', 'T', 'B']
+    # The new voice gets an octave to S; S..B keep theirs; B's moved-up gap stays.
+    assert _gaps(values) == ['12', '10', '11', '19', '12']
+    assert vf.voicing_from_values('ensemble', values)['max_spacing'] == [12, 10, 11, 19]
+
+
+def test_moving_the_bottom_voice_up_and_back_restores_its_gap():
+    values = _four((10, 11, 19))
+    values['voices'][3]['gap'] = ''
+    up = vf.move_record('ensemble', values, 3, -1)
+    assert _names(up) == ['S', 'A', 'B', 'T']
+    # B gains a voice below and had no gap: an octave. T is now last; its 19 is kept.
+    assert _gaps(up) == ['10', '11', '12', '19']
+    assert vf.voicing_from_values('ensemble', up)['max_spacing'] == [10, 11, 12]
+    back = vf.move_record('ensemble', up, 2, 1)
+    assert _names(back) == ['S', 'A', 'T', 'B']
+    assert _gaps(back) == ['10', '11', '19', '12']
+    assert vf.voicing_from_values('ensemble', back)['max_spacing'] == [10, 11, 19]
+
+
+def test_move_out_of_range_is_a_no_op():
+    values = _four()
+    assert vf.move_record('ensemble', values, 0, -1) == values
+    assert vf.move_record('ensemble', values, 3, 1) == values
+    assert vf.move_record('ensemble', values, 9, -1) == values
+
+
+def test_remove_takes_the_voice_gap_with_it():
+    values = _four((10, 11, 19))
+    removed = vf.remove_record('ensemble', values, 1)
+    assert _names(removed) == ['S', 'T', 'B']
+    assert _gaps(removed) == ['10', '19', '']
+    # Removing the bottom voice: the new bottom one keeps its gap in the form only.
+    removed = vf.remove_record('ensemble', values, 3)
+    assert _gaps(removed) == ['10', '11', '19']
+    assert vf.voicing_from_values('ensemble', removed)['max_spacing'] == [10, 11]
 
 
 def test_staff_choice_labels_and_values():
@@ -282,7 +412,8 @@ def test_add_and_remove_record_normalise_like_the_desktop():
     values['voices'][0] = {**values['voices'][0], 'low': 'Db4'}
     added = vf.add_record('ensemble', values)
     assert [v['name'] for v in added['voices']] == ['Voice 1', 'Voice 2', 'Voice 3']
-    assert added['voices'][2] == {'name': 'Voice 3', 'low': 'C3', 'high': 'C4', 'staff': None}
+    assert added['voices'][2] == {'name': 'Voice 3', 'low': 'C3', 'high': 'C4', 'staff': None,
+                                  'gap': ''}
     assert added['voices'][0]['low'] == 'C#4'
     removed = vf.remove_record('ensemble', added, 0)
     assert [v['name'] for v in removed['voices']] == ['Voice 2', 'Voice 3']
@@ -295,6 +426,10 @@ def test_record_helpers_on_voicing_data_copy():
     assert added['voices'][-1] == {'name': 'Voice 2', 'range': ['C3', 'C4']}
     assert len(data['voices']) == 1
     assert vf.voicing_with_record_removed(added, 0)['voices'] == [added['voices'][1]]
+    # An explicit spacing list follows the voices.
+    data = {**added, 'max_spacing': [19]}
+    assert vf.voicing_with_record_added(data)['max_spacing'] == [19, 12]
+    assert vf.voicing_with_record_removed(data, 1)['max_spacing'] == []
 
 
 # ---------------------------------------------------------------------------

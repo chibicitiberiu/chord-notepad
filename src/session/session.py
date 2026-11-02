@@ -1616,6 +1616,12 @@ class AppSession:
         self._edit_voicings(lambda edit: edit.remove_record(int(index), field_id))
 
     @_command
+    def move_voicing_record(self, index: int, offset: int, field_id: str = "voices") -> None:
+        """Move row ``index`` of a records field of the form by ``offset`` rows
+        (-1 up, +1 down); a voice keeps its gap to the next voice."""
+        self._edit_voicings(lambda edit: edit.move_record(int(index), int(offset), field_id))
+
+    @_command
     def load_voicing_preset(self, group: str, label: str) -> None:
         """Replace the selected voicing's parameters with a "Load config" entry
         (a ``VoicingEditorState.presets`` item; the view confirms first)."""

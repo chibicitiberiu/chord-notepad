@@ -454,8 +454,9 @@ raises is an `UnexpectedError` whose `context` is the command name.
   Voicing"), `set_voicing_values {values}` (a JSON object of the changed
   fields, or all; merged, parsed forgivingly), `set_voicing_model {model}`
   (that model's defaults; confirm first when `dirty`), `add_voicing_record
-  {field_id}` / `remove_voicing_record {index, field_id}` (`field_id`
-  defaults to `voices`), `load_voicing_preset {group, label}`. Every one
+  {field_id}` / `remove_voicing_record {index, field_id}` /
+  `move_voicing_record {index, offset, field_id}` (`offset` -1 up, +1 down;
+  `field_id` defaults to `voices`), `load_voicing_preset {group, label}`. Every one
   republishes `VoicingEditorState {active, revision, groups: [{model, label,
   names}], invalid, presets: [{label, group}], selected, model, values,
   field_errors, form_errors, hints, dirty, problems, staged_numbers,

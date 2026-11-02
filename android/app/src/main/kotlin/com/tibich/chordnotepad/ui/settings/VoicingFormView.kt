@@ -25,7 +25,7 @@ import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 
-/** What the voicing form sends: edits, and rows added to or removed from a records field. */
+/** What the voicing form sends: edits, and rows added to, moved in or removed from a records field. */
 interface FormActions {
     /** A `set_voicing_values` payload ([VoicingEdits]). */
     fun edit(payload: JsonObject)
@@ -38,6 +38,9 @@ interface FormActions {
 
     /** Remove row [index] of records field [fieldId]. */
     fun removeRecord(index: Int, fieldId: String)
+
+    /** Move row [index] of records field [fieldId] by [offset] rows (-1 up, +1 down). */
+    fun moveRecord(index: Int, offset: Int, fieldId: String)
 }
 
 /**
@@ -81,7 +84,11 @@ private fun supportingOf(field: FieldItem, withHelp: Boolean = true): String? =
     field.error ?: listOfNotNull(field.hint, field.spec.help.takeIf { withHelp && it.isNotBlank() })
         .joinToString("\n").ifEmpty { null }
 
-/** One field of the form; [onValue] overrides where the edit goes (a records cell). */
+/**
+ * One field of the form; [onValue] overrides where the edit goes (a records
+ * cell). A [cell] (of a records row) is narrow: a number has no − and +
+ * buttons (it is typed) and the label stays on one line.
+ */
 @Composable
 private fun FieldInput(
     field: FieldItem,
@@ -89,8 +96,10 @@ private fun FieldInput(
     actions: FormActions,
     modifier: Modifier = Modifier,
     withHelp: Boolean = true,
+    cell: Boolean = false,
     onValue: ((JsonElement) -> Unit)? = null,
 ) {
+    val labelLines = if (cell) 1 else Int.MAX_VALUE
     val spec = field.spec
     val send: (JsonElement) -> Unit =
         onValue ?: { actions.edit(JsonObject(mapOf(spec.id to it))) }
@@ -116,11 +125,15 @@ private fun FieldInput(
             supporting = supportingOf(field, withHelp),
             isError = field.error != null,
             keyboardType = if (spec.kind == FieldKind.INT) KeyboardType.Number else KeyboardType.Decimal,
-            trailing = {
-                StepperButtons(spec.label, enabled = stepNumber(spec, field.text, 1) != null) { delta ->
-                    stepNumber(spec, field.text, delta)?.let { send(JsonPrimitive(it)) }
+            trailing = if (cell) null else {
+                {
+                    StepperButtons(spec.label, enabled = field.enabled && stepNumber(spec, field.text, 1) != null) { delta ->
+                        stepNumber(spec, field.text, delta)?.let { send(JsonPrimitive(it)) }
+                    }
                 }
             },
+            enabled = field.enabled,
+            labelMaxLines = labelLines,
             modifier = modifier,
         )
         else -> StateTextField(
@@ -130,6 +143,8 @@ private fun FieldInput(
             key = key,
             supporting = supportingOf(field, withHelp),
             isError = field.error != null,
+            enabled = field.enabled,
+            labelMaxLines = labelLines,
             modifier = modifier,
         )
     }
@@ -172,15 +187,22 @@ private fun RecordsInput(item: FormItem.Records, formKey: String, wide: Boolean,
                 actions = actions,
                 modifier = modifier,
                 withHelp = false,
+                cell = true,
                 onValue = { actions.editCell(spec.id, row.index, field.spec.id, it) },
             )
         }
-        val remove: @Composable () -> Unit = {
+        val buttons: @Composable () -> Unit = {
+            IconButton(onClick = { actions.moveRecord(row.index, -1, spec.id) }, enabled = row.canMoveUp) {
+                Icon(SettingsIcons.ArrowUpward, contentDescription = spec.moveUpHelp ?: "Move up")
+            }
+            IconButton(onClick = { actions.moveRecord(row.index, 1, spec.id) }, enabled = row.canMoveDown) {
+                Icon(SettingsIcons.ArrowDownward, contentDescription = spec.moveDownHelp ?: "Move down")
+            }
             IconButton(onClick = { actions.removeRecord(row.index, spec.id) }, enabled = item.canRemove) {
                 Icon(SettingsIcons.Close, contentDescription = spec.removeHelp ?: spec.removeLabel)
             }
         }
-        if (wide) RecordTableRow(row, cell, remove) else RecordCard(row, cell, remove)
+        if (wide) RecordTableRow(row, cell, buttons) else RecordCard(row, cell, buttons)
     }
     OutlinedButton(onClick = { actions.addRecord(spec.id) }, enabled = item.canAdd) {
         Icon(SettingsIcons.Add, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
@@ -192,21 +214,32 @@ private fun RecordsInput(item: FormItem.Records, formKey: String, wide: Boolean,
     }
 }
 
-/** A records row as one line of a table (tablets): the columns side by side, weighted by width. */
+/**
+ * A records row as one line of a table (tablets): the columns side by side,
+ * weighted by width, then the row's [buttons] (move up, move down, remove).
+ */
 @Composable
-private fun RecordTableRow(row: RecordRow, cell: @Composable (FieldItem, Modifier) -> Unit, remove: @Composable () -> Unit) {
+private fun RecordTableRow(row: RecordRow, cell: @Composable (FieldItem, Modifier) -> Unit, buttons: @Composable () -> Unit) {
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
         for (field in row.cells) {
-            val width = if (field.spec.id == "name") 2f else 1f
+            val width = when {
+                field.spec.id == "name" -> 2f
+                field.spec.kind.numeric -> 1.5f
+                else -> 1f
+            }
             cell(field, Modifier.weight(width))
         }
-        remove()
+        buttons()
     }
 }
 
-/** A records row as a card (phones): the name, then the other columns two per line. */
+/**
+ * A records row as a card (phones): its number and [buttons], the name, then
+ * the other text columns two per line and each number (the gap) on a line
+ * of its own.
+ */
 @Composable
-private fun RecordCard(row: RecordRow, cell: @Composable (FieldItem, Modifier) -> Unit, remove: @Composable () -> Unit) {
+private fun RecordCard(row: RecordRow, cell: @Composable (FieldItem, Modifier) -> Unit, buttons: @Composable () -> Unit) {
     Card(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
         modifier = Modifier.fillMaxWidth(),
@@ -218,17 +251,19 @@ private fun RecordCard(row: RecordRow, cell: @Composable (FieldItem, Modifier) -
                     style = MaterialTheme.typography.titleSmall,
                     modifier = Modifier.weight(1f),
                 )
-                remove()
+                buttons()
             }
             Column(Modifier.padding(end = 8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 val (first, rest) = row.cells.firstOrNull() to row.cells.drop(1)
                 first?.let { cell(it, Modifier.fillMaxWidth()) }
-                for (pair in rest.chunked(2)) {
+                val (numbers, texts) = rest.partition { it.spec.kind.numeric }
+                for (pair in texts.chunked(2)) {
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         for (field in pair) cell(field, Modifier.weight(1f))
                         if (pair.size == 1) Spacer(Modifier.weight(1f))
                     }
                 }
+                for (field in numbers) cell(field, Modifier.fillMaxWidth())
             }
         }
     }

@@ -108,6 +108,7 @@ EDITOR_TEXTS: Dict[str, str] = {
     'remove_confirm_title': 'Remove Voicing',
     'remove_confirm': "Remove voicing '{name}'?",
     'rename_error_title': 'Rename Voicing',
+    'errors_banner': 'Fix these errors to apply changes',
 }
 
 # Small grey introducing every 'Weights' section.
@@ -189,11 +190,14 @@ TOOLTIPS: Dict[str, str] = {
     'voice_low': "Lowest note this voice may sing, inclusive (note name or MIDI number).",
     'voice_high': "Highest note this voice may sing, inclusive (note name or MIDI number).",
     'voice_staff': ("Which staff of a grand-staff chord sheet this voice is drawn on. Auto picks "
-                    "treble or bass from the voice's range; Treble/Bass pins it."),
+                    "treble or bass from the voice's range (split at middle C, or at C3 with the "
+                    "octave-lower upper staff); Treble/Bass pins it."),
+    'voice_gap': ("Largest gap, in semitones, allowed between this voice and the one below it. "
+                  "The bottom voice has none."),
     'add_voice': "Add another voice to the ensemble (2 to 8 voices).",
     'remove_voice': "Remove this voice from the ensemble.",
-    'max_spacing': ("Maximum semitone gap allowed between each pair of neighbouring voices; "
-                    "comma-separated, one value per gap."),
+    'move_voice_up': "Move up",
+    'move_voice_down': "Move down",
     'allow_unisons': "Whether two neighbouring voices may land on the same pitch.",
     'upper_clef': ("The clef of the Staff view's upper staff; octave lower writes its notes "
                    "an octave above how they sound, as tenor parts are."),

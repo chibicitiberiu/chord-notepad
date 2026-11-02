@@ -175,6 +175,13 @@ class SettingsEdit:
         self._replace_values(form.remove_record(self._form_model, self._values, index, field_id,
                                                 self.notation))
 
+    def move_record(self, index: int, offset: int, field_id: str = "voices") -> None:
+        """Move row ``index`` of a records field by ``offset`` rows (-1 up, +1
+        down; nothing if it would leave the list)."""
+        self._require_selected()
+        self._replace_values(form.move_record(self._form_model, self._values, index, offset,
+                                              field_id, self.notation))
+
     def presets(self) -> List[Dict[str, Any]]:
         """The "Load config" entries (built-ins, then the working voicings)."""
         return self.model.get_load_presets()

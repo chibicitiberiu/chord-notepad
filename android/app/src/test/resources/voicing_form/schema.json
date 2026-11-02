@@ -17,7 +17,7 @@
            "id": "name",
            "kind": "text",
            "label": "Name",
-           "width": 16
+           "width": 12
           },
           {
            "default": "C3",
@@ -51,21 +51,35 @@
             }
            ],
            "default": null,
-           "help": "Which staff of a grand-staff chord sheet this voice is drawn on. Auto picks treble or bass from the voice's range; Treble/Bass pins it.",
+           "help": "Which staff of a grand-staff chord sheet this voice is drawn on. Auto picks treble or bass from the voice's range (split at middle C, or at C3 with the octave-lower upper staff); Treble/Bass pins it.",
            "id": "staff",
            "kind": "choice",
            "label": "Staff",
            "width": 8
+          },
+          {
+           "default": "",
+           "disabled_in_last_row": true,
+           "help": "Largest gap, in semitones, allowed between this voice and the one below it. The bottom voice has none.",
+           "id": "gap",
+           "kind": "int",
+           "label": "Max gap to next voice",
+           "max": 127,
+           "min": 1,
+           "step": 1,
+           "width": 6
           }
          ],
          "default": [
           {
+           "gap": "19",
            "high": "C5",
            "low": "C4",
            "name": "Voice 1",
            "staff": null
           },
           {
+           "gap": "",
            "high": "C4",
            "low": "C3",
            "name": "Voice 2",
@@ -79,7 +93,12 @@
          "label": "Voices",
          "max_items": 8,
          "min_items": 2,
+         "move_down_help": "Move down",
+         "move_down_label": "↓",
+         "move_up_help": "Move up",
+         "move_up_label": "↑",
          "new_item": {
+          "gap": "",
           "high": "C4",
           "low": "C3",
           "name": "Voice {n}",
@@ -119,18 +138,6 @@
       },
       {
        "fields": [
-        {
-         "default": "",
-         "help": "Maximum semitone gap allowed between each pair of neighbouring voices; comma-separated, one value per gap.",
-         "hint": "(comma-separated, {count} values expected)",
-         "hint_count": {
-          "offset": -1,
-          "records": "voices"
-         },
-         "id": "max_spacing",
-         "kind": "int_list",
-         "label": "Max spacing"
-        },
         {
          "default": true,
          "help": "Whether two neighbouring voices may land on the same pitch.",
@@ -1102,6 +1109,7 @@
     }
    ],
    "texts": {
+    "errors_banner": "Fix these errors to apply changes",
     "load_button": "Copy from existing",
     "load_confirm": "Copying replaces all parameters of this voicing. Continue?",
     "load_confirm_title": "Copy from Existing",

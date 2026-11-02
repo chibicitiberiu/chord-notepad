@@ -130,6 +130,8 @@ class ScreenBridgeTest {
         assertSent("set_voicing_values", """{"values":{"max_fret":"14"}}""")
         commands.removeVoicingRecord(1)
         assertSent("remove_voicing_record", """{"index":1,"field_id":"voices"}""")
+        commands.moveVoicingRecord(2, -1)
+        assertSent("move_voicing_record", """{"index":2,"offset":-1,"field_id":"voices"}""")
         commands.loadVoicingPreset(VoicingPreset("SATB Choir", "ensemble"))
         assertSent("load_voicing_preset", """{"group":"ensemble","label":"SATB Choir"}""")
         commands.renameVoicing("A", "B")

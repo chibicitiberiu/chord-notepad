@@ -17,7 +17,7 @@ from audio.guitar_chord_picker import GuitarChordPicker
 from audio.ensemble_voicer import EnsembleVoicer
 from audio.note_picker_interface import INotePicker, VoicedChord
 from models.chord_notes import ChordNotes
-from models.ensemble_spec import BUILTIN_ENSEMBLES
+from models.ensemble_spec import BUILTIN_ENSEMBLES, EnsembleSpec
 from services.song_parser_service import SongParserService
 from services.song_renderer import SongRenderer
 
@@ -162,6 +162,13 @@ class TestVoiceStavesPlumbing:
         assert rendered.upper_clef == 'treble_8vb'
         # Low to high: Bass, Baritone, Tenor 2, Tenor 1.
         assert rendered.voice_staves == ['bass', 'bass', 'treble', 'treble']
+
+    def test_auto_staves_split_at_c3_under_the_octave_lower_treble(self):
+        voices = [{'name': 'Tenor', 'range': ['A2', 'D4']},
+                  {'name': 'Bass', 'range': ['E2', 'G3']}]
+        for clef, tenor_staff in (('treble', 'bass'), ('treble_8vb', 'treble')):
+            spec = EnsembleSpec.from_dict('tb', {'voices': voices, 'upper_clef': clef})
+            assert EnsembleVoicer(spec).voice_staves == [tenor_staff, 'bass']
 
     def test_other_pickers_draw_a_plain_treble(self):
         for picker in (EnsembleVoicer(BUILTIN_ENSEMBLES['satb']), GuitarChordPicker(),

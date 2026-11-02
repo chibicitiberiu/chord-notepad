@@ -236,6 +236,15 @@ Custom Ensembles
    example (built there for a fretted instrument, but the same steps apply
    to an ensemble).
 
+   The **Voices** table has a row per voice, top voice first: **Name**,
+   **Low** and **High** (the range), **Staff** (where the Staff view draws
+   it; see the ``staff`` key below for what **Auto** does), and **Max gap to
+   next voice**, the largest gap in semitones between this voice and the
+   one below it. The bottom voice has no voice below, so its gap is greyed
+   out. **↑** and **↓** move a voice up or down a place (its gap goes with
+   it), **✕** removes it, and **Add voice** adds one at the bottom. A voice
+   that gets a voice below it and has no gap yet starts at 12, an octave.
+
 .. only:: android
 
    If the four presets don't match the group you're writing for, define your
@@ -304,8 +313,9 @@ Custom Ensembles
      used by the chord sheet's Staff view (see :doc:`chord_sheet`) to draw a
      voicing on a grand staff.
      Leave it out and Chord Notepad picks the staff automatically from the
-     voice's range: ``"bass"`` if the range center sits below middle C,
-     ``"treble"`` otherwise. The built-ins pin their voices explicitly (the
+     voice's range: ``"bass"`` if the range center sits below middle C (below
+     C3 when ``upper_clef`` is ``"treble_8vb"``, where C3 is written as middle
+     C), ``"treble"`` otherwise. The built-ins pin their voices explicitly (the
      staffs listed under `The Four Presets`_), except the string quartet's
      viola.
    * ``upper_clef`` is optional: the clef of the Staff view's upper staff.
@@ -316,9 +326,10 @@ Custom Ensembles
      ``"treble_8vb"``.
    * ``max_spacing`` is optional: the maximum semitone gap allowed between
      each pair of neighbouring voices, one entry per gap (so one fewer entry
-     than there are voices). Leave it out and Chord Notepad defaults every
-     gap to an octave, except the bottom gap, which gets an octave and a
-     fifth to leave the bass room to move.
+     than there are voices), top gap first. The Settings window shows entry
+     *i* as the **Max gap to next voice** of voice *i*. Leave it out and Chord
+     Notepad defaults every gap to an octave, except the bottom gap, which
+     gets an octave and a fifth to leave the bass room to move.
    * ``allow_unisons`` is optional (default ``true``): set it to ``false`` if
      you never want two neighbouring voices landing on the same pitch.
    * ``weights`` is optional and partial -- give only the settings you want to
@@ -338,10 +349,18 @@ Custom Ensembles
    * **Staff**: where the chord sheet's Staff view draws the voice (see
      :doc:`chord_sheet`). **Auto** picks it from the range: the bass staff
      if the middle of the range is below middle C, the treble staff
-     otherwise. The built-ins set each voice's staff (listed under
-     `The Four Presets`_); only the string quartet's viola is on Auto.
+     otherwise. With **Upper staff** set to the octave-lower treble (below),
+     the split is C3 instead, which that clef writes as middle C. The
+     built-ins set each voice's staff (listed under `The Four Presets`_);
+     only the string quartet's viola is on Auto.
+   * **Max gap to next voice**: the largest gap, in semitones, allowed
+     between this voice and the one below it. The bottom voice has none, so
+     its field is greyed out. A voice that gets a voice below it and has no
+     gap yet starts at 12, an octave.
 
-   **Add voice** adds a voice at the bottom and **✕** removes one. An
+   **Add voice** adds a voice at the bottom, **↑** and **↓** move a voice up
+   or down a place (its gap goes with it), and **✕** removes one. To make a
+   new voice the top one, add it, then tap its **↑** until it's first. An
    ensemble has 2 to 8 voices.
 
 .. platform-figure:: settings-voicing-ensemble
@@ -362,11 +381,6 @@ Custom Ensembles
      below it and writes every note on that staff an octave higher than it
      sounds, as men's choir music does for tenors. It only changes the
      drawing. The built-in Male Choir (TTBB) uses it.
-   * **Max spacing**: the largest gap, in semitones, allowed between each
-     pair of neighbouring voices, as a comma-separated list with one number
-     fewer than there are voices. The hint under the field says how many it
-     expects. Left empty, every gap is an octave, except the bottom one,
-     which gets an octave and a fifth to leave the bass room to move.
    * **Allow unisons**: turn it off if you never want two neighbouring
      voices on the same pitch.
    * **Weights**, then **Doubling**, **Omission** and **Inversion**: see the
@@ -383,10 +397,8 @@ Custom Ensembles
         - Value
       * - Name
         - Jazz Vocal Trio
-      * - Voices (Name, Low, High)
-        - Lead, A3, F5; Harmony, F3, D5; Bass, E2, C4
-      * - Max spacing
-        - 12, 19
+      * - Voices (Name, Low, High, Max gap to next voice)
+        - Lead, A3, F5, 12; Harmony, F3, D5, 19; Bass, E2, C4
       * - Allow unisons
         - off
       * - Voice movement (under Weights)

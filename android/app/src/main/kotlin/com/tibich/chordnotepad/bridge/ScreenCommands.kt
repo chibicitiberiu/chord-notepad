@@ -35,6 +35,7 @@ object ScreenCommandNames {
     const val SET_VOICING_MODEL = "set_voicing_model"
     const val ADD_VOICING_RECORD = "add_voicing_record"
     const val REMOVE_VOICING_RECORD = "remove_voicing_record"
+    const val MOVE_VOICING_RECORD = "move_voicing_record"
     const val LOAD_VOICING_PRESET = "load_voicing_preset"
 
     /** Every command these builders send (the contract test checks Python knows them all). */
@@ -45,7 +46,7 @@ object ScreenCommandNames {
         DISCARD_SETTINGS_PROBLEMS,
         REQUEST_VOICING_EDITOR_SCHEMA, SELECT_VOICING, ADD_VOICING, REMOVE_VOICING,
         RENAME_VOICING, SET_VOICING_VALUES, SET_VOICING_MODEL, ADD_VOICING_RECORD,
-        REMOVE_VOICING_RECORD, LOAD_VOICING_PRESET,
+        REMOVE_VOICING_RECORD, MOVE_VOICING_RECORD, LOAD_VOICING_PRESET,
     )
 }
 
@@ -169,6 +170,14 @@ class ScreenCommands(private val submitter: CommandSubmitter) {
         put("index", index)
         put("field_id", fieldId)
     }
+
+    /** Move row [index] of a records field by [offset] rows (-1 up, +1 down). */
+    fun moveVoicingRecord(index: Int, offset: Int, fieldId: String = "voices") =
+        send(ScreenCommandNames.MOVE_VOICING_RECORD) {
+            put("index", index)
+            put("offset", offset)
+            put("field_id", fieldId)
+        }
 
     /** Load a "Load config" entry into the selected voicing (confirm first). */
     fun loadVoicingPreset(preset: VoicingPreset) = send(ScreenCommandNames.LOAD_VOICING_PRESET) {

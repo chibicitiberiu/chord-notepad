@@ -78,6 +78,7 @@ from typing import Dict, List, NamedTuple, Optional, Tuple
 
 from chord.keys import american_key
 from chord.midi_converter import parse_note_to_semitone
+from models.ensemble_spec import auto_staff_split
 from models.rendered_song import RenderedChord, RenderedSong
 from chord_sheet.clef_assets import clef_placement, glyph_placement
 from chord_sheet.ops import DrawOps
@@ -411,8 +412,9 @@ def _voiced(chord: RenderedChord, song: RenderedSong) -> List[Tuple[int, str, st
     tinted by ``VOICE_COLORS[voice_index]`` (wrapping). Piano chords split
     ``midi_notes`` at ``hand_split`` (left hand -> bass/``lh`` color, right hand
     -> treble/``rh`` color). Everything else splits at middle C with the default
-    ink.
+    ink, or at C3 (written middle C) under an octave-lower treble clef.
     """
+    split = auto_staff_split(song.upper_clef)
     if chord.voice_notes is not None:
         staves = song.voice_staves
         out: List[Tuple[int, str, str]] = []
@@ -420,7 +422,7 @@ def _voiced(chord: RenderedChord, song: RenderedSong) -> List[Tuple[int, str, st
             if staves is not None and i < len(staves):
                 staff = staves[i]
             else:
-                staff = 'treble' if midi >= 60 else 'bass'
+                staff = 'treble' if midi >= split else 'bass'
             out.append((midi, staff, VOICE_COLORS[i % len(VOICE_COLORS)]))
         return out
     if chord.hand_split is not None and chord.midi_notes is not None:
@@ -432,7 +434,7 @@ def _voiced(chord: RenderedChord, song: RenderedSong) -> List[Tuple[int, str, st
                 out.append((midi, 'treble', HAND_COLORS['rh']))
         return out
     return [
-        (midi, 'treble' if midi >= 60 else 'bass', _INK)
+        (midi, 'treble' if midi >= split else 'bass', _INK)
         for midi in (chord.midi_notes or [])
     ]
 

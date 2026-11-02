@@ -240,11 +240,11 @@ class EnsembleVoicer(INotePicker):
     def voice_staves(self) -> Optional[List[str]]:
         """Per-voice staff (``'treble'``/``'bass'``), top voice first.
 
-        Each voice's :attr:`~models.ensemble_spec.VoiceSpec.resolved_staff`
-        (the explicit ``staff`` if set, else auto-resolved from its range),
-        aligned index-for-index with :attr:`voice_labels`.
+        Each voice's :meth:`~models.ensemble_spec.VoiceSpec.staff_under` the
+        spec's upper clef (the explicit ``staff`` if set, else auto-resolved
+        from its range), aligned index-for-index with :attr:`voice_labels`.
         """
-        return [v.resolved_staff for v in self._spec.voices]
+        return [v.staff_under(self._spec.upper_clef) for v in self._spec.voices]
 
     @property
     def upper_clef(self) -> Optional[str]:

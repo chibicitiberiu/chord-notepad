@@ -41,6 +41,13 @@ object SettingsIcons {
         "M12,2C6.48,2 2,6.48 2,12s4.48,10 10,10 10,-4.48 10,-10S17.52,2 12,2zM13,17h-2v-2h2v2zM13,13h-2V7h2v6z",
     )
 
+    /** Move a row up. */
+    val ArrowUpward: ImageVector = icon("ArrowUpward", "M4,12l1.41,1.41L11,7.83V20h2V7.83l5.58,5.59L20,12l-8,-8 -8,8z")
+
+    /** Move a row down. */
+    val ArrowDownward: ImageVector =
+        icon("ArrowDownward", "M20,12l-1.41,-1.41L13,16.17V4h-2v12.17l-5.58,-5.59L4,12l8,8 8,-8z")
+
     /** Remove a row. */
     val Close: ImageVector = icon(
         "Close",

@@ -20,6 +20,12 @@ field (the ensemble's voices) holds a list of dicts keyed by column id. Field
 ids double as error keys: ``field_errors`` reports ``{'max_fret': ...}`` for
 the ``max_fret`` field and ``'voice:<i>:<column>'`` for a cell of row ``i``.
 
+The ensemble's ``max_spacing`` (one gap per pair of neighbouring voices) is
+shown per voice: row ``i``'s ``gap`` cell is ``max_spacing[i]``, the gap to
+the voice below it. The last voice has no voice below, so its cell is off
+(``disabled_in_last_row``) and never saved; the form may still hold a value
+there, so a voice moved to the bottom and back gets its gap back.
+
 Parsing is forgiving, as on the desktop: a value that doesn't parse stays a
 raw string in the voicing dict, so the user can keep typing. Two error
 classes come out of that:
@@ -28,8 +34,8 @@ classes come out of that:
   a number, note name or list was expected, marked on the field itself;
 * **cross-field errors** (:func:`cross_field_errors`): whatever the model's
   spec rejects (relaxed span below the stretch, a voice's low above its high,
-  a wrong ``max_spacing`` length, an out-of-range value, ...), shown once for
-  the whole form.
+  an out-of-range value, ...), shown once for the whole form, and only when
+  every field parses (a field that doesn't is the problem to fix first).
 """
 
 import copy
@@ -44,6 +50,7 @@ from models.ensemble_spec import (
     EnsembleSpec,
     VALID_UPPER_CLEFS,
     _NESTED_WEIGHT_KEYS,
+    default_max_spacing,
     midi_to_note_name,
     parse_note_name,
 )
@@ -121,6 +128,19 @@ _KIND_ERRORS = {
 
 #: Error message of a top-level choice field (the ensemble's upper clef).
 _CHOICE_ERROR = 'Not one of the choices'
+
+#: The voices' column holding the gap to the next voice down (``max_spacing``).
+GAP_COLUMN = 'gap'
+
+#: The gap a voice gets when it gains a voice below it (an octave).
+DEFAULT_GAP = 12
+
+#: A gap's range in semitones (the spec takes any positive number; past a
+#: MIDI keyboard's span it means no limit).
+GAP_MIN, GAP_MAX = 1, 127
+
+#: Error message of a gap that is a whole number out of range.
+_GAP_RANGE_ERROR = f'Must be from {GAP_MIN} to {GAP_MAX}'
 
 _PIANO_RANGE_KEYS = ('lh_range', 'rh_range', 'bass_range', 'rh_low_anchor')
 _PIANO_INT_KEYS = ('rh_low_interval_floor', 'hand_span', 'max_notes_per_hand',
@@ -268,6 +288,11 @@ def _join(value: Any) -> str:
     return str(value)
 
 
+def _cell_text(value: Any) -> str:
+    """A form value as text (None is empty)."""
+    return '' if value is None else str(value)
+
+
 def _is_number(value: Any) -> bool:
     """True for a real int/float, excluding bool."""
     return isinstance(value, (int, float)) and not isinstance(value, bool)
@@ -384,17 +409,22 @@ def _ensemble_schema() -> Dict[str, Any]:
     voices = _field(
         'voices', KIND_RECORDS, 'Voices', '', defaults['voices'],
         columns=[
-            _field('name', KIND_TEXT, 'Name', TOOLTIPS['voice_name'], '', width=16),
+            _field('name', KIND_TEXT, 'Name', TOOLTIPS['voice_name'], '', width=12),
             _field('low', KIND_PITCH, 'Low', TOOLTIPS['voice_low'], 'C3', width=8),
             _field('high', KIND_PITCH, 'High', TOOLTIPS['voice_high'], 'C4', width=8),
             _field('staff', KIND_CHOICE, 'Staff', TOOLTIPS['voice_staff'], None,
                    width=8, choices=staff_choices),
+            _field(GAP_COLUMN, KIND_INT, 'Max gap to next voice', TOOLTIPS['voice_gap'], '',
+                   width=6, min=GAP_MIN, max=GAP_MAX, step=1, disabled_in_last_row=True),
         ],
         error_path='voice:{index}:{column}',
         min_items=2, max_items=8,
-        new_item={'name': 'Voice {n}', 'low': 'C3', 'high': 'C4', 'staff': None},
+        new_item={'name': 'Voice {n}', 'low': 'C3', 'high': 'C4', 'staff': None,
+                  GAP_COLUMN: ''},
         add_label='Add voice', add_help=TOOLTIPS['add_voice'],
         remove_label='✕', remove_help=TOOLTIPS['remove_voice'],
+        move_up_label='↑', move_up_help=TOOLTIPS['move_voice_up'],
+        move_down_label='↓', move_down_help=TOOLTIPS['move_voice_down'],
     )
     flat_weights = [
         _field('movement', KIND_FLOAT_OR_LIST, ENSEMBLE_WEIGHT_LABELS['movement'],
@@ -418,10 +448,6 @@ def _ensemble_schema() -> Dict[str, Any]:
                                 for value, label in UPPER_CLEF_LABELS]),
             ]},
             {'id': 'spacing', 'kind': SECTION_STACK, 'title': None, 'fields': [
-                _field('max_spacing', KIND_INT_LIST, 'Max spacing', TOOLTIPS['max_spacing'],
-                       defaults['max_spacing'],
-                       hint='(comma-separated, {count} values expected)',
-                       hint_count={'records': 'voices', 'offset': -1}),
                 _field('allow_unisons', KIND_BOOL, 'Allow unisons',
                        TOOLTIPS['allow_unisons'], True),
             ]},
@@ -506,6 +532,13 @@ def form_schema(model: str) -> Dict[str, Any]:
     ``grid`` sub-sections in ``groups``). A ``grid`` may also carry ``groups``,
     shown under its own fields. ``min``/``max``/``step`` are the spinner's
     range; the spec's own limits surface as the cross-field error.
+
+    A ``records`` field has ``columns`` (fields, one per cell of a row; a
+    column with ``disabled_in_last_row`` is off in the last row), a
+    ``new_item`` row, ``min_items``/``max_items``, and the labels and help of
+    its buttons: ``add_*``, ``remove_*``, ``move_up_*`` and ``move_down_*``
+    (``*_label`` a short button text, ``*_help`` its tooltip and accessible
+    name).
     """
     model = form_model(model)
     if model == 'fretboard':
@@ -661,8 +694,17 @@ def values_from_voicing(model: str, data: Mapping[str, Any],
         return values
 
     if model == 'ensemble':
+        voices = list(data.get('voices', []) or [])
+        spacing = data.get('max_spacing')
+        if spacing is None:
+            spacing = default_max_spacing(len(voices))
+        elif isinstance(spacing, str):
+            # A raw list left by an older form: one entry per gap, as typed.
+            spacing = [token.strip() for token in spacing.split(',')]
+        elif not isinstance(spacing, (list, tuple)):
+            spacing = []
         rows = []
-        for voice in list(data.get('voices', []) or []):
+        for i, voice in enumerate(voices):
             is_dict = isinstance(voice, Mapping)
             vrange = voice.get('range', [None, None]) if is_dict else [None, None]
             if not isinstance(vrange, (list, tuple)):
@@ -674,12 +716,10 @@ def values_from_voicing(model: str, data: Mapping[str, Any],
                 'low': pitch_to_text(low, notation) if low is not None else '',
                 'high': pitch_to_text(high, notation) if high is not None else '',
                 'staff': voice.get('staff') if is_dict else None,
+                GAP_COLUMN: (str(spacing[i]) if i < len(voices) - 1 and i < len(spacing)
+                             and spacing[i] is not None else ''),
             })
         values['voices'] = rows
-        spacing = data.get('max_spacing')
-        values['max_spacing'] = str(
-            ', '.join(str(s) for s in spacing) if isinstance(spacing, (list, tuple))
-            else (spacing or ''))
         values['allow_unisons'] = bool(data.get('allow_unisons', True))
         values['upper_clef'] = data.get('upper_clef', 'treble')
         weights = _weights_of(data)
@@ -748,7 +788,8 @@ def voicing_from_values(model: str, values: Mapping[str, Any],
 
     elif model == 'ensemble':
         voices = []
-        for row in values.get('voices', defaults.get('voices')) or []:
+        rows = values.get('voices', defaults.get('voices')) or []
+        for row in rows:
             voice: Dict[str, Any] = {
                 'name': str(row.get('name', '')).strip(),
                 'range': [parse_pitch_or_raw(str(row.get('low', ''))),
@@ -758,9 +799,13 @@ def voicing_from_values(model: str, values: Mapping[str, Any],
                 voice['staff'] = row['staff']
             voices.append(voice)
         out['voices'] = voices
-        spacing = text('max_spacing').strip()
-        if spacing:
-            out['max_spacing'] = parse_int_list_or_raw(spacing)
+        # Each voice's gap but the last one's (it has no voice below). A row
+        # without the cell at all (a view that doesn't know it) gets the default.
+        out['max_spacing'] = [
+            parse_int_or_raw(_cell_text(row.get(GAP_COLUMN))) if GAP_COLUMN in row
+            else DEFAULT_GAP
+            for row in rows[:-1]
+        ]
         out['allow_unisons'] = flag('allow_unisons')
         upper_clef = values.get('upper_clef', 'treble')
         if upper_clef is not None and upper_clef != 'treble':
@@ -801,40 +846,104 @@ def voicing_from_values(model: str, values: Mapping[str, Any],
 
 
 def voicing_with_record_added(data: Mapping[str, Any], field_id: str = 'voices') -> Dict[str, Any]:
-    """A copy of ``data`` with one new row appended to its records field."""
+    """A copy of ``data`` with one new row appended to its records field.
+
+    An explicit ``max_spacing`` list grows by :data:`DEFAULT_GAP`: the old
+    bottom voice now has a voice below it.
+    """
     out = copy.deepcopy(dict(data))
     rows = out.setdefault(field_id, [])
     rows.append({'name': f'Voice {len(rows) + 1}', 'range': ['C3', 'C4']})
+    spacing = out.get('max_spacing')
+    if isinstance(spacing, list) and len(rows) > 1:
+        spacing.append(DEFAULT_GAP)
     return out
 
 
 def voicing_with_record_removed(data: Mapping[str, Any], index: int,
                                 field_id: str = 'voices') -> Dict[str, Any]:
-    """A copy of ``data`` without row ``index`` of its records field (no-op if out of range)."""
+    """A copy of ``data`` without row ``index`` of its records field (no-op if out of range).
+
+    The voice's gap in an explicit ``max_spacing`` list goes with it (the
+    bottom voice's: the gap of the voice that becomes the bottom one).
+    """
     out = copy.deepcopy(dict(data))
     rows = out.get(field_id, [])
     if 0 <= index < len(rows):
         del rows[index]
+        spacing = out.get('max_spacing')
+        if isinstance(spacing, list) and spacing:
+            del spacing[min(index, len(spacing) - 1)]
     return out
+
+
+def _with_gaps(model: str, values: Mapping[str, Any], field_id: str, notation: str,
+               change: Any) -> Dict[str, Any]:
+    """Form values with the rows of a records field changed by ``change(rows)``.
+
+    The rows change in the form (a voice's gap goes with it); then each voice
+    that has a voice below it but no gap gets :data:`DEFAULT_GAP`, and the
+    values go through the voicing dict, so they come back normalised
+    (``'Db4'`` becomes ``'C#4'``) in ``notation``. The bottom voice's gap
+    isn't saved, but the form keeps it.
+    """
+    rows = [dict(row) for row in values.get(field_id) or [] if isinstance(row, Mapping)]
+    change(rows)
+    if form_model(model) == 'ensemble':
+        for row in rows[:-1]:
+            if not _cell_text(row.get(GAP_COLUMN)).strip():
+                row[GAP_COLUMN] = str(DEFAULT_GAP)
+    data = voicing_from_values(model, {**values, field_id: rows})
+    out = values_from_voicing(model, data, notation)
+    if form_model(model) == 'ensemble' and rows and out.get(field_id):
+        out[field_id][-1][GAP_COLUMN] = rows[-1].get(GAP_COLUMN, '')
+    return out
+
+
+def _new_row(model: str, field_id: str, count: int) -> Dict[str, Any]:
+    """The ``new_item`` of a records field, numbered as row ``count + 1``."""
+    for field in iter_fields(form_schema(model)):
+        if field['id'] == field_id and field['kind'] == KIND_RECORDS:
+            return {key: value.replace('{n}', str(count + 1)) if isinstance(value, str) else value
+                    for key, value in field['new_item'].items()}
+    return {}
 
 
 def add_record(model: str, values: Mapping[str, Any], field_id: str = 'voices',
                notation: str = 'american') -> Dict[str, Any]:
     """Form values with a new row appended to a records field.
 
-    Goes through the voicing dict, so the other values come back normalised
-    exactly as after the desktop's add (``'Db4'`` becomes ``'C#4'``), in
-    ``notation``.
+    The old last row gets :data:`DEFAULT_GAP` if it has no gap. The other
+    values come back normalised (``'Db4'`` becomes ``'C#4'``) in ``notation``.
     """
-    data = voicing_with_record_added(voicing_from_values(model, values), field_id)
-    return values_from_voicing(model, data, notation)
+    def change(rows: List[Dict[str, Any]]) -> None:
+        rows.append(_new_row(model, field_id, len(rows)))
+    return _with_gaps(model, values, field_id, notation, change)
 
 
 def remove_record(model: str, values: Mapping[str, Any], index: int,
                   field_id: str = 'voices', notation: str = 'american') -> Dict[str, Any]:
-    """Form values without row ``index`` of a records field (normalised like :func:`add_record`)."""
-    data = voicing_with_record_removed(voicing_from_values(model, values), index, field_id)
-    return values_from_voicing(model, data, notation)
+    """Form values without row ``index`` of a records field (no-op if out of
+    range; normalised like :func:`add_record`)."""
+    def change(rows: List[Dict[str, Any]]) -> None:
+        if 0 <= index < len(rows):
+            del rows[index]
+    return _with_gaps(model, values, field_id, notation, change)
+
+
+def move_record(model: str, values: Mapping[str, Any], index: int, offset: int,
+                field_id: str = 'voices', notation: str = 'american') -> Dict[str, Any]:
+    """Form values with row ``index`` of a records field moved by ``offset``
+    rows (-1 up, +1 down); no-op when either end is out of range.
+
+    The row keeps its cells, gap included; a row that gains a row below it
+    and has no gap gets :data:`DEFAULT_GAP`. Normalised like :func:`add_record`.
+    """
+    def change(rows: List[Dict[str, Any]]) -> None:
+        target = index + offset
+        if 0 <= index < len(rows) and 0 <= target < len(rows):
+            rows.insert(target, rows.pop(index))
+    return _with_gaps(model, values, field_id, notation, change)
 
 
 # ---------------------------------------------------------------------------
@@ -863,7 +972,11 @@ def collected_field_errors(data: Mapping[str, Any]) -> Dict[str, str]:
       still a raw string (voice *names* are free text and never flagged).
     * ``'voice:<i>:staff'``: a ``staff`` that isn't ``'treble'``, ``'bass'``
       or absent/``None``.
-    * ``'max_spacing'``: the ensemble spacing list still a raw string.
+    * ``'voice:<i>:gap'``: entry ``i`` of the ensemble's ``max_spacing`` (the
+      gap below voice ``i``) that isn't a whole number from
+      :data:`GAP_MIN` to :data:`GAP_MAX`.
+    * ``'max_spacing'``: the ensemble spacing list still a raw string (a
+      voicing saved by an older form).
     * ``'upper_clef'``: an ensemble upper-staff clef that isn't one of the
       choices.
     * ``'range:<key>:low'`` / ``'range:<key>:high'``: a piano range endpoint
@@ -904,8 +1017,15 @@ def collected_field_errors(data: Mapping[str, Any]) -> Dict[str, str]:
             raw_staff = voice.get('staff') if isinstance(voice, dict) else None
             if raw_staff is not None and raw_staff not in ('treble', 'bass'):
                 errors[f'voice:{i}:staff'] = _KIND_ERRORS[KIND_CHOICE]
-        if isinstance(data.get('max_spacing'), str):
+        spacing = data.get('max_spacing')
+        if isinstance(spacing, str):
             errors['max_spacing'] = _KIND_ERRORS[KIND_INT_LIST]
+        elif isinstance(spacing, (list, tuple)):
+            for i, gap in enumerate(spacing):
+                if not isinstance(gap, int) or isinstance(gap, bool):
+                    errors[f'voice:{i}:{GAP_COLUMN}'] = _KIND_ERRORS[KIND_INT]
+                elif not GAP_MIN <= gap <= GAP_MAX:
+                    errors[f'voice:{i}:{GAP_COLUMN}'] = _GAP_RANGE_ERROR
         if data.get('upper_clef') not in (None,) + VALID_UPPER_CLEFS:
             errors['upper_clef'] = _CHOICE_ERROR
         weights = data.get('weights') or {}
@@ -985,9 +1105,14 @@ def cross_field_errors(name: str, model: str, values: Mapping[str, Any],
 
 def validate_form(name: str, model: str, values: Mapping[str, Any],
                   label: Optional[str] = None) -> Dict[str, Any]:
-    """Both error classes of a form at once: ``{'fields': {...}, 'form': [...]}``."""
-    return {'fields': field_errors(model, values),
-            'form': cross_field_errors(name, model, values, label)}
+    """Both error classes of a form at once: ``{'fields': {...}, 'form': [...]}``.
+
+    The form errors are left out while a field has an error: the spec would
+    only repeat it, in its own words.
+    """
+    fields = field_errors(model, values)
+    return {'fields': fields,
+            'form': [] if fields else cross_field_errors(name, model, values, label)}
 
 
 # ---------------------------------------------------------------------------

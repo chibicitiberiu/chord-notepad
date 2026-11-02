@@ -16,11 +16,15 @@ field keeps its raw string in the working copy rather than being rejected
 mid-edit. Two error classes surface:
 
 * **Parse errors** -- a value that stayed a raw string where a number, note
-  name or list was expected, marked red on the offending control as you type.
-* **Semantic / cross-field errors** (relaxed span < span, voice low >= high, a
-  wrong ``max_spacing`` length, an out-of-range value, ...) are left to the
-  spec: after each edit ``viewmodel.validate_voicing`` runs and its message is
-  shown in a red banner at the top of the form.
+  name or list was expected (or a voice's gap out of range), marked red on the
+  offending control as you type.
+* **Semantic / cross-field errors** (relaxed span < span, voice low >= high,
+  an out-of-range value, ...) are left to the spec: after each edit
+  ``viewmodel.validate_voicing`` runs.
+
+After each edit, either kind shows the red banner at the top of the form
+("Fix these errors to apply changes"), with the spec's message under it when
+no field is marked (a marked field is the thing to fix first).
 
 The dialog's Save button is still the hard gate (it runs
 ``viewmodel.validate_all`` and jumps to the first bad voicing); the inline
@@ -46,6 +50,7 @@ from settings_forms.voicing_form import (
     SECTION_STACK,
     SECTION_TABLE,
     TREE_GROUPS,
+    add_record,
     choice_label,
     choice_value,
     collected_field_errors,
@@ -53,10 +58,10 @@ from settings_forms.voicing_form import (
     field_hint,
     form_model,
     form_schema,
+    move_record,
+    remove_record,
     values_from_voicing,
     voicing_from_values,
-    voicing_with_record_added,
-    voicing_with_record_removed,
 )
 from settings_forms.voicing_texts import EDITOR_TEXTS, MODEL_LABELS, TOOLTIPS
 from ui.base.tooltip import add_tooltip, ensure_field_error_styles, mark_field
@@ -71,10 +76,11 @@ _DISPLAY_MODEL = {display: model for model, display in MODEL_LABELS.items()}
 #: Grey used for hints and section blurbs.
 _HINT_COLOR = '#666666'
 _HEADER_FONT = ('TkDefaultFont', 9, 'bold')
+_HEADER_WRAP = 90
 
 # Desktop-only spacing that differs between otherwise alike sections/fields.
 _SECTION_PADY = {('fretboard', 'physical'): (6, 0), ('piano', 'physical'): (8, 0)}
-_STACK_FIELD_PADY = {'upper_clef': (8, 2), 'max_spacing': (4, 2), 'allow_unisons': 2}
+_STACK_FIELD_PADY = {'upper_clef': (8, 2)}
 _STACK_TEXT_PADY = 2
 _STACK_CHECK_PADY = (4, 2)
 
@@ -101,6 +107,7 @@ class VoicingsPage(ttk.Frame):
         self._suppress_tree_event = False
         self._loading_form = False
         # Form state, populated by _build_form from the model's schema.
+        self._form_model: Optional[str] = None
         self._collect: Optional[Callable[[], dict]] = None
         # field-id -> reader of its current value; records field-id -> per-row readers.
         self._value_getters: Dict[str, Callable[[], Any]] = {}
@@ -447,8 +454,11 @@ class VoicingsPage(ttk.Frame):
         for field_id in self._field_widgets:
             self._apply_field_mark(field_id, errors.get(field_id))
         message = self._vm.validate_voicing(self._current_name)
-        if message:
-            self._show_banner(message)
+        if errors or message:
+            lines = [EDITOR_TEXTS['errors_banner']]
+            if message and not errors:
+                lines.append(message)
+            self._show_banner('\n'.join(lines))
         else:
             self._hide_banner()
 
@@ -504,12 +514,16 @@ class VoicingsPage(ttk.Frame):
         inner.columnconfigure(1, weight=1)
         return inner
 
-    def _build_form(self, data: dict) -> None:
+    def _build_form(self, data: dict, values: Optional[Dict[str, Any]] = None) -> None:
+        """Lay out the form of ``data``; ``values`` are its form values when the
+        caller has them (a records change: the bottom voice keeps its gap)."""
         self._reset_fields()
         self._loading_form = True
         try:
             model = form_model(data.get('model', 'piano'))
-            values = values_from_voicing(model, data, self._notation)
+            self._form_model = model
+            if values is None:
+                values = values_from_voicing(model, data, self._notation)
             inner = self._new_scroll_area()
             self._value_getters = {}
             self._record_getters = {}
@@ -665,11 +679,14 @@ class VoicingsPage(ttk.Frame):
 
     def _render_records_table(self, inner: ttk.Frame, section: Mapping[str, Any],
                               values: Mapping[str, Any], row: int) -> None:
-        """A records field (the voices) as an editable table with add/remove buttons.
+        """A records field (the voices) as an editable table with add, move and
+        remove buttons.
 
         All columns are fixed-width and left-aligned (no expanding middle
-        column), so the last cell and the remove button stay snug against the
-        name instead of being shoved to the right edge.
+        column), so the last cell and the buttons stay snug against the
+        name instead of being shoved to the right edge. A column marked
+        ``disabled_in_last_row`` (the gap to the next voice) is off and empty
+        in the last row; the form keeps its value.
         """
         field = section['fields'][0]
         fid, columns = field['id'], field['columns']
@@ -677,8 +694,10 @@ class VoicingsPage(ttk.Frame):
         frame.grid(row=row, column=0, columnspan=2, sticky='ew')
 
         for col, column in enumerate(columns):
-            header = ttk.Label(frame, text=column['label'], font=_HEADER_FONT)
-            header.grid(row=0, column=col, sticky='w', padx=(0, 6))
+            # A long header (the gap's) wraps rather than widen its column.
+            header = ttk.Label(frame, text=column['label'], font=_HEADER_FONT,
+                               wraplength=_HEADER_WRAP)
+            header.grid(row=0, column=col, sticky='sw', padx=(0, 6))
             add_tooltip(header, column['help'])
         ttk.Separator(frame, orient='horizontal').grid(
             row=1, column=0, columnspan=len(columns), sticky='ew', pady=(2, 4))
@@ -687,9 +706,16 @@ class VoicingsPage(ttk.Frame):
         row_getters: List[Dict[str, Callable[[], Any]]] = []
         for i, record in enumerate(records):
             grid_row = i + 2
+            last = i == len(records) - 1
             getters: Dict[str, Callable[[], Any]] = {}
             for col, column in enumerate(columns):
                 cid = column['id']
+                if last and column.get('disabled_in_last_row'):
+                    widget = ttk.Spinbox(frame, width=column['width'], state='disabled')
+                    widget.grid(row=grid_row, column=col, sticky='w', padx=(0, 6), pady=1)
+                    add_tooltip(widget, column['help'])
+                    getters[cid] = lambda kept=record.get(cid, ''): kept
+                    continue
                 if column['kind'] == KIND_CHOICE:
                     var = tk.StringVar(value=choice_label(column, record.get(cid)))
                     widget = ttk.Combobox(frame, textvariable=var, width=column['width'],
@@ -698,6 +724,14 @@ class VoicingsPage(ttk.Frame):
                     widget.grid(row=grid_row, column=col, sticky='w', padx=(0, 6), pady=1)
                     widget.bind('<<ComboboxSelected>>', self._commit_form)
                     getters[cid] = lambda v=var, c=column: choice_value(c, v.get())
+                elif column['kind'] == KIND_INT:
+                    var = tk.StringVar(value=record.get(cid, ''))
+                    widget = ttk.Spinbox(frame, from_=column['min'], to=column['max'],
+                                         increment=column['step'], textvariable=var,
+                                         width=column['width'], command=self._commit_form)
+                    widget.grid(row=grid_row, column=col, sticky='w', padx=(0, 6), pady=1)
+                    self._bind_commit(widget, is_entry=True)
+                    getters[cid] = var.get
                 else:
                     var = tk.StringVar(value=record.get(cid, ''))
                     widget = ttk.Entry(frame, textvariable=var, width=column['width'])
@@ -710,10 +744,20 @@ class VoicingsPage(ttk.Frame):
                     path = field['error_path'].format(index=i, column=cid)
                     self._register_field(path, widget, column['help'])
 
-            remove_btn = ttk.Button(frame, text=field['remove_label'], width=3,
-                                    command=lambda idx=i: self._remove_voice(idx))
-            remove_btn.grid(row=grid_row, column=len(columns), sticky='w', padx=(2, 0), pady=1)
-            add_tooltip(remove_btn, field['remove_help'])
+            buttons = (
+                (field['move_up_label'], field['move_up_help'], i > 0,
+                 lambda idx=i: self._move_voice(idx, -1)),
+                (field['move_down_label'], field['move_down_help'], not last,
+                 lambda idx=i: self._move_voice(idx, 1)),
+                (field['remove_label'], field['remove_help'], True,
+                 lambda idx=i: self._remove_voice(idx)),
+            )
+            for offset, (text, tip, enabled, command) in enumerate(buttons):
+                button = ttk.Button(frame, text=text, width=2, command=command,
+                                    state='normal' if enabled else 'disabled')
+                button.grid(row=grid_row, column=len(columns) + offset, sticky='w',
+                            padx=(2, 0), pady=1)
+                add_tooltip(button, tip)
             row_getters.append(getters)
         self._record_getters[fid] = row_getters
 
@@ -752,21 +796,24 @@ class VoicingsPage(ttk.Frame):
     # -- Records (voices) ----------------------------------------------------
 
     def _add_voice(self) -> None:
-        if self._current_name is None or self._collect is None:
-            return
-        data = voicing_with_record_added(self._collect())
-        if self._current_label:
-            data['label'] = self._current_label
-        self._vm.set_voicing_data(self._current_name, data)
-        self._dirty = True
-        self._build_form(data)
+        self._change_voices(lambda model, values: add_record(
+            model, values, notation=self._notation))
 
     def _remove_voice(self, index: int) -> None:
-        if self._current_name is None or self._collect is None:
+        self._change_voices(lambda model, values: remove_record(
+            model, values, index, notation=self._notation))
+
+    def _move_voice(self, index: int, offset: int) -> None:
+        self._change_voices(lambda model, values: move_record(
+            model, values, index, offset, notation=self._notation))
+
+    def _change_voices(self, change: Callable[[str, Dict[str, Any]], Dict[str, Any]]) -> None:
+        """Apply a records change to the form values, store the voicing and redraw."""
+        if self._current_name is None or self._collect is None or self._form_model is None:
             return
-        data = voicing_with_record_removed(self._collect(), index)
-        if self._current_label:
-            data['label'] = self._current_label
+        model = self._form_model
+        values = change(model, self._form_values())
+        data = voicing_from_values(model, values, self._current_label)
         self._vm.set_voicing_data(self._current_name, data)
         self._dirty = True
-        self._build_form(data)
+        self._build_form(data, values)

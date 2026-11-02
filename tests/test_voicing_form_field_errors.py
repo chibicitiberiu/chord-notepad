@@ -221,6 +221,22 @@ def test_max_spacing_raw_string_flagged():
     assert 'max_spacing' in errors
 
 
+def test_each_bad_gap_flagged_on_its_voice():
+    data = {
+        'model': 'ensemble',
+        'voices': [{'name': 'A', 'range': [72, 84]}, {'name': 'B', 'range': [60, 72]},
+                   {'name': 'C', 'range': [48, 60]}, {'name': 'D', 'range': [36, 48]}],
+        'max_spacing': ['x', 0, 128],
+    }
+    assert field_errors(data) == {
+        'voice:0:gap': 'Must be a whole number',
+        'voice:1:gap': 'Must be from 1 to 127',
+        'voice:2:gap': 'Must be from 1 to 127',
+    }
+    data['max_spacing'] = [1, 12, 127]
+    assert field_errors(data) == {}
+
+
 def test_movement_raw_string_flagged():
     data = {
         'model': 'ensemble',

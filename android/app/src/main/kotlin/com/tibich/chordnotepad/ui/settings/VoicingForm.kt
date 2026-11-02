@@ -23,6 +23,8 @@ data class FieldItem(
     val error: String?,
     /** Python's hint ("N values expected"), or null. */
     val hint: String?,
+    /** False for a cell that is off (the bottom voice's gap): drawn empty and greyed. */
+    val enabled: Boolean = true,
 ) {
     /** What a text field shows. */
     val text: String get() = value.asFieldText()
@@ -35,8 +37,8 @@ data class FieldItem(
         get() = spec.choices.firstOrNull { it.value == (value ?: JsonNull) } ?: spec.choices.firstOrNull()
 }
 
-/** One row of a records field. */
-data class RecordRow(val index: Int, val cells: List<FieldItem>)
+/** One row of a records field; the first row can't move up, the last one can't move down. */
+data class RecordRow(val index: Int, val cells: List<FieldItem>, val canMoveUp: Boolean = false, val canMoveDown: Boolean = false)
 
 /** What the form draws, top to bottom. */
 sealed interface FormItem {
@@ -56,7 +58,7 @@ sealed interface FormItem {
     data class Range(override val key: String, val label: String, val help: String, val low: FieldItem, val high: FieldItem) :
         FormItem
 
-    /** A records field: rows of [FieldSpec.columns], add and remove buttons. */
+    /** A records field: rows of [FieldSpec.columns], add, move and remove buttons. */
     data class Records(
         override val key: String,
         val spec: FieldSpec,
@@ -112,15 +114,30 @@ private fun records(spec: FieldSpec, values: JsonObject, errors: JsonObject): Fo
         key = "t:${spec.id}",
         spec = spec,
         rows = rows.mapIndexed { index, row ->
-            RecordRow(index, spec.columns.map { column ->
-                FieldItem(column, row[column.id], errors.text(spec.cellErrorKey(index, column.id)), null)
-            })
+            val last = index == rows.lastIndex
+            val cells = spec.columns.map { column ->
+                if (last && column.disabledInLastRow) {
+                    // Not saved (the bottom voice has no voice below); Python keeps its value.
+                    FieldItem(column, null, null, null, enabled = false)
+                } else {
+                    FieldItem(column, row[column.id], errors.text(spec.cellErrorKey(index, column.id)), null)
+                }
+            }
+            RecordRow(index, cells, canMoveUp = index > 0, canMoveDown = !last)
         },
         canAdd = spec.maxItems == null || rows.size < spec.maxItems,
         canRemove = spec.minItems == null || rows.size > spec.minItems,
         error = errors.text(spec.id),
     )
 }
+
+/**
+ * Whether the form has errors to fix: a field's (or records cell's), or one
+ * across fields. The form's banner shows while this holds.
+ */
+val VoicingEditorState.hasErrors: Boolean
+    get() = fieldErrors.values.any { (it as? JsonPrimitive)?.isString == true && it.content.isNotBlank() } ||
+        formErrors.isNotEmpty()
 
 private fun JsonObject.text(key: String): String? =
     (this[key] as? JsonPrimitive)?.takeIf { it.isString }?.content?.takeIf { it.isNotBlank() }

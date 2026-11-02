@@ -34,6 +34,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -47,6 +48,7 @@ import androidx.compose.ui.unit.dp
 import com.tibich.chordnotepad.R
 import com.tibich.chordnotepad.bridge.VoicingEditorState
 import com.tibich.chordnotepad.bridge.VoicingPreset
+import kotlinx.coroutines.delay
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 
@@ -113,7 +115,10 @@ private fun VoicingList(schema: EditorSchema, state: VoicingEditorState, control
     }
 }
 
-/** The selected voicing: name, model, Load config, remove, the form errors, then the form. */
+/**
+ * The selected voicing: name, model, Load config, remove, then the form,
+ * scrolling under the errors banner ([FormErrorsBanner]).
+ */
 @Composable
 private fun VoicingDetail(schema: EditorSchema, view: EditorView, wide: Boolean, controller: SettingsController, modifier: Modifier) {
     val state = view.state
@@ -136,46 +141,78 @@ private fun VoicingDetail(schema: EditorSchema, view: EditorView, wide: Boolean,
                 controller.editCell(fieldId, index, column, value)
             override fun addRecord(fieldId: String) = controller.addRecord(fieldId)
             override fun removeRecord(index: Int, fieldId: String) = controller.removeRecord(index, fieldId)
+            override fun moveRecord(index: Int, offset: Int, fieldId: String) =
+                controller.moveRecord(index, offset, fieldId)
         }
     }
-    Column(
-        modifier
-            .verticalScroll(rememberScrollState())
-            .padding(16.dp)
-            .widthIn(max = 900.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        NameField(schema, name) {
-            focus.clearFocus()
-            controller.askRename(name)
-        }
-        DropdownField(
-            label = schema.text("model_label"),
-            selected = schema.models.firstOrNull { it.model == state.model },
-            options = schema.models,
-            optionLabel = { it?.label.orEmpty() },
-            onSelect = { option ->
+    Column(modifier) {
+        FormErrorsBanner(schema, state, name)
+        Column(
+            Modifier
+                .weight(1f)
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp)
+                .widthIn(max = 900.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            NameField(schema, name) {
                 focus.clearFocus()
-                option?.let { controller.askModel(it.model) }
-            },
-            supporting = schema.help["model"],
-            modifier = Modifier.fillMaxWidth(),
+                controller.askRename(name)
+            }
+            DropdownField(
+                label = schema.text("model_label"),
+                selected = schema.models.firstOrNull { it.model == state.model },
+                options = schema.models,
+                optionLabel = { it?.label.orEmpty() },
+                onSelect = { option ->
+                    focus.clearFocus()
+                    option?.let { controller.askModel(it.model) }
+                },
+                supporting = schema.help["model"],
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                PresetButton(schema, state.presets) {
+                    focus.clearFocus()
+                    controller.askPreset(it)
+                }
+                TextButton(onClick = { controller.askRemove(name) }) {
+                    Icon(SettingsIcons.Delete, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
+                    Spacer(Modifier.width(ButtonDefaults.IconSpacing))
+                    Text(stringResource(R.string.voicings_remove))
+                }
+            }
+            schema.help["load"]?.let { HelpLine(it) }
+            HorizontalDivider(Modifier.padding(top = 8.dp))
+            VoicingFormItems(items, "$name:${state.model}", wide, actions)
+        }
+    }
+}
+
+/**
+ * "Fix these errors to apply changes", above the form (it doesn't scroll
+ * away), with the errors that span fields under it; the fields with errors
+ * are red. It shows once the errors have stood for [DRAFT_SAVE_DELAY_MS]
+ * (an edit rests, not every keystroke) and goes as soon as they are fixed.
+ */
+@Composable
+private fun FormErrorsBanner(schema: EditorSchema, state: VoicingEditorState, name: String) {
+    val hasErrors = state.hasErrors
+    var shown by remember(name) { mutableStateOf(hasErrors) }
+    LaunchedEffect(name, hasErrors) {
+        if (!hasErrors) {
+            shown = false
+        } else if (!shown) {
+            delay(DRAFT_SAVE_DELAY_MS)
+            shown = true
+        }
+    }
+    if (shown && hasErrors) {
+        ErrorBanner(
+            state.formErrors,
+            Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp).widthIn(max = 900.dp),
+            title = schema.text("errors_banner", "Fix these errors to apply changes"),
         )
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-            PresetButton(schema, state.presets) {
-                focus.clearFocus()
-                controller.askPreset(it)
-            }
-            TextButton(onClick = { controller.askRemove(name) }) {
-                Icon(SettingsIcons.Delete, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
-                Spacer(Modifier.width(ButtonDefaults.IconSpacing))
-                Text(stringResource(R.string.voicings_remove))
-            }
-        }
-        schema.help["load"]?.let { HelpLine(it) }
-        if (state.formErrors.isNotEmpty()) ErrorBanner(state.formErrors)
-        HorizontalDivider(Modifier.padding(top = 8.dp))
-        VoicingFormItems(items, "$name:${state.model}", wide, actions)
     }
 }
 
@@ -236,9 +273,9 @@ private fun PresetButton(schema: EditorSchema, presets: List<VoicingPreset>, onP
     }
 }
 
-/** Errors that span fields (Python's form errors), at the top of the form. */
+/** An error card: [title] (if any) over [messages]. */
 @Composable
-fun ErrorBanner(messages: List<String>, modifier: Modifier = Modifier) {
+fun ErrorBanner(messages: List<String>, modifier: Modifier = Modifier, title: String? = null) {
     Card(
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.errorContainer,
@@ -249,6 +286,7 @@ fun ErrorBanner(messages: List<String>, modifier: Modifier = Modifier) {
         Row(Modifier.padding(12.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Icon(SettingsIcons.Error, contentDescription = null)
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                title?.let { Text(it, style = MaterialTheme.typography.titleSmall) }
                 for (message in messages) Text(message, style = MaterialTheme.typography.bodyMedium)
             }
         }

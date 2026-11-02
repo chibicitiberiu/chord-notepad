@@ -1515,7 +1515,7 @@
   {
    "name": "settings-voicing-ensemble",
    "page": "ensembles: Custom Ensembles",
-   "what": "The form of a custom ensemble (Jazz Vocal Trio) on a phone, scrolled to its Voices: the help lines, then one card per voice with Name, Low, High, Staff and ✕.",
+   "what": "The form of a custom ensemble (Jazz Vocal Trio) on a phone, scrolled to its Voices: the help lines, then one card per voice with ↑, ↓ and ✕, Name, Low, High, Staff and Max gap to next voice (greyed out on Bass).",
    "config": {
     "voicings": {
      "My 7-String": {

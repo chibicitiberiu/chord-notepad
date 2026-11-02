@@ -113,7 +113,8 @@ def test_select_edit_and_validate_like_the_desktop_page(tmp_path):
     state = editor(recorder)
     assert state.dirty and state.values["tuning"] == "E1 A1 D2 G2"
     assert state.field_errors == {"max_fret": "Must be a whole number"}
-    assert state.form_errors and state.invalid == ("Bass",)
+    # The spec would only repeat the field's error: no form error while it stands.
+    assert state.form_errors == () and state.invalid == ("Bass",)
     session.set_voicing_values({"max_fret": "15"})
     state = editor(recorder)
     assert state.field_errors == {} and state.form_errors == () and state.invalid == ()
@@ -158,9 +159,19 @@ def test_model_switch_records_and_presets(tmp_path):
     assert state.groups[2].names == ("New voicing",)
     session.add_voicing_record()
     assert len(editor(recorder).values["voices"]) == 3
-    assert editor(recorder).hints["max_spacing"] == "(comma-separated, 2 values expected)"
+    # The old bottom voice gets a gap to the new one; the new one has none.
+    assert [v["gap"] for v in editor(recorder).values["voices"]] == ["19", "12", ""]
+    session.move_voicing_record(2, -1)
+    assert [v["name"] for v in editor(recorder).values["voices"]] == \
+        ["Voice 1", "Voice 3", "Voice 2"]
+    assert [v["gap"] for v in editor(recorder).values["voices"]] == ["19", "12", "12"]
+    data = session._settings_edit.model.get_voicings()["New voicing"]
+    assert data["max_spacing"] == [19, 12]
+    session.move_voicing_record(0, -1)                          # already the top: no-op
+    assert [v["name"] for v in editor(recorder).values["voices"]] == \
+        ["Voice 1", "Voice 3", "Voice 2"]
     session.remove_voicing_record(0)
-    assert [v["name"] for v in editor(recorder).values["voices"]] == ["Voice 2", "Voice 3"]
+    assert [v["name"] for v in editor(recorder).values["voices"]] == ["Voice 3", "Voice 2"]
     with pytest.raises(ValueError):
         session.set_voicing_model("harp")
 
@@ -536,11 +547,17 @@ def test_problem_texts_give_the_syntax_or_range():
     assert plan.data["lh_range"] == [24, 48] and plan.data["rh_center"] == 63.0
 
     spacing = voicing_form.default_values("ensemble")
-    spacing["max_spacing"] = "12, y"
+    spacing["voices"][0]["gap"] = "y"
     plan = plan_voicing("E", "ensemble", spacing, None, None)
     assert problem_text("E", "ensemble", plan.problems[0], spacing) == (
-        "Voicing 'E', Max spacing: 12, y. y isn't a whole number. "
-        "Use whole numbers separated by commas, 1 of them.")
+        "Voicing 'E', Voice 1, Max gap to next voice: y. y isn't a whole number. "
+        "Enter a whole number from 1 to 127.")
+    assert plan.data["max_spacing"] == [19]                     # the default kept
+    spacing["voices"][0]["gap"] = "0"
+    plan = plan_voicing("E", "ensemble", spacing, None, None)
+    assert problem_text("E", "ensemble", plan.problems[0], spacing) == (
+        "Voicing 'E', Voice 1, Max gap to next voice: 0. 0 is out of range. "
+        "Enter a whole number from 1 to 127.")
 
 
 def test_renaming_a_voicing_with_a_wrong_field_keeps_its_saved_values(tmp_path):

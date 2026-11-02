@@ -29,6 +29,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.tibich.chordnotepad.R
 import com.tibich.chordnotepad.ui.icons.AppIcons
@@ -55,6 +56,8 @@ fun StateTextField(
     isError: Boolean = false,
     keyboardType: KeyboardType = KeyboardType.Text,
     trailing: (@Composable () -> Unit)? = null,
+    enabled: Boolean = true,
+    labelMaxLines: Int = Int.MAX_VALUE,
 ) {
     var text by rememberSaveable(key) { mutableStateOf(value) }
     val sent = remember(key) { mutableSetOf<String>() }
@@ -74,12 +77,13 @@ fun StateTextField(
             sent += it
             onValueChange(it)
         },
-        label = { Text(label) },
+        label = { Text(label, maxLines = labelMaxLines, overflow = TextOverflow.Ellipsis) },
         supportingText = supporting?.let { { Text(it) } },
         isError = isError,
         singleLine = true,
         keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
         trailingIcon = trailing,
+        enabled = enabled,
         modifier = modifier,
     )
 }

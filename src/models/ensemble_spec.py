@@ -91,6 +91,18 @@ def midi_to_note_name(midi: int) -> str:
     return f"{_MIDI_PITCH_CLASS_NAMES[pitch_class]}{octave}"
 
 
+def default_max_spacing(voice_count: int) -> List[int]:
+    """The ``max_spacing`` an ensemble of ``voice_count`` voices gets when it has none.
+
+    12 semitones per gap, except the bottommost gap, which gets 19 (the
+    octave-plus-a-fifth usually allowed between tenor and bass). Empty for
+    fewer than two voices.
+    """
+    if voice_count < 2:
+        return []
+    return [12] * (voice_count - 2) + [19]
+
+
 def _resolve_pitch(value: Union[int, str], *, context: str) -> int:
     """Resolve a voice-range endpoint (MIDI int or note name) to a MIDI int.
 
@@ -287,6 +299,15 @@ VALID_STAFF_VALUES = ('treble', 'bass')
 VALID_UPPER_CLEFS = ('treble', 'treble_8vb')
 
 
+def auto_staff_split(upper_clef: Optional[str]) -> int:
+    """The lowest sounding MIDI note an Auto staff puts on the upper staff.
+
+    Middle C (60) under a plain treble clef; C3 (48) under ``'treble_8vb'``,
+    where it is written as middle C.
+    """
+    return 48 if upper_clef == 'treble_8vb' else 60
+
+
 @dataclass(frozen=True)
 class VoiceSpec:
     """A single monophonic voice's identity and comfortable pitch range.
@@ -311,17 +332,25 @@ class VoiceSpec:
 
     @property
     def resolved_staff(self) -> str:
-        """The effective staff this voice renders on: ``'treble'`` or ``'bass'``.
+        """The effective staff this voice renders on under a plain treble clef.
+
+        Same as :meth:`staff_under` with ``'treble'``.
+        """
+        return self.staff_under('treble')
+
+    def staff_under(self, upper_clef: str) -> str:
+        """The staff this voice renders on when the upper staff has ``upper_clef``.
 
         Returns the explicit :attr:`staff` if one was set. Otherwise
         auto-resolves from the range center, ``(low + high) / 2`` in MIDI:
-        ``'bass'`` if that center sits below middle C (MIDI 60), ``'treble'``
-        otherwise.
+        ``'bass'`` if that center sits below the split, ``'treble'`` otherwise.
+        The split is middle C (MIDI 60) under a plain treble clef, and C3 (MIDI
+        48, written C4) under the octave-lower ``'treble_8vb'``.
         """
         if self.staff is not None:
             return self.staff
         center = (self.low + self.high) / 2
-        return 'bass' if center < 60 else 'treble'
+        return 'bass' if center < auto_staff_split(upper_clef) else 'treble'
 
 
 @dataclass(frozen=True)
@@ -449,7 +478,7 @@ class EnsembleSpec:
         n_gaps = len(voices) - 1
         raw_spacing = data.get('max_spacing')
         if raw_spacing is None:
-            max_spacing: Tuple[int, ...] = tuple([12] * (n_gaps - 1) + [19])
+            max_spacing: Tuple[int, ...] = tuple(default_max_spacing(len(voices)))
         else:
             if len(raw_spacing) != n_gaps:
                 raise ConfigurationError(

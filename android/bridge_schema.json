@@ -67,6 +67,11 @@
       "group": "str",
       "label": "str"
     },
+    "move_voicing_record": {
+      "field_id": "str",
+      "index": "int",
+      "offset": "int"
+    },
     "new_document": {},
     "open_document": {
       "read_only": "bool",
@@ -233,6 +238,7 @@
     "insert_chord",
     "insert_text",
     "load_voicing_preset",
+    "move_voicing_record",
     "new_document",
     "open_document",
     "open_recent",

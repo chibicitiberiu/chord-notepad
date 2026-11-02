@@ -100,6 +100,18 @@ class TestResolvedStaff:
         v = VoiceSpec(name="X", low=54, high=65)  # center 59.5
         assert v.resolved_staff == "bass"
 
+    def test_octave_lower_treble_splits_auto_at_c3(self):
+        # A tenor range (center 53.5) sits on the bass staff under a plain
+        # treble but on the octave-lower treble, written an octave higher.
+        tenor = VoiceSpec(name="T", low=45, high=62)
+        assert tenor.staff_under("treble") == "bass"
+        assert tenor.staff_under("treble_8vb") == "treble"
+        # C3 itself (center 48) goes up; just below it stays on the bass staff.
+        assert VoiceSpec(name="X", low=43, high=53).staff_under("treble_8vb") == "treble"
+        assert VoiceSpec(name="X", low=42, high=53).staff_under("treble_8vb") == "bass"
+        # An explicit staff still wins.
+        assert VoiceSpec(name="X", low=45, high=62, staff="bass").staff_under("treble_8vb") == "bass"
+
 
 # ---------------------------------------------------------------------------
 # EnsembleSpec.from_dict: happy paths

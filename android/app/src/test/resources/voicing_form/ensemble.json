@@ -5,11 +5,10 @@
   "field_errors": {
    "voice:0:high": "Voice 'Voice 1' range must have low < high, got 72 >= 60.",
    "voice:0:low": "Voice 'Voice 1' range must have low < high, got 72 >= 60.",
+   "voice:1:gap": "Must be from 1 to 127",
    "voice:1:low": "Not a valid note name"
   },
-  "form_errors": [
-   "Ensemble 'New voicing': voice 'Voice 1' range must have low < high, got 72 >= 60"
-  ],
+  "form_errors": [],
   "groups": [
    {
     "label": "Fretboard",
@@ -29,9 +28,7 @@
     ]
    }
   ],
-  "hints": {
-   "max_spacing": "(comma-separated, 1 values expected)"
-  },
+  "hints": {},
   "invalid": [
    "New voicing"
   ],
@@ -97,15 +94,19 @@
     "field_id": "voice:1:low",
     "text": "Voicing 'New voicing', Voice 2, Low: H9. H9 isn't a note name. Use a note name or a MIDI number, e.g. C4 or 60.",
     "voicing": "New voicing"
+   },
+   {
+    "field_id": "voice:1:gap",
+    "text": "Voicing 'New voicing', Voice 2, Max gap to next voice: 0. 0 is out of range. Enter a whole number from 1 to 127.",
+    "voicing": "New voicing"
    }
   ],
   "restored": false,
-  "revision": 4,
+  "revision": 6,
   "selected": "New voicing",
   "staged_numbers": {},
   "values": {
    "allow_unisons": true,
-   "max_spacing": "",
    "movement": "-0.4",
    "nested:doubling:color": "-6.0",
    "nested:doubling:extension": "-6.0",
@@ -126,14 +127,23 @@
    "upper_clef": "treble",
    "voices": [
     {
+     "gap": "19",
      "high": "C4",
      "low": "C5",
      "name": "Voice 1",
      "staff": null
     },
     {
+     "gap": "0",
      "high": "C4",
      "low": "H9",
+     "name": "Voice 3",
+     "staff": null
+    },
+    {
+     "gap": "12",
+     "high": "C4",
+     "low": "C3",
      "name": "Voice 2",
      "staff": null
     }

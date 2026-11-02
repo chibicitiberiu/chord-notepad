@@ -374,6 +374,13 @@ class SettingsControllerTest {
         c.removeRecord(0, "voices")
         assertEquals(listOf(ScreenCommandNames.ADD_VOICING_RECORD, ScreenCommandNames.REMOVE_VOICING_RECORD), voicingCommands.drop(1).map { it.first })
         assertEquals(0, voicingCommands.last().second.getValue("index").jsonPrimitive.content.toInt())
+
+        c.moveRecord(2, -1, "voices")
+        val (move, moveArgs) = voicingCommands.last()
+        assertEquals(ScreenCommandNames.MOVE_VOICING_RECORD, move)
+        assertEquals(2, moveArgs.getValue("index").jsonPrimitive.content.toInt())
+        assertEquals(-1, moveArgs.getValue("offset").jsonPrimitive.content.toInt())
+        assertEquals("voices", moveArgs.getValue("field_id").jsonPrimitive.content)
     }
 
     @Test

@@ -92,10 +92,16 @@ def _old_value(model: str, base: Mapping[str, Any], field_id: str) -> Any:
     rows = base.get(_RECORDS) or []
     row, column = int(cell.group(1)), cell.group(2)
     if row < len(rows):
-        return rows[row].get(column)
-    new_item = _records_field(model).get('new_item', {})
-    value = new_item.get(column)
-    return value.replace('{n}', str(row + 1)) if isinstance(value, str) else value
+        value = rows[row].get(column)
+    else:
+        new_item = _records_field(model).get('new_item', {})
+        value = new_item.get(column)
+        value = value.replace('{n}', str(row + 1)) if isinstance(value, str) else value
+    if column == form.GAP_COLUMN and not _text(value).strip():
+        # The bottom voice's gap isn't saved; one that moved up or got a
+        # voice below falls back to the gap a new one gets.
+        return str(form.DEFAULT_GAP)
+    return value
 
 
 def _records_field(model: str) -> Dict[str, Any]:
@@ -295,6 +301,8 @@ def _parse_message(field: Optional[Mapping[str, Any]], typed: str) -> str:
     elif kind == form.KIND_PITCH:
         return f"{text} isn't a note name." if text else 'A note is needed.'
     elif kind == form.KIND_INT:
+        if _is_int(text) and 'min' in field and 'max' in field:
+            return f"{text} is out of range."
         return f"{text} isn't a whole number." if text else 'A whole number is needed.'
     elif kind == form.KIND_FLOAT:
         return f"{text} isn't a number." if text else 'A number is needed.'

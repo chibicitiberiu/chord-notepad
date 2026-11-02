@@ -121,10 +121,12 @@ Defining a Custom Fretted Voicing
 
 .. only:: android
 
-   Problems show up in red as you type: under the field for a value the app
-   can't read (a misspelt note name, say), or at the top of the form for
-   values that don't fit together (a relaxed span smaller than the normal
-   one). A voicing with errors is marked **Has errors** in the list. Only the
+   Problems show up in red as you type, under the field: a value the app
+   can't read (a misspelt note name, say), or values that don't fit together
+   (a relaxed span smaller than the normal one, marked on the field you
+   changed). A banner above the form says **Fix these errors to apply
+   changes** until they're fixed. A voicing with errors is marked **Has
+   errors** in the list. Only the
    fields with errors go unsaved, keeping their old values; the rest of the
    voicing is saved as you go. **Remove voicing** deletes the voicing after
    asking. If you leave Settings while something still has an error, the

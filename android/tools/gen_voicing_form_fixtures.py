@@ -9,9 +9,11 @@ writes what the bridge would send, as ``<name>.json`` holding
 - ``settings``: the ``SettingsState`` at startup.
 - ``fretboard_invalid``: a new voicing whose tuning has a bad pitch and a
   relaxed span smaller than the normal span (a field error and a form error).
-- ``ensemble``: the same voicing switched to an ensemble, with a bad low
-  pitch in voice 1 (a records cell error) and a voice whose low is above its
-  high (a form error).
+- ``ensemble``: the same voicing switched to an ensemble, a third voice
+  added and moved up one place (rows Voice 1, Voice 3, Voice 2), with a bad
+  low pitch in voice 1 (a records cell error), a gap of 0 in voice 1 (out of
+  range) and a voice whose low is above its high (a rule across fields,
+  blamed on its cells).
 - ``piano``: switched to a piano, untouched.
 
 The Kotlin tests (``ui/settings``) decode them with ``BridgeCodec`` and build
@@ -77,8 +79,11 @@ def main() -> int:
         fixtures["fretboard_invalid"] = recorder.last("VoicingEditorState")
 
         session.set_voicing_model("ensemble")
+        session.add_voicing_record("voices")
+        session.move_voicing_record(2, -1, "voices")
         voices = recorder.last("VoicingEditorState")["json"]["values"]["voices"]
         voices[1]["low"] = "H9"
+        voices[1]["gap"] = "0"
         voices[0]["low"], voices[0]["high"] = "C5", "C4"
         session.set_voicing_values({"voices": voices})
         fixtures["ensemble"] = recorder.last("VoicingEditorState")
