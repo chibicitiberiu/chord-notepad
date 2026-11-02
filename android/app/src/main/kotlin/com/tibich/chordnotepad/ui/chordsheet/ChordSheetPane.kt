@@ -2,6 +2,7 @@ package com.tibich.chordnotepad.ui.chordsheet
 
 import android.content.pm.ApplicationInfo
 import android.util.Log
+import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.shape.CircleShape
@@ -40,14 +41,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.PlainTooltip
 import androidx.compose.material3.Text
-import androidx.compose.material3.TooltipAnchorPosition
-import androidx.compose.material3.TooltipBox
-import androidx.compose.material3.TooltipDefaults
-import androidx.compose.material3.rememberTooltipState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -175,7 +170,7 @@ fun ChordSheetPane(
     }
 }
 
-/** The view tabs (disabled ones explain why on long-press) and the zoom buttons. */
+/** The view tabs (a tap on a disabled one says why) and the zoom buttons. */
 @Composable
 private fun ChordSheetHeader(state: ChordSheetState, onSelect: (String) -> Unit, onZoom: (Int) -> Unit) {
     Row(
@@ -206,38 +201,33 @@ private fun ChordSheetHeader(state: ChordSheetState, onSelect: (String) -> Unit,
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ViewTab(view: ChordSheetView, selected: Boolean, reason: String?, onClick: () -> Unit) {
     val colors = appColors
-    val tab = @Composable {
-        Box(
-            Modifier
-                .clip(RoundedCornerShape(8.dp))
-                .background(if (selected) colors.surfaceHigh else Color.Transparent)
-                .selectable(selected = selected, enabled = view.available, role = Role.Tab, onClick = onClick)
-                .padding(horizontal = 10.dp, vertical = 4.dp),
-        ) {
-            Text(
-                view.label,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Medium,
-                color = when {
-                    !view.available -> colors.muted.copy(alpha = 0.5f)
-                    selected -> colors.text
-                    else -> colors.muted
-                },
-            )
-        }
-    }
-    if (view.available || reason.isNullOrEmpty()) {
-        tab()
-    } else {
-        TooltipBox(
-            positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Above),
-            tooltip = { PlainTooltip { Text(reason) } },
-            state = rememberTooltipState(),
-        ) { tab() }
+    val context = LocalContext.current
+    Box(
+        Modifier
+            .clip(RoundedCornerShape(8.dp))
+            .background(if (selected) colors.surfaceHigh else Color.Transparent)
+            // An unavailable view still takes a tap, to say why (the core's reason).
+            .selectable(selected = selected, role = Role.Tab) {
+                when {
+                    view.available -> onClick()
+                    !reason.isNullOrEmpty() -> Toast.makeText(context, reason, Toast.LENGTH_SHORT).show()
+                }
+            }
+            .padding(horizontal = 10.dp, vertical = 4.dp),
+    ) {
+        Text(
+            view.label,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Medium,
+            color = when {
+                !view.available -> colors.muted.copy(alpha = 0.5f)
+                selected -> colors.text
+                else -> colors.muted
+            },
+        )
     }
 }
 

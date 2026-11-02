@@ -328,7 +328,7 @@ any time, including during playback.
 
 .. only:: android
 
-   Touch and hold the greyed-out Voicing button to see why it is disabled
+   Tap the greyed-out Voicing button to see why it is disabled
    ("Pause to change the voicing").
 
 Piano Voicing

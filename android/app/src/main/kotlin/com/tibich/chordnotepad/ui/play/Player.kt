@@ -1,5 +1,6 @@
 package com.tibich.chordnotepad.ui.play
 
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -15,20 +16,15 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.PlainTooltip
 import androidx.compose.material3.Text
-import androidx.compose.material3.TooltipAnchorPosition
-import androidx.compose.material3.TooltipBox
-import androidx.compose.material3.TooltipDefaults
-import androidx.compose.material3.rememberTooltipState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -155,7 +151,6 @@ private fun SongPill(text: String, onClick: () -> Unit) {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SideButton(
     icon: Int, label: String, on: Boolean, size: Dp, onClick: () -> Unit, badge: String? = null,
@@ -164,6 +159,7 @@ private fun SideButton(
 ) {
     val colors = appColors
     val locked = lockedReason != null
+    val context = LocalContext.current
     Box(Modifier.size(size).testTag(tag)) {
         val button = @Composable {
             Box(
@@ -171,7 +167,11 @@ private fun SideButton(
                     .size(size)
                     .clip(CircleShape)
                     .background(if (on) colors.primarySoft else Color.Transparent)
-                    .clickable(enabled = !locked, role = Role.Button, onClick = onClick)
+                    // A disabled button still takes a tap, to say why it's disabled.
+                    .clickable(role = Role.Button) {
+                        if (lockedReason != null) Toast.makeText(context, lockedReason, Toast.LENGTH_SHORT).show()
+                        else onClick()
+                    }
                     .semantics {
                         contentDescription = label
                         if (on) stateDescription = "on"
@@ -185,16 +185,7 @@ private fun SideButton(
                 )
             }
         }
-        if (lockedReason == null) {
-            button()
-        } else {
-            // A disabled button says why on long-press.
-            TooltipBox(
-                positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Above),
-                tooltip = { PlainTooltip { Text(lockedReason) } },
-                state = rememberTooltipState(),
-            ) { button() }
-        }
+        button()
         if (badge != null) {
             Text(
                 badge,

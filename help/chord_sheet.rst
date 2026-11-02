@@ -110,7 +110,7 @@ The Four Views
 
    The tabs above the strip switch between four ways of drawing the same voiced
    chords. Which ones are available depends on the active voicing; a tab that
-   can't be used right now is greyed out. Touch and hold it to see why (the
+   can't be used right now is greyed out. Tap it to see why (the
    song has no chords yet, or it needs a fretted voicing such as Guitar,
    picked in the player's Voicing sheet). If the tabs don't all fit, swipe
    them sideways.

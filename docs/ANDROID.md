@@ -762,8 +762,8 @@ committed schema (2026-10-29).
   (`PlaybackState?.isStarting`, `ui/main/PlaybackUi.kt`; no extra bridge
   field). The play button shows a progress ring and ignores taps meanwhile;
   ⏮ is the way to cancel. *Voicing lock:* `VoicingMenuState.locked_reason` is
-  set while a song plays (not paused); the Voicing button is greyed with that
-  reason on long-press and `set_voicing` is refused by the session. A voicing
+  set while a song plays (not paused); the Voicing button is greyed and a
+  tap shows that reason in a toast, and `set_voicing` is refused by the session. A voicing
   chosen while paused makes the next ▶ render again from the paused chord.
   The instrument changes at any time. *Screen on:* the window keeps the
   screen awake only while the status is `playing` (`keepScreenOn`).
