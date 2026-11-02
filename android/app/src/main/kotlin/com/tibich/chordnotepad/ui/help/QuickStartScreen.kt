@@ -41,6 +41,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
@@ -50,10 +51,11 @@ import com.tibich.chordnotepad.R
 import com.tibich.chordnotepad.bridge.QuickStartBlock
 import com.tibich.chordnotepad.bridge.QuickStartContent
 import com.tibich.chordnotepad.bridge.ScreenCommands
-import com.tibich.chordnotepad.ui.editor.EditorBackground
-import com.tibich.chordnotepad.ui.editor.EditorText
+import com.tibich.chordnotepad.bridge.SpanKind
 import com.tibich.chordnotepad.ui.editor.SpanStyles
+import com.tibich.chordnotepad.ui.editor.spanStylesFor
 import com.tibich.chordnotepad.ui.icons.AppIcons
+import com.tibich.chordnotepad.ui.theme.appColors
 
 /**
  * Help › Quick Start: the tour's pages one at a time (title, paragraphs and
@@ -146,28 +148,35 @@ fun QuickStartScreen(
     }
 }
 
-/** An example song as the editor draws it: white, monospace, chords highlighted, not editable. */
+/**
+ * An example song as the editor draws it in the current theme (ChordEditor's
+ * background, text and span colours): monospace, chords highlighted, not editable.
+ */
 @Composable
 private fun Snippet(block: QuickStartBlock) {
+    val colors = appColors
     Surface(
         shape = RoundedCornerShape(6.dp),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-        color = EditorBackground,
+        color = colors.surface,
     ) {
         Text(
-            remember(block) { snippetText(block) },
-            color = EditorText,
+            remember(block, colors) { snippetText(block, spanStylesFor(colors)) },
+            color = colors.editorText,
             fontFamily = FontFamily.Monospace,
             fontSize = 15.sp,
             softWrap = false,
-            modifier = Modifier.background(EditorBackground).horizontalScroll(rememberScrollState()).padding(12.dp),
+            modifier = Modifier.background(colors.surface).horizontalScroll(rememberScrollState()).padding(12.dp),
         )
     }
 }
 
 /** The snippet's text with the editor's span styles applied (see [snippetRuns]). */
-internal fun snippetText(block: QuickStartBlock): AnnotatedString {
-    val styles = SpanStyles.toMap()
+internal fun snippetText(
+    block: QuickStartBlock,
+    spanStyles: List<Pair<SpanKind, SpanStyle>> = SpanStyles,
+): AnnotatedString {
+    val styles = spanStyles.toMap()
     return buildAnnotatedString {
         append(block.text)
         for (run in snippetRuns(block)) {
