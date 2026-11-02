@@ -15,7 +15,9 @@ it's done (git history keeps it); release mechanics live in `docs/RELEASE.md`.
 
 ## Next
 
-- The Dependabot bumps (a3c910b) passed a `test` and a `nightly` run, but signing only runs on tags: watch the Azure login (azure/login 3.1.0) and signing steps on the next release. Consider `groups` in `.github/dependabot.yml` for one weekly PR.
+- Consider `groups` in `.github/dependabot.yml` for one weekly PR (the bumps in a3c910b signed fine on v0.5.1).
+- Cache the Ubuntu source packages the release's third-party source bundle downloads: "Build source bundles" takes 50-75 minutes of every release and nightly.
+- macOS: try both dmgs on a real Mac (Open Anyway on first launch, sound, the Intel one on macOS 11); CI only smoke-tests them.
 - CI signing isolation: Windows signing in its own job that alone holds `id-token: write`; Android signing in a minimal job after an unsigned build; Gradle dependency verification.
 - Local signing (`docs/RELEASE.md`, "Signing locally"): read passwords in a subshell, accept them from the environment only (not `-P`), fail when `cnSigning=upload|foss` meets the configuration cache.
 - Local MSIX test recipe (`docs/RELEASE.md`): import only the `.cer`, not the PFX with its private key, and clean up afterwards, as `smoke_test.ps1` does.
