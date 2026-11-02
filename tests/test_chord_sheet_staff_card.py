@@ -11,6 +11,8 @@ legend; and the extended clef/glyph asset resolver.
 """
 from typing import List, Optional
 
+import pytest
+
 from audio.chord_picker import ChordNotePicker
 from models.chord import ChordInfo
 from models.chord_notes import ChordNotes
@@ -490,6 +492,17 @@ class TestKeySignatures:
         bass = [o for o in flats if (o.y + oy) > between]
         assert len(treble) == 3 and len(bass) == 3
 
+    def test_european_key_names_read_as_their_american_spelling(self):
+        # The song's key and its {key} directives reach the strip as written.
+        assert sc._key_fifths('Sol') == 1
+        assert sc._key_fifths('Fa') == -1
+        assert sc._key_fifths('Si') == 5
+        assert sc._key_fifths('Mib') == -3
+        assert sc._key_fifths('Lab') == -4
+        assert sc._key_fifths('Mim') == 1     # relative minor of G
+        assert sc._key_fifths('Fa#m') == 3
+        assert sc._key_fifths('Ré') == 2
+
     def test_unmappable_key_draws_no_signature(self):
         song = make_song(make_chord("C", midi_notes=[60, 64, 67], chord_notes=C_MAJOR, key='???'))
         _, ops = paint(song)
@@ -903,3 +916,35 @@ class TestClefAssets:
                     'glyph_notehead_whole:64:xyz', 'glyph_notehead_whole:64:3a5a8',
                     'glyph_notehead_whole:64:3a5a8a:9'):
             assert ci.image_for_clef_key(bad) is None
+
+
+# --------------------------------------------------------------------------
+# The key signature through the session, in European notation
+# --------------------------------------------------------------------------
+
+def _session_signature(key=None, text="Do Re Mi Fa\n"):
+    """``(sharps, flats)`` per clef in the gutter of the strip a European
+    session renders (the real session, strip viewmodel and renderer)."""
+    from session.platform import ANDROID
+    from tests.test_chord_sheet_playhead import Env
+    env = Env(ANDROID)
+    env.session.set_notation("european")
+    if key is not None:
+        env.session.set_key(key)
+    env.load(text)
+    ops = paint_gutter(env.sheet.rendered_song)
+    gutter = [o for o in ops.ops if isinstance(o, ImageOp) and "gutter" in o.tags]
+    sharps = sum(1 for o in gutter if o.key.startswith("glyph_accidental_sharp"))
+    flats = sum(1 for o in gutter if o.key.startswith("glyph_accidental_flat"))
+    return sharps // 2, flats // 2
+
+
+@pytest.mark.parametrize("key, expected", [
+    ("Sol", (1, 0)), ("Fa", (0, 1)), ("Si", (5, 0)), ("Mib", (0, 3)), ("Lab", (0, 4)),
+])
+def test_a_european_session_key_draws_its_signature(key, expected):
+    assert _session_signature(key) == expected
+
+
+def test_a_european_key_directive_draws_its_signature():
+    assert _session_signature(text="{key: Lab}\nDo Re Mi Fa\n") == (0, 4)

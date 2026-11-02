@@ -172,12 +172,27 @@ def test_set_bpm_snaps_like_the_scrubber_and_is_not_a_default():
     assert env.toolbar().bpm == 400
 
 
-def test_set_bpm_is_ignored_while_playing():
+def test_tempo_key_and_time_are_ignored_while_playing():
     env = Env("C G")
     env.play()
     env.session.set_bpm(90)
-    assert env.main.bpm == 120
+    env.session.set_key("G")
+    env.session.set_time_signature(3, 4)
+    assert (env.main.bpm, env.main.key, env.main.time_signature_beats) == (120, None, 4)
     assert env.toolbar().bpm_editable is False
+
+
+def test_tempo_key_and_time_can_change_while_paused():
+    env = Env("C G")
+    env.play()
+    env.session.play_pause()
+    assert env.toolbar().bpm_editable is True
+    env.session.set_bpm(90)
+    env.session.set_key("G")
+    env.session.set_time_signature(3, 4)
+    assert (env.main.bpm, env.main.key, env.main.time_signature_beats) == (90, "G", 3)
+    t = env.toolbar()
+    assert (t.bpm, t.key, t.beats, t.play_action.value) == (90, "G", 3, "resume")
 
 
 def test_set_multiplier_applies_during_playback():

@@ -67,10 +67,12 @@ logger = logging.getLogger(__name__)
 # The tempo, key and time-signature tooltips; a value the song sets shows
 # set_by_tooltip(directive) instead.
 _BPM_TOOLTIP = ("Beats per minute for this song (the default is in Settings). Drag to change, "
-                "click to type, middle-click to reset to 120. Read-only during playback.")
-_KEY_TOOLTIP = "Key for roman numeral chords in this song (the default is in Settings)"
-_BEATS_TOOLTIP = "Beats per measure"
-_UNIT_TOOLTIP = "Beat unit (4 = quarter note)"
+                "click to type, middle-click to reset to 120. Pause to change it while a "
+                "song plays.")
+_KEY_TOOLTIP = ("Key for roman numeral chords and the Staff view's key signature in this song "
+                "(the default is in Settings). Pause to change it while a song plays.")
+_BEATS_TOOLTIP = "Beats per measure (pause to change it while a song plays)"
+_UNIT_TOOLTIP = "Beat unit, 4 = quarter note (pause to change it while a song plays)"
 
 
 def set_by_tooltip(directive: str) -> str:
@@ -401,9 +403,10 @@ class MainWindow(tk.Tk):
 
         # The tempo, key and time signature are what the song starts with. A
         # value the song sets with a directive is greyed out (the tooltip
-        # names the directive). While a song plays the BPM scrubber is a
-        # read-only display of the effective tempo; afterwards it shows the
-        # starting value again.
+        # names the directive). While a song plays (not while it is paused)
+        # all three are locked and the BPM scrubber is a read-only display of
+        # the effective tempo; afterwards it shows the starting value again.
+        playing = state.play_action is PlayAction.PAUSE
         self.bpm_scrubber.set_readonly(not state.bpm_editable)
         self.bpm_scrubber.set_value(state.bpm)
         if not state.bpm_editable:
@@ -414,12 +417,12 @@ class MainWindow(tk.Tk):
 
         self.key_combo['values'] = state.key_options
         self.key_var.set(state.key)
-        self.key_combo.configure(state="disabled" if state.key_set_by else "readonly")
+        self.key_combo.configure(state="disabled" if state.key_set_by or playing else "readonly")
         self._key_tooltip.text = (set_by_tooltip(state.key_set_by) if state.key_set_by
                                   else _KEY_TOOLTIP)
         self.time_sig_beats_var.set(state.beats)
         self.time_sig_unit_var.set(state.unit)
-        time_state = "disabled" if state.time_set_by else "normal"
+        time_state = "disabled" if state.time_set_by or playing else "normal"
         self.time_sig_beats_spin.configure(state=time_state)
         self.time_sig_unit_spin.configure(state=time_state)
         if state.time_set_by:
@@ -428,8 +431,7 @@ class MainWindow(tk.Tk):
             self._beats_tooltip.text, self._unit_tooltip.text = _BEATS_TOOLTIP, _UNIT_TOOLTIP
         self._refresh_metronome_button(state.metronome)
 
-        pausing = state.play_action is PlayAction.PAUSE
-        self.play_pause_button.config(image=self._icon_pause if pausing else self._icon_play)
+        self.play_pause_button.config(image=self._icon_pause if playing else self._icon_play)
         self._play_pause_tooltip.text = _PLAY_PAUSE_TOOLTIPS[state.play_action]
 
     def _apply_playback(self, state: PlaybackState) -> None:

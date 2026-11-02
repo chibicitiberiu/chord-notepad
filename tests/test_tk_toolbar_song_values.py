@@ -87,3 +87,19 @@ def test_while_playing_the_tempo_shows_the_live_value():
                           bpm_set_by="{bpm: 90}", play_action=PlayAction.PAUSE))
     window.bpm_scrubber.set_value.assert_called_with(90)
     window.bpm_scrubber.set_display_text.assert_called_with("140")
+
+
+def test_while_playing_the_key_and_time_are_locked_and_paused_they_are_not():
+    window = _window()
+    _apply(window, _state(bpm_editable=False, play_action=PlayAction.PAUSE))
+    window.bpm_scrubber.set_readonly.assert_called_with(True)
+    window.key_combo.configure.assert_called_with(state="disabled")
+    window.time_sig_beats_spin.configure.assert_called_with(state="disabled")
+    window.time_sig_unit_spin.configure.assert_called_with(state="disabled")
+    window.play_pause_button.config.assert_called_with(image="pause")
+    # Paused (the button resumes): editable again.
+    _apply(window, _state(play_action=PlayAction.RESUME))
+    window.bpm_scrubber.set_readonly.assert_called_with(False)
+    window.key_combo.configure.assert_called_with(state="readonly")
+    window.time_sig_beats_spin.configure.assert_called_with(state="normal")
+    window.play_pause_button.config.assert_called_with(image="play")

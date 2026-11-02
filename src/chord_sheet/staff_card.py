@@ -65,10 +65,12 @@ Engraving detail:
 
 from __future__ import annotations
 
+import functools
 import logging
 from dataclasses import dataclass
 from typing import Dict, List, NamedTuple, Optional, Tuple
 
+from chord.keys import american_key
 from chord.midi_converter import parse_note_to_semitone
 from models.rendered_song import RenderedChord, RenderedSong
 from chord_sheet.clef_assets import clef_placement, glyph_placement
@@ -268,6 +270,7 @@ def _accidental_text(acc: int) -> str:
 # Key signatures
 # --------------------------------------------------------------------------
 
+@functools.lru_cache(maxsize=256)
 def _key_fifths(key: Optional[str]) -> Optional[int]:
     """Circle-of-fifths position for ``key`` (+sharps/-flats), or ``None``.
 
@@ -277,10 +280,12 @@ def _key_fifths(key: Optional[str]) -> Optional[int]:
     tonic's *pitch class* and takes the conventional enharmonic key's
     signature: Gbm engraves as F#m (3 sharps), D# as Eb (3 flats). Only a
     wholly unparseable key (or ``None``) yields ``None`` -- no signature drawn.
+    European names (``Sol``, ``Lab``, ``Fa#m``: the song's key and its
+    ``{key}`` directives as written) read as their American spelling.
     """
     if not key:
         return None
-    k = key.strip()
+    k = american_key(key) or key.strip()
     if k in _MINOR_FIFTHS:
         return _MINOR_FIFTHS[k]
     if k in _MAJOR_FIFTHS:

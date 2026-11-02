@@ -507,28 +507,54 @@ def test_write_song_defaults_is_refused_while_playing():
     env.session.play_pause()
     env.session.write_song_defaults()
     assert env.session.text == SONG
+    assert env.playback().status is PlaybackStatus.PLAYING
 
 
 @pytest.mark.parametrize("platform", [ANDROID, DESKTOP])
-def test_song_defaults_lock_while_playing_or_paused_says_why(platform):
+def test_write_song_defaults_while_paused_keeps_the_playhead_on_the_paused_chord(platform):
     env = Env(platform=platform, auto_play=False)
-    reason = "Stop playback to change the tempo or write into the song"
+    playing_mid_song(env, paused=True)   # paused on Am (offset 12)
+    env.session.write_song_defaults()
+    inserted = "{bpm: 120} {time: 4/4}\n"
+    assert env.session.text == inserted + SONG
+    # The paused song is dropped (its offsets are stale) and the playhead
+    # moved with Am, so Play starts there.
+    assert env.playback().status is PlaybackStatus.IDLE
+    assert env.playhead() == 12 + len(inserted)
+    assert env.status() == "Inserted: {bpm: 120} {time: 4/4}"
+    env.player.played = []
+    env.session.play_pause()
+    env.rendered()
+    env.player.play(1)
+    assert env.first_played_chord() == "Am"
+
+
+@pytest.mark.parametrize("platform", [ANDROID, DESKTOP])
+def test_song_defaults_lock_only_while_playing_and_say_why(platform):
+    env = Env(platform=platform, auto_play=False)
+    reason = "Pause to change the playback settings"
     assert defaults(env).locked_reason is None
     env.session.play_pause()
     env.rendered()
     assert defaults(env).locked_reason == reason
+    # What the lock stands for: the values are ignored, the write refused.
+    env.session.set_bpm(90)
+    env.session.set_time_signature(3, 4)
+    env.session.set_key("G")
+    env.session.write_song_defaults()
+    state = defaults(env)
+    assert (state.tempo.value, state.time.value, state.key.value) == ("120", "4/4", "")
+    assert env.session.text == SONG
     env.session.play_pause()  # pause
     assert env.session._playback.status is PlaybackStatus.PAUSED
-    assert defaults(env).locked_reason == reason
-    # What the lock stands for: the tempo is ignored, the write refused.
-    env.session.set_bpm(90)
-    env.session.write_song_defaults()
-    assert defaults(env).tempo.value == "120"
-    assert env.session.text == SONG
-    env.session.stop()
     assert defaults(env).locked_reason is None
     env.session.set_bpm(90)
-    assert defaults(env).tempo.value == "90"
+    env.session.set_time_signature(3, 4)
+    env.session.set_key("G")
+    state = defaults(env)
+    assert (state.tempo.value, state.time.value, state.key.value) == ("90", "3/4", "G")
+    env.session.stop()
+    assert defaults(env).locked_reason is None
 
 
 def test_song_defaults_unlock_when_the_song_ends():
@@ -538,7 +564,85 @@ def test_song_defaults_unlock_when_the_song_ends():
     assert env.session._playback.status is PlaybackStatus.IDLE
     assert defaults(env).locked_reason is None
     locks = [s.locked_reason for s in env.everything.of_type(SongDefaultsState)]
-    assert locks[-2:] == ["Stop playback to change the tempo or write into the song", None]
+    assert locks[-2:] == ["Pause to change the playback settings", None]
+
+
+# -- a tap on the chord sheet strip ------------------------------------------------------
+
+
+STRIP = [("C", 0, 1), ("G", 4, 5), ("Am", 12, 14), ("F", 16, 17)]
+
+
+def named_strip_song(env, chords=STRIP):
+    """Give the fake strip a rendered song of ``(name, start, end)`` chords."""
+    rendered = [SimpleNamespace(chord_info=SimpleNamespace(chord=name, start=s, end=e),
+                                bar=i + 1, song_bar=i + 1, skipped=False)
+                for i, (name, s, e) in enumerate(chords)]
+    env.sheet.finish_render(SimpleNamespace(chords=rendered, total_bars=len(chords)))
+
+
+def test_android_strip_tap_moves_the_playhead_and_sounds_the_chord():
+    env = Env()
+    named_strip_song(env)
+    env.session.audition(2)
+    assert env.sheet.auditioned == [2]
+    assert env.playhead() == 12
+    assert env.recorder.last(ChordSheetState).cursor_index == 2
+    assert env.status() == "Bar 3/4"
+
+
+def test_android_strip_tap_while_paused_drops_the_paused_song():
+    env = Env(auto_play=False)
+    named_strip_song(env)
+    playing_mid_song(env, paused=True)
+    env.session.audition(1)
+    assert env.playback().status is PlaybackStatus.IDLE
+    assert env.playhead() == 4
+    assert env.sheet.auditioned == [1]
+    env.player.played = []
+    env.session.play_pause()
+    env.rendered()
+    env.player.play(1)
+    assert env.first_played_chord() == "G"
+
+
+def test_android_strip_tap_while_playing_jumps_there():
+    env = Env(auto_play=False)
+    named_strip_song(env)
+    env.session.play_pause()
+    env.rendered()
+    env.player.play(1)
+    env.host.run_pending()
+    env.session.audition(3)   # a jump, not an audition over the song
+    assert env.sheet.auditioned == []
+    assert env.playback().status is PlaybackStatus.PLAYING
+    env.rendered()
+    env.player.play(1)
+    env.host.run_pending()
+    assert env.playback().playing_span.start == 16
+    assert env.playhead() == 16
+
+
+def test_android_strip_tap_on_a_chord_the_text_no_longer_has_only_sounds():
+    env = Env()
+    named_strip_song(env)
+    env.session.set_playhead(4)
+    # The text changed under the strip: Am became Dm (same place) and the
+    # strip hasn't rendered again yet.
+    env.session.set_text(SONG.replace("Am", "Dm"))
+    env.host.advance(0.5)
+    env.session.audition(2)
+    env.session.audition(9)   # out of range
+    assert env.sheet.auditioned == [2, 9]
+    assert env.playhead() == 4
+
+
+def test_desktop_strip_tap_only_sounds():
+    env = Env(platform=DESKTOP)
+    named_strip_song(env)
+    env.session.audition(2)
+    assert env.sheet.auditioned == [2]
+    assert env.playhead() is None
 
 
 # -- capo in the Insert menu ------------------------------------------------------------

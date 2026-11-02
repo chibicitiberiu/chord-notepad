@@ -134,8 +134,8 @@ class ToolbarState:
         bpm: The tempo the song starts at.
         bpm_display: The tempo to show: while a song plays, that of the
             chord sounding (directives applied) once known; else ``bpm``.
-        bpm_editable: False while a song plays or is paused, and when the
-            song sets its tempo (the tempo field then only displays
+        bpm_editable: False while a song plays (not while paused), and
+            when the song sets its tempo (the tempo field then only displays
             ``bpm_display``).
         multiplier_pct: The speed multiplier in percent (100 = as written);
             adjustable during playback.
@@ -347,10 +347,11 @@ class SongDefaultsState:
         key: The starting key (``""`` when none is set anywhere).
         summary: The pill's text, the values joined by ``" · "``
             (``"90 · 3/4 · G"``; an empty key is left out).
-        locked_reason: None while the tempo and "Write into song" can be
-            used; while a song plays or is paused (``set_bpm`` is ignored and
+        locked_reason: None while the values and "Write into song" can be
+            used (idle or paused); while a song plays (``set_bpm``,
+            ``set_time_signature`` and ``set_key`` are ignored and
             ``write_song_defaults`` refused) the sentence saying why, e.g.
-            "Stop playback to change the tempo or write into the song".
+            "Pause to change the playback settings".
     """
 
     tempo: SongDefault

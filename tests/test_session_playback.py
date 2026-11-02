@@ -103,17 +103,18 @@ def _editor(read_only):
 
 
 def _toolbar(action="play", bpm_display=120):
-    """The compacted ToolbarState for the defaults (120 BPM, key C, 4/4)."""
-    return ("ToolbarState", "american", 120, bpm_display, action == "play", 100.0, "C",
+    """The compacted ToolbarState for the defaults (120 BPM, key C, 4/4); the
+    tempo is read-only while a song plays (``action`` "pause")."""
+    return ("ToolbarState", "american", 120, bpm_display, action != "pause", 100.0, "C",
             4, 4, False, action, None, None, None)
 
 
 def _defaults(locked):
-    """The compacted SongDefaultsState for the defaults; the tempo and
-    "Write into song" are locked while a song plays or is paused."""
+    """The compacted SongDefaultsState for the defaults; they are locked
+    while a song plays (not while it is paused)."""
     return ("SongDefaultsState", ("SongDefault", "120", False, None),
             ("SongDefault", "4/4", False, None), ("SongDefault", "", False, None), "120 · 4/4",
-            "Stop playback to change the tempo or write into the song" if locked else None)
+            "Pause to change the playback settings" if locked else None)
 
 
 # -- golden: play -> progress -> finished ------------------------------------------
@@ -187,9 +188,11 @@ def test_pause_and_resume_keep_the_playing_chord():
     env.recorder.clear()
 
     env.session.play_pause()
+    # Paused, the tempo and the other song defaults can be changed again.
     assert env.recorder.compact() == [
         ("PlaybackState", "paused", _span(0, 1), 0, 1, 3, None),
         _toolbar("resume"),
+        _defaults(locked=False),
         ("StatusState", "Paused playback"),
     ]
     assert env.player.calls[-1] == "pause"
@@ -199,6 +202,7 @@ def test_pause_and_resume_keep_the_playing_chord():
     assert env.recorder.compact() == [
         ("PlaybackState", "playing", _span(0, 1), 0, 1, 3, None),
         _toolbar("pause"),
+        _defaults(locked=True),
         ("StatusState", "Resumed playback"),
     ]
     assert env.player.calls[-1] == "resume"

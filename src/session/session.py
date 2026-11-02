@@ -70,6 +70,7 @@ from session.state import (
 if TYPE_CHECKING:
     # Type-only: the chord-sheet viewmodel still imports PIL (see the core
     # import guard), so the session must not import it at run time.
+    from models.chord import ChordInfo
     from services.licence_catalog import LicenceCatalog
     from session.bootstrap import CoreServices
     from viewmodels.chord_identifier_viewmodel import ChordIdentifierViewModel
@@ -91,6 +92,10 @@ SubFlow = Generator[Any, Any, bool]
 # The viewmodel properties the toolbar shows (besides the notation).
 _TOOLBAR_INPUTS = ("bpm", "bpm_multiplier", "metronome_enabled", "key",
                    "time_signature_beats", "time_signature_unit")
+
+# The viewmodel properties a song is rendered with when Play starts it. A
+# change while it is paused makes the next Play render again (see play_pause).
+_RENDER_INPUTS = ("voicing", "bpm", "key", "time_signature_beats", "time_signature_unit")
 
 # The chord-sheet viewmodel properties ChordSheetState mirrors (besides the
 # rendered song, which bumps its revision).
@@ -272,12 +277,14 @@ class AppSession:
         self._main.observe("font_size", self._on_editor_input)
         self._on_voicing = self._entry(self._publish_voicing_menu)
         self._main.observe("voicing", self._on_voicing)
-        # A voicing change while a song is paused: it was rendered with the
-        # old one, so Play re-renders from the paused chord.
-        self._voicing_stale = False
+        # A voicing, tempo, key or time-signature change while a song is
+        # paused: it was rendered with the old values, so Play re-renders
+        # from the paused chord.
+        self._render_stale = False
         self._voicing_locked = False
-        self._on_voicing_stale = self._entry(self._on_voicing_changed)
-        self._main.observe("voicing", self._on_voicing_stale)
+        self._on_render_input = self._entry(self._on_render_input_changed)
+        for name in _RENDER_INPUTS:
+            self._main.observe(name, self._on_render_input)
 
         # The strip's own state (visibility, view, zoom, playhead) and a
         # revision that goes up with every song it rendered. What the op
@@ -416,7 +423,8 @@ class AppSession:
         self._main.unobserve("font_family", self._on_editor_input)
         self._main.unobserve("font_size", self._on_editor_input)
         self._main.unobserve("voicing", self._on_voicing)
-        self._main.unobserve("voicing", self._on_voicing_stale)
+        for name in _RENDER_INPUTS:
+            self._main.unobserve(name, self._on_render_input)
         if self._chord_sheet is not None:
             for name in _CHORD_SHEET_INPUTS:
                 self._chord_sheet.unobserve(name, self._on_sheet_change)
@@ -583,15 +591,26 @@ class AppSession:
         Inserts the missing ``{bpm}``, ``{time}`` and ``{key}`` directives
         (:class:`SongDefaultsState`'s values; no key directive without a key)
         as one line at the top, one undo step, highlighted at once. Refused
-        while a song plays or is paused.
+        while a song plays. While paused, the paused song is dropped (the
+        edit moves its chords) and the playhead stays on the chord it was
+        paused on, so Play starts there.
         """
-        if not self._edits_allowed("write song defaults"):
+        status = self._playback_status()
+        if status is PlaybackStatus.PLAYING:
+            logger.info("Ignoring write song defaults while a song is playing")
             return
         state = self._song_defaults()
         missing = song_defaults.missing_directives(state)
         if not missing:
             self._set_status(formatting.NOTHING_TO_WRITE_STATUS)
             return
+        if status is PlaybackStatus.PAUSED:
+            span = self._playback.playing_span
+            paused_on = span.start if span is not None else self._playhead
+            logger.info("Writing song defaults while paused: stopping")
+            self._main.stop_playback()
+            # The edit below carries the playhead along with its chord.
+            self._move_playhead(paused_on)
         text = " ".join(missing)
         self._splice(0, 0, text + "\n", UndoPolicy.GROUP)
         self._set_status(formatting.inserted_status(text))
@@ -861,12 +880,13 @@ class AppSession:
             logger.info("Pausing playback")
             self._main.pause_playback()
             self._set_paused_status()
-        elif status is PlaybackStatus.PAUSED and self._voicing_stale:
-            # The paused song was rendered with the old voicing: start again
-            # from the chord it stopped on, rendered with the new one.
+        elif status is PlaybackStatus.PAUSED and self._render_stale:
+            # The paused song was rendered with the old voicing, tempo, key or
+            # time signature: start again from the chord it stopped on,
+            # rendered with the new ones.
             span = self._playback.playing_span
             from_offset = span.start if span is not None else self._playhead
-            logger.info("Resuming playback re-rendered (the voicing changed while paused)")
+            logger.info("Resuming playback re-rendered (a playback setting changed while paused)")
             self._main.stop_playback()
             self._start_playback(from_offset)
         elif status is PlaybackStatus.PAUSED:
@@ -1113,12 +1133,13 @@ class AppSession:
     def set_bpm(self, bpm: float) -> None:
         """Set the current document's tempo (not the default in Settings).
 
-        Ignored while a song plays or is paused, and when the song sets its
-        starting tempo with a directive (``ToolbarState.bpm_set_by``). The
-        value is clamped to 20-400 and snapped like the toolbar's tempo
-        control (``toolbar.BPM_SCALE``). New and Open go back to the default.
+        Ignored while a song plays (allowed while paused: Play then renders
+        again from the paused chord), and when the song sets its starting
+        tempo with a directive (``ToolbarState.bpm_set_by``). The value is
+        clamped to 20-400 and snapped like the toolbar's tempo control
+        (``toolbar.BPM_SCALE``). New and Open go back to the default.
         """
-        if self._playback_status() is not PlaybackStatus.IDLE:
+        if self._playback_status() is PlaybackStatus.PLAYING:
             logger.info("Ignoring a tempo change while a song is playing")
             return
         if self._setting_directives().tempo is not None:
@@ -1163,7 +1184,7 @@ class AppSession:
     @_command
     def reset_bpm(self) -> None:
         """Reset the tempo to its default (the scrubber's middle-click);
-        ignored while a song plays or is paused, like :meth:`set_bpm`."""
+        ignored while a song plays, like :meth:`set_bpm`."""
         self.set_bpm(toolbar.BPM_SCALE.default)
 
     @_command
@@ -1174,8 +1195,12 @@ class AppSession:
     @_command
     def set_key(self, key: Optional[str]) -> None:
         """Set the current document's key, which roman numerals resolve in
-        (None or empty: no key). Not the default in Settings; ignored when
-        the song sets its starting key (``ToolbarState.key_set_by``)."""
+        (None or empty: no key). Not the default in Settings; ignored while
+        a song plays (like :meth:`set_bpm`) and when the song sets its
+        starting key (``ToolbarState.key_set_by``)."""
+        if self._playback_status() is PlaybackStatus.PLAYING:
+            logger.info("Ignoring a key change while a song is playing")
+            return
         if self._setting_directives().key is not None:
             logger.info("Ignoring a key change: the song sets its key")
             return
@@ -1185,13 +1210,16 @@ class AppSession:
     def set_time_signature(self, beats: int, unit: int) -> None:
         """Set the current document's time signature (not the default in
         Settings); invalid values are logged and ignored, and so is any
-        change when the song sets its time signature
-        (``ToolbarState.time_set_by``).
+        change while a song plays (like :meth:`set_bpm`) or when the song
+        sets its time signature (``ToolbarState.time_set_by``).
 
         Args:
             beats: Beats per bar, 1-16.
             unit: The beat unit: 1, 2, 4, 8 or 16.
         """
+        if self._playback_status() is PlaybackStatus.PLAYING:
+            logger.info("Ignoring a time-signature change while a song is playing")
+            return
         if self._setting_directives().time is not None:
             logger.info("Ignoring a time-signature change: the song sets it")
             return
@@ -1717,9 +1745,21 @@ class AppSession:
 
         If audio can't start, the first click-to-hear failure in a session
         emits :class:`AudioUnavailable`; later ones only log.
+
+        Where the playhead follows taps (Android) the chord also becomes the
+        playhead, like a tap on it in the text (:meth:`tap_chord_at`): idle
+        or paused it moves there and the chord sounds; while a song plays,
+        playback jumps there instead. A chord the text no longer has at the
+        same place (the strip hasn't caught up with an edit) only sounds.
         """
         if self._chord_sheet is None:
             return
+        chord = self._text_chord_of_strip(int(index)) if self._tracks_playhead else None
+        if chord is not None:
+            playing = self._playback_status() is PlaybackStatus.PLAYING
+            self._seek(chord.start)
+            if playing:
+                return
         try:
             self._chord_sheet.audition(int(index))
         except AudioInitializationError as e:
@@ -2436,9 +2476,9 @@ class AppSession:
             selected=self._main.get_voicing(), groups=self._voicing_groups(),
             locked_reason=formatting.VOICING_LOCKED_REASON if locked else None))
 
-    def _on_voicing_changed(self, _changed: Any = None) -> None:
+    def _on_render_input_changed(self, _changed: Any = None) -> None:
         if self._playback_status() is PlaybackStatus.PAUSED:
-            self._voicing_stale = True
+            self._render_stale = True
 
     def _publish_instrument_menu(self) -> None:
         current = self._main.get_instrument()
@@ -2472,6 +2512,24 @@ class AppSession:
                 return index, rendered.song_bar or rendered.bar, song.total_bars
         return None
 
+    def _text_chord_of_strip(self, index: int) -> Optional["ChordInfo"]:
+        """The valid chord of the current text that strip chord ``index`` is
+        (same span and name), or None (a rest, out of range, or a strip
+        rendered from other text)."""
+        sheet = self._chord_sheet
+        song = sheet.rendered_song if sheet is not None else None
+        if song is None or not 0 <= index < len(song.chords):
+            return None
+        rendered = song.chords[index]
+        source = rendered.chord_info
+        if source is None or rendered.skipped:
+            return None
+        chord = chord_at(self._detector.detected_lines, source.start)
+        if (chord is None or not chord.is_valid or chord.start != source.start
+                or chord.end != source.end or chord.chord != source.chord):
+            return None
+        return chord
+
     def _publish_chord_sheet(self, _changed: Any = None) -> None:
         sheet = self._chord_sheet
         if sheet is None:
@@ -2499,7 +2557,7 @@ class AppSession:
         self._publish_song_defaults()
 
     def _song_defaults(self) -> SongDefaultsState:
-        locked = self._playback_status() is not PlaybackStatus.IDLE
+        locked = self._playback_status() is PlaybackStatus.PLAYING
         return song_defaults.song_defaults(
             self._detector.detected_lines, self._main.bpm,
             (self._main.time_signature_beats, self._main.time_signature_unit),
@@ -2522,6 +2580,7 @@ class AppSession:
     def _publish_toolbar(self, _changed: Any = None) -> None:
         status = self._playback.status
         idle = status is PlaybackStatus.IDLE
+        playing = status is PlaybackStatus.PLAYING
         notation = self._main.notation.value
         # What the song starts with: its directives over the document's values.
         start = self._song_defaults()
@@ -2533,7 +2592,7 @@ class AppSession:
             bpm=bpm,
             bpm_display=(self._effective_bpm
                          if not idle and self._effective_bpm is not None else bpm),
-            bpm_editable=idle and setting.tempo is None,
+            bpm_editable=not playing and setting.tempo is None,
             multiplier_pct=round(self._main.bpm_multiplier * 100.0, 6),
             key=toolbar.shown_key(start.key.value or None, notation),
             key_options=toolbar.key_options(notation),
@@ -2679,13 +2738,13 @@ class AppSession:
             # A stop (unlike the song ending) posts no "finished" ping, so the
             # chord sheet's playhead would stay on the last chord.
             self._clear_playhead()
-            self._voicing_stale = False
+            self._render_stale = False
             self._publish_playback(PlaybackState(PlaybackStatus.IDLE))
-            # The song defaults' tempo and "Write into song" wait for a stop.
             self._publish_song_defaults()
             self._set_idle_status()
         else:
             self._publish_playback(dataclasses.replace(self._playback, status=status))
+            # The song defaults are locked only while a song plays.
             self._publish_song_defaults()
         # The voicing menu is locked only while a song plays.
         if self._voicing_locked != (status is PlaybackStatus.PLAYING):

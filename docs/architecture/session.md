@@ -400,7 +400,9 @@ range per change), and the next detection re-snaps it to a chord. What
 moves it on its own is a platform behaviour (`platform.TRACKS_PLAYHEAD`):
 on Android, playback (it follows the chord sounding), the end of the song
 (back to the first chord), chord taps (`tap_chord_at` moves it and
-auditions; while playing it jumps there instead), and a default on the
+auditions; while playing it jumps there instead), taps on a strip chord
+(`audition(index)` does the same when the strip's chord is still the text's
+chord at the same span; otherwise it only auditions), and a default on the
 first chord whenever the song has chords (an opened document starts
 there). The desktop has none of these, so its Play, Shift+Play, click and
 status behave as before; it would only get a playhead from an explicit
@@ -416,7 +418,7 @@ from the top of the song even when playback started later
 **Defaults vs. the song's values** (Tibi, 2026-10-30). The Settings
 defaults (tempo, time signature, key) live in the config and only Settings
 writes them. The viewmodel's `bpm`, `key` and time signature are the current
-document's: the defaults until changed from the toolbar or Song defaults, for
+document's: the defaults until changed from the toolbar or Playback settings, for
 that document only; `new_file`/`open_file` reload them from the config
 (`MainWindowViewModel.load_defaults`, the key respelled in the current
 notation) and nothing copies an opened song's directives into them (or into
@@ -435,10 +437,20 @@ tempo directives apply to the document's tempo); otherwise it is the
 document's value. A mid-song change doesn't count: the value stays the
 starting one. The key is `""` when neither sets one. `summary` is the pill text,
 `"90 · 3/4 · G"`. Republished after every detection and toolbar change,
-and when playback starts or stops: `locked_reason` says why the tempo and
-the write wait while a song plays or is paused (None when idle).
+and when playback starts, pauses, resumes or stops: `locked_reason` says why
+the values and the write wait while a song plays (None when idle or paused).
 `write_song_defaults()` inserts the missing directives as one line at the
 top, one `group` edit, highlighted at once (no `{key}` without a key).
+While paused it first stops the paused run (its offsets go stale) with the
+playhead on the paused chord, and the edit carries it along, so Play starts
+there.
+
+**Changes while paused.** The song is rendered when Play starts it, with the
+voicing, tempo, key and time signature of that moment (`_RENDER_INPUTS`). A
+change to any of them is refused while a song plays and allowed while
+paused: the observer marks the paused run stale (`_render_stale`), and the
+next `play_pause()` stops it and starts again from the paused chord instead
+of resuming the old event buffer. A stop clears the mark.
 
 **Rename.** `rename_document(name)`: the name is typed without the
 extension; the document's own is kept (a name already ending in it isn't
@@ -473,10 +485,11 @@ what the song starts with (the same values as `SongDefaultsState`);
 disabled, the BPM scrubber read-only) with the tooltip "Set by {bpm: 90} in
 the song". `bpm_display` is the effective tempo of the chord sounding while
 a song plays (it follows mid-song changes; after a stop it is `bpm` again),
-`bpm_editable` is `status == idle` and no `{bpm}` sets the start,
+`bpm_editable` is `status != playing` and no `{bpm}` sets the start,
 `play_action` drives the Play/Pause icon and tooltip. `key` is the first key
 option when none is set. The toolbar is republished after every detection. `set_bpm`
-is ignored while playing or paused; `set_bpm` and `set_multiplier_pct` clamp
+is ignored while playing (so are `set_key` and `set_time_signature`; the Tk
+toolbar disables the key and time widgets then); `set_bpm` and `set_multiplier_pct` clamp
 and snap with the scrubber's own `ScrubScale`. The notation observer
 re-detects, respells the key (`toolbar.convert_key`) and publishes the new
 key list. The Tk toolbar only maps `ToolbarState`; widgets send commands
