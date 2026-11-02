@@ -625,3 +625,35 @@ def test_licence_copies_are_the_repository_files_byte_for_byte(copy, original):
 def test_macos_tcl_tk_frameworks_are_covered(dest):
     """python.org's macOS Python bundles Tcl and Tk as frameworks named plain Tcl and Tk."""
     assert inv.match(dest, BY_ID["tcl-tk"]["files"])
+
+
+def test_source_bundle_downloads_retry_server_errors_only(monkeypatch):
+    import io
+    import urllib.error
+
+    import make_source_bundle as msb
+
+    def failing(code):
+        return urllib.error.HTTPError("https://x", code, "err", {}, io.BytesIO())
+
+    replies = [failing(502), failing(503), io.BytesIO(b"body")]
+
+    def urlopen(request, timeout):
+        reply = replies.pop(0)
+        if isinstance(reply, Exception):
+            raise reply
+        return reply
+
+    monkeypatch.setattr(msb.urllib.request, "urlopen", urlopen)
+    monkeypatch.setattr(msb.time, "sleep", lambda s: None)
+    assert msb._get("https://x", timeout=1) == b"body"
+
+    replies[:] = [failing(404), io.BytesIO(b"never")]
+    with pytest.raises(urllib.error.HTTPError):
+        msb._get("https://x", timeout=1)
+    assert len(replies) == 1
+
+    replies[:] = [failing(502)] * 4
+    with pytest.raises(urllib.error.HTTPError):
+        msb._get("https://x", timeout=1)
+    assert replies == []

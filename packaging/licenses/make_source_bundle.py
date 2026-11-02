@@ -34,6 +34,8 @@ import json
 import re
 import sys
 import tarfile
+import time
+import urllib.error
 import urllib.parse
 import urllib.request
 import zipfile
@@ -64,11 +66,27 @@ LAUNCHPAD = "https://api.launchpad.net/1.0/ubuntu/+archive/primary"
 COPYLEFT = re.compile(r"\b(L?GPL|AGPL|MPL)-")
 
 
-def _launchpad(params: dict) -> dict:
-    url = LAUNCHPAD + "?" + urllib.parse.urlencode(params)
+def _get(url: str, timeout: int, attempts: int = 4) -> bytes:
+    """``url``'s body, retrying server errors and dropped connections.
+
+    Launchpad's file server answers with the odd 502 or 503 under load, and a
+    release shouldn't fail on that.
+    """
     request = urllib.request.Request(url, headers={"User-Agent": "chord-notepad-licence-tools"})
-    with urllib.request.urlopen(request, timeout=60) as response:
-        return json.load(response)
+    for attempt in range(1, attempts + 1):
+        try:
+            with urllib.request.urlopen(request, timeout=timeout) as response:
+                return response.read()
+        except (urllib.error.URLError, TimeoutError) as e:
+            client_error = isinstance(e, urllib.error.HTTPError) and e.code < 500
+            if client_error or attempt == attempts:
+                raise
+            print(f"warning: {url}: {e}; retrying ({attempt}/{attempts - 1})", file=sys.stderr)
+            time.sleep(10 * attempt)
+
+
+def _launchpad(params: dict) -> dict:
+    return json.loads(_get(LAUNCHPAD + "?" + urllib.parse.urlencode(params), timeout=60))
 
 
 def ubuntu_source_files(source: str, version: str) -> list:
@@ -271,9 +289,7 @@ def main() -> int:
             for url in urls:
                 name = url.rsplit("/", 1)[1]
                 if fetch_it:
-                    request = urllib.request.Request(url, headers={"User-Agent": "chord-notepad-licence-tools"})
-                    with urllib.request.urlopen(request, timeout=300) as response:
-                        files[f"ubuntu/{name}"] = response.read()
+                    files[f"ubuntu/{name}"] = _get(url, timeout=300)
                 lines.append(f"  {url}" + ("  (in this bundle)" if fetch_it else ""))
             if fetch_it and urls:
                 included.append(f"{item['source']} {item['version']}")
