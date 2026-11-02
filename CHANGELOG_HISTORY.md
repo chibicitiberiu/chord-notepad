@@ -3,6 +3,21 @@
 Append-only log of published releases. Newer releases at the top.
 Entries are added automatically by the release pipeline.
 
+## v0.5.2 — 2026-11-02
+
+- Android: during playback, only a tap on a chord moves the playhead; a tap between chords no longer makes the song jump. Chords are also a little easier to hit, and tapping one while nothing plays scrolls the chord sheet to it.
+- Android: tap a greyed-out button or chord sheet tab to see why it's unavailable (was touch and hold).
+- Voicings editor: the **Load config** button is now **Copy from existing**, which says better what it does.
+- Tempo, time signature and key can now be changed while a song is paused, not only when it's stopped. Press Play and it carries on from the paused chord with the new values. While a song plays they are locked, like the voicing.
+- Android: the song pill's sheet is now called **Playback settings**. Each row says what it does, a note says the values aren't saved in the song, and **Write into song** works while paused too (Play then starts from the paused chord).
+- Android: tapping a chord in the chord sheet moves the playhead there too, like tapping it in the text. During playback the song jumps to it.
+- Chord sheet: the Staff view draws the key signature for keys in European notation (Sol, Fa, Mib...) too; before, those songs showed none.
+- Chord sheet: an ensemble's upper staff can use a treble clef with a small 8 below (**Upper staff** in the voicing's settings), so tenors are written an octave above how they sound, as in men's choir music. The Male Choir (TTBB) preset uses it, with its tenors on the upper staff; the Treble Choir and String Quartet presets now set each voice's staff too (the viola stays on Auto).
+- Ensemble voicings: each voice has ↑ and ↓ buttons to move it, so a voice added at the bottom can become the new top voice.
+- Ensemble voicings: the **Max spacing** list is gone. Each voice now has its own **Max gap to next voice** (in semitones), so there's no count of values to get right. A voice that gets a voice below it starts at an octave. Saved voicings are unchanged.
+- Chord sheet: with the octave-lower upper staff, a voice on Auto goes on the upper staff from C3 up (written as middle C), instead of from middle C.
+- Voicings editor: when something needs fixing, a banner says "Fix these errors to apply changes" and the fields with errors are marked red. On Android the banner stays in view while the form scrolls.
+
 ## v0.5.1 — 2026-11-02
 
 - Android: available on Chromebooks and other devices without a touchscreen (Google Play no longer requires one).
