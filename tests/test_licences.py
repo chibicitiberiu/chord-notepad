@@ -183,6 +183,20 @@ def test_flatpak_manifest_sources_match_the_inventory():
     assert "v" + BY_ID["fluidsynth-flatpak"]["version"] + ".tar.gz" in manifest
 
 
+def test_macos_fluidsynth_build_matches_the_inventory():
+    """build_fluidsynth.sh builds the source the macOS entry lists, the Flatpak's pinned FluidSynth."""
+    script = (REPO / "packaging/macos/build_fluidsynth.sh").read_text()
+    pairs = dict(re.findall(r"_URL=(\S+)\n\S+_SHA256=([0-9a-f]{64})", script))
+    sources = BY_ID["fluidsynth-macos"]["sources"]
+    assert {s["urls"][0]: s["sha256"] for s in sources} == pairs
+    flatpak = BY_ID["fluidsynth-flatpak"]
+    assert [(s["file"], s["sha256"]) for s in sources] == [(s["file"], s["sha256"]) for s in flatpak["sources"]]
+    assert BY_ID["fluidsynth-macos"]["version"] == flatpak["version"]
+    assert inv.match("fluidsynth/libfluidsynth.3.dylib", BY_ID["fluidsynth-macos"]["files"])
+    target = re.search(r"MACOSX_DEPLOYMENT_TARGET:-([\d.]+)", script).group(1)
+    assert f"'LSMinimumSystemVersion': '{target}'" in (REPO / "chord-notepad.spec").read_text()
+
+
 def test_guide_asset_entries_match_the_sphinx_stack_in_pipfile_lock():
     """The guide's _static files come from the docs toolchain the lock pins (installed in the venv)."""
     from importlib import metadata
@@ -385,6 +399,12 @@ def test_windows_list_has_the_fluidsynth_package_and_not_the_flatpak_one():
     assert "fluidsynth-flatpak" not in ids and "jeepney" not in ids
     flatpak = {e.id for e in cat.load_catalog(LICENSES, "flatpak").entries}
     assert "fluidsynth-flatpak" in flatpak and "cpython" not in flatpak and "fluidsynth-windows" not in flatpak
+
+
+def test_macos_list_has_its_own_fluidsynth():
+    ids = {e.id for e in cat.load_catalog(LICENSES, "macos").entries}
+    assert {"fluidsynth-macos", "gcem-macos", "cpython", "tcl-tk"} <= ids
+    assert not ids & {"fluidsynth-windows", "fluidsynth-flatpak", "glib-windows", "jeepney"}
 
 
 def test_missing_text_shows_a_placeholder(tmp_path):

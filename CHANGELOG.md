@@ -9,3 +9,6 @@ moved to CHANGELOG_HISTORY.md and this file is reset.
 
 - Android: available on Chromebooks and other devices without a touchscreen (Google Play no longer requires one).
 - Linux: ARM64 builds (a standalone `ChordNotepad-linux-arm64`, a Flatpak and a snap) next to the x64 ones.
+- macOS: a proper app in a disk image (`.dmg`): drag it to Applications and open it like any other Mac app, instead of running a bare program from Terminal.
+- macOS: a build for Intel Macs (`ChordNotepad-macos-x64.dmg`), next to the Apple silicon one.
+- macOS: FluidSynth is built into the app, so installing it from Homebrew is no longer needed.

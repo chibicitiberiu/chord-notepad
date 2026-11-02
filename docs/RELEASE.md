@@ -329,6 +329,29 @@ plus Pillow built from its sdist, and the snap resolves library paths with
 arm64 packages come from the same Ubuntu source packages. The arm64 builds are
 CI-built only and have not been run on real ARM hardware.
 
+## macOS app
+
+The `build` job runs on `macos-latest` (Apple silicon) and `macos-15-intel`
+(GitHub's last x86_64 image, due to retire around 2027) and attaches
+`ChordNotepad-macos-arm64.dmg` and `ChordNotepad-macos-x64.dmg`. On macOS the
+spec always builds a folder and wraps it in `dist/Chord Notepad.app`
+(bundle id `com.tibich.chordnotepad`, minimum macOS 11).
+
+- `packaging/macos/build_fluidsynth.sh` builds libfluidsynth from the same
+  pinned 2.6.1 source as the Flatpak, with C++11 threads instead of GLib and
+  only CoreAudio and CoreMIDI. It fails if the library links anything macOS
+  doesn't ship, so the app needs nothing from Homebrew. The spec bundles it
+  under `fluidsynth/` and `hooks/hook-fluidsynth.py` points the app at it.
+- `packaging/macos/make_dmg.sh` signs the bundle ad hoc and builds a
+  drag-to-Applications image.
+- `packaging/macos/smoke_test.sh` copies the app out of the image, checks the
+  signature and that libfluidsynth loads, opens it and waits for the startup
+  banner in the log.
+
+The app isn't signed with a Developer ID or notarized, so users allow it once
+in System Settings > Privacy & Security. Notarizing needs a paid Apple
+Developer Program membership. Neither build has been run on a real Mac.
+
 ## Flatpak bundle (Linux)
 
 Every Linux CI build also produces `ChordNotepad-linux-x64.flatpak` (and

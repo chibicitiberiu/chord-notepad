@@ -138,6 +138,7 @@ build: icons docs-html
 	@echo "Executable built successfully in dist/"
 	@echo "On Windows: dist/ChordNotepad.exe"
 	@echo "On Linux: dist/ChordNotepad"
+	@echo "On macOS: dist/Chord Notepad.app"
 
 # The Linux packages are named per CPU: x64 (default) or arm64 (CI's arm64 runner).
 LINUX_ARCH ?= x64
@@ -181,7 +182,7 @@ snap-check:
 clean:
 	rm -rf build/ dist/ __pycache__ .pytest_cache
 	rm -rf $(DOCS_BUILD)
-	rm -f resources/icon-*.png resources/*.ico
+	rm -f resources/icon-*.png resources/*.ico resources/*.icns
 	rm -rf $(FLATPAK_DIR)/.flatpak-builder $(FLATPAK_DIR)/build-dir $(FLATPAK_DIR)/repo
 	find . -type d -name "*.egg-info" -exec rm -rf {} + 2>/dev/null || true
 	find . -type f -name "*.pyc" -delete 2>/dev/null || true

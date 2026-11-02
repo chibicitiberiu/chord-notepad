@@ -144,9 +144,14 @@ jobs:
           - os: windows-latest
             artifact_name: ChordNotepad-windows
             asset_name: ChordNotepad-windows-x64.exe
+          # macOS ships a drag-to-Applications disk image per CPU. The Intel
+          # runner is GitHub's last x86_64 macOS image (retiring around 2027).
           - os: macos-latest
             artifact_name: ChordNotepad-macos
-            asset_name: ChordNotepad-macos-arm64
+            asset_name: ChordNotepad-macos-arm64.dmg
+          - os: macos-15-intel
+            artifact_name: ChordNotepad-macos-x64
+            asset_name: ChordNotepad-macos-x64.dmg
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -164,10 +169,13 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y fluidsynth libfluidsynth3
 
-      - name: Install system dependencies (macOS)
+      # libfluidsynth goes inside the app (FLUIDSYNTH_PATH is read by the spec),
+      # built from the pinned source with no Homebrew dependencies.
+      - name: Build FluidSynth (macOS)
         if: runner.os == 'macOS'
         run: |
-          brew install fluid-synth
+          packaging/macos/build_fluidsynth.sh "$RUNNER_TEMP/fluidsynth"
+          echo "FLUIDSYNTH_PATH=$RUNNER_TEMP/fluidsynth/lib" >> "$GITHUB_ENV"
 
       - name: Install system dependencies (Windows)
         if: runner.os == 'Windows'
@@ -261,8 +269,19 @@ jobs:
                   sys.exit(f'{name}: centre pixel {pixel} is not the pink pad; the SVG rendered wrong')
           "
 
+          # The macOS app icon, up to 1024 px for Retina displays.
+          if [[ "${{ runner.os }}" == "macOS" ]]; then
+            mkdir -p chord-notepad-icon.iconset
+            for size in 16 32 128 256 512; do
+              rsvg-convert -w $size -h $size chord-notepad-icon.svg -o chord-notepad-icon.iconset/icon_${size}x${size}.png
+              rsvg-convert -w $((size * 2)) -h $((size * 2)) chord-notepad-icon.svg -o chord-notepad-icon.iconset/icon_${size}x${size}@2x.png
+            done
+            iconutil -c icns chord-notepad-icon.iconset -o chord-notepad-icon.icns
+            rm -rf chord-notepad-icon.iconset
+          fi
+
           echo "Generated icon files:"
-          ls -lh icon-*.png chord-notepad-icon.ico
+          ls -lh icon-*.png chord-notepad-icon.ico chord-notepad-icon.icns 2>/dev/null || true
 
       - name: Generate build info
         shell: bash
@@ -359,12 +378,21 @@ jobs:
           CHORD_NOTEPAD_LICENCE_CHECK: strict
         run: pipenv run pyinstaller --clean chord-notepad.spec
 
-      - name: Prepare artifact (Linux/macOS)
-        if: runner.os != 'Windows'
+      - name: Prepare artifact (Linux)
+        if: runner.os == 'Linux'
         run: |
           cd dist
           mv ChordNotepad ${{ matrix.asset_name }}
           chmod +x ${{ matrix.asset_name }}
+
+      - name: Prepare artifact (macOS)
+        if: runner.os == 'macOS'
+        run: packaging/macos/make_dmg.sh "dist/Chord Notepad.app" "dist/${{ matrix.asset_name }}"
+
+      # Mount the image, copy the app out as a user would, and start it.
+      - name: Smoke-test disk image (macOS)
+        if: runner.os == 'macOS'
+        run: packaging/macos/smoke_test.sh "dist/${{ matrix.asset_name }}"
 
       - name: Prepare artifact (Windows)
         if: runner.os == 'Windows'
@@ -750,7 +778,7 @@ jobs:
             echo "### Downloads"
             echo "- **Linux**: \`ChordNotepad-linux-x64\` (Intel/AMD) or \`ChordNotepad-linux-arm64\` (ARM64), and the matching \`.flatpak\` bundles"
             echo "- **Windows**: \`ChordNotepad-windows-x64.exe\`"
-            echo "- **macOS**: \`ChordNotepad-macos-arm64\`"
+            echo "- **macOS**: \`ChordNotepad-macos-arm64.dmg\` (Apple silicon) or \`ChordNotepad-macos-x64.dmg\` (Intel)"
             if [[ -n "$PDF_LINE" ]]; then echo "$PDF_LINE"; fi
             echo "- **Source code**: \`ChordNotepad-${BASE_VERSION}-source.tar.gz\`, and the source of the bundled third-party libraries in \`ChordNotepad-${BASE_VERSION}-third-party-sources.tar\` (Help > Open Source Licences > Source code)"
             echo ""
@@ -767,12 +795,10 @@ jobs:
             echo "**Windows:**"
             echo "Double-click \`ChordNotepad-windows-x64.exe\` to run"
             echo ""
-            echo "**macOS:**"
-            echo '```bash'
-            echo "chmod +x ChordNotepad-macos-arm64"
-            echo "./ChordNotepad-macos-arm64"
-            echo '```'
-            echo "Note: Requires FluidSynth installed via Homebrew"
+            echo "**macOS (11 Big Sur or newer):**"
+            echo "Open the \`.dmg\` and drag Chord Notepad to Applications. The app isn't notarized by Apple yet,"
+            echo "so the first time you open it macOS blocks it: go to System Settings > Privacy & Security,"
+            echo "click **Open Anyway** next to Chord Notepad, and confirm. After that it opens normally."
             echo "$DELIM"
           } >> $GITHUB_OUTPUT
 
@@ -796,6 +822,7 @@ jobs:
             artifacts/ChordNotepad-flatpak-arm64/*
             artifacts/ChordNotepad-windows/*
             artifacts/ChordNotepad-macos/*
+            artifacts/ChordNotepad-macos-x64/*
             artifacts/documentation-pdf/*.pdf
             artifacts/sources/*
           body: ${{ steps.release_info.outputs.body }}

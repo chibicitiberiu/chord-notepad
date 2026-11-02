@@ -57,10 +57,24 @@ if sys.platform == 'win32':
                 break
         if not binaries:
             print("WARNING: FluidSynth DLLs not found. Set FLUIDSYNTH_PATH or install to C:\\tools\\fluidsynth")
+elif sys.platform == 'darwin':
+    # libfluidsynth built by packaging/macos/build_fluidsynth.sh; the workflow
+    # sets FLUIDSYNTH_PATH to its lib directory. Without it the app falls back
+    # to a Homebrew FluidSynth, if there is one.
+    fluidsynth_path = os.environ.get('FLUIDSYNTH_PATH', '')
+    library = os.path.join(fluidsynth_path, 'libfluidsynth.3.dylib')
+    if fluidsynth_path and os.path.isfile(library):
+        binaries = [(library, 'fluidsynth')]
+        print(f"Bundling {library}")
+    elif os.environ.get('CHORD_NOTEPAD_LICENCE_CHECK') == 'strict':
+        raise SystemExit(f"FluidSynth not found: {library}" if fluidsynth_path
+                         else "FluidSynth not found: FLUIDSYNTH_PATH is not set")
+    else:
+        print("WARNING: FluidSynth not bundled. Run packaging/macos/build_fluidsynth.sh and set FLUIDSYNTH_PATH")
 
-# Runtime hooks - handle FluidSynth DLL loading on Windows
+# Runtime hooks - point the app at the bundled FluidSynth (Windows and macOS)
 runtime_hooks = []
-if sys.platform == 'win32':
+if sys.platform in ('win32', 'darwin'):
     runtime_hooks.append('hooks/hook-fluidsynth.py')
 
 # Windows exe version metadata (Explorer Properties -> Details).
@@ -162,8 +176,16 @@ pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
 
 # CHORD_NOTEPAD_ONEDIR=1 builds a folder (dist/ChordNotepad/) instead of a single
 # exe. The Microsoft Store (MSIX) build uses it: a onefile exe inside a package
-# would unpack the whole bundle to %TEMP% on every launch.
-onedir = os.environ.get('CHORD_NOTEPAD_ONEDIR') == '1'
+# would unpack the whole bundle to %TEMP% on every launch. macOS always builds a
+# folder, wrapped in dist/Chord Notepad.app below.
+macos = sys.platform == 'darwin'
+onedir = os.environ.get('CHORD_NOTEPAD_ONEDIR') == '1' or macos
+
+# The .app's icon: an .icns the workflow makes from the SVG (iconutil), else
+# PyInstaller converts the .ico.
+mac_icon = 'resources/chord-notepad-icon.icns'
+if not os.path.isfile(mac_icon):
+    mac_icon = 'resources/chord-notepad-icon.ico'
 
 exe_options = dict(
     name='ChordNotepad',
@@ -184,7 +206,7 @@ exe_options = dict(
     codesign_identity=None,
     entitlements_file=None,
     # PyInstaller only embeds icons on Windows/macOS and warns elsewhere.
-    icon='resources/chord-notepad-icon.ico' if sys.platform in ('win32', 'darwin') else None,
+    icon=mac_icon if macos else 'resources/chord-notepad-icon.ico' if sys.platform == 'win32' else None,
     version=win_version_file,  # Embedded VS_VERSION_INFO on Windows
 )
 
@@ -209,4 +231,26 @@ else:
         [],
         runtime_tmpdir=None,
         **exe_options,
+    )
+
+if macos:
+    with open('VERSION', encoding='utf-8') as f:
+        base_version = f.read().strip()
+    app = BUNDLE(
+        coll,
+        name='Chord Notepad.app',
+        icon=mac_icon,
+        bundle_identifier='com.tibich.chordnotepad',
+        version=base_version,
+        info_plist={
+            'CFBundleDisplayName': 'Chord Notepad',
+            'CFBundleName': 'Chord Notepad',
+            'CFBundleVersion': base_version,
+            'NSHumanReadableCopyright': '(c) 2025-2026 Tiberiu Chibici. GNU AGPL-3.0',
+            'NSHighResolutionCapable': True,
+            'LSApplicationCategoryType': 'public.app-category.music',
+            # Keep in step with MACOSX_DEPLOYMENT_TARGET in
+            # packaging/macos/build_fluidsynth.sh.
+            'LSMinimumSystemVersion': '11.0',
+        },
     )

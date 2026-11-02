@@ -8,7 +8,8 @@ A text editor for chord notation. Write chord symbols above your lyrics and Chor
 
 ## Notes:
 
-- macOS version has had limited testing; feedback welcome.
+- The macOS app is built and smoke-tested by CI on Apple silicon and Intel, but
+  hasn't been tried on a real Mac yet; feedback welcome.
 
 ## Features
 
@@ -65,8 +66,11 @@ Download the latest release from the [Releases](https://github.com/chibicitiberi
   executable; needs the FluidSynth library, see below). On ARM64 machines
   (Raspberry Pi 5, Asahi, ARM servers) use the `-linux-arm64` files instead.
 - **Windows**: `ChordNotepad-windows-x64.exe` (FluidSynth is bundled)
-- **macOS**: `ChordNotepad-macos-arm64` (needs FluidSynth from Homebrew:
-  `brew install fluid-synth`)
+- **macOS** (11 Big Sur or newer): `ChordNotepad-macos-arm64.dmg` for Apple
+  silicon (M1 and later) or `ChordNotepad-macos-x64.dmg` for Intel Macs. Open
+  it and drag Chord Notepad to Applications (FluidSynth is bundled). The app
+  isn't notarized by Apple yet, so the first time macOS blocks it: open System
+  Settings > Privacy & Security and click **Open Anyway**.
 
 Every release is built and tested by GitHub Actions, and comes with the full
 source code and the source of the bundled libraries.

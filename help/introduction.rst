@@ -186,10 +186,16 @@ System Requirements
 
    * **Linux** (requires libfluidsynth)
    * **Windows**
-   * **macOS**
+   * **macOS** 11 Big Sur or newer, on Apple silicon or Intel
 
    Audio playback requires a working sound system. The application uses FluidSynth
    for instrument synthesis.
+
+   On macOS, open the ``.dmg`` file and drag Chord Notepad to Applications. The
+   app isn't notarized by Apple yet, so the first time you open it macOS says
+   it can't check it and won't open it. Open System Settings, go to Privacy &
+   Security, click **Open Anyway** next to Chord Notepad, and confirm. After
+   that it opens like any other app.
 
 .. only:: android
 

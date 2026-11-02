@@ -417,6 +417,45 @@
       "note": "Header-only maths library, compiled into FluidSynth."
     },
     {
+      "id": "fluidsynth-macos",
+      "name": "FluidSynth",
+      "group": "native",
+      "version": "2.6.1",
+      "license": "LGPL-2.1-or-later",
+      "copyright": "FluidSynth contributors",
+      "url": "https://www.fluidsynth.org/",
+      "sourceUrl": "https://github.com/FluidSynth/fluidsynth/tree/v2.6.1",
+      "texts": ["LGPL-2.1"],
+      "builds": ["macos"],
+      "files": ["fluidsynth/libfluidsynth*.dylib"],
+      "sources": [
+        {
+          "file": "fluidsynth-2.6.1.tar.gz",
+          "urls": ["https://github.com/FluidSynth/fluidsynth/archive/refs/tags/v2.6.1.tar.gz"],
+          "sha256": "3d258a3bf97cc20c59eeebfe62c2432fae88adda74d3ad098681c76e0ebf446b",
+          "role": "Built unchanged by packaging/macos/build_fluidsynth.sh (the build options are there)."
+        },
+        {
+          "file": "gcem-012ae73c6d0a2cb09ffe86475f5c6fba3926e200.tar.gz",
+          "urls": ["https://github.com/kthohr/gcem/archive/012ae73c6d0a2cb09ffe86475f5c6fba3926e200.tar.gz"],
+          "sha256": "34ab0ee87a9eb26d3087fa9b49c2572ea8ee03db0c9705b83648301a3a3fc172",
+          "role": "FluidSynth's gcem submodule, which its release tarball leaves out."
+        }
+      ],
+      "note": "The synthesizer that plays the chords, built from source for the macOS app."
+    },
+    {
+      "id": "gcem-macos",
+      "name": "GCE-Math (gcem)",
+      "group": "native",
+      "license": "Apache-2.0",
+      "copyright": "Keith O'Hara",
+      "url": "https://github.com/kthohr/gcem",
+      "texts": ["gcem-Apache-2.0"],
+      "builds": ["macos"],
+      "note": "Header-only maths library, compiled into FluidSynth."
+    },
+    {
       "id": "tcl-tk-flatpak",
       "name": "Tcl/Tk",
       "group": "runtime",
