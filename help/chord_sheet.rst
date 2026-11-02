@@ -148,7 +148,10 @@ accidental -- while the chord labels stay exactly as you typed them.
 Available for any voicing. An
 ensemble voicing routes each voice to the staff (treble or bass) set for
 it -- see :doc:`ensembles` for where that per-voice ``staff`` setting comes
-from -- and colors each voice, with a small legend at the left. The piano
+from -- and colors each voice, with a small legend at the left. An ensemble
+can also set its upper staff to a treble clef with a small 8 below, the usual
+clef for tenors: the notes on that staff are then written an octave higher
+than they sound (the Male Choir (TTBB) preset does this). The piano
 model splits by hand (left hand to the bass staff, right hand to the
 treble); everything else splits at middle C.
 

@@ -287,7 +287,8 @@ you there.
    :doc:`fretted`). For an ensemble voicing: the voices
    :plat:`table -- a row per voice with Name, Low, High and Staff columns|-- a
    card per voice with Name, Low, High and Staff`, an **Add voice** button,
-   and a remove button on each :plat:`row|card` -- plus spacing, unisons, and all the
+   and a remove button on each :plat:`row|card` -- plus the upper staff's
+   clef (Treble, or Treble, octave lower for tenors), spacing, unisons, and all the
    weights, including the doubling, omission, and inversion groups (see
    :doc:`ensembles`). For a piano voicing: the left- and right-hand ranges,
    the preferred bass range, the right-hand low anchor and center, the

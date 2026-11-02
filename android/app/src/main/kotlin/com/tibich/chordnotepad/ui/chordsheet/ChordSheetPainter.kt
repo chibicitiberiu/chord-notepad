@@ -111,7 +111,7 @@ private fun polygonPath(points: FloatArray, smooth: Boolean) = Path().apply {
 }
 
 /**
- * The six base clef/glyph PNGs (assets/chord_sheet/<asset>.png), scaled once
+ * The seven base clef/glyph PNGs (assets/chord_sheet/<asset>.png), scaled once
  * per (asset, pixel height) and kept. Thread-safe; [preload] runs off Main.
  */
 class GlyphCache(private val assets: AssetManager) {

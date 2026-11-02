@@ -111,6 +111,13 @@ class VoicingFormTest {
         assertEquals(FieldKind.INT_LIST, fields.getValue("max_spacing").spec.kind)
         assertEquals("(comma-separated, 1 values expected)", fields.getValue("max_spacing").hint)
         assertEquals(FieldKind.FLOAT_OR_LIST, fields.getValue("movement").spec.kind)
+        // The upper staff's clef: a choice in its own stack, plain treble by default.
+        val clef = fields.getValue("upper_clef")
+        assertEquals(FieldKind.CHOICE, clef.spec.kind)
+        assertEquals("Upper staff", clef.spec.label)
+        assertEquals(listOf("Treble", "Treble, octave lower (tenors)"), clef.spec.choices.map { it.label })
+        assertEquals("Treble", clef.choice!!.label)
+        assertTrue(items.filterIsInstance<FormItem.Stack>().any { stack -> stack.fields.any { it.spec.id == "upper_clef" } })
         // The nested groups (doubling, omit, inversion) are titled sub-grids.
         val subTitles = items.filterIsInstance<FormItem.Header>().filter { it.level == 1 }.map { it.title }
         assertEquals(3, subTitles.size)

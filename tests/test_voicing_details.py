@@ -155,6 +155,20 @@ class TestVoiceStavesPlumbing:
         assert all(s in ('treble', 'bass') for s in rendered.voice_staves)
         assert len(rendered.voice_staves) == len(picker.voice_labels)
 
+    def test_male_choir_carries_the_octave_lower_treble(self):
+        picker = EnsembleVoicer(BUILTIN_ENSEMBLES['ttbb'])
+        rendered = _render("C G Am F\n", picker)
+        assert picker.upper_clef == 'treble_8vb'
+        assert rendered.upper_clef == 'treble_8vb'
+        # Low to high: Bass, Baritone, Tenor 2, Tenor 1.
+        assert rendered.voice_staves == ['bass', 'bass', 'treble', 'treble']
+
+    def test_other_pickers_draw_a_plain_treble(self):
+        for picker in (EnsembleVoicer(BUILTIN_ENSEMBLES['satb']), GuitarChordPicker(),
+                       ChordNotePicker()):
+            rendered = _render("C G Am F\n", picker)
+            assert rendered.upper_clef == 'treble'
+
 
 class _MinimalPicker(INotePicker):
     """Smallest possible custom picker: only the abstract API, no overrides.

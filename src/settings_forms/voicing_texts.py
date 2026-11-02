@@ -91,6 +91,9 @@ MODEL_LABELS: Dict[str, str] = {'fretboard': 'Fretboard', 'ensemble': 'Ensemble'
 #: Display names for a voice's staff selector ('Auto' is the absent/None key).
 STAFF_LABELS = ((None, 'Auto'), ('treble', 'Treble'), ('bass', 'Bass'))
 
+#: Display names for an ensemble's upper-staff clef selector.
+UPPER_CLEF_LABELS = (('treble', 'Treble'), ('treble_8vb', 'Treble, octave lower (tenors)'))
+
 #: Editor strings that aren't tied to one field.
 EDITOR_TEXTS: Dict[str, str] = {
     'load_button': 'Copy from existing',
@@ -192,6 +195,8 @@ TOOLTIPS: Dict[str, str] = {
     'max_spacing': ("Maximum semitone gap allowed between each pair of neighbouring voices; "
                     "comma-separated, one value per gap."),
     'allow_unisons': "Whether two neighbouring voices may land on the same pitch.",
+    'upper_clef': ("The clef of the Staff view's upper staff; octave lower writes its notes "
+                   "an octave above how they sound, as tenor parts are."),
 
     # Ensemble weights.
     'weight:movement': ("How the picker treats an inner or upper voice moving between chords, "

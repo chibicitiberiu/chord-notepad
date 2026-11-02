@@ -229,6 +229,11 @@ class SongRenderer:
         # song in context, then assign the results back. Rests and skipped
         # chords keep midi_notes=None.
         voice_labels, voice_staves = self._voice_rendered_chords(rendered)
+        # The upper-staff clef only means something for a fixed ensemble (it
+        # rides with voice_staves); everything else draws a plain treble.
+        upper_clef = None
+        if voice_staves is not None:
+            upper_clef = getattr(self._note_picker, 'upper_clef', None)
 
         # Finalize whole-song bar count (round up any partial bar), matching the
         # old _compute_total_bars behaviour.
@@ -247,6 +252,7 @@ class SongRenderer:
             markers=state['markers'],
             voice_labels=voice_labels,
             voice_staves=voice_staves,
+            upper_clef=upper_clef or 'treble',
         )
 
     # ------------------------------------------------------------------

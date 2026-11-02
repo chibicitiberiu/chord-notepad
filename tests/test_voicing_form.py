@@ -241,6 +241,42 @@ def test_staff_choice_labels_and_values():
         [None, 'treble', 'bass', 'alto']
 
 
+def test_upper_clef_choice_labels_and_values():
+    field = next(f for f in vf.iter_fields(vf.form_schema('ensemble'))
+                 if f['id'] == 'upper_clef')
+    assert field['kind'] == vf.KIND_CHOICE
+    assert field['label'] == 'Upper staff'
+    assert field['default'] == 'treble'
+    assert [(c['value'], c['label']) for c in field['choices']] == [
+        ('treble', 'Treble'), ('treble_8vb', 'Treble, octave lower (tenors)')]
+    assert field['help']
+
+
+def test_upper_clef_round_trips_through_the_form():
+    ttbb = {'model': 'ensemble', **BUILTIN_ENSEMBLES['ttbb'].to_dict()}
+    values = vf.values_from_voicing('ensemble', ttbb)
+    assert values['upper_clef'] == 'treble_8vb'
+    assert vf.voicing_from_values('ensemble', values)['upper_clef'] == 'treble_8vb'
+    # Back to treble: the key is dropped, as for any voicing saved before it.
+    plain = vf.voicing_from_values('ensemble', {**values, 'upper_clef': 'treble'})
+    assert 'upper_clef' not in plain
+    assert vf.values_from_voicing('ensemble', plain)['upper_clef'] == 'treble'
+    assert EnsembleSpec.from_dict('t', plain).upper_clef == 'treble'
+
+
+def test_bad_upper_clef_is_a_field_error():
+    values = {**vf.default_values('ensemble'), 'upper_clef': 'alto'}
+    assert vf.field_errors('ensemble', values) == {'upper_clef': 'Not one of the choices'}
+    assert vf.cross_field_errors('Duo', 'ensemble', values) == [
+        "Ensemble 'Duo': invalid 'upper_clef' 'alto'; must be 'treble' or 'treble_8vb'"]
+
+
+def test_load_presets_carry_the_male_choir_clef():
+    presets = {p['label']: p['data'] for p in vf.load_presets()}
+    assert presets['Male Choir (TTBB)']['upper_clef'] == 'treble_8vb'
+    assert 'upper_clef' not in presets['Choir (SATB)']
+
+
 def test_add_and_remove_record_normalise_like_the_desktop():
     values = vf.default_values('ensemble')
     values['voices'][0] = {**values['voices'][0], 'low': 'Db4'}

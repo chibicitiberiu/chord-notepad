@@ -96,6 +96,30 @@
       {
        "fields": [
         {
+         "choices": [
+          {
+           "label": "Treble",
+           "value": "treble"
+          },
+          {
+           "label": "Treble, octave lower (tenors)",
+           "value": "treble_8vb"
+          }
+         ],
+         "default": "treble",
+         "help": "The clef of the Staff view's upper staff; octave lower writes its notes an octave above how they sound, as tenor parts are.",
+         "id": "upper_clef",
+         "kind": "choice",
+         "label": "Upper staff"
+        }
+       ],
+       "id": "staff",
+       "kind": "stack",
+       "title": null
+      },
+      {
+       "fields": [
+        {
          "default": "",
          "help": "Maximum semitone gap allowed between each pair of neighbouring voices; comma-separated, one value per gap.",
          "hint": "(comma-separated, {count} values expected)",

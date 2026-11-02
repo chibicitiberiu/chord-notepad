@@ -74,7 +74,7 @@ _HEADER_FONT = ('TkDefaultFont', 9, 'bold')
 
 # Desktop-only spacing that differs between otherwise alike sections/fields.
 _SECTION_PADY = {('fretboard', 'physical'): (6, 0), ('piano', 'physical'): (8, 0)}
-_STACK_FIELD_PADY = {'max_spacing': (8, 2), 'allow_unisons': 2}
+_STACK_FIELD_PADY = {'upper_clef': (8, 2), 'max_spacing': (4, 2), 'allow_unisons': 2}
 _STACK_TEXT_PADY = 2
 _STACK_CHECK_PADY = (4, 2)
 
@@ -593,7 +593,7 @@ class VoicingsPage(ttk.Frame):
 
     def _render_stack(self, inner: ttk.Frame, section: Mapping[str, Any],
                       values: Mapping[str, Any], row: int) -> int:
-        """Fields one under another: a labelled entry (plus hint), or a checkbox."""
+        """Fields one under another: a labelled entry (plus hint), a choice, or a checkbox."""
         for field in section['fields']:
             fid = field['id']
             if field['kind'] == KIND_BOOL:
@@ -607,6 +607,19 @@ class VoicingsPage(ttk.Frame):
                 row += 1
                 continue
             pady = _STACK_FIELD_PADY.get(fid, _STACK_TEXT_PADY)
+            if field['kind'] == KIND_CHOICE:
+                self._tip_label(inner, field['label'] + ':', field['help'],
+                                row=row, column=0, sticky='w', pady=pady)
+                var = tk.StringVar(value=choice_label(field, values[fid]))
+                labels = [c['label'] for c in field['choices']]
+                combo = ttk.Combobox(inner, textvariable=var, state='readonly', values=labels,
+                                     width=max(len(label) for label in labels) + 2)
+                combo.grid(row=row, column=1, sticky='w', pady=pady)
+                combo.bind('<<ComboboxSelected>>', self._commit_form)
+                self._register_field(fid, combo, field['help'])
+                self._value_getters[fid] = lambda v=var, f=field: choice_value(f, v.get())
+                row += 1
+                continue
             self._tip_label(inner, field['label'] + ':', field['help'],
                             row=row, column=0, sticky='w', pady=pady)
             var = tk.StringVar(value=values[fid])

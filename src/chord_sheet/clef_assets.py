@@ -1,14 +1,15 @@
 """Embedded grand-staff clef assets for the chord-sheet staff renderer.
 
-The two clefs (treble G-clef, bass F-clef) are Bravura glyphs rendered at high
-resolution upstream, then downscaled here (LANCZOS, <= 256px tall) and
+The three clefs (treble G-clef, the octave-lower treble ``gClef8vb`` for
+tenors, bass F-clef) are Bravura glyphs rendered at high resolution upstream,
+cropped to their ink, then downscaled here (LANCZOS, <= 256px tall) and
 base64-embedded so the staff card never touches an external file (the strict
 Artifact/PyInstaller sandbox forbids remote assets). Each blob keeps its
 *scaled* SMuFL registration metadata: ``px_per_staff_space`` (how many image
 pixels one staff space spans at the embedded size) and ``baseline_y`` (the y,
 in image pixels from the top, where the clef's reference staff line crosses --
-the G line, 2nd from the bottom, for treble; the F line, 2nd from the top, for
-bass).
+the G line, 2nd from the bottom, for both treble clefs; the F line, 2nd from
+the top, for bass).
 
 A painter that draws a staff at some ``staff_space_px`` asks
 :func:`clef_placement` for the image key + geometry to place: it emits an
@@ -16,8 +17,8 @@ A painter that draws a staff at some ``staff_space_px`` asks
 so the clef's reference line lands exactly on the right staff line.
 
 **Image key format** -- the string an ``ImageOp`` carries and the panel later
-resolves: ``'clef_<kind>:<int-height>'`` where ``<kind>`` is ``treble`` or
-``bass`` and ``<int-height>`` is the target image height in whole pixels
+resolves: ``'clef_<kind>:<int-height>'`` where ``<kind>`` is ``treble``,
+``treble_8vb`` or ``bass`` and ``<int-height>`` is the target image height in whole pixels
 (e.g. ``'clef_treble:96'``). :func:`clef_placement` builds the key;
 :func:`parse_image_key` splits it back into the base asset, the height and the
 optional tint, and :func:`scaled_width` gives the width (it follows from the
@@ -45,7 +46,7 @@ painter anchors the image ``'nw'`` at ``(x - origin_x, staff_y - origin_y)``.
 **No Pillow here.** This module is shared with Android, which has no Pillow:
 it holds the embedded PNG bytes, the placement math and the key grammar only.
 Decoding, resizing and tinting for Tk live in :mod:`ui.chord_sheet.clef_images`;
-Android draws the six base PNGs (:func:`base_glyph_pngs`) itself, scaled to the
+Android draws the seven base PNGs (:func:`base_glyph_pngs`) itself, scaled to the
 key's height and tinted with a colour filter.
 """
 from __future__ import annotations
@@ -323,6 +324,107 @@ _BASS_PNG_B64 = (
     "RU5ErkJggg=="
 )
 
+_TREBLE_8VB_PNG_B64 = (
+    "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"
+)
+
 _CLEF_BASE: Dict[str, _ClefBase] = {
     "treble": _ClefBase(
         _TREBLE_PNG_B64,
@@ -331,6 +433,10 @@ _CLEF_BASE: Dict[str, _ClefBase] = {
     "bass": _ClefBase(
         _BASS_PNG_B64,
         197, 256, 71.234783, 74.573913,
+    ),
+    "treble_8vb": _ClefBase(
+        _TREBLE_8VB_PNG_B64,
+        87, 256, 32.388664, 142.251012,
     ),
 }
 
@@ -565,7 +671,7 @@ def base_size(asset: str) -> Tuple[int, int]:
 def base_glyph_pngs() -> Dict[str, bytes]:
     """Return every base asset's PNG bytes, keyed by asset name.
 
-    These are the six images Android ships (``<asset>.png``) and draws itself:
+    These are the seven images Android ships (``<asset>.png``) and draws itself:
     an image key's ``asset`` part names the file, its height scales it and its
     tint (if any) becomes a colour filter over the black ink.
     """
@@ -588,7 +694,7 @@ def parse_image_key(key: str) -> Optional[ImageKey]:
 
     The grammar:
 
-    - ``'clef_<kind>:<int-height>'`` -- a treble/bass clef.
+    - ``'clef_<kind>:<int-height>'`` -- a treble, octave-lower treble or bass clef.
     - ``'glyph_<name>:<int-height>'`` -- a black-ink notehead/accidental.
     - ``'glyph_<name>:<int-height>:<rrggbb>'`` -- a tinted glyph variant.
 
@@ -650,7 +756,7 @@ def clef_placement(kind: str, staff_space_px: float) -> ClefPlacement:
     """Compute the image key + placement geometry for a clef on a staff.
 
     Args:
-        kind: ``'treble'`` or ``'bass'``.
+        kind: ``'treble'``, ``'treble_8vb'`` or ``'bass'``.
         staff_space_px: The staff's staff-space size in px (one line-to-line
             gap) at the card's scale.
 
@@ -660,7 +766,7 @@ def clef_placement(kind: str, staff_space_px: float) -> ClefPlacement:
         clef's reference line from the image top.
 
     Raises:
-        KeyError: if ``kind`` is not ``'treble'`` or ``'bass'``.
+        KeyError: if ``kind`` is not a known clef.
     """
     data = _CLEF_BASE[kind]
     scale = staff_space_px / data.px_per_staff_space

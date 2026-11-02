@@ -20,7 +20,6 @@ from dataclasses import dataclass
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple
 
 from settings_forms import voicing_form as form
-from settings_forms.voicing_texts import STAFF_LABELS
 
 #: The records field and its cell ids (``voice:<row>:<column>``).
 _RECORDS = 'voices'
@@ -354,7 +353,9 @@ def field_syntax(field: Optional[Mapping[str, Any]], values: Mapping[str, Any],
     if kind == form.KIND_FLOAT_OR_LIST:
         return 'Use a number, or one number per voice separated by commas.'
     if kind == form.KIND_CHOICE:
-        names = [label for _, label in STAFF_LABELS]
+        names = [choice['label'] for choice in field.get('choices', [])]
+        if len(names) < 2:
+            return ''
         return f"Choose {', '.join(names[:-1])} or {names[-1]}."
     return ''
 

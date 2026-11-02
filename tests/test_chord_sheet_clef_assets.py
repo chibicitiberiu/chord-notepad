@@ -24,11 +24,35 @@ def _png_size(data: bytes):
     return struct.unpack(">II", data[16:24])
 
 
-def test_base_assets_are_the_six_glyphs():
+def test_base_assets_are_the_seven_glyphs():
     assert ca.BASE_ASSETS == (
-        "clef_treble", "clef_bass", "glyph_notehead_whole",
+        "clef_treble", "clef_bass", "clef_treble_8vb", "glyph_notehead_whole",
         "glyph_accidental_sharp", "glyph_accidental_flat", "glyph_accidental_natural",
     )
+
+
+# Bravura's SMuFL bounding boxes (bravura_metadata.json, staff spaces from the
+# glyph origin, which sits on the G line for both treble clefs): gClef spans
+# 4.392 above to 2.632 below; gClef8vb has the same top and its 8 reaches
+# 3.512 below.
+@pytest.mark.parametrize("kind,above,below", [
+    ("treble", 4.392, 2.632),
+    ("treble_8vb", 4.392, 3.512),
+])
+def test_treble_clefs_register_on_the_g_line(kind, above, below):
+    base = ca._CLEF_BASE[kind]
+    assert base.baseline_y / base.px_per_staff_space == pytest.approx(above, abs=0.01)
+    assert base.height / base.px_per_staff_space == pytest.approx(above + below, abs=0.02)
+
+
+def test_octave_lower_treble_is_drawn_at_the_treble_size():
+    # Same staff space -> the same clef body height above the G line, so the
+    # 8vb clef is the plain treble with the 8 added below.
+    s = 10.0
+    treble = ca.clef_placement("treble", s)
+    lower = ca.clef_placement("treble_8vb", s)
+    assert lower.baseline_y == pytest.approx(treble.baseline_y, abs=0.5)
+    assert lower.height - lower.baseline_y == pytest.approx(3.512 * s, abs=0.6)
 
 
 def test_base_glyph_pngs_are_pngs_of_the_recorded_size():
@@ -38,7 +62,7 @@ def test_base_glyph_pngs_are_pngs_of_the_recorded_size():
         assert _png_size(data) == ca.base_size(asset)
 
 
-@pytest.mark.parametrize("kind", ["treble", "bass"])
+@pytest.mark.parametrize("kind", ["treble", "bass", "treble_8vb"])
 def test_clef_key_parses_back_to_its_placement(kind):
     placement = ca.clef_placement(kind, 9.0)
     parsed = ca.parse_image_key(placement.key)

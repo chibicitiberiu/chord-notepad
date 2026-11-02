@@ -179,3 +179,14 @@ class INotePicker(ABC):
         guitar), which is the default.
         """
         return None
+
+    @property
+    def upper_clef(self) -> Optional[str]:
+        """Clef of a grand-staff chord sheet's upper staff, or ``None``.
+
+        Reported by the same fixed-ensemble pickers that report
+        :attr:`voice_staves`: ``'treble'``, or ``'treble_8vb'`` (the treble
+        clef with an 8 below, its notes written an octave above how they
+        sound). ``None`` for free-voiced pickers, which draw a plain treble.
+        """
+        return None

@@ -187,3 +187,8 @@ class RenderedSong:
     ``voice_labels``) exactly like ``voice_labels`` is. A chord-sheet staff
     renderer uses ``voice_staves[i]`` to decide which staff of a grand staff
     the note ``voice_notes[i]`` (sung by ``voice_labels[i]``) is drawn on."""
+    upper_clef: str = 'treble'
+    """Clef of a grand-staff chord sheet's upper staff: ``'treble'``, or
+    ``'treble_8vb'`` (an ensemble's octave-lower treble, from
+    ``INotePicker.upper_clef``), whose notes are written an octave above how
+    they sound. Drawing only: the sounding notes are unchanged."""

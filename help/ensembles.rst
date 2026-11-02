@@ -57,6 +57,9 @@ The traditional four-part mixed choir.
      - E2 - C4
      - --
 
+The Staff view of the chord sheet (see :doc:`chord_sheet`) draws the soprano
+and alto on the treble staff, the tenor and bass on the bass staff.
+
 Male Choir (TTBB)
 -----------------
 
@@ -82,6 +85,12 @@ A four-part male choir: two tenor lines above a baritone and bass.
      - E2 - C4
      - --
 
+In the Staff view the two tenors are on the upper staff, under a treble clef
+with a small 8 below it: as in printed men's choir music, their notes are
+written an octave higher than they sound, so a tenor's middle C sits in the
+third space instead of on a ledger line. The baritone and bass are on the
+bass staff.
+
 Treble Choir (SSA)
 ------------------
 
@@ -103,6 +112,8 @@ A three-part treble choir: two soprano lines over an alto.
    * - Alto
      - F3 - D5
      - --
+
+All three voices are drawn on the treble staff.
 
 String Quartet
 ---------------
@@ -128,6 +139,10 @@ Two violins, viola, and cello, each ranged to its actual instrument.
    * - Cello
      - C2 - E4
      - --
+
+The violins are drawn on the treble staff and the cello on the bass staff.
+The viola, normally written in the alto clef, picks its staff from its range,
+which puts it on the treble staff.
 
 All four presets allow adjacent voices to land on the same pitch (a
 unison), since that's an ordinary, occasional occurrence in real choral and
@@ -290,9 +305,15 @@ Custom Ensembles
      voicing on a grand staff.
      Leave it out and Chord Notepad picks the staff automatically from the
      voice's range: ``"bass"`` if the range center sits below middle C,
-     ``"treble"`` otherwise. The built-in Choir (SATB) pins soprano and alto
-     to ``"treble"`` and tenor and bass to ``"bass"`` explicitly; every other
-     built-in leaves it to the automatic rule.
+     ``"treble"`` otherwise. The built-ins pin their voices explicitly (the
+     staffs listed under `The Four Presets`_), except the string quartet's
+     viola.
+   * ``upper_clef`` is optional: the clef of the Staff view's upper staff.
+     ``"treble"`` (the default) is the plain treble clef; ``"treble_8vb"`` is
+     the treble clef with a small 8 below, used for tenors: every note on the
+     upper staff is written an octave higher than it sounds. It only changes
+     the drawing, never what plays. The built-in Male Choir (TTBB) uses
+     ``"treble_8vb"``.
    * ``max_spacing`` is optional: the maximum semitone gap allowed between
      each pair of neighbouring voices, one entry per gap (so one fewer entry
      than there are voices). Leave it out and Chord Notepad defaults every
@@ -317,8 +338,8 @@ Custom Ensembles
    * **Staff**: where the chord sheet's Staff view draws the voice (see
      :doc:`chord_sheet`). **Auto** picks it from the range: the bass staff
      if the middle of the range is below middle C, the treble staff
-     otherwise. The built-in Choir (SATB) sets soprano and alto to Treble
-     and tenor and bass to Bass; every other built-in leaves it on Auto.
+     otherwise. The built-ins set each voice's staff (listed under
+     `The Four Presets`_); only the string quartet's viola is on Auto.
 
    **Add voice** adds a voice at the bottom and **✕** removes one. An
    ensemble has 2 to 8 voices.
@@ -336,6 +357,11 @@ Custom Ensembles
 
    Under the voices:
 
+   * **Upper staff**: the clef of the Staff view's upper staff. **Treble** is
+     the plain treble clef. **Treble, octave lower (tenors)** adds a small 8
+     below it and writes every note on that staff an octave higher than it
+     sounds, as men's choir music does for tenors. It only changes the
+     drawing. The built-in Male Choir (TTBB) uses it.
    * **Max spacing**: the largest gap, in semitones, allowed between each
      pair of neighbouring voices, as a comma-separated list with one number
      fewer than there are voices. The hint under the field says how many it

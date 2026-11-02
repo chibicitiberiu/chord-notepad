@@ -76,7 +76,7 @@ android/
   tools/check_16k.py                16 KB page-size check for an APK
   tools/check_manifest.py           per flavour: no INTERNET, no emoji2 font initializer, only billing's Play entries (play), touchscreen not required
   tools/compare_apks.py             entry-by-entry APK diff (reproducibility)
-  tools/export_clef_glyphs.py       the chord sheet's six base clef/glyph PNGs (Gradle: exportClefGlyphs)
+  tools/export_clef_glyphs.py       the chord sheet's seven base clef/glyph PNGs (Gradle: exportClefGlyphs)
   tools/mdi_icons.py                Material Design Icons -> res/drawable/mdi_*.xml (pinned @mdi/svg, sha256)
 ```
 
@@ -980,9 +980,9 @@ Rect/oval fill or outline "none" (`0xFFFF`) or `""` means don't paint that
 part. Line, polygon and text never come without a fill today; if one does,
 Tk's default is black.
 
-**Image keys** (staff view only): `clef_<kind>:<h>`, `glyph_<name>:<h>` and
+**Image keys** (staff view only): `clef_<kind>:<h>` (`treble`, `treble_8vb` or `bass`), `glyph_<name>:<h>` and
 `glyph_<name>:<h>:<rrggbb>` (`chord_sheet.clef_assets.parse_image_key`).
-The part before the first `:` names one of six base PNGs that the
+The part before the first `:` names one of seven base PNGs that the
 `exportClefGlyphs` Gradle task puts in `assets/chord_sheet/<name>.png`
 (from `android/tools/export_clef_glyphs.py`, with a `glyphs.json` of base
 sizes). Draw it `h` dp tall and `max(1, round(base_w * h / base_h))` wide,

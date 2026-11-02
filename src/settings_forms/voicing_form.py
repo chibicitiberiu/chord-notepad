@@ -42,6 +42,7 @@ from models.ensemble_spec import (
     BUILTIN_ENSEMBLES,
     DEFAULT_WEIGHTS as ENSEMBLE_DEFAULT_WEIGHTS,
     EnsembleSpec,
+    VALID_UPPER_CLEFS,
     _NESTED_WEIGHT_KEYS,
     midi_to_note_name,
     parse_note_name,
@@ -68,6 +69,7 @@ from settings_forms.voicing_texts import (
     ROLE_LABELS,
     STAFF_LABELS,
     TOOLTIPS,
+    UPPER_CLEF_LABELS,
     WEIGHTS_BLURB,
     nested_tooltip,
     piano_weight_tooltip,
@@ -116,6 +118,9 @@ _KIND_ERRORS = {
     KIND_FLOAT_OR_LIST: 'Must be a number or list of numbers',
     KIND_CHOICE: "Must be 'treble', 'bass', or omitted",
 }
+
+#: Error message of a top-level choice field (the ensemble's upper clef).
+_CHOICE_ERROR = 'Not one of the choices'
 
 _PIANO_RANGE_KEYS = ('lh_range', 'rh_range', 'bass_range', 'rh_low_anchor')
 _PIANO_INT_KEYS = ('rh_low_interval_floor', 'hand_span', 'max_notes_per_hand',
@@ -406,6 +411,12 @@ def _ensemble_schema() -> Dict[str, Any]:
         'title': MODEL_LABELS['ensemble'],
         'sections': [
             {'id': 'voices', 'kind': SECTION_TABLE, 'title': 'Voices', 'fields': [voices]},
+            {'id': 'staff', 'kind': SECTION_STACK, 'title': None, 'fields': [
+                _field('upper_clef', KIND_CHOICE, 'Upper staff', TOOLTIPS['upper_clef'],
+                       defaults['upper_clef'],
+                       choices=[{'value': value, 'label': label}
+                                for value, label in UPPER_CLEF_LABELS]),
+            ]},
             {'id': 'spacing', 'kind': SECTION_STACK, 'title': None, 'fields': [
                 _field('max_spacing', KIND_INT_LIST, 'Max spacing', TOOLTIPS['max_spacing'],
                        defaults['max_spacing'],
@@ -670,6 +681,7 @@ def values_from_voicing(model: str, data: Mapping[str, Any],
             ', '.join(str(s) for s in spacing) if isinstance(spacing, (list, tuple))
             else (spacing or ''))
         values['allow_unisons'] = bool(data.get('allow_unisons', True))
+        values['upper_clef'] = data.get('upper_clef', 'treble')
         weights = _weights_of(data)
         values['movement'] = _join(weights.get('movement', ENSEMBLE_DEFAULT_WEIGHTS['movement']))
         for key, default in ENSEMBLE_DEFAULT_WEIGHTS.items():
@@ -750,6 +762,9 @@ def voicing_from_values(model: str, values: Mapping[str, Any],
         if spacing:
             out['max_spacing'] = parse_int_list_or_raw(spacing)
         out['allow_unisons'] = flag('allow_unisons')
+        upper_clef = values.get('upper_clef', 'treble')
+        if upper_clef is not None and upper_clef != 'treble':
+            out['upper_clef'] = upper_clef
         weights: Dict[str, Any] = {
             key: parse_float_or_raw(text(f'weight:{key}'))
             for key in ENSEMBLE_DEFAULT_WEIGHTS
@@ -849,6 +864,8 @@ def collected_field_errors(data: Mapping[str, Any]) -> Dict[str, str]:
     * ``'voice:<i>:staff'``: a ``staff`` that isn't ``'treble'``, ``'bass'``
       or absent/``None``.
     * ``'max_spacing'``: the ensemble spacing list still a raw string.
+    * ``'upper_clef'``: an ensemble upper-staff clef that isn't one of the
+      choices.
     * ``'range:<key>:low'`` / ``'range:<key>:high'``: a piano range endpoint
       still a raw string.
     * ``'rh_center'`` (a number) and ``'rh_low_interval_floor'``,
@@ -889,6 +906,8 @@ def collected_field_errors(data: Mapping[str, Any]) -> Dict[str, str]:
                 errors[f'voice:{i}:staff'] = _KIND_ERRORS[KIND_CHOICE]
         if isinstance(data.get('max_spacing'), str):
             errors['max_spacing'] = _KIND_ERRORS[KIND_INT_LIST]
+        if data.get('upper_clef') not in (None,) + VALID_UPPER_CLEFS:
+            errors['upper_clef'] = _CHOICE_ERROR
         weights = data.get('weights') or {}
         for key, value in weights.items():
             if key == 'movement':

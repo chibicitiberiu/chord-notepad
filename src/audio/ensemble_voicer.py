@@ -246,6 +246,11 @@ class EnsembleVoicer(INotePicker):
         """
         return [v.resolved_staff for v in self._spec.voices]
 
+    @property
+    def upper_clef(self) -> Optional[str]:
+        """The spec's upper-staff clef (``'treble'`` or ``'treble_8vb'``)."""
+        return self._spec.upper_clef
+
     # ------------------------------------------------------------------
     # Public conversion
     # ------------------------------------------------------------------

@@ -123,6 +123,7 @@
    "nested:omit:root": "-20.0",
    "nested:omit:seventh": "-40.0",
    "nested:omit:third": "-40.0",
+   "upper_clef": "treble",
    "voices": [
     {
      "high": "C4",

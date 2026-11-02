@@ -61,6 +61,12 @@ Engraving detail:
 - Bass key-signature accidentals are placed two octaves below the treble
   letters (standard engraving on the bass staff), not one -- the latter would
   place them above the bass staff.
+- **Octave-lower treble.** An ensemble whose ``upper_clef`` is ``'treble_8vb'``
+  (a male choir's tenors) gets the treble clef with an 8 below, and every
+  upper-staff note is written one octave (7 diatonic steps) above its sounding
+  pitch: a sung C4 sits on the C5 space. Spelling, accidentals, ledger lines
+  and second offsets all follow the written position; the key signature keeps
+  its normal treble positions and the bass staff is unchanged.
 """
 
 from __future__ import annotations
@@ -161,6 +167,10 @@ _FLAT_ORDER: Tuple[Tuple[str, int], ...] = (
 #: Bass key-signature accidentals sit this many octaves below the treble
 #: letters (two -> standard bass-clef positions on the staff).
 _BASS_SIG_OCTAVE_DROP = 2
+
+#: Diatonic steps an octave-lower treble clef (``'treble_8vb'``) writes its
+#: notes above how they sound: one octave.
+_TREBLE_8VB_SHIFT = 7
 
 #: Canonical circle-of-fifths position per tonic *pitch class*, used as the
 #: enharmonic fallback when a key's literal spelling has no real signature
@@ -379,7 +389,11 @@ def _accidental_kind(letter: str, acc: int, sig_map: Dict[str, int]) -> Optional
 # --------------------------------------------------------------------------
 
 class _Note(NamedTuple):
-    """One resolved notehead: staff, spelling, diatonic position, and color."""
+    """One resolved notehead: staff, spelling, diatonic position, and color.
+
+    ``diatonic_index`` is the *written* position: the sounding one, plus an
+    octave on an octave-lower treble staff.
+    """
 
     midi: int
     staff: str            # 'treble' | 'bass'
@@ -429,12 +443,17 @@ def _resolve_notes(chord: RenderedChord, song: RenderedSong) -> List[_Note]:
     Spelling is key-aware: notes diatonic to the chord's key are spelled to
     match the signature (so a ``Db`` chord in F# major draws its notes as C#/E#/
     G# with no accidentals), while chromatic notes keep the user's source
-    spelling. See :func:`_match_letter`.
+    spelling. See :func:`_match_letter`. On an octave-lower treble staff
+    (``song.upper_clef == 'treble_8vb'``) an upper-staff note is written an
+    octave above its sounding position; the letter and accidental are the same.
     """
     notes: List[_Note] = []
     fifths = _key_fifths(chord.key)
+    treble_shift = _TREBLE_8VB_SHIFT if song.upper_clef == 'treble_8vb' else 0
     for midi, staff, color in _voiced(chord, song):
         letter, acc, idx = _spell(midi, chord.chord_notes, fifths)
+        if staff == 'treble':
+            idx += treble_shift
         notes.append(_Note(midi, staff, letter, acc, idx, color))
     return notes
 
@@ -583,6 +602,11 @@ def _content_x0(s: float) -> float:
     return STRIP_MARGIN + _SIG_NOTES_GAP * s
 
 
+def _upper_clef_kind(song: RenderedSong) -> str:
+    """The upper staff's clef asset kind: ``'treble'`` or ``'treble_8vb'``."""
+    return 'treble_8vb' if song.upper_clef == 'treble_8vb' else 'treble'
+
+
 def _gutter_geometry(song: RenderedSong, s: float) -> Tuple[float, float, float]:
     """Return gutter-local ``(x_clef, x_sig, gutter_width)`` for the frozen pane.
 
@@ -593,7 +617,7 @@ def _gutter_geometry(song: RenderedSong, s: float) -> Tuple[float, float, float]
     trailing pad.
     """
     clef_w = max(
-        clef_placement('treble', s).width,
+        clef_placement(_upper_clef_kind(song), s).width,
         clef_placement('bass', s).width,
     )
     x_clef = _CLEF_PAD_LEFT * s
@@ -693,7 +717,7 @@ class StaffCardRenderer(StripRenderer):
                 ops.line([(0.0, y), (width, y)],
                          fill=_STAFF_LINE, width=geom.staff_line_w, tags=("gutter",))
 
-        self._paint_clefs(ops, x_clef, geom, tags=("gutter",))
+        self._paint_clefs(ops, x_clef, geom, _upper_clef_kind(song), tags=("gutter",))
         fifths = self._key_at_scroll(ctx, height, scroll_x)
         self._paint_signature(ops, x_sig, fifths, geom, ("gutter",))
 
@@ -801,9 +825,13 @@ class StaffCardRenderer(StripRenderer):
         )
 
     def _paint_clefs(self, ops: DrawOps, x_clef: float, geom: _Geometry,
-                     tags: Tuple[str, ...] = ("gutter",)) -> None:
-        """Emit clef images registered to each staff's reference line."""
-        treble = clef_placement('treble', geom.staff_space)
+                     upper: str = 'treble', tags: Tuple[str, ...] = ("gutter",)) -> None:
+        """Emit clef images registered to each staff's reference line.
+
+        ``upper`` is the upper staff's clef kind (``'treble'`` or
+        ``'treble_8vb'``); both register on the G line.
+        """
+        treble = clef_placement(upper, geom.staff_space)
         g4_y = geom.y_for_index(_diatonic_index('G', 4), 'treble')
         ops.image(x_clef, g4_y - treble.baseline_y, treble.key,
                   anchor="nw", tags=tags)

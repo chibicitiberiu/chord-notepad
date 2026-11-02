@@ -281,6 +281,11 @@ def _merge_weights(overrides: Optional[Mapping[str, Any]]) -> Dict[str, Any]:
 #: Valid explicit values for :attr:`VoiceSpec.staff`.
 VALID_STAFF_VALUES = ('treble', 'bass')
 
+#: Valid values for :attr:`EnsembleSpec.upper_clef`: the plain treble clef, or
+#: the treble clef with an 8 below (written an octave above it sounds, the
+#: usual clef for tenors).
+VALID_UPPER_CLEFS = ('treble', 'treble_8vb')
+
 
 @dataclass(frozen=True)
 class VoiceSpec:
@@ -351,6 +356,12 @@ class EnsembleSpec:
     weights: Mapping[str, Any] = field(default_factory=lambda: copy.deepcopy(DEFAULT_WEIGHTS))
     """Tunable voicing-engine weights; see :data:`DEFAULT_WEIGHTS` for the full set."""
 
+    upper_clef: str = 'treble'
+    """Clef of a grand-staff chord sheet's upper staff, one of
+    :data:`VALID_UPPER_CLEFS`. ``'treble_8vb'`` writes every upper-staff note an
+    octave above its sounding pitch (a male choir's tenors); it changes the
+    drawing only, never what plays."""
+
     @classmethod
     def from_dict(cls, name: str, data: Mapping[str, Any]) -> 'EnsembleSpec':
         """Parse and validate an ``EnsembleSpec`` from a plain dict (e.g. from JSON config).
@@ -379,6 +390,9 @@ class EnsembleSpec:
                   raise :class:`ConfigurationError`.
                 - ``'label'`` (optional): human-readable display name,
                   defaults to ``name`` when omitted.
+                - ``'upper_clef'`` (optional): the upper staff's clef on a
+                  grand-staff chord sheet, ``'treble'`` (default) or
+                  ``'treble_8vb'`` (see :data:`VALID_UPPER_CLEFS`).
 
             Returns:
                 A validated, immutable ``EnsembleSpec``.
@@ -459,6 +473,15 @@ class EnsembleSpec:
         if not isinstance(label, str):
             raise ConfigurationError(f"Ensemble {name!r}: 'label' must be a string")
 
+        upper_clef = data.get('upper_clef')
+        if upper_clef is None:
+            upper_clef = 'treble'
+        if not isinstance(upper_clef, str) or upper_clef not in VALID_UPPER_CLEFS:
+            raise ConfigurationError(
+                f"Ensemble {name!r}: invalid 'upper_clef' {upper_clef!r}; "
+                f"must be 'treble' or 'treble_8vb'"
+            )
+
         return cls(
             name=name,
             label=label,
@@ -466,6 +489,7 @@ class EnsembleSpec:
             max_spacing=max_spacing,
             allow_unisons=allow_unisons,
             weights=weights,
+            upper_clef=upper_clef,
         )
 
     def to_dict(self) -> Dict[str, Any]:
@@ -474,6 +498,8 @@ class EnsembleSpec:
         Note that ``name`` itself is not part of the returned dict (it is
         passed separately to ``from_dict``, mirroring how it is supplied
         here); round-tripping is ``EnsembleSpec.from_dict(spec.name, spec.to_dict())``.
+        ``upper_clef`` is written only when it isn't the default treble, like a
+        voice's unset ``staff``.
         """
         return {
             'label': self.label,
@@ -488,6 +514,7 @@ class EnsembleSpec:
             'max_spacing': list(self.max_spacing),
             'allow_unisons': self.allow_unisons,
             'weights': copy.deepcopy(dict(self.weights)),
+            **({'upper_clef': self.upper_clef} if self.upper_clef != 'treble' else {}),
         }
 
     def weight(self, key: str) -> Any:
@@ -520,14 +547,15 @@ class EnsembleSpec:
         return tuple([float(movement)] * (n - 1) + [bass_movement])
 
 
-def _builtin(name: str, label: str, voices: List[Tuple], max_spacing: List[int]) -> EnsembleSpec:
+def _builtin(name: str, label: str, voices: List[Tuple], max_spacing: List[int],
+             upper_clef: str = 'treble') -> EnsembleSpec:
     """Build one built-in :class:`EnsembleSpec` with default weights.
 
     ``voices`` is a list of ``(voice_name, low_note_name, high_note_name)``
     tuples, top voice first, optionally followed by a fourth ``staff``
     element (``'treble'``/``'bass'``) to pin that voice's grand-staff
     assignment explicitly; a 3-element tuple leaves it unset (auto-resolved
-    from the range).
+    from the range). ``upper_clef`` is the chord sheet's upper-staff clef.
     """
     voice_dicts = []
     for entry in voices:
@@ -540,12 +568,15 @@ def _builtin(name: str, label: str, voices: List[Tuple], max_spacing: List[int])
         'label': label,
         'voices': voice_dicts,
         'max_spacing': max_spacing,
+        'upper_clef': upper_clef,
     })
 
 
 #: Built-in ensemble presets, keyed by a voicing-string slug. All use the
 #: engine's default weights (:data:`DEFAULT_WEIGHTS`); a future Voices UI
-#: will let the user override weights per-ensemble on top of these.
+#: will let the user override weights per-ensemble on top of these. Staffs are
+#: pinned as a choir or quartet score sets them: TTBB writes its tenors on an
+#: octave-lower treble clef, the viola stays auto (no C clef yet).
 BUILTIN_ENSEMBLES: Dict[str, EnsembleSpec] = {
     'satb': _builtin(
         'satb', 'Choir (SATB)',
@@ -560,29 +591,30 @@ BUILTIN_ENSEMBLES: Dict[str, EnsembleSpec] = {
     'ttbb': _builtin(
         'ttbb', 'Male Choir (TTBB)',
         [
-            ('Tenor 1', 'C3', 'A4'),
-            ('Tenor 2', 'A2', 'F4'),
-            ('Baritone', 'F2', 'D4'),
-            ('Bass', 'E2', 'C4'),
+            ('Tenor 1', 'C3', 'A4', 'treble'),
+            ('Tenor 2', 'A2', 'F4', 'treble'),
+            ('Baritone', 'F2', 'D4', 'bass'),
+            ('Bass', 'E2', 'C4', 'bass'),
         ],
         [12, 12, 12],
+        upper_clef='treble_8vb',
     ),
     'ssa': _builtin(
         'ssa', 'Treble Choir (SSA)',
         [
-            ('Soprano 1', 'C4', 'A5'),
-            ('Soprano 2', 'A3', 'F5'),
-            ('Alto', 'F3', 'D5'),
+            ('Soprano 1', 'C4', 'A5', 'treble'),
+            ('Soprano 2', 'A3', 'F5', 'treble'),
+            ('Alto', 'F3', 'D5', 'treble'),
         ],
         [12, 12],
     ),
     'quartet': _builtin(
         'quartet', 'String Quartet',
         [
-            ('Violin I', 'G3', 'E6'),
-            ('Violin II', 'G3', 'C6'),
+            ('Violin I', 'G3', 'E6', 'treble'),
+            ('Violin II', 'G3', 'C6', 'treble'),
             ('Viola', 'C3', 'E5'),
-            ('Cello', 'C2', 'E4'),
+            ('Cello', 'C2', 'E4', 'bass'),
         ],
         [14, 14, 24],
     ),

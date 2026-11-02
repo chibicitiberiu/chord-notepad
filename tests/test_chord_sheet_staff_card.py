@@ -7,7 +7,8 @@ seam); ledger lines; second-interval collision offsets; ensemble routing by
 ``voice_staves``; key signatures (glyph counts + per-clef positions); accidentals
 drawn only when they deviate from the signature; a mid-song key change (double
 barline + fresh signature); per-voice and per-hand notehead tints; a voice
-legend; and the extended clef/glyph asset resolver.
+legend; the octave-lower treble (tenors written an octave up); and the extended
+clef/glyph asset resolver.
 """
 from typing import List, Optional
 
@@ -68,9 +69,11 @@ def make_chord(
     )
 
 
-def make_song(*chords: RenderedChord, voice_staves=None, voice_labels=None) -> RenderedSong:
+def make_song(*chords: RenderedChord, voice_staves=None, voice_labels=None,
+              upper_clef: str = 'treble') -> RenderedSong:
     return RenderedSong(
-        chords=list(chords), voice_staves=voice_staves, voice_labels=voice_labels
+        chords=list(chords), voice_staves=voice_staves, voice_labels=voice_labels,
+        upper_clef=upper_clef,
     )
 
 
@@ -751,6 +754,196 @@ class TestClefOps:
                          if isinstance(o, ImageOp) and o.key.startswith('clef_treble:'))
         g4_y = geom.y_for_index(sc._diatonic_index('G', 4), 'treble')
         assert abs((treble_op.y + placement.baseline_y) - g4_y) < 1e-6
+
+
+# --------------------------------------------------------------------------
+# Octave-lower treble (a male choir's tenors)
+# --------------------------------------------------------------------------
+
+TTBB_STAVES = ['bass', 'bass', 'treble', 'treble']  # low to high
+
+
+def tenor_song(voice_notes, chord_notes=C_MAJOR, key=None, upper_clef='treble_8vb',
+               symbol="C"):
+    """A one-chord four-voice song, the top two voices on the upper staff."""
+    chord = make_chord(symbol, midi_notes=sorted(set(voice_notes)), chord_notes=chord_notes,
+                       voice_notes=list(voice_notes), key=key)
+    return make_song(chord, voice_staves=TTBB_STAVES, upper_clef=upper_clef)
+
+
+def treble_y(steps_above_e4: int, height: float = 130.0) -> float:
+    """y of a written note ``steps_above_e4`` diatonic steps above the treble
+    staff's bottom line (E4), half a staff space per step."""
+    geom = sc._geometry(height)
+    return geom.treble_top + 4.0 * geom.staff_space - steps_above_e4 * geom.staff_space / 2.0
+
+
+class TestOctaveLowerTreble:
+    """With ``upper_clef='treble_8vb'`` upper-staff notes are written an octave up.
+
+    Expected positions are counted by hand in diatonic steps above E4 (the
+    treble bottom line): C4 -2, F#4 1, B4 4, C5 5, E5 7, F5 8, A5 10.
+    """
+
+    def _heads_by_color(self, ops):
+        return {color_of(o): o for o in noteheads(ops)}
+
+    def test_tenor_c4_sits_where_c5_sits_on_a_plain_treble(self):
+        s = sc._geometry(130.0).staff_space
+        _, ops = paint(tenor_song([48, 55, 60, 64]))
+        heads = self._heads_by_color(ops)
+        tenor2 = heads[VOICE_COLORS[2].lstrip('#')]
+        tenor1 = heads[VOICE_COLORS[3].lstrip('#')]
+        assert note_center_y(tenor2, s) == pytest.approx(treble_y(5))  # C4 -> C5 space
+        assert note_center_y(tenor1, s) == pytest.approx(treble_y(7))  # E4 -> E5 space
+
+        # The same sung C4 on a plain treble sits two steps below E4.
+        _, plain = paint(tenor_song([48, 55, 60, 64], upper_clef='treble'))
+        plain_tenor2 = self._heads_by_color(plain)[VOICE_COLORS[2].lstrip('#')]
+        assert note_center_y(plain_tenor2, s) == pytest.approx(treble_y(-2))
+
+    def test_bass_staff_is_unchanged(self):
+        s = sc._geometry(130.0).staff_space
+        _, lower = paint(tenor_song([48, 55, 60, 64]))
+        _, plain = paint(tenor_song([48, 55, 60, 64], upper_clef='treble'))
+        for voice in (0, 1):
+            color = VOICE_COLORS[voice].lstrip('#')
+            assert note_center_y(self._heads_by_color(lower)[color], s) == \
+                pytest.approx(note_center_y(self._heads_by_color(plain)[color], s))
+        geom = sc._geometry(130.0)
+        bass = self._heads_by_color(lower)[VOICE_COLORS[0].lstrip('#')]
+        # C3 is five steps below the bass top line (A3).
+        assert note_center_y(bass, s) == pytest.approx(geom.bass_top + 5 * s / 2.0)
+
+    def test_sung_c4_needs_no_ledger_on_the_octave_lower_staff(self):
+        _, plain = paint(tenor_song([48, 55, 60, 67], upper_clef='treble'))
+        _, lower = paint(tenor_song([48, 55, 60, 67]))
+        # Middle C needs its ledger on a plain treble; written C5 needs none.
+        assert [round(o.points[0][1], 6) for o in ink_ledgers(plain)] == \
+            [round(treble_y(-2), 6)]
+        assert ink_ledgers(lower) == []
+
+    def test_low_and_high_tenor_notes_get_written_ledgers(self):
+        s = sc._geometry(130.0).staff_space
+        # Tenor 2 sings A2 (written A3: ledgers at C4 and A3), tenor 1 sings
+        # A4 (written A5: one ledger above the staff). The bass voices (G2 on
+        # the bass bottom line, A2 above it) need none.
+        am = ChordNotes(notes=['A', 'C', 'E'], bass_note='A', root='A')
+        _, ops = paint(tenor_song([43, 45, 45, 69], chord_notes=am, symbol="Am"))
+        ys = sorted(round(o.points[0][1], 6) for o in ink_ledgers(ops))
+        treble_top = sc._geometry(130.0).treble_top
+        assert ys == sorted([round(treble_top - s, 6),
+                             round(treble_y(-2), 6), round(treble_y(-4), 6)])
+
+    def test_accidentals_follow_the_written_position(self):
+        s = sc._geometry(130.0).staff_space
+        # D major in C: tenor 2 sings F#3, written F#4 (first space) with a sharp.
+        d = ChordNotes(notes=['D', 'F#', 'A'], bass_note='D', root='D')
+        _, ops = paint(tenor_song([38, 50, 54, 57], chord_notes=d, key='C', symbol="D"))
+        sharps = [o for o in content_accidental_ops(ops) if o.key.startswith(
+            "glyph_accidental_sharp")]
+        assert len(sharps) == 1
+        sharp = ca.glyph_placement('accidental_sharp', s)
+        assert sharps[0].y + sharp.origin_y == pytest.approx(treble_y(1))
+
+    def test_accidentals_against_the_signature_on_the_written_staff(self):
+        s = sc._geometry(130.0).staff_space
+        # In F major: Bb3 (written Bb4) is in the signature, so no flat; a
+        # B natural 3 (written B4, the middle line) gets a natural.
+        gm = ChordNotes(notes=['G', 'Bb', 'D'], bass_note='G', root='G')
+        _, flat_ops = paint(tenor_song([43, 50, 58, 62], chord_notes=gm, key='F', symbol="Gm"))
+        assert content_accidental_ops(flat_ops) == []
+        g = ChordNotes(notes=['G', 'B', 'D'], bass_note='G', root='G')
+        _, nat_ops = paint(tenor_song([43, 50, 59, 62], chord_notes=g, key='F', symbol="G"))
+        naturals = content_accidental_ops(nat_ops)
+        assert len(naturals) == 1 and naturals[0].key.startswith("glyph_accidental_natural")
+        natural = ca.glyph_placement('accidental_natural', s)
+        assert naturals[0].y + natural.origin_y == pytest.approx(treble_y(4))
+
+    def test_seconds_still_offset_on_the_written_staff(self):
+        # Tenors a second apart (C4 + D4, written C5 + D5) cannot share a column.
+        cn = ChordNotes(notes=['C', 'D', 'G'], bass_note='C', root='C')
+        _, ops = paint(tenor_song([36, 43, 60, 62], chord_notes=cn, symbol="Csus2"))
+        heads = self._heads_by_color(ops)
+        nh = ca.glyph_placement('notehead_whole', sc._geometry(130.0).staff_space)
+        dx = heads[VOICE_COLORS[3].lstrip('#')].x - heads[VOICE_COLORS[2].lstrip('#')].x
+        assert dx == pytest.approx(nh.width, abs=1e-2)
+
+    def test_gutter_draws_the_8vb_clef_on_the_g_line(self):
+        song = tenor_song([48, 55, 60, 64])
+        ops = paint_gutter(song)
+        geom = sc._geometry(130.0)
+        keys = [o.key for o in ops.ops if isinstance(o, ImageOp)]
+        assert not any(k.startswith('clef_treble:') for k in keys)
+        clef = next(o for o in ops.ops
+                    if isinstance(o, ImageOp) and o.key.startswith('clef_treble_8vb:'))
+        placement = ca.clef_placement('treble_8vb', geom.staff_space)
+        assert clef.key == placement.key
+        assert clef.y + placement.baseline_y == pytest.approx(treble_y(2))  # the G line
+        # The 8 below stays clear of the bass staff (bass clef top: 1.048
+        # staff spaces above its F line, Bravura's fClef box).
+        bass_clef_top = geom.bass_top + geom.staff_space - 1.048 * geom.staff_space
+        assert clef.y + placement.height < bass_clef_top
+        assert any(k.startswith('clef_bass:') for k in keys)
+        img = ci.image_for_clef_key(clef.key)
+        assert img is not None and img.size[1] == placement.height
+
+    def test_gutter_width_fits_the_8vb_clef(self):
+        renderer = StaffCardRenderer()
+        song = tenor_song([48, 55, 60, 64])
+        s = sc._staff_space(130.0)
+        x_clef, x_sig, _ = sc._gutter_geometry(song, s)
+        clef_w = max(ca.clef_placement('treble_8vb', s).width,
+                     ca.clef_placement('bass', s).width)
+        assert x_sig - x_clef >= clef_w
+        assert renderer.gutter_width(SheetContext(song=song), 130.0) > x_sig
+
+    @pytest.mark.parametrize("upper_clef", ['treble', 'treble_8vb'])
+    def test_key_signature_keeps_its_treble_positions(self, upper_clef):
+        # G major: one sharp on the F5 line in the gutter and at a key change.
+        s = sc._geometry(130.0).staff_space
+        sharp = ca.glyph_placement('accidental_sharp', s)
+        c = make_chord("C", midi_notes=[48, 55, 60, 64], chord_notes=C_MAJOR,
+                       voice_notes=[48, 55, 60, 64], key='G')
+        song = make_song(c, voice_staves=TTBB_STAVES, upper_clef=upper_clef)
+        gutter_ys = sorted(o.y + sharp.origin_y for o in accidentals(paint_gutter(song), 'sharp'))
+        assert gutter_ys[0] == pytest.approx(treble_y(8))
+        change = make_song(
+            make_chord("C", midi_notes=[48, 55, 60, 64], chord_notes=C_MAJOR,
+                       voice_notes=[48, 55, 60, 64], key='C'),
+            make_chord("G", midi_notes=[43, 55, 59, 62], chord_notes=C_MAJOR,
+                       voice_notes=[43, 55, 59, 62], key='G'),
+            voice_staves=TTBB_STAVES, upper_clef=upper_clef)
+        _, ops = paint(change)
+        sig = [o for o in accidentals(ops, 'sharp') if 'slot:1' in o.tags]
+        assert min(o.y + sharp.origin_y for o in sig) == pytest.approx(treble_y(8))
+
+    def test_free_voiced_songs_ignore_the_option(self):
+        # Only an ensemble sets upper_clef; a plain song draws as before.
+        song = make_song(make_chord("C", midi_notes=[60], chord_notes=C_MAJOR))
+        assert song.upper_clef == 'treble'
+        assert [round(o.points[0][1], 6) for o in ink_ledgers(paint(song)[1])] == \
+            [round(treble_y(-2), 6)]
+
+    def test_real_male_choir_render_writes_tenors_an_octave_up(self):
+        from audio.ensemble_voicer import EnsembleVoicer
+        from models.ensemble_spec import BUILTIN_ENSEMBLES
+        line = Line(content="C", line_number=1)
+        line.items = [ChordInfo(chord="C", start=0, end=1, is_relative=False, is_valid=True)]
+        picker = EnsembleVoicer(BUILTIN_ENSEMBLES['ttbb'])
+        picker.reset()
+        song = SongRenderer().render(lines=[line], initial_key='C', initial_bpm=120,
+                                     initial_time_sig=(4, 4), note_picker=picker)
+        assert song.upper_clef == 'treble_8vb'
+        chord = song.chords[0]
+        notes = {n.midi: n for n in sc._resolve_notes(chord, song)
+                 if n.staff == 'treble'}
+        assert notes  # the tenors are on the upper staff
+        for midi, note in notes.items():
+            # Written index = sounding letter/octave + 7: e.g. C4 (60) -> C5.
+            sounding_octave = midi // 12 - 1
+            letter_index = {'C': 0, 'D': 1, 'E': 2, 'F': 3, 'G': 4, 'A': 5, 'B': 6}[note.letter]
+            assert note.diatonic_index == sounding_octave * 7 + letter_index + 7
 
 
 # --------------------------------------------------------------------------

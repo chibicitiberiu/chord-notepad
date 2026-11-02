@@ -3,7 +3,7 @@
 
 The staff view's image ops carry keys like ``clef_treble:96`` or
 ``glyph_accidental_sharp:40:3a5a8a`` (see ``docs/ANDROID.md``, "Chord sheet op
-buffer"). Kotlin draws them from the six base PNGs embedded in
+buffer"). Kotlin draws them from the seven base PNGs embedded in
 ``src/chord_sheet/clef_assets.py``: the part before the first ``:`` names the
 file, the height scales it and the optional colour tints the black ink.
 

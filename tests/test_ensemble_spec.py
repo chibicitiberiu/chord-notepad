@@ -558,6 +558,44 @@ class TestRoundTrip:
         assert rebuilt.voices[1].staff == "bass"
         assert rebuilt == original
 
+    def test_round_trip_preserves_upper_clef(self):
+        original = EnsembleSpec.from_dict("tenors", {
+            "voices": [
+                {"name": "Top", "range": ["C3", "A4"], "staff": "treble"},
+                {"name": "Bottom", "range": ["E2", "C4"], "staff": "bass"},
+            ],
+            "upper_clef": "treble_8vb",
+        })
+        data = original.to_dict()
+        assert data["upper_clef"] == "treble_8vb"
+        rebuilt = EnsembleSpec.from_dict(original.name, data)
+        assert rebuilt.upper_clef == "treble_8vb"
+        assert rebuilt == original
+
+    def test_upper_clef_defaults_to_treble_and_is_not_written(self):
+        # Configs from before the option load as a plain treble.
+        spec = EnsembleSpec.from_dict("plain", {
+            "voices": [
+                {"name": "Top", "range": ["C4", "C5"]},
+                {"name": "Bottom", "range": ["C3", "C4"]},
+            ],
+        })
+        assert spec.upper_clef == "treble"
+        assert "upper_clef" not in spec.to_dict()
+        explicit = EnsembleSpec.from_dict("plain", {**spec.to_dict(), "upper_clef": "treble"})
+        assert explicit == spec
+
+    @pytest.mark.parametrize("bad", ["alto", "bass", "Treble", "", 8, True])
+    def test_invalid_upper_clef_raises(self, bad):
+        with pytest.raises(ConfigurationError, match="upper_clef"):
+            EnsembleSpec.from_dict("bad", {
+                "voices": [
+                    {"name": "Top", "range": ["C4", "C5"]},
+                    {"name": "Bottom", "range": ["C3", "C4"]},
+                ],
+                "upper_clef": bad,
+            })
+
     def test_to_dict_omits_staff_key_when_none(self):
         spec = EnsembleSpec.from_dict("plain", {
             "voices": [
@@ -635,8 +673,19 @@ class TestBuiltinEnsembles:
         for voice in spec.voices:
             assert voice.resolved_staff == voice.staff
 
-    @pytest.mark.parametrize("key", ["ttbb", "ssa", "quartet"])
-    def test_other_builtins_leave_staff_unset(self, key):
+    @pytest.mark.parametrize("key,staffs,upper_clef", [
+        # A male choir writes its tenors on the octave-lower treble clef.
+        ("satb", ["treble", "treble", "bass", "bass"], "treble"),
+        ("ttbb", ["treble", "treble", "bass", "bass"], "treble_8vb"),
+        ("ssa", ["treble", "treble", "treble"], "treble"),
+        # The viola stays auto until the staff view has a C clef.
+        ("quartet", ["treble", "treble", None, "bass"], "treble"),
+    ])
+    def test_builtin_staffs_and_upper_clef(self, key, staffs, upper_clef):
         spec = BUILTIN_ENSEMBLES[key]
-        for voice in spec.voices:
-            assert voice.staff is None
+        assert [v.staff for v in spec.voices] == staffs
+        assert spec.upper_clef == upper_clef
+
+    def test_builtins_round_trip(self):
+        for key, spec in BUILTIN_ENSEMBLES.items():
+            assert EnsembleSpec.from_dict(key, spec.to_dict()) == spec
