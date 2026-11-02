@@ -29,7 +29,7 @@ that's needed.
 
 from typing import List, Tuple
 
-from models.rendered_song import RenderedSong
+from models.rendered_song import RenderedChord, RenderedSong
 from chord_sheet.ops import DrawOps
 from chord_sheet.renderer_interface import (
     bar_line_xs,
@@ -39,6 +39,7 @@ from chord_sheet.renderer_interface import (
     STRIP_BG,
     StripLayout,
     StripRenderer,
+    paint_whole_rest,
 )
 
 #: Leading/trailing padding at the strip's left and right edges, px. Not
@@ -263,10 +264,13 @@ class TabStripRenderer(StripRenderer):
             chord = chords[slot.chord_index]
             tag = f"slot:{slot.chord_index}"
 
-            if chord.is_rest or not chord.fingering:
+            cx = slot.x + slot.width / 2.0
+            if chord.is_rest:
+                self._paint_rest(ops, chord, cx, symbol_y, symbol_size, line_ys, tag)
+                continue
+            if not chord.fingering:
                 continue  # empty gap: string lines already span underneath
 
-            cx = slot.x + slot.width / 2.0
             ops.text(
                 cx,
                 symbol_y,
@@ -317,3 +321,29 @@ class TabStripRenderer(StripRenderer):
                 fill=_MUTE,
                 tags=(f"slot:{chord_index}",),
             )
+
+    @staticmethod
+    def _paint_rest(
+        ops: DrawOps,
+        chord: RenderedChord,
+        cx: float,
+        symbol_y: float,
+        symbol_size: int,
+        line_ys: List[float],
+        tag: str,
+    ) -> None:
+        """Draw a rest's label and a whole rest hanging from the middle string line."""
+        ops.text(
+            cx,
+            symbol_y,
+            chord_symbol_label(chord),
+            anchor="center",
+            size=symbol_size,
+            fill=_INK,
+            bold=True,
+            tags=(tag,),
+        )
+        if len(line_ys) < 2:
+            return
+        gap = line_ys[1] - line_ys[0]
+        paint_whole_rest(ops, cx, line_ys[(len(line_ys) - 1) // 2], gap, _INK, tag)

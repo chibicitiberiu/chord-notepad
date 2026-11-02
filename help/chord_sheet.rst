@@ -27,8 +27,10 @@ times, once per pass -- and because voice leading looks at the chord before
 and after each occurrence, the same chord symbol can come out with different
 notes (or a different fingering) each time through, exactly as it sounds.
 
-A rest (``NC``) keeps its slot in the timeline as a gap, so the strip's
-rhythm still reads correctly even where nothing sounds.
+A rest (``NC``) keeps its slot in the timeline, labelled with ``NC``, so the
+strip's rhythm still reads correctly even where nothing sounds. The Staff,
+Fret cards and Tab views also draw a rest symbol in it; the piano roll leaves
+its lane empty.
 
 Roman-numeral chords show the chord they resolve to in the current key in
 parentheses: ``V7`` in the key of C is labeled ``V7 (G7)``. If the key
@@ -145,7 +147,8 @@ then only carry accidentals where they deviate from the signature
 (including a natural sign to cancel it). Notes are spelled to match the
 key signature -- a ``Db`` chord in F# major is drawn as C# with no
 accidental -- while the chord labels stay exactly as you typed them.
-Available for any voicing. An
+A rest (``NC``) shows as a whole rest on both staves; it's always drawn as
+one bar's rest, whatever its length. Available for any voicing. An
 ensemble voicing routes each voice to the staff (treble or bass) set for
 it -- see :doc:`ensembles` for where that per-voice ``staff`` setting comes
 from -- and colors each voice, with a small legend at the left. An ensemble

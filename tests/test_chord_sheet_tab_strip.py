@@ -161,7 +161,7 @@ def test_slot_width_scales_with_zoom():
     assert zoomed.slots[0].width == pytest.approx(base.slots[0].width * 2.0)
 
 
-def test_rest_gap_has_no_fret_texts():
+def test_rest_shows_its_label_and_a_whole_rest_without_fret_numbers():
     song = make_song(
         make_chord("C", fingering=[-1, 3, 2, 0, 1, 0]),
         make_chord("NC", is_rest=True),
@@ -172,11 +172,16 @@ def test_rest_gap_has_no_fret_texts():
     ops = DrawOps()
     renderer.paint(ops, ctx, layout)
 
+    rest_slot = layout.slots[1]
     rest_ops = slot_ops(ops, 1)
     texts = [op for op in rest_ops if isinstance(op, TextOp)]
     rects = [op for op in rest_ops if isinstance(op, RectOp)]
-    assert texts == []
-    assert rects == []
+    assert [op.s for op in texts] == ["NC"]  # the label only, no fret numbers
+    (block,) = rects
+    # Hangs from the third string line from the top of the six.
+    line_ys = sorted(line.points[0][1] for line in string_lines(ops))
+    assert block.y == pytest.approx(line_ys[2])
+    assert block.x + block.w / 2 == pytest.approx(rest_slot.x + rest_slot.width / 2)
 
 
 def test_empty_song_has_positive_width_and_no_slots():

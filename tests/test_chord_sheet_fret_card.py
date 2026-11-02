@@ -82,10 +82,31 @@ def test_rest_and_no_fingering_slots_are_slim():
     assert no_finger_slot.width == REST_WIDTH
 
 
-def test_rest_and_no_fingering_slots_paint_nothing():
+def test_rest_card_shows_its_label_and_a_whole_rest():
     song = make_song(
         make_chord("C", fingering=[-1, 3, 2, 0, 1, 0]),
         make_chord("NC", is_rest=True),
+    )
+    renderer = FretCardRenderer()
+    ctx = SheetContext(song=song)
+    layout = renderer.layout(ctx, height=HEIGHT)
+    ops = DrawOps()
+    renderer.paint(ops, ctx, layout)
+    rest_slot = layout.slots[1]
+    rest_ops = slot_ops(ops, 1)
+    assert [op.s for op in rest_ops if isinstance(op, TextOp)] == ["NC"]
+    # The whole rest: a block hanging from its own short line, inside the card.
+    (block,) = [op for op in rest_ops if isinstance(op, RectOp)]
+    (line,) = [op for op in rest_ops if isinstance(op, LineOp)]
+    assert line.points[0][1] == pytest.approx(block.y)
+    assert block.x + block.w / 2 == pytest.approx(rest_slot.x + rest_slot.width / 2)
+    xs = [p[0] for p in line.points]
+    assert rest_slot.x <= min(xs) and max(xs) <= rest_slot.x + rest_slot.width
+
+
+def test_no_fingering_slot_paints_nothing():
+    song = make_song(
+        make_chord("C", fingering=[-1, 3, 2, 0, 1, 0]),
         make_chord("G", fingering=None),
     )
     renderer = FretCardRenderer()
@@ -94,7 +115,6 @@ def test_rest_and_no_fingering_slots_paint_nothing():
     ops = DrawOps()
     renderer.paint(ops, ctx, layout)
     assert slot_ops(ops, 1) == []
-    assert slot_ops(ops, 2) == []
 
 
 def test_open_shape_c_has_nut_muted_open_and_dots():

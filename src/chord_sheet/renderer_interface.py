@@ -216,6 +216,36 @@ STRIP_BG = "#fbfbf8"
 PLAYHEAD_HIGHLIGHT = "#ffe58a"
 
 
+#: Whole rest (Bravura ``restWhole``) proportions, in staff spaces: a block
+#: hanging from a line. Shared so every view draws NC with the same symbol.
+WHOLE_REST_W = 1.13
+WHOLE_REST_H = 0.5
+#: Length of the short line a standalone whole rest hangs from (no staff).
+WHOLE_REST_LINE_W = 2.0
+
+
+def paint_whole_rest(ops: DrawOps, cx: float, line_y: float, space: float,
+                     fill: str, tag: str, *, own_line: bool = False) -> None:
+    """Draw a whole rest centred on ``cx``, hanging below ``line_y``.
+
+    Args:
+        ops: Recorder to append draw ops to.
+        cx: Horizontal centre.
+        line_y: y of the line the rest hangs from.
+        space: Size of one staff space (or the view's equivalent) in px.
+        fill: Ink colour.
+        tag: Slot tag for the ops.
+        own_line: Also draw the short line it hangs from, for views with no
+            staff line there (fret cards).
+    """
+    w = WHOLE_REST_W * space
+    if own_line:
+        half = WHOLE_REST_LINE_W * space / 2.0
+        ops.line([(cx - half, line_y), (cx + half, line_y)], fill=fill,
+                 width=max(1.0, 0.12 * space), tags=(tag,))
+    ops.rect(cx - w / 2.0, line_y, w, WHOLE_REST_H * space, fill=fill, tags=(tag,))
+
+
 def measure_boundaries(song: RenderedSong) -> List[float]:
     """Absolute beat positions of measure boundaries across the song.
 

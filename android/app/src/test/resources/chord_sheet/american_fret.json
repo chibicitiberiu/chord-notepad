@@ -1,9 +1,9 @@
 {
  "background": "#fbfbf8",
- "byte_length": 76358,
+ "byte_length": 76626,
  "content": {
-  "coord_sum": 31128818.26813221,
-  "count": 2600,
+  "coord_sum": 31287207.688692093,
+  "count": 2609,
   "first": {
    "anchor": "center",
    "bold": true,
@@ -18,10 +18,10 @@
    "y": 14.300000190734863
   },
   "histogram": {
-   "line": 1560,
+   "line": 1563,
    "oval": 674,
-   "rect": 120,
-   "text": 246
+   "rect": 123,
+   "text": 249
   },
   "last": {
    "fill": "#2a3d46",
@@ -36,7 +36,7 @@
    "x": 14861.873046875,
    "y": 62.870792388916016
   },
-  "tag_count": 2600
+  "tag_count": 2609
  },
  "content_height": 130.0,
  "content_width": 14897.0478515625,
@@ -101,7 +101,7 @@
  ],
  "slot_count": 133,
  "slot_x_sum": 995084.0817260742,
- "string_count": 264,
+ "string_count": 268,
  "view_id": "fret",
  "zoom": 1.0
 }

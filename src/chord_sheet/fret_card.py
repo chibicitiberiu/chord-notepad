@@ -40,7 +40,9 @@ from models.rendered_song import RenderedChord, RenderedSong
 from chord_sheet.ops import DrawOps
 from chord_sheet.renderer_interface import (
     SheetContext,
+    WHOLE_REST_LINE_W,
     chord_symbol_label,
+    paint_whole_rest,
     SlotBox,
     StripLayout,
     StripRenderer,
@@ -316,9 +318,11 @@ class FretCardRenderer(StripRenderer):
 
         for slot in layout.slots:
             chord = chords[slot.chord_index]
-            if not _has_shape(chord):
-                continue  # slim empty card: no ops
-            self._paint_card(ops, chord, slot, geo, top_pad)
+            if chord.is_rest:
+                self._paint_rest(ops, chord, slot, geo, top_pad)
+            elif _has_shape(chord):
+                self._paint_card(ops, chord, slot, geo, top_pad)
+            # else: a chord with no fingering keeps a slim empty card
 
         # "Capo N" markers, drawn beside the chord symbol of the first chord in
         # each nonzero-capo span (fret numbers are already capo-relative).
@@ -336,6 +340,31 @@ class FretCardRenderer(StripRenderer):
                 fill=_MUTE,
                 tags=(f"slot:{chord_index}",),
             )
+
+    def _paint_rest(
+        self,
+        ops: DrawOps,
+        chord: RenderedChord,
+        slot: SlotBox,
+        geo: _Geometry,
+        top_pad: float = 0.0,
+    ) -> None:
+        """Draw a rest's slim card: its label and a whole rest mid-diagram."""
+        tag = f"slot:{slot.chord_index}"
+        cx = slot.x + slot.width / 2.0
+        ops.text(
+            cx,
+            top_pad + geo.symbol_h / 2.0,
+            chord_symbol_label(chord),
+            anchor="center",
+            size=geo.symbol_size,
+            fill=_INK,
+            bold=True,
+            tags=(tag,),
+        )
+        space = min(geo.row_h * 0.5, 0.8 * slot.width / WHOLE_REST_LINE_W)
+        mid_y = top_pad + geo.grid_top + geo.rows * geo.row_h / 2.0
+        paint_whole_rest(ops, cx, mid_y - space * 0.25, space, _INK, tag, own_line=True)
 
     def _paint_card(
         self,

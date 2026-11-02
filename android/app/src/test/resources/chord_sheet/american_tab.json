@@ -1,9 +1,9 @@
 {
  "background": "#fbfbf8",
- "byte_length": 50542,
+ "byte_length": 50726,
  "content": {
-  "coord_sum": 12089929.0,
-  "count": 1820,
+  "coord_sum": 12154003.313591003,
+  "count": 1826,
   "first": {
    "fill": "#b9c2c7",
    "op": "line",
@@ -24,8 +24,8 @@
   },
   "histogram": {
    "line": 130,
-   "rect": 780,
-   "text": 910
+   "rect": 783,
+   "text": 913
   },
   "last": {
    "anchor": "center",
@@ -40,7 +40,7 @@
    "x": 11964.0,
    "y": 31.5
   },
-  "tag_count": 1820
+  "tag_count": 1826
  },
  "content_height": 130.0,
  "content_width": 12024.0,
@@ -105,7 +105,7 @@
  ],
  "slot_count": 133,
  "slot_x_sum": 823500.0,
- "string_count": 270,
+ "string_count": 274,
  "view_id": "tab",
  "zoom": 1.0
 }

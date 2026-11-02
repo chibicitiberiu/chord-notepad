@@ -4,7 +4,8 @@
 staff -- two 5-line staves (treble over bass) spanning the full strip width,
 joined at the left by a barline. Each sounding chord contributes its voiced
 notes as stemless **whole notes** (Bravura noteheads) at a duration-proportional
-slot; the chord symbol sits in a band above the treble staff. This replaces the
+slot; the chord symbol sits in a band above the treble staff. A rest (NC) draws
+a whole-bar rest on both staves in a slim slot. This replaces the
 old one-card-per-chord layout with a continuous lane like the tab view.
 
 The renderer stays a pure function of ``(ctx, height)`` per the
@@ -86,12 +87,14 @@ from chord_sheet.renderer_interface import (
     HAND_COLORS,
     NOTE_INK,
     STRIP_BG,
+    WHOLE_REST_W,
     SheetContext,
     SlotBox,
     StripLayout,
     StripRenderer,
     VOICE_COLORS,
     chord_symbol_label,
+    paint_whole_rest,
 )
 # Duration->width constants are shared with the tab lane so both continuous
 # views scale time identically.
@@ -106,8 +109,10 @@ logger = logging.getLogger(__name__)
 # --- Strip layout constants (px) ------------------------------------------
 #: Leading/trailing padding at the strip's left and right edges.
 STRIP_MARGIN = 12.0
-#: Width of a rest's slim slot (a gap where nothing is drawn).
+#: Minimum width of a rest's slim slot (at least the whole rest plus padding).
 REST_WIDTH = 18.0
+#: Space either side of the whole rest inside its slot, in staff spaces.
+_REST_PAD = 0.7
 
 # --- Staff-space sizing ----------------------------------------------------
 #: Lane height is divided into this many staff-space units; the staff space is
@@ -657,7 +662,7 @@ class StaffCardRenderer(StripRenderer):
 
         Returns:
             A :class:`StripLayout` with one slot per chord in song order (rests
-            as slim gaps).
+            in slim slots).
         """
         song = ctx.song
         s = _staff_space(height, ctx.zoom)
@@ -672,6 +677,8 @@ class StaffCardRenderer(StripRenderer):
                     x += _key_change_lead(fifths, s)
                     prev_fifths = fifths
             width = _slot_width(chord, ctx.zoom)
+            if chord.is_rest:
+                width = max(width, (WHOLE_REST_W + 2 * _REST_PAD) * s)
             slots.append(SlotBox(chord_index=index, x=x, width=width))
             x += width
 
@@ -797,18 +804,29 @@ class StaffCardRenderer(StripRenderer):
                     lead = _key_change_lead(fifths, s)
                     self._paint_key_change(ops, slot.x - lead, fifths, geom, tag)
                     prev_fifths = fifths
-                elif chord.bar != prev_bar and not chord.is_rest:
+                elif chord.bar != prev_bar:
                     ops.line(
                         [(slot.x, geom.treble_top), (slot.x, geom.bass_bottom())],
                         fill=_STAFF_LINE, width=geom.staff_line_w, tags=(tag,),
                     )
             prev_bar = chord.bar
 
-            if chord.is_rest:
-                continue  # slim gap: staff lines already span underneath
-
             self._paint_symbol(ops, slot, chord, geom, tag)
+            if chord.is_rest:
+                self._paint_rest(ops, slot, geom, tag)
+                continue
             self._paint_notes(ops, slot, chord, song, geom, tag)
+
+    def _paint_rest(self, ops: DrawOps, slot: SlotBox, geom: _Geometry, tag: str) -> None:
+        """Draw a whole-bar rest on both staves, centred in the rest's slot.
+
+        Every NC shows as one bar's rest whatever its length (note values are
+        not engraved yet).
+        """
+        s = geom.staff_space
+        cx = slot.x + slot.width / 2.0
+        for top in (geom.treble_top, geom.bass_top):
+            paint_whole_rest(ops, cx, top + s, s, _INK, tag)
 
     # -- Staff / clefs ------------------------------------------------------
 

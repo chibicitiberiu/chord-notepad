@@ -97,16 +97,15 @@ def test_layout_slot_count_matches_chord_count_including_rests():
     assert [s.chord_index for s in layout.slots] == [0, 1, 2]
 
 
-def test_rest_draws_no_note_bars():
+def test_rest_draws_its_label_but_no_note_bars():
     song = make_song(make_chord("C"), make_chord("NC", is_rest=True))
     _, layout, ops = render(song)
     rest_slot = layout.slots[1]
     rest_tag = f"slot:{rest_slot.chord_index}"
     rest_ops = [o for o in ops.ops if rest_tag in getattr(o, "tags", ())]
-    # The rest gets no chord-symbol text and no note-bar rects (it may still
-    # participate in a bar line, but that's keyed off the *next* chord, and
-    # there is none here).
-    assert not any(isinstance(o, TextOp) for o in rest_ops)
+    # The rest gets its label and no note-bar rects: the empty lane is the
+    # silence.
+    assert [o.s for o in rest_ops if isinstance(o, TextOp)] == ["NC"]
     assert not any(isinstance(o, RectOp) for o in rest_ops)
 
 

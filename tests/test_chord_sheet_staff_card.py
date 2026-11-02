@@ -20,7 +20,7 @@ from models.chord_notes import ChordNotes
 from models.line import Line
 from models.rendered_song import RenderedChord, RenderedSong
 from services.song_renderer import SongRenderer
-from chord_sheet.ops import DrawOps, ImageOp, LineOp, TextOp
+from chord_sheet.ops import DrawOps, ImageOp, LineOp, RectOp, TextOp
 from chord_sheet.renderer_interface import (
     HAND_COLORS,
     NOTE_INK,
@@ -197,18 +197,47 @@ class TestLayout:
         assert w1 == sc._slot_width(song.chords[0])
         assert w2 == sc._slot_width(song.chords[1])
 
-    def test_rest_slot_is_slim_and_empty(self):
+    def test_rest_slot_is_slim_with_a_whole_rest_on_each_staff(self):
         song = make_song(
             make_chord("C", midi_notes=[60, 64, 67], chord_notes=C_MAJOR, duration_beats=2.0),
             make_chord("NC", is_rest=True),
         )
         layout, ops = paint(song)
         chord_slot, rest_slot = layout.slots
-        assert rest_slot.width == REST_WIDTH
+        assert rest_slot.width >= REST_WIDTH
         assert rest_slot.width < chord_slot.width
-        # The rest emits nothing: no noteheads, accidentals, or symbol text.
-        rest_ops = [o for o in ops.ops if "slot:1" in o.tags]
-        assert rest_ops == []
+        # The rest draws its label and its whole rests: no noteheads or accidentals.
+        slot_ops = [o for o in ops.ops if "slot:1" in o.tags]
+        assert [o.s for o in slot_ops if isinstance(o, TextOp)] == ["NC"]
+        assert not any(isinstance(o, ImageOp) for o in slot_ops)
+        rest_ops = [o for o in slot_ops if isinstance(o, RectOp)]
+        geom = sc._geometry(130.0)
+        s = geom.staff_space
+        # One per staff, hanging from the second line from the top, centred.
+        assert sorted(o.y for o in rest_ops) == pytest.approx(
+            [geom.treble_top + s, geom.bass_top + s])
+        for o in rest_ops:
+            assert o.h == pytest.approx(0.5 * s)
+            assert o.x + o.w / 2 == pytest.approx(rest_slot.x + rest_slot.width / 2)
+            assert rest_slot.x < o.x and o.x + o.w < rest_slot.x + rest_slot.width
+
+    def test_rest_slot_fits_its_rest_on_a_tall_staff(self):
+        song = make_song(make_chord("NC", is_rest=True))
+        layout, ops = paint(song, 400.0)
+        slot = layout.slots[0]
+        rest = next(o for o in ops.ops if "slot:0" in o.tags and isinstance(o, RectOp))
+        assert slot.x < rest.x and rest.x + rest.w < slot.x + slot.width
+
+    def test_rest_starting_a_bar_gets_a_bar_line(self):
+        song = make_song(
+            make_chord("C", midi_notes=[60, 64, 67], chord_notes=C_MAJOR, bar=1),
+            make_chord("NC", is_rest=True, bar=2),
+        )
+        layout, ops = paint(song)
+        rest_x = layout.slots[1].x
+        bar_lines = [o for o in ops.ops if isinstance(o, LineOp) and "slot:1" in o.tags
+                     and o.points[0][0] == o.points[-1][0] == rest_x]
+        assert len(bar_lines) == 1
 
     def test_geometry_is_pure_function_of_height(self):
         song = make_song(make_chord("C", midi_notes=[60, 64, 67], chord_notes=C_MAJOR))

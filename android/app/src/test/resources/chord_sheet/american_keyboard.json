@@ -1,9 +1,9 @@
 {
  "background": "#fbfbf8",
- "byte_length": 33645,
+ "byte_length": 33745,
  "content": {
-  "coord_sum": 6729327.2839131355,
-  "count": 946,
+  "coord_sum": 6761232.2839131355,
+  "count": 949,
   "first": {
    "fill": "#eef0ec",
    "h": 2.9189188480377197,
@@ -20,7 +20,7 @@
   "histogram": {
    "line": 127,
    "rect": 689,
-   "text": 130
+   "text": 133
   },
   "last": {
    "fill": "#22323a",
@@ -36,7 +36,7 @@
    "x": 11906.0,
    "y": 45.35135269165039
   },
-  "tag_count": 1620
+  "tag_count": 1623
  },
  "content_height": 130.0,
  "content_width": 12012.0,
@@ -144,7 +144,7 @@
  ],
  "slot_count": 133,
  "slot_x_sum": 821904.0,
- "string_count": 302,
+ "string_count": 306,
  "view_id": "keyboard",
  "zoom": 1.0
 }

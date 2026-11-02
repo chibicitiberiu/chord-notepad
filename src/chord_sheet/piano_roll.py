@@ -268,9 +268,6 @@ class PianoRollRenderer(StripRenderer):
             chord = chords[slot.chord_index]
             tag = f"slot:{slot.chord_index}"
 
-            if chord.is_rest:
-                continue
-
             cx = slot.x + slot.width / 2.0
             ops.text(
                 cx,
@@ -282,6 +279,8 @@ class PianoRollRenderer(StripRenderer):
                 bold=True,
                 tags=(tag,),
             )
+            if chord.is_rest:
+                continue  # the label marks it; the empty lane is the silence
 
             self._paint_note_bars(ops, chord, slot, tag, row_h, y_of)
 
