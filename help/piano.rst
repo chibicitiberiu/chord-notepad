@@ -40,7 +40,7 @@ The Built-in Voicing
 
    Chord Notepad ships with one built-in piano voicing, listed as **Piano** in
    the :menuselection:`Playback --> Voicing` menu and as **Piano (default)**
-   under Load config in the Voicings editor. It's the voicing a fresh install
+   under Copy from existing in the Voicings editor. It's the voicing a fresh install
    starts with. Its parameters reproduce the piano engine's original,
    hand-tuned behavior exactly, so if you've never touched the Voicings page,
    this is what you've been hearing all along.
@@ -48,7 +48,7 @@ The Built-in Voicing
 .. only:: android
 
    Chord Notepad ships with one built-in piano voicing, listed as **Piano** in
-   the player's Voicing sheet and as **Piano (default)** under Load config in
+   the player's Voicing sheet and as **Piano (default)** under Copy from existing in
    the Voicings editor. It's the voicing a fresh install starts with. Its
    parameters reproduce the piano engine's original, hand-tuned behavior
    exactly, so if you've never touched the Voicings page, this is what you've
@@ -74,7 +74,7 @@ Defining a Custom Piano Voicing
 
    1. Open |voicings_settings| and tap **Add voicing**. The new
       voicing starts out as a guitar.
-   2. Tap **Load config** and pick **Piano (default)**. The form switches to
+   2. Tap **Copy from existing** and pick **Piano (default)**. The form switches to
       the piano's fields, with the built-in values filled in. (Picking
       **Piano** under **Model** gives you the same values.)
    3. Tap the **Name** field to name the voicing.

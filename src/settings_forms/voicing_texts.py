@@ -93,12 +93,12 @@ STAFF_LABELS = ((None, 'Auto'), ('treble', 'Treble'), ('bass', 'Bass'))
 
 #: Editor strings that aren't tied to one field.
 EDITOR_TEXTS: Dict[str, str] = {
-    'load_button': 'Load config',
+    'load_button': 'Copy from existing',
     'name_label': 'Name:',
     'model_label': 'Model:',
     'placeholder': 'Select a voicing to edit, or add one with "+".',
-    'load_confirm_title': 'Load configuration',
-    'load_confirm': 'Loading a configuration replaces all parameters of this voicing. Continue?',
+    'load_confirm_title': 'Copy from Existing',
+    'load_confirm': 'Copying replaces all parameters of this voicing. Continue?',
     'model_confirm_title': 'Change Model',
     'model_confirm': ('Switching model will replace the current parameters with defaults. '
                       'Continue?'),
@@ -125,8 +125,8 @@ TOOLTIPS: Dict[str, str] = {
     'name': "The name of this voicing, shown in the Playback → Voicing menu.",
     'model': ("The engine that renders this voicing: fretboard (a fretted instrument), ensemble "
               "(independent voices), or piano."),
-    'load': ("Replace this voicing's model and parameters with those of a built-in preset or "
-             "another of your voicings. The name is kept."),
+    'load': ("Copy the model and parameters of a built-in preset or another of your voicings "
+             "into this one. The name is kept."),
     'tree_add': "Add a new voicing.",
     'tree_remove': "Remove the selected voicing.",
 

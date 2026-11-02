@@ -1057,7 +1057,7 @@
     }
    },
    "help": {
-    "load": "Replace this voicing's model and parameters with those of a built-in preset or another of your voicings. The name is kept.",
+    "load": "Copy the model and parameters of a built-in preset or another of your voicings into this one. The name is kept.",
     "model": "The engine that renders this voicing: fretboard (a fretted instrument), ensemble (independent voices), or piano.",
     "name": "The name of this voicing, shown in the player's Voicing sheet.",
     "tree_add": "Add a new voicing.",
@@ -1078,9 +1078,9 @@
     }
    ],
    "texts": {
-    "load_button": "Load config",
-    "load_confirm": "Loading a configuration replaces all parameters of this voicing. Continue?",
-    "load_confirm_title": "Load configuration",
+    "load_button": "Copy from existing",
+    "load_confirm": "Copying replaces all parameters of this voicing. Continue?",
+    "load_confirm_title": "Copy from Existing",
     "model_confirm": "Switching model will replace the current parameters with defaults. Continue?",
     "model_confirm_title": "Change Model",
     "model_label": "Model:",

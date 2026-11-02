@@ -217,8 +217,8 @@ class VoicingsPage(ttk.Frame):
         right.rowconfigure(5, weight=1)
         self._right = right
 
-        # Row 0: Load config menubutton (the Menubutton draws its own indicator,
-        # so the text is plain 'Load config' with no manual arrow glyph).
+        # Row 0: Copy from existing menubutton (the Menubutton draws its own indicator,
+        # so the text is plain 'Copy from existing' with no manual arrow glyph).
         self._load_button = ttk.Menubutton(right, text=EDITOR_TEXTS['load_button'])
         self._load_menu = tk.Menu(self._load_button, tearoff=0)
         style_menu(self._load_menu)

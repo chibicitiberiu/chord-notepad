@@ -231,7 +231,7 @@ you there.
       :platforms: android
       :alt: Settings on a tablet in landscape: the pages on the left, the
             Voicings list in the middle with My 7-String selected, and its
-            form on the right with Name, Model, Load config, Remove voicing,
+            form on the right with Name, Model, Copy from existing, Remove voicing,
             Strings and the fret and span fields.
 
       Settings › Voicings on a tablet.
@@ -253,14 +253,14 @@ you there.
    .. platform-figure:: settings-voicing-form
       :platforms: android
       :alt: The form for the voicing My 7-String on a phone: Name with a
-            pencil button, Model Fretboard, Load config and Remove voicing
+            pencil button, Model Fretboard, Copy from existing and Remove voicing
             buttons, Strings B1 E2 A2 D3 G3 B3 E4, then Max fret, Fingers and
             Max span with minus and plus buttons.
 
       A fretboard voicing's form on a phone (the top of it; the weights are
       further down).
 
-**Load config**
+**Copy from existing**
    Copies every parameter from an existing voicing -- any built-in preset
    or any other custom voicing -- into the one you're editing. This is the
    normal way to start a new voicing: load the closest preset, then change
@@ -350,7 +350,7 @@ instead of editing JSON by hand:
    1. Open :menuselection:`Tools --> Settings...` and go to the
       **Voicings** page.
    2. Click **+** to add a new voicing.
-   3. Click **Load config** and pick **Guitar (Standard - EADGBE)**. This
+   3. Click **Copy from existing** and pick **Guitar (Standard - EADGBE)**. This
       fills in the standard tuning and all its defaults as a starting point.
    4. In **Name**, type ``My 7-String``.
    5. In the strings field, change the tuning from ``E2 A2 D3 G3 B3 E4`` to
@@ -364,7 +364,7 @@ instead of editing JSON by hand:
 
    1. Open |voicings_settings|.
    2. Tap **Add voicing**. The new voicing opens (full screen on a phone).
-   3. Tap **Load config** and pick **Guitar (Standard - EADGBE)**. This
+   3. Tap **Copy from existing** and pick **Guitar (Standard - EADGBE)**. This
       fills in the standard tuning and all its defaults as a starting point.
    4. In **Name**, type ``My 7-String``.
    5. In the strings field, change the tuning from ``E2 A2 D3 G3 B3 E4`` to

@@ -228,7 +228,7 @@ Custom Ensembles
 
    1. Open |voicings_settings| and tap **Add voicing**. The new
       voicing starts out as a guitar.
-   2. Tap **Load config** and pick the built-in ensemble closest to what you
+   2. Tap **Copy from existing** and pick the built-in ensemble closest to what you
       want, such as **Choir (SATB)**. Or set **Model** to **Ensemble** to
       start from two plain voices.
    3. Tap the **Name** field to name the voicing.

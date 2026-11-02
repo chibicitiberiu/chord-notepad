@@ -15,3 +15,4 @@ moved to CHANGELOG_HISTORY.md and this file is reset.
 - macOS: a proper app in a disk image (`.dmg`): drag it to Applications and open it like any other Mac app, instead of running a bare program from Terminal.
 - macOS: a build for Intel Macs (`ChordNotepad-macos-x64.dmg`), next to the Apple silicon one.
 - macOS: FluidSynth is built into the app, so installing it from Homebrew is no longer needed.
+- Voicings editor: the **Load config** button is now **Copy from existing**, which says better what it does.
