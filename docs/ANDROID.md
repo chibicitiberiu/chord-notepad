@@ -723,9 +723,10 @@ committed schema (2026-10-29).
   - Edit mode is the text field: a tap only moves the cursor. Play mode
     (`ChordEditor` with `AppMode.PLAY`) is a plain `BasicText` over the same
     text and spans, so nothing focuses or opens the keyboard. A tap on a
-    chord sends `tap_chord_at`; elsewhere `set_playhead` with the nearest
-    chord (`ui/play/PlayheadGestures.kt`: vertical gap × 4 + horizontal gap,
-    the mockup's rule); a drag that starts within 12 dp of the playhead
+    chord (within 8 dp; the nearer one where two overlap) sends
+    `tap_chord_at`; elsewhere, while nothing plays, `set_playhead` with the
+    nearest chord (`ui/play/PlayheadGestures.kt`: vertical gap × 4 +
+    horizontal gap, the mockup's rule); while playing a miss does nothing. A drag that starts within 12 dp of the playhead
     marker scrubs it (drawn locally, one `set_playhead` on release; not
     while playing); other drags scroll. Both modes share one `ScrollState`.
     A pinch sends `step_font_size` in both.

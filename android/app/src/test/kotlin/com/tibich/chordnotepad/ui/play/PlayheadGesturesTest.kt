@@ -25,6 +25,22 @@ class PlayheadGesturesTest {
     }
 
     @Test
+    fun `while a song plays a tap that misses every chord does nothing`() {
+        assertEquals(PlayTap.OnChord(8), resolveTap(boxes, 62f, 10f, slop = 4f, nearestOnMiss = false))
+        assertNull(resolveTap(boxes, 80f, 10f, slop = 4f, nearestOnMiss = false))
+        assertNull(resolveTap(boxes, 30f, 30f, slop = 4f, nearestOnMiss = false))
+    }
+
+    @Test
+    fun `where grown boxes overlap the nearer chord wins`() {
+        // C at 50..60 and D at 64..74: with 8 px of slop both cover 58..66.
+        val d = ChordBox(10, 11, 64f, 0f, 74f, 20f)
+        val close = listOf(g, c, d)
+        assertEquals(PlayTap.OnChord(8), resolveTap(close, 61f, 10f, slop = 8f))
+        assertEquals(PlayTap.OnChord(10), resolveTap(close, 63.5f, 10f, slop = 8f))
+    }
+
+    @Test
     fun `nearest prefers the same line`() {
         // Under C horizontally but on line 2's height: Em is on that line.
         assertEquals(em, nearestChord(boxes, 55f, 50f))

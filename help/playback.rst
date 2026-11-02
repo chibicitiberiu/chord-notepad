@@ -77,7 +77,9 @@ Want to start from a specific point?
    There are two other ways to move the playhead, both silent:
 
    * Tap anywhere that isn't a chord. The playhead goes to the nearest chord,
-     preferring one on the line you tapped.
+     preferring one on the line you tapped. This works while nothing plays;
+     during playback a tap that misses the chords does nothing, so a stray
+     touch can't make the song jump.
    * Put your finger on the marker and drag it. It steps through the song
      chord by chord. This works while nothing plays; during playback the
      marker follows the music.
@@ -266,7 +268,7 @@ This works even when playback is stopped. Uses include:
    * Jumps playback to that chord, which keeps playing from there. The
      playhead moves with it.
 
-   A tap between chords does the same with the nearest chord.
+   A tap between chords does nothing while a song plays.
 
 
 Voicing Options

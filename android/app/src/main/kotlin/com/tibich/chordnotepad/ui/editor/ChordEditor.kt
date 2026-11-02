@@ -84,7 +84,7 @@ private const val PLACEHOLDER_ALPHA = 0.45f
 private val MarkerGrabWidth = 24.dp
 
 /** A tap this close to a chord counts as on it. */
-private val ChordSlop = 4.dp
+private val ChordSlop = 8.dp
 
 /**
  * The song text in either mode, over the session's highlighting; a pinch
@@ -323,7 +323,8 @@ private fun PlayText(
                                 scrubbed?.let(onScrub)
                                 if (!moved && !multi && !longPressed) {
                                     val p = change.position - Offset(padX, padY)
-                                    resolveTap(currentBoxes, p.x, p.y, slopPx)?.let { tap ->
+                                    // While a song plays only a chord tap acts: a miss would jump playback.
+                                    resolveTap(currentBoxes, p.x, p.y, slopPx, nearestOnMiss = !isPlaying)?.let { tap ->
                                         localHead = when (tap) {
                                             is PlayTap.OnChord -> tap.start
                                             is PlayTap.Nearest -> tap.start

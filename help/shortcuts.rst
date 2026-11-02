@@ -193,7 +193,8 @@ Playback
         - Move the playhead there and play that chord (while a song plays,
           jump playback there)
       * - Tap elsewhere in the text
-        - Move the playhead to the nearest chord
+        - Move the playhead to the nearest chord (does nothing while a song
+          plays)
       * - Drag the playhead marker
         - Move the playhead chord by chord
 

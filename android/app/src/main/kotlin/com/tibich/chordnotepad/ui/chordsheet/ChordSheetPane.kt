@@ -326,17 +326,23 @@ private fun ChordSheetStrip(
     }
 
     // Follow the playhead (the desktop's 25 % / 70 % band).
-    LaunchedEffect(currentIndex, sheet, viewportPx) {
-        val buffer = sheet?.buffer ?: return@LaunchedEffect
-        val slot = currentIndex?.let(buffer::slotFor) ?: return@LaunchedEffect
+    suspend fun follow(index: Int?) {
+        val buffer = sheet?.buffer ?: return
+        val slot = index?.let(buffer::slotFor) ?: return
         val target = scrollTarget(
             playheadX = slot.x + slot.width / 2f,
             viewportWidth = viewportPx / density,
             currentScroll = scroll.offset / density,
             contentWidth = buffer.contentWidth,
-        ) ?: return@LaunchedEffect
+        ) ?: return
         scroll.animateTo(target * density)
     }
+    // The chord sounding, while a song plays.
+    LaunchedEffect(currentIndex, sheet, viewportPx) { follow(currentIndex) }
+    // The playhead's chord while nothing plays, when it moves (a tapped chord,
+    // ⏮, a scrub): only on the move, so a zoom or a scroll by hand stays put.
+    val playing by rememberUpdatedState(currentIndex != null)
+    LaunchedEffect(cursorIndex) { if (!playing) follow(cursorIndex) }
 
     val currentSheet by rememberUpdatedState(sheet)
     val currentZoom by rememberUpdatedState(zoom)

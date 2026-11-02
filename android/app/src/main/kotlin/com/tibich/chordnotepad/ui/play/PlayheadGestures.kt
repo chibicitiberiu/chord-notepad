@@ -5,8 +5,9 @@ import com.tibich.chordnotepad.ui.editor.PaintedSpan
 
 // Play mode's touch rules (docs/design/android-ui-spec.md, "Modes"), as plain
 // geometry so they can be tested without a device: a tap on a chord moves the
-// playhead there and plays it, a tap elsewhere moves it to the nearest chord,
-// and a drag that starts on the playhead marker scrubs it chord by chord.
+// playhead there and plays it, a tap elsewhere moves it to the nearest chord
+// (only while nothing plays), and a drag that starts on the playhead marker
+// scrubs it chord by chord.
 
 /**
  * Where one chord sits on screen, in the text layout's pixels: its UTF-16
@@ -61,11 +62,15 @@ fun nearestChord(boxes: List<ChordBox>, x: Float, y: Float): ChordBox? {
 
 /**
  * What a tap at ([x], [y]) does: [PlayTap.OnChord] when it lands on a chord
- * (within [slop] px), else [PlayTap.Nearest]; null without chords.
+ * (within [slop] px; where two grown boxes overlap, the nearer chord), else
+ * [PlayTap.Nearest] when [nearestOnMiss] (false while a song plays, so a stray
+ * tap doesn't jump playback); null without chords or a miss that does nothing.
  */
-fun resolveTap(boxes: List<ChordBox>, x: Float, y: Float, slop: Float): PlayTap? {
-    val hit = boxes.firstOrNull { it.contains(x, y) } ?: boxes.firstOrNull { it.contains(x, y, slop) }
+fun resolveTap(boxes: List<ChordBox>, x: Float, y: Float, slop: Float, nearestOnMiss: Boolean = true): PlayTap? {
+    val hit = boxes.firstOrNull { it.contains(x, y) }
+        ?: nearestChord(boxes.filter { it.contains(x, y, slop) }, x, y)
     if (hit != null) return PlayTap.OnChord(hit.start)
+    if (!nearestOnMiss) return null
     return nearestChord(boxes, x, y)?.let { PlayTap.Nearest(it.start) }
 }
 

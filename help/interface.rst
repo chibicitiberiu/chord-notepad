@@ -394,7 +394,8 @@ The User Interface
         - Moves the playhead there and plays the chord.
       * - Tap elsewhere
         - Moves the cursor.
-        - Moves the playhead to the nearest chord.
+        - Moves the playhead to the nearest chord. While a song plays, it
+          does nothing.
       * - Drag
         - Selects or scrolls, as usual.
         - Scrolls. A drag that starts on the playhead marker moves it chord by

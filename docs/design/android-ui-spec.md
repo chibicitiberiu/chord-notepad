@@ -20,7 +20,7 @@ underline indicator.
 |---|---|---|
 | Text | editable; a tap places the cursor and opens the keyboard | frozen: read-only, keyboard hidden |
 | Tap a chord | moves the cursor only (silent) | moves the playhead there and plays the chord |
-| Tap elsewhere | moves the cursor | moves the playhead to the nearest chord |
+| Tap elsewhere | moves the cursor | moves the playhead to the nearest chord; while a song plays, nothing |
 | Drag | selects or scrolls as usual | scrolls; a drag that **starts on the playhead marker** scrubs it chord by chord |
 | Pinch | text size | text size |
 | Toolbar | editing ribbon | none (the player is at the bottom) |
