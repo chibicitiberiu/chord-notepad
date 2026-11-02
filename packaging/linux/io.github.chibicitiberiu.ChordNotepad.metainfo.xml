@@ -72,6 +72,15 @@
   </supports>
 
   <releases>
+    <release version="0.5.1" date="2026-11-02">
+      <description>
+        <p>
+          Builds for ARM64 Linux machines, next to the x64 ones. The macOS
+          version is now a regular app in a disk image, for Apple silicon and
+          Intel Macs.
+        </p>
+      </description>
+    </release>
     <release version="0.5.0" date="2026-11-01">
       <description>
         <p>
