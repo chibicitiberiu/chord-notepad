@@ -191,11 +191,36 @@ System Requirements
    Audio playback requires a working sound system. The application uses FluidSynth
    for instrument synthesis.
 
-   On macOS, open the ``.dmg`` file and drag Chord Notepad to Applications. The
-   app isn't notarized by Apple yet, so the first time you open it macOS says
-   it can't check it and won't open it. Open System Settings, go to Privacy &
-   Security, click **Open Anyway** next to Chord Notepad, and confirm. After
-   that it opens like any other app.
+   .. rubric:: Installing on macOS
+
+   #. Download ``ChordNotepad-macos-arm64.dmg`` if your Mac has Apple silicon
+      (M1 or later), or ``ChordNotepad-macos-x64.dmg`` if it has an Intel
+      processor. To check, open the Apple menu and choose **About This Mac**:
+      the **Chip** line names an Apple chip, the **Processor** line an Intel
+      one.
+   #. Open the ``.dmg`` file and drag Chord Notepad onto the Applications
+      folder next to it. Then eject the disk image.
+   #. Open Chord Notepad from Applications. The app isn't notarized by Apple,
+      so the first time macOS says it can't check it for malicious software
+      and doesn't open it. Click **Done**.
+   #. Open System Settings, go to **Privacy & Security** and scroll down to
+      **Security**. Next to the line about Chord Notepad, click
+      **Open Anyway**, then confirm with your password or Touch ID.
+
+   From then on it opens like any other app. FluidSynth and the instruments
+   are built in, so there's nothing else to install.
+
+   If macOS says Chord Notepad "is damaged and can't be opened", the download
+   was changed on the way and macOS refuses it without offering
+   **Open Anyway**. Download it again. If the message stays, open Terminal and
+   run:
+
+   .. code-block:: console
+
+      xattr -cr "/Applications/Chord Notepad.app"
+
+   This removes the "downloaded from the internet" mark from the app, so macOS
+   opens it without checking. Please also report it as a bug.
 
 .. only:: android
 

@@ -69,8 +69,10 @@ Download the latest release from the [Releases](https://github.com/chibicitiberi
 - **macOS** (11 Big Sur or newer): `ChordNotepad-macos-arm64.dmg` for Apple
   silicon (M1 and later) or `ChordNotepad-macos-x64.dmg` for Intel Macs. Open
   it and drag Chord Notepad to Applications (FluidSynth is bundled). The app
-  isn't notarized by Apple yet, so the first time macOS blocks it: open System
-  Settings > Privacy & Security and click **Open Anyway**.
+  isn't notarized by Apple, so the first time macOS blocks it: open System
+  Settings > Privacy & Security and click **Open Anyway**. If macOS says the
+  app is damaged, run `xattr -cr "/Applications/Chord Notepad.app"` in
+  Terminal. Step by step: [Installing on macOS](help/introduction.rst).
 
 Every release is built and tested by GitHub Actions, and comes with the full
 source code and the source of the bundled libraries.
