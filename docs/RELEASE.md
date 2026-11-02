@@ -433,6 +433,13 @@ CI then uploads every Linux build: tagged releases to `stable`, nightlies and
 manual dispatches to `edge`. Without the secret the snap is still built and
 kept as the `ChordNotepad-snap` workflow artifact.
 
+For a release on GitHub only, set the repo variable
+`SNAP_SKIP_TAG_PUBLISH` to `true` before pushing the tag
+(`gh variable set SNAP_SKIP_TAG_PUBLISH --body true`) and delete it after
+(`gh variable delete SNAP_SKIP_TAG_PUBLISH`). The tag's snap is then only a
+workflow artifact; `snapcraft upload --release=stable` on it publishes it
+later.
+
 ## Android
 
 One app, two build flavours, two channels, two signing keys. Both are free

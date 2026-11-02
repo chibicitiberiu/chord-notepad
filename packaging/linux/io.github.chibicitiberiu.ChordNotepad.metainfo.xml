@@ -72,6 +72,16 @@
   </supports>
 
   <releases>
+    <release version="0.5.2" date="2026-11-02">
+      <description>
+        <p>
+          Tempo, time signature and key can be changed while a song is paused.
+          The Staff view can write tenors on an octave-lower treble clef, and
+          ensemble voices can be reordered, each with its own gap to the next
+          voice.
+        </p>
+      </description>
+    </release>
     <release version="0.5.1" date="2026-11-02">
       <description>
         <p>

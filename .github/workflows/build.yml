@@ -514,9 +514,16 @@ jobs:
         env:
           SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_STORE_CREDENTIALS }}
           CHANNEL: ${{ startsWith(github.ref, 'refs/tags/v') && 'stable' || 'edge' }}
+          # Repo variable SNAP_SKIP_TAG_PUBLISH=true: a tag release that skips
+          # the Snap Store (GitHub only); the snap stays a workflow artifact.
+          SKIP_TAG: ${{ startsWith(github.ref, 'refs/tags/v') && vars.SNAP_SKIP_TAG_PUBLISH == 'true' }}
         run: |
           if [ -z "$SNAPCRAFT_STORE_CREDENTIALS" ]; then
             echo "::notice::SNAPCRAFT_STORE_CREDENTIALS not set; snap built but not published"
+            exit 0
+          fi
+          if [ "$SKIP_TAG" = "true" ]; then
+            echo "::notice::SNAP_SKIP_TAG_PUBLISH is set; snap built but not published"
             exit 0
           fi
           snapcraft upload --release="$CHANNEL" dist/ChordNotepad-linux-${{ matrix.linux_arch }}.snap
