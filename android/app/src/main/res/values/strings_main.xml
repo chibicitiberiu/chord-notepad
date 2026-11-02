@@ -30,15 +30,17 @@
 
     <!-- Sheets -->
     <string name="sheet_done">Done</string>
-    <string name="song_defaults_title">Song defaults</string>
-    <string name="song_defaults_subtitle">Values the song doesn\'t set come from Settings; a change here is for this song only and isn\'t saved. Values the song sets are shown for reference.</string>
+    <string name="song_defaults_title">Playback settings</string>
     <string name="song_defaults_write">Write into song</string>
     <string name="song_defaults_bpm">%1$s bpm</string>
     <string name="song_defaults_no_key">None</string>
+    <string name="song_defaults_tempo_about">Speed of playback, in beats per minute</string>
+    <string name="song_defaults_time_about">Beats per bar: bar lines and the metronome</string>
+    <string name="song_defaults_key_about">Key signature in the Staff view, and the key for relative chords (I, V, vi)</string>
     <string name="song_defaults_set_by">Set by</string>
     <string name="song_defaults_in_song">in the song</string>
     <string name="song_defaults_edit">Edit</string>
-    <string name="song_defaults_default_note">Default; the song has no</string>
+    <string name="song_defaults_unsaved">These aren\'t saved in the song and reset when you open it again.</string>
     <string name="voicing_subtitle">Which notes play for each chord.</string>
     <string name="voicing_edit">Edit voicings…</string>
     <string name="voicing_group_piano">Piano</string>

@@ -162,7 +162,7 @@ class SessionCommands(
     /** Convert the song's chords to [target] notation (`american`/`european`). */
     fun convertNotation(target: String) = send(CommandNames.CONVERT_NOTATION) { put("target", target) }
 
-    /** Song defaults › Write into song: insert the directives the song doesn't set, at the top. */
+    /** Playback settings › Write into song: insert the directives the song doesn't set, at the top. */
     fun writeSongDefaults() = send(CommandNames.WRITE_SONG_DEFAULTS)
 
     // -- playback and toolbar -------------------------------------------------

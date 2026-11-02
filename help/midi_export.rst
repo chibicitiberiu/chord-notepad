@@ -96,7 +96,7 @@ Tempo, meter, and key come from the same directives that drive playback:
 .. only:: android
 
    * The starting tempo is the one in the player's song pill: set by a
-     ``{bpm}`` before the song's first chord, or the Tempo in Song defaults
+     ``{bpm}`` before the song's first chord, or the Tempo in Playback settings
      when there's none (see :doc:`playback`). Every ``{bpm}`` change in the
      song is written at the point it occurs, so the file speeds up and slows
      down exactly where the song does.

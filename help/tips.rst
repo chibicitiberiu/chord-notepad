@@ -374,7 +374,7 @@ quality: ``V`` is major, ``v`` is minor.
 
    **Check the key for roman numerals:**
    If you're using roman numerals (I, IV, V, etc.), make sure the key is set
-   correctly in the song pill's Song defaults or with a ``{key}`` directive.
+   correctly in the song pill's Playback settings or with a ``{key}`` directive.
 
 **Check your time signature:**
 If rhythms feel off, verify the time signature matches your intention.

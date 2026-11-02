@@ -117,7 +117,7 @@ Switching Notations
 .. only:: android
 
    From that point on the editor recognizes and highlights chords in the notation
-   you picked, and keys are named in it too (in Song defaults and in the Insert
+   you picked, and keys are named in it too (in Playback settings and in the Insert
    Key dialog). The switch is for the song you have open; the notation a new
    song starts in is set in **☰ → Settings → General**.
 
@@ -647,7 +647,7 @@ Roman numerals make it easy to write progressions that work in any key:
 .. only:: android
 
    Set the key with a ``{key:}`` directive (＋ Insert → Key in the Edit ribbon), or
-   pick a default in the song pill's **Song defaults**, and Chord Notepad will play
+   pick a default in the song pill's **Playback settings**, and Chord Notepad will play
    the right chords.
 
 Using Accidentals

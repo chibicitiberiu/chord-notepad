@@ -527,7 +527,7 @@ Kotlin DTOs/builders done 2026-10-29: `bridge/PlayerBridge.kt`):
   the top of the song even when playback started later. Other statuses
   (`Saved: …`, `Inserted: …`, `Renamed to …`) are unchanged; Edit mode shows
   those as snackbars. The desktop wording is untouched.
-- *Song defaults.* `SongDefaultsState {tempo, time, key, summary,
+- *Song defaults* (the Playback settings sheet). `SongDefaultsState {tempo, time, key, summary,
   locked_reason}`, each of
   the three `SongDefault {value: str, from_directive: bool,
   directive_offset: int|null}`. `value` is what the song starts with:
@@ -548,12 +548,16 @@ Kotlin DTOs/builders done 2026-10-29: `bridge/PlayerBridge.kt`):
   (`"90 · 3/4 · G"`, an empty key left out); Kotlin needn't format it.
   `write_song_defaults {}` (Write into song) inserts the missing directives
   as one line at the top (`{bpm: 120} {time: 4/4} {key: G}`), one `group`
-  `TextEdited` followed by its `HighlightState`; refused while a song plays
-  or is paused; with nothing missing the status says so. `locked_reason:
-  str|null` is set while a song plays or is paused ("Stop playback to change
-  the tempo or write into the song"): `set_bpm` is ignored and the write
-  refused then, so the sheet turns the Tempo row and Write into song off
-  and shows the reason (like `VoicingMenuState.locked_reason`).
+  `TextEdited` followed by its `HighlightState`; refused while a song plays;
+  while paused it stops the paused run and keeps the playhead on the paused
+  chord (moved with the edit), so ▶ starts there; with nothing missing the
+  status says so. `locked_reason: str|null` is set while a song plays, not
+  while paused ("Pause to change the playback settings"): `set_bpm`,
+  `set_time_signature` and `set_key` are ignored and the write refused then,
+  so the sheet greys out the three values and Write into song, and a tap on
+  one shows the reason in a toast (like `VoicingMenuState.locked_reason`). A
+  tempo, time signature or key changed while paused makes the next ▶ render
+  again from the paused chord, as the voicing does.
 - *Capo in Insert.* `request_insert_directive {kind: "capo", at}` →
   `InsertDirectiveRequest(kind="capo")`, answered with `{"capo": "N"}`;
   `check_directive {kind: "capo", fields: {"capo": …}, request_id}` checks
@@ -751,7 +755,7 @@ committed schema (2026-10-29).
   `set_chord_sheet_height` (that stays the portrait height, shared with
   the desktop's sash).
 - **Player** (`ui/play/Player.kt`): the song pill (`SongDefaultsState.summary`)
-  opens Song defaults; voicing, instrument, ⏮ (`rewind`), ▶/⏸
+  opens Playback settings; voicing, instrument, ⏮ (`rewind`), ▶/⏸
   (`play_pause {}`: from the playhead), metronome, speed (badge when ≠ 100 %),
   ▭ (`set_chord_sheet_visible`); the status line is `StatusState.text`. In
   Edit mode each new status shows as a snackbar instead; in Play mode no
@@ -768,9 +772,11 @@ committed schema (2026-10-29).
   The instrument changes at any time. *Screen on:* the window keeps the
   screen awake only while the status is `playing` (`keepScreenOn`).
 - **Sheets** (`ui/sheets/`, route in `SheetRoute`, saved across rotation):
-  Song defaults (`set_bpm_text`, `set_time_signature`, `set_key` for the
-  editable defaults, `write_song_defaults`, Edit → Edit mode with the cursor
-  at `directive_offset`), Voicing (groups by value prefix, "Edit voicings…"
+  Playback settings (`SongDefaultsSheet`: `set_bpm_text`, `set_time_signature`,
+  `set_key` for the editable values, `write_song_defaults`, Edit → Edit mode
+  with the cursor at `directive_offset`; a line under each row says what it
+  does, and a note at the bottom says the values aren't saved in the song
+  while any isn't), Voicing (groups by value prefix, "Edit voicings…"
   → Settings at Voicings), Instrument (families → programs, ← back, Done
   closes), Speed (slider 12.5–400 % in 5 % steps → `set_multiplier_pct`,
   Reset, Manual… with `parseSpeedPct` 12.5–400, the session's range), Insert (the six directive
@@ -896,7 +902,9 @@ zoom or the strip height changes, never on scroll.
 - **Slots**: one per chord, in song order, rests included: `chord_index`
   (index into `RenderedSong.chords`, the same index `audition` and the
   playhead use), `x` and `width`. Tap hit-test: content x = scroll offset +
-  tap x; the slot with `x <= cx <= x + width` is auditioned. The playhead
+  tap x; the slot with `x <= cx <= x + width` is sent as `audition {index}`
+  (the session also moves the playhead there, or jumps playback there while
+  a song plays, when the strip's chord is the text's). The playhead
   highlight is a rect in the `highlight` colour over the current slot's
   `x .. x + width`, full content height, drawn *behind* the content ops.
 - **Gutter variants and runs**: the frozen left gutter (piano-roll keyboard,

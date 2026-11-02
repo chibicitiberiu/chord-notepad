@@ -20,7 +20,7 @@ any chord plays. :plat:`Put the cursor inside a directive to see its syntax in t
    You can type them, or let the app write them. In the Edit tab, **＋ Insert**
    in the ribbon adds a tempo, time signature, key, capo, label or loop at the
    cursor through a small dialog (see :doc:`interface`). In the Play tab, the
-   song pill's **Song defaults** sheet has **Write into song**, which puts the
+   song pill's **Playback settings** sheet has **Write into song**, which puts the
    missing ``{bpm}``, ``{time}`` and ``{key}`` at the top of the song.
 
 
@@ -50,7 +50,7 @@ Setting Tempo
 
 .. only:: android
 
-   Use a whole number from 20 to 400, the range of the tempo in Song defaults
+   Use a whole number from 20 to 400, the range of the tempo in Playback settings
    (＋ Insert → Tempo takes the same). A tempo outside 20-400 shows in red as an
    invalid directive and playback ignores it. The player's Speed multiplier is applied on top of
    this value, so a song written at ``{bpm: 120}`` with the multiplier set to
@@ -133,7 +133,7 @@ Resetting Tempo
 
 Return to the tempo the song started at: the one its first chord plays at,
 set by a ``{bpm}`` before the first chord, or the :plat:`toolbar tempo|Tempo in
-Song defaults` when there's none:
+Playback settings` when there's none:
 
 .. code-block:: chord
 
@@ -174,7 +174,7 @@ Setting Time Signature
    {time: 2/2}    // Two half-note beats - cut time
 
 The beats go from 1 to 16 and the unit is 1, 2, 4, 8 or 16, the same choices
-the :plat:`toolbar|Song defaults` offers. Anything else (``{time: 0/4}``,
+the :plat:`toolbar|Playback settings sheet` offers. Anything else (``{time: 0/4}``,
 ``{time: 4/3}``) shows in red as an invalid directive and playback ignores it.
 
 Common Time Signatures

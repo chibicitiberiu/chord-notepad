@@ -593,7 +593,7 @@
   {
    "name": "song-defaults",
    "page": "interface: The Player; getting_started: Adjusting the Tempo; playback: The Status Bar",
-   "what": "Song defaults sheet (tap the song pill): Tempo set by {bpm: 90} in the song (read-only, with Edit), Time signature and Key as editable defaults, Write into song, Done.",
+   "what": "Playback settings sheet (tap the song pill): Tempo set by {bpm: 90} in the song (read-only, with Edit), Time signature and Key as editable values, a line under each row, the not-saved note, Write into song, Done.",
    "config": {
     "time_signature_beats": 3,
     "key": "G"

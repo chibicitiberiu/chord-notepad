@@ -192,9 +192,9 @@ class BridgeCodecTest {
                "time": {"value": "3/4", "from_directive": false, "directive_offset": null},
                "key": {"value": "", "from_directive": false, "directive_offset": null},
                "summary": "90 · 3/4",
-               "locked_reason": "Stop playback to change the tempo or write into the song"}""",
+               "locked_reason": "Pause to change the playback settings"}""",
         )
-        assertEquals("Stop playback to change the tempo or write into the song", locked.lockedReason)
+        assertEquals("Pause to change the playback settings", locked.lockedReason)
         val failed = decode<RenameFailed>(
             "RenameFailed",
             """{"name": "a/b", "reason": "A name can't contain / or \\.", "can_save_as": false}""",

@@ -246,16 +246,18 @@ Adjusting the Tempo
    #. **Tempo** -- the song's *base* tempo in beats per minute. This is what a
       ``{bpm: ...}`` directive sets, and the number written on the page. The
       song pill at the top of the player (it reads something like
-      "𝄞 90 · 3/4 · G") shows it. Tap the pill to open **Song defaults**:
+      "𝄞 90 · 3/4 · G") shows it. Tap the pill to open **Playback
+      settings**:
 
       .. platform-figure:: song-defaults
          :platforms: android
-         :alt: The Song defaults sheet. Tempo shows 90 bpm, set by {bpm: 90} in
-               the song, with an Edit link. Time signature 3/4 and Key G are
-               editable defaults because the song has no time or key
-               directive. Write into song and Done at the bottom.
+         :alt: The Playback settings sheet. Tempo shows 90 bpm, set by
+               {bpm: 90} in the song, with an Edit link. Time signature 3/4
+               and Key G can be changed because the song has no time or key
+               directive. A note says these aren't saved in the song. Write
+               into song and Done at the bottom.
 
-         Song defaults for a song that sets its tempo but not its time
+         Playback settings for a song that sets its tempo but not its time
          signature or key.
 
       If the song has a ``{bpm}`` directive, the tempo is shown with "Set by

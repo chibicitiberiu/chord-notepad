@@ -42,9 +42,10 @@ point.
 
 .. only:: android
 
-   Tap any chord in the strip to hear that exact voicing once. This doesn't
-   move the playhead, so you can audition chords anywhere in the song and
-   still press **▶** to play from where you were.
+   Tap any chord in the strip to hear that exact voicing once. The playhead
+   moves to it too, the same as tapping the chord in the text, so **▶** plays
+   from there. While a song plays, a tap on a chord in the strip makes
+   playback jump to it instead.
 
 
 Showing and Resizing the Strip

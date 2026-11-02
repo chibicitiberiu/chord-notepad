@@ -55,10 +55,12 @@ The User Interface
    * **Middle-click** to reset to the default (120 BPM)
    * **Scroll** with the mouse wheel to step by 1
 
-   During playback the BPM control becomes read-only and shows the **effective
-   BPM**: what's actually playing right now, including any changes from
-   ``{bpm}`` directives in the song. When playback stops, it goes back to the
-   tempo the song starts at, and is editable again unless the song sets it.
+   While a song plays, the BPM control becomes read-only and shows the
+   **effective BPM**: what's actually playing right now, including any changes
+   from ``{bpm}`` directives in the song. When you pause or stop, it goes back
+   to the tempo the song starts at, and is editable again unless the song sets
+   it. A tempo you change while paused is heard when you resume: playback
+   starts again from the chord where you paused.
 
    Speed Multiplier
    ----------------
@@ -86,7 +88,12 @@ The User Interface
    * This affects how roman numerals are interpreted
 
    The keys shown match your notation choice (C-D-E-F-G-A-B for American,
-   Do-Re-Mi-Fa-Sol-La-Si for European).
+   Do-Re-Mi-Fa-Sol-La-Si for European). The key also gives the key signature
+   in the chord sheet's Staff view.
+
+   Like the BPM, the key and the time signature are locked while a song plays.
+   Pause to change them; playback then starts again from the paused chord with
+   the new values.
 
    Time Signature Controls
    -----------------------
@@ -541,20 +548,24 @@ The User Interface
 
    .. _song-defaults:
 
-   Song Defaults
-   -------------
+   Playback Settings
+   -----------------
 
    Tap the song pill to see the **Tempo**, **Time signature** and **Key** the
-   song starts with.
+   song starts with. Each row says what it does: the tempo is the speed of
+   playback, the time signature the beats per bar (bar lines and the
+   metronome), and the key gives the Staff view's key signature and the key
+   of relative chords (I, V, vi).
 
    .. platform-figure:: song-defaults
       :platforms: android
-      :alt: The Song defaults sheet. Tempo shows 90 bpm, set by {bpm: 90} in
-            the song, with an Edit link. Time signature 3/4 and Key G are
-            editable defaults because the song has no time or key directive.
-            Write into song and Done at the bottom.
+      :alt: The Playback settings sheet. Tempo shows 90 bpm, set by {bpm: 90}
+            in the song, with an Edit link. Time signature 3/4 and Key G can
+            be changed because the song has no time or key directive. A note
+            says these aren't saved in the song. Write into song and Done at
+            the bottom.
 
-      Song defaults for a song that sets its tempo but not its time
+      Playback settings for a song that sets its tempo but not its time
       signature or key.
 
    * A value the song sets with a directive is read-only. It shows "Set by
@@ -563,12 +574,14 @@ The User Interface
    * A value the song doesn't set comes from the defaults in :doc:`settings`,
      and you can tap it to change it. The change is for this song only: it
      isn't saved with the file or in Settings, and a new song or one you open
-     starts again from the defaults.
+     starts again from the defaults. The note at the bottom of the sheet says
+     so.
    * **Write into song** inserts the missing directives at the top of the
      song, so the values travel with the file.
 
-   While a song plays or is paused, the tempo and **Write into song** are
-   greyed out, with a note to stop playback first (**⏮**).
+   While a song plays, the values and **Write into song** are greyed out; tap
+   one to see why. Pause (**❚❚**) to change them: the next **▶** starts again
+   from the paused chord with the new values.
 
    The Speed Sheet
    ---------------

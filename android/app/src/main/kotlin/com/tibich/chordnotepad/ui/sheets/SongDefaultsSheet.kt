@@ -1,5 +1,6 @@
 package com.tibich.chordnotepad.ui.sheets
 
+import android.widget.Toast
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -7,7 +8,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
@@ -32,8 +32,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextLinkStyles
@@ -57,8 +60,9 @@ import com.tibich.chordnotepad.ui.theme.appColors
 data class SongDefaultValue(val value: String, val fromDirective: Boolean, val directiveOffset: Int? = null)
 
 /**
- * What the Song defaults sheet and the player's pill show. [lockedReason]:
- * while a song plays or is paused, why the tempo and Write into song are off.
+ * What the Playback settings sheet and the player's pill show. [lockedReason]:
+ * while a song plays (not while paused), why the values and Write into song
+ * are off.
  */
 data class SongDefaults(
     val tempo: SongDefaultValue,
@@ -86,7 +90,7 @@ enum class SongDefaultKind(val directive: String) { TEMPO("bpm"), TIME("time"), 
 /** The directive that sets [value] for [kind]: `{bpm: 90}`, `{time: 3/4}`, `{key: G}`. */
 fun directiveCode(kind: SongDefaultKind, value: String): String = "{${kind.directive}: $value}"
 
-/** What the Song defaults sheet does. */
+/** What the Playback settings sheet does. */
 interface SongDefaultsActions {
     /** A typed tempo default (`set_bpm_text`). */
     fun setTempoText(text: String)
@@ -108,56 +112,72 @@ interface SongDefaultsActions {
 val TIME_CHOICES: List<Pair<Int, Int>> = listOf(2 to 4, 3 to 4, 4 to 4, 5 to 4, 6 to 4, 7 to 4, 2 to 2, 3 to 8, 6 to 8, 7 to 8, 9 to 8, 12 to 8)
 
 /**
- * Song defaults (the player's song pill): Tempo, Time signature and Key.
- * A value set by a directive is read-only with "Set by `{bpm: 90}` in the
- * song · Edit"; the others are editable defaults (not saved with the file).
- * **Write into song** inserts the missing directives at the top. While a
- * song plays or is paused the tempo and Write into song are off and the
- * sheet says why ([SongDefaults.lockedReason]).
+ * Playback settings (the player's song pill): Tempo, Time signature and Key,
+ * each with a line saying what it does. A value set by a directive is
+ * read-only with "Set by `{bpm: 90}` in the song · Edit"; the others are
+ * this song's values (not saved with the file, as the note at the bottom
+ * says). **Write into song** inserts the missing directives at the top.
+ * While a song plays (not while paused) the values and Write into song are
+ * greyed out and a tap on one says why ([SongDefaults.lockedReason]).
  */
 @Composable
 fun SongDefaultsSheet(defaults: SongDefaults, keys: List<String>, actions: SongDefaultsActions, onDismiss: () -> Unit) {
     var tempoDialog by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    val locked = defaults.lockedReason
+    val sayLocked = { if (locked != null) Toast.makeText(context, locked, Toast.LENGTH_SHORT).show() }
     PickerSheet(
         title = stringResource(R.string.song_defaults_title),
-        subtitle = stringResource(R.string.song_defaults_subtitle),
         onDismiss = onDismiss,
         actions = {
-            SheetTextButton(stringResource(R.string.song_defaults_write), { actions.writeIntoSong(); onDismiss() }, enabled = defaults.canWrite)
+            SheetTextButton(
+                stringResource(R.string.song_defaults_write),
+                { if (locked != null) sayLocked() else { actions.writeIntoSong(); onDismiss() } },
+                enabled = defaults.anythingToWrite,
+                lockedReason = locked,
+            )
             ActionsSpacer()
             SheetDoneButton(stringResource(R.string.sheet_done), onDismiss)
         },
     ) {
-        defaults.lockedReason?.let { reason ->
+        DefaultRow(
+            SongDefaultKind.TEMPO, R.drawable.mdi_metronome, IconTints.Tempo, stringResource(R.string.insert_tempo),
+            stringResource(R.string.song_defaults_tempo_about),
+            defaults.tempo, display = stringResource(R.string.song_defaults_bpm, defaults.tempo.value),
+            onEdit = actions::editDirective,
+            lockedReason = locked,
+            onLocked = sayLocked,
+        ) { tempoDialog = true }
+        DefaultRow(
+            SongDefaultKind.TIME, R.drawable.ic_time_signature, IconTints.Time, stringResource(R.string.insert_time),
+            stringResource(R.string.song_defaults_time_about),
+            defaults.time, display = defaults.time.value, onEdit = actions::editDirective,
+            choices = TIME_CHOICES.map { "${it.first}/${it.second}" },
+            onChoose = { v -> v.split('/').let { actions.setTime(it[0].toInt(), it[1].toInt()) } },
+            lockedReason = locked,
+            onLocked = sayLocked,
+        )
+        DefaultRow(
+            SongDefaultKind.KEY, R.drawable.mdi_music_clef_treble, IconTints.Key, stringResource(R.string.insert_key),
+            stringResource(R.string.song_defaults_key_about),
+            defaults.key, display = defaults.key.value.ifEmpty { stringResource(R.string.song_defaults_no_key) },
+            onEdit = actions::editDirective,
+            choices = keys,
+            onChoose = actions::setKey,
+            lockedReason = locked,
+            onLocked = sayLocked,
+        )
+        if (defaults.anythingToWrite) {
             Text(
-                reason,
-                Modifier.fillMaxWidth().padding(bottom = 4.dp),
+                stringResource(R.string.song_defaults_unsaved),
+                Modifier.fillMaxWidth().padding(top = 10.dp),
                 fontSize = 12.sp,
                 lineHeight = 16.sp,
                 color = appColors.muted,
             )
         }
-        DefaultRow(
-            SongDefaultKind.TEMPO, R.drawable.mdi_metronome, IconTints.Tempo, stringResource(R.string.insert_tempo),
-            defaults.tempo, display = stringResource(R.string.song_defaults_bpm, defaults.tempo.value),
-            onEdit = actions::editDirective,
-            enabled = defaults.lockedReason == null,
-        ) { tempoDialog = true }
-        DefaultRow(
-            SongDefaultKind.TIME, R.drawable.ic_time_signature, IconTints.Time, stringResource(R.string.insert_time),
-            defaults.time, display = defaults.time.value, onEdit = actions::editDirective,
-            choices = TIME_CHOICES.map { "${it.first}/${it.second}" },
-            onChoose = { v -> v.split('/').let { actions.setTime(it[0].toInt(), it[1].toInt()) } },
-        )
-        DefaultRow(
-            SongDefaultKind.KEY, R.drawable.mdi_music_clef_treble, IconTints.Key, stringResource(R.string.insert_key),
-            defaults.key, display = defaults.key.value.ifEmpty { stringResource(R.string.song_defaults_no_key) },
-            onEdit = actions::editDirective,
-            choices = keys,
-            onChoose = actions::setKey,
-        )
     }
-    if (tempoDialog && defaults.lockedReason == null) {
+    if (tempoDialog && locked == null) {
         TempoDialog(defaults.tempo.value, onApply = { actions.setTempoText(it); tempoDialog = false }, onDismiss = { tempoDialog = false })
     }
 }
@@ -168,24 +188,29 @@ private fun DefaultRow(
     icon: Int,
     tint: androidx.compose.ui.graphics.Color,
     label: String,
+    about: String,
     value: SongDefaultValue,
     display: String,
     onEdit: (Int) -> Unit,
     choices: List<String> = emptyList(),
     onChoose: (String) -> Unit = {},
-    enabled: Boolean = true,
+    lockedReason: String? = null,
+    onLocked: () -> Unit = {},
     onOpen: (() -> Unit)? = null,
 ) {
     val colors = appColors
     var open by remember { mutableStateOf(false) }
     Column {
         Row(
-            Modifier.fillMaxWidth().height(46.dp),
+            Modifier.fillMaxWidth().heightIn(min = 52.dp).padding(vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             MdiIcon(icon, tint)
-            Text(label, Modifier.weight(1f), fontSize = 14.sp, color = colors.text)
+            Column(Modifier.weight(1f)) {
+                Text(label, fontSize = 14.sp, color = colors.text)
+                Text(about, fontSize = 11.sp, lineHeight = 15.sp, color = colors.muted)
+            }
             if (value.fromDirective) {
                 Text(display, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = colors.muted)
             } else {
@@ -196,13 +221,21 @@ private fun DefaultRow(
                         Modifier
                             .clip(shape)
                             .border(1.dp, colors.line, shape)
-                            .clickable(enabled = enabled, role = Role.Button) { if (onOpen != null) onOpen() else open = true }
+                            // Locked, it still takes a tap, to say why.
+                            .clickable(role = Role.Button) {
+                                when {
+                                    lockedReason != null -> onLocked()
+                                    onOpen != null -> onOpen()
+                                    else -> open = true
+                                }
+                            }
+                            .semantics { if (lockedReason != null) stateDescription = lockedReason }
                             .padding(horizontal = 10.dp, vertical = 5.dp),
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Medium,
-                        color = if (enabled) colors.text else colors.muted,
+                        color = if (lockedReason == null) colors.text else colors.muted.copy(alpha = 0.6f),
                     )
-                    DropdownMenu(expanded = open, onDismissRequest = { open = false }, modifier = Modifier.heightIn(max = 320.dp)) {
+                    DropdownMenu(expanded = open && lockedReason == null, onDismissRequest = { open = false }, modifier = Modifier.heightIn(max = 320.dp)) {
                         for (choice in choices) {
                             DropdownMenuItem(text = { Text(choice) }, onClick = {
                                 open = false
@@ -213,44 +246,37 @@ private fun DefaultRow(
                 }
             }
         }
+        if (value.fromDirective) SetByNote(kind, value, onEdit)
         HorizontalDivider(color = colors.line)
-        Note(kind, value, onEdit)
     }
 }
 
-/** "Set by `{bpm: 90}` in the song · Edit", or "Default; the song has no `{time}`". */
+/** "Set by `{bpm: 90}` in the song · Edit", under a row a directive sets. */
 @Composable
-private fun Note(kind: SongDefaultKind, value: SongDefaultValue, onEdit: (Int) -> Unit) {
+private fun SetByNote(kind: SongDefaultKind, value: SongDefaultValue, onEdit: (Int) -> Unit) {
     val colors = appColors
     val code = SpanStyle(color = colors.directive, fontFamily = FontFamily.Monospace)
     val setBy = stringResource(R.string.song_defaults_set_by)
     val inSong = stringResource(R.string.song_defaults_in_song)
     val edit = stringResource(R.string.song_defaults_edit)
-    val defaultNote = stringResource(R.string.song_defaults_default_note)
     val text = buildAnnotatedString {
-        if (value.fromDirective) {
-            append(setBy)
-            append(' ')
-            withStyle(code) { append(directiveCode(kind, value.value)) }
-            append(' ')
-            append(inSong)
+        append(setBy)
+        append(' ')
+        withStyle(code) { append(directiveCode(kind, value.value)) }
+        append(' ')
+        append(inSong)
+        val offset = value.directiveOffset
+        if (offset != null) {
             append(" · ")
-            val offset = value.directiveOffset
-            if (offset != null) {
-                withLink(
-                    LinkAnnotation.Clickable(
-                        "edit",
-                        TextLinkStyles(SpanStyle(color = colors.primary, fontWeight = FontWeight.Medium)),
-                    ) { onEdit(offset) },
-                ) { append(edit) }
-            }
-        } else {
-            append(defaultNote)
-            append(' ')
-            withStyle(code) { append("{${kind.directive}}") }
+            withLink(
+                LinkAnnotation.Clickable(
+                    "edit",
+                    TextLinkStyles(SpanStyle(color = colors.primary, fontWeight = FontWeight.Medium)),
+                ) { onEdit(offset) },
+            ) { append(edit) }
         }
     }
-    Text(text, Modifier.padding(start = 36.dp, top = 2.dp, bottom = 8.dp), fontSize = 11.sp, lineHeight = 15.sp, color = colors.muted)
+    Text(text, Modifier.padding(start = 36.dp, bottom = 8.dp), fontSize = 11.sp, lineHeight = 15.sp, color = colors.muted)
 }
 
 /** The tempo default, typed (the session parses and clamps it). */

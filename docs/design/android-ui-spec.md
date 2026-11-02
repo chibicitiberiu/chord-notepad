@@ -77,10 +77,11 @@ Phone landscape: the tabs and the Edit ribbon share one line, and the title is h
 
 Every sheet has a drag handle, a title, a scrollable body and actions at the bottom.
 
-- **Song pill → "Song defaults".** It lists Tempo, Time signature and Key.
+- **Song pill → "Playback settings".** It lists Tempo, Time signature and Key, each with a one-line description of what it does.
   - A value the song sets with a directive is read-only and shows "Set by `{bpm: 90}` in the song · Edit". **Edit** switches to Edit mode and puts the cursor on that directive.
-  - A value the song doesn't set is an editable default (not saved with the file).
+  - A value the song doesn't set is an editable default. A note at the bottom says these aren't saved in the song and reset when it is opened again.
   - **Write into song** inserts the missing directives at the top.
+  - While a song plays (not while paused) the values and Write into song are greyed out; a tap on one shows "Pause to change the playback settings" in a toast. A change while paused is heard from the paused chord on the next ▶.
 - **Voicing:** grouped as Piano, Fretted, Ensembles and Your voicings, with radio buttons. **Edit voicings…** opens Settings › Voicings.
 - **Instrument:** two levels.
   - The first level lists the 16 General MIDI families, with a marker on the current family and its current instrument shown on the right.

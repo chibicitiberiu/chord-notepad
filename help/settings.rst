@@ -135,7 +135,7 @@ General
    before its first chord.
 
 Only Settings changes the defaults (the key, tempo and time signature). The
-values :plat:`in the toolbar|in the song pill's Song defaults` belong to the
+values :plat:`in the toolbar|in the song pill's Playback settings` belong to the
 song you're working on: a change there isn't saved, and opening a song
 doesn't touch the defaults either. A new song, and every song you open,
 starts again from the defaults here, so a change on this page shows from the

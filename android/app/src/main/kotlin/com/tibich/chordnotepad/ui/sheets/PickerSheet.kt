@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.ModalBottomSheet
@@ -30,6 +31,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -148,8 +150,27 @@ fun SheetSection(text: String, modifier: Modifier = Modifier) {
 
 /** A text button in the sheet's primary colour. */
 @Composable
-fun SheetTextButton(label: String, onClick: () -> Unit, enabled: Boolean = true, leading: (@Composable () -> Unit)? = null) {
-    TextButton(onClick = onClick, enabled = enabled) {
+fun SheetTextButton(
+    label: String,
+    onClick: () -> Unit,
+    enabled: Boolean = true,
+    leading: (@Composable () -> Unit)? = null,
+    lockedReason: String? = null,
+) {
+    // Locked ([lockedReason]): it looks disabled but still takes the tap, so
+    // [onClick] can say why.
+    val colors = if (lockedReason != null && enabled) {
+        val disabled = ButtonDefaults.textButtonColors().disabledContentColor
+        ButtonDefaults.textButtonColors(contentColor = disabled)
+    } else {
+        ButtonDefaults.textButtonColors()
+    }
+    TextButton(
+        onClick = onClick,
+        enabled = enabled,
+        colors = colors,
+        modifier = Modifier.semantics { if (lockedReason != null) stateDescription = lockedReason },
+    ) {
         if (leading != null) {
             leading()
             Spacer(Modifier.size(6.dp))

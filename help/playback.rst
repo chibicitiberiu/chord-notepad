@@ -33,7 +33,7 @@ Starting Playback
 .. only:: android
 
    1. **Song pill**: the tempo, time signature and key the song starts with.
-      Tap it for Song defaults (see :ref:`playback-song-defaults`).
+      Tap it for the playback settings (see :ref:`playback-song-defaults`).
    2. **Voicing**: how each chord is spread into notes. Greyed out while a
       song plays.
    3. **Instrument**: the sound.
@@ -112,6 +112,10 @@ Pausing and Resuming
    Moving the playhead while paused (a tap, or a drag of the marker) drops the
    paused song, so the next **▶** starts from the new position.
 
+   While paused you can also change the tempo, time signature, key and
+   voicing. The next **▶** starts again from the chord where you paused, with
+   the new values.
+
 Stopping Playback
 -----------------
 
@@ -161,8 +165,8 @@ While playing:
      a verse. Once you pause or stop, the screen goes back to its usual
      timeout.
    * You can change the instrument, the speed and the metronome while the song
-     plays. The voicing and the tempo wait until you pause or stop (see
-     `Voicing Options`_ and :ref:`playback-song-defaults`).
+     plays. The voicing, tempo, time signature and key wait until you pause
+     (see `Voicing Options`_ and :ref:`playback-song-defaults`).
 
    Chord Notepad doesn't play in the background. Playback pauses, and stays
    paused until you tap **▶**, when:
@@ -238,8 +242,8 @@ You can play individual chords without starting full playback.
    If a song is paused, tapping a chord drops the paused song and plays the
    chord, and the next **▶** starts from it.
 
-   The chord sheet has its own version: tap a chord in the sheet to hear that
-   exact voicing once, without moving the playhead (see :doc:`chord_sheet`).
+   The chord sheet works the same way: tap a chord in the sheet to hear that
+   exact voicing once and move the playhead to it (see :doc:`chord_sheet`).
 
 This works even when playback is stopped. Uses include:
 
@@ -653,8 +657,8 @@ Different instruments can highlight different aspects of a chord progression.
 
 .. _playback-song-defaults:
 
-:plat:`The Status Bar|The Status Line and Song Defaults`
-========================================================
+:plat:`The Status Bar|The Status Line and Playback Settings`
+============================================================
 
 .. only:: desktop
 
@@ -678,19 +682,26 @@ Different instruments can highlight different aspects of a chord progression.
 
    Above the buttons, the **song pill** (something like "𝄞 90 · 3/4 · G")
    shows the tempo, time signature and key the song starts with. Tap it to
-   open **Song defaults**:
+   open **Playback settings**:
 
 .. platform-figure:: song-defaults
    :platforms: android
-   :alt: The Song defaults sheet: Tempo 90 bpm set by a bpm directive in the
-         song, with an Edit link; Time signature 3/4 and Key G as drop-down
-         defaults; Write into song and Done at the bottom.
+   :alt: The Playback settings sheet: Tempo 90 bpm set by a bpm directive in
+         the song, with an Edit link; Time signature 3/4 and Key G as
+         drop-down values; each row says what it does; a note that these
+         values aren't saved in the song; Write into song and Done at the
+         bottom.
 
    This song sets its tempo with ``{bpm: 90}``. The time signature and the
    key are defaults you can change here.
 
 .. only:: android
 
+   * **Tempo** is the speed of playback in beats per minute. **Time
+     signature** is the number of beats per bar: it places the bar lines and
+     sets the metronome. **Key** gives the key signature in the Staff view of
+     the chord sheet and the key that relative chords (I, V, vi) are played
+     in.
    * A value the song sets with a directive is read-only and reads "Set by
      ``{bpm: 90}`` in the song · Edit". **Edit** switches to the Edit tab with
      the cursor on that directive, so you can change it there.
@@ -705,12 +716,13 @@ Different instruments can highlight different aspects of a chord progression.
      is nothing to write: the song sets all three, or it sets the tempo and
      time signature and the key is None.
 
-   While a song plays or is paused, the tempo and **Write into song** are
-   greyed out, and the sheet says "Stop playback to change the tempo or
-   write into the song": tap **⏮**. A
-   time signature or key you change during playback is heard once you stop
-   and play again. To play faster or slower without touching the song, use
-   the **speed** button instead.
+   While a song plays, the values and **Write into song** are greyed out;
+   tap one to see why ("Pause to change the playback settings"). Pause
+   (**❚❚**) and change them: the next **▶** starts again from the chord where
+   you paused, with the new values. **Write into song** works while paused
+   too: the playhead stays on the paused chord, so **▶** plays from there. To
+   play faster or slower without touching the song, use the **speed** button,
+   which works while a song plays.
 
 
 Playback Tips

@@ -26,12 +26,12 @@ data class SongDefault(
 )
 
 /**
- * What the song starts with: the Song defaults sheet. [summary] is the
+ * What the song starts with: the Playback settings sheet. [summary] is the
  * pill's text (`"90 · 3/4 · G"`). Values not [SongDefault.fromDirective] are
  * the toolbar defaults (`setBpm`, `setTimeSignature`, `setKey`);
  * `writeSongDefaults` writes them into the song. [lockedReason] is set
- * while a song plays or is paused: the tempo and Write into song wait for
- * a stop (the session ignores them), and it says why.
+ * while a song plays (not while paused): the values and Write into song
+ * wait for a pause (the session ignores them), and it says why.
  */
 @Serializable
 data class SongDefaultsState(

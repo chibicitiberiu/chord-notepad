@@ -74,7 +74,7 @@ What Changes
    * **Key directives shift.** A ``{key: C}`` or ``{key: Am}`` inside the
      transposed range moves with the chords (and keeps its major or minor form).
      When you transpose the whole song, the song's key (the **Key** in the song
-     pill and in Song defaults) shifts too, so roman-numeral chords keep
+     pill and in Playback settings) shifts too, so roman-numeral chords keep
      sounding the same.
 
 What stays put:
@@ -112,7 +112,7 @@ Chord Notepad works out the key like this:
 
 .. only:: android
 
-   * The song's key (in the song pill and Song defaults) isn't used for
+   * The song's key (in the song pill and Playback settings) isn't used for
      spelling. Add a ``{key}`` at the top of the song if a spelling comes out
      wrong.
 
