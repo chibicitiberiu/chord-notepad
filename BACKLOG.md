@@ -59,6 +59,7 @@ it's done (git history keeps it); release mechanics live in `docs/RELEASE.md`.
 - Faster first note: stream the first bars or reuse the chord sheet's `RenderedSong` (1.4 s on the emulator); measure on the phone first.
 - APK size: R8, an SF3 GeneralUser GS (licence check), libsndfile and requests/chardet/urllib3 dropped if music21 allows; measure which chords only music21 resolves before keeping it.
 - Export to WAV/MP3 through FluidSynth's `file` driver.
+- Staff view clefs and transposing instruments (Tibi, 2026-11-02): today it's a fixed grand staff (treble over bass, plus the treble-8vb option for tenors). Next: alto and tenor C clefs (viola, trombone, cello, bassoon), treble 8vb for guitar and bass 8vb for bass guitar, single-staff layouts for one instrument, and written transposition (B♭ trumpet and clarinet, F horn, E♭ sax) with its own key signature. Touches `staff_card.py`'s geometry and key-signature tables, the frozen clef column (one variant per key and clef), the Android glyph assets and the voicing form. Estimated 3–5 days.
 - Playback ideas: arpeggio and strum patterns, `{pattern: …}` per section, `{v: 80}` volume.
 - Desktop ideas: audio device selection, PDF/image export of the chord sheet, multiple tabs, MIDI out.
 - iOS/iPadOS port on the same core. Licensing plan (decided 2026-10-31):
