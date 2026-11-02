@@ -61,10 +61,10 @@ _SCROLL_EPSILON = 0.5    # px; scroll deltas smaller than this are treated as no
 
 # Display-zoom step/bounds for zoom-capable renderers (staff, piano roll, ...).
 #: Why the fretted views are off for a song without fingerings, per platform.
+#: Android shows it in a toast, which Android 12+ cuts off after two lines.
 _PICK_FRETTED_INSTRUMENT = {
     DESKTOP: "Pick a fretted instrument (e.g. Guitar) in Playback \u2192 Voicing to use this view.",
-    ANDROID: "Pick a fretted instrument (e.g. Guitar) with the player's Voicing button "
-             "to use this view.",
+    ANDROID: "Pick a fretted voicing, like Guitar, with the Voicing button.",
 }
 
 _ZOOM_STEP = 1.2   # multiplicative factor per zoom-in/out click

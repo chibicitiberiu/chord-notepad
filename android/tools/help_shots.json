@@ -1487,7 +1487,7 @@
   {
    "name": "settings-voicing-form",
    "page": "settings: Voicings; settings: Worked Example: A Seven-String Guitar",
-   "what": "The voicing form for My 7-String on a phone: Name, Model, Load config, Remove voicing, Strings (B1 E2 A2 D3 G3 B3 E4), Max fret, Fingers, spans….",
+   "what": "The voicing form for My 7-String on a phone: Name, Model, Copy from existing, Remove voicing, Strings (B1 E2 A2 D3 G3 B3 E4), Max fret, Fingers, spans….",
    "scene": "grace_play",
    "steps": [
     {
@@ -1587,7 +1587,7 @@
     },
     {
      "swipe": {
-      "text": "Load config"
+      "text": "Copy from existing"
      },
      "by": [
       0,

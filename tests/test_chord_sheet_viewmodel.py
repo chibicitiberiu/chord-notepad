@@ -1039,7 +1039,6 @@ def test_the_fretted_reason_per_platform():
     # Desktop: exactly the text it always had.
     assert reasons["desktop"] == ("Pick a fretted instrument (e.g. Guitar) in "
                                   "Playback → Voicing to use this view.")
-    assert reasons["android"] == ("Pick a fretted instrument (e.g. Guitar) with the "
-                                  "player's Voicing button to use this view.")
+    assert reasons["android"] == "Pick a fretted voicing, like Guitar, with the Voicing button."
     with pytest.raises(ValueError):
         ChordSheetViewModel(FakeConfig(), FakeAudio(), platform="ios")
