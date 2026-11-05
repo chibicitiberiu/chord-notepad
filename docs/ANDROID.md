@@ -53,6 +53,7 @@ android/
   local.env.example                 toolchain paths; copy to local.env (gitignored)
   requirements.txt                  Python packages for the APK, pinned with sha256 hashes
   app/build.gradle.kts              app module: Chaquopy, natives, wheelhouse, SoundFont
+  app/proguard-rules.pro            R8 keep rules for what Python calls by name (release builds)
   app/src/main/kotlin/com/tibich/chordnotepad/
     ChordNotepadApp.kt, AppGraph.kt, MainActivity.kt
     bridge/                         PyHost, the Python contract, DTOs, codec, commands, SessionRepository
@@ -213,6 +214,56 @@ Release builds, signing keys, the source tarball and how to reproduce the
 GitHub APK are in `docs/RELEASE.md`, "Android". Auto Backup covers only
 `files/config/` (settings); the rules are in `res/xml/backup_rules.xml`
 (Android 6-11) and `res/xml/data_extraction_rules.xml` (12+).
+
+### R8 in release builds
+
+Release builds of both flavours go through R8 (`isMinifyEnabled`,
+`isShrinkResources`, `proguard-android-optimize.txt` plus
+`app/proguard-rules.pro`); debug builds don't. Play Console had flagged 0.5.2
+for 0% obfuscation. The libraries bring their own rules (Chaquopy's plugin
+keeps `com.chaquo.python.**`; kotlinx.serialization, Play Billing, AndroidX
+and Compose ship theirs), so `proguard-rules.pro` only covers what Python
+reaches by name: `EventSink` and `DocumentStoreBridge` with every method,
+the public methods of the classes that implement them (Chaquopy looks
+methods up on the object's own class), and `RenameUnsupportedException`'s
+class name, which `android_store.py` compares as a string. Nothing else in
+the app is reflected on: the bridge DTOs have explicit serializers
+(`BridgeCodec.serializers`), there is no `@JavascriptInterface` or
+`getIdentifier`, and enums are only looked up by values R8 leaves alone.
+`BridgeR8RulesTest` fails if a kept class moves or is renamed, if Python calls
+a method the kept interfaces don't declare, or if Python's copy of the
+exception name drifts. Only five app classes keep their names in the dex
+(`ChordNotepadApp`, `MainActivity` and those three); line numbers stay, with
+the source file renamed to `SourceFile`.
+
+Measured on 2026-11-06 (0.5.2 source, trimmed music21, source-built natives),
+release builds without and with R8:
+
+| | Without R8 | With R8 |
+|---|---|---|
+| dex, foss (uncompressed / in the APK) | 24.5 / 8.5 MB in 2 files | 3.3 / 1.7 MB in 1 |
+| dex, play | 26.5 / 9.3 MB in 3 files | 3.6 / 1.9 MB in 1 |
+| APK, foss, universal | 99.9 MB | 92.8 MB |
+| APK, foss, arm64-v8a only | 78.9 MB | 71.8 MB |
+| AAB, play | 79.9 MB | 75.8 MB (3.5 MB of it is the compressed mapping) |
+| `res/` entries, `resources.arsc` | 105, 571 KB | 67, 250 KB |
+
+The mapping is `outputs/mapping/<flavour>Release/mapping.txt` (about 46 MB).
+AGP puts the play one inside the AAB, so Play deobfuscates on its own; CI
+keeps both as the `ChordNotepad-android-mapping` artifact (`docs/RELEASE.md`,
+"Each Android release").
+
+R8 keeps the build reproducible: an unsigned foss APK from this checkout and
+one from a fresh copy at another path (`--no-daemon --no-build-cache
+--no-configuration-cache`, natives rebuilt) were byte-identical (sha256
+`8ebf27cc…`, 92,786,269 bytes), and so were their `mapping.txt` files.
+
+Play Console also warned "Edge-to-edge may not display for all users" for
+0.5.2. `MainActivity` already calls `enableEdgeToEdge()` and the screens
+handle insets; a dexdump of the play build found `Window.setStatusBarColor`
+and `setNavigationBarColor` only inside androidx.activity's
+`EdgeToEdgeApi23` to `EdgeToEdgeApi35` (Google's compat path), never in app
+code. Treated as advisory; check again once an R8 build is on Play.
 
 ## Bridge contract (Kotlin <-> Python)
 
@@ -685,6 +736,8 @@ values, and that `commands` covers every command Kotlin sends;
 `ScreenBridgeTest` does the same for the M5 value types and
 `ScreenCommandNames`, and checks the builders' JSON. Both pass against the
 committed schema (2026-10-29).
+`BridgeR8RulesTest` covers the other direction, what Python calls on Kotlin
+objects, against the release build's R8 rules ("R8 in release builds").
 
 ### Kotlin side
 
@@ -1435,8 +1488,9 @@ open work from them is in BACKLOG.md.
 API 36 Google APIs x86_64, 2 vCPU, 2 GB RAM, KVM, headless,
 `-gpu swangle_indirect`), emulator 37.2.12, on a shared Fedora 44 host with
 a load average of 35 to 50 on 24 threads during the runs. Treat timings as
-pessimistic and noisy. **Build:** release, not minified, debug-signed,
-trimmed music21, unless noted.
+pessimistic and noisy. **Build:** release, not minified (R8 came later; see
+"R8 in release builds" for today's sizes), debug-signed, trimmed music21,
+unless noted.
 
 ### Verdicts
 
@@ -1445,7 +1499,7 @@ trimmed music21, unless noted.
 | Chaquopy + core works? | **Go.** Python 3.14.8 starts; music21, the core, detection, render and playback all run unmodified, with runtime shims that core changes have since replaced. |
 | Audio plays? | **Go (pipeline-level).** FluidSynth 2.6.0 starts on `oboe` (AAudio stream at 48 kHz, active in AudioFlinger); SF2 loads from `filesDir`. On the emulator the host audio backend didn't initialise ("Could not init `pa'"), so nothing was audible. Audible output must be checked on the phone. |
 | Scheduling jitter OK? | **Go only while Python is idle; No-go under concurrent Python work.** Idle: interval error p99 0.9 to 1.4 ms. With one other Python thread busy (a render loop as a stand-in for a chord-sheet render): p50 26 ms, p99 49 to 76 ms, drift +5.5 s per minute. See below. Fixed by scheduling on FluidSynth's sequencer; see "After the Sequencer, desktop". |
-| APK size? | **Acceptable, with easy wins left.** 91.0 MB universal, 69.8 MB arm64-v8a only (trimmed music21). The SF2 is 29 MB of that; R8 and an SF3 would cut a further ~25 to 30 MB. |
+| APK size? | **Acceptable, with easy wins left.** 91.0 MB universal, 69.8 MB arm64-v8a only (trimmed music21). The SF2 is 29 MB of that; R8 and an SF3 would cut a further ~25 to 30 MB. (R8, since added, took about 7 MB off each APK.) |
 | 16 KB pages? | **Go.** All 160 ELF files (APK `lib/` plus Chaquopy's nested extension modules) have 16 KB `PT_LOAD` alignment; `zipalign -c -P 16` passes; the app runs and plays on the `google_apis_ps16k` image (`getconf PAGESIZE` = 16384). |
 | Reproducible? | **Yes, on one machine.** Two clean release builds from different checkout paths are byte-identical, signature included, after two fixes (see below). Re-checked with source-built natives and the offline wheelhouse: still identical. |
 
@@ -1457,7 +1511,7 @@ trimmed music21, unless noted.
 | APK, universal, music21 trimmed | 91.0 MB | `tools/strip_music21.py`: wheel 20.1 → 2.3 MB |
 | APK, arm64-v8a only, untrimmed / trimmed | 87.5 / 69.8 MB | |
 | APK, x86_64 only, trimmed | 70.1 MB | |
-| arm64 APK breakdown (trimmed) | SF2 29.2, libpython + OpenSSL + SQLite 12.7, dex 7.7 (no R8), stdlib 6.6, music21 + deps 5.9 (23.5 untrimmed), FluidSynth + codecs + Oboe + libc++ 4.2, other 3.3 MB | |
+| arm64 APK breakdown (trimmed) | SF2 29.2, libpython + OpenSSL + SQLite 12.7, dex 7.7 (no R8; 1.7 with R8), stdlib 6.6, music21 + deps 5.9 (23.5 untrimmed), FluidSynth + codecs + Oboe + libc++ 4.2, other 3.3 MB | |
 | Cold start → first frame (`am start -W` TotalTime) | 1.79 / 1.80 / 2.11 s | three cold starts after the first launch |
 | First launch after install → first frame | 5.07 s | includes Chaquopy's first-run asset extraction |
 | `System.loadLibrary("fluidsynth")` | 8 to 590 ms | |

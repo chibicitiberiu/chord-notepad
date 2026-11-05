@@ -545,6 +545,7 @@ On a `v<VERSION>` tag push or a *release* dispatch, the `android-release` job
 |---|---|---|
 | `ChordNotepad-android-play` | `ChordNotepad-<v>-play.aab`, upload-key signed | Workflow artifact only; upload to Play by hand |
 | `ChordNotepad-android` | `ChordNotepad-android.apk` (FOSS-signed, v2 + v3), `ChordNotepad-<v>-source.tar.gz`, `SHA256SUMS` | `attach-android` puts them on the GitHub release |
+| `ChordNotepad-android-mapping` | R8's `fossRelease/mapping.txt` and `playRelease/mapping.txt` | Workflow artifact only (90 days); for retracing stack traces |
 
 Checks before upload: `apksigner verify --print-certs` (v2 and v3 present,
 certificate pin if set), `jarsigner -verify` on the AAB, 16 KB page alignment
@@ -571,6 +572,15 @@ certificate pin if set), `jarsigner -verify` on the AAB, 16 KB page alignment
 Then, for Play, download `ChordNotepad-android-play` from the workflow run and
 upload the `.aab` in Play Console (Test and release > the track > Create new
 release).
+
+Release builds are shrunk and obfuscated by R8 (`docs/ANDROID.md`, "R8 in
+release builds"). The AAB carries its own mapping (`BUNDLE-METADATA/
+com.android.tools.build.obfuscation/proguard.map`), so Play Console
+deobfuscates crashes and ANRs without an upload. For a stack trace from the
+GitHub APK, take `fossRelease/mapping.txt` from `ChordNotepad-android-mapping`
+and run `$ANDROID_HOME/cmdline-tools/latest/bin/retrace mapping.txt trace.txt`.
+Once the artifact has expired, rebuild the tag as in "Reproducing the GitHub
+APK": the same source gives the same mapping.
 
 ### Google Play (first time)
 

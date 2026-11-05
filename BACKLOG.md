@@ -59,7 +59,7 @@ it's done (git history keeps it); release mechanics live in `docs/RELEASE.md`.
 - Small code debt: retained parameters in `audio/chord_picker.py:93-96` and `playback_service.py:385,411`, `RuntimeError` → `AudioInitializationError` in `audio/sequencer.py`, wake the Tk drain on `post` instead of the 100 ms poll.
 - Song structure: reusable parts (`{part: x}` … `{endpart}` with `{call: x}`, or `{play: label}`; no `goto`) and label-less `{loop: 3}` … `{endloop}`, across parser, renderer, chord sheet, hints, help and Android.
 - Faster first note: stream the first bars or reuse the chord sheet's `RenderedSong` (1.4 s on the emulator); measure on the phone first.
-- APK size: R8, an SF3 GeneralUser GS (licence check), libsndfile and requests/chardet/urllib3 dropped if music21 allows; measure which chords only music21 resolves before keeping it.
+- APK size: an SF3 GeneralUser GS (licence check), libsndfile and requests/chardet/urllib3 dropped if music21 allows; measure which chords only music21 resolves before keeping it.
 - Export to WAV/MP3 through FluidSynth's `file` driver.
 - Staff view notation (Tibi, 2026-11-03; deferred until after the first official release, too much risk before it): real note values from chord lengths (stems, flags, beams, dots, ties, NC as a sized rest, time signatures, true bar lines in every allowed meter), neat triplets snapped in the renderer (lazy `*0.3 *0.6` too), anything off a 16th grid rounded with a ≈ mark, then C clefs, a clef and staff number per voice, and transposing instruments. Reviewed plan: ~/Documents/chord-notepad/staff-plan.md (rhythm about 2–2.5 weeks, clefs about 1.5 weeks).
 - Playback ideas: arpeggio and strum patterns, `{pattern: …}` per section, `{v: 80}` volume.
