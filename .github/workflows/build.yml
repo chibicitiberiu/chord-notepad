@@ -1077,7 +1077,8 @@ jobs:
   #     attached;
   #   ChordNotepad-android: the foss flavour's universal APK signed with the FOSS key, the
   #     full source tarball (submodules included) and SHA256SUMS, which
-  #     attach-android puts on the GitHub release.
+  #     attach-android puts on the GitHub release;
+  #   ChordNotepad-android-mapping: R8's mapping.txt per flavour, never attached.
   # The keys live in the `android-release` environment's secrets
   # (docs/RELEASE.md, "Android"); without them the outputs are unsigned and the
   # job warns. Nothing desktop depends on this job, so an Android failure never
@@ -1307,6 +1308,19 @@ jobs:
             android/dist-android/*.apk
             android/dist-android/*-source.tar.gz
             android/dist-android/SHA256SUMS
+          retention-days: 90
+
+      # R8's mappings, for retracing a stack trace from the GitHub APK (Play
+      # takes the play one from the AAB). Not attached to the release; after
+      # the 90 days, a reproducible rebuild of the tag gives the same files.
+      - name: Upload R8 mappings
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ChordNotepad-android-mapping
+          path: |
+            android/app/build/outputs/mapping/fossRelease/mapping.txt
+            android/app/build/outputs/mapping/playRelease/mapping.txt
+          if-no-files-found: error
           retention-days: 90
 
   # Puts the FOSS-signed APK and the source tarball on the GitHub release that

@@ -7,4 +7,5 @@ of this file are used as the GitHub release description, then automatically
 moved to CHANGELOG_HISTORY.md and this file is reset.
 -->
 
+- Android: release builds are shrunk and obfuscated with R8 (Play Console flagged 0% obfuscation). The code in the APK goes from 8.5 to 1.7 MB and the APK is about 7 MB smaller (universal 92.8 MB, arm64 71.8 MB). Keep rules cover what Python calls by name, and a unit test checks them; CI keeps the mapping files for retracing crashes.
 - Chord sheet: a rest (`NC`) is no longer an unmarked gap. Every view labels it `NC`; the Staff view draws a whole rest on both staves (and a bar line where the rest starts a new bar), Tab a whole rest on the middle string line, and Fret cards a whole rest in a slim card. It's always shown as one bar's rest, whatever its length.

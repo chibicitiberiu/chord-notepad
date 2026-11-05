@@ -164,7 +164,12 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            // R8: shrink, optimize and obfuscate the Kotlin, and drop unused
+            // resources. proguard-rules.pro keeps what Python calls by name
+            // (docs/ANDROID.md, "R8 in release builds"). Debug stays as is.
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             signingConfig = when (signingMode) {
                 "none" -> null
                 "debug" -> signingConfigs.getByName("debug")
@@ -204,6 +209,11 @@ android {
                 it.systemProperty("cn.requirements", pythonRequirements.asFile.path)
                 // The generated User Guide (HelpAssetsTest).
                 it.systemProperty("cn.helpDir", layout.buildDirectory.dir("generated/help/assets/help").get().asFile.path)
+                // The R8 rules and the Python they protect (BridgeR8RulesTest).
+                it.systemProperty("cn.proguardRules", file("proguard-rules.pro").path)
+                it.systemProperty("cn.androidPython", file("src/main/python/chordnotepad_android").path)
+                it.inputs.file("proguard-rules.pro").withPathSensitivity(PathSensitivity.RELATIVE)
+                it.inputs.dir("src/main/python/chordnotepad_android").withPathSensitivity(PathSensitivity.RELATIVE)
             }
         }
     }
