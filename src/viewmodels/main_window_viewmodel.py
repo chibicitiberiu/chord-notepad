@@ -101,6 +101,9 @@ class MainWindowViewModel(Observable):
 
         # Why the last open/save/export failed, for the view's error dialog.
         self._last_error: Optional[str] = None
+        # What the store said about the last save (written in UTF-8 because
+        # the file's encoding couldn't hold the text), for the status line.
+        self._save_note: Optional[str] = None
 
     # Properties (read-only access to state)
 
@@ -108,6 +111,11 @@ class MainWindowViewModel(Observable):
     def last_error(self) -> Optional[str]:
         """Reason the last open/save/export failed, or None if it succeeded."""
         return self._last_error
+
+    @property
+    def save_note(self) -> Optional[str]:
+        """What the store said about the last successful save, or None."""
+        return self._save_note
 
     @property
     def documents(self) -> DocumentStore:
@@ -321,9 +329,11 @@ class MainWindowViewModel(Observable):
             True if successful, False otherwise (see :attr:`last_error`)
         """
         self._last_error = None
+        self._save_note = None
         try:
             logger.info(f"Saving file: {ref.location}")
-            self._documents.write_text(ref, self._current_text)
+            note = self._documents.write_text(ref, self._current_text)
+            self._save_note = note if isinstance(note, str) and note else None
 
             self.set_and_notify("is_modified", False)
             self.set_and_notify("current_document", ref)

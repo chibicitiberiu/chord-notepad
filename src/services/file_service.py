@@ -7,6 +7,7 @@ from typing import List, Optional
 
 from exceptions import FileOperationError
 from services.config_service import ConfigService
+from services.text_codec import TextFormat, decode_text, encode_text, format_of
 from utils.text_normalization import normalize_song_text
 
 
@@ -24,45 +25,52 @@ class FileService:
             path: Path to file to open
 
         Returns:
-            File contents as string, normalized for the editor (line endings
-            become ``\\n`` -- Python's universal newlines already do that --
-            and non-breaking / zero-width characters are cleaned up, since
-            they silently break chord detection). The file on disk is not
+            File contents as string, decoded as :mod:`services.text_codec`
+            reads files (UTF-8, a BOM's encoding, else Windows-1252) and
+            normalized for the editor (line endings become ``\\n``, and
+            non-breaking / zero-width characters are cleaned up, since they
+            silently break chord detection). The file on disk is not
             touched; the normalized form only reaches it on save.
 
         Raises:
-            FileOperationError: If file cannot be read
+            FileOperationError: If file cannot be read. The message doesn't
+                name the file: whoever shows it already does.
         """
         try:
             self._logger.info(f"Opening file: {path}")
-            with open(path, 'r', encoding='utf-8') as f:
-                content = normalize_song_text(f.read())
-
-            self._logger.debug(f"File opened successfully: {len(content)} characters")
-            return content
-
+            data = path.read_bytes()
         except FileNotFoundError:
             self._logger.error(f"File not found: {path}")
-            raise FileOperationError(f"File not found: {path}")
-        except UnicodeDecodeError as e:
-            self._logger.error(f"File encoding error: {e}")
-            raise FileOperationError(f"Cannot read file (encoding issue): {path}")
+            raise FileOperationError("File not found")
+        except PermissionError:
+            self._logger.error(f"Permission denied: {path}")
+            raise FileOperationError("Permission denied")
         except Exception as e:
             self._logger.error(f"Error reading file: {e}", exc_info=True)
-            raise FileOperationError(f"Failed to read file: {e}")
+            raise FileOperationError(f"Failed to read file: {getattr(e, 'strerror', None) or e}")
+        text, fmt = decode_text(data)
+        content = normalize_song_text(text)
+        self._logger.debug(f"File opened successfully: {len(content)} characters, "
+                           f"{fmt.encoding}, {fmt.newline!r}")
+        return content
 
-    def save_file(self, path: Path, content: str) -> bool:
+    def save_file(self, path: Path, content: str) -> Optional[str]:
         """Save content to a file.
+
+        An existing file keeps its encoding and line endings; a new one is
+        UTF-8 with the platform's line endings (see :mod:`services.text_codec`).
 
         Args:
             path: Path to save file to
-            content: Content to write
+            content: Content to write (``\\n`` line endings)
 
         Returns:
-            True if saved successfully
+            None, or a note for the user: the file's encoding couldn't hold
+            the text, so it was written in UTF-8.
 
         Raises:
-            FileOperationError: If file cannot be written
+            FileOperationError: If file cannot be written. The message
+                doesn't name the file: whoever shows it already does.
         """
         try:
             self._logger.info(f"Saving file: {path}")
@@ -70,19 +78,28 @@ class FileService:
             # Ensure parent directory exists
             path.parent.mkdir(parents=True, exist_ok=True)
 
-            # Write file
-            with open(path, 'w', encoding='utf-8') as f:
-                f.write(content)
+            try:
+                existing: Optional[bytes] = path.read_bytes()
+            except FileNotFoundError:
+                existing = None
+            except OSError as e:
+                # Can't read it to see its format (write-only?): a new file's.
+                self._logger.warning(f"Couldn't read {path} for its format: {e}")
+                existing = None
+            fmt = format_of(existing, TextFormat(newline=os.linesep))
+            data, note = encode_text(content, fmt)
+            path.write_bytes(data)
 
-            self._logger.debug(f"File saved successfully: {len(content)} characters")
-            return True
+            self._logger.debug(f"File saved successfully: {len(content)} characters, "
+                               f"{fmt.encoding}, {fmt.newline!r}")
+            return note
 
         except PermissionError:
             self._logger.error(f"Permission denied: {path}")
-            raise FileOperationError(f"Permission denied: {path}")
+            raise FileOperationError("Permission denied")
         except Exception as e:
             self._logger.error(f"Error writing file: {e}", exc_info=True)
-            raise FileOperationError(f"Failed to write file: {e}")
+            raise FileOperationError(f"Failed to write file: {getattr(e, 'strerror', None) or e}")
 
     def save_bytes(self, path: Path, data: bytes) -> None:
         """Write binary content (e.g. an exported MIDI file) to a file.
@@ -104,10 +121,10 @@ class FileService:
             self._logger.debug(f"File written successfully: {len(data)} bytes")
         except PermissionError:
             self._logger.error(f"Permission denied: {path}")
-            raise FileOperationError(f"Permission denied: {path}")
+            raise FileOperationError("Permission denied")
         except Exception as e:
             self._logger.error(f"Error writing file: {e}", exc_info=True)
-            raise FileOperationError(f"Failed to write file: {e}")
+            raise FileOperationError(f"Failed to write file: {getattr(e, 'strerror', None) or e}")
 
     def get_recent_files(self) -> List[Path]:
         """Get list of recently opened files.

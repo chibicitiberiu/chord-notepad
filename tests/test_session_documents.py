@@ -252,7 +252,7 @@ def test_open_failure_is_a_user_error_and_keeps_the_document():
     open_song(env)
     env.session.open_document(env.ref("nope.txt"))
     assert env.errors() == [(
-        "Error", "Failed to open file:\nnope.txt\n\nFile not found: nope.txt")]
+        "Error", "Failed to open file:\nnope.txt\n\nFile not found")]
     assert env.recorder.of_type(TextEdited) == []
     assert env.document().display_name == "song.txt"
     assert env.recent() == ["song.txt"]
@@ -354,6 +354,30 @@ def test_save_without_a_name_asks_for_one():
     assert env.errors() == []
 
 
+def test_a_store_reason_that_names_the_document_again_is_shown_once():
+    # Android's store says "Cannot read file (encoding issue): x (Downloads)".
+    assert formatting.file_error_message(
+        "Failed to open file", "latin1.txt (Downloads)",
+        "Cannot read file (encoding issue): latin1.txt (Downloads)") == (
+        "Failed to open file:\nlatin1.txt (Downloads)\n\nCannot read file (encoding issue)")
+    assert formatting.file_error_message("Failed to open file", "a.txt", "Denied") == (
+        "Failed to open file:\na.txt\n\nDenied")
+
+
+def test_a_save_the_store_had_to_write_in_utf8_says_so():
+    env = Env()
+    open_song(env)
+    env.type("C G")
+    env.store.write_note = "Saved in UTF-8: Windows-1252, the file's encoding, has no ș"
+    env.session.save()
+    assert env.status() == (
+        "Saved: song.txt. Saved in UTF-8: Windows-1252, the file's encoding, has no ș")
+    env.store.write_note = None
+    env.type("C G Am")
+    env.session.save()
+    assert env.status() == "Saved: song.txt"
+
+
 def test_save_failure_is_reported_instead_of_asking_for_a_name():
     env = Env()
     open_song(env)
@@ -362,7 +386,7 @@ def test_save_failure_is_reported_instead_of_asking_for_a_name():
     env.session.save()
     assert env.recorder.of_type(PickDocumentRequest) == []
     assert env.errors() == [(
-        "Error", "Failed to save file:\nsong.txt\n\nPermission denied: song.txt")]
+        "Error", "Failed to save file:\nsong.txt\n\nPermission denied")]
     assert env.document().is_modified is True
 
 

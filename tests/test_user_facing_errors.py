@@ -99,8 +99,8 @@ class TestViewModelFileErrors:
         missing = store.ref_for_path(tmp_path / "nope.txt")
 
         assert vm.open_file(missing) is False
-        assert "File not found" in vm.last_error
-        assert "nope.txt" in vm.last_error
+        # The dialog names the file (file_error_message); the reason doesn't.
+        assert vm.last_error == "File not found"
 
     def test_open_success_clears_previous_error(self, tmp_path):
         store = _fs_store()

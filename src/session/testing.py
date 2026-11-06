@@ -168,6 +168,9 @@ class InMemoryDocumentStore:
         self.contents: Dict[str, Union[str, bytes]] = {}
         #: When set, every write fails with this reason (a full disk...).
         self.write_error: Optional[str] = None
+        #: What :meth:`write_text` says about the save (a file written in
+        #: UTF-8 because its encoding can't hold the text), if a test sets it.
+        self.write_note: Optional[str] = None
         #: When False, :meth:`rename` raises ``RenameNotSupported`` (a
         #: provider without rename support).
         self.can_rename = True
@@ -195,11 +198,13 @@ class InMemoryDocumentStore:
             raise FileOperationError(f"Cannot read file (encoding issue): {ref.location}")
         return normalize_song_text(data)
 
-    def write_text(self, ref: DocumentRef, text: str) -> None:
-        """Store ``text``, or raise ``write_error`` if a test set one."""
+    def write_text(self, ref: DocumentRef, text: str) -> Optional[str]:
+        """Store ``text``, or raise ``write_error`` if a test set one; return
+        ``write_note``."""
         if self.write_error is not None:
             raise FileOperationError(self.write_error)
         self.contents[ref.id] = text
+        return self.write_note
 
     def write_bytes(self, ref: DocumentRef, data: bytes) -> None:
         """Store an export, or raise ``write_error`` if a test set one."""

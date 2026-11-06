@@ -213,9 +213,10 @@ def opened_status(location: str) -> str:
     return f"Opened: {location}"
 
 
-def saved_status(location: str) -> str:
-    """The status after the document was saved."""
-    return f"Saved: {location}"
+def saved_status(location: str, note: Optional[str] = None) -> str:
+    """The status after the document was saved, with what the store said
+    about it (``Saved: song.txt. Saved in UTF-8: ...``)."""
+    return f"Saved: {location}. {note}" if note else f"Saved: {location}"
 
 
 def exporting_midi_status(location: str) -> str:
@@ -238,6 +239,12 @@ def file_error_message(action: str, location: str, reason: Optional[str]) -> str
     """
     message = f"{action}:\n{location}"
     if reason:
+        # A store may end its reason with the name too ("File not found:
+        # song.txt (Downloads)"); the message names it once.
+        for tail in (f": {location}", f" {location}"):
+            if reason.endswith(tail) and len(reason) > len(tail):
+                reason = reason[:-len(tail)]
+                break
         message += f"\n\n{reason}"
     return message
 

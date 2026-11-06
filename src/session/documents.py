@@ -10,7 +10,7 @@ import logging
 import os
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List, Protocol, Union
+from typing import List, Optional, Protocol, Union
 
 from exceptions import FileOperationError
 from utils.paths import display_path
@@ -55,16 +55,28 @@ class DocumentStore(Protocol):
     def read_text(self, ref: DocumentRef) -> str:
         """Read a song, normalized for the editor.
 
+        Decoded as :func:`services.text_codec.decode_text` reads files (UTF-8,
+        a BOM's encoding, else Windows-1252), so a Latin-1 file opens.
+
         Raises:
-            FileOperationError: With a user-facing reason.
+            FileOperationError: With a user-facing reason that doesn't repeat
+                the document's name (the error dialog shows it already).
         """
         ...
 
-    def write_text(self, ref: DocumentRef, text: str) -> None:
-        """Write a song.
+    def write_text(self, ref: DocumentRef, text: str) -> Optional[str]:
+        """Write a song (``\\n`` line endings).
+
+        An existing document keeps its encoding and line endings (a CRLF
+        file stays CRLF); a new one is UTF-8. See :mod:`services.text_codec`.
+
+        Returns:
+            None, or a note for the status line: the document's encoding
+            couldn't hold the text, so it was written in UTF-8.
 
         Raises:
-            FileOperationError: With a user-facing reason.
+            FileOperationError: With a user-facing reason that doesn't repeat
+                the document's name.
         """
         ...
 
@@ -147,9 +159,10 @@ class FileSystemDocumentStore:
         """Read a song through ``FileService.open_file``."""
         return self._files.open_file(Path(ref.id))
 
-    def write_text(self, ref: DocumentRef, text: str) -> None:
-        """Write a song through ``FileService.save_file``."""
-        self._files.save_file(Path(ref.id), text)
+    def write_text(self, ref: DocumentRef, text: str) -> Optional[str]:
+        """Write a song through ``FileService.save_file`` (which keeps the
+        file's encoding and line endings)."""
+        return self._files.save_file(Path(ref.id), text)
 
     def write_bytes(self, ref: DocumentRef, data: bytes) -> None:
         """Write an export through ``FileService.save_bytes``."""

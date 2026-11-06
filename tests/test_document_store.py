@@ -100,8 +100,45 @@ def test_missing_file_reason(tmp_path):
     store, _ = _fs(tmp_path)
     ref = store.ref_for_path(tmp_path / "nope.txt")
     assert not store.is_available(ref)
-    with pytest.raises(FileOperationError, match="File not found.*nope.txt"):
+    # The error dialog names the file; the reason doesn't repeat it.
+    with pytest.raises(FileOperationError, match="^File not found$"):
         store.read_text(ref)
+
+
+def test_a_latin1_file_opens(tmp_path):
+    store, _ = _fs(tmp_path)
+    path = tmp_path / "latin1.txt"
+    path.write_bytes("Am  F\ncafé “là”\n".encode("cp1252"))
+    assert store.read_text(store.ref_for_path(path)) == "Am  F\ncafé “là”\n"
+
+
+def test_save_keeps_the_files_line_endings_and_encoding(tmp_path):
+    store, _ = _fs(tmp_path)
+    path = tmp_path / "windows.txt"
+    path.write_bytes("Am  F\r\ncafé\r\n".encode("cp1252"))
+    ref = store.ref_for_path(path)
+    text = store.read_text(ref)
+    assert text == "Am  F\ncafé\n"
+    assert store.write_text(ref, text + "G\n") is None
+    assert path.read_bytes() == "Am  F\r\ncafé\r\nG\r\n".encode("cp1252")
+
+
+def test_save_writes_utf8_when_the_encoding_cant_hold_the_text_and_says_so(tmp_path):
+    store, _ = _fs(tmp_path)
+    path = tmp_path / "windows.txt"
+    path.write_bytes("Am\r\ncafé\r\n".encode("cp1252"))
+    ref = store.ref_for_path(path)
+    note = store.write_text(ref, "Am\ncafé și\n")
+    assert note == "Saved in UTF-8: Windows-1252, the file's encoding, has no ș"
+    assert path.read_bytes() == "Am\r\ncafé și\r\n".encode("utf-8")
+    assert store.read_text(ref) == "Am\ncafé și\n"            # and it reads back
+
+
+def test_a_new_file_is_utf8_with_the_platforms_line_endings(tmp_path):
+    store, _ = _fs(tmp_path)
+    path = tmp_path / "new.txt"
+    assert store.write_text(store.ref_for_path(path), "C\nDó\n") is None
+    assert path.read_bytes() == "C\nDó\n".replace("\n", os.linesep).encode("utf-8")
 
 
 def test_write_bytes_failure_reason(tmp_path):

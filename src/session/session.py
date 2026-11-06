@@ -2423,7 +2423,7 @@ class AppSession:
         self._read_only_id = None
         self._publish_document()
         self._remember(ref)
-        self._set_status(formatting.saved_status(ref.location))
+        self._set_status(formatting.saved_status(ref.location, self._main.save_note))
         return True
 
     def _new_flow(self) -> Flow:
