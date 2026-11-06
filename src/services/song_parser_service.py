@@ -718,6 +718,20 @@ class SongParserService:
         """
         return self._helper.identify_by_root(notes)
 
+    def name_by_root(self, notes: List[str], bass: Optional[str] = None) -> List[str]:
+        """Name a set of notes from each of its notes as the root, with the
+        bass: ``Bdim/G`` for G B D F over G, never ``Bdimaddb6/G``.
+
+        Args:
+            notes: Distinct note names (e.g., ['G', 'B', 'D', 'F'])
+            bass: The lowest note, or None
+
+        Returns:
+            Chord names, bare and over the bass; see
+            :py:meth:`chord.helper.ChordHelper.name_by_root`.
+        """
+        return self._helper.name_by_root(notes, bass)
+
     def chord_to_midi(self, chord_name: str, base_octave: int = 4) -> List[int]:
         """Convert a chord name to MIDI note numbers.
 

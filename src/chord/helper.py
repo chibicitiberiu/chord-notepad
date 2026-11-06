@@ -326,6 +326,13 @@ class ChordHelper:
             ChordHelper._quality_pitch_sets = table
         return ChordHelper._quality_pitch_sets
 
+    # Four-note chords an added-tone reading must not stand in for. A triad
+    # plus one tone that makes one of these on another root is that chord in
+    # an inversion, not an added-tone chord: B D F + G is G7, not Bdimaddb6;
+    # A C E + F is Fmaj7, not Amaddb6. (E G# B + C stays Eaddb6: Caugmaj7 is
+    # rarer than the added-tone name.)
+    _PLAIN_FOUR_NOTE = frozenset({'6', 'm6', '7', 'maj7', 'm7', 'm7b5', 'dim7', '7sus4'})
+
     def identify_by_root(self, notes: List[str]) -> List[Tuple[str, str]]:
         """Name a set of notes from each of its notes taken as the root.
 
@@ -335,7 +342,9 @@ class ChordHelper:
         C6); otherwise, when taking away one or two notes leaves a triad, a
         sixth or a seventh chord on it, the rest are added tones (Eaddb6,
         Cadd#11, Cmaddb9). A known quality always wins, so a 6 chord never
-        comes out as add13. Every name is checked to resolve to exactly
+        comes out as add13. An added-tone reading whose notes are a plain
+        sixth or seventh chord on another root is left out (G B D F is G7,
+        never Bdimaddb6). Every name is checked to resolve to exactly
         these notes.
 
         Args:
@@ -343,13 +352,75 @@ class ChordHelper:
 
         Returns:
             ``(root, chord name)`` pairs, at most one per root, without a
-            slash bass (the caller knows the lowest note).
+            slash bass (:meth:`name_by_root` adds the bass).
         """
+        return [(root, name) for root, name, _ in self._root_readings(notes)]
+
+    def name_by_root(self, notes: List[str], bass: Optional[str] = None) -> List[str]:
+        """Every name :meth:`identify_by_root` finds for ``notes``, with the bass.
+
+        Each root's reading comes as it is (``Am7`` for C E G A). On a root
+        other than ``bass`` it also comes over the bass, but only when the
+        bass is one of its chord tones (``Am7/C``): a bass the reading
+        names as an added tone would be counted twice (G B D F is never
+        ``Bdimaddb6/G``). For such a root, and for a root with no reading,
+        the notes without the bass are named instead, when they are a known
+        quality on it, and come over the bass: ``Bdim/G`` for G B D F,
+        ``Am/F`` for F A C E, ``Dm6/G`` for G B D F A.
+
+        Args:
+            notes: Distinct note names in the app's spelling.
+            bass: The lowest note, in the same spelling; None names the
+                notes without a bass.
+
+        Returns:
+            Chord names in root order, each resolving to exactly ``notes``
+            (with ``bass`` lowest for a slash name).
+        """
+        bass_pc = parse_note_to_semitone(bass) if bass else None
+        names: List[str] = []
+        covered = set()   # roots whose own reading already comes over the bass
+        for root, name, added in self._root_readings(notes):
+            names.append(name)
+            if bass_pc is None or parse_note_to_semitone(root) == bass_pc:
+                continue
+            if bass_pc not in added:
+                names.append(f"{name}/{bass}")
+                covered.add(root)
+        if bass_pc is None:
+            return names
+        upper = [n for n in notes if parse_note_to_semitone(n) != bass_pc]
+        known = self._qualities_by_pitch_set()
+        classes = self._distinct_classes(upper)
+        if len(classes) < 3:
+            return names
+        full = frozenset(classes)
+        for root_pc, root in classes.items():
+            if root in covered:
+                continue
+            above = frozenset((pc - root_pc) % 12 for pc in full)
+            if above not in known:
+                continue
+            name = root + known[above]
+            if self._pitch_classes(name) == full and f"{name}/{bass}" not in names:
+                names.append(f"{name}/{bass}")
+        return names
+
+    @staticmethod
+    def _distinct_classes(notes: List[str]) -> dict:
+        """Pitch class -> the first name spelling it, in ``notes`` order."""
         classes = {}
         for name in notes:
             pc = parse_note_to_semitone(name)
             if pc is not None:
                 classes.setdefault(pc, name)
+        return classes
+
+    def _root_readings(self, notes: List[str]) -> List[Tuple[str, str, frozenset]]:
+        """``(root, name, added pitch classes)`` for each root that names the
+        notes; see :meth:`identify_by_root`. ``added`` is empty for a known
+        quality."""
+        classes = self._distinct_classes(notes)
         if len(classes) < 3:
             return []
         known = self._qualities_by_pitch_set()
@@ -357,18 +428,35 @@ class ChordHelper:
         readings = []
         for root_pc, root in classes.items():
             above = frozenset((pc - root_pc) % 12 for pc in full)
-            name = None
+            added = frozenset()
             if above in known:
                 name = root + known[above]
             else:
-                name = self._added_tone_name(root, above, known)
-            if name and self._pitch_classes(name) == full:
-                readings.append((root, name))
+                found = self._added_tone_name(root, above, known)
+                if found is None or self._plain_chord_elsewhere(full, root_pc, known):
+                    continue
+                name, tones = found
+                added = frozenset((root_pc + t) % 12 for t in tones)
+            if self._pitch_classes(name) == full:
+                readings.append((root, name, added))
         return readings
 
-    def _added_tone_name(self, root: str, above: frozenset, known: dict) -> Optional[str]:
+    def _plain_chord_elsewhere(self, full: frozenset, root_pc: int, known: dict) -> bool:
+        """Whether the pitch classes ``full`` are a plain sixth or seventh
+        chord (:attr:`_PLAIN_FOUR_NOTE`) on one of them other than ``root_pc``."""
+        for other in full:
+            if other == root_pc:
+                continue
+            quality = known.get(frozenset((pc - other) % 12 for pc in full))
+            if quality in self._PLAIN_FOUR_NOTE:
+                return True
+        return False
+
+    def _added_tone_name(self, root: str, above: frozenset, known: dict
+                         ) -> Optional[Tuple[str, Tuple[int, ...]]]:
         """``root`` + a base chord + added tones for the intervals ``above``
-        it, using the fewest added tones (then the base listed first)."""
+        it, using the fewest added tones (then the base listed first), and
+        the added tones (semitones above the root); None when there is none."""
         others = sorted(above - {0})
         best = None
         for count in (1, 2):
@@ -389,7 +477,7 @@ class ChordHelper:
         seventh = '7' in base
         names = ['b13' if seventh and t == 8 else self._ADDED_TONES[t] for t in tones]
         names.sort(key=lambda n: int(n.lstrip('#b')))
-        return root + base + ''.join('add' + n for n in names)
+        return root + base + ''.join('add' + n for n in names), tones
 
     def extract_root(self, chord_name: str) -> Optional[str]:
         """Extract root note from chord name"""

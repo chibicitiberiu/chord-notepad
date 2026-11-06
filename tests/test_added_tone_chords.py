@@ -9,6 +9,8 @@ notation, resolved to the right notes and register, transposed and
 converted to European notation and back.
 """
 
+import re
+
 import pytest
 
 from audio.chord_picker import ChordNotePicker
@@ -41,7 +43,9 @@ def typed(vm, text):
 
 
 def pitch_classes(helper, name):
-    return {parse_note_to_semitone(n) for n in helper.compute_chord_notes(name).notes}
+    """The pitch classes ``name`` sounds, a slash bass included (Bdim/G has G)."""
+    chord_notes = helper.compute_chord_notes(name)
+    return {parse_note_to_semitone(n) for n in chord_notes.notes + [chord_notes.bass_note]}
 
 
 # --- The identifier ---------------------------------------------------------
@@ -85,16 +89,16 @@ def test_a_reading_on_another_root_is_offered_as_a_slash_chord(vm):
     assert typed(vm, "E4 G4 C5 F#5") == ['Cadd#11/E', 'Cadd#11']
 
 
-def test_a_reading_with_an_added_tone_in_the_bass_comes_last(vm):
-    # Bb7: D diminished with an added b6 is the same four notes, but its
-    # bass would be the added tone.
-    assert typed(vm, "Bb4 D5 F5 Ab5") == ['Bb7', 'Ddimaddb6/Bb', 'Ddimaddb6']
+def test_a_triad_plus_a_tone_that_makes_a_seventh_chord_is_that_chord(vm):
+    # D F Ab + Bb is Bb7 in an inversion: no "Ddimaddb6", bare or over Bb.
+    assert not any('addb6' in name for name in typed(vm, "Bb4 D5 F5 Ab5"))
+    assert typed(vm, "Bb4 D5 F5 Ab5")[0] == 'Bb7'
 
 
 def test_plain_chords_are_unchanged(vm):
     assert typed(vm, "C4 E4 G4") == ['C']
     assert typed(vm, "E3 G3 C4") == ['C/E', 'C']
-    # Other readings follow (Emaddb6/C), but the plain chord leads.
+    # Other readings may follow, but the plain chord leads.
     assert typed(vm, "C4 E4 G4 B4")[0] == 'Cmaj7'
     assert typed(vm, "C4 E4 G4 D5")[0] == 'Cadd9'
 
@@ -104,8 +108,8 @@ def test_a_cluster_is_still_no_chord(vm):
 
 
 def test_a_common_inversion_beats_a_rare_root_position(vm):
-    # Cmaj7 in first inversion is likelier than E minor with an added b6.
-    assert typed(vm, "E3 G3 B3 C4") == ['Cmaj7/E', 'Cmaj7', 'Emaddb6']
+    # Cmaj7 in first inversion; E minor with an added b6 is the same chord.
+    assert typed(vm, "E3 G3 B3 C4") == ['Cmaj7/E', 'Cmaj7']
     # A dim7 chord on the lowest note leads the four equal-length names.
     assert typed(vm, "C4 Eb4 Gb4 A4")[0] == 'Cdim7'
 
@@ -122,6 +126,61 @@ def test_every_root_reading_has_exactly_the_notes(helper, notes):
     for root, name in readings:
         assert name.startswith(root)
         assert pitch_classes(helper, name) == wanted, name
+
+
+# --- The bass, counted once (C1, C14) -----------------------------------------
+
+@pytest.mark.parametrize("notes,expected", [
+    # The pass 1 examples: the seventh chord, and the triad above the bass
+    # over it, never the triad with the bass added a second time.
+    ("G B D F", ['G7', 'Bdim/G']),
+    ("F A C E", ['Fmaj7', 'Am/F']),
+    ("C E G B", ['Cmaj7', 'Em/C']),
+    ("Bb D F Ab", ['Bb7', 'Ddim/Bb']),
+    ("D F# A C", ['D7', 'F#dim/D']),
+    # A reading whose chord tones include the bass is an inversion.
+    ("F# A C E", ['F#m7b5', 'Am6', 'Am6/F#']),
+    ("C E G A", ['C6', 'Am7', 'Am7/C']),
+    ("E G B C", ['Cmaj7', 'Cmaj7/E']),
+    ("E G# B C", ['Eaddb6', 'G#augadd#9', 'G#augadd#9/E', 'Caugmaj7', 'Caugmaj7/E']),
+    # A ninth: the bass as an added 11 or b13 is taken off the upper chord.
+    ("G B D F A", ['G9', 'Bm7b5addb13', 'Dm6add11', 'Bm7b5/G', 'Dm6/G']),
+])
+def test_names_count_the_bass_once(helper, notes, expected):
+    names = notes.split()
+    assert helper.name_by_root(names, names[0]) == expected
+
+
+@pytest.mark.parametrize("notes", [
+    "G B D F", "F A C E", "C E G B", "Bb D F Ab", "D F# A C", "F# A C E", "C E G A",
+    "E G B C", "E G# B C", "G B D F A", "C E G B D", "E G B D C", "C Eb Gb A",
+])
+def test_every_name_over_the_bass_has_exactly_the_notes(helper, notes):
+    names = notes.split()
+    wanted = {parse_note_to_semitone(n) for n in names}
+    for name in helper.name_by_root(names, names[0]):
+        assert pitch_classes(helper, name) == wanted, name
+        if '/' in name:
+            upper, bass = name.split('/')
+            assert bass == names[0], name
+            # The bass is named once: a chord tone of the upper chord's base
+            # (Am7/C), or not in the upper chord at all (Bdim/G); never only
+            # an added tone (Bdimaddb6/G).
+            base = re.sub(r'add[#b]?\d+', '', upper)
+            if parse_note_to_semitone(bass) in pitch_classes(helper, upper):
+                assert parse_note_to_semitone(bass) in pitch_classes(helper, base), name
+
+
+def test_no_bass_names_the_readings_only(helper):
+    assert helper.name_by_root(['G', 'B', 'D', 'F']) == ['G7']
+
+
+@pytest.mark.parametrize("notes,dropped", [
+    ("G B D F", 'Bdimaddb6'), ("F A C E", 'Amaddb6'), ("C E G B", 'Emaddb6'),
+    ("D F Ab Bb", 'Ddimaddb6'), ("A C E F#", 'Amadd13'),
+])
+def test_no_added_tone_reading_for_a_plain_four_note_chord(helper, notes, dropped):
+    assert dropped not in [name for _, name in helper.identify_by_root(notes.split())]
 
 
 def test_flat_roots_get_added_tones(helper):
