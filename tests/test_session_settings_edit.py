@@ -563,6 +563,28 @@ def test_problem_texts_give_the_syntax_or_range():
         "Enter a whole number from 1 to 127.")
 
 
+def test_moving_a_voice_above_a_higher_one_is_an_error_not_a_silent_mix_up(tmp_path):
+    session, services, recorder = make(tmp_path)
+    session.begin_settings_edit()
+    session.add_voicing()
+    session.set_voicing_model("ensemble")                      # Voice 1 C4-C5, Voice 2 C3-C4
+    session.commit_settings(None)
+    session.move_voicing_record(1, -1)                         # ↑ on Voice 2
+    state = editor(recorder)
+    assert [v["name"] for v in state.values["voices"]] == ["Voice 2", "Voice 1"]
+    assert state.invalid == ("New voicing",)
+    assert any("is lower than voice 'Voice 1' below it" in message
+               for message in state.field_errors.values())
+    assert any(p.voicing == "New voicing" for p in state.problems)
+    # What's saved is still in order, so the voicer never gets it crossed.
+    session.commit_settings(None)
+    saved = services.config.config.voicings["New voicing"]
+    ranges = [voice["range"] for voice in saved["voices"]]
+    assert all(top[0] >= low[0] and top[1] >= low[1] for top, low in zip(ranges, ranges[1:]))
+    session.move_voicing_record(0, 1)                          # and back: fine again
+    assert editor(recorder).invalid == ()
+
+
 def test_an_out_of_range_number_is_said_once():
     from settings_forms.voicing_autosave import plan_voicing, problem_text
 

@@ -12,7 +12,7 @@ import pytest
 from collections import Counter
 
 from audio.ensemble_voicer import EnsembleVoicer
-from models.ensemble_spec import BUILTIN_ENSEMBLES, EnsembleSpec
+from models.ensemble_spec import BUILTIN_ENSEMBLES, EnsembleSpec, VoiceSpec
 from models.chord_notes import ChordNotes
 
 
@@ -301,13 +301,13 @@ def test_impossible_spec_still_voices_every_chord():
     """A spec whose voices cannot be ordered still voices via the closed-stack fallback."""
     # Top voice range sits BELOW the bottom voice range: no ascending assignment
     # exists even after widening, so only stage 3 (the forced closed stack) fires.
-    impossible = EnsembleSpec.from_dict('impossible', {
-        'voices': [
-            {'name': 'top', 'range': [40, 43]},
-            {'name': 'bottom', 'range': [60, 63]},
-        ],
-        'max_spacing': [3],
-    })
+    # from_dict refuses voices out of order; the voicer still copes with a
+    # spec built without it.
+    impossible = EnsembleSpec(
+        name='impossible', label='impossible',
+        voices=(VoiceSpec('top', 40, 43), VoiceSpec('bottom', 60, 63)),
+        max_spacing=(3,),
+    )
     voicer = EnsembleVoicer(impossible)
     seq = [cn(['C', 'E', 'G']), cn(['G', 'B', 'D']), cn(['F', 'A', 'C'])]
     voicings = voicer.voice_sequence(seq)

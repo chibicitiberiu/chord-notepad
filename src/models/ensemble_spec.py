@@ -429,7 +429,9 @@ class EnsembleSpec:
             Raises:
                 ConfigurationError: if ``data`` is malformed, listing the
                     specific problem (voice count out of ``[2, 8]``, a
-                    non-increasing range, a ``max_spacing`` list whose length
+                    non-increasing range, a voice whose low or high note is
+                    below that of the voice under it (voices go top to
+                    bottom), a ``max_spacing`` list whose length
                     doesn't match ``len(voices) - 1``, a non-positive spacing
                     entry, an unparseable note name, or a wrong-typed value).
         """
@@ -474,6 +476,19 @@ class EnsembleSpec:
                     )
                 staff = raw_staff
             voices.append(VoiceSpec(name=voice_name, low=low, high=high, staff=staff))
+
+        # Top to bottom: the voicer never crosses voices, so a voice below
+        # one that reaches higher (or lower) would have its notes squeezed
+        # out (two voices swapped play one note). Equal ranges are fine.
+        for upper, lower in zip(voices, voices[1:]):
+            if upper.low < lower.low or upper.high < lower.high:
+                raise ConfigurationError(
+                    f"Ensemble {name!r}: voice {upper.name!r} "
+                    f"({midi_to_note_name(upper.low)}-{midi_to_note_name(upper.high)}) "
+                    f"is lower than voice {lower.name!r} below it "
+                    f"({midi_to_note_name(lower.low)}-{midi_to_note_name(lower.high)}); "
+                    f"voices go from the highest to the lowest"
+                )
 
         n_gaps = len(voices) - 1
         raw_spacing = data.get('max_spacing')

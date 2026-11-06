@@ -234,10 +234,31 @@ class TestFromDictValidation:
 
     def test_eight_voices_is_allowed(self):
         voices = [
-            {"name": f"V{i}", "range": [40 + i * 3, 40 + i * 3 + 2]} for i in range(8)
+            {"name": f"V{i}", "range": [61 - i * 3, 63 - i * 3]} for i in range(8)
         ]
         spec = EnsembleSpec.from_dict("eight", {"voices": voices})
         assert len(spec.voices) == 8
+
+    @pytest.mark.parametrize("upper, lower", [
+        (["C3", "C4"], ["C4", "C5"]),     # swapped: the Android ↑ on voice 2
+        (["C4", "G4"], ["C3", "A4"]),     # the voice below reaches higher
+        (["D4", "C5"], ["E4", "C5"]),     # the voice below starts higher
+    ])
+    def test_a_voice_lower_than_the_one_below_it_raises(self, upper, lower):
+        with pytest.raises(ConfigurationError,
+                           match="voice 'Upper' .* is lower than voice 'Lower' below it"):
+            EnsembleSpec.from_dict("bad", {"voices": [
+                {"name": "Upper", "range": upper}, {"name": "Lower", "range": lower}]})
+
+    def test_overlapping_or_equal_ranges_in_order_are_fine(self):
+        spec = EnsembleSpec.from_dict("ok", {"voices": [
+            {"name": "A", "range": ["C4", "C5"]}, {"name": "B", "range": ["C4", "C5"]},
+            {"name": "C", "range": ["G3", "C5"]}, {"name": "D", "range": ["G3", "G4"]}]})
+        assert [v.name for v in spec.voices] == ["A", "B", "C", "D"]
+
+    def test_every_builtin_is_in_order(self):
+        for spec in BUILTIN_ENSEMBLES.values():
+            EnsembleSpec.from_dict(spec.name, spec.to_dict())
 
     def test_low_greater_than_high_raises(self):
         with pytest.raises(ConfigurationError, match="low < high"):
@@ -461,7 +482,7 @@ class TestWeightMerging:
 class TestMovementPerVoice:
     def _spec(self, n_voices, weights=None):
         voices = [
-            {"name": f"V{i}", "range": [40 + i * 3, 40 + i * 3 + 2]} for i in range(n_voices)
+            {"name": f"V{i}", "range": [61 - i * 3, 63 - i * 3]} for i in range(n_voices)
         ]
         data = {"voices": voices}
         if weights is not None:
