@@ -271,6 +271,13 @@ def transposed_status(semitones: int, has_selection: bool) -> str:
     return f"Transposed {_scope(has_selection)} by {semitones:+d} semitones"
 
 
+def nothing_to_transpose_status(notation: str, has_selection: bool) -> str:
+    """The status when Transpose found nothing to move in the song's
+    ``notation``, e.g. ``No European chords to transpose``."""
+    where = " in the selection" if has_selection else ""
+    return f"No {notation.capitalize()} chords to transpose{where}"
+
+
 def converted_status(notation: str) -> str:
     """The status after converting the text to ``american`` or ``european`` notation."""
     return f"Converted to {notation.capitalize()} notation"

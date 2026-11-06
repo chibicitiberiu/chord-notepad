@@ -513,7 +513,9 @@ class AppSession:
         """Transpose the chords (and key directives) by ``semitones``.
 
         One undo step in the views. A whole-song transpose also shifts the
-        toolbar key, so roman numerals keep sounding the same.
+        toolbar key, so roman numerals keep sounding the same. With nothing
+        to move in the song's notation nothing changes, not even the key,
+        and the status says so.
 
         Args:
             semitones: Positive is up; 0 does nothing.
@@ -527,8 +529,14 @@ class AppSession:
             return
         region = self._region(selection)
         with self._undo_policy(UndoPolicy.GROUP):
-            self._main.transpose(semitones, region)
-        self._set_status(formatting.transposed_status(semitones, region is not None))
+            moved = self._main.transpose(semitones, region)
+        if moved:
+            self._set_status(formatting.transposed_status(semitones, region is not None))
+        else:
+            # Nothing in the song's notation (Do selected over C G Am F):
+            # the text and the key stay, and the status says why.
+            self._set_status(formatting.nothing_to_transpose_status(
+                self._main.notation.value, region is not None))
 
     @_command
     def convert_notation(self, target: str) -> None:

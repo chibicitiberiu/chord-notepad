@@ -842,7 +842,7 @@ class MainWindowViewModel(Observable):
             self.set_and_notify("is_modified", True)
         return True
 
-    def transpose(self, semitones: int, region: Optional[tuple] = None) -> None:
+    def transpose(self, semitones: int, region: Optional[tuple] = None) -> bool:
         """Transpose chords by ``semitones`` and replace the document text.
 
         Mirrors the ``convert_text_to_*`` command pattern: call the pure
@@ -856,14 +856,25 @@ class MainWindowViewModel(Observable):
             semitones: Number of semitones to shift (positive = up).
             region: Optional ``(start, end)`` character range to limit the
                 transpose to a text selection; ``None`` = whole document.
+
+        Returns:
+            False (and nothing changes, not even the key) when there was
+            nothing to transpose: no chord or ``{key}`` in the song's
+            notation moved, and the toolbar key doesn't move roman numerals
+            either (Do selected over American chords).
         """
         if semitones == 0:
-            return
+            return False
 
         from services.transpose_service import transpose_text, transpose_key
 
         logger.info(f"Transposing by {semitones} semitones (region={region})")
         new_text = transpose_text(self._current_text, semitones, self._notation, region)
+        shifts_key = region is None and bool(self._key)
+        if new_text == self._current_text and not (
+                shifts_key and self._has_relative_chords(new_text)):
+            logger.info("Nothing to transpose in %s notation", self._notation.value)
+            return False
         self.set_and_notify("current_text", new_text)
 
         # Whole-document transpose also shifts the toolbar key so relative
@@ -874,6 +885,15 @@ class MainWindowViewModel(Observable):
 
         if not self._is_modified:
             self.set_and_notify("is_modified", True)
+        return True
+
+    def _has_relative_chords(self, text: str) -> bool:
+        """Whether ``text`` has a valid roman-numeral chord (the toolbar key
+        moves those) in the song's notation."""
+        return any(chord.is_relative
+                   for line in self._chord.detect_chords_in_text(text, self._notation)
+                   if line.is_chord_line()
+                   for chord in line.get_valid_chords())
 
     # -- Suggest Capo (Tools) ------------------------------------------------
 

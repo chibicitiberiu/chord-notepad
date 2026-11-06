@@ -146,6 +146,39 @@ def test_an_empty_selection_means_the_whole_song():
     assert env.status() == "Transposed whole song by +1 semitones"
 
 
+def test_transpose_with_nothing_in_the_songs_notation_changes_nothing_and_says_so():
+    # Do selected over American chords: no chord moves, so neither does the key.
+    env = Env("C G Am F", notation="european")
+    env.session.set_notation("european")
+    env.main.set_key("Do")
+    modified = env.main.is_modified
+    env.recorder.clear()
+
+    env.session.transpose(2, None)
+
+    assert env.recorder.compact() == [("StatusState", "No European chords to transpose")]
+    assert env.session.text == env.main.current_text == "C G Am F"
+    assert env.main.key == "Do"
+    assert env.main.is_modified is modified
+
+
+def test_transpose_of_a_selection_with_no_chords_says_so():
+    env = Env("C G\nla la")
+    env.session.transpose(2, (4, 9))
+    assert env.status() == "No American chords to transpose in the selection"
+    assert env.session.text == "C G\nla la"
+
+
+def test_transpose_of_roman_numerals_only_still_moves_the_key():
+    # The text has nothing absolute to move, but the key moves the numerals.
+    env = Env("I IV V")
+    env.main.set_key("C")
+    env.recorder.clear()
+    env.session.transpose(2, None)
+    assert env.main.key == "D"
+    assert env.status() == "Transposed whole song by +2 semitones"
+
+
 def test_a_selection_outside_the_text_is_rejected():
     env = Env("C G")
     with pytest.raises(ValueError):
