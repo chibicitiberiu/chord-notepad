@@ -209,11 +209,18 @@ def test_error_wording_per_kind():
 def test_cross_field_error_wording():
     values = {**vf.default_values('fretboard'), 'max_span': '5', 'relaxed_span': '3'}
     assert vf.cross_field_errors('Mine', 'fretboard', values) == [
-        "Fretboard 'Mine': 'relaxed_span' (3) must be >= 'max_span' (5)"]
+        "Relaxed span (3) must be >= Max span (5)."]
     values = vf.default_values('ensemble')
     values['voices'][0] = {**values['voices'][0], 'low': 'C5', 'high': 'C4'}
     assert vf.cross_field_errors('Duo', 'ensemble', values) == [
-        "Ensemble 'Duo': voice 'Voice 1' range must have low < high, got 72 >= 60"]
+        "Voice 'Voice 1' range must have low < high, got 72 >= 60."]
+
+
+def test_cross_field_errors_name_fields_by_their_labels():
+    # Not "Fretboard 'Piano': 'max_fret' must be ...": the form is the voicing's.
+    values = {**vf.default_values('fretboard'), 'max_fret': '999'}
+    assert vf.validate_form('Piano', 'fretboard', values) == {'fields': {}, 'form': [
+        "Max fret must be an integer between 5 and 24, got 999."]}
 
 
 def test_form_errors_wait_for_the_fields():
@@ -398,7 +405,7 @@ def test_bad_upper_clef_is_a_field_error():
     values = {**vf.default_values('ensemble'), 'upper_clef': 'alto'}
     assert vf.field_errors('ensemble', values) == {'upper_clef': 'Not one of the choices'}
     assert vf.cross_field_errors('Duo', 'ensemble', values) == [
-        "Ensemble 'Duo': invalid 'upper_clef' 'alto'; must be 'treble' or 'treble_8vb'"]
+        "Invalid Upper staff 'alto'; must be 'treble' or 'treble_8vb'."]
 
 
 def test_load_presets_carry_the_male_choir_clef():

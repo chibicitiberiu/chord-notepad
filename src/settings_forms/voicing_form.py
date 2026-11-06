@@ -1096,11 +1096,47 @@ def voicing_error(name: str, data: Mapping[str, Any]) -> Optional[str]:
     return None
 
 
+#: A spec message starts with the voicing ("Fretboard 'Bass': ..."); a form
+#: or a problem list names the voicing itself.
+_SPEC_PREFIX = re.compile(r"^(Fretboard|Ensemble|Piano) '.*?'[:,] *")
+
+
+def field_labels(model: str) -> Dict[str, str]:
+    """Each field's name in a message: its label, with the row of a piano
+    range or the group of a nested weight in front."""
+    labels: Dict[str, str] = {}
+
+    def walk(section: Mapping[str, Any], prefix: str = '') -> None:
+        for field in section.get('fields', []):
+            labels[field['id']] = prefix + field['label']
+        for row in section.get('rows', []):
+            labels[row['id']] = row['label']
+            for field in row['fields']:
+                labels[field['id']] = f"{row['label']} {field['label'].lower()}"
+        for group in section.get('groups', []):
+            walk(group, f"{group.get('title') or ''}, " if group.get('title') else '')
+
+    for section in form_schema(model)['sections']:
+        walk(section)
+    return labels
+
+
+def spec_sentence(message: str, model: str) -> str:
+    """A spec message as a sentence for the form it came from: no voicing in
+    front, field labels for the internal keys (``'max_fret'`` reads Max fret)."""
+    labels = field_labels(form_model(model))
+    text = _SPEC_PREFIX.sub('', message.strip())
+    text = re.sub(r"'(\w+)'", lambda m: labels.get(m.group(1), m.group(0)), text)
+    text = text[:1].upper() + text[1:]
+    return text if text.endswith(('.', '!', '?')) else text + '.'
+
+
 def cross_field_errors(name: str, model: str, values: Mapping[str, Any],
                        label: Optional[str] = None) -> List[str]:
-    """The form-level errors of a form (at most one today: the spec's message)."""
+    """The form-level errors of a form (at most one today: the spec's
+    message, as a sentence: see :func:`spec_sentence`)."""
     message = voicing_error(name, voicing_from_values(model, values, label))
-    return [message] if message else []
+    return [spec_sentence(message, model)] if message else []
 
 
 def validate_form(name: str, model: str, values: Mapping[str, Any],

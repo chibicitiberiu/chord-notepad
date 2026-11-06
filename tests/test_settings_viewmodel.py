@@ -171,6 +171,14 @@ class TestAddVoicing:
         assert vm.add_voicing() == "New voicing 3"
 
 
+def test_load_presets_can_leave_out_the_voicing_being_edited(tmp_path):
+    vm = SettingsViewModel(_make_config_service(tmp_path))
+    a, b = vm.add_voicing(), vm.add_voicing()
+    custom = [p['label'] for p in vm.get_load_presets(exclude=a) if p['group'] == 'custom']
+    assert custom == [b]
+    assert len(vm.get_load_presets()) == len(vm.get_load_presets(exclude=a)) + 1
+
+
 class TestRename:
     def test_rename_empty_raises(self, tmp_path):
         vm = SettingsViewModel(_make_config_service(tmp_path))

@@ -208,13 +208,18 @@ class SettingsViewModel:
         """Replace a voicing's entry wholesale (``data`` must include ``'model'``)."""
         self._working_voicings[name] = data
 
-    def get_load_presets(self) -> List[Dict[str, Any]]:
+    def get_load_presets(self, exclude: Optional[str] = None) -> List[Dict[str, Any]]:
         """Return the "Load config" entries: ``{'label', 'group', 'data'}`` dicts.
 
         Built-ins first, then the current custom voicings sorted by name; see
         :func:`settings_forms.voicing_form.load_presets`.
+
+        Args:
+            exclude: A voicing to leave out (the one being edited: copying
+                it onto itself does nothing).
         """
-        return load_presets(self._working_voicings)
+        return load_presets({name: data for name, data in self._working_voicings.items()
+                             if name != exclude})
 
     def get_load_sources(self) -> List[Tuple[str, dict]]:
         """Return ``(display_label, params)`` pairs for the "Load config" menu.

@@ -25,10 +25,6 @@ from settings_forms import voicing_form as form
 _RECORDS = 'voices'
 _CELL = re.compile(r'^voice:(\d+):(\w+)$')
 
-#: A spec message starts with the voicing ("Fretboard 'Bass': ..."); the
-#: problem list names the voicing itself.
-_SPEC_PREFIX = re.compile(r"^(Fretboard|Ensemble|Piano) '.*?'[:,] *")
-
 
 @dataclass(frozen=True)
 class FieldProblem:
@@ -210,8 +206,13 @@ def plan_voicing(name: str, model: str, values: Mapping[str, Any], label: Option
             candidate = copy.deepcopy(trial)
             _put(candidate, field_id, _get(merged, field_id))
             message = error_of(candidate) or error
-        problems[field_id] = FieldProblem(field_id, _text(_get(values, field_id)),
-                                          _sentence(message, model))
+        typed = _text(_get(values, field_id))
+        # A number outside the field's range says only that: the problem
+        # list adds the range itself (field_syntax), the spec's message
+        # would repeat the field, the number and the range.
+        problems[field_id] = FieldProblem(
+            field_id, typed,
+            _range_message(_field_of(model, field_id), typed) or _sentence(message, model))
     return VoicingPlan(form.voicing_from_values(model, trial, label), _ordered(problems, order))
 
 
@@ -243,24 +244,8 @@ def _field_of(model: str, field_id: Optional[str]) -> Optional[Dict[str, Any]]:
     return _fields_by_id(model).get(f'voice:*:{cell.group(2)}' if cell else field_id)
 
 
-def field_labels(model: str) -> Dict[str, str]:
-    """Each field's name in a problem list: its label, with the row of a
-    piano range or the group of a nested weight in front."""
-    labels: Dict[str, str] = {}
-
-    def walk(section: Mapping[str, Any], prefix: str = '') -> None:
-        for field in section.get('fields', []):
-            labels[field['id']] = prefix + field['label']
-        for row in section.get('rows', []):
-            labels[row['id']] = row['label']
-            for field in row['fields']:
-                labels[field['id']] = f"{row['label']} {field['label'].lower()}"
-        for group in section.get('groups', []):
-            walk(group, f"{group.get('title') or ''}, " if group.get('title') else '')
-
-    for section in form.form_schema(model)['sections']:
-        walk(section)
-    return labels
+#: Each field's name in a problem list (see :func:`voicing_form.field_labels`).
+field_labels = form.field_labels
 
 
 def _label_of(model: str, field_id: str) -> str:
@@ -290,6 +275,21 @@ def _is_int(token: str) -> bool:
     return re.fullmatch(r'-?\d+', token.strip()) is not None
 
 
+def _range_message(field: Optional[Mapping[str, Any]], typed: str) -> Optional[str]:
+    """"Too high." or "Too low." for a number outside a number field's
+    ``min``/``max``; None for anything else."""
+    if not field or field['kind'] not in (form.KIND_INT, form.KIND_FLOAT):
+        return None
+    if 'min' not in field or 'max' not in field or not _is_float(typed.strip()):
+        return None
+    value = float(typed)
+    if value > field['max']:
+        return 'Too high.'
+    if value < field['min']:
+        return 'Too low.'
+    return None
+
+
 def _parse_message(field: Optional[Mapping[str, Any]], typed: str) -> str:
     """What's wrong with ``typed`` in a field it doesn't parse in."""
     kind = field['kind'] if field else None
@@ -301,8 +301,8 @@ def _parse_message(field: Optional[Mapping[str, Any]], typed: str) -> str:
     elif kind == form.KIND_PITCH:
         return f"{text} isn't a note name." if text else 'A note is needed.'
     elif kind == form.KIND_INT:
-        if _is_int(text) and 'min' in field and 'max' in field:
-            return f"{text} is out of range."
+        if _is_int(text) and _range_message(field, text):
+            return _range_message(field, text)
         return f"{text} isn't a whole number." if text else 'A whole number is needed.'
     elif kind == form.KIND_FLOAT:
         return f"{text} isn't a number." if text else 'A number is needed.'
@@ -321,11 +321,7 @@ def _parse_message(field: Optional[Mapping[str, Any]], typed: str) -> str:
 
 def _sentence(message: str, model: str) -> str:
     """A spec message as a sentence: no voicing in front, field labels for keys."""
-    labels = field_labels(model)
-    text = _SPEC_PREFIX.sub('', message.strip())
-    text = re.sub(r"'(\w+)'", lambda m: labels.get(m.group(1), m.group(0)), text)
-    text = text[:1].upper() + text[1:]
-    return text if text.endswith(('.', '!', '?')) else text + '.'
+    return form.spec_sentence(message, model)
 
 
 def _number(value: Any) -> str:

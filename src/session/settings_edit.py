@@ -183,8 +183,9 @@ class SettingsEdit:
                                               field_id, self.notation))
 
     def presets(self) -> List[Dict[str, Any]]:
-        """The "Load config" entries (built-ins, then the working voicings)."""
-        return self.model.get_load_presets()
+        """The "Load config" entries (built-ins, then the working voicings but
+        the selected one)."""
+        return self.model.get_load_presets(exclude=self._selected)
 
     def load_preset(self, group: str, label: str) -> None:
         """Replace the selected voicing's parameters with a "Load config" entry.
@@ -305,13 +306,16 @@ class SettingsEdit:
         for problem in plans[self._selected].problems if self._selected in plans else ():
             if problem.field_id is not None:
                 field_errors.setdefault(problem.field_id, problem.message)
+        # The spec's message is the form's only while no field is blamed for
+        # it: otherwise it repeats what the field says.
+        form_errors = () if field_errors else tuple(checked["form"])
         schema = form.form_schema(self._form_model)
         hints = {f["id"]: form.field_hint(f, self._values, self.notation)
                  for f in form.iter_fields(schema) if f.get("hint")}
         return VoicingEditorState(
             selected=self._selected, model=self._form_model,
             values=copy.deepcopy(self._values), field_errors=field_errors,
-            form_errors=tuple(checked["form"]), hints=hints, dirty=self._dirty, **common)
+            form_errors=form_errors, hints=hints, dirty=self._dirty, **common)
 
     def _problems(self, name: str, plan: VoicingPlan) -> Tuple[SettingsProblem, ...]:
         if name == self._selected:

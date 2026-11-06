@@ -303,7 +303,10 @@ def test_commit_keeps_the_last_valid_voicings_but_saves_the_other_settings(tmp_p
     assert span != 1 and config.voicings["Bass"]["max_fret"] == 15
     assert len(recorder.of_type(UserError)) == errors           # no dialog per keystroke
     state = editor(recorder)
-    assert state.active and state.invalid == ("Bass",) and state.form_errors
+    assert state.active and state.invalid == ("Bass",)
+    # The field it's blamed on says what's wrong; the form doesn't repeat it.
+    assert state.field_errors["relaxed_span"].startswith("Relaxed span (1) must be")
+    assert state.form_errors == ()
 
     values = recorder.last(SettingsState).values
     session.commit_settings(dataclasses.replace(values, bpm=96))
@@ -556,8 +559,42 @@ def test_problem_texts_give_the_syntax_or_range():
     spacing["voices"][0]["gap"] = "0"
     plan = plan_voicing("E", "ensemble", spacing, None, None)
     assert problem_text("E", "ensemble", plan.problems[0], spacing) == (
-        "Voicing 'E', Voice 1, Max gap to next voice: 0. 0 is out of range. "
+        "Voicing 'E', Voice 1, Max gap to next voice: 0. Too low. "
         "Enter a whole number from 1 to 127.")
+
+
+def test_an_out_of_range_number_is_said_once():
+    from settings_forms.voicing_autosave import plan_voicing, problem_text
+
+    values = {**voicing_form.default_values("fretboard"), "max_fret": "999"}
+    plan = plan_voicing("Piano", "fretboard", values, None, None, ["max_fret"])
+    assert [problem_text("Piano", "fretboard", p, values) for p in plan.problems] == [
+        "Voicing 'Piano', Max fret: 999. Too high. Enter a whole number from 5 to 24."]
+    values["max_fret"] = "2"
+    plan = plan_voicing("Piano", "fretboard", values, None, None, ["max_fret"])
+    assert plan.problems[0].message == "Too low."
+
+
+def test_an_out_of_range_field_is_marked_on_the_field_not_the_form(tmp_path):
+    session, services, recorder = make(tmp_path, voicings={"Bass": BASS})
+    session.begin_settings_edit()
+    session.select_voicing("Bass")
+    session.set_voicing_values({"max_fret": "999"})
+    state = editor(recorder)
+    assert state.field_errors == {"max_fret": "Too high."}
+    assert state.form_errors == ()
+
+
+def test_copy_from_existing_leaves_out_the_voicing_being_edited(tmp_path):
+    session, services, recorder = make(tmp_path, voicings={"Bass": BASS, "Lute": BASS})
+    session.begin_settings_edit()
+    session.select_voicing("Bass")
+    custom = [p.label for p in editor(recorder).presets if p.group == "custom"]
+    assert custom == ["Lute"]
+    with pytest.raises(ValueError):
+        session.load_voicing_preset("custom", "Bass")
+    session.select_voicing("Lute")
+    assert [p.label for p in editor(recorder).presets if p.group == "custom"] == ["Bass"]
 
 
 def test_renaming_a_voicing_with_a_wrong_field_keeps_its_saved_values(tmp_path):
@@ -584,7 +621,7 @@ def test_each_blamed_field_gets_the_rule_it_breaks():
     values.update({"max_fret": "30", "relaxed_span": "1"})        # two rules
     plan = plan_voicing("Bass", "fretboard", values, None, BASS, ["max_fret", "relaxed_span"])
     assert {p.field_id: p.message.split(" must")[0] for p in plan.problems} == {
-        "max_fret": "Max fret", "relaxed_span": "Relaxed span (1)"}
+        "max_fret": "Too high.", "relaxed_span": "Relaxed span (1)"}
 
     voices = voicing_form.default_values("ensemble")
     voices["voices"][0].update(low="C5", high="C4")                # low and high swapped

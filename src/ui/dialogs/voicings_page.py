@@ -281,7 +281,7 @@ class VoicingsPage(ttk.Frame):
     def _rebuild_load_menu(self) -> None:
         self._load_menu.delete(0, 'end')
         previous_group = None
-        for preset in self._vm.get_load_presets():
+        for preset in self._vm.get_load_presets(exclude=self._current_name):
             if previous_group is not None and preset['group'] != previous_group:
                 self._load_menu.add_separator()
             previous_group = preset['group']
