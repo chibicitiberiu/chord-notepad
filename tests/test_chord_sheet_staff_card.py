@@ -16,6 +16,7 @@ import pytest
 
 from audio.chord_picker import ChordNotePicker
 from models.chord import ChordInfo
+from chord.midi_converter import parse_note_to_semitone
 from models.chord_notes import ChordNotes
 from models.line import Line
 from models.rendered_song import RenderedChord, RenderedSong
@@ -310,7 +311,8 @@ class TestSpellingAccidentals:
 
 class TestEnharmonicSeam:
     def test_b_sharp_lands_below_middle_c(self):
-        cn = ChordNotes(notes=['B#', 'D#', 'F##'], bass_note='B#', root='B#')
+        # C#maj7's seventh is B#: MIDI 60 spelled B#3.
+        cn = ChordNotes(notes=['C#', 'E#', 'G#', 'B#'], bass_note='C#', root='C#')
         letter, acc, idx = sc._spell(60, cn)
         assert (letter, acc) == ('B', 1)
         assert idx == sc._diatonic_index('B', 3)
@@ -322,6 +324,65 @@ class TestEnharmonicSeam:
         assert (letter, acc) == ('C', -1)
         assert idx == sc._diatonic_index('C', 5)
         assert idx > sc._diatonic_index('B', 4)
+
+
+class TestChordSpelledAsOneStack:
+    """C8: a chord is spelled as one stack of thirds from its root, never a
+    mix of the key's letters and its own (B in Db was B Eb Gb)."""
+
+    B = ChordNotes(notes=["B", "D#", "F#"], bass_note="B", root="B")
+
+    def _spelled(self, cn, key, pcs):
+        fifths = sc._key_fifths(key)
+        return [sc._match_letter(pc, cn, fifths) for pc in pcs]
+
+    def test_chromatic_b_in_d_flat_keeps_its_own_spelling(self):
+        assert self._spelled(self.B, "Db", (11, 3, 6)) == [("B", 0), ("D", 1), ("F", 1)]
+
+    def test_drawn_b_in_d_flat_has_no_mixed_letters(self):
+        song = make_song(make_chord(
+            "B", midi_notes=[59, 63, 66], chord_notes=self.B, key="Db"))
+        letters = [(n.letter, n.acc) for n in sc._resolve_notes(song.chords[0], song)]
+        assert letters == [("B", 0), ("D", 1), ("F", 1)]
+
+    def test_diatonic_root_respells_the_whole_chord_from_the_key(self):
+        # C#7 in Db: the root is the key's Db, and the seventh follows it
+        # (Cb, not the source's B).
+        cn = ChordNotes(notes=["C#", "E#", "G#", "B"], bass_note="C#", root="C#")
+        assert self._spelled(cn, "Db", (1, 5, 8, 11)) == [
+            ("D", -1), ("F", 0), ("A", -1), ("C", -1)]
+
+    def test_slash_bass_follows_the_root(self):
+        # C#/B in Db: the bass is the root's seventh, Cb.
+        cn = ChordNotes(notes=["C#", "E#", "G#"], bass_note="B", root="C#")
+        assert self._spelled(cn, "Db", (11,)) == [("C", -1)]
+
+    def test_double_accidental_respells_the_root(self):
+        # Gbm (Gb Bbb Db) in C: the root is chromatic, and its own spelling
+        # needs Bbb, so the chord draws as F# A C#.
+        cn = ChordNotes(notes=["Gb", "Bbb", "Db"], bass_note="Gb", root="Gb")
+        assert self._spelled(cn, "C", (6, 9, 1)) == [("F", 1), ("A", 0), ("C", 1)]
+
+    @pytest.mark.parametrize("key", ["C", "G", "D", "A", "E", "B", "F#", "C#", "F", "Bb",
+                                     "Eb", "Ab", "Db", "Gb", "Cb", "Am", "Ebm", None])
+    @pytest.mark.parametrize("chord", ["C", "Db", "D", "Eb", "E", "F", "F#", "G", "Ab",
+                                       "A", "Bb", "B", "Cm7", "C#m7b5", "F#7", "Bbmaj7",
+                                       "Gdim7", "Eaug", "Ab7/C", "B/D#", "Gbm"])
+    def test_every_chord_is_one_stack_in_every_key(self, key, chord):
+        from chord.helper import ChordHelper
+        cn = ChordHelper().compute_chord_notes(chord)
+        fifths = sc._key_fifths(key) if key else None
+        root = sc._match_letter(parse_note_to_semitone(cn.root), cn, fifths)
+        for name in cn.notes:
+            pc = parse_note_to_semitone(name)
+            letter, acc = sc._match_letter(pc, cn, fifths)
+            assert abs(acc) <= 1
+            assert (sc._LETTER_SEMITONE[letter] + acc) % 12 == pc
+            # The letter distance from the root is the chord's own.
+            src_steps = (sc._LETTER_VALUE[name[0]] - sc._LETTER_VALUE[cn.root[0]]) % 7
+            steps = (sc._LETTER_VALUE[letter] - sc._LETTER_VALUE[root[0]]) % 7
+            if not any(c * 2 in name for c in "#b"):   # a double has been respelled
+                assert steps == src_steps, (chord, key, name)
 
 
 class TestDoubleAccidentalSources:

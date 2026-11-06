@@ -211,46 +211,100 @@ def _accidental_offset(name: str) -> int:
     return offset
 
 
+_LETTERS = 'CDEFGAB'
+
+
+def _source_names(chord_notes) -> List[str]:
+    """The chord's own note names: its notes, then the bass, then the root."""
+    names: List[str] = list(chord_notes.notes or [])
+    if chord_notes.bass_note:
+        names.append(chord_notes.bass_note)
+    if chord_notes.root:
+        names.append(chord_notes.root)
+    return [n for n in names if n and n[0].upper() in _LETTER_VALUE
+            and parse_note_to_semitone(n) is not None]
+
+
+def _respelled(names: List[str], root: str, letter: str) -> Dict[int, Tuple[str, int]]:
+    """``names`` (a chord spelled from ``root``) spelled from the root letter
+    ``letter``: each note keeps its letter distance from the root, so the
+    chord still stacks the same way (C#7's C# E# G# B from D is Db F Ab Cb).
+    A note that would need a double accidental is left out."""
+    out: Dict[int, Tuple[str, int]] = {}
+    root_index = _LETTER_VALUE[root[0].upper()]
+    new_index = _LETTER_VALUE[letter]
+    for name in names:
+        pc = parse_note_to_semitone(name)
+        steps = (_LETTER_VALUE[name[0].upper()] - root_index) % 7
+        new_letter = _LETTERS[(new_index + steps) % 7]
+        acc = (pc - _LETTER_SEMITONE[new_letter] + 6) % 12 - 6
+        if abs(acc) <= 1:
+            out.setdefault(pc, (new_letter, acc))
+    return out
+
+
+def _chord_spelling(chord_notes, fifths: Optional[int]) -> Dict[int, Tuple[str, int]]:
+    """Pitch class -> ``(letter, accidental)`` for every note of the chord.
+
+    The root decides: a root diatonic to the key takes the key's letter (a
+    ``Db`` chord in F# is C#), a chromatic one keeps the chord's own (a ``B``
+    chord in Db stays B). Every other note keeps its letter distance from
+    the root in the chord's own spelling, so the chord is spelled as one
+    stack of thirds: B in Db is B D# F#, never B Eb Gb. When that would
+    need a double accidental (the chord ``Gbm``'s Bbb), the root's other
+    single-accidental spelling is tried (F# A C#); a note neither spelling
+    can write is left out, for :func:`_match_letter`'s fallback.
+    """
+    if chord_notes is None:
+        return {}
+    names = _source_names(chord_notes)
+    root = chord_notes.root if chord_notes.root and chord_notes.root in names else (
+        names[0] if names else None)
+    if root is None:
+        return {}
+    root_pc = parse_note_to_semitone(root)
+    key_map = _diatonic_key_map(fifths)
+    first = key_map[root_pc][0] if root_pc in key_map else root[0].upper()
+    # The root's spellings with at most one accidental, the chosen one first.
+    letters = [first] + [
+        letter for letter in _LETTERS if letter != first
+        and abs((root_pc - _LETTER_SEMITONE[letter] + 6) % 12 - 6) <= 1]
+    wanted = {parse_note_to_semitone(n) for n in names}
+    best: Dict[int, Tuple[str, int]] = {}
+    for letter in letters:
+        spelled = _respelled(names, root, letter)
+        if set(spelled) == wanted:
+            return spelled
+        if not best:
+            best = spelled
+    return best
+
+
 def _match_letter(pc: int, chord_notes, fifths: Optional[int] = None) -> Tuple[str, int]:
     """Return the ``(letter, accidental_offset)`` spelling a pitch class ``pc``.
 
     Precedence:
 
-    1. **Diatonic-in-key wins.** When ``fifths`` is known, a pitch class that
-       is diatonic to the key is spelled the way the key signature spells it
-       (F#'s pc 1 is C#, its pc 5 is E#, Gb's pc 11 is Cb), regardless of how
-       the chord symbol was written. The downstream accidental-vs-signature
-       logic then draws nothing for it.
-    2. **Source spelling second.** A chromatic pitch class (not diatonic to the
-       key) keeps a name from the chord's parser spelling (``notes``, then
-       ``bass_note``, then ``root``) whose pitch class matches ``pc`` -- so a
-       ``Bb`` keeps its B-with-flat spelling and an ``F#`` its F-with-sharp.
-       Double-accidental spellings (pychord's ``Bbb``) are skipped -- they have
-       no engraving glyph -- and fall through to the single-accidental fallback.
-    3. **Fallback follows the signature.** A pitch class matched by neither
-       falls back to flats in flat keys and sharps otherwise (sharp keys, C
-       major, or no key).
+    1. **The chord's own stack.** A note of the chord is spelled with the
+       chord (:func:`_chord_spelling`): from its root, the key's letter when
+       the root is diatonic to the key (F#'s pc 1 is C#, Gb's pc 11 is Cb),
+       the chord's own spelling when it is chromatic, and every other note at
+       its letter distance from the root. A ``Db`` chord in F# draws C# E#
+       G#; a ``B`` chord in Db draws B D# F# (never B Eb Gb). Double
+       accidentals (pychord's ``Bbb``) are respelled from the root's other
+       spelling or fall through -- they have no engraving glyph.
+    2. **Diatonic-in-key.** A pitch class the chord doesn't spell, when
+       ``fifths`` is known and it is diatonic, is spelled as the key
+       signature spells it.
+    3. **Fallback follows the signature.** Anything else falls back to flats
+       in flat keys and sharps otherwise (sharp keys, C major, or no key).
     """
+    spelled = _chord_spelling(chord_notes, fifths)
+    if pc in spelled:
+        return spelled[pc]
     key_map = _diatonic_key_map(fifths)
     if pc in key_map:
         return key_map[pc]
-    if chord_notes is not None:
-        candidates: List[str] = list(chord_notes.notes or [])
-        if chord_notes.bass_note:
-            candidates.append(chord_notes.bass_note)
-        if chord_notes.root:
-            candidates.append(chord_notes.root)
-        for name in candidates:
-            if not name:
-                continue
-            if parse_note_to_semitone(name) == pc and name[0].upper() in _LETTER_VALUE:
-                acc = _accidental_offset(name)
-                # A double accidental (pychord spells Gbm's third as Bbb) has
-                # no engraving glyph and reads badly on a chord sheet; let it
-                # fall through to the plain single-accidental fallback below.
-                if abs(acc) > 1:
-                    continue
-                return name[0].upper(), acc
     table = _FLAT_SPELLING if (fifths is not None and fifths < 0) else _SHARP_SPELLING
     return table[pc % 12]
 
@@ -447,10 +501,11 @@ def _voiced(chord: RenderedChord, song: RenderedSong) -> List[Tuple[int, str, st
 def _resolve_notes(chord: RenderedChord, song: RenderedSong) -> List[_Note]:
     """Resolve a chord's drawn notes to spelled :class:`_Note` records.
 
-    Spelling is key-aware: notes diatonic to the chord's key are spelled to
-    match the signature (so a ``Db`` chord in F# major draws its notes as C#/E#/
-    G# with no accidentals), while chromatic notes keep the user's source
-    spelling. See :func:`_match_letter`. On an octave-lower treble staff
+    Spelling is key-aware and keeps the chord one stack of thirds: a root
+    diatonic to the chord's key is spelled to match the signature (so a ``Db``
+    chord in F# major draws C#/E#/G# with no accidentals), a chromatic root
+    keeps the user's spelling (``B`` in Db draws B/D#/F#), and the other notes
+    follow the root. See :func:`_match_letter`. On an octave-lower treble staff
     (``song.upper_clef == 'treble_8vb'``) an upper-staff note is written an
     octave above its sounding position; the letter and accidental are the same.
     """
