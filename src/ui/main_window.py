@@ -1346,12 +1346,14 @@ class MainWindow(tk.Tk):
     def convert_to_american(self) -> None:
         """Convert all chords in the text to American notation"""
         self.session.set_text(self.text_editor.get_text())
-        self.session.convert_notation(Notation.AMERICAN.value)
+        self.session.convert_notation(Notation.AMERICAN.value,
+                                      cursor=self.text_editor.offset_of(tk.INSERT))
 
     def convert_to_european(self) -> None:
         """Convert all chords in the text to European notation"""
         self.session.set_text(self.text_editor.get_text())
-        self.session.convert_notation(Notation.EUROPEAN.value)
+        self.session.convert_notation(Notation.EUROPEAN.value,
+                                      cursor=self.text_editor.offset_of(tk.INSERT))
 
     def open_transpose_dialog(self) -> None:
         """Open the Transpose dialog; the session applies it as one undo step."""
@@ -1364,7 +1366,8 @@ class MainWindow(tk.Tk):
             return
 
         self.session.set_text(self.text_editor.get_text())
-        self.session.transpose(dialog.result, region)
+        self.session.transpose(dialog.result, region,
+                               cursor=self.text_editor.offset_of(tk.INSERT))
 
     def open_suggest_capo_dialog(self) -> None:
         """Suggest a capo for a chosen voicing and insert a {capo} directive.

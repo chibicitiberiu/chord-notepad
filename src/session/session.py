@@ -135,6 +135,20 @@ def _shift_offset(old: str, new: str, offset: int) -> int:
     return min(offset, prefix)
 
 
+def _same_place(old: str, new: str, offset: int) -> int:
+    """Where the cursor at ``offset`` into ``old`` goes in ``new`` when a
+    command rewrote the lines in place (transpose, convert): the same line
+    and column, or the end of that line when it got shorter."""
+    line = old.count("\n", 0, offset)
+    column = offset - (old.rfind("\n", 0, offset) + 1)
+    starts = [0] + [i + 1 for i, c in enumerate(new) if c == "\n"]
+    if line >= len(starts):
+        return len(new)
+    end = new.find("\n", starts[line])
+    end = len(new) if end < 0 else end
+    return min(starts[line] + column, end)
+
+
 def _number_texts(value: Any) -> Dict[str, str]:
     """``commit_settings``'s ``invalid_numbers``, checked."""
     if not isinstance(value, dict) or not all(
@@ -229,6 +243,9 @@ class AppSession:
         # transpose, convert and capo commands the session runs through it).
         # The undo policy of the resulting edit is the running command's.
         self._edit_undo = UndoPolicy.PLAIN
+        # The view's cursor while a command rewrites the whole text (see
+        # _cursor_kept); None: the cursor goes after the edit.
+        self._kept_cursor: Optional[int] = None
         self._on_replaced = self._entry(self._on_text_replaced)
         self._main.observe("current_text", self._on_replaced)
 
@@ -512,7 +529,8 @@ class AppSession:
         self._set_status(formatting.inserted_chord_status(chord))
 
     @_command
-    def transpose(self, semitones: int, selection: Selection = None) -> None:
+    def transpose(self, semitones: int, selection: Selection = None,
+                  cursor: Optional[int] = None) -> None:
         """Transpose the chords (and key directives) by ``semitones``.
 
         One undo step in the views. A whole-song transpose also shifts the
@@ -524,14 +542,20 @@ class AppSession:
             semitones: Positive is up; 0 does nothing.
             selection: ``(start, end)`` to transpose only the chords that
                 overlap it; None (or an empty range) for the whole song.
+            cursor: The view's cursor. The edit puts it back on the same
+                line and column (the nearest one if the line got shorter).
+                Without it, the cursor goes to the start of the first line
+                that changed (the selection's end, for a selection).
 
         Raises:
-            ValueError: If the selection is outside the text.
+            ValueError: If the selection or the cursor is outside the text.
         """
         if semitones == 0 or not self._edits_allowed("transpose"):
             return
         region = self._region(selection)
-        with self._undo_policy(UndoPolicy.GROUP):
+        if cursor is None and region is not None:
+            cursor = region[1]
+        with self._undo_policy(UndoPolicy.GROUP), self._cursor_kept(cursor):
             moved = self._main.transpose(semitones, region)
         if moved:
             self._set_status(formatting.transposed_status(semitones, region is not None))
@@ -542,7 +566,7 @@ class AppSession:
                 self._main.notation.value, region is not None))
 
     @_command
-    def convert_notation(self, target: str) -> None:
+    def convert_notation(self, target: str, cursor: Optional[int] = None) -> None:
         """Rewrite the chords in ``target`` notation and switch detection to it.
 
         When the text has no chords in the other notation nothing changes
@@ -550,9 +574,11 @@ class AppSession:
 
         Args:
             target: ``american`` or ``european``.
+            cursor: The view's cursor, kept on its line and column as by
+                :meth:`transpose`.
 
         Raises:
-            ValueError: For any other notation.
+            ValueError: For any other notation, or a cursor outside the text.
         """
         notation = Notation(target)
         if not self._edits_allowed("convert"):
@@ -563,10 +589,11 @@ class AppSession:
         lines = None
         if self._detect_timer is None and self._detector.current_notation == source.value:
             lines = self._detector.detected_lines or None
-        if notation is Notation.AMERICAN:
-            converted = self._main.convert_text_to_american(lines)
-        else:
-            converted = self._main.convert_text_to_european(lines)
+        with self._cursor_kept(cursor):
+            if notation is Notation.AMERICAN:
+                converted = self._main.convert_text_to_american(lines)
+            else:
+                converted = self._main.convert_text_to_european(lines)
         if converted:
             self._set_status(formatting.converted_status(notation.value))
         else:
@@ -2172,13 +2199,31 @@ class AppSession:
         finally:
             self._edit_undo = previous
 
+    @contextlib.contextmanager
+    def _cursor_kept(self, cursor: Optional[int]) -> Iterator[None]:
+        """While a command rewrites the text in place (transpose, convert),
+        the view's cursor at ``cursor`` stays on its line and column; with
+        None, it goes to the start of the first line that changed.
+
+        Raises:
+            ValueError: If ``cursor`` is outside the text.
+        """
+        if cursor is not None and not 0 <= cursor <= len(self._text):
+            raise ValueError(f"cursor {cursor} outside the text (length {len(self._text)})")
+        previous, self._kept_cursor = self._kept_cursor, (-1 if cursor is None else cursor)
+        try:
+            yield
+        finally:
+            self._kept_cursor = previous
+
     def _splice(self, start: int, end: int, replacement: str,
-                undo: UndoPolicy = UndoPolicy.PLAIN) -> None:
+                undo: UndoPolicy = UndoPolicy.PLAIN, cursor: Optional[int] = None) -> None:
         """Make an edit: update the copies, tell the views, re-detect at once.
 
         A ``reset`` edit is delivered even if it changes nothing (a document
         with the same text was opened): the views still start a new undo
-        history.
+        history. The cursor goes after the replacement unless ``cursor``
+        (an offset into the new text) says otherwise.
         """
         if undo is UndoPolicy.RESET:
             # Another document (or a restored draft): its playhead starts over.
@@ -2186,14 +2231,23 @@ class AppSession:
         if start != end or replacement or undo is UndoPolicy.RESET:
             old = self._text
             self._replace_mirror(old[:start] + replacement + old[end:], 0)
-            self._emitter.emit(TextEdited(self._revision, start, end, replacement, undo,
-                                          start + len(replacement)))
+            self._emitter.emit(TextEdited(
+                self._revision, start, end, replacement, undo,
+                start + len(replacement) if cursor is None else cursor))
         self._detect_now()
 
     def _on_text_replaced(self, text: str) -> None:
         """The viewmodel replaced the document text (open, new, or a command)."""
         if text != self._text:
-            self._splice(0, len(self._text), text, self._edit_undo)
+            cursor = None
+            if self._kept_cursor is not None:
+                # A command rewrote the lines in place: the cursor stays put.
+                if self._kept_cursor < 0:
+                    # Not told: the start of the first line that changed.
+                    cursor = text.rfind("\n", 0, _common_prefix(self._text, text)) + 1
+                else:
+                    cursor = _same_place(self._text, text, self._kept_cursor)
+            self._splice(0, len(self._text), text, self._edit_undo, cursor)
         else:
             self._detect_now()
 

@@ -317,10 +317,11 @@ def test_transpose_is_one_undo_step_and_is_not_echoed(wired):
     calls = _count_set_text(wired)
     revision = wired.session.text_revision
 
-    wired.session.transpose(2, None)
+    editor.mark_set("insert", "2.3")
+    wired.session.transpose(2, None, cursor=editor.offset_of("insert"))
     assert editor.get_text() == "D A\nla la"
     assert _ranges(editor, TAG_CHORD_VALID) == [(0, 1), (2, 3)]
-    assert editor.index("insert") == "2.5"  # cursor after the replacement
+    assert editor.index("insert") == "2.3"  # the cursor stays where it was
 
     wired.root.update()  # the edit's own <<Modified>>
     assert calls == []
@@ -331,6 +332,21 @@ def test_transpose_is_one_undo_step_and_is_not_echoed(wired):
     assert editor.get_text() == "C G\nla la"
     wired.root.update()  # undo is a user edit: it reaches the session
     assert wired.session.text == "C G\nla la"
+
+
+@pytest.mark.parametrize("command", ["convert_to_european", "open_transpose_dialog"])
+def test_the_menu_commands_keep_the_cursor_where_it_was(wired, command, monkeypatch):
+    editor = wired.editor
+    _type(wired, "C G\nla la\nAm F")
+    editor.mark_set("insert", "2.3")
+    if command == "open_transpose_dialog":
+        dialog = SimpleNamespace(result=2)
+        monkeypatch.setattr("ui.main_window.TransposeDialog", lambda *a, **k: dialog)
+        wired.window.wait_window = lambda _dialog: None
+        wired.window._selection_char_range = lambda: None
+    getattr(MainWindow, command)(wired.window)
+    assert editor.get_text() != "C G\nla la\nAm F"
+    assert editor.index("insert") == "2.3"
 
 
 def test_inserted_text_is_a_plain_edit_with_the_cursor_after_it(wired):

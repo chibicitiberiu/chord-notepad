@@ -96,7 +96,7 @@ def test_golden_transpose_is_one_grouped_edit_then_immediate_spans_and_key_shift
     env.session.transpose(2, None)
 
     assert env.recorder.compact() == [
-        ("TextEdited", 2, 0, 12, "D A\nla la\nBm", "group", 12),
+        ("TextEdited", 2, 0, 12, "D A\nla la\nBm", "group", 0),
         ("HighlightState", 2, 0, (chord(0, 1), chord(2, 3), chord(10, 12))),
         # The toolbar key moved with the song.
         ("ToolbarState", "american", 120, 120, True, 100.0, "D", 4, 4, False, "play", None, None, None),
@@ -185,6 +185,61 @@ def test_a_selection_outside_the_text_is_rejected():
         env.session.transpose(1, (0, 99))
 
 
+# -- the cursor after a whole-text rewrite ---------------------------------------------
+
+
+# +2 moves every chord without changing its length (no lyric is stretched).
+LONG = "".join(f"C G Am F\nline {i}\n" for i in range(150))
+
+
+def test_transpose_keeps_the_cursor_on_its_line_and_column():
+    env = Env(LONG)
+    at = LONG.index("line 130") + 3            # "lin|e 130"
+    env.session.transpose(2, None, cursor=at)
+    edit = env.recorder.last(TextEdited)
+    new = env.session.text
+    assert edit.cursor == new.index("line 130") + 3
+    assert edit.cursor < len(new) - 100        # not the end of the song
+
+
+def test_transpose_puts_the_cursor_at_the_end_of_a_line_that_got_shorter():
+    # "Abm7|" (end of line 1) -> "Am7": the nearest place is the line's end.
+    env = Env("Abm7\nla la\nAbm7")
+    env.session.transpose(1, None, cursor=4)
+    assert env.session.text == "Am7\nla la\nAm7"
+    assert env.recorder.last(TextEdited).cursor == 3
+
+
+def test_convert_keeps_the_cursor_on_its_line_and_column():
+    env = Env("Do Sol\nhello there\nFa Do")
+    env.session.set_notation("european")
+    env.session.convert_notation("american", cursor=12)    # "hello| there" on line 2
+    lines = env.session.text.split("\n")
+    assert lines[1] == "hello there"
+    assert env.recorder.last(TextEdited).cursor == len(lines[0]) + 1 + 5
+
+
+def test_transpose_of_a_selection_without_a_cursor_leaves_it_at_the_selection_end():
+    env = Env("C G\nla\nC G")
+    env.session.transpose(2, (7, 10))
+    assert env.recorder.last(TextEdited).cursor == 10
+
+
+def test_without_a_cursor_it_goes_to_the_start_of_the_first_changed_line():
+    env = Env("la la\nC G\nla\nAm")
+    env.session.transpose(2, None)
+    assert env.recorder.last(TextEdited).cursor == 6
+
+
+def test_a_cursor_outside_the_text_is_rejected():
+    env = Env("C G")
+    with pytest.raises(ValueError):
+        env.session.transpose(1, None, cursor=4)
+    with pytest.raises(ValueError):
+        env.session.convert_notation("european", cursor=-1)
+    assert env.session.text == "C G"
+
+
 # -- convert notation --------------------------------------------------------------------
 
 
@@ -193,7 +248,7 @@ def test_convert_is_a_plain_edit_and_switches_detection():
     env.session.convert_notation("european")
 
     assert env.recorder.compact() == [
-        ("TextEdited", 2, 0, 15, "Do Sol\nhello there", "plain", 18),
+        ("TextEdited", 2, 0, 15, "Do Sol\nhello there", "plain", 0),
         ("HighlightState", 2, 0, (chord(0, 2), chord(3, 6))),
         # Detection and the toolbar follow the target notation (no key set:
         # the first option).

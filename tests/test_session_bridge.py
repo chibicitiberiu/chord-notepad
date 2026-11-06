@@ -386,8 +386,16 @@ def test_transpose_is_one_grouped_edit(env):
     edit = env.expect("TextEdited")
     assert edit["undo"] == "group" and edit["start"] == 0
     assert edit["replacement"] == "{key: A}\nA E F#m D\n"
-    assert edit["cursor"] == len(edit["replacement"])
+    assert edit["cursor"] == 0                       # not told: the first changed line
     env.expect("HighlightState", lambda d: d["text_revision"] == edit["text_revision"])
+
+    env.send("transpose", semitones=-2, selection=None, cursor=13)      # "A E |F#m D"
+    edit = env.expect("TextEdited")
+    assert edit["replacement"].startswith("{key: G}\nG D Em") and edit["cursor"] == 13
+    env.send("convert_notation", target="european", cursor=13)
+    edit = env.expect("TextEdited")
+    # Line 2, column 4 still: the key line got longer.
+    assert edit["replacement"].startswith("{key: Sol}\n") and edit["cursor"] == 11 + 4
 
 
 def test_save_as_and_export_through_pickers(env):

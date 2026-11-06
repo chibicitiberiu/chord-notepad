@@ -225,9 +225,9 @@ SESSION_COMMANDS: Dict[str, Dict[str, str]] = {
     "request_insert_directive": {"kind": "str", "at": "int"},
     "check_directive": {"kind": "str", "fields": "json", "request_id": "int"},
     "request_directive_hint": {"offset": "int"},
-    "transpose": {"semitones": "int", "selection": "selection"},
+    "transpose": {"semitones": "int", "selection": "selection", "cursor": "int|null"},
     "request_suggest_capo": {"selection": "selection"},
-    "convert_notation": {"target": "str"},
+    "convert_notation": {"target": "str", "cursor": "int|null"},
     "write_song_defaults": {},
     # playback and toolbar
     "play_pause": {"from_offset": "int|null"},

@@ -39,6 +39,7 @@
       "values": "SettingsValues|null"
     },
     "convert_notation": {
+      "cursor": "int|null",
       "target": "str"
     },
     "discard_settings_problems": {},
@@ -209,6 +210,7 @@
     },
     "toggle_metronome": {},
     "transpose": {
+      "cursor": "int|null",
       "selection": "selection",
       "semitones": "int"
     },

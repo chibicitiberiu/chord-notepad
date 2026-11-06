@@ -238,7 +238,11 @@ Every programmatic edit is a splice-shaped `TextEdited`, with an undo policy:
 | Transpose, capo | `(0, len, new)` | `group` (one undo step) |
 | Convert notation, New | | `plain` |
 | Open file | | `reset` |
-| Insert | `(at, at, text)`, with the cursor placed after the inserted text | |
+| Insert | `(at, at, text)`, with the cursor placed after the inserted text (a space goes in front of a chord or directive right after a non-space) | |
+
+Transpose and convert take the view's `cursor` and put it back on the same
+line and column (the end of the line if it got shorter); without one, it goes
+to the start of the first changed line (a selection's end, for a selection).
 
 ### Commands (primitive-typed, session thread)
 
@@ -253,9 +257,10 @@ class AppSession:
     def set_text(self, text: str, client_token: int = 0) -> None          # debounced detection
     def insert_text(self, at: int, text: str) -> None                     # immediate detection
     def request_insert_directive(self, kind: str, at: int) -> None
-    def transpose(self, semitones: int, selection: tuple[int, int] | None) -> None
+    def transpose(self, semitones: int, selection: tuple[int, int] | None,
+                  cursor: int | None = None) -> None
     def request_suggest_capo(self, selection: tuple[int, int] | None) -> None
-    def convert_notation(self, target: str) -> None
+    def convert_notation(self, target: str, cursor: int | None = None) -> None
     # playback / toolbar
     def play_pause(self, from_offset: int | None = None) -> None;  def stop(self) -> None
     def set_playhead(self, offset: int) -> None;  def rewind(self) -> None
@@ -343,8 +348,9 @@ an empty one means none.
 - Transpose and capo are `group` edits of the whole text, convert and New
   `plain`, Open `reset` (a reopened document with the same text still emits
   a `reset` splice, so the view's undo history starts over); inserts are
-  `(at, at, text)` with the cursor after the text. Whole-text edits put the
-  cursor at the end, where Tk's delete+insert left it before.
+  `(at, at, text)` with the cursor after the text. Transpose and convert
+  keep the cursor the view passes on its line and column; Open and New put
+  it at the end.
 - Transpose, convert and capo still run through `MainWindowViewModel`
   (`transpose`, `convert_text_to_*`, `insert_capo`); the session observes
   `current_text` and turns each replacement into `TextEdited(0, len, new)`
