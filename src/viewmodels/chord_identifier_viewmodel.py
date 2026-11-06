@@ -35,9 +35,11 @@ _USUAL_ROOTS = frozenset(('C', 'Db', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 
 #: Spelling preferences: what the typed notes used.
 FLATS = "flats"
 SHARPS = "sharps"
-#: A typed note: an American letter or a solfège syllable (either case), an
-#: accidental, an octave.
-_NOTE_TOKEN = re.compile(r'((?i:sol|do|re|mi|fa|la|si)|[A-Ga-g])([#b]?)(\d+)?')
+#: A typed note: an American letter or a solfège syllable (either case),
+#: accidentals (none, one or more: ``Bbb``, ``F##``), an octave.
+_NOTE_TOKEN = re.compile(r'((?i:sol|do|re|mi|fa|la|si)|[A-Ga-g])([#b]*)(\d+)?')
+#: The semitone of each natural note above C.
+_NATURAL_SEMITONE = {'C': 0, 'D': 2, 'E': 4, 'F': 5, 'G': 7, 'A': 9, 'B': 11}
 _SOLFEGE = {'do': 'C', 're': 'D', 'mi': 'E', 'fa': 'F', 'sol': 'G', 'la': 'A', 'si': 'B'}
 #: The root of an (American) chord name.
 _ROOT = re.compile(r'[A-G][#b]?')
@@ -120,7 +122,7 @@ def spelling_preference(note_string: str) -> Optional[str]:
     for part in re.split(r'[,\s;/|]+', note_string.strip()):
         match = _NOTE_TOKEN.match(_without_accents(part))
         if match and match.group(2):
-            if match.group(2) == 'b':
+            if 'b' in match.group(2):
                 flats += 1
             else:
                 sharps += 1
@@ -210,6 +212,10 @@ def parse_notes(note_string: str) -> Tuple[List[Tuple[str, int]], List[str]]:
     "E G# B C" is E4 G#4 B4 C5 (E in the bass, as typed); the first one is
     in octave 4. One that would go past the piano (octave 5) stays in 5.
 
+    Any number of accidentals is read (``Bbb`` is A, ``G##`` is A), and the
+    octave is the written note's: ``B#3`` sounds C4, ``Cb4`` sounds B3. The
+    notes come back spelled with sharps (:data:`NOTE_NAMES`).
+
     Forgiving like the desktop field: a token that starts with a note name
     counts as that note (``Cm`` reads as ``C``), anything else is skipped.
 
@@ -227,21 +233,27 @@ def parse_notes(note_string: str) -> Tuple[List[Tuple[str, int]], List[str]]:
             continue
         part = _without_accents(part)
         match = _NOTE_TOKEN.match(part)
-        name = ''
+        midi = None
         if match:
-            letter = _SOLFEGE.get(match.group(1).lower(), match.group(1))
-            name = normalize_note_name(letter + match.group(2))
-        if match and name in NOTE_NAMES:
+            letter = _SOLFEGE.get(match.group(1).lower(), match.group(1)).upper()
+            accidentals = match.group(2)
+            shift = _NATURAL_SEMITONE[letter] + accidentals.count('#') - accidentals.count('b')
+
+            def midi_in(octave: int) -> int:
+                return (octave + 1) * 12 + shift
+
             if match.group(3):
                 octave = int(match.group(3))
             elif previous is None:
                 octave = 4
             else:
                 octave = 4
-                while octave < _HIGHEST_TYPED_OCTAVE and note_to_midi(name, octave) <= previous:
+                while octave < _HIGHEST_TYPED_OCTAVE and midi_in(octave) <= previous:
                     octave += 1
-            previous = note_to_midi(name, octave)
-            notes.append((name, octave))
+            midi = midi_in(octave)
+        if midi is not None and 0 <= midi <= 127:
+            previous = midi
+            notes.append((NOTE_NAMES[midi % 12], midi // 12 - 1))
             if match.end() != len(part):
                 not_understood.append(part)
         else:
