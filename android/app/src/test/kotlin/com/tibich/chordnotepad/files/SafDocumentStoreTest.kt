@@ -38,6 +38,22 @@ class FakeDocumentAccess : DocumentAccess {
     val readOnly = mutableSetOf<String>()
     /** Grants that can't be persisted (an Open with grant without the persistable flag). */
     val notPersistable = mutableSetOf<String>()
+    /** Providers by document (none: `com.example.docs`). */
+    val authorities = mutableMapOf<String, String>()
+    /**
+     * Documents renamed under the same id. With [revokesOnRename] the
+     * framework then revokes the "old" (same) URI, as for Downloads' `msf:`
+     * documents; without, the provider answered null and the grant stays.
+     */
+    val keepsIdOnRename = mutableSetOf<String>()
+    var revokesOnRename = false
+    /** Documents the app can no longer reach (grant revoked by the provider). */
+    val revoked = mutableSetOf<String>()
+    /** Clashes get " (1)" like FileSystemProvider's buildUniqueFile, instead of a refusal. */
+    var uniqueNamesOnClash = false
+    /** `DocumentsContract.renameDocument` returning null (a swallowed failure). */
+    val renameReturnsNull = mutableSetOf<String>()
+    val renameCalls = mutableListOf<String>()
 
     fun add(id: String, name: String, text: String = "", granted: Boolean = true) {
         content[id] = text.toByteArray()
@@ -61,7 +77,8 @@ class FakeDocumentAccess : DocumentAccess {
     }
 
     override fun query(id: String): DocumentInfo? =
-        names[id]?.let { DocumentInfo(it, "com.example.docs", id.substringAfterLast('/'), "Example") }
+        if (id in revoked) null
+        else names[id]?.let { DocumentInfo(it, authorities[id] ?: "com.example.docs", id.substringAfterLast('/'), "Example") }
 
     override fun size(id: String): Long? = sizes[id]
 
@@ -82,15 +99,29 @@ class FakeDocumentAccess : DocumentAccess {
 
     /** Like ExternalStorageProvider: a path-like id that changes, a clash refused. */
     override fun rename(id: String, displayName: String): String? {
+        renameCalls += id
         if (id in denied) throw SecurityException("denied")
         if (id !in names) throw FileNotFoundException(id)
-        val renamed = id.substringBeforeLast('/') + "/" + displayName
+        if (id in renameReturnsNull) return null
+        if (id in keepsIdOnRename) {
+            names[id] = displayName
+            if (revokesOnRename) {
+                grants -= id
+                revoked += id
+            }
+            return id
+        }
         val folder = id.substringBeforeLast('/')
-        val clash = names.any { (other, name) -> other != id && name == displayName && other.startsWith("$folder/") }
-        if (clash || (renamed != id && renamed in names)) throw IllegalStateException("Already exists")
+        fun taken(name: String) = names.any { (other, n) -> other != id && n == name && other.startsWith("$folder/") }
+        var name = displayName
+        if (taken(name) && uniqueNamesOnClash) {
+            name = displayName.substringBeforeLast('.') + " (1)." + displayName.substringAfterLast('.')
+        }
+        val renamed = "$folder/$name"
+        if (taken(name) || (renamed != id && renamed in names)) throw IllegalStateException("Already exists")
         content[renamed] = content.remove(id)!!
         names.remove(id)
-        names[renamed] = displayName
+        names[renamed] = name
         grants -= id
         return renamed
     }
@@ -207,6 +238,122 @@ class SafDocumentStoreTest {
         access.denied += "content://d/1"
         expectError("Permission denied: a.txt (Example)") { store.rename("content://d/1", "c.txt") }
         expectError("can't rename") { store.rename("content://d/missing", "c.txt") }
+    }
+
+    private val downloads = "content://com.android.providers.downloads.documents/document"
+
+    private fun ref(json: String) = Json.parseToJsonElement(json).jsonObject.let {
+        DocumentRef(
+            it.getValue("id").jsonPrimitive.content,
+            it.getValue("display_name").jsonPrimitive.content,
+            it.getValue("location").jsonPrimitive.content,
+        )
+    }
+
+    @Test
+    fun `a MediaStore file from Downloads is never renamed, so its grant and recent entry stay`() {
+        val id = "$downloads/msf:33"
+        access.add(id, "rb_dl.txt", "C G")
+        access.authorities[id] = SafDocumentStore.DOWNLOADS_AUTHORITY
+        access.keepsIdOnRename += id
+        access.revokesOnRename = true // what would happen
+        store.addRecent(id, "rb_dl.txt", "rb_dl.txt (Example)")
+        try {
+            store.rename(id, "Tune.txt")
+            fail("expected RenameUnsupportedException")
+        } catch (e: RenameUnsupportedException) {
+            assertTrue(e.message!!, "Files opened from Downloads can't be renamed here" in e.message!!)
+            assertTrue(e.message!!, "rb_dl.txt" in e.message!!)
+            assertFalse(e.message!!, "Permission" in e.message!!)
+        }
+        assertEquals(emptyList<String>(), access.renameCalls)
+        assertEquals("rb_dl.txt", access.names.getValue(id))
+        assertTrue(access.hasPersistedGrant(id))
+        assertEquals(listOf(id), ids(store.recent()))
+    }
+
+    @Test
+    fun `Downloads documents that aren't MediaStore files still rename`() {
+        // A DownloadManager id: the provider answers null, DocumentsContract
+        // gives the same URI back and the grant stays.
+        val id = "$downloads/42"
+        access.add(id, "old.txt")
+        access.authorities[id] = SafDocumentStore.DOWNLOADS_AUTHORITY
+        access.keepsIdOnRename += id
+        store.addRecent(id, "old.txt", "old.txt (Example)")
+        val ref = ref(store.rename(id, "new.txt"))
+        assertEquals(DocumentRef(id, "new.txt", "new.txt (Example)"), ref)
+        assertTrue(access.hasPersistedGrant(id))
+        assertEquals(listOf(ref), recentFile.load())
+        assertEquals(listOf(id), ids(store.recent()))
+    }
+
+    @Test
+    fun `a rename that costs the grant says so and keeps nothing unreadable`() {
+        // Any provider that answers with the same id gets its grant revoked.
+        access.add("content://d/1", "a.txt")
+        access.keepsIdOnRename += "content://d/1"
+        access.revokesOnRename = true
+        store.addRecent("content://d/1", "a.txt", "a.txt (Example)")
+        try {
+            store.rename("content://d/1", "b.txt")
+            fail("expected DocumentStoreException")
+        } catch (e: RenameUnsupportedException) {
+            fail("the rename went through; this isn't 'can't rename'")
+        } catch (e: DocumentStoreException) {
+            assertEquals(
+                "Renamed to b.txt, but Android took away Chord Notepad's access to the file. " +
+                    "Open it again (Open…) to keep working on it.",
+                e.message,
+            )
+        }
+        assertEquals(emptyList<String>(), ids(store.recent()))
+    }
+
+    @Test
+    fun `a rename that keeps the id keeps the grant and shows the new name`() {
+        access.add("content://d/1", "a.txt")
+        access.add("content://d/2", "z.txt")
+        access.keepsIdOnRename += "content://d/1"
+        store.addRecent("content://d/1", "a.txt", "a.txt (Example)")
+        store.addRecent("content://d/2", "z.txt", "z.txt (Example)")
+        assertEquals(DocumentRef("content://d/1", "b.txt", "b.txt (Example)"), ref(store.rename("content://d/1", "b.txt")))
+        assertTrue(access.hasPersistedGrant("content://d/1"))
+        assertEquals(listOf("content://d/2", "content://d/1"), ids(store.recent()))
+        assertEquals("b.txt", recentFile.load().last().displayName)
+    }
+
+    @Test
+    fun `a clash the provider resolves gives the name it made`() {
+        access.uniqueNamesOnClash = true
+        access.add("content://d/a.txt", "a.txt", "C")
+        access.add("content://d/Tune.txt", "Tune.txt", "G")
+        store.addRecent("content://d/a.txt", "a.txt", "a.txt")
+        val ref = ref(store.rename("content://d/a.txt", "Tune.txt"))
+        assertEquals(DocumentRef("content://d/Tune (1).txt", "Tune (1).txt", "Tune (1).txt (Example)"), ref)
+        assertEquals("G", access.content.getValue("content://d/Tune.txt").decodeToString())
+        assertEquals(listOf(ref), recentFile.load())
+    }
+
+    @Test
+    fun `a provider answering null changes nothing`() {
+        access.add("content://d/1", "a.txt")
+        access.renameReturnsNull += "content://d/1"
+        store.addRecent("content://d/1", "a.txt", "a.txt (Example)")
+        expectError("Couldn't rename a.txt (Example) to b.txt.") { store.rename("content://d/1", "b.txt") }
+        assertTrue(access.hasPersistedGrant("content://d/1"))
+        assertEquals(listOf(DocumentRef("content://d/1", "a.txt", "a.txt (Example)")), recentFile.load())
+    }
+
+    @Test
+    fun `the Downloads rule matches only MediaStore files of the Downloads provider`() {
+        fun info(authority: String, docId: String?) = DocumentInfo("a.txt", authority, docId, null)
+        val dl = SafDocumentStore.DOWNLOADS_AUTHORITY
+        assertTrue(SafDocumentStore.renameRevokesAccess(info(dl, "msf:33")))
+        assertFalse(SafDocumentStore.renameRevokesAccess(info(dl, "42")))
+        assertFalse(SafDocumentStore.renameRevokesAccess(info(dl, "raw:/storage/emulated/0/Download/a.txt")))
+        assertFalse(SafDocumentStore.renameRevokesAccess(info(dl, null)))
+        assertFalse(SafDocumentStore.renameRevokesAccess(info("com.android.externalstorage.documents", "msf:33")))
     }
 
     @Test

@@ -124,6 +124,14 @@ class SafDocumentStore(
         if (!access.supportsRename(id)) {
             throw RenameUnsupportedException("${where(id)} is stored where Chord Notepad can't rename it.")
         }
+        val before = access.query(id)
+        if (before != null && renameRevokesAccess(before)) {
+            throw RenameUnsupportedException(
+                "Files opened from Downloads can't be renamed here: Android would take away " +
+                    "Chord Notepad's access to ${before.displayName ?: fallbackName(id)}. To rename it " +
+                    "in place, open it from the device's storage instead.",
+            )
+        }
         val renamed = try {
             access.rename(id, displayName)
         } catch (e: UnsupportedOperationException) {
@@ -140,7 +148,18 @@ class SafDocumentStore(
         } ?: throw DocumentStoreException("Couldn't rename ${where(id)} to $displayName.")
         // The provider granted the new URI for this run; keep it across restarts.
         if (renamed != id) access.persistGrant(renamed)
-        val ref = refFor(renamed) ?: DocumentRef(renamed, displayName, displayName)
+        // The name is the provider's (it may add " (1)" or replace characters).
+        // No ref means the rename went through but took the app's access with
+        // it (a provider that answers with the same id, whose grants the
+        // framework then revokes): say so, rather than keep a ref nothing can
+        // read. The recent list drops the old entry on its next read.
+        val ref = refFor(renamed) ?: throw DocumentStoreException(
+            "Renamed to $displayName, but Android took away Chord Notepad's access to the file. " +
+                "Open it again (Open…) to keep working on it.",
+        )
+        if (renamed != id && !access.hasPersistedGrant(renamed)) {
+            Log.w(TAG, "The renamed document's grant isn't persisted; it leaves the recent list on restart")
+        }
         synchronized(lock) {
             val saved = recentFile.load()
             if (saved.any { it.id == id }) store(saved.map { if (it.id == id) ref else it })
@@ -196,6 +215,20 @@ class SafDocumentStore(
     }
 
     companion object {
+        const val DOWNLOADS_AUTHORITY = "com.android.providers.downloads.documents"
+
+        /**
+         * Whether renaming the document would cost the app its grant. The
+         * Downloads provider renames a MediaStore-backed file (`msf:<id>`) and
+         * answers with the same id (MediaStore keeps the row); the framework
+         * (`DocumentsProvider.callUnchecked`, METHOD_RENAME_DOCUMENT) then
+         * grants the "new" URI and revokes every grant on the old one, the
+         * persisted one too, and they are the same URI. Seen on API 36; the
+         * app can't take the grant back without the picker.
+         */
+        fun renameRevokesAccess(info: DocumentInfo): Boolean =
+            info.authority == DOWNLOADS_AUTHORITY && info.documentId?.startsWith("msf:") == true
+
         /** The desktop's default `max_recent_files`. */
         const val DEFAULT_MAX_RECENT = 10
 

@@ -689,6 +689,24 @@ one; Kotlin tries to persist that grant and moves the recent-list entry to
 the new ref). Providers pick their own name on a clash (`song (1).txt`) rather
 than overwrite, so the returned `display_name` is what the provider made.
 
+Deliberate difference: files opened from the **Downloads** root that are
+MediaStore files (document id `msf:<n>`, authority
+`com.android.providers.downloads.documents`) are treated as
+rename-unsupported, so the user gets "Couldn't rename … Save a copy under the
+new name instead?". Renaming one in place costs the app its access: the
+provider renames the file and answers with the same id (MediaStore keeps the
+row), and the framework's `DocumentsProvider.callUnchecked`
+(METHOD_RENAME_DOCUMENT) grants the "new" URI and then
+`revokeDocumentPermission(oldId)`, which revokes every grant on that URI,
+persisted ones included. Seen on API 36 ("Permission Denial" right after the
+rename, the song gone from the recent list); the app can't get the grant
+back without the picker. Other Downloads documents (DownloadManager ids such
+as `72`, which Save As there creates; `raw:` paths) rename normally, and so
+does the same file opened from the device's storage. If any other provider
+does the same, `rename` notices that the renamed document can't be read
+("Renamed to X, but Android took away Chord Notepad's access to the file.
+Open it again…") instead of keeping a ref nothing can read.
+
 Step 14 wraps it in an `AndroidDocumentStore` implementing
 `session.documents.DocumentStore`: `read_text` applies
 `normalize_song_text` (normalization stays in Python), `recent` turns the

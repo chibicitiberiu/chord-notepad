@@ -356,7 +356,9 @@ The User Interface
    Tap the title to **Rename** the song. The dialog shows the file's full name
    ("Saved as …"); type the new name without the ``.txt``, which is kept. Some
    storage places (a cloud drive, for example) don't allow renaming. Then the
-   app offers to save a copy under the new name instead.
+   app offers to save a copy under the new name instead. That includes songs
+   opened from **Downloads** in the file picker: open the same file through
+   the device's storage (its Download folder) and it renames in place.
 
    .. platform-figure:: rename
       :platforms: android

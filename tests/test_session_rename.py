@@ -132,6 +132,25 @@ def test_storage_that_cant_rename_offers_save_as_under_the_name():
     assert env.document().display_name == "New name.txt"
 
 
+def test_unsaved_changes_survive_a_refused_rename_and_go_to_the_copy():
+    # Android: a file opened from Downloads can't be renamed; Save As is the way out.
+    env = Env()
+    env.open()
+    env.store.can_rename = False
+    env.session.set_text("C G Am")
+    env.session.rename_document("New name")
+    assert env.failure().can_save_as
+    assert env.recorder.last(DocumentState).document_id == "memory:song.txt"
+    assert env.recorder.last(DocumentState).is_modified
+    env.session.save_as("New name")
+    request = env.recorder.last(PickDocumentRequest)
+    env.session.respond(request.request_id, InMemoryDocumentStore.ref("New name.txt"))
+    assert env.store.contents["memory:New name.txt"] == "C G Am"
+    assert env.store.contents["memory:song.txt"] == "C G"
+    state = env.document()
+    assert (state.display_name, state.is_modified) == ("New name.txt", False)
+
+
 def test_save_as_refuses_a_bad_name():
     env = Env()
     with pytest.raises(ValueError):
