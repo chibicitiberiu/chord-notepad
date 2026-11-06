@@ -20,6 +20,21 @@ degree's letter. Diatonic degrees use the key's own letters. Chromatic ones:
 * minor (natural minor letters): lowered 2, raised 3, 4, 6 and 7 (``Bb``,
   ``C#``, ``D#``, ``F#``, ``G#`` in A minor).
 
+Those are the spellings of :func:`spell_in_key`. Transpose
+(:func:`spell_moved`) uses them for every diatonic note, but a chromatic one
+keeps the letter the song wrote it with, moved by as many letters as the key
+moved: up a tone from Bb to C every letter goes up one, so the ii-V of E
+minor ``F#m7b5 B7`` (in Bb) becomes ``G#m7b5 C#7`` (in C), resolving to
+``F#m``, rather than C major's lowered degrees ``Abm7b5 Db7``. A chromatic
+chord's spelling says where it goes (a secondary dominant, a tritone
+substitute), and the song knows that better than a scale does. A chromatic
+chord a fifth above the next one is spelled a fifth above that chord as
+moved, so a ii-V-i stays one even where a letter can't move: up a semitone
+from Bb to B, ``F#m7b5 B7 Em`` is ``Gm7b5 C7 Fm`` (F## is refused, E#m too),
+and back down it is ``F#m7b5 B7 Em`` again.
+Where neither works (E#, B#, Cb, Fb or a double accidental), the degree
+spelling is used instead.
+
 A diminished chord leading up a semitone (:func:`leads_up`: ``C#dim7 Dm7``,
 ``C#dim7 G7/D``) takes the sharp for a flat degree, as the leading tone of the
 chord it resolves to.
@@ -188,6 +203,79 @@ def spell_in_key(pc: int, key: Key, leading: bool = False) -> Optional[str]:
     if leading and accidental == -1 and pc in _SHARP_NAME:
         name = _SHARP_NAME[pc]
     return name
+
+
+def signed_key(key: Key) -> Key:
+    """``key``, or its enharmonic twin when it has no key signature (``D#``
+    major is ``Eb``, ``Dbm`` is ``C#m``): the name the key's letters come from."""
+    signature = _MINOR_SIGNATURE if key.minor else _MAJOR_SIGNATURE
+    if key.tonic in signature:
+        return key
+    return Key(key_tonic(pitch_class(key.tonic), key.minor, _style(key.tonic)), key.minor)
+
+
+def letter_shift(source: Key, target: Key) -> int:
+    """How many letters ``source``'s tonic moves to reach ``target``'s (Bb to
+    C is 1, C to Db is 1, C to C# is 0), counted on their signed names."""
+    source, target = signed_key(source), signed_key(target)
+    return (LETTERS.index(target.tonic[0]) - LETTERS.index(source.tonic[0])) % 7
+
+
+def spell_moved(pc: int, letter: str, source: Key, target: Key,
+                leading: bool = False, resolves_to: Optional[str] = None) -> Optional[str]:
+    """Spell ``pc``, a note written on ``letter`` in ``source`` and moved
+    into ``target`` (American).
+
+    A diatonic note (and a diminished chord ``leading`` up) is spelled by
+    :func:`spell_in_key`. A chromatic one, in order:
+
+    1. ``resolves_to``: a chord root a fifth above the next chord's root
+       (a secondary dominant or its ii) takes the letter a fifth above that
+       root as it was spelled, ``resolves_to`` (``B7`` before ``F#m`` is
+       ``C#7``), so the pair still reads as a fifth;
+    2. its own letter, moved by :func:`letter_shift` (``B`` in Bb moved into
+       C is ``C#``), unless ``source`` has no degree spelling for it (E#, B#,
+       Cb, Fb or a double accidental): then the written letter may be a
+       stand-in already (an ``E`` in Db, written for Fb), and moving it
+       would make a new spelling of the stand-in (D# in C, for Eb);
+    3. :func:`spell_in_key`.
+
+    Rules 1 and 2 never write E#, B#, Cb, Fb or a double accidental. Returns
+    None when :func:`spell_in_key` refuses the note too (the caller's plain
+    spelling).
+    """
+    rel = (pc - pitch_class(target.tonic)) % 12
+    _, alteration = (_MINOR_DEGREE if target.minor else _MAJOR_DEGREE)[rel]
+    if alteration == 0 or leading:
+        return spell_in_key(pc, target, leading)
+    if resolves_to:
+        name = _on_letter(pc, LETTERS[(LETTERS.index(resolves_to[0]) + 4) % 7])
+        if name is not None:
+            return name
+    written = (pitch_class(source.tonic) + rel) % 12
+    if spell_in_key(written, source) is not None:
+        name = _on_letter(pc, LETTERS[(LETTERS.index(letter) + letter_shift(source, target)) % 7])
+        if name is not None:
+            return name
+    return spell_in_key(pc, target, leading)
+
+
+def _on_letter(pc: int, letter: str) -> Optional[str]:
+    """``pc`` spelled on ``letter``, or None for E#, B#, Cb, Fb or a double."""
+    accidental = ((pc - _NATURAL_PC[letter] + 6) % 12) - 6
+    if accidental not in _ACCIDENTAL:
+        return None
+    name = letter + _ACCIDENTAL[accidental]
+    return None if name in _BANNED else name
+
+
+def resolves_down_a_fifth(chord: str, next_chord: Optional[str]) -> bool:
+    """Whether ``next_chord``'s root is a fifth below ``chord``'s (``B7 Em``,
+    ``F#m7b5 B7``): the pair :func:`spell_moved` keeps a fifth apart."""
+    if not next_chord:
+        return False
+    this, after = chord_facts(chord), chord_facts(next_chord)
+    return this is not None and after is not None and (this.root - after.root) % 12 == 7
 
 
 # --- chord facts ------------------------------------------------------------------
@@ -387,12 +475,15 @@ def detect_key(chords: Iterable[str]) -> Detection:
 
 
 def _spelled(chords: Sequence[Tuple[str, Optional[str]]], key: Key, semitones: int) -> tuple:
-    """How ``key`` spells the (chord, next chord) pairs moved by ``semitones``:
-    the root and bass names transpose writes (refused degree spellings
-    replaced by the plain one)."""
+    """How the source ``key`` spells the (chord, next chord) pairs moved by
+    ``semitones``: the root and bass names transpose writes (refused
+    spellings replaced by the plain one)."""
+    target = move_key(key, semitones)
+
     def spell(pc: int, written: str, leading: bool = False) -> str:
         pc = (pc + semitones) % 12
-        return spell_in_key(pc, key, leading) or plain_spelling(pc, _style(written))
+        return (spell_moved(pc, written[0].upper(), key, target, leading)
+                or plain_spelling(pc, _style(written)))
 
     out = []
     for chord, next_chord in chords:
@@ -405,9 +496,10 @@ def _spelled(chords: Sequence[Tuple[str, Optional[str]]], key: Key, semitones: i
     return tuple(out)
 
 
-def detected_target(chords: Sequence[Tuple[str, Optional[str]]], semitones: int) -> Optional[Key]:
-    """The key ``chords`` land in after moving by ``semitones``, or None when
-    the detection isn't sure.
+def detected_keys(chords: Sequence[Tuple[str, Optional[str]]], semitones: int
+                  ) -> Optional[Tuple[Key, Key]]:
+    """The key ``chords`` are in and the key they land in after moving by
+    ``semitones``, or None when the detection isn't sure.
 
     ``chords`` are ``(chord, next chord)`` pairs (the next chord for the
     leading-tone rule; None at the end). Sure means the best key leads by
@@ -417,12 +509,20 @@ def detected_target(chords: Sequence[Tuple[str, Optional[str]]], semitones: int)
     detection = detect_key(chord for chord, _ in chords)
     if detection.key is None:
         return None
-    target = move_key(detection.key, semitones)
+    source = detection.key
+    target = move_key(source, semitones)
     if detection.margin >= MARGIN:
-        return target
+        return source, target
     best = detection.ranked[0][0]
     # Distinct chords only: the spelling of a pair doesn't depend on where it is.
     unique = sorted(set(chords), key=lambda pair: (pair[0], pair[1] or ''))
-    spellings = {_spelled(unique, move_key(key, semitones), semitones)
+    spellings = {_spelled(unique, key, semitones)
                  for score, key in detection.ranked if score >= best - MARGIN}
-    return target if len(spellings) == 1 else None
+    return (source, target) if len(spellings) == 1 else None
+
+
+def detected_target(chords: Sequence[Tuple[str, Optional[str]]], semitones: int) -> Optional[Key]:
+    """The key ``chords`` land in after moving by ``semitones``, or None when
+    the detection isn't sure (:func:`detected_keys`)."""
+    keys = detected_keys(chords, semitones)
+    return None if keys is None else keys[1]

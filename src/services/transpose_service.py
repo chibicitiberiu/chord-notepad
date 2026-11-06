@@ -35,14 +35,25 @@ chord lands in (:mod:`services.key_spelling`), so a song moved into B gets
   detection is sure (:func:`services.key_spelling.detected_target`);
 * otherwise none. The toolbar / Settings key is never used.
 
-Major keys use the key's letters, lowered 2, 3, 6, 7 and raised 4; minor keys
-lowered 2 and raised 3, 4, 6, 7. A diminished chord whose next chord's root or
-bass is a semitone above it takes a sharp (``D#dim7 Em7`` in D, not
-``Ebdim7``). A degree spelling of E#/B#/Cb/Fb or a double accidental is
-refused and the plain table below spells that note instead.
+A note diatonic to that key takes the key's letter. Major keys spell the
+chromatic degrees lowered 2, 3, 6, 7 and raised 4; minor keys lowered 2 and
+raised 3, 4, 6, 7. But a chromatic root or bass keeps the letter the song
+wrote it with, moved by as many letters as the key moved
+(:func:`services.key_spelling.spell_moved`): ``F#m7b5 B7 Em`` in Bb, up a
+tone into C, is ``G#m7b5 C#7 F#m``, not C major's ``Abm7b5 Db7``. A chromatic
+root a fifth above the next chord's root is spelled a fifth above that root
+as moved, so a ii-V-I stays one where a letter can't move (Bb up a semitone
+into B: ``Gm7b5 C7 Fm``). A written letter the source key has no degree
+spelling for (``E`` in Db, standing in for Fb) moves by degree, not by
+letter. A diminished chord whose next chord's root or bass is a semitone
+above it takes a sharp (``D#dim7 Em7`` in D, not ``Ebdim7``). A spelling of
+E#/B#/Cb/Fb or a double accidental is refused and the plain table below
+spells that note instead.
 
-Without a key (and for callers of :func:`transpose_chord_token` that pass
-none) the plain table applies. The default spelling for each pitch class (used
+Without a key (no ``{key}`` and a detection that isn't sure; and for callers
+of :func:`transpose_chord_token` that pass none) the plain table applies:
+the conservative choice, as nothing says which letter a chromatic chord
+belongs to. The default spelling for each pitch class (used
 when the source root had no accidental) is::
 
     0=C  1=C#  2=D  3=Eb  4=E  5=F  6=F#  7=G  8=Ab  9=A  10=Bb  11=B
@@ -84,14 +95,15 @@ still sit above the same lyric character it did before.
 
 import re
 import unicodedata
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, NamedTuple, Optional, Tuple, Union
 
 from chord.converter import split_bass
 from models.notation import Notation
 from models.line import LineType
 from models.directive import DirectiveType
 from services.key_spelling import (
-    Key, detected_target, key_tonic, leads_up, plain_spelling, spell_in_key)
+    Key, detected_keys, key_tonic, leads_up, plain_spelling, resolves_down_a_fifth,
+    spell_in_key, spell_moved)
 from services.song_parser_service import SongParserService
 
 
@@ -168,19 +180,54 @@ def _parse_root(token: str, notation: str) -> Optional[Tuple[int, Optional[str],
 
 
 def _spell(pc: int, style: Optional[str], notation: str, is_lower: bool,
-           key: Optional[Key] = None, leading: bool = False) -> str:
-    """Spell a pitch class back into a root note in the given notation.
+           key: Optional[Key] = None, leading: bool = False,
+           source_key: Optional[Key] = None, letter: Optional[str] = None,
+           resolves_to: Optional[str] = None) -> str:
+    """Spell a pitch class back into a root note in the given notation
+    (:func:`_spell_american`, then the notation and case)."""
+    american = _spell_american(pc, style, key, leading, source_key, letter, resolves_to)
+    return _in_notation(american, notation, is_lower)
 
-    With a ``key`` the note is spelled by its degree in that key
-    (:func:`services.key_spelling.spell_in_key`; ``leading`` raises a flat
-    for a diminished chord leading up); without one, or when the degree
+
+def _spell_american(pc: int, style: Optional[str], key: Optional[Key] = None,
+                    leading: bool = False, source_key: Optional[Key] = None,
+                    letter: Optional[str] = None, resolves_to: Optional[str] = None) -> str:
+    """Spell a pitch class as an American note name.
+
+    With a ``key`` the note is spelled for that key: with the ``source_key``
+    and the source ``letter`` too, by
+    :func:`services.key_spelling.spell_moved` (a chromatic note keeps its
+    letter, moved as the key moved; ``resolves_to`` is the next chord's root
+    as moved when this root is a fifth above it), else by its degree
+    (:func:`services.key_spelling.spell_in_key`); ``leading`` raises a flat
+    for a diminished chord leading up. Without a key, or when the key's
     spelling is refused, by the plain table and the source's ``style``
     (:func:`services.key_spelling.plain_spelling`).
     """
-    american = spell_in_key(pc, key, leading) if key is not None else None
+    american = None
+    if key is not None:
+        if source_key is not None and letter is not None:
+            american = spell_moved(pc, letter, source_key, key, leading, resolves_to)
+        else:
+            american = spell_in_key(pc, key, leading)
     if american is None:
         american = plain_spelling(pc, style)
-    return _in_notation(american, notation, is_lower)
+    return american
+
+
+_EUROPEAN_LETTER = {'do': 'C', 're': 'D', 'mi': 'E', 'fa': 'F', 'sol': 'G', 'la': 'A', 'si': 'B'}
+
+
+def _root_letter(token: str, notation: str) -> Optional[str]:
+    """The American letter of the root a token starts with (``Sib`` -> ``B``)."""
+    if notation == 'european':
+        low = _normalize_ascii(token).lower()
+        for root in _EUROPEAN_ROOTS:
+            if low.startswith(root):
+                return _EUROPEAN_LETTER[root]
+        return None
+    letter = token[:1].upper()
+    return letter if letter in _NATURAL_PC else None
 
 
 def _in_notation(american: str, notation: str, is_lower: bool) -> str:
@@ -193,18 +240,22 @@ def _in_notation(american: str, notation: str, is_lower: bool) -> str:
     return spelled.lower() if is_lower else spelled
 
 
-def _transpose_note(token: str, semitones: int, notation: str, key: Optional[Key] = None) -> str:
+def _transpose_note(token: str, semitones: int, notation: str, key: Optional[Key] = None,
+                    source_key: Optional[Key] = None) -> str:
     """Transpose a bare note token (root + accidental, e.g. a slash bass)."""
     parsed = _parse_root(token, notation)
     if parsed is None:
         return token
     pc, style, is_lower, consumed = parsed
-    new_root = _spell((pc + semitones) % 12, style, notation, is_lower, key)
+    new_root = _spell((pc + semitones) % 12, style, notation, is_lower, key,
+                      source_key=source_key, letter=_root_letter(token, notation))
     return new_root + token[consumed:]
 
 
 def transpose_chord_token(chord_part: str, semitones: int, notation: Union[Notation, str],
-                          key: Optional[Key] = None, next_chord: Optional[str] = None) -> str:
+                          key: Optional[Key] = None, next_chord: Optional[str] = None,
+                          source_key: Optional[Key] = None,
+                          next_root: Optional[str] = None) -> str:
     """Transpose a single chord string (root + optional slash bass).
 
     Quality/extensions/parentheses are preserved verbatim; the root and any
@@ -221,6 +272,15 @@ def transpose_chord_token(chord_part: str, semitones: int, notation: Union[Notat
             whose next chord's root or bass is a semitone above it is spelled
             with a sharp (``D#dim7 Em7``, not ``Ebdim7``). Used only with
             ``key``.
+        source_key: The key the chord is in before the move (American). With
+            it and ``key``, a chromatic root or bass keeps its letter, moved
+            as many letters as the key moved (``B7`` in Bb, +2 into C, is
+            ``C#7``); without it, every note is spelled by its degree in
+            ``key``.
+        next_root: ``next_chord``'s root after the move (American), when
+            this chord's root is a fifth above it: a chromatic root is then
+            spelled a fifth above it (:func:`services.key_spelling.spell_moved`).
+            Used only with both keys.
     """
     notation = _notation_str(notation)
     parsed = _parse_root(chord_part, notation)
@@ -228,11 +288,12 @@ def transpose_chord_token(chord_part: str, semitones: int, notation: Union[Notat
         return chord_part
     pc, style, is_lower, consumed = parsed
     leading = key is not None and leads_up(chord_part, next_chord)
-    new_root = _spell((pc + semitones) % 12, style, notation, is_lower, key, leading)
+    new_root = _spell((pc + semitones) % 12, style, notation, is_lower, key, leading,
+                      source_key, _root_letter(chord_part, notation), next_root)
     rest = chord_part[consumed:]
     pre, bass = split_bass(rest)
     if bass is not None:
-        return new_root + pre + '/' + _transpose_note(bass, semitones, notation, key)
+        return new_root + pre + '/' + _transpose_note(bass, semitones, notation, key, source_key)
     return new_root + rest
 
 
@@ -343,24 +404,48 @@ def _transposable(chord) -> bool:
     return chord.is_valid and not chord.is_relative and not chord.is_rest
 
 
-def _directive_key(value: str, semitones: int, notation: str) -> Optional[Key]:
-    """The key a ``{key: value}`` directive names after the transpose, as
-    :func:`transpose_key` writes it; None when transpose can't read it (it
-    then leaves the directive as it is)."""
-    moved = _moved_key(value.strip(), semitones, notation)
+def _directive_keys(value: str, semitones: int, notation: str) -> Optional[Tuple[Key, Key]]:
+    """The key a ``{key: value}`` directive names, and the key it names after
+    the transpose, as :func:`transpose_key` writes it; None when transpose
+    can't read it (it then leaves the directive as it is)."""
+    value = value.strip()
+    moved = _moved_key(value, semitones, notation)
     if moved is None or moved[2]:
         return None
-    return moved[0]
+    source = _moved_key(value, 0, notation)[0]
+    # The source as written (D# stays D#), not renamed like a moved key.
+    letter = _root_letter(value, notation)
+    accidental = {'sharp': '#', 'flat': 'b', None: ''}[_parse_root(value, notation)[1]]
+    return Key(letter + accidental, source.minor), moved[0]
 
 
-def _spelling_plan(lines_model, semitones: int, notation: str
-                   ) -> Dict[int, Tuple[Optional[Key], Optional[str]]]:
+class PlanEntry(NamedTuple):
+    """How :func:`transpose_text` spells one chord's root and bass."""
+    key: Optional[Key]          # the key it lands in (None: the plain table)
+    next_chord: Optional[str]   # the chord after it, as written
+    source_key: Optional[Key]   # the key it was in (None: by degree only)
+    next_root: Optional[str] = None  # the next chord's moved root, when a fifth below
+
+
+def _moved_root(chord: str, semitones: int, notation: str, entry: PlanEntry) -> Optional[str]:
+    """``chord``'s root after the move as :func:`transpose_chord_token`
+    spells it, in American spelling (None when it has no root)."""
+    parsed = _parse_root(chord, notation)
+    if parsed is None:
+        return None
+    pc, style, _, _ = parsed
+    leading = entry.key is not None and leads_up(chord, entry.next_chord)
+    return _spell_american((pc + semitones) % 12, style, entry.key, leading,
+                           entry.source_key, _root_letter(chord, notation), entry.next_root)
+
+
+def _spelling_plan(lines_model, semitones: int, notation: str) -> Dict[int, PlanEntry]:
     """For each chord transpose can move, by its start offset: the key it
-    lands in (None: spell by the plain table) and the chord after it.
+    lands in, the chord after it and the key it was in (:data:`PlanEntry`).
 
     A chord's key is the last ``{key: ...}`` before it, moved with the song.
     Chords before the first one are in the key detected from them, when the
-    detection is sure (:func:`services.key_spelling.detected_target`).
+    detection is sure (:func:`services.key_spelling.detected_keys`).
     """
     events = []
     for model in lines_model:
@@ -369,28 +454,38 @@ def _spelling_plan(lines_model, semitones: int, notation: str
                 events.append((chord.start, None, chord))
         for directive in model.directives:
             if directive.type == DirectiveType.KEY and directive.is_valid and directive.key:
-                key = _directive_key(directive.key, semitones, notation)
-                if key is not None:
-                    events.append((directive.start, key, None))
+                keys = _directive_keys(directive.key, semitones, notation)
+                if keys is not None:
+                    events.append((directive.start, keys, None))
     events.sort(key=lambda e: e[0])
 
     chords = [chord for _, _, chord in events if chord is not None]
     next_of = {chord.start: after.chord for chord, after in zip(chords, chords[1:])}
-    plan: Dict[int, Tuple[Optional[Key], Optional[str]]] = {}
+    plan: Dict[int, PlanEntry] = {}
     head = []          # the chords before the first {key}
-    key = None
-    for _, directive_key, chord in events:
-        if directive_key is not None:
-            key = directive_key
-        elif key is None:
+    keys = None
+    for _, directive_keys, chord in events:
+        if directive_keys is not None:
+            keys = directive_keys
+        elif keys is None:
             head.append(chord)
         else:
-            plan[chord.start] = (key, next_of.get(chord.start))
+            plan[chord.start] = PlanEntry(keys[1], next_of.get(chord.start), keys[0])
     if head:
         pairs = [(chord.chord, next_of.get(chord.start)) for chord in head]
-        detected = detected_target(pairs, semitones)
+        detected = detected_keys(pairs, semitones)
+        source, target = detected if detected is not None else (None, None)
         for chord, (_, next_chord) in zip(head, pairs):
-            plan[chord.start] = (detected, next_chord)
+            plan[chord.start] = PlanEntry(target, next_chord, source)
+    # Last chord first: a root a fifth above the next chord is spelled from
+    # that chord's root as moved (B7 before Em, in Bb up a tone: C#7 F#m).
+    moved_root = None
+    for chord, after in zip(reversed(chords), [None] + chords[::-1][:-1]):
+        entry = plan[chord.start]
+        if (after is not None and moved_root is not None and entry.source_key is not None
+                and resolves_down_a_fifth(chord.chord, after.chord)):
+            entry = plan[chord.start] = entry._replace(next_root=moved_root)
+        moved_root = _moved_root(chord.chord, semitones, notation, entry)
     return plan
 
 
@@ -467,9 +562,10 @@ def transpose_text(
             old = raw[rs:re_]
             if _transposable(chord) and _intersects(chord.start, chord.end):
                 trailing = old[len(chord.chord):]
-                key, next_chord = plan.get(chord.start, (None, None))
-                new = transpose_chord_token(chord.chord, semitones, notation,
-                                            key, next_chord) + trailing
+                entry = plan.get(chord.start, PlanEntry(None, None, None))
+                new = transpose_chord_token(chord.chord, semitones, notation, entry.key,
+                                            entry.next_chord, entry.source_key,
+                                            entry.next_root) + trailing
             else:
                 new = old
             anchors.append(_Anchor(rs, re_, new, old))

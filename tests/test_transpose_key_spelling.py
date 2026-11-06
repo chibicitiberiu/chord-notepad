@@ -92,6 +92,115 @@ class TestShowcaseSongs:
         assert _moved(song, 1, "american") == "{key: Eb}\nEb  Db  Ab  Eb  Ab  Bb  Eb\n".split()
 
 
+class TestChromaticChordsKeepTheirLetters:
+    """C2: a chromatic chord keeps the letters the song wrote it with, moved
+    as far as the key moved, so a secondary ii-V still leads where it went.
+    Diatonic chords are spelled by the key as before."""
+
+    def test_the_reported_song(self):
+        # Bb major with a ii-V-i of E minor: up a tone it's C major with a
+        # ii-V-i of F# minor, not C major's Abm7b5 Db7.
+        song = "Bb F/A Gm7 Eb\nF#m7b5 B7 Em NC\n"
+        assert _moved(song, 2, "american") == "C G/B Am7 F G#m7b5 C#7 F#m NC".split()
+        assert _moved(song, -3, "american") == "G D/F# Em7 C D#m7b5 G#7 C#m NC".split()
+
+    def test_the_reported_song_comes_back(self):
+        song = "Bb F/A Gm7 Eb\nF#m7b5 B7 Em NC\n"
+        for shift in (2, -2, 3, -3, 4, 5, 7, -7):
+            back = transpose_text(transpose_text(song, shift, "american"), -shift, "american")
+            assert back.split() == song.split(), shift
+
+    def test_a_secondary_ii_v_with_a_key(self):
+        song = "{key: Bb}\nBb  G7  Cm7  F7  Bb  F#m7b5  B7  Em\n"
+        assert _moved(song, 2, "american") == (
+            "{key: C}\nC  A7  Dm7  G7  C  G#m7b5  C#7  F#m\n").split()
+        assert _moved(song, -1, "american") == (
+            "{key: A}\nA  F#7  Bm7  E7  A  Fm7b5  A#7  D#m\n").split()
+
+    def test_ii_v_i_in_minor_keys(self):
+        song = "{key: Am}\nBm7b5  E7  Am\n"
+        assert _moved(song, 1, "american") == "{key: Bbm}\nCm7b5  F7  Bbm\n".split()
+        assert _moved(song, 2, "american") == "{key: Bm}\nC#m7b5  F#7  Bm\n".split()
+        assert _moved(song, -1, "american") == "{key: G#m}\nA#m7b5  D#7  G#m\n".split()
+        assert _moved(song, -3, "american") == "{key: F#m}\nG#m7b5  C#7  F#m\n".split()
+
+    def test_a_minor_song_moving_to_its_dominant(self):
+        song = "{key: Em}\nEm  C#m7b5  F#7  Bm\n"
+        assert _moved(song, 2, "american") == "{key: F#m}\nF#m  D#m7b5  G#7  C#m\n".split()
+        assert _moved(song, 1, "american") == "{key: Fm}\nFm  Dm7b5  G7  Cm\n".split()
+
+    def test_secondary_dominants_on_the_key_degrees(self):
+        song = "{key: C}\nC  A7  Dm7  G7  C  E7  Am  D7  G\n"
+        assert _moved(song, 1, "american") == (
+            "{key: Db}\nDb  Bb7  Ebm7  Ab7  Db  F7  Bbm  Eb7  Ab\n").split()
+        assert _moved(song, -1, "american") == (
+            "{key: B}\nB  G#7  C#m7  F#7  B  D#7  G#m  C#7  F#\n").split()
+
+    def test_a_stand_in_letter_takes_the_key_spelling_and_its_dominant_follows(self):
+        # B7 E in Eb: E stands in for Fb (Eb has no degree spelling for it,
+        # the letter can't be trusted), so it takes F major's lowered second,
+        # Gb, and B7, a fifth above it, follows as Db7.
+        song = "{key: Eb}\nEb  B7  E  Eb\n"
+        assert _moved(song, 2, "american") == "{key: F}\nF  Db7  Gb  F\n".split()
+        back = transpose_text(transpose_text(song, 2, "american"), -2, "american")
+        assert back.split() == song.split()
+
+    def test_borrowed_chords_keep_their_flats(self):
+        song = "{key: C}\nC  Eb7  Ab  G7  C  Db7  C  Bb  F  C\n"
+        assert _moved(song, 2, "american") == (
+            "{key: D}\nD  F7  Bb  A7  D  Eb7  D  C  G  D\n").split()
+        for shift in range(1, 12):
+            for signed in (shift, -shift):
+                back = transpose_text(transpose_text(song, signed, "american"), -signed, "american")
+                assert back.split() == song.split(), signed
+
+    def test_a_letter_that_would_need_a_double_sharp_keeps_the_fifths(self):
+        # Bb up a semitone is B: F# would move to F## and E to E#, so Em takes
+        # B major's spelling, F, and the chords before it stay a fifth apart
+        # from it: C7, Gm7b5. Back down the fifths bring the letters back.
+        song = "{key: Bb}\nBb  F#m7b5  B7  Em\n"
+        assert _moved(song, 1, "american") == "{key: B}\nB  Gm7b5  C7  Fm\n".split()
+        for shift in range(1, 12):
+            for signed in (shift, -shift):
+                back = transpose_text(transpose_text(song, signed, "american"), -signed,
+                                      "american")
+                assert back.split() == song.split(), signed
+
+    def test_a_stand_in_letter_is_not_moved(self):
+        # Eb in C up a semitone would be Fb in Db: E stands in for it. Moving
+        # that E back as a letter would give D#; it comes back as Eb.
+        song = "{key: C}\nC  Eb  C\n"
+        assert _moved(song, 1, "american") == "{key: Db}\nDb  E  Db\n".split()
+        assert transpose_text(transpose_text(song, 1, "american"), -1, "american").split() == (
+            song.split())
+
+    def test_without_a_sure_key_each_chord_keeps_its_own_accidental(self):
+        # No {key} and a detection that can't tell: the plain rule, the
+        # conservative choice (see TestDetectionFallback).
+        assert transpose_chord_token("F#m7b5", 2, "american") == "G#m7b5"
+        assert transpose_chord_token("B7", 2, "american") == "C#7"
+        assert transpose_chord_token("Bb7", 2, "american") == "C7"
+
+    def test_the_source_key_letters_drive_european_too(self):
+        song = "{key: Sib}\nSib  Fa#m7b5  Si7  Mim\n"
+        assert _moved(song, 2, "european") == "{key: Do}\nDo  Sol#m7b5  Do#7  Fa#m\n".split()
+
+    def test_a_token_needs_both_keys_for_the_letter_rule(self):
+        assert transpose_chord_token("F#7", 2, "american", Key('C', False)) == "Ab7"
+        assert transpose_chord_token("F#7", 2, "american", Key('C', False), None,
+                                     Key('Bb', False)) == "G#7"
+        assert transpose_chord_token("Em/F#", 2, "american", Key('C', False), None,
+                                     Key('Bb', False)) == "F#m/G#"
+
+    def test_a_token_a_fifth_above_the_next_root_follows_it(self):
+        # B in Bb stands in for Cb: alone it moves by degree (Db7, a tritone
+        # substitute in C); before the next chord's F#, a fifth above it.
+        assert transpose_chord_token("B7", 2, "american", Key('C', False), None,
+                                     Key('Bb', False)) == "Db7"
+        assert transpose_chord_token("B7", 2, "american", Key('C', False), "Em",
+                                     Key('Bb', False), "F#") == "C#7"
+
+
 class TestKeySections:
     def test_a_directive_spells_the_chords_after_it(self):
         song = "{key: F}\nF  Bb  C  Dm\n{key: F#}\nF#  B  C#  D#m\n"
@@ -112,14 +221,15 @@ class TestKeySections:
 
     def test_the_directive_key_moves_with_the_song(self):
         plan = _plan("{key: C}\nC  G\n", 1)
-        assert {key for key, _ in plan.values()} == {Key('Db', False)}
+        assert {entry.key for entry in plan.values()} == {Key('Db', False)}
+        assert {entry.source_key for entry in plan.values()} == {Key('C', False)}
 
     def test_a_directive_transpose_cant_read_is_skipped(self):
         # In an American song "Sol" isn't a note transpose reads, so the
         # directive stays as written and the chords are detected instead.
         song = "{key: Sol}\nG  D  Em  C\n"
         plan = _plan(song, 4)
-        assert {key for key, _ in plan.values()} == {Key('B', False)}
+        assert {entry.key for entry in plan.values()} == {Key('B', False)}
         assert _moved(song, 4, "american") == "{key: Sol}\nB  F#  G#m  E\n".split()
 
     def test_the_toolbar_key_is_never_used(self):
@@ -135,7 +245,8 @@ class TestKeySections:
 class TestDetectionFallback:
     def test_an_unsure_key_falls_back_to_the_plain_rule(self):
         # G, D and C major are too close to call and spell this differently.
-        assert set(_plan("C  G  D\n", 6).values()) == {(None, "G"), (None, "D"), (None, None)}
+        assert set(_plan("C  G  D\n", 6).values()) == {
+            (None, "G", None, None), (None, "D", None, None), (None, None, None, None)}
         assert _moved("C  G  D\n", 6, "american") == "F#  C#  Ab\n".split()
 
     def test_roman_numerals_and_rests_are_not_read_for_the_key(self):
