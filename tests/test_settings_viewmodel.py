@@ -185,6 +185,36 @@ class TestRename:
         with pytest.raises(ValueError):
             vm.rename_voicing(a, b)
 
+    @pytest.mark.parametrize("name", ["Piano", "piano", " PIANO ",
+                                      BUILTIN_FRETBOARDS["standard"].label,
+                                      BUILTIN_ENSEMBLES["satb"].label.upper()])
+    def test_rename_to_a_builtin_name_raises(self, tmp_path, name):
+        vm = SettingsViewModel(_make_config_service(tmp_path))
+        old = vm.add_voicing()
+        with pytest.raises(ValueError, match="is a built-in voicing"):
+            vm.rename_voicing(old, name)
+        assert list(vm.get_voicings()) == [old]
+
+    def test_rename_to_another_voicings_name_ignores_case(self, tmp_path):
+        vm = SettingsViewModel(_make_config_service(tmp_path))
+        a = vm.add_voicing()
+        vm.rename_voicing(a, "Bass")
+        b = vm.add_voicing()
+        with pytest.raises(ValueError, match="A voicing named 'Bass' already exists"):
+            vm.rename_voicing(b, "bASS")
+
+    def test_rename_changing_only_the_case_of_its_own_name(self, tmp_path):
+        vm = SettingsViewModel(_make_config_service(tmp_path))
+        old = vm.add_voicing()
+        vm.rename_voicing(old, "bass")
+        vm.rename_voicing("bass", "Bass")
+        assert list(vm.get_voicings()) == ["Bass"]
+
+    def test_add_skips_a_name_taken_in_another_case(self, tmp_path):
+        vm = SettingsViewModel(_make_config_service(tmp_path))
+        vm.rename_voicing(vm.add_voicing(), "new VOICING")
+        assert vm.add_voicing() == "New voicing 2"
+
     def test_rename_moves_data(self, tmp_path):
         vm = SettingsViewModel(_make_config_service(tmp_path))
         old = vm.add_voicing()

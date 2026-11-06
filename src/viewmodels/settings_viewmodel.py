@@ -156,9 +156,14 @@ class SettingsViewModel:
             old: The current name of the voicing to rename.
             new: The requested new name.
 
+        Names are compared ignoring case: a voicing can't take a built-in's
+        name ("Piano", "Guitar (Standard)", "Choir (SATB)", ...) or another
+        voicing's, since the Voicing menu would show two of the same. Changing
+        only the case of its own name is fine.
+
         Raises:
             ValueError: if ``new`` is empty/whitespace, or already names a
-                different voicing, or if ``old`` does not exist.
+                built-in or a different voicing, or if ``old`` does not exist.
         """
         new = (new or '').strip()
         if not new:
@@ -167,8 +172,13 @@ class SettingsViewModel:
             raise ValueError(f"No voicing named '{old}'.")
         if new == old:
             return
-        if new in self._working_voicings:
-            raise ValueError(f"A voicing named '{new}' already exists.")
+        builtin = _builtin_names().get(new.casefold())
+        if builtin is not None:
+            raise ValueError(f"'{builtin}' is a built-in voicing. Choose another name.")
+        taken = next((name for name in self._working_voicings
+                      if name != old and name.casefold() == new.casefold()), None)
+        if taken is not None:
+            raise ValueError(f"A voicing named '{taken}' already exists.")
 
         # Preserve insertion order by rebuilding the dict with the key renamed.
         self._working_voicings = {
@@ -313,10 +323,25 @@ class SettingsViewModel:
         return "piano"
 
     def _unique_name(self, base: str) -> str:
-        """Return ``base``, or ``base 2``/``base 3``/... if already taken."""
-        if base not in self._working_voicings:
+        """Return ``base``, or ``base 2``/``base 3``/... if already taken
+        (ignoring case, as :meth:`rename_voicing` does)."""
+        taken = {name.casefold() for name in self._working_voicings}
+        taken.update(_builtin_names())
+        if base.casefold() not in taken:
             return base
         index = 2
-        while f"{base} {index}" in self._working_voicings:
+        while f"{base} {index}".casefold() in taken:
             index += 1
         return f"{base} {index}"
+
+
+def _builtin_names() -> Dict[str, str]:
+    """The built-in voicings' names as the Voicing menu shows them, by their
+    case-folded form (see :func:`session.formatting.voicing_menu_groups`)."""
+    from models.ensemble_spec import BUILTIN_ENSEMBLES
+    from models.fretboard_spec import BUILTIN_FRETBOARDS
+
+    labels = ["Piano"]
+    labels += [spec.label for spec in BUILTIN_FRETBOARDS.values()]
+    labels += [spec.label for spec in BUILTIN_ENSEMBLES.values()]
+    return {label.casefold(): label for label in labels}
