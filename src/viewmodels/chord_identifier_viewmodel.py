@@ -532,12 +532,10 @@ class ChordIdentifierViewModel(Observable):
 
             # Every note as the root, with added tones where needed: E G# B C
             # is also Eaddb6, and C E G A is also C6 (music21 only says Am7).
-            # Every root's reading is offered; on another root than the
-            # lowest note it also comes as a slash chord over that note.
-            for root, name in self._chord_service.identify_by_root(note_names):
-                all_chords.add(name)
-                if bass_note and root != bass_note:
-                    all_chords.add(f"{name}/{bass_note}")
+            # Over a bass that is a chord tone of the reading it's a slash
+            # chord; one that isn't is named without the bass over it, so the
+            # bass is never counted twice (G B D F: G7 and Bdim/G).
+            all_chords.update(self._chord_service.name_by_root(note_names, bass_note))
 
             if all_chords:
                 chord_list = sorted(all_chords, key=lambda name: _likelihood(name, bass_note, self._pitch_classes))

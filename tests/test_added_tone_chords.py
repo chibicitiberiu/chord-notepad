@@ -95,6 +95,12 @@ def test_a_triad_plus_a_tone_that_makes_a_seventh_chord_is_that_chord(vm):
     assert typed(vm, "Bb4 D5 F5 Ab5")[0] == 'Bb7'
 
 
+def test_the_identifier_counts_the_bass_once(vm):
+    # Not "Bdimaddb6/G" or "Ddimaddb6/Bb": the bass named twice (C1, C14).
+    assert typed(vm, "G3 B3 D4 F4") == ['G7', 'Bdim/G']
+    assert typed(vm, "Bb4 D5 F5 Ab5") == ['Bb7', 'Ddim/Bb']
+
+
 def test_plain_chords_are_unchanged(vm):
     assert typed(vm, "C4 E4 G4") == ['C']
     assert typed(vm, "E3 G3 C4") == ['C/E', 'C']
