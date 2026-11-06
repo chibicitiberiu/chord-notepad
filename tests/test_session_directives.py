@@ -55,6 +55,72 @@ def test_key_must_be_one_of_the_notations_options():
     assert _message("key", key="") == "Please select a key."
 
 
+# -- the Insert Key list (C5) ------------------------------------------------------------
+
+_LETTERS = "CDEFGAB"
+_NATURAL = {"C": 0, "D": 2, "E": 4, "F": 5, "G": 7, "A": 9, "B": 11}
+_MAJOR, _MINOR = (0, 2, 4, 5, 7, 9, 11), (0, 2, 3, 5, 7, 8, 10)
+
+
+def _signature(key):
+    """The key's scale accidentals, one per letter, worked out from the
+    tonic (an oracle independent of the app's tables); None if a degree
+    would need a double accidental or the signature mixes sharps and flats."""
+    minor = key.endswith("m")
+    tonic = key[:-1] if minor else key
+    letter = _LETTERS.index(tonic[0])
+    pc = _NATURAL[tonic[0]] + tonic.count("#") - tonic.count("b")
+    shifts = []
+    for degree, step in enumerate(_MINOR if minor else _MAJOR):
+        name = _LETTERS[(letter + degree) % 7]
+        shift = (pc + step - _NATURAL[name] + 6) % 12 - 6
+        shifts.append(shift)
+    if any(abs(x) > 1 for x in shifts) or (1 in shifts and -1 in shifts):
+        return None
+    return shifts
+
+
+def test_the_insert_key_list_is_every_key_with_a_signature():
+    from session.toolbar import insert_key_options
+
+    keys = insert_key_options("american")
+    roots = [r + a for r in _LETTERS for a in ("", "#", "b")]
+    expected = {root + m for root in roots for m in ("", "m") if _signature(root + m)}
+    assert len(keys) == len(set(keys)) == 30
+    assert set(keys) == expected
+    assert keys[:15] == tuple(k for k in keys if not k.endswith("m"))   # majors first
+    for absent in ("D#", "G#", "A#", "Dbm", "Gbm", "Fb", "E#m"):
+        assert absent not in keys
+
+
+def test_the_european_insert_key_list_is_the_american_one_respelled():
+    from chord.converter import NotationConverter
+    from session.toolbar import insert_key_options
+
+    converter = NotationConverter()
+    american, european = insert_key_options("american"), insert_key_options("european")
+    assert tuple(converter.chord_american_to_european(k) for k in american) == european
+
+
+@pytest.mark.parametrize("notation", ["american", "european"])
+def test_every_insert_key_makes_a_valid_key_directive(notation):
+    from session.toolbar import insert_key_options
+
+    parser = SongParserService()
+    for key in insert_key_options(notation):
+        text = build_directive("key", {"key": key}, notation=notation)
+        [line] = parser.detect_chords_in_text(text, notation)
+        assert [d.is_valid for d in line.directives] == [True], key
+
+
+def test_minor_keys_can_be_inserted_but_not_keys_without_a_signature():
+    assert build_directive("key", {"key": "F#m"}) == "{key: F#m}"
+    assert build_directive("key", {"key": "Cb"}) == "{key: Cb}"
+    assert build_directive("key", {"key": "Sol#m"}, notation="european") == "{key: Sol#m}"
+    assert _message("key", key="D#") == "Please select a key."
+    assert _message("key", key="Gbm") == "Please select a key."
+
+
 def test_label_rules():
     assert build_directive("label", {"label": "chorus_2"}) == "{label: chorus_2}"
     assert _message("label", label="") == "Please enter a label name."

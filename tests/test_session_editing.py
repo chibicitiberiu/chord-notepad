@@ -362,6 +362,7 @@ def test_insert_directive_request_then_response_inserts_it():
 
     assert env.recorder.compact() == [
         ("InsertDirectiveRequest", 1, "bpm", ("verse",), "american")]
+    assert env.request(InsertDirectiveRequest).key_options == ()      # only for key
     env.recorder.clear()
 
     env.session.respond(1, {"value": " 90 "})
@@ -422,6 +423,7 @@ def test_the_key_options_follow_the_notation():
     env.session.request_insert_directive("key", 0)
     request = env.request(InsertDirectiveRequest)
     assert request.notation == "european"
+    assert request.key_options[:3] == ("Do", "Sol", "Re") and "Lam" in request.key_options
     env.session.respond(request.request_id, {"key": "Sol"})
     assert env.session.text == "{key: Sol} Do Re"
 

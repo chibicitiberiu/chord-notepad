@@ -122,12 +122,16 @@ class InsertDirectiveRequest:
             a loop jumps back to one of them, see
             :func:`session.directives.loop_label_choices`).
         notation: ``american`` or ``european`` (the key options).
+        key_options: For ``key``, the keys to offer, in ``notation``
+            (:func:`session.toolbar.insert_key_options`: the 15 major and 15
+            minor keys with a signature); empty for the other kinds.
     """
 
     request_id: int
     kind: str
     existing_labels: Tuple[str, ...]
     notation: str
+    key_options: Tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)

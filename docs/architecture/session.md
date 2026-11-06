@@ -223,7 +223,7 @@ TextEdited(text_revision, start, end, replacement, undo, cursor)   # undo: group
 ConfirmDiscardRequest(request_id)                                  # answer DiscardChoice: save|discard|cancel
 PickDocumentRequest(request_id, mode, suggested_name)              # PickMode: open|save|export_midi
 CapoChoiceRequest(request_id, options, default)
-InsertDirectiveRequest(request_id, kind, existing_labels, notation)
+InsertDirectiveRequest(request_id, kind, existing_labels, notation, key_options)
 UserError(title, message)
 AudioUnavailable(message, from_click)
 UnexpectedError(message, context)                                  # context: "bridge", a command, a callback
@@ -366,7 +366,9 @@ an empty one means none.
 - The transpose dialog stays view-side (no request). Before any edit command
   the Tk view sends the widget's text with `set_text`.
 - Requests: `InsertDirectiveRequest(request_id, kind, existing_labels,
-  notation)`, answered with a `{field: value}` mapping (`directives.py`
+  notation, key_options)` (for `key`, the 15 major and 15 minor keys that have
+  a signature, `toolbar.insert_key_options`; the toolbar's `key_options` are
+  roots only), answered with a `{field: value}` mapping (`directives.py`
   documents the fields) or None; invalid fields at answer time emit
   `UserError` (the Tk dialogs check them live with
   `directives.check_directive`, same messages). `CapoChoiceRequest(request_id,

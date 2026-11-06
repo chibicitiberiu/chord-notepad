@@ -2260,7 +2260,8 @@ class AppSession:
     def _insert_directive_flow(self, kind: str, at: int) -> Flow:
         """Ask for a directive's fields, check them and insert the directive."""
         notation = self._main.notation.value
-        fields = yield InsertDirectiveRequest(0, kind, self._labels(), notation)
+        keys = toolbar.insert_key_options(notation) if kind == "key" else ()
+        fields = yield InsertDirectiveRequest(0, kind, self._labels(), notation, keys)
         if fields is None:
             return
         try:

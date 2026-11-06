@@ -468,6 +468,7 @@
     "InsertDirectiveRequest": {
       "fields": {
         "existing_labels": "list[str]",
+        "key_options": "list[str]",
         "kind": "str",
         "notation": "str",
         "request_id": "int"

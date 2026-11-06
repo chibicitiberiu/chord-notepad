@@ -29,7 +29,7 @@ from typing import Any, Iterable, Mapping, Optional, Tuple
 from constants import MAX_BEATS, MAX_BPM, MIN_BEATS, MIN_BPM, TIME_SIGNATURE_UNITS
 from models.directive import DirectiveType
 from models.notation import Notation
-from session.toolbar import key_options
+from session.toolbar import insert_key_options
 
 LOOP_START = "@start"
 """The loop target meaning "the beginning of the song"."""
@@ -119,7 +119,7 @@ def check_directive(kind: str, values: Mapping[str, Any], *,
         return _check_time(_field(values, "beats"), _field(values, "unit"))
     if kind is DirectiveKind.KEY:
         key = _field(values, "key")
-        if key not in key_options(notation):
+        if key not in insert_key_options(notation):
             return _invalid("Please select a key.", "key")
         return None
     if kind is DirectiveKind.LABEL:

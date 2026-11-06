@@ -15,11 +15,11 @@ from chord.converter import NotationConverter
 # a time signature may have and the beats a bar may have.
 from constants import (  # noqa: F401
     DEFAULT_BPM, MAX_BEATS, MAX_BPM, MIN_BEATS, MIN_BPM, TIME_SIGNATURE_UNITS)
-from models.notation import Notation, key_names
+from models.notation import Notation, directive_key_names, key_names
 
 
 def key_options(notation: str) -> Tuple[str, ...]:
-    """The keys the toolbar (and the Insert Key dialog) offer.
+    """The keys the toolbar (and the Settings default key) offer.
 
     Root notes only: a roman numeral's case already says major or minor.
 
@@ -30,6 +30,20 @@ def key_options(notation: str) -> Tuple[str, ...]:
         ValueError: For any other notation.
     """
     return key_names(notation)
+
+
+def insert_key_options(notation: str) -> Tuple[str, ...]:
+    """The keys the Insert Key dialog offers: the 15 major and 15 minor keys
+    with a key signature, majors first, each by its signature (no D# major:
+    Eb). A ``{key}`` directive is a key, not a root, so minors are there too.
+
+    Args:
+        notation: ``american`` or ``european``.
+
+    Raises:
+        ValueError: For any other notation.
+    """
+    return directive_key_names(notation)
 
 
 def convert_key(key: str, notation: str) -> str:

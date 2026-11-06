@@ -30,6 +30,31 @@ EUROPEAN_KEYS = (
 )
 
 
+#: The keys a ``{key: ...}`` directive is offered in (the Insert Key dialog):
+#: the 15 major and 15 minor keys that have a key signature, by signature
+#: (none, then sharps, then flats). No D#, G# or A# major (Eb, Ab, Bb), and no
+#: Dbm, Gbm (C#m, F#m). Index-aligned American and European.
+AMERICAN_DIRECTIVE_KEYS = (
+    "C", "G", "D", "A", "E", "B", "F#", "C#", "F", "Bb", "Eb", "Ab", "Db", "Gb", "Cb",
+    "Am", "Em", "Bm", "F#m", "C#m", "G#m", "D#m", "A#m",
+    "Dm", "Gm", "Cm", "Fm", "Bbm", "Ebm", "Abm",
+)
+EUROPEAN_DIRECTIVE_KEYS = (
+    "Do", "Sol", "Re", "La", "Mi", "Si", "Fa#", "Do#", "Fa", "Sib", "Mib", "Lab", "Reb",
+    "Solb", "Dob",
+    "Lam", "Mim", "Sim", "Fa#m", "Do#m", "Sol#m", "Re#m", "La#m",
+    "Rem", "Solm", "Dom", "Fam", "Sibm", "Mibm", "Labm",
+)
+
+
+def directive_key_names(notation: str) -> Tuple[str, ...]:
+    """The keys a ``{key}`` directive is offered in, in ``notation`` (raises
+    ValueError for an unknown notation); see :data:`AMERICAN_DIRECTIVE_KEYS`."""
+    if Notation(notation) is Notation.EUROPEAN:
+        return EUROPEAN_DIRECTIVE_KEYS
+    return AMERICAN_DIRECTIVE_KEYS
+
+
 def key_names(notation: str) -> Tuple[str, ...]:
     """The keys ``notation`` offers, in order (raises ValueError for an unknown notation)."""
     return EUROPEAN_KEYS if Notation(notation) is Notation.EUROPEAN else AMERICAN_KEYS
