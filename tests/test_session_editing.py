@@ -267,7 +267,38 @@ def test_insert_text_is_a_plain_splice_with_the_cursor_after_it():
     ]
 
 
+@pytest.mark.parametrize("text, at, inserted, result", [
+    # Right after a chord: a space in front, or it reads "FG7".
+    ("C F", 3, " G7 ", "C F G7 "),
+    # After a space, at a line start or at the very start: none needed.
+    ("C F ", 4, "G7 ", "C F G7 "),
+    ("C F\n", 4, "G7 ", "C F\nG7 "),
+    ("", 0, "G7 ", "G7 "),
+    # In the middle of a word: still kept apart.
+    ("hello", 2, " G7 ", "he G7 llo"),
+])
+def test_insert_chord_keeps_it_apart_from_the_chord_before(text, at, inserted, result):
+    env = Env(text)
+    env.session.insert_chord(at, "G7")
+    edit = env.recorder.last(TextEdited)
+    assert (edit.start, edit.replacement, edit.cursor) == (at, inserted, at + len(inserted))
+    assert env.session.text == result
+    assert env.status() == "Inserted chord: G7"
+
+
 # -- insert directive ------------------------------------------------------------------------
+
+
+def test_insert_directive_after_a_chord_puts_a_space_in_front():
+    env = Env("C Am F G")
+    env.session.request_insert_directive("bpm", 8)
+    env.session.respond(1, {"value": "100"})
+    edit = env.recorder.last(TextEdited)
+    assert (edit.start, edit.replacement, edit.cursor) == (8, " {bpm: 100} ", 20)
+    assert env.session.text == "C Am F G {bpm: 100} "
+    # G is still a chord, and so is everything before it.
+    spans = [(s.kind.value, s.start, s.end) for s in env.recorder.last(HighlightState).spans]
+    assert chord(7, 8) in spans and ("directive", 9, 19) in spans
 
 
 def test_insert_directive_request_then_response_inserts_it():
@@ -328,7 +359,7 @@ def test_loop_offers_the_start_and_the_labels():
     assert loop_label_choices(request.existing_labels) == ("@start", "bridge", "verse")
 
     env.session.respond(request.request_id, {"label": "bridge", "count": 3})
-    assert env.session.text.endswith("G{loop: bridge 3} ")
+    assert env.session.text.endswith("G {loop: bridge 3} ")
 
 
 def test_the_key_options_follow_the_notation():
@@ -345,7 +376,7 @@ def test_an_insert_offset_past_a_shrunken_text_is_clamped():
     env.session.request_insert_directive("bpm", 8)
     env.session.set_text("C")  # the text changed while the dialog was open
     env.session.respond(1, {"value": "100"})
-    assert env.session.text == "C{bpm: 100} "
+    assert env.session.text == "C {bpm: 100} "
 
 
 def test_unknown_kind_or_offset_is_rejected():
@@ -365,9 +396,9 @@ def test_stale_answers_are_ignored():
     env.session.respond(1, {"value": "90"})
     assert env.recorder.items == []
     env.session.respond(2, {"value": "90"})
-    assert env.session.text == "C{bpm: 90} "
+    assert env.session.text == "C {bpm: 90} "
     env.session.respond(2, {"value": "90"})  # answered already
-    assert env.session.text == "C{bpm: 90} "
+    assert env.session.text == "C {bpm: 90} "
 
 
 # -- suggest capo ------------------------------------------------------------------------------

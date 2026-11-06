@@ -495,6 +495,9 @@ class AppSession:
     def insert_chord(self, at: int, chord: str) -> None:
         """Insert ``chord`` and a space at offset ``at`` (the chord identifier).
 
+        Right after a chord or a word (``F|``), a space goes in front too, so
+        the new chord doesn't join it (``F G7``, not ``FG7``).
+
         Like :meth:`insert_text`, and says "Inserted chord: X" in the status
         line when it went in (refused while a song plays or is paused).
 
@@ -505,7 +508,7 @@ class AppSession:
             raise ValueError(f"insert offset {at} outside the text (length {len(self._text)})")
         if not self._edits_allowed("insert chord"):
             return
-        self._splice(at, at, chord + " ")
+        self._splice(at, at, self._spaced_before(at, chord) + " ")
         self._set_status(formatting.inserted_chord_status(chord))
 
     @_command
@@ -576,7 +579,8 @@ class AppSession:
         """Ask the view for a directive's fields, then insert it at ``at``.
 
         Emits :class:`InsertDirectiveRequest`; ``respond`` with the fields
-        inserts the directive (and a space) as a plain edit, or emits a
+        inserts the directive (and a space; one in front too right after a
+        chord or a word) as a plain edit, or emits a
         :class:`UserError` if they don't validate. Refused at answer time
         while a song plays.
 
@@ -2216,8 +2220,15 @@ class AppSession:
             return
         # The text may have changed while the user was answering.
         at = min(at, len(self._text))
-        self._splice(at, at, text + " ")
+        self._splice(at, at, self._spaced_before(at, text) + " ")
         self._set_status(formatting.inserted_status(text))
+
+    def _spaced_before(self, at: int, text: str) -> str:
+        """``text`` with a space in front when the character before ``at``
+        isn't whitespace, so an insert doesn't join the chord or word there."""
+        if at > 0 and not self._text[at - 1].isspace():
+            return " " + text
+        return text
 
     def _suggest_capo_flow(self, region: Optional[Tuple[int, int]]) -> Flow:
         """Ask for a voicing, score capo positions on it and insert the best."""
