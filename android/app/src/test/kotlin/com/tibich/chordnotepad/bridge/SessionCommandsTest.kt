@@ -29,6 +29,10 @@ class SessionCommandsTest {
         assertSent("transpose", """{"semitones": 2, "selection": [1, 4]}""")
         commands.transpose(-1)
         assertSent("transpose", """{"semitones": -1, "selection": null}""")
+        commands.transpose(1, null, cursor = 7)
+        assertSent("transpose", """{"semitones": 1, "selection": null, "cursor": 7}""")
+        commands.convertNotation("american", cursor = 3)
+        assertSent("convert_notation", """{"target": "american", "cursor": 3}""")
         commands.requestInsertDirective("bpm", at = 0)
         assertSent("request_insert_directive", """{"kind": "bpm", "at": 0}""")
     }

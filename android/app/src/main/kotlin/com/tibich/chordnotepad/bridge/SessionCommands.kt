@@ -148,10 +148,14 @@ class SessionCommands(
         put("offset", offset)
     }
 
-    /** Transpose the selection (or the whole song when null) by [semitones]. */
-    fun transpose(semitones: Int, selection: Selection? = null) = send(CommandNames.TRANSPOSE) {
+    /**
+     * Transpose the selection (or the whole song when null) by [semitones].
+     * The session puts the [cursor] (code points) back on its line and column.
+     */
+    fun transpose(semitones: Int, selection: Selection? = null, cursor: Int? = null) = send(CommandNames.TRANSPOSE) {
         put("semitones", semitones)
         put("selection", selection.toJson())
+        if (cursor != null) put("cursor", cursor)
     }
 
     /** Start Suggest Capo for the selection (or the whole song). */
@@ -159,8 +163,11 @@ class SessionCommands(
         put("selection", selection.toJson())
     }
 
-    /** Convert the song's chords to [target] notation (`american`/`european`). */
-    fun convertNotation(target: String) = send(CommandNames.CONVERT_NOTATION) { put("target", target) }
+    /** Convert the song's chords to [target] notation (`american`/`european`), keeping the [cursor] on its line. */
+    fun convertNotation(target: String, cursor: Int? = null) = send(CommandNames.CONVERT_NOTATION) {
+        put("target", target)
+        if (cursor != null) put("cursor", cursor)
+    }
 
     /** Playback settings › Write into song: insert the directives the song doesn't set, at the top. */
     fun writeSongDefaults() = send(CommandNames.WRITE_SONG_DEFAULTS)
@@ -234,7 +241,7 @@ class SessionCommands(
     /** Grow or shrink the editor font by [delta] points. */
     fun stepFontSize(delta: Int) = send(CommandNames.STEP_FONT_SIZE) { put("delta", delta) }
 
-    /** Back to the configured font size. */
+    /** Back to the default size, 11 pt (Ctrl+0); it's saved as Settings › Font size. */
     fun resetFontSize() = send(CommandNames.RESET_FONT_SIZE)
 
     // -- chord sheet ------------------------------------------------------------

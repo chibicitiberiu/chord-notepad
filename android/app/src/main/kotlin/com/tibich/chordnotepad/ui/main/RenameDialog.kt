@@ -28,6 +28,7 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.tibich.chordnotepad.R
+import com.tibich.chordnotepad.ui.KeyboardSafeAlertDialog
 import com.tibich.chordnotepad.ui.theme.appColors
 
 /**
@@ -45,7 +46,7 @@ fun RenameDialog(displayName: String, error: String?, onRename: (String) -> Unit
     val problem = renameProblem(field.text, displayName)
     val focus = remember { FocusRequester() }
     val submit = { if (problem == null) onRename(field.text.trim()) else if (problem == RenameProblem.UNCHANGED) onDismiss() }
-    AlertDialog(
+    KeyboardSafeAlertDialog(
         onDismissRequest = onDismiss,
         containerColor = colors.surfaceHigh,
         title = { Text(stringResource(R.string.rename_title)) },
@@ -60,7 +61,8 @@ fun RenameDialog(displayName: String, error: String?, onRename: (String) -> Unit
                     singleLine = true,
                     isError = problem == RenameProblem.BAD_CHARACTER || error != null,
                     keyboardOptions = KeyboardOptions(
-                        capitalization = KeyboardCapitalization.Sentences,
+                        // A file name keeps the case it's typed in (B7).
+                        capitalization = KeyboardCapitalization.None,
                         imeAction = ImeAction.Done,
                         autoCorrectEnabled = false,
                     ),

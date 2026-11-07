@@ -52,6 +52,7 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.tibich.chordnotepad.R
+import com.tibich.chordnotepad.ui.KeyboardSafeAlertDialog
 import com.tibich.chordnotepad.ui.icons.IconTints
 import com.tibich.chordnotepad.ui.icons.MdiIcon
 import com.tibich.chordnotepad.ui.theme.appColors
@@ -284,7 +285,7 @@ private fun SetByNote(kind: SongDefaultKind, value: SongDefaultValue, onEdit: (I
 private fun TempoDialog(current: String, onApply: (String) -> Unit, onDismiss: () -> Unit) {
     var field by remember { mutableStateOf(TextFieldValue(current, TextRange(0, current.length))) }
     val focus = remember { FocusRequester() }
-    AlertDialog(
+    KeyboardSafeAlertDialog(
         onDismissRequest = onDismiss,
         containerColor = appColors.surfaceHigh,
         title = { Text(stringResource(R.string.insert_tempo)) },

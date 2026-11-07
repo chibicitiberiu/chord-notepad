@@ -65,7 +65,7 @@
     <string name="rename_button">Rename</string>
     <string name="rename_saved_as">Saved as “%1$s”</string>
     <string name="rename_empty">Type a name</string>
-    <string name="rename_bad_character">A name can\'t contain / \\ : * ? " &lt; &gt; |</string>
+    <string name="rename_bad_character">A name can\'t contain / \\ : * ? \" &lt; &gt; |</string>
     <string name="rename_failed_title">Couldn\'t rename</string>
     <string name="rename_failed_save_as">%1$s\n\nSave a copy under the new name instead?</string>
 

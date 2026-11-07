@@ -46,7 +46,7 @@ fun SessionRequests(
             val check by repo.directiveCheck.collectAsState()
             InsertDirectiveDialog(
                 request = r,
-                keys = keyChoices(r.notation, settings?.americanKeys, settings?.europeanKeys, toolbar?.keyOptions),
+                keys = keyChoices(r, settings?.americanKeys, settings?.europeanKeys, toolbar?.keyOptions),
                 units = settings?.timeSignatureUnits?.takeIf { it.isNotEmpty() } ?: DEFAULT_UNITS,
                 check = check,
                 onCheck = { controller.checkDirective(r, it) },

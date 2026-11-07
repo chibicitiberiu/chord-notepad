@@ -2,6 +2,7 @@ package com.tibich.chordnotepad.ui.sheets
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,6 +15,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -35,6 +37,7 @@ import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.tibich.chordnotepad.ui.moreBelowFade
 import com.tibich.chordnotepad.ui.theme.appColors
 
 /**
@@ -55,8 +58,11 @@ fun PickerSheet(
     body: @Composable ColumnScope.() -> Unit,
 ) {
     val colors = appColors
+    val bodyScroll = rememberScrollState()
     ModalBottomSheet(
         onDismissRequest = onDismiss,
+        // Below the status bar, not over its icons (L9: a landscape sheet is as tall as the screen).
+        modifier = Modifier.statusBarsPadding(),
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
         containerColor = colors.surfaceLow,
         contentColor = colors.text,
@@ -87,7 +93,11 @@ fun PickerSheet(
             if (subtitle != null) {
                 Text(subtitle, fontSize = 12.sp, lineHeight = 17.sp, color = colors.muted, modifier = Modifier.padding(bottom = 6.dp))
             }
-            Column(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()), content = body)
+            // A fade at the bottom while rows are cut off by the edge (L9).
+            Column(
+                Modifier.weight(1f, fill = false).moreBelowFade(bodyScroll, colors.surfaceLow).verticalScroll(bodyScroll),
+                content = body,
+            )
             HorizontalDivider(Modifier.padding(top = 10.dp), color = colors.line)
             Row(
                 Modifier.fillMaxWidth().padding(top = 10.dp),
@@ -108,6 +118,7 @@ fun SheetRow(
     sub: String? = null,
     subMonospace: Boolean = false,
     role: Role? = null,
+    selected: Boolean? = null,
     trailing: (@Composable () -> Unit)? = null,
 ) {
     val colors = appColors
@@ -116,7 +127,11 @@ fun SheetRow(
             .fillMaxWidth()
             .heightIn(min = 46.dp)
             .clip(RoundedCornerShape(10.dp))
-            .clickable(role = role, onClick = onClick)
+            // A radio row says whether it's the chosen one (B10: TalkBack heard every row unselected).
+            .then(
+                if (selected != null) Modifier.selectable(selected = selected, role = role, onClick = onClick)
+                else Modifier.clickable(role = role, onClick = onClick),
+            )
             .padding(horizontal = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(14.dp),

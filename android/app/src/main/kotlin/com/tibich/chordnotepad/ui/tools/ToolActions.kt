@@ -46,7 +46,8 @@ class ToolActions(
     /** Transpose [selection] (null: the whole song) by [semitones]; one undo step. */
     fun transpose(semitones: Int, selection: Selection?) {
         sync()
-        commands.transpose(semitones, selection)
+        // The cursor stays on its line and column (P2), not at the song's end.
+        commands.transpose(semitones, selection, cursorNow())
     }
 
     /** Insert ▸ [kind]: ask for its fields; the directive goes in at the cursor. */
@@ -58,7 +59,7 @@ class ToolActions(
     /** Convert notation › [target] (`american`/`european`). */
     fun convertNotation(target: String) {
         sync()
-        commands.convertNotation(target)
+        commands.convertNotation(target, cursorNow())
     }
 
     /** The chord identifier's Insert: [chord] and a space at the cursor. */

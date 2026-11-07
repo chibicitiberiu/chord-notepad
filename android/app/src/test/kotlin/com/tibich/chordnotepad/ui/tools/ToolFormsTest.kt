@@ -9,6 +9,8 @@ import com.tibich.chordnotepad.bridge.Selection
 import com.tibich.chordnotepad.bridge.SessionCommands
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
+import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.input.TextFieldValue
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -101,6 +103,10 @@ class ToolFormsTest {
         assertEquals(eu, keyChoices("european", am, eu, listOf("X")))
         assertEquals(listOf("X"), keyChoices("european", null, null, listOf("X")))
         assertEquals(emptyList<String>(), keyChoices("american", null, null, null))
+        // C5: the request's own list (majors and minors with a signature) comes first.
+        val withKeys = InsertDirectiveRequest(1, "key", emptyList(), "american", keyOptions = listOf("C", "Am", "Cb"))
+        assertEquals(listOf("C", "Am", "Cb"), keyChoices(withKeys, am, eu, listOf("X")))
+        assertEquals(am, keyChoices(InsertDirectiveRequest(1, "key", emptyList(), "american"), am, eu, listOf("X")))
     }
 
     @Test
@@ -139,11 +145,12 @@ class ToolFormsTest {
     fun `transpose sends the selection in code points, or null`() {
         val t = tools()
         t.transpose(2, t.selection())
-        assertSent("transpose", """{"semitones": 2, "selection": null}""")
+        // P2: with the cursor, so the session keeps it on its line and column.
+        assertSent("transpose", """{"semitones": 2, "selection": null, "cursor": 4}""")
         text = "🎸 C G Am"
         sel = 3 to 6
         t.transpose(-1, t.selection())
-        assertSent("transpose", """{"semitones": -1, "selection": [2, 5]}""")
+        assertSent("transpose", """{"semitones": -1, "selection": [2, 5], "cursor": 4}""")
         assertTrue(syncs >= 2) // the text goes first
     }
 
@@ -156,8 +163,20 @@ class ToolFormsTest {
         t.suggestCapo()
         assertSent("request_suggest_capo", """{"selection": [2, 6]}""")
         t.convertNotation("european")
-        assertSent("convert_notation", """{"target": "european"}""")
+        assertSent("convert_notation", """{"target": "european", "cursor": 4}""")
         t.insertChord("Am7")
         assertSent("insert_chord", """{"at": 4, "chord": "Am7"}""")
+    }
+
+    @Test
+    fun `a restored or changed directive field puts the cursor at the end`() {
+        // L6: after a rotation the field had the cursor at 0, so "Z" typed "Zabc".
+        assertEquals(TextFieldValue("abc", TextRange(3)), fieldValueFor(null, "abc"))
+        val typing = TextFieldValue("abc", TextRange(1, 2))
+        assertEquals(typing, fieldValueFor(typing, "abc"))
+        assertEquals(TextFieldValue("95", TextRange(2)), fieldValueFor(typing, "95"))
+        // The saver keeps the selection across the rotation itself.
+        val saved = with(TextFieldValue.Saver) { androidx.compose.runtime.saveable.SaverScope { true }.save(typing) }
+        assertEquals(typing, TextFieldValue.Saver.restore(saved!!))
     }
 }

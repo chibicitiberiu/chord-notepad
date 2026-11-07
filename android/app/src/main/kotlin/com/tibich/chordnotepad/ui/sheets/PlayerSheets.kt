@@ -31,6 +31,8 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -39,6 +41,7 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.tibich.chordnotepad.R
+import com.tibich.chordnotepad.ui.KeyboardSafeAlertDialog
 import com.tibich.chordnotepad.ui.icons.IconTints
 import com.tibich.chordnotepad.ui.icons.MdiIcon
 import com.tibich.chordnotepad.ui.menus.FamilyRow
@@ -88,6 +91,7 @@ fun VoicingPickerSheet(
                     onClick = { if (!choice.selected) onChoose(choice.value) },
                     leading = { RadioMark(choice.selected) },
                     role = Role.RadioButton,
+                    selected = choice.selected,
                 )
             }
         }
@@ -121,6 +125,7 @@ fun InstrumentPickerSheet(
 ) {
     val colors = appColors
     val open = family?.let { families.getOrNull(it) }
+    val backLabel = stringResource(R.string.instrument_back)
     PickerSheet(
         title = open?.name ?: stringResource(R.string.menu_instrument),
         onDismiss = onDismiss,
@@ -128,7 +133,8 @@ fun InstrumentPickerSheet(
             {
                 Box(
                     Modifier.size(36.dp).clip(CircleShape)
-                        .clickable(onClickLabel = stringResource(R.string.instrument_back), role = Role.Button, onClick = onBack),
+                        .clickable(role = Role.Button, onClick = onBack)
+                        .semantics { contentDescription = backLabel },
                     contentAlignment = Alignment.Center,
                 ) { MdiIcon(R.drawable.mdi_arrow_left, colors.text, size = 22.dp) }
             }
@@ -166,6 +172,7 @@ fun InstrumentPickerSheet(
                     leading = { RadioMark(program.selected) },
                     sub = number,
                     role = Role.RadioButton,
+                    selected = program.selected,
                 )
             }
         }
@@ -223,14 +230,17 @@ fun SpeedSheet(pct: Double, onSpeed: (Double) -> Unit, onReset: () -> Unit, onMa
 fun SpeedDialog(pct: Double, onApply: (Double) -> Unit, onDismiss: () -> Unit) {
     val colors = appColors
     val initial = speedPctText(pct)
-    var field by remember { mutableStateOf(TextFieldValue(initial, TextRange(0, initial.length))) }
+    // Saved with the error flag, so a rotation keeps what was typed (L5).
+    var field by rememberSaveable(stateSaver = TextFieldValue.Saver) {
+        mutableStateOf(TextFieldValue(initial, TextRange(0, initial.length)))
+    }
     var showError by rememberSaveable { mutableStateOf(false) }
     val focus = remember { FocusRequester() }
     val ok = {
         val v = parseSpeedPct(field.text)
         if (v == null) showError = true else onApply(v)
     }
-    AlertDialog(
+    KeyboardSafeAlertDialog(
         onDismissRequest = onDismiss,
         containerColor = colors.surfaceHigh,
         title = { Text(stringResource(R.string.speed_title)) },

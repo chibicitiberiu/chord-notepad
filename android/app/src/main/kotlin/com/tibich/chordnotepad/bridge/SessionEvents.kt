@@ -54,6 +54,8 @@ data class InsertDirectiveRequest(
     val kind: String,
     @SerialName("existing_labels") val existingLabels: List<String>,
     val notation: String,
+    /** For `key`: the keys to offer (15 major, 15 minor), in [notation]; empty for the other kinds. */
+    @SerialName("key_options") val keyOptions: List<String> = emptyList(),
 ) : SessionRequest
 
 /** Ask which fretboard voicing a capo suggestion optimizes for; answer with a value or null. */

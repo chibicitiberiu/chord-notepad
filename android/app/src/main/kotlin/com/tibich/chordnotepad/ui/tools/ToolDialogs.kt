@@ -14,6 +14,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.AlertDialogDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -43,12 +44,15 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.tibich.chordnotepad.R
 import com.tibich.chordnotepad.bridge.CapoChoiceRequest
 import com.tibich.chordnotepad.bridge.DirectiveCheck
 import com.tibich.chordnotepad.bridge.InsertDirectiveRequest
+import com.tibich.chordnotepad.ui.KeyboardSafeAlertDialog
+import com.tibich.chordnotepad.ui.moreBelowFade
 import com.tibich.chordnotepad.ui.icons.AppIcons
 
 /**
@@ -99,11 +103,13 @@ fun TransposeDialog(hasSelection: Boolean, onApply: (semitones: Int) -> Unit, on
 @Composable
 fun CapoDialog(request: CapoChoiceRequest, onAnswer: (String?) -> Unit) {
     var chosen by rememberSaveable(request.requestId) { mutableStateOf(initialCapoChoice(request)) }
+    val scroll = rememberScrollState()
     AlertDialog(
         onDismissRequest = { onAnswer(null) },
         title = { Text(stringResource(R.string.capo_title)) },
         text = {
-            Column(Modifier.verticalScroll(rememberScrollState())) {
+            // A fade while the voicings go on below the edge (L9).
+            Column(Modifier.moreBelowFade(scroll, AlertDialogDefaults.containerColor).verticalScroll(scroll)) {
                 Text(stringResource(R.string.capo_hint), Modifier.padding(bottom = 12.dp))
                 if (request.scope.isNotEmpty()) {
                     Text(
@@ -168,11 +174,11 @@ fun InsertDirectiveDialog(
     val changed = form != DirectiveForm.initial(kind, keys)
     val verdict = DirectiveVerdict.of(request.kind, request.requestId, answer, check, showErrors = changed)
     val submit = { if (verdict.canInsert) onAnswer(answer) }
-    AlertDialog(
+    KeyboardSafeAlertDialog(
         onDismissRequest = { onAnswer(null) },
         title = { Text(stringResource(kind.title)) },
         text = {
-            Column(Modifier.verticalScroll(rememberScrollState())) {
+            Column {
                 Text(stringResource(kind.hint), Modifier.padding(bottom = 12.dp))
                 DirectiveFields(form, request, keys, units, ::update, submit)
                 for (message in verdict.messages) {
@@ -274,13 +280,22 @@ private fun DirectiveFields(
     }
 }
 
-/** A one-line text field that has the keyboard up at once; Done submits. */
+/**
+ * A one-line text field that has the keyboard up at once; Done submits. The
+ * cursor and selection are saved with the text, so a rotation leaves the
+ * cursor where it was, not at the start (L6).
+ */
 @Composable
 private fun TypedField(label: String, value: String, type: KeyboardType, onDone: () -> Unit, onChange: (String) -> Unit) {
     val focus = remember { FocusRequester() }
+    var field by rememberSaveable(stateSaver = TextFieldValue.Saver) { mutableStateOf(fieldValueFor(null, value)) }
+    val shown = fieldValueFor(field, value)
     OutlinedTextField(
-        value = value,
-        onValueChange = onChange,
+        value = shown,
+        onValueChange = {
+            field = it
+            if (it.text != value) onChange(it.text)
+        },
         label = { Text(label) },
         singleLine = true,
         keyboardOptions = KeyboardOptions(keyboardType = type, imeAction = ImeAction.Done, autoCorrectEnabled = false),

@@ -1,5 +1,7 @@
 package com.tibich.chordnotepad.ui.tools
 
+import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.input.TextFieldValue
 import com.tibich.chordnotepad.bridge.CapoChoiceRequest
 import com.tibich.chordnotepad.bridge.InsertDirectiveRequest
 import com.tibich.chordnotepad.bridge.Selection
@@ -146,6 +148,21 @@ fun loopChoices(request: InsertDirectiveRequest): List<String> =
 fun keyChoices(notation: String, american: List<String>?, european: List<String>?, toolbar: List<String>?): List<String> =
     (if (notation == "european") european else american)?.takeIf { it.isNotEmpty() } ?: toolbar.orEmpty()
 
+/**
+ * The keys the Insert Key dialog offers for [request]: its own list (the 15
+ * major and 15 minor keys with a signature, C5), else [keyChoices]'s.
+ */
+fun keyChoices(request: InsertDirectiveRequest, american: List<String>?, european: List<String>?, toolbar: List<String>?): List<String> =
+    request.keyOptions.ifEmpty { keyChoices(request.notation, american, european, toolbar) }
+
 /** The voicing the Suggest Capo dialog starts on: the request's default, else the first option. */
 fun initialCapoChoice(request: CapoChoiceRequest): String? =
     request.options.firstOrNull { it.value == request.default }?.value ?: request.options.firstOrNull()?.value
+
+/**
+ * What a typed directive field shows for [text]: [current] (its cursor and
+ * selection) while it still holds that text, else [text] with the cursor at
+ * the end (a field restored with only its text, or changed from outside).
+ */
+fun fieldValueFor(current: TextFieldValue?, text: String): TextFieldValue =
+    if (current != null && current.text == text) current else TextFieldValue(text, TextRange(text.length))
