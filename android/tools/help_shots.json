@@ -1224,7 +1224,7 @@
   {
    "name": "landscape-edit",
    "page": "interface: The App Bar (phone held sideways)",
-   "what": "Phone in landscape, Edit tab: the tabs and the Edit ribbon share one line, the title is hidden.",
+   "what": "Phone in landscape, Edit tab: a short title, the tabs and the Edit ribbon share one line.",
    "orientation": "landscape",
    "scene": "grace_edit",
    "scale": 0.5
