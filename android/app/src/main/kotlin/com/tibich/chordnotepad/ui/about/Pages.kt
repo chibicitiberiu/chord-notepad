@@ -29,16 +29,49 @@ object Pages {
 
     private const val DETAIL = "licence/"
 
-    /** The page of licence entry [id]. */
-    fun detail(id: String) = DETAIL + id
+    /** A licence's text opened from About itself (the app's own licence). */
+    private const val ABOUT_DETAIL = "about-licence/"
+
+    /**
+     * The page of licence entry [id], from the licences list, or from About
+     * when [fromAbout] (Back then goes to About, not to a list never opened: P7).
+     */
+    fun detail(id: String, fromAbout: Boolean = false) = (if (fromAbout) ABOUT_DETAIL else DETAIL) + id
 
     /** The licence entry id of [page], or null when it isn't a licence page. */
-    fun detailId(page: String): String? = page.takeIf { it.startsWith(DETAIL) }?.removePrefix(DETAIL)
+    fun detailId(page: String): String? = when {
+        page.startsWith(DETAIL) -> page.removePrefix(DETAIL)
+        page.startsWith(ABOUT_DETAIL) -> page.removePrefix(ABOUT_DETAIL)
+        else -> null
+    }
 
     /** The page Back goes to from [page]. */
     fun parent(page: String): String = when {
+        page.startsWith(ABOUT_DETAIL) -> ABOUT
         detailId(page) != null -> LICENCES
         page == LICENCES -> ABOUT
         else -> MAIN
     }
+
+    /**
+     * What a song that was asked to open (Open with from another app) does
+     * to [page] once it arrives: it lands on the main screen in Play (P1).
+     */
+    fun onSongOpened(page: String): SongOpened = when (page) {
+        MAIN -> SongOpened.STAY
+        SETTINGS, SETTINGS_VOICINGS -> SongOpened.LEAVE_SETTINGS
+        else -> SongOpened.CLOSE
+    }
+}
+
+/** See [Pages.onSongOpened]. */
+enum class SongOpened {
+    /** Already on the main screen. */
+    STAY,
+
+    /** Close the page. */
+    CLOSE,
+
+    /** Leave Settings as Back does: it asks first while a value is wrong. */
+    LEAVE_SETTINGS,
 }

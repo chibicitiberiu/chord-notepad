@@ -26,6 +26,10 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.layout.width
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.KeyboardType
@@ -88,14 +92,17 @@ fun StateTextField(
     )
 }
 
-/** − and + buttons for a number field (hints only; [onStep] gets −1 or +1). */
+/**
+ * − and + buttons for a number field (hints only; [onStep] gets −1 or +1),
+ * each disabled when it would do nothing (at a bound: P8).
+ */
 @Composable
-fun StepperButtons(label: String, enabled: Boolean, onStep: (Int) -> Unit) {
+fun StepperButtons(label: String, canDown: Boolean, canUp: Boolean, onStep: (Int) -> Unit) {
     Row {
-        IconButton(onClick = { onStep(-1) }, enabled = enabled) {
+        IconButton(onClick = { onStep(-1) }, enabled = canDown) {
             Icon(SettingsIcons.Remove, stringResource(R.string.settings_decrease, label))
         }
-        IconButton(onClick = { onStep(1) }, enabled = enabled) {
+        IconButton(onClick = { onStep(1) }, enabled = canUp) {
             Icon(SettingsIcons.Add, stringResource(R.string.settings_increase, label))
         }
     }
@@ -114,7 +121,10 @@ fun <T> DropdownField(
     isError: Boolean = false,
 ) {
     var open by remember { mutableStateOf(false) }
-    Box(modifier) {
+    // The menu as wide as the field (P8: it opened about 300 px wide under a full-width field).
+    var fieldWidth by remember { mutableIntStateOf(0) }
+    val density = LocalDensity.current
+    Box(modifier.onSizeChanged { fieldWidth = it.width }) {
         OutlinedTextField(
             value = optionLabel(selected),
             onValueChange = {},
@@ -133,7 +143,11 @@ fun <T> DropdownField(
                 .padding(top = 8.dp)
                 .clickable(role = Role.DropdownList, onClickLabel = label) { open = true },
         )
-        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+        DropdownMenu(
+            expanded = open,
+            onDismissRequest = { open = false },
+            modifier = if (fieldWidth > 0) Modifier.width(with(density) { fieldWidth.toDp() }) else Modifier,
+        ) {
             for (option in options) {
                 DropdownMenuItem(
                     text = { Text(optionLabel(option)) },

@@ -200,6 +200,13 @@ class PendingEdits {
     val isEmpty: Boolean get() = pending.isEmpty()
 }
 
+/** Whether a − (negative [steps]) or + on the field changes [text]: not at its min or max (P8). */
+fun canStep(spec: FieldSpec, text: String, steps: Int): Boolean {
+    val current = text.trim().toBigDecimalOrNull() ?: return false
+    val next = stepNumber(spec, text, steps)?.toBigDecimalOrNull() ?: return false
+    return next.compareTo(current) != 0
+}
+
 /**
  * The spinner step of a number field: [text] moved by [steps] × the field's
  * step, kept within its min/max. Null when [text] isn't a plain number (the

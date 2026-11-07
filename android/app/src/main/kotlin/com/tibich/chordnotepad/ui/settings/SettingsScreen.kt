@@ -52,6 +52,7 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.tibich.chordnotepad.R
+import com.tibich.chordnotepad.ui.KeyboardSafeAlertDialog
 import com.tibich.chordnotepad.appGraph
 import com.tibich.chordnotepad.bridge.ScreenCommands
 import com.tibich.chordnotepad.bridge.SessionRepository
@@ -65,8 +66,18 @@ import kotlinx.coroutines.flow.filterNotNull
 /** From this width the pages list stays on the left (tablets, phones in landscape). */
 private val TwoPaneWidth = 600.dp
 
-/** From this width the voicings list and form show side by side. */
-private val SplitWidth = 840.dp
+/** The voicings list and form need this much width beside the pages list to sit side by side. */
+const val VOICINGS_SPLIT_CONTENT_DP = 720f
+
+/**
+ * Whether the Voicings page shows its list and form side by side in a
+ * window [widthDp] wide: with room for both after the 240 dp pages list
+ * (L14: a phone in landscape, 914 dp, got three columns and a 300 dp form).
+ */
+fun splitsVoicings(widthDp: Float): Boolean {
+    val pages = if (widthDp >= 600f) 240f else 0f
+    return widthDp - pages >= VOICINGS_SPLIT_CONTENT_DP
+}
 
 /** Width of the pages list in two-pane mode. */
 private val PagesPaneWidth = 240.dp
@@ -78,6 +89,7 @@ private val PagesPaneWidth = 240.dp
  * only while a voicing is invalid). Full screen on phones (pages list → page
  * → voicing form), list/detail panes on tablets. [onClosed] once the edit ended.
  * [initialPage] opens a page at once (Voicings, from the Voicing sheet).
+ * [leaveRequested] leaves as Back from the pages list does ([onLeaveRequestSeen] once acted on).
  * [supportBilling] feeds the support card above the pages (play flavour only;
  * it hides itself when there's nothing to sell).
  */
@@ -87,6 +99,8 @@ fun SettingsScreen(
     commands: ScreenCommands,
     onClosed: () -> Unit,
     initialPage: SettingsPage? = null,
+    leaveRequested: Boolean = false,
+    onLeaveRequestSeen: () -> Unit = {},
     supportBilling: SupportBilling = LocalContext.current.appGraph.supportBilling,
 ) {
     val controller = rememberSaveable(
@@ -111,10 +125,19 @@ fun SettingsScreen(
         }
     }
     LaunchedEffect(ui.phase) { if (ui.phase == SettingsPhase.CLOSED) onClosed() }
+    // Asked to leave from outside (a song opened with Open with): as Back
+    // from the pages list, asking first while a value is wrong.
+    LaunchedEffect(leaveRequested) {
+        if (leaveRequested) {
+            onLeaveRequestSeen()
+            controller.requestClose()
+        }
+    }
 
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val twoPane = maxWidth >= TwoPaneWidth
-        val split = maxWidth >= SplitWidth
+        val split = splitsVoicings(maxWidth.value)
+        LaunchedEffect(twoPane) { controller.settleNav(twoPane) }
         BackHandler(enabled = ui.dialog == null) { controller.back(twoPane, split) }
         SettingsScaffold(ui, editor, twoPane, split, controller) {
             val draft = ui.draft
@@ -346,7 +369,7 @@ private fun RenameDialog(name: String, schema: EditorSchema?, controller: Settin
     }
     val focus = remember { FocusRequester() }
     LaunchedEffect(Unit) { focus.requestFocus() }
-    AlertDialog(
+    KeyboardSafeAlertDialog(
         onDismissRequest = controller::dismissDialog,
         title = { Text(stringResource(R.string.voicings_rename)) },
         text = {

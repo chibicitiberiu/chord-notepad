@@ -31,6 +31,7 @@ import com.tibich.chordnotepad.ui.editor.bind
 import com.tibich.chordnotepad.ui.main.ModeController
 import com.tibich.chordnotepad.ui.main.UiPreferences
 import com.tibich.chordnotepad.ui.requests.CloseCoordinator
+import com.tibich.chordnotepad.ui.requests.resetToNewDocument
 import com.tibich.chordnotepad.ui.requests.RequestController
 import com.tibich.chordnotepad.support.createSupportBilling
 import kotlinx.coroutines.CoroutineScope
@@ -79,9 +80,8 @@ class AppGraph(context: Context) {
 
     /** Finishing the activity when Back is approved, and what that leaves behind. */
     val close = CloseCoordinator(resetSession = {
-        // A draft restore is refused while a song plays.
-        commands.stop()
-        commands.restoreDraft("", null, false)
+        mode.expectNew()
+        resetToNewDocument(commands)
     })
 
     /** Answers the session's requests (app-scoped: a rotation loses no picker result). */

@@ -94,6 +94,9 @@ class SupporterLogic(
 
     private var connected = false
     private var connecting = false
+    // No billing on this device: no point in connecting again on every resume
+    // (each try logged a "Service not registered" stack trace: L14).
+    private var unavailable = false
     private var purchasesKnown = false
     private var purchasesAnswered = false
     private var priceAnswered = false
@@ -120,7 +123,8 @@ class SupporterLogic(
 
     /** Re-queries purchases (on resume); reconnects first if setup failed earlier. */
     fun refresh() {
-        val isConnected = synchronized(lock) { connected }
+        val (isConnected, none) = synchronized(lock) { connected to unavailable }
+        if (none) return
         if (isConnected) queryPurchases() else start()
     }
 
@@ -128,6 +132,7 @@ class SupporterLogic(
         synchronized(lock) {
             connecting = false
             connected = code == BillingCode.OK
+            unavailable = code == BillingCode.BILLING_UNAVAILABLE
             if (!connected) {
                 // Nothing more will come from this attempt; startup can go on.
                 _settled.value = true

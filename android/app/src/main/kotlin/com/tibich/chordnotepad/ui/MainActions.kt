@@ -89,7 +89,7 @@ class MainActions(
     /** Grow or shrink the editor font. */
     fun stepFontSize(delta: Int) = commands.stepFontSize(delta)
 
-    /** The configured font size again. */
+    /** Back to the default size, 11 pt (Ctrl+0); Settings › Font size follows. */
     fun resetFontSize() = commands.resetFontSize()
 
     /** View › Font…: the family to configure and the size in points. */
@@ -110,11 +110,16 @@ class MainActions(
 
     /** Undo the last edit in the editor. */
     @OptIn(ExperimentalFoundationApi::class)
-    fun undo() = editor.state.undoState.undo()
+    fun undo() {
+        // The field's undo refuses to run with nothing to undo (a shortcut can ask anyway).
+        if (editor.state.undoState.canUndo) editor.state.undoState.undo()
+    }
 
     /** Redo. */
     @OptIn(ExperimentalFoundationApi::class)
-    fun redo() = editor.state.undoState.redo()
+    fun redo() {
+        if (editor.state.undoState.canRedo) editor.state.undoState.redo()
+    }
 
     // -- files (the requests they raise are presented by the screen) -------------
 
@@ -161,7 +166,11 @@ class MainActions(
     }
 
     /** Rename the document to [name] (typed without the extension). */
-    fun rename(name: String) = commands.renameDocument(name)
+    fun rename(name: String) {
+        // A rename changes the document's id; it isn't an open.
+        mode.expectSave()
+        commands.renameDocument(name)
+    }
 
     /** Export the song as MIDI. */
     fun exportMidi() {

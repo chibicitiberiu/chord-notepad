@@ -234,5 +234,11 @@ class VoicingFormTest {
         assertEquals("0.6", stepNumber(weight, "0.5", 1))
         assertEquals("-0.1", stepNumber(weight, "0", -1))
         assertNull(stepNumber(weight, "abc", 1))
+        // P8: − and + are off at the bounds (and on text that isn't a number).
+        assertFalse(canStep(maxNotes, "1", -1))
+        assertTrue(canStep(maxNotes, "1", 1))
+        assertFalse(canStep(center, "127", 1))
+        assertTrue(canStep(center, "127", -1))
+        assertFalse(canStep(weight, "abc", 1))
     }
 }

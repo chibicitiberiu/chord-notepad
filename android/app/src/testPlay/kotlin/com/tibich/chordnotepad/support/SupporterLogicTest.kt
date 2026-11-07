@@ -79,6 +79,10 @@ class SupporterLogicTest {
         assertFalse(logic.ready)
         assertFalse(logic.canAskForSupport())
         assertTrue("no lookups without a connection", play.purchaseQueries.isEmpty() && play.priceQueries.isEmpty())
+        // L14: resuming doesn't try again (each try logged a stack trace).
+        logic.refresh()
+        logic.refresh()
+        assertTrue(play.setups.isEmpty())
     }
 
     @Test

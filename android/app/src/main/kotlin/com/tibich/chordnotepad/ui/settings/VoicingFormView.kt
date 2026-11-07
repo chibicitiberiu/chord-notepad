@@ -127,7 +127,11 @@ private fun FieldInput(
             keyboardType = if (spec.kind == FieldKind.INT) KeyboardType.Number else KeyboardType.Decimal,
             trailing = if (cell) null else {
                 {
-                    StepperButtons(spec.label, enabled = field.enabled && stepNumber(spec, field.text, 1) != null) { delta ->
+                    StepperButtons(
+                        spec.label,
+                        canDown = field.enabled && canStep(spec, field.text, -1),
+                        canUp = field.enabled && canStep(spec, field.text, 1),
+                    ) { delta ->
                         stepNumber(spec, field.text, delta)?.let { send(JsonPrimitive(it)) }
                     }
                 }

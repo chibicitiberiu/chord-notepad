@@ -100,10 +100,7 @@ class CloseCoordinatorTest {
             submitter = { command, args -> sent += command to Json.parseToJsonElement(args) as JsonObject },
             onResponded = {},
         )
-        val real = CloseCoordinator(resetSession = {
-            commands.stop()
-            commands.restoreDraft("", null, false)
-        })
+        val real = CloseCoordinator(resetSession = { resetToNewDocument(commands) })
         val controller = RequestController(pending, commands, adopt = { _, _ -> error("unused") }, runOffMain = {},
             onDiscardAnswered = real::onDiscardAnswered)
 
@@ -116,6 +113,9 @@ class CloseCoordinatorTest {
         assertEquals(JsonNull, restore["document"])
         assertEquals(JsonPrimitive(false), restore["modified"])
         assertTrue(sent.indexOfFirst { it.first == "stop" } < sent.indexOfFirst { it.first == "restore_draft" })
+        // P4: then New, which takes the tempo, time and key back to the
+        // Settings defaults (the draft alone kept the discarded song's).
+        assertEquals(listOf("stop", "restore_draft", "new_document"), sent.map { it.first }.takeLast(3))
         assertTrue(real.finishRequested.value)
     }
 }

@@ -1,6 +1,7 @@
 package com.tibich.chordnotepad.about
 
 import com.tibich.chordnotepad.ui.about.Pages
+import com.tibich.chordnotepad.ui.about.SongOpened
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -158,6 +159,21 @@ class LicencesTest {
         assertEquals("fluidsynth", Pages.detailId(Pages.detail("fluidsynth")))
         assertNull(Pages.detailId(Pages.ABOUT))
         assertEquals("maven:a:b", Pages.detailId(Pages.detail("maven:a:b")))
+        // P7: the app's licence opened from About goes back to About.
+        val fromAbout = Pages.detail("chord-notepad", fromAbout = true)
+        assertEquals("chord-notepad", Pages.detailId(fromAbout))
+        assertEquals(Pages.ABOUT, Pages.parent(fromAbout))
+    }
+
+    @Test
+    fun `an opened song closes the page over the editor, Settings asks first`() {
+        // P1: Open with lands on the song whatever page was open.
+        assertEquals(SongOpened.STAY, Pages.onSongOpened(Pages.MAIN))
+        assertEquals(SongOpened.LEAVE_SETTINGS, Pages.onSongOpened(Pages.SETTINGS))
+        assertEquals(SongOpened.LEAVE_SETTINGS, Pages.onSongOpened(Pages.SETTINGS_VOICINGS))
+        for (p in listOf(Pages.ABOUT, Pages.LICENCES, Pages.USER_GUIDE, Pages.QUICK_START, Pages.detail("x"), Pages.detail("x", true))) {
+            assertEquals(p, SongOpened.CLOSE, Pages.onSongOpened(p))
+        }
     }
 
     @Test

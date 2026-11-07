@@ -11,6 +11,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.selection.SelectionContainer
@@ -54,14 +56,24 @@ private const val ASSET_DIR = "licenses"
 /** The APK's licence assets. */
 fun Context.licenceAssets() = LicenceAssets { path -> assets.open("$ASSET_DIR/$path") }
 
-/** The licence list, read once per composition off the main thread; null while loading. */
+/** The licence list once read (it doesn't change while the app runs). */
+@Volatile
+private var loadedEntries: List<LicenceEntry>? = null
+
+/**
+ * The licence list, read off the main thread the first time; null while
+ * loading. Kept for the process, so coming back from a licence's page
+ * doesn't load it again (P6: the spinner and the jump to the top).
+ */
 @Composable
 private fun rememberLicenceEntries(): List<LicenceEntry>? {
     val context = LocalContext.current
-    return produceState<List<LicenceEntry>?>(null) {
-        value = withContext(Dispatchers.IO) {
-            val maven = context.resources.openRawResource(R.raw.aboutlibraries).use { it.readBytes().decodeToString() }
-            Licences.load(context.licenceAssets(), maven)
+    return produceState(loadedEntries) {
+        if (value == null) {
+            value = withContext(Dispatchers.IO) {
+                val maven = context.resources.openRawResource(R.raw.aboutlibraries).use { it.readBytes().decodeToString() }
+                Licences.load(context.licenceAssets(), maven)
+            }.also { loadedEntries = it }
         }
     }.value
 }
@@ -83,7 +95,7 @@ private fun LicenceGroup.title(): Int = when (this) {
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun LicencesScreen(onBack: () -> Unit, onOpen: (String) -> Unit) {
+fun LicencesScreen(onBack: () -> Unit, onOpen: (String) -> Unit, listState: LazyListState = rememberLazyListState()) {
     val entries = rememberLicenceEntries()
     Scaffold(topBar = { BackBar(stringResource(R.string.licences_title), onBack) }) { padding ->
         if (entries == null) {
@@ -92,7 +104,7 @@ fun LicencesScreen(onBack: () -> Unit, onOpen: (String) -> Unit) {
             }
             return@Scaffold
         }
-        LazyColumn(Modifier.fillMaxSize().padding(padding)) {
+        LazyColumn(Modifier.fillMaxSize().padding(padding), state = listState) {
             item {
                 Text(
                     stringResource(R.string.licences_intro),

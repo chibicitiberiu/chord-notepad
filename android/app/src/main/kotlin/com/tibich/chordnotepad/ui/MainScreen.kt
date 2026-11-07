@@ -2,15 +2,21 @@ package com.tibich.chordnotepad.ui
 
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.LocalActivity
+import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.tibich.chordnotepad.AppGraph
 import com.tibich.chordnotepad.about.BuildInfo
 import com.tibich.chordnotepad.bridge.ScreenCommands
@@ -20,6 +26,7 @@ import com.tibich.chordnotepad.ui.about.AboutScreen
 import com.tibich.chordnotepad.ui.about.LicenceDetailScreen
 import com.tibich.chordnotepad.ui.about.LicencesScreen
 import com.tibich.chordnotepad.ui.about.Pages
+import com.tibich.chordnotepad.ui.about.SongOpened
 import com.tibich.chordnotepad.ui.help.QuickStartRoute
 import com.tibich.chordnotepad.ui.help.UserGuideScreen
 import com.tibich.chordnotepad.ui.main.Navigation
@@ -58,9 +65,21 @@ fun MainScreen(graph: AppGraph, onCloseApproved: () -> Unit) {
     // Android has no File > Exit: Back is the desktop's window close. With
     // unsaved changes it asks first (request_close -> the unsaved-changes
     // dialog -> CloseApproved -> finish); otherwise the system handles it.
-    BackHandler(enabled = page == Pages.MAIN && document?.isModified == true) {
-        graph.close.onCloseRequested()
-        actions.requestClose()
+    // Always enabled on the main screen, so Back with the keyboard up only
+    // hides the keyboard (CloseOnBackCallback).
+    val isModified by rememberUpdatedState(document?.isModified == true)
+    val backOwner = LocalOnBackPressedDispatcherOwner.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+    if (page == Pages.MAIN && backOwner != null) {
+        DisposableEffect(backOwner, lifecycleOwner, graph) {
+            val dispatcher = backOwner.onBackPressedDispatcher
+            val callback = CloseOnBackCallback(dispatcher, { isModified }) {
+                graph.close.onCloseRequested()
+                actions.requestClose()
+            }
+            dispatcher.addCallback(lifecycleOwner, callback)
+            onDispose { callback.remove() }
+        }
     }
     // The startup screen comes from the session (its answer to app_started),
     // so a rotation doesn't bring it back once dismissed. Closing it tells the
@@ -90,6 +109,25 @@ fun MainScreen(graph: AppGraph, onCloseApproved: () -> Unit) {
         }
     }
 
+    // A song asked to open (Open with) lands on the main screen in Play (P1).
+    val opened by graph.mode.opened.collectAsState()
+    var openedSeen by rememberSaveable { mutableIntStateOf(opened) }
+    var leaveSettings by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(opened) {
+        if (opened != openedSeen) {
+            openedSeen = opened
+            when (Pages.onSongOpened(page)) {
+                SongOpened.STAY -> Unit
+                SongOpened.CLOSE -> if (page == Pages.QUICK_START) closeQuickStart() else page = Pages.MAIN
+                SongOpened.LEAVE_SETTINGS -> leaveSettings = true
+            }
+        }
+    }
+
+    // Kept while a licence's page is open, so Back returns to the same place (P6).
+    val licencesList = rememberLazyListState()
+    LaunchedEffect(page) { if (page == Pages.ABOUT || page == Pages.MAIN) licencesList.requestScrollToItem(0) }
+
     val nav = remember {
         object : Navigation {
             override fun settings(voicings: Boolean) {
@@ -114,16 +152,25 @@ fun MainScreen(graph: AppGraph, onCloseApproved: () -> Unit) {
         page == Pages.SETTINGS || page == Pages.SETTINGS_VOICINGS -> SettingsScreen(
             repo = graph.repository,
             commands = remember(graph) { ScreenCommands(graph.pyHost) },
-            onClosed = { page = Pages.MAIN },
+            onClosed = {
+                leaveSettings = false
+                page = Pages.MAIN
+            },
             initialPage = if (page == Pages.SETTINGS_VOICINGS) SettingsPage.VOICINGS else null,
+            leaveRequested = leaveSettings,
+            onLeaveRequestSeen = { leaveSettings = false },
         )
         page == Pages.ABOUT -> AboutScreen(
             info = BuildInfo.current,
             onBack = { page = Pages.MAIN },
-            onOpenLicence = { page = Pages.detail(APP_LICENCE_ID) },
+            onOpenLicence = { page = Pages.detail(APP_LICENCE_ID, fromAbout = true) },
             onOpenLicences = { page = Pages.LICENCES },
         )
-        page == Pages.LICENCES -> LicencesScreen(onBack = { page = Pages.ABOUT }, onOpen = { page = Pages.detail(it) })
+        page == Pages.LICENCES -> LicencesScreen(
+            onBack = { page = Pages.ABOUT },
+            onOpen = { page = Pages.detail(it) },
+            listState = licencesList,
+        )
         else -> Pages.detailId(page)?.let { id ->
             LicenceDetailScreen(id, onBack = { page = Pages.parent(page) })
         }

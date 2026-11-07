@@ -75,4 +75,77 @@ class ModeControllerTest {
         assertFalse(m.select(AppMode.EDIT, PlaybackStatus.IDLE))
         assertFalse(m.select(AppMode.PLAY, PlaybackStatus.PLAYING))
     }
+
+    @Test
+    fun `Open with into a running app switches to Play and counts the open`() {
+        // P1: the Edit tab was kept, and nothing told the pages to close.
+        val m = ModeController()
+        m.onDocument(doc(null))
+        m.select(AppMode.EDIT, PlaybackStatus.IDLE)
+        assertEquals(0, m.opened.value)
+        m.expectOpen()
+        // The unsaved-changes question doesn't change the document: no open yet.
+        m.onDocument(doc(null, modified = true))
+        assertEquals(0, m.opened.value)
+        m.onDocument(doc("content://a"))
+        assertEquals(AppMode.PLAY, m.mode.value)
+        assertEquals(1, m.opened.value)
+        // Later changes of the same song aren't opens.
+        m.onDocument(doc("content://a", modified = true))
+        assertEquals(1, m.opened.value)
+    }
+
+    @Test
+    fun `a cold start from Open with counts the open once`() {
+        val m = ModeController()
+        m.expectOpen()
+        m.onDocument(doc("content://a"))
+        assertEquals(AppMode.PLAY, m.mode.value)
+        assertEquals(1, m.opened.value)
+        // A rename (expectSave) changes the id but isn't an open.
+        m.expectSave()
+        m.onDocument(doc("content://b"))
+        assertEquals(1, m.opened.value)
+    }
+
+    @Test
+    fun `the saved tab comes back after process death, not after a rotation`() {
+        // L13: a killed process restored the draft (untitled) in Edit, though Play was open.
+        val fresh = ModeController()
+        fresh.restore(AppMode.PLAY)
+        fresh.onDocument(doc(null, modified = true))
+        assertEquals(AppMode.PLAY, fresh.mode.value)
+
+        val running = ModeController()
+        running.onDocument(doc("content://a"))
+        running.select(AppMode.EDIT, PlaybackStatus.IDLE)
+        running.restore(AppMode.PLAY)
+        assertEquals(AppMode.EDIT, running.mode.value)
+    }
+
+    @Test
+    fun `Open with the song that is already open lands in Play too`() {
+        // After "Don't save" the same song comes back unmodified, same id.
+        val m = ModeController()
+        m.onDocument(doc("content://t"))
+        m.select(AppMode.EDIT, PlaybackStatus.IDLE)
+        m.onDocument(doc("content://t", modified = true))
+        m.expectOpen("content://t", doc("content://t", modified = true))
+        assertEquals(AppMode.EDIT, m.mode.value)
+        m.onDocument(doc("content://t"))
+        assertEquals(AppMode.PLAY, m.mode.value)
+        assertEquals(1, m.opened.value)
+
+        // Unmodified already: no document state will come, so at once.
+        m.select(AppMode.EDIT, PlaybackStatus.IDLE)
+        m.expectOpen("content://t", doc("content://t"))
+        assertEquals(AppMode.PLAY, m.mode.value)
+        assertEquals(2, m.opened.value)
+        // A save of the same song isn't an open.
+        m.select(AppMode.EDIT, PlaybackStatus.IDLE)
+        m.onDocument(doc("content://t", modified = true))
+        m.expectSave()
+        m.onDocument(doc("content://t"))
+        assertEquals(AppMode.EDIT, m.mode.value)
+    }
 }

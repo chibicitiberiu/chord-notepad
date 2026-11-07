@@ -222,6 +222,10 @@ class SettingsControllerTest {
         // General comes before Playback.
         c.editProblems()
         assertEquals(SettingsNav(SettingsPage.GENERAL), c.ui.value.nav)
+        // P8: and the cursor goes to the wrong field, once.
+        assertEquals(NumberSetting.FONT_SIZE, c.ui.value.focus)
+        c.focusShown()
+        assertNull(c.ui.value.focus)
         c.setNumber(NumberSetting.FONT_SIZE, "12")
         c.requestClose()
         c.editProblems()
@@ -280,6 +284,29 @@ class SettingsControllerTest {
         c.requestClose()
         assertEquals(listOf(ScreenCommandNames.CANCEL_SETTINGS_EDIT), submitter.names)
         assertEquals(SettingsPhase.CLOSED, c.ui.value.phase)
+    }
+
+    @Test
+    fun `voicings go side by side only with room beside the pages list`() {
+        // L14: phone landscape (914 dp) had pages, list and a cramped form.
+        assertFalse(splitsVoicings(914f))
+        assertFalse(splitsVoicings(800f))
+        assertTrue(splitsVoicings(1280f))
+        assertTrue(splitsVoicings(960f))
+    }
+
+    @Test
+    fun `two panes to one keeps the page that was showing`() {
+        // L8: General showed by default in two panes (page null), and one pane
+        // after a rotation showed the pages list instead.
+        val c = editing()
+        assertEquals(SettingsNav(), c.ui.value.nav)
+        c.settleNav(twoPane = true)
+        assertEquals(SettingsNav(SettingsPage.GENERAL), c.ui.value.nav)
+        assertEquals(SettingsPage.GENERAL, c.ui.value.nav.shown(twoPane = false))
+        // One pane from the start keeps the list; an open page stays as it is.
+        assertEquals(SettingsNav(), SettingsNav().settled(twoPane = false))
+        assertEquals(SettingsNav(SettingsPage.PLAYBACK), SettingsNav(SettingsPage.PLAYBACK).settled(twoPane = true))
     }
 
     @Test

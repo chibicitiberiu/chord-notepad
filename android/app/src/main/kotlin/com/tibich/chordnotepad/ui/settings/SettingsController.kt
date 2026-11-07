@@ -45,6 +45,12 @@ data class SettingsNav(val page: SettingsPage? = null, val voicingDetail: Boolea
     fun shown(twoPane: Boolean): SettingsPage? = page ?: if (twoPane) SettingsPage.GENERAL else null
 
     /**
+     * The same, with the page two panes show made the open one, so a
+     * rotation to one pane stays on it (L8: it dropped to the pages list).
+     */
+    fun settled(twoPane: Boolean): SettingsNav = if (twoPane && page == null) copy(page = SettingsPage.GENERAL) else this
+
+    /**
      * Back: from the voicing form to the list (unless both show, [split]),
      * from a page to the list of pages (phones), else null: leave the screen.
      */
@@ -100,6 +106,8 @@ data class SettingsUi(
     val sentNumbers: Map<NumberSetting, String> = emptyMap(),
     val adoptStaged: Boolean = false,
     val dialog: SettingsDialog? = null,
+    /** A number field to put the cursor in, once (Edit in the problems dialog or banner: P8). */
+    val focus: NumberSetting? = null,
 ) {
     /** The draft has changes not sent yet (a number being typed: [SettingsController.saveDraft]). */
     val draftPending: Boolean get() = draft != null && draft != saved
@@ -236,7 +244,7 @@ class SettingsController(private val commands: ScreenCommands, saved: SettingsUi
         _ui.update { it.copy(dialog = null) }
         val number = NumberSetting.entries.firstOrNull { it in _ui.value.numberTexts }
         if (number != null) {
-            openPage(number.page)
+            _ui.update { it.copy(nav = SettingsNav(number.page), focus = number) }
             return
         }
         val state = _editor.value?.state ?: return
@@ -263,8 +271,14 @@ class SettingsController(private val commands: ScreenCommands, saved: SettingsUi
 
     // -- navigation and the draft -------------------------------------------------
 
+    /** The field asked for with [SettingsUi.focus] has the focus. */
+    fun focusShown() = _ui.update { it.copy(focus = null) }
+
     /** Show [page]. */
     fun openPage(page: SettingsPage) = _ui.update { it.copy(nav = SettingsNav(page)) }
+
+    /** The layout is [twoPane] now: see [SettingsNav.settled]. */
+    fun settleNav(twoPane: Boolean) = _ui.update { it.copy(nav = it.nav.settled(twoPane)) }
 
     /** Change the draft and save it at once. */
     fun updateDraft(change: (SettingsDraft) -> SettingsDraft) {

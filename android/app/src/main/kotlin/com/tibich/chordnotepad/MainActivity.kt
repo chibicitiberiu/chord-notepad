@@ -10,6 +10,7 @@ import com.tibich.chordnotepad.lifecycle.DraftHook
 import com.tibich.chordnotepad.lifecycle.DraftPolicy
 import com.tibich.chordnotepad.lifecycle.LaunchRules
 import com.tibich.chordnotepad.ui.MainScreen
+import com.tibich.chordnotepad.ui.main.AppMode
 import com.tibich.chordnotepad.ui.requests.RequestPickers
 import com.tibich.chordnotepad.ui.theme.ChordNotepadTheme
 
@@ -19,6 +20,10 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
 
         val graph = appGraph
+        // After process death the app-scoped tab is gone; the saved one comes back.
+        savedInstanceState?.getString(KEY_MODE)?.let { name ->
+            AppMode.entries.firstOrNull { it.name == name }?.let(graph.mode::restore)
+        }
         graph.pyHost.start()
         val restored = savedInstanceState != null
         val launch = intent // openFrom replaces it
@@ -35,6 +40,11 @@ class MainActivity : ComponentActivity() {
         RequestPickers(this, graph.repository.pendingRequest, graph.requests).attach()
 
         setContent { ChordNotepadTheme { MainScreen(graph, onCloseApproved = ::finish) } }
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putString(KEY_MODE, appGraph.mode.mode.value.name)
     }
 
     override fun onResume() {
@@ -61,10 +71,19 @@ class MainActivity : ComponentActivity() {
         if (!LaunchRules.shouldOpen(restored, intent?.action, intent?.flags ?: 0, uri?.scheme)) return
         setIntent(Intent(Intent.ACTION_MAIN))
         val graph = appGraph
+        // The song lands in Play, over any page (P1); the session asks about
+        // unsaved changes first.
         val id = uri.toString()
+        graph.editor.syncNow()
+        graph.mode.expectOpen(target = id, current = graph.repository.document.value)
         graph.queueDocumentWork {
             val ref = graph.documents.adopt(id, PickMode.OPEN)
             graph.commands.openDocument(ref, readOnly = !graph.documents.canWrite(id))
         }
+    }
+
+    private companion object {
+        /** The Edit/Play tab, for a process that was killed (L13). */
+        const val KEY_MODE = "chordnotepad.mode"
     }
 }

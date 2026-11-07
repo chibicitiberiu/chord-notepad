@@ -1,6 +1,7 @@
 package com.tibich.chordnotepad.ui.requests
 
 import com.tibich.chordnotepad.bridge.DiscardChoice
+import com.tibich.chordnotepad.bridge.SessionCommands
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -58,4 +59,18 @@ class CloseCoordinator(private val resetSession: () -> Unit) {
     fun consumeFinish() {
         _finishRequested.value = false
     }
+}
+
+/**
+ * The session after "Don't save" on Back: a new document, as ☰ › New song
+ * makes it. The discarded text goes first (an empty, unmodified untitled
+ * draft, so New doesn't ask about it again); New then also takes the tempo,
+ * time signature and key back to the Settings defaults, which the draft
+ * alone kept from the discarded song (P4). A draft restore is refused while
+ * a song plays, hence the stop.
+ */
+fun resetToNewDocument(commands: SessionCommands) {
+    commands.stop()
+    commands.restoreDraft("", null, false)
+    commands.newDocument()
 }

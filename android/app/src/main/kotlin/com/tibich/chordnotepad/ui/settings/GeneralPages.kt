@@ -17,6 +17,11 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -144,6 +149,15 @@ private fun NumberSettingField(
     val wrong = numbers[setting]
     val error = wrong != null
     val name = stringResource(label)
+    // Edit in the problems dialog or banner puts the cursor here (P8).
+    val focus = remember { FocusRequester() }
+    val wanted = controller.ui.collectAsState().value.focus
+    LaunchedEffect(wanted) {
+        if (wanted == setting) {
+            runCatching { focus.requestFocus() }
+            controller.focusShown()
+        }
+    }
     StateTextField(
         value = wrong ?: value.toString(),
         onValueChange = { controller.setNumber(setting, it) },
@@ -157,11 +171,11 @@ private fun NumberSettingField(
         },
         keyboardType = KeyboardType.Number,
         trailing = {
-            StepperButtons(name, enabled = true) { delta ->
+            StepperButtons(name, canDown = value - 1 in range, canUp = value + 1 in range) { delta ->
                 controller.setNumber(setting, (value + delta).coerceIn(range).toString())
             }
         },
-        modifier = modifier,
+        modifier = modifier.focusRequester(focus),
     )
 }
 
