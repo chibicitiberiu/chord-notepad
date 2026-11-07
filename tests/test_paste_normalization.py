@@ -36,6 +36,11 @@ class TestNormalizeSongText:
     def test_zero_width_characters_removed(self):
         assert normalize_song_text("﻿C​m") == "Cm"
 
+    def test_word_joiner_removed(self):
+        # Android draws U+2060 inside chords so D/F# never wraps; a copy of
+        # the drawn text must not carry it into a song.
+        assert normalize_song_text("D/\u2060F# C\u2060-\u20605\n") == "D/F# C-5\n"
+
     def test_plain_text_unchanged(self):
         text = "C  G  Am\nEvery night\n"
         assert normalize_song_text(text) == text

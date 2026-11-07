@@ -11,8 +11,10 @@ break chord detection:
 - Non-breaking spaces (``\\u00a0``), common in text copied from web pages:
   they look like spaces but are not, which breaks chord detection and
   chord/lyric column alignment.
-- Zero-width characters (``\\u200b`` zero-width space, ``\\ufeff`` BOM):
-  invisible, but they shift character offsets and split chord tokens.
+- Zero-width characters (``\\u200b`` zero-width space, ``\\ufeff`` BOM,
+  ``\\u2060`` word joiner, which the Android editor draws inside chords so
+  they never wrap): invisible, but they shift character offsets and split
+  chord tokens.
 
 The file on disk is never rewritten by normalization alone; the normalized
 form only reaches disk when the user saves.
@@ -27,8 +29,9 @@ def normalize_song_text(text: str) -> str:
 
     Returns:
         The text with line endings normalized to ``\\n``, non-breaking
-        spaces replaced by plain spaces, and zero-width characters removed.
+        spaces replaced by plain spaces, and zero-width characters (and the
+        word joiner) removed.
     """
     text = text.replace('\r\n', '\n').replace('\r', '\n')
     text = text.replace('\u00a0', ' ')
-    return text.replace('\u200b', '').replace('\ufeff', '')
+    return text.replace('\u200b', '').replace('\ufeff', '').replace('\u2060', '')
