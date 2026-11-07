@@ -248,7 +248,9 @@ def test_convert_is_a_plain_edit_and_switches_detection():
     env.session.convert_notation("european")
 
     assert env.recorder.compact() == [
-        ("TextEdited", 2, 0, 15, "Do Sol\nhello there", "plain", 0),
+        # Sol is longer than G: the lyric stretches (a middle dot) so the
+        # chord stays over its syllable; the way back takes it out again.
+        ("TextEdited", 2, 0, 15, "Do Sol\nhe\u00b7llo there", "plain", 0),
         ("HighlightState", 2, 0, (chord(0, 2), chord(3, 6))),
         # Detection and the toolbar follow the target notation (no key set:
         # the first option).
