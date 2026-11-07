@@ -2453,6 +2453,9 @@ class AppSession:
         if not opened:
             self._read_only_id = previous_read_only
             self._file_error(formatting.OPEN_FAILED, ref)
+            # A recent document that has gone leaves the list now (reading
+            # the list prunes it), not at the next open or save.
+            self._publish_recent()
             return
         if self._revision == revision:
             # Same text as before: still a new undo history in the views.
@@ -2462,6 +2465,11 @@ class AppSession:
         self._set_status(formatting.opened_status(ref.location))
 
     def _export_flow(self) -> Flow:
+        if not self._main.has_chords_to_export():
+            # Before the picker: on Android picking a name already makes the file.
+            self._emitter.emit(UserError(
+                formatting.FILE_ERROR_TITLE, formatting.NO_CHORDS_TO_EXPORT_MESSAGE))
+            return
         current = self._main.current_document
         suggested = formatting.midi_export_name(current.stem if current is not None else None)
         ref = self._as_ref((yield PickDocumentRequest(0, PickMode.EXPORT_MIDI, suggested)))

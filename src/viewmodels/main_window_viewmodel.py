@@ -365,6 +365,13 @@ class MainWindowViewModel(Observable):
             return self.finish_midi_export(ref, None, e)
         return self.finish_midi_export(ref, data, None)
 
+    def has_chords_to_export(self) -> bool:
+        """Whether the song has chords a MIDI export would render (the check
+        :meth:`midi_export_job`'s job makes), so a view can say so before
+        asking for a file."""
+        lines = self._chord.detect_chords_in_text(self._current_text, self._notation)
+        return any(line.chords for line in lines)
+
     def midi_export_job(self) -> Callable[[], bytes]:
         """Snapshot the song for a MIDI export; the job renders it.
 

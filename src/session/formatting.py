@@ -187,6 +187,8 @@ FILE_ERROR_TITLE = "Error"
 OPEN_FAILED = "Failed to open file"
 SAVE_FAILED = "Failed to save file"
 EXPORT_FAILED = "Failed to export MIDI file"
+#: Export MIDI on a song without chords (said before any file is asked for).
+NO_CHORDS_TO_EXPORT_MESSAGE = f"{EXPORT_FAILED}:\nThere are no chords to export."
 
 CONFIRM_DISCARD_TITLE = "Unsaved Changes"
 CONFIRM_DISCARD_MESSAGE = "Do you want to save your changes?"

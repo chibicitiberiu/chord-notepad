@@ -425,6 +425,17 @@ def test_recent_list_prunes_unavailable_documents_and_is_capped():
     assert env.recent() == ["c.txt"]
 
 
+def test_a_recent_document_that_failed_to_open_leaves_the_list_at_once():
+    env = Env(documents={"a.txt": "A", "b.txt": "B"})
+    open_song(env, "a.txt")
+    open_song(env, "b.txt")
+    assert env.recent() == ["b.txt", "a.txt"]
+    del env.store.contents[env.ref("a.txt").id]          # gone meanwhile (B4)
+    env.session.open_recent(env.ref("a.txt"))
+    assert env.errors() and env.recent() == ["b.txt"]
+    assert env.document().display_name == "b.txt"
+
+
 def test_each_open_and_save_adds_to_the_recent_list_once():
     env = Env()
     calls = []
@@ -473,14 +484,13 @@ def test_export_untitled_suggests_untitled_mid():
     assert env.request(PickDocumentRequest).suggested_name == "Untitled.mid"
 
 
-def test_export_without_chords_is_a_user_error():
+def test_export_without_chords_says_so_before_asking_for_a_file():
+    # No picker: on Android it would already have made an empty .mid (B3).
     env = Env("just lyrics", documents={})
     env.session.export_midi()
-    env.answer(env.ref("out.mid"))
-    env.settle()
+    assert env.recorder.of_type(PickDocumentRequest) == []
     assert env.errors() == [(
-        "Error", "Failed to export MIDI file:\nout.mid\n\nThere are no chords to export.")]
-    assert env.status() == "Ready"
+        "Error", "Failed to export MIDI file:\nThere are no chords to export.")]
     assert env.store.contents == {}
 
 
