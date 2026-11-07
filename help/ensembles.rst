@@ -26,8 +26,10 @@ The Four Presets
 
 Chord Notepad ships with four built-in ensembles, each a fixed set of
 voices with its own comfortable range. Voices are listed top to bottom
-(highest to lowest); "max gap below" is the largest interval the engine
-normally puts between that voice and the one under it -- ensembles are
+(highest to lowest), and a voice of your own can't start or end below the
+one under it: the voicings editor tells you if it does. "Max gap below" is
+the largest interval the engine normally puts between that voice and the
+one under it -- ensembles are
 usually allowed to spread wider at the bottom of the texture than at the
 top, since a big gap between bass and tenor is normal but the same gap
 between soprano and alto sounds hollow.

@@ -73,10 +73,6 @@
    {
     "group": "piano",
     "label": "Piano (default)"
-   },
-   {
-    "group": "custom",
-    "label": "New voicing"
    }
   ],
   "problems": [
@@ -97,7 +93,7 @@
    },
    {
     "field_id": "voice:1:gap",
-    "text": "Voicing 'New voicing', Voice 2, Max gap to next voice: 0. 0 is out of range. Enter a whole number from 1 to 127.",
+    "text": "Voicing 'New voicing', Voice 2, Max gap to next voice: 0. Too low. Enter a whole number from 1 to 127.",
     "voicing": "New voicing"
    }
   ],

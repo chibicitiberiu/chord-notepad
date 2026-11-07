@@ -73,10 +73,6 @@
    {
     "group": "piano",
     "label": "Piano (default)"
-   },
-   {
-    "group": "custom",
-    "label": "New voicing"
    }
   ],
   "problems": [

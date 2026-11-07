@@ -7,7 +7,7 @@
 import os
 
 project = 'Chord Notepad User Guide'
-copyright = '2024-2026, Chord Notepad'
+copyright = '2025–2026 Tiberiu Chibici'  # as in About (P9)
 _COPYRIGHT = copyright
 
 

@@ -363,8 +363,8 @@ step 14.)
 
 `set_text {text, client_token}`, `insert_text {at, text}`,
 `request_insert_directive {kind, at}`, `check_directive {kind, fields, request_id}`,
-`request_directive_hint {offset}`, `transpose {semitones, selection}`,
-`request_suggest_capo {selection}`, `convert_notation {target}`,
+`request_directive_hint {offset}`, `transpose {semitones, selection, cursor}`,
+`request_suggest_capo {selection}`, `convert_notation {target, cursor}`,
 `play_pause {from_offset}`, `stop {}`, `tap_chord_at {offset}`,
 `set_bpm {bpm}`, `set_multiplier_pct {pct}`, `set_bpm_text {text}`,
 `reset_bpm {}`, `reset_multiplier {}` (the scrubber's reset to the default),
@@ -669,9 +669,8 @@ Kotlin's `SafDocumentStore` implements `DocumentStoreBridge`, called on the
 session thread (blocking provider I/O is fine there):
 
 ```kotlin
-fun readText(id: String): String          // raw UTF-8 text, not normalized
-fun writeText(id: String, text: String)
-fun writeBytes(id: String, data: ByteArray)
+fun readBytes(id: String): ByteArray      // the file's bytes (at most 5 MB); Python decodes them
+fun writeBytes(id: String, data: ByteArray)  // a song Python encoded, or a MIDI export
 fun isAvailable(id: String): Boolean
 fun recent(): String                      // JSON array of {"id", "display_name", "location"}, pruned
 fun addRecent(id: String, displayName: String, location: String)
@@ -708,14 +707,22 @@ does the same, `rename` notices that the renamed document can't be read
 Open it again…") instead of keeping a ref nothing can read.
 
 Step 14 wraps it in an `AndroidDocumentStore` implementing
-`session.documents.DocumentStore`: `read_text` applies
-`normalize_song_text` (normalization stays in Python), `recent` turns the
+`session.documents.DocumentStore`: `read_text` decodes the bytes with
+`services.text_codec.decode_text` (a BOM, else UTF-8, else Windows-1252,
+else Latin-1, as on the desktop) and applies `normalize_song_text`;
+`write_text` reads the document's current bytes first and writes the text
+back in their encoding and line endings (`format_of`, `encode_text`: a CRLF
+Windows-1252 file stays one; a new or empty document is UTF-8 with LF), and
+returns the note when the text didn't fit that encoding and went out as
+UTF-8. A read that finds the document gone drops it from the recent list,
+and messages name a document by its recent entry when the provider no
+longer knows it. `recent` turns the
 JSON into `DocumentRef`s, `add_recent(ref)` passes the three fields,
 `ref_for(id)` is `describe` (None when it returns null), and
 `start` calls `setMaxRecent` with the configured value. Failures arrive as
 Java `DocumentStoreException`s whose message is user-facing, worded like
-`FileService` ("File not found: …", "Permission denied: …", "Cannot read
-file (encoding issue): …", "Failed to write file: …"); the wrapper raises
+`FileService` ("File not found: …", "Permission denied: …", "File too
+large to open …", "Failed to write file: …"); the wrapper raises
 `FileOperationError(e.getMessage())`. Ids are content URIs; the UI takes the
 persistable grant when the picker returns, so the store never launches
 anything.
@@ -818,7 +825,7 @@ objects, against the release build's R8 rules ("R8 in release builds").
   after Open/Recent opens in Play and one after New in Edit; Save/Save As
   never switch. Edit while a song plays or is paused sends `stop` first.
   `ScreenLayout` holds the layout rules (phone = smallest width < 600 dp;
-  phone landscape in Edit puts the tabs and the ribbon on one line; the
+  phone landscape in Edit puts a short title, the tabs and the ribbon on one line; the
   chord sheet only in Play, below the text in portrait, beside it in
   landscape) and `collapseHeader` the keyboard rule (Edit, IME up, < 170 dp
   of text: the header hides and a floating Undo/Redo chip sits above the

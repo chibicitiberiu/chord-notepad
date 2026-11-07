@@ -285,11 +285,13 @@ The User Interface
 
    **Convert to American Notation**
       Converts all European notation chords (Do, Re, Mi...) in your document to
-      American notation (C, D, E...).
+      American notation (C, D, E...), keeping each chord over its syllable
+      (see :doc:`transpose`).
 
    **Convert to European Notation**
       Converts all American notation chords (C, D, E...) in your document to
-      European notation (Do, Re, Mi...).
+      European notation (Do, Re, Mi...), keeping each chord over its syllable
+      (see :doc:`transpose`).
 
    **Settings...**
       Opens the Settings window: general preferences, playback and audio
@@ -367,14 +369,15 @@ The User Interface
 
       Renaming a song.
 
-   On a phone held sideways, the Edit tab puts the tabs and the Edit ribbon on
-   one line and hides the title, so more of the song fits on the screen:
+   On a phone held sideways, the Edit tab puts a shortened title, the tabs and
+   the Edit ribbon on one line, so more of the song fits on the screen. The
+   title still shows the • and still opens Rename when you tap it:
 
    .. platform-figure:: landscape-edit
       :platforms: android
       :alt: A phone held sideways in the Edit tab: one bar with the menu
-            button, the Edit and Play tabs, Save and the Edit ribbon, and the
-            song below it.
+            button, the song's title, the Edit and Play tabs, Save and the
+            Edit ribbon, and the song below it.
 
       The Edit tab on a phone held sideways.
 
@@ -468,7 +471,8 @@ The User Interface
      song starts in the one set in Settings, an opened one in the one its
      chords are written in)
    * **Convert**, which rewrites every chord and ``{key}`` directive in the
-     document into the other notation and switches AB / Do to match
+     document into the other notation, keeping each chord over its syllable
+     (see :doc:`transpose`), and switches AB / Do to match
 
    When the buttons don't all fit, drag the ribbon sideways. A **›** at its
    right edge means there are more buttons off screen; tapping it scrolls them
@@ -527,7 +531,7 @@ The User Interface
       Settings › Voicings. See :doc:`playback`, :doc:`fretted` and
       :doc:`ensembles`. While a song plays the button is greyed out, because
       the whole song is voiced before it starts: pause to change it.
-      (Long-press the greyed button and it tells you so.)
+      (Tap the greyed button and it tells you so.)
    #. **Instrument** opens a sheet with the 16 General MIDI families. Tap a
       family to see its eight instruments with their program numbers, and tap
       one to select it. The ← button goes back to the families.
@@ -698,8 +702,9 @@ The Chord Identifier
 
    The Chord Identifier helps you figure out what chord you're hearing or playing.
    Open it with **Identify** (the piano icon) in the Edit ribbon. On a phone it
-   fills the screen, and the ← at the top left closes it; on a tablet it opens
-   as a dialog.
+   fills the screen, and the ← at the top left closes it; held sideways, the
+   piano is on the left and the Notes field and the chords on the right. On a
+   tablet it opens as a dialog.
 
    .. platform-figure:: identify
       :platforms: android
@@ -834,7 +839,8 @@ The Insert Button
 .. only:: android
 
    Tap **Insert** to put the picked chord, followed by a space, at the cursor
-   in your document. The identifier stays open, so you can work out and insert
+   in your document (with a space before it too, right after a chord or a
+   word). The identifier stays open, so you can work out and insert
    the next chord too; the line at the bottom confirms each insert.
 
 The Clear Button
@@ -1102,7 +1108,8 @@ Insert Directive Dialogs
    ``{bpm}``, **Time signature** ``{time}``, **Key** ``{key}``, **Capo**
    ``{capo}``, **Label** ``{label}`` and **Loop** ``{loop}``. Put the cursor
    where the directive should go first. Each entry opens a small dialog where
-   you fill in the value; the directive is then inserted at the cursor.
+   you fill in the value; the directive is then inserted at the cursor (with a
+   space before it, right after a chord or a word).
 
    .. platform-figure:: insert-sheet
       :platforms: android
@@ -1174,13 +1181,17 @@ Insert Key Dialog
 
 .. only:: desktop
 
-   A dropdown shows all valid keys in your current notation.
-   Select one and click Insert to add ``{key: note}`` at your cursor.
+   A dropdown shows the 15 major and 15 minor keys that have a key
+   signature (so Eb rather than D#, and Am, Bbm and the other minors too), in
+   your current notation. Select one and click Insert to add ``{key: ...}``
+   at your cursor.
 
 .. only:: android
 
-   A dropdown shows all valid keys in your current notation.
-   Select one and tap Insert to add ``{key: note}`` at your cursor.
+   A dropdown shows the 15 major and 15 minor keys that have a key
+   signature (so Eb rather than D#, and Am, Bbm and the other minors too), in
+   your current notation. Select one and tap Insert to add ``{key: ...}`` at
+   your cursor.
 
    .. platform-figure:: insert-key
       :platforms: android

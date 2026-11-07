@@ -41,7 +41,7 @@ The app bar holds, from left to right:
 - **The tabs.**
 - **Save.**
 
-Phone landscape: the tabs and the Edit ribbon share one line, and the title is hidden.
+Phone landscape: the title (shortened to a fifth of the line, 96–200 dp), the tabs and the Edit ribbon share one line; the ribbon scrolls when it has to.
 
 ## Edit ribbon (48 dp, one row)
 
@@ -102,7 +102,7 @@ The ⋮ menu is gone; the drawer holds everything it had.
 - Show or hide it with the player's ▭ button.
 - **Portrait:** below the text, with a horizontal drag handle for its height.
 - **Edit mode:** never shown, on any device. The text gets the whole screen.
-- **Landscape** (phones and tablets, Play mode): always side by side. The text is on the left. The right column holds the chord sheet, with the player at its bottom in Play mode. A vertical drag handle sets the column width (30–70%, default 50%). In the narrower column the player's buttons shrink so all seven fit.
+- **Landscape** (phones and tablets, Play mode): side by side while the chord sheet is shown (▭; it starts hidden). The text is on the left. The right column holds the chord sheet, with the player at its bottom. A vertical drag handle sets the column width (30–70%, default 50%, and never so narrow that the compact player loses a button). In the narrower column the player's buttons shrink so all seven fit. With the sheet hidden, the text takes the width and the full player sits at the bottom.
 
 ## Colour and themes
 
@@ -168,8 +168,8 @@ Where the build differs from the text above, and why:
   the editor at launch: Quick Start, the support prompt, or nothing. Open
   with (a `.txt` from a file manager) and recreation never show either.
   - Support prompt (play flavour only, from day 7 after install, at most once
-    a day): an AlertDialog with a heart icon, the title "Support Chord
-    Notepad", a scrolling body, **Not now** and **Support · {price}**. Back
+    a day): an AlertDialog with a heart icon, the title "Become a
+    supporter", a scrolling body, **Not now** and **Support · {price}**. Back
     or a tap outside means Not now. A completed purchase shows a "Thank you!"
     dialog.
   - Settings: a card above the page list (play only, hidden when billing is

@@ -91,10 +91,15 @@ Spelling of Sharps and Flats
 Each transposed chord is spelled the way it's written in the key it lands in.
 Move a song from G up to B and you get ``F#``, ``C#`` and ``G#m`` (B major is a
 key of sharps), not ``Gb``, ``Db`` and ``Abm``. Move a song from F down to Db
-and you get ``Gb`` and ``Ab7`` rather than ``F#`` and ``G#7``. Chords from
-outside the key are spelled the usual way for that key: in D a borrowed chord a
-tone below the tonic is ``C``, and up a semitone in Eb it becomes ``Db``, not
-``C#``.
+and you get ``Gb`` and ``Ab7`` rather than ``F#`` and ``G#7``. A chord from
+outside the key keeps the sharps or flats you wrote it with, moved as far as
+the key moves: in a song in Bb, ``F#m7b5 B7 Em`` (a turn to E minor) up a whole
+step is ``G#m7b5 C#7 F#m``, and a borrowed ``Eb`` in C up a whole step is
+``F``. A chord a fifth above the next one follows that chord's spelling, so a
+ii-V-I stays one even where a letter can't move without a double sharp. Where
+your spelling would need an awkward name, the key's usual spelling is used
+instead: in D a borrowed chord a tone below the tonic is ``C``, and up a
+semitone in Eb it becomes ``Db``.
 
 Chord Notepad works out the key like this:
 
@@ -128,10 +133,9 @@ The simple rule, used when the key isn't known: if the original chord had a
 sharp it prefers a sharp result, and if it had a flat it prefers a flat;
 otherwise it uses the common default (``C#``, ``Eb``, ``F#``, ``Ab``, ``Bb``).
 
-Transposing up and then back down by the same amount gives the same notes.
-Chords spelled for their key come back exactly as they were; a chord spelled
-against its key may come back in the key's spelling (a ``Gb`` in a song in D
-returns as ``F#``).
+Transposing up and then back down by the same amount gives back the song as
+you wrote it. Only a chord spelled against its key may come back in the key's
+spelling (a ``Gb`` in a song in D returns as ``F#``).
 
 .. only:: desktop
 
@@ -169,9 +173,17 @@ Chord Notepad keeps each chord above its syllable:
   keep their positions.
 * A chord that gets **longer** first tries to close up an extra space on the
   chord line. When there's no room, the lyric line just below is stretched
-  instead -- a space is added at a word gap, or a ``-`` is slipped into a word
-  (``singer`` becomes ``sin-ger``) -- so the chords and the words shift
+  instead -- a space is added at a word gap, or a ``·`` is slipped into a word
+  (``singer`` becomes ``sin·ger``) -- so the chords and the words shift
   together and stay aligned.
+
+Transposing back takes out what the way up put in: the ``·`` and the extra
+spaces go, and the chords close up again. Your own hyphens
+(``Hal-le-lu-jah``) are never put in or taken out. **Convert** works the same
+way, so converting to the other notation and back gives the song as it was.
+Two cases come back with a space less: a lyric with two or more spaces between
+words, under a gap a longer chord closed to one space; and a gap closed to one
+space where there's no lyric under the chords.
 
 This only applies when a chord line is directly followed by a lyric line. A
 chord line on its own just keeps its chords spaced sensibly.
