@@ -153,8 +153,7 @@ class PyHostTest {
     }
 
     private object NoStore : DocumentStoreBridge {
-        override fun readText(id: String) = error("unused")
-        override fun writeText(id: String, text: String) = Unit
+        override fun readBytes(id: String): ByteArray = error("unused")
         override fun writeBytes(id: String, data: ByteArray) = Unit
         override fun isAvailable(id: String) = false
         override fun recent() = "[]"

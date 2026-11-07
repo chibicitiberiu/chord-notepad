@@ -56,13 +56,15 @@ interface SessionHandle {
  * user-facing message, which Python turns into `FileOperationError`.
  */
 interface DocumentStoreBridge {
-    /** The document's raw text (Python normalizes it). */
-    fun readText(id: String): String
+    /**
+     * The document's bytes (at most 5 MB). Python decodes them
+     * (`services.text_codec`: UTF-8, Windows-1252, a BOM's encoding) and
+     * reads them again before a save, to keep the file's encoding and line
+     * endings.
+     */
+    fun readBytes(id: String): ByteArray
 
-    /** Replace the document's content with [text] (UTF-8). */
-    fun writeText(id: String, text: String)
-
-    /** Replace the document's content with [data] (a MIDI export). */
+    /** Replace the document's content with [data] (a song Python encoded, a MIDI export). */
     fun writeBytes(id: String, data: ByteArray)
 
     /** Whether the document can still be opened (grant held, provider has it). */

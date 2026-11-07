@@ -412,9 +412,10 @@ File Won't Open?
 ----------------
 
 **Check the file encoding:**
-Chord Notepad reads UTF-8 text files. A file in another encoding (an older
-Windows file with accented letters, say) won't open; save it as UTF-8 in
-another editor first.
+Chord Notepad reads UTF-8, UTF-16 and Windows-1252 (Latin-1) text files, and
+saves a file back in its own encoding and line endings. A file in another
+8-bit encoding (Central European Windows-1250, say) opens with the wrong
+accented letters; save it as UTF-8 in another editor first.
 
 .. only:: desktop
 

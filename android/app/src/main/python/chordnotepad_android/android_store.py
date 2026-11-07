@@ -15,6 +15,7 @@ import logging
 from typing import Any, Callable, List, Optional
 
 from exceptions import FileOperationError, RenameNotSupported
+from services.text_codec import TextFormat, decode_text, encode_text, format_of
 from session.documents import DocumentRef
 from utils.text_normalization import normalize_song_text
 
@@ -87,12 +88,36 @@ class AndroidDocumentStore:
         return _ref(json.loads(str(data))) if data is not None else None
 
     def read_text(self, ref: DocumentRef) -> str:
-        """Read a song, normalized for the editor."""
-        return normalize_song_text(str(self._call(self._bridge.readText, ref.id)))
+        """Read a song (UTF-8, Windows-1252, a BOM's encoding: see
+        :mod:`services.text_codec`), normalized for the editor."""
+        text, _ = decode_text(self._read_bytes(ref))
+        return normalize_song_text(text)
 
-    def write_text(self, ref: DocumentRef, text: str) -> None:
-        """Write a song."""
-        self._call(self._bridge.writeText, ref.id, text)
+    def write_text(self, ref: DocumentRef, text: str) -> Optional[str]:
+        """Write a song in the document's own encoding and line endings (a
+        CRLF Windows-1252 file stays one); a new or empty document is UTF-8
+        with LF.
+
+        Returns:
+            None, or the note that the text didn't fit the document's
+            encoding and was written in UTF-8.
+        """
+        try:
+            existing: Optional[bytes] = self._read_bytes(ref)
+        except FileOperationError:
+            existing = None
+        data, note = encode_text(text, format_of(existing, TextFormat()))
+        self._call(self._bridge.writeBytes, ref.id, data)
+        return note
+
+    def _read_bytes(self, ref: DocumentRef) -> bytes:
+        """The document's bytes. Chaquopy's ``byte[]`` converts with
+        ``bytes()``; a plain sequence of signed Java bytes is masked."""
+        data = self._call(self._bridge.readBytes, ref.id)
+        try:
+            return bytes(data)
+        except (TypeError, ValueError):
+            return bytes(b & 0xFF for b in data)
 
     def write_bytes(self, ref: DocumentRef, data: bytes) -> None:
         """Write an export (Chaquopy passes ``bytes`` as a Java ``byte[]``)."""

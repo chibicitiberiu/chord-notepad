@@ -60,7 +60,7 @@ class BridgeR8RulesTest {
     fun `everything Python calls on the document store is on DocumentStoreBridge`() {
         val called = calledOn(python("android_store.py"), "self._bridge") +
             calledOn(python("host.py"), "document_store")
-        assertTrue("found no calls; did android_store.py change shape?", "readText" in called)
+        assertTrue("found no calls; did android_store.py change shape?", "readBytes" in called)
         val missing = called - methodsOf(DocumentStoreBridge::class.java)
         assertTrue("Python calls $missing, which DocumentStoreBridge doesn't declare (so no rule keeps it)", missing.isEmpty())
         assertTrue(DocumentStoreBridge::class.java.isAssignableFrom(SafDocumentStore::class.java))

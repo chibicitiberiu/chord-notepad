@@ -12,9 +12,6 @@ import java.io.ByteArrayOutputStream
 import java.io.FileNotFoundException
 import java.io.IOException
 import java.io.InputStream
-import java.nio.ByteBuffer
-import java.nio.charset.CharacterCodingException
-import java.nio.charset.CodingErrorAction
 
 /**
  * The Android `DocumentStore`: documents are content URIs from the Storage
@@ -64,33 +61,25 @@ class SafDocumentStore(
 
     // -- Python side ------------------------------------------------------------
 
-    override fun readText(id: String): String {
+    override fun readBytes(id: String): ByteArray {
         // A song is a few kilobytes; this keeps a huge file (Open with any
         // .txt) from exhausting memory. The provider's size can be missing or
         // wrong, so the read itself stops at the limit too.
         val declared = access.size(id)
         if (declared != null && declared > MAX_READ_BYTES) throw tooLarge(id)
-        val bytes = try {
+        return try {
             access.openInput(id).use { readAtMost(it, MAX_READ_BYTES) }
         } catch (e: FileNotFoundException) {
-            throw DocumentStoreException("File not found: ${where(id)}", e)
+            // Named before it leaves the recent list, which has its name (B4).
+            val error = DocumentStoreException("File not found: ${where(id)}", e)
+            forgetRecent(id)
+            throw error
         } catch (e: SecurityException) {
             throw DocumentStoreException("Permission denied: ${where(id)}", e)
         } catch (e: IOException) {
             throw DocumentStoreException("Failed to read file: ${e.message}", e)
         } ?: throw tooLarge(id)
-        return try {
-            Charsets.UTF_8.newDecoder()
-                .onMalformedInput(CodingErrorAction.REPORT)
-                .onUnmappableCharacter(CodingErrorAction.REPORT)
-                .decode(ByteBuffer.wrap(bytes))
-                .toString()
-        } catch (e: CharacterCodingException) {
-            throw DocumentStoreException("Cannot read file (encoding issue): ${where(id)}", e)
-        }
     }
-
-    override fun writeText(id: String, text: String) = writeBytes(id, text.toByteArray(Charsets.UTF_8))
 
     override fun writeBytes(id: String, data: ByteArray) {
         try {
@@ -110,6 +99,20 @@ class SafDocumentStore(
         synchronized(lock) {
             val ref = DocumentRef(id, displayName, location)
             store(listOf(ref) + recentFile.load().filter { it.id != id })
+        }
+    }
+
+    /** Drop [id] from the recent list (a document that's gone) and release its grant. */
+    private fun forgetRecent(id: String) {
+        synchronized(lock) {
+            val saved = recentFile.load()
+            if (saved.none { it.id == id }) return
+            access.releaseGrant(id)
+            try {
+                recentFile.save(saved.filter { it.id != id })
+            } catch (e: IOException) {
+                Log.w(TAG, "Can't save the recent list", e)
+            }
         }
     }
 
@@ -208,10 +211,16 @@ class SafDocumentStore(
         }
     }
 
-    private fun where(id: String): String = try {
-        refFor(id)?.location ?: fallbackName(id)
-    } catch (e: RuntimeException) {
-        fallbackName(id)
+    // Where a document is, for a message: the provider's answer, else the
+    // recent entry's (a file that's gone: "fntest.txt (Downloads)", not
+    // "75", its id), else a name made from the id.
+    private fun where(id: String): String {
+        val described = try {
+            refFor(id)?.location
+        } catch (e: RuntimeException) {
+            null
+        }
+        return described ?: synchronized(lock) { recentFile.load().firstOrNull { it.id == id }?.location } ?: fallbackName(id)
     }
 
     companion object {
@@ -232,7 +241,7 @@ class SafDocumentStore(
         /** The desktop's default `max_recent_files`. */
         const val DEFAULT_MAX_RECENT = 10
 
-        /** The largest document [readText] reads (5 MB). */
+        /** The largest document [readBytes] reads (5 MB). */
         const val MAX_READ_BYTES = 5 * 1024 * 1024
         private const val MB = 1024 * 1024
         private const val BUFFER_BYTES = 64 * 1024

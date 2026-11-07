@@ -47,24 +47,28 @@ class FakeKotlinStore:
         self.recent_list = []
         self.max_recent = None
         self.calls = []
+        self.java_bytes = False
 
     def _ref(self, uri):
         name = uri.rsplit("/", 1)[-1]
         return {"id": uri, "display_name": name, "location": f"Documents/{name}"}
 
-    def readText(self, uri):
-        self.calls.append(("readText", uri))
+    def readBytes(self, uri):
+        """Bytes, as signed Java bytes when ``java_bytes`` (what a plain
+        sequence from Chaquopy would hold)."""
+        self.calls.append(("readBytes", uri))
         if uri not in self.docs:
             raise DocumentStoreException(f"File not found: {uri}")
-        return self.docs[uri]
-
-    def writeText(self, uri, text):
-        if uri.endswith("readonly.txt"):
-            raise DocumentStoreException("Permission denied: readonly.txt")
-        self.docs[uri] = text
+        data = self.docs[uri]
+        data = data.encode("utf-8") if isinstance(data, str) else data
+        if self.java_bytes:
+            return [b - 256 if b > 127 else b for b in data]
+        return data
 
     def writeBytes(self, uri, data):
         assert isinstance(data, bytes)
+        if uri.endswith("readonly.txt"):
+            raise DocumentStoreException("Permission denied: readonly.txt")
         self.docs[uri] = data
 
     def isAvailable(self, uri):
@@ -141,13 +145,46 @@ def test_store_writes_and_keeps_the_recent_list():
     ref = store.ref_for(URI)
     store.write_text(ref, "D")
     store.write_bytes(DocumentRef("content://x/a.mid", "a.mid", "a.mid"), b"MThd")
-    assert kotlin.docs == {URI: "D", "content://x/a.mid": b"MThd"}
+    assert kotlin.docs == {URI: b"D", "content://x/a.mid": b"MThd"}
     assert store.is_available(ref)
     store.add_recent(ref)
     assert store.recent() == [ref]
     limit[0] = 5
     store.add_recent(ref)
     assert kotlin.max_recent == 5
+
+
+def test_store_reads_and_keeps_a_files_encoding_and_line_endings():
+    # C4: a Latin-1/Windows-1252 song opens, and Save keeps its bytes' format.
+    cp1252 = "Été C\r\nG Am\r\n".encode("cp1252")
+    kotlin = FakeKotlinStore({URI: cp1252})
+    store = AndroidDocumentStore(kotlin)
+    ref = store.ref_for(URI)
+    assert store.read_text(ref) == "Été C\nG Am\n"
+    assert store.write_text(ref, "Été D\nG Am\n") is None
+    assert kotlin.docs[URI] == "Été D\r\nG Am\r\n".encode("cp1252")
+    # A character the encoding has no room for: UTF-8, and a note says so.
+    note = store.write_text(ref, "ș C\n")
+    assert note and "UTF-8" in note
+    assert kotlin.docs[URI] == "ș C\r\n".encode("utf-8")
+
+
+def test_store_writes_a_new_document_as_utf8_with_lf():
+    kotlin = FakeKotlinStore({URI: b""})
+    store = AndroidDocumentStore(kotlin)
+    assert store.write_text(store.ref_for(URI), "C 😀\nG\n") is None
+    assert kotlin.docs[URI] == "C 😀\nG\n".encode("utf-8")
+    # A document that can't be read first still gets written (as a new one).
+    missing = DocumentRef("content://x/new.txt", "new.txt", "new.txt")
+    store.write_text(missing, "Am\n")
+    assert kotlin.docs["content://x/new.txt"] == b"Am\n"
+
+
+def test_store_takes_signed_java_bytes():
+    kotlin = FakeKotlinStore({URI: "Ré\n".encode("utf-8")})
+    kotlin.java_bytes = True
+    store = AndroidDocumentStore(kotlin)
+    assert store.read_text(store.ref_for(URI)) == "Ré\n"
 
 
 def test_store_rename_maps_the_result_and_the_failures():
@@ -216,7 +253,7 @@ def test_open_a_content_uri_and_save(started):
     handle.host.call(lambda: None, timeout=15)  # everything submitted has run
     assert sink.events[-1][0] in ("DocumentState", "StatusState")
     assert [d for n, d in sink.events if n == "DocumentState"][-1]["is_modified"] is False
-    assert kotlin.docs[URI] == "Dm {bpm: 100}\nC G Am F\n"
+    assert kotlin.docs[URI] == b"Dm {bpm: 100}\nC G Am F\n"
 
 
 def test_rename_through_the_bridge(started):

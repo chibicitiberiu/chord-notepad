@@ -146,20 +146,34 @@ class SafDocumentStoreTest {
     }
 
     @Test
-    fun `reads raw UTF-8, leaving normalization to Python`() {
-        access.add("content://d/1", "a.txt", "﻿C  G\r\nAm F 😀")
-        assertEquals("﻿C  G\r\nAm F 😀", store.readText("content://d/1"))
+    fun `reads the bytes as they are, leaving decoding and normalization to Python`() {
+        // C4: Python decodes (UTF-8, Windows-1252, a BOM), so a Latin-1 file opens.
+        access.add("content://d/1", "a.txt")
+        val latin1 = byteArrayOf(0xC9.toByte(), 0x74, 0xE9.toByte(), 0x0D, 0x0A, 0x41)
+        access.content["content://d/1"] = latin1
+        assertArrayEquals(latin1, store.readBytes("content://d/1"))
     }
 
     @Test
     fun `read errors use the desktop wording`() {
-        access.add("content://d/bad", "bad.txt")
-        access.content["content://d/bad"] = byteArrayOf(0x41, 0xC3.toByte(), 0x28) // invalid UTF-8
-        expectError("Cannot read file (encoding issue): bad.txt (Example)") { store.readText("content://d/bad") }
-        expectError("File not found: ") { store.readText("content://d/missing") }
+        expectError("File not found: ") { store.readBytes("content://d/missing") }
         access.add("content://d/locked", "locked.txt")
         access.denied += "content://d/locked"
-        expectError("Permission denied: locked.txt (Example)") { store.readText("content://d/locked") }
+        expectError("Permission denied: locked.txt (Example)") { store.readBytes("content://d/locked") }
+    }
+
+    @Test
+    fun `a recent file that has gone is named from its entry and leaves the list`() {
+        // B4: "File not found: 75" (the msf: id), and the entry stayed.
+        access.add("content://d/75", "fntest.txt")
+        access.add("content://d/other", "other.txt")
+        store.addRecent("content://d/other", "other.txt", "other.txt (Example)")
+        store.addRecent("content://d/75", "fntest.txt", "fntest.txt (Downloads)")
+        access.content.remove("content://d/75")
+        access.names.remove("content://d/75")
+        expectError("File not found: fntest.txt (Downloads)") { store.readBytes("content://d/75") }
+        assertEquals(listOf("content://d/other"), ids(store.recent()))
+        assertFalse(access.hasPersistedGrant("content://d/75"))
     }
 
     @Test
@@ -167,16 +181,16 @@ class SafDocumentStoreTest {
         val limit = SafDocumentStore.MAX_READ_BYTES
         access.add("content://d/big", "big.txt")
         access.sizes["content://d/big"] = limit + 1L
-        expectError("File too large to open (over 5 MB): big.txt (Example)") { store.readText("content://d/big") }
+        expectError("File too large to open (over 5 MB): big.txt (Example)") { store.readBytes("content://d/big") }
         // No size from the provider (or a wrong one): the read itself stops.
         access.add("content://d/huge", "huge.txt")
         access.content["content://d/huge"] = ByteArray(limit + 1) { 'a'.code.toByte() }
-        expectError("File too large to open (over 5 MB): huge.txt (Example)") { store.readText("content://d/huge") }
+        expectError("File too large to open (over 5 MB): huge.txt (Example)") { store.readBytes("content://d/huge") }
         access.sizes["content://d/huge"] = 10
-        expectError("File too large") { store.readText("content://d/huge") }
+        expectError("File too large") { store.readBytes("content://d/huge") }
         access.content["content://d/huge"] = ByteArray(limit) { 'a'.code.toByte() }
         access.sizes.remove("content://d/huge")
-        assertEquals(limit, store.readText("content://d/huge").length)
+        assertEquals(limit, store.readBytes("content://d/huge").size)
     }
 
     @Test
@@ -200,13 +214,13 @@ class SafDocumentStoreTest {
     @Test
     fun `writes replace the old content`() {
         access.add("content://d/1", "a.txt", "a much longer old text")
-        store.writeText("content://d/1", "G 😀")
+        store.writeBytes("content://d/1", "G 😀".toByteArray())
         assertEquals("G 😀", access.content.getValue("content://d/1").decodeToString())
         store.writeBytes("content://d/1", byteArrayOf(1, 2))
         assertArrayEquals(byteArrayOf(1, 2), access.content.getValue("content://d/1"))
         access.denied += "content://d/1"
-        expectError("Permission denied") { store.writeText("content://d/1", "x") }
-        expectError("Failed to write file") { store.writeText("content://d/gone", "x") }
+        expectError("Permission denied") { store.writeBytes("content://d/1", byteArrayOf(1)) }
+        expectError("Failed to write file") { store.writeBytes("content://d/gone", byteArrayOf(1)) }
     }
 
     @Test
