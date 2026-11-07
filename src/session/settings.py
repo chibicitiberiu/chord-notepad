@@ -46,6 +46,8 @@ class SettingsValues:
         bpm: Tempo at startup, 20-400.
         time_signature_beats: Time-signature numerator at startup, 1-16.
         time_signature_unit: Its denominator: 1, 2, 4, 8 or 16.
+        word_wrap: Whether long lines wrap at the editor's edge (off: the
+            text scrolls sideways and chords stay over their lyrics).
     """
 
     font_family: str
@@ -57,6 +59,7 @@ class SettingsValues:
     bpm: int
     time_signature_beats: int
     time_signature_unit: int
+    word_wrap: bool = False
 
     def check(self) -> None:
         """Raise ValueError naming the first value that is out of range."""

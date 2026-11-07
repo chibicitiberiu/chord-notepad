@@ -83,6 +83,7 @@ class MainWindowViewModel(Observable):
         self._notation_chosen = False
         self._font_size: int = self._config.get("font_size", 11)
         self._font_family: str = self._config.get("font_family", "TkFixedFont")
+        self._word_wrap: bool = self._config.get("word_wrap", False) is True
         self._current_text: str = ""
         # The current document's tempo, key and time signature: the Settings
         # defaults until changed from the toolbar, for this document only
@@ -180,6 +181,11 @@ class MainWindowViewModel(Observable):
     def font_family(self) -> str:
         """Get the current font family."""
         return self._font_family
+
+    @property
+    def word_wrap(self) -> bool:
+        """Whether long lines wrap at the editor's edge (else it scrolls sideways)."""
+        return self._word_wrap
 
     @property
     def current_text(self) -> str:
@@ -1062,6 +1068,16 @@ class MainWindowViewModel(Observable):
         """
         self.set_font_family(self._config.get("font_family", self._font_family))
         self.set_font_size(self._config.get("font_size", self._font_size))
+
+    def set_word_wrap(self, on: bool) -> None:
+        """Wrap long lines at the editor's edge (True) or scroll sideways."""
+        on = bool(on)
+        self._config.set("word_wrap", on)
+        self.set_and_notify("word_wrap", on)
+
+    def reload_word_wrap(self) -> None:
+        """Re-apply the word wrap stored in the config (Settings writes it)."""
+        self.set_word_wrap(self._config.get("word_wrap", self._word_wrap) is True)
 
     def increase_font_size(self) -> None:
         """Increase font size by 1."""

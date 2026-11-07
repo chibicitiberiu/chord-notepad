@@ -174,7 +174,7 @@ legend. Pages are named `file: section`.
 | `directive-explain.png` | Play tab after touching and holding the red {bpm: 500}: a small card under it with the reason and the {bpm} forms. (phone) | interface: Directive Hints |
 | `tablet-play.png` | Tablet in landscape, Play tab while playing: text on the left, chord sheet and player on the right. (tablet, landscape) | chord_sheet: Showing and Resizing the Strip; interface: Edit and Play |
 | `settings-pages.png` | ☰ → Settings on a phone: the list of pages (General, Playback, Voicings). (phone) | settings: Settings |
-| `settings-general.png` | Settings › General: font family and size, chord notation, default key, show quick start at startup, number of recent files. (phone) | settings: General |
+| `settings-general.png` | Settings › General: font family and size, word wrap (off), chord notation, default key, show quick start at startup, number of recent files. (phone) | settings: General |
 | `settings-playback.png` | Settings › Playback: default BPM and time signature. (phone) | settings: Playback & Audio |
 | `settings-voicings.png` | Settings › Voicings on a phone: Add voicing and the custom voicings grouped by model (My 7-String under Fretboard). (phone) | settings: Voicings |
 | `settings-voicing-form.png` | The voicing form for My 7-String on a phone: Name, Model, Copy from existing, Remove voicing, Strings (B1 E2 A2 D3 G3 B3 E4), Max fret, Fingers, spans…. (phone) | settings: Voicings; settings: Worked Example: A Seven-String Guitar |

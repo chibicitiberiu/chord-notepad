@@ -1397,7 +1397,7 @@
   {
    "name": "settings-general",
    "page": "settings: General",
-   "what": "Settings › General: font family and size, chord notation, default key, show quick start at startup, number of recent files.",
+   "what": "Settings › General: font family and size, word wrap (off), chord notation, default key, show quick start at startup, number of recent files.",
    "scene": "grace_play",
    "config": {
     "show_quick_start_on_startup": true

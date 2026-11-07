@@ -154,6 +154,18 @@ class OptionsDialog(tk.Toplevel):
         self._bind_var(size_var, "font_size")
         row += 1
 
+        # Word wrap (also View > Word Wrap)
+        wrap_var = tk.BooleanVar(value=self._viewmodel.word_wrap)
+        ttk.Checkbutton(
+            page, text="Word wrap", variable=wrap_var,
+        ).grid(row=row, column=0, columnspan=2, sticky="w", pady=(6, 0))
+        ttk.Label(
+            page, text="Off: long lines scroll sideways, so chords stay over their lyrics.",
+            foreground=_HINT_FG,
+        ).grid(row=row + 1, column=0, columnspan=2, sticky="w", pady=(0, 6))
+        self._bind_var(wrap_var, "word_wrap")
+        row += 2
+
         # Notation
         ttk.Label(page, text="Notation:").grid(row=row, column=0, sticky="w", pady=6)
         notation_frame = ttk.Frame(page)

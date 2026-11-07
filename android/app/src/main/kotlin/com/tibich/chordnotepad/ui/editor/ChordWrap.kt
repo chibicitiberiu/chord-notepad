@@ -1,9 +1,7 @@
 package com.tibich.chordnotepad.ui.editor
 
 import android.content.ClipData
-import androidx.compose.ui.platform.ClipEntry
-import androidx.compose.ui.platform.Clipboard
-import androidx.compose.ui.platform.NativeClipboard
+import android.content.ClipboardManager
 import com.tibich.chordnotepad.bridge.SpanKind
 
 /** U+2060 WORD JOINER: no line break on either side, and it draws nothing. */
@@ -74,26 +72,37 @@ class JoinedText(private val points: IntArray) {
 fun withoutJoiners(text: CharSequence): String = text.toString().replace(WORD_JOINER.toString(), "")
 
 /**
- * The clipboard as the editor sees it: a copy or cut takes the text as drawn,
- * joiners included, so they're taken out before it reaches the system
- * clipboard (they would follow into other apps, and back into the song).
+ * The texts of a clip with the [WORD_JOINER]s taken out, or null when none
+ * has one (nothing to rewrite). Compose copies the field's text as drawn,
+ * joiners included; [JoinerFreeCopies] puts the clip back without them so
+ * they don't follow into other apps.
  */
-class JoinerFreeClipboard(private val inner: Clipboard) : Clipboard {
-    override suspend fun getClipEntry(): ClipEntry? = inner.getClipEntry()
+fun joinerFreeTexts(texts: List<CharSequence?>): List<String>? {
+    if (texts.none { it != null && WORD_JOINER in it }) return null
+    return texts.map { withoutJoiners(it ?: "") }
+}
 
-    override suspend fun setClipEntry(clipEntry: ClipEntry?) {
-        inner.setClipEntry(clipEntry?.let(::cleaned))
-    }
+/**
+ * While started, rewrites a new primary clip that holds word joiners
+ * ([joinerFreeTexts]): a copy or cut from the wrapped editor. Compose's
+ * `Clipboard` can't be wrapped for this (its text toolbar insists on the
+ * platform's own and the app crashes on a long-press), so the system
+ * clipboard is watched instead. The rewritten clip has no joiners, so it
+ * doesn't trigger another rewrite.
+ */
+class JoinerFreeCopies(private val clipboard: ClipboardManager) : ClipboardManager.OnPrimaryClipChangedListener {
+    /** Watch the clipboard. */
+    fun start() = clipboard.addPrimaryClipChangedListener(this)
 
-    override val nativeClipboard: NativeClipboard get() = inner.nativeClipboard
+    /** Stop watching. */
+    fun stop() = clipboard.removePrimaryClipChangedListener(this)
 
-    private fun cleaned(entry: ClipEntry): ClipEntry {
-        val data = entry.clipData
-        if (data.itemCount == 0) return entry
-        val texts = (0 until data.itemCount).map { data.getItemAt(it).text }
-        if (texts.none { it != null && WORD_JOINER in it }) return entry
-        val first = ClipData.newPlainText(data.description.label, withoutJoiners(texts[0] ?: ""))
-        for (i in 1 until texts.size) first.addItem(ClipData.Item(withoutJoiners(texts[i] ?: "")))
-        return ClipEntry(first)
+    override fun onPrimaryClipChanged() {
+        val data = runCatching { clipboard.primaryClip }.getOrNull() ?: return
+        if (data.itemCount == 0) return
+        val texts = joinerFreeTexts((0 until data.itemCount).map { data.getItemAt(it).text }) ?: return
+        val clean = ClipData.newPlainText(data.description.label, texts[0])
+        for (i in 1 until texts.size) clean.addItem(ClipData.Item(texts[i]))
+        runCatching { clipboard.setPrimaryClip(clean) }
     }
 }

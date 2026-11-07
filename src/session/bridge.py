@@ -251,6 +251,7 @@ SESSION_COMMANDS: Dict[str, Dict[str, str]] = {
     "set_font": {"family": "str", "size": "int"},
     "step_font_size": {"delta": "int"},
     "reset_font_size": {},
+    "set_word_wrap": {"on": "bool"},
     # chord sheet
     "set_chord_sheet_visible": {"visible": "bool"},
     "set_chord_sheet_height": {"px": "int"},
@@ -348,8 +349,8 @@ CONFIG_COMMANDS = frozenset({
     "set_bpm", "set_multiplier_pct", "set_bpm_text", "set_multiplier_text",
     "reset_bpm", "reset_multiplier", "set_key", "set_time_signature",
     "toggle_metronome", "set_voicing", "set_instrument", "set_notation",
-    "set_font", "step_font_size", "reset_font_size", "set_chord_sheet_visible",
-    "set_chord_sheet_height", "set_chord_sheet_view", "chord_sheet_zoom",
+    "set_font", "step_font_size", "reset_font_size", "set_word_wrap",
+    "set_chord_sheet_visible", "set_chord_sheet_height", "set_chord_sheet_view", "chord_sheet_zoom",
     "convert_notation", "apply_settings", "save_settings",
     "set_show_quick_start_on_startup", "open_document", "open_recent", "save", "save_as",
     "rename_document",

@@ -3,6 +3,7 @@ package com.tibich.chordnotepad.ui.editor
 import com.tibich.chordnotepad.bridge.SpanKind
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -46,5 +47,22 @@ class ChordWrapTest {
         assertEquals("G/B C", withoutJoiners("G/${WORD_JOINER}B C"))
         assertEquals("G/B", normalizeSongText("G/${WORD_JOINER}B"))
         assertTrue(needsNormalizing("G/${WORD_JOINER}B"))
+    }
+
+    @Test
+    fun `a copied clip is rewritten only when it holds joiners`() {
+        assertNull(joinerFreeTexts(listOf("G/B C", null)))
+        assertEquals(listOf("D/F# G", "x", ""), joinerFreeTexts(listOf("D/${WORD_JOINER}F# G", "x", null)))
+        // What the rewrite puts back doesn't trigger another one.
+        assertNull(joinerFreeTexts(joinerFreeTexts(listOf("D/${WORD_JOINER}F#"))!!))
+    }
+
+    @Test
+    fun `joiners are drawn only while the text wraps`() {
+        val text = "D/F# G/B"
+        val spans = listOf(chord(text, "D/F#"), chord(text, "G/B"))
+        assertArrayEquals(intArrayOf(2, 7), joinPoints(text, spans, wordWrap = true))
+        // Unwrapped, nothing can split a chord: the drawn text is the song's.
+        assertTrue(joinPoints(text, spans, wordWrap = false).isEmpty())
     }
 }

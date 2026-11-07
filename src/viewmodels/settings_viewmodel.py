@@ -36,7 +36,8 @@ _GENERAL_FIELDS = (
     'log_level', 'bpm', 'time_signature_beats', 'time_signature_unit',
 )
 _AUDIO_FIELDS = ('soundfont_path', 'audio_driver')
-_ALL_SCALAR_FIELDS = _FONT_FIELDS + _GENERAL_FIELDS + _AUDIO_FIELDS
+_WRAP_FIELDS = ('word_wrap',)
+_ALL_SCALAR_FIELDS = _FONT_FIELDS + _GENERAL_FIELDS + _AUDIO_FIELDS + _WRAP_FIELDS
 
 
 @dataclass
@@ -53,6 +54,7 @@ class SettingsChanges:
     font_changed: bool = False
     general_changed: bool = False
     audio_changed: bool = False
+    wrap_changed: bool = False
     guitar_changed: bool = False
     voicings_changed: bool = False
     new_active_voicing: Optional[str] = None
@@ -74,6 +76,7 @@ class SettingsViewModel:
         # Scalar working copy.
         self.font_family: str = config.font_family
         self.font_size: int = config.font_size
+        self.word_wrap: bool = config.word_wrap
         self.notation: str = config.notation
         # American spelling, whatever the notation (see shown_key).
         self.key: str = american_key(config.key)
@@ -279,6 +282,7 @@ class SettingsViewModel:
         changes.font_changed = self._group_changed(_FONT_FIELDS)
         changes.general_changed = self._group_changed(_GENERAL_FIELDS)
         changes.audio_changed = self._group_changed(_AUDIO_FIELDS)
+        changes.wrap_changed = self._group_changed(_WRAP_FIELDS)
 
         # Push scalars.
         for field in _ALL_SCALAR_FIELDS:

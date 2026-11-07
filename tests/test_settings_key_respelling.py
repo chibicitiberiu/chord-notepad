@@ -20,7 +20,8 @@ from session.settings import SettingsValues
 from session.testing import EventRecorder, FakePlayer, InMemoryDocumentStore, ManualHost
 
 DEFAULTS = dict(font_family="TkFixedFont", font_size=11, show_quick_start_on_startup=True,
-                max_recent_files=10, bpm=120, time_signature_beats=4, time_signature_unit=4)
+                max_recent_files=10, bpm=120, time_signature_beats=4, time_signature_unit=4,
+                word_wrap=False)
 
 
 def read(notation, key):

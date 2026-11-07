@@ -52,6 +52,8 @@ data class SettingsValues(
     val bpm: Int,
     @SerialName("time_signature_beats") val timeSignatureBeats: Int,
     @SerialName("time_signature_unit") val timeSignatureUnit: Int,
+    /** Sent always (no default: kotlinx leaves a default value out, and Python needs every field). */
+    @SerialName("word_wrap") val wordWrap: Boolean,
 )
 
 /** The current settings (re-sent whenever the config changes) and their limits. */

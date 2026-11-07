@@ -8,7 +8,7 @@
     <string name="settings_back">Back</string>
 
     <string name="settings_page_general">General</string>
-    <string name="settings_page_general_summary">Font, chord notation, default key, quick start, recent files</string>
+    <string name="settings_page_general_summary">Font, word wrap, chord notation, default key, quick start, recent files</string>
     <string name="settings_page_playback">Playback</string>
     <string name="settings_page_playback_summary">Default BPM and time signature</string>
     <string name="settings_page_voicings">Voicings</string>
@@ -25,6 +25,8 @@
     <string name="settings_default_key">Default key</string>
     <string name="settings_default_key_help">The key a new document starts in.</string>
     <string name="settings_key_none">None</string>
+    <string name="settings_word_wrap">Word wrap</string>
+    <string name="settings_word_wrap_help">Off: long lines scroll sideways, so chords stay over their lyrics.</string>
     <string name="settings_quick_start">Show quick start at startup</string>
     <string name="settings_quick_start_help">Whether the quick-start tour (also in ☰ → Quick start) opens automatically when Chord Notepad starts.</string>
     <string name="settings_recent_files">Number of recent files</string>

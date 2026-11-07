@@ -11,6 +11,8 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.systemGestureExclusion
@@ -28,9 +30,12 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalClipboard
-import androidx.compose.runtime.CompositionLocalProvider
+import android.content.ClipboardManager
+import android.content.Context
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.input.key.onInterceptKeyBeforeSoftKeyboard
 import androidx.compose.ui.input.key.KeyEvent
@@ -92,6 +97,9 @@ private const val PLACEHOLDER_ALPHA = 0.45f
 /** The playhead marker's grab strip, centred on it. */
 private val MarkerGrabWidth = 24.dp
 
+/** Room kept beside the cursor when the unwrapped text follows it sideways. */
+private val CursorMargin = 24.dp
+
 /** A tap this close to a chord counts as on it. */
 private val ChordSlop = 8.dp
 
@@ -113,7 +121,14 @@ private val ChordSlop = 8.dp
  *   [explained] is set it shows in a small card by that directive, until
  *   [onDismissExplained] (the next touch).
  *
- * Both modes share [scroll], so switching keeps the place. Offsets are UTF-16
+ * With word wrap off (`EditorState.wordWrap`, the default) the text doesn't
+ * wrap: it scrolls sideways ([hScroll]) as well as up and down, so a chord
+ * line stays over its lyric line however narrow the screen. The sounding
+ * chord is kept in view on both axes, and in Edit mode so is the cursor
+ * while the field has the focus. The layouts and boxes stay in the text's own
+ * coordinates; only the scrolls move them on screen.
+ *
+ * Both modes share [scroll] and [hScroll], so switching keeps the place. Offsets are UTF-16
  * except where said. [onTextFocus] tells whether the Edit-mode field has the
  * focus (the hint strip shows only then).
  */
@@ -126,6 +141,7 @@ fun ChordEditor(
     playhead: Int?,
     playing: Boolean,
     scroll: ScrollState,
+    hScroll: ScrollState,
     onStepFontSize: (Int) -> Unit,
     onPlayTap: (PlayTap) -> Unit,
     onScrub: (Int) -> Unit,
@@ -147,8 +163,13 @@ fun ChordEditor(
     val styles = remember(colors) { spanStylesFor(colors) }
     val playingStyle = remember(colors) { playingStyleFor(colors) }
     val currentPoints by rememberUpdatedState(fontPoints)
+    val wordWrap = editorState?.wordWrap ?: false
     var layout by remember { mutableStateOf<TextLayoutResult?>(null) }
-    val padTop = with(LocalDensity.current) { 8.dp.roundToPx() }
+    val density = LocalDensity.current
+    val padTop = with(density) { 8.dp.roundToPx() }
+    val padStart = with(density) { 12.dp.toPx() }
+    val cursorMargin = with(density) { CursorMargin.toPx() }
+    var fieldFocused by remember { mutableStateOf(false) }
 
     // Keep the sounding chord in view (the desktop's `see`), only when playback moved on.
     val sounding = controller.playing
@@ -156,20 +177,45 @@ fun ChordEditor(
         val p = sounding ?: return@LaunchedEffect
         val l = layout ?: return@LaunchedEffect
         // The layout is of the text as drawn (with the chords' word joiners).
-        val at = JoinedText(chordJoinPoints(controller.state.text, controller.spans)).toDisplay(p.start)
-        if (at > l.layoutInput.text.length) return@LaunchedEffect
-        val line = l.getLineForOffset(at)
-        val top = l.getLineTop(line).roundToInt() + padTop
-        val bottom = l.getLineBottom(line).roundToInt() + padTop
-        val viewport = scroll.viewportSize
-        if (viewport > 0 && (top < scroll.value || bottom > scroll.value + viewport)) {
-            scroll.animateScrollTo((top - viewport / 3).coerceIn(0, scroll.maxValue))
+        val joined = JoinedText(joinPoints(controller.state.text, controller.spans, wordWrap))
+        val box = chordBox(l, p.start, p.end, joined) ?: return@LaunchedEffect
+        followChordScroll(box.top + padTop, box.bottom + padTop, scroll.value, scroll.viewportSize, scroll.maxValue)
+            ?.let { scroll.animateScrollTo(it) }
+        if (!wordWrap) {
+            followChordScroll(box.left + padStart, box.right + padStart, hScroll.value, hScroll.viewportSize, hScroll.maxValue)
+                ?.let { hScroll.animateScrollTo(it) }
         }
     }
 
-    // Copies from the field leave the chords' word joiners behind (L7).
-    val systemClipboard = LocalClipboard.current
-    val joinerFree = remember(systemClipboard) { JoinerFreeClipboard(systemClipboard) }
+    // Unwrapped, the field scrolls only up and down by itself: keep the cursor
+    // in view sideways while typing or moving it (not on a font change alone).
+    LaunchedEffect(wordWrap, mode) {
+        // Wrapped, nothing is off to the side: start there when unwrapped again.
+        if (wordWrap) hScroll.scrollTo(0)
+        if (wordWrap || mode != AppMode.EDIT) return@LaunchedEffect
+        snapshotFlow { controller.state.selection to layout }.collect { (selection, l) ->
+            if (!fieldFocused || l == null) return@collect
+            val at = JoinedText(joinPoints(controller.state.text, controller.spans, wordWrap)).toDisplay(selection.end)
+            if (at > l.layoutInput.text.length) return@collect
+            val cursor = l.getCursorRect(at)
+            followCursorScroll(
+                cursor.left + padStart, cursor.right + padStart,
+                hScroll.value, hScroll.viewportSize, hScroll.maxValue, cursorMargin,
+            )?.let { hScroll.scrollTo(it) }
+        }
+    }
+
+    // Copies from the wrapped field leave the chords' word joiners behind (L7).
+    val context = LocalContext.current
+    DisposableEffect(wordWrap, mode, context) {
+        val watcher = if (wordWrap && mode == AppMode.EDIT) {
+            (context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager)?.let(::JoinerFreeCopies)
+        } else {
+            null
+        }
+        watcher?.start()
+        onDispose { watcher?.stop() }
+    }
 
     Box(
         modifier
@@ -177,11 +223,17 @@ fun ChordEditor(
             .pinchToZoomFont(currentPoints = { currentPoints }, onStep = onStepFontSize),
     ) {
         when (mode) {
-            AppMode.EDIT -> CompositionLocalProvider(LocalClipboard provides joinerFree) { BasicTextField(
+            AppMode.EDIT -> BoxWithConstraints(Modifier.fillMaxSize()) { BasicTextField(
                 state = controller.state,
+                // Unwrapped: laid out as wide as its longest line (at least the
+                // view), inside a sideways scroll; the field scrolls up and down itself.
                 modifier = Modifier.fillMaxSize()
+                    .let { m -> if (wordWrap) m else m.horizontalScroll(hScroll).widthIn(min = maxWidth) }
                     .let { m -> focusRequester?.let { m.focusRequester(it) } ?: m }
-                    .onFocusChanged { onTextFocus(it.isFocused) }
+                    .onFocusChanged {
+                        fieldFocused = it.isFocused
+                        onTextFocus(it.isFocused)
+                    }
                     // Hardware Ctrl+Z / Ctrl+Y before Gboard takes them (B11).
                     .onInterceptKeyBeforeSoftKeyboard(onKeyBeforeIme),
                 readOnly = editorState?.readOnly ?: false,
@@ -193,8 +245,8 @@ fun ChordEditor(
                 ),
                 onTextLayout = { result -> layout = result() },
                 cursorBrush = SolidColor(colors.primary),
-                outputTransformation = remember(controller, styles, playingStyle) {
-                    highlightTransformation(controller, styles, playingStyle)
+                outputTransformation = remember(controller, styles, playingStyle, wordWrap) {
+                    highlightTransformation(controller, styles, playingStyle, wordWrap)
                 },
                 scrollState = scroll,
                 decorator = TextFieldDecorator { innerTextField ->
@@ -218,6 +270,8 @@ fun ChordEditor(
                 playhead = playhead,
                 playing = playing,
                 scroll = scroll,
+                hScroll = hScroll,
+                wordWrap = wordWrap,
                 onLayout = { layout = it },
                 onPlayTap = onPlayTap,
                 onScrub = onScrub,
@@ -242,6 +296,8 @@ private fun PlayText(
     playhead: Int?,
     playing: Boolean,
     scroll: ScrollState,
+    hScroll: ScrollState,
+    wordWrap: Boolean,
     onLayout: (TextLayoutResult) -> Unit,
     onPlayTap: (PlayTap) -> Unit,
     onScrub: (Int) -> Unit,
@@ -257,7 +313,7 @@ private fun PlayText(
     val sounding = controller.playing
     // Word joiners keep each chord on one line when the text wraps (L7);
     // the layout below is of this drawn text, so offsets go through [joined].
-    val joined = remember(text, spans) { JoinedText(chordJoinPoints(text, spans)) }
+    val joined = remember(text, spans, wordWrap) { JoinedText(joinPoints(text, spans, wordWrap)) }
     val annotated = remember(text, spans, sounding, styles, playingStyle, joined) {
         highlighted(text, spans, sounding, styles, playingStyle, joined)
     }
@@ -292,6 +348,10 @@ private fun PlayText(
             Modifier
                 .fillMaxSize()
                 .verticalScroll(scroll)
+                // Unwrapped, sideways too. The pointer and the children below
+                // are in the scrolled text's coordinates, so the chord boxes,
+                // the marker's grab strip and its gesture exclusion follow.
+                .let { m -> if (wordWrap) m else m.horizontalScroll(hScroll) }
                 .pointerInput(Unit) {
                     awaitEachGesture {
                         val down = awaitFirstDown(requireUnconsumed = false)
@@ -367,8 +427,9 @@ private fun PlayText(
                     layout = it
                     onLayout(it)
                 },
+                softWrap = wordWrap,
                 modifier = Modifier
-                    .fillMaxWidth()
+                    .let { m -> if (wordWrap) m.fillMaxWidth() else m.widthIn(min = this@BoxWithConstraints.maxWidth) }
                     .heightIn(min = this@BoxWithConstraints.maxHeight)
                     .padding(TextPadding)
                     .drawPlayhead(marker, markerColor),
@@ -414,7 +475,12 @@ private fun PlayText(
                                 scroll.value.toFloat(), (scroll.value + scroll.viewportSize).toFloat(), gap,
                             )
                             val left = (anchor.left + padX).roundToInt()
-                            IntOffset(left.coerceAtMost(widthPx - cardSize.width - margin).coerceAtLeast(margin), top.roundToInt())
+                            // Inside the part of the text in view (scrolled sideways when unwrapped).
+                            val viewLeft = if (wordWrap) 0 else hScroll.value
+                            IntOffset(
+                                left.coerceAtMost(viewLeft + widthPx - cardSize.width - margin).coerceAtLeast(viewLeft + margin),
+                                top.roundToInt(),
+                            )
                         },
                 )
             }
@@ -491,17 +557,22 @@ private fun highlighted(
     }
 }.toAnnotatedString()
 
+/** Where the drawn text gets word joiners: inside chords when it wraps, nowhere when it doesn't. */
+internal fun joinPoints(text: CharSequence, spans: List<PaintedSpan>, wordWrap: Boolean): IntArray =
+    if (wordWrap) chordJoinPoints(text, spans) else IntArray(0)
+
 /** Paints the controller's spans, then the playing chord on top (Edit mode). */
 private fun highlightTransformation(
     controller: EditorController,
     styles: List<Pair<SpanKind, SpanStyle>>,
     playingStyle: SpanStyle,
+    wordWrap: Boolean,
 ) = OutputTransformation {
     val spans = controller.spans
     val original = length
     // Word joiners so a chord never wraps across lines (L7). They're only
     // drawn: the field maps the cursor and selection around them.
-    val points = chordJoinPoints(asCharSequence(), spans)
+    val points = joinPoints(asCharSequence(), spans, wordWrap)
     val joined = JoinedText(points)
     for (i in points.indices.reversed()) insert(points[i], WORD_JOINER.toString())
     for ((kind, style) in styles) {

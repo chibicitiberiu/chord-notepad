@@ -387,6 +387,17 @@ class MainWindow(tk.Tk):
         self._editor_state = state
         self.text_editor.config(state=tk.DISABLED if state.read_only else tk.NORMAL)
         self.apply_font()
+        self._apply_word_wrap(state.word_wrap)
+
+    def _apply_word_wrap(self, on: bool) -> None:
+        """Wrap long lines at the editor's edge, or scroll sideways (a
+        horizontal scrollbar under the editor) so chords stay over lyrics."""
+        self._word_wrap_var.set(on)
+        self.text_editor.config(wrap=tk.WORD if on else tk.NONE)
+        if on:
+            self._hscrollbar.pack_forget()
+        elif not self._hscrollbar.winfo_manager():
+            self._hscrollbar.pack(side=tk.BOTTOM, fill=tk.X, before=self.text_editor)
 
     def _dialog_parent(self) -> tk.Misc:
         """The window that has the focus (a dialog), else the main window."""
@@ -505,6 +516,7 @@ class MainWindow(tk.Tk):
         self._chord_sheet_var = tk.BooleanVar(value=False)
         view_menu = MenuBuilder(menubar) \
             .add_command("Font...", self.choose_font) \
+            .add_checkbutton("Word Wrap", self._word_wrap_var, self.toggle_word_wrap) \
             .add_separator() \
             .add_checkbutton("Chord Sheet", self._chord_sheet_var, self.toggle_chord_sheet) \
             .add_separator() \
@@ -760,16 +772,23 @@ class MainWindow(tk.Tk):
                                 highlightbackground=UI_BORDER, highlightcolor=UI_BORDER)
         self.content_paned.add(editor_frame, weight=3)
 
-        # Scrollbar
+        # Scrollbars. The horizontal one shows only while word wrap is off
+        # (_apply_word_wrap); packed ahead of the editor so it keeps its row.
         scrollbar = ttk.Scrollbar(editor_frame)
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        self._hscrollbar = ttk.Scrollbar(editor_frame, orient=tk.HORIZONTAL)
+        # View > Word Wrap; set from the session's EditorState.
+        self._word_wrap_var = tk.BooleanVar(value=False)
 
-        # Text editor (paints the session's highlighting)
+        # Text editor (paints the session's highlighting). No wrap until
+        # EditorState says otherwise (the setting's default).
         self.text_editor = ChordTextEditor(
             editor_frame,
             session=self.session,
             placeholder="Type or paste a song here",
+            wrap=tk.NONE,
             yscrollcommand=scrollbar.set,
+            xscrollcommand=self._hscrollbar.set,
             relief=tk.FLAT,
             bd=0,
             highlightthickness=0,
@@ -778,6 +797,8 @@ class MainWindow(tk.Tk):
         )
         self.text_editor.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         scrollbar.config(command=self.text_editor.yview)
+        self._hscrollbar.config(command=self.text_editor.xview)
+        self._apply_word_wrap(False)
         self.text_editor.bind(
             '<FocusIn>', lambda _e: editor_frame.config(highlightbackground=UI_ACCENT), add='+')
         self.text_editor.bind(
@@ -874,6 +895,10 @@ class MainWindow(tk.Tk):
         height = self.chord_sheet_panel.winfo_height()
         if height > 1:
             self.session.set_chord_sheet_height(height)
+
+    def toggle_word_wrap(self) -> None:
+        """View > Word Wrap: the session saves it and sends EditorState back."""
+        self.session.set_word_wrap(self._word_wrap_var.get())
 
     def toggle_chord_sheet(self) -> None:
         """Toggle chord-sheet visibility (View menu checkbutton command)."""

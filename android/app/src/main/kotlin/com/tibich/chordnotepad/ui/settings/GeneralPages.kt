@@ -29,7 +29,7 @@ import com.tibich.chordnotepad.R
 import com.tibich.chordnotepad.bridge.SettingsState
 import com.tibich.chordnotepad.ui.editor.EditorFontKind
 
-/** Settings › General: font, chord notation, default key, quick start, recent files. */
+/** Settings › General: font, word wrap, chord notation, default key, quick start, recent files. */
 @Composable
 fun GeneralPage(draft: SettingsDraft, limits: SettingsState, numbers: Map<NumberSetting, String>, controller: SettingsController) {
     val fontLabels = EditorFontKind.entries.associateWith { fontKindLabel(it) }
@@ -46,6 +46,12 @@ fun GeneralPage(draft: SettingsDraft, limits: SettingsState, numbers: Map<Number
         NumberSettingField(
             NumberSetting.FONT_SIZE, R.string.settings_font_size, null,
             draft, limits, numbers, controller, Modifier.fillMaxWidth(),
+        )
+        SwitchRow(
+            label = stringResource(R.string.settings_word_wrap),
+            checked = draft.wordWrap,
+            onChange = { on -> controller.updateDraft { it.copy(wordWrap = on) } },
+            supporting = stringResource(R.string.settings_word_wrap_help),
         )
         Text(stringResource(R.string.settings_notation), style = MaterialTheme.typography.bodyLarge)
         val notations = listOf(AMERICAN to R.string.settings_notation_american, EUROPEAN to R.string.settings_notation_european)

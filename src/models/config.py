@@ -23,6 +23,9 @@ class Config:
     font_family: str = "TkFixedFont"
     font_size: int = 11
     theme: str = "default"
+    # Off: the song scrolls sideways, so a chord line stays over its lyric
+    # line however narrow the window. On: long lines wrap at the edge.
+    word_wrap: bool = False
 
     # Playback
     bpm: int = 120
@@ -101,6 +104,7 @@ class Config:
             "font_family": self.font_family,
             "font_size": self.font_size,
             "theme": self.theme,
+            "word_wrap": self.word_wrap,
             "bpm": self.bpm,
             "bpm_multiplier": self.bpm_multiplier,
             "default_octave": self.default_octave,
@@ -156,6 +160,7 @@ class Config:
             font_family=data.get("font_family", "TkFixedFont"),
             font_size=data.get("font_size", 11),
             theme=data.get("theme", "default"),
+            word_wrap=data.get("word_wrap", False) is True,
             bpm=data.get("bpm", 120),
             bpm_multiplier=data.get("bpm_multiplier", 1.0),
             default_octave=data.get("default_octave", 4),

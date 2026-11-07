@@ -1,6 +1,7 @@
 package com.tibich.chordnotepad.bridge
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
@@ -63,6 +64,14 @@ class BridgeCodecTest {
             """{"font_family": "TkFixedFont", "font_size": 12, "read_only": true, "notation": "european"}""",
         )
         assertTrue(e.readOnly)
+        // An older core sends no word_wrap: unwrapped, the default.
+        assertFalse(e.wordWrap)
+        val wrapped = decode<EditorState>(
+            "EditorState",
+            """{"font_family": "TkFixedFont", "font_size": 12, "read_only": false, "notation": "american",
+               "word_wrap": true}""",
+        )
+        assertTrue(wrapped.wordWrap)
         assertEquals("Ready", decode<StatusState>("StatusState", """{"text": "Ready"}""").text)
     }
 

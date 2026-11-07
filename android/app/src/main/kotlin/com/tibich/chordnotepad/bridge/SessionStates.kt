@@ -84,6 +84,8 @@ data class EditorState(
     /** True while a song plays or is paused. */
     @SerialName("read_only") val readOnly: Boolean,
     val notation: String,
+    /** Long lines wrap at the edge; off, the text scrolls sideways (chords stay over lyrics). */
+    @SerialName("word_wrap") val wordWrap: Boolean = false,
 ) : SessionState
 
 /** The voicing menu; send a value back with `set_voicing`. */

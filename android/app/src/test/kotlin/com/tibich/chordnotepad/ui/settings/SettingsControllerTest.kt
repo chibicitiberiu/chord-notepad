@@ -95,6 +95,22 @@ class SettingsControllerTest {
     }
 
     @Test
+    fun `word wrap starts from the settings and is saved at once`() {
+        val c = editing()
+        assertFalse(c.ui.value.draft!!.wordWrap)
+        assertEquals(false, commitsWordWrap())
+        c.updateDraft { it.copy(wordWrap = true) }
+        assertEquals("true", commits.single().jsonObject.getValue("word_wrap").jsonPrimitive.content)
+        assertTrue(c.ui.value.draft!!.wordWrap)
+        // Sent even when off (Python wants every field).
+        c.updateDraft { it.copy(wordWrap = false) }
+        assertEquals("false", commits.last().jsonObject.getValue("word_wrap").jsonPrimitive.content)
+    }
+
+    /** The fixture's own word_wrap, as Python sent it. */
+    private fun commitsWordWrap(): Boolean = Fixtures.settings.values.wordWrap
+
+    @Test
     fun `a number waits for saveDraft, and only a valid one is saved`() {
         val c = editing()
         c.setNumber(NumberSetting.BPM, "9")

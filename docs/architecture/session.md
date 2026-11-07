@@ -193,7 +193,7 @@ class SpanKind(str, Enum): CHORD, CHORD_INVALID, DIRECTIVE, DIRECTIVE_INVALID, C
 Span(start, end, kind)
 MenuItem(label, value)
 DocumentState(display_name, location, is_modified, title, document_id, read_only)
-EditorState(font_family, font_size, read_only, notation)
+EditorState(font_family, font_size, read_only, notation, word_wrap)
 HighlightState(text_revision, client_token, spans)
 PlaybackState(status, playing_span, chord_index, bar, total_bars, playhead_offset)  # idle|playing|paused
 ToolbarState(notation, bpm, bpm_display, bpm_editable, multiplier_pct, key, key_options,
@@ -271,6 +271,7 @@ class AppSession:
     def toggle_metronome(self) -> None;  def set_voicing(self, voicing: str) -> None;  def set_instrument(self, program: int) -> None
     def set_notation(self, notation: str) -> None
     def set_font(self, family: str, size: int) -> None;  def step_font_size(self, delta: int) -> None;  def reset_font_size(self) -> None
+    def set_word_wrap(self, on: bool) -> None
     def set_chord_sheet_visible(self, v: bool) -> None;  def set_chord_sheet_height(self, px: int) -> None
     def set_chord_sheet_view(self, view_id: str) -> None;  def chord_sheet_zoom(self, step: int) -> None;  def audition(self, index: int) -> None
     # documents / app
@@ -503,15 +504,17 @@ re-detects, respells the key (`toolbar.convert_key`) and publishes the new
 key list. The Tk toolbar only maps `ToolbarState`; widgets send commands
 from user actions, never from variable traces.
 
-**Settings, fonts and menus.** `apply_settings(changes)` applies a new font,
-rebuilds the Voicing menu and re-applies the voicing in use when it was
+**Settings, fonts and menus.** `apply_settings(changes)` applies a new font
+and word wrap, rebuilds the Voicing menu and re-applies the voicing in use when it was
 renamed, removed or possibly edited in place; `general_changed` and
 `audio_changed` are ignored on purpose (defaults for the next start). The
 Settings dialog keeps `SettingsViewModel` as its own model, now handed out
 by `session.settings_model()`; its `commit()` writes the config and the
 window passes the changes to `apply_settings`. `EditorState(font_family,
-font_size, read_only, notation)`; `set_font`, `step_font_size` (clamped
-6-72), `reset_font_size`. `VoicingMenuState(selected, groups)` (built by
+font_size, read_only, notation, word_wrap)`; `set_font`, `step_font_size` (clamped
+6-72), `reset_font_size`, `set_word_wrap` (View > Word Wrap; config key
+`word_wrap`, default off: the editors scroll sideways so chord lines stay
+over their lyrics; Android sets it through `SettingsValues.word_wrap`). `VoicingMenuState(selected, groups)` (built by
 `formatting.voicing_menu_groups`; `set_voicing` only takes those values);
 `InstrumentMenuState(current, families)` (the General MIDI table is
 `formatting.INSTRUMENT_FAMILIES`).

@@ -86,9 +86,15 @@ class EditorControllerTest {
     @Test
     fun `a reset edit clears the undo history`() {
         type(0, "C G")
+        assertEquals(0, editor.documentsOpened)
         editor.applyEdit(TextEdited(5, 0, 3, "Em", UndoPolicy.RESET, 2))
         assertEquals("Em", state.text.toString())
         assertFalse(state.undoState.canUndo)
+        // A document was opened (the view starts it unscrolled); other edits don't count.
+        assertEquals(1, editor.documentsOpened)
+        editor.applyEdit(TextEdited(6, 0, 2, "G", UndoPolicy.PLAIN, 3))
+        editor.applyEdit(TextEdited(7, 0, 1, "A", UndoPolicy.GROUP, 4))
+        assertEquals(1, editor.documentsOpened)
     }
 
     @Test

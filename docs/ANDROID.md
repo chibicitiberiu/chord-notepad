@@ -376,7 +376,8 @@ input is ignored; the speed accepts `150`, `150%`, `1.5x`), `set_key {key}`,
 `SettingsValues.notation`, and New goes back to it; Open, `restore_draft` and
 a paste of several lines into an empty document take the notation the text's
 chords are written in, see `guess_notation`), `set_font {family, size}`,
-`step_font_size {delta}`, `reset_font_size {}`,
+`step_font_size {delta}`, `reset_font_size {}`, `set_word_wrap {on}` (the
+desktop's View > Word Wrap; Android changes it through Settings),
 `set_chord_sheet_visible {visible}`, `set_chord_sheet_height {px}`,
 `set_chord_sheet_view {view_id}`, `chord_sheet_zoom {step}`,
 `audition {index}`, `new_document {}`, `open_document {ref, read_only}`
@@ -446,6 +447,9 @@ raises is an `UnexpectedError` whose `context` is the command name.
   through the index-aligned `european_keys` when the notation is European,
   and switching notation doesn't change it. Quick Start's
   first-run flag is `values.show_quick_start_on_startup`.
+  `values.word_wrap` (config `word_wrap`, default false) is the editor's
+  word wrap, shared with the desktop's View > Word Wrap; the editors follow
+  `EditorState.word_wrap`, which changes as soon as it's committed.
   `apply_settings {changes: SettingsValues}` writes and applies them at once
   (out-of-range values: `UnexpectedError`, nothing written);
   `set_show_quick_start_on_startup {show}` is "Don't show this again".
@@ -811,8 +815,31 @@ objects, against the release build's R8 rules ("R8 in release builds").
     nearest chord (`ui/play/PlayheadGestures.kt`: vertical gap × 4 +
     horizontal gap, the mockup's rule); while playing a miss does nothing. A drag that starts within 12 dp of the playhead
     marker scrubs it (drawn locally, one `set_playhead` on release; not
-    while playing); other drags scroll. Both modes share one `ScrollState`.
-    A pinch sends `step_font_size` in both.
+    while playing); other drags scroll. Both modes share one vertical and
+    one horizontal `ScrollState`. A pinch sends `step_font_size` in both.
+  - Word wrap (`EditorState.word_wrap`, Settings › General) is off by
+    default: the text doesn't wrap and scrolls sideways, so a chord line
+    stays over its lyric line on a narrow screen. Compose's state-based
+    `BasicTextField` has no `softWrap`, so the field (and Play's
+    `BasicText`, `softWrap = false`) sits in a `Modifier.horizontalScroll`
+    and is measured with an unbounded width (at least the view's): the
+    text lays out as wide as its longest line. The layouts, chord boxes,
+    playhead marker, grab strip and directive cards stay in the text's own
+    coordinates (Play's pointer input sits inside both scrolls), so the
+    offset mapping is the same in both modes; the gesture-exclusion rect
+    is a child of the scrolled content and moves with it. The field still
+    scrolls up and down itself (cursor, IME); sideways, `ui/editor/
+    TextScroll.kt` decides: `followCursorScroll` (the least scroll that
+    shows the cursor with 24 dp beside it, while the field has the focus)
+    and `followChordScroll` (the sounding chord a third into the view, on
+    both axes). A song that's opened starts unscrolled sideways
+    (`EditorController.documentsOpened` counts the `reset` edits). With wrap on, word joiners (U+2060 after `/`, `-`, `+`
+    inside a chord, drawn only, `joinPoints`) keep a chord from splitting
+    across lines; unwrapped, none are drawn. Compose copies the field's text
+    as drawn, so while the wrapped field is shown `JoinerFreeCopies` watches
+    the system clipboard and puts a clip holding joiners back without them
+    (a wrapped `Clipboard` in `LocalClipboard` crashes Compose's text
+    toolbar on a long-press). Pastes drop them anyway (`PasteNormalization`).
   - Dark theme: the editor's colours are readable variants of the desktop
     hues (`AppColors.Dark`); light mode keeps the desktop's Tk colours.
   - Paste normalization is the one rule set duplicated in Kotlin

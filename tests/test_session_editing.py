@@ -254,7 +254,7 @@ def test_convert_is_a_plain_edit_and_switches_detection():
         ("HighlightState", 2, 0, (chord(0, 2), chord(3, 6))),
         # Detection and the toolbar follow the target notation (no key set:
         # the first option).
-        ("EditorState", "TkFixedFont", 11, False, "european"),
+        ("EditorState", "TkFixedFont", 11, False, "european", False),
         ("ToolbarState", "european", 120, 120, True, 100.0, "Do", 4, 4, False, "play", None, None, None),
         ("StatusState", "Converted to European notation"),
     ]

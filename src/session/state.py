@@ -186,12 +186,16 @@ class EditorState:
         read_only: True while a song plays or is paused (the editor is locked
             so the playing-chord offsets stay valid).
         notation: ``american`` or ``european``: how chords are detected.
+        word_wrap: Whether long lines wrap at the editor's edge. Off (the
+            default), the text scrolls sideways, so a chord line stays over
+            its lyric line however narrow the view.
     """
 
     font_family: str
     font_size: int
     read_only: bool
     notation: str
+    word_wrap: bool = False
 
 
 @dataclass(frozen=True)

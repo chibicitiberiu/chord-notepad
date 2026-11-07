@@ -98,11 +98,13 @@ def test_notation_change_reaches_the_editor_state():
 def test_tk_window_applies_the_editor_state():
     from ui.main_window import MainWindow
 
-    window = SimpleNamespace(text_editor=Mock(), apply_font=Mock(), _editor_state=None)
-    state = EditorState("Consolas", 16, True, "american")
+    window = SimpleNamespace(text_editor=Mock(), apply_font=Mock(), _editor_state=None,
+                             _apply_word_wrap=Mock())
+    state = EditorState("Consolas", 16, True, "american", word_wrap=True)
     MainWindow._apply_editor(window, state)
     window.text_editor.config.assert_called_once_with(state="disabled")
     window.apply_font.assert_called_once_with()
+    window._apply_word_wrap.assert_called_once_with(True)
     assert MainWindow._editor_font(window) == ("Consolas", 16)
 
 

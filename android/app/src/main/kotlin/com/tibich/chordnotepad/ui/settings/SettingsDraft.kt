@@ -30,6 +30,8 @@ data class SettingsDraft(
     val bpm: Int,
     val timeSignatureBeats: Int,
     val timeSignatureUnit: Int,
+    /** Default for a draft saved by a build without the setting. */
+    val wordWrap: Boolean = false,
 ) {
     /** What `commit_settings` sends. */
     fun toValues(): SettingsValues = SettingsValues(
@@ -42,6 +44,7 @@ data class SettingsDraft(
         bpm = bpm,
         timeSignatureBeats = timeSignatureBeats,
         timeSignatureUnit = timeSignatureUnit,
+        wordWrap = wordWrap,
     )
 
     /** Switch notation; the key stays (it is American, only its spelling on screen changes). */
@@ -62,6 +65,7 @@ data class SettingsDraft(
                 bpm = v.bpm,
                 timeSignatureBeats = v.timeSignatureBeats,
                 timeSignatureUnit = v.timeSignatureUnit,
+                wordWrap = v.wordWrap,
             )
         }
     }

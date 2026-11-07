@@ -206,6 +206,14 @@ The User Interface
 
       Your choice is saved and remembered for next time.
 
+   **Word Wrap**
+      Off (the default), a line longer than the window runs on past its
+      right edge, with a scrollbar under the text to reach the rest, so each
+      chord line stays over its lyric line. On, long lines wrap at the edge
+      of the window, and a chord line that wraps no longer lines up with the
+      words under it. Saved for next time; the same setting as **Word wrap**
+      in :menuselection:`Tools --> Settings...`.
+
    **Chord Sheet**
       Shows or hides the chord sheet strip docked under the editor, with the
       song's voiced chords laid out left to right as they'll actually play.
@@ -412,6 +420,12 @@ The User Interface
         - Selects or scrolls, as usual.
         - Scrolls. A drag that starts on the playhead marker moves it chord by
           chord.
+      * - Long lines
+        - Run on past the screen's edge (unless Word wrap is on): swipe
+          sideways for the rest. Typing past the edge brings the cursor into
+          view.
+        - Run on past the screen's edge (unless Word wrap is on): swipe
+          sideways for the rest. The playing chord is kept in view.
       * - Pinch
         - Changes the text size.
         - Changes the text size.
@@ -424,6 +438,11 @@ The User Interface
       * - Chord sheet
         - Never shown.
         - Shown (the **▭** button hides it).
+
+   Long lines don't wrap, so each chord line stays over its lyric line however
+   narrow the screen. To have them wrap at the screen's edge instead, turn on
+   **Word wrap** in ☰ → Settings → General (a chord still never splits across
+   two lines, but a wrapped chord line no longer lines up with its lyric).
 
    Songs you open start in the Play tab, and new songs start in Edit.
    Switching to Edit while a song plays stops playback. Both tabs keep the same

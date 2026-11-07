@@ -99,7 +99,7 @@ def _span(start, end):
 
 def _editor(read_only):
     """The compacted EditorState for the defaults (TkFixedFont 11, American)."""
-    return ("EditorState", "TkFixedFont", 11, read_only, "american")
+    return ("EditorState", "TkFixedFont", 11, read_only, "american", False)
 
 
 def _toolbar(action="play", bpm_display=120):

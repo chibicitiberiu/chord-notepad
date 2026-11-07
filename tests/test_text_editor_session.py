@@ -268,6 +268,7 @@ def test_editor_state_locks_the_editor(wired):
 
     wired.window._apply_editor = lambda state: MainWindow._apply_editor(wired.window, state)
     wired.window.apply_font = lambda: None
+    wired.window._apply_word_wrap = lambda on: None
     MainWindow._on_session_output(wired.window, EditorState("TkFixedFont", 11, True, "american"))
     assert str(wired.editor.cget("state")) == "disabled"
     MainWindow._on_session_output(wired.window, EditorState("TkFixedFont", 11, False, "american"))

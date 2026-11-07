@@ -149,7 +149,8 @@ While playing:
      unchanged until you stop.
    * The **current chord** is highlighted in yellow
    * The **status bar** shows: bar number, BPM, time signature, key, and chord name
-   * The editor **auto-scrolls** to keep the playing chord visible
+   * The editor **auto-scrolls** to keep the playing chord visible (sideways
+     too, while word wrap is off)
 
 .. only:: android
 
@@ -160,7 +161,8 @@ While playing:
    * The player's status line shows the bar and the chord, for example
      "Bar 6/24 · Playing Em", or "Bar 6/24 · Paused". Bars are counted from
      the top of the song, even when you started further down.
-   * The text **auto-scrolls** to keep the playing chord visible.
+   * The text **auto-scrolls** to keep the playing chord visible, sideways
+     too on a line wider than the screen.
    * The screen stays on while a song plays, so it doesn't dim halfway through
      a verse. Once you pause or stop, the screen goes back to its usual
      timeout.

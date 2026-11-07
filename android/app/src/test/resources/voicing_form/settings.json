@@ -59,7 +59,8 @@
    "notation": "american",
    "show_quick_start_on_startup": true,
    "time_signature_beats": 4,
-   "time_signature_unit": 4
+   "time_signature_unit": 4,
+   "word_wrap": false
   }
  },
  "type": "SettingsState"

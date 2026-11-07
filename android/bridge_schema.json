@@ -201,6 +201,9 @@
     "set_voicing_values": {
       "values": "json"
     },
+    "set_word_wrap": {
+      "on": "bool"
+    },
     "step_font_size": {
       "delta": "int"
     },
@@ -286,6 +289,7 @@
     "set_voicing",
     "set_voicing_model",
     "set_voicing_values",
+    "set_word_wrap",
     "step_font_size",
     "stop",
     "tap_chord_at",
@@ -429,7 +433,8 @@
         "font_family": "str",
         "font_size": "int",
         "notation": "str",
-        "read_only": "bool"
+        "read_only": "bool",
+        "word_wrap": "bool"
       },
       "kind": "state"
     },
@@ -586,7 +591,8 @@
         "notation": "str",
         "show_quick_start_on_startup": "bool",
         "time_signature_beats": "int",
-        "time_signature_unit": "int"
+        "time_signature_unit": "int",
+        "word_wrap": "bool"
       },
       "kind": "value"
     },

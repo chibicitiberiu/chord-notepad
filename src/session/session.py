@@ -292,6 +292,7 @@ class AppSession:
         self._on_editor_input = self._entry(self._publish_editor)
         self._main.observe("font_family", self._on_editor_input)
         self._main.observe("font_size", self._on_editor_input)
+        self._main.observe("word_wrap", self._on_editor_input)
         self._on_voicing = self._entry(self._publish_voicing_menu)
         self._main.observe("voicing", self._on_voicing)
         # A voicing, tempo, key or time-signature change while a song is
@@ -439,6 +440,7 @@ class AppSession:
             self._main.unobserve(name, self._on_toolbar_input)
         self._main.unobserve("font_family", self._on_editor_input)
         self._main.unobserve("font_size", self._on_editor_input)
+        self._main.unobserve("word_wrap", self._on_editor_input)
         self._main.unobserve("voicing", self._on_voicing)
         for name in _RENDER_INPUTS:
             self._main.unobserve(name, self._on_render_input)
@@ -1322,6 +1324,12 @@ class AppSession:
         self._main.reset_font_size()
 
     @_command
+    def set_word_wrap(self, on: bool) -> None:
+        """Wrap long lines at the editor's edge, or (False) scroll sideways
+        so chord lines stay over their lyrics (``EditorState.word_wrap``)."""
+        self._main.set_word_wrap(bool(on))
+
+    @_command
     def apply_settings(self, changes: "SettingsChanges | SettingsValues") -> None:
         """Bring the running app in line with new settings.
 
@@ -1331,7 +1339,7 @@ class AppSession:
         :meth:`settings_values`); the session checks it and commits it
         through a ``SettingsViewModel``, so the config writes are the same.
 
-        Then a new font is applied, the Voicing menu is rebuilt from the
+        Then a new font and word wrap are applied, the Voicing menu is rebuilt from the
         edited registry, and the voicing in use is re-applied when it was
         renamed or removed (the new value) or may have been edited in place
         (a user voicing). A new default notation also switches the current
@@ -1356,6 +1364,8 @@ class AppSession:
         """Bring the app in line with committed settings (see :meth:`apply_settings`)."""
         if changes.font_changed:
             self._main.reload_font_settings()
+        if changes.wrap_changed:
+            self._main.reload_word_wrap()
         if changes.general_changed:
             self._main.follow_default_notation()
         if changes.voicings_changed:
@@ -2553,6 +2563,7 @@ class AppSession:
             font_size=self._main.font_size,
             read_only=self._playback.status is not PlaybackStatus.IDLE,
             notation=self._main.notation.value,
+            word_wrap=self._main.word_wrap,
         ))
 
     def _voicing_groups(self) -> Tuple[Tuple[MenuItem, ...], ...]:

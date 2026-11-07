@@ -58,14 +58,20 @@ General
    **Font family** and **Font size**
       The editor's font, the same setting as :menuselection:`View --> Font...`.
 
+   **Word wrap**
+      Whether long lines wrap at the edge of the window, the same setting as
+      :menuselection:`View --> Word Wrap`. Off (the default), a long line
+      runs on past the edge, with a scrollbar under the text, so each chord
+      line stays over its lyric line.
+
 .. only:: android
 
    .. platform-figure:: settings-general
       :platforms: android
       :alt: The General page: Font family Monospace, Font size 11 with minus
-            and plus buttons, Chord notation American or European, Default
-            key C, a Show quick start at startup switch, and Number of recent
-            files 10.
+            and plus buttons, a Word wrap switch (off), Chord notation American
+            or European, Default key C, a Show quick start at startup switch,
+            and Number of recent files 10.
 
       The General page.
 
@@ -73,6 +79,15 @@ General
       The editor's font: Monospace, Sans or Serif, from 6 to 72 points.
       Monospace keeps chords lined up over the lyrics. You can also change the
       size by pinching the text.
+
+   **Word wrap**
+      Off (the default), a line wider than the screen runs on past its edge:
+      swipe the text sideways to see the rest, and each chord line stays over
+      its lyric line. While you type, and while a song plays, the text
+      follows the cursor and the playing chord. On, long lines wrap at the
+      screen's edge in both tabs; a chord never splits across two lines, but
+      a wrapped chord line no longer lines up with the lyric under it. Takes
+      effect at once.
 
 .. only:: desktop
 

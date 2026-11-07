@@ -3,6 +3,7 @@ package com.tibich.chordnotepad.ui.editor
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
@@ -61,6 +62,14 @@ class EditorController(
 
     /** The chord that is sounding, or null. */
     var playing: PlayingChord? by mutableStateOf(null)
+        private set
+
+    /**
+     * Counts the documents opened into the editor (edits with
+     * [UndoPolicy.RESET]), so a view can start a new song at its start (the
+     * sideways scroll, with word wrap off).
+     */
+    var documentsOpened: Int by mutableIntStateOf(0)
         private set
 
     /** The current text's identity, for picking the right `HighlightState`. */
@@ -132,7 +141,10 @@ class EditorController(
         }
         // `edit {}` records one undo step of its own (never merged): right for
         // `group` (transpose, capo) and close enough for `plain`.
-        if (edit.undo == UndoPolicy.RESET) state.undoState.clearHistory()
+        if (edit.undo == UndoPolicy.RESET) {
+            state.undoState.clearHistory()
+            documentsOpened++
+        }
         if (unsent) {
             // The user typed after the session last heard from the editor;
             // the editor's text wins, the session re-syncs to it.

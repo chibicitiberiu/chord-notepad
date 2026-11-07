@@ -186,6 +186,16 @@ fun SongScreen(graph: AppGraph, actions: MainActions, snackbars: SnackbarHostSta
     val scope = rememberCoroutineScope()
     BackHandler(enabled = drawer.isOpen) { scope.launch { drawer.close() } }
     val textScroll: ScrollState = rememberScrollState()
+    // Sideways, while word wrap is off (both modes share it, as they share textScroll).
+    // A song that's opened starts at the lines' start (not on a rotation).
+    val textHScroll: ScrollState = rememberScrollState()
+    var openedSeen by rememberSaveable { mutableIntStateOf(graph.editor.documentsOpened) }
+    LaunchedEffect(graph.editor.documentsOpened) {
+        if (graph.editor.documentsOpened != openedSeen) {
+            openedSeen = graph.editor.documentsOpened
+            textHScroll.scrollTo(0)
+        }
+    }
     val ribbonScroll = rememberScrollState()
     val tools = remember(graph) { ToolActions(graph.commands, ScreenCommands(graph.pyHost), graph.editor) }
     val editor = graph.editor
@@ -347,6 +357,7 @@ fun SongScreen(graph: AppGraph, actions: MainActions, snackbars: SnackbarHostSta
                             playhead = playback?.playheadOffset?.let { OffsetMapper.of(editor.state.text).toUtf16(it) },
                             playing = playbackStatus == PlaybackStatus.PLAYING,
                             scroll = textScroll,
+                            hScroll = textHScroll,
                             onStepFontSize = actions::stepFontSize,
                             onPlayTap = { tap ->
                                 when (tap) {
