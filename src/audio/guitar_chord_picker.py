@@ -24,8 +24,9 @@ treats voicing as a pure optimization problem:
    string count.
 4. **Score** every survivor with a single weighted heuristic that rewards full,
    low, open voicings with the correct bass and penalizes stretches, barres,
-   unstrummable interior mutes, and (mid-progression) movement of the fretting
-   hand away from the previous shape. The reward/penalty values are the spec's
+   unstrummable interior mutes, cramped grips, open strings sandwiched inside
+   a shape up the neck, and (mid-progression) movement of the fretting hand
+   away from the previous shape (:meth:`GuitarChordPicker._score_quality`). The reward/penalty values are the spec's
    weights (:data:`DEFAULT_WEIGHTS`), each a signed contribution the scorer adds
    directly: rewards are positive, penalties negative, higher score wins.
 5. Return the highest-scoring fingering.
@@ -561,15 +562,51 @@ class GuitarChordPicker(INotePicker):
         return (self._score_quality(fingering, chord_notes, bass_note)
                 + self._score_transition(self._state.previous_fingering, fingering))
 
+    @staticmethod
+    def _barre_strings(fingering: Union[List[int], Tuple[int, ...]],
+                       fretted: List[int]) -> Optional[int]:
+        """How many notes one flat finger at the lowest fret can hold, or None
+        when no barre fits there (an open string inside its range).
+
+        The barre covers the strings from the first to the last one fretted at
+        the lowest fret; the strings between are fretted higher (by other
+        fingers) or muted.
+        """
+        low = min(fingering[s] for s in fretted)
+        at_low = [s for s in fretted if fingering[s] == low]
+        if any(fingering[s] == 0 for s in range(at_low[0], at_low[-1] + 1)):
+            return None
+        return len(at_low)
+
     def _score_quality(self, fingering: List[int], chord_notes: List[str],
                        bass_note: Optional[str]) -> float:
         """Intrinsic quality of a fingering in isolation; higher is better.
 
         Rewards full, low, open voicings with the correct bass note and
-        penalizes wide stretches, barres, and interior mutes. Carries no
-        transition (previous-shape) term -- that lives in
-        :meth:`_score_transition` so the whole-song optimizer can weigh the two
-        independently.
+        penalizes wide stretches, barres, interior mutes and grips no hand
+        holds comfortably. Carries no transition (previous-shape) term -- that
+        lives in :meth:`_score_transition` so the whole-song optimizer can
+        weigh the two independently.
+
+        What the rules mean on the neck (all from the spec's limits, so the
+        same on any tuning):
+
+        * **Fingers, not notes.** ``fretted_finger_penalty`` is charged per
+          finger: a barre is one finger however many strings it holds, so a
+          barre chord (x24442) isn't charged like five separate fingers.
+        * **Open strings in open position.** ``open_string_bonus`` is earned
+          only while the shape stays within the first ``fingers - 1`` frets,
+          where a hand at the nut lets strings ring (C x32010, B7 x21202). Up
+          the neck an open string is just a sounding string, and one ringing
+          between two fretted neighbours costs ``interior_mute_penalty``, as
+          the fingers on both sides must arch clear of it (Eb x65046). Open
+          strings ringing beside the shape stay free (DADGAD's 400200).
+        * **Cramped grips.** A shape that needs every finger, two or more of
+          them side by side on its lowest fret where no barre fits, costs
+          ``awkward_stretch_penalty`` (F 10321x, Bb x10331).
+        * **Interior mutes.** A dead string inside a strummed shape costs
+          ``interior_mute_penalty``; right above the bass the bass finger
+          damps it (3x0033), so anywhere else it costs double (B x21x02).
         """
 
         tuning = self.tuning_midi
@@ -582,7 +619,13 @@ class GuitarChordPicker(INotePicker):
         fretted = [s for s in sounding if fingering[s] > 0]
 
         score = self._w_sounding * len(sounding)
-        score += self._w_open * sum(1 for s in sounding if fingering[s] == 0)
+        opens = [s for s in sounding if fingering[s] == 0]
+        if not fretted or max(fingering[s] for s in fretted) <= self._fingers - 1:
+            score += self._w_open * len(opens)
+        else:
+            score += self._w_interior_mute * sum(
+                1 for s in opens if 0 < s < self._num_strings - 1
+                and fingering[s - 1] > 0 and fingering[s + 1] > 0)
 
         # Bass term: reward/penalize whether the lowest sounding note matches the
         # target bass. A true slash bass matters more than a plain root bass.
@@ -602,9 +645,16 @@ class GuitarChordPicker(INotePicker):
             avg_fret = sum(fret_vals) / len(fret_vals)
             score += self._w_span * span
             score += self._w_position * avg_fret
-            score += self._w_fretted * len(fretted)
-            if len(fretted) > self._fingers:
+            barre = self._barre_strings(fingering, fretted)
+            fingers = len(fretted)
+            if fingers > self._fingers:
+                # Enumeration only keeps such shapes when a barre fits.
+                fingers -= (barre or 1) - 1
                 score += self._w_barre
+            elif fingers == self._fingers and barre is None and sum(
+                    1 for v in fret_vals if v == min(fret_vals)) >= 2:
+                score += self._w_awkward
+            score += self._w_fretted * fingers
             # Whole-shape stretch cost: free up to a one-fret span, then per fret.
             score += self._w_stretch * max(0, span - 1)
             # Middle-finger cost: a span-3 shape that is not a clean lengthwise
@@ -617,9 +667,11 @@ class GuitarChordPicker(INotePicker):
         # Interior mutes: muted strings between the first and last sounding
         # string cannot be avoided while strumming. String-order based, which is
         # correct: a strummer sweeps strings in order regardless of their pitch.
+        # The one right above the bass is damped by the bass finger.
         first, last = sounding[0], sounding[-1]
-        interior_mutes = sum(1 for s in range(first + 1, last) if fingering[s] == -1)
-        score += self._w_interior_mute * interior_mutes
+        for s in range(first + 1, last):
+            if fingering[s] == -1:
+                score += self._w_interior_mute * (1 if s == first + 1 else 2)
 
         return score
 
