@@ -125,7 +125,8 @@ def songs(draw, notation):
 
 
 def _without_spacing(text):
-    return re.sub(r'[ \-]', '', text)
+    """``text`` without spaces and the fill a longer chord puts into a lyric."""
+    return re.sub(r'[ \u00b7]', '', text)
 
 
 @settings(max_examples=400)
@@ -147,7 +148,7 @@ def test_a_random_song_transposes_every_chord_and_nothing_else(data, notation, s
     assert not bad_spellings(text, notation), f"{song!r} {shift:+d} -> {text!r}"
 
     # Roman numerals, NC, comments, lyrics and other directives are as they
-    # were (spacing aside: a longer chord may push a lyric along with "-").
+    # were (spacing aside: a longer chord may push a lyric along with "·").
     for old_line, new_line in zip(song.split('\n'), text.split('\n')):
         old_chords = [c.chord for c in absolute_chords(old_line, notation)]
         if old_chords or '{key' in old_line:

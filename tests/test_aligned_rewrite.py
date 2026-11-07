@@ -134,6 +134,14 @@ class TestConvertRoundTrip:
         assert_aligned(text.split('\n', 1)[1], european.split('\n', 1)[1])
         assert _PARSER.convert_to_american(european) == text
 
+    def test_a_chord_just_past_the_lyric_end_stays_past_it(self):
+        # Fuzz find: closing up after a shorter chord would have put Do*4's C
+        # over the lyric, and the way back would then have stretched it.
+        text = "Do\u266d(no3) DoM7*2    NC   sol\u266dmaj7 Do*4\nAmazing grace how sweet the sound\n"
+        american = _PARSER.convert_to_american(text)
+        assert american.split('\n')[1] == "Amazing grace how sweet the sound"
+        assert _PARSER.convert_to_european(american) == text
+
     def test_a_directive_line_keeps_its_gaps(self):
         text = "{key: Bb }  {bpm: 90}\nBb\n"
         assert _PARSER.convert_to_european(text) == "{key: Sib }  {bpm: 90}\nSib\n"

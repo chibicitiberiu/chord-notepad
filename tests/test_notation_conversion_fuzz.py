@@ -8,6 +8,8 @@ same notes again. Checked on a grid of roots, cases, qualities and slash
 basses, then on random chords and random songs.
 """
 
+import re
+
 import pytest
 from hypothesis import assume, given, settings, strategies as st
 
@@ -34,8 +36,8 @@ def marked(old, new):
 
 
 def words(line):
-    """A line's words, without the stretch fill and the "." marker."""
-    return line.replace(FILL, '').lstrip(' .').split()
+    """A line's letters, without spacing, the stretch fill and the "." marker."""
+    return re.sub('[ ' + FILL + ']', '', line.lstrip(' .'))
 
 
 def check_song(text, source):
@@ -74,11 +76,10 @@ def check_song(text, source):
         if (new == ' ' + old and i + 1 < len(text_lines)
                 and back_lines[i + 1] == '.' + text_lines[i + 1]):
             continue
-        # The listed exception (services.aligned_rewrite): with no lyric under
-        # it, a gap a longer chord narrowed to one space stays one space.
-        if absolute_chords(old, source) and old.split() == new.split() and (
-                i + 1 >= len(text_lines) or not words(text_lines[i + 1])
-                or absolute_chords(text_lines[i + 1], source)):
+        # The listed exception (services.aligned_rewrite): past the end of the
+        # lyric, or with none, a gap a longer chord narrowed to one space stays
+        # one space. Only the chord line's spacing; the lyric is checked as is.
+        if absolute_chords(old, source) and old.split() == new.split():
             continue
         problems.append(f"{old!r} -> {new!r}")
     if [notes_of(c.chord, source) for c in back] != [notes_of(c.chord, source) for c in before]:

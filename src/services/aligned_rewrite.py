@@ -23,7 +23,8 @@ and directives) are anchors; the text between two anchors is padding.
   growth leaves. Then the lyric gives back what a growth would have put in:
   the dot and spaces just before the next syllable, or spaces from the last
   run of two or more under the gap. What it can't give back is padded. With
-  no lyric under the next token the tokens after move back left.
+  no lyric under the next token the tokens after move back left, as long as
+  that doesn't bring them over the lyric.
 
 A line that isn't a chord line (``{key: Bb}  {bpm: 90}``) only has its tokens
 swapped; its gaps stay as they are.
@@ -219,10 +220,14 @@ def rewrite_line(raw: str, anchors: List[Anchor], lyric: Optional[List[str]]) ->
                 taken = take_from_lyric(lyric, lo, hi, shrink)
                 shift -= taken
                 new_seg_len = 1 + shrink - taken
-            else:
+            elif lyric is None or hi - shrink >= len(lyric):
                 # Nothing below the next token: close up, as a growth into a
                 # one-space gap moved the tokens after it right (C G Am F).
                 new_seg_len = 1
+            else:
+                # Closing up would put the next token over the lyric, where
+                # the way back would stretch it: keep the columns instead.
+                new_seg_len = 1 + shrink
         else:
             new_seg_len = seg_len - delta
         out.append(resize_spaces(seg, new_seg_len))
