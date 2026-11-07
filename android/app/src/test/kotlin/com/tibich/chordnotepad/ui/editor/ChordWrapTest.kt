@@ -39,4 +39,12 @@ class ChordWrapTest {
         assertEquals(text, none.display(text))
         assertEquals(3, none.toDisplay(3))
     }
+
+    @Test
+    fun `a copy and a paste leave no joiners in the song`() {
+        // The field copies the text as drawn; the joiners must not travel.
+        assertEquals("G/B C", withoutJoiners("G/${WORD_JOINER}B C"))
+        assertEquals("G/B", normalizeSongText("G/${WORD_JOINER}B"))
+        assertTrue(needsNormalizing("G/${WORD_JOINER}B"))
+    }
 }

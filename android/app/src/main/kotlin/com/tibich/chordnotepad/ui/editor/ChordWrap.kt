@@ -1,5 +1,9 @@
 package com.tibich.chordnotepad.ui.editor
 
+import android.content.ClipData
+import androidx.compose.ui.platform.ClipEntry
+import androidx.compose.ui.platform.Clipboard
+import androidx.compose.ui.platform.NativeClipboard
 import com.tibich.chordnotepad.bridge.SpanKind
 
 /** U+2060 WORD JOINER: no line break on either side, and it draws nothing. */
@@ -63,5 +67,33 @@ class JoinedText(private val points: IntArray) {
             if (points[mid] <= offset) lo = mid + 1 else hi = mid
         }
         return offset + lo
+    }
+}
+
+/** [text] without the [WORD_JOINER]s the editor draws (what a copy from the field must hold). */
+fun withoutJoiners(text: CharSequence): String = text.toString().replace(WORD_JOINER.toString(), "")
+
+/**
+ * The clipboard as the editor sees it: a copy or cut takes the text as drawn,
+ * joiners included, so they're taken out before it reaches the system
+ * clipboard (they would follow into other apps, and back into the song).
+ */
+class JoinerFreeClipboard(private val inner: Clipboard) : Clipboard {
+    override suspend fun getClipEntry(): ClipEntry? = inner.getClipEntry()
+
+    override suspend fun setClipEntry(clipEntry: ClipEntry?) {
+        inner.setClipEntry(clipEntry?.let(::cleaned))
+    }
+
+    override val nativeClipboard: NativeClipboard get() = inner.nativeClipboard
+
+    private fun cleaned(entry: ClipEntry): ClipEntry {
+        val data = entry.clipData
+        if (data.itemCount == 0) return entry
+        val texts = (0 until data.itemCount).map { data.getItemAt(it).text }
+        if (texts.none { it != null && WORD_JOINER in it }) return entry
+        val first = ClipData.newPlainText(data.description.label, withoutJoiners(texts[0] ?: ""))
+        for (i in 1 until texts.size) first.addItem(ClipData.Item(withoutJoiners(texts[i] ?: "")))
+        return ClipEntry(first)
     }
 }

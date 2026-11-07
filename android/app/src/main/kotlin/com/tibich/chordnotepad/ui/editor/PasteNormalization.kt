@@ -7,7 +7,8 @@ import androidx.compose.foundation.text.input.TextFieldBuffer
 /**
  * The desktop's paste normalization (`utils/text_normalization.py`,
  * `normalize_song_text`): CRLF and lone CR become LF, non-breaking spaces
- * become spaces, zero-width spaces and BOMs are dropped. Keep the two in
+ * become spaces, zero-width spaces, word joiners and BOMs are dropped (a
+ * word joiner is what the editor draws inside chords, [WORD_JOINER]). Keep the two in
  * step; `PasteNormalizationTest` lists the same cases as
  * `tests/test_paste_normalization.py`.
  */
@@ -21,7 +22,7 @@ fun normalizeSongText(text: CharSequence): String {
                 if (i + 1 < text.length && text[i + 1] == '\n') i++
             }
             '\u00a0' -> sb.append(' ')
-            '\u200b', '\ufeff' -> Unit
+            '\u200b', '\ufeff', WORD_JOINER -> Unit
             else -> sb.append(c)
         }
         i++
@@ -31,7 +32,7 @@ fun normalizeSongText(text: CharSequence): String {
 
 /** Whether [normalizeSongText] would change [text]. */
 fun needsNormalizing(text: CharSequence): Boolean =
-    text.any { it == '\r' || it == '\u00a0' || it == '\u200b' || it == '\ufeff' }
+    text.any { it == '\r' || it == '\u00a0' || it == '\u200b' || it == '\ufeff' || it == WORD_JOINER }
 
 /**
  * Normalizes what the user adds to the editor, as the desktop does on paste.

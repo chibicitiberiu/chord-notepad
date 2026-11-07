@@ -1,9 +1,9 @@
 {
  "background": "#fbfbf8",
- "byte_length": 33745,
+ "byte_length": 33565,
  "content": {
-  "coord_sum": 6761232.2839131355,
-  "count": 949,
+  "coord_sum": 6748423.824461222,
+  "count": 943,
   "first": {
    "fill": "#eef0ec",
    "h": 2.9189188480377197,
@@ -19,7 +19,7 @@
   },
   "histogram": {
    "line": 127,
-   "rect": 689,
+   "rect": 683,
    "text": 133
   },
   "last": {
@@ -36,7 +36,7 @@
    "x": 11906.0,
    "y": 45.35135269165039
   },
-  "tag_count": 1623
+  "tag_count": 1611
  },
  "content_height": 130.0,
  "content_width": 12012.0,

@@ -29,6 +29,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalClipboard
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.input.key.onInterceptKeyBeforeSoftKeyboard
 import androidx.compose.ui.input.key.KeyEvent
@@ -165,13 +167,17 @@ fun ChordEditor(
         }
     }
 
+    // Copies from the field leave the chords' word joiners behind (L7).
+    val systemClipboard = LocalClipboard.current
+    val joinerFree = remember(systemClipboard) { JoinerFreeClipboard(systemClipboard) }
+
     Box(
         modifier
             .background(colors.surface)
             .pinchToZoomFont(currentPoints = { currentPoints }, onStep = onStepFontSize),
     ) {
         when (mode) {
-            AppMode.EDIT -> BasicTextField(
+            AppMode.EDIT -> CompositionLocalProvider(LocalClipboard provides joinerFree) { BasicTextField(
                 state = controller.state,
                 modifier = Modifier.fillMaxSize()
                     .let { m -> focusRequester?.let { m.focusRequester(it) } ?: m }
@@ -203,7 +209,7 @@ fun ChordEditor(
                         innerTextField()
                     }
                 },
-            )
+            ) }
             AppMode.PLAY -> PlayText(
                 controller = controller,
                 textStyle = textStyle,
