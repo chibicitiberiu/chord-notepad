@@ -321,7 +321,30 @@ def test_single_whole_song_capo_draws_one_marker_at_first_chord():
     song, layout, ops = _paint_guitar("{capo: 2}\nC G Am\n")
     markers = capo_markers(ops)
     assert [m.s for m in markers] == ["Capo 2"]
-    assert markers[0].x == pytest.approx(layout.slots[0].x)
+    # B9: its own slot ahead of the first card, not over the chord's name.
+    _assert_marker_before(markers[0], layout.slots[0], None)
+
+
+def _assert_marker_before(marker, slot, previous):
+    from chord_sheet.tab_strip import CAPO_PAD, capo_marker_width
+    width = capo_marker_width(int(marker.s.split()[1]), marker.size)
+    assert marker.anchor == "w"
+    assert marker.x + width - CAPO_PAD / 2.0 == pytest.approx(slot.x)
+    if previous is not None:
+        assert marker.x >= previous.x + previous.width
+
+
+@pytest.mark.parametrize("height", [90.0, 134.0, 160.0, 230.0])
+def test_capo_marker_never_overlaps_a_chord_name(height):
+    song = _render_guitar("{capo: 3}\nEb Bb\n{capo: 1}\nCm\n")
+    renderer = FretCardRenderer()
+    ctx = SheetContext(song=song)
+    layout = renderer.layout(ctx, height=height)
+    ops = DrawOps()
+    renderer.paint(ops, ctx, layout)
+    for marker in capo_markers(ops):
+        slot = next(sl for sl in layout.slots if f"slot:{sl.chord_index}" in marker.tags)
+        assert marker.x < slot.x
 
 
 def test_no_capo_directive_draws_no_marker():
@@ -341,8 +364,9 @@ def test_mid_song_capo_change_draws_two_markers_at_the_span_starts():
 
     capos = [c.capo for c in song.chords]
     change_index = capos.index(4)
-    assert markers[0].x == pytest.approx(layout.slots[0].x)
-    assert markers[1].x == pytest.approx(layout.slots[change_index].x)
+    _assert_marker_before(markers[0], layout.slots[0], None)
+    _assert_marker_before(markers[1], layout.slots[change_index],
+                          layout.slots[change_index - 1])
 
 
 def test_label_is_fret_cards():

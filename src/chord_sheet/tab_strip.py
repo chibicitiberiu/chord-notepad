@@ -153,6 +153,31 @@ def _capo_span_starts(song: RenderedSong) -> List[Tuple[int, int]]:
     return starts
 
 
+def _block_scale(height: float, string_count: int, zoom: float = 1.0) -> float:
+    """How much the tab block is drawn at: ``zoom``, times the shrink that
+    fits it into ``height`` when the fixed spacing doesn't fit.
+
+    Text and the boxes behind the fret numbers use it too, so a short strip
+    (or a big zoom in a short strip) shrinks digits with the string gap
+    instead of stacking them on top of each other.
+    """
+    spread = (string_count - 1) * STRING_GAP if string_count > 1 else 0.0
+    block_height = (SYMBOL_MARGIN + spread + BOTTOM_MARGIN) * zoom
+    if block_height > height and block_height > 0.0:
+        return zoom * height / block_height
+    return zoom
+
+
+#: Room for a "Capo N" marker in the lane, ahead of the chord it starts:
+#: its own slot, so it never sits on the chord's name.
+CAPO_PAD = 6.0
+
+
+def capo_marker_width(capo: int, size: float) -> float:
+    """Width of the ``Capo N`` marker slot at text ``size`` (pt), px."""
+    return len(f"Capo {capo}") * size * 0.62 * 4.0 / 3.0 + CAPO_PAD
+
+
 def _string_line_ys(
     height: float, string_count: int, zoom: float = 1.0
 ) -> Tuple[float, ...]:
@@ -214,13 +239,23 @@ class TabStripRenderer(StripRenderer):
         """
         slots: List[SlotBox] = []
         x = STRIP_MARGIN
+        capos = dict(_capo_span_starts(ctx.song))
+        label_size = self._label_size(ctx, height)
         for index, chord in enumerate(ctx.song.chords):
+            if index in capos:
+                x += capo_marker_width(capos[index], label_size)
             width = _slot_width(chord.duration_beats, ctx.zoom)
             slots.append(SlotBox(chord_index=index, x=x, width=width))
             x += width
 
         content_width = (x + STRIP_MARGIN) if slots else (2 * STRIP_MARGIN)
         return StripLayout(width=content_width, height=height, slots=tuple(slots))
+
+    @staticmethod
+    def _label_size(ctx: SheetContext, height: float) -> int:
+        """The fret-number (and capo marker) text size at ``height``."""
+        scale = _block_scale(height, _song_string_count(ctx.song), ctx.zoom)
+        return max(_MIN_LABEL_SIZE, int(round(_LABEL_SIZE * scale)))
 
     def paint(self, ops: DrawOps, ctx: SheetContext, layout: StripLayout) -> None:
         """Draw the string lines, bar lines, and per-chord fret numbers.
@@ -240,10 +275,13 @@ class TabStripRenderer(StripRenderer):
                 [(0.0, y), (layout.width, y)], fill=_GRID, width=1.0, tags=("strings",)
             )
 
+        # Everything in the block is drawn at one scale: the zoom, shrunk to
+        # fit a short strip (so digits keep clear of the next string's).
+        scale = _block_scale(layout.height, string_count, zoom)
         top_y = line_ys[0]
         bottom_y = line_ys[-1]
-        symbol_y = top_y - (SYMBOL_MARGIN - _SYMBOL_TOP_PAD) * zoom
-        bar_line_pad = BAR_LINE_PAD * zoom
+        symbol_y = top_y - (SYMBOL_MARGIN - _SYMBOL_TOP_PAD) * scale
+        bar_line_pad = BAR_LINE_PAD * scale
         bar_top = top_y - bar_line_pad
         bar_bottom = bottom_y + bar_line_pad
 
@@ -255,10 +293,10 @@ class TabStripRenderer(StripRenderer):
                 [(x, bar_top), (x, bar_bottom)], fill=_GRID, width=1.5, tags=("barlines",)
             )
 
-        symbol_size = max(_MIN_SYMBOL_SIZE, int(round(_SYMBOL_SIZE * zoom)))
-        label_size = max(_MIN_LABEL_SIZE, int(round(_LABEL_SIZE * zoom)))
-        label_box_w = LABEL_BOX_W * zoom
-        label_box_h = LABEL_BOX_H * zoom
+        symbol_size = max(_MIN_SYMBOL_SIZE, int(round(_SYMBOL_SIZE * scale)))
+        label_size = self._label_size(ctx, layout.height)
+        label_box_w = LABEL_BOX_W * scale
+        label_box_h = LABEL_BOX_H * scale
 
         for slot in layout.slots:
             chord = chords[slot.chord_index]
@@ -305,15 +343,16 @@ class TabStripRenderer(StripRenderer):
                     tags=(tag,),
                 )
 
-        # "Capo N" markers, drawn beside the chord symbol of the first chord in
-        # each nonzero-capo span (the tab fret numbers are already capo-relative).
+        # "Capo N" markers, in the slot layout() left ahead of the first chord
+        # of each nonzero-capo span (the tab fret numbers are already
+        # capo-relative), level with the chord names.
         slot_by_index = {slot.chord_index: slot for slot in layout.slots}
         for chord_index, capo in _capo_span_starts(ctx.song):
             slot = slot_by_index.get(chord_index)
             if slot is None:
                 continue
             ops.text(
-                slot.x,
+                slot.x - capo_marker_width(capo, label_size) + CAPO_PAD / 2.0,
                 symbol_y,
                 f"Capo {capo}",
                 anchor="w",

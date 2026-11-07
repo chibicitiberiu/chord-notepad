@@ -327,7 +327,17 @@ def test_single_whole_song_capo_draws_one_marker_at_first_chord():
     song, layout, ops = _paint_guitar("{capo: 2}\nC G Am\n")
     markers = capo_markers(ops)
     assert [m.s for m in markers] == ["Capo 2"]
-    assert markers[0].x == pytest.approx(layout.slots[0].x)
+    # B9: its own slot, ahead of the first chord, not over its name.
+    _assert_marker_before(markers[0], layout.slots[0], None)
+
+
+def _assert_marker_before(marker, slot, previous):
+    from chord_sheet.tab_strip import CAPO_PAD, capo_marker_width
+    width = capo_marker_width(int(marker.s.split()[1]), marker.size)
+    assert marker.anchor == "w"
+    assert marker.x + width - CAPO_PAD / 2.0 == pytest.approx(slot.x)
+    if previous is not None:
+        assert marker.x >= previous.x + previous.width
 
 
 def test_no_capo_directive_draws_no_marker():
@@ -346,11 +356,30 @@ def test_mid_song_capo_change_draws_two_markers_at_the_span_starts():
     assert [m.s for m in markers] == ["Capo 2", "Capo 4"]
 
     capos = [c.capo for c in song.chords]
-    first_two_x = layout.slots[0].x
     change_index = capos.index(4)
-    change_x = layout.slots[change_index].x
-    assert markers[0].x == pytest.approx(first_two_x)
-    assert markers[1].x == pytest.approx(change_x)
+    _assert_marker_before(markers[0], layout.slots[0], None)
+    _assert_marker_before(markers[1], layout.slots[change_index],
+                          layout.slots[change_index - 1])
+
+
+@pytest.mark.parametrize("height", [90.0, 110.0, 134.0, 160.0])
+@pytest.mark.parametrize("zoom", [1.0, 2.0, 3.0])
+def test_fret_numbers_keep_clear_of_each_other_at_any_height_and_zoom(height, zoom):
+    # B9: a short strip, or zoom in a short strip, squeezed the strings but
+    # not the digits, which then overlapped (and were cut in half zoomed).
+    from chord_sheet.ops import RectOp
+    song = _render_guitar("C G Am F\n")
+    renderer = TabStripRenderer()
+    ctx = SheetContext(song=song, zoom=zoom)
+    layout = renderer.layout(ctx, height=height)
+    ops = DrawOps()
+    renderer.paint(ops, ctx, layout)
+    boxes = sorted((o for o in ops.ops if isinstance(o, RectOp) and "slot:0" in o.tags),
+                   key=lambda o: o.y)
+    assert len(boxes) == 6
+    for upper, lower in zip(boxes, boxes[1:]):
+        assert upper.y + upper.h <= lower.y + 1e-6
+    assert boxes[0].y >= 0.0 and boxes[-1].y + boxes[-1].h <= height + 1e-6
 
 
 def test_bar_lines_do_not_exceed_the_string_block_vertically():

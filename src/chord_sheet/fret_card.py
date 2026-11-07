@@ -38,6 +38,7 @@ from typing import List, Optional, Tuple
 
 from models.rendered_song import RenderedChord, RenderedSong
 from chord_sheet.ops import DrawOps
+from chord_sheet.tab_strip import CAPO_PAD, capo_marker_width
 from chord_sheet.renderer_interface import (
     SheetContext,
     WHOLE_REST_LINE_W,
@@ -295,7 +296,12 @@ class FretCardRenderer(StripRenderer):
 
         slots: List[SlotBox] = []
         x = STRIP_MARGIN
+        capos = dict(_capo_span_starts(ctx.song.chords))
         for index, chord in enumerate(ctx.song.chords):
+            if index in capos:
+                # The "Capo N" marker gets its own slot ahead of the card, so
+                # it never sits on the chord's name.
+                x += capo_marker_width(capos[index], geo.label_size)
             width = geo.card_width if _has_shape(chord) else REST_WIDTH
             slots.append(SlotBox(chord_index=index, x=x, width=width))
             x += width + CARD_GAP
@@ -324,15 +330,16 @@ class FretCardRenderer(StripRenderer):
                 self._paint_card(ops, chord, slot, geo, top_pad)
             # else: a chord with no fingering keeps a slim empty card
 
-        # "Capo N" markers, drawn beside the chord symbol of the first chord in
-        # each nonzero-capo span (fret numbers are already capo-relative).
+        # "Capo N" markers, in the slot layout() left ahead of the first chord
+        # of each nonzero-capo span (fret numbers are already capo-relative),
+        # level with the chord names.
         slot_by_index = {slot.chord_index: slot for slot in layout.slots}
         for chord_index, capo in _capo_span_starts(chords):
             slot = slot_by_index.get(chord_index)
             if slot is None:
                 continue
             ops.text(
-                slot.x,
+                slot.x - capo_marker_width(capo, geo.label_size) + CAPO_PAD / 2.0,
                 top_pad + geo.symbol_h / 2.0,
                 f"Capo {capo}",
                 anchor="w",
