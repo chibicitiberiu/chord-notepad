@@ -287,13 +287,13 @@ class TestAlignment:
         assert len(lb) == len("aa bb") + 1
         assert "  " in lb  # widened gap
 
-    def test_grow_stretches_lyric_with_hyphen_midword(self):
-        # No word gap between the syllables -> a hyphen is inserted mid-word.
+    def test_grow_stretches_lyric_with_a_fill_midword(self):
+        # No word gap between the syllables -> a middle dot goes in mid-word
+        # (not a "-": the song's own hyphens must survive the way back).
         cb, lb = self._assert_alignment_preserved("Fa La", "singer", 2, "european")
         assert cb.startswith("Sol")
-        assert "-" in lb
         assert len(lb) == len("singer") + 1
-        assert "sin-ger" in lb
+        assert lb == "sin\u00b7ger"
 
     def test_no_paired_lyric_line_accepts_drift(self):
         # Chord line followed by a blank line -> no lyric to misalign; growth

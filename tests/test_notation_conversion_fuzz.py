@@ -12,6 +12,7 @@ import pytest
 from hypothesis import assume, given, settings, strategies as st
 
 from chord.detector import ChordDetector
+from services.aligned_rewrite import FILL
 from services.song_parser_service import SongParserService
 from tests.test_transpose_exhaustive import BASSES, ROOTS, notes_of, spell
 from tests.test_transpose_fuzz import _QUALITIES, absolute_chords, chords, songs
@@ -30,6 +31,11 @@ def marked(old, new):
     """Whether ``new`` is the lyric ``old`` with the "." text-line marker."""
     indent = len(old) - len(old.lstrip(' '))
     return new in ('.' + old, old[:indent - 1] + '.' + old[indent:] if indent else None)
+
+
+def words(line):
+    """A line's words, without the stretch fill and the "." marker."""
+    return line.replace(FILL, '').lstrip(' .').split()
 
 
 def check_song(text, source):
@@ -60,9 +66,21 @@ def check_song(text, source):
     # Converting back gives the text as written, but for a lyric that would
     # read as chords in the other notation ("la la la"), which keeps the "."
     # marker the conversion gave it.
-    for old, new in zip(text.split('\n'), back_lines):
-        if new != old and not marked(old, new):
-            problems.append(f"{old!r} -> {new!r}")
+    text_lines = text.split('\n')
+    for i, (old, new) in enumerate(zip(text_lines, back_lines)):
+        if new == old or marked(old, new):
+            continue
+        # A chord line moves right with a lyric marked without an indent.
+        if (new == ' ' + old and i + 1 < len(text_lines)
+                and back_lines[i + 1] == '.' + text_lines[i + 1]):
+            continue
+        # The listed exception (services.aligned_rewrite): with no lyric under
+        # it, a gap a longer chord narrowed to one space stays one space.
+        if absolute_chords(old, source) and old.split() == new.split() and (
+                i + 1 >= len(text_lines) or not words(text_lines[i + 1])
+                or absolute_chords(text_lines[i + 1], source)):
+            continue
+        problems.append(f"{old!r} -> {new!r}")
     if [notes_of(c.chord, source) for c in back] != [notes_of(c.chord, source) for c in before]:
         problems.append(f"{text!r} -> {converted!r} doesn't convert back to the same notes")
     return problems
@@ -140,18 +158,22 @@ def test_a_random_song_converts_every_chord_and_nothing_else(data, source):
     assume(converted != song)       # else nothing changes (see check_song)
     for old, new in zip(song.split('\n'), converted.split('\n')):
         if not absolute_chords(old, source) and '{key' not in old:
-            assert new == old or marked(old, new)
+            # A lyric keeps its words: only the spacing and the fill that
+            # keep the chords over it may change (services.aligned_rewrite).
+            assert words(new) == words(old) or marked(old, new)
             # A lyric stays a lyric in the other notation.
             assert not absolute_chords(new, target), new
 
 
-@pytest.mark.parametrize("source, text, expected", [
-    ('american', "C G\nla la la\n", "Do Sol\n.la la la\n"),
-    ('american', "C   G\n  la la la\n", "Do   Sol\n .la la la\n"),
-    ('european', "Do Sol\na b c\n", "C G\n.a b c\n"),
-    ('american', "C G\nWords here\n.la la\n", "Do Sol\nWords here\n.la la\n"),
+@pytest.mark.parametrize("source, text, expected, back", [
+    # Without a leading space for the "." the chord line moves right with
+    # the lyric, so the chords stay over their syllables both ways.
+    ('american', "C G\nla la la\n", " Do Sol\n.la  la la\n", " C G\n.la la la\n"),
+    ('american', "C   G\n  la la la\n", "Do  Sol\n .la la la\n", "C   G\n .la la la\n"),
+    ('european', "Do Sol\na b c\n", " C  G\n.a b c\n", " Do Sol\n.a b c\n"),
+    ('american', "C G\nWords here\n.la la\n", "Do Sol\nWo\u00b7rds here\n.la la\n",
+     "C G\nWords here\n.la la\n"),
 ])
-def test_a_lyric_that_would_read_as_chords_gets_the_text_marker(source, text, expected):
+def test_a_lyric_that_would_read_as_chords_gets_the_text_marker(source, text, expected, back):
     assert convert(text, source) == expected
-    assert convert(expected, _OTHER[source]) == text.replace('la la la', '.la la la').replace(
-        '  .la', ' .la').replace('\na b c', '\n.a b c')
+    assert convert(expected, _OTHER[source]) == back

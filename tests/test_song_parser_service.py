@@ -695,7 +695,7 @@ class TestDirectiveScanning:
         from services.transpose_service import transpose_text
         # The chords grow and can't take the space between them, so a lyric
         # line below would be stretched; a line of empty braces is left alone.
-        assert transpose_text("C D\nabcdef", 1, "american") == "Db Eb\nab-cdef"
+        assert transpose_text("C D\nabcdef", 1, "american") == "Db Eb\nab\u00b7cdef"
         assert transpose_text("C D\n{}  {}", 1, "american") == "Db Eb\n{}  {}"
 
 

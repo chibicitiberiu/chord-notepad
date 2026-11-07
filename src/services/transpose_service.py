@@ -76,21 +76,12 @@ key is not.
 
 Chord-line / lyric-line alignment
 ---------------------------------
-The invariant is *chord-above-syllable*: after transposing, each chord must
-still sit above the same lyric character it did before.
-
-* A chord that **shrinks** is padded with trailing spaces so following chords
-  keep their columns; the paired lyric is untouched.
-* A chord that **grows** first tries to absorb the growth by eating following
-  spaces on the chord line (keeping >= 1 space between chords). When it cannot
-  absorb, the *lyric line below* is stretched instead: characters are inserted
-  so the rest of the lyric shifts right together with the chords above it
-  (a space is added at an existing word gap when possible, otherwise a "-" is
-  inserted mid-word). Growths are processed left to right, accumulating the
-  offset.
-* The "lyric line below" is the immediately following line the detector
-  classified as a lyric line (non-empty, not a chord/directive/comment line).
-  A chord line with no paired lyric line simply accepts the drift.
+Each chord stays above the lyric syllable it was over, and transposing back
+undoes what the way up did to the spacing and the lyric
+(:mod:`services.aligned_rewrite`, shared with notation conversion): a
+shrinking chord pads, a growing one eats the spaces after it, then stretches
+the lyric below at a word gap or with a middle dot in the word
+(``sin·ger``).
 """
 
 import re
@@ -99,11 +90,11 @@ from typing import Dict, List, NamedTuple, Optional, Tuple, Union
 
 from chord.converter import split_bass
 from models.notation import Notation
-from models.line import LineType
 from models.directive import DirectiveType
 from services.key_spelling import (
     Key, detected_keys, key_tonic, leads_up, plain_spelling, resolves_down_a_fifth,
     spell_in_key, spell_moved)
+from services.aligned_rewrite import Anchor, rewrite_aligned
 from services.song_parser_service import SongParserService
 
 
@@ -342,64 +333,6 @@ def _transpose_key_directive(directive_text: str, semitones: int, notation: str)
     return m.group(1) + new_value + m.group(3)
 
 
-def _resize_spaces(segment: str, target_len: int) -> str:
-    """Grow/shrink a between-chord segment to ``target_len`` by adding or
-    removing spaces (from the trailing run first, then the leading run),
-    leaving any non-space content intact."""
-    cur = len(segment)
-    if target_len == cur:
-        return segment
-    if target_len > cur:
-        return segment + ' ' * (target_len - cur)
-    remove = cur - target_len
-    trailing = len(segment) - len(segment.rstrip(' '))
-    take = min(remove, trailing)
-    segment = segment[:len(segment) - take]
-    remove -= take
-    if remove > 0:
-        leading = len(segment) - len(segment.lstrip(' '))
-        take = min(remove, leading)
-        segment = segment[take:]
-    return segment
-
-
-def _insert_into_lyric(lyric: List[str], lo: int, hi: int, count: int) -> None:
-    """Insert ``count`` characters into the lyric char-list to keep alignment.
-
-    The syllable at column ``lo`` (this chord) must not move; the syllable at
-    column ``hi`` (the next chord) must move right by ``count``. A space is
-    inserted at an existing word gap in ``(lo, hi]`` when available (widening
-    the run), otherwise a '-' is inserted mid-word just before ``hi``.
-    """
-    length = len(lyric)
-    hi_c = min(hi, length)
-
-    insert_at = None
-    for p in range(hi_c, lo, -1):
-        if (p - 1 < length and lyric[p - 1] == ' ') or (p < length and lyric[p] == ' '):
-            insert_at = p
-            break
-
-    if insert_at is not None:
-        lyric[insert_at:insert_at] = [' '] * count
-    else:
-        pos = min(hi_c, length)
-        fill = ['-'] + [' '] * (count - 1)
-        lyric[pos:pos] = fill
-
-
-class _Anchor:
-    """An immovable token on a line (chord or directive) with its rewrite."""
-
-    __slots__ = ('rs', 're', 'new_text', 'old_text')
-
-    def __init__(self, rs: int, re_: int, new_text: str, old_text: str):
-        self.rs = rs
-        self.re = re_
-        self.new_text = new_text
-        self.old_text = old_text
-
-
 def _transposable(chord) -> bool:
     return chord.is_valid and not chord.is_relative and not chord.is_rest
 
@@ -517,7 +450,6 @@ def transpose_text(
     # in the key of the song around it.
     plan = _spelling_plan(lines_model, semitones, notation)
 
-    text_lines = text.split('\n')
     n = len(text)
     if region is None:
         r_start, r_end = 0, n
@@ -528,35 +460,18 @@ def transpose_text(
     # Absolute start offset of each physical line.
     line_offsets = []
     off = 0
-    for ln in text_lines:
+    for ln in text.split('\n'):
         line_offsets.append(off)
         off += len(ln) + 1
-
-    out_lines = list(text_lines)
 
     def _intersects(start: int, end: int) -> bool:
         return start < r_end and end > r_start
 
-    def _is_lyric_line(idx: int) -> bool:
-        if idx < 0 or idx >= len(text_lines):
-            return False
-        if lines_model[idx].type == LineType.CHORD:
-            return False
-        s = text_lines[idx]
-        if not s.strip():
-            return False
-        # [^{}]: linear on a line of unclosed braces; * so "{}" alone isn't a lyric.
-        stripped = re.sub(r'\{[^{}]*\}', '', s)
-        stripped = re.sub(r'//.*$', '', stripped)
-        return bool(stripped.strip())
-
-    for i, model in enumerate(lines_model):
+    def anchors_of(i: int, raw: str, model) -> List[Anchor]:
+        # Every chord and directive on the line, so that tokens that don't
+        # move stay put and the gaps between tokens stay pure padding.
         base = line_offsets[i]
-        raw = text_lines[i]
-
-        # Build anchors (all chords + all directives on this line) so that
-        # non-transposed tokens stay put and inter-chord gaps stay pure.
-        anchors: List[_Anchor] = []
+        anchors: List[Anchor] = []
         for chord in model.chords:
             rs, re_ = chord.start - base, chord.end - base
             old = raw[rs:re_]
@@ -568,8 +483,7 @@ def transpose_text(
                                             entry.next_root) + trailing
             else:
                 new = old
-            anchors.append(_Anchor(rs, re_, new, old))
-
+            anchors.append(Anchor(rs, re_, new, old))
         for directive in model.directives:
             rs, re_ = directive.start - base, directive.end - base
             old = raw[rs:re_]
@@ -577,51 +491,7 @@ def transpose_text(
                 new = _transpose_key_directive(old, semitones, notation)
             else:
                 new = old
-            anchors.append(_Anchor(rs, re_, new, old))
+            anchors.append(Anchor(rs, re_, new, old))
+        return anchors
 
-        if not anchors or all(a.new_text == a.old_text for a in anchors):
-            continue
-
-        anchors.sort(key=lambda a: a.rs)
-
-        lyric_idx = None
-        if model.type == LineType.CHORD and _is_lyric_line(i + 1):
-            lyric_idx = i + 1
-
-        lyric = list(out_lines[lyric_idx]) if lyric_idx is not None else None
-        shift = 0
-        out: List[str] = []
-        cursor = 0
-
-        for k, a in enumerate(anchors):
-            out.append(raw[cursor:a.rs])
-            out.append(a.new_text)
-            cursor = a.re
-            delta = len(a.new_text) - (a.re - a.rs)
-
-            if k < len(anchors) - 1:
-                next_rs = anchors[k + 1].rs
-                seg = raw[a.re:next_rs]
-                seg_len = len(seg)
-
-                if delta <= 0:
-                    new_seg_len, new_ins = seg_len - delta, 0
-                elif seg_len - delta >= 1:
-                    new_seg_len, new_ins = seg_len - delta, 0
-                else:
-                    new_seg_len = 1
-                    new_ins = delta - seg_len + 1
-
-                out.append(_resize_spaces(seg, new_seg_len))
-                cursor = next_rs
-
-                if new_ins > 0 and lyric is not None:
-                    _insert_into_lyric(lyric, a.rs + shift, next_rs + shift, new_ins)
-                    shift += new_ins
-
-        out.append(raw[cursor:])
-        out_lines[i] = ''.join(out)
-        if lyric is not None:
-            out_lines[lyric_idx] = ''.join(lyric)
-
-    return '\n'.join(out_lines)
+    return rewrite_aligned(text, lines_model, anchors_of)

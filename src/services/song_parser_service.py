@@ -18,6 +18,7 @@ from models.directive import Directive, DirectiveType, BPMModifierType
 from models.song import Song
 from models.label import Label
 from models.notation import Notation
+from services.aligned_rewrite import Anchor, rewrite_aligned
 
 
 #: A ``{key: ...}`` directive's value, without the spaces around it.
@@ -614,8 +615,10 @@ class SongParserService:
         the song means what it did and converting back leaves them alone.
 
         The "." takes the place of a leading space when there is one, so a
-        lyric keeps its columns under the chords above it. When nothing was
-        converted, nothing is marked (the song wasn't in the source notation).
+        lyric keeps its columns under the chords above it; without one, the
+        chord line above (when the lyric is its pair) moves right by a space
+        with it. When nothing was converted, nothing is marked (the song
+        wasn't in the source notation).
         """
         if converted == text:
             return converted        # nothing converted: nothing to protect
@@ -627,7 +630,12 @@ class SongParserService:
                 continue
             line = out[i]
             indent = len(line) - len(line.lstrip(' '))
-            out[i] = (line[:indent - 1] + '.' + line[indent:]) if indent else '.' + line
+            if indent:
+                out[i] = line[:indent - 1] + '.' + line[indent:]
+            else:
+                out[i] = '.' + line
+                if i > 0 and lines[i - 1].is_chord_line():
+                    out[i - 1] = ' ' + out[i - 1]
             changed = True
         return '\n'.join(out) if changed else converted
 
@@ -666,31 +674,41 @@ class SongParserService:
 
     @staticmethod
     def _apply_chord_conversion(text: str, lines: List[Line], convert_chord, convert_key) -> str:
-        """Substitute each detected chord, and the key of each valid
-        ``{key: ...}`` directive, with its converted form.
-
-        Builds the chord spans from the pre-detected chord lines (valid,
-        non-relative chords only) and the key spans from every line, and
-        splices each with its own converter (as :py:meth:`rewrite_chord_spans`
-        does with one).
+        """Substitute each detected chord on a chord line, and the key of each
+        valid ``{key: ...}`` directive, with its converted form, keeping the
+        chords over their syllables (:mod:`services.aligned_rewrite`: a
+        shorter name pads, a longer one eats spaces or stretches the lyric,
+        and converting back undoes it).
         """
-        spans = [
-            (chord.start, chord.start + len(chord.chord), (convert_chord, chord.chord))
-            for line in lines if line.is_chord_line()
-            for chord in line.get_valid_chords()
-            if not chord.is_relative
-        ]
-        for line in lines:
+        offsets = []
+        off = 0
+        for raw in text.split('\n'):
+            offsets.append(off)
+            off += len(raw) + 1
+
+        def anchors_of(i: int, raw: str, line: Line) -> List[Anchor]:
+            base = offsets[i]
+            anchors: List[Anchor] = []
+            for chord in line.chords:
+                rs, re_ = chord.start - base, chord.end - base
+                old = raw[rs:re_]
+                new = old
+                if line.is_chord_line() and chord.is_valid and not chord.is_relative:
+                    new = convert_chord(chord.chord) + old[len(chord.chord):]
+                anchors.append(Anchor(rs, re_, new, old))
             for directive in line.directives:
+                rs, re_ = directive.start - base, directive.end - base
+                old = raw[rs:re_]
+                new = old
                 if directive.type == DirectiveType.KEY and directive.is_valid:
                     # The value's span: "{key: Sol }" -> "Sol".
-                    match = _KEY_VALUE.match(text, directive.start, directive.end)
+                    match = _KEY_VALUE.match(old)
                     if match:
-                        spans.append((match.start(1), match.end(1), (convert_key, match.group(1))))
-        result = text
-        for start, end, (convert, part) in sorted(spans, key=lambda s: s[0], reverse=True):
-            result = result[:start] + convert(part) + result[end:]
-        return result
+                        new = old[:match.start(1)] + convert_key(match.group(1)) + old[match.end(1):]
+                anchors.append(Anchor(rs, re_, new, old))
+            return anchors
+
+        return rewrite_aligned(text, lines, anchors_of)
 
     def identify_chord_from_notes(self, notes: List[str], bass_note: str = None) -> List[str]:
         """Identify possible chord names from a set of notes.
