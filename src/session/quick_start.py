@@ -33,8 +33,9 @@ def pages(platform: str = DESKTOP) -> List[Dict[str, Any]]:
 
     chord_sheet_blocks: List[tuple] = [
         ("text",
-         "The panel under the editor draws the song's chords as you write: "
-         "as a piano roll, on a music staff, as guitar chord diagrams (Fret "
+         variant("The panel under the editor draws the song's chords as you write: ",
+                 "In the Play tab, the panel under the song draws its chords: ")
+         + "as a piano roll, on a music staff, as guitar chord diagrams (Fret "
          "cards), or as tab. It follows along while the song plays."),
     ]
     if not android:

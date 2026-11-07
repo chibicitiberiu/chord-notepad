@@ -88,6 +88,21 @@ def test_android_quick_start_names_taps_and_the_drawer():
         quick_start.pages("ios")
 
 
+def test_android_quick_start_says_the_chord_sheet_is_in_play():
+    from session import quick_start
+
+    def sheet_text(platform):
+        return next(b[1] for p in quick_start.pages(platform) for b in p["blocks"]
+                    if b[0] == "text" and "piano roll" in b[1])
+
+    # Android shows the panel only in the Play tab, not as you write (P9).
+    assert sheet_text(ANDROID).startswith(
+        "In the Play tab, the panel under the song draws its chords: as a piano roll")
+    assert "as you write" not in sheet_text(ANDROID)
+    assert sheet_text(DESKTOP).startswith(
+        "The panel under the editor draws the song's chords as you write: ")
+
+
 def test_quick_start_content_carries_snippet_spans(tmp_path):
     from services.appdata_service import AppDataService
     from session.bootstrap import build_core_services, create_session
