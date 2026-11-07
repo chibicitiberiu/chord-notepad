@@ -28,5 +28,5 @@ Chord Notepad is a text editor for musicians. Type chord symbols above your lyri
 
 Chord Notepad is free, with every feature included, and it's free software under the GNU AGPL-3.0. If you find it useful, an optional one-time purchase inside the app supports its development and adds a supporter badge. The source code and free builds for Android, Windows, macOS and Linux are at https://github.com/chibicitiberiu/chord-notepad
 
-## Release notes (first release)
-First Android release: Edit and Play modes, chord playback with voice-led piano, guitar and ensemble voicings, a chord sheet (piano roll, staff, chord boxes, tab), directives checked as you type, transpose that spells chords for the key, capo suggestions, the Chord Identifier, MIDI export, light and dark themes.
+## Release notes (current version)
+0.5.3: long lines scroll sideways by default so chords stay over their lyrics (Settings › General › Word wrap). Transpose keeps outside-the-key spellings and round-trips exactly. Fixes: a crash on long-press in Edit, Back after typing asking to quit, the playhead drag firing Back, the chord identifier in landscape, dialogs hidden by the keyboard, renaming files from Downloads. Guitar shapes, staff spelling and the identifier are more accurate.

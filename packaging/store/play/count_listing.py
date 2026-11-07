@@ -4,7 +4,7 @@ import re
 import sys
 from pathlib import Path
 
-LIMITS = {"Title": 30, "Short description": 80, "Full description": 4000, "Release notes (first release)": 500}
+LIMITS = {"Title": 30, "Short description": 80, "Full description": 4000, "Release notes (current version)": 500}
 text = Path(__file__).with_name("listing-en-US.txt").read_text(encoding="utf-8")
 sections = dict(re.findall(r"^## (.+?)\n(.*?)(?=^## |\Z)", text, flags=re.S | re.M))
 ok = True

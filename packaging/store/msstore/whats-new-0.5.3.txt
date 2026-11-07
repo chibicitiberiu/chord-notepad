@@ -1,0 +1,30 @@
+# Microsoft Store, "What's new in this version" for 0.5.3. Paste each block into
+# Partner Center > the submission > Store listings > <language> > What's new in
+# this version (limit 1500 characters; check with
+# `python3 packaging/store/msstore/count_whats_new.py`).
+
+== en-US ==
+Word wrap is now a setting, and it's off by default: long lines scroll sideways, so each chord stays over its lyric. View > Word Wrap turns it back on and is remembered.
+
+Transpose keeps the spelling of chords from outside the key (F#m7b5 B7 Em up a tone is G#m7b5 C#7 F#m). Transpose and Convert there and back give the song back exactly as it was, keep each chord over its syllable and leave the cursor where it was.
+
+The Chord Identifier no longer counts the bass twice (G B D F gives G7 and Bdim/G) and accepts double flats and sharps such as Bbb and F##.
+
+Chord sheet: the Staff view spells a chord outside the key as one stack of thirds, guitar voicings use the shapes chord books show, a rest (NC) is drawn in every view, and the Capo marker no longer covers a chord name.
+
+Songs saved as Latin-1, Windows-1252 or UTF-16 open, and saving keeps a file's encoding and Windows line endings.
+
+Fixes: inserted chords and directives glued onto the chord before them, Insert Key offering D# major, voicings that could be named like a built-in one, ensemble voices put out of order that played fewer notes, and Export MIDI on a song without chords.
+
+== ro-RO ==
+Încadrarea rândurilor (word wrap) e acum o setare, oprită implicit: rândurile lungi se derulează în lateral, așa că fiecare acord rămâne deasupra versului lui. View > Word Wrap o pornește din nou și ține minte alegerea.
+
+Transpunerea păstrează scrierea acordurilor din afara tonalității (F#m7b5 B7 Em urcat cu un ton devine G#m7b5 C#7 F#m). Transpunerea și conversia dus-întors dau înapoi cântecul exact cum era, țin fiecare acord deasupra silabei lui și lasă cursorul pe loc.
+
+Identificatorul de acorduri nu mai numără basul de două ori (G B D F dă G7 și Bdim/G) și acceptă dublu bemol și dublu diez, cum ar fi Bbb și F##.
+
+Foaia de acorduri: portativul scrie un acord din afara tonalității ca un singur șir de terțe, acordurile de chitară folosesc pozițiile din cărțile de acorduri, pauza (NC) apare în toate vederile, iar marcajul Capo nu mai acoperă numele unui acord.
+
+Cântecele salvate ca Latin-1, Windows-1252 sau UTF-16 se deschid, iar salvarea păstrează codificarea fișierului și sfârșiturile de rând Windows.
+
+Corecturi: acorduri și directive inserate lipite de acordul dinainte, Insert Key care propunea D# major, voicing-uri care puteau primi numele unuia predefinit, voci de ansamblu puse în ordine greșită care cântau mai puține note și Export MIDI pe un cântec fără acorduri.
