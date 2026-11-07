@@ -76,6 +76,19 @@ fun SheetRoute.back(): SheetRoute = when (this) {
     else -> SheetRoute.None
 }
 
+/**
+ * The route after a sheet dismissed itself (the system Back, a drag down, a
+ * tap outside), and whether that route still shows a sheet. A Material
+ * bottom sheet has already hidden itself when it says so, so a sheet that
+ * stays (a family's programs going back to the families) must be a new one;
+ * the hidden one would otherwise stay on screen, invisible, and eat the
+ * next tap (B2).
+ */
+fun SheetRoute.afterSheetDismissed(): Pair<SheetRoute, Boolean> {
+    val next = back()
+    return next to (next != SheetRoute.None)
+}
+
 /** The instrument sheet after tapping family [index]. */
 fun SheetRoute.Instrument.open(index: Int): SheetRoute.Instrument = copy(family = index)
 

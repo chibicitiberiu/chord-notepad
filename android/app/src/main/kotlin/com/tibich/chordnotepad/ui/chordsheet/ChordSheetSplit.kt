@@ -47,6 +47,27 @@ internal const val MIN_SHOWN_CHORD_SHEET_HEIGHT_DP = 80f
 /** What the split's neighbours below the sheet take: the handle (16), the divider and the status line. */
 private const val RESERVED_BELOW_DP = 16f + 40f
 
+/** The height the session starts with (`constants.DEFAULT_CHORD_SHEET_HEIGHT`, dp here). */
+internal const val DEFAULT_CHORD_SHEET_HEIGHT_DP = 160
+
+/** A tablet's share of the window for a sheet still at [DEFAULT_CHORD_SHEET_HEIGHT_DP]. */
+internal const val TABLET_DEFAULT_SHEET_FRACTION = 0.35f
+
+/**
+ * The height to aim for: the [stored] one, except that a sheet still at the
+ * phone-sized default takes [TABLET_DEFAULT_SHEET_FRACTION] of a tablet's
+ * window (L10: a 160 dp strip under 1100 dp of mostly empty text in tablet
+ * portrait). Once dragged, the stored height is the user's and is kept.
+ */
+internal fun wantedChordSheetHeightDp(stored: Int, windowWidthDp: Float, windowHeightDp: Float): Float {
+    val tablet = minOf(windowWidthDp, windowHeightDp) >= 600f
+    return if (tablet && stored == DEFAULT_CHORD_SHEET_HEIGHT_DP) {
+        maxOf(stored.toFloat(), windowHeightDp * TABLET_DEFAULT_SHEET_FRACTION)
+    } else {
+        stored.toFloat()
+    }
+}
+
 /**
  * The sheet's height in dp, or null when there's no room for it (the editor
  * then keeps the screen: a soft keyboard on a phone leaves little, and so does a phone in landscape).
@@ -76,6 +97,7 @@ fun ChordSheetSplit(host: PyHost, modifier: Modifier = Modifier) {
     if (!current.visible) return
     val density = LocalDensity.current.density
     val windowHeightDp = LocalWindowInfo.current.containerSize.height / density
+    val windowWidthDp = LocalWindowInfo.current.containerSize.width / density
     // The height while dragging, and after until the session echoes it back.
     var dragged by remember { mutableStateOf<Float?>(null) }
 
@@ -84,7 +106,8 @@ fun ChordSheetSplit(host: PyHost, modifier: Modifier = Modifier) {
     }
 
     BoxWithConstraints(modifier) {
-        val height = chordSheetHeightDp(dragged ?: current.height.toFloat(), maxHeight.value, windowHeightDp)
+        val wanted = dragged ?: wantedChordSheetHeightDp(current.height, windowWidthDp, windowHeightDp)
+        val height = chordSheetHeightDp(wanted, maxHeight.value, windowHeightDp)
             ?: return@BoxWithConstraints
         val maxDrag = minOf(windowHeightDp * MAX_SCREEN_FRACTION, maxHeight.value - MIN_EDITOR_HEIGHT_DP - RESERVED_BELOW_DP)
         val minDrag = minOf(MIN_CHORD_SHEET_HEIGHT_DP, maxDrag)

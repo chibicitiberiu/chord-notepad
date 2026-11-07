@@ -46,3 +46,36 @@ fun MainActions.handleShortcut(event: KeyEvent, onHelp: () -> Unit = {}): Boolea
     }
     return true
 }
+
+/** Undo or redo in the editor. */
+enum class EditShortcut { UNDO, REDO }
+
+/**
+ * Ctrl+Z is undo, Ctrl+Shift+Z and Ctrl+Y are redo, as on the desktop and
+ * in the field itself; null for anything else.
+ */
+fun editShortcutFor(key: Key, ctrl: Boolean, shift: Boolean): EditShortcut? {
+    if (!ctrl) return null
+    return when (key) {
+        Key.Z -> if (shift) EditShortcut.REDO else EditShortcut.UNDO
+        Key.Y -> if (shift) null else EditShortcut.REDO
+        else -> null
+    }
+}
+
+/**
+ * Undo and redo from a hardware keyboard, taken before the soft keyboard
+ * sees them (B11: Gboard answers Ctrl+Z itself by deleting the last
+ * character, which the app then takes for a new edit, so its redo history
+ * went). Both the press and the release are consumed; the press acts.
+ */
+fun MainActions.handleEditShortcutBeforeIme(event: KeyEvent): Boolean {
+    val shortcut = editShortcutFor(event.key, event.isCtrlPressed, event.isShiftPressed) ?: return false
+    if (event.type == KeyEventType.KeyDown) {
+        when (shortcut) {
+            EditShortcut.UNDO -> undo()
+            EditShortcut.REDO -> redo()
+        }
+    }
+    return true
+}

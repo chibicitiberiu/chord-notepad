@@ -26,7 +26,7 @@ data class ScreenLayout(
     /** A phone (smallest width under 600 dp). */
     val phone: Boolean,
     val landscape: Boolean,
-    /** Phone landscape in Edit: the tabs and the ribbon share one line, the title is hidden. */
+    /** Phone landscape in Edit: the title, the tabs and the ribbon share one line (the title kept short). */
     val oneLineHeader: Boolean,
     /** Play mode with the chord sheet shown, below the text. */
     val sheetBelow: Boolean,
@@ -54,6 +54,13 @@ data class ScreenLayout(
 }
 
 /**
+ * The title's widest in the one-line header of a window [widthDp] wide
+ * (phone landscape Edit): a fifth of the line, 96–200 dp, so the name, its •
+ * and Rename stay there next to the ribbon (17.5; the ribbon scrolls).
+ */
+fun oneLineTitleMaxWidthDp(widthDp: Float): Float = (widthDp * 0.2f).coerceIn(96f, 200f)
+
+/**
  * Whether the header (app bar and ribbon) collapses so only the text shows:
  * in Edit mode with the keyboard up, when the text would get less than
  * [MIN_TEXT_ROOM_DP]. [textRoomDp] is the height the text has with the header shown.
@@ -61,9 +68,36 @@ data class ScreenLayout(
 fun collapseHeader(mode: AppMode, imeVisible: Boolean, textRoomDp: Float): Boolean =
     mode == AppMode.EDIT && imeVisible && textRoomDp < MIN_TEXT_ROOM_DP
 
-/** The landscape chord sheet column's share of the width, kept within 30–70 %. */
-fun clampSideFraction(fraction: Float): Float =
-    if (fraction.isNaN()) SIDE_FRACTION_DEFAULT else fraction.coerceIn(SIDE_FRACTION_MIN, SIDE_FRACTION_MAX)
+/**
+ * The compact player's buttons in a row (`Player`, compact): six 38 dp side
+ * buttons, the 48 dp play button and 10 dp of padding on each side.
+ */
+const val COMPACT_PLAYER_WIDTH_DP = 6 * 38f + 48f + 2 * 10f
+
+/** Slack over [COMPACT_PLAYER_WIDTH_DP] for rounding to whole pixels. */
+const val COMPACT_PLAYER_SLACK_DP = 8f
+
+/** The landscape column's drag handle, between the text and the column. */
+const val SIDE_HANDLE_WIDTH_DP = 14f
+
+/**
+ * The least share of a side-by-side row [rowWidthDp] wide the chord sheet
+ * column may take: 30 %, or more when the compact player needs it for all
+ * its buttons (L3: at 30 % on a phone, "Hide the chord sheet" was squeezed
+ * out). The column gets its share of the row without the handle.
+ */
+fun minSideFraction(rowWidthDp: Float): Float {
+    val room = rowWidthDp - SIDE_HANDLE_WIDTH_DP
+    if (room <= 0f) return SIDE_FRACTION_MIN
+    return maxOf(SIDE_FRACTION_MIN, (COMPACT_PLAYER_WIDTH_DP + COMPACT_PLAYER_SLACK_DP) / room)
+}
+
+/**
+ * The landscape chord sheet column's share of the width, kept within
+ * [min] (30 %, or [minSideFraction]) and 70 % (or [min] when that's more).
+ */
+fun clampSideFraction(fraction: Float, min: Float = SIDE_FRACTION_MIN): Float =
+    if (fraction.isNaN()) maxOf(SIDE_FRACTION_DEFAULT, min) else fraction.coerceIn(min, maxOf(min, SIDE_FRACTION_MAX))
 
 /**
  * The column's share after dragging its handle to [handleX] px in a row

@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -21,6 +22,8 @@ import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -88,8 +91,8 @@ private val SoundingKey = Color(0xFFF5A623)
 private val SoundingDotOutline = Color(0xFF9A6200)
 
 /**
- * Tools › Identify Chord: the chord identifier, full screen on phones
- * ([compact]) and a dialog on tablets. Everything it shows comes from the
+ * Tools › Identify Chord: the chord identifier, full screen on phones and a
+ * dialog on tablets ([layout], from [identifierLayout]). Everything it shows comes from the
  * session's `IdentifierState`; the session's status line is repeated at the
  * bottom so "Inserted chord: C" is seen while the editor is covered.
  *
@@ -100,9 +103,10 @@ fun ChordIdentifierDialog(
     repo: SessionRepository,
     commands: ScreenCommands,
     insertAtCursor: (String) -> Unit,
-    compact: Boolean,
+    layout: IdentifierLayout,
     onClose: () -> Unit,
 ) {
+    val compact = layout != IdentifierLayout.DIALOG
     var typed by rememberSaveable { mutableStateOf("") }
     var picked by rememberSaveable { mutableStateOf<String?>(null) }
     var opened by rememberSaveable { mutableStateOf(false) }
@@ -130,7 +134,11 @@ fun ChordIdentifierDialog(
             shape = if (compact) MaterialTheme.shapes.extraSmall else MaterialTheme.shapes.extraLarge,
             color = MaterialTheme.colorScheme.surface,
         ) {
-            ChordIdentifier(state, model, status?.text, onClose, if (compact) Modifier.safeDrawingPadding() else Modifier)
+            ChordIdentifier(
+                state, model, status?.text, onClose,
+                sideBySide = layout == IdentifierLayout.SIDE_BY_SIDE,
+                modifier = if (compact) Modifier.safeDrawingPadding() else Modifier,
+            )
         }
     }
 }
@@ -169,6 +177,7 @@ private fun ChordIdentifier(
     model: IdentifierModel,
     status: String?,
     onClose: () -> Unit,
+    sideBySide: Boolean,
     modifier: Modifier = Modifier,
 ) {
     // The dialog window gives its first focusable, the notes field, focus
@@ -200,7 +209,10 @@ private fun ChordIdentifier(
                 IconButton(onClick = onClose) { Icon(AppIcons.ArrowBack, stringResource(R.string.identifier_close)) }
             },
         )
-        Column(Modifier.weight(1f).padding(horizontal = 16.dp)) {
+        // The piano and the field, then the candidates: one above the other,
+        // or side by side in a short window (phone landscape), where the
+        // piano side scrolls if it still doesn't fit.
+        val input: @Composable () -> Unit = {
             val european = state?.notation == "european"
             Text(
                 stringResource(if (european) R.string.identifier_hint_european else R.string.identifier_hint),
@@ -230,16 +242,37 @@ private fun ChordIdentifier(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
+        }
+        val notes: @Composable () -> Unit = {
             NotesRow(
                 model.typed, state?.typedTextError, model::type, model::clear,
                 canPlay = !state?.notes.isNullOrEmpty(), onPlay = { model.play() }, onPlayRolled = { model.play(rolled = true) },
             )
-            Spacer(Modifier.height(8.dp))
+        }
+        val candidates: @Composable (Modifier) -> Unit = { listModifier ->
             Text(stringResource(R.string.identifier_candidates), style = MaterialTheme.typography.titleSmall)
             Candidates(
                 state, model.picked, { model.pick(it) }, { model.pick(it, rolled = true) }, model::insert,
-                Modifier.weight(1f).fillMaxWidth(),
+                listModifier.fillMaxWidth(),
             )
+        }
+        if (sideBySide) {
+            // The piano on the left; the field and what it names on the right.
+            Row(Modifier.weight(1f).padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(24.dp)) {
+                Column(Modifier.weight(1f).fillMaxHeight().verticalScroll(rememberScrollState())) { input() }
+                Column(Modifier.weight(1f).fillMaxHeight()) {
+                    notes()
+                    Spacer(Modifier.height(4.dp))
+                    candidates(Modifier.weight(1f))
+                }
+            }
+        } else {
+            Column(Modifier.weight(1f).padding(horizontal = 16.dp)) {
+                input()
+                notes()
+                Spacer(Modifier.height(8.dp))
+                candidates(Modifier.weight(1f))
+            }
         }
         HorizontalDivider()
         Row(
@@ -334,10 +367,11 @@ private fun Candidates(
     onInsert: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val candidates = state?.candidates.orEmpty()
+    val candidates = shownCandidates(state)
     if (candidates.isEmpty()) {
         Text(
-            state?.message.orEmpty(),
+            // The field's error says what's wrong while it has one.
+            if (state?.typedTextError != null) "" else state?.message.orEmpty(),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = modifier.padding(vertical = 12.dp),

@@ -144,6 +144,34 @@ class IdentifierTest {
     }
 
     @Test
+    fun `no candidates while the typed notes have an error, and the pick goes`() {
+        // B5: "C Eb Gb Bbb" still names chords for the part the session read.
+        val good = state("C Eb Gb Bb", "Cm7b5", "Ebm6/C")
+        assertEquals(listOf("Cm7b5", "Ebm6/C"), shownCandidates(good))
+        model.pick("Cm7b5")
+        model.onState(good)
+        assertEquals("Cm7b5", model.picked)
+        val bad = good.copy(typedTextError = "Not a note: Bbb")
+        assertEquals(emptyList<String>(), shownCandidates(bad))
+        model.onState(bad)
+        assertNull(model.picked)
+        assertEquals(emptyList<String>(), shownCandidates(null))
+    }
+
+    @Test
+    fun `the dialog needs width and height, a short wide window goes side by side`() {
+        // L2: phone landscape (914 x 411 dp) used to get the 320 dp dialog.
+        assertEquals(IdentifierLayout.SIDE_BY_SIDE, identifierLayout(914f, 411f))
+        assertEquals(IdentifierLayout.FULL_SCREEN, identifierLayout(411f, 914f))
+        assertEquals(IdentifierLayout.DIALOG, identifierLayout(1280f, 800f))
+        assertEquals(IdentifierLayout.DIALOG, identifierLayout(800f, 1280f))
+        // A short split-screen window on a tablet, and a small phone in landscape.
+        assertEquals(IdentifierLayout.SIDE_BY_SIDE, identifierLayout(1280f, 500f))
+        assertEquals(IdentifierLayout.SIDE_BY_SIDE, identifierLayout(640f, 360f))
+        assertEquals(IdentifierLayout.FULL_SCREEN, identifierLayout(500f, 700f))
+    }
+
+    @Test
     fun `a notation switch respells the field and the pick`() {
         model.tapKey(piano.keys.first())
         model.onState(state("A C E", "Am", "C6"))

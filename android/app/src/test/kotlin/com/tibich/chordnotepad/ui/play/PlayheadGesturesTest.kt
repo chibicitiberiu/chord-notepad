@@ -58,6 +58,20 @@ class PlayheadGesturesTest {
     }
 
     @Test
+    fun `the gesture-excluded box is exactly the grab strip`() {
+        // P5: the box kept out of the system Back gesture must cover every
+        // touch that grabs the marker, and the first chord's starts at the text's edge.
+        val box = markerGrabBox(g, grabWidth = 24f)
+        assertEquals(-12f, box.left)
+        assertEquals(12f, box.right)
+        assertEquals(-12f, box.top)
+        assertEquals(26f, box.bottom)
+        for (x in -20..20) for (y in -20..40) {
+            assertEquals("($x, $y)", grabsMarker(g, x.toFloat(), y.toFloat(), 24f), box.contains(x.toFloat(), y.toFloat()))
+        }
+    }
+
+    @Test
     fun `a scrub moves chord by chord`() {
         assertNull(scrubTarget(boxes, current = 8, x = 52f, y = 5f))
         assertEquals(20, scrubTarget(boxes, current = 8, x = 10f, y = 45f))

@@ -31,4 +31,14 @@ class ChordSheetSplitTest {
     fun `no room for a usable sheet hides it`() {
         assertNull(chordSheetHeightDp(220f, availableDp = 220f, windowHeightDp = 890f))
     }
+
+    @Test
+    fun `a tablet's untouched sheet takes a share of the window, a moved one stays`() {
+        // L10: tablet portrait (800 x 1280 dp) kept the phone's 160 dp strip.
+        assertEquals(448f, wantedChordSheetHeightDp(160, 800f, 1280f), 0.01f)
+        assertEquals(280f, wantedChordSheetHeightDp(160, 1280f, 800f), 0.01f)
+        assertEquals(200f, wantedChordSheetHeightDp(200, 800f, 1280f), 0.01f)
+        // Phones keep the stored height, the default too.
+        assertEquals(160f, wantedChordSheetHeightDp(160, 411f, 914f), 0.01f)
+    }
 }

@@ -50,10 +50,15 @@ fun instrumentFamilies(state: InstrumentMenuState): List<FamilyRow> = state.fami
 fun initialFamilyIndex(families: List<FamilyRow>): Int = families.indexOfFirst { it.isCurrent }.coerceAtLeast(0)
 
 /**
- * File › Recent Files: the documents, newest first (the session already
- * capped the list at `max_recent_files`); empty shows "(No recent files)".
+ * File › Recent Files: the documents, newest first, at most [max] of them
+ * (Settings' `max_recent_files`); empty shows "(No recent files)". The
+ * session caps the list when it publishes it, but lowering the setting
+ * doesn't republish it (P3), so the cap applies here too.
  */
-fun recentEntries(state: RecentDocumentsState?): List<DocumentRef> = state?.items.orEmpty()
+fun recentEntries(state: RecentDocumentsState?, max: Int? = null): List<DocumentRef> {
+    val items = state?.items.orEmpty()
+    return if (max == null) items else items.take(max.coerceAtLeast(0))
+}
 
 /** The Voicing sheet's group headings. */
 enum class VoicingGroupKind { PIANO, FRETTED, ENSEMBLES, YOURS }

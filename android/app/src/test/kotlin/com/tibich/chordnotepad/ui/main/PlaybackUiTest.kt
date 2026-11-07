@@ -3,6 +3,8 @@ package com.tibich.chordnotepad.ui.main
 import com.tibich.chordnotepad.bridge.PlaybackState
 import com.tibich.chordnotepad.bridge.PlaybackStatus
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class PlaybackUiTest {
@@ -33,5 +35,14 @@ class PlaybackUiTest {
         assertEquals(0f, snackbarClearanceDp(AppMode.EDIT, false))
         assertEquals(PLAYER_HEIGHT_DP, snackbarClearanceDp(AppMode.PLAY, false))
         assertEquals(0f, snackbarClearanceDp(AppMode.PLAY, true))
+    }
+
+    @Test
+    fun `a stopped song's status is no snackbar in Edit`() {
+        // L14: Edit while playing stops the song; its "Bar 5/8" came up in Edit.
+        assertFalse(statusSnackbarAllowed(AppMode.EDIT, nowMs = 10_400, stoppedAtMs = 10_000))
+        assertTrue(statusSnackbarAllowed(AppMode.EDIT, nowMs = 12_000, stoppedAtMs = 10_000))
+        assertTrue(statusSnackbarAllowed(AppMode.EDIT, nowMs = 5, stoppedAtMs = null))
+        assertFalse(statusSnackbarAllowed(AppMode.PLAY, nowMs = 12_000, stoppedAtMs = null))
     }
 }

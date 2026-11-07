@@ -77,6 +77,10 @@ class MenuModelsTest {
         assertEquals(listOf(a, b), recentEntries(RecentDocumentsState(listOf(a, b))))
         assertTrue(recentEntries(RecentDocumentsState(emptyList())).isEmpty())
         assertTrue(recentEntries(null).isEmpty())
+        // P3: a lowered Settings cap applies at once, before the session republishes.
+        assertEquals(listOf(a), recentEntries(RecentDocumentsState(listOf(a, b)), max = 1))
+        assertEquals(listOf(a, b), recentEntries(RecentDocumentsState(listOf(a, b)), max = 10))
+        assertTrue(recentEntries(RecentDocumentsState(listOf(a, b)), max = 0).isEmpty())
     }
 
     @Test

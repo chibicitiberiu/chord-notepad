@@ -1,5 +1,6 @@
 package com.tibich.chordnotepad.ui.main
 
+import android.os.SystemClock
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.ScrollState
@@ -42,6 +43,7 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -55,6 +57,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.foundation.focusable
 import androidx.compose.ui.layout.onSizeChanged
@@ -85,8 +88,10 @@ import com.tibich.chordnotepad.ui.editor.DirectiveHintController
 import com.tibich.chordnotepad.ui.editor.DirectiveHintStrip
 import com.tibich.chordnotepad.ui.editor.EXPLAIN_SHOWN_MS
 import com.tibich.chordnotepad.ui.editor.bind
+import com.tibich.chordnotepad.ui.handleEditShortcutBeforeIme
 import com.tibich.chordnotepad.ui.handleShortcut
 import com.tibich.chordnotepad.ui.identifier.ChordIdentifierDialog
+import com.tibich.chordnotepad.ui.identifier.identifierLayout
 import com.tibich.chordnotepad.ui.menus.currentProgramName
 import com.tibich.chordnotepad.ui.menus.instrumentFamilies
 import com.tibich.chordnotepad.ui.menus.recentEntries
@@ -106,6 +111,7 @@ import com.tibich.chordnotepad.ui.sheets.SongDefaultsSheet
 import com.tibich.chordnotepad.ui.sheets.SpeedDialog
 import com.tibich.chordnotepad.ui.sheets.SpeedSheet
 import com.tibich.chordnotepad.ui.sheets.VoicingPickerSheet
+import com.tibich.chordnotepad.ui.sheets.afterSheetDismissed
 import com.tibich.chordnotepad.ui.sheets.back
 import com.tibich.chordnotepad.ui.sheets.open
 import com.tibich.chordnotepad.ui.sheets.speedBadge
@@ -144,6 +150,7 @@ fun SongScreen(graph: AppGraph, actions: MainActions, snackbars: SnackbarHostSta
     val playback by repo.playback.collectAsState()
     val chordSheet by repo.chordSheet.collectAsState()
     val recent by repo.recentDocuments.collectAsState()
+    val maxRecent = repo.settings.collectAsState().value?.values?.maxRecentFiles
     val songDefaultsState by repo.songDefaults.collectAsState()
     val songDefaults = songDefaultsState?.let(::songDefaultsOf)
 
@@ -186,7 +193,11 @@ fun SongScreen(graph: AppGraph, actions: MainActions, snackbars: SnackbarHostSta
     var focusAsk by remember { mutableIntStateOf(0) }
     val textFocus = remember { FocusRequester() }
     val rootFocus = remember { FocusRequester() }
-    LaunchedEffect(Unit) { runCatching { rootFocus.requestFocus() } }
+    // Whether the root or anything in it has focus. When the focused editor
+    // goes (Edit to Play turns it into plain text), focus would go nowhere and
+    // the shortcuts with it (B1): the root takes it back.
+    var rootHasFocus by remember { mutableStateOf(false) }
+    LaunchedEffect(rootHasFocus) { if (!rootHasFocus) runCatching { rootFocus.requestFocus() } }
     val playbackStatus = playback?.status ?: PlaybackStatus.IDLE
 
     // Directive hints: Edit's strip while the cursor is in a directive, Play's
@@ -225,7 +236,7 @@ fun SongScreen(graph: AppGraph, actions: MainActions, snackbars: SnackbarHostSta
 
     // Edit mode has no status line: what the session says shows as a snackbar.
     // Play shows it on the player, and a snackbar still up from Edit goes.
-    StatusSnackbars(mode, status?.text, snackbars)
+    StatusSnackbars(mode, status?.text, playbackStatus, snackbars)
 
     val window = LocalConfiguration.current
     val windowSideBySide = ScreenLayout.of(
@@ -292,13 +303,17 @@ fun SongScreen(graph: AppGraph, actions: MainActions, snackbars: SnackbarHostSta
         drawerState = drawer,
         gesturesEnabled = drawer.isOpen,
         drawerContent = {
-            AppDrawer(recentEntries(recent), drawerActions, close = { scope.launch { drawer.close() } })
+            AppDrawer(recentEntries(recent, maxRecent), drawerActions, close = { scope.launch { drawer.close() } })
         },
     ) {
         Scaffold(
             // A focusable root with initial focus, so a hardware keyboard's shortcuts
             // work before anything is tapped; it shows no soft keyboard.
-            modifier = Modifier.handleKeys(actions, nav).focusRequester(rootFocus).focusable(),
+            modifier = Modifier
+                .handleKeys(actions, nav)
+                .onFocusChanged { rootHasFocus = it.hasFocus }
+                .focusRequester(rootFocus)
+                .focusable(),
             containerColor = colors.surface,
             snackbarHost = {
                 SnackbarHost(snackbars, Modifier.padding(bottom = snackbarClearanceDp(mode, windowSideBySide).dp))
@@ -341,6 +356,7 @@ fun SongScreen(graph: AppGraph, actions: MainActions, snackbars: SnackbarHostSta
                             },
                             onScrub = actions::setPlayhead,
                             focusRequester = textFocus,
+                            onKeyBeforeIme = actions::handleEditShortcutBeforeIme,
                             modifier = m.testTag(UiTags.EDITOR),
                             onTextFocus = { textFocused = it },
                             explained = hints.explained,
@@ -445,7 +461,11 @@ private fun Header(
     val colors = appColors
     Column(Modifier.fillMaxWidth().background(colors.surface)) {
         if (layout.oneLineHeader) {
-            AppBar(title, modified, mode, showTitle = false, onMenu, onRename, onMode, onSave) {
+            val window = LocalConfiguration.current.screenWidthDp.toFloat()
+            AppBar(
+                title, modified, mode, showTitle = true, onMenu, onRename, onMode, onSave,
+                titleMaxWidth = oneLineTitleMaxWidthDp(window).dp,
+            ) {
                 Box(Modifier.width(1.dp).fillMaxHeight().background(colors.line))
                 EditRibbon(ribbonActions, canUndo, canRedo, notation, Modifier.weight(1f), ribbonScroll)
             }
@@ -462,7 +482,8 @@ private fun Header(
 /**
  * Landscape Play mode: the text on the left, then a vertical handle, then a
  * column with the chord sheet and the compact player. The handle sets the
- * column's width (30–70 %), kept in [AppGraph.uiPreferences].
+ * column's width (30–70 %, wider when the player needs it), kept in
+ * [AppGraph.uiPreferences].
  */
 @Composable
 private fun SideBySide(
@@ -472,8 +493,12 @@ private fun SideBySide(
     playerActions: PlayerActions,
 ) {
     val colors = appColors
-    var fraction by remember { mutableFloatStateOf(graph.uiPreferences.sideFraction) }
+    var stored by remember { mutableFloatStateOf(graph.uiPreferences.sideFraction) }
     var rowWidth by remember { mutableIntStateOf(0) }
+    // Never so narrow that the compact player loses a button (L3).
+    val density = LocalDensity.current
+    val minFraction = if (rowWidth > 0) minSideFraction(with(density) { rowWidth.toDp().value }) else SIDE_FRACTION_MIN
+    val fraction = clampSideFraction(stored, minFraction)
     Row(Modifier.fillMaxSize().onSizeChanged { rowWidth = it.width }) {
         text(Modifier.weight(1f - fraction).fillMaxHeight())
         Box(
@@ -485,10 +510,10 @@ private fun SideBySide(
                 .semantics { contentDescription = "Resize the chord sheet" }
                 .draggable(
                     state = rememberDraggableState { dx ->
-                        if (rowWidth > 0) fraction = clampSideFraction(fraction - dx / rowWidth)
+                        if (rowWidth > 0) stored = clampSideFraction(clampSideFraction(stored, minFraction) - dx / rowWidth, minFraction)
                     },
                     orientation = Orientation.Horizontal,
-                    onDragStopped = { graph.uiPreferences.sideFraction = fraction },
+                    onDragStopped = { graph.uiPreferences.sideFraction = stored },
                 ),
             contentAlignment = Alignment.Center,
         ) {
@@ -548,8 +573,16 @@ private fun fallbackDefaults(t: ToolbarState): SongDefaults {
 
 /** In Edit mode, each new status message shows as a short snackbar. */
 @Composable
-private fun StatusSnackbars(mode: AppMode, text: String?, snackbars: SnackbarHostState) {
+private fun StatusSnackbars(mode: AppMode, text: String?, playback: PlaybackStatus, snackbars: SnackbarHostState) {
     var last by remember { mutableStateOf(text) }
+    // When a song last stopped (playing or paused → idle), monotonic ms.
+    var stoppedAt by remember { mutableStateOf<Long?>(null) }
+    var wasActive by remember { mutableStateOf(playback != PlaybackStatus.IDLE) }
+    LaunchedEffect(playback) {
+        val active = playback != PlaybackStatus.IDLE
+        if (wasActive && !active) stoppedAt = SystemClock.uptimeMillis()
+        wasActive = active
+    }
     LaunchedEffect(mode) {
         // A status message still up from Edit goes (errors, which have a dismiss action, stay).
         val data = snackbars.currentSnackbarData
@@ -562,7 +595,8 @@ private fun StatusSnackbars(mode: AppMode, text: String?, snackbars: SnackbarHos
             last = t
             // Opening a song switches to Play along with its status: let the mode settle first.
             delay(150)
-            if (statusSnackbarsShown(currentMode) && !t.isNullOrBlank()) snackbars.showSnackbar(t, duration = SnackbarDuration.Short)
+            val allowed = statusSnackbarAllowed(currentMode, SystemClock.uptimeMillis(), stoppedAt)
+            if (allowed && !t.isNullOrBlank()) snackbars.showSnackbar(t, duration = SnackbarDuration.Short)
         }
     }
 }
@@ -617,16 +651,25 @@ private fun Sheets(
         }
         is SheetRoute.Instrument -> {
             val state by repo.instrumentMenu.collectAsState()
+            // Bumped when the sheet hid itself but the route keeps a sheet
+            // (Back on a family): a new sheet shows the families.
+            var sheetGeneration by remember { mutableIntStateOf(0) }
             state?.let {
-                InstrumentPickerSheet(
-                    instrumentFamilies(it),
-                    family = route.family,
-                    onOpenFamily = { i -> go(route.open(i)) },
-                    onBack = { go(route.back()) },
-                    onChoose = actions::setInstrument,
-                    onDismiss = { go(route.back()) },
-                    onDone = close,
-                )
+                key(sheetGeneration) {
+                    InstrumentPickerSheet(
+                        instrumentFamilies(it),
+                        family = route.family,
+                        onOpenFamily = { i -> go(route.open(i)) },
+                        onBack = { go(route.back()) },
+                        onChoose = actions::setInstrument,
+                        onDismiss = {
+                            val (next, newSheet) = route.afterSheetDismissed()
+                            if (newSheet) sheetGeneration++
+                            go(next)
+                        },
+                        onDone = close,
+                    )
+                }
             }
         }
         is SheetRoute.Speed -> {
@@ -675,12 +718,13 @@ private fun Sheets(
         )
         SheetRoute.Identify -> {
             val density = LocalDensity.current
-            val compact = with(density) { LocalWindowInfo.current.containerSize.width.toDp() } < 600.dp
+            val window = LocalWindowInfo.current.containerSize
+            val layout = with(density) { identifierLayout(window.width.toDp().value, window.height.toDp().value) }
             ChordIdentifierDialog(
                 repo = repo,
                 commands = tools.screen,
                 insertAtCursor = tools::insertChord,
-                compact = compact,
+                layout = layout,
                 onClose = close,
             )
         }

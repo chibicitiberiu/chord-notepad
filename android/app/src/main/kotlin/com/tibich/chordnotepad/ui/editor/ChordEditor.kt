@@ -12,10 +12,13 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.systemGestureExclusion
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.input.OutputTransformation
+import androidx.compose.foundation.text.input.insert
 import androidx.compose.foundation.text.input.TextFieldDecorator
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
@@ -26,6 +29,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.ExperimentalComposeUiApi
+import androidx.compose.ui.input.key.onInterceptKeyBeforeSoftKeyboard
+import androidx.compose.ui.input.key.KeyEvent
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
@@ -64,6 +70,7 @@ import com.tibich.chordnotepad.ui.main.AppMode
 import com.tibich.chordnotepad.ui.play.ChordBox
 import com.tibich.chordnotepad.ui.play.PlayTap
 import com.tibich.chordnotepad.ui.play.grabsMarker
+import com.tibich.chordnotepad.ui.play.markerGrabBox
 import com.tibich.chordnotepad.ui.play.markerChord
 import com.tibich.chordnotepad.ui.play.playableChords
 import com.tibich.chordnotepad.ui.play.resolveTap
@@ -108,6 +115,7 @@ private val ChordSlop = 8.dp
  * except where said. [onTextFocus] tells whether the Edit-mode field has the
  * focus (the hint strip shows only then).
  */
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun ChordEditor(
     controller: EditorController,
@@ -121,6 +129,7 @@ fun ChordEditor(
     onScrub: (Int) -> Unit,
     modifier: Modifier = Modifier,
     focusRequester: FocusRequester? = null,
+    onKeyBeforeIme: (KeyEvent) -> Boolean = { false },
     onTextFocus: (Boolean) -> Unit = {},
     explained: ExplainedDirective? = null,
     onExplain: (Int) -> Unit = {},
@@ -144,8 +153,10 @@ fun ChordEditor(
     LaunchedEffect(sounding, mode) {
         val p = sounding ?: return@LaunchedEffect
         val l = layout ?: return@LaunchedEffect
-        if (p.start > l.layoutInput.text.length) return@LaunchedEffect
-        val line = l.getLineForOffset(p.start)
+        // The layout is of the text as drawn (with the chords' word joiners).
+        val at = JoinedText(chordJoinPoints(controller.state.text, controller.spans)).toDisplay(p.start)
+        if (at > l.layoutInput.text.length) return@LaunchedEffect
+        val line = l.getLineForOffset(at)
         val top = l.getLineTop(line).roundToInt() + padTop
         val bottom = l.getLineBottom(line).roundToInt() + padTop
         val viewport = scroll.viewportSize
@@ -164,7 +175,9 @@ fun ChordEditor(
                 state = controller.state,
                 modifier = Modifier.fillMaxSize()
                     .let { m -> focusRequester?.let { m.focusRequester(it) } ?: m }
-                    .onFocusChanged { onTextFocus(it.isFocused) },
+                    .onFocusChanged { onTextFocus(it.isFocused) }
+                    // Hardware Ctrl+Z / Ctrl+Y before Gboard takes them (B11).
+                    .onInterceptKeyBeforeSoftKeyboard(onKeyBeforeIme),
                 readOnly = editorState?.readOnly ?: false,
                 inputTransformation = PasteNormalization,
                 textStyle = textStyle,
@@ -236,15 +249,18 @@ private fun PlayText(
     val text = controller.state.text.toString()
     val spans = controller.spans
     val sounding = controller.playing
-    val annotated = remember(text, spans, sounding, styles, playingStyle) {
-        highlighted(text, spans, sounding, styles, playingStyle)
+    // Word joiners keep each chord on one line when the text wraps (L7);
+    // the layout below is of this drawn text, so offsets go through [joined].
+    val joined = remember(text, spans) { JoinedText(chordJoinPoints(text, spans)) }
+    val annotated = remember(text, spans, sounding, styles, playingStyle, joined) {
+        highlighted(text, spans, sounding, styles, playingStyle, joined)
     }
     val chords = remember(spans) { playableChords(spans) }
     var layout by remember { mutableStateOf<TextLayoutResult?>(null) }
-    val boxes = remember(layout, chords) { layout?.let { l -> chords.mapNotNull { chordBox(l, it.start, it.end) } }.orEmpty() }
+    val boxes = remember(layout, chords, joined) { layout?.let { l -> chords.mapNotNull { chordBox(l, it.start, it.end, joined) } }.orEmpty() }
     // Red and faded directives: a long-press on one explains it.
     val directiveBoxes = remember(layout, spans) {
-        layout?.let { l -> explainableDirectives(spans).mapNotNull { chordBox(l, it.start, it.end) } }.orEmpty()
+        layout?.let { l -> explainableDirectives(spans).mapNotNull { chordBox(l, it.start, it.end, joined) } }.orEmpty()
     }
     // The marker moves at once under the finger; the session's playhead takes over when it changes.
     var localHead by remember { mutableStateOf<Int?>(null) }
@@ -351,6 +367,18 @@ private fun PlayText(
                     .padding(TextPadding)
                     .drawPlayhead(marker, markerColor),
             )
+            // The marker's grab strip, kept out of the system's Back gesture
+            // (P5): a drag from a line's first chord scrubs instead of going Back.
+            // Not while playing, when the marker can't be grabbed.
+            if (!playing && marker != null) {
+                val grab = markerGrabBox(marker, grabPx)
+                Box(
+                    Modifier
+                        .offset { IntOffset((grab.left + padX).roundToInt(), (grab.top + padY).roundToInt()) }
+                        .size(with(density) { (grab.right - grab.left).toDp() }, with(density) { (grab.bottom - grab.top).toDp() })
+                        .systemGestureExclusion(),
+                )
+            }
             // The long-pressed directive's explanation, anchored on it.
             val shown = explained
             val anchor = remember(shown, layout, text) {
@@ -359,7 +387,7 @@ private fun PlayText(
                     null
                 } else {
                     val mapper = OffsetMapper.of(text)
-                    chordBox(l, mapper.toUtf16(shown.start), mapper.toUtf16(shown.end))
+                    chordBox(l, mapper.toUtf16(shown.start), mapper.toUtf16(shown.end), joined)
                 }
             }
             if (shown != null && anchor != null) {
@@ -416,6 +444,13 @@ private fun DrawScope.drawMarker(marker: ChordBox?, color: Color) {
     drawPath(triangle, color)
 }
 
+/**
+ * Where the song's `[start, end)` sits in [layout] of the drawn text, whose
+ * offsets [joined] maps to; the box keeps the song's offsets.
+ */
+internal fun chordBox(layout: TextLayoutResult, start: Int, end: Int, joined: JoinedText): ChordBox? =
+    chordBox(layout, joined.toDisplay(start), joined.toDisplay(end))?.copy(start = start, end = end)
+
 /** Where the chord `[start, end)` sits in [layout] (its first line). */
 internal fun chordBox(layout: TextLayoutResult, start: Int, end: Int): ChordBox? {
     val length = layout.layoutInput.text.length
@@ -431,20 +466,23 @@ internal fun chordBox(layout: TextLayoutResult, start: Int, end: Int): ChordBox?
     return ChordBox(start, end, left, layout.getLineTop(line), right, layout.getLineBottom(line))
 }
 
-/** The text with the session's spans and the sounding chord painted, for Play mode. */
+/** The text with the session's spans and the sounding chord painted, for Play mode, as [joined] draws it. */
 private fun highlighted(
     text: String,
     spans: List<PaintedSpan>,
     sounding: PlayingChord?,
     styles: List<Pair<SpanKind, SpanStyle>>,
     playingStyle: SpanStyle,
-): AnnotatedString = AnnotatedString.Builder(text).apply {
+    joined: JoinedText,
+): AnnotatedString = AnnotatedString.Builder(joined.display(text)).apply {
     for ((kind, style) in styles) {
         for (s in spans) {
-            if (s.kind == kind && s.start < s.end && s.end <= text.length) addStyle(style, s.start, s.end)
+            if (s.kind == kind && s.start < s.end && s.end <= text.length) addStyle(style, joined.toDisplay(s.start), joined.toDisplay(s.end))
         }
     }
-    sounding?.let { p -> if (p.start < p.end && p.end <= text.length) addStyle(playingStyle, p.start, p.end) }
+    sounding?.let { p ->
+        if (p.start < p.end && p.end <= text.length) addStyle(playingStyle, joined.toDisplay(p.start), joined.toDisplay(p.end))
+    }
 }.toAnnotatedString()
 
 /** Paints the controller's spans, then the playing chord on top (Edit mode). */
@@ -454,13 +492,19 @@ private fun highlightTransformation(
     playingStyle: SpanStyle,
 ) = OutputTransformation {
     val spans = controller.spans
+    val original = length
+    // Word joiners so a chord never wraps across lines (L7). They're only
+    // drawn: the field maps the cursor and selection around them.
+    val points = chordJoinPoints(asCharSequence(), spans)
+    val joined = JoinedText(points)
+    for (i in points.indices.reversed()) insert(points[i], WORD_JOINER.toString())
     for ((kind, style) in styles) {
         for (s in spans) {
-            if (s.kind == kind && s.start < s.end && s.end <= length) addStyle(style, s.start, s.end)
+            if (s.kind == kind && s.start < s.end && s.end <= original) addStyle(style, joined.toDisplay(s.start), joined.toDisplay(s.end))
         }
     }
     controller.playing?.let { p ->
-        if (p.start < p.end && p.end <= length) addStyle(playingStyle, p.start, p.end)
+        if (p.start < p.end && p.end <= original) addStyle(playingStyle, joined.toDisplay(p.start), joined.toDisplay(p.end))
     }
 }
 

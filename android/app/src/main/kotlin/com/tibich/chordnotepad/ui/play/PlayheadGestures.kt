@@ -79,10 +79,18 @@ fun resolveTap(boxes: List<ChordBox>, x: Float, y: Float, slop: Float, nearestOn
  * [marker]: a strip [grabWidth] px wide centred on the chord's left edge,
  * from [grabWidth] / 2 above the line (the marker's triangle) to its bottom.
  */
-fun grabsMarker(marker: ChordBox?, x: Float, y: Float, grabWidth: Float): Boolean {
-    if (marker == null) return false
+fun grabsMarker(marker: ChordBox?, x: Float, y: Float, grabWidth: Float): Boolean =
+    marker != null && markerGrabBox(marker, grabWidth).contains(x, y)
+
+/**
+ * The strip [grabsMarker] answers for, as a box. Play mode also keeps it out
+ * of the system's edge gestures: the marker before a line's first chord sits
+ * within the Back-gesture inset, so a drag from it would go Back instead of
+ * scrubbing (P5). One line tall, far under the platform's 200 dp limit per edge.
+ */
+fun markerGrabBox(marker: ChordBox, grabWidth: Float): ChordBox {
     val half = grabWidth / 2f
-    return x >= marker.left - half && x <= marker.left + half && y >= marker.top - half && y <= marker.bottom + half / 2f
+    return ChordBox(marker.start, marker.end, marker.left - half, marker.top - half, marker.left + half, marker.bottom + half / 2f)
 }
 
 /**

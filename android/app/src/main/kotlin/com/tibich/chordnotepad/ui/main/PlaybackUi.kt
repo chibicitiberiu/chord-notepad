@@ -20,6 +20,18 @@ fun keepScreenOn(playback: PlaybackState?): Boolean = playback?.status == Playba
 /** Edit mode shows the session's status messages as snackbars; Play shows them on the player's status line. */
 fun statusSnackbarsShown(mode: AppMode): Boolean = mode == AppMode.EDIT
 
+/** How long after playback stops its status ("Bar 5/8") is still the player's, not news. */
+const val STOPPED_STATUS_MS = 1500L
+
+/**
+ * Whether a status that arrived at [nowMs] shows as a snackbar: in Edit, and
+ * not as the echo of a song that stopped at [stoppedAtMs] (L14: switching to
+ * Edit while playing stops the song, and its "Bar 5/8" popped up in Edit,
+ * where it means nothing).
+ */
+fun statusSnackbarAllowed(mode: AppMode, nowMs: Long, stoppedAtMs: Long?): Boolean =
+    statusSnackbarsShown(mode) && (stoppedAtMs == null || nowMs - stoppedAtMs > STOPPED_STATUS_MS)
+
 /**
  * How far above the bottom of the screen a snackbar sits so it clears the
  * player (error snackbars show in Play too). Side by side, the player is a

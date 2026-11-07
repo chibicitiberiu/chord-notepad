@@ -16,6 +16,15 @@ class SheetRouteTest {
     }
 
     @Test
+    fun `a family's sheet dismissed by Back needs a new sheet for the families`() {
+        // B2: the hidden sheet stayed composed, invisible, and ate the next tap.
+        assertEquals(SheetRoute.Instrument() to true, SheetRoute.Instrument(3).afterSheetDismissed())
+        assertEquals(SheetRoute.None to false, SheetRoute.Instrument().afterSheetDismissed())
+        assertEquals(SheetRoute.None to false, SheetRoute.Voicing.afterSheetDismissed())
+        assertEquals(SheetRoute.None to false, SheetRoute.Speed().afterSheetDismissed())
+    }
+
+    @Test
     fun `the speed dialog goes back to the speed sheet`() {
         assertEquals(SheetRoute.Speed(), SheetRoute.Speed(manual = true).back())
         assertEquals(SheetRoute.None, SheetRoute.Speed().back())

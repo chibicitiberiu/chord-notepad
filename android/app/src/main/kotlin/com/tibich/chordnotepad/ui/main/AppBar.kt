@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
@@ -33,6 +34,7 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.tibich.chordnotepad.R
@@ -44,7 +46,8 @@ import com.tibich.chordnotepad.ui.theme.appColors
 /**
  * The 48 dp app bar: ☰, the song's title (• while modified; tap to
  * rename), the Edit / Play tabs and Save. [trailing] fills the rest of the
- * line after Save (phone landscape: the Edit ribbon, the title hidden).
+ * line after Save (phone landscape: the Edit ribbon, with the title kept to
+ * [titleMaxWidth] so Rename and the • stay in reach: 17.5).
  */
 @Composable
 fun AppBar(
@@ -57,6 +60,7 @@ fun AppBar(
     onMode: (AppMode) -> Unit,
     onSave: () -> Unit,
     modifier: Modifier = Modifier,
+    titleMaxWidth: Dp? = null,
     trailing: (@Composable RowScope.() -> Unit)? = null,
 ) {
     val colors = appColors
@@ -66,7 +70,9 @@ fun AppBar(
     ) {
         BarIconButton(R.drawable.mdi_menu, stringResource(R.string.drawer_open), colors.muted, onMenu, Modifier.testTag(UiTags.MENU))
         if (showTitle) {
-            SongTitle(title, modified, onRename, Modifier.weight(1f).testTag(UiTags.TITLE))
+            // The rest of the line, or at most [titleMaxWidth] when the ribbon shares it.
+            val width = if (titleMaxWidth != null) Modifier.widthIn(max = titleMaxWidth) else Modifier.weight(1f)
+            SongTitle(title, modified, onRename, width.testTag(UiTags.TITLE))
         }
         ModeTabs(mode, onMode)
         if (!showTitle && trailing == null) Box(Modifier.weight(1f))

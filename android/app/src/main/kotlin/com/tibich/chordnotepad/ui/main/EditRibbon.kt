@@ -28,6 +28,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
@@ -83,6 +85,7 @@ fun EditRibbon(
     val edges by remember(scroll) { derivedStateOf { RibbonEdges.of(scroll.value, scroll.maxValue) } }
     val scope = rememberCoroutineScope()
     val morePx = with(LocalDensity.current) { MORE_SCROLL_DP.dp.toPx() }
+    val moreLabel = stringResource(R.string.ribbon_more)
     Box(modifier.height(BAR_HEIGHT_DP.dp).background(colors.surface2).testTag(UiTags.RIBBON)) {
         Row(
             Modifier.fillMaxHeight().horizontalScroll(scroll).padding(horizontal = 4.dp),
@@ -133,9 +136,11 @@ fun EditRibbon(
                     .width(28.dp)
                     .fillMaxHeight()
                     .testTag(UiTags.RIBBON_MORE)
-                    .clickable(onClickLabel = stringResource(R.string.ribbon_more)) {
+                    .clickable(role = Role.Button) {
                         scope.launch { scroll.animateScrollTo((scroll.value + morePx).toInt()) }
-                    },
+                    }
+                    // A name for TalkBack, not only an action label (B10).
+                    .semantics { contentDescription = moreLabel },
                 contentAlignment = Alignment.Center,
             ) {
                 MdiIcon(R.drawable.mdi_chevron_right, colors.muted, size = 22.dp)

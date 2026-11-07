@@ -55,6 +55,32 @@ class ScreenLayoutTest {
     }
 
     @Test
+    fun `the side column is never too narrow for the compact player`() {
+        // L3: the phone's landscape row (about 816 dp) at 30 % gave a 241 dp
+        // column, and "Hide the chord sheet" was squeezed out.
+        for (row in listOf(816f, 914f, 640f, 560f, 1280f, 2000f)) {
+            val min = minSideFraction(row)
+            val column = clampSideFraction(0.3f, min) * (row - SIDE_HANDLE_WIDTH_DP)
+            assertTrue("row $row: column $column", column >= COMPACT_PLAYER_WIDTH_DP - 0.01f)
+            // The default and anything wider are kept as they are.
+            assertEquals(maxOf(0.5f, min), clampSideFraction(0.5f, min))
+            assertEquals(maxOf(0.7f, min), clampSideFraction(0.95f, min))
+        }
+        // A wide tablet keeps the 30 % floor.
+        assertEquals(SIDE_FRACTION_MIN, minSideFraction(1280f))
+        assertEquals(296f, COMPACT_PLAYER_WIDTH_DP)
+    }
+
+    @Test
+    fun `phone landscape Edit keeps a short title next to the ribbon`() {
+        // 17.5: the title was hidden there, and with it Rename and the •.
+        assertEquals(182.8f, oneLineTitleMaxWidthDp(914f), 0.01f)
+        assertEquals(128f, oneLineTitleMaxWidthDp(640f), 0.01f)
+        assertEquals(96f, oneLineTitleMaxWidthDp(400f))
+        assertEquals(200f, oneLineTitleMaxWidthDp(1400f))
+    }
+
+    @Test
     fun `ribbon edges show the fades and the chevron`() {
         assertEquals(RibbonEdges(fadeLeft = false, more = false), RibbonEdges.of(0, 0))
         assertEquals(RibbonEdges(fadeLeft = false, more = true), RibbonEdges.of(0, 200))

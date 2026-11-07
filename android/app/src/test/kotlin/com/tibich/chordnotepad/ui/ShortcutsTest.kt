@@ -30,4 +30,15 @@ class ShortcutsTest {
         assertNull(shortcutFor(Key.Z, ctrl = true, shift = false))
         assertNull(shortcutFor(Key.A, ctrl = true, shift = false))
     }
+
+    @Test
+    fun `undo and redo are taken before the soft keyboard`() {
+        // B11: Gboard answered Ctrl+Z by deleting a character.
+        assertEquals(EditShortcut.UNDO, editShortcutFor(Key.Z, ctrl = true, shift = false))
+        assertEquals(EditShortcut.REDO, editShortcutFor(Key.Z, ctrl = true, shift = true))
+        assertEquals(EditShortcut.REDO, editShortcutFor(Key.Y, ctrl = true, shift = false))
+        assertNull(editShortcutFor(Key.Z, ctrl = false, shift = false))
+        assertNull(editShortcutFor(Key.Y, ctrl = true, shift = true))
+        assertNull(editShortcutFor(Key.C, ctrl = true, shift = false))
+    }
 }

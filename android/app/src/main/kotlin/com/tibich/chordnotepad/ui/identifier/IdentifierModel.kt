@@ -56,7 +56,7 @@ class IdentifierModel(
             typed = state.notesText
             followKeys = false
         }
-        if (picked != null && picked !in state.candidates) picked = null
+        if (picked != null && picked !in shownCandidates(state)) picked = null
     }
 
     /**
@@ -118,3 +118,36 @@ class IdentifierModel(
  */
 fun shownSounding(state: IdentifierState?, expiredToken: Int): Set<Int> =
     if (state == null || state.soundingToken == expiredToken) emptySet() else state.sounding.toSet()
+
+/**
+ * The candidates to list: none while the typed notes have something that
+ * isn't a note (B5). The session still names chords for the part it could
+ * read (`C Eb Gb Bbb` lists Cm7b5 from its `Bb`), which would read as the
+ * answer for what was typed; the error under the field says what to fix.
+ */
+fun shownCandidates(state: IdentifierState?): List<String> =
+    if (state == null || state.typedTextError != null) emptyList() else state.candidates
+
+/** How the identifier is laid out in a window [widthDp] × [heightDp]. */
+enum class IdentifierLayout {
+    /** A floating dialog (tablets: room for the 640 × 720 dp panel). */
+    DIALOG,
+
+    /** Full screen, the piano and field above the candidates (phones in portrait). */
+    FULL_SCREEN,
+
+    /** Full screen, the piano and field beside the candidates (short, wide windows: phones in landscape). */
+    SIDE_BY_SIDE,
+}
+
+/**
+ * The dialog needs width and height both (L2: a phone in landscape is wide
+ * but only about 400 dp tall, and the dialog had no room for the field and
+ * the candidates); a window short of either is full screen, side by side
+ * when it's wider than tall.
+ */
+fun identifierLayout(widthDp: Float, heightDp: Float): IdentifierLayout = when {
+    widthDp >= 600f && heightDp >= 600f -> IdentifierLayout.DIALOG
+    widthDp > heightDp -> IdentifierLayout.SIDE_BY_SIDE
+    else -> IdentifierLayout.FULL_SCREEN
+}
