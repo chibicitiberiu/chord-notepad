@@ -21,7 +21,8 @@ Layout:
 - **Frozen left gutter (``GUTTER_W`` px):** a small vertical keyboard aligned
   with the rows -- white-key row blocks span the full gutter width, black-key
   rows are narrower and darker, and each C row gets a tiny octave label
-  (``C3``, ``C4``, ...). The gutter is painted by :meth:`PianoRollRenderer.paint_gutter`
+  (``C3``, ``C4``, ...), drawn last, at the right edge clear of the black
+  keys. The gutter is painted by :meth:`PianoRollRenderer.paint_gutter`
   onto a separate, non-scrolling canvas so it stays visible while the content
   scrolls; it is static (``scroll_x`` is ignored). Chord slots in the scrolling
   content start at the content's left margin (x = 0), not offset by the gutter.
@@ -209,11 +210,16 @@ class PianoRollRenderer(StripRenderer):
             else:
                 ops.rect(0.0, y, GUTTER_W, row_h, fill=_GUTTER_WHITE,
                          outline=_GUTTER_BORDER, tags=("gutter", "gutter-key"))
-            if pc == 0:
-                octave = note // 12 - 1
+        # The octave labels go on top of every key, in the lane to the right
+        # of the black keys: a label is taller than a row at the usual strip
+        # heights, and over the keys' left part the black key above the C
+        # (and the Bb below it) cut it in half.
+        for note in range(low, high + 1):
+            if note % 12 == 0:
+                y = SYMBOL_H + (high - note) * row_h
                 ops.text(
-                    3.0, y + row_h / 2.0, f"C{octave}",
-                    anchor="w", size=8, fill=_INK, tags=("gutter", "label"),
+                    GUTTER_W - 2.0, y + row_h / 2.0, f"C{note // 12 - 1}",
+                    anchor="e", size=8, fill=_INK, tags=("gutter", "label"),
                 )
 
     def paint(self, ops: DrawOps, ctx: SheetContext, layout: StripLayout) -> None:

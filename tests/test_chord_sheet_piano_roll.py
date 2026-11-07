@@ -208,6 +208,18 @@ def test_gutter_has_a_label_per_c_row():
     assert any(o.s.startswith("C") for o in labels)
 
 
+def test_octave_labels_sit_clear_of_the_black_keys_on_top():
+    # L11: at the usual strip heights a label is taller than its row, and the
+    # black keys beside the C cut it. It goes after every key, right-aligned
+    # in the lane the black keys leave white.
+    from chord_sheet.piano_roll import _BLACK_GUTTER_RATIO
+    _, ops = render_gutter(make_song(make_chord("C", midi_notes=[36, 48, 60, 72])))
+    keys = [i for i, o in enumerate(ops.ops) if "gutter-key" in o.tags]
+    labels = [(i, o) for i, o in enumerate(ops.ops) if "label" in o.tags]
+    assert labels and all(i > max(keys) for i, _ in labels)
+    assert all(o.anchor == "e" and o.x > GUTTER_W * _BLACK_GUTTER_RATIO for _, o in labels)
+
+
 def test_gutter_emits_key_blocks_within_gutter_width():
     song = make_song(make_chord("C", midi_notes=[48, 60, 72]))
     _, ops = render_gutter(song)
