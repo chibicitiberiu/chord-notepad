@@ -101,6 +101,7 @@
    "weight:awkward_stretch_penalty": "-6.0",
    "weight:barre_penalty": "-1.0",
    "weight:bass_note_bonus": "8.0",
+   "weight:finger_barre_penalty": "-0.5",
    "weight:fretted_finger_penalty": "-0.5",
    "weight:interior_mute_penalty": "-4.0",
    "weight:kept_finger_bonus": "0.4",

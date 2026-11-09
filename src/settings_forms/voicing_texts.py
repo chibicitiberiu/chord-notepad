@@ -20,6 +20,7 @@ FRETBOARD_WEIGHT_LABELS: Dict[str, str] = {
     'position_penalty': 'High neck position',
     'fretted_finger_penalty': 'Fretted finger',
     'barre_penalty': 'Barre',
+    'finger_barre_penalty': 'Ring or pinky barre',
     'interior_mute_penalty': 'Muted inner string',
     'movement_penalty': 'Hand movement',
     'kept_finger_bonus': 'Kept finger',
@@ -172,12 +173,17 @@ TOOLTIPS: Dict[str, str] = {
                                        "can hold."),
     'weight:position_penalty': ("How the picker treats fingerings further up the neck. More "
                                 "negative keeps fingerings closer to the nut."),
-    'weight:fretted_finger_penalty': ("How the picker treats each fretted string; a barre counts "
-                                      "every string it holds down. More negative favors shapes "
-                                      "with more open or muted strings."),
+    'weight:fretted_finger_penalty': ("How the picker treats each fretted string, counting a "
+                                      "barre as one finger however many strings it holds down. "
+                                      "More negative favors shapes with more open or muted "
+                                      "strings."),
     'weight:barre_penalty': ("How the picker treats a shape that frets more strings than there "
                              "are fingers, so it needs a barre; charged once, on top of the "
                              "fretted-finger weight. More negative avoids barres."),
+    'weight:finger_barre_penalty': ("How the picker treats a ring finger or pinky flattened "
+                                    "across two or three strings above the index, as in E9 "
+                                    "076777; charged per string under it, on top of the barre "
+                                    "weight. More negative avoids such grips."),
     'weight:interior_mute_penalty': ("How the picker treats a muted string buried between two "
                                      "sounding strings. More negative avoids that shape."),
     'weight:movement_penalty': ("How the picker treats the hand shifting from the previous "

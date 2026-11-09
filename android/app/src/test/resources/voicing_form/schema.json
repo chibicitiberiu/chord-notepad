@@ -653,7 +653,7 @@
         },
         {
          "default": "-0.5",
-         "help": "How the picker treats each fretted string; a barre counts every string it holds down. More negative favors shapes with more open or muted strings.",
+         "help": "How the picker treats each fretted string, counting a barre as one finger however many strings it holds down. More negative favors shapes with more open or muted strings.",
          "id": "weight:fretted_finger_penalty",
          "kind": "float",
          "label": "Fretted finger",
@@ -667,6 +667,16 @@
          "id": "weight:barre_penalty",
          "kind": "float",
          "label": "Barre",
+         "max": 100.0,
+         "min": -100.0,
+         "step": 0.1
+        },
+        {
+         "default": "-0.5",
+         "help": "How the picker treats a ring finger or pinky flattened across two or three strings above the index, as in E9 076777; charged per string under it, on top of the barre weight. More negative avoids such grips.",
+         "id": "weight:finger_barre_penalty",
+         "kind": "float",
+         "label": "Ring or pinky barre",
          "max": 100.0,
          "min": -100.0,
          "step": 0.1

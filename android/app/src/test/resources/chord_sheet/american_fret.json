@@ -1,8 +1,8 @@
 {
  "background": "#fbfbf8",
- "byte_length": 76554,
+ "byte_length": 76560,
  "content": {
-  "coord_sum": 31286848.429356813,
+  "coord_sum": 31287032.41203749,
   "count": 2609,
   "first": {
    "anchor": "center",
@@ -20,8 +20,8 @@
   "histogram": {
    "line": 1563,
    "oval": 668,
-   "rect": 117,
-   "text": 261
+   "rect": 118,
+   "text": 260
   },
   "last": {
    "fill": "#2a3d46",

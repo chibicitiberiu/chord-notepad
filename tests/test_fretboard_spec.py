@@ -246,6 +246,7 @@ class TestWeightMerging:
         assert DEFAULT_WEIGHTS["position_penalty"] == -0.6
         assert DEFAULT_WEIGHTS["fretted_finger_penalty"] == -0.5
         assert DEFAULT_WEIGHTS["barre_penalty"] == -1.0
+        assert DEFAULT_WEIGHTS["finger_barre_penalty"] == -0.5
         assert DEFAULT_WEIGHTS["interior_mute_penalty"] == -4.0
         assert DEFAULT_WEIGHTS["movement_penalty"] == -1.0
 
@@ -253,7 +254,8 @@ class TestWeightMerging:
         penalties = {
             "span_penalty", "stretch_penalty", "awkward_stretch_penalty",
             "position_penalty", "fretted_finger_penalty",
-            "barre_penalty", "interior_mute_penalty", "movement_penalty",
+            "barre_penalty", "finger_barre_penalty", "interior_mute_penalty",
+            "movement_penalty",
         }
         for key, value in DEFAULT_WEIGHTS.items():
             if key in penalties:

@@ -16,8 +16,10 @@ treats voicing as a pure optimization problem:
 1. **Enumerate** every fingering whose strings only sound chord tones (plus the
    slash bass, if any), within a playable fret span (``spec.max_span``).
 2. **Filter** on physical playability (finger count ``spec.fingers``, barre
-   feasibility -- and, if ``spec.allow_barres`` is false, reject any fingering
-   that would need a barre).
+   feasibility: the index across the lowest fret, or a ring finger or pinky
+   across two or three strings higher up, see
+   :meth:`GuitarChordPicker._finger_plan` -- and, if ``spec.allow_barres`` is
+   false, reject any fingering that would need a barre).
 3. **Filter** on note coverage: prefer fingerings that spell the whole chord;
    fall back to partial voicings only for dense chords that cannot be held in
    full on the available strings. The required-tones floor auto-scales to the
@@ -143,6 +145,7 @@ class GuitarChordPicker(INotePicker):
         self._w_position = spec.weight('position_penalty')
         self._w_fretted = spec.weight('fretted_finger_penalty')
         self._w_barre = spec.weight('barre_penalty')
+        self._w_finger_barre = spec.weight('finger_barre_penalty')
         self._w_interior_mute = spec.weight('interior_mute_penalty')
         self._w_movement = spec.weight('movement_penalty')
         self._w_kept = spec.weight('kept_finger_bonus')
@@ -385,6 +388,8 @@ class GuitarChordPicker(INotePicker):
         tuning = self.tuning_midi
         fingers = self._fingers
         allow_barres = self._allow_barres
+        finger_plan = self._finger_plan
+        finger_barre_span = self._max_span - 1
 
         # Per-string options as (fret, coverage_bit) tuples. Mute is (-1, 0).
         string_options: List[List[Tuple[int, int]]] = []
@@ -421,14 +426,16 @@ class GuitarChordPicker(INotePicker):
                 if n_sound == 0:
                     return
 
-                # Playability: more fretted strings than fingers need a feasible
-                # barre (one flat finger across the lowest-fret strings, leaving
-                # at most fingers-1 fingers for strings above it).
+                # Playability: more fretted strings than fingers need barres
+                # a hand can hold (see _finger_plan). The common case, one
+                # flat index across the lowest-fret strings leaving at most
+                # fingers-1 fingers above it, is checked inline first.
                 if n_fret > fingers:
                     if not allow_barres:
                         return
                     lo = hi = -1
                     above = 0
+                    paired = False  # two neighbours at one fret above it
                     for s in range(num_strings):
                         fs = buf[s]
                         if fs == min_f:
@@ -437,12 +444,18 @@ class GuitarChordPicker(INotePicker):
                             hi = s
                         elif fs > min_f:
                             above += 1
-                    if above > fingers - 1:
-                        return
-                    # No open string may sit inside the barre's string range.
+                            if s and buf[s - 1] == fs:
+                                paired = True
+                    # No open string may sit inside the index barre's range.
                     for s in range(lo, hi + 1):
                         if buf[s] == 0:
                             return
+                    # Too many notes above it: a ring finger or pinky barre
+                    # may still free enough fingers, within a fret less span.
+                    if above > fingers - 1 and (not paired
+                                                or max_f - min_f > finger_barre_span
+                                                or finger_plan(buf) is None):
+                        return
 
                 present = mask.bit_count()
                 if present == num_unique:
@@ -474,39 +487,135 @@ class GuitarChordPicker(INotePicker):
     def _is_playable(self, fingering: Union[List[int], Tuple[int, ...]]) -> bool:
         """Check if a fingering is physically playable.
 
-        Up to ``spec.fingers`` fretted strings each get a finger. More than that
-        requires a barre: one finger lies flat across the strings fretted at the
-        lowest fret, covering the contiguous range they span. Any open string
-        inside that range cannot ring, and the strings fretted above the barre
-        still need separate fingers (at most ``spec.fingers - 1`` of them). When
-        the spec forbids barres, any fingering that would need one is unplayable.
+        The span must stay within ``spec.max_span`` and a hand must be able to
+        hold the notes with ``spec.fingers`` fingers, barres included (see
+        :meth:`_finger_plan`).
         """
 
-        fretted = [(s, f) for s, f in enumerate(fingering) if f > 0]
-        if not fretted:
+        frets = [f for f in fingering if f > 0]
+        if not frets:
             return True
-
-        frets = [f for _, f in fretted]
         if max(frets) - min(frets) > self._max_span:
             return False
+        return self._finger_plan(fingering) is not None
 
-        if len(fretted) <= self._fingers:
-            return True
+    #: Most strings a finger other than the index can hold flat. The index is
+    #: long and straight enough to lie across the whole neck; a ring finger
+    #: flattens over three strings at most (G B e in the 9th grip 076777) and
+    #: a pinky over two or three. A fact about hands, not instruments.
+    _MAX_FINGER_BARRE = 3
 
+    def _finger_plan(self, fingering: Union[List[int], Tuple[int, ...]]
+                     ) -> Optional[Tuple[int, int]]:
+        """How a hand holds a fingering: ``(fingers, finger_barre)``, or None.
+
+        ``fingers`` is how many fingers the shape takes and ``finger_barre``
+        how many strings lie under barres made by fingers other than the
+        index (0 when the index barre, or no barre, is enough). ``None`` means
+        no hand with ``spec.fingers`` fingers can hold it. Span is not judged
+        here.
+
+        The model, from the hand rather than from shapes (so the same on any
+        tuning):
+
+        * Up to ``spec.fingers`` fretted strings each get their own finger.
+        * Beyond that the index, on the lowest fret, may lie flat across every
+          string fretted there, covering the range they span; the strings in
+          between are fretted higher or muted. An open string inside that
+          range cannot ring, so then the shape is unplayable (as before).
+        * The other fingers follow up the neck. Each holds one string, or, if
+          fingers run short, a *finger barre*: two or three adjacent strings
+          at one fret above the index, all fretted at exactly that fret. The
+          finger comes over the fretboard from the edge after the last string,
+          so every string beyond the barre on that side must be muted or
+          fretted at least as high (the finger would lie flat on a lower note
+          or an open string). No string on the other side may be fretted
+          higher: the later finger that frets it would have to reach past the
+          barre's tip. That is the ring finger across G B e in E9 076777 or
+          C9 x32333, and the pinky across B e in C13 x32355.
+        * Only a ring finger or a pinky flattens into a finger barre, so at
+          most one finger may fret above one. A flat finger can't stretch
+          along the neck either, so a shape with a finger barre spans at most
+          ``spec.max_span - 1`` frets.
+        * Finger barres are only used when the fingers run out; among the
+          ways to fit, the one with the fewest strings under them wins.
+        """
+
+        max_fingers = self._fingers
+        count = low = high = 0
+        for fret in fingering:
+            if fret > 0:
+                count += 1
+                if low == 0 or fret < low:
+                    low = fret
+                if fret > high:
+                    high = fret
+        if count <= max_fingers:
+            return count, 0
         if not self._allow_barres:
-            return False
+            return None
 
-        # Barre required: the flat finger sits at the lowest fretted fret.
-        f_min = min(frets)
-        barre_strings = [s for s, f in fretted if f == f_min]
-        lo, hi = min(barre_strings), max(barre_strings)
+        # The index barre on the lowest fret: no open string inside its range.
+        num_strings = self._num_strings
+        frets = list(fingering)
+        lo = frets.index(low)
+        hi = num_strings - 1 - frets[::-1].index(low)
+        if 0 in frets[lo:hi + 1]:
+            return None
 
-        for s in range(lo, hi + 1):
-            if fingering[s] == 0:  # open string trapped under the barre
-                return False
+        # Above the index: runs of adjacent strings at one fret, as
+        # (fret, strings, barrable). A run of two or three can be one finger
+        # barre when it fits the hand (see above); any other run takes a
+        # finger per string. ``beyond[s]``: the lowest sounding fret on the
+        # strings after s - 1 (muted strings don't count).
+        beyond = [high + 1] * (num_strings + 1)
+        for t in range(num_strings - 1, -1, -1):
+            fret = frets[t]
+            beyond[t] = fret if 0 <= fret < beyond[t + 1] else beyond[t + 1]
+        runs: List[Tuple[int, int, bool]] = []
+        before = -1  # the highest fret on the strings before s
+        s = 0
+        while s < num_strings:
+            fret = frets[s]
+            if fret <= low:
+                before = max(before, fret)
+                s += 1
+                continue
+            end = s
+            while end + 1 < num_strings and frets[end + 1] == fret:
+                end += 1
+            length = end - s + 1
+            runs.append((fret, length, 2 <= length <= self._MAX_FINGER_BARRE
+                         and before <= fret and beyond[end + 1] >= fret))
+            before = max(before, fret)
+            s = end + 1
 
-        above = sum(1 for _, f in fretted if f > f_min)
-        return above <= self._fingers - 1
+        fingers = 1 + sum(run[1] for run in runs)
+        if fingers <= max_fingers:
+            return fingers, 0
+        # A flattened finger can't stretch along the neck: with a finger
+        # barre the hand reaches a fret less than its normal span.
+        if high - low > self._max_span - 1:
+            return None
+
+        # Barre the cheapest set of runs that fits the hand: a barred run of
+        # n strings takes one finger instead of n and puts n strings under it.
+        # Only a ring finger or a pinky flattens like that, so at most one
+        # finger may fret above a finger barre.
+        barrable = [i for i, run in enumerate(runs) if run[2]]
+        best: Optional[Tuple[int, int]] = None
+        for mask in range(1, 1 << len(barrable)):
+            chosen = [i for k, i in enumerate(barrable) if mask >> k & 1]
+            under = sum(runs[i][1] for i in chosen)
+            used = fingers - under + len(chosen)
+            if used > max_fingers or (best is not None and (under, used) >= (best[1], best[0])):
+                continue
+            if any(sum(1 if j in chosen else run[1]
+                       for j, run in enumerate(runs) if run[0] > runs[i][0]) > 1
+                   for i in chosen):
+                continue
+            best = (used, under)
+        return best
 
     def _is_clean_lengthwise_stretch(self, fingering: List[int],
                                      fretted: List[int]) -> bool:
@@ -594,6 +703,9 @@ class GuitarChordPicker(INotePicker):
         * **Fingers, not notes.** ``fretted_finger_penalty`` is charged per
           finger: a barre is one finger however many strings it holds, so a
           barre chord (x24442) isn't charged like five separate fingers.
+          A ring finger or pinky flattened above the index (E9 076777) is one
+          finger too, but costs ``finger_barre_penalty`` per string under it
+          on top of ``barre_penalty``: it is harder to hold than the index.
         * **Open strings in open position.** ``open_string_bonus`` is earned
           only while the shape stays within the first ``fingers - 1`` frets,
           where a hand at the nut lets strings ring (C x32010, B7 x21202). Up
@@ -648,8 +760,13 @@ class GuitarChordPicker(INotePicker):
             barre = self._barre_strings(fingering, fretted)
             fingers = len(fretted)
             if fingers > self._fingers:
-                # Enumeration only keeps such shapes when a barre fits.
-                fingers -= (barre or 1) - 1
+                # Enumeration only keeps such shapes when the barres fit.
+                plan = self._finger_plan(fingering)
+                if plan is None:
+                    fingers -= (barre or 1) - 1
+                else:
+                    fingers, finger_barre = plan
+                    score += self._w_finger_barre * finger_barre
                 score += self._w_barre
             elif fingers == self._fingers and barre is None and sum(
                     1 for v in fret_vals if v == min(fret_vals)) >= 2:

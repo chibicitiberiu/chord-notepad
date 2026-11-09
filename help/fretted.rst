@@ -24,7 +24,9 @@ fretboard model searches for a *fingering*: a specific fret on each string
 hold. It builds every candidate fingering from scratch for the instrument's
 actual tuning, throws out anything that doesn't spell the chord correctly
 or that no hand could hold (too wide a stretch, more fretted notes than
-there are fingers, unless a barre covers several at once), and scores what
+there are fingers, unless a barre covers several at once: the index across
+the lowest fret, or a ring finger or pinky across two or three strings
+higher up, as in the E9 grip 076777), and scores what
 survives on two things: how good the fingering is on its own -- full, low
 on the neck, open strings ringing, the right note in the bass -- and how
 smoothly the hand moves from one fingering to the next across the *whole
@@ -409,9 +411,9 @@ while pushing it more negative clamps down on them.
      - ``position_penalty``
      - -0.6
    * - Fretted finger
-     - Subtracted per fretted string (a barre counts every string it holds
-       down). More negative favors fingerings that leave more strings open
-       or muted.
+     - Subtracted per finger the fingering takes (a barre is one finger,
+       however many strings it holds down). More negative favors fingerings
+       that leave more strings open or muted.
      - ``fretted_finger_penalty``
      - -0.5
    * - Barre
@@ -420,6 +422,14 @@ while pushing it more negative clamps down on them.
        individually fretted fingers.
      - ``barre_penalty``
      - -1.0
+   * - Ring or pinky barre
+     - Subtracted per string under a ring finger or pinky flattened across
+       two or three strings above the index -- the ring finger across G, B
+       and e in the E9 grip 076777, or the pinky across B and e in C13
+       x32355 -- on top of "Barre". Such a barre is harder to hold than one
+       with the index, and harder the more strings it covers.
+     - ``finger_barre_penalty``
+     - -0.5
    * - Muted inner string
      - Subtracted per muted string sitting between two sounding strings -- a
        "buried" mute that a strum can't skip cleanly. Set strongly negative so
