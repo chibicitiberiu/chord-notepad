@@ -750,6 +750,12 @@ class SongParserService:
         """
         return self._helper.name_by_root(notes, bass)
 
+    def slash_chord(self, chord_name: str, bass: str) -> str:
+        """``chord_name`` over ``bass``, the bass spelled as the chord spells
+        it when it is a chord tone (``C(b5)/Gb``, not ``C(b5)/F#``); see
+        :py:meth:`chord.helper.ChordHelper.slash_chord`."""
+        return self._helper.slash_chord(chord_name, bass)
+
     def chord_to_midi(self, chord_name: str, base_octave: int = 4) -> List[int]:
         """Convert a chord name to MIDI note numbers.
 

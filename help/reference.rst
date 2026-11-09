@@ -112,9 +112,9 @@ Extended Chords
    * - 13
      - Dominant 13th
      - C13, D13, G13
-   * - maj13
+   * - maj13, M13
      - Major 13th
-     - Cmaj13, Fmaj13
+     - Cmaj13, CM13, Fmaj13
    * - m13
      - Minor 13th
      - Cm13, Am13
@@ -129,15 +129,21 @@ Suspended Chords
    * - Suffix
      - Name
      - Examples
-   * - sus4, sus
+   * - sus4, sus, 4
      - Suspended 4th
-     - Csus4, Csus, Dsus4
-   * - sus2
+     - Csus4, Csus, C4 (C F G)
+   * - sus2, 2
      - Suspended 2nd
-     - Csus2, Dsus2, Gsus2
+     - Csus2, C2 (C D G)
    * - 7sus4
      - Dominant 7 sus4
      - C7sus4, D7sus4, G7sus4
+   * - 7sus2, 9sus2
+     - Dominant 7 sus2 (in 9sus2 the 9th is the sus2)
+     - C7sus2 and C9sus2 are C D G Bb
+   * - 9sus4, 9sus
+     - Dominant 9 sus4
+     - C9sus4 and C9sus are C F G Bb D
 
 Add Chords
 ----------
@@ -167,6 +173,9 @@ Add Chords
    * - addb6, addb13
      - Add flat 6th (inside the octave) or flat 13th (an octave up)
      - Eaddb6, Emaddb6, Eaddb13
+   * - addb5, add#5
+     - Add a flat or sharp 5th, keeping the 5th
+     - Caddb5 is C E G Gb (C(b5) is C E Gb)
 
 Left-Out Notes
 --------------
@@ -180,13 +189,13 @@ Left-Out Notes
      - Examples
    * - (no5), (omit5)
      - Without the 5th
-     - C7(no5) is C E Bb, Cadd9(no5) is C D E
+     - C7(no5) is C E Bb, Cadd9(no5) is C D E, C13(no5) is C E Bb D A
    * - (no3), (omit3)
      - Without the 3rd
-     - C7(no3) is C G Bb, C(no3) is C5
-   * - (b5)
-     - Major with a flat 5th
-     - C(b5) is C E Gb
+     - C7(no3) is C G Bb, C(no3) is C5, C69(no3) is C G A D
+   * - (b5), (#5)
+     - Major with a flat or sharp 5th in place of the 5th
+     - C(b5) is C E Gb, C(#5) is Caug
 
 Altered Chords
 --------------
@@ -219,6 +228,13 @@ Altered Chords
    * - alt, 7alt
      - Altered dominant
      - Calt, Galt
+   * - (b9), (b9,#9), (9,13)
+     - Tones in parentheses: an altered one is added to the 7th, a plain
+       9, 11 or 13 makes the chord that extension
+     - C7(b9) is C7b9, C7(b9,#9) C7b9#9, Cmaj7(#5) Cmaj7#5, C7(9,13) C13
+   * - -5, -9, -13
+     - A minus after a number flattens the tone
+     - C7-9 is C7b9, C13-9 C13b9
 
 
 Note Names

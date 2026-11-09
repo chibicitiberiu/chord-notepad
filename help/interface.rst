@@ -812,7 +812,9 @@ As you select notes, Chord Notepad analyzes them and shows matching chords:
   notes: E G# B C gives ``Eaddb6`` (E major with an added flat 6th) as well
   as ``Caugmaj7/E``
 * Notes that no root names in full can still be a chord with its 5th or
-  3rd left out: C E Bb gives ``C7(no5)``, C G Bb gives ``C7(no3)``. Two
+  3rd left out: C E Bb gives ``C7(no5)``, C G Bb gives ``C7(no3)``. So
+  can notes that every root names only with two added notes: C E Bb D A
+  gives ``C13(no5)`` as well as ``Amaddb9add11/C``. Two
   notes a fifth apart are a power chord (C G gives ``C5``); other pairs of
   notes, and clusters such as C C# D, aren't named
 * The likeliest chords come first. A chord built on the lowest note leads,

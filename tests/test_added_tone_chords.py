@@ -383,7 +383,12 @@ def test_typed_notes_without_octaves_stack_from_the_first(vm):
 
 @pytest.mark.parametrize("notes, first", [
     ("C4 E4 F#4", 'C(b5)'),             # Tibi's case: C major with a flat 5th
-    ("F#3 C4 E4", 'C(b5)/F#'),
+    ("F#3 C4 E4", 'C(b5)/Gb'),          # the bass spelled as the chord's flat 5th
+    ("Eb3 C4 E4 G4 Bb4", 'C7#9/D#'),    # and as its #9
+    ("C4 D4 G4 Bb4", 'C7sus2'),         # was Gmadd11/C
+    ("C4 E4 Bb4 D5 A5", 'C13(no5)'),    # was Amaddb9add11/C
+    ("C4 E4 B4 D5", 'Cmaj9(no5)'),      # was E7b13(no3)/C
+    ("C4 D4 G4", 'Csus2'),
     ("C4 E4 Bb4", 'C7(no5)'),           # the Italian sixth's notes
     ("C4 G4 Bb4", 'C7(no3)'),
     ("C4 D4 E4", 'Cadd9(no5)'),

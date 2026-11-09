@@ -273,7 +273,7 @@ _QUALITY_RARITY = {
     '': 0, 'm': 0, '7': 1, 'm7': 1, 'maj7': 1,
     '6': 1.5, 'm6': 1.5, 'sus4': 1.5, 'sus2': 1.5, 'add9': 1.5, 'madd9': 1.5,
     '9': 2, 'm9': 2, 'maj9': 2, '7sus4': 2, 'dim': 2, 'dim7': 2, 'm7b5': 2,
-    'aug': 2.5, '7b9': 2.5, 'mmaj7': 2.5,
+    'aug': 2.5, '7b9': 2.5, 'mmaj7': 2.5, '7sus2': 2.5,
 }
 
 #: Cost of an added tone: a plain one (add9, add11, add13) or an altered
@@ -281,10 +281,14 @@ _QUALITY_RARITY = {
 _ADDED_COST = 1.5
 _ALTERED_ADDED_COST = 3
 
-#: Cost of a left-out fifth or third (``C7(no5)``, ``C7(no3)``).
+#: Cost of a left-out fifth or third (``C7(no5)``, ``C7(no3)``), and the
+#: extra cost of a 13th chord without its third, which a slash chord
+#: usually says better (C D F# G A B is Gmaj9/C before Cmaj13#11(no3)).
 _OMITTED_COST = 1.5
+_THIRDLESS_13TH_COST = 2
 #: A left-out tone at the end of a quality.
 _OMITTED = re.compile(r'\(no\d\)$')
+_THIRTEENTH = re.compile(r'(?:maj|m)?13')
 
 #: Extra cost of a root that isn't the bass, when the bass is a note of the
 #: chord before its added tones, by its interval above the root: the 3rd
@@ -316,6 +320,8 @@ def _likelihood(name: str, bass: Optional[str],
     quality = body[len(root):]
     cost = 0
     if _OMITTED.search(quality):
+        if quality.endswith('(no3)') and _THIRTEENTH.match(quality):
+            cost += _THIRDLESS_13TH_COST
         quality = _OMITTED.sub('', quality)
         cost += _OMITTED_COST
     base, *added = quality.split('add')
@@ -539,7 +545,7 @@ class ChordIdentifierViewModel(Observable):
                 # All notes can be the root of a dim7 chord
                 for note in note_names:
                     if bass_note and bass_note != note:
-                        all_chords.add(f"{note}dim7/{bass_note}")
+                        all_chords.add(self._chord_service.slash_chord(f"{note}dim7", bass_note))
                     all_chords.add(f"{note}dim7")
 
             # For better coverage, try all inversions/rotations for non-symmetric chords

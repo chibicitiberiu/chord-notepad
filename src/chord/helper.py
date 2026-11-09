@@ -36,6 +36,8 @@ class ChordHelper:
     #      table wins over the libraries' mechanical full stack.
     #   2. Library-unknown - neither pychord nor music21 parses the symbol, so
     #      the table is the only thing that can resolve it.
+    #   3. Another reading - the libraries read the symbol as a different
+    #      chord (C2, C4); also in _CUSTOM_VOICING_QUALITIES.
     #
     # Intervals are register-preserving (a 9th is 14, an 11th 17, a 13th 21).
     QUALITY_INTERVALS = {
@@ -63,6 +65,13 @@ class ChordHelper:
         'mmaj9':     [0, 3, 7, 11, 14],           # Minor-major 9th (also mM9)
         'sus2sus4':  [0, 2, 5, 7],                # Both suspensions
         'sus24':     [0, 2, 5, 7],                # Same, short form
+        '7sus2':     [0, 2, 7, 10],               # Dominant 7 sus2
+        '9sus2':     [0, 7, 10, 14],              # Same notes: the 9th is the sus2
+        '9sus':      [0, 5, 7, 10, 14],           # Dominant 9 sus4 (as 9sus4)
+
+        # --- Another reading than the libraries' (see _CUSTOM_VOICING_QUALITIES) ---
+        '2':      [0, 2, 7],                 # C2 is Csus2 (pychord: Cadd9)
+        '4':      [0, 5, 7],                 # C4 is Csus4 (pychord: Cadd11)
 
         # --- Library-unknown for flat roots (Db/Eb/Gb/Ab/Bb); the libraries
         #     only parse these with sharp/natural roots, so the table has to
@@ -86,6 +95,7 @@ class ChordHelper:
         """Initialize chord helper"""
         self.midi_converter = ChordToMidiConverter()
         self._pitch_class_cache = {}  # chord name -> pitch classes (_pitch_classes)
+        self._spelling_cache = {}  # chord name -> its note names (slash_chord)
 
     def is_valid_chord(self, chord_name: str) -> bool:
         """
@@ -109,8 +119,10 @@ class ChordHelper:
     #   dominant/major forms; libraries include it and produce the clash).
     # - 7b9b13 drops the natural 11th (which pychord includes) for the same
     #   reason; this is what a 7alt symbol expands to.
+    # - 2 and 4 are the suspensions guitar books write them for (C2 is Csus2,
+    #   C4 Csus4), where pychord adds a 9th or an 11th to the triad.
     _CUSTOM_VOICING_QUALITIES = frozenset({'11', 'maj11', '13', 'm13', 'maj13', '7b9b13',
-                                           '13b9', '13#9', '13b5', '11b9'})
+                                           '13b9', '13#9', '13b5', '11b9', '2', '4'})
 
     def get_notes(self, chord_name: str) -> Optional[List[str]]:
         """
@@ -151,6 +163,10 @@ class ChordHelper:
         Returns:
             (names, intervals) or None if the chord can't be resolved.
         """
+        changed = self._resolve_omitted_or_added_fifth(chord_name)
+        if changed is not None:
+            return changed
+
         # For qualities with curated voicings (e.g. dominant 11th omits the 3rd
         # to avoid the b9 clash with the 11th), prefer our QUALITY_INTERVALS
         # table over pychord/music21's mechanical inclusion of every interval.
@@ -195,6 +211,50 @@ class ChordHelper:
 
         # Try our custom implementation
         return self._build_chord_notes_with_intervals(chord_name)
+
+    #: A chord with left-out tones as the omit normalizer writes it
+    #: (C69omit5, C13omit3), or with an added 5th (Caddb5).
+    _OMITS = re.compile(r'^(.+?)((?:omit\d+)+)$')
+    _ADDED_FIFTH = re.compile(r'^(.+?)add([#b])5$')
+    #: The tone a left-out number takes out: the perfect 5th, the 3rd (the
+    #: major one when there are both: the minor one is then a #9).
+    _OMITTED_TONES = {'5': (7,), '3': (4, 3)}
+
+    def _resolve_omitted_or_added_fifth(self, chord_name: str
+                                        ) -> Optional[Tuple[List[str], List[int]]]:
+        """Resolve a chord with its 5th or 3rd left out from the chord as
+        this app voices it, without that tone, so C69(no5) keeps its 3rd
+        and C13(no5) leaves out the 11th as C13 does (music21 read them on
+        its own). An altered 5th the same way: "add" keeps the 5th, so
+        Caddb5 is C E G Gb (C(b5) is C E Gb).
+
+        Returns (names, intervals), or None to leave the chord to the other
+        backends: no such suffix, or a left-out tone the chord doesn't have
+        (Cdim(no5), C11(no3) keep music21's reading)."""
+        omits = self._OMITS.match(chord_name)
+        added = self._ADDED_FIFTH.match(chord_name)
+        match = omits or added
+        if not match or not self.extract_root(match.group(1)):
+            return None
+        whole = self._resolve_notes(match.group(1))
+        if whole is None:
+            return None
+        names, intervals = whole
+        if added:
+            interval = 6 if added.group(2) == 'b' else 8
+            if interval in intervals or 7 not in intervals:
+                return None
+            name = pitch.Pitch(self.extract_root(chord_name)).transpose(
+                self._INTERVAL_NAMES[interval]).name.replace('-', 'b')
+            return names + [name], intervals + [interval]
+        left_out = set()
+        for number in re.findall(r'\d+', omits.group(2)):
+            tone = next((t for t in self._OMITTED_TONES.get(number, ()) if t in intervals), None)
+            if tone is None:
+                return None
+            left_out.add(tone)
+        kept = [(n, i) for n, i in zip(names, intervals) if i not in left_out]
+        return [n for n, _ in kept], [i for _, i in kept]
 
     @staticmethod
     def _music21_intervals(chord_obj, names: List[str]) -> List[int]:
@@ -270,7 +330,7 @@ class ChordHelper:
                     # Add slash chord if bass differs from root
                     bass_note = (actual_bass_note if actual_bass_note else c.bass().name).replace('-', 'b')
                     if parse_note_to_semitone(bass_note) != parse_note_to_semitone(root):
-                        chord_names.add(f"{root}{shorthand}/{bass_note}")
+                        chord_names.add(self.slash_chord(f"{root}{shorthand}", bass_note))
         except:
             pass
 
@@ -298,7 +358,7 @@ class ChordHelper:
     # 3rd-less 11, which has the same notes).
     _ROOTED_QUALITIES = (
         '', 'm', 'dim', 'aug', 'sus4', 'sus2',
-        '6', 'm6', '7', 'maj7', 'm7', 'mM7', 'm7b5', 'dim7', '7sus4',
+        '6', 'm6', '7', 'maj7', 'm7', 'mM7', 'm7b5', 'dim7', '7sus4', '7sus2',
         'aug7', 'augmaj7', '7b5', '69', 'm69', 'add9', 'madd9', 'add11', 'madd11',
         '7#5', '9', 'maj9', 'm9', 'mM9', '9sus4', '7b9', '7#9', '7#11', '7b13',
         'maj7#11', 'm7add11', '9#11', 'maj9#11', '11', 'm11', '13', 'm13', 'maj13',
@@ -367,8 +427,10 @@ class ChordHelper:
         third left out names them: C E Bb is C7(no5), C G Bb C7(no3), C D E
         Cadd9(no5). The full chord has a third and a perfect fifth and loses
         one of them (the fifth first), so nothing is ever missing from a
-        power chord, a sus or an altered fifth. Every name is checked to
-        resolve to exactly these notes.
+        power chord, a sus or an altered fifth. When every root's name
+        takes two added tones, a known chord without its fifth or third
+        comes too (C E Bb D A is C13(no5) as well as Amaddb9add11). Every
+        name is checked to resolve to exactly these notes.
 
         Args:
             notes: Distinct note names in the app's spelling (``Bb``, not ``B-``).
@@ -412,15 +474,22 @@ class ChordHelper:
         covered = set()   # roots whose own reading already comes over the bass
         on_bass = False   # some reading has the bass for its root
         added_bass = []   # readings that have the bass as an added tone
-        for root, name, added, _ in self._root_readings(notes):
+        whole = self._root_readings(notes)
+        # A left-out tone beside names without one (C13(no5) beside
+        # Amaddb9add11), or a 13th chord without its third, doesn't keep
+        # the rarer names over the bass away (C D E F G B is G7add13/C too).
+        beside = any(not r[3] for r in whole)
+        for root, name, added, omitted in whole:
             names.append(name)
             if bass_pc is None:
                 continue
+            counts = not (omitted and (beside or self._THIRDLESS_13TH.match(name[len(root):])))
             if parse_note_to_semitone(root) == bass_pc:
-                on_bass = True
+                on_bass = on_bass or counts
             elif bass_pc not in added:
-                names.append(f"{name}/{bass}")
-                covered.add(root)
+                names.append(self.slash_chord(name, bass))
+                if counts:
+                    covered.add(root)
             else:
                 added_bass.append(name)
         if bass_pc is None:
@@ -435,13 +504,35 @@ class ChordHelper:
         if plain or on_bass or covered:
             readings = plain
         for _, name, _, _ in readings:
-            if f"{name}/{bass}" not in names:
-                names.append(f"{name}/{bass}")
+            if self.slash_chord(name, bass) not in names:
+                names.append(self.slash_chord(name, bass))
         if not (readings or on_bass or covered):
             # Nothing else says where the bass is: C D# E over D# is only
             # Cadd#9(no5)/D#.
-            names += [f"{name}/{bass}" for name in added_bass]
+            names += [self.slash_chord(name, bass) for name in added_bass]
         return names
+
+    #: A 13th chord without its third (C13(no3), Cmaj13#11(no3)).
+    _THIRDLESS_13TH = re.compile(r'(?:maj|m)?13.*\(no3\)$')
+
+    #: Spellings a slash bass keeps its plain name for, though the chord
+    #: spells it so: C#13/F rather than C#13/E#.
+    _RARE_SPELLINGS = frozenset({'E#', 'B#', 'Cb', 'Fb'})
+
+    def slash_chord(self, name: str, bass: str) -> str:
+        """``name`` over ``bass``, the bass spelled as the chord spells that
+        note when it is one of its tones: C(b5) over its flat 5th is
+        C(b5)/Gb, not C(b5)/F#, and C7#9 over its #9 C7#9/D#. A double
+        sharp or flat, E#, B#, Cb or Fb keeps the bass as it is."""
+        if name not in self._spelling_cache:
+            chord_notes = self.compute_chord_notes(name)
+            self._spelling_cache[name] = tuple(chord_notes.notes) if chord_notes else ()
+        bass_pc = parse_note_to_semitone(bass)
+        for note in self._spelling_cache[name]:
+            if (parse_note_to_semitone(note) == bass_pc and len(note) <= 2
+                    and note not in self._RARE_SPELLINGS):
+                return f"{name}/{note}"
+        return f"{name}/{bass}"
 
     @staticmethod
     def _distinct_classes(notes: List[str]) -> dict:
@@ -480,11 +571,21 @@ class ChordHelper:
                 added = frozenset((root_pc + t) % 12 for t in tones)
             if self._pitch_classes(name) == full:
                 readings.append((root, name, added, frozenset()))
-        if readings or len(full) < 3:
+        # A left-out tone only when nothing else names the notes, or when
+        # every name takes two added tones: then a common known chord
+        # without its fifth comes too, the tone voicings leave out most
+        # (C E Bb D A is C13(no5), not only Amaddb9add11/C; C D F# G A B
+        # stays Gmaj9/C, never Cmaj13#11(no3)).
+        if len(full) < 3 or any(len(r[2]) < 2 for r in readings):
             return readings
+        beside = bool(readings)
         for root_pc, root in classes.items():
             above = frozenset((pc - root_pc) % 12 for pc in full)
             found = self._omitted_tone_name(root, above, known, full)
+            if found is not None and beside and (
+                    found[1] or found[2] != 7
+                    or known[above | {found[2]}] in self._RARE_QUALITIES):
+                continue
             if found is not None:
                 name, tones, tone = found
                 readings.append((root, name, frozenset((root_pc + t) % 12 for t in tones),
@@ -1062,6 +1163,10 @@ class ChordHelper:
 
         return quality in self.QUALITY_INTERVALS
 
+    #: A base quality with a 7th or an extension before a parenthesised
+    #: tone: (quality before it, the number, what follows it).
+    _EXTENDED_BASE = re.compile(r'^(maj|mmaj|mM|m|dim|aug|)(13|11|9|7)(?!\d)(.*)$')
+
     def _normalize_parentheses(self, chord_name: str) -> str:
         """Normalize parentheses notation to standard format.
 
@@ -1104,57 +1209,41 @@ class ChordHelper:
             inner = extension.replace('maj', 'M', 1)
             return root + base_quality + inner + suffix
 
-        # Check if base quality contains a 7th
-        # Need to be careful: dim7, ø7, m7b5, mM7, aug7, etc.
-        has_seventh = ('7' in base_quality or
-                      base_quality.startswith('maj7') or
-                      base_quality.startswith('m7') or
-                      base_quality == 'M7')
+        # A list of tones, C7(b9,#9) or C7(9,13): plain numbers (9, 11, 13)
+        # name the chord's extension, the highest winning (7(9,13) is 13);
+        # altered ones follow it, lowest first (C7b9#9).
+        parts = [p.strip() for p in extension.split(',')]
+        plain = [p for p in parts if p in ('9', '11', '13')]
+        altered = sorted((p for p in parts if re.fullmatch(r'[#b]\d+', p)),
+                         key=lambda p: int(p[1:]))
+        listed = len(plain) + len(altered) == len(parts)
 
-        if has_seventh:
-            # Base has 7th: convert to full extended chord
-            # Remove the base 7 and add the extension directly
-            # E.g., maj7(9) → maj9, m7(11) → m11, 7(b9) → 7b9
+        # A base with a 7th or an extension (7, maj7, m7b5, mM7, 9, 13...):
+        # a plain number replaces it (maj7(9) is maj9, m7(11) m11), an
+        # altered one keeps it (C7(b9) is C7b9, Cmaj7(#5) Cmaj7#5, Cm7(b5)
+        # Cm7b5), and both together give C7(9,#11) C9#11.
+        extended = self._EXTENDED_BASE.match(base_quality)
+        if extended and listed:
+            prefix, number, rest = extended.groups()
+            top = max(plain + [number], key=int)
+            return root + prefix + top + rest + ''.join(altered) + suffix
+        if '7' in base_quality:
+            # Some other 7th (rare): keep the quality, add the extension.
+            return root + base_quality + extension + suffix
 
-            # Special case: if base is just "7"
-            if base_quality == '7':
-                # For simple extensions (9, 11, 13), replace the 7
-                # C7(9) → C9, C7(11) → C11, C7(13) → C13
-                # For alterations (b9, #9, b5, etc.), keep the 7
-                # C7(b9) → C7b9, C7(#5) → C7#5
-                if extension in ['9', '11', '13']:
-                    result = root + extension + suffix
-                else:
-                    result = root + '7' + extension + suffix
-            elif base_quality.startswith('maj7'):
-                # maj7(9) → maj9, maj7(#11) → maj#11
-                rest = base_quality[4:]  # Everything after "maj7"
-                result = root + 'maj' + extension + rest + suffix
-            elif base_quality.startswith('m7b5'):
-                # Half-diminished: m7b5(9) → m9b5
-                rest = base_quality[2:]  # Everything after "m7"
-                result = root + 'm' + extension + rest + suffix
-            elif base_quality.startswith('m7'):
-                # m7(9) → m9, m7(11) → m11
-                rest = base_quality[2:]  # Everything after "m7"
-                result = root + 'm' + extension + rest + suffix
-            elif base_quality.startswith('mM7'):
-                # Minor-major 7th: mM7(9) → mM9
-                result = root + 'mM' + extension + suffix
-            elif base_quality.startswith('dim7'):
-                # Diminished 7th: dim7(9) → dim9 (though rare)
-                result = root + 'dim' + extension + suffix
-            elif base_quality.startswith('aug7'):
-                # Augmented 7th: aug7(9) → aug9 (though rare)
-                result = root + 'aug' + extension + suffix
+        # No 7th: the tones are added (C(9) is Cadd9, Dm(11) Dmadd11), but
+        # an altered 5th replaces the 5th: C(b5) is C E Gb, C(#5) Caug
+        # ("add" keeps the 5th: Caddb5 is C E G Gb).
+        fifths = [p for p in parts if p in ('b5', '#5')]
+        if listed and len(fifths) == 1 and base_quality in ('', 'm'):
+            if base_quality == '' and fifths == ['#5']:
+                base_quality = 'aug'
+            elif base_quality == 'm' and fifths == ['b5']:
+                base_quality = 'dim'
             else:
-                # Generic fallback: keep the quality and add extension with 7
-                # This handles edge cases we haven't covered
-                result = root + base_quality + extension + suffix
-        else:
-            # Base has no 7th: add the extension
-            # E.g., C(9) → Cadd9, Dm(11) → Dmadd11
-            result = root + base_quality + 'add' + extension + suffix
+                base_quality = (base_quality or 'maj') + fifths[0]
+            parts = [p for p in parts if p not in fifths]
+        result = root + base_quality + ''.join('add' + p for p in parts) + suffix
 
         return result
 
@@ -1287,6 +1376,10 @@ class ChordHelper:
         # CM7, CΔ7 → Cmaj7 (already handled Δ → maj in unicode normalization)
         if quality_part.startswith('M7'):
             quality_part = 'maj7' + quality_part[2:]
+        elif root[0].isupper() and re.match(r'M(?:9|11|13)(?!\d)', quality_part):
+            # CM13 is Cmaj13: the libraries' M11 and M13 keep the tones
+            # this app's maj11 and maj13 leave out. (Lowercase cM13 is minor.)
+            quality_part = 'maj' + quality_part[1:]
         elif quality_part == 'M':
             # Standalone M means major triad, just remove it
             quality_part = ''
@@ -1301,6 +1394,11 @@ class ChordHelper:
         elif quality_part.startswith('-'):
             # Minus sign for minor
             quality_part = 'm' + quality_part[1:]
+
+        # A minus after an extension flattens the next tone: C7-9 is C7b9,
+        # C13-9 C13b9 (pychord's 13-9 kept the 11th). Not after a 6, where
+        # C6-9 would be a misspelt 6/9.
+        quality_part = re.sub(r'(?<=[0-9])(?<!6)-(?=(?:5|9|11|13)(?!\d))', 'b', quality_part)
 
         return root + quality_part + slash_part
 
