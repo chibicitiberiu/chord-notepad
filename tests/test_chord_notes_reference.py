@@ -4,15 +4,19 @@ The other chord tests compare the app with itself (transposed against
 source, converted against source), so a quality read wrong everywhere, such
 as ``C-7`` once read as C flat, passes them. This table is written from
 theory, independently of the code: semitones above the root for each way
-of writing a quality the guide documents. Each is checked for every root
+of writing a quality the guide documents or the parser reads, and
+(OMITTED) each with its fifth or third left out. Each is checked for every root
 spelling, in American and European, upper and lower case where that means
 minor, and with a slash bass, against what playback resolves
 (``ChordHelper.compute_chord_notes``) and the editor's note lookup
 (``ChordHelper.get_notes``).
 
 Deliberate voicing choices (help/reference.rst, the curated qualities in
-chord.helper): an 11th chord leaves out the 3rd, and a 13th chord leaves
-out the 11th.
+chord.helper): an 11th chord (maj11 too) leaves out the 3rd, and a 13th
+chord leaves out the 11th.
+
+The chord identifier's fuzz test (test_chord_identifier_fuzz) takes its
+notes from these tables too.
 """
 
 import pytest
@@ -43,11 +47,11 @@ REFERENCE = {
     ('m7', '-7', 'min7', 'mi7'): (0, 3, 7, 10),
     ('mM7', 'm(maj7)', 'mmaj7'): (0, 3, 7, 11),
     ('dim7', '°7'): (0, 3, 6, 9),
-    ('m7b5', 'ø', 'ø7', '-7b5'): (0, 3, 6, 10),
+    ('m7b5', 'ø', 'ø7', '-7b5', 'm7-5'): (0, 3, 6, 10),
     ('aug7', '+7', '7#5'): (0, 4, 8, 10),
     ('maj7#5', 'augmaj7'): (0, 4, 8, 11),
     ('7sus4', '7sus'): (0, 5, 7, 10),
-    ('7b5',): (0, 4, 6, 10),
+    ('7b5', '7-5'): (0, 4, 6, 10),
     # extensions
     ('9',): (0, 4, 7, 10, 2),
     ('m9', '-9', 'min9'): (0, 3, 7, 10, 2),
@@ -57,12 +61,14 @@ REFERENCE = {
     ('13',): (0, 4, 7, 10, 2, 9),
     ('m13', '-13'): (0, 3, 7, 10, 2, 9),
     ('maj13',): (0, 4, 7, 11, 2, 9),
+    ('maj11',): (0, 7, 11, 2, 5),
+    ('maj13#11',): (0, 4, 7, 11, 2, 6, 9),
     # alterations
-    ('7b9',): (0, 4, 7, 10, 1),
+    ('7b9', '7-9', '7(b9)'): (0, 4, 7, 10, 1),
     ('7#9',): (0, 4, 7, 10, 3),
     ('7#11',): (0, 4, 7, 10, 6),
     ('9#11',): (0, 4, 7, 10, 2, 6),
-    ('maj7#11',): (0, 4, 7, 11, 6),
+    ('maj7#11', 'M7#11'): (0, 4, 7, 11, 6),
     ('13b9',): (0, 4, 7, 10, 1, 9),
     ('13#9',): (0, 4, 7, 10, 3, 9),
     ('13#11',): (0, 4, 7, 10, 2, 6, 9),
@@ -74,9 +80,13 @@ REFERENCE = {
     ('7#9#11',): (0, 4, 7, 10, 3, 6),
     ('7#5#9', '7#9#5'): (0, 4, 8, 10, 3),
     ('7b5b9', '7b9b5'): (0, 4, 6, 10, 1),
-    ('9b5',): (0, 4, 6, 10, 2),
+    ('7b5#9', '7#9b5'): (0, 4, 6, 10, 3),
+    ('7#5b9', '7b9#5', 'aug7b9'): (0, 4, 8, 10, 1),
+    ('7b9#9',): (0, 4, 7, 10, 1, 3),
+    ('m7b5b9', 'm7b9b5', 'm7b5(b9)'): (0, 3, 6, 10, 1),
+    ('9b5', '9-5'): (0, 4, 6, 10, 2),
     ('9#5', 'aug9'): (0, 4, 8, 10, 2),
-    ('7b13',): (0, 4, 7, 10, 8),
+    ('7b13', '7-13'): (0, 4, 7, 10, 8),
     ('9sus4',): (0, 5, 7, 10, 2),
     ('13sus4',): (0, 5, 7, 10, 2, 9),
     ('maj7b5',): (0, 4, 6, 11),
@@ -86,23 +96,78 @@ REFERENCE = {
     ('m11b5',): (0, 3, 6, 10, 2, 5),
     ('maj9#11',): (0, 4, 7, 11, 2, 6),
     ('dim(maj7)',): (0, 3, 6, 11),
+    ('dim(maj9)',): (0, 3, 6, 11, 2),
+    ('dimm9',): (0, 3, 6, 10, 2),
+    ('dim7#9',): (0, 3, 6, 9, 3),           # the #9 sounds as the minor 3rd
+    ('maj7#5(9)',): (0, 4, 8, 11, 2),
+    ('6b5',): (0, 4, 6, 9),
+    ('(b5)', 'majb5'): (0, 4, 6),
     ('sus2sus4', 'sus24'): (0, 2, 5, 7),
     ('add13',): (0, 4, 7, 9),
     ('6add9',): (0, 4, 7, 9, 2),
     # added tones
-    ('add9', 'add2'): (0, 4, 7, 2),
+    ('add9', 'add2', 'Madd9', 'majadd9'): (0, 4, 7, 2),
     ('madd9', 'm(add9)'): (0, 3, 7, 2),
-    ('add11',): (0, 4, 7, 5),
+    ('add11', 'add4', 'Madd4', 'majadd4'): (0, 4, 7, 5),
     ('add#11',): (0, 4, 7, 6),
     ('addb6', 'addb13'): (0, 4, 7, 8),
     ('addb9',): (0, 4, 7, 1),
+    ('add#9',): (0, 4, 7, 3),
+    ('madd11', 'madd4'): (0, 3, 7, 5),
+    ('madd#11',): (0, 3, 7, 6),
+    ('maddb6',): (0, 3, 7, 8),
+    ('maddb9',): (0, 3, 7, 1),
+    ('sus4add9', 'sus4add2'): (0, 5, 7, 2),
+    ('7add11',): (0, 4, 7, 10, 5),
+    ('7add13',): (0, 4, 7, 10, 9),
+    ('m7add11',): (0, 3, 7, 10, 5),
+    ('maj7add11', 'M7add11'): (0, 4, 7, 11, 5),
+    ('maj7add13', 'M7add13'): (0, 4, 7, 11, 9),
+    ('mM7add11', 'mmaj7add11'): (0, 3, 7, 11, 5),
     ('(no3)',): (0, 7),
     ('7(no3)',): (0, 7, 10),
 }
 
 #: Spellings the app doesn't read as chords (shown in red, never played).
 #: Supporting one means moving it to REFERENCE with its intervals.
-UNSUPPORTED = ['7+5']
+UNSUPPORTED = ['7+5', '7sus2', '9sus', '9sus2', '7no5', 'no3', '-5']
+
+#: Qualities whose (no5) and (no3) forms the app reads wrong today (C69(no5)
+#: loses the 3rd as well, C13(no5) gains the 11th, CmM9(no3) loses the 9th)
+#: or not at all (Cmaj9(no5)); left out of OMITTED until they are fixed.
+MISREAD_OMITS = ['69', 'm69', 'maj9', 'mM9', 'maj9#11', '13', 'm13', 'maj13',
+                 '13b9', '13#9', '13#11', 'maj13#11']
+
+
+def _third(intervals):
+    """The third of a chord: the major one when there are both (the minor
+    one is then a #9, as in 7#9), else the minor one, else None."""
+    return 4 if 4 in intervals else 3 if 3 in intervals else None
+
+
+def omitted_forms(qualities=None):
+    """``{spellings: intervals}`` for a fifth or a third left out:
+    ``(no5)`` / ``(omit5)`` take out the perfect fifth, ``(no3)`` /
+    ``(omit3)`` the third, of each REFERENCE quality that has both (a
+    power chord, a sus or an altered fifth has nothing of the kind to
+    leave out). Only the first spelling of a quality takes the suffix;
+    REFERENCE checks the others."""
+    table = {}
+    for spellings, intervals in REFERENCE.items():
+        quality = spellings[0]
+        third = _third(intervals)
+        if 7 not in intervals or third is None:
+            continue
+        if (quality in MISREAD_OMITS) != (qualities is MISREAD_OMITS):
+            continue
+        for number, tone in (('5', 7), ('3', third)):
+            forms = (f'{quality}(no{number})', f'{quality}(omit{number})')
+            table[forms] = tuple(i for i in intervals if i != tone)
+    return table
+
+
+#: The omitted-tone forms the app reads right (MISREAD_OMITS aside).
+OMITTED = omitted_forms()
 
 _LETTER_PC = {'C': 0, 'D': 2, 'E': 4, 'F': 5, 'G': 7, 'A': 9, 'B': 11}
 _EUROPEAN = {'C': 'Do', 'D': 'Re', 'E': 'Mi', 'F': 'Fa', 'G': 'Sol', 'A': 'La', 'B': 'Si'}
@@ -168,6 +233,46 @@ def test_every_spelling_of_a_quality_has_its_notes(spellings):
     problems = [p for case in cases(spellings)
                 for p in [_check(*case, REFERENCE[spellings])] if p]
     assert not problems, f"{len(problems)} problems:\n" + "\n".join(problems[:30])
+
+
+def _omitted_cases(spellings, roots, basses):
+    for notation in ('american', 'european'):
+        for quality in spellings:
+            for root in roots:
+                for bass in basses:
+                    slash = '/' + spell(bass, notation) if bass else ''
+                    yield notation, spell(root, notation) + quality + slash, root, bass
+
+
+@pytest.mark.parametrize("spellings", list(OMITTED), ids=lambda s: s[0])
+def test_a_left_out_fifth_or_third_takes_out_that_note(spellings):
+    """A few roots and basses here; make fuzz checks them all."""
+    intervals = OMITTED[spellings]
+    problems = [p for case in _omitted_cases(spellings, ['C', 'F#', 'Bb', 'Db'], ['', 'E'])
+                for p in [_check(*case, intervals)] if p]
+    assert not problems, f"{len(problems)} problems:\n" + "\n".join(problems[:30])
+
+
+@pytest.mark.fuzz
+@pytest.mark.parametrize("spellings", list(OMITTED), ids=lambda s: s[0])
+def test_a_left_out_fifth_or_third_on_every_root_and_bass(spellings):
+    intervals = OMITTED[spellings]
+    problems = [p for case in _omitted_cases(spellings, ROOTS, BASSES)
+                for p in [_check(*case, intervals)] if p]
+    assert not problems, f"{len(problems)} problems:\n" + "\n".join(problems[:30])
+
+
+_MISREAD = omitted_forms(MISREAD_OMITS)
+
+
+@pytest.mark.xfail(strict=True, reason="the parser misreads these; see MISREAD_OMITS")
+@pytest.mark.parametrize("spellings", list(_MISREAD), ids=lambda s: s[0])
+def test_a_misread_omitted_form_is_still_misread(spellings):
+    """When one of these is fixed this fails: move it out of MISREAD_OMITS."""
+    intervals = _MISREAD[spellings]
+    problems = [p for case in _omitted_cases(spellings[:1], ['C'], [''])
+                for p in [_check(*case, intervals)] if p]
+    assert not problems, "\n".join(problems)
 
 
 @pytest.mark.parametrize("quality", UNSUPPORTED)

@@ -376,3 +376,28 @@ def test_typed_notes_without_octaves_stack_from_the_first(vm):
     """E G# B C typed as is: E is the bass (Tibi's case on the phone)."""
     assert typed(vm, "E G# B C")[0] == 'Eaddb6'
     assert typed(vm, "C E G# B")[0] == 'Caugmaj7'
+
+
+# --- Chords the parser reads that the identifier left unnamed ----------------
+# (test_chord_identifier_fuzz finds these for every quality, root and bass.)
+
+@pytest.mark.parametrize("notes, first", [
+    ("C4 E4 F#4", 'C(b5)'),             # Tibi's case: C major with a flat 5th
+    ("F#3 C4 E4", 'C(b5)/F#'),
+    ("C4 E4 Bb4", 'C7(no5)'),           # the Italian sixth's notes
+    ("C4 G4 Bb4", 'C7(no3)'),
+    ("C4 D4 E4", 'Cadd9(no5)'),
+    ("C4 G4", 'C5'),
+    ("G3 C4", 'C5/G'),
+    ("C4 E4 G#4 Bb4 D#5", 'C7#5#9'),    # was G#addb6add9/C
+    ("C4 E4 F#4 B4", 'Cmaj7b5'),        # was Bsus4/C
+    ("C4 Eb4 Gb4 B4", 'Cdim(maj7)'),    # was B/C
+    ("C#4 C5 E5 F#5 G5", 'Cadd#11/C#'),
+])
+def test_a_chord_the_app_reads_is_named(vm, notes, first):
+    assert typed(vm, notes)[0] == first
+
+
+def test_two_notes_other_than_a_fifth_are_no_chord(vm):
+    assert typed(vm, "C4 E4") == []
+    assert typed(vm, "C4 F#4") == []

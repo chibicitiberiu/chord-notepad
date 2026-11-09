@@ -281,6 +281,11 @@ _QUALITY_RARITY = {
 _ADDED_COST = 1.5
 _ALTERED_ADDED_COST = 3
 
+#: Cost of a left-out fifth or third (``C7(no5)``, ``C7(no3)``).
+_OMITTED_COST = 1.5
+#: A left-out tone at the end of a quality.
+_OMITTED = re.compile(r'\(no\d\)$')
+
 #: Extra cost of a root that isn't the bass, when the bass is a note of the
 #: chord before its added tones, by its interval above the root: the 3rd
 #: (first inversion), the 5th, else (a 7th, 6th or altered 5th). A bass
@@ -297,9 +302,9 @@ def _likelihood(name: str, bass: Optional[str],
     A chord rooted on the bass beats an inversion, which beats a reading
     whose bass is an added tone (E G# B C: Eaddb6, then Caugmaj7/E, then
     G#augadd#9/E). Common qualities beat rare ones and each added tone
-    costs a little, an altered one more. On another root than the bass,
-    the slash form (which says where the bass is) comes just before the
-    plain name.
+    costs a little, an altered one more, and so does a left-out fifth or
+    third (``C7(no5)``). On another root than the bass, the slash form
+    (which says where the bass is) comes just before the plain name.
 
     Args:
         name: The candidate.
@@ -309,8 +314,12 @@ def _likelihood(name: str, bass: Optional[str],
     body, _, slash = name.partition('/')
     root = _root_of(body)
     quality = body[len(root):]
+    cost = 0
+    if _OMITTED.search(quality):
+        quality = _OMITTED.sub('', quality)
+        cost += _OMITTED_COST
     base, *added = quality.split('add')
-    cost = _QUALITY_RARITY.get(base, 3)
+    cost += _QUALITY_RARITY.get(base, 3)
     cost += sum(_ALTERED_ADDED_COST if tone[:1] in ('b', '#') else _ADDED_COST for tone in added)
     if bass and root and _pitch(root) != _pitch(bass):
         interval = (_pitch(bass) - _pitch(root)) % 12

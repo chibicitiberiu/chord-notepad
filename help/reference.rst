@@ -168,6 +168,26 @@ Add Chords
      - Add flat 6th (inside the octave) or flat 13th (an octave up)
      - Eaddb6, Emaddb6, Eaddb13
 
+Left-Out Notes
+--------------
+
+.. list-table::
+   :header-rows: 1
+   :widths: 20 30 50
+
+   * - Suffix
+     - Name
+     - Examples
+   * - (no5), (omit5)
+     - Without the 5th
+     - C7(no5) is C E Bb, Cadd9(no5) is C D E
+   * - (no3), (omit3)
+     - Without the 3rd
+     - C7(no3) is C G Bb, C(no3) is C5
+   * - (b5)
+     - Major with a flat 5th
+     - C(b5) is C E Gb
+
 Altered Chords
 --------------
 

@@ -811,6 +811,10 @@ As you select notes, Chord Notepad analyzes them and shows matching chords:
 * Each note is also tried as the root, with any extra notes named as added
   notes: E G# B C gives ``Eaddb6`` (E major with an added flat 6th) as well
   as ``Caugmaj7/E``
+* Notes that no root names in full can still be a chord with its 5th or
+  3rd left out: C E Bb gives ``C7(no5)``, C G Bb gives ``C7(no3)``. Two
+  notes a fifth apart are a power chord (C G gives ``C5``); other pairs of
+  notes, and clusters such as C C# D, aren't named
 * The likeliest chords come first. A chord built on the lowest note leads,
   then inversions (the lowest note is the chord's 3rd, 5th or 7th), and
   last the readings that would put an added note in the bass. Common
