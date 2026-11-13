@@ -1031,7 +1031,7 @@
   {
    "name": "drawer",
    "page": "interface: The Drawer; getting_started: Saving Your Work / Opening Existing Files; midi_export: Exporting a Song",
-   "what": "The ☰ drawer: New song, Open…, Recent (three songs), Save as…, Export MIDI…, Settings, User guide, Quick start, About.",
+   "what": "The ☰ drawer: New song, Open…, Recent (three songs), Save as…, Export MIDI…, Settings, Examples, User guide, Quick start, About.",
    "scene": "grace_play",
    "scene_extra": [
     {

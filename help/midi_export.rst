@@ -33,7 +33,7 @@ Exporting a Song
 .. platform-figure:: drawer
    :platforms: android
    :alt: The open drawer: New song, Open, the recent songs, Save as, Export
-         MIDI, Settings, User guide, Quick start and About.
+         MIDI, Settings, Examples, User guide, Quick start and About.
 
    **Export MIDI…** is in the ☰ drawer, under Save as….
 

@@ -96,7 +96,8 @@ The Main :plat:`Window|Screen`
       The Play tab, while a song plays.
 
    #. **☰** -- opens the drawer: New song, Open…, your recent songs, Save as…,
-      Export MIDI…, and below them Settings, User guide, Quick start and About.
+      Export MIDI…, and below them Settings, Examples, User guide, Quick start
+      and About.
    #. **Song title** -- shows a • when there are unsaved changes. Tap it to
       rename the song.
    #. **Edit and Play tabs** -- switch between writing and listening. Switching

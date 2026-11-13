@@ -28,6 +28,10 @@ The Android app follows the same rules, with these specifics:
 - **Your songs.** The app sees only the files you pick in the system's file
   picker (Open, Save as, Export MIDI). It keeps access to those files so the
   Recent list works; you can revoke that by removing the app.
+- **Example songs.** The Examples entry in the drawer opens a copy of a song
+  that ships with the app. The copy is stored in the app's private storage,
+  not in a place you can browse. It isn't backed up and is deleted with the
+  app. Use Save as to keep a copy of your own.
 - **Settings and the log** stay in the app's private storage on your device,
   which other apps can't read. In the Google Play version, the settings also
   hold the date the app last asked for support, so it asks at most once a
@@ -35,8 +39,8 @@ The Android app follows the same rules, with these specifics:
   on the desktop (no song contents) and is deleted with the app.
 - **Backups.** If Android backup is turned on for your device, Android may
   back up the app's settings (only `settings.json`) to your Google account or
-  copy them to a new phone. The log, the recent-files list and the copied
-  sound font are excluded. That backup is handled by Google under your
+  copy them to a new phone. The log, the recent-files list, the copied
+  sound font and the example copies are excluded. That backup is handled by Google under your
   account's settings; the developer can't see it.
 - **The user guide** is built into the app and opens without any network.
 

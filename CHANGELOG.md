@@ -7,6 +7,7 @@ of this file are used as the GitHub release description, then automatically
 moved to CHANGELOG_HISTORY.md and this file is reset.
 -->
 
+- Android: the drawer has Examples, which opens a copy of one of the example songs.
 - Chords: C2 and C4 now play Csus2 (C D G) and Csus4 (C F G), as guitar books use them, instead of C with an added 9th or 11th. Songs that use C2 or C4 (on any root) sound different.
 - Chords: new 7sus2 (C7sus2 is C D G B♭; C9sus2 is the same chord, since its 9th is the sus2) and 9sus (the same as 9sus4).
 - Chords: fixed chords that played the wrong notes. C69(no5) and C69(no3) lost both the 3rd and the 5th; 13th chords with (no5) or (no3) gained the 11th they leave out; CmM9(no5) lost its 3rd instead of its 5th and CmM9(no3) its 9th; CM13, C13-9 and C13(#11) gained an 11th; C7(b9,#9) played C♭ E♭ G♭ D; and a 7th chord with an altered tone in parentheses lost its 7th (Cmaj7(#5), Cmaj7(#11), Cm7(b5), C7(9,#11)). Cmaj9, Cmaj13, Cm69, Cmaj9#11 and Cmaj13#11 with (no5) or (no3), Cmaj7(9,#11) and C7sus4(9) now play instead of being unknown.

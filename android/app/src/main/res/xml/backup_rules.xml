@@ -4,7 +4,8 @@
      With an <include>, everything else is left out: the log
      (files/data/chord-notepad/logs), the SoundFont copied from the APK,
      Chaquopy's extracted Python, and recent_documents.json (its file grants
-     don't carry over to another device). Songs live wherever the user saved
+     don't carry over to another device), and the example copies the Examples
+     drawer entry makes (files/examples/). Songs live wherever the user saved
      them, outside the app. Keep in step with data_extraction_rules.xml and
      PRIVACY.md. -->
 <full-backup-content>

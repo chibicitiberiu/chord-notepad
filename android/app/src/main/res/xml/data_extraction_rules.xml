@@ -2,7 +2,8 @@
 <!-- Auto Backup and device-to-device transfer on Android 12+
      (android:dataExtractionRules). Same scope as backup_rules.xml: only the
      settings (files/config/chord-notepad/settings.json); no log, no copied
-     SoundFont, no extracted Python, no recent-documents list. Keep in step
+     SoundFont, no extracted Python, no recent-documents list, no example copies
+     (files/examples/). Keep in step
      with backup_rules.xml and PRIVACY.md. -->
 <data-extraction-rules>
     <cloud-backup>

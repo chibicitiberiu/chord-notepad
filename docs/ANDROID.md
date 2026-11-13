@@ -87,8 +87,10 @@ The Python core is not copied: Chaquopy reads `../../src` directly, minus
 `utils/ui_helpers.py`; the same list as `tests/test_core_import_guard.py`).
 The SoundFont (`resources/soundfont/GeneralUser-GS.sf2`), the debug chord-sheet
 screen's sample song (`examples/02_american_complete.txt`, debug builds only, as
-`debug/sample.txt`) and the chord sheet's clef/glyph PNGs (exported from `src/chord_sheet/clef_assets.py`) are put into the APK's
-assets by Gradle tasks, not duplicated in git.
+`debug/sample.txt`), the chord sheet's clef/glyph PNGs (exported from `src/chord_sheet/clef_assets.py`) and
+the example songs (`examples/*.txt`, all variants, as `examples/<name>`; the
+`copyExamples` task) are put into the APK's assets by Gradle tasks, not
+duplicated in git.
 
 ## Toolchain
 
@@ -731,6 +733,29 @@ large to open …", "Failed to write file: …"); the wrapper raises
 persistable grant when the picker returns, so the store never launches
 anything.
 
+#### App-private example documents
+
+The Examples sheet opens documents that are not SAF documents. `ExampleLibrary`
+(pure JVM) copies an asset into `filesDir/examples/` and returns the file:
+`name.txt` when there is no copy yet, the existing copy when its bytes equal
+the asset's, otherwise `name (2).txt`, `name (3).txt` and so on. When the
+open document has unsaved edits, its id is passed as `skipId`, so a re-tap
+makes a fresh copy instead of reopening the edited one. The id is a `file:`
+URI built once, without canonical paths, because ids are compared as strings
+(Recent, `ModeController`).
+
+`AppFilesDocumentAccess` wraps `ContentResolverDocumentAccess` in
+`AppGraph`. It serves ids that lie directly inside `filesDir/examples` with
+`java.io.File` and passes every other id to the wrapped access unchanged.
+For owned ids `query` answers null when the file is gone (Recent drops it),
+the grant methods report true or do nothing, so the copies stay in Recent
+without a persisted grant, and `describeLocation` reads `name.txt (Examples)`.
+`rename` refuses a name that is taken (`File.renameTo` would overwrite it on
+Linux) with "A file named … already exists", which `SafDocumentStore.rename`
+turns into the usual Save As offer. Python treats these ids as opaque, so
+nothing there changes. The copies are in app storage only: not visible to
+file managers, not in the backup rules, removed on uninstall.
+
 ### Schema and contract test
 
 Step 14 commits `android/bridge_schema.json`, dumped from the dataclasses by
@@ -907,8 +932,11 @@ objects, against the release build's R8 rules ("R8 in release builds").
   and answers with `SafDocumentStore.adopt` (grant persisted, ref
   described) off the main thread; backing out answers null.
 - **Drawer** (☰, `ui/main/AppDrawer.kt`) replaces the old ⋮ menu: New
-  song, Open…, Recent (inline), Save as…, Export MIDI…, Settings, User
-  guide, Quick start, About. The desktop's View menu has no Android entry:
+  song, Open…, Recent (inline), Save as…, Export MIDI…, Settings, Examples, User
+  guide, Quick start, About. Examples opens a bottom sheet
+  (`SheetRoute.Examples`) listing the bundled example songs by file name;
+  a tap calls `AppGraph.openExample`, which opens a private copy (see
+  "App-private example documents" under `document_store`). The desktop's View menu has no Android entry:
   the font size is the pinch, the family is in Settings › General, the
   chord sheet is the player's ▭. The voicing and instrument rows come from
   `ui/menus/MenuModels.kt`.

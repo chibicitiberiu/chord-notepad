@@ -160,7 +160,7 @@ legend. Pages are named `file: section`.
 | `capo-suggest.png` | Suggest Capo dialog (＋ Insert → Capo → Suggest): pick the fretboard voicing to optimize for. (phone) | chord_sheet: Suggesting a Capo; directives: Finding the Best Capo |
 | `transpose.png` | Transpose dialog (whole song): semitones with − / +, Cancel / OK. (phone) | transpose: Transposing a Song |
 | `identify.png` | Chord Identifier (Edit ribbon → Identify): C, E, G and B selected on the keyboard, the Notes field, Possible Chords with Cmaj7 picked, Clear and Insert. (phone) | interface: The Chord Identifier |
-| `drawer.png` | The ☰ drawer: New song, Open…, Recent (three songs), Save as…, Export MIDI…, Settings, User guide, Quick start, About. (phone) | interface: The Drawer; getting_started: Saving Your Work / Opening Existing Files; midi_export: Exporting a Song |
+| `drawer.png` | The ☰ drawer: New song, Open…, Recent (three songs), Save as…, Export MIDI…, Settings, Examples, User guide, Quick start, About. (phone) | interface: The Drawer; getting_started: Saving Your Work / Opening Existing Files; midi_export: Exporting a Song |
 | `rename.png` | Rename dialog (tap the title): the name field and 'Saved as "Amazing Grace.txt"'. (phone) | interface: The App Bar; interface: The Song Title |
 | `chord-sheet-piano-roll.png` | Piano roll view: the voiced notes on a keyboard grid, bass in brown, upper voices in blue, the label lane on top. (phone) | chord_sheet: The Four Views |
 | `chord-sheet-staff.png` | Staff view: grand staff in the song's key; Fret cards and Tab are greyed out because the voicing is Piano. (phone) | chord_sheet: The Four Views |
@@ -178,7 +178,7 @@ legend. Pages are named `file: section`.
 | `settings-playback.png` | Settings › Playback: default BPM and time signature. (phone) | settings: Playback & Audio |
 | `settings-voicings.png` | Settings › Voicings on a phone: Add voicing and the custom voicings grouped by model (My 7-String under Fretboard). (phone) | settings: Voicings |
 | `settings-voicing-form.png` | The voicing form for My 7-String on a phone: Name, Model, Copy from existing, Remove voicing, Strings (B1 E2 A2 D3 G3 B3 E4), Max fret, Fingers, spans…. (phone) | settings: Voicings; settings: Worked Example: A Seven-String Guitar |
-| `settings-voicing-ensemble.png` | The form of a custom ensemble (Jazz Vocal Trio) on a phone, scrolled to its Voices: the help lines, then one card per voice with Name, Low, High, Staff and ✕. (phone) | ensembles: Custom Ensembles |
+| `settings-voicing-ensemble.png` | The form of a custom ensemble (Jazz Vocal Trio) on a phone, scrolled to its Voices: the help lines, then one card per voice with ↑, ↓ and ✕, Name, Low, High, Staff and Max gap to next voice (greyed out on Bass). (phone) | ensembles: Custom Ensembles |
 | `settings-voicings-tablet.png` | Settings › Voicings on a tablet: the list on the left and My 7-String's form on the right. (tablet, landscape) | settings: Voicings |
 | `quick-start.png` | Quick Start, page 1 of 7: Welcome, a highlighted snippet, Show at startup, Previous / Next. (phone) | getting_started: Opening the Application; interface: The Drawer |
 | `licences.png` | Open source licences: the components grouped (this app, Python runtime, audio libraries, …). (phone) | interface: The Drawer |

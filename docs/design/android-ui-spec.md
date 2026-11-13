@@ -93,7 +93,7 @@ Every sheet has a drag handle, a title, a scrollable body and actions at the bot
 The ⋮ menu is gone; the drawer holds everything it had.
 
 - **Documents:** New song, Open…, Recent (inline list), Save as…, Export MIDI…
-- **App:** Settings, User guide, Quick start, About.
+- **App:** Settings, Examples, User guide, Quick start, About. Examples (`music-box-multiple`) opens a bottom sheet listing the bundled example songs by file name; a tap opens a private copy in Play.
 
 ## Chord sheet
 
@@ -126,7 +126,7 @@ The UI uses one Material 3-style tonal family: neutral surfaces with a hint of t
 ## Icons
 
 - **Library:** Pictogrammers Material Design Icons, 7.4.x, Apache-2.0. Add an entry to the licences screen.
-  - Names used: `plus`, `undo`, `redo`, `swap-vertical`, `music-note`, `piano`, `metronome`, `music-clef-treble`, `music`, `guitar-acoustic`, `speedometer`, `skip-previous`, `play`, `pause`, `dock-bottom`, `label`, `repeat`, `pencil`, `play-circle`, `content-save`, `menu`, `file-plus`, `folder-open`, `file-music`, `content-save-edit`, `export`, `cog`, `book-open-variant`, `school`, `information`, `magnify-plus`, `magnify-minus`, `arrow-left`, `chevron-right`, `chevron-down`, `radiobox-marked`, `radiobox-blank`.
+  - Names used: `plus`, `undo`, `redo`, `swap-vertical`, `music-note`, `piano`, `metronome`, `music-clef-treble`, `music`, `guitar-acoustic`, `speedometer`, `skip-previous`, `play`, `pause`, `dock-bottom`, `label`, `repeat`, `pencil`, `play-circle`, `content-save`, `menu`, `file-plus`, `folder-open`, `file-music`, `content-save-edit`, `export`, `cog`, `music-box-multiple`, `book-open-variant`, `school`, `information`, `magnify-plus`, `magnify-minus`, `arrow-left`, `chevron-right`, `chevron-down`, `radiobox-marked`, `radiobox-blank`.
 - **Our own, in MDI's style** (24-unit grid, one flat colour, rounded 2-unit strokes): the **capo** (still needs a better drawing) and the **3/4 time signature**.
 - **Colour:** icons are tinted per function in the ribbon and sheets, and monochrome in the player.
 

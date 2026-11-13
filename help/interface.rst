@@ -660,7 +660,8 @@ The User Interface
    .. platform-figure:: drawer
       :platforms: android
       :alt: The drawer: New song, Open, a Recent list with three songs, Save
-            as, Export MIDI, Settings, User guide, Quick start and About.
+            as, Export MIDI, Settings, Examples, User guide, Quick start and
+            About.
 
       The drawer.
 
@@ -690,6 +691,18 @@ The User Interface
 
    **Settings**
       The settings screens, including the Voicings editor. See :doc:`settings`.
+
+   **Examples**
+      The example songs that come with Chord Notepad. A sheet lists them by
+      file name (``01_quick_start.txt`` and so on); tap one to open it in the
+      Play tab. You get a copy that is stored inside the app, so you can edit
+      and save it. Tap the same example again and the unchanged copy reopens;
+      if you changed it (or it is open with unsaved edits), a new copy is made
+      with a number in the name, such as ``01_quick_start (2).txt``. The copies
+      show up in **Recent** as "name.txt (Examples)" and can be renamed. They
+      live only in the app's own storage: file managers don't see them, they
+      aren't backed up, and uninstalling the app deletes them. Use **Save
+      as…** to keep your own copy somewhere else.
 
    **User guide**
       This guide. It works offline, and F1 on a hardware keyboard opens it too.
