@@ -312,3 +312,24 @@ fun InsertSheet(onInsert: (String) -> Unit, onDismiss: () -> Unit) {
         }
     }
 }
+
+/** The drawer's Examples: the bundled songs by file name; a pick opens a copy. */
+@Composable
+fun ExamplesSheet(names: List<String>, onPick: (String) -> Unit, onDismiss: () -> Unit) {
+    PickerSheet(
+        title = stringResource(R.string.examples_title),
+        onDismiss = onDismiss,
+        actions = {
+            ActionsSpacer()
+            SheetTextButton(stringResource(android.R.string.cancel), onDismiss)
+        },
+    ) {
+        for (name in names) {
+            SheetRow(
+                name,
+                onClick = { onPick(name) },
+                leading = { MdiIcon(R.drawable.mdi_file_music, IconTints.Examples) },
+            )
+        }
+    }
+}

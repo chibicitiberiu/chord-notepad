@@ -17,6 +17,7 @@ class MainActions(
     private val commands: SessionCommands,
     private val editor: EditorController,
     private val mode: ModeController = ModeController(),
+    private val openExampleImpl: (String) -> Unit = {},
 ) {
     // -- transport --------------------------------------------------------------
 
@@ -43,6 +44,9 @@ class MainActions(
 
     /** A tapped chord at UTF-16 offset [utf16]: the playhead goes there and it sounds. */
     fun tapChord(utf16: Int) = editor.tapAt(utf16)
+
+    /** Open a copy of the bundled example [name] (the drawer's Examples sheet). */
+    fun openExample(name: String) = openExampleImpl(name)
 
     // -- toolbar ----------------------------------------------------------------
 

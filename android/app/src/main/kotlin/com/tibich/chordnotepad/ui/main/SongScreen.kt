@@ -101,6 +101,7 @@ import com.tibich.chordnotepad.ui.play.PlayTap
 import com.tibich.chordnotepad.ui.play.Player
 import com.tibich.chordnotepad.ui.play.PlayerActions
 import com.tibich.chordnotepad.ui.play.PlayerState
+import com.tibich.chordnotepad.ui.sheets.ExamplesSheet
 import com.tibich.chordnotepad.ui.sheets.InsertSheet
 import com.tibich.chordnotepad.ui.sheets.InstrumentPickerSheet
 import com.tibich.chordnotepad.ui.sheets.SheetRoute
@@ -297,6 +298,7 @@ fun SongScreen(graph: AppGraph, actions: MainActions, snackbars: SnackbarHostSta
             override fun saveAs() = actions.saveAs()
             override fun exportMidi() = actions.exportMidi()
             override fun settings() = nav.settings()
+            override fun examples() = go(SheetRoute.Examples)
             override fun userGuide() = nav.userGuide()
             override fun quickStart() = nav.quickStart()
             override fun about() = nav.about()
@@ -707,6 +709,14 @@ private fun Sheets(
             onInsert = { kind ->
                 close()
                 DirectiveKind.of(kind)?.let(tools::insertDirective)
+            },
+            onDismiss = close,
+        )
+        SheetRoute.Examples -> ExamplesSheet(
+            names = graph.exampleNames,
+            onPick = { name ->
+                close()
+                actions.openExample(name)
             },
             onDismiss = close,
         )

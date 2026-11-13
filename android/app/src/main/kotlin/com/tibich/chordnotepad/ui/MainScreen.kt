@@ -48,7 +48,7 @@ import com.tibich.chordnotepad.ui.tools.ToolActions
  */
 @Composable
 fun MainScreen(graph: AppGraph, onCloseApproved: () -> Unit) {
-    val actions = remember(graph) { MainActions(graph.commands, graph.editor, graph.mode) }
+    val actions = remember(graph) { MainActions(graph.commands, graph.editor, graph.mode, graph::openExample) }
     val document by graph.repository.document.collectAsState()
     val snackbars = remember { SnackbarHostState() }
     var page by rememberSaveable { mutableStateOf(Pages.MAIN) }

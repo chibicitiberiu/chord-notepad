@@ -35,6 +35,9 @@ sealed interface SheetRoute {
     /** Identify (the ribbon). */
     data object Identify : SheetRoute
 
+    /** The drawer's Examples. */
+    data object Examples : SheetRoute
+
     /** As a string for `rememberSaveable`. */
     fun save(): String = when (this) {
         None -> ""
@@ -46,6 +49,7 @@ sealed interface SheetRoute {
         Rename -> "rename"
         is Transpose -> if (selection) "transpose:selection" else "transpose"
         Identify -> "identify"
+        Examples -> "examples"
     }
 
     companion object {
@@ -61,6 +65,7 @@ sealed interface SheetRoute {
             saved == "transpose" -> Transpose(selection = false)
             saved == "transpose:selection" -> Transpose(selection = true)
             saved == "identify" -> Identify
+            saved == "examples" -> Examples
             else -> None
         }
     }

@@ -209,6 +209,9 @@ android {
                 it.systemProperty("cn.requirements", pythonRequirements.asFile.path)
                 // The generated User Guide (HelpAssetsTest).
                 it.systemProperty("cn.helpDir", layout.buildDirectory.dir("generated/help/assets/help").get().asFile.path)
+                // The generated example songs and their source (ExamplesAssetsTest).
+                it.systemProperty("cn.examplesDir", layout.buildDirectory.dir("generated/examples/assets/examples").get().asFile.path)
+                it.systemProperty("cn.examplesSrc", repoRoot.dir("examples").asFile.path)
                 // The R8 rules and the Python they protect (BridgeR8RulesTest).
                 it.systemProperty("cn.proguardRules", file("proguard-rules.pro").path)
                 it.systemProperty("cn.androidPython", file("src/main/python/chordnotepad_android").path)
@@ -468,6 +471,30 @@ abstract class CopyIntoAssets : DefaultTask() {
     }
 }
 
+// The example songs (examples/*.txt) as assets/examples/<name>, which the
+// drawer's Examples sheet lists and copies (files/ExampleLibrary.kt).
+abstract class CopyExamples : DefaultTask() {
+    @get:InputFiles
+    @get:PathSensitive(PathSensitivity.NAME_ONLY)
+    abstract val sources: ConfigurableFileCollection
+    @get:OutputDirectory abstract val outputDir: DirectoryProperty
+
+    @TaskAction
+    fun run() {
+        val out = outputDir.get().asFile
+        out.deleteRecursively()
+        val dest = File(out, "examples")
+        dest.mkdirs()
+        sources.files.forEach { it.copyTo(File(dest, it.name), overwrite = true) }
+    }
+}
+
+val copyExamples = tasks.register<CopyExamples>("copyExamples") {
+    description = "Copies the example songs into generated assets/examples"
+    sources.from(repoRoot.dir("examples").asFileTree.matching { include("*.txt") })
+    outputDir.set(layout.buildDirectory.dir("generated/examples/assets"))
+}
+
 val copySoundfont = tasks.register<CopyIntoAssets>("copySoundfont") {
     description = "Copies GeneralUser-GS.sf2 into generated assets"
     source.set(repoRoot.file("resources/soundfont/GeneralUser-GS.sf2"))
@@ -588,6 +615,7 @@ androidComponents {
         variant.sources.assets?.addGeneratedSourceDirectory(exportClefGlyphs, ExportClefGlyphs::outputDir)
         variant.sources.assets?.addGeneratedSourceDirectory(buildAndroidHelp, BuildAndroidHelp::outputDir)
         variant.sources.assets?.addGeneratedSourceDirectory(copySoundfont, CopyIntoAssets::outputDir)
+        variant.sources.assets?.addGeneratedSourceDirectory(copyExamples, CopyExamples::outputDir)
         if (variant.buildType == "debug") {
             variant.sources.assets?.addGeneratedSourceDirectory(copyDebugSample, CopyIntoAssets::outputDir)
         }
@@ -651,6 +679,7 @@ androidComponents {
             .joinToString(File.pathSeparator) { file("src/$it/assets/licenses").path }
         tasks.matching { it.name == testTask }.configureEach {
             dependsOn(buildAndroidHelp)
+            dependsOn(copyExamples)
             dependsOn(tasks.matching { it.name == definitionsTask })
             (this as Test).systemProperty("cn.aboutLibrariesJson", mavenJson)
             systemProperty("cn.licensesDirs", licenceDirs)

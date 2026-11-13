@@ -212,6 +212,20 @@ class SafDocumentStoreTest {
     }
 
     @Test
+    fun `an example copy stays in the recent list until its file is deleted`() {
+        val root = File(tmp.root, "examples").also { it.mkdirs() }
+        val file = File(root, "x.txt").also { it.writeText("song") }
+        val id = file.toURI().toASCIIString()
+        val appStore = SafDocumentStore(AppFilesDocumentAccess(root, "Examples", access), recentFile, maxRecent = 3)
+        val ref = appStore.refFor(id)!!
+        assertEquals("x.txt (Examples)", ref.location)
+        appStore.addRecent(ref.id, ref.displayName, ref.location)
+        assertEquals(listOf(id), ids(appStore.recent()))
+        file.delete()
+        assertEquals(emptyList<String>(), ids(appStore.recent()))
+    }
+
+    @Test
     fun `writes replace the old content`() {
         access.add("content://d/1", "a.txt", "a much longer old text")
         store.writeBytes("content://d/1", "G 😀".toByteArray())

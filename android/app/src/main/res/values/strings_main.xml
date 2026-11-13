@@ -77,4 +77,8 @@
     <string name="drawer_user_guide">User guide</string>
     <string name="drawer_quick_start">Quick start</string>
     <string name="drawer_about">About</string>
+    <string name="drawer_examples">Examples</string>
+    <string name="examples_title">Examples</string>
+    <string name="examples_location">Examples</string>
+    <string name="examples_copy_failed">Couldn\'t copy the example %1$s into the app\'s storage.</string>
 </resources>

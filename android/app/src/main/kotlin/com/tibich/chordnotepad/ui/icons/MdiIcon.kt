@@ -77,6 +77,7 @@ object IconTints {
     val Guide = Color(0xFF00897B)
     val QuickStart = Color(0xFFF9A825)
     val About = Color(0xFF5C6BC0)
+    val Examples = Color(0xFFC62828)
     val Zoom = Color(0xFF546E7A)
     val Off = Color(0xFF9E9E9E)
 }

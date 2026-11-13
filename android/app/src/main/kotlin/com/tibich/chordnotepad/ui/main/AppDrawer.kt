@@ -45,6 +45,7 @@ interface DrawerActions {
     fun saveAs()
     fun exportMidi()
     fun settings()
+    fun examples()
     fun userGuide()
     fun quickStart()
     fun about()
@@ -52,7 +53,7 @@ interface DrawerActions {
 
 /**
  * The ☰ drawer, which replaces the old ⋮ menu: Documents (New song, Open…,
- * the recent songs inline, Save as…, Export MIDI…) and App (Settings, User
+ * the recent songs inline, Save as…, Export MIDI…) and App (Settings, Examples, User
  * guide, Quick start, About). Each entry closes the drawer first ([close]).
  */
 @Composable
@@ -97,6 +98,7 @@ fun AppDrawer(recent: List<DocumentRef>, actions: DrawerActions, close: () -> Un
             DrawerItem(R.drawable.mdi_export, IconTints.Export, stringResource(R.string.menu_export_midi), run(actions::exportMidi))
             DrawerSeparator()
             DrawerItem(R.drawable.mdi_cog, IconTints.Settings, stringResource(R.string.menu_settings), run(actions::settings))
+            DrawerItem(R.drawable.mdi_music_box_multiple, IconTints.Examples, stringResource(R.string.drawer_examples), run(actions::examples))
             DrawerItem(R.drawable.mdi_book_open_variant, IconTints.Guide, stringResource(R.string.drawer_user_guide), run(actions::userGuide))
             DrawerItem(R.drawable.mdi_school, IconTints.QuickStart, stringResource(R.string.drawer_quick_start), run(actions::quickStart))
             DrawerItem(R.drawable.mdi_information, IconTints.About, stringResource(R.string.drawer_about), run(actions::about))

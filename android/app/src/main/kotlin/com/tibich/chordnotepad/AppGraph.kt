@@ -13,7 +13,11 @@ import com.tibich.chordnotepad.bridge.LaunchEnvironment
 import com.tibich.chordnotepad.bridge.PyHost
 import com.tibich.chordnotepad.bridge.SessionCommands
 import com.tibich.chordnotepad.bridge.SessionRepository
+import com.tibich.chordnotepad.bridge.DocumentRef
+import com.tibich.chordnotepad.bridge.UserError
+import com.tibich.chordnotepad.files.AppFilesDocumentAccess
 import com.tibich.chordnotepad.files.ContentResolverDocumentAccess
+import com.tibich.chordnotepad.files.ExampleLibrary
 import com.tibich.chordnotepad.files.RecentDocumentsFile
 import com.tibich.chordnotepad.files.SafDocumentStore
 import com.tibich.chordnotepad.lifecycle.AndroidAudioFocusGateway
@@ -41,6 +45,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
 import java.io.File
+import java.io.IOException
 
 /**
  * The app's long-lived objects, created once in [ChordNotepadApp.onCreate].
@@ -57,7 +62,11 @@ class AppGraph(context: Context) {
 
     /** SAF documents and the recent list. */
     val documents = SafDocumentStore(
-        ContentResolverDocumentAccess(app),
+        AppFilesDocumentAccess(
+            File(app.filesDir, "examples"),
+            app.getString(R.string.examples_location),
+            ContentResolverDocumentAccess(app),
+        ),
         RecentDocumentsFile(File(app.filesDir, "recent_documents.json")),
     )
 
@@ -162,6 +171,42 @@ class AppGraph(context: Context) {
         }
     }
 
+    /** The bundled example songs and their private copies (`filesDir/examples`). */
+    val examples = ExampleLibrary(
+        list = { app.assets.list("examples")?.toList().orEmpty() },
+        read = { name -> app.assets.open("examples/$name").use { it.readBytes() } },
+        dir = File(app.filesDir, "examples"),
+    )
+
+    /** The example names the Examples sheet lists. */
+    val exampleNames: List<String> by lazy { examples.names() }
+
+    /**
+     * Open a copy of the example [name] (main thread): an identical copy
+     * reopens, otherwise a new one is written (`x (2).txt`). The song lands in
+     * Play; the session asks about unsaved changes first.
+     */
+    fun openExample(name: String) {
+        editor.syncNow()
+        // An open copy with unsaved edits must not be picked again as "identical".
+        val skip = repository.document.value?.takeIf { it.isModified }?.documentId
+        queueDocumentWork {
+            val file = try {
+                examples.copyFor(name, skip)
+            } catch (e: IOException) {
+                Log.w(TAG, "Couldn't copy the example $name", e)
+                errorQueue.add(UserError(FILE_ERROR_TITLE, app.getString(R.string.examples_copy_failed, name)))
+                return@queueDocumentWork
+            }
+            val id = examples.idFor(file)
+            val ref = documents.refFor(id) ?: DocumentRef(id, file.name, file.name)
+            scope.launch {
+                mode.expectOpen(target = id, current = repository.document.value)
+                commands.openDocument(ref, readOnly = false)
+            }
+        }
+    }
+
     private fun firstInstallTime(): Long? = try {
         val pm = app.packageManager
         val info: PackageInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -190,6 +235,9 @@ class AppGraph(context: Context) {
 
     private companion object {
         const val TAG = "CNAppGraph"
+
+        /** The session's title for file problems (`formatting.FILE_ERROR_TITLE`). */
+        const val FILE_ERROR_TITLE = "Error"
 
         /** How long the startup screen waits for billing (Python takes about as long to start). */
         const val BILLING_WAIT_MS = 2000L

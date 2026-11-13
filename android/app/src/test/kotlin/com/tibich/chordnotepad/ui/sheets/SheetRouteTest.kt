@@ -36,7 +36,7 @@ class SheetRouteTest {
         val all = listOf(
             SheetRoute.None, SheetRoute.SongDefaults, SheetRoute.Voicing, SheetRoute.Instrument(),
             SheetRoute.Instrument(15), SheetRoute.Speed(), SheetRoute.Speed(true), SheetRoute.Insert,
-            SheetRoute.Rename, SheetRoute.Transpose(true), SheetRoute.Transpose(false), SheetRoute.Identify,
+            SheetRoute.Rename, SheetRoute.Transpose(true), SheetRoute.Transpose(false), SheetRoute.Identify, SheetRoute.Examples,
         )
         for (r in all) assertEquals(r, SheetRoute.restore(r.save()))
         assertEquals(SheetRoute.None, SheetRoute.restore("nonsense"))
