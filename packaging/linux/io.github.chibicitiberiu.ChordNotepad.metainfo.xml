@@ -72,6 +72,24 @@
   </supports>
 
   <releases>
+    <release version="0.5.4" date="2026-11-13">
+      <description>
+        <p>
+          C2 and C4 now play as sus2 and sus4 chords, the way guitar books use
+          them. There are new 7sus2 and 9sus chords, and chords that played the
+          wrong notes are fixed: forms with a left-out 5th or 3rd, 13th chords,
+          and 7th chords with altered tones in parentheses such as C7(b9,#9)
+          and Cmaj7(#5). Caddb5 now keeps the 5th.
+        </p>
+        <p>
+          The Chord Identifier names many more sets of notes, including C(b5),
+          (no5) and (no3) chords and power chords, also over a bass, and spells
+          a bass that belongs to the chord the way the chord spells it. Guitar
+          voicings can use a ring or pinky barre, so 9th chords up the neck get
+          the chord-book grip (C9 x32333).
+        </p>
+      </description>
+    </release>
     <release version="0.5.3" date="2026-11-07">
       <description>
         <p>

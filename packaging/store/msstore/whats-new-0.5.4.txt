@@ -1,0 +1,26 @@
+# Microsoft Store, "What's new in this version" for 0.5.4. Paste each block into
+# Partner Center > the submission > Store listings > <language> > What's new in
+# this version (limit 1500 characters; check with
+# `python3 packaging/store/msstore/count_whats_new.py`).
+
+== en-US ==
+C2 and C4 now play Csus2 (C D G) and Csus4 (C F G), the way guitar books use them, instead of C with an added 9th or 11th. Songs that use them sound different.
+
+New chords: 7sus2 (C7sus2 is C D G Bb) and 9sus.
+
+Fixed chords that played the wrong notes: forms with the 5th or 3rd left out, such as C69(no5) and C13(no5); CM13 and C13-9; and 7th chords with altered tones in parentheses, such as C7(b9,#9) and Cmaj7(#5), which lost their 7th. Caddb5 now keeps the 5th.
+
+The Chord Identifier names many more sets of notes: C(b5), chords with the 5th or 3rd left out (C E Bb is C7(no5)), power chords and rarer qualities, also over a bass. A bass that belongs to the chord is spelled the way the chord spells it.
+
+Guitar voicings can use a ring or pinky barre, so 9th chords up the neck get the chord-book grip (C9 x32333, D9 x54555), and 7#9 and 13th chords get fuller shapes.
+
+== ro-RO ==
+C2 și C4 cântă acum Csus2 (C D G) și Csus4 (C F G), cum le folosesc cărțile de chitară, în loc de C cu nona sau undecima adăugată. Cântecele care le folosesc sună altfel.
+
+Acorduri noi: 7sus2 (C7sus2 este C D G Bb) și 9sus.
+
+Corecturi pentru acorduri care cântau note greșite: forme fără cvintă sau fără terță, cum ar fi C69(no5) și C13(no5); CM13 și C13-9; și acordurile de septimă cu note alterate în paranteză, cum ar fi C7(b9,#9) și Cmaj7(#5), care își pierdeau septima. Caddb5 păstrează acum cvinta.
+
+Identificatorul de acorduri numește mult mai multe grupuri de note: C(b5), acorduri fără cvintă sau fără terță (C E Bb este C7(no5)), acorduri power și calități mai rare, inclusiv peste un bas. Un bas care face parte din acord se scrie cum îl scrie acordul.
+
+Acordurile de chitară pot folosi un barré cu inelarul sau degetul mic, așa că acordurile de nonă de pe gât primesc poziția din cărțile de acorduri (C9 x32333, D9 x54555), iar acordurile 7#9 și de treisprezecime primesc poziții mai pline.
