@@ -195,6 +195,8 @@ def test_the_direct_calls(env):
     catalog = env.store.direct("licence_catalog", Path(__file__).resolve().parents[2]
                                / "resources" / "licenses")
     assert catalog is not None
+    assert env.store.direct("picker_at", 3).kind == "tempo"
+    assert env.store.direct("picker_at", SONG.index("One")) is None
 
 
 def test_anything_else_is_refused_as_a_direct_call(env):
@@ -247,8 +249,10 @@ def session_attributes(tree):
     return found
 
 
-def test_the_direct_calls_are_the_plans_four():
-    assert DIRECT_CALLS == {"directive_hint_at", "chord_at", "licence_catalog", "settings_values"}
+def test_the_direct_calls_are_the_plans_four_and_the_pickers_lookup():
+    # picker_at: the ▾ value picker (D5; B4 listed it as a direct call).
+    assert DIRECT_CALLS == {"directive_hint_at", "chord_at", "licence_catalog", "settings_values",
+                            "picker_at"}
 
 
 def test_nothing_in_the_qt_package_calls_the_session_outside_the_allow_list():

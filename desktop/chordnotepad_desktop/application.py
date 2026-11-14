@@ -47,6 +47,8 @@ from chordnotepad_desktop.main import (
 from chordnotepad_desktop.qt_host import QtHost
 from chordnotepad_desktop.qt_messages import install_message_handler
 from chordnotepad_desktop.editor_bridge import EditorBridge
+from chordnotepad_desktop.status_bar import StatusBarModel
+from chordnotepad_desktop.value_picker import ValuePickerModel
 from chordnotepad_desktop.session_store import SessionStore
 
 logger = logging.getLogger(__name__)
@@ -58,8 +60,9 @@ DESKTOP_FILE_NAME = "io.github.chibicitiberiu.ChordNotepad"
 ICON_FILES = ("icon-32.png", "icon-128.png", "icon-256.png")
 #: The session's requests the window answers (Main.qml). The others are
 #: answered "cancel" at once, so a flow that asks one doesn't wait forever:
-#: the file pickers come with F3, the capo choice and the directive dialogs
-#: with G2 and D5.
+#: the file pickers come with F3, the capo choice with G2. The Insert
+#: dialogs' requests never come: the palette and the ▾ value pickers (D5)
+#: edit through commands that ask nothing.
 HANDLED_REQUESTS = frozenset({"ConfirmDiscardRequest"})
 
 
@@ -123,6 +126,8 @@ class QtApplication:
         self.presenter: Optional[ErrorPresenter] = None
         self.store: Optional[SessionStore] = None
         self.editor: Optional[EditorBridge] = None
+        self.status_bar: Optional[StatusBarModel] = None
+        self.pickers: Optional[ValuePickerModel] = None
         self.main: Optional[MainWindow] = None
         self.renderer: Optional[str] = None
         #: The engine's QML warnings (``--smoke`` fails on any).
@@ -168,12 +173,15 @@ class QtApplication:
         self.store.request.connect(self._on_request)
         self.store.closeApproved.connect(self._close_window)
         self.editor = EditorBridge(self.store, parent=self.store)
+        self.status_bar = StatusBarModel(self.store, self.editor, parent=self.store)
+        self.pickers = ValuePickerModel(self.store, self.editor, parent=self.store)
 
         self._engine = create_engine(self._paths)
         self._engine.warnings.connect(
             lambda errors: self.warnings.extend(e.toString() for e in errors))
         main = load_main_window(self._engine, app, store=self.store, errors=self.presenter,
-                                editor=self.editor)
+                                editor=self.editor, status=self.status_bar,
+                                pickers=self.pickers)
         if main is None:
             raise RuntimeError("The main window couldn't be loaded:\n" + "\n".join(self.warnings))
         self.main = main

@@ -37,7 +37,7 @@ A few session methods return a value at once instead of publishing one:
 they are the **direct calls**, :data:`DIRECT_CALLS`, and nothing else in
 this package calls the session (``tests/qt/test_qt_session_store.py`` keeps
 it that way). QML reaches two of them as slots (:meth:`SessionStore.chordAt`,
-:meth:`SessionStore.directiveHintAt`), Python code all four
+:meth:`SessionStore.directiveHintAt`), Python code all of them
 (:meth:`SessionStore.direct`).
 """
 
@@ -59,8 +59,10 @@ from chordnotepad.session.host import Host
 logger = logging.getLogger(__name__)
 
 #: The session methods called directly, for the value they return. Every
-#: other session method is a bridge command (``submit``).
-DIRECT_CALLS = frozenset({"directive_hint_at", "chord_at", "licence_catalog", "settings_values"})
+#: other session method is a bridge command (``submit``). ``picker_at`` is
+#: the ▾ value picker's lookup (plan step D5, value_picker.py).
+DIRECT_CALLS = frozenset({"directive_hint_at", "chord_at", "licence_catalog", "settings_values",
+                          "picker_at"})
 
 _STATE_NAMES = frozenset(t.__name__ for t in STATE_TYPES)
 _EVENT_NAMES = frozenset(t.__name__ for t in EVENT_TYPES)
@@ -185,6 +187,11 @@ class SessionStore(QObject):
     def state(self, type_name: str) -> QQmlPropertyMap:
         """The map of one state type (KeyError for a name that isn't one)."""
         return self._maps[type_name]
+
+    @property
+    def closed(self) -> bool:
+        """Whether :meth:`close` was called (the window is going away)."""
+        return self._closed
 
     def close(self) -> None:
         """Stop forwarding output and taking commands (on the session thread)."""

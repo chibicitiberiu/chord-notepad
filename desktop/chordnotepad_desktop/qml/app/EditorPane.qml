@@ -14,10 +14,22 @@ import CNTheme
 // Ctrl+V and Shift+Insert (Keys), the context menu, middle-click PRIMARY
 // (the MouseArea, which keeps the press from the TextArea's own paste) and
 // drag and drop (the DropArea, on top of the TextArea's own drop).
+//
+// Directives (plan steps D4, D5): the hover card 450 ms after the pointer
+// rests on one (EditorBridge.hintAt), the caret's hint in the status bar
+// (`status`, StatusBarModel: told when the caret may have moved), and the ▾
+// chip after a directive's value with its ValuePicker (`pickers`,
+// ValuePickerModel). The chip is for the directive under the pointer, kept
+// over a sticky region (the directive, the chip and the gap between them)
+// and for 300 ms after the pointer leaves it (pitfall 19), else for the
+// caret's directive; never while read-only (playing, the Play workspace).
+// Alt+Down opens the caret's picker.
 Rectangle {
     id: pane
     objectName: "editorPane"
     required property var editor
+    required property var status
+    required property var pickers
     // "Type or paste a song here", shown while the text is empty.
     property string placeholder: ""
     // Play workspace: read-only (Ctrl+1 or the pencil goes back to Edit).
@@ -25,6 +37,78 @@ Rectangle {
     property alias area: area
     property bool overChord: false
     color: Theme.editorBg
+
+    // --- The hover card (D4) -------------------------------------------------------
+    property var hint: ({})            // the card shown (EditorBridge.hintAt), or {}
+    property int hoverPos: -1          // the character under the pointer, or -1
+    function showHintAt(pos) {
+        if (picker.visible || pos < 0) return
+        var h = pane.editor.hintAt(pos)
+        if (h.start === undefined) { pane.hint = ({}); return }
+        var r = area.positionToRectangle(h.start)
+        h.x = r.x; h.y = r.y + r.height + Theme.gap1
+        pane.hint = h
+    }
+    function hideHint() { hintTimer.stop(); pane.hint = ({}) }
+    Timer { id: hintTimer; interval: 450; onTriggered: pane.showHintAt(pane.hoverPos) }
+
+    // --- The ▾ value picker (D5) ----------------------------------------------------
+    // The chip's target: the hovered directive while the pointer is over the
+    // sticky region or within the grace period, else the caret's.
+    property var sticky: ({})
+    readonly property var caretPicker: pane.pickers.caretPicker
+    readonly property var pickDir: area.readOnly ? ({})
+                                   : sticky.end !== undefined ? sticky
+                                   : caretPicker.end !== undefined ? caretPicker : ({})
+    property var pickerFor: ({})
+    property int hoverPickPos: -2      // the character the hover target was looked up for
+    property var hoverPick: ({})
+    function hoverTarget(pos) {
+        if (pos !== pane.hoverPickPos) {
+            pane.hoverPickPos = pos
+            pane.hoverPick = pos >= 0 ? pane.pickers.pickerAt(pos) : ({})
+        }
+        return pane.hoverPick
+    }
+    // The directive, the chip and the strip between them, a little wider.
+    function inChipRegion(x, y) {
+        if (sticky.end === undefined) return false
+        var r0 = area.positionToRectangle(sticky.start)
+        var m = Theme.px(1.5)
+        return x >= r0.x - m && x <= pickBtn.x + pickBtn.width + m
+               && y >= r0.y - m && y <= r0.y + r0.height + m
+    }
+    Timer {
+        id: chipGrace
+        objectName: "chipGrace"
+        interval: 300
+        onTriggered: if (!picker.visible && !pickBtn.hovered) pane.sticky = ({})
+    }
+    function openPicker(d) {
+        if (d.end === undefined || area.readOnly) return
+        pane.pickerFor = d
+        pane.hideHint()
+        var r = area.positionToRectangle(d.end)
+        picker.x = Math.max(0, r.x - Theme.px(8)); picker.y = r.y + r.height + Theme.gap1
+        picker.openFor(d)
+    }
+    function closePicker() { picker.close(); pane.sticky = ({}); pane.hideHint() }
+    function replaceValue(v) {
+        pane.pickers.apply(pane.pickerFor, v)     // one undo step; the caret goes after the }
+        area.forceActiveFocus()
+    }
+    Shortcut {
+        objectName: "pickerShortcut"
+        sequence: "Alt+Down"
+        enabled: !area.readOnly && pane.caretPicker.end !== undefined && !picker.visible
+        onActivated: pane.openPicker(pane.caretPicker)
+    }
+    // The caret may have moved, or the text under it changed: the status
+    // bar's hint (150 ms later) and the caret's picker.
+    function caretTouched() {
+        pane.status.schedule()
+        pane.pickers.refreshCaret()
+    }
 
     // The editor's commands, for the context menu here and the menus (F1).
     readonly property Action undoAction: Action {
@@ -137,6 +221,14 @@ Rectangle {
     Connections {
         target: pane.editor
         function onPlayingMoved(start) { pane.ensureVisible(start, pane.editor.playingEnd) }
+        // The text changed (not only its highlighting): the card and the
+        // sticky target were placed for the old text.
+        function onTextChanged() {
+            pane.hideHint()
+            if (!picker.visible) pane.sticky = ({})
+            pane.hoverPickPos = -2
+            pane.caretTouched()
+        }
     }
 
     ScrollView {
@@ -163,7 +255,17 @@ Rectangle {
             // laid out wide stays wide when wrapping comes on. Start it at the
             // view's width; it follows by itself from there.
             onWrapModeChanged: if (wrapMode !== TextEdit.NoWrap) area.width = scroll.contentItem.width
-            readOnly: pane.editor.readOnly || pane.playMode
+            // Read-only while playing or paused, and in Play. Set by hand, not
+            // bound: TextEdit moves the caret to the end of the text whenever
+            // readOnly changes, so the caret and the selection are put back.
+            readonly property bool locked: pane.editor.readOnly || pane.playMode
+            onLockedChanged: {
+                var caret = area.cursorPosition
+                var anchor = caret === area.selectionStart ? area.selectionEnd : area.selectionStart
+                area.readOnly = locked
+                area.select(anchor, caret)
+                if (locked) pane.closePicker()      // a song started, or Play
+            }
             selectByMouse: true
             persistentSelection: true
             leftPadding: Theme.editorPadX; rightPadding: Theme.gap4
@@ -191,7 +293,13 @@ Rectangle {
                     function onCursorPositionChanged() { caret.blinkOn = true }
                 }
             }
-            Component.onCompleted: pane.editor.attach(area, area.textDocument, pane.palette())
+            Component.onCompleted: {
+                area.readOnly = area.locked
+                pane.editor.attach(area, area.textDocument, pane.palette())
+            }
+            onCursorPositionChanged: pane.caretTouched()
+            onActiveFocusChanged: if (activeFocus) pane.caretTouched()
+            Keys.onReleased: pane.status.schedule()
 
             Keys.onPressed: (event) => {
                 if (event.matches(StandardKey.Paste)) {
@@ -228,13 +336,45 @@ Rectangle {
 
             // The hand over valid chords only (an I-beam elsewhere, invalid
             // chords too), also while read-only.
+            // The hover card and the chip's sticky target follow the pointer too.
             HoverHandler {
                 id: hover
                 objectName: "editorHover"
                 cursorShape: pane.overChord ? Qt.PointingHandCursor : Qt.IBeamCursor
-                onPointChanged: pane.overChord = pane.editor.isChordAt(
-                    pane.charAt(hover.point.position.x, hover.point.position.y))
-                onHoveredChanged: if (!hovered) pane.overChord = false
+                onPointChanged: {
+                    var px = hover.point.position.x, py = hover.point.position.y
+                    var pos = pane.charAt(px, py)
+                    pane.overChord = pane.editor.isChordAt(pos)
+                    // Over the chip, the picker, or the strip to the chip: keep the
+                    // target (the chip overlaps the next character, which may
+                    // belong to another directive). Else retarget, or start the
+                    // grace period.
+                    if (pickBtn.hovered || picker.visible || pane.inChipRegion(px, py)) {
+                        chipGrace.stop()
+                        var t0 = pane.hoverTarget(pos)
+                        if (t0.end !== undefined && t0.start === pane.sticky.start) pane.sticky = t0
+                    } else {
+                        var t = pane.hoverTarget(pos)
+                        if (t.end !== undefined) { pane.sticky = t; chipGrace.stop() }
+                        else if (pane.sticky.end !== undefined && !chipGrace.running) chipGrace.start()
+                    }
+                    if (pickBtn.hovered) { pane.hideHint(); return }
+                    // The card goes when the pointer leaves its directive; a new
+                    // one shows once the pointer rests on a character. (Qt Quick
+                    // sends the handler the same point again whenever the scene
+                    // changes under it, the caret's blink too: that isn't a move.)
+                    if (pane.hint.start !== undefined && !(pos >= pane.hint.start && pos < pane.hint.end))
+                        pane.hint = ({})
+                    if (pos !== pane.hoverPos) {
+                        pane.hoverPos = pos
+                        hintTimer.restart()
+                    }
+                }
+                onHoveredChanged: if (!hovered) {
+                    pane.overChord = false
+                    pane.hoverPos = -1
+                    if (!picker.visible) { pane.hideHint(); chipGrace.restart() }
+                }
             }
             // A click on a chord sounds it and moves the playhead (the session
             // decides). The second click of a double-click only selects the word.
@@ -244,7 +384,10 @@ Rectangle {
                 onTapped: (eventPoint, button) => {
                     if (tapCount === 1)
                         pane.editor.tapAt(pane.charAt(eventPoint.position.x, eventPoint.position.y))
+                    pane.status.schedule()
                 }
+                // A click hides the hover card.
+                onPressedChanged: if (pressed) pane.hideHint()
             }
             TapHandler {
                 acceptedButtons: Qt.RightButton
@@ -285,6 +428,56 @@ Rectangle {
                     if (!area.readOnly) pane.editor.pasteSelectionAt(area.positionAt(mouse.x, mouse.y))
                 }
             }
+            // The ▾ value picker, right after the directive's closing brace.
+            AbstractButton {
+                id: pickBtn
+                objectName: "pickChip"
+                readonly property rect r: {
+                    void [area.contentWidth, area.contentHeight, area.width, area.font, area.length]
+                    return pickBtn.placed ? area.positionToRectangle(pane.pickDir.end) : Qt.rect(0, 0, 0, 0)
+                }
+                readonly property bool placed: pane.pickDir.end !== undefined && pane.pickDir.end <= area.length
+                                               && area.contentHeight > 0
+                visible: placed
+                x: r.x + Theme.px(0.25); y: r.y
+                width: Theme.px(3.5); height: r.height
+                hoverEnabled: true
+                focusPolicy: Qt.NoFocus
+                z: 5
+                onClicked: pane.openPicker(pane.pickDir)
+                onHoveredChanged: if (!hovered) chipGrace.restart()
+                ToolTip.visible: hovered && !picker.visible
+                ToolTip.delay: 500
+                ToolTip.text: "Pick a value  <font color='" + Theme.muted + "'>Alt+Down</font>"
+                background: Rectangle {
+                    radius: Theme.radiusSmall
+                    color: pickBtn.down ? Theme.controlPressed : pickBtn.hovered ? Theme.controlHover : Theme.popup
+                    border.width: Theme.hairline
+                    border.color: pickBtn.hovered ? Theme.borderStrong : Theme.border
+                }
+                contentItem: Item {
+                    id: chevronBox
+                    PixelIcon {
+                        anchors.centerIn: chevronBox
+                        name: "chevron-down"
+                        size: Theme.px(3.5)
+                        color: Theme.directive
+                    }
+                }
+            }
+            ValuePicker {
+                id: picker
+                model: pane.pickers
+                onPicked: (v) => pane.replaceValue(v)
+                onClosed: { chipGrace.restart(); area.forceActiveFocus() }
+            }
+            HintCard {
+                hint: pane.hint
+                visible: pane.hint.start !== undefined
+                x: Math.max(Theme.gap2, pane.hint.x || 0)
+                y: pane.hint.y || 0
+            }
+
             // Text dragged in from elsewhere, normalised.
             DropArea {
                 anchors.fill: parent

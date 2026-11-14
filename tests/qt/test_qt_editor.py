@@ -12,7 +12,7 @@ from tests.conftest import QT_PROBLEM
 if QT_PROBLEM:
     pytest.skip(f"Qt not available: {QT_PROBLEM}", allow_module_level=True)
 
-from PySide6.QtCore import QMetaObject, QMimeData, QPoint, QPointF, Qt  # noqa: E402
+from PySide6.QtCore import Q_ARG, QMetaObject, QMimeData, QPoint, QPointF, Qt  # noqa: E402
 from PySide6.QtGui import (  # noqa: E402
     QColor, QDragEnterEvent, QDragMoveEvent, QDropEvent, QGuiApplication, QInputMethodEvent,
     QTextCharFormat, QTextCursor, QWheelEvent,
@@ -318,6 +318,30 @@ def test_read_only_while_playing_but_the_sessions_edits_still_apply(editor):
     assert editor.area.property("selectedText") == SONG
     editor.store.submit("stop")
     editor.qtbot.waitUntil(lambda: editor.area.property("readOnly") is False, timeout=3000)
+
+
+def test_the_caret_and_the_selection_stay_put_when_the_editor_locks(editor):
+    # TextEdit moves the caret to the end whenever readOnly changes.
+    editor.harness.player.auto_play = False
+    song(editor)
+    QMetaObject.invokeMethod(editor.area, "select", Q_ARG(int, 8), Q_ARG(int, 4))
+
+    def caret():
+        return (editor.area.property("cursorPosition"), editor.area.property("selectionStart"),
+                editor.area.property("selectionEnd"))
+
+    assert caret() == (4, 4, 8)
+    editor.store.submit("play_pause", {"from_offset": None})
+    editor.qtbot.waitUntil(lambda: editor.area.property("readOnly") is True, timeout=3000)
+    assert caret() == (4, 4, 8)
+    editor.store.submit("stop")
+    editor.qtbot.waitUntil(lambda: editor.area.property("readOnly") is False, timeout=3000)
+    assert caret() == (4, 4, 8)
+    editor.window.setProperty("mode", "play")
+    editor.qtbot.waitUntil(lambda: editor.area.property("readOnly") is True, timeout=1000)
+    editor.window.setProperty("mode", "edit")
+    editor.qtbot.waitUntil(lambda: editor.area.property("readOnly") is False, timeout=1000)
+    assert caret() == (4, 4, 8)
 
 
 def test_session_edits_apply_while_the_editor_is_read_only(editor):

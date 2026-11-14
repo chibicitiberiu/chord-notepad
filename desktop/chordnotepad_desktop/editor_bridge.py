@@ -226,6 +226,9 @@ class EditorBridge(QObject):
     playheadChanged = Signal()
     #: The session put the cursor here (after one of its edits).
     cursorMoved = Signal(int)
+    #: The text changed: typed, pasted or the session's edit. (TextArea's
+    #: textChanged also fires when only the highlighting changed.)
+    textChanged = Signal()
 
     def __init__(self, store: Any, parent: Optional[QObject] = None) -> None:
         super().__init__(parent)
@@ -275,6 +278,7 @@ class EditorBridge(QObject):
     def attach(self, area: QQuickItem, document: QQuickTextDocument, palette: dict) -> None:
         """Take over ``area``'s document (EditorPane's Component.onCompleted)."""
         self._area = area
+        area.destroyed.connect(self._area_gone)
         self._quick_document = document
         self._document = document.textDocument()
         self._painted_text = self._synced_text = self._document.toPlainText()
@@ -286,6 +290,10 @@ class EditorBridge(QObject):
         edits, self._early_edits = self._early_edits, []
         for edit in edits:
             self._apply_edit(edit)
+
+    def _area_gone(self) -> None:
+        # The window went first (shutdown): a late timer must not reach it.
+        self._area = None
 
     @Slot("QVariantMap")
     def setPalette(self, palette: dict) -> None:  # noqa: N802 (Qt)
@@ -414,6 +422,7 @@ class EditorBridge(QObject):
         self._painted_text = text
         if not self._applying:
             self._send_text(text)
+        self.textChanged.emit()
 
     def _send_text(self, text: str) -> None:
         """Hand the user's text to the session under a new token."""
@@ -582,12 +591,71 @@ class EditorBridge(QObject):
         if scroll and new is not None:
             self.playingMoved.emit(new[0])
 
+    # -- for the hints and the pickers (status_bar.py, value_picker.py) -------------------
+
+    @property
+    def in_step(self) -> bool:
+        """Whether the session has the text shown: no ``set_text`` still
+        queued, so its offsets and the editor's agree (lookups wait for that)."""
+        return (self._document is not None and self._pending_texts == 0
+                and self._painted_text == self._synced_text)
+
+    @property
+    def text(self) -> str:
+        """The text shown (as the painted spans and the offsets know it)."""
+        return self._painted_text
+
+    def cursor_position(self) -> Optional[int]:
+        """The caret's Qt position; None before QML attached the editor."""
+        if self._area is None:
+            return None
+        return int(self._area.property("cursorPosition"))
+
+    def to_code_point(self, position: int) -> int:
+        """The session's offset for Qt position ``position``."""
+        return OffsetMapper(self._painted_text).to_code_point(position)
+
+    def to_utf16(self, offset: int) -> int:
+        """The Qt position of the session's offset ``offset``."""
+        return OffsetMapper(self._painted_text).to_utf16(offset)
+
+    def char_offset(self, position: int) -> Optional[int]:
+        """The session's offset of the character at Qt position ``position``
+        (one the pointer is over), or None past the text or on a line's end:
+        nothing hovers past the end of a line."""
+        if position < 0:
+            return None
+        offset = self.to_code_point(position)
+        text = self._painted_text
+        if offset >= len(text) or text[offset] == "\n":
+            return None
+        return offset
+
+    @Slot(int, result="QVariantMap")
+    def hintAt(self, position: int) -> dict:  # noqa: N802 (Qt)
+        """The hover card for the character at Qt position ``position``:
+        the directive's ``start``/``end`` (Qt positions), its ``message``
+        (why it is invalid or has no effect, or ""), ``redundant`` and
+        ``syntax`` (one line per directive a half-typed keyword could become).
+        Empty when the character isn't inside a directive, past a line's end,
+        or while the session hasn't got the text shown yet."""
+        offset = self.char_offset(position)
+        if offset is None or self._store.closed or not self.in_step:
+            return {}
+        hint = self._store.direct("directive_hint_at", offset)
+        if not hint.syntax or not hint.start <= offset < hint.end:
+            return {}       # a directive being typed ends at the offset: not hovered
+        mapper = OffsetMapper(self._painted_text)
+        return {"start": mapper.to_utf16(hint.start), "end": mapper.to_utf16(hint.end),
+                "keyword": hint.keyword, "message": hint.message, "syntax": hint.syntax,
+                "redundant": bool(hint.redundant)}
+
     # -- for QML: the user's actions ---------------------------------------------------
 
     @Slot(int, result=int)
     def codePointAt(self, position: int) -> int:  # noqa: N802 (Qt)
         """The session's offset for Qt position ``position``."""
-        return OffsetMapper(self._painted_text).to_code_point(position)
+        return self.to_code_point(position)
 
     @Slot(int, result=bool)
     def isChordAt(self, position: int) -> bool:  # noqa: N802 (Qt)

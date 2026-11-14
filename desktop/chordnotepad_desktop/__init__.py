@@ -67,17 +67,18 @@ Each is also noted where it applies, as "pitfall N":
 18. There is no Alt-only shortcut, and a hidden MenuBar has no mnemonics: an
     event filter on window events only (alt_watcher.py).
 19. The ▾ value chip needs a sticky hover region and a grace period, or it
-    vanishes on the way to it (D5).
+    vanishes on the way to it (EditorPane.qml).
 20. SpinBox holds integers: scale fractional values and commit typed text on
     Enter (SpinBox.qml).
 21. Menus use ``popupType: Popup.Item``; macOS keeps the native menu bar
     (Menu.qml).
 22. ``QTest.keyClicks`` takes a QWidget only: tests send key events to the
     QQuickWindow (tests/qt/conftest.py).
-23. A popup takes focus only in ``onOpened`` (Popup.qml).
+23. A popup takes focus only in ``onOpened`` (Popup.qml, ValuePicker.qml).
 24. An ``inline:`` URL hangs ``engine.load``: load from a file (main.py).
 25. Repeater delegates aren't in the QObject tree, so ``findChild`` misses
-    them (tests/qt/conftest.py).
+    them (tests/qt/conftest.py; tests/qt/test_qt_value_picker.py walks the
+    visual tree).
 26. DialogButtonBox ignores ``highlighted``: the footer is our own row
     (Dialog.qml).
 """

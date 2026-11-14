@@ -14,7 +14,9 @@ import CNTheme
 // store.event / store.request / store.closeApproved for the rest, and
 // store.submit(command, args) for the commands. `errors` is the error
 // presenter (error_presenter.py); `editor` the editor's EditorBridge
-// (editor_bridge.py), which EditorPane attaches to its TextArea.
+// (editor_bridge.py), which EditorPane attaches to its TextArea; `status`
+// the status bar's StatusBarModel (status_bar.py) and `pickers` the ▾ value
+// pickers' ValuePickerModel (value_picker.py).
 //
 // The plumbing every main window keeps:
 // - windowDpr, fontRevision and contentReady are written by DprWatcher
@@ -36,6 +38,8 @@ ApplicationWindow {
     required property var store
     required property var errors
     required property var editor
+    required property var status
+    required property var pickers
     property real windowDpr: 1.0
     property int fontRevision: 0
     property bool contentReady: false
@@ -104,6 +108,8 @@ ApplicationWindow {
                     // The text's zoom, on the text pane (not the status bar under the sheet).
                     ZoomChip { objectName: "editZoomChip"; editor: win.editor }
                 }
+                // The message (D4); F4 adds the rest of the bar.
+                StatusBar { model: win.status; Layout.fillWidth: true }
             }
             // Play: the player bar (E1), the text and the chord-sheet strip (E4).
             ColumnLayout {
@@ -132,6 +138,8 @@ ApplicationWindow {
     EditorPane {
         id: editorPane
         editor: win.editor
+        status: win.status
+        pickers: win.pickers
         placeholder: win.store.texts.editorPlaceholder
         playMode: win.mode === "play"
         parent: win.mode === "play" ? playTextHost : editHost

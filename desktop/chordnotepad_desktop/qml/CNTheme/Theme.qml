@@ -55,6 +55,7 @@ QtObject {
     readonly property font fontC:       Qt.font({ family: uiFont, pointSize: fontCaption, hintingPreference: hinting })
     readonly property font fontMedium:  Qt.font({ family: uiFont, pointSize: fontBody, weight: Font.Medium, hintingPreference: hinting })
     readonly property font fontStrong:  Qt.font({ family: uiFont, pointSize: fontBody, weight: Font.DemiBold, hintingPreference: hinting })
+    readonly property font fontStrongS: Qt.font({ family: uiFont, pointSize: fontSmall, weight: Font.DemiBold, hintingPreference: hinting })   // the status bar's hint reason
     readonly property font fontTitleF:  Qt.font({ family: uiFont, pointSize: fontTitle, weight: Font.DemiBold, hintingPreference: hinting })
     readonly property font fontHeadF:   Qt.font({ family: uiFont, pointSize: fontHeading, weight: Font.DemiBold, hintingPreference: hinting })
     readonly property font fontMonoS:   Qt.font({ family: monoFont, pointSize: fontSmall, hintingPreference: hinting })
