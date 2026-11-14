@@ -18,6 +18,9 @@ licence_build = licence_inventory.build_for_platform(sys.platform)
 
 # Collect data files (soundfont, icons, and documentation)
 datas = [
+    # The version the title bar and About show in a local build (CI also
+    # writes it into build_info.py).
+    ('VERSION', '.'),
     ('resources/soundfont/GeneralUser-GS.sf2', 'resources/soundfont'),
     ('resources/icon-32.png', 'resources'),
     ('resources/icon-128.png', 'resources'),

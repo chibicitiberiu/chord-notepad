@@ -176,6 +176,16 @@ def test_the_resolver_matches_the_pyinstaller_spec(tmp_path):
         assert datas[rel[name]] == rel[name]
 
 
+def test_the_pyinstaller_spec_bundles_the_version_file(tmp_path):
+    """VERSION lands at the bundle's root, where the resolver reads it; without
+    it a local build says "v0.0" (CI's build_info.py hides that in releases)."""
+    spec = (REPO / "chord-notepad.spec").read_text()
+    datas = dict(re.findall(r"\('([^']+)',\s*'([^']+)'\)", spec))
+    rel = paths_under(tmp_path).version_file.relative_to(tmp_path).as_posix()
+    assert rel == "VERSION"
+    assert datas[rel] == "."
+
+
 # ---------------------------------------------------------------------------
 # The SoundFont reaches playback
 # ---------------------------------------------------------------------------
