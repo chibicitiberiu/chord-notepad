@@ -220,6 +220,13 @@ jobs:
       - name: Install dependencies
         run: pipenv sync --dev
 
+      # PySide6's macOS wheel is universal2 and each dmg is for one CPU: cut
+      # the venv's binaries down to the runner's before PyInstaller collects
+      # them (smoke_test.sh warns about any left in the app).
+      - name: Thin universal binaries (macOS)
+        if: runner.os == 'macOS'
+        run: packaging/macos/thin_wheels.sh "$(pipenv run python -c 'import sysconfig; print(sysconfig.get_paths()["platlib"])')"
+
       - name: Build HTML documentation
         run: |
           pipenv run sphinx-build -b html help help/build/html

@@ -4,8 +4,9 @@
 #
 #   packaging/macos/smoke_test.sh dist/ChordNotepad-macos-arm64.dmg
 #
-# Copies the app out of the mounted image, checks its signature and that the
-# bundled libfluidsynth loads, then opens it through Launch Services and passes
+# Copies the app out of the mounted image, checks its signature, warns about
+# any universal (two-CPU) binary left in it, checks that the bundled
+# libfluidsynth loads, then opens it through Launch Services and passes
 # when the startup banner appears in the log and the app is still running
 # shortly after. A missing "Loaded soundfont" line is only a warning, because
 # CI runners may have no audio device; FluidSynth not being found fails.
@@ -27,6 +28,16 @@ APP="$WORK/Chord Notepad.app"
 codesign --verify --deep --strict --verbose=2 "$APP"
 /usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' -c 'Print :CFBundleShortVersionString' \
     -c 'Print :LSMinimumSystemVersion' "$APP/Contents/Info.plist"
+
+# One CPU per dmg: no universal binary should be left (thin_wheels.sh,
+# PyInstaller). Only a warning: a fat file costs size, not correctness.
+while IFS= read -r -d '' file; do
+    archs=$(lipo -archs "$file" 2>/dev/null || true)
+    if [ "$(wc -w <<<"$archs")" -gt 1 ]; then
+        echo "::warning::Universal binary in the app: ${file#"$APP"/} ($archs)"
+    fi
+done < <(find "$APP/Contents" -type f -print0)
+echo "App size: $(du -sh "$APP" | cut -f1)"
 
 LIB=$(find "$APP/Contents" -name 'libfluidsynth.3.dylib' -type f | head -n 1)
 [ -n "$LIB" ] || { echo "::error::libfluidsynth.3.dylib is not in the app"; exit 1; }

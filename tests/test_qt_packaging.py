@@ -174,3 +174,20 @@ def test_hooks_trim_the_qt_modules_that_collect_plugins(module):
 def test_the_qt_window_s_assets_are_in_every_build():
     for cid in ("material-design-icons-mdi", "inter", "noto-sans-mono"):
         assert set(COMPONENTS[cid]["builds"]) == set(inv.BUILDS), cid
+
+
+# --- macOS ----------------------------------------------------------------------
+
+WORKFLOW = (REPO / ".github/workflows/build.yml").read_text(encoding="utf-8")
+
+
+def test_macos_needs_qt_6_12_s_floor():
+    """Qt 6.12 runs on macOS 14.4 and later; FluidSynth is built for the same."""
+    assert "'LSMinimumSystemVersion': '14.4'" in SPEC
+    assert "MACOSX_DEPLOYMENT_TARGET:-14.4}" in (REPO / "packaging/macos/build_fluidsynth.sh").read_text()
+
+
+def test_macos_thins_the_universal_wheels_before_pyinstaller():
+    thin = WORKFLOW.index("packaging/macos/thin_wheels.sh")
+    assert WORKFLOW.index("run: pipenv sync --dev", WORKFLOW.index("  build:")) < thin
+    assert thin < WORKFLOW.index("pipenv run pyinstaller --clean chord-notepad.spec")

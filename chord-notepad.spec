@@ -281,8 +281,10 @@ if macos:
             'NSHumanReadableCopyright': '(c) 2025-2026 Tiberiu Chibici. GNU AGPL-3.0',
             'NSHighResolutionCapable': True,
             'LSApplicationCategoryType': 'public.app-category.music',
-            # Keep in step with MACOSX_DEPLOYMENT_TARGET in
-            # packaging/macos/build_fluidsynth.sh.
-            'LSMinimumSystemVersion': '11.0',
+            # Qt 6.12's floor: its docs say macOS 14.4 or later, and the Qt
+            # frameworks in the PySide6 wheel are built for 14.4 (the wheel's
+            # macosx_14_0 tag is rounded down). Keep in step with
+            # MACOSX_DEPLOYMENT_TARGET in packaging/macos/build_fluidsynth.sh.
+            'LSMinimumSystemVersion': '14.4',
         },
     )

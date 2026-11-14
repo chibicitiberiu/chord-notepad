@@ -12,8 +12,9 @@
 set -euo pipefail
 
 PREFIX=${1:?usage: build_fluidsynth.sh <prefix>}
-# Keep in step with LSMinimumSystemVersion in chord-notepad.spec.
-export MACOSX_DEPLOYMENT_TARGET=${MACOSX_DEPLOYMENT_TARGET:-11.0}
+# Keep in step with LSMinimumSystemVersion in chord-notepad.spec (Qt 6.12's
+# floor).
+export MACOSX_DEPLOYMENT_TARGET=${MACOSX_DEPLOYMENT_TARGET:-14.4}
 
 FLUIDSYNTH_URL=https://github.com/FluidSynth/fluidsynth/archive/refs/tags/v2.6.1.tar.gz
 FLUIDSYNTH_SHA256=3d258a3bf97cc20c59eeebfe62c2432fae88adda74d3ad098681c76e0ebf446b
