@@ -19,9 +19,12 @@ from __future__ import annotations
 
 import argparse
 import io
+import json
 import re
 import sys
 import tarfile
+import textwrap
+import tomllib
 import zipfile
 from importlib import metadata
 from pathlib import Path
@@ -93,11 +96,123 @@ TEXT_DOWNLOADS = {
         "sha256": "f3005e195ff74d8812cc1f182a1c446fab678d70a10e3dada497585befee5416"},
 }
 
+# The third-party code inside the Qt libraries the builds ship: the entries
+# of Qt's own qt_attribution.json files (the "Licenses Used in Qt" pages of
+# its documentation are made from them), as (archive, folder, Id). Only the
+# parts compiled into the libraries, plugins and QML modules that
+# packaging/qt_bundle.py keeps, read from the PySide6 6.12.0 wheels:
+# libraries a platform's Qt links from the system instead (Linux: zlib,
+# FreeType; macOS: zlib) and the plugins the builds leave out (qjpeg, the
+# SQL drivers, Material style) are not listed. The common part is in every
+# build; the others only in that platform's.
+QTBASE = "qtbase-everywhere-src-6.12.0.tar.xz"
+QTDECLARATIVE = "qtdeclarative-everywhere-src-6.12.0.tar.xz"
+_WAYLAND = "src/3rdparty/wayland/protocols/"
+_FREETYPE = [(QTBASE, "src/3rdparty/freetype", i) for i in ("freetype", "freetype-bdf", "freetype-pcf")]
+_FORKFD = (QTBASE, "src/3rdparty/forkfd", "forkfd")
+_LIBDBUS = (QTBASE, "src/dbus", "libdbus-1-headers")
+_OPENGL_VULKAN = [(QTBASE, "src/gui/opengl", "opengl-headers"), (QTBASE, "src/gui/opengl", "opengl-es2-headers"),
+                  (QTBASE, "src/gui/vulkan", "vulkan-xml-spec"),
+                  (QTBASE, "src/3rdparty/VulkanMemoryAllocator", "vulkanmemoryallocator")]
+QT_THIRD_PARTY = {
+    "common": [
+        (QTBASE, "src/3rdparty/blake2", "blake2"),
+        (QTBASE, "src/3rdparty/double-conversion", "doubleconversion"),
+        (QTBASE, "src/3rdparty/easing", "easing"),
+        (QTBASE, "src/3rdparty/emoji-segmenter", "emoji-segmenter"),
+        (QTBASE, "src/3rdparty/harfbuzz-ng", "harfbuzz-ng"),
+        (QTBASE, "src/3rdparty/icc", "icc-srgb-color-profile"),
+        (QTBASE, "src/3rdparty/libpng", "libpng"),
+        (QTBASE, "src/3rdparty/libpsl", "psl-data"),
+        (QTBASE, "src/3rdparty/libpsl", "libpsl"),
+        (QTBASE, "src/3rdparty/md4", "md4"),
+        (QTBASE, "src/3rdparty/md4c", "md4c"),
+        (QTBASE, "src/3rdparty/md5", "md5"),
+        (QTBASE, "src/3rdparty/pcre2", "pcre2"),
+        (QTBASE, "src/3rdparty/pcre2", "pcre2-sljit"),
+        (QTBASE, "src/3rdparty/rfc6234", "rfc6234"),
+        (QTBASE, "src/3rdparty/sha1", "sha1"),
+        (QTBASE, "src/3rdparty/sha3", "sha3_endian"),
+        (QTBASE, "src/3rdparty/sha3", "sha3_keccak"),
+        (QTBASE, "src/3rdparty/siphash", "siphash"),
+        (QTBASE, "src/3rdparty/tinycbor", "tinycbor"),
+        (QTBASE, "src/corelib/global", "tlexpected"),
+        (QTBASE, "src/corelib/mimetypes/3rdparty", "tika-mimetypes"),
+        (QTBASE, "src/corelib/text", "unicode-character-database"),
+        (QTBASE, "src/corelib/text", "unicode-cldr"),
+        (QTBASE, "src/gui/painting", "grayraster"),
+        (QTBASE, "src/gui/painting", "smooth-scaling-algorithm"),
+        (QTBASE, "src/gui/painting", "xserverhelper"),
+        (QTBASE, "src/gui/text", "aglfn"),
+        (QTBASE, "src/gui/util", "xsvg"),
+        (QTDECLARATIVE, "src/3rdparty/masm", "masm"),
+        (QTDECLARATIVE, "src/3rdparty/yoga", "yoga"),
+    ],
+    "linux": [
+        _FORKFD,
+        _LIBDBUS,
+        *_OPENGL_VULKAN,
+        (QTBASE, "src/3rdparty/xcb", "xcb-xinput"),
+        # The protocols the Wayland platform plugin and its xdg-shell plugin
+        # are generated from (src/plugins/platforms/wayland/CMakeLists.txt).
+        # Two have no qt_attribution.json, only a REUSE.toml: ("reuse", xml).
+        *[(QTBASE, _WAYLAND + d, i) for d, i in (
+            ("appmenu", "appmenu"),
+            ("color-management", "wayland-color-management-protocol"),
+            ("cursor-shape", ("reuse", "cursor-shape-v1.xml")),
+            ("fractional-scale", "fractional-scale-v1"),
+            ("pointer-gestures", "wayland-pointer-gestures-protocol"),
+            ("pointer-warp", "wayland-pointer-warp-protocol"),
+            ("session-management", "wayland-session-management-protocol"),
+            ("tablet", "wayland-tablet-protocol"),
+            ("text-input/v1", "wayland-text-input-unstable-v1"),
+            ("text-input/v2", "wayland-text-input-unstable-v2"),
+            ("text-input/v3", "wayland-text-input-unstable-v3"),
+            ("viewporter", "wayland-viewporter-protocol"),
+            ("wayland", "wayland-protocol"),
+            ("wlr-data-control", "wlr-data-control-unstable-v1-protocol"),
+            ("wp-primary-selection", "wayland-primary-selection-protocol"),
+            ("xdg-activation", "wayland-xdg-activation"),
+            ("xdg-decoration", "wayland-xdg-decoration-protocol"),
+            ("xdg-dialog", "xdg-dialog-v1"),
+            ("xdg-foreign", "xdg-foreign-unstable-v2"),
+            ("xdg-output", "wayland-xdg-output-protocol"),
+            ("xdg-shell", "wayland-xdg-shell-protocol"),
+            ("xdg-system-bell", "wayland-xdg-system-bell-protocol"),
+            ("xdg-toplevel-drag", ("reuse", "xdg-toplevel-drag-v1.xml")),
+            ("xdg-toplevel-icon", "wayland-xdg-toplevel-icon-protocol"),
+        )],
+    ],
+    "windows": [
+        *_FREETYPE,
+        (QTBASE, "src/3rdparty/zlib", "zlib"),
+        *_OPENGL_VULKAN,
+        (QTBASE, "src/3rdparty/D3D12MemoryAllocator", "d3d12memoryallocator"),
+        (QTBASE, "src/gui/rhi", "rhi-miniengine-d3d12-mipmap"),
+        (QTBASE, "src/3rdparty/wintab", "wintab"),
+    ],
+    "macos": [
+        *_FREETYPE,
+        _FORKFD,
+        _LIBDBUS,
+        (QTBASE, "src/corelib/kernel", "qeventdispatcher_cf"),
+        (QTBASE, "src/plugins/platforms/cocoa", "cocoa-platform-plugin"),
+    ],
+}
+# key -> (title, the builds in a sentence)
+QT_THIRD_PARTY_BUILDS = {
+    "common": ("all builds", "every build of Chord Notepad"),
+    "linux": ("Linux builds", "the Linux builds (the Linux binary, the Flatpak and the snap) also"),
+    "windows": ("Windows builds", "the Windows builds (the download and the Microsoft Store edition) also"),
+    "macos": ("macOS builds", "the macOS builds also"),
+}
+
 # dest name -> ("file", path) | ("dist", distribution, member regex)
 #            | ("archive", file name, member) | ("download", TEXT_DOWNLOADS key)
 #            | ("section", spec, first line prefix, end line prefix or None):
 #              the lines of another spec's text from the first one starting
 #              with the prefix to (not including) the end line
+#            | ("qt-notices", QT_THIRD_PARTY key): see qt_notices()
 SOURCES = {
     "AGPL-3.0.txt": ("file", REPO / "LICENSE"),
     "ADDITIONAL-TERMS.txt": ("file", REPO / "ADDITIONAL-TERMS.txt"),
@@ -134,6 +249,10 @@ SOURCES = {
     "LGPL-3.0.txt": ("archive", "qtbase-everywhere-src-6.12.0.tar.xz",
                      "qtbase-everywhere-src-6.12.0/LICENSES/LGPL-3.0-only.txt"),
     "ICU-73.2.txt": ("download", "icu-73.2-LICENSE"),
+    "Qt-third-party.txt": ("qt-notices", "common"),
+    "Qt-third-party-linux.txt": ("qt-notices", "linux"),
+    "Qt-third-party-windows.txt": ("qt-notices", "windows"),
+    "Qt-third-party-macos.txt": ("qt-notices", "macos"),
     "krb5-NOTICE.txt": ("archive", "krb5-1.22.3.tar.gz", "krb5-1.22.3/NOTICE"),
     "flac-BSD.txt": ("archive", "flac-1.3.2.tar.xz", "flac-1.3.2/COPYING.Xiph"),
     "vorbis-BSD.txt": ("archive", "libvorbis-1.3.5.tar.xz", "libvorbis-1.3.5/COPYING"),
@@ -184,9 +303,134 @@ def archive_entries() -> dict:
     return entries
 
 
+# --- Qt's third-party notices -------------------------------------------------
+
+_RULE = "=" * 78
+_QT_CACHE: dict = {}  # (archive, member) -> text, filled by _qt_members
+
+
+def _qt_members(names: dict, cache: Path) -> None:
+    """Read ``names`` (archive -> set of members) into _QT_CACHE, one pass per archive.
+
+    The Qt archives are .tar.xz: picking members one by one would decompress
+    the whole archive each time.
+    """
+    entries = archive_entries()
+    for archive, members in names.items():
+        prefix = archive[:-len(".tar.xz")] + "/"
+        todo = {prefix + m for m in members if (archive, m) not in _QT_CACHE}
+        if not todo:
+            continue
+        with tarfile.open(fetch(entries[archive], cache)) as tar:
+            for info in tar:
+                if info.name in todo:
+                    data = tar.extractfile(info).read()
+                    _QT_CACHE[(archive, info.name[len(prefix):])] = data.decode("utf-8").replace("\r\n", "\n")
+                    todo.discard(info.name)
+        if todo:
+            raise SystemExit(f"{archive}: no {sorted(todo)}")
+
+
+def _norm(folder: str, relative: str) -> str:
+    """``folder/relative`` with ``..`` folded."""
+    parts = []
+    for part in f"{folder}/{relative}".split("/"):
+        if part == "..":
+            parts.pop()
+        elif part not in ("", "."):
+            parts.append(part)
+    return "/".join(parts)
+
+
+def _qt_entries(cache: Path) -> dict:
+    """QT_THIRD_PARTY key -> [(archive, folder, attribution dict, [licence members])]."""
+    wanted = {}
+    for items in QT_THIRD_PARTY.values():
+        for archive, folder, ident in items:
+            name = f"{folder}/REUSE.toml" if isinstance(ident, tuple) else f"{folder}/qt_attribution.json"
+            wanted.setdefault(archive, set()).add(name)
+            if isinstance(ident, tuple):
+                wanted[archive].add(f"{folder}/{ident[1]}")
+    _qt_members(wanted, cache)
+    resolved = {}
+    licences = {}
+    for key, items in QT_THIRD_PARTY.items():
+        for archive, folder, ident in items:
+            if isinstance(ident, tuple):
+                # A Wayland protocol with only a REUSE.toml: its name from the XML.
+                reuse = tomllib.loads(_QT_CACHE[(archive, f"{folder}/REUSE.toml")])["annotations"][0]
+                xml = _QT_CACHE[(archive, f"{folder}/{ident[1]}")]
+                protocol = re.search(r'<protocol name="([^"]+)"', xml).group(1)
+                holders = reuse["SPDX-FileCopyrightText"]
+                if reuse["SPDX-License-Identifier"] != "MIT":
+                    raise SystemExit(f"{folder}: licence {reuse['SPDX-License-Identifier']}, expected MIT")
+                entry = {"Name": f"Wayland protocol {protocol}", "QtUsage": "Used in the Qt Wayland platform plugin.",
+                         "Copyright": "\n".join([holders] if isinstance(holders, str) else holders),
+                         "License": "MIT License", "LicenseId": "MIT", "LicenseFile": "../MIT_LICENSE.txt"}
+            else:
+                data = json.loads(_QT_CACHE[(archive, f"{folder}/qt_attribution.json")], strict=False)
+                found = [e for e in (data if isinstance(data, list) else [data]) if e.get("Id") == ident]
+                if len(found) != 1:
+                    raise SystemExit(f"{archive} {folder}: no single attribution {ident!r}")
+                entry = found[0]
+            if entry.get("LicenseFile"):
+                files = [_norm(folder, entry["LicenseFile"])]
+            elif entry.get("LicenseFiles"):
+                files = [_norm(folder, f) for f in entry["LicenseFiles"]]
+            else:
+                # No file of its own: the SPDX texts at the archive's root.
+                ids = re.findall(r"[A-Za-z0-9.+-]+", entry["LicenseId"])
+                files = [f"LICENSES/{i}.txt" for i in ids if i not in ("AND", "OR", "WITH")]
+            for f in files:
+                licences.setdefault(archive, set()).add(f)
+            resolved.setdefault(key, []).append((archive, folder, entry, files))
+    _qt_members(licences, cache)
+    return resolved
+
+
+def qt_notices(key: str, cache: Path) -> str:
+    """The text of one QT_THIRD_PARTY part: a heading per entry, then its licence.
+
+    A licence file already shown in the same text is named instead of repeated.
+    """
+    lines = [
+        f"Third-party code in Qt 6.12.0: {QT_THIRD_PARTY_BUILDS[key][0]}",
+        "",
+        *textwrap.wrap(f"The Qt libraries, plugins and QML modules in {QT_THIRD_PARTY_BUILDS[key][1]} contain "
+                       "the code below from other projects, as Qt's source lists it in its qt_attribution.json "
+                       "files. Each part keeps its own licence, given with it. Its source is in the Qt source "
+                       "archives of Chord Notepad's third-party sources bundle, in the folder named under "
+                       "Source.", 78),
+    ]
+    shown = {}
+    for archive, folder, entry, files in _qt_entries(cache)[key]:
+        title = entry["Name"] + (f" {entry['Version']}" if entry.get("Version") else "")
+        lines += ["", _RULE, title, _RULE]
+        if entry.get("QtUsage"):
+            lines.append(" ".join(entry["QtUsage"].split()))
+        lines.append(f"Source: {archive[:-len('.tar.xz')]}/{folder}")
+        if entry.get("Homepage"):
+            lines.append(f"Home page: {entry['Homepage']}")
+        lines.append(f"Licence: {entry['License']} ({entry['LicenseId']})")
+        copyright_ = entry.get("Copyright")
+        if isinstance(copyright_, list):
+            copyright_ = "\n".join(copyright_)
+        if copyright_ and copyright_.strip():
+            lines += ["", copyright_.strip()]
+        for f in files:
+            if (archive, f) in shown:
+                lines += ["", f"Licence text: as for {shown[(archive, f)]} above."]
+            else:
+                shown[(archive, f)] = entry["Name"]
+                lines += ["", _QT_CACHE[(archive, f)].strip()]
+    return "\n".join(lines) + "\n"
+
+
 def read(spec: tuple, cache: Path) -> str:
     """The text a SOURCES spec names, with CRLF line ends made LF."""
     kind = spec[0]
+    if kind == "qt-notices":
+        return qt_notices(spec[1], cache)
     if kind == "section":
         lines = read(spec[1], cache).splitlines()
         start = next(i for i, line in enumerate(lines) if line.startswith(spec[2]))

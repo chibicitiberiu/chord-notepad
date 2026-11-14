@@ -100,6 +100,78 @@ def test_source_entries_are_pinned():
             assert "/" not in s["file"], s["file"]
 
 
+
+# --- The third-party code inside Qt -------------------------------------------
+
+QT_NOTICES = {"common": ("qt-third-party", "Qt-third-party", set(inv.BUILDS)),
+              "linux": ("qt-third-party-linux", "Qt-third-party-linux", {"linux", "flatpak", "snap"}),
+              "windows": ("qt-third-party-windows", "Qt-third-party-windows", {"windows"}),
+              "macos": ("qt-third-party-macos", "Qt-third-party-macos", {"macos"})}
+
+
+def qt_notice_licences(text_name):
+    """The SPDX expressions of a Qt notice's "Licence: ... (expression)" lines."""
+    text = (LICENSES / "texts" / f"{text_name}.txt").read_text(encoding="utf-8")
+    return re.findall(r"^Licence: .*\((.+)\)$", text, re.M)
+
+
+@pytest.mark.parametrize("key", sorted(QT_NOTICES))
+def test_each_build_with_qt_lists_the_code_inside_its_qt(key):
+    component, text, builds = QT_NOTICES[key]
+    assert gather_texts.SOURCES[f"{text}.txt"] == ("qt-notices", key)
+    assert BY_ID[component]["texts"] == [text]
+    assert set(BY_ID[component]["builds"]) == builds
+    # Every build ships Qt, and gets the common part plus exactly one platform part.
+    assert set(BY_ID["qt"]["builds"]) == set(inv.BUILDS)
+    for build in inv.BUILDS:
+        parts = [k for k, (cid, _, b) in QT_NOTICES.items() if build in b and k != "common"]
+        assert len(parts) == 1, build
+
+
+@pytest.mark.parametrize("key", sorted(QT_NOTICES))
+def test_the_qt_notice_s_licences_are_named_in_its_entry(key):
+    component, text, _ = QT_NOTICES[key]
+    named = set(re.findall(r"[A-Za-z0-9.+-]+", BY_ID[component]["license"])) - {"AND", "OR", "WITH"}
+    expressions = qt_notice_licences(text)
+    assert expressions, text
+    for expression in expressions:
+        choices = [set(re.findall(r"[A-Za-z0-9.+-]+", alt)) - {"AND", "WITH"} for alt in expression.split(" OR ")]
+        assert any(choice <= named for choice in choices), f"{text}: {expression} not in {named}"
+    # Copyleft parts (the public suffix list, a Wayland protocol) have their source with Qt's.
+    assert BY_ID[component]["sourceNote"]
+
+
+def test_the_qt_notices_follow_what_the_shipped_libraries_contain():
+    ids = {key: {entry[2] for entry in gather_texts.QT_THIRD_PARTY[key]} for key in gather_texts.QT_THIRD_PARTY}
+    assert {"harfbuzz-ng", "pcre2", "doubleconversion", "libpng", "md4c", "masm", "yoga",
+            "unicode-cldr", "unicode-character-database", "psl-data"} <= ids["common"]
+    # Linux and macOS link the system's zlib; Linux the system's FreeType (its
+    # rasteriser, grayraster, is in QtGui everywhere). The JPEG and SQL
+    # plugins and the Material style aren't shipped; pixman is 32-bit ARM only.
+    assert "freetype" in ids["windows"] and "freetype" in ids["macos"] and "freetype" not in ids["linux"]
+    assert "zlib" in ids["windows"] and "zlib" not in ids["linux"] | ids["macos"]
+    assert not {"libjpeg", "sqlite", "shadow_angular_material", "pixman", "freetype-zlib"} & set().union(*ids.values())
+    assert "xcb-xinput" in ids["linux"] and "wintab" in ids["windows"] and "cocoa-platform-plugin" in ids["macos"]
+    # One section per entry, none twice in a build.
+    for key in ids:
+        assert len(gather_texts.QT_THIRD_PARTY[key]) == len(ids[key]), key
+        assert not (ids[key] & ids["common"]) or key == "common", key
+
+
+def test_the_qt_notice_texts_match_qt_s_attribution_files():
+    """Regenerated from Qt's source archives when they are cached (build/licence-sources)."""
+    from licence_sources import sha256_of
+
+    entries = gather_texts.archive_entries()
+    for archive in (gather_texts.QTBASE, gather_texts.QTDECLARATIVE):
+        cached = gather_texts.DEFAULT_CACHE / archive
+        if not cached.is_file() or sha256_of(cached) != entries[archive]["sha256"]:
+            pytest.skip(f"{archive} isn't cached")
+    for key, (_, text, _) in QT_NOTICES.items():
+        assert (LICENSES / "texts" / f"{text}.txt").read_text(encoding="utf-8") == gather_texts.qt_notices(
+            key, gather_texts.DEFAULT_CACHE), f"run packaging/licenses/gather_texts.py ({text})"
+
+
 # --- Against what the builds ship -------------------------------------------
 
 def python_components(build=None):
