@@ -236,3 +236,27 @@ def test_the_linux_packages_smoke_test_imports_the_qt_front_end():
     smoke = (REPO / "packaging/linux/smoke_test.py").read_text(encoding="utf-8")
     assert '"chordnotepad_desktop": APP / "desktop"' in smoke
     assert "desktop/chordnotepad_desktop/qml/app/Main.qml" in smoke
+
+
+# --- CI -------------------------------------------------------------------------
+
+def _job(name):
+    import yaml
+
+    return yaml.safe_load(WORKFLOW)["jobs"][name]
+
+
+def _step(job, name):
+    return next(s for s in job["steps"] if s.get("name") == name)
+
+
+def test_ci_runs_the_qt_tests_offscreen_and_fails_when_they_would_skip():
+    test = _job("test")
+    installed = _step(test, "Install system dependencies")["run"]
+    for package in ("libegl1", "libgl1", "libxkbcommon0", "libfontconfig1"):
+        assert package in installed, package
+    assert "--ignore=tests/qt" in _step(test, "Run tests")["run"]
+    qt = _step(test, "Run the Qt tests and qmllint (offscreen)")
+    assert qt["env"] == {"QT_QPA_PLATFORM": "offscreen", "QT_QUICK_BACKEND": "software"}
+    assert "pytest tests/qt" in qt["run"] and "import PySide6.QtGui" in qt["run"]
+    assert "Qt not available|qmllint not installed" in qt["run"]

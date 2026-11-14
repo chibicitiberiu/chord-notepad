@@ -46,11 +46,14 @@ jobs:
         with:
           python-version: '3.14'
 
-      # xvfb and xauth: xvfb-run below gives the Tk tests a display.
+      # xvfb and xauth: xvfb-run below gives the Tk tests a display. libegl1
+      # and the rest: what PySide6's Qt libraries load (the Qt tests run
+      # offscreen, with no display).
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y fluidsynth libfluidsynth3 xvfb xauth
+          sudo apt-get install -y fluidsynth libfluidsynth3 xvfb xauth \
+            libegl1 libgl1 libxkbcommon0 libfontconfig1 libdbus-1-3
 
       # Pinned to the pipenv that wrote Pipfile.lock: newer ones hash the Pipfile
       # differently, call the lock out of date and re-lock to newer packages.
@@ -64,9 +67,26 @@ jobs:
 
       # The Tk tests skip without a display, so they run on a virtual X
       # server (the screen the local Xvfb runs use). Goes when the Tk
-      # front end does.
+      # front end does. The Qt tests run in the next step.
       - name: Run tests
-        run: xvfb-run --auto-servernum --server-args="-screen 0 1280x800x24" pipenv run pytest tests/ -v
+        run: xvfb-run --auto-servernum --server-args="-screen 0 1280x800x24" pipenv run pytest tests/ -v --ignore=tests/qt
+
+      # The Qt window's tests (pytest-qt) need no display: offscreen, Qt
+      # Quick's software renderer, and a Qt warning fails the test
+      # (tests/qt/conftest.py); test_qt_theme.py also runs pyside6-qmllint
+      # over every QML file. Those tests skip when Qt can't be imported, so
+      # the import comes first and any such skip fails the step.
+      - name: Run the Qt tests and qmllint (offscreen)
+        env:
+          QT_QPA_PLATFORM: offscreen
+          QT_QUICK_BACKEND: software
+        run: |
+          pipenv run python -c "import PySide6.QtGui, PySide6.QtQuick, PySide6.QtQuickControls2, PySide6.QtSvg"
+          pipenv run pytest tests/qt -v -rs | tee "$RUNNER_TEMP/qt-tests.log"
+          if grep -E "SKIPPED.*(Qt not available|qmllint not installed)" "$RUNNER_TEMP/qt-tests.log"; then
+            echo "::error::Qt tests were skipped: Qt or qmllint is missing on the runner"
+            exit 1
+          fi
 
       # Both editions of the User Guide must build without warnings (e.g. a
       # screenshot missing for one edition). docs/HELP_AUTHORING.md.
