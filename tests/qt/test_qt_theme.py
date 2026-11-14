@@ -88,7 +88,9 @@ def test_pixel_sizes_are_units_except_the_hairline():
     """Every dimension in pt or Theme units (checklist 12): no literal px in the controls."""
     found = []
     for p in QML_FILES:
-        if p.name == "Theme.qml":
+        # FatalError.qml uses neither the theme nor the style on purpose: it
+        # shows why start-up failed, which may be that they didn't load.
+        if p.name in ("Theme.qml", "FatalError.qml"):
             continue
         for code in code_of(p).splitlines():
             m = re.search(r"\b(?:[wW]idth|[hH]eight|[xy]|[mM]argins?|[pP]adding|spacing|radius|[sS]ize)"
