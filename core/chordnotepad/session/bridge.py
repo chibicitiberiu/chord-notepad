@@ -43,7 +43,7 @@ from chordnotepad.session.events import (
     UserError, VoicingEditorSchema,
 )
 from chordnotepad.session.host import Host
-from chordnotepad.session.settings import SettingsValues
+from chordnotepad.session.settings import DesktopSettingsValues, SettingsValues
 from chordnotepad.session.state import (
     ChordSheetState, ChordSheetView, DocumentState, EditorState, HighlightState,
     IdentifierNote, IdentifierState, InstrumentFamily, InstrumentMenuState, MenuItem, PlayAction,
@@ -189,10 +189,21 @@ def _decode_dataclass(cls: type) -> _Decoder:
         if missing or extra:
             raise BridgeError(f"{cls.__name__} needs exactly {names}; "
                               f"missing {missing}, unknown {extra}")
-        kwargs = {n: _DECODERS[_type_name(hints[n])](value[n]) for n in names}
+        kwargs = {n: _decoder(_type_name(hints[n]))(value[n]) for n in names}
         return cls(**kwargs)
 
     return decode
+
+
+def _decode_settings(value: Any) -> SettingsValues:
+    """A ``SettingsValues``: Android's exact fields, or the Qt desktop's
+    superset (``DesktopSettingsValues``: the SoundFont, audio driver, log
+    level and colour scheme). The Qt window talks to the session through
+    this bridge too; the schema (Kotlin's contract) lists the plain fields."""
+    plain = {f.name for f in dataclasses.fields(SettingsValues)}
+    if isinstance(value, dict) and set(value) - plain:
+        return _decode_desktop_settings(value)
+    return _decode_plain_settings(value)
 
 
 _DECODERS: Dict[str, _Decoder] = {
@@ -205,7 +216,9 @@ _DECODERS: Dict[str, _Decoder] = {
     "json": lambda value: value,
 }
 _DECODERS["DocumentRef"] = _decode_dataclass(DocumentRef)
-_DECODERS["SettingsValues"] = _decode_dataclass(SettingsValues)
+_decode_plain_settings = _decode_dataclass(SettingsValues)
+_decode_desktop_settings = _decode_dataclass(DesktopSettingsValues)
+_DECODERS["SettingsValues"] = _decode_settings
 
 
 def _decoder(type_name: str) -> _Decoder:
@@ -260,6 +273,16 @@ SESSION_COMMANDS: Dict[str, Dict[str, str]] = {
     "set_chord_sheet_view": {"view_id": "str"},
     "chord_sheet_zoom": {"step": "int"},
     "audition": {"index": "int"},
+    # the Qt desktop's (its SessionStore goes through this bridge; Android
+    # never sends them): the sheet on screen, its logical height, the volume
+    "set_chord_sheet_on_screen": {"on_screen": "bool|null"},
+    "set_logical_chord_sheet_height": {"height": "int", "scale": "float"},
+    "set_volume": {"volume": "float"},
+    "step_volume": {"steps": "int"},
+    "set_muted": {"muted": "bool"},
+    # the Qt Directives palette and the ▾ pickers
+    "insert_snippet": {"offset": "int", "text": "str", "snap": "bool"},
+    "replace_directive_value": {"span": "selection", "value": "str"},
     # chord identifier
     "identifier_toggle_note": {"note": "str", "octave": "int"},
     "identifier_set_notes_text": {"text": "str"},
@@ -353,6 +376,7 @@ CONFIG_COMMANDS = frozenset({
     "toggle_metronome", "set_voicing", "set_instrument", "set_notation",
     "set_font", "step_font_size", "reset_font_size", "set_word_wrap",
     "set_chord_sheet_visible", "set_chord_sheet_height", "set_chord_sheet_view", "chord_sheet_zoom",
+    "set_logical_chord_sheet_height", "set_volume", "step_volume",
     "convert_notation", "apply_settings", "save_settings",
     "set_show_quick_start_on_startup", "open_document", "open_recent", "save", "save_as",
     "rename_document",

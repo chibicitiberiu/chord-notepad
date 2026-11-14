@@ -154,6 +154,10 @@ def test_the_wheel_steps_5_percent_within_the_range_and_unmutes(tmp_path):
     assert session.volume == 0.15
 
 
-def test_volume_stays_off_the_bridge():
-    commands = set(bridge.SESSION_COMMANDS) | set(bridge.CONFIG_COMMANDS)
-    assert not {"set_volume", "step_volume", "set_muted"} & commands
+def test_the_qt_window_reaches_it_through_the_bridge_with_plain_values():
+    # The Qt SessionStore submits through the bridge (Android never does).
+    assert bridge.SESSION_COMMANDS["set_volume"] == {"volume": "float"}
+    assert bridge.SESSION_COMMANDS["step_volume"] == {"steps": "int"}
+    assert bridge.SESSION_COMMANDS["set_muted"] == {"muted": "bool"}
+    assert {"set_volume", "step_volume"} <= bridge.CONFIG_COMMANDS
+    assert "set_muted" not in bridge.CONFIG_COMMANDS          # not saved

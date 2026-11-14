@@ -750,6 +750,8 @@ class AppSession:
                 keyword isn't a directive's, or ``value`` is empty or holds
                 a brace or a newline.
         """
+        if span is None:
+            raise ValueError("replace_directive_value needs the directive's span")
         start, end = (int(x) for x in span)
         if not 0 <= start < end <= len(self._text):
             raise ValueError(f"span {start}-{end} outside the text (length {len(self._text)})")

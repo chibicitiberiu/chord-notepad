@@ -791,3 +791,55 @@ def test_a_directive_hint_crosses_the_bridge(env):
     assert hint == {"offset": 2, "start": 0, "end": 8, "keyword": "bpm",
                     "syntax": "{bpm: 120} · {bpm: +10} · {bpm: 50%} · {bpm: 2x} · {bpm: reset}",
                     "message": "Tempo must be 20-400", "redundant": False}
+
+
+# -- the Qt desktop through the same bridge ----------------------------------------------
+
+
+@pytest.fixture
+def qt_env(tmp_path):
+    e = BridgeEnv(tmp_path, platform="desktop_qt")
+    yield e
+    e.close()
+
+
+def test_the_qt_desktops_settings_cross_with_their_extra_fields(qt_env):
+    state = qt_env.expect("SettingsState")
+    assert state["values"]["ui_theme"] == "system" and state["values"]["log_level"] == "INFO"
+    values = dict(state["values"], ui_theme="dark", log_level="DEBUG", soundfont_path="/a.sf2")
+    qt_env.send("begin_settings_edit")
+    qt_env.send("commit_settings", values=values, invalid_numbers=None)
+    qt_env.expect("SettingsState", lambda d: d["values"]["ui_theme"] == "dark")
+    config = qt_env.services.config.config
+    assert (config.ui_theme, config.log_level, config.soundfont_path) == ("dark", "DEBUG", "/a.sf2")
+    # Android's plain values still go, and leave the extra fields alone.
+    plain = {k: v for k, v in values.items()
+             if k not in ("ui_theme", "log_level", "soundfont_path", "audio_driver")}
+    qt_env.send("commit_settings", values=dict(plain, bpm=99), invalid_numbers=None)
+    qt_env.expect("SettingsState", lambda d: d["values"]["bpm"] == 99)
+    assert qt_env.services.config.config.ui_theme == "dark"
+    # Anything else is still refused.
+    qt_env.send("commit_settings", values=dict(values, colour="red"), invalid_numbers=None)
+    error = qt_env.expect("UnexpectedError")
+    assert error["context"] == "bridge" and "colour" in error["message"]
+
+
+def test_the_android_settings_decoder_is_unchanged():
+    with pytest.raises(bridge.BridgeError):
+        bridge.decode_args("commit_settings", json.dumps({"values": {"bpm": 1}, "invalid_numbers": None}))
+
+
+def test_the_palette_and_the_sheet_on_screen_through_the_bridge(qt_env):
+    qt_env.send("set_text", text="C G\n", client_token=1)
+    qt_env.expect("HighlightState", lambda d: d["client_token"] == 1)
+    qt_env.send("insert_snippet", offset=4, text="{bpm: 120}", snap=False)
+    edited = qt_env.expect("TextEdited")
+    assert (edited["anchor"], edited["cursor"], edited["undo"]) == (10, 13, "group")
+    qt_env.send("replace_directive_value", span=[4, 14], value="90")
+    edited = qt_env.expect("TextEdited")
+    assert edited["replacement"] == "90"
+    qt_env.send("set_chord_sheet_on_screen", on_screen=None)
+    qt_env.send("set_volume", volume=0.5)
+    qt_env.settle()
+    assert qt_env.services.config.config.volume == 0.5
+    assert qt_env.host.call(lambda: qt_env.session.text) == "C G\n{bpm: 90}"

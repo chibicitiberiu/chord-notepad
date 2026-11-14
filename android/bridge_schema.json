@@ -60,6 +60,11 @@
       "at": "int",
       "chord": "str"
     },
+    "insert_snippet": {
+      "offset": "int",
+      "snap": "bool",
+      "text": "str"
+    },
     "insert_text": {
       "at": "int",
       "text": "str"
@@ -107,6 +112,10 @@
       "new": "str",
       "old": "str"
     },
+    "replace_directive_value": {
+      "span": "selection",
+      "value": "str"
+    },
     "request_close": {},
     "request_directive_hint": {
       "offset": "int"
@@ -153,6 +162,9 @@
     "set_chord_sheet_height": {
       "px": "int"
     },
+    "set_chord_sheet_on_screen": {
+      "on_screen": "bool|null"
+    },
     "set_chord_sheet_view": {
       "view_id": "str"
     },
@@ -169,11 +181,18 @@
     "set_key": {
       "key": "str|null"
     },
+    "set_logical_chord_sheet_height": {
+      "height": "int",
+      "scale": "float"
+    },
     "set_multiplier_pct": {
       "pct": "float"
     },
     "set_multiplier_text": {
       "text": "str"
+    },
+    "set_muted": {
+      "muted": "bool"
     },
     "set_notation": {
       "notation": "str"
@@ -201,11 +220,17 @@
     "set_voicing_values": {
       "values": "json"
     },
+    "set_volume": {
+      "volume": "float"
+    },
     "set_word_wrap": {
       "on": "bool"
     },
     "step_font_size": {
       "delta": "int"
+    },
+    "step_volume": {
+      "steps": "int"
     },
     "stop": {},
     "tap_chord_at": {
@@ -241,6 +266,7 @@
     "identifier_set_notes_text",
     "identifier_toggle_note",
     "insert_chord",
+    "insert_snippet",
     "insert_text",
     "load_voicing_preset",
     "move_voicing_record",
@@ -255,6 +281,7 @@
     "remove_voicing_record",
     "rename_document",
     "rename_voicing",
+    "replace_directive_value",
     "request_close",
     "request_directive_hint",
     "request_insert_directive",
@@ -274,13 +301,16 @@
     "set_bpm",
     "set_bpm_text",
     "set_chord_sheet_height",
+    "set_chord_sheet_on_screen",
     "set_chord_sheet_view",
     "set_chord_sheet_visible",
     "set_font",
     "set_instrument",
     "set_key",
+    "set_logical_chord_sheet_height",
     "set_multiplier_pct",
     "set_multiplier_text",
+    "set_muted",
     "set_notation",
     "set_playhead",
     "set_show_quick_start_on_startup",
@@ -289,8 +319,10 @@
     "set_voicing",
     "set_voicing_model",
     "set_voicing_values",
+    "set_volume",
     "set_word_wrap",
     "step_font_size",
+    "step_volume",
     "stop",
     "tap_chord_at",
     "toggle_metronome",
