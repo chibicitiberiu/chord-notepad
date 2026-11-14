@@ -262,8 +262,9 @@ chaquopy {
     }
     sourceSets {
         getByName("main") {
-            // The shared core, minus the Tk UI and desktop-only modules
-            // (same list as tests/test_core_import_guard.py DESKTOP_ONLY).
+            // The shared core, minus the Tk UI and the desktop entry points
+            // next to it (tests/test_core_import_guard.py DESKTOP_ONLY checks
+            // this list).
             srcDir("../../src")
             exclude(
                 "__init__.py",
@@ -272,10 +273,6 @@ chaquopy {
                 "main.py",
                 "application.py",
                 "build_info.py",
-                "utils/display_scaling.py",
-                "utils/file_dialogs.py",
-                "utils/icon_loader.py",
-                "utils/ui_helpers.py",
             )
         }
     }

@@ -101,7 +101,7 @@ src/session/
                    ErrorEvents (throttled UnexpectedError); schema dump for Kotlin
   session.py       AppSession
 src/ui/tk_host.py  TkHost (the queue drain that used to live in application.py)
-src/utils/paths.py display_path / is_document_portal_path (moved from utils/file_dialogs.py)
+src/utils/paths.py display_path / is_document_portal_path (Tk-free; ui/file_dialogs.py re-exports them)
 ```
 
 ### Host
@@ -778,11 +778,11 @@ is for tests that bring their own player.
   logs. Throttling is the handler's job: the Tk presenter already throttles
   its dialogs, and the Android handler will throttle its events.
 - **`Observable.notify`** reports through it.
-- **`utils/error_reporting.py`** stays the Tk presenter and registers itself as
-  the handler at import time. `application.py` imports it at the top, so it is
-  installed before anything can fail. Its tkinter import is guarded: without
-  Tk it still imports but installs nothing. Existing test patch points keep
-  working.
+- **`ui/error_reporting.py`** is the Tk presenter. Importing it installs
+  nothing: `Application.on_configure_logging` calls `install_session_handler()`
+  next to `set_log_path` and `install_thread_hook`. Before that the core's
+  errors are only logged, which is all the presenter would do before its
+  thread hook is installed anyway.
 - **Android** installs a handler that emits `UnexpectedError`, throttled.
 - **Expected failures are events:** `last_error` becomes `UserError`, and
   `AudioInitializationError` becomes `AudioUnavailable`. The session owns the

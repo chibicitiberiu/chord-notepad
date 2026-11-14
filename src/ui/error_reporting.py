@@ -9,11 +9,11 @@ Dialogs are throttled: only one at a time, and the same message isn't shown
 again within a few seconds, so an error in a timer callback can't flood the
 screen.
 
-This is the Tk presenter for :mod:`session.errors`: importing this module
-installs :func:`report_from_any_thread` as the session error handler, so
-errors the core reports (e.g. a failing observer) are shown here. The
-application imports it at startup, before anything can fail. Without tkinter
-(the Android core) the module still imports, but installs nothing.
+This is the Tk presenter for :mod:`session.errors`. Importing it installs
+nothing: the application calls :func:`install_session_handler` at startup,
+together with :func:`set_log_path` and :func:`install_thread_hook`, so errors
+the core reports (e.g. a failing observer) are shown here. Until then, and
+wherever it is never called (Android, most tests), the core only logs them.
 """
 
 from __future__ import annotations
@@ -22,17 +22,12 @@ import logging
 import sys
 import threading
 import time
+import tkinter as tk
+from tkinter import messagebox
 from typing import Callable, Optional, Tuple
 
 from session import errors as session_errors
 from session.errors import ExcInfo
-
-try:
-    import tkinter as tk
-    from tkinter import messagebox
-except ImportError:  # no Tk on this platform; see the module docstring
-    tk = None  # type: ignore[assignment]
-    messagebox = None  # type: ignore[assignment]
 
 logger = logging.getLogger(__name__)
 
@@ -176,5 +171,10 @@ def _handle_session_error(exc_info: ExcInfo, context: str) -> None:
     report_from_any_thread(exc_info, context)
 
 
-if tk is not None:
+def install_session_handler() -> None:
+    """Show the errors the core reports through :mod:`session.errors` here.
+
+    Called once at desktop startup. Before :func:`install_thread_hook` has run
+    the presenter only logs, as the core does with no handler installed.
+    """
     session_errors.set_handler(_handle_session_error)

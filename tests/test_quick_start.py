@@ -4,7 +4,7 @@ import os
 
 import pytest
 
-from constants import TAG_CHORD_VALID
+from ui.theme import TAG_CHORD_VALID
 from models.line import LineType
 from services.song_parser_service import SongParserService
 from ui.dialogs.quick_start import QuickStartDialog

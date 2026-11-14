@@ -18,10 +18,8 @@ from services.resource_service import ResourceService
 from session.bootstrap import CoreServices, build_core_services, create_session
 from session.documents import FileSystemDocumentStore
 from session.session import AppSession
+from ui import error_reporting
 from ui.tk_host import TkHost
-# Imported here, before anything can fail, so the error dialog is installed
-# as the session error handler (see utils.error_reporting).
-from utils import error_reporting
 
 
 class Application:
@@ -206,9 +204,12 @@ class Application:
             log_level=log_level,
             console_output=True
         )
-        # Errors nothing else catches get logged and shown, not lost on stderr
+        # Errors nothing else catches get logged and shown, not lost on stderr.
+        # Until here the core's errors (session.errors) are only logged, which
+        # is all the presenter would do before install_thread_hook anyway.
         error_reporting.set_log_path(str(self.appdata_service.get_log_file_path()))
         error_reporting.install_thread_hook(self.queue_ui_callback, lambda: self._main_window)
+        error_reporting.install_session_handler()
 
     def on_initialize_ui(self) -> None:
         """Initialize the user interface.

@@ -10,7 +10,7 @@ import sys
 from typing import TYPE_CHECKING, Any, Optional
 from PIL import Image, ImageTk
 from ui.scrubber import Scrubber
-from utils import error_reporting
+from ui import error_reporting
 from ui.text_editor import ChordTextEditor, REDO_ACCELERATOR
 from ui.directive_hints import DirectiveHints
 from ui.chord_identifier import ChordIdentifierWindow
@@ -23,10 +23,10 @@ from ui.dialogs import (
     CapoDialog,
 )
 from ui.dialogs.insert_directives import dialog_for_request
-from utils.display_scaling import apply_xft_dpi
-from utils.icon_loader import IconLoader
-from utils.ui_helpers import create_tooltip, resolve_font_family
-from utils.file_dialogs import ask_open_filename, ask_save_as_filename
+from ui.display_scaling import apply_xft_dpi
+from ui.icon_loader import IconLoader
+from ui.helpers import create_tooltip, resolve_font_family
+from ui.file_dialogs import ask_open_filename, ask_save_as_filename
 from models.notation import Notation
 from session import formatting
 from session.events import (
@@ -43,8 +43,8 @@ from session.toolbar import (
     parse_multiplier_pct,
 )
 from exceptions import ChordNotepadError
-from constants import (
-    DEFAULT_FONT_SIZE,
+from constants import DEFAULT_FONT_SIZE, WM_CLASS
+from ui.theme import (
     TAG_CHORD_PLAYING,
     UI_ACCENT,
     UI_ACCENT_ACTIVE,
@@ -54,7 +54,6 @@ from constants import (
     UI_SCROLL_THUMB,
     UI_SCROLL_THUMB_ACTIVE,
     UI_TEXT_MUTED,
-    WM_CLASS,
 )
 
 if TYPE_CHECKING:
@@ -1212,7 +1211,7 @@ class MainWindow(tk.Tk):
         self.destroy()
 
     def create_tooltip(self, widget: tk.Widget, text: str) -> None:
-        """Create a tooltip for a widget using ui_helpers.create_tooltip"""
+        """Create a tooltip for a widget using ui.helpers.create_tooltip"""
         create_tooltip(widget, text)
 
     def open_chord_identifier(self) -> None:

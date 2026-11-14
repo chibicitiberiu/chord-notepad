@@ -15,7 +15,7 @@ import pytest
 
 tk = pytest.importorskip("tkinter")
 
-from constants import (
+from ui.theme import (
     TAG_CHORD_INVALID, TAG_CHORD_VALID, TAG_COMMENT, TAG_DIRECTIVE_INVALID,
     TAG_DIRECTIVE_VALID,
 )
@@ -241,7 +241,7 @@ def _playback_window(wired):
 
 
 def test_playing_state_highlights_and_scrolls_to_the_chord(wired):
-    from constants import TAG_CHORD_PLAYING
+    from ui.theme import TAG_CHORD_PLAYING
     from session.state import PlaybackState, PlaybackStatus
 
     editor = wired.editor

@@ -124,7 +124,7 @@ if sys.platform != 'win32':
     # PyInstaller warn that user32 isn't found on Linux/macOS.
     excludes.append('dateutil.tz.win')
 if not sys.platform.startswith('linux'):
-    # D-Bus client for the XDG file-chooser portal (src/utils/file_dialogs.py).
+    # D-Bus client for the XDG file-chooser portal (src/ui/file_dialogs.py).
     # It's imported lazily and only on Linux, so keep it out of Windows/macOS
     # bundles; the code falls back to Tk dialogs if it's missing.
     excludes.append('jeepney')

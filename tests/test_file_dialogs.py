@@ -1,4 +1,4 @@
-"""Tests for utils.file_dialogs (portal file chooser with Tk fallback).
+"""Tests for ui.file_dialogs (portal file chooser with Tk fallback).
 
 No real D-Bus or dialogs: the portal round-trip is exercised against a fake
 jeepney connection, and the public functions are tested with the portal call
@@ -15,7 +15,7 @@ from unittest import mock
 
 import pytest
 
-from utils import file_dialogs as fd
+from ui import file_dialogs as fd
 
 
 @pytest.fixture(autouse=True)

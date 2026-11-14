@@ -5,7 +5,7 @@ import tkinter as tk
 
 import pytest
 
-from constants import UI_SCRUB_BG, UI_SCRUB_HOVER
+from ui.theme import UI_SCRUB_BG, UI_SCRUB_HOVER
 
 
 def _has_display() -> bool:

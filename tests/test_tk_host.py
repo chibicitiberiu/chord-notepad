@@ -9,8 +9,7 @@ from unittest import mock
 
 import pytest
 
-from constants import EVENT_QUEUE_POLL_MS
-from ui.tk_host import TkHost
+from ui.tk_host import EVENT_QUEUE_POLL_MS, TkHost
 
 
 class FakeRoot:

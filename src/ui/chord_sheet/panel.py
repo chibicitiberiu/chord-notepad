@@ -20,8 +20,7 @@ import tkinter as tk
 from tkinter import ttk
 from typing import Optional, Set
 
-from constants import (
-    CHORD_SHEET_CONFIGURE_DEBOUNCE_MS,
+from ui.theme import (
     UI_BORDER,
     UI_HOVER,
     UI_TAB_IDLE,
@@ -40,6 +39,12 @@ from ui.chord_sheet.clef_images import image_for_clef_key
 from ui.chord_sheet.tk_replay import replay
 
 logger = logging.getLogger(__name__)
+
+# Trailing-repaint debounce for the strip canvas <Configure> storm during a
+# sash drag: the first configure after a quiet period repaints immediately
+# (so window resizes stay live), the rest of the burst collapse into one
+# trailing repaint this many ms after the last configure.
+CHORD_SHEET_CONFIGURE_DEBOUNCE_MS = 120
 
 
 

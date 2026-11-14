@@ -13,10 +13,12 @@ import time
 import tkinter as tk
 from typing import Callable, Optional
 
-from constants import EVENT_QUEUE_POLL_MS
-from utils import error_reporting
+from ui import error_reporting
 
 logger = logging.getLogger(__name__)
+
+# How often the Tk main loop drains the cross-thread callback queue.
+EVENT_QUEUE_POLL_MS = 100
 
 
 class _AfterHandle:

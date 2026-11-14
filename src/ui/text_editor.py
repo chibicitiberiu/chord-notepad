@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Any, Dict, Iterable, Optional
 from session.events import TextEdited, UndoPolicy
 from session.state import HighlightState, Span, SpanKind
 from utils.text_normalization import normalize_song_text
-from constants import (
+from ui.theme import (
     TAG_CHORD_VALID, TAG_CHORD_INVALID, TAG_CHORD_PLAYING,
     TAG_DIRECTIVE_VALID, TAG_DIRECTIVE_INVALID, TAG_DIRECTIVE_REDUNDANT, TAG_COMMENT,
     COLOR_CHORD_VALID, COLOR_CHORD_INVALID, COLOR_CHORD_PLAYING_BG,

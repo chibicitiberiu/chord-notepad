@@ -139,7 +139,7 @@ None needed. The playhead (tap to position, ⏮ to rewind) would be a good deskt
 Where the build differs from the text above, and why:
 
 - **Light editor colours.** The light theme keeps the desktop's real colours
-  (Tk `blue`, `#8B4789`, `gray`, `yellow` from `src/constants.py`), not the
+  (Tk `blue`, `#8B4789`, `gray`, `yellow` from `src/ui/theme.py`), not the
   hex values listed under "Editor colours", which don't match the desktop.
   "Unchanged" won over the list. The dark variants are as listed.
 - **Phone landscape in Play** shows the title: the one-line header exists to

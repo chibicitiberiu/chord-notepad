@@ -7,7 +7,7 @@ import tkinter as tk
 from tkinter import ttk
 from typing import Any, List, Optional
 
-from constants import UI_BORDER
+from ui.theme import UI_BORDER
 from services.resource_service import ResourceService
 from services.song_parser_service import SongParserService
 from session import quick_start

@@ -4,7 +4,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from utils import display_scaling
+from ui import display_scaling
 
 
 def _root(windowing_system="x11"):

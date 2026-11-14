@@ -3,9 +3,10 @@
 Core code that catches an error it can't handle (an observer that raised, a
 failed callback) calls :func:`report_from_any_thread`. The UI installs a
 handler with :func:`set_handler`: on desktop that is the Tk presenter in
-``utils.error_reporting``, which registers itself when imported; on Android it
-will turn the error into an ``UnexpectedError`` event. With no handler
-installed the error is only logged.
+``ui.error_reporting``, which the application installs at startup; on Android
+the bridge's ``ErrorEvents`` turns the error into an ``UnexpectedError``
+event. With no handler installed (tests, early startup) the error is only
+logged.
 
 Throttling repeated errors is the handler's job (the Tk presenter already does
 it), because only the handler knows what "shown" means.

@@ -13,7 +13,7 @@ from exceptions import ConfigurationError
 from models.notation import key_names, spell_key
 from viewmodels.settings_viewmodel import SettingsViewModel
 from ui.dialogs.voicings_page import VoicingsPage
-from utils.file_dialogs import ask_open_filename
+from ui.file_dialogs import ask_open_filename
 
 logger = logging.getLogger(__name__)
 

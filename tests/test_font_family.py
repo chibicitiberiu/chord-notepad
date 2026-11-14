@@ -1,4 +1,4 @@
-"""Tests for :func:`utils.ui_helpers.resolve_font_family`.
+"""Tests for :func:`ui.helpers.resolve_font_family`.
 
 The editor's default font is the Tk named font ``TkFixedFont``; used directly
 in a ``(family, size)`` tuple, Tk fell back to a proportional font.
@@ -11,7 +11,7 @@ import pytest
 tk = pytest.importorskip('tkinter')
 from tkinter import font as tkfont  # noqa: E402
 
-from utils.ui_helpers import resolve_font_family  # noqa: E402
+from ui.helpers import resolve_font_family  # noqa: E402
 
 
 def _has_display() -> bool:

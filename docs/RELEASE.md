@@ -386,7 +386,7 @@ left out. If you add a dependency, add it to `PACKAGES` in that script.
 **Sandbox:** X11 (Tk has no Wayland backend), PulseAudio, and network (only so
 the host browser can reach the help server on 127.0.0.1). There is no
 filesystem permission: open/save go through the XDG FileChooser portal
-(`src/utils/file_dialogs.py`). Settings and logs live in
+(`src/ui/file_dialogs.py`). Settings and logs live in
 `~/.var/app/io.github.chibicitiberiu.ChordNotepad/`.
 
 **Desktop integration** files are in `packaging/linux/` (the `.desktop` file

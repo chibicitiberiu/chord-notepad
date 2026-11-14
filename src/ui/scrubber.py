@@ -8,7 +8,7 @@ import tkinter as tk
 from tkinter import ttk, font as tkfont
 from typing import Callable, Optional
 
-from constants import UI_SCRUB_BG, UI_SCRUB_HOVER
+from ui.theme import UI_SCRUB_BG, UI_SCRUB_HOVER
 from session.toolbar import ScrubScale
 
 

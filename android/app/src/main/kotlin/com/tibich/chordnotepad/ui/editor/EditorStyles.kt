@@ -7,7 +7,7 @@ import androidx.compose.ui.text.style.TextDecoration
 import com.tibich.chordnotepad.bridge.SpanKind
 import com.tibich.chordnotepad.ui.theme.AppColors
 
-// The desktop editor's look (src/constants.py, src/ui/text_editor.py), which
+// The desktop editor's look (src/ui/theme.py, src/ui/text_editor.py), which
 // the port keeps as is: Tk's named colours, black text on white.
 
 /** Tk "blue": valid chords. */

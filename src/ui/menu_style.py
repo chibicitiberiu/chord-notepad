@@ -18,7 +18,7 @@ import tkinter as tk
 from tkinter import ttk
 from typing import Iterator
 
-from constants import UI_BG, UI_BORDER
+from ui.theme import UI_BG, UI_BORDER
 
 
 def style_menu(menu: tk.Menu) -> None:

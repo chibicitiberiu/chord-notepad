@@ -3,27 +3,27 @@
 The Android build (Chaquopy) has no tkinter, Pillow or jeepney. Every module
 outside ``src/ui/`` and the desktop-only list below is imported in a fresh
 interpreter with those libraries blocked, so a stray top-level import fails
-here rather than on a phone.
+here rather than on a phone. Desktop-only code goes under ``src/ui/``; the
+list only holds the entry points next to it.
 """
 
 import json
+import re
 import subprocess
 import sys
 from pathlib import Path
 
-SRC = Path(__file__).parent.parent / "src"
+REPO = Path(__file__).parent.parent
+SRC = REPO / "src"
+GRADLE = REPO / "android" / "app" / "build.gradle.kts"
 
 BLOCKED = ("tkinter", "_tkinter", "PIL", "jeepney")
 
-# Modules that are desktop-only by design and never ship on Android.
+# Desktop-only modules outside src/ui/: they never ship on Android.
 DESKTOP_ONLY = {
     "main",
     "application",
     "build_info",
-    "utils.display_scaling",
-    "utils.file_dialogs",
-    "utils.icon_loader",
-    "utils.ui_helpers",
 }
 
 # Core modules that still reach a blocked library. The Android port removes
@@ -98,3 +98,14 @@ def test_session_package_is_core_and_imports_without_desktop_libraries():
     assert "session.host" in session and "session.errors" in session
     assert not set(session) & (DESKTOP_ONLY | KNOWN_LEAKS)
     assert _probe(session) == {}
+
+
+def test_android_excludes_exactly_ui_and_the_desktop_only_modules():
+    # Chaquopy's sourceSets exclude list ships everything else in src/.
+    gradle = GRADLE.read_text(encoding="utf-8")
+    block = re.search(r'srcDir\("\.\./\.\./src"\)\s*exclude\((.*?)\)', gradle, re.S)
+    assert block, "no exclude(...) after srcDir(\"../../src\") in build.gradle.kts"
+    excluded = set(re.findall(r'"([^"]+)"', block.group(1)))
+    expected = {"__init__.py", "**/__pycache__/**", "ui/**"}
+    expected |= {name.replace(".", "/") + ".py" for name in DESKTOP_ONLY}
+    assert excluded == expected

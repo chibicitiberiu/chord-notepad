@@ -14,7 +14,7 @@ which detects nothing); this module only decides what to show and when.
 import tkinter as tk
 from typing import TYPE_CHECKING, Callable, Optional, Tuple
 
-from constants import TAG_DIRECTIVE_INVALID, TAG_DIRECTIVE_REDUNDANT
+from ui.theme import TAG_DIRECTIVE_INVALID, TAG_DIRECTIVE_REDUNDANT
 from session import formatting
 from ui.base.tooltip import RegionToolTip
 

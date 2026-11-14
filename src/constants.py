@@ -33,35 +33,11 @@ DEFAULT_FONT_SIZE = 11
 # Timing (milliseconds)
 CHORD_DETECTION_DEBOUNCE_MS = 500
 CHORD_SHEET_RERENDER_DEBOUNCE_MS = 500
-EVENT_QUEUE_POLL_MS = 100
 PLAYBACK_THREAD_CHECK_MS = 50
-
-# UI chrome palette (toolbar, borders, scrollbars, status bar). The editor's
-# text and chord colors are deliberately not part of this. UI_BG is only
-# applied on themes we restyle (clam); native themes keep their own surface.
-UI_BG = "#f3f3f3"
-UI_BORDER = "#cfcfcf"
-UI_HOVER = "#e2e2e2"
-UI_ACCENT = "#0078d4"
-UI_ACCENT_ACTIVE = "#006cc1"
-UI_TEXT_MUTED = "#5c5c5c"
-UI_TEXT_DISABLED = "#a3a3a3"
-# Unselected tab fill (the chord-sheet view tabs).
-UI_TAB_IDLE = "#e7e7e7"
-UI_SCROLL_THUMB = "#c4c4c4"
-UI_SCROLL_THUMB_ACTIVE = "#a6a6a6"
-# Tint behind draggable numeric values (BPM, speed %) in the toolbar.
-UI_SCRUB_BG = "#e6effa"
-UI_SCRUB_HOVER = "#d4e4f7"
 
 # Chord sheet strip
 DEFAULT_CHORD_SHEET_HEIGHT = 160
 DEFAULT_CHORD_SHEET_VIEW = "keyboard"
-# Trailing-repaint debounce for the strip canvas <Configure> storm during a
-# sash drag: the first configure after a quiet period repaints immediately
-# (so window resizes stay live), the rest of the burst collapse into one
-# trailing repaint this many ms after the last configure.
-CHORD_SHEET_CONFIGURE_DEBOUNCE_MS = 120
 
 # Capo advisor (see services/capo_advisor.py). When "Allow capo" is on and a
 # fretboard voicing is active, the advisor scores every capo position 0..MAX
@@ -71,26 +47,6 @@ CHORD_SHEET_CONFIGURE_DEBOUNCE_MS = 120
 # so the gain is roughly "points of playability saved across the whole song".
 CAPO_MAX_DEFAULT = 7      # Highest capo position considered.
 CAPO_MIN_GAIN = 6.0       # Minimum score improvement over capo 0 to suggest a capo.
-
-# Text editor tags
-TAG_CHORD_VALID = "chord"
-TAG_CHORD_INVALID = "chord_invalid"
-TAG_CHORD_PLAYING = "chord_playing"
-TAG_DIRECTIVE_VALID = "directive_valid"
-TAG_DIRECTIVE_INVALID = "directive_invalid"
-TAG_DIRECTIVE_REDUNDANT = "directive_redundant"
-TAG_COMMENT = "comment"
-
-# Colors
-COLOR_CHORD_VALID = "blue"
-COLOR_CHORD_INVALID = "gray"
-COLOR_COMMENT = "gray"
-COLOR_CHORD_PLAYING_BG = "yellow"
-COLOR_DIRECTIVE_VALID = "#8B4789"  # Purple for directives
-COLOR_DIRECTIVE_INVALID = "red"
-# A redundant directive (no effect) is the directive colour at this strength
-# over the editor background (Tk text has no alpha).
-DIRECTIVE_REDUNDANT_STRENGTH = 0.45
 
 # Audio settings
 DEFAULT_OCTAVE = 4

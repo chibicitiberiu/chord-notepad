@@ -83,22 +83,27 @@ if sys.argv[2] == "block-tk":
             return None
     sys.meta_path.insert(0, _Block())
 from session import errors
-from utils import error_reporting
-print(errors.get_handler() is error_reporting._handle_session_error, errors.get_handler() is None)
+import session.session, utils.observable  # the core that reports errors
+if sys.argv[2] == "with-presenter":
+    from ui import error_reporting
+print(errors.get_handler() is None)
 """
 
 
-def _import_presenter(mode):
+def _handler_is_unset_after_import(mode):
     out = subprocess.run(
         [sys.executable, "-c", _IMPORT_PROBE, str(SRC), mode],
         capture_output=True, text=True, timeout=60)
     assert out.returncode == 0, out.stderr
-    return out.stdout.split()
+    return out.stdout.split() == ["True"]
 
 
-def test_importing_the_tk_presenter_installs_it():
-    assert _import_presenter("with-tk") == ["True", "False"]
+def test_the_core_imports_without_tkinter_and_only_logs():
+    # Android and the tests: no presenter, so session.errors logs.
+    assert _handler_is_unset_after_import("block-tk")
 
 
-def test_without_tkinter_the_presenter_imports_but_installs_nothing():
-    assert _import_presenter("block-tk") == ["False", "True"]
+def test_importing_the_tk_presenter_installs_nothing():
+    # The application installs it explicitly (ui.error_reporting
+    # .install_session_handler, from Application.on_configure_logging).
+    assert _handler_is_unset_after_import("with-presenter")

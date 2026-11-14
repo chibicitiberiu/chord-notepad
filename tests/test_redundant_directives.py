@@ -102,7 +102,7 @@ def test_blend_is_the_directive_colour_faded_into_the_background():
 def test_tk_paints_redundant_directives_with_their_own_faded_tag():
     import os
     import tkinter as tk
-    from constants import COLOR_DIRECTIVE_VALID, TAG_DIRECTIVE_REDUNDANT, TAG_DIRECTIVE_VALID
+    from ui.theme import COLOR_DIRECTIVE_VALID, TAG_DIRECTIVE_REDUNDANT, TAG_DIRECTIVE_VALID
     from session.state import HighlightState, Span
     from ui.text_editor import ChordTextEditor
 

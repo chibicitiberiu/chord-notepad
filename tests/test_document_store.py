@@ -307,7 +307,8 @@ def test_render_midi_bytes_matches_the_file_writer(tmp_path):
 
 
 def test_file_dialogs_reexports_the_moved_path_helpers():
-    from utils import file_dialogs, paths
+    from ui import file_dialogs
+    from utils import paths
 
     assert file_dialogs.display_path is paths.display_path
     assert file_dialogs.is_document_portal_path is paths.is_document_portal_path
