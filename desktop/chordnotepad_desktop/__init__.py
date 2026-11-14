@@ -20,6 +20,9 @@ Layout:
   messages in the log.
 * ``rendering.py``: GPU or software rendering.
 * ``window_geometry.py``: the window's saved size and place.
+* ``editor_bridge.py``, ``offsets.py``, ``editor_font.py``: the editor's text
+  between the TextArea and the session (highlighting, the session's edits,
+  paste normalisation), code points and UTF-16, the editor's font and zoom.
 * ``fonts.py``, ``icons.py``, ``dpr.py``, ``alt_watcher.py``: the mockup's
   scaling and text recipe, the icon provider, the hidden menu bar's keys.
 * ``qml/CNTheme``: the Theme singleton (colours, units, type) and the
@@ -43,7 +46,7 @@ Each is also noted where it applies, as "pitfall N":
    the keyboard centrally, black keys first (the identifier piano, F5).
 7. Menu has no Repeater: use ``createObject`` and ``addItem`` (Menu.qml).
 8. Keep a Python reference to the ``QQuickTextDocument`` wrapper, or it is
-   collected under the highlighter (the editor bridge, D1).
+   collected under the highlighter (editor_bridge.py).
 9. On KDE Wayland the ratio from Screen or QML is wrong; read it from the
    window in Python (dpr.py).
 10. Text laid out at an old ratio keeps its glyph positions: bump the font

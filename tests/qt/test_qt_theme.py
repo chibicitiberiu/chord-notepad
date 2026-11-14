@@ -53,7 +53,11 @@ def test_every_qt_font_turns_hinting_off():
     calls = [(p.name, call) for p in QML_FILES
              for call in re.findall(r"Qt\.font\(\{[^}]*\}\)", code_of(p))]
     assert len(calls) >= 8
-    assert [c for c in calls if "hintingPreference: hinting" not in c[1]] == []
+    # The editor's monospace is the one font with the default hinting (Theme.editorFont).
+    editor = [c for c in calls if "hintingPreference: editorHinting" in c[1]]
+    assert [c[0] for c in editor] == ["Theme.qml"]
+    assert [c for c in calls if "hintingPreference: hinting" not in c[1] and c not in editor] == []
+    assert "readonly property int editorHinting: Font.PreferDefaultHinting" in qml("CNTheme/Theme.qml")
     assert "readonly property int hinting: Font.PreferNoHinting" in qml("CNTheme/Theme.qml")
 
 

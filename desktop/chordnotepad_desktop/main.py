@@ -33,7 +33,7 @@ from PySide6.QtQuick import QQuickWindow
 from PySide6.QtQuickControls2 import QQuickStyle
 
 from chordnotepad.app_paths import AppPaths
-from chordnotepad_desktop import fonts
+from chordnotepad_desktop import editor_font, fonts
 from chordnotepad_desktop.alt_watcher import AltWatcher
 from chordnotepad_desktop.dpr import DprWatcher
 from chordnotepad_desktop.icons import PROVIDER_ID, IconProvider, icon_folders
@@ -68,7 +68,8 @@ def prepare_application(app: QGuiApplication, paths: AppPaths) -> list:
     """Process-wide set-up, before any QML is loaded; once per application.
 
     Native text rendering, the unhinted application font, the bundled Inter
-    and the CNStyle style (it can't change once a Controls type is created).
+    and Noto Sans Mono (the editor's), and the CNStyle style (it can't change
+    once a Controls type is created).
     A second call for the same application returns the first one's result.
 
     Returns:
@@ -79,6 +80,7 @@ def prepare_application(app: QGuiApplication, paths: AppPaths) -> list:
     fonts.use_native_text_rendering()
     fonts.set_application_font(app)
     families = fonts.load_bundled_fonts(fonts.font_folder(paths))
+    editor_font.load_mono_font(fonts.font_folder(paths))
     QQuickStyle.setStyle(STYLE)
     _prepared.update(app=app, families=families)
     return families
@@ -123,10 +125,11 @@ def load_window(engine: QQmlApplicationEngine, app: QGuiApplication, qml_file: P
 
 
 def load_main_window(engine: QQmlApplicationEngine, app: QGuiApplication, *,
-                     store: QObject, errors: QObject) -> Optional[MainWindow]:
-    """Load Main.qml over ``store`` (the session) and ``errors`` (the error
-    presenter); None if it created no window. Not shown yet."""
-    return load_window(engine, app, MAIN_QML, {"store": store, "errors": errors})
+                     store: QObject, errors: QObject, editor: QObject) -> Optional[MainWindow]:
+    """Load Main.qml over ``store`` (the session), ``errors`` (the error
+    presenter) and ``editor`` (the editor's EditorBridge); None if it created
+    no window. Not shown yet."""
+    return load_window(engine, app, MAIN_QML, {"store": store, "errors": errors, "editor": editor})
 
 
 def run(paths: AppPaths, argv) -> int:

@@ -27,7 +27,7 @@ QtObject {
 
     // --- Type (points) --------------------------------------------------------
     readonly property string uiFont: "Inter"            // bundled (resources/fonts, OFL); fonts.py loads it
-    readonly property string monoFont: "Noto Sans Mono" // the editor: chords align by column
+    readonly property string monoFont: "Noto Sans Mono" // the editor's default: chords align by column (bundled, editor_font.py)
     // fontRevision: a ratio change makes every font a new instance (sizes differ
     // by 0.001 pt per revision parity, invisible), so all Text relayouts at the new ratio.
     // Text laid out at the old ratio keeps its glyph positions otherwise (pitfall 10).
@@ -39,9 +39,8 @@ QtObject {
     readonly property real fontTitle:   baseSize * 1.15
     readonly property real fontHeading: baseSize * 1.5
     readonly property real fontDisplay: baseSize * 2.0
-    readonly property real editorPt: 11                 // the editor's 100% size
-    property real textZoom: 1.0                         // editor text zoom: Ctrl+= / Ctrl+- / Ctrl+0, the − 100% + control
-    readonly property real editorSize: editorPt * textZoom * scale + (fontRevision % 2) * 0.001
+    // The editor's size is the session's font_size in points (its zoom,
+    // Ctrl+= / Ctrl+- / Ctrl+0 and the − 100% + chip, steps it), times scale.
 
     // Inter is unhinted on screen (PreferNoHinting), set on every UI font
     // explicitly: Qt.font objects and per-Text fonts don't reliably inherit the
@@ -59,6 +58,13 @@ QtObject {
     readonly property font fontTitleF:  Qt.font({ family: uiFont, pointSize: fontTitle, weight: Font.DemiBold, hintingPreference: hinting })
     readonly property font fontHeadF:   Qt.font({ family: uiFont, pointSize: fontHeading, weight: Font.DemiBold, hintingPreference: hinting })
     readonly property font fontMonoS:   Qt.font({ family: monoFont, pointSize: fontSmall, hintingPreference: hinting })
+    // The editor keeps the default hinting, unlike Inter: a monospace font's
+    // advances are fixed, so hinting can't break the columns, and it is
+    // crisper at 100% (the mockup's choice). The only font without `hinting`.
+    readonly property int editorHinting: Font.PreferDefaultHinting
+    function editorFont(family, pointSize) {
+        return Qt.font({ family: family, pointSize: pointSize * scale + (fontRevision % 2) * 0.001, hintingPreference: editorHinting })
+    }
 
     // --- The unit ----------------------------------------------------------------
     readonly property FontMetrics metrics: FontMetrics { font: theme.font }
@@ -179,6 +185,11 @@ QtObject {
     readonly property int fast: 80
 
     function alpha(c, a) { return Qt.rgba(c.r, c.g, c.b, a) }
+    // fg laid over bg at strength (0-1), opaque (the placeholder, faded text).
+    function blend(fg, bg, strength) {
+        return Qt.rgba(fg.r * strength + bg.r * (1 - strength), fg.g * strength + bg.g * (1 - strength),
+                       fg.b * strength + bg.b * (1 - strength), 1)
+    }
     // An icon for a control's icon.source: the CNStyle controls draw it with
     // PixelIcon, which takes the name from the URL's last part (icons.py).
     function iconUrl(name) { return "image://icons/" + name }

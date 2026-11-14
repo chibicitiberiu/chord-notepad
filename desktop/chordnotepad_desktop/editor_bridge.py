@@ -1,0 +1,679 @@
+"""The editor's Python side: the song text between the QML TextArea and the session.
+
+:class:`EditorBridge` is handed to the main window (``required property var
+editor``) and attached to its TextArea's document by ``EditorPane.qml``. It
+does what the Tk editor (``chordnotepad_tk/text_editor.py`` and the main
+window's glue) does, through the bridge commands Android uses:
+
+* **User edits** (typing, paste, undo, IME commits) go to the session as
+  ``set_text`` with an increasing ``client_token``, on every change of the
+  document's text. A change of formatting only (the highlighter, an IME
+  pre-edit) isn't one: the text is compared, not trusted from the signal.
+* **The session's edits** (``TextEdited``: transpose, inserts, open) are
+  applied to the document with a ``QTextCursor`` per their undo policy and
+  are not sent back. ``group`` is one undo step on its own (an edit block:
+  Qt never merges a block with its neighbours), ``plain`` is like any edit
+  (a replacement is still one step), ``reset`` clears the history. They
+  apply while the editor is read-only too: ``readOnly`` only stops the
+  user's input. The cursor goes where the edit says; an edit with an
+  ``anchor`` (plan step B4, on main) selects from it to the cursor.
+* **Highlighting:** ``HighlightState`` spans are painted by
+  :class:`SpanHighlighter`, a ``QSyntaxHighlighter``. A state is painted
+  only when it was computed for the text the editor shows (its
+  ``client_token`` and, for the session's own edits, its ``text_revision``;
+  the Android ``TextIdentity`` rule). Until then the painted spans move with
+  each edit the way Tk's tags do (:func:`shift_spans`).
+* **Playback:** the sounding chord gets the playing format on top of the
+  rest, repainted only when ``(span, chord_index, bar)`` changes, and
+  ``playingMoved`` tells QML to scroll to it. ``playheadPos`` places the
+  playhead marker.
+* **Paste normalisation** on every path QML routes here (Ctrl+V, Shift+Insert,
+  the context menu, middle-click PRIMARY, drag and drop): the core's
+  ``normalize_song_text``, as Tk's ``_on_paste``.
+
+Offsets: the session counts code points, Qt UTF-16 units
+(:class:`~chordnotepad_desktop.offsets.OffsetMapper`). Every position QML
+passes in or gets back is a Qt (UTF-16) position.
+
+Qt Quick pitfall 8: the ``QQuickTextDocument`` wrapper is kept in
+``self._quick_document``; without a Python reference it is collected and the
+``QTextDocument`` behind it goes with it.
+"""
+
+import logging
+from bisect import bisect_left
+from dataclasses import dataclass
+from typing import Any, Dict, List, Optional, Sequence, Tuple
+
+from PySide6.QtCore import Q_ARG, Property, QMetaObject, QObject, Signal, Slot
+from PySide6.QtGui import (
+    QClipboard, QColor, QGuiApplication, QSyntaxHighlighter, QTextCharFormat, QTextCursor,
+    QTextDocument,
+)
+from PySide6.QtQuick import QQuickItem, QQuickTextDocument
+
+from chordnotepad.constants import DEFAULT_FONT_SIZE
+from chordnotepad.utils.text_normalization import normalize_song_text
+from chordnotepad_desktop import editor_font
+from chordnotepad_desktop.offsets import OffsetMapper, utf16_length
+
+logger = logging.getLogger(__name__)
+
+#: How strongly a redundant directive's colour shows over the background
+#: (Tk's ``DIRECTIVE_REDUNDANT_STRENGTH``, ``chordnotepad_tk/theme.py``).
+REDUNDANT_STRENGTH = 0.45
+#: One zoom step of the mouse wheel, in angle-delta units (one notch).
+WHEEL_NOTCH = 120
+
+#: The highlight kinds, as HighlightState names them.
+CHORD = "chord"
+COMMENT = "comment"
+
+
+@dataclass(frozen=True)
+class TextChange:
+    """``[start, old_end)`` of the old text became ``[start, new_end)`` (UTF-16)."""
+
+    start: int
+    old_end: int
+    new_end: int
+
+    @property
+    def delta(self) -> int:
+        return self.new_end - self.old_end
+
+
+#: A painted span: ``(start, end, kind)`` in UTF-16 positions of the document.
+PaintedSpan = Tuple[int, int, str]
+
+
+def diff_texts(old: str, new: str) -> Optional[TextChange]:
+    """The smallest change that turns ``old`` into ``new``, in UTF-16 units;
+    None when they are equal (the common prefix and suffix are kept)."""
+    if old == new:
+        return None
+    limit = min(len(old), len(new))
+    prefix = 0
+    while prefix < limit and old[prefix] == new[prefix]:
+        prefix += 1
+    suffix = 0
+    while suffix < limit - prefix and old[len(old) - 1 - suffix] == new[len(new) - 1 - suffix]:
+        suffix += 1
+    start = utf16_length(old[:prefix])
+    return TextChange(start, start + utf16_length(old[prefix:len(old) - suffix]),
+                      start + utf16_length(new[prefix:len(new) - suffix]))
+
+
+def shift_spans(spans: Sequence[PaintedSpan], change: TextChange) -> List[PaintedSpan]:
+    """``spans`` moved along with ``change``, the way Tk text tags move.
+
+    Text after the change shifts; text typed at a span's edge stays outside
+    it; text typed inside a span joins it; a span whose text was all
+    removed disappears. It keeps the old highlighting about right until the
+    session's next HighlightState replaces it (half a second after typing
+    stops). The Android app's ``shiftedBy``.
+    """
+    def start_of(x: int) -> int:
+        if x < change.start:
+            return x
+        if x >= change.old_end:
+            return x + change.delta
+        return change.new_end        # its first characters were replaced
+
+    def end_of(x: int) -> int:
+        if x <= change.start:
+            return x
+        if x >= change.old_end:
+            return x + change.delta
+        return change.start          # its last characters were replaced
+
+    moved = []
+    for start, end, kind in spans:
+        new_start, new_end = start_of(start), end_of(end)
+        if new_end > new_start:
+            moved.append((new_start, new_end, kind))
+    return moved
+
+
+def blend(fg: QColor, bg: QColor, strength: float) -> QColor:
+    """``fg`` laid over ``bg`` at ``strength`` (0-1)."""
+    return QColor.fromRgbF(fg.redF() * strength + bg.redF() * (1 - strength),
+                           fg.greenF() * strength + bg.greenF() * (1 - strength),
+                           fg.blueF() * strength + bg.blueF() * (1 - strength))
+
+
+def char_formats(palette: Dict[str, Any]) -> Dict[str, QTextCharFormat]:
+    """The format of each highlight kind (and ``"playing"``) for ``palette``.
+
+    ``palette`` holds Theme's editor colours (``EditorPane.palette()``):
+    chord, chordInvalid, directive, directiveInvalid, comment, playing,
+    editorText, editorBg. The look is Tk's (checklist §5): chords blue and
+    underlined, invalid chords grey and underlined, directives purple,
+    invalid ones red and underlined, redundant ones faded 45% into the
+    background, comments grey; the playing chord on a yellow background
+    with the editor's text colour, underlined, over everything.
+    """
+    colour = {name: QColor(value) for name, value in palette.items()}
+
+    def fmt(fg: QColor, underline: bool = False, background: Optional[QColor] = None):
+        f = QTextCharFormat()
+        f.setForeground(fg)
+        if underline:
+            f.setFontUnderline(True)
+            f.setUnderlineColor(fg)
+        if background is not None:
+            f.setBackground(background)
+        return f
+
+    return {
+        "chord": fmt(colour["chord"], underline=True),
+        "chord_invalid": fmt(colour["chordInvalid"], underline=True),
+        "directive": fmt(colour["directive"]),
+        "directive_invalid": fmt(colour["directiveInvalid"], underline=True),
+        "directive_redundant": fmt(blend(colour["directive"], colour["editorBg"], REDUNDANT_STRENGTH)),
+        "comment": fmt(colour["comment"]),
+        "playing": fmt(colour["editorText"], underline=True, background=colour["playing"]),
+    }
+
+
+class SpanHighlighter(QSyntaxHighlighter):
+    """Paints the bridge's spans, comments over the rest, the playing chord on top."""
+
+    def __init__(self, document: QTextDocument, bridge: "EditorBridge") -> None:
+        super().__init__(document)
+        self._bridge = bridge
+        self.formats: Dict[str, QTextCharFormat] = {}
+
+    def highlightBlock(self, text: str) -> None:  # noqa: N802 (Qt)
+        block = self.currentBlock()
+        first = block.position()
+        last = first + block.length() - 1         # without the line's separator
+        later = []
+        for start, end, kind in self._bridge.spans_between(first, last):
+            if kind == COMMENT:
+                later.append((start, end, kind))   # comments win on overlap
+            else:
+                self._paint(first, last, start, end, kind)
+        for start, end, kind in later:
+            self._paint(first, last, start, end, kind)
+        playing = self._bridge.playing_range
+        if playing is not None:
+            self._paint(first, last, playing[0], playing[1], "playing")
+
+    def _paint(self, first: int, last: int, start: int, end: int, kind: str) -> None:
+        start, end = max(start, first), min(end, last)
+        fmt = self.formats.get(kind)
+        if end > start and fmt is not None:
+            self.setFormat(start - first, end - start, fmt)
+
+
+class EditorBridge(QObject):
+    """The song text between the QML editor and the session (see the module docstring).
+
+    Args:
+        store: The window's :class:`~chordnotepad_desktop.session_store.SessionStore`.
+    """
+
+    #: The editor's look changed: fontFamily, fontSize, zoomPercent.
+    fontChanged = Signal()
+    #: readOnly or wordWrap changed.
+    modeChanged = Signal()
+    #: The playing chord moved (playingStart / playingEnd).
+    playingChanged = Signal()
+    #: A chord started sounding at this position: scroll to it.
+    playingMoved = Signal(int)
+    #: The playhead moved (playheadPos).
+    playheadChanged = Signal()
+    #: The session put the cursor here (after one of its edits).
+    cursorMoved = Signal(int)
+
+    def __init__(self, store: Any, parent: Optional[QObject] = None) -> None:
+        super().__init__(parent)
+        self._store = store
+        self._area: Optional[QQuickItem] = None
+        self._quick_document: Optional[QQuickTextDocument] = None   # pitfall 8
+        self._document: Optional[QTextDocument] = None
+        self._highlighter: Optional[SpanHighlighter] = None
+        self._palette: Dict[str, Any] = {}
+        # Edits that arrived before QML attached the document.
+        self._early_edits: List[dict] = []
+
+        # The text the painted spans are laid out for (the document's text),
+        # and what the session has, as far as the editor knows.
+        self._painted_text = ""
+        self._synced_text = ""
+        self._spans: List[PaintedSpan] = []
+        self._span_starts: List[int] = []
+        self._longest_span = 0
+        self._applying = False      # inside a session edit: don't send it back
+        self._repainting = False    # inside our own rehighlight: no text change
+        # The text's identity in the session's terms: (client_token, revision).
+        self._token = 0
+        self._identity: Tuple[int, Optional[int]] = (0, None)
+        self._pending_texts = 0     # set_text commands the session hasn't run yet
+        self._latest_highlight: Optional[dict] = None
+        self._applied_highlight: Optional[dict] = None
+
+        self._font_family = editor_font.editor_monospace()
+        self._font_size = DEFAULT_FONT_SIZE
+        self._asked_size: Optional[int] = None     # a zoom the session hasn't applied yet
+        self._read_only = False
+        self._word_wrap = False
+        self._playing: Optional[Tuple[int, int]] = None   # UTF-16, for the highlighter
+        self._playing_progress: Any = None
+        self._playhead = -1
+
+        store.event.connect(self._on_event)
+        store.stateChanged.connect(self._on_state)
+        # The session replayed its states into the store when it was made.
+        for name in ("EditorState", "HighlightState", "PlaybackState"):
+            self._on_state(name)
+
+    # -- attaching (QML) --------------------------------------------------------------
+
+    @Slot(QQuickItem, QQuickTextDocument, "QVariantMap")
+    def attach(self, area: QQuickItem, document: QQuickTextDocument, palette: dict) -> None:
+        """Take over ``area``'s document (EditorPane's Component.onCompleted)."""
+        self._area = area
+        self._quick_document = document
+        self._document = document.textDocument()
+        self._painted_text = self._synced_text = self._document.toPlainText()
+        # Connected before the highlighter: the spans must have moved when it
+        # re-formats the changed block (slots run in connection order).
+        self._document.contentsChange.connect(self._on_contents_change)
+        self._highlighter = SpanHighlighter(self._document, self)
+        self.setPalette(palette)
+        edits, self._early_edits = self._early_edits, []
+        for edit in edits:
+            self._apply_edit(edit)
+
+    @Slot("QVariantMap")
+    def setPalette(self, palette: dict) -> None:  # noqa: N802 (Qt)
+        """New editor colours (the theme switched)."""
+        self._palette = {k: v.name(QColor.NameFormat.HexArgb) if isinstance(v, QColor) else str(v)
+                         for k, v in palette.items()}
+        if self._highlighter is not None:
+            self._highlighter.formats = char_formats(self._palette)
+            self._rehighlight()
+
+    @property
+    def document(self) -> Optional[QTextDocument]:
+        """The editor's document (None before QML attached it)."""
+        return self._document
+
+    # -- properties for QML -----------------------------------------------------------
+
+    def _get_font_family(self) -> str:
+        return self._font_family
+
+    #: The family to draw the text in (editor_font.resolve_family).
+    fontFamily = Property(str, _get_font_family, notify=fontChanged)
+
+    def _get_font_size(self) -> int:
+        return self._font_size
+
+    #: The text size in points (EditorState.font_size).
+    fontSize = Property(int, _get_font_size, notify=fontChanged)
+
+    def _get_zoom_percent(self) -> int:
+        return editor_font.zoom_percent(self._font_size)
+
+    #: What the zoom chip shows (resolution 3).
+    zoomPercent = Property(int, _get_zoom_percent, notify=fontChanged)
+
+    def _get_read_only(self) -> bool:
+        return self._read_only
+
+    #: Read-only while a song plays or is paused (EditorState.read_only).
+    readOnly = Property(bool, _get_read_only, notify=modeChanged)
+
+    def _get_word_wrap(self) -> bool:
+        return self._word_wrap
+
+    #: Whether long lines wrap (EditorState.word_wrap).
+    wordWrap = Property(bool, _get_word_wrap, notify=modeChanged)
+
+    def _get_playing_start(self) -> int:
+        return self._playing[0] if self._playing else -1
+
+    #: Where the sounding chord starts, or -1.
+    playingStart = Property(int, _get_playing_start, notify=playingChanged)
+
+    def _get_playing_end(self) -> int:
+        return self._playing[1] if self._playing else -1
+
+    playingEnd = Property(int, _get_playing_end, notify=playingChanged)
+
+    def _get_playhead(self) -> int:
+        return self._playhead
+
+    #: Where ▶ starts (PlaybackState.playhead_offset), or -1 for none.
+    playheadPos = Property(int, _get_playhead, notify=playheadChanged)
+
+    # -- for the highlighter ----------------------------------------------------------
+
+    @property
+    def playing_range(self) -> Optional[Tuple[int, int]]:
+        return self._playing
+
+    def spans_between(self, first: int, last: int) -> List[PaintedSpan]:
+        """The painted spans that touch ``[first, last]``, in text order."""
+        lo = bisect_left(self._span_starts, first - self._longest_span)
+        hi = bisect_left(self._span_starts, last + 1)
+        return [s for s in self._spans[lo:hi] if s[1] > first and s[0] < last]
+
+    @property
+    def spans(self) -> List[PaintedSpan]:
+        """The spans painted now (UTF-16 positions)."""
+        return list(self._spans)
+
+    def _set_spans(self, spans: List[PaintedSpan]) -> None:
+        self._spans = sorted(spans)
+        self._span_starts = [s[0] for s in self._spans]
+        self._longest_span = max((e - s for s, e, _ in self._spans), default=0)
+
+    def _rehighlight(self) -> None:
+        if self._highlighter is None:
+            return
+        self._repainting = True
+        try:
+            self._highlighter.rehighlight()
+        finally:
+            self._repainting = False
+
+    def _rehighlight_at(self, positions) -> None:
+        if self._highlighter is None or self._document is None:
+            return
+        self._repainting = True
+        try:
+            seen = set()
+            for pos in positions:
+                block = self._document.findBlock(pos)
+                if block.isValid() and block.blockNumber() not in seen:
+                    seen.add(block.blockNumber())
+                    self._highlighter.rehighlightBlock(block)
+        finally:
+            self._repainting = False
+
+    # -- the document changed -----------------------------------------------------------
+
+    def _on_contents_change(self, position: int, removed: int, added: int) -> None:
+        if self._repainting or self._document is None:
+            return
+        text = self._document.toPlainText()
+        if text == self._painted_text:
+            return              # formats only (the highlighter, an IME pre-edit)
+        old = self._painted_text
+        change = TextChange(position, position + removed, position + added)
+        # Qt's numbers count the document's last paragraph mark in some
+        # changes (setPlainText, removing everything): then work it out.
+        if not (0 <= position and change.old_end <= utf16_length(old)
+                and utf16_length(text) - utf16_length(old) == added - removed):
+            change = diff_texts(old, text)
+        self._set_spans(shift_spans(self._spans, change))
+        self._painted_text = text
+        if not self._applying:
+            self._send_text(text)
+
+    def _send_text(self, text: str) -> None:
+        """Hand the user's text to the session under a new token."""
+        self._token += 1
+        self._identity = (self._token, None)
+        self._synced_text = text
+        self._pending_texts += 1
+        self._store.submit("set_text", {"text": text, "client_token": self._token})
+        # Runs once the session has run every command queued so far.
+        self._store.after_commands(self._text_delivered)
+
+    def _text_delivered(self) -> None:
+        self._pending_texts -= 1
+
+    # -- the session's outputs ----------------------------------------------------------
+
+    def _on_event(self, type_name: str, data: Any) -> None:
+        if type_name == "TextEdited":
+            if self._document is None:
+                self._early_edits.append(dict(data))
+            else:
+                self._apply_edit(dict(data))
+
+    def _on_state(self, type_name: str) -> None:
+        if type_name == "EditorState":
+            self._take_editor_state(self._read_state(type_name))
+        elif type_name == "HighlightState":
+            state = self._read_state(type_name)
+            if state.get("spans") is not None:
+                self._latest_highlight = state
+                self._repaint_highlight()
+        elif type_name == "PlaybackState":
+            self._take_playback(self._read_state(type_name))
+
+    def _read_state(self, type_name: str) -> dict:
+        mapping = self._store.state(type_name)
+        return {key: mapping.value(key) for key in mapping.keys()}
+
+    def _take_editor_state(self, state: dict) -> None:
+        if state.get("font_size") is None:
+            return              # not published yet
+        family = editor_font.resolve_family(state.get("font_family"))
+        size = int(state["font_size"])
+        self._asked_size = None
+        if (family, size) != (self._font_family, self._font_size):
+            self._font_family, self._font_size = family, size
+            self.fontChanged.emit()
+        read_only, wrap = bool(state.get("read_only")), bool(state.get("word_wrap"))
+        if (read_only, wrap) != (self._read_only, self._word_wrap):
+            self._read_only, self._word_wrap = read_only, wrap
+            self.modeChanged.emit()
+
+    def _apply_edit(self, edit: dict) -> None:
+        """Apply one of the session's edits per its undo policy, without echoing it."""
+        document = self._document
+        before = self._painted_text
+        mapper = OffsetMapper(before)
+        start, end = mapper.to_utf16(edit["start"]), mapper.to_utf16(edit["end"])
+        replacement = edit["replacement"]
+        policy = edit["undo"]
+        # The user typed something the session hasn't run yet: the edit was
+        # made on the session's older text. The editor's text wins: send it
+        # again after the edit, so the session ends up with what is shown.
+        unsent = self._pending_texts > 0
+        self._applying = True
+        try:
+            cursor = QTextCursor(document)
+            cursor.setPosition(start)
+            cursor.setPosition(end, QTextCursor.MoveMode.KeepAnchor)
+            # An edit block is one undo step that Qt never merges with the
+            # typing around it ("group"). A replacement is one step anyway
+            # (insertText over a selection); a plain insert may join the typing.
+            grouped = policy == "group"
+            if grouped:
+                cursor.beginEditBlock()
+            if replacement:
+                cursor.insertText(replacement)
+            elif start != end:
+                cursor.removeSelectedText()
+            if grouped:
+                cursor.endEditBlock()
+        finally:
+            self._applying = False
+        after = document.toPlainText()
+        self._painted_text = after
+        if policy == "reset":
+            document.clearUndoRedoStacks()
+        if unsent:
+            self._send_text(after)
+        else:
+            self._synced_text = after
+            self._identity = (0, edit["text_revision"])
+        mapper = OffsetMapper(after)
+        anchor = edit.get("anchor")
+        if anchor is not None and self._area is not None:
+            # The edit selects what it inserted (B4's insert_snippet: the
+            # value), from ``anchor`` to the cursor, so typing replaces it.
+            QMetaObject.invokeMethod(self._area, "select",
+                                     Q_ARG(int, mapper.to_utf16(anchor)),
+                                     Q_ARG(int, mapper.to_utf16(edit["cursor"])))
+            self.cursorMoved.emit(mapper.to_utf16(edit["cursor"]))
+        else:
+            self._move_cursor(mapper.to_utf16(edit["cursor"]))
+        self._repaint_highlight()
+        self._repaint_playing()
+
+    def _move_cursor(self, position: int) -> None:
+        if self._area is not None:
+            self._area.setProperty("cursorPosition", position)
+        self.cursorMoved.emit(position)
+
+    def _accepts(self, state: dict) -> bool:
+        """Whether ``state``'s spans were computed for the text shown."""
+        token, revision = self._identity
+        return state["client_token"] == token and (revision is None
+                                                   or state["text_revision"] == revision)
+
+    @property
+    def highlight_current(self) -> bool:
+        """Whether the painted spans are the session's for the text shown
+        (none typed or edited since)."""
+        state = self._applied_highlight
+        return (state is not None and self._accepts(state)
+                and self._painted_text == self._synced_text)
+
+    def _repaint_highlight(self) -> None:
+        state = self._latest_highlight
+        if state is None or state is self._applied_highlight or self._document is None:
+            return
+        if not self._accepts(state):
+            return              # spans for another text: wait for the next state
+        if self._painted_text != self._synced_text:
+            return
+        mapper = OffsetMapper(self._painted_text)
+        painted = []
+        for span in state["spans"] or ():
+            start, end = mapper.range_to_utf16(span["start"], span["end"])
+            if end > start:
+                painted.append((start, end, span["kind"]))
+        self._set_spans(painted)
+        self._applied_highlight = state
+        self._rehighlight()
+
+    def _take_playback(self, state: dict) -> None:
+        span = state.get("playing_span")
+        progress = (None if span is None else (span["start"], span["end"]),
+                    state.get("chord_index"), state.get("bar"))
+        if progress != self._playing_progress:
+            self._playing_progress = progress
+            self._repaint_playing(scroll=True)
+        offset = state.get("playhead_offset")
+        playhead = -1 if offset is None else OffsetMapper(self._painted_text).to_utf16(offset)
+        if playhead != self._playhead:
+            self._playhead = playhead
+            self.playheadChanged.emit()
+
+    def _repaint_playing(self, scroll: bool = False) -> None:
+        cps = self._playing_progress[0] if self._playing_progress else None
+        old = self._playing
+        new = None if cps is None else OffsetMapper(self._painted_text).range_to_utf16(*cps)
+        if new == old:
+            return
+        self._playing = new
+        self._rehighlight_at([r[0] for r in (old, new) if r is not None])
+        self.playingChanged.emit()
+        if scroll and new is not None:
+            self.playingMoved.emit(new[0])
+
+    # -- for QML: the user's actions ---------------------------------------------------
+
+    @Slot(int, result=int)
+    def codePointAt(self, position: int) -> int:  # noqa: N802 (Qt)
+        """The session's offset for Qt position ``position``."""
+        return OffsetMapper(self._painted_text).to_code_point(position)
+
+    @Slot(int, result=bool)
+    def isChordAt(self, position: int) -> bool:  # noqa: N802 (Qt)
+        """Whether the character at ``position`` is part of a valid chord, as
+        painted (the last detection, moved with the typing since)."""
+        if position < 0:
+            return False
+        return any(kind == CHORD and start <= position < end
+                   for start, end, kind in self.spans_between(position, position + 1))
+
+    @Slot(int)
+    def tapAt(self, position: int) -> None:  # noqa: N802 (Qt)
+        """A click on the character at ``position``: the session sounds the
+        chord there, if any, and moves the playhead (or seeks while playing)."""
+        if position >= 0:
+            self._store.submit("tap_chord_at", {"offset": self.codePointAt(position)})
+
+    @Slot()
+    def paste(self) -> None:
+        """Paste the clipboard over the selection, normalised (Ctrl+V,
+        Shift+Insert, the context menu)."""
+        if self._area is None:
+            return
+        start = int(self._area.property("selectionStart"))
+        end = int(self._area.property("selectionEnd"))
+        self._insert_user_text(start, end, QGuiApplication.clipboard().text())
+
+    @Slot(int)
+    def pasteSelectionAt(self, position: int) -> None:  # noqa: N802 (Qt)
+        """Paste the X11/Wayland PRIMARY selection at ``position`` (middle click), normalised."""
+        text = self._selection_text()
+        if text is not None:
+            self._insert_user_text(position, position, text)
+
+    @staticmethod
+    def _selection_text() -> Optional[str]:
+        """The PRIMARY selection's text; None where there is no such thing."""
+        clipboard = QGuiApplication.clipboard()
+        if not clipboard.supportsSelection():
+            return None
+        return clipboard.text(QClipboard.Mode.Selection)
+
+    @Slot(int, str)
+    def dropText(self, position: int, text: str) -> None:  # noqa: N802 (Qt)
+        """Text dragged onto the editor, at ``position``, normalised."""
+        self._insert_user_text(position, position, text)
+
+    def _insert_user_text(self, start: int, end: int, raw: Optional[str]) -> None:
+        """Replace ``[start, end)`` with ``raw`` normalised, as the user's
+        edit: one undo step, cursor after it, sent to the session."""
+        if self._document is None or self._read_only:
+            return
+        text = normalize_song_text(raw or "")
+        if not text:
+            return              # an empty clipboard pastes nothing
+        length = utf16_length(self._painted_text)
+        start, end = max(0, min(start, length)), max(0, min(end, length))
+        cursor = QTextCursor(self._document)
+        cursor.setPosition(min(start, end))
+        cursor.setPosition(max(start, end), QTextCursor.MoveMode.KeepAnchor)
+        cursor.beginEditBlock()
+        cursor.insertText(text)
+        cursor.endEditBlock()
+        if self._area is not None:
+            self._area.setProperty("cursorPosition", cursor.position())
+
+    # -- zoom (resolution 3) ----------------------------------------------------------
+
+    @Slot()
+    def zoomIn(self) -> None:  # noqa: N802 (Qt)
+        self._zoom(1)
+
+    @Slot()
+    def zoomOut(self) -> None:  # noqa: N802 (Qt)
+        self._zoom(-1)
+
+    @Slot()
+    def zoomReset(self) -> None:  # noqa: N802 (Qt)
+        self._store.submit("reset_font_size")
+
+    def _zoom(self, steps: int) -> None:
+        # From the size asked for last, if the session hasn't answered yet
+        # (a fast wheel): steps between rungs differ (14 to 15 is 1 pt, 15
+        # to 17 is 2), so stepping from a stale size would leave the ladder.
+        base = self._asked_size if self._asked_size is not None else self._font_size
+        target = editor_font.zoomed_size(base, steps)
+        if target != base:
+            self._asked_size = target
+            self._store.submit("step_font_size", {"delta": target - base})

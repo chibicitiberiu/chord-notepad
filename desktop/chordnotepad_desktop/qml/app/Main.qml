@@ -4,15 +4,17 @@ import QtQuick.Layouts
 import CNTheme
 
 // The Qt front end's main window: the shell (plan step C4). The tab strip
-// with Edit | Play, the two workspaces (empty until the editor, D, and the
-// player and chord sheet, E, fill them), the close flow with the Unsaved
-// changes dialog, the error dialog and Quick Start at startup.
+// with Edit | Play, the two workspaces with the editor (D; the player and
+// chord sheet, E, and the toolbar, rail and status bar, F, come next), the
+// close flow with the Unsaved changes dialog, the error dialog and Quick
+// Start at startup.
 //
 // Everything shown comes from the session through `store`
 // (session_store.py): `store.states.<Type>.<field>` for the states,
 // store.event / store.request / store.closeApproved for the rest, and
 // store.submit(command, args) for the commands. `errors` is the error
-// presenter (error_presenter.py).
+// presenter (error_presenter.py); `editor` the editor's EditorBridge
+// (editor_bridge.py), which EditorPane attaches to its TextArea.
 //
 // The plumbing every main window keeps:
 // - windowDpr, fontRevision and contentReady are written by DprWatcher
@@ -33,6 +35,7 @@ ApplicationWindow {
     required property QtObject altWatcher
     required property var store
     required property var errors
+    required property var editor
     property real windowDpr: 1.0
     property int fontRevision: 0
     property bool contentReady: false
@@ -53,7 +56,7 @@ ApplicationWindow {
 
     // The workspace: "edit" or "play" (not kept between runs, as in the mockup).
     property string mode: "edit"
-    onModeChanged: Theme.bumpLayout()
+    onModeChanged: { Theme.bumpLayout(); editorPane.focusEditor() }
     Shortcut { sequence: "Ctrl+1"; context: Qt.WindowShortcut; onActivated: win.mode = "edit" }
     Shortcut { sequence: "Ctrl+2"; context: Qt.WindowShortcut; onActivated: win.mode = "play" }
 
@@ -86,18 +89,57 @@ ApplicationWindow {
             Layout.fillWidth: true
             Layout.fillHeight: true
             currentIndex: win.mode === "play" ? 1 : 0
-            // Edit: the toolbar, the rail and sidebars, the editor, the status bar (D, F).
-            Rectangle {
+            // Edit: the toolbar, the rail and sidebars (F), the editor, the
+            // chord sheet (E4), the status bar (F4).
+            ColumnLayout {
                 objectName: "editWorkspace"
-                color: Theme.base
+                spacing: 0
+                Item {
+                    id: editHost
+                    objectName: "editHost"
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    onXChanged: Theme.bumpLayout(); onYChanged: Theme.bumpLayout()
+                    onWidthChanged: Theme.bumpLayout(); onHeightChanged: Theme.bumpLayout()
+                    // The text's zoom, on the text pane (not the status bar under the sheet).
+                    ZoomChip { objectName: "editZoomChip"; editor: win.editor }
+                }
             }
-            // Play: the player bar, the text and the chord-sheet strip (E).
-            Rectangle {
+            // Play: the player bar (E1), the text and the chord-sheet strip (E4).
+            ColumnLayout {
                 objectName: "playWorkspace"
-                color: Theme.base
+                spacing: 0
+                Item {
+                    id: playTextHost
+                    objectName: "playTextHost"
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    onXChanged: Theme.bumpLayout(); onYChanged: Theme.bumpLayout()
+                    onWidthChanged: Theme.bumpLayout(); onHeightChanged: Theme.bumpLayout()
+                    // The text pane's corner: text zoom and back to Edit.
+                    ZoomChip {
+                        objectName: "playZoomChip"
+                        editor: win.editor
+                        showEdit: true
+                        onEditRequested: win.mode = "edit"
+                    }
+                }
             }
         }
     }
+
+    // One editor, moved between the workspaces (as in the mockup); read-only in Play.
+    EditorPane {
+        id: editorPane
+        editor: win.editor
+        placeholder: win.store.texts.editorPlaceholder
+        playMode: win.mode === "play"
+        parent: win.mode === "play" ? playTextHost : editHost
+        anchors.fill: parent
+    }
+    // The editor has the keyboard focus from the start (Q10) and gets it back
+    // when a dialog closes or the workspace changes.
+    onContentReadyChanged: if (win.contentReady) editorPane.focusEditor()
 
     // --- The session's requests and the presenter's dialogs ----------------------------
     UnsavedDialog {
@@ -108,6 +150,7 @@ ApplicationWindow {
     ErrorDialog {
         id: errorDlg
         onDismissed: win.errors.dismissed()
+        onClosed: editorPane.focusEditor()
     }
     QuickStartDialog {
         id: quickStartDlg
@@ -116,6 +159,7 @@ ApplicationWindow {
             if (dontShow) win.store.submit("set_show_quick_start_on_startup", { show: false })
             win.store.submit("dismiss_startup_screen")
         }
+        onClosed: editorPane.focusEditor()
     }
     Connections {
         target: win.store

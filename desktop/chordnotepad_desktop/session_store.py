@@ -73,6 +73,8 @@ TEXTS = {
     "appName": "Chord Notepad",
     "confirmDiscardTitle": formatting.CONFIRM_DISCARD_TITLE,
     "confirmDiscardMessage": formatting.CONFIRM_DISCARD_MESSAGE,
+    # The empty editor's placeholder, Tk's (chordnotepad_tk/main_window.py).
+    "editorPlaceholder": "Type or paste a song here",
 }
 
 
@@ -174,6 +176,11 @@ class SessionStore(QObject):
         if name not in DIRECT_CALLS:
             raise ValueError(f"{name!r} is not a direct call; submit it as a command")
         return getattr(self._session, name)(*args)
+
+    def after_commands(self, callback) -> None:
+        """Run ``callback`` once the session has run every command submitted
+        so far (commands and this run in order on the host)."""
+        self._host.post(callback)
 
     def state(self, type_name: str) -> QQmlPropertyMap:
         """The map of one state type (KeyError for a name that isn't one)."""
