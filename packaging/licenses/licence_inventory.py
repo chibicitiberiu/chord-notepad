@@ -73,6 +73,9 @@ PYINSTALLER_EXCLUDES = (
     "setuptools",
     "pkg_resources",
     "_distutils_hack",
+    # pytest-qt's dependency; requests and packaging import it only for
+    # type checkers (typing.TYPE_CHECKING).
+    "typing_extensions",
     # CPython's readline module links GNU readline (GPL-3.0) on Linux; only
     # the interactive interpreter uses it.
     "readline",
