@@ -5,7 +5,7 @@ flows; the window title; the audio, playback and file error messages and the
 unsaved-changes question; the Voicing and Instrument menu models.
 """
 
-from typing import Iterable, Mapping, Optional, Sequence, Tuple, Union
+from typing import Any, Iterable, Mapping, Optional, Sequence, Tuple, Union
 
 from chordnotepad.models.ensemble_spec import BUILTIN_ENSEMBLES
 from chordnotepad.models.fretboard_spec import BUILTIN_FRETBOARDS
@@ -192,6 +192,68 @@ NO_CHORDS_TO_EXPORT_MESSAGE = f"{EXPORT_FAILED}:\nThere are no chords to export.
 
 CONFIRM_DISCARD_TITLE = "Unsaved Changes"
 CONFIRM_DISCARD_MESSAGE = "Do you want to save your changes?"
+
+
+#: Between a recent file's name and the folder that tells it apart.
+RECENT_FOLDER_SEPARATOR = " — "
+#: The Recent Files menu with nothing in it.
+NO_RECENT_FILES = "(No recent files)"
+
+
+def _folders(location: str) -> Tuple[Tuple[str, ...], str]:
+    """The folders of a file's user-facing ``location``, outermost first,
+    and the separator it uses ("\\" for a Windows path, else "/")."""
+    separator = "\\" if "\\" in location and "/" not in location else "/"
+    parts = [p for p in location.replace("\\", "/").split("/")]
+    folders = tuple(p for p in parts[:-1] if p)
+    if location.startswith(("/", "\\")) and not folders:
+        folders = (separator,)          # a file at the root
+    return folders, separator
+
+
+def recent_file_folders(refs: Sequence[Any]) -> Tuple[str, ...]:
+    """For each recent document, the folder that tells it apart from the
+    others with the same name, or "" when its name is the only one.
+
+    The shortest end of its folder path that no other same-named document
+    shares: ``Band`` for ``~/Music/Band/song.txt`` next to
+    ``~/Music/Solo/song.txt``, ``A/Band`` and ``B/Band`` when those match
+    too. Names are compared ignoring case (they look the same in a menu).
+    A document with no folder in its location (Android's, or a portal file
+    shown by name) gets its whole location, or "" when that is the name.
+
+    Args:
+        refs: ``DocumentRef`` s (``display_name``, ``location``), in menu
+            order.
+    """
+    names = [ref.display_name.casefold() for ref in refs]
+    split = [_folders(ref.location) for ref in refs]
+    out = []
+    for i, ref in enumerate(refs):
+        others = [split[j][0] for j in range(len(refs)) if j != i and names[j] == names[i]]
+        if not others:
+            out.append("")
+            continue
+        folders, separator = split[i]
+        hint = ""
+        for k in range(1, len(folders) + 1):
+            tail = folders[-k:]
+            if all(other[-k:] != tail for other in others):
+                hint = separator.join(tail)
+                break
+        else:
+            hint = separator.join(folders)
+        if not hint and ref.location != ref.display_name:
+            hint = ref.location
+        out.append(hint)
+    return tuple(out)
+
+
+def recent_file_labels(refs: Sequence[Any]) -> Tuple[str, ...]:
+    """The Recent Files menu's labels: each name, with its folder after
+    :data:`RECENT_FOLDER_SEPARATOR` when another one has the same name."""
+    return tuple(ref.display_name + (RECENT_FOLDER_SEPARATOR + folder if folder else "")
+                 for ref, folder in zip(refs, recent_file_folders(refs)))
 
 
 def window_title(display_name: Optional[str], is_modified: bool) -> str:
