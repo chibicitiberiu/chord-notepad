@@ -69,6 +69,18 @@ def parse_ui(argv):
     return known.ui, rest
 
 
+#: The build_info fields the Qt window's About shows (CI writes build_info.py).
+BUILD_INFO_FIELDS = ("VERSION", "BUILD_TYPE", "BUILD_NUMBER", "COMMIT_SHORT", "BUILD_DATE")
+
+
+def read_build_info() -> dict:
+    """``build_info``'s values for the Qt window's About (it lives in this
+    package, which the Qt one doesn't import)."""
+    from chordnotepad_tk import build_info
+
+    return {name: str(getattr(build_info, name)) for name in BUILD_INFO_FIELDS}
+
+
 def run_qt(argv) -> int:
     """Start the Qt Quick front end, or say why it can't start."""
     if importlib.util.find_spec("PySide6") is None:
@@ -78,7 +90,7 @@ def run_qt(argv) -> int:
               "(run from source after `pipenv install --dev`).", file=sys.stderr)
         return 2
     from chordnotepad_desktop.main import run
-    return run(APP_PATHS, argv)
+    return run(APP_PATHS, argv, build_info=read_build_info())
 
 
 def main(argv=None):

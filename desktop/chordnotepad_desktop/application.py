@@ -46,6 +46,7 @@ from chordnotepad_desktop.main import (
 )
 from chordnotepad_desktop.qt_host import QtHost
 from chordnotepad_desktop.qt_messages import install_message_handler
+from chordnotepad_desktop.dialogs import DialogsModel
 from chordnotepad_desktop.editor_bridge import EditorBridge
 from chordnotepad_desktop.status_bar import StatusBarModel
 from chordnotepad_desktop.value_picker import ValuePickerModel
@@ -60,10 +61,10 @@ DESKTOP_FILE_NAME = "io.github.chibicitiberiu.ChordNotepad"
 ICON_FILES = ("icon-32.png", "icon-128.png", "icon-256.png")
 #: The session's requests the window answers (Main.qml). The others are
 #: answered "cancel" at once, so a flow that asks one doesn't wait forever:
-#: the file pickers come with F3, the capo choice with G2. The Insert
-#: dialogs' requests never come: the palette and the ▾ value pickers (D5)
-#: edit through commands that ask nothing.
-HANDLED_REQUESTS = frozenset({"ConfirmDiscardRequest"})
+#: the file pickers come with F3. The capo choice is Suggest Capo's (G2,
+#: AppDialogs.qml). The Insert dialogs' requests never come: the palette and
+#: the ▾ value pickers (D5) edit through commands that ask nothing.
+HANDLED_REQUESTS = frozenset({"ConfirmDiscardRequest", "CapoChoiceRequest"})
 
 
 def set_identity(app: QGuiApplication, paths: AppPaths) -> None:
@@ -108,13 +109,17 @@ class QtApplication:
             pytest's logging alone).
         software_rendering: ``--software-rendering`` was given.
         today: Today's local date (tests).
+        build_info: About's build fields (``dialogs.BUILD_FIELDS``) as the
+            entry point read them; None for the dev-local values.
     """
 
     def __init__(self, paths: AppPaths, *, appdata: Optional[AppDataService] = None,
                  player: Optional[IPlayer] = None, configure_logging: bool = True,
                  software_rendering: bool = False,
-                 today: Callable[[], datetime.date] = datetime.date.today) -> None:
+                 today: Callable[[], datetime.date] = datetime.date.today,
+                 build_info: Optional[dict] = None) -> None:
         self._paths = paths
+        self._build_info = build_info
         self._appdata = appdata or AppDataService()
         self._player = player
         self._configure_logging = configure_logging
@@ -128,6 +133,7 @@ class QtApplication:
         self.editor: Optional[EditorBridge] = None
         self.status_bar: Optional[StatusBarModel] = None
         self.pickers: Optional[ValuePickerModel] = None
+        self.dialogs: Optional[DialogsModel] = None
         self.main: Optional[MainWindow] = None
         self.renderer: Optional[str] = None
         #: The engine's QML warnings (``--smoke`` fails on any).
@@ -175,13 +181,15 @@ class QtApplication:
         self.editor = EditorBridge(self.store, parent=self.store)
         self.status_bar = StatusBarModel(self.store, self.editor, parent=self.store)
         self.pickers = ValuePickerModel(self.store, self.editor, parent=self.store)
+        self.dialogs = DialogsModel(self.store, self._paths, self.presenter,
+                                    build_info=self._build_info, parent=self.store)
 
         self._engine = create_engine(self._paths)
         self._engine.warnings.connect(
             lambda errors: self.warnings.extend(e.toString() for e in errors))
         main = load_main_window(self._engine, app, store=self.store, errors=self.presenter,
                                 editor=self.editor, status=self.status_bar,
-                                pickers=self.pickers)
+                                pickers=self.pickers, dialogs=self.dialogs)
         if main is None:
             raise RuntimeError("The main window couldn't be loaded:\n" + "\n".join(self.warnings))
         self.main = main
@@ -253,6 +261,8 @@ class QtApplication:
             self.host.stop()
         if self.store is not None:
             self.store.close()
+        if self.dialogs is not None:
+            self.dialogs.stop()
         if self._session is not None:
             self._session.shutdown()
         if self.main is not None:

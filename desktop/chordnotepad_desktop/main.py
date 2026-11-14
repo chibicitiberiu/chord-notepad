@@ -126,21 +126,26 @@ def load_window(engine: QQmlApplicationEngine, app: QGuiApplication, qml_file: P
 
 def load_main_window(engine: QQmlApplicationEngine, app: QGuiApplication, *,
                      store: QObject, errors: QObject, editor: QObject, status: QObject,
-                     pickers: QObject) -> Optional[MainWindow]:
+                     pickers: QObject, dialogs: QObject) -> Optional[MainWindow]:
     """Load Main.qml over ``store`` (the session), ``errors`` (the error
     presenter), ``editor`` (the editor's EditorBridge), ``status`` (the
-    status bar's StatusBarModel) and ``pickers`` (the ▾ pickers'
-    ValuePickerModel); None if it created no window. Not shown yet."""
+    status bar's StatusBarModel), ``pickers`` (the ▾ pickers'
+    ValuePickerModel) and ``dialogs`` (the dialogs' and the Settings
+    window's DialogsModel); None if it created no window. Not shown yet."""
     return load_window(engine, app, MAIN_QML, {"store": store, "errors": errors, "editor": editor,
-                                               "status": status, "pickers": pickers})
+                                               "status": status, "pickers": pickers,
+                                               "dialogs": dialogs})
 
 
-def run(paths: AppPaths, argv) -> int:
+def run(paths: AppPaths, argv, build_info: Optional[dict] = None) -> int:
     """Start the Qt window and run the event loop.
 
     Args:
         paths: Where the app's files are (``chordnotepad_tk.desktop_paths``).
         argv: The command line after the program name, without ``--ui``.
+        build_info: About's build fields (``dialogs.BUILD_FIELDS``), read by
+            the entry point from ``build_info.py`` (CI writes it); None for
+            the dev-local values.
 
     Returns:
         The exit code.
@@ -151,7 +156,8 @@ def run(paths: AppPaths, argv) -> int:
     options, qt_args = parse_args(argv)
     app = QGuiApplication([sys.argv[0], *qt_args])
     set_identity(app, paths)
-    qt = QtApplication(paths, software_rendering=options.software_rendering)
+    qt = QtApplication(paths, software_rendering=options.software_rendering,
+                       build_info=build_info)
     try:
         main = qt.start(app)
     except Exception as e:

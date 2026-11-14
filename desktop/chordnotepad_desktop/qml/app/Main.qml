@@ -15,8 +15,9 @@ import CNTheme
 // store.submit(command, args) for the commands. `errors` is the error
 // presenter (error_presenter.py); `editor` the editor's EditorBridge
 // (editor_bridge.py), which EditorPane attaches to its TextArea; `status`
-// the status bar's StatusBarModel (status_bar.py) and `pickers` the ▾ value
-// pickers' ValuePickerModel (value_picker.py).
+// the status bar's StatusBarModel (status_bar.py), `pickers` the ▾ value
+// pickers' ValuePickerModel (value_picker.py) and `dialogs` the Settings
+// window's and the small dialogs' DialogsModel (dialogs.py), for AppDialogs.
 //
 // The plumbing every main window keeps:
 // - windowDpr, fontRevision and contentReady are written by DprWatcher
@@ -40,6 +41,7 @@ ApplicationWindow {
     required property var editor
     required property var status
     required property var pickers
+    required property var dialogs
     property real windowDpr: 1.0
     property int fontRevision: 0
     property bool contentReady: false
@@ -160,37 +162,28 @@ ApplicationWindow {
         onDismissed: win.errors.dismissed()
         onClosed: editorPane.focusEditor()
     }
-    QuickStartDialog {
-        id: quickStartDlg
-        onOpened: win.store.submit("request_quick_start")
-        onFinished: (dontShow) => {
-            if (dontShow) win.store.submit("set_show_quick_start_on_startup", { show: false })
-            win.store.submit("dismiss_startup_screen")
-        }
-        onClosed: editorPane.focusEditor()
-    }
     Connections {
         target: win.store
         function onRequest(typeName, data) {
             if (typeName === "ConfirmDiscardRequest") unsavedDlg.ask(data.request_id)
         }
-        function onEvent(typeName, data) {
-            if (typeName === "QuickStartContent") quickStartDlg.setContent(data)
-        }
     }
     Connections {
         target: win.errors
-        function onShown(title, message) { errorDlg.show(title, message) }
+        function onShown(title, message) {
+            if (!appDialogs.showError(title, message)) errorDlg.show(title, message)
+        }
     }
 
-    // Quick Start: 100 ms after the window shows, when the session says so
-    // (StartupState, decided by app_started from the setting).
-    readonly property string startupScreen: win.store.states.StartupState.screen || "none"
-    readonly property bool quickStartDue: win.contentReady && win.startupScreen === "quick_start"
-    onQuickStartDueChanged: if (win.quickStartDue) quickStartTimer.start()
-    Timer {
-        id: quickStartTimer
-        interval: 100
-        onTriggered: if (win.quickStartDue && !quickStartDlg.opened) quickStartDlg.open()
+    // Settings, Transpose, Suggest Capo, Quick Start (at startup too),
+    // Licences, About and Help (G1, G2; AppDialogs lists the ways in).
+    AppDialogs {
+        id: appDialogs
+        store: win.store
+        dialogs: win.dialogs
+        errors: win.errors
+        editor: win.editor
+        pane: editorPane
+        mainWindow: win
     }
 }

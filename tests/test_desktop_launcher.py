@@ -32,13 +32,22 @@ def test_an_unknown_front_end_is_refused(capsys):
 def test_ui_qt_starts_the_qt_front_end_with_the_resolved_paths(monkeypatch):
     calls = []
     fake = types.ModuleType("chordnotepad_desktop.main")
-    fake.run = lambda paths, argv: calls.append((paths, argv)) or 7
+    fake.run = lambda paths, argv, build_info=None: calls.append((paths, argv, build_info)) or 7
     monkeypatch.setitem(sys.modules, "chordnotepad_desktop.main", fake)
     monkeypatch.setattr(entry.importlib.util, "find_spec", lambda name: object())
     with pytest.raises(SystemExit) as exc:
         entry.main(["--ui", "qt", "--smoke"])
     assert exc.value.code == 7
-    assert calls == [(entry.APP_PATHS, ["--smoke"])]
+    assert calls == [(entry.APP_PATHS, ["--smoke"], entry.read_build_info())]
+
+
+def test_the_qt_window_gets_the_build_info_ci_writes():
+    """About in the Qt window shows build_info.py's values (the Qt package can't import it)."""
+    from chordnotepad_tk import build_info
+
+    info = entry.read_build_info()
+    assert set(info) == {"VERSION", "BUILD_TYPE", "BUILD_NUMBER", "COMMIT_SHORT", "BUILD_DATE"}
+    assert info["VERSION"] == build_info.VERSION and info["COMMIT_SHORT"] == build_info.COMMIT_SHORT
 
 
 def test_ui_qt_without_pyside6_says_so(monkeypatch, capsys):
