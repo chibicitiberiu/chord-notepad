@@ -17,8 +17,11 @@ import sys
 from pathlib import Path
 
 APP = Path(sys.argv[1] if len(sys.argv) > 1 else "/app/share/chord-notepad")
-# The core and the Tk front end, as the launcher puts them on PYTHONPATH.
-PACKAGES = {"chordnotepad": APP / "core", "chordnotepad_tk": APP / "desktop"}
+# The core and both front ends (Tk, and Qt for --ui qt), as the launcher puts
+# them on PYTHONPATH. Importing the Qt one also loads PySide6's libraries,
+# which shows a library the package lacks (no display needed).
+PACKAGES = {"chordnotepad": APP / "core", "chordnotepad_tk": APP / "desktop",
+            "chordnotepad_desktop": APP / "desktop"}
 sys.path[:0] = [str(folder) for folder in PACKAGES.values()]
 
 failures = []
@@ -48,7 +51,9 @@ for name in ["mido", "music21.harmony", "jeepney.io.blocking", "PIL.ImageTk"]:
         failures.append(f"{name}: {type(exc).__name__}: {exc}")
 
 for path in ["resources/soundfont/GeneralUser-GS.sf2", "help/build/html/index.html",
-             "resources/icons/play.png", "resources/icon-32.png"]:
+             "resources/icons/play.png", "resources/icon-32.png",
+             "resources/fonts/Inter-Regular.ttf", "resources/fonts/NotoSansMono-Regular.ttf",
+             "resources/qt-icons/mdi/play.svg", "desktop/chordnotepad_desktop/qml/app/Main.qml"]:
     if not (APP / path).exists():
         failures.append(f"missing file: {path}")
 

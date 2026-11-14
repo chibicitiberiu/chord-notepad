@@ -229,3 +229,10 @@ def test_the_snap_gives_the_qt_window_wayland_opengl_and_its_libraries():
     assert {"libxcb-cursor0", "libxkbcommon-x11-0", "libxcb-icccm4", "libegl1", "libgl1",
             "libwayland-client0"} <= staged
     assert "packaging/qt_bundle.py trim" in snap["parts"]["chord-notepad"]["override-build"]
+
+
+def test_the_linux_packages_smoke_test_imports_the_qt_front_end():
+    """packaging/linux/smoke_test.py (make flatpak-check, snap-check) walks all three packages."""
+    smoke = (REPO / "packaging/linux/smoke_test.py").read_text(encoding="utf-8")
+    assert '"chordnotepad_desktop": APP / "desktop"' in smoke
+    assert "desktop/chordnotepad_desktop/qml/app/Main.qml" in smoke
