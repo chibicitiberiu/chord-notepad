@@ -1794,9 +1794,22 @@ class AppSession:
 
     @_command
     def set_chord_sheet_visible(self, visible: bool) -> None:
-        """Show or hide the chord sheet (it renders only while shown)."""
+        """Show or hide the chord sheet, and remember it (config
+        ``chord_sheet_visible``). It renders only while on screen: while
+        shown, unless :meth:`set_chord_sheet_on_screen` says otherwise."""
         if self._chord_sheet is not None:
             self._chord_sheet.set_visible(bool(visible))
+
+    @_command
+    def set_chord_sheet_on_screen(self, on_screen: Optional[bool]) -> None:
+        """Say whether the chord sheet is on screen apart from whether it is
+        shown (Qt desktop; not remembered). The Play workspace always shows
+        its strip: send True there, and None in Edit, where the F9 panel
+        (``set_chord_sheet_visible``) decides; False while the window is
+        minimized. The sheet renders only while on screen, and the
+        timeline's ``PlaybackState.sections`` come from its renders."""
+        if self._chord_sheet is not None:
+            self._chord_sheet.set_on_screen(None if on_screen is None else bool(on_screen))
 
     @_command
     def set_chord_sheet_height(self, px: int) -> None:

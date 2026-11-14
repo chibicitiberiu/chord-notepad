@@ -566,6 +566,10 @@ class FakeChordSheet(Observable):
         ])
         self._visible = visible
         self._height = height
+        #: What set_on_screen said last (None: follows visible).
+        self.on_screen_override: Optional[bool] = None
+        #: What set_logical_height said last (None: from the height).
+        self.logical: Optional[int] = None
         self._active_view = self._renderers[0].id
         self._available_views = [r.id for r in self._renderers if not r.requires_fingering]
         self._zoom = 1.0
@@ -641,9 +645,23 @@ class FakeChordSheet(Observable):
         """Show or hide."""
         self.set_and_notify("visible", bool(visible))
 
+    def set_on_screen(self, on_screen: Optional[bool]) -> None:
+        """Record whether it is on screen apart from shown."""
+        self.on_screen_override = on_screen
+
     def set_height(self, height: int) -> None:
         """Remember the height (no notification, like the real one)."""
         self._height = max(1, int(height))
+        self.logical = None
+
+    def logical_height(self, scale: float) -> int:
+        """The logical height: the one set, else the height over ``scale``."""
+        return self.logical if self.logical is not None else round(self._height / scale)
+
+    def set_logical_height(self, height: int, scale: float) -> None:
+        """Remember a logical height (and the height it makes)."""
+        self.logical = max(1, int(height))
+        self._height = round(self.logical * scale)
 
     def set_active_view(self, view_id: str) -> None:
         """Switch to an available view."""

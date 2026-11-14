@@ -234,6 +234,9 @@ class ChordSheetViewModel(Observable):
         self._active_view: str = self._preferred_view
         self._available_views: List[str] = self._compute_available_views(None)
         self._visible: bool = bool(self._config.get("chord_sheet_visible", False))
+        # Whether the sheet is on screen when that isn't ``visible`` (the Qt
+        # Play workspace always shows it); None: it is on screen when visible.
+        self._on_screen_override: Optional[bool] = None
         self._height: int = int(self._config.get("chord_sheet_height", DEFAULT_CHORD_SHEET_HEIGHT))
 
         # Snap the initial active view into the available set (e.g. a persisted
@@ -280,8 +283,15 @@ class ChordSheetViewModel(Observable):
 
     @property
     def visible(self) -> bool:
-        """Whether the chord-sheet panel is shown."""
+        """Whether the chord-sheet panel is shown (the persisted choice: the
+        Tk strip, Android's sheet, the Qt Edit panel's F9)."""
         return self._visible
+
+    @property
+    def on_screen(self) -> bool:
+        """Whether anyone can see the sheet now, so it renders: what
+        :meth:`set_on_screen` said, or :attr:`visible` when it said None."""
+        return self._visible if self._on_screen_override is None else self._on_screen_override
 
     @property
     def height(self) -> int:
@@ -400,11 +410,12 @@ class ChordSheetViewModel(Observable):
         self._dirty = True
         with self._job_lock:
             self._generation += 1
-        # Skip the (expensive) render while the panel is hidden; ``set_visible``
-        # flushes the held input when the panel is shown again.
+        # Skip the (expensive) render while the panel is off screen;
+        # ``set_visible``/``set_on_screen`` flush the held input when it is
+        # on screen again.
         self._scheduler.cancel(self._render_handle)
         self._render_handle = None
-        if not self._visible:
+        if not self.on_screen:
             return
         self._render_handle = self._scheduler.schedule(
             self._debounce_seconds, self._dispatch
@@ -662,21 +673,36 @@ class ChordSheetViewModel(Observable):
     def set_visible(self, visible: bool) -> None:
         """Show or hide the panel and persist the choice.
 
-        No background render ever runs while the panel is hidden, because nobody
-        is looking. Concretely:
+        No background render ever runs while the panel is off screen
+        (:attr:`on_screen`, which is ``visible`` unless :meth:`set_on_screen`
+        says otherwise), because nobody is looking. Concretely:
 
-        - Hiding aborts any in-flight job by bumping the generation (so its
-          result is dropped) and, if that job had work in flight, re-marks the
-          pending state dirty so showing re-runs it. It also cancels any armed
-          debounce timer.
-        - Showing flushes exactly ONE render for the pending input via the
-          debounce scheduler.
+        - Going off screen aborts any in-flight job by bumping the generation
+          (so its result is dropped) and, if that job had work in flight,
+          re-marks the pending state dirty so showing re-runs it. It also
+          cancels any armed debounce timer.
+        - Coming on screen flushes exactly ONE render for the pending input via
+          the debounce scheduler.
         """
         visible = bool(visible)
         self._config.set("chord_sheet_visible", visible)
         self.set_and_notify("visible", visible)
+        self._follow_screen()
 
-        if not visible:
+    def set_on_screen(self, on_screen: Optional[bool]) -> None:
+        """Say whether the sheet is on screen, apart from :attr:`visible`
+        (not persisted): True while the Qt Play workspace shows its strip,
+        False while nothing can (a minimized window), None to follow
+        :attr:`visible` again (the Qt Edit panel; the Tk strip never calls
+        this). Renders as :meth:`set_visible` does when that changes."""
+        before = self.on_screen
+        self._on_screen_override = None if on_screen is None else bool(on_screen)
+        if self.on_screen != before:
+            self._follow_screen()
+
+    def _follow_screen(self) -> None:
+        """Stop or resume rendering for :attr:`on_screen` (see :meth:`set_visible`)."""
+        if not self.on_screen:
             # Abort an in-flight job (hidden means nobody's looking); if it had
             # uncommitted work, re-dirty so showing re-runs it.
             with self._job_lock:
