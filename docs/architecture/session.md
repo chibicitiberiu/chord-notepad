@@ -100,6 +100,7 @@ core/chordnotepad/session/
   directives.py    Insert-menu directives: field validation + messages, directive text, labels, loop choices
   pickers.py       the Qt ▾ value pickers' options (keys with twins, times, tempos, capo, loops)
   snippets.py      the Qt Directives palette: tiles, fill_snippet, select_range
+  status_line.py   StatusLine: what a desktop status bar shows (status, directive hint, playback)
   support.py       the Android support prompt's policy (should_show_support_prompt, NAG_DELAY_DAYS), LaunchKind
   highlighting.py  find_comments, compute_spans(lines, text), chord_at(lines, offset),
                    nearest_chord(lines, text, offset) (the playhead's snap), first_chord

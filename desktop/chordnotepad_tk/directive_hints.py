@@ -12,10 +12,11 @@ which detects nothing); this module only decides what to show and when.
 """
 
 import tkinter as tk
-from typing import TYPE_CHECKING, Callable, Optional, Tuple
+from typing import TYPE_CHECKING, Optional, Tuple
 
 from chordnotepad_tk.theme import TAG_DIRECTIVE_INVALID, TAG_DIRECTIVE_REDUNDANT
 from chordnotepad.session import formatting
+from chordnotepad.session.status_line import StatusLine
 from chordnotepad_tk.base.tooltip import RegionToolTip
 
 if TYPE_CHECKING:
@@ -27,63 +28,6 @@ HINT_DELAY_MS = 150
 
 #: The editor tags that get a hover tooltip.
 _EXPLAINED_TAGS = (TAG_DIRECTIVE_INVALID, TAG_DIRECTIVE_REDUNDANT)
-
-
-class StatusLine:
-    """What the status bar shows: the session's status, a directive hint over
-    it while the cursor is in a directive, and playback's status while a song
-    plays. Plain logic (no Tk), so it can be tested on its own.
-
-    A new status from the session shows at once, over the hint, until the
-    cursor moves again (``quiet_at`` is where the cursor was then).
-    """
-
-    def __init__(self, show: Callable[[str], None]) -> None:
-        """Args:
-            show: Puts a text in the status bar.
-        """
-        self._show = show
-        self.status = ""
-        self.hint = ""
-        self.playing = False
-        self.quiet_at: Optional[int] = None
-
-    @property
-    def text(self) -> str:
-        """What the status bar should show now."""
-        if self.playing or not self.hint:
-            return self.status
-        return self.hint
-
-    def set_status(self, text: str, cursor: Optional[int] = None) -> None:
-        """The session's status changed; it shows until the cursor moves.
-
-        Args:
-            text: The new status.
-            cursor: Where the text cursor is now.
-        """
-        self.status = text
-        self.hint = ""
-        self.quiet_at = cursor
-        self._show(self.text)
-
-    def set_playing(self, playing: bool) -> None:
-        """Whether a song is playing or paused (its status wins then)."""
-        if playing != self.playing:
-            self.playing = playing
-            self._show(self.text)
-
-    def set_hint(self, hint: str, cursor: int) -> None:
-        """The hint for the cursor at ``cursor`` ("" outside a directive).
-
-        Ignored while the cursor hasn't moved since the last status came in.
-        """
-        if cursor == self.quiet_at:
-            return
-        self.quiet_at = None
-        if hint != self.hint:
-            self.hint = hint
-            self._show(self.text)
 
 
 class DirectiveHints:

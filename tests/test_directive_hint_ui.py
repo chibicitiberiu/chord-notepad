@@ -1,8 +1,8 @@
 """The desktop's directive hints: the status-bar hint and the hover tooltip.
 
-``StatusLine`` (what the status bar shows) is plain logic. ``DirectiveHints``
-runs against a real ``ChordTextEditor`` and a real session in a hidden Tk
-root; those tests skip without a display.
+``StatusLine`` (what the status bar shows) is plain core logic, shared with
+the Qt front end. ``DirectiveHints`` runs against a real ``ChordTextEditor``
+and a real session in a hidden Tk root; those tests skip without a display.
 """
 
 import os
@@ -11,7 +11,7 @@ import pytest
 
 from chordnotepad.models.directive import DIRECTIVE_SYNTAX
 from chordnotepad.session import formatting
-from chordnotepad_tk.directive_hints import StatusLine
+from chordnotepad.session.status_line import StatusLine
 
 
 # -- the texts --------------------------------------------------------------
@@ -80,6 +80,15 @@ class TestStatusLine:
         line.set_hint("{bpm: 120}", cursor=4)
         line.set_hint("{bpm: 120}", cursor=5)
         assert shown == ["{bpm: 120}"]
+
+    def test_any_hint_value_works_and_false_is_none(self):
+        # Qt hands over the reason and the syntax apart.
+        line, shown = self._line()
+        line.set_status("Ready", cursor=0)
+        line.set_hint(("Not a key", "{key: G}"), cursor=2)
+        assert line.showing_hint and shown[-1] == ("Not a key", "{key: G}")
+        line.set_hint(None, cursor=9)
+        assert not line.showing_hint and shown[-1] == "Ready"
 
 
 # -- the session answers without detecting again ---------------------------
