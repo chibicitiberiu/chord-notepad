@@ -317,6 +317,12 @@ ANDROID_TOOLTIPS: Dict[str, str] = {
     'name': "The name of this voicing, shown in the player's Voicing sheet.",
 }
 
+#: The same for the Qt desktop: its Voicing selectors are in the player bar
+#: and the chord sheet's header (the Playback menu is hidden by default).
+DESKTOP_QT_TOOLTIPS: Dict[str, str] = {
+    'name': "The name of this voicing, shown in the Voicing menus.",
+}
+
 
 #: What each inversion weight puts in the bass.
 _INVERSION_TEXTS: Dict[str, str] = {

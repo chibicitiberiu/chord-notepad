@@ -67,6 +67,7 @@ from chordnotepad.models.piano_spec import (
 )
 from chordnotepad.settings_forms.voicing_texts import (
     ANDROID_TOOLTIPS,
+    DESKTOP_QT_TOOLTIPS,
     EDITOR_TEXTS,
     ENSEMBLE_WEIGHT_LABELS,
     FRETBOARD_WEIGHT_LABELS,
@@ -548,12 +549,17 @@ def form_schema(model: str) -> Dict[str, Any]:
     return _piano_schema()
 
 
+#: Header help worded per platform (the keys of ``session.platform.PLATFORMS``).
+_PLATFORM_TOOLTIPS = {'android': ANDROID_TOOLTIPS, 'desktop_qt': DESKTOP_QT_TOOLTIPS}
+
+
 def editor_schema(platform: str = 'desktop') -> Dict[str, Any]:
     """Everything a view needs to build the voicings editor, as plain data.
 
     Args:
         platform: One of ``session.platform.PLATFORMS``: the header help
-            that names a menu is worded for it (Android has its own).
+            that names a menu is worded for it (Android and the Qt desktop
+            have their own).
 
     Returns:
         ``{'version', 'models': [{'value', 'label'}], 'tree_groups': [{'model',
@@ -568,8 +574,7 @@ def editor_schema(platform: str = 'desktop') -> Dict[str, Any]:
         'models': [{'value': m, 'label': MODEL_LABELS[m]} for m in MODELS],
         'tree_groups': [{'model': m, 'label': MODEL_LABELS[m]} for m in TREE_GROUPS],
         'texts': dict(EDITOR_TEXTS),
-        'help': {key: (ANDROID_TOOLTIPS.get(key, TOOLTIPS[key]) if platform == 'android'
-                       else TOOLTIPS[key])
+        'help': {key: _PLATFORM_TOOLTIPS.get(platform, {}).get(key, TOOLTIPS[key])
                  for key in ('name', 'model', 'load', 'tree_add', 'tree_remove')},
         'forms': {m: form_schema(m) for m in MODELS},
     }

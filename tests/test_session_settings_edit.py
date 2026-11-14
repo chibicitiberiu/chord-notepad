@@ -248,6 +248,10 @@ def test_editor_schema_event_per_platform(tmp_path):
     android = voicing_form.editor_schema("android")
     assert android["help"]["name"] == "The name of this voicing, shown in the player's Voicing sheet."
     assert android["forms"] == event.schema["forms"]
+    qt = voicing_form.editor_schema("desktop_qt")
+    assert qt["help"]["name"] == "The name of this voicing, shown in the Voicing menus."
+    assert qt["help"]["model"] == event.schema["help"]["model"]
+    assert qt["forms"] == event.schema["forms"]
 
 
 # -- autosave (Android) ----------------------------------------------------------
