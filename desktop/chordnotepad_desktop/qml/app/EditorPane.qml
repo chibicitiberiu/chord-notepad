@@ -319,10 +319,12 @@ Rectangle {
                 readonly property int pos: pane.editor.playheadPos
                 readonly property rect r: {
                     void [area.contentWidth, area.contentHeight, area.width, area.font, area.length]
-                    return pos >= 0 && area.contentHeight > 0 && area.width > 0
+                    // Not past the end: a new, shorter song arrives before the
+                    // session moves the playhead onto it (Qt warns "out of range").
+                    return pos >= 0 && pos <= area.length && area.contentHeight > 0 && area.width > 0
                            ? area.positionToRectangle(pos) : Qt.rect(0, 0, 0, 0)
                 }
-                visible: pos >= 0
+                visible: pos >= 0 && pos <= area.length
                 x: r.x - Theme.gap1; y: r.y
                 SnapLine { lineWidth: Theme.devW(2); height: playhead.r.height; color: Theme.accent
                            moved: [scroll.contentItem.contentX, scroll.contentItem.contentY, playhead.x] }

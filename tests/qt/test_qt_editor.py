@@ -802,3 +802,14 @@ def test_a_triple_click_selects_the_line(editor):
     QTest.mouseDClick(editor.window, Qt.MouseButton.LeftButton, NO_MODIFIER, at)
     QTest.mouseClick(editor.window, Qt.MouseButton.LeftButton, NO_MODIFIER, at)
     assert editor.area.property("selectedText").rstrip("\n") == "one two three"
+
+
+def test_a_shorter_song_doesnt_draw_the_old_playhead_past_its_end(editor):
+    # The playhead was on C at 15; the new text is shorter than that until the
+    # session moves the playhead (Qt warned "Position '15' out of range", and
+    # the fixture fails on Qt warnings).
+    song(editor, "{label: verse}\nC   G\n")
+    playback = editor.store.state("PlaybackState")
+    editor.qtbot.waitUntil(lambda: playback.value("playhead_offset") == 15, timeout=1000)
+    song(editor, "C G Am F\n")
+    editor.qtbot.waitUntil(lambda: playback.value("playhead_offset") == 0, timeout=1000)
