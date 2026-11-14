@@ -145,7 +145,9 @@ WINDOW_SHORTCUTS = {
     "Ctrl+M": "PlaybackActions.qml", "Ctrl+]": "PlaybackActions.qml",
     "Ctrl+[": "PlaybackActions.qml", "Ctrl+\\": "PlaybackActions.qml",
     "Ctrl+T": "AppActions.qml", "Ctrl+,": "AppActions.qml", "Alt+Down": "EditorPane.qml",
-    "F10": "AppActions.qml",
+    "F10": "AppActions.qml", "F9": "SheetActions.qml", "Alt+1": "SheetActions.qml",
+    "Alt+2": "SheetActions.qml", "Alt+3": "SheetActions.qml", "Alt+4": "SheetActions.qml",
+    "Ctrl+Shift+D": "SidebarActions.qml", "Ctrl+Shift+I": "SidebarActions.qml",
 }
 
 
@@ -410,7 +412,7 @@ def test_show_menu_bar_keeps_it_and_is_kept(qapp, qtbot, tmp_path):
 def test_the_menus_list_every_command(app):
     expect = {
         "editMenu": ["Undo", "Redo", "---", "Cut", "Copy", "Paste", "---", "Select all"],
-        "viewMenu": ["Edit", "Play", "---", "Chord sheet under the text", "Chord sheet view", "---", "Word wrap",
+        "viewMenu": ["Edit", "Play", "---", "Directives", "Chord identifier", "---", "Chord sheet under the text", "Chord sheet view", "---", "Word wrap",
                      "Larger text", "Smaller text", "Reset text size", "---",
                      "Zoom in (whole window)", "Zoom out (whole window)", "Reset zoom (100%)",
                      "Full screen", "---", "Show menu bar", "Dark theme"],

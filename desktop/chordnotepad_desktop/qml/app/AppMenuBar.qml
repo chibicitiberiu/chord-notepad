@@ -28,6 +28,8 @@ MenuBar {
     required property var altWatcher
     // SheetActions (E4): View › Chord sheet and its views; null until then.
     property var sheetActions: null
+    // SidebarActions (F5): View › Directives and Chord identifier.
+    property var sidebarActions: null
     signal editVoicings()
 
     // Shown: always on macOS, kept shown, or revealed by Alt (peek).
@@ -115,8 +117,21 @@ MenuBar {
         MenuItem { action: bar.actions.editModeAction }
         MenuItem { action: bar.actions.playModeAction }
         MenuSeparator { }
-        // The sidebars (Ctrl+Shift+D / Ctrl+Shift+I) come with F5. The chord
-        // sheet and its views are E4's SheetActions.
+        // The sidebars (F5's SidebarActions: Ctrl+Shift+D / Ctrl+Shift+I).
+        MenuItem {
+            objectName: "barDirectives"
+            action: bar.sidebarActions ? bar.sidebarActions.directivesAction : null
+            visible: bar.sidebarActions !== null
+            height: visible ? implicitHeight : 0
+        }
+        MenuItem {
+            objectName: "barIdentifier"
+            action: bar.sidebarActions ? bar.sidebarActions.identifierAction : null
+            visible: bar.sidebarActions !== null
+            height: visible ? implicitHeight : 0
+        }
+        MenuSeparator { }
+        // The chord sheet and its views (E4's SheetActions).
         MenuItem {
             objectName: "barSheetPanel"
             action: bar.sheetActions ? bar.sheetActions.panelAction : null

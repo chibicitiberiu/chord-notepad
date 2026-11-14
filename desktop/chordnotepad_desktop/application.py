@@ -50,7 +50,9 @@ from chordnotepad_desktop.qt_messages import install_message_handler
 from chordnotepad_desktop.dialogs import DialogsModel
 from chordnotepad_desktop.chord_sheet import ChordSheetModel
 from chordnotepad_desktop.editor_bridge import EditorBridge
+from chordnotepad_desktop.identifier import INSERT_FAILED_TITLE, IdentifierModel
 from chordnotepad_desktop.player_bar import PlayerBarModel
+from chordnotepad_desktop.sidebars import SidebarModel
 from chordnotepad_desktop.status_bar import StatusBarModel
 from chordnotepad_desktop.value_picker import ValuePickerModel
 from chordnotepad_desktop.session_store import SessionStore
@@ -142,6 +144,8 @@ class QtApplication:
         self.player: Optional[PlayerBarModel] = None
         self.chrome: Optional[ChromeModel] = None
         self.sheet: Optional[ChordSheetModel] = None
+        self.sidebars: Optional[SidebarModel] = None
+        self.identifier: Optional[IdentifierModel] = None
         self.main: Optional[MainWindow] = None
         self.renderer: Optional[str] = None
         #: The engine's QML warnings (``--smoke`` fails on any).
@@ -194,6 +198,8 @@ class QtApplication:
         self.player = PlayerBarModel(self.store, self.editor, parent=self.store)
         self.chrome = ChromeModel(self.store, parent=self.store)
         self.sheet = ChordSheetModel(self.store, parent=self.store)
+        self.sidebars = SidebarModel(self.store, parent=self.store)
+        self.identifier = IdentifierModel(self.store, self.editor, parent=self.store)
 
         self._engine = create_engine(self._paths)
         self._engine.warnings.connect(
@@ -202,7 +208,8 @@ class QtApplication:
                                 editor=self.editor, status=self.status_bar,
                                 pickers=self.pickers, dialogs=self.dialogs,
                                 player=self.player, chrome=self.chrome,
-                                sheet=self.sheet)
+                                sheet=self.sheet, sidebars=self.sidebars,
+                                identifier=self.identifier)
         if main is None:
             raise RuntimeError("The main window couldn't be loaded:\n" + "\n".join(self.warnings))
         self.main = main
@@ -240,7 +247,13 @@ class QtApplication:
         elif type_name == "AudioUnavailable":
             self.presenter.show_message(AUDIO_ERROR_TITLE, data["message"])
         elif type_name == "UnexpectedError":
-            self.presenter.report_event(data["message"], data["context"])
+            # A chord the identifier couldn't insert gets Tk's own message.
+            failed = (self.identifier.insert_failure(data["message"], data["context"])
+                      if self.identifier is not None else None)
+            if failed is not None:
+                self.presenter.show_message(INSERT_FAILED_TITLE, failed)
+            else:
+                self.presenter.report_event(data["message"], data["context"])
 
     def _on_request(self, type_name: str, data: Any) -> None:
         if type_name not in HANDLED_REQUESTS:

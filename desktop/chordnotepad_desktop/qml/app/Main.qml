@@ -20,11 +20,14 @@ import CNTheme
 // window's and the small dialogs' DialogsModel (dialogs.py), for AppDialogs,
 // `player` the player bar's PlayerBarModel (player_bar.py), `chrome` the
 // kept zoom and menu bar plus the File menu's documents (chrome.py,
-// files.py) and `sheet` the chord sheet's ChordSheetModel (chord_sheet.py).
-// The shortcuts are Actions: the window's in AppActions.qml, the editor's in
-// EditorPane.qml, playback's in PlaybackActions.qml, the chord sheet's in
-// SheetActions.qml; the menu bar (AppMenuBar.qml), the ☰ menu (AppMenu.qml)
-// and the Edit toolbar (EditToolbar.qml) reuse them.
+// files.py), `sheet` the chord sheet's ChordSheetModel (chord_sheet.py),
+// `sidebars` the rail's SidebarModel (sidebars.py: the open sidebar, its
+// width, the palette) and `identifier` the chord identifier's
+// IdentifierModel (identifier.py). The shortcuts are Actions: the window's
+// in AppActions.qml, the editor's in EditorPane.qml, playback's in
+// PlaybackActions.qml, the chord sheet's in SheetActions.qml, the sidebars'
+// in SidebarActions.qml; the menu bar (AppMenuBar.qml), the ☰ menu
+// (AppMenu.qml) and the Edit toolbar (EditToolbar.qml) reuse them.
 //
 // The plumbing every main window keeps:
 // - windowDpr, fontRevision and contentReady are written by DprWatcher
@@ -52,6 +55,8 @@ ApplicationWindow {
     required property var player
     required property var chrome
     required property var sheet
+    required property var sidebars
+    required property var identifier
     property real windowDpr: 1.0
     property int fontRevision: 0
     property bool contentReady: false
@@ -98,6 +103,7 @@ ApplicationWindow {
         chrome: win.chrome
         altWatcher: win.altWatcher
         sheetActions: windowSheetActions
+        sidebarActions: windowSidebarActions
         onEditVoicings: appDialogs.openSettings("voicings")
     }
     // F10: the first menu.
@@ -174,34 +180,86 @@ ApplicationWindow {
                     sheetActions: windowSheetActions
                     Layout.fillWidth: true
                 }
-                SplitView {
-                    id: editSplit
-                    objectName: "editSplit"
+                RowLayout {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
-                    orientation: Qt.Vertical
-                    handle: SplitGrip { vertical: true }
-                    // The panel's height is kept after a drag (logical px, B3).
-                    onResizingChanged: if (!resizing && editSheetHost.visible)
-                        win.sheet.saveHeight(Math.round(editSheetHost.height), Theme.dpr)
-                    Item {
-                        id: editHost
-                        objectName: "editHost"
-                        SplitView.fillHeight: true
-                        SplitView.minimumHeight: Theme.px(30)
-                        onXChanged: Theme.bumpLayout(); onYChanged: Theme.bumpLayout()
-                        onWidthChanged: Theme.bumpLayout(); onHeightChanged: Theme.bumpLayout()
-                        // The text's zoom, on the text pane (not the status bar under the sheet).
-                        ZoomChip { objectName: "editZoomChip"; editor: win.editor }
+                    spacing: 0
+                    // The rail and the sidebars (F5).
+                    IconRail {
+                        sidebars: win.sidebars
+                        Layout.fillHeight: true
+                        onOpenSettings: appDialogs.openSettings()
                     }
-                    Item {
-                        id: editSheetHost
-                        objectName: "editSheetHost"
-                        visible: win.store.states.ChordSheetState.visible === true
-                        SplitView.preferredHeight: Theme.sheetPanelHeight
-                        SplitView.minimumHeight: Theme.px(40)
-                        onXChanged: Theme.bumpLayout(); onYChanged: Theme.bumpLayout()
-                        onWidthChanged: Theme.bumpLayout(); onHeightChanged: Theme.bumpLayout()
+                    SplitView {
+                        id: sideSplit
+                        objectName: "sideSplit"
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        orientation: Qt.Horizontal
+                        handle: SplitGrip { vertical: false }
+                        // The sidebar's width is kept after a drag (layout units, F5).
+                        onResizingChanged: if (!resizing && sidebarBox.visible)
+                            win.sidebars.setWidth(sidebarBox.width / Theme.u)
+                        Rectangle {
+                            id: sidebarBox
+                            objectName: "sidebarBox"
+                            visible: win.sidebars.current !== ""
+                            color: Theme.panel
+                            SplitView.preferredWidth: Theme.px(win.sidebars.width)
+                            SplitView.minimumWidth: Theme.sidebarMin
+                            SplitView.maximumWidth: Theme.sidebarMax
+                            onXChanged: Theme.bumpLayout(); onYChanged: Theme.bumpLayout()
+                            onWidthChanged: Theme.bumpLayout(); onHeightChanged: Theme.bumpLayout()
+                            onVisibleChanged: Theme.bumpLayout()
+                            // Escape in a sidebar goes back to the text.
+                            Keys.onEscapePressed: editorPane.focusEditor()
+                            StackLayout {
+                                anchors.fill: parent
+                                currentIndex: win.sidebars.current === "identifier" ? 1 : 0
+                                DirectivePalette {
+                                    id: directivePalette
+                                    sidebars: win.sidebars
+                                    locked: win.editor.readOnly
+                                    onInsert: (s) => win.insertSnippet(s)
+                                }
+                                IdentifierPanel {
+                                    id: identifierPanel
+                                    model: win.identifier
+                                    locked: win.editor.readOnly
+                                    lockedReason: win.sidebars.lockedReason
+                                    onInsert: (c) => win.insertChord(c)
+                                }
+                            }
+                        }
+                        SplitView {
+                            id: editSplit
+                            objectName: "editSplit"
+                            SplitView.fillWidth: true
+                            orientation: Qt.Vertical
+                            handle: SplitGrip { vertical: true }
+                            // The panel's height is kept after a drag (logical px, B3).
+                            onResizingChanged: if (!resizing && editSheetHost.visible)
+                                win.sheet.saveHeight(Math.round(editSheetHost.height), Theme.dpr)
+                            Item {
+                                id: editHost
+                                objectName: "editHost"
+                                SplitView.fillHeight: true
+                                SplitView.minimumHeight: Theme.px(30)
+                                onXChanged: Theme.bumpLayout(); onYChanged: Theme.bumpLayout()
+                                onWidthChanged: Theme.bumpLayout(); onHeightChanged: Theme.bumpLayout()
+                                // The text's zoom, on the text pane (not the status bar under the sheet).
+                                ZoomChip { objectName: "editZoomChip"; editor: win.editor }
+                            }
+                            Item {
+                                id: editSheetHost
+                                objectName: "editSheetHost"
+                                visible: win.store.states.ChordSheetState.visible === true
+                                SplitView.preferredHeight: Theme.sheetPanelHeight
+                                SplitView.minimumHeight: Theme.px(40)
+                                onXChanged: Theme.bumpLayout(); onYChanged: Theme.bumpLayout()
+                                onWidthChanged: Theme.bumpLayout(); onHeightChanged: Theme.bumpLayout()
+                            }
+                        }
                     }
                 }
                 // The message (D4), the read-only notice, Ln/Col, the notation (F4).
@@ -284,6 +342,33 @@ ApplicationWindow {
     PlaybackActions { id: playbackActions; store: win.store; player: win.player }
     // The chord sheet's (F9 in Edit, Alt+1..4 for the views).
     SheetActions { id: windowSheetActions; store: win.store; editMode: win.mode === "edit" }
+    // The sidebars' (Ctrl+Shift+D, Ctrl+Shift+I): from the keyboard the
+    // opened sidebar gets the focus, a collapsed one gives it back.
+    SidebarActions {
+        id: windowSidebarActions
+        sidebars: win.sidebars
+        editMode: win.mode === "edit"
+        onEditRequested: win.mode = "edit"
+        onOpened: (name) => Qt.callLater(function () {
+            if (!(name === "identifier" ? identifierPanel.focusFirst() : directivePalette.focusFirst()))
+                editorPane.focusEditor()
+        })
+        onCollapsed: editorPane.focusEditor()
+    }
+
+    // A palette tile: its snippet at the caret, the value selected (B4's
+    // insert_snippet and TextEdited.anchor), the editor focused again.
+    function insertSnippet(text) {
+        win.store.submit("insert_snippet", { offset: win.editor.codePointAt(editorPane.area.cursorPosition),
+                                             text: text, snap: false })
+        editorPane.focusEditor()
+    }
+    // An identifier candidate: the chord and a space at the caret
+    // (insert_chord: "Inserted chord: X"), the editor focused again.
+    function insertChord(chord) {
+        win.identifier.insert(chord)
+        editorPane.focusEditor()
+    }
 
     // A song value's link: Edit, the cursor just inside the directive that
     // sets it (looked up in the live text), the editor focused.

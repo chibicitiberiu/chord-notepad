@@ -70,6 +70,13 @@ QtObject {
     readonly property font fontMarkC:   Qt.font({ family: uiFont, pointSize: fontCaption, weight: Font.Bold, hintingPreference: hinting })
     readonly property font fontMarkDo:  Qt.font({ family: uiFont, pointSize: fontCaption * 0.9, weight: Font.Bold, hintingPreference: hinting })
     readonly property font fontTabularStrong: Qt.font({ family: uiFont, pointSize: fontSmall, weight: Font.DemiBold, hintingPreference: hinting, features: { "tnum": 1 } })
+    // The chord identifier: the piano's key names (a selected key's in
+    // DemiBold, the mockup's), and the notes field and candidates in the mono font.
+    readonly property font fontKey:       Qt.font({ family: uiFont, pointSize: fontCaption * 0.9, hintingPreference: hinting })
+    readonly property font fontKeyStrong: Qt.font({ family: uiFont, pointSize: fontCaption * 0.9, weight: Font.DemiBold, hintingPreference: hinting })
+    readonly property font fontMono:      Qt.font({ family: monoFont, pointSize: fontBody, hintingPreference: hinting })
+    // A small-caps-style heading ("CANDIDATES"): caption size, DemiBold, spaced out.
+    readonly property font fontCaps:      Qt.font({ family: uiFont, pointSize: fontCaption, weight: Font.DemiBold, letterSpacing: u * 0.15, hintingPreference: hinting })
     // The editor keeps the default hinting, unlike Inter: a monospace font's
     // advances are fixed, so hinting can't break the columns, and it is
     // crisper at 100% (the mockup's choice). The only font without `hinting`.

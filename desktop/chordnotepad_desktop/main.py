@@ -131,19 +131,22 @@ def load_window(engine: QQmlApplicationEngine, app: QGuiApplication, qml_file: P
 def load_main_window(engine: QQmlApplicationEngine, app: QGuiApplication, *,
                      store: QObject, errors: QObject, editor: QObject, status: QObject,
                      pickers: QObject, dialogs: QObject, player: QObject,
-                     chrome: QObject, sheet: QObject) -> Optional[MainWindow]:
+                     chrome: QObject, sheet: QObject, sidebars: QObject,
+                     identifier: QObject) -> Optional[MainWindow]:
     """Load Main.qml over ``store`` (the session), ``errors`` (the error
     presenter), ``editor`` (the editor's EditorBridge), ``status`` (the
     status bar's StatusBarModel), ``pickers`` (the ▾ pickers'
     ValuePickerModel), ``dialogs`` (the dialogs' and the Settings
     window's DialogsModel), ``player`` (the player bar's PlayerBarModel),
     ``chrome`` (the kept zoom and menu bar, the File menu's documents:
-    ChromeModel) and ``sheet`` (the chord sheet's ChordSheetModel); None if
-    it created no window. Not shown yet."""
+    ChromeModel), ``sheet`` (the chord sheet's ChordSheetModel), ``sidebars``
+    (the rail's SidebarModel) and ``identifier`` (the chord identifier's
+    IdentifierModel); None if it created no window. Not shown yet."""
     return load_window(engine, app, MAIN_QML, {"store": store, "errors": errors, "editor": editor,
                                                "status": status, "pickers": pickers,
                                                "dialogs": dialogs, "player": player,
-                                               "chrome": chrome, "sheet": sheet})
+                                               "chrome": chrome, "sheet": sheet,
+                                               "sidebars": sidebars, "identifier": identifier})
 
 
 def run(paths: AppPaths, argv, build_info: Optional[dict] = None) -> int:
