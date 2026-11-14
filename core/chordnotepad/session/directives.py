@@ -24,7 +24,7 @@ kind      fields
 import re
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Iterable, Mapping, Optional, Tuple
+from typing import Any, Dict, Iterable, Mapping, Optional, Tuple
 
 from chordnotepad.constants import MAX_BEATS, MAX_BPM, MIN_BEATS, MIN_BPM, TIME_SIGNATURE_UNITS
 from chordnotepad.models.directive import DirectiveType
@@ -92,6 +92,39 @@ def existing_labels(lines: Iterable[Any]) -> Tuple[str, ...]:
 def loop_label_choices(labels: Iterable[str]) -> Tuple[str, ...]:
     """What a loop can jump back to: the song's start, then the labels, sorted."""
     return (LOOP_START,) + tuple(sorted(set(labels) - {LOOP_START}))
+
+
+#: The directive keywords and the kind each is checked as (``tempo`` is
+#: ``bpm``'s other name).
+KIND_OF_KEYWORD = {"bpm": DirectiveKind.BPM.value, "tempo": DirectiveKind.BPM.value,
+                   "time": DirectiveKind.TIME.value, "key": DirectiveKind.KEY.value,
+                   "label": DirectiveKind.LABEL.value, "loop": DirectiveKind.LOOP.value,
+                   "capo": DirectiveKind.CAPO.value}
+
+_LOOP_COUNT_RE = re.compile(r"[+-]?\d+")
+
+
+def directive_fields(kind: str, value: str) -> Dict[str, str]:
+    """A directive's value as typed (``3/4``, ``chorus 2``) split into the
+    fields :func:`check_directive` takes. A loop without a count is read as
+    the parser reads it: count 2.
+
+    Raises:
+        ValueError: If ``kind`` is not a directive kind.
+    """
+    kind = DirectiveKind(kind)
+    value = value.strip()
+    if kind is DirectiveKind.BPM:
+        return {"value": value}
+    if kind is DirectiveKind.TIME:
+        beats, _, unit = value.partition("/")
+        return {"beats": beats.strip(), "unit": unit.strip()}
+    if kind is DirectiveKind.LOOP:
+        parts = value.rsplit(None, 1)
+        if len(parts) == 2 and _LOOP_COUNT_RE.fullmatch(parts[1]):
+            return {"label": parts[0], "count": parts[1]}
+        return {"label": value, "count": "2"}
+    return {kind.value: value}
 
 
 def check_directive(kind: str, values: Mapping[str, Any], *,
