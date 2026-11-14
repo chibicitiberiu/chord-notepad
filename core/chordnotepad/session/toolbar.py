@@ -128,6 +128,19 @@ class ScrubScale:
         """``value`` moved by ``steps`` drag increments, normalized."""
         return self.normalize(value + steps * self.increment)
 
+    def nudged(self, value: float, direction: int) -> float:
+        """``value`` moved one increment in ``direction`` (+1 or -1) to the
+        next value the scale keeps: past a grid point's magnet, so a wheel or
+        an arrow key never sticks at one (Tk's wheel stayed on 120: 121
+        latched back to it). At either end it stays.
+        """
+        step = 1 if direction > 0 else -1
+        for n in range(1, 1 + max(1, int(round(2 * self.snap_tolerance / self.increment)) + 1)):
+            moved = self.stepped(value, n * step)
+            if moved != value:
+                return moved
+        return value
+
 
 #: The BPM control: 20-400, magnetic to tens.
 BPM_SCALE = ScrubScale(min_value=MIN_BPM, max_value=MAX_BPM, step=10, drag_step=1,

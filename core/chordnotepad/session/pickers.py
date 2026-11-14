@@ -353,6 +353,18 @@ def loop_labels(labels: Tuple[str, ...]) -> Tuple[str, ...]:
 # -- the picker -------------------------------------------------------------------------------
 
 
+def song_key_options(notation: str, current: str = "") -> PickerOptions:
+    """The Qt player bar's key picker: the toolbar's keys
+    (``toolbar.key_options``: roots only, a roman numeral's case says major
+    or minor), in ``notation``, with ♯ and ♭ on the chips. Not a directive:
+    the pick goes to ``AppSession.set_key``."""
+    from chordnotepad.session import toolbar
+    choices = tuple(PickerChoice(key, key_label(toolbar.convert_key(key, Notation.AMERICAN.value),
+                                                notation))
+                    for key in toolbar.key_options(notation))
+    return PickerOptions(KEY, current.strip(), groups=(PickerGroup("", choices),))
+
+
 def picker_options(kind: str, ctx: PickerContext = PickerContext()) -> PickerOptions:
     """What the picker of ``kind`` shows in ``ctx``.
 

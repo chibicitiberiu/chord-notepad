@@ -241,3 +241,16 @@ def test_options_keep_the_current_value_and_refuse_unknown_kinds():
     with pytest.raises(ValueError):
         picker_options("label")
     assert pickers.KIND_OF_KEYWORD["tempo"] == "tempo" == pickers.KIND_OF_KEYWORD["bpm"]
+
+
+def test_the_player_bars_key_picker_offers_the_toolbars_keys():
+    from chordnotepad.session.toolbar import key_options
+    for notation in ("american", "european"):
+        options = pickers.song_key_options(notation, " D ")
+        assert options.kind == pickers.KEY and options.current == "D"
+        (group,) = options.groups
+        assert tuple(c.value for c in group.choices) == key_options(notation)
+    labels = {c.value: c.label for c in pickers.song_key_options("american").groups[0].choices}
+    assert labels["C#"] == "C♯" and labels["Bb"] == "B♭" and labels["E"] == "E"
+    labels = {c.value: c.label for c in pickers.song_key_options("european").groups[0].choices}
+    assert labels["Do#"] == "Do♯" and labels["Sib"] == "Si♭" and labels["Sol"] == "Sol"

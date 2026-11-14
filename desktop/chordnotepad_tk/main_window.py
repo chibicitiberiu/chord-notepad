@@ -28,7 +28,7 @@ from chordnotepad_tk.icon_loader import IconLoader
 from chordnotepad_tk.helpers import create_tooltip, resolve_font_family
 from chordnotepad_tk.file_dialogs import ask_open_filename, ask_save_as_filename
 from chordnotepad.models.notation import Notation
-from chordnotepad.session import formatting
+from chordnotepad.session import formatting, toolbar_texts
 from chordnotepad.session.events import (
     AudioUnavailable, CapoChoiceRequest, CloseApproved, ConfirmDiscardRequest, DiscardChoice,
     InsertDirectiveRequest, PickDocumentRequest, PickMode, TextEdited, UserError,
@@ -62,28 +62,16 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+# The tempo, key and time-signature tooltips (shared with the Qt player bar);
+# a value the song sets shows set_by_tooltip(directive) instead.
+_BPM_TOOLTIP = toolbar_texts.BPM_TOOLTIP
+_KEY_TOOLTIP = toolbar_texts.KEY_TOOLTIP
+_BEATS_TOOLTIP = toolbar_texts.BEATS_TOOLTIP
+_UNIT_TOOLTIP = toolbar_texts.UNIT_TOOLTIP
+set_by_tooltip = toolbar_texts.set_by_tooltip
+
 # The Play/Pause button's tooltip for what pressing it does.
-# The tempo, key and time-signature tooltips; a value the song sets shows
-# set_by_tooltip(directive) instead.
-_BPM_TOOLTIP = ("Beats per minute for this song (the default is in Settings). Drag to change, "
-                "click to type, middle-click to reset to 120. Pause to change it while a "
-                "song plays.")
-_KEY_TOOLTIP = ("Key for roman numeral chords and the Staff view's key signature in this song "
-                "(the default is in Settings). Pause to change it while a song plays.")
-_BEATS_TOOLTIP = "Beats per measure (pause to change it while a song plays)"
-_UNIT_TOOLTIP = "Beat unit, 4 = quarter note (pause to change it while a song plays)"
-
-
-def set_by_tooltip(directive: str) -> str:
-    """The tooltip of a toolbar value the song sets with ``directive``."""
-    return f"Set by {directive} in the song"
-
-
-_PLAY_PAUSE_TOOLTIPS = {
-    PlayAction.PLAY: "Play from start (Shift+Click to play from cursor)",
-    PlayAction.PAUSE: "Pause playback",
-    PlayAction.RESUME: "Resume playback",
-}
+_PLAY_PAUSE_TOOLTIPS = {action: toolbar_texts.play_pause_tooltip(action) for action in PlayAction}
 
 # How the native file pickers are shown for each PickDocumentRequest mode:
 # (title, default extension, file types).
@@ -647,7 +635,7 @@ class MainWindow(tk.Tk):
             MULTIPLIER_SCALE, format_multiplier_pct, parse_multiplier_pct,
             self._on_multiplier_scrubber_change, width=5)
         self.multiplier_scrubber.pack(side=tk.LEFT)
-        self.create_tooltip(self.multiplier_scrubber, "Speed multiplier applied on top of BPM. Middle-click to reset to 100%. Adjustable during playback.")
+        self.create_tooltip(self.multiplier_scrubber, toolbar_texts.MULTIPLIER_TOOLTIP)
         self.multiplier_unit_label = ttk.Label(self.toolbar, text="%")
         self.multiplier_unit_label.pack(side=tk.LEFT, padx=(1, 0))
 
@@ -700,7 +688,7 @@ class MainWindow(tk.Tk):
         self.metronome_button = self._make_icon_button(
             self.toolbar, self._icon_metronome_off, command=self._on_metronome_toggle)
         self.metronome_button.pack(side=tk.LEFT)
-        self.create_tooltip(self.metronome_button, "Click track during playback. Toggle this on, then press Play.")
+        self.create_tooltip(self.metronome_button, toolbar_texts.METRONOME_TOOLTIP)
 
         # Playback buttons
         self._toolbar_separator()
@@ -717,7 +705,7 @@ class MainWindow(tk.Tk):
         self.stop_button = self._make_icon_button(
             playback_frame, self._icon_stop, command=self.stop_playback)
         self.stop_button.pack(side=tk.LEFT)
-        self.create_tooltip(self.stop_button, "Stop playback")
+        self.create_tooltip(self.stop_button, toolbar_texts.STOP_TOOLTIP)
 
     def _make_scrubber(self, scale: ScrubScale, formatter: Any, parser: Any,
                        on_change: Any, width: int) -> Scrubber:

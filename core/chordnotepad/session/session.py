@@ -75,7 +75,8 @@ from chordnotepad.session.state import (
     SongDefaultsState, Span, SpanKind, StartupScreen, StartupState, StatusState,
     TimelineSection, ToolbarState, VoicingMenuState,
 )
-from chordnotepad.session.timeline import song_sections
+from chordnotepad.session import timeline
+from chordnotepad.session.timeline import TimelinePosition, song_sections
 
 if TYPE_CHECKING:
     # Type-only: the chord-sheet viewmodel still imports PIL (see the core
@@ -378,6 +379,8 @@ class AppSession:
         # idle position when the strip hasn't rendered (same text revision).
         self._ping_bars: Dict[int, Tuple[int, int]] = {}
         self._ping_bars_revision = -1
+        # The position of the chord the last ping started (timeline_position).
+        self._ping_position: Optional[TimelinePosition] = None
         self._playing_chord: Optional[str] = None
         # The name an untitled document takes when it is first saved.
         self._pending_name: Optional[str] = None
@@ -2090,6 +2093,53 @@ class AppSession:
         except AudioInitializationError as e:
             self._report_audio_failure(str(e), from_click=True)
 
+    # -- the Qt player bar's timeline (direct calls, no state) --------------------
+
+    def timeline_offset(self, bar: int) -> Optional[int]:
+        """Where a seek on the timeline to ``bar`` (counted from the top of the
+        song) goes: the start of the first chord in that bar or later, else
+        the last chord, of the chord sheet's song, as an offset into the text
+        (send it to :meth:`set_playhead`). None before the sheet has rendered
+        this text or for a song without chords.
+
+        A loop's later passes are the same chords in the text, so a seek into
+        one starts at the chord's first pass (as a click on the chord sheet).
+        """
+        sheet = self._chord_sheet
+        song = sheet.rendered_song if sheet is not None else None
+        if song is None:
+            return None
+        index = timeline.chord_at_bar(
+            song, int(bar), lambda i: self._text_chord_of_strip(i) is not None)
+        chord = self._text_chord_of_strip(index) if index is not None else None
+        return chord.start if chord is not None else None
+
+    def timeline_position(self) -> Optional[TimelinePosition]:
+        """Where the player's bar:beat stands: while a song plays or is paused,
+        the chord the last progress ping started; while idle, the playhead's
+        chord in the chord sheet's song. None when neither is known (no
+        chords, or the sheet hasn't rendered this text)."""
+        if self._playback.status is not PlaybackStatus.IDLE:
+            return self._ping_position
+        found = self._strip_chord(self._playhead)
+        if found is None:
+            return None
+        return timeline.chord_position(self._chord_sheet.rendered_song, found[0])
+
+    def setting_directive_start(self, value: str) -> Optional[int]:
+        """Where the directive that sets the song's starting ``value``
+        (``tempo``, ``time`` or ``key``) starts in the text, or None when the
+        song doesn't set it (the player bar's song values link to it).
+
+        Raises:
+            ValueError: For any other ``value``.
+        """
+        setting = self._setting_directives()
+        if value not in setting._fields:
+            raise ValueError(f"no song value {value!r}; expected one of {setting._fields}")
+        directive = getattr(setting, value)
+        return directive.start if directive is not None else None
+
     # -- desktop window preferences --------------------------------------------
 
     @property
@@ -3077,6 +3127,7 @@ class AppSession:
         if playback.status is PlaybackStatus.IDLE:
             self._effective_bpm = None
             self._playing_chord = None
+            self._ping_position = None
         self._emitter.set_state(playback)
         self._publish_editor()
         self._publish_toolbar()
@@ -3230,6 +3281,12 @@ class AppSession:
                 self._ping_bars_revision = self._revision
             self._ping_bars.setdefault(chord.start, (event.song_bar, event.total_bars))
         self._playing_chord = chord.chord
+        self._ping_position = TimelinePosition(
+            bar=max(1, int(event.song_bar or event.current_bar or 1)),
+            beat=float(event.song_beat or event.current_beat or 1.0),
+            beats_per_bar=int(event.time_signature_beats),
+            bpm=int(event.bpm),
+            total_bars=int(event.total_bars))
         if self._tracks_playhead and self._playhead != chord.start:
             self._playhead = chord.start
             self._publish_chord_sheet()

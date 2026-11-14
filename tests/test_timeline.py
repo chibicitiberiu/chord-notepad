@@ -243,3 +243,76 @@ def test_the_qt_status_names_the_song_bar_and_the_tk_status_the_rebased_one():
         env.player.play(1)
         env.host.run_pending()
         assert env.status().startswith(bar + " | 120 BPM"), (platform, env.status())
+
+
+# -- seeking and the position (the Qt player bar, E1) -------------------------------------
+
+from chordnotepad.session.timeline import (  # noqa: E402
+    TimelinePosition, chord_at_bar, chord_position)
+
+
+def test_a_seek_lands_on_the_first_chord_at_or_after_the_bar():
+    song = render("C*2 G*2 Am*8 F")   # bars: C 1, G 1, Am 2-3, F 4
+    assert [(c.chord_info.chord, c.song_bar) for c in song.chords] == [
+        ("C", 1), ("G", 1), ("Am", 2), ("F", 4)]
+    assert chord_at_bar(song, 1) == 0
+    assert chord_at_bar(song, 2) == 2
+    # A bar inside a long chord: the next chord.
+    assert chord_at_bar(song, 3) == 3
+    # Past the last chord: the last one. No chords: nothing.
+    assert chord_at_bar(song, 9) == 3
+    assert chord_at_bar(render("just words"), 1) is None
+    # Chords that can't be sought to are passed over.
+    assert chord_at_bar(song, 2, playable=lambda i: i != 2) == 3
+
+
+def test_a_chords_position_has_its_song_bar_beat_meter_and_tempo():
+    song = render("{bpm: 90}\nC*2 G*2 Am")
+    assert chord_position(song, 1) == TimelinePosition(
+        bar=1, beat=3.0, beats_per_bar=4, bpm=90, total_bars=2, duration_beats=2.0)
+    assert chord_position(song, 1).beat_number == 3
+    assert chord_position(song, 5) is None
+    assert TimelinePosition(2, 2.5, 4, 120, 4).beat_number == 2
+
+
+def test_the_qt_timeline_seeks_into_the_strips_song():
+    env = Env(DESKTOP_QT, text=SONG, auto_play=False)
+    assert env.session.timeline_offset(3) is None     # the strip hasn't rendered
+    strip_render(env)
+    assert env.session.timeline_offset(1) == 15        # C
+    assert env.session.timeline_offset(2) == 19        # G
+    assert env.session.timeline_offset(3) == 37        # Am
+    # The loop's second pass is the same chords in the text.
+    assert env.session.timeline_offset(5) == 37
+    assert env.session.timeline_offset(99) == 41       # the last chord
+    env.session.set_playhead(env.session.timeline_offset(4))
+    assert env.playhead() == 41
+
+
+def test_the_position_is_the_playheads_chord_idle_and_the_pinged_one_playing():
+    env = Env(DESKTOP_QT, text=SONG, auto_play=False)
+    assert env.session.timeline_position() is None
+    strip_render(env)
+    assert env.session.timeline_position().bar == 1    # the playhead's first chord
+    env.session.set_playhead(37)
+    position = env.session.timeline_position()
+    assert (position.bar, position.beat_number, position.total_bars) == (3, 1, 6)
+    env.session.play_pause()
+    env.rendered()
+    env.player.play(2)
+    env.host.run_pending()
+    position = env.session.timeline_position()
+    assert (position.bar, position.beat_number, position.beats_per_bar, position.bpm) == (4, 1, 4, 120)
+    env.session.stop()
+    # Idle again: the playhead's chord (it stayed on F).
+    assert env.session.timeline_position().bar == 4
+
+
+def test_the_song_values_link_to_the_directive_that_sets_them():
+    env = Env(DESKTOP_QT, text="{bpm: 90}\n{key: D}\nC G\n{time: 3/4}\nAm")
+    assert env.session.setting_directive_start("tempo") == 0
+    assert env.session.setting_directive_start("key") == 10
+    # A {time} after the first chord doesn't set the song's start.
+    assert env.session.setting_directive_start("time") is None
+    with pytest.raises(ValueError):
+        env.session.setting_directive_start("capo")

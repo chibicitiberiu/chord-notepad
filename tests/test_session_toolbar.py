@@ -358,3 +358,26 @@ def test_tk_toolbar_sends_commands():
     window.session.set_bpm.assert_called_once_with(96.0)
     MainWindow.set_notation(window, "european")
     window.session.set_notation.assert_called_once_with("european")
+
+
+# -- Q2: the Qt tempo wheel doesn't stick at a multiple of ten ------------------------------
+
+
+def test_q2_a_nudge_moves_past_the_magnet_of_a_grid_point():
+    scale = toolbar.BPM_SCALE
+    # stepped() latches 121 back to 120, so Tk's wheel stayed there.
+    assert scale.stepped(120, 1) == 120
+    assert [scale.nudged(v, 1) for v in (118, 119, 120, 121, 122)] == [120, 120, 122, 122, 123]
+    assert [scale.nudged(v, -1) for v in (122, 121, 120, 119, 118)] == [120, 120, 118, 118, 117]
+    # The ends stay put.
+    assert scale.nudged(400, 1) == 400 and scale.nudged(20, -1) == 20
+    assert scale.nudged(21, -1) == 20
+    # Every keepable value is reached one nudge at a time, up and down.
+    up, value = [20], 20
+    while value < 400:
+        value = scale.nudged(value, 1)
+        up.append(value)
+    keepable = sorted({toolbar.normalize_bpm(v) for v in range(20, 401)})
+    assert up == keepable
+    # A scale without a magnet moves by its increment.
+    assert toolbar.MULTIPLIER_SCALE.nudged(100, 1) == 101
