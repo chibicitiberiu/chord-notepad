@@ -513,9 +513,11 @@
     "PlaybackState": {
       "fields": {
         "bar": "int",
+        "beat": "int",
         "chord_index": "int|null",
         "playhead_offset": "int|null",
         "playing_span": "Span|null",
+        "sections": "list[TimelineSection]",
         "status": "PlaybackStatus",
         "total_bars": "int"
       },
@@ -645,6 +647,15 @@
         "undo": "UndoPolicy"
       },
       "kind": "event"
+    },
+    "TimelineSection": {
+      "fields": {
+        "first_bar": "int",
+        "label": "str",
+        "last_bar": "int",
+        "repeat": "bool"
+      },
+      "kind": "value"
     },
     "ToolbarState": {
       "fields": {

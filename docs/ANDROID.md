@@ -586,6 +586,15 @@ Kotlin DTOs/builders done 2026-10-29: `bridge/PlayerBridge.kt`):
   starts there; no chords: null), and moves with edits (re-snapped to a
   chord after detection). Send scrubbing as one `set_playhead` on release,
   not per step: while playing each one restarts the render.
+- *Timeline* (for the Qt desktop's scrubber; Android doesn't show it).
+  `PlaybackState.beat: int` is the beat of `bar` the chord sounding started
+  on (1-based, 0 when idle); like `bar` it counts from the top of the song.
+  `PlaybackState.sections: [TimelineSection {label, first_bar, last_bar,
+  repeat}]` covers bars 1 to the song's last bar in playing order: one per
+  `{label}`, a `repeat: true` one per extra `{loop}` pass, and `label: ""`
+  for the bars before the first label. It comes from the strip's rendered
+  song, so it is empty until the strip has rendered, and it stays while
+  idle.
 - *Status line.* On Android `StatusState.text` is position + activity while
   playback matters: `Bar 6/24 · Playing Em`, `Bar 6/24 · Paused`,
   `Starting…` (before the first chord sounds), and while idle the

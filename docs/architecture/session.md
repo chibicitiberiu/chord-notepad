@@ -204,7 +204,9 @@ MenuItem(label, value)
 DocumentState(display_name, location, is_modified, title, document_id, read_only)
 EditorState(font_family, font_size, read_only, notation, word_wrap)
 HighlightState(text_revision, client_token, spans)
-PlaybackState(status, playing_span, chord_index, bar, total_bars, playhead_offset)  # idle|playing|paused
+PlaybackState(status, playing_span, chord_index, bar, total_bars, playhead_offset,  # idle|playing|paused
+              beat, sections)
+TimelineSection(label, first_bar, last_bar, repeat)
 ToolbarState(notation, bpm, bpm_display, bpm_editable, multiplier_pct, key, key_options,
              beats, unit, metronome, play_action,                       # play|pause|resume
              bpm_set_by, time_set_by, key_set_by)                       # "{bpm: 90}" or None
@@ -437,7 +439,18 @@ chord, and while idle the playhead's bar ("Bar 6/24", from the strip's song
 or the last run's pings over the same text) or "Ready"; Android counts bars
 from the top of the song even when playback started later
 (`RenderedChord.song_bar`, carried in the pings as
-`PlaybackEventArgs.song_bar`), the desktop keeps its rebased bars.
+`PlaybackEventArgs.song_bar`), and so does the Qt desktop, in
+`PlaybackState.bar` and its "Bar n/N" status; the Tk desktop keeps its
+rebased bars (`platform.COUNTS_SONG_BARS`). `PlaybackState.beat` is the
+beat of that bar the chord started on (`RenderedChord.song_beat` or `beat`).
+
+**Timeline.** `PlaybackState.sections` is the song's timeline for a
+scrubber (`session/timeline.py`): the strip's rendered song's `section` and
+`loop` markers (`SongMarker.label`) placed on the bar of their first chord,
+tiling bars 1 to `total_bars`, with an unlabelled section for the bars
+before the first label and `repeat` on every pass after a loop's first. The
+session recomputes it when the strip's song changes and publishes it only
+when it changed; it isn't cleared when playback stops.
 
 **Defaults vs. the song's values** (Tibi, 2026-10-30). The Settings
 defaults (tempo, time signature, key) live in the config and only Settings

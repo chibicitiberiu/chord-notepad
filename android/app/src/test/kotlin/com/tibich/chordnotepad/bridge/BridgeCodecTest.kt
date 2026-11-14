@@ -44,6 +44,29 @@ class BridgeCodecTest {
         )
         assertEquals(Span(4, 6, SpanKind.CHORD), playing.playingSpan)
         assertEquals(16, playing.totalBars)
+        assertEquals(0, playing.beat)
+        assertEquals(emptyList<TimelineSection>(), playing.sections)
+    }
+
+    @Test
+    fun `playback state, beat and timeline sections`() {
+        val playing = decode<PlaybackState>(
+            "PlaybackState",
+            """{"status": "playing", "playing_span": null, "chord_index": 5, "bar": 7, "total_bars": 12,
+               "playhead_offset": 30, "beat": 3,
+               "sections": [{"label": "", "first_bar": 1, "last_bar": 2, "repeat": false},
+                            {"label": "chorus", "first_bar": 3, "last_bar": 6, "repeat": false},
+                            {"label": "chorus", "first_bar": 7, "last_bar": 12, "repeat": true}]}""",
+        )
+        assertEquals(3, playing.beat)
+        assertEquals(
+            listOf(
+                TimelineSection("", 1, 2),
+                TimelineSection("chorus", 3, 6),
+                TimelineSection("chorus", 7, 12, repeat = true),
+            ),
+            playing.sections,
+        )
     }
 
     @Test

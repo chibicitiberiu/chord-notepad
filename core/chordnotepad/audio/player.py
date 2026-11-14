@@ -712,6 +712,8 @@ class NotePlayer(IPlayer):
                     current_line=meta.get('line_index'),
                     current_bar=meta.get('bar'),
                     song_bar=meta.get('song_bar'),
+                    current_beat=meta.get('beat'),
+                    song_beat=meta.get('song_beat'),
                     tempo_clamp=meta.get('tempo_clamp'),
                     total_bars=meta.get('total_bars')
                 )

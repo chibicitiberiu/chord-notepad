@@ -60,6 +60,14 @@ class PlaybackEventArgs:
     """The bar counted from the top of the song (``current_bar`` restarts at
     1 when playback starts from a later chord); None if unknown."""
 
+    current_beat: Optional[float] = None
+    """Where in ``current_bar`` the chord starts, in beats from 1; None if
+    unknown."""
+
+    song_beat: Optional[float] = None
+    """Where in ``song_bar`` the chord starts, in beats from 1; None if
+    unknown."""
+
     tempo_clamp: Optional[Tuple[int, int]] = None
     """``(bpm, line_number)`` when the current tempo comes from a relative
     ``{bpm}`` change that was clamped to the app's range; None otherwise."""

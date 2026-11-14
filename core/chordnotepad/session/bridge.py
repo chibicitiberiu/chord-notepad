@@ -49,7 +49,8 @@ from chordnotepad.session.state import (
     IdentifierNote, IdentifierState, InstrumentFamily, InstrumentMenuState, MenuItem, PlayAction,
     PlaybackState, PlaybackStatus, RecentDocumentsState, SettingsProblem, SettingsState,
     SongDefault, SongDefaultsState, Span, SpanKind, StartupScreen, StartupState, StatusState,
-    ToolbarState, VoicingEditorState, VoicingGroup, VoicingMenuState, VoicingPreset,
+    TimelineSection, ToolbarState, VoicingEditorState, VoicingGroup, VoicingMenuState,
+    VoicingPreset,
 )
 
 logger = logging.getLogger(__name__)
@@ -77,7 +78,7 @@ REQUEST_TYPES: Tuple[type, ...] = (
 VALUE_TYPES: Tuple[type, ...] = (
     Span, MenuItem, InstrumentFamily, ChordSheetView, DocumentRef, SettingsValues,
     IdentifierNote, VoicingGroup, VoicingPreset, SettingsProblem, QuickStartPage, QuickStartBlock,
-    SongDefault,
+    SongDefault, TimelineSection,
 )
 ENUM_TYPES: Tuple[Type[Enum], ...] = (
     SpanKind, PlaybackStatus, PlayAction, UndoPolicy, DiscardChoice, PickMode, StartupScreen,

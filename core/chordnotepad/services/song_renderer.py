@@ -361,7 +361,7 @@ class SongRenderer:
             remaining = loop_stack[-1]['remaining']
             pass_num = count - remaining + 1
             self._emit_marker(
-                state, 'loop', f'{directive.label} ({pass_num}/{count})')
+                state, 'loop', f'{directive.label} ({pass_num}/{count})', directive.label)
             state['last_loop_beat'] = state['current_beat_position']
             self._restore_loop_state(directive.label, state)
             state['line_index'], state['item_index'] = label_pos
@@ -405,7 +405,7 @@ class SongRenderer:
         if (last_loop_beat is not None and
                 abs(last_loop_beat - state['current_beat_position']) < 1e-9):
             return
-        self._emit_marker(state, 'section', directive.label)
+        self._emit_marker(state, 'section', directive.label, directive.label)
 
     # ------------------------------------------------------------------
     # Tempo / meter / key change points (tempo/meter future-proof MIDI export;
@@ -474,7 +474,7 @@ class SongRenderer:
     # ------------------------------------------------------------------
     # Timeline markers (chord-sheet strip)
     # ------------------------------------------------------------------
-    def _emit_marker(self, state: dict, kind: str, text: str) -> None:
+    def _emit_marker(self, state: dict, kind: str, text: str, label: str = "") -> None:
         """Append a :class:`SongMarker` at the current beat/time position.
 
         Called from the single render walk, so markers land in walk order with
@@ -487,6 +487,7 @@ class SongRenderer:
             time=state['current_time_position'],
             kind=kind,
             text=text,
+            label=label,
         ))
 
     # ------------------------------------------------------------------
@@ -556,6 +557,8 @@ class SongRenderer:
             key=state['current_key'],
             bar=state['current_bar'],
             song_bar=state['total_bar_count'] + 1,
+            beat=state['beats_in_bar'] + 1,
+            song_beat=state['total_beats_in_bar'] + 1,
             is_rest=chord.is_rest,
             skipped=True,
             capo=state['current_capo'],
@@ -593,6 +596,8 @@ class SongRenderer:
                 key=state['current_key'],
                 bar=current_bar,
                 song_bar=state['total_bar_count'] + 1,
+                beat=state['beats_in_bar'] + 1,
+                song_beat=state['total_beats_in_bar'] + 1,
                 is_rest=True,
                 skipped=False,
                 capo=state['current_capo'],
@@ -626,6 +631,8 @@ class SongRenderer:
             key=state['current_key'],
             bar=current_bar,
             song_bar=state['total_bar_count'] + 1,
+            beat=state['beats_in_bar'] + 1,
+            song_beat=state['total_beats_in_bar'] + 1,
             is_rest=False,
             skipped=False,
             capo=state['current_capo'],

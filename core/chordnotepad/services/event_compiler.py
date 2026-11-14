@@ -73,6 +73,8 @@ def _compile_rest(
             'line_index': rc.line_index,
             'bar': rc.bar,
             'song_bar': rc.song_bar,
+            'beat': rc.beat,
+            'song_beat': rc.song_beat,
             'bpm': rc.bpm,
             'time_signature_beats': rc.time_sig[0],
             'time_signature_unit': rc.time_sig[1],
@@ -111,6 +113,8 @@ def _compile_chord(
             'line_index': rc.line_index,
             'bar': rc.bar,
             'song_bar': rc.song_bar,
+            'beat': rc.beat,
+            'song_beat': rc.song_beat,
             'bpm': rc.bpm,
             'time_signature_beats': rc.time_sig[0],
             'time_signature_unit': rc.time_sig[1],
@@ -131,6 +135,8 @@ def _compile_chord(
             'line_index': rc.line_index - 1,
             'bar': rc.bar,
             'song_bar': rc.song_bar,
+            'beat': rc.beat,
+            'song_beat': rc.song_beat,
         },
     )
     ticks = _build_metronome_ticks(

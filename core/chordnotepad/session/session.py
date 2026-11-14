@@ -22,6 +22,7 @@ import copy
 import dataclasses
 import functools
 import logging
+import math
 import os
 import weakref
 from pathlib import Path
@@ -38,7 +39,9 @@ from chordnotepad.exceptions import (
 from chordnotepad.models.notation import Notation
 from chordnotepad.models.playback_event import PlaybackEventArgs, PlaybackEventType
 from chordnotepad.session import directives, errors, formatting, quick_start, song_defaults, support, toolbar
-from chordnotepad.session.platform import ANDROID, DESKTOP, TRACKS_PLAYHEAD, check_platform, pick
+from chordnotepad.session.platform import (
+    ANDROID, COUNTS_SONG_BARS, DESKTOP, TRACKS_PLAYHEAD, check_platform, pick,
+)
 from chordnotepad.session.audio_policy import AudioFailurePolicy
 from chordnotepad.session.emitter import Emitter, Listener
 from chordnotepad.session.documents import DocumentRef
@@ -63,9 +66,10 @@ from chordnotepad.session.state import (
     ChordSheetState, ChordSheetView, DocumentState, EditorState, HighlightState,
     IdentifierNote, IdentifierState, InstrumentMenuState, MenuItem, PlayAction, PlaybackState,
     INACTIVE_VOICING_EDITOR, PlaybackStatus, RecentDocumentsState, SettingsState,
-    SongDefaultsState, Span, SpanKind, StartupScreen, StartupState, StatusState, ToolbarState,
-    VoicingMenuState,
+    SongDefaultsState, Span, SpanKind, StartupScreen, StartupState, StatusState,
+    TimelineSection, ToolbarState, VoicingMenuState,
 )
+from chordnotepad.session.timeline import song_sections
 
 if TYPE_CHECKING:
     # Type-only: the chord-sheet viewmodel still imports PIL (see the core
@@ -117,6 +121,13 @@ def _common_prefix(a: str, b: str) -> int:
     while i < n and a[i] == b[i]:
         i += 1
     return i
+
+
+def _beat_number(beat: Optional[float]) -> int:
+    """The 1-based beat a chord starting at ``beat`` (beats from 1) is on; 0 if unknown."""
+    if beat is None:
+        return 0
+    return max(1, math.floor(beat + 1e-9))
 
 
 def _shift_offset(old: str, new: str, offset: int) -> int:
@@ -325,6 +336,10 @@ class AppSession:
         # playback and taps (TRACKS_PLAYHEAD).
         self._tracks_playhead = pick(TRACKS_PLAYHEAD, self._platform)
         self._playhead: Optional[int] = None
+        # PlaybackState.bar/beat from the top of the song (COUNTS_SONG_BARS).
+        self._song_bars = pick(COUNTS_SONG_BARS, self._platform)
+        # The timeline's sections, from the strip's song (PlaybackState.sections).
+        self._sections: Tuple[TimelineSection, ...] = ()
         # Android's status line holds the playhead's position while idle; it
         # is refreshed only while the status still shows a position.
         self._position_status = False
@@ -2592,9 +2607,13 @@ class AppSession:
                 self._main.get_available_instruments(), current),
         ))
 
-    def _on_chord_sheet_song(self, _song: Any) -> None:
+    def _on_chord_sheet_song(self, song: Any) -> None:
         self._sheet_revision += 1
         self._publish_chord_sheet()
+        sections = song_sections(song)
+        if sections != self._sections:
+            self._sections = sections
+            self._publish_playback(self._playback)
         # The new song may know the playhead's bar.
         if self._position_status and self._playback.status is PlaybackStatus.IDLE:
             self._set_idle_status()
@@ -2751,7 +2770,8 @@ class AppSession:
         return 0, 0
 
     def _publish_playback(self, playback: PlaybackState) -> None:
-        playback = dataclasses.replace(playback, playhead_offset=self._playhead)
+        playback = dataclasses.replace(playback, playhead_offset=self._playhead,
+                                       sections=self._sections)
         self._playback = playback
         if playback.status is PlaybackStatus.IDLE:
             self._effective_bpm = None
@@ -2898,11 +2918,12 @@ class AppSession:
         if not (is_chord_start and chord is not None):
             self._publish_toolbar()
             return
-        # Android counts bars from the top of the song even when playback
-        # started later (the desktop's status restarts at bar 1 there).
-        bar = event.current_bar
-        if self._android and event.song_bar:
-            bar = event.song_bar
+        # Android and the Qt desktop count bars from the top of the song even
+        # when playback started later (the Tk desktop's status restarts at
+        # bar 1 there).
+        bar, beat = event.current_bar, event.current_beat
+        if self._song_bars and event.song_bar:
+            bar, beat = event.song_bar, event.song_beat
             if self._ping_bars_revision != self._revision:
                 self._ping_bars = {}
                 self._ping_bars_revision = self._revision
@@ -2916,6 +2937,7 @@ class AppSession:
             playing_span=Span(chord.start, chord.end, SpanKind.CHORD),
             chord_index=event.chord_index,
             bar=bar,
+            beat=_beat_number(beat),
             total_bars=event.total_bars,
         ))
         if self._android:
@@ -2924,7 +2946,7 @@ class AppSession:
                 event.tempo_clamp, formatting.POSITION_SEPARATOR))
         else:
             self._set_status(formatting.with_tempo_clamp(formatting.playing_chord_status(
-                event.current_bar, event.total_bars, event.bpm,
+                bar, event.total_bars, event.bpm,
                 event.time_signature_beats, event.time_signature_unit, event.key, chord.chord),
                 event.tempo_clamp, " | "))
 

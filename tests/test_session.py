@@ -73,7 +73,7 @@ def load(env, text):
 def test_type_text_no_spans_before_the_debounce_spans_after(env):
     assert env.recorder.compact() == [
         ("HighlightState", 0, 0, ()),
-        ("PlaybackState", "idle", None, None, 0, 0, None),
+        ("PlaybackState", "idle", None, None, 0, 0, None, 0, ()),
         ("StatusState", "Ready"),
         ("EditorState", "TkFixedFont", 11, False, "american", False),
         ("ToolbarState", "american", 120, 120, True, 100.0, "C", 4, 4, False, "play", None, None, None),

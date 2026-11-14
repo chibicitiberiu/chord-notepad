@@ -47,3 +47,9 @@ def pick(variants: Mapping[str, T], platform: str) -> T:
 #: ``set_playhead``/``rewind`` (which the Tk window never sends) and Play
 #: keeps starting at the top.
 TRACKS_PLAYHEAD = {DESKTOP: False, ANDROID: True, DESKTOP_QT: True}
+
+#: Whether ``PlaybackState.bar`` and ``beat`` (and the desktop's "Bar n/N"
+#: status) count from the top of the song. Android's status and the Qt
+#: desktop's timeline do; the Tk desktop's status restarts at bar 1 where
+#: playback started, as it always has.
+COUNTS_SONG_BARS = {DESKTOP: False, ANDROID: True, DESKTOP_QT: True}

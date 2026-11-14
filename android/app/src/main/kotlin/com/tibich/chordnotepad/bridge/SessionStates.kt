@@ -24,6 +24,19 @@ enum class PlaybackStatus {
     @SerialName("paused") PAUSED,
 }
 
+/**
+ * One stretch of the song's timeline, in bars counted from the top of the
+ * song. [label] is "" for the bars before the first label; [repeat] marks a
+ * pass a loop repeats. Sent for a scrubber; Android doesn't show it yet.
+ */
+@Serializable
+data class TimelineSection(
+    val label: String,
+    @SerialName("first_bar") val firstBar: Int,
+    @SerialName("last_bar") val lastBar: Int,
+    val repeat: Boolean = false,
+)
+
 /** Song playback: the transport status and the chord sounding now. */
 @Serializable
 data class PlaybackState(
@@ -39,6 +52,10 @@ data class PlaybackState(
      * (no chords). Follows playback; `set_playhead`, `rewind`, taps move it.
      */
     @SerialName("playhead_offset") val playheadOffset: Int? = null,
+    /** The beat of [bar] the chord sounding started on, 1-based; 0 when idle. */
+    val beat: Int = 0,
+    /** The song's sections, bar 1 to the last bar; empty until the chord sheet rendered. */
+    val sections: List<TimelineSection> = emptyList(),
 ) : SessionState
 
 /** What the Play/Pause button does when pressed. */

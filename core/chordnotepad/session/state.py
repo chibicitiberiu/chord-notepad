@@ -78,6 +78,25 @@ class PlaybackStatus(str, Enum):
 
 
 @dataclass(frozen=True)
+class TimelineSection:
+    """One stretch of the song's timeline (the Qt player's scrubber).
+
+    Attributes:
+        label: The ``{label}`` it starts at, or ``""`` for the bars before
+            the first label (or a song without labels).
+        first_bar: Its first bar, 1-based, counted from the top of the song.
+        last_bar: Its last bar (inclusive).
+        repeat: True for a pass a ``{loop}`` repeats (the second and later
+            passes; the first is a plain section).
+    """
+
+    label: str
+    first_bar: int
+    last_bar: int
+    repeat: bool = False
+
+
+@dataclass(frozen=True)
 class PlaybackState:
     """Song playback: the transport status and the chord that is sounding.
 
@@ -88,15 +107,25 @@ class PlaybackState:
             first chord.
         chord_index: Index of that chord in the played song's unrolled chord
             list (loop passes have distinct indices), or None.
-        bar: The current bar, 1-based (0 when idle).
+        bar: The current bar, 1-based (0 when idle). On Android and the Qt
+            desktop counted from the top of the song; on the Tk desktop from
+            where playback started (``platform.COUNTS_SONG_BARS``).
         total_bars: Bars in the played song (0 when idle).
         playhead_offset: Where the playhead is: the start of the chord Play
             starts from (``play_pause`` without an offset), in code points;
             None for no playhead (Play starts at the top). Set with
-            ``set_playhead`` or ``rewind``; on Android also by chord taps,
-            by playback (it follows the chord sounding) and by the end of
-            the song (back to the first chord). Kept on chord spans across
-            edits.
+            ``set_playhead`` or ``rewind``; on Android and the Qt desktop
+            also by chord taps, by playback (it follows the chord sounding)
+            and by the end of the song (back to the first chord). Kept on
+            chord spans across edits.
+        beat: The beat of ``bar`` the chord sounding started on, 1-based (a
+            chord starting halfway through beat 2 is on beat 2); 0 when idle
+            or before the first chord.
+        sections: The song's timeline: consecutive sections that cover bars
+            1 to the song's last bar, in playing order (a looped section
+            appears once per pass). From the chord sheet's song, so empty
+            until the sheet has rendered the song (it renders while it is
+            shown) and for a song without chords. Kept while idle.
 
     The effective tempo of the chord sounding is the toolbar's
     (``ToolbarState.bpm_display``).
@@ -108,6 +137,8 @@ class PlaybackState:
     bar: int = 0
     total_bars: int = 0
     playhead_offset: Optional[int] = None
+    beat: int = 0
+    sections: Tuple[TimelineSection, ...] = ()
 
 
 class PlayAction(str, Enum):

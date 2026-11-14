@@ -73,6 +73,15 @@ class RenderedChord:
     song, never rebased (``bar`` restarts at 1 when playback starts later);
     skipped chords have it too. 0 if unknown."""
 
+    beat: float = 1.0
+    """Where in ``bar`` the chord starts, in beats from 1 (``2.5`` is halfway
+    through the second beat); rebased with ``bar``."""
+
+    song_beat: float = 1.0
+    """Where in ``song_bar`` the chord starts, in beats from 1; never
+    rebased, so it differs from ``beat`` only when playback started in the
+    middle of a bar."""
+
     tempo_clamp: Optional[Tuple[int, int]] = None
     """``(bpm, line_number)`` when the tempo this chord plays at came from a
     relative ``{bpm}`` change that had to be clamped to the app's range (the
@@ -150,6 +159,10 @@ class SongMarker:
     text: str
     """Display text, e.g. ``'chorus'``, ``'chorus (2/3)'``, ``'140 bpm'``,
     ``'3/4'``."""
+
+    label: str = ""
+    """For ``'section'`` and ``'loop'`` markers, the label they belong to
+    (``'chorus'`` for both examples above); empty for the other kinds."""
 
 
 @dataclass
