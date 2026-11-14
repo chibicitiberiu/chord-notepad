@@ -1,8 +1,9 @@
 Chord Notepad is free software under the GNU Affero General Public License 3.0.
 Some of the components it is built from are under the GNU LGPL or GPL
-(FluidSynth, GLib, libsndfile and pyFluidSynth among them) or the Mozilla
-Public License (certifi). Their licences entitle you to the source code of the
-exact versions in this app. Here is where to get it.
+(Qt, PySide6, FluidSynth, GLib, libsndfile and pyFluidSynth among them) or
+the Mozilla Public License (certifi, and the public suffix list in Qt).
+Their licences entitle you to the source code of the exact versions in
+this app. Here is where to get it.
 
 Every release at https://github.com/chibicitiberiu/chord-notepad/releases
 carries two source files next to the downloads:
@@ -13,8 +14,9 @@ carries two source files next to the downloads:
 
   ChordNotepad-<version>-third-party-sources.tar
       The source of every LGPL, GPL and MPL component listed here, for the
-      Windows, macOS, Linux and Flatpak builds. For Windows it also holds the
-      unmodified upstream FluidSynth package the DLLs come from. The Linux
+      Windows, macOS, Linux and Flatpak builds, Qt's and PySide6's source
+      archives among them. For Windows it also holds the unmodified
+      upstream FluidSynth package the DLLs come from. The Linux
       binary and the snap take their libraries from Ubuntu: the bundle holds
       the Ubuntu source packages of the GPL and LGPL ones and lists every
       Ubuntu package with its exact version; Ubuntu keeps every published
@@ -30,6 +32,32 @@ no more than the cost of making and sending it. Ask by email or on GitHub:
 
   Email: chibicitiberiu@gmail.com
   GitHub: https://github.com/chibicitiberiu/chord-notepad/issues
+
+Using your own Qt or PySide6: the Qt window is drawn with Qt (LGPL 3.0)
+through PySide6 and Shiboken6 (LGPL 3.0), as shipped in the PySide6-Essentials
+6.12.0 wheels, unchanged. They are shared libraries that Chord Notepad loads
+at run time, and Chord Notepad's own source and build scripts are in the
+source file above, so you can use it with your own build of them:
+
+  - Run it from source: in a Python environment with Chord Notepad's other
+    dependencies (Pipfile) and your PySide6, run
+    PYTHONPATH=core:desktop python -m chordnotepad_tk.main --ui qt
+    in the source folder.
+  - Build a package with them: install your PySide6 into the build
+    environment instead of the wheel and run the same build (make build for
+    the Windows, macOS and Linux downloads; with CHORD_NOTEPAD_ONEDIR=1 it
+    makes a folder, with the Qt libraries as separate files), or build the
+    Flatpak (make flatpak) or the snap (snap/snapcraft.yaml) from their
+    manifests.
+  - In the macOS app the Qt libraries are separate files under
+    Chord Notepad.app/Contents/Frameworks/PySide6/Qt/lib. You can replace
+    them with a build of the same Qt version, then sign the app again
+    (codesign --force --deep --sign - "Chord Notepad.app").
+
+The single-file Windows and Linux downloads unpack their libraries into a
+temporary folder at every start, and the Microsoft Store edition, the
+Flatpak and the snap are installed read-only, so for those use one of the
+first two ways.
 
 Using your own FluidSynth: the LGPL libraries (FluidSynth and the GLib,
 libintl and libsndfile libraries it uses) are loaded at run time, not built

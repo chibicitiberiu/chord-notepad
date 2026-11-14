@@ -158,6 +158,21 @@ def test_the_qt_notices_follow_what_the_shipped_libraries_contain():
         assert not (ids[key] & ids["common"]) or key == "common", key
 
 
+def test_the_source_offer_says_how_to_use_your_own_qt():
+    """LGPL 3.0 section 4(d): the user can relink the app with a modified Qt."""
+    offer = (LICENSES / "SOURCE-OFFER.txt").read_text(encoding="utf-8")
+    assert "Using your own Qt or PySide6" in offer
+    assert "python -m chordnotepad_tk.main --ui qt" in offer and "CHORD_NOTEPAD_ONEDIR=1" in offer
+    spec = (REPO / "chord-notepad.spec").read_text(encoding="utf-8")
+    assert "os.environ.get('CHORD_NOTEPAD_ONEDIR') == '1'" in spec
+    # The third-party sources bundle carries the archives of every Qt part shipped.
+    files = {s["file"] for cid in ("qt", "qt-wayland", "pyside6-essentials") for s in BY_ID[cid]["sources"]}
+    assert {"qtbase-everywhere-src-6.12.0.tar.xz", "qtdeclarative-everywhere-src-6.12.0.tar.xz",
+            "qtsvg-everywhere-src-6.12.0.tar.xz", "qtwayland-everywhere-src-6.12.0.tar.xz",
+            "pyside-setup-everywhere-src-6.12.0.tar.xz"} == files
+    assert BY_ID["qt-third-party"]["version"] == BY_ID["qt"]["version"] == BY_ID["pyside6-essentials"]["version"]
+
+
 def test_the_qt_notice_texts_match_qt_s_attribution_files():
     """Regenerated from Qt's source archives when they are cached (build/licence-sources)."""
     from licence_sources import sha256_of
