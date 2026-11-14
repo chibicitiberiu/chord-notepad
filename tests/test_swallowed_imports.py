@@ -20,6 +20,7 @@ REPO = Path(__file__).resolve().parent.parent
 ROOTS = {
     "chordnotepad": REPO / "core" / "chordnotepad",
     "chordnotepad_tk": REPO / "desktop" / "chordnotepad_tk",
+    "chordnotepad_desktop": REPO / "desktop" / "chordnotepad_desktop",
     "chordnotepad_android": REPO / "android" / "app" / "src" / "main" / "python" / "chordnotepad_android",
 }
 

@@ -2,9 +2,20 @@
 """
 Chord Notepad - A simple text editor with chord detection and playback
 
-Entry point for the application.
+Entry point for the application, for both desktop front ends:
+``--ui tk`` (the default, the Tk window in this package) or ``--ui qt``
+(the Qt Quick window in ``chordnotepad_desktop``, while it is being built).
+
+The front end is chosen here, in the entry point every build already runs
+(the PyInstaller spec, ``make run``, the Flatpak and snap launchers), so the
+packaging stays as it is until the switch. The setup above the choice (the
+resolved paths, the Windows FluidSynth DLL folder, the std streams) is the
+same for both. When the Tk front end goes, this file and ``desktop_paths``
+move into ``chordnotepad_desktop``.
 """
 
+import argparse
+import importlib.util
 import os
 import sys
 
@@ -40,12 +51,45 @@ from chordnotepad.utils.std_streams import ensure_std_streams
 # Before anything else is imported: see utils/std_streams.py.
 ensure_std_streams()
 
-from chordnotepad_tk.application import Application
+#: The front ends ``--ui`` chooses from; the first is the default.
+FRONT_ENDS = ("tk", "qt")
 
 
-def main():
-    """Thin wrapper that delegates to Application.main()"""
-    exit_code = Application.main(APP_PATHS)
+def parse_ui(argv):
+    """Split ``--ui tk|qt`` off the command line.
+
+    Returns:
+        ``(front end, the other arguments)``. The rest is left alone (Qt
+        reads options such as ``-platform`` itself).
+    """
+    parser = argparse.ArgumentParser(prog="chord-notepad", add_help=False)
+    parser.add_argument("--ui", choices=FRONT_ENDS, default=FRONT_ENDS[0],
+                        help="the desktop front end (default: %(default)s)")
+    known, rest = parser.parse_known_args(argv)
+    return known.ui, rest
+
+
+def run_qt(argv) -> int:
+    """Start the Qt Quick front end, or say why it can't start."""
+    if importlib.util.find_spec("PySide6") is None:
+        # A build that bundles only Tk (every build until the switch), or a
+        # venv without the dev packages.
+        print("chord-notepad: --ui qt needs PySide6, which this build doesn't include "
+              "(run from source after `pipenv install --dev`).", file=sys.stderr)
+        return 2
+    from chordnotepad_desktop.main import run
+    return run(APP_PATHS, argv)
+
+
+def main(argv=None):
+    """Start the front end ``--ui`` names (Tk by default) and exit with its code."""
+    ui, rest = parse_ui(sys.argv[1:] if argv is None else argv)
+    if ui == "qt":
+        exit_code = run_qt(rest)
+    else:
+        # Imported here: it loads tkinter, which --ui qt never needs.
+        from chordnotepad_tk.application import Application
+        exit_code = Application.main(APP_PATHS)
     sys.exit(exit_code)
 
 
