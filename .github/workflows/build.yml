@@ -187,11 +187,18 @@ jobs:
         with:
           python-version: '3.14'
 
+      # The xcb, xkbcommon, Wayland, EGL/GL, fontconfig and Kerberos
+      # libraries are what the Qt libraries link: PyInstaller bundles the
+      # ones it finds, so they must be on the runner. xvfb: the Qt smoke tests.
       - name: Install system dependencies (Linux)
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y fluidsynth libfluidsynth3
+          sudo apt-get install -y fluidsynth libfluidsynth3 xvfb xauth \
+            libxcb-cursor0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-randr0 \
+            libxcb-render-util0 libxcb-shape0 libxcb-shm0 libxcb-sync1 libxcb-xfixes0 libxcb-xkb1 \
+            libxkbcommon0 libxkbcommon-x11-0 libx11-xcb1 libwayland-client0 libwayland-cursor0 \
+            libwayland-egl1 libegl1 libgl1 libfontconfig1 libdbus-1-3 libgssapi-krb5-2
 
       # libfluidsynth goes inside the app (FLUIDSYNTH_PATH is read by the spec),
       # built from the pinned source with no Homebrew dependencies.
@@ -416,6 +423,12 @@ jobs:
           mv ChordNotepad ${{ matrix.asset_name }}
           chmod +x ${{ matrix.asset_name }}
 
+      # The Qt window (--ui qt) loads, shows and quits on a virtual X server,
+      # exit 1 on a QML warning. Tk, the default, isn't started here.
+      - name: Smoke-test the Qt window (Linux binary)
+        if: runner.os == 'Linux'
+        run: xvfb-run --auto-servernum --server-args="-screen 0 1280x800x24" env QT_QPA_PLATFORM=xcb dist/${{ matrix.asset_name }} --ui qt --smoke
+
       - name: Prepare artifact (macOS)
         if: runner.os == 'macOS'
         run: packaging/macos/make_dmg.sh "dist/Chord Notepad.app" "dist/${{ matrix.asset_name }}"
@@ -425,11 +438,20 @@ jobs:
         if: runner.os == 'macOS'
         run: packaging/macos/smoke_test.sh "dist/${{ matrix.asset_name }}"
 
+      - name: Smoke-test the Qt window (macOS)
+        if: runner.os == 'macOS'
+        run: packaging/macos/smoke_test_qt.sh "dist/${{ matrix.asset_name }}"
+
       - name: Prepare artifact (Windows)
         if: runner.os == 'Windows'
         run: |
           cd dist
           Move-Item ChordNotepad.exe ${{ matrix.asset_name }}
+
+      - name: Smoke-test the Qt window (Windows exe)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./packaging/windows/smoke_test_qt.ps1 -Exe "dist/${{ matrix.asset_name }}"
 
       # --- Code signing (Windows) -------------------------------------------
       # Sign the final .exe with Azure Trusted Signing so Windows stops flagging
@@ -532,6 +554,10 @@ jobs:
         if: runner.os == 'Linux'
         run: make snap-check LINUX_ARCH=${{ matrix.linux_arch }}
 
+      - name: Smoke-test the Qt window (snap)
+        if: runner.os == 'Linux'
+        run: xvfb-run --auto-servernum --server-args="-screen 0 1280x800x24" make snap-qt-check LINUX_ARCH=${{ matrix.linux_arch }}
+
       - name: Upload snap
         if: runner.os == 'Linux'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -586,6 +612,10 @@ jobs:
       - name: Smoke-test Flatpak bundle
         if: runner.os == 'Linux'
         run: make flatpak-check LINUX_ARCH=${{ matrix.linux_arch }}
+
+      - name: Smoke-test the Qt window (Flatpak)
+        if: runner.os == 'Linux'
+        run: xvfb-run --auto-servernum --server-args="-screen 0 1280x800x24" make flatpak-qt-check LINUX_ARCH=${{ matrix.linux_arch }}
 
       - name: Upload Flatpak bundle
         if: runner.os == 'Linux'
@@ -664,6 +694,13 @@ jobs:
             -Package $env:MSIX_PATH `
             -IdentityName $env:MSIX_IDENTITY `
             -Publisher $env:MSIX_PUBLISHER
+
+      # The onedir build the MSIX is made of, started outside the package
+      # (the same files, without the package identity).
+      - name: Smoke-test the Qt window (Store build)
+        if: runner.os == 'Windows' && (startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch')
+        shell: pwsh
+        run: ./packaging/windows/smoke_test_qt.ps1 -Exe dist-store/ChordNotepad/ChordNotepad.exe
 
   build-pdf-docs:
     name: Build PDF Documentation

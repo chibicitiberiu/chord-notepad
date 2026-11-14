@@ -260,3 +260,38 @@ def test_ci_runs_the_qt_tests_offscreen_and_fails_when_they_would_skip():
     assert qt["env"] == {"QT_QPA_PLATFORM": "offscreen", "QT_QUICK_BACKEND": "software"}
     assert "pytest tests/qt" in qt["run"] and "import PySide6.QtGui" in qt["run"]
     assert "Qt not available|qmllint not installed" in qt["run"]
+
+
+@pytest.mark.parametrize("step, command", [
+    ("Smoke-test the Qt window (Linux binary)", "--ui qt --smoke"),
+    ("Smoke-test the Qt window (macOS)", "packaging/macos/smoke_test_qt.sh"),
+    ("Smoke-test the Qt window (Windows exe)", "packaging/windows/smoke_test_qt.ps1"),
+    ("Smoke-test the Qt window (snap)", "make snap-qt-check"),
+    ("Smoke-test the Qt window (Flatpak)", "make flatpak-qt-check"),
+    ("Smoke-test the Qt window (Store build)", "packaging/windows/smoke_test_qt.ps1"),
+])
+def test_every_package_the_build_job_makes_starts_the_qt_window(step, command):
+    build = _job("build")
+    names = [s.get("name") for s in build["steps"]]
+    assert command in _step(build, step)["run"]
+    # Right after the step that makes or checks that package, so a Qt failure points at it.
+    before = {"(Linux binary)": "Prepare artifact (Linux)", "(macOS)": "Smoke-test disk image (macOS)",
+              "(Windows exe)": "Prepare artifact (Windows)", "(snap)": "Smoke-test snap",
+              "(Flatpak)": "Smoke-test Flatpak bundle", "(Store build)": "Smoke-test Store package"}
+    previous = next(v for k, v in before.items() if step.endswith(k))
+    assert names.index(step) == names.index(previous) + 1
+    if "xvfb-run" in _step(build, step)["run"]:
+        assert "xvfb" in _step(build, "Install system dependencies (Linux)")["run"]
+
+
+def test_the_linux_build_runner_has_the_libraries_pyinstaller_bundles_for_qt():
+    installed = _step(_job("build"), "Install system dependencies (Linux)")["run"]
+    for package in ("libxcb-cursor0", "libxkbcommon-x11-0", "libxcb-icccm4", "libegl1", "libgssapi-krb5-2"):
+        assert package in installed, package
+
+
+def test_the_make_targets_the_build_job_calls_exist():
+    makefile = (REPO / "Makefile").read_text(encoding="utf-8")
+    assert "\nflatpak-qt-check:\n" in makefile and "\nsnap-qt-check:\n" in makefile
+    # Never the real ~/.var/app: a throwaway HOME and a private session bus.
+    assert "HOME=$(CURDIR)/build/flatpak-qt-home" in makefile and "dbus-run-session --" in makefile
