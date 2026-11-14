@@ -46,10 +46,11 @@ jobs:
         with:
           python-version: '3.14'
 
+      # xvfb and xauth: xvfb-run below gives the Tk tests a display.
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y fluidsynth libfluidsynth3
+          sudo apt-get install -y fluidsynth libfluidsynth3 xvfb xauth
 
       # Pinned to the pipenv that wrote Pipfile.lock: newer ones hash the Pipfile
       # differently, call the lock out of date and re-lock to newer packages.
@@ -61,8 +62,11 @@ jobs:
       - name: Install dependencies
         run: pipenv sync --dev
 
+      # The Tk tests skip without a display, so they run on a virtual X
+      # server (the screen the local Xvfb runs use). Goes when the Tk
+      # front end does.
       - name: Run tests
-        run: pipenv run pytest tests/ -v
+        run: xvfb-run --auto-servernum --server-args="-screen 0 1280x800x24" pipenv run pytest tests/ -v
 
       # Both editions of the User Guide must build without warnings (e.g. a
       # screenshot missing for one edition). docs/HELP_AUTHORING.md.

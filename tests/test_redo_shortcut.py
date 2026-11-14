@@ -56,7 +56,10 @@ def test_ctrl_y_redoes_in_the_editor():
         editor.edit_separator()
         editor.edit_undo()
         assert editor.get_text() == ""
-        editor.focus_set()
+        # focus_force, not focus_set: without a window manager the X focus
+        # follows the pointer, which may not be over the window, and Tk drops
+        # key events for an app without focus.
+        editor.focus_force()
         root.update()
         editor.event_generate("<Control-Key-y>", keysym="y", when="now")
         root.update()

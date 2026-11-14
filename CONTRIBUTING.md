@@ -42,6 +42,9 @@ and what licence it's under, so it can be checked and credited.
 - Run the tests: `make test`. If you changed how chords are read, transposed
   or converted, also run `make fuzz` (the long fuzz and exhaustive tests,
   about 10 minutes; they don't run in CI).
+- The Tk tests need a display and skip without one. CI runs the suite under
+  `xvfb-run`; on a headless machine, start an Xvfb (`Xvfb :97 -screen 0
+  1280x800x24 &`) and run with `DISPLAY=:97`.
 - Add or update tests for what you changed.
 - If you changed what users see, update the user guide in `help/`
   (see [docs/HELP_AUTHORING.md](docs/HELP_AUTHORING.md)) and check that
