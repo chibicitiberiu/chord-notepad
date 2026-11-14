@@ -8,6 +8,7 @@ from typing import List, Optional, Literal, Dict
 from chordnotepad.constants import DEFAULT_UI_THEME, LOG_LEVELS, MAX_BPM, MIN_BPM, UI_THEMES
 from chordnotepad.models.notation import american_key
 from chordnotepad.models.ensemble_spec import BUILTIN_ENSEMBLES
+from chordnotepad.models import window_geometry as neutral_geometry
 
 logger = logging.getLogger(__name__)
 
@@ -49,9 +50,14 @@ class Config:
     notation: Literal["american", "european"] = "american"
     key: str = "C"  # Default key, always American spelling ("G", not "Sol"); "" for none
 
-    # Window
-    window_geometry: str = "900x600"
+    # Window. ``window_geometry`` is Tk's "WxH+X+Y" in Tk's pixels;
+    # ``window_bounds`` the Qt window's {"width", "height", "x", "y"} in
+    # logical pixels (None until Qt saves, and again after Tk does); see
+    # models/window_geometry.py for how both front ends keep them in step.
+    window_geometry: str = neutral_geometry.TK_DEFAULT_GEOMETRY
     window_maximized: bool = False
+    window_bounds: Optional[Dict[str, Optional[int]]] = field(
+        default_factory=lambda: dict(neutral_geometry.DEFAULT_BOUNDS))
 
     # Files
     recent_files: List[str] = field(default_factory=list)
@@ -74,6 +80,8 @@ class Config:
     chord_sheet_visible: bool = False  # Whether the chord sheet panel is shown
     chord_sheet_view: str = "keyboard"  # Active renderer id ('keyboard', 'staff', 'fret', 'tab')
     chord_sheet_height: int = 160      # Panel height in pixels (paned-window sash position)
+    # The Qt Edit sheet's height in logical pixels (None: from chord_sheet_height).
+    chord_sheet_logical_height: Optional[int] = 160
     # Per-view display zoom factors, keyed by renderer id (only non-1.0 entries
     # are stored). Values are clamped to [0.5, 2.5]; junk is dropped on load.
     chord_sheet_zoom: Dict[str, float] = field(default_factory=dict)
@@ -125,6 +133,7 @@ class Config:
             "key": american_key(self.key),
             "window_geometry": self.window_geometry,
             "window_maximized": self.window_maximized,
+            "window_bounds": self.window_bounds,
             "recent_files": self.recent_files,
             "max_recent_files": self.max_recent_files,
             "soundfont_path": self.soundfont_path,
@@ -135,6 +144,7 @@ class Config:
             "chord_sheet_visible": self.chord_sheet_visible,
             "chord_sheet_view": self.chord_sheet_view,
             "chord_sheet_height": self.chord_sheet_height,
+            "chord_sheet_logical_height": self.chord_sheet_logical_height,
             "chord_sheet_zoom": self.chord_sheet_zoom,
         }
 
@@ -185,6 +195,11 @@ class Config:
             key=american_key(data.get("key", "C")),
             window_geometry=data.get("window_geometry", "900x600"),
             window_maximized=data.get("window_maximized", False),
+            # A first start has the neutral defaults; a config Tk wrote
+            # before there was a Qt window has none (Qt migrates Tk's values).
+            window_bounds=(cls._window_bounds(data["window_bounds"]) if "window_bounds" in data
+                           else None if "window_geometry" in data
+                           else dict(neutral_geometry.DEFAULT_BOUNDS)),
             recent_files=data.get("recent_files", []),
             max_recent_files=data.get("max_recent_files", 10),
             soundfont_path=data.get("soundfont_path"),
@@ -195,8 +210,18 @@ class Config:
             chord_sheet_visible=data.get("chord_sheet_visible", False),
             chord_sheet_view=data.get("chord_sheet_view", "keyboard"),
             chord_sheet_height=data.get("chord_sheet_height", 160),
+            chord_sheet_logical_height=(
+                neutral_geometry.height_from_config(data["chord_sheet_logical_height"])
+                if "chord_sheet_logical_height" in data
+                else None if "chord_sheet_height" in data else 160),
             chord_sheet_zoom=cls._sanitize_chord_sheet_zoom(data.get("chord_sheet_zoom")),
         )
+
+    @staticmethod
+    def _window_bounds(raw) -> Optional[Dict[str, Optional[int]]]:
+        """The saved ``window_bounds`` cleaned up; None for junk."""
+        bounds = neutral_geometry.bounds_from_config(raw)
+        return None if bounds is None else neutral_geometry.bounds_to_config(bounds)
 
     @staticmethod
     def _one_of(raw, choices, default):

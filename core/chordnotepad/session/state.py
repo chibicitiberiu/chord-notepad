@@ -317,7 +317,9 @@ class ChordSheetState:
 
     Attributes:
         visible: Whether the strip is shown.
-        height: Its height in pixels (desktop; kept across runs).
+        height: Its height, kept across runs: Tk's pixels on the desktop
+            (the Qt window reads ``AppSession.logical_chord_sheet_height``
+            instead), dp on Android.
         active_view: The view shown.
         views: Every view, in tab order, with its availability.
         disabled_reason: Why the unavailable views are unavailable, or None.

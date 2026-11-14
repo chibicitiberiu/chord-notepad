@@ -13,6 +13,8 @@ from chordnotepad.models.chord import ChordInfo
 from chordnotepad.chord.detector import guess_notation
 from chordnotepad.models.notation import Notation, spell_key
 from chordnotepad.models.playback_event import PlaybackEventArgs, PlaybackEventType
+from chordnotepad.models import window_geometry as neutral_geometry
+from chordnotepad.models.window_geometry import WindowGeometry
 
 logger = logging.getLogger(__name__)
 
@@ -1112,12 +1114,18 @@ class MainWindowViewModel(Observable):
         return self._is_modified
 
     def set_window_geometry(self, geometry: str) -> None:
-        """Save window geometry to configuration.
+        """Save window geometry to configuration (the Tk window).
+
+        Tk's string is then the whole story: the Qt window's neutral bounds
+        and its maximized flag are dropped, so Qt migrates from this string
+        next time (``models/window_geometry.py``).
 
         Args:
             geometry: Window geometry string (e.g., "900x600+100+100")
         """
         self._config.set("window_geometry", geometry)
+        self._config.set("window_bounds", None)
+        self._config.set("window_maximized", False)
 
     def get_window_geometry(self) -> str:
         """Get saved window geometry.
@@ -1126,6 +1134,32 @@ class MainWindowViewModel(Observable):
             Window geometry string
         """
         return self._config.get("window_geometry", "900x600")
+
+    def get_logical_window_geometry(self, scale: float) -> WindowGeometry:
+        """The Qt window's saved geometry in logical pixels (migrated from
+        Tk's string when Qt hasn't saved one; ``scale``: Tk pixels per
+        logical pixel)."""
+        return neutral_geometry.saved_geometry(
+            self._config.get("window_bounds", None),
+            self._config.get("window_geometry", neutral_geometry.TK_DEFAULT_GEOMETRY),
+            self._config.get("window_maximized", False), scale)
+
+    def set_logical_window_geometry(self, geometry: WindowGeometry, scale: float) -> None:
+        """Save the Qt window's normal geometry (logical pixels) and whether
+        it is maximized; Tk's string follows, so ``--ui tk`` opens there too.
+
+        Raises:
+            ValueError: For a side below 1, half a place or a bad scale.
+        """
+        if not isinstance(geometry, WindowGeometry):
+            raise ValueError(f"expected a WindowGeometry, not {geometry!r}")
+        bounds = neutral_geometry.bounds_from_config(neutral_geometry.bounds_to_config(geometry))
+        if bounds is None or bounds.has_position != (geometry.x is not None or geometry.y is not None):
+            raise ValueError(f"not a window geometry: {geometry!r}")
+        current = self._config.get("window_geometry", neutral_geometry.TK_DEFAULT_GEOMETRY)
+        self._config.set("window_geometry", neutral_geometry.tk_geometry_for(bounds, scale, current))
+        self._config.set("window_bounds", neutral_geometry.bounds_to_config(bounds))
+        self._config.set("window_maximized", bool(geometry.maximized))
 
     def get_show_quick_start_on_startup(self) -> bool:
         """Get whether to show quick start dialog on startup.

@@ -31,7 +31,9 @@ from typing import (
     TypeVar,
 )
 
-from chordnotepad.constants import CHORD_DETECTION_DEBOUNCE_MS, MAX_FONT_SIZE, MIN_FONT_SIZE
+from chordnotepad.constants import (
+    CHORD_DETECTION_DEBOUNCE_MS, DEFAULT_CHORD_SHEET_HEIGHT, MAX_FONT_SIZE, MIN_FONT_SIZE,
+)
 from chordnotepad.exceptions import (
     AudioInitializationError, ChordNotepadError, ConfigurationError, FileOperationError,
     RenameNotSupported,
@@ -52,6 +54,7 @@ from chordnotepad.session.events import (
     UnexpectedError,
     UserError, VoicingEditorSchema,
 )
+from chordnotepad.models.window_geometry import WindowGeometry, check_scale
 from chordnotepad.session.flows import Flow, FlowRunner
 from chordnotepad.session.highlighting import (
     chord_at, compute_spans, directive_hint, first_chord, nearest_chord)
@@ -1852,8 +1855,54 @@ class AppSession:
 
     @_command
     def set_window_geometry(self, geometry: str) -> None:
-        """Remember the main window's geometry for the next start."""
+        """Remember the main window's geometry for the next start (Tk's
+        string; the Qt window's neutral form is dropped, see
+        ``models/window_geometry.py``)."""
         self._main.set_window_geometry(str(geometry))
+
+    def logical_window_geometry(self, scale: float) -> WindowGeometry:
+        """The Qt window's saved normal geometry and maximized flag, in
+        logical pixels: what it saved last, or, when Tk saved last (or
+        nothing is saved), Tk's geometry divided by ``scale``.
+
+        Args:
+            scale: How many Tk pixels make one logical pixel: the screen's
+                device pixel ratio on X11 and Windows, 1.0 on macOS.
+
+        Raises:
+            ValueError: For a scale that isn't a number above 0.
+        """
+        return self._main.get_logical_window_geometry(scale)
+
+    @_command
+    def set_logical_window_geometry(self, geometry: WindowGeometry, scale: float) -> None:
+        """Remember the Qt window's normal geometry (logical pixels) and
+        whether it is maximized, on an approved close. Tk's string is
+        written too (in Tk's pixels, ``scale`` as for
+        :meth:`logical_window_geometry`), so ``--ui tk`` opens in the same
+        place; when it already converts to ``geometry`` it stays as it was.
+
+        Raises:
+            ValueError: For a side below 1, half a place, or a bad scale.
+        """
+        self._main.set_logical_window_geometry(geometry, scale)
+
+    def logical_chord_sheet_height(self, scale: float) -> int:
+        """The Qt Edit sheet's height in logical pixels: what Qt saved last,
+        or Tk's height (``ChordSheetState.height``) divided by ``scale`` (as
+        for :meth:`logical_window_geometry`). The default without a sheet."""
+        if self._chord_sheet is None:
+            check_scale(scale)
+            return DEFAULT_CHORD_SHEET_HEIGHT
+        return self._chord_sheet.logical_height(scale)
+
+    @_command
+    def set_logical_chord_sheet_height(self, height: int, scale: float) -> None:
+        """Remember the Qt Edit sheet's height (logical pixels); Tk's
+        height follows, as for :meth:`set_logical_window_geometry`."""
+        if self._chord_sheet is not None:
+            self._chord_sheet.set_logical_height(int(height), check_scale(scale))
+            self._publish_chord_sheet()
 
     @property
     def show_quick_start_on_startup(self) -> bool:

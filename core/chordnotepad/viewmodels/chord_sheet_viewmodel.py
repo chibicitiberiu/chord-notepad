@@ -45,6 +45,7 @@ from chordnotepad.constants import (
 from chordnotepad.models.chord import ChordInfo
 from chordnotepad.models.line import Line
 from chordnotepad.models.rendered_song import RenderedSong
+from chordnotepad.models import window_geometry as neutral_geometry
 from chordnotepad.session.host import Host
 from chordnotepad.session.platform import ANDROID, DESKTOP, DESKTOP_QT, check_platform, pick
 from chordnotepad.chord_sheet.registry import default_renderers
@@ -707,6 +708,25 @@ class ChordSheetViewModel(Observable):
         height = max(1, int(height))
         self._height = height
         self._config.set("chord_sheet_height", height)
+        # Tk's height (or Android's dp) is now the whole story: the Qt
+        # sheet's logical one goes, and Qt migrates from this next time.
+        self._config.set("chord_sheet_logical_height", None)
+
+    def logical_height(self, scale: float) -> int:
+        """The Qt Edit sheet's height in logical pixels (migrated from
+        :attr:`height`, in Tk's pixels, when Qt hasn't saved one; ``scale``:
+        Tk pixels per logical pixel)."""
+        return neutral_geometry.saved_sheet_height(
+            self._config.get("chord_sheet_logical_height", None), self._height, scale)
+
+    def set_logical_height(self, height: int, scale: float) -> None:
+        """Persist the Qt Edit sheet's height (logical pixels); Tk's
+        :attr:`height` follows, so ``--ui tk`` opens with the same sheet.
+        No observers fire, as for :meth:`set_height`."""
+        height = max(1, int(height))
+        self._height = neutral_geometry.tk_sheet_height_for(height, scale, self._height)
+        self._config.set("chord_sheet_height", self._height)
+        self._config.set("chord_sheet_logical_height", height)
 
     # -- Scroll math --------------------------------------------------------
 
