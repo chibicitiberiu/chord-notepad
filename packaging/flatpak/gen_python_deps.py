@@ -10,15 +10,19 @@ import them. This pins exactly the packages below, at the versions in
 Pipfile.lock, and installs them with --no-deps.
 
 Pure-Python packages use their universal wheel (no build backend needed in the
-SDK); anything without one is built from its sdist.
+SDK); anything without one is built from its sdist, except the packages in
+ARCH_WHEELS, which come as one manylinux wheel per CPU (flatpak-builder
+fetches only the current architecture's, by ``only-arches``).
 
 Usage: packaging/flatpak/gen_python_deps.py   (needs network)
 """
 
 import json
+import re
 import sys
 import urllib.request
 from pathlib import Path
+from typing import Optional
 
 HERE = Path(__file__).resolve().parent
 LOCK = HERE.parent.parent / "Pipfile.lock"
@@ -42,7 +46,15 @@ PACKAGES = [
     "packaging",
     "pillow",
     "jeepney",
+    # The Qt window (--ui qt); packaging/qt_bundle.py trims the installed wheel.
+    "pyside6-essentials",
+    "shiboken6",
 ]
+
+# Binary wheels by Flatpak architecture: Qt can't be built from an sdist in
+# the SDK (PySide6 has none on PyPI anyway).
+ARCH_WHEELS = {"pyside6-essentials", "shiboken6"}
+FLATPAK_ARCHES = {"x86_64": "x86_64", "aarch64": "aarch64"}  # Flatpak arch -> wheel platform tag suffix
 
 # Needed only to build the packages above from source (Pillow's sdist), so it
 # goes into its own module whose files are all cleaned up afterwards. Not in
@@ -52,11 +64,28 @@ BUILD_ONLY = {
 }
 
 
-def pick_file(name: str, version: str) -> dict:
-    """Return the PyPI file entry to use for name==version."""
+def pypi_files(name: str, version: str) -> list:
+    """The PyPI file entries of name==version."""
     url = f"https://pypi.org/pypi/{name}/{version}/json"
     with urllib.request.urlopen(url) as response:
-        files = json.load(response)["urls"]
+        return json.load(response)["urls"]
+
+
+def pick_arch_wheels(name: str, version: str, files: list) -> dict:
+    """Flatpak arch -> the manylinux wheel of name==version for it."""
+    picked = {}
+    for arch, tag in FLATPAK_ARCHES.items():
+        wheels = [f for f in files if f["filename"].endswith(".whl")
+                  and re.search(rf"-manylinux_\d+_\d+_{tag}\.whl$", f["filename"])]
+        if len(wheels) != 1:
+            sys.exit(f"{name}=={version}: expected one manylinux {tag} wheel, found {[f['filename'] for f in wheels]}")
+        picked[arch] = wheels[0]
+    return picked
+
+
+def pick_file(name: str, version: str, files: Optional[list] = None) -> dict:
+    """Return the PyPI file entry to use for name==version."""
+    files = pypi_files(name, version) if files is None else files
     universal = [f for f in files if f["filename"].endswith("-none-any.whl")]
     sdists = [f for f in files if f["packagetype"] == "sdist"]
     chosen = (universal or sdists or [None])[0]
@@ -73,6 +102,16 @@ def make_module(name: str, packages: dict) -> dict:
     """
     sources = []
     for package, version in packages.items():
+        if package in ARCH_WHEELS:
+            for arch, entry in pick_arch_wheels(package, version, pypi_files(package, version)).items():
+                sources.append({
+                    "type": "file",
+                    "url": entry["url"],
+                    "sha256": entry["digests"]["sha256"],
+                    "only-arches": [arch],
+                })
+                print(f"{package}=={version} ({arch}): {entry['filename']}")
+            continue
         entry = pick_file(package, version)
         sources.append({
             "type": "file",

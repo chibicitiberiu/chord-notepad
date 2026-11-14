@@ -10,6 +10,9 @@ music21 = "*"
 pillow = "*"
 mido = "*"
 jeepney = "*"
+# The Qt front end (--ui qt). 6.12 is the last Qt for Windows 10; its macOS
+# floor is 14.4 (chord-notepad.spec).
+pyside6-essentials = "==6.12.*"
 
 [dev-packages]
 pytest = "~=7.4.0"
@@ -22,7 +25,6 @@ pywin32-ctypes = "*"  # PyInstaller dependency for Windows (included on all plat
 sphinx = "*"
 sphinx_rtd_theme = "*"
 rinohtype = "*"
-pyside6-essentials = "*"
 pytest-qt = "*"
 
 [requires]

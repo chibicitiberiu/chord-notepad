@@ -87,6 +87,10 @@ TEXT_DOWNLOADS = {
     "apache-LICENSE-2.0.txt": {
         "urls": ["https://www.apache.org/licenses/LICENSE-2.0.txt"],
         "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"},
+    # The ICU the Linux PySide6 wheel bundles (libicuuc.so.73, version 73.2).
+    "icu-73.2-LICENSE": {
+        "urls": ["https://raw.githubusercontent.com/unicode-org/icu/release-73-2/icu4c/LICENSE"],
+        "sha256": "f3005e195ff74d8812cc1f182a1c446fab678d70a10e3dada497585befee5416"},
 }
 
 # dest name -> ("file", path) | ("dist", distribution, member regex)
@@ -126,6 +130,10 @@ SOURCES = {
     "LGPL-2.1.txt": ("archive", "fluidsynth-2.3.4.tar.gz", "fluidsynth-2.3.4/LICENSE"),
     "LGPL-2.0.txt": ("archive", "glib-2.26.1.tar.bz2", "glib-2.26.1/COPYING"),
     "GPL-3.0.txt": ("archive", "gettext-0.18.1.1.tar.gz", "gettext-0.18.1.1/COPYING"),
+    # Qt and PySide6 (pyside-setup has the same file).
+    "LGPL-3.0.txt": ("archive", "qtbase-everywhere-src-6.12.0.tar.xz",
+                     "qtbase-everywhere-src-6.12.0/LICENSES/LGPL-3.0-only.txt"),
+    "ICU-73.2.txt": ("download", "icu-73.2-LICENSE"),
     "flac-BSD.txt": ("archive", "flac-1.3.2.tar.xz", "flac-1.3.2/COPYING.Xiph"),
     "vorbis-BSD.txt": ("archive", "libvorbis-1.3.5.tar.xz", "libvorbis-1.3.5/COPYING"),
     "ogg-BSD.txt": ("archive", "libogg-1.3.2.tar.xz", "libogg-1.3.2/COPYING"),
