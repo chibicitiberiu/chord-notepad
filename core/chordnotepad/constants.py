@@ -58,6 +58,12 @@ MIDI_CHANNEL = 0
 LOG_MAX_BYTES = 1024 * 1024  # 1MB per log file
 LOG_BACKUP_COUNT = 10  # Keep 10 old log files
 DEFAULT_LOG_LEVEL = "INFO"
+LOG_LEVELS = ("DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL")
+
+# The Qt desktop's colour scheme (config ``ui_theme``): follow the system, or
+# always light or dark. ``theme`` is a different, older key: a ttk theme name.
+UI_THEMES = ("system", "light", "dark")
+DEFAULT_UI_THEME = "system"
 
 
 class Notation(Enum):

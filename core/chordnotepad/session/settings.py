@@ -8,21 +8,36 @@ hold a live object, so it reads :class:`SettingsValues` (``AppSession
 ``apply_settings``; the session then commits it through the same viewmodel,
 so the config writes and change flags are the desktop's.
 
-Only the settings that carry over to Android are here (the "settings
-visibility rule" in ``docs/ANDROID.md``): not the log level, the
-audio driver, the SoundFont path or the window geometry. The voicings
+Only the settings that carry over to Android are in :class:`SettingsValues`
+(the "settings visibility rule" in ``docs/ANDROID.md``): not the log level,
+the audio driver, the SoundFont path or the window geometry. The voicings
 registry has its own editor (M5) and isn't here either.
+
+The Qt desktop saves as it goes too, through the same ``begin_settings_edit``
+and ``commit_settings``, and its Settings window has the desktop's extra
+fields: :class:`DesktopSettingsValues` adds them. It never crosses the bridge
+(Android gets and sends plain :class:`SettingsValues`), so the bridge schema
+and the Kotlin DTO don't change; the session picks the class by platform
+(:func:`values_type`).
 """
 
 from dataclasses import dataclass, fields, replace
-from typing import Any, Dict
+from typing import Any, Dict, Optional, Type
 
-from chordnotepad.constants import MAX_FONT_SIZE, MIN_FONT_SIZE, TIME_SIGNATURE_UNITS  # noqa: F401
+from chordnotepad.constants import (  # noqa: F401
+    DEFAULT_LOG_LEVEL, DEFAULT_UI_THEME, LOG_LEVELS, MAX_FONT_SIZE, MIN_FONT_SIZE,
+    TIME_SIGNATURE_UNITS, UI_THEMES,
+)
 from chordnotepad.models.notation import AMERICAN_KEYS, american_key
 from chordnotepad.session import toolbar
+from chordnotepad.session.platform import DESKTOP_QT
 
 #: Upper bound of the recent-documents list length.
 MAX_RECENT_LIMIT = 50
+
+#: What the desktop's audio driver box suggests ("" means auto-detect). The
+#: box is editable: any FluidSynth driver name goes.
+AUDIO_DRIVER_SUGGESTIONS = ("", "alsa", "pulseaudio", "jack", "dsound", "coreaudio")
 
 #: The whole-number settings a view types in (General and Playback). While
 #: the text of one isn't valid, the view sends it to ``commit_settings`` as
@@ -97,3 +112,54 @@ class SettingsValues:
         """
         values = cls(**{f.name: getattr(source, f.name) for f in fields(cls)})
         return replace(values, key=american_key(values.key))
+
+
+@dataclass(frozen=True)
+class DesktopSettingsValues(SettingsValues):
+    """The Qt desktop's settings: :class:`SettingsValues` plus the ones
+    Android doesn't show. Desktop only: never on the bridge.
+
+    Attributes:
+        soundfont_path: The SoundFont to play with; None (or "", which is
+            read as None) for the bundled one. Takes effect after a restart.
+        audio_driver: The FluidSynth audio driver to try first; None (or "")
+            to detect one. Any name goes (``AUDIO_DRIVER_SUGGESTIONS`` are the
+            usual ones). Takes effect after a restart.
+        log_level: ``DEBUG``, ``INFO``, ``WARNING``, ``ERROR`` or
+            ``CRITICAL``. Takes effect after a restart.
+        ui_theme: ``system``, ``light`` or ``dark`` (config ``ui_theme``; the
+            older ``theme`` key holds a ttk theme name for Tk).
+    """
+
+    soundfont_path: Optional[str] = None
+    audio_driver: Optional[str] = None
+    log_level: str = DEFAULT_LOG_LEVEL
+    ui_theme: str = DEFAULT_UI_THEME
+
+    def __post_init__(self) -> None:
+        # An empty box means "the default": the config keeps None for it.
+        for name in ("soundfont_path", "audio_driver"):
+            value = getattr(self, name)
+            if isinstance(value, str) and not value.strip():
+                object.__setattr__(self, name, None)
+
+    def check(self) -> None:
+        """Raise ValueError naming the first value that is out of range."""
+        super().check()
+        for name in ("soundfont_path", "audio_driver"):
+            value = getattr(self, name)
+            if value is not None and not isinstance(value, str):
+                raise ValueError(f"{name} must be text or None, not {value!r}")
+            if value is not None and any(ord(c) < 32 for c in value):
+                raise ValueError(f"{name} must not contain control characters")
+        if self.log_level not in LOG_LEVELS:
+            raise ValueError(f"log_level must be one of {LOG_LEVELS}, not {self.log_level!r}")
+        if self.ui_theme not in UI_THEMES:
+            raise ValueError(f"ui_theme must be one of {UI_THEMES}, not {self.ui_theme!r}")
+
+
+def values_type(platform: str) -> Type[SettingsValues]:
+    """The settings values a platform's Settings screen edits: the Qt
+    desktop's have the desktop-only fields; Android's (and the Tk desktop's,
+    whose dialog holds a live ``SettingsViewModel`` instead) don't."""
+    return DesktopSettingsValues if platform == DESKTOP_QT else SettingsValues

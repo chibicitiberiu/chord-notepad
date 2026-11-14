@@ -37,7 +37,9 @@ _GENERAL_FIELDS = (
 )
 _AUDIO_FIELDS = ('soundfont_path', 'audio_driver')
 _WRAP_FIELDS = ('word_wrap',)
-_ALL_SCALAR_FIELDS = _FONT_FIELDS + _GENERAL_FIELDS + _AUDIO_FIELDS + _WRAP_FIELDS
+_THEME_FIELDS = ('ui_theme',)
+_ALL_SCALAR_FIELDS = (_FONT_FIELDS + _GENERAL_FIELDS + _AUDIO_FIELDS + _WRAP_FIELDS
+                      + _THEME_FIELDS)
 
 
 @dataclass
@@ -55,6 +57,8 @@ class SettingsChanges:
     general_changed: bool = False
     audio_changed: bool = False
     wrap_changed: bool = False
+    #: The Qt desktop's colour scheme (``ui_theme``); the Tk dialog never changes it.
+    theme_changed: bool = False
     guitar_changed: bool = False
     voicings_changed: bool = False
     new_active_voicing: Optional[str] = None
@@ -88,6 +92,7 @@ class SettingsViewModel:
         self.time_signature_unit: int = config.time_signature_unit
         self.soundfont_path: Optional[str] = config.soundfont_path
         self.audio_driver: Optional[str] = config.audio_driver
+        self.ui_theme: str = config.ui_theme
 
         # Deep working copy of the voicings registry.
         self._working_voicings: Dict[str, dict] = copy.deepcopy(config.voicings)
@@ -283,6 +288,7 @@ class SettingsViewModel:
         changes.general_changed = self._group_changed(_GENERAL_FIELDS)
         changes.audio_changed = self._group_changed(_AUDIO_FIELDS)
         changes.wrap_changed = self._group_changed(_WRAP_FIELDS)
+        changes.theme_changed = self._group_changed(_THEME_FIELDS)
 
         # Push scalars.
         for field in _ALL_SCALAR_FIELDS:

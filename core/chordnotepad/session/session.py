@@ -57,7 +57,7 @@ from chordnotepad.session.highlighting import (
     chord_at, compute_spans, directive_hint, first_chord, nearest_chord)
 from chordnotepad.session.host import Cancellable, Host
 from chordnotepad.session.settings import (
-    MAX_RECENT_LIMIT, NUMBER_SETTINGS, TIME_SIGNATURE_UNITS, SettingsValues,
+    MAX_RECENT_LIMIT, NUMBER_SETTINGS, TIME_SIGNATURE_UNITS, SettingsValues, values_type,
 )
 from chordnotepad.session.settings_edit import SettingsEdit
 from chordnotepad.session.settings_staging import SettingsStaging
@@ -232,6 +232,7 @@ class AppSession:
         """
         self._platform = check_platform(platform)
         self._android = self._platform == ANDROID
+        self._settings_type = values_type(self._platform)
         self._host = host
         self._emitter = Emitter()
         self._main = main_window_viewmodel
@@ -1481,7 +1482,7 @@ class AppSession:
         """
         edit = self._require_settings_edit()
         if values is None:
-            values = SettingsValues.read(self._require_services("settings").config.config)
+            values = self._settings_type.read(self._require_services("settings").config.config)
         values.check()
         for name, value in values.as_dict().items():
             setattr(edit.model, name, value)
@@ -1537,7 +1538,9 @@ class AppSession:
         """
         edit = self._require_settings_edit()
         config = self._require_services("settings").config.config
-        on_disk = SettingsValues.read(config)
+        # Read as the values sent are: plain SettingsValues leave the Qt
+        # desktop's extra fields alone.
+        on_disk = (self._settings_type if values is None else type(values)).read(config)
         if values is None:
             values = on_disk
         values.check()
@@ -1915,10 +1918,13 @@ class AppSession:
     def settings_values(self) -> SettingsValues:
         """The current settings as plain values (for :meth:`apply_settings`).
 
+        On the Qt desktop they are :class:`~session.settings.DesktopSettingsValues`
+        (with the SoundFont, audio driver, log level and colour scheme).
+
         Raises:
             RuntimeError: If the session was built without services.
         """
-        return SettingsValues.read(self._require_services("settings").config.config)
+        return self._settings_type.read(self._require_services("settings").config.config)
 
     def chord_sheet_buffer(self, height: float) -> Optional[bytes]:
         """The active chord-sheet view packed as draw ops, for Android.
@@ -2046,7 +2052,7 @@ class AppSession:
         if self._services is None:
             return
         self._emitter.set_state(SettingsState(
-            values=SettingsValues.read(self._services.config.config),
+            values=self._settings_type.read(self._services.config.config),
             american_keys=toolbar.key_options("american"),
             european_keys=toolbar.key_options("european"),
             font_size_min=MIN_FONT_SIZE,

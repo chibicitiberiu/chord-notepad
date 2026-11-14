@@ -5,7 +5,7 @@ import logging
 from dataclasses import dataclass, field
 from typing import List, Optional, Literal, Dict
 
-from chordnotepad.constants import MAX_BPM, MIN_BPM
+from chordnotepad.constants import DEFAULT_UI_THEME, LOG_LEVELS, MAX_BPM, MIN_BPM, UI_THEMES
 from chordnotepad.models.notation import american_key
 from chordnotepad.models.ensemble_spec import BUILTIN_ENSEMBLES
 
@@ -22,7 +22,10 @@ class Config:
     # Appearance
     font_family: str = "TkFixedFont"
     font_size: int = 11
+    # A ttk theme name, kept for the Tk front end (nothing sets it today).
     theme: str = "default"
+    # The Qt desktop's colour scheme: "system", "light" or "dark" (UI_THEMES).
+    ui_theme: str = DEFAULT_UI_THEME
     # Off: the song scrolls sideways, so a chord line stays over its lyric
     # line however narrow the window. On: long lines wrap at the edge.
     word_wrap: bool = False
@@ -91,8 +94,11 @@ class Config:
         if self.notation not in ("american", "european"):
             raise ValueError(f"Notation must be 'american' or 'european', got {self.notation}")
 
-        if self.log_level not in ("DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"):
+        if self.log_level not in LOG_LEVELS:
             raise ValueError(f"Invalid log level: {self.log_level}")
+
+        if self.ui_theme not in UI_THEMES:
+            raise ValueError(f"UI theme must be one of {UI_THEMES}, got {self.ui_theme!r}")
 
         if len(self.recent_files) > self.max_recent_files:
             self.recent_files = self.recent_files[:self.max_recent_files]
@@ -104,6 +110,7 @@ class Config:
             "font_family": self.font_family,
             "font_size": self.font_size,
             "theme": self.theme,
+            "ui_theme": self.ui_theme,
             "word_wrap": self.word_wrap,
             "bpm": self.bpm,
             "bpm_multiplier": self.bpm_multiplier,
@@ -160,6 +167,9 @@ class Config:
             font_family=data.get("font_family", "TkFixedFont"),
             font_size=data.get("font_size", 11),
             theme=data.get("theme", "default"),
+            # Unknown values fall back here: a failed validate() on load would
+            # reset every setting.
+            ui_theme=cls._one_of(data.get("ui_theme"), UI_THEMES, DEFAULT_UI_THEME),
             word_wrap=data.get("word_wrap", False) is True,
             bpm=data.get("bpm", 120),
             bpm_multiplier=data.get("bpm_multiplier", 1.0),
@@ -187,6 +197,11 @@ class Config:
             chord_sheet_height=data.get("chord_sheet_height", 160),
             chord_sheet_zoom=cls._sanitize_chord_sheet_zoom(data.get("chord_sheet_zoom")),
         )
+
+    @staticmethod
+    def _one_of(raw, choices, default):
+        """``raw`` if it is one of ``choices``, else ``default``."""
+        return raw if isinstance(raw, str) and raw in choices else default
 
     @staticmethod
     def _iso_date_or_none(raw) -> Optional[str]:
