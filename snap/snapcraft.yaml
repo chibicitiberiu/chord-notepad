@@ -18,6 +18,8 @@ apps:
     desktop: usr/share/applications/io.github.chibicitiberiu.ChordNotepad.desktop
     plugs:
       - x11            # Tk only speaks X11 (XWayland on Wayland sessions)
+      - wayland        # the Qt window (--ui qt) on Wayland desktops
+      - opengl         # Qt Quick (it falls back to software rendering)
       - desktop        # fonts, file-chooser portal, opening the help in a browser
       - desktop-legacy
       - audio-playback
@@ -54,6 +56,44 @@ parts:
       - libfluidsynth3
       - libpulse0
 
+  # What the Qt libraries of the PySide6 wheel link (packaging/qt_bundle.py
+  # keeps the X11 and Wayland platform plugins): libxcb-cursor0 and the other
+  # xcb/xkb libraries of the xcb plugin, the Wayland client, EGL/GL (glvnd),
+  # fontconfig/freetype, D-Bus, and Kerberos/Brotli for QtNetwork.
+  qt-runtime:
+    plugin: nil
+    stage-packages:
+      - libxcb1
+      - libxcb-cursor0
+      - libxcb-glx0
+      - libxcb-icccm4
+      - libxcb-image0
+      - libxcb-keysyms1
+      - libxcb-randr0
+      - libxcb-render0
+      - libxcb-render-util0
+      - libxcb-shape0
+      - libxcb-shm0
+      - libxcb-sync1
+      - libxcb-util1
+      - libxcb-xfixes0
+      - libxcb-xkb1
+      - libx11-6
+      - libx11-xcb1
+      - libxkbcommon0
+      - libxkbcommon-x11-0
+      - libwayland-client0
+      - libwayland-cursor0
+      - libwayland-egl1
+      - libegl1
+      - libgl1
+      - libfontconfig1
+      - libfreetype6
+      - libdbus-1-3
+      - libglib2.0-0t64
+      - libgssapi-krb5-2
+      - libbrotli1
+
   chord-notepad:
     after: [python-runtime]
     plugin: python
@@ -72,6 +112,11 @@ parts:
       cp -r core desktop resources examples VERSION "$app/"
       rm -f "$app"/resources/*.ico
       find "$app/core" "$app/desktop" -name __pycache__ -prune -exec rm -rf {} +
+      # Only the parts of the PySide6 wheel the Qt window uses (no GPL-only
+      # modules, no tools)
+      for site in "$CRAFT_PART_INSTALL"/lib/python3*/site-packages; do
+        python3 packaging/qt_bundle.py trim "$site"
+      done
       # Sphinx output, built before snapcraft runs (make snap)
       cp -r help/build/html "$app/help/build/"
       install -Dm755 packaging/snap/chord-notepad.sh "$CRAFT_PART_INSTALL/bin/chord-notepad"

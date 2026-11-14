@@ -220,3 +220,12 @@ def test_the_flatpak_builds_the_kerberos_library_qtnetwork_links():
     assert source["file"] == f"krb5-{COMPONENTS['krb5-flatpak']['version']}.tar.gz"
     names = [m if isinstance(m, str) else m["name"] for m in manifest["modules"]]
     assert names.index("krb5") < names.index("python3-deps.json")
+
+
+def test_the_snap_gives_the_qt_window_wayland_opengl_and_its_libraries():
+    snap = _yaml("snap/snapcraft.yaml")
+    assert {"x11", "wayland", "opengl"} <= set(snap["apps"]["chord-notepad"]["plugs"])
+    staged = set(snap["parts"]["qt-runtime"]["stage-packages"])
+    assert {"libxcb-cursor0", "libxkbcommon-x11-0", "libxcb-icccm4", "libegl1", "libgl1",
+            "libwayland-client0"} <= staged
+    assert "packaging/qt_bundle.py trim" in snap["parts"]["chord-notepad"]["override-build"]
