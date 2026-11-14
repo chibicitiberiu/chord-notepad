@@ -176,9 +176,10 @@ def test_session_thread_is_the_creating_thread():
 
 
 def test_application_queue_ui_callback_posts_to_the_host():
+    from app_paths import NO_BUNDLED_FILES
     from application import Application
 
-    app = Application()
+    app = Application(NO_BUNDLED_FILES)
     seen = []
     app.queue_ui_callback(lambda: seen.append("ok"))
     root = FakeRoot()

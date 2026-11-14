@@ -83,8 +83,11 @@ android/
 
 The Python core is not copied: Chaquopy reads `../../src` directly, minus
 `ui/**` and the desktop-only modules (`main.py`, `application.py`,
-`utils/display_scaling.py`, `utils/file_dialogs.py`, `utils/icon_loader.py`,
-`utils/ui_helpers.py`; the same list as `tests/test_core_import_guard.py`).
+`build_info.py`, `utils/display_scaling.py`, `utils/file_dialogs.py`,
+`utils/icon_loader.py`, `utils/ui_helpers.py`; the same list as
+`tests/test_core_import_guard.py`). The core finds no files next to its own
+code: the host passes an `AppPaths` (`src/app_paths.py`) with only the
+native library folder, and the SoundFont path arrives in `audio_options`.
 The SoundFont (`resources/soundfont/GeneralUser-GS.sf2`), the debug chord-sheet
 screen's sample song (`examples/02_american_complete.txt`, debug builds only, as
 `debug/sample.txt`), the chord sheet's clef/glyph PNGs (exported from `src/chord_sheet/clef_assets.py`) and

@@ -271,6 +271,7 @@ chaquopy {
                 "ui/**",
                 "main.py",
                 "application.py",
+                "build_info.py",
                 "utils/display_scaling.py",
                 "utils/file_dialogs.py",
                 "utils/icon_loader.py",

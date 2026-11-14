@@ -532,7 +532,7 @@ def test_session_hands_out_the_catalog():
     """The Tk window gets the list through the session (tests/test_main_window_guard.py)."""
     from session.session import AppSession
 
-    catalog = AppSession.licence_catalog(None, str(REPO))  # uses no session state
+    catalog = AppSession.licence_catalog(None, REPO / "resources" / "licenses")  # uses no session state
     assert catalog.get("chord-notepad") is not None
 
 

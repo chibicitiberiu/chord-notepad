@@ -1,43 +1,40 @@
 """Resource path resolution service."""
 
-import sys
 import os
 from pathlib import Path
 
+from app_paths import AppPaths
+
 
 class ResourceService:
-    """Manages resource path resolution for development and PyInstaller environments.
+    """Resolves the paths of bundled files (icons, images, the help).
 
-    Provides a centralized way to locate resources (icons, assets, etc.) that works
-    both in development mode and when packaged with PyInstaller.
+    The front end works out where they are (``AppPaths``: a checkout, a
+    PyInstaller bundle, the Flatpak or the snap); this only joins paths.
     """
 
-    def __init__(self):
-        self._base_path: Path = self._determine_base_path()
+    def __init__(self, paths: AppPaths):
+        """Create the service.
 
-    def _determine_base_path(self) -> Path:
-        """Determine the base path for resources.
-
-        Returns:
-            Path to the base directory containing resources.
-            - In PyInstaller mode: sys._MEIPASS
-            - In development mode: project root directory
+        Args:
+            paths: Where the app's files are; its ``root`` is the folder the
+                relative paths below start from.
         """
-        try:
-            # PyInstaller creates a temp folder and stores path in _MEIPASS
-            base_path = Path(sys._MEIPASS)
-        except AttributeError:
-            # Running in development mode
-            # Navigate from src/services/resource_service.py to project root
-            base_path = Path(__file__).parent.parent.parent
+        if paths.root is None:
+            raise ValueError("ResourceService needs AppPaths with a root folder")
+        self._paths = paths
+        self._base_path: Path = paths.root
 
-        return base_path
+    @property
+    def paths(self) -> AppPaths:
+        """Where the app's files are."""
+        return self._paths
 
     def get_resource_path(self, relative_path: str) -> str:
         """Get absolute path to resource.
 
         Args:
-            relative_path: Path relative to project root (e.g., 'resources/icon-32.png')
+            relative_path: Path relative to the app root (e.g., 'resources/icon-32.png')
 
         Returns:
             Absolute path to the resource as a string
@@ -51,11 +48,3 @@ class ResourceService:
             Path to the base directory
         """
         return self._base_path
-
-    def is_pyinstaller_mode(self) -> bool:
-        """Check if running under PyInstaller.
-
-        Returns:
-            True if running under PyInstaller, False otherwise
-        """
-        return hasattr(sys, '_MEIPASS')

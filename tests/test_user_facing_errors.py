@@ -484,7 +484,7 @@ class TestMainWindowDialogs:
         from ui.main_window import MainWindow
 
         window = self._window()
-        window.resource_service.get_resource_path.return_value = "/nowhere"
+        window.resource_service.paths.help_html = "/nowhere"
         with patch("ui.help_window.show_help",
                    side_effect=ChordNotepadError("Could not open a web browser")), \
                 patch("ui.main_window.messagebox.showwarning") as showwarning:

@@ -1862,19 +1862,19 @@ class AppSession:
 
         return SettingsViewModel(self._require_services("the Settings dialog").config)
 
-    def licence_catalog(self, base_path: str) -> "LicenceCatalog":
+    def licence_catalog(self, licenses_dir: Path) -> "LicenceCatalog":
         """The licences of this build, for the Licences window (desktop).
 
         Args:
-            base_path: The app's resource root (the folder holding
-                ``resources/licenses``).
+            licenses_dir: The licence data, ``resources/licenses``
+                (``AppPaths.licenses``).
 
         Raises:
             OSError, ValueError: The licence data is missing or malformed.
         """
         from services.licence_catalog import load_for_this_app
 
-        return load_for_this_app(base_path)
+        return load_for_this_app(licenses_dir)
 
     def chord_identifier_model(self) -> "ChordIdentifierViewModel":
         """A new model for a chord identifier window.

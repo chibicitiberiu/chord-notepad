@@ -5,6 +5,7 @@ import sys
 import tkinter as tk
 from typing import Optional, Callable
 
+from app_paths import AppPaths
 from constants import APP_NAME
 from exceptions import ServiceNotInitializedError
 from services.appdata_service import AppDataService
@@ -32,7 +33,15 @@ class Application:
     - The Tk host: the cross-thread queue and timers on the UI thread
     """
 
-    def __init__(self):
+    def __init__(self, paths: AppPaths):
+        """Create the container; nothing is built until :meth:`on_initialize`.
+
+        Args:
+            paths: Where the app's files are (``main.py`` resolves them with
+                ``ui.desktop_paths.resolve_desktop_paths``).
+        """
+        self._paths = paths
+
         # Private service instances (initialized in on_initialize_services);
         # the Tk-free ones are the shared core (session.bootstrap)
         self._core: Optional[CoreServices] = None
@@ -176,7 +185,7 @@ class Application:
         """Initialize all application services in dependency order."""
         # The shared core: data directories, config (loaded), parser,
         # playback (pings posted through this application), file I/O
-        core = build_core_services(AppDataService(), self)
+        core = build_core_services(AppDataService(), self, paths=self._paths)
         self._core = core
         self._appdata_service = core.appdata
         self._config_service = core.config
@@ -186,7 +195,7 @@ class Application:
         self._document_store = FileSystemDocumentStore(core.files)
 
         # Desktop-only: icons and other bundled resources, logging setup
-        self._resource_service = ResourceService()
+        self._resource_service = ResourceService(self._paths)
         self._logging_service = LoggingService()
 
     def on_configure_logging(self) -> None:
@@ -311,8 +320,11 @@ class Application:
         return self._running
 
     @classmethod
-    def main(cls) -> int:
+    def main(cls, paths: AppPaths) -> int:
         """Main entry point for the application.
+
+        Args:
+            paths: Where the app's files are (see :meth:`__init__`).
 
         Returns:
             Exit code (0 for success, 1 for error)
@@ -320,7 +332,7 @@ class Application:
         app = None
         try:
             # Create and initialize the application
-            app = cls()
+            app = cls(paths)
             app.on_initialize()
 
             # Get logger after initialization

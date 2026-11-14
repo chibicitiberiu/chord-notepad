@@ -2,6 +2,7 @@
 
 import dataclasses
 import logging
+import os
 import threading
 from typing import Optional, List, Callable, Tuple
 
@@ -41,6 +42,7 @@ class PlaybackService:
         player: Optional[IPlayer] = None,
         application=None,
         audio_options: Optional[AudioOptions] = None,
+        bundled_soundfont: Optional[str] = None,
     ):
         """Create the service.
 
@@ -51,9 +53,13 @@ class PlaybackService:
             application: Anything with ``queue_ui_callback`` for playback pings.
             audio_options: Synth settings from the host (sample rate, period
                 size, Oboe settings). The desktop passes none.
+            bundled_soundfont: The SoundFont the app ships (``AppPaths
+                .soundfont``), played when Settings names none and the file
+                is there. None: Settings must name one.
         """
         self._config = config_service
         self._audio_options = audio_options
+        self._bundled_soundfont = bundled_soundfont
         self._player: Optional[IPlayer] = player
         # Before the note picker: building a configured voicing that fails logs a warning.
         self._logger = logging.getLogger(__name__)
@@ -294,7 +300,8 @@ class PlaybackService:
         try:
             # Get config values
             bpm = self._config.get("bpm", 120)
-            sf_path = soundfont_path or self._config.get("soundfont_path")
+            sf_path = (soundfont_path or self._config.get("soundfont_path")
+                       or self._existing_bundled_soundfont())
             time_sig_beats = self._config.get("time_signature_beats", 4)
             time_sig_unit = self._config.get("time_signature_unit", 4)
 
@@ -334,6 +341,11 @@ class PlaybackService:
             self._initialized = False
             self._init_error = str(e) or type(e).__name__
             return False
+
+    def _existing_bundled_soundfont(self) -> Optional[str]:
+        """The bundled SoundFont if the file is there, else None."""
+        bundled = self._bundled_soundfont
+        return bundled if bundled and os.path.exists(bundled) else None
 
     def _effective_audio_options(self) -> AudioOptions:
         """The host's audio options with the Settings driver put first."""

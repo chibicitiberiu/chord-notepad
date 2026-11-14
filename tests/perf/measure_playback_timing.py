@@ -95,7 +95,8 @@ def make_new_player(raw: str):
     from audio.player import NotePlayer
 
     options = AudioOptions(driver="file", settings={"audio.file.name": raw, "audio.file.type": "raw"})
-    player = NotePlayer(options=options)
+    player = NotePlayer(soundfont_path=os.path.join(ROOT, "resources/soundfont/GeneralUser-GS.sf2"),
+                        options=options)
     assert player.driver_name == "file", player.driver_name
     return player
 

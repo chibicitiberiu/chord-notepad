@@ -13,6 +13,7 @@ from services.song_parser_service import SongParserService
 from session import quick_start
 from session.highlighting import compute_spans
 from session.platform import DESKTOP
+from ui.desktop_paths import resolve_desktop_paths
 from ui.text_editor import ChordTextEditor
 
 logger = logging.getLogger(__name__)
@@ -41,8 +42,8 @@ class QuickStartDialog(tk.Toplevel):
             song_parser_service: Chord detection for the example snippets
                 (a fresh one is created if omitted)
             editor_font: Font the main editor uses, so snippets match it
-            resource_service: Resolves bundled image paths (a fresh one is
-                created if omitted)
+            resource_service: Resolves bundled image paths (one over
+                ``resolve_desktop_paths()`` if omitted)
         """
         super().__init__(parent)
 
@@ -57,7 +58,7 @@ class QuickStartDialog(tk.Toplevel):
 
         self._parser = song_parser_service or SongParserService()
         self._editor_font = editor_font
-        self._resources = resource_service or ResourceService()
+        self._resources = resource_service or ResourceService(resolve_desktop_paths())
         self._snippets: List[ChordTextEditor] = []
         # PhotoImages shown on the current page; Tk drops them if unreferenced.
         self._images: List[tk.PhotoImage] = []

@@ -13,7 +13,6 @@ import logging
 import os
 import sys
 import threading
-from pathlib import Path
 from typing import Callable, List, Optional, Tuple
 
 from audio.audio_options import AudioOptions
@@ -44,7 +43,9 @@ class NotePlayer(IPlayer):
         Initialize the note player
 
         Args:
-            soundfont_path: Path to soundfont file (.sf2)
+            soundfont_path: Path to soundfont file (.sf2). The caller picks
+                it (Settings, else the bundled one: ``PlaybackService``);
+                None raises FileNotFoundError.
             bpm: Beats per minute (default 120)
             time_signature: Tuple of (beats_per_measure, beat_unit) (default 4/4)
             options: Synth settings and preferred audio driver from the host
@@ -94,33 +95,12 @@ class NotePlayer(IPlayer):
         # Notes sounding from play_notes_immediate
         self._immediate_notes: List[int] = []
 
-        # Find soundfont
-        if soundfont_path is None:
-            soundfont_path = self._find_soundfont()
-
         if soundfont_path and os.path.exists(soundfont_path):
             self._initialize_fluidsynth(soundfont_path, options)
         elif soundfont_path:
             raise FileNotFoundError(f"Soundfont not found: {soundfont_path}")
         else:
             raise FileNotFoundError("No soundfont found. Choose one in Settings.")
-
-    def _find_soundfont(self) -> Optional[str]:
-        """Find the bundled soundfont"""
-        # Check if running from PyInstaller bundle
-        if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
-            # Running from PyInstaller bundle
-            base_dir = Path(sys._MEIPASS)
-        else:
-            # Running from source
-            base_dir = Path(__file__).parent.parent.parent
-
-        sf_path = base_dir / 'resources' / 'soundfont' / 'GeneralUser-GS.sf2'
-
-        if sf_path.exists():
-            return str(sf_path)
-
-        return None
 
     def _initialize_fluidsynth(self, soundfont_path: str, options: Optional[AudioOptions] = None) -> None:
         """Initialize FluidSynth with the soundfont.

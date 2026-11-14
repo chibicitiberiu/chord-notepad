@@ -64,7 +64,6 @@ class TestNotePlayerMultiplier:
 
         with pytest.MonkeyPatch.context() as mp:
             mp.setattr(player_mod.NotePlayer, "_initialize_fluidsynth", lambda *a, **kw: None)
-            mp.setattr(player_mod.NotePlayer, "_find_soundfont", lambda self: "fake.sf2")
             mp.setattr(player_mod.os.path, "exists", lambda _p: True)
             return player_mod.NotePlayer(soundfont_path="fake.sf2")
 

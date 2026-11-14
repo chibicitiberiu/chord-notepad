@@ -336,9 +336,14 @@ def load_catalog(licenses_dir: Path, build: Optional[str] = None,
     return LicenceCatalog(build=build, entries=entries, source_offer=offer)
 
 
-def load_for_this_app(base_path: Path) -> LicenceCatalog:
-    """The catalog of the running app (its build detected from the environment)."""
+def load_for_this_app(licenses_dir: Path) -> LicenceCatalog:
+    """The catalog of the running app (its build detected from the environment).
+
+    Args:
+        licenses_dir: The licence data, ``resources/licenses``. The front end
+            finds it (``AppPaths.licenses``); this module stays stdlib only
+            and loadable on its own (packaging/licenses/make_source_bundle.py).
+    """
     build = detect_build()
     snap = os.environ.get("SNAP")
-    return load_catalog(Path(base_path) / "resources" / "licenses", build,
-                        snap_root=Path(snap) if snap else None)
+    return load_catalog(Path(licenses_dir), build, snap_root=Path(snap) if snap else None)

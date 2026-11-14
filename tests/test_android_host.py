@@ -228,6 +228,15 @@ def started(tmp_path):
     assert errors.get_handler() is previous_handler
 
 
+def test_the_core_gets_androids_paths_with_no_bundled_files(started):
+    """Nothing ships next to the code: the SoundFont comes in audio_options."""
+    from app_paths import AppPaths
+
+    handle = started[0]
+    assert handle._services.paths == AppPaths(native_lib_dir=Path("/data/app/lib"))
+    assert handle._services.playback._bundled_soundfont is None
+
+
 def test_start_replays_the_states_and_runs_commands(started):
     handle, _, sink, tmp_path = started
     sink.wait_for("DocumentState")

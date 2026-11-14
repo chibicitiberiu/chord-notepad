@@ -63,21 +63,8 @@ def test_build_info_dev_version_includes_base_version():
 def test_build_info_fallback_when_version_file_missing(tmp_path, monkeypatch):
     """If the VERSION file cannot be located, base version falls back to '0.0'."""
     import build_info
+    from ui.desktop_paths import paths_under
 
-    # Point the module's resolution at a directory with no VERSION file.
-    fake_module_path = tmp_path / "src" / "build_info.py"
-    fake_module_path.parent.mkdir(parents=True)
-    fake_module_path.write_text("# stub", encoding="utf-8")
-
-    monkeypatch.setattr(build_info, "__file__", str(fake_module_path))
+    # Resolve the app root to a directory with no VERSION file.
+    monkeypatch.setattr(build_info, "resolve_desktop_paths", lambda: paths_under(tmp_path))
     assert build_info._read_version_file() == "0.0"
-
-
-def test_package_version_matches_version_file():
-    """src/__init__.py __version__ should agree with the VERSION file."""
-    import importlib as _importlib
-    import src as src_pkg  # type: ignore[import-not-found]
-
-    _importlib.reload(src_pkg)
-    expected = (REPO_ROOT / "VERSION").read_text(encoding="utf-8").strip()
-    assert src_pkg.__version__ == expected

@@ -2,23 +2,19 @@
 Auto-generated build information.
 
 In CI builds, this file is overwritten with concrete values for the build.
-For local development, values are computed from the VERSION file at repo root
-plus a "dev-local" marker.
+For local development, values are computed from the VERSION file at the app
+root (found by ui.desktop_paths) plus a "dev-local" marker.
 """
 
-from pathlib import Path
+from ui.desktop_paths import resolve_desktop_paths
 
 
 def _read_version_file() -> str:
-    """Read the base version (e.g. '0.1') from the VERSION file at the repo root.
+    """Read the base version (e.g. '0.1') from the VERSION file.
 
     Falls back to '0.0' if the file cannot be read.
     """
-    try:
-        version_path = Path(__file__).resolve().parent.parent / "VERSION"
-        return version_path.read_text(encoding="utf-8").strip()
-    except OSError:
-        return "0.0"
+    return resolve_desktop_paths().read_version()
 
 
 BASE_VERSION = _read_version_file()

@@ -95,7 +95,7 @@ src/session/
   song_defaults.py song_defaults(lines, bpm, time, key) -> SongDefaultsState; missing_directives
   flows.py         generator-based request/response FlowRunner
   workers.py       BackgroundWorker (single-thread executor, results via host.post)
-  bootstrap.py     CoreServices, build_core_services(appdata, dispatch, player=, audio_options=),
+  bootstrap.py     CoreServices, build_core_services(appdata, dispatch, paths=, player=, audio_options=),
                    create_session(host, services, documents, chord_sheet=)
   bridge.py        encode(dto) -> (type_name, json); decode_args/dispatch; SessionBridge;
                    ErrorEvents (throttled UnexpectedError); schema dump for Kotlin
@@ -597,10 +597,10 @@ snippets paint `compute_spans` with the dialog's own parser (display only).
 window used to, then `Application.on_shutdown`).
 
 **Construction.** `bootstrap.build_core_services(appdata,
-dispatch, player=None, audio_options=None)` is the Tk-free half of the old
+dispatch, paths=..., player=None, audio_options=None)` is the Tk-free half of the old
 `Application.on_initialize_services`: it creates the data directories,
 loads the config and builds `CoreServices(appdata, config, song_parser,
-playback, files)`. `create_session(host, services, documents, dispatch=None,
+playback, files, paths)`. `create_session(host, services, documents, dispatch=None,
 chord_sheet=True)` builds `MainWindowViewModel`, `TextEditorViewModel`, the
 chord-sheet strip (imported only when asked for) and the `AppSession`, whose
 optional `services` argument replaced `config_service`,
@@ -612,6 +612,19 @@ desktop-only services (resources, logging setup) and the document store.
 `AppDataService(root=...)` takes the data directory from the host (Android:
 `filesDir`; the same layout the `XDG_*` shim gave). Config writes are atomic
 (temp file, `fsync`, `os.replace`).
+
+**Where the app's files are.** `paths` is an `AppPaths` (`src/app_paths.py`:
+the root, VERSION, `resources/`, the built help, the bundled SoundFont, the
+Windows dev DLL folder). The front end resolves it once at its entry point
+and passes it down; no core module walks up from its own `__file__`
+(`tests/test_app_paths.py` scans for that). The desktop's resolver is
+`ui.desktop_paths.resolve_desktop_paths`: the PyInstaller bundle
+(`sys._MEIPASS`), the Flatpak (`/app/share/chord-notepad`), the snap
+(`$SNAP/share/chord-notepad`), else the checkout. `main.py` calls it and
+hands it to `Application(paths)`, which passes it to `build_core_services` and
+`ResourceService`. The Android host passes its own (no bundled files; the
+SoundFont path comes in `audio_options`). The default, `NO_BUNDLED_FILES`,
+is for tests that bring their own player.
 
 **The bridge.** `session/bridge.py`:
 - `encode(dto) -> (type_name, json)` for every state, event and request:

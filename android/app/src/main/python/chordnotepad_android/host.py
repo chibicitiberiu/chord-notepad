@@ -14,8 +14,10 @@ of the core; this module only wires the Android pieces in.
 import logging
 import os
 import sys
+from pathlib import Path
 from typing import Any, Mapping, Optional
 
+from app_paths import AppPaths
 from audio.audio_options import AudioOptions
 from services.appdata_service import AppDataService
 from services.logging_service import LoggingService
@@ -54,6 +56,18 @@ def audio_options_from(options: Mapping[str, Any]) -> AudioOptions:
         period_size=frames or None,
         settings=dict(OBOE_SETTINGS),
     )
+
+
+def app_paths_from(native_lib_dir: str) -> AppPaths:
+    """Where this app's files are on Android: none of them next to the code.
+
+    There is no VERSION file (the version is ``versionName``), no
+    ``resources/`` and no built help (it is served from the APK's assets).
+    The SoundFont Kotlin copied to ``filesDir`` arrives in ``audio_options``
+    and becomes the configured one (:func:`_init_audio`), so it is not a
+    bundled fallback here either.
+    """
+    return AppPaths(native_lib_dir=Path(native_lib_dir) if native_lib_dir else None)
 
 
 class SessionHandle:
@@ -151,7 +165,8 @@ def start(files_dir: str, native_lib_dir: str, document_store, event_sink, audio
     appdata = AppDataService(root=files_dir)
     host = ThreadedHost(name="python-session")
     host.start()
-    services = build_core_services(appdata, HostDispatch(host), player=player,
+    paths = app_paths_from(native_lib_dir)
+    services = build_core_services(appdata, HostDispatch(host), paths=paths, player=player,
                                    audio_options=audio_options_from(options))
     if configure_logging:
         LoggingService().configure_logging(

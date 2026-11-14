@@ -19,6 +19,7 @@ BLOCKED = ("tkinter", "_tkinter", "PIL", "jeepney")
 DESKTOP_ONLY = {
     "main",
     "application",
+    "build_info",
     "utils.display_scaling",
     "utils.file_dialogs",
     "utils.icon_loader",

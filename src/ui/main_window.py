@@ -1249,7 +1249,7 @@ class MainWindow(tk.Tk):
     def show_help(self) -> None:
         """Show the help window with user documentation."""
         from ui.help_window import show_help
-        docs_path = self.resource_service.get_resource_path('help/build/html')
+        docs_path = str(self.resource_service.paths.help_html)
         try:
             show_help(docs_path)
         except ChordNotepadError as e:
@@ -1279,7 +1279,7 @@ class MainWindow(tk.Tk):
         """Show the licences of everything this build is made of."""
         from ui.dialogs import LicencesDialog
         try:
-            catalog = self.session.licence_catalog(self.resource_service.get_base_path())
+            catalog = self.session.licence_catalog(self.resource_service.paths.licenses)
         except (OSError, ValueError) as e:
             logger.error(f"Could not load the licence list: {e}", exc_info=True)
             messagebox.showerror("Licences Unavailable", f"Could not read the licence list.\n\n{e}",

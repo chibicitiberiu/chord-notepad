@@ -43,6 +43,18 @@ for path in ["resources/soundfont/GeneralUser-GS.sf2", "help/build/html/index.ht
     if not (APP / path).exists():
         failures.append(f"missing file: {path}")
 
+# The app finds its files where the package put them (ui.desktop_paths).
+try:
+    from ui.desktop_paths import resolve_desktop_paths
+
+    paths = resolve_desktop_paths()
+    if paths.root is None or paths.root.resolve() != APP.resolve():
+        failures.append(f"app files resolved to {paths.root}, not {APP}")
+    elif paths.read_version() == "0.0":
+        failures.append("VERSION not found next to the app")
+except Exception as exc:  # noqa: BLE001
+    failures.append(f"resolving the app files: {type(exc).__name__}: {exc}")
+
 print(f"Checked {len(set(names))} app modules")
 if failures:
     print("FAILED:\n  " + "\n  ".join(failures))

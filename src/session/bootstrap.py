@@ -4,19 +4,24 @@ The desktop ``Application`` and the Android host (``chordnotepad_android
 .host``) build the same core; only the host, the document store and the
 audio options differ::
 
-    services = build_core_services(appdata, HostDispatch(host))
+    services = build_core_services(appdata, HostDispatch(host), paths=paths)
     session = create_session(host, services, documents)   # on the session thread
     session.start()
 
 Nothing here imports Tk; :func:`create_session` imports the chord-sheet
 viewmodel (and with it the headless renderers) only when a chord sheet is
 asked for.
+
+The front end says where the app's files are (``paths``, an
+:class:`app_paths.AppPaths`): nothing in the core walks up from its own
+``__file__`` to find them.
 """
 
 import logging
 from dataclasses import dataclass
 from typing import Any, Optional
 
+from app_paths import NO_BUNDLED_FILES, AppPaths
 from audio.audio_options import AudioOptions
 from audio.player_interface import IPlayer
 from constants import CHORD_DETECTION_DEBOUNCE_MS
@@ -44,6 +49,7 @@ class CoreServices:
         song_parser: Chord detection and music-theory helpers.
         playback: Audio: song playback and click-to-hear.
         files: Local file I/O (the desktop's document store sits on it).
+        paths: Where the app's files are (from the front end).
     """
 
     appdata: AppDataService
@@ -51,9 +57,11 @@ class CoreServices:
     song_parser: SongParserService
     playback: PlaybackService
     files: FileService
+    paths: AppPaths = NO_BUNDLED_FILES
 
 
 def build_core_services(appdata: AppDataService, dispatch: Any, *,
+                        paths: AppPaths = NO_BUNDLED_FILES,
                         player: Optional[IPlayer] = None,
                         audio_options: Optional[AudioOptions] = None) -> CoreServices:
     """Create the core services in dependency order and load the config.
@@ -63,6 +71,10 @@ def build_core_services(appdata: AppDataService, dispatch: Any, *,
         dispatch: Anything with ``queue_ui_callback(cb)`` that posts to the
             session thread: the desktop ``Application``, or
             ``HostDispatch(host)``. Playback pings go through it.
+        paths: Where the app's files are, as the front end resolved them
+            (the desktop: ``ui.desktop_paths``; Android: the host). The
+            default, no files at all, is for tests and tools that bring
+            their own player: the front ends always pass theirs.
         player: A ready player (tests, a headless run); None creates the
             FluidSynth player the first time audio is needed.
         audio_options: Synth settings from the host (Android: sample rate,
@@ -75,9 +87,11 @@ def build_core_services(appdata: AppDataService, dispatch: Any, *,
         appdata=appdata,
         config=config,
         song_parser=SongParserService(),
-        playback=PlaybackService(config, player=player, application=dispatch,
-                                 audio_options=audio_options),
+        playback=PlaybackService(
+            config, player=player, application=dispatch, audio_options=audio_options,
+            bundled_soundfont=str(paths.soundfont) if paths.soundfont is not None else None),
         files=FileService(config),
+        paths=paths,
     )
 
 
