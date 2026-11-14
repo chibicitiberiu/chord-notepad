@@ -169,13 +169,13 @@ class QtApplication:
         self._engine = create_engine(self._paths)
         self._engine.warnings.connect(
             lambda errors: self.warnings.extend(e.toString() for e in errors))
-        geometry = window_geometry.load(self._session, core.config)
         main = load_main_window(self._engine, app, store=self.store, errors=self.presenter)
         if main is None:
             raise RuntimeError("The main window couldn't be loaded:\n" + "\n".join(self.warnings))
         self.main = main
         rendering.watch_scene_graph(main.window, app)
-        window_geometry.apply(main.window, geometry)
+        geometry = window_geometry.apply(
+            main.window, window_geometry.load(self._session, main.window))
         self._geometry = window_geometry.GeometryKeeper(main.window, geometry, parent=main.window)
         self.presenter.attach()
         window_geometry.show(main.window, geometry)
@@ -223,7 +223,7 @@ class QtApplication:
         self._closing = True
         window = self.main.window
         try:
-            window_geometry.save(self._session, self.core.config, self._geometry.current())
+            window_geometry.save(self._session, window, self._geometry.current())
         except Exception:
             logger.exception("Saving the window geometry failed")
         self._session.stop()

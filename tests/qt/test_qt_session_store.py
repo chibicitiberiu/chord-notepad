@@ -225,10 +225,12 @@ def test_arguments_that_are_not_json_are_reported(env):
 # -- the allow-list guard ----------------------------------------------------------------
 
 #: Session calls the plumbing makes besides the direct calls: the lifecycle
-#: (application.py) and, until B3 gives the geometry a command, the window
-#: geometry (window_geometry.py).
+#: (application.py) and the window geometry in logical pixels
+#: (window_geometry.py). The geometry is desktop-only (plan step B3), so it
+#: isn't a bridge command; it is read before the window shows and saved after
+#: the session approved closing.
 PLUMBING = {"start", "shutdown", "stop"}
-INTERIM_GEOMETRY = {"window_geometry", "set_window_geometry"}
+GEOMETRY = {"logical_window_geometry", "set_logical_window_geometry"}
 
 
 def session_attributes(tree):
@@ -254,12 +256,12 @@ def test_nothing_in_the_qt_package_calls_the_session_outside_the_allow_list():
     for path in sorted(PACKAGE.rglob("*.py")):
         for attr in session_attributes(ast.parse(path.read_text(encoding="utf-8"))):
             used.setdefault(attr, set()).add(path.name)
-    allowed = DIRECT_CALLS | PLUMBING | INTERIM_GEOMETRY
+    allowed = DIRECT_CALLS | PLUMBING | GEOMETRY
     stray = {attr: files for attr, files in used.items() if attr not in allowed}
     assert stray == {}, f"call these through submit() (bridge commands): {stray}"
     # The direct calls themselves go through SessionStore.direct only.
     assert not any(attr in DIRECT_CALLS for attr in used), used
-    geometry = {attr: files for attr, files in used.items() if attr in INTERIM_GEOMETRY}
+    geometry = {attr: files for attr, files in used.items() if attr in GEOMETRY}
     assert all(files == {"window_geometry.py"} for files in geometry.values()), geometry
 
 

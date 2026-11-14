@@ -23,9 +23,8 @@ from chordnotepad.constants import WM_CLASS  # noqa: E402
 from chordnotepad_desktop import application, window_geometry  # noqa: E402
 from chordnotepad_desktop.application import DESKTOP_FILE_NAME, set_identity  # noqa: E402
 from chordnotepad_desktop.error_presenter import format_message  # noqa: E402
-from chordnotepad_desktop.window_geometry import (  # noqa: E402
-    Geometry, format_geometry, parse, placed_on_screens,
-)
+from chordnotepad_desktop.window_geometry import placed_on_screens  # noqa: E402
+from chordnotepad.models.window_geometry import WindowGeometry as Geometry  # noqa: E402
 from tests.qt.conftest import PATHS, QtAppHarness, write_config  # noqa: E402
 
 REPO = Path(__file__).resolve().parents[2]
@@ -305,22 +304,43 @@ def test_an_unreadable_geometry_falls_back_to_the_default_size(qapp, qtbot, tmp_
     write_config(tmp_path, show_quick_start_on_startup=False, window_geometry="huge")
     harness = QtAppHarness(qapp, tmp_path).start()
     try:
-        assert (harness.window.width(), harness.window.height()) == window_geometry.DEFAULT_SIZE
+        assert (harness.window.width(), harness.window.height()) == (900, 600)
     finally:
         harness.shutdown()
 
 
-def test_tk_geometry_strings():
-    assert parse("900x600") == Geometry(900, 600)
-    assert parse("900x600+10+20") == Geometry(900, 600, 10, 20)
-    assert parse("900x600+-10+20", maximized=True) == Geometry(900, 600, -10, 20, True)
-    assert parse("=640x480+0+0") == Geometry(640, 480, 0, 0)
-    assert parse("900x600-10-20") == Geometry(900, 600)      # Tk's from-the-right: size only
-    for bad in ("", "huge", "0x600", "900x", "900x600+10"):
-        assert parse(bad) is None, bad
-    assert format_geometry(Geometry(900, 600, 10, 20)) == "900x600+10+20"
-    assert format_geometry(Geometry(900, 600)) == "900x600"
-    assert format_geometry(parse("900x600+-10+20")) == "900x600+-10+20"
+def test_the_window_opens_and_saves_in_logical_pixels(qapp, qtbot, tmp_path, monkeypatch):
+    # Tk saved last, at 125%: its physical pixels become logical ones, and
+    # on close Qt writes its neutral bounds and leaves Tk's string alone
+    # (it still converts to the same place).
+    monkeypatch.setattr(window_geometry, "tk_scale", lambda window: 1.25)
+    write_config(tmp_path, show_quick_start_on_startup=False, window_geometry="1250x875+50+25")
+    harness = QtAppHarness(qapp, tmp_path).start()
+    try:
+        window = harness.window
+        assert (window.width(), window.height(), window.x(), window.y()) == (1000, 700, 40, 20)
+        window.resize(1100, 700)
+        qtbot.wait(20)
+        window.close()
+        qtbot.waitUntil(lambda: not window.isVisible(), timeout=2000)
+        config = harness.app.core.config
+        assert config.get("window_bounds") == {"width": 1100, "height": 700, "x": 40, "y": 20}
+        assert config.get("window_geometry") == "1375x875+50+25"
+        assert config.get("window_maximized") is False
+    finally:
+        harness.shutdown()
+
+
+def test_qt_reads_its_own_bounds_before_tks_string(qapp, qtbot, tmp_path, monkeypatch):
+    monkeypatch.setattr(window_geometry, "tk_scale", lambda window: 1.25)
+    write_config(tmp_path, show_quick_start_on_startup=False, window_geometry="1250x875+50+25",
+                 window_bounds={"width": 960, "height": 640, "x": 10, "y": 12})
+    harness = QtAppHarness(qapp, tmp_path).start()
+    try:
+        window = harness.window
+        assert (window.width(), window.height(), window.x(), window.y()) == (960, 640, 10, 12)
+    finally:
+        harness.shutdown()
 
 
 def test_a_place_off_every_screen_is_dropped():
