@@ -102,7 +102,12 @@ SOURCES = {
     "CC-BY-SA-4.0.txt": ("download", "cc-by-sa-4.0-legalcode.txt"),
     "GeneralUser-GS.txt": ("file", REPO / "resources/soundfont/GeneralUser-GS.LICENSE.txt"),
     "phosphor-MIT.txt": ("file", REPO / "resources/icons/LICENSE"),
+    "Inter-OFL.txt": ("file", REPO / "resources/fonts/Inter-LICENSE.txt"),
     "Bravura-OFL.txt": ("file", ANDROID / "Bravura-OFL.txt"),
+    # Material Design Icons (the Qt window's resources/qt-icons/mdi), as the
+    # Android app gathered them from the @mdi/svg package.
+    "mdi-Pictogrammers-Free-License.txt": ("file", ANDROID / "mdi-Pictogrammers-Free-License.txt"),
+    "Apache-2.0.txt": ("file", ANDROID / "Apache-2.0.txt"),
     "PSF-Python.txt": ("file", ANDROID / "PSF-Python.txt"),
     "openssl-Apache-2.0.txt": ("file", ANDROID / "openssl-Apache-2.0.txt"),
     "libffi-MIT.txt": ("file", ANDROID / "libffi-MIT.txt"),

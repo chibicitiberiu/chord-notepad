@@ -696,6 +696,34 @@
       "note": "The clef and note head images in the chord sheet's staff view are rendered from the Bravura music font (SMuFL)."
     },
     {
+      "id": "material-design-icons-mdi",
+      "name": "Material Design Icons",
+      "group": "data",
+      "version": "7.4.47",
+      "license": "Apache-2.0",
+      "copyright": "Pictogrammers and contributors",
+      "url": "https://pictogrammers.com/library/mdi/",
+      "sourceUrl": "https://github.com/Templarian/MaterialDesign-SVG",
+      "texts": ["mdi-Pictogrammers-Free-License", "Apache-2.0"],
+      "builds": ["flatpak", "snap"],
+      "files": ["resources/qt-icons/mdi/*"],
+      "note": "The Qt window's toolbar, player, menu and palette icons (from the @mdi/svg package; the icons are Apache-2.0). A few are changed or combined with our own drawing; resources/qt-icons/README.md lists them. Only the builds that copy resources/ whole carry them until the Qt window ships."
+    },
+    {
+      "id": "inter",
+      "name": "Inter",
+      "group": "data",
+      "version": "4.001",
+      "license": "OFL-1.1",
+      "copyright": "2016 The Inter Project Authors",
+      "url": "https://rsms.me/inter/",
+      "sourceUrl": "https://github.com/rsms/inter",
+      "texts": ["Inter-OFL"],
+      "builds": ["flatpak", "snap"],
+      "files": ["resources/fonts/Inter-*"],
+      "note": "The Qt window's interface font. Only the builds that copy resources/ whole carry it until the Qt window ships."
+    },
+    {
       "id": "sphinx",
       "name": "Sphinx",
       "group": "guide",
