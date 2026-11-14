@@ -37,6 +37,9 @@ QT_LIBRARIES = frozenset({
     "Qml", "QmlMeta", "QmlModels", "QmlWorkerScript",
     "Quick", "QuickLayouts", "QuickTemplates2",
     "QuickControls2", "QuickControls2Impl", "QuickControls2Basic", "QuickControls2BasicStyleImpl",
+    # QtQuick.Dialogs (the Settings window's Browse; F3's file dialogs) and
+    # the folder model its non-native file dialog lists folders with.
+    "QuickDialogs2", "QuickDialogs2QuickImpl", "QuickDialogs2Utils", "LabsFolderListModel",
     # Linux only: the X11 and Wayland platform plugins' libraries.
     "XcbQpa", "WaylandClient",
 })
@@ -71,6 +74,10 @@ QML_MODULES = frozenset({
     "QtQml", "QtQml/Models", "QtQml/WorkerScript",
     "QtQuick", "QtQuick/Window", "QtQuick/Layouts", "QtQuick/Templates",
     "QtQuick/Controls", "QtQuick/Controls/impl", "QtQuick/Controls/Basic", "QtQuick/Controls/Basic/impl",
+    # FileDialog: the module, its Qt Quick implementation (the Basic look,
+    # without the other styles' +Fusion etc. folders) and the folder model.
+    "QtQuick/Dialogs", "QtQuick/Dialogs/quickimpl", "QtQuick/Dialogs/quickimpl/qml",
+    "Qt/labs/folderlistmodel",
 })
 
 _LIBRARY = re.compile(r"^(?:lib)?Qt6?(?P<name>[A-Za-z0-9]+?)(?:\.so(?:\.[0-9.]+)?|\.dll|\.dylib|\.framework(?:/.*)?)$")

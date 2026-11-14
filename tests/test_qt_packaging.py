@@ -61,6 +61,11 @@ KEPT = [
     "PySide6/plugins/imageformats/qsvg.dll",
     "PySide6/Qt/qml/QtQuick/Controls/Basic/Button.qml", "PySide6/qml/QtQuick/Layouts/qmldir",
     "PySide6/Qt/qml/builtins.qmltypes",
+    # QtQuick.Dialogs' FileDialog (G1's Browse, F3's pickers).
+    "PySide6/Qt/lib/libQt6QuickDialogs2.so.6", "PySide6/Qt6QuickDialogs2QuickImpl.dll",
+    "PySide6/Qt/lib/libQt6QuickDialogs2Utils.so.6", "PySide6/Qt/lib/libQt6LabsFolderListModel.so.6",
+    "PySide6/Qt/qml/QtQuick/Dialogs/qmldir", "PySide6/Qt/qml/QtQuick/Dialogs/quickimpl/qml/FileDialog.qml",
+    "PySide6/Qt/qml/Qt/labs/folderlistmodel/qmldir",
 ]
 DROPPED = [
     "PySide6/Qt/lib/libQt6Designer.so.6", "PySide6/Qt/lib/libQt6Lottie.so.6",
@@ -73,6 +78,7 @@ DROPPED = [
     "PySide6/Qt/plugins/wayland-shell-integration/libwl-shell-plugin.so",
     "PySide6/Qt/qml/QtQuick/VirtualKeyboard/qmldir", "PySide6/Qt/qml/QtWayland/Compositor/qmldir",
     "PySide6/qml/QtQuick/Controls/Material/Button.qml", "PySide6/Qt/qml/Qt/labs/StyleKit/qmldir",
+    "PySide6/Qt/qml/QtQuick/Dialogs/quickimpl/qml/+Material/FileDialog.qml",
     "PySide6/Qt/translations/qtbase_de.qm", "PySide6/translations/qt_fr.qm", "PySide6/opengl32sw.dll",
 ]
 
