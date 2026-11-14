@@ -12,7 +12,6 @@ from tests.conftest import QT_PROBLEM
 if QT_PROBLEM:
     pytest.skip(f"Qt not available: {QT_PROBLEM}", allow_module_level=True)
 
-from PySide6.QtQml import QQmlApplicationEngine  # noqa: E402
 from PySide6.QtQuick import QQuickWindow  # noqa: E402
 
 from chordnotepad_desktop import main as qt_main  # noqa: E402
@@ -20,20 +19,21 @@ from chordnotepad_desktop import main as qt_main  # noqa: E402
 REPO = Path(__file__).resolve().parents[2]
 
 
-def test_the_main_window_loads(qapp):
-    engine = QQmlApplicationEngine()
-    warnings = []
-    engine.warnings.connect(lambda errors: warnings.extend(e.toString() for e in errors))
-    try:
-        assert qt_main.load_main_window(engine)
-        window = engine.rootObjects()[0]
-        assert isinstance(window, QQuickWindow)
-        assert window.title() == "Chord Notepad"
-        assert warnings == []
-    finally:
-        for window in engine.rootObjects():
-            window.close()
-        engine.deleteLater()
+def test_the_main_window_loads(main_window):
+    assert isinstance(main_window.window, QQuickWindow)
+    assert main_window.window.title() == "Chord Notepad"
+    assert main_window.window.property("altWatcher") is main_window.alt
+
+
+def test_the_qml_ships_inside_the_package():
+    assert qt_main.MAIN_QML.is_file()
+    assert qt_main.QML_DIR == Path(qt_main.__file__).resolve().parent / "qml"
+
+
+def test_the_front_end_options_leave_qts_own_alone():
+    options, rest = qt_main.parse_args(["--smoke", "-platform", "offscreen"])
+    assert options.smoke and rest == ["-platform", "offscreen"]
+    assert not qt_main.parse_args([])[0].smoke
 
 
 def throwaway_env(tmp_path):
@@ -54,7 +54,7 @@ def test_ui_qt_smoke_starts_and_quits_cleanly(tmp_path):
         [sys.executable, "-m", "chordnotepad_tk.main", "--ui", "qt", "--smoke"],
         cwd=tmp_path, env=throwaway_env(tmp_path), capture_output=True, text=True, timeout=60)
     assert result.returncode == 0, result.stderr
-    assert "QML" not in result.stderr
+    assert result.stderr == ""
 
 
 def test_the_qt_module_runs_through_the_shared_entry_point(tmp_path):

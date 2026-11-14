@@ -1,0 +1,5 @@
+module CNTheme
+singleton Theme 1.0 Theme.qml
+SText 1.0 SText.qml
+SnapTranslate 1.0 SnapTranslate.qml
+SnapLine 1.0 SnapLine.qml

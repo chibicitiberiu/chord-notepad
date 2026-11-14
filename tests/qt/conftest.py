@@ -12,13 +12,25 @@ before it imports anything from PySide6 or chordnotepad_desktop.
 
 Every test here runs offscreen with the software renderer, whatever the
 environment says: a Qt test must never open a window on a real display.
-QML warnings fail the test (``qt_log_level_fail``); the engine's own
-``warnings`` signal is checked as well (:func:`load_qml`).
+QML warnings fail the test (``qt_log_level_fail``); :func:`main_window` also
+checks the engine's own ``warnings`` signal.
+
+The application is set up once, as ``main.run`` does it (the text renderer,
+the unhinted font, Inter, the CNStyle style), before any QML is loaded: the
+style can't change once a Controls type exists.
+
+Two Qt Quick pitfalls for tests: ``QTest.keyClicks`` takes a QWidget only
+(pitfall 22), so keys go to the QQuickWindow with ``QGuiApplication.sendEvent``
+or ``QTest.keyClick(window, ...)``; and Repeater delegates aren't in the
+QObject tree (pitfall 25), so ``findChild`` doesn't find them.
 """
 
 import os
+from pathlib import Path
 
 import pytest
+
+from chordnotepad.app_paths import AppPaths
 
 from tests.conftest import QT_PROBLEM
 
@@ -44,3 +56,40 @@ def qapp_cls():
     from PySide6.QtGui import QGuiApplication
 
     return QGuiApplication
+
+
+#: The checkout's resources (icons, fonts), as the desktop resolver finds them.
+REPO = Path(__file__).resolve().parents[2]
+PATHS = AppPaths(resources=REPO / "resources")
+
+
+@pytest.fixture(scope="session", autouse=True)
+def bundled_families(qapp):
+    """``main.prepare_application`` once, before the first QML is loaded.
+
+    Autouse for the tests in this folder only; the font families it loaded.
+    """
+    from chordnotepad_desktop.main import prepare_application
+
+    return prepare_application(qapp, PATHS)
+
+
+@pytest.fixture
+def main_window(qapp, qtbot):
+    """Main.qml loaded the way ``main.run`` loads it; closed and freed afterwards.
+
+    The engine's warnings must stay empty (checked at teardown).
+    """
+    from chordnotepad_desktop.main import create_engine, load_main_window
+
+    engine = create_engine(PATHS)
+    warnings = []
+    engine.warnings.connect(lambda errors: warnings.extend(e.toString() for e in errors))
+    main = load_main_window(engine, qapp)
+    assert main is not None, warnings
+    yield main
+    qapp.removeEventFilter(main.alt)
+    main.window.close()
+    engine.deleteLater()
+    qtbot.wait(1)
+    assert warnings == []
