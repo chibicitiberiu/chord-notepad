@@ -410,7 +410,7 @@ def test_show_menu_bar_keeps_it_and_is_kept(qapp, qtbot, tmp_path):
 def test_the_menus_list_every_command(app):
     expect = {
         "editMenu": ["Undo", "Redo", "---", "Cut", "Copy", "Paste", "---", "Select all"],
-        "viewMenu": ["Edit", "Play", "---", "", "Chord sheet view", "---", "Word wrap",
+        "viewMenu": ["Edit", "Play", "---", "Chord sheet under the text", "Chord sheet view", "---", "Word wrap",
                      "Larger text", "Smaller text", "Reset text size", "---",
                      "Zoom in (whole window)", "Zoom out (whole window)", "Reset zoom (100%)",
                      "Full screen", "---", "Show menu bar", "Dark theme"],

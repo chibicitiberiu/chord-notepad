@@ -84,4 +84,9 @@ Each is also noted where it applies, as "pitfall N":
     visual tree).
 26. DialogButtonBox ignores ``highlighted``: the footer is our own row
     (Dialog.qml).
+27. A Python item that QML instantiates *and* gives a property of its own
+    (``SheetView { property real x: 0 }``) gets QML's metaobject; signals
+    connected to its plain Python methods then never arrive. Connect to
+    ``@Slot`` methods and keep extra properties out of the instance
+    (chord_sheet.py).
 """

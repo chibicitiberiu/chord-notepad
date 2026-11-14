@@ -673,6 +673,7 @@ def test_the_play_workspace_shows_the_same_text_read_only_with_the_pencil(editor
     editor.type("C G")
     editor.window.setProperty("mode", "play")
     editor.qtbot.waitUntil(lambda: editor.area.property("readOnly") is True, timeout=1000)
+    editor.run()          # the Play split (text over the chord sheet) lays out on the next polish
     host = editor.item("playTextHost")
     assert editor.item("editorPane").parentItem() == host
     pencil = editor.item("playZoomChip").findChild(QQuickItem, "editPencil")
@@ -776,6 +777,7 @@ def test_chord_clicks_and_the_hand_work_while_read_only(editor):
     song(editor)
     editor.window.setProperty("mode", "play")
     editor.qtbot.waitUntil(lambda: editor.area.property("readOnly") is True, timeout=1000)
+    editor.run()          # the Play split (text over the chord sheet) lays out on the next polish
     QTest.mouseMove(editor.window, editor.point_of(0))
     editor.run(20)
     assert editor.item("editorPane").property("overChord") is True

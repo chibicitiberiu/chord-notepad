@@ -18,12 +18,13 @@ import CNTheme
 // the status bar's StatusBarModel (status_bar.py), `pickers` the ▾ value
 // pickers' ValuePickerModel (value_picker.py), `dialogs` the Settings
 // window's and the small dialogs' DialogsModel (dialogs.py), for AppDialogs,
-// `player` the player bar's PlayerBarModel (player_bar.py) and `chrome` the
+// `player` the player bar's PlayerBarModel (player_bar.py), `chrome` the
 // kept zoom and menu bar plus the File menu's documents (chrome.py,
-// files.py). The shortcuts are Actions: the window's in AppActions.qml, the
-// editor's in EditorPane.qml, playback's in PlaybackActions.qml; the menu
-// bar (AppMenuBar.qml), the ☰ menu (AppMenu.qml) and the Edit toolbar
-// (EditToolbar.qml) reuse them.
+// files.py) and `sheet` the chord sheet's ChordSheetModel (chord_sheet.py).
+// The shortcuts are Actions: the window's in AppActions.qml, the editor's in
+// EditorPane.qml, playback's in PlaybackActions.qml, the chord sheet's in
+// SheetActions.qml; the menu bar (AppMenuBar.qml), the ☰ menu (AppMenu.qml)
+// and the Edit toolbar (EditToolbar.qml) reuse them.
 //
 // The plumbing every main window keeps:
 // - windowDpr, fontRevision and contentReady are written by DprWatcher
@@ -50,6 +51,7 @@ ApplicationWindow {
     required property var dialogs
     required property var player
     required property var chrome
+    required property var sheet
     property real windowDpr: 1.0
     property int fontRevision: 0
     property bool contentReady: false
@@ -71,12 +73,19 @@ ApplicationWindow {
     // The workspace: "edit" or "play" (not kept between runs, as in the mockup).
     property string mode: "edit"
     // The Play workspace shows the chord sheet, so it renders and the
-    // timeline gets its sections (B3); in Edit, F9's setting decides.
+    // timeline gets its sections (B3); in Edit, F9's setting decides; a
+    // minimized window shows nothing.
+    readonly property bool minimized: win.visibility === Window.Minimized
+    function sheetOnScreen() {
+        win.store.submit("set_chord_sheet_on_screen",
+                         { on_screen: win.minimized ? false : win.mode === "play" ? true : null })
+    }
     onModeChanged: {
         Theme.bumpLayout()
         editorPane.focusEditor()
-        win.store.submit("set_chord_sheet_on_screen", { on_screen: win.mode === "play" ? true : null })
+        win.sheetOnScreen()
     }
+    onMinimizedChanged: win.sheetOnScreen()
     // Ctrl+1 / Ctrl+2 are AppActions' editModeAction / playModeAction.
 
     // --- The menus (F1) ----------------------------------------------------------------
@@ -88,6 +97,7 @@ ApplicationWindow {
         store: win.store
         chrome: win.chrome
         altWatcher: win.altWatcher
+        sheetActions: windowSheetActions
         onEditVoicings: appDialogs.openSettings("voicings")
     }
     // F10: the first menu.
@@ -150,7 +160,7 @@ ApplicationWindow {
             Layout.fillHeight: true
             currentIndex: win.mode === "play" ? 1 : 0
             // Edit: the toolbar, the rail and sidebars (F), the editor, the
-            // chord sheet (E4), the status bar (F4).
+            // chord sheet panel (E4, F9), the status bar (F4).
             ColumnLayout {
                 objectName: "editWorkspace"
                 spacing: 0
@@ -161,17 +171,38 @@ ApplicationWindow {
                     pane: editorPane
                     playback: playbackActions
                     player: win.player
+                    sheetActions: windowSheetActions
                     Layout.fillWidth: true
                 }
-                Item {
-                    id: editHost
-                    objectName: "editHost"
+                SplitView {
+                    id: editSplit
+                    objectName: "editSplit"
                     Layout.fillWidth: true
                     Layout.fillHeight: true
-                    onXChanged: Theme.bumpLayout(); onYChanged: Theme.bumpLayout()
-                    onWidthChanged: Theme.bumpLayout(); onHeightChanged: Theme.bumpLayout()
-                    // The text's zoom, on the text pane (not the status bar under the sheet).
-                    ZoomChip { objectName: "editZoomChip"; editor: win.editor }
+                    orientation: Qt.Vertical
+                    handle: SplitGrip { vertical: true }
+                    // The panel's height is kept after a drag (logical px, B3).
+                    onResizingChanged: if (!resizing && editSheetHost.visible)
+                        win.sheet.saveHeight(Math.round(editSheetHost.height), Theme.dpr)
+                    Item {
+                        id: editHost
+                        objectName: "editHost"
+                        SplitView.fillHeight: true
+                        SplitView.minimumHeight: Theme.px(30)
+                        onXChanged: Theme.bumpLayout(); onYChanged: Theme.bumpLayout()
+                        onWidthChanged: Theme.bumpLayout(); onHeightChanged: Theme.bumpLayout()
+                        // The text's zoom, on the text pane (not the status bar under the sheet).
+                        ZoomChip { objectName: "editZoomChip"; editor: win.editor }
+                    }
+                    Item {
+                        id: editSheetHost
+                        objectName: "editSheetHost"
+                        visible: win.store.states.ChordSheetState.visible === true
+                        SplitView.preferredHeight: Theme.sheetPanelHeight
+                        SplitView.minimumHeight: Theme.px(40)
+                        onXChanged: Theme.bumpLayout(); onYChanged: Theme.bumpLayout()
+                        onWidthChanged: Theme.bumpLayout(); onHeightChanged: Theme.bumpLayout()
+                    }
                 }
                 // The message (D4), the read-only notice, Ln/Col, the notation (F4).
                 StatusBar { model: win.status; Layout.fillWidth: true }
@@ -189,19 +220,35 @@ ApplicationWindow {
                     onGoToDirective: (v) => win.goToDirective(v)
                     onEditVoicings: appDialogs.openSettings("voicings")
                 }
-                Item {
-                    id: playTextHost
-                    objectName: "playTextHost"
+                SplitView {
+                    objectName: "playSplit"
                     Layout.fillWidth: true
                     Layout.fillHeight: true
-                    onXChanged: Theme.bumpLayout(); onYChanged: Theme.bumpLayout()
-                    onWidthChanged: Theme.bumpLayout(); onHeightChanged: Theme.bumpLayout()
-                    // The text pane's corner: text zoom and back to Edit.
-                    ZoomChip {
-                        objectName: "playZoomChip"
-                        editor: win.editor
-                        showEdit: true
-                        onEditRequested: win.mode = "edit"
+                    orientation: Qt.Vertical
+                    handle: SplitGrip { vertical: true }
+                    Item {
+                        id: playTextHost
+                        objectName: "playTextHost"
+                        SplitView.fillHeight: true
+                        SplitView.minimumHeight: Theme.px(30)
+                        onXChanged: Theme.bumpLayout(); onYChanged: Theme.bumpLayout()
+                        onWidthChanged: Theme.bumpLayout(); onHeightChanged: Theme.bumpLayout()
+                        // The text pane's corner: text zoom and back to Edit.
+                        ZoomChip {
+                            objectName: "playZoomChip"
+                            editor: win.editor
+                            showEdit: true
+                            onEditRequested: win.mode = "edit"
+                        }
+                    }
+                    // The chord-sheet strip, always on screen in Play.
+                    Item {
+                        id: playSheetHost
+                        objectName: "playSheetHost"
+                        SplitView.preferredHeight: Theme.playSheetHeight
+                        SplitView.minimumHeight: Theme.px(45)
+                        onXChanged: Theme.bumpLayout(); onYChanged: Theme.bumpLayout()
+                        onWidthChanged: Theme.bumpLayout(); onHeightChanged: Theme.bumpLayout()
                     }
                 }
             }
@@ -219,8 +266,24 @@ ApplicationWindow {
         parent: win.mode === "play" ? playTextHost : editHost
         anchors.fill: parent
     }
+    // One chord sheet, moved between the Edit panel and the Play strip (the mockup's).
+    ChordSheetPane {
+        id: sheetPane
+        store: win.store
+        model: win.sheet
+        parent: win.mode === "play" ? playSheetHost : editSheetHost
+        anchors.fill: parent
+        closable: win.mode === "edit"
+        showVoicing: win.mode === "edit"
+        active: win.contentReady && !win.minimized && sheetPane.parent !== null && sheetPane.parent.visible
+        onCloseRequested: win.store.submit("set_chord_sheet_visible", { visible: false })
+        onEditVoicings: appDialogs.openSettings("voicings")
+    }
+
     // The playback shortcuts (F5, Shift+F5, Ctrl+M, Ctrl+] / Ctrl+[ / Ctrl+\).
     PlaybackActions { id: playbackActions; store: win.store; player: win.player }
+    // The chord sheet's (F9 in Edit, Alt+1..4 for the views).
+    SheetActions { id: windowSheetActions; store: win.store; editMode: win.mode === "edit" }
 
     // A song value's link: Edit, the cursor just inside the directive that
     // sets it (looked up in the live text), the editor focused.
@@ -236,7 +299,12 @@ ApplicationWindow {
 
     // The editor has the keyboard focus from the start (Q10) and gets it back
     // when a dialog closes or the workspace changes.
-    onContentReadyChanged: if (win.contentReady) editorPane.focusEditor()
+    onContentReadyChanged: if (win.contentReady) {
+        editorPane.focusEditor()
+        // The Edit panel's saved height, now that the ratio is known (B3: Tk's
+        // pixels are migrated with it).
+        editSheetHost.SplitView.preferredHeight = win.sheet.savedHeight(Theme.dpr)
+    }
 
     // --- The session's requests and the presenter's dialogs ----------------------------
     UnsavedDialog {

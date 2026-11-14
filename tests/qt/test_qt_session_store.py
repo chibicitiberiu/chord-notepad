@@ -202,6 +202,9 @@ def test_the_direct_calls(env):
     assert env.store.direct("setting_directive_start", "key") is None
     assert env.store.direct("volume") == 1.0 and env.store.direct("muted") is False
     assert env.store.direct("timeline_offset", 1) is None          # no strip render yet
+    # The chord sheet's (E4): nothing rendered yet; the first start's height.
+    assert env.store.direct("chord_sheet_buffer", 120.0) is None
+    assert env.store.direct("logical_chord_sheet_height", 1.0) == 160
 
 
 def test_anything_else_is_refused_as_a_direct_call(env):
@@ -254,15 +257,18 @@ def session_attributes(tree):
     return found
 
 
-def test_the_direct_calls_are_the_plans_four_the_pickers_the_player_bars_and_the_chromes():
+def test_the_direct_calls_are_the_plans_four_the_pickers_the_player_bars_the_chromes_and_the_sheets():
     # picker_at: the ▾ value picker (D5; B4 listed it as a direct call).
     # The player bar's lookups (E1-E3): the timeline, the song values'
     # directives, and the volume (B3 listed volume and muted).
     # The chrome's (F1, F3): the kept zoom and menu bar, a picked file's ref.
+    # The chord sheet's (E4): its packed draw ops (C3 named it) and the Edit
+    # panel's saved height (B3 listed it).
     assert DIRECT_CALLS == {"directive_hint_at", "chord_at", "licence_catalog", "settings_values",
                             "picker_at", "timeline_offset", "timeline_position",
                             "setting_directive_start", "volume", "muted",
-                            "ui_scale", "menu_bar_shown", "document_ref"}
+                            "ui_scale", "menu_bar_shown", "document_ref",
+                            "chord_sheet_buffer", "logical_chord_sheet_height"}
 
 
 def test_nothing_in_the_qt_package_calls_the_session_outside_the_allow_list():

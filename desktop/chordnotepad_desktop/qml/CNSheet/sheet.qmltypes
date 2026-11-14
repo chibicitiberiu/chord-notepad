@@ -1,0 +1,43 @@
+import QtQuick.tooling 1.2
+
+// For qmllint: CNSheet.SheetView is registered from Python
+// (chord_sheet.py, register_types). tests/qt/test_qt_chord_sheet.py checks this against the class.
+Module {
+    Component {
+        file: "chord_sheet.py"
+        name: "SheetView"
+        accessSemantics: "reference"
+        prototype: "QQuickPaintedItem"
+        exports: ["CNSheet/SheetView 1.0"]
+        exportMetaObjectRevisions: [256]
+        Property { name: "model"; type: "QObject"; isPointer: true; notify: "changed"; index: 0 }
+        Property { name: "active"; type: "bool"; notify: "changed"; index: 1 }
+        Property { name: "dark"; type: "bool"; notify: "changed"; index: 2 }
+        Property { name: "surface"; type: "QColor"; notify: "changed"; index: 3 }
+        Property { name: "playingColor"; type: "QColor"; notify: "changed"; index: 4 }
+        Property { name: "edgeColor"; type: "QColor"; notify: "changed"; index: 5 }
+        Property { name: "dpr"; type: "double"; notify: "changed"; index: 6 }
+        Property { name: "fontFamily"; type: "QString"; notify: "changed"; index: 7 }
+        Property { name: "playingIndex"; type: "int"; notify: "changed"; index: 8 }
+        Property { name: "cursorIndex"; type: "int"; notify: "changed"; index: 9 }
+        Property { name: "scrollX"; type: "double"; notify: "scrollXChanged"; index: 10 }
+        Property { name: "contentWidth"; type: "double"; isReadonly: true; notify: "contentChanged"; index: 11 }
+        Property { name: "gutterWidth"; type: "double"; isReadonly: true; notify: "contentChanged"; index: 12 }
+        Property { name: "hasSheet"; type: "bool"; isReadonly: true; notify: "contentChanged"; index: 13 }
+        Property { name: "laneHeight"; type: "double"; isReadonly: true; isConstant: true; index: 14 }
+        Property { name: "zoomAnchor"; type: "double"; notify: "changed"; index: 15 }
+        Signal { name: "changed" }
+        Signal { name: "scrollXChanged" }
+        Signal { name: "contentChanged" }
+        Method { name: "scrollBy"
+            Parameter { name: "p0"; type: "double" }
+        }
+        Method { name: "chordAt"; type: "int"
+            Parameter { name: "p0"; type: "double" }
+            Parameter { name: "p1"; type: "double" }
+        }
+        Method { name: "slotCenter"; type: "double"
+            Parameter { name: "p0"; type: "int" }
+        }
+    }
+}

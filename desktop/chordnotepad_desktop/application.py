@@ -48,6 +48,7 @@ from chordnotepad_desktop.main import (
 from chordnotepad_desktop.qt_host import QtHost
 from chordnotepad_desktop.qt_messages import install_message_handler
 from chordnotepad_desktop.dialogs import DialogsModel
+from chordnotepad_desktop.chord_sheet import ChordSheetModel
 from chordnotepad_desktop.editor_bridge import EditorBridge
 from chordnotepad_desktop.player_bar import PlayerBarModel
 from chordnotepad_desktop.status_bar import StatusBarModel
@@ -140,6 +141,7 @@ class QtApplication:
         self.dialogs: Optional[DialogsModel] = None
         self.player: Optional[PlayerBarModel] = None
         self.chrome: Optional[ChromeModel] = None
+        self.sheet: Optional[ChordSheetModel] = None
         self.main: Optional[MainWindow] = None
         self.renderer: Optional[str] = None
         #: The engine's QML warnings (``--smoke`` fails on any).
@@ -191,6 +193,7 @@ class QtApplication:
                                     build_info=self._build_info, parent=self.store)
         self.player = PlayerBarModel(self.store, self.editor, parent=self.store)
         self.chrome = ChromeModel(self.store, parent=self.store)
+        self.sheet = ChordSheetModel(self.store, parent=self.store)
 
         self._engine = create_engine(self._paths)
         self._engine.warnings.connect(
@@ -198,7 +201,8 @@ class QtApplication:
         main = load_main_window(self._engine, app, store=self.store, errors=self.presenter,
                                 editor=self.editor, status=self.status_bar,
                                 pickers=self.pickers, dialogs=self.dialogs,
-                                player=self.player, chrome=self.chrome)
+                                player=self.player, chrome=self.chrome,
+                                sheet=self.sheet)
         if main is None:
             raise RuntimeError("The main window couldn't be loaded:\n" + "\n".join(self.warnings))
         self.main = main
@@ -270,6 +274,8 @@ class QtApplication:
             self.host.stop()
         if self.player is not None:
             self.player.close()
+        if self.sheet is not None:
+            self.sheet.close()
         if self.store is not None:
             self.store.close()
         if self.dialogs is not None:

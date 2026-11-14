@@ -34,7 +34,7 @@ from PySide6.QtQuick import QQuickWindow
 from PySide6.QtQuickControls2 import QQuickStyle
 
 from chordnotepad.app_paths import AppPaths
-from chordnotepad_desktop import chrome, editor_font, fonts
+from chordnotepad_desktop import chord_sheet, chrome, editor_font, fonts
 from chordnotepad_desktop.alt_watcher import AltWatcher
 from chordnotepad_desktop.dpr import DprWatcher
 from chordnotepad_desktop.icons import PROVIDER_ID, IconProvider, icon_folders
@@ -89,7 +89,9 @@ def prepare_application(app: QGuiApplication, paths: AppPaths) -> list:
 
 
 def create_engine(paths: AppPaths, parent: Optional[QObject] = None) -> QQmlApplicationEngine:
-    """An engine that finds CNTheme and CNStyle and serves ``image://icons``."""
+    """An engine that finds CNTheme, CNStyle and CNSheet (the chord sheet's
+    painted item, registered here) and serves ``image://icons``."""
+    chord_sheet.register_types()
     engine = QQmlApplicationEngine(parent)
     engine.addImportPath(str(QML_DIR))
     engine.addImageProvider(PROVIDER_ID, IconProvider(icon_folders(paths)))
@@ -129,18 +131,19 @@ def load_window(engine: QQmlApplicationEngine, app: QGuiApplication, qml_file: P
 def load_main_window(engine: QQmlApplicationEngine, app: QGuiApplication, *,
                      store: QObject, errors: QObject, editor: QObject, status: QObject,
                      pickers: QObject, dialogs: QObject, player: QObject,
-                     chrome: QObject) -> Optional[MainWindow]:
+                     chrome: QObject, sheet: QObject) -> Optional[MainWindow]:
     """Load Main.qml over ``store`` (the session), ``errors`` (the error
     presenter), ``editor`` (the editor's EditorBridge), ``status`` (the
     status bar's StatusBarModel), ``pickers`` (the ▾ pickers'
     ValuePickerModel), ``dialogs`` (the dialogs' and the Settings
-    window's DialogsModel), ``player`` (the player bar's PlayerBarModel)
-    and ``chrome`` (the kept zoom and menu bar, the File menu's documents:
-    ChromeModel); None if it created no window. Not shown yet."""
+    window's DialogsModel), ``player`` (the player bar's PlayerBarModel),
+    ``chrome`` (the kept zoom and menu bar, the File menu's documents:
+    ChromeModel) and ``sheet`` (the chord sheet's ChordSheetModel); None if
+    it created no window. Not shown yet."""
     return load_window(engine, app, MAIN_QML, {"store": store, "errors": errors, "editor": editor,
                                                "status": status, "pickers": pickers,
                                                "dialogs": dialogs, "player": player,
-                                               "chrome": chrome})
+                                               "chrome": chrome, "sheet": sheet})
 
 
 def run(paths: AppPaths, argv, build_info: Optional[dict] = None) -> int:

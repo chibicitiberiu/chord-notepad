@@ -67,10 +67,14 @@ logger = logging.getLogger(__name__)
 #: The chrome's (plan step F, chrome.py and files.py): ``ui_scale`` and
 #: ``menu_bar_shown`` (properties) and ``document_ref``, the picked file's
 #: reference.
+#: The chord sheet's (plan step E4, chord_sheet.py): ``chord_sheet_buffer``
+#: (the packed view; called off the GUI thread, as Android does) and
+#: ``logical_chord_sheet_height`` (the Edit panel's saved height, B3).
 DIRECT_CALLS = frozenset({"directive_hint_at", "chord_at", "licence_catalog", "settings_values",
                           "picker_at", "timeline_offset", "timeline_position",
                           "setting_directive_start", "volume", "muted",
-                          "ui_scale", "menu_bar_shown", "document_ref"})
+                          "ui_scale", "menu_bar_shown", "document_ref",
+                          "chord_sheet_buffer", "logical_chord_sheet_height"})
 
 _STATE_NAMES = frozenset(t.__name__ for t in STATE_TYPES)
 _EVENT_NAMES = frozenset(t.__name__ for t in EVENT_TYPES)

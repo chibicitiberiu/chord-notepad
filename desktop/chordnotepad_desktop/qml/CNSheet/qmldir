@@ -1,0 +1,3 @@
+module CNSheet
+typeinfo sheet.qmltypes
+depends QtQuick
