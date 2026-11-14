@@ -1,17 +1,10 @@
 """Pytest configuration and fixtures."""
 
-import sys
-from pathlib import Path
-
-# Add src directory to path
-src_path = Path(__file__).parent.parent / "src"
-sys.path.insert(0, str(src_path))
-
 import pytest
 from hypothesis import settings
-from chord.detector import ChordDetector
-from services.song_parser_service import SongParserService
-from models.notation import Notation
+from chordnotepad.chord.detector import ChordDetector
+from chordnotepad.services.song_parser_service import SongParserService
+from chordnotepad.models.notation import Notation
 
 # Hypothesis: disable per-example deadlines globally so CI runner variance does
 # not produce spurious flakes. Random exploration is preserved so the fuzz tests
@@ -61,7 +54,7 @@ def song_parser():
 @pytest.fixture(autouse=True)
 def _session_output_crosses_the_bridge():
     """Every session output a test recorded must encode for the bridge (DTO purity)."""
-    from session import testing
+    from chordnotepad.session import testing
 
     testing.BRIDGE_FAILURES.clear()
     yield

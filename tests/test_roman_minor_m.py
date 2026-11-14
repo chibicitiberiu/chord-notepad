@@ -2,12 +2,12 @@
 minor seventh on degree 2 (Dm7 in C), like ``ii7``."""
 import pytest
 
-from audio.chord_picker import ChordNotePicker
-from chord.detector import ChordDetector
-from chord.helper import ChordHelper
-from services.song_parser_service import SongParserService
-from services.song_renderer import SongRenderer
-from services.transpose_service import transpose_text
+from chordnotepad.audio.chord_picker import ChordNotePicker
+from chordnotepad.chord.detector import ChordDetector
+from chordnotepad.chord.helper import ChordHelper
+from chordnotepad.services.song_parser_service import SongParserService
+from chordnotepad.services.song_renderer import SongRenderer
+from chordnotepad.services.transpose_service import transpose_text
 
 
 @pytest.mark.parametrize("roman, key, symbol", [

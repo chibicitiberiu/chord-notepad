@@ -11,8 +11,8 @@ from unittest.mock import patch
 
 import pytest
 
-from audio.event_buffer import EventBuffer
-from models.playback_event_internal import MidiEvent, MidiEventType
+from chordnotepad.audio.event_buffer import EventBuffer
+from chordnotepad.models.playback_event_internal import MidiEvent, MidiEventType
 
 from tests.test_song_scheduler import FakeSequencer, chord
 
@@ -92,7 +92,7 @@ def wait_for(predicate, timeout=TIMEOUT):
 
 @pytest.fixture
 def player():
-    from audio import player as mod
+    from chordnotepad.audio import player as mod
 
     with patch.object(mod.NotePlayer, "_initialize_fluidsynth", lambda self, *a: None), \
             patch.object(mod.os.path, "exists", lambda p: True):
@@ -264,7 +264,7 @@ def test_cleanup_stops_playback_and_frees_in_order(player):
     freed = []
     player._sequencer.delete = lambda: freed.append("sequencer")
     player.fs.audio_driver = 1234
-    with patch("audio.player.fluidsynth.delete_fluid_audio_driver", lambda h: freed.append("driver")):
+    with patch("chordnotepad.audio.player.fluidsynth.delete_fluid_audio_driver", lambda h: freed.append("driver")):
         fs = player.fs
         player.cleanup()
     assert freed == ["driver", "sequencer"]

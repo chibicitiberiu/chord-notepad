@@ -1,35 +1,42 @@
 """The shared core must import without desktop-only libraries.
 
-The Android build (Chaquopy) has no tkinter, Pillow or jeepney. Every module
-outside ``src/ui/`` and the desktop-only list below is imported in a fresh
+The Android build (Chaquopy) has no tkinter, Pillow or jeepney, and the Qt
+desktop app's PySide6 must stay out of the core too. Every module of the
+``chordnotepad`` package (``core/chordnotepad``) is imported in a fresh
 interpreter with those libraries blocked, so a stray top-level import fails
-here rather than on a phone. Desktop-only code goes under ``src/ui/``; the
-list only holds the entry points next to it.
+here rather than on a phone. There is no exclusion list: desktop-only code
+lives in the front ends' own packages (``desktop/chordnotepad_tk``).
+
+The second half checks that the old top-level names (``session``, ``ui``,
+``constants``...) can't be imported any more, so no second copy of a core
+module can load next to the ``chordnotepad`` one.
 """
 
+import importlib.util
 import json
 import re
 import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 REPO = Path(__file__).parent.parent
-SRC = REPO / "src"
+CORE = REPO / "core"
+PACKAGE = CORE / "chordnotepad"
 GRADLE = REPO / "android" / "app" / "build.gradle.kts"
+ANDROID_PYTHON = REPO / "android" / "app" / "src" / "main" / "python"
 
-BLOCKED = ("tkinter", "_tkinter", "PIL", "jeepney")
+BLOCKED = ("tkinter", "_tkinter", "PIL", "jeepney", "PySide6", "shiboken6")
 
-# Desktop-only modules outside src/ui/: they never ship on Android.
-DESKTOP_ONLY = {
-    "main",
-    "application",
-    "build_info",
-}
-
-# Core modules that still reach a blocked library. The Android port removes
-# these one by one; the test fails when one starts
-# importing cleanly, so the entry gets deleted instead of going stale.
-KNOWN_LEAKS: set = set()
+#: The top-level names the code had before it moved into packages (A3),
+#: and the folder that held them (a leftover src/ would import as a
+#: namespace package).
+OLD_ROOTS = (
+    "app_paths", "application", "audio", "build_info", "chord", "chord_sheet", "constants",
+    "exceptions", "main", "models", "services", "session", "settings_forms", "ui", "utils",
+    "viewmodels", "src",
+)
 
 _PROBE = r"""
 import importlib, json, sys
@@ -49,63 +56,85 @@ for mod in json.loads(sys.argv[3]):
         importlib.import_module(mod)
     except Exception as exc:
         failures[mod] = f"{type(exc).__name__}: {exc}"
-print(json.dumps(failures))
+leaked = sorted(m for m in sys.modules if m.split(".")[0] in blocked)
+print(json.dumps({"failures": failures, "leaked": leaked}))
 """
 
 
 def _core_modules():
     mods = []
-    for path in sorted(SRC.rglob("*.py")):
-        rel = path.relative_to(SRC).with_suffix("")
-        parts = rel.parts
-        if parts[0] == "ui" or "__pycache__" in parts:
+    for path in sorted(PACKAGE.rglob("*.py")):
+        parts = path.relative_to(CORE).with_suffix("").parts
+        if "__pycache__" in parts:
             continue
         if parts[-1] == "__init__":
             parts = parts[:-1]
-            if not parts:
-                continue
-        name = ".".join(parts)
-        if name not in DESKTOP_ONLY:
-            mods.append(name)
+        mods.append(".".join(parts))
     return mods
 
 
 def _probe(modules):
     out = subprocess.run(
-        [sys.executable, "-c", _PROBE, json.dumps(BLOCKED), str(SRC), json.dumps(modules)],
+        [sys.executable, "-I", "-c", _PROBE, json.dumps(BLOCKED), str(CORE), json.dumps(modules)],
         capture_output=True, text=True, timeout=300,
     )
     assert out.returncode == 0, out.stderr
     return json.loads(out.stdout.strip().splitlines()[-1])
 
 
+def test_the_walk_finds_the_whole_core():
+    mods = _core_modules()
+    assert mods[0] == "chordnotepad"
+    assert {"chordnotepad.session.host", "chordnotepad.session.errors",
+            "chordnotepad.chord_sheet.clef_assets", "chordnotepad.app_paths"} <= set(mods)
+    assert len(mods) > 100
+
+
 def test_core_imports_without_desktop_libraries():
-    failures = _probe(_core_modules())
-    unexpected = {m: e for m, e in failures.items() if m not in KNOWN_LEAKS}
-    assert not unexpected, "Core modules import desktop-only libraries:\n" + "\n".join(
-        f"  {m}: {e}" for m, e in sorted(unexpected.items()))
+    result = _probe(_core_modules())
+    assert not result["failures"], "Core modules import desktop-only libraries:\n" + "\n".join(
+        f"  {m}: {e}" for m, e in sorted(result["failures"].items()))
+    assert result["leaked"] == []
 
 
-def test_known_leaks_list_is_current():
-    fixed = KNOWN_LEAKS - set(_probe(sorted(KNOWN_LEAKS)))
-    assert not fixed, f"These modules import cleanly now; remove them from KNOWN_LEAKS: {sorted(fixed)}"
+def test_the_desktop_package_is_not_inside_the_core():
+    assert not (PACKAGE / "ui").exists()
+    for name in ("main", "application", "build_info"):
+        assert not (PACKAGE / f"{name}.py").exists()
+        assert (REPO / "desktop" / "chordnotepad_tk" / f"{name}.py").is_file()
 
 
-def test_session_package_is_core_and_imports_without_desktop_libraries():
-    # The session layer is what the Android UI talks to: it must never be
-    # excused as desktop-only or as a known leak.
-    session = [m for m in _core_modules() if m == "session" or m.startswith("session.")]
-    assert "session.host" in session and "session.errors" in session
-    assert not set(session) & (DESKTOP_ONLY | KNOWN_LEAKS)
-    assert _probe(session) == {}
+@pytest.mark.parametrize("name", OLD_ROOTS)
+def test_old_top_level_names_are_gone(name):
+    # pytest.ini puts core/, desktop/ and the Android glue on sys.path, so
+    # this also checks no folder there has a module by an old name.
+    assert importlib.util.find_spec(name) is None, (
+        f"'{name}' is importable as a top-level module: a second copy of the core next to "
+        f"chordnotepad.{name}, or a stray src/ on sys.path")
 
 
-def test_android_excludes_exactly_ui_and_the_desktop_only_modules():
-    # Chaquopy's sourceSets exclude list ships everything else in src/.
+def test_old_top_level_names_are_gone_in_a_clean_interpreter():
+    """What the Android build, the bundles and make run see: core/ and desktop/ only."""
+    script = ("import importlib.util, json, sys; sys.path[:0] = sys.argv[1:3]; "
+              "print(json.dumps([n for n in json.loads(sys.argv[3]) "
+              "if importlib.util.find_spec(n) is not None]))")
+    out = subprocess.run(
+        [sys.executable, "-I", "-c", script, str(CORE), str(REPO / "desktop"),
+         json.dumps(OLD_ROOTS)],
+        capture_output=True, text=True, timeout=60, cwd=REPO)
+    assert out.returncode == 0, out.stderr
+    assert json.loads(out.stdout) == []
+
+
+def test_android_ships_exactly_the_core_package():
+    # Chaquopy's sourceSets: the chordnotepad package from core/ plus the glue
+    # in the default src/main/python. include() filters every srcDir of the
+    # set, so a glue package missing from it silently drops out of the APK.
     gradle = GRADLE.read_text(encoding="utf-8")
-    block = re.search(r'srcDir\("\.\./\.\./src"\)\s*exclude\((.*?)\)', gradle, re.S)
-    assert block, "no exclude(...) after srcDir(\"../../src\") in build.gradle.kts"
-    excluded = set(re.findall(r'"([^"]+)"', block.group(1)))
-    expected = {"__init__.py", "**/__pycache__/**", "ui/**"}
-    expected |= {name.replace(".", "/") + ".py" for name in DESKTOP_ONLY}
-    assert excluded == expected
+    block = re.search(r'srcDir\("\.\./\.\./core"\)\s*include\((.*?)\)\s*exclude\((.*?)\)', gradle, re.S)
+    assert block, 'no srcDir("../../core") include(...) exclude(...) in build.gradle.kts'
+    glue = {p.name for p in ANDROID_PYTHON.iterdir() if p.is_dir() and p.name != "__pycache__"}
+    assert glue == {"chordnotepad_android"}
+    assert set(re.findall(r'"([^"]+)"', block.group(1))) == {"chordnotepad/**"} | {f"{g}/**" for g in glue}
+    assert set(re.findall(r'"([^"]+)"', block.group(2))) == {"**/__pycache__/**"}
+    assert not re.search(r'srcDir\("\.\./\.\./(src|desktop)', gradle)

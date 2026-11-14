@@ -11,10 +11,10 @@ import threading
 import time
 from unittest.mock import patch
 
-from services.playback_service import PlaybackService
-from services.song_parser_service import SongParserService
-from services.song_renderer import SongRenderer
-from session.testing import FakePlayer
+from chordnotepad.services.playback_service import PlaybackService
+from chordnotepad.services.song_parser_service import SongParserService
+from chordnotepad.services.song_renderer import SongRenderer
+from chordnotepad.session.testing import FakePlayer
 
 
 class FakeConfig:
@@ -115,7 +115,7 @@ def test_stress_stop_during_render_never_leaves_the_player_running():
     service, player = make_service()
     lines = song()
     rng = random.Random(1234)
-    real_compile = __import__("services.event_compiler", fromlist=["compile_events"]).compile_events
+    real_compile = __import__("chordnotepad.services.event_compiler", fromlist=["compile_events"]).compile_events
 
     def jittery_compile(*args, **kwargs):
         # Widen the window between rendering and starting the player.
@@ -123,7 +123,7 @@ def test_stress_stop_during_render_never_leaves_the_player_running():
         return real_compile(*args, **kwargs)
 
     started = 0
-    with patch("services.playback_service.compile_events", jittery_compile):
+    with patch("chordnotepad.services.playback_service.compile_events", jittery_compile):
         for i in range(200):
             assert service.start_song_playback(lines, None)
             if i % 4 == 0:

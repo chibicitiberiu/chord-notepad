@@ -12,8 +12,8 @@ frozen characterization goldens).
 
 import pytest
 
-from audio.guitar_chord_picker import GuitarChordPicker
-from chord.helper import ChordHelper
+from chordnotepad.audio.guitar_chord_picker import GuitarChordPicker
+from chordnotepad.chord.helper import ChordHelper
 
 
 @pytest.fixture(scope="module")

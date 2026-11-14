@@ -13,16 +13,16 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from audio.player import NotePlayer
-from services.appdata_service import AppDataService
-from session.bootstrap import build_core_services, create_session
-from session.host import HostDispatch
-from session.state import IdentifierState
-from session.testing import EventRecorder, FakePlayer, InMemoryDocumentStore, ManualHost
-from viewmodels.chord_identifier_viewmodel import (
+from chordnotepad.audio.player import NotePlayer
+from chordnotepad.services.appdata_service import AppDataService
+from chordnotepad.session.bootstrap import build_core_services, create_session
+from chordnotepad.session.host import HostDispatch
+from chordnotepad.session.state import IdentifierState
+from chordnotepad.session.testing import EventRecorder, FakePlayer, InMemoryDocumentStore, ManualHost
+from chordnotepad.viewmodels.chord_identifier_viewmodel import (
     ROLL_GAP_SECONDS, SOUNDING_SECONDS, ChordIdentifierViewModel, midi_name, outside_piano,
 )
-from services.song_parser_service import SongParserService
+from chordnotepad.services.song_parser_service import SongParserService
 
 
 class FakeAudio:

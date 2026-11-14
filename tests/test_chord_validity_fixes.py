@@ -1,8 +1,8 @@
 """Half-diminished Roman numerals play; run-together extensions are invalid."""
 import pytest
 
-from chord.detector import ChordDetector
-from chord.helper import ChordHelper
+from chordnotepad.chord.detector import ChordDetector
+from chordnotepad.chord.helper import ChordHelper
 
 
 @pytest.mark.parametrize("roman, key, notes", [

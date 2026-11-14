@@ -11,18 +11,18 @@ render lands after playback started.
 
 import pytest
 
-from audio.chord_picker import ChordNotePicker
-from services.playback_service import PlaybackService
-from services.song_parser_service import SongParserService
-from services.song_renderer import SongRenderer
-from session.host import HostDispatch
-from session.platform import ANDROID, DESKTOP
-from session.session import AppSession
-from session.state import ChordSheetState
-from session.testing import EventRecorder, FakePlayer, InMemoryDocumentStore, ManualHost
-from viewmodels.chord_sheet_viewmodel import ChordSheetViewModel
-from viewmodels.main_window_viewmodel import MainWindowViewModel
-from viewmodels.text_editor_viewmodel import TextEditorViewModel
+from chordnotepad.audio.chord_picker import ChordNotePicker
+from chordnotepad.services.playback_service import PlaybackService
+from chordnotepad.services.song_parser_service import SongParserService
+from chordnotepad.services.song_renderer import SongRenderer
+from chordnotepad.session.host import HostDispatch
+from chordnotepad.session.platform import ANDROID, DESKTOP
+from chordnotepad.session.session import AppSession
+from chordnotepad.session.state import ChordSheetState
+from chordnotepad.session.testing import EventRecorder, FakePlayer, InMemoryDocumentStore, ManualHost
+from chordnotepad.viewmodels.chord_sheet_viewmodel import ChordSheetViewModel
+from chordnotepad.viewmodels.main_window_viewmodel import MainWindowViewModel
+from chordnotepad.viewmodels.text_editor_viewmodel import TextEditorViewModel
 
 
 class FakeConfig:

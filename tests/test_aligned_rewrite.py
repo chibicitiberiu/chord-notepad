@@ -12,9 +12,9 @@ import re
 
 import pytest
 
-from services.aligned_rewrite import FILL, insert_into_lyric, take_from_lyric
-from services.song_parser_service import SongParserService
-from services.transpose_service import transpose_text
+from chordnotepad.services.aligned_rewrite import FILL, insert_into_lyric, take_from_lyric
+from chordnotepad.services.song_parser_service import SongParserService
+from chordnotepad.services.transpose_service import transpose_text
 
 _PARSER = SongParserService()
 

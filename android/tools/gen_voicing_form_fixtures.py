@@ -51,12 +51,12 @@ class _Recorder:
 
 
 def main() -> int:
-    sys.path.insert(0, str(REPO / "src"))
-    from services.appdata_service import AppDataService
-    from session.bootstrap import build_core_services, create_session
-    from session.bridge import encode
-    from session.host import HostDispatch
-    from session.testing import FakePlayer, InMemoryDocumentStore, ManualHost
+    sys.path.insert(0, str(REPO / "core"))
+    from chordnotepad.services.appdata_service import AppDataService
+    from chordnotepad.session.bootstrap import build_core_services, create_session
+    from chordnotepad.session.bridge import encode
+    from chordnotepad.session.host import HostDispatch
+    from chordnotepad.session.testing import FakePlayer, InMemoryDocumentStore, ManualHost
 
     OUT.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory() as tmp:

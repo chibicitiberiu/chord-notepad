@@ -14,24 +14,24 @@ from typing import List, Optional
 
 import pytest
 
-from audio.chord_picker import ChordNotePicker
-from models.chord import ChordInfo
-from chord.midi_converter import parse_note_to_semitone
-from models.chord_notes import ChordNotes
-from models.line import Line
-from models.rendered_song import RenderedChord, RenderedSong
-from services.song_renderer import SongRenderer
-from chord_sheet.ops import DrawOps, ImageOp, LineOp, RectOp, TextOp
-from chord_sheet.renderer_interface import (
+from chordnotepad.audio.chord_picker import ChordNotePicker
+from chordnotepad.models.chord import ChordInfo
+from chordnotepad.chord.midi_converter import parse_note_to_semitone
+from chordnotepad.models.chord_notes import ChordNotes
+from chordnotepad.models.line import Line
+from chordnotepad.models.rendered_song import RenderedChord, RenderedSong
+from chordnotepad.services.song_renderer import SongRenderer
+from chordnotepad.chord_sheet.ops import DrawOps, ImageOp, LineOp, RectOp, TextOp
+from chordnotepad.chord_sheet.renderer_interface import (
     HAND_COLORS,
     NOTE_INK,
     SheetContext,
     VOICE_COLORS,
 )
-from chord_sheet import clef_assets as ca
-from chord_sheet import staff_card as sc
-from chord_sheet.staff_card import StaffCardRenderer, REST_WIDTH
-from ui.chord_sheet import clef_images as ci
+from chordnotepad.chord_sheet import clef_assets as ca
+from chordnotepad.chord_sheet import staff_card as sc
+from chordnotepad.chord_sheet.staff_card import StaffCardRenderer, REST_WIDTH
+from chordnotepad_tk.chord_sheet import clef_images as ci
 
 
 # --------------------------------------------------------------------------
@@ -369,7 +369,7 @@ class TestChordSpelledAsOneStack:
                                        "A", "Bb", "B", "Cm7", "C#m7b5", "F#7", "Bbmaj7",
                                        "Gdim7", "Eaug", "Ab7/C", "B/D#", "Gbm"])
     def test_every_chord_is_one_stack_in_every_key(self, key, chord):
-        from chord.helper import ChordHelper
+        from chordnotepad.chord.helper import ChordHelper
         cn = ChordHelper().compute_chord_notes(chord)
         fifths = sc._key_fifths(key) if key else None
         root = sc._match_letter(parse_note_to_semitone(cn.root), cn, fifths)
@@ -1024,8 +1024,8 @@ class TestOctaveLowerTreble:
             [round(treble_y(-2), 6)]
 
     def test_real_male_choir_render_writes_tenors_an_octave_up(self):
-        from audio.ensemble_voicer import EnsembleVoicer
-        from models.ensemble_spec import BUILTIN_ENSEMBLES
+        from chordnotepad.audio.ensemble_voicer import EnsembleVoicer
+        from chordnotepad.models.ensemble_spec import BUILTIN_ENSEMBLES
         line = Line(content="C", line_number=1)
         line.items = [ChordInfo(chord="C", start=0, end=1, is_relative=False, is_valid=True)]
         picker = EnsembleVoicer(BUILTIN_ENSEMBLES['ttbb'])
@@ -1216,7 +1216,7 @@ class TestClefAssets:
 def _session_signature(key=None, text="Do Re Mi Fa\n"):
     """``(sharps, flats)`` per clef in the gutter of the strip a European
     session renders (the real session, strip viewmodel and renderer)."""
-    from session.platform import ANDROID
+    from chordnotepad.session.platform import ANDROID
     from tests.test_chord_sheet_playhead import Env
     env = Env(ANDROID)
     env.session.set_notation("european")

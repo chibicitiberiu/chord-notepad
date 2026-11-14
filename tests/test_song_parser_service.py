@@ -1,10 +1,10 @@
 """Unit tests for SongParserService."""
 
 import pytest
-from services.song_parser_service import SongParserService
-from models.directive import DirectiveType, BPMModifierType
-from models.line import LineType
-from models.notation import Notation
+from chordnotepad.services.song_parser_service import SongParserService
+from chordnotepad.models.directive import DirectiveType, BPMModifierType
+from chordnotepad.models.line import LineType
+from chordnotepad.models.notation import Notation
 
 
 class TestDirectiveParsing:
@@ -692,7 +692,7 @@ class TestDirectiveScanning:
                            4: [], 5: [], 6: ["{time: 3/4}"]}
 
     def test_a_braces_only_line_is_not_a_lyric_line_for_transpose(self):
-        from services.transpose_service import transpose_text
+        from chordnotepad.services.transpose_service import transpose_text
         # The chords grow and can't take the space between them, so a lyric
         # line below would be stretched; a line of empty braces is left alone.
         assert transpose_text("C D\nabcdef", 1, "american") == "Db Eb\nab\u00b7cdef"
@@ -708,7 +708,7 @@ class TestDirectiveScanning:
     ("", None),
 ])
 def test_guess_notation(text, expected):
-    from chord.detector import guess_notation
+    from chordnotepad.chord.detector import guess_notation
 
     assert guess_notation(text) == expected
 

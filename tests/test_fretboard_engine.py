@@ -13,9 +13,9 @@ generalized surface.
 
 import pytest
 
-from audio.guitar_chord_picker import GuitarChordPicker
-from models.fretboard_spec import FretboardSpec, BUILTIN_FRETBOARDS
-from models.chord_notes import ChordNotes
+from chordnotepad.audio.guitar_chord_picker import GuitarChordPicker
+from chordnotepad.models.fretboard_spec import FretboardSpec, BUILTIN_FRETBOARDS
+from chordnotepad.models.chord_notes import ChordNotes
 
 
 # ---------------------------------------------------------------------------

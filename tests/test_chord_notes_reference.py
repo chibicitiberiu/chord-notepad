@@ -21,7 +21,7 @@ notes from these tables too.
 
 import pytest
 
-from chord.helper import ChordHelper
+from chordnotepad.chord.helper import ChordHelper
 
 _HELPER = ChordHelper()
 
@@ -259,7 +259,7 @@ def test_a_left_out_fifth_or_third_on_every_root_and_bass(spellings):
 
 @pytest.mark.parametrize("quality", UNSUPPORTED)
 def test_an_unsupported_spelling_is_not_a_chord(quality):
-    from chord.detector import ChordDetector
+    from chordnotepad.chord.detector import ChordDetector
 
     for notation in ('american', 'european'):
         chord = spell('C', notation) + quality

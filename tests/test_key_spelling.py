@@ -3,7 +3,7 @@ class by its degree in a key, and detecting a key from chords."""
 
 import pytest
 
-from services.key_spelling import (
+from chordnotepad.services.key_spelling import (
     Key, detect_key, detected_target, key_tonic, leads_up, move_key, pitch_class,
     spell_in_key,
 )

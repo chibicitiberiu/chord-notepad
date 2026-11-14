@@ -14,9 +14,9 @@ strings, so the same rules run on any tuning.
 
 import pytest
 
-from audio.guitar_chord_picker import GuitarChordPicker
-from chord.helper import ChordHelper
-from models.fretboard_spec import BUILTIN_FRETBOARDS
+from chordnotepad.audio.guitar_chord_picker import GuitarChordPicker
+from chordnotepad.chord.helper import ChordHelper
+from chordnotepad.models.fretboard_spec import BUILTIN_FRETBOARDS
 
 _HELPER = ChordHelper()
 

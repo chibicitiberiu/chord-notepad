@@ -5,7 +5,7 @@ import tkinter as tk
 
 import pytest
 
-from ui.theme import UI_SCRUB_BG, UI_SCRUB_HOVER
+from chordnotepad_tk.theme import UI_SCRUB_BG, UI_SCRUB_HOVER
 
 
 def _has_display() -> bool:
@@ -23,7 +23,7 @@ def root():
 
 
 def _make_scrubber(root, **overrides):
-    from ui.scrubber import Scrubber
+    from chordnotepad_tk.scrubber import Scrubber
 
     kwargs = dict(
         value=100,

@@ -2,12 +2,12 @@
 
 import pytest
 
-from services.transpose_service import (
+from chordnotepad.services.transpose_service import (
     transpose_text,
     transpose_chord_token,
     transpose_key,
 )
-from models.notation import Notation
+from chordnotepad.models.notation import Notation
 
 
 # --- basic American roots / slash chords ------------------------------------

@@ -5,7 +5,7 @@ This hook runs before any modules are imported. On Windows it:
 1. Monkeypatches os.add_dll_directory to not fail on missing directories
 2. Adds the bundled FluidSynth DLL path to the search path
 
-On macOS it points CHORD_NOTEPAD_LIBFLUIDSYNTH (src/audio/fluidsynth_import.py)
+On macOS it points CHORD_NOTEPAD_LIBFLUIDSYNTH (core/chordnotepad/audio/fluidsynth_import.py)
 at the bundled libfluidsynth: ctypes' find_library doesn't search the app
 bundle, and would otherwise find a Homebrew copy or nothing.
 """

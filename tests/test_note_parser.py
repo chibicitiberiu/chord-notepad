@@ -2,7 +2,7 @@
 
 import pytest
 
-from chord.midi_converter import parse_note_to_semitone
+from chordnotepad.chord.midi_converter import parse_note_to_semitone
 
 
 class TestPlainNaturals:

@@ -12,18 +12,18 @@ from unittest.mock import Mock
 
 import pytest
 
-from audio.chord_picker import ChordNotePicker
-from audio.guitar_chord_picker import GuitarChordPicker
-from audio.ensemble_voicer import EnsembleVoicer
-from models.chord_notes import ChordNotes
-from models.ensemble_spec import BUILTIN_ENSEMBLES
-from models.fretboard_spec import BUILTIN_FRETBOARDS
-from services.capo_advisor import suggest_capo
-from services.config_service import ConfigService
-from services.playback_service import PlaybackService
-from services.song_parser_service import SongParserService
-from services.song_renderer import SongRenderer
-from exceptions import RenderAborted
+from chordnotepad.audio.chord_picker import ChordNotePicker
+from chordnotepad.audio.guitar_chord_picker import GuitarChordPicker
+from chordnotepad.audio.ensemble_voicer import EnsembleVoicer
+from chordnotepad.models.chord_notes import ChordNotes
+from chordnotepad.models.ensemble_spec import BUILTIN_ENSEMBLES
+from chordnotepad.models.fretboard_spec import BUILTIN_FRETBOARDS
+from chordnotepad.services.capo_advisor import suggest_capo
+from chordnotepad.services.config_service import ConfigService
+from chordnotepad.services.playback_service import PlaybackService
+from chordnotepad.services.song_parser_service import SongParserService
+from chordnotepad.services.song_renderer import SongRenderer
+from chordnotepad.exceptions import RenderAborted
 
 
 def _seq():

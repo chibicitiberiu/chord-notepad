@@ -3,7 +3,7 @@ package com.tibich.chordnotepad.bridge
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
-// Mirrors src/session/state.py. See the docstrings there for the semantics.
+// Mirrors core/chordnotepad/session/state.py. See the docstrings there for the semantics.
 
 /** The highlight spans for one version of the text. */
 @Serializable

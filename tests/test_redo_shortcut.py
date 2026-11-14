@@ -9,7 +9,7 @@ import tkinter as tk
 
 import pytest
 
-from ui.text_editor import ChordTextEditor, REDO_ACCELERATOR
+from chordnotepad_tk.text_editor import ChordTextEditor, REDO_ACCELERATOR
 
 
 def _root():
@@ -41,7 +41,7 @@ def test_ctrl_y_and_ctrl_shift_z_both_redo():
 
 def test_the_menu_shows_a_bound_key():
     assert REDO_ACCELERATOR == "Ctrl+Y"
-    source = open(os.path.join(os.path.dirname(__file__), "..", "src", "ui",
+    source = open(os.path.join(os.path.dirname(__file__), "..", "desktop", "chordnotepad_tk",
                                "main_window.py"), encoding="utf-8").read()
     assert 'accelerator="Ctrl+Y"' not in source
     assert "accelerator=REDO_ACCELERATOR" in source

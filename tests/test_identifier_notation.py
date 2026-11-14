@@ -8,14 +8,14 @@ likelihood order stay American underneath.
 
 import pytest
 
-from services.appdata_service import AppDataService
-from services.song_parser_service import SongParserService
-from session.bootstrap import build_core_services, create_session
-from session.events import TextEdited
-from session.host import HostDispatch
-from session.state import IdentifierState
-from session.testing import EventRecorder, FakePlayer, InMemoryDocumentStore, ManualHost
-from viewmodels.chord_identifier_viewmodel import (
+from chordnotepad.services.appdata_service import AppDataService
+from chordnotepad.services.song_parser_service import SongParserService
+from chordnotepad.session.bootstrap import build_core_services, create_session
+from chordnotepad.session.events import TextEdited
+from chordnotepad.session.host import HostDispatch
+from chordnotepad.session.state import IdentifierState
+from chordnotepad.session.testing import EventRecorder, FakePlayer, InMemoryDocumentStore, ManualHost
+from chordnotepad.viewmodels.chord_identifier_viewmodel import (
     ChordIdentifierViewModel, midi_name, outside_piano, parse_notes, spell,
     spelling_preference,
 )

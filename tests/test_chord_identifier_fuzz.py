@@ -23,10 +23,10 @@ import random
 
 import pytest
 
-from chord.helper import ChordHelper
-from services.song_parser_service import SongParserService
+from chordnotepad.chord.helper import ChordHelper
+from chordnotepad.services.song_parser_service import SongParserService
 from tests.test_chord_notes_reference import OMITTED, REFERENCE, pitch
-from viewmodels.chord_identifier_viewmodel import NOTE_NAMES, ChordIdentifierViewModel
+from chordnotepad.viewmodels.chord_identifier_viewmodel import NOTE_NAMES, ChordIdentifierViewModel
 
 _HELPER = ChordHelper()
 

@@ -11,9 +11,15 @@ SPEC_FILE := chord-notepad.spec
 DOCS_SOURCE := help
 DOCS_BUILD := help/build
 
+# The core (chordnotepad) and the Tk front end (chordnotepad_tk) are imported
+# by package name from their folders; nothing is installed. (pytest.ini does
+# the same for the tests.)
+APP_PYTHONPATH := core$(if $(filter Windows_NT,$(OS)),;,:)desktop
+
 # Run application
+run: export PYTHONPATH := $(APP_PYTHONPATH)
 run: docs-html
-	$(PYTHON) src/main.py
+	$(PYTHON) -m chordnotepad_tk.main
 
 # Run tests
 test:

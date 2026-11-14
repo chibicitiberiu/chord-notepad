@@ -12,16 +12,16 @@ from pathlib import Path
 
 import pytest
 
-from exceptions import FileOperationError
-from session import errors
-from session.documents import DocumentRef
+from chordnotepad.exceptions import FileOperationError
+from chordnotepad.session import errors
+from chordnotepad.session.documents import DocumentRef
 
 ANDROID_PYTHON = Path(__file__).parent.parent / "android" / "app" / "src" / "main" / "python"
 sys.path.insert(0, str(ANDROID_PYTHON))
 
 from chordnotepad_android import host as android_host  # noqa: E402
 from chordnotepad_android.android_store import AndroidDocumentStore  # noqa: E402
-from session.testing import FakePlayer  # noqa: E402
+from chordnotepad.session.testing import FakePlayer  # noqa: E402
 
 
 class DocumentStoreException(Exception):
@@ -188,7 +188,7 @@ def test_store_takes_signed_java_bytes():
 
 
 def test_store_rename_maps_the_result_and_the_failures():
-    from exceptions import RenameNotSupported
+    from chordnotepad.exceptions import RenameNotSupported
 
     kotlin = FakeKotlinStore({URI: "C", "content://x/readonly/a.txt": "G",
                               "content://x/b.txt": "D", "content://x/c.txt": "E"})
@@ -230,7 +230,7 @@ def started(tmp_path):
 
 def test_the_core_gets_androids_paths_with_no_bundled_files(started):
     """Nothing ships next to the code: the SoundFont comes in audio_options."""
-    from app_paths import AppPaths
+    from chordnotepad.app_paths import AppPaths
 
     handle = started[0]
     assert handle._services.paths == AppPaths(native_lib_dir=Path("/data/app/lib"))
@@ -365,7 +365,7 @@ def test_audio_options_from_kotlins_dict():
 
 
 def test_chord_sheet_buffer_is_packed_on_the_callers_thread(started):
-    from chord_sheet.pack import unpack
+    from chordnotepad.chord_sheet.pack import unpack
 
     handle, _, sink, _ = started
     assert handle.chord_sheet_buffer(120) is None  # nothing rendered yet

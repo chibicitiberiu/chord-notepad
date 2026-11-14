@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from services.appdata_service import AppDataService
+from chordnotepad.services.appdata_service import AppDataService
 
 linux_only = pytest.mark.skipif(
     sys.platform in ("win32", "darwin"), reason="XDG paths apply on Linux only"

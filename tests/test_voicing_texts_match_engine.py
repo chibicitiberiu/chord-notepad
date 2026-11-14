@@ -4,8 +4,8 @@ Each check pins a fact the text used to get wrong; the engine code it
 describes is named in the comment.
 """
 
-from audio import ensemble_voicer
-from settings_forms.voicing_texts import TOOLTIPS, nested_tooltip
+from chordnotepad.audio import ensemble_voicer
+from chordnotepad.settings_forms.voicing_texts import TOOLTIPS, nested_tooltip
 
 
 def test_ensemble_octave_leap_is_more_than_an_octave_on_top_of_a_large_leap():

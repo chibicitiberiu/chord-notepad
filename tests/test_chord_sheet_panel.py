@@ -11,17 +11,17 @@ import pytest
 
 tk = pytest.importorskip("tkinter")
 
-from audio.chord_picker import ChordNotePicker
-from services.song_parser_service import SongParserService
-from services.song_renderer import SongRenderer
-from chord_sheet.renderer_interface import (
+from chordnotepad.audio.chord_picker import ChordNotePicker
+from chordnotepad.services.song_parser_service import SongParserService
+from chordnotepad.services.song_renderer import SongRenderer
+from chordnotepad.chord_sheet.renderer_interface import (
     STRIP_BG,
     SheetContext,
     SlotBox,
     StripLayout,
     StripRenderer,
 )
-from viewmodels.chord_sheet_viewmodel import ChordSheetViewModel
+from chordnotepad.viewmodels.chord_sheet_viewmodel import ChordSheetViewModel
 
 
 def _has_display() -> bool:
@@ -110,7 +110,7 @@ def _make_panel(root, text, *, view="keyboard"):
         executor=lambda fn: fn(),
         marshal=lambda fn: fn(),
     )
-    from ui.chord_sheet.panel import ChordSheetPanel
+    from chordnotepad_tk.chord_sheet.panel import ChordSheetPanel
 
     panel = ChordSheetPanel(root, vm, session=_Commands(vm))
     panel.pack(fill=tk.BOTH, expand=True)
@@ -172,7 +172,7 @@ def _make_panel_with_renderers(root, text, renderers, *, view):
         executor=lambda fn: fn(),
         marshal=lambda fn: fn(),
     )
-    from ui.chord_sheet.panel import ChordSheetPanel
+    from chordnotepad_tk.chord_sheet.panel import ChordSheetPanel
 
     panel = ChordSheetPanel(root, vm, session=_Commands(vm))
     panel.pack(fill=tk.BOTH, expand=True)
@@ -198,7 +198,7 @@ def test_gutter_corner_does_not_inflate_the_lane_row(root):
     # Regression: the gutter corner is a tk.Canvas; without an explicit
     # height it requests ~260px and inflates the marker-lane row, shoving
     # the strip to the bottom of a tall panel with a big blank band above.
-    from ui.chord_sheet.panel import LANE_HEIGHT
+    from chordnotepad_tk.chord_sheet.panel import LANE_HEIGHT
 
     renderer = _FakeRenderer("g", gutter=40.0)
     panel, vm, _ = _make_panel_with_renderers(root, "C G Am F\n", [renderer], view="g")
@@ -335,7 +335,7 @@ def test_hidden_panel_paints_after_being_shown(root):
         executor=lambda fn: fn(),
         marshal=lambda fn: fn(),
     )
-    from ui.chord_sheet.panel import ChordSheetPanel
+    from chordnotepad_tk.chord_sheet.panel import ChordSheetPanel
 
     panel = ChordSheetPanel(root, vm, session=_Commands(vm))
     panel.pack(fill=tk.BOTH, expand=True)

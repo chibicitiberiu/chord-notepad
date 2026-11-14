@@ -8,14 +8,14 @@ import threading
 
 import pytest
 
-from audio.chord_picker import ChordNotePicker
-from constants import MAX_BPM, MIN_BPM
-from models.directive import DirectiveType
-from services.song_parser_service import SongParserService
-from services.song_renderer import SongRenderer
-from session.highlighting import compute_spans
-from session.song_defaults import song_defaults
-from session.state import SpanKind
+from chordnotepad.audio.chord_picker import ChordNotePicker
+from chordnotepad.constants import MAX_BPM, MIN_BPM
+from chordnotepad.models.directive import DirectiveType
+from chordnotepad.services.song_parser_service import SongParserService
+from chordnotepad.services.song_renderer import SongRenderer
+from chordnotepad.session.highlighting import compute_spans
+from chordnotepad.session.song_defaults import song_defaults
+from chordnotepad.session.state import SpanKind
 
 
 @pytest.fixture
@@ -52,7 +52,7 @@ def _render(text, initial_bpm=120, initial_time_sig=(4, 4), timeout=10.0):
 
 
 def test_bounds_are_the_toolbar_range():
-    from session.toolbar import BPM_SCALE
+    from chordnotepad.session.toolbar import BPM_SCALE
     assert (MIN_BPM, MAX_BPM) == (BPM_SCALE.min_value, BPM_SCALE.max_value) == (20, 400)
 
 

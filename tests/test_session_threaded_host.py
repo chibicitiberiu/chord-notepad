@@ -9,8 +9,8 @@ import time
 
 import pytest
 
-from session import errors
-from session.threaded_host import ThreadedHost
+from chordnotepad.session import errors
+from chordnotepad.session.threaded_host import ThreadedHost
 
 
 @pytest.fixture

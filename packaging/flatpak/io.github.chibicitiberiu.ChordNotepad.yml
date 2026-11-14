@@ -115,8 +115,9 @@ modules:
     buildsystem: simple
     build-commands:
       - install -d ${FLATPAK_DEST}/share/chord-notepad
-      - cp -r src VERSION ${FLATPAK_DEST}/share/chord-notepad/
-      - find ${FLATPAK_DEST}/share/chord-notepad/src -name __pycache__ -prune -exec rm -rf {} +
+      - cp -r core desktop VERSION ${FLATPAK_DEST}/share/chord-notepad/
+      - find ${FLATPAK_DEST}/share/chord-notepad/core -name __pycache__ -prune -exec rm -rf {} +
+      - find ${FLATPAK_DEST}/share/chord-notepad/desktop -name __pycache__ -prune -exec rm -rf {} +
       - cp -r resources ${FLATPAK_DEST}/share/chord-notepad/
       - rm -f ${FLATPAK_DEST}/share/chord-notepad/resources/*.ico
       - install -d ${FLATPAK_DEST}/share/chord-notepad/help/build

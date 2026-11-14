@@ -2,14 +2,14 @@
 
 import pytest
 
-from audio.guitar_chord_picker import GuitarChordPicker
-from models.chord import ChordInfo
-from models.rendered_song import RenderedChord, RenderedSong
-from services.song_parser_service import SongParserService
-from services.song_renderer import SongRenderer
-from chord_sheet.ops import DrawOps, LineOp, RectOp, TextOp
-from chord_sheet.renderer_interface import SheetContext, STRIP_BG
-from chord_sheet.tab_strip import (
+from chordnotepad.audio.guitar_chord_picker import GuitarChordPicker
+from chordnotepad.models.chord import ChordInfo
+from chordnotepad.models.rendered_song import RenderedChord, RenderedSong
+from chordnotepad.services.song_parser_service import SongParserService
+from chordnotepad.services.song_renderer import SongRenderer
+from chordnotepad.chord_sheet.ops import DrawOps, LineOp, RectOp, TextOp
+from chordnotepad.chord_sheet.renderer_interface import SheetContext, STRIP_BG
+from chordnotepad.chord_sheet.tab_strip import (
     BOTTOM_MARGIN,
     LABEL_BOX_H,
     MAX_SLOT_WIDTH,
@@ -332,7 +332,7 @@ def test_single_whole_song_capo_draws_one_marker_at_first_chord():
 
 
 def _assert_marker_before(marker, slot, previous):
-    from chord_sheet.tab_strip import CAPO_PAD, capo_marker_width
+    from chordnotepad.chord_sheet.tab_strip import CAPO_PAD, capo_marker_width
     width = capo_marker_width(int(marker.s.split()[1]), marker.size)
     assert marker.anchor == "w"
     assert marker.x + width - CAPO_PAD / 2.0 == pytest.approx(slot.x)
@@ -367,7 +367,7 @@ def test_mid_song_capo_change_draws_two_markers_at_the_span_starts():
 def test_fret_numbers_keep_clear_of_each_other_at_any_height_and_zoom(height, zoom):
     # B9: a short strip, or zoom in a short strip, squeezed the strings but
     # not the digits, which then overlapped (and were cut in half zoomed).
-    from chord_sheet.ops import RectOp
+    from chordnotepad.chord_sheet.ops import RectOp
     song = _render_guitar("C G Am F\n")
     renderer = TabStripRenderer()
     ctx = SheetContext(song=song, zoom=zoom)

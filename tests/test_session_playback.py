@@ -10,21 +10,21 @@ from unittest.mock import patch
 
 import pytest
 
-from services.playback_service import PlaybackService
-from services.song_parser_service import SongParserService
-from session.audio_policy import AudioFailurePolicy
-from session.events import AudioUnavailable, UserError
-from session.host import HostDispatch
-from session.session import AppSession
-from session.state import (
+from chordnotepad.services.playback_service import PlaybackService
+from chordnotepad.services.song_parser_service import SongParserService
+from chordnotepad.session.audio_policy import AudioFailurePolicy
+from chordnotepad.session.events import AudioUnavailable, UserError
+from chordnotepad.session.host import HostDispatch
+from chordnotepad.session.session import AppSession
+from chordnotepad.session.state import (
     ChordSheetState, EditorState, PlaybackState, PlaybackStatus, StatusState, ToolbarState,
     VoicingMenuState,
 )
-from session.testing import (
+from chordnotepad.session.testing import (
     EventRecorder, FakeChordSheet, FakePlayer, InMemoryDocumentStore, ManualHost,
 )
-from viewmodels.main_window_viewmodel import MainWindowViewModel
-from viewmodels.text_editor_viewmodel import TextEditorViewModel
+from chordnotepad.viewmodels.main_window_viewmodel import MainWindowViewModel
+from chordnotepad.viewmodels.text_editor_viewmodel import TextEditorViewModel
 
 SONG = "C G\nla la\n{key: G}\nAm*2 F*2"
 
@@ -254,8 +254,8 @@ def test_pings_and_the_end_of_a_stopped_run_are_dropped_during_the_next_run():
     env.recorder.clear()
 
     # The old run's ping and its end arrive now (posted before it saw the stop).
-    from models.chord import ChordInfo
-    from models.playback_event import PlaybackEventArgs, PlaybackEventType
+    from chordnotepad.models.chord import ChordInfo
+    from chordnotepad.models.playback_event import PlaybackEventArgs, PlaybackEventType
     chord = ChordInfo(chord="C", start=0, end=1, is_valid=True, is_relative=False)
     old_ping(PlaybackEventArgs(event_type=PlaybackEventType.CHORD_START, chord_info=chord,
                                chord_index=0, current_bar=1, total_bars=3))
@@ -396,7 +396,7 @@ def test_the_policy_can_be_shared():
 
 def test_render_failure_returns_to_idle_and_reports_a_user_error():
     env = Env()
-    with patch("services.playback_service.SongRenderer.render",
+    with patch("chordnotepad.services.playback_service.SongRenderer.render",
                side_effect=ValueError("render broke")):
         env.session.play_pause()
         env.recorder.clear()

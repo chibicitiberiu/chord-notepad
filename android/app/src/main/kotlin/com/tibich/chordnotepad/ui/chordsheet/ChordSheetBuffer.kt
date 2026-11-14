@@ -5,7 +5,7 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
 // Decoder for the chord sheet op buffer, format version 1 (docs/ANDROID.md,
-// "Chord sheet op buffer"; the Python side is src/chord_sheet/pack.py). Pure
+// "Chord sheet op buffer"; the Python side is core/chordnotepad/chord_sheet/pack.py). Pure
 // Kotlin: no Android or Compose types, so the JVM tests run it as is.
 
 /** Tk text/image anchors, in their one-byte code order. [fx]/[fy] place the box. */

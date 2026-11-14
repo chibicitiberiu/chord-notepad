@@ -8,17 +8,17 @@ config file. A single import-smoke test for the Voicings page is guarded by
 
 import pytest
 
-from models.config import Config
-from models.ensemble_spec import (
+from chordnotepad.models.config import Config
+from chordnotepad.models.ensemble_spec import (
     BUILTIN_ENSEMBLES,
     EnsembleSpec,
     midi_to_note_name,
     parse_note_name,
 )
-from models.fretboard_spec import BUILTIN_FRETBOARDS
-from models.piano_spec import PianoSpec
-from services.config_service import ConfigService
-from viewmodels.settings_viewmodel import SettingsViewModel
+from chordnotepad.models.fretboard_spec import BUILTIN_FRETBOARDS
+from chordnotepad.models.piano_spec import PianoSpec
+from chordnotepad.services.config_service import ConfigService
+from chordnotepad.viewmodels.settings_viewmodel import SettingsViewModel
 
 
 class _StubAppData:
@@ -474,6 +474,6 @@ class TestVoicingsPersistence:
 
 def test_voicings_page_imports():
     pytest.importorskip("tkinter")
-    import ui.dialogs.voicings_page as voicings_page
+    import chordnotepad_tk.dialogs.voicings_page as voicings_page
 
     assert hasattr(voicings_page, "VoicingsPage")

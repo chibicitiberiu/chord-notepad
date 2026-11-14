@@ -9,14 +9,14 @@ from unittest.mock import ANY, MagicMock
 
 import pytest
 
-from models.notation import Notation
-from services.song_parser_service import SongParserService
-from session.host import HostDispatch
-from session.session import AppSession
-from session.state import HighlightState, Span, SpanKind
-from session.testing import EventRecorder, InMemoryDocumentStore, ManualHost
-from viewmodels.main_window_viewmodel import MainWindowViewModel
-from viewmodels.text_editor_viewmodel import TextEditorViewModel
+from chordnotepad.models.notation import Notation
+from chordnotepad.services.song_parser_service import SongParserService
+from chordnotepad.session.host import HostDispatch
+from chordnotepad.session.session import AppSession
+from chordnotepad.session.state import HighlightState, Span, SpanKind
+from chordnotepad.session.testing import EventRecorder, InMemoryDocumentStore, ManualHost
+from chordnotepad.viewmodels.main_window_viewmodel import MainWindowViewModel
+from chordnotepad.viewmodels.text_editor_viewmodel import TextEditorViewModel
 
 
 class FakeConfig:

@@ -9,8 +9,8 @@ no widget is built.
 from types import SimpleNamespace
 from unittest.mock import MagicMock, Mock
 
-from session import toolbar
-from session.state import PlayAction, ToolbarState
+from chordnotepad.session import toolbar
+from chordnotepad.session.state import PlayAction, ToolbarState
 
 
 def _state(**changes):
@@ -34,7 +34,7 @@ def _window():
 
 
 def _apply(window, state):
-    from ui.main_window import MainWindow
+    from chordnotepad_tk.main_window import MainWindow
 
     MainWindow._apply_toolbar(window, state)
 

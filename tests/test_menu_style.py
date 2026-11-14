@@ -5,8 +5,8 @@ import pytest
 tk = pytest.importorskip('tkinter')
 from tkinter import ttk
 
-from ui.theme import UI_BG, UI_BORDER
-from ui.menu_style import iter_menus, style_menu
+from chordnotepad_tk.theme import UI_BG, UI_BORDER
+from chordnotepad_tk.menu_style import iter_menus, style_menu
 
 
 @pytest.fixture

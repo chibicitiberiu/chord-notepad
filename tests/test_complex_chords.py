@@ -1,11 +1,11 @@
 """Unit tests for complex chord types and edge cases."""
 
 import pytest
-from chord.detector import ChordDetector
-from services.song_parser_service import SongParserService
-from models.chord import ChordInfo
-from models.directive import DirectiveType
-from models.notation import Notation
+from chordnotepad.chord.detector import ChordDetector
+from chordnotepad.services.song_parser_service import SongParserService
+from chordnotepad.models.chord import ChordInfo
+from chordnotepad.models.directive import DirectiveType
+from chordnotepad.models.notation import Notation
 
 
 class TestComplexAmericanChords:

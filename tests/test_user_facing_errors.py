@@ -16,19 +16,19 @@ from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
-from exceptions import (
+from chordnotepad.exceptions import (
     AudioInitializationError,
     ChordDetectionError,
     ChordNotepadError,
     ConfigurationError,
     FileOperationError,
 )
-from models.chord import ChordInfo
-from models.rendered_song import RenderedSong
-from services.config_service import ConfigService
-from services.playback_service import PlaybackService
-from services.song_parser_service import SongParserService
-from ui import audio_errors
+from chordnotepad.models.chord import ChordInfo
+from chordnotepad.models.rendered_song import RenderedSong
+from chordnotepad.services.config_service import ConfigService
+from chordnotepad.services.playback_service import PlaybackService
+from chordnotepad.services.song_parser_service import SongParserService
+from chordnotepad_tk import audio_errors
 
 
 # ---------------------------------------------------------------------------
@@ -56,7 +56,7 @@ def _config(**overrides):
 
 
 def _viewmodel(text="C G\n", documents=None, audio=None):
-    from viewmodels.main_window_viewmodel import MainWindowViewModel
+    from chordnotepad.viewmodels.main_window_viewmodel import MainWindowViewModel
 
     vm = MainWindowViewModel(
         config_service=_config(),
@@ -70,8 +70,8 @@ def _viewmodel(text="C G\n", documents=None, audio=None):
 
 
 def _fs_store():
-    from services.file_service import FileService
-    from session.documents import FileSystemDocumentStore
+    from chordnotepad.services.file_service import FileService
+    from chordnotepad.session.documents import FileSystemDocumentStore
 
     return FileSystemDocumentStore(FileService(MagicMock()))
 
@@ -81,10 +81,10 @@ def _out_mid():
 
 
 def _stub_writer(render=None):
-    stub = ModuleType("services.midi_file_writer")
+    stub = ModuleType("chordnotepad.services.midi_file_writer")
     stub.render_midi_bytes = render if render is not None else MagicMock(return_value=b"MIDI")
     stub.PPQ = 480
-    return patch.dict(sys.modules, {"services.midi_file_writer": stub})
+    return patch.dict(sys.modules, {"chordnotepad.services.midi_file_writer": stub})
 
 
 # ---------------------------------------------------------------------------
@@ -159,7 +159,7 @@ class TestViewModelFileErrors:
         # The bug that started this: an ImportError escaped the menu command
         # and only reached stderr.
         vm = _viewmodel()
-        with patch.dict(sys.modules, {"services.midi_file_writer": None}):
+        with patch.dict(sys.modules, {"chordnotepad.services.midi_file_writer": None}):
             assert vm.export_midi_file(_out_mid()) is False
         assert "ImportError" in vm.last_error or "ModuleNotFoundError" in vm.last_error
 
@@ -226,7 +226,7 @@ class TestViewModelPlaybackErrors:
             vm.on_chord_clicked(chord)
 
     def test_suggest_capo_does_not_hide_render_errors(self):
-        from models.fretboard_spec import BUILTIN_FRETBOARDS
+        from chordnotepad.models.fretboard_spec import BUILTIN_FRETBOARDS
 
         # A real spec, so nothing needs patching: patching GuitarChordPicker
         # leaked the mock into services.capo_advisor when that module was
@@ -250,7 +250,7 @@ class TestPlaybackServiceErrors:
         service = PlaybackService(_config(), player=None)
         chord = ChordInfo(chord="C", start=0, end=1, is_valid=True, is_relative=False)
 
-        with patch("services.playback_service.NotePlayer",
+        with patch("chordnotepad.services.playback_service.NotePlayer",
                    side_effect=FileNotFoundError("Soundfont not found: /x.sf2")):
             with pytest.raises(AudioInitializationError) as info:
                 service.play_chord_immediate(chord)
@@ -261,7 +261,7 @@ class TestPlaybackServiceErrors:
         service = PlaybackService(_config(), player=None)
         lines = song_parser.detect_chords_in_text("C G\n", "american")
 
-        with patch("services.playback_service.NotePlayer",
+        with patch("chordnotepad.services.playback_service.NotePlayer",
                    side_effect=AudioInitializationError("No audio output could be started")):
             with pytest.raises(AudioInitializationError) as info:
                 service.start_song_playback(lines, initial_key=None)
@@ -269,7 +269,7 @@ class TestPlaybackServiceErrors:
 
     def test_play_note_and_notes_raise_when_audio_unavailable(self):
         service = PlaybackService(_config(), player=None)
-        with patch("services.playback_service.NotePlayer", side_effect=RuntimeError("x")):
+        with patch("chordnotepad.services.playback_service.NotePlayer", side_effect=RuntimeError("x")):
             with pytest.raises(AudioInitializationError):
                 service.play_note("C", 4)
             with pytest.raises(AudioInitializationError):
@@ -277,10 +277,10 @@ class TestPlaybackServiceErrors:
 
     def test_successful_init_clears_audio_error(self):
         service = PlaybackService(_config(), player=None)
-        with patch("services.playback_service.NotePlayer", side_effect=RuntimeError("x")):
+        with patch("chordnotepad.services.playback_service.NotePlayer", side_effect=RuntimeError("x")):
             service.initialize_player()
         assert service.audio_error == "x"
-        with patch("services.playback_service.NotePlayer"):
+        with patch("chordnotepad.services.playback_service.NotePlayer"):
             assert service.initialize_player() is True
         assert service.audio_error is None
 
@@ -290,7 +290,7 @@ class TestPlaybackServiceErrors:
         finished = Mock()
         errors = Mock()
 
-        with patch("services.playback_service.SongRenderer") as renderer:
+        with patch("chordnotepad.services.playback_service.SongRenderer") as renderer:
             renderer.return_value.render.side_effect = ValueError("render broke")
             assert service.start_song_playback(
                 lines, initial_key=None,
@@ -304,7 +304,7 @@ class TestPlaybackServiceErrors:
         service = PlaybackService(_config(), player=None)
         lines = song_parser.detect_chords_in_text("C G\n", "american")
 
-        with patch("services.playback_service.SongRenderer") as renderer:
+        with patch("chordnotepad.services.playback_service.SongRenderer") as renderer:
             renderer.return_value.render.side_effect = ValueError("bad")
             # Default (chord-sheet strip): logged, None.
             assert service.render_song(lines, None) is None
@@ -322,12 +322,12 @@ class TestNotePlayerInit:
     def _no_sequencer(self):
         # The sequencer needs a real synth (tests/test_player_sequencer.py and
         # tests/test_audio_driver_selection.py cover it).
-        with patch("audio.player.SynthSequencer"), \
-                patch("audio.player.fluidsynth.delete_fluid_audio_driver"):
+        with patch("chordnotepad.audio.player.SynthSequencer"), \
+                patch("chordnotepad.audio.player.fluidsynth.delete_fluid_audio_driver"):
             yield
 
     def _bare_player(self):
-        from audio.player import NotePlayer
+        from chordnotepad.audio.player import NotePlayer
 
         player = NotePlayer.__new__(NotePlayer)
         player.fs = None
@@ -340,7 +340,7 @@ class TestNotePlayerInit:
         player = self._bare_player()
         synth = MagicMock()
         synth.start.return_value = -1
-        with patch("audio.player.fluidsynth.Synth", return_value=synth):
+        with patch("chordnotepad.audio.player.fluidsynth.Synth", return_value=synth):
             with pytest.raises(AudioInitializationError, match="No audio output"):
                 player._initialize_fluidsynth("/x.sf2")
         assert player.fs is None
@@ -351,13 +351,13 @@ class TestNotePlayerInit:
         synth = MagicMock()
         synth.start.return_value = 0
         synth.sfload.return_value = -1
-        with patch("audio.player.fluidsynth.Synth", return_value=synth):
+        with patch("chordnotepad.audio.player.fluidsynth.Synth", return_value=synth):
             with pytest.raises(AudioInitializationError, match="soundfont"):
                 player._initialize_fluidsynth("/broken.sf2")
 
     def test_other_errors_are_wrapped(self):
         player = self._bare_player()
-        with patch("audio.player.fluidsynth.Synth", side_effect=OSError("no lib")):
+        with patch("chordnotepad.audio.player.fluidsynth.Synth", side_effect=OSError("no lib")):
             with pytest.raises(AudioInitializationError, match="no lib"):
                 player._initialize_fluidsynth("/x.sf2")
 
@@ -366,7 +366,7 @@ class TestNotePlayerInit:
         synth = MagicMock()
         synth.start.return_value = 0
         synth.sfload.return_value = 1
-        with patch("audio.player.fluidsynth.Synth", return_value=synth):
+        with patch("chordnotepad.audio.player.fluidsynth.Synth", return_value=synth):
             player._initialize_fluidsynth("/x.sf2")
         assert player.fs is synth
         assert player.sfid == 1
@@ -383,14 +383,14 @@ class TestShowHelp:
         return str(tmp_path)
 
     def test_missing_docs_raises_with_location(self, tmp_path):
-        from ui.help_window import show_help
+        from chordnotepad_tk.help_window import show_help
 
         with pytest.raises(ChordNotepadError) as info:
             show_help(str(tmp_path / "missing"))
         assert "missing" in str(info.value)
 
     def test_no_browser_raises_with_url(self, tmp_path):
-        from ui import help_window
+        from chordnotepad_tk import help_window
 
         with patch.object(help_window, "is_sandboxed", return_value=False), \
                 patch.object(help_window.webbrowser, "open", return_value=False):
@@ -399,7 +399,7 @@ class TestShowHelp:
         assert "index.html" in str(info.value)
 
     def test_browser_error_raises(self, tmp_path):
-        from ui import help_window
+        from chordnotepad_tk import help_window
 
         with patch.object(help_window, "is_sandboxed", return_value=False), \
                 patch.object(help_window.webbrowser, "open",
@@ -408,7 +408,7 @@ class TestShowHelp:
                 help_window.show_help(self._docs(tmp_path))
 
     def test_success_opens_browser(self, tmp_path):
-        from ui import help_window
+        from chordnotepad_tk import help_window
 
         with patch.object(help_window, "is_sandboxed", return_value=False), \
                 patch.object(help_window.webbrowser, "open", return_value=True) as opened:
@@ -424,7 +424,7 @@ class TestShowHelp:
 class TestPresentAudioUnavailable:
 
     def test_shows_the_message_as_an_audio_error(self):
-        with patch("ui.audio_errors.messagebox.showerror") as showerror:
+        with patch("chordnotepad_tk.audio_errors.messagebox.showerror") as showerror:
             audio_errors.present_audio_unavailable(None, "no driver")
         assert showerror.call_args.args == ("Audio Error", "no driver")
 
@@ -448,7 +448,7 @@ class TestMainWindowDialogs:
     # the window only presents its events.
 
     def test_chord_click_goes_to_the_session(self):
-        from ui.main_window import MainWindow
+        from chordnotepad_tk.main_window import MainWindow
 
         window = self._window()
         window.text_editor.offset_at.return_value = 7
@@ -456,12 +456,12 @@ class TestMainWindowDialogs:
         window.session.tap_chord_at.assert_called_once_with(7)
 
     def test_audio_unavailable_event_is_shown(self):
-        from session.events import AudioUnavailable
-        from ui.main_window import MainWindow
+        from chordnotepad.session.events import AudioUnavailable
+        from chordnotepad_tk.main_window import MainWindow
 
         window = self._window()
         window._dialog_parent.return_value = window
-        with patch("ui.audio_errors.messagebox.showerror") as showerror:
+        with patch("chordnotepad_tk.audio_errors.messagebox.showerror") as showerror:
             MainWindow._on_session_output(window, AudioUnavailable("no driver", from_click=True))
             MainWindow._on_session_output(window, AudioUnavailable("no driver", from_click=True))
         # The session already applied the once-per-session policy.
@@ -470,33 +470,33 @@ class TestMainWindowDialogs:
         assert showerror.call_args.kwargs["parent"] is window
 
     def test_user_error_event_is_shown(self):
-        from session.events import UserError
-        from ui.main_window import MainWindow
+        from chordnotepad.session.events import UserError
+        from chordnotepad_tk.main_window import MainWindow
 
         window = self._window()
-        with patch("ui.main_window.messagebox.showerror") as showerror:
+        with patch("chordnotepad_tk.main_window.messagebox.showerror") as showerror:
             MainWindow._on_session_output(
                 window, UserError("Playback Error", "Could not play the song.\n\nrender broke"))
         assert showerror.call_args.args == ("Playback Error", "Could not play the song.\n\nrender broke")
         assert showerror.call_args.kwargs["parent"] is window
 
     def test_help_failure_shows_reason(self):
-        from ui.main_window import MainWindow
+        from chordnotepad_tk.main_window import MainWindow
 
         window = self._window()
         window.resource_service.paths.help_html = "/nowhere"
-        with patch("ui.help_window.show_help",
+        with patch("chordnotepad_tk.help_window.show_help",
                    side_effect=ChordNotepadError("Could not open a web browser")), \
-                patch("ui.main_window.messagebox.showwarning") as showwarning:
+                patch("chordnotepad_tk.main_window.messagebox.showwarning") as showwarning:
             MainWindow.show_help(window)
         assert "web browser" in showwarning.call_args.args[1]
 
     def test_insert_from_identifier_failure_is_shown(self):
-        from ui.main_window import MainWindow
+        from chordnotepad_tk.main_window import MainWindow
 
         window = self._window()
         window.text_editor.offset_of.side_effect = tk.TclError("bad index")
-        with patch("ui.main_window.messagebox.showerror") as showerror:
+        with patch("chordnotepad_tk.main_window.messagebox.showerror") as showerror:
             MainWindow._on_insert_chord_from_identifier(window, "Am")
         assert "bad index" in showerror.call_args.args[1]
 
@@ -508,14 +508,14 @@ class TestMainWindowDialogs:
 class TestDialogs:
 
     def test_settings_save_failure_keeps_dialog_open(self):
-        from ui.dialogs.options_dialog import OptionsDialog
+        from chordnotepad_tk.dialogs.options_dialog import OptionsDialog
 
         dialog = Mock()
         dialog._viewmodel.validate_all.return_value = []
         dialog._viewmodel.commit.side_effect = ConfigurationError(
             "Failed to save configuration: read-only file system")
 
-        with patch("ui.dialogs.options_dialog.messagebox.showerror") as showerror:
+        with patch("chordnotepad_tk.dialogs.options_dialog.messagebox.showerror") as showerror:
             OptionsDialog._on_save(dialog)
 
         assert "read-only file system" in showerror.call_args.args[1]
@@ -523,13 +523,13 @@ class TestDialogs:
         dialog.destroy.assert_not_called()
 
     def test_transpose_invalid_number_is_reported(self):
-        from ui.dialogs.transpose_dialog import TransposeDialog
+        from chordnotepad_tk.dialogs.transpose_dialog import TransposeDialog
 
         dialog = Mock()
         dialog.result = None
         dialog.semitones_var.get.side_effect = tk.TclError("expected integer")
 
-        with patch("ui.dialogs.transpose_dialog.messagebox.showerror") as showerror:
+        with patch("chordnotepad_tk.dialogs.transpose_dialog.messagebox.showerror") as showerror:
             TransposeDialog._on_ok(dialog)
 
         showerror.assert_called_once()
@@ -537,7 +537,7 @@ class TestDialogs:
         assert dialog.result is None
 
     def test_identifier_note_click_reports_audio_error(self):
-        from ui.chord_identifier import ChordIdentifierWindow
+        from chordnotepad_tk.chord_identifier import ChordIdentifierWindow
 
         window = Mock()
         error = AudioInitializationError("no driver")
@@ -546,7 +546,7 @@ class TestDialogs:
         window._report_audio_error.assert_called_once_with(error)
 
     def test_identifier_hands_audio_errors_to_its_owner(self):
-        from ui.chord_identifier import ChordIdentifierWindow
+        from chordnotepad_tk.chord_identifier import ChordIdentifierWindow
 
         window = Mock()
         error = AudioInitializationError("no driver")
@@ -554,26 +554,26 @@ class TestDialogs:
         window.on_audio_error.assert_called_once_with(error)
 
     def test_main_window_reports_identifier_audio_errors_through_the_session(self):
-        from ui.main_window import MainWindow
+        from chordnotepad_tk.main_window import MainWindow
 
         window = Mock()
         MainWindow._on_identifier_audio_error(window, AudioInitializationError("no driver"))
         window.session.report_audio_failure.assert_called_once_with("no driver", from_click=True)
 
     def test_identifier_unplayable_chord_is_reported(self):
-        from ui.chord_identifier import ChordIdentifierWindow
+        from chordnotepad_tk.chord_identifier import ChordIdentifierWindow
 
         window = Mock()
         window.results_listbox.curselection.return_value = (0,)
         window.results_listbox.get.return_value = "Cweird"
         window.viewmodel.play_chord.side_effect = ChordDetectionError(
             "Could not work out the notes of Cweird.")
-        with patch("ui.chord_identifier.messagebox.showerror") as showerror:
+        with patch("chordnotepad_tk.chord_identifier.messagebox.showerror") as showerror:
             ChordIdentifierWindow.play_selected_chord(window)
         assert "Cweird" in showerror.call_args.args[1]
 
     def test_identifier_viewmodel_raises_for_unknown_chord(self):
-        from viewmodels.chord_identifier_viewmodel import ChordIdentifierViewModel
+        from chordnotepad.viewmodels.chord_identifier_viewmodel import ChordIdentifierViewModel
 
         vm = ChordIdentifierViewModel(song_parser_service=MagicMock(), audio_service=MagicMock())
         with patch.object(vm, "get_chord_midi_notes", return_value=[]):
@@ -582,7 +582,7 @@ class TestDialogs:
 
     def test_chord_sheet_click_auditions_through_the_session(self):
         # The session plays it and reports audio failures by its policy.
-        from ui.chord_sheet.panel import ChordSheetPanel
+        from chordnotepad_tk.chord_sheet.panel import ChordSheetPanel
 
         panel = Mock()
         panel._canvas.canvasx.return_value = 5

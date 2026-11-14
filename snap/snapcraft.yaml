@@ -32,7 +32,7 @@ apps:
       # (monospace, sans-serif). Use the config staged with libfontconfig.
       FONTCONFIG_FILE: $SNAP/etc/fonts/fonts.conf
       FONTCONFIG_PATH: $SNAP/etc/fonts
-      # pyfluidsynth only searches the system linker cache (src/audio/fluidsynth_import.py)
+      # pyfluidsynth only searches the system linker cache (core/chordnotepad/audio/fluidsynth_import.py)
       CHORD_NOTEPAD_LIBFLUIDSYNTH: $SNAP/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/libfluidsynth.so.3
 
 parts:
@@ -69,9 +69,9 @@ parts:
       craftctl set version="$(cat VERSION)"
       app="$CRAFT_PART_INSTALL/share/chord-notepad"
       mkdir -p "$app/help/build"
-      cp -r src resources examples VERSION "$app/"
+      cp -r core desktop resources examples VERSION "$app/"
       rm -f "$app"/resources/*.ico
-      find "$app/src" -name __pycache__ -prune -exec rm -rf {} +
+      find "$app/core" "$app/desktop" -name __pycache__ -prune -exec rm -rf {} +
       # Sphinx output, built before snapcraft runs (make snap)
       cp -r help/build/html "$app/help/build/"
       install -Dm755 packaging/snap/chord-notepad.sh "$CRAFT_PART_INSTALL/bin/chord-notepad"

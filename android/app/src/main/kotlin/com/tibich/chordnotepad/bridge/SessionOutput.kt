@@ -3,7 +3,7 @@ package com.tibich.chordnotepad.bridge
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
-// Kotlin mirrors of the session's DTOs (src/session/state.py, events.py,
+// Kotlin mirrors of the session's DTOs (core/chordnotepad/session/state.py, events.py,
 // documents.py). Field names on the wire are the Python dataclass field names
 // (snake_case); enums travel as their string values. Offsets are Unicode code
 // points; convert them with text.OffsetMapper before touching a Kotlin string.

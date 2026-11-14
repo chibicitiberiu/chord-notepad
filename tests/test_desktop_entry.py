@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from constants import WM_CLASS
+from chordnotepad.constants import WM_CLASS
 
 DESKTOP_FILE = (Path(__file__).parent.parent / "packaging" / "linux"
                 / "io.github.chibicitiberiu.ChordNotepad.desktop")

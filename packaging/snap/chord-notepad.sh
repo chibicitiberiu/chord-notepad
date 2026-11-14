@@ -4,4 +4,6 @@
 if [ -z "$PULSE_SERVER" ]; then
     export PULSE_SERVER="unix:/run/user/$(id -u)/pulse/native"
 fi
-exec "$SNAP/bin/python3" "$SNAP/share/chord-notepad/src/main.py" "$@"
+app="$SNAP/share/chord-notepad/"
+export PYTHONPATH="${app}core:${app}desktop${PYTHONPATH:+:$PYTHONPATH}"
+exec "$SNAP/bin/python3" -m chordnotepad_tk.main "$@"

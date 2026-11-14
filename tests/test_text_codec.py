@@ -5,7 +5,7 @@ import codecs
 
 import pytest
 
-from services.text_codec import TextFormat, decode_text, encode_text, format_of
+from chordnotepad.services.text_codec import TextFormat, decode_text, encode_text, format_of
 
 LF = TextFormat()
 

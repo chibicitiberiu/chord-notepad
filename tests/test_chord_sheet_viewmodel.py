@@ -9,15 +9,15 @@ from typing import Optional
 
 import pytest
 
-from models.rendered_song import RenderedSong, RenderedChord
-from models.chord import ChordInfo
-from chord_sheet.renderer_interface import (
+from chordnotepad.models.rendered_song import RenderedSong, RenderedChord
+from chordnotepad.models.chord import ChordInfo
+from chordnotepad.chord_sheet.renderer_interface import (
     SheetContext,
     SlotBox,
     StripLayout,
     StripRenderer,
 )
-from viewmodels.chord_sheet_viewmodel import ChordSheetViewModel
+from chordnotepad.viewmodels.chord_sheet_viewmodel import ChordSheetViewModel
 
 
 class PlainRenderer(StripRenderer):
@@ -218,7 +218,7 @@ def test_typing_burst_of_n_yields_exactly_one_render():
 import threading  # noqa: E402
 import time  # noqa: E402
 
-from exceptions import RenderAborted  # noqa: E402
+from chordnotepad.exceptions import RenderAborted  # noqa: E402
 
 
 class ImmediateScheduler:
@@ -919,7 +919,7 @@ def test_zoom_load_non_dict_is_empty():
 
 
 def make_host_vm(rendered=None, visible=True, debounce_ms=500):
-    from session.testing import ManualHost
+    from chordnotepad.session.testing import ManualHost
 
     host = ManualHost()
     audio = FakeAudio(rendered=rendered)
@@ -949,7 +949,7 @@ def test_host_debounce_renders_once_after_the_quiet_period():
 
 
 def test_host_result_is_applied_on_the_session_thread_via_post():
-    from session.testing import ManualHost
+    from chordnotepad.session.testing import ManualHost
 
     song = RenderedSong(chords=[make_chord("C")])
     host = ManualHost()
@@ -993,7 +993,7 @@ def test_host_hiding_cancels_the_armed_timer():
 
 
 def test_injected_seams_win_over_the_host():
-    from session.testing import ManualHost
+    from chordnotepad.session.testing import ManualHost
 
     host = ManualHost()
     scheduler = ManualScheduler()

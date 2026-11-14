@@ -12,13 +12,13 @@ from types import ModuleType
 
 import pytest
 
-from services.playback_service import PlaybackService
-from services.config_service import ConfigService
-from services.song_parser_service import SongParserService
-from models.notation import Notation
-from models.rendered_song import RenderedSong
-from exceptions import FileOperationError
-from session.testing import InMemoryDocumentStore
+from chordnotepad.services.playback_service import PlaybackService
+from chordnotepad.services.config_service import ConfigService
+from chordnotepad.services.song_parser_service import SongParserService
+from chordnotepad.models.notation import Notation
+from chordnotepad.models.rendered_song import RenderedSong
+from chordnotepad.exceptions import FileOperationError
+from chordnotepad.session.testing import InMemoryDocumentStore
 
 
 TWO_CHORD_TEXT = "C G\n"
@@ -96,11 +96,11 @@ def _install_stub_writer_module(mock_render=None):
     ``b"MIDI"`` unless a replacement is given, so the tests check what the
     viewmodel asks for without rendering a real file.
     """
-    stub = ModuleType("services.midi_file_writer")
+    stub = ModuleType("chordnotepad.services.midi_file_writer")
     stub.render_midi_bytes = (
         mock_render if mock_render is not None else MagicMock(return_value=b"MIDI"))
     stub.PPQ = 480
-    return patch.dict(sys.modules, {"services.midi_file_writer": stub}), stub
+    return patch.dict(sys.modules, {"chordnotepad.services.midi_file_writer": stub}), stub
 
 
 class TestExportMidiFile:
@@ -108,7 +108,7 @@ class TestExportMidiFile:
 
     def _make_viewmodel(self, current_text="C G\n", current_document=None, instrument=5):
         """Build a MainWindowViewModel with mocked services and an in-memory store."""
-        from viewmodels.main_window_viewmodel import MainWindowViewModel
+        from chordnotepad.viewmodels.main_window_viewmodel import MainWindowViewModel
 
         config = Mock(spec=ConfigService)
         config.get.side_effect = lambda key, default=None: {

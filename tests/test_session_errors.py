@@ -1,16 +1,19 @@
 """session.errors: Tk-free routing of unexpected errors to a handler."""
 
 import logging
+import os
 import subprocess
 import sys
 from pathlib import Path
 
 import pytest
 
-from session import errors
-from utils.observable import Observable
+from chordnotepad.session import errors
+from chordnotepad.utils.observable import Observable
 
-SRC = Path(__file__).parent.parent / "src"
+REPO = Path(__file__).parent.parent
+CORE = REPO / "core"
+DESKTOP = REPO / "desktop"
 
 
 @pytest.fixture(autouse=True)
@@ -29,7 +32,7 @@ def _exc_info(message="boom"):
 
 def test_without_a_handler_the_error_is_logged(caplog):
     errors.set_handler(None)
-    with caplog.at_level(logging.ERROR, logger="session.errors"):
+    with caplog.at_level(logging.ERROR, logger="chordnotepad.session.errors"):
         errors.report_from_any_thread(_exc_info(), "background job")
     assert "Unhandled error in background job" in caplog.text
     assert "Traceback" in caplog.text
@@ -57,7 +60,7 @@ def test_a_failing_handler_does_not_lose_the_error(caplog):
         raise ValueError("handler bug")
 
     errors.set_handler(broken)
-    with caplog.at_level(logging.ERROR, logger="session.errors"):
+    with caplog.at_level(logging.ERROR, logger="chordnotepad.session.errors"):
         errors.report_from_any_thread(_exc_info("original"), "observer")
     assert "original" in caplog.text
     assert "Error handler failed" in caplog.text
@@ -73,8 +76,8 @@ def test_observable_reports_observer_errors_through_the_router():
 
 
 _IMPORT_PROBE = r"""
-import sys
-sys.path.insert(0, sys.argv[1])
+import os, sys
+sys.path[:0] = sys.argv[1].split(os.pathsep)
 if sys.argv[2] == "block-tk":
     class _Block:
         def find_spec(self, name, path=None, target=None):
@@ -82,17 +85,19 @@ if sys.argv[2] == "block-tk":
                 raise ModuleNotFoundError(name)
             return None
     sys.meta_path.insert(0, _Block())
-from session import errors
-import session.session, utils.observable  # the core that reports errors
+from chordnotepad.session import errors
+import chordnotepad.session.session, chordnotepad.utils.observable  # the core that reports errors
 if sys.argv[2] == "with-presenter":
-    from ui import error_reporting
+    from chordnotepad_tk import error_reporting
 print(errors.get_handler() is None)
 """
 
 
 def _handler_is_unset_after_import(mode):
     out = subprocess.run(
-        [sys.executable, "-c", _IMPORT_PROBE, str(SRC), mode],
+        # The core alone, or with the Tk front end for the presenter.
+        [sys.executable, "-I", "-c", _IMPORT_PROBE,
+         os.pathsep.join(map(str, [CORE] + ([DESKTOP] if mode == "with-presenter" else []))), mode],
         capture_output=True, text=True, timeout=60)
     assert out.returncode == 0, out.stderr
     return out.stdout.split() == ["True"]
@@ -104,6 +109,6 @@ def test_the_core_imports_without_tkinter_and_only_logs():
 
 
 def test_importing_the_tk_presenter_installs_nothing():
-    # The application installs it explicitly (ui.error_reporting
+    # The application installs it explicitly (chordnotepad_tk.error_reporting
     # .install_session_handler, from Application.on_configure_logging).
     assert _handler_is_unset_after_import("with-presenter")

@@ -1,6 +1,6 @@
 """Tk tests for the Voicings page's voices table: gaps, move buttons, the banner.
 
-Builds the real :class:`~ui.dialogs.voicings_page.VoicingsPage` over a
+Builds the real :class:`~chordnotepad_tk.dialogs.voicings_page.VoicingsPage` over a
 :class:`SettingsViewModel` on a throwaway config and drives its widgets.
 Needs a display (they skip without one).
 """
@@ -10,10 +10,10 @@ import pytest
 tk = pytest.importorskip('tkinter')
 from tkinter import ttk
 
-from models.config import Config
-from services.config_service import ConfigService
-from settings_forms.voicing_texts import EDITOR_TEXTS
-from viewmodels.settings_viewmodel import SettingsViewModel
+from chordnotepad.models.config import Config
+from chordnotepad.services.config_service import ConfigService
+from chordnotepad.settings_forms.voicing_texts import EDITOR_TEXTS
+from chordnotepad.viewmodels.settings_viewmodel import SettingsViewModel
 
 TRIO = {
     'model': 'ensemble',
@@ -48,7 +48,7 @@ def root():
 
 @pytest.fixture
 def page(root, tmp_path):
-    from ui.dialogs.voicings_page import VoicingsPage
+    from chordnotepad_tk.dialogs.voicings_page import VoicingsPage
 
     service = ConfigService(_StubAppData(tmp_path / 'settings.json'))
     config = Config()

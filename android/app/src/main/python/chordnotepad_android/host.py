@@ -17,16 +17,16 @@ import sys
 from pathlib import Path
 from typing import Any, Mapping, Optional
 
-from app_paths import AppPaths
-from audio.audio_options import AudioOptions
-from services.appdata_service import AppDataService
-from services.logging_service import LoggingService
-from session import errors
-from session.bootstrap import CoreServices, build_core_services, create_session
-from session.platform import ANDROID
-from session.bridge import ErrorEvents, SessionBridge
-from session.host import HostDispatch
-from session.threaded_host import ThreadedHost
+from chordnotepad.app_paths import AppPaths
+from chordnotepad.audio.audio_options import AudioOptions
+from chordnotepad.services.appdata_service import AppDataService
+from chordnotepad.services.logging_service import LoggingService
+from chordnotepad.session import errors
+from chordnotepad.session.bootstrap import CoreServices, build_core_services, create_session
+from chordnotepad.session.platform import ANDROID
+from chordnotepad.session.bridge import ErrorEvents, SessionBridge
+from chordnotepad.session.host import HostDispatch
+from chordnotepad.session.threaded_host import ThreadedHost
 
 from chordnotepad_android.android_store import AndroidDocumentStore
 
@@ -218,12 +218,12 @@ def _init_audio(services: CoreServices, soundfont_path: Optional[str], has_playe
 def _chord_sheet_available() -> bool:
     """Whether the chord-sheet strip can be built here.
 
-    The renderers are headless and Pillow-free (``src/chord_sheet``); if a
+    The renderers are headless and Pillow-free (``core/chordnotepad/chord_sheet``); if a
     build still can't import them, the session runs without the strip
     rather than not at all.
     """
     try:
-        import viewmodels.chord_sheet_viewmodel  # noqa: F401
+        import chordnotepad.viewmodels.chord_sheet_viewmodel  # noqa: F401
     except ImportError as e:
         logger.warning("No chord sheet on this build: %s", e)
         return False

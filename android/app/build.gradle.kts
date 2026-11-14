@@ -262,18 +262,14 @@ chaquopy {
     }
     sourceSets {
         getByName("main") {
-            // The shared core, minus the Tk UI and the desktop entry points
-            // next to it (tests/test_core_import_guard.py DESKTOP_ONLY checks
-            // this list).
-            srcDir("../../src")
-            exclude(
-                "__init__.py",
-                "**/__pycache__/**",
-                "ui/**",
-                "main.py",
-                "application.py",
-                "build_info.py",
-            )
+            // The shared core: the chordnotepad package and nothing else from
+            // core/ (tests/test_core_import_guard.py checks these lines). The
+            // desktop front end is in desktop/, which Android never reads.
+            // include() filters the whole source set, so it also names the
+            // glue package in the default src/main/python.
+            srcDir("../../core")
+            include("chordnotepad/**", "chordnotepad_android/**")
+            exclude("**/__pycache__/**")
         }
     }
 }
@@ -510,18 +506,22 @@ val copyDebugSample = tasks.register<CopyIntoAssets>("copyDebugSample") {
 
 // ---------------------------------------------------------------------------
 // Chord sheet: the six base clef/glyph PNGs that Kotlin draws the staff view's
-// image ops with, exported from src/chord_sheet/clef_assets.py at build time
-// (tools/export_clef_glyphs.py) instead of committed as binaries. They land in
-// assets/chord_sheet/<asset>.png plus glyphs.json (docs/ANDROID.md).
+// image ops with, exported from core/chordnotepad/chord_sheet/clef_assets.py at
+// build time (tools/export_clef_glyphs.py) instead of committed as binaries.
+// They land in assets/chord_sheet/<asset>.png plus glyphs.json (docs/ANDROID.md).
 // ---------------------------------------------------------------------------
 abstract class ExportClefGlyphs @Inject constructor(
     private val execOps: ExecOperations,
 ) : DefaultTask() {
     @get:Input abstract val pythonExe: Property<String>
     @get:InputFile abstract val script: RegularFileProperty
-    /** The module that embeds the PNGs (the script's only import). */
+    /**
+     * The module that embeds the PNGs: the script's only import, besides the
+     * chordnotepad and chord_sheet package __init__s, which import nothing.
+     */
     @get:InputFile abstract val clefAssets: RegularFileProperty
-    @get:Internal abstract val srcDir: Property<String>
+    /** The folder holding the chordnotepad package (core/). */
+    @get:Internal abstract val coreDir: Property<String>
     @get:OutputDirectory abstract val outputDir: DirectoryProperty
 
     @TaskAction
@@ -531,7 +531,7 @@ abstract class ExportClefGlyphs @Inject constructor(
         execOps.exec {
             commandLine(
                 pythonExe.get(), "-I", script.get().asFile.path,
-                "--src", srcDir.get(),
+                "--core", coreDir.get(),
                 "--out-dir", File(out, "chord_sheet").path,
             )
         }
@@ -542,8 +542,8 @@ val exportClefGlyphs = tasks.register<ExportClefGlyphs>("exportClefGlyphs") {
     description = "Exports the chord sheet's base clef/glyph PNGs into generated assets"
     pythonExe.set(buildPythonExe)
     script.set(repoRoot.file("android/tools/export_clef_glyphs.py"))
-    clefAssets.set(repoRoot.file("src/chord_sheet/clef_assets.py"))
-    srcDir.set(repoRoot.dir("src").asFile.path)
+    clefAssets.set(repoRoot.file("core/chordnotepad/chord_sheet/clef_assets.py"))
+    coreDir.set(repoRoot.dir("core").asFile.path)
     outputDir.set(layout.buildDirectory.dir("generated/chordSheetGlyphs/assets"))
 }
 

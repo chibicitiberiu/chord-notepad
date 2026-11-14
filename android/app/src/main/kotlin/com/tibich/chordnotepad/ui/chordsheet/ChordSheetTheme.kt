@@ -6,7 +6,7 @@ import kotlin.math.max
 import kotlin.math.min
 
 // The chord sheet's colours come from the op buffer (the desktop renderers'
-// palette, src/chord_sheet/). The Android sheet keeps them in the light theme
+// palette, core/chordnotepad/chord_sheet/). The Android sheet keeps them in the light theme
 // and maps them for the dark one (docs/design/android-ui-spec.md, "Chord
 // sheet"): the strip takes the surface-low background, the playing column is
 // translucent yellow, the hands' bars keep their blue and brown a little

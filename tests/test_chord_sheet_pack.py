@@ -14,14 +14,14 @@ import struct
 
 import pytest
 
-from audio.guitar_chord_picker import GuitarChordPicker
-from chord_sheet import pack
-from chord_sheet.ops import DrawOps, TextOp
-from chord_sheet.registry import default_renderers
-from chord_sheet.renderer_interface import SheetContext, SlotBox
-from chord_sheet.staff_card import StaffCardRenderer
-from services.song_parser_service import SongParserService
-from services.song_renderer import SongRenderer
+from chordnotepad.audio.guitar_chord_picker import GuitarChordPicker
+from chordnotepad.chord_sheet import pack
+from chordnotepad.chord_sheet.ops import DrawOps, TextOp
+from chordnotepad.chord_sheet.registry import default_renderers
+from chordnotepad.chord_sheet.renderer_interface import SheetContext, SlotBox
+from chordnotepad.chord_sheet.staff_card import StaffCardRenderer
+from chordnotepad.services.song_parser_service import SongParserService
+from chordnotepad.services.song_renderer import SongRenderer
 
 VIEWS = ("keyboard", "staff", "fret", "tab")
 HEIGHT = 130.0
@@ -247,7 +247,7 @@ def test_packing_is_deterministic(song):
 
 # Pins the renderers' output for SONG_TEXT as well as the format. When a
 # renderer change is intended, regenerate with:
-#   pipenv run python -c "import sys; sys.path.insert(0, 'src'); sys.path.insert(0, 'tests'); \
+#   pipenv run python -c "import sys; sys.path.insert(0, 'core'); sys.path.insert(0, 'tests'); \
 #     import test_chord_sheet_pack as t, hashlib; s = t._render(t.SONG_TEXT); \
 #     [print(v, len(d), hashlib.sha256(d).hexdigest()) for v in t.VIEWS \
 #      for d in [t.pack.pack_view(s, v, 1.0, t.HEIGHT)]]"

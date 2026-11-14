@@ -1,10 +1,10 @@
 """Unit tests for Song building."""
 
 import pytest
-from services.song_parser_service import SongParserService
-from models.directive import DirectiveType
-from models.line import LineType
-from models.notation import Notation
+from chordnotepad.services.song_parser_service import SongParserService
+from chordnotepad.models.directive import DirectiveType
+from chordnotepad.models.line import LineType
+from chordnotepad.models.notation import Notation
 
 
 class TestBasicSongBuilding:

@@ -14,18 +14,18 @@ from unittest.mock import ANY, Mock, patch
 
 import pytest
 
-from services.playback_service import PlaybackService
-from services.song_parser_service import SongParserService
-from session import formatting
-from session.host import HostDispatch
-from session.session import AppSession
-from session.state import (
+from chordnotepad.services.playback_service import PlaybackService
+from chordnotepad.services.song_parser_service import SongParserService
+from chordnotepad.session import formatting
+from chordnotepad.session.host import HostDispatch
+from chordnotepad.session.session import AppSession
+from chordnotepad.session.state import (
     EditorState, InstrumentFamily, InstrumentMenuState, MenuItem, VoicingMenuState,
 )
-from session.testing import EventRecorder, FakePlayer, InMemoryDocumentStore, ManualHost
-from viewmodels.main_window_viewmodel import MainWindowViewModel
-from viewmodels.settings_viewmodel import SettingsChanges
-from viewmodels.text_editor_viewmodel import TextEditorViewModel
+from chordnotepad.session.testing import EventRecorder, FakePlayer, InMemoryDocumentStore, ManualHost
+from chordnotepad.viewmodels.main_window_viewmodel import MainWindowViewModel
+from chordnotepad.viewmodels.settings_viewmodel import SettingsChanges
+from chordnotepad.viewmodels.text_editor_viewmodel import TextEditorViewModel
 
 
 # A valid user fretboard voicing (standard tuning).
@@ -265,7 +265,7 @@ class TestInstrumentMenuModel:
 
 
 def test_tk_voicing_menu_is_rebuilt_from_the_state():
-    from ui.main_window import MainWindow
+    from chordnotepad_tk.main_window import MainWindow
 
     window = SimpleNamespace(voicing_menu=Mock(), voicing_var=Mock(), _voicing_groups=None, _playback_menu=Mock(),
                              on_voicing_change=Mock())
@@ -287,7 +287,7 @@ def test_tk_voicing_menu_is_rebuilt_from_the_state():
 
 
 def test_tk_instrument_menu_is_rebuilt_from_the_state():
-    from ui.main_window import MainWindow
+    from chordnotepad_tk.main_window import MainWindow
 
     window = SimpleNamespace(instrument_menu=Mock(), instrument_var=Mock(),
                              _category_markers=("blank", "dot"),
@@ -301,8 +301,8 @@ def test_tk_instrument_menu_is_rebuilt_from_the_state():
         submenus.append(Mock())
         return submenus[-1]
 
-    with patch("ui.main_window.tk.Menu", side_effect=make_menu), \
-            patch("ui.main_window.style_menu"):
+    with patch("chordnotepad_tk.main_window.tk.Menu", side_effect=make_menu), \
+            patch("chordnotepad_tk.main_window.style_menu"):
         MainWindow.build_instrument_menu(window, state)
 
     window.instrument_menu.delete.assert_called_once_with(0, ANY)

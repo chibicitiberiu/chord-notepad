@@ -7,9 +7,9 @@ services.key_spelling and the "Enharmonic policy" in transpose_service.
 
 import time
 
-from services.key_spelling import Key
-from services.song_parser_service import SongParserService
-from services.transpose_service import (
+from chordnotepad.services.key_spelling import Key
+from chordnotepad.services.song_parser_service import SongParserService
+from chordnotepad.services.transpose_service import (
     _spelling_plan, transpose_chord_token, transpose_key, transpose_text,
 )
 

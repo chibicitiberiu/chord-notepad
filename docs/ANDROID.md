@@ -14,7 +14,7 @@ bridge and the measurements. Releasing and signing are in `docs/RELEASE.md`,
 - **Logic lives in the shared Python core.** Kotlin is view-only: it never
   re-implements wiring, formatting or highlighting, never holds `PyObject`s
   outside the bridge, and never calls Python on the main thread. App flows
-  belong in `src/session/` (`docs/architecture/session.md`).
+  belong in `core/chordnotepad/session/` (`docs/architecture/session.md`).
 - **Offsets are code points in Python**; `OffsetMapper` is the only place
   that converts to UTF-16.
 - **Settings visibility rule:** Android shows every setting whose meaning
@@ -81,19 +81,25 @@ android/
   tools/mdi_icons.py                Material Design Icons -> res/drawable/mdi_*.xml (pinned @mdi/svg, sha256)
 ```
 
-The Python core is not copied: Chaquopy reads `../../src` directly, minus
-`ui/**` (all desktop-only code, Tk and otherwise) and the desktop entry points
-next to it (`main.py`, `application.py`, `build_info.py`; the same list as
-`tests/test_core_import_guard.py`, which checks the Gradle one). The core
-finds no files next to its own code: the host passes an `AppPaths`
-(`src/app_paths.py`) with only the native library folder, and the SoundFont
-path arrives in `audio_options`.
+The Python core is not copied: Chaquopy reads `../../core` directly and
+ships the `chordnotepad` package from it, minus `__pycache__`. The source
+set's `include("chordnotepad/**", "chordnotepad_android/**")` filters every
+folder of the set, so it names the glue package too; a package missing there
+silently drops out of the APK. The desktop front end lives in `desktop/chordnotepad_tk/`,
+which the Android build never reads, so there is no exclusion list;
+`tests/test_core_import_guard.py` checks the Gradle lines and that no core
+module imports tkinter, Pillow, jeepney or PySide6. The glue in
+`app/src/main/python/chordnotepad_android/` imports the core by its package
+name (`from chordnotepad.session.bootstrap import ...`). The core finds no
+files next to its own code: the host passes an `AppPaths`
+(`core/chordnotepad/app_paths.py`) with only the native library folder, and
+the SoundFont path arrives in `audio_options`.
 The SoundFont (`resources/soundfont/GeneralUser-GS.sf2`), the debug chord-sheet
 screen's sample song (`examples/02_american_complete.txt`, debug builds only, as
-`debug/sample.txt`), the chord sheet's clef/glyph PNGs (exported from `src/chord_sheet/clef_assets.py`) and
-the example songs (`examples/*.txt`, all variants, as `examples/<name>`; the
-`copyExamples` task) are put into the APK's assets by Gradle tasks, not
-duplicated in git.
+`debug/sample.txt`), the chord sheet's clef/glyph PNGs (exported from
+`core/chordnotepad/chord_sheet/clef_assets.py`) and the example songs
+(`examples/*.txt`, all variants, as `examples/<name>`; the `copyExamples`
+task) are put into the APK's assets by Gradle tasks, not duplicated in git.
 
 ## Toolchain
 
@@ -783,7 +789,7 @@ and hints and the editor schema; Kotlin uses `JsonObject`). Two more keys
 document the inbound side: `command_params` (each command's parameters and
 their types; `selection` is `[start, end]` or null, `any` is `respond`'s
 value) and `answers` (what `respond` takes for each request type).
-Regenerate with `cd src && python -m session.bridge --schema >
+Regenerate with `cd core && python -m chordnotepad.session.bridge --schema >
 ../android/bridge_schema.json`; `tests/test_session_bridge.py` fails while
 the committed file is stale. The Kotlin
 `BridgeSchemaContractTest` (skipped while the file is missing) checks that
@@ -996,7 +1002,7 @@ objects, against the release build's R8 rules ("R8 in release builds").
   from the manifest (it fetched a downloadable font from the Play services
 ## Chord sheet op buffer
 
-**Status:** the Python half is built (`src/chord_sheet/pack.py`, format
+**Status:** the Python half is built (`core/chordnotepad/chord_sheet/pack.py`, format
 version 1), and the bridge hands it out (`SessionHandle.chord_sheet_buffer`,
 "Bridge contract" above); the Kotlin decoder, cache and painter are built
 too (M4: `ui/chordsheet/ChordSheetBuffer.kt`, `ChordSheetController.kt`,
@@ -1008,12 +1014,13 @@ strip height cap (230 dp x zoom), so on a short strip `+` changes nothing until
 `-` has shrunk the cards. While a buffer is being fetched
 (`ChordSheetController.loading`) a thin progress bar shows under the tabs.
 
-The chord sheet's renderers (`src/chord_sheet/`) are headless: they record
-draw ops (`chord_sheet/ops.py`) that the Tk panel replays onto a canvas.
+The chord sheet's renderers (`core/chordnotepad/chord_sheet/`) are headless:
+they record draw ops (`chord_sheet/ops.py`) that the Tk panel replays onto a
+canvas.
 Android gets the same ops as one `bytes` object per (view, zoom, height):
 
 ```python
-from chord_sheet.pack import pack_view
+from chordnotepad.chord_sheet.pack import pack_view
 data = pack_view(rendered_song, view_id, zoom, height, renderers=None)
 ```
 

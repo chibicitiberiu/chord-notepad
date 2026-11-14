@@ -9,9 +9,9 @@ from dataclasses import dataclass
 
 import pytest
 
-from session import errors
-from session.emitter import Emitter
-from session.testing import EventRecorder
+from chordnotepad.session import errors
+from chordnotepad.session.emitter import Emitter
+from chordnotepad.session.testing import EventRecorder
 
 
 @dataclass(frozen=True)

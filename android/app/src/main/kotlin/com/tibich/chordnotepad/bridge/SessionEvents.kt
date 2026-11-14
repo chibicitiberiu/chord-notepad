@@ -3,7 +3,7 @@ package com.tibich.chordnotepad.bridge
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
-// Mirrors src/session/events.py. See the docstrings there for the semantics.
+// Mirrors core/chordnotepad/session/events.py. See the docstrings there for the semantics.
 
 /** Something the user asked for failed in an expected way. */
 @Serializable

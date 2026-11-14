@@ -6,7 +6,7 @@ import kotlinx.serialization.Serializable
 
 // The startup screen (docs/ANDROID.md, "Startup screen and support prompt"; contract in
 // docs/ANDROID.md, "Bridge contract", "Startup screen"). Mirrors
-// src/session/state.py: the session decides what opens over the editor.
+// core/chordnotepad/session/state.py: the session decides what opens over the editor.
 
 /** What opens over the editor at startup. */
 @Serializable

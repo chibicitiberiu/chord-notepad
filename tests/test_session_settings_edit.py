@@ -9,16 +9,16 @@ import json
 
 import pytest
 
-from services.appdata_service import AppDataService
-from session.bootstrap import build_core_services, create_session
-from session.events import UserError
-from session.host import HostDispatch
-from session.settings import SettingsValues
-from session.state import (
+from chordnotepad.services.appdata_service import AppDataService
+from chordnotepad.session.bootstrap import build_core_services, create_session
+from chordnotepad.session.events import UserError
+from chordnotepad.session.host import HostDispatch
+from chordnotepad.session.settings import SettingsValues
+from chordnotepad.session.state import (
     INACTIVE_VOICING_EDITOR, EditorState, SettingsState, VoicingEditorState, VoicingMenuState,
 )
-from session.testing import EventRecorder, FakePlayer, InMemoryDocumentStore, ManualHost
-from settings_forms import voicing_form
+from chordnotepad.session.testing import EventRecorder, FakePlayer, InMemoryDocumentStore, ManualHost
+from chordnotepad.settings_forms import voicing_form
 
 
 def make(tmp_path, voicings=None):
@@ -236,7 +236,7 @@ def test_save_rejects_out_of_range_values(tmp_path):
 
 
 def test_editor_schema_event_per_platform(tmp_path):
-    from session.events import VoicingEditorSchema
+    from chordnotepad.session.events import VoicingEditorSchema
 
     session, _, recorder = make(tmp_path)
     session.request_voicing_editor_schema()
@@ -356,7 +356,7 @@ def test_commit_needs_an_edit_and_values_in_range(tmp_path):
 
 
 def test_commit_that_cant_write_is_a_user_error_and_the_edit_stays(tmp_path, monkeypatch):
-    from exceptions import ConfigurationError
+    from chordnotepad.exceptions import ConfigurationError
 
     session, services, recorder = make(tmp_path)
     session.begin_settings_edit()
@@ -536,7 +536,7 @@ def test_commit_rejects_unknown_number_settings(tmp_path):
 
 
 def test_problem_texts_give_the_syntax_or_range():
-    from settings_forms.voicing_autosave import plan_voicing, problem_text
+    from chordnotepad.settings_forms.voicing_autosave import plan_voicing, problem_text
 
     values = voicing_form.default_values("piano")
     values.update({"range:lh_range:low": "C9", "rh_center": "x"})
@@ -586,7 +586,7 @@ def test_moving_a_voice_above_a_higher_one_is_an_error_not_a_silent_mix_up(tmp_p
 
 
 def test_an_out_of_range_number_is_said_once():
-    from settings_forms.voicing_autosave import plan_voicing, problem_text
+    from chordnotepad.settings_forms.voicing_autosave import plan_voicing, problem_text
 
     values = {**voicing_form.default_values("fretboard"), "max_fret": "999"}
     plan = plan_voicing("Piano", "fretboard", values, None, None, ["max_fret"])
@@ -637,7 +637,7 @@ def test_renaming_a_voicing_with_a_wrong_field_keeps_its_saved_values(tmp_path):
 
 
 def test_each_blamed_field_gets_the_rule_it_breaks():
-    from settings_forms.voicing_autosave import plan_voicing
+    from chordnotepad.settings_forms.voicing_autosave import plan_voicing
 
     values = voicing_form.values_from_voicing("fretboard", BASS)
     values.update({"max_fret": "30", "relaxed_span": "1"})        # two rules

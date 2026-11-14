@@ -18,7 +18,7 @@ from pathlib import Path
 
 import pytest
 
-SRC = Path(__file__).resolve().parent.parent / 'src'
+CORE = Path(__file__).resolve().parent.parent / 'core'
 BOUND_S = 5.0
 # Start-up (imports) plus both paths at their bound; past this the child is killed.
 CHILD_TIMEOUT_S = 60.0
@@ -46,8 +46,8 @@ _CHILD = r'''
 import json, logging, sys, time
 sys.path.insert(0, sys.argv[1])
 logging.disable(logging.CRITICAL)
-from services.song_parser_service import SongParserService
-from services.transpose_service import transpose_text
+from chordnotepad.services.song_parser_service import SongParserService
+from chordnotepad.services.transpose_service import transpose_text
 text = eval(sys.argv[2])
 t = time.perf_counter()
 SongParserService().detect_chords_in_text(text)
@@ -63,7 +63,7 @@ print(json.dumps({'detect': detect, 'transpose': transpose}))
 def test_crafted_input_parses_quickly(case):
     try:
         result = subprocess.run(
-            [sys.executable, '-c', _CHILD, str(SRC), CASES[case]],
+            [sys.executable, '-c', _CHILD, str(CORE), CASES[case]],
             capture_output=True, text=True, timeout=CHILD_TIMEOUT_S)
     except subprocess.TimeoutExpired:
         pytest.fail(f"{case}: still parsing after {CHILD_TIMEOUT_S:.0f} s")

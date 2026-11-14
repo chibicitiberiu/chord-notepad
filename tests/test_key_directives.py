@@ -6,11 +6,11 @@ and Roman numerals after it resolve against the key in effect before it.
 """
 import pytest
 
-from audio.chord_picker import ChordNotePicker
-from chord.helper import ChordHelper
-from chord.keys import american_key
-from services.song_parser_service import SongParserService
-from services.song_renderer import SongRenderer
+from chordnotepad.audio.chord_picker import ChordNotePicker
+from chordnotepad.chord.helper import ChordHelper
+from chordnotepad.chord.keys import american_key
+from chordnotepad.services.song_parser_service import SongParserService
+from chordnotepad.services.song_renderer import SongRenderer
 
 
 @pytest.mark.parametrize("key, expected", [

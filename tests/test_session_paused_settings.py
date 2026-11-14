@@ -8,7 +8,7 @@ the new values.
 
 import pytest
 
-from session.state import PlaybackStatus, SongDefaultsState
+from chordnotepad.session.state import PlaybackStatus, SongDefaultsState
 from tests.test_session_playback import Env
 
 

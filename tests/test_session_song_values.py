@@ -10,16 +10,16 @@ only, and New/Open start again from the defaults.
 
 import pytest
 
-from services.playback_service import PlaybackService
-from services.song_parser_service import SongParserService
-from session.events import ConfirmDiscardRequest, DiscardChoice
-from session.host import HostDispatch
-from session.session import AppSession
-from session.state import HighlightState, PlaybackStatus, SongDefaultsState, ToolbarState
-from session.testing import EventRecorder, FakePlayer, InMemoryDocumentStore, ManualHost
-from viewmodels.main_window_viewmodel import MainWindowViewModel
-from viewmodels.settings_viewmodel import SettingsChanges
-from viewmodels.text_editor_viewmodel import TextEditorViewModel
+from chordnotepad.services.playback_service import PlaybackService
+from chordnotepad.services.song_parser_service import SongParserService
+from chordnotepad.session.events import ConfirmDiscardRequest, DiscardChoice
+from chordnotepad.session.host import HostDispatch
+from chordnotepad.session.session import AppSession
+from chordnotepad.session.state import HighlightState, PlaybackStatus, SongDefaultsState, ToolbarState
+from chordnotepad.session.testing import EventRecorder, FakePlayer, InMemoryDocumentStore, ManualHost
+from chordnotepad.viewmodels.main_window_viewmodel import MainWindowViewModel
+from chordnotepad.viewmodels.settings_viewmodel import SettingsChanges
+from chordnotepad.viewmodels.text_editor_viewmodel import TextEditorViewModel
 
 SONG = "{bpm: 70} {time: 6/8} {key: D}\nD G A\n"
 DEFAULTS = dict(bpm=110, time_signature_beats=3, time_signature_unit=4, key="C")

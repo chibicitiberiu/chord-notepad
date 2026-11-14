@@ -1,12 +1,12 @@
 """The Tk main window is a thin view over the session.
 
-``ui/main_window.py`` talks to the session only (commands, subscribed states
-and events) plus pure view concerns, so the wiring exists once, in
-``src/session/``, for the Tk and the Android UI alike
+``chordnotepad_tk/main_window.py`` talks to the session only (commands,
+subscribed states and events) plus pure view concerns, so the wiring exists
+once, in ``chordnotepad.session``, for the Tk and the Android UI alike
 (``docs/architecture/session.md``). These checks keep it that way.
 
 The one documented exception lives elsewhere: the chord-sheet panel
-(``ui/chord_sheet/panel.py``) still paints from the strip's rendered song,
+(``chordnotepad_tk/chord_sheet/panel.py``) still paints from the strip's rendered song,
 which it reads through ``AppSession.chord_sheet_model``.
 """
 
@@ -14,7 +14,7 @@ import ast
 import re
 from pathlib import Path
 
-MAIN_WINDOW = Path(__file__).parent.parent / "src" / "ui" / "main_window.py"
+MAIN_WINDOW = Path(__file__).parent.parent / "desktop" / "chordnotepad_tk" / "main_window.py"
 
 
 def _source() -> str:
@@ -29,6 +29,9 @@ def _imported_modules():
                 yield alias.name
         elif isinstance(node, ast.ImportFrom) and node.module:
             yield node.module
+            # from chordnotepad import services
+            for alias in node.names:
+                yield f"{node.module}.{alias.name}"
 
 
 def test_main_window_never_mentions_a_viewmodel():
@@ -39,7 +42,8 @@ def test_main_window_never_mentions_a_viewmodel():
 
 def test_main_window_imports_no_viewmodels_services_or_application():
     forbidden = [m for m in _imported_modules()
-                 if m.split(".")[0] in ("viewmodels", "services", "application")]
+                 if m.split(".")[:2] in (["chordnotepad", "viewmodels"], ["chordnotepad", "services"],
+                                         ["chordnotepad_tk", "application"])]
     assert forbidden == []
 
 

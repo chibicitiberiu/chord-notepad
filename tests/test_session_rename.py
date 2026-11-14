@@ -8,17 +8,17 @@ import os
 
 import pytest
 
-from exceptions import FileOperationError
-from services.playback_service import PlaybackService
-from services.song_parser_service import SongParserService
-from session.documents import FileSystemDocumentStore
-from session.events import PickDocumentRequest, RenameFailed
-from session.host import HostDispatch
-from session.session import AppSession
-from session.state import DocumentState, RecentDocumentsState, StatusState
-from session.testing import EventRecorder, FakePlayer, InMemoryDocumentStore, ManualHost
-from viewmodels.main_window_viewmodel import MainWindowViewModel
-from viewmodels.text_editor_viewmodel import TextEditorViewModel
+from chordnotepad.exceptions import FileOperationError
+from chordnotepad.services.playback_service import PlaybackService
+from chordnotepad.services.song_parser_service import SongParserService
+from chordnotepad.session.documents import FileSystemDocumentStore
+from chordnotepad.session.events import PickDocumentRequest, RenameFailed
+from chordnotepad.session.host import HostDispatch
+from chordnotepad.session.session import AppSession
+from chordnotepad.session.state import DocumentState, RecentDocumentsState, StatusState
+from chordnotepad.session.testing import EventRecorder, FakePlayer, InMemoryDocumentStore, ManualHost
+from chordnotepad.viewmodels.main_window_viewmodel import MainWindowViewModel
+from chordnotepad.viewmodels.text_editor_viewmodel import TextEditorViewModel
 
 
 class FakeConfig:
@@ -188,7 +188,7 @@ def test_new_document_forgets_a_pending_name():
 
 @pytest.fixture
 def files(tmp_path):
-    from services.file_service import FileService
+    from chordnotepad.services.file_service import FileService
 
     return FileSystemDocumentStore(FileService(FakeConfig()))
 

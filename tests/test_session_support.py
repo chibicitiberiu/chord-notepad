@@ -9,14 +9,14 @@ import json
 
 import pytest
 
-from models.config import Config
-from services.appdata_service import AppDataService
-from session.bootstrap import build_core_services, create_session
-from session.events import PickDocumentRequest, PickMode, UserError
-from session.host import HostDispatch
-from session.state import DocumentState, StartupScreen, StartupState
-from session.support import NAG_DELAY_DAYS, LaunchKind, should_show_support_prompt
-from session.testing import EventRecorder, FakePlayer, InMemoryDocumentStore, ManualHost
+from chordnotepad.models.config import Config
+from chordnotepad.services.appdata_service import AppDataService
+from chordnotepad.session.bootstrap import build_core_services, create_session
+from chordnotepad.session.events import PickDocumentRequest, PickMode, UserError
+from chordnotepad.session.host import HostDispatch
+from chordnotepad.session.state import DocumentState, StartupScreen, StartupState
+from chordnotepad.session.support import NAG_DELAY_DAYS, LaunchKind, should_show_support_prompt
+from chordnotepad.session.testing import EventRecorder, FakePlayer, InMemoryDocumentStore, ManualHost
 
 INSTALLED = "2026-10-01"
 DAY_6 = "2026-10-07"

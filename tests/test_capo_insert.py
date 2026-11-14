@@ -2,7 +2,7 @@
 
 import pytest
 
-from services.capo_insert import insert_capo_directive
+from chordnotepad.services.capo_insert import insert_capo_directive
 
 
 class TestInsertAtTop:
@@ -92,7 +92,7 @@ class TestEdgeCases:
 
 class TestDialogModuleSmoke:
     def test_capo_dialog_importable(self):
-        from ui.dialogs.capo_dialog import CapoDialog
+        from chordnotepad_tk.dialogs.capo_dialog import CapoDialog
         assert CapoDialog is not None
         assert hasattr(CapoDialog, '_on_ok')
         assert hasattr(CapoDialog, '_on_cancel')

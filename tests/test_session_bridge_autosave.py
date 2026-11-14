@@ -1,7 +1,7 @@
 """The bridge saves the config shortly after a settings-changing command."""
 
-from session.bridge import SessionBridge
-from session.testing import ManualHost
+from chordnotepad.session.bridge import SessionBridge
+from chordnotepad.session.testing import ManualHost
 
 
 class FakeSession:

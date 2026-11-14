@@ -1,11 +1,11 @@
-"""Tests for the piano voicing model configuration (src/models/piano_spec.py)."""
+"""Tests for the piano voicing model configuration (core/chordnotepad/models/piano_spec.py)."""
 
 import logging
 
 import pytest
 
-from exceptions import ConfigurationError
-from models.piano_spec import (
+from chordnotepad.exceptions import ConfigurationError
+from chordnotepad.models.piano_spec import (
     BUILTIN_PIANOS,
     DEFAULT_PIANO,
     DEFAULT_WEIGHTS,

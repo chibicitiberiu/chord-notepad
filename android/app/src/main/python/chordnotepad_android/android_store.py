@@ -14,10 +14,10 @@ import json
 import logging
 from typing import Any, Callable, List, Optional
 
-from exceptions import FileOperationError, RenameNotSupported
-from services.text_codec import TextFormat, decode_text, encode_text, format_of
-from session.documents import DocumentRef
-from utils.text_normalization import normalize_song_text
+from chordnotepad.exceptions import FileOperationError, RenameNotSupported
+from chordnotepad.services.text_codec import TextFormat, decode_text, encode_text, format_of
+from chordnotepad.session.documents import DocumentRef
+from chordnotepad.utils.text_normalization import normalize_song_text
 
 logger = logging.getLogger(__name__)
 

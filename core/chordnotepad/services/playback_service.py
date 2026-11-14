@@ -1,0 +1,990 @@
+"""Audio playback service wrapping NotePlayer."""
+
+import dataclasses
+import logging
+import os
+import threading
+from typing import Optional, List, Callable, Tuple
+
+from chordnotepad.audio.audio_options import AudioOptions
+from chordnotepad.audio.player_interface import IPlayer
+from chordnotepad.audio.player import NotePlayer
+from chordnotepad.audio.note_picker_interface import INotePicker
+from chordnotepad.audio.chord_picker import ChordNotePicker
+from chordnotepad.audio.guitar_chord_picker import GuitarChordPicker
+from chordnotepad.audio.event_buffer import EventBuffer
+from chordnotepad.services.song_renderer import SongRenderer
+from chordnotepad.services.event_compiler import compile_events
+from chordnotepad.models.chord_notes import ChordNotes
+from chordnotepad.models.chord import ChordInfo
+from chordnotepad.models.playback_state import PlaybackState
+from chordnotepad.models.playback_event import PlaybackEventArgs
+from chordnotepad.models.line import Line
+from chordnotepad.models.rendered_song import RenderedSong
+from chordnotepad.services.config_service import ConfigService
+from chordnotepad.exceptions import AudioInitializationError, RenderAborted
+
+
+class PlaybackService:
+    """High-level audio playback orchestration service.
+
+    Provides business-level API for audio playback, abstracting FluidSynth/NotePlayer details.
+
+    Note pickers carry voice-leading state and caches, so each user has its
+    own: ``_note_picker`` is playback's (renders on the RenderThread),
+    ``_click_picker`` is click-to-hear's (the session thread), and the
+    chord-sheet strip, MIDI export and Suggest Capo build their own.
+    """
+
+    def __init__(
+        self,
+        config_service: ConfigService,
+        player: Optional[IPlayer] = None,
+        application=None,
+        audio_options: Optional[AudioOptions] = None,
+        bundled_soundfont: Optional[str] = None,
+    ):
+        """Create the service.
+
+        Args:
+            config_service: Settings (BPM, soundfont, audio driver, voicing...).
+            player: A ready player (tests, headless hosts); None creates the
+                FluidSynth player on first use.
+            application: Anything with ``queue_ui_callback`` for playback pings.
+            audio_options: Synth settings from the host (sample rate, period
+                size, Oboe settings). The desktop passes none.
+            bundled_soundfont: The SoundFont the app ships (``AppPaths
+                .soundfont``), played when Settings names none and the file
+                is there. None: Settings must name one.
+        """
+        self._config = config_service
+        self._audio_options = audio_options
+        self._bundled_soundfont = bundled_soundfont
+        self._player: Optional[IPlayer] = player
+        # Before the note picker: building a configured voicing that fails logs a warning.
+        self._logger = logging.getLogger(__name__)
+        self._note_picker = self._create_note_picker(self._config.get("voicing", "piano"))
+        # Click-to-hear's picker, built on the first click (see _notes_to_midi)
+        # so start-up builds one picker, not two. Never the render's picker: a
+        # click during a render would change state that thread is using.
+        self._click_picker: Optional[INotePicker] = None
+        self._initialized = player is not None
+        # Why the last initialize_player() failed, for the error dialog.
+        self._init_error: Optional[str] = None
+        self._playback_state = PlaybackState()
+        self._application = application  # For UI callbacks
+
+        # Pre-render pipeline components
+        self._event_buffer: Optional[EventBuffer] = None
+        # The latest render thread (it may still be winding down after a stop).
+        self._render_thread: Optional[threading.Thread] = None
+        self._render_cancel: Optional[threading.Event] = None
+        # Orders a render thread's "check cancel -> start the player" against
+        # stop_playback's "cancel -> stop the player": whichever comes first,
+        # a stopped render never starts the player, and a player it started
+        # is stopped. stop_playback never waits for a render to finish.
+        self._start_lock = threading.Lock()
+        # True while a render is in flight and hasn't started the player yet.
+        # A pause in that window is remembered and applied once it starts,
+        # instead of reaching a player that isn't playing (and being lost).
+        self._starting = False
+        self._pause_pending = False
+
+        self._metronome_enabled: bool = False
+
+    def _create_note_picker(self, voicing: str) -> INotePicker:
+        """Create appropriate note picker based on voicing string.
+
+        Args:
+            voicing: Voicing string like 'piano', 'guitar:standard', 'guitar:drop_d',
+                'ensemble:<name>', or 'voicing:<name>' (a named entry in the
+                config's ``voicings`` registry).
+
+        Returns:
+            INotePicker instance
+        """
+        if voicing.startswith("voicing:"):
+            return self._create_registry_picker(voicing.split(":", 1)[1])
+        elif voicing.startswith("guitar:"):
+            return self._create_guitar_picker(voicing.split(":", 1)[1])
+        elif voicing.startswith("ensemble:"):
+            return self._create_ensemble_picker(voicing.split(":", 1)[1])
+        else:
+            # Default to piano voicing
+            return ChordNotePicker()
+
+    def _create_registry_picker(self, name: str) -> INotePicker:
+        """Create the note picker for a named entry in the ``voicings`` registry.
+
+        Each registry entry is ``{"model": "fretboard" | "ensemble" | "piano",
+        ...model-specific parameters}``. Falls back to piano voicing (with a
+        warning) if ``name`` is unknown, the model is unrecognized, or the
+        parameters fail validation.
+
+        Args:
+            name: Voicing name as registered in config ``voicings``.
+
+        Returns:
+            An INotePicker instance for the resolved model, or a
+            ``ChordNotePicker`` fallback.
+        """
+        from chordnotepad.exceptions import ConfigurationError
+
+        voicings = self._config.get("voicings", {})
+        params = voicings.get(name)
+        if params is None:
+            self._logger.warning(f"Unknown voicing '{name}'; falling back to piano")
+            return ChordNotePicker()
+
+        params = dict(params)
+        model = params.pop("model", None)
+
+        try:
+            if model == "fretboard":
+                from chordnotepad.models.fretboard_spec import FretboardSpec
+
+                spec = FretboardSpec.from_dict(name, params)
+                return GuitarChordPicker(spec)
+            elif model == "ensemble":
+                from chordnotepad.models.ensemble_spec import EnsembleSpec
+                # Imported lazily (rather than at module level) because this
+                # module is owned by a concurrent task and may not exist on
+                # disk yet when this branch is first exercised.
+                from chordnotepad.audio.ensemble_voicer import EnsembleVoicer
+
+                spec = EnsembleSpec.from_dict(name, params)
+                return EnsembleVoicer(spec)
+            elif model == "piano":
+                from chordnotepad.models.piano_spec import PianoSpec
+
+                spec = PianoSpec.from_dict(name, params)
+                return ChordNotePicker(spec)
+            else:
+                self._logger.warning(
+                    f"Unknown model {model!r} for voicing '{name}'; falling back to piano"
+                )
+                return ChordNotePicker()
+        except ConfigurationError as e:
+            self._logger.warning(f"Invalid voicing '{name}': {e}; falling back to piano")
+            return ChordNotePicker()
+
+    def _create_guitar_picker(self, tuning_name: str) -> INotePicker:
+        """Create a ``GuitarChordPicker`` for a built-in fretboard tuning.
+
+        Custom guitar tunings now live in the ``voicings`` registry (see
+        :meth:`_create_registry_picker`); this only resolves the built-in
+        presets in :data:`models.fretboard_spec.BUILTIN_FRETBOARDS`.
+
+        Args:
+            tuning_name: Built-in fretboard slug, e.g. ``'standard'``.
+
+        Returns:
+            A ``GuitarChordPicker`` for the resolved spec, falling back to
+            the standard tuning (with a warning) if unknown.
+        """
+        from chordnotepad.models.fretboard_spec import BUILTIN_FRETBOARDS
+
+        if tuning_name in BUILTIN_FRETBOARDS:
+            spec = BUILTIN_FRETBOARDS[tuning_name]
+        else:
+            self._logger.warning(
+                f"Unknown guitar tuning '{tuning_name}'; falling back to standard"
+            )
+            spec = BUILTIN_FRETBOARDS["standard"]
+
+        return GuitarChordPicker(spec)
+
+    def _create_ensemble_picker(self, name: str) -> INotePicker:
+        """Create an ``EnsembleVoicer`` for a built-in ensemble.
+
+        Custom ensembles now live in the ``voicings`` registry (see
+        :meth:`_create_registry_picker`); this only resolves the built-in
+        presets in :data:`models.ensemble_spec.BUILTIN_ENSEMBLES`.
+
+        Args:
+            name: Built-in ensemble slug, e.g. ``'satb'``.
+
+        Returns:
+            An ``EnsembleVoicer`` for the resolved spec, or a
+            ``ChordNotePicker`` fallback (with a warning) if ``name`` is
+            unknown.
+        """
+        from chordnotepad.models.ensemble_spec import BUILTIN_ENSEMBLES
+
+        if name not in BUILTIN_ENSEMBLES:
+            self._logger.warning(f"Unknown ensemble '{name}'; falling back to piano")
+            return ChordNotePicker()
+
+        spec = BUILTIN_ENSEMBLES[name]
+
+        # Imported lazily (rather than at module level) because this module
+        # is owned by a concurrent task and may not exist on disk yet when
+        # this branch is first exercised; only needed once a spec resolves.
+        from chordnotepad.audio.ensemble_voicer import EnsembleVoicer
+
+        return EnsembleVoicer(spec)
+
+    def set_voicing(self, voicing: str) -> None:
+        """Change the voicing style.
+
+        Args:
+            voicing: Voicing string like 'piano', 'guitar:standard', etc.
+        """
+        self._logger.debug(f"Setting voicing to {voicing}")
+        self._note_picker = self._create_note_picker(voicing)
+        self._click_picker = None  # the next click builds one for this voicing
+        self._config.set("voicing", voicing)
+
+    def create_note_picker(self) -> INotePicker:
+        """A new note picker for the configured voicing, not shared with playback.
+
+        For renders on other threads (MIDI export): pickers carry voice-leading
+        state and caches, and playback's may be in use by a playback render.
+        """
+        return self._create_note_picker(self._config.get("voicing", "piano"))
+
+    def active_fretboard_spec(self):
+        """Return the active picker's :class:`FretboardSpec`, or ``None``.
+
+        Only fretboard-model voicings (``GuitarChordPicker``) carry a spec; for
+        piano/ensemble voicings this returns ``None``. Exposed as a seam for the
+        chord-sheet strip's capo advisor, which needs the tuning a capo raises.
+        """
+        if isinstance(self._note_picker, GuitarChordPicker):
+            return self._note_picker.spec
+        return None
+
+    def get_available_instruments(self) -> List[Tuple[int, str]]:
+        """Get list of available instruments from the soundfont.
+
+        Returns:
+            List of tuples (program_number, instrument_name)
+        """
+        if self._player:
+            return self._player.get_available_instruments()
+        return []
+
+    def set_instrument(self, program: int) -> None:
+        """Change the MIDI instrument.
+
+        Args:
+            program: MIDI program number (0-127)
+        """
+        if self._player:
+            self._player.set_instrument(program)
+
+    def initialize_player(
+        self,
+        soundfont_path: Optional[str] = None,
+        audio_options: Optional[AudioOptions] = None,
+    ) -> bool:
+        """Initialize the audio player.
+
+        The audio driver chosen in Settings (``audio_driver``) is tried first,
+        then the host's preferred driver, then the platform's usual drivers.
+
+        Args:
+            soundfont_path: Optional path to soundfont file (.sf2)
+            audio_options: Synth settings from the host; kept for later
+                (lazy) re-initialization. None keeps the constructor's.
+
+        Returns:
+            True if initialized successfully, False otherwise
+        """
+        if audio_options is not None:
+            self._audio_options = audio_options
+        if self._initialized:
+            self._logger.debug("Audio player already initialized")
+            return True
+
+        try:
+            # Get config values
+            bpm = self._config.get("bpm", 120)
+            sf_path = (soundfont_path or self._config.get("soundfont_path")
+                       or self._existing_bundled_soundfont())
+            time_sig_beats = self._config.get("time_signature_beats", 4)
+            time_sig_unit = self._config.get("time_signature_unit", 4)
+
+            # Initialize playback state with config values
+            self._playback_state = PlaybackState(
+                bpm=bpm,
+                initial_bpm=bpm,
+                time_signature_beats=time_sig_beats,
+                time_signature_unit=time_sig_unit
+            )
+
+            # Create player
+            self._logger.info("Initializing audio player")
+            self._player = NotePlayer(
+                soundfont_path=sf_path,
+                bpm=bpm,
+                time_signature=(time_sig_beats, time_sig_unit),
+                options=self._effective_audio_options(),
+            )
+
+            # Set instrument from config
+            instrument = self._config.get("instrument", 0)
+            self._player.set_instrument(instrument)
+
+            # Apply saved speed multiplier
+            multiplier = float(self._config.get("bpm_multiplier", 1.0))
+            self._player.set_bpm_multiplier(multiplier)
+
+            self._initialized = True
+            self._init_error = None
+            self._logger.info("Audio player initialized successfully")
+            return True
+
+        except Exception as e:
+            self._logger.error(f"Failed to initialize audio player: {e}", exc_info=True)
+            self._player = None
+            self._initialized = False
+            self._init_error = str(e) or type(e).__name__
+            return False
+
+    def _existing_bundled_soundfont(self) -> Optional[str]:
+        """The bundled SoundFont if the file is there, else None."""
+        bundled = self._bundled_soundfont
+        return bundled if bundled and os.path.exists(bundled) else None
+
+    def _effective_audio_options(self) -> AudioOptions:
+        """The host's audio options with the Settings driver put first."""
+        options = self._audio_options or AudioOptions()
+        driver = self._config.get("audio_driver")
+        if isinstance(driver, str) and driver.strip():
+            options = dataclasses.replace(options, driver=driver.strip())
+        return options
+
+    def play_chord_immediate(self, chord_info: ChordInfo, current_key: Optional[str] = None) -> None:
+        """Play a chord immediately (click-to-play) with dynamic note resolution.
+
+        Args:
+            chord_info: Chord information
+            current_key: Current key signature for resolving roman numerals
+
+        Raises:
+            AudioInitializationError: If the audio output can't be started.
+        """
+        self._require_audio()
+
+        # Resolve chord notes dynamically
+        chord_notes = self._resolve_chord_notes(chord_info, current_key)
+        if not chord_notes:
+            self._logger.warning(f"Could not resolve chord: {chord_info.chord}")
+            return
+
+        # Convert to MIDI
+        midi_notes = self._notes_to_midi(chord_notes)
+        if midi_notes:
+            self._logger.debug(f"Playing chord immediately: {chord_info.chord} -> {chord_notes.notes} (bass: {chord_notes.bass_note})")
+            self._player.play_notes_immediate(midi_notes)
+        else:
+            self._logger.warning(f"Could not convert chord to MIDI notes: {chord_info.chord}")
+
+    def play_notes_immediate(self, midi_notes: List[int]) -> None:
+        """Play MIDI notes immediately.
+
+        Args:
+            midi_notes: List of MIDI note numbers to play
+
+        Raises:
+            AudioInitializationError: If the audio output can't be started.
+        """
+        self._require_audio()
+
+        if midi_notes:
+            self._logger.debug(f"Playing MIDI notes immediately: {midi_notes}")
+            self._player.play_notes_immediate(midi_notes)
+        else:
+            self._logger.warning("No MIDI notes provided to play")
+
+    def play_note(self, note_name: str, octave: int, duration: float = 1.0) -> None:
+        """Play a single note by name and octave.
+
+        Args:
+            note_name: Note name (e.g., 'C', 'D#', 'Bb')
+            octave: Octave number
+            duration: Duration in seconds (currently not used, for API compatibility)
+
+        Raises:
+            AudioInitializationError: If the audio output can't be started.
+        """
+        self._require_audio()
+
+        # Convert note name and octave to MIDI note number
+        # MIDI formula: (octave + 1) * 12 + note_offset
+        NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
+
+        if note_name not in NOTE_NAMES:
+            self._logger.warning(f"Invalid note name: {note_name}")
+            return
+
+        note_offset = NOTE_NAMES.index(note_name)
+        midi_note = (octave + 1) * 12 + note_offset
+
+        self._logger.debug(f"Playing note: {note_name}{octave} (MIDI {midi_note})")
+        self._player.play_notes_immediate([midi_note])
+
+    def play_notes_rolled(self, midi_notes: List[int], gap: float) -> None:
+        """Play MIDI notes one after another, ``gap`` seconds apart, each held.
+
+        Scheduled on the synth's sequencer, so this returns at once; the next
+        click-to-hear stops a roll that's still going.
+
+        Args:
+            midi_notes: MIDI note numbers, in the order they sound
+            gap: Seconds between one note and the next
+
+        Raises:
+            AudioInitializationError: If the audio output can't be started.
+        """
+        self._require_audio()
+
+        if midi_notes:
+            self._logger.debug(f"Playing MIDI notes rolled: {midi_notes}")
+            self._player.play_notes_rolled(midi_notes, gap)
+        else:
+            self._logger.warning("No MIDI notes provided to play")
+
+    def stop_click_notes(self) -> None:
+        """Silence click-to-hear notes (a roll still going too), not a song."""
+        if self._player is not None:
+            self._player.stop_immediate_notes()
+
+    def play_chord_from_midi(self, midi_notes: List[int], duration: float = 2.0) -> None:
+        """Play a chord from MIDI note numbers.
+
+        Args:
+            midi_notes: List of MIDI note numbers to play as a chord
+            duration: Duration in seconds (currently not used, for API compatibility)
+        """
+        # Delegate to play_notes_immediate
+        self.play_notes_immediate(midi_notes)
+
+    def pause_playback(self) -> None:
+        """Pause ongoing playback, or a song still being rendered."""
+        with self._start_lock:
+            if self._starting:
+                self._logger.debug("Pausing playback (applied once the render starts it)")
+                self._pause_pending = True
+                return
+            if self._player:
+                self._logger.debug("Pausing playback")
+                self._player.pause_playback()
+
+    def resume_playback(self) -> None:
+        """Resume paused playback."""
+        with self._start_lock:
+            if self._starting:
+                self._pause_pending = False
+                return
+            if self._player:
+                self._logger.debug("Resuming playback")
+                self._player.resume_playback()
+
+    def stop_playback(self) -> None:
+        """Stop ongoing playback, including a song still being rendered.
+
+        Doesn't wait for the render thread: a render in flight is cancelled
+        and, once it notices, never starts the player (see ``_start_lock``).
+        """
+        with self._start_lock:
+            # Cancel any in-flight render so the render thread bails promptly.
+            if self._render_cancel is not None:
+                self._render_cancel.set()
+            self._render_cancel = None
+            self._starting = False
+            self._pause_pending = False
+            buffer, self._event_buffer = self._event_buffer, None
+
+        # Close the event buffer (if the render thread got as far as creating it)
+        # to wake the player if it's blocked waiting for events.
+        if buffer is not None:
+            self._logger.debug("Closing event buffer")
+            buffer.close()
+
+        # Finally stop player
+        if self._player:
+            self._logger.debug("Stopping playback")
+            self._player.stop_playback()
+
+    def stop_all_notes(self) -> None:
+        """Stop all currently playing notes (even if not in playback mode).
+
+        This is useful for clearing stuck notes or stopping immediate chord playback.
+        """
+        if self._player:
+            self._logger.debug("Stopping all notes")
+            self._player.stop_all_notes()
+
+    def set_bpm(self, bpm: int) -> None:
+        """Change playback speed.
+
+        Args:
+            bpm: Beats per minute (20-400)
+        """
+        if self._player:
+            self._logger.debug(f"Setting BPM to {bpm}")
+            self._player.set_bpm(bpm)
+
+        # Update playback state
+        self._playback_state.set_bpm(bpm)
+
+    def set_bpm_multiplier(self, multiplier: float) -> None:
+        """Set the playback speed multiplier (live during playback).
+
+        Args:
+            multiplier: Speed multiplier (0.125 - 4.0)
+        """
+        if self._player:
+            self._logger.debug(f"Setting BPM multiplier to {multiplier}")
+            self._player.set_bpm_multiplier(multiplier)
+            self._config.set("bpm_multiplier", multiplier)
+
+    def set_metronome_enabled(self, enabled: bool) -> None:
+        """Arm or disarm the click track.
+
+        Tick events are always pre-rendered into the event stream; the player
+        mutes/unmutes the drum channel via CC 7, so toggling is immediate
+        even mid-playback.
+        """
+        self._metronome_enabled = bool(enabled)
+        if self._player is not None:
+            self._player.set_metronome_enabled(self._metronome_enabled)
+
+    @property
+    def is_metronome_enabled(self) -> bool:
+        return self._metronome_enabled
+
+    def set_instrument(self, program: int) -> None:
+        """Change MIDI instrument.
+
+        Args:
+            program: MIDI program number (0-127)
+                     0 = Acoustic Grand Piano
+                     24-31 = Guitars
+                     40-47 = Strings
+                     56-63 = Brass
+        """
+        if self._player:
+            self._logger.debug(f"Setting instrument to program {program}")
+            self._player.set_instrument(program)
+
+    def cleanup(self) -> None:
+        """Cleanup audio resources."""
+        with self._start_lock:
+            # A render still running must not start a player being torn down.
+            if self._render_cancel is not None:
+                self._render_cancel.set()
+            self._render_cancel = None
+        if self._player:
+            self._logger.info("Cleaning up audio player")
+            self._player.cleanup()
+            self._player = None
+            self._initialized = False
+
+    def _ensure_initialized(self) -> bool:
+        """Ensure player is initialized, initialize if needed.
+
+        Returns:
+            True if initialized, False if initialization failed
+        """
+        if not self._initialized:
+            return self.initialize_player()
+        return True
+
+    def _require_audio(self) -> None:
+        """Make sure the player is up, or say why it isn't.
+
+        Raises:
+            AudioInitializationError: With the reason initialization failed.
+        """
+        if not self._ensure_initialized():
+            reason = self._init_error or "The audio player could not be started."
+            raise AudioInitializationError(f"Audio is not available.\n\n{reason}")
+        player = self._player
+        if player is not None and player.audio_suspended and not player.resume_audio():
+            raise AudioInitializationError(
+                "Audio is not available.\n\nThe audio output could not be reopened.")
+
+    def suspend_audio(self) -> bool:
+        """Release the audio output (Android: app in the background).
+
+        Returns:
+            False when there is no player, a song is rendering or playing;
+            True if the output was released.
+        """
+        if self._player is None:
+            return False
+        thread = self._render_thread
+        if thread is not None and thread.is_alive():
+            self._logger.info("Not suspending audio while a song renders")
+            return False
+        return self._player.suspend_audio()
+
+    def resume_audio(self) -> bool:
+        """Reopen the audio output (True if there is no player yet: it is
+        created lazily)."""
+        if self._player is None:
+            return True
+        return self._player.resume_audio()
+
+    @property
+    def audio_error(self) -> Optional[str]:
+        """Why the audio player failed to start, or None if it hasn't failed."""
+        return None if self._initialized else self._init_error
+
+    @property
+    def is_initialized(self) -> bool:
+        """Check if audio player is initialized."""
+        return self._initialized
+
+    @property
+    def is_playing(self) -> bool:
+        """Check if playback is active."""
+        return self._player.is_playing if self._player else False
+
+    @property
+    def is_paused(self) -> bool:
+        """Check if playback is paused."""
+        return self._player.is_paused if self._player else False
+
+    def set_time_signature_from_state(self, beats: int, unit: int) -> None:
+        """Update time signature in both playback state and player.
+
+        Args:
+            beats: Number of beats per measure
+            unit: Beat unit (4 = quarter note, etc.)
+        """
+        self._logger.debug(f"Setting time signature to {beats}/{unit}")
+        self._playback_state.set_time_signature(beats, unit)
+
+        # Update player if initialized
+        if self._player:
+            # NotePlayer doesn't have a set_time_signature method yet
+            # This would need to be implemented in NotePlayer if needed
+            pass
+
+    def set_key(self, key: str) -> None:
+        """Update the current key signature in playback state.
+
+        Args:
+            key: Key signature (e.g., 'C', 'Am', 'G')
+        """
+        self._logger.debug(f"Setting key to {key}")
+        self._playback_state.set_key(key)
+
+    def get_playback_state(self) -> PlaybackState:
+        """Get the current playback state.
+
+        Returns:
+            The current PlaybackState object
+        """
+        return self._playback_state
+
+    def get_time_signature(self) -> Tuple[int, int]:
+        """Get the current time signature from playback state.
+
+        Returns:
+            Tuple of (beats_per_measure, beat_unit), e.g., (4, 4) for 4/4 time
+        """
+        return (self._playback_state.time_signature_beats,
+                self._playback_state.time_signature_unit)
+
+    def start_song_playback(
+        self,
+        lines: List[Line],
+        initial_key: Optional[str],
+        on_finished_callback: Optional[Callable[[], None]] = None,
+        on_event_callback: Optional[Callable[[PlaybackEventArgs], None]] = None,
+        start_line_index: int = 0,
+        start_item_index: int = 0,
+        on_error_callback: Optional[Callable[[str], None]] = None,
+        initial_bpm: Optional[int] = None,
+        initial_time_sig: Optional[Tuple[int, int]] = None,
+    ) -> bool:
+        """Start playback of a song with lines containing chords and directives.
+
+        Args:
+            lines: List of Line objects with chords and directives
+            initial_key: Initial key signature (from UI)
+            on_finished_callback: Optional callback when playback finishes
+            on_event_callback: Optional callback for playback events (chord start/end)
+            start_line_index: Line index to start playback from (default: 0)
+            start_item_index: Item index within the line to start from (default: 0)
+            on_error_callback: Called with a message if rendering fails on the
+                render thread (after ``on_finished_callback``, so the caller's
+                playing state is reset first). Runs on the render thread.
+            initial_bpm: The tempo the song starts at unless it sets one (the
+                document's); None uses the playback state's.
+            initial_time_sig: Likewise the ``(beats, unit)``.
+
+        Returns:
+            True if playback started, False if there was nothing to play
+
+        Raises:
+            AudioInitializationError: If the audio output can't be started.
+        """
+        self._require_audio()
+
+        # Stop any existing playback before starting new one
+        self.stop_playback()
+
+        # Count total chords
+        total_chords = sum(len(line.chords) for line in lines)
+        if total_chords == 0:
+            self._logger.info("No chords found for playback")
+            return False
+
+        self._logger.info(f"Starting song playback with {total_chords} chords (pre-render)")
+
+        # Get initial playback parameters
+        if initial_bpm is None:
+            initial_bpm = self._playback_state.bpm
+        if initial_time_sig is None:
+            initial_time_sig = self.get_time_signature()
+
+        has_callback = on_event_callback is not None
+        cancel_event = threading.Event()
+        with self._start_lock:
+            self._render_cancel = cancel_event
+            self._starting = True
+            self._pause_pending = False
+        note_picker = self._note_picker
+        player = self._player
+        # A stopped render may still be winding down (stop doesn't wait for
+        # it); this one waits for it on its own thread, so the two never use
+        # playback's note picker at once.
+        previous = self._render_thread
+
+        def _render_and_play() -> None:
+            """Render the whole song, compile events, then wire and start the
+            player. Runs off the calling thread so rendering never blocks the UI.
+            """
+            try:
+                if previous is not None and previous.is_alive():
+                    previous.join()
+                if cancel_event.is_set():
+                    self._logger.debug("Render cancelled before it started")
+                    return
+                # Reset chord picker state for consistent voice leading.
+                note_picker.reset()
+                rendered = SongRenderer(logger=self._logger).render(
+                    lines=lines,
+                    initial_key=initial_key,
+                    initial_bpm=initial_bpm,
+                    initial_time_sig=initial_time_sig,
+                    note_picker=note_picker,
+                    start_line_index=start_line_index,
+                    start_item_index=start_item_index,
+                    cancel_event=cancel_event,
+                )
+                if rendered is None or cancel_event.is_set():
+                    self._logger.debug("Render cancelled before playback start")
+                    return
+
+                events = compile_events(rendered, has_callback=has_callback)
+
+                # Buffer holds the whole song at once (no backpressure needed).
+                buffer = EventBuffer(capacity=len(events) + 1)
+                for event in events:
+                    buffer.push_event(event)
+
+                with self._start_lock:
+                    # Checked under the lock stop_playback cancels under: once
+                    # a stop has cancelled this render, it never starts.
+                    if cancel_event.is_set():
+                        self._logger.debug("Render cancelled before playback start")
+                        return
+                    self._event_buffer = buffer
+                    player.set_event_buffer(buffer)
+                    player.set_event_callback(on_event_callback, self._application)
+                    if on_finished_callback:
+                        player.set_playback_finished_callback(on_finished_callback)
+                    player.start_playback()
+                    if self._render_cancel is cancel_event:
+                        self._starting = False
+                        if self._pause_pending:
+                            self._pause_pending = False
+                            player.pause_playback()
+                self._logger.info("Render complete, playback started")
+            except Exception as e:
+                self._logger.error(f"Error rendering song for playback: {e}", exc_info=True)
+                with self._start_lock:
+                    if cancel_event.is_set():
+                        return  # stopped meanwhile; nobody is waiting on this render
+                    if self._render_cancel is cancel_event:
+                        self._starting = False
+                        self._pause_pending = False
+                    # Playback never started, so the player won't call these.
+                    if on_finished_callback:
+                        on_finished_callback()
+                    if on_error_callback:
+                        on_error_callback(str(e) or type(e).__name__)
+
+        self._render_thread = threading.Thread(
+            target=_render_and_play, daemon=True, name="RenderThread"
+        )
+        self._render_thread.start()
+        return True
+
+    def fretboard_spec_for(self, voicing: str):
+        """Resolve a voicing string to its :class:`FretboardSpec`, or ``None``.
+
+        Pure lookup -- unlike :meth:`set_voicing` it does not change the active
+        picker. Handles built-in ``guitar:<tuning>`` slugs and ``voicing:<name>``
+        registry entries whose model is ``fretboard``; returns ``None`` for
+        piano/ensemble voicings or an unresolvable name. Used by the Suggest
+        Capo tool, which scores capo positions on a chosen fretboard voicing
+        that need not be the active one.
+        """
+        from chordnotepad.models.fretboard_spec import BUILTIN_FRETBOARDS, FretboardSpec
+
+        if voicing.startswith("guitar:"):
+            key = voicing.split(":", 1)[1]
+            return BUILTIN_FRETBOARDS.get(key, BUILTIN_FRETBOARDS["standard"])
+        if voicing.startswith("voicing:"):
+            name = voicing.split(":", 1)[1]
+            params = self._config.get("voicings", {}).get(name)
+            if isinstance(params, dict) and params.get("model") == "fretboard":
+                params = {k: v for k, v in params.items() if k != "model"}
+                try:
+                    return FretboardSpec.from_dict(name, params)
+                except Exception as e:  # pragma: no cover - defensive
+                    self._logger.warning(f"Invalid fretboard voicing '{name}': {e}")
+                    return None
+        return None
+
+    def render_song(
+        self,
+        lines: List[Line],
+        initial_key: Optional[str],
+        should_abort: Optional[Callable[[], bool]] = None,
+        private_picker: bool = False,
+        note_picker: Optional[INotePicker] = None,
+        raise_errors: bool = False,
+        initial_bpm: Optional[int] = None,
+        initial_time_sig: Optional[Tuple[int, int]] = None,
+    ) -> Optional[RenderedSong]:
+        """Synchronously render a whole song for export or the chord-sheet strip.
+
+        Unlike :meth:`start_song_playback`, this does not touch the audio
+        player: it never calls ``_ensure_initialized`` and never starts
+        playback. It always renders from the very start of the song (no
+        cancellation, no mid-song resume).
+
+        Args:
+            lines: List of Line objects with chords and directives
+            initial_key: Initial key signature (from UI)
+            should_abort: Optional cooperative-abort predicate threaded into the
+                voicing search. ``None`` (default, used by MIDI export) never
+                aborts. The chord-sheet strip passes a generation-guard here so a
+                superseded render bails promptly (raising
+                :class:`~exceptions.RenderAborted`, which this method re-raises).
+            private_picker: When ``True``, render with a *freshly created* note
+                picker for the current voicing instead of playback's
+                ``self._note_picker``. Pickers carry mutable voice-leading state
+                and per-instance caches, so the strip -- which can render on a
+                background thread concurrently with a playback render -- must not
+                share the playback picker. The default (``False``) renders with
+                playback's picker, on the caller's thread.
+            note_picker: Explicit picker to render with, overriding both
+                playback's picker and ``private_picker``. Used by the Suggest Capo
+                tool to render (and thus resolve the chords of) a *chosen*
+                fretboard voicing that need not be the active one.
+            raise_errors: Re-raise rendering errors instead of logging them and
+                returning None. User-initiated callers (MIDI export, Suggest
+                Capo) set this so the user can be told what went wrong; the
+                background chord-sheet strip leaves it off.
+            initial_bpm: The tempo to start at; None takes the current one.
+                Renders on another thread pass what they captured on the
+                session thread.
+            initial_time_sig: ``(beats, unit)`` to start in; None takes the
+                current one.
+
+        Returns:
+            The fully rendered song, or None if there are no chords to render
+            or rendering fails (and ``raise_errors`` is False).
+
+        Raises:
+            RenderAborted: If ``should_abort`` fires during the voicing search.
+        """
+        total_chords = sum(len(line.chords) for line in lines)
+        if total_chords == 0:
+            self._logger.info("No chords found to render")
+            return None
+
+        if note_picker is None:
+            if private_picker:
+                note_picker = self._create_note_picker(self._config.get("voicing", "piano"))
+            else:
+                note_picker = self._note_picker
+
+        try:
+            return SongRenderer(logger=self._logger).render(
+                lines=lines,
+                initial_key=initial_key,
+                initial_bpm=initial_bpm if initial_bpm is not None else self._playback_state.bpm,
+                initial_time_sig=(initial_time_sig if initial_time_sig is not None
+                                  else self.get_time_signature()),
+                note_picker=note_picker,
+                start_line_index=0,
+                start_item_index=0,
+                should_abort=should_abort,
+            )
+        except RenderAborted:
+            # Control flow, not an error: let the strip's job runner drop the
+            # abandoned render. Never reached on the export path (should_abort
+            # is None there).
+            raise
+        except Exception as e:
+            self._logger.error(f"Error rendering song for export: {e}", exc_info=True)
+            if raise_errors:
+                raise
+            return None
+
+    def _resolve_chord_notes(self, chord: ChordInfo, current_key: Optional[str]) -> Optional[ChordNotes]:
+        """Resolve a chord to its ``ChordNotes``, stamped with the current key.
+
+        ``current_key`` is always passed through, not just for roman-numeral
+        chords: absolute chords still resolve against their own notes
+        regardless of key, but ``ChordNotes.key`` records the key in effect
+        so key-aware voicing rules (e.g. leading-tone handling, or a future
+        ensemble voicer) can see it regardless of how the chord was spelled.
+        This mirrors ``SongRenderer._resolve_chord_notes``, which is
+        likewise unconditional.
+
+        Args:
+            chord: ChordInfo object
+            current_key: Current key signature in effect
+
+        Returns:
+            ChordNotes object with notes, bass_note, and root, or None if resolution fails
+        """
+        from chordnotepad.chord.helper import ChordHelper
+
+        helper = ChordHelper()
+        chord_notes_result = helper.compute_chord_notes(
+            chord.chord,
+            key=current_key,
+            is_relative=chord.is_relative
+        )
+
+        return chord_notes_result
+
+    def _notes_to_midi(self, chord_notes: ChordNotes) -> Optional[List[int]]:
+        """Convert ChordNotes to MIDI note numbers.
+
+        Args:
+            chord_notes: ChordNotes object with notes, bass_note, and root
+
+        Uses click-to-hear's own picker (built here on first use), so clicks
+        voice-lead from one to the next and never touch the picker a playback
+        render may be using on the RenderThread.
+
+        Returns:
+            List of MIDI note numbers or None
+        """
+        if self._click_picker is None:
+            self._click_picker = self._create_note_picker(self._config.get("voicing", "piano"))
+        return self._click_picker.chord_to_midi(chord_notes)

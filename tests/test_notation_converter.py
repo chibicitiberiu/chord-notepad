@@ -5,7 +5,7 @@ For whole-text conversion, see tests/test_song_parser_service.py.
 
 import pytest
 
-from chord.converter import NotationConverter
+from chordnotepad.chord.converter import NotationConverter
 
 
 class TestChordAmericanToEuropean:

@@ -4,8 +4,8 @@ import threading
 
 import pytest
 
-from session.host import HostDispatch
-from session.testing import ManualHost
+from chordnotepad.session.host import HostDispatch
+from chordnotepad.session.testing import ManualHost
 
 
 def test_posted_callbacks_wait_for_run_pending_and_run_in_order():

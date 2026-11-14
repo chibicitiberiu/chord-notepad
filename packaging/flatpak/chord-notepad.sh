@@ -1,2 +1,4 @@
 #!/bin/sh
-exec python3 /app/share/chord-notepad/src/main.py "$@"
+app=/app/share/chord-notepad/
+export PYTHONPATH="${app}core:${app}desktop${PYTHONPATH:+:$PYTHONPATH}"
+exec python3 -m chordnotepad_tk.main "$@"

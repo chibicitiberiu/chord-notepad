@@ -10,7 +10,7 @@ import kotlinx.serialization.json.doubleOrNull
 import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonObject
 
-// The voicings editor's form schema (src/settings_forms/voicing_form.py,
+// The voicings editor's form schema (core/chordnotepad/settings_forms/voicing_form.py,
 // `editor_schema("android")`), read once into typed Kotlin. Only the shape is
 // read here: what a field accepts is Python's business (values go back as
 // typed, errors come back in VoicingEditorState).

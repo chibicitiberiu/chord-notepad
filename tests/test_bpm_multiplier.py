@@ -3,9 +3,9 @@
 import pytest
 from unittest.mock import Mock
 
-from models.config import Config
-from services.playback_service import PlaybackService
-from services.config_service import ConfigService
+from chordnotepad.models.config import Config
+from chordnotepad.services.playback_service import PlaybackService
+from chordnotepad.services.config_service import ConfigService
 
 
 class TestConfigMultiplier:
@@ -60,7 +60,7 @@ class TestNotePlayerMultiplier:
     """
 
     def _make_player(self):
-        from audio import player as player_mod
+        from chordnotepad.audio import player as player_mod
 
         with pytest.MonkeyPatch.context() as mp:
             mp.setattr(player_mod.NotePlayer, "_initialize_fluidsynth", lambda *a, **kw: None)
@@ -86,8 +86,8 @@ class TestNotePlayerMultiplier:
 
 class TestPlaybackServiceAudioLifecycle:
     def _service(self, player):
-        from exceptions import AudioInitializationError  # noqa: F401
-        from session.testing import FakePlayer  # noqa: F401
+        from chordnotepad.exceptions import AudioInitializationError  # noqa: F401
+        from chordnotepad.session.testing import FakePlayer  # noqa: F401
         config = Mock(spec=ConfigService)
         config.get.return_value = "piano"
         service = PlaybackService(config_service=config, player=player)
@@ -95,7 +95,7 @@ class TestPlaybackServiceAudioLifecycle:
         return service
 
     def test_require_audio_reopens_a_suspended_output(self):
-        from session.testing import FakePlayer
+        from chordnotepad.session.testing import FakePlayer
         player = FakePlayer()
         service = self._service(player)
         assert service.suspend_audio() is True and player.audio_suspended
@@ -104,8 +104,8 @@ class TestPlaybackServiceAudioLifecycle:
 
     def test_require_audio_raises_when_the_reopen_fails(self):
         import pytest
-        from exceptions import AudioInitializationError
-        from session.testing import FakePlayer
+        from chordnotepad.exceptions import AudioInitializationError
+        from chordnotepad.session.testing import FakePlayer
         player = FakePlayer()
         service = self._service(player)
         service.suspend_audio()
@@ -115,7 +115,7 @@ class TestPlaybackServiceAudioLifecycle:
 
     def test_suspend_refused_without_a_player_or_during_a_render(self):
         import threading
-        from session.testing import FakePlayer
+        from chordnotepad.session.testing import FakePlayer
         config = Mock(spec=ConfigService)
         config.get.return_value = "piano"
         assert PlaybackService(config_service=config).suspend_audio() is False

@@ -14,10 +14,10 @@ import re
 
 import pytest
 
-from chord.detector import ChordDetector
-from chord.helper import ChordHelper
-from models.notation import AMERICAN_KEYS, EUROPEAN_KEYS
-from services.transpose_service import transpose_key, transpose_text
+from chordnotepad.chord.detector import ChordDetector
+from chordnotepad.chord.helper import ChordHelper
+from chordnotepad.models.notation import AMERICAN_KEYS, EUROPEAN_KEYS
+from chordnotepad.services.transpose_service import transpose_key, transpose_text
 
 _PC = {'C': 0, 'D': 2, 'E': 4, 'F': 5, 'G': 7, 'A': 9, 'B': 11}
 _EUROPEAN = {'C': 'Do', 'D': 'Re', 'E': 'Mi', 'F': 'Fa', 'G': 'Sol', 'A': 'La', 'B': 'Si'}

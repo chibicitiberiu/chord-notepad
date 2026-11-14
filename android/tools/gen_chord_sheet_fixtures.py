@@ -48,9 +48,9 @@ CASES = [
 
 
 def _render(text):
-    from audio.guitar_chord_picker import GuitarChordPicker
-    from services.song_parser_service import SongParserService
-    from services.song_renderer import SongRenderer
+    from chordnotepad.audio.guitar_chord_picker import GuitarChordPicker
+    from chordnotepad.services.song_parser_service import SongParserService
+    from chordnotepad.services.song_renderer import SongRenderer
 
     lines = SongParserService().detect_chords_in_text(text)
     return SongRenderer().render(
@@ -60,7 +60,7 @@ def _render(text):
 
 
 def _op_dict(op):
-    from chord_sheet.ops import ImageOp, LineOp, OvalOp, PolygonOp, RectOp, TextOp
+    from chordnotepad.chord_sheet.ops import ImageOp, LineOp, OvalOp, PolygonOp, RectOp, TextOp
 
     kind = type(op)
     if kind in (RectOp, OvalOp):
@@ -114,8 +114,8 @@ def _list_summary(ops):
 
 def main() -> int:
     """Write every fixture pair into OUT."""
-    sys.path.insert(0, str(REPO / "src"))
-    from chord_sheet.pack import pack_view, unpack
+    sys.path.insert(0, str(REPO / "core"))
+    from chordnotepad.chord_sheet.pack import pack_view, unpack
 
     songs = {
         "american": _render((REPO / "examples/02_american_complete.txt").read_text()),

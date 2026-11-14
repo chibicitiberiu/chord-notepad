@@ -13,8 +13,8 @@ import re
 import pytest
 from hypothesis import assume, given, settings, strategies as st
 
-from chord.detector import ChordDetector
-from services.transpose_service import transpose_text
+from chordnotepad.chord.detector import ChordDetector
+from chordnotepad.services.transpose_service import transpose_text
 from tests.test_transpose_exhaustive import bad_spellings, notes_of
 
 pytestmark = pytest.mark.fuzz
@@ -160,7 +160,7 @@ def test_a_random_song_transposes_every_chord_and_nothing_else(data, notation, s
         assert _without_spacing(new_line) == _without_spacing(old_line)
 
     # Every {key} is still a valid key directive.
-    from services.song_parser_service import SongParserService
+    from chordnotepad.services.song_parser_service import SongParserService
     keys = [d for d in SongParserService().parse_directives(text) if d.type.name == 'KEY']
     assert all(d.is_valid for d in keys), text
 

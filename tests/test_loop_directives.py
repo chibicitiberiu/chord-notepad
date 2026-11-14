@@ -5,10 +5,10 @@ import threading
 
 import pytest
 
-from audio.chord_picker import ChordNotePicker
-from models.directive import DirectiveType
-from services.song_parser_service import SongParserService
-from services.song_renderer import SongRenderer
+from chordnotepad.audio.chord_picker import ChordNotePicker
+from chordnotepad.models.directive import DirectiveType
+from chordnotepad.services.song_parser_service import SongParserService
+from chordnotepad.services.song_renderer import SongRenderer
 
 
 @pytest.fixture
@@ -105,7 +105,7 @@ class TestLoopsThatWouldNeverEnd:
         assert _played(text) == ["C", "G", "G", "C", "G"]
 
     def test_runaway_loop_counts_are_capped(self):
-        from services.song_renderer import MAX_RENDERED_CHORDS
+        from chordnotepad.services.song_renderer import MAX_RENDERED_CHORDS
         chords = _played("{label: a}\nC*0.25\n{loop: a 100000000}", timeout=60.0)
         assert len(chords) == MAX_RENDERED_CHORDS
 
@@ -115,9 +115,9 @@ class TestRendererRecursionGuard:
     for lines that didn't come through the parser's checks."""
 
     def test_hand_built_mutual_loops_finish(self):
-        from models.directive import Directive
-        from models.chord import ChordInfo
-        from models.line import Line
+        from chordnotepad.models.directive import Directive
+        from chordnotepad.models.chord import ChordInfo
+        from chordnotepad.models.line import Line
 
         def chord(name, pos):
             return ChordInfo(chord=name, start=pos, end=pos + 1, is_valid=True)

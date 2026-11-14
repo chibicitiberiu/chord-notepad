@@ -13,11 +13,11 @@ from types import SimpleNamespace
 
 import pytest
 
-from services.appdata_service import AppDataService
-from session.bootstrap import build_core_services, create_session
-from session.host import HostDispatch
-from session.settings import SettingsValues
-from session.testing import EventRecorder, FakePlayer, InMemoryDocumentStore, ManualHost
+from chordnotepad.services.appdata_service import AppDataService
+from chordnotepad.session.bootstrap import build_core_services, create_session
+from chordnotepad.session.host import HostDispatch
+from chordnotepad.session.settings import SettingsValues
+from chordnotepad.session.testing import EventRecorder, FakePlayer, InMemoryDocumentStore, ManualHost
 
 DEFAULTS = dict(font_family="TkFixedFont", font_size=11, show_quick_start_on_startup=True,
                 max_recent_files=10, bpm=120, time_signature_beats=4, time_signature_unit=4,
@@ -88,7 +88,7 @@ def test_an_older_config_with_a_european_key_reads_as_american(tmp_path):
 @pytest.mark.parametrize("stored, expected", [
     ("Do", "C"), ("Sol#", "G#"), ("Sib", "Bb"), ("G", "G"), ("", ""), ("X", "X")])
 def test_config_from_dict_migrates_a_european_key(stored, expected):
-    from models.config import Config
+    from chordnotepad.models.config import Config
 
     config = Config.from_dict({"key": stored})
     assert config.key == expected
@@ -96,7 +96,7 @@ def test_config_from_dict_migrates_a_european_key(stored, expected):
 
 
 def test_to_dict_writes_american_even_if_set_european():
-    from models.config import Config
+    from chordnotepad.models.config import Config
 
     config = Config()
     config.key = "La"
@@ -104,7 +104,7 @@ def test_to_dict_writes_american_even_if_set_european():
 
 
 def test_desktop_settings_viewmodel_shows_the_notation_and_saves_american(tmp_path):
-    from viewmodels.settings_viewmodel import SettingsViewModel
+    from chordnotepad.viewmodels.settings_viewmodel import SettingsViewModel
 
     services = build_core_services(AppDataService(root=tmp_path), HostDispatch(ManualHost()),
                                    player=FakePlayer())

@@ -1,8 +1,8 @@
 """Unit tests for chord note computation with key context and slash chords."""
 
 import pytest
-from chord.helper import ChordHelper
-from models.chord_notes import ChordNotes
+from chordnotepad.chord.helper import ChordHelper
+from chordnotepad.models.chord_notes import ChordNotes
 
 
 class TestAbsoluteChords:
@@ -795,7 +795,7 @@ class TestEuropeanNotationExtensions:
 
     def test_european_lowercase_minor(self, chord_helper):
         """Test lowercase European: 'do' becomes 'Cm' (Do minor)."""
-        from chord.converter import NotationConverter
+        from chordnotepad.chord.converter import NotationConverter
 
         # First convert European to American, then test
         american = NotationConverter.chord_european_to_american("do")
@@ -809,7 +809,7 @@ class TestEuropeanNotationExtensions:
 
     def test_european_with_symbols(self, chord_helper):
         """Test European with symbols: 'Do°' becomes 'Cdim'."""
-        from chord.converter import NotationConverter
+        from chordnotepad.chord.converter import NotationConverter
 
         american = NotationConverter.chord_european_to_american("Do°")
         result = chord_helper.compute_chord_notes(american)
@@ -820,7 +820,7 @@ class TestEuropeanNotationExtensions:
 
     def test_european_with_parentheses(self, chord_helper):
         """Test European with parentheses: 'Domaj7(9)' becomes 'Cmaj9'."""
-        from chord.converter import NotationConverter
+        from chordnotepad.chord.converter import NotationConverter
 
         american = NotationConverter.chord_european_to_american("Domaj7(9)")
         result = chord_helper.compute_chord_notes(american)
@@ -831,7 +831,7 @@ class TestEuropeanNotationExtensions:
 
     def test_european_half_diminished(self, chord_helper):
         """Test European half-diminished: 'Solø' becomes 'Gm7b5'."""
-        from chord.converter import NotationConverter
+        from chordnotepad.chord.converter import NotationConverter
 
         american = NotationConverter.chord_european_to_american("Solø")
         result = chord_helper.compute_chord_notes(american)
@@ -842,7 +842,7 @@ class TestEuropeanNotationExtensions:
 
     def test_european_augmented_with_extension(self, chord_helper):
         """Test European augmented: 'Re+' becomes 'Daug'."""
-        from chord.converter import NotationConverter
+        from chordnotepad.chord.converter import NotationConverter
 
         american = NotationConverter.chord_european_to_american("Re+")
         result = chord_helper.compute_chord_notes(american)
@@ -853,7 +853,7 @@ class TestEuropeanNotationExtensions:
 
     def test_european_add_chord(self, chord_helper):
         """Test European add chord: 'Mi(9)' becomes 'Eadd9'."""
-        from chord.converter import NotationConverter
+        from chordnotepad.chord.converter import NotationConverter
 
         american = NotationConverter.chord_european_to_american("Mi(9)")
         result = chord_helper.compute_chord_notes(american)
@@ -864,7 +864,7 @@ class TestEuropeanNotationExtensions:
 
     def test_european_lowercase_with_seventh(self, chord_helper):
         """Test European lowercase with seventh: 'rem7' becomes 'Dm7'."""
-        from chord.converter import NotationConverter
+        from chordnotepad.chord.converter import NotationConverter
 
         american = NotationConverter.chord_european_to_american("rem7")
         result = chord_helper.compute_chord_notes(american)
@@ -875,7 +875,7 @@ class TestEuropeanNotationExtensions:
 
     def test_european_with_accents(self, chord_helper):
         """Test European notation with accents: 'Dó', 'Ré', 'Fá', 'Lá' are normalized."""
-        from chord.converter import NotationConverter
+        from chordnotepad.chord.converter import NotationConverter
 
         # Test accented Do (Dó -> Do -> C)
         american_do = NotationConverter.chord_european_to_american("Dó")
@@ -1420,7 +1420,7 @@ class TestRegisterPreservingIntervals:
 
     def test_intervals_match_note_pitch_classes(self, chord_helper):
         """root_pitch_class + interval reproduces each note's pitch class."""
-        from chord.midi_converter import parse_note_to_semitone
+        from chordnotepad.chord.midi_converter import parse_note_to_semitone
         for sym in ['C13', 'Cmaj11', 'F#9', 'Bbmaj7', 'Ebm11', 'Cmaj7#5(9)']:
             result = chord_helper.compute_chord_notes(sym)
             assert result is not None
@@ -1453,7 +1453,7 @@ class TestAmericanEuropeanDisambiguation:
 
     def test_f_aug_and_add_not_mangled(self, chord_helper):
         """'Faug'/'Fadd9' are F chords, not the 'Fug'/'Fdd9' the converter makes."""
-        from chord.midi_converter import parse_note_to_semitone
+        from chordnotepad.chord.midi_converter import parse_note_to_semitone
 
         def pcs(sym):
             r = chord_helper.compute_chord_notes(sym)

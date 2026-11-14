@@ -6,8 +6,8 @@ import tkinter as tk
 
 import pytest
 
-from session.events import TextEdited, UndoPolicy
-from ui.text_editor import ChordTextEditor
+from chordnotepad.session.events import TextEdited, UndoPolicy
+from chordnotepad_tk.text_editor import ChordTextEditor
 
 PLACEHOLDER = "Type or paste a song here"
 

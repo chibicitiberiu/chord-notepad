@@ -2,7 +2,7 @@
 
 import pytest
 
-from audio.chord_tones import classify_role, DEFAULT_OMIT_PENALTY
+from chordnotepad.audio.chord_tones import classify_role, DEFAULT_OMIT_PENALTY
 
 
 class TestClassifyRole:

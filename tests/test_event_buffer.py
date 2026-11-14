@@ -2,13 +2,13 @@
 import pytest
 import threading
 import time
-from models.playback_event_internal import MidiEvent, MidiEventType
+from chordnotepad.models.playback_event_internal import MidiEvent, MidiEventType
 
 
 @pytest.fixture
 def event_buffer():
     """Create an EventBuffer instance."""
-    from audio.event_buffer import EventBuffer
+    from chordnotepad.audio.event_buffer import EventBuffer
     return EventBuffer(capacity=10)
 
 

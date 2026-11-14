@@ -44,14 +44,14 @@ from typing import List, Optional
 
 import pytest
 
-from services.song_renderer import SongRenderer
-from services.event_compiler import compile_events
-from services.song_parser_service import SongParserService
-from audio.chord_picker import ChordNotePicker
-from audio.guitar_chord_picker import GuitarChordPicker
-from audio.ensemble_voicer import EnsembleVoicer
-from models.ensemble_spec import BUILTIN_ENSEMBLES
-from models.playback_event_internal import MidiEvent, MidiEventType
+from chordnotepad.services.song_renderer import SongRenderer
+from chordnotepad.services.event_compiler import compile_events
+from chordnotepad.services.song_parser_service import SongParserService
+from chordnotepad.audio.chord_picker import ChordNotePicker
+from chordnotepad.audio.guitar_chord_picker import GuitarChordPicker
+from chordnotepad.audio.ensemble_voicer import EnsembleVoicer
+from chordnotepad.models.ensemble_spec import BUILTIN_ENSEMBLES
+from chordnotepad.models.playback_event_internal import MidiEvent, MidiEventType
 
 
 FIXTURE_DIR = Path(__file__).parent / "fixtures" / "characterization"

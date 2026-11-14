@@ -6,7 +6,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonObject
 
 // The M5 screens' outputs: chord identifier, Settings (values and the
-// voicings editor), Quick Start. Mirrors src/session/state.py and events.py;
+// voicings editor), Quick Start. Mirrors core/chordnotepad/session/state.py and events.py;
 // see the docstrings there. Fields typed `json` in bridge_schema.json are
 // plain JSON objects here ([JsonObject]).
 

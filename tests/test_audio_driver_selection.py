@@ -9,8 +9,8 @@ from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
-from audio.audio_options import AudioOptions, platform_drivers
-from exceptions import AudioInitializationError
+from chordnotepad.audio.audio_options import AudioOptions, platform_drivers
+from chordnotepad.exceptions import AudioInitializationError
 
 
 class FakeSynth:
@@ -49,7 +49,7 @@ class FakeSynth:
 
 
 def _bare_player():
-    from audio.player import NotePlayer
+    from chordnotepad.audio.player import NotePlayer
 
     player = NotePlayer.__new__(NotePlayer)
     player.fs = None
@@ -84,11 +84,11 @@ def _init(player, synth, handles, options=None, platform="linux", log=None):
         synth.kwargs = kwargs
         return synth
 
-    with patch("audio.player.fluidsynth.Synth", side_effect=make), \
-            patch("audio.player.SynthSequencer", side_effect=lambda s: FakeSequencer(s, log)), \
-            patch("audio.player.fluidsynth.delete_fluid_audio_driver",
+    with patch("chordnotepad.audio.player.fluidsynth.Synth", side_effect=make), \
+            patch("chordnotepad.audio.player.SynthSequencer", side_effect=lambda s: FakeSequencer(s, log)), \
+            patch("chordnotepad.audio.player.fluidsynth.delete_fluid_audio_driver",
                   side_effect=lambda h: log.append(("delete driver", h))), \
-            patch("audio.player.sys.platform", platform):
+            patch("chordnotepad.audio.player.sys.platform", platform):
         player._initialize_fluidsynth("/x.sf2", options)
     return synth.started
 
@@ -164,7 +164,7 @@ class TestDriverSelection:
             return result
 
         synth.start = start
-        with patch("audio.player.fluidsynth.delete_fluid_midi_driver") as delete:
+        with patch("chordnotepad.audio.player.fluidsynth.delete_fluid_midi_driver") as delete:
             _init(player, synth, {"alsa": 2})
         delete.assert_called_once_with("midi-pulseaudio")
         assert synth.midi_driver == "midi-alsa"
@@ -215,7 +215,7 @@ class TestDriverSelection:
 
     def test_other_errors_are_wrapped(self):
         player = _bare_player()
-        with patch("audio.player.fluidsynth.Synth", side_effect=OSError("no lib")):
+        with patch("chordnotepad.audio.player.fluidsynth.Synth", side_effect=OSError("no lib")):
             with pytest.raises(AudioInitializationError, match="no lib"):
                 player._initialize_fluidsynth("/x.sf2")
 
@@ -223,8 +223,8 @@ class TestDriverSelection:
 class TestPlaybackServiceOptions:
 
     def _service(self, config_values, **kwargs):
-        from services.config_service import ConfigService
-        from services.playback_service import PlaybackService
+        from chordnotepad.services.config_service import ConfigService
+        from chordnotepad.services.playback_service import PlaybackService
 
         config = Mock(spec=ConfigService)
         config.get.side_effect = lambda key, default=None: config_values.get(key, default)
@@ -232,14 +232,14 @@ class TestPlaybackServiceOptions:
 
     def test_settings_driver_is_passed_first(self):
         service = self._service({"audio_driver": "alsa"})
-        with patch("services.playback_service.NotePlayer") as cls:
+        with patch("chordnotepad.services.playback_service.NotePlayer") as cls:
             cls.return_value = MagicMock()
             assert service.initialize_player()
         assert cls.call_args.kwargs["options"] == AudioOptions(driver="alsa")
 
     def test_empty_settings_driver_means_platform_list(self):
         service = self._service({"audio_driver": None})
-        with patch("services.playback_service.NotePlayer") as cls:
+        with patch("chordnotepad.services.playback_service.NotePlayer") as cls:
             cls.return_value = MagicMock()
             service.initialize_player()
         assert cls.call_args.kwargs["options"] == AudioOptions()
@@ -247,7 +247,7 @@ class TestPlaybackServiceOptions:
     def test_host_options_are_kept_for_lazy_init(self):
         host = AudioOptions(sample_rate=48000, settings={"audio.oboe.performance-mode": "LowLatency"})
         service = self._service({}, audio_options=host)
-        with patch("services.playback_service.NotePlayer") as cls:
+        with patch("chordnotepad.services.playback_service.NotePlayer") as cls:
             cls.return_value = MagicMock()
             service.initialize_player()
         assert cls.call_args.kwargs["options"] == host
@@ -255,7 +255,7 @@ class TestPlaybackServiceOptions:
     def test_initialize_player_options_override_and_settings_driver_wins(self):
         service = self._service({"audio_driver": "opensles"})
         host = AudioOptions(driver="oboe", sample_rate=48000)
-        with patch("services.playback_service.NotePlayer") as cls:
+        with patch("chordnotepad.services.playback_service.NotePlayer") as cls:
             cls.return_value = MagicMock()
             service.initialize_player(audio_options=host)
         assert cls.call_args.kwargs["options"] == AudioOptions(driver="opensles", sample_rate=48000)
@@ -265,7 +265,7 @@ class TestSuspendResume:
     """suspend_audio / resume_audio on a NotePlayer with a fake synth."""
 
     def _ready(self, handles=None):
-        from audio.player import NotePlayer
+        from chordnotepad.audio.player import NotePlayer
 
         player = _bare_player()
         player.is_playing = False
@@ -285,7 +285,7 @@ class TestSuspendResume:
 
     def test_suspend_deletes_only_the_driver(self):
         player, synth, _ = self._ready()
-        with patch("audio.player.fluidsynth.delete_fluid_audio_driver") as delete:
+        with patch("chordnotepad.audio.player.fluidsynth.delete_fluid_audio_driver") as delete:
             assert player.suspend_audio() is True
             assert player.suspend_audio() is True  # idempotent
         delete.assert_called_once_with(7)
@@ -296,7 +296,7 @@ class TestSuspendResume:
     def test_suspend_refused_while_playing(self):
         player, synth, _ = self._ready()
         player.is_playing = True
-        with patch("audio.player.fluidsynth.delete_fluid_audio_driver") as delete:
+        with patch("chordnotepad.audio.player.fluidsynth.delete_fluid_audio_driver") as delete:
             assert player.suspend_audio() is False
         delete.assert_not_called()
         assert synth.audio_driver == 7 and not player.audio_suspended
@@ -304,12 +304,12 @@ class TestSuspendResume:
     def test_suspend_allowed_while_paused(self):
         player, _, _ = self._ready()
         player.is_playing, player.is_paused = True, True
-        with patch("audio.player.fluidsynth.delete_fluid_audio_driver"):
+        with patch("chordnotepad.audio.player.fluidsynth.delete_fluid_audio_driver"):
             assert player.suspend_audio() is True
 
     def test_resume_reuses_the_previous_driver_first(self):
         player, synth, _ = self._ready()
-        with patch("audio.player.fluidsynth.delete_fluid_audio_driver"):
+        with patch("chordnotepad.audio.player.fluidsynth.delete_fluid_audio_driver"):
             player.suspend_audio()
         synth.started.clear()
         synth.handles = {"pulseaudio": 9}
@@ -319,7 +319,7 @@ class TestSuspendResume:
 
     def test_resume_retries_other_candidates(self):
         player, synth, _ = self._ready()
-        with patch("audio.player.fluidsynth.delete_fluid_audio_driver"):
+        with patch("chordnotepad.audio.player.fluidsynth.delete_fluid_audio_driver"):
             player.suspend_audio()
         synth.started.clear()
         synth.handles = {"alsa": 5}
@@ -329,7 +329,7 @@ class TestSuspendResume:
 
     def test_resume_failure_stays_suspended(self):
         player, synth, _ = self._ready()
-        with patch("audio.player.fluidsynth.delete_fluid_audio_driver"):
+        with patch("chordnotepad.audio.player.fluidsynth.delete_fluid_audio_driver"):
             player.suspend_audio()
         synth.handles = {}
         assert player.resume_audio() is False

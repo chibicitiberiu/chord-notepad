@@ -11,15 +11,15 @@ import json
 
 import pytest
 
-from models.config import Config
-from services.appdata_service import AppDataService
-from services.config_service import ConfigService
-from session.bootstrap import build_core_services, create_session
-from session.host import HostDispatch
-from session.settings import SettingsValues
-from session.state import EditorState, SettingsState
-from session.testing import EventRecorder, FakePlayer, InMemoryDocumentStore, ManualHost
-from viewmodels.settings_viewmodel import SettingsViewModel
+from chordnotepad.models.config import Config
+from chordnotepad.services.appdata_service import AppDataService
+from chordnotepad.services.config_service import ConfigService
+from chordnotepad.session.bootstrap import build_core_services, create_session
+from chordnotepad.session.host import HostDispatch
+from chordnotepad.session.settings import SettingsValues
+from chordnotepad.session.state import EditorState, SettingsState
+from chordnotepad.session.testing import EventRecorder, FakePlayer, InMemoryDocumentStore, ManualHost
+from chordnotepad.viewmodels.settings_viewmodel import SettingsViewModel
 
 
 def make(tmp_path, config=None):
@@ -144,7 +144,7 @@ def test_apply_settings_with_values(tmp_path):
 
 
 def test_the_bridge_carries_it():
-    from session import bridge
+    from chordnotepad.session import bridge
 
     assert bridge.SESSION_COMMANDS["set_word_wrap"] == {"on": "bool"}
     assert "set_word_wrap" in bridge.CONFIG_COMMANDS

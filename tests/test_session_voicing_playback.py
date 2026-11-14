@@ -6,7 +6,7 @@ then renders again from the chord the song stopped on. The instrument is a
 synth setting: it changes at any time.
 """
 
-from session.state import PlaybackStatus, VoicingMenuState
+from chordnotepad.session.state import PlaybackStatus, VoicingMenuState
 from tests.test_session_playback import Env
 
 NEW_VOICING = "guitar:standard"

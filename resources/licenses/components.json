@@ -1,5 +1,5 @@
 {
-  "about": "What each desktop build of Chord Notepad bundles, with licences. Read by src/services/licence_catalog.py (the Licences window), chord-notepad.spec and packaging/licenses/*.py; checked by tests/test_licences.py. builds: windows (onefile exe and the Microsoft Store MSIX), macos, linux (the PyInstaller binary), flatpak, snap. files: glob patterns of bundle paths (PyInstaller destination names) the component covers. texts: files under texts/ without .txt. sources: the corresponding source the release bundle carries (packaging/licenses/make_source_bundle.py).",
+  "about": "What each desktop build of Chord Notepad bundles, with licences. Read by core/chordnotepad/services/licence_catalog.py (the Licences window), chord-notepad.spec and packaging/licenses/*.py; checked by tests/test_licences.py. builds: windows (onefile exe and the Microsoft Store MSIX), macos, linux (the PyInstaller binary), flatpak, snap. files: glob patterns of bundle paths (PyInstaller destination names) the component covers. texts: files under texts/ without .txt. sources: the corresponding source the release bundle carries (packaging/licenses/make_source_bundle.py).",
   "components": [
     {
       "id": "chord-notepad",

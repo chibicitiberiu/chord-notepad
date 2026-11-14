@@ -14,10 +14,10 @@ from typing import List
 
 import pytest
 
-from audio.chord_picker import ChordNotePicker, Voicing
-from audio.guitar_chord_picker import GuitarChordPicker
-from audio.voicing_optimizer import optimize_sequence
-from models.chord_notes import ChordNotes
+from chordnotepad.audio.chord_picker import ChordNotePicker, Voicing
+from chordnotepad.audio.guitar_chord_picker import GuitarChordPicker
+from chordnotepad.audio.voicing_optimizer import optimize_sequence
+from chordnotepad.models.chord_notes import ChordNotes
 
 
 def _cn(notes: List[str], bass: str) -> ChordNotes:

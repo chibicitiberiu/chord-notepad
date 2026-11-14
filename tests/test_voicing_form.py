@@ -10,10 +10,10 @@ import json
 
 import pytest
 
-from models.ensemble_spec import BUILTIN_ENSEMBLES, EnsembleSpec
-from models.fretboard_spec import BUILTIN_FRETBOARDS, FretboardSpec
-from models.piano_spec import BUILTIN_PIANOS, PianoSpec
-from settings_forms import voicing_form as vf
+from chordnotepad.models.ensemble_spec import BUILTIN_ENSEMBLES, EnsembleSpec
+from chordnotepad.models.fretboard_spec import BUILTIN_FRETBOARDS, FretboardSpec
+from chordnotepad.models.piano_spec import BUILTIN_PIANOS, PianoSpec
+from chordnotepad.settings_forms import voicing_form as vf
 
 _SPEC_CLASSES = {'fretboard': FretboardSpec, 'ensemble': EnsembleSpec, 'piano': PianoSpec}
 
@@ -483,13 +483,13 @@ def test_load_presets_copy_custom_voicings():
 
 def test_unparsed_tuning_error_names_the_bad_token():
     """A raw tuning string is judged per token, not per character."""
-    from src.settings_forms.voicing_form import voicing_error
+    from chordnotepad.settings_forms.voicing_form import voicing_error
     msg = voicing_error('t', {'model': 'fretboard', 'tuning': 'E2 A2 X9 G3'})
     assert msg is not None
     assert "'X9'" in msg and "string 2" in msg
 
 
 def test_unparsed_tuning_error_counts_tokens_not_characters():
-    from src.settings_forms.voicing_form import voicing_error
+    from chordnotepad.settings_forms.voicing_form import voicing_error
     msg = voicing_error('t', {'model': 'fretboard', 'tuning': 'E2 A2'})
     assert msg is not None and 'got 2' in msg

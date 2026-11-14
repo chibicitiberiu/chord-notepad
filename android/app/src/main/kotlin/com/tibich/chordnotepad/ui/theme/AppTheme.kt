@@ -48,7 +48,7 @@ data class AppColors(
     val snackBackground: Color,
     val snackText: Color,
     // The editor's look. Light mode keeps the desktop's colours unchanged
-    // (src/ui/theme.py); dark mode has readable variants of the same hues.
+    // (desktop/chordnotepad_tk/theme.py); dark mode has readable variants of the same hues.
     val chord: Color,
     val chordInvalid: Color,
     val directive: Color,

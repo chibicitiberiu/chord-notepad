@@ -12,14 +12,14 @@ from unittest.mock import Mock
 
 import pytest
 
-from session.state import EditorState
+from chordnotepad.session.state import EditorState
 
 
 @pytest.fixture
 def window():
     if not (os.environ.get("DISPLAY") or os.name == "nt"):
         pytest.skip("No display available for tkinter tests")
-    from ui.main_window import MainWindow
+    from chordnotepad_tk.main_window import MainWindow
 
     window = MainWindow.__new__(MainWindow)
     try:

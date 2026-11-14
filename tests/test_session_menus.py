@@ -10,17 +10,17 @@ PlaybackService with a FakePlayer and a FakeChordSheet.
 from types import SimpleNamespace
 from unittest.mock import Mock
 
-from services.playback_service import PlaybackService
-from services.song_parser_service import SongParserService
-from session.events import AudioUnavailable
-from session.host import HostDispatch
-from session.session import AppSession
-from session.state import ChordSheetState, ChordSheetView, EditorState
-from session.testing import (
+from chordnotepad.services.playback_service import PlaybackService
+from chordnotepad.services.song_parser_service import SongParserService
+from chordnotepad.session.events import AudioUnavailable
+from chordnotepad.session.host import HostDispatch
+from chordnotepad.session.session import AppSession
+from chordnotepad.session.state import ChordSheetState, ChordSheetView, EditorState
+from chordnotepad.session.testing import (
     EventRecorder, FakeChordSheet, FakePlayer, InMemoryDocumentStore, ManualHost,
 )
-from viewmodels.main_window_viewmodel import MainWindowViewModel
-from viewmodels.text_editor_viewmodel import TextEditorViewModel
+from chordnotepad.viewmodels.main_window_viewmodel import MainWindowViewModel
+from chordnotepad.viewmodels.text_editor_viewmodel import TextEditorViewModel
 
 
 class FakeConfig:
@@ -96,7 +96,7 @@ def test_notation_change_reaches_the_editor_state():
 
 
 def test_tk_window_applies_the_editor_state():
-    from ui.main_window import MainWindow
+    from chordnotepad_tk.main_window import MainWindow
 
     window = SimpleNamespace(text_editor=Mock(), apply_font=Mock(), _editor_state=None,
                              _apply_word_wrap=Mock())
@@ -109,7 +109,7 @@ def test_tk_window_applies_the_editor_state():
 
 
 def test_tk_font_commands_go_to_the_session():
-    from ui.main_window import MainWindow
+    from chordnotepad_tk.main_window import MainWindow
 
     window = SimpleNamespace(session=Mock())
     MainWindow.increase_font_size(window)
@@ -222,7 +222,7 @@ def test_play_failures_are_reported_every_time():
 
 
 def test_tk_window_shows_and_hides_the_strip_from_the_state():
-    from ui.main_window import MainWindow
+    from chordnotepad_tk.main_window import MainWindow
 
     window = SimpleNamespace(_chord_sheet_var=Mock(), _show_chord_sheet_pane=Mock(),
                              _hide_chord_sheet_pane=Mock(), _chord_sheet_state=None)
@@ -240,7 +240,7 @@ def test_tk_window_shows_and_hides_the_strip_from_the_state():
 
 
 def test_tk_view_menu_toggle_goes_to_the_session():
-    from ui.main_window import MainWindow
+    from chordnotepad_tk.main_window import MainWindow
 
     window = SimpleNamespace(session=Mock(), _chord_sheet_var=Mock())
     window._chord_sheet_var.get.return_value = True

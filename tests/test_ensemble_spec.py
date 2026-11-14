@@ -1,11 +1,11 @@
-"""Tests for the ensemble voicer configuration model (src/models/ensemble_spec.py)."""
+"""Tests for the ensemble voicer configuration model (core/chordnotepad/models/ensemble_spec.py)."""
 
 import logging
 
 import pytest
 
-from exceptions import ConfigurationError
-from models.ensemble_spec import (
+from chordnotepad.exceptions import ConfigurationError
+from chordnotepad.models.ensemble_spec import (
     BUILTIN_ENSEMBLES,
     DEFAULT_WEIGHTS,
     EnsembleSpec,

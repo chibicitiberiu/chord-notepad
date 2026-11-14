@@ -1,19 +1,19 @@
 """Tests for ``PianoRollRenderer`` layout and painting."""
 
-from audio.chord_picker import ChordNotePicker
-from services.song_parser_service import SongParserService
-from services.song_renderer import SongRenderer
-from models.rendered_song import RenderedSong, RenderedChord
-from models.chord import ChordInfo
-from chord_sheet.ops import DrawOps, TextOp, RectOp, LineOp
-from chord_sheet.piano_roll import (
+from chordnotepad.audio.chord_picker import ChordNotePicker
+from chordnotepad.services.song_parser_service import SongParserService
+from chordnotepad.services.song_renderer import SongRenderer
+from chordnotepad.models.rendered_song import RenderedSong, RenderedChord
+from chordnotepad.models.chord import ChordInfo
+from chordnotepad.chord_sheet.ops import DrawOps, TextOp, RectOp, LineOp
+from chordnotepad.chord_sheet.piano_roll import (
     PianoRollRenderer,
     GUTTER_W,
     WHITE_PC,
     _pitch_range,
     _slot_width,
 )
-from chord_sheet.renderer_interface import (
+from chordnotepad.chord_sheet.renderer_interface import (
     HAND_COLORS,
     NOTE_INK,
     SheetContext,
@@ -212,7 +212,7 @@ def test_octave_labels_sit_clear_of_the_black_keys_on_top():
     # L11: at the usual strip heights a label is taller than its row, and the
     # black keys beside the C cut it. It goes after every key, right-aligned
     # in the lane the black keys leave white.
-    from chord_sheet.piano_roll import _BLACK_GUTTER_RATIO
+    from chordnotepad.chord_sheet.piano_roll import _BLACK_GUTTER_RATIO
     _, ops = render_gutter(make_song(make_chord("C", midi_notes=[36, 48, 60, 72])))
     keys = [i for i, o in enumerate(ops.ops) if "gutter-key" in o.tags]
     labels = [(i, o) for i, o in enumerate(ops.ops) if "label" in o.tags]

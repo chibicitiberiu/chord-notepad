@@ -8,8 +8,8 @@ the answer is spelled the way the notes were typed (flats in, flats out).
 
 import pytest
 
-from services.song_parser_service import SongParserService
-from viewmodels.chord_identifier_viewmodel import ChordIdentifierViewModel
+from chordnotepad.services.song_parser_service import SongParserService
+from chordnotepad.viewmodels.chord_identifier_viewmodel import ChordIdentifierViewModel
 
 
 @pytest.fixture(scope="module")
@@ -150,7 +150,7 @@ def test_double_accidentals_are_read(vm, text, same_as):
 
 
 def test_the_octave_is_the_written_notes():
-    from viewmodels.chord_identifier_viewmodel import parse_notes
+    from chordnotepad.viewmodels.chord_identifier_viewmodel import parse_notes
     assert parse_notes("B#3 E4 G4") == ([("C", 4), ("E", 4), ("G", 4)], [])
     assert parse_notes("Cb4 Eb4 Gb4") == ([("B", 3), ("D#", 4), ("F#", 4)], [])
     assert parse_notes("Bbb3") == ([("A", 3)], [])
@@ -162,5 +162,5 @@ def test_a_bass_across_the_seam(vm):
 
 
 def test_double_flats_count_as_flats():
-    from viewmodels.chord_identifier_viewmodel import FLATS, spelling_preference
+    from chordnotepad.viewmodels.chord_identifier_viewmodel import FLATS, spelling_preference
     assert spelling_preference("Bbb Db F") == FLATS

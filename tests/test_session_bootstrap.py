@@ -10,14 +10,14 @@ from unittest.mock import patch
 
 import pytest
 
-from exceptions import ConfigurationError
-from services.appdata_service import AppDataService
-from services.config_service import ConfigService
-from session.bootstrap import CoreServices, build_core_services, create_session
-from session.host import HostDispatch
-from session.settings import SettingsValues
-from session.state import EditorState, StatusState
-from session.testing import EventRecorder, FakePlayer, InMemoryDocumentStore, ManualHost
+from chordnotepad.exceptions import ConfigurationError
+from chordnotepad.services.appdata_service import AppDataService
+from chordnotepad.services.config_service import ConfigService
+from chordnotepad.session.bootstrap import CoreServices, build_core_services, create_session
+from chordnotepad.session.host import HostDispatch
+from chordnotepad.session.settings import SettingsValues
+from chordnotepad.session.state import EditorState, StatusState
+from chordnotepad.session.testing import EventRecorder, FakePlayer, InMemoryDocumentStore, ManualHost
 
 
 def make(tmp_path, chord_sheet=False):
@@ -92,7 +92,7 @@ def test_out_of_range_settings_write_nothing(tmp_path, field, value):
 
 
 def test_settings_values_read_from_a_config():
-    from models.config import Config
+    from chordnotepad.models.config import Config
 
     values = SettingsValues.read(Config(bpm=77, key="F"))
     assert (values.bpm, values.key) == (77, "F")
@@ -127,10 +127,10 @@ def test_restore_draft_is_refused_while_playing(tmp_path):
 
 
 def test_without_services_the_service_commands_say_so():
-    from services.song_parser_service import SongParserService
-    from session.session import AppSession
-    from viewmodels.main_window_viewmodel import MainWindowViewModel
-    from viewmodels.text_editor_viewmodel import TextEditorViewModel
+    from chordnotepad.services.song_parser_service import SongParserService
+    from chordnotepad.session.session import AppSession
+    from chordnotepad.viewmodels.main_window_viewmodel import MainWindowViewModel
+    from chordnotepad.viewmodels.text_editor_viewmodel import TextEditorViewModel
     from unittest.mock import MagicMock
 
     host = ManualHost()
@@ -154,7 +154,7 @@ def test_config_is_written_atomically(tmp_path):
     assert json.loads(path.read_text())["bpm"] == 111
 
     service.set("bpm", 122)
-    with patch("services.config_service.json.dump", side_effect=OSError("disk full")):
+    with patch("chordnotepad.services.config_service.json.dump", side_effect=OSError("disk full")):
         with pytest.raises(ConfigurationError):
             service.save_config()
     # The old file is intact and no temporary file is left behind.

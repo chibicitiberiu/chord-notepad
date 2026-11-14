@@ -5,8 +5,9 @@ import glob
 
 block_cipher = None
 
-# Get absolute path to src directory
-src_path = os.path.abspath('src')
+# The two packages' folders: the core (chordnotepad) and the Tk front end
+# (chordnotepad_tk). The entry script is chordnotepad_tk/main.py.
+package_paths = [os.path.abspath('core'), os.path.abspath('desktop')]
 
 # Licence inventory helpers (packaging/licenses/licence_inventory.py). cwd is
 # the project root when PyInstaller exec()s this spec.
@@ -23,7 +24,7 @@ datas = [
     ('resources/icon-256.png', 'resources'),
     ('resources/icons', 'resources/icons'),
     ('resources/quickstart', 'resources/quickstart'),
-    # Licence notices: Help > Open Source Licences (src/services/licence_catalog.py)
+    # Licence notices: Help > Open Source Licences (core/chordnotepad/services/licence_catalog.py)
     ('resources/licenses', 'resources/licenses'),
     # Bundle HTML documentation for in-app help
     ('help/build/html', 'help/build/html'),
@@ -92,15 +93,15 @@ if sys.platform == 'win32':
 
 # Hidden imports - all our local modules
 hiddenimports = [
-    'ui',
-    'ui.main_window',
-    'ui.text_editor',
-    'ui.help_window',
-    'audio',
-    'audio.player',
-    'audio.chord_picker',
-    'chord',
-    'chord.converter',
+    'chordnotepad_tk',
+    'chordnotepad_tk.main_window',
+    'chordnotepad_tk.text_editor',
+    'chordnotepad_tk.help_window',
+    'chordnotepad.audio',
+    'chordnotepad.audio.player',
+    'chordnotepad.audio.chord_picker',
+    'chordnotepad.chord',
+    'chordnotepad.chord.converter',
     # PIL.ImageTk imports this lazily at runtime to bridge Pillow and Tk;
     # PyInstaller can't see it via static analysis, so the frozen build fails
     # with "No module named 'PIL._tkinter_finder'" when loading toolbar icons.
@@ -124,14 +125,14 @@ if sys.platform != 'win32':
     # PyInstaller warn that user32 isn't found on Linux/macOS.
     excludes.append('dateutil.tz.win')
 if not sys.platform.startswith('linux'):
-    # D-Bus client for the XDG file-chooser portal (src/ui/file_dialogs.py).
+    # D-Bus client for the XDG file-chooser portal (chordnotepad_tk/file_dialogs.py).
     # It's imported lazily and only on Linux, so keep it out of Windows/macOS
     # bundles; the code falls back to Tk dialogs if it's missing.
     excludes.append('jeepney')
 
 a = Analysis(
-    ['src/main.py'],
-    pathex=[src_path],
+    ['desktop/chordnotepad_tk/main.py'],
+    pathex=package_paths,
     binaries=binaries,
     datas=datas,
     hiddenimports=hiddenimports,

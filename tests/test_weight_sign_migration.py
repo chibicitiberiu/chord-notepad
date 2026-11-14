@@ -16,8 +16,8 @@ user-tuned values stay. A v1 config chains through both steps (+2.0 -> -2.0 ->
 import copy
 from pathlib import Path
 
-from constants import CONFIG_VERSION
-from services.config_service import ConfigService
+from chordnotepad.constants import CONFIG_VERSION
+from chordnotepad.services.config_service import ConfigService
 
 
 class _FakeAppData:
@@ -272,7 +272,7 @@ def _choir(omit):
 def test_v3_ensemble_omission_moves_to_the_ensemble_order(tmp_path):
     """Ensembles got their own omission order (fifth first, todo #14). Saved
     ensembles still on the old (piano) defaults follow it; tuned ones stay."""
-    from models.ensemble_spec import ENSEMBLE_OMIT_WEIGHTS
+    from chordnotepad.models.ensemble_spec import ENSEMBLE_OMIT_WEIGHTS
     service = _service(tmp_path)
     tuned = dict(_OLD_ENSEMBLE_OMIT, third=-35.0)
     data = {
@@ -295,7 +295,7 @@ def test_v3_ensemble_omission_moves_to_the_ensemble_order(tmp_path):
 
 
 def test_v1_ensemble_omission_chains_to_the_ensemble_order(tmp_path):
-    from models.ensemble_spec import ENSEMBLE_OMIT_WEIGHTS
+    from chordnotepad.models.ensemble_spec import ENSEMBLE_OMIT_WEIGHTS
     service = _service(tmp_path)
     v1_magnitudes = {role: -value for role, value in _OLD_ENSEMBLE_OMIT.items()}
     data = {"version": 1, "voicings": {"c": _choir(v1_magnitudes)}}

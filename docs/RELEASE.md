@@ -167,7 +167,7 @@ What a release has to do to stay within them:
   every component each desktop build bundles (`windows`, `macos`, `linux`,
   `flatpak`, `snap`) with its version, licence texts and, for copyleft
   components, pinned source downloads. `packaging/licenses/licence_inventory.py`
-  reads it; the Licences window (`src/services/licence_catalog.py`) shows
+  reads it; the Licences window (`core/chordnotepad/services/licence_catalog.py`) shows
   it. The texts in `resources/licenses/texts/` are committed copies made by
   `pipenv run python packaging/licenses/gather_texts.py` (`--check` verifies
   them); rerun it when a component or its version changes.
@@ -363,8 +363,10 @@ Flathub. Bundles don't auto-update; a self-hosted Flatpak repo would fix that.
 Unlike the other builds it is built **from source**, not from PyInstaller:
 `packaging/flatpak/io.github.chibicitiberiu.ChordNotepad.yml` builds Tcl/Tk,
 the `_tkinter` extension (from the CPython release matching the runtime's
-Python), FluidSynth, the Python packages, and installs `src/` with a small
-launcher. The build reuses the help HTML, icons and `build_info.py` generated
+Python), FluidSynth, the Python packages, and installs `core/` and `desktop/`
+with a small launcher (`python3 -m chordnotepad_tk.main`, with both folders on
+`PYTHONPATH`). The build reuses the help HTML, icons and
+`desktop/chordnotepad_tk/build_info.py` generated
 earlier in the job, so run `make flatpak` (which builds docs and icons first),
 not flatpak-builder directly.
 
@@ -386,7 +388,7 @@ left out. If you add a dependency, add it to `PACKAGES` in that script.
 **Sandbox:** X11 (Tk has no Wayland backend), PulseAudio, and network (only so
 the host browser can reach the help server on 127.0.0.1). There is no
 filesystem permission: open/save go through the XDG FileChooser portal
-(`src/ui/file_dialogs.py`). Settings and logs live in
+(`desktop/chordnotepad_tk/file_dialogs.py`). Settings and logs live in
 `~/.var/app/io.github.chibicitiberiu.ChordNotepad/`.
 
 **Desktop integration** files are in `packaging/linux/` (the `.desktop` file

@@ -7,11 +7,11 @@ beat->x interpolation the panel relies on.
 
 import pytest
 
-from models.chord import ChordInfo
-from models.rendered_song import RenderedChord, RenderedSong, SongMarker
-from chord_sheet.ops import LineOp, RectOp, TextOp
-from chord_sheet.renderer_interface import SlotBox
-from chord_sheet.marker_lane import (
+from chordnotepad.models.chord import ChordInfo
+from chordnotepad.models.rendered_song import RenderedChord, RenderedSong, SongMarker
+from chordnotepad.chord_sheet.ops import LineOp, RectOp, TextOp
+from chordnotepad.chord_sheet.renderer_interface import SlotBox
+from chordnotepad.chord_sheet.marker_lane import (
     LANE_HEIGHT,
     beat_to_x,
     build_marker_lane,

@@ -51,8 +51,11 @@ from licence_sources import DEFAULT_CACHE, fetch  # noqa: E402
 
 
 def _load_catalog_module():
-    """src/services/licence_catalog.py on its own (stdlib only; services/__init__ pulls in the app)."""
-    path = REPO / "src" / "services" / "licence_catalog.py"
+    """core/chordnotepad/services/licence_catalog.py on its own.
+
+    It is stdlib only; ``chordnotepad.services``' ``__init__`` pulls in the app.
+    """
+    path = REPO / "core" / "chordnotepad" / "services" / "licence_catalog.py"
     spec = importlib.util.spec_from_file_location("licence_catalog", path)
     module = importlib.util.module_from_spec(spec)
     sys.modules.setdefault("licence_catalog", module)

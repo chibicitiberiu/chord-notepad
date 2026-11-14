@@ -12,23 +12,23 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from services.playback_service import PlaybackService
-from services.song_parser_service import SongParserService
-from session import formatting
-from session.documents import DocumentRef
-from session.events import (
+from chordnotepad.services.playback_service import PlaybackService
+from chordnotepad.services.song_parser_service import SongParserService
+from chordnotepad.session import formatting
+from chordnotepad.session.documents import DocumentRef
+from chordnotepad.session.events import (
     CloseApproved, ConfirmDiscardRequest, DiscardChoice, PickDocumentRequest, PickMode,
     TextEdited, UndoPolicy, UserError,
 )
-from session.host import HostDispatch
-from session.session import AppSession
-from session.state import (
+from chordnotepad.session.host import HostDispatch
+from chordnotepad.session.session import AppSession
+from chordnotepad.session.state import (
     DocumentState, HighlightState, RecentDocumentsState, StatusState, ToolbarState,
 )
-from session.testing import EventRecorder, FakePlayer, InMemoryDocumentStore, ManualHost
-from session.workers import BackgroundWorker
-from viewmodels.main_window_viewmodel import MainWindowViewModel
-from viewmodels.text_editor_viewmodel import TextEditorViewModel
+from chordnotepad.session.testing import EventRecorder, FakePlayer, InMemoryDocumentStore, ManualHost
+from chordnotepad.session.workers import BackgroundWorker
+from chordnotepad.viewmodels.main_window_viewmodel import MainWindowViewModel
+from chordnotepad.viewmodels.text_editor_viewmodel import TextEditorViewModel
 
 SONG = "{bpm: 90}\n{time: 3/4}\n{key: G}\nG D Em C\n"
 
@@ -472,7 +472,7 @@ def test_export_titles_the_midi_after_the_document():
     env = Env()
     open_song(env)
     env.session.export_midi()
-    with patch("services.midi_file_writer.render_midi_bytes", return_value=b"MIDI") as render:
+    with patch("chordnotepad.services.midi_file_writer.render_midi_bytes", return_value=b"MIDI") as render:
         env.answer(env.ref("out.mid"))
         env.settle()
     assert render.call_args.kwargs["title"] == "song"
@@ -506,7 +506,7 @@ def test_export_write_failure_is_a_user_error():
 def test_export_renders_the_song_as_it_was_when_the_file_was_picked():
     env = Env("C G", documents={})
     env.session.export_midi()
-    with patch("services.midi_file_writer.render_midi_bytes", return_value=b"MIDI") as render:
+    with patch("chordnotepad.services.midi_file_writer.render_midi_bytes", return_value=b"MIDI") as render:
         env.answer(env.ref("out.mid"))
         env.session.set_text("just lyrics now")  # typed while it renders
         env.settle()
@@ -593,7 +593,7 @@ def test_a_failed_save_stops_new_and_open():
 
 
 def _window():
-    from ui.main_window import MainWindow
+    from chordnotepad_tk.main_window import MainWindow
 
     window = Mock()
     window.text_editor.get_text.return_value = "C G"
@@ -605,7 +605,7 @@ def _window():
 ])
 def test_tk_confirm_discard_maps_yes_no_cancel(response, choice):
     MainWindow, window = _window()
-    with patch("ui.main_window.messagebox.askyesnocancel", return_value=response) as ask:
+    with patch("chordnotepad_tk.main_window.messagebox.askyesnocancel", return_value=response) as ask:
         MainWindow._present_confirm_discard(window, ConfirmDiscardRequest(4))
     assert ask.call_args.args == ("Unsaved Changes", "Do you want to save your changes?")
     assert ask.call_args.kwargs["parent"] is window
@@ -614,7 +614,7 @@ def test_tk_confirm_discard_maps_yes_no_cancel(response, choice):
 
 def test_tk_open_picker_answers_with_a_ref():
     MainWindow, window = _window()
-    with patch("ui.main_window.ask_open_filename", return_value="/a/song.txt") as ask:
+    with patch("chordnotepad_tk.main_window.ask_open_filename", return_value="/a/song.txt") as ask:
         MainWindow._present_pick_document(window, PickDocumentRequest(2, PickMode.OPEN, ""))
     assert ask.call_args.kwargs["title"] == "Open File"
     window.session.document_ref.assert_called_once_with("/a/song.txt")
@@ -628,7 +628,7 @@ def test_tk_open_picker_answers_with_a_ref():
 ])
 def test_tk_save_pickers_prefill_the_suggested_name(mode, title, extension):
     MainWindow, window = _window()
-    with patch("ui.main_window.ask_save_as_filename", return_value="") as ask:
+    with patch("chordnotepad_tk.main_window.ask_save_as_filename", return_value="") as ask:
         MainWindow._present_pick_document(window, PickDocumentRequest(3, mode, "song.x"))
     kwargs = ask.call_args.kwargs
     assert (kwargs["title"], kwargs["defaultextension"], kwargs["initialfile"]) == (

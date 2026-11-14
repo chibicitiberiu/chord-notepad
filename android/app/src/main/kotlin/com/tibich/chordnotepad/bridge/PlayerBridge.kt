@@ -6,7 +6,7 @@ import kotlinx.serialization.Serializable
 
 // The Edit/Play redesign's outputs (docs/design/android-ui-spec.md; contract in
 // docs/ANDROID.md, "Bridge contract", "Edit/Play redesign"). Mirrors
-// src/session/state.py and events.py; see the docstrings there. The playhead
+// core/chordnotepad/session/state.py and events.py; see the docstrings there. The playhead
 // itself is PlaybackState.playheadOffset and ChordSheetState.cursorIndex.
 
 /**

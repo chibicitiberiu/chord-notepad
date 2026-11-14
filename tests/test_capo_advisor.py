@@ -10,11 +10,11 @@ API voices.
 
 import pytest
 
-from audio.guitar_chord_picker import GuitarChordPicker
-from constants import CAPO_MIN_GAIN
-from models.chord_notes import ChordNotes
-from models.fretboard_spec import BUILTIN_FRETBOARDS
-from services.capo_advisor import _capo_spec, suggest_capo
+from chordnotepad.audio.guitar_chord_picker import GuitarChordPicker
+from chordnotepad.constants import CAPO_MIN_GAIN
+from chordnotepad.models.chord_notes import ChordNotes
+from chordnotepad.models.fretboard_spec import BUILTIN_FRETBOARDS
+from chordnotepad.services.capo_advisor import _capo_spec, suggest_capo
 
 STANDARD = BUILTIN_FRETBOARDS["standard"]
 

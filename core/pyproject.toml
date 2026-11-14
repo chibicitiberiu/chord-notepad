@@ -1,0 +1,28 @@
+# Metadata only: nothing builds or installs this package. The front ends and
+# the tests import chordnotepad straight from this folder (pytest.ini, the
+# Makefile's run target, the Flatpak and snap launchers, the PyInstaller spec
+# and Chaquopy's srcDir in android/app/build.gradle.kts).
+#
+# The version is the VERSION file at the repo root (the desktop's build_info,
+# Android's versionName); the core itself doesn't carry one.
+
+[project]
+name = "chordnotepad"
+dynamic = ["version"]
+description = "Chord Notepad's shared core: song parsing, chord detection, playback and the session the front ends sit on"
+requires-python = ">=3.14"
+license = "AGPL-3.0-only WITH AdditionRef-ChordNotepad-Section7"
+authors = [{ name = "Tiberiu Chibici" }]
+# What the core imports. Tk, Pillow and jeepney belong to the desktop front
+# end (desktop/chordnotepad_tk); chardet is left out on purpose: only
+# music21's fileTools imports it, and its relicensing is disputed
+# (packaging/licenses/licence_inventory.py, PYINSTALLER_EXCLUDES).
+dependencies = [
+    "pyfluidsynth>=1.4.0",
+    "pychord",
+    "music21",
+    "mido",
+]
+
+[project.urls]
+Homepage = "https://github.com/chibicitiberiu/chord-notepad"

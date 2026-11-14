@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 import pytest
 
-from session.flows import FlowRunner
+from chordnotepad.session.flows import FlowRunner
 
 
 @dataclass(frozen=True)

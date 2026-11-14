@@ -7,10 +7,10 @@ that is still being typed (``{bp``), for a tooltip while typing.
 """
 import pytest
 
-from models.directive import DIRECTIVE_SYNTAX, UNKNOWN_DIRECTIVE_SYNTAX
-from services.song_parser_service import SongParserService
-from session.highlighting import compute_spans, directive_hint
-from session.state import SpanKind
+from chordnotepad.models.directive import DIRECTIVE_SYNTAX, UNKNOWN_DIRECTIVE_SYNTAX
+from chordnotepad.services.song_parser_service import SongParserService
+from chordnotepad.session.highlighting import compute_spans, directive_hint
+from chordnotepad.session.state import SpanKind
 
 
 @pytest.fixture

@@ -9,11 +9,11 @@ chords keep their slot in the list even though they emit no events).
 The index lives in event metadata that the characterization golden serialization
 deliberately ignores, so it never disturbs those goldens (asserted elsewhere).
 """
-from audio.chord_picker import ChordNotePicker
-from services.event_compiler import compile_events
-from services.song_parser_service import SongParserService
-from services.song_renderer import SongRenderer
-from models.playback_event_internal import MidiEventType
+from chordnotepad.audio.chord_picker import ChordNotePicker
+from chordnotepad.services.event_compiler import compile_events
+from chordnotepad.services.song_parser_service import SongParserService
+from chordnotepad.services.song_renderer import SongRenderer
+from chordnotepad.models.playback_event_internal import MidiEventType
 
 
 def _render(text, *, start_line_index=0, start_item_index=0):

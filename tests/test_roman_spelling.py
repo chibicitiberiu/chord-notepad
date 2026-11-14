@@ -5,8 +5,8 @@ the numeral's # or b. Only the spelling changes; the pitches are the same.
 """
 import pytest
 
-from chord.helper import ChordHelper
-from chord.midi_converter import parse_note_to_semitone
+from chordnotepad.chord.helper import ChordHelper
+from chordnotepad.chord.midi_converter import parse_note_to_semitone
 
 
 CASES = [

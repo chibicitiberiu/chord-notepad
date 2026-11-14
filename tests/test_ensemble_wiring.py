@@ -12,12 +12,12 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from services.playback_service import PlaybackService
-from services.config_service import ConfigService
-from models.chord import ChordInfo
-from models.config import Config
-from models.ensemble_spec import EnsembleSpec, BUILTIN_ENSEMBLES
-from exceptions import ConfigurationError
+from chordnotepad.services.playback_service import PlaybackService
+from chordnotepad.services.config_service import ConfigService
+from chordnotepad.models.chord import ChordInfo
+from chordnotepad.models.config import Config
+from chordnotepad.models.ensemble_spec import EnsembleSpec, BUILTIN_ENSEMBLES
+from chordnotepad.exceptions import ConfigurationError
 
 
 CUSTOM_TRIO = {
@@ -37,7 +37,7 @@ def _install_stub_ensemble_voicer_module():
     with, so tests can assert on resolution without needing the real
     (concurrently-developed) voicing engine.
     """
-    stub = ModuleType("audio.ensemble_voicer")
+    stub = ModuleType("chordnotepad.audio.ensemble_voicer")
 
     class _StubEnsembleVoicer:
         def __init__(self, spec):
@@ -58,7 +58,7 @@ def _install_stub_ensemble_voicer_module():
             pass
 
     stub.EnsembleVoicer = _StubEnsembleVoicer
-    return patch.dict(sys.modules, {"audio.ensemble_voicer": stub}), stub
+    return patch.dict(sys.modules, {"chordnotepad.audio.ensemble_voicer": stub}), stub
 
 
 @pytest.fixture
@@ -132,7 +132,7 @@ class TestCreateEnsemblePicker:
         assert picker.spec.label == "Custom Trio"
 
     def test_unknown_ensemble_falls_back_to_piano(self, playback_service, caplog):
-        from audio.chord_picker import ChordNotePicker
+        from chordnotepad.audio.chord_picker import ChordNotePicker
 
         with caplog.at_level("WARNING"):
             picker = playback_service._create_note_picker("ensemble:nonexistent")
@@ -141,7 +141,7 @@ class TestCreateEnsemblePicker:
         assert any("nonexistent" in r.message for r in caplog.records)
 
     def test_invalid_custom_ensemble_in_voicings_falls_back_to_piano(self, playback_service, mock_config, caplog):
-        from audio.chord_picker import ChordNotePicker
+        from chordnotepad.audio.chord_picker import ChordNotePicker
 
         # Missing required 'voices' key -> EnsembleSpec.from_dict raises ConfigurationError.
         mock_config._store["voicings"] = {"broken": {"model": "ensemble", "label": "Broken"}}
@@ -238,8 +238,8 @@ class TestViewModelGetVoicings:
     """MainWindowViewModel.get_voicings returns the raw voicings registry."""
 
     def test_returns_configured_voicings(self):
-        from viewmodels.main_window_viewmodel import MainWindowViewModel
-        from services.song_parser_service import SongParserService
+        from chordnotepad.viewmodels.main_window_viewmodel import MainWindowViewModel
+        from chordnotepad.services.song_parser_service import SongParserService
         from unittest.mock import MagicMock
 
         voicings = {"my_trio": {"model": "ensemble", **CUSTOM_TRIO}}
@@ -259,8 +259,8 @@ class TestViewModelGetVoicings:
         assert vm.get_voicings() == voicings
 
     def test_defaults_to_empty_dict(self):
-        from viewmodels.main_window_viewmodel import MainWindowViewModel
-        from services.song_parser_service import SongParserService
+        from chordnotepad.viewmodels.main_window_viewmodel import MainWindowViewModel
+        from chordnotepad.services.song_parser_service import SongParserService
         from unittest.mock import MagicMock
 
         config = Mock(spec=ConfigService)

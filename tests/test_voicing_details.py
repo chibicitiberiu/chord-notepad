@@ -12,14 +12,14 @@ chords:
 """
 from typing import List, Optional
 
-from audio.chord_picker import ChordNotePicker
-from audio.guitar_chord_picker import GuitarChordPicker
-from audio.ensemble_voicer import EnsembleVoicer
-from audio.note_picker_interface import INotePicker, VoicedChord
-from models.chord_notes import ChordNotes
-from models.ensemble_spec import BUILTIN_ENSEMBLES, EnsembleSpec
-from services.song_parser_service import SongParserService
-from services.song_renderer import SongRenderer
+from chordnotepad.audio.chord_picker import ChordNotePicker
+from chordnotepad.audio.guitar_chord_picker import GuitarChordPicker
+from chordnotepad.audio.ensemble_voicer import EnsembleVoicer
+from chordnotepad.audio.note_picker_interface import INotePicker, VoicedChord
+from chordnotepad.models.chord_notes import ChordNotes
+from chordnotepad.models.ensemble_spec import BUILTIN_ENSEMBLES, EnsembleSpec
+from chordnotepad.services.song_parser_service import SongParserService
+from chordnotepad.services.song_renderer import SongRenderer
 
 
 def _render(text, note_picker, initial_key="C"):

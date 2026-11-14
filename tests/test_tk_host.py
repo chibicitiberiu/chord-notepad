@@ -9,7 +9,7 @@ from unittest import mock
 
 import pytest
 
-from ui.tk_host import EVENT_QUEUE_POLL_MS, TkHost
+from chordnotepad_tk.tk_host import EVENT_QUEUE_POLL_MS, TkHost
 
 
 class FakeRoot:
@@ -102,7 +102,7 @@ def test_failing_callback_is_reported_and_the_rest_still_run():
     seen = []
     host.post(lambda: 1 / 0)
     host.post(lambda: seen.append("after the error"))
-    with mock.patch("ui.tk_host.error_reporting.report_unexpected_error") as report:
+    with mock.patch("chordnotepad_tk.tk_host.error_reporting.report_unexpected_error") as report:
         host._drain()
     report.assert_called_once()
     assert report.call_args.args[0] is root
@@ -175,8 +175,8 @@ def test_session_thread_is_the_creating_thread():
 
 
 def test_application_queue_ui_callback_posts_to_the_host():
-    from app_paths import NO_BUNDLED_FILES
-    from application import Application
+    from chordnotepad.app_paths import NO_BUNDLED_FILES
+    from chordnotepad_tk.application import Application
 
     app = Application(NO_BUNDLED_FILES)
     seen = []

@@ -17,12 +17,12 @@ backward compatible with today's free-voiced pickers (piano, guitar):
 """
 from typing import List, Optional
 
-from audio.chord_picker import ChordNotePicker
-from audio.guitar_chord_picker import GuitarChordPicker
-from audio.note_picker_interface import INotePicker
-from models.chord_notes import ChordNotes
-from services.song_parser_service import SongParserService
-from services.song_renderer import SongRenderer
+from chordnotepad.audio.chord_picker import ChordNotePicker
+from chordnotepad.audio.guitar_chord_picker import GuitarChordPicker
+from chordnotepad.audio.note_picker_interface import INotePicker
+from chordnotepad.models.chord_notes import ChordNotes
+from chordnotepad.services.song_parser_service import SongParserService
+from chordnotepad.services.song_renderer import SongRenderer
 
 
 def _played_chords(rendered):

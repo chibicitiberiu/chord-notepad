@@ -8,11 +8,11 @@ chords, it does not transpose. Non-fretboard models ignore it.
 
 import pytest
 
-from audio.chord_picker import ChordNotePicker
-from audio.guitar_chord_picker import GuitarChordPicker
-from models.directive import DirectiveType
-from services.song_parser_service import SongParserService
-from services.song_renderer import SongRenderer
+from chordnotepad.audio.chord_picker import ChordNotePicker
+from chordnotepad.audio.guitar_chord_picker import GuitarChordPicker
+from chordnotepad.models.directive import DirectiveType
+from chordnotepad.services.song_parser_service import SongParserService
+from chordnotepad.services.song_renderer import SongRenderer
 
 
 @pytest.fixture(scope="module")

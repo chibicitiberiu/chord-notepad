@@ -17,7 +17,7 @@ from pathlib import Path
 
 from hypothesis import given, settings, strategies as st
 
-from chord.detector import ChordDetector
+from chordnotepad.chord.detector import ChordDetector
 
 ROOT = Path(__file__).resolve().parent.parent
 

@@ -1,4 +1,4 @@
-"""Tests for the spec-driven piano voicing engine (src/audio/chord_picker.py).
+"""Tests for the spec-driven piano voicing engine (core/chordnotepad/audio/chord_picker.py).
 
 Covers two things the generalization must guarantee:
 
@@ -10,9 +10,9 @@ Covers two things the generalization must guarantee:
    the voicing (register, bass inclusion, physical limits).
 """
 
-from audio.chord_picker import ChordNotePicker
-from models.piano_spec import DEFAULT_PIANO, PianoSpec
-from chord.helper import ChordHelper
+from chordnotepad.audio.chord_picker import ChordNotePicker
+from chordnotepad.models.piano_spec import DEFAULT_PIANO, PianoSpec
+from chordnotepad.chord.helper import ChordHelper
 
 
 PROGRESSION = ["C", "Am", "F", "G", "Cmaj7", "Dm7", "G7"]

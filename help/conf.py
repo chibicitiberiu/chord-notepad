@@ -79,7 +79,7 @@ class ChordLexer(RegexLexer):
     name = 'chord'
     aliases = ['chord']
 
-    # The chord shapes of src/chord/detector.py, without the text-line
+    # The chord shapes of core/chordnotepad/chord/detector.py, without the text-line
     # heuristics: a root, any run of quality/extension tokens (longest
     # alternatives first), a slash bass and a duration, ending the word.
     _mods = (r'(?:°|ø|\+|Δ|-|maj|min|mi|dim|aug|dom|alt|sus[24]?|add[#b♯♭]?\d+|no\d+'

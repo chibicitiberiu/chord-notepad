@@ -8,13 +8,13 @@ stream -- exactly the behaviours the streaming producer used to guarantee.
 import pytest
 from unittest.mock import MagicMock
 
-from services.song_renderer import SongRenderer
-from services.event_compiler import compile_events
-from audio.chord_picker import ChordNotePicker
-from models.line import Line
-from models.chord import ChordInfo
-from models.directive import Directive, DirectiveType, BPMModifierType
-from models.playback_event_internal import MidiEvent, MidiEventType
+from chordnotepad.services.song_renderer import SongRenderer
+from chordnotepad.services.event_compiler import compile_events
+from chordnotepad.audio.chord_picker import ChordNotePicker
+from chordnotepad.models.line import Line
+from chordnotepad.models.chord import ChordInfo
+from chordnotepad.models.directive import Directive, DirectiveType, BPMModifierType
+from chordnotepad.models.playback_event_internal import MidiEvent, MidiEventType
 
 
 @pytest.fixture
@@ -148,7 +148,7 @@ class TestLoopAndBarAccounting:
 
     @staticmethod
     def _song_with_loop(loop_count):
-        from services.song_parser_service import SongParserService
+        from chordnotepad.services.song_parser_service import SongParserService
         text = "{label: a} C*4\n{loop: a " + str(loop_count) + "}"
         return SongParserService().detect_chords_in_text(text)
 
@@ -175,7 +175,7 @@ class TestLoopAndBarAccounting:
 
     def test_at_start_is_builtin_label(self, note_picker):
         """'@start' loops the whole document without an explicit {label: @start}."""
-        from services.song_parser_service import SongParserService
+        from chordnotepad.services.song_parser_service import SongParserService
         text = "C*4\nG*4\n{loop: @start 2}"
         lines = SongParserService().detect_chords_in_text(text)
         events = render_events(lines, note_picker=note_picker)
@@ -185,7 +185,7 @@ class TestLoopAndBarAccounting:
 
     def test_at_start_bar_count_includes_replay(self, note_picker):
         """Bar accounting must include the @start replay."""
-        from services.song_parser_service import SongParserService
+        from chordnotepad.services.song_parser_service import SongParserService
         text = "C*4\nG*4\n{loop: @start 2}"
         lines = SongParserService().detect_chords_in_text(text)
         events = render_events(lines, note_picker=note_picker)
@@ -194,7 +194,7 @@ class TestLoopAndBarAccounting:
         assert all(e.metadata['total_bars'] == 4 for e in note_ons)
 
     def test_time_signature_change_flushes_partial_bar(self, note_picker):
-        from services.song_parser_service import SongParserService
+        from chordnotepad.services.song_parser_service import SongParserService
         text = "C*4\n{time: 3/4}\nG*3 F*3"
         lines = SongParserService().detect_chords_in_text(text)
         events = render_events(lines, note_picker=note_picker)
@@ -319,7 +319,7 @@ class TestDeterminism:
     """Rendering the same song twice yields identical voicings."""
 
     def test_render_twice_identical(self):
-        from services.song_parser_service import SongParserService
+        from chordnotepad.services.song_parser_service import SongParserService
         text = "C G\nAm F\n{loop: @start 2}"
         lines = SongParserService().detect_chords_in_text(text)
 
@@ -339,7 +339,7 @@ class TestRenderCancellation:
 
     def test_cancel_returns_none(self, note_picker):
         import threading
-        from services.song_parser_service import SongParserService
+        from chordnotepad.services.song_parser_service import SongParserService
         text = "C G\nAm F\n"
         lines = SongParserService().detect_chords_in_text(text)
         cancel = threading.Event()

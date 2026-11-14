@@ -11,19 +11,28 @@ The optional argument is the app folder (default: the Flatpak location).
 """
 
 import importlib
+import importlib.util
 import pkgutil
 import sys
 from pathlib import Path
 
 APP = Path(sys.argv[1] if len(sys.argv) > 1 else "/app/share/chord-notepad")
-sys.path.insert(0, str(APP / "src"))
+# The core and the Tk front end, as the launcher puts them on PYTHONPATH.
+PACKAGES = {"chordnotepad": APP / "core", "chordnotepad_tk": APP / "desktop"}
+sys.path[:0] = [str(folder) for folder in PACKAGES.values()]
 
 failures = []
-names = [m.name for m in pkgutil.iter_modules([str(APP / "src")])]
-for package in [n for n in names if (APP / "src" / n).is_dir()]:
+names = []
+for package, folder in PACKAGES.items():
+    if not (folder / package / "__init__.py").is_file():
+        failures.append(f"missing package: {folder / package}")
+        continue
     # Walk the folder, not the imported package: importing it may be the
     # very thing that fails, and that has to be reported, not crash the test.
-    names += [m.name for m in pkgutil.walk_packages([str(APP / "src" / package)], package + ".")]
+    names += [package] + [m.name for m in pkgutil.walk_packages([str(folder / package)], package + ".")]
+for old in ["session", "ui", "utils", "constants"]:
+    if importlib.util.find_spec(old) is not None:
+        failures.append(f"an old top-level module is importable: {old}")
 
 for name in sorted(set(names)):
     try:
@@ -43,9 +52,9 @@ for path in ["resources/soundfont/GeneralUser-GS.sf2", "help/build/html/index.ht
     if not (APP / path).exists():
         failures.append(f"missing file: {path}")
 
-# The app finds its files where the package put them (ui.desktop_paths).
+# The app finds its files where the package put them (chordnotepad_tk.desktop_paths).
 try:
-    from ui.desktop_paths import resolve_desktop_paths
+    from chordnotepad_tk.desktop_paths import resolve_desktop_paths
 
     paths = resolve_desktop_paths()
     if paths.root is None or paths.root.resolve() != APP.resolve():

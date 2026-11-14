@@ -11,9 +11,9 @@ from pathlib import Path
 
 import pytest
 
-from services.song_parser_service import SongParserService
-from session.highlighting import chord_at, compute_spans, find_comments
-from session.state import Span, SpanKind
+from chordnotepad.services.song_parser_service import SongParserService
+from chordnotepad.session.highlighting import chord_at, compute_spans, find_comments
+from chordnotepad.session.state import Span, SpanKind
 
 FIXTURE = Path(__file__).parent / "fixtures" / "highlight_spans.json"
 CASES = json.loads(FIXTURE.read_text(encoding="utf-8"))["cases"]

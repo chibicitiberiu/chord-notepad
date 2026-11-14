@@ -9,9 +9,9 @@ import os
 
 import pytest
 
-from models.directive import DIRECTIVE_SYNTAX
-from session import formatting
-from ui.directive_hints import StatusLine
+from chordnotepad.models.directive import DIRECTIVE_SYNTAX
+from chordnotepad.session import formatting
+from chordnotepad_tk.directive_hints import StatusLine
 
 
 # -- the texts --------------------------------------------------------------
@@ -86,7 +86,7 @@ class TestStatusLine:
 
 def test_the_session_hint_reuses_the_last_detection(monkeypatch):
     from tests.test_session_playback import Env
-    from services.song_parser_service import SongParserService
+    from chordnotepad.services.song_parser_service import SongParserService
 
     env = Env(text="{capo: 2}\n{capo: 3}\nC G")
 
@@ -126,8 +126,8 @@ def root():
 def ui(root):
     """A session, an editor painting its highlight and the hints over them."""
     from tests.test_session_playback import Env
-    from ui.directive_hints import DirectiveHints
-    from ui.text_editor import ChordTextEditor
+    from chordnotepad_tk.directive_hints import DirectiveHints
+    from chordnotepad_tk.text_editor import ChordTextEditor
 
     text = "{bpm: 0}\n{capo: 2}\n{capo: 3}\nC G\n{key: G}"
     env = Env(text=text)

@@ -9,20 +9,20 @@ silent FakePlayer), so playback can lock the editor.
 
 import pytest
 
-from session import formatting
+from chordnotepad.session import formatting
 
-from services.playback_service import PlaybackService
-from services.song_parser_service import SongParserService
-from session.events import (
+from chordnotepad.services.playback_service import PlaybackService
+from chordnotepad.services.song_parser_service import SongParserService
+from chordnotepad.session.events import (
     CapoChoiceRequest, InsertDirectiveRequest, TextEdited, UndoPolicy,
 )
-from session.host import HostDispatch
-from session.session import AppSession
-from session.state import HighlightState, MenuItem, StatusState
-from session.testing import EventRecorder, FakePlayer, InMemoryDocumentStore, ManualHost
-from session.workers import BackgroundWorker
-from viewmodels.main_window_viewmodel import MainWindowViewModel
-from viewmodels.text_editor_viewmodel import TextEditorViewModel
+from chordnotepad.session.host import HostDispatch
+from chordnotepad.session.session import AppSession
+from chordnotepad.session.state import HighlightState, MenuItem, StatusState
+from chordnotepad.session.testing import EventRecorder, FakePlayer, InMemoryDocumentStore, ManualHost
+from chordnotepad.session.workers import BackgroundWorker
+from chordnotepad.viewmodels.main_window_viewmodel import MainWindowViewModel
+from chordnotepad.viewmodels.text_editor_viewmodel import TextEditorViewModel
 
 
 class FakeConfig:
@@ -409,7 +409,7 @@ def test_labels_typed_since_the_last_detection_count():
 
 
 def test_loop_offers_the_start_and_the_labels():
-    from session.directives import loop_label_choices
+    from chordnotepad.session.directives import loop_label_choices
 
     env = Env("{label: verse}\nC\n{label: bridge}\nG")
     env.session.request_insert_directive("loop", 34)
@@ -609,7 +609,7 @@ def test_a_newer_capo_request_supersedes_the_older_one():
 
 def test_capo_render_failure_is_reported_as_unexpected():
     from unittest.mock import patch
-    from session import errors
+    from chordnotepad.session import errors
 
     env = Env(BARRE_SONG)
     env.session.request_suggest_capo(None)

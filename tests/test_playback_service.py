@@ -5,14 +5,14 @@ import time
 from unittest.mock import Mock, MagicMock, call, patch
 from typing import List, Optional, Tuple
 
-from services.playback_service import PlaybackService
-from services.config_service import ConfigService
-from src.models.line import Line
-from src.models.chord import ChordInfo
-from src.models.directive import Directive, DirectiveType, BPMModifierType
-from src.models.playback_state import PlaybackState
-from models.playback_event import PlaybackEventArgs, PlaybackEventType
-from models.playback_event_internal import MidiEvent, MidiEventType
+from chordnotepad.services.playback_service import PlaybackService
+from chordnotepad.services.config_service import ConfigService
+from chordnotepad.models.line import Line
+from chordnotepad.models.chord import ChordInfo
+from chordnotepad.models.directive import Directive, DirectiveType, BPMModifierType
+from chordnotepad.models.playback_state import PlaybackState
+from chordnotepad.models.playback_event import PlaybackEventArgs, PlaybackEventType
+from chordnotepad.models.playback_event_internal import MidiEvent, MidiEventType
 
 
 @pytest.fixture
@@ -50,14 +50,14 @@ def mock_player():
                     continue
                 # Store event for test verification
                 player.consumed_events.append(event)
-                from models.playback_event_internal import MidiEventType
+                from chordnotepad.models.playback_event_internal import MidiEventType
                 if event.event_type == MidiEventType.END_OF_SONG:
                     break
                 # Fire callback if this is a NOTE_ON event with callback data
                 if (event.event_type == MidiEventType.NOTE_ON and
                     player.on_event_callback and player.application and
                     event.metadata.get('has_callback')):
-                    from models.playback_event import PlaybackEventArgs, PlaybackEventType
+                    from chordnotepad.models.playback_event import PlaybackEventArgs, PlaybackEventType
                     event_args = PlaybackEventArgs(
                         event_type=PlaybackEventType.CHORD_START,
                         chord_info=event.metadata.get('chord_info'),
@@ -161,7 +161,7 @@ class TestInitialization:
         """Test that initialize_player creates a real player when none injected."""
         service = PlaybackService(mock_config)  # No player injected
 
-        with patch('services.playback_service.NotePlayer') as mock_note_player_class:
+        with patch('chordnotepad.services.playback_service.NotePlayer') as mock_note_player_class:
             mock_player = Mock()
             mock_note_player_class.return_value = mock_player
 
@@ -169,7 +169,7 @@ class TestInitialization:
 
             assert result is True
             assert service.is_initialized is True
-            from audio.audio_options import AudioOptions
+            from chordnotepad.audio.audio_options import AudioOptions
             mock_note_player_class.assert_called_once_with(
                 soundfont_path=None,
                 bpm=120,
@@ -181,7 +181,7 @@ class TestInitialization:
         """Test player initialization failure handling."""
         service = PlaybackService(mock_config)  # No player injected
 
-        with patch('services.playback_service.NotePlayer', side_effect=Exception("Init failed")):
+        with patch('chordnotepad.services.playback_service.NotePlayer', side_effect=Exception("Init failed")):
             result = service.initialize_player()
 
             assert result is False
@@ -1194,8 +1194,8 @@ class TestClickToHearPicker:
 
     def test_a_click_during_a_render_does_not_touch_the_render_picker(self, mock_player):
         import threading
-        from audio.chord_picker import ChordNotePicker
-        from services.song_parser_service import SongParserService
+        from chordnotepad.audio.chord_picker import ChordNotePicker
+        from chordnotepad.services.song_parser_service import SongParserService
 
         class BlockingPicker(ChordNotePicker):
             """Holds the render inside voice_sequence_details until released."""
@@ -1246,8 +1246,8 @@ class TestClickToHearPicker:
         assert service._click_picker is first
 
     def test_after_set_voicing_the_next_click_builds_a_picker_for_that_voicing(self, mock_player):
-        from audio.chord_picker import ChordNotePicker
-        from audio.guitar_chord_picker import GuitarChordPicker
+        from chordnotepad.audio.chord_picker import ChordNotePicker
+        from chordnotepad.audio.guitar_chord_picker import GuitarChordPicker
 
         service = PlaybackService(config_service=_DictConfig(voicing="piano"), player=mock_player)
         service.play_chord_immediate(_chord("C"))
@@ -1260,8 +1260,8 @@ class TestClickToHearPicker:
         assert service._click_picker is not service._note_picker
 
     def test_clicks_voice_lead_from_one_to_the_next(self, mock_player):
-        from audio.chord_picker import ChordNotePicker
-        from chord.helper import ChordHelper
+        from chordnotepad.audio.chord_picker import ChordNotePicker
+        from chordnotepad.chord.helper import ChordHelper
 
         def distance(previous, notes):
             return sum(min(abs(n - p) for p in previous) for n in notes)

@@ -7,12 +7,12 @@ from unittest.mock import MagicMock, Mock
 
 import pytest
 
-from exceptions import FileOperationError
-from services.config_service import ConfigService
-from services.file_service import FileService
-from services.song_parser_service import SongParserService
-from session.documents import DocumentRef, FileSystemDocumentStore
-from session.testing import InMemoryDocumentStore
+from chordnotepad.exceptions import FileOperationError
+from chordnotepad.services.config_service import ConfigService
+from chordnotepad.services.file_service import FileService
+from chordnotepad.services.song_parser_service import SongParserService
+from chordnotepad.session.documents import DocumentRef, FileSystemDocumentStore
+from chordnotepad.session.testing import InMemoryDocumentStore
 
 
 class FakeConfig:
@@ -211,7 +211,7 @@ def test_memory_store_contract():
 
 
 def _viewmodel(store):
-    from viewmodels.main_window_viewmodel import MainWindowViewModel
+    from chordnotepad.viewmodels.main_window_viewmodel import MainWindowViewModel
 
     config = Mock(spec=ConfigService)
     config.get.side_effect = lambda key, default=None: {"notation": "american"}.get(key, default)
@@ -291,9 +291,9 @@ def test_ref_for_an_id_is_the_ref_for_that_document(tmp_path):
 
 
 def test_render_midi_bytes_matches_the_file_writer(tmp_path):
-    from models.notation import Notation
-    from services.midi_file_writer import render_midi_bytes, write_midi_file
-    from services.playback_service import PlaybackService
+    from chordnotepad.models.notation import Notation
+    from chordnotepad.services.midi_file_writer import render_midi_bytes, write_midi_file
+    from chordnotepad.services.playback_service import PlaybackService
 
     config = FakeConfig(bpm=120, voicing="piano")
     lines = SongParserService().detect_chords_in_text("C G Am F\n", Notation.AMERICAN)
@@ -307,8 +307,8 @@ def test_render_midi_bytes_matches_the_file_writer(tmp_path):
 
 
 def test_file_dialogs_reexports_the_moved_path_helpers():
-    from ui import file_dialogs
-    from utils import paths
+    from chordnotepad_tk import file_dialogs
+    from chordnotepad.utils import paths
 
     assert file_dialogs.display_path is paths.display_path
     assert file_dialogs.is_document_portal_path is paths.is_document_portal_path

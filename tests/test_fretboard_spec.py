@@ -1,16 +1,16 @@
-"""Tests for the fretboard voicing model configuration (src/models/fretboard_spec.py)."""
+"""Tests for the fretboard voicing model configuration (chordnotepad/models/fretboard_spec.py)."""
 
 import logging
 
 import pytest
 
-from exceptions import ConfigurationError
-from models.fretboard_spec import (
+from chordnotepad.exceptions import ConfigurationError
+from chordnotepad.models.fretboard_spec import (
     BUILTIN_FRETBOARDS,
     DEFAULT_WEIGHTS,
     FretboardSpec,
 )
-from models.ensemble_spec import parse_note_name
+from chordnotepad.models.ensemble_spec import parse_note_name
 
 
 # ---------------------------------------------------------------------------

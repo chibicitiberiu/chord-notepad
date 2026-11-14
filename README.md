@@ -105,7 +105,7 @@ FluidSynth as above.
 git clone https://github.com/chibicitiberiu/chord-notepad.git
 cd chord-notepad
 pipenv install --dev
-make run          # or: pipenv run python src/main.py
+make run          # or: PYTHONPATH=core:desktop pipenv run python -m chordnotepad_tk.main
 make test         # run the tests
 make fuzz         # the long fuzz tests (transpose, notation conversion)
 make docs-check   # build both editions of the User Guide
@@ -125,14 +125,17 @@ runs on. The Android app has its own build; see [docs/ANDROID.md](docs/ANDROID.m
 
 ```
 chord-notepad/
-├── src/            # The app: Tk UI, view-models, services, audio, chord detection
-│   └── session/    # AppSession, the shared layer the desktop and Android UIs sit on
-├── android/        # Android app (Kotlin/Compose over the same Python core)
-├── help/           # User Guide source (Sphinx, desktop and Android editions)
-├── docs/           # Developer docs
-├── tests/          # pytest suite
-├── resources/      # Soundfont, icons, licence texts
-└── packaging/      # Flatpak, snap, MSIX and store material
+├── core/
+│   └── chordnotepad/     # The shared core: services, audio, chord detection, view-models
+│       └── session/      # AppSession, the layer the desktop and Android UIs sit on
+├── desktop/
+│   └── chordnotepad_tk/  # The Tk desktop app (python -m chordnotepad_tk.main)
+├── android/              # Android app (Kotlin/Compose over the same Python core)
+├── help/                 # User Guide source (Sphinx, desktop and Android editions)
+├── docs/                 # Developer docs
+├── tests/                # pytest suite
+├── resources/            # Soundfont, icons, licence texts
+└── packaging/            # Flatpak, snap, MSIX and store material
 ```
 
 ## License

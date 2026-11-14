@@ -4,10 +4,18 @@ The shared layer both the Tk UI and the Android UI sit on. "Where the session
 stands" says what each area does and what is still interim, and why. The
 wire format Kotlin sees is in `docs/ANDROID.md`, "Bridge contract".
 
+The core is the `chordnotepad` package in `core/` (the session is
+`chordnotepad.session`); the Tk front end is `chordnotepad_tk` in `desktop/`,
+and the Android glue is `chordnotepad_android`. Nothing is installed: each
+front end puts the folders on `sys.path` (`pytest.ini`, the Makefile, the
+launchers, the PyInstaller spec, Chaquopy's `srcDir`). Paths like
+`session/bridge.py` below are inside `core/chordnotepad/`.
+
 ## Why
 
-The viewmodels in `src/viewmodels/` don't import Tk. The wiring *between* them
-does live in the Tk window, `src/ui/main_window.py`. That includes:
+The viewmodels in `core/chordnotepad/viewmodels/` don't import Tk. The wiring
+*between* them does live in the Tk window,
+`desktop/chordnotepad_tk/main_window.py`. That includes:
 - the chord-sheet feed and the playback-event fan-out;
 - re-detection after transpose;
 - applying settings and the notation toggle;
@@ -35,7 +43,7 @@ exists once.
 
 ## Responsibilities
 
-**AppSession (`src/session/`)**
+**AppSession (`core/chordnotepad/session/`)**
 - **Text:** the text mirror and the modified flag; debounced chord detection;
   immediate re-detection after programmatic edits.
 - **Highlighting:** highlight spans (chords, directives, comments); chord
@@ -75,7 +83,7 @@ exists once.
 ## Modules
 
 ```
-src/session/
+core/chordnotepad/session/
   host.py          Host protocol, Cancellable, HostDispatch (queue_ui_callback shim)
   threaded_host.py ThreadedHost (queue + timer heap; Android/headless)
   settings.py      SettingsValues: the settings as plain values (bridge views)
@@ -100,8 +108,9 @@ src/session/
   bridge.py        encode(dto) -> (type_name, json); decode_args/dispatch; SessionBridge;
                    ErrorEvents (throttled UnexpectedError); schema dump for Kotlin
   session.py       AppSession
-src/ui/tk_host.py  TkHost (the queue drain that used to live in application.py)
-src/utils/paths.py display_path / is_document_portal_path (Tk-free; ui/file_dialogs.py re-exports them)
+desktop/chordnotepad_tk/tk_host.py  TkHost (the queue drain that used to live in application.py)
+core/chordnotepad/utils/paths.py    display_path / is_document_portal_path (Tk-free;
+                                    chordnotepad_tk/file_dialogs.py re-exports them)
 ```
 
 ### Host
@@ -588,7 +597,7 @@ may be using.
 session (commands, subscribed states and events, the queries above) and does
 view work: widgets and theme, dialogs and pickers, pixel/cursor ↔ offset,
 the sash and the window geometry. A guard test
-(`tests/test_main_window_guard.py`) keeps `ui/main_window.py` free of
+(`tests/test_main_window_guard.py`) keeps `chordnotepad_tk/main_window.py` free of
 viewmodels, services and the `Application`. The chord identifier gets its
 model from `session.chord_identifier_model()`, inserts with `insert_chord`
 and reports audio failures with `report_audio_failure`. The Quick Start
@@ -613,14 +622,14 @@ desktop-only services (resources, logging setup) and the document store.
 `filesDir`; the same layout the `XDG_*` shim gave). Config writes are atomic
 (temp file, `fsync`, `os.replace`).
 
-**Where the app's files are.** `paths` is an `AppPaths` (`src/app_paths.py`:
-the root, VERSION, `resources/`, the built help, the bundled SoundFont, the
-Windows dev DLL folder). The front end resolves it once at its entry point
+**Where the app's files are.** `paths` is an `AppPaths`
+(`core/chordnotepad/app_paths.py`: the root, VERSION, `resources/`, the built
+help, the bundled SoundFont, the Windows dev DLL folder). The front end resolves it once at its entry point
 and passes it down; no core module walks up from its own `__file__`
 (`tests/test_app_paths.py` scans for that). The desktop's resolver is
-`ui.desktop_paths.resolve_desktop_paths`: the PyInstaller bundle
+`chordnotepad_tk.desktop_paths.resolve_desktop_paths`: the PyInstaller bundle
 (`sys._MEIPASS`), the Flatpak (`/app/share/chord-notepad`), the snap
-(`$SNAP/share/chord-notepad`), else the checkout. `main.py` calls it and
+(`$SNAP/share/chord-notepad`), else the checkout. `chordnotepad_tk/main.py` calls it and
 hands it to `Application(paths)`, which passes it to `build_core_services` and
 `ResourceService`. The Android host passes its own (no bundled files; the
 SoundFont path comes in `audio_options`). The default, `NO_BUNDLED_FILES`,
@@ -653,7 +662,7 @@ is for tests that bring their own player.
   `ErrorEvents` is the Android `session.errors` handler: it posts an
   `UnexpectedError`, at most once per message and context per 30 s and five
   per minute.
-- `python -m session.bridge --schema` dumps types, enums, commands with
+- `python -m chordnotepad.session.bridge --schema` dumps types, enums, commands with
   their parameter types and the answer types; the committed
   `android/bridge_schema.json` is checked against it in both test suites.
 - Settings over the bridge: `settings_values()` reads a `SettingsValues`
@@ -778,8 +787,8 @@ is for tests that bring their own player.
   logs. Throttling is the handler's job: the Tk presenter already throttles
   its dialogs, and the Android handler will throttle its events.
 - **`Observable.notify`** reports through it.
-- **`ui/error_reporting.py`** is the Tk presenter. Importing it installs
-  nothing: `Application.on_configure_logging` calls `install_session_handler()`
+- **`chordnotepad_tk/error_reporting.py`** is the Tk presenter. Importing it
+  installs nothing: `Application.on_configure_logging` calls `install_session_handler()`
   next to `set_log_path` and `install_thread_hook`. Before that the core's
   errors are only logged, which is all the presenter would do before its
   thread hook is installed anyway.
@@ -811,4 +820,4 @@ is for tests that bring their own player.
     over the bridge at least once);
   - the committed bridge schema matches the code;
   - no viewmodel, service or `Application` references in
-    `ui/main_window.py` (`tests/test_main_window_guard.py`).
+    `chordnotepad_tk/main_window.py` (`tests/test_main_window_guard.py`).

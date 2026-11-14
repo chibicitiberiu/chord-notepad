@@ -13,13 +13,13 @@ import re
 
 import pytest
 
-from audio.chord_picker import ChordNotePicker
-from chord.detector import ChordDetector
-from chord.helper import ChordHelper
-from chord.midi_converter import parse_note_to_semitone
-from services.song_parser_service import SongParserService
-from services.transpose_service import transpose_chord_token, transpose_text
-from viewmodels.chord_identifier_viewmodel import ChordIdentifierViewModel, normalize_note_name
+from chordnotepad.audio.chord_picker import ChordNotePicker
+from chordnotepad.chord.detector import ChordDetector
+from chordnotepad.chord.helper import ChordHelper
+from chordnotepad.chord.midi_converter import parse_note_to_semitone
+from chordnotepad.services.song_parser_service import SongParserService
+from chordnotepad.services.transpose_service import transpose_chord_token, transpose_text
+from chordnotepad.viewmodels.chord_identifier_viewmodel import ChordIdentifierViewModel, normalize_note_name
 
 
 @pytest.fixture(scope="module")

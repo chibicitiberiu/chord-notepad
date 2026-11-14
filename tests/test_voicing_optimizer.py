@@ -5,7 +5,7 @@ import time
 
 import pytest
 
-from audio.voicing_optimizer import optimize_sequence
+from chordnotepad.audio.voicing_optimizer import optimize_sequence
 
 
 def _total_score(candidate_sets, unary_score, transition_score, choice):
@@ -427,7 +427,7 @@ class TestRealisticShapeSmokeTest:
 # Cooperative abort (should_abort)
 # --------------------------------------------------------------------------
 
-from exceptions import RenderAborted  # noqa: E402
+from chordnotepad.exceptions import RenderAborted  # noqa: E402
 
 
 def test_should_abort_none_is_identical_to_default():

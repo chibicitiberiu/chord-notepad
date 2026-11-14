@@ -1,6 +1,6 @@
 """Round-trip tests for the chord-sheet config fields."""
 
-from models.config import Config
+from chordnotepad.models.config import Config
 
 
 def test_defaults():

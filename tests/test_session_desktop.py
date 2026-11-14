@@ -9,16 +9,16 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from services.song_parser_service import SongParserService
-from session.bootstrap import CoreServices
-from session.host import HostDispatch
-from session.session import AppSession
-from session.state import StatusState
-from session.testing import EventRecorder, FakeChordSheet, InMemoryDocumentStore, ManualHost
-from viewmodels.chord_identifier_viewmodel import ChordIdentifierViewModel
-from viewmodels.main_window_viewmodel import MainWindowViewModel
-from viewmodels.settings_viewmodel import SettingsViewModel
-from viewmodels.text_editor_viewmodel import TextEditorViewModel
+from chordnotepad.services.song_parser_service import SongParserService
+from chordnotepad.session.bootstrap import CoreServices
+from chordnotepad.session.host import HostDispatch
+from chordnotepad.session.session import AppSession
+from chordnotepad.session.state import StatusState
+from chordnotepad.session.testing import EventRecorder, FakeChordSheet, InMemoryDocumentStore, ManualHost
+from chordnotepad.viewmodels.chord_identifier_viewmodel import ChordIdentifierViewModel
+from chordnotepad.viewmodels.main_window_viewmodel import MainWindowViewModel
+from chordnotepad.viewmodels.settings_viewmodel import SettingsViewModel
+from chordnotepad.viewmodels.text_editor_viewmodel import TextEditorViewModel
 
 
 class FakeConfig:
@@ -81,7 +81,7 @@ def test_document_ref_comes_from_the_store():
 
 
 def test_dialog_models_are_new_each_time_and_use_the_services():
-    from models.config import Config
+    from chordnotepad.models.config import Config
 
     config = MagicMock()
     config.config = Config(font_size=17)

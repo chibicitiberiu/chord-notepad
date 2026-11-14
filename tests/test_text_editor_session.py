@@ -15,19 +15,19 @@ import pytest
 
 tk = pytest.importorskip("tkinter")
 
-from ui.theme import (
+from chordnotepad_tk.theme import (
     TAG_CHORD_INVALID, TAG_CHORD_VALID, TAG_COMMENT, TAG_DIRECTIVE_INVALID,
     TAG_DIRECTIVE_VALID,
 )
-from services.song_parser_service import SongParserService
-from session.host import HostDispatch
-from session.session import AppSession
-from session.state import HighlightState, Span, SpanKind
-from session.testing import InMemoryDocumentStore, ManualHost
-from ui.main_window import MainWindow
-from ui.text_editor import ChordTextEditor
-from viewmodels.main_window_viewmodel import MainWindowViewModel
-from viewmodels.text_editor_viewmodel import TextEditorViewModel
+from chordnotepad.services.song_parser_service import SongParserService
+from chordnotepad.session.host import HostDispatch
+from chordnotepad.session.session import AppSession
+from chordnotepad.session.state import HighlightState, Span, SpanKind
+from chordnotepad.session.testing import InMemoryDocumentStore, ManualHost
+from chordnotepad_tk.main_window import MainWindow
+from chordnotepad_tk.text_editor import ChordTextEditor
+from chordnotepad.viewmodels.main_window_viewmodel import MainWindowViewModel
+from chordnotepad.viewmodels.text_editor_viewmodel import TextEditorViewModel
 
 
 def _has_display() -> bool:
@@ -62,7 +62,7 @@ def wired():
     editor.pack()
     # Only the editor is real; the other widgets the session's states map
     # to are stand-ins.
-    from ui.directive_hints import DirectiveHints
+    from chordnotepad_tk.directive_hints import DirectiveHints
 
     statusbar = Mock()
     window = SimpleNamespace(text_editor=editor, session=session, statusbar=statusbar,
@@ -241,8 +241,8 @@ def _playback_window(wired):
 
 
 def test_playing_state_highlights_and_scrolls_to_the_chord(wired):
-    from ui.theme import TAG_CHORD_PLAYING
-    from session.state import PlaybackState, PlaybackStatus
+    from chordnotepad_tk.theme import TAG_CHORD_PLAYING
+    from chordnotepad.session.state import PlaybackState, PlaybackStatus
 
     editor = wired.editor
     editor.insert("1.0", "\n" * 200 + "C  G")
@@ -264,7 +264,7 @@ def test_playing_state_highlights_and_scrolls_to_the_chord(wired):
 
 
 def test_editor_state_locks_the_editor(wired):
-    from session.state import EditorState
+    from chordnotepad.session.state import EditorState
 
     wired.window._apply_editor = lambda state: MainWindow._apply_editor(wired.window, state)
     wired.window.apply_font = lambda: None
@@ -342,7 +342,7 @@ def test_the_menu_commands_keep_the_cursor_where_it_was(wired, command, monkeypa
     editor.mark_set("insert", "2.3")
     if command == "open_transpose_dialog":
         dialog = SimpleNamespace(result=2)
-        monkeypatch.setattr("ui.main_window.TransposeDialog", lambda *a, **k: dialog)
+        monkeypatch.setattr("chordnotepad_tk.main_window.TransposeDialog", lambda *a, **k: dialog)
         wired.window.wait_window = lambda _dialog: None
         wired.window._selection_char_range = lambda: None
     getattr(MainWindow, command)(wired.window)
@@ -362,7 +362,7 @@ def test_inserted_text_is_a_plain_edit_with_the_cursor_after_it(wired):
 
 
 def test_a_reset_edit_clears_the_undo_history(wired):
-    from session.events import TextEdited, UndoPolicy
+    from chordnotepad.session.events import TextEdited, UndoPolicy
 
     editor = wired.editor
     _type(wired, "C G")
@@ -375,7 +375,7 @@ def test_a_reset_edit_clears_the_undo_history(wired):
 
 
 def test_an_edit_applies_while_the_editor_is_locked(wired):
-    from session.events import TextEdited, UndoPolicy
+    from chordnotepad.session.events import TextEdited, UndoPolicy
 
     editor = wired.editor
     editor.config(state=tk.DISABLED)
@@ -395,7 +395,7 @@ def _presenting_window(wired):
 
 
 def test_insert_directive_round_trip(wired):
-    from session.events import InsertDirectiveRequest
+    from chordnotepad.session.events import InsertDirectiveRequest
 
     editor = wired.editor
     _type(wired, "C G\n{label: verse}\nAm")
@@ -410,7 +410,7 @@ def test_insert_directive_round_trip(wired):
     assert request.existing_labels == ("verse",)
 
     dialog = SimpleNamespace(result={"label": "verse", "count": "2"})
-    with patch("ui.main_window.dialog_for_request", return_value=dialog) as make:
+    with patch("chordnotepad_tk.main_window.dialog_for_request", return_value=dialog) as make:
         MainWindow._present_directive_request(window, request)
     make.assert_called_once_with(window, request)
     assert editor.get_text() == "C G\n{label: verse}\n{loop: verse 2} Am"
@@ -423,7 +423,7 @@ def test_cancelled_directive_dialog_answers_none(wired):
     window = _presenting_window(wired)
     MainWindow._request_directive(window, "bpm")
     _, request = window.after_idle.call_args.args
-    with patch("ui.main_window.dialog_for_request",
+    with patch("chordnotepad_tk.main_window.dialog_for_request",
                return_value=SimpleNamespace(result=None)):
         MainWindow._present_directive_request(window, request)
     assert wired.editor.get_text() == "C G"
@@ -439,7 +439,7 @@ def test_insert_capo_round_trip(wired):
     MainWindow.insert_capo(window)
     _, request = window.after_idle.call_args.args
     assert request.kind == "capo"
-    with patch("ui.main_window.dialog_for_request",
+    with patch("chordnotepad_tk.main_window.dialog_for_request",
                return_value=SimpleNamespace(result={"capo": "3"}, suggest=False)):
         MainWindow._present_directive_request(window, request)
     assert wired.editor.get_text() == "{capo: 3} C G"
@@ -453,7 +453,7 @@ def test_insert_capo_suggest_hands_over_to_suggest_capo(wired):
     window._request_directive = lambda kind: MainWindow._request_directive(window, kind)
     MainWindow.insert_capo(window)
     _, request = window.after_idle.call_args.args
-    with patch("ui.main_window.dialog_for_request",
+    with patch("chordnotepad_tk.main_window.dialog_for_request",
                return_value=SimpleNamespace(result=None, suggest=True)):
         MainWindow._present_directive_request(window, request)
     assert wired.session.text == "C G"
@@ -461,8 +461,8 @@ def test_insert_capo_suggest_hands_over_to_suggest_capo(wired):
 
 
 def test_the_insert_capo_dialog(wired):
-    from session.events import InsertDirectiveRequest
-    from ui.dialogs.insert_directives import InsertCapoDialog, dialog_for_request
+    from chordnotepad.session.events import InsertDirectiveRequest
+    from chordnotepad_tk.dialogs.insert_directives import InsertCapoDialog, dialog_for_request
 
     request = InsertDirectiveRequest(1, "capo", (), "american")
     dialog = dialog_for_request(wired.root, request)
@@ -484,22 +484,22 @@ def test_tools_insert_menu_offers_capo():
 
 
 def test_capo_dialog_answers_with_the_chosen_voicing(wired):
-    from session.events import CapoChoiceRequest
-    from session.state import MenuItem
+    from chordnotepad.session.events import CapoChoiceRequest
+    from chordnotepad.session.state import MenuItem
 
     window = SimpleNamespace(wait_window=Mock(), session=Mock())
     request = CapoChoiceRequest(5, (MenuItem("Standard", "guitar:standard"),
                                     MenuItem("Drop D", "guitar:drop_d")), "guitar:drop_d",
                                 "Applies to the whole song.")
     dialog = SimpleNamespace(result="Standard")
-    with patch("ui.main_window.CapoDialog", return_value=dialog) as make:
+    with patch("chordnotepad_tk.main_window.CapoDialog", return_value=dialog) as make:
         MainWindow._present_capo_request(window, request)
     make.assert_called_once_with(window, ["Standard", "Drop D"], "Drop D",
                                  scope="Applies to the whole song.")
     window.session.respond.assert_called_once_with(5, "guitar:standard")
 
     dialog.result = None
-    with patch("ui.main_window.CapoDialog", return_value=dialog):
+    with patch("chordnotepad_tk.main_window.CapoDialog", return_value=dialog):
         MainWindow._present_capo_request(window, request)
     window.session.respond.assert_called_with(5, None)
 

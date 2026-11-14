@@ -7,7 +7,7 @@ import sys
 
 import pytest
 
-import audio.fluidsynth_import as loader
+import chordnotepad.audio.fluidsynth_import as loader
 
 
 def _real_library_path():

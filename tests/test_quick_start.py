@@ -4,10 +4,10 @@ import os
 
 import pytest
 
-from ui.theme import TAG_CHORD_VALID
-from models.line import LineType
-from services.song_parser_service import SongParserService
-from ui.dialogs.quick_start import QuickStartDialog
+from chordnotepad_tk.theme import TAG_CHORD_VALID
+from chordnotepad.models.line import LineType
+from chordnotepad.services.song_parser_service import SongParserService
+from chordnotepad_tk.dialogs.quick_start import QuickStartDialog
 
 
 def _snippets():

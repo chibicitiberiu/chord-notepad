@@ -1,4 +1,4 @@
-"""Headless tests for :mod:`ui.base.tooltip`.
+"""Headless tests for :mod:`chordnotepad_tk.base.tooltip`.
 
 All GUI assertions are guarded by ``pytest.importorskip('tkinter')`` and a
 ``root`` fixture that creates a hidden, withdrawn ``tk.Tk()`` root. If no
@@ -13,7 +13,7 @@ import pytest
 tk = pytest.importorskip('tkinter')
 from tkinter import ttk  # noqa: E402
 
-from ui.base.tooltip import (  # noqa: E402
+from chordnotepad_tk.base.tooltip import (  # noqa: E402
     ToolTip,
     add_tooltip,
     ensure_field_error_styles,

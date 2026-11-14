@@ -8,8 +8,8 @@ from pathlib import Path
 
 import pytest
 
-from session import formatting
-from session.platform import ANDROID, DESKTOP, PLATFORMS, check_platform, pick
+from chordnotepad.session import formatting
+from chordnotepad.session.platform import ANDROID, DESKTOP, PLATFORMS, check_platform, pick
 
 
 def test_platforms_and_pick():
@@ -32,10 +32,10 @@ def test_audio_unavailable_message_desktop_is_unchanged():
 
 
 def test_create_session_refuses_an_unknown_platform(tmp_path):
-    from services.appdata_service import AppDataService
-    from session.bootstrap import build_core_services, create_session
-    from session.host import HostDispatch
-    from session.testing import FakePlayer, InMemoryDocumentStore, ManualHost
+    from chordnotepad.services.appdata_service import AppDataService
+    from chordnotepad.session.bootstrap import build_core_services, create_session
+    from chordnotepad.session.host import HostDispatch
+    from chordnotepad.session.testing import FakePlayer, InMemoryDocumentStore, ManualHost
 
     host = ManualHost()
     services = build_core_services(AppDataService(root=tmp_path), HostDispatch(host),
@@ -59,8 +59,8 @@ def test_desktop_quick_start_is_the_dialogs_text_byte_for_byte():
     """The fixture is the Tk dialog's PAGES from before they moved to the core."""
     import json
 
-    from session import quick_start
-    from ui.dialogs.quick_start import QuickStartDialog
+    from chordnotepad.session import quick_start
+    from chordnotepad_tk.dialogs.quick_start import QuickStartDialog
 
     expected = json.loads(FIXTURE.read_text(encoding="utf-8"))
     assert _as_json(quick_start.pages()) == expected
@@ -69,7 +69,7 @@ def test_desktop_quick_start_is_the_dialogs_text_byte_for_byte():
 
 
 def test_android_quick_start_names_taps_and_the_drawer():
-    from session import quick_start
+    from chordnotepad.session import quick_start
 
     desktop, android = quick_start.pages(DESKTOP), quick_start.pages(ANDROID)
     assert [p["title"] for p in android] == [p["title"] for p in desktop]
@@ -89,7 +89,7 @@ def test_android_quick_start_names_taps_and_the_drawer():
 
 
 def test_android_quick_start_says_the_chord_sheet_is_in_play():
-    from session import quick_start
+    from chordnotepad.session import quick_start
 
     def sheet_text(platform):
         return next(b[1] for p in quick_start.pages(platform) for b in p["blocks"]
@@ -104,12 +104,12 @@ def test_android_quick_start_says_the_chord_sheet_is_in_play():
 
 
 def test_quick_start_content_carries_snippet_spans(tmp_path):
-    from services.appdata_service import AppDataService
-    from session.bootstrap import build_core_services, create_session
-    from session.events import QuickStartContent
-    from session.host import HostDispatch
-    from session.state import SpanKind
-    from session.testing import EventRecorder, FakePlayer, InMemoryDocumentStore, ManualHost
+    from chordnotepad.services.appdata_service import AppDataService
+    from chordnotepad.session.bootstrap import build_core_services, create_session
+    from chordnotepad.session.events import QuickStartContent
+    from chordnotepad.session.host import HostDispatch
+    from chordnotepad.session.state import SpanKind
+    from chordnotepad.session.testing import EventRecorder, FakePlayer, InMemoryDocumentStore, ManualHost
 
     host = ManualHost()
     services = build_core_services(AppDataService(root=tmp_path), HostDispatch(host),

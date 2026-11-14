@@ -11,12 +11,12 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from audio.guitar_chord_picker import GuitarChordPicker
-from models.playback_state import PlaybackState
-from services.capo_advisor import suggest_capo
-from services.capo_insert import insert_capo_directive
-from services.playback_service import PlaybackService
-from services.song_parser_service import SongParserService
+from chordnotepad.audio.guitar_chord_picker import GuitarChordPicker
+from chordnotepad.models.playback_state import PlaybackState
+from chordnotepad.services.capo_advisor import suggest_capo
+from chordnotepad.services.capo_insert import insert_capo_directive
+from chordnotepad.services.playback_service import PlaybackService
+from chordnotepad.services.song_parser_service import SongParserService
 
 
 def _service(voicings=None):

@@ -10,21 +10,21 @@ from types import SimpleNamespace
 
 import pytest
 
-from services.playback_service import PlaybackService
-from services.song_parser_service import SongParserService
-from session.events import TextEdited, UndoPolicy, UserError
-from session.highlighting import first_chord, nearest_chord
-from session.host import HostDispatch
-from session.platform import ANDROID, DESKTOP
-from session.session import AppSession, _shift_offset
-from session.state import (
+from chordnotepad.services.playback_service import PlaybackService
+from chordnotepad.services.song_parser_service import SongParserService
+from chordnotepad.session.events import TextEdited, UndoPolicy, UserError
+from chordnotepad.session.highlighting import first_chord, nearest_chord
+from chordnotepad.session.host import HostDispatch
+from chordnotepad.session.platform import ANDROID, DESKTOP
+from chordnotepad.session.session import AppSession, _shift_offset
+from chordnotepad.session.state import (
     ChordSheetState, PlaybackState, PlaybackStatus, SongDefault, SongDefaultsState, StatusState,
 )
-from session.testing import (
+from chordnotepad.session.testing import (
     EventRecorder, FakeChordSheet, FakePlayer, InMemoryDocumentStore, ManualHost,
 )
-from viewmodels.main_window_viewmodel import MainWindowViewModel
-from viewmodels.text_editor_viewmodel import TextEditorViewModel
+from chordnotepad.viewmodels.main_window_viewmodel import MainWindowViewModel
+from chordnotepad.viewmodels.text_editor_viewmodel import TextEditorViewModel
 
 #        0123456789012345678901234567
 SONG = "C   G\nla la\nAm  F\nlu lu"
@@ -654,7 +654,7 @@ def test_insert_capo_directive():
     request = env.session.pending_request
     assert request.kind == "capo"
     env.session.check_directive("capo", {"capo": "13"}, request.request_id)
-    from session.events import DirectiveCheck
+    from chordnotepad.session.events import DirectiveCheck
     check = env.recorder.last(DirectiveCheck)
     assert check.errors == {"capo": "The capo must be on a fret from 0 to 12 (0 means no capo)."}
     env.session.respond(request.request_id, {"capo": "3"})

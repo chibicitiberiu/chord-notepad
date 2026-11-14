@@ -10,15 +10,15 @@ from unittest.mock import Mock
 
 import pytest
 
-from services.playback_service import PlaybackService
-from services.song_parser_service import SongParserService
-from session import toolbar
-from session.host import HostDispatch
-from session.session import AppSession
-from session.state import HighlightState, PlayAction, ToolbarState
-from session.testing import EventRecorder, FakePlayer, InMemoryDocumentStore, ManualHost
-from viewmodels.main_window_viewmodel import MainWindowViewModel
-from viewmodels.text_editor_viewmodel import TextEditorViewModel
+from chordnotepad.services.playback_service import PlaybackService
+from chordnotepad.services.song_parser_service import SongParserService
+from chordnotepad.session import toolbar
+from chordnotepad.session.host import HostDispatch
+from chordnotepad.session.session import AppSession
+from chordnotepad.session.state import HighlightState, PlayAction, ToolbarState
+from chordnotepad.session.testing import EventRecorder, FakePlayer, InMemoryDocumentStore, ManualHost
+from chordnotepad.viewmodels.main_window_viewmodel import MainWindowViewModel
+from chordnotepad.viewmodels.text_editor_viewmodel import TextEditorViewModel
 
 
 # -- pure value logic ------------------------------------------------------------
@@ -294,7 +294,7 @@ def test_whole_song_transpose_moves_the_toolbar_key():
 
 
 def test_tk_toolbar_maps_the_state():
-    from ui.main_window import MainWindow
+    from chordnotepad_tk.main_window import MainWindow
 
     class Combo(dict):
         def configure(self, **options):
@@ -339,7 +339,7 @@ def test_tk_toolbar_maps_the_state():
 
 
 def test_tk_toolbar_sends_commands():
-    from ui.main_window import MainWindow
+    from chordnotepad_tk.main_window import MainWindow
 
     window = SimpleNamespace(session=Mock(), key_var=Mock(), time_sig_beats_var=Mock(),
                              time_sig_unit_var=Mock())

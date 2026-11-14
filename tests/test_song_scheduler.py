@@ -8,10 +8,10 @@ tick note-offs are played before note-ons.
 
 import pytest
 
-from audio.song_scheduler import (
+from chordnotepad.audio.song_scheduler import (
     CLICK_TICKS, LOOKAHEAD_TICKS, MAX_WAIT_TICKS, START_LEAD_TICKS, ClickSound, SongScheduler,
 )
-from models.playback_event_internal import MidiEvent, MidiEventType
+from chordnotepad.models.playback_event_internal import MidiEvent, MidiEventType
 
 SONG = 5
 CLICK = ClickSound()

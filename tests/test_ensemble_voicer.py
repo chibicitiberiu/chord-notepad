@@ -11,9 +11,9 @@ to a defensible bound rather than the exact voicing.
 import pytest
 from collections import Counter
 
-from audio.ensemble_voicer import EnsembleVoicer
-from models.ensemble_spec import BUILTIN_ENSEMBLES, EnsembleSpec, VoiceSpec
-from models.chord_notes import ChordNotes
+from chordnotepad.audio.ensemble_voicer import EnsembleVoicer
+from chordnotepad.models.ensemble_spec import BUILTIN_ENSEMBLES, EnsembleSpec, VoiceSpec
+from chordnotepad.models.chord_notes import ChordNotes
 
 
 # ---------------------------------------------------------------------------
@@ -397,7 +397,7 @@ def test_ensembles_omit_the_fifth_first(spec, chord, kept, dropped):
 
 
 def test_ensemble_omission_defaults_differ_from_the_piano():
-    from models.ensemble_spec import DEFAULT_WEIGHTS
+    from chordnotepad.models.ensemble_spec import DEFAULT_WEIGHTS
     omit = DEFAULT_WEIGHTS['omit']
     # Cheapest to drop first: fifth, then extension, then root.
     assert omit['fifth'] > omit['extension'] > omit['root']

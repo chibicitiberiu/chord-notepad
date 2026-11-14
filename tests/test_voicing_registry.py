@@ -28,11 +28,11 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from services.playback_service import PlaybackService
-from services.config_service import ConfigService
-from models.config import Config
-from models.ensemble_spec import BUILTIN_ENSEMBLES
-from models.fretboard_spec import BUILTIN_FRETBOARDS
+from chordnotepad.services.playback_service import PlaybackService
+from chordnotepad.services.config_service import ConfigService
+from chordnotepad.models.config import Config
+from chordnotepad.models.ensemble_spec import BUILTIN_ENSEMBLES
+from chordnotepad.models.fretboard_spec import BUILTIN_FRETBOARDS
 
 
 CUSTOM_TUNING = [40, 45, 50, 55, 59, 64]
@@ -54,7 +54,7 @@ def _install_stub_ensemble_voicer_module():
     with, so tests can assert on resolution without needing the real
     (concurrently-developed) voicing engine.
     """
-    stub = ModuleType("audio.ensemble_voicer")
+    stub = ModuleType("chordnotepad.audio.ensemble_voicer")
 
     class _StubEnsembleVoicer:
         def __init__(self, spec):
@@ -75,7 +75,7 @@ def _install_stub_ensemble_voicer_module():
             pass
 
     stub.EnsembleVoicer = _StubEnsembleVoicer
-    return patch.dict(sys.modules, {"audio.ensemble_voicer": stub}), stub
+    return patch.dict(sys.modules, {"chordnotepad.audio.ensemble_voicer": stub}), stub
 
 
 # ---------------------------------------------------------------------------
@@ -234,7 +234,7 @@ def playback_service(mock_config):
 
 def test_broken_configured_voicing_at_startup_falls_back_to_piano(mock_config):
     """A saved voicing that no longer builds must not crash the service's constructor."""
-    from audio.chord_picker import ChordNotePicker
+    from chordnotepad.audio.chord_picker import ChordNotePicker
 
     mock_config._store["voicings"] = {"broken": {"model": "fretboard"}}
     mock_config._store["voicing"] = "voicing:broken"
@@ -252,7 +252,7 @@ class TestRegistryDispatchFretboard:
             "my_tuning": {"model": "fretboard", "tuning": CUSTOM_TUNING}
         }
         sentinel = Mock(name="picker")
-        with patch("services.playback_service.GuitarChordPicker", return_value=sentinel) as mock_cls:
+        with patch("chordnotepad.services.playback_service.GuitarChordPicker", return_value=sentinel) as mock_cls:
             picker = playback_service._create_note_picker("voicing:my_tuning")
 
         assert picker is sentinel
@@ -263,7 +263,7 @@ class TestRegistryDispatchFretboard:
         assert tuple(spec_arg.tuning) == tuple(CUSTOM_TUNING)
 
     def test_invalid_fretboard_params_falls_back_to_piano(self, playback_service, mock_config, caplog):
-        from audio.chord_picker import ChordNotePicker
+        from chordnotepad.audio.chord_picker import ChordNotePicker
 
         # Missing required 'tuning' key -> FretboardSpec.from_dict raises ConfigurationError.
         mock_config._store["voicings"] = {"broken": {"model": "fretboard"}}
@@ -291,7 +291,7 @@ class TestRegistryDispatchEnsemble:
         assert len(picker.spec.voices) == 3
 
     def test_invalid_ensemble_params_falls_back_to_piano(self, playback_service, mock_config, caplog):
-        from audio.chord_picker import ChordNotePicker
+        from chordnotepad.audio.chord_picker import ChordNotePicker
 
         # Missing required 'voices' key -> EnsembleSpec.from_dict raises ConfigurationError.
         mock_config._store["voicings"] = {"broken": {"model": "ensemble", "label": "Broken"}}
@@ -307,7 +307,7 @@ class TestRegistryDispatchPiano:
     """'voicing:<name>' entries with model 'piano'."""
 
     def test_bare_piano_builds_default_picker(self, playback_service, mock_config):
-        from audio.chord_picker import ChordNotePicker
+        from chordnotepad.audio.chord_picker import ChordNotePicker
 
         # A bare {'model': 'piano'} entry resolves to the default piano spec,
         # named after the voicing.
@@ -320,7 +320,7 @@ class TestRegistryDispatchPiano:
         assert picker.HAND_SPAN_SEMITONES == 14  # default reproduced
 
     def test_custom_piano_params_flow_into_spec(self, playback_service, mock_config):
-        from audio.chord_picker import ChordNotePicker
+        from chordnotepad.audio.chord_picker import ChordNotePicker
 
         mock_config._store["voicings"] = {
             "tight": {
@@ -341,7 +341,7 @@ class TestRegistryDispatchPiano:
         assert picker.add_bass is False
 
     def test_invalid_piano_params_falls_back_to_piano(self, playback_service, mock_config, caplog):
-        from audio.chord_picker import ChordNotePicker
+        from chordnotepad.audio.chord_picker import ChordNotePicker
 
         # A range with low >= high -> PianoSpec.from_dict raises ConfigurationError.
         mock_config._store["voicings"] = {"broken": {"model": "piano", "lh_range": ["C3", "C1"]}}
@@ -358,7 +358,7 @@ class TestRegistryDispatchFallbacks:
     """Unknown voicing name / unknown model both fall back to piano with a warning."""
 
     def test_unknown_name_falls_back_to_piano(self, playback_service, caplog):
-        from audio.chord_picker import ChordNotePicker
+        from chordnotepad.audio.chord_picker import ChordNotePicker
 
         with caplog.at_level("WARNING"):
             picker = playback_service._create_note_picker("voicing:nonexistent")
@@ -367,7 +367,7 @@ class TestRegistryDispatchFallbacks:
         assert any("nonexistent" in r.message for r in caplog.records)
 
     def test_unknown_model_falls_back_to_piano(self, playback_service, mock_config, caplog):
-        from audio.chord_picker import ChordNotePicker
+        from chordnotepad.audio.chord_picker import ChordNotePicker
 
         mock_config._store["voicings"] = {"weird": {"model": "banjo_hero"}}
 
@@ -383,20 +383,20 @@ class TestGuitarPrefixBuiltinsOnly:
 
     def test_ukulele_resolves_via_builtins(self, playback_service):
         sentinel = Mock(name="picker")
-        with patch("services.playback_service.GuitarChordPicker", return_value=sentinel) as mock_cls:
+        with patch("chordnotepad.services.playback_service.GuitarChordPicker", return_value=sentinel) as mock_cls:
             picker = playback_service._create_note_picker("guitar:ukulele")
 
         assert picker is sentinel
         mock_cls.assert_called_once_with(BUILTIN_FRETBOARDS["ukulele"])
 
     def test_all_builtin_fretboard_keys_resolve(self, playback_service):
-        with patch("services.playback_service.GuitarChordPicker") as mock_cls:
+        with patch("chordnotepad.services.playback_service.GuitarChordPicker") as mock_cls:
             for key in BUILTIN_FRETBOARDS:
                 playback_service._create_note_picker(f"guitar:{key}")
                 mock_cls.assert_called_with(BUILTIN_FRETBOARDS[key])
 
     def test_unknown_guitar_name_falls_back_to_standard_with_warning(self, playback_service, caplog):
-        with patch("services.playback_service.GuitarChordPicker") as mock_cls:
+        with patch("chordnotepad.services.playback_service.GuitarChordPicker") as mock_cls:
             with caplog.at_level("WARNING"):
                 playback_service._create_note_picker("guitar:nonexistent")
 
@@ -418,7 +418,7 @@ class TestEnsemblePrefixBuiltinsOnly:
     def test_unknown_ensemble_falls_back_to_piano_even_if_registered_as_voicing(
         self, playback_service, mock_config, caplog
     ):
-        from audio.chord_picker import ChordNotePicker
+        from chordnotepad.audio.chord_picker import ChordNotePicker
 
         # Registering "my_trio" in the new voicings registry must NOT make it
         # resolvable through the legacy 'ensemble:' prefix anymore -- only

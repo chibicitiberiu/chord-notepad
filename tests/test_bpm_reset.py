@@ -7,9 +7,9 @@ its first ``{bpm}`` into the toolbar; typing it in doesn't).
 """
 import pytest
 
-from audio.chord_picker import ChordNotePicker
-from services.song_parser_service import SongParserService
-from services.song_renderer import SongRenderer
+from chordnotepad.audio.chord_picker import ChordNotePicker
+from chordnotepad.services.song_parser_service import SongParserService
+from chordnotepad.services.song_renderer import SongRenderer
 
 SONG = "{bpm: 100}\nC\n{bpm: 160}\nG\n{bpm: reset}\nAm"
 

@@ -7,12 +7,12 @@ Includes property-based testing with Hypothesis for fuzzing
 import pytest
 from hypothesis import given, strategies as st, settings
 from typing import List, Set
-from models.chord_notes import ChordNotes
-from audio.chord_picker import ChordNotePicker
-from audio.guitar_chord_picker import GuitarChordPicker
-from chord.helper import ChordHelper
-from services.song_renderer import SongRenderer
-from services.song_parser_service import SongParserService
+from chordnotepad.models.chord_notes import ChordNotes
+from chordnotepad.audio.chord_picker import ChordNotePicker
+from chordnotepad.audio.guitar_chord_picker import GuitarChordPicker
+from chordnotepad.chord.helper import ChordHelper
+from chordnotepad.services.song_renderer import SongRenderer
+from chordnotepad.services.song_parser_service import SongParserService
 
 # Reproducible-seed behavior is provided by the "default" Hypothesis profile in
 # tests/conftest.py (derandomize=True). Per-test @seed decorators are not needed.
@@ -34,7 +34,7 @@ def normalize_note(note: str) -> str:
     and double accidentals (C## -> D, Cbb -> A#). Unparseable input is returned
     unchanged so error messages stay readable.
     """
-    from chord.midi_converter import parse_note_to_semitone
+    from chordnotepad.chord.midi_converter import parse_note_to_semitone
     semitone = parse_note_to_semitone(note)
     if semitone is None:
         return note
@@ -507,7 +507,7 @@ class TestExtensionRegister:
         for these chords (the extension pitch classes are distinct from the core
         ones).
         """
-        from chord.midi_converter import intervals_from_note_names, parse_note_to_semitone
+        from chordnotepad.chord.midi_converter import intervals_from_note_names, parse_note_to_semitone
         midi = picker.chord_to_midi(chord_notes)
         assert len(midi) > 1
         voicing = sorted(midi)[1:]  # strip the low bass
@@ -1288,7 +1288,7 @@ class TestPianoRootOverSlashBass:
 
     def test_slash_power_chord_keeps_root_after_a_major(self):
         """G#5/C following A2|A3 C#4 E4 still sounds the G#."""
-        from audio.chord_picker import ChordPickerState
+        from chordnotepad.audio.chord_picker import ChordPickerState
         picker = ChordNotePicker()
         picker.state = ChordPickerState(previous_chord_midi=[45, 57, 61, 64],
                                         previous_chord_notes=['A', 'C#', 'E'])

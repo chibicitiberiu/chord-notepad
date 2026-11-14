@@ -35,11 +35,11 @@ import threading
 import time
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-sys.path.insert(0, os.path.join(ROOT, "src"))
+sys.path.insert(0, os.path.join(ROOT, "core"))
 
-from audio.audio_options import AudioOptions  # noqa: E402
-from audio.event_buffer import EventBuffer  # noqa: E402
-from models.playback_event_internal import MidiEvent, MidiEventType  # noqa: E402
+from chordnotepad.audio.audio_options import AudioOptions  # noqa: E402
+from chordnotepad.audio.event_buffer import EventBuffer  # noqa: E402
+from chordnotepad.models.playback_event_internal import MidiEvent, MidiEventType  # noqa: E402
 
 SAMPLE_RATE = 44100
 WOODBLOCK = 115  # GM program: short, sharp attack, decays in well under 250 ms
@@ -73,7 +73,7 @@ def make_old_player(path: str, raw: str):
     spec = importlib.util.spec_from_file_location("old_player", path)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
-    from audio.fluidsynth_import import fluidsynth
+    from chordnotepad.audio.fluidsynth_import import fluidsynth
 
     player = module.NotePlayer.__new__(module.NotePlayer)
     # Run __init__ with FluidSynth setup replaced, then set the synth up here.
@@ -92,7 +92,7 @@ def make_old_player(path: str, raw: str):
 
 
 def make_new_player(raw: str):
-    from audio.player import NotePlayer
+    from chordnotepad.audio.player import NotePlayer
 
     options = AudioOptions(driver="file", settings={"audio.file.name": raw, "audio.file.type": "raw"})
     player = NotePlayer(soundfont_path=os.path.join(ROOT, "resources/soundfont/GeneralUser-GS.sf2"),

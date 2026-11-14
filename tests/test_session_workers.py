@@ -4,8 +4,8 @@ import threading
 
 import pytest
 
-from session.testing import ManualHost
-from session.workers import BackgroundWorker, Outcome
+from chordnotepad.session.testing import ManualHost
+from chordnotepad.session.workers import BackgroundWorker, Outcome
 
 
 def settle(worker, host):

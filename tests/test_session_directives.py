@@ -2,8 +2,8 @@
 
 import pytest
 
-from services.song_parser_service import SongParserService
-from session.directives import (
+from chordnotepad.services.song_parser_service import SongParserService
+from chordnotepad.session.directives import (
     DirectiveProblem, InvalidDirective, build_directive, check_directive, existing_labels,
     loop_label_choices,
 )
@@ -81,7 +81,7 @@ def _signature(key):
 
 
 def test_the_insert_key_list_is_every_key_with_a_signature():
-    from session.toolbar import insert_key_options
+    from chordnotepad.session.toolbar import insert_key_options
 
     keys = insert_key_options("american")
     roots = [r + a for r in _LETTERS for a in ("", "#", "b")]
@@ -94,8 +94,8 @@ def test_the_insert_key_list_is_every_key_with_a_signature():
 
 
 def test_the_european_insert_key_list_is_the_american_one_respelled():
-    from chord.converter import NotationConverter
-    from session.toolbar import insert_key_options
+    from chordnotepad.chord.converter import NotationConverter
+    from chordnotepad.session.toolbar import insert_key_options
 
     converter = NotationConverter()
     american, european = insert_key_options("american"), insert_key_options("european")
@@ -104,7 +104,7 @@ def test_the_european_insert_key_list_is_the_american_one_respelled():
 
 @pytest.mark.parametrize("notation", ["american", "european"])
 def test_every_insert_key_makes_a_valid_key_directive(notation):
-    from session.toolbar import insert_key_options
+    from chordnotepad.session.toolbar import insert_key_options
 
     parser = SongParserService()
     for key in insert_key_options(notation):

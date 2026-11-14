@@ -10,9 +10,9 @@ Each test builds a song from ChordPro-ish text via ``SongParserService`` (so the
 directive/loop machinery is exercised exactly as in production) and asserts on
 ``RenderedSong.markers``.
 """
-from audio.chord_picker import ChordNotePicker
-from services.song_parser_service import SongParserService
-from services.song_renderer import SongRenderer
+from chordnotepad.audio.chord_picker import ChordNotePicker
+from chordnotepad.services.song_parser_service import SongParserService
+from chordnotepad.services.song_renderer import SongRenderer
 
 
 def _render(text, *, initial_bpm=120, initial_time_sig=(4, 4), initial_key="C"):

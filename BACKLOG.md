@@ -21,15 +21,15 @@ it's done (git history keeps it); release mechanics live in `docs/RELEASE.md`.
 - CI signing isolation: Windows signing in its own job that alone holds `id-token: write`; Android signing in a minimal job after an unsigned build; Gradle dependency verification.
 - Local signing (`docs/RELEASE.md`, "Signing locally"): read passwords in a subshell, accept them from the environment only (not `-P`), fail when `cnSigning=upload|foss` meets the configuration cache.
 - Local MSIX test recipe (`docs/RELEASE.md`): import only the `.cer`, not the PFX with its private key, and clean up afterwards, as `smoke_test.ps1` does.
-- Desktop file I/O: atomic save (temp file and `os.replace`) and a 5 MB cap, as on Android (`src/services/file_service.py:38,73`).
+- Desktop file I/O: atomic save (temp file and `os.replace`) and a 5 MB cap, as on Android (`core/chordnotepad/services/file_service.py:38,73`).
 - Flatpak: serve the guide from the app's cache dir through the OpenURI portal and drop `--share=network`.
 - Fast tests: Hypothesis `dev`/`ci` profiles in `tests/conftest.py` (three fuzz tests in `test_chord_pickers.py` take 99 of 184 s), patch `_create_sequencer` in `test_user_facing_errors.py::test_no_audio_driver_raises` (9.4 s), `make test-fast`, pytest-xdist with `-n 4`.
 - Replace sleep-based timing tests (`test_playback_service.py`, `test_playback_stop.py`, `test_session_threaded_host.py`) with `ManualHost` or event waits.
-- ruff (`check --select F,E722,B`) in dev-packages, CI and pre-commit; fix the bare `except:` in `src/chord/helper.py` and `src/application.py:373`, the duplicate `set_instrument` in `playback_service.py`, and the other pyflakes findings.
+- ruff (`check --select F,E722,B`) in dev-packages, CI and pre-commit; fix the bare `except:` in `core/chordnotepad/chord/helper.py` and `desktop/chordnotepad_tk/application.py:373`, the duplicate `set_instrument` in `playback_service.py`, and the other pyflakes findings.
 - Safe Makefile: `.DEFAULT_GOAL := help` with a `help` target (bare `make` launches the GUI today), and `make check` = lint + test + docs-check.
 - pytest 7.4 to 8.x (7.4 predates Python 3.14).
-- Desktop output dispatch: `MainWindow._on_session_output` (`src/ui/main_window.py:338-381`) drops unknown types silently. A type→handler dict, an explicit "ignored on desktop" set and a test that covers every bridge output.
-- Limits in one place: BPM, speed, beats and transpose ranges are repeated in `main_window_viewmodel.py:586,613`, `ui/dialogs/options_dialog.py:21-22` and Kotlin (`SheetRoute.kt`, `ToolForms.kt`, `ScrubberMath.kt`, `SettingsDraft.kt`). Use `constants.py` and publish them over the bridge.
+- Desktop output dispatch: `MainWindow._on_session_output` (`desktop/chordnotepad_tk/main_window.py:338-381`) drops unknown types silently. A type→handler dict, an explicit "ignored on desktop" set and a test that covers every bridge output.
+- Limits in one place: BPM, speed, beats and transpose ranges are repeated in `main_window_viewmodel.py:586,613`, `chordnotepad_tk/dialogs/options_dialog.py:21-22` and Kotlin (`SheetRoute.kt`, `ToolForms.kt`, `ScrubberMath.kt`, `SettingsDraft.kt`). Use `constants.py` and publish them over the bridge.
 - Bridge contract test (`BridgeSchemaContractTest.kt`): fail instead of `assumeTrue` when the schema is missing; compare types, nullability and command argument shapes.
 - A stress test for `AppSession.chord_sheet_buffer` packing on a second thread while the session re-feeds (renderers are assumed pure, unchecked).
 - `tests/test_android_requirements.py`: compare versions with `Pipfile.lock`, not just names (allow-list chardet).
@@ -46,13 +46,13 @@ it's done (git history keeps it); release mechanics live in `docs/RELEASE.md`.
   - Edit/Play modes: `ModeController.kt` and a `PlayerState` move into the session; header, ribbon, player, Play-mode keys, Tools merged into Edit; help and screenshots;
   - theme and feedback: tokens shared with `AppTheme.kt`, System/Light/Dark, rasterised MDI icons, a session `Notice` event, inline validation in the Insert dialogs;
   - layout: chord sheet beside or below, per-mode visibility, settings summaries, an empty-song hint, Help › Open Example. Stay on Tk; spike PySide6 only if theming or DPI still hurt.
-- Split `AppSession` (`src/session/session.py`, 2,548 lines) into per-area components, with one observer-registration helper that shutdown mirrors.
+- Split `AppSession` (`core/chordnotepad/session/session.py`, 2,548 lines) into per-area components, with one observer-registration helper that shutdown mirrors.
 - Then move value ownership (text, document, toolbar, playback) from `MainWindowViewModel` into the session, one value at a time.
 - Desktop Settings and Chord Identifier onto the session paths (`SettingsEdit`, `identifier_*`); `ConfigService` emits changed keys instead of the per-command re-read.
-- Repo layout: all sources under `src/` (Tibi, 2026-10-31), split by layer rather than by store (e.g. `src/core/`, `src/desktop/`, with the Android app's sources there too if Gradle allows), desktop-only `utils/` modules into the desktop tree, the spec and `hooks/` into `packaging/pyinstaller/`. To be planned as its own step, after the reviews; one change at a time.
+- Repo layout, the rest: the spec and `hooks/` into `packaging/pyinstaller/` (the code itself is split by layer since the move to `core/chordnotepad/` and `desktop/chordnotepad_tk/`).
 - Build consolidation: `scripts/make_icons.py`, `scripts/gen_build_info.py` (untracked output), `scripts/bump_version.py` shared by Make and CI; a composite setup action and venv cache; `build.yml` split into `ci.yml`, `release.yml` and reusable workflows; drop the tag-push release path and RELEASE.md's "Quick Release Guide".
 - pipenv to `pyproject.toml` + uv, generating `android/docs-requirements.txt` from a dependency group.
-- Type and lint more: mypy on `session` and `models`, ktlint, hints and docstrings in `ui/chord_identifier.py`, `ui/chord_sheet/panel.py`, `voicings_page.py`, `insert_directives.py`.
+- Type and lint more: mypy on `session` and `models`, ktlint, hints and docstrings in `chordnotepad_tk/chord_identifier.py`, `chordnotepad_tk/chord_sheet/panel.py`, `voicings_page.py`, `insert_directives.py`.
 - Compose hygiene: `collectAsStateWithLifecycle`, the rename flow out of `SongScreen.kt` into a controller, no per-gesture `Log.i` in `ChordSheetPane.kt`.
 - Android UI tests (`androidTest`, Compose) for `SongScreen`, `ChordSheetPane` and `ChordEditor`.
 - Test cleanup: shared `parser()` fixture instead of five copies, no `sys.path.insert` in tests, mock-plumbing tests asserting on `EventRecorder` states.

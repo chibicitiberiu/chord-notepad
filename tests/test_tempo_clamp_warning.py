@@ -5,12 +5,12 @@ Each rendered chord carries ``tempo_clamp``: ``(bpm, line)`` of the clamped
 directive whose tempo it plays at, or None."""
 import pytest
 
-from audio.chord_picker import ChordNotePicker
-from services.song_parser_service import SongParserService
-from services.song_renderer import SongRenderer
-from session import formatting
-from session.platform import ANDROID, DESKTOP
-from session.state import StatusState
+from chordnotepad.audio.chord_picker import ChordNotePicker
+from chordnotepad.services.song_parser_service import SongParserService
+from chordnotepad.services.song_renderer import SongRenderer
+from chordnotepad.session import formatting
+from chordnotepad.session.platform import ANDROID, DESKTOP
+from chordnotepad.session.state import StatusState
 
 
 def _render(text, bpm=120, start_line_index=0):

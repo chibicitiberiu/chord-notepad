@@ -1,7 +1,7 @@
 """Tests for the Pillow-free clef asset API shared with Android.
 
 ``chord_sheet.clef_assets`` holds the embedded PNGs, the placement math and the
-image-key grammar; ``ui.chord_sheet.clef_images`` (Pillow) only decodes. These
+image-key grammar; ``chordnotepad_tk.chord_sheet.clef_images`` (Pillow) only decodes. These
 check the shared half and the Android export tool built on it.
 """
 
@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pytest
 
-from chord_sheet import clef_assets as ca
+from chordnotepad.chord_sheet import clef_assets as ca
 
 _PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
 _EXPORT_TOOL = Path(__file__).parent.parent / "android" / "tools" / "export_clef_glyphs.py"

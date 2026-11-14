@@ -17,26 +17,26 @@ from pathlib import Path
 
 import pytest
 
-from services.appdata_service import AppDataService
-from session import bridge, errors
-from session.bootstrap import build_core_services, create_session
-from session.bridge import (
+from chordnotepad.services.appdata_service import AppDataService
+from chordnotepad.session import bridge, errors
+from chordnotepad.session.bootstrap import build_core_services, create_session
+from chordnotepad.session.bridge import (
     BridgeError, ErrorEvents, SessionBridge, decode_args, dispatch, encode, schema_json,
 )
-from session.documents import DocumentRef
-from session.events import (
+from chordnotepad.session.documents import DocumentRef
+from chordnotepad.session.events import (
     CloseApproved, ConfirmDiscardRequest, DiscardChoice, PickDocumentRequest, PickMode,
     TextEdited, UndoPolicy, UnexpectedError,
 )
-from session.host import HostDispatch
-from session.session import AppSession
-from session.settings import SettingsValues
-from session.state import (
+from chordnotepad.session.host import HostDispatch
+from chordnotepad.session.session import AppSession
+from chordnotepad.session.settings import SettingsValues
+from chordnotepad.session.state import (
     DocumentState, HighlightState, MenuItem, PlaybackState, PlaybackStatus, Span, SpanKind,
     VoicingMenuState,
 )
-from session.testing import FakePlayer, InMemoryDocumentStore
-from session.threaded_host import ThreadedHost
+from chordnotepad.session.testing import FakePlayer, InMemoryDocumentStore
+from chordnotepad.session.threaded_host import ThreadedHost
 
 ROOT = Path(__file__).parent.parent
 SCHEMA_PATH = ROOT / "android" / "bridge_schema.json"
@@ -164,7 +164,7 @@ def test_every_command_kotlin_sends_is_known():
 def test_committed_schema_is_current():
     assert SCHEMA_PATH.read_text(encoding="utf-8") == schema_json(), (
         "android/bridge_schema.json is stale; regenerate it with "
-        "`cd src && python -m session.bridge --schema > ../android/bridge_schema.json`")
+        "`cd core && python -m chordnotepad.session.bridge --schema > ../android/bridge_schema.json`")
 
 
 def test_schema_describes_every_dto_and_command():

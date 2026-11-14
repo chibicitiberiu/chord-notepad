@@ -7,7 +7,7 @@ needs a display, so that check is skipped gracefully when Tk cannot open a root
 
 import pytest
 
-from chord_sheet.ops import (
+from chordnotepad.chord_sheet.ops import (
     DrawOps,
     RectOp,
     LineOp,
@@ -16,7 +16,7 @@ from chord_sheet.ops import (
     TextOp,
     ImageOp,
 )
-from ui.chord_sheet.tk_replay import replay
+from chordnotepad_tk.chord_sheet.tk_replay import replay
 
 
 def test_records_ops_in_call_order():

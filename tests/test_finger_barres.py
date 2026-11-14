@@ -15,8 +15,8 @@ standard grips become candidates, and variants a hand can't hold stay out.
 
 import pytest
 
-from audio.guitar_chord_picker import GuitarChordPicker
-from models.fretboard_spec import BUILTIN_FRETBOARDS, FretboardSpec
+from chordnotepad.audio.guitar_chord_picker import GuitarChordPicker
+from chordnotepad.models.fretboard_spec import BUILTIN_FRETBOARDS, FretboardSpec
 
 _NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
 _NINTH = [0, 4, 7, 10, 2]

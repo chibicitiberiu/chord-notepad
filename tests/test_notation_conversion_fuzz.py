@@ -13,9 +13,9 @@ import re
 import pytest
 from hypothesis import assume, given, settings, strategies as st
 
-from chord.detector import ChordDetector
-from services.aligned_rewrite import FILL
-from services.song_parser_service import SongParserService
+from chordnotepad.chord.detector import ChordDetector
+from chordnotepad.services.aligned_rewrite import FILL
+from chordnotepad.services.song_parser_service import SongParserService
 from tests.test_transpose_exhaustive import BASSES, ROOTS, notes_of, spell
 from tests.test_transpose_fuzz import _QUALITIES, absolute_chords, chords, songs
 

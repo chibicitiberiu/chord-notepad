@@ -4,8 +4,9 @@
 The staff view's image ops carry keys like ``clef_treble:96`` or
 ``glyph_accidental_sharp:40:3a5a8a`` (see ``docs/ANDROID.md``, "Chord sheet op
 buffer"). Kotlin draws them from the seven base PNGs embedded in
-``src/chord_sheet/clef_assets.py``: the part before the first ``:`` names the
-file, the height scales it and the optional colour tints the black ink.
+``core/chordnotepad/chord_sheet/clef_assets.py``: the part before the first
+``:`` names the file, the height scales it and the optional colour tints the
+black ink.
 
 Writes ``<asset>.png`` for each base asset plus ``glyphs.json``
 (``{"version": 1, "assets": {name: {"width": w, "height": h}}}``) into
@@ -13,7 +14,7 @@ Writes ``<asset>.png`` for each base asset plus ``glyphs.json``
 Output is byte-for-byte deterministic. The Gradle task ``exportClefGlyphs``
 runs this into generated assets under ``chord_sheet/``.
 
-Usage: python3 -I export_clef_glyphs.py --out-dir DIR [--src REPO/src]
+Usage: python3 -I export_clef_glyphs.py --out-dir DIR [--core REPO/core]
 """
 
 import argparse
@@ -21,19 +22,19 @@ import json
 import sys
 from pathlib import Path
 
-DEFAULT_SRC = Path(__file__).resolve().parents[2] / "src"
+DEFAULT_CORE = Path(__file__).resolve().parents[2] / "core"
 
 
 def main(argv=None) -> int:
     """Write the base PNGs and their size index into ``--out-dir``."""
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--out-dir", required=True, type=Path)
-    parser.add_argument("--src", type=Path, default=DEFAULT_SRC,
-                        help="the shared core's src/ directory")
+    parser.add_argument("--core", type=Path, default=DEFAULT_CORE,
+                        help="the folder holding the shared core's chordnotepad package")
     args = parser.parse_args(argv)
 
-    sys.path.insert(0, str(args.src.resolve()))
-    from chord_sheet.clef_assets import base_glyph_pngs, base_size
+    sys.path.insert(0, str(args.core.resolve()))
+    from chordnotepad.chord_sheet.clef_assets import base_glyph_pngs, base_size
 
     out = args.out_dir
     out.mkdir(parents=True, exist_ok=True)

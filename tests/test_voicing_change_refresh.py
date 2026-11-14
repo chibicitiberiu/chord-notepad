@@ -9,13 +9,13 @@ voicing's fingerings until the song text changed.
 
 from unittest.mock import MagicMock, Mock
 
-from services.config_service import ConfigService
-from services.song_parser_service import SongParserService
-from session.host import HostDispatch
-from session.session import AppSession
-from session.testing import FakeChordSheet, ManualHost
-from viewmodels.main_window_viewmodel import MainWindowViewModel
-from viewmodels.text_editor_viewmodel import TextEditorViewModel
+from chordnotepad.services.config_service import ConfigService
+from chordnotepad.services.song_parser_service import SongParserService
+from chordnotepad.session.host import HostDispatch
+from chordnotepad.session.session import AppSession
+from chordnotepad.session.testing import FakeChordSheet, ManualHost
+from chordnotepad.viewmodels.main_window_viewmodel import MainWindowViewModel
+from chordnotepad.viewmodels.text_editor_viewmodel import TextEditorViewModel
 
 
 def _make_vm(audio=None, application=None):

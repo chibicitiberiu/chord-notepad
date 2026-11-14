@@ -23,7 +23,7 @@ sys.path.insert(0, str(REPO / "packaging" / "flatpak"))
 
 import gather_texts  # noqa: E402
 import licence_inventory as inv  # noqa: E402
-from services import licence_catalog as cat  # noqa: E402
+from chordnotepad.services import licence_catalog as cat  # noqa: E402
 
 LICENSES = REPO / "resources" / "licenses"
 DATA = json.loads((LICENSES / "components.json").read_text(encoding="utf-8"))
@@ -269,7 +269,7 @@ def test_classify_maps_files_to_components():
         ("json", "/py/Lib/json/__init__.py", "PYMODULE"),
         ("PIL._imaging", "/site/PIL/_imaging.pyd", "EXTENSION"),
         ("pillow.libs/libjpeg.dll", "/site/pillow.libs/libjpeg.dll", "BINARY"),
-        ("main", "/repo/src/main.py", "PYSOURCE"),
+        ("main", "/repo/desktop/chordnotepad_tk/main.py", "PYSOURCE"),
         ("resources/soundfont/GeneralUser-GS.sf2", "/repo/resources/soundfont/GeneralUser-GS.sf2", "DATA"),
         ("resources/icon-32.png", "/repo/resources/icon-32.png", "DATA"),
         ("help/build/html/index.html", "/repo/help/build/html/index.html", "DATA"),
@@ -349,16 +349,17 @@ def test_excluded_modules_are_not_needed_by_the_app():
         # As if not installed: import raises ImportError, find_spec returns None.
         for name in BLOCKED:
             sys.modules[name] = None
-        src = {str(REPO / "src")!r}
-        sys.path.insert(0, src)
-        names = [m.name for m in pkgutil.walk_packages([src])]
+        roots = {[str(REPO / "core"), str(REPO / "desktop")]!r}
+        sys.path[:0] = roots
+        names = [m.name for m in pkgutil.walk_packages(roots)]
+        assert "chordnotepad.session.session" in names and "chordnotepad_tk.main_window" in names
         failures = []
         for name in sorted(set(names)) + ["mido", "music21.harmony", "music21.chord", "PIL.ImageTk", "requests"]:
             try:
                 importlib.import_module(name)
             except Exception as exc:
                 failures.append(f"{{name}}: {{type(exc).__name__}}: {{exc}}")
-        from chord.helper import ChordHelper
+        from chordnotepad.chord.helper import ChordHelper
         loaded = sorted(m for m, mod in sys.modules.items() if mod is not None and m.split(".")[0] in BLOCKED)
         print("\\n".join(failures + [f"loaded: {{m}}" for m in loaded]))
         sys.exit(1 if failures or loaded else 0)
@@ -525,12 +526,12 @@ def test_bundled_resources_reach_the_flatpak_and_snap():
     """Both copy resources/ wholesale, so the window finds its data there too."""
     assert "cp -r resources ${FLATPAK_DEST}/share/chord-notepad/" in (
         REPO / "packaging/flatpak/io.github.chibicitiberiu.ChordNotepad.yml").read_text()
-    assert re.search(r"cp -r src resources examples VERSION", (REPO / "snap/snapcraft.yaml").read_text())
+    assert re.search(r"cp -r core desktop resources examples VERSION", (REPO / "snap/snapcraft.yaml").read_text())
 
 
 def test_session_hands_out_the_catalog():
     """The Tk window gets the list through the session (tests/test_main_window_guard.py)."""
-    from session.session import AppSession
+    from chordnotepad.session.session import AppSession
 
     catalog = AppSession.licence_catalog(None, REPO / "resources" / "licenses")  # uses no session state
     assert catalog.get("chord-notepad") is not None

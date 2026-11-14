@@ -7,12 +7,12 @@ with ``mido``, and asserts on the absolute-tick reconstruction of each track.
 import pytest
 import mido
 
-from services.midi_file_writer import write_midi_file, PPQ
-from services.song_renderer import SongRenderer
-from audio.chord_picker import ChordNotePicker
-from models.rendered_song import RenderedSong, RenderedChord
-from models.chord import ChordInfo
-from exceptions import FileOperationError
+from chordnotepad.services.midi_file_writer import write_midi_file, PPQ
+from chordnotepad.services.song_renderer import SongRenderer
+from chordnotepad.audio.chord_picker import ChordNotePicker
+from chordnotepad.models.rendered_song import RenderedSong, RenderedChord
+from chordnotepad.models.chord import ChordInfo
+from chordnotepad.exceptions import FileOperationError
 
 
 def make_chord(

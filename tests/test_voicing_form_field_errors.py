@@ -4,10 +4,10 @@
 ``voicing_from_values``), where a valid note name has already become an int
 and only an unparseable leftover stays a raw string. So the tests below feed
 ints for valid pitches and raw strings for the deliberate parse failures.
-Moved from the Tk page with the logic (src/settings_forms/voicing_form.py).
+Moved from the Tk page with the logic (core/chordnotepad/settings_forms/voicing_form.py).
 """
 
-from settings_forms.voicing_form import collected_field_errors as field_errors
+from chordnotepad.settings_forms.voicing_form import collected_field_errors as field_errors
 
 
 # ---------------------------------------------------------------------------

@@ -2,10 +2,10 @@
 
 from unittest.mock import MagicMock, Mock
 
-from services.config_service import ConfigService
-from services.song_parser_service import SongParserService
-from viewmodels.main_window_viewmodel import MainWindowViewModel
-from models.notation import Notation
+from chordnotepad.services.config_service import ConfigService
+from chordnotepad.services.song_parser_service import SongParserService
+from chordnotepad.viewmodels.main_window_viewmodel import MainWindowViewModel
+from chordnotepad.models.notation import Notation
 
 
 def _make_vm(key=None, notation="american"):

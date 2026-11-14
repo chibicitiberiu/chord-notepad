@@ -12,8 +12,8 @@ import pytest
 
 tk = pytest.importorskip("tkinter")
 
-from ui.text_editor import ChordTextEditor
-from utils.text_normalization import normalize_song_text
+from chordnotepad_tk.text_editor import ChordTextEditor
+from chordnotepad.utils.text_normalization import normalize_song_text
 
 
 # ---------------------------------------------------------------------------
@@ -121,7 +121,7 @@ class TestPasteNormalizesClipboard:
 class TestFileOpenNormalizes:
     def _open(self, tmp_path, raw: bytes) -> str:
         from unittest.mock import MagicMock
-        from services.file_service import FileService
+        from chordnotepad.services.file_service import FileService
         p = tmp_path / "song.txt"
         p.write_bytes(raw)
         return FileService(MagicMock()).open_file(p)

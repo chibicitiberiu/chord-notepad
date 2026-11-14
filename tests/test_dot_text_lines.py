@@ -7,12 +7,12 @@ European notation).
 """
 import pytest
 
-from audio.chord_picker import ChordNotePicker
-from chord.detector import ChordDetector
-from services.song_parser_service import SongParserService
-from services.song_renderer import SongRenderer
-from services.transpose_service import transpose_text
-from session.highlighting import compute_spans
+from chordnotepad.audio.chord_picker import ChordNotePicker
+from chordnotepad.chord.detector import ChordDetector
+from chordnotepad.services.song_parser_service import SongParserService
+from chordnotepad.services.song_renderer import SongRenderer
+from chordnotepad.services.transpose_service import transpose_text
+from chordnotepad.session.highlighting import compute_spans
 
 EURO = "Do Fa Sol\n.la la la\nDo"
 

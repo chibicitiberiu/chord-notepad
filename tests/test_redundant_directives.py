@@ -3,9 +3,9 @@ replaces before any chord plays has no effect. It stays valid (playback is
 unchanged: the later one wins anyway) but is shown faded, with a reason."""
 import pytest
 
-from services.song_parser_service import SongParserService
-from session.highlighting import compute_spans, directive_hint
-from session.state import SpanKind
+from chordnotepad.services.song_parser_service import SongParserService
+from chordnotepad.session.highlighting import compute_spans, directive_hint
+from chordnotepad.session.state import SpanKind
 
 
 def _directives(text, notation="american"):
@@ -81,8 +81,8 @@ def _redundant_eu(text):
 
 
 def test_playback_is_unchanged():
-    from audio.chord_picker import ChordNotePicker
-    from services.song_renderer import SongRenderer
+    from chordnotepad.audio.chord_picker import ChordNotePicker
+    from chordnotepad.services.song_renderer import SongRenderer
     lines = SongParserService().detect_chords_in_text("{capo: 2}\n{capo: 3}\n{key: G}\n{key: D}\nI")
     song = SongRenderer().render(lines=lines, initial_key="C", initial_bpm=120,
                                  initial_time_sig=(4, 4), note_picker=ChordNotePicker())
@@ -91,7 +91,7 @@ def test_playback_is_unchanged():
 
 
 def test_blend_is_the_directive_colour_faded_into_the_background():
-    from ui.text_editor import blend_rgb
+    from chordnotepad_tk.text_editor import blend_rgb
     purple = (0x8B * 257, 0x47 * 257, 0x89 * 257)
     white = (65535, 65535, 65535)
     assert blend_rgb(purple, white, 1.0) == "#8b4789"
@@ -102,9 +102,9 @@ def test_blend_is_the_directive_colour_faded_into_the_background():
 def test_tk_paints_redundant_directives_with_their_own_faded_tag():
     import os
     import tkinter as tk
-    from ui.theme import COLOR_DIRECTIVE_VALID, TAG_DIRECTIVE_REDUNDANT, TAG_DIRECTIVE_VALID
-    from session.state import HighlightState, Span
-    from ui.text_editor import ChordTextEditor
+    from chordnotepad_tk.theme import COLOR_DIRECTIVE_VALID, TAG_DIRECTIVE_REDUNDANT, TAG_DIRECTIVE_VALID
+    from chordnotepad.session.state import HighlightState, Span
+    from chordnotepad_tk.text_editor import ChordTextEditor
 
     if not (os.environ.get("DISPLAY") or os.name == "nt"):
         pytest.skip("No display available for tkinter tests")

@@ -15,13 +15,14 @@ from pathlib import Path
 
 import pytest
 
-from app_paths import NO_BUNDLED_FILES, UNKNOWN_VERSION, AppPaths
-from ui import desktop_paths
-from ui.desktop_paths import (
+from chordnotepad.app_paths import NO_BUNDLED_FILES, UNKNOWN_VERSION, AppPaths
+from chordnotepad_tk import desktop_paths
+from chordnotepad_tk.desktop_paths import (
     FLATPAK_APP_ID, INSTALL_SUBDIR, SNAP_NAME, paths_under, resolve_desktop_paths)
 
 REPO = Path(__file__).resolve().parent.parent
-SRC = REPO / "src"
+CORE = REPO / "core" / "chordnotepad"
+DESKTOP = REPO / "desktop" / "chordnotepad_tk"
 
 
 @pytest.fixture
@@ -71,7 +72,7 @@ def test_checkout_reads_the_real_version(checkout):
 def test_build_info_has_the_real_version():
     import importlib
 
-    import build_info
+    from chordnotepad_tk import build_info
     importlib.reload(build_info)
     assert build_info.BASE_VERSION == (REPO / "VERSION").read_text(encoding="utf-8").strip()
     assert build_info.BASE_VERSION != UNKNOWN_VERSION
@@ -82,13 +83,13 @@ def test_checkout_has_the_dev_dll_folder(checkout):
 
 
 def test_licence_catalog_loads_from_the_resolved_folder(checkout):
-    from services.licence_catalog import load_for_this_app
+    from chordnotepad.services.licence_catalog import load_for_this_app
 
     assert load_for_this_app(checkout.licenses).get("chord-notepad") is not None
 
 
 def test_resource_service_joins_onto_the_root(checkout):
-    from services.resource_service import ResourceService
+    from chordnotepad.services.resource_service import ResourceService
 
     resources = ResourceService(checkout)
     assert Path(resources.get_resource_path("resources/icon-32.png")).is_file()
@@ -182,7 +183,7 @@ def test_the_resolver_matches_the_pyinstaller_spec(tmp_path):
 def _service_over(paths: AppPaths, configured=None):
     from unittest.mock import Mock
 
-    from services.playback_service import PlaybackService
+    from chordnotepad.services.playback_service import PlaybackService
 
     config = Mock()
     config.get.side_effect = lambda key, default=None: (
@@ -194,7 +195,7 @@ def _service_over(paths: AppPaths, configured=None):
 def _soundfont_passed(service) -> object:
     from unittest.mock import MagicMock, patch
 
-    with patch("services.playback_service.NotePlayer", return_value=MagicMock()) as cls:
+    with patch("chordnotepad.services.playback_service.NotePlayer", return_value=MagicMock()) as cls:
         assert service.initialize_player()
     return cls.call_args.kwargs["soundfont_path"]
 
@@ -214,10 +215,10 @@ def test_a_missing_bundled_soundfont_is_not_passed(tmp_path):
 
 
 def test_core_services_carry_the_paths(checkout, tmp_path):
-    from services.appdata_service import AppDataService
-    from session.bootstrap import build_core_services
-    from session.host import HostDispatch
-    from session.testing import FakePlayer, ManualHost
+    from chordnotepad.services.appdata_service import AppDataService
+    from chordnotepad.session.bootstrap import build_core_services
+    from chordnotepad.session.host import HostDispatch
+    from chordnotepad.session.testing import FakePlayer, ManualHost
 
     services = build_core_services(AppDataService(root=tmp_path), HostDispatch(ManualHost()),
                                    paths=checkout, player=FakePlayer())
@@ -237,7 +238,7 @@ def _keywords_of_calls(path: Path, func_name: str):
 
 
 @pytest.mark.parametrize("entry", [
-    SRC / "application.py",
+    DESKTOP / "application.py",
     REPO / "android/app/src/main/python/chordnotepad_android/host.py",
 ])
 def test_front_ends_pass_their_paths_to_the_core(entry):
@@ -248,7 +249,7 @@ def test_front_ends_pass_their_paths_to_the_core(entry):
 
 
 def test_main_resolves_the_paths_and_hands_them_to_the_application():
-    source = (SRC / "main.py").read_text(encoding="utf-8")
+    source = (DESKTOP / "main.py").read_text(encoding="utf-8")
     assert "APP_PATHS = resolve_desktop_paths()" in source
     assert "Application.main(APP_PATHS)" in source
 
@@ -256,9 +257,6 @@ def test_main_resolves_the_paths_and_hands_them_to_the_application():
 # ---------------------------------------------------------------------------
 # Guard: the core never walks up from its own __file__
 # ---------------------------------------------------------------------------
-
-#: Front-end modules that may find files themselves.
-FRONT_END = ("ui/", "main.py", "application.py")
 
 _PATH_WRAPPERS = {"Path", "PurePath", "abspath", "realpath", "normpath", "fspath", "str",
                   "resolve", "absolute"}
@@ -344,13 +342,18 @@ def test_the_guard_tells_package_local_from_walking_up(source, bad):
 
 
 def test_no_core_module_walks_up_from_its_own_file():
+    # The whole chordnotepad package; only the front ends (desktop/, the
+    # Android glue) find files themselves.
     offenders = []
-    for path in sorted(SRC.rglob("*.py")):
-        rel = path.relative_to(SRC).as_posix()
-        if "__pycache__" in rel or rel.startswith(FRONT_END):
+    checked = 0
+    for path in sorted(CORE.rglob("*.py")):
+        rel = path.relative_to(REPO).as_posix()
+        if "__pycache__" in rel:
             continue
+        checked += 1
         for lineno in _violations(path.read_text(encoding="utf-8")):
-            offenders.append(f"src/{rel}:{lineno}")
+            offenders.append(f"{rel}:{lineno}")
+    assert checked > 100
     assert not offenders, (
         "These core modules find files from their own location; take the path from "
-        "AppPaths (src/app_paths.py) instead:\n  " + "\n  ".join(offenders))
+        "AppPaths (core/chordnotepad/app_paths.py) instead:\n  " + "\n  ".join(offenders))

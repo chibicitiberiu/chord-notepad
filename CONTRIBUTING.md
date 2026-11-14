@@ -56,9 +56,15 @@ and what licence it's under, so it can be checked and credited.
   `UPPER_SNAKE_CASE`, private names with a leading underscore.
 - Public functions have type hints and docstrings.
 - One `logger = logging.getLogger(__name__)` per module.
+- Two Python packages, imported by name, nothing installed: the shared core
+  `chordnotepad` (`core/chordnotepad/`) and the Tk desktop app
+  `chordnotepad_tk` (`desktop/chordnotepad_tk/`). Imports are absolute
+  (`from chordnotepad.session.state import ...`). The core never imports
+  tkinter, Pillow, jeepney or PySide6 (`tests/test_core_import_guard.py`);
+  desktop-only code goes in `chordnotepad_tk`.
 - Logic lives in the shared Python core. Both UIs (Tk and the Android
   Kotlin/Compose app) stay thin: app flows and cross-view wiring belong in
-  `src/session/`, not in `src/ui/` or Kotlin.
+  `core/chordnotepad/session/`, not in `desktop/chordnotepad_tk/` or Kotlin.
 - Don't change the editor's text typography or colours (font, text colours,
   chord highlighting). The chrome around it is fair game.
-- Errors use the exceptions in `src/exceptions.py`.
+- Errors use the exceptions in `core/chordnotepad/exceptions.py`.

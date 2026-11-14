@@ -1,8 +1,8 @@
 """Unit tests for ChordDetector."""
 
 import pytest
-from chord.detector import ChordDetector
-from models.chord import ChordInfo
+from chordnotepad.chord.detector import ChordDetector
+from chordnotepad.models.chord import ChordInfo
 
 
 class TestAmericanNotation:

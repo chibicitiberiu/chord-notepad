@@ -1,4 +1,4 @@
-"""Windowed builds start without stdout/stderr (utils/std_streams.py)."""
+"""Windowed builds start without stdout/stderr (chordnotepad/utils/std_streams.py)."""
 
 import os
 import subprocess
@@ -6,19 +6,19 @@ import sys
 import textwrap
 from pathlib import Path
 
-SRC = Path(__file__).resolve().parent.parent / "src"
+CORE = Path(__file__).resolve().parent.parent / "core"
 
 # A windowed build as the app sees it: no std streams, and numpy/matplotlib
 # left out, so music21 warns on stderr while it's imported.
 SCRIPT = textwrap.dedent(f"""
     import sys
-    sys.path.insert(0, {str(SRC)!r})
+    sys.path.insert(0, {str(CORE)!r})
     for name in ("numpy", "matplotlib"):
         sys.modules[name] = None
     out = sys.stdout
     sys.stdout = sys.stderr = None
     if sys.argv[1] == "fixed":
-        from utils.std_streams import ensure_std_streams
+        from chordnotepad.utils.std_streams import ensure_std_streams
         ensure_std_streams()
     try:
         import music21  # noqa: F401
@@ -44,7 +44,7 @@ def test_ensure_std_streams_lets_music21_import():
 
 
 def test_ensure_std_streams_keeps_existing_streams():
-    from utils.std_streams import ensure_std_streams
+    from chordnotepad.utils.std_streams import ensure_std_streams
 
     out, err = sys.stdout, sys.stderr
     ensure_std_streams()
@@ -52,7 +52,7 @@ def test_ensure_std_streams_keeps_existing_streams():
 
 
 def test_ensure_std_streams_fills_missing_ones(monkeypatch):
-    from utils.std_streams import ensure_std_streams
+    from chordnotepad.utils.std_streams import ensure_std_streams
 
     monkeypatch.setattr(sys, "stdout", None)
     monkeypatch.setattr(sys, "stderr", None)
