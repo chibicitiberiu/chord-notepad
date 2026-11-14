@@ -254,13 +254,15 @@ def session_attributes(tree):
     return found
 
 
-def test_the_direct_calls_are_the_plans_four_the_pickers_and_the_player_bars():
+def test_the_direct_calls_are_the_plans_four_the_pickers_the_player_bars_and_the_chromes():
     # picker_at: the ▾ value picker (D5; B4 listed it as a direct call).
     # The player bar's lookups (E1-E3): the timeline, the song values'
     # directives, and the volume (B3 listed volume and muted).
+    # The chrome's (F1, F3): the kept zoom and menu bar, a picked file's ref.
     assert DIRECT_CALLS == {"directive_hint_at", "chord_at", "licence_catalog", "settings_values",
                             "picker_at", "timeline_offset", "timeline_position",
-                            "setting_directive_start", "volume", "muted"}
+                            "setting_directive_start", "volume", "muted",
+                            "ui_scale", "menu_bar_shown", "document_ref"}
 
 
 def test_nothing_in_the_qt_package_calls_the_session_outside_the_allow_list():

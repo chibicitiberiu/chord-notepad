@@ -18,7 +18,7 @@ from tests.conftest import QT_PROBLEM
 if QT_PROBLEM:
     pytest.skip(f"Qt not available: {QT_PROBLEM}", allow_module_level=True)
 
-from PySide6.QtCore import QPoint, QPointF, Qt  # noqa: E402
+from PySide6.QtCore import QMetaObject, QObject, QPoint, QPointF, Qt  # noqa: E402
 from PySide6.QtGui import QWheelEvent  # noqa: E402
 from PySide6.QtTest import QTest  # noqa: E402
 
@@ -800,15 +800,17 @@ def test_the_voicing_is_locked_while_playing_with_the_reason(pb):
     pb.qtbot.waitUntil(lambda: button.property("enabled") is True, timeout=1000)
 
 
-def test_edit_voicings_opens_the_placeholder(pb):
+def test_edit_voicings_opens_settings_on_the_voicings_page(pb):
     pb.to_play()
     pb.click_on(pb.it("voicingButton"))
     pb.qtbot.waitUntil(lambda: bool(shown(pb, "editVoicings")), timeout=1000)
     pb.run(150)
     pb.click_on(shown(pb, "editVoicings")[0])
-    pb.qtbot.waitUntil(lambda: bool(shown(pb, "voicingsClose")), timeout=1000)
-    pb.key(Qt.Key.Key_Escape)
-    pb.qtbot.waitUntil(lambda: not shown(pb, "voicingsClose"), timeout=1000)
+    settings = pb.window.findChild(QObject, "settingsWindow")
+    pb.qtbot.waitUntil(lambda: settings.property("visible") is True, timeout=2000)
+    assert settings.property("page") == "voicings"
+    QMetaObject.invokeMethod(settings, "close")
+    pb.qtbot.waitUntil(lambda: settings.property("visible") is False, timeout=2000)
 
 
 FAMILIES = ("Piano", "Chromatic Percussion", "Organ", "Guitar", "Bass", "Strings", "Ensemble",

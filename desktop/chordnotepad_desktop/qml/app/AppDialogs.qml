@@ -6,13 +6,13 @@ import CNTheme
 // DialogFooter (a destructive button alone on the left, the primary last)
 // and closes on Escape (Q12).
 //
-// The ways in, for F1's menus and shortcuts (none has a shortcut yet but
-// Help's F1, as in Tk; Tk has no Settings shortcut):
+// The ways in, for the menus and shortcuts (AppActions.qml):
 //   openSettings(page)  Settings… ("general", "playback" or "voicings")
 //   openTranspose()     Tools › Transpose…
 //   openSuggestCapo()   Tools › Suggest capo… (and the Capo picker's link)
 //   openQuickStart()    Help › Quick start
-//   openHelp()          Help › Help (F1)
+//   openHelp()          Help › User guide (F1, AppActions' helpAction)
+//   openHelpPage(page)  Help › Keyboard shortcuts ("shortcuts.html")
 //   openLicences()      Help › Open source licences
 //   openAbout()         Help › About
 // The session's requests and events it answers: CapoChoiceRequest (Suggest
@@ -49,6 +49,7 @@ Item {
     function openSuggestCapo() { hub.store.submit("request_suggest_capo", { selection: hub.selection() }) }
     function openQuickStart() { if (!quickStartDlg.opened) quickStartDlg.open() }
     function openHelp() { hub.dialogs.openHelp() }
+    function openHelpPage(page) { hub.dialogs.openHelpPage(page) }
     function openLicences() { licencesDlg.load() }
     function openAbout() { aboutDlg.open() }
 
@@ -69,8 +70,7 @@ Item {
         return false
     }
 
-    // Help: F1, as in Tk (F1's menus must not add a second F1 shortcut).
-    Shortcut { sequence: "F1"; context: Qt.WindowShortcut; onActivated: hub.openHelp() }
+    // Help: F1 is AppActions' helpAction (the menus show it).
 
     // --- The dialogs --------------------------------------------------------------------
     SettingsWindow {

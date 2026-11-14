@@ -175,6 +175,14 @@ Rectangle {
     }
 
     function focusEditor() { area.forceActiveFocus() }
+    // Whether a key would change the text (typing, deleting, a new line, a paste or cut).
+    function editsKey(event) {
+        if (event.matches(StandardKey.Paste) || event.matches(StandardKey.Cut)) return true
+        if (event.key === Qt.Key_Backspace || event.key === Qt.Key_Delete || event.key === Qt.Key_Return
+                || event.key === Qt.Key_Enter || event.key === Qt.Key_Tab) return true
+        var mods = event.modifiers & ~(Qt.ShiftModifier | Qt.KeypadModifier)
+        return mods === Qt.NoModifier && event.text !== "" && event.text.charCodeAt(0) >= 32
+    }
     // Select all with the cursor at the start (as Tk's Ctrl+A).
     function selectAll() {
         area.forceActiveFocus()
@@ -302,6 +310,8 @@ Rectangle {
             Keys.onReleased: pane.status.schedule()
 
             Keys.onPressed: (event) => {
+                // Typing into the text a song locks: the status bar says why (Q9).
+                if (area.readOnly && pane.editsKey(event)) pane.status.refuseEdit()
                 if (event.matches(StandardKey.Paste)) {
                     // Ctrl+V, Shift+Insert: normalised by the bridge.
                     event.accepted = true

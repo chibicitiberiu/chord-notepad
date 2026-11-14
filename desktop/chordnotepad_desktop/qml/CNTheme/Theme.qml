@@ -66,6 +66,9 @@ QtObject {
     // A song value's link to its directive, hovered (the player bar).
     readonly property font fontSLink: Qt.font({ family: uiFont, pointSize: fontSmall, underline: true, hintingPreference: hinting })
     readonly property font fontTabularLink: Qt.font({ family: uiFont, pointSize: fontSmall, underline: true, hintingPreference: hinting, features: { "tnum": 1 } })
+    // The Edit toolbar's Convert mark: a bold "C" and a smaller bold "Do".
+    readonly property font fontMarkC:   Qt.font({ family: uiFont, pointSize: fontCaption, weight: Font.Bold, hintingPreference: hinting })
+    readonly property font fontMarkDo:  Qt.font({ family: uiFont, pointSize: fontCaption * 0.9, weight: Font.Bold, hintingPreference: hinting })
     readonly property font fontTabularStrong: Qt.font({ family: uiFont, pointSize: fontSmall, weight: Font.DemiBold, hintingPreference: hinting, features: { "tnum": 1 } })
     // The editor keeps the default hinting, unlike Inter: a monospace font's
     // advances are fixed, so hinting can't break the columns, and it is
@@ -181,6 +184,9 @@ QtObject {
     readonly property color pressed: Qt.rgba(text.r, text.g, text.b, dark ? 0.12 : 0.09)
     readonly property color checkedBg: Qt.rgba(text.r, text.g, text.b, dark ? 0.12 : 0.08)
 
+    // The Convert mark's two notations (the mockup's blue C, orange Do).
+    readonly property color markAmerican: dark ? "#64b5f6" : "#1e88e5"
+    readonly property color markEuropean: dark ? "#ffb74d" : "#fb8c00"
     readonly property color error:     dark ? "#ff8a80" : "#c62828"
 
     // Editor: light keeps today's desktop (Tk) colours, dark uses Android's.

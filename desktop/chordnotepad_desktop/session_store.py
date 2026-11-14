@@ -64,9 +64,13 @@ logger = logging.getLogger(__name__)
 #: The player bar's (plan step E, player_bar.py): ``timeline_offset``,
 #: ``timeline_position``, ``setting_directive_start``, and ``volume`` and
 #: ``muted``, which are properties (read, not called).
+#: The chrome's (plan step F, chrome.py and files.py): ``ui_scale`` and
+#: ``menu_bar_shown`` (properties) and ``document_ref``, the picked file's
+#: reference.
 DIRECT_CALLS = frozenset({"directive_hint_at", "chord_at", "licence_catalog", "settings_values",
                           "picker_at", "timeline_offset", "timeline_position",
-                          "setting_directive_start", "volume", "muted"})
+                          "setting_directive_start", "volume", "muted",
+                          "ui_scale", "menu_bar_shown", "document_ref"})
 
 _STATE_NAMES = frozenset(t.__name__ for t in STATE_TYPES)
 _EVENT_NAMES = frozenset(t.__name__ for t in EVENT_TYPES)

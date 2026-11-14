@@ -76,8 +76,10 @@ class HelpOpener:
         self._sandboxed = is_sandboxed() if sandboxed is None else sandboxed
         self._server: Optional[HelpServer] = None
 
-    def open(self) -> str:
-        """Open the help in the browser and return its URL.
+    def open(self, page: str = "index.html") -> str:
+        """Open the help in the browser at ``page`` and return its URL.
+
+        A page the help doesn't have opens the index instead.
 
         Raises:
             ChordNotepadError: The help isn't there or no browser opened it;
@@ -91,15 +93,19 @@ class HelpOpener:
                 f"Looked in: {self._docs_path}\n\n"
                 "If you run from source, build it first with:\n"
                 "  make docs-html")
+        if os.path.basename(page) != page or not os.path.exists(
+                os.path.join(self._docs_path, page)):
+            page = "index.html"
         url = None
         try:
             if self._sandboxed:
                 if self._server is None or self._server.server is None:
                     self._server = HelpServer(self._docs_path)
                     self._server.start()
-                url = f"http://127.0.0.1:{self._server.port}/index.html"
+                url = f"http://127.0.0.1:{self._server.port}/{page}"
             else:
-                url = QUrl.fromLocalFile(os.path.abspath(index)).toString()
+                url = QUrl.fromLocalFile(
+                    os.path.abspath(os.path.join(self._docs_path, page))).toString()
             logger.info("Opening help: %s", url)
             opened = self._open_url(url)
         except Exception as e:

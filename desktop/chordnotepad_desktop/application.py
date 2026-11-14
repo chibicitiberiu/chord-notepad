@@ -40,6 +40,7 @@ from chordnotepad.session.formatting import AUDIO_ERROR_TITLE
 from chordnotepad.session.host import HostDispatch
 from chordnotepad.session.platform import DESKTOP_QT
 from chordnotepad_desktop import rendering, window_geometry
+from chordnotepad_desktop.chrome import ChromeModel
 from chordnotepad_desktop.error_presenter import ErrorPresenter
 from chordnotepad_desktop.main import (
     MainWindow, create_engine, load_main_window, prepare_application,
@@ -61,11 +62,13 @@ DESKTOP_FILE_NAME = "io.github.chibicitiberiu.ChordNotepad"
 #: The window icon, every size resources/ has.
 ICON_FILES = ("icon-32.png", "icon-128.png", "icon-256.png")
 #: The session's requests the window answers (Main.qml). The others are
-#: answered "cancel" at once, so a flow that asks one doesn't wait forever:
-#: the file pickers come with F3. The capo choice is Suggest Capo's (G2,
-#: AppDialogs.qml). The Insert dialogs' requests never come: the palette and
-#: the ▾ value pickers (D5) edit through commands that ask nothing.
-HANDLED_REQUESTS = frozenset({"ConfirmDiscardRequest", "CapoChoiceRequest"})
+#: answered "cancel" at once, so a flow that asks one doesn't wait forever.
+#: The capo choice is Suggest Capo's (G2, AppDialogs.qml), the file pickers
+#: FilesModel's (F3, files.py and FileDialogs.qml). The Insert dialogs'
+#: requests never come: the palette and the ▾ value pickers (D5) edit
+#: through commands that ask nothing.
+HANDLED_REQUESTS = frozenset({"ConfirmDiscardRequest", "CapoChoiceRequest",
+                              "PickDocumentRequest"})
 
 
 def set_identity(app: QGuiApplication, paths: AppPaths) -> None:
@@ -136,6 +139,7 @@ class QtApplication:
         self.pickers: Optional[ValuePickerModel] = None
         self.dialogs: Optional[DialogsModel] = None
         self.player: Optional[PlayerBarModel] = None
+        self.chrome: Optional[ChromeModel] = None
         self.main: Optional[MainWindow] = None
         self.renderer: Optional[str] = None
         #: The engine's QML warnings (``--smoke`` fails on any).
@@ -186,6 +190,7 @@ class QtApplication:
         self.dialogs = DialogsModel(self.store, self._paths, self.presenter,
                                     build_info=self._build_info, parent=self.store)
         self.player = PlayerBarModel(self.store, self.editor, parent=self.store)
+        self.chrome = ChromeModel(self.store, parent=self.store)
 
         self._engine = create_engine(self._paths)
         self._engine.warnings.connect(
@@ -193,7 +198,7 @@ class QtApplication:
         main = load_main_window(self._engine, app, store=self.store, errors=self.presenter,
                                 editor=self.editor, status=self.status_bar,
                                 pickers=self.pickers, dialogs=self.dialogs,
-                                player=self.player)
+                                player=self.player, chrome=self.chrome)
         if main is None:
             raise RuntimeError("The main window couldn't be loaded:\n" + "\n".join(self.warnings))
         self.main = main

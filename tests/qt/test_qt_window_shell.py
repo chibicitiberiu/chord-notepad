@@ -14,7 +14,7 @@ from tests.conftest import QT_PROBLEM
 if QT_PROBLEM:
     pytest.skip(f"Qt not available: {QT_PROBLEM}", allow_module_level=True)
 
-from PySide6.QtCore import QPointF, QRect, Qt  # noqa: E402
+from PySide6.QtCore import QMetaObject, QPointF, QRect, Qt  # noqa: E402
 from PySide6.QtGui import QGuiApplication  # noqa: E402
 from PySide6.QtQuick import QQuickItem  # noqa: E402
 from PySide6.QtTest import QTest  # noqa: E402
@@ -245,14 +245,17 @@ def test_save_writes_the_document_then_closes(shell, qtbot, tmp_path):
     assert song.read_text(encoding="utf-8") == SONG
 
 
-def test_save_of_an_untitled_song_is_cancelled_until_the_file_picker_exists(shell, qtbot):
+def test_save_of_an_untitled_song_asks_where_and_a_cancel_keeps_the_window(shell, qtbot):
     edit(shell, qtbot)
     shell.window.close()
     dialog = popup(shell, "unsavedDialog")
     qtbot.waitUntil(lambda: dialog.property("opened") is True, timeout=2000)
     click(shell, item(shell, "unsavedSave"))
-    # The Save As picker (F3) isn't there: the request is cancelled, the
-    # close is aborted, nothing hangs.
+    # The Save As picker (F3): cancelling it cancels the close.
+    picker = popup(shell, "filePicker")
+    qtbot.waitUntil(lambda: picker.property("visible") is True, timeout=2000)
+    assert picker.property("title") == "Save File As"
+    QMetaObject.invokeMethod(picker, "reject")
     qtbot.waitUntil(lambda: shell.app._session.pending_request is None, timeout=2000)
     qtbot.wait(50)
     assert shell.window.isVisible()

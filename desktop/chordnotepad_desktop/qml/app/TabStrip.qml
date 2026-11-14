@@ -5,7 +5,8 @@ import CNTheme
 
 // Workspace tabs under the menu bar (MuseScore 4's Home | Score | Publish):
 // Edit | Play on the left, the document's name and the unsaved dot on the
-// right, then the Chrome-style ☰ (its menu is plan step F1's).
+// right, then the Chrome-style ☰ (Main.qml opens the AppMenu; ☰ shows as
+// checked while it is open, and a second click closes it).
 //
 // `document` is the session's DocumentState map (display_name, location,
 // is_modified). `mode` is "edit" or "play"; a click on a tab asks for the
@@ -14,6 +15,7 @@ Rectangle {
     id: strip
     required property var document
     property string mode: "edit"
+    property bool appMenuOpen: false
     signal modeRequested(string mode)
     signal openAppMenu(Item anchor)
     property alias menuButton: burger
@@ -71,8 +73,7 @@ Rectangle {
             objectName: "appMenuButton"
             iconName: "menu"
             tip: "Menu"
-            // The ☰ menu comes with the menus (plan step F1).
-            enabled: false
+            checked: strip.appMenuOpen
             onClicked: strip.openAppMenu(burger)
         }
     }

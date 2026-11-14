@@ -18,8 +18,12 @@ import CNTheme
 // the status bar's StatusBarModel (status_bar.py), `pickers` the ▾ value
 // pickers' ValuePickerModel (value_picker.py), `dialogs` the Settings
 // window's and the small dialogs' DialogsModel (dialogs.py), for AppDialogs,
-// and `player` the player bar's PlayerBarModel (player_bar.py). The playback
-// shortcuts are Actions in PlaybackActions.qml (F1 reuses them in the menus).
+// `player` the player bar's PlayerBarModel (player_bar.py) and `chrome` the
+// kept zoom and menu bar plus the File menu's documents (chrome.py,
+// files.py). The shortcuts are Actions: the window's in AppActions.qml, the
+// editor's in EditorPane.qml, playback's in PlaybackActions.qml; the menu
+// bar (AppMenuBar.qml), the ☰ menu (AppMenu.qml) and the Edit toolbar
+// (EditToolbar.qml) reuse them.
 //
 // The plumbing every main window keeps:
 // - windowDpr, fontRevision and contentReady are written by DprWatcher
@@ -29,8 +33,8 @@ import CNTheme
 //   ratio has settled, then sets contentReady).
 // - Resizing and Theme.scale changes bump Theme.layoutRevision, so the
 //   snapped text (SnapTranslate) re-snaps.
-// - altWatcher (alt_watcher.py) is the hidden menu bar's Alt handling; the
-//   menus (F1) connect to its signals.
+// - altWatcher (alt_watcher.py) is the hidden menu bar's Alt handling
+//   (AppMenuBar.qml listens to it).
 // - Python sizes and shows the window (window_geometry.py), so it starts
 //   hidden.
 ApplicationWindow {
@@ -45,6 +49,7 @@ ApplicationWindow {
     required property var pickers
     required property var dialogs
     required property var player
+    required property var chrome
     property real windowDpr: 1.0
     property int fontRevision: 0
     property bool contentReady: false
@@ -72,11 +77,49 @@ ApplicationWindow {
         editorPane.focusEditor()
         win.store.submit("set_chord_sheet_on_screen", { on_screen: win.mode === "play" ? true : null })
     }
-    Shortcut { sequence: "Ctrl+1"; context: Qt.WindowShortcut; onActivated: win.mode = "edit" }
-    Shortcut { sequence: "Ctrl+2"; context: Qt.WindowShortcut; onActivated: win.mode = "play" }
+    // Ctrl+1 / Ctrl+2 are AppActions' editModeAction / playModeAction.
+
+    // --- The menus (F1) ----------------------------------------------------------------
+    menuBar: AppMenuBar {
+        id: appMenuBar
+        actions: appActions
+        pane: editorPane
+        playback: playbackActions
+        store: win.store
+        chrome: win.chrome
+        altWatcher: win.altWatcher
+        onEditVoicings: appDialogs.openSettings("voicings")
+    }
+    // F10: the first menu.
+    function openMenuBar() { appMenuBar.openMenu(0) }
+    AppActions {
+        id: appActions
+        store: win.store
+        chrome: win.chrome
+        editor: win.editor
+        pane: editorPane
+        dialogs: appDialogs
+        window: win
+    }
+    AppMenu {
+        id: appMenu
+        actions: appActions
+        files: win.chrome.files
+        onClosed: editorPane.focusEditor()
+    }
+    function toggleAppMenu(anchor) {
+        if (appMenu.visible) appMenu.close()
+        else appMenu.popup(anchor, anchor.width - appMenu.width, anchor.height)
+    }
+    // The session's file requests (F3). The picker is a window of its own:
+    // the keys come back to this one when it closes.
+    FileDialogs {
+        files: win.chrome.files
+        onFinished: { win.requestActivate(); editorPane.focusEditor() }
+    }
 
     // --- Closing -------------------------------------------------------------------
-    // The close button (and Quit, ☰, File once F1 adds them) only ask the
+    // The close button, Quit (Ctrl+Q, File, ☰) only ask the
     // session; it answers with CloseApproved, after the Unsaved changes
     // dialog if needed, and Python (application.py) saves the geometry, sets
     // closeApproved and closes the window for real.
@@ -96,8 +139,10 @@ ApplicationWindow {
             id: tabStrip
             document: win.store.states.DocumentState
             mode: win.mode
+            appMenuOpen: appMenu.visible
             Layout.fillWidth: true
             onModeRequested: (m) => win.mode = m
+            onOpenAppMenu: (anchor) => win.toggleAppMenu(anchor)
         }
         StackLayout {
             objectName: "workspaces"
@@ -109,6 +154,15 @@ ApplicationWindow {
             ColumnLayout {
                 objectName: "editWorkspace"
                 spacing: 0
+                EditToolbar {
+                    store: win.store
+                    chrome: win.chrome
+                    actions: appActions
+                    pane: editorPane
+                    playback: playbackActions
+                    player: win.player
+                    Layout.fillWidth: true
+                }
                 Item {
                     id: editHost
                     objectName: "editHost"
@@ -119,7 +173,7 @@ ApplicationWindow {
                     // The text's zoom, on the text pane (not the status bar under the sheet).
                     ZoomChip { objectName: "editZoomChip"; editor: win.editor }
                 }
-                // The message (D4); F4 adds the rest of the bar.
+                // The message (D4), the read-only notice, Ln/Col, the notation (F4).
                 StatusBar { model: win.status; Layout.fillWidth: true }
             }
             // Play: the player bar (E1), the text and the chord-sheet strip (E4).
@@ -133,7 +187,7 @@ ApplicationWindow {
                     actions: playbackActions
                     Layout.fillWidth: true
                     onGoToDirective: (v) => win.goToDirective(v)
-                    onEditVoicings: voicingsDlg.open()
+                    onEditVoicings: appDialogs.openSettings("voicings")
                 }
                 Item {
                     id: playTextHost
@@ -190,7 +244,6 @@ ApplicationWindow {
         texts: win.store.texts
         onChoiceMade: (id, choice) => win.store.submit("respond", { request_id: id, value: choice })
     }
-    VoicingsPlaceholder { id: voicingsDlg; onClosed: editorPane.focusEditor() }
     ErrorDialog {
         id: errorDlg
         onDismissed: win.errors.dismissed()

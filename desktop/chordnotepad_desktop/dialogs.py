@@ -191,8 +191,14 @@ class DialogsModel(QObject):
     @Slot()
     def openHelp(self) -> None:  # noqa: N802 (Qt)
         """Open the help in the browser, or say why it can't ("Help Unavailable")."""
+        self.openHelpPage("index.html")
+
+    @Slot(str)
+    def openHelpPage(self, page: str) -> None:  # noqa: N802 (Qt)
+        """Open one page of the help (``shortcuts.html``: Help › Keyboard
+        shortcuts), or say why it can't."""
         try:
-            self._help.open()
+            self._help.open(page)
         except ChordNotepadError as e:
             if self._presenter is not None:
                 self._presenter.show_message(HELP_UNAVAILABLE_TITLE, str(e))

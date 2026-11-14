@@ -22,8 +22,19 @@ QML reads :attr:`statusText` when :attr:`showHint` is false, else
 :attr:`hintSyntax` (monospace, the lines joined with " · ").
 :attr:`text` is all of it as one line, as Tk shows it.
 
-F4 owns the rest of the bar (Ln/Col, the notation, "Read-only while
-playing"): add it here, next to the precedence.
+The rest of the bar (plan step F4):
+
+* :attr:`caretLine` and :attr:`caretColumn`, the caret's, 1-based, the column in
+  characters (code points), updated with the hint's caret moves;
+* :attr:`notation`, the song's ("American" or "European", from
+  ``EditorState.notation``);
+* :attr:`readOnlyNotice`, shown on the right while a song plays or is paused:
+  "Read-only while playing · Shift+F5 stops". An edit refused then (the
+  session's ``EditRefused``, or a key typed into the locked editor,
+  :meth:`StatusBarModel.refuseEdit`) turns it into the refusal (Q9),
+  :attr:`noticeWarning` set, until playback stops. Playback's own status
+  keeps the message on the left, so the refusal can't be overwritten by
+  the next chord.
 """
 
 import logging
@@ -32,13 +43,22 @@ from typing import Any, Optional
 
 from PySide6.QtCore import Property, QObject, QTimer, Signal, Slot
 
-from chordnotepad.session import formatting
+from chordnotepad.session import formatting, toolbar_texts
 from chordnotepad.session.status_line import StatusLine
 
 logger = logging.getLogger(__name__)
 
 #: How long the caret rests before its hint is looked up (Tk's HINT_DELAY_MS).
 HINT_DELAY_MS = 150
+#: How to stop, after the read-only notice and a refusal.
+STOP_HINT = "Shift+F5 stops"
+#: On the right while a song plays or is paused (the mockup's text).
+READ_ONLY_NOTICE = f"Read-only while playing · {STOP_HINT}"
+
+
+def refused_notice(message: str) -> str:
+    """The notice after a refused edit (Q9): the session's message, then how to stop."""
+    return f"{message} · {STOP_HINT}"
 
 
 @dataclass(frozen=True)
@@ -93,10 +113,15 @@ class StatusBarModel(QObject):
         self._timer.setSingleShot(True)
         self._timer.setInterval(delay_ms)
         self._timer.timeout.connect(self.refresh)
+        self._line, self._column = 1, 1
+        self._notation = ""
+        self._refused = ""
         store.stateChanged.connect(self._on_state)
+        store.event.connect(self._on_event)
         # The session replayed its states into the store when it was made.
         self._take_status()
         self._take_playback()
+        self._take_editor()
 
     # -- for QML ----------------------------------------------------------------------
 
@@ -145,10 +170,51 @@ class StatusBarModel(QObject):
     #: Everything the message shows, on one line.
     text = Property(str, _get_text, notify=changed)
 
+    def _get_line(self) -> int:
+        return self._line
+
+    #: The caret's line, from 1.
+    caretLine = Property(int, _get_line, notify=changed)
+
+    def _get_column(self) -> int:
+        return self._column
+
+    #: The caret's column, from 1, in characters.
+    caretColumn = Property(int, _get_column, notify=changed)
+
+    def _get_notation(self) -> str:
+        return toolbar_texts.NOTATION_NAMES.get(self._notation, "")
+
+    #: The song's notation, "American" or "European".
+    notation = Property(str, _get_notation, notify=changed)
+
+    def _get_notice(self) -> str:
+        if not self.line.playing:
+            return ""
+        return refused_notice(self._refused) if self._refused else READ_ONLY_NOTICE
+
+    #: The right-hand notice while a song plays or is paused; "" otherwise.
+    readOnlyNotice = Property(str, _get_notice, notify=changed)
+
+    def _get_warning(self) -> bool:
+        return self.line.playing and bool(self._refused)
+
+    #: The notice is a refused edit (shown as a warning).
+    noticeWarning = Property(bool, _get_warning, notify=changed)
+
     @Slot()
     def schedule(self) -> None:
-        """Look the caret's hint up once it has rested (debounced)."""
+        """The caret may have moved: Ln/Col now, the hint once it has rested
+        (debounced)."""
+        self._take_position()
         self._timer.start()
+
+    @Slot()
+    def refuseEdit(self) -> None:  # noqa: N802 (Qt)
+        """Something tried to edit the locked text (a key typed while a song
+        plays): say so, as for the session's ``EditRefused``."""
+        if self.line.playing:
+            self._refuse(formatting.EDIT_REFUSED_MESSAGE)
 
     @Slot()
     def refresh(self) -> None:
@@ -174,6 +240,38 @@ class StatusBarModel(QObject):
             self._take_playback()
         elif type_name == "HighlightState":
             self.schedule()
+        elif type_name == "EditorState":
+            self._take_editor()
+
+    def _on_event(self, type_name: str, data: Any) -> None:
+        if type_name == "EditRefused" and self.line.playing:
+            self._refuse(str(data["message"]))
+
+    def _refuse(self, message: str) -> None:
+        if message != self._refused:
+            self._refused = message
+            self.changed.emit()
+
+    def _take_editor(self) -> None:
+        notation = self._store.state("EditorState").value("notation") or ""
+        if notation != self._notation:
+            self._notation = str(notation)
+            self.changed.emit()
+
+    def _take_position(self) -> None:
+        cursor = self._editor.cursor_position()
+        document = self._editor.document
+        if cursor is None or document is None:
+            return
+        block = document.findBlock(cursor)
+        if not block.isValid():
+            return
+        before = block.text().encode("utf-16-le", "surrogatepass")[:2 * (cursor - block.position())]
+        column = len(before.decode("utf-16-le", "surrogatepass")) + 1
+        line = block.blockNumber() + 1
+        if (line, column) != (self._line, self._column):
+            self._line, self._column = line, column
+            self.changed.emit()
 
     def _take_status(self) -> None:
         # The session drops a state equal to the last one, so every
@@ -186,6 +284,7 @@ class StatusBarModel(QObject):
         status = self._store.state("PlaybackState").value("status")
         playing = status is not None and status != "idle"
         if playing != self.line.playing:
+            self._refused = ""
             self.line.set_playing(playing)
             if not playing:
                 self.schedule()     # the hint comes back after

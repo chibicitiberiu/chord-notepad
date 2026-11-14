@@ -34,6 +34,10 @@ logger = logging.getLogger(__name__)
 PROVIDER_ID = "icons"
 #: Icon names are file names without ``.svg``; nothing else reaches the disk.
 ICON_NAME = re.compile(r"[a-z0-9][a-z0-9-]*\Z")
+#: Icons Qt's own controls ask for by their file name (the CNStyle buttons
+#: pass any icon.source through here): Qt Quick's file dialog's "up a
+#: folder" button (QtQuick/Dialogs/quickimpl, FolderBreadcrumbBar.qml).
+ALIASES = {"up-icon-round.png": "chevron-up"}
 #: Rendered images kept (name, size, colour, ratio). A window uses ~150.
 CACHE_SIZE = 512
 #: The largest icon drawn, in device pixels (a sanity limit on ``s``).
@@ -124,6 +128,7 @@ class IconProvider(QQuickImageProvider):
         return image
 
     def _renderer(self, name: str) -> Optional[QSvgRenderer]:
+        name = ALIASES.get(name, name)
         renderer = self._renderers.get(name)
         if renderer is None and name not in self._missing:
             path = self.find(name)

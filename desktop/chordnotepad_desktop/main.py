@@ -21,6 +21,7 @@ packaging tracer (plan C5) runs it inside each build.
 
 import argparse
 import logging
+import os
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -33,7 +34,7 @@ from PySide6.QtQuick import QQuickWindow
 from PySide6.QtQuickControls2 import QQuickStyle
 
 from chordnotepad.app_paths import AppPaths
-from chordnotepad_desktop import editor_font, fonts
+from chordnotepad_desktop import chrome, editor_font, fonts
 from chordnotepad_desktop.alt_watcher import AltWatcher
 from chordnotepad_desktop.dpr import DprWatcher
 from chordnotepad_desktop.icons import PROVIDER_ID, IconProvider, icon_folders
@@ -82,6 +83,7 @@ def prepare_application(app: QGuiApplication, paths: AppPaths) -> list:
     families = fonts.load_bundled_fonts(fonts.font_folder(paths))
     editor_font.load_mono_font(fonts.font_folder(paths))
     QQuickStyle.setStyle(STYLE)
+    chrome.configure_menu_bar()
     _prepared.update(app=app, families=families)
     return families
 
@@ -126,16 +128,19 @@ def load_window(engine: QQmlApplicationEngine, app: QGuiApplication, qml_file: P
 
 def load_main_window(engine: QQmlApplicationEngine, app: QGuiApplication, *,
                      store: QObject, errors: QObject, editor: QObject, status: QObject,
-                     pickers: QObject, dialogs: QObject, player: QObject) -> Optional[MainWindow]:
+                     pickers: QObject, dialogs: QObject, player: QObject,
+                     chrome: QObject) -> Optional[MainWindow]:
     """Load Main.qml over ``store`` (the session), ``errors`` (the error
     presenter), ``editor`` (the editor's EditorBridge), ``status`` (the
     status bar's StatusBarModel), ``pickers`` (the ▾ pickers'
     ValuePickerModel), ``dialogs`` (the dialogs' and the Settings
-    window's DialogsModel) and ``player`` (the player bar's PlayerBarModel);
-    None if it created no window. Not shown yet."""
+    window's DialogsModel), ``player`` (the player bar's PlayerBarModel)
+    and ``chrome`` (the kept zoom and menu bar, the File menu's documents:
+    ChromeModel); None if it created no window. Not shown yet."""
     return load_window(engine, app, MAIN_QML, {"store": store, "errors": errors, "editor": editor,
                                                "status": status, "pickers": pickers,
-                                               "dialogs": dialogs, "player": player})
+                                               "dialogs": dialogs, "player": player,
+                                               "chrome": chrome})
 
 
 def run(paths: AppPaths, argv, build_info: Optional[dict] = None) -> int:
@@ -155,6 +160,7 @@ def run(paths: AppPaths, argv, build_info: Optional[dict] = None) -> int:
     from chordnotepad_desktop.error_presenter import show_fatal_error
 
     options, qt_args = parse_args(argv)
+    chrome.prefer_portal_file_dialogs(os.environ)
     app = QGuiApplication([sys.argv[0], *qt_args])
     set_identity(app, paths)
     qt = QtApplication(paths, software_rendering=options.software_rendering,
