@@ -45,9 +45,15 @@ class AltWatcher(QObject):
         self.menuHidden = hidden
 
     def eventFilter(self, obj, event):  # noqa: N802 (Qt)
+        kind = event.type()
+        if kind == QEvent.Type.ShortcutOverride and event.key() != Qt.Key.Key_Alt:
+            # A key a shortcut takes (Alt+Down, Ctrl+Alt+=) never reaches the
+            # window as a key press; Qt asks the focused item first, so this
+            # is where Alt stops being alone. Any object: it goes to the item.
+            self._alone = False
+            return False
         if not isinstance(obj, QWindow):
             return False
-        kind = event.type()
         if kind == QEvent.Type.KeyPress:
             if event.key() == Qt.Key.Key_Alt:
                 if not event.isAutoRepeat():

@@ -78,6 +78,22 @@ def test_alt_with_another_key_is_not_a_tap(watcher, window, seen):
     assert seen == []
 
 
+def test_a_key_a_shortcut_takes_is_not_a_tap(watcher, window, seen):
+    # Alt+Down, Ctrl+Alt+=: Qt gives the key to the shortcut and the window
+    # never sees the press, only the ShortcutOverride sent to the focus item.
+    from PySide6.QtCore import QObject
+    item = QObject()
+    press(watcher, window, Qt.Key.Key_Alt, ALT)
+    assert watcher.eventFilter(item, key(QEvent.Type.ShortcutOverride, Qt.Key.Key_Down, ALT)) is False
+    release(watcher, window, Qt.Key.Key_Alt)
+    assert seen == []
+    # The override for Alt itself leaves the tap alone.
+    press(watcher, window, Qt.Key.Key_Alt, ALT)
+    watcher.eventFilter(item, key(QEvent.Type.ShortcutOverride, Qt.Key.Key_Alt, ALT))
+    release(watcher, window, Qt.Key.Key_Alt)
+    assert seen == ["tap"]
+
+
 def test_a_click_while_alt_is_down_cancels_the_tap(watcher, window, seen):
     press(watcher, window, Qt.Key.Key_Alt, ALT)
     mouse_press(watcher, window, 40)
