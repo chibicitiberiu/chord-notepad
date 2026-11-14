@@ -86,7 +86,8 @@ exists once.
 core/chordnotepad/session/
   host.py          Host protocol, Cancellable, HostDispatch (queue_ui_callback shim)
   threaded_host.py ThreadedHost (queue + timer heap; Android/headless)
-  settings.py      SettingsValues: the settings as plain values (bridge views)
+  settings.py      SettingsValues: the settings as plain values (bridge views);
+                   DesktopSettingsValues adds the Qt desktop's (values_type(platform))
   testing.py       ManualHost (virtual clock), InMemoryDocumentStore, FakePlayer, EventRecorder
   errors.py        Tk-free unexpected-error routing (handler registry; the handler throttles)
   documents.py     DocumentRef, DocumentStore, FileSystemDocumentStore
@@ -97,6 +98,8 @@ core/chordnotepad/session/
   formatting.py    titles, status strings, voicing/instrument menu models
   toolbar.py       key list + key respelling, BPM/multiplier parse+format, ScrubScale (clamp/snap/quantize)
   directives.py    Insert-menu directives: field validation + messages, directive text, labels, loop choices
+  pickers.py       the Qt ▾ value pickers' options (keys with twins, times, tempos, capo, loops)
+  snippets.py      the Qt Directives palette: tiles, fill_snippet, select_range
   support.py       the Android support prompt's policy (should_show_support_prompt, NAG_DELAY_DAYS), LaunchKind
   highlighting.py  find_comments, compute_spans(lines, text), chord_at(lines, offset),
                    nearest_chord(lines, text, offset) (the playhead's snap), first_chord
@@ -111,6 +114,9 @@ core/chordnotepad/session/
 desktop/chordnotepad_tk/tk_host.py  TkHost (the queue drain that used to live in application.py)
 core/chordnotepad/utils/paths.py    display_path / is_document_portal_path (Tk-free;
                                     chordnotepad_tk/file_dialogs.py re-exports them)
+core/chordnotepad/models/window_geometry.py  the window's and the sheet's sizes in a form
+                                    both desktops read (logical pixels next to Tk's)
+core/chordnotepad/audio/volume.py   the volume slider's curve (config volume -> synth.gain)
 ```
 
 ### Host
@@ -230,7 +236,8 @@ kinds may overlap and the view decides which wins (Tk: tag priority).
 ### One-off events and requests
 
 ```python
-TextEdited(text_revision, start, end, replacement, undo, cursor)   # undo: group|plain|reset
+TextEdited(text_revision, start, end, replacement, undo, cursor, anchor=None)
+                                    # undo: group|plain|reset; anchor: select anchor..cursor
 ConfirmDiscardRequest(request_id)                                  # answer DiscardChoice: save|discard|cancel
 PickDocumentRequest(request_id, mode, suggested_name)              # PickMode: open|save|export_midi
 CapoChoiceRequest(request_id, options, default)
@@ -250,6 +257,8 @@ Every programmatic edit is a splice-shaped `TextEdited`, with an undo policy:
 | Convert notation, New | | `plain` |
 | Open file | | `reset` |
 | Insert | `(at, at, text)`, with the cursor placed after the inserted text (a space goes in front of a chord or directive right after a non-space) | |
+| Palette snippet (Qt) | `(at, at, text)`, spaced on both sides, the value selected (`anchor`) | `group` |
+| ▾ picker value (Qt) | the value's span only, the cursor after the directive | `group` |
 
 Transpose and convert take the view's `cursor` and put it back on the same
 line and column (the end of the line if it got shorter); without one, it goes
@@ -317,6 +326,18 @@ threads. Other commands added on the way:
 `open_recent(ref)`, `insert_chord(at, chord)` (the chord identifier: inserts
 `chord + " "` and says "Inserted chord: X") and
 `report_audio_failure(reason, from_click)`.
+
+The Qt desktop's (none on the bridge): `logical_window_geometry(scale)` /
+`set_logical_window_geometry(WindowGeometry, scale)` and
+`logical_chord_sheet_height(scale)` / `set_logical_chord_sheet_height(height,
+scale)` (logical pixels, Tk's keys kept in step: `models/window_geometry.py`);
+`set_chord_sheet_on_screen(True | False | None)` (renders apart from
+`chord_sheet_visible`: True in Play, None to follow it); `volume`, `muted`,
+`set_volume(v)`, `set_muted(on)`, `step_volume(steps)`;
+`insert_snippet(offset, text, snap=False)`,
+`replace_directive_value((start, end), value)` and `picker_at(offset)`.
+On `desktop_qt`, `settings_values()` and `SettingsState.values` are
+`DesktopSettingsValues`.
 
 **Flows** (`flows.py`) are generators. They yield requests and receive answers
 through `respond()`, so a request/response flow reads as plain sequential code.
