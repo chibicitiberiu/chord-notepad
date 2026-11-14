@@ -48,6 +48,7 @@ from chordnotepad_desktop.qt_host import QtHost
 from chordnotepad_desktop.qt_messages import install_message_handler
 from chordnotepad_desktop.dialogs import DialogsModel
 from chordnotepad_desktop.editor_bridge import EditorBridge
+from chordnotepad_desktop.player_bar import PlayerBarModel
 from chordnotepad_desktop.status_bar import StatusBarModel
 from chordnotepad_desktop.value_picker import ValuePickerModel
 from chordnotepad_desktop.session_store import SessionStore
@@ -134,6 +135,7 @@ class QtApplication:
         self.status_bar: Optional[StatusBarModel] = None
         self.pickers: Optional[ValuePickerModel] = None
         self.dialogs: Optional[DialogsModel] = None
+        self.player: Optional[PlayerBarModel] = None
         self.main: Optional[MainWindow] = None
         self.renderer: Optional[str] = None
         #: The engine's QML warnings (``--smoke`` fails on any).
@@ -183,13 +185,15 @@ class QtApplication:
         self.pickers = ValuePickerModel(self.store, self.editor, parent=self.store)
         self.dialogs = DialogsModel(self.store, self._paths, self.presenter,
                                     build_info=self._build_info, parent=self.store)
+        self.player = PlayerBarModel(self.store, self.editor, parent=self.store)
 
         self._engine = create_engine(self._paths)
         self._engine.warnings.connect(
             lambda errors: self.warnings.extend(e.toString() for e in errors))
         main = load_main_window(self._engine, app, store=self.store, errors=self.presenter,
                                 editor=self.editor, status=self.status_bar,
-                                pickers=self.pickers, dialogs=self.dialogs)
+                                pickers=self.pickers, dialogs=self.dialogs,
+                                player=self.player)
         if main is None:
             raise RuntimeError("The main window couldn't be loaded:\n" + "\n".join(self.warnings))
         self.main = main
@@ -259,6 +263,8 @@ class QtApplication:
         logger.info("%s shutting down", APP_NAME)
         if self.host is not None:
             self.host.stop()
+        if self.player is not None:
+            self.player.close()
         if self.store is not None:
             self.store.close()
         if self.dialogs is not None:

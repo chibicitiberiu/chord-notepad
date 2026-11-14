@@ -126,15 +126,16 @@ def load_window(engine: QQmlApplicationEngine, app: QGuiApplication, qml_file: P
 
 def load_main_window(engine: QQmlApplicationEngine, app: QGuiApplication, *,
                      store: QObject, errors: QObject, editor: QObject, status: QObject,
-                     pickers: QObject, dialogs: QObject) -> Optional[MainWindow]:
+                     pickers: QObject, dialogs: QObject, player: QObject) -> Optional[MainWindow]:
     """Load Main.qml over ``store`` (the session), ``errors`` (the error
     presenter), ``editor`` (the editor's EditorBridge), ``status`` (the
     status bar's StatusBarModel), ``pickers`` (the ▾ pickers'
-    ValuePickerModel) and ``dialogs`` (the dialogs' and the Settings
-    window's DialogsModel); None if it created no window. Not shown yet."""
+    ValuePickerModel), ``dialogs`` (the dialogs' and the Settings
+    window's DialogsModel) and ``player`` (the player bar's PlayerBarModel);
+    None if it created no window. Not shown yet."""
     return load_window(engine, app, MAIN_QML, {"store": store, "errors": errors, "editor": editor,
                                                "status": status, "pickers": pickers,
-                                               "dialogs": dialogs})
+                                               "dialogs": dialogs, "player": player})
 
 
 def run(paths: AppPaths, argv, build_info: Optional[dict] = None) -> int:

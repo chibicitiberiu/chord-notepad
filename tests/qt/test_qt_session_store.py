@@ -197,6 +197,11 @@ def test_the_direct_calls(env):
     assert catalog is not None
     assert env.store.direct("picker_at", 3).kind == "tempo"
     assert env.store.direct("picker_at", SONG.index("One")) is None
+    # The player bar's (E1-E3); volume and muted are properties, read as they are.
+    assert env.store.direct("setting_directive_start", "tempo") == 0
+    assert env.store.direct("setting_directive_start", "key") is None
+    assert env.store.direct("volume") == 1.0 and env.store.direct("muted") is False
+    assert env.store.direct("timeline_offset", 1) is None          # no strip render yet
 
 
 def test_anything_else_is_refused_as_a_direct_call(env):
@@ -249,10 +254,13 @@ def session_attributes(tree):
     return found
 
 
-def test_the_direct_calls_are_the_plans_four_and_the_pickers_lookup():
+def test_the_direct_calls_are_the_plans_four_the_pickers_and_the_player_bars():
     # picker_at: the ▾ value picker (D5; B4 listed it as a direct call).
+    # The player bar's lookups (E1-E3): the timeline, the song values'
+    # directives, and the volume (B3 listed volume and muted).
     assert DIRECT_CALLS == {"directive_hint_at", "chord_at", "licence_catalog", "settings_values",
-                            "picker_at"}
+                            "picker_at", "timeline_offset", "timeline_position",
+                            "setting_directive_start", "volume", "muted"}
 
 
 def test_nothing_in_the_qt_package_calls_the_session_outside_the_allow_list():
@@ -299,3 +307,16 @@ def test_the_payload_is_json(env):
     env.store.submit("set_key", {"key": None})
     env.store.submit("rewind")
     assert sent == [("set_key", {"key": None}), ("rewind", {})]
+
+
+def test_qml_whole_numbers_reach_int_parameters_as_ints(env):
+    # A JavaScript number is a double: { program: 24 } arrives as 24.0.
+    from chordnotepad_desktop.session_store import _whole_numbers
+    assert _whole_numbers("set_instrument", {"program": 24.0}) == {"program": 24}
+    assert type(_whole_numbers("set_instrument", {"program": 24.0})["program"]) is int
+    assert _whole_numbers("play_pause", {"from_offset": 3.0}) == {"from_offset": 3}
+    assert _whole_numbers("play_pause", {"from_offset": None}) == {"from_offset": None}
+    # Not whole, or not an int parameter: left alone (the bridge judges).
+    assert _whole_numbers("set_instrument", {"program": 2.5}) == {"program": 2.5}
+    assert _whole_numbers("set_volume", {"volume": 1.0}) == {"volume": 1.0}
+    assert _whole_numbers("not_a_command", {"x": 1.0}) == {"x": 1.0}

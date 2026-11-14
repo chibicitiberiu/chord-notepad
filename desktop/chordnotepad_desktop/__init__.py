@@ -41,10 +41,12 @@ Each is also noted where it applies, as "pitfall N":
 4. A negative ``z`` also puts an item below its parent for input
    (PopupBackground.qml).
 5. A DragHandler inside a button doesn't work; use a MouseArea with
-   ``preventStealing`` (the palette tiles, F5).
+   ``preventStealing`` (the tempo readout and the timeline, E1/E2; the
+   palette tiles, F5).
 6. One handler per piano key fires for two keys where they overlap; hit-test
    the keyboard centrally, black keys first (the identifier piano, F5).
-7. Menu has no Repeater: use ``createObject`` and ``addItem`` (Menu.qml).
+7. Menu has no Repeater: use ``createObject`` and ``addItem`` (Menu.qml;
+   VoicingMenu.qml, InstrumentMenu.qml).
 8. Keep a Python reference to the ``QQuickTextDocument`` wrapper, or it is
    collected under the highlighter (editor_bridge.py).
 9. On KDE Wayland the ratio from Screen or QML is wrong; read it from the
@@ -61,9 +63,9 @@ Each is also noted where it applies, as "pitfall N":
     (icons.py, PixelIcon.qml).
 15. The software backend has no MultiEffect (PopupBackground.qml).
 16. A disabled control gets no hover: hang its tooltip off a HoverHandler
-    (ToolTip.qml).
+    (ToolTip.qml; the locked voicing button, PlayerBar.qml).
 17. Elide with TextMetrics, so the unsaved dot after a title stays visible
-    (the title, C4/E1).
+    (the title, C4; the player bar's title block, PlayerBar.qml).
 18. There is no Alt-only shortcut, and a hidden MenuBar has no mnemonics: an
     event filter on window events only (alt_watcher.py).
 19. The ▾ value chip needs a sticky hover region and a grace period, or it
@@ -74,7 +76,8 @@ Each is also noted where it applies, as "pitfall N":
     (Menu.qml).
 22. ``QTest.keyClicks`` takes a QWidget only: tests send key events to the
     QQuickWindow (tests/qt/conftest.py).
-23. A popup takes focus only in ``onOpened`` (Popup.qml, ValuePicker.qml).
+23. A popup takes focus only in ``onOpened`` (Popup.qml, ValuePicker.qml,
+    the speed dropdown's box).
 24. An ``inline:`` URL hangs ``engine.load``: load from a file (main.py).
 25. Repeater delegates aren't in the QObject tree, so ``findChild`` misses
     them (tests/qt/conftest.py; tests/qt/test_qt_value_picker.py walks the

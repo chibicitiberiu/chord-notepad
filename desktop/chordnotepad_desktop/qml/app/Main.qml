@@ -16,8 +16,10 @@ import CNTheme
 // presenter (error_presenter.py); `editor` the editor's EditorBridge
 // (editor_bridge.py), which EditorPane attaches to its TextArea; `status`
 // the status bar's StatusBarModel (status_bar.py), `pickers` the ▾ value
-// pickers' ValuePickerModel (value_picker.py) and `dialogs` the Settings
-// window's and the small dialogs' DialogsModel (dialogs.py), for AppDialogs.
+// pickers' ValuePickerModel (value_picker.py), `dialogs` the Settings
+// window's and the small dialogs' DialogsModel (dialogs.py), for AppDialogs,
+// and `player` the player bar's PlayerBarModel (player_bar.py). The playback
+// shortcuts are Actions in PlaybackActions.qml (F1 reuses them in the menus).
 //
 // The plumbing every main window keeps:
 // - windowDpr, fontRevision and contentReady are written by DprWatcher
@@ -42,6 +44,7 @@ ApplicationWindow {
     required property var status
     required property var pickers
     required property var dialogs
+    required property var player
     property real windowDpr: 1.0
     property int fontRevision: 0
     property bool contentReady: false
@@ -62,7 +65,13 @@ ApplicationWindow {
 
     // The workspace: "edit" or "play" (not kept between runs, as in the mockup).
     property string mode: "edit"
-    onModeChanged: { Theme.bumpLayout(); editorPane.focusEditor() }
+    // The Play workspace shows the chord sheet, so it renders and the
+    // timeline gets its sections (B3); in Edit, F9's setting decides.
+    onModeChanged: {
+        Theme.bumpLayout()
+        editorPane.focusEditor()
+        win.store.submit("set_chord_sheet_on_screen", { on_screen: win.mode === "play" ? true : null })
+    }
     Shortcut { sequence: "Ctrl+1"; context: Qt.WindowShortcut; onActivated: win.mode = "edit" }
     Shortcut { sequence: "Ctrl+2"; context: Qt.WindowShortcut; onActivated: win.mode = "play" }
 
@@ -117,6 +126,15 @@ ApplicationWindow {
             ColumnLayout {
                 objectName: "playWorkspace"
                 spacing: 0
+                PlayerBar {
+                    store: win.store
+                    player: win.player
+                    pickers: win.pickers
+                    actions: playbackActions
+                    Layout.fillWidth: true
+                    onGoToDirective: (v) => win.goToDirective(v)
+                    onEditVoicings: voicingsDlg.open()
+                }
                 Item {
                     id: playTextHost
                     objectName: "playTextHost"
@@ -147,6 +165,21 @@ ApplicationWindow {
         parent: win.mode === "play" ? playTextHost : editHost
         anchors.fill: parent
     }
+    // The playback shortcuts (F5, Shift+F5, Ctrl+M, Ctrl+] / Ctrl+[ / Ctrl+\).
+    PlaybackActions { id: playbackActions; store: win.store; player: win.player }
+
+    // A song value's link: Edit, the cursor just inside the directive that
+    // sets it (looked up in the live text), the editor focused.
+    function goToDirective(value) {
+        var pos = win.player.directivePosition(value)
+        win.mode = "edit"
+        // After the workspace switch: the editor unlocks then, and keeps its caret.
+        Qt.callLater(function () {
+            if (pos >= 0) editorPane.area.cursorPosition = pos
+            editorPane.focusEditor()
+        })
+    }
+
     // The editor has the keyboard focus from the start (Q10) and gets it back
     // when a dialog closes or the workspace changes.
     onContentReadyChanged: if (win.contentReady) editorPane.focusEditor()
@@ -157,6 +190,7 @@ ApplicationWindow {
         texts: win.store.texts
         onChoiceMade: (id, choice) => win.store.submit("respond", { request_id: id, value: choice })
     }
+    VoicingsPlaceholder { id: voicingsDlg; onClosed: editorPane.focusEditor() }
     ErrorDialog {
         id: errorDlg
         onDismissed: win.errors.dismissed()

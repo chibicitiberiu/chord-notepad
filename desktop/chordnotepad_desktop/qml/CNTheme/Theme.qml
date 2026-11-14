@@ -59,6 +59,14 @@ QtObject {
     readonly property font fontTitleF:  Qt.font({ family: uiFont, pointSize: fontTitle, weight: Font.DemiBold, hintingPreference: hinting })
     readonly property font fontHeadF:   Qt.font({ family: uiFont, pointSize: fontHeading, weight: Font.DemiBold, hintingPreference: hinting })
     readonly property font fontMonoS:   Qt.font({ family: monoFont, pointSize: fontSmall, hintingPreference: hinting })
+    // Tabular figures (every digit as wide): the player's bar:beat and the
+    // timeline's preview don't jitter as the numbers change.
+    readonly property font fontTabular: Qt.font({ family: uiFont, pointSize: fontSmall, hintingPreference: hinting, features: { "tnum": 1 } })
+    readonly property font fontTabularCaption: Qt.font({ family: uiFont, pointSize: fontCaption, hintingPreference: hinting, features: { "tnum": 1 } })
+    // A song value's link to its directive, hovered (the player bar).
+    readonly property font fontSLink: Qt.font({ family: uiFont, pointSize: fontSmall, underline: true, hintingPreference: hinting })
+    readonly property font fontTabularLink: Qt.font({ family: uiFont, pointSize: fontSmall, underline: true, hintingPreference: hinting, features: { "tnum": 1 } })
+    readonly property font fontTabularStrong: Qt.font({ family: uiFont, pointSize: fontSmall, weight: Font.DemiBold, hintingPreference: hinting, features: { "tnum": 1 } })
     // The editor keeps the default hinting, unlike Inter: a monospace font's
     // advances are fixed, so hinting can't break the columns, and it is
     // crisper at 100% (the mockup's choice). The only font without `hinting`.
@@ -134,6 +142,10 @@ QtObject {
     readonly property int playerIcon:     px(5)         // icons in those
     readonly property int transportButton: px(9)        // ⏮ and ⏹
     readonly property int scrubberHeight: px(1.25)
+    // The tempo readout's drag (Tk's scrubber, in logical pixels): a press
+    // becomes a drag after scrubThreshold, and every scrubStep is one step.
+    readonly property real scrubThreshold: 3
+    readonly property real scrubStep: 4
     readonly property int editorPadX: px(5)
     readonly property int editorPadY: px(3.5)
 

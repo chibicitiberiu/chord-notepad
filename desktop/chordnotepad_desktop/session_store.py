@@ -52,7 +52,7 @@ from PySide6.QtQml import QQmlPropertyMap
 
 from chordnotepad.session import formatting
 from chordnotepad.session.bridge import (
-    EVENT_TYPES, REQUEST_TYPES, STATE_TYPES, SessionBridge, to_json_value,
+    EVENT_TYPES, REQUEST_TYPES, SESSION_COMMANDS, STATE_TYPES, SessionBridge, to_json_value,
 )
 from chordnotepad.session.host import Host
 
@@ -61,8 +61,12 @@ logger = logging.getLogger(__name__)
 #: The session methods called directly, for the value they return. Every
 #: other session method is a bridge command (``submit``). ``picker_at`` is
 #: the ▾ value picker's lookup (plan step D5, value_picker.py).
+#: The player bar's (plan step E, player_bar.py): ``timeline_offset``,
+#: ``timeline_position``, ``setting_directive_start``, and ``volume`` and
+#: ``muted``, which are properties (read, not called).
 DIRECT_CALLS = frozenset({"directive_hint_at", "chord_at", "licence_catalog", "settings_values",
-                          "picker_at"})
+                          "picker_at", "timeline_offset", "timeline_position",
+                          "setting_directive_start", "volume", "muted"})
 
 _STATE_NAMES = frozenset(t.__name__ for t in STATE_TYPES)
 _EVENT_NAMES = frozenset(t.__name__ for t in EVENT_TYPES)
@@ -78,6 +82,24 @@ TEXTS = {
     # The empty editor's placeholder, Tk's (chordnotepad_tk/main_window.py).
     "editorPlaceholder": "Type or paste a song here",
 }
+
+
+def _whole_numbers(command: str, args: Any) -> Any:
+    """``args`` with QML's numbers made ints where the command takes an int.
+
+    A JavaScript number is a double, so QML's ``{ program: 24 }`` arrives as
+    24.0, which the bridge refuses for an ``int`` parameter. Whole numbers
+    for those become ints; anything else is left for the bridge to judge.
+    """
+    spec = SESSION_COMMANDS.get(str(command))
+    if not spec or not isinstance(args, dict):
+        return args
+    fixed = dict(args)
+    for name, kind in spec.items():
+        value = fixed.get(name)
+        if kind.split("|")[0] == "int" and isinstance(value, float) and value.is_integer():
+            fixed[name] = int(value)
+    return fixed
 
 
 def _property_map(parent: QObject) -> QQmlPropertyMap:
@@ -149,6 +171,7 @@ class SessionStore(QObject):
         if self._closed:
             logger.debug("Command %s after the store closed; ignored", command)
             return
+        args = _whole_numbers(command, args)
         try:
             payload = json.dumps(args if args is not None else {}, ensure_ascii=False,
                                  allow_nan=False)
@@ -177,7 +200,8 @@ class SessionStore(QObject):
         """
         if name not in DIRECT_CALLS:
             raise ValueError(f"{name!r} is not a direct call; submit it as a command")
-        return getattr(self._session, name)(*args)
+        value = getattr(self._session, name)
+        return value(*args) if callable(value) else value
 
     def after_commands(self, callback) -> None:
         """Run ``callback`` once the session has run every command submitted
