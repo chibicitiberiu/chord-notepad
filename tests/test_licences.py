@@ -370,6 +370,18 @@ def test_classify_maps_files_to_components():
     assert report.covered["tcl-tk"] == ["_tcl_data/init.tcl"]
 
 
+@pytest.mark.parametrize("dest", ["PySide6/msvcp140.dll", "PySide6/msvcp140_2.dll", "PySide6/vcruntime140_1.dll",
+                                  "PySide6/concrt140.dll", "shiboken6/msvcp140.dll", "shiboken6/vcruntime140.dll"])
+def test_the_msvc_runtime_inside_pyside6_is_microsoft_s_not_pyside6_s(dest):
+    """The PySide6 and Shiboken6 wheels carry their own MSVC runtime DLLs (PyInstaller keeps their folder).
+
+    Without a pattern they would count as PySide6's files, under its LGPL entry.
+    """
+    owners = {os.path.normcase(f"/site/{dest}"): "pyside6-essentials" if dest.startswith("PySide6") else "shiboken6"}
+    report = classify([(dest, f"/site/{dest}", "BINARY")], "windows", owners=owners)
+    assert report.uncovered == [] and report.covered == {"msvc-runtime": [dest]}
+
+
 def test_classify_reports_what_nothing_covers():
     owners = {os.path.normcase("/site/numpy/__init__.py"): "numpy"}
     entries = [

@@ -4,6 +4,9 @@ The Windows build of Chord Notepad includes runtime files of the Microsoft
 Visual C++ Redistributable and the Universal C Runtime (vcruntime140.dll,
 vcruntime140_1.dll and, where present, msvcp140.dll, ucrtbase.dll and the
 api-ms-win-*.dll forwarders). Python for Windows is compiled against them.
+Qt and its Python bindings are too: the PySide6 and Shiboken6 packages carry
+their own copies (msvcp140*.dll, vcruntime140*.dll, concrt140.dll and the
+other Visual C++ runtime DLLs), in their PySide6 and shiboken6 folders.
 
 They are Copyright (c) Microsoft Corporation and are redistributed under the
 "Distributable Code" terms of the Microsoft Visual Studio license, which allow

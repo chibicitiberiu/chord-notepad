@@ -307,8 +307,8 @@
       "url": "https://learn.microsoft.com/cpp/windows/latest-supported-vc-redist",
       "texts": ["msvc-runtime"],
       "builds": ["windows"],
-      "files": ["vcruntime140*.dll", "msvcp140*.dll", "concrt140*.dll", "ucrtbase.dll", "api-ms-win-*.dll"],
-      "note": "The C and C++ runtime Python is built against, redistributed as Microsoft allows. Not open source."
+      "files": ["vcruntime140*.dll", "msvcp140*.dll", "concrt140*.dll", "ucrtbase.dll", "api-ms-win-*.dll", "PySide6/vcruntime140*.dll", "PySide6/msvcp140*.dll", "PySide6/concrt140*.dll", "PySide6/vccorlib140*.dll", "PySide6/vcomp140*.dll", "PySide6/vcamp140*.dll", "shiboken6/vcruntime140*.dll", "shiboken6/msvcp140*.dll", "shiboken6/concrt140*.dll", "shiboken6/vccorlib140*.dll", "shiboken6/vcomp140*.dll", "shiboken6/vcamp140*.dll"],
+      "note": "The C and C++ runtime Python and Qt are built against, redistributed as Microsoft allows: Python's copies at the top of the bundle, and the copies the PySide6 and Shiboken6 wheels carry in their own folders. Not open source."
     },
     {
       "id": "fluidsynth-windows",
