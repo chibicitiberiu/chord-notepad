@@ -12,6 +12,7 @@ if QT_PROBLEM:
 from PySide6.QtQuick import QQuickWindow, QSGRendererInterface  # noqa: E402
 
 from chordnotepad_desktop import rendering  # noqa: E402
+from chordnotepad_desktop.main import parse_args  # noqa: E402
 from chordnotepad_desktop.rendering import (  # noqa: E402
     SOFTWARE_ENV, choose_renderer, relaunch_command, software_reason, watch_scene_graph,
 )
@@ -59,6 +60,8 @@ def test_what_asks_for_software_rendering():
     assert software_reason(False, {SOFTWARE_ENV: "1"}) == f"{SOFTWARE_ENV}=1"
     assert software_reason(False, {SOFTWARE_ENV: "0"}) is None
     assert software_reason(True, {}) == "--software-rendering"
+    assert parse_args(["--software-rendering"])[0].software_rendering
+    assert not parse_args([])[0].software_rendering
 
 
 def test_the_flag_or_our_variable_switch_to_software(window_api):

@@ -1,6 +1,7 @@
 """The Qt front end starts: the main window loads, ``--ui qt --smoke`` exits 0."""
 
 import os
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -21,7 +22,7 @@ REPO = Path(__file__).resolve().parents[2]
 
 def test_the_main_window_loads(main_window):
     assert isinstance(main_window.window, QQuickWindow)
-    assert main_window.window.title() == "Chord Notepad"
+    assert main_window.window.title() == "Untitled - Chord Notepad"
     assert main_window.window.property("altWatcher") is main_window.alt
 
 
@@ -53,8 +54,14 @@ def test_ui_qt_smoke_starts_and_quits_cleanly(tmp_path):
     result = subprocess.run(
         [sys.executable, "-m", "chordnotepad_tk.main", "--ui", "qt", "--smoke"],
         cwd=tmp_path, env=throwaway_env(tmp_path), capture_output=True, text=True, timeout=60)
-    assert result.returncode == 0, result.stderr
-    assert result.stderr == ""
+    assert result.returncode == 0, result.stdout + result.stderr
+    # The console log (stdout): started and shut down, nothing from Qt above INFO.
+    assert "Application initialization complete" in result.stdout
+    assert "Application shutdown complete" in result.stdout
+    assert not re.search(r"\[(WARNING|ERROR|CRITICAL)\] qt\.", result.stdout), result.stdout
+    # The log file has it too (logging was set up in the throwaway folders).
+    log = tmp_path / "xdg_data_home" / "chord-notepad" / "logs" / "chord-notepad.log"
+    assert "Application shutdown complete" in log.read_text(encoding="utf-8")
 
 
 def test_the_qt_module_runs_through_the_shared_entry_point(tmp_path):

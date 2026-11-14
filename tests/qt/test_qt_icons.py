@@ -115,12 +115,14 @@ def test_the_readme_lists_every_changed_mdi_icon():
 
 
 def names_used_in_qml():
-    """Icon names the QML spells out: iconUrl("x"), name: "x", and ChevronIcon's directions."""
+    """Icon names the QML spells out: iconUrl("x"), name: "x", iconName: "x"
+    (IconButton), and ChevronIcon's directions; in the app and the tests' sample."""
     names = set()
-    for path in QML_DIR.rglob("*.qml"):
+    sample = Path(__file__).resolve().parent / "qml"
+    for path in [*QML_DIR.rglob("*.qml"), *sample.rglob("*.qml")]:
         text = path.read_text(encoding="utf-8")
         names |= set(re.findall(r'iconUrl\("([a-z0-9-]+)"\)', text))
-        names |= set(re.findall(r'\bname: "([a-z0-9-]+)"(?!\s*\+)', text))
+        names |= set(re.findall(r'\b(?:name|iconName): "([a-z0-9-]+)"(?!\s*\+)', text))
         if '"chevron-" + direction' in text:
             names |= {"chevron-down", "chevron-right", "chevron-up"}
     return names
@@ -128,6 +130,6 @@ def names_used_in_qml():
 
 def test_every_icon_the_qml_names_exists(provider):
     used = names_used_in_qml()
-    assert {"check", "chevron-down", "undo", "play"} <= used
+    assert {"check", "chevron-down", "menu", "undo", "play"} <= used
     missing = sorted(n for n in used if provider.find(n) is None)
     assert missing == []

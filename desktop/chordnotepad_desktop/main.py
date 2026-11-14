@@ -5,14 +5,18 @@ build runs) or ``python -m chordnotepad_desktop.main``, which goes through
 the same entry point. Either way :func:`run` gets the paths the entry point
 resolved and the command line without ``--ui``.
 
-The order matters: the text renderer, the application font and the style
-are set before the engine loads any QML, and the main window's
-:class:`~chordnotepad_desktop.dpr.DprWatcher` starts as soon as the window
-exists (its content stays hidden until the ratio has settled).
+:func:`run` names the app (window class, desktop file, icon), then hands
+over to :class:`~chordnotepad_desktop.application.QtApplication`, which
+builds the core and the window in the order the Tk app does. This module
+keeps the window loading itself: the text renderer, the application font
+and the style are set before the engine loads any QML, and the main
+window's :class:`~chordnotepad_desktop.dpr.DprWatcher` starts as soon as the
+window exists (its content stays hidden until the ratio has settled).
 
 ``--smoke`` loads the window, waits until its content is shown and quits:
 exit code 0 when the QML loaded without a warning, 1 otherwise. The
 packaging tracer (plan C5) runs it inside each build.
+``--software-rendering`` draws without the GPU (see ``rendering.py``).
 """
 
 import argparse
@@ -33,6 +37,7 @@ from chordnotepad_desktop import fonts
 from chordnotepad_desktop.alt_watcher import AltWatcher
 from chordnotepad_desktop.dpr import DprWatcher
 from chordnotepad_desktop.icons import PROVIDER_ID, IconProvider, icon_folders
+from chordnotepad_desktop.rendering import SOFTWARE_FLAG
 
 logger = logging.getLogger(__name__)
 
@@ -51,22 +56,31 @@ def parse_args(argv):
     parser = argparse.ArgumentParser(prog="chord-notepad --ui qt", add_help=False)
     parser.add_argument("--smoke", action="store_true",
                         help="load and show the window, then quit (exit 1 on a QML warning)")
+    parser.add_argument(SOFTWARE_FLAG, dest="software_rendering", action="store_true",
+                        help="draw without the GPU (Qt Quick's software renderer)")
     return parser.parse_known_args(argv)
 
 
+_prepared: dict = {}
+
+
 def prepare_application(app: QGuiApplication, paths: AppPaths) -> list:
-    """Process-wide set-up, before any QML is loaded.
+    """Process-wide set-up, before any QML is loaded; once per application.
 
     Native text rendering, the unhinted application font, the bundled Inter
     and the CNStyle style (it can't change once a Controls type is created).
+    A second call for the same application returns the first one's result.
 
     Returns:
         The font families loaded from resources/fonts.
     """
+    if _prepared.get("app") is app:
+        return _prepared["families"]
     fonts.use_native_text_rendering()
     fonts.set_application_font(app)
     families = fonts.load_bundled_fonts(fonts.font_folder(paths))
     QQuickStyle.setStyle(STYLE)
+    _prepared.update(app=app, families=families)
     return families
 
 
@@ -87,22 +101,32 @@ class MainWindow:
     alt: AltWatcher
 
 
-def load_main_window(engine: QQmlApplicationEngine, app: QGuiApplication) -> Optional[MainWindow]:
-    """Load Main.qml and start its watchers; None if it created no window.
+def load_window(engine: QQmlApplicationEngine, app: QGuiApplication, qml_file: Path,
+                properties: Optional[dict] = None) -> Optional[MainWindow]:
+    """Load a window with the main window's plumbing; None if it made no window.
 
-    Main.qml is loaded from its file. An ``inline:`` or data URL hangs
+    The window gets ``altWatcher`` (plus ``properties``) as initial
+    properties and a DprWatcher; it isn't shown (the caller shows it, after
+    sizing it). Loaded from its file: an ``inline:`` or data URL hangs
     ``engine.load`` (Qt Quick pitfall 24), and relative imports need a file.
     """
     alt = AltWatcher(parent=app)
-    engine.setInitialProperties({"altWatcher": alt})
-    engine.load(QUrl.fromLocalFile(str(MAIN_QML)))
+    engine.setInitialProperties({"altWatcher": alt, **(properties or {})})
+    engine.load(QUrl.fromLocalFile(str(qml_file)))
     roots = engine.rootObjects()
-    if not roots or not isinstance(roots[0], QQuickWindow):
+    if not roots or not isinstance(roots[-1], QQuickWindow):
         alt.deleteLater()
         return None
-    window = roots[0]
+    window = roots[-1]
     app.installEventFilter(alt)
     return MainWindow(window=window, dpr=DprWatcher(window, parent=window), alt=alt)
+
+
+def load_main_window(engine: QQmlApplicationEngine, app: QGuiApplication, *,
+                     store: QObject, errors: QObject) -> Optional[MainWindow]:
+    """Load Main.qml over ``store`` (the session) and ``errors`` (the error
+    presenter); None if it created no window. Not shown yet."""
+    return load_window(engine, app, MAIN_QML, {"store": store, "errors": errors})
 
 
 def run(paths: AppPaths, argv) -> int:
@@ -115,24 +139,26 @@ def run(paths: AppPaths, argv) -> int:
     Returns:
         The exit code.
     """
+    from chordnotepad_desktop.application import QtApplication, set_identity
+    from chordnotepad_desktop.error_presenter import show_fatal_error
+
     options, qt_args = parse_args(argv)
     app = QGuiApplication([sys.argv[0], *qt_args])
-    prepare_application(app, paths)
-    engine = create_engine(paths)
-    warnings = []
-    engine.warnings.connect(lambda errors: warnings.extend(e.toString() for e in errors))
-    main = load_main_window(engine, app)
-    if main is None:
-        for text in warnings:
-            logger.error("QML: %s", text)
+    set_identity(app, paths)
+    qt = QtApplication(paths, software_rendering=options.software_rendering)
+    try:
+        main = qt.start(app)
+    except Exception as e:
+        logger.critical("Fatal error: %s", e, exc_info=True)
+        qt.shutdown()
+        show_fatal_error(e, qt.log_path)
         return 1
     if options.smoke:
         main.dpr.revealed.connect(lambda: QTimer.singleShot(SMOKE_LINGER_MS, app.quit))
     code = app.exec()
-    for text in warnings:
-        logger.warning("QML: %s", text)
-    app.removeEventFilter(main.alt)
-    del main, engine
+    qt.shutdown()
+    warnings = list(qt.warnings)
+    del main, qt
     if options.smoke and warnings:
         return 1
     return code

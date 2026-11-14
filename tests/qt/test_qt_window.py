@@ -1,7 +1,10 @@
 """The main window's plumbing: the ratio from Python, the deferred show, snapping.
 
 DprWatcher is driven with a fake ratio (offscreen windows report 1.0); the
-QML side is checked through Theme and the snapped items.
+QML side is checked through Theme and the snapped items. The snapping and
+the dark switch are checked on C2's sample controls (``sample_window``,
+tests/qt/qml/ThemeSample.qml), as the shell has no caret or heading yet;
+the ratio and the deferred show on the real main window.
 """
 
 import math
@@ -98,7 +101,8 @@ def test_the_content_is_shown_by_the_deadline_even_if_the_ratio_keeps_moving(mai
     assert window.property("contentReady") is True
 
 
-def test_icons_lines_and_text_land_on_device_pixels_at_125(main_window, qtbot):
+def test_icons_lines_and_text_land_on_device_pixels_at_125(sample_window, qtbot):
+    main_window = sample_window
     window = main_window.window
     watcher = DprWatcher(window, ratio=FakeRatio(1.25), settle_ms=10, parent=window)
     qtbot.waitUntil(lambda: window.property("contentReady"), timeout=3000)
@@ -124,7 +128,8 @@ def test_icons_lines_and_text_land_on_device_pixels_at_125(main_window, qtbot):
     assert watcher.current == 1.25
 
 
-def test_the_dark_switch_turns_the_theme_dark(main_window, qtbot):
+def test_the_dark_switch_turns_the_theme_dark(sample_window, qtbot):
+    main_window = sample_window
     window = main_window.window
     qtbot.waitUntil(lambda: window.property("contentReady"), timeout=3000)
     switch = item(main_window, "darkSwitch")

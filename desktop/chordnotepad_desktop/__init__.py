@@ -10,7 +10,16 @@ installed before it imports anything from here.
 
 Layout:
 
-* ``main.py``: start-up (:func:`chordnotepad_desktop.main.run`).
+* ``main.py``: start-up (:func:`chordnotepad_desktop.main.run`) and the
+  window loading.
+* ``application.py``: :class:`QtApplication`, the lifecycle (start-up order,
+  the close flow, shutdown), the window's identity and icon.
+* ``qt_host.py``, ``session_store.py``: the session on the Qt event loop, and
+  its states, events, requests and commands for QML (over the bridge).
+* ``error_presenter.py``, ``qt_messages.py``: errors shown in the window, Qt's
+  messages in the log.
+* ``rendering.py``: GPU or software rendering.
+* ``window_geometry.py``: the window's saved size and place.
 * ``fonts.py``, ``icons.py``, ``dpr.py``, ``alt_watcher.py``: the mockup's
   scaling and text recipe, the icon provider, the hidden menu bar's keys.
 * ``qml/CNTheme``: the Theme singleton (colours, units, type) and the

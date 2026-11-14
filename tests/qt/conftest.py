@@ -12,8 +12,10 @@ before it imports anything from PySide6 or chordnotepad_desktop.
 
 Every test here runs offscreen with the software renderer, whatever the
 environment says: a Qt test must never open a window on a real display.
-QML warnings fail the test (``qt_log_level_fail``); :func:`main_window` also
-checks the engine's own ``warnings`` signal.
+QML warnings fail the test (``qt_log_level_fail``); :func:`qt_app` and
+:func:`sample_window` also check the engine's own ``warnings`` signal.
+:func:`qt_app` runs the whole front end in the test process
+(:class:`QtAppHarness`), with a FakePlayer and its config under tmp_path.
 
 The application is set up once, as ``main.run`` does it (the text renderer,
 the unhinted font, Inter, the CNStyle style), before any QML is loaded: the
@@ -74,19 +76,107 @@ def bundled_families(qapp):
     return prepare_application(qapp, PATHS)
 
 
-@pytest.fixture
-def main_window(qapp, qtbot):
-    """Main.qml loaded the way ``main.run`` loads it; closed and freed afterwards.
+#: The test-only window with C2's sample controls (the scaling recipe's tests).
+SAMPLE_QML = Path(__file__).resolve().parent / "qml" / "ThemeSample.qml"
 
-    The engine's warnings must stay empty (checked at teardown).
-    """
-    from chordnotepad_desktop.main import create_engine, load_main_window
+
+class QtAppHarness:
+    """A :class:`~chordnotepad_desktop.application.QtApplication` started in
+    the test process: a FakePlayer, the config and logs under tmp_path, the
+    test's logging left alone. Unexpected errors the presenter is handed are
+    collected in ``unexpected`` (the fixture fails on them unless the test
+    clears the list)."""
+
+    def __init__(self, qapp, tmp_path, today=None):
+        import datetime
+
+        from chordnotepad.services.appdata_service import AppDataService
+        from chordnotepad.session.testing import FakePlayer
+        from chordnotepad_desktop.application import QtApplication
+
+        self.qapp = qapp
+        self.root = tmp_path / "appdata"
+        self.player = FakePlayer()
+        kwargs = {"today": today} if today else {"today": lambda: datetime.date(2026, 11, 14)}
+        self.app = QtApplication(PATHS, appdata=AppDataService(root=self.root),
+                                 player=self.player, configure_logging=False, **kwargs)
+        self.unexpected = []
+
+    def start(self):
+        self.main = self.app.start(self.qapp)
+        presenter = self.app.presenter
+        original = presenter.report_unexpected
+        original_event = presenter.report_event
+
+        def record(exc_info, context):
+            self.unexpected.append((context, exc_info[1]))
+            original(exc_info, context)
+
+        def record_event(message, context):
+            self.unexpected.append((context, message))
+            original_event(message, context)
+
+        presenter.report_unexpected = record
+        presenter.report_event = record_event
+        return self
+
+    @property
+    def window(self):
+        return self.main.window
+
+    @property
+    def store(self):
+        return self.app.store
+
+    def config_file(self):
+        return self.root / "config" / "chord-notepad" / "settings.json"
+
+    def shutdown(self):
+        self.app.shutdown()
+
+
+def write_config(tmp_path, **values):
+    """A settings.json in the harness's config folder, before it starts."""
+    import json
+
+    folder = tmp_path / "appdata" / "config" / "chord-notepad"
+    folder.mkdir(parents=True, exist_ok=True)
+    (folder / "settings.json").write_text(json.dumps({"version": 4, **values}), encoding="utf-8")
+
+
+@pytest.fixture
+def qt_app(qapp, qtbot, tmp_path):
+    """The whole Qt front end, started (window shown, session running);
+    shut down afterwards. Fails on QML warnings and on unexpected errors."""
+    harness = QtAppHarness(qapp, tmp_path).start()
+    yield harness
+    warnings = list(harness.app.warnings)
+    unexpected = list(harness.unexpected)
+    harness.shutdown()
+    qtbot.wait(1)
+    assert warnings == []
+    assert unexpected == []
+
+
+@pytest.fixture
+def main_window(qt_app):
+    """The main window of a started :func:`qt_app` (a ``main.MainWindow``)."""
+    return qt_app.main
+
+
+@pytest.fixture
+def sample_window(qapp, qtbot):
+    """ThemeSample.qml (C2's sample controls) loaded with the main window's
+    plumbing and shown; closed and freed afterwards. The engine's warnings
+    must stay empty."""
+    from chordnotepad_desktop.main import create_engine, load_window
 
     engine = create_engine(PATHS)
     warnings = []
     engine.warnings.connect(lambda errors: warnings.extend(e.toString() for e in errors))
-    main = load_main_window(engine, qapp)
+    main = load_window(engine, qapp, SAMPLE_QML)
     assert main is not None, warnings
+    main.window.show()
     yield main
     qapp.removeEventFilter(main.alt)
     main.window.close()
