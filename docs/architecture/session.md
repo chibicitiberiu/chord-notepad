@@ -327,7 +327,9 @@ threads. Other commands added on the way:
 `chord + " "` and says "Inserted chord: X") and
 `report_audio_failure(reason, from_click)`.
 
-The Qt desktop's (none on the bridge): `logical_window_geometry(scale)` /
+The Qt desktop's (its window talks through the bridge too: the commands
+QML sends are bridge commands, Android never sends them; the queries and
+the geometry are direct calls): `logical_window_geometry(scale)` /
 `set_logical_window_geometry(WindowGeometry, scale)` and
 `logical_chord_sheet_height(scale)` / `set_logical_chord_sheet_height(height,
 scale)` (logical pixels, Tk's keys kept in step: `models/window_geometry.py`);
