@@ -35,6 +35,9 @@ from chordnotepad.constants import (
     CHORD_DETECTION_DEBOUNCE_MS, DEFAULT_CHORD_SHEET_HEIGHT, MAX_FONT_SIZE, MIN_FONT_SIZE,
     UI_SCALE_MAX, UI_SCALE_MIN, UI_THEMES,
 )
+from chordnotepad.constants import (
+    DEFAULT_SIDEBAR, DEFAULT_SIDEBAR_WIDTH, SIDEBAR_WIDTH_MAX, SIDEBAR_WIDTH_MIN, SIDEBARS,
+)
 from chordnotepad.exceptions import (
     AudioInitializationError, ChordNotepadError, ConfigurationError, FileOperationError,
     RenameNotSupported,
@@ -2247,6 +2250,48 @@ class AppSession:
         if self._chord_sheet is not None:
             self._chord_sheet.set_logical_height(int(height), check_scale(scale))
             self._publish_chord_sheet()
+
+    # -- the Qt window's Edit sidebars ---------------------------------------------
+    #
+    # Desktop only, like the volume: the Directives palette or the chord
+    # identifier, kept in the config and read back by the Qt window as direct
+    # calls; Android sends none of these.
+
+    @property
+    def sidebar(self) -> str:
+        """The Qt Edit sidebar that is open (``constants.SIDEBARS``), "" when collapsed."""
+        return str(self._require_services("the sidebars").config.get("sidebar", DEFAULT_SIDEBAR))
+
+    @_command
+    def set_sidebar(self, sidebar: str) -> None:
+        """Keep which Qt Edit sidebar is open ("" for none).
+
+        Raises:
+            ValueError: For something that isn't one of ``constants.SIDEBARS`` or "".
+        """
+        if sidebar not in SIDEBARS + ("",):
+            raise ValueError(f"sidebar must be one of {SIDEBARS} or empty, got {sidebar!r}")
+        self._require_services("the sidebars").config.set("sidebar", sidebar)
+
+    @property
+    def sidebar_width(self) -> float:
+        """The Qt Edit sidebar's width in the window's layout units."""
+        return float(self._require_services("the sidebars").config.get(
+            "sidebar_width", DEFAULT_SIDEBAR_WIDTH))
+
+    @_command
+    def set_sidebar_width(self, width: float) -> None:
+        """Keep the Qt Edit sidebar's width (layout units), clamped to
+        ``SIDEBAR_WIDTH_MIN``-``SIDEBAR_WIDTH_MAX`` and rounded to a tenth.
+
+        Raises:
+            ValueError: For something that isn't a finite number.
+        """
+        value = float(width)
+        if not math.isfinite(value):
+            raise ValueError(f"sidebar width must be a number, got {width!r}")
+        value = round(min(max(value, SIDEBAR_WIDTH_MIN), SIDEBAR_WIDTH_MAX), 1)
+        self._require_services("the sidebars").config.set("sidebar_width", value)
 
     @property
     def show_quick_start_on_startup(self) -> bool:

@@ -295,6 +295,9 @@ SESSION_COMMANDS: Dict[str, Dict[str, str]] = {
     "play_note": {"note": "str", "octave": "int"},
     "play_identified_chord": {"chord": "str", "rolled": "bool"},
     "identifier_play_selection": {"rolled": "bool"},
+    # the Qt window's Edit sidebars (Android never sends them)
+    "set_sidebar": {"sidebar": "str"},
+    "set_sidebar_width": {"width": "float"},
     # documents and requests
     "new_document": {},
     "open_document": {"ref": "DocumentRef|null", "read_only": "bool"},
@@ -385,6 +388,7 @@ CONFIG_COMMANDS = frozenset({
     "convert_notation", "apply_settings", "save_settings",
     "set_show_quick_start_on_startup", "open_document", "open_recent", "save", "save_as",
     "rename_document",
+    "set_sidebar", "set_sidebar_width",
 })
 
 

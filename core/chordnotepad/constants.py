@@ -39,6 +39,16 @@ PLAYBACK_THREAD_CHECK_MS = 50
 DEFAULT_CHORD_SHEET_HEIGHT = 160
 DEFAULT_CHORD_SHEET_VIEW = "keyboard"
 
+# The Qt desktop's Edit sidebars (config ``sidebar``, ``sidebar_width``): the
+# one open ("" when collapsed) and its width in the window's layout units
+# (Theme.px: a quarter of the UI font's line height, about 4 logical px at
+# 100%), so it follows the UI scale.
+SIDEBARS = ("directives", "identifier")
+DEFAULT_SIDEBAR = "directives"
+SIDEBAR_WIDTH_MIN = 56
+SIDEBAR_WIDTH_MAX = 150
+DEFAULT_SIDEBAR_WIDTH = 76
+
 # Capo advisor (see services/capo_advisor.py). When "Allow capo" is on and a
 # fretboard voicing is active, the advisor scores every capo position 0..MAX
 # with the guitar picker's whole-song playability score and suggests the best

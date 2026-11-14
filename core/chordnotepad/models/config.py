@@ -8,6 +8,7 @@ from typing import List, Optional, Literal, Dict
 from chordnotepad.constants import (
     DEFAULT_UI_SCALE, DEFAULT_UI_THEME, LOG_LEVELS, MAX_BPM, MIN_BPM, UI_SCALE_MAX, UI_SCALE_MIN,
     UI_THEMES,
+    DEFAULT_SIDEBAR, DEFAULT_SIDEBAR_WIDTH, SIDEBAR_WIDTH_MAX, SIDEBAR_WIDTH_MIN, SIDEBARS,
 )
 from chordnotepad.models.notation import american_key
 from chordnotepad.models.ensemble_spec import BUILTIN_ENSEMBLES
@@ -108,6 +109,11 @@ class Config:
     # are stored). Values are clamped to [0.5, 2.5]; junk is dropped on load.
     chord_sheet_zoom: Dict[str, float] = field(default_factory=dict)
 
+    # The Qt Edit sidebar that is open (SIDEBARS, or "" when collapsed) and
+    # its width in layout units (SIDEBAR_WIDTH_MIN-SIDEBAR_WIDTH_MAX).
+    sidebar: str = DEFAULT_SIDEBAR
+    sidebar_width: float = DEFAULT_SIDEBAR_WIDTH
+
     def validate(self) -> None:
         """Validate configuration values."""
         if not (MIN_BPM <= self.bpm <= MAX_BPM):
@@ -135,6 +141,11 @@ class Config:
         if not (UI_SCALE_MIN <= self.ui_scale <= UI_SCALE_MAX):
             raise ValueError(
                 f"UI scale must be between {UI_SCALE_MIN} and {UI_SCALE_MAX}, got {self.ui_scale}")
+        if self.sidebar not in SIDEBARS + ("",):
+            raise ValueError(f"Sidebar must be one of {SIDEBARS} or empty, got {self.sidebar!r}")
+        if not (SIDEBAR_WIDTH_MIN <= self.sidebar_width <= SIDEBAR_WIDTH_MAX):
+            raise ValueError(f"Sidebar width must be between {SIDEBAR_WIDTH_MIN} and "
+                             f"{SIDEBAR_WIDTH_MAX}, got {self.sidebar_width}")
 
         if len(self.recent_files) > self.max_recent_files:
             self.recent_files = self.recent_files[:self.max_recent_files]
@@ -177,6 +188,8 @@ class Config:
             "chord_sheet_height": self.chord_sheet_height,
             "chord_sheet_logical_height": self.chord_sheet_logical_height,
             "chord_sheet_zoom": self.chord_sheet_zoom,
+            "sidebar": self.sidebar,
+            "sidebar_width": self.sidebar_width,
         }
 
     @classmethod
@@ -249,6 +262,9 @@ class Config:
                 if "chord_sheet_logical_height" in data
                 else None if "chord_sheet_height" in data else 160),
             chord_sheet_zoom=cls._sanitize_chord_sheet_zoom(data.get("chord_sheet_zoom")),
+            # Junk reads as the defaults (a failed validate() would reset everything).
+            sidebar=cls._one_of(data.get("sidebar"), SIDEBARS + ("",), DEFAULT_SIDEBAR),
+            sidebar_width=cls._sidebar_width(data.get("sidebar_width")),
         )
 
     @staticmethod
@@ -261,6 +277,15 @@ class Config:
     def _one_of(raw, choices, default):
         """``raw`` if it is one of ``choices``, else ``default``."""
         return raw if isinstance(raw, str) and raw in choices else default
+
+    @staticmethod
+    def _sidebar_width(raw) -> float:
+        """A saved ``sidebar_width`` as the Qt window can use it: a number of
+        layout units, clamped to SIDEBAR_WIDTH_MIN-SIDEBAR_WIDTH_MAX and
+        rounded to a tenth; anything that isn't a number is the default."""
+        if isinstance(raw, bool) or not isinstance(raw, (int, float)) or raw != raw:
+            return float(DEFAULT_SIDEBAR_WIDTH)
+        return round(min(max(float(raw), SIDEBAR_WIDTH_MIN), SIDEBAR_WIDTH_MAX), 1)
 
     @staticmethod
     def _iso_date_or_none(raw) -> Optional[str]:
