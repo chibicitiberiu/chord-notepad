@@ -422,9 +422,15 @@ auditions; while playing it jumps there instead), taps on a strip chord
 (`audition(index)` does the same when the strip's chord is still the text's
 chord at the same span; otherwise it only auditions), and a default on the
 first chord whenever the song has chords (an opened document starts
-there). The desktop has none of these, so its Play, Shift+Play, click and
-status behave as before; it would only get a playhead from an explicit
-`set_playhead`/`rewind`, which the Tk window doesn't send yet. Android's
+there). The Qt desktop (`platform="desktop_qt"`) has all of them too, with
+the desktop's status texts: a clicked chord sounds and takes the playhead,
+▶ plays from it and Shift+▶ (`from_offset`) from the cursor, and only a
+cursor start says "from cursor". The Tk desktop (`"desktop"`) has none of
+these, so its Play, Shift+Play, click and status behave as before; it would
+only get a playhead from an explicit `set_playhead`/`rewind`, which the Tk
+window doesn't send. The Qt desktop's texts are the Tk desktop's except
+where those name a Tk menu or control (the Quick Start pages, the fretted
+views' reason), which `platform.pick` falls back to. Android's
 status line is position + activity (`formatting.position_status`): "Bar
 6/24 · Playing Em", "Bar 6/24 · Paused", "Starting…" before the first
 chord, and while idle the playhead's bar ("Bar 6/24", from the strip's song

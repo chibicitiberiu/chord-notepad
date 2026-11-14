@@ -46,7 +46,7 @@ from chordnotepad.models.chord import ChordInfo
 from chordnotepad.models.line import Line
 from chordnotepad.models.rendered_song import RenderedSong
 from chordnotepad.session.host import Host
-from chordnotepad.session.platform import ANDROID, DESKTOP, check_platform, pick
+from chordnotepad.session.platform import ANDROID, DESKTOP, DESKTOP_QT, check_platform, pick
 from chordnotepad.chord_sheet.registry import default_renderers
 from chordnotepad.chord_sheet.renderer_interface import StripRenderer
 from chordnotepad.utils.observable import Observable
@@ -62,9 +62,12 @@ _SCROLL_EPSILON = 0.5    # px; scroll deltas smaller than this are treated as no
 # Display-zoom step/bounds for zoom-capable renderers (staff, piano roll, ...).
 #: Why the fretted views are off for a song without fingerings, per platform.
 #: Android shows it in a toast, which Android 12+ cuts off after two lines.
+#: The Qt desktop shows it as the disabled view tab's tooltip; its Voicing
+#: button sits in the player bar and above the sheet.
 _PICK_FRETTED_INSTRUMENT = {
     DESKTOP: "Pick a fretted instrument (e.g. Guitar) in Playback \u2192 Voicing to use this view.",
     ANDROID: "Pick a fretted voicing, like Guitar, with the Voicing button.",
+    DESKTOP_QT: "Pick a fretted voicing, like Guitar, with the Voicing button to use this view.",
 }
 
 _ZOOM_STEP = 1.2   # multiplicative factor per zoom-in/out click
@@ -174,8 +177,8 @@ class ChordSheetViewModel(Observable):
             marshal: Injectable UI-thread marshal; defaults to ``host.post``,
                 else ``application.queue_ui_callback``, else a direct call.
             debounce_ms: Debounce window in milliseconds.
-            platform: ``desktop`` or ``android`` (``session.platform``): the
-                wording of :attr:`fretted_views_unavailable_reason`.
+            platform: One of ``session.platform.PLATFORMS``: the wording of
+                :attr:`fretted_views_unavailable_reason`.
         """
         super().__init__()
         self._platform = check_platform(platform)

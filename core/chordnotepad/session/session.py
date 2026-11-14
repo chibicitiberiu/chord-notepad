@@ -210,10 +210,11 @@ class AppSession:
                 :meth:`chord_identifier_model`), the settings commands and
                 :meth:`save_config` need them; tests that don't use those
                 leave them out.
-            platform: ``desktop`` or ``android`` (``session.platform``):
-                picks the variant of the texts that name gestures or menus,
-                whether the playhead follows playback and taps
-                (``TRACKS_PLAYHEAD``) and the player's short status texts.
+            platform: ``desktop`` (Tk), ``android`` or ``desktop_qt``
+                (``session.platform``): picks the variant of the texts that
+                name gestures or menus, whether the playhead follows playback
+                and taps (``TRACKS_PLAYHEAD``) and, on Android, the player's
+                short status texts.
 
         Raises:
             ValueError: For an unknown platform.
@@ -929,7 +930,7 @@ class AppSession:
             from_offset = span.start if span is not None else self._playhead
             logger.info("Resuming playback re-rendered (a playback setting changed while paused)")
             self._main.stop_playback()
-            self._start_playback(from_offset)
+            self._start_playback(from_offset, False if self._tracks_playhead else None)
         elif status is PlaybackStatus.PAUSED:
             logger.info("Resuming playback")
             self._main.resume_playback()
@@ -940,9 +941,13 @@ class AppSession:
             else:
                 self._set_status(formatting.RESUMED)
         else:
+            # Only an offset the caller gave is "from cursor": a start at the
+            # playhead isn't (where the playhead moves on its own it nearly
+            # always has one).
+            from_cursor = from_offset is not None
             if from_offset is None and self._playhead is not None:
                 from_offset = self._playhead
-            self._start_playback(from_offset)
+            self._start_playback(from_offset, from_cursor if self._tracks_playhead else None)
 
     @_command
     def stop(self) -> None:
@@ -2776,7 +2781,7 @@ class AppSession:
             self._main.stop_playback()
         self._move_playhead(start)
         if status is PlaybackStatus.PLAYING:
-            self._start_playback(start)
+            self._start_playback(start, False if self._tracks_playhead else None)
         else:
             self._set_idle_status()
 
@@ -2802,9 +2807,17 @@ class AppSession:
         if self._playhead != before and self._position_status:
             self._set_idle_status()
 
-    def _start_playback(self, from_offset: Optional[int]) -> None:
-        from_cursor = from_offset is not None
-        logger.info("Playing from %s", "the cursor" if from_cursor else "the start")
+    def _start_playback(self, from_offset: Optional[int],
+                        from_cursor: Optional[bool] = None) -> None:
+        """Start a song at ``from_offset`` (None: the top).
+
+        ``from_cursor`` picks the "from cursor" status texts; None means
+        "whenever there is an offset", which is all the Tk desktop has.
+        """
+        if from_cursor is None:
+            from_cursor = from_offset is not None
+        logger.info("Playing from %s", "the cursor" if from_cursor
+                    else "the start" if from_offset is None else "the playhead")
         self._playing_chord = None
         try:
             started = self._main.start_playback(from_char_offset=from_offset or 0)

@@ -552,8 +552,8 @@ def editor_schema(platform: str = 'desktop') -> Dict[str, Any]:
     """Everything a view needs to build the voicings editor, as plain data.
 
     Args:
-        platform: ``desktop`` or ``android`` (``session.platform``): the
-            header help that names a menu is worded for it.
+        platform: One of ``session.platform.PLATFORMS``: the header help
+            that names a menu is worded for it (Android has its own).
 
     Returns:
         ``{'version', 'models': [{'value', 'label'}], 'tree_groups': [{'model',

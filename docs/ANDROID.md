@@ -303,7 +303,7 @@ class SessionHandle:
   session with an `AndroidDocumentStore` (below) and `platform="android"`
   (`session.platform`: the texts that name a gesture or a menu path get
   their Android wording, e.g. "Tapped chords won't play…", "⋮ → Playback →
-  Voicing"; the desktop passes nothing and keeps its exact texts),
+  Voicing"; the Tk desktop passes nothing and keeps its exact texts),
   subscribes a listener that
   forwards every output to `event_sink`, installs the `session.errors`
   handler (emits `UnexpectedError`, throttled) and returns. It may block for

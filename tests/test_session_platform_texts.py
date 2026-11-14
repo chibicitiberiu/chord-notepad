@@ -13,7 +13,7 @@ from chordnotepad.session.platform import ANDROID, DESKTOP, PLATFORMS, check_pla
 
 
 def test_platforms_and_pick():
-    assert PLATFORMS == ("desktop", "android")
+    assert PLATFORMS == ("desktop", "android", "desktop_qt")
     assert check_platform("android") == ANDROID
     with pytest.raises(ValueError):
         check_platform("ios")

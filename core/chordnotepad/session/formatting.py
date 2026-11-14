@@ -167,7 +167,7 @@ def audio_unavailable_message(reason: str, from_click: bool, platform: str = DES
             a generic message.
         from_click: True for click-to-hear actions, which are reported only
             once per session, so the message says clicks (taps) stay silent.
-        platform: ``desktop`` or ``android`` (``session.platform``).
+        platform: One of ``session.platform.PLATFORMS``.
     """
     message = reason or "Audio is not available."
     if from_click:

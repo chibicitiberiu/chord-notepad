@@ -9,12 +9,14 @@ A page is a title plus a list of blocks. A block is one of
 
 The desktop pages are the ones the Tk dialog always showed; the Android ones
 differ only where the desktop names a gesture, a menu or a toolbar control (and
-leave out the desktop screenshot).
+leave out the desktop screenshot). The Qt desktop's (``DESKTOP_QT``) are the
+desktop's except where those name a Tk menu or control, or where its playhead
+changes what a click does.
 """
 
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
-from chordnotepad.session.platform import ANDROID, DESKTOP, check_platform
+from chordnotepad.session.platform import ANDROID, DESKTOP, DESKTOP_QT, check_platform
 
 #: The picture of the chord sheet (desktop only).
 CHORD_SHEET_IMAGE = "resources/quickstart/chord_sheet.png"
@@ -27,14 +29,18 @@ def pages(platform: str = DESKTOP) -> List[Dict[str, Any]]:
         ValueError: For an unknown platform.
     """
     android = check_platform(platform) == ANDROID
+    qt = platform == DESKTOP_QT
 
-    def variant(desktop: str, mobile: str) -> str:
-        return mobile if android else desktop
+    def variant(desktop: str, mobile: str, qt_text: Optional[str] = None) -> str:
+        if android:
+            return mobile
+        return qt_text if qt and qt_text is not None else desktop
 
     chord_sheet_blocks: List[tuple] = [
         ("text",
          variant("The panel under the editor draws the song's chords as you write: ",
-                 "In the Play tab, the panel under the song draws its chords: ")
+                 "In the Play tab, the panel under the song draws its chords: ",
+                 "The chord sheet under the text draws the song's chords as you write: ")
          + "as a piano roll, on a music staff, as guitar chord diagrams (Fret "
          "cards), or as tab. It follows along while the song plays."),
     ]
@@ -48,7 +54,10 @@ def pages(platform: str = DESKTOP) -> List[Dict[str, Any]]:
             "Fret cards and Tab need a fretted instrument, picked with the "
             "Voicing button in the Play tab (for example Guitar). The panel "
             "shows in the Play tab only; the ▭ button there shows or hides "
-            "it.")))
+            "it.",
+            "Fret cards and Tab need a fretted instrument, picked with the "
+            "Voicing button (for example Guitar). The Play tab always shows "
+            "the sheet; in the Edit tab, F9 shows or hides it.")))
 
     return [
         {
@@ -71,7 +80,11 @@ def pages(platform: str = DESKTOP) -> List[Dict[str, Any]]:
                     "The app recognizes chord lines on its own and highlights their "
                     "chords; lyric lines are left alone. In the Play tab, tap any "
                     "chord to hear it, or press ▶ at the bottom to play the whole "
-                    "song.")),
+                    "song.",
+                    "The app recognizes chord lines on its own and highlights their "
+                    "chords; lyric lines are left alone. Click any chord in the editor "
+                    "to hear it: the playhead, the marker in the text, moves there, "
+                    "and ▶ plays the song from it.")),
             ],
         },
         {
@@ -115,7 +128,10 @@ def pages(platform: str = DESKTOP) -> List[Dict[str, Any]]:
                     "in the new key.",
                     "Roman numerals write chords relative to the key, set with "
                     "{key: …} or the key in the song pill (Play tab). Change the key "
-                    "and the same song plays in the new key.")),
+                    "and the same song plays in the new key.",
+                    "Roman numerals write chords relative to the key, set with "
+                    "{key: …} or the key in the Play tab's player bar. Change the "
+                    "key and the same song plays in the new key.")),
                 ("snippet",
                  "{key: G}\n"
                  "I         vi        IV        V7\n"
@@ -148,7 +164,12 @@ def pages(platform: str = DESKTOP) -> List[Dict[str, Any]]:
                     "for two bars of 3/4, D7*1.5 for a beat and a half. NC is a bar of "
                     "silence. The song pill in the Play tab sets the tempo, key and "
                     "time defaults for the whole song, and Speed slows it down "
-                    "for practice.")),
+                    "for practice.",
+                    "Each chord lasts one bar unless you add *beats after it: C*6 holds "
+                    "for two bars of 3/4, D7*1.5 for a beat and a half. NC is a bar of "
+                    "silence. The tempo, time and key in the Play tab's player bar set "
+                    "the defaults for the whole song, and Speed slows it down for "
+                    "practice.")),
             ],
         },
         {
@@ -171,7 +192,10 @@ def pages(platform: str = DESKTOP) -> List[Dict[str, Any]]:
                     "Tools → Insert has small dialogs for adding labels, loops and "
                     "other directives if you'd rather not type them.",
                     "In the Edit tab, ＋ Insert has small dialogs for adding labels, loops "
-                    "and other directives if you'd rather not type them.")),
+                    "and other directives if you'd rather not type them.",
+                    "The Directives palette (Ctrl+Shift+D) adds labels, loops and other "
+                    "directives if you'd rather not type them, and the ▾ on a directive "
+                    "picks its value.")),
             ],
         },
         {
@@ -188,7 +212,10 @@ def pages(platform: str = DESKTOP) -> List[Dict[str, Any]]:
                     "and Help → Quick Start brings this tour back.",
                     "The full User Guide is in ☰ → User guide. Identify in the Edit "
                     "ribbon names a chord from the notes you pick, and "
-                    "☰ → Quick start brings this tour back.")),
+                    "☰ → Quick start brings this tour back.",
+                    "Press F1 any time for the full User Guide (also in ☰ → Help). "
+                    "The Chord identifier (Ctrl+Shift+I) names a chord from the notes "
+                    "you pick, and ☰ → Help → Quick start brings this tour back.")),
                 ("text", "Have fun making music!"),
             ],
         },

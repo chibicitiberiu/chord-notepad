@@ -118,8 +118,9 @@ def create_session(host: Host, services: CoreServices, documents: DocumentStore,
             chord-sheet drawing code).
         worker: The session's background worker; a new one by default.
         detection_delay_s: The typing debounce before chords are re-detected.
-        platform: ``desktop`` or ``android`` (``session.platform``): which
-            variant of the texts naming gestures and menus the UI gets.
+        platform: ``desktop`` (Tk), ``android`` or ``desktop_qt``
+            (``session.platform``): which variant of the texts naming gestures
+            and menus the UI gets, and whether the playhead follows playback.
     """
     from chordnotepad.viewmodels.main_window_viewmodel import MainWindowViewModel
     from chordnotepad.viewmodels.text_editor_viewmodel import TextEditorViewModel

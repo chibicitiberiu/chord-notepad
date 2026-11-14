@@ -1027,7 +1027,7 @@ def test_the_fretted_reason_per_platform():
     renderers = [PlainRenderer(), FingeringRenderer()]
     piano = RenderedSong(chords=[make_chord("C", fingering=None)])
     reasons = {}
-    for platform in ("desktop", "android"):
+    for platform in ("desktop", "android", "desktop_qt"):
         scheduler = ManualScheduler()
         vm = ChordSheetViewModel(
             FakeConfig(chord_sheet_visible=True), FakeAudio(rendered=piano), application=None,
@@ -1040,5 +1040,8 @@ def test_the_fretted_reason_per_platform():
     assert reasons["desktop"] == ("Pick a fretted instrument (e.g. Guitar) in "
                                   "Playback → Voicing to use this view.")
     assert reasons["android"] == "Pick a fretted voicing, like Guitar, with the Voicing button."
+    # The Qt desktop's tooltip names its Voicing button, not the Tk menu.
+    assert reasons["desktop_qt"] == ("Pick a fretted voicing, like Guitar, with the Voicing "
+                                     "button to use this view.")
     with pytest.raises(ValueError):
         ChordSheetViewModel(FakeConfig(), FakeAudio(), platform="ios")
