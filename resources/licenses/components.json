@@ -810,9 +810,9 @@
       "url": "https://pictogrammers.com/library/mdi/",
       "sourceUrl": "https://github.com/Templarian/MaterialDesign-SVG",
       "texts": ["mdi-Pictogrammers-Free-License", "Apache-2.0"],
-      "builds": ["flatpak", "snap"],
+      "builds": ["windows", "macos", "linux", "flatpak", "snap"],
       "files": ["resources/qt-icons/mdi/*"],
-      "note": "The Qt window's toolbar, player, menu and palette icons (from the @mdi/svg package; the icons are Apache-2.0). A few are changed or combined with our own drawing; resources/qt-icons/README.md lists them. Only the builds that copy resources/ whole carry them until the Qt window ships."
+      "note": "The Qt window's toolbar, player, menu and palette icons (from the @mdi/svg package; the icons are Apache-2.0). A few are changed or combined with our own drawing; resources/qt-icons/README.md lists them."
     },
     {
       "id": "inter",
@@ -824,9 +824,9 @@
       "url": "https://rsms.me/inter/",
       "sourceUrl": "https://github.com/rsms/inter",
       "texts": ["Inter-OFL"],
-      "builds": ["flatpak", "snap"],
+      "builds": ["windows", "macos", "linux", "flatpak", "snap"],
       "files": ["resources/fonts/Inter-*"],
-      "note": "The Qt window's interface font. Only the builds that copy resources/ whole carry it until the Qt window ships."
+      "note": "The Qt window's interface font."
     },
     {
       "id": "noto-sans-mono",
@@ -838,9 +838,9 @@
       "url": "https://notofonts.github.io/",
       "sourceUrl": "https://github.com/notofonts/latin-greek-cyrillic",
       "texts": ["NotoSansMono-OFL"],
-      "builds": ["flatpak", "snap"],
+      "builds": ["windows", "macos", "linux", "flatpak", "snap"],
       "files": ["resources/fonts/NotoSansMono-*"],
-      "note": "The Qt window's editor font (the Regular style). Only the builds that copy resources/ whole carry it until the Qt window ships."
+      "note": "The Qt window's editor font (the Regular style)."
     },
     {
       "id": "sphinx",

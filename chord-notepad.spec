@@ -5,14 +5,20 @@ import glob
 
 block_cipher = None
 
-# The two packages' folders: the core (chordnotepad) and the Tk front end
-# (chordnotepad_tk). The entry script is chordnotepad_tk/main.py.
+# The packages' folders: the core (chordnotepad), the Tk front end
+# (chordnotepad_tk) and the Qt one (chordnotepad_desktop, --ui qt). The entry
+# script is chordnotepad_tk/main.py.
 package_paths = [os.path.abspath('core'), os.path.abspath('desktop')]
 
 # Licence inventory helpers (packaging/licenses/licence_inventory.py). cwd is
 # the project root when PyInstaller exec()s this spec.
 sys.path.insert(0, os.path.abspath(os.path.join('packaging', 'licenses')))
 import licence_inventory  # noqa: E402
+
+# Which parts of the PySide6 wheel the bundle keeps (packaging/qt_bundle.py,
+# also used by the hooks in hooks/pyinstaller).
+sys.path.insert(0, os.path.abspath('packaging'))
+import qt_bundle  # noqa: E402
 
 licence_build = licence_inventory.build_for_platform(sys.platform)
 
@@ -31,6 +37,11 @@ datas = [
     ('resources/licenses', 'resources/licenses'),
     # Bundle HTML documentation for in-app help
     ('help/build/html', 'help/build/html'),
+    # The Qt window (--ui qt): its QML, which chordnotepad_desktop/main.py
+    # finds next to itself, its icons and its fonts (Inter, Noto Sans Mono).
+    ('desktop/chordnotepad_desktop/qml', 'chordnotepad_desktop/qml'),
+    ('resources/qt-icons', 'resources/qt-icons'),
+    ('resources/fonts', 'resources/fonts'),
 ]
 
 # Collect FluidSynth DLLs on Windows: the ones the licence inventory lists
@@ -97,6 +108,9 @@ if sys.platform == 'win32':
 # Hidden imports - all our local modules
 hiddenimports = [
     'chordnotepad_tk',
+    # --ui qt; chordnotepad_tk/main.py imports it only when asked to.
+    'chordnotepad_desktop.main',
+    'chordnotepad_desktop.application',
     'chordnotepad_tk.main_window',
     'chordnotepad_tk.text_editor',
     'chordnotepad_tk.help_window',
@@ -116,7 +130,6 @@ excludes = [
     'PyQt5',
     'PyQt6',
     'PySide2',
-    'PySide6',
     'wx',
     # music21's optional extras, the dev tools in the same venv and readline:
     # see PYINSTALLER_EXCLUDES in packaging/licenses/licence_inventory.py.
@@ -150,6 +163,21 @@ a = Analysis(
     cipher=block_cipher,
     noarchive=False,
 )
+
+# The Qt window's share of PySide6. The hooks already leave out the plugins
+# and QML modules qt_bundle doesn't list; this drops the rest it doesn't
+# want (translations, Windows' software OpenGL). A Qt library or binding
+# that isn't listed can't simply be dropped (something links it), so it
+# stops the build: check its licence (no GPL-only modules) and list it.
+unlisted_qt = sorted({dest for dest, src, typecode in a.binaries
+                      if qt_bundle.is_qt_code(dest) and qt_bundle.wanted(dest) is False})
+if unlisted_qt:
+    raise SystemExit("Qt libraries or bindings that packaging/qt_bundle.py doesn't list were collected:\n  "
+                     + "\n  ".join(unlisted_qt))
+dropped_qt = len(a.binaries) + len(a.datas)
+a.binaries = [entry for entry in a.binaries if qt_bundle.wanted(entry[0]) is not False]
+a.datas = [entry for entry in a.datas if qt_bundle.wanted(entry[0]) is not False]
+print(f"Qt: dropped {dropped_qt - len(a.binaries) - len(a.datas)} files packaging/qt_bundle.py doesn't list")
 
 # Licence check: every collected file must belong to a component of
 # resources/licenses/components.json for this platform. CI sets
