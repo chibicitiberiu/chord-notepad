@@ -485,6 +485,26 @@
       "note": "Header-only maths library, compiled into FluidSynth."
     },
     {
+      "id": "krb5-flatpak",
+      "name": "MIT Kerberos",
+      "group": "runtime",
+      "version": "1.22.3",
+      "license": "BSD-2-Clause",
+      "copyright": "1985-2026 Massachusetts Institute of Technology and others",
+      "url": "https://web.mit.edu/kerberos/",
+      "sourceUrl": "https://github.com/krb5/krb5",
+      "texts": ["krb5-NOTICE"],
+      "builds": ["flatpak"],
+      "sources": [
+        {
+          "file": "krb5-1.22.3.tar.gz",
+          "urls": ["https://kerberos.org/dist/krb5/1.22/krb5-1.22.3.tar.gz"],
+          "sha256": "fe90af8441ad9fa9b064b8e53077cefb782a96f8a68276b031dc54af1789ff0b"
+        }
+      ],
+      "note": "The Kerberos client libraries Qt's network module links (the Qt window), built from source for the Flatpak. Some files are under other permissive licences; the notice lists them."
+    },
+    {
       "id": "fluidsynth-macos",
       "name": "FluidSynth",
       "group": "native",

@@ -191,3 +191,32 @@ def test_macos_thins_the_universal_wheels_before_pyinstaller():
     thin = WORKFLOW.index("packaging/macos/thin_wheels.sh")
     assert WORKFLOW.index("run: pipenv sync --dev", WORKFLOW.index("  build:")) < thin
     assert thin < WORKFLOW.index("pipenv run pyinstaller --clean chord-notepad.spec")
+
+
+# --- Flatpak and snap -----------------------------------------------------------
+
+def _yaml(path):
+    import yaml
+
+    return yaml.safe_load((REPO / path).read_text(encoding="utf-8"))
+
+
+def test_the_flatpak_gives_the_qt_window_wayland_and_the_gpu():
+    manifest = _yaml("packaging/flatpak/io.github.chibicitiberiu.ChordNotepad.yml")
+    args = manifest["finish-args"]
+    assert {"--socket=wayland", "--device=dri"} <= set(args)
+    assert "--socket=x11" in args  # Tk, the default, needs X11 even on Wayland sessions
+    app = next(m for m in manifest["modules"] if isinstance(m, dict) and m["name"] == "chord-notepad")
+    assert any("packaging/qt_bundle.py trim" in c for c in app["build-commands"])
+
+
+
+def test_the_flatpak_builds_the_kerberos_library_qtnetwork_links():
+    """The freedesktop runtime has no libgssapi_krb5 (QtQml links QtNetwork, which needs it)."""
+    manifest = _yaml("packaging/flatpak/io.github.chibicitiberiu.ChordNotepad.yml")
+    krb5 = next(m for m in manifest["modules"] if isinstance(m, dict) and m["name"] == "krb5")
+    source = COMPONENTS["krb5-flatpak"]["sources"][0]
+    assert (krb5["sources"][0]["url"], krb5["sources"][0]["sha256"]) == (source["urls"][0], source["sha256"])
+    assert source["file"] == f"krb5-{COMPONENTS['krb5-flatpak']['version']}.tar.gz"
+    names = [m if isinstance(m, str) else m["name"] for m in manifest["modules"]]
+    assert names.index("krb5") < names.index("python3-deps.json")

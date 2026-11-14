@@ -134,6 +134,7 @@ SOURCES = {
     "LGPL-3.0.txt": ("archive", "qtbase-everywhere-src-6.12.0.tar.xz",
                      "qtbase-everywhere-src-6.12.0/LICENSES/LGPL-3.0-only.txt"),
     "ICU-73.2.txt": ("download", "icu-73.2-LICENSE"),
+    "krb5-NOTICE.txt": ("archive", "krb5-1.22.3.tar.gz", "krb5-1.22.3/NOTICE"),
     "flac-BSD.txt": ("archive", "flac-1.3.2.tar.xz", "flac-1.3.2/COPYING.Xiph"),
     "vorbis-BSD.txt": ("archive", "libvorbis-1.3.5.tar.xz", "libvorbis-1.3.5/COPYING"),
     "ogg-BSD.txt": ("archive", "libogg-1.3.2.tar.xz", "libogg-1.3.2/COPYING"),
