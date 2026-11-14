@@ -238,6 +238,10 @@ class BridgeCodecTest {
             """{"name": "a/b", "reason": "A name can't contain / or \\.", "can_save_as": false}""",
         )
         assertEquals(RenameFailed("a/b", "A name can't contain / or \\.", false), failed)
+        assertEquals(
+            EditRefused("Stop playback to edit the song"),
+            decode<EditRefused>("EditRefused", """{"message": "Stop playback to edit the song"}"""),
+        )
     }
 
     @Test

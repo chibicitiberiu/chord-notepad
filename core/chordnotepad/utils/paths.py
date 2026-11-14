@@ -37,3 +37,22 @@ def is_document_portal_path(path: Union[str, "os.PathLike[str]"]) -> bool:
         True for ``/run/user/<uid>/doc/...`` and ``/run/flatpak/doc/...`` paths.
     """
     return bool(_DOC_PORTAL_PATH_RE.match(os.fspath(path)))
+
+
+def apply_default_extension(path: str, defaultextension: str) -> str:
+    """Append ``defaultextension`` when ``path`` has no extension, like Tk.
+
+    Args:
+        path: Chosen file path.
+        defaultextension: Extension with or without the leading dot; empty
+            means "leave the path alone".
+
+    Returns:
+        The path, with the extension appended if it had none.
+    """
+    if not path or not defaultextension:
+        return path
+    if os.path.splitext(path)[1]:
+        return path
+    ext = defaultextension if defaultextension.startswith(".") else "." + defaultextension
+    return path + ext

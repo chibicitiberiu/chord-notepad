@@ -66,6 +66,12 @@ LOG_LEVELS = ("DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL")
 # always light or dark. ``theme`` is a different, older key: a ttk theme name.
 UI_THEMES = ("system", "light", "dark")
 DEFAULT_UI_THEME = "system"
+# The Qt desktop's whole-window zoom (config ``ui_scale``, Ctrl+Alt+= / - / 0):
+# a factor on every size, in steps of 10%.
+UI_SCALE_MIN = 0.7
+UI_SCALE_MAX = 2.0
+UI_SCALE_STEP = 0.1
+DEFAULT_UI_SCALE = 1.0
 
 
 class Notation(Enum):

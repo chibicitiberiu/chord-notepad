@@ -712,6 +712,12 @@ def test_every_output_type_crosses_the_bridge_as_plain_values(tmp_path):
         request = env.expect("CapoChoiceRequest")
         env.send("respond", request_id=request["request_id"], value=None)
         env.send("transpose", semitones=1, selection=[11, 14])   # TextEdited
+        env.settle()
+        # No audio here, so nothing plays: pretend for one refused edit.
+        env.session._playback_status = lambda: PlaybackStatus.PLAYING
+        env.send("transpose", semitones=1, selection=None)       # EditRefused
+        env.expect("EditRefused")
+        del env.session._playback_status
         env.send("bogus")                                       # UnexpectedError
         env.send("rename_document", name="a/b")                 # RenameFailed
         env.send("save")

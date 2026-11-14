@@ -5,13 +5,26 @@ import logging
 from dataclasses import dataclass, field
 from typing import List, Optional, Literal, Dict
 
-from chordnotepad.constants import DEFAULT_UI_THEME, LOG_LEVELS, MAX_BPM, MIN_BPM, UI_THEMES
+from chordnotepad.constants import (
+    DEFAULT_UI_SCALE, DEFAULT_UI_THEME, LOG_LEVELS, MAX_BPM, MIN_BPM, UI_SCALE_MAX, UI_SCALE_MIN,
+    UI_THEMES,
+)
 from chordnotepad.models.notation import american_key
 from chordnotepad.models.ensemble_spec import BUILTIN_ENSEMBLES
 from chordnotepad.models import window_geometry as neutral_geometry
 from chordnotepad.audio.volume import check_volume, volume_from_config
 
 logger = logging.getLogger(__name__)
+
+
+def ui_scale_from_config(raw) -> float:
+    """A saved ``ui_scale`` as the window can use it: a number from
+    UI_SCALE_MIN to UI_SCALE_MAX, rounded to whole percent; anything else is
+    the default (a failed ``validate()`` on load would reset every setting)."""
+    if isinstance(raw, bool) or not isinstance(raw, (int, float)):
+        return DEFAULT_UI_SCALE
+    value = round(float(raw), 2)
+    return value if UI_SCALE_MIN <= value <= UI_SCALE_MAX else DEFAULT_UI_SCALE
 
 
 @dataclass
@@ -28,6 +41,11 @@ class Config:
     theme: str = "default"
     # The Qt desktop's colour scheme: "system", "light" or "dark" (UI_THEMES).
     ui_theme: str = DEFAULT_UI_THEME
+    # The Qt desktop's whole-window zoom, UI_SCALE_MIN-UI_SCALE_MAX (1.0 = 100%).
+    ui_scale: float = DEFAULT_UI_SCALE
+    # The Qt desktop's menu bar is hidden (Alt shows it) unless this is on
+    # ("Show menu bar"). macOS always has its global menu bar.
+    menu_bar_shown: bool = False
     # Off: the song scrolls sideways, so a chord line stays over its lyric
     # line however narrow the window. On: long lines wrap at the edge.
     word_wrap: bool = False
@@ -114,6 +132,10 @@ class Config:
         if self.ui_theme not in UI_THEMES:
             raise ValueError(f"UI theme must be one of {UI_THEMES}, got {self.ui_theme!r}")
 
+        if not (UI_SCALE_MIN <= self.ui_scale <= UI_SCALE_MAX):
+            raise ValueError(
+                f"UI scale must be between {UI_SCALE_MIN} and {UI_SCALE_MAX}, got {self.ui_scale}")
+
         if len(self.recent_files) > self.max_recent_files:
             self.recent_files = self.recent_files[:self.max_recent_files]
 
@@ -125,6 +147,8 @@ class Config:
             "font_size": self.font_size,
             "theme": self.theme,
             "ui_theme": self.ui_theme,
+            "ui_scale": self.ui_scale,
+            "menu_bar_shown": self.menu_bar_shown,
             "word_wrap": self.word_wrap,
             "bpm": self.bpm,
             "bpm_multiplier": self.bpm_multiplier,
@@ -187,6 +211,8 @@ class Config:
             # Unknown values fall back here: a failed validate() on load would
             # reset every setting.
             ui_theme=cls._one_of(data.get("ui_theme"), UI_THEMES, DEFAULT_UI_THEME),
+            ui_scale=ui_scale_from_config(data.get("ui_scale")),
+            menu_bar_shown=data.get("menu_bar_shown", False) is True,
             word_wrap=data.get("word_wrap", False) is True,
             bpm=data.get("bpm", 120),
             bpm_multiplier=data.get("bpm_multiplier", 1.0),

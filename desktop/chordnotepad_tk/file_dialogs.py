@@ -33,8 +33,11 @@ from tkinter import filedialog, messagebox
 from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence, Tuple, TypeVar, Union
 from urllib.parse import unquote, urlparse
 
+from chordnotepad.session import formatting
 # Moved to utils.paths (Tk-free); re-exported for existing importers.
-from chordnotepad.utils.paths import display_path, is_document_portal_path  # noqa: F401
+from chordnotepad.utils.paths import (  # noqa: F401
+    apply_default_extension, display_path, is_document_portal_path,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -229,25 +232,6 @@ def file_uri_to_path(uri: str) -> str:
         raise ValueError(f"Not a local file URI: {uri!r}")
     # surrogateescape round-trips non-UTF-8 bytes the same way os.fsdecode does
     return unquote(parsed.path, errors="surrogateescape")
-
-
-def apply_default_extension(path: str, defaultextension: str) -> str:
-    """Append ``defaultextension`` when ``path`` has no extension, like Tk.
-
-    Args:
-        path: Chosen file path.
-        defaultextension: Extension with or without the leading dot; empty
-            means "leave the path alone".
-
-    Returns:
-        The path, with the extension appended if it had none.
-    """
-    if not path or not defaultextension:
-        return path
-    if os.path.splitext(path)[1]:
-        return path
-    ext = defaultextension if defaultextension.startswith(".") else "." + defaultextension
-    return path + ext
 
 
 # ----------------------------------------------------------------------
@@ -524,8 +508,8 @@ def _finish_portal_save_path(parent: Optional[tk.Misc], path: str, defaultextens
         if parent is not None:
             kwargs["parent"] = parent
         replace = messagebox.askyesno(
-            "Confirm Save As",
-            f"{os.path.basename(with_ext)} already exists.\nDo you want to replace it?",
+            formatting.CONFIRM_REPLACE_TITLE,
+            formatting.confirm_replace_message(os.path.basename(with_ext)),
             **kwargs,
         )
         if not replace:

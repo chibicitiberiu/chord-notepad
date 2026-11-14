@@ -26,6 +26,19 @@ MULTIPLIER_TOOLTIP = ("Speed multiplier applied on top of BPM. Middle-click to r
                       "Adjustable during playback.")
 METRONOME_TOOLTIP = "Click track during playback. Toggle this on, then press Play."
 STOP_TOOLTIP = "Stop playback"
+#: The notation toggle's two halves (Tk's AB | Do buttons, the Qt AB|Do).
+AMERICAN_TOOLTIP = "American notation (C, D, E...)"
+EUROPEAN_TOOLTIP = "European notation (Do, Re, Mi...)"
+#: The notations by name, as the Qt status bar shows the song's.
+NOTATION_NAMES = {"american": "American", "european": "European"}
+
+
+def convert_tooltip(target: str) -> str:
+    """The Qt toolbar's Convert button, which converts the song's chords to
+    ``target`` (``american`` or ``european``), the notation it isn't in."""
+    if target == "european":
+        return "Convert the song's chords to European notation (Do, Re, Mi...)"
+    return "Convert the song's chords to American notation (C, D, E...)"
 
 _PLAY_PAUSE_TOOLTIPS = {
     platform.DESKTOP: {

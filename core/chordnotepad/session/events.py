@@ -352,3 +352,20 @@ class RenameFailed:
     name: str
     reason: str
     can_save_as: bool
+
+
+@dataclass(frozen=True)
+class EditRefused:
+    """An edit command was refused: a song is playing or paused, so the text
+    is locked until playback stops (transpose, convert, an insert...).
+
+    The text is unchanged. The Tk window ignores this (its menus act as they
+    always did); the Qt window says so in its status bar; Android stops the
+    song before it edits, so it never sends a refused one.
+
+    Attributes:
+        message: What to tell the user, without a shortcut (each window adds
+            its own way to stop).
+    """
+
+    message: str

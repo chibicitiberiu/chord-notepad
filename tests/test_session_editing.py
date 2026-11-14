@@ -14,7 +14,7 @@ from chordnotepad.session import formatting
 from chordnotepad.services.playback_service import PlaybackService
 from chordnotepad.services.song_parser_service import SongParserService
 from chordnotepad.session.events import (
-    CapoChoiceRequest, InsertDirectiveRequest, TextEdited, UndoPolicy,
+    CapoChoiceRequest, EditRefused, InsertDirectiveRequest, TextEdited, UndoPolicy,
 )
 from chordnotepad.session.host import HostDispatch
 from chordnotepad.session.session import AppSession
@@ -639,7 +639,8 @@ def test_programmatic_edits_are_refused_while_playing():
     env.session.convert_notation("european")
     env.session.insert_text(0, "G ")
 
-    assert env.recorder.items == []
+    # Nothing but the refusals (the Qt status bar says why).
+    assert env.recorder.items == [EditRefused(formatting.EDIT_REFUSED_MESSAGE)] * 3
     assert env.session.text == env.main.current_text == "C G Am F"
     assert env.main.key == "C"
     assert env.main.notation.value == "american"

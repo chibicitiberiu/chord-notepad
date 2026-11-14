@@ -185,6 +185,9 @@
       "height": "int",
       "scale": "float"
     },
+    "set_menu_bar_shown": {
+      "shown": "bool"
+    },
     "set_multiplier_pct": {
       "pct": "float"
     },
@@ -210,6 +213,12 @@
     "set_time_signature": {
       "beats": "int",
       "unit": "int"
+    },
+    "set_ui_scale": {
+      "scale": "float"
+    },
+    "set_ui_theme": {
+      "theme": "str"
     },
     "set_voicing": {
       "voicing": "str"
@@ -308,6 +317,7 @@
     "set_instrument",
     "set_key",
     "set_logical_chord_sheet_height",
+    "set_menu_bar_shown",
     "set_multiplier_pct",
     "set_multiplier_text",
     "set_muted",
@@ -316,6 +326,8 @@
     "set_show_quick_start_on_startup",
     "set_text",
     "set_time_signature",
+    "set_ui_scale",
+    "set_ui_theme",
     "set_voicing",
     "set_voicing_model",
     "set_voicing_values",
@@ -459,6 +471,12 @@
         "title": "str"
       },
       "kind": "state"
+    },
+    "EditRefused": {
+      "fields": {
+        "message": "str"
+      },
+      "kind": "event"
     },
     "EditorState": {
       "fields": {

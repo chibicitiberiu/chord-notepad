@@ -75,10 +75,11 @@ _PLAY_PAUSE_TOOLTIPS = {action: toolbar_texts.play_pause_tooltip(action) for act
 
 # How the native file pickers are shown for each PickDocumentRequest mode:
 # (title, default extension, file types).
-_TEXT_FILE_TYPES = [("Text Files", "*.txt"), ("All Files", "*.*")]
+_TEXT_FILE_TYPES = list(formatting.TEXT_FILE_TYPES)
 _PICKERS = {
-    PickMode.SAVE: ("Save File As", ".txt", _TEXT_FILE_TYPES),
-    PickMode.EXPORT_MIDI: ("Export MIDI", ".mid", [("MIDI files", "*.mid"), ("All files", "*.*")]),
+    PickMode.SAVE: (formatting.SAVE_PICKER_TITLE, formatting.DEFAULT_EXTENSION, _TEXT_FILE_TYPES),
+    PickMode.EXPORT_MIDI: (formatting.EXPORT_PICKER_TITLE, formatting.MIDI_EXTENSION,
+                           list(formatting.MIDI_FILE_TYPES)),
 }
 
 # Import build info (may be auto-generated during CI build)
@@ -606,14 +607,14 @@ class MainWindow(tk.Tk):
                                       highlightthickness=0, cursor='hand2',
                                       command=lambda: self.set_notation('american'))
         self.american_btn.pack(side=tk.LEFT)
-        self.create_tooltip(self.american_btn, "American notation (C, D, E...)")
+        self.create_tooltip(self.american_btn, toolbar_texts.AMERICAN_TOOLTIP)
 
         self.european_btn = tk.Button(notation_frame, text="Do", font=btn_font,
                                       width=3, height=1, relief=tk.FLAT, bd=0,
                                       highlightthickness=0, cursor='hand2',
                                       command=lambda: self.set_notation('european'))
         self.european_btn.pack(side=tk.LEFT)
-        self.create_tooltip(self.european_btn, "European notation (Do, Re, Mi...)")
+        self.create_tooltip(self.european_btn, toolbar_texts.EUROPEAN_TOOLTIP)
 
         # Update button appearance based on current selection
         self.update_notation_buttons()
@@ -944,7 +945,8 @@ class MainWindow(tk.Tk):
     def _present_pick_document(self, request: PickDocumentRequest) -> None:
         """Show the native file picker; answer the session with a ref or None."""
         if request.mode is PickMode.OPEN:
-            filename = ask_open_filename(self, title="Open File", filetypes=_TEXT_FILE_TYPES)
+            filename = ask_open_filename(self, title=formatting.OPEN_PICKER_TITLE,
+                                         filetypes=_TEXT_FILE_TYPES)
         else:
             title, extension, filetypes = _PICKERS[request.mode]
             # A name with its extension: the Flatpak's portal dialog only

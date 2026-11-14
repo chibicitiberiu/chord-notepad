@@ -36,6 +36,7 @@ object BridgeCodec {
         "UserError" to UserError.serializer(),
         "AudioUnavailable" to AudioUnavailable.serializer(),
         "UnexpectedError" to UnexpectedError.serializer(),
+        "EditRefused" to EditRefused.serializer(),
         "TextEdited" to TextEdited.serializer(),
         "InsertDirectiveRequest" to InsertDirectiveRequest.serializer(),
         "CapoChoiceRequest" to CapoChoiceRequest.serializer(),

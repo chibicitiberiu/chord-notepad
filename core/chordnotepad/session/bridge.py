@@ -38,7 +38,7 @@ from chordnotepad.session.documents import DocumentRef
 from chordnotepad.session.events import (
     AudioUnavailable, CapoChoiceRequest, CloseApproved, ConfirmDiscardRequest, DiscardChoice,
     InsertDirectiveRequest, PickDocumentRequest, PickMode, QuickStartBlock, QuickStartContent,
-    DirectiveCheck, DirectiveHint, QuickStartPage, RenameFailed, TextEdited, UndoPolicy,
+    DirectiveCheck, DirectiveHint, EditRefused, QuickStartPage, RenameFailed, TextEdited, UndoPolicy,
     UnexpectedError,
     UserError, VoicingEditorSchema,
 )
@@ -70,6 +70,7 @@ STATE_TYPES: Tuple[type, ...] = (
 EVENT_TYPES: Tuple[type, ...] = (
     TextEdited, UserError, AudioUnavailable, UnexpectedError, CloseApproved,
     VoicingEditorSchema, QuickStartContent, DirectiveCheck, RenameFailed, DirectiveHint,
+    EditRefused,
 )
 REQUEST_TYPES: Tuple[type, ...] = (
     ConfirmDiscardRequest, PickDocumentRequest, CapoChoiceRequest, InsertDirectiveRequest,
@@ -280,6 +281,10 @@ SESSION_COMMANDS: Dict[str, Dict[str, str]] = {
     "set_volume": {"volume": "float"},
     "step_volume": {"steps": "int"},
     "set_muted": {"muted": "bool"},
+    # the Qt window's chrome: whole-window zoom, the menu bar, the colours
+    "set_ui_scale": {"scale": "float"},
+    "set_menu_bar_shown": {"shown": "bool"},
+    "set_ui_theme": {"theme": "str"},
     # the Qt Directives palette and the ▾ pickers
     "insert_snippet": {"offset": "int", "text": "str", "snap": "bool"},
     "replace_directive_value": {"span": "selection", "value": "str"},

@@ -20,6 +20,13 @@ data class AudioUnavailable(
 @Serializable
 data class UnexpectedError(val message: String, val context: String? = null) : SessionError
 
+/**
+ * An edit was refused because a song is playing or paused. Android stops the
+ * song before it edits, so it never sees one; the Qt desktop shows [message].
+ */
+@Serializable
+data class EditRefused(val message: String) : SessionEvent
+
 /** How a view folds a [TextEdited] into its undo history. */
 @Serializable
 enum class UndoPolicy {

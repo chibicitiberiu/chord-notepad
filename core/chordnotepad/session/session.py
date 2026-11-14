@@ -33,6 +33,7 @@ from typing import (
 
 from chordnotepad.constants import (
     CHORD_DETECTION_DEBOUNCE_MS, DEFAULT_CHORD_SHEET_HEIGHT, MAX_FONT_SIZE, MIN_FONT_SIZE,
+    UI_SCALE_MAX, UI_SCALE_MIN, UI_THEMES,
 )
 from chordnotepad.exceptions import (
     AudioInitializationError, ChordNotepadError, ConfigurationError, FileOperationError,
@@ -50,8 +51,8 @@ from chordnotepad.session.documents import DocumentRef
 from chordnotepad.session.events import (
     AudioUnavailable, CapoChoiceRequest, CloseApproved, ConfirmDiscardRequest, DiscardChoice,
     InsertDirectiveRequest, PickDocumentRequest, PickMode, QuickStartBlock, QuickStartContent,
-    DirectiveCheck, DirectiveHint, QuickStartPage, RenameFailed, TextEdited, UndoPolicy,
-    UnexpectedError,
+    DirectiveCheck, DirectiveHint, EditRefused, QuickStartPage, RenameFailed, TextEdited,
+    UndoPolicy, UnexpectedError,
     UserError, VoicingEditorSchema,
 )
 from chordnotepad.audio import volume as volume_curve
@@ -1529,6 +1530,55 @@ class AppSession:
         """Mute or unmute; the slider keeps its place. Not saved."""
         self._main.set_muted(bool(muted))
 
+    # -- the Qt window's chrome ----------------------------------------------------
+    #
+    # Desktop only, like the volume: kept in the config, read back by the Qt
+    # window as direct calls (ui_scale, menu_bar_shown); Android sends none
+    # of these.
+
+    @property
+    def ui_scale(self) -> float:
+        """The Qt window's whole-window zoom (config ``ui_scale``; 1.0 = 100%)."""
+        return float(self._require_services("ui scale").config.get("ui_scale", 1.0))
+
+    @_command
+    def set_ui_scale(self, scale: float) -> None:
+        """Keep the Qt window's zoom, UI_SCALE_MIN-UI_SCALE_MAX, rounded to
+        whole percent.
+
+        Raises:
+            ValueError: Outside that range.
+        """
+        value = round(float(scale), 2)
+        if not UI_SCALE_MIN <= value <= UI_SCALE_MAX:
+            raise ValueError(f"UI scale must be between {UI_SCALE_MIN} and {UI_SCALE_MAX}, "
+                             f"got {scale}")
+        self._require_services("ui scale").config.set("ui_scale", value)
+
+    @property
+    def menu_bar_shown(self) -> bool:
+        """Whether the Qt window keeps its menu bar shown ("Show menu bar")."""
+        return self._require_services("menu bar").config.get("menu_bar_shown", False) is True
+
+    @_command
+    def set_menu_bar_shown(self, shown: bool) -> None:
+        """Keep the Qt window's menu bar shown, or hidden until Alt."""
+        self._require_services("menu bar").config.set("menu_bar_shown", bool(shown))
+
+    @_command
+    def set_ui_theme(self, theme: str) -> None:
+        """Set the Qt window's colours (``system``, ``light`` or ``dark``; the
+        ☰ menu's Dark theme), as Settings › General would, and publish
+        :class:`SettingsState` so the window and Settings follow.
+
+        Raises:
+            ValueError: For another value.
+        """
+        if theme not in UI_THEMES:
+            raise ValueError(f"UI theme must be one of {UI_THEMES}, got {theme!r}")
+        self._require_services("ui theme").config.set("ui_theme", theme)
+        self._publish_settings()
+
     # -- playback menu, fonts, settings -------------------------------------------
 
     @_command
@@ -2554,6 +2604,7 @@ class AppSession:
         if self._playback_status() is PlaybackStatus.IDLE:
             return True
         logger.info("Ignoring %s while a song is playing", what)
+        self._emitter.emit(EditRefused(formatting.EDIT_REFUSED_MESSAGE))
         return False
 
     def _region(self, selection: Selection) -> Optional[Tuple[int, int]]:

@@ -180,6 +180,8 @@ class SessionRepository {
             is StartupState -> _startup.value = output
             is RenameFailed -> _renameFailed.tryEmit(output)
             is TextEdited -> _textEdits.trySend(output)
+            // Android stops the song before it edits: nothing to show.
+            is EditRefused -> Unit
             is SessionRequest -> _pendingRequest.value = output
             is SessionError -> _errors.tryEmit(output)
             CloseApproved -> _closeApproved.tryEmit(Unit)

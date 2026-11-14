@@ -193,6 +193,26 @@ NO_CHORDS_TO_EXPORT_MESSAGE = f"{EXPORT_FAILED}:\nThere are no chords to export.
 CONFIRM_DISCARD_TITLE = "Unsaved Changes"
 CONFIRM_DISCARD_MESSAGE = "Do you want to save your changes?"
 
+# The desktop's file pickers (Tk's and the Qt window's), by what they pick
+# for: the title, the extension a typed name without one gets, and the
+# filters as (label, pattern) pairs. The Save As name comes with its
+# extension (``PickDocumentRequest.suggested_name``): the Flatpak's portal
+# only grants access to the exact name chosen.
+OPEN_PICKER_TITLE = "Open File"
+SAVE_PICKER_TITLE = "Save File As"
+EXPORT_PICKER_TITLE = "Export MIDI"
+TEXT_FILE_TYPES = (("Text Files", "*.txt"), ("All Files", "*.*"))
+MIDI_FILE_TYPES = (("MIDI files", "*.mid"), ("All files", "*.*"))
+MIDI_EXTENSION = ".mid"
+#: A name picked without an extension got one, and that file exists already
+#: (the picker only asked about the name as typed).
+CONFIRM_REPLACE_TITLE = "Confirm Save As"
+
+
+def confirm_replace_message(file_name: str) -> str:
+    """Asks whether to replace ``file_name`` (the name with its extension)."""
+    return f"{file_name} already exists.\nDo you want to replace it?"
+
 
 #: Between a recent file's name and the folder that tells it apart.
 RECENT_FOLDER_SEPARATOR = " — "
@@ -331,6 +351,10 @@ NOTHING_TO_WRITE_STATUS = "The song already sets its tempo, time signature and k
 
 
 # -- editing commands ------------------------------------------------------------
+
+#: An edit refused while a song plays or is paused (``EditRefused``): the
+#: text is locked until playback stops.
+EDIT_REFUSED_MESSAGE = "Stop playback to edit the song"
 
 
 def _scope(has_selection: bool) -> str:
