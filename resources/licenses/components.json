@@ -724,6 +724,20 @@
       "note": "The Qt window's interface font. Only the builds that copy resources/ whole carry it until the Qt window ships."
     },
     {
+      "id": "noto-sans-mono",
+      "name": "Noto Sans Mono",
+      "group": "data",
+      "version": "2.014",
+      "license": "OFL-1.1",
+      "copyright": "2022 The Noto Project Authors",
+      "url": "https://notofonts.github.io/",
+      "sourceUrl": "https://github.com/notofonts/latin-greek-cyrillic",
+      "texts": ["NotoSansMono-OFL"],
+      "builds": ["flatpak", "snap"],
+      "files": ["resources/fonts/NotoSansMono-*"],
+      "note": "The Qt window's editor font (the Regular style). Only the builds that copy resources/ whole carry it until the Qt window ships."
+    },
+    {
       "id": "sphinx",
       "name": "Sphinx",
       "group": "guide",

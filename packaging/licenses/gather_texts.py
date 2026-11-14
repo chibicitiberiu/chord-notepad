@@ -103,6 +103,7 @@ SOURCES = {
     "GeneralUser-GS.txt": ("file", REPO / "resources/soundfont/GeneralUser-GS.LICENSE.txt"),
     "phosphor-MIT.txt": ("file", REPO / "resources/icons/LICENSE"),
     "Inter-OFL.txt": ("file", REPO / "resources/fonts/Inter-LICENSE.txt"),
+    "NotoSansMono-OFL.txt": ("file", REPO / "resources/fonts/NotoSansMono-LICENSE.txt"),
     "Bravura-OFL.txt": ("file", ANDROID / "Bravura-OFL.txt"),
     # Material Design Icons (the Qt window's resources/qt-icons/mdi), as the
     # Android app gathered them from the @mdi/svg package.
