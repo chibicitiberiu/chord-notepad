@@ -301,3 +301,29 @@ def test_the_make_targets_the_build_job_calls_exist():
     assert "\nflatpak-qt-check:\n" in makefile and "\nsnap-qt-check:\n" in makefile
     # Never the real ~/.var/app: a throwaway HOME and a private session bus.
     assert "HOME=$(CURDIR)/build/flatpak-qt-home" in makefile and "dbus-run-session --" in makefile
+
+
+# --- Tk stays (the 0.6.0 --ui tk fallback) --------------------------------------
+
+def test_every_build_keeps_the_tk_front_end_for_the_fallback():
+    """0.6.0 switches the default to Qt but keeps ``--ui tk``: no package may drop Tk yet."""
+    spec = (REPO / "chord-notepad.spec").read_text(encoding="utf-8")
+    assert "['desktop/chordnotepad_tk/main.py']" in spec  # the launcher both front ends start from
+    assert "'chordnotepad_tk'," in spec and "'PIL._tkinter_finder'," in spec
+    assert not {"tkinter", "_tkinter", "PIL", "chordnotepad_tk"} & set(inv.PYINSTALLER_EXCLUDES)
+    assert set(COMPONENTS["tcl-tk"]["builds"]) == {"windows", "macos", "linux"}
+    assert {"tcl-tk-flatpak", "tkinter-flatpak", "pillow", "jeepney"} <= set(COMPONENTS)
+
+    manifest = _yaml("packaging/flatpak/io.github.chibicitiberiu.ChordNotepad.yml")
+    names = [m if isinstance(m, str) else m["name"] for m in manifest["modules"]]
+    assert {"tcl", "tk", "tkinter"} <= set(names)
+    assert "--socket=x11" in manifest["finish-args"]
+
+    snap = _yaml("snap/snapcraft.yaml")
+    assert "python3.14-tk" in snap["parts"]["python-runtime"]["stage-packages"]
+    assert "x11" in snap["apps"]["chord-notepad"]["plugs"]
+
+    for launcher in ("packaging/flatpak/chord-notepad.sh", "packaging/snap/chord-notepad.sh"):
+        assert "-m chordnotepad_tk.main" in (REPO / launcher).read_text(encoding="utf-8"), launcher
+    smoke = (REPO / "packaging/linux/smoke_test.py").read_text(encoding="utf-8")
+    assert '"chordnotepad_tk": APP / "desktop"' in smoke and '"PIL.ImageTk"' in smoke
