@@ -639,6 +639,7 @@
     },
     "TextEdited": {
       "fields": {
+        "anchor": "int|null",
         "cursor": "int",
         "end": "int",
         "replacement": "str",

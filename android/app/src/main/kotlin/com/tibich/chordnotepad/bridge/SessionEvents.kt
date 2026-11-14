@@ -44,6 +44,8 @@ data class TextEdited(
     val replacement: String,
     val undo: UndoPolicy,
     val cursor: Int,
+    /** Select from here to [cursor]; null for none. Only the desktop's palette sets it. */
+    val anchor: Int? = null,
 ) : SessionEvent
 
 /** Ask for a directive's fields; answer with a `{field: value}` map of strings or null. */

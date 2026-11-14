@@ -69,7 +69,9 @@ def test_encode_events_and_requests():
     assert encode(CloseApproved()) == ("CloseApproved", "{}")
     assert json.loads(encode(TextEdited(2, 0, 3, "é😀", UndoPolicy.GROUP, 2))[1]) == {
         "text_revision": 2, "start": 0, "end": 3, "replacement": "é😀", "undo": "group",
-        "cursor": 2}
+        "cursor": 2, "anchor": None}
+    assert json.loads(encode(TextEdited(2, 0, 0, "{bpm: 9}", UndoPolicy.GROUP, 7, 6))[1])[
+        "anchor"] == 6
     assert json.loads(encode(PickDocumentRequest(4, PickMode.EXPORT_MIDI, "a.mid"))[1]) == {
         "request_id": 4, "mode": "export_midi", "suggested_name": "a.mid"}
     assert json.loads(encode(UnexpectedError("boom"))[1]) == {"message": "boom", "context": None}

@@ -168,6 +168,12 @@ class BridgeCodecTest {
             """{"text_revision": 9, "start": 0, "end": 3, "replacement": "D", "undo": "group", "cursor": 1}""",
         )
         assertEquals(UndoPolicy.GROUP, e.undo)
+        assertEquals(null, e.anchor)
+        val selecting = decode<TextEdited>(
+            "TextEdited",
+            """{"text_revision": 9, "start": 0, "end": 0, "replacement": "{bpm: 120}", "undo": "group", "cursor": 9, "anchor": 6}""",
+        )
+        assertEquals(6, selecting.anchor)
         decode<UserError>("UserError", """{"title": "Error", "message": "Failed"}""")
         assertTrue(decode<AudioUnavailable>("AudioUnavailable", """{"message": "m", "from_click": true}""").fromClick)
         assertEquals(null, decode<UnexpectedError>("UnexpectedError", """{"message": "boom"}""").context)

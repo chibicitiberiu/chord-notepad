@@ -34,7 +34,7 @@ from chordnotepad.exceptions import AudioInitializationError, FileOperationError
 from chordnotepad.models.playback_event import PlaybackEventArgs, PlaybackEventType
 from chordnotepad.models.playback_event_internal import MidiEventType
 from chordnotepad.session.documents import DocumentRef
-from chordnotepad.session.events import InsertDirectiveRequest
+from chordnotepad.session.events import InsertDirectiveRequest, TextEdited
 from chordnotepad.session.state import Span, ToolbarState
 from chordnotepad.utils.observable import Observable
 from chordnotepad.utils.text_normalization import normalize_song_text
@@ -248,7 +248,8 @@ def compact(item: Any) -> Any:
 
     A dataclass becomes ``(ClassName, field, ...)``, a :class:`Span` the
     shorter ``(kind, start, end)``, a :class:`ToolbarState` or an
-    :class:`InsertDirectiveRequest` loses its ``key_options``, an enum its
+    :class:`InsertDirectiveRequest` loses its ``key_options``, a
+    :class:`TextEdited` without a selection its ``anchor``, an enum its
     value; tuples and lists are compacted element-wise. Anything else is
     returned as is.
     """
@@ -260,6 +261,12 @@ def compact(item: Any) -> Any:
         return (type(item).__name__,) + tuple(
             compact(getattr(item, f.name)) for f in dataclasses.fields(item)
             if f.name != "key_options")
+    if isinstance(item, TextEdited) and item.anchor is None:
+        # No selection (every edit but a palette insert): the golden stays
+        # the six fields it always had.
+        return ("TextEdited",) + tuple(
+            compact(getattr(item, f.name)) for f in dataclasses.fields(item)
+            if f.name != "anchor")
     if isinstance(item, Enum):
         return item.value
     if dataclasses.is_dataclass(item) and not isinstance(item, type):

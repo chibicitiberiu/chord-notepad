@@ -86,8 +86,9 @@ class TextEdited:
 
     Replace ``[start, end)`` of the view's text with ``replacement`` (offsets
     in code points), fold it into the undo history by ``undo`` and put the
-    cursor at ``cursor``. The view must not report the result back as a user
-    edit: the session's copy already has it.
+    cursor at ``cursor`` (with ``anchor``, select from there to ``cursor``).
+    The view must not report the result back as a user edit: the session's
+    copy already has it.
 
     Attributes:
         text_revision: The session's text revision after the edit.
@@ -96,6 +97,9 @@ class TextEdited:
         replacement: The new text for the range.
         undo: How the edit goes into the undo history.
         cursor: Where the cursor goes afterwards.
+        anchor: The other end of a selection to make (the inserted
+            directive's value, ``AppSession.insert_snippet``), or None for
+            no selection. An offset into the new text, like ``cursor``.
     """
 
     text_revision: int
@@ -104,6 +108,7 @@ class TextEdited:
     replacement: str
     undo: UndoPolicy
     cursor: int
+    anchor: Optional[int] = None
 
 
 @dataclass(frozen=True)

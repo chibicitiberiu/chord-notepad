@@ -56,7 +56,9 @@ from chordnotepad.session.events import (
 )
 from chordnotepad.audio import volume as volume_curve
 from chordnotepad.models.window_geometry import WindowGeometry, check_scale
+from chordnotepad.session import pickers, snippets
 from chordnotepad.session.flows import Flow, FlowRunner
+from chordnotepad.session.pickers import DirectivePicker
 from chordnotepad.session.highlighting import (
     chord_at, compute_spans, directive_hint, first_chord, nearest_chord)
 from chordnotepad.session.host import Cancellable, Host
@@ -162,6 +164,30 @@ def _same_place(old: str, new: str, offset: int) -> int:
     end = new.find("\n", starts[line])
     end = len(new) if end < 0 else end
     return min(starts[line] + column, end)
+
+
+def _word_edge(text: str, offset: int) -> int:
+    """``offset`` moved out of the middle of a word (or chord) to its nearer
+    edge, the left one on a tie; unchanged next to whitespace."""
+    if 0 < offset < len(text) and not text[offset - 1].isspace() and not text[offset].isspace():
+        left = offset
+        while left > 0 and not text[left - 1].isspace():
+            left -= 1
+        right = offset
+        while right < len(text) and not text[right].isspace():
+            right += 1
+        return left if offset - left <= right - offset else right
+    return offset
+
+
+def _label_names(parsed: Sequence[Any], before: Optional[int] = None) -> Tuple[str, ...]:
+    """The valid labels of parsed directives in song order (only those
+    starting before ``before``, if given)."""
+    from chordnotepad.models.directive import DirectiveType
+
+    return tuple(d.label for d in parsed
+                 if d.type == DirectiveType.LABEL and d.is_valid and d.label
+                 and (before is None or d.start < before))
 
 
 def _number_texts(value: Any) -> Dict[str, str]:
@@ -645,6 +671,168 @@ class AppSession:
         if not 0 <= at <= len(self._text):
             raise ValueError(f"insert offset {at} outside the text (length {len(self._text)})")
         self._flows.start(self._insert_directive_flow(kind, at))
+
+    # -- the Directives palette and the ▾ pickers (Qt desktop) -----------------------
+
+    @_command
+    def insert_snippet(self, offset: int, text: str, snap: bool = False) -> None:
+        """Insert a palette snippet at ``offset``, as one undo step, and select
+        its value (``TextEdited.anchor``: a directive's value, a comment's
+        words), so typing or the ▾ picker replaces it.
+
+        The template is made valid where it goes first
+        (:func:`session.snippets.fill_snippet`: a key in the song's notation,
+        a label the song doesn't have, a loop to a label above it), and every
+        directive in it is checked like the Insert dialogs' values
+        (``check_directive``) and must parse as valid there; if one doesn't,
+        nothing is inserted and a :class:`UserError` says why. A space goes in
+        front when the character before isn't whitespace, and after when the
+        one after isn't. Refused while a song plays or is paused.
+
+        Args:
+            offset: Where (the caret, or where it was dropped).
+            text: The snippet (``Snippet.text``), or any text.
+            snap: Move ``offset`` out of the middle of a word to its nearer
+                edge first (a drop between letters).
+
+        Raises:
+            ValueError: If ``offset`` is outside the text or ``text`` is empty.
+        """
+        offset = int(offset)
+        if not 0 <= offset <= len(self._text):
+            raise ValueError(f"insert offset {offset} outside the text (length {len(self._text)})")
+        if not isinstance(text, str) or not text:
+            raise ValueError("insert_snippet needs some text")
+        if not self._edits_allowed("insert snippet"):
+            return
+        if snap:
+            offset = _word_edge(self._text, offset)
+        parsed = self._parsed_directives(self._text)
+        filled = snippets.fill_snippet(
+            text, notation=self._main.notation.value, labels=_label_names(parsed),
+            labels_above=_label_names(parsed, before=offset))
+        before = " " if offset > 0 and not self._text[offset - 1].isspace() else ""
+        after = " " if offset < len(self._text) and not self._text[offset].isspace() else ""
+        inserted = before + filled + after
+        start = offset + len(before)
+        problem = (self._directive_value_problem(filled, own_label=None)
+                   or self._parse_problem(self._text[:offset] + inserted + self._text[offset:],
+                                          start, start + len(filled)))
+        if problem is not None:
+            self._emitter.emit(UserError(problem[0], problem[1]))
+            return
+        selection = snippets.select_range(filled)
+        if selection is None:
+            cursor, anchor = start + len(filled), None
+        else:
+            anchor, cursor = start + selection[0], start + selection[1]
+        self._splice(offset, offset, inserted, UndoPolicy.GROUP, cursor=cursor, anchor=anchor)
+        self._set_status(formatting.inserted_status(filled))
+
+    @_command
+    def replace_directive_value(self, span: Tuple[int, int], value: str) -> None:
+        """Give the directive at ``span`` a new value (a ▾ picker's pick), as
+        one undo step; the keyword and spacing stay as typed, the cursor goes
+        after the directive.
+
+        The value is checked like the Insert dialogs' values (``check_directive``,
+        in the song's notation and against the song's other labels) and the
+        directive must parse as valid with it; if not, nothing changes and a
+        :class:`UserError` says why. Refused while a song plays or is paused.
+
+        Args:
+            span: ``(start, end)`` of the whole directive, ``{`` to ``}``
+                (``DirectivePicker.start``/``end``, ``DirectiveHint``).
+            value: The new value (``3/4``, ``Db``, ``chorus 3``, ``+10``).
+
+        Raises:
+            ValueError: If ``span`` isn't one directive of the text, its
+                keyword isn't a directive's, or ``value`` is empty or holds
+                a brace or a newline.
+        """
+        start, end = (int(x) for x in span)
+        if not 0 <= start < end <= len(self._text):
+            raise ValueError(f"span {start}-{end} outside the text (length {len(self._text)})")
+        parts = snippets.split_directive(self._text[start:end])
+        kind = directives.KIND_OF_KEYWORD.get(parts[0].lower()) if parts else None
+        if parts is None or kind is None:
+            raise ValueError(f"no directive at {start}-{end}: {self._text[start:end]!r}")
+        value = str(value).strip()
+        if not value or any(c in value for c in "{}\n"):
+            raise ValueError(f"not a directive value: {value!r}")
+        if not self._edits_allowed("replace directive value"):
+            return
+        _, value_start, value_end = parts
+        value_start, value_end = start + value_start, start + value_end
+        old_value = self._text[value_start:value_end]
+        directive = self._text[start:value_start] + value + self._text[value_end:end]
+        problem = (self._directive_value_problem(
+                        directive, own_label=old_value if kind == "label" else None)
+                   or self._parse_problem(
+                        self._text[:start] + directive + self._text[end:],
+                        start, start + len(directive)))
+        if problem is not None:
+            self._emitter.emit(UserError(problem[0], problem[1]))
+            return
+        self._splice(value_start, value_end, value, UndoPolicy.GROUP,
+                     cursor=start + len(directive))
+
+    def picker_at(self, offset: int) -> Optional[DirectivePicker]:
+        """The ▾ picker for the directive at ``offset`` (inside it, or just
+        after its ``}``), or None when there is no directive with a picker
+        there (or it is in a comment). Cheap enough for every caret move.
+        """
+        offset = int(offset)
+        for d in self._parsed_directives(self._text):
+            if not d.start <= offset <= d.end:
+                continue
+            parts = snippets.split_directive(self._text[d.start:d.end])
+            kind = pickers.KIND_OF_KEYWORD.get(parts[0].lower()) if parts else None
+            if kind is None:
+                return None
+            _, value_start, value_end = parts
+            current = self._text[d.start + value_start:d.start + value_end]
+            labels = _label_names(self._parsed_directives(self._text), before=d.start)
+            context = pickers.PickerContext(self._main.notation.value, labels, current)
+            return DirectivePicker(kind, d.start, d.end, d.start + value_start,
+                                   d.start + value_end, pickers.picker_options(kind, context))
+        return None
+
+    def _parsed_directives(self, text: str) -> list:
+        """The directives of ``text``: the last detection's when it is of this
+        text, else parsed afresh (a fraction of a millisecond)."""
+        if text == self._text and self._detected_text == self._text:
+            return [d for line in self._detector.detected_lines for d in line.directives]
+        from chordnotepad.services.song_parser_service import SongParserService
+        return SongParserService().parse_directives(text)
+
+    def _directive_value_problem(self, text: str,
+                                 own_label: Optional[str]) -> Optional[Tuple[str, str]]:
+        """Why a single directive (``text``) can't go in, as ``(title,
+        message)`` from ``check_directive``; None for other text or when it
+        is fine. ``own_label``: the label being renamed (not a clash)."""
+        parts = snippets.split_directive(text)
+        if parts is None:
+            return None
+        keyword, value_start, value_end = parts
+        kind = directives.KIND_OF_KEYWORD.get(keyword.lower())
+        if kind is None:
+            return None
+        labels = list(_label_names(self._parsed_directives(self._text)))
+        if own_label is not None and own_label in labels:
+            labels.remove(own_label)
+        problem = directives.check_directive(
+            kind, directives.directive_fields(kind, text[value_start:value_end]),
+            existing_labels=labels, notation=self._main.notation.value)
+        return None if problem is None else (problem.title, problem.message)
+
+    def _parse_problem(self, text: str, start: int, end: int) -> Optional[Tuple[str, str]]:
+        """Why a directive in ``[start, end)`` of ``text`` (the text after the
+        edit) would be invalid there (a loop to a label below it...), or None."""
+        for d in self._parsed_directives(text):
+            if start <= d.start and d.end <= end and not d.is_valid:
+                return directives.INVALID_INPUT, d.message or "This directive isn't valid here."
+        return None
 
     @_command
     def write_song_defaults(self) -> None:
@@ -2356,13 +2544,15 @@ class AppSession:
             self._kept_cursor = previous
 
     def _splice(self, start: int, end: int, replacement: str,
-                undo: UndoPolicy = UndoPolicy.PLAIN, cursor: Optional[int] = None) -> None:
+                undo: UndoPolicy = UndoPolicy.PLAIN, cursor: Optional[int] = None,
+                anchor: Optional[int] = None) -> None:
         """Make an edit: update the copies, tell the views, re-detect at once.
 
         A ``reset`` edit is delivered even if it changes nothing (a document
         with the same text was opened): the views still start a new undo
         history. The cursor goes after the replacement unless ``cursor``
-        (an offset into the new text) says otherwise.
+        (an offset into the new text) says otherwise; with ``anchor`` the
+        view selects from it to the cursor.
         """
         if undo is UndoPolicy.RESET:
             # Another document (or a restored draft): its playhead starts over.
@@ -2372,7 +2562,7 @@ class AppSession:
             self._replace_mirror(old[:start] + replacement + old[end:], 0)
             self._emitter.emit(TextEdited(
                 self._revision, start, end, replacement, undo,
-                start + len(replacement) if cursor is None else cursor))
+                start + len(replacement) if cursor is None else cursor, anchor))
         self._detect_now()
 
     def _on_text_replaced(self, text: str) -> None:
