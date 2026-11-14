@@ -644,6 +644,24 @@ class MainWindowViewModel(Observable):
         self._audio.set_bpm(bpm)
         self.set_and_notify("bpm", bpm)
 
+    @property
+    def volume(self) -> float:
+        """The volume slider's position, 0.0-1.0 (config ``volume``)."""
+        return self._audio.volume
+
+    @property
+    def muted(self) -> bool:
+        """Whether the output is muted (not saved)."""
+        return self._audio.muted
+
+    def set_volume(self, volume: float) -> None:
+        """Set and save the volume (0.0-1.0); raises ValueError outside it."""
+        self._audio.set_volume(volume)
+
+    def set_muted(self, muted: bool) -> None:
+        """Mute or unmute (not saved)."""
+        self._audio.set_muted(muted)
+
     def toggle_metronome(self) -> None:
         """Arm or disarm the metronome.
 

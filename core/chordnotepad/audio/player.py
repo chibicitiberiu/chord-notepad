@@ -20,6 +20,7 @@ from chordnotepad.audio.fluidsynth_import import fluidsynth
 from chordnotepad.audio.player_interface import IPlayer
 from chordnotepad.audio.sequencer import TICKS_PER_SECOND, SynthSequencer
 from chordnotepad.audio.song_scheduler import CLICK_TICKS, ClickSound, SongScheduler
+from chordnotepad.constants import AUDIO_GAIN
 from chordnotepad.exceptions import AudioInitializationError
 from chordnotepad.models.playback_event_internal import MidiEvent
 
@@ -31,6 +32,8 @@ class NotePlayer(IPlayer):
 
     _audio_suspended = False
     _driver_candidates: List[str] = []
+    #: The synth's output gain (``synth.gain``); see :meth:`set_gain`.
+    _gain: float = AUDIO_GAIN
 
     def __init__(
         self,
@@ -52,6 +55,7 @@ class NotePlayer(IPlayer):
                 (default: FluidSynth's defaults and the platform driver list)
         """
         self.fs = None
+        self._gain = AUDIO_GAIN
         #: The audio driver that actually started.
         self.driver_name: Optional[str] = None
         #: The driver candidates tried at init, to retry on resume_audio().
@@ -122,8 +126,8 @@ class NotePlayer(IPlayer):
             logger.debug("Creating FluidSynth instance...")
             self.fs = fluidsynth.Synth(**synth_kwargs)
 
-            # Set gain (volume) - 0.0 to 10.0, default is 0.2
-            self.fs.setting('synth.gain', 0.5)
+            # Gain (volume): 0.0 to 10.0, FluidSynth's default is 0.2.
+            self.fs.setting('synth.gain', self._gain)
 
             # Before any driver renders: registering adds a sample timer to
             # the synth, which the audio thread walks.
@@ -160,6 +164,26 @@ class NotePlayer(IPlayer):
             if isinstance(e, AudioInitializationError):
                 raise
             raise AudioInitializationError(f"FluidSynth failed to start: {e}") from e
+
+    @property
+    def gain(self) -> float:
+        """The synth's output gain (``synth.gain``)."""
+        return self._gain
+
+    def set_gain(self, gain: float) -> None:
+        """Set the output gain, 0.0-10.0 (:data:`constants.AUDIO_GAIN` is
+        full volume), live: ``synth.gain`` is a real-time setting, so a
+        playing song and click-to-hear follow at once. Before the synth
+        exists it is kept for when it starts.
+
+        Raises:
+            ValueError: For a gain outside 0.0-10.0 (or not a number).
+        """
+        if isinstance(gain, bool) or not isinstance(gain, (int, float)) or not 0.0 <= gain <= 10.0:
+            raise ValueError(f"gain must be from 0.0 to 10.0, not {gain!r}")
+        self._gain = float(gain)
+        if self.fs is not None:
+            self.fs.setting('synth.gain', self._gain)
 
     @property
     def audio_suspended(self) -> bool:

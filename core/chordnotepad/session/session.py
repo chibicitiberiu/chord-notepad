@@ -54,6 +54,7 @@ from chordnotepad.session.events import (
     UnexpectedError,
     UserError, VoicingEditorSchema,
 )
+from chordnotepad.audio import volume as volume_curve
 from chordnotepad.models.window_geometry import WindowGeometry, check_scale
 from chordnotepad.session.flows import Flow, FlowRunner
 from chordnotepad.session.highlighting import (
@@ -1294,6 +1295,46 @@ class AppSession:
     def toggle_metronome(self) -> None:
         """Turn the click track on or off."""
         self._main.toggle_metronome()
+
+    # -- volume (the Qt player bar) -------------------------------------------------
+    #
+    # Desktop only: Android plays at the phone's volume, so none of this is on
+    # the bridge or in a state; the Qt bar reads volume and muted.
+
+    @property
+    def volume(self) -> float:
+        """The volume slider's position, 0.0-1.0 (config ``volume``; 1.0 is
+        the loudness the app always had)."""
+        return self._main.volume
+
+    @property
+    def muted(self) -> bool:
+        """Whether the output is muted. Not saved: every run starts unmuted."""
+        return self._main.muted
+
+    @_command
+    def set_volume(self, volume: float) -> None:
+        """Set the volume, 0.0-1.0, and save it; live, also while a song
+        plays (``audio/volume.py`` has the curve). Mute stays as it is.
+
+        Raises:
+            ValueError: For a volume outside 0.0-1.0.
+        """
+        self._main.set_volume(volume)
+
+    @_command
+    def step_volume(self, steps: int) -> None:
+        """Move the volume by ``steps`` of 5% (the wheel over the slider),
+        within 0-100%, and unmute: turning it up or down means "I want to
+        hear this"."""
+        target = round(self._main.volume + int(steps) * volume_curve.VOLUME_STEP, 2)
+        self._main.set_volume(min(volume_curve.MAX_VOLUME, max(volume_curve.MIN_VOLUME, target)))
+        self._main.set_muted(False)
+
+    @_command
+    def set_muted(self, muted: bool) -> None:
+        """Mute or unmute; the slider keeps its place. Not saved."""
+        self._main.set_muted(bool(muted))
 
     # -- playback menu, fonts, settings -------------------------------------------
 

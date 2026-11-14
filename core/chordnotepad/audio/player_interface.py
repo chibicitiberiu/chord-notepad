@@ -78,6 +78,11 @@ class IPlayer(ABC):
         """
         pass
 
+    def set_gain(self, gain: float) -> None:
+        """Set the output gain (FluidSynth's ``synth.gain``, 0.0-10.0),
+        live: a playing song and click-to-hear follow at once. Nothing by
+        default."""
+
     def suspend_audio(self) -> bool:
         """Release the audio output device while keeping the loaded state.
 

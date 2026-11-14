@@ -51,6 +51,8 @@ CAPO_MIN_GAIN = 6.0       # Minimum score improvement over capo 0 to suggest a c
 # Audio settings
 DEFAULT_OCTAVE = 4
 BASS_OCTAVE = 3
+# FluidSynth's synth.gain at full volume (config volume 1.0): the loudness
+# the app always had. See audio/volume.py for the volume-to-gain curve.
 AUDIO_GAIN = 0.5
 MIDI_CHANNEL = 0
 

@@ -519,6 +519,10 @@ class FakePlayer(IPlayer):
         """Record the MIDI program."""
         self.instrument = program
 
+    def set_gain(self, gain: float) -> None:
+        """Record the output gain."""
+        self.gain = gain
+
     def get_available_instruments(self) -> List[Tuple[int, str]]:
         """No soundfont, no instruments."""
         return []

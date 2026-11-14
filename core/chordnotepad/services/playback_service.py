@@ -6,6 +6,7 @@ import os
 import threading
 from typing import Optional, List, Callable, Tuple
 
+from chordnotepad.audio import volume as volume_curve
 from chordnotepad.audio.audio_options import AudioOptions
 from chordnotepad.audio.player_interface import IPlayer
 from chordnotepad.audio.player import NotePlayer
@@ -69,6 +70,12 @@ class PlaybackService:
         # click during a render would change state that thread is using.
         self._click_picker: Optional[INotePicker] = None
         self._initialized = player is not None
+        # The slider (config ``volume``) and mute (not saved), as gain.
+        self._volume = volume_curve.volume_from_config(
+            self._config.get("volume", volume_curve.DEFAULT_VOLUME))
+        self._muted = False
+        if player is not None:
+            self._apply_gain()
         # Why the last initialize_player() failed, for the error dialog.
         self._init_error: Optional[str] = None
         self._playback_state = PlaybackState()
@@ -325,6 +332,7 @@ class PlaybackService:
             # Set instrument from config
             instrument = self._config.get("instrument", 0)
             self._player.set_instrument(instrument)
+            self._apply_gain()
 
             # Apply saved speed multiplier
             multiplier = float(self._config.get("bpm_multiplier", 1.0))
@@ -540,6 +548,36 @@ class PlaybackService:
             self._logger.debug(f"Setting BPM multiplier to {multiplier}")
             self._player.set_bpm_multiplier(multiplier)
             self._config.set("bpm_multiplier", multiplier)
+
+    @property
+    def volume(self) -> float:
+        """The volume slider's position, 0.0-1.0 (config ``volume``)."""
+        return self._volume
+
+    @property
+    def muted(self) -> bool:
+        """Whether the output is muted (not saved: every run starts unmuted)."""
+        return self._muted
+
+    def set_volume(self, volume: float) -> None:
+        """Move the volume slider (0.0-1.0) and save it; live, also while a
+        song plays. Mute stays as it is.
+
+        Raises:
+            ValueError: For a volume outside 0.0-1.0.
+        """
+        self._volume = round(volume_curve.check_volume(volume), 3)
+        self._config.set("volume", self._volume)
+        self._apply_gain()
+
+    def set_muted(self, muted: bool) -> None:
+        """Mute or unmute the output; live, and not saved."""
+        self._muted = bool(muted)
+        self._apply_gain()
+
+    def _apply_gain(self) -> None:
+        if self._player is not None:
+            self._player.set_gain(volume_curve.gain_for(self._volume, self._muted))
 
     def set_metronome_enabled(self, enabled: bool) -> None:
         """Arm or disarm the click track.
