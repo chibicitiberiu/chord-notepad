@@ -166,8 +166,10 @@ Rectangle {
             playingIndex: pane.st.current_index === null || pane.st.current_index === undefined ? -1 : pane.st.current_index
             cursorIndex: pane.st.cursor_index === null || pane.st.cursor_index === undefined ? -1 : pane.st.cursor_index
             // The wheel scrolls (sideways too); Ctrl+wheel zooms about the pointer.
+            // The touchpad is accepted for Wayland's sake (see EditorPane's zoomWheel).
             WheelHandler {
                 objectName: "sheetWheel"
+                acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
                 acceptedModifiers: Qt.NoModifier
                 onWheel: (e) => {
                     var d = e.pixelDelta.x !== 0 || e.pixelDelta.y !== 0
@@ -178,6 +180,7 @@ Rectangle {
             }
             WheelHandler {
                 objectName: "sheetZoomWheel"
+                acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
                 acceptedModifiers: Qt.ControlModifier
                 onWheel: (e) => {
                     pane.zoomWheel += e.angleDelta.y

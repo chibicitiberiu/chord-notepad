@@ -483,8 +483,12 @@ Rectangle {
                 onTapped: contextMenu.popup()
             }
             // Ctrl+wheel zooms the text, one step a notch, and doesn't scroll.
+            // Both wheel handlers take the touchpad too: on Wayland Qt tags every
+            // pointer event, a mouse wheel's included, with the seat's touchpad
+            // device, and a WheelHandler only takes the mouse by default.
             WheelHandler {
                 objectName: "zoomWheel"
+                acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
                 acceptedModifiers: Qt.ControlModifier
                 target: null
                 property real notches: 0
@@ -499,6 +503,7 @@ Rectangle {
             // Flickable only scrolls vertically for a vertical wheel.
             WheelHandler {
                 objectName: "sidewaysWheel"
+                acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
                 acceptedModifiers: Qt.ShiftModifier
                 target: null
                 onWheel: (event) => {
