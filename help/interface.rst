@@ -168,8 +168,10 @@ The User Interface
 
    In the text, a small marker (a bar with a diamond on top) shows where
    playback starts. **Click a chord** to hear it: the marker moves there
-   and the chord sounds, and the next **▶** starts from that chord. If the
-   song is already playing, clicking a chord jumps playback to it. Dragging
+   and the chord sounds, and the next **▶** starts from that chord.
+   **Shift+click** it to hear it rolled, one note at a time from the lowest
+   up. If the song is already playing, clicking a chord jumps playback to
+   it. Dragging
    on the timeline or pressing ⏮ moves the marker too.
 
    Voicing and Instrument

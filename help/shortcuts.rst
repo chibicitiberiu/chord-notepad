@@ -194,6 +194,8 @@ Playback
         - Play from the text cursor
       * - Click valid chord
         - Play that chord and move the playhead there
+      * - Shift+Click valid chord
+        - Play that chord rolled, one note at a time (in the text or the chord sheet)
       * - Ctrl+M
         - Metronome on or off
       * - Ctrl+] / Ctrl+[ / Ctrl+Backslash

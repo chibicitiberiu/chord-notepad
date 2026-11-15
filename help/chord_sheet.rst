@@ -37,11 +37,20 @@ parentheses: ``V7`` in the key of C is labeled ``V7 (G7)``. If the key
 changes mid-song, each card resolves against the key in effect at that
 point.
 
+Every second section of the song sits on a slightly darker background
+(slightly lighter in the dark theme), so you can see where one section ends
+and the next begins in every view. Sections start where the marker lane's
+section and loop flags are (see below): a part before the first
+``{label}`` counts as the first section, and each pass of a loop is a
+section of its own.
+
 .. only:: desktop
 
    Click any chord in the strip to hear that exact voicing once, the same
    way clicking a chord in the editor plays it. The playhead moves to it, and
    the text scrolls to show that chord if it was out of view.
+   **Shift+click** a chord to hear it rolled, one note at a time from the
+   lowest up, like a quick strum; the playhead moves the same way.
 
 .. only:: android
 
@@ -173,6 +182,11 @@ isn't shown yet: every chord is drawn as a whole note, however long it
 lasts, and a longer chord only gets more room. The chord names all have one
 size and sit on one line; a chord too short for its name gets a wider slot.
 
+.. only:: desktop
+
+   A note next to the view tabs says so while the Staff view is shown.
+   Click **Dismiss** after it to hide it for good; the app remembers that.
+
 The key signature is drawn after the clefs from the song's key, and again
 after a double barline wherever a ``{key}`` directive changes it; notes
 then only carry accidentals where they deviate from the signature
@@ -200,7 +214,8 @@ the size that still fits the strip's height.
 Available for any voicing. An
 ensemble voicing routes each voice to the staff (treble or bass) set for
 it -- see :doc:`ensembles` for where that per-voice ``staff`` setting comes
-from -- and colors each voice, with a small legend at the left. An ensemble
+from -- and colors each voice, with a small legend at the left that lists
+the voices from the highest down (Soprano, Alto, Tenor, Bass). An ensemble
 can also set its upper staff to a treble clef with a small 8 below, the usual
 clef for tenors: the notes on that staff are then written an octave higher
 than they sound (the Male Choir (TTBB) preset does this). The piano
@@ -390,11 +405,11 @@ jumping around: normal forward playback nudges the view forward as the
 playhead approaches the right edge, and a loop restart or a play-from-cursor
 jump snaps the view to keep the new position in view.
 
-.. only:: android
-
-   The sounding chord's column is shaded yellow. While nothing plays, a thin
-   line in the app's accent colour runs down the left edge of the chord the
-   playhead is on, so you can see where **▶** will start.
+The sounding chord's column gets a light tint of the app's accent colour,
+over everything drawn there, with a stronger line of the same colour along
+its top and bottom. While nothing plays, a thin line in the accent colour
+runs down the left edge of the chord the playhead is on, so you can see
+where **▶** will start.
 
 
 The Timeline Marker Lane

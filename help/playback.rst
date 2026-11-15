@@ -241,6 +241,10 @@ You can play individual chords without starting full playback.
    2. Click the chord
    3. The chord plays, and the playhead moves to it
 
+   Hold **Shift** while you click to hear the chord rolled: its notes one
+   at a time from the lowest up, like a quick strum. This works on the
+   chords in the chord sheet too.
+
    In the Edit workspace a click on a chord does the same, so you can hear
    what you have written as you go.
 
