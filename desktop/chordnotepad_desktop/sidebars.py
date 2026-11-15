@@ -26,12 +26,13 @@ from PySide6.QtCore import Property, QObject, Signal, Slot
 
 from chordnotepad.constants import SIDEBAR_WIDTH_MAX, SIDEBAR_WIDTH_MIN, SIDEBARS
 from chordnotepad.session.snippets import PALETTE
+from chordnotepad_desktop.status_bar import READ_ONLY_NOTICE
 
 logger = logging.getLogger(__name__)
 
-#: Why the palette is disabled while a song plays or is paused (the
-#: mockup's status bar line for the read-only editor).
-LOCKED_REASON = "Read-only while playing · Shift+F5 stops"
+#: Why the palette is disabled while a song plays or is paused: the status
+#: bar's read-only notice (the mockup's line), one text for both.
+LOCKED_REASON = READ_ONLY_NOTICE
 #: The tooltip's last line for a tile that can be used (the mockup's, without
 #: "drag to place": dragging comes after the switch).
 TILE_ACTION = "Click to insert"
