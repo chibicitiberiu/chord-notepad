@@ -210,6 +210,13 @@ QtObject {
     readonly property color comment:          dark ? "#7f848f" : "#bebebe"
     readonly property color playing:          dark ? "#5a4f00" : "#ffff00"
     readonly property color selection:        dark ? "#3a4579" : "#cdd5f6"
+    // The find bar's matches (a tint in the text) and the selected match
+    // (the selection's colour while the bar is open), and a selected word's
+    // other occurrences: green, away from the selection's indigo and the
+    // playing chord's yellow.
+    readonly property color findMatch:        dark ? "#2d4b35" : "#cdecd2"
+    readonly property color findCurrent:      dark ? "#3c7448" : "#9fdcaa"
+    readonly property color occurrence:       dark ? "#35373d" : "#e6e8ec"
     // The chord sheet's playing column: the accent as a tint over the strip.
     readonly property color sheetPlaying:     Qt.rgba(accent.r, accent.g, accent.b, dark ? 0.20 : 0.14)
 

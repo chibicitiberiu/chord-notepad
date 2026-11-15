@@ -80,6 +80,9 @@ class _StaticSpans:
     def spans_between(self, first: int, last: int) -> List[Tuple[int, int, str]]:
         return [s for s in self._spans if s[1] > first and s[0] < last]
 
+    def tints_between(self, first: int, last: int) -> List[Tuple[int, int, str]]:
+        return []           # no find bar over a snippet
+
 
 class DialogsModel(QObject):
     """The dialogs' data and actions (see the module docstring).

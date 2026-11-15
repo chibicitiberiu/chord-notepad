@@ -56,6 +56,7 @@ from chordnotepad.constants import DEFAULT_FONT_SIZE
 from chordnotepad.session import snippets
 from chordnotepad.utils.text_normalization import normalize_song_text
 from chordnotepad_desktop import editor_font, popups
+from chordnotepad_desktop.find_bar import FindModel
 from chordnotepad_desktop.offsets import OffsetMapper, utf16_length
 from chordnotepad_desktop.text_mouse import TextMouse
 
@@ -178,6 +179,14 @@ def char_formats(palette: Dict[str, Any]) -> Dict[str, QTextCharFormat]:
     }
 
 
+def tint_colours(palette: Dict[str, Any]) -> Dict[str, QColor]:
+    """The tints' backgrounds for ``palette``: ``findMatch`` for the find
+    bar's matches, ``occurrence`` for a selected word's other occurrences
+    (missing ones are left out, so nothing is tinted)."""
+    names = {"find": "findMatch", "occurrence": "occurrence"}
+    return {kind: QColor(palette[name]) for kind, name in names.items() if name in palette}
+
+
 class SpanHighlighter(QSyntaxHighlighter):
     """Paints the bridge's spans, comments over the rest, the playing chord on top."""
 
@@ -185,6 +194,8 @@ class SpanHighlighter(QSyntaxHighlighter):
         super().__init__(document)
         self._bridge = bridge
         self.formats: Dict[str, QTextCharFormat] = {}
+        #: The background of each tint kind ("find", "occurrence").
+        self.tints: Dict[str, QColor] = {}
 
     def highlightBlock(self, text: str) -> None:  # noqa: N802 (Qt)
         block = self.currentBlock()
@@ -198,9 +209,22 @@ class SpanHighlighter(QSyntaxHighlighter):
                 self._paint(first, last, start, end, kind)
         for start, end, kind in later:
             self._paint(first, last, start, end, kind)
+        # The find bar's matches and a selected word's occurrences: a
+        # background over whatever the text has (occurrences first, find wins).
+        for start, end, kind in self._bridge.tints_between(first, last):
+            self._tint(first, last, start, end, kind)
         playing = self._bridge.playing_range
         if playing is not None:
             self._paint(first, last, playing[0], playing[1], "playing")
+
+    def _tint(self, first: int, last: int, start: int, end: int, kind: str) -> None:
+        colour = self.tints.get(kind)
+        if colour is None:
+            return
+        for pos in range(max(start, first), min(end, last)):
+            fmt = self.format(pos - first)
+            fmt.setBackground(colour)
+            self.setFormat(pos - first, 1, fmt)
 
     def _paint(self, first: int, last: int, start: int, end: int, kind: str) -> None:
         start, end = max(start, first), min(end, last)
@@ -277,6 +301,12 @@ class EditorBridge(QObject):
         self._playing_progress: Any = None
         self._playhead = -1
         self._drag_cursor = False          # setDragCursor's override is on
+        # Tints (UTF-16 spans): the find bar's matches, a selected word's occurrences.
+        self._tint_spans: Dict[str, List[Tuple[int, int]]] = {"find": [], "occurrence": []}
+        self._tints: List[PaintedSpan] = []
+        self._tint_starts: List[int] = []
+        self._longest_tint = 0
+        self._finder = FindModel(store, self, parent=self)
 
         store.event.connect(self._on_event)
         store.stateChanged.connect(self._on_state)
@@ -324,6 +354,7 @@ class EditorBridge(QObject):
                          for k, v in palette.items()}
         if self._highlighter is not None:
             self._highlighter.formats = char_formats(self._palette)
+            self._highlighter.tints = tint_colours(self._palette)
             self._rehighlight()
 
     @property
@@ -392,6 +423,46 @@ class EditorBridge(QObject):
         hi = bisect_left(self._span_starts, last + 1)
         return [s for s in self._spans[lo:hi] if s[1] > first and s[0] < last]
 
+    def tints_between(self, first: int, last: int) -> List[PaintedSpan]:
+        """The tints that touch ``[first, last]``: occurrences, then find matches."""
+        lo = bisect_left(self._tint_starts, first - self._longest_tint)
+        hi = bisect_left(self._tint_starts, last + 1)
+        found = [t for t in self._tints[lo:hi] if t[1] > first and t[0] < last]
+        return sorted(found, key=lambda t: t[2] != "occurrence")
+
+    @property
+    def tints(self) -> Dict[str, List[Tuple[int, int]]]:
+        """The tinted spans by kind (UTF-16 positions)."""
+        return {kind: list(spans) for kind, spans in self._tint_spans.items()}
+
+    def _set_tints(self, kind: str, spans: List[Tuple[int, int]]) -> None:
+        old = self._tint_spans[kind]
+        spans = sorted(spans)
+        if spans == old:
+            return
+        self._tint_spans[kind] = spans
+        self._index_tints()
+        # Repaint the lines the tints were on and are on now.
+        self._rehighlight_at([s for s, _ in old] + [s for s, _ in spans])
+
+    def _index_tints(self) -> None:
+        self._tints = sorted((s, e, k) for k, ks in self._tint_spans.items() for s, e in ks)
+        self._tint_starts = [t[0] for t in self._tints]
+        self._longest_tint = max((e - s for s, e, _ in self._tints), default=0)
+
+    def _shift_tints(self, change: TextChange) -> None:
+        """The tints moved with an edit, until their owner works them out again."""
+        if not self._tints:
+            return
+        for kind, spans in self._tint_spans.items():
+            self._tint_spans[kind] = [(s, e) for s, e, _ in shift_spans([(s, e, kind) for s, e in spans],
+                                                                       change)]
+        self._index_tints()
+
+    def set_find_spans(self, spans: List[Tuple[int, int]]) -> None:
+        """Tint the find bar's matches (UTF-16 spans; [] for none)."""
+        self._set_tints("find", spans)
+
     @property
     def spans(self) -> List[PaintedSpan]:
         """The spans painted now (UTF-16 positions)."""
@@ -441,6 +512,7 @@ class EditorBridge(QObject):
                 and utf16_length(text) - utf16_length(old) == added - removed):
             change = diff_texts(old, text)
         self._set_spans(shift_spans(self._spans, change))
+        self._shift_tints(change)
         self._painted_text = text
         if not self._applying:
             self._send_text(text)
@@ -784,6 +856,38 @@ class EditorBridge(QObject):
         indent = len(text) - len(text.lstrip(" \t"))
         first = start + indent if indent < len(text) else start
         return start if position == first else first
+
+    # -- the selection, for the find bar (find_bar.py) ---------------------------------------
+
+    def _get_finder(self) -> QObject:
+        return self._finder
+
+    #: The find bar's FindModel (find_bar.py).
+    finder = Property(QObject, _get_finder, constant=True)
+
+    def selection_range(self) -> Tuple[int, int, int]:
+        """``(selectionStart, selectionEnd, cursorPosition)`` (Qt positions);
+        zeros before QML attached the editor."""
+        if self._area is None:
+            return 0, 0, 0
+        return (int(self._area.property("selectionStart")), int(self._area.property("selectionEnd")),
+                int(self._area.property("cursorPosition")))
+
+    def select_range(self, anchor: int, cursor: int) -> None:
+        """Select ``anchor``..``cursor`` (Qt positions), the caret at ``cursor``;
+        the view follows the caret."""
+        if self._area is not None:
+            QMetaObject.invokeMethod(self._area, "select", Q_ARG(int, anchor), Q_ARG(int, cursor))
+
+    def move_caret(self, position: int) -> None:
+        """Put the caret at Qt position ``position``, nothing selected."""
+        if self._area is not None:
+            self._area.setProperty("cursorPosition", position)
+
+    @Slot()
+    def selectionMoved(self) -> None:  # noqa: N802 (Qt)
+        """The TextArea's selection or caret moved (EditorPane)."""
+        self._finder.selectionMoved()
 
     # -- drag and drop from the sidebars (the palette tiles, the identifier's chords) ---
 

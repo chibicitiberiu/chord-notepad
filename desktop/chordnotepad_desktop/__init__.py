@@ -20,10 +20,10 @@ Layout:
   messages in the log.
 * ``rendering.py``: GPU or software rendering.
 * ``window_geometry.py``: the window's saved size and place.
-* ``editor_bridge.py``, ``offsets.py``, ``editor_font.py``, ``text_mouse.py``:
-  the editor's text between the TextArea and the session (highlighting, the
-  session's edits, paste normalisation), code points and UTF-16, the
-  editor's font and zoom, mouse selection.
+* ``editor_bridge.py``, ``offsets.py``, ``editor_font.py``, ``text_mouse.py``,
+  ``find_bar.py``: the editor's text between the TextArea and the session
+  (highlighting, the session's edits, paste normalisation), code points and
+  UTF-16, the editor's font and zoom, mouse selection, the find bar.
 * ``fonts.py``, ``icons.py``, ``dpr.py``, ``alt_watcher.py``: the mockup's
   scaling and text recipe, the icon provider, the hidden menu bar's keys.
 * ``qml/CNTheme``: the Theme singleton (colours, units, type) and the

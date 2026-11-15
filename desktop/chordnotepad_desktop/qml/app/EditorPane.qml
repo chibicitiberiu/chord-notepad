@@ -32,6 +32,10 @@ import CNTheme
 // and for 300 ms after the pointer leaves it (pitfall 19), else for the
 // caret's directive; never while read-only (playing, the Play workspace).
 // Alt+Down opens the caret's picker.
+//
+// The find bar (FindBar.qml, find_bar.py) sits under the text: Ctrl+F,
+// Ctrl+H, F3 / Shift+F3; its matches are tinted in the text and the
+// selected one takes the find colour instead of the selection's.
 Rectangle {
     id: pane
     objectName: "editorPane"
@@ -116,6 +120,13 @@ Rectangle {
     }
     // The caret may have moved, or the text under it changed: the status
     // bar's hint (150 ms later) and the caret's picker.
+    // Both ends of the selection may move at once: one look afterwards.
+    property bool selectionPending: false
+    function selectionMoved() {
+        if (pane.selectionPending) return
+        pane.selectionPending = true
+        Qt.callLater(function () { pane.selectionPending = false; pane.editor.selectionMoved() })
+    }
     function caretTouched() {
         pane.status.schedule()
         pane.pickers.refreshCaret()
@@ -174,6 +185,33 @@ Rectangle {
         text: "&Reset text size"; shortcut: "Ctrl+0"
         onTriggered: pane.editor.zoomReset()
     }
+    // Find and replace (the bar under the text, FindBar.qml).
+    readonly property Action findAction: Action {
+        objectName: "findAction"
+        text: "&Find…"; shortcut: "Ctrl+F"
+        onTriggered: findBar.open(false)
+    }
+    readonly property Action replaceAction: Action {
+        objectName: "replaceAction"
+        // In Play the text is only read: the bar opens on Find.
+        text: "R&eplace…"; shortcut: "Ctrl+H"
+        onTriggered: findBar.open(true)
+    }
+    readonly property Action findNextAction: Action {
+        objectName: "findNextAction"
+        text: "Find &next"; shortcut: "F3"
+        onTriggered: pane.findAgain(false)
+    }
+    readonly property Action findPreviousAction: Action {
+        objectName: "findPreviousAction"
+        text: "Find pre&vious"; shortcut: "Shift+F3"
+        onTriggered: pane.findAgain(true)
+    }
+    // F3 with the bar closed finds the last query again; with none yet, the bar opens.
+    function findAgain(backward) {
+        if (!pane.editor.finder.findAgain(backward)) findBar.open(false)
+    }
+    property alias findBar: findBar
     Shortcut {
         sequences: ["Ctrl+Shift+Z"]
         enabled: pane.redoAction.enabled
@@ -243,7 +281,8 @@ Rectangle {
     function palette() {
         return { chord: Theme.chord, chordInvalid: Theme.chordInvalid, directive: Theme.directive,
                  directiveInvalid: Theme.directiveInvalid, comment: Theme.comment,
-                 playing: Theme.playing, editorText: Theme.editorText, editorBg: Theme.editorBg }
+                 playing: Theme.playing, editorText: Theme.editorText, editorBg: Theme.editorBg,
+                 findMatch: Theme.findMatch, occurrence: Theme.occurrence }
     }
     // The character under (x, y), in the TextArea's coordinates, or -1 past
     // the text (above or below a line, before the first character).
@@ -345,7 +384,8 @@ Rectangle {
     ScrollView {
         id: scroll
         objectName: "editorScroll"
-        anchors.fill: parent
+        anchors.top: parent.top; anchors.left: parent.left; anchors.right: parent.right
+        anchors.bottom: findBar.top
         TextArea {
             id: area
             objectName: "editor"
@@ -356,7 +396,8 @@ Rectangle {
             // and size; the default hinting (Theme.editorFont).
             font: Theme.editorFont(pane.editor.fontFamily, pane.editor.fontSize)
             color: Theme.editorText
-            selectionColor: Theme.selection
+            // The find bar's selected match shows in the find colour.
+            selectionColor: pane.editor.finder.currentSelected ? Theme.findCurrent : Theme.selection
             selectedTextColor: Theme.editorText
             placeholderText: pane.placeholder
             placeholderTextColor: Theme.blend(Theme.editorText, Theme.editorBg, 0.45)
@@ -423,6 +464,9 @@ Rectangle {
                 if (!area.relocking) pane.releaseView()
             }
             onActiveFocusChanged: if (activeFocus) pane.caretTouched()
+            // The find bar's "3 of 7" follows the selection.
+            onSelectionStartChanged: pane.selectionMoved()
+            onSelectionEndChanged: pane.selectionMoved()
             Keys.onReleased: pane.status.schedule()
 
             Keys.onPressed: (event) => {
@@ -449,6 +493,9 @@ Rectangle {
                 } else if ((event.key === Qt.Key_Up || event.key === Qt.Key_Down) && mods === Qt.ControlModifier) {
                     event.accepted = true
                     pane.scrollLines(event.key === Qt.Key_Down ? 1 : -1)
+                } else if (event.key === Qt.Key_Escape && mods === Qt.NoModifier && findBar.shown) {
+                    event.accepted = true
+                    findBar.close()
                 } else if (event.matches(StandardKey.Paste)) {
                     // Ctrl+V, Shift+Insert: normalised by the bridge.
                     event.accepted = true
@@ -680,6 +727,16 @@ Rectangle {
                 z: 6
             }
         }
+    }
+
+    // Find, Replace and Go to line, under the text.
+    FindBar {
+        id: findBar
+        finder: pane.editor.finder
+        canReplace: !pane.playMode
+        anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
+        height: implicitHeight
+        onClosed: pane.focusEditor()
     }
 
     // Right-click: each item enabled only when it applies.
