@@ -12,7 +12,8 @@
    the window (sized from the saved geometry, its content hidden until the
    device pixel ratio settles);
 5. the host starts running callbacks, then ``session.start()``, then
-   ``app_started``, which decides whether Quick Start opens.
+   ``app_started``, which decides whether Quick Start opens, then the song
+   named on the command line, if any, opens (``open_document``).
 
 Closing: the window's close button (and later Quit, ☰, File) send
 ``request_close``; the session may ask about unsaved changes first, then
@@ -122,15 +123,19 @@ class QtApplication:
         today: Today's local date (tests).
         build_info: About's build fields (``dialogs.BUILD_FIELDS``) as the
             entry point read them; None for the dev-local values.
+        open_path: A song named on the command line, opened once the
+            session runs (``FilesModel.openPath``, as File › Open would).
     """
 
     def __init__(self, paths: AppPaths, *, appdata: Optional[AppDataService] = None,
                  player: Optional[IPlayer] = None, configure_logging: bool = True,
                  software_rendering: bool = False,
                  today: Callable[[], datetime.date] = datetime.date.today,
-                 build_info: Optional[dict] = None) -> None:
+                 build_info: Optional[dict] = None,
+                 open_path: Optional[str] = None) -> None:
         self._paths = paths
         self._build_info = build_info
+        self._open_path = open_path
         self._appdata = appdata or AppDataService()
         self._player = player
         self._configure_logging = configure_logging
@@ -236,6 +241,9 @@ class QtApplication:
         # desktop has no support prompt.
         self.store.submit("app_started", {"launch_kind": "direct", "today": today,
                                           "installed_on": today, "can_ask_for_support": False})
+        if self._open_path:
+            logger.info("Opening %s from the command line", self._open_path)
+            self.chrome.files.openPath(self._open_path)
         logger.info("Application initialization complete")
         return main
 

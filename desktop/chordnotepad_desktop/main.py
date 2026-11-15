@@ -12,6 +12,12 @@ and the style are set before the engine loads any QML, and the main
 window's :class:`~chordnotepad_desktop.dpr.DprWatcher` starts as soon as the
 window exists (its content stays hidden until the ratio has settled).
 
+A path on the command line (``chord-notepad song.txt``) opens that song once
+the session is up, as File › Open would (:func:`song_path`): the first
+argument that isn't an option, after Qt has taken its own (``-platform
+offscreen``...). Only the first counts; a file that can't be read gets
+Open's error message and the app starts all the same.
+
 ``--smoke`` loads the window, waits until its content is shown and quits:
 exit code 0 when the QML loaded without a warning, 1 otherwise. The
 packaging tracer (plan C5) runs it inside each build.
@@ -59,6 +65,24 @@ def parse_args(argv):
     parser.add_argument(SOFTWARE_FLAG, dest="software_rendering", action="store_true",
                         help="draw without the GPU (Qt Quick's software renderer)")
     return parser.parse_known_args(argv)
+
+
+def song_path(arguments) -> Optional[str]:
+    """The song named on the command line: the first argument that isn't an
+    option (everything after ``--`` is a name), or None.
+
+    Args:
+        arguments: The command line after the program name, once
+            QGuiApplication has removed its own options and their values
+            (``app.arguments()[1:]``) and ``parse_args`` the app's.
+    """
+    names_only = False
+    for argument in arguments:
+        if not names_only and argument == "--":
+            names_only = True
+        elif names_only or not argument.startswith("-"):
+            return argument
+    return None
 
 
 _prepared: dict = {}
@@ -169,7 +193,7 @@ def run(paths: AppPaths, argv, build_info: Optional[dict] = None) -> int:
     app = QGuiApplication([sys.argv[0], *qt_args])
     set_identity(app, paths)
     qt = QtApplication(paths, software_rendering=options.software_rendering,
-                       build_info=build_info)
+                       build_info=build_info, open_path=song_path(app.arguments()[1:]))
     try:
         main = qt.start(app)
     except Exception as e:

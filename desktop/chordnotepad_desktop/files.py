@@ -25,8 +25,8 @@ extension:
   only that name).
 * **One picker at a time:** a request that comes while one is open is
   answered "cancel" at once (Tk's portal dialog did the same).
-* **A file dropped on the window** (Main.qml's DropArea) opens as File ›
-  Open's choice would: :meth:`FilesModel.openPath`
+* **A file dropped on the window** (Main.qml's DropArea) or named on the
+  command line opens as File › Open's choice would: :meth:`FilesModel.openPath`
   sends ``open_document`` with its ref, so the session asks about unsaved
   changes, reports a file it can't read and adds the file to the recent
   list. Of several dropped files the first opens; :meth:`FilesModel.openDropped`
