@@ -169,14 +169,16 @@ def test_a_re_rendered_resume_starts_in_the_pass_it_was_paused_in():
     assert (env.playback().chord_index, env.playback().bar) == (4, 5)
 
 
-def test_android_stop_keeps_the_playhead_in_its_pass():
+def test_android_stop_leaves_the_playhead_on_the_chords_first_pass_as_before():
+    # Android's Stop is unchanged by the loop passes: the playhead rests on
+    # the chord that sounded, in its first pass (test_chord_sheet_playhead).
     env = qt_env(ANDROID)
     _paused_in_the_second_pass(env)
     env.session.stop()
-    assert (env.playhead(), bar(env), cursor(env)) == (AM, 5, 4)
+    assert (env.playhead(), bar(env), cursor(env)) == (AM, 3, 2)
     env.session.play_pause()
     play_chords(env, 1)
-    assert env.playback().chord_index == 4
+    assert env.playback().chord_index == 2
 
 
 def test_the_tk_desktop_resumes_a_re_render_at_the_chords_first_pass_as_before():

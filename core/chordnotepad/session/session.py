@@ -1172,14 +1172,17 @@ class AppSession:
     def stop(self) -> None:
         """Stop playback (also silences notes still ringing when idle).
 
-        The playhead stays where it is (on the chord that was sounding when
-        it follows playback), except on the Qt desktop, where it goes back to
-        the first chord (``STOP_REWINDS``).
+        The playhead stays on the chord that was sounding when it follows
+        playback, in that chord's first pass of a loop (as before passes were
+        kept; ``test_chord_sheet_playhead``), except on the Qt desktop, where
+        it goes back to the first chord (``STOP_REWINDS``).
         """
         self._main.stop_playback()
         if self._stop_rewinds:
             chord = first_chord(self._detector.detected_lines)
             self._move_playhead(chord.start if chord is not None else None)
+        else:
+            self._move_playhead(self._playhead, 0)
         if self._android:
             self._set_idle_status()
         else:
