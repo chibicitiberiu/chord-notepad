@@ -197,10 +197,48 @@ Rectangle {
         var mods = event.modifiers & ~(Qt.ShiftModifier | Qt.KeypadModifier)
         return mods === Qt.NoModifier && event.text !== "" && event.text.charCodeAt(0) >= 32
     }
-    // Select all with the cursor at the start (as Tk's Ctrl+A).
+    // Select all, the caret at the end as in other editors (so End, Shift+Up
+    // and the rest go on from there; Tk put it at the start), the view kept.
     function selectAll() {
         area.forceActiveFocus()
-        area.select(area.length, 0)
+        pane.holdView()
+        area.relocking = true
+        area.select(0, area.length)
+        area.relocking = false
+        pane.restoreView()
+    }
+
+    // --- Keys the TextArea doesn't do (or not as other editors do) ------------------
+    // Put the caret at `pos`, or with `extend` move the selection's moving end there.
+    function moveCaret(pos, extend) {
+        if (extend) area.moveCursorSelection(pos, TextEdit.SelectCharacters)
+        else area.cursorPosition = pos
+    }
+    // Page Up / Page Down: the caret a viewport (less a line) up or down, on
+    // the column it had before the first of a run of page moves, and the
+    // view with it, so the caret stays where it is on screen.
+    property real pageX: -1
+    property bool paging: false
+    function pageMove(dir, extend) {
+        var f = scroll.contentItem
+        var r = area.cursorRectangle
+        var line = Math.max(1, r.height)
+        var page = Math.max(line, Math.floor((f.height - line) / line) * line)
+        if (pane.pageX < 0) pane.pageX = r.x
+        // Within the text's lines (positionAt above the first gives the text's start).
+        var y = Math.max(area.topPadding + line / 2,
+                         Math.min(area.topPadding + area.contentHeight - line / 2, r.y + line / 2 + dir * page))
+        var target = area.positionAt(pane.pageX + 1, y)
+        f.contentY = Math.max(0, Math.min(f.contentHeight - f.height, f.contentY + dir * page))
+        pane.paging = true
+        pane.moveCaret(target, extend)
+        pane.paging = false
+    }
+    // Ctrl+Up / Ctrl+Down: the view a line, the caret where it is.
+    function scrollLines(n) {
+        var f = scroll.contentItem
+        f.contentY = Math.max(0, Math.min(f.contentHeight - f.height,
+                                          f.contentY + n * area.cursorRectangle.height))
     }
     function palette() {
         return { chord: Theme.chord, chordInvalid: Theme.chordInvalid, directive: Theme.directive,
@@ -379,6 +417,7 @@ Rectangle {
                 pane.editor.attach(area, area.textDocument, pane.palette())
             }
             onCursorPositionChanged: {
+                if (!pane.paging) pane.pageX = -1
                 pane.caretTouched()
                 // A caret the user (or an edit) moved: the view follows it again.
                 if (!area.relocking) pane.releaseView()
@@ -389,7 +428,28 @@ Rectangle {
             Keys.onPressed: (event) => {
                 // Typing into the text a song locks: the status bar says why (Q9).
                 if (area.readOnly && pane.editsKey(event)) pane.status.refuseEdit()
-                if (event.matches(StandardKey.Paste)) {
+                var mods = event.modifiers & ~Qt.KeypadModifier
+                var shift = (mods & Qt.ShiftModifier) !== 0
+                var plain = (mods & ~Qt.ShiftModifier) === Qt.NoModifier
+                var ctrl = (mods & ~Qt.ShiftModifier) === Qt.ControlModifier
+                if ((event.key === Qt.Key_Return || event.key === Qt.Key_Enter)
+                        && mods !== Qt.NoModifier && (plain || ctrl)) {
+                    // Ctrl+Enter and Shift+Enter are a new line too (Qt does
+                    // nothing for the first, and the second would put a line
+                    // separator, not a newline, in the text).
+                    event.accepted = true
+                    if (!area.readOnly) pane.editor.typeNewline()
+                } else if (event.key === Qt.Key_Home && plain) {
+                    // Home: the first non-blank character, then the line's start.
+                    event.accepted = true
+                    pane.moveCaret(pane.editor.homePosition(area.cursorPosition), shift)
+                } else if ((event.key === Qt.Key_PageDown || event.key === Qt.Key_PageUp) && plain) {
+                    event.accepted = true
+                    pane.pageMove(event.key === Qt.Key_PageDown ? 1 : -1, shift)
+                } else if ((event.key === Qt.Key_Up || event.key === Qt.Key_Down) && mods === Qt.ControlModifier) {
+                    event.accepted = true
+                    pane.scrollLines(event.key === Qt.Key_Down ? 1 : -1)
+                } else if (event.matches(StandardKey.Paste)) {
                     // Ctrl+V, Shift+Insert: normalised by the bridge.
                     event.accepted = true
                     if (!area.readOnly) pane.editor.paste()

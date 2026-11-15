@@ -748,6 +748,43 @@ class EditorBridge(QObject):
         """Text dragged onto the editor, at ``position``, normalised."""
         self._insert_user_text(position, position, text)
 
+    # -- keys the TextArea doesn't handle as other editors do (EditorPane's Keys) -------
+
+    @Slot()
+    def typeNewline(self) -> None:  # noqa: N802 (Qt)
+        """A new line over the selection, for Ctrl+Enter and Shift+Enter (Qt
+        does nothing for the first and puts a line separator, not a new
+        paragraph, for the second): what Enter does, one undo step like it."""
+        if self._area is None or self._document is None or self._read_only:
+            return
+        cursor = QTextCursor(self._document)
+        cursor.setPosition(int(self._area.property("selectionStart")))
+        cursor.setPosition(int(self._area.property("selectionEnd")), QTextCursor.MoveMode.KeepAnchor)
+        cursor.insertBlock()
+        self._area.setProperty("cursorPosition", cursor.position())
+
+    @Slot(int, result=int)
+    def homePosition(self, position: int) -> int:  # noqa: N802 (Qt)
+        """Where Home goes from Qt position ``position``: on a line's first
+        row, its first non-blank character, or the line's start when the
+        caret is already there (so Home toggles between the two); on the
+        later rows of a wrapped line, the row's start."""
+        if self._document is None:
+            return position
+        block = self._document.findBlock(position)
+        if not block.isValid():
+            return position
+        start = block.position()
+        layout = block.layout()
+        if layout is not None and layout.lineCount() > 0:
+            row = layout.lineForTextPosition(position - start)
+            if row.isValid() and row.lineNumber() > 0:
+                return start + row.textStart()
+        text = block.text()
+        indent = len(text) - len(text.lstrip(" \t"))
+        first = start + indent if indent < len(text) else start
+        return start if position == first else first
+
     # -- drag and drop from the sidebars (the palette tiles, the identifier's chords) ---
 
     @Slot(int, result=int)

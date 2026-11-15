@@ -534,11 +534,12 @@ def test_a_right_click_opens_the_context_menu_and_its_paste_normalises(editor):
     assert "\r" not in editor.text()
 
 
-def test_select_all_puts_the_cursor_at_the_start(editor):
+def test_select_all_puts_the_cursor_at_the_end(editor):
+    # As other editors (Tk put it at the start; Tibi: End then went to the first line).
     editor.type("C G\nla")
     editor.key(Qt.Key.Key_A, CTRL)
     assert editor.area.property("selectedText") == "C G\nla"
-    assert editor.area.property("cursorPosition") == 0
+    assert editor.area.property("cursorPosition") == 6
 
 
 def test_middle_click_pastes_primary_at_the_pointer_normalised(editor, monkeypatch):
