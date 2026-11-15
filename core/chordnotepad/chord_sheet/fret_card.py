@@ -2,9 +2,10 @@
 
 :class:`FretCardRenderer` draws each sounding chord as a standard vertical
 chord diagram (strings vertical, frets horizontal, nut/fret-position marker at
-top) with the chord symbol printed above it. Rests and chords voiced without
-fingering data (``RenderedChord.fingering is None``) get a slim empty card,
-matching :class:`~chord_sheet.name_card.NameCardRenderer`'s rest handling.
+top) with the chord symbol printed above it. A rest (NC) gets a card of the
+same width, with its name and a whole rest in the middle of where the grid
+would be; a chord voiced without fingering data (``RenderedChord.fingering is
+None``) gets a slim empty card.
 
 The diagram logic is a direct port of the user's own ``guitar_svg`` generator
 (``scripts/music/chord_diagrams.py`` in the tibich.com blog repo): strings are
@@ -41,7 +42,6 @@ from chordnotepad.chord_sheet.ops import DrawOps
 from chordnotepad.chord_sheet.tab_strip import CAPO_PAD, capo_marker_width
 from chordnotepad.chord_sheet.renderer_interface import (
     SheetContext,
-    WHOLE_REST_LINE_W,
     chord_symbol_label,
     paint_whole_rest,
     SlotBox,
@@ -53,7 +53,7 @@ from chordnotepad.chord_sheet.renderer_interface import (
 CARD_GAP = 8.0
 #: Leading/trailing padding at the strip's left and right edges, px.
 STRIP_MARGIN = 12.0
-#: Width of a rest/no-fingering slot's slim card, px.
+#: Width of the slim empty card of a chord with no fingering, px.
 REST_WIDTH = 30.0
 #: Minimum number of fret rows drawn, extended song-wide when a shape needs more.
 DEFAULT_ROWS = 4
@@ -286,9 +286,9 @@ class FretCardRenderer(StripRenderer):
             height: Available content height in pixels.
 
         Returns:
-            A :class:`StripLayout` with one slim slot per rest/no-fingering
-            chord and one full-width slot per chord with a fingering, in song
-            order.
+            A :class:`StripLayout` with one full-width slot per chord with a
+            fingering and per rest, and a slim one per chord without a
+            fingering, in song order.
         """
         rows, string_count = _song_geometry_inputs(ctx.song)
         content_height, _ = _capped_content_height(height, ctx.zoom)
@@ -302,7 +302,7 @@ class FretCardRenderer(StripRenderer):
                 # The "Capo N" marker gets its own slot ahead of the card, so
                 # it never sits on the chord's name.
                 x += capo_marker_width(capos[index], geo.label_size)
-            width = geo.card_width if _has_shape(chord) else REST_WIDTH
+            width = geo.card_width if (_has_shape(chord) or chord.is_rest) else REST_WIDTH
             slots.append(SlotBox(chord_index=index, x=x, width=width))
             x += width + CARD_GAP
 
@@ -356,7 +356,9 @@ class FretCardRenderer(StripRenderer):
         geo: _Geometry,
         top_pad: float = 0.0,
     ) -> None:
-        """Draw a rest's slim card: its label and a whole rest mid-diagram."""
+        """Draw a rest's card: its label, and a whole rest centred where the
+        grid would be, sized from the card's rows (half a row is its staff
+        space)."""
         tag = f"slot:{slot.chord_index}"
         cx = slot.x + slot.width / 2.0
         ops.text(
@@ -369,7 +371,7 @@ class FretCardRenderer(StripRenderer):
             bold=True,
             tags=(tag,),
         )
-        space = min(geo.row_h * 0.5, 0.8 * slot.width / WHOLE_REST_LINE_W)
+        space = geo.row_h * 0.5
         mid_y = top_pad + geo.grid_top + geo.rows * geo.row_h / 2.0
         paint_whole_rest(ops, cx, mid_y - space * 0.25, space, _INK, tag, own_line=True)
 

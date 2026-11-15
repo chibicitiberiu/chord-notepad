@@ -69,17 +69,46 @@ def test_layout_has_one_slot_per_chord():
     assert [s.chord_index for s in layout.slots] == [0, 1, 2]
 
 
-def test_rest_and_no_fingering_slots_are_slim():
+@pytest.mark.parametrize("height", [HEIGHT, 160.0, 450.0])
+def test_a_rest_takes_a_full_card_and_a_chord_without_fingering_stays_slim(height):
     song = make_song(
         make_chord("C", fingering=[-1, 3, 2, 0, 1, 0]),
         make_chord("NC", is_rest=True),
         make_chord("G", fingering=None),
     )
-    layout = FretCardRenderer().layout(SheetContext(song=song), height=HEIGHT)
+    layout = FretCardRenderer().layout(SheetContext(song=song), height=height)
     chord_slot, rest_slot, no_finger_slot = layout.slots
     assert chord_slot.width > REST_WIDTH
-    assert rest_slot.width == REST_WIDTH
+    assert rest_slot.width == chord_slot.width
     assert no_finger_slot.width == REST_WIDTH
+
+
+@pytest.mark.parametrize("height", [HEIGHT, 160.0, 450.0])
+def test_the_rest_sits_mid_card_at_the_cards_scale(height):
+    song = make_song(make_chord("C", fingering=[-1, 3, 2, 0, 1, 0]),
+                     make_chord("NC", is_rest=True))
+    renderer = FretCardRenderer()
+    ctx = SheetContext(song=song)
+    layout = renderer.layout(ctx, height=height)
+    ops = DrawOps()
+    renderer.paint(ops, ctx, layout)
+    chord_slot, rest_slot = layout.slots
+    (block,) = [op for op in slot_ops(ops, 1) if isinstance(op, RectOp)]
+    (name,) = [op for op in slot_ops(ops, 1) if isinstance(op, TextOp)]
+    (chord_name,) = [op for op in slot_ops(ops, 0) if isinstance(op, TextOp) and op.s == "C"]
+    centre = rest_slot.x + rest_slot.width / 2
+    assert block.x + block.w / 2 == pytest.approx(centre)
+    assert name.x == pytest.approx(centre)
+    # The name on the chords' line, in their size.
+    assert (name.y, name.size) == (chord_name.y, chord_name.size)
+    # Its size follows the card's rows, not the slot: half a row is its space.
+    grid = [op for op in slot_ops(ops, 0) if isinstance(op, LineOp)
+            and op.points[0][1] == op.points[-1][1]]
+    ys = sorted({op.points[0][1] for op in grid})
+    row_h = ys[1] - ys[0]
+    assert block.h == pytest.approx(0.5 * 0.5 * row_h)
+    # Vertically in the middle of the chord card's grid.
+    assert ys[0] < block.y < ys[-1]
 
 
 def test_rest_card_shows_its_label_and_a_whole_rest():
