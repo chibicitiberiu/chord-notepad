@@ -53,7 +53,7 @@ from PySide6.QtGui import (
 from PySide6.QtQuick import QQuickItem, QQuickTextDocument
 
 from chordnotepad.constants import DEFAULT_FONT_SIZE
-from chordnotepad.session import snippets
+from chordnotepad.session import snippets, text_ops
 from chordnotepad.utils.text_normalization import normalize_song_text
 from chordnotepad_desktop import editor_font, popups
 from chordnotepad_desktop.find_bar import FindModel
@@ -883,6 +883,35 @@ class EditorBridge(QObject):
         """Put the caret at Qt position ``position``, nothing selected."""
         if self._area is not None:
             self._area.setProperty("cursorPosition", position)
+
+    def _selection_points(self) -> Tuple[int, int]:
+        """(anchor, caret) of the selection, in the session's code points."""
+        start, end, caret = self.selection_range()
+        anchor = end if caret == start else start
+        mapper = OffsetMapper(self._painted_text)
+        return mapper.to_code_point(anchor), mapper.to_code_point(caret)
+
+    @Slot(str, "QVariantMap")
+    def lineOp(self, command: str, extra: dict) -> None:  # noqa: N802 (Qt)
+        """One of the session's line commands (``duplicate_lines``,
+        ``move_lines``, ``delete_lines``, ``toggle_comment``, ``indent_lines``)
+        on the selection, plus ``extra`` arguments. Nothing while a song plays
+        (QML says so first)."""
+        if self._area is None or self._read_only:
+            return
+        anchor, caret = self._selection_points()
+        self._store.submit(command, {"anchor": anchor, "cursor": caret, **dict(extra or {})})
+
+    @Slot()
+    def selectLine(self) -> None:  # noqa: N802 (Qt)
+        """Select line (Ctrl+L): the selection's lines whole, the caret at the
+        end; one more line on each repeat."""
+        if self._area is None:
+            return
+        anchor, caret = self._selection_points()
+        start, end = text_ops.select_lines(self._painted_text, anchor, caret)
+        mapper = OffsetMapper(self._painted_text)
+        self.select_range(mapper.to_utf16(start), mapper.to_utf16(end))
 
     @Slot()
     def selectionMoved(self) -> None:  # noqa: N802 (Qt)

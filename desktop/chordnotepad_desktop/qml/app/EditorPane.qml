@@ -207,6 +207,44 @@ Rectangle {
         text: "Find pre&vious"; shortcut: "Shift+F3"
         onTriggered: pane.findAgain(true)
     }
+    // Line operations (one undo step each, the session's commands over
+    // text_ops): refused while the text is read-only, as typing is.
+    function lineOp(command, extra) {
+        if (area.readOnly) { pane.status.refuseEdit(); return }
+        pane.editor.lineOp(command, extra || ({}))
+    }
+    readonly property Action duplicateAction: Action {
+        objectName: "duplicateAction"
+        text: "&Duplicate line or selection"; shortcut: "Ctrl+D"
+        enabled: !area.readOnly
+        onTriggered: pane.lineOp("duplicate_lines")
+    }
+    readonly property Action deleteLineAction: Action {
+        objectName: "deleteLineAction"
+        text: "Delete l&ine"; shortcut: "Ctrl+Shift+K"
+        enabled: !area.readOnly
+        onTriggered: pane.lineOp("delete_lines")
+    }
+    // Ctrl+Shift+Up/Down, as Kate: Alt+Down is the ▾ value picker's.
+    readonly property Action moveUpAction: Action {
+        objectName: "moveUpAction"
+        text: "&Move line up"; shortcut: "Ctrl+Shift+Up"
+        enabled: !area.readOnly
+        onTriggered: pane.lineOp("move_lines", { offset: -1 })
+    }
+    readonly property Action moveDownAction: Action {
+        objectName: "moveDownAction"
+        text: "Move line do&wn"; shortcut: "Ctrl+Shift+Down"
+        enabled: !area.readOnly
+        onTriggered: pane.lineOp("move_lines", { offset: 1 })
+    }
+    // Select line: the selection's lines whole, one more on each repeat (also while read-only).
+    readonly property Action selectLineAction: Action {
+        objectName: "selectLineAction"
+        text: "Select &line"; shortcut: "Ctrl+L"
+        enabled: area.length > 0
+        onTriggered: { area.forceActiveFocus(); pane.editor.selectLine() }
+    }
     // F3 with the bar closed finds the last query again; with none yet, the bar opens.
     function findAgain(backward) {
         if (!pane.editor.finder.findAgain(backward)) findBar.open(false)
@@ -231,7 +269,14 @@ Rectangle {
     function editsKey(event) {
         if (event.matches(StandardKey.Paste) || event.matches(StandardKey.Cut)) return true
         if (event.key === Qt.Key_Backspace || event.key === Qt.Key_Delete || event.key === Qt.Key_Return
-                || event.key === Qt.Key_Enter || event.key === Qt.Key_Tab) return true
+                || event.key === Qt.Key_Enter || event.key === Qt.Key_Tab || event.key === Qt.Key_Backtab)
+            return true
+        // The line operations' keys (their actions are off while read-only, so the keys come here).
+        var lineKeys = [[Qt.Key_D, Qt.ControlModifier], [Qt.Key_K, Qt.ControlModifier | Qt.ShiftModifier],
+                        [Qt.Key_Up, Qt.ControlModifier | Qt.ShiftModifier],
+                        [Qt.Key_Down, Qt.ControlModifier | Qt.ShiftModifier]]
+        var held = event.modifiers & (Qt.ControlModifier | Qt.ShiftModifier | Qt.AltModifier | Qt.MetaModifier)
+        if (lineKeys.some(function (k) { return k[0] === event.key && k[1] === held })) return true
         var mods = event.modifiers & ~(Qt.ShiftModifier | Qt.KeypadModifier)
         return mods === Qt.NoModifier && event.text !== "" && event.text.charCodeAt(0) >= 32
     }

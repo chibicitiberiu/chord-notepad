@@ -258,3 +258,99 @@ def test_word_moves_and_word_deletes(ed):
     assert ed.text() == "alpha ta gamma\n"
     ed.key(K.Key_Delete, CTRL)
     assert ed.text() == "alpha gamma\n"
+
+
+# -- line operations ------------------------------------------------------------------------
+
+LINES = "one\ntwo\nthree\n"
+
+
+def wait_text(ed, text):
+    ed.qtbot.waitUntil(lambda: ed.text() == text, timeout=2000)
+
+
+def test_ctrl_d_duplicates_the_line_or_the_selection(ed):
+    song(ed, LINES)
+    ed.set_cursor(5)
+    ed.key(K.Key_D, CTRL)
+    wait_text(ed, "one\ntwo\ntwo\nthree\n")
+    assert caret(ed) == 9                                   # same column, the copy
+    ed.area.select(0, 3)
+    ed.key(K.Key_D, CTRL)
+    wait_text(ed, "oneone\ntwo\ntwo\nthree\n")
+    assert selection(ed) == (3, 6)
+    ed.key(K.Key_Z, CTRL)
+    assert ed.text() == "one\ntwo\ntwo\nthree\n"
+    ed.key(K.Key_Z, CTRL)
+    assert ed.text() == LINES
+
+
+def test_ctrl_shift_up_and_down_move_the_lines_with_the_selection(ed):
+    song(ed, LINES)
+    ed.area.select(5, 10)                                   # "wo\nth"
+    ed.key(K.Key_Up, CTRL | SHIFT)
+    wait_text(ed, "two\nthree\none\n")
+    assert selection(ed) == (1, 6)
+    ed.key(K.Key_Down, CTRL | SHIFT)
+    wait_text(ed, LINES)
+    assert selection(ed) == (5, 10)
+    ed.key(K.Key_Down, CTRL | SHIFT)                        # "three" is last: the final newline stays
+    ed.run(60)
+    assert ed.text() == LINES
+    ed.key(K.Key_Z, CTRL)
+    ed.key(K.Key_Z, CTRL)
+    assert ed.text() == LINES
+
+
+def test_moving_the_first_line_up_does_nothing(ed):
+    song(ed, LINES)
+    ed.set_cursor(1)
+    ed.key(K.Key_Up, CTRL | SHIFT)
+    ed.run(60)
+    assert ed.text() == LINES and caret(ed) == 1
+
+
+def test_ctrl_shift_k_deletes_the_lines(ed):
+    song(ed, LINES)
+    ed.set_cursor(6)
+    ed.key(K.Key_K, CTRL | SHIFT)
+    wait_text(ed, "one\nthree\n")
+    assert caret(ed) == 6
+    ed.key(K.Key_Z, CTRL)
+    assert ed.text() == LINES
+
+
+def test_ctrl_l_selects_the_line_and_more_on_repeat(ed):
+    song(ed, LINES)
+    ed.set_cursor(5)
+    ed.key(K.Key_L, CTRL)
+    assert selection(ed) == (4, 8)
+    ed.key(K.Key_L, CTRL)
+    assert selection(ed) == (4, 14)
+
+
+def test_line_operations_are_refused_while_playing(ed):
+    text = "C G\nAm F\nla\n"
+    song(ed, text)
+    play(ed)
+    ed.set_cursor(5)
+    for key, mods in ((K.Key_D, CTRL), (K.Key_K, CTRL | SHIFT), (K.Key_Up, CTRL | SHIFT)):
+        ed.key(key, mods)
+    ed.run(60)
+    assert ed.text() == text
+    status = ed.harness.app.status_bar
+    ed.qtbot.waitUntil(lambda: status.readOnlyNotice != "", timeout=1000)
+    assert not any(n in ("duplicate_lines", "delete_lines", "move_lines") for n, _ in ed.submitted)
+    ed.key(K.Key_L, CTRL)                                  # selecting still works
+    assert selection(ed) == (4, 9)
+
+
+def test_the_line_shortcuts_work_with_caps_lock(ed):
+    song(ed, LINES)
+    ed.set_cursor(1)
+    press(ed, K.Key_D, CTRL, "D")
+    wait_text(ed, "one\none\ntwo\nthree\n")
+    press(ed, K.Key_K, CTRL | SHIFT, "K")
+    wait_text(ed, LINES)
+    press(ed, K.Key_L, CTRL, "L")
+    assert selection(ed)[1] > selection(ed)[0]
