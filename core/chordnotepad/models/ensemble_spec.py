@@ -226,7 +226,7 @@ DEFAULT_WEIGHTS: Dict[str, Any] = {
     'range_comfort_penalty': -0.5,
     'unison_penalty': -0.5,
     'upper_spacing_penalty': -0.15,
-    'same_bass_penalty': -5.0,
+    'same_bass_penalty': -8.0,
 }
 
 #: Weight keys whose value is itself a per-role mapping rather than a scalar.

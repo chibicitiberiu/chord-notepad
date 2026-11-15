@@ -582,7 +582,7 @@ Voicing Parameters
        bass is its root. More negative keeps a plain chord next to its slash
        chord on its own root.
      - ``same_bass_penalty``
-     - -5.0
+     - -8.0
 
 .. note::
    These weights apply per ensemble. A custom ensemble that omits

@@ -12,7 +12,7 @@ import pytest
 from collections import Counter
 
 from chordnotepad.audio.ensemble_voicer import EnsembleVoicer
-from chordnotepad.models.ensemble_spec import BUILTIN_ENSEMBLES, EnsembleSpec, VoiceSpec
+from chordnotepad.models.ensemble_spec import BUILTIN_ENSEMBLES, DEFAULT_WEIGHTS, EnsembleSpec, VoiceSpec
 from chordnotepad.models.chord_notes import ChordNotes
 
 
@@ -547,7 +547,7 @@ def test_penalty_is_added_once_in_the_transition():
     cur = (52, 60, 67, 72)   # the same notes, as a plain C
     without = voicer._score_transition(prev, cur, _ctx('C/E'))
     with_ctx = voicer._score_transition(prev, cur, _ctx('C/E'), _ctx('C'))
-    assert with_ctx - without == pytest.approx(-5.0)
+    assert with_ctx - without == pytest.approx(DEFAULT_WEIGHTS["same_bass_penalty"])
     # Another bass note sounding: no penalty.
     root_pos = (48, 64, 67, 72)
     assert (voicer._score_transition(prev, root_pos, _ctx('C/E'), _ctx('C'))

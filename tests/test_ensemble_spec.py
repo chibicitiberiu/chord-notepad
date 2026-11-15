@@ -734,14 +734,14 @@ class TestSameBassPenalty:
         ]
 
     def test_default_is_a_five_point_nudge(self):
-        assert DEFAULT_WEIGHTS["same_bass_penalty"] == -5.0
+        assert DEFAULT_WEIGHTS["same_bass_penalty"] == -8.0
 
     def test_saved_voicing_without_the_key_gets_the_default(self):
         spec = EnsembleSpec.from_dict("old", {
             "voices": self._voices(),
             "weights": {"leap_penalty": -2.0},
         })
-        assert spec.weight("same_bass_penalty") == -5.0
+        assert spec.weight("same_bass_penalty") == -8.0
 
     def test_override_round_trips(self):
         spec = EnsembleSpec.from_dict("mine", {
@@ -761,4 +761,4 @@ class TestSameBassPenalty:
 
     @pytest.mark.parametrize("name", sorted(BUILTIN_ENSEMBLES))
     def test_builtins_use_the_default(self, name):
-        assert BUILTIN_ENSEMBLES[name].weight("same_bass_penalty") == -5.0
+        assert BUILTIN_ENSEMBLES[name].weight("same_bass_penalty") == -8.0

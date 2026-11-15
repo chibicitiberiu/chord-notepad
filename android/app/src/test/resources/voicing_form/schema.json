@@ -292,7 +292,7 @@
          "step": 0.1
         },
         {
-         "default": "-5.0",
+         "default": "-8.0",
          "help": "How the picker treats two neighbouring chords that are the same chord over different written basses (C and C/E) but would sound the same lowest note. More negative keeps a plain chord next to its slash chord on its own root.",
          "id": "weight:same_bass_penalty",
          "kind": "float",
