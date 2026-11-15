@@ -306,15 +306,5 @@ def test_render_midi_bytes_matches_the_file_writer(tmp_path):
     assert path.read_bytes() == data
 
 
-def test_file_dialogs_reexports_the_moved_path_helpers():
-    from chordnotepad_tk import file_dialogs
-    from chordnotepad.utils import paths
-
-    assert file_dialogs.display_path is paths.display_path
-    assert file_dialogs.is_document_portal_path is paths.is_document_portal_path
-    assert paths.display_path("/run/flatpak/doc/x/a.txt") == "a.txt"
-    assert paths.display_path(os.path.join("home", "a.txt")) == os.path.join("home", "a.txt")
-
-
 # The window turning picker paths into refs and the Recent Files menu are
 # tested with the flows (tests/test_session_documents.py).

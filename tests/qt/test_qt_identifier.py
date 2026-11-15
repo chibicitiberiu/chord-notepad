@@ -10,8 +10,6 @@ Shift+▶ plays rolled), the 3 s of amber keys and the markers, Clear, Play,
 the read-only lock and the insert error.
 """
 
-import inspect
-
 import pytest
 
 from tests.conftest import QT_PROBLEM
@@ -238,9 +236,11 @@ def test_a_notation_change_respells_the_field_only_if_it_showed_the_keys(panel):
 
 
 def test_the_instructions_are_tks():
-    from chordnotepad_tk.chord_identifier import ChordIdentifierWindow
-    for notation in ("american", "european"):
-        assert identifier.instructions(notation) == ChordIdentifierWindow._instructions(notation)
+    # Tk's identifier texts (chord_identifier.py, removed in 0.6.0).
+    assert identifier.instructions("american") == (
+        "Select notes on the piano or type them below (e.g., C E G or C, E, G)")
+    assert identifier.instructions("european") == (
+        "Select notes on the piano or type them below (e.g., Do Mi Sol or Do, Mi, Sol)")
 
 
 def test_clear_empties_the_keys_and_the_field(panel):
@@ -417,8 +417,6 @@ def test_an_insert_that_fails_says_so_in_tks_words(panel, monkeypatch):
 
 
 def test_the_insert_error_is_tks_text():
-    from chordnotepad_tk import main_window
-    source = inspect.getsource(main_window.MainWindow._on_insert_chord_from_identifier)
-    assert 'messagebox.showerror("Error", f"Could not insert the chord {chord_name}.\\n\\n{e}"' in source
+    # Tk's main window showed it as showerror("Error", f"Could not insert the chord {chord_name}.\n\n{e}").
     assert identifier.INSERT_FAILED_TITLE == "Error"
     assert identifier.insert_failed_message("Am7", "boom") == "Could not insert the chord Am7.\n\nboom"

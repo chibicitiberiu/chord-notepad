@@ -7,9 +7,6 @@ commands and the click-to-hear failures of sources it doesn't play itself
 PlaybackService with a FakePlayer and a FakeChordSheet.
 """
 
-from types import SimpleNamespace
-from unittest.mock import Mock
-
 from chordnotepad.services.playback_service import PlaybackService
 from chordnotepad.services.song_parser_service import SongParserService
 from chordnotepad.session.events import AudioUnavailable
@@ -93,31 +90,6 @@ def test_notation_change_reaches_the_editor_state():
     env = Env()
     env.session.set_notation("european")
     assert env.editor().notation == "european"
-
-
-def test_tk_window_applies_the_editor_state():
-    from chordnotepad_tk.main_window import MainWindow
-
-    window = SimpleNamespace(text_editor=Mock(), apply_font=Mock(), _editor_state=None,
-                             _apply_word_wrap=Mock())
-    state = EditorState("Consolas", 16, True, "american", word_wrap=True)
-    MainWindow._apply_editor(window, state)
-    window.text_editor.config.assert_called_once_with(state="disabled")
-    window.apply_font.assert_called_once_with()
-    window._apply_word_wrap.assert_called_once_with(True)
-    assert MainWindow._editor_font(window) == ("Consolas", 16)
-
-
-def test_tk_font_commands_go_to_the_session():
-    from chordnotepad_tk.main_window import MainWindow
-
-    window = SimpleNamespace(session=Mock())
-    MainWindow.increase_font_size(window)
-    MainWindow.decrease_font_size(window)
-    MainWindow.on_mouse_wheel_zoom(window, SimpleNamespace(delta=-120))
-    MainWindow.reset_font_size(window)
-    assert [c.args for c in window.session.step_font_size.call_args_list] == [(1,), (-1,), (-1,)]
-    window.session.reset_font_size.assert_called_once_with()
 
 
 # -- chord sheet ------------------------------------------------------------------------
@@ -260,33 +232,3 @@ def test_play_failures_are_reported_every_time():
     env.session.report_audio_failure("no driver", from_click=False)
     events = env.recorder.of_type(AudioUnavailable)
     assert [e.from_click for e in events] == [False, False]
-
-
-# -- the Tk window follows ChordSheetState -------------------------------------------------
-
-
-def test_tk_window_shows_and_hides_the_strip_from_the_state():
-    from chordnotepad_tk.main_window import MainWindow
-
-    window = SimpleNamespace(_chord_sheet_var=Mock(), _show_chord_sheet_pane=Mock(),
-                             _hide_chord_sheet_pane=Mock(), _chord_sheet_state=None)
-    window._chord_sheet_var.get.return_value = False
-    state = ChordSheetState(True, 250, "keyboard", (), None, 1.0, True, None, 0)
-    MainWindow._apply_chord_sheet(window, state)
-    window._chord_sheet_var.set.assert_called_once_with(True)
-    window._show_chord_sheet_pane.assert_called_once_with()
-    assert window._chord_sheet_state is state
-
-    window._chord_sheet_var.get.return_value = True
-    MainWindow._apply_chord_sheet(window, ChordSheetState(
-        False, 250, "keyboard", (), None, 1.0, True, None, 0))
-    window._hide_chord_sheet_pane.assert_called_once_with()
-
-
-def test_tk_view_menu_toggle_goes_to_the_session():
-    from chordnotepad_tk.main_window import MainWindow
-
-    window = SimpleNamespace(session=Mock(), _chord_sheet_var=Mock())
-    window._chord_sheet_var.get.return_value = True
-    MainWindow.toggle_chord_sheet(window)
-    window.session.set_chord_sheet_visible.assert_called_once_with(True)

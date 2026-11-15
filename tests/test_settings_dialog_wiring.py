@@ -9,9 +9,6 @@ PlaybackService (with a silent FakePlayer); the two view tests call the Tk
 window's menu builders unbound against stand-ins, so no widget is built.
 """
 
-from types import SimpleNamespace
-from unittest.mock import ANY, Mock, patch
-
 import pytest
 
 from chordnotepad.services.playback_service import PlaybackService
@@ -259,56 +256,3 @@ class TestInstrumentMenuModel:
         assert env.config.get("instrument") == 40
         with pytest.raises(ValueError):
             env.session.set_instrument(128)
-
-
-# -- the Tk menus are rebuilt from the states -----------------------------------------------
-
-
-def test_tk_voicing_menu_is_rebuilt_from_the_state():
-    from chordnotepad_tk.main_window import MainWindow
-
-    window = SimpleNamespace(voicing_menu=Mock(), voicing_var=Mock(), _voicing_groups=None, _playback_menu=Mock(),
-                             on_voicing_change=Mock())
-    groups = formatting.voicing_menu_groups({"MyGuitar": GUITAR})
-    MainWindow.rebuild_voicing_menu(window, VoicingMenuState("voicing:MyGuitar", groups))
-
-    window.voicing_menu.delete.assert_called_once_with(0, ANY)
-    calls = window.voicing_menu.add_radiobutton.call_args_list
-    assert [c.kwargs["label"] for c in calls][:2] == ["Piano", "Guitar (Standard - EADGBE)"]
-    assert calls[-1].kwargs["value"] == "voicing:MyGuitar"
-    assert window.voicing_menu.add_separator.call_count == 3
-    window.voicing_var.set.assert_called_with("voicing:MyGuitar")
-
-    # Only the selection moves while the choices stay the same.
-    window.voicing_menu.reset_mock()
-    MainWindow.rebuild_voicing_menu(window, VoicingMenuState("piano", groups))
-    window.voicing_menu.delete.assert_not_called()
-    window.voicing_var.set.assert_called_with("piano")
-
-
-def test_tk_instrument_menu_is_rebuilt_from_the_state():
-    from chordnotepad_tk.main_window import MainWindow
-
-    window = SimpleNamespace(instrument_menu=Mock(), instrument_var=Mock(),
-                             _category_markers=("blank", "dot"),
-                             on_instrument_change=Mock())
-    window.instrument_menu.winfo_children.return_value = []
-    state = InstrumentMenuState(25, formatting.instrument_families(
-        [(0, "Grand"), (25, "Steel")], 25))
-    submenus = []
-
-    def make_menu(*args, **kwargs):
-        submenus.append(Mock())
-        return submenus[-1]
-
-    with patch("chordnotepad_tk.main_window.tk.Menu", side_effect=make_menu), \
-            patch("chordnotepad_tk.main_window.style_menu"):
-        MainWindow.build_instrument_menu(window, state)
-
-    window.instrument_menu.delete.assert_called_once_with(0, ANY)
-    cascades = window.instrument_menu.add_cascade.call_args_list
-    assert len(cascades) == 16
-    assert [c.kwargs["image"] for c in cascades][:4] == ["blank", "blank", "blank", "dot"]
-    guitar = submenus[3].add_radiobutton.call_args.kwargs
-    assert (guitar["label"], guitar["value"]) == (" 25 - Steel", 25)
-    window.instrument_var.set.assert_called_with(25)

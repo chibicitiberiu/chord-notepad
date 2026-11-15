@@ -1,4 +1,4 @@
-"""session.errors: Tk-free routing of unexpected errors to a handler."""
+"""session.errors: toolkit-free routing of unexpected errors to a handler."""
 
 import logging
 import os
@@ -86,40 +86,45 @@ def test_an_observer_that_raises_doesnt_stop_the_others():
     assert values == [120]
 
 
+#: The desktop toolkits the core must never import (Android has none of them).
+_DESKTOP_ONLY = ("tkinter", "_tkinter", "PySide6", "shiboken6")
+
 _IMPORT_PROBE = r"""
 import os, sys
 sys.path[:0] = sys.argv[1].split(os.pathsep)
-if sys.argv[2] == "block-tk":
+if sys.argv[2] == "block-desktop":
     class _Block:
         def find_spec(self, name, path=None, target=None):
-            if name.split(".")[0] in ("tkinter", "_tkinter"):
+            if name.split(".")[0] in sys.argv[3].split(","):
                 raise ModuleNotFoundError(name)
             return None
     sys.meta_path.insert(0, _Block())
 from chordnotepad.session import errors
 import chordnotepad.session.session, chordnotepad.utils.observable  # the core that reports errors
 if sys.argv[2] == "with-presenter":
-    from chordnotepad_tk import error_reporting
+    from chordnotepad_desktop import error_presenter
 print(errors.get_handler() is None)
 """
 
 
 def _handler_is_unset_after_import(mode):
     out = subprocess.run(
-        # The core alone, or with the Tk front end for the presenter.
+        # The core alone, or with the Qt window's presenter.
         [sys.executable, "-I", "-c", _IMPORT_PROBE,
-         os.pathsep.join(map(str, [CORE] + ([DESKTOP] if mode == "with-presenter" else []))), mode],
+         os.pathsep.join(map(str, [CORE] + ([DESKTOP] if mode == "with-presenter" else []))), mode,
+         ",".join(_DESKTOP_ONLY)],
         capture_output=True, text=True, timeout=60)
     assert out.returncode == 0, out.stderr
     return out.stdout.split() == ["True"]
 
 
-def test_the_core_imports_without_tkinter_and_only_logs():
+def test_the_core_imports_without_a_desktop_toolkit_and_only_logs():
     # Android and the tests: no presenter, so session.errors logs.
-    assert _handler_is_unset_after_import("block-tk")
+    assert _handler_is_unset_after_import("block-desktop")
 
 
-def test_importing_the_tk_presenter_installs_nothing():
-    # The application installs it explicitly (chordnotepad_tk.error_reporting
-    # .install_session_handler, from Application.on_configure_logging).
+def test_importing_the_qt_presenter_installs_nothing():
+    # The application installs it explicitly (ErrorPresenter.install, from
+    # QtApplication's start-up).
+    pytest.importorskip("PySide6.QtCore")
     assert _handler_is_unset_after_import("with-presenter")

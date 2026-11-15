@@ -89,39 +89,3 @@ def test_playback_is_unchanged():
     [chord] = song.chords
     assert (chord.capo, chord.key, chord.chord_notes.root) == (3, "D", "D")
 
-
-def test_blend_is_the_directive_colour_faded_into_the_background():
-    from chordnotepad_tk.text_editor import blend_rgb
-    purple = (0x8B * 257, 0x47 * 257, 0x89 * 257)
-    white = (65535, 65535, 65535)
-    assert blend_rgb(purple, white, 1.0) == "#8b4789"
-    assert blend_rgb(purple, white, 0.0) == "#ffffff"
-    assert blend_rgb(purple, white, 0.45) == "#cbacca"
-
-
-def test_tk_paints_redundant_directives_with_their_own_faded_tag():
-    import os
-    import tkinter as tk
-    from chordnotepad_tk.theme import COLOR_DIRECTIVE_VALID, TAG_DIRECTIVE_REDUNDANT, TAG_DIRECTIVE_VALID
-    from chordnotepad.session.state import HighlightState, Span
-    from chordnotepad_tk.text_editor import ChordTextEditor
-
-    if not (os.environ.get("DISPLAY") or os.name == "nt"):
-        pytest.skip("No display available for tkinter tests")
-    try:
-        root = tk.Tk()
-    except tk.TclError:
-        pytest.skip("No display available for tkinter tests")
-    try:
-        editor = ChordTextEditor(root, background="white")
-        editor.insert("1.0", "{key: G}\n{key: D}\nI")
-        editor.apply_highlight(HighlightState(1, 0, (
-            Span(0, 8, SpanKind.DIRECTIVE_REDUNDANT, "Has no effect"),
-            Span(9, 17, SpanKind.DIRECTIVE))))
-        assert editor.tag_ranges(TAG_DIRECTIVE_REDUNDANT)
-        faded = editor.tag_cget(TAG_DIRECTIVE_REDUNDANT, "foreground")
-        assert faded not in ("", COLOR_DIRECTIVE_VALID)
-        # The existing directive tag is untouched.
-        assert editor.tag_cget(TAG_DIRECTIVE_VALID, "foreground") == COLOR_DIRECTIVE_VALID
-    finally:
-        root.destroy()

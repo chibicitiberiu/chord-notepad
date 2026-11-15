@@ -1,11 +1,11 @@
 """The shared core must import without desktop-only libraries.
 
-The Android build (Chaquopy) has no tkinter, Pillow or jeepney, and the Qt
-desktop app's PySide6 must stay out of the core too. Every module of the
+The Android build (Chaquopy) has no PySide6, tkinter, Pillow or jeepney
+(the last three were the Tk window's, removed in 0.6.0). Every module of the
 ``chordnotepad`` package (``core/chordnotepad``) is imported in a fresh
 interpreter with those libraries blocked, so a stray top-level import fails
 here rather than on a phone. There is no exclusion list: desktop-only code
-lives in the front ends' own packages (``desktop/chordnotepad_tk``).
+lives in the desktop app's package (``desktop/chordnotepad_desktop``).
 
 The second half checks that the old top-level names (``session``, ``ui``,
 ``constants``...) can't be imported any more, so no second copy of a core

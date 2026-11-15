@@ -60,12 +60,10 @@ def test_desktop_quick_start_is_the_dialogs_text_byte_for_byte():
     import json
 
     from chordnotepad.session import quick_start
-    from chordnotepad_tk.dialogs.quick_start import QuickStartDialog
 
     expected = json.loads(FIXTURE.read_text(encoding="utf-8"))
     assert _as_json(quick_start.pages()) == expected
     assert _as_json(quick_start.pages(DESKTOP)) == expected
-    assert QuickStartDialog.PAGES == quick_start.pages(DESKTOP)
 
 
 def test_android_quick_start_names_taps_and_the_drawer():

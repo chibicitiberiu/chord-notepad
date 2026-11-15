@@ -1,12 +1,12 @@
-"""The song values' and the transport's tooltips, shared by the Tk toolbar
-and the Qt player bar (session/toolbar_texts.py)."""
+"""The song values' and the transport's tooltips (session/toolbar_texts.py):
+the desktop's defaults, which the Qt player bar shows, and its own play text."""
 
 from chordnotepad.session import toolbar_texts
 from chordnotepad.session.platform import ANDROID, DESKTOP, DESKTOP_QT
 from chordnotepad.session.state import PlayAction
 
 
-def test_the_tk_texts_are_unchanged():
+def test_the_desktop_texts_are_unchanged():
     assert toolbar_texts.set_by_tooltip("{bpm: 90}") == "Set by {bpm: 90} in the song"
     assert toolbar_texts.play_pause_tooltip(PlayAction.PLAY) == (
         "Play from start (Shift+Click to play from cursor)")
@@ -24,9 +24,3 @@ def test_the_qt_play_button_plays_from_the_playhead():
     assert toolbar_texts.play_pause_tooltip(PlayAction.PLAY, ANDROID) == (
         toolbar_texts.play_pause_tooltip(PlayAction.PLAY))
 
-
-def test_the_tk_window_shows_the_shared_texts():
-    from chordnotepad_tk import main_window
-    assert main_window._BPM_TOOLTIP is toolbar_texts.BPM_TOOLTIP
-    assert main_window._PLAY_PAUSE_TOOLTIPS[PlayAction.PLAY] == (
-        "Play from start (Shift+Click to play from cursor)")

@@ -2,8 +2,8 @@
 pictures ship.
 
 Tk's Quick Start dialog showed ``quick_start.pages(DESKTOP)`` and these
-checks ran over it (tests/test_quick_start.py); here they run over the
-core's pages for each platform, so they stay when the Tk front end goes.
+checks ran over it; here they run over the core's pages for each platform,
+so they stayed when the Tk front end went.
 """
 
 from pathlib import Path

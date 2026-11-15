@@ -2,8 +2,7 @@
 
 The Qt file pickers (``chordnotepad_desktop/files.py``) and the document
 store (``session/documents.py``) use these. They were tested through the Tk
-file dialogs' re-exports (tests/test_file_dialogs.py) until the Tk front end
-went.
+file dialogs' re-exports until the Tk front end went.
 """
 
 import os

@@ -10,7 +10,8 @@ convert notation, inserts), which it sends to the views as ``TextEdited``,
 the toolbar, the menus, settings, and the document flows (new, open, save,
 save as, export MIDI, close; the recent list and the window title). Renders
 the user waits for (MIDI export, Suggest Capo) run on a background worker.
-The Tk window talks to nothing else (``tests/test_main_window_guard.py``).
+The Qt window talks to nothing else (``tests/test_desktop_view_guard.py``,
+``tests/qt/test_qt_session_store.py``).
 
 Every public command and every callback the session schedules runs inside
 :meth:`Emitter.batch`, so output is delivered at the outermost exit and never

@@ -90,14 +90,6 @@ class TestEdgeCases:
         assert offset == 0
 
 
-class TestDialogModuleSmoke:
-    def test_capo_dialog_importable(self):
-        from chordnotepad_tk.dialogs.capo_dialog import CapoDialog
-        assert CapoDialog is not None
-        assert hasattr(CapoDialog, '_on_ok')
-        assert hasattr(CapoDialog, '_on_cancel')
-
-
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
 

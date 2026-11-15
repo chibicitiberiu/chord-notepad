@@ -2,17 +2,10 @@
 
 Regression: pasting text with Windows CRLF line endings left literal ``\\r``
 characters in the widget, rendering as junk glyphs at line ends (e.g. right
-after a pasted ``[Chorus]``).
+after a pasted ``[Chorus]``). The Qt editor's paste is in
+tests/qt/test_qt_editor.py.
 """
 
-import os
-import time
-
-import pytest
-
-tk = pytest.importorskip("tkinter")
-
-from chordnotepad_tk.text_editor import ChordTextEditor
 from chordnotepad.utils.text_normalization import normalize_song_text
 
 
@@ -44,74 +37,6 @@ class TestNormalizeSongText:
     def test_plain_text_unchanged(self):
         text = "C  G  Am\nEvery night\n"
         assert normalize_song_text(text) == text
-
-
-# ---------------------------------------------------------------------------
-# Widget paste path (needs a display)
-# ---------------------------------------------------------------------------
-
-def _has_display() -> bool:
-    return bool(os.environ.get("DISPLAY")) or os.name == "nt"
-
-
-@pytest.fixture
-def editor():
-    if not _has_display():
-        pytest.skip("No display available for tkinter tests")
-    root = tk.Tk()
-    widget = ChordTextEditor(root)
-    widget.pack()
-    # The window must be mapped: Tk does not deliver synthesized <<Paste>>
-    # events to widgets of a withdrawn window in a fresh interpreter.
-    root.deiconify()
-    widget.wait_visibility()
-    root.update()
-    yield widget
-    root.destroy()
-
-
-
-
-def _set_clipboard(widget, text):
-    """Set the clipboard and wait until it is actually retrievable.
-
-    The first clipboard round-trip in a fresh X11 process can lag behind
-    ``clipboard_append``; generating <<Paste>> before it settles reads an
-    empty clipboard.
-    """
-    widget.clipboard_clear()
-    widget.clipboard_append(text)
-    for _ in range(50):
-        widget.update()
-        try:
-            if widget.clipboard_get() == text:
-                return
-        except tk.TclError:
-            pass
-        time.sleep(0.01)
-    pytest.skip("clipboard not available in this environment")
-
-class TestPasteNormalizesClipboard:
-    def test_crlf_paste_leaves_no_cr_in_widget(self, editor):
-        _set_clipboard(editor, "[Chorus]\r\nC  G  Am\r\nlyrics\r\n")
-        editor.update()
-        editor.focus_force()
-        editor.event_generate("<<Paste>>")
-        editor.update()
-        content = editor.get("1.0", "end-1c")
-        assert "\r" not in content
-        assert content.startswith("[Chorus]\nC  G  Am\n")
-
-    def test_paste_replaces_selection(self, editor):
-        editor.insert("1.0", "old text")
-        editor.tag_add(tk.SEL, "1.0", "1.3")
-        editor.mark_set(tk.INSERT, "1.3")
-        _set_clipboard(editor, "new\r\n")
-        editor.update()
-        editor.focus_force()
-        editor.event_generate("<<Paste>>")
-        editor.update()
-        assert editor.get("1.0", "end-1c") == "new\n text"
 
 
 # ---------------------------------------------------------------------------

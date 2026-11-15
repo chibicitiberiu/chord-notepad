@@ -8,14 +8,13 @@ PlaybackService (with a silent FakePlayer). The Tk side, which only presents
 these requests, is tested at the bottom with a Mock standing in for the window.
 """
 
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
 import pytest
 
 from chordnotepad.services.playback_service import PlaybackService
 from chordnotepad.services.song_parser_service import SongParserService
 from chordnotepad.session import formatting
-from chordnotepad.session.documents import DocumentRef
 from chordnotepad.session.events import (
     CloseApproved, ConfirmDiscardRequest, DiscardChoice, PickDocumentRequest, PickMode,
     TextEdited, UndoPolicy, UserError,
@@ -587,114 +586,3 @@ def test_a_failed_save_stops_new_and_open():
     env.answer("save")
     assert env.recorder.of_type(PickDocumentRequest) == []
     assert env.session.text == "C G"
-
-
-# -- the Tk window only presents the requests --------------------------------------
-
-
-def _window():
-    from chordnotepad_tk.main_window import MainWindow
-
-    window = Mock()
-    window.text_editor.get_text.return_value = "C G"
-    return MainWindow, window
-
-
-@pytest.mark.parametrize("response, choice", [
-    (True, "save"), (False, "discard"), (None, "cancel"),
-])
-def test_tk_confirm_discard_maps_yes_no_cancel(response, choice):
-    MainWindow, window = _window()
-    with patch("chordnotepad_tk.main_window.messagebox.askyesnocancel", return_value=response) as ask:
-        MainWindow._present_confirm_discard(window, ConfirmDiscardRequest(4))
-    assert ask.call_args.args == ("Unsaved Changes", "Do you want to save your changes?")
-    assert ask.call_args.kwargs["parent"] is window
-    window.session.respond.assert_called_once_with(4, choice)
-
-
-def test_tk_open_picker_answers_with_a_ref():
-    MainWindow, window = _window()
-    with patch("chordnotepad_tk.main_window.ask_open_filename", return_value="/a/song.txt") as ask:
-        MainWindow._present_pick_document(window, PickDocumentRequest(2, PickMode.OPEN, ""))
-    assert ask.call_args.kwargs["title"] == "Open File"
-    window.session.document_ref.assert_called_once_with("/a/song.txt")
-    window.session.respond.assert_called_once_with(
-        2, window.session.document_ref.return_value)
-
-
-@pytest.mark.parametrize("mode, title, extension", [
-    (PickMode.SAVE, "Save File As", ".txt"),
-    (PickMode.EXPORT_MIDI, "Export MIDI", ".mid"),
-])
-def test_tk_save_pickers_prefill_the_suggested_name(mode, title, extension):
-    MainWindow, window = _window()
-    with patch("chordnotepad_tk.main_window.ask_save_as_filename", return_value="") as ask:
-        MainWindow._present_pick_document(window, PickDocumentRequest(3, mode, "song.x"))
-    kwargs = ask.call_args.kwargs
-    assert (kwargs["title"], kwargs["defaultextension"], kwargs["initialfile"]) == (
-        title, extension, "song.x")
-    window.session.respond.assert_called_once_with(3, None)   # cancelled
-
-
-def test_tk_requests_are_presented_after_delivery():
-    MainWindow, window = _window()
-    confirm = ConfirmDiscardRequest(1)
-    pick = PickDocumentRequest(2, PickMode.OPEN, "")
-    MainWindow._on_session_output(window, confirm)
-    MainWindow._on_session_output(window, pick)
-    MainWindow._on_session_output(window, CloseApproved())
-    assert window.after_idle.call_args_list == [
-        ((window._present_confirm_discard, confirm),),
-        ((window._present_pick_document, pick),),
-        ((window._close_window,),),
-    ]
-    window.session.respond.assert_not_called()
-    window.destroy.assert_not_called()
-
-
-def test_tk_title_and_recent_menu_follow_the_states():
-    MainWindow, window = _window()
-    MainWindow._on_session_output(
-        window, DocumentState("song.txt", "/a/song.txt", True, "song.txt* - Chord Notepad"))
-    window.title.assert_called_once_with("song.txt* - Chord Notepad")
-
-    ref = DocumentRef(id="/a/song.txt", display_name="song.txt", location="/a/song.txt")
-    MainWindow._apply_recent_documents(window, RecentDocumentsState((ref,)))
-    kwargs = window.recent_menu.add_command.call_args.kwargs
-    assert kwargs["label"] == "song.txt"
-    window._open_recent = lambda r: MainWindow._open_recent(window, r)
-    window._send_text = lambda: MainWindow._send_text(window)
-    kwargs["command"]()
-    window.session.set_text.assert_called_once_with("C G")
-    window.session.open_recent.assert_called_once_with(ref)
-
-
-def test_tk_empty_recent_menu_says_so():
-    MainWindow, window = _window()
-    MainWindow._apply_recent_documents(window, RecentDocumentsState(()))
-    assert window.recent_menu.add_command.call_args.kwargs["label"] == "(No recent files)"
-
-
-@pytest.mark.parametrize("method, command", [
-    ("new_file", "new_document"), ("open_file", "open_document"), ("save_file", "save"),
-    ("save_file_as", "save_as"), ("export_midi", "export_midi"), ("on_close", "request_close"),
-])
-def test_tk_file_commands_send_the_text_then_run_the_flow(method, command):
-    MainWindow, window = _window()
-    window._send_text = lambda: MainWindow._send_text(window)
-    getattr(MainWindow, method)(window)
-    assert [c[0] for c in window.session.method_calls] == ["set_text", command]
-    window.session.set_text.assert_called_once_with("C G")
-
-
-def test_tk_close_window_shuts_down_and_destroys():
-    MainWindow, window = _window()
-    window._closing = False
-    window.geometry.return_value = "900x600+0+0"
-    MainWindow._close_window(window)
-    MainWindow._close_window(window)       # a second approval does nothing
-    window.session.set_window_geometry.assert_called_once_with("900x600+0+0")
-    window.session.stop.assert_called_once()
-    window._session_subscription.cancel.assert_called_once()
-    # Destroying the root ends the main loop; the application shuts down then.
-    window.destroy.assert_called_once()

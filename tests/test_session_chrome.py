@@ -123,18 +123,6 @@ def test_edits_while_idle_are_not_refused():
 # -- texts the desktop front ends share --------------------------------------------------------
 
 
-def test_the_tk_window_uses_the_shared_texts():
-    pytest.importorskip("tkinter")
-    from chordnotepad.session.events import PickMode
-    from chordnotepad_tk import main_window
-
-    assert main_window._TEXT_FILE_TYPES == [("Text Files", "*.txt"), ("All Files", "*.*")]
-    assert main_window._PICKERS[PickMode.SAVE] == (
-        "Save File As", ".txt", [("Text Files", "*.txt"), ("All Files", "*.*")])
-    assert main_window._PICKERS[PickMode.EXPORT_MIDI] == (
-        "Export MIDI", ".mid", [("MIDI files", "*.mid"), ("All files", "*.*")])
-
-
 def test_the_notation_texts():
     assert toolbar_texts.AMERICAN_TOOLTIP == "American notation (C, D, E...)"
     assert toolbar_texts.EUROPEAN_TOOLTIP == "European notation (Do, Re, Mi...)"

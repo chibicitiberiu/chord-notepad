@@ -1,6 +1,6 @@
 """Headless tests for the continuous grand-staff :class:`StaffCardRenderer`.
 
-Every test inspects the recorded :class:`DrawOps` (no Tk/display). Coverage:
+Every test inspects the recorded :class:`DrawOps` (no display). Coverage:
 one slot per chord with slim empty rests; Bravura noteheads as tinted image ops
 split across the two staves; diatonic placement and spelling (Bb/F#, the B#/Cb
 seam); ledger lines; second-interval collision offsets; ensemble routing by
@@ -32,7 +32,6 @@ from chordnotepad.chord_sheet.renderer_interface import (
 from chordnotepad.chord_sheet import clef_assets as ca
 from chordnotepad.chord_sheet import staff_card as sc
 from chordnotepad.chord_sheet.staff_card import StaffCardRenderer, REST_WIDTH
-from chordnotepad_tk.chord_sheet import clef_images as ci
 
 
 # --------------------------------------------------------------------------
@@ -836,9 +835,9 @@ class TestClefOps:
         assert any(k.startswith('clef_treble:') for k in keys)
         assert any(k.startswith('clef_bass:') for k in keys)
         for key in keys:
-            img = ci.image_for_clef_key(key)
-            assert img is not None
-            assert img.size[1] == int(key.split(':')[1])
+            parsed = ca.parse_image_key(key)
+            assert parsed is not None
+            assert parsed.height == int(key.split(':')[1])
 
     def test_content_has_no_clef_ops(self):
         # The clefs now live in the frozen gutter, never the scrolling content.
@@ -987,8 +986,8 @@ class TestOctaveLowerTreble:
         bass_clef_top = geom.bass_top + geom.staff_space - 1.048 * geom.staff_space
         assert clef.y + placement.height < bass_clef_top
         assert any(k.startswith('clef_bass:') for k in keys)
-        img = ci.image_for_clef_key(clef.key)
-        assert img is not None and img.size[1] == placement.height
+        parsed = ca.parse_image_key(clef.key)
+        assert parsed is not None and parsed.height == placement.height
 
     def test_gutter_width_fits_the_8vb_clef(self):
         renderer = StaffCardRenderer()
@@ -1464,11 +1463,12 @@ class TestClefAssets:
         for name in ('accidental_sharp', 'accidental_flat', 'accidental_natural'):
             assert ca._GLYPH_BASE[name].height <= 160
 
-    def test_get_clef_image_matches_placement_height(self):
+    def test_clef_key_matches_placement_size(self):
         for kind in ('treble', 'bass'):
-            img = ci.get_clef_image(kind, 9.0)
             placement = ca.clef_placement(kind, 9.0)
-            assert img.size == (placement.width, placement.height)
+            parsed = ca.parse_image_key(placement.key)
+            assert (ca.scaled_width(parsed.asset, parsed.height), parsed.height) == (
+                placement.width, placement.height)
 
     def test_clef_anchor_scales_proportionally(self):
         for kind in ('treble', 'bass'):
@@ -1481,9 +1481,9 @@ class TestClefAssets:
         for name in ('notehead_whole', 'accidental_sharp',
                      'accidental_flat', 'accidental_natural'):
             pl = ca.glyph_placement(name, 10.0)
-            img = ci.image_for_clef_key(pl.key)
-            assert img is not None
-            assert img.size == (pl.width, pl.height)
+            parsed = ca.parse_image_key(pl.key)
+            assert parsed is not None
+            assert (ca.scaled_width(parsed.asset, parsed.height), parsed.height) == (pl.width, pl.height)
 
     def test_glyph_origin_scales_proportionally(self):
         small = ca.glyph_placement('accidental_sharp', 8.0)
@@ -1493,11 +1493,9 @@ class TestClefAssets:
     def test_tinted_glyph_key_resolves(self):
         pl = ca.glyph_placement('notehead_whole', 12.0, '#3a5a8a')
         assert pl.key.endswith(':3a5a8a')
-        img = ci.image_for_clef_key(pl.key)
-        assert img is not None and img.size == (pl.width, pl.height)
-        # Tint recolors the ink to the requested rgb (kept where alpha > 0).
-        r, g, b, _ = img.getpixel((0, img.size[1] // 2))
-        assert (r, g, b) == (0x3a, 0x5a, 0x8a)
+        parsed = ca.parse_image_key(pl.key)
+        assert parsed == ca.ImageKey('glyph_notehead_whole', pl.height, '3a5a8a')
+        # Painting the tint is the Qt painter's (tests/qt/test_qt_chord_sheet.py).
 
     def test_tint_accepts_bare_and_hash_prefixed_colors(self):
         assert ca.glyph_placement('notehead_whole', 12.0, 'a04848').key.endswith(':a04848')
@@ -1506,14 +1504,14 @@ class TestClefAssets:
     def test_malformed_clef_keys_return_none(self):
         for bad in ('', 'clef_treble', 'clef_treble:', 'clef_foo:10',
                     'clef_treble:abc', 'clef_treble:0', 'nope:10'):
-            assert ci.image_for_clef_key(bad) is None
+            assert ca.parse_image_key(bad) is None
 
     def test_malformed_glyph_keys_return_none(self):
         for bad in ('glyph_notehead_whole', 'glyph_notehead_whole:',
                     'glyph_bogus:64', 'glyph_notehead_whole:0',
                     'glyph_notehead_whole:64:xyz', 'glyph_notehead_whole:64:3a5a8',
                     'glyph_notehead_whole:64:3a5a8a:9'):
-            assert ci.image_for_clef_key(bad) is None
+            assert ca.parse_image_key(bad) is None
 
 
 # --------------------------------------------------------------------------

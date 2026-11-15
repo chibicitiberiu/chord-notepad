@@ -1,8 +1,9 @@
 """Tests for the Pillow-free clef asset API shared with Android.
 
 ``chord_sheet.clef_assets`` holds the embedded PNGs, the placement math and the
-image-key grammar; ``chordnotepad_tk.chord_sheet.clef_images`` (Pillow) only decodes. These
-check the shared half and the Android export tool built on it.
+image-key grammar; the Qt painter (``chordnotepad_desktop/sheet_paint.py``) and
+Android decode and draw the images. These check the shared part and the
+Android export tool built on it.
 """
 
 import importlib.util

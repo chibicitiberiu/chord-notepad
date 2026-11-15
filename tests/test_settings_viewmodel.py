@@ -1,9 +1,7 @@
 """Headless tests for :class:`viewmodels.settings_viewmodel.SettingsViewModel`.
 
-No Tkinter widgets are instantiated: every assertion runs against the view
-model and a real :class:`ConfigService` pointed at a throwaway ``tmp_path``
-config file. A single import-smoke test for the Voicings page is guarded by
-``pytest.importorskip('tkinter')`` and only imports the module.
+Every assertion runs against the view model and a real
+:class:`ConfigService` pointed at a throwaway ``tmp_path`` config file.
 """
 
 import pytest
@@ -466,14 +464,3 @@ class TestVoicingsPersistence:
         vm.set_voicing_data(name, {"model": "piano"})
         assert vm.get_voicings()[name] == {"model": "piano"}
 
-
-# ---------------------------------------------------------------------------
-# Widget import smoke test (no widget instantiation)
-# ---------------------------------------------------------------------------
-
-
-def test_voicings_page_imports():
-    pytest.importorskip("tkinter")
-    import chordnotepad_tk.dialogs.voicings_page as voicings_page
-
-    assert hasattr(voicings_page, "VoicingsPage")

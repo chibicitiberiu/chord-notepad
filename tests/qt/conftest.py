@@ -1,7 +1,7 @@
 """Tests of the Qt Quick front end (chordnotepad_desktop), run offscreen.
 
 They are skipped, not failed, when PySide6 or pytest-qt can't be imported
-(``tests.conftest.QT_PROBLEM``), the way the Tk tests skip without a display.
+(``tests.conftest.QT_PROBLEM``).
 Each module starts with::
 
     from tests.conftest import QT_PROBLEM

@@ -1,11 +1,9 @@
-"""Tests for the chord-sheet draw-op recorder (``chord_sheet.ops``) and its Tk replay.
+"""Tests for the chord-sheet draw-op recorder (``chord_sheet.ops``).
 
-Recording is headless and exercised in full. Replay onto a real ``tk.Canvas``
-needs a display, so that check is skipped gracefully when Tk cannot open a root
-(the established pattern for UI-touching tests in this repo).
+Recording is headless and exercised in full. The Qt painter that replays the
+ops (``chordnotepad_desktop/sheet_paint.py``) is tested in
+tests/qt/test_qt_chord_sheet.py.
 """
-
-import pytest
 
 from chordnotepad.chord_sheet.ops import (
     DrawOps,
@@ -16,7 +14,6 @@ from chordnotepad.chord_sheet.ops import (
     TextOp,
     ImageOp,
 )
-from chordnotepad_tk.chord_sheet.tk_replay import replay
 
 
 def test_records_ops_in_call_order():
@@ -72,25 +69,3 @@ def test_tags_default_to_empty_tuple():
     ops.rect(0, 0, 1, 1)
     assert ops.ops[0].tags == ()
 
-
-def test_replay_smoke_on_real_canvas():
-    """Replay every op kind onto a real canvas (skips without a display)."""
-    tk = pytest.importorskip("tkinter")
-    try:
-        root = tk.Tk()
-    except tk.TclError:
-        pytest.skip("No display available for Tk canvas replay")
-    try:
-        canvas = tk.Canvas(root)
-        ops = DrawOps()
-        ops.rect(0, 0, 10, 10, fill="white", outline="black", tags=("r",))
-        ops.oval(0, 0, 10, 10, outline="blue")
-        ops.line([(0, 0), (10, 10)], fill="red")
-        ops.polygon([(0, 0), (5, 0), (5, 5)], fill="green")
-        ops.text(5, 5, "C", fill="black")
-        ops.image(0, 0, "missing-key")  # unknown asset is skipped, not fatal
-        replay(ops.ops, canvas, images={})
-        # 5 real items drawn (image skipped); assert the canvas has them.
-        assert len(canvas.find_all()) == 5
-    finally:
-        root.destroy()

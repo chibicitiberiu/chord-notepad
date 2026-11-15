@@ -630,7 +630,7 @@ def test_bundled_resources_reach_the_flatpak_and_snap():
 
 
 def test_session_hands_out_the_catalog():
-    """The Tk window gets the list through the session (tests/test_main_window_guard.py)."""
+    """The Qt window gets the list through the session (SessionStore's direct calls)."""
     from chordnotepad.session.session import AppSession
 
     catalog = AppSession.licence_catalog(None, REPO / "resources" / "licenses")  # uses no session state

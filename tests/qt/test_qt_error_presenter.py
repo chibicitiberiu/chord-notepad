@@ -1,8 +1,8 @@
 """The Qt error presenter (plan step C3; parity checklist §7, "Errors").
 
-The texts are compared with the Tk presenter's (``chordnotepad_tk
-.error_reporting``) where both exist; the window side (the ErrorDialog in
-Main.qml) is checked in ``test_qt_window_shell.py``.
+The texts are the Tk presenter's (``error_reporting.py``, removed in 0.6.0)
+where both existed; the window side (the ErrorDialog in Main.qml) is checked
+in ``test_qt_window_shell.py``.
 """
 
 import sys
@@ -59,13 +59,8 @@ def presenter(qapp):
 
 
 def test_the_texts_are_the_tk_presenters():
-    tk_reporting = pytest.importorskip("chordnotepad_tk.error_reporting")
-    tk_reporting.set_log_path(LOG)
-    try:
-        assert format_message("boom", LOG) == tk_reporting.format_message(RuntimeError("boom"))
-        assert format_message("ValueError", LOG) == tk_reporting.format_message(ValueError())
-    finally:
-        tk_reporting.set_log_path(None)
+    assert format_message("boom", LOG) == (
+        f"Something went wrong:\nboom\n\nDetails were written to the log file:\n{LOG}")
     assert format_message("boom", None) == "Something went wrong:\nboom"
     assert fatal_message(OSError("disk"), LOG) == (
         "Chord Notepad couldn't start.\n\nSomething went wrong:\ndisk"

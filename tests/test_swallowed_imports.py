@@ -1,12 +1,10 @@
 """Imports of our own modules whose failure the code swallows must resolve.
 
-A few imports sit in ``try`` blocks that fall back quietly: the build info
-behind the About box and the window title (``chordnotepad_tk.application``,
-``chordnotepad_tk.main_window``), the voicing models behind
-``PlaybackService`` and the Android host's chord-sheet check. After a module
-moves, a stale name there doesn't fail anything: the desktop shows
-"dev-local", Android runs without the chord sheet. These tests make such a
-name fail here instead.
+A few imports sit in ``try`` blocks that fall back quietly: the voicing
+models behind ``PlaybackService`` and the Android host's chord-sheet check.
+After a module moves, a stale name there doesn't fail anything: Android runs
+without the chord sheet, for one. These tests make such a name fail here
+instead.
 """
 
 import ast
@@ -19,7 +17,6 @@ import pytest
 REPO = Path(__file__).resolve().parent.parent
 ROOTS = {
     "chordnotepad": REPO / "core" / "chordnotepad",
-    "chordnotepad_tk": REPO / "desktop" / "chordnotepad_tk",
     "chordnotepad_desktop": REPO / "desktop" / "chordnotepad_desktop",
     "chordnotepad_android": REPO / "android" / "app" / "src" / "main" / "python" / "chordnotepad_android",
 }
@@ -49,8 +46,7 @@ GUARDED = _guarded_imports()
 
 def test_the_scan_finds_the_known_guarded_imports():
     modules = {module for _, _, module, _ in GUARDED}
-    assert {"chordnotepad_desktop.build_info", "chordnotepad_tk.main_window",
-            "chordnotepad.viewmodels.chord_sheet_viewmodel",
+    assert {"chordnotepad.viewmodels.chord_sheet_viewmodel",
             "chordnotepad.models.fretboard_spec"} <= modules
 
 
@@ -69,17 +65,3 @@ def test_build_info_imports_under_its_package_name():
     assert build_info.__name__ == "chordnotepad_desktop.build_info"
     assert build_info.BASE_VERSION == (REPO / "VERSION").read_text(encoding="utf-8").strip()
 
-
-def test_the_window_title_and_about_box_get_the_build_info():
-    """main_window reads build_info at import; "dev-local" means the import failed."""
-    from chordnotepad_desktop import build_info
-    from chordnotepad_tk import main_window
-
-    assert main_window.VERSION == build_info.VERSION != "dev-local"
-    assert main_window.BUILD_NUMBER == build_info.BUILD_NUMBER
-
-
-def test_android_host_finds_the_chord_sheet():
-    from chordnotepad_android import host
-
-    assert host._chord_sheet_available() is True

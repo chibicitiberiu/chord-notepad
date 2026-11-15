@@ -2,7 +2,6 @@
 
 from pathlib import Path
 
-import pytest
 
 from chordnotepad.constants import WM_CLASS
 
@@ -20,16 +19,3 @@ def _desktop_value(key):
 def test_startup_wm_class_matches_constant():
     assert _desktop_value("StartupWMClass") == WM_CLASS
 
-
-def test_tk_keeps_the_window_class_as_spelled():
-    """Tk title-cases className; the constant must already be in that form."""
-    tk = pytest.importorskip("tkinter")
-    try:
-        root = tk.Tk(className=WM_CLASS)
-    except tk.TclError:
-        pytest.skip("No display available for tkinter tests")
-    try:
-        root.withdraw()
-        assert root.winfo_class() == WM_CLASS
-    finally:
-        root.destroy()

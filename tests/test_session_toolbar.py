@@ -5,9 +5,6 @@ The value logic (key list and spelling, multiplier parsing, snapping) lives in
 ``ToolbarState`` built from the viewmodel, whoever changed it.
 """
 
-from types import SimpleNamespace
-from unittest.mock import Mock
-
 import pytest
 
 from chordnotepad.services.playback_service import PlaybackService
@@ -304,77 +301,6 @@ def test_whole_song_transpose_moves_the_toolbar_key():
     assert env.toolbar().key == "D"
 
 
-# -- the Tk toolbar maps the state ---------------------------------------------------
-
-
-def test_tk_toolbar_maps_the_state():
-    from chordnotepad_tk.main_window import MainWindow
-
-    class Combo(dict):
-        def configure(self, **options):
-            self.update(options)
-
-    window = SimpleNamespace(
-        update_notation_buttons=Mock(), bpm_scrubber=Mock(), multiplier_scrubber=Mock(),
-        key_combo=Combo(), key_var=Mock(), time_sig_beats_var=Mock(), time_sig_unit_var=Mock(),
-        time_sig_beats_spin=Mock(), time_sig_unit_spin=Mock(),
-        _refresh_metronome_button=Mock(), play_pause_button=Mock(),
-        _icon_play="play", _icon_pause="pause", _play_pause_tooltip=SimpleNamespace(text=""),
-        _bpm_tooltip=SimpleNamespace(text=""), _key_tooltip=SimpleNamespace(text=""),
-        _beats_tooltip=SimpleNamespace(text=""), _unit_tooltip=SimpleNamespace(text=""),
-        chord_sheet_panel=None)
-    playing = ToolbarState(
-        notation="european", bpm=120, bpm_display=96, bpm_editable=False,
-        multiplier_pct=150.0, key="Sol", key_options=toolbar.key_options("european"),
-        beats=3, unit=4, metronome=True, play_action=PlayAction.PAUSE)
-
-    MainWindow._apply_toolbar(window, playing)
-
-    assert window._notation == "european"
-    window.bpm_scrubber.set_readonly.assert_called_with(True)
-    window.bpm_scrubber.set_value.assert_called_with(120)
-    window.bpm_scrubber.set_display_text.assert_called_with("96")
-    window.multiplier_scrubber.set_value.assert_called_with(150.0)
-    assert window.key_combo["values"] == toolbar.key_options("european")
-    window.key_var.set.assert_called_with("Sol")
-    window.time_sig_beats_var.set.assert_called_with(3)
-    window._refresh_metronome_button.assert_called_with(True)
-    window.play_pause_button.config.assert_called_with(image="pause")
-    assert window._play_pause_tooltip.text == "Pause playback"
-
-    window.bpm_scrubber.reset_mock()
-    MainWindow._apply_toolbar(window, ToolbarState(
-        notation="american", bpm=120, bpm_display=120, bpm_editable=True,
-        multiplier_pct=100.0, key="C", key_options=toolbar.key_options("american"),
-        beats=4, unit=4, metronome=False, play_action=PlayAction.RESUME))
-    window.bpm_scrubber.set_readonly.assert_called_with(False)
-    window.bpm_scrubber.set_display_text.assert_not_called()
-    window.play_pause_button.config.assert_called_with(image="play")
-    assert window._play_pause_tooltip.text == "Resume playback"
-
-
-def test_tk_toolbar_sends_commands():
-    from chordnotepad_tk.main_window import MainWindow
-
-    window = SimpleNamespace(session=Mock(), key_var=Mock(), time_sig_beats_var=Mock(),
-                             time_sig_unit_var=Mock())
-    window.key_var.get.return_value = "D"
-    MainWindow.on_key_change(window)
-    window.session.set_key.assert_called_once_with("D")
-
-    window.time_sig_beats_var.get.return_value = 6
-    window.time_sig_unit_var.get.return_value = 8
-    MainWindow.on_time_signature_change(window)
-    window.session.set_time_signature.assert_called_once_with(6, 8)
-
-    MainWindow._on_multiplier_scrubber_change(window, 150.0)
-    window.session.set_multiplier_pct.assert_called_once_with(150.0)
-    MainWindow._on_bpm_scrubber_change(window, 96.0)
-    window.session.set_bpm.assert_called_once_with(96.0)
-    MainWindow.set_notation(window, "european")
-    window.session.set_notation.assert_called_once_with("european")
-
-
 # -- Q2: the Qt tempo wheel doesn't stick at a multiple of ten ------------------------------
 
 
@@ -399,8 +325,8 @@ def test_q2_a_nudge_moves_past_the_magnet_of_a_grid_point():
 
 
 # -- ScrubScale on its own: clamping, the grid's origin, the magnet ---------------------------
-# (Tk's Scrubber widget tests checked these through the widget,
-# tests/test_scrubber.py; the scale is the core's and the Qt tempo uses it.)
+# (Tk's Scrubber widget tests checked these through the widget; the scale is
+# the core's and the Qt tempo uses it.)
 
 
 def test_a_scale_clamps_to_its_range():

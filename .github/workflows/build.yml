@@ -46,13 +46,12 @@ jobs:
         with:
           python-version: '3.14'
 
-      # xvfb and xauth: xvfb-run below gives the Tk tests a display. libegl1
-      # and the rest: what PySide6's Qt libraries load (the Qt tests run
-      # offscreen, with no display).
+      # libegl1 and the rest: what PySide6's Qt libraries load (the Qt tests
+      # run offscreen, with no display).
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y fluidsynth libfluidsynth3 xvfb xauth \
+          sudo apt-get install -y fluidsynth libfluidsynth3 \
             libegl1 libgl1 libxkbcommon0 libfontconfig1 libdbus-1-3
 
       # Pinned to the pipenv that wrote Pipfile.lock: newer ones hash the Pipfile
@@ -65,11 +64,9 @@ jobs:
       - name: Install dependencies
         run: pipenv sync --dev
 
-      # The Tk tests skip without a display, so they run on a virtual X
-      # server (the screen the local Xvfb runs use). Goes when the Tk
-      # front end does. The Qt tests run in the next step.
+      # Everything but the Qt window's tests, which run in the next step.
       - name: Run tests
-        run: xvfb-run --auto-servernum --server-args="-screen 0 1280x800x24" pipenv run pytest tests/ -v --ignore=tests/qt
+        run: pipenv run pytest tests/ -v --ignore=tests/qt
 
       # The Qt window's tests (pytest-qt) need no display: offscreen, Qt
       # Quick's software renderer, and a Qt warning fails the test
