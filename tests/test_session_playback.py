@@ -321,6 +321,44 @@ def test_tap_plays_the_chord_under_the_offset():
     assert env.recorder.compact() == [("StatusState", "Playing: G")]
 
 
+def test_a_tapped_roman_numeral_sounds_in_the_key_the_song_sets_above_it():
+    # Tibi, 2026-11-15: a song with {key: D} sounded in C when its roman
+    # numeral chords were clicked (the document's key was still C).
+    text = "{key: D} {time: 4/4}\nI  IV  V\n{key: F}\nI  IV\n"
+    env = Env(text=text)
+    assert env.main.key in (None, "C")
+
+    def pitch_classes(offset):
+        before = len(env.player.immediate)
+        env.session.tap_chord_at(offset)
+        assert len(env.player.immediate) == before + 1
+        return {n % 12 for n in env.player.immediate[-1]}
+
+    i_in_d = text.index("I  IV  V")
+    assert pitch_classes(i_in_d) == {2, 6, 9}                       # D F# A
+    assert pitch_classes(text.index("IV  V")) == {7, 11, 2}           # G B D
+    assert pitch_classes(text.index("V\n")) == {9, 1, 4}             # A C# E
+    # After {key: F} the same numerals are in F.
+    i_in_f = text.index("I  IV\n", i_in_d + 1)
+    assert pitch_classes(i_in_f) == {5, 9, 0}                       # F A C
+    assert pitch_classes(i_in_f + 3) == {10, 2, 5}                  # Bb D F
+    # Shift+click (rolled) uses the same key.
+    env.session.tap_chord_at(i_in_d, rolled=True)
+    assert {n % 12 for n in env.player.rolled[-1][0]} == {2, 6, 9}
+
+
+def test_key_at_is_the_last_key_directive_before_the_offset():
+    from chordnotepad.services.song_parser_service import SongParserService
+    from chordnotepad.session.song_defaults import key_at
+
+    text = "{key: D}\nI IV\n{key: Bb}\nI\n"
+    lines = SongParserService().detect_chords_in_text(text, "american")
+    assert key_at(lines, 0, "C") == "C"                    # before the directive
+    assert key_at(lines, text.index("I IV"), "C") == "D"
+    assert key_at(lines, text.index("I\n", text.index("Bb")), "C") == "Bb"
+    assert key_at(SongParserService().detect_chords_in_text("I IV", "american"), 0, "G") == "G"
+
+
 def test_tap_outside_a_valid_chord_does_nothing():
     env = Env(text="C  Cmaj13#11b9\nCome")
     env.session.tap_chord_at(1)   # space

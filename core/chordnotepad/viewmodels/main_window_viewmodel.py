@@ -623,21 +623,26 @@ class MainWindowViewModel(Observable):
         self.set_and_notify("current_playback_event", None)
         logger.info("Playback state reset complete")
 
-    def on_chord_clicked(self, chord_info: ChordInfo, rolled: bool = False) -> None:
-        """Handle chord click event (play chord immediately with current key).
+    def on_chord_clicked(self, chord_info: ChordInfo, rolled: bool = False,
+                         key: Optional[str] = None) -> None:
+        """Handle chord click event (play chord immediately).
 
         Args:
             chord_info: Information about the clicked chord
             rolled: Play it rolled, lowest note first (a Shift+click)
+            key: The key roman numerals resolve in: the one in force where
+                the chord is (a ``{key}`` before it); None uses the
+                document's key.
 
         Raises:
             AudioInitializationError: If the audio output can't be started.
         """
-        logger.debug(f"Playing chord on click: {chord_info.chord} (key={self._key}, rolled={rolled})")
+        key = key if key is not None else self._key
+        logger.debug(f"Playing chord on click: {chord_info.chord} (key={key}, rolled={rolled})")
         if rolled:
-            self._audio.play_chord_immediate(chord_info, self._key, rolled=True)
+            self._audio.play_chord_immediate(chord_info, key, rolled=True)
         else:
-            self._audio.play_chord_immediate(chord_info, self._key)
+            self._audio.play_chord_immediate(chord_info, key)
 
     def set_bpm(self, bpm: int) -> None:
         """Set the current document's tempo (not saved to the defaults).

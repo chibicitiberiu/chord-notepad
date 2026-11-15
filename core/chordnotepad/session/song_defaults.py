@@ -42,6 +42,22 @@ class SettingDirectives(NamedTuple):
     key: Optional[Directive]
 
 
+def key_at(lines: Sequence[Line], offset: int, default: Optional[str]) -> Optional[str]:
+    """The key in force at text ``offset``: the last valid ``{key: ...}``
+    before it, in text order, else ``default`` (the document's key). What a
+    click on a chord resolves roman numerals in, as the song renderer does
+    when it reaches that chord."""
+    key = default
+    for line in lines:
+        for item in line.items:
+            if item.start >= offset:
+                return key
+            if (not isinstance(item, ChordInfo) and item.is_valid
+                    and item.type == DirectiveType.KEY and item.key):
+                key = item.key
+    return key
+
+
 def setting_directives(lines: Sequence[Line]) -> SettingDirectives:
     """Which directives make the song set its starting tempo, time and key."""
     tempo = time = key = None

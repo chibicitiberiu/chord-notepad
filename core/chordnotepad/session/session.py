@@ -1367,11 +1367,15 @@ class AppSession:
                 self._seek(chord.start)
                 return
             self._seek(chord.start)
+        # Roman numerals resolve in the key in force where the chord is (a
+        # {key: D} above it), not only the document's key (Tibi, 2026-11-15:
+        # a song in D sounded in C when its chords were clicked).
+        key = song_defaults.key_at(self._detector.detected_lines, chord.start, self._main.key)
         try:
             if rolled:
-                self._main.on_chord_clicked(chord, rolled=True)
+                self._main.on_chord_clicked(chord, rolled=True, key=key)
             else:
-                self._main.on_chord_clicked(chord)
+                self._main.on_chord_clicked(chord, key=key)
         except AudioInitializationError as e:
             self._set_status(formatting.AUDIO_UNAVAILABLE_STATUS)
             self._report_audio_failure(str(e), from_click=True)
