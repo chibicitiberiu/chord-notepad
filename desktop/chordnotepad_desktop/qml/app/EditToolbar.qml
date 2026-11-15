@@ -60,13 +60,16 @@ Rectangle {
             objectName: "transposeButton"
             iconName: "transpose"; text: "Transpose"; showLabel: bar.roomy
             icon.width: Theme.px(6)
-            tip: "Transpose…"; shortcutHint: "Ctrl+T"
+            tip: "Transpose the chords up or down by semitones. Select part of the song first to transpose only that part."
+            shortcutHint: "Ctrl+T"
             onClicked: bar.actions.transposeAction.trigger()
         }
         IconButton {
             objectName: "capoButton"
             iconName: "capo"; text: "Capo"; showLabel: bar.roomy
-            tip: "Suggest a capo position that makes the chords easier to play."
+            // Suggest capo scores only the selected chords and inserts the
+            // {capo} at the selection's first line; it stays in force after.
+            tip: "Suggest a capo position that makes the chords easier to play. Select part of the song first to fit the capo to that part's chords; it goes at the start of the selection."
             onClicked: bar.actions.suggestCapoAction.trigger()
         }
         ConvertButton {

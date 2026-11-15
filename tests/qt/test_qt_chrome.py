@@ -582,7 +582,11 @@ def test_convert_converts_to_the_other_notation(app):
 
 
 def test_transpose_on_the_toolbar_opens_the_dialog(app):
-    app.click_item(app.it("transposeButton"))
+    button = app.it("transposeButton")
+    assert button.property("tip") == ("Transpose the chords up or down by semitones. Select part of the "
+                                      "song first to transpose only that part.")
+    assert button.property("shortcutHint") == "Ctrl+T"
+    app.click_item(button)
     app.qtbot.waitUntil(lambda: app.obj("transposeDialog").property("opened") is True, timeout=2000)
     app.key(Qt.Key.Key_Escape)
 
@@ -592,7 +596,9 @@ def test_the_capo_button_opens_suggest_capo_and_has_a_label_when_wide(app):
     app.window.resize(1200, 600)
     app.qtbot.waitUntil(lambda: button.property("showLabel") is True, timeout=1000)
     assert button.property("text") == "Capo" and button.property("iconName") == "capo"
-    assert button.property("tip") == "Suggest a capo position that makes the chords easier to play."
+    assert button.property("tip") == (
+        "Suggest a capo position that makes the chords easier to play. Select part of the song first "
+        "to fit the capo to that part's chords; it goes at the start of the selection.")
     assert button.property("enabled") is True
     app.window.resize(700, 600)
     app.qtbot.waitUntil(lambda: button.property("showLabel") is False, timeout=1000)
