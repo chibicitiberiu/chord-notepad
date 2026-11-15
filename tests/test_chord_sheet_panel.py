@@ -135,6 +135,7 @@ class _FakeRenderer(StripRenderer):
         self.requires_fingering = False
         self._gutter = float(gutter)
         self.layout_zooms = []
+        self.layout_notations = []
         self.gutter_calls = []
 
     def gutter_width(self, ctx, height):
@@ -147,6 +148,7 @@ class _FakeRenderer(StripRenderer):
 
     def layout(self, ctx, height):
         self.layout_zooms.append(ctx.zoom)
+        self.layout_notations.append(ctx.notation)
         n = len(ctx.song.chords)
         slots = tuple(
             SlotBox(chord_index=i, x=float(i * 120), width=120.0) for i in range(n)
@@ -210,6 +212,23 @@ def test_gutter_corner_does_not_inflate_the_lane_row(root):
     # The strip canvas starts right below the lane, no dead band between.
     lane_bottom = panel._lane_canvas.winfo_y() + panel._lane_canvas.winfo_height()
     assert abs(panel._canvas.winfo_y() - lane_bottom) <= 2
+
+
+def test_notation_reaches_the_context_and_repaints(root):
+    renderer = _FakeRenderer("g", gutter=40.0)
+    panel, vm, _ = _make_panel_with_renderers(root, "C G Am F\n", [renderer], view="g")
+    root.update_idletasks()
+    assert set(renderer.layout_notations) == {"american"}
+
+    calls = len(renderer.layout_notations)
+    panel.set_notation("european")
+    root.update_idletasks()
+    assert len(renderer.layout_notations) > calls
+    assert renderer.layout_notations[-1] == "european"
+
+    calls = len(renderer.layout_notations)
+    panel.set_notation("european")  # unchanged: no repaint
+    assert len(renderer.layout_notations) == calls
 
 
 def test_gutter_collapses_for_gutterless_renderer(root):

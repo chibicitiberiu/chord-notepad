@@ -343,7 +343,7 @@ class AppSession:
         # buffer is packed from is kept as one tuple, replaced (never
         # mutated) on the session thread, so other threads can read it.
         self._sheet_revision = 0
-        self._sheet_snapshot: Optional[Tuple[Any, str, float, Any]] = None
+        self._sheet_snapshot: Optional[Tuple[Any, str, float, Any, str]] = None
         # Whether the strip has had a playback ping since it was last cleared.
         self._sheet_pinged = False
         self._on_sheet_change = self._entry(self._publish_chord_sheet)
@@ -2430,7 +2430,7 @@ class AppSession:
         strip rendered last, in the view and zoom it shows, from a snapshot
         the session thread replaces whenever ``ChordSheetState`` changes.
         Refetch when ``song_revision``, ``active_view``, ``zoom`` or the
-        height changes. Format: docs/ANDROID.md, "Chord sheet op buffer".
+        height changes (a notation switch bumps ``song_revision``). Format: docs/ANDROID.md, "Chord sheet op buffer".
 
         Args:
             height: The strip's content height in dp (marker lane excluded).
@@ -2443,8 +2443,9 @@ class AppSession:
             return None
         from chordnotepad.chord_sheet.pack import pack_view
 
-        song, view_id, zoom, renderers = snapshot
-        return pack_view(song, view_id, zoom, float(height), renderers=renderers)
+        song, view_id, zoom, renderers, notation = snapshot
+        return pack_view(song, view_id, zoom, float(height), renderers=renderers,
+                         notation=notation)
 
     @property
     def has_chord_sheet(self) -> bool:
@@ -3086,6 +3087,11 @@ class AppSession:
             if converted != key:
                 self._main.set_key(converted)
         self._publish_toolbar()
+        # The sheet draws note names in the notation: a new revision makes
+        # the views refetch their buffers.
+        if self._chord_sheet is not None:
+            self._sheet_revision += 1
+            self._publish_chord_sheet()
 
     def _publish_editor(self, _changed: Any = None) -> None:
         self._emitter.set_state(EditorState(
@@ -3216,8 +3222,11 @@ class AppSession:
         if sheet is None:
             return
         available = set(sheet.available_views)
+        # The notation is read here, on the session thread: the buffer is
+        # packed off it and must not read the main viewmodel.
         self._sheet_snapshot = (sheet.rendered_song, sheet.active_view,
-                                sheet.zoom, tuple(sheet.renderers))
+                                sheet.zoom, tuple(sheet.renderers),
+                                self._main.notation.value)
         self._emitter.set_state(ChordSheetState(
             visible=sheet.visible,
             height=sheet.height,

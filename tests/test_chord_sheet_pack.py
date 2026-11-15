@@ -92,6 +92,40 @@ def test_round_trips_at_other_zooms_and_heights(song, view_id, zoom):
     assert pack.unpack(pack.serialize(view)) == _quantized(view)
 
 
+class _NotationRecorder(StaffCardRenderer):
+    """The staff, noting the notation every context it is handed carries."""
+
+    def __init__(self):
+        super().__init__()
+        self.seen = set()
+
+    def layout(self, ctx, height):
+        self.seen.add(ctx.notation)
+        return super().layout(ctx, height)
+
+    def paint(self, ops, ctx, layout):
+        self.seen.add(ctx.notation)
+        return super().paint(ops, ctx, layout)
+
+    def gutter_width(self, ctx, height):
+        self.seen.add(ctx.notation)
+        return super().gutter_width(ctx, height)
+
+
+@pytest.mark.parametrize("notation", ["american", "european"])
+def test_pack_view_hands_the_notation_to_the_renderer(song, notation):
+    recorder = _NotationRecorder()
+    pack.pack_view(song, "staff", 1.0, HEIGHT, renderers=[recorder], notation=notation)
+    assert recorder.seen == {notation}
+
+
+def test_the_context_defaults_to_american(song):
+    assert SheetContext(song=song).notation == "american"
+    recorder = _NotationRecorder()
+    pack.collect_view(song, recorder, 1.0, HEIGHT)
+    assert recorder.seen == {"american"}
+
+
 def test_pack_view_is_serialize_of_collect_view(song):
     for view_id in VIEWS:
         assert pack.pack_view(song, view_id, 1.0, HEIGHT) == pack.serialize(

@@ -76,6 +76,10 @@ class SheetContext:
     default size. Zoom scales the renderer's intrinsic geometry (staff
     space, string gap, fret-box size), not the panel height."""
 
+    notation: str = "american"
+    """The song's notation (``"american"`` or ``"european"``), for renderers
+    that draw note names (``models.notation.Notation`` values)."""
+
 
 class StripRenderer(ABC):
     """A pluggable chord-sheet strip view.

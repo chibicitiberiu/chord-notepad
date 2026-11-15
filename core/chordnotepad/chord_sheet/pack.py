@@ -146,7 +146,7 @@ def _gutter(renderer: StripRenderer, ctx: SheetContext, height: float,
 
 
 def collect_view(song: RenderedSong, renderer: StripRenderer, zoom: float,
-                 height: float) -> ViewOps:
+                 height: float, notation: str = "american") -> ViewOps:
     """Lay out and paint one view headlessly, as the Tk panel would.
 
     Args:
@@ -154,11 +154,12 @@ def collect_view(song: RenderedSong, renderer: StripRenderer, zoom: float,
         renderer: The view's renderer.
         zoom: Display zoom (ignored by renderers without ``supports_zoom``).
         height: Content height in px (the strip canvas, lane excluded).
+        notation: The song's notation, for note names (``SheetContext.notation``).
 
     Returns:
         The view's ops, slots and gutter variants (see :class:`ViewOps`).
     """
-    ctx = SheetContext(song=song, zoom=zoom)
+    ctx = SheetContext(song=song, zoom=zoom, notation=notation)
     layout = renderer.layout(ctx, height)
     content = DrawOps()
     renderer.paint(content, ctx, layout)
@@ -275,7 +276,8 @@ def serialize(view: ViewOps) -> bytes:
 
 
 def pack_view(song: RenderedSong, view_id: str, zoom: float, height: float,
-              renderers: Optional[Sequence[StripRenderer]] = None) -> bytes:
+              renderers: Optional[Sequence[StripRenderer]] = None,
+              notation: str = "american") -> bytes:
     """Render one chord-sheet view and pack it for Android.
 
     Args:
@@ -285,6 +287,7 @@ def pack_view(song: RenderedSong, view_id: str, zoom: float, height: float,
         height: Content height in px (the strip, marker lane excluded).
         renderers: Renderers to pick ``view_id`` from (default: the standard
             set, :func:`~chord_sheet.registry.default_renderers`).
+        notation: The song's notation, for note names (``SheetContext.notation``).
 
     Returns:
         The packed buffer (format: ``docs/ANDROID.md``, "Chord sheet op buffer").
@@ -295,7 +298,7 @@ def pack_view(song: RenderedSong, view_id: str, zoom: float, height: float,
     """
     for renderer in (renderers if renderers is not None else default_renderers()):
         if renderer.id == view_id:
-            return serialize(collect_view(song, renderer, zoom, height))
+            return serialize(collect_view(song, renderer, zoom, height, notation))
     raise ValueError(f"unknown chord sheet view: {view_id!r}")
 
 

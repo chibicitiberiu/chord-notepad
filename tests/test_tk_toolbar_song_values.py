@@ -30,7 +30,8 @@ def _window():
         _refresh_metronome_button=Mock(), play_pause_button=Mock(),
         _play_pause_tooltip=SimpleNamespace(text=""), _icon_play="play", _icon_pause="pause",
         _bpm_tooltip=SimpleNamespace(text=""), _key_tooltip=SimpleNamespace(text=""),
-        _beats_tooltip=SimpleNamespace(text=""), _unit_tooltip=SimpleNamespace(text=""))
+        _beats_tooltip=SimpleNamespace(text=""), _unit_tooltip=SimpleNamespace(text=""),
+        chord_sheet_panel=Mock())
 
 
 def _apply(window, state):
@@ -103,3 +104,9 @@ def test_while_playing_the_key_and_time_are_locked_and_paused_they_are_not():
     window.key_combo.configure.assert_called_with(state="readonly")
     window.time_sig_beats_spin.configure.assert_called_with(state="normal")
     window.play_pause_button.config.assert_called_with(image="play")
+
+
+def test_the_notation_reaches_the_chord_sheet_panel():
+    window = _window()
+    _apply(window, _state(notation="european"))
+    window.chord_sheet_panel.set_notation.assert_called_with("european")

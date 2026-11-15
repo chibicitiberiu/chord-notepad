@@ -318,7 +318,8 @@ def test_tk_toolbar_maps_the_state():
         _refresh_metronome_button=Mock(), play_pause_button=Mock(),
         _icon_play="play", _icon_pause="pause", _play_pause_tooltip=SimpleNamespace(text=""),
         _bpm_tooltip=SimpleNamespace(text=""), _key_tooltip=SimpleNamespace(text=""),
-        _beats_tooltip=SimpleNamespace(text=""), _unit_tooltip=SimpleNamespace(text=""))
+        _beats_tooltip=SimpleNamespace(text=""), _unit_tooltip=SimpleNamespace(text=""),
+        chord_sheet_panel=None)
     playing = ToolbarState(
         notation="european", bpm=120, bpm_display=96, bpm_editable=False,
         multiplier_pct=150.0, key="Sol", key_options=toolbar.key_options("european"),

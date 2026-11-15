@@ -81,6 +81,10 @@ class ChordSheetPanel(ttk.Frame):
         self._gutter_width: float = 0.0
         self._gutter_state: Optional[tuple] = None
 
+        # The song's notation, for views that draw note names (set by the
+        # main window from the session's ToolbarState).
+        self._notation = "american"
+
         # Pending trailing-repaint ``after`` id for the <Configure> debounce
         # (see ``_on_canvas_configure``). ``None`` means we are in a quiet
         # period, so the next configure is the "leading" one and repaints live.
@@ -252,6 +256,13 @@ class ChordSheetPanel(ttk.Frame):
         """Re-layout and repaint at the new zoom (display-only, no re-render)."""
         self._relayout_and_paint()
 
+    def set_notation(self, notation: str) -> None:
+        """Draw note names in ``notation`` (``american`` or ``european``)."""
+        if notation == self._notation:
+            return
+        self._notation = notation
+        self._relayout_and_paint()
+
     # -- Tk event handlers --------------------------------------------------
 
     def _on_tab_changed(self, _event=None) -> None:
@@ -379,7 +390,8 @@ class ChordSheetPanel(ttk.Frame):
         # its own fixed-height canvas above it, so the content already excludes
         # the lane (the panel reserves it via the two-canvas split).
         height = max(1, self._canvas.winfo_height())
-        ctx = SheetContext(song=song, zoom=self._vm.zoom_for_active_view)
+        ctx = SheetContext(song=song, zoom=self._vm.zoom_for_active_view,
+                           notation=self._notation)
         layout = renderer.layout(ctx, float(height))
         self._layout = layout
         self._canvas.config(scrollregion=(0, 0, layout.width, layout.height))
@@ -424,7 +436,8 @@ class ChordSheetPanel(ttk.Frame):
             return
 
         height = max(1, self._canvas.winfo_height())
-        ctx = SheetContext(song=song, zoom=self._vm.zoom_for_active_view)
+        ctx = SheetContext(song=song, zoom=self._vm.zoom_for_active_view,
+                           notation=self._notation)
         width = float(renderer.gutter_width(ctx, float(height)))
         if width <= 0:
             self._collapse_gutter()

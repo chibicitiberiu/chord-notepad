@@ -399,6 +399,8 @@ class MainWindow(tk.Tk):
         """Show the session's toolbar state (setting widgets sends nothing back)."""
         self._notation = state.notation
         self.update_notation_buttons()
+        if self.chord_sheet_panel is not None:
+            self.chord_sheet_panel.set_notation(state.notation)
 
         # The tempo, key and time signature are what the song starts with. A
         # value the song sets with a directive is greyed out (the tooltip
@@ -826,6 +828,7 @@ class MainWindow(tk.Tk):
         # makes past the session, see chordnotepad_tk/chord_sheet/panel.py); its zoom, tab
         # and click commands go through the session.
         self.chord_sheet_panel = ChordSheetPanel(self.content_paned, session=self.session)
+        self.chord_sheet_panel.set_notation(self._notation)
 
         # Persist the strip height whenever the sash is released.
         self.content_paned.bind('<ButtonRelease-1>', self._on_content_sash_moved)

@@ -169,6 +169,29 @@ def test_views_and_zoom():
     assert env.sheet_state().zoom_supported is False
 
 
+def test_a_notation_switch_republishes_the_sheet_with_a_new_revision(monkeypatch):
+    from chordnotepad.chord_sheet import pack
+
+    env = Env()
+    env.sheet.finish_render(object(), fingering=True)
+    revision = env.sheet_state().song_revision
+    published = len(env.recorder.of_type(ChordSheetState))
+    env.session.set_notation("european")
+    assert len(env.recorder.of_type(ChordSheetState)) > published
+    assert env.sheet_state().song_revision == revision + 1
+
+    # The buffer is packed in the notation the snapshot caught.
+    calls = []
+    monkeypatch.setattr(pack, "pack_view",
+                        lambda *args, **kwargs: calls.append(kwargs) or b"")
+    env.session.chord_sheet_buffer(130.0)
+    assert calls[-1]["notation"] == "european"
+    env.session.set_notation("american")
+    assert env.sheet_state().song_revision == revision + 2
+    env.session.chord_sheet_buffer(130.0)
+    assert calls[-1]["notation"] == "american"
+
+
 def test_playhead_reaches_the_state():
     env = Env()
     env.session.set_text("C G")
