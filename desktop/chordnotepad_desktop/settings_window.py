@@ -17,6 +17,12 @@ goes (parity checklist resolution 6), through the session's settings edit:
   (Q8): it is kept as typed (:attr:`SettingsModel.numberTexts`), shown with
   its message (:attr:`SettingsModel.numberErrors`) and sent as
   ``invalid_numbers``, so the config keeps its valid value.
+  The window isn't modal, so some of these values change elsewhere while it
+  is open (the ☰ Dark theme, text zoom, View › Word wrap). Each state change
+  reads the config again (``settings_values``) and takes what changed there
+  into the draft, unless one of the window's own commits is still on its way
+  to the session: ``commit_settings`` sends the whole draft, and an old
+  value in it would undo the change made elsewhere.
 * **Voicings**: the session's ``VoicingEditorState`` is the form
   (:attr:`SettingsModel.editor`, a map of the store). A keystroke sends
   ``set_voicing_values`` (the session re-checks it and the marks come back);
@@ -30,6 +36,7 @@ the window only lays them out.
 """
 
 import copy
+import dataclasses
 import logging
 from typing import Any, Dict, List, Optional
 
@@ -108,6 +115,8 @@ class SettingsModel(QObject):
         self._pending: Dict[str, Any] = {}
         # Voicing values sent with set_voicing_values since the last commit.
         self._unsaved_form = False
+        # commit_settings sent but not run by the session yet.
+        self._commits_in_flight = 0
         self._timer = QTimer(self)
         self._timer.setSingleShot(True)
         self._timer.setInterval(DRAFT_SAVE_DELAY_MS)
@@ -340,7 +349,35 @@ class SettingsModel(QObject):
             self._saved = dict(self._draft)
         self._sent_numbers = dict(self._number_texts)
         self._unsaved_form = False
+        self._commits_in_flight += 1
         self._store.submit("commit_settings", args)
+        self._store.after_commands(self._commit_ran)
+
+    def _commit_ran(self) -> None:
+        self._commits_in_flight -= 1
+        self._follow_config()
+
+    def _follow_config(self) -> None:
+        """Take into the draft what changed in the config from elsewhere
+        while the window is open (the ☰ Dark theme, text zoom, Word wrap),
+        so the next commit doesn't write the old value back. A number being
+        typed keeps its text; the value under it follows."""
+        if not self._open or self._saved is None or self._commits_in_flight:
+            return
+        try:
+            now = self._store.direct("settings_values")
+        except RuntimeError:          # no services (some tests)
+            return
+        now = dataclasses.asdict(now) if dataclasses.is_dataclass(now) else dict(now or {})
+        changed = {k: v for k, v in now.items() if k in self._saved and self._saved[k] != v}
+        if not changed:
+            return
+        self._saved.update(changed)
+        if self._draft is not None:
+            self._draft.update(changed)
+        if "font_family" in changed:
+            self._refresh_families()
+        self.draftChanged.emit()
 
     # -- the voicings editor ----------------------------------------------------------
 
@@ -483,7 +520,11 @@ class SettingsModel(QObject):
                           "european": list(state.value("european_keys") or [])}
             if self._open and self._draft is None:
                 self._take_settings(state.value("values"))
+            self._follow_config()
             self.draftChanged.emit()
+        elif type_name == "EditorState":
+            # Text zoom and Word wrap write the config without a SettingsState.
+            self._follow_config()
         elif type_name == "VoicingEditorState":
             values = self._store.state("VoicingEditorState").value("values") or {}
             # An edit the session has applied is no longer pending.

@@ -290,6 +290,29 @@ def test_the_theme_switches_live(settings):
     assert pane.property("color").name() == light
 
 
+def test_values_changed_elsewhere_while_open_are_shown_and_not_undone(settings):
+    """The window isn't modal: the ☰ Dark theme, text zoom and View › Word
+    wrap change the config while it is open. The window shows the new values,
+    and its next save (it sends every General/Playback value) keeps them."""
+    store = settings.harness.store
+    size = settings.config("font_size")
+    store.submit("set_ui_theme", {"theme": "dark"})
+    store.submit("step_font_size", {"delta": 2})
+    store.submit("set_word_wrap", {"on": True})
+    settings.qtbot.waitUntil(lambda: (settings.model.values["ui_theme"],
+                                      settings.model.values["font_size"],
+                                      settings.model.values["word_wrap"]) == ("dark", size + 2, True),
+                             timeout=2000)
+    # A change in the window now writes the whole draft: the others stay.
+    settings.model.setValue("show_quick_start_on_startup", True)
+    settings.qtbot.waitUntil(lambda: settings.config("show_quick_start_on_startup") is True,
+                             timeout=2000)
+    settings.wait(100)
+    assert (settings.config("ui_theme"), settings.config("font_size"),
+            settings.config("word_wrap")) == ("dark", size + 2, True)
+    assert settings.harness.app.editor.wordWrap is True
+
+
 # -- Voicings --------------------------------------------------------------------------------
 
 
