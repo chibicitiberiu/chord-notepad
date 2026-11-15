@@ -172,7 +172,10 @@ plays the root; an ensemble keeps it.) If a chord has fewer
 notes than voices, something gets doubled, and the engine reaches for the
 root first. Any chord tone may go in the bass, though the Inversion weights
 favor root position; a slash chord's bass note always lands in the bottom
-voice.
+voice. When a chord sits next to itself over another bass, say C then C/E,
+you expect to hear the bass move, so the plain C is nudged off E and back
+onto its own root. Without that nudge the easiest answer is to keep every
+voice where it was, and both chords would sound the same.
 
 And when a chord simply won't fit the ensemble as written -- an awkward
 key, a tight cluster of notes and not enough room to spread them -- the
@@ -572,6 +575,14 @@ Voicing Parameters
        closer spacing above the bass.
      - ``upper_spacing_penalty``
      - -0.15
+   * - Same chord, same bass
+     - Subtracted when two neighbouring chords are the same chord over
+       different written basses (C and C/E, or C/E and C/G) but both
+       voicings would sound the same lowest note. A plain chord's written
+       bass is its root. More negative keeps a plain chord next to its slash
+       chord on its own root.
+     - ``same_bass_penalty``
+     - -5.0
 
 .. note::
    These weights apply per ensemble. A custom ensemble that omits
