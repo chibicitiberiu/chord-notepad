@@ -33,9 +33,8 @@ logger = logging.getLogger(__name__)
 #: Why the palette is disabled while a song plays or is paused: the status
 #: bar's read-only notice (the mockup's line), one text for both.
 LOCKED_REASON = READ_ONLY_NOTICE
-#: The tooltip's last line for a tile that can be used (the mockup's, without
-#: "drag to place": dragging comes after the switch).
-TILE_ACTION = "Click to insert"
+#: The tooltip's last line for a tile that can be used (the mockup's).
+TILE_ACTION = "Click to insert · drag to place"
 
 
 def palette_groups() -> list:

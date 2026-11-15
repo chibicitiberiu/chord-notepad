@@ -8,8 +8,8 @@ import CNTheme
 // and text helper as a compact icon tile, grouped, from the core's
 // session.snippets.PALETTE (SidebarModel.paletteGroups). No dialogs: a click
 // inserts the default with its value selected, and the value is picked
-// later in the text (the ▾ after a directive). The duration tiles come
-// after the switch.
+// later in the text (the ▾ after a directive); a tile dragged into the text
+// goes in where it is dropped. The duration tiles come after the switch.
 //
 // Keys: Left/Right move one tile (across groups), Up/Down one row (to the
 // nearest tile in the row above or below), Enter/Space insert, Escape goes
@@ -18,6 +18,8 @@ Rectangle {
     id: panel
     objectName: "directivePalette"
     required property var sidebars
+    // Main.qml's drag into the text (DragSource, the tiles).
+    required property var dnd
     property bool locked: false
     signal insert(string snippet)
     color: Theme.panel
@@ -116,6 +118,7 @@ Rectangle {
                                     id: tileItem
                                     required property var modelData
                                     required property int index
+                                    dnd: panel.dnd
                                     tileId: modelData.id
                                     iconName: modelData.icon
                                     caption: modelData.caption

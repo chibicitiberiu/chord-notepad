@@ -45,18 +45,19 @@ from bisect import bisect_left
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
-from PySide6.QtCore import Q_ARG, Property, QMetaObject, QObject, Signal, Slot
+from PySide6.QtCore import Q_ARG, Property, QMetaObject, QObject, Qt, Signal, Slot
 from PySide6.QtGui import (
-    QClipboard, QColor, QGuiApplication, QSyntaxHighlighter, QTextCharFormat, QTextCursor,
+    QClipboard, QColor, QCursor, QGuiApplication, QSyntaxHighlighter, QTextCharFormat, QTextCursor,
     QTextDocument,
 )
 from PySide6.QtQuick import QQuickItem, QQuickTextDocument
 
 from chordnotepad.constants import DEFAULT_FONT_SIZE
+from chordnotepad.session import snippets
 from chordnotepad.utils.text_normalization import normalize_song_text
 from chordnotepad_desktop import editor_font, popups
-from chordnotepad_desktop.text_mouse import TextMouse
 from chordnotepad_desktop.offsets import OffsetMapper, utf16_length
+from chordnotepad_desktop.text_mouse import TextMouse
 
 logger = logging.getLogger(__name__)
 
@@ -272,6 +273,7 @@ class EditorBridge(QObject):
         self._playing: Optional[Tuple[int, int]] = None   # UTF-16, for the highlighter
         self._playing_progress: Any = None
         self._playhead = -1
+        self._drag_cursor = False          # setDragCursor's override is on
 
         store.event.connect(self._on_event)
         store.stateChanged.connect(self._on_state)
@@ -726,6 +728,49 @@ class EditorBridge(QObject):
     def dropText(self, position: int, text: str) -> None:  # noqa: N802 (Qt)
         """Text dragged onto the editor, at ``position``, normalised."""
         self._insert_user_text(position, position, text)
+
+    # -- drag and drop from the sidebars (the palette tiles, the identifier's chords) ---
+
+    @Slot(int, result=int)
+    def dropPosition(self, position: int) -> int:  # noqa: N802 (Qt)
+        """Where a tile or chord dropped at Qt position ``position`` goes in
+        (the drop caret): out of the middle of a word or directive, as
+        ``insert_snippet`` with ``snap`` puts it (``snippets.drop_offset``)."""
+        if position < 0:
+            return position
+        mapper = OffsetMapper(self._painted_text)
+        return mapper.to_utf16(snippets.drop_offset(self._painted_text, mapper.to_code_point(position)))
+
+    @Slot(int, str, result=bool)
+    def dropSnippet(self, position: int, text: str) -> bool:  # noqa: N802 (Qt)
+        """Drop ``text`` (a tile's snippet, or a chord) at Qt position
+        ``position``: ``insert_snippet`` with ``snap``, one undo step, spaced
+        off its neighbours, a directive's value selected. False (nothing
+        sent) while a song plays or is paused, or for no text."""
+        if self._read_only or not text or position < 0:
+            return False
+        self._store.submit("insert_snippet", {"offset": self.to_code_point(position), "text": text,
+                                              "snap": True})
+        return True
+
+    @Slot(bool)
+    def setDragCursor(self, allowed: bool) -> None:  # noqa: N802 (Qt)
+        """The pointer during a drag from a sidebar: the closed hand where it
+        can drop, the no-drop sign elsewhere (the whole window's, so the
+        items under it don't change it)."""
+        cursor = QCursor(Qt.CursorShape.ClosedHandCursor if allowed else Qt.CursorShape.ForbiddenCursor)
+        if self._drag_cursor:
+            QGuiApplication.changeOverrideCursor(cursor)
+        else:
+            QGuiApplication.setOverrideCursor(cursor)
+            self._drag_cursor = True
+
+    @Slot()
+    def clearDragCursor(self) -> None:  # noqa: N802 (Qt)
+        """The drag is over: the pointer is the items' own again."""
+        if self._drag_cursor:
+            QGuiApplication.restoreOverrideCursor()
+            self._drag_cursor = False
 
     def _insert_user_text(self, start: int, end: int, raw: Optional[str]) -> None:
         """Replace ``[start, end)`` with ``raw`` normalised, as the user's

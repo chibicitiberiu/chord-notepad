@@ -19,13 +19,16 @@ import CNTheme
 // - The notes field takes either notation and commas, re-parsed on every
 //   keystroke; a key click rewrites it.
 // - Candidates (resolution 1): a click inserts the chord at the caret (the
-//   editor gets the focus back), ▶ auditions it, Shift+▶ (or a right click)
+//   editor gets the focus back), dragging it into the text drops it there
+//   (DragSource, the mockup's), ▶ auditions it, Shift+▶ (or a right click)
 //   plays it rolled. From the keyboard: Up/Down, Enter inserts, Space plays.
-//   Inserting is off while the editor is read-only; ▶ still plays.
+//   Inserting and dragging are off while the editor is read-only; ▶ still plays.
 Rectangle {
     id: panel
     objectName: "identifierPanel"
     required property var model
+    // Main.qml's drag into the text (DragSource, the candidates).
+    required property var dnd
     property bool locked: false
     property string lockedReason
     signal insert(string chord)
@@ -264,17 +267,19 @@ Rectangle {
                 radius: Theme.radiusSmall
                 color: rowArea.pressed && !panel.locked ? Theme.pressed
                      : row.current ? Theme.selectedRow : rowArea.containsMouse ? Theme.hover : "transparent"
-                MouseArea {
+                // Click or drag; below the ▶ (z 0), which takes its own clicks.
+                DragSource {
                     id: rowArea
                     objectName: "candidateArea"
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    cursorShape: panel.locked ? Qt.ArrowCursor : Qt.PointingHandCursor
-                    onClicked: { list.currentIndex = row.index; if (!panel.locked) panel.insert(row.modelData) }
+                    z: 0
+                    dnd: panel.dnd
+                    snippet: row.modelData
+                    draggable: !panel.locked
+                    onTapped: { list.currentIndex = row.index; if (!panel.locked) panel.insert(row.modelData) }
                 }
-                ToolTip.visible: rowArea.containsMouse && !hear.hovered
+                ToolTip.visible: rowArea.containsMouse && !hear.hovered && !rowArea.dragging
                 ToolTip.delay: 900
-                ToolTip.text: panel.locked ? panel.lockedReason : "Click to insert at the caret"
+                ToolTip.text: panel.locked ? panel.lockedReason : "Click to insert at the caret, or drag into the text"
                 RowLayout {
                     anchors.fill: parent
                     anchors.leftMargin: Theme.gap2; anchors.rightMargin: Theme.gap1

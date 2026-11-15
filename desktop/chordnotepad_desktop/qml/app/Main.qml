@@ -219,12 +219,14 @@ ApplicationWindow {
                                 currentIndex: win.sidebars.current === "identifier" ? 1 : 0
                                 DirectivePalette {
                                     id: directivePalette
+                                    dnd: sidebarDrag
                                     sidebars: win.sidebars
                                     locked: win.editor.readOnly
                                     onInsert: (s) => win.insertSnippet(s)
                                 }
                                 IdentifierPanel {
                                     id: identifierPanel
+                                    dnd: sidebarDrag
                                     model: win.identifier
                                     locked: win.editor.readOnly
                                     lockedReason: win.sidebars.lockedReason
@@ -320,6 +322,7 @@ ApplicationWindow {
         editor: win.editor
         status: win.status
         pickers: win.pickers
+        dnd: sidebarDrag
         placeholder: win.store.texts.editorPlaceholder
         playMode: win.mode === "play"
         // Moved by onModeChanged (moveTo keeps the view where it was).
@@ -356,6 +359,70 @@ ApplicationWindow {
                 editorPane.focusEditor()
         })
         onCollapsed: editorPane.focusEditor()
+    }
+
+    // --- Drag from the sidebar into the text (internal drag, the mockup's) -------------
+    // A zero-size item carries Drag (hot spot = the pointer); the chip it shows
+    // sits beside the pointer. The editor's DropArea sets `accepting` (false
+    // over anything else, and while the editor is read-only); the pointer is
+    // the closed hand where a drop goes in, the no-drop sign elsewhere.
+    QtObject {
+        id: sidebarDrag
+        objectName: "sidebarDrag"
+        property bool accepting: false
+        readonly property bool active: dragChip.Drag.active
+        readonly property string snippet: dragChip.snippet       // what is being dragged
+        function begin(snippet, p, kind) {
+            dragChip.snippet = snippet
+            dragChip.kind = kind || "snippet"
+            sidebarDrag.accepting = false
+            sidebarDrag.move(p)
+            dragChip.Drag.active = true
+        }
+        function move(p) {
+            dragChip.x = p.x; dragChip.y = p.y
+            win.editor.setDragCursor(sidebarDrag.accepting)
+        }
+        function finish(drop) {
+            if (dragChip.Drag.active) {
+                if (drop) dragChip.Drag.drop(); else dragChip.Drag.cancel()
+            }
+            dragChip.Drag.active = false
+            dragChip.snippet = ""
+            sidebarDrag.accepting = false
+            win.editor.clearDragCursor()
+        }
+        function end() { sidebarDrag.finish(true) }
+        function cancel() { sidebarDrag.finish(false) }
+    }
+    Item {
+        id: dragChip
+        objectName: "dragChip"
+        parent: Overlay.overlay
+        z: 1000
+        property string snippet
+        property string kind: "snippet"
+        Drag.keys: [kind]
+        Drag.hotSpot.x: 0; Drag.hotSpot.y: 0
+        visible: snippet !== ""
+        Rectangle {
+            x: Theme.gap3; y: Theme.gap2
+            width: chipText.implicitWidth + 2 * Theme.gap2
+            height: chipText.implicitHeight + Theme.gap2
+            radius: Theme.radiusSmall
+            color: Theme.popup
+            border.width: Theme.hairline
+            border.color: sidebarDrag.accepting ? Theme.accent : Theme.borderStrong
+            opacity: 0.95
+            SText {
+                id: chipText
+                objectName: "dragChipText"
+                anchors.centerIn: parent
+                text: dragChip.snippet
+                font: Theme.fontMonoS
+                color: Theme.directive
+            }
+        }
     }
 
     // A palette tile: its snippet at the caret, the value selected (B4's

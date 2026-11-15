@@ -15,6 +15,14 @@ import CNTheme
 // (the MouseArea, which keeps the press from the TextArea's own paste) and
 // drag and drop (the DropArea, on top of the TextArea's own drop).
 //
+// Drag and drop from the sidebars (`dnd`, Main.qml's; the mockup's): a palette
+// tile or an identifier chord dragged over the text shows the drop caret
+// where it would go in, snapped off the middle of a word or directive
+// (EditorBridge.dropPosition, the core's snippets.drop_offset); the drop is
+// insert_snippet there (one undo step, spaced, a directive's value
+// selected). While read-only (playing, paused, the Play workspace) there is
+// no caret and the pointer is the no-drop sign.
+//
 // Directives (plan steps D4, D5): the hover card 450 ms after the pointer
 // rests on one (EditorBridge.hintAt), the caret's hint in the status bar
 // (`status`, StatusBarModel: told when the caret may have moved), and the ▾
@@ -30,6 +38,9 @@ Rectangle {
     required property var editor
     required property var status
     required property var pickers
+    // The drag from the sidebars (Main.qml): its `accepting` is set here.
+    required property var dnd
+    property int dropPos: -1           // where a dragged tile or chord would go in, or -1
     // "Type or paste a song here", shown while the text is empty.
     property string placeholder: ""
     // Play workspace: read-only (Ctrl+1 or the pencil goes back to Edit).
@@ -557,16 +568,49 @@ Rectangle {
                 y: pane.hint.y || 0
             }
 
-            // Text dragged in from elsewhere, normalised.
+            // Text dragged in from elsewhere, normalised; a tile or chord
+            // from the sidebars (Drag.keys "snippet") where the drop caret is.
             DropArea {
+                objectName: "editorDrop"
                 anchors.fill: parent
-                onEntered: (drag) => { drag.accepted = drag.hasText && !area.readOnly }
+                function fromSidebar(d) { return d.keys.indexOf("snippet") >= 0 }
+                function track(d) {
+                    pane.dropPos = area.readOnly ? -1 : pane.editor.dropPosition(area.positionAt(d.x, d.y))
+                    pane.dnd.accepting = !area.readOnly
+                }
+                onEntered: (drag) => {
+                    if (fromSidebar(drag)) track(drag)
+                    else drag.accepted = drag.hasText && !area.readOnly
+                }
+                onPositionChanged: (drag) => { if (fromSidebar(drag)) track(drag) }
+                onExited: { pane.dropPos = -1; pane.dnd.accepting = false }
                 onDropped: (drop) => {
+                    if (fromSidebar(drop)) {
+                        var p = pane.dropPos
+                        pane.dropPos = -1
+                        if (!area.readOnly && p >= 0 && pane.editor.dropSnippet(p, pane.dnd.snippet)) {
+                            drop.accept()
+                            pane.focusEditor()
+                        }
+                        return
+                    }
                     if (!drop.hasText || area.readOnly) return
                     pane.editor.dropText(area.positionAt(drop.x, drop.y), drop.text)
                     drop.accept(Qt.CopyAction)
                     area.forceActiveFocus()
                 }
+            }
+            // The drop caret: where a dragged tile or chord would go in.
+            SnapLine {
+                objectName: "dropCaret"
+                readonly property rect r: pane.dropPos >= 0 && pane.dropPos <= area.length
+                                          ? area.positionToRectangle(pane.dropPos) : Qt.rect(0, 0, 0, 0)
+                visible: pane.dropPos >= 0
+                x: r.x - width / 2; y: r.y
+                lineWidth: Theme.devW(2); height: r.height
+                color: Theme.accent
+                moved: [(scroll.contentItem as Flickable).contentX, (scroll.contentItem as Flickable).contentY]
+                z: 6
             }
         }
     }
