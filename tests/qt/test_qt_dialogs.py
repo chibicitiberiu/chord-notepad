@@ -294,6 +294,41 @@ def test_quick_start_snippets_use_the_editors_font_and_colours(app):
     assert formats[0].foreground().color() == QColor("#0000ff")
 
 
+def test_quick_start_keeps_one_size_on_every_page(app):
+    app.window.resize(1000, 800)
+    app.open("openQuickStart")
+    dialog = app.opened("quickStartDialog")
+    count = len(quick_start.pages(DESKTOP_QT))
+    app.qtbot.waitUntil(lambda: len(plain(dialog.property("pages")) or []) == count, timeout=2000)
+    app.qtbot.wait(300)                              # the pictures load and settle the height
+    nxt = app.item("quickStartNext")
+    sizes, ys, bodies = set(), set(), []
+    width = dialog.property("width")
+    for page in range(count):
+        dialog.setProperty("page", page)
+        app.qtbot.wait(60)
+        sizes.add((round(dialog.property("width")), round(dialog.property("height"))))
+        ys.add(round(nxt.mapToScene(QPointF(0, 0)).y()))
+        bodies.append(app.item("quickStartPage").implicitHeight())
+    assert len(sizes) == 1 and len(ys) == 1, (sizes, ys)
+    assert len(set(round(h) for h in bodies)) > 1     # the pages do differ; the dialog is the tallest's
+    tallest = max(bodies)
+    assert app.item("quickStartBody").property("tallest") == pytest.approx(tallest, abs=1)
+    # A narrower window makes the dialog narrower: every page is measured again.
+    sizes.clear()
+    app.window.resize(420, 800)
+    app.qtbot.wait(300)
+    narrow = []
+    for page in range(count):
+        dialog.setProperty("page", page)
+        app.qtbot.wait(60)
+        sizes.add((round(dialog.property("width")), round(dialog.property("height"))))
+        narrow.append(app.item("quickStartPage").implicitHeight())
+    assert len(sizes) == 1
+    assert app.item("quickStartBody").property("tallest") == pytest.approx(max(narrow), abs=1)
+    assert sizes.pop()[0] < width
+
+
 def test_quick_start_pages_with_the_buttons_and_left_right(app):
     app.open("openQuickStart")
     dialog = app.opened("quickStartDialog")

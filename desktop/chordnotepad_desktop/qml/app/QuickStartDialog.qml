@@ -71,82 +71,113 @@ AppDialog {
             id: bodyScroll
             Layout.fillWidth: true
             Layout.fillHeight: true
-            Layout.preferredHeight: body.implicitHeight
+            Layout.preferredHeight: holder.tallest
             contentWidth: availableWidth
+            contentHeight: holder.tallest
             clip: true
-            ColumnLayout {
-                id: body
+            // Every page is laid out at the body's width, and the dialog is as
+            // tall as the tallest, so it keeps one size (and Next stays put)
+            // from page to page. The pages that aren't shown take no part in
+            // the display but still measure: a new width or a new editor font
+            // re-lays them out, and the height follows.
+            Item {
+                id: holder
                 objectName: "quickStartBody"
                 width: bodyScroll.availableWidth
-                spacing: Theme.gap3
+                implicitHeight: holder.tallest
+                property real tallest: 0
+                function measure() {
+                    var h = 0
+                    for (var i = 0; i < pageRepeater.count; ++i) {
+                        var page = pageRepeater.itemAt(i)
+                        if (page) h = Math.max(h, page.implicitHeight)
+                    }
+                    holder.tallest = h
+                }
                 Repeater {
-                    model: dlg.current ? dlg.current.blocks : []
-                    delegate: Loader {
-                        id: block
+                    id: pageRepeater
+                    model: dlg.pages
+                    onItemAdded: holder.measure()
+                    onItemRemoved: holder.measure()
+                    delegate: ColumnLayout {
+                        id: page
+                        objectName: page.visible ? "quickStartPage" : ""
                         required property var modelData
-                        Layout.fillWidth: true
-                        sourceComponent: block.modelData.kind === "snippet" ? snippet
-                                         : block.modelData.kind === "image" ? picture : paragraph
-                        Component {
-                            id: paragraph
-                            Label {
-                                objectName: "quickStartText"
-                                text: block.modelData.text
-                                textFormat: Text.PlainText
-                                wrapMode: Text.Wrap
-                                color: Theme.text
-                            }
-                        }
-                        Component {
-                            id: snippet
-                            Rectangle {
-                                objectName: "quickStartSnippet"
-                                implicitHeight: snippetText.implicitHeight + 2 * Theme.gap2
-                                color: Theme.editorBg
-                                radius: Theme.radius
-                                border.width: Theme.hairline
-                                border.color: Theme.border
-                                clip: true
-                                TextEdit {
-                                    id: snippetText
-                                    objectName: "quickStartSnippetText"
-                                    x: Theme.gap3; y: Theme.gap2
-                                    width: parent.width - 2 * Theme.gap3
-                                    readOnly: true
-                                    selectByMouse: false
-                                    activeFocusOnPress: false
-                                    wrapMode: TextEdit.NoWrap
-                                    textFormat: TextEdit.PlainText
-                                    text: block.modelData.text
-                                    color: Theme.editorText
-                                    font: Theme.editorFont(dlg.editor.fontFamily, dlg.editor.fontSize)
-                                    Component.onCompleted: dlg.dialogs.paintSnippet(snippetText.textDocument,
-                                                                                    block.modelData.spans, dlg.editorColours)
+                        required property int index
+                        width: holder.width
+                        spacing: Theme.gap3
+                        visible: page.index === dlg.page
+                        onImplicitHeightChanged: holder.measure()
+                        Repeater {
+                            model: page.modelData.blocks
+                            delegate: Loader {
+                                id: block
+                                required property var modelData
+                                Layout.fillWidth: true
+                                sourceComponent: block.modelData.kind === "snippet" ? snippet
+                                                 : block.modelData.kind === "image" ? picture : paragraph
+                                Component {
+                                    id: paragraph
+                                    Label {
+                                        objectName: page.visible ? "quickStartText" : ""
+                                        text: block.modelData.text
+                                        textFormat: Text.PlainText
+                                        wrapMode: Text.Wrap
+                                        color: Theme.text
+                                    }
                                 }
-                            }
-                        }
-                        Component {
-                            id: picture
-                            Item {
-                                readonly property string source: dlg.dialogs.resourceUrl(block.modelData.image || "")
-                                visible: source !== ""
-                                implicitHeight: source !== "" ? img.height + 2 * Theme.hairline : 0
-                                Rectangle {
-                                    width: img.width + 2 * Theme.hairline
-                                    height: img.height + 2 * Theme.hairline
-                                    color: "transparent"
-                                    border.width: Theme.hairline
-                                    border.color: Theme.border
+                                Component {
+                                    id: snippet
+                                    Rectangle {
+                                        objectName: page.visible ? "quickStartSnippet" : ""
+                                        implicitHeight: snippetText.implicitHeight + 2 * Theme.gap2
+                                        color: Theme.editorBg
+                                        radius: Theme.radius
+                                        border.width: Theme.hairline
+                                        border.color: Theme.border
+                                        clip: true
+                                        TextEdit {
+                                            id: snippetText
+                                            objectName: page.visible ? "quickStartSnippetText" : ""
+                                            x: Theme.gap3; y: Theme.gap2
+                                            width: parent.width - 2 * Theme.gap3
+                                            readOnly: true
+                                            selectByMouse: false
+                                            activeFocusOnPress: false
+                                            wrapMode: TextEdit.NoWrap
+                                            textFormat: TextEdit.PlainText
+                                            text: block.modelData.text
+                                            color: Theme.editorText
+                                            font: Theme.editorFont(dlg.editor.fontFamily, dlg.editor.fontSize)
+                                            Component.onCompleted: dlg.dialogs.paintSnippet(snippetText.textDocument,
+                                                                                            block.modelData.spans, dlg.editorColours)
+                                        }
+                                    }
                                 }
-                                Image {
-                                    id: img
-                                    objectName: "quickStartImage"
-                                    x: Theme.hairline; y: Theme.hairline
-                                    source: parent.source
-                                    width: Math.min(sourceSize.width, parent.width - 2 * Theme.hairline)
-                                    height: sourceSize.width > 0 ? width * sourceSize.height / sourceSize.width : 0
-                                    fillMode: Image.PreserveAspectFit
-                                    smooth: true
+                                Component {
+                                    id: picture
+                                    Item {
+                                        readonly property string source: dlg.dialogs.resourceUrl(block.modelData.image || "")
+                                        visible: source !== ""
+                                        implicitHeight: source !== "" ? img.height + 2 * Theme.hairline : 0
+                                        Rectangle {
+                                            width: img.width + 2 * Theme.hairline
+                                            height: img.height + 2 * Theme.hairline
+                                            color: "transparent"
+                                            border.width: Theme.hairline
+                                            border.color: Theme.border
+                                        }
+                                        Image {
+                                            id: img
+                                            objectName: page.visible ? "quickStartImage" : ""
+                                            x: Theme.hairline; y: Theme.hairline
+                                            source: parent.source
+                                            width: Math.min(sourceSize.width, parent.width - 2 * Theme.hairline)
+                                            height: sourceSize.width > 0 ? width * sourceSize.height / sourceSize.width : 0
+                                            fillMode: Image.PreserveAspectFit
+                                            smooth: true
+                                        }
+                                    }
                                 }
                             }
                         }
