@@ -75,6 +75,7 @@ Engraving detail:
 
 from __future__ import annotations
 
+import bisect
 import logging
 from dataclasses import dataclass
 from typing import Dict, List, NamedTuple, Optional, Tuple
@@ -472,6 +473,21 @@ _SIG_GLYPH_GAP = 0.35
 _SIG_NOTES_GAP = 1.0
 #: Double-barline room before a mid-song key change (staff spaces).
 _KEY_CHANGE_PAD = 1.4
+#: Room after a repeat sign before the new signature that follows it, which
+#: then needs no double barline of its own (staff spaces).
+_SIG_AFTER_SIGN_PAD = 0.6
+
+# --- Repeat signs and the final bar line (staff spaces) --------------------
+#: Between a thin and a thick stroke (Bravura: barlineSeparation).
+_BAR_SEP = 0.4
+#: Between a thin stroke and its repeat dots.
+_DOT_SEP = 0.25
+#: A repeat dot's diameter, and its floor in px (smaller reads as dust).
+_DOT_SPACES = 0.5
+_MIN_DOT_PX = 2.5
+#: Clear room before and after a repeat sign, inside its lead.
+_SIGN_PAD_BEFORE = 0.5
+_SIGN_PAD_AFTER = 0.8
 
 
 def _slot_width(chord: RenderedChord, zoom: float = 1.0) -> float:
@@ -497,9 +513,92 @@ def _signature_width(fifths: Optional[int], s: float) -> float:
     return total
 
 
-def _key_change_lead(fifths: Optional[int], s: float) -> float:
-    """Horizontal room a mid-song key change consumes before the next slot."""
-    return _KEY_CHANGE_PAD * s + _signature_width(fifths, s)
+def _key_change_lead(fifths: Optional[int], s: float, after_sign: bool = False) -> float:
+    """Horizontal room a mid-song key change consumes before the next slot
+    (less after a repeat sign, which stands in for its double barline)."""
+    pad = _SIG_AFTER_SIGN_PAD if after_sign else _KEY_CHANGE_PAD
+    return pad * s + _signature_width(fifths, s)
+
+
+class _Repeat(NamedTuple):
+    """The repeat sign at a slot's left edge: ``end`` (``:|``, the pass
+    before it jumps back), ``start`` (``|:``, a pass of the looped part
+    begins), or both (``:||:``)."""
+
+    end: bool
+    start: bool
+
+
+def _repeat_signs(song: RenderedSong) -> Dict[int, _Repeat]:
+    """Chord index -> the repeat sign drawn at its slot's left edge.
+
+    The staff is the unrolled song, so a loop's passes follow one another.
+    Every pass of the looped part opens with ``|:`` and every pass that jumps
+    back ends with ``:|``; the last pass ends with a plain bar line. Each
+    ``'loop'`` marker (one per jump, from the renderer's walk) says where the
+    next pass starts (its beat, which takes ``:||:``) and where the pass it
+    repeats began (its ``target_beat``: the loop's first pass for the first
+    jump, the song start for ``@start``). Each jump is read on its own, so
+    nested loops and two loops to one label keep their own passes; signs of
+    different loops that meet at one chord merge.
+    """
+    chords = song.chords
+    if not chords:
+        return {}
+    beats = [chord.start_beat for chord in chords]
+
+    def index_at(beat: float) -> Optional[int]:
+        i = bisect.bisect_left(beats, beat - 1e-6)
+        return i if i < len(chords) else None
+
+    ends, starts = set(), set()
+    for marker in song.markers:
+        if marker.kind != 'loop' or marker.pass_num < 2:
+            continue
+        jump = index_at(marker.beat)
+        if jump is None:
+            continue
+        ends.add(jump)
+        starts.add(jump)
+        first = index_at(marker.target_beat or 0.0)
+        if first is not None and first < jump:
+            starts.add(first)
+    return {i: _Repeat(i in ends, i in starts) for i in sorted(ends | starts)}
+
+
+def _sign_strokes(sign: _Repeat, geom: "_Geometry") -> List[Tuple[str, float, float]]:
+    """A repeat sign's parts left to right as ``(kind, x, width)``, from x 0:
+    ``kind`` is ``'thin'``, ``'thick'`` or ``'dots'`` (``x`` is the part's
+    left edge). ``:|`` is dots, thin, thick; ``|:`` its mirror; ``:||:`` dots,
+    thin, thick, thin, dots."""
+    s = geom.staff_space
+    thin, thick = geom.thin_bar_w, geom.thick_bar_w
+    dot = max(_MIN_DOT_PX, _DOT_SPACES * s)
+    parts: List[Tuple[str, float]] = []
+    if sign.end:
+        parts += [('dots', dot), ('gap', _DOT_SEP * s), ('thin', thin), ('gap', _BAR_SEP * s)]
+    parts.append(('thick', thick))
+    if sign.start:
+        parts += [('gap', _BAR_SEP * s), ('thin', thin), ('gap', _DOT_SEP * s), ('dots', dot)]
+    out: List[Tuple[str, float, float]] = []
+    x = 0.0
+    for kind, width in parts:
+        if kind != 'gap':
+            out.append((kind, x, width))
+        x += width
+    return out
+
+
+def _sign_lead(sign: _Repeat, geom: "_Geometry") -> float:
+    """Horizontal room a repeat sign takes before its slot, pads included."""
+    kind, x, width = _sign_strokes(sign, geom)[-1]
+    s = geom.staff_space
+    return (_SIGN_PAD_BEFORE + _SIGN_PAD_AFTER) * s + x + width
+
+
+def _final_bar_width(geom: "_Geometry") -> float:
+    """Width of the final bar line (thin, a gap, thick)."""
+    return geom.thin_bar_w + _BAR_SEP * geom.staff_space + geom.thick_bar_w
 
 
 def _content_x0(s: float) -> float:
@@ -567,16 +666,21 @@ class StaffCardRenderer(StripRenderer):
             in slim slots).
         """
         song = ctx.song
-        s = _staff_space(height, ctx.zoom)
+        geom = _geometry(height, ctx.zoom)
+        s = geom.staff_space
         x = _content_x0(s)
+        signs = _repeat_signs(song)
 
         prev_fifths = _key_fifths(song.chords[0].key) if song.chords else None
         slots: List[SlotBox] = []
         for index, chord in enumerate(song.chords):
+            sign = signs.get(index)
+            if sign is not None:
+                x += _sign_lead(sign, geom)
             if index > 0:
                 fifths = _key_fifths(chord.key)
                 if fifths != prev_fifths:
-                    x += _key_change_lead(fifths, s)
+                    x += _key_change_lead(fifths, s, after_sign=sign is not None)
                     prev_fifths = fifths
             width = _slot_width(chord, ctx.zoom)
             if chord.is_rest:
@@ -587,7 +691,9 @@ class StaffCardRenderer(StripRenderer):
             slots.append(SlotBox(chord_index=index, x=x, width=width))
             x += width
 
-        content_width = (x + STRIP_MARGIN) if slots else (2 * STRIP_MARGIN)
+        # The final bar line follows the last slot; the staff ends with it.
+        content_width = ((x + _final_bar_width(geom) + STRIP_MARGIN) if slots
+                         else (2 * STRIP_MARGIN))
         return StripLayout(width=content_width, height=height, slots=tuple(slots))
 
     # -- Frozen gutter (clefs + key signature) ------------------------------
@@ -697,6 +803,8 @@ class StaffCardRenderer(StripRenderer):
         x_left = 0.0
         x_right = max(x_left + 1.0, layout.width - STRIP_MARGIN)
         self._paint_staff_lines(ops, geom, x_left, x_right)
+        if layout.slots:
+            self._paint_final_bar(ops, x_right, geom)
 
         # Clefs and the initial signature live in the frozen gutter now; the
         # scrolling content only draws staff lines, legend, in-content key
@@ -705,24 +813,32 @@ class StaffCardRenderer(StripRenderer):
         if song.voice_labels:
             self._paint_legend(ops, song.voice_labels, geom)
 
+        signs = _repeat_signs(song)
         prev_fifths = fifths0
         prev_bar: Optional[int] = None
         for slot in layout.slots:
             index = slot.chord_index
             chord = chords[index]
             tag = f"slot:{index}"
+            sign = signs.get(index)
 
+            # Before the slot, right to left: a key change's lead, then a
+            # repeat sign's (the sign stands for the bar line).
+            lead_x = slot.x
             if index > 0:
                 fifths = _key_fifths(chord.key)
                 if fifths != prev_fifths:
-                    lead = _key_change_lead(fifths, s)
-                    self._paint_key_change(ops, slot.x - lead, fifths, geom, tag)
+                    lead_x -= _key_change_lead(fifths, s, after_sign=sign is not None)
+                    self._paint_key_change(ops, lead_x, fifths, geom, tag,
+                                           double_bar=sign is None)
                     prev_fifths = fifths
-                elif chord.bar != prev_bar:
+                elif chord.bar != prev_bar and sign is None:
                     ops.line(
                         [(slot.x, geom.treble_top), (slot.x, geom.bass_bottom())],
                         fill=_STAFF_LINE, width=geom.staff_line_w, tags=(tag,),
                     )
+            if sign is not None:
+                self._paint_repeat(ops, lead_x - _sign_lead(sign, geom), sign, geom, tag)
             prev_bar = chord.bar
 
             self._paint_symbol(ops, slot, chord, geom, tag)
@@ -753,6 +869,38 @@ class StaffCardRenderer(StripRenderer):
                 y = base + k * s
                 ops.line([(x_left, y), (x_right, y)],
                          fill=_STAFF_LINE, width=geom.staff_line_w, tags=("staff",))
+
+    def _paint_bar_stroke(self, ops: DrawOps, x: float, width: float,
+                          geom: _Geometry, tags: Tuple[str, ...]) -> None:
+        """One vertical stroke through both staves, its left edge at ``x``."""
+        cx = x + width / 2.0
+        ops.line([(cx, geom.treble_top), (cx, geom.bass_bottom())],
+                 fill=_STAFF_LINE, width=width, tags=tags)
+
+    def _paint_final_bar(self, ops: DrawOps, x_end: float, geom: _Geometry) -> None:
+        """The final bar line (thin, then thick), ending where the staff does."""
+        x = x_end - _final_bar_width(geom)
+        tags = ("staff", "final-bar")
+        self._paint_bar_stroke(ops, x, geom.thin_bar_w, geom, tags)
+        self._paint_bar_stroke(ops, x_end - geom.thick_bar_w, geom.thick_bar_w, geom, tags)
+
+    def _paint_repeat(self, ops: DrawOps, x0: float, sign: _Repeat,
+                      geom: _Geometry, tag: str) -> None:
+        """Draw a repeat sign in the lead that starts at ``x0``: its strokes
+        through both staves and its dots in the second and third spaces of
+        each staff (either side of the middle line)."""
+        s = geom.staff_space
+        tags = (tag, "repeat")
+        x = x0 + _SIGN_PAD_BEFORE * s
+        for kind, dx, width in _sign_strokes(sign, geom):
+            if kind == 'dots':
+                for top in (geom.treble_top, geom.bass_top):
+                    for space in (1.5, 2.5):
+                        cy = top + space * s
+                        ops.oval(x + dx, cy - width / 2.0, width, width,
+                                 fill=_STAFF_LINE, tags=tags)
+            else:
+                self._paint_bar_stroke(ops, x + dx, width, geom, tags)
 
     def _paint_clefs(self, ops: DrawOps, x_clef: float, geom: _Geometry,
                      upper: str = 'treble', tags: Tuple[str, ...] = ("gutter",)) -> None:
@@ -802,9 +950,13 @@ class StaffCardRenderer(StripRenderer):
             x += pl.width + _SIG_GLYPH_GAP * s
 
     def _paint_key_change(self, ops: DrawOps, x0: float, fifths: Optional[int],
-                          geom: _Geometry, tag: str) -> None:
-        """Draw a thin double barline then the new signature in the lead space."""
+                          geom: _Geometry, tag: str, double_bar: bool = True) -> None:
+        """Draw a thin double barline then the new signature in the lead space
+        (just the signature after a repeat sign, which is the bar line)."""
         s = geom.staff_space
+        if not double_bar:
+            self._paint_signature(ops, x0, fifths, geom, (tag,))
+            return
         x1 = x0 + 0.2 * s
         x2 = x1 + 0.3 * s
         for xx in (x1, x2):

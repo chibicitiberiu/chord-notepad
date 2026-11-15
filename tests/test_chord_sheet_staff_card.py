@@ -22,7 +22,7 @@ from chordnotepad.models.chord_notes import ChordNotes
 from chordnotepad.models.line import Line
 from chordnotepad.models.rendered_song import RenderedChord, RenderedSong
 from chordnotepad.services.song_renderer import SongRenderer
-from chordnotepad.chord_sheet.ops import DrawOps, ImageOp, LineOp, RectOp, TextOp
+from chordnotepad.chord_sheet.ops import DrawOps, ImageOp, LineOp, OvalOp, RectOp, TextOp
 from chordnotepad.chord_sheet.renderer_interface import (
     HAND_COLORS,
     NOTE_INK,
@@ -794,8 +794,9 @@ class TestKeyChange:
             make_chord("Am", midi_notes=[57, 60, 64], chord_notes=C_MAJOR, key='Am'),
         )
         _, ops = paint(song)
-        # No vertical staff line at all (the opening bar line is the gutter's).
-        assert vertical_lines(ops) == []
+        # No vertical staff line but the final bar line (the opening bar line
+        # is the gutter's).
+        assert [o for o in vertical_lines(ops) if "final-bar" not in o.tags] == []
 
 
 # --------------------------------------------------------------------------
@@ -1095,6 +1096,176 @@ class TestContinuousStart:
         assert x0 == x1 == pytest.approx(bar.width / 2.0)
         assert (y0, y1) == pytest.approx((geom.treble_top, geom.bass_bottom()))
         assert bar.width == pytest.approx(geom.thin_bar_w)
+
+
+def render_text(text: str) -> RenderedSong:
+    """A song text through the real parser and renderer (piano voicing)."""
+    from chordnotepad.services.song_parser_service import SongParserService
+    lines = SongParserService().detect_chords_in_text(text)
+    return SongRenderer().render(lines=lines, initial_key="C", initial_bpm=120,
+                                 initial_time_sig=(4, 4), note_picker=ChordNotePicker())
+
+
+def sign_text(ops, index: int, geom) -> str:
+    """The repeat sign drawn for slot ``index``, left to right: ``:`` a pair
+    of dot columns, ``|`` a thin stroke, ``I`` a thick one; '' for none."""
+    parts = []
+    for o in ops.ops:
+        if "repeat" not in o.tags or f"slot:{index}" not in o.tags:
+            continue
+        if isinstance(o, OvalOp):
+            parts.append((o.x + o.w / 2, ":"))
+        else:
+            parts.append((o.points[0][0], "I" if o.width == geom.thick_bar_w else "|"))
+    # Four dots (two per staff) make one column.
+    out, last = [], None
+    for x, ch in sorted(parts):
+        if ch == ":" and last is not None and last[1] == ":" and abs(last[0] - x) < 1e-6:
+            continue
+        out.append(ch)
+        last = (x, ch)
+    return "".join(out)
+
+
+def signs(text: str, height: float = 130.0):
+    """``[(chord name, sign)]`` for every slot of a song text."""
+    song = render_text(text)
+    layout, ops = paint(song, height)
+    geom = sc._geometry(height)
+    return [(sc.chord_symbol_label(song.chords[s.chord_index]),
+             sign_text(ops, s.chord_index, geom)) for s in layout.slots]
+
+
+START, BOTH = "I|:", ":|I|:"
+
+
+class TestRepeatSigns:
+    """Every pass of a looped part opens with |:, every pass that jumps back
+    ends with :| (merged with the next pass's |: as :||:), the last pass ends
+    with a plain bar line, and the song ends with a final bar line."""
+
+    def test_two_passes(self):
+        # Tibi's example: | C G |: Am F :||: Am F | Dm ||
+        text = "C G\n{label: a}\nAm F\n{loop: a 2}\nDm"
+        assert signs(text) == [("C", ""), ("G", ""), ("Am", START), ("F", ""),
+                               ("Am", BOTH), ("F", ""), ("Dm", "")]
+
+    def test_the_last_pass_ends_with_a_plain_bar_line(self):
+        song = render_text("C G\n{label: a}\nAm F\n{loop: a 2}\nDm")
+        layout, ops = paint(song)
+        dm = layout.slots[6]
+        plain = [o for o in vertical_lines(ops) if "slot:6" in o.tags]
+        assert len(plain) == 1 and plain[0].points[0][0] == dm.x
+        # Where a sign stands, no plain bar line is drawn as well.
+        for index in (2, 4):
+            assert not [o for o in vertical_lines(ops)
+                        if f"slot:{index}" in o.tags and "repeat" not in o.tags]
+
+    def test_three_passes(self):
+        assert signs("{label: a}\nC G\n{loop: a 3}\nF") == [
+            ("C", START), ("G", ""), ("C", BOTH), ("G", ""), ("C", BOTH), ("G", ""), ("F", "")]
+
+    def test_start_repeats_from_the_song_start(self):
+        assert signs("C G\n{loop: @start 2}\nF") == [
+            ("C", START), ("G", ""), ("C", BOTH), ("G", ""), ("F", "")]
+
+    def test_nested_loops_keep_their_own_passes(self):
+        # outer: C [inner: D] ; the inner part plays twice, then the whole
+        # outer part once more (its inner loop doesn't repeat again).
+        text = "{label: outer}\nC\n{label: inner}\nD\n{loop: inner 2}\n{loop: outer 2}\nE"
+        assert signs(text) == [("C", START), ("D", START), ("D", BOTH),
+                               ("C", BOTH), ("D", ""), ("E", "")]
+
+    def test_signs_that_meet_merge(self):
+        # Two loops to one label: the second loop's first pass starts at the
+        # first loop's jump, so one :||: stands there, not two signs.
+        text = "{label: a}\nC\n{loop: a 2}\nD\n{loop: a 2}\nE"
+        assert signs(text) == [("C", START), ("C", BOTH), ("D", ""),
+                               ("C", BOTH), ("D", ""), ("E", "")]
+
+    def test_a_loop_played_once_draws_no_sign(self):
+        assert [sign for _, sign in signs("{label: a}\nC G\n{loop: a 1}\nF")] == [""] * 3
+
+    @pytest.mark.parametrize("height", [130.0, 450.0])
+    def test_the_dots_sit_in_the_second_and_third_spaces_of_each_staff(self, height):
+        song = render_text("{label: a}\nC G\n{loop: a 2}\nF")
+        _, ops = paint(song, height)
+        geom = sc._geometry(height)
+        s = geom.staff_space
+        dots = [o for o in ops.ops if isinstance(o, OvalOp) and "repeat" in o.tags]
+        # |: at the first C (one column), :||: at the second (two).
+        assert len(dots) == 3 * 4
+        expected = sorted(top + k * s for top in (geom.treble_top, geom.bass_top)
+                          for k in (1.5, 2.5))
+        assert sorted({round(o.y + o.h / 2, 6) for o in dots}) == pytest.approx(expected)
+        assert all(o.w == o.h and o.fill for o in dots)
+
+    def test_the_signs_get_room_of_their_own(self):
+        song = render_text("{label: a}\nC G\n{loop: a 2}\nF")
+        layout, ops = paint(song)
+        for slot in layout.slots:
+            for o in ops.ops:
+                if "repeat" in o.tags and f"slot:{slot.chord_index}" in o.tags:
+                    right = o.x + o.w if isinstance(o, OvalOp) else o.points[0][0] + o.width / 2
+                    assert right < slot.x
+        # And the slots stay in order, never overlapping.
+        for a, b in zip(layout.slots, layout.slots[1:]):
+            assert a.x + a.width <= b.x + 1e-9
+
+    def test_a_key_change_at_the_jump_follows_the_sign(self):
+        # The loop goes back to G from A: the new signature (one sharp) comes
+        # after the :||:, which stands in for the key change's double bar.
+        text = "{key: G}\n{label: a}\nG D\n{key: A}\nA E\n{loop: a 2}\nB"
+        song = render_text(text)
+        layout, ops = paint(song)
+        geom = sc._geometry(130.0)
+        jump = 4
+        assert sc.chord_symbol_label(song.chords[jump]) == "G"
+        assert sign_text(ops, jump, geom) == BOTH
+        tag = f"slot:{jump}"
+        sign_right = max(o.points[0][0] for o in ops.ops
+                         if isinstance(o, LineOp) and "repeat" in o.tags and tag in o.tags)
+        sig = [o for o in ops.ops if isinstance(o, ImageOp) and tag in o.tags
+               and o.key.startswith("glyph_accidental_")]
+        notes = [o for o in noteheads(ops) if tag in o.tags]
+        assert sig and notes
+        assert sign_right < min(o.x for o in sig)
+        assert max(o.x for o in sig) < min(o.x for o in notes)
+        # No double bar line of the key change's own beside the sign.
+        assert not [o for o in vertical_lines(ops) if tag in o.tags and "repeat" not in o.tags]
+        # The key change into A (no sign there) keeps its double bar line.
+        assert len([o for o in vertical_lines(ops) if "slot:2" in o.tags]) == 2
+
+
+class TestFinalBarLine:
+    @pytest.mark.parametrize("height", [130.0, 450.0])
+    def test_the_song_ends_with_a_thin_and_a_thick_bar_line(self, height):
+        song = render_text("C G\nAm F")
+        layout, ops = paint(song, height)
+        geom = sc._geometry(height)
+        last = layout.slots[-1]
+        end = last.x + last.width
+        thin, thick = sorted((o for o in vertical_lines(ops) if "final-bar" in o.tags),
+                             key=lambda o: o.points[0][0])
+        assert thin.width == pytest.approx(geom.thin_bar_w)
+        assert thick.width == pytest.approx(geom.thick_bar_w)
+        assert thick.width > 2 * thin.width
+        assert thin.points[0][0] - thin.width / 2 == pytest.approx(end)
+        right = thick.points[0][0] + thick.width / 2
+        gap = (thick.points[0][0] - thick.width / 2) - (thin.points[0][0] + thin.width / 2)
+        assert gap == pytest.approx(sc._BAR_SEP * geom.staff_space)
+        for o in (thin, thick):
+            assert (o.points[0][1], o.points[1][1]) == pytest.approx(
+                (geom.treble_top, geom.bass_bottom()))
+        # The staff lines end there, and the content a margin later.
+        ends = [o.points[-1][0] for o in ops.ops if isinstance(o, LineOp)
+                and "staff" in o.tags and o.points[0][1] == o.points[-1][1]]
+        assert ends == pytest.approx([right] * 10)
+        assert layout.width == pytest.approx(right + sc.STRIP_MARGIN)
+
+    def test_an_empty_song_has_no_final_bar_line(self):
+        _, ops = paint(make_song())
+        assert not [o for o in ops.ops if "final-bar" in o.tags]
 
 
 class TestGutter:
