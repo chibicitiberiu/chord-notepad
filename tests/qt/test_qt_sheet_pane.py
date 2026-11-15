@@ -176,3 +176,45 @@ def test_the_staff_says_it_draws_every_chord_as_a_whole_note(sh):
     sh.store.submit("set_chord_sheet_view", {"view_id": "keyboard"})
     sh.wait_sheet("keyboard")
     sh.qtbot.waitUntil(lambda: not notice.isVisible(), timeout=2000)
+
+
+# -- C1: the zoom pill ----------------------------------------------------------------------
+
+
+def staff_view(sh):
+    sh.to_play(900)
+    sh.store.submit("set_chord_sheet_view", {"view_id": "staff"})
+    sh.wait_sheet("staff")
+    sh.qtbot.waitUntil(lambda: sh.sheet_state("zoom") == 1.0, timeout=2000)
+
+
+def test_the_zoom_pill_steps_and_its_limits_turn_the_buttons_off(sh):
+    staff_view(sh)
+    assert sh.it("sheetZoomLabel").property("text") == "100%"
+    sh.click_on(sh.it("sheetZoomIn"))
+    sh.qtbot.waitUntil(lambda: sh.sheet_state("zoom") == pytest.approx(1.2), timeout=2000)
+    sh.qtbot.waitUntil(lambda: sh.it("sheetZoomLabel").property("text") == "120%", timeout=2000)
+    sh.click_on(sh.it("sheetZoomOut"))
+    sh.qtbot.waitUntil(lambda: sh.sheet_state("zoom") == pytest.approx(1.0), timeout=2000)
+    # The ends are the model's own limits (0.5 and 2.5).
+    assert sh.model.zoomMin == 0.5 and sh.model.zoomMax == 2.5
+    sh.store.submit("chord_sheet_zoom", {"step": 20})
+    sh.qtbot.waitUntil(lambda: sh.sheet_state("zoom") == pytest.approx(2.5), timeout=2000)
+    sh.run()
+    assert not sh.it("sheetZoomIn").isEnabled() and sh.it("sheetZoomOut").isEnabled()
+    sh.store.submit("chord_sheet_zoom", {"step": -30})
+    sh.qtbot.waitUntil(lambda: sh.sheet_state("zoom") == pytest.approx(0.5), timeout=2000)
+    sh.run()
+    assert sh.it("sheetZoomIn").isEnabled() and not sh.it("sheetZoomOut").isEnabled()
+    assert sh.it("sheetZoomLabel").property("text") == "50%"
+
+
+def test_clicking_the_percent_resets_the_zoom(sh):
+    staff_view(sh)
+    sh.click_on(sh.it("sheetZoomIn"))
+    sh.click_on(sh.it("sheetZoomIn"))
+    sh.qtbot.waitUntil(lambda: sh.sheet_state("zoom") == pytest.approx(1.44), timeout=2000)
+    sh.click_on(sh.it("sheetZoomReset"))
+    sh.qtbot.waitUntil(lambda: sh.sheet_state("zoom") == 1.0, timeout=2000)
+    assert sh.sent("chord_sheet_zoom_reset") == [{}]
+    sh.qtbot.waitUntil(lambda: sh.it("sheetZoomLabel").property("text") == "100%", timeout=2000)

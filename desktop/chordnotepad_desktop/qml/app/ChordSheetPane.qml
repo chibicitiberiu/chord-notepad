@@ -102,25 +102,19 @@ Rectangle {
                     onEditVoicings: pane.editVoicings()
                 }
                 Item { visible: pane.showVoicing; Layout.preferredWidth: Theme.gap2 }
-                Label {
-                    objectName: "sheetZoomLabel"
-                    text: Math.round(pane.zoom * 100) + "%"
+                ZoomPill {
                     visible: pane.zoomable
-                    color: Theme.muted; font: Theme.fontS
-                }
-                IconButton {
-                    objectName: "sheetZoomOut"
-                    iconName: "magnify-minus"; tip: "Zoom out"; shortcutHint: "Ctrl+wheel"
-                    visible: pane.zoomable
-                    enabled: pane.zoom > 0.5 + 1e-6
-                    onClicked: pane.zoomBy(-1)
-                }
-                IconButton {
-                    objectName: "sheetZoomIn"
-                    iconName: "magnify-plus"; tip: "Zoom in"; shortcutHint: "Ctrl+wheel"
-                    visible: pane.zoomable
-                    enabled: pane.zoom < 2.5 - 1e-6
-                    onClicked: pane.zoomBy(1)
+                    percent: Math.round(pane.zoom * 100)
+                    canOut: pane.zoom > pane.model.zoomMin + 1e-6
+                    canIn: pane.zoom < pane.model.zoomMax - 1e-6
+                    outTip: "Zoom out  <font color='" + Theme.muted + "'>Ctrl+wheel</font>"
+                    inTip: "Zoom in  <font color='" + Theme.muted + "'>Ctrl+wheel</font>"
+                    resetTip: "Reset to 100%"
+                    outName: "sheetZoomOut"; inName: "sheetZoomIn"
+                    resetName: "sheetZoomReset"; percentName: "sheetZoomLabel"
+                    onZoomOut: pane.zoomBy(-1)
+                    onZoomIn: pane.zoomBy(1)
+                    onReset: pane.store.submit("chord_sheet_zoom_reset", {})
                 }
                 Rectangle {   // hairline between the controls and ×
                     visible: pane.closable
