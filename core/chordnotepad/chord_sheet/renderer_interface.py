@@ -189,6 +189,30 @@ def chord_symbol_label(chord: RenderedChord) -> str:
     return label
 
 
+#: Estimated advance of a bold label's characters, in ems: narrow letters and
+#: punctuation, wide M/W/m/w, other capitals, the rest (lower case, digits,
+#: accidentals). Measured against Inter Bold (the Qt window's font): within 2%
+#: for chord names, rarely over. Regular text is narrower, so it overestimates.
+_NARROW_CHARS = frozenset("iljIt()[]/,.:;|' !f")
+_WIDE_CHARS = frozenset("MWmw")
+_NARROW_EM, _WIDE_EM, _UPPER_EM, _OTHER_EM = 0.36, 0.98, 0.78, 0.64
+
+
+def label_ems(label: str) -> float:
+    """Estimated width of a bold ``label`` in ems (no font metrics in the core)."""
+    total = 0.0
+    for ch in label:
+        if ch in _NARROW_CHARS:
+            total += _NARROW_EM
+        elif ch in _WIDE_CHARS:
+            total += _WIDE_EM
+        elif ch.isupper():
+            total += _UPPER_EM
+        else:
+            total += _OTHER_EM
+    return total
+
+
 #: Shared note-color palette, used by every renderer that color-codes notes so
 #: the strip reads consistently across views. Ensemble voicings color by voice
 #: (indexed low voice first, matching ``RenderedChord.voice_notes`` /
