@@ -639,6 +639,12 @@ The User Interface
    Enter or a click applies one as a single undo step; Escape closes the
    picker.
 
+   The tempo picker also has a **Tap** button for finding a song's tempo:
+   tap it along with the beat (play a recording, or count the song in your
+   head) and from the second tap on the box shows the tempo of your last
+   taps. Stop for a few seconds and the next tap starts a new count. Nothing
+   changes in the song until you press **Apply** or Enter.
+
    Directive Hints
    ---------------
 
@@ -1527,6 +1533,8 @@ Enter a tempo value:
    The tempo tiles add ``{bpm: 120}``, ``{bpm: +10}``, ``{bpm: -10}``,
    ``{bpm: 50%}``, ``{bpm: 2x}`` and ``{bpm: reset}`` at your cursor; type any
    of the forms above over the selected value.
+   Its **▾** picks a form and a number, or finds the tempo by tapping
+   along (**Tap**, see :ref:`desktop-pickers`).
 
 .. only:: android
 

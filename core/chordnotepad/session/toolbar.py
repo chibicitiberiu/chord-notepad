@@ -9,7 +9,7 @@ the values the desktop scrubber would.
 
 import math
 from dataclasses import dataclass
-from typing import Optional, Tuple
+from typing import List, Optional, Sequence, Tuple
 
 from chordnotepad.chord.converter import NotationConverter
 # TIME_SIGNATURE_UNITS and MIN_BEATS/MAX_BEATS are re-exported: the beat units
@@ -203,3 +203,57 @@ def parse_multiplier_pct(text: str) -> float:
     if s.endswith("%"):
         return float(s[:-1])
     return float(s)
+
+
+# -- tap tempo ---------------------------------------------------------------------------
+
+#: A gap longer than this starts a new count: the beat of the slowest tempo
+#: (20 bpm is a tap every 3 s), so every tempo the toolbar takes can be tapped.
+TAP_RESET_S = 60.0 / MIN_BPM
+#: A gap more than this many times the count's average so far also starts a
+#: new one: at 120 bpm a pause of a second and a half is a new count, not 40 bpm.
+TAP_RESET_FACTOR = 2.0
+#: How many of the latest intervals the tempo is averaged over.
+TAP_INTERVALS = 8
+
+
+def _tap_intervals(timestamps: Sequence[float]) -> List[float]:
+    """The intervals of the current count, oldest first (see :func:`tap_tempo`)."""
+    intervals: List[float] = []
+    previous: Optional[float] = None
+    for t in timestamps:
+        if previous is not None:
+            gap = t - previous
+            if gap <= 0:
+                continue                    # the same instant twice: one tap
+            recent = intervals[-TAP_INTERVALS:]
+            average = sum(recent) / len(recent) if recent else None
+            if gap > TAP_RESET_S or (average is not None and gap > TAP_RESET_FACTOR * average):
+                intervals = []
+            else:
+                intervals.append(gap)
+        previous = t
+    return intervals
+
+
+def tap_tempo(timestamps: Sequence[float]) -> Optional[int]:
+    """The tempo tapped at ``timestamps`` (seconds, oldest first, from a
+    monotonic clock), or None before the count's second tap.
+
+    The tempo is the average of the count's last :data:`TAP_INTERVALS`
+    intervals, clamped to the toolbar's 20-400 and rounded like a typed BPM
+    (:func:`parse_bpm`), without the tens magnet: a tapped 119 stays 119. A
+    gap longer than :data:`TAP_RESET_S`, or more than twice the count's
+    average so far, starts a new count with the tap that ends it.
+    """
+    intervals = _tap_intervals(timestamps)[-TAP_INTERVALS:]
+    if not intervals:
+        return None
+    return int(round(BPM_SCALE.clamp(60.0 / (sum(intervals) / len(intervals)))))
+
+
+def tap_count(timestamps: Sequence[float]) -> int:
+    """How many taps the current count has (0 with none at all)."""
+    if not timestamps:
+        return 0
+    return len(_tap_intervals(timestamps)) + 1

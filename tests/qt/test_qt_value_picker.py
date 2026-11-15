@@ -309,6 +309,81 @@ def test_tempo_forms_and_the_number_box(ed):
                        timeout=2000)
 
 
+class FakeClock:
+    """The Tap button's clock: each call is the next time in ``times``."""
+
+    def __init__(self):
+        self.now = 0.0
+
+    def __call__(self):
+        return self.now
+
+
+def tap_at(ed, clock, *times):
+    for t in times:
+        clock.now = t
+        click_item(ed, item(ed, "pickerTap"))
+        ed.run(5)
+
+
+def test_tap_finds_the_tempo_and_apply_writes_it(ed):
+    clock = FakeClock()
+    ed.harness.app.pickers._clock = clock
+    song(ed, TEXT)
+    open_at_caret(ed, TEXT, "{bpm: 120}")
+    count = item(ed, "pickerTapCount")
+    assert count.property("text") == "tap the beat"
+    tap_at(ed, clock, 10.0)
+    # One tap: no tempo yet, the box keeps 120.
+    assert item(ed, "pickerBox").property("value") == 120
+    assert count.property("text") == "1 tap"
+    tap_at(ed, clock, 10.6, 11.2, 11.8)
+    assert item(ed, "pickerBox").property("value") == 100
+    assert count.property("text") == "4 taps"
+    assert ed.text() == TEXT                        # nothing written before Apply
+    # The box kept the focus: the keyboard still works on it.
+    assert focused(ed) is not None and "pickerBox" in (
+        focused(ed).objectName() + str(focused(ed).parentItem().objectName()))
+    click_item(ed, item(ed, "pickerApply"))
+    after = TEXT.replace("{bpm: 120}", "{bpm: 100}")
+    ed.qtbot.waitUntil(lambda: ed.text() == after, timeout=2000)
+
+
+def test_tap_after_typing_or_from_another_form_gives_a_bpm(ed):
+    clock = FakeClock()
+    ed.harness.app.pickers._clock = clock
+    text = "{bpm: +10}\nC\n"
+    song(ed, text)
+    open_at_caret(ed, text, "{bpm: +10}")
+    box = item(ed, "pickerBox")
+    box.forceActiveFocus()
+    ed.key(Qt.Key.Key_Up)                           # the box was used: its binding is gone
+    tap_at(ed, clock, 1.0, 1.5, 2.0)
+    assert item(ed, "tempo:120").property("current") is True   # now an absolute bpm
+    assert item(ed, "pickerBox").property("value") == 120
+    box = item(ed, "pickerBox")
+    box.forceActiveFocus()
+    ed.key(Qt.Key.Key_Return)
+    ed.qtbot.waitUntil(lambda: ed.text() == "{bpm: 120}\nC\n", timeout=2000)
+
+
+def test_a_pause_or_a_reopened_picker_starts_a_new_count(ed):
+    clock = FakeClock()
+    ed.harness.app.pickers._clock = clock
+    song(ed, TEXT)
+    open_at_caret(ed, TEXT, "{bpm: 120}")
+    tap_at(ed, clock, 1.0, 1.5, 2.0)
+    assert item(ed, "pickerTapCount").property("text") == "3 taps"
+    tap_at(ed, clock, 6.0)                          # a pause: a new count
+    assert item(ed, "pickerTapCount").property("text") == "1 tap"
+    assert item(ed, "pickerBox").property("value") == 120
+    ed.key(Qt.Key.Key_Escape)
+    ed.qtbot.waitUntil(lambda: not is_open(ed), timeout=1000)
+    open_at_caret(ed, TEXT, "{bpm: 120}")
+    assert item(ed, "pickerTapCount").property("text") == "tap the beat"
+    assert ed.text() == TEXT
+
+
 def test_a_multiplier_takes_quarter_steps(ed):
     text = "{bpm: 1.5x}\nC\n"
     song(ed, text)

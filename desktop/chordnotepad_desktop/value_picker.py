@@ -13,6 +13,10 @@ everything they decide with is here, over the core's
 * :meth:`ValuePickerModel.valueFor` composes a value from what was picked
   (the core's ``tempo_value``, ``time_value``, ``loop_value``), or "" when
   it isn't one.
+* :meth:`ValuePickerModel.tap` is a press of the tempo picker's Tap: the
+  time from a monotonic clock, and the tempo tapped so far from the core's
+  :func:`~chordnotepad.session.toolbar.tap_tempo`. Nothing is written until
+  Apply, like a typed number.
 * :meth:`ValuePickerModel.apply` sends it: ``replace_directive_value``, a
   bridge command, one undo step; the session checks it like the Tk Insert
   dialogs' values and puts the caret after the ``}``.
@@ -28,12 +32,13 @@ Play).
 
 import logging
 import re
-from typing import Any, Optional
+import time
+from typing import Any, Callable, List, Optional
 
 from PySide6.QtCore import Property, QObject, Signal, Slot
 
 from chordnotepad.constants import TIME_SIGNATURE_UNITS
-from chordnotepad.session import pickers
+from chordnotepad.session import pickers, toolbar
 from chordnotepad.session.bridge import to_json_value
 
 logger = logging.getLogger(__name__)
@@ -120,15 +125,24 @@ class ValuePickerModel(QObject):
     Args:
         store: The window's SessionStore (``picker_at``, the command).
         editor: The EditorBridge (the caret, offsets).
+        clock: The Tap button's time source, in seconds (tests pass a fake).
     """
 
     #: :attr:`caretPicker` changed.
     caretPickerChanged = Signal()
+    #: :attr:`tapCount` changed.
+    tapsChanged = Signal()
 
-    def __init__(self, store: Any, editor: Any, parent: Optional[QObject] = None) -> None:
+    #: The tap times kept: enough for any count's last intervals.
+    _TAPS_KEPT = 64
+
+    def __init__(self, store: Any, editor: Any, parent: Optional[QObject] = None,
+                 clock: Callable[[], float] = time.monotonic) -> None:
         super().__init__(parent)
         self._store = store
         self._editor = editor
+        self._clock = clock
+        self._taps: List[float] = []
         self._caret: dict = {}
         self._caret_due = False
         # The caret's picker was for the old text: gone until it is looked up again.
@@ -199,6 +213,30 @@ class ValuePickerModel(QObject):
         if found != self._caret:
             self._caret = found
             self.caretPickerChanged.emit()
+
+    # -- tap tempo --------------------------------------------------------------------
+
+    @Slot(result=int)
+    def tap(self) -> int:
+        """A press of Tap: the tempo tapped so far, or 0 before the count's
+        second tap (a pause starts a new count: :func:`toolbar.tap_tempo`)."""
+        self._taps.append(float(self._clock()))
+        del self._taps[:-self._TAPS_KEPT]
+        self.tapsChanged.emit()
+        return toolbar.tap_tempo(self._taps) or 0
+
+    @Slot()
+    def resetTaps(self) -> None:  # noqa: N802 (Qt)
+        """Forget the taps (the picker opened again)."""
+        if self._taps:
+            self._taps = []
+            self.tapsChanged.emit()
+
+    def _get_tap_count(self) -> int:
+        return toolbar.tap_count(self._taps)
+
+    #: The taps in the current count (0 before the first).
+    tapCount = Property(int, _get_tap_count, notify=tapsChanged)
 
     # -- the pick ---------------------------------------------------------------------
 

@@ -12,6 +12,7 @@ import CNTheme
 //   key    the 30 keys, majors then minors, in pitch order with twins side by side
 //   time   the presets, and beats 1-16 over a unit (the Tk dialog's choices)
 //   tempo  the form (120 · +10 · −10 · 50% · 2x · reset) and a box + slider for its number
+//          and Tap: tap the beat, the box shows its tempo (ValuePickerModel.tap)
 //   capo   box + slider, 0-12
 //   loop   the labels above the loop and @start, and a count box (1-16)
 // A chip that is a whole value (a key, a time, reset) applies at once;
@@ -105,6 +106,12 @@ Popup {
         signal accepted()
         spacing: Theme.gap1
         readonly property real k: 1 / stepSize          // SpinBox is integer: scale by the step (pitfall 20)
+        // Set from outside (a chip, Tap) after the box or slider was used:
+        // their own value bindings are gone by then, so bind them again.
+        onValueChanged: {
+            sb.value = Qt.binding(() => Math.round(nr.value * nr.k))
+            sl.value = Qt.binding(() => nr.value)
+        }
         Connections {
             target: pop
             function onOpened() { if (nr.visible && nr.takesFocus) sb.forceActiveFocus() }
@@ -140,6 +147,7 @@ Popup {
             }
         }
         Slider {
+            id: sl
             Layout.fillWidth: true
             from: nr.from; to: nr.to; stepSize: nr.stepSize; snapMode: Slider.SnapAlways
             value: nr.value
@@ -290,6 +298,16 @@ Popup {
                 form = choice.form
                 number = parseFloat(choice.value.replace(/[x%+]/g, ""))
             }
+            // A press of Tap: from the second tap on, the box shows the tempo
+            // tapped (an absolute bpm); Apply or Enter writes it.
+            function tap() {
+                var bpm = pop.model.tap()
+                if (bpm <= 0) return
+                form = "abs"
+                number = bpm
+            }
+            onNumberChanged: if (tempoRow.value !== number) tempoRow.value = number
+            Connections { target: pop; function onOpened() { pop.model.resetTaps() } }
             function chipIsCurrent(choice) {
                 if (choice.form !== tb.form) return false
                 if (choice.form === "rel") return (choice.value[0] === "-") === (tb.number < 0)
@@ -317,12 +335,32 @@ Popup {
                 visible: tb.field !== null
             }
             NumberRow {
+                id: tempoRow
                 Layout.fillWidth: true
                 visible: tb.field !== null
                 field: tb.field || ({})
                 value: tb.number
                 onValueChanged: tb.number = value
                 onAccepted: pop.apply({ form: tb.form, number: tb.number })
+            }
+            // Tap: on the press (the beat is when the finger lands), and
+            // without taking the focus, so Enter in the box still applies.
+            RowLayout {
+                spacing: Theme.gap2
+                Button {
+                    objectName: "pickerTap"
+                    Layout.fillWidth: true
+                    implicitHeight: Theme.controlHeight
+                    text: "Tap"
+                    focusPolicy: Qt.NoFocus
+                    onPressed: tb.tap()
+                }
+                Caption {
+                    objectName: "pickerTapCount"
+                    Layout.preferredWidth: Theme.px(20)
+                    readonly property int taps: pop.model.tapCount
+                    text: taps === 0 ? "tap the beat" : taps === 1 ? "1 tap" : taps + " taps"
+                }
             }
         }
     }
