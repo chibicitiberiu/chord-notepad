@@ -60,6 +60,8 @@ class ChordSheetThemeTest {
 }
 
 class ChordSheetPaperTest {
+    private fun lum(c: Color) = (maxOf(c.red, c.green, c.blue) + minOf(c.red, c.green, c.blue)) / 2f
+
     @Test
     fun `the strip's paper is the sheet surface in both themes`() {
         assertEquals(AppColors.Light.surfaceLow, themedSheetColor("#fbfbf8", Color(0xFFFBFBF8), AppColors.Light))
