@@ -19,7 +19,9 @@ Closing: the window's close button (and later Quit, ☰, File) send
 publishes ``CloseApproved``. :meth:`QtApplication._close_window` then saves
 the geometry, stops playback, stops listening and closes the window; the
 event loop ends and :meth:`QtApplication.shutdown` shuts the session and
-the audio down and saves the config, as Tk's ``on_shutdown`` does.
+the audio down and saves the config, as Tk's ``on_shutdown`` does. It also
+releases this instance's recovery slot (``recovery.py``): after an approved
+close its copy goes, after anything else it stays for the next start.
 """
 
 import datetime
@@ -34,6 +36,7 @@ from chordnotepad.audio.player_interface import IPlayer
 from chordnotepad.constants import APP_NAME, WM_CLASS
 from chordnotepad.services.appdata_service import AppDataService
 from chordnotepad.services.logging_service import LoggingService
+from chordnotepad.services.recovery_store import RecoveryStore, recovery_folder
 from chordnotepad.session.bootstrap import CoreServices, build_core_services, create_session
 from chordnotepad.session.documents import FileSystemDocumentStore
 from chordnotepad.session.formatting import AUDIO_ERROR_TITLE
@@ -52,6 +55,7 @@ from chordnotepad_desktop.chord_sheet import ChordSheetModel
 from chordnotepad_desktop.editor_bridge import EditorBridge
 from chordnotepad_desktop.identifier import INSERT_FAILED_TITLE, IdentifierModel
 from chordnotepad_desktop.player_bar import PlayerBarModel
+from chordnotepad_desktop.recovery import RecoveryModel
 from chordnotepad_desktop.sidebars import SidebarModel
 from chordnotepad_desktop.status_bar import StatusBarModel
 from chordnotepad_desktop.value_picker import ValuePickerModel
@@ -146,6 +150,7 @@ class QtApplication:
         self.sheet: Optional[ChordSheetModel] = None
         self.sidebars: Optional[SidebarModel] = None
         self.identifier: Optional[IdentifierModel] = None
+        self.recovery: Optional[RecoveryModel] = None
         self.main: Optional[MainWindow] = None
         self.renderer: Optional[str] = None
         #: The engine's QML warnings (``--smoke`` fails on any).
@@ -197,7 +202,9 @@ class QtApplication:
         self.dialogs = DialogsModel(self.store, self._paths, self.presenter,
                                     build_info=self._build_info, parent=self.store)
         self.player = PlayerBarModel(self.store, self.editor, parent=self.store)
-        self.chrome = ChromeModel(self.store, parent=self.store)
+        self.recovery = RecoveryModel(self.store, self.editor, self._open_recovery_store(core),
+                                      parent=self.store)
+        self.chrome = ChromeModel(self.store, recovery=self.recovery, parent=self.store)
         self.sheet = ChordSheetModel(self.store, parent=self.store)
         self.sidebars = SidebarModel(self.store, parent=self.store)
         self.identifier = IdentifierModel(self.store, self.editor, parent=self.store)
@@ -219,6 +226,7 @@ class QtApplication:
             main.window, window_geometry.load(self._session, main.window))
         self._geometry = window_geometry.GeometryKeeper(main.window, geometry, parent=main.window)
         self.presenter.attach()
+        self.recovery.refresh()
         window_geometry.show(main.window, geometry)
 
         self.host.start()
@@ -230,6 +238,17 @@ class QtApplication:
                                           "installed_on": today, "can_ask_for_support": False})
         logger.info("Application initialization complete")
         return main
+
+    def _open_recovery_store(self, core: CoreServices) -> Optional[RecoveryStore]:
+        """This instance's recovery slot (recovery.py), after dropping old
+        copies; None, logged, if the folder can't be used."""
+        try:
+            store = RecoveryStore(recovery_folder(core.appdata.get_app_data_dir()))
+            store.prune()
+        except OSError:
+            logger.warning("No recovery copies this time", exc_info=True)
+            return None
+        return store
 
     def _log_build(self) -> None:
         """The build in the log, in Tk's block: the first thing to look for in a bug report."""
@@ -298,6 +317,9 @@ class QtApplication:
             self.host.stop()
         if self.player is not None:
             self.player.close()
+        if self.recovery is not None:
+            # Approved (Save or Discard on quit): nothing left to recover.
+            self.recovery.close(clean=self._closing)
         if self.sheet is not None:
             self.sheet.close()
         if self.store is not None:

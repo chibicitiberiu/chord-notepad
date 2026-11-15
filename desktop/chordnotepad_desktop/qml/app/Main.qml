@@ -122,6 +122,7 @@ ApplicationWindow {
         id: appMenu
         actions: appActions
         files: win.chrome.files
+        recovery: win.chrome.recovery
         onClosed: editorPane.focusEditor()
     }
     function toggleAppMenu(anchor) {

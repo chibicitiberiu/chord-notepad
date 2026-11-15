@@ -1053,6 +1053,31 @@ class AppSession:
             self._splice(0, len(self._text), self._text, UndoPolicy.RESET)
 
     @_command
+    def open_recovered(self, text: str, document: Optional[DocumentRef],
+                       name: Optional[str] = None) -> None:
+        """Open a recovery copy (the Qt desktop's File > Open recovered).
+
+        Asks about unsaved changes first, like Open. The text then replaces
+        the editor's as a ``reset`` edit and the document is modified,
+        bound to ``document`` without reading it (Save writes there), or
+        untitled. A song playing or paused stops. The status says
+        "Recovered: <name>". The recent list doesn't change.
+
+        Args:
+            text: The copy's text.
+            document: The document it was a copy of, or None for a song that
+                was never saved.
+            name: An untitled song's name (from Rename), which Save then
+                suggests; ignored with a ``document``.
+
+        Raises:
+            TypeError: If ``document`` isn't a DocumentRef or None.
+        """
+        document = self._as_ref(document)
+        self._flows.start(self._recover_flow(str(text), document,
+                                             str(name) if name else None))
+
+    @_command
     def report_unexpected(self, message: str, context: Optional[str] = None) -> None:
         """Emit an :class:`UnexpectedError` (for hosts whose error handler
         reports through the session, and for the bridge's own failures)."""
@@ -3206,6 +3231,21 @@ class AppSession:
         self._pending_name = None
         self._remember(ref)
         self._set_status(formatting.opened_status(ref.location))
+
+    def _recover_flow(self, text: str, ref: Optional[DocumentRef], name: Optional[str]) -> Flow:
+        if not (yield from self._confirm_discard()):
+            return
+        revision = self._revision
+        self._pending_name = name if ref is None else None
+        self._read_only_id = None
+        with self._undo_policy(UndoPolicy.RESET):
+            self._main.restore_document(text, ref, True)
+        self._publish_document()
+        if self._revision == revision:
+            # Same text as before: still a new undo history in the views.
+            self._splice(0, len(self._text), self._text, UndoPolicy.RESET)
+        shown = ref.display_name if ref is not None else name or formatting.UNTITLED
+        self._set_status(formatting.recovered_status(shown))
 
     def _export_flow(self) -> Flow:
         if not self._main.has_chords_to_export():

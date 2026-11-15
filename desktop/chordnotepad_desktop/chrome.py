@@ -1,5 +1,6 @@
 """The window's chrome that the session keeps: the whole-window zoom and the
-menu bar (plan step F1), plus the File menu's documents (``files.py``).
+menu bar (plan step F1), plus the File menu's documents (``files.py``) and
+its recovered copies (``recovery.py``).
 
 :class:`ChromeModel` reads what was kept at start (the session's
 ``ui_scale`` and ``menu_bar_shown``, direct calls like the volume) and sends
@@ -103,12 +104,15 @@ class ChromeModel(QObject):
         store: The window's SessionStore.
         mac: Whether the menu bar is the native global one (macOS); detected
             by default.
+        recovery: File › Open recovered's RecoveryModel (recovery.py), or
+            None (the menu is then disabled).
     """
 
     uiScaleChanged = Signal()
     menuBarShownChanged = Signal()
 
     def __init__(self, store: Any, mac: Optional[bool] = None,
+                 recovery: Optional[QObject] = None,
                  parent: Optional[QObject] = None) -> None:
         super().__init__(parent)
         self._store = store
@@ -116,12 +120,19 @@ class ChromeModel(QObject):
         self._scale = float(store.direct("ui_scale"))
         self._menu_bar = bool(store.direct("menu_bar_shown"))
         self._files = FilesModel(store, parent=self)
+        self._recovery = recovery
 
     def _get_files(self) -> QObject:
         return self._files
 
     #: The recent list and the file pickers (files.py).
     files = Property(QObject, _get_files, constant=True)
+
+    def _get_recovery(self) -> Optional[QObject]:
+        return self._recovery
+
+    #: File › Open recovered (recovery.py); null without one.
+    recovery = Property(QObject, _get_recovery, constant=True)
 
     def _get_texts(self) -> dict:
         return dict(TEXTS)

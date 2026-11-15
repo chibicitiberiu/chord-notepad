@@ -88,9 +88,11 @@ MenuBar {
         objectName: "fileMenu"
         title: "&File"
         onClosed: bar.menuClosed()
+        onAboutToShow: menuBarRecovered.refresh()
         MenuItem { action: bar.actions.newAction }
         MenuItem { action: bar.actions.openAction }
         RecentMenu { objectName: "menuBarRecent"; files: bar.chrome.files }
+        RecoveredMenu { id: menuBarRecovered; objectName: "menuBarRecovered"; recovery: bar.chrome.recovery }
         MenuSeparator { }
         MenuItem { action: bar.actions.saveAction }
         MenuItem { action: bar.actions.saveAsAction }

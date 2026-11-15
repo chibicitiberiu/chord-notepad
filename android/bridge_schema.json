@@ -113,6 +113,11 @@
     "open_recent": {
       "ref": "DocumentRef"
     },
+    "open_recovered": {
+      "document": "DocumentRef|null",
+      "name": "str|null",
+      "text": "str"
+    },
     "pause": {},
     "play_identified_chord": {
       "chord": "str",
@@ -354,6 +359,7 @@
     "new_document",
     "open_document",
     "open_recent",
+    "open_recovered",
     "pause",
     "play_identified_chord",
     "play_note",

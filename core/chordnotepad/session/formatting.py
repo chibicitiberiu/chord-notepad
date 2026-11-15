@@ -297,6 +297,11 @@ def opened_status(location: str) -> str:
     return f"Opened: {location}"
 
 
+def recovered_status(display_name: str) -> str:
+    """The status after a recovery copy was opened (File > Open recovered)."""
+    return f"Recovered: {display_name}"
+
+
 def saved_status(location: str, note: Optional[str] = None) -> str:
     """The status after the document was saved, with what the store said
     about it (``Saved: song.txt. Saved in UTF-8: ...``)."""
