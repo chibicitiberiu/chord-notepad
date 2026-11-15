@@ -20,6 +20,7 @@ show_licences, ``dialogs/licences_dialog.py``); the Qt package can't import
 the Tk one.
 """
 
+import html
 import logging
 from typing import Any, Dict, List, Mapping, Optional, Tuple
 
@@ -47,6 +48,12 @@ ABOUT_DESCRIPTION = "A simple text editor for musicians with\nchord detection an
 ABOUT_COPYRIGHT = ("© 2025–2026 Tiberiu Chibici\nGNU AGPL-3.0 · github.com/chibicitiberiu/chord-notepad\n"
                    "Free software with ABSOLUTELY NO WARRANTY. You may share and change it\n"
                    "under the GNU AGPL-3.0 with the additional terms in Open Source Licences.")
+#: The project's page, the link in About's copyright.
+ABOUT_REPO = "github.com/chibicitiberiu/chord-notepad"
+ABOUT_REPO_URL = "https://" + ABOUT_REPO
+#: The same text for a rich-text label: line breaks, and the repository as a link.
+ABOUT_COPYRIGHT_HTML = (html.escape(ABOUT_COPYRIGHT).replace("\n", "<br>")
+                        .replace(ABOUT_REPO, f'<a href="{ABOUT_REPO_URL}">{ABOUT_REPO}</a>'))
 #: The Licences window's intro and its error (Tk's).
 LICENCES_INTRO = ("Chord Notepad is built from these components. Select one to read its licence; "
                   "\"Source code\" says where to get the source of each.")
@@ -127,11 +134,13 @@ class DialogsModel(QObject):
             "lines": [{"label": label, "value": self._build[key]} for key, label in BUILD_FIELDS],
             "description": ABOUT_DESCRIPTION,
             "copyright": ABOUT_COPYRIGHT,
+            "copyrightHtml": ABOUT_COPYRIGHT_HTML,
             "icon": QUrl.fromLocalFile(str(icon)).toString() if icon and icon.is_file() else "",
         }
 
     #: About's content: ``name``, ``lines`` (``{label, value}``),
-    #: ``description``, ``copyright``, ``icon`` (a file URL or "").
+    #: ``description``, ``copyright`` (plain) and ``copyrightHtml`` (with the
+    #: repository as a link), ``icon`` (a file URL or "").
     about = Property("QVariantMap", _get_about, constant=True)
 
     # -- Licences -----------------------------------------------------------------------

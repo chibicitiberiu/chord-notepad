@@ -452,6 +452,44 @@ def test_about_shows_the_build_and_opens_the_licences_on_top(app):
     app.closed("aboutDialog")
 
 
+def test_about_links_to_the_repository_with_a_hand_and_opens_it(app, monkeypatch):
+    import re
+    about = app.harness.app.dialogs.about
+    plain = re.sub(r"<[^>]+>", "", about["copyrightHtml"].replace("<br>", "\n"))
+    assert plain == about["copyright"]                        # the same words
+    assert about["copyrightHtml"].count("<a href=") == 1
+    opened = []
+    monkeypatch.setattr(dialogs_module.QDesktopServices, "openUrl",
+                        lambda url: opened.append(url.toString()) or True)
+    app.open("openAbout")
+    app.opened("aboutDialog")
+    label = app.item("aboutCopyright")
+    app.qtbot.waitUntil(lambda: label.property("hoveredLink") is not None, timeout=1000)
+    with app.qtbot.waitSignal(app.window.frameSwapped, timeout=1000):   # laid out
+        app.window.update()
+    # Find the link by scanning the label's rows for a hovered link.
+    spot = None
+    QTest.mouseMove(app.window, QPoint(2, 2))
+    for y in range(2, int(label.height()), 4):
+        for x in range(2, int(label.width()), 6):
+            point = label.mapToScene(QPointF(x, y)).toPoint()
+            QTest.mouseMove(app.window, point)
+            if label.property("hoveredLink"):
+                spot = point
+                break
+        if spot:
+            break
+    assert spot is not None
+    assert label.property("hoveredLink") == dialogs_module.ABOUT_REPO_URL
+    app.qtbot.waitUntil(lambda: app.window.cursor().shape() == Qt.CursorShape.PointingHandCursor,
+                        timeout=1000)
+    QTest.mouseClick(app.window, Qt.MouseButton.LeftButton, Qt.KeyboardModifier.NoModifier, spot)
+    app.qtbot.waitUntil(lambda: opened == [dialogs_module.ABOUT_REPO_URL], timeout=1000)
+    QTest.mouseMove(app.window, label.mapToScene(QPointF(label.width() / 2, 1)).toPoint())
+    app.key(Qt.Key.Key_Escape)
+    app.closed("aboutDialog")
+
+
 def test_about_takes_the_build_info_ci_writes(app):
     info = dialogs_module.DialogsModel(app.harness.store, PATHS, build_info={
         "VERSION": "v0.6.0", "BUILD_TYPE": "release", "BUILD_NUMBER": "42",

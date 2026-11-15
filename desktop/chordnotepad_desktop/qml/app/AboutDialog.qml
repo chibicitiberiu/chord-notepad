@@ -65,8 +65,14 @@ AppDialog {
             Layout.topMargin: Theme.gap3
         }
         Label {
+            id: copyright
             objectName: "aboutCopyright"
-            text: dlg.about.copyright
+            // Rich text, for the repository's link; the plain copyright stays in `about`.
+            text: dlg.about.copyrightHtml
+            textFormat: Text.RichText
+            linkColor: Theme.accent
+            onLinkActivated: (link) => dlg.dialogs.openUrl(link)
+            HoverHandler { cursorShape: copyright.hoveredLink !== "" ? Qt.PointingHandCursor : Qt.ArrowCursor }
             horizontalAlignment: Text.AlignHCenter
             wrapMode: Text.Wrap
             color: Theme.muted
