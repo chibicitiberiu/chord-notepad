@@ -418,7 +418,8 @@ def finding_capo_status(has_selection: bool, voicing: str) -> str:
 def capo_scope_text(has_selection: bool) -> str:
     """The Suggest Capo dialog's line on where the capo goes."""
     if has_selection:
-        return "Applies to the selected part only: inserted at the start of the selection."
+        return ("Fitted to the selected part's chords: inserted at the start of the selection, "
+                "and in force from there on.")
     return "Applies to the whole song: inserted at the top of the song, replacing a capo there."
 
 

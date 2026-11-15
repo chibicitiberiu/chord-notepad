@@ -483,7 +483,9 @@ def test_capo_request_says_where_the_capo_goes():
     assert "top of the song" in formatting.capo_scope_text(False)
     env.session.request_suggest_capo((2, 5))
     assert env.request(CapoChoiceRequest).scope == formatting.capo_scope_text(True)
-    assert "selected part only" in formatting.capo_scope_text(True)
+    # The capo stays in force after the selection: the text mustn't say "only".
+    assert "selected part" in formatting.capo_scope_text(True)
+    assert "only" not in formatting.capo_scope_text(True)
 
 
 def test_capo_defaults_to_standard_guitar_for_a_piano_voicing():
