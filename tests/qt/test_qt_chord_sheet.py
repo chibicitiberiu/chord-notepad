@@ -331,7 +331,7 @@ def test_every_sheet_font_is_inter_unhinted():
     assert font.hintingPreference() == QFont.HintingPreference.PreferNoHinting
 
 
-@pytest.mark.parametrize("height", [350.0, 600.0])
+@pytest.mark.parametrize("height", [130.0, 160.0, 450.0, 600.0])
 def test_staff_chord_names_as_inter_draws_them_stay_in_their_slots(height):
     # The core estimates the names' widths; Inter Bold (the Qt sheet's font)
     # must agree: no name past its slot, so neighbours never run together

@@ -138,39 +138,30 @@ _MAX_STAFF_SPACE = 10.0
 _GAP_SPACES = 3.5
 
 # --- Chord-symbol labels ----------------------------------------------------
-#: The label's size in pt per staff space (it grows with the staff), its floor,
-#: and the clear space kept either side of it inside its slot (staff spaces,
-#: at least 1 px). A label that doesn't fit its slot is drawn smaller, down to
-#: the floor; a slot too narrow even then is widened (layout) so neighbouring
+#: The label's size in pt per staff space (it grows with the staff) and its
+#: floor. Every name in the strip has the same size and sits on one baseline;
+#: a slot too narrow for its name is widened instead (layout), keeping this
+#: much clear space in it (staff spaces, split either side), so neighbouring
 #: names never run into each other.
 _SYMBOL_PT_PER_SPACE = 1.25
 _MIN_SYMBOL_PT = 8
-_SYMBOL_GAP_SPACES = 0.25
+_SYMBOL_CLEAR_SPACES = 0.8
 #: pt to px (the front ends draw text sizes as pt at 96 dpi).
 _PT_TO_PX = 4.0 / 3.0
 #: A bold label's estimated width in ems (shared with the piano roll's note names).
 _label_ems = label_ems
 
 
-def _symbol_gap(s: float) -> float:
-    """Clear space either side of a label inside its slot, px."""
-    return max(1.0, _SYMBOL_GAP_SPACES * s)
+def _symbol_size(s: float) -> int:
+    """The chord names' size in pt for a staff space of ``s`` px (1.25 staff
+    spaces, never under the floor): the same for every name in the strip."""
+    return max(_MIN_SYMBOL_PT, int(round(_SYMBOL_PT_PER_SPACE * s)))
 
 
 def _label_min_width(label: str, s: float) -> float:
-    """The slot width a label needs at the floor size, gaps included."""
-    return _label_ems(label) * _MIN_SYMBOL_PT * _PT_TO_PX + 2.0 * _symbol_gap(s)
-
-
-def _symbol_size(label: str, s: float, slot_width: float) -> int:
-    """The label's size in pt: the staff's (1.25 staff spaces), smaller if the
-    label would not fit ``slot_width`` with its gaps, never under the floor."""
-    size = max(_MIN_SYMBOL_PT, int(round(_SYMBOL_PT_PER_SPACE * s)))
-    ems = _label_ems(label)
-    if ems > 0:
-        room = slot_width - 2.0 * _symbol_gap(s)
-        size = min(size, int(room / (ems * _PT_TO_PX)))
-    return max(_MIN_SYMBOL_PT, size)
+    """The slot width a label needs at the strip's name size, clear space
+    included."""
+    return _label_ems(label) * _symbol_size(s) * _PT_TO_PX + _SYMBOL_CLEAR_SPACES * s
 
 
 # --- Colors / stroke (module-local; no edits to constants.py) --------------
@@ -581,9 +572,9 @@ class StaffCardRenderer(StripRenderer):
             width = _slot_width(chord, ctx.zoom)
             if chord.is_rest:
                 width = max(width, (WHOLE_REST_W + 2 * _REST_PAD) * s)
-            else:
-                # Room for the name at the floor size (a short slot, a long name).
-                width = max(width, _label_min_width(chord_symbol_label(chord), s))
+            # Room for the name at the strip's name size (a short slot, a
+            # long name), for chords and rests alike.
+            width = max(width, _label_min_width(chord_symbol_label(chord), s))
             slots.append(SlotBox(chord_index=index, x=x, width=width))
             x += width
 
@@ -811,13 +802,14 @@ class StaffCardRenderer(StripRenderer):
 
     def _paint_symbol(self, ops: DrawOps, slot: SlotBox, chord: RenderedChord,
                       geom: _Geometry, tag: str) -> None:
-        """Draw the chord symbol centered in the band above the treble staff,
-        no wider than its slot (a tall strip grows the staff, not the slots)."""
+        """Draw the chord symbol centred in the band above the treble staff,
+        at the strip's one name size and top (so one baseline); layout made
+        the slot wide enough for it."""
         label = chord_symbol_label(chord)
         ops.text(
             slot.x + slot.width / 2.0, geom.y_symbol,
             label,
-            anchor="n", size=_symbol_size(label, geom.staff_space, slot.width),
+            anchor="n", size=_symbol_size(geom.staff_space),
             fill=_INK, bold=True, tags=(tag,),
         )
 

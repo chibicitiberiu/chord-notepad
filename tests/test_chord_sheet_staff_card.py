@@ -1310,14 +1310,41 @@ def test_chord_names_stay_inside_their_slots_and_clear_of_each_other(height):
         assert right < left
 
 
-def test_a_name_shrinks_to_its_slot_on_a_tall_strip_and_short_ones_keep_the_staffs_size():
-    song = make_song(make_chord("Cmaj7", midi_notes=[60, 64, 67, 71], duration_beats=2.0),
-                     make_chord("C", midi_notes=[60, 64, 67], duration_beats=2.0))
-    layout, ops = paint(song, height=350.0)
+@pytest.mark.parametrize("height", [130.0, 160.0, 350.0, 600.0])
+def test_every_name_has_one_size_and_one_baseline(height):
+    # No staircase: a long name used to shrink to its slot, top-aligned, so
+    # the names came out in different sizes on different baselines.
+    layout, ops = paint(example_song(), height=height)
+    names = [op for op in ops.ops if isinstance(op, TextOp) and op.bold and op.anchor == "n"]
+    assert len(names) > 20
+    full = max(sc._MIN_SYMBOL_PT, int(round(1.25 * sc._staff_space(height))))
+    assert {op.size for op in names} == {full}
+    assert {op.anchor for op in names} == {"n"}
+    assert len({op.y for op in names}) == 1
+
+
+def test_a_long_name_widens_its_slot_and_keeps_the_staffs_size():
+    song = make_song(make_chord("Cmaj7", midi_notes=[60, 64, 67, 71], duration_beats=1.0),
+                     make_chord("C", midi_notes=[60, 64, 67], duration_beats=1.0))
+    layout, ops = paint(song, height=450.0)
+    s = sc._staff_space(450.0)
     sizes = {op.s: op.size for op in ops.ops if isinstance(op, TextOp) and op.bold}
-    full = int(round(1.25 * sc._staff_space(350.0)))
-    assert sizes["C"] == full
-    assert sc._MIN_SYMBOL_PT <= sizes["Cmaj7"] < full
+    assert sizes == {"Cmaj7": int(round(1.25 * s)), "C": int(round(1.25 * s))}
+    wide, short = layout.slots
+    name_w = sc._label_ems("Cmaj7") * sizes["Cmaj7"] * sc._PT_TO_PX
+    assert wide.width == pytest.approx(name_w + 0.8 * s)
+    assert short.width == pytest.approx(sc._slot_width(song.chords[1]))
+
+
+def test_a_rest_slot_is_wide_enough_for_its_name():
+    song = make_song(make_chord("NC", is_rest=True), make_chord("NC", is_rest=True))
+    for height in (130.0, 450.0):
+        layout, ops = paint(song, height=height)
+        s = sc._staff_space(height)
+        for slot in layout.slots:
+            assert slot.width >= sc._label_min_width("NC", s) - 1e-9
+        for (left, right, slot_left, slot_right) in symbol_boxes(layout, ops):
+            assert slot_left < left and right < slot_right
 
 
 def test_a_slot_too_short_for_its_name_is_widened():
