@@ -125,6 +125,32 @@
   </screenshots>
 
   <releases>
+    <release version="0.6.0" date="2026-11-16">
+      <description>
+        <p>
+          A new desktop window, built with Qt Quick, with the same look on
+          Linux, Windows and macOS and a light and a dark theme. There are two
+          workspaces: Edit, with a toolbar and sidebars for directives and the
+          chord identifier, and Play, with a player bar (a timeline, speed,
+          volume and a metronome volume), the text and the chord sheet. The
+          menus are behind a button, and the menu bar is still there when you
+          want it.
+        </p>
+        <p>
+          Click a chord in the text to hear it and move the playhead there.
+          The editor has Find and Replace, Go to line and line operations, the
+          Insert dialogs became a palette of directive tiles with a picker for
+          each value, and the tempo picker finds the bpm as you tap along.
+          Settings has Save and Discard and lists the built-in voicings.
+        </p>
+        <p>
+          The chord sheet is redrawn: a piano roll on a time grid with note
+          names, a continuous staff with repeat signs and a final bar line,
+          and sections on alternating paper. In ensembles, a chord next to the
+          same chord over another bass no longer sounds the same.
+        </p>
+      </description>
+    </release>
     <release version="0.5.4" date="2026-11-13">
       <description>
         <p>

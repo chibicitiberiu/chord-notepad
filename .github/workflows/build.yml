@@ -870,7 +870,7 @@ jobs:
             echo "**Windows:**"
             echo "Double-click \`ChordNotepad-windows-x64.exe\` to run"
             echo ""
-            echo "**macOS (11 Big Sur or newer):**"
+            echo "**macOS (14.4 Sonoma or newer):**"
             echo "Open the \`.dmg\` and drag Chord Notepad to Applications. The app isn't notarized by Apple yet,"
             echo "so the first time you open it macOS blocks it: go to System Settings > Privacy & Security,"
             echo "click **Open Anyway** next to Chord Notepad, and confirm. After that it opens normally."
