@@ -1114,17 +1114,46 @@ class TestZoom:
         assert StaffCardRenderer.supports_zoom is True
 
     def test_staff_space_scales_with_zoom_within_clamps(self):
-        # At height 130 both zoom 1.0 and 2.0 stay within the staff-space clamps,
-        # so the staff space doubles.
-        s1 = sc._staff_space(130.0, 1.0)
-        s2 = sc._staff_space(130.0, 2.0)
-        assert sc._MIN_STAFF_SPACE < s1 < sc._MAX_STAFF_SPACE
-        assert sc._MIN_STAFF_SPACE < s2 < sc._MAX_STAFF_SPACE
+        # A tall strip has room for the zoomed staff, so the space doubles.
+        s1 = sc._staff_space(450.0, 1.0)
+        s2 = sc._staff_space(450.0, 2.0)
+        assert s1 == sc._MAX_STAFF_SPACE
         assert abs(s2 - 2.0 * s1) < 1e-9
         # Geometry derived from the staff space scales too.
-        g1 = sc._geometry(130.0, 1.0)
-        g2 = sc._geometry(130.0, 2.0)
+        g1 = sc._geometry(450.0, 1.0)
+        g2 = sc._geometry(450.0, 2.0)
         assert abs(g2.staff_space - 2.0 * g1.staff_space) < 1e-9
+        # Zooming out shrinks it on a short strip too.
+        assert sc._staff_space(160.0, 0.5) == pytest.approx(160.0 / sc._HEIGHT_UNITS * 0.5)
+
+    @pytest.mark.parametrize("height, expected", [
+        # Up to about 190 px the staff fills the strip, as it always has...
+        (130.0, 130.0 / 18.9), (160.0, 160.0 / 18.9),
+        # ... and a taller strip centres a staff of the 190 px size.
+        (200.0, 10.0), (450.0, 10.0),
+    ])
+    def test_staff_space_follows_the_height_up_to_its_ceiling(self, height, expected):
+        assert sc._staff_space(height) == pytest.approx(expected)
+
+    def test_a_tall_strip_centres_its_staff(self):
+        geom = sc._geometry(450.0)
+        block = sc._HEIGHT_UNITS * geom.staff_space
+        top = geom.y_symbol - 0.6 * geom.staff_space
+        assert top == pytest.approx((450.0 - block) / 2.0)
+
+    @pytest.mark.parametrize("height", [80.0, 130.0, 160.0, 200.0, 450.0])
+    @pytest.mark.parametrize("zoom", [1.0, 1.5, 2.0, 3.0])
+    def test_zoom_never_pushes_the_staff_out_of_the_strip(self, height, zoom):
+        geom = sc._geometry(height, zoom)
+        s = geom.staff_space
+        assert s <= max(sc._MIN_STAFF_SPACE, height / sc._HEIGHT_UNITS) + 1e-9
+        # The bass staff and the ledger room under it end inside the strip.
+        assert geom.bass_bottom() + 2.6 * s <= height + 1e-9
+        assert geom.y_symbol >= 0.0
+
+    def test_zoom_in_on_a_short_strip_is_capped_at_the_fit(self):
+        assert sc._staff_space(160.0, 2.0) == pytest.approx(160.0 / sc._HEIGHT_UNITS)
+        assert sc._staff_space(450.0, 3.0) == pytest.approx(450.0 / sc._HEIGHT_UNITS)
 
     def test_layout_width_grows_with_zoom(self):
         song = make_song(
@@ -1139,8 +1168,8 @@ class TestZoom:
     def test_gutter_width_grows_with_zoom(self):
         renderer = StaffCardRenderer()
         song = make_song(make_chord("C", midi_notes=[60], chord_notes=C_MAJOR, key='G'))
-        w1 = renderer.gutter_width(SheetContext(song=song, zoom=1.0), 130.0)
-        w2 = renderer.gutter_width(SheetContext(song=song, zoom=2.0), 130.0)
+        w1 = renderer.gutter_width(SheetContext(song=song, zoom=1.0), 450.0)
+        w2 = renderer.gutter_width(SheetContext(song=song, zoom=2.0), 450.0)
         assert w2 > w1
 
 
@@ -1282,8 +1311,8 @@ def test_chord_names_stay_inside_their_slots_and_clear_of_each_other(height):
 
 
 def test_a_name_shrinks_to_its_slot_on_a_tall_strip_and_short_ones_keep_the_staffs_size():
-    song = make_song(make_chord("Cmaj7", midi_notes=[60, 64, 67, 71], duration_beats=3.0),
-                     make_chord("C", midi_notes=[60, 64, 67], duration_beats=3.0))
+    song = make_song(make_chord("Cmaj7", midi_notes=[60, 64, 67, 71], duration_beats=2.0),
+                     make_chord("C", midi_notes=[60, 64, 67], duration_beats=2.0))
     layout, ops = paint(song, height=350.0)
     sizes = {op.s: op.size for op in ops.ops if isinstance(op, TextOp) and op.bold}
     full = int(round(1.25 * sc._staff_space(350.0)))

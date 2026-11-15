@@ -41,9 +41,12 @@ Engraving detail:
   keys via their relative major); a key spelled without a real signature of
   its own (Gbm, D#) engraves as its enharmonic twin (F#m, Eb), and only a
   wholly unparseable key draws no signature.
-- **Zoom.** The renderer honors ``SheetContext.zoom``: the staff space (and
-  every glyph, gap, ledger extent, and slot width derived from it) scales by
-  the zoom factor, clamped to the same pixel floor/ceiling as at zoom 1.0.
+- **Size and zoom.** The staff space follows the strip's height up to a
+  ceiling (strips up to about 190 px); a taller strip centres a staff of that
+  size. The renderer honors ``SheetContext.zoom``: the staff space (and every
+  glyph, gap, ledger extent, and slot width derived from it) scales by the
+  zoom factor, but never past the size whose staff block still fits the
+  strip.
 - **Accidentals are relative to the signature.** A note only gets an accidental
   glyph when its spelling deviates from the signature: F# in G major draws
   nothing, F natural in G major draws a natural. There is **no bar-carryover
@@ -123,10 +126,13 @@ _REST_PAD = 0.7
 #: Lane height is divided into this many staff-space units; the staff space is
 #: ``height / this`` (clamped). Budget: top pad (0.6) + symbol band (2.2) +
 #: ledger above (2) + treble (4) + inter-staff gap (3.5) + bass (4) + ledger
-#: below (2) + bottom pad (0.6).
+#: below (2) + bottom pad (0.6). The whole block is this many staff spaces
+#: tall, so ``height / this`` is also the largest space that still fits.
 _HEIGHT_UNITS = 18.9
 _MIN_STAFF_SPACE = 4.0
-_MAX_STAFF_SPACE = 16.0
+#: The staff space at zoom 1.0 stops growing here (a strip about 190 px
+#: tall): a taller strip centres the staff instead of drawing it bigger.
+_MAX_STAFF_SPACE = 10.0
 #: Vertical gap between the treble bottom line and the bass top line, in staff
 #: spaces (> 3 so the staves never read as merged; middle C's ledger sits here).
 _GAP_SPACES = 3.5
@@ -418,12 +424,16 @@ class _Geometry:
 def _staff_space(height: float, zoom: float = 1.0) -> float:
     """Staff-space size (line-to-line gap) for a lane of the given height.
 
-    ``zoom`` scales the intrinsic staff-space size (and hence every glyph,
-    gap, and ledger extent derived from it); the result is clamped to the same
-    sane pixel floor/ceiling used at zoom 1.0, so the staff never collapses or
-    grows without bound.
+    At zoom 1.0 the space follows the height up to :data:`_MAX_STAFF_SPACE`
+    (strips up to about 190 px), so a tall strip gets a staff of a readable
+    size with room around it rather than oversized notes. ``zoom`` scales
+    that size (and every glyph, gap and ledger extent derived from it), never
+    below the pixel floor and never past the largest space whose whole block
+    still fits the strip, so zooming in never clips the bass staff.
     """
-    return max(_MIN_STAFF_SPACE, min(_MAX_STAFF_SPACE, height / _HEIGHT_UNITS * zoom))
+    base = max(_MIN_STAFF_SPACE, min(_MAX_STAFF_SPACE, height / _HEIGHT_UNITS))
+    cap = max(_MIN_STAFF_SPACE, height / _HEIGHT_UNITS)
+    return max(_MIN_STAFF_SPACE, min(cap, base * zoom))
 
 
 def _geometry(height: float, zoom: float = 1.0) -> _Geometry:
