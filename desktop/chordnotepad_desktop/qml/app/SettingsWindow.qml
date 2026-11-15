@@ -60,9 +60,24 @@ ApplicationWindow {
     }
     function finish() {
         win.settings.close()
-        win.hide()
+        // Closed, not hidden: Qt counts a window that was shown and then only
+        // hidden as still open, and the app went on running (no window, no
+        // shutdown, nothing saved) after the main window closed once Settings
+        // had been open (H1). A close can't nest inside onClosing, hence later.
+        Qt.callLater(win.closeNow)
     }
-    onClosing: (close) => { close.accepted = false; win.requestClose() }
+    // Close for real, past onClosing's question (finish(), and the main window closing).
+    property bool finishing: false
+    function closeNow() {
+        win.finishing = true
+        win.close()
+        win.finishing = false
+    }
+    onClosing: (close) => {
+        if (win.finishing) return
+        close.accepted = false
+        win.requestClose()
+    }
     // Edit (the problems dialog): go to the first wrong value.
     function editProblems() {
         var numbers = Object.keys(win.numberErrors)

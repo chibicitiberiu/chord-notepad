@@ -69,3 +69,46 @@ def test_the_qt_module_runs_through_the_shared_entry_point(tmp_path):
         [sys.executable, "-m", "chordnotepad_desktop.main", "--smoke"],
         cwd=tmp_path, env=throwaway_env(tmp_path), capture_output=True, text=True, timeout=60)
     assert result.returncode == 0, result.stderr
+
+
+#: Starts the app, opens Settings, closes it, then closes the main window;
+#: exit code 7 if the app is still running 10 s later.
+_SETTINGS_THEN_CLOSE = """
+import os, sys
+from PySide6.QtCore import QMetaObject, QObject, QTimer, Q_ARG
+import chordnotepad_desktop.application as application
+from chordnotepad_tk import main as launcher
+
+orig_start = application.QtApplication.start
+
+def start(self, app):
+    main = orig_start(self, app)
+    win = main.window
+    hub = win.findChild(QObject, "appDialogs")
+    settings = win.findChild(QObject, "settingsWindow")
+    QTimer.singleShot(300, lambda: QMetaObject.invokeMethod(hub, "openSettings", Q_ARG("QVariant", "general")))
+    QTimer.singleShot(900, lambda: settings.close())
+    QTimer.singleShot(1500, lambda: print("settings shown after close:", settings.isVisible(), flush=True))
+    QTimer.singleShot(1600, lambda: win.close())
+    QTimer.singleShot(10000, lambda: (print("STILL RUNNING", flush=True), os._exit(7)))
+    return main
+
+application.QtApplication.start = start
+sys.exit(launcher.main(["--ui", "qt"]))
+"""
+
+
+def test_the_app_ends_when_its_window_closes_after_settings_was_open(tmp_path):
+    # Qt counts a window that was shown and then only hidden as still open:
+    # the Settings window, hidden on close, kept the app running (no window,
+    # no shutdown, the config not saved) after the main window closed (H1).
+    env = throwaway_env(tmp_path)
+    env["DBUS_SESSION_BUS_ADDRESS"] = "unix:path=/nonexistent"
+    config = tmp_path / "xdg_config_home" / "chord-notepad"
+    config.mkdir(parents=True)
+    (config / "settings.json").write_text('{"show_quick_start_on_startup": false}', encoding="utf-8")
+    result = subprocess.run([sys.executable, "-c", _SETTINGS_THEN_CLOSE],
+                            cwd=tmp_path, env=env, capture_output=True, text=True, timeout=60)
+    assert "settings shown after close: False" in result.stdout, result.stdout + result.stderr
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "Application shutdown complete" in result.stdout
