@@ -89,7 +89,26 @@ Rectangle {
                         }
                     }
                 }
-                Item { Layout.fillWidth: true }
+                // The staff draws every chord as a whole note for now. In the
+                // header, not over the strip: a short strip's staff fills its
+                // height and the notice covered the lowest notes.
+                Label {
+                    id: staffNotice
+                    objectName: "staffNotice"
+                    visible: pane.activeView === "staff"
+                    Layout.fillWidth: true
+                    Layout.minimumWidth: 0
+                    Layout.leftMargin: Theme.gap3
+                    elide: Text.ElideRight
+                    text: "Rhythm isn't shown yet: every chord is drawn as a whole note."
+                    font: Theme.fontC
+                    color: Theme.muted
+                    HoverHandler { id: noticeHover }
+                    ToolTip.visible: noticeHover.hovered && staffNotice.truncated
+                    ToolTip.delay: 600
+                    ToolTip.text: staffNotice.text
+                }
+                Item { Layout.fillWidth: true; visible: !staffNotice.visible }
                 VoicingButton {
                     objectName: "sheetVoicingTip"
                     visible: pane.showVoicing
@@ -190,18 +209,6 @@ Rectangle {
                     pane.store.submit("audition", { index: i })
                     if (pane.editor) pane.editor.revealPlayhead()
                 }
-            }
-            // The staff draws every chord as a whole note for now.
-            Label {
-                objectName: "staffNotice"
-                visible: pane.activeView === "staff"
-                anchors.left: parent.left; anchors.leftMargin: Theme.gap2
-                anchors.bottom: sheetBar.top; anchors.bottomMargin: Theme.px(0.5)
-                width: Math.min(implicitWidth, parent.width - 2 * Theme.gap2)
-                elide: Text.ElideRight
-                text: "Rhythm isn't shown yet: every chord is drawn as a whole note."
-                font: Theme.fontC
-                color: Theme.muted
             }
             ScrollBar {
                 id: sheetBar

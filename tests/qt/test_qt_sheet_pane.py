@@ -18,6 +18,19 @@ from tests.qt.test_qt_chord_sheet import LEFT, NO_MODIFIER, finish, make_sheet  
 LONG = ("{label: verse}\n" + "C   G   Am  F\n" * 12 + "{label: chorus}\n" + "Am  F   C   G\n" * 12)
 
 
+def sheet_tabs(sh):
+    """The view tabs in the sheet's header (Repeater delegates: visual tree)."""
+    out = []
+
+    def walk(item):
+        if (item.objectName() or "").startswith("sheetTab:"):
+            out.append(item)
+        for child in item.childItems():
+            walk(child)
+    walk(sh.window.contentItem())
+    return out
+
+
 @pytest.fixture
 def sh(qapp, qtbot, tmp_path):
     sh = make_sheet(qapp, qtbot, tmp_path, text=LONG)
@@ -186,10 +199,13 @@ def test_the_staff_says_it_draws_every_chord_as_a_whole_note(sh):
     sh.store.submit("set_chord_sheet_view", {"view_id": "staff"})
     sh.wait_sheet("staff")
     sh.qtbot.waitUntil(notice.isVisible, timeout=2000)
-    bar = sh.it("sheetScrollBar")
-    # Bottom left, just above the scroll bar, inside the strip.
-    assert notice.x() < 20 and notice.y() + notice.height() <= bar.y() + 1
-    assert notice.y() > 0 and notice.x() + notice.width() <= sh.view.width()
+    # In the header after the view tabs, never over the strip (a short
+    # strip's staff fills its height and the notice covered the lowest notes).
+    top = sh.view.mapToScene(QPointF(0, 0)).y()
+    tabs_right = max(t.mapToScene(QPointF(t.width(), 0)).x() for t in sheet_tabs(sh))
+    notice_at = notice.mapToScene(QPointF(0, 0))
+    assert notice_at.y() + notice.height() <= top + 1
+    assert notice_at.x() >= tabs_right
     sh.store.submit("set_chord_sheet_view", {"view_id": "keyboard"})
     sh.wait_sheet("keyboard")
     sh.qtbot.waitUntil(lambda: not notice.isVisible(), timeout=2000)
