@@ -47,6 +47,7 @@ it's done (git history keeps it); release mechanics live in `docs/RELEASE.md`.
 - Redraw the rail and tile icons crisp at 125% (and at 2x: offscreen at `QT_SCALE_FACTOR=2` they come out cropped, which is why the store screenshots are drawn at 1x).
 - Accessibility names for the Qt controls.
 - Redo the desktop screenshots (`packaging/tools/qt_help_screenshots.py`) after any window change.
+- Printing (Tibi, 2026-11-16: a future update). Not wanted: a .txt file association, single-instance mode (people open songs side by side).
 
 ## Later
 
