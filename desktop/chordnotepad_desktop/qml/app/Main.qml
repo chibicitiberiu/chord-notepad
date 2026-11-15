@@ -347,7 +347,7 @@ ApplicationWindow {
     // The playback shortcuts (F5, Shift+F5, Ctrl+M, Ctrl+] / Ctrl+[ / Ctrl+\).
     PlaybackActions { id: playbackActions; store: win.store; player: win.player }
     // The chord sheet's (F9 in Edit, Alt+1..4 for the views).
-    SheetActions { id: windowSheetActions; store: win.store; editMode: win.mode === "edit" }
+    SheetActions { id: windowSheetActions; store: win.store; model: win.sheet; editMode: win.mode === "edit" }
     // The sidebars' (Ctrl+Shift+D, Ctrl+Shift+I): from the keyboard the
     // opened sidebar gets the focus, a collapsed one gives it back.
     SidebarActions {

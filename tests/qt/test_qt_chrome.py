@@ -414,7 +414,8 @@ def test_the_menus_list_every_command(app):
         "editMenu": ["Undo", "Redo", "---", "Cut", "Copy", "Paste", "---", "Select all", "Select line",
                      "---", "Find…", "Replace…", "Find next", "Find previous", "Go to line…", "---",
                      "Duplicate line or selection", "Delete line", "Move line up", "Move line down", "---",
-                     "Toggle comment", "Indent lines", "Unindent lines", "---", "Overwrite mode"],
+                     "Toggle comment", "Indent lines", "Unindent lines", "---", "Change value…",
+                     "Overwrite mode"],
         "viewMenu": ["Edit", "Play", "---", "Directives", "Chord identifier", "---", "Chord sheet under the text", "Chord sheet view", "---", "Word wrap",
                      "Larger text", "Smaller text", "Reset text size", "---",
                      "Zoom in (whole window)", "Zoom out (whole window)", "Reset zoom (100%)",
@@ -425,6 +426,8 @@ def test_the_menus_list_every_command(app):
                       "Convert to European notation", "---", "Settings…"],
         "helpMenu": ["User guide", "Quick start", "Keyboard shortcuts", "---",
                      "Open source licences", "About Chord Notepad"],
+        "barSheetViews": ["Piano roll", "Staff", "Fret cards", "Tab", "---",
+                          "Zoom in", "Zoom out", "Reset zoom (100%)"],
     }
     for name, rows in expect.items():
         menu = app.obj(name)

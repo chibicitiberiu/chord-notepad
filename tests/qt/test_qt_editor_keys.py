@@ -584,7 +584,7 @@ def test_the_edit_menu_shows_every_key(ed):
         "Duplicate line or selection": "Ctrl+D", "Delete line": "Ctrl+Shift+K",
         "Move line up": "Ctrl+Shift+Up", "Move line down": "Ctrl+Shift+Down",
         "Toggle comment": "Ctrl+/", "Indent lines": "Tab", "Unindent lines": "Shift+Tab",
-        "Overwrite mode": "Insert"}
+        "Change value…": "Alt+Down", "Overwrite mode": "Insert"}
 
 
 def test_the_edit_menus_indent_and_overwrite_items(ed):

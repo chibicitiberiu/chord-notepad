@@ -112,11 +112,13 @@ Rectangle {
         pane.pickers.apply(pane.pickerFor, v)     // one undo step; the caret goes after the }
         area.forceActiveFocus()
     }
-    Shortcut {
-        objectName: "pickerShortcut"
-        sequence: "Alt+Down"
+    // Alt+Down, and Edit › Change value…: the picker of the directive value
+    // at the caret (off elsewhere and while read-only).
+    readonly property Action pickerAction: Action {
+        objectName: "pickerAction"
+        text: "C&hange value…"; shortcut: "Alt+Down"
         enabled: !area.readOnly && pane.caretPicker.end !== undefined && !picker.visible
-        onActivated: pane.openPicker(pane.caretPicker)
+        onTriggered: pane.openPicker(pane.caretPicker)
     }
     // The caret may have moved, or the text under it changed: the status
     // bar's hint (150 ms later) and the caret's picker.

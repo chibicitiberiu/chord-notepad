@@ -8,13 +8,19 @@ import QtQuick.Controls
 //
 //   F9         the chord sheet under the text (Edit only; Play always shows it)
 //   Alt+1..4   Piano roll, Staff, Fret cards, Tab (a view the song can't show is off)
+//
+// The zoom (View › Chord sheet view › Zoom in / out / Reset) has no keys:
+// Ctrl+wheel over the sheet does it, and the text zoom has Ctrl+= / Ctrl+-.
 Item {
     id: acts
     objectName: "sheetActions"
     required property var store
+    property var model: null              // ChordSheetModel: the zoom's limits
     property bool editMode: true
     readonly property var st: acts.store.states.ChordSheetState
     readonly property var views: acts.st.views || []
+    readonly property real zoom: acts.st.zoom || 1.0
+    readonly property bool zoomable: acts.st.zoom_supported === true
 
     function available(i) { return i < acts.views.length && acts.views[i].available === true }
     function show(i) {
@@ -63,5 +69,24 @@ Item {
         shortcut: "Alt+4"
         enabled: acts.available(3)
         onTriggered: acts.show(3)
+    }
+    // As the zoom pill's − % + (ChordSheetPane): about the strip's middle.
+    readonly property Action zoomInAction: Action {
+        objectName: "sheetZoomInAction"
+        text: "Zoom &in"
+        enabled: acts.zoomable && (acts.model === null || acts.zoom < acts.model.zoomMax - 1e-6)
+        onTriggered: acts.store.submit("chord_sheet_zoom", { step: 1 })
+    }
+    readonly property Action zoomOutAction: Action {
+        objectName: "sheetZoomOutAction"
+        text: "Zoom &out"
+        enabled: acts.zoomable && (acts.model === null || acts.zoom > acts.model.zoomMin + 1e-6)
+        onTriggered: acts.store.submit("chord_sheet_zoom", { step: -1 })
+    }
+    readonly property Action zoomResetAction: Action {
+        objectName: "sheetZoomResetAction"
+        text: "&Reset zoom (100%)"
+        enabled: acts.zoomable
+        onTriggered: acts.store.submit("chord_sheet_zoom_reset", {})
     }
 }

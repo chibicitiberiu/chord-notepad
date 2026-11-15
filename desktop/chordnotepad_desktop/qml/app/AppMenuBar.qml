@@ -129,6 +129,7 @@ MenuBar {
         KeyHintItem { objectName: "barIndent"; action: bar.pane.indentAction; keyHint: "Tab" }
         KeyHintItem { objectName: "barUnindent"; action: bar.pane.unindentAction; keyHint: "Shift+Tab" }
         MenuSeparator { }
+        MenuItem { objectName: "barPicker"; action: bar.pane.pickerAction }
         KeyHintItem { objectName: "barOverwrite"; action: bar.pane.overwriteAction; keyHint: "Insert" }
     }
     Menu {
@@ -162,12 +163,27 @@ MenuBar {
         }
         Menu {
             id: sheetViews
+            objectName: "barSheetViews"
             title: "Chord sheet &view"
             enabled: bar.sheetActions !== null
             MenuItem { action: bar.sheetActions ? bar.sheetActions.view1Action : null }
             MenuItem { action: bar.sheetActions ? bar.sheetActions.view2Action : null }
             MenuItem { action: bar.sheetActions ? bar.sheetActions.view3Action : null }
             MenuItem { action: bar.sheetActions ? bar.sheetActions.view4Action : null }
+            MenuSeparator { }
+            // The sheet's zoom (its − % + pill): no keys of its own, Ctrl+wheel over it.
+            KeyHintItem {
+                objectName: "barSheetZoomIn"; keyHint: "Ctrl+wheel"
+                action: bar.sheetActions ? bar.sheetActions.zoomInAction : null
+            }
+            KeyHintItem {
+                objectName: "barSheetZoomOut"; keyHint: "Ctrl+wheel"
+                action: bar.sheetActions ? bar.sheetActions.zoomOutAction : null
+            }
+            MenuItem {
+                objectName: "barSheetZoomReset"
+                action: bar.sheetActions ? bar.sheetActions.zoomResetAction : null
+            }
         }
         MenuSeparator { }
         MenuItem { action: bar.actions.wordWrapAction }

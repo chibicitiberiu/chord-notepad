@@ -353,6 +353,39 @@ def test_the_zoom_pill_steps_and_its_limits_turn_the_buttons_off(sh):
     assert sh.it("sheetZoomLabel").property("text") == "50%"
 
 
+def test_the_view_menus_sheet_zoom_steps_like_the_pill(sh):
+    # Tibi (2026-11-15): the sheet's zoom in the menus too (View › Chord
+    # sheet view), with Ctrl+wheel shown as the way to it (no keys of its own).
+    from PySide6.QtCore import QMetaObject
+    staff_view(sh)
+    acts = {n: sh.it(f"sheetZoom{n}Action") for n in ("In", "Out", "Reset")}
+    for n, row in (("In", "barSheetZoomIn"), ("Out", "barSheetZoomOut"), ("Reset", "barSheetZoomReset")):
+        assert sh.it(row).property("text") == acts[n].property("text")
+    assert sh.it("barSheetZoomIn").property("shortcutText") == "Ctrl+wheel"
+    assert sh.it("barSheetZoomOut").property("shortcutText") == "Ctrl+wheel"
+    assert all(a.property("enabled") for a in acts.values())
+    QMetaObject.invokeMethod(sh.it("barSheetZoomIn"), "click")
+    sh.qtbot.waitUntil(lambda: sh.sheet_state("zoom") == pytest.approx(1.2), timeout=2000)
+    assert sh.sent("chord_sheet_zoom") == [{"step": 1}]
+    sh.qtbot.waitUntil(lambda: sh.it("sheetZoomLabel").property("text") == "120%", timeout=2000)
+    QMetaObject.invokeMethod(sh.it("barSheetZoomOut"), "click")
+    sh.qtbot.waitUntil(lambda: sh.sheet_state("zoom") == pytest.approx(1.0), timeout=2000)
+    QMetaObject.invokeMethod(sh.it("barSheetZoomOut"), "click")
+    sh.qtbot.waitUntil(lambda: sh.sheet_state("zoom") < 0.9, timeout=2000)
+    QMetaObject.invokeMethod(sh.it("barSheetZoomReset"), "click")
+    sh.qtbot.waitUntil(lambda: sh.sheet_state("zoom") == 1.0, timeout=2000)
+    assert sh.sent("chord_sheet_zoom_reset") == [{}]
+    # The model's limits turn the ends off, as the pill's buttons.
+    sh.store.submit("chord_sheet_zoom", {"step": 20})
+    sh.qtbot.waitUntil(lambda: sh.sheet_state("zoom") == pytest.approx(2.5), timeout=2000)
+    sh.run()
+    assert not acts["In"].property("enabled") and acts["Out"].property("enabled")
+    sh.store.submit("chord_sheet_zoom", {"step": -30})
+    sh.qtbot.waitUntil(lambda: sh.sheet_state("zoom") == pytest.approx(0.5), timeout=2000)
+    sh.run()
+    assert acts["In"].property("enabled") and not acts["Out"].property("enabled")
+
+
 def test_clicking_the_percent_resets_the_zoom(sh):
     staff_view(sh)
     sh.click_on(sh.it("sheetZoomIn"))

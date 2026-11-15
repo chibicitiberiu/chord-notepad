@@ -471,3 +471,36 @@ def test_compose_value_refuses_what_isnt_a_value():
     assert compose_value("loop", {"label": "verse", "count": 0}) == ""
     assert compose_value("key", {}) == ""
     assert compose_value("nope", {"value": "x"}) == ""
+
+
+# -- Edit › Change value… -------------------------------------------------------------------
+
+
+def test_the_edit_menus_change_value_opens_the_caret_picker(ed):
+    # Tibi (2026-11-15): every edit command in the Edit menu, Alt+Down's too.
+    from PySide6.QtCore import QMetaObject
+    song(ed, TEXT)
+    action, row = ed.item("pickerAction"), ed.item("barPicker")
+    assert row.property("text") == action.property("text")
+    assert row.property("text").replace("&", "") == "Change value…"
+    assert row.property("shortcutText") == "Alt+Down"
+    ed.set_cursor(TEXT.index("C G") + 1)                 # a chord line: no picker
+    ed.run(30)
+    assert action.property("enabled") is False and row.property("enabled") is False
+    caret_in(ed, TEXT, "{key: G}")
+    ed.qtbot.waitUntil(lambda: action.property("enabled") is True, timeout=1000)
+    QMetaObject.invokeMethod(row, "click")              # as a click on the menu row
+    ed.qtbot.waitUntil(lambda: is_open(ed), timeout=1000)
+    assert action.property("enabled") is False           # not again while it shows
+
+
+def test_change_value_is_off_while_playing(ed):
+    song(ed, TEXT)
+    caret_in(ed, TEXT, "{key: G}")
+    action = ed.item("pickerAction")
+    ed.qtbot.waitUntil(lambda: action.property("enabled") is True, timeout=1000)
+    ed.harness.player.auto_play = False
+    ed.store.submit("play_pause", {"from_offset": None})
+    ed.qtbot.waitUntil(lambda: ed.area.property("readOnly") is True, timeout=3000)
+    assert action.property("enabled") is False
+    ed.store.submit("stop")
