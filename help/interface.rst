@@ -562,12 +562,19 @@ The User Interface
    The Status Bar
    --------------
 
-   The strip along the bottom shows messages ("Opened: ...", "Saved: ...",
-   why something was refused), the line and column of the cursor and the
-   song's notation. While a song plays it shows the bar, the tempo, the time
-   signature, the key and the chord that is sounding, with "Read-only while
-   playing · Shift+F5 stops" at the right. Typing into the text then says
-   why nothing happens.
+   The strip along the bottom shows, on the left, messages ("Opened: ...",
+   "Saved: ...", why something was refused) and the song's tempo, time
+   signature and key. On the right it shows the line and column of the cursor
+   and the song's notation.
+
+   While a song plays, the left side shows "Playing" and the chord that is
+   sounding, with a coloured dot, then the bar ("Bar 2 / 125"), the tempo, the
+   time signature and the key in force at that chord, so a key or tempo
+   change in the middle of the song shows up as it plays. When the tempo was
+   clamped by a relative change, the tempo is tinted and its tooltip says
+   where. Paused, the same shows without the dot. A small amber badge at the
+   right says "Read-only while playing · Shift+F5 stops"; typing into the
+   text then turns it red and says why nothing happens.
 
 .. only:: android
 

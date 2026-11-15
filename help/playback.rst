@@ -155,7 +155,8 @@ While playing:
      conversions, the Directives sidebar and the chord identifier) leave it
      unchanged until you stop.
    * The **current chord** is highlighted in yellow
-   * The **status bar** shows: bar number, BPM, time signature, key, and chord name
+   * The **status bar** shows the chord that is sounding, the bar, the tempo,
+     the time signature and the key (see :ref:`playback-song-defaults`)
    * The editor **auto-scrolls** to keep the playing chord visible (sideways
      too, while word wrap is off)
 
@@ -676,13 +677,20 @@ Different instruments can highlight different aspects of a chord progression.
 
 .. only:: desktop
 
-   During playback, the status bar at the bottom shows useful information:
+   During playback, the left of the status bar at the bottom shows:
 
-   * **Bar number** - Which measure you're in (e.g., "Bar 3/8")
-   * **BPM** - Current tempo
+   * **Playing chord** - "Playing" and the name of the chord sounding, with a
+     coloured dot
+   * **Bar number** - Which measure you're in (e.g., "Bar 3 / 8")
+   * **BPM** - Current tempo (tinted when a relative change was clamped; hover
+     it to see where)
    * **Time signature** - Current time signature
    * **Key** - Current key
-   * **Playing chord** - Name of the chord currently sounding
+
+   The tempo, time signature and key are those in force at the chord that
+   sounds, so a ``{key}``, ``{time}`` or ``{bpm}`` in the middle of the song
+   shows as it takes effect. Paused, the same shows with "Paused" and no dot;
+   when nothing plays, the song's starting tempo, time signature and key show.
 
    Watch the status bar to keep track of where you are in longer songs.
 
