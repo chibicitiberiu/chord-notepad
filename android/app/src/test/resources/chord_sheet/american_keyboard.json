@@ -1,11 +1,11 @@
 {
  "background": "#fbfbf8",
- "byte_length": 33565,
+ "byte_length": 36356,
  "content": {
-  "coord_sum": 6748423.824465036,
-  "count": 943,
+  "coord_sum": 6761197.11724782,
+  "count": 944,
   "first": {
-   "fill": "#eef0ec",
+   "fill": "#eceef2",
    "h": 2.9189188480377197,
    "op": "rect",
    "outline": null,
@@ -19,26 +19,26 @@
    "y": 124.16216278076172
   },
   "histogram": {
-   "line": 127,
+   "line": 128,
    "rect": 683,
    "text": 133
   },
   "last": {
-   "fill": "#22323a",
+   "fill": "#5c6bc0",
    "h": 1.9189189672470093,
    "op": "rect",
-   "outline": "#22323a",
-   "radius": 0.0,
+   "outline": null,
+   "radius": 0.6396396160125732,
    "tags": [
     "slot:132",
     "note:66"
    ],
    "w": 92.0,
-   "width": 0.5,
+   "width": 1.0,
    "x": 11906.0,
    "y": 45.35135269165039
   },
-  "tag_count": 1611
+  "tag_count": 1612
  },
  "content_height": 130.0,
  "content_width": 12012.0,
@@ -55,7 +55,7 @@
  ],
  "gutter_variants": [
   {
-   "coord_sum": 4623.172974824905,
+   "coord_sum": 4687.767567873001,
    "count": 40,
    "first": {
     "fill": "#ffffff",
@@ -67,7 +67,7 @@
      "gutter",
      "gutter-key"
     ],
-    "w": 44.0,
+    "w": 46.0,
     "width": 1.0,
     "x": 0.0,
     "y": 127.0810775756836
@@ -87,13 +87,13 @@
      "label"
     ],
     "text": "C5",
-    "x": 42.0,
+    "x": 44.0,
     "y": 29.29729652404785
    },
    "tag_count": 80
   }
  ],
- "gutter_width": 44.0,
+ "gutter_width": 46.0,
  "height": 130.0,
  "highlight": "#ffe58a",
  "lane": {
@@ -147,7 +147,7 @@
  ],
  "slot_count": 133,
  "slot_x_sum": 821904.0,
- "string_count": 306,
+ "string_count": 309,
  "view_id": "keyboard",
  "zoom": 1.0
 }

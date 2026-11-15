@@ -1024,10 +1024,11 @@ version 2), and the bridge hands it out (`SessionHandle.chord_sheet_buffer`,
 too (M4: `ui/chordsheet/ChordSheetBuffer.kt`, `ChordSheetController.kt`,
 `ChordSheetPainter.kt`). A pinch sends its whole step count as one
 `chord_sheet_zoom {step}`, which applies `|step|` steps and repaints once.
-The zoom buttons and the pinch exist only where `ChordSheetState.zoom_supported`
-(staff, fret cards and tab; not the piano roll). Fret cards only grow past the
-strip height cap (230 dp x zoom), so on a short strip `+` changes nothing until
-`-` has shrunk the cards. While a buffer is being fetched
+The zoom buttons and the pinch exist only where `ChordSheetState.zoom_supported`,
+which is every view now: the piano roll zooms too, stretching time while its
+rows keep the strip height. Fret cards only grow past the strip height cap
+(230 dp x zoom), so on a short strip `+` changes nothing until `-` has shrunk
+the cards. While a buffer is being fetched
 (`ChordSheetController.loading`) a thin progress bar shows under the tabs.
 
 The chord sheet's renderers (`core/chordnotepad/chord_sheet/`) are headless:

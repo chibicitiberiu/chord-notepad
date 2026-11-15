@@ -38,6 +38,7 @@ C G7 C*3
 # (fixture name, song, view, zoom, height)
 CASES = [
     ("american_keyboard", "american", "keyboard", 1.0, 130.0),
+    ("american_keyboard_z125_h400", "american", "keyboard", 1.25, 400.0),
     ("american_staff", "american", "staff", 1.0, 130.0),
     ("american_fret", "american", "fret", 1.0, 130.0),
     ("american_tab", "american", "tab", 1.0, 130.0),

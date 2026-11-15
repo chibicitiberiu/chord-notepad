@@ -116,15 +116,43 @@ def test_the_piano_roll_in_the_dark_theme_takes_the_apps_greys():
     assert light_keys[sheet_paint.GUTTER_BLACK] == QColor("#31424a")
 
 
+def test_the_rolls_note_names_are_white_on_light_bars_and_dark_on_dark_ones():
+    from chordnotepad.chord_sheet import piano_roll
+    label, fill = piano_roll.NOTE_LABEL, piano_roll.NOTE_FILL
+    surface = QColor("#252629")
+    assert themed_color(label, QColor(label), False, SURFACE).lightnessF() > 0.98
+    dark_label = themed_color(label, QColor(label), True, surface)
+    assert dark_label == QColor("#1d1e22")                 # not dark_variant's grey
+    assert label.lower() != sheet_paint.GUTTER_WHITE        # Android maps that one otherwise
+    # Readable on every bar colour in both themes (WCAG contrast >= 3).
+    def contrast(a, b):
+        def lum(c):
+            def ch(v):
+                return v / 12.92 if v <= 0.03928 else ((v + 0.055) / 1.055) ** 2.4
+            return 0.2126 * ch(c.redF()) + 0.7152 * ch(c.greenF()) + 0.0722 * ch(c.blueF())
+        hi, lo = sorted((lum(a), lum(b)), reverse=True)
+        return (hi + 0.05) / (lo + 0.05)
+    bars = [fill, HAND_COLORS["lh"], HAND_COLORS["rh"], *renderer_interface_voice_colors()]
+    for bar in bars:
+        assert contrast(QColor(label), QColor(bar)) >= 3, bar
+        assert contrast(dark_label, themed_color(bar, QColor(bar), True, surface)) >= 3, bar
+
+
+def renderer_interface_voice_colors():
+    from chordnotepad.chord_sheet.renderer_interface import VOICE_COLORS
+    return VOICE_COLORS
+
+
 def test_the_dark_remap_matches_the_kotlin_formula_on_the_sheets_colours():
     """Every colour the renderers use, against an independent HSL computation
     of ChordSheetTheme.kt's rule (colorsys)."""
     import colorsys
-    from chordnotepad.chord_sheet import renderer_interface, marker_lane
+    from chordnotepad.chord_sheet import marker_lane, piano_roll, renderer_interface
 
     specs = {v for v in vars(renderer_interface).values() if isinstance(v, str) and v.startswith("#")}
     specs |= {v for v in vars(marker_lane).values() if isinstance(v, str) and v.startswith("#")}
     specs |= set(renderer_interface.VOICE_COLORS) | set(marker_lane._KIND_COLOR.values())
+    specs.add(piano_roll.NOTE_FILL)
     assert len(specs) > 8
     for spec in specs:
         c = QColor(spec)
@@ -253,6 +281,39 @@ def test_dark_paints_the_remapped_colours():
     image, _ = paint(view_of(ops.ops), dark=True, surface=dark_surface)
     assert image.pixelColor(30, 25).name() == dark_variant(QColor(NOTE_INK)).name()
     assert image.pixelColor(80, 25).name() == dark_surface.name()
+
+
+@pytest.mark.parametrize("dark", [False, True])
+def test_the_piano_roll_names_its_notes_in_its_rounded_bars_on_a_tall_strip(dark):
+    from chordnotepad.audio.guitar_chord_picker import GuitarChordPicker
+    from chordnotepad.chord_sheet import piano_roll
+    from chordnotepad.chord_sheet.ops import RectOp, TextOp
+    from chordnotepad.chord_sheet.pack import collect_view
+    from chordnotepad.services.song_parser_service import SongParserService
+    from chordnotepad.services.song_renderer import SongRenderer
+
+    rendered = SongRenderer().render(
+        lines=SongParserService().detect_chords_in_text("{key: Eb}\nEb*4  Ab*4\n"),
+        initial_key="C", initial_bpm=100, initial_time_sig=(4, 4),
+        note_picker=GuitarChordPicker("standard"))
+    view = collect_view(rendered, piano_roll.PianoRollRenderer(), 1.0, 400.0)
+    labels = [op for op in view.content if isinstance(op, TextOp) and "note-label" in op.tags]
+    assert labels and any(op.s.startswith("Eb") for op in labels)
+    surface = QColor("#252629") if dark else SURFACE
+    image, _ = paint(view, width=260, height=400, dpr=1.25, dark=dark, surface=surface)
+    ink = themed_color(piano_roll.NOTE_LABEL, QColor(piano_roll.NOTE_LABEL), dark, surface)
+    fill = themed_color(piano_roll.NOTE_FILL, QColor(piano_roll.NOTE_FILL), dark, surface)
+    for label in labels:
+        bar = next(op for op in view.content if isinstance(op, RectOp)
+                   and label.tags[-1] in op.tags and label.tags[0] in op.tags)
+        assert bar.radius > 0
+        # The bar's middle holds its fill, and its name's ink inside it.
+        box = [image.pixelColor(round(x * 1.25), round(y * 1.25))
+               for x in range(int(bar.x) + 2, int(bar.x + 24)) for y in range(int(bar.y) + 2, int(bar.y + bar.h) - 1)]
+        assert any(abs(c.lightness() - ink.lightness()) < 30 for c in box), label.s
+        assert any(c.name() == fill.name() for c in box)
+        # The corners are cut.
+        assert image.pixelColor(round(bar.x * 1.25), round(bar.y * 1.25)).name() != fill.name()
 
 
 def test_text_and_glyphs_land_on_device_pixels_at_125():
@@ -494,10 +555,19 @@ def test_alt_digits_switch_the_view(sh):
 def test_zoom_buttons_and_ctrl_wheel_follow_the_cores_rules(sh):
     sh.to_play(1200)
     sh.wait_sheet("keyboard")
-    # No zoom on the piano roll.
-    assert not sh.it("sheetZoomIn").isVisible() and not sh.it("sheetZoomLabel").isVisible()
+    # The piano roll zooms too (time only: its rows fill the strip at any zoom).
+    roll_width = sh.model.sheet.content_width
+    roll_height = sh.model.sheet.content_height
+    assert sh.it("sheetZoomIn").isVisible() and sh.it("sheetZoomLabel").isVisible()
+    sh.click_on(sh.it("sheetZoomIn"))
+    sh.qtbot.waitUntil(lambda: sh.sheet_state("zoom") == pytest.approx(1.2), timeout=2000)
+    sh.wait_sheet("keyboard")
+    sh.qtbot.waitUntil(lambda: sh.model.sheet.zoom == pytest.approx(1.2), timeout=2000)
+    assert sh.model.sheet.content_width > roll_width * 1.1
+    assert sh.model.sheet.content_height == roll_height
     sh.store.submit("set_chord_sheet_view", {"view_id": "staff"})
     sh.wait_sheet("staff")
+    sh.qtbot.waitUntil(lambda: sh.sheet_state("zoom") == 1.0, timeout=2000)
     width = sh.model.sheet.content_width
     assert sh.it("sheetZoomIn").isVisible()
     sh.click_on(sh.it("sheetZoomIn"))
@@ -508,16 +578,16 @@ def test_zoom_buttons_and_ctrl_wheel_follow_the_cores_rules(sh):
     # Ctrl+wheel: a step per notch, about the pointer.
     sh.wheel_at(sh.slot_point(1), dy=240, modifiers=CTRL)
     sh.qtbot.waitUntil(lambda: sh.sheet_state("zoom") == pytest.approx(1.728), timeout=2000)
-    assert sh.sent("chord_sheet_zoom") == [{"step": 1}, {"step": 2}]
+    assert sh.sent("chord_sheet_zoom") == [{"step": 1}, {"step": 1}, {"step": 2}]
     # Up to 250%, where + turns off; persisted per view (only values that aren't 1).
     sh.store.submit("chord_sheet_zoom", {"step": 10})
     sh.qtbot.waitUntil(lambda: sh.sheet_state("zoom") == pytest.approx(2.5), timeout=2000)
     sh.run()
     assert not sh.it("sheetZoomIn").isEnabled() and sh.it("sheetZoomOut").isEnabled()
-    assert sh.config("chord_sheet_zoom") == {"staff": 2.5}
-    # The piano roll keeps its own (none).
+    assert sh.config("chord_sheet_zoom") == {"keyboard": 1.2, "staff": 2.5}
+    # The piano roll keeps its own.
     sh.store.submit("set_chord_sheet_view", {"view_id": "keyboard"})
-    sh.qtbot.waitUntil(lambda: sh.sheet_state("zoom") == 1.0, timeout=2000)
+    sh.qtbot.waitUntil(lambda: sh.sheet_state("zoom") == pytest.approx(1.2), timeout=2000)
 
 
 def test_the_wheel_scrolls_and_stops_at_the_ends(sh):

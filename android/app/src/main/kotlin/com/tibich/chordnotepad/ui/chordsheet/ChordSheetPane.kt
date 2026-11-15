@@ -348,7 +348,9 @@ private fun ChordSheetStrip(
         }
         Row(Modifier.fillMaxSize()) {
             if (gutterWidth > 0f && sheet != null) {
-                Canvas(Modifier.width(gutterWidth.dp).fillMaxHeight()) {
+                // Clipped: the piano roll's black keys start left of the
+                // gutter so only their right-hand corners show rounded.
+                Canvas(Modifier.width(gutterWidth.dp).fillMaxHeight().clipToBounds()) {
                     val variant = sheet.gutterAt(scroll.offset / density) ?: return@Canvas
                     withTransform({
                         translate(0f, laneHeight * density)

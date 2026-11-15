@@ -31,6 +31,16 @@ class ChordSheetThemeTest {
         assertTrue(lum(voice) >= 0.65f)
         assertTrue(voice.red > voice.green)
     }
+
+    @Test
+    fun `the piano roll's note names are white on light bars and dark on the dark theme's`() {
+        val label = Color(0xFFFDFDFF)
+        assertEquals(label, themedSheetColor("#fdfdff", label, AppColors.Light))
+        val dark = themedSheetColor("#fdfdff", label, AppColors.Dark)
+        assertTrue(lum(dark) < 0.15f)
+        // The bars it sits on get lighter in the dark theme (the indigo note fill).
+        assertTrue(lum(themedSheetColor("#5c6bc0", Color(0xFF5C6BC0), AppColors.Dark)) >= 0.65f)
+    }
 }
 
 class ChordSheetPaperTest {

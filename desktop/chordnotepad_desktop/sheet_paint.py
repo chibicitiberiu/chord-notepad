@@ -35,24 +35,29 @@ from PySide6.QtGui import (
 
 from chordnotepad.chord_sheet import clef_assets
 from chordnotepad.chord_sheet.ops import ImageOp, LineOp, OvalOp, PolygonOp, RectOp, TextOp
+from chordnotepad.chord_sheet import piano_roll
 from chordnotepad.chord_sheet.pack import ViewOps
 from chordnotepad.chord_sheet.renderer_interface import HAND_COLORS, NOTE_INK, STRIP_BG
 
 # -- Colours --------------------------------------------------------------------------
 
 #: The piano roll's gutter keys and their edges (``piano_roll.py``).
-GUTTER_WHITE = "#ffffff"
-GUTTER_BLACK = "#31424a"
-GUTTER_EDGE = "#b9c2c7"
+GUTTER_WHITE = piano_roll.GUTTER_WHITE
+GUTTER_BLACK = piano_roll.GUTTER_BLACK
+GUTTER_EDGE = piano_roll.GUTTER_BORDER
 GUTTER_LABEL = "#22323a"
 #: The piano roll's row shading and C guides (``piano_roll.py``; no other
 #: view uses these colours).
-ROLL_BLACK_ROW = "#eef0ec"
-ROLL_GUIDE_C = "#d9ddd6"
-ROLL_GUIDE_C4 = "#a9b0a6"
+ROLL_BLACK_ROW = piano_roll.BLACK_ROW_SHADE
+ROLL_GUIDE_C = piano_roll.GUIDE_C
+ROLL_GUIDE_C4 = piano_roll.GUIDE_C4
+#: The piano roll's note names: white on the light theme's bars, the dark
+#: text colour (``Theme.qml``'s light ``text``) on the dark theme's lighter ones.
+ROLL_NOTE_LABEL = piano_roll.NOTE_LABEL
 _DARK_FIXED = {
     HAND_COLORS["rh"]: QColor("#78a6d8"),
     HAND_COLORS["lh"]: QColor("#d09a6c"),
+    ROLL_NOTE_LABEL: QColor("#1d1e22"),
 }
 #: The keyboard in the dark theme: not inverted (that reads wrong), in the
 #: app's own neutral greys (``Theme.qml``: ``icon``, ``muted``, ``input``)
@@ -127,9 +132,10 @@ def dark_variant(color: QColor) -> QColor:
 def themed_color(spec: str, parsed: QColor, dark: bool, surface: QColor) -> QColor:
     """A buffer colour as the sheet paints it: the strip's paper is the
     panel's ``surface`` in both themes; in the dark one the hands' bars and
-    the piano roll's white keys get fixed colours, its black keys stay, and
-    and the piano roll's rows follow the surface (:func:`roll_dark_colors`);
-    everything else goes through :func:`dark_variant`."""
+    the piano roll's note names get fixed colours, and the piano roll's rows
+    follow the surface (:func:`roll_dark_colors`); everything else goes
+    through :func:`dark_variant`. (The roll's keyboard has its own palette,
+    :func:`gutter_palette`.)"""
     low = spec.lower()
     if low == STRIP_BG:
         return QColor(surface)

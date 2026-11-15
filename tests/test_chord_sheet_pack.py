@@ -119,6 +119,19 @@ def test_pack_view_hands_the_notation_to_the_renderer(song, notation):
     assert recorder.seen == {notation}
 
 
+def test_the_piano_roll_packs_its_names_in_the_notation(song):
+    american = pack.unpack(pack.pack_view(song, "keyboard", 1.0, 400.0))
+    european = pack.unpack(pack.pack_view(song, "keyboard", 1.0, 400.0, notation="european"))
+    assert european.gutter_width > american.gutter_width
+
+    def names(view, tag):
+        ops = view.content + [op for variant in view.gutter_variants for op in variant]
+        return {op.s for op in ops if isinstance(op, TextOp) and tag in op.tags}
+
+    assert "C4" in names(american, "label") and "Do4" in names(european, "label")
+    assert "E4" in names(american, "note-label") and "Mi4" in names(european, "note-label")
+
+
 def test_the_context_defaults_to_american(song):
     assert SheetContext(song=song).notation == "american"
     recorder = _NotationRecorder()
@@ -315,7 +328,7 @@ def test_packing_is_deterministic(song):
 #     [print(v, len(d), hashlib.sha256(d).hexdigest()) for v in t.VIEWS \
 #      for d in [t.pack.pack_view(s, v, 1.0, t.HEIGHT)]]"
 VIEW_GOLDEN = {
-    "keyboard": (5904, "bc4221a98ac567fb71b0da0be70ceaf5dad89b3dcf972869dfae42d7d6dc6b6a"),
+    "keyboard": (6323, "736210f17de2758d50c98db1fd7a60fae4912407066a523ed855592d90dc7cab"),
     "staff": (5092, "6569dcf7f85d894b963a4d14a78c5712d19a83e118173e0e9f8c6999dc4116b0"),
     "fret": (9372, "821da82f4c5b20f88c90590320d06fe1245ddbc3697105aca1dbe08d8d248fab"),
     "tab": (6547, "532cc9f7d4f77e016efc42ec13044b9b2ab48ca94ce3bc1862c133dee7e8f209"),

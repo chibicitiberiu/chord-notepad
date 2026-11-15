@@ -24,7 +24,14 @@ private const val STRIP_BG = "#fbfbf8"
 private const val GUTTER_WHITE = "#ffffff"
 private const val GUTTER_BLACK = "#31424a"
 
+/**
+ * `piano_roll.NOTE_LABEL`: the note names in the piano roll's bars, white on
+ * the light bars and dark ink on the dark theme's lighter ones.
+ */
+private const val NOTE_LABEL = "#fdfdff"
+
 private val DarkRh = Color(0xFF78A6D8)
+private val DarkNoteLabel = Color(0xFF1D1E22)
 private val DarkLh = Color(0xFFD09A6C)
 private val DarkGutterWhite = Color(0xFFD3D6DD)
 
@@ -41,6 +48,7 @@ fun themedSheetColor(spec: String, parsed: Color, colors: AppColors): Color {
         HAND_LH -> DarkLh
         GUTTER_WHITE -> DarkGutterWhite
         GUTTER_BLACK -> parsed
+        NOTE_LABEL -> DarkNoteLabel
         else -> darkVariant(parsed)
     }
 }

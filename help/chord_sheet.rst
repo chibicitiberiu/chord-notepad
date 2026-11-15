@@ -126,10 +126,19 @@ Piano roll
 
 A DAW-style piano roll: pitch runs bottom-to-top, time runs left to right,
 and every voiced note is a horizontal bar whose length follows the chord's
-duration. Rows for black-key pitches are shaded and each C gets a guide
-line, with a small keyboard along the left edge for orientation. Available
-for any voicing. Bars are color-coded: for the piano model the two hands
-get two tones, and for an ensemble each voice gets its own color.
+duration. Rows for black-key pitches are shaded and a guide line marks each
+octave under its C (a darker one under middle C), with a small keyboard
+along the left edge for orientation, its Cs labelled in the song's notation
+(C4 or Do4). Available for any voicing. Bars are color-coded: for the piano
+model the two hands get two tones, for an ensemble each voice gets its own
+color, and other voicings use one indigo.
+
+When a bar is tall and long enough, it carries its note's name, such as
+F#3 (or Fa#3 in European notation). Notes are named the way the Staff view
+spells them, from the chord and the key, so an E flat chord in E flat shows
+Eb, G and Bb, never D#. The bars are taller when the strip is taller or the
+song spans fewer notes; on a short strip the names are left out. Zooming
+the piano roll stretches time only: its rows always fill the strip.
 
 .. platform-figure:: chord-sheet-piano-roll
    :platforms: desktop
@@ -248,9 +257,9 @@ visible chord once you scroll past a ``{key}`` change).
 
 .. only:: desktop
 
-   The Staff, Fret cards, and Tab views have **−** / **+** buttons at the right
-   end of the strip's header to make their drawing smaller or larger. The zoom
-   level is remembered per view.
+   Every view has **−** / **+** buttons at the right end of the strip's header
+   to make its drawing smaller or larger (the piano roll gets wider or
+   narrower). The zoom level is remembered per view.
 
    To move along the song, scroll the mouse wheel over the strip, drag it
    sideways with the mouse (the pointer turns into a closed hand; a drag
@@ -258,11 +267,10 @@ visible chord once you scroll past a ``{key}`` change).
 
 .. only:: android
 
-   The Staff, Fret cards, and Tab views have zoom buttons (magnifiers with
-   **−** and **+**) at the right end of the strip's header to make their
-   drawing smaller or larger, or you can pinch the sheet with two fingers.
-   The piano roll doesn't zoom, so it shows no zoom buttons and ignores a
-   pinch. The zoom level is remembered per view.
+   Every view has zoom buttons (magnifiers with **−** and **+**) at the right
+   end of the strip's header to make its drawing smaller or larger, or you
+   can pinch the sheet with two fingers (the piano roll gets wider or
+   narrower). The zoom level is remembered per view.
 
    Swipe the strip sideways to scroll through the song.
 
