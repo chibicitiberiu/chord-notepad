@@ -37,13 +37,6 @@ Rectangle {
     readonly property string activeView: pane.st.active_view || ""
     readonly property real zoom: pane.st.zoom || 1.0
     readonly property bool zoomable: pane.st.zoom_supported === true
-    readonly property var vm: pane.store.states.VoicingMenuState
-    readonly property string lockedReason: pane.vm.locked_reason || ""
-    readonly property string voicingLabel: {
-        for (var g of pane.vm.groups || [])
-            for (var c of g) if (c.value === pane.vm.selected) return c.label
-        return ""
-    }
 
     // Ctrl+wheel's eighths of a notch not turned into zoom steps yet (touchpads).
     property real zoomWheel: 0
@@ -96,33 +89,16 @@ Rectangle {
                     }
                 }
                 Item { Layout.fillWidth: true }
-                // The voicing is locked while a song plays: the tooltip with the
-                // reason hangs off this parent (pitfall 16), as in the player bar.
-                Item {
+                VoicingButton {
                     objectName: "sheetVoicingTip"
                     visible: pane.showVoicing
-                    implicitWidth: voicingBtn.implicitWidth
-                    implicitHeight: voicingBtn.implicitHeight
-                    HoverHandler { id: voicingHover }
-                    ToolTip.visible: voicingHover.hovered && !voicingMenu.visible
-                    ToolTip.delay: 600
-                    ToolTip.text: "Voicing: " + pane.voicingLabel + (pane.lockedReason ? " (" + pane.lockedReason + ")" : "")
-                    FlatDrop {
-                        id: voicingBtn
-                        objectName: "sheetVoicing"
-                        anchors.fill: parent
-                        implicitHeight: Theme.controlSmall
-                        iconSize: Theme.iconSmall
-                        iconName: "music"
-                        text: pane.voicingLabel.replace(/ - [A-G]+\)/, ")")
-                        // The label collapses below 150 units.
-                        showText: pane.width > Theme.px(150)
-                        maxTextWidth: Theme.px(30)
-                        enabled: pane.lockedReason === ""
-                        checked: voicingMenu.visible
-                        onClicked: voicingMenu.popup(voicingBtn, voicingBtn.width - voicingMenu.implicitWidth,
-                                                     -voicingMenu.implicitHeight - Theme.gap1)
-                    }
+                    store: pane.store
+                    buttonName: "sheetVoicing"
+                    menuName: "sheetVoicingMenu"
+                    compact: true
+                    // The label collapses below 150 units.
+                    showText: pane.width > Theme.px(150)
+                    onEditVoicings: pane.editVoicings()
                 }
                 Item { visible: pane.showVoicing; Layout.preferredWidth: Theme.gap2 }
                 Label {
@@ -216,12 +192,5 @@ Rectangle {
                 policy: ScrollBar.AlwaysOn
             }
         }
-    }
-
-    VoicingMenu {
-        id: voicingMenu
-        objectName: "sheetVoicingMenu"
-        store: pane.store
-        onEditVoicings: pane.editVoicings()
     }
 }

@@ -37,7 +37,6 @@ Rectangle {
     readonly property var tb: bar.store.states.ToolbarState
     readonly property var pb: bar.store.states.PlaybackState
     readonly property var doc: bar.store.states.DocumentState
-    readonly property var vm: bar.store.states.VoicingMenuState
     readonly property var im: bar.store.states.InstrumentMenuState
     readonly property bool playing: bar.tb.play_action === "pause"
     readonly property var sections: bar.pb.sections || []
@@ -45,12 +44,6 @@ Rectangle {
     readonly property string title: bar.doc.display_name || ""
     readonly property bool dirty: bar.doc.is_modified === true
     readonly property real speed: bar.tb.multiplier_pct || 100
-    readonly property string lockedReason: bar.vm.locked_reason || ""
-    readonly property string voicingLabel: {
-        for (var g of bar.vm.groups || [])
-            for (var c of g) if (c.value === bar.vm.selected) return c.label
-        return ""
-    }
     readonly property string instrumentLabel: {
         for (var f of bar.im.families || [])
             for (var c of f.items) if (parseInt(c.value) === bar.im.current) return bar.player.instrumentName(c.label)
@@ -246,28 +239,11 @@ Rectangle {
                 }
             }
             Sep { visible: !bar.titleShown }
-            // The voicing is locked while a song plays: the button is disabled,
-            // so its tooltip (with the reason) hangs off this parent (pitfall 16).
-            Item {
+            VoicingButton {
                 objectName: "voicingTip"
-                implicitWidth: voicingBtn.implicitWidth
-                implicitHeight: voicingBtn.implicitHeight
-                HoverHandler { id: voicingHover }
-                ToolTip.visible: voicingHover.hovered && !voicingMenu.visible
-                ToolTip.delay: 600
-                ToolTip.text: "Voicing: " + bar.voicingLabel + (bar.lockedReason ? " (" + bar.lockedReason + ")" : "")
-                FlatDrop {
-                    id: voicingBtn
-                    objectName: "voicingButton"
-                    anchors.fill: parent
-                    iconName: "music"
-                    text: bar.voicingLabel.replace(/ - [A-G]+\)/, ")")
-                    showText: bar.namesShown
-                    maxTextWidth: Theme.px(30)
-                    enabled: bar.lockedReason === ""
-                    checked: voicingMenu.visible
-                    onClicked: voicingMenu.popup(voicingBtn, 0, voicingBtn.height + Theme.gap1)
-                }
+                store: bar.store
+                showText: bar.namesShown
+                onEditVoicings: bar.editVoicings()
             }
             FlatDrop {
                 id: instrumentBtn
@@ -348,7 +324,6 @@ Rectangle {
         model: bar.pickers
         onPicked: (v) => bar.player.applySongValue(songPicker.kind, v)
     }
-    VoicingMenu { id: voicingMenu; store: bar.store; onEditVoicings: bar.editVoicings() }
     InstrumentMenu { id: instrumentMenu; store: bar.store }
 
     // --- Speed: live (it is playback, not text) -------------------------------------------

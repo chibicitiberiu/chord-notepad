@@ -617,6 +617,19 @@ def test_the_voicing_selector_is_locked_while_playing(sh):
                        timeout=2500)
 
 
+def test_the_voicing_label_collapses_below_150_units(sh):
+    sh.store.submit("set_chord_sheet_visible", {"visible": True})
+    sh.qtbot.waitUntil(lambda: sh.it("sheetVoicing").isVisible(), timeout=2000)
+    button, pane = sh.it("sheetVoicing"), sh.it("chordSheetPane")
+    u = qmlEngine(sh.window).singletonInstance("CNTheme", "Theme").property("u")
+    sh.window.setWidth(1400)
+    sh.qtbot.waitUntil(lambda: pane.width() > 150 * u, timeout=2000)
+    sh.qtbot.waitUntil(lambda: button.property("showText") is True, timeout=1000)
+    sh.window.setWidth(round(pane.mapToScene(QPointF(0, 0)).x() + 140 * u))
+    sh.qtbot.waitUntil(lambda: pane.width() <= 150 * u, timeout=2000)
+    sh.qtbot.waitUntil(lambda: button.property("showText") is False, timeout=1000)
+
+
 def test_the_panel_height_is_restored_and_kept_after_a_drag(qapp, qtbot, tmp_path):
     sh = make_sheet(qapp, qtbot, tmp_path, chord_sheet_visible=True, chord_sheet_logical_height=180)
     try:
