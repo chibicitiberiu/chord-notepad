@@ -133,3 +133,101 @@ def test_every_icon_the_qml_names_exists(provider):
     assert {"check", "chevron-down", "menu", "undo", "play"} <= used
     missing = sorted(n for n in used if provider.find(n) is None)
     assert missing == []
+
+
+# -- The ratio tag (Tibi's rail icons cut on the right at 125%) ------------------------
+#
+# A QPainter opened on a QImage that already has a device pixel ratio paints in
+# logical pixels, so the SVG came out `ratio` times too big and lost its right
+# and bottom edge at every ratio but 1. The tag must change nothing but the tag.
+
+def untagged(image):
+    copy = image.copy()
+    copy.setDevicePixelRatio(1.0)
+    return copy
+
+
+@pytest.mark.parametrize("ratio", [1.25, 1.5, 2.0])
+def test_the_ratio_tag_does_not_change_the_drawing(provider, ratio):
+    changed = []
+    for name in sorted(p.stem for p in all_icons()):
+        for px in sorted({round(18 * ratio), round(24 * ratio), 27, 28}):
+            plain, _ = request(provider, f"{name}?c=%23000000&s={px}&d=1")
+            tagged, _ = request(provider, f"{name}?c=%23000000&s={px}&d={ratio}")
+            assert tagged.devicePixelRatio() == ratio
+            if untagged(tagged) != untagged(plain):
+                changed.append(f"{name}@{px}")
+    assert changed == []
+
+
+def ink_margins(image):
+    """Transparent rows/columns around the ink: (left, top, right, bottom)."""
+    w, h = image.width(), image.height()
+    xs = [x for x in range(w) for y in range(h) if image.pixelColor(x, y).alpha() > 8]
+    ys = [y for x in range(w) for y in range(h) if image.pixelColor(x, y).alpha() > 8]
+    return min(xs), min(ys), w - 1 - max(xs), h - 1 - max(ys)
+
+
+@pytest.mark.parametrize("ratio, px", [(1.25, 28), (1.25, 27), (1.5, 33), (2.0, 44)])
+@pytest.mark.parametrize("name", ["braces", "piano", "cog"])
+def test_a_centred_icon_keeps_even_margins_at_a_fractional_ratio(provider, name, ratio, px):
+    # The rail's icons (size iconSize + gap1, 28 device px at 125%) and the gear.
+    image, _ = request(provider, f"{name}?c=%23000000&s={px}&d={ratio}")
+    left, top, right, bottom = ink_margins(image)
+    assert right >= 1 and bottom >= 1, (left, top, right, bottom)
+    assert abs(left - right) <= 1 and abs(top - bottom) <= 1, (left, top, right, bottom)
+
+
+def pixel_icon_in(quick_item):
+    """The first PixelIcon (an item with devicePx) under quick_item."""
+    for child in quick_item.childItems():
+        if child.property("devicePx") is not None:
+            return child
+        found = pixel_icon_in(child)
+        if found is not None:
+            return found
+    return None
+
+
+@pytest.mark.parametrize("ratio", [1.25, 1.5, 2.0])
+def test_the_rail_icons_are_whole_in_the_window(main_window, qtbot, ratio):
+    """Theme.dpr apart from the window's own ratio (offscreen renders at 1.0),
+    as on KDE Wayland where the two disagree: the rail's icons come out whole,
+    with the same space on both sides, not cut at the item's right edge."""
+    from PySide6.QtCore import QRectF
+    from PySide6.QtQml import qmlEngine
+    from PySide6.QtQuick import QQuickItem
+
+    from chordnotepad_desktop.dpr import DprWatcher
+
+    window = main_window.window
+    DprWatcher(window, ratio=lambda: ratio, settle_ms=10, parent=window)
+    theme = qmlEngine(window).singletonInstance("CNTheme", "Theme")
+    qtbot.waitUntil(lambda: window.property("contentReady") and theme.property("dpr") == ratio,
+                    timeout=3000)
+    for key in ("directives", "identifier"):
+        button = window.findChild(QQuickItem, f"rail:{key}")
+        icon = pixel_icon_in(button)
+        qtbot.waitUntil(lambda: icon.property("source").toString().endswith(f"&d={ratio:g}"),
+                        timeout=2000)
+    qtbot.wait(50)
+    grab = window.grabWindow()
+    assert grab.devicePixelRatio() == 1.0
+    for key in ("directives", "identifier"):
+        button = window.findChild(QQuickItem, f"rail:{key}")
+        icon = pixel_icon_in(button)
+        rect = icon.mapRectToScene(QRectF(0, 0, icon.width(), icon.height())).toAlignedRect()
+        crop = grab.copy(rect)
+        paper = crop.pixelColor(0, 0)
+
+        def inked(x, y):
+            c = crop.pixelColor(x, y)
+            return max(abs(c.red() - paper.red()), abs(c.green() - paper.green()),
+                       abs(c.blue() - paper.blue())) > 40
+
+        columns = [x for x in range(crop.width()) if any(inked(x, y) for y in range(crop.height()))]
+        rows = [y for y in range(crop.height()) if any(inked(x, y) for x in range(crop.width()))]
+        left, right = columns[0], crop.width() - 1 - columns[-1]
+        top, bottom = rows[0], crop.height() - 1 - rows[-1]
+        assert right >= 1 and bottom >= 1, (key, left, top, right, bottom)
+        assert abs(left - right) <= 1 and abs(top - bottom) <= 1, (key, left, top, right, bottom)

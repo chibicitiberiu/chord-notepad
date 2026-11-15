@@ -109,22 +109,24 @@ class IconProvider(QQuickImageProvider):
     def _render(self, name: str, px: int, color: str, ratio: float) -> QImage:
         image = QImage(px, px, QImage.Format.Format_ARGB32_Premultiplied)
         image.fill(Qt.GlobalColor.transparent)
-        # Tagged: px device pixels are px / ratio logical, the item's exact size.
-        image.setDevicePixelRatio(ratio)
         renderer = self._renderer(name)
-        if renderer is None:
-            return image
-        tint = QColor(color)
-        if not tint.isValid():
-            logger.warning("Icon %s: %r is not a colour", name, color)
-            tint = QColor("#000000")
-        painter = QPainter(image)
-        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
-        renderer.render(painter, QRectF(0, 0, px, px))
-        painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceIn)
-        painter.fillRect(image.rect(), tint)
-        painter.end()
+        if renderer is not None:
+            tint = QColor(color)
+            if not tint.isValid():
+                logger.warning("Icon %s: %r is not a colour", name, color)
+                tint = QColor("#000000")
+            painter = QPainter(image)
+            painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+            painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
+            renderer.render(painter, QRectF(0, 0, px, px))
+            painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceIn)
+            painter.fillRect(image.rect(), tint)
+            painter.end()
+        # Tagged after painting: px device pixels are px / ratio logical, the
+        # item's exact size. A QPainter on a tagged image works in logical
+        # pixels, so tagging first drew the SVG `ratio` times too big and cut
+        # it at the right and bottom edges (at 1.25, 2.0, ...).
+        image.setDevicePixelRatio(ratio)
         return image
 
     def _renderer(self, name: str) -> Optional[QSvgRenderer]:

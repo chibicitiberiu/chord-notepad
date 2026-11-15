@@ -63,7 +63,9 @@ Each is also noted where it applies, as "pitfall N":
 13. A 1 px line comes out 1 or 2 device pixels wide; snap it (Theme.hairline,
     SnapLine.qml).
 14. IconImage blurs at a fractional ratio; use PixelIcon and the provider
-    (icons.py, PixelIcon.qml).
+    (icons.py, PixelIcon.qml). Tag a QImage with its ratio only after
+    painting it: a QPainter on a tagged image paints in logical pixels, so
+    the drawing comes out ``ratio`` times too big and cut (icons.py).
 15. The software backend has no MultiEffect (PopupBackground.qml).
 16. A disabled control gets no hover: hang its tooltip off a HoverHandler
     (ToolTip.qml; the locked voicing button, PlayerBar.qml).
