@@ -64,7 +64,7 @@ def test_a_shot_has_the_fixed_size_and_is_the_same_every_time(tmp_path):
     # Not the same picture twice: the dark one is darker.
     light, dark = (Image.open(first / n).convert("L") for n in ("editor-main-window.png",
                                                                   "editor-main-window.dark.png"))
-    assert sum(dark.getdata()) < sum(light.getdata()) / 2
+    assert sum(dark.tobytes()) < sum(light.tobytes()) / 2
 
 
 def test_the_images_are_named_per_theme():
