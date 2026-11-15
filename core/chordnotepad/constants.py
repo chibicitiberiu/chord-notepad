@@ -90,6 +90,12 @@ class Notation(Enum):
     EUROPEAN = "european"
 
 
+#: Seconds between the notes of a rolled chord (lowest first), like a quick
+#: strum or a spread chord: the identifier's Shift+▶ and a Shift+click on a
+#: chord in the text or the chord sheet.
+ROLL_GAP_SECONDS = 0.11
+
+
 class LineType(Enum):
     """Type of line in the text editor."""
     CHORD = "chord"

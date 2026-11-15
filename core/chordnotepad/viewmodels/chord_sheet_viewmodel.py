@@ -41,6 +41,7 @@ from chordnotepad.constants import (
     CHORD_SHEET_RERENDER_DEBOUNCE_MS,
     DEFAULT_CHORD_SHEET_HEIGHT,
     DEFAULT_CHORD_SHEET_VIEW,
+    ROLL_GAP_SECONDS,
 )
 from chordnotepad.models.chord import ChordInfo
 from chordnotepad.models.line import Line
@@ -145,6 +146,7 @@ class ChordSheetViewModel(Observable):
         renderers: Optional[List[StripRenderer]] = None,
         render_fn: Optional[Callable[..., Optional[RenderedSong]]] = None,
         audition_fn: Optional[Callable[[List[int]], None]] = None,
+        audition_rolled_fn: Optional[Callable[[List[int]], None]] = None,
         scheduler=None,
         executor: Optional[Callable[[Callable[[], None]], None]] = None,
         marshal: Optional[Callable[[Callable[[], None]], None]] = None,
@@ -171,6 +173,9 @@ class ChordSheetViewModel(Observable):
                 render never shares the shared playback picker's state).
             audition_fn: Injectable ``(midi_notes) -> None`` seam; defaults to
                 ``audio_service.play_notes_immediate``.
+            audition_rolled_fn: The same for a rolled audition (lowest note
+                first); defaults to ``audio_service.play_notes_rolled`` with
+                ``ROLL_GAP_SECONDS``.
             scheduler: Injectable debounce scheduler with ``schedule(delay, fn)``
                 / ``cancel(handle)``; defaults to :class:`HostScheduler` with a
                 host, else a ``threading.Timer`` seam.
@@ -195,6 +200,8 @@ class ChordSheetViewModel(Observable):
         )
         self._render_fn = render_fn or self._default_render
         self._audition_fn = audition_fn or audio_service.play_notes_immediate
+        self._audition_rolled_fn = audition_rolled_fn or (
+            lambda notes: audio_service.play_notes_rolled(notes, ROLL_GAP_SECONDS))
         if scheduler is None:
             scheduler = HostScheduler(host) if host is not None else _TimerScheduler()
         if marshal is None:
@@ -589,7 +596,7 @@ class ChordSheetViewModel(Observable):
 
     # -- Audition -----------------------------------------------------------
 
-    def audition(self, chord_index: int) -> None:
+    def audition(self, chord_index: int, rolled: bool = False) -> None:
         """Play a chord's exact voiced notes once (click-to-hear).
 
         Uses the rendered chord's ``midi_notes`` through the same note-level
@@ -598,13 +605,18 @@ class ChordSheetViewModel(Observable):
 
         Args:
             chord_index: Index into ``rendered_song.chords``.
+            rolled: Play them one at a time from the lowest up (a
+                Shift+click), ``ROLL_GAP_SECONDS`` apart.
         """
         song = self._rendered_song
         if song is None or not (0 <= chord_index < len(song.chords)):
             return
         notes = song.chords[chord_index].midi_notes
         if notes:
-            self._audition_fn(list(notes))
+            if rolled:
+                self._audition_rolled_fn(sorted(notes))
+            else:
+                self._audition_fn(list(notes))
 
     # -- View selection / gating --------------------------------------------
 

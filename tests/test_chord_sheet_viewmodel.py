@@ -61,6 +61,7 @@ class FakeAudio:
         self.rendered = rendered
         self.render_calls = []
         self.auditions = []
+        self.rolled = []
 
     def render_song(self, lines, key, should_abort=None, private_picker=False):
         self.render_calls.append((lines, key))
@@ -68,6 +69,9 @@ class FakeAudio:
 
     def play_notes_immediate(self, notes):
         self.auditions.append(list(notes))
+
+    def play_notes_rolled(self, notes, gap):
+        self.rolled.append((list(notes), gap))
 
 
 class ManualScheduler:
@@ -691,6 +695,18 @@ def test_audition_plays_exact_midi_notes():
 
     vm.audition(0)
     assert audio.auditions == [[48, 60, 64, 67]]
+
+
+def test_a_rolled_audition_plays_the_notes_one_by_one_lowest_first():
+    from chordnotepad.constants import ROLL_GAP_SECONDS
+    song = RenderedSong(chords=[make_chord("C", midi_notes=(60, 48, 67, 64))])
+    vm, audio, scheduler = make_vm(rendered=song)
+    vm.set_song([], None)
+    scheduler.flush()
+
+    vm.audition(0, rolled=True)
+    assert audio.rolled == [([48, 60, 64, 67], ROLL_GAP_SECONDS)]
+    assert audio.auditions == []
 
 
 def test_audition_ignores_rest_and_out_of_range():

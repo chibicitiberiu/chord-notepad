@@ -26,7 +26,8 @@
       "changes": "SettingsValues"
     },
     "audition": {
-      "index": "int"
+      "index": "int",
+      "rolled": "bool"
     },
     "begin_settings_edit": {},
     "cancel_settings_edit": {},
@@ -267,7 +268,8 @@
     },
     "stop": {},
     "tap_chord_at": {
-      "offset": "int"
+      "offset": "int",
+      "rolled": "bool"
     },
     "toggle_metronome": {},
     "transpose": {

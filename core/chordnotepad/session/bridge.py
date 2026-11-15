@@ -252,7 +252,7 @@ SESSION_COMMANDS: Dict[str, Dict[str, str]] = {
     "rewind": {},
     "set_playhead": {"offset": "int"},
     "seek_to_bar": {"bar": "int"},
-    "tap_chord_at": {"offset": "int"},
+    "tap_chord_at": {"offset": "int", "rolled": "bool"},
     "set_bpm": {"bpm": "float"},
     "set_multiplier_pct": {"pct": "float"},
     "set_bpm_text": {"text": "str"},
@@ -275,7 +275,7 @@ SESSION_COMMANDS: Dict[str, Dict[str, str]] = {
     "set_chord_sheet_view": {"view_id": "str"},
     "chord_sheet_zoom": {"step": "int"},
     "chord_sheet_zoom_reset": {},
-    "audition": {"index": "int"},
+    "audition": {"index": "int", "rolled": "bool"},
     # the Qt desktop's (its SessionStore goes through this bridge; Android
     # never sends them): the sheet on screen, its logical height, the volume
     "set_chord_sheet_on_screen": {"on_screen": "bool|null"},

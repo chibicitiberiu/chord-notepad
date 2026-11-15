@@ -582,6 +582,7 @@ class FakeChordSheet(Observable):
         self.fed: List[Tuple[List[str], Optional[str]]] = []
         self.pings: List[Tuple[Optional[str], Optional[int]]] = []
         self.auditioned: List[int] = []
+        self.rolled_auditions: List[int] = []
         self.audition_error: Optional[str] = None
         self._renderers = list(renderers if renderers is not None else [
             FakeRenderer("keyboard", "Keyboard", supports_zoom=True),
@@ -715,11 +716,14 @@ class FakeChordSheet(Observable):
         if self.zoom_supported:
             self.set_and_notify("zoom", 1.0)
 
-    def audition(self, chord_index: int) -> None:
-        """Record the audition, or fail like broken audio."""
+    def audition(self, chord_index: int, rolled: bool = False) -> None:
+        """Record the audition (``rolled_auditions`` too when rolled), or
+        fail like broken audio."""
         if self.audition_error is not None:
             raise AudioInitializationError(self.audition_error)
         self.auditioned.append(chord_index)
+        if rolled:
+            self.rolled_auditions.append(chord_index)
 
     # -- test controls ---------------------------------------------------------
 

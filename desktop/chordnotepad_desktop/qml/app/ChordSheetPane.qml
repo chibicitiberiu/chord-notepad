@@ -222,11 +222,16 @@ Rectangle {
                 onActiveChanged: if (active) startScroll = sheet.scrollX
                 onTranslationChanged: if (active) sheet.scrollX = startScroll - translation.x
             }
+            // Shift+click sounds the chord rolled, one note at a time.
             TapHandler {
+                id: sheetTap
+                objectName: "sheetTap"
                 onTapped: (ev) => {
                     var i = sheet.chordAt(ev.position.x, ev.position.y)
                     if (i < 0) return
-                    pane.store.submit("audition", { index: i })
+                    var args = { index: i }
+                    if (sheetTap.point.modifiers & Qt.ShiftModifier) args.rolled = true
+                    pane.store.submit("audition", args)
                     if (pane.editor) pane.editor.revealPlayhead()
                 }
             }

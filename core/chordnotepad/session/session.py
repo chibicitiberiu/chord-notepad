@@ -1234,8 +1234,10 @@ class AppSession:
             self._set_paused_status()
 
     @_command
-    def tap_chord_at(self, offset: int) -> None:
-        """Play the chord under ``offset`` once, if there is a valid one.
+    def tap_chord_at(self, offset: int, rolled: bool = False) -> None:
+        """Play the chord under ``offset`` once, if there is a valid one;
+        ``rolled`` plays it one note at a time from the lowest up (the Qt
+        desktop's Shift+click; Android never sends it).
 
         Works while a song plays too. If audio can't start, the first tap in
         a session emits :class:`AudioUnavailable`; later ones only log.
@@ -1255,7 +1257,10 @@ class AppSession:
                 return
             self._seek(chord.start)
         try:
-            self._main.on_chord_clicked(chord)
+            if rolled:
+                self._main.on_chord_clicked(chord, rolled=True)
+            else:
+                self._main.on_chord_clicked(chord)
         except AudioInitializationError as e:
             self._set_status(formatting.AUDIO_UNAVAILABLE_STATUS)
             self._report_audio_failure(str(e), from_click=True)
@@ -2192,8 +2197,10 @@ class AppSession:
             self._chord_sheet.reset_zoom()
 
     @_command
-    def audition(self, index: int) -> None:
-        """Play chord ``index`` of the chord sheet's song once (click-to-hear).
+    def audition(self, index: int, rolled: bool = False) -> None:
+        """Play chord ``index`` of the chord sheet's song once (click-to-hear);
+        ``rolled`` plays it one note at a time from the lowest up (the Qt
+        desktop's Shift+click; Android never sends it).
 
         If audio can't start, the first click-to-hear failure in a session
         emits :class:`AudioUnavailable`; later ones only log.
@@ -2215,7 +2222,10 @@ class AppSession:
             if playing:
                 return
         try:
-            self._chord_sheet.audition(int(index))
+            if rolled:
+                self._chord_sheet.audition(int(index), rolled=True)
+            else:
+                self._chord_sheet.audition(int(index))
         except AudioInitializationError as e:
             self._report_audio_failure(str(e), from_click=True)
 

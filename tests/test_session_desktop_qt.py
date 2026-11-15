@@ -152,6 +152,45 @@ def test_set_playhead_while_paused_drops_the_paused_song():
     assert env.playback().playing_span.start == 16
 
 
+def test_a_shift_click_on_a_chord_rolls_it_and_moves_the_playhead():
+    from chordnotepad.constants import ROLL_GAP_SECONDS
+    env = Env(DESKTOP_QT)
+    env.session.tap_chord_at(13, rolled=True)
+    assert env.playhead() == 12
+    assert env.player.immediate == []
+    (notes, gap), = env.player.rolled
+    assert gap == ROLL_GAP_SECONDS and notes == sorted(notes) and len(notes) >= 3
+    assert env.status() == "Playing: Am"
+
+
+def test_a_shift_click_while_playing_still_seeks():
+    env = Env(DESKTOP_QT, auto_play=False)
+    env.session.play_pause()
+    env.rendered()
+    env.player.play(1)
+    env.host.run_pending()
+    env.session.tap_chord_at(16, rolled=True)
+    assert env.player.rolled == [] and env.player.immediate == []
+    assert env.playback().status is PlaybackStatus.PLAYING
+
+
+def test_a_shift_click_on_a_sheet_chord_rolls_it():
+    env = Env(DESKTOP_QT)
+    named_strip_song(env)
+    env.session.audition(2, rolled=True)
+    assert env.sheet.auditioned == [2] and env.sheet.rolled_auditions == [2]
+    assert env.playhead() == 12
+    env.session.audition(1)
+    assert env.sheet.rolled_auditions == [2]
+
+
+def test_rolled_is_optional_on_the_bridge():
+    from chordnotepad.session import bridge
+    assert bridge.decode_args("audition", '{"index": 2}') == {"index": 2}
+    assert bridge.decode_args("tap_chord_at", '{"offset": 3, "rolled": true}') == {
+        "offset": 3, "rolled": True}
+
+
 def test_a_click_on_a_sheet_chord_moves_the_playhead():
     env = Env(DESKTOP_QT)
     named_strip_song(env)

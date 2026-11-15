@@ -12,6 +12,7 @@ import unicodedata
 from typing import Callable, Dict, Iterable, List, Tuple, Set, Optional
 
 from music21 import chord as m21_chord
+from chordnotepad import constants
 from chordnotepad.chord.converter import NotationConverter
 from chordnotepad.utils.observable import Observable
 from chordnotepad.services.song_parser_service import SongParserService
@@ -51,9 +52,9 @@ PIANO_HIGHEST_MIDI = 83
 #: How long the keys of a played candidate stay highlighted, in seconds.
 SOUNDING_SECONDS = 3.0
 
-#: Seconds between the notes of a rolled chord (lowest first), like a quick
-#: strum or a spread chord.
-ROLL_GAP_SECONDS = 0.11
+#: Seconds between the notes of a rolled chord (``constants``; kept here too
+#: for the identifier's callers).
+ROLL_GAP_SECONDS = constants.ROLL_GAP_SECONDS
 
 
 def note_to_midi(note_name: str, octave: int) -> int:

@@ -657,6 +657,19 @@ def test_a_click_auditions_and_moves_the_playhead(sh):
     assert sh.sent("audition") == [{"index": index}]
 
 
+def test_a_shift_click_auditions_rolled_and_moves_the_playhead(sh):
+    sh.to_play(1200)
+    sh.wait_sheet()
+    index = 2
+    QTest.mouseClick(sh.window, LEFT, Qt.KeyboardModifier.ShiftModifier, sh.slot_point(index))
+    sh.qtbot.waitUntil(lambda: sh.sent("audition") == [{"index": index, "rolled": True}],
+                       timeout=2000)
+    sh.qtbot.waitUntil(lambda: sh.playback("playhead_offset") == TEXT.index("Am"), timeout=2000)
+    QTest.mouseClick(sh.window, LEFT, NO_MODIFIER, sh.slot_point(index + 1))
+    sh.qtbot.waitUntil(lambda: len(sh.sent("audition")) == 2, timeout=2000)
+    assert sh.sent("audition")[-1] == {"index": index + 1}
+
+
 def test_the_playing_column_is_highlighted_and_followed(sh):
     sh.to_play(700)
     sh.wait_sheet()

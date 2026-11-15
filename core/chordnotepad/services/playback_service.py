@@ -24,6 +24,7 @@ from chordnotepad.models.line import Line
 from chordnotepad.models.rendered_song import RenderedSong
 from chordnotepad.services.config_service import ConfigService
 from chordnotepad.exceptions import AudioInitializationError, RenderAborted
+from chordnotepad.constants import ROLL_GAP_SECONDS
 
 
 class PlaybackService:
@@ -363,12 +364,15 @@ class PlaybackService:
             options = dataclasses.replace(options, driver=driver.strip())
         return options
 
-    def play_chord_immediate(self, chord_info: ChordInfo, current_key: Optional[str] = None) -> None:
+    def play_chord_immediate(self, chord_info: ChordInfo, current_key: Optional[str] = None,
+                             rolled: bool = False) -> None:
         """Play a chord immediately (click-to-play) with dynamic note resolution.
 
         Args:
             chord_info: Chord information
             current_key: Current key signature for resolving roman numerals
+            rolled: Play the notes one at a time from the lowest up,
+                ``ROLL_GAP_SECONDS`` apart, each held (a Shift+click)
 
         Raises:
             AudioInitializationError: If the audio output can't be started.
@@ -385,7 +389,10 @@ class PlaybackService:
         midi_notes = self._notes_to_midi(chord_notes)
         if midi_notes:
             self._logger.debug(f"Playing chord immediately: {chord_info.chord} -> {chord_notes.notes} (bass: {chord_notes.bass_note})")
-            self._player.play_notes_immediate(midi_notes)
+            if rolled:
+                self._player.play_notes_rolled(sorted(midi_notes), ROLL_GAP_SECONDS)
+            else:
+                self._player.play_notes_immediate(midi_notes)
         else:
             self._logger.warning(f"Could not convert chord to MIDI notes: {chord_info.chord}")
 

@@ -576,6 +576,22 @@ def test_a_click_on_a_chord_sounds_it_and_moves_the_playhead(editor):
     assert playhead.property("visible") is True
 
 
+def test_a_shift_click_on_a_chord_sounds_it_rolled(editor):
+    from chordnotepad.constants import ROLL_GAP_SECONDS
+    song(editor)
+    QTest.mouseClick(editor.window, Qt.MouseButton.LeftButton, Qt.KeyboardModifier.ShiftModifier,
+                     editor.point_of(SONG.index("G")))
+    editor.qtbot.waitUntil(lambda: len(editor.harness.player.rolled) == 1, timeout=2000)
+    notes, gap = editor.harness.player.rolled[0]
+    assert gap == ROLL_GAP_SECONDS and notes == sorted(notes)
+    assert editor.harness.player.immediate == []
+    editor.qtbot.waitUntil(lambda: editor.bridge.playheadPos == SONG.index("G"), timeout=1000)
+    # A plain click after it isn't rolled (the modifiers are the click's own).
+    editor.click(SONG.index("G"))
+    editor.qtbot.waitUntil(lambda: len(editor.harness.player.immediate) == 1, timeout=2000)
+    assert len(editor.harness.player.rolled) == 1
+
+
 def test_a_double_click_selects_the_word_and_sounds_the_chord_once(editor):
     song(editor)
     at = editor.point_of(SONG.index("Am"))

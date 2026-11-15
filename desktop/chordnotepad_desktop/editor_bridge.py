@@ -698,9 +698,15 @@ class EditorBridge(QObject):
     @Slot(int)
     def tapAt(self, position: int) -> None:  # noqa: N802 (Qt)
         """A click on the character at ``position``: the session sounds the
-        chord there, if any, and moves the playhead (or seeks while playing)."""
+        chord there, if any, and moves the playhead (or seeks while playing).
+        With Shift held the chord sounds rolled, one note at a time (the
+        modifiers of the click, read here: the editor's TapHandler passes
+        only the position)."""
         if position >= 0:
-            self._store.submit("tap_chord_at", {"offset": self.codePointAt(position)})
+            args = {"offset": self.codePointAt(position)}
+            if QGuiApplication.keyboardModifiers() & Qt.KeyboardModifier.ShiftModifier:
+                args["rolled"] = True
+            self._store.submit("tap_chord_at", args)
 
     @Slot()
     def revealPlayhead(self) -> None:  # noqa: N802 (Qt)
