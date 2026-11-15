@@ -39,16 +39,20 @@ it's done (git history keeps it); release mechanics live in `docs/RELEASE.md`.
 - CONTRIBUTING.md: a Development section (setup, `make help`, `make check`, the core/desktop rule, `docs/ANDROID.md`).
 - `.gitignore` backstop for `*.p12`, `*.jks`, `*.keystore`, `*.pem`, `*.env`.
 
+## After the Qt switch
+
+- Release after 0.6.0: delete the Tk window. `chordnotepad_tk` and the `DESKTOP` Tk texts; the interim live paths (`chord_sheet_model`, `settings_model`, `chord_identifier_model`) and the Tk-only viewmodels; the Tcl/Tk, Pillow and jeepney packaging and licence components; the Tk tests, `xvfb-run` in CI and `test_every_build_keeps_the_tk_front_end_for_the_fallback`; the Tk-only items in this file (`MainWindow._on_session_output`, the limits in `main_window_viewmodel.py` and `options_dialog.py`). `build_info.py` moves into `chordnotepad_desktop` (and `build.yml`'s path with it).
+- Drag and drop from the Directives palette and the chord identifier: the drop caret and the word snap.
+- The duration tiles and `set_chord_duration`, keeping columns aligned.
+- Palette keyboard polish.
+- Redraw the rail and tile icons crisp at 125% (and at 2x: offscreen at `QT_SCALE_FACTOR=2` they come out cropped, which is why the store screenshots are drawn at 1x).
+- Accessibility names for the Qt controls.
+- Redo the desktop screenshots (`packaging/tools/qt_help_screenshots.py`) after any window change.
+
 ## Later
 
-- Desktop UI redesign on Android's model (2026-10-31 review, outside the repo), once the four questions under "Needs a decision" are answered:
-  - first, what the session already offers: a playhead marker, ⏮ instead of ⏹, a song-defaults popover with Write into song, File › Rename, voicing and instrument buttons, startup through `StartupState`;
-  - Edit/Play modes: `ModeController.kt` and a `PlayerState` move into the session; header, ribbon, player, Play-mode keys, Tools merged into Edit; help and screenshots;
-  - theme and feedback: tokens shared with `AppTheme.kt`, System/Light/Dark, rasterised MDI icons, a session `Notice` event, inline validation in the Insert dialogs;
-  - layout: chord sheet beside or below, per-mode visibility, settings summaries, an empty-song hint, Help › Open Example. Stay on Tk; spike PySide6 only if theming or DPI still hurt.
 - Split `AppSession` (`core/chordnotepad/session/session.py`, 2,548 lines) into per-area components, with one observer-registration helper that shutdown mirrors.
 - Then move value ownership (text, document, toolbar, playback) from `MainWindowViewModel` into the session, one value at a time.
-- Desktop Settings and Chord Identifier onto the session paths (`SettingsEdit`, `identifier_*`); `ConfigService` emits changed keys instead of the per-command re-read.
 - Repo layout, the rest: the spec and `hooks/` into `packaging/pyinstaller/` (the code itself is split by layer since the move to `core/chordnotepad/` and `desktop/chordnotepad_tk/`).
 - Build consolidation: `scripts/make_icons.py`, `scripts/gen_build_info.py` (untracked output), `scripts/bump_version.py` shared by Make and CI; a composite setup action and venv cache; `build.yml` split into `ci.yml`, `release.yml` and reusable workflows; drop the tag-push release path and RELEASE.md's "Quick Release Guide".
 - pipenv to `pyproject.toml` + uv, generating `android/docs-requirements.txt` from a dependency group.
@@ -75,10 +79,6 @@ it's done (git history keeps it); release mechanics live in `docs/RELEASE.md`.
 
 ## Needs a decision
 
-- Desktop redesign: full Edit/Play modes, or editing while paused (the session freezes the text while paused today)?
-- Desktop redesign: Ctrl+click to audition in Edit, or keep plain click playing?
-- Desktop redesign: extend Android's dark-editor colours to the desktop, or keep the light editor inside dark chrome?
-- Desktop redesign: the playhead marker drawn over the text (a 2 px overlay frame), given the editor-typography rule.
 - F-Droid: submit or not (AI policy in flux). If yes: fastlane metadata, the recipe (`gradle: [foss]`), AI disclosure, the GeneralUser GS licence question, and whether the logo reserved by `ARTWORK-TERMS.txt` counts as a non-free asset.
 - Metronome count-in (one bar before playback when the metronome is on)?
 - Android background playback: a foreground media service, or keep pausing (documented limitation)?
