@@ -20,9 +20,10 @@ Layout:
   messages in the log.
 * ``rendering.py``: GPU or software rendering.
 * ``window_geometry.py``: the window's saved size and place.
-* ``editor_bridge.py``, ``offsets.py``, ``editor_font.py``: the editor's text
-  between the TextArea and the session (highlighting, the session's edits,
-  paste normalisation), code points and UTF-16, the editor's font and zoom.
+* ``editor_bridge.py``, ``offsets.py``, ``editor_font.py``, ``text_mouse.py``:
+  the editor's text between the TextArea and the session (highlighting, the
+  session's edits, paste normalisation), code points and UTF-16, the
+  editor's font and zoom, mouse selection.
 * ``fonts.py``, ``icons.py``, ``dpr.py``, ``alt_watcher.py``: the mockup's
   scaling and text recipe, the icon provider, the hidden menu bar's keys.
 * ``qml/CNTheme``: the Theme singleton (colours, units, type) and the
@@ -97,4 +98,9 @@ Each is also noted where it applies, as "pitfall N":
 28. A MouseArea always has a cursor shape (the arrow by default), and a
     child's shape wins over its parent's HoverHandler: ``cursorShape:
     undefined`` on one that only takes a button (the editor's middle click).
+29. TextArea holds a left-button press back until the pointer moves the
+    drag distance sideways (a drag up or down selected nothing), drops it
+    after the press-and-hold time, and hands it on without a timestamp (a
+    click after a double-click selected the line). The editor's presses go
+    to it without the left button in ``buttons()`` (text_mouse.py).
 """

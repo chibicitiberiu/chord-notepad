@@ -870,10 +870,24 @@ def test_an_edit_with_an_anchor_selects_up_to_the_cursor(editor):
 
 
 def test_a_triple_click_selects_the_line(editor):
+    # QTest moves its clock on by the double-click time after every release,
+    # so it can't click three times quickly: the clicks are sent with their
+    # timestamps. (The old version passed only because the TextArea handed
+    # the third press on without a timestamp, pitfall 29.)
+    from PySide6.QtCore import QCoreApplication, QEvent
+    from PySide6.QtGui import QMouseEvent
     song(editor, "C   G   Am\none two three\n")
-    at = editor.point_of(16)
-    QTest.mouseDClick(editor.window, Qt.MouseButton.LeftButton, NO_MODIFIER, at)
-    QTest.mouseClick(editor.window, Qt.MouseButton.LeftButton, NO_MODIFIER, at)
+    at = QPointF(editor.point_of(16))
+    left, none = Qt.MouseButton.LeftButton, Qt.MouseButton.NoButton
+    clock = 1_000_000
+    for kind, buttons in ((QEvent.Type.MouseButtonPress, left), (QEvent.Type.MouseButtonRelease, none),
+                          (QEvent.Type.MouseButtonPress, left), (QEvent.Type.MouseButtonDblClick, left),
+                          (QEvent.Type.MouseButtonRelease, none), (QEvent.Type.MouseButtonPress, left),
+                          (QEvent.Type.MouseButtonRelease, none)):
+        event = QMouseEvent(kind, at, at, editor.window.mapToGlobal(at), left, buttons, NO_MODIFIER)
+        clock += 0 if kind == QEvent.Type.MouseButtonDblClick else 60
+        event.setTimestamp(clock)
+        QCoreApplication.sendEvent(editor.window, event)
     assert editor.area.property("selectedText").rstrip("\n") == "one two three"
 
 

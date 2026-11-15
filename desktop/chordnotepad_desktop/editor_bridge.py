@@ -55,6 +55,7 @@ from PySide6.QtQuick import QQuickItem, QQuickTextDocument
 from chordnotepad.constants import DEFAULT_FONT_SIZE
 from chordnotepad.utils.text_normalization import normalize_song_text
 from chordnotepad_desktop import editor_font, popups
+from chordnotepad_desktop.text_mouse import TextMouse
 from chordnotepad_desktop.offsets import OffsetMapper, utf16_length
 
 logger = logging.getLogger(__name__)
@@ -285,6 +286,9 @@ class EditorBridge(QObject):
         """Take over ``area``'s document (EditorPane's Component.onCompleted)."""
         self._area = area
         area.destroyed.connect(self._area_gone)
+        # Presses reach the text at once, and a drag held past the edge scrolls (pitfall 29).
+        self._mouse_filter = TextMouse(area)
+        area.installEventFilter(self._mouse_filter)
         self._quick_document = document
         self._document = document.textDocument()
         self._painted_text = self._synced_text = self._document.toPlainText()
