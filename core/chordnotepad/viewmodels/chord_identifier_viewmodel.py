@@ -53,7 +53,7 @@ SOUNDING_SECONDS = 3.0
 
 #: Seconds between the notes of a rolled chord (lowest first), like a quick
 #: strum or a spread chord.
-ROLL_GAP_SECONDS = 0.06
+ROLL_GAP_SECONDS = 0.11
 
 
 def note_to_midi(note_name: str, octave: int) -> int:

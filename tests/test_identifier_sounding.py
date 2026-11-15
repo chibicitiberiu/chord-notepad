@@ -165,7 +165,7 @@ def test_rolled_plays_lowest_first_with_the_roll_gap(vm, audio):
     assert vm.sounding == (60, 64, 67)
     vm.play_chord("C", rolled=True)
     assert audio.rolled[-1] == ([60, 64, 67], ROLL_GAP_SECONDS)
-    assert 0.05 <= ROLL_GAP_SECONDS <= 0.08
+    assert 0.09 <= ROLL_GAP_SECONDS <= 0.13
 
 
 # --- The roll on the synth ------------------------------------------------------
