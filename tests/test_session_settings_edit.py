@@ -608,7 +608,7 @@ def test_an_out_of_range_field_is_marked_on_the_field_not_the_form(tmp_path):
     session.select_voicing("Bass")
     session.set_voicing_values({"max_fret": "999"})
     state = editor(recorder)
-    assert state.field_errors == {"max_fret": "Too high."}
+    assert state.field_errors == {"max_fret": "Must be from 5 to 24"}
     assert state.form_errors == ()
 
 
@@ -756,3 +756,34 @@ def test_an_ensemble_cell_and_a_piano_range_in_european(tmp_path):
 
     session.set_voicing_model("piano")
     assert editor(recorder).values["range:lh_range:low"] == "Do1"
+
+
+# -- a number outside its range is a wrong field, like one that doesn't parse ---------------
+
+
+def test_an_out_of_range_number_blocks_save_and_the_autosave_keeps_the_disk_value(tmp_path):
+    session, services, recorder = make(tmp_path, voicings={"Bass": BASS})
+    session.begin_settings_edit()
+    session.select_voicing("Bass")
+    session.set_voicing_values({"max_span": "20"})
+    state = editor(recorder)
+    assert state.field_errors == {"max_span": "Must be from 1 to 8"}
+    assert "Bass" in state.invalid
+    from chordnotepad.settings_forms.voicing_autosave import plan_voicing
+    saved = {**BASS, "max_span": 4}
+    values = voicing_form.values_from_voicing("fretboard", saved)
+    values["max_span"] = "20"
+    plan = plan_voicing("Bass", "fretboard", values, None, saved, ["max_span"])
+    assert plan.data["max_span"] == 4
+    assert [p.field_id for p in plan.problems] == ["max_span"]
+    assert plan.problems[0].message == "Too high."
+
+
+def test_a_voicing_from_disk_out_of_range_loads_and_save_refuses_it(tmp_path):
+    old = {**BASS, "max_span": 10, "relaxed_span": 10}
+    session, services, recorder = make(tmp_path, voicings={"Old": old})
+    session.begin_settings_edit()
+    session.select_voicing("Old")
+    state = editor(recorder)
+    assert state.field_errors == {"max_span": "Must be from 1 to 8"}
+    assert "Old" in state.invalid

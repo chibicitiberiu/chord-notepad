@@ -679,6 +679,26 @@ def test_a_wrong_field_is_marked_with_its_message_and_save_refuses_it(settings):
     assert "New voicing" not in (settings.config("voicings") or {})
 
 
+def test_a_number_out_of_range_is_marked_like_one_that_does_not_parse(settings):
+    settings.add_voicing()
+    settings.activate()
+    field = settings.item("field:max_span")
+    field.forceActiveFocus()
+    QMetaObject.invokeMethod(field, "selectAll")
+    settings.type("20")
+    settings.qtbot.waitUntil(lambda: field.property("error") == "Must be from 1 to 8", timeout=2000)
+    assert tooltip(field).endswith("</font><br><br>\u26a0 Must be from 1 to 8")
+    settings.key(Qt.Key.Key_Return)
+    assert "New voicing" in settings.editor("invalid")
+    settings.click("page:general")
+    settings.click("settingsSave")
+    error = settings.popup("settingsErrorDialog")
+    settings.qtbot.waitUntil(lambda: error.property("visible") is True, timeout=2000)
+    assert "New voicing" in error.property("message")
+    assert settings.editor("selected") == "New voicing"
+    assert "New voicing" not in (settings.config("voicings") or {})
+
+
 def test_captions_share_their_fields_help(settings):
     settings.add_voicing()
     field = settings.item("field:max_fret")

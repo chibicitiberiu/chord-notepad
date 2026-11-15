@@ -305,6 +305,8 @@ def _parse_message(field: Optional[Mapping[str, Any]], typed: str) -> str:
             return _range_message(field, text)
         return f"{text} isn't a whole number." if text else 'A whole number is needed.'
     elif kind == form.KIND_FLOAT:
+        if _is_float(text) and _range_message(field, text):
+            return _range_message(field, text)
         return f"{text} isn't a number." if text else 'A number is needed.'
     elif kind == form.KIND_INT_LIST:
         bad = _first_bad(text, _is_int, r',')

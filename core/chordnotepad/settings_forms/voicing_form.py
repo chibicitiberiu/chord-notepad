@@ -39,9 +39,10 @@ classes come out of that:
 """
 
 import copy
+import functools
 import logging
 import re
-from typing import Any, Dict, List, Mapping, Optional
+from typing import Any, Dict, List, Mapping, Optional, Tuple
 
 from chordnotepad.exceptions import ConfigurationError
 from chordnotepad.models.ensemble_spec import (
@@ -956,11 +957,48 @@ def move_record(model: str, values: Mapping[str, Any], index: int, offset: int,
 # ---------------------------------------------------------------------------
 
 
+def _limit(value: Any) -> str:
+    """A schema limit as the tooltip writes it: no ``.0`` on a whole number."""
+    return f'{value:g}' if isinstance(value, float) else str(value)
+
+
+@functools.lru_cache(maxsize=None)
+def _limits(model: str) -> Dict[str, Tuple[Any, Any]]:
+    """``{field_id: (min, max)}`` of the model's number fields that have a
+    range of their own: the weights only bound their spinner, and a gap
+    (a records column) is checked with its row."""
+    out: Dict[str, Tuple[Any, Any]] = {}
+    for field in iter_fields(form_schema(model)):
+        key = field['id']
+        if (field['kind'] in (KIND_INT, KIND_FLOAT) and 'min' in field and 'max' in field
+                and not key.startswith(('weight:', 'nested:'))):
+            out[key] = (field['min'], field['max'])
+    return out
+
+
+def range_errors(data: Mapping[str, Any]) -> Dict[str, str]:
+    """The number fields of a parsed voicing dict whose value parsed but lies
+    outside the schema's ``min``/``max``, ``{field_id: 'Must be from 1 to 8'}``.
+    Inclusive at both ends; a value that didn't parse is left to
+    :func:`collected_field_errors`."""
+    model = data.get('model')
+    if model not in ('fretboard', 'piano'):
+        return {}
+    errors: Dict[str, str] = {}
+    for key, (low, high) in _limits(model).items():
+        value = data.get(key)
+        if _is_number(value) and not low <= value <= high:
+            errors[key] = f'Must be from {_limit(low)} to {_limit(high)}'
+    return errors
+
+
 def collected_field_errors(data: Mapping[str, Any]) -> Dict[str, str]:
     """Map each bad field id in a parsed voicing dict to a short message.
 
-    This detects only **parse** errors: values that the forgiving parsers
-    left as a raw ``str`` where a number, note name or list was expected. It
+    This detects **parse** errors: values that the forgiving parsers
+    left as a raw ``str`` where a number, note name or list was expected,
+    and a number that parsed but lies outside its field's schema range
+    (:func:`range_errors`, "Must be from 1 to 8"; the weights have none). It
     runs on the output of :func:`voicing_from_values` (so a valid note name
     like ``'C4'`` has already become the int ``60`` and is *not* flagged).
     Semantic and cross-field problems are left to :func:`voicing_error`.
@@ -1071,6 +1109,8 @@ def collected_field_errors(data: Mapping[str, Any]) -> Dict[str, str]:
                 if not _is_number(value):
                     errors[f'weight:{key}'] = _KIND_ERRORS[KIND_FLOAT]
 
+    for key, message in range_errors(data).items():
+        errors.setdefault(key, message)
     return errors
 
 
@@ -1087,6 +1127,12 @@ def voicing_error(name: str, data: Mapping[str, Any]) -> Optional[str]:
     unknown model returns a descriptive message.
     """
     model = data.get('model')
+    out_of_range = range_errors(data)
+    if out_of_range:
+        # The first one, worded like a spec's message (see spec_sentence).
+        key, message = next(iter(out_of_range.items()))
+        kind = {'fretboard': 'Fretboard', 'piano': 'Piano'}[model]
+        return f"{kind} '{name}': '{key}' {message[:1].lower() + message[1:]}"
     try:
         if model == 'fretboard':
             FretboardSpec.from_dict(name, data)

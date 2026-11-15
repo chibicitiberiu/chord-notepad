@@ -218,9 +218,17 @@ def test_cross_field_error_wording():
 
 def test_cross_field_errors_name_fields_by_their_labels():
     # Not "Fretboard 'Piano': 'max_fret' must be ...": the form is the voicing's.
+    values = {**vf.default_values('fretboard'), 'max_span': '5', 'relaxed_span': '3'}
+    checked = vf.validate_form('Piano', 'fretboard', values)
+    assert checked['fields'] == {}
+    assert len(checked['form']) == 1 and checked['form'][0].startswith('Relaxed span')
+    assert "'" not in checked['form'][0]
+    # A number past its range is the field's error, not the form's.
     values = {**vf.default_values('fretboard'), 'max_fret': '999'}
-    assert vf.validate_form('Piano', 'fretboard', values) == {'fields': {}, 'form': [
-        "Max fret must be an integer between 5 and 24, got 999."]}
+    assert vf.validate_form('Piano', 'fretboard', values) == {
+        'fields': {'max_fret': 'Must be from 5 to 24'}, 'form': []}
+    assert vf.cross_field_errors('Piano', 'fretboard', values) == [
+        'Max fret must be from 5 to 24.']
 
 
 def test_form_errors_wait_for_the_fields():
@@ -525,3 +533,71 @@ def test_unparsed_tuning_error_counts_tokens_not_characters():
     from chordnotepad.settings_forms.voicing_form import voicing_error
     msg = voicing_error('t', {'model': 'fretboard', 'tuning': 'E2 A2'})
     assert msg is not None and 'got 2' in msg
+
+
+# -- a number outside the schema's range is a field error ---------------------------------
+
+
+def _number_fields():
+    for model in ('fretboard', 'piano'):
+        for field in vf.iter_fields(vf.form_schema(model)):
+            if field['kind'] in (vf.KIND_INT, vf.KIND_FLOAT) and not field['id'].startswith(
+                    ('weight:', 'nested:')):
+                yield model, field
+
+
+def test_a_number_outside_its_range_is_a_field_error_both_ends_are_in():
+    seen = 0
+    for model, field in _number_fields():
+        seen += 1
+        low, high = field['min'], field['max']
+
+        def errors(value):
+            values = vf.default_values(model)
+            values[field['id']] = str(value)
+            return vf.field_errors(model, values)
+
+        text = f"Must be from {low:g} to {high:g}"
+        assert errors(low).get(field['id']) is None, field['id']
+        assert errors(high).get(field['id']) is None, field['id']
+        assert errors(high + 1) == {field['id']: text}, field['id']
+        assert errors(low - 1) == {field['id']: text}, field['id']
+    assert seen == 10
+
+
+def test_the_range_message_writes_numbers_like_the_tooltip():
+    values = vf.default_values('fretboard')
+    values['max_span'] = '20'
+    assert vf.field_errors('fretboard', values) == {'max_span': 'Must be from 1 to 8'}
+    piano = vf.default_values('piano')
+    piano['rh_center'] = '200'
+    assert vf.field_errors('piano', piano) == {'rh_center': 'Must be from 0 to 127'}
+    piano['rh_center'] = '127.5'
+    assert vf.field_errors('piano', piano) == {'rh_center': 'Must be from 0 to 127'}
+
+
+def test_an_out_of_range_number_makes_the_voicing_invalid():
+    for model, field in _number_fields():
+        data = vf.default_voicing(model)
+        data[field['id']] = field['max'] + 1
+        message = vf.voicing_error('T', data)
+        assert message and field['id'] in message, field['id']
+        assert vf.spec_sentence(message, model).endswith(
+            f"must be from {field['min']:g} to {field['max']:g}."), field['id']
+    assert vf.voicing_error('T', vf.default_voicing('piano')) is None
+
+
+def test_weights_have_no_range():
+    values = vf.default_values('fretboard')
+    values['weight:open_string_bonus'] = '5000'
+    assert vf.field_errors('fretboard', values) == {}
+
+
+def test_every_built_in_and_default_is_inside_its_ranges():
+    data = [vf.voicing_from_values(m, vf.default_values(m)) for m in ('fretboard', 'ensemble', 'piano')]
+    data += [vf.default_voicing(m) for m in ('fretboard', 'ensemble', 'piano')]
+    data += [preset['data'] for preset in vf.load_presets()]
+    assert len(data) > 5
+    for item in data:
+        assert vf.range_errors(item) == {}, item
+        assert vf.voicing_error('T', item) is None, item
