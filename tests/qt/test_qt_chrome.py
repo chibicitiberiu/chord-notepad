@@ -551,6 +551,18 @@ def test_the_zoom_chip_and_the_menu_button_have_their_tooltips(app):
     hover_until_tooltip(app, app.it("appMenuButton"), "Menu")
 
 
+def test_the_menu_buttons_tooltip_goes_while_its_menu_is_open(app):
+    burger = app.it("appMenuButton")
+    hover_until_tooltip(app, burger, "Menu")
+    menu = open_app_menu(app)              # clicked where the pointer rests
+    app.run(900)                           # past the tooltip's delay
+    assert menu.property("opened") is True
+    assert "Menu" not in texts_shown(app.window.contentItem())
+    app.key(Qt.Key.Key_Escape)
+    app.qtbot.waitUntil(lambda: menu.property("visible") is False, timeout=1000)
+    hover_until_tooltip(app, burger, "Menu")
+
+
 def hover_until_tooltip(app, it, text):
     QTest.mouseMove(app.window, QPoint(1, app.window.height() - 2))
     app.run(10)

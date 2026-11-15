@@ -220,6 +220,7 @@ Rectangle {
                 display: AbstractButton.TextOnly
                 implicitWidth: Theme.playerControl; implicitHeight: Theme.playerControl
                 tip: "Song: title, tempo, time and key"
+                popupOpen: morePop.visible
                 onClicked: morePop.open()
                 Popup {
                     id: morePop

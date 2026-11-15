@@ -74,6 +74,7 @@ Rectangle {
             iconName: "menu"
             tip: "Menu"
             checked: strip.appMenuOpen
+            popupOpen: strip.appMenuOpen
             onClicked: strip.openAppMenu(burger)
         }
     }
