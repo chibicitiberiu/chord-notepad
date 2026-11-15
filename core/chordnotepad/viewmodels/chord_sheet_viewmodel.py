@@ -72,8 +72,10 @@ _PICK_FRETTED_INSTRUMENT = {
 }
 
 _ZOOM_STEP = 1.2   # multiplicative factor per zoom-in/out click
-_ZOOM_MIN = 0.5
-_ZOOM_MAX = 2.5
+#: The zoom limits of every view (a view shows them as its zoom control's
+#: ends; the Qt sheet's ``ChordSheetModel.zoomMin``/``zoomMax``).
+ZOOM_MIN = 0.5
+ZOOM_MAX = 2.5
 
 
 class _TimerScheduler:
@@ -354,8 +356,13 @@ class ChordSheetViewModel(Observable):
         value = self._zoom
         factor = _ZOOM_STEP if steps > 0 else 1 / _ZOOM_STEP
         for _ in range(abs(int(steps))):
-            value = round(min(_ZOOM_MAX, max(_ZOOM_MIN, value * factor)), 3)
+            value = round(min(ZOOM_MAX, max(ZOOM_MIN, value * factor)), 3)
         self._set_zoom(value)
+
+    def reset_zoom(self) -> None:
+        """Put the active view back at its default zoom (1.0), persisted
+        (no-op if unsupported)."""
+        self._set_zoom(1.0)
 
     def _set_zoom(self, value: float) -> None:
         """Clamp/round and apply a zoom factor to the active view, then notify.
@@ -366,7 +373,7 @@ class ChordSheetViewModel(Observable):
         """
         if not self.zoom_supported:
             return
-        value = round(min(_ZOOM_MAX, max(_ZOOM_MIN, value)), 3)
+        value = round(min(ZOOM_MAX, max(ZOOM_MIN, value)), 3)
         self._zoom_by_view[self._active_view] = value
         self._persist_zoom_factors()
         self.set_and_notify("zoom", value)
@@ -380,7 +387,7 @@ class ChordSheetViewModel(Observable):
         for key, value in raw.items():
             if isinstance(value, bool) or not isinstance(value, (int, float)):
                 continue
-            factors[str(key)] = round(min(_ZOOM_MAX, max(_ZOOM_MIN, float(value))), 3)
+            factors[str(key)] = round(min(ZOOM_MAX, max(ZOOM_MIN, float(value))), 3)
         return factors
 
     def _persist_zoom_factors(self) -> None:

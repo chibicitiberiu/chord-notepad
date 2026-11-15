@@ -87,6 +87,25 @@ def test_one_pinch_zooms_several_steps_in_one_command(tmp_path):
         env.close()
 
 
+def test_zoom_reset_over_the_bridge_is_a_config_command(tmp_path):
+    from chordnotepad.session.bridge import CONFIG_COMMANDS
+
+    assert "chord_sheet_zoom_reset" in CONFIG_COMMANDS
+    env = BridgeEnv(tmp_path, chord_sheet=True)
+    try:
+        env.send("set_chord_sheet_visible", visible=True)
+        env.send("set_chord_sheet_view", view_id="staff")
+        env.expect("ChordSheetState", lambda d: d["active_view"] == "staff"
+                   and d["zoom_supported"])
+        env.send("chord_sheet_zoom", step=2)
+        env.expect("ChordSheetState", lambda d: d["zoom"] == 1.44)
+        env.send("chord_sheet_zoom_reset")
+        state = env.expect("ChordSheetState", lambda d: d["zoom"] != 1.44)
+        assert state["zoom"] == 1.0
+    finally:
+        env.close()
+
+
 def test_settings_screen_over_the_bridge(env):
     settings = env.expect("SettingsState")
     assert settings["values"]["show_quick_start_on_startup"] is True

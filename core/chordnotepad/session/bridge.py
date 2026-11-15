@@ -274,6 +274,7 @@ SESSION_COMMANDS: Dict[str, Dict[str, str]] = {
     "set_chord_sheet_height": {"px": "int"},
     "set_chord_sheet_view": {"view_id": "str"},
     "chord_sheet_zoom": {"step": "int"},
+    "chord_sheet_zoom_reset": {},
     "audition": {"index": "int"},
     # the Qt desktop's (its SessionStore goes through this bridge; Android
     # never sends them): the sheet on screen, its logical height, the volume
@@ -386,7 +387,7 @@ CONFIG_COMMANDS = frozenset({
     "toggle_metronome", "set_voicing", "set_instrument", "set_notation",
     "set_font", "step_font_size", "reset_font_size", "set_word_wrap",
     "set_chord_sheet_visible", "set_chord_sheet_height", "set_chord_sheet_view", "chord_sheet_zoom",
-    "set_logical_chord_sheet_height", "set_volume", "step_volume",
+    "chord_sheet_zoom_reset", "set_logical_chord_sheet_height", "set_volume", "step_volume",
     "convert_notation", "apply_settings", "save_settings",
     "set_show_quick_start_on_startup", "open_document", "open_recent", "save", "save_as",
     "rename_document",

@@ -303,7 +303,8 @@ class AppSession:
     def set_font(self, family: str, size: int) -> None;  def step_font_size(self, delta: int) -> None;  def reset_font_size(self) -> None
     def set_word_wrap(self, on: bool) -> None
     def set_chord_sheet_visible(self, v: bool) -> None;  def set_chord_sheet_height(self, px: int) -> None
-    def set_chord_sheet_view(self, view_id: str) -> None;  def chord_sheet_zoom(self, step: int) -> None;  def audition(self, index: int) -> None
+    def set_chord_sheet_view(self, view_id: str) -> None;  def chord_sheet_zoom(self, step: int) -> None;  def chord_sheet_zoom_reset(self) -> None
+    def audition(self, index: int) -> None
     # documents / app
     def new_document(self) -> None;  def open_document(self, ref: DocumentRef | None = None, read_only: bool = False) -> None
     def save(self) -> None;  def save_as(self, name: str | None = None) -> None
@@ -585,7 +586,8 @@ feeding arms its debounce timer), then re-feeds `set_song` when the detected
 lines, the key or the voicing change. `ChordSheetState(visible, height,
 active_view, views, disabled_reason, zoom, zoom_supported, current_index,
 song_revision)`; commands `set_chord_sheet_visible`, `set_chord_sheet_height`,
-`set_chord_sheet_view`, `chord_sheet_zoom(step)`, `audition(index)`. The
+`set_chord_sheet_view`, `chord_sheet_zoom(step)`, `chord_sheet_zoom_reset()`,
+`audition(index)`. The
 window uses the state for the pane, the View menu check and the sash height.
 
 **Documents.** `new_document()`, `open_document(ref=None)`,

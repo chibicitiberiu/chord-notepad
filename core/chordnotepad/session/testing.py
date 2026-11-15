@@ -710,6 +710,11 @@ class FakeChordSheet(Observable):
                 value = round(value * factor, 3)
             self.set_and_notify("zoom", value)
 
+    def reset_zoom(self) -> None:
+        """Back to zoom 1.0 (if the view zooms)."""
+        if self.zoom_supported:
+            self.set_and_notify("zoom", 1.0)
+
     def audition(self, chord_index: int) -> None:
         """Record the audition, or fail like broken audio."""
         if self.audition_error is not None:

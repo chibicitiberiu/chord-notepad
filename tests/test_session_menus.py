@@ -139,6 +139,7 @@ def test_no_chord_sheet_no_state_and_commands_do_nothing():
     env.session.set_chord_sheet_visible(True)
     env.session.audition(0)
     env.session.chord_sheet_zoom(1)
+    env.session.chord_sheet_zoom_reset()
     assert env.recorder.of_type(ChordSheetState) == []
 
 
@@ -155,6 +156,9 @@ def test_views_and_zoom():
     env.session.chord_sheet_zoom(1)
     assert env.sheet_state().zoom == 1.25
     env.session.chord_sheet_zoom(-1)
+    assert env.sheet_state().zoom == 1.0
+    env.session.chord_sheet_zoom(2)
+    env.session.chord_sheet_zoom_reset()
     assert env.sheet_state().zoom == 1.0
 
     env.session.set_chord_sheet_view("fret")  # unavailable: ignored

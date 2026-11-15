@@ -46,7 +46,7 @@ from PySide6.QtQuick import QQuickPaintedItem
 
 from chordnotepad.chord_sheet.marker_lane import LANE_HEIGHT
 from chordnotepad.chord_sheet.pack import unpack
-from chordnotepad.viewmodels.chord_sheet_viewmodel import ChordSheetViewModel
+from chordnotepad.viewmodels.chord_sheet_viewmodel import ZOOM_MAX, ZOOM_MIN, ChordSheetViewModel
 from chordnotepad_desktop.sheet_paint import GUTTER_WHITE, PreparedSheet, SheetPainter
 
 logger = logging.getLogger(__name__)
@@ -141,6 +141,16 @@ class ChordSheetModel(QObject):
         return self._wanted is not None and self._wanted != self._loaded_for
 
     loading = Property(bool, _get_loading, notify=loadingChanged)
+
+    def _get_zoom_min(self) -> float:
+        return ZOOM_MIN
+
+    def _get_zoom_max(self) -> float:
+        return ZOOM_MAX
+
+    #: The zoom limits of every view (the zoom control's ends).
+    zoomMin = Property(float, _get_zoom_min, constant=True)
+    zoomMax = Property(float, _get_zoom_max, constant=True)
 
     # -- fetching (one at a time, off the GUI thread) -----------------------------------
 

@@ -883,6 +883,17 @@ def test_zoom_persists_only_non_default_factors():
     assert config.get("chord_sheet_zoom") == {"a": 1.2}
 
 
+def test_reset_zoom_puts_the_active_view_back_at_one():
+    config = FakeConfig(chord_sheet_visible=True, chord_sheet_zoom={"a": 1.5, "b": 0.75})
+    renderers = [ZoomRenderer("a"), ZoomRenderer("b")]
+    vm, _, _ = make_vm(renderers=renderers, config=config)
+    vm.reset_zoom()
+    assert vm.zoom == 1.0
+    assert config.get("chord_sheet_zoom") == {"b": 0.75}   # 1.0 isn't stored
+    vm.set_active_view("b")
+    assert vm.zoom == 0.75
+
+
 def test_zoom_loads_persisted_factors_per_view():
     config = FakeConfig(chord_sheet_visible=True, chord_sheet_zoom={"a": 1.5, "b": 0.75})
     renderers = [ZoomRenderer("a"), ZoomRenderer("b")]

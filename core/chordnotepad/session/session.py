@@ -2153,6 +2153,14 @@ class AppSession:
         self._chord_sheet.zoom_steps(int(step))
 
     @_command
+    def chord_sheet_zoom_reset(self) -> None:
+        """Put the active chord-sheet view back at its default zoom (1.0),
+        persisted like :meth:`chord_sheet_zoom`; ignored for views that
+        don't zoom."""
+        if self._chord_sheet is not None:
+            self._chord_sheet.reset_zoom()
+
+    @_command
     def audition(self, index: int) -> None:
         """Play chord ``index`` of the chord sheet's song once (click-to-hear).
 

@@ -391,6 +391,7 @@ chords are written in, see `guess_notation`), `set_font {family, size}`,
 desktop's View > Word Wrap; Android changes it through Settings),
 `set_chord_sheet_visible {visible}`, `set_chord_sheet_height {px}`,
 `set_chord_sheet_view {view_id}`, `chord_sheet_zoom {step}`,
+`chord_sheet_zoom_reset {}` (the view back at 100%; the Qt desktop's),
 `audition {index}`, `new_document {}`, `open_document {ref, read_only}`
 (`read_only` defaults to false; ignored with a null `ref`),
 `open_recent {ref}`, `save {}`, `save_as {}`, `export_midi {}`,

@@ -34,6 +34,7 @@
     "chord_sheet_zoom": {
       "step": "int"
     },
+    "chord_sheet_zoom_reset": {},
     "commit_settings": {
       "invalid_numbers": "json|null",
       "values": "SettingsValues|null"
@@ -277,6 +278,7 @@
     "cancel_settings_edit",
     "check_directive",
     "chord_sheet_zoom",
+    "chord_sheet_zoom_reset",
     "commit_settings",
     "convert_notation",
     "discard_settings_problems",
