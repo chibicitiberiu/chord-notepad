@@ -133,10 +133,14 @@ def test_shared_and_dark_variant(tmp_path):
     html = (out / 'both.html').read_text()
     assert '<picture><source srcset="_images/diagram.dark.png" media="(prefers-color-scheme: dark)">' in html
     assert (out / '_images' / 'diagram.dark.png').exists()
-    # The desktop edition ignores dark variants.
-    out, _ = build(tmp_path / 'd', 'desktop', pages_with(body), images)
+    # The desktop edition shows them too (its page has a dark mode as well).
+    out, warnings = build(tmp_path / 'd', 'desktop', pages_with(body), images)
+    assert 'WARNING' not in warnings and 'ERROR' not in warnings, warnings
     html = (out / 'both.html').read_text()
-    assert '<picture>' not in html and 'diagram.dark' not in html
+    assert '<picture><source srcset="_images/diagram.dark.png" media="(prefers-color-scheme: dark)">' in html
+    assert (out / '_images' / 'diagram.dark.png').exists()
+    # The image isn't wrapped in a link, which would take it out of the <picture>.
+    assert 'image-reference' not in html
     # Non-HTML builders get the plain image.
     out, warnings = build(tmp_path / 't', 'android', pages_with(body), images, builder='text')
     assert 'ERROR' not in warnings

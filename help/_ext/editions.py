@@ -10,8 +10,9 @@ extension gives the sources the pieces that ``.. only::`` alone can't:
     incomplete edition. ``:platforms: desktop`` limits the figure to one
     edition. ``:desktop-caption:`` / ``:android-caption:`` and
     ``:desktop-alt:`` / ``:android-alt:`` override the shared caption (the
-    body) and ``:alt:``. In the Android edition an optional
-    ``<name>.dark.png`` next to the image is shown when the page is dark.
+    body) and ``:alt:``. An optional ``<name>.dark.png`` next to the image
+    is shown when the page is dark (both editions; the desktop's screenshot
+    tool makes one for each screenshot).
 
 ``:plat:`desktop text|android text```
     Inline choice between two short texts. Either side may be empty, and
@@ -129,7 +130,7 @@ class PlatformFigure(Figure, SphinxDirective):
 
         result = super().run()
 
-        dark = self._dark_variant(rel) if platform == 'android' else None
+        dark = self._dark_variant(rel)
         if dark is not None:
             for image in (n for r in result for n in r.findall(nodes.image)):
                 variant = dark_image(uri='/' + dark, alt=image.get('alt', ''))

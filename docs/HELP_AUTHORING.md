@@ -132,9 +132,10 @@ screen the text talks about when you can.
 
 ### Dark-mode screenshots
 
-The Android edition follows the app's light/dark theme. For any Android or
-shared image, an optional `<name>.dark.png` next to it is shown instead when
-the page is dark:
+Both editions have a dark mode. The Android edition follows the app's
+light/dark theme; the desktop edition follows the browser's or the system's
+(`prefers-color-scheme`). For any image, an optional `<name>.dark.png` next
+to it is shown instead when the page is dark:
 
 ```
 help/images/android/play-tab.png        light theme (required)
@@ -142,10 +143,12 @@ help/images/android/play-tab.dark.png   dark theme (optional)
 ```
 
 Nothing changes in the `.rst`. The HTML becomes a `<picture>` with a
-`prefers-color-scheme: dark` source. Without a dark variant the light image is
-shown in both themes (no error). Transparent diagrams get a light backing in
-dark mode so they stay readable. The desktop edition and the PDF ignore dark
-variants.
+`prefers-color-scheme: dark` source (and the image is no longer a link to its
+full-size file). Without a dark variant the light image is shown in both
+themes (no error), a little dimmed on a dark page; transparent diagrams get a
+light backing in the Android edition so they stay readable. The PDF ignores
+dark variants. `packaging/tools/qt_help_screenshots.py` makes the dark
+variant of every desktop screenshot.
 
 ## Pages for one edition
 
@@ -181,5 +184,7 @@ In the app, the User Guide's WebView takes light or dark from the app's theme
 
 The Android edition's look is `help/_static/android.css` (the app's colour
 tokens from `docs/design/android-ui-spec.md`, light and dark). The desktop
-edition keeps `help/_static/custom.css`; neither build loads the other's
-stylesheet.
+edition keeps `help/_static/custom.css` (the coral look; its dark mode uses the
+Qt window's dark greys from `Theme.qml`); neither build loads the other's
+stylesheet. To check the desktop dark mode, open `help/build/html/index.html`
+and switch the browser or the system to dark.

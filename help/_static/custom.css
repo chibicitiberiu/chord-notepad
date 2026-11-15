@@ -90,3 +90,395 @@
 .wy-side-nav-search code {
     background: rgba(255,255,255,0.3);
 }
+
+/* Figures with a dark twin (<name>.dark.png) come in a <picture>
+   (help/_ext/editions.py): keep it as wide as a plain image may be. */
+.rst-content picture {
+    display: inline-block;
+    max-width: 100%;
+}
+
+/* ---- Dark mode ------------------------------------------------------------
+   Follows the browser's or the system's prefers-color-scheme. The greys are
+   the Qt window's dark theme (desktop/chordnotepad_desktop/qml/CNTheme/
+   Theme.qml): base for the page, panel for the sidebar, chrome for bars,
+   border and muted for lines and small print, and the editor's chord,
+   directive and comment colours in the examples. The coral stays the
+   guide's accent, a step lighter so it reads on the dark page. */
+@media (prefers-color-scheme: dark) {
+    :root {
+        color-scheme: dark;
+        --cn-base: #1e1f22;
+        --cn-panel: #252629;
+        --cn-chrome: #2b2c30;
+        --cn-popup: #2e3034;
+        --cn-control: #35373c;
+        --cn-input: #1b1c1f;
+        --cn-border: #393b41;
+        --cn-border-strong: #4b4e55;
+        --cn-text: #e3e4e8;
+        --cn-muted: #9b9ea8;
+        --cn-accent: #8b9bff;
+        --cn-link: #f0998e;
+        --cn-link-hover: #f6b8af;
+        --cn-chord: #8ab4f8;
+        --cn-directive: #d39be0;
+        --cn-comment: #7f848f;
+        --cn-warning: #f2b95c;
+        --cn-error: #ff8a80;
+        --cn-success: #7fd1a8;
+    }
+
+    /* Page and text */
+    body,
+    .wy-body-for-nav,
+    .wy-nav-content-wrap,
+    .wy-nav-content {
+        background: var(--cn-base);
+        color: var(--cn-text);
+    }
+
+    .rst-content h1, .rst-content h2, .rst-content h3,
+    .rst-content h4, .rst-content h5, .rst-content h6,
+    .rst-content .rubric,
+    .rst-content dt,
+    .rst-content strong {
+        color: var(--cn-text);
+    }
+
+    hr,
+    .rst-content hr {
+        border-top-color: var(--cn-border);
+    }
+
+    footer,
+    .rst-content .caption-text,
+    .rst-content figcaption,
+    .wy-breadcrumbs-extra {
+        color: var(--cn-muted);
+    }
+
+    .wy-breadcrumbs li a,
+    .wy-breadcrumbs li.wy-breadcrumbs-aside a {
+        color: var(--cn-link);
+    }
+
+    /* Links */
+    a,
+    .rst-content a,
+    .rst-content a code,
+    .rst-content a tt {
+        color: var(--cn-link);
+    }
+
+    a:hover,
+    .rst-content a:hover {
+        color: var(--cn-link-hover);
+    }
+
+    a:visited {
+        color: var(--cn-link);
+    }
+
+    .rst-content a.headerlink,
+    .rst-content .toc-backref {
+        color: var(--cn-muted);
+    }
+
+    /* The sidebar */
+    .wy-nav-side,
+    .wy-side-scroll {
+        background: var(--cn-panel);
+        color: var(--cn-muted);
+    }
+
+    .wy-side-nav-search {
+        background: var(--cn-chrome);
+        border-bottom: 3px solid #da606d;
+    }
+
+    .wy-side-nav-search > a,
+    .wy-side-nav-search .wy-dropdown > a,
+    .wy-side-nav-search > div.version {
+        color: var(--cn-text);
+    }
+
+    .wy-side-nav-search input[type="text"] {
+        background: var(--cn-input);
+        border: 1px solid var(--cn-border-strong);
+        color: var(--cn-text);
+        box-shadow: none;
+    }
+
+    .wy-side-nav-search input[type="text"]::placeholder {
+        color: var(--cn-muted);
+    }
+
+    .wy-side-nav-search input[type="text"]:focus {
+        border-color: var(--cn-link);
+    }
+
+    .wy-menu-vertical p.caption,
+    .wy-menu-vertical header {
+        color: var(--cn-muted);
+    }
+
+    .wy-menu-vertical a,
+    .wy-nav .wy-menu-vertical a {
+        color: var(--cn-text);
+    }
+
+    .wy-menu-vertical a:hover,
+    .wy-nav .wy-menu-vertical a:hover,
+    .wy-menu-vertical li.current a:hover {
+        background: var(--cn-control);
+        color: var(--cn-text);
+    }
+
+    .wy-menu-vertical li.current {
+        background: var(--cn-chrome);
+    }
+
+    .wy-menu-vertical li.current a {
+        color: var(--cn-text);
+        border-right: none;
+    }
+
+    .wy-menu-vertical li.current > a,
+    .wy-menu-vertical li.on a,
+    .wy-menu-vertical li.toctree-l1.current > a {
+        background: var(--cn-popup);
+        border-top: 1px solid var(--cn-border);
+        border-bottom: 1px solid var(--cn-border);
+        color: var(--cn-text);
+    }
+
+    .wy-menu-vertical li.toctree-l2.current > a,
+    .wy-menu-vertical li.toctree-l2.current li.toctree-l3 > a,
+    .wy-menu-vertical li.toctree-l3.current > a,
+    .wy-menu-vertical li.toctree-l3.current li.toctree-l4 > a {
+        background: var(--cn-chrome);
+        color: var(--cn-text);
+    }
+
+    .wy-menu-vertical a:active {
+        background: #da606d;
+        color: #ffffff;
+    }
+
+    .wy-menu-vertical li button.toctree-expand,
+    .wy-menu-vertical li.current > a button.toctree-expand,
+    .wy-menu-vertical li.on a button.toctree-expand {
+        color: var(--cn-muted);
+    }
+
+    /* The narrow screen's top bar */
+    .wy-nav-top {
+        background: var(--cn-chrome);
+        color: var(--cn-text);
+        border-bottom: 3px solid #da606d;
+    }
+
+    .wy-nav-top a {
+        color: var(--cn-text);
+    }
+
+    /* Code: inline, blocks, and the chord sheet examples */
+    .rst-content code,
+    .rst-content tt,
+    code {
+        background: var(--cn-chrome);
+        border: 1px solid var(--cn-border);
+        color: var(--cn-text);
+    }
+
+    /* The theme paints ``literals`` red; on the dark page that shouts. */
+    .rst-content code.literal,
+    .rst-content tt.literal,
+    .rst-content code.xref,
+    .rst-content tt.xref {
+        color: var(--cn-text);
+    }
+
+    .rst-content div[class^="highlight"],
+    .rst-content pre.literal-block {
+        background: var(--cn-input);
+        border: 1px solid var(--cn-border);
+        color: var(--cn-text);
+    }
+
+    .highlight,
+    .rst-content .highlight {
+        background: var(--cn-input);
+        color: var(--cn-text);
+    }
+
+    .highlight .hll {
+        background: #3a4579;
+    }
+
+    .highlight .nt, .highlight .na, .highlight .nb { color: #8ab4f8; }
+    .highlight .s, .highlight .s1, .highlight .s2, .highlight .sd { color: #a5d6a7; }
+    .highlight .m, .highlight .mi, .highlight .mf { color: #f2c063; }
+    .highlight .k, .highlight .kc, .highlight .kn, .highlight .ow { color: #d39be0; }
+    .highlight .c, .highlight .c1, .highlight .cm, .highlight .ch { color: #7f848f; }
+    .highlight .p, .highlight .o, .highlight .n, .highlight .w { color: var(--cn-text); }
+    .highlight .gp, .highlight .go { color: var(--cn-muted); }
+    .highlight .err { border: none; color: var(--cn-error); }
+
+    /* Chord sheets in the editor's dark colours */
+    .highlight-chord .k { color: var(--cn-chord); }
+    .highlight-chord .nd { color: var(--cn-directive); }
+    .highlight-chord .c, .highlight-chord .c1 { color: var(--cn-comment); }
+
+    .rst-content .guilabel,
+    .rst-content .menuselection {
+        background: var(--cn-chrome);
+        border: 1px solid var(--cn-border-strong);
+        color: var(--cn-text);
+    }
+
+    .rst-content kbd,
+    kbd {
+        background: var(--cn-control);
+        border: 1px solid var(--cn-border-strong);
+        box-shadow: none;
+        color: var(--cn-text);
+    }
+
+    /* Notes, tips and warnings: a tinted panel and a coloured title bar */
+    .rst-content .admonition,
+    .rst-content .note,
+    .rst-content .seealso,
+    .rst-content .tip,
+    .rst-content .hint,
+    .rst-content .important,
+    .rst-content .warning,
+    .rst-content .caution,
+    .rst-content .attention,
+    .rst-content .danger,
+    .rst-content .error {
+        background: var(--cn-panel);
+        color: var(--cn-text);
+    }
+
+    .rst-content .admonition .admonition-title {
+        background: var(--cn-control);
+        color: var(--cn-text);
+    }
+
+    .rst-content .note .admonition-title,
+    .rst-content .seealso .admonition-title {
+        background: #33406e;
+    }
+
+    .rst-content .tip .admonition-title,
+    .rst-content .hint .admonition-title,
+    .rst-content .important .admonition-title {
+        background: #24503d;
+    }
+
+    .rst-content .warning .admonition-title,
+    .rst-content .caution .admonition-title,
+    .rst-content .attention .admonition-title {
+        background: #5a4318;
+    }
+
+    .rst-content .danger .admonition-title,
+    .rst-content .error .admonition-title {
+        background: #5c2925;
+    }
+
+    /* Tables */
+    .rst-content table.docutils,
+    .wy-table-bordered-all,
+    .rst-content table.docutils td,
+    .rst-content table.docutils th,
+    html.writer-html5 .rst-content table.docutils th,
+    .rst-content table.docutils thead th,
+    .wy-table-responsive table td,
+    .wy-table-responsive table th {
+        border-color: var(--cn-border);
+        color: var(--cn-text);
+    }
+
+    .rst-content table.docutils td,
+    .wy-table-responsive table td {
+        background-color: var(--cn-base);
+    }
+
+    .rst-content table.docutils:not(.field-list) tr:nth-child(2n-1) td,
+    .wy-table-striped tr:nth-child(2n-1) td,
+    .wy-table-odd td,
+    .wy-table-backed {
+        background-color: var(--cn-panel);
+    }
+
+    .rst-content table.docutils thead th,
+    .rst-content table.docutils thead td {
+        background-color: var(--cn-chrome);
+    }
+
+    /* Definition lists and sidebars */
+    html.writer-html5 .rst-content dl[class]:not(.option-list):not(.field-list):not(.footnote):not(.citation):not(.glossary):not(.simple) > dt {
+        background: var(--cn-chrome);
+        border-top-color: var(--cn-accent);
+        color: var(--cn-text);
+    }
+
+    .rst-content .sidebar {
+        background: var(--cn-panel);
+        border-color: var(--cn-border);
+    }
+
+    .rst-content .sidebar .sidebar-title {
+        background: var(--cn-chrome);
+    }
+
+    /* Previous / Next and the search page */
+    .btn-neutral {
+        background-color: var(--cn-control) !important;
+        color: var(--cn-text) !important;
+    }
+
+    .btn-neutral:hover {
+        background-color: var(--cn-popup) !important;
+    }
+
+    .btn {
+        box-shadow: none;
+        border-color: var(--cn-border-strong);
+    }
+
+    #search-results .search li,
+    #search-results .search li:first-child {
+        border-color: var(--cn-border);
+    }
+
+    #search-results .context,
+    .rst-content .highlighted,
+    span.highlighted {
+        color: var(--cn-text);
+    }
+
+    .rst-content .highlighted,
+    span.highlighted {
+        background: #5a4f00;
+        box-shadow: 0 0 0 2px #5a4f00;
+    }
+
+    input[type="text"],
+    input[type="search"] {
+        background: var(--cn-input);
+        border-color: var(--cn-border-strong);
+        color: var(--cn-text);
+    }
+
+    /* A light screenshot or diagram with no dark twin sits straight in its
+       figure (twins come in a <picture>): a little dimmer, so it doesn't
+       glare on the dark page. */
+    .rst-content figure > img,
+    .rst-content figure > a > img {
+        filter: brightness(0.85);
+    }
+}
