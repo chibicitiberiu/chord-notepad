@@ -7,6 +7,7 @@ with these too, so a view that sends a raw slider position still lands on
 the values the desktop scrubber would.
 """
 
+import math
 from dataclasses import dataclass
 from typing import Optional, Tuple
 
@@ -174,6 +175,20 @@ def parse_bpm(text: str) -> int:
 def format_multiplier_pct(pct: float) -> str:
     """The multiplier as the toolbar shows it, e.g. ``150`` or ``87.5``."""
     return f"{pct:g}"
+
+
+def effective_bpm(bpm: float, pct: float) -> int:
+    """The tempo heard: ``bpm`` at ``pct`` percent speed, rounded half up
+    (95 bpm at 150% is 143)."""
+    return int(math.floor(bpm * pct / 100.0 + 0.5))
+
+
+def format_effective_bpm(bpm: float, pct: float) -> str:
+    """The tempo heard beside the song's when the speed isn't 100%:
+    ``"143 bpm (150%)"``; ``""`` at 100%."""
+    if abs(pct - 100.0) < 1e-6:
+        return ""
+    return f"{effective_bpm(bpm, pct)} bpm ({format_multiplier_pct(pct)}%)"
 
 
 def parse_multiplier_pct(text: str) -> float:

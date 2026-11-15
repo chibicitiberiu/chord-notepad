@@ -3,9 +3,11 @@ import QtQuick
 import QtQuick.Controls
 import CNTheme
 
-// The song's values under the title in the player bar (plan step E2):
+// The song's values above the timeline in the player bar (plan step E2):
 // "100 bpm · 3/4 · Am", what the song starts with (ToolbarState).
-// - The tempo is TempoReadout (Tk's scrubber when it can be changed).
+// - The tempo is TempoReadout (Tk's scrubber when it can be changed). At a
+//   speed other than 100% the tempo heard follows it, muted:
+//   "95 bpm → 143 bpm (150%)" (Tibi, 2026-11-15).
 // - The time and the key open D5's value picker with the toolbar's choices
 //   (openPicker; a pick sends set_time_signature / set_key). Both are locked
 //   while a song plays (not while paused), with Tk's tooltips.
@@ -13,7 +15,6 @@ import CNTheme
 //   underlined on hover, "Set by {key: D} in the song · click to go there",
 //   and a click asks for goToDirective (the player bar switches to Edit and
 //   puts the cursor in the directive, found in the live text).
-// Shown on the title row above the timeline.
 Row {
     id: sv
     required property var store
@@ -81,6 +82,7 @@ Row {
         anchors.verticalCenter: parent.verticalCenter
         spacing: Theme.px(0.5)
         TempoReadout {
+            id: tempo
             store: sv.store
             player: sv.player
             anchors.verticalCenter: parent.verticalCenter
@@ -88,7 +90,17 @@ Row {
         }
         SText {
             text: "bpm"; font: Theme.fontS; color: Theme.muted
-            rightPadding: Theme.gap1        // as far from the dot as the chips' padding
+            rightPadding: effective.visible ? 0 : Theme.gap1   // as far from the dot as the chips' padding
+            anchors.verticalCenter: parent.verticalCenter
+        }
+        SText {
+            id: effective
+            objectName: "effectiveTempo"
+            readonly property string heard: sv.player.effectiveTempo(tempo.shown, sv.tb.multiplier_pct || 100)
+            text: "→ " + heard
+            visible: heard !== ""
+            leftPadding: Theme.gap1; rightPadding: Theme.gap1
+            font: Theme.fontS; color: Theme.muted
             anchors.verticalCenter: parent.verticalCenter
         }
     }

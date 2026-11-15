@@ -419,6 +419,11 @@ class PlayerBarModel(QObject):
         """``87.5``, ``100``: the multiplier as the toolbar shows it."""
         return toolbar.format_multiplier_pct(pct)
 
+    @Slot(float, float, result=str)
+    def effectiveTempo(self, bpm: float, pct: float) -> str:  # noqa: N802 (Qt)
+        """``"143 bpm (150%)"``: the tempo heard at speed ``pct``; ``""`` at 100%."""
+        return toolbar.format_effective_bpm(bpm, pct)
+
     def _get_speed_presets(self) -> list:
         return list(SPEED_PRESETS)
 

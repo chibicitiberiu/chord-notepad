@@ -708,6 +708,24 @@ def test_speed_wheel_middle_click_and_the_shortcuts(pb):
     tooltip_shows(pb, speed, "Speed multiplier applied on top of BPM")
 
 
+def test_the_tempo_heard_shows_beside_the_songs_when_the_speed_isnt_100(pb):
+    # Tibi, 2026-11-15: "143 bpm (150%)", the declared tempo times the speed.
+    pb.to_play()
+    heard = pb.it("effectiveTempo")
+    assert not heard.isVisible()
+    pb.store.submit("set_bpm", {"bpm": 95})
+    pb.store.submit("set_multiplier_pct", {"pct": 150})
+    pb.qtbot.waitUntil(lambda: heard.isVisible(), timeout=1000)
+    assert heard.property("text") == "→ 143 bpm (150%)"
+    # It follows the tempo (a wheel step here) and the speed.
+    pb.wheel(pb.it("tempoChip"), 1)
+    pb.qtbot.waitUntil(lambda: heard.property("text") == "→ 144 bpm (150%)", timeout=1000)
+    pb.store.submit("set_multiplier_pct", {"pct": 87.5})
+    pb.qtbot.waitUntil(lambda: heard.property("text") == "→ 84 bpm (87.5%)", timeout=1000)
+    pb.store.submit("set_multiplier_pct", {"pct": 100})
+    pb.qtbot.waitUntil(lambda: not heard.isVisible(), timeout=1000)
+
+
 def test_the_speed_dropdown_box_slider_presets_and_reset(pb):
     pb.to_play()
     # From the keyboard (Q10): Space on the focused button opens it.

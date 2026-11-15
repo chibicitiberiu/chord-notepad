@@ -67,6 +67,17 @@ def test_bpm_parse_and_format():
     assert toolbar.format_multiplier_pct(150.0) == "150"
 
 
+def test_the_tempo_heard_at_a_speed():
+    # Tibi, 2026-11-15: "143 bpm (150%)", the declared tempo times the speed.
+    assert toolbar.effective_bpm(95, 150) == 143          # 142.5, half up
+    assert toolbar.effective_bpm(120, 87.5) == 105
+    assert toolbar.effective_bpm(100, 12.5) == 13         # 12.5, half up
+    assert toolbar.format_effective_bpm(95, 150) == "143 bpm (150%)"
+    assert toolbar.format_effective_bpm(120, 87.5) == "105 bpm (87.5%)"
+    assert toolbar.format_effective_bpm(120, 100) == ""
+    assert toolbar.format_effective_bpm(120, 100.0000001) == ""
+
+
 @pytest.mark.parametrize("pct", [12.5, 15, 35, 40, 60, 65, 98, 110, 115, 87.5, 33.3, 400])
 def test_the_speed_keeps_any_value_in_range(pct):
     # Nothing downstream needs a grid (the scheduler takes any multiplier),

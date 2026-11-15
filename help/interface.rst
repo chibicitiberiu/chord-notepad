@@ -233,6 +233,8 @@ The User Interface
    ``150%``, ``87.5`` or ``1.5x``. On the button itself, the mouse wheel steps
    by 5% and a middle-click goes back to ``100%``. **Ctrl+]** and **Ctrl+[**
    step the speed up and down, and **Ctrl+Backslash** resets it.
+   At any speed other than 100%, the tempo above the timeline is followed by
+   the tempo you actually hear, in grey: ``95 bpm → 143 bpm (150%)``.
 
    Unlike the tempo, the speed **stays editable during playback** and takes
    effect immediately on the next chord. For example, set it to ``50%`` to
