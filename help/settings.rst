@@ -258,18 +258,27 @@ you there.
 
       The Voicings page with a new fretboard voicing.
 
-   The left side lists your custom voicings, grouped by model (Fretboard,
-   Piano, Ensemble). At the top is **Add voicing**, with a trash button next
-   to it. **Add voicing** opens a menu of what the new voicing starts as: the
-   built-in fretboards, the built-in ensembles, **Piano (default)**, then your
-   own voicings, in groups separated by lines. Pick one and a voicing called
-   "New voicing" (or "New voicing 2", and so on) is added as a copy of it, with
-   the same model and parameters, and opens on the right. There's no question
-   to answer. The trash button removes the selected voicing after asking, and
-   is greyed out when nothing is selected. Built-in voicings -- the four
-   guitars, the ukulele, the four ensemble presets, the default piano -- aren't
-   listed here since they're not yours to edit, but the **Add voicing** menu
-   offers them as starting points.
+   The left side lists the voicings by model (Fretboard, Piano, Ensemble).
+   Each group starts with its built-in voicings, in grey with a lock: the
+   four guitars and the ukulele, the default piano, the four ensemble
+   presets. Your own voicings follow. At the top is **Add voicing**, with a
+   trash button next to it.
+
+   **Add voicing** opens a menu of what the new voicing starts as. First come
+   **Blank fretboard**, **Blank piano** and **Blank ensemble**, each that
+   model's defaults; below a line, the built-in fretboards, the built-in
+   ensembles, **Piano (default)** and your own voicings, in groups separated
+   by lines. Pick one and the new voicing opens on the right, with no question
+   to answer. A blank is called "New fretboard voicing" ("New piano voicing",
+   "New ensemble voicing"), and a copy "New" and the name of what it copies,
+   such as "New Ukulele". When that name is taken, a number follows: "New
+   Ukulele 2". The trash button removes the selected voicing after asking,
+   and is greyed out when nothing is selected or a built-in is.
+
+   Click a built-in to see its settings. It can't be changed: every field is
+   greyed out, and beside its name is **Copy to a new voicing**, which adds a
+   copy of your own and opens it. Looking at a built-in isn't a change, so
+   closing the window afterwards doesn't ask about saving.
 
 .. only:: android
 
@@ -307,6 +316,8 @@ you there.
    The right side edits whichever voicing is selected. Every control has a
    hover tooltip explaining what it does, so if a field's purpose isn't
    obvious, point at it before consulting :doc:`fretted` or :doc:`ensembles`.
+   A number field with limits gives them on a second, grey line of its
+   tooltip: Max fret says **Range 5–24**. The weights have none.
 
 .. only:: android
 
@@ -338,9 +349,11 @@ you there.
 .. only:: desktop
 
    **Starting point**
-      The **Add voicing** menu: a new voicing starts as a copy of the preset
-      or voicing you pick there, every parameter included. This is the normal
-      way to start one: pick the closest, then change what's different.
+      The **Add voicing** menu: a new voicing starts as a blank of one model,
+      or as a copy of the preset or voicing you pick there, every parameter
+      included. A copy is the normal way to start one: pick the closest, then
+      change what's different. **Copy to a new voicing** on a built-in does
+      the same.
 
 **Name**
    .. only:: desktop
