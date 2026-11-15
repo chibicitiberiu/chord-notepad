@@ -216,7 +216,7 @@ QtObject {
     // playing chord's yellow.
     readonly property color findMatch:        dark ? "#2d4b35" : "#cdecd2"
     readonly property color findCurrent:      dark ? "#3c7448" : "#9fdcaa"
-    readonly property color occurrence:       dark ? "#35373d" : "#e6e8ec"
+    readonly property color occurrence:       dark ? "#3c3f47" : "#dde1e8"
     // The chord sheet's playing column: the accent as a tint over the strip.
     readonly property color sheetPlaying:     Qt.rgba(accent.r, accent.g, accent.b, dark ? 0.20 : 0.14)
 
