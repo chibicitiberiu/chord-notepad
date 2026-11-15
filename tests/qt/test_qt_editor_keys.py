@@ -467,3 +467,31 @@ def _theme(ed):
     from PySide6.QtQml import qmlEngine
     return qmlEngine(ed.window).singletonInstance("CNTheme", "Theme")
 
+
+
+# -- overwrite mode -------------------------------------------------------------------------------
+
+
+def test_insert_toggles_overwrite_with_the_ovr_cell_and_a_block_caret(ed):
+    song(ed, "C G\n")
+    ovr = ed.item("overwriteCell")
+    block = ed.item("overwriteCaret")
+    assert ovr.property("visible") is False and block.property("visible") is False
+    ed.set_cursor(0)
+    ed.key(K.Key_Insert)
+    assert ed.area.property("overwriteMode") is True
+    assert ovr.property("visible") is True and ovr.property("text") == "OVR"
+    assert block.property("visible") is True
+    assert block.property("width") == pytest.approx(
+        ed.area.positionToRectangle(1).x() - ed.area.positionToRectangle(0).x())
+    QTest.keyClick(ed.window, "D")
+    assert ed.text() == "D G\n"
+    ed.key(K.Key_Insert)
+    assert ed.area.property("overwriteMode") is False and ovr.property("visible") is False
+    QTest.keyClick(ed.window, "x")
+    assert ed.text() == "Dx G\n"
+    # Shift+Insert still pastes.
+    from PySide6.QtGui import QGuiApplication
+    QGuiApplication.clipboard().setText("Am")
+    ed.key(K.Key_Insert, SHIFT)
+    assert ed.text() == "DxAm G\n" and ed.area.property("overwriteMode") is False

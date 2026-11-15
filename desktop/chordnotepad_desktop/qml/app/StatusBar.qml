@@ -21,6 +21,8 @@ Rectangle {
     id: bar
     objectName: "statusBar"
     required property var model
+    // The editor's overwrite mode (the Insert key): an OVR cell while on.
+    property bool overwrite: false
     implicitHeight: Theme.statusHeight
     color: Theme.chrome
 
@@ -144,6 +146,19 @@ Rectangle {
             text: "Ln " + bar.model.caretLine + ", Col " + bar.model.caretColumn
             color: Theme.muted
             font: Theme.fontTabular
+        }
+        Separator { visible: overwriteCell.visible }
+        Label {
+            id: overwriteCell
+            objectName: "overwriteCell"
+            visible: bar.overwrite
+            text: "OVR"
+            color: Theme.text
+            font: Theme.fontStrongS
+            HoverHandler { id: ovrHover }
+            ToolTip.visible: ovrHover.hovered
+            ToolTip.delay: 400
+            ToolTip.text: "Overwrite mode: typing replaces the characters after the caret. Insert switches it off."
         }
         Separator { visible: notation.visible }
         Label {

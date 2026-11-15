@@ -266,7 +266,7 @@ ApplicationWindow {
                     }
                 }
                 // The message (D4), the read-only notice, Ln/Col, the notation (F4).
-                StatusBar { model: win.status; Layout.fillWidth: true }
+                StatusBar { model: win.status; overwrite: editorPane.area.overwriteMode; Layout.fillWidth: true }
             }
             // Play: the player bar (E1), the text and the chord-sheet strip (E4).
             ColumnLayout {

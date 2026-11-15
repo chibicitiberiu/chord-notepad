@@ -271,6 +271,19 @@ Rectangle {
         text: "&Go to line…"; shortcut: "Ctrl+G"
         onTriggered: findBar.openGoToLine()
     }
+    // Overwrite mode: the Insert key, in the text (the menus show the key).
+    readonly property Action overwriteAction: Action {
+        id: overwrite
+        objectName: "overwriteAction"
+        text: "&Overwrite mode"
+        checkable: true
+        checked: area.overwriteMode
+        onTriggered: {
+            area.overwriteMode = !area.overwriteMode
+            overwrite.checked = Qt.binding(function () { return area.overwriteMode })
+            area.forceActiveFocus()
+        }
+    }
     // F3 with the bar closed finds the last query again; with none yet, the bar opens.
     function findAgain(backward) {
         if (!pane.editor.finder.findAgain(backward)) findBar.open(false)
@@ -453,6 +466,8 @@ Rectangle {
         }
     }
 
+    FontMetrics { id: editorMetrics; font: area.font }
+
     ScrollView {
         id: scroll
         objectName: "editorScroll"
@@ -514,6 +529,20 @@ Rectangle {
                 moved: [scroll.contentItem.contentX, scroll.contentItem.contentY]
                 visible: area.cursorVisible && blinkOn
                 property bool blinkOn: true
+                // Overwrite mode: a block over the character the next key replaces.
+                Rectangle {
+                    objectName: "overwriteCaret"
+                    visible: area.overwriteMode
+                    x: caret.offset
+                    width: {
+                        void [area.cursorPosition, area.text, area.font, area.width]
+                        var r0 = area.cursorRectangle
+                        var r1 = area.positionToRectangle(Math.min(area.length, area.cursorPosition + 1))
+                        return r1.y === r0.y && r1.x > r0.x ? r1.x - r0.x : editorMetrics.averageCharacterWidth
+                    }
+                    height: caret.height
+                    color: Qt.rgba(Theme.editorText.r, Theme.editorText.g, Theme.editorText.b, 0.28)
+                }
                 Timer {
                     interval: 530; repeat: true
                     running: area.cursorVisible
@@ -574,6 +603,10 @@ Rectangle {
                     // Shift+Tab unindents the selection's lines, or the caret's.
                     event.accepted = true
                     pane.lineOp("indent_lines", { outdent: true })
+                } else if (event.key === Qt.Key_Insert && mods === Qt.NoModifier) {
+                    // Insert: overwrite mode on or off (the status bar shows OVR).
+                    event.accepted = true
+                    area.overwriteMode = !area.overwriteMode
                 } else if (event.key === Qt.Key_Escape && mods === Qt.NoModifier && findBar.shown) {
                     event.accepted = true
                     findBar.close()
