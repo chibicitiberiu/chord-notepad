@@ -565,7 +565,7 @@ def _key_picker(sc: Scene):
 
 
 @shot("chord_sheet_qt", "Quick Start, page 6", "The chord sheet's fret cards, for the Quick Start.",
-      dest="quickstart", crop="chordSheetPane", pad=0, crop_size=(702, 148),
+      dest="quickstart", crop="chordSheetPane", pad=0, crop_size=(702, 300),
       size=(1000, 700))
 def _quick_start_image(sc: Scene):
     sc.text(TWINKLE, "Twinkle.txt")

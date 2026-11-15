@@ -18,8 +18,10 @@ from typing import Any, Dict, List, Optional
 
 from chordnotepad.session.platform import ANDROID, DESKTOP, DESKTOP_QT, check_platform
 
-#: The picture of the chord sheet (desktop only).
+#: The picture of the chord sheet (desktop only): the Tk window's, and the
+#: Qt window's (made by packaging/tools/qt_help_screenshots.py).
 CHORD_SHEET_IMAGE = "resources/quickstart/chord_sheet.png"
+CHORD_SHEET_IMAGE_QT = "resources/quickstart/chord_sheet_qt.png"
 
 
 def pages(platform: str = DESKTOP) -> List[Dict[str, Any]]:
@@ -45,7 +47,7 @@ def pages(platform: str = DESKTOP) -> List[Dict[str, Any]]:
          "cards), or as tab. It follows along while the song plays."),
     ]
     if not android:
-        chord_sheet_blocks.append(("image", CHORD_SHEET_IMAGE))
+        chord_sheet_blocks.append(("image", CHORD_SHEET_IMAGE_QT if qt else CHORD_SHEET_IMAGE))
     chord_sheet_blocks.append(
         ("text", variant(
             "Fret cards and Tab need a fretted instrument, picked in Playback "

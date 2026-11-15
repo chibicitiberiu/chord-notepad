@@ -7,6 +7,8 @@ The Tk desktop's texts and behaviour are unchanged (``test_session_player``,
 ``test_session_platform_texts``).
 """
 
+from pathlib import Path
+
 import pytest
 
 from chordnotepad.session import quick_start
@@ -168,10 +170,14 @@ def test_qt_quick_start_names_the_qt_controls_not_the_tk_menus():
                     "☰ → Help → Quick start", "Voicing button", "F9", "player bar",
                     "playhead"):
         assert qt_name in text, qt_name
-    # Same snippets, same picture slot as the Tk desktop.
+    # Same snippets, the same picture slot; the picture is the Qt window's own.
     blocks = lambda pages, kind: [b for p in pages for b in p["blocks"] if b[0] == kind]
     assert blocks(qt, "snippet") == blocks(desktop, "snippet")
-    assert blocks(qt, "image") == blocks(desktop, "image")
+    assert blocks(desktop, "image") == [("image", "resources/quickstart/chord_sheet.png")]
+    assert blocks(qt, "image") == [("image", "resources/quickstart/chord_sheet_qt.png")]
+    root = Path(__file__).resolve().parents[1]
+    for _, path in blocks(qt, "image") + blocks(desktop, "image"):
+        assert (root / path).is_file(), path
 
 
 def test_qt_quick_start_keeps_the_desktop_texts_that_name_no_tk_control():
