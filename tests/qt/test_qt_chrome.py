@@ -733,6 +733,54 @@ def test_the_recent_list_tells_same_names_apart_and_opens_one(app, tmp_path):
     app.qtbot.waitUntil(lambda: app.text() == "Band\n", timeout=2000)
 
 
+def menu_rows(app, menu):
+    """A Menu's rows ("---" for a separator) and its submenus' rows."""
+    rows = []
+    for i in range(menu.property("count")):
+        item = menu_item_at(menu, i)
+        rows.append("---" if item.inherits("QQuickMenuSeparator") else item.property("text"))
+    for sub in menu.findChildren(QObject):
+        if sub.inherits("QQuickMenu"):
+            rows.append((sub.property("title"), menu_rows(app, sub)))
+    return rows
+
+
+def collect_garbage(app):
+    from PySide6.QtQml import qmlEngine
+    qmlEngine(app.window).collectGarbage()
+    QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+    app.run()
+
+
+#: The menus built with createObject (Menu has no Repeater).
+BUILT_MENUS = ["voicingMenu", "barVoicingMenu", "sheetVoicingMenu", "instrumentMenu",
+               "barInstrumentMenu", "appMenuRecent", "menuBarRecent"]
+
+
+def test_the_built_menus_keep_their_rows_through_a_garbage_collection(app, tmp_path):
+    # Rows made with createObject(null) are the JS engine's. A manual pass
+    # saw the Voicing menu without its separators and "Edit voicings…"; the
+    # suspect was the collector deleting rows nothing in JS holds. Qt 6.12
+    # keeps the items a Menu holds (a minimal QML probe agrees), so this is a
+    # guard, not the fix: the cause of what was seen is still open.
+    for name in ("Choir", "Band"):
+        (tmp_path / name).mkdir()
+        (tmp_path / name / "song.txt").write_text(name + "\n", encoding="utf-8")
+        app.store.submit("open_document", {"ref": {"id": str(tmp_path / name / "song.txt"),
+                                                   "display_name": "song.txt",
+                                                   "location": str(tmp_path / name / "song.txt")},
+                                           "read_only": False})
+        app.qtbot.waitUntil(lambda: app.text() == name + "\n", timeout=2000)
+    app.qtbot.waitUntil(lambda: len(app.files.recentLabels) == 2, timeout=2000)
+    before = {name: menu_rows(app, app.obj(name)) for name in BUILT_MENUS}
+    voicings = before["voicingMenu"]
+    assert voicings[-2:] == ["---", "Edit voicings…"] and voicings.count("---") >= 2
+    assert len(before["appMenuRecent"]) == 2
+    # (The instrument submenus are empty here: the FakePlayer has no soundfont.)
+    collect_garbage(app)
+    assert {name: menu_rows(app, app.obj(name)) for name in BUILT_MENUS} == before
+
+
 def test_an_empty_recent_list_says_so_disabled(app):
     recent = app.obj("appMenuRecent")
     item = menu_item_at(recent, 0)
