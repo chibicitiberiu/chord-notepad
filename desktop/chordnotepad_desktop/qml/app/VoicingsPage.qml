@@ -3,6 +3,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import CNTheme
+import CNStyle      // PixelIcon: qmllint misses it through QtQuick.Controls here
 import "FormTips.js" as FormTips
 
 // Settings › Voicings (plan step G1), the mockup's layout: the voicings by
@@ -12,10 +13,17 @@ import "FormTips.js" as FormTips
 // (VoicingForm). With nothing selected, the placeholder. Texts and help come
 // from the schema (voicing_texts.py).
 //
-// Add voicing opens a menu of what the new voicing starts as: the built-in
-// presets and the user's voicings (Tibi, 2026-11-15: the copy is wanted
-// right after adding, so Android's separate Copy from existing went into
-// it). The trash button removes the selected voicing.
+// Add voicing opens a menu of what the new voicing starts as: a blank of
+// each model, a separator, then the built-in presets and the user's voicings
+// (Tibi, 2026-11-15: the copy is wanted right after adding, so Android's
+// separate Copy from existing went into it). The session names the new one
+// (add_voicing_from: "New fretboard voicing", "New <preset>", numbered when
+// taken). The trash button removes the selected voicing.
+//
+// Each model's group lists its built-ins first, muted with a lock: one shows
+// read-only (select_builtin; VoicingEditorState.read_only), every field
+// disabled and its name a plain label, with "Copy to a new voicing" in place
+// of the name field. Viewing one is not a change.
 //
 // It asks before removing a voicing and before switching the model of an
 // edited one (`confirm`, the window's ConfirmDialog); a refused name comes
@@ -33,7 +41,11 @@ RowLayout {
     readonly property var texts: page.schema ? page.schema.texts : ({})
     readonly property var help: page.schema ? page.schema.help : ({})
     readonly property string selected: page.editor.selected || ""
+    // The form shows a built-in: `selected` is its label, editor.model its group.
+    readonly property bool readOnly: !!page.editor.read_only
     readonly property var models: page.schema ? page.schema.models : []
+    // The built-in's copy button (desktop only: Android doesn't list the built-ins).
+    readonly property string copyText: "Copy to a new voicing"
     spacing: 0
 
     component GroupLabel: Label { font: Theme.fontS; color: Theme.muted; Layout.topMargin: Theme.gap3; Layout.leftMargin: Theme.gap2 }
@@ -126,7 +138,7 @@ RowLayout {
                         display: AbstractButton.IconOnly
                         leftPadding: 0; rightPadding: 0
                         Layout.preferredWidth: Theme.controlHeight
-                        enabled: page.selected !== ""
+                        enabled: page.selected !== "" && !page.readOnly
                         onClicked: page.askRemove(page.selected)
                         HoverHandler { id: removeHover }
                         ToolTip.visible: removeHover.hovered
@@ -143,10 +155,41 @@ RowLayout {
                         Layout.fillWidth: true
                         GroupLabel { text: group.modelData.label; font: Theme.fontStrongS }
                         Label {
-                            visible: group.modelData.names.length === 0
+                            visible: group.modelData.names.length === 0 && (group.modelData.builtins || []).length === 0
                             text: "No voicings"
                             color: Theme.disabled; font: Theme.fontS
                             Layout.leftMargin: Theme.gap3
+                        }
+                        // The built-ins: read-only, a copy is the way to change one.
+                        Repeater {
+                            model: group.modelData.builtins || []
+                            delegate: ItemDelegate {
+                                id: builtin
+                                required property string modelData
+                                objectName: "builtin:" + modelData
+                                text: modelData
+                                highlighted: page.readOnly && page.editor.model === group.modelData.model
+                                             && modelData === page.selected
+                                Layout.fillWidth: true
+                                contentItem: RowLayout {
+                                    spacing: Theme.gap2
+                                    Label {
+                                        text: builtin.text
+                                        elide: Text.ElideRight
+                                        verticalAlignment: Text.AlignVCenter
+                                        color: Theme.muted
+                                        font: builtin.highlighted ? Theme.fontMedium : Theme.font
+                                        Layout.fillWidth: true
+                                    }
+                                    PixelIcon {
+                                        objectName: "builtinLock"
+                                        name: "lock-outline"
+                                        size: Theme.px(3.5)
+                                        color: Theme.muted
+                                    }
+                                }
+                                onClicked: page.settings.selectBuiltin(group.modelData.model, modelData)
+                            }
                         }
                         Repeater {
                             model: group.modelData.names
@@ -155,7 +198,7 @@ RowLayout {
                                 required property string modelData
                                 objectName: "voicing:" + modelData
                                 text: modelData
-                                highlighted: modelData === page.selected
+                                highlighted: !page.readOnly && modelData === page.selected
                                 Layout.fillWidth: true
                                 // A voicing with a wrong value shows it (VoicingEditorState.invalid).
                                 contentItem: Label {
@@ -204,9 +247,27 @@ RowLayout {
                     ColumnLayout {
                         Layout.fillWidth: true
                         FieldLabel { text: "Name"; tip: page.help.name || "" }
+                        RowLayout {
+                            visible: page.readOnly
+                            spacing: Theme.gap3
+                            Layout.fillWidth: true
+                            Layout.preferredHeight: Theme.controlHeight
+                            Label {
+                                objectName: "builtinName"
+                                text: page.selected
+                                elide: Text.ElideRight
+                                Layout.fillWidth: true
+                            }
+                            Button {
+                                objectName: "copyBuiltin"
+                                text: page.copyText
+                                onClicked: page.settings.addVoicingFrom(page.editor.model, page.selected)
+                            }
+                        }
                         FormField {
                             id: nameField
                             objectName: "voicingName"
+                            visible: !page.readOnly
                             shown: page.selected
                             tip: page.help.name || ""
                             Layout.fillWidth: true
@@ -225,6 +286,7 @@ RowLayout {
                         ComboBox {
                             id: modelBox
                             objectName: "voicingModel"
+                            enabled: !page.readOnly
                             model: page.models.map((m) => m.label)
                             currentIndex: page.models.findIndex((m) => m.value === page.editor.model)
                             Layout.preferredWidth: Theme.px(36)
@@ -272,6 +334,7 @@ RowLayout {
                 }
                 VoicingForm {
                     settings: page.settings
+                    enabled: !page.readOnly
                     schemaForm: page.schema && page.editor.model ? page.schema.forms[page.editor.model] : null
                     formWidth: page.formWidth
                     Layout.fillWidth: true

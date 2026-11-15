@@ -61,6 +61,12 @@ THEME_LABELS = {"system": "Follow the system", "light": "Light", "dark": "Dark"}
 #: The default key's "no key" entry (Android's ``settings_key_none``).
 NO_KEY_LABEL = "None"
 
+#: The voicing commands the session refuses while the form shows a built-in
+#: (``VoicingEditorState.read_only``); the window doesn't send them then.
+READ_ONLY_REFUSED = frozenset((
+    "set_voicing_values", "set_voicing_model", "rename_voicing", "load_voicing_preset",
+    "add_voicing_record", "remove_voicing_record", "move_voicing_record"))
+
 #: The audio driver entry that saves no driver: FluidSynth's default, then
 #: the platform's list (``PlaybackService``).
 AUTO_DRIVER_LABEL = "Auto"
@@ -419,25 +425,36 @@ class SettingsModel(QObject):
     @Slot(result="QVariantList")
     def addPresets(self) -> list:  # noqa: N802 (Qt)
         """Add voicing's menu: ``{label, group}`` for every preset and every
-        working voicing, in the session's order (built-ins, then the user's
-        sorted by name). The state's ``presets`` leave out the selected
-        voicing (it can't copy itself); a new one may copy it."""
+        working voicing, in the session's order: the blanks (group
+        ``blank``), the built-ins by model, then the user's voicings sorted
+        by name. The state's ``presets`` leave out the selected voicing (it
+        can't copy itself); a new one may copy it. A built-in being viewed
+        (``read_only``) is in its own group already."""
         editor = self._store.state("VoicingEditorState")
         presets = [dict(p) for p in (editor.value("presets") or [])]
         selected = editor.value("selected")
-        if selected and not any(p["group"] == "custom" and p["label"] == selected for p in presets):
-            builtins = [p for p in presets if p["group"] != "custom"]
+        if (selected and not editor.value("read_only")
+                and not any(p["group"] == "custom" and p["label"] == selected for p in presets)):
+            others = [p for p in presets if p["group"] != "custom"]
             custom = sorted([p["label"] for p in presets if p["group"] == "custom"] + [selected])
-            presets = builtins + [{"label": name, "group": "custom"} for name in custom]
+            presets = others + [{"label": name, "group": "custom"} for name in custom]
         return presets
 
     @Slot(str, str)
     def addVoicingFrom(self, group: str, label: str) -> None:  # noqa: N802 (Qt)
         """Add a voicing that starts as preset ``label`` of ``group`` (one of
-        :meth:`addPresets`); the session selects it."""
+        :meth:`addPresets`, or a built-in of the list: group = its model);
+        the session names it ("New fretboard voicing", "New <label>", ...)
+        and selects it, in one state (``add_voicing_from``)."""
         self._pending = {}
-        self._voicing_command("add_voicing", {})
-        self._voicing_command("load_voicing_preset", {"group": group, "label": label})
+        self._voicing_command("add_voicing_from", {"group": group, "label": label})
+
+    @Slot(str, str)
+    def selectBuiltin(self, group: str, label: str) -> None:  # noqa: N802 (Qt)
+        """Show built-in ``label`` of model ``group`` in the form, read-only
+        (``select_builtin``). Viewing one changes nothing."""
+        self._pending = {}
+        self._voicing_command("select_builtin", {"group": group, "label": label}, change=False)
 
     @Slot(str)
     def removeVoicing(self, name: str) -> None:  # noqa: N802 (Qt)
@@ -515,6 +532,11 @@ class SettingsModel(QObject):
 
     def _voicing_command(self, name: str, args: dict, change: bool = True) -> None:
         if not self._open:
+            return
+        if name in READ_ONLY_REFUSED and self._store.state("VoicingEditorState").value("read_only"):
+            # A built-in is shown: its controls are disabled, and the session
+            # would refuse the edit (RuntimeError).
+            logger.debug("%s ignored: the form shows a built-in voicing", name)
             return
         self._store.submit(name, args)
         if change and not self._voicings_changed:

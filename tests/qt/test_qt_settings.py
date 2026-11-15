@@ -391,49 +391,183 @@ def add_menu_items(settings):
     return menu, items, [item.property("text") or "" for item in items]
 
 
-def test_add_voicing_offers_the_presets_and_the_pick_is_what_it_starts_as(settings):
-    # Tibi, 2026-11-15: Copy from existing went into Add voicing's menu.
+def pick(settings, label):
+    """Open Add voicing's menu and pick ``label``; wait for the menu to close."""
+    menu, items, labels = add_menu_items(settings)
+    QMetaObject.invokeMethod(items[labels.index(label)], "triggered")
+    settings.qtbot.waitUntil(lambda: not menu.property("visible"), timeout=2000)
+
+
+def test_add_voicing_offers_blanks_then_the_presets_and_the_core_names_the_new_one(settings):
+    # Tibi, 2026-11-15: Copy from existing went into Add voicing's menu, and
+    # a blank of each model comes first.
     settings.click("page:voicings")
     assert settings.item("removeVoicing").property("enabled") is False
     menu, items, labels = add_menu_items(settings)
-    presets = [p["label"] for p in settings.editor("presets")]
-    assert [label for label in labels if label] == presets
-    groups = [p["group"] for p in settings.editor("presets")]
-    assert labels.count("") == len(set(groups)) - 1          # a separator between groups
-    # Not the last row (each row keeps its own preset).
-    # (The blank fretboard first: a guitar's defaults.)
-    first = settings.editor("presets")[0]
-    assert first["group"] == "blank" and labels[0] == first["label"] == "Blank fretboard"
+    presets = settings.model.addPresets()
+    assert [label for label in labels if label] == [p["label"] for p in presets]
+    # The blanks, a separator, then the presets (a separator between groups).
+    assert labels[:4] == ["Blank fretboard", "Blank piano", "Blank ensemble", ""]
+    assert [p["group"] for p in presets[:3]] == ["blank"] * 3
+    groups = [p["group"] for p in presets]
+    assert labels.count("") == len(set(groups)) - 1
+    assert groups[3:] == sorted(groups[3:], key=groups[3:].index)     # each group in one run
     QMetaObject.invokeMethod(items[0], "triggered")
-    settings.qtbot.waitUntil(lambda: settings.editor("selected") == "New voicing", timeout=2000)
-    settings.qtbot.waitUntil(lambda: settings.editor("model") == "fretboard", timeout=2000)
+    settings.qtbot.waitUntil(lambda: settings.editor("selected") == "New fretboard voicing", timeout=2000)
+    assert settings.editor("model") == "fretboard"
     assert settings.editor("values")["tuning"] == "E2 A2 D3 G3 B3 E4"
+    assert settings.editor("dirty") is False
     assert settings.item("removeVoicing").property("enabled") is True
     assert not settings.item("voicingPlaceholder").isVisible()
     # No question: a new voicing has nothing to lose.
     assert settings.popup("settingsConfirm").property("visible") is False
     settings.qtbot.waitUntil(lambda: not menu.property("visible"), timeout=2000)
-    for group, model in (("piano", "piano"), ("ensemble", "ensemble")):
-        menu, items, labels = add_menu_items(settings)
-        preset = next(p for p in settings.editor("presets") if p["group"] == group)
-        QMetaObject.invokeMethod(items[labels.index(preset["label"])], "triggered")
-        settings.qtbot.waitUntil(lambda: settings.editor("model") == model, timeout=2000)
-        settings.qtbot.waitUntil(lambda: not menu.property("visible"), timeout=2000)
+    # A built-in preset, another blank, the same blank again.
+    pick(settings, "Piano (default)")
+    settings.qtbot.waitUntil(lambda: settings.editor("selected") == "New Piano (default)", timeout=2000)
+    assert settings.editor("model") == "piano"
+    pick(settings, "Blank ensemble")
+    settings.qtbot.waitUntil(lambda: settings.editor("selected") == "New ensemble voicing", timeout=2000)
+    pick(settings, "Blank fretboard")
+    settings.qtbot.waitUntil(lambda: settings.editor("selected") == "New fretboard voicing 2", timeout=2000)
     groups = {g["model"]: g["names"] for g in settings.editor("groups")}
-    assert groups == {"fretboard": ["New voicing"], "piano": ["New voicing 2"],
-                      "ensemble": ["New voicing 3"]}
-    # The selected voicing is offered too: a new one may copy it.
+    assert groups == {"fretboard": ["New fretboard voicing", "New fretboard voicing 2"],
+                      "piano": ["New Piano (default)"], "ensemble": ["New ensemble voicing"]}
+    # The user's voicings are offered, the selected one too: a new one may copy it.
     menu, items, labels = add_menu_items(settings)
-    assert "New voicing 3" in labels and "New voicing" in labels
-    QMetaObject.invokeMethod(items[labels.index("New voicing 3")], "triggered")
-    settings.qtbot.waitUntil(lambda: settings.editor("selected") == "New voicing 4", timeout=2000)
-    settings.qtbot.waitUntil(lambda: settings.editor("model") == "ensemble", timeout=2000)
+    assert labels[labels.index("Piano (default)") + 1] == ""
+    assert labels[-4:] == sorted(["New ensemble voicing", "New fretboard voicing",
+                                  "New fretboard voicing 2", "New Piano (default)"])   # as the core sorts
+    QMetaObject.invokeMethod(items[labels.index("New ensemble voicing")], "triggered")
+    settings.qtbot.waitUntil(lambda: settings.editor("selected") == "New New ensemble voicing", timeout=2000)
+    assert settings.editor("model") == "ensemble"
     settings.wait(100)
-    assert "New voicing" not in (settings.config("voicings") or {})
+    assert "New fretboard voicing" not in (settings.config("voicings") or {})
     settings.save()
     saved = settings.config("voicings")
-    assert [saved[f"New voicing{n}"]["model"] for n in ("", " 2", " 3", " 4")] == [
-        "fretboard", "piano", "ensemble", "ensemble"]
+    assert {name: saved[name]["model"] for name in saved} == {
+        "New fretboard voicing": "fretboard", "New fretboard voicing 2": "fretboard",
+        "New Piano (default)": "piano", "New ensemble voicing": "ensemble",
+        "New New ensemble voicing": "ensemble"}
+
+
+def test_add_voicing_from_sends_one_command(settings, monkeypatch):
+    sent = []
+    submit = settings.harness.store.submit
+    monkeypatch.setattr(settings.harness.store, "submit",
+                        lambda name, args=None: (sent.append(name), submit(name, args)))
+    settings.model.addVoicingFrom("blank", "Blank piano")
+    assert sent == ["add_voicing_from"]
+    settings.qtbot.waitUntil(lambda: settings.editor("selected") == "New piano voicing", timeout=2000)
+
+
+# -- the built-ins, read-only ------------------------------------------------------------
+
+
+def list_entries(settings):
+    """The voicing list's rows, top to bottom: (objectName, item)."""
+    page = settings.item("voicingsPage")
+    rows = []
+
+    def walk(item):
+        name = item.objectName()
+        if (name.startswith("builtin:") or name.startswith("voicing:")) and item.isVisible():
+            rows.append((name, item))
+        for child in item.childItems():
+            walk(child)
+
+    walk(page)
+    return sorted(rows, key=lambda row: row[1].mapToScene(QPointF(0, 0)).y())
+
+
+def test_each_group_lists_its_built_ins_first_muted_with_a_lock(settings):
+    settings.add_voicing()
+    settings.window.setProperty("page", "voicings")
+    settings.wait(50)
+    names = [name for name, _ in list_entries(settings)]
+    groups = {g["model"]: g for g in settings.editor("groups")}
+    expected = []
+    for model in ("fretboard", "piano", "ensemble"):
+        expected += [f"builtin:{label}" for label in groups[model]["builtins"]]
+        expected += [f"voicing:{name}" for name in groups[model]["names"]]
+    assert names == expected
+    assert names[:2] == ["builtin:Guitar (Standard - EADGBE)", "builtin:Guitar (Drop D)"]
+    assert "builtin:Piano (default)" in names and "builtin:String Quartet" in names
+    builtin = settings.item("builtin:Ukulele")
+    label = next(c for c in builtin.property("contentItem").childItems()
+                 if c.metaObject().className().startswith("Label"))
+    own = settings.item("voicing:New voicing").property("contentItem")
+    assert label.property("color") != own.property("color")          # muted
+    lock = find(builtin, "builtinLock")
+    assert lock is not None and lock.isVisible()
+    assert "lock-outline" in lock.property("source").toString()
+    assert find(settings.item("voicing:New voicing"), "builtinLock") is None
+
+
+def test_a_built_in_shows_read_only_and_a_copy_is_the_way_to_change_it(settings):
+    settings.add_voicing()
+    settings.wait(50)
+    assert settings.model.hasChanges is True       # the added voicing
+    settings.click("builtin:Ukulele")
+    settings.qtbot.waitUntil(lambda: settings.editor("read_only") is True, timeout=2000)
+    assert (settings.editor("selected"), settings.editor("model")) == ("Ukulele", "fretboard")
+    settings.wait(50)
+    # Selected, and the user's voicing isn't.
+    assert settings.item("builtin:Ukulele").property("highlighted") is True
+    assert settings.item("voicing:New voicing").property("highlighted") is False
+    # The name is a label, the model box, the trash button and every field disabled.
+    assert not settings.item("voicingName").isVisible()
+    assert settings.item("builtinName").property("text") == "Ukulele"
+    assert settings.item("builtinName").isVisible()
+    assert settings.item("voicingModel").property("enabled") is False
+    assert settings.item("removeVoicing").property("enabled") is False
+    for name in ("field:tuning", "field:max_fret", "field:allow_barres", "field:weight:barre_penalty"):
+        assert settings.item(name).property("enabled") is False, name
+    assert settings.item("field:tuning").property("text") == settings.editor("values")["tuning"]
+    # An edit that gets through anyway is not sent (the session would refuse it).
+    before = settings.editor("values")
+    revision = settings.editor("revision")
+    settings.model.setField("max_fret", "20", True)
+    settings.model.setModel("piano")
+    settings.model.addRecord("voices")
+    settings.wait(100)
+    assert settings.editor("values") == before and settings.editor("revision") == revision
+    # A built-in of another model: its form.
+    settings.click("builtin:Choir (SATB)")
+    settings.qtbot.waitUntil(lambda: settings.editor("model") == "ensemble", timeout=2000)
+    settings.wait(50)
+    assert settings.item("addRecord").property("enabled") is False
+    assert settings.item("cell:voice:0:low").property("enabled") is False
+    assert settings.item("builtin:Ukulele").property("highlighted") is False
+    # Copy: a voicing of the user's, named by the session, editable.
+    settings.click("copyBuiltin")
+    settings.qtbot.waitUntil(lambda: settings.editor("selected") == "New Choir (SATB)", timeout=2000)
+    assert settings.editor("read_only") is False and settings.editor("model") == "ensemble"
+    settings.wait(50)
+    assert settings.item("voicingName").isVisible() and not settings.item("builtinName").isVisible()
+    assert settings.item("voicingModel").property("enabled") is True
+    assert settings.item("removeVoicing").property("enabled") is True
+    assert settings.item("cell:voice:0:low").property("enabled") is True
+    assert settings.item("voicing:New Choir (SATB)").property("highlighted") is True
+    assert settings.item("builtin:Choir (SATB)").property("highlighted") is False
+    settings.save()
+    saved = settings.config("voicings")["New Choir (SATB)"]
+    assert saved["model"] == "ensemble" and len(saved["voices"]) == 4
+
+
+def test_viewing_a_built_in_is_not_a_change(settings):
+    settings.window.setProperty("page", "voicings")
+    settings.click("builtin:Piano (default)")
+    settings.qtbot.waitUntil(lambda: settings.editor("read_only") is True, timeout=2000)
+    settings.wait(50)
+    assert settings.model.hasChanges is False
+    # Add voicing's menu doesn't offer the built-in as one of the user's voicings.
+    assert [p for p in settings.model.addPresets() if p["group"] == "custom"] == []
+    # Escape closes without asking.
+    settings.activate()
+    settings.key(Qt.Key.Key_Escape)
+    settings.qtbot.waitUntil(lambda: not settings.window.isVisible(), timeout=2000)
+    assert settings.popup("settingsUnsavedDialog").property("visible") is False
 
 
 def test_minus_asks_first(settings):
