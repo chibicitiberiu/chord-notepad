@@ -48,3 +48,38 @@ def gain_for(volume: float, muted: bool = False) -> float:
         return 0.0
     volume = check_volume(volume)
     return AUDIO_GAIN * volume * volume
+
+
+# -- the metronome's own level -------------------------------------------------------
+#
+# ``metronome_volume`` (config, 0.0-1.0) is the second slider in the Qt
+# volume popup: the click's level against the music. The volume above still
+# turns both up and down (it is the synth's output gain), and mute silences
+# both. 1.0 is the loudest click MIDI allows (full velocity on the downbeat,
+# channel volume 127), about 8 dB louder than the click before this slider,
+# which sits near 60%.
+
+DEFAULT_METRONOME_VOLUME = 1.0
+#: CC 7 is 0-127.
+_CC_MAX = 127
+
+
+def metronome_volume_from_config(raw: Any) -> float:
+    """The config's ``metronome_volume``: a number in range (rounded to 3
+    places), else the default."""
+    try:
+        return round(check_volume(raw), 3)
+    except ValueError:
+        return DEFAULT_METRONOME_VOLUME
+
+
+def metronome_cc(level: float, enabled: bool = True) -> int:
+    """The click channel's volume (CC 7) for the metronome slider at
+    ``level``; 0 while the metronome is off.
+
+    127 × level: FluidSynth's CC 7 curve is 40·log10(cc/127) dB, so the
+    click's amplitude follows the square of the slider, like the volume's gain.
+    """
+    if not enabled:
+        return 0
+    return int(round(_CC_MAX * check_volume(level)))

@@ -28,8 +28,9 @@
   sends ``set_key`` / ``set_time_signature``), and where each value's
   directive is (``setting_directive_start``) for the links.
 * **Speed and volume:** the log slider's mapping, steps and parsing; the
-  volume and mute, which have no state (``volume``/``muted`` direct calls,
-  read again after each of the bar's own commands, B3).
+  volume, mute and the metronome's level, which have no state
+  (``volume``/``muted``/``metronome_volume`` direct calls, read again after
+  each of the bar's own commands, B3).
 """
 
 import logging
@@ -180,7 +181,7 @@ class PlayerBarModel(QObject):
 
     #: The bar:beat position or the timeline's fill moved.
     positionChanged = Signal()
-    #: The volume or the mute changed.
+    #: The volume, the mute or the metronome's level changed.
     volumeChanged = Signal()
 
     def __init__(self, store: Any, editor: Any, parent: Optional[QObject] = None,
@@ -196,6 +197,7 @@ class PlayerBarModel(QObject):
         self._has_position = False
         self._volume = 1.0
         self._muted = False
+        self._metronome_volume = 1.0
         self._asks: dict = {}
         self._timer = QTimer(self)
         self._timer.setInterval(TICK_MS)
@@ -476,8 +478,9 @@ class PlayerBarModel(QObject):
             return
         volume = float(self._store.direct("volume"))
         muted = bool(self._store.direct("muted"))
-        if (volume, muted) != (self._volume, self._muted):
-            self._volume, self._muted = volume, muted
+        metronome = float(self._store.direct("metronome_volume"))
+        if (volume, muted, metronome) != (self._volume, self._muted, self._metronome_volume):
+            self._volume, self._muted, self._metronome_volume = volume, muted, metronome
             self.volumeChanged.emit()
 
     def _volume_command(self, name: str, args: dict) -> None:
@@ -512,6 +515,20 @@ class PlayerBarModel(QObject):
     @Slot(bool)
     def setMuted(self, muted: bool) -> None:  # noqa: N802 (Qt)
         self._volume_command("set_muted", {"muted": bool(muted)})
+
+    def _get_metronome_volume(self) -> float:
+        return self._metronome_volume
+
+    #: The metronome slider, 0-1 (config ``metronome_volume``): the click's
+    #: level under the volume.
+    metronomeVolume = Property(float, _get_metronome_volume, notify=volumeChanged)
+
+    @Slot(float)
+    def setMetronomeVolume(self, volume: float) -> None:  # noqa: N802 (Qt)
+        """The metronome slider moved (live, also while playing). Mute
+        stays as it is: it silences the click too."""
+        volume = min(1.0, max(0.0, round(float(volume), 2)))
+        self._volume_command("set_metronome_volume", {"volume": volume})
 
     # -- menus ------------------------------------------------------------------------
 

@@ -20,6 +20,7 @@ from chordnotepad.audio.fluidsynth_import import fluidsynth
 from chordnotepad.audio.player_interface import IPlayer
 from chordnotepad.audio.sequencer import TICKS_PER_SECOND, SynthSequencer
 from chordnotepad.audio.song_scheduler import CLICK_TICKS, ClickSound, SongScheduler
+from chordnotepad.audio.volume import DEFAULT_METRONOME_VOLUME, metronome_cc
 from chordnotepad.constants import AUDIO_GAIN
 from chordnotepad.exceptions import AudioInitializationError
 from chordnotepad.models.playback_event_internal import MidiEvent
@@ -34,6 +35,9 @@ class NotePlayer(IPlayer):
     _driver_candidates: List[str] = []
     #: The synth's output gain (``synth.gain``); see :meth:`set_gain`.
     _gain: float = AUDIO_GAIN
+    #: The metronome slider (0.0-1.0) and whether the click is on.
+    _metronome_level: float = DEFAULT_METRONOME_VOLUME
+    _metronome_on: bool = False
 
     def __init__(
         self,
@@ -475,11 +479,35 @@ class NotePlayer(IPlayer):
         rides the channel-volume CC so toggling is immediate regardless of
         what's already scheduled.
         """
+        self._metronome_on = bool(enabled)
+        self._apply_metronome_volume()
+
+    def set_metronome_volume(self, level: float) -> None:
+        """Set the click's level, 0.0-1.0 (the metronome slider), live: it
+        rides the drum channel's CC 7 like the on/off does. Kept for later
+        while the metronome is off or before the synth exists.
+
+        Raises:
+            ValueError: For a level outside 0.0-1.0.
+        """
+        metronome_cc(level)                 # checks it
+        self._metronome_level = float(level)
+        self._apply_metronome_volume()
+
+    @property
+    def metronome_volume(self) -> float:
+        """The click's level, 0.0-1.0."""
+        return self._metronome_level
+
+    def _apply_metronome_volume(self) -> None:
         if self.fs is None:
             return
-        self._ensure_drum_channel()
+        if not getattr(self, "_drum_configured", False):
+            self._ensure_drum_channel()     # sets the CC itself
+            return
         try:
-            self.fs.cc(self.METRONOME_DRUM_CHANNEL, 7, 100 if enabled else 0)
+            self.fs.cc(self.METRONOME_DRUM_CHANNEL, 7,
+                       metronome_cc(self._metronome_level, self._metronome_on))
         except Exception as e:
             logger.warning(f"Could not set metronome channel volume: {e}")
 
@@ -492,8 +520,12 @@ class NotePlayer(IPlayer):
     METRONOME_DRUM_BANK = 128
     METRONOME_DOWNBEAT_NOTE = 76  # High Wood Block
     METRONOME_OFFBEAT_NOTE = 77   # Low Wood Block
-    METRONOME_DOWNBEAT_VELOCITY = 100
-    METRONOME_OFFBEAT_VELOCITY = 80
+    # Full velocity on the downbeat (it was 100, at CC 7 100: the click was
+    # hard to hear under the music), and the offbeat in the same 4:5
+    # proportion as before. With the slider at 100% (CC 7 127) the click is
+    # about 8 dB louder than it was; the old click is the slider near 60%.
+    METRONOME_DOWNBEAT_VELOCITY = 127
+    METRONOME_OFFBEAT_VELOCITY = 102
 
     @property
     def click_sound(self) -> ClickSound:
@@ -513,9 +545,9 @@ class NotePlayer(IPlayer):
             self.fs.program_select(
                 self.METRONOME_DRUM_CHANNEL, self.sfid, self.METRONOME_DRUM_BANK, 0
             )
-            # Start muted; the service raises CC 7 when the user toggles the
-            # metronome on.
-            self.fs.cc(self.METRONOME_DRUM_CHANNEL, 7, 0)
+            # Silent until the metronome is on; then at its slider's level.
+            self.fs.cc(self.METRONOME_DRUM_CHANNEL, 7,
+                       metronome_cc(self._metronome_level, self._metronome_on))
             self._drum_configured = True
         except Exception as e:
             logger.warning(f"Could not select drum bank on channel 9: {e}")

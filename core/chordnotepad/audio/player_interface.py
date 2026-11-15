@@ -83,6 +83,10 @@ class IPlayer(ABC):
         live: a playing song and click-to-hear follow at once. Nothing by
         default."""
 
+    def set_metronome_volume(self, level: float) -> None:
+        """Set the metronome click's level, 0.0-1.0 (under the gain), live.
+        Nothing by default."""
+
     def suspend_audio(self) -> bool:
         """Release the audio output device while keeping the loaded state.
 

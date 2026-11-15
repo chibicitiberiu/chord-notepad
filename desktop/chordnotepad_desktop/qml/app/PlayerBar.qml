@@ -386,7 +386,8 @@ Rectangle {
         }
     }
 
-    // --- Volume: the slider and mute (B3: no state; PlayerBarModel reads them back) ----
+    // --- Volume: the slider and mute, and the metronome's own level under them
+    // (B3: no state; PlayerBarModel reads them back) ---------------------------------
     component VolumePopup: Popup {
         objectName: "volumePopup"
         padding: Theme.gap3
@@ -406,11 +407,32 @@ Rectangle {
                     onMoved: bar.player.setVolume(value)
                 }
                 Button {
+                    id: muteBtn
                     objectName: "muteButton"
                     text: bar.player.muted ? "Unmute" : "Mute"
                     implicitHeight: Theme.controlSmall
                     onClicked: bar.player.setMuted(!bar.player.muted)
                 }
+            }
+            // The click's level against the music; the volume and mute above
+            // still turn it up, down and off with everything else.
+            RowLayout {
+                Layout.topMargin: Theme.gap1
+                Label { text: "Metronome"; font: Theme.fontStrong; Layout.fillWidth: true }
+                Label {
+                    objectName: "metronomeVolumeText"
+                    text: Math.round(bar.player.metronomeVolume * 100) + "%"; color: Theme.muted
+                }
+            }
+            RowLayout {
+                spacing: Theme.gap2
+                Slider {
+                    objectName: "metronomeVolumeSlider"
+                    Layout.fillWidth: true
+                    from: 0; to: 1; value: bar.player.metronomeVolume
+                    onMoved: bar.player.setMetronomeVolume(value)
+                }
+                Item { implicitWidth: muteBtn.width }      // the sliders line up
             }
         }
     }

@@ -75,8 +75,12 @@ class PlaybackService:
         self._volume = volume_curve.volume_from_config(
             self._config.get("volume", volume_curve.DEFAULT_VOLUME))
         self._muted = False
+        # The metronome's own slider (config ``metronome_volume``).
+        self._metronome_volume = volume_curve.metronome_volume_from_config(
+            self._config.get("metronome_volume", volume_curve.DEFAULT_METRONOME_VOLUME))
         if player is not None:
             self._apply_gain()
+            self._player.set_metronome_volume(self._metronome_volume)
         # Why the last initialize_player() failed, for the error dialog.
         self._init_error: Optional[str] = None
         self._playback_state = PlaybackState()
@@ -334,6 +338,7 @@ class PlaybackService:
             instrument = self._config.get("instrument", 0)
             self._player.set_instrument(instrument)
             self._apply_gain()
+            self._player.set_metronome_volume(self._metronome_volume)
 
             # Apply saved speed multiplier
             multiplier = float(self._config.get("bpm_multiplier", 1.0))
@@ -585,6 +590,24 @@ class PlaybackService:
     def _apply_gain(self) -> None:
         if self._player is not None:
             self._player.set_gain(volume_curve.gain_for(self._volume, self._muted))
+
+    @property
+    def metronome_volume(self) -> float:
+        """The metronome slider's position, 0.0-1.0 (config
+        ``metronome_volume``): the click's level under the volume."""
+        return self._metronome_volume
+
+    def set_metronome_volume(self, level: float) -> None:
+        """Move the metronome slider (0.0-1.0) and save it; live, also while
+        a song plays, and kept while the metronome is off.
+
+        Raises:
+            ValueError: For a level outside 0.0-1.0.
+        """
+        self._metronome_volume = round(volume_curve.check_volume(level), 3)
+        self._config.set("metronome_volume", self._metronome_volume)
+        if self._player is not None:
+            self._player.set_metronome_volume(self._metronome_volume)
 
     def set_metronome_enabled(self, enabled: bool) -> None:
         """Arm or disarm the click track.

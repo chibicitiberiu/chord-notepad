@@ -283,6 +283,7 @@ SESSION_COMMANDS: Dict[str, Dict[str, str]] = {
     "set_volume": {"volume": "float"},
     "step_volume": {"steps": "int"},
     "set_muted": {"muted": "bool"},
+    "set_metronome_volume": {"volume": "float"},
     # the Qt window's chrome: whole-window zoom, the menu bar, the colours
     "set_ui_scale": {"scale": "float"},
     "set_menu_bar_shown": {"shown": "bool"},
@@ -402,6 +403,7 @@ CONFIG_COMMANDS = frozenset({
     "set_font", "step_font_size", "reset_font_size", "set_word_wrap",
     "set_chord_sheet_visible", "set_chord_sheet_height", "set_chord_sheet_view", "chord_sheet_zoom",
     "chord_sheet_zoom_reset", "set_logical_chord_sheet_height", "set_volume", "step_volume",
+    "set_metronome_volume",
     "convert_notation", "apply_settings", "save_settings",
     "set_show_quick_start_on_startup", "open_document", "open_recent", "save", "save_as",
     "rename_document",

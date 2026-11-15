@@ -1665,6 +1665,22 @@ class AppSession:
         """Mute or unmute; the slider keeps its place. Not saved."""
         self._main.set_muted(bool(muted))
 
+    @property
+    def metronome_volume(self) -> float:
+        """The metronome slider's position, 0.0-1.0 (config
+        ``metronome_volume``): the click's level under the volume."""
+        return self._main.metronome_volume
+
+    @_command
+    def set_metronome_volume(self, volume: float) -> None:
+        """Set the click's level, 0.0-1.0, and save it; live, also while a
+        song plays. The volume and mute still apply to the click too.
+
+        Raises:
+            ValueError: For a level outside 0.0-1.0.
+        """
+        self._main.set_metronome_volume(volume)
+
     # -- the Qt window's chrome ----------------------------------------------------
     #
     # Desktop only, like the volume: kept in the config, read back by the Qt

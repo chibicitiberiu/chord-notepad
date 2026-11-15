@@ -255,9 +255,15 @@ The User Interface
    * Toggle it on, then press Play. Turning it off does not pause playback,
      it just silences the click
    * Always starts off when you open the app
+   * Too quiet or too loud? Set its level with the **Metronome** slider
+     under the volume button
 
    The **volume** button opens a slider and a mute button. The volume is
-   remembered; mute isn't.
+   remembered; mute isn't. Under them, the **Metronome** slider sets how
+   loud the click is against the music, from 0% to 100% (the loudest it
+   gets, and the default). It works while a song plays and is remembered
+   too. The volume slider and mute still turn the click up, down and off
+   along with the music.
 
    When the window is narrow, the bar gives up space in a fixed order: the
    timeline shrinks first, then the song's name and values move into a **»**

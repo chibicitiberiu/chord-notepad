@@ -236,6 +236,9 @@
     "set_menu_bar_shown": {
       "shown": "bool"
     },
+    "set_metronome_volume": {
+      "volume": "float"
+    },
     "set_multiplier_pct": {
       "pct": "float"
     },
@@ -391,6 +394,7 @@
     "set_key",
     "set_logical_chord_sheet_height",
     "set_menu_bar_shown",
+    "set_metronome_volume",
     "set_multiplier_pct",
     "set_multiplier_text",
     "set_muted",

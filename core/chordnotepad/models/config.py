@@ -13,7 +13,8 @@ from chordnotepad.constants import (
 from chordnotepad.models.notation import american_key
 from chordnotepad.models.ensemble_spec import BUILTIN_ENSEMBLES
 from chordnotepad.models import window_geometry as neutral_geometry
-from chordnotepad.audio.volume import check_volume, volume_from_config
+from chordnotepad.audio.volume import (
+    check_volume, metronome_volume_from_config, volume_from_config)
 
 logger = logging.getLogger(__name__)
 
@@ -68,6 +69,9 @@ class Config:
     # The Qt player bar's volume slider, 0.0-1.0; 1.0 is the loudness the app
     # always had (audio/volume.py). Mute isn't saved.
     volume: float = 1.0
+    # Its second slider: the metronome click's level under the volume,
+    # 0.0-1.0; 1.0 is the loudest click (audio/volume.py).
+    metronome_volume: float = 1.0
 
     # Notation
     notation: Literal["american", "european"] = "american"
@@ -138,6 +142,7 @@ class Config:
             raise ValueError(f"Invalid log level: {self.log_level}")
 
         check_volume(self.volume)
+        check_volume(self.metronome_volume)
 
         if self.ui_theme not in UI_THEMES:
             raise ValueError(f"UI theme must be one of {UI_THEMES}, got {self.ui_theme!r}")
@@ -175,6 +180,7 @@ class Config:
             "voicings": self.voicings,
             "instrument": self.instrument,
             "volume": self.volume,
+            "metronome_volume": self.metronome_volume,
             "notation": self.notation,
             "key": american_key(self.key),
             "window_geometry": self.window_geometry,
@@ -242,6 +248,7 @@ class Config:
             voicings=voicings,
             instrument=data.get("instrument", 0),
             volume=volume_from_config(data.get("volume", 1.0)),
+            metronome_volume=metronome_volume_from_config(data.get("metronome_volume", 1.0)),
             notation=data.get("notation", "american"),
             # Older versions saved the key in the notation's spelling.
             key=american_key(data.get("key", "C")),

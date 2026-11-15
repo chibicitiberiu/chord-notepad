@@ -387,6 +387,8 @@ class FakePlayer(IPlayer):
         self.bpm_multiplier = 1.0
         self.instrument = 0
         self.metronome_enabled = False
+        #: The click's level, as the service last set it (None: never).
+        self.metronome_volume: Optional[float] = None
         #: ``suspend`` / ``resume`` calls in order (kept apart from ``calls``).
         self.audio_calls: List[str] = []
         #: Set False to make :meth:`resume_audio` fail.
@@ -549,6 +551,10 @@ class FakePlayer(IPlayer):
     def set_metronome_enabled(self, enabled: bool) -> None:
         """Record whether the click track is on."""
         self.metronome_enabled = enabled
+
+    def set_metronome_volume(self, level: float) -> None:
+        """Record the click's level (``metronome_volume``)."""
+        self.metronome_volume = level
 
     def cleanup(self) -> None:
         """Nothing to release."""

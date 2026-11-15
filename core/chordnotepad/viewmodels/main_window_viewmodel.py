@@ -676,6 +676,15 @@ class MainWindowViewModel(Observable):
         """Mute or unmute (not saved)."""
         self._audio.set_muted(muted)
 
+    @property
+    def metronome_volume(self) -> float:
+        """The metronome slider's position, 0.0-1.0 (config ``metronome_volume``)."""
+        return self._audio.metronome_volume
+
+    def set_metronome_volume(self, level: float) -> None:
+        """Set and save the click's level (0.0-1.0); raises ValueError outside it."""
+        self._audio.set_metronome_volume(level)
+
     def toggle_metronome(self) -> None:
         """Arm or disarm the metronome.
 

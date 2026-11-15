@@ -821,6 +821,38 @@ def test_the_volume_dropdown_slider_mute_and_wheel(pb):
     assert pb.sent("set_volume") and pb.sent("set_muted")[-1] == {"muted": False}
 
 
+def test_the_metronome_slider_is_live_shown_and_saved(pb, qapp, qtbot, tmp_path):
+    from tests.qt.conftest import QtAppHarness
+    pb.to_play()
+    pb.click_on(pb.it("playButton"))
+    pb.wait_status("playing")
+    pb.click_on(pb.it("volumeButton"))
+    pb.qtbot.waitUntil(lambda: pb.it("volumePopup").property("visible") is True, timeout=1000)
+    assert pb.it("metronomeVolumeText").property("text") == "100%"
+    assert pb.it("metronomeVolumeSlider").property("value") == 1.0
+    pb.click_on(pb.it("metronomeVolumeSlider"))          # the middle
+    pb.qtbot.waitUntil(lambda: pb.model.metronomeVolume == pytest.approx(0.5, abs=0.06),
+                       timeout=1000)
+    level = pb.model.metronomeVolume
+    assert pb.it("metronomeVolumeText").property("text") == f"{round(level * 100)}%"
+    assert pb.harness.player.metronome_volume == level    # live while playing
+    assert pb.model.volume == 1.0 and pb.model.muted is False and not pb.sent("set_volume")
+    assert pb.sent("set_metronome_volume")[-1] == {"volume": level}
+    pb.store.submit("stop")
+    pb.wait_status("idle")
+    pb.harness.shutdown()
+    saved = json.loads(pb.harness.config_file().read_text(encoding="utf-8"))
+    assert saved["metronome_volume"] == level
+    # The next run starts with it.
+    again = QtAppHarness(qapp, tmp_path).start()
+    try:
+        qtbot.waitUntil(lambda: again.window.property("contentReady") is True, timeout=3000)
+        assert again.app.player.property("metronomeVolume") == level
+        assert again.player.metronome_volume == level
+    finally:
+        again.shutdown()
+
+
 def test_the_metronome_toggles_with_ctrl_m_and_starts_off(pb):
     pb.to_play()
     button = pb.it("metronomeButton")

@@ -63,8 +63,8 @@ logger = logging.getLogger(__name__)
 #: the ▾ value picker's lookup (plan step D5, value_picker.py).
 #: The player bar's (plan step E, player_bar.py): ``timeline_offset`` (is
 #: there anywhere to seek to; the seek is the ``seek_to_bar`` command),
-#: ``timeline_position``, ``setting_directive_start``, and ``volume`` and
-#: ``muted``, which are properties (read, not called).
+#: ``timeline_position``, ``setting_directive_start``, and ``volume``,
+#: ``muted`` and ``metronome_volume``, which are properties (read, not called).
 #: The chrome's (plan step F, chrome.py and files.py): ``ui_scale`` and
 #: ``menu_bar_shown`` (properties) and ``document_ref``, the picked file's
 #: reference.
@@ -77,7 +77,7 @@ logger = logging.getLogger(__name__)
 #: staff's rhythm notice, chord_sheet.py).
 DIRECT_CALLS = frozenset({"directive_hint_at", "chord_at", "licence_catalog", "settings_values",
                           "picker_at", "timeline_offset", "timeline_position",
-                          "setting_directive_start", "volume", "muted",
+                          "setting_directive_start", "volume", "muted", "metronome_volume",
                           "ui_scale", "menu_bar_shown", "document_ref",
                           "chord_sheet_buffer", "logical_chord_sheet_height",
                           "sidebar", "sidebar_width", "dismissed_notices"})
