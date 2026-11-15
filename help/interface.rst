@@ -402,6 +402,11 @@ The User Interface
       the same number of spaces from every line, so chords stay over the
       words they belong to.
 
+   **Change value...** (Alt+Down)
+      Opens the picker of the directive value the cursor is in, as the
+      **▾** next to it does (see :ref:`desktop-pickers`). It's greyed out
+      when the cursor isn't in a value that has a picker.
+
    **Overwrite mode** (Insert)
       Typing replaces the character after the cursor instead of pushing it
       along. The status bar shows **OVR** while it is on, and the cursor turns
@@ -472,7 +477,10 @@ The User Interface
       Play the sheet is always there. See :doc:`chord_sheet`.
 
    **Chord sheet view**
-      Piano roll, Staff, Fret cards or Tab (Alt+1 to Alt+4).
+      Piano roll, Staff, Fret cards or Tab (Alt+1 to Alt+4), then **Zoom
+      in**, **Zoom out** and **Reset zoom (100%)** for the chord sheet's
+      drawing, as its **−** / **+** buttons. They have no keys of their own:
+      Ctrl+Mouse Wheel over the sheet zooms it too.
 
    **Word wrap**
       Off (the default), a line longer than the window runs on past its

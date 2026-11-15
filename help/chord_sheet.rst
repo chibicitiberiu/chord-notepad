@@ -187,8 +187,9 @@ size and sit on one line; a chord too short for its name gets a wider slot.
 
 .. only:: desktop
 
-   A note next to the view tabs says so while the Staff view is shown.
-   Click **Dismiss** after it to hide it for good; the app remembers that.
+   A note at the bottom left of the strip, just above the scroll bar, says
+   so while the Staff view is shown. Click **Dismiss** after it to hide it
+   for good; the app remembers that.
 
 The key signature is drawn after the clefs from the song's key, and again
 after a double barline wherever a ``{key}`` directive changes it; notes
@@ -312,7 +313,10 @@ visible chord once you scroll past a ``{key}`` change).
 
    Every view has **−** / **+** buttons at the right end of the strip's header
    to make its drawing smaller or larger (the piano roll gets wider or
-   narrower). The zoom level is remembered per view.
+   narrower); clicking the percentage between them goes back to 100%. You
+   can also hold Ctrl and turn the mouse wheel over the strip, or use
+   **View → Chord sheet view → Zoom in**, **Zoom out** and **Reset zoom**.
+   The zoom level is remembered per view.
 
    To move along the song, scroll the mouse wheel over the strip, drag it
    sideways with the mouse (the pointer turns into a closed hand; a drag

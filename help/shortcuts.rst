@@ -114,7 +114,7 @@ Edit Operations
         - The line's first character that isn't a space; again, the very
           start of the line
       * - End
-        - The end of the line
+        - The end of the line; with text selected, the end of the selection
       * - Ctrl+Left / Ctrl+Right
         - A word left or right
       * - Ctrl+Home / Ctrl+End
@@ -271,7 +271,7 @@ Playback
       * - Ctrl+] / Ctrl+[ / Ctrl+Backslash
         - Speed up 5% / down 5% / back to 100%
       * - Alt+Down
-        - Open the picker of the song value or directive you're on
+        - Open the picker of the song value or directive you're on (Edit → Change value…)
       * - Ctrl+T
         - Transpose
       * - Ctrl+,
