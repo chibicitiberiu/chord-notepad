@@ -1,4 +1,4 @@
-"""The Qt front end starts: the main window loads, ``--ui qt --smoke`` exits 0."""
+"""The app starts: the main window loads, ``python -m chordnotepad_desktop --smoke`` exits 0."""
 
 import os
 import re
@@ -50,9 +50,9 @@ def throwaway_env(tmp_path):
     return env
 
 
-def test_ui_qt_smoke_starts_and_quits_cleanly(tmp_path):
+def test_smoke_starts_and_quits_cleanly(tmp_path):
     result = subprocess.run(
-        [sys.executable, "-m", "chordnotepad_tk.main", "--ui", "qt", "--smoke"],
+        [sys.executable, "-m", "chordnotepad_desktop", "--smoke"],
         cwd=tmp_path, env=throwaway_env(tmp_path), capture_output=True, text=True, timeout=60)
     assert result.returncode == 0, result.stdout + result.stderr
     # The console log (stdout): started and shut down, nothing from Qt above INFO.
@@ -64,11 +64,21 @@ def test_ui_qt_smoke_starts_and_quits_cleanly(tmp_path):
     assert "Application shutdown complete" in log.read_text(encoding="utf-8")
 
 
-def test_the_qt_module_runs_through_the_shared_entry_point(tmp_path):
+def test_ui_qt_is_still_accepted(tmp_path):
+    """Older scripts and a relaunch of an old command line may pass ``--ui qt``."""
     result = subprocess.run(
-        [sys.executable, "-m", "chordnotepad_desktop.main", "--smoke"],
+        [sys.executable, "-m", "chordnotepad_desktop", "--ui", "qt", "--smoke"],
         cwd=tmp_path, env=throwaway_env(tmp_path), capture_output=True, text=True, timeout=60)
     assert result.returncode == 0, result.stderr
+
+
+def test_ui_tk_says_the_tk_window_is_gone(tmp_path):
+    result = subprocess.run(
+        [sys.executable, "-m", "chordnotepad_desktop", "--ui", "tk"],
+        cwd=tmp_path, env=throwaway_env(tmp_path), capture_output=True, text=True, timeout=60)
+    assert result.returncode == 2
+    assert "the Tk window was removed in 0.6.0" in result.stderr
+    assert "Application initialization complete" not in result.stdout
 
 
 #: Starts the app, opens Settings, closes it, then closes the main window;
@@ -77,7 +87,7 @@ _SETTINGS_THEN_CLOSE = """
 import os, sys
 from PySide6.QtCore import QMetaObject, QObject, QTimer, Q_ARG
 import chordnotepad_desktop.application as application
-from chordnotepad_tk import main as launcher
+from chordnotepad_desktop import launcher
 
 orig_start = application.QtApplication.start
 
@@ -94,7 +104,7 @@ def start(self, app):
     return main
 
 application.QtApplication.start = start
-sys.exit(launcher.main(["--ui", "qt"]))
+launcher.main([])
 """
 
 

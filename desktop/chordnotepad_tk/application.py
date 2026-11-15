@@ -36,7 +36,7 @@ class Application:
 
         Args:
             paths: Where the app's files are (``main.py`` resolves them with
-                ``chordnotepad_tk.desktop_paths.resolve_desktop_paths``).
+                ``chordnotepad_desktop.desktop_paths.resolve_desktop_paths``).
         """
         self._paths = paths
 
@@ -341,9 +341,9 @@ class Application:
 
             # Import build info
             try:
-                from chordnotepad_tk.build_info import VERSION, BUILD_TYPE, COMMIT_HASH, BUILD_DATE
+                from chordnotepad_desktop.build_info import VERSION, BUILD_TYPE, COMMIT_HASH, BUILD_DATE
                 try:
-                    from chordnotepad_tk.build_info import BUILD_NUMBER
+                    from chordnotepad_desktop.build_info import BUILD_NUMBER
                 except ImportError:
                     BUILD_NUMBER = "0"
             except ImportError:

@@ -4,7 +4,7 @@
 if [ -z "$PULSE_SERVER" ]; then
     export PULSE_SERVER="unix:/run/user/$(id -u)/pulse/native"
 fi
-# The same for the Wayland socket (the Qt window, --ui qt): libwayland takes
+# The same for the Wayland socket: libwayland takes
 # an absolute WAYLAND_DISPLAY.
 case "$WAYLAND_DISPLAY" in
     "" | /*) ;;
@@ -12,4 +12,4 @@ case "$WAYLAND_DISPLAY" in
 esac
 app="$SNAP/share/chord-notepad/"
 export PYTHONPATH="${app}core:${app}desktop${PYTHONPATH:+:$PYTHONPATH}"
-exec "$SNAP/bin/python3" -m chordnotepad_tk.main "$@"
+exec "$SNAP/bin/python3" -m chordnotepad_desktop "$@"

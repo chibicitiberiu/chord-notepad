@@ -162,7 +162,7 @@ def test_the_source_offer_says_how_to_use_your_own_qt():
     """LGPL 3.0 section 4(d): the user can relink the app with a modified Qt."""
     offer = (LICENSES / "SOURCE-OFFER.txt").read_text(encoding="utf-8")
     assert "Using your own Qt or PySide6" in offer
-    assert "python -m chordnotepad_tk.main --ui qt" in offer and "CHORD_NOTEPAD_ONEDIR=1" in offer
+    assert "python -m chordnotepad_desktop" in offer and "CHORD_NOTEPAD_ONEDIR=1" in offer
     spec = (REPO / "chord-notepad.spec").read_text(encoding="utf-8")
     assert "os.environ.get('CHORD_NOTEPAD_ONEDIR') == '1'" in spec
     # The third-party sources bundle carries the archives of every Qt part shipped.
@@ -356,7 +356,7 @@ def test_classify_maps_files_to_components():
         ("json", "/py/Lib/json/__init__.py", "PYMODULE"),
         ("PIL._imaging", "/site/PIL/_imaging.pyd", "EXTENSION"),
         ("pillow.libs/libjpeg.dll", "/site/pillow.libs/libjpeg.dll", "BINARY"),
-        ("main", "/repo/desktop/chordnotepad_tk/main.py", "PYSOURCE"),
+        ("__main__", "/repo/desktop/chordnotepad_desktop/__main__.py", "PYSOURCE"),
         ("resources/soundfont/GeneralUser-GS.sf2", "/repo/resources/soundfont/GeneralUser-GS.sf2", "DATA"),
         ("resources/icon-32.png", "/repo/resources/icon-32.png", "DATA"),
         ("help/build/html/index.html", "/repo/help/build/html/index.html", "DATA"),
@@ -378,7 +378,7 @@ def test_classify_maps_files_to_components():
     assert report.covered["generaluser-gs"] == ["resources/soundfont/GeneralUser-GS.sf2"]
     assert report.covered["chord-notepad-logo"] == ["resources/icon-32.png"]
     assert report.covered["chord-notepad-guide"] == ["help/build/html/index.html"]
-    assert report.covered["chord-notepad"] == ["main", "help/build/html/_static/custom.css"]
+    assert report.covered["chord-notepad"] == ["__main__", "help/build/html/_static/custom.css"]
     assert report.covered["jquery"] == ["help/build/html/_static/jquery.js"]
     assert report.covered["lato"] == ["help/build/html/_static/css/fonts/lato-bold.woff2"]
     assert report.covered["pyinstaller"] == ["pyi_rth_inspect"]
@@ -450,8 +450,9 @@ def test_excluded_modules_are_not_needed_by_the_app():
             sys.modules[name] = None
         roots = {[str(REPO / "core"), str(REPO / "desktop")]!r}
         sys.path[:0] = roots
-        names = [m.name for m in pkgutil.walk_packages(roots)]
-        assert "chordnotepad.session.session" in names and "chordnotepad_tk.main_window" in names
+        # Not __main__: importing it starts the app.
+        names = [m.name for m in pkgutil.walk_packages(roots) if not m.name.endswith(".__main__")]
+        assert "chordnotepad.session.session" in names and "chordnotepad_desktop.launcher" in names
         failures = []
         for name in sorted(set(names)) + ["mido", "music21.harmony", "music21.chord", "PIL.ImageTk", "requests"]:
             try:

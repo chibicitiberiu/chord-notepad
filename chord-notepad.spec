@@ -6,8 +6,8 @@ import glob
 block_cipher = None
 
 # The packages' folders: the core (chordnotepad), the Tk front end
-# (chordnotepad_tk) and the Qt one (chordnotepad_desktop, --ui qt). The entry
-# script is chordnotepad_tk/main.py.
+# (chordnotepad_tk) and the Qt one (chordnotepad_desktop). The entry script
+# is chordnotepad_desktop/__main__.py.
 package_paths = [os.path.abspath('core'), os.path.abspath('desktop')]
 
 # Licence inventory helpers (packaging/licenses/licence_inventory.py). cwd is
@@ -108,7 +108,7 @@ if sys.platform == 'win32':
 # Hidden imports - all our local modules
 hiddenimports = [
     'chordnotepad_tk',
-    # --ui qt; chordnotepad_tk/main.py imports it only when asked to.
+    # chordnotepad_desktop/launcher.py imports it inside run_qt.
     'chordnotepad_desktop.main',
     'chordnotepad_desktop.application',
     'chordnotepad_tk.main_window',
@@ -147,7 +147,7 @@ if not sys.platform.startswith('linux'):
     excludes.append('jeepney')
 
 a = Analysis(
-    ['desktop/chordnotepad_tk/main.py'],
+    ['desktop/chordnotepad_desktop/__main__.py'],
     pathex=package_paths,
     binaries=binaries,
     datas=datas,

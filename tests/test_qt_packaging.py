@@ -269,7 +269,7 @@ def test_ci_runs_the_qt_tests_offscreen_and_fails_when_they_would_skip():
 
 
 @pytest.mark.parametrize("step, command", [
-    ("Smoke-test the Qt window (Linux binary)", "--ui qt --smoke"),
+    ("Smoke-test the Qt window (Linux binary)", "--smoke"),
     ("Smoke-test the Qt window (macOS)", "packaging/macos/smoke_test_qt.sh"),
     ("Smoke-test the Qt window (Windows exe)", "packaging/windows/smoke_test_qt.ps1"),
     ("Smoke-test the Qt window (snap)", "make snap-qt-check"),
@@ -308,7 +308,7 @@ def test_the_make_targets_the_build_job_calls_exist():
 def test_every_build_keeps_the_tk_front_end_for_the_fallback():
     """0.6.0 switches the default to Qt but keeps ``--ui tk``: no package may drop Tk yet."""
     spec = (REPO / "chord-notepad.spec").read_text(encoding="utf-8")
-    assert "['desktop/chordnotepad_tk/main.py']" in spec  # the launcher both front ends start from
+    assert "['desktop/chordnotepad_desktop/__main__.py']" in spec
     assert "'chordnotepad_tk'," in spec and "'PIL._tkinter_finder'," in spec
     assert not {"tkinter", "_tkinter", "PIL", "chordnotepad_tk"} & set(inv.PYINSTALLER_EXCLUDES)
     assert set(COMPONENTS["tcl-tk"]["builds"]) == {"windows", "macos", "linux"}
@@ -324,6 +324,6 @@ def test_every_build_keeps_the_tk_front_end_for_the_fallback():
     assert "x11" in snap["apps"]["chord-notepad"]["plugs"]
 
     for launcher in ("packaging/flatpak/chord-notepad.sh", "packaging/snap/chord-notepad.sh"):
-        assert "-m chordnotepad_tk.main" in (REPO / launcher).read_text(encoding="utf-8"), launcher
+        assert "-m chordnotepad_desktop " in (REPO / launcher).read_text(encoding="utf-8"), launcher
     smoke = (REPO / "packaging/linux/smoke_test.py").read_text(encoding="utf-8")
     assert '"chordnotepad_tk": APP / "desktop"' in smoke and '"PIL.ImageTk"' in smoke

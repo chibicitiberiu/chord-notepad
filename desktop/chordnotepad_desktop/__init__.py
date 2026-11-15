@@ -1,15 +1,20 @@
-"""Chord Notepad's Qt Quick desktop front end (``--ui qt``), being built.
+"""Chord Notepad's desktop app, drawn with Qt Quick: ``python -m chordnotepad_desktop``.
 
-It replaces the Tk front end (``chordnotepad_tk``) at the 0.6.0 switch. It
-talks to the core (``chordnotepad``) only, never to ``chordnotepad_tk``,
-which is deleted the release after; the one exception is the shared entry
-point (``chordnotepad_tk.main``), which starts it.
+It replaced the Tk front end in 0.6.0 and talks to the core
+(``chordnotepad``) only.
 
-Keep this file free of imports: the entry point checks that PySide6 is
-installed before it imports anything from here.
+Keep this file free of imports: ``python -m chordnotepad_desktop`` imports
+it before the launcher has set up the DLL folder and the std streams, and
+the launcher checks that PySide6 is installed before it imports anything
+that needs it.
 
 Layout:
 
+* ``__main__.py``, ``launcher.py``: the entry point every build runs (the
+  paths, the Windows FluidSynth DLL folder, the std streams, ``--ui``,
+  CI's build info), then :func:`chordnotepad_desktop.main.run`.
+* ``desktop_paths.py``, ``build_info.py``: where the app's files are in each
+  build, and the build's version (CI overwrites ``build_info.py``).
 * ``main.py``: start-up (:func:`chordnotepad_desktop.main.run`) and the
   window loading.
 * ``application.py``: :class:`QtApplication`, the lifecycle (start-up order,

@@ -16,13 +16,13 @@ from pathlib import Path
 import pytest
 
 from chordnotepad.app_paths import NO_BUNDLED_FILES, UNKNOWN_VERSION, AppPaths
-from chordnotepad_tk import desktop_paths
-from chordnotepad_tk.desktop_paths import (
+from chordnotepad_desktop import desktop_paths
+from chordnotepad_desktop.desktop_paths import (
     FLATPAK_APP_ID, INSTALL_SUBDIR, SNAP_NAME, paths_under, resolve_desktop_paths)
 
 REPO = Path(__file__).resolve().parent.parent
 CORE = REPO / "core" / "chordnotepad"
-DESKTOP = REPO / "desktop" / "chordnotepad_tk"
+DESKTOP = REPO / "desktop" / "chordnotepad_desktop"
 
 
 @pytest.fixture
@@ -73,7 +73,7 @@ def test_checkout_reads_the_real_version(checkout):
 def test_build_info_has_the_real_version():
     import importlib
 
-    from chordnotepad_tk import build_info
+    from chordnotepad_desktop import build_info
     importlib.reload(build_info)
     assert build_info.BASE_VERSION == (REPO / "VERSION").read_text(encoding="utf-8").strip()
     assert build_info.BASE_VERSION != UNKNOWN_VERSION
@@ -259,10 +259,10 @@ def test_front_ends_pass_their_paths_to_the_core(entry):
         f"{entry.name} must pass paths= to build_core_services (the default has no files)")
 
 
-def test_main_resolves_the_paths_and_hands_them_to_the_application():
-    source = (DESKTOP / "main.py").read_text(encoding="utf-8")
+def test_the_launcher_resolves_the_paths_and_hands_them_to_the_window():
+    source = (DESKTOP / "launcher.py").read_text(encoding="utf-8")
     assert "APP_PATHS = resolve_desktop_paths()" in source
-    assert "Application.main(APP_PATHS)" in source
+    assert "run(APP_PATHS, argv" in source
 
 
 # ---------------------------------------------------------------------------

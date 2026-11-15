@@ -516,7 +516,7 @@ def test_about_takes_the_build_info_ci_writes(app):
         "COMMIT_SHORT": "abc1234", "BUILD_DATE": "2026-11-14"}).about
     assert [line["value"] for line in info["lines"]] == [
         "v0.6.0", "release", "42", "abc1234", "2026-11-14"]
-    from chordnotepad_tk import main as entry
+    from chordnotepad_desktop import launcher as entry
     assert [key for key, _ in dialogs_module.BUILD_FIELDS] == list(entry.BUILD_INFO_FIELDS)
 
 

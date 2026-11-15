@@ -132,11 +132,11 @@ def test_a_failure_in_software_has_nothing_left_to_try(qapp, monkeypatch):
 
 
 def test_the_relaunch_command(monkeypatch):
-    monkeypatch.setattr(sys, "orig_argv", ["python3", "-m", "chordnotepad_tk.main", "--ui", "qt"])
-    assert relaunch_command() == [sys.executable, "-m", "chordnotepad_tk.main", "--ui", "qt"]
+    monkeypatch.setattr(sys, "orig_argv", ["python3", "-m", "chordnotepad_desktop", "--smoke"])
+    assert relaunch_command() == [sys.executable, "-m", "chordnotepad_desktop", "--smoke"]
     monkeypatch.setattr(sys, "frozen", True, raising=False)
-    monkeypatch.setattr(sys, "argv", ["/opt/ChordNotepad/ChordNotepad", "--ui", "qt"])
-    assert relaunch_command() == [sys.executable, "--ui", "qt"]
+    monkeypatch.setattr(sys, "argv", ["/opt/ChordNotepad/ChordNotepad", "--smoke"])
+    assert relaunch_command() == [sys.executable, "--smoke"]
 
 
 def test_the_relaunch_sets_the_variable_for_the_new_process(monkeypatch):

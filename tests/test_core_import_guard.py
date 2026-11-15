@@ -99,9 +99,9 @@ def test_core_imports_without_desktop_libraries():
 
 def test_the_desktop_package_is_not_inside_the_core():
     assert not (PACKAGE / "ui").exists()
-    for name in ("main", "application", "build_info"):
+    for name in ("main", "application", "build_info", "launcher"):
         assert not (PACKAGE / f"{name}.py").exists()
-        assert (REPO / "desktop" / "chordnotepad_tk" / f"{name}.py").is_file()
+        assert (REPO / "desktop" / "chordnotepad_desktop" / f"{name}.py").is_file()
 
 
 @pytest.mark.parametrize("name", OLD_ROOTS)

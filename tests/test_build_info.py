@@ -24,7 +24,7 @@ def test_version_file_exists_and_is_simple():
 
 def test_build_info_reads_version_file():
     """In a fresh import, BASE_VERSION should match the VERSION file."""
-    from chordnotepad_tk import build_info
+    from chordnotepad_desktop import build_info
     importlib.reload(build_info)
 
     expected = (REPO_ROOT / "VERSION").read_text(encoding="utf-8").strip()
@@ -32,8 +32,8 @@ def test_build_info_reads_version_file():
 
 
 def test_build_info_exposes_required_fields():
-    """All consumers (application.py, main_window.py) rely on these attributes."""
-    from chordnotepad_tk import build_info
+    """The launcher's read_build_info and CI's generated file rely on these attributes."""
+    from chordnotepad_desktop import build_info
     importlib.reload(build_info)
 
     required = [
@@ -52,7 +52,7 @@ def test_build_info_exposes_required_fields():
 
 def test_build_info_dev_version_includes_base_version():
     """Local-dev VERSION string should embed the base version from the file."""
-    from chordnotepad_tk import build_info
+    from chordnotepad_desktop import build_info
     importlib.reload(build_info)
 
     assert build_info.BASE_VERSION in build_info.VERSION, (
@@ -62,8 +62,8 @@ def test_build_info_dev_version_includes_base_version():
 
 def test_build_info_fallback_when_version_file_missing(tmp_path, monkeypatch):
     """If the VERSION file cannot be located, base version falls back to '0.0'."""
-    from chordnotepad_tk import build_info
-    from chordnotepad_tk.desktop_paths import paths_under
+    from chordnotepad_desktop import build_info
+    from chordnotepad_desktop.desktop_paths import paths_under
 
     # Resolve the app root to a directory with no VERSION file.
     monkeypatch.setattr(build_info, "resolve_desktop_paths", lambda: paths_under(tmp_path))

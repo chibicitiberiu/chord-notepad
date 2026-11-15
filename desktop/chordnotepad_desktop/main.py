@@ -1,13 +1,12 @@
 """Starts the Qt Quick front end.
 
-Run it with ``python -m chordnotepad_tk.main --ui qt`` (the entry point every
-build runs) or ``python -m chordnotepad_desktop.main``, which goes through
-the same entry point. Either way :func:`run` gets the paths the entry point
-resolved and the command line without ``--ui``.
+Run the app with ``python -m chordnotepad_desktop`` (the entry point every
+build runs, :mod:`chordnotepad_desktop.launcher`); :func:`run` gets the
+paths the entry point resolved and the command line without ``--ui``.
 
 :func:`run` names the app (window class, desktop file, icon), then hands
 over to :class:`~chordnotepad_desktop.application.QtApplication`, which
-builds the core and the window in the order the Tk app does. This module
+builds the core and the window in the order the Tk app did. This module
 keeps the window loading itself: the text renderer, the application font
 and the style are set before the engine loads any QML, and the main
 window's :class:`~chordnotepad_desktop.dpr.DprWatcher` starts as soon as the
@@ -54,7 +53,7 @@ SMOKE_LINGER_MS = 200
 
 def parse_args(argv):
     """The Qt front end's own options, and the rest (for QGuiApplication)."""
-    parser = argparse.ArgumentParser(prog="chord-notepad --ui qt", add_help=False)
+    parser = argparse.ArgumentParser(prog="chord-notepad", add_help=False)
     parser.add_argument("--smoke", action="store_true",
                         help="load and show the window, then quit (exit 1 on a QML warning)")
     parser.add_argument(SOFTWARE_FLAG, dest="software_rendering", action="store_true",
@@ -153,7 +152,7 @@ def run(paths: AppPaths, argv, build_info: Optional[dict] = None) -> int:
     """Start the Qt window and run the event loop.
 
     Args:
-        paths: Where the app's files are (``chordnotepad_tk.desktop_paths``).
+        paths: Where the app's files are (``chordnotepad_desktop.desktop_paths``).
         argv: The command line after the program name, without ``--ui``.
         build_info: About's build fields (``dialogs.BUILD_FIELDS``), read by
             the entry point from ``build_info.py`` (CI writes it); None for
@@ -188,8 +187,3 @@ def run(paths: AppPaths, argv, build_info: Optional[dict] = None) -> int:
         return 1
     return code
 
-
-if __name__ == "__main__":
-    from chordnotepad_tk.main import main
-
-    main(["--ui", "qt", *sys.argv[1:]])

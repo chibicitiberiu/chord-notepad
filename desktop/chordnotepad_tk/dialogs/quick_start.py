@@ -13,7 +13,7 @@ from chordnotepad.services.song_parser_service import SongParserService
 from chordnotepad.session import quick_start
 from chordnotepad.session.highlighting import compute_spans
 from chordnotepad.session.platform import DESKTOP
-from chordnotepad_tk.desktop_paths import resolve_desktop_paths
+from chordnotepad_desktop.desktop_paths import resolve_desktop_paths
 from chordnotepad_tk.text_editor import ChordTextEditor
 
 logger = logging.getLogger(__name__)

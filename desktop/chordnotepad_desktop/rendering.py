@@ -101,7 +101,7 @@ def relaunch_command(argv: Optional[List[str]] = None) -> List[str]:
     """The command line that starts this app again (program first)."""
     if getattr(sys, "frozen", False):
         return [sys.executable, *(sys.argv[1:] if argv is None else argv)]
-    # sys.orig_argv keeps "-m chordnotepad_tk.main" (sys.argv has the file).
+    # sys.orig_argv keeps "-m chordnotepad_desktop" (sys.argv has the file).
     original = list(getattr(sys, "orig_argv", [])) or [sys.executable, *sys.argv]
     return [sys.executable, *original[1:]]
 

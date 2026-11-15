@@ -84,9 +84,9 @@ _PICKERS = {
 
 # Import build info (may be auto-generated during CI build)
 try:
-    from chordnotepad_tk.build_info import VERSION, BUILD_TYPE, COMMIT_SHORT, BUILD_DATE
+    from chordnotepad_desktop.build_info import VERSION, BUILD_TYPE, COMMIT_SHORT, BUILD_DATE
     try:
-        from chordnotepad_tk.build_info import BUILD_NUMBER
+        from chordnotepad_desktop.build_info import BUILD_NUMBER
     except ImportError:
         BUILD_NUMBER = "0"
 except ImportError:

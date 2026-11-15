@@ -11,15 +11,15 @@ SPEC_FILE := chord-notepad.spec
 DOCS_SOURCE := help
 DOCS_BUILD := help/build
 
-# The core (chordnotepad) and the Tk front end (chordnotepad_tk) are imported
-# by package name from their folders; nothing is installed. (pytest.ini does
+# The core (chordnotepad) and the desktop app (chordnotepad_desktop) are
+# imported by package name from their folders; nothing is installed. (pytest.ini does
 # the same for the tests.)
 APP_PYTHONPATH := core$(if $(filter Windows_NT,$(OS)),;,:)desktop
 
 # Run application
 run: export PYTHONPATH := $(APP_PYTHONPATH)
 run: docs-html
-	$(PYTHON) -m chordnotepad_tk.main
+	$(PYTHON) -m chordnotepad_desktop
 
 # Run tests
 test:
@@ -168,7 +168,7 @@ flatpak-check:
 	flatpak install --user -y --noninteractive --reinstall dist/ChordNotepad-linux-$(LINUX_ARCH).flatpak
 	flatpak run --command=python3 $(FLATPAK_ID) - < packaging/linux/smoke_test.py
 
-# Start the Qt window (--ui qt --smoke) in the installed Flatpak: it loads,
+# Start the app (--smoke) in the installed Flatpak: it loads,
 # shows and quits, exit 1 on a QML warning. Needs an X display (CI: xvfb-run).
 # Runs with a throwaway HOME (build/flatpak-qt-home), so the app never touches
 # ~/.var/app, and on a private session bus; FLATPAK_USER_DIR keeps the real
@@ -176,7 +176,7 @@ flatpak-check:
 flatpak-qt-check:
 	mkdir -p build/flatpak-qt-home
 	FLATPAK_USER_DIR=$${FLATPAK_USER_DIR:-$$HOME/.local/share/flatpak} HOME=$(CURDIR)/build/flatpak-qt-home \
-		dbus-run-session -- flatpak run --no-documents-portal $(FLATPAK_ID) --ui qt --smoke
+		dbus-run-session -- flatpak run --no-documents-portal $(FLATPAK_ID) --smoke
 
 # Build the snap (snap/snapcraft.yaml) into dist/. Needs snapcraft and LXD;
 # CI passes SNAPCRAFT="sudo SNAPCRAFT_BUILD_INFO=1 snapcraft". Build info puts
@@ -194,10 +194,10 @@ snap-check:
 	sudo snap install --dangerous dist/ChordNotepad-linux-$(LINUX_ARCH).snap
 	snap run --shell chord-notepad -c '"$$SNAP/bin/python3" - "$$SNAP/share/chord-notepad"' < packaging/linux/smoke_test.py
 
-# Start the Qt window (--ui qt --smoke) in the installed snap. Needs an X
+# Start the app (--smoke) in the installed snap. Needs an X
 # display (CI: xvfb-run). Uses the snap's own data folder (~/snap/chord-notepad).
 snap-qt-check:
-	snap run chord-notepad --ui qt --smoke
+	snap run chord-notepad --smoke
 
 # Clean build artifacts
 clean:

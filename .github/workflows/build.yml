@@ -344,7 +344,7 @@ jobs:
           fi
 
           # Create build_info.py
-          cat > desktop/chordnotepad_tk/build_info.py << EOF
+          cat > desktop/chordnotepad_desktop/build_info.py << EOF
           """
           Auto-generated build information
           This file is generated during the build process and should not be edited manually.
@@ -360,7 +360,7 @@ jobs:
           EOF
 
           echo "Generated build_info.py:"
-          cat desktop/chordnotepad_tk/build_info.py
+          cat desktop/chordnotepad_desktop/build_info.py
 
           # Generate PyInstaller version_info.txt for Windows exe properties.
           # FileVersion/ProductVersion must be a 4-tuple of integers. We parse
@@ -423,11 +423,11 @@ jobs:
           mv ChordNotepad ${{ matrix.asset_name }}
           chmod +x ${{ matrix.asset_name }}
 
-      # The Qt window (--ui qt) loads, shows and quits on a virtual X server,
-      # exit 1 on a QML warning. Tk, the default, isn't started here.
+      # The window loads, shows and quits on a virtual X server, exit 1 on a
+      # QML warning.
       - name: Smoke-test the Qt window (Linux binary)
         if: runner.os == 'Linux'
-        run: xvfb-run --auto-servernum --server-args="-screen 0 1280x800x24" env QT_QPA_PLATFORM=xcb dist/${{ matrix.asset_name }} --ui qt --smoke
+        run: xvfb-run --auto-servernum --server-args="-screen 0 1280x800x24" env QT_QPA_PLATFORM=xcb dist/${{ matrix.asset_name }} --smoke
 
       - name: Prepare artifact (macOS)
         if: runner.os == 'macOS'

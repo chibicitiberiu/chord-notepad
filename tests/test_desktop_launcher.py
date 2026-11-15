@@ -1,19 +1,24 @@
-"""The desktop entry point's ``--ui tk|qt`` choice (chordnotepad_tk.main).
+"""The desktop entry point (chordnotepad_desktop.launcher, ``python -m chordnotepad_desktop``).
 
-Tk stays the default until the switch (plan H4). These tests need neither a
-display nor PySide6: the front ends are replaced by stand-ins.
+These tests need neither a display nor PySide6: the Qt window is replaced
+by a stand-in.
 """
 
+import ast
 import sys
 import types
+from pathlib import Path
 
 import pytest
 
-from chordnotepad_tk import main as entry
+from chordnotepad_desktop import launcher as entry
+
+PACKAGE = Path(entry.__file__).resolve().parent
 
 
-def test_tk_is_the_default():
-    assert entry.parse_ui([]) == ("tk", [])
+def test_without_ui_the_command_line_is_left_alone():
+    assert entry.parse_ui(["-platform", "offscreen", "--smoke"]) == (
+        None, ["-platform", "offscreen", "--smoke"])
 
 
 @pytest.mark.parametrize("argv", [["--ui", "qt"], ["--ui=qt"]])
@@ -29,71 +34,74 @@ def test_an_unknown_front_end_is_refused(capsys):
     assert "invalid choice: 'gtk'" in capsys.readouterr().err
 
 
-def test_ui_qt_starts_the_qt_front_end_with_the_resolved_paths(monkeypatch):
+@pytest.fixture
+def fake_window(monkeypatch):
+    """The Qt window's ``run``, recording its calls and returning 7."""
     calls = []
     fake = types.ModuleType("chordnotepad_desktop.main")
     fake.run = lambda paths, argv, build_info=None: calls.append((paths, argv, build_info)) or 7
     monkeypatch.setitem(sys.modules, "chordnotepad_desktop.main", fake)
     monkeypatch.setattr(entry.importlib.util, "find_spec", lambda name: object())
+    return calls
+
+
+@pytest.mark.parametrize("argv", [["--smoke"], ["--ui", "qt", "--smoke"]])
+def test_main_starts_the_qt_window_with_the_resolved_paths(fake_window, argv):
     with pytest.raises(SystemExit) as exc:
-        entry.main(["--ui", "qt", "--smoke"])
+        entry.main(argv)
     assert exc.value.code == 7
-    assert calls == [(entry.APP_PATHS, ["--smoke"], entry.read_build_info())]
+    assert fake_window == [(entry.APP_PATHS, ["--smoke"], entry.read_build_info())]
 
 
-def test_the_qt_window_gets_the_build_info_ci_writes():
-    """About in the Qt window shows build_info.py's values (the Qt package can't import it)."""
-    from chordnotepad_tk import build_info
+def test_ui_tk_says_the_tk_window_is_gone(fake_window, capsys):
+    with pytest.raises(SystemExit) as exc:
+        entry.main(["--ui", "tk"])
+    assert exc.value.code == 2
+    assert fake_window == []
+    assert capsys.readouterr().err.strip() == entry.TK_REMOVED
+    assert "removed in 0.6.0" in entry.TK_REMOVED
+
+
+def test_the_window_gets_the_build_info_ci_writes():
+    from chordnotepad_desktop import build_info
 
     info = entry.read_build_info()
     assert set(info) == {"VERSION", "BUILD_TYPE", "BUILD_NUMBER", "COMMIT_SHORT", "BUILD_DATE"}
     assert info["VERSION"] == build_info.VERSION and info["COMMIT_SHORT"] == build_info.COMMIT_SHORT
 
 
-def test_ui_qt_without_pyside6_says_so(monkeypatch, capsys):
+def test_without_pyside6_it_says_so(monkeypatch, capsys):
     monkeypatch.setattr(entry.importlib.util, "find_spec", lambda name: None)
     assert entry.run_qt([]) == 2
-    assert "--ui qt needs PySide6" in capsys.readouterr().err
+    assert "PySide6 is missing" in capsys.readouterr().err
 
 
-def test_the_default_starts_the_tk_application(monkeypatch):
-    from chordnotepad_tk import application
-
-    calls = []
-    monkeypatch.setattr(application.Application, "main",
-                        classmethod(lambda cls, paths: calls.append(paths) or 0))
-    with pytest.raises(SystemExit) as exc:
-        entry.main([])
-    assert exc.value.code == 0
-    assert calls == [entry.APP_PATHS]
+def _imports(path: Path):
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            yield from (a.name for a in node.names)
+        elif isinstance(node, ast.ImportFrom):
+            yield node.module or ""
 
 
-def test_the_qt_package_imports_nothing_on_its_own():
-    """The entry point checks for PySide6 before importing the Qt package."""
-    import ast
-    from pathlib import Path
-
-    init = Path(entry.__file__).resolve().parents[1] / "chordnotepad_desktop" / "__init__.py"
-    tree = ast.parse(init.read_text(encoding="utf-8"))
-    assert not [n for n in ast.walk(tree) if isinstance(n, (ast.Import, ast.ImportFrom))]
+def test_the_package_imports_nothing_on_its_own():
+    """``python -m chordnotepad_desktop`` imports ``__init__`` before the launcher's set-up runs."""
+    assert list(_imports(PACKAGE / "__init__.py")) == []
 
 
-def test_the_qt_package_never_imports_the_tk_one():
-    """Tk is deleted after the switch. Only main.py's ``__main__`` block may use its entry point."""
-    import ast
-    from pathlib import Path
+def test_the_launcher_imports_no_qt_or_audio_before_its_set_up():
+    """The DLL folder and the std streams come first: the top level imports only these."""
+    tree = ast.parse((PACKAGE / "launcher.py").read_text(encoding="utf-8"))
+    top = set()
+    for node in tree.body:
+        if isinstance(node, ast.Import):
+            top |= {a.name for a in node.names}
+        elif isinstance(node, ast.ImportFrom):
+            top.add(node.module)
+    assert top == {"argparse", "importlib.util", "os", "sys", "chordnotepad_desktop.desktop_paths",
+                   "chordnotepad.utils.std_streams"}
 
-    package = Path(entry.__file__).resolve().parents[1] / "chordnotepad_desktop"
-    found = []
-    for path in sorted(package.rglob("*.py")):
-        tree = ast.parse(path.read_text(encoding="utf-8"))
-        body = [node for node in tree.body if not (
-            isinstance(node, ast.If) and isinstance(node.test, ast.Compare)
-            and getattr(node.test.left, "id", None) == "__name__")]
-        for top in body:
-            for node in ast.walk(top):
-                names = ([a.name for a in node.names] if isinstance(node, ast.Import)
-                         else [node.module or ""] if isinstance(node, ast.ImportFrom) else [])
-                found += [f"{path.name}:{node.lineno} {n}" for n in names
-                          if n.split(".")[0] == "chordnotepad_tk"]
-    assert found == []
+
+def test_main_module_only_calls_the_launcher():
+    assert list(_imports(PACKAGE / "__main__.py")) == ["chordnotepad_desktop.launcher"]

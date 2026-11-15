@@ -41,7 +41,7 @@ source file above, so you can use it with your own build of them:
 
   - Run it from source: in a Python environment with Chord Notepad's other
     dependencies (Pipfile) and your PySide6, run
-    PYTHONPATH=core:desktop python -m chordnotepad_tk.main --ui qt
+    PYTHONPATH=core:desktop python -m chordnotepad_desktop
     in the source folder.
   - Build a package with them: install your PySide6 into the build
     environment instead of the wheel and run the same build (make build for

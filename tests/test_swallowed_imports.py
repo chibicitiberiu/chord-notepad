@@ -49,7 +49,7 @@ GUARDED = _guarded_imports()
 
 def test_the_scan_finds_the_known_guarded_imports():
     modules = {module for _, _, module, _ in GUARDED}
-    assert {"chordnotepad_tk.build_info", "chordnotepad_tk.main_window",
+    assert {"chordnotepad_desktop.build_info", "chordnotepad_tk.main_window",
             "chordnotepad.viewmodels.chord_sheet_viewmodel",
             "chordnotepad.models.fretboard_spec"} <= modules
 
@@ -64,15 +64,16 @@ def test_guarded_import_resolves(where, line, module, names):
 
 
 def test_build_info_imports_under_its_package_name():
-    from chordnotepad_tk import build_info
+    from chordnotepad_desktop import build_info
 
-    assert build_info.__name__ == "chordnotepad_tk.build_info"
+    assert build_info.__name__ == "chordnotepad_desktop.build_info"
     assert build_info.BASE_VERSION == (REPO / "VERSION").read_text(encoding="utf-8").strip()
 
 
 def test_the_window_title_and_about_box_get_the_build_info():
     """main_window reads build_info at import; "dev-local" means the import failed."""
-    from chordnotepad_tk import build_info, main_window
+    from chordnotepad_desktop import build_info
+    from chordnotepad_tk import main_window
 
     assert main_window.VERSION == build_info.VERSION != "dev-local"
     assert main_window.BUILD_NUMBER == build_info.BUILD_NUMBER

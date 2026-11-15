@@ -32,7 +32,9 @@ for package, folder in PACKAGES.items():
         continue
     # Walk the folder, not the imported package: importing it may be the
     # very thing that fails, and that has to be reported, not crash the test.
-    names += [package] + [m.name for m in pkgutil.walk_packages([str(folder / package)], package + ".")]
+    # Not __main__: importing it starts the app.
+    names += [package] + [m.name for m in pkgutil.walk_packages([str(folder / package)], package + ".")
+                          if not m.name.endswith(".__main__")]
 for old in ["session", "ui", "utils", "constants"]:
     if importlib.util.find_spec(old) is not None:
         failures.append(f"an old top-level module is importable: {old}")
@@ -57,9 +59,9 @@ for path in ["resources/soundfont/GeneralUser-GS.sf2", "help/build/html/index.ht
     if not (APP / path).exists():
         failures.append(f"missing file: {path}")
 
-# The app finds its files where the package put them (chordnotepad_tk.desktop_paths).
+# The app finds its files where the package put them (chordnotepad_desktop.desktop_paths).
 try:
-    from chordnotepad_tk.desktop_paths import resolve_desktop_paths
+    from chordnotepad_desktop.desktop_paths import resolve_desktop_paths
 
     paths = resolve_desktop_paths()
     if paths.root is None or paths.root.resolve() != APP.resolve():

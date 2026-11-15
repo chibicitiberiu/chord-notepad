@@ -1,7 +1,7 @@
 """Finds the desktop app's files: the one place that knows how it ships.
 
-``main.py`` calls :func:`resolve_desktop_paths` once, before anything else,
-and hands the result down (``Application`` -> ``build_core_services``,
+``launcher.py`` calls :func:`resolve_desktop_paths` once, before anything
+else, and hands the result down (``QtApplication`` -> ``build_core_services``,
 ``ResourceService``). Every desktop build has the same layout under its
 root (``VERSION``, ``resources/``, ``help/build/html``); only the root
 differs:
@@ -10,9 +10,10 @@ differs:
 * Flatpak: ``/app/share/chord-notepad`` (the manifest's ``cp`` steps);
 * snap: ``$SNAP/share/chord-notepad`` (snapcraft.yaml's ``override-build``);
 * running from source: the checkout, two folders above this file's
-  package (``desktop/chordnotepad_tk/``).
+  package (``desktop/chordnotepad_desktop/``).
 
-Stdlib only: ``main.py`` imports it before pyfluidsynth is loaded.
+Stdlib only (and the core's ``app_paths``): ``launcher.py`` imports it
+before pyfluidsynth is loaded.
 """
 
 import os
@@ -31,7 +32,7 @@ INSTALL_SUBDIR = Path("share") / "chord-notepad"
 #: The Flatpak's install prefix (``FLATPAK_DEST``).
 FLATPAK_PREFIX = Path("/app")
 
-#: The checkout: this file is ``<checkout>/desktop/chordnotepad_tk/desktop_paths.py``.
+#: The checkout: this file is ``<checkout>/desktop/chordnotepad_desktop/desktop_paths.py``.
 CHECKOUT_ROOT = Path(__file__).resolve().parents[2]
 
 #: The bundled SoundFont, under ``resources/``.
