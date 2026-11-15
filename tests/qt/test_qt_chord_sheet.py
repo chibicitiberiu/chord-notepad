@@ -233,6 +233,25 @@ def test_every_sheet_font_is_inter_unhinted():
     assert font.hintingPreference() == QFont.HintingPreference.PreferNoHinting
 
 
+@pytest.mark.parametrize("height", [350.0, 600.0])
+def test_staff_chord_names_as_inter_draws_them_stay_in_their_slots(height):
+    # The core estimates the names' widths; Inter Bold (the Qt sheet's font)
+    # must agree: no name past its slot, so neighbours never run together
+    # ("Gmaj7Am7" on the tall Play strip).
+    from tests.test_chord_sheet_staff_card import example_song, paint as paint_staff, symbol_boxes
+    painter = SheetPainter()
+    layout, ops = paint_staff(example_song(), height=height)
+
+    def measured(text):
+        size = next(op.size for op in ops.ops if getattr(op, "s", None) == text and op.bold)
+        return painter.font(size, True)[1].horizontalAdvance(text) / (size * sheet_paint.PT_TO_PX)
+
+    boxes = symbol_boxes(layout, ops, ems=measured)
+    assert len(boxes) > 20
+    for left, right, slot_left, slot_right in boxes:
+        assert slot_left <= left and right <= slot_right
+
+
 # -- the QML type ----------------------------------------------------------------------
 
 

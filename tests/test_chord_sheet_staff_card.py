@@ -10,6 +10,7 @@ barline + fresh signature); per-voice and per-hand notehead tints; a voice
 legend; the octave-lower treble (tenors written an octave up); and the extended
 clef/glyph asset resolver.
 """
+from pathlib import Path
 from typing import List, Optional
 
 import pytest
@@ -1239,3 +1240,61 @@ def test_a_european_session_key_draws_its_signature(key, expected):
 
 def test_a_european_key_directive_draws_its_signature():
     assert _session_signature(text="{key: Lab}\nDo Re Mi Fa\n") == (0, 4)
+
+
+# --------------------------------------------------------------------------
+# Chord names fit their slots on a tall strip
+# --------------------------------------------------------------------------
+
+EXAMPLE_SONG = (Path(__file__).resolve().parents[1] / "examples"
+                / "02_american_complete.txt").read_text(encoding="utf-8")
+
+
+def example_song():
+    from chordnotepad.session.platform import DESKTOP_QT
+    from tests.test_chord_sheet_playhead import Env
+    return Env(DESKTOP_QT, EXAMPLE_SONG).sheet.rendered_song
+
+
+def symbol_boxes(layout, ops, ems=sc._label_ems):
+    """Each chord name's (left, right, slot left, slot right), as estimated."""
+    slots = {f"slot:{s.chord_index}": s for s in layout.slots}
+    boxes = []
+    for op in ops.ops:
+        if isinstance(op, TextOp) and op.bold and op.anchor == "n":
+            slot = next(slots[t] for t in op.tags if t in slots)
+            half = ems(op.s) * op.size * sc._PT_TO_PX / 2.0
+            boxes.append((op.x - half, op.x + half, slot.x, slot.x + slot.width))
+    return boxes
+
+
+@pytest.mark.parametrize("height", [130.0, 350.0, 600.0])
+def test_chord_names_stay_inside_their_slots_and_clear_of_each_other(height):
+    # A tall strip grows the staff (and once the names), not the slots: on
+    # the Qt Play strip "Gmaj7Am7" ran together.
+    layout, ops = paint(example_song(), height=height)
+    boxes = symbol_boxes(layout, ops)
+    assert len(boxes) > 20
+    for left, right, slot_left, slot_right in boxes:
+        assert slot_left < left and right < slot_right
+    for (_, right, _, _), (left, _, _, _) in zip(boxes, boxes[1:]):
+        assert right < left
+
+
+def test_a_name_shrinks_to_its_slot_on_a_tall_strip_and_short_ones_keep_the_staffs_size():
+    song = make_song(make_chord("Cmaj7", midi_notes=[60, 64, 67, 71], duration_beats=3.0),
+                     make_chord("C", midi_notes=[60, 64, 67], duration_beats=3.0))
+    layout, ops = paint(song, height=350.0)
+    sizes = {op.s: op.size for op in ops.ops if isinstance(op, TextOp) and op.bold}
+    full = int(round(1.25 * sc._staff_space(350.0)))
+    assert sizes["C"] == full
+    assert sc._MIN_SYMBOL_PT <= sizes["Cmaj7"] < full
+
+
+def test_a_slot_too_short_for_its_name_is_widened():
+    song = make_song(make_chord("C#m7b5", midi_notes=[61, 64, 67, 71], duration_beats=0.5),
+                     make_chord("C", midi_notes=[60, 64, 67], duration_beats=0.5))
+    layout, ops = paint(song, height=130.0)
+    wide, short = layout.slots
+    assert wide.width > short.width
+    assert wide.width >= sc._label_min_width("C#m7b5", sc._staff_space(130.0))
