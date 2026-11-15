@@ -1,5 +1,6 @@
 pragma ComponentBehavior: Bound
 import QtQuick
+import QtQuick.Controls
 import CNTheme
 
 // The timeline in song time (the mockup's Scrubber.qml, plan step E1): one
@@ -136,16 +137,27 @@ Item {
         }
         onExited: scrub.hoverSeg = -1
     }
-    Rectangle {   // seek preview
+    // The seek preview, in the window's overlay: over the song values on the
+    // row above (Tibi, 2026-11-15), which sit over the track's hit area.
+    // localX/localY are its place on the track.
+    Rectangle {
+        id: preview
         objectName: "timelinePreview"
-        visible: scrub.active && area.containsMouse
+        parent: Overlay.overlay
+        visible: scrub.active && area.containsMouse && parent !== null
         readonly property int bar: scrub.barAt(area.mouseX)
         readonly property string name: scrub.hoverSeg >= 0 && scrub.hoverSeg < scrub.segs.length
                                        ? scrub.segs[scrub.hoverSeg].name : ""
         readonly property string text: (name ? name + " · " : "") + bar + ":1 / " + scrub.bars
-        x: Math.max(-Theme.gap2, Math.min(scrub.width - width + Theme.gap2, area.mouseX - width / 2))
-        y: -height - Theme.gap2
-        z: 20
+        readonly property real localX: Math.max(-Theme.gap2, Math.min(scrub.width - width + Theme.gap2, area.mouseX - width / 2))
+        readonly property real localY: -height - Theme.gap2
+        // Where the track is in the overlay, worked out again as the mouse moves.
+        readonly property point origin: {
+            area.mouseX; scrub.width; scrub.height
+            return preview.visible ? scrub.mapToItem(preview.parent, 0, 0) : Qt.point(0, 0)
+        }
+        x: Math.round(origin.x + localX)
+        y: Math.round(origin.y + localY)
         width: tip.implicitWidth + 2 * Theme.gap2
         height: tip.implicitHeight + Theme.gap1
         radius: Theme.radiusSmall

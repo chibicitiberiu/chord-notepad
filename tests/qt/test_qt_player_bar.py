@@ -20,6 +20,7 @@ if QT_PROBLEM:
 
 from PySide6.QtCore import QMetaObject, QObject, QPoint, QPointF, Qt  # noqa: E402
 from PySide6.QtGui import QWheelEvent  # noqa: E402
+from PySide6.QtQuick import QQuickItem  # noqa: E402
 from PySide6.QtQml import qmlEngine  # noqa: E402
 from PySide6.QtTest import QTest  # noqa: E402
 
@@ -159,48 +160,36 @@ def test_play_puts_the_sheet_on_screen_so_the_timeline_gets_its_sections(pb):
     assert pb.sent("set_chord_sheet_on_screen")[-1] == {"on_screen": None}
 
 
-def test_the_title_block_has_the_name_and_the_unsaved_dot(pb):
+def test_the_values_sit_centred_on_a_row_above_the_timeline_without_the_title(pb):
+    # Tibi, 2026-11-15: the song's values over the seek bar, centred; the
+    # title (and its unsaved dot) went: the window and the tab have them.
     pb.to_play()
-    assert pb.it("playerTitle").property("text") == "Untitled"
-    assert not pb.it("playerDirty").isVisible()
-    pb.window.setProperty("mode", "edit")
-    pb.run()
-    pb.set_cursor(len(TEXT))
-    pb.type("x")
-    pb.qtbot.waitUntil(lambda: pb.store.state("DocumentState").value("is_modified") is True,
-                       timeout=2000)
-    pb.to_play()
-    pb.qtbot.waitUntil(lambda: pb.it("playerDirty").isVisible(), timeout=2000)
-
-
-def test_the_title_and_values_sit_on_a_row_above_the_timeline(pb):
-    # Tibi, 2026-11-15: the title row above the seek bar, never hidden.
-    pb.to_play()
-    title, values, timeline = pb.it("playerTitle"), pb.it("songValues"), pb.it("timeline")
+    values, timeline, middle = pb.it("songValues"), pb.it("timeline"), pb.it("middle")
     pb.drawn()
-    title_y = title.mapToScene(QPointF(0, 0)).y()
-    assert title_y + title.height() <= timeline.mapToScene(QPointF(0, 0)).y()
-    assert abs(title.mapToScene(QPointF(0, 0)).x() - pb.it("position").mapToScene(QPointF(0, 0)).x()) < 1
-    assert values.mapToScene(QPointF(0, 0)).x() > title.mapToScene(QPointF(title.width(), 0)).x()
+    assert find(pb.window.contentItem(), "playerTitle") is None
+    assert find(pb.window.contentItem(), "playerDirty") is None
     assert values.isVisible()
+    assert values.mapToScene(QPointF(0, values.height())).y() <= timeline.mapToScene(QPointF(0, 0)).y()
+    centre = values.mapToItem(middle, QPointF(values.width() / 2, 0)).x()
+    assert abs(centre - middle.width() / 2) <= 1
 
 
-def test_a_long_title_is_elided_and_the_unsaved_dot_and_values_stay(pb):
+def test_the_seek_preview_is_drawn_over_the_values(pb):
+    # Tibi, 2026-11-15: the preview went under the row above the timeline.
     pb.to_play()
-    doc = pb.store.state("DocumentState")
-    doc.insert("display_name", "A very long song title that would never fit in the row at all, really.txt")
-    doc.insert("is_modified", True)
+    timeline, segs = segments(pb)
+    pb.hover(segs[0], dx=-segs[0].width() / 2 + 1)
+    preview = timeline_preview(timeline)
+    pb.qtbot.waitUntil(lambda: preview.isVisible(), timeout=1000)
+    values = pb.it("songValues")
+    assert preview.parentItem() is not values.parentItem() and preview.parentItem() is not None
+    # In the window's overlay, above the contents, just above the track.
+    assert preview.parentItem().z() > pb.window.contentItem().z()
+    top = timeline.mapToScene(QPointF(0, 0)).y()
+    bottom = preview.mapToScene(QPointF(0, preview.height())).y()
     bar = pb.it("playerBar")
     u = bar.width() / bar.property("units")
-    pb.window.setWidth(int(u * 220))
-    title, dot, values = pb.it("playerTitle"), pb.it("playerDirty"), pb.it("songValues")
-    pb.qtbot.waitUntil(lambda: dot.isVisible() and title.property("truncated") is True, timeout=1000)
-    pb.drawn()
-    row = pb.it("titleRow")
-    dot_x = dot.mapToItem(row, QPointF(0, 0)).x()
-    assert title.mapToItem(row, QPointF(title.width(), 0)).x() <= dot_x
-    assert dot_x + dot.width() <= values.mapToItem(row, QPointF(0, 0)).x()
-    assert values.mapToItem(row, QPointF(values.width(), 0)).x() <= row.width() + 0.5
+    assert top - u * 3 <= bottom <= top
 
 
 def test_play_acts_on_press_and_its_tooltip_follows_the_play_action(pb):
@@ -296,6 +285,11 @@ def segments(pb):
     return timeline, [find(timeline, f"seg{i}") for i in range(3)]
 
 
+def timeline_preview(timeline):
+    """The seek preview: drawn in the window's overlay, a QObject child of the timeline."""
+    return timeline.findChild(QQuickItem, "timelinePreview")
+
+
 def test_the_timeline_has_a_segment_per_section_with_gaps(pb):
     pb.to_play()
     timeline, segs = segments(pb)
@@ -312,16 +306,16 @@ def test_the_hovered_segment_thickens_and_the_preview_names_it(pb):
     pb.hover(segs[1], dx=-segs[1].width() / 4)          # bar 3, the chorus
     pb.qtbot.waitUntil(lambda: segs[1].height() > thin * 1.5, timeout=1000)
     assert segs[0].height() == thin
-    preview = find(timeline, "timelinePreview")
+    preview = timeline_preview(timeline)
     assert preview.isVisible() and preview.property("text") == "chorus · 3:1 / 6"
     # It stays inside the track at the end.
     pb.hover(segs[2], dx=segs[2].width() / 2 - 1)
     assert preview.property("text") == "chorus · 6:1 / 6"
     gap = 2 * timeline.property("gap") + 2          # Theme.gap2, give or take
-    assert preview.x() + preview.width() <= timeline.width() + gap
+    assert preview.property("localX") + preview.width() <= timeline.width() + gap
     pb.hover(segs[0], dx=-segs[0].width() / 2 + 1)
     assert preview.property("text") == "verse · 1:1 / 6"
-    assert preview.x() >= -gap
+    assert preview.property("localX") >= -gap
 
 
 def test_a_click_seeks_and_a_gap_goes_to_the_boundary_bar(pb):
@@ -439,7 +433,7 @@ def test_the_beat_clock_rolls_over_bars_and_stops_at_the_songs_end():
 
 def test_the_bar_narrows_the_timeline_then_the_names_then_the_timeline_again(pb):
     # Tibi's order: the names collapse before the timeline gets small; the
-    # title row never hides.
+    # values never hide.
     pb.to_play()
     timeline = pb.it("timeline")
     bar = pb.it("playerBar")
@@ -451,7 +445,7 @@ def test_the_bar_narrows_the_timeline_then_the_names_then_the_timeline_again(pb)
         pb.run(30)
         names = voicing.property("showText")
         assert instrument.property("showText") is names
-        assert pb.it("playerTitle").isVisible() and pb.it("songValues").isVisible()
+        assert pb.it("songValues").isVisible()
         widths.append((units, names, timeline.width()))
     shown = [w for _, names, w in widths if names]
     hidden = [w for _, names, w in widths if not names]

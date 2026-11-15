@@ -6,16 +6,17 @@ import CNTheme
 
 // The Play workspace's player bar (the mockup's PlayerBar.qml, plan steps
 // E1-E3): one calm row, like a web music player.
-// [⏮ ( ▶ ) ⏹] [title • 100 bpm · 3/4 · Am   ] [♫ Voicing ⌄ · 🎸 Instrument ⌄ | ⏲ 100% ⌄ · metronome · 🔊 ⌄]
+// [⏮ ( ▶ ) ⏹] [   100 bpm · 3/4 · Am      ] [♫ Voicing ⌄ · 🎸 Instrument ⌄ | ⏲ 100% ⌄ · metronome · 🔊 ⌄]
 //              [7:2 ──────timeline───────]
-// The title and the song's values sit on a row above the timeline (Tibi,
-// 2026-11-15), so they never have to hide. Narrow: the timeline shrinks to
-// a comfortable width, then the voicing and instrument names collapse to
-// icons, then the timeline shrinks further and a long title elides.
+// The song's values sit centred on a row above the timeline (Tibi,
+// 2026-11-15: no title there, the window and the tab have it), so they
+// never have to hide. Narrow: the timeline shrinks to a comfortable width,
+// then the voicing and instrument names collapse to icons, then the
+// timeline shrinks further.
 //
 // Everything shown is the session's: ToolbarState (song values, speed,
 // metronome, ▶'s action), PlaybackState (status, sections),
-// DocumentState (title, unsaved dot), VoicingMenuState and
+// VoicingMenuState and
 // InstrumentMenuState. `player` (player_bar.py) has the texts, the
 // position, the seeks and the scales; `actions` (PlaybackActions.qml) the
 // shortcuts, which the buttons share.
@@ -40,13 +41,10 @@ Rectangle {
 
     readonly property var tb: bar.store.states.ToolbarState
     readonly property var pb: bar.store.states.PlaybackState
-    readonly property var doc: bar.store.states.DocumentState
     readonly property var im: bar.store.states.InstrumentMenuState
     readonly property bool playing: bar.tb.play_action === "pause"
     readonly property var sections: bar.pb.sections || []
     readonly property int totalBars: bar.sections.length ? bar.sections[bar.sections.length - 1].last_bar : 0
-    readonly property string title: bar.doc.display_name || ""
-    readonly property bool dirty: bar.doc.is_modified === true
     readonly property real speed: bar.tb.multiplier_pct || 100
     readonly property string instrumentLabel: {
         for (var f of bar.im.families || [])
@@ -55,7 +53,7 @@ Rectangle {
     }
 
     readonly property real units: width / Theme.u
-    // Narrowing, measured from what the parts need (the title, the names and
+    // Narrowing, measured from what the parts need (the values, the names and
     // the font all vary): the timeline gives way down to timelineEasy, then
     // the voicing / instrument names collapse to icons, then the timeline
     // goes on down to timelineMin.
@@ -183,44 +181,25 @@ Rectangle {
         }
 
         // --- Timeline: takes what is left; fixed-width, tabular position -------------------
-        // --- The title and the song's values, the timeline under them --------------------
+        // --- The song's values, the timeline under them -----------------------------------
         ColumnLayout {
             objectName: "middle"
             Layout.fillWidth: true
-            // The timeline at its smallest, or the title row with a few letters of
-            // the title, the dot and the values, whichever needs more.
-            Layout.minimumWidth: Math.max(position.Layout.preferredWidth + timelineRow.spacing + bar.timelineMin,
-                                          titleText.Layout.minimumWidth + 2 * titleRow.spacing + dirtyDot.implicitWidth
-                                          + songValues.Layout.leftMargin + songValues.implicitWidth)
+            // The timeline at its smallest (with the handle's room at either
+            // end), or the values, whichever needs more.
+            Layout.minimumWidth: Math.max(position.Layout.preferredWidth + timelineRow.spacing + bar.timelineMin
+                                          + scrubber.Layout.leftMargin + scrubber.Layout.rightMargin,
+                                          songValues.implicitWidth)
             spacing: Theme.gap1
-            RowLayout {
-                id: titleRow
-                objectName: "titleRow"
-                Layout.fillWidth: true
+            SongValues {
+                id: songValues
+                objectName: "songValues"
+                Layout.alignment: Qt.AlignHCenter
                 z: 1        // over the timeline's hit area, which reaches up past the track
-                spacing: Theme.gap1
-                // A long title elides; the unsaved dot and the values stay.
-                SText {
-                    id: titleText
-                    objectName: "playerTitle"
-                    text: bar.title
-                    font: Theme.fontStrong; color: Theme.text
-                    elide: Text.ElideRight
-                    Layout.fillWidth: true
-                    Layout.minimumWidth: Math.min(Math.ceil(implicitWidth), Theme.px(16))
-                    Layout.maximumWidth: Math.ceil(implicitWidth)
-                }
-                SText { id: dirtyDot; objectName: "playerDirty"; visible: bar.dirty; text: "•"; font: Theme.fontStrong; color: Theme.muted }
-                SongValues {
-                    id: songValues
-                    objectName: "songValues"
-                    Layout.leftMargin: Theme.gap2
-                    store: bar.store
-                    player: bar.player
-                    onGoToDirective: (v) => bar.goToDirective(v)
-                    onOpenPicker: (kind, anchor) => bar.openSongPicker(kind, anchor)
-                }
-                Item { Layout.fillWidth: true }
+                store: bar.store
+                player: bar.player
+                onGoToDirective: (v) => bar.goToDirective(v)
+                onOpenPicker: (kind, anchor) => bar.openSongPicker(kind, anchor)
             }
             RowLayout {
                 id: timelineRow
@@ -236,6 +215,7 @@ Rectangle {
                     color: Theme.muted
                 }
                 Scrubber {
+                    id: scrubber
                     player: bar.player
                     sections: bar.sections
                     playing: bar.playing
