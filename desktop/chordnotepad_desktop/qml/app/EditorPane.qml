@@ -497,9 +497,12 @@ Rectangle {
                 }
             }
             // Middle-click pastes PRIMARY (X11, Wayland) at the pointer, normalised.
+            // No shape of its own: a MouseArea has the arrow by default, and a
+            // child's shape wins over the hover handler's I-beam (pitfall 28).
             MouseArea {
                 anchors.fill: parent
                 acceptedButtons: Qt.MiddleButton
+                cursorShape: undefined
                 onClicked: (mouse) => {
                     if (!area.readOnly) pane.editor.pasteSelectionAt(area.positionAt(mouse.x, mouse.y))
                 }

@@ -94,4 +94,7 @@ Each is also noted where it applies, as "pitfall N":
     connected to its plain Python methods then never arrive. Connect to
     ``@Slot`` methods and keep extra properties out of the instance
     (chord_sheet.py).
+28. A MouseArea always has a cursor shape (the arrow by default), and a
+    child's shape wins over its parent's HoverHandler: ``cursorShape:
+    undefined`` on one that only takes a button (the editor's middle click).
 """
