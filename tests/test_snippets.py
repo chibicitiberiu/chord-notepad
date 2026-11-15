@@ -320,3 +320,9 @@ def test_the_key_picker_in_a_european_song():
     e.session.set_notation("european")
     options = e.session.picker_at(1).options
     assert options.groups[0].choices[1].value == "Reb" and options.current == "Lam"
+
+
+def test_the_capo_tile_says_only_the_fretted_views_change():
+    tile = snippets.snippet("capo")
+    assert tile.hint.startswith("Where the capo sits on a fretted instrument.")
+    assert "The sound and the chord names stay as written." in tile.hint
