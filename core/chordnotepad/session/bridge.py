@@ -290,6 +290,16 @@ SESSION_COMMANDS: Dict[str, Dict[str, str]] = {
     # the Qt Directives palette and the ▾ pickers
     "insert_snippet": {"offset": "int", "text": "str", "snap": "bool"},
     "replace_directive_value": {"span": "selection", "value": "str"},
+    # the Qt editor's find bar and Edit menu (text_ops; Android doesn't send them yet)
+    "replace_match": {"span": "selection", "query": "str", "replacement": "str",
+                      "match_case": "bool", "whole_word": "bool"},
+    "replace_all": {"query": "str", "replacement": "str", "match_case": "bool",
+                    "whole_word": "bool", "cursor": "int|null"},
+    "duplicate_lines": {"anchor": "int", "cursor": "int"},
+    "move_lines": {"anchor": "int", "cursor": "int", "offset": "int"},
+    "delete_lines": {"anchor": "int", "cursor": "int"},
+    "toggle_comment": {"anchor": "int", "cursor": "int"},
+    "indent_lines": {"anchor": "int", "cursor": "int", "outdent": "bool"},
     # chord identifier
     "identifier_toggle_note": {"note": "str", "octave": "int"},
     "identifier_set_notes_text": {"text": "str"},

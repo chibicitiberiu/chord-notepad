@@ -62,6 +62,7 @@ from chordnotepad.session.events import (
 from chordnotepad.audio import volume as volume_curve
 from chordnotepad.models.window_geometry import WindowGeometry, check_scale
 from chordnotepad.session import pickers, snippets
+from chordnotepad.session import text_ops
 from chordnotepad.session.flows import Flow, FlowRunner
 from chordnotepad.session.pickers import DirectivePicker
 from chordnotepad.session.highlighting import (
@@ -788,6 +789,110 @@ class AppSession:
             return
         self._splice(value_start, value_end, value, UndoPolicy.GROUP,
                      cursor=start + len(directive))
+
+    # -- the text editor's operations (the Qt desktop's Edit menu and find bar) ------
+    # Each is one undo step (a GROUP edit) with the selection text_ops says,
+    # refused while a song plays or is paused. Selections come as (anchor,
+    # cursor): where the selection started and where the caret is.
+
+    @_command
+    def replace_match(self, span: Tuple[int, int], query: str, replacement: str,
+                      match_case: bool = False, whole_word: bool = False) -> None:
+        """Replace the find match at ``span`` with ``replacement`` (the find
+        bar's Replace), the cursor after it. Nothing happens when ``span``
+        is no longer a match of ``query`` (the text changed meanwhile).
+
+        Raises:
+            ValueError: If ``span`` is outside the text.
+        """
+        start, end = self._checked_span(span)
+        if not self._edits_allowed("replace"):
+            return
+        op = text_ops.replace_match(self._text, (start, end), str(query), str(replacement),
+                                    match_case, whole_word)
+        if op is None:
+            logger.info("Not replacing %d-%d: no longer a match of %r", start, end, query)
+            return
+        self._apply_text_op(op)
+
+    @_command
+    def replace_all(self, query: str, replacement: str, match_case: bool = False,
+                    whole_word: bool = False, cursor: Optional[int] = None) -> None:
+        """Replace every match of ``query`` (the find bar's Replace all), as
+        one undo step; the status says how many. ``cursor`` (the view's)
+        stays where it was in the text around the matches.
+
+        Raises:
+            ValueError: If ``cursor`` is outside the text.
+        """
+        cursor = self._checked_offset(0 if cursor is None else cursor)
+        if not self._edits_allowed("replace all"):
+            return
+        op, count = text_ops.replace_all(self._text, str(query), str(replacement),
+                                         match_case, whole_word, cursor)
+        if op is None:
+            self._set_status(formatting.no_matches_status(str(query)))
+            return
+        self._apply_text_op(op)
+        self._set_status(formatting.replaced_status(count))
+
+    @_command
+    def duplicate_lines(self, anchor: int, cursor: int) -> None:
+        """Duplicate the selection, or the caret's line without one (Ctrl+D)."""
+        self._line_op("duplicate", text_ops.duplicate, anchor, cursor)
+
+    @_command
+    def move_lines(self, anchor: int, cursor: int, offset: int) -> None:
+        """Move the lines the selection touches up (``offset`` -1) or down (+1)."""
+        if int(offset) not in (-1, 1):
+            raise ValueError(f"move_lines offset must be -1 or 1, not {offset}")
+        self._line_op("move lines", lambda t, a, c: text_ops.move_lines(t, a, c, int(offset)),
+                      anchor, cursor)
+
+    @_command
+    def delete_lines(self, anchor: int, cursor: int) -> None:
+        """Delete the lines the selection touches (Ctrl+Shift+K)."""
+        self._line_op("delete lines", text_ops.delete_lines, anchor, cursor)
+
+    @_command
+    def toggle_comment(self, anchor: int, cursor: int) -> None:
+        """Comment the lines the selection touches with ``// ``, or uncomment
+        them when they all are comments (Ctrl+/)."""
+        self._line_op("toggle comment", text_ops.toggle_comment, anchor, cursor)
+
+    @_command
+    def indent_lines(self, anchor: int, cursor: int, outdent: bool = False) -> None:
+        """Indent the lines the selection touches with a tab, or unindent
+        them (Tab and Shift+Tab over several lines)."""
+        self._line_op("indent", lambda t, a, c: text_ops.indent_lines(t, a, c, bool(outdent)),
+                      anchor, cursor)
+
+    def _line_op(self, what: str, make: Callable[[str, int, int], Optional[text_ops.TextOp]],
+                 anchor: int, cursor: int) -> None:
+        anchor, cursor = self._checked_offset(anchor), self._checked_offset(cursor)
+        if not self._edits_allowed(what):
+            return
+        op = make(self._text, anchor, cursor)
+        if op is not None:
+            self._apply_text_op(op)
+
+    def _apply_text_op(self, op: "text_ops.TextOp") -> None:
+        self._splice(op.start, op.end, op.replacement, UndoPolicy.GROUP, cursor=op.cursor,
+                     anchor=None if op.anchor == op.cursor else op.anchor)
+
+    def _checked_offset(self, offset: int) -> int:
+        offset = int(offset)
+        if not 0 <= offset <= len(self._text):
+            raise ValueError(f"offset {offset} outside the text (length {len(self._text)})")
+        return offset
+
+    def _checked_span(self, span: Tuple[int, int]) -> Tuple[int, int]:
+        if span is None:
+            raise ValueError("a span is needed")
+        start, end = (int(x) for x in span)
+        if not 0 <= start <= end <= len(self._text):
+            raise ValueError(f"span {start}-{end} outside the text (length {len(self._text)})")
+        return start, end
 
     def picker_at(self, offset: int) -> Optional[DirectivePicker]:
         """The ▾ picker for the directive at ``offset`` (inside it, or just

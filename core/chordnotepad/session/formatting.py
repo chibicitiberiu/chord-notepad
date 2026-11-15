@@ -389,6 +389,16 @@ def inserted_status(text: str) -> str:
     return f"Inserted: {text}"
 
 
+def replaced_status(count: int) -> str:
+    """The status after Replace all, e.g. ``Replaced 3 matches``."""
+    return f"Replaced {count} match" + ("" if count == 1 else "es")
+
+
+def no_matches_status(query: str) -> str:
+    """The status when Replace all found nothing, e.g. ``No matches for “Am”``."""
+    return f"No matches for \u201c{query}\u201d"
+
+
 def inserted_chord_status(chord: str) -> str:
     """The status after the chord identifier inserted ``chord``."""
     return f"Inserted chord: {chord}"

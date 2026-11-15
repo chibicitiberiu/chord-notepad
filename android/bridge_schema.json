@@ -48,11 +48,19 @@
       "cursor": "int|null",
       "target": "str"
     },
+    "delete_lines": {
+      "anchor": "int",
+      "cursor": "int"
+    },
     "discard_settings_problems": {},
     "dismiss_notice": {
       "notice_id": "str"
     },
     "dismiss_startup_screen": {},
+    "duplicate_lines": {
+      "anchor": "int",
+      "cursor": "int"
+    },
     "export_midi": {},
     "identifier_clear": {},
     "identifier_play_selection": {
@@ -64,6 +72,11 @@
     "identifier_toggle_note": {
       "note": "str",
       "octave": "int"
+    },
+    "indent_lines": {
+      "anchor": "int",
+      "cursor": "int",
+      "outdent": "bool"
     },
     "insert_chord": {
       "at": "int",
@@ -81,6 +94,11 @@
     "load_voicing_preset": {
       "group": "str",
       "label": "str"
+    },
+    "move_lines": {
+      "anchor": "int",
+      "cursor": "int",
+      "offset": "int"
     },
     "move_voicing_record": {
       "field_id": "str",
@@ -121,9 +139,23 @@
       "new": "str",
       "old": "str"
     },
+    "replace_all": {
+      "cursor": "int|null",
+      "match_case": "bool",
+      "query": "str",
+      "replacement": "str",
+      "whole_word": "bool"
+    },
     "replace_directive_value": {
       "span": "selection",
       "value": "str"
+    },
+    "replace_match": {
+      "match_case": "bool",
+      "query": "str",
+      "replacement": "str",
+      "span": "selection",
+      "whole_word": "bool"
     },
     "request_close": {},
     "request_directive_hint": {
@@ -271,6 +303,10 @@
       "offset": "int",
       "rolled": "bool"
     },
+    "toggle_comment": {
+      "anchor": "int",
+      "cursor": "int"
+    },
     "toggle_metronome": {},
     "transpose": {
       "cursor": "int|null",
@@ -295,18 +331,22 @@
     "chord_sheet_zoom_reset",
     "commit_settings",
     "convert_notation",
+    "delete_lines",
     "discard_settings_problems",
     "dismiss_notice",
     "dismiss_startup_screen",
+    "duplicate_lines",
     "export_midi",
     "identifier_clear",
     "identifier_play_selection",
     "identifier_set_notes_text",
     "identifier_toggle_note",
+    "indent_lines",
     "insert_chord",
     "insert_snippet",
     "insert_text",
     "load_voicing_preset",
+    "move_lines",
     "move_voicing_record",
     "new_document",
     "open_document",
@@ -319,7 +359,9 @@
     "remove_voicing_record",
     "rename_document",
     "rename_voicing",
+    "replace_all",
     "replace_directive_value",
+    "replace_match",
     "request_close",
     "request_directive_hint",
     "request_insert_directive",
@@ -371,6 +413,7 @@
     "step_volume",
     "stop",
     "tap_chord_at",
+    "toggle_comment",
     "toggle_metronome",
     "transpose",
     "write_song_defaults"
