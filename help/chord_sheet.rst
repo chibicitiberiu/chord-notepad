@@ -161,7 +161,10 @@ the piano roll stretches time only: its rows always fill the strip.
 
 .. platform-figure:: chord-sheet-piano-roll
    :platforms: desktop
-   :alt: The piano roll under the text: a small keyboard on the left, chord names along the top, and a bar for each voiced note, with the playing chord in yellow.
+   :alt: The piano roll under the text: a small keyboard on the left, the
+         section's name and the chord names along the top, a bar for each
+         voiced note (right hand blue, left hand brown), and the playing
+         chord's column shaded.
 
    The piano roll.
 
@@ -224,7 +227,10 @@ treble); everything else splits at middle C.
 
 .. platform-figure:: chord-sheet-staff
    :platforms: desktop
-   :alt: The Staff view: treble and bass staves with the chords stacked as notes, the key signature at the left and the playing chord in yellow.
+   :alt: The Staff view: treble and bass staves with the chords stacked as
+         notes, the key signature and a repeat sign at the left, the playing
+         chord's column shaded, and the note that rhythm isn't shown yet
+         beside the view tabs.
 
    The staff view.
 
@@ -260,7 +266,8 @@ Fret cards
 
 .. platform-figure:: chord-sheet-fret-cards
    :platforms: desktop
-   :alt: The Fret cards view: a guitar chord diagram for each chord, with the playing chord in yellow.
+   :alt: The Fret cards view: a guitar chord diagram for each chord, with
+         the playing chord's card shaded.
 
    Fret cards with a guitar voicing.
 
