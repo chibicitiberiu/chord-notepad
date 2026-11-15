@@ -128,8 +128,9 @@
     <release version="0.6.0" date="2026-11-16">
       <description>
         <p>
-          A new desktop window, built with Qt Quick, with the same look on
-          Linux, Windows and macOS and a light and a dark theme. There are two
+          A complete redesign: every part of the desktop window is new, built
+          from scratch with Qt Quick, with a modern look that is the same on
+          Linux, Windows and macOS, and a light and a dark theme. There are two
           workspaces: Edit, with a toolbar and sidebars for directives and the
           chord identifier, and Play, with a player bar (a timeline, speed,
           volume and a metronome volume), the text and the chord sheet. The
