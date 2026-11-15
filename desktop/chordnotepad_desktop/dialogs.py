@@ -51,7 +51,7 @@ ABOUT_COPYRIGHT = ("© 2025–2026 Tiberiu Chibici\nGNU AGPL-3.0 · github.com/c
 #: The project's page, the link in About's copyright.
 ABOUT_REPO = "github.com/chibicitiberiu/chord-notepad"
 ABOUT_REPO_URL = "https://" + ABOUT_REPO
-#: The same text for a rich-text label: line breaks, and the repository as a link.
+#: The same text for a styled-text label: line breaks, and the repository as a link.
 ABOUT_COPYRIGHT_HTML = (html.escape(ABOUT_COPYRIGHT).replace("\n", "<br>")
                         .replace(ABOUT_REPO, f'<a href="{ABOUT_REPO_URL}">{ABOUT_REPO}</a>'))
 #: The Licences window's intro and its error (Tk's).

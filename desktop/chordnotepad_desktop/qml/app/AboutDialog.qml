@@ -67,9 +67,9 @@ AppDialog {
         Label {
             id: copyright
             objectName: "aboutCopyright"
-            // Rich text, for the repository's link; the plain copyright stays in `about`.
+            // Styled text, for the repository's link; the plain copyright stays in `about`.
             text: dlg.about.copyrightHtml
-            textFormat: Text.RichText
+            textFormat: Text.StyledText
             linkColor: Theme.accent
             onLinkActivated: (link) => dlg.dialogs.openUrl(link)
             HoverHandler { cursorShape: copyright.hoveredLink !== "" ? Qt.PointingHandCursor : Qt.ArrowCursor }
