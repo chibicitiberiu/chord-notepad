@@ -287,6 +287,23 @@ def test_opening_a_document_shows_it_at_the_start(editor, tmp_path):
     assert editor.window.title() == "song.txt - Chord Notepad"
 
 
+def test_a_long_document_opens_at_its_first_line(editor, tmp_path):
+    # The session puts the cursor after the text (as for Tk, whose view stays
+    # at the top); the Qt view must not follow it to the end.
+    long_song = "".join(f"C       G\nLine {n}\n" for n in range(200))
+    song_file = tmp_path / "long.txt"
+    song_file.write_text(long_song, encoding="utf-8")
+    editor.store.submit("open_document", {"ref": {"id": str(song_file), "display_name": "long.txt",
+                                                  "location": str(song_file)}, "read_only": False})
+    editor.qtbot.waitUntil(lambda: editor.text() == long_song, timeout=2000)
+    editor.settle()
+    flick = editor.item("editorScroll").property("contentItem")
+    assert flick.property("contentHeight") > flick.property("height") * 2
+    editor.qtbot.waitUntil(lambda: flick.property("contentY") == 0, timeout=1000)
+    editor.run(100)
+    assert flick.property("contentY") == 0
+
+
 def test_the_editors_own_text_wins_over_an_edit_made_on_an_older_one(editor):
     editor.type("C G\n")
     editor.settle()

@@ -226,6 +226,11 @@ class EditorBridge(QObject):
     playheadChanged = Signal()
     #: The session put the cursor here (after one of its edits).
     cursorMoved = Signal(int)
+    #: Another document's text came in (open, New, a restored draft: a
+    #: ``reset`` edit). The view goes back to the top, as Tk's does: the
+    #: session puts the cursor after the text, and Tk moves its insert mark
+    #: there without scrolling, so a song opens at its first line.
+    documentReset = Signal()
     #: The text changed: typed, pasted or the session's edit. (TextArea's
     #: textChanged also fires when only the highlighting changed.)
     textChanged = Signal()
@@ -526,6 +531,8 @@ class EditorBridge(QObject):
             self.cursorMoved.emit(mapper.to_utf16(edit["cursor"]))
         else:
             self._move_cursor(mapper.to_utf16(edit["cursor"]))
+        if policy == "reset":
+            self.documentReset.emit()
         self._repaint_highlight()
         self._repaint_playing()
 

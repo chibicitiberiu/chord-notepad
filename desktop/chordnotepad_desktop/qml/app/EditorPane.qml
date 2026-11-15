@@ -229,6 +229,14 @@ Rectangle {
     Connections {
         target: pane.editor
         function onPlayingMoved(start) { pane.ensureVisible(start, pane.editor.playingEnd) }
+        // Another document: show its first line (the TextArea has already
+        // scrolled to the cursor, which the session put after the text).
+        function onDocumentReset() {
+            Qt.callLater(function () {
+                scroll.contentItem.contentX = 0
+                scroll.contentItem.contentY = 0
+            })
+        }
         // The text changed (not only its highlighting): the card and the
         // sticky target were placed for the old text.
         function onTextChanged() {
