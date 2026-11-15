@@ -1187,7 +1187,7 @@ class MainWindowViewModel(Observable):
 
     def set_logical_window_geometry(self, geometry: WindowGeometry, scale: float) -> None:
         """Save the Qt window's normal geometry (logical pixels) and whether
-        it is maximized; Tk's string follows, so ``--ui tk`` opens there too.
+        it is maximized; Tk's string follows, so a Tk version opens there too.
 
         Raises:
             ValueError: For a side below 1, half a place or a bad scale.

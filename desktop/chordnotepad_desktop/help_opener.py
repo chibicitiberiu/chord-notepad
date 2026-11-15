@@ -1,7 +1,7 @@
 """Help opens in the system browser (parity checklist §7, "Help").
 
-The Qt port of ``chordnotepad_tk/help_window.py`` (Tk goes after the
-switch, so the Qt package can't use it): the built help's ``index.html``
+The Qt port of the Tk window's ``help_window.py`` (removed in 0.6.0): the
+built help's ``index.html``
 as a file URL, or, under Flatpak and Snap, where the browser outside the
 sandbox can't read the app's files, from a local HTTP server on 127.0.0.1
 with a random port (one per run, started on first use). The URL is opened

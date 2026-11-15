@@ -324,7 +324,7 @@ The `build` job's matrix has a second Linux entry on GitHub's free
 artifact `ChordNotepad-snap-arm64`, published to the same Snap Store channel
 as the x64 one: the store keeps one revision per architecture). Nothing in the
 manifests is x86-specific: the Flatpak's Python packages are universal wheels
-plus Pillow built from its sdist, and the snap resolves library paths with
+plus one PySide6 and Shiboken6 wheel per architecture, and the snap resolves library paths with
 `$CRAFT_ARCH_TRIPLET_BUILD_FOR`. Only the x64 job uploads `licence-data`; the
 arm64 packages come from the same Ubuntu source packages. The arm64 builds are
 CI-built only and have not been run on real ARM hardware.

@@ -4,7 +4,8 @@ The Qt window saves a neutral form in logical pixels (``window_bounds``,
 ``window_maximized``, ``chord_sheet_logical_height``) and Tk's values next to
 it; Tk saves only its own and drops the neutral ones. Each front end must
 open where the other closed, at any scale, without drifting a pixel when
-the user switches back and forth (the 0.6.0 ``--ui tk`` fallback).
+the user switches back and forth (a Tk version, 0.5 and older, reads the
+same config).
 """
 
 import json

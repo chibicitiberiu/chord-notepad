@@ -13,7 +13,7 @@ The data lives in ``resources/licenses``:
 In the snap, the Ubuntu packages staged into it are listed from their own
 copyright files (``$SNAP/usr/share/doc/<package>/copyright``).
 
-The window that shows all this (``chordnotepad_tk.dialogs.licences_dialog``) only lays
+The window that shows all this (the Qt window's Licences dialog) only lays
 out what :func:`load_catalog` returns.
 """
 

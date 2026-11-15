@@ -93,7 +93,7 @@ TEXTS = {
     "appName": "Chord Notepad",
     "confirmDiscardTitle": formatting.CONFIRM_DISCARD_TITLE,
     "confirmDiscardMessage": formatting.CONFIRM_DISCARD_MESSAGE,
-    # The empty editor's placeholder, Tk's (chordnotepad_tk/main_window.py).
+    # The empty editor's placeholder, the Tk window's.
     "editorPlaceholder": "Type or paste a song here",
 }
 

@@ -72,7 +72,7 @@ class Observable:
                 except Exception:
                     # Keep notifying the other observers, but don't hide the
                     # error: hand it to whatever reports unexpected errors
-                    # (on desktop, the error dialog in chordnotepad_tk.error_reporting).
+                    # (on desktop, the Qt window's ErrorPresenter).
                     errors.report_from_any_thread(
                         sys.exc_info(), f"observer of '{property_name}'")
 

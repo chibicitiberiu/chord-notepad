@@ -16,9 +16,8 @@ the session's store:
 * :meth:`DialogsModel.resourceUrl`, :meth:`DialogsModel.themedResourceUrl`,
   :meth:`DialogsModel.openUrl`.
 
-The texts are Tk's (``chordnotepad_tk/main_window.py`` About and
-show_licences, ``dialogs/licences_dialog.py``); the Qt package can't import
-the Tk one.
+The texts are the Tk window's (its About and Licences dialogs, removed in
+0.6.0).
 """
 
 import html
@@ -39,7 +38,7 @@ from chordnotepad_desktop.settings_window import SettingsModel
 
 logger = logging.getLogger(__name__)
 
-#: The build info fields About shows (``chordnotepad_tk/build_info.py``,
+#: The build info fields About shows (``chordnotepad_desktop/build_info.py``,
 #: which CI writes), in order, with their labels.
 BUILD_FIELDS = (("VERSION", "Version:"), ("BUILD_TYPE", "Build Type:"),
                 ("BUILD_NUMBER", "Build Number:"), ("COMMIT_SHORT", "Commit:"),

@@ -2,8 +2,8 @@
 
 :class:`EditorBridge` is handed to the main window (``required property var
 editor``) and attached to its TextArea's document by ``EditorPane.qml``. It
-does what the Tk editor (``chordnotepad_tk/text_editor.py`` and the main
-window's glue) does, through the bridge commands Android uses:
+does what the Tk editor and its main window's glue did (removed in 0.6.0),
+through the bridge commands Android uses:
 
 * **User edits** (typing, paste, undo, IME commits) go to the session as
   ``set_text`` with an increasing ``client_token``, on every change of the
@@ -69,7 +69,7 @@ from chordnotepad_desktop.text_mouse import TextMouse
 logger = logging.getLogger(__name__)
 
 #: How strongly a redundant directive's colour shows over the background
-#: (Tk's ``DIRECTIVE_REDUNDANT_STRENGTH``, ``chordnotepad_tk/theme.py``).
+#: (the Tk theme's ``DIRECTIVE_REDUNDANT_STRENGTH``).
 REDUNDANT_STRENGTH = 0.45
 #: One zoom step of the mouse wheel, in angle-delta units (one notch).
 WHEEL_NOTCH = 120

@@ -40,7 +40,7 @@ it's done (git history keeps it); release mechanics live in `docs/RELEASE.md`.
 
 ## Qt desktop
 
-- Tk leftovers in the core, now that the window is gone: the `DESKTOP` platform texts and `tests/fixtures/quick_start_desktop.json` (`session/platform.py`, `session/quick_start.py`); the interim live paths `chord_sheet_model`, `settings_model`, `chord_identifier_model`, `has_chord_sheet`, `set_window_geometry` and `report_audio_failure` on `AppSession`; the Tk keys in `models/window_geometry.py` and the config; the Tk-only viewmodels; Pillow, jeepney and the Tcl/Tk entries in the Pipfile, the packaging and the licence inventory; the guard lists in `tests/test_core_import_guard.py` once nothing needs them. `build_info.py` lives in `chordnotepad_desktop`.
+- Tk leftovers in the core, now that the window is gone: the `DESKTOP` platform texts and `tests/fixtures/quick_start_desktop.json` (`session/platform.py`, `session/quick_start.py`); the interim live paths `chord_sheet_model`, `settings_model`, `chord_identifier_model`, `has_chord_sheet`, `set_window_geometry` and `report_audio_failure` on `AppSession`; the Tk keys in `models/window_geometry.py` and the config; the Tk-only viewmodels; the Tk Quick Start picture `resources/quickstart/chord_sheet.png` (with the `DESKTOP` pages); the guard lists in `tests/test_core_import_guard.py` once nothing needs them. `build_info.py` lives in `chordnotepad_desktop`.
 - Drag and drop from the Directives palette and the chord identifier: the drop caret and the word snap.
 - The duration tiles and `set_chord_duration`, keeping columns aligned.
 - Palette keyboard polish.
@@ -60,7 +60,7 @@ it's done (git history keeps it); release mechanics live in `docs/RELEASE.md`.
 - Compose hygiene: `collectAsStateWithLifecycle`, the rename flow out of `SongScreen.kt` into a controller, no per-gesture `Log.i` in `ChordSheetPane.kt`.
 - Android UI tests (`androidTest`, Compose) for `SongScreen`, `ChordSheetPane` and `ChordEditor`.
 - Test cleanup: shared `parser()` fixture instead of five copies, no `sys.path.insert` in tests, mock-plumbing tests asserting on `EventRecorder` states.
-- Small code debt: retained parameters in `audio/chord_picker.py:93-96` and `playback_service.py:385,411`, `RuntimeError` → `AudioInitializationError` in `audio/sequencer.py`, wake the Tk drain on `post` instead of the 100 ms poll.
+- Small code debt: retained parameters in `audio/chord_picker.py:93-96` and `playback_service.py:385,411`, `RuntimeError` → `AudioInitializationError` in `audio/sequencer.py`.
 - Song structure: reusable parts (`{part: x}` … `{endpart}` with `{call: x}`, or `{play: label}`; no `goto`) and label-less `{loop: 3}` … `{endloop}`, across parser, renderer, chord sheet, hints, help and Android.
 - Faster first note: stream the first bars or reuse the chord sheet's `RenderedSong` (1.4 s on the emulator); measure on the phone first.
 - APK size: an SF3 GeneralUser GS (licence check), libsndfile and requests/chardet/urllib3 dropped if music21 allows; measure which chords only music21 resolves before keeping it.

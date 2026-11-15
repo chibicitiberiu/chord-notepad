@@ -1,7 +1,7 @@
 """Show errors in the Qt window instead of losing them: the Qt error presenter.
 
-The Qt counterpart of ``chordnotepad_tk.error_reporting``, with the same
-texts and the same throttling:
+The Qt counterpart of the Tk window's ``error_reporting`` (removed in
+0.6.0), with the same texts and the same throttling:
 
 * **Unexpected errors** (a bug, not the user's doing): Python exceptions in
   Qt callbacks and slots (``sys.excepthook``, which PySide calls for them),

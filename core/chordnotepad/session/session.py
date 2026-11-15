@@ -2465,7 +2465,7 @@ class AppSession:
         """Remember the Qt window's normal geometry (logical pixels) and
         whether it is maximized, on an approved close. Tk's string is
         written too (in Tk's pixels, ``scale`` as for
-        :meth:`logical_window_geometry`), so ``--ui tk`` opens in the same
+        :meth:`logical_window_geometry`), so a Tk version opens in the same
         place; when it already converts to ``geometry`` it stays as it was.
 
         Raises:

@@ -2,8 +2,8 @@
 
 Session code never touches a toolkit's event loop directly. It asks the host to
 run a callback on the session thread (``post``), or to run one later
-(``call_later``). On desktop the host is :class:`chordnotepad_tk.tk_host.TkHost` and the
-session thread is the Tk main thread; tests use
+(``call_later``). On desktop the host is ``chordnotepad_desktop.qt_host.QtHost`` and
+the session thread is the Qt GUI thread; tests use
 :class:`session.testing.ManualHost`, which runs nothing until told to.
 """
 

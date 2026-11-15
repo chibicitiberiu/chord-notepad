@@ -2,8 +2,8 @@
 
 :class:`FilesModel` is the Qt side of the Tk window's
 ``_apply_recent_documents`` and ``_present_pick_document``
-(``chordnotepad_tk/main_window.py``) plus Tk's ``file_dialogs`` rule for an
-added extension:
+(removed in 0.6.0) plus Tk's ``file_dialogs`` rule for an added
+extension:
 
 * **Recent files** come from ``RecentDocumentsState`` (newest first, only
   those still there: the core prunes the list when it reads it). Same-named

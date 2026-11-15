@@ -16,7 +16,7 @@ someone looks at it and its licence:
 Used by the PyInstaller hooks in hooks/pyinstaller (hook-PySide6.*.py), the
 spec's check of what PyInstaller collected, and :func:`trim` for the Flatpak
 and the snap, which pip-install the wheel. A new QML import or plugin in the
-Qt window means a line here; ``--ui qt --smoke`` in every package fails
+Qt window means a line here; ``--smoke`` in every package fails
 until it is there.
 
 Stdlib only: the Flatpak and snap builds run it with their own Python.

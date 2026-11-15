@@ -13,8 +13,8 @@ its own, neutral form:
   normal geometry: a maximized window keeps the size it goes back to.
 - ``chord_sheet_logical_height``: the Edit sheet's height in logical pixels.
 
-Both front ends stay readable by the other while ``--ui tk`` is the 0.6.0
-fallback:
+Both stay readable by the other, so a Tk version (0.5 and older) still
+opens where the Qt window closed, and the other way round:
 
 - Qt writes its neutral values *and* Tk's (converted with the scale it
   passes in), so Tk opens where Qt closed. When the Tk value still converts

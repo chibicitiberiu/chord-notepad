@@ -45,8 +45,8 @@ def configure_menu_bar(mac: Optional[bool] = None) -> None:
     QCoreApplication.setAttribute(Qt.ApplicationAttribute.AA_DontUseNativeMenuBar, not mac)
 
 
-#: Tk's switch for its file dialogs (``chordnotepad_tk/file_dialogs.py``):
-#: "tk" there, "qt" here, keeps the toolkit's own dialog.
+#: The switch Tk's file dialogs had (``CHORD_NOTEPAD_FILE_DIALOG``): "tk"
+#: there, "qt" here, keeps the toolkit's own dialog.
 FILE_DIALOG_ENV = "CHORD_NOTEPAD_FILE_DIALOG"
 PORTAL_THEME = "xdgdesktopportal"
 

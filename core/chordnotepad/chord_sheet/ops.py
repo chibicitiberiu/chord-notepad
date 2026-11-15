@@ -3,8 +3,9 @@
 Renderers describe what to draw by appending primitive ops to a
 :class:`DrawOps` recorder; they never call a real ``tk.Canvas``. This keeps
 renderers pure and headless-testable -- a test can inspect the recorded ops
-directly, without a display. :func:`chordnotepad_tk.chord_sheet.tk_replay.replay` walks the
-recorded ops onto a real Tk canvas at paint time.
+directly, without a display. The renderers began on a Tk canvas (hence the Tk
+conventions below); the Qt window replays the ops with a QPainter
+(``chordnotepad_desktop/sheet_paint.py``) and Android packs them (:mod:`pack`).
 
 Coordinates are content-space pixels (the strip's own left-to-right layout);
 the panel applies scrolling via the canvas ``xview``. Every op carries a

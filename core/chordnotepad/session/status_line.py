@@ -1,8 +1,8 @@
 """What a desktop status bar shows: the session's status, a directive hint
 over it while the caret is in a directive, and playback's status while a
-song plays. Plain logic for both desktop front ends: the Tk one
-(``chordnotepad_tk/directive_hints.py``) and the Qt one
-(``chordnotepad_desktop/status_bar.py``).
+song plays. Plain logic, shown by the Qt window's status bar
+(``chordnotepad_desktop/status_bar.py``); the Tk window's (removed in 0.6.0)
+showed the same.
 
 The precedence (checklist §8):
 

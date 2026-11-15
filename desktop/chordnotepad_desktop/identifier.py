@@ -55,7 +55,7 @@ _WHITE_STEPS = (0, 2, 4, 5, 7, 9, 11)
 BLACK_WIDTH = 0.62
 BLACK_HEIGHT = 0.6
 
-#: Tk's message for an insert that failed (``chordnotepad_tk.main_window``,
+#: Tk's message for an insert that failed (its main window's
 #: ``_on_insert_chord_from_identifier``); its title is "Error".
 INSERT_FAILED_TITLE = "Error"
 

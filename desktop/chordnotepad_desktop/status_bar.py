@@ -1,7 +1,7 @@
 """What the Edit workspace's status bar shows (plan step D4; F4 adds the rest).
 
 :class:`StatusBarModel` is the Qt side of the Tk front end's
-``DirectiveHints`` status line (``chordnotepad_tk/directive_hints.py``). The
+``DirectiveHints`` status line (removed in 0.6.0). The
 precedence itself is the core's :class:`~chordnotepad.session.status_line.StatusLine`,
 shared with Tk:
 

@@ -3,7 +3,7 @@
 The core never works these out itself. Each front end knows how it ships
 and builds an :class:`AppPaths` at its entry point:
 
-* the desktop: ``chordnotepad_tk.desktop_paths.resolve_desktop_paths`` (a
+* the desktop: ``chordnotepad_desktop.desktop_paths.resolve_desktop_paths`` (a
   checkout, a PyInstaller bundle, the Flatpak or the snap);
 * Android: ``chordnotepad_android.host`` (the SoundFont Kotlin copied to
   ``filesDir``, the native library folder).

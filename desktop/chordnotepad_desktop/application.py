@@ -1,7 +1,7 @@
 """The Qt front end's lifecycle: build the core, show the window, shut down.
 
-:class:`QtApplication` is the Qt counterpart of ``chordnotepad_tk.application
-.Application``, in the same order (parity checklist §9, "Startup order"):
+:class:`QtApplication` is the Qt counterpart of the Tk window's
+``Application`` (removed in 0.6.0), in the same order (parity checklist §9, "Startup order"):
 
 1. the core services (config loaded) on a :class:`~chordnotepad_desktop.qt_host.QtHost`;
 2. logging, Qt's messages into it, and the error presenter
@@ -108,7 +108,7 @@ class QtApplication:
     """Builds and owns everything the Qt window runs on.
 
     Args:
-        paths: Where the app's files are (``chordnotepad_tk.desktop_paths``).
+        paths: Where the app's files are (``chordnotepad_desktop.desktop_paths``).
         appdata: Where config and logs live; the platform's folders by
             default (tests pass a private root).
         player: A ready player instead of FluidSynth (tests).

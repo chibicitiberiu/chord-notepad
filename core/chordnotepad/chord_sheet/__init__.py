@@ -11,5 +11,5 @@
 - :mod:`registry` -- the standard renderer set, in view-picker order.
 - :mod:`pack` -- packs one view into the compact op buffer Android draws from.
 
-The Tk side (the panel and the canvas replay) lives in :mod:`chordnotepad_tk.chord_sheet`.
+The desktop paints the ops in ``chordnotepad_desktop/sheet_paint.py``; Android in Kotlin.
 """

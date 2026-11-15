@@ -318,7 +318,7 @@ def _builtin(name: str, label: str, tuning: List[Union[int, str]],
 
 
 #: Built-in fretboard presets, keyed by the existing ``guitar:<key>`` voicing-string
-#: slug used throughout the codebase (see ``desktop/chordnotepad_tk/main_window.py``'s Voicing menu
+#: slug used throughout the codebase (see ``session/formatting.py``'s Voicing menu
 #: and ``GuitarChordPicker.TUNINGS``, which this data supersedes). All use the
 #: engine's default physical limits (``max_fret=12``, ``fingers=4``,
 #: ``max_span=4``, ``relaxed_span=5``, ``allow_barres=True``). The guitars use

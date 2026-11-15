@@ -3,7 +3,7 @@ import QtQuick.Controls
 import CNTheme
 
 // The song's tempo in the player bar (plan step E2). When it can be changed
-// it is Tk's BPM scrubber (chordnotepad_tk/scrubber.py; the scale is the
+// it is Tk's BPM scrubber (scrubber.py, removed in 0.6.0; the scale is the
 // core's toolbar.BPM_SCALE, through PlayerBarModel):
 // - a press becomes a drag after 3 px; every 4 px is one step, counted from
 //   where the press started (not added up per move), magnetic to tens, sent live;

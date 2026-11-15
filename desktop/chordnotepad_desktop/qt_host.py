@@ -1,7 +1,7 @@
 """The Qt host: the GUI thread is the session thread.
 
 :class:`QtHost` is :class:`chordnotepad.session.host.Host` on the Qt event
-loop, as ``chordnotepad_tk.tk_host.TkHost`` is on Tk's. ``post`` is a queued
+loop, as Tk's ``TkHost`` was on Tk's. ``post`` is a queued
 signal (safe from any thread; the slot runs on the GUI thread), so a
 callback posted from a playback or worker thread runs between Qt events,
 never inside another callback. ``call_later`` is a single-shot ``QTimer``.

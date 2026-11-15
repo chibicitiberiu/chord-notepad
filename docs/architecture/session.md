@@ -663,7 +663,7 @@ and passes it down; no core module walks up from its own `__file__`
 (`tests/test_app_paths.py` scans for that). The desktop's resolver is
 `resolve_desktop_paths` (in `chordnotepad_desktop`): the PyInstaller bundle
 (`sys._MEIPASS`), the Flatpak (`/app/share/chord-notepad`), the snap
-(`$SNAP/share/chord-notepad`), else the checkout. `chordnotepad_desktop/main.py` calls it and
+(`$SNAP/share/chord-notepad`), else the checkout. `chordnotepad_desktop/launcher.py` calls it and, through `main.run`,
 hands it to `QtApplication(paths)`, which passes it to `build_core_services` and
 `ResourceService`. The Android host passes its own (no bundled files; the
 SoundFont path comes in `audio_options`). The default, `NO_BUNDLED_FILES`,

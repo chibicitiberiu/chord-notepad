@@ -5,7 +5,7 @@ The core keeps the geometry in a neutral form, in logical pixels
 it with the session's ``logical_window_geometry(scale)`` and saves it with
 ``set_logical_window_geometry(geometry, scale)``. The core also writes Tk's
 ``"WxH+X+Y"`` string from it, and migrates from that string when Tk saved
-last, so ``--ui tk`` and ``--ui qt`` open in the same place. The scale it
+last, so a Tk version (0.5 and older) and this one open in the same place. The scale it
 needs is how many Tk pixels make one logical pixel: the window's device
 pixel ratio on X11, Wayland (through XWayland) and Windows, 1.0 on macOS,
 where Tk already works in points. This module is the only place that calls

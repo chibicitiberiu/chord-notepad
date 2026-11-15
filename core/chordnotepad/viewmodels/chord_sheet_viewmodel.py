@@ -766,7 +766,7 @@ class ChordSheetViewModel(Observable):
 
     def set_logical_height(self, height: int, scale: float) -> None:
         """Persist the Qt Edit sheet's height (logical pixels); Tk's
-        :attr:`height` follows, so ``--ui tk`` opens with the same sheet.
+        :attr:`height` follows, so a Tk version opens with the same sheet.
         No observers fire, as for :meth:`set_height`."""
         height = max(1, int(height))
         self._height = neutral_geometry.tk_sheet_height_for(height, scale, self._height)

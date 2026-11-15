@@ -72,7 +72,7 @@ def build_core_services(appdata: AppDataService, dispatch: Any, *,
             session thread: the desktop ``Application``, or
             ``HostDispatch(host)``. Playback pings go through it.
         paths: Where the app's files are, as the front end resolved them
-            (the desktop: ``chordnotepad_tk.desktop_paths``; Android: the host). The
+            (the desktop: ``chordnotepad_desktop.desktop_paths``; Android: the host). The
             default, no files at all, is for tests and tools that bring
             their own player: the front ends always pass theirs.
         player: A ready player (tests, a headless run); None creates the

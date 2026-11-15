@@ -56,7 +56,7 @@ class UnexpectedError:
 
     Emitted on hosts whose error handler reports through the session
     (Android: ``session.bridge.ErrorEvents``); the desktop shows its own
-    dialog instead (``chordnotepad_tk.error_reporting``).
+    dialog instead (``chordnotepad_desktop/error_presenter.py``).
 
     Attributes:
         message: A one-line description (exception type and text).

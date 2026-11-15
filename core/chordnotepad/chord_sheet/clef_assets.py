@@ -45,7 +45,7 @@ painter anchors the image ``'nw'`` at ``(x - origin_x, staff_y - origin_y)``.
 
 **No Pillow here.** This module is shared with Android, which has no Pillow:
 it holds the embedded PNG bytes, the placement math and the key grammar only.
-Decoding, resizing and tinting for Tk live in :mod:`chordnotepad_tk.chord_sheet.clef_images`;
+The Qt window decodes, scales and tints them (``chordnotepad_desktop/sheet_paint.py``);
 Android draws the seven base PNGs (:func:`base_glyph_pngs`) itself, scaled to the
 key's height and tinted with a colour filter.
 """
