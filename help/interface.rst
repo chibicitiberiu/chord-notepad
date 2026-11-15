@@ -368,7 +368,94 @@ The User Interface
       The usual clipboard commands, also in the right-click menu of the text.
 
    **Select All** (Ctrl+A)
-      Select all text in the document.
+      Select all text in the document. The cursor goes to the end, so End or
+      Shift+Up carry on from there.
+
+   **Select line** (Ctrl+L)
+      Select the line the cursor is on, whole. Press it again to take in the
+      next line too.
+
+   **Find...**, **Replace...**, **Find next**, **Find previous**, **Go to line...**
+      Ctrl+F, Ctrl+H, F3, Shift+F3 and Ctrl+G: the find bar under the text;
+      see :ref:`find-and-replace`.
+
+   **Duplicate line or selection** (Ctrl+D)
+      Without a selection, repeats the cursor's line under it. With one,
+      puts a copy of the selected text right after it and selects the copy.
+
+   **Delete line** (Ctrl+Shift+K)
+      Deletes the line the cursor is on, or every line the selection touches.
+
+   **Move line up**, **Move line down** (Ctrl+Shift+Up, Ctrl+Shift+Down)
+      Moves the cursor's line, or the selected lines, past the line above or
+      below. Handy for swapping two verses' lines or reordering sections.
+
+   **Toggle comment** (Ctrl+/)
+      Puts ``//`` in front of the cursor's line or the selected lines, or
+      takes it off again when they are all comments already. Commented lines
+      are notes for you: they aren't played. See :doc:`writing_chords`.
+
+   **Indent lines** (Tab), **Unindent lines** (Shift+Tab)
+      With a selection over several lines, Tab adds a tab in front of each;
+      in a single line it types a tab as usual. Shift+Tab takes one step of
+      indentation off the selected lines, or off the cursor's line: a tab, or
+      the same number of spaces from every line, so chords stay over the
+      words they belong to.
+
+   **Overwrite mode** (Insert)
+      Typing replaces the character after the cursor instead of pushing it
+      along. The status bar shows **OVR** while it is on, and the cursor turns
+      into a block. Press Insert again to go back.
+
+   Each of these edits is one step for Undo. While a song plays, the ones
+   that change the text are greyed out and the keys show the "Stop playback
+   to edit the song" badge, as typing does; Find, Select line and Go to line
+   still work.
+
+   The right-click menu of the text has Undo, Redo, Cut, Copy, Paste and
+   Select all, then Find, Replace and Go to line, then Toggle comment,
+   Duplicate and Delete line.
+
+   .. _find-and-replace:
+
+   Find and Replace
+   ----------------
+
+   **Ctrl+F** opens a bar along the bottom of the text, with the cursor in
+   its field. If you had selected a word or a few on one line, they are
+   already in it. As you type, the next match is selected and every other
+   match in the song gets a light green tint; the selected one is a stronger
+   green. Next to the field the bar counts them ("3 of 7"), or says **No
+   matches** in red.
+
+   * **Enter**, **F3** or the down arrow go to the next match;
+     **Shift+Enter**, **Shift+F3** or the up arrow to the previous one. At
+     the end of the song the search starts again from the top, and the bar
+     says so for a moment ("Continued from the top").
+   * **Aa** matches upper and lower case exactly (off, "am" also finds "Am").
+   * **W** finds whole words only: with it on, "Am" doesn't find the start of
+     "Am7".
+   * **Escape**, or the × at the right, closes the bar and puts you back in
+     the text, where the match stays selected.
+
+   F3 and Shift+F3 also work with the bar closed: they look for the last
+   thing you searched for.
+
+   **Ctrl+H**, or the arrow at the left of the bar, adds a second row for the
+   replacement. **Replace** (or Enter in that field) replaces the selected
+   match and moves on to the next one; if nothing is selected yet, the first
+   press only finds. **Replace all** replaces every match at once, and the
+   status bar says how many. Either way, one Undo puts it back. While a song
+   plays you can still search, but Replace waits until playback stops. In
+   the Play workspace the bar has no Replace row.
+
+   **Ctrl+G** turns the bar into **Go to line**: type a line number and press
+   Enter, and the cursor goes to the start of that line.
+
+   When you select a word yourself, say by double-clicking a chord, the same
+   word elsewhere in the song gets a faint grey tint, so you can see at a
+   glance where else that chord is. It only counts whole words with the same
+   case: selecting "Am" doesn't light up "Am7" or "am".
 
    View Menu
    ---------
@@ -566,8 +653,9 @@ The User Interface
 
    The strip along the bottom shows, on the left, messages ("Opened: ...",
    "Saved: ...", why something was refused) and the song's tempo, time
-   signature and key. On the right it shows the line and column of the cursor
-   and the song's notation. Thin vertical lines separate the values, and
+   signature and key. On the right it shows the line and column of the cursor,
+   **OVR** while overwrite mode is on (the Insert key), and the song's
+   notation. Thin vertical lines separate the values, and
    each keeps its place and width as the numbers change.
 
    While a song plays, the left side shows "Playing" and the chord that is

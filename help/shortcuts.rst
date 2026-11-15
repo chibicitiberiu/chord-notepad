@@ -84,6 +84,49 @@ Edit Operations
         - Paste from clipboard
       * - Ctrl+A
         - Select all text
+      * - Ctrl+L
+        - Select the line (again: one more line)
+      * - Ctrl+D
+        - Duplicate the line, or the selection
+      * - Ctrl+Shift+K
+        - Delete the line, or the selected lines
+      * - Ctrl+Shift+Up / Ctrl+Shift+Down
+        - Move the line, or the selected lines, up or down
+      * - Ctrl+/
+        - Comment or uncomment the line or the selected lines (``//``)
+      * - Tab / Shift+Tab
+        - Indent / unindent the selected lines (Tab within one line types a tab;
+          Shift+Tab without a selection unindents the cursor's line)
+      * - Insert
+        - Overwrite mode on or off (OVR in the status bar)
+      * - Ctrl+Enter, Shift+Enter
+        - A new line, like Enter
+
+   Moving the cursor:
+
+   .. list-table::
+      :header-rows: 1
+      :widths: 30 70
+
+      * - Shortcut
+        - Action
+      * - Home
+        - The line's first character that isn't a space; again, the very
+          start of the line
+      * - End
+        - The end of the line
+      * - Ctrl+Left / Ctrl+Right
+        - A word left or right
+      * - Ctrl+Home / Ctrl+End
+        - The start or end of the song
+      * - Page Up / Page Down
+        - A screenful up or down
+      * - Ctrl+Up / Ctrl+Down
+        - Scroll a line without moving the cursor
+      * - Ctrl+Backspace / Ctrl+Delete
+        - Delete the word before or after the cursor
+
+   Hold **Shift** with any of the moves to select as you go.
 
 .. only:: android
 
@@ -110,6 +153,33 @@ Edit Operations
 
    Without a keyboard, Undo and Redo are in the Edit ribbon, and cut, copy,
    paste and select all are in the menu that appears when you select text.
+
+
+.. only:: desktop
+
+   Find and Replace
+   ================
+
+   .. list-table::
+      :header-rows: 1
+      :widths: 30 70
+
+      * - Shortcut
+        - Action
+      * - Ctrl+F
+        - Find (the bar under the text)
+      * - Ctrl+H
+        - Find and replace
+      * - Enter / Shift+Enter
+        - In the find field: next / previous match
+      * - F3 / Shift+F3
+        - Next / previous match, also with the bar closed
+      * - Escape
+        - Close the bar, back to the text
+      * - Ctrl+G
+        - Go to a line
+
+   See :ref:`find-and-replace` for the details.
 
 
 View / Zoom
