@@ -324,9 +324,21 @@ class TestLoopMarkerFields:
             ("a", 12.0, 2, 2, second, 4.0),
         ]
 
+    def test_the_last_pass_says_where_it_ends(self):
+        # Only the last pass's marker: where the song goes on past the {loop}
+        # (its end when nothing follows).
+        def ends(text):
+            return [m.end_beat for m in _render(text).markers if m.kind == "loop"]
+        assert ends("{label: a}\nC G\n{loop: a 3}\nF") == [None, 24.0]
+        assert ends("C G\n{loop: @start 2}") == [16.0]
+        # Nested: the inner loop's last pass ends where the outer jumps back.
+        assert ends("{label: outer}\nC\n{label: inner}\nD\n{loop: inner 2}\n"
+                    "{loop: outer 2}\nE") == [12.0, 20.0]
+        assert ends("{label: a}\nC G\n{loop: a 1}\nF") == []
+
     def test_other_markers_have_no_loop_fields(self):
         rendered = _render("{label: a}\nC\n{bpm: 90}\n{time: 3/4}\nG\n{loop: a 2}")
         for marker in rendered.markers:
             if marker.kind != "loop":
                 assert (marker.pass_num, marker.count, marker.directive_pos,
-                        marker.target_beat) == (0, 0, None, None)
+                        marker.target_beat, marker.end_beat) == (0, 0, None, None, None)

@@ -184,6 +184,12 @@ class SongMarker:
     beat after that, the song's first beat for ``@start``. None for the
     other kinds."""
 
+    end_beat: Optional[float] = None
+    """For the ``'loop'`` marker of a loop's last pass (``pass_num ==
+    count``), the beat where that pass ends and the song goes on past the
+    ``{loop}`` directive (``RenderedSong.total_beats`` when nothing
+    follows). None for the other passes and kinds."""
+
 
 @dataclass
 class RenderedSong:

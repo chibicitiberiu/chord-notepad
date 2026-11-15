@@ -174,12 +174,14 @@ one bar's rest, whatever its length.
 
 Since loops are unrolled, the passes of a repeated part follow one another
 on the staff, marked with repeat signs: every pass opens with ``|:`` and
-every pass that jumps back ends with ``:|``, so two passes meet at ``:||:``.
-The last pass ends with a plain bar line, and the song ends with a final
-bar line (a thin line and a thick one). A song that plays ``Am F`` twice
-between ``C G`` and ``Dm`` reads ``| C G |: Am F :||: Am F | Dm ||``. If the
-key changes where a pass starts, the new key signature comes right after the
-repeat sign.
+ends with ``:|``, so two passes meet at ``:||:``. The last pass ends with
+``:|`` too, where the ``{loop}`` sits and the song moves on. The song ends
+with a final bar line (a thin line and a thick one), which takes the repeat
+dots, ``:||``, when a loop is the last thing in it. A song that plays
+``Am F`` twice between ``C G`` and ``Dm`` reads
+``| C G |: Am F :||: Am F :| Dm ||``. If the key changes where a pass starts
+or right after a loop, the new key signature comes right after the repeat
+sign.
 
 The staff grows with the strip up to a comfortable size; on a taller strip
 it keeps that size and sits in the middle. Zoom in to draw it larger, up to

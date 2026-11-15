@@ -1138,52 +1138,108 @@ def signs(text: str, height: float = 130.0):
              sign_text(ops, s.chord_index, geom)) for s in layout.slots]
 
 
-START, BOTH = "I|:", ":|I|:"
+START, BOTH, END = "I|:", ":|I|:", ":|I"
+
+
+def final_sign(text: str, height: float = 130.0) -> str:
+    """The final bar line of a song text, as :func:`sign_text` writes a sign."""
+    song = render_text(text)
+    _, ops = paint(song, height)
+    geom = sc._geometry(height)
+    parts = []
+    for o in ops.ops:
+        if "final-bar" not in o.tags:
+            continue
+        if isinstance(o, OvalOp):
+            parts.append((round(o.x + o.w / 2, 6), ":"))
+        else:
+            parts.append((round(o.points[0][0], 6), "I" if o.width == geom.thick_bar_w else "|"))
+    return "".join(ch for _, ch in sorted(set(parts)))
 
 
 class TestRepeatSigns:
-    """Every pass of a looped part opens with |:, every pass that jumps back
-    ends with :| (merged with the next pass's |: as :||:), the last pass ends
-    with a plain bar line, and the song ends with a final bar line."""
+    """Every pass of a looped part opens with |: and ends with :| (merged
+    with the next pass's |: as :||:), the last pass too, where the song goes
+    on past the {loop}; the song ends with a final bar line (:|| when a
+    loop's last pass ends it)."""
 
     def test_two_passes(self):
-        # Tibi's example: | C G |: Am F :||: Am F | Dm ||
+        # Tibi's example: | C G |: Am F :||: Am F :| Dm ||
         text = "C G\n{label: a}\nAm F\n{loop: a 2}\nDm"
         assert signs(text) == [("C", ""), ("G", ""), ("Am", START), ("F", ""),
-                               ("Am", BOTH), ("F", ""), ("Dm", "")]
+                               ("Am", BOTH), ("F", ""), ("Dm", END)]
+        assert final_sign(text) == "|I"
 
-    def test_the_last_pass_ends_with_a_plain_bar_line(self):
+    def test_the_last_pass_ends_with_an_end_repeat(self):
         song = render_text("C G\n{label: a}\nAm F\n{loop: a 2}\nDm")
         layout, ops = paint(song)
-        dm = layout.slots[6]
-        plain = [o for o in vertical_lines(ops) if "slot:6" in o.tags]
-        assert len(plain) == 1 and plain[0].points[0][0] == dm.x
+        assert [m.end_beat for m in song.markers if m.kind == "loop"] == [
+            song.chords[6].start_beat]
         # Where a sign stands, no plain bar line is drawn as well.
-        for index in (2, 4):
+        for index in (2, 4, 6):
             assert not [o for o in vertical_lines(ops)
                         if f"slot:{index}" in o.tags and "repeat" not in o.tags]
 
     def test_three_passes(self):
         assert signs("{label: a}\nC G\n{loop: a 3}\nF") == [
-            ("C", START), ("G", ""), ("C", BOTH), ("G", ""), ("C", BOTH), ("G", ""), ("F", "")]
+            ("C", START), ("G", ""), ("C", BOTH), ("G", ""), ("C", BOTH), ("G", ""), ("F", END)]
 
     def test_start_repeats_from_the_song_start(self):
         assert signs("C G\n{loop: @start 2}\nF") == [
-            ("C", START), ("G", ""), ("C", BOTH), ("G", ""), ("F", "")]
+            ("C", START), ("G", ""), ("C", BOTH), ("G", ""), ("F", END)]
 
     def test_nested_loops_keep_their_own_passes(self):
         # outer: C [inner: D] ; the inner part plays twice, then the whole
-        # outer part once more (its inner loop doesn't repeat again).
+        # outer part once more (its inner loop doesn't repeat again). The
+        # inner loop's last pass ends at the outer jump, whose :||: holds
+        # its :|; the outer's last pass ends before E.
         text = "{label: outer}\nC\n{label: inner}\nD\n{loop: inner 2}\n{loop: outer 2}\nE"
         assert signs(text) == [("C", START), ("D", START), ("D", BOTH),
-                               ("C", BOTH), ("D", ""), ("E", "")]
+                               ("C", BOTH), ("D", ""), ("E", END)]
 
     def test_signs_that_meet_merge(self):
         # Two loops to one label: the second loop's first pass starts at the
-        # first loop's jump, so one :||: stands there, not two signs.
+        # first loop's jump, so one :||: stands there, not two signs. Each
+        # loop's last pass ends with its own :|.
         text = "{label: a}\nC\n{loop: a 2}\nD\n{loop: a 2}\nE"
-        assert signs(text) == [("C", START), ("C", BOTH), ("D", ""),
-                               ("C", BOTH), ("D", ""), ("E", "")]
+        assert signs(text) == [("C", START), ("C", BOTH), ("D", END),
+                               ("C", BOTH), ("D", ""), ("E", END)]
+
+    @pytest.mark.parametrize("height", [130.0, 450.0])
+    def test_a_loop_that_ends_the_song_ends_on_an_end_repeat(self, height):
+        text = "C\n{label: a}\nF G\n{loop: a 2}"
+        assert signs(text, height) == [("C", ""), ("F", START), ("G", ""), ("F", BOTH), ("G", "")]
+        assert final_sign(text, height) == ":|I"
+        song = render_text(text)
+        layout, ops = paint(song, height)
+        geom = sc._geometry(height)
+        last = layout.slots[-1]
+        strokes = sorted((o for o in vertical_lines(ops) if "final-bar" in o.tags),
+                         key=lambda o: o.points[0][0])
+        dots = [o for o in ops.ops if isinstance(o, OvalOp) and "final-bar" in o.tags]
+        assert len(dots) == 4 and min(o.x for o in dots) > last.x + last.width
+        right = strokes[-1].points[0][0] + strokes[-1].width / 2
+        ends = [o.points[-1][0] for o in ops.ops if isinstance(o, LineOp)
+                and "staff" in o.tags and o.points[0][1] == o.points[-1][1]]
+        assert ends == pytest.approx([right] * 10)
+        assert layout.width == pytest.approx(right + sc.STRIP_MARGIN)
+        assert song.markers[-1].end_beat == pytest.approx(song.total_beats)
+
+    def test_a_key_change_after_the_loop_follows_its_end_repeat(self):
+        text = "{label: a}\nC G\n{loop: a 2}\n{key: G}\nG D"
+        song = render_text(text)
+        layout, ops = paint(song)
+        geom = sc._geometry(130.0)
+        after = 4
+        assert sc.chord_symbol_label(song.chords[after]) == "G"
+        assert sign_text(ops, after, geom) == END
+        tag = f"slot:{after}"
+        sign_right = max(o.points[0][0] for o in ops.ops
+                         if isinstance(o, LineOp) and "repeat" in o.tags and tag in o.tags)
+        sig = [o for o in ops.ops if isinstance(o, ImageOp) and tag in o.tags
+               and o.key.startswith("glyph_accidental_")]
+        assert sig and sign_right < min(o.x for o in sig) < layout.slots[after].x
+        assert not [o for o in vertical_lines(ops) if tag in o.tags and "repeat" not in o.tags]
 
     def test_a_loop_played_once_draws_no_sign(self):
         assert [sign for _, sign in signs("{label: a}\nC G\n{loop: a 1}\nF")] == [""] * 3
@@ -1195,8 +1251,8 @@ class TestRepeatSigns:
         geom = sc._geometry(height)
         s = geom.staff_space
         dots = [o for o in ops.ops if isinstance(o, OvalOp) and "repeat" in o.tags]
-        # |: at the first C (one column), :||: at the second (two).
-        assert len(dots) == 3 * 4
+        # |: at the first C (one column), :||: at the second (two), :| at F.
+        assert len(dots) == 4 * 4
         expected = sorted(top + k * s for top in (geom.treble_top, geom.bass_top)
                           for k in (1.5, 2.5))
         assert sorted({round(o.y + o.h / 2, 6) for o in dots}) == pytest.approx(expected)

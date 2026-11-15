@@ -17,6 +17,7 @@ whole song in context, and assigns the results back. Determinism is owned by
 ``voice_sequence`` (which resets the picker itself), so the renderer no longer
 resets the picker or snapshots its state across loops.
 """
+import dataclasses
 import logging
 import threading
 from typing import Any, Callable, List, Optional, Tuple
@@ -400,6 +401,20 @@ class SongRenderer:
         else:
             state[completed_key] = True
             loop_stack.pop()
+            self._mark_loop_end(state, directive.start)
+
+    @staticmethod
+    def _mark_loop_end(state: dict, directive_pos: int) -> None:
+        """Note where a finished loop's last pass ends (here, where the walk
+        goes on past its ``{loop}``) on that pass's marker: ``end_beat``."""
+        markers = state['markers']
+        for i in range(len(markers) - 1, -1, -1):
+            marker = markers[i]
+            if marker.kind == 'loop' and marker.directive_pos == directive_pos:
+                if marker.pass_num == marker.count:
+                    markers[i] = dataclasses.replace(
+                        marker, end_beat=state['current_beat_position'])
+                return
 
     def _restore_loop_state(self, label: str, state: dict) -> None:
         if label not in state['label_states']:

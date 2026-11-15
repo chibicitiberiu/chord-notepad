@@ -536,14 +536,19 @@ def _repeat_signs(song: RenderedSong) -> Dict[int, _Repeat]:
     """Chord index -> the repeat sign drawn at its slot's left edge.
 
     The staff is the unrolled song, so a loop's passes follow one another.
-    Every pass of the looped part opens with ``|:`` and every pass that jumps
-    back ends with ``:|``; the last pass ends with a plain bar line. Each
-    ``'loop'`` marker (one per jump, from the renderer's walk) says where the
-    next pass starts (its beat, which takes ``:||:``) and where the pass it
-    repeats began (its ``target_beat``: the loop's first pass for the first
-    jump, the song start for ``@start``). Each jump is read on its own, so
-    nested loops and two loops to one label keep their own passes; signs of
-    different loops that meet at one chord merge.
+    Every pass of the looped part opens with ``|:`` and ends with ``:|``,
+    the last one too, where the song goes on past the ``{loop}``: a loop of
+    two reads ``|: verse :||: verse :|``. Each ``'loop'`` marker (one per
+    jump, from the renderer's walk) says where the next pass starts (its
+    beat, which takes ``:||:``) and where the pass it repeats began (its
+    ``target_beat``: the loop's first pass for the first jump, the song
+    start for ``@start``); the last pass's marker also says where that pass
+    ends (its ``end_beat``). Each jump is read on its own, so nested loops
+    and two loops to one label keep their own passes; signs of different
+    loops that meet at one chord merge.
+
+    A loop whose last pass ends the song has its ``:|`` on the final bar
+    line: key ``len(song.chords)`` (past the last chord) holds that sign.
     """
     chords = song.chords
     if not chords:
@@ -566,6 +571,9 @@ def _repeat_signs(song: RenderedSong) -> Dict[int, _Repeat]:
         first = index_at(marker.target_beat or 0.0)
         if first is not None and first < jump:
             starts.add(first)
+        if marker.pass_num == marker.count and marker.end_beat is not None:
+            after = index_at(marker.end_beat)
+            ends.add(len(chords) if after is None else after)
     return {i: _Repeat(i in ends, i in starts) for i in sorted(ends | starts)}
 
 
@@ -599,8 +607,16 @@ def _sign_lead(sign: _Repeat, geom: "_Geometry") -> float:
     return (_SIGN_PAD_BEFORE + _SIGN_PAD_AFTER) * s + x + width
 
 
-def _final_bar_width(geom: "_Geometry") -> float:
-    """Width of the final bar line (thin, a gap, thick)."""
+#: The final bar line when a loop's last pass ends the song: ``:||``.
+_FINAL_REPEAT = _Repeat(end=True, start=False)
+
+
+def _final_bar_width(geom: "_Geometry", repeat: bool = False) -> float:
+    """Width of the final bar line (thin, a gap, thick), or with ``repeat``
+    of the end repeat that stands for it (room before the dots included)."""
+    if repeat:
+        _, x, width = _sign_strokes(_FINAL_REPEAT, geom)[-1]
+        return _SIGN_PAD_BEFORE * geom.staff_space + x + width
     return geom.thin_bar_w + _BAR_SEP * geom.staff_space + geom.thick_bar_w
 
 
@@ -695,7 +711,8 @@ class StaffCardRenderer(StripRenderer):
             x += width
 
         # The final bar line follows the last slot; the staff ends with it.
-        content_width = ((x + _final_bar_width(geom) + STRIP_MARGIN) if slots
+        final_repeat = len(song.chords) in signs
+        content_width = ((x + _final_bar_width(geom, final_repeat) + STRIP_MARGIN) if slots
                          else (2 * STRIP_MARGIN))
         return StripLayout(width=content_width, height=height, slots=tuple(slots))
 
@@ -808,8 +825,9 @@ class StaffCardRenderer(StripRenderer):
         x_left = 0.0
         x_right = max(x_left + 1.0, layout.width - STRIP_MARGIN)
         self._paint_staff_lines(ops, geom, x_left, x_right)
+        signs = _repeat_signs(song)
         if layout.slots:
-            self._paint_final_bar(ops, x_right, geom)
+            self._paint_final_bar(ops, x_right, geom, repeat=len(chords) in signs)
 
         # Clefs and the initial signature live in the frozen gutter now; the
         # scrolling content only draws staff lines, legend, in-content key
@@ -818,7 +836,6 @@ class StaffCardRenderer(StripRenderer):
         if song.voice_labels:
             self._paint_legend(ops, song.voice_labels, geom)
 
-        signs = _repeat_signs(song)
         prev_fifths = fifths0
         prev_bar: Optional[int] = None
         for slot in layout.slots:
@@ -882,20 +899,28 @@ class StaffCardRenderer(StripRenderer):
         ops.line([(cx, geom.treble_top), (cx, geom.bass_bottom())],
                  fill=_STAFF_LINE, width=width, tags=tags)
 
-    def _paint_final_bar(self, ops: DrawOps, x_end: float, geom: _Geometry) -> None:
-        """The final bar line (thin, then thick), ending where the staff does."""
-        x = x_end - _final_bar_width(geom)
+    def _paint_final_bar(self, ops: DrawOps, x_end: float, geom: _Geometry,
+                         repeat: bool = False) -> None:
+        """The final bar line (thin, then thick), ending where the staff does;
+        with ``repeat``, an end repeat (``:||``) in its place."""
         tags = ("staff", "final-bar")
+        if repeat:
+            self._paint_repeat(ops, x_end - _final_bar_width(geom, True), _FINAL_REPEAT,
+                               geom, tags=tags + ("repeat",))
+            return
+        x = x_end - _final_bar_width(geom)
         self._paint_bar_stroke(ops, x, geom.thin_bar_w, geom, tags)
         self._paint_bar_stroke(ops, x_end - geom.thick_bar_w, geom.thick_bar_w, geom, tags)
 
     def _paint_repeat(self, ops: DrawOps, x0: float, sign: _Repeat,
-                      geom: _Geometry, tag: str) -> None:
+                      geom: _Geometry, tag: str = "",
+                      tags: Optional[Tuple[str, ...]] = None) -> None:
         """Draw a repeat sign in the lead that starts at ``x0``: its strokes
         through both staves and its dots in the second and third spaces of
-        each staff (either side of the middle line)."""
+        each staff (either side of the middle line). Tagged ``(tag,
+        "repeat")`` unless ``tags`` are given."""
         s = geom.staff_space
-        tags = (tag, "repeat")
+        tags = (tag, "repeat") if tags is None else tags
         x = x0 + _SIGN_PAD_BEFORE * s
         for kind, dx, width in _sign_strokes(sign, geom):
             if kind == 'dots':
