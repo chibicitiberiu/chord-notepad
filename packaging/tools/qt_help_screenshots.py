@@ -460,7 +460,7 @@ def _sheet_staff(sc: Scene):
     sc.song(*GRACE)
     sc.mode("play")
     sc.click("sheetTab:staff")
-    sc.wait(700)  # the new view paints a moment after the tab
+    sc.wait(1500)  # the new view paints a moment after the tab
     sc.playing(5)
 
 
@@ -471,7 +471,7 @@ def _sheet_cards(sc: Scene):
     sc.mode("play")
     sc.fretted()
     sc.click("sheetTab:fret")
-    sc.wait(700)  # the new view paints a moment after the tab
+    sc.wait(1500)  # the new view paints a moment after the tab
     sc.playing(5)
 
 
@@ -481,7 +481,7 @@ def _sheet_tab(sc: Scene):
     sc.mode("play")
     sc.fretted()
     sc.click("sheetTab:tab")
-    sc.wait(700)  # the new view paints a moment after the tab
+    sc.wait(1500)  # the new view paints a moment after the tab
     sc.playing(5)
 
 
@@ -568,7 +568,7 @@ def _quick_start_image(sc: Scene):
     sc.mode("play")
     sc.fretted()
     sc.click("sheetTab:fret")
-    sc.wait(700)  # the new view paints a moment after the tab
+    sc.wait(1500)  # the new view paints a moment after the tab
 
 
 # The store listings (Microsoft Store, AppStream, the Snap Store): 1920x1080, the
@@ -595,7 +595,7 @@ def _store_cards(sc: Scene):
     sc.mode("play")
     sc.fretted()
     sc.click("sheetTab:fret")
-    sc.wait(700)  # the new view paints a moment after the tab
+    sc.wait(1500)  # the new view paints a moment after the tab
     sc.playing(6)
 
 
@@ -605,7 +605,7 @@ def _store_staff_dark(sc: Scene):
     sc.song(*GRACE)
     sc.mode("play")
     sc.click("sheetTab:staff")
-    sc.wait(700)  # the new view paints a moment after the tab
+    sc.wait(1500)  # the new view paints a moment after the tab
     sc.playing(5)
 
 
@@ -734,6 +734,9 @@ def run_shot(shot: Shot, out_dir: Path, scale: float, size: Tuple[int, int],
         sc.settle()
         if not shot.keep_pointer:
             sc.park_pointer()
+        # The text caret blinks: take the focus off the editor so no shot depends on its phase.
+        window.contentItem().forceActiveFocus()
+        sc.wait(60)
         target = window
         if shot.window:
             target = window.findChild(QQuickWindow, shot.window) or sc.item(shot.window).window()
