@@ -304,7 +304,10 @@ def test_the_position_is_the_playheads_chord_idle_and_the_pinged_one_playing():
     position = env.session.timeline_position()
     assert (position.bar, position.beat_number, position.beats_per_bar, position.bpm) == (4, 1, 4, 120)
     env.session.stop()
-    # Idle again: the playhead's chord (it stayed on F).
+    # Idle again: the playhead's chord, where the Qt Stop put it (the first
+    # chord, STOP_REWINDS).
+    assert env.session.timeline_position().bar == 1
+    env.session.set_playhead(41)
     assert env.session.timeline_position().bar == 4
 
 
