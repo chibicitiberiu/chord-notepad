@@ -145,20 +145,51 @@ def test_the_gutter_has_a_hairline_and_a_shadow_only_once_scrolled(sh):
     assert sum(scrolled) < sum(unscrolled) + 1 or sum(scrolled) != sum(unscrolled)
 
 
-def test_the_staff_runs_on_from_its_clefs_until_scrolled(sh):
-    # The staff's lines carry on from the gutter into the content: no hairline
-    # across them at the start, only once the content slides under the clefs.
+def test_the_staff_runs_on_from_its_clefs_scrolled_or_not(sh):
+    # Tibi: the staff looks better without any edge, as one continuous
+    # staff. No hairline at the gutter's edge and no shadow beside it, at
+    # the start or scrolled.
     sh.to_play(700)
     sh.store.submit("set_chord_sheet_view", {"view_id": "staff"})
     sh.wait_sheet("staff")
     paper = sh.view.property("surface").lightness()
-    edge = int(sh.model.sheet.gutter_width) - 1
+    gutter = int(sh.model.sheet.gutter_width)
     sh.view.setProperty("scrollX", 0)
     sh.run(50)
-    assert max(column(sh, edge, step=1)) == paper
+    at_start = column(sh, gutter + 2, step=1)
+    assert max(column(sh, gutter - 1, step=1)) == paper
     sh.view.setProperty("scrollX", 200)
     sh.run(50)
-    assert max(column(sh, edge, step=1)) < paper
+    assert max(column(sh, gutter - 1, step=1)) == paper
+    # Beside the edge the scrolled content is the staff's own: the paper
+    # between its lines, no shadow's darker band.
+    assert max(column(sh, gutter + 2, step=1)) == max(at_start) == paper
+
+
+def test_only_the_piano_roll_gets_the_gutter_edge(qapp, qtbot, tmp_path, monkeypatch):
+    from chordnotepad_desktop.chord_sheet import SheetView
+    assert SheetView.EDGED_VIEWS == ("keyboard",)
+    drawn = []
+    original = SheetView._paint_gutter_edge
+    monkeypatch.setattr(SheetView, "_paint_gutter_edge",
+                        lambda self, p, gutter, clip: (drawn.append(self._sheet.view_id),
+                                                       original(self, p, gutter, clip)))
+    sh = make_sheet(qapp, qtbot, tmp_path, text=LONG)
+    try:
+        sh.to_play(700)
+        sh.wait_sheet("keyboard")
+        sh.view.setProperty("scrollX", 200)
+        sh.run(80)
+        assert drawn and set(drawn) == {"keyboard"}
+        sh.store.submit("set_chord_sheet_view", {"view_id": "staff"})
+        sh.wait_sheet("staff")
+        assert sh.model.sheet.gutter_width > 0
+        drawn.clear()
+        sh.view.setProperty("scrollX", 100)
+        sh.run(80)
+        assert drawn == []
+    finally:
+        finish(sh)
 
 
 def test_a_view_without_a_gutter_draws_no_edge(qapp, qtbot, tmp_path, monkeypatch):
@@ -166,8 +197,8 @@ def test_a_view_without_a_gutter_draws_no_edge(qapp, qtbot, tmp_path, monkeypatc
     drawn = []
     original = SheetView._paint_gutter_edge
     monkeypatch.setattr(SheetView, "_paint_gutter_edge",
-                        lambda self, p, gutter, clip, view_id="": (drawn.append(gutter),
-                                                                original(self, p, gutter, clip, view_id)))
+                        lambda self, p, gutter, clip: (drawn.append(gutter),
+                                                       original(self, p, gutter, clip)))
     sh = make_sheet(qapp, qtbot, tmp_path, text=LONG, chord_sheet_view="tab")   # the piano shows meanwhile
     try:
         sh.to_play(700)

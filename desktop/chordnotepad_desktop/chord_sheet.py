@@ -591,8 +591,8 @@ class SheetView(QQuickPaintedItem):
                     p.fillRect(bed, white)
             painter.draw(p, variant.items, palette)
             p.restore()
-        if gutter > 0:
-            self._paint_gutter_edge(p, gutter, clip, sheet.view_id)
+        if gutter > 0 and sheet.view_id in self.EDGED_VIEWS:
+            self._paint_gutter_edge(p, gutter, clip)
         self.last_paint_ops = painter.drawn
         self.last_paint_ms = (time.perf_counter() - start) * 1000
         self.paints += 1
@@ -621,13 +621,15 @@ class SheetView(QQuickPaintedItem):
 
     #: How far the soft shadow reaches over the content, in item units.
     EDGE_SHADOW = 6.0
+    #: The views whose gutter gets the edge: the piano roll's keyboard. The
+    #: staff reads better without one, as one continuous staff from the
+    #: clefs on, scrolled or not (Tibi); Tab has no gutter.
+    EDGED_VIEWS = ("keyboard",)
 
-    def _paint_gutter_edge(self, p: QPainter, gutter: float, clip: QRectF,
-                           view_id: str = "") -> None:
+    def _paint_gutter_edge(self, p: QPainter, gutter: float, clip: QRectF) -> None:
         """A hairline at the gutter's right edge, and, while the content has
-        scrolled under it, a soft shadow on the content beside it (every view
-        with a gutter; Tab has none). The staff gets the hairline only once
-        scrolled: at the start its staff runs on from the clefs unbroken."""
+        scrolled under it, a soft shadow on the content beside it (only the
+        views in :data:`EDGED_VIEWS`)."""
         height = self.height()
         ink = 255 if self._dark else 0
         if self._scroll > 0 and clip.right() > gutter:
@@ -635,7 +637,7 @@ class SheetView(QQuickPaintedItem):
             gradient.setColorAt(0.0, QColor(0, 0, 0, 120 if self._dark else 34))   # a shadow darkens, in both themes
             gradient.setColorAt(1.0, QColor(0, 0, 0, 0))
             p.fillRect(QRectF(gutter, 0, self.EDGE_SHADOW, height), QBrush(gradient))
-        if clip.left() < gutter and (self._scroll > 0 or view_id != "staff"):
+        if clip.left() < gutter:
             px = 1.0 / (self._dpr or 1.0)
             p.fillRect(QRectF(gutter - px, 0, px, height), QColor(ink, ink, ink, 46 if self._dark else 40))
 
