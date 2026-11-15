@@ -76,7 +76,7 @@ _DARK_KEYS = {
 #: surface: darker in the light theme, lighter in the dark one (QColor's
 #: ``darker``/``lighter`` factors).
 BAND_STEP_LIGHT = 104
-BAND_STEP_DARK = 112
+BAND_STEP_DARK = 120
 
 
 def section_band_color(surface: QColor, dark: bool) -> QColor:
