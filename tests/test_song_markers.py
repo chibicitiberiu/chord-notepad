@@ -272,3 +272,61 @@ class TestPlayFromCursorPrefix:
         tempo = next(m for m in rendered.markers if m.kind == "tempo")
         assert section.beat == 0.0 and section.time == 0.0
         assert tempo.beat == 4.0 and tempo.time == 0.0
+
+
+class TestLoopMarkerFields:
+    """The structured fields of a 'loop' marker (pass, count, which {loop},
+    where the repeated pass started), so a view draws repeat signs without
+    parsing the text."""
+
+    @staticmethod
+    def _loops(rendered):
+        return [(m.label, m.beat, m.pass_num, m.count, m.directive_pos, m.target_beat)
+                for m in rendered.markers if m.kind == "loop"]
+
+    def test_simple_loop_three_passes(self):
+        text = "{label: a}\nC G\n{loop: a 3}\nF"
+        pos = text.index("{loop")
+        # Pass 2 repeats the label's pass (from 0); pass 3 repeats pass 2.
+        assert self._loops(_render(text)) == [
+            ("a", 8.0, 2, 3, pos, 0.0),
+            ("a", 16.0, 3, 3, pos, 8.0),
+        ]
+
+    def test_start_loops_back_to_the_song_start(self):
+        text = "C\n{bpm: 90}\nG\n{loop: @start 2}\nF"
+        assert self._loops(_render(text)) == [
+            ("@start", 8.0, 2, 2, text.index("{loop"), 0.0)]
+
+    def test_start_three_passes_repeat_the_previous_pass(self):
+        text = "C G\n{loop: @start 3}"
+        pos = text.index("{loop")
+        assert self._loops(_render(text)) == [
+            ("@start", 8.0, 2, 3, pos, 0.0),
+            ("@start", 16.0, 3, 3, pos, 8.0),
+        ]
+
+    def test_nested_loops_keep_their_own_directive(self):
+        text = "{label: outer}\nC\n{label: inner}\nD\n{loop: inner 2}\n{loop: outer 2}\nE"
+        inner, outer = text.index("{loop: inner"), text.index("{loop: outer")
+        assert self._loops(_render(text)) == [
+            ("inner", 8.0, 2, 2, inner, 4.0),
+            ("outer", 12.0, 2, 2, outer, 0.0),
+        ]
+
+    def test_two_loops_to_one_label(self):
+        # The second {loop} repeats the label's latest pass, which started
+        # at the first loop's jump.
+        text = "{label: a}\nC\n{loop: a 2}\nD\n{loop: a 2}\nE"
+        first, second = text.index("{loop"), text.rindex("{loop")
+        assert self._loops(_render(text)) == [
+            ("a", 4.0, 2, 2, first, 0.0),
+            ("a", 12.0, 2, 2, second, 4.0),
+        ]
+
+    def test_other_markers_have_no_loop_fields(self):
+        rendered = _render("{label: a}\nC\n{bpm: 90}\n{time: 3/4}\nG\n{loop: a 2}")
+        for marker in rendered.markers:
+            if marker.kind != "loop":
+                assert (marker.pass_num, marker.count, marker.directive_pos,
+                        marker.target_beat) == (0, 0, None, None)

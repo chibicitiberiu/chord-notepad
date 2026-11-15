@@ -164,6 +164,26 @@ class SongMarker:
     """For ``'section'`` and ``'loop'`` markers, the label they belong to
     (``'chorus'`` for both examples above); empty for the other kinds."""
 
+    pass_num: int = 0
+    """For a ``'loop'`` marker, the pass the jump starts (2..``count``); 0
+    for the other kinds."""
+
+    count: int = 0
+    """For a ``'loop'`` marker, how many passes its ``{loop}`` plays in all;
+    0 for the other kinds."""
+
+    directive_pos: Optional[int] = None
+    """For a ``'loop'`` marker, where its ``{loop}`` directive starts in the
+    text (its ``Directive.start``, the same for every pass of that loop), so
+    the jumps of one loop can be told from those of another (nested loops,
+    two loops to one label); None for the other kinds."""
+
+    target_beat: Optional[float] = None
+    """For a ``'loop'`` marker, the beat where the pass being repeated
+    started: the label's beat on the jump to pass 2, the previous jump's
+    beat after that, the song's first beat for ``@start``. None for the
+    other kinds."""
+
 
 @dataclass
 class RenderedSong:

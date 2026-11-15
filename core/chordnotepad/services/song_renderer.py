@@ -19,7 +19,7 @@ resets the picker or snapshots its state across loops.
 """
 import logging
 import threading
-from typing import Callable, List, Optional, Tuple
+from typing import Any, Callable, List, Optional, Tuple
 
 from chordnotepad.models.line import Line
 from chordnotepad.models.chord import ChordInfo
@@ -147,6 +147,8 @@ class SongRenderer:
             'loop_stack': [],
             'labels': {},
             'label_states': {},
+            # Label -> the beat it was last reached at (a loop's target_beat).
+            'label_beats': {},
             'current_bar': 1,
             'beats_in_bar': 0.0,
             'current_beat_position': 0.0,
@@ -381,9 +383,18 @@ class SongRenderer:
             count = loop_stack[-1]['count']
             remaining = loop_stack[-1]['remaining']
             pass_num = count - remaining + 1
+            # The pass being repeated started where the label was last
+            # reached (the song's first beat, 0, for '@start', which the walk
+            # never meets as a directive).
+            target_beat = state['label_beats'].get(directive.label, 0.0)
             self._emit_marker(
-                state, 'loop', f'{directive.label} ({pass_num}/{count})', directive.label)
+                state, 'loop', f'{directive.label} ({pass_num}/{count})', directive.label,
+                pass_num=pass_num, count=count, directive_pos=directive.start,
+                target_beat=target_beat)
             state['last_loop_beat'] = state['current_beat_position']
+            # The next pass starts here (a user label's re-walk records the
+            # same beat again; '@start' has no directive to do it).
+            state['label_beats'][directive.label] = state['current_beat_position']
             self._restore_loop_state(directive.label, state)
             state['line_index'], state['item_index'] = label_pos
         else:
@@ -406,6 +417,7 @@ class SongRenderer:
         self._record_key(state, saved['key'])
 
     def _handle_label_directive(self, directive: Directive, state: dict) -> None:
+        state['label_beats'][directive.label] = state['current_beat_position']
         if directive.label not in state['label_states']:
             state['label_states'][directive.label] = {
                 'bpm': state['current_bpm'],
@@ -495,7 +507,8 @@ class SongRenderer:
     # ------------------------------------------------------------------
     # Timeline markers (chord-sheet strip)
     # ------------------------------------------------------------------
-    def _emit_marker(self, state: dict, kind: str, text: str, label: str = "") -> None:
+    def _emit_marker(self, state: dict, kind: str, text: str, label: str = "",
+                     **loop_fields: Any) -> None:
         """Append a :class:`SongMarker` at the current beat/time position.
 
         Called from the single render walk, so markers land in walk order with
@@ -509,6 +522,7 @@ class SongRenderer:
             kind=kind,
             text=text,
             label=label,
+            **loop_fields,
         ))
 
     # ------------------------------------------------------------------
