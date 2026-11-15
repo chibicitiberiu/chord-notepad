@@ -118,6 +118,38 @@ def test_start_up_runs_in_the_tk_apps_order(qapp, qtbot, tmp_path, monkeypatch):
         harness.shutdown()
 
 
+def test_start_up_logs_the_build_in_tks_block(qapp, tmp_path, caplog):
+    no_quick_start(tmp_path)
+    harness = QtAppHarness(qapp, tmp_path, build_info={
+        "VERSION": "v0.6.0", "BUILD_TYPE": "release", "BUILD_NUMBER": "42",
+        "COMMIT_SHORT": "abc1234", "BUILD_DATE": "2026-11-16"})
+    with caplog.at_level("INFO", logger="chordnotepad_desktop.application"):
+        harness.start()
+    try:
+        lines = [r.getMessage() for r in caplog.records
+                 if r.name == "chordnotepad_desktop.application"]
+        start = lines.index("Chord Notepad") - 1
+        assert lines[start:start + 9] == [
+            "=" * 60, "Chord Notepad", "=" * 60,
+            "Version:      v0.6.0", "Build Type:   release", "Build Number: 42",
+            "Commit:       abc1234", "Build Date:   2026-11-16", "=" * 60]
+    finally:
+        harness.shutdown()
+
+
+def test_without_build_info_the_log_shows_the_dev_local_build(qapp, tmp_path, caplog):
+    no_quick_start(tmp_path)
+    harness = QtAppHarness(qapp, tmp_path)
+    with caplog.at_level("INFO", logger="chordnotepad_desktop.application"):
+        harness.start()
+    try:
+        lines = [r.getMessage() for r in caplog.records]
+        assert f"Version:      v{PATHS.read_version()} (dev-local)" in lines
+        assert "Build Type:   development" in lines
+    finally:
+        harness.shutdown()
+
+
 def test_the_window_starts_hidden_until_the_ratio_settles(shell):
     assert shell.window.isVisible()
     assert shell.window.contentItem().opacity() == 1

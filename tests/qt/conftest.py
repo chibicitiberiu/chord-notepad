@@ -87,7 +87,7 @@ class QtAppHarness:
     collected in ``unexpected`` (the fixture fails on them unless the test
     clears the list)."""
 
-    def __init__(self, qapp, tmp_path, today=None):
+    def __init__(self, qapp, tmp_path, today=None, build_info=None):
         import datetime
 
         from chordnotepad.services.appdata_service import AppDataService
@@ -99,7 +99,8 @@ class QtAppHarness:
         self.player = FakePlayer()
         kwargs = {"today": today} if today else {"today": lambda: datetime.date(2026, 11, 14)}
         self.app = QtApplication(PATHS, appdata=AppDataService(root=self.root),
-                                 player=self.player, configure_logging=False, **kwargs)
+                                 player=self.player, configure_logging=False,
+                                 build_info=build_info, **kwargs)
         self.unexpected = []
 
     def start(self):

@@ -71,6 +71,13 @@ def dev_build_info(paths: AppPaths) -> Dict[str, str]:
             "BUILD_NUMBER": "0", "COMMIT_SHORT": "unknown", "BUILD_DATE": "unknown"}
 
 
+def build_values(paths: AppPaths, build_info: Optional[Mapping[str, str]] = None) -> Dict[str, str]:
+    """``BUILD_FIELDS``' values: CI's build info where it has them, else the dev-local ones."""
+    info = dev_build_info(paths)
+    info.update({k: str(v) for k, v in (build_info or {}).items() if k in info})
+    return info
+
+
 class _StaticSpans:
     """Fixed spans for a :class:`SpanHighlighter` (a Quick Start snippet)."""
 
@@ -107,9 +114,7 @@ class DialogsModel(QObject):
         self._store = store
         self._paths = paths
         self._presenter = presenter
-        info = dev_build_info(paths)
-        info.update({k: str(v) for k, v in (build_info or {}).items() if k in info})
-        self._build = info
+        self._build = build_values(paths, build_info)
         self._settings = SettingsModel(store, parent=self)
         self._help = HelpOpener(paths.help_html)
         self._catalog: Any = None

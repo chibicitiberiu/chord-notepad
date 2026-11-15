@@ -47,7 +47,7 @@ from chordnotepad_desktop.main import (
 )
 from chordnotepad_desktop.qt_host import QtHost
 from chordnotepad_desktop.qt_messages import install_message_handler
-from chordnotepad_desktop.dialogs import DialogsModel
+from chordnotepad_desktop.dialogs import BUILD_FIELDS, DialogsModel, build_values
 from chordnotepad_desktop.chord_sheet import ChordSheetModel
 from chordnotepad_desktop.editor_bridge import EditorBridge
 from chordnotepad_desktop.identifier import INSERT_FAILED_TITLE, IdentifierModel
@@ -177,6 +177,7 @@ class QtApplication:
             self._appdata, HostDispatch(self.host), paths=self._paths, player=self._player)
         self._start_logging(core)
         logger.info("%s %s (Qt) initializing", APP_NAME, self._paths.read_version())
+        self._log_build()
 
         logger.info("Initializing audio system")
         if not core.playback.initialize_player():
@@ -229,6 +230,16 @@ class QtApplication:
                                           "installed_on": today, "can_ask_for_support": False})
         logger.info("Application initialization complete")
         return main
+
+    def _log_build(self) -> None:
+        """The build in the log, in Tk's block: the first thing to look for in a bug report."""
+        info = build_values(self._paths, self._build_info)
+        logger.info("=" * 60)
+        logger.info("%s", APP_NAME)
+        logger.info("=" * 60)
+        for key, label in BUILD_FIELDS:
+            logger.info("%-13s %s", label, info[key])
+        logger.info("=" * 60)
 
     def _start_logging(self, core: CoreServices) -> None:
         if self._configure_logging:
