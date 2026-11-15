@@ -507,3 +507,18 @@ def test_startup_fallback_tab_select_does_not_overwrite_saved_view(root):
     root.update()  # deliver queued virtual events
     assert vm.active_view == "keyboard"
     assert vm._config.get("chord_sheet_view") == "fret"
+
+
+def test_the_highlight_sits_over_the_section_bands_and_under_the_rest(root):
+    panel, vm = _make_panel(root, "{label: verse}\nC G\n{label: chorus}\nAm F\n", view="tab")
+    root.update_idletasks()
+    canvas = panel._canvas
+    bands = canvas.find_withtag("section-band")
+    assert bands
+    vm.on_playback_chord(vm.rendered_song.chords[2].chord_info, chord_index=2)
+    root.update_idletasks()
+    (highlight,) = canvas.find_withtag("playhead-highlight")
+    order = canvas.find_all()
+    assert order.index(highlight) > max(order.index(b) for b in bands)
+    others = [i for i in order if i not in bands and i != highlight]
+    assert order.index(highlight) < min(order.index(i) for i in others)

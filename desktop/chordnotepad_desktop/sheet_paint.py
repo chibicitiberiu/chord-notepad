@@ -37,7 +37,7 @@ from chordnotepad.chord_sheet import clef_assets
 from chordnotepad.chord_sheet.ops import ImageOp, LineOp, OvalOp, PolygonOp, RectOp, TextOp
 from chordnotepad.chord_sheet import piano_roll
 from chordnotepad.chord_sheet.pack import ViewOps
-from chordnotepad.chord_sheet.renderer_interface import HAND_COLORS, NOTE_INK, STRIP_BG
+from chordnotepad.chord_sheet.renderer_interface import HAND_COLORS, NOTE_INK, SECTION_BAND, STRIP_BG
 
 # -- Colours --------------------------------------------------------------------------
 
@@ -51,6 +51,8 @@ GUTTER_LABEL = "#22323a"
 ROLL_BLACK_ROW = piano_roll.BLACK_ROW_SHADE
 ROLL_GUIDE_C = piano_roll.GUIDE_C
 ROLL_GUIDE_C4 = piano_roll.GUIDE_C4
+#: A black-key row over a banded section (``piano_roll.py``).
+ROLL_BAND_BLACK_ROW = piano_roll.BAND_BLACK_ROW_SHADE
 #: The piano roll's note names: white on the light theme's bars, the dark
 #: text colour (``Theme.qml``'s light ``text``) on the dark theme's lighter ones.
 ROLL_NOTE_LABEL = piano_roll.NOTE_LABEL
@@ -70,13 +72,28 @@ _DARK_KEYS = {
 }
 
 
+#: How far a banded section's paper (``SECTION_BAND``) steps from the
+#: surface: darker in the light theme, lighter in the dark one (QColor's
+#: ``darker``/``lighter`` factors).
+BAND_STEP_LIGHT = 104
+BAND_STEP_DARK = 112
+
+
+def section_band_color(surface: QColor, dark: bool) -> QColor:
+    """A banded section's paper on ``surface``: a subtle step darker in the
+    light theme, a subtle step lighter in the dark one."""
+    return QColor(surface).lighter(BAND_STEP_DARK) if dark else QColor(surface).darker(BAND_STEP_LIGHT)
+
+
 def roll_dark_colors(surface: QColor) -> Dict[str, QColor]:
     """The piano roll's rows on a dark ``surface``: black-key rows darker
     than the white-key ones, as in the light theme (a lightness flip would
     make them the lighter ones), and the C guides a step and two lighter,
-    all in the surface's own hue."""
+    all in the surface's own hue. Over a banded section the black-key rows
+    are as much darker than the band's paper."""
     return {
         ROLL_BLACK_ROW: QColor(surface).darker(125),
+        ROLL_BAND_BLACK_ROW: section_band_color(surface, True).darker(125),
         ROLL_GUIDE_C: QColor(surface).lighter(155),
         ROLL_GUIDE_C4: QColor(surface).lighter(210),
     }
@@ -131,7 +148,8 @@ def dark_variant(color: QColor) -> QColor:
 
 def themed_color(spec: str, parsed: QColor, dark: bool, surface: QColor) -> QColor:
     """A buffer colour as the sheet paints it: the strip's paper is the
-    panel's ``surface`` in both themes; in the dark one the hands' bars and
+    panel's ``surface`` in both themes, a banded section's a step from it
+    (:func:`section_band_color`); in the dark one the hands' bars and
     the piano roll's note names get fixed colours, and the piano roll's rows
     follow the surface (:func:`roll_dark_colors`); everything else goes
     through :func:`dark_variant`. (The roll's keyboard has its own palette,
@@ -139,6 +157,8 @@ def themed_color(spec: str, parsed: QColor, dark: bool, surface: QColor) -> QCol
     low = spec.lower()
     if low == STRIP_BG:
         return QColor(surface)
+    if low == SECTION_BAND:
+        return section_band_color(surface, dark)
     if not dark:
         return parsed
     if low in _DARK_FIXED:

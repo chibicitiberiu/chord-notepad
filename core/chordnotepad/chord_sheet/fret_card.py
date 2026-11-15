@@ -43,6 +43,7 @@ from chordnotepad.chord_sheet.tab_strip import CAPO_PAD, capo_marker_width
 from chordnotepad.chord_sheet.renderer_interface import (
     SheetContext,
     chord_symbol_label,
+    paint_section_bands,
     paint_whole_rest,
     SlotBox,
     StripLayout,
@@ -321,6 +322,7 @@ class FretCardRenderer(StripRenderer):
         content_height, top_pad = _capped_content_height(layout.height, ctx.zoom)
         geo = _compute_geometry(content_height, rows, string_count)
         chords = ctx.song.chords
+        paint_section_bands(ops, ctx.song, layout)
 
         for slot in layout.slots:
             chord = chords[slot.chord_index]

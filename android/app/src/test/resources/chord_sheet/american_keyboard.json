@@ -1,26 +1,26 @@
 {
  "background": "#fbfbf8",
- "byte_length": 36398,
+ "byte_length": 38166,
  "content": {
-  "coord_sum": 6761197.11724782,
-  "count": 944,
+  "coord_sum": 7149398.684812784,
+  "count": 1006,
   "first": {
-   "fill": "#eceef2",
-   "h": 2.9189188480377197,
+   "fill": "#f1f1ed",
+   "h": 130.0,
    "op": "rect",
    "outline": null,
    "radius": 0.0,
    "tags": [
-    "row-shade"
+    "section-band"
    ],
-   "w": 12012.0,
+   "w": 1920.0,
    "width": 1.0,
-   "x": 0.0,
-   "y": 124.16216278076172
+   "x": 2304.0,
+   "y": 0.0
   },
   "histogram": {
    "line": 128,
-   "rect": 683,
+   "rect": 745,
    "text": 133
   },
   "last": {
@@ -38,7 +38,7 @@
    "x": 11906.0,
    "y": 45.35135269165039
   },
-  "tag_count": 1612
+  "tag_count": 1674
  },
  "content_height": 130.0,
  "content_width": 12012.0,
@@ -147,7 +147,7 @@
  ],
  "slot_count": 133,
  "slot_x_sum": 821904.0,
- "string_count": 310,
+ "string_count": 313,
  "view_id": "keyboard",
  "zoom": 1.0
 }

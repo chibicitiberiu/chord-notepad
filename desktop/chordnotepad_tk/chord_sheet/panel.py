@@ -515,6 +515,10 @@ class ChordSheetPanel(ttk.Frame):
             tags=("playhead-highlight",),
         )
         self._canvas.tag_lower("playhead-highlight")
+        # Over the sections' paper, which the renderers paint first, and
+        # under everything else.
+        if self._canvas.find_withtag("section-band"):
+            self._canvas.tag_raise("playhead-highlight", "section-band")
 
     def _follow_playhead(self) -> None:
         """Auto-scroll so the current slot stays in the comfortable band."""

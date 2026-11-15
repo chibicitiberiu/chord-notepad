@@ -1,31 +1,27 @@
 {
  "background": "#fbfbf8",
- "byte_length": 25402,
+ "byte_length": 25481,
  "content": {
-  "coord_sum": 13682455.571777463,
-  "count": 1092,
+  "coord_sum": 13708075.594726682,
+  "count": 1094,
   "first": {
-   "fill": "#7c8b96",
-   "op": "line",
-   "points": [
-    [
-     0.0,
-     45.71428680419922
-    ],
-    [
-     20657.99609375,
-     45.71428680419922
-    ]
-   ],
+   "fill": "#f1f1ed",
+   "h": 180.0,
+   "op": "rect",
+   "outline": null,
+   "radius": 0.0,
    "tags": [
-    "staff"
+    "section-band"
    ],
-   "width": 1.0
+   "w": 3317.760009765625,
+   "width": 1.0,
+   "x": 4002.835693359375,
+   "y": 0.0
   },
   "histogram": {
    "image": 771,
    "line": 182,
-   "rect": 6,
+   "rect": 8,
    "text": 133
   },
   "last": {
@@ -38,7 +34,7 @@
    "x": 20556.45703125,
    "y": 74.04762268066406
   },
-  "tag_count": 1094
+  "tag_count": 1096
  },
  "content_height": 180.0,
  "content_width": 20669.99609375,
@@ -143,7 +139,7 @@
  ],
  "slot_count": 133,
  "slot_x_sum": 1421275.8666439056,
- "string_count": 269,
+ "string_count": 271,
  "view_id": "staff",
  "zoom": 1.7280000448226929
 }

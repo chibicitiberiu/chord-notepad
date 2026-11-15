@@ -26,8 +26,11 @@ Layout:
   onto a separate, non-scrolling canvas so it stays visible while the content
   scrolls; it is static (``scroll_x`` is ignored). Chord slots in the scrolling
   content start at the content's left margin (x = 0), not offset by the gutter.
+- **Section bands:** every second section is on ``SECTION_BAND`` paper
+  (``renderer_interface.paint_section_bands``), drawn first.
 - **Row shading:** black-key rows get a slightly darker fill than
-  ``STRIP_BG`` across the whole lane for the classic DAW-roll look. A light
+  ``STRIP_BG`` across the whole lane for the classic DAW-roll look (over a
+  banded section, ``BAND_BLACK_ROW_SHADE``, a step darker again). A light
   guide line marks every octave (under each C row, where B meets C: two
   white rows nothing else separates), a darker one under C4 (MIDI 60). Both
   live in the scrolling content, full width, under a hairline that closes
@@ -67,6 +70,7 @@ from chordnotepad.chord_sheet.renderer_interface import (
     bar_line_xs,
     chord_symbol_label,
     label_ems,
+    paint_section_bands,
     SlotBox,
     StripLayout,
     StripRenderer,
@@ -137,6 +141,8 @@ NOTE_LABEL = "#fdfdff"
 _INK = "#22323a"
 GRID = "#cdd1d8"
 BLACK_ROW_SHADE = "#eceef2"
+#: A black-key row over a banded section (``SECTION_BAND``): a step darker.
+BAND_BLACK_ROW_SHADE = "#e2e4e9"
 GUIDE_C = "#dfe2e7"
 GUIDE_C4 = "#b4b9c2"
 #: The keyboard in the gutter.
@@ -326,10 +332,23 @@ class PianoRollRenderer(StripRenderer):
         def y_of(note: int) -> float:
             return SYMBOL_H + (high - note) * row_h
 
+        # The sections' paper first; a black-key row over a banded section
+        # takes a shade one step darker, so the rows read the same on both.
+        bands = paint_section_bands(ops, song, layout)
+        segments = []
+        x = 0.0
+        for x0, x1 in bands:
+            if x0 > x:
+                segments.append((x, x0, BLACK_ROW_SHADE))
+            segments.append((x0, x1, BAND_BLACK_ROW_SHADE))
+            x = x1
+        if x < layout.width:
+            segments.append((x, layout.width, BLACK_ROW_SHADE))
         for note in range(low, high + 1):
             if note % 12 not in WHITE_PC:
-                ops.rect(0.0, y_of(note), layout.width, row_h,
-                         fill=BLACK_ROW_SHADE, tags=("row-shade",))
+                for x0, x1, shade in segments:
+                    ops.rect(x0, y_of(note), x1 - x0, row_h,
+                             fill=shade, tags=("row-shade",))
 
         # The octave guides, under each C row (where B meets C), drawn after
         # the shading so a shaded row never covers one.

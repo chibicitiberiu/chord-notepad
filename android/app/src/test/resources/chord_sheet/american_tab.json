@@ -1,30 +1,26 @@
 {
  "background": "#fbfbf8",
- "byte_length": 50730,
+ "byte_length": 50809,
  "content": {
-  "coord_sum": 12154003.313591003,
-  "count": 1826,
+  "coord_sum": 12168881.313591003,
+  "count": 1828,
   "first": {
-   "fill": "#b9c2c7",
-   "op": "line",
-   "points": [
-    [
-     0.0,
-     31.5
-    ],
-    [
-     12024.0,
-     31.5
-    ]
-   ],
+   "fill": "#f1f1ed",
+   "h": 130.0,
+   "op": "rect",
+   "outline": null,
+   "radius": 0.0,
    "tags": [
-    "strings"
+    "section-band"
    ],
-   "width": 1.0
+   "w": 1920.0,
+   "width": 1.0,
+   "x": 2316.0,
+   "y": 0.0
   },
   "histogram": {
    "line": 130,
-   "rect": 783,
+   "rect": 785,
    "text": 913
   },
   "last": {
@@ -40,7 +36,7 @@
    "x": 11964.0,
    "y": 31.5
   },
-  "tag_count": 1826
+  "tag_count": 1828
  },
  "content_height": 130.0,
  "content_width": 12024.0,
@@ -105,7 +101,7 @@
  ],
  "slot_count": 133,
  "slot_x_sum": 823500.0,
- "string_count": 275,
+ "string_count": 277,
  "view_id": "tab",
  "zoom": 1.0
 }

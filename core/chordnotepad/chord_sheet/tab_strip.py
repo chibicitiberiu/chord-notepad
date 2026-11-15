@@ -36,10 +36,11 @@ from chordnotepad.chord_sheet.renderer_interface import (
     chord_symbol_label,
     SheetContext,
     SlotBox,
-    STRIP_BG,
     StripLayout,
     StripRenderer,
+    paint_section_bands,
     paint_whole_rest,
+    paper_at,
 )
 
 #: Leading/trailing padding at the strip's left and right edges, px. Not
@@ -269,6 +270,7 @@ class TabStripRenderer(StripRenderer):
         zoom = ctx.zoom
         string_count = _song_string_count(ctx.song)
         line_ys = _string_line_ys(layout.height, string_count, zoom)
+        bands = paint_section_bands(ops, ctx.song, layout)
 
         for y in line_ys:
             ops.line(
@@ -330,7 +332,7 @@ class TabStripRenderer(StripRenderer):
                     y - label_box_h / 2.0,
                     label_box_w,
                     label_box_h,
-                    fill=STRIP_BG,
+                    fill=paper_at(cx, bands),
                     tags=(tag,),
                 )
                 ops.text(

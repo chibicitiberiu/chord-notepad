@@ -91,6 +91,21 @@ def test_the_dark_theme_flips_neutrals_and_lifts_hues():
     assert themed_color(HAND_COLORS["lh"], QColor(HAND_COLORS["lh"]), True, surface) == QColor("#d09a6c")
 
 
+def test_a_banded_section_is_a_subtle_step_from_the_surface():
+    from chordnotepad.chord_sheet.renderer_interface import SECTION_BAND
+    for surface, dark in ((QColor("#f6f7f9"), False), (QColor("#252629"), True)):
+        band = themed_color(SECTION_BAND, QColor(SECTION_BAND), dark, surface)
+        assert band == sheet_paint.section_band_color(surface, dark)
+        step = band.lightnessF() - surface.lightnessF()
+        # Darker on the light paper, lighter on the dark one; a few percent.
+        assert (0.005 < step < 0.05) if dark else (-0.05 < step < -0.01), (dark, step)
+        assert band.hsvHueF() == pytest.approx(surface.hsvHueF(), abs=0.02)
+        # The roll's black-key rows over the band stay darker than it.
+        row = themed_color(sheet_paint.ROLL_BAND_BLACK_ROW, QColor(sheet_paint.ROLL_BAND_BLACK_ROW),
+                           dark, surface)
+        assert row.lightnessF() < band.lightnessF() - 0.02
+
+
 def test_the_piano_roll_in_the_dark_theme_takes_the_apps_greys():
     surface = QColor("#252629")
     rows = sheet_paint.roll_dark_colors(surface)

@@ -24,7 +24,7 @@ Design rules for renderers:
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import List, Tuple
+from typing import List, Sequence, Tuple
 
 from chordnotepad.models.rendered_song import RenderedChord, RenderedSong
 from chordnotepad.chord_sheet.ops import DrawOps
@@ -242,6 +242,89 @@ STRIP_BG = "#fbfbf8"
 
 #: Fill the panel draws behind the chord slot under the playhead.
 PLAYHEAD_HIGHLIGHT = "#ffe58a"
+
+#: Paper of every second section (the 2nd, 4th, ...), a subtle step darker
+#: than :data:`STRIP_BG`, so a section change shows across the whole strip.
+#: The front ends map it from their own surface (Qt
+#: ``sheet_paint.themed_color``, Android ``themedSheetColor``), as they map
+#: ``STRIP_BG``; Tk paints it as written.
+SECTION_BAND = "#f1f1ed"
+
+#: Marker kinds that start a section (as the player's timeline counts them,
+#: ``session.timeline.song_sections``).
+_SECTION_KINDS = ("section", "loop")
+
+
+def section_band_spans(song: RenderedSong, layout: StripLayout) -> List[Tuple[float, float]]:
+    """The ``(x0, x1)`` spans of the sections painted on :data:`SECTION_BAND`.
+
+    Sections start at the song's ``section`` and ``loop`` markers, as on the
+    player's timeline: a marker starts its section at the first chord at or
+    after its beat, a marker with no chord after it starts none, and two
+    markers on the same chord make one start. Whatever comes before the
+    first marker is a section too (an intro without a label). A section
+    starts at the right edge of the slot before its first chord, so the
+    space a renderer leaves ahead of a chord (a repeat sign, a key change)
+    goes with the section it opens; the last one runs to the strip's end.
+    Every second section, counted from the first, is returned.
+
+    Args:
+        song: The rendered song (its markers and chords).
+        layout: The view's layout (slots in song order).
+
+    Returns:
+        Spans in content x, left to right, possibly empty.
+    """
+    chords = song.chords
+    slots = layout.slots
+    if not chords or not slots:
+        return []
+    order = {slot.chord_index: n for n, slot in enumerate(slots)}
+    eps = 1e-9
+    starts: List[float] = []
+    index = 0
+    for marker in song.markers or ():
+        if marker.kind not in _SECTION_KINDS:
+            continue
+        while index < len(chords) and chords[index].start_beat < marker.beat - eps:
+            index += 1
+        if index == len(chords):
+            break
+        n = order.get(index)
+        if n is None:
+            continue
+        x = slots[n - 1].x + slots[n - 1].width if n > 0 else 0.0
+        if x <= eps:
+            continue
+        if not starts or x > starts[-1] + eps:
+            starts.append(x)
+    edges = [0.0] + starts + [layout.width]
+    return [(edges[i], edges[i + 1]) for i in range(1, len(edges) - 1, 2)
+            if edges[i + 1] > edges[i]]
+
+
+def paint_section_bands(ops: DrawOps, song: RenderedSong,
+                        layout: StripLayout) -> List[Tuple[float, float]]:
+    """Paint the banded sections' paper across the content height.
+
+    Every renderer calls this first, so its rows, lines and notes draw over
+    the bands. Returns the spans (:func:`section_band_spans`) for renderers
+    that draw their own paper-coloured patches (:func:`paper_at`).
+    """
+    spans = section_band_spans(song, layout)
+    for x0, x1 in spans:
+        ops.rect(x0, 0.0, x1 - x0, layout.height, fill=SECTION_BAND,
+                 tags=("section-band",))
+    return spans
+
+
+def paper_at(x: float, spans: Sequence[Tuple[float, float]]) -> str:
+    """The paper colour at content ``x``: :data:`SECTION_BAND` inside a
+    banded span, else :data:`STRIP_BG`."""
+    for x0, x1 in spans:
+        if x0 <= x < x1:
+            return SECTION_BAND
+    return STRIP_BG
 
 
 #: Whole rest (Bravura ``restWhole``) proportions, in staff spaces: a block

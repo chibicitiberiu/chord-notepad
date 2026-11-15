@@ -105,6 +105,7 @@ from chordnotepad.chord_sheet.renderer_interface import (
     VOICE_COLORS,
     chord_symbol_label,
     label_ems,
+    paint_section_bands,
     paint_whole_rest,
 )
 # Duration->width constants are shared with the tab lane so both continuous
@@ -799,6 +800,7 @@ class StaffCardRenderer(StripRenderer):
         chords = song.chords
         geom = _geometry(layout.height, ctx.zoom)
         s = geom.staff_space
+        paint_section_bands(ops, song, layout)
 
         # The staff lines start at the content's left edge, where the
         # gutter's lines end, so the staff reads as one; the gutter draws the

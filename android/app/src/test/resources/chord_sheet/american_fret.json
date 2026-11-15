@@ -1,26 +1,27 @@
 {
  "background": "#fbfbf8",
- "byte_length": 76560,
+ "byte_length": 76639,
  "content": {
-  "coord_sum": 31397246.546803117,
-  "count": 2609,
+  "coord_sum": 31415350.597096086,
+  "count": 2611,
   "first": {
-   "anchor": "center",
-   "bold": true,
-   "fill": "#22323a",
-   "op": "text",
-   "size": 14.0,
+   "fill": "#f1f1ed",
+   "h": 130.0,
+   "op": "rect",
+   "outline": null,
+   "radius": 0.0,
    "tags": [
-    "slot:0"
+    "section-band"
    ],
-   "text": "G",
-   "x": 64.79634094238281,
-   "y": 14.300000190734863
+   "w": 2271.853515625,
+   "width": 1.0,
+   "x": 2730.224365234375,
+   "y": 0.0
   },
   "histogram": {
    "line": 1563,
    "oval": 668,
-   "rect": 118,
+   "rect": 120,
    "text": 260
   },
   "last": {
@@ -36,7 +37,7 @@
    "x": 15088.650390625,
    "y": 62.870792388916016
   },
-  "tag_count": 2609
+  "tag_count": 2611
  },
  "content_height": 130.0,
  "content_width": 15123.826171875,
@@ -101,7 +102,7 @@
  ],
  "slot_count": 133,
  "slot_x_sum": 998712.5289916992,
- "string_count": 268,
+ "string_count": 270,
  "view_id": "fret",
  "zoom": 1.0
 }
