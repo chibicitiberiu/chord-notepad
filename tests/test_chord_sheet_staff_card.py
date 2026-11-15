@@ -794,8 +794,8 @@ class TestKeyChange:
             make_chord("Am", midi_notes=[57, 60, 64], chord_notes=C_MAJOR, key='Am'),
         )
         _, ops = paint(song)
-        # Only the initial connecting barline is a vertical staff line.
-        assert len(vertical_lines(ops)) == 1
+        # No vertical staff line at all (the opening bar line is the gutter's).
+        assert vertical_lines(ops) == []
 
 
 # --------------------------------------------------------------------------
@@ -1048,6 +1048,54 @@ class TestOctaveLowerTreble:
 # --------------------------------------------------------------------------
 # Frozen gutter: width stability + scroll-aware key signature
 # --------------------------------------------------------------------------
+
+def staff_line_ys(ops) -> List[float]:
+    """The y of every horizontal staff-colour line, sorted."""
+    return sorted(o.points[0][1] for o in ops.ops if isinstance(o, LineOp)
+                  and o.fill == sc._STAFF_LINE and o.points[0][1] == o.points[-1][1])
+
+
+class TestContinuousStart:
+    """The gutter's staff and the content's read as one staff: no gap, no bar
+    line where they meet, and the system's opening bar line at the far left."""
+
+    SONG = staticmethod(lambda: make_song(
+        make_chord("C", midi_notes=[60, 64, 67], chord_notes=C_MAJOR, key='G'),
+        make_chord("G", midi_notes=[55, 59, 62], chord_notes=C_MAJOR, key='G', bar=2)))
+
+    @pytest.mark.parametrize("height", [130.0, 450.0])
+    def test_gutter_lines_meet_the_content_lines(self, height):
+        song = self.SONG()
+        renderer = StaffCardRenderer()
+        width = renderer.gutter_width(SheetContext(song=song), height)
+        gutter = paint_gutter(song, height)
+        _, content = paint(song, height)
+        g_lines = [o for o in gutter.ops if isinstance(o, LineOp)
+                   and o.points[0][1] == o.points[-1][1]]
+        c_lines = [o for o in content.ops if isinstance(o, LineOp)
+                   and o.fill == sc._STAFF_LINE and o.points[0][1] == o.points[-1][1]]
+        assert len(g_lines) == len(c_lines) == 10
+        # The gutter's lines run to its right edge and the content's start at
+        # its left edge (content x 0 is the gutter's right edge), on the same ys.
+        assert {o.points[-1][0] for o in g_lines} == {width}
+        assert {o.points[0][0] for o in c_lines} == {0.0}
+        assert staff_line_ys(gutter) == staff_line_ys(content)
+        assert {o.width for o in g_lines} == {o.width for o in c_lines}
+
+    def test_the_content_has_no_bar_line_at_its_start(self):
+        layout, ops = paint(self.SONG())
+        first = layout.slots[0].x
+        assert not [o for o in vertical_lines(ops) if o.points[0][0] < first]
+
+    @pytest.mark.parametrize("height", [130.0, 450.0])
+    def test_the_gutter_draws_the_opening_bar_line_joining_both_staves(self, height):
+        geom = sc._geometry(height)
+        (bar,) = vertical_lines(paint_gutter(self.SONG(), height))
+        (x0, y0), (x1, y1) = bar.points
+        assert x0 == x1 == pytest.approx(bar.width / 2.0)
+        assert (y0, y1) == pytest.approx((geom.treble_top, geom.bass_bottom()))
+        assert bar.width == pytest.approx(geom.thin_bar_w)
+
 
 class TestGutter:
     def test_gutter_width_positive(self):

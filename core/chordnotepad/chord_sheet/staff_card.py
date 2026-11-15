@@ -136,6 +136,11 @@ _MAX_STAFF_SPACE = 10.0
 #: Vertical gap between the treble bottom line and the bass top line, in staff
 #: spaces (> 3 so the staves never read as merged; middle C's ledger sits here).
 _GAP_SPACES = 3.5
+#: The thin and thick strokes of the system's opening bar line, the repeat
+#: signs and the final bar line, in staff spaces (Bravura's engraving
+#: defaults: 0.16 and 0.5).
+_THIN_BAR_SPACES = 0.16
+_THICK_BAR_SPACES = 0.5
 
 # --- Chord-symbol labels ----------------------------------------------------
 #: The label's size in pt per staff space (it grows with the staff) and its
@@ -395,6 +400,8 @@ class _Geometry:
     bass_top: float       # y of the bass top line (A3)
     staff_line_w: float
     note_line_w: float
+    thin_bar_w: float     # the opening, repeat and final bar lines' thin stroke
+    thick_bar_w: float    # the repeat and final bar lines' thick stroke
 
     def treble_bottom(self) -> float:
         """y of the treble bottom line (E4)."""
@@ -451,6 +458,8 @@ def _geometry(height: float, zoom: float = 1.0) -> _Geometry:
         bass_top=bass_top,
         staff_line_w=max(1.0, 0.06 * s),
         note_line_w=max(1.0, 0.10 * s),
+        thin_bar_w=max(1.0, _THIN_BAR_SPACES * s),
+        thick_bar_w=max(2.0, _THICK_BAR_SPACES * s),
     )
 
 
@@ -598,8 +607,9 @@ class StaffCardRenderer(StripRenderer):
                      scroll_x: float) -> None:
         """Paint the frozen clefs and the scroll-aware key signature.
 
-        Draws (in order) the strip background, both staves' line stubs across
-        the gutter, the two clefs, then the key signature for the key in effect
+        Draws (in order) the strip background, both staves' lines across the
+        gutter (they carry on into the content's at its right edge), the
+        system's opening bar line at its left edge, the two clefs, then the key signature for the key in effect
         at the first chord whose slot is at-or-after ``scroll_x`` (empty song or
         before the first chord -> the initial key). Coordinates are gutter-local.
 
@@ -621,6 +631,11 @@ class StaffCardRenderer(StripRenderer):
                 y = base + k * s
                 ops.line([(0.0, y), (width, y)],
                          fill=_STAFF_LINE, width=geom.staff_line_w, tags=("gutter",))
+        # The system's opening bar line, joining both staves at the gutter's
+        # left edge (inset by half its width, so no clip shaves it).
+        bar_x = geom.thin_bar_w / 2.0
+        ops.line([(bar_x, geom.treble_top), (bar_x, geom.bass_bottom())],
+                 fill=_STAFF_LINE, width=geom.thin_bar_w, tags=("gutter",))
 
         self._paint_clefs(ops, x_clef, geom, _upper_clef_kind(song), tags=("gutter",))
         fifths = self._key_at_scroll(ctx, height, scroll_x)
@@ -676,7 +691,10 @@ class StaffCardRenderer(StripRenderer):
         geom = _geometry(layout.height, ctx.zoom)
         s = geom.staff_space
 
-        x_left = STRIP_MARGIN
+        # The staff lines start at the content's left edge, where the
+        # gutter's end, so the staff reads as one; the gutter draws the
+        # system's opening bar line.
+        x_left = 0.0
         x_right = max(x_left + 1.0, layout.width - STRIP_MARGIN)
         self._paint_staff_lines(ops, geom, x_left, x_right)
 
@@ -728,17 +746,13 @@ class StaffCardRenderer(StripRenderer):
 
     def _paint_staff_lines(self, ops: DrawOps, geom: _Geometry,
                            x_left: float, x_right: float) -> None:
-        """Draw the two 5-line staves and the joining left barline."""
+        """Draw the two 5-line staves from ``x_left`` to ``x_right``."""
         s = geom.staff_space
         for base in (geom.treble_top, geom.bass_top):
             for k in range(5):
                 y = base + k * s
                 ops.line([(x_left, y), (x_right, y)],
                          fill=_STAFF_LINE, width=geom.staff_line_w, tags=("staff",))
-        ops.line(
-            [(x_left, geom.treble_top), (x_left, geom.bass_bottom())],
-            fill=_STAFF_LINE, width=geom.staff_line_w, tags=("staff",),
-        )
 
     def _paint_clefs(self, ops: DrawOps, x_clef: float, geom: _Geometry,
                      upper: str = 'treble', tags: Tuple[str, ...] = ("gutter",)) -> None:
