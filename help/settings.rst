@@ -17,16 +17,20 @@ Settings
 
       The General page.
 
-   There's no Save button: each change is saved as you make it and takes
-   effect straight away, except where a field says it needs a restart. A
-   value with a mistake in it isn't saved, and everything else still is: a
-   number you type is saved once it's a whole number in range (until then the
-   field turns red and shows the range it accepts), and in a voicing only the
-   field with the mistake keeps its old value (see `Voicings`_). The window
-   stays open next to the main one, so you can try a change in the song and
-   come back. **Close** (or Escape) leaves it; if something still has a
-   mistake, the app lists each one first, and **Edit** takes you to the first
-   one while **Discard** drops those values and leaves.
+   Nothing is saved as you go. When you've changed something, a muted
+   "Unsaved changes" note appears at the bottom, next to **Discard** and
+   **Save**. **Save** writes everything and closes the window, and the changes
+   take effect then (the font, word wrap, the theme, the Voicing menus), except
+   where a field's hint says it needs a restart. **Discard** drops every change
+   and closes. Escape or the window's close button does the same job, but with
+   unsaved changes it asks first: **Save**, **Discard** or **Cancel**, which
+   keeps the window open.
+
+   A number field with a mistake (anything but a whole number in range) turns
+   red and shows the range it accepts. **Save** then refuses with a "Settings
+   Not Saved" message and shows the page with that field. A voicing with a
+   mistake is marked in the list, and **Save** names it and selects it (see
+   `Voicings`_).
 
 .. only:: android
 
@@ -214,8 +218,9 @@ next new or opened song.
       The FluidSynth audio driver to try first (for example ``alsa``,
       ``pulseaudio`` or ``jack``). If it can't start, Chord Notepad falls back to
       the usual drivers for your system, and tells you when none of them works.
-      Leave it empty to use the usual drivers only. Takes effect after restarting
-      the application.
+      **Auto**, the first entry in the list, saves no driver: the usual drivers
+      of your system are tried in turn. Takes effect after restarting the
+      application.
 
 .. only:: desktop
 
@@ -247,19 +252,24 @@ you there.
 
    .. platform-figure:: settings-voicing-form
       :platforms: desktop
-      :alt: The Voicings page: an Add voicing button and the group Fretboard
-            with New voicing, and the voicing's form with its name, model,
+      :alt: The Voicings page: an Add voicing button with a trash button
+            beside it and the group Fretboard with New voicing, and the voicing's form with its name, model,
             strings, limits, the barre switch and the weights.
 
       The Voicings page with a new fretboard voicing.
 
    The left side lists your custom voicings, grouped by model (Fretboard,
-   Piano, Ensemble). **Add voicing** at the top adds a new one and opens it;
-   the **Remove voicing** button is in the voicing's own form, and asks
-   before it removes anything. Built-in voicings -- the four guitars, the ukulele, the
-   four ensemble presets, the default piano -- aren't listed here since
-   they're not yours to edit, but they are available as starting points (see
-   below).
+   Piano, Ensemble). At the top is **Add voicing**, with a trash button next
+   to it. **Add voicing** opens a menu of what the new voicing starts as: the
+   built-in fretboards, the built-in ensembles, **Piano (default)**, then your
+   own voicings, in groups separated by lines. Pick one and a voicing called
+   "New voicing" (or "New voicing 2", and so on) is added as a copy of it, with
+   the same model and parameters, and opens on the right. There's no question
+   to answer. The trash button removes the selected voicing after asking, and
+   is greyed out when nothing is selected. Built-in voicings -- the four
+   guitars, the ukulele, the four ensemble presets, the default piano -- aren't
+   listed here since they're not yours to edit, but the **Add voicing** menu
+   offers them as starting points.
 
 .. only:: android
 
@@ -316,12 +326,21 @@ you there.
       A fretboard voicing's form on a phone (the top of it; the weights are
       further down).
 
-**Copy from existing**
-   Copies every parameter from an existing voicing -- any built-in preset
-   or any other custom voicing -- into the one you're editing. This is the
-   normal way to start a new voicing: load the closest preset, then change
-   what's different. Since it overwrites everything currently in the
-   editor, it asks you to confirm first.
+.. only:: android
+
+   **Copy from existing**
+      Copies every parameter from an existing voicing -- any built-in preset
+      or any other custom voicing -- into the one you're editing. This is the
+      normal way to start a new voicing: load the closest preset, then change
+      what's different. Since it overwrites everything currently in the
+      editor, it asks you to confirm first.
+
+.. only:: desktop
+
+   **Starting point**
+      The **Add voicing** menu: a new voicing starts as a copy of the preset
+      or voicing you pick there, every parameter included. This is the normal
+      way to start one: pick the closest, then change what's different.
 
 **Name**
    .. only:: desktop
@@ -371,12 +390,13 @@ notation never changes a voicing.
    says **Fix these errors to apply changes**. A problem that spans two
    fields -- a relaxed span smaller than the normal span, a voice whose low
    note is above its high note -- is described in it. A voicing with a
-   mistake shows in red in the list, and a field with a mistake is never
-   saved: the voicing keeps its last good value. Renaming or deleting the
-   voicing you're currently playing with is handled: a rename follows the
-   selection so playback keeps using it, and a delete falls back to piano.
-   Any new or changed custom voicing shows up in the Voicing menu
-   (:menuselection:`Playback --> Voicing`) immediately -- no restart needed.
+   mistake shows as having errors in the list. **Save** refuses while any
+   voicing has one: it names the voicing and selects it, so you can fix it.
+   Renaming or deleting the voicing you're currently playing with is handled:
+   a rename follows the selection so playback keeps using it, and a delete
+   falls back to piano. Any new or changed custom voicing shows up in the
+   Voicing menu (:menuselection:`Playback --> Voicing`) once you save -- no
+   restart needed.
 
 .. only:: android
 
@@ -409,15 +429,15 @@ instead of editing JSON by hand:
 .. only:: desktop
 
    1. Open |settings| and go to the **Voicings** page.
-   2. Click **Add voicing**. The new voicing opens on the right.
-   3. Click **Copy from existing** and pick **Guitar (Standard - EADGBE)**. This
-      fills in the standard tuning and all its defaults as a starting point.
-   4. In **Name**, type ``My 7-String``.
-   5. In the strings field, change the tuning from ``E2 A2 D3 G3 B3 E4`` to
+   2. Click **Add voicing** and pick **Guitar (Standard - EADGBE)** from the
+      menu. "New voicing" opens on the right as a copy of it, with the
+      standard tuning and all its defaults as a starting point.
+   3. In **Name**, type ``My 7-String``.
+   4. In the strings field, change the tuning from ``E2 A2 D3 G3 B3 E4`` to
       ``B1 E2 A2 D3 G3 B3 E4`` -- the same six strings with a low B added in
       front (the list starts at the lowest string).
-   6. That's it: the voicing is saved as you go.
-   7. Click the **Voicing** button in the player bar -- **My 7-String** is now
+   5. Click **Save**. The window closes and the voicing is saved.
+   6. Click the **Voicing** button in the player bar -- **My 7-String** is now
       in the list, under Fretboard. Select it and play some chords.
 
 .. only:: android

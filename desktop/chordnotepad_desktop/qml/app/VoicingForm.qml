@@ -12,8 +12,8 @@ import "FormTips.js" as FormTips
 // titled sub-grids), `table` (a records field: the ensemble's voices),
 // `range_table` (the piano's low/high rows) and `groups` (titled grids side
 // by side). Values, marks, hints and messages are the session's
-// (VoicingEditorState); edits go to SettingsModel (setField / setCell, then
-// commitVoicing on Enter and on leaving a field). The help of each field is
+// (VoicingEditorState); edits go to SettingsModel (setField / setCell) and
+// the window's Save writes them. The help of each field is
 // its tooltip, shared with its caption; a wrong field's tooltip ends with
 // "⚠ message" (Tk's voicings page).
 ColumnLayout {
@@ -81,7 +81,6 @@ ColumnLayout {
                 to: fi.field.max !== undefined ? fi.field.max : 1000000
                 stepSize: fi.field.step || 1
                 onEdited: (t) => vform.settings.setField(fi.field.id, t, false)
-                onCommitted: vform.settings.commitVoicing()
             }
         }
         Component {
@@ -93,7 +92,6 @@ ColumnLayout {
                 tip: fi.field.help || ""
                 font: fi.kind === "pitch_list" || fi.kind === "pitch" ? Theme.fontMonoS : Theme.font
                 onEdited: (t) => vform.settings.setField(fi.field.id, t, false)
-                onCommitted: vform.settings.commitVoicing()
             }
         }
         Component {
@@ -346,7 +344,6 @@ ColumnLayout {
                             tip: tc.column.help || ""
                             font: tc.column.kind === "pitch" ? Theme.fontMonoS : Theme.font
                             onEdited: (t) => vform.settings.setCell(table.field.id, tc.row, tc.column.id, t, false)
-                            onCommitted: vform.settings.commitVoicing()
                         }
                     }
                     Component {
@@ -359,7 +356,6 @@ ColumnLayout {
                             tip: tc.column.help || ""
                             from: tc.column.min; to: tc.column.max; stepSize: tc.column.step || 1
                             onEdited: (t) => vform.settings.setCell(table.field.id, tc.row, tc.column.id, t, false)
-                            onCommitted: vform.settings.commitVoicing()
                         }
                     }
                     Component {

@@ -232,9 +232,9 @@ Custom Ensembles
 .. only:: desktop
 
    If the four presets don't match the group you're writing for, define your
-   own from |voicings_settings|: load a
+   own from |voicings_settings|: click **Add voicing**, pick a
    built-in ensemble as a starting point, change the voices, spacing, or
-   weights, and save. See :doc:`settings` for the page itself and a worked
+   weights, and click **Save**. See :doc:`settings` for the page itself and a worked
    example (built there for a fretted instrument, but the same steps apply
    to an ensemble).
 

@@ -40,7 +40,7 @@ The Built-in Voicing
 
    Chord Notepad ships with one built-in piano voicing, listed as **Piano** in
    the :menuselection:`Playback --> Voicing` menu and as **Piano (default)**
-   under Copy from existing in the Voicings editor. It's the voicing a fresh install
+   in the **Add voicing** menu of the Voicings page. It's the voicing a fresh install
    starts with. Its parameters reproduce the piano engine's original,
    hand-tuned behavior exactly, so if you've never touched the Voicings page,
    this is what you've been hearing all along.
@@ -63,8 +63,8 @@ Defining a Custom Piano Voicing
    If you want the piano to sit in a different register, spread the hands
    further apart, or trade completeness for a sparser texture, add a custom
    piano voicing from |voicings_settings|:
-   load **Piano (default)** as a starting point, change what's different (ranges,
-   span, weights), and save. See :doc:`settings` for the page itself.
+   click **Add voicing** and pick **Piano (default)** as a starting point,
+   change what's different (ranges, span, weights), and click **Save**. See :doc:`settings` for the page itself.
 
 .. only:: android
 

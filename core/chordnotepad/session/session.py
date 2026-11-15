@@ -1763,6 +1763,27 @@ class AppSession:
         self._publish_voicing_editor()
 
     @_command
+    def set_settings_notation(self, notation: str) -> None:
+        """The notation chosen in a Settings window that saves on Save (the
+        Qt desktop), not saved yet: the voicing form shows its note names in
+        it from now on. ``save_settings`` writes it; ``cancel_settings_edit``
+        drops it with the rest.
+
+        Raises:
+            RuntimeError: If no settings edit is open.
+            ValueError: For a notation that isn't "american" or "european".
+        """
+        if notation not in ("american", "european"):
+            raise ValueError(f"unknown notation {notation!r}")
+        edit = self._require_settings_edit()
+        if edit.model.notation == notation:
+            return
+        edit.model.notation = notation
+        edit.respell()
+        edit.bump()
+        self._publish_voicing_editor()
+
+    @_command
     def save_settings(self, values: Optional[SettingsValues] = None) -> None:
         """Save the working copy: the voicings, plus ``values`` if given.
 

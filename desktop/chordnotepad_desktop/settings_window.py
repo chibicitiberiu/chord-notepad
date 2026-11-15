@@ -1,34 +1,33 @@
 """The Settings window (plan step G1): the Python side.
 
 The window is QML (``qml/app/SettingsWindow.qml`` and the voicing form's
-files); what it decides with is here, in :class:`SettingsModel`, the
-desktop's counterpart of Android's ``SettingsController``. It saves as it
-goes (parity checklist resolution 6), through the session's settings edit:
+files); what it decides with is here, in :class:`SettingsModel`. Like most
+desktop settings windows it has Save and Discard (Tibi, 2026-11-15; the
+parity checklist's resolution 6 had it save as it went, as Android does),
+through the session's settings edit:
 
 * :meth:`SettingsModel.open` sends ``begin_settings_edit`` (and asks for the
-  voicing form's schema once); :meth:`SettingsModel.close` saves what is
-  still waiting, then ``cancel_settings_edit`` ends the edit (the wrong
-  values are dropped; what was valid is saved already).
+  voicing form's schema once). :meth:`SettingsModel.save` sends
+  ``save_settings``: every voicing is validated, and the first wrong one is
+  the session's ``UserError`` (the edit stays open); otherwise everything is
+  written and applied in one go and the edit ends. :meth:`SettingsModel.discard`
+  sends ``cancel_settings_edit``: nothing is written.
 * **General and Playback** are a draft of ``DesktopSettingsValues``
   (:attr:`SettingsModel.values`), started from the session's
-  ``SettingsState``. A change goes out at once with ``commit_settings``; a
-  number being typed goes out when the typing rests (:data:`DRAFT_SAVE_DELAY_MS`).
-  A number that isn't a whole number in range is never put in the draft
-  (Q8): it is kept as typed (:attr:`SettingsModel.numberTexts`), shown with
-  its message (:attr:`SettingsModel.numberErrors`) and sent as
-  ``invalid_numbers``, so the config keeps its valid value.
+  ``SettingsState``. A number that isn't a whole number in range is never
+  put in the draft (Q8): it is kept as typed (:attr:`SettingsModel.numberTexts`)
+  and shown with its message (:attr:`SettingsModel.numberErrors`); Save is
+  refused until it is fixed.
   The window isn't modal, so some of these values change elsewhere while it
   is open (the ☰ Dark theme, text zoom, View › Word wrap). Each state change
   reads the config again (``settings_values``) and takes what changed there
-  into the draft, unless one of the window's own commits is still on its way
-  to the session: ``commit_settings`` sends the whole draft, and an old
-  value in it would undo the change made elsewhere.
+  into the draft, unless the window changed that value itself: Save sends
+  the whole draft, and an old value in it would undo the change made
+  elsewhere.
 * **Voicings**: the session's ``VoicingEditorState`` is the form
   (:attr:`SettingsModel.editor`, a map of the store). A keystroke sends
-  ``set_voicing_values`` (the session re-checks it and the marks come back);
-  Enter, leaving the field and every other voicing command also save
-  (``commit_settings``): the session writes each voicing's valid fields and
-  keeps the wrong ones at the value on disk.
+  ``set_voicing_values`` (the session re-checks it and the marks come back)
+  into the session's working copy; Save writes it.
 
 The field kinds, labels, help and messages come from the core's schema
 (``settings_forms.voicing_form.editor_schema``, :attr:`SettingsModel.schema`);
@@ -40,7 +39,7 @@ import dataclasses
 import logging
 from typing import Any, Dict, List, Optional
 
-from PySide6.QtCore import Property, QObject, QTimer, QUrl, Signal, Slot
+from PySide6.QtCore import Property, QObject, QUrl, Signal, Slot
 from PySide6.QtGui import QFontDatabase
 
 from chordnotepad.constants import LOG_LEVELS, UI_THEMES
@@ -48,9 +47,6 @@ from chordnotepad.session.settings import AUDIO_DRIVER_SUGGESTIONS, NUMBER_SETTI
 from chordnotepad_desktop import editor_font
 
 logger = logging.getLogger(__name__)
-
-#: How long a number's text rests before it is saved (Android's DRAFT_SAVE_DELAY_MS).
-DRAFT_SAVE_DELAY_MS = 400
 
 #: A number field's text that isn't a whole number in range (Android's
 #: ``settings_number_range``).
@@ -64,6 +60,10 @@ THEME_LABELS = {"system": "Follow the system", "light": "Light", "dark": "Dark"}
 
 #: The default key's "no key" entry (Android's ``settings_key_none``).
 NO_KEY_LABEL = "None"
+
+#: The audio driver entry that saves no driver: FluidSynth's default, then
+#: the platform's list (``PlaybackService``).
+AUTO_DRIVER_LABEL = "Auto"
 
 
 def font_families(current: str) -> List[str]:
@@ -95,8 +95,13 @@ class SettingsModel(QObject):
     numbersChanged = Signal()
     #: The voicing form's schema arrived.
     schemaChanged = Signal()
-    #: Whether something wrong isn't saved changed.
-    problemsChanged = Signal()
+    #: hasChanges changed.
+    changesChanged = Signal()
+    #: Save or Discard ended the edit: the window closes.
+    finished = Signal()
+    #: Save was refused for a wrong voicing (the session selected it and
+    #: said why); the window shows the Voicings page.
+    saveRefused = Signal()
 
     def __init__(self, store: Any, parent: Optional[QObject] = None) -> None:
         super().__init__(parent)
@@ -108,19 +113,14 @@ class SettingsModel(QObject):
         self._draft: Optional[Dict[str, Any]] = None
         self._saved: Optional[Dict[str, Any]] = None
         self._number_texts: Dict[str, str] = {}
-        self._sent_numbers: Dict[str, str] = {}
         self._schema: Any = None
         self._families: List[str] = []
         # Voicing values sent but not echoed by a VoicingEditorState yet.
         self._pending: Dict[str, Any] = {}
-        # Voicing values sent with set_voicing_values since the last commit.
-        self._unsaved_form = False
-        # commit_settings sent but not run by the session yet.
-        self._commits_in_flight = 0
-        self._timer = QTimer(self)
-        self._timer.setSingleShot(True)
-        self._timer.setInterval(DRAFT_SAVE_DELAY_MS)
-        self._timer.timeout.connect(self.flush)
+        # A voicing command other than a selection went out since the edit began.
+        self._voicings_changed = False
+        # save_settings sent but not run by the session yet.
+        self._saving = False
         store.event.connect(self._on_event)
         store.stateChanged.connect(self._on_state)
         self._on_state("SettingsState")
@@ -142,51 +142,88 @@ class SettingsModel(QObject):
             self._store.submit("request_voicing_editor_schema")
         self._store.submit("begin_settings_edit")
         self._draft = self._saved = None
-        self._number_texts, self._sent_numbers = {}, {}
+        self._number_texts = {}
         self._pending = {}
+        self._voicings_changed = False
         self._take_settings(self._store.state("SettingsState").value("values"))
         self._open = True
         self.openChanged.emit()
         self.numbersChanged.emit()
-        self.problemsChanged.emit()
+        self.changesChanged.emit()
+
+    @Slot(result=bool)
+    def save(self) -> bool:
+        """Save everything (``save_settings``) and end the edit.
+
+        False, with nothing sent, while a number's text is wrong. A wrong
+        voicing is the session's to refuse: it selects the voicing, says why
+        (``UserError``) and keeps the edit open (:attr:`saveRefused`).
+        Otherwise :attr:`finished` follows.
+        """
+        if not self._open:
+            return True
+        if self._number_texts:
+            return False
+        if self._saving:
+            return True
+        self._saving = True
+        self._store.submit("save_settings", {"values": dict(self._draft) if self._draft else None})
+        self._store.after_commands(self._save_ran)
+        return True
+
+    def _save_ran(self) -> None:
+        self._saving = False
+        if not self._open:
+            return
+        if self._store.state("VoicingEditorState").value("active"):
+            self.saveRefused.emit()
+            return
+        self._end()
+        self.finished.emit()
+
+    @Slot()
+    def discard(self) -> None:
+        """Drop every change and end the edit (``cancel_settings_edit``):
+        nothing is written."""
+        if not self._open:
+            return
+        self._store.submit("cancel_settings_edit")
+        self._end()
+        self.finished.emit()
 
     @Slot()
     def close(self) -> None:
-        """Save what is still waiting, then end the edit (the wrong values go)."""
-        if not self._open:
-            return
-        self.flush()
-        self._store.submit("cancel_settings_edit")
+        """End the edit without saving (the main window is closing)."""
+        self.discard()
+
+    def _end(self) -> None:
         self._open = False
-        self._number_texts, self._sent_numbers = {}, {}
+        self._number_texts = {}
         self._pending = {}
+        self._voicings_changed = False
         self.openChanged.emit()
         self.numbersChanged.emit()
-        self.problemsChanged.emit()
+        self.changesChanged.emit()
 
-    def _get_has_problems(self) -> bool:
-        problems = self._store.state("VoicingEditorState").value("problems") or []
-        return bool(self._number_texts) or bool(problems)
+    def _get_has_changes(self) -> bool:
+        if not self._open:
+            return False
+        editor = self._store.state("VoicingEditorState")
+        return (self._voicings_changed or bool(self._number_texts)
+                or bool(editor.value("restored"))
+                or (self._draft is not None and self._draft != self._saved))
 
-    #: Something wrong isn't saved (a number's text or a voicing value):
-    #: closing asks first.
-    hasProblems = Property(bool, _get_has_problems, notify=problemsChanged)
+    #: Something isn't saved: Save and Discard are enabled, closing asks.
+    hasChanges = Property(bool, _get_has_changes, notify=changesChanged)
 
     @Slot()
     def discardProblems(self) -> None:  # noqa: N802 (Qt)
-        """Drop the wrong values and stay (every voicing with one goes back
-        to its saved version; the number fields show their saved values)."""
+        """Drop the wrong values kept from last time (the restored banner's
+        Discard): every voicing with one goes back to its saved version."""
         if not self._open:
             return
-        self._timer.stop()
-        self._number_texts, self._sent_numbers = {}, {}
-        self._pending = {}
-        if self._saved is not None:
-            self._draft = dict(self._saved)
         self._store.submit("discard_settings_problems")
-        self.draftChanged.emit()
-        self.numbersChanged.emit()
-        self.problemsChanged.emit()
+        self.changesChanged.emit()
 
     # -- General and Playback ---------------------------------------------------------
 
@@ -257,18 +294,21 @@ class SettingsModel(QObject):
 
     def _get_choices(self) -> dict:
         return {
-            "audioDrivers": list(AUDIO_DRIVER_SUGGESTIONS),
+            # "Auto" stands for no driver (the suggestions' "").
+            "audioDrivers": [AUTO_DRIVER_LABEL] + [d for d in AUDIO_DRIVER_SUGGESTIONS if d],
+            "audioDriverAuto": AUTO_DRIVER_LABEL,
             "logLevels": list(LOG_LEVELS),
             "themes": [{"value": t, "label": THEME_LABELS[t]} for t in UI_THEMES],
             "timeUnits": list(TIME_UNITS),
         }
 
-    #: The fixed choices: ``audioDrivers``, ``logLevels``, ``themes``, ``timeUnits``.
+    #: The fixed choices: ``audioDrivers`` (with ``audioDriverAuto`` for none),
+    #: ``logLevels``, ``themes``, ``timeUnits``.
     choices = Property("QVariantMap", _get_choices, constant=True)
 
     @Slot(str, "QVariant")
     def setValue(self, name: str, value: Any) -> None:  # noqa: N802 (Qt)
-        """Set a General/Playback value (not a typed number) and save it."""
+        """Set a General/Playback value (not a typed number) in the draft."""
         if self._draft is None or name not in self._draft:
             logger.warning("Settings value %r ignored: no such setting or no edit", name)
             return
@@ -276,6 +316,8 @@ class SettingsModel(QObject):
             return     # the family shown already (TkFixedFont shows as the one it means)
         if name in ("soundfont_path", "audio_driver"):
             value = str(value or "").strip() or None
+        if name == "audio_driver" and value is not None and value.lower() == AUTO_DRIVER_LABEL.lower():
+            value = None
         if name == "time_signature_unit":
             value = int(value)
         if self._draft.get(name) == value:
@@ -283,17 +325,19 @@ class SettingsModel(QObject):
         self._draft[name] = value
         if name == "font_family":
             self._refresh_families()
+        if name == "notation":
+            # The voicing form shows note names in the notation being edited.
+            self._store.submit("set_settings_notation", {"notation": value})
         self.draftChanged.emit()
-        self.flush()
+        self.changesChanged.emit()
 
     @Slot(str, str)
     @Slot(str, str, bool)
     def setNumber(self, name: str, text: str, now: bool = False) -> None:  # noqa: N802 (Qt)
         """A number field's text: a whole number in range goes into the
-        draft; anything else is kept as typed, marked and never saved (Q8).
-
-        Saved when the typing rests, or ``now`` (an arrow, Enter, leaving the field).
-        """
+        draft; anything else is kept as typed and marked, and Save waits
+        for it (Q8). ``now`` (an arrow, Enter, leaving the field) is kept
+        for the field's callers; the draft takes every text the same way."""
         if self._draft is None or name not in NUMBER_SETTINGS:
             return
         low, high = self.number_range(name)
@@ -305,64 +349,26 @@ class SettingsModel(QObject):
             self._number_texts.pop(name, None)
             self._draft[name] = value
         else:
-            # Back to the saved value: a number typed on the way (the 6 of
-            # 60, outside 1-50) must not be saved when the typing rests.
+            # Back to the saved value while the text is wrong.
             if self._saved is not None:
                 self._draft[name] = self._saved[name]
             self._number_texts[name] = str(text)
         self.draftChanged.emit()
         self.numbersChanged.emit()
-        self.problemsChanged.emit()
-        if now:
-            self.flush()
-        else:
-            self._timer.start()
+        self.changesChanged.emit()
 
     @Slot("QVariant", result=str)
     def localFile(self, url: Any) -> str:  # noqa: N802 (Qt)
         """A file dialog's URL as a local path ("" if it isn't a local file)."""
         return QUrl(url).toLocalFile() if not isinstance(url, QUrl) else url.toLocalFile()
 
-    @Slot()
-    def flush(self) -> None:
-        """Save what waits: the draft and the wrong number texts if they
-        changed since the last save, and voicing edits not saved yet."""
-        self._timer.stop()
-        if not self._open:
-            return
-        values_changed = self._draft is not None and self._draft != self._saved
-        numbers_changed = self._number_texts != self._sent_numbers
-        if values_changed or numbers_changed or self._unsaved_form:
-            self._commit(values=values_changed)
-
-    def _commit(self, values: bool = None) -> None:
-        """``commit_settings`` with the draft (when it changed) and the number
-        texts (when they changed)."""
-        if values is None:
-            values = self._draft is not None and self._draft != self._saved
-        numbers = self._number_texts != self._sent_numbers
-        args: Dict[str, Any] = {
-            "values": dict(self._draft) if values and self._draft is not None else None,
-            "invalid_numbers": dict(self._number_texts) if numbers else None,
-        }
-        if values:
-            self._saved = dict(self._draft)
-        self._sent_numbers = dict(self._number_texts)
-        self._unsaved_form = False
-        self._commits_in_flight += 1
-        self._store.submit("commit_settings", args)
-        self._store.after_commands(self._commit_ran)
-
-    def _commit_ran(self) -> None:
-        self._commits_in_flight -= 1
-        self._follow_config()
-
     def _follow_config(self) -> None:
         """Take into the draft what changed in the config from elsewhere
         while the window is open (the ☰ Dark theme, text zoom, Word wrap),
-        so the next commit doesn't write the old value back. A number being
-        typed keeps its text; the value under it follows."""
-        if not self._open or self._saved is None or self._commits_in_flight:
+        so Save doesn't write the old value back. A value the window
+        changed itself stays as the window has it; a number being typed
+        keeps its text."""
+        if not self._open or self._saved is None or self._saving:
             return
         try:
             now = self._store.direct("settings_values")
@@ -372,12 +378,15 @@ class SettingsModel(QObject):
         changed = {k: v for k, v in now.items() if k in self._saved and self._saved[k] != v}
         if not changed:
             return
-        self._saved.update(changed)
         if self._draft is not None:
-            self._draft.update(changed)
+            for key, value in changed.items():
+                if self._draft.get(key) == self._saved[key]:
+                    self._draft[key] = value
+        self._saved.update(changed)
         if "font_family" in changed:
             self._refresh_families()
         self.draftChanged.emit()
+        self.changesChanged.emit()
 
     # -- the voicings editor ----------------------------------------------------------
 
@@ -399,13 +408,36 @@ class SettingsModel(QObject):
     def selectVoicing(self, name: str) -> None:  # noqa: N802 (Qt)
         """Show voicing ``name`` in the form."""
         self._pending = {}
-        self._voicing_command("select_voicing", {"name": name}, commit=False)
+        self._voicing_command("select_voicing", {"name": name}, change=False)
 
     @Slot()
     def addVoicing(self) -> None:  # noqa: N802 (Qt)
         """Add a voicing ("New voicing (n)", a guitar fretboard); the session selects it."""
         self._pending = {}
         self._voicing_command("add_voicing", {})
+
+    @Slot(result="QVariantList")
+    def addPresets(self) -> list:  # noqa: N802 (Qt)
+        """Add voicing's menu: ``{label, group}`` for every preset and every
+        working voicing, in the session's order (built-ins, then the user's
+        sorted by name). The state's ``presets`` leave out the selected
+        voicing (it can't copy itself); a new one may copy it."""
+        editor = self._store.state("VoicingEditorState")
+        presets = [dict(p) for p in (editor.value("presets") or [])]
+        selected = editor.value("selected")
+        if selected and not any(p["group"] == "custom" and p["label"] == selected for p in presets):
+            builtins = [p for p in presets if p["group"] != "custom"]
+            custom = sorted([p["label"] for p in presets if p["group"] == "custom"] + [selected])
+            presets = builtins + [{"label": name, "group": "custom"} for name in custom]
+        return presets
+
+    @Slot(str, str)
+    def addVoicingFrom(self, group: str, label: str) -> None:  # noqa: N802 (Qt)
+        """Add a voicing that starts as preset ``label`` of ``group`` (one of
+        :meth:`addPresets`); the session selects it."""
+        self._pending = {}
+        self._voicing_command("add_voicing", {})
+        self._voicing_command("load_voicing_preset", {"group": group, "label": label})
 
     @Slot(str)
     def removeVoicing(self, name: str) -> None:  # noqa: N802 (Qt)
@@ -426,27 +458,18 @@ class SettingsModel(QObject):
         self._pending = {}
         self._voicing_command("set_voicing_model", {"model": model})
 
-    @Slot(str, str)
-    def loadPreset(self, group: str, label: str) -> None:  # noqa: N802 (Qt)
-        """Copy a preset's parameters into the selected voicing (the window asked first)."""
-        self._pending = {}
-        self._voicing_command("load_voicing_preset", {"group": group, "label": label})
-
     @Slot(str, "QVariant")
     @Slot(str, "QVariant", bool)
     def setField(self, field_id: str, value: Any, commit: bool = False) -> None:  # noqa: N802 (Qt)
-        """A form field changed: re-checked by the session at once, saved
-        with ``commit`` (Enter, leaving the field, a checkbox or a choice)."""
+        """A form field changed: re-checked by the session at once (``commit``,
+        Enter or leaving the field, changes nothing more: Save writes it)."""
         if not self._open:
             return
         value = _plain(value)
         if self._form_values().get(field_id) == value:
-            if commit:
-                self.commitVoicing()
             return
         self._pending[field_id] = value
-        self._unsaved_form = True
-        self._voicing_command("set_voicing_values", {"values": {field_id: value}}, commit=commit)
+        self._voicing_command("set_voicing_values", {"values": {field_id: value}})
 
     @Slot(str, int, str, "QVariant")
     @Slot(str, int, str, "QVariant", bool)
@@ -460,12 +483,6 @@ class SettingsModel(QObject):
         rows[index] = dict(rows[index])
         rows[index][column] = _plain(value)
         self.setField(field_id, rows, commit)
-
-    @Slot()
-    def commitVoicing(self) -> None:  # noqa: N802 (Qt)
-        """Save the voicing edits (Enter or leaving a field), if there are any."""
-        if self._open and self._unsaved_form:
-            self._commit()
 
     @Slot(str)
     def addRecord(self, field_id: str) -> None:  # noqa: N802 (Qt)
@@ -496,12 +513,13 @@ class SettingsModel(QObject):
         values.update(self._pending)
         return values
 
-    def _voicing_command(self, name: str, args: dict, commit: bool = True) -> None:
+    def _voicing_command(self, name: str, args: dict, change: bool = True) -> None:
         if not self._open:
             return
         self._store.submit(name, args)
-        if commit:
-            self._commit()
+        if change and not self._voicings_changed:
+            self._voicings_changed = True
+            self.changesChanged.emit()
 
     # -- from the session -------------------------------------------------------------
 
@@ -530,7 +548,7 @@ class SettingsModel(QObject):
             # An edit the session has applied is no longer pending.
             for key in [k for k, v in self._pending.items() if values.get(k) == v]:
                 del self._pending[key]
-            self.problemsChanged.emit()
+            self.changesChanged.emit()
 
     def _take_settings(self, values: Optional[dict]) -> None:
         if not values:

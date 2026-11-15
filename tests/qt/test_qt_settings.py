@@ -1,5 +1,8 @@
 """The Settings window (plan step G1): SettingsModel and SettingsWindow.qml.
 
+Like most desktop settings windows it has Save and Discard (Tibi,
+2026-11-15): nothing is written before Save.
+
 The whole front end runs in the test process (``tests/qt/conftest.py``); the
 window is opened the way F1's menu will (``AppDialogs.openSettings``).
 Repeater and Loader delegates aren't in the QObject tree (pitfall 25), so
@@ -109,6 +112,12 @@ class Settings:
     def wait(self, ms=50):
         self.qtbot.wait(ms)
 
+    def save(self):
+        """Save, and wait for the window to close and the edit to end."""
+        self.click("settingsSave")
+        self.qtbot.waitUntil(lambda: not self.window.isVisible(), timeout=2000)
+        self.qtbot.waitUntil(lambda: self.editor("active") is False, timeout=2000)
+
     def add_voicing(self):
         self.window.setProperty("page", "voicings")
         self.model.addVoicing()
@@ -131,10 +140,12 @@ def settings(qapp, qtbot, tmp_path):
 # -- opening and closing -----------------------------------------------------------------
 
 
-def test_opening_starts_a_settings_edit_and_closing_ends_it(settings):
+def test_opening_starts_a_settings_edit_and_discard_ends_it(settings):
     assert settings.window.isVisible()
     assert settings.model.isOpen
-    settings.click("settingsClose")
+    assert not settings.model.hasChanges
+    assert settings.item("settingsUnsaved").property("text") == ""
+    settings.click("settingsDiscard")
     settings.qtbot.waitUntil(lambda: not settings.window.isVisible(), timeout=2000)
     settings.qtbot.waitUntil(lambda: settings.editor("active") is False, timeout=2000)
     assert not settings.model.isOpen
@@ -158,47 +169,79 @@ def test_the_pages(settings):
 # -- General and Playback ----------------------------------------------------------------------
 
 
-def test_a_change_is_saved_and_applied_at_once(settings):
+def test_a_change_waits_for_save_then_is_saved_and_applied(settings):
     settings.click("setting:word_wrap")
-    settings.qtbot.waitUntil(lambda: settings.config("word_wrap") is True, timeout=2000)
+    settings.qtbot.waitUntil(lambda: settings.model.hasChanges, timeout=2000)
+    assert settings.item("settingsUnsaved").property("text") == "Unsaved changes"
+    settings.wait(100)
+    assert settings.config("word_wrap") is False
+    assert settings.harness.app.editor.wordWrap is False
+    settings.save()
+    assert settings.config("word_wrap") is True
     assert settings.saved()["word_wrap"] is True
-    # Applied to the editor at once (the session's apply_settings).
+    # Applied to the editor (the session's apply_settings).
     settings.qtbot.waitUntil(lambda: settings.harness.app.editor.wordWrap is True, timeout=2000)
 
 
-def test_q8_a_typed_number_out_of_range_is_marked_and_never_saved(settings):
+def test_discard_drops_every_change(settings):
+    settings.click("setting:word_wrap")
+    settings.model.setNumber("bpm", "96", True)
+    settings.add_voicing()
+    settings.qtbot.waitUntil(lambda: settings.model.hasChanges, timeout=2000)
+    settings.click("settingsDiscard")
+    settings.qtbot.waitUntil(lambda: settings.editor("active") is False, timeout=2000)
+    settings.wait(100)
+    assert settings.config("word_wrap") is False and settings.config("bpm") == 120
+    assert "New voicing" not in (settings.config("voicings") or {})
+    # Opened again: the saved values.
+    settings.open()
+    assert settings.model.values["word_wrap"] is False and not settings.model.hasChanges
+
+
+def test_q8_a_typed_number_out_of_range_is_marked_and_save_waits_for_it(settings):
     assert settings.config("max_recent_files") == 10
     settings.model.setNumber("max_recent_files", "60", True)
-    settings.wait(100)
-    assert settings.config("max_recent_files") == 10
     assert settings.model.numberErrors == {"max_recent_files": "Enter a whole number from 1 to 50."}
-    # Kept for next time as invalid_numbers, not as a value.
-    settings.qtbot.waitUntil(lambda: settings.editor("staged_numbers") == {"max_recent_files": "60"},
-                             timeout=2000)
     field = settings.item("setting:max_recent_files")
     assert field.property("error") == "Enter a whole number from 1 to 50."
+    assert settings.model.hasChanges
+    # Save refuses, says why and shows the page with the field.
+    settings.click("page:playback")
+    settings.click("settingsSave")
+    refused = settings.popup("settingsNotSaved")
+    settings.qtbot.waitUntil(lambda: refused.property("opened") is True, timeout=2000)
+    assert refused.property("title") == "Settings Not Saved"
+    assert settings.window.isVisible() and settings.window.property("page") == "general"
+    settings.wait(100)
+    assert settings.config("max_recent_files") == 10
+    settings.key(Qt.Key.Key_Escape)
+    settings.qtbot.waitUntil(lambda: refused.property("visible") is False, timeout=1000)
     settings.model.setNumber("max_recent_files", "20", True)
-    settings.qtbot.waitUntil(lambda: settings.config("max_recent_files") == 20, timeout=2000)
     assert settings.model.numberErrors == {}
-    assert settings.editor("staged_numbers") == {}
+    settings.save()
+    assert settings.config("max_recent_files") == 20
 
 
-def test_a_number_typed_in_the_field_is_saved_when_the_typing_rests(settings):
+def test_a_number_typed_in_the_field_goes_into_the_draft(settings):
     settings.activate()
     field = settings.item("setting:font_size")
     field.forceActiveFocus()
     QMetaObject.invokeMethod(field, "selectAll")
     settings.type("14")
-    settings.wait(settings_window.DRAFT_SAVE_DELAY_MS + 200)
-    settings.qtbot.waitUntil(lambda: settings.config("font_size") == 14, timeout=2000)
-    # The arrows step it and save at once.
+    settings.qtbot.waitUntil(lambda: settings.model.values["font_size"] == 14, timeout=2000)
+    # The arrows step it.
     settings.key(Qt.Key.Key_Up)
-    settings.qtbot.waitUntil(lambda: settings.config("font_size") == 15, timeout=2000)
-    # Not a number: marked, the saved size stays.
+    settings.qtbot.waitUntil(lambda: settings.model.values["font_size"] == 15, timeout=2000)
+    # Not a number: marked, the draft keeps the saved size.
     QMetaObject.invokeMethod(field, "selectAll")
     settings.type("x")
     settings.key(Qt.Key.Key_Return)
     settings.qtbot.waitUntil(lambda: field.property("error") != "", timeout=1000)
+    assert settings.model.values["font_size"] == settings.config("font_size")
+    QMetaObject.invokeMethod(field, "selectAll")
+    settings.type("15")
+    settings.qtbot.waitUntil(lambda: field.property("error") == "", timeout=1000)
+    settings.save()
     assert settings.config("font_size") == 15
 
 
@@ -207,25 +250,26 @@ def test_the_bpm_and_time_signature_ranges(settings):
     assert settings.model.limits["time_signature_beats"] == [1, 16]
     settings.model.setNumber("bpm", "19", True)
     settings.model.setNumber("time_signature_beats", "17", True)
-    settings.wait(100)
-    assert settings.config("bpm") == 120 and settings.config("time_signature_beats") == 4
     assert settings.model.numberErrors["bpm"] == "Enter a whole number from 20 to 400."
+    assert settings.model.save() is False
     settings.model.setNumber("bpm", "96", True)
+    settings.model.setNumber("time_signature_beats", "3", True)
     settings.model.setValue("time_signature_unit", 8)
-    settings.qtbot.waitUntil(lambda: settings.config("bpm") == 96, timeout=2000)
-    settings.qtbot.waitUntil(lambda: settings.config("time_signature_unit") == 8, timeout=2000)
+    settings.save()
+    assert (settings.config("bpm"), settings.config("time_signature_beats"),
+            settings.config("time_signature_unit")) == (96, 3, 8)
     assert settings.model.choices["timeUnits"] == [2, 4, 8, 16]
 
 
 def test_the_notation_respells_the_default_key_which_stays_american(settings):
     settings.model.setValue("key", "G")
-    settings.qtbot.waitUntil(lambda: settings.config("key") == "G", timeout=2000)
     settings.click("setting:notation:european")
-    settings.qtbot.waitUntil(lambda: settings.config("notation") == "european", timeout=2000)
+    settings.qtbot.waitUntil(lambda: settings.model.values["notation"] == "european", timeout=2000)
     labels = [k["label"] for k in settings.model.keyChoices]
     assert labels[0] == "None" and "Sol" in labels and "G" not in labels
     assert settings.item("setting:key").property("currentText") == "Sol"
-    assert settings.config("key") == "G"
+    settings.save()
+    assert settings.config("notation") == "european" and settings.config("key") == "G"
 
 
 def test_the_notation_respells_the_voicing_note_names(settings):
@@ -234,6 +278,7 @@ def test_the_notation_respells_the_voicing_note_names(settings):
     settings.model.setValue("notation", "european")
     settings.qtbot.waitUntil(lambda: settings.editor("values")["tuning"] == "Mi2 La2 Re3 Sol3 Si3 Mi4",
                              timeout=2000)
+    settings.save()
     # Stored as MIDI numbers either way.
     assert settings.config("voicings")["New voicing"]["tuning"] == [40, 45, 50, 55, 59, 64]
 
@@ -248,7 +293,8 @@ def test_the_font_list_is_filtered_and_shows_the_editors_font(settings):
     assert settings.item("setting:font_family").property("currentText") == "Noto Sans Mono"
     other = next(f for f in families if f != "Noto Sans Mono")
     settings.model.setValue("font_family", other)
-    settings.qtbot.waitUntil(lambda: settings.config("font_family") == other, timeout=2000)
+    settings.save()
+    assert settings.config("font_family") == other
 
 
 def test_log_level_quick_start_soundfont_and_driver(settings):
@@ -256,16 +302,26 @@ def test_log_level_quick_start_soundfont_and_driver(settings):
     settings.model.setValue("show_quick_start_on_startup", True)
     settings.model.setValue("soundfont_path", "/music/My Font.sf2")
     settings.model.setValue("audio_driver", "jack")
-    settings.qtbot.waitUntil(lambda: settings.config("audio_driver") == "jack", timeout=2000)
+    settings.save()
+    assert settings.config("audio_driver") == "jack"
     assert settings.config("log_level") == "DEBUG"
     assert settings.config("show_quick_start_on_startup") is True
     assert settings.config("soundfont_path") == "/music/My Font.sf2"
-    # Empty means the bundled soundfont / auto-detect.
+    # Empty is the bundled soundfont; "Auto" (or nothing) is no driver.
+    settings.open()
+    assert settings.item("setting:audio_driver").property("editText") == "jack"
     settings.model.setValue("soundfont_path", "  ")
-    settings.model.setValue("audio_driver", "")
-    settings.qtbot.waitUntil(lambda: settings.config("audio_driver") is None, timeout=2000)
+    settings.model.setValue("audio_driver", "Auto")
+    settings.save()
+    assert settings.config("audio_driver") is None
     assert settings.config("soundfont_path") is None
-    assert "" in settings.model.choices["audioDrivers"]
+    settings.open()
+    assert settings.item("setting:audio_driver").property("editText") == "Auto"
+    assert settings.model.choices["audioDrivers"][0] == "Auto"
+    assert "" not in settings.model.choices["audioDrivers"]
+    assert "pulseaudio" in settings.model.choices["audioDrivers"]
+    settings.model.setValue("audio_driver", "")
+    assert settings.model.values["audio_driver"] is None
     assert settings.model.choices["logLevels"] == ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
 
 
@@ -276,26 +332,35 @@ def test_the_soundfont_file_dialog_takes_sf2_files(settings):
     assert dialog.property("nameFilters")[0] == "SoundFont files (*.sf2)"
 
 
-def test_the_theme_switches_live(settings):
+def test_the_theme_switches_on_save(settings):
     pane = settings.harness.window.findChild(QQuickItem, "editorPane")
     light = pane.property("color").name()
     settings.model.setValue("ui_theme", "dark")
-    settings.qtbot.waitUntil(lambda: settings.config("ui_theme") == "dark", timeout=2000)
+    settings.wait(100)
+    assert pane.property("color").name() == light
+    settings.save()
+    assert settings.config("ui_theme") == "dark"
     settings.qtbot.waitUntil(lambda: pane.property("color").name() == "#1e1f22", timeout=2000)
+    settings.open()
     settings.model.setValue("ui_theme", "light")
+    settings.save()
     settings.qtbot.waitUntil(lambda: pane.property("color").name() == light, timeout=2000)
     # "Follow the system": offscreen has no dark scheme.
+    settings.open()
     settings.model.setValue("ui_theme", "system")
-    settings.qtbot.waitUntil(lambda: settings.config("ui_theme") == "system", timeout=2000)
+    settings.save()
+    assert settings.config("ui_theme") == "system"
     assert pane.property("color").name() == light
 
 
 def test_values_changed_elsewhere_while_open_are_shown_and_not_undone(settings):
     """The window isn't modal: the ☰ Dark theme, text zoom and View › Word
     wrap change the config while it is open. The window shows the new values,
-    and its next save (it sends every General/Playback value) keeps them."""
+    and its Save (it sends every General/Playback value) keeps them; a value
+    the window changed itself stays as the window has it."""
     store = settings.harness.store
     size = settings.config("font_size")
+    settings.model.setValue("key", "D")
     store.submit("set_ui_theme", {"theme": "dark"})
     store.submit("step_font_size", {"delta": 2})
     store.submit("set_word_wrap", {"on": True})
@@ -303,11 +368,11 @@ def test_values_changed_elsewhere_while_open_are_shown_and_not_undone(settings):
                                       settings.model.values["font_size"],
                                       settings.model.values["word_wrap"]) == ("dark", size + 2, True),
                              timeout=2000)
-    # A change in the window now writes the whole draft: the others stay.
+    # Save writes the whole draft: the others stay.
     settings.model.setValue("show_quick_start_on_startup", True)
-    settings.qtbot.waitUntil(lambda: settings.config("show_quick_start_on_startup") is True,
-                             timeout=2000)
-    settings.wait(100)
+    settings.save()
+    assert settings.config("show_quick_start_on_startup") is True
+    assert settings.config("key") == "D"
     assert (settings.config("ui_theme"), settings.config("font_size"),
             settings.config("word_wrap")) == ("dark", size + 2, True)
     assert settings.harness.app.editor.wordWrap is True
@@ -316,17 +381,58 @@ def test_values_changed_elsewhere_while_open_are_shown_and_not_undone(settings):
 # -- Voicings --------------------------------------------------------------------------------
 
 
-def test_plus_adds_a_guitar_voicing_and_selects_it(settings):
-    settings.click("page:voicings")
+def add_menu_items(settings):
+    """Open Add voicing's menu: (the menu, its items, their labels)."""
     settings.click("addVoicing")
+    menu = settings.popup("addVoicingMenu")
+    settings.qtbot.waitUntil(lambda: menu.property("opened") is True, timeout=2000)
+    items = [QMetaObject.invokeMethod(menu, "itemAt", Q_RETURN_ARG("QQuickItem*"), Q_ARG(int, i))
+             for i in range(menu.property("count"))]
+    return menu, items, [item.property("text") or "" for item in items]
+
+
+def test_add_voicing_offers_the_presets_and_the_pick_is_what_it_starts_as(settings):
+    # Tibi, 2026-11-15: Copy from existing went into Add voicing's menu.
+    settings.click("page:voicings")
+    assert settings.item("removeVoicing").property("enabled") is False
+    menu, items, labels = add_menu_items(settings)
+    presets = [p["label"] for p in settings.editor("presets")]
+    assert [label for label in labels if label] == presets
+    groups = [p["group"] for p in settings.editor("presets")]
+    assert labels.count("") == len(set(groups)) - 1          # a separator between groups
+    # Not the last row (each row keeps its own preset).
+    first = settings.editor("presets")[0]
+    assert first["group"] == "fretboard" and labels[0] == first["label"]
+    QMetaObject.invokeMethod(items[0], "triggered")
     settings.qtbot.waitUntil(lambda: settings.editor("selected") == "New voicing", timeout=2000)
-    assert settings.editor("model") == "fretboard"
+    settings.qtbot.waitUntil(lambda: settings.editor("model") == "fretboard", timeout=2000)
     assert settings.editor("values")["tuning"] == "E2 A2 D3 G3 B3 E4"
-    groups = {g["model"]: g["names"] for g in settings.editor("groups")}
-    assert groups["fretboard"] == ["New voicing"]
-    assert [g["model"] for g in settings.editor("groups")] == ["fretboard", "piano", "ensemble"]
-    settings.qtbot.waitUntil(lambda: "New voicing" in settings.config("voicings"), timeout=2000)
+    assert settings.item("removeVoicing").property("enabled") is True
     assert not settings.item("voicingPlaceholder").isVisible()
+    # No question: a new voicing has nothing to lose.
+    assert settings.popup("settingsConfirm").property("visible") is False
+    settings.qtbot.waitUntil(lambda: not menu.property("visible"), timeout=2000)
+    for group, model in (("piano", "piano"), ("ensemble", "ensemble")):
+        menu, items, labels = add_menu_items(settings)
+        preset = next(p for p in settings.editor("presets") if p["group"] == group)
+        QMetaObject.invokeMethod(items[labels.index(preset["label"])], "triggered")
+        settings.qtbot.waitUntil(lambda: settings.editor("model") == model, timeout=2000)
+        settings.qtbot.waitUntil(lambda: not menu.property("visible"), timeout=2000)
+    groups = {g["model"]: g["names"] for g in settings.editor("groups")}
+    assert groups == {"fretboard": ["New voicing"], "piano": ["New voicing 2"],
+                      "ensemble": ["New voicing 3"]}
+    # The selected voicing is offered too: a new one may copy it.
+    menu, items, labels = add_menu_items(settings)
+    assert "New voicing 3" in labels and "New voicing" in labels
+    QMetaObject.invokeMethod(items[labels.index("New voicing 3")], "triggered")
+    settings.qtbot.waitUntil(lambda: settings.editor("selected") == "New voicing 4", timeout=2000)
+    settings.qtbot.waitUntil(lambda: settings.editor("model") == "ensemble", timeout=2000)
+    settings.wait(100)
+    assert "New voicing" not in (settings.config("voicings") or {})
+    settings.save()
+    saved = settings.config("voicings")
+    assert [saved[f"New voicing{n}"]["model"] for n in ("", " 2", " 3", " 4")] == [
+        "fretboard", "piano", "ensemble", "ensemble"]
 
 
 def test_minus_asks_first(settings):
@@ -343,8 +449,9 @@ def test_minus_asks_first(settings):
     settings.qtbot.waitUntil(lambda: dialog.property("opened") is True, timeout=2000)
     settings.click("settingsConfirmYes")
     settings.qtbot.waitUntil(lambda: settings.editor("selected") is None, timeout=2000)
-    settings.qtbot.waitUntil(lambda: "New voicing" not in (settings.config("voicings") or {}),
-                             timeout=2000)
+    assert settings.item("removeVoicing").property("enabled") is False
+    settings.save()
+    assert "New voicing" not in (settings.config("voicings") or {})
 
 
 @pytest.mark.parametrize("name, message", [
@@ -391,7 +498,8 @@ def test_a_rename_commits_on_enter(settings):
     settings.type("Baritone")
     settings.key(Qt.Key.Key_Return)
     settings.qtbot.waitUntil(lambda: settings.editor("selected") == "Baritone", timeout=2000)
-    settings.qtbot.waitUntil(lambda: "Baritone" in settings.config("voicings"), timeout=2000)
+    settings.save()
+    assert "Baritone" in settings.config("voicings")
 
 
 def test_the_name_help_names_the_qt_voicing_menus(settings):
@@ -400,10 +508,8 @@ def test_the_name_help_names_the_qt_voicing_menus(settings):
     assert settings.item("voicingName").property("tip") == settings.model.schema["help"]["name"]
 
 
-def test_a_wrong_field_is_marked_with_its_message_and_never_saved(settings):
+def test_a_wrong_field_is_marked_with_its_message_and_save_refuses_it(settings):
     settings.add_voicing()
-    settings.qtbot.waitUntil(lambda: "New voicing" in settings.config("voicings"), timeout=2000)
-    saved_span = settings.config("voicings")["New voicing"].get("max_span")
     settings.activate()
     field = settings.item("field:max_span")
     field.forceActiveFocus()
@@ -417,10 +523,16 @@ def test_a_wrong_field_is_marked_with_its_message_and_never_saved(settings):
     # Tk's mark: the field's help, then "⚠ message".
     assert tooltip(field) == escaped(TOOLTIPS["max_span"]) + "<br><br>⚠ Must be a whole number"
     settings.key(Qt.Key.Key_Return)
-    settings.wait(100)
-    assert settings.config("voicings")["New voicing"].get("max_span") == saved_span
     assert "New voicing" in settings.editor("invalid")
-    assert any(p["field_id"] == "max_span" for p in settings.editor("problems"))
+    # Save: the session refuses, names it and selects it; the window stays.
+    settings.click("page:general")
+    settings.click("settingsSave")
+    error = settings.popup("settingsErrorDialog")
+    settings.qtbot.waitUntil(lambda: error.property("visible") is True, timeout=2000)
+    assert "New voicing" in error.property("message")
+    assert settings.window.isVisible() and settings.window.property("page") == "voicings"
+    assert settings.editor("active") is True and settings.editor("selected") == "New voicing"
+    assert "New voicing" not in (settings.config("voicings") or {})
 
 
 def test_captions_share_their_fields_help(settings):
@@ -449,29 +561,6 @@ def test_switching_the_model_asks_first_when_edited(settings):
     settings.click("settingsConfirmYes")
     settings.qtbot.waitUntil(lambda: settings.editor("model") == "ensemble", timeout=2000)
     assert box.property("currentText") == "Ensemble"
-
-
-def test_copy_from_existing_lists_the_presets_and_asks(settings):
-    settings.add_voicing()
-    settings.click("copyFromExisting")
-    menu = settings.popup("presetMenu")
-    settings.qtbot.waitUntil(lambda: menu.property("opened") is True, timeout=2000)
-    items = [QMetaObject.invokeMethod(menu, "itemAt", Q_RETURN_ARG("QQuickItem*"), Q_ARG(int, i))
-             for i in range(menu.property("count"))]
-    labels = [item.property("text") or "" for item in items]
-    presets = [p["label"] for p in settings.editor("presets")]
-    assert [label for label in labels if label] == presets
-    assert "New voicing" not in presets      # not the voicing being edited
-    piano = next(p for p in settings.editor("presets") if p["group"] == "piano")
-    index = labels.index(piano["label"])
-    QMetaObject.invokeMethod(items[index], "triggered")
-    dialog = settings.popup("settingsConfirm")
-    settings.qtbot.waitUntil(lambda: dialog.property("opened") is True, timeout=2000)
-    assert dialog.property("title") == EDITOR_TEXTS["load_confirm_title"]
-    assert dialog.property("message") == EDITOR_TEXTS["load_confirm"]
-    settings.click("settingsConfirmYes")
-    settings.qtbot.waitUntil(lambda: settings.editor("model") == "piano", timeout=2000)
-    assert settings.editor("selected") == "New voicing"
 
 
 def test_every_section_kind_is_drawn(settings):
@@ -533,29 +622,37 @@ def test_a_rule_across_fields_marks_the_field_and_shows_the_banner(settings):
     assert settings.item("voicingErrors").isVisible()
 
 
-def test_closing_with_wrong_values_asks_and_discard_drops_them(settings):
-    settings.add_voicing()
-    settings.model.setField("max_span", "x", True)
-    settings.model.setNumber("bpm", "5", True)
-    settings.qtbot.waitUntil(lambda: settings.model.hasProblems, timeout=2000)
-    settings.click("settingsClose")
-    dialog = settings.popup("settingsProblems")
+def unsaved_button(settings, dialog, name):
+    click(settings.window, dialog.findChild(QQuickItem, name))
+
+
+def test_closing_with_unsaved_changes_asks_save_discard_or_cancel(settings):
+    settings.activate()
+    settings.click("setting:word_wrap")
+    settings.qtbot.waitUntil(lambda: settings.model.hasChanges, timeout=2000)
+    settings.key(Qt.Key.Key_Escape)
+    dialog = settings.popup("settingsUnsavedDialog")
     settings.qtbot.waitUntil(lambda: dialog.property("opened") is True, timeout=2000)
-    listed = settings.item("settingsProblemsList").property("text") if find(settings.window, "settingsProblemsList") \
-        else dialog.findChild(QQuickItem, "settingsProblemsList").property("text")
-    assert "Enter a whole number from 20 to 400. (5)" in listed and "New voicing" in listed
-    # Edit stays, on the first wrong value.
-    settings.click("settingsProblemsEdit") if find(settings.window, "settingsProblemsEdit") else \
-        click(settings.window, dialog.findChild(QQuickItem, "settingsProblemsEdit"))
+    # Cancel stays, with the change.
+    unsaved_button(settings, dialog, "settingsUnsavedCancel")
     settings.qtbot.waitUntil(lambda: dialog.property("visible") is False, timeout=2000)
-    assert settings.window.isVisible() and settings.window.property("page") == "playback"
-    settings.model.close() if False else None
-    settings.click("settingsClose")
+    assert settings.window.isVisible() and settings.model.values["word_wrap"] is True
+    # The title bar's close asks too; Discard drops it.
+    settings.window.close()
     settings.qtbot.waitUntil(lambda: dialog.property("opened") is True, timeout=2000)
-    click(settings.window, dialog.findChild(QQuickItem, "settingsProblemsDiscard"))
+    unsaved_button(settings, dialog, "settingsUnsavedDiscard")
     settings.qtbot.waitUntil(lambda: not settings.window.isVisible(), timeout=2000)
     settings.qtbot.waitUntil(lambda: settings.editor("active") is False, timeout=2000)
-    assert settings.config("bpm") == 120
+    assert settings.config("word_wrap") is False
+    # Save saves.
+    settings.open()
+    settings.activate()
+    settings.click("setting:word_wrap")
+    settings.key(Qt.Key.Key_Escape)
+    settings.qtbot.waitUntil(lambda: dialog.property("opened") is True, timeout=2000)
+    unsaved_button(settings, dialog, "settingsUnsavedSave")
+    settings.qtbot.waitUntil(lambda: not settings.window.isVisible(), timeout=2000)
+    settings.qtbot.waitUntil(lambda: settings.config("word_wrap") is True, timeout=2000)
 
 
 def test_the_voicing_form_scrolls_with_the_wheel_also_over_its_fields(settings):

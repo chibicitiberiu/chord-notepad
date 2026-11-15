@@ -89,8 +89,8 @@ Defining a Custom Fretted Voicing
 
    If none of the five match the instrument you're writing for, add one from
    |voicings_settings|: load a built-in
-   preset as a starting point, change what's different (tuning, span,
-   weights), and save. See :doc:`settings` for the full walkthrough,
+   preset as a starting point (the **Add voicing** menu offers them), change
+   what's different (tuning, span, weights), and save. See :doc:`settings` for the full walkthrough,
    including a seven-string guitar built from the Guitar (Standard) preset.
 
 .. only:: android

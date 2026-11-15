@@ -710,6 +710,35 @@ def test_the_voicing_form_follows_the_settings_notation(tmp_path):
     assert services.config.config.notation == "american"
 
 
+def test_set_settings_notation_respells_the_form_and_waits_for_save(tmp_path):
+    # The Qt desktop's Settings window saves on Save (Tibi, 2026-11-15): a
+    # notation chosen there respells the voicing form at once, unsaved.
+    session, services, recorder = make(tmp_path, voicings={"Bass": BASS})
+    session.begin_settings_edit()
+    session.select_voicing("Bass")
+    assert editor(recorder).values["tuning"] == "E1 A1 D2 G2"
+    revision = editor(recorder).revision
+    session.set_settings_notation("european")
+    state = editor(recorder)
+    assert state.values["tuning"] == "Mi1 La1 Re2 Sol2" and state.revision > revision
+    assert services.config.config.notation == "american"
+    # Again the same: nothing new.
+    session.set_settings_notation("european")
+    assert editor(recorder).revision == state.revision
+    with pytest.raises(ValueError):
+        session.set_settings_notation("german")
+    # Save writes it with the values sent.
+    session.save_settings(dataclasses.replace(session.settings_values(), notation="european"))
+    assert services.config.config.notation == "european"
+    # Discard drops it.
+    session.begin_settings_edit()
+    session.set_settings_notation("american")
+    session.cancel_settings_edit()
+    assert services.config.config.notation == "european"
+    with pytest.raises(RuntimeError):
+        session.set_settings_notation("american")
+
+
 def test_an_ensemble_cell_and_a_piano_range_in_european(tmp_path):
     session, services, recorder = make(tmp_path)
     services.config.config.notation = "european"

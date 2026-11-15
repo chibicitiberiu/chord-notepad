@@ -206,6 +206,9 @@
     "set_playhead": {
       "offset": "int"
     },
+    "set_settings_notation": {
+      "notation": "str"
+    },
     "set_show_quick_start_on_startup": {
       "show": "bool"
     },
@@ -333,6 +336,7 @@
     "set_muted",
     "set_notation",
     "set_playhead",
+    "set_settings_notation",
     "set_show_quick_start_on_startup",
     "set_sidebar",
     "set_sidebar_width",

@@ -121,7 +121,7 @@ Item {
         target: hub.store
         // The main window is closing: the Settings window goes with it (it
         // would keep the app running otherwise). Closed, not hidden: see
-        // SettingsWindow.finish().
+        // SettingsWindow.onFinished. What isn't saved is dropped.
         function onCloseApproved() {
             if (!settingsWin.visible) return
             hub.dialogs.settings.close()

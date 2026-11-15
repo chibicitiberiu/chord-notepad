@@ -7,15 +7,20 @@ import "FormTips.js" as FormTips
 
 // Settings › Voicings (plan step G1), the mockup's layout: the voicings by
 // model on the left (Fretboard, Piano, Ensemble, sorted; the session's
-// VoicingEditorState.groups) with Add voicing, the selected one's form on
-// the right: name and model, Copy from existing and Remove voicing, the
-// error banner and the parameters (VoicingForm). With nothing selected, the
-// placeholder. Texts and help come from the schema (voicing_texts.py).
+// VoicingEditorState.groups) under [+ Add voicing | 🗑], the selected one's
+// form on the right: name and model, the error banner and the parameters
+// (VoicingForm). With nothing selected, the placeholder. Texts and help come
+// from the schema (voicing_texts.py).
 //
-// It asks before removing a voicing, before copying a preset over it and
-// before switching the model of an edited one (`confirm`, the window's
-// ConfirmDialog); a refused name comes back as the session's UserError
-// ("Rename Voicing"), shown over the Settings window.
+// Add voicing opens a menu of what the new voicing starts as: the built-in
+// presets and the user's voicings (Tibi, 2026-11-15: the copy is wanted
+// right after adding, so Android's separate Copy from existing went into
+// it). The trash button removes the selected voicing.
+//
+// It asks before removing a voicing and before switching the model of an
+// edited one (`confirm`, the window's ConfirmDialog); a refused name comes
+// back as the session's UserError ("Rename Voicing"), shown over the
+// Settings window.
 RowLayout {
     id: page
     objectName: "voicingsPage"
@@ -56,28 +61,29 @@ RowLayout {
             page.settings.setModel(model)
     }
     // Every edit command moves the revision, a refused rename too: the name
-    // field goes back to the voicing's name then.
+    // field goes back to the voicing's name then. The new name too: the
+    // revision can arrive before it, and leaving the field would then rename
+    // the voicing back.
     readonly property int revision: page.editor.revision || 0
-    onRevisionChanged: { nameField.text = page.selected; nameField.tried = null }
+    function resetName() { nameField.text = page.selected; nameField.tried = null }
+    onRevisionChanged: page.resetName()
+    onSelectedChanged: page.resetName()
 
-    // Copy from existing: the presets, a separator between groups. Built on
-    // each opening; a Menu has no Repeater (pitfall 7).
+    // Add voicing's menu: the presets, a separator between groups. Built on
+    // each opening; a Menu has no Repeater (pitfall 7). `const`, not `var`:
+    // each row's handler keeps its own preset.
     Component { id: presetItem; MenuItem { property string group } }
     Component { id: presetSeparator; MenuSeparator { } }
-    function fillPresetMenu() {
-        while (presetMenu.count > 0) presetMenu.takeItem(0).destroy()
+    function fillAddMenu() {
+        while (addMenu.count > 0) addMenu.takeItem(0).destroy()
         var last = null
-        for (const p of (page.editor.presets || [])) {
-            if (last !== null && p.group !== last) presetMenu.addItem(presetSeparator.createObject(presetMenu.contentItem))
+        for (const p of page.settings.addPresets()) {
+            if (last !== null && p.group !== last) addMenu.addItem(presetSeparator.createObject(addMenu.contentItem))
             last = p.group
-            var item = presetItem.createObject(presetMenu.contentItem, { text: p.label, group: p.group })
-            item.triggered.connect(() => page.askPreset(item.group, item.text))
-            presetMenu.addItem(item)
+            const item = presetItem.createObject(addMenu.contentItem, { text: p.label, group: p.group })
+            item.triggered.connect(() => page.settings.addVoicingFrom(item.group, item.text))
+            addMenu.addItem(item)
         }
-    }
-    function askPreset(group, label) {
-        page.confirm(page.texts.load_confirm_title, page.texts.load_confirm, "Copy",
-                     () => page.settings.loadPreset(group, label))
     }
 
     // --- The voicings ------------------------------------------------------------------
@@ -94,17 +100,39 @@ RowLayout {
                 x: Theme.gap3
                 width: parent.width - 2 * Theme.gap3
                 spacing: Theme.px(0.5)
-                Button {
-                    objectName: "addVoicing"
-                    text: "Add voicing"
-                    icon.source: Theme.iconUrl("plus")
+                RowLayout {
                     Layout.topMargin: Theme.gap3
                     Layout.fillWidth: true
-                    onClicked: page.settings.addVoicing()
-                    HoverHandler { id: addHover }
-                    ToolTip.visible: addHover.hovered
-                    ToolTip.delay: 600
-                    ToolTip.text: FormTips.tip(page.help.tree_add, "")
+                    spacing: Theme.px(0.5)
+                    Button {
+                        id: addButton
+                        objectName: "addVoicing"
+                        text: "Add voicing"
+                        icon.source: Theme.iconUrl("plus")
+                        Layout.fillWidth: true
+                        onClicked: { page.fillAddMenu(); addMenu.popup(addButton, 0, addButton.height) }
+                        HoverHandler { id: addHover }
+                        ToolTip.visible: addHover.hovered && !addMenu.visible
+                        ToolTip.delay: 600
+                        ToolTip.text: FormTips.tip(page.help.tree_add, "")
+                        Menu {
+                            id: addMenu
+                            objectName: "addVoicingMenu"
+                        }
+                    }
+                    Button {
+                        objectName: "removeVoicing"
+                        icon.source: Theme.iconUrl("trash-can-outline")
+                        display: AbstractButton.IconOnly
+                        leftPadding: 0; rightPadding: 0
+                        Layout.preferredWidth: Theme.controlHeight
+                        enabled: page.selected !== ""
+                        onClicked: page.askRemove(page.selected)
+                        HoverHandler { id: removeHover }
+                        ToolTip.visible: removeHover.hovered
+                        ToolTip.delay: 600
+                        ToolTip.text: FormTips.tip(page.help.tree_remove, "")
+                    }
                 }
                 Repeater {
                     model: page.editor.groups || []
@@ -210,35 +238,6 @@ RowLayout {
                             ToolTip.delay: 600
                             ToolTip.text: FormTips.tip(page.help.model, "")
                         }
-                    }
-                }
-                RowLayout {
-                    Layout.topMargin: Theme.gap2
-                    spacing: Theme.gap2
-                    Button {
-                        id: loadButton
-                        objectName: "copyFromExisting"
-                        text: (page.texts.load_button || "") + "…"
-                        onClicked: { page.fillPresetMenu(); presetMenu.popup(loadButton, 0, loadButton.height) }
-                        HoverHandler { id: loadHover }
-                        ToolTip.visible: loadHover.hovered && !presetMenu.visible
-                        ToolTip.delay: 600
-                        ToolTip.text: FormTips.tip(page.help.load, "")
-                        Menu {
-                            id: presetMenu
-                            objectName: "presetMenu"
-                        }
-                    }
-                    Button {
-                        objectName: "removeVoicing"
-                        text: "Remove voicing"
-                        flat: true
-                        icon.source: Theme.iconUrl("close")
-                        onClicked: page.askRemove(page.selected)
-                        HoverHandler { id: removeHover }
-                        ToolTip.visible: removeHover.hovered
-                        ToolTip.delay: 600
-                        ToolTip.text: FormTips.tip(page.help.tree_remove, "")
                     }
                 }
                 Rectangle {

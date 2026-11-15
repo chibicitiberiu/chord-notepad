@@ -7,17 +7,19 @@ import CNTheme
 import "FormTips.js" as FormTips
 
 // The Settings window (plan step G1), the mockup's: its own window with a
-// page list on the left (General, Playback & audio, Voicings). It saves as
-// you go (parity checklist resolution 6): no Save or Cancel, a wrong value
-// is marked and the saved one stays in use (Q8). `settings` is the
-// SettingsModel (settings_window.py): show() opens the session's settings
-// edit, closing it (Close, Escape, the title bar) saves what waits and ends
-// it, after asking when something wrong isn't saved.
+// page list on the left (General, Playback & audio, Voicings), and Save and
+// Discard at the bottom, as desktop settings windows have (Tibi,
+// 2026-11-15). `settings` is the SettingsModel (settings_window.py): show()
+// opens the session's settings edit, Save writes everything and closes,
+// Discard drops it and closes. Closing otherwise (Escape, the title bar)
+// asks first when something isn't saved. A wrong value is marked (Q8) and
+// Save waits until it is fixed.
 //
-// What applies at once (font, word wrap, the notation of a song still on the
-// defaults, the Voicing menus, the active voicing) is the session's
-// apply_settings; the defaults (tempo, key, time, audio, log level) count
-// from the next New or Open, or the next start, as the hints say.
+// What a Save applies at once (font, word wrap, the notation of a song
+// still on the defaults, the Voicing menus, the active voicing) is the
+// session's apply_settings; the defaults (tempo, key, time, audio, log
+// level) count from the next New or Open, or the next start, as the hints
+// say.
 ApplicationWindow {
     id: win
     objectName: "settingsWindow"
@@ -52,21 +54,28 @@ ApplicationWindow {
         if (wasShown && Qt.platform.pluginName !== "offscreen") win.raise()
         win.requestActivate()
     }
-    // Close: ask first while something wrong isn't saved (Android's
-    // "Some values aren't saved"), else save what waits and end the edit.
+    // Escape or the title bar: ask first while something isn't saved.
     function requestClose() {
-        if (win.settings.hasProblems) problemsDlg.open()
-        else win.finish()
+        if (win.settings.hasChanges) unsavedDlg.open()
+        else win.settings.discard()
     }
-    function finish() {
-        win.settings.close()
+    // Save: a wrong number waits (the page with it shows, and why); a
+    // wrong voicing is the session's to refuse (saveRefused).
+    function save() {
+        if (win.settings.save()) return
+        win.editProblems()
+        notSavedDlg.show("Settings Not Saved", "Some values have mistakes. Fix the marked ones, or discard the changes.")
+    }
+    Connections {
+        target: win.settings
         // Closed, not hidden: Qt counts a window that was shown and then only
         // hidden as still open, and the app went on running (no window, no
         // shutdown, nothing saved) after the main window closed once Settings
         // had been open (H1). A close can't nest inside onClosing, hence later.
-        Qt.callLater(win.closeNow)
+        function onFinished() { Qt.callLater(win.closeNow) }
+        function onSaveRefused() { win.page = "voicings" }
     }
-    // Close for real, past onClosing's question (finish(), and the main window closing).
+    // Close for real, past onClosing's question (Save, Discard, and the main window closing).
     property bool finishing: false
     function closeNow() {
         win.finishing = true
@@ -78,7 +87,7 @@ ApplicationWindow {
         close.accepted = false
         win.requestClose()
     }
-    // Edit (the problems dialog): go to the first wrong value.
+    // A refused Save: go to the first wrong value.
     function editProblems() {
         var numbers = Object.keys(win.numberErrors)
         if (numbers.length > 0) {
@@ -287,12 +296,17 @@ ApplicationWindow {
                                 onToggled: if (checked) win.settings.setValue("notation", "european")
                             }
                         }
-                        Help { text: "How new songs are read. An opened song starts in the notation its chords use; AB | Do in the toolbar switches only that song." }
+                        Help { text: "Default for new songs." }
                         FieldLabel { text: "Default key" }
                         ComboBox {
+                            id: keyBox
                             objectName: "setting:key"
                             model: win.settings.keyChoices.map((k) => k.label)
-                            currentIndex: win.settings.keyChoices.findIndex((k) => k.value === (win.values.key || ""))
+                            readonly property int wanted: win.settings.keyChoices.findIndex((k) => k.value === (win.values.key || ""))
+                            currentIndex: wanted
+                            // A new notation is a new model, which puts the box back on
+                            // its first entry after the binding ran: show the key again.
+                            onModelChanged: Qt.callLater(() => { keyBox.currentIndex = Qt.binding(() => keyBox.wanted) })
                             Layout.preferredWidth: Theme.px(26)
                             onActivated: (i) => win.settings.setValue("key", win.settings.keyChoices[i].value)
                         }
@@ -306,7 +320,6 @@ ApplicationWindow {
                             Layout.preferredWidth: Theme.px(45)
                             onActivated: (i) => win.settings.setValue("ui_theme", win.settings.choices.themes[i].value)
                         }
-                        Help { text: "Desktop only; Android follows the system." }
                         SwitchRow {
                             objectName: "setting:show_quick_start_on_startup"
                             title: "Show quick start at startup"
@@ -387,15 +400,16 @@ ApplicationWindow {
                             editable: true
                             model: win.settings.choices.audioDrivers
                             Layout.preferredWidth: Theme.px(40)
-                            // The saved driver, whether or not it is one of the suggestions.
-                            readonly property string saved: win.values.audio_driver || ""
+                            // The saved driver, whether or not it is one of the
+                            // suggestions; none is "Auto".
+                            readonly property string saved: win.values.audio_driver || win.settings.choices.audioDriverAuto
                             Component.onCompleted: driverBox.editText = driverBox.saved
                             onSavedChanged: if (!driverBox.activeFocus) driverBox.editText = driverBox.saved
                             onActivated: (i) => win.settings.setValue("audio_driver", win.settings.choices.audioDrivers[i])
                             onAccepted: win.settings.setValue("audio_driver", driverBox.editText)
                             onActiveFocusChanged: if (!activeFocus) win.settings.setValue("audio_driver", driverBox.editText)
                         }
-                        Help { text: "Empty means auto-detect. " + win.restartHint }
+                        Help { text: "Auto tries the usual drivers of this system in turn. " + win.restartHint }
                         Item { implicitHeight: Theme.gap6 }
                     }
                 }
@@ -415,8 +429,13 @@ ApplicationWindow {
                 RowLayout {
                     anchors.fill: parent
                     anchors.leftMargin: Theme.gap4; anchors.rightMargin: Theme.gap4
-                    Label { text: "Changes are saved as you make them."; color: Theme.muted; font: Theme.fontS; Layout.fillWidth: true }
-                    Button { objectName: "settingsClose"; text: "Close"; onClicked: win.requestClose() }
+                    Label {
+                        objectName: "settingsUnsaved"
+                        text: win.settings.hasChanges ? "Unsaved changes" : ""
+                        color: Theme.muted; font: Theme.fontS; Layout.fillWidth: true
+                    }
+                    Button { objectName: "settingsDiscard"; text: "Discard"; onClicked: win.settings.discard() }
+                    Button { objectName: "settingsSave"; text: "Save"; highlighted: true; onClicked: win.save() }
                 }
             }
         }
@@ -434,7 +453,7 @@ ApplicationWindow {
         }
     }
 
-    // Remove voicing / Copy from existing / Change model: the question.
+    // Remove voicing / Change model: the question.
     AppDialog {
         id: confirmDlg
         objectName: "settingsConfirm"
@@ -454,40 +473,29 @@ ApplicationWindow {
         }
     }
 
-    // Closing with wrong values (Android's Problems dialog): Edit stays, Discard drops them.
+    // Closing with unsaved changes: Save, Discard or stay.
     AppDialog {
-        id: problemsDlg
-        objectName: "settingsProblems"
-        title: "Some values aren't saved"
+        id: unsavedDlg
+        objectName: "settingsUnsavedDialog"
+        title: "Save the Settings?"
         width: Theme.px(140)
         closePolicy: Popup.CloseOnEscape
-        contentItem: ColumnLayout {
-            spacing: Theme.gap2
-            Label { text: "These have mistakes, so they aren't saved:"; color: Theme.muted; wrapMode: Text.Wrap; Layout.fillWidth: true }
-            Label {
-                objectName: "settingsProblemsList"
-                Layout.fillWidth: true
-                wrapMode: Text.Wrap
-                textFormat: Text.PlainText
-                text: {
-                    var lines = []
-                    for (const name in win.numberErrors) lines.push("• " + win.numberErrors[name] + " (" + win.numberTexts[name] + ")")
-                    for (const p of (win.settings.editor.problems || [])) lines.push("• " + p.text)
-                    return lines.join("\n")
-                }
-            }
+        contentItem: Label {
+            text: "Your changes to the settings aren't saved yet."
+            color: Theme.muted; wrapMode: Text.Wrap
         }
         footer: DialogFooter {
             leading: Button {
-                objectName: "settingsProblemsDiscard"
+                objectName: "settingsUnsavedDiscard"
                 text: "Discard"; flat: true
                 contentItem: SText {
                     text: "Discard"; color: Theme.error; font: Theme.fontMedium
                     horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter
                 }
-                onClicked: { problemsDlg.close(); win.finish() }
+                onClicked: { unsavedDlg.close(); win.settings.discard() }
             }
-            Button { objectName: "settingsProblemsEdit"; text: "Edit"; highlighted: true; onClicked: { problemsDlg.close(); win.editProblems() } }
+            Button { objectName: "settingsUnsavedCancel"; text: "Cancel"; onClicked: unsavedDlg.close() }
+            Button { objectName: "settingsUnsavedSave"; text: "Save"; highlighted: true; onClicked: { unsavedDlg.close(); win.save() } }
         }
     }
 
@@ -495,5 +503,11 @@ ApplicationWindow {
         id: errorDlg
         objectName: "settingsErrorDialog"
         onDismissed: win.errors.dismissed()
+    }
+    // Save refused for a wrong number (the window's own; the presenter's
+    // errorDlg is for the session's).
+    ErrorDialog {
+        id: notSavedDlg
+        objectName: "settingsNotSaved"
     }
 }
