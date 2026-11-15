@@ -174,6 +174,20 @@ The User Interface
    it. Dragging
    on the timeline or pressing ⏮ moves the marker too.
 
+   A chord in the text works like a link: every click plays it, however fast
+   you click, and clicking never selects it. The text cursor still goes where
+   you clicked, so you can type right there. To select a chord's text, hold
+   **Alt**: Alt+click puts the cursor in it, Alt+double-click selects the
+   chord, and Alt+drag selects from there. Nothing plays while Alt is held,
+   and the pointer over a chord turns back into the text cursor. A
+   Shift+click on a chord leaves the selection as it was.
+
+   Some Linux desktops move the whole window when you Alt+drag in it (Xfce
+   and MATE do out of the box; KDE Plasma 6 and GNOME use the Meta or Super
+   key instead). There, either pick another key for moving windows in the
+   desktop's settings, or start the drag just outside the chord: a drag that
+   starts on other text selects across chords as usual.
+
    Voicing and Instrument
    ----------------------
 
@@ -463,10 +477,10 @@ The User Interface
    **Ctrl+G** turns the bar into **Go to line**: type a line number and press
    Enter, and the cursor goes to the start of that line.
 
-   When you select a word yourself, say by double-clicking a chord, the same
-   word elsewhere in the song gets a faint grey tint, so you can see at a
-   glance where else that chord is. It only counts whole words with the same
-   case: selecting "Am" doesn't light up "Am7" or "am".
+   When you select a word yourself, say by Alt+double-clicking a chord, the
+   same word elsewhere in the song gets a faint grey tint, so you can see at
+   a glance where else that chord is. It only counts whole words with the
+   same case: selecting "Am" doesn't light up "Am7" or "am".
 
    View Menu
    ---------

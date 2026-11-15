@@ -263,9 +263,11 @@ Playback
       * - Shift+Click Play
         - Play from the text cursor
       * - Click valid chord
-        - Play that chord and move the playhead there
+        - Play that chord and move the playhead there, on every click; clicks on a chord never select it
       * - Shift+Click valid chord
-        - Play that chord rolled, one note at a time (in the text or the chord sheet)
+        - Play that chord rolled, one note at a time (in the text or the chord sheet); the selection stays as it was
+      * - Alt+Click, Alt+Double-click, Alt+Drag on a chord
+        - Treat the chord as text: place the cursor, select it, or select from there, without playing it
       * - Ctrl+M
         - Metronome on or off
       * - Ctrl+] / Ctrl+[ / Ctrl+Backslash
