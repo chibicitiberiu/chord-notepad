@@ -54,7 +54,8 @@ def test_checkout_finds_the_bundled_files(checkout):
     assert (checkout.licenses / "components.json").is_file()
     assert checkout.quickstart.is_dir()
     assert any(checkout.quickstart.glob("*.png"))
-    assert (checkout.resources / "icon-32.png").is_file()
+    # The source icon; the PNG sizes are generated (make icons), not checked in.
+    assert (checkout.resources / "chord-notepad-icon.svg").is_file()
 
 
 def test_checkout_finds_the_built_help(checkout):
@@ -92,7 +93,7 @@ def test_resource_service_joins_onto_the_root(checkout):
     from chordnotepad.services.resource_service import ResourceService
 
     resources = ResourceService(checkout)
-    assert Path(resources.get_resource_path("resources/icon-32.png")).is_file()
+    assert Path(resources.get_resource_path("resources/chord-notepad-icon.svg")).is_file()
     assert resources.paths is checkout
     with pytest.raises(ValueError):
         ResourceService(NO_BUNDLED_FILES)
