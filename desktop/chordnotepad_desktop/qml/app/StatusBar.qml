@@ -1,3 +1,4 @@
+pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -62,7 +63,7 @@ Rectangle {
                 required property int index
                 spacing: Theme.gap2
                 // A "·" after whatever came before: the activity, the chord, the message.
-                readonly property bool lead: index > 0 || bar.model.activity !== "" || bar.model.statusText !== ""
+                readonly property bool lead: seg.index > 0 || bar.model.activity !== "" || bar.model.statusText !== ""
                 Label {
                     objectName: "segmentDot"
                     visible: seg.lead
