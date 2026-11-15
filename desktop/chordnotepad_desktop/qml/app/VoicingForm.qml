@@ -16,6 +16,11 @@ import "FormTips.js" as FormTips
 // the window's Save writes them. The help of each field is
 // its tooltip, shared with its caption; a wrong field's tooltip ends with
 // "⚠ message" (Tk's voicings page).
+//
+// A switch (`bool`) is a row of the number grid: its caption in the label
+// column and the switch alone at the right, where the number fields end, so
+// captions and fields line up down the form. The grid's fields are all one
+// width, the ensemble's Voice movement too.
 ColumnLayout {
     id: vform
     objectName: "voicingForm"
@@ -65,7 +70,10 @@ ColumnLayout {
         implicitHeight: loader.implicitHeight
         Loader {
             id: loader
-            anchors.left: parent.left; anchors.right: parent.right
+            // A switch keeps its own width, at the right (where fields end).
+            anchors.left: fi.kind === "bool" ? undefined : parent.left
+            anchors.right: parent.right
+            anchors.verticalCenter: parent.verticalCenter
             sourceComponent: fi.kind === "bool" ? boolInput
                              : fi.kind === "choice" ? choiceInput
                              : (fi.kind === "int" || fi.kind === "float") ? numberInput : textInput
@@ -98,7 +106,8 @@ ColumnLayout {
             id: boolInput
             Switch {
                 objectName: "field:" + fi.field.id
-                text: fi.field.label
+                padding: 0
+                Accessible.name: fi.field.label
                 checked: !!vform.values[fi.field.id]
                 onToggled: vform.settings.setField(fi.field.id, checked, true)
                 HoverHandler { id: swHover }
@@ -132,29 +141,40 @@ ColumnLayout {
         Layout.fillWidth: true
         Repeater {
             model: stack.section.fields
-            delegate: ColumnLayout {
+            delegate: Loader {
                 id: row
                 required property var modelData
-                spacing: Theme.px(0.5)
                 Layout.fillWidth: true
+                Layout.maximumWidth: vform.formWidth
                 Layout.topMargin: Theme.gap2
-                Caption {
-                    text: row.modelData.label
-                    tip: row.modelData.help || ""
-                    font: Theme.fontMedium
-                    visible: row.modelData.kind !== "bool"
+                sourceComponent: row.modelData.kind === "bool" ? boolRow : fieldRow
+                Component {
+                    id: fieldRow
+                    ColumnLayout {
+                        spacing: Theme.px(0.5)
+                        Caption {
+                            objectName: "caption:" + row.modelData.id
+                            text: row.modelData.label
+                            tip: row.modelData.help || ""
+                            font: Theme.fontMedium
+                        }
+                        FieldInput {
+                            field: row.modelData
+                            Layout.fillWidth: row.modelData.kind !== "choice"
+                        }
+                        Hint { text: vform.hints[row.modelData.id] || "" }
+                    }
                 }
-                FieldInput {
-                    field: row.modelData
-                    Layout.fillWidth: row.modelData.kind !== "choice"
-                    Layout.maximumWidth: vform.formWidth
+                Component {
+                    id: boolRow
+                    FieldGrid { fields: [row.modelData] }
                 }
-                Hint { text: vform.hints[row.modelData.id] || "" }
             }
         }
     }
 
-    // Number fields two by two: caption, then the field.
+    // Number fields two by two: caption, then the field (a switch too, at
+    // the right). An odd last cell keeps its column's width.
     component FieldGrid: GridLayout {
         id: grid
         required property var fields
@@ -171,7 +191,9 @@ ColumnLayout {
                 required property var modelData
                 spacing: Theme.gap2
                 Layout.fillWidth: true
+                Layout.minimumHeight: Theme.controlHeight
                 Caption {
+                    objectName: "caption:" + cell.modelData.id
                     text: cell.modelData.label
                     tip: cell.modelData.help || ""
                     elide: Text.ElideRight
@@ -179,9 +201,13 @@ ColumnLayout {
                 }
                 FieldInput {
                     field: cell.modelData
-                    Layout.preferredWidth: cell.modelData.width ? Theme.px(2 * cell.modelData.width + 4) : Theme.px(22)
+                    Layout.preferredWidth: cell.modelData.kind === "bool" ? implicitWidth : Theme.px(22)
                 }
             }
+        }
+        Repeater {
+            model: grid.fields.length % 2
+            delegate: Item { Layout.fillWidth: true }
         }
     }
 
@@ -215,9 +241,6 @@ ColumnLayout {
         columnSpacing: Theme.gap6
         rowSpacing: Theme.gap3
         uniformCellWidths: true
-        Layout.fillWidth: true
-        Layout.maximumWidth: vform.formWidth
-        Layout.topMargin: Theme.gap3
         Repeater {
             model: gr.section.groups
             delegate: ColumnLayout {
@@ -430,6 +453,9 @@ ColumnLayout {
             }
             Loader {
                 Layout.fillWidth: true
+                // On the Loader: a margin or a width limit set inside its item is lost.
+                Layout.maximumWidth: vform.formWidth
+                Layout.topMargin: Theme.gap3
                 active: sec.modelData.kind === "groups"
                 visible: active
                 sourceComponent: GroupsSection { section: sec.modelData }

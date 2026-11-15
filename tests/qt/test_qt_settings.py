@@ -674,7 +674,39 @@ def test_captions_share_their_fields_help(settings):
     settings.add_voicing()
     field = settings.item("field:max_fret")
     assert tooltip(field) == escaped(TOOLTIPS["max_fret"])
-    assert settings.item("field:allow_barres").property("text") == "Allow barre chords"
+    assert tooltip(settings.item("caption:max_fret")) == tooltip(field)
+    # A switch's label is a caption, as the number fields have.
+    assert settings.item("caption:allow_barres").property("text") == "Allow barre chords"
+    assert settings.item("field:allow_barres").property("text") == ""
+    assert tooltip(settings.item("caption:allow_barres")) == escaped(TOOLTIPS["allow_barres"])
+
+
+def scene_box(item):
+    """(left, right) of an item in the window."""
+    left = item.mapToScene(QPointF(0, 0)).x()
+    return round(left, 2), round(left + item.width(), 2)
+
+
+def test_switches_and_voice_movement_line_up_with_the_number_fields(settings):
+    """A switch's label sits where the captions do and the switch ends where
+    the number fields end (it used to be the switch's own text, inset by its
+    padding); the ensemble's Voice movement is as wide as the number fields."""
+    settings.add_voicing()
+    settings.window.setProperty("page", "voicings")
+    for model, switch, number in [("fretboard", "allow_barres", "max_fret"),
+                                  ("piano", "add_bass", "rh_center"),
+                                  ("ensemble", "allow_unisons", "movement")]:
+        if model != "fretboard":
+            settings.model.setModel(model)
+            settings.qtbot.waitUntil(lambda: settings.editor("model") == model, timeout=2000)
+        settings.wait(80)
+        caption, other = settings.item(f"caption:{switch}"), settings.item(f"caption:{number}")
+        assert caption.isVisible()
+        assert scene_box(caption)[0] == scene_box(other)[0], model
+        assert scene_box(settings.item(f"field:{switch}"))[1] == scene_box(settings.item(f"field:{number}"))[1], model
+        # The switch is alone at the right of its row, not stretched.
+        assert settings.item(f"field:{switch}").width() < settings.item(f"field:{number}").width()
+    assert scene_box(settings.item("field:movement")) == scene_box(settings.item("field:weight:leap_penalty"))
 
 
 def test_switching_the_model_asks_first_when_edited(settings):
