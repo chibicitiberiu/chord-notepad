@@ -465,9 +465,10 @@ def occurrences(ed):
 def test_a_selected_words_other_occurrences_are_tinted(ed):
     text = "Am C Am7 Am\nam Am\n"
     song(ed, text)
-    QTest.mouseDClick(ed.window, Qt.MouseButton.LeftButton, NONE, ed.point_of(1))
+    QTest.mouseDClick(ed.window, Qt.MouseButton.LeftButton, Qt.KeyboardModifier.AltModifier,
+                      ed.point_of(1))
     ed.run(60)
-    assert ed.area.property("selectedText") == "Am"            # a double click selects the word
+    assert ed.area.property("selectedText") == "Am"            # Alt+double-click selects a chord
     assert occurrences(ed) == [(9, 11), (15, 17)]               # not Am7, not "am"
     fmt = ed.formats_at(9)[-1]
     assert fmt.background().color() == QColor(_theme(ed).property("occurrence"))

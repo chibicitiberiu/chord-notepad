@@ -593,13 +593,16 @@ def test_a_shift_click_on_a_chord_sounds_it_rolled(editor):
     assert len(editor.harness.player.rolled) == 1
 
 
-def test_a_double_click_selects_the_word_and_sounds_the_chord_once(editor):
+def test_a_double_click_on_a_chord_sounds_it_twice_and_selects_nothing(editor):
+    # Q7 as Tibi changed it (2026-11-15): a chord is a link, every click plays
+    # it (test_qt_editor_chord_clicks.py has the rest).
     song(editor)
     at = editor.point_of(SONG.index("Am"))
     QTest.mouseDClick(editor.window, Qt.MouseButton.LeftButton, NO_MODIFIER, at)
+    editor.qtbot.waitUntil(lambda: len(editor.harness.player.immediate) == 2, timeout=2000)
     editor.run(100)
-    assert len(editor.harness.player.immediate) == 1
-    assert editor.area.property("selectedText") == "Am"
+    assert len(editor.harness.player.immediate) == 2
+    assert editor.area.property("selectedText") == ""
 
 
 def test_a_click_on_lyrics_or_an_invalid_chord_sounds_nothing(editor):
@@ -833,10 +836,10 @@ def test_fast_zoom_steps_stay_on_the_ladder(editor):
 
 def test_mouse_selection_gestures(editor):
     song(editor, "C   G   Am\none two three\n")
-    QTest.mouseClick(editor.window, Qt.MouseButton.LeftButton, NO_MODIFIER, editor.gap_point(4))
+    QTest.mouseClick(editor.window, Qt.MouseButton.LeftButton, NO_MODIFIER, editor.gap_point(11))
     QTest.mouseClick(editor.window, Qt.MouseButton.LeftButton, Qt.KeyboardModifier.ShiftModifier,
-                     editor.gap_point(8))
-    assert editor.area.property("selectedText") == "G   "                 # Shift+click extends
+                     editor.gap_point(15))
+    assert editor.area.property("selectedText") == "one "                 # Shift+click extends
     QTest.mousePress(editor.window, Qt.MouseButton.LeftButton, NO_MODIFIER, editor.gap_point(15))
     QTest.mouseMove(editor.window, editor.gap_point(17))
     QTest.mouseMove(editor.window, editor.gap_point(19))

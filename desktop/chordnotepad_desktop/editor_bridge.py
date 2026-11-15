@@ -27,6 +27,10 @@ window's glue) does, through the bridge commands Android uses:
   rest, repainted only when ``(span, chord_index, bar)`` changes, and
   ``playingMoved`` tells QML to scroll to it. ``playheadPos`` places the
   playhead marker.
+* **Clicks on chords:** :class:`~chordnotepad_desktop.text_mouse.TextMouse`
+  finds the chord under a press (:meth:`EditorBridge._chord_under`, the
+  painted spans) and the session plays it (``tap_chord_at``), on every
+  click; Alt+click leaves the chord to the text.
 * **Paste normalisation** on every path QML routes here (Ctrl+V, Shift+Insert,
   the context menu, middle-click PRIMARY, drag and drop): the core's
   ``normalize_song_text``, as Tk's ``_on_paste``.
@@ -45,7 +49,9 @@ from bisect import bisect_left
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
-from PySide6.QtCore import Q_ARG, Property, QMetaObject, QObject, Qt, Signal, Slot
+from PySide6.QtCore import (
+    Q_ARG, Q_RETURN_ARG, Property, QMetaObject, QObject, QPointF, QRectF, Qt, Signal, Slot,
+)
 from PySide6.QtGui import (
     QClipboard, QColor, QCursor, QGuiApplication, QSyntaxHighlighter, QTextCharFormat, QTextCursor,
     QTextDocument,
@@ -322,8 +328,10 @@ class EditorBridge(QObject):
         """Take over ``area``'s document (EditorPane's Component.onCompleted)."""
         self._area = area
         area.destroyed.connect(self._area_gone)
-        # Presses reach the text at once, and a drag held past the edge scrolls (pitfall 29).
-        self._mouse_filter = TextMouse(area)
+        # Presses reach the text at once, and a drag held past the edge scrolls
+        # (pitfall 29); a click on a chord plays it and selects nothing.
+        self._mouse_filter = TextMouse(area, chord_at=self._chord_under, tap=self._tap_chord,
+                                       place_caret=self._place_caret)
         area.installEventFilter(self._mouse_filter)
         self._quick_document = document
         self._document = document.textDocument()
@@ -768,18 +776,43 @@ class EditorBridge(QObject):
         return any(kind == CHORD and start <= position < end
                    for start, end, kind in self.spans_between(position, position + 1))
 
-    @Slot(int)
-    def tapAt(self, position: int) -> None:  # noqa: N802 (Qt)
-        """A click on the character at ``position``: the session sounds the
-        chord there, if any, and moves the playhead (or seeks while playing).
-        With Shift held the chord sounds rolled, one note at a time (the
-        modifiers of the click, read here: the editor's TapHandler passes
-        only the position)."""
-        if position >= 0:
-            args = {"offset": self.codePointAt(position)}
-            if QGuiApplication.keyboardModifiers() & Qt.KeyboardModifier.ShiftModifier:
-                args["rolled"] = True
-            self._store.submit("tap_chord_at", args)
+    # -- clicks on chords (text_mouse.py) ---------------------------------------------
+
+    def _position_at(self, point: QPointF) -> int:
+        """The gap nearest ``point`` (the TextArea's coordinates): where a click puts the caret."""
+        return QMetaObject.invokeMethod(self._area, "positionAt", Q_RETURN_ARG(int),
+                                        Q_ARG(float, point.x()), Q_ARG(float, point.y()))
+
+    def _char_at(self, point: QPointF) -> int:
+        """The character under ``point``, or -1 above or below a line (as
+        EditorPane's ``charAt``, which the hover uses)."""
+        position = self._position_at(point)
+        rect = QMetaObject.invokeMethod(self._area, "positionToRectangle", Q_RETURN_ARG(QRectF),
+                                        Q_ARG(int, position))
+        if point.y() < rect.y() or point.y() >= rect.y() + rect.height():
+            return -1
+        return position - 1 if point.x() < rect.x() else position
+
+    def _chord_under(self, point: QPointF) -> int:
+        """The character under ``point`` if it is part of a valid chord, else -1."""
+        if self._area is None:
+            return -1
+        position = self._char_at(point)
+        return position if self.isChordAt(position) else -1
+
+    def _place_caret(self, point: QPointF) -> None:
+        """The caret where a click at ``point`` puts it, no selection."""
+        position = self._position_at(point)
+        QMetaObject.invokeMethod(self._area, "select", Q_ARG(int, position), Q_ARG(int, position))
+
+    def _tap_chord(self, position: int, rolled: bool) -> None:
+        """A click on the chord at ``position``: the session sounds it, rolled
+        (one note at a time) for a Shift+click, and moves the playhead (or
+        seeks while playing)."""
+        args = {"offset": self.codePointAt(position)}
+        if rolled:
+            args["rolled"] = True
+        self._store.submit("tap_chord_at", args)
 
     @Slot()
     def revealPlayhead(self) -> None:  # noqa: N802 (Qt)

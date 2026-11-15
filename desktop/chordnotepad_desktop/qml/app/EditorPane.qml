@@ -51,6 +51,8 @@ Rectangle {
     property bool playMode: false
     property alias area: area
     property bool overChord: false
+    // Alt is down (the pointer over a chord is then the I-beam, not the hand).
+    property bool altHeld: false
     color: Theme.editorBg
 
     // --- The hover card (D4) -------------------------------------------------------
@@ -566,13 +568,20 @@ Rectangle {
                 // A caret the user (or an edit) moved: the view follows it again.
                 if (!area.relocking) pane.releaseView()
             }
-            onActiveFocusChanged: if (activeFocus) pane.caretTouched()
+            onActiveFocusChanged: {
+                if (activeFocus) pane.caretTouched()
+                else pane.altHeld = false      // Alt+Tab: the release goes to another window
+            }
             // The find bar's "3 of 7" follows the selection.
             onSelectionStartChanged: pane.selectionMoved()
             onSelectionEndChanged: pane.selectionMoved()
-            Keys.onReleased: pane.status.schedule()
+            Keys.onReleased: (event) => {
+                if (event.key === Qt.Key_Alt) pane.altHeld = false
+                pane.status.schedule()
+            }
 
             Keys.onPressed: (event) => {
+                if (event.key === Qt.Key_Alt) pane.altHeld = true
                 // Typing into the text a song locks: the status bar says why (Q9).
                 if (area.readOnly && pane.editsKey(event)) pane.status.refuseEdit()
                 var mods = event.modifiers & ~Qt.KeypadModifier
@@ -653,13 +662,15 @@ Rectangle {
             }
 
             // The hand over valid chords only (an I-beam elsewhere, invalid
-            // chords too), also while read-only.
+            // chords too, and over a chord while Alt is held: Alt+click and
+            // Alt+drag select its text), also while read-only.
             // The hover card and the chip's sticky target follow the pointer too.
             HoverHandler {
                 id: hover
                 objectName: "editorHover"
-                cursorShape: pane.overChord ? Qt.PointingHandCursor : Qt.IBeamCursor
+                cursorShape: pane.overChord && !pane.altHeld ? Qt.PointingHandCursor : Qt.IBeamCursor
                 onPointChanged: {
+                    pane.altHeld = (hover.point.modifiers & Qt.AltModifier) !== 0
                     var px = hover.point.position.x, py = hover.point.position.y
                     var pos = pane.charAt(px, py)
                     pane.overChord = pane.editor.isChordAt(pos)
@@ -694,16 +705,13 @@ Rectangle {
                     if (!picker.visible) { pane.hideHint(); chipGrace.restart() }
                 }
             }
-            // A click on a chord sounds it and moves the playhead (the session
-            // decides). The second click of a double-click only selects the word.
+            // Clicks on chords (every one plays, none selects; Alt+click is
+            // text) are text_mouse.py's. This handler only updates the status
+            // bar and hides the hover card.
             TapHandler {
                 objectName: "chordTap"
                 acceptedButtons: Qt.LeftButton
-                onTapped: (eventPoint, button) => {
-                    if (tapCount === 1)
-                        pane.editor.tapAt(pane.charAt(eventPoint.position.x, eventPoint.position.y))
-                    pane.status.schedule()
-                }
+                onTapped: pane.status.schedule()
                 // A click hides the hover card.
                 onPressedChanged: if (pressed) pane.hideHint()
             }
