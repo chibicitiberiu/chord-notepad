@@ -6,9 +6,12 @@ import CNTheme
 
 // The Play workspace's player bar (the mockup's PlayerBar.qml, plan steps
 // E1-E3): one calm row, like a web music player.
-// [title / 100 bpm · 3/4 · Am] [⏮ ( ▶ ) ⏹] [7:2 ──timeline──] [♫ Voicing ⌄ · 🎸 Instrument ⌄ | ⏲ 100% ⌄ · metronome · 🔊 ⌄]
-// Narrow: the timeline shrinks first, then the title block hides into »
-// (and ▶'s tooltip), then the voicing and instrument names collapse to icons.
+// [⏮ ( ▶ ) ⏹] [title • 100 bpm · 3/4 · Am   ] [♫ Voicing ⌄ · 🎸 Instrument ⌄ | ⏲ 100% ⌄ · metronome · 🔊 ⌄]
+//              [7:2 ──────timeline───────]
+// The title and the song's values sit on a row above the timeline (Tibi,
+// 2026-11-15), so they never have to hide. Narrow: the timeline shrinks to
+// a comfortable width, then the voicing and instrument names collapse to
+// icons, then the timeline shrinks further and a long title elides.
 //
 // Everything shown is the session's: ToolbarState (song values, speed,
 // metronome, ▶'s action), PlaybackState (status, sections),
@@ -19,8 +22,9 @@ import CNTheme
 //
 // Transport: ▶ acts on press (Tk's), Shift+▶ plays from the editor's cursor,
 // Space and Enter work on a focused ▶ (Shift too). ⏮ rewinds to the first
-// chord and keeps playing if it was. ⏹ stops and silences ringing notes
-// (also when idle, so it is never disabled); the playhead stays.
+// chord and keeps playing if it was. ⏹ stops, puts the playhead back on the
+// first chord and silences ringing notes (also when idle, so it is never
+// disabled).
 Rectangle {
     id: bar
     objectName: "playerBar"
@@ -49,19 +53,39 @@ Rectangle {
             for (var c of f.items) if (parseInt(c.value) === bar.im.current) return bar.player.instrumentName(c.label)
         return ""
     }
-    readonly property string songLine: bar.tb.bpm_display + " bpm · " + bar.tb.beats + "/" + bar.tb.unit
-                                       + " · " + bar.player.keyLabel(bar.tb.key || "")
 
     readonly property real units: width / Theme.u
-    // Narrowing: the timeline shrinks to its minimum, then the title block hides
-    // (title, tempo, time, key move into », and into ▶'s tooltip), then the
-    // voicing / instrument names collapse to icons.
-    readonly property bool titleShown: units >= 292
-    readonly property bool namesShown: units >= 258
+    // Narrowing, measured from what the parts need (the title, the names and
+    // the font all vary): the timeline gives way down to timelineEasy, then
+    // the voicing / instrument names collapse to icons, then the timeline
+    // goes on down to timelineMin.
+    readonly property real timelineEasy: Theme.px(40)
+    readonly property real timelineMin: Theme.px(22)
+    readonly property real namesWidth: voicingBtn.textWidth + instrumentBtn.textWidth
+    // Set by fitNames(), not bound: the right group's width depends on it, and a
+    // binding would loop (the computation takes the names out again, so one
+    // deferred pass settles).
+    property bool namesShown: true
+    function fitNames() {
+        // The right group with icon-only names, whatever is shown now.
+        var rightIcons = playerRight.implicitWidth - (bar.namesShown ? bar.namesWidth : 0)
+        // The timeline's room with the names collapsed.
+        var room = bar.width - mainRow.anchors.leftMargin - mainRow.anchors.rightMargin
+                   - 2 * mainRow.spacing - transport.implicitWidth - rightIcons
+                   - position.Layout.preferredWidth - timelineRow.spacing
+        var shown = room - bar.namesWidth >= bar.timelineEasy
+        if (shown !== bar.namesShown) bar.namesShown = shown
+    }
+    onWidthChanged: Qt.callLater(bar.fitNames)
+    onNamesWidthChanged: Qt.callLater(bar.fitNames)
+    Connections {
+        target: playerRight
+        function onImplicitWidthChanged() { Qt.callLater(bar.fitNames) }
+    }
+    Component.onCompleted: Qt.callLater(bar.fitNames)
 
     function play(fromCursor) { bar.player.playPause(fromCursor) }
     function openSongPicker(kind, anchor) {
-        if (morePop.visible) { morePop.close(); anchor = moreBtn }   // not a popup inside a popup
         songPicker.parent = anchor
         songPicker.x = 0
         songPicker.y = anchor.height + Theme.gap1
@@ -79,42 +103,15 @@ Rectangle {
     TextMetrics { id: posWidth; font: Theme.fontTabular; text: (bar.totalBars >= 100 ? "000" : "00") + ":0" }
 
     RowLayout {
+        id: mainRow
         anchors.fill: parent
         anchors.leftMargin: Theme.gap4; anchors.rightMargin: Theme.gap3
         anchors.bottomMargin: Theme.hairline
         spacing: Theme.gap4
 
-        // --- Title and the song's values (hugs its content) ---------------------------------
-        ColumnLayout {
-            objectName: "titleBlock"
-            visible: bar.titleShown
-            // Hug the text exactly (the wider of the title and the values line), so
-            // the gap to ⏮ is the real visual gap; a long title elides at 60u.
-            Layout.fillWidth: false
-            Layout.minimumWidth: 0
-            Layout.maximumWidth: Theme.px(60)
-            Layout.preferredWidth: Math.ceil(Math.max(titleRow.implicitWidth, songValues.implicitWidth))
-            spacing: 0
-            // The title is elided by measurement (not by the Text), so the block's
-            // width is the elided text's real width and the unsaved dot survives (pitfall 17).
-            TextMetrics { id: titleFit; font: Theme.fontStrong; text: bar.title; elide: Text.ElideRight; elideWidth: Theme.px(52) }
-            Row {
-                id: titleRow
-                spacing: Theme.gap1
-                SText { objectName: "playerTitle"; text: titleFit.elidedText; font: Theme.fontStrong; color: Theme.text }
-                SText { objectName: "playerDirty"; visible: bar.dirty; text: "•"; font: Theme.fontStrong; color: Theme.muted }
-            }
-            SongValues {
-                id: songValues
-                store: bar.store
-                player: bar.player
-                onGoToDirective: (v) => bar.goToDirective(v)
-                onOpenPicker: (kind, anchor) => bar.openSongPicker(kind, anchor)
-            }
-        }
-
         // --- Transport -------------------------------------------------------------------------
         RowLayout {
+            id: transport
             spacing: Theme.gap1
             IconButton {
                 objectName: "prevButton"
@@ -172,8 +169,7 @@ Rectangle {
                     objectName: "playTip"
                     visible: playArea.containsMouse
                     delay: 600
-                    text: (bar.titleShown ? "" : "<b>" + bar.title + "</b> · " + bar.songLine + "<br>")
-                          + bar.player.playTooltip(bar.tb.play_action || "play")
+                    text: bar.player.playTooltip(bar.tb.play_action || "play")
                           + "  <font color='" + Theme.muted + "'>F5</font>"
                 }
             }
@@ -187,60 +183,75 @@ Rectangle {
         }
 
         // --- Timeline: takes what is left; fixed-width, tabular position -------------------
-        RowLayout {
+        // --- The title and the song's values, the timeline under them --------------------
+        ColumnLayout {
+            objectName: "middle"
             Layout.fillWidth: true
-            Layout.minimumWidth: Theme.px(40)
-            spacing: Theme.gap2
-            SText {
-                objectName: "position"
-                Layout.preferredWidth: Math.ceil(posWidth.advanceWidth)
-                horizontalAlignment: Text.AlignRight      // snug against the track
-                text: bar.player.position
-                font: Theme.fontTabular
-                color: Theme.muted
-            }
-            Scrubber {
-                player: bar.player
-                sections: bar.sections
-                playing: bar.playing
+            // The timeline at its smallest, or the title row with a few letters of
+            // the title, the dot and the values, whichever needs more.
+            Layout.minimumWidth: Math.max(position.Layout.preferredWidth + timelineRow.spacing + bar.timelineMin,
+                                          titleText.Layout.minimumWidth + 2 * titleRow.spacing + dirtyDot.implicitWidth
+                                          + songValues.Layout.leftMargin + songValues.implicitWidth)
+            spacing: Theme.gap1
+            RowLayout {
+                id: titleRow
+                objectName: "titleRow"
                 Layout.fillWidth: true
-                Layout.leftMargin: Theme.px(1.5); Layout.rightMargin: Theme.px(1.5)   // room for the handle at either end
+                z: 1        // over the timeline's hit area, which reaches up past the track
+                spacing: Theme.gap1
+                // A long title elides; the unsaved dot and the values stay.
+                SText {
+                    id: titleText
+                    objectName: "playerTitle"
+                    text: bar.title
+                    font: Theme.fontStrong; color: Theme.text
+                    elide: Text.ElideRight
+                    Layout.fillWidth: true
+                    Layout.minimumWidth: Math.min(Math.ceil(implicitWidth), Theme.px(16))
+                    Layout.maximumWidth: Math.ceil(implicitWidth)
+                }
+                SText { id: dirtyDot; objectName: "playerDirty"; visible: bar.dirty; text: "•"; font: Theme.fontStrong; color: Theme.muted }
+                SongValues {
+                    id: songValues
+                    objectName: "songValues"
+                    Layout.leftMargin: Theme.gap2
+                    store: bar.store
+                    player: bar.player
+                    onGoToDirective: (v) => bar.goToDirective(v)
+                    onOpenPicker: (kind, anchor) => bar.openSongPicker(kind, anchor)
+                }
+                Item { Layout.fillWidth: true }
+            }
+            RowLayout {
+                id: timelineRow
+                Layout.fillWidth: true
+                spacing: Theme.gap2
+                SText {
+                    id: position
+                    objectName: "position"
+                    Layout.preferredWidth: Math.ceil(posWidth.advanceWidth)
+                    horizontalAlignment: Text.AlignRight      // snug against the track
+                    text: bar.player.position
+                    font: Theme.fontTabular
+                    color: Theme.muted
+                }
+                Scrubber {
+                    player: bar.player
+                    sections: bar.sections
+                    playing: bar.playing
+                    Layout.fillWidth: true
+                    Layout.leftMargin: Theme.px(1.5); Layout.rightMargin: Theme.px(1.5)   // room for the handle at either end
+                }
             }
         }
 
         // --- Everything else: one row of equal-height buttons, grouped ---------------------
         RowLayout {
+            id: playerRight
             objectName: "playerRight"
             spacing: Theme.px(0.5)
-            IconButton {
-                id: moreBtn
-                objectName: "moreButton"
-                visible: !bar.titleShown
-                text: "»"
-                display: AbstractButton.TextOnly
-                implicitWidth: Theme.playerControl; implicitHeight: Theme.playerControl
-                tip: "Song: title, tempo, time and key"
-                popupOpen: morePop.visible
-                onClicked: morePop.open()
-                Popup {
-                    id: morePop
-                    objectName: "morePopup"
-                    y: parent.height + Theme.gap1
-                    padding: Theme.gap3
-                    contentItem: Column {
-                        spacing: Theme.gap1
-                        SText { text: bar.title + (bar.dirty ? "  •" : ""); font: Theme.fontStrong; color: Theme.text }
-                        SongValues {
-                            store: bar.store
-                            player: bar.player
-                            onGoToDirective: (v) => { morePop.close(); bar.goToDirective(v) }
-                            onOpenPicker: (kind, anchor) => bar.openSongPicker(kind, anchor)
-                        }
-                    }
-                }
-            }
-            Sep { visible: !bar.titleShown }
             VoicingButton {
+                id: voicingBtn
                 objectName: "voicingTip"
                 store: bar.store
                 showText: bar.namesShown

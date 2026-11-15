@@ -100,7 +100,7 @@ class Bar(Editor):
         return [args for n, args in self.submitted if n == name]
 
     def to_play(self, width=1400):
-        # 350 units at 100%: the whole bar shows (the title hides below 292).
+        # 350 units at 100%: the whole bar shows, names and all.
         if width and self.window.width() != width:
             self.window.setWidth(width)
         self.window.setProperty("mode", "play")
@@ -173,21 +173,34 @@ def test_the_title_block_has_the_name_and_the_unsaved_dot(pb):
     pb.qtbot.waitUntil(lambda: pb.it("playerDirty").isVisible(), timeout=2000)
 
 
-def test_a_long_title_is_elided_and_the_unsaved_dot_stays(pb):
+def test_the_title_and_values_sit_on_a_row_above_the_timeline(pb):
+    # Tibi, 2026-11-15: the title row above the seek bar, never hidden.
+    pb.to_play()
+    title, values, timeline = pb.it("playerTitle"), pb.it("songValues"), pb.it("timeline")
+    pb.drawn()
+    title_y = title.mapToScene(QPointF(0, 0)).y()
+    assert title_y + title.height() <= timeline.mapToScene(QPointF(0, 0)).y()
+    assert abs(title.mapToScene(QPointF(0, 0)).x() - pb.it("position").mapToScene(QPointF(0, 0)).x()) < 1
+    assert values.mapToScene(QPointF(0, 0)).x() > title.mapToScene(QPointF(title.width(), 0)).x()
+    assert values.isVisible()
+
+
+def test_a_long_title_is_elided_and_the_unsaved_dot_and_values_stay(pb):
     pb.to_play()
     doc = pb.store.state("DocumentState")
-    doc.insert("display_name", "A very long song title that would never fit in the block.txt")
+    doc.insert("display_name", "A very long song title that would never fit in the row at all, really.txt")
     doc.insert("is_modified", True)
-    title, dot = pb.it("playerTitle"), pb.it("playerDirty")
-    pb.qtbot.waitUntil(lambda: dot.isVisible() and title.property("text").endswith("…"), timeout=1000)
+    bar = pb.it("playerBar")
+    u = bar.width() / bar.property("units")
+    pb.window.setWidth(int(u * 220))
+    title, dot, values = pb.it("playerTitle"), pb.it("playerDirty"), pb.it("songValues")
+    pb.qtbot.waitUntil(lambda: dot.isVisible() and title.property("truncated") is True, timeout=1000)
     pb.drawn()
-    u = qmlEngine(pb.window).singletonInstance("CNTheme", "Theme").property("u")
-    assert title.width() <= round(52 * u) + 1            # Theme.px(52), the elide width
-    # The dot sits right after the elided title, inside the block.
-    block = pb.it("titleBlock")
-    dot_x = dot.mapToItem(block, QPointF(0, 0)).x()
-    assert title.mapToItem(block, QPointF(title.width(), 0)).x() <= dot_x
-    assert dot_x + dot.width() <= block.width() + 0.5
+    row = pb.it("titleRow")
+    dot_x = dot.mapToItem(row, QPointF(0, 0)).x()
+    assert title.mapToItem(row, QPointF(title.width(), 0)).x() <= dot_x
+    assert dot_x + dot.width() <= values.mapToItem(row, QPointF(0, 0)).x()
+    assert values.mapToItem(row, QPointF(values.width(), 0)).x() <= row.width() + 0.5
 
 
 def test_play_acts_on_press_and_its_tooltip_follows_the_play_action(pb):
@@ -249,15 +262,17 @@ def test_rewind_keeps_a_playing_song_playing_from_the_first_chord(pb):
     assert pb.playback("status") == "idle" and pb.playback("playhead_offset") == TEXT.index("C")
 
 
-def test_stop_stops_and_keeps_the_playhead(pb):
+def test_stop_stops_and_goes_back_to_the_first_chord(pb):
+    # Tibi, 2026-11-15: Stop is "pause + go to beginning" (STOP_REWINDS).
     pb.to_play()
     tooltip_shows(pb, pb.it("stopButton"), "Stop playback")
     pb.click_on(pb.it("playButton"))
     pb.wait_status("playing")
     pb.ping(2)
+    pb.qtbot.waitUntil(lambda: pb.playback("playhead_offset") == TEXT.index("G"), timeout=2000)
     pb.click_on(pb.it("stopButton"))
     pb.wait_status("idle")
-    assert pb.playback("playhead_offset") == TEXT.index("G")
+    pb.qtbot.waitUntil(lambda: pb.playback("playhead_offset") == TEXT.index("C"), timeout=2000)
     # Idle it is still there: it silences ringing notes.
     assert pb.it("stopButton").property("enabled") is True
 
@@ -402,28 +417,40 @@ def test_the_beat_clock_rolls_over_bars_and_stops_at_the_songs_end():
     assert beats.position() is None
 
 
-def test_the_bar_narrows_timeline_first_then_the_title_then_the_names(pb):
+def test_the_bar_narrows_the_timeline_then_the_names_then_the_timeline_again(pb):
+    # Tibi's order: the names collapse before the timeline gets small; the
+    # title row never hides.
     pb.to_play()
     timeline = pb.it("timeline")
-    wide = timeline.width()
     bar = pb.it("playerBar")
     u = bar.width() / bar.property("units")
-    pb.window.setWidth(int(u * 300))
-    pb.run(50)
-    assert pb.it("titleBlock").isVisible() and not pb.it("moreButton").isVisible()
-    assert timeline.width() < wide                    # the timeline gave way first
-    pb.window.setWidth(int(u * 270))
-    pb.run(50)
-    assert not pb.it("titleBlock").isVisible() and pb.it("moreButton").isVisible()
-    assert pb.it("voicingButton").property("showText") is True
-    pb.window.setWidth(int(u * 240))
-    pb.run(50)
-    assert pb.it("voicingButton").property("showText") is False
-    assert pb.it("instrumentButton").property("showText") is False
-    # The title's line moves into ▶'s tooltip.
-    tooltip_shows(pb, pb.it("playButton"), "<b>Untitled</b>", "120 bpm", "4/4")
-    pb.click_on(pb.it("moreButton"))
-    pb.qtbot.waitUntil(lambda: pb.it("morePopup").property("visible") is True, timeout=1000)
+    voicing, instrument = pb.it("voicingButton"), pb.it("instrumentButton")
+    widths = []
+    for units in range(360, 150, -5):
+        pb.window.setWidth(int(u * units))
+        pb.run(30)
+        names = voicing.property("showText")
+        assert instrument.property("showText") is names
+        assert pb.it("playerTitle").isVisible() and pb.it("songValues").isVisible()
+        widths.append((units, names, timeline.width()))
+    shown = [w for _, names, w in widths if names]
+    hidden = [w for _, names, w in widths if not names]
+    assert shown and hidden
+    # Names shown: the timeline never under its comfortable width.
+    assert min(shown) >= 40 * u - 1
+    # They went at once, never to come back as the bar narrowed.
+    flags = [names for _, names, _ in widths]
+    assert flags == sorted(flags, reverse=True)
+    # Then the timeline goes on shrinking, down to its minimum.
+    assert min(hidden) < 40 * u
+    assert min(hidden) >= 22 * u - 1
+    # The ▶ tooltip is only the play action now.
+    pb.window.setWidth(int(u * 200))
+    pb.run(30)
+    tooltip_shows(pb, pb.it("playButton"), "Play from the playhead", "F5")
+    from PySide6.QtCore import QObject
+    assert find(pb.window.contentItem(), "moreButton") is None
+    assert pb.window.findChild(QObject, "moreButton") is None
 
 
 # -- E2: the tempo -------------------------------------------------------------------------

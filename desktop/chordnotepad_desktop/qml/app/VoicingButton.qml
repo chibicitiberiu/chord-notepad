@@ -14,6 +14,8 @@ Item {
     property string buttonName: "voicingButton"
     property alias menuName: menu.objectName
     property bool showText: true
+    // What the label adds to the width when shown (FlatDrop.textWidth).
+    readonly property real textWidth: btn.textWidth
     // The sheet header's smaller button, whose menu opens above it, right-aligned.
     property bool compact: false
     signal editVoicings()

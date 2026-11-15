@@ -13,8 +13,7 @@ import CNTheme
 //   underlined on hover, "Set by {key: D} in the song · click to go there",
 //   and a click asks for goToDirective (the player bar switches to Edit and
 //   puts the cursor in the directive, found in the live text).
-// Shown twice: in the title block and, when the bar is narrow, in the »
-// popup.
+// Shown on the title row above the timeline.
 Row {
     id: sv
     required property var store

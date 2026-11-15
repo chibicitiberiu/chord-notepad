@@ -15,10 +15,15 @@ AbstractButton {
     property int maxTextWidth: Theme.px(40)
     property bool showText: true
     property int iconSize: Theme.playerIcon
+    // What the value's text adds to the width when shown (whether shown or
+    // not), so a parent can decide to hide it without a binding loop.
+    readonly property real textWidth: pd.text === "" ? 0
+        : Math.min(Math.ceil(valueFit.advanceWidth), pd.maxTextWidth) + Theme.gap1
     hoverEnabled: true
     focusPolicy: Qt.TabFocus
     implicitHeight: Theme.playerControl
     implicitWidth: pdRow.implicitWidth + 2 * Theme.gap2
+    TextMetrics { id: valueFit; font: Theme.fontMedium; text: pd.text }
     HoverHandler { id: tipHover }
     // Not over its own open dropdown.
     ToolTip.visible: tipHover.hovered && !down && !checked && tip !== ""
