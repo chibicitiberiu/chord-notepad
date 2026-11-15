@@ -15,19 +15,26 @@ How it works (the Qt counterpart of ``android/tools/help_screenshots.py``):
    never plays a sound. No display or Xvfb is needed.
 2. The shot's *scene* sets the state: it loads a song, switches Edit/Play,
    opens a sidebar or the chord sheet, advances the playhead, opens a menu.
-3. The window is a fixed size and scale (``--size``, ``--scale``), in the
-   light theme unless the shot asks for dark, so a run gives the same
-   pixels every time on the same machine.
+3. The window is a fixed size and scale (``--size``, ``--scale``), so a run
+   gives the same pixels every time on the same machine.
 4. ``window.grabWindow()`` is saved as a palette PNG (optimised) in
    ``help/images/desktop/``, or, for the store shots, in
    ``packaging/store/screenshots/``; numbered callouts are drawn at the
    centres of named QML items.
+
+Every shot is taken twice, in the light theme and in the dark one. The dark
+image of a help or Quick Start shot is ``<name>.dark.png`` beside the light
+``<name>.png`` (the guide and the Quick Start show it when they are dark); a
+store shot's is ``<name>-dark.png``. ``--theme`` takes one of the two, and
+``--only`` also takes a single image's name (``04-play-staff-dark``).
 
 Usage (from the repository root, nothing needs installing)::
 
     pipenv run python packaging/tools/qt_help_screenshots.py --list
     pipenv run python packaging/tools/qt_help_screenshots.py            # every shot
     pipenv run python packaging/tools/qt_help_screenshots.py --only main-window,player
+    pipenv run python packaging/tools/qt_help_screenshots.py --only editor-main-window.dark
+    pipenv run python packaging/tools/qt_help_screenshots.py --theme light
     pipenv run python packaging/tools/qt_help_screenshots.py --out /tmp/shots --scale 2
 
 Needs PySide6 and Pillow (with libimagequant for the palette step; it falls
@@ -59,10 +66,14 @@ DEFAULT_SIZE = (1280, 800)
 #: Today, for anything that shows a date (the unsaved-changes dot never does).
 TODAY = datetime.date(2026, 11, 15)
 
-#: Callout colours (the Qt window's primary, light theme).
-PRIMARY = (0x3F, 0x51, 0xB5)
-ON_PRIMARY = (0xFF, 0xFF, 0xFF)
-HALO = (0xFF, 0xFF, 0xFF)
+#: The themes every shot is taken in, light first.
+THEMES = ("light", "dark")
+#: Callout colours: (disc, number, halo) per theme, the Qt window's accent
+#: fill (Theme.qml) with a ring that lifts the disc off the window.
+CALLOUT_COLOURS = {
+    "light": ((0x3F, 0x51, 0xB5), (0xFF, 0xFF, 0xFF), (0xFF, 0xFF, 0xFF)),
+    "dark": ((0x52, 0x63, 0xD9), (0xFF, 0xFF, 0xFF), (0xE3, 0xE4, 0xE8)),
+}
 
 
 def isolate_environment(root: Path) -> None:
@@ -153,7 +164,6 @@ class Shot:
     scene: Callable[["Scene"], Optional[object]]
     #: Where the PNG goes: ``help``, ``store`` or ``quickstart``.
     dest: str = "help"
-    dark: bool = False
     #: Numbered callouts: (number, objectName[, fx, fy]): the disc sits at
     #: that fraction of the item's rectangle (the middle by default).
     callouts: List[tuple] = field(default_factory=list)
@@ -182,6 +192,19 @@ class Shot:
 
 
 SHOTS: Dict[str, Shot] = {}
+
+
+def image_name(shot: Shot, theme: str) -> str:
+    """The file name (no ``.png``) of ``shot`` in ``theme``: the help's and the
+    Quick Start's dark images are ``<name>.dark``, the store's ``<name>-dark``."""
+    if theme == "light":
+        return shot.name
+    return f"{shot.name}-dark" if shot.dest == "store" else f"{shot.name}.dark"
+
+
+def images() -> Dict[str, Tuple[Shot, str]]:
+    """Every image the tool makes: {file name without .png: (shot, theme)}."""
+    return {image_name(s, t): (s, t) for s in SHOTS.values() for t in THEMES}
 
 
 def shot(name: str, page: str, what: str, **kw):
@@ -399,20 +422,23 @@ def _main_window(sc: Scene):
 
 
 @shot("main-window-labeled", "getting started", "Edit mode, the Directives sidebar open, numbered.",
-      callouts=[(1, "playTab", 1.35, 0.5), (2, "appMenuButton"), (3, "iconRail", 0.5, 0.45),
-                (4, "editToolbar", 0.62, 0.5), (5, "editor", 0.78, 0.5), (6, "statusBar", 0.5, 0.5)])
+      # 2 sits between the song's name and the ☰ button, not on it.
+      callouts=[(1, "playTab", 1.35, 0.5), (2, "appMenuButton", -0.32, 0.5),
+                (3, "iconRail", 0.5, 0.45), (4, "editToolbar", 0.62, 0.5), (5, "editor", 0.78, 0.5),
+                (6, "statusBar", 0.5, 0.5)])
 def _edit_window(sc: Scene):
     sc.song(*FAIR)
     sc.mode("edit")
 
 
 @shot("play-window-labeled", "getting started", "Play mode while a song plays, numbered.",
-      callouts=[(1, "songValues", -0.12, 0.5, "playerBar"), (2, "prevButton", 0.5, 1.0, "playerBar"),
+      # 1 left of the song values (above the timeline); 12 right of the view tabs.
+      callouts=[(1, "songValues", -0.1, 0.5), (2, "prevButton", 0.5, 1.0, "playerBar"),
                 (3, "playButton", 0.5, 1.0, "playerBar"), (4, "stopButton", 0.5, 1.0, "playerBar"),
                 (5, "timeline", 0.5, 1.0, "playerBar"), (6, "position", 0.5, 1.0, "playerBar"),
                 (7, "voicingTip", 0.5, 1.0, "playerBar"), (8, "instrumentButton", 0.5, 1.0, "playerBar"),
                 (9, "speedButton", 0.5, 1.0, "playerBar"), (10, "metronomeButton", 0.5, 1.0, "playerBar"),
-                (11, "volumeButton", 0.5, 1.0, "playerBar"), (12, "sheetTabs", 0.5, 1.0)])
+                (11, "volumeButton", 0.5, 1.0, "playerBar"), (12, "sheetTabs", 1.06, 0.5)])
 def _play_window(sc: Scene):
     sc.song(*GRACE)
     sc.mode("play")
@@ -499,8 +525,9 @@ def _settings_playback(sc: Scene):
     sc.dialogs("openSettings", "playback")
 
 
+# Wide enough for the weights' labels in full.
 @shot("settings-voicing-form", "settings", "Settings, Voicings, a new fretboard voicing.",
-      window="settingsWindow", size_window=(900, 720))
+      window="settingsWindow", size_window=(1040, 720))
 def _settings_voicing_form(sc: Scene):
     sc.song(*FAIR)
     sc.dialogs("openSettings", "voicings")
@@ -599,9 +626,8 @@ def _store_cards(sc: Scene):
     sc.playing(6)
 
 
-@shot("04-play-staff-dark", "store", "Amazing Grace playing on the staff, dark theme.", dark=True,
-      **STORE)
-def _store_staff_dark(sc: Scene):
+@shot("04-play-staff", "store", "Amazing Grace playing on the staff.", **STORE)
+def _store_staff(sc: Scene):
     sc.song(*GRACE)
     sc.mode("play")
     sc.click("sheetTab:staff")
@@ -674,10 +700,12 @@ def save_png(img, path: Path, quantize: bool = True) -> None:
     rgb.save(path, optimize=True)
 
 
-def draw_callouts(img, points: List[Tuple[int, float, float]], scale: float):
-    """Numbered discs at ``points`` (number, x, y in logical px)."""
+def draw_callouts(img, points: List[Tuple[int, float, float]], scale: float,
+                  theme: str = "light"):
+    """Numbered discs at ``points`` (number, x, y in logical px), in ``theme``'s colours."""
     from PIL import ImageDraw, ImageFont
 
+    disc, number_colour, halo = CALLOUT_COLOURS[theme]
     draw = ImageDraw.Draw(img)
     r = round(11 * scale)
     font = None
@@ -690,15 +718,15 @@ def draw_callouts(img, points: List[Tuple[int, float, float]], scale: float):
             break
     for number, x, y in points:
         cx, cy = round(x * scale), round(y * scale)
-        draw.ellipse((cx - r - 2, cy - r - 2, cx + r + 2, cy + r + 2), fill=HALO)
-        draw.ellipse((cx - r, cy - r, cx + r, cy + r), fill=PRIMARY)
-        draw.text((cx, cy), str(number), fill=ON_PRIMARY, font=font, anchor="mm")
+        draw.ellipse((cx - r - 2, cy - r - 2, cx + r + 2, cy + r + 2), fill=halo)
+        draw.ellipse((cx - r, cy - r, cx + r, cy + r), fill=disc)
+        draw.text((cx, cy), str(number), fill=number_colour, font=font, anchor="mm")
     return img
 
 
-def run_shot(shot: Shot, out_dir: Path, scale: float, size: Tuple[int, int],
+def run_shot(shot: Shot, theme: str, out_dir: Path, scale: float, size: Tuple[int, int],
              base: Path, keep: bool) -> Path:
-    """Start the app, set the scene, grab and save one image."""
+    """Start the app in ``theme``, set the scene, grab and save one image."""
     import json as _json
 
     from PySide6.QtGui import QGuiApplication
@@ -709,11 +737,11 @@ def run_shot(shot: Shot, out_dir: Path, scale: float, size: Tuple[int, int],
     from chordnotepad.session.testing import FakePlayer
     from chordnotepad_desktop.application import QtApplication
 
-    tmp = Path(tempfile.mkdtemp(prefix=f"{shot.name}-", dir=base))
+    tmp = Path(tempfile.mkdtemp(prefix=f"{image_name(shot, theme)}-", dir=base))
     config_dir = tmp / "appdata" / "config" / "chord-notepad"
     config_dir.mkdir(parents=True)
     config = {"version": 4, "show_quick_start_on_startup": False,
-              "ui_theme": "dark" if shot.dark else "light",
+              "ui_theme": theme,
               **shot.config}
     (config_dir / "settings.json").write_text(_json.dumps(config), encoding="utf-8")
 
@@ -752,7 +780,7 @@ def run_shot(shot: Shot, out_dir: Path, scale: float, size: Tuple[int, int],
             if yref:  # the row of another item: this item's x, that item's y
                 _, y, _, h = rect_of(sc.item(yref[0]))
             points.append((number, x + w * fx, y + h * fy))
-        image = draw_callouts(image, points, ratio)
+        image = draw_callouts(image, points, ratio, theme)
         box = None
         if shot.crop:
             x, y, w, h = rect_of(sc.item(shot.crop))
@@ -769,7 +797,7 @@ def run_shot(shot: Shot, out_dir: Path, scale: float, size: Tuple[int, int],
             from PIL import Image
 
             image = image.resize(shot.final_size, Image.Resampling.LANCZOS)
-        path = destination(shot, out_dir) / f"{shot.name}.png"
+        path = destination(shot, out_dir) / f"{image_name(shot, theme)}.png"
         save_png(image, path, shot.quantize)
         return path
     finally:
@@ -782,7 +810,9 @@ def run_shot(shot: Shot, out_dir: Path, scale: float, size: Tuple[int, int],
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("--list", action="store_true", help="list the shots and exit")
-    parser.add_argument("--only", help="comma-separated shot names")
+    parser.add_argument("--only", help="comma-separated shot names (both themes) or image "
+                        "names (editor-main-window.dark, 04-play-staff-dark)")
+    parser.add_argument("--theme", choices=THEMES, help="only this theme (default: both)")
     parser.add_argument("--out", type=Path, default=HELP_OUT,
                         help="folder for the help images (default help/images/desktop)")
     parser.add_argument("--scale", type=float, default=1.0,
@@ -796,20 +826,26 @@ def main(argv=None) -> int:
         for s in SHOTS.values():
             print(f"{s.name:28} {s.dest:10} {s.page}: {s.what}")
         return 0
+    every = images()
     names = args.only.split(",") if args.only else list(SHOTS)
-    unknown = [n for n in names if n not in SHOTS]
+    unknown = [n for n in names if n not in SHOTS and n not in every]
     if unknown:
         sys.exit(f"Unknown shot(s): {', '.join(unknown)} (see --list)")
+    # The images to make, as names from images(): a shot's name means both themes.
+    wanted = []
+    for n in names:
+        variants = [image_name(SHOTS[n], t) for t in THEMES] if n in SHOTS else [n]
+        wanted += [v for v in variants if args.theme in (None, every[v][1]) and v not in wanted]
     width, height = (int(v) for v in args.size.lower().split("x"))
 
-    scales = sorted({SHOTS[n].scale or args.scale for n in names})
+    scales = sorted({every[n][0].scale or args.scale for n in wanted})
     if len(scales) > 1:
         # QT_SCALE_FACTOR is read once at start-up: one process per scale.
         import subprocess
 
         status = 0
         for scale in scales:
-            group = [n for n in names if (SHOTS[n].scale or args.scale) == scale]
+            group = [n for n in wanted if (every[n][0].scale or args.scale) == scale]
             command = [sys.executable, __file__, "--only", ",".join(group), "--out", str(args.out),
                        "--size", args.size, "--scale", repr(args.scale)]
             command += ["--keep"] * args.keep
@@ -831,9 +867,9 @@ def main(argv=None) -> int:
     prepare_application(app, AppPaths(resources=REPO / "resources"))
     status = 0
     try:
-        for name in names:
+        for name in wanted:
             try:
-                path = run_shot(SHOTS[name], args.out, args.scale, (width, height), base, args.keep)
+                path = run_shot(*every[name], args.out, args.scale, (width, height), base, args.keep)
                 print(f"{name}: {path.relative_to(REPO) if path.is_relative_to(REPO) else path}")
             except Exception as e:  # keep going: one bad scene shouldn't lose the rest
                 status = 1

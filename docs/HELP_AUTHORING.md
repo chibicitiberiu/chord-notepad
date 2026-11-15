@@ -119,7 +119,11 @@ pipenv run python packaging/tools/qt_help_screenshots.py --only main-window-labe
 It needs no display, and uses a throwaway profile and a silent player. The
 shot list is in the script (each shot says which page it is for); it also
 makes the Quick Start picture (`resources/quickstart/chord_sheet_qt.png`) and
-the store listing images (`packaging/store/screenshots/desktop/`).
+the store listing images (`packaging/store/screenshots/desktop/`). Every shot
+is taken in the light and the dark theme: `<name>.png` and `<name>.dark.png`
+(the store's dark ones are `<name>-dark.png`). `--theme light` or `--theme
+dark` takes one, and `--only` also takes a single image (`--only
+transpose.dark`).
 
 On Android, `:width:` is ignored: images show at their natural size, never
 wider than the screen and never taller than 70% of it, so a full-screen phone

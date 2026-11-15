@@ -5,6 +5,7 @@ skip where Qt isn't available. Two runs of one shot must give the same bytes
 (the images are committed, so a regeneration must not churn them).
 """
 
+import importlib.util
 import subprocess
 import sys
 from pathlib import Path
@@ -13,7 +14,20 @@ import pytest
 
 from tests.conftest import QT_PROBLEM
 
-TOOL = Path(__file__).resolve().parents[1] / "packaging" / "tools" / "qt_help_screenshots.py"
+REPO = Path(__file__).resolve().parents[1]
+TOOL = REPO / "packaging" / "tools" / "qt_help_screenshots.py"
+
+
+def load_tool():
+    """The tool as a module (its shot list; nothing of Qt is imported)."""
+    spec = importlib.util.spec_from_file_location("qt_help_screenshots", TOOL)
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module      # dataclasses look their module up
+    try:
+        spec.loader.exec_module(module)
+    finally:
+        sys.modules.pop(spec.name, None)
+    return module
 
 
 def run_tool(*args):
@@ -42,6 +56,22 @@ def test_a_shot_has_the_fixed_size_and_is_the_same_every_time(tmp_path):
     for out in (first, second):
         result = run_tool("--only", "editor-main-window", "--out", str(out))
         assert result.returncode == 0, result.stderr
-    one, two = (first / "editor-main-window.png"), (second / "editor-main-window.png")
-    assert Image.open(one).size == (1280, 800)
-    assert one.read_bytes() == two.read_bytes()
+    for name in ("editor-main-window.png", "editor-main-window.dark.png"):  # both themes
+        one, two = first / name, second / name
+        assert Image.open(one).size == (1280, 800)
+        assert one.read_bytes() == two.read_bytes(), name
+    # Not the same picture twice: the dark one is darker.
+    light, dark = (Image.open(first / n).convert("L") for n in ("editor-main-window.png",
+                                                                  "editor-main-window.dark.png"))
+    assert sum(dark.getdata()) < sum(light.getdata()) / 2
+
+
+def test_the_images_are_named_per_theme():
+    tool = load_tool()
+    images = tool.images()
+    assert images["editor-main-window.dark"][1] == "dark"
+    assert images["chord_sheet_qt.dark"][1] == "dark"
+    assert images["04-play-staff-dark"][1] == "dark"     # the store's dark names end in -dark
+    assert images["04-play-staff"][1] == "light"
+    assert len(images) == 2 * len(tool.SHOTS)
+
