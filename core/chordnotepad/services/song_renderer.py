@@ -89,6 +89,7 @@ class SongRenderer:
         start_item_index: int = 0,
         cancel_event: Optional[threading.Event] = None,
         should_abort: Optional[Callable[[], bool]] = None,
+        start_pass: int = 0,
     ) -> Optional[RenderedSong]:
         """Render the whole song synchronously.
 
@@ -108,6 +109,13 @@ class SongRenderer:
                 :class:`~exceptions.RenderAborted`, which propagates out of
                 ``render``. ``None`` (default) never aborts -- the playback and
                 export call sites pass nothing, so behaviour is unchanged.
+            start_pass: Which pass of a loop over the start position begins
+                playback: 0 (the default) starts the first time the walk
+                reaches the start position or passes it, as always; ``n``
+                starts at the chord at exactly ``(start_line_index,
+                start_item_index)`` once it has been rendered (skipped)
+                ``n`` times before, i.e. in its ``n + 1``-th pass. A pass the
+                song doesn't have leaves every chord skipped.
 
         Returns:
             A :class:`RenderedSong`, or ``None`` if cancelled.
@@ -149,7 +157,12 @@ class SongRenderer:
             'total_beats_in_bar': 0.0,
             'start_line_index': start_line_index,
             'start_item_index': start_item_index,
-            'in_playback_range': start_line_index == 0 and start_item_index == 0,
+            'in_playback_range': start_pass <= 0 and start_line_index == 0
+            and start_item_index == 0,
+            'start_pass': start_pass,
+            # How many times the chord at the start position has been
+            # rendered skipped (counts passes for start_pass).
+            'start_arrivals': 0,
             # Timeline markers for the chord-sheet strip (see SongMarker) and the
             # beat of the most recent 'loop' marker, used to suppress the
             # redundant 'section' marker emitted when a loop re-walks its target
@@ -199,8 +212,14 @@ class SongRenderer:
             state['item_index'] += 1
 
             # Enter the playback range once we reach the start position.
+            at_start = (current_line_idx == state['start_line_index']
+                        and current_item_idx == state['start_item_index'])
             if not state['in_playback_range']:
-                if (current_line_idx > state['start_line_index'] or
+                if state['start_pass'] > 0:
+                    # A later pass of a loop: only that chord, that time round.
+                    if at_start and state['start_arrivals'] >= state['start_pass']:
+                        state['in_playback_range'] = True
+                elif (current_line_idx > state['start_line_index'] or
                         (current_line_idx == state['start_line_index'] and
                          current_item_idx >= state['start_item_index'])):
                     state['in_playback_range'] = True
@@ -222,6 +241,8 @@ class SongRenderer:
                     rc = self._render_skipped_chord(item, state, current_line_idx, current_item_idx)
                     if rc is not None:
                         rendered.append(rc)
+                        if at_start:
+                            state['start_arrivals'] += 1
                 continue
 
         # Voicing pass: hand every played (non-rest, non-skipped) chord's

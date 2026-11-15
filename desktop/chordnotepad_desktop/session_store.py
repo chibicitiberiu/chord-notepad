@@ -61,7 +61,8 @@ logger = logging.getLogger(__name__)
 #: The session methods called directly, for the value they return. Every
 #: other session method is a bridge command (``submit``). ``picker_at`` is
 #: the ▾ value picker's lookup (plan step D5, value_picker.py).
-#: The player bar's (plan step E, player_bar.py): ``timeline_offset``,
+#: The player bar's (plan step E, player_bar.py): ``timeline_offset`` (is
+#: there anywhere to seek to; the seek is the ``seek_to_bar`` command),
 #: ``timeline_position``, ``setting_directive_start``, and ``volume`` and
 #: ``muted``, which are properties (read, not called).
 #: The chrome's (plan step F, chrome.py and files.py): ``ui_scale`` and

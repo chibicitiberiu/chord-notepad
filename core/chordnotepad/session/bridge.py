@@ -251,6 +251,7 @@ SESSION_COMMANDS: Dict[str, Dict[str, str]] = {
     "pause": {},
     "rewind": {},
     "set_playhead": {"offset": "int"},
+    "seek_to_bar": {"bar": "int"},
     "tap_chord_at": {"offset": "int"},
     "set_bpm": {"bpm": "float"},
     "set_multiplier_pct": {"pct": "float"},

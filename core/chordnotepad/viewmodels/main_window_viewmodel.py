@@ -465,11 +465,14 @@ class MainWindowViewModel(Observable):
         else:
             self.start_playback()
 
-    def start_playback(self, from_char_offset: int = 0) -> bool:
+    def start_playback(self, from_char_offset: int = 0, start_pass: int = 0) -> bool:
         """Start sequential chord playback with directive support.
 
         Args:
             from_char_offset: Character offset to start playback from (0 = beginning)
+            start_pass: With a loop over the start chord, the pass to start
+                in (0, the default: the first). The start chord is then the
+                one ``from_char_offset`` names even at offset 0.
 
         Returns:
             True if playback started, False if there was nothing to play
@@ -491,8 +494,9 @@ class MainWindowViewModel(Observable):
         start_line_index = 0
         start_item_index = 0
 
-        if from_char_offset > 0:
-            logger.info(f"Starting playback from character offset {from_char_offset}")
+        if from_char_offset > 0 or start_pass > 0:
+            logger.info(f"Starting playback from character offset {from_char_offset}"
+                        + (f", pass {start_pass + 1}" if start_pass > 0 else ""))
             # Find the first chord where chord.end > cursor_position
             found = False
             for line_idx, line in enumerate(self._playback_lines):
@@ -558,6 +562,7 @@ class MainWindowViewModel(Observable):
             start_line_index=start_line_index,
             start_item_index=start_item_index,
             on_error_callback=on_error_wrapper,
+            start_pass=start_pass,
         )
 
         if success:

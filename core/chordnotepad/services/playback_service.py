@@ -740,6 +740,7 @@ class PlaybackService:
         on_error_callback: Optional[Callable[[str], None]] = None,
         initial_bpm: Optional[int] = None,
         initial_time_sig: Optional[Tuple[int, int]] = None,
+        start_pass: int = 0,
     ) -> bool:
         """Start playback of a song with lines containing chords and directives.
 
@@ -756,6 +757,8 @@ class PlaybackService:
             initial_bpm: The tempo the song starts at unless it sets one (the
                 document's); None uses the playback state's.
             initial_time_sig: Likewise the ``(beats, unit)``.
+            start_pass: Which pass of a loop over the start chord to start in
+                (0, the default: the first; see ``SongRenderer.render``).
 
         Returns:
             True if playback started, False if there was nothing to play
@@ -816,6 +819,7 @@ class PlaybackService:
                     start_line_index=start_line_index,
                     start_item_index=start_item_index,
                     cancel_event=cancel_event,
+                    start_pass=start_pass,
                 )
                 if rendered is None or cancel_event.is_set():
                     self._logger.debug("Render cancelled before playback start")

@@ -150,6 +150,9 @@
     "save_settings": {
       "values": "SettingsValues|null"
     },
+    "seek_to_bar": {
+      "bar": "int"
+    },
     "select_voicing": {
       "name": "str"
     },
@@ -312,6 +315,7 @@
     "save",
     "save_as",
     "save_settings",
+    "seek_to_bar",
     "select_voicing",
     "set_bpm",
     "set_bpm_text",

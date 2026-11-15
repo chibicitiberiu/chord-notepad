@@ -373,6 +373,14 @@ class AppSession:
         self._tracks_playhead = pick(TRACKS_PLAYHEAD, self._platform)
         self._stop_rewinds = pick(STOP_REWINDS, self._platform)
         self._playhead: Optional[int] = None
+        # Which pass of a loop over the playhead's chord it is on (0: the
+        # first): the n-th occurrence of that chord in the chord sheet's
+        # loop-unrolled song. The text has one chord for every pass, so the
+        # offset alone can't say; a seek on the timeline or the sheet and
+        # playback's pings set it, everything else that moves the playhead
+        # (and every edit) puts it back to 0. Only where the playhead
+        # follows playback (TRACKS_PLAYHEAD) does it become anything but 0.
+        self._playhead_pass = 0
         # PlaybackState.bar/beat from the top of the song (COUNTS_SONG_BARS).
         self._song_bars = pick(COUNTS_SONG_BARS, self._platform)
         # The timeline's sections, from the strip's song (PlaybackState.sections).
@@ -1146,9 +1154,12 @@ class AppSession:
             # rendered with the new ones.
             span = self._playback.playing_span
             from_offset = span.start if span is not None else self._playhead
+            # In the pass it was paused in (the pings keep the playhead's).
+            start_pass = self._playback_pass() if from_offset == self._playhead else 0
             logger.info("Resuming playback re-rendered (a playback setting changed while paused)")
             self._main.stop_playback()
-            self._start_playback(from_offset, False if self._tracks_playhead else None)
+            self._start_playback(from_offset, False if self._tracks_playhead else None,
+                                 start_pass)
         elif status is PlaybackStatus.PAUSED:
             logger.info("Resuming playback")
             self._main.resume_playback()
@@ -1163,9 +1174,12 @@ class AppSession:
             # playhead isn't (where the playhead moves on its own it nearly
             # always has one).
             from_cursor = from_offset is not None
+            start_pass = 0
             if from_offset is None and self._playhead is not None:
                 from_offset = self._playhead
-            self._start_playback(from_offset, from_cursor if self._tracks_playhead else None)
+                start_pass = self._playback_pass()
+            self._start_playback(from_offset, from_cursor if self._tracks_playhead else None,
+                                 start_pass)
 
     @_command
     def stop(self) -> None:
@@ -1204,6 +1218,8 @@ class AppSession:
         Silent. While paused, the paused song is dropped (stopped), so Play
         starts at the new playhead; while playing, playback jumps there
         (it restarts from that chord). Nothing happens without chords.
+        A chord a loop repeats is the text's, so the playhead goes to its
+        first pass (:meth:`seek_to_bar` and the chord sheet reach the others).
 
         Args:
             offset: A code-point offset into the text (clamped to it).
@@ -2132,18 +2148,20 @@ class AppSession:
         If audio can't start, the first click-to-hear failure in a session
         emits :class:`AudioUnavailable`; later ones only log.
 
-        Where the playhead follows taps (Android) the chord also becomes the
-        playhead, like a tap on it in the text (:meth:`tap_chord_at`): idle
-        or paused it moves there and the chord sounds; while a song plays,
-        playback jumps there instead. A chord the text no longer has at the
-        same place (the strip hasn't caught up with an edit) only sounds.
+        Where the playhead follows taps (Android, the Qt desktop) the chord
+        also becomes the playhead, like a tap on it in the text
+        (:meth:`tap_chord_at`): idle or paused it moves there and the chord
+        sounds; while a song plays, playback jumps there instead. A slot in a
+        later pass of a loop puts the playhead on that pass. A chord the text
+        no longer has at the same place (the strip hasn't caught up with an
+        edit) only sounds.
         """
         if self._chord_sheet is None:
             return
         chord = self._text_chord_of_strip(int(index)) if self._tracks_playhead else None
         if chord is not None:
             playing = self._playback_status() is PlaybackStatus.PLAYING
-            self._seek(chord.start)
+            self._seek(chord.start, self._pass_of_strip(int(index)))
             if playing:
                 return
         try:
@@ -2151,35 +2169,59 @@ class AppSession:
         except AudioInitializationError as e:
             self._report_audio_failure(str(e), from_click=True)
 
+    @_command
+    def seek_to_bar(self, bar: int) -> None:
+        """The timeline's seek: put the playhead on the chord a seek to ``bar``
+        (counted from the top of the song) lands on (:meth:`timeline_offset`),
+        in the pass of a loop that bar is in.
+
+        The position, the chord sheet and Play then follow that pass; the
+        editor marks the chord in the text, which is the same for every pass.
+        Otherwise like :meth:`set_playhead`: paused, the paused song is
+        dropped; playing, playback jumps there. Nothing happens before the
+        sheet has rendered this text or for a song without chords.
+        """
+        found = self._timeline_chord(int(bar))
+        if found is None:
+            return
+        index, chord = found
+        self._seek(chord.start, self._pass_of_strip(index) if self._tracks_playhead else 0)
+
     # -- the Qt player bar's timeline (direct calls, no state) --------------------
 
     def timeline_offset(self, bar: int) -> Optional[int]:
         """Where a seek on the timeline to ``bar`` (counted from the top of the
         song) goes: the start of the first chord in that bar or later, else
-        the last chord, of the chord sheet's song, as an offset into the text
-        (send it to :meth:`set_playhead`). None before the sheet has rendered
-        this text or for a song without chords.
+        the last chord, of the chord sheet's song, as an offset into the text.
+        None before the sheet has rendered this text or for a song without
+        chords (the player bar checks this before it seeks).
 
-        A loop's later passes are the same chords in the text, so a seek into
-        one starts at the chord's first pass (as a click on the chord sheet).
+        A loop's later passes are the same chords in the text, so the offset
+        doesn't say which pass: :meth:`seek_to_bar` seeks to the bar's pass.
         """
+        found = self._timeline_chord(int(bar))
+        return found[1].start if found is not None else None
+
+    def _timeline_chord(self, bar: int) -> Optional[Tuple[int, "ChordInfo"]]:
+        """``(strip index, text chord)`` a seek to ``bar`` lands on, or None."""
         sheet = self._chord_sheet
         song = sheet.rendered_song if sheet is not None else None
         if song is None:
             return None
         index = timeline.chord_at_bar(
-            song, int(bar), lambda i: self._text_chord_of_strip(i) is not None)
+            song, bar, lambda i: self._text_chord_of_strip(i) is not None)
         chord = self._text_chord_of_strip(index) if index is not None else None
-        return chord.start if chord is not None else None
+        return (index, chord) if chord is not None else None
 
     def timeline_position(self) -> Optional[TimelinePosition]:
         """Where the player's bar:beat stands: while a song plays or is paused,
         the chord the last progress ping started; while idle, the playhead's
         chord in the chord sheet's song. None when neither is known (no
-        chords, or the sheet hasn't rendered this text)."""
+        chords, or the sheet hasn't rendered this text). Idle, in the
+        playhead's pass of a loop."""
         if self._playback.status is not PlaybackStatus.IDLE:
             return self._ping_position
-        found = self._strip_chord(self._playhead)
+        found = self._playhead_strip_chord()
         if found is None:
             return None
         return timeline.chord_position(self._chord_sheet.rendered_song, found[0])
@@ -2610,6 +2652,11 @@ class AppSession:
             if moved != self._playhead:
                 self._playhead = moved
                 self._publish_playback(self._playback)
+        # An edit may change the loops: the playhead goes back to its chord's
+        # first pass rather than keep a pass the new song may not have.
+        if self._playhead_pass:
+            self._playhead_pass = 0
+            self._publish_chord_sheet()
         self._text = text
         self._revision += 1
         self._client_token = client_token
@@ -3071,21 +3118,69 @@ class AppSession:
             self._set_idle_status()
 
     def _cursor_index(self) -> Optional[int]:
-        """The strip's index of the playhead's chord (its first occurrence)."""
-        found = self._strip_chord(self._playhead)
+        """The strip's index of the playhead's chord (in its pass)."""
+        found = self._playhead_strip_chord()
         return found[0] if found is not None else None
 
-    def _strip_chord(self, start: Optional[int]) -> Optional[Tuple[int, int, int]]:
-        """``(index, bar, total_bars)`` of the first strip chord starting at ``start``."""
+    def _strip_chord(self, start: Optional[int],
+                     occurrence: int = 0) -> Optional[Tuple[int, int, int]]:
+        """``(index, bar, total_bars)`` of the strip chord starting at ``start``,
+        its ``occurrence``-th (0: the first) in the loop-unrolled song."""
         sheet = self._chord_sheet
         song = sheet.rendered_song if sheet is not None else None
         if start is None or song is None:
             return None
+        seen = 0
         for index, rendered in enumerate(song.chords):
             source = rendered.chord_info
             if source is not None and source.start == start and not rendered.skipped:
-                return index, rendered.song_bar or rendered.bar, song.total_bars
+                if seen == occurrence:
+                    return index, rendered.song_bar or rendered.bar, song.total_bars
+                seen += 1
         return None
+
+    def _playhead_strip_chord(self) -> Optional[Tuple[int, int, int]]:
+        """:meth:`_strip_chord` of the playhead in its pass; its first pass
+        when the strip's song doesn't have that pass."""
+        found = None
+        if self._playhead_pass:
+            found = self._strip_chord(self._playhead, self._playhead_pass)
+        return found if found is not None else self._strip_chord(self._playhead)
+
+    def _playback_pass(self) -> int:
+        """The pass Play starts the playhead's chord in: the playhead's, if
+        the strip's song has it, else the first (0)."""
+        if self._playhead_pass and self._strip_chord(
+                self._playhead, self._playhead_pass) is not None:
+            return self._playhead_pass
+        return 0
+
+    def _pass_of_strip(self, index: int) -> int:
+        """Which pass strip chord ``index`` is of its text chord: how many
+        times the same chord comes before it in the loop-unrolled song."""
+        sheet = self._chord_sheet
+        song = sheet.rendered_song if sheet is not None else None
+        if song is None or not 0 <= index < len(song.chords):
+            return 0
+        source = song.chords[index].chord_info
+        if source is None:
+            return 0
+        return sum(1 for rendered in song.chords[:index]
+                   if rendered.chord_info is not None and not rendered.skipped
+                   and rendered.chord_info.start == source.start)
+
+    def _pass_of_ping(self, chord: "ChordInfo", chord_index: Optional[int]) -> int:
+        """The pass a ping's chord is in, from its index in the played song
+        (which indexes as the strip's does); 0 when the strip's song doesn't
+        have that chord there."""
+        sheet = self._chord_sheet
+        song = sheet.rendered_song if sheet is not None else None
+        if song is None or chord_index is None or not 0 <= chord_index < len(song.chords):
+            return 0
+        source = song.chords[chord_index].chord_info
+        if source is None or source.start != chord.start:
+            return 0
+        return self._pass_of_strip(chord_index)
 
     def _text_chord_of_strip(self, index: int) -> Optional["ChordInfo"]:
         """The valid chord of the current text that strip chord ``index`` is
@@ -3214,7 +3309,7 @@ class AppSession:
         From the strip's song when it has rendered this text, else from the
         pings of the last run over the same text.
         """
-        found = self._strip_chord(self._playhead)
+        found = self._playhead_strip_chord()
         if found is not None:
             return found[1], found[2]
         if self._playhead is not None and self._ping_bars_revision == self._revision:
@@ -3233,16 +3328,21 @@ class AppSession:
         self._publish_editor()
         self._publish_toolbar()
 
-    def _move_playhead(self, start: Optional[int]) -> None:
-        """Put the playhead at ``start`` (a chord's start, or None)."""
-        if start == self._playhead:
+    def _move_playhead(self, start: Optional[int], start_pass: int = 0) -> None:
+        """Put the playhead at ``start`` (a chord's start, or None), in pass
+        ``start_pass`` of a loop over it (0: the first)."""
+        if start is None:
+            start_pass = 0
+        if start == self._playhead and start_pass == self._playhead_pass:
             return
         self._playhead = start
+        self._playhead_pass = start_pass
         self._publish_playback(self._playback)
         self._publish_chord_sheet()
 
-    def _seek(self, start: int) -> None:
-        """Move the playhead to the chord at ``start`` (set_playhead, a tap).
+    def _seek(self, start: int, start_pass: int = 0) -> None:
+        """Move the playhead to the chord at ``start`` (set_playhead, a tap),
+        in pass ``start_pass`` of a loop over it (a timeline or sheet seek).
 
         Paused: the paused song is dropped, so Play starts here. Playing:
         playback restarts here.
@@ -3252,9 +3352,10 @@ class AppSession:
             logger.info("Moving the playhead %s", "while playing: restarting there"
                         if status is PlaybackStatus.PLAYING else "while paused: stopping")
             self._main.stop_playback()
-        self._move_playhead(start)
+        self._move_playhead(start, start_pass)
         if status is PlaybackStatus.PLAYING:
-            self._start_playback(start, False if self._tracks_playhead else None)
+            self._start_playback(start, False if self._tracks_playhead else None,
+                                 self._playback_pass())
         else:
             self._set_idle_status()
 
@@ -3276,13 +3377,17 @@ class AppSession:
         else:
             return
         before = self._playhead
-        self._move_playhead(chord.start if chord is not None else None)
+        start = chord.start if chord is not None else None
+        # A detection that leaves the playhead on its chord (a notation
+        # change) keeps its pass; edits have already dropped it.
+        self._move_playhead(start, self._playhead_pass if start == before else 0)
         if self._playhead != before and self._position_status:
             self._set_idle_status()
 
     def _start_playback(self, from_offset: Optional[int],
-                        from_cursor: Optional[bool] = None) -> None:
-        """Start a song at ``from_offset`` (None: the top).
+                        from_cursor: Optional[bool] = None, start_pass: int = 0) -> None:
+        """Start a song at ``from_offset`` (None: the top), in pass
+        ``start_pass`` of a loop over the chord there (0: the first).
 
         ``from_cursor`` picks the "from cursor" status texts; None means
         "whenever there is an offset", which is all the Tk desktop has.
@@ -3293,7 +3398,8 @@ class AppSession:
                     else "the start" if from_offset is None else "the playhead")
         self._playing_chord = None
         try:
-            started = self._main.start_playback(from_char_offset=from_offset or 0)
+            started = self._main.start_playback(from_char_offset=from_offset or 0,
+                                                start_pass=start_pass)
         except AudioInitializationError as e:
             self._set_status(formatting.AUDIO_UNAVAILABLE_STATUS)
             self._report_audio_failure(str(e), from_click=False)
@@ -3388,9 +3494,14 @@ class AppSession:
             beats_per_bar=int(event.time_signature_beats),
             bpm=int(event.bpm),
             total_bars=int(event.total_bars))
-        if self._tracks_playhead and self._playhead != chord.start:
-            self._playhead = chord.start
-            self._publish_chord_sheet()
+        if self._tracks_playhead:
+            # The pass too, so a pause in a loop's second pass resumes, shows
+            # and (after Stop on Android) plays from that pass.
+            start_pass = self._pass_of_ping(chord, event.chord_index)
+            if self._playhead != chord.start or self._playhead_pass != start_pass:
+                self._playhead = chord.start
+                self._playhead_pass = start_pass
+                self._publish_chord_sheet()
         self._publish_playback(dataclasses.replace(
             self._playback,
             playing_span=Span(chord.start, chord.end, SpanKind.CHORD),

@@ -353,10 +353,30 @@ def test_a_drag_seeks_as_it_goes_when_idle_and_where_it_ends_when_playing(pb):
     pb.run()
     QTest.mouseMove(pb.window, pb.centre(segs[1], segs[1].width() / 4))
     pb.run()
-    assert len(pb.sent("set_playhead")) == 1                  # the press only
+    assert len(pb.sent("seek_to_bar")) == 1                   # the press only
     QTest.mouseRelease(pb.window, LEFT, NO_MODIFIER, pb.centre(segs[1], segs[1].width() / 4))
     pb.run()
-    assert pb.sent("set_playhead")[-1] == {"offset": TEXT.index("F")}
+    assert pb.sent("seek_to_bar")[-1] == {"bar": 4}
+
+
+def test_a_click_in_a_loops_second_pass_seeks_into_that_pass(pb):
+    # Tibi, 2026-11-15: a click on the second segment registered in the first.
+    pb.to_play()
+    timeline, segs = segments(pb)
+    pb.click_on(segs[2], dx=-segs[2].width() / 4)         # bar 5: Am, the repeat
+    pb.qtbot.waitUntil(lambda: pb.model.position == "5:1", timeout=2000)
+    # The editor marks the chord in the text (the same for both passes).
+    assert pb.playback("playhead_offset") == TEXT.index("Am")
+    assert pb.store.state("ChordSheetState").value("cursor_index") == 4
+    pb.click_on(pb.it("playButton"))
+    pb.wait_status("playing")
+    pb.ping(1)
+    assert (pb.playback("chord_index"), pb.playback("bar")) == (4, 5)
+    assert pb.model.position == "5:1"
+    # While playing, a click in the first pass jumps back there.
+    pb.click_on(segs[1], dx=segs[1].width() / 4)          # bar 4: F, the first pass
+    pb.ping(1)
+    assert (pb.playback("chord_index"), pb.playback("bar")) == (3, 4)
 
 
 def test_the_position_is_fixed_width_tabular_and_right_aligned(pb):

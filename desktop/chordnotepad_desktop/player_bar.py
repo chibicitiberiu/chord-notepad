@@ -12,15 +12,17 @@
   playing song; ⏮ keeps it playing by sending ``play_pause`` right after
   (both are bridge commands and run in order, so Play starts at the
   playhead ``rewind`` has just put on the first chord). No core change: a
-  seek while playing (``set_playhead``) stops and restarts the same way.
+  seek while playing (``seek_to_bar``) stops and restarts the same way.
 * **The position** (:attr:`PlayerBarModel.position`, bar:beat from the top
   of the song): the core pings once per chord (``PlaybackState.bar`` and
   ``beat`` change per chord, B2), so between pings the beat is counted on at
   the chord's tempo times the speed (``AppSession.timeline_position``, a
   direct call, says where the chord started, its meter and tempo). Paused,
   it stands still; idle, it is the playhead's chord.
-* **Seeking:** :meth:`PlayerBarModel.seekBar` sends ``set_playhead`` to the
-  chord the core's ``timeline_offset`` names for a bar.
+* **Seeking:** :meth:`PlayerBarModel.seekBar` sends ``seek_to_bar``: the core
+  puts the playhead on the chord that bar lands on, in the bar's pass of a
+  loop (a text offset alone would be the first pass). ``timeline_offset``
+  (a direct call) only says whether there is anywhere to go.
 * **Song values:** the tempo's scale (drag, wheel, the Q2 wheel fix), the
   key and time pickers (D5's ValuePicker with the toolbar's choices; a pick
   sends ``set_key`` / ``set_time_signature``), and where each value's
@@ -321,14 +323,14 @@ class PlayerBarModel(QObject):
 
     @Slot(int, result=bool)
     def seekBar(self, bar: int) -> bool:  # noqa: N802 (Qt)
-        """Move the playhead to the chord a seek to ``bar`` lands on (a
-        playing song restarts there). False when there is nowhere to go."""
+        """Move the playhead to the chord a seek to ``bar`` lands on, in that
+        bar's pass of a loop (a playing song restarts there). False when
+        there is nowhere to go."""
         if self._store.closed:
             return False
-        offset = self._store.direct("timeline_offset", int(bar))
-        if offset is None:
+        if self._store.direct("timeline_offset", int(bar)) is None:
             return False
-        self._store.submit("set_playhead", {"offset": offset})
+        self._store.submit("seek_to_bar", {"bar": int(bar)})
         return True
 
     # -- song values ------------------------------------------------------------------
