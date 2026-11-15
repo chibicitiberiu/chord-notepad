@@ -12,7 +12,7 @@ from tests.conftest import QT_PROBLEM
 if QT_PROBLEM:
     pytest.skip(f"Qt not available: {QT_PROBLEM}", allow_module_level=True)
 
-from PySide6.QtCore import Q_ARG, QMetaObject, QMimeData, QPoint, QPointF, Qt  # noqa: E402
+from PySide6.QtCore import Q_ARG, QCoreApplication, QMetaObject, QMimeData, QPoint, QPointF, Qt  # noqa: E402
 from PySide6.QtGui import (  # noqa: E402
     QColor, QDragEnterEvent, QDragMoveEvent, QDropEvent, QGuiApplication, QInputMethodEvent,
     QTextCharFormat, QTextCursor, QWheelEvent,
@@ -314,7 +314,12 @@ LONG_SONG = "".join(f"C       G\nLine {n}\n" for n in range(200))
 def scrolled_to_the_middle(editor):
     """A long song, opened, with the view scrolled to its middle by the wheel
     (the caret left at the start)."""
-    song(editor, LONG_SONG)
+    with editor.qtbot.waitSignal(editor.bridge.documentReset, timeout=2000):
+        song(editor, LONG_SONG)
+    # The pane scrolls to the top in a Qt.callLater after the reset; let it
+    # run first, or it can undo the scroll below on a loaded machine.
+    QCoreApplication.sendPostedEvents()
+    editor.run()
     flick = editor.item("editorScroll").property("contentItem")
     editor.qtbot.waitUntil(lambda: flick.property("contentY") == 0, timeout=1000)
     middle = round((flick.property("contentHeight") - flick.property("height")) / 2)
