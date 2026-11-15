@@ -174,6 +174,20 @@ Rectangle {
                 }
             }
             HoverHandler { cursorShape: Qt.PointingHandCursor }
+            // Dragging scrolls sideways, by how far the pointer moved since the
+            // press. A drag past the system threshold isn't a tap, so it
+            // doesn't audition; a playing follow takes over again at the next
+            // chord, as it does after the wheel.
+            DragHandler {
+                id: sheetDrag
+                objectName: "sheetDrag"
+                target: null
+                yAxis.enabled: false
+                cursorShape: Qt.ClosedHandCursor
+                property real startScroll: 0
+                onActiveChanged: if (active) startScroll = sheet.scrollX
+                onTranslationChanged: if (active) sheet.scrollX = startScroll - translation.x
+            }
             TapHandler {
                 onTapped: (ev) => {
                     var i = sheet.chordAt(ev.position.x, ev.position.y)
