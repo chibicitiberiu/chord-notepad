@@ -98,8 +98,10 @@ def start(self, app):
     settings = win.findChild(QObject, "settingsWindow")
     QTimer.singleShot(300, lambda: QMetaObject.invokeMethod(hub, "openSettings", Q_ARG("QVariant", "general")))
     QTimer.singleShot(900, lambda: settings.close())
-    QTimer.singleShot(1500, lambda: print("settings shown after close:", settings.isVisible(), flush=True))
-    QTimer.singleShot(1600, lambda: win.close())
+    # One timer for the check and the close: coarse timers may fire up to 5%
+    # off, so a separate 1600 ms close could run before a 1500 ms check.
+    QTimer.singleShot(1500, lambda: (print("settings shown after close:", settings.isVisible(), flush=True),
+                                     win.close()))
     QTimer.singleShot(10000, lambda: (print("STILL RUNNING", flush=True), os._exit(7)))
     return main
 
