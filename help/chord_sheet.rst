@@ -40,7 +40,8 @@ point.
 .. only:: desktop
 
    Click any chord in the strip to hear that exact voicing once, the same
-   way clicking a chord in the editor plays it.
+   way clicking a chord in the editor plays it. The playhead moves to it, and
+   the text scrolls to show that chord if it was out of view.
 
 .. only:: android
 
@@ -251,6 +252,10 @@ visible chord once you scroll past a ``{key}`` change).
    end of the strip's header to make their drawing smaller or larger. The zoom
    level is remembered per view.
 
+   To move along the song, scroll the mouse wheel over the strip, drag it
+   sideways with the mouse (the pointer turns into a closed hand; a drag
+   doesn't play the chord it started on), or use the scroll bar at the bottom.
+
 .. only:: android
 
    The Staff, Fret cards, and Tab views have zoom buttons (magnifiers with
@@ -282,7 +287,8 @@ Suggesting a Capo
 
 .. only:: desktop
 
-   To find a good capo, use :menuselection:`Tools --> Suggest capo...`. It asks
+   To find a good capo, click **Capo** in the Edit toolbar (the capo icon, next
+   to Transpose) or use :menuselection:`Tools --> Suggest capo...`. It asks
    which fretboard voicing to optimize for -- defaulting to the current one, or
    standard guitar when the active voicing is not a fretboard voicing -- then
    scores capo positions over the selection (or the whole song when nothing is

@@ -55,6 +55,9 @@ The User Interface
    * **Undo** and **Redo** (Ctrl+Z, Ctrl+Y or Ctrl+Shift+Z). They are greyed
      out when there is nothing to undo or redo.
    * **Transpose** (Ctrl+T) opens the Transpose dialog; see :doc:`transpose`.
+   * **Capo** opens Suggest Capo, which finds the capo position that makes the
+     chords easier to play; the same as :menuselection:`Tools --> Suggest
+     capo...` (see :doc:`chord_sheet`).
    * **Convert** converts the song between American and European chord
      names; see :doc:`transpose`.
    * The **AB | Do** switch, described below.
@@ -1069,8 +1072,14 @@ As you select notes, Chord Notepad analyzes them and shows matching chords:
    The first result is marked **best**.
 
    **Click a result:**
+      Plays that chord so you can hear it. **Shift+click** plays it rolled.
+
+   **Double-click a result:**
       Inserts that chord into your document at the text cursor, and puts the
       cursor back in the text so you can carry on typing.
+
+   **Drag a result into the text:**
+      Drops the chord where you let go.
 
    **The ▶ next to a result:**
       Plays that chord so you can hear it. **Shift+click** it to play the
@@ -1100,8 +1109,10 @@ The Insert Button
 
 .. only:: desktop
 
-   There is no Insert button: click a result in the list to add that chord to
-   your document.
+   There is no Insert button: double-click a result in the list (or drag it
+   into the text) to add that chord to your document. From the keyboard, Up
+   and Down move through the results, **Space** plays the current one and
+   **Enter** inserts it.
 
 .. only:: android
 
@@ -1150,8 +1161,8 @@ Using the Chord Identifier
    2. Play the chord on your instrument
    3. Click the notes on the piano keyboard (or type them)
    4. Look at the results list
-   5. Click the ▶ next to a result to hear which one sounds right
-   6. Click the result to add it to your document
+   5. Click a result (or the ▶ next to it) to hear which one sounds right
+   6. Double-click the result to add it to your document
 
 .. only:: android
 
