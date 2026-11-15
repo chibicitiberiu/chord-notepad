@@ -152,3 +152,27 @@ def test_a_view_without_a_gutter_draws_no_edge(qapp, qtbot, tmp_path, monkeypatc
         assert drawn == []
     finally:
         finish(sh)
+
+
+# -- C5: the staff's notice ------------------------------------------------------------------
+
+
+NOTICE = "Rhythm isn't shown yet: every chord is drawn as a whole note."
+
+
+def test_the_staff_says_it_draws_every_chord_as_a_whole_note(sh):
+    sh.to_play(700)
+    sh.wait_sheet("keyboard")
+    notice = sh.it("staffNotice")
+    assert notice.property("text") == NOTICE
+    assert notice.isVisible() is False                           # not on the piano roll
+    sh.store.submit("set_chord_sheet_view", {"view_id": "staff"})
+    sh.wait_sheet("staff")
+    sh.qtbot.waitUntil(notice.isVisible, timeout=2000)
+    bar = sh.it("sheetScrollBar")
+    # Bottom left, just above the scroll bar, inside the strip.
+    assert notice.x() < 20 and notice.y() + notice.height() <= bar.y() + 1
+    assert notice.y() > 0 and notice.x() + notice.width() <= sh.view.width()
+    sh.store.submit("set_chord_sheet_view", {"view_id": "keyboard"})
+    sh.wait_sheet("keyboard")
+    sh.qtbot.waitUntil(lambda: not notice.isVisible(), timeout=2000)

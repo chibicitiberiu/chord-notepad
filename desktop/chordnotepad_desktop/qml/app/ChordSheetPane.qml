@@ -197,7 +197,20 @@ Rectangle {
                     if (pane.editor) pane.editor.revealPlayhead()
                 }
             }
+            // The staff draws every chord as a whole note for now.
+            Label {
+                objectName: "staffNotice"
+                visible: pane.activeView === "staff"
+                anchors.left: parent.left; anchors.leftMargin: Theme.gap2
+                anchors.bottom: sheetBar.top; anchors.bottomMargin: Theme.px(0.5)
+                width: Math.min(implicitWidth, parent.width - 2 * Theme.gap2)
+                elide: Text.ElideRight
+                text: "Rhythm isn't shown yet: every chord is drawn as a whole note."
+                font: Theme.fontC
+                color: Theme.muted
+            }
             ScrollBar {
+                id: sheetBar
                 objectName: "sheetScrollBar"
                 anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
                 anchors.leftMargin: sheet.gutterWidth
