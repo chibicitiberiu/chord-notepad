@@ -12,7 +12,7 @@ if QT_PROBLEM:
     pytest.skip(f"Qt not available: {QT_PROBLEM}", allow_module_level=True)
 
 from PySide6.QtCore import QCoreApplication, QEvent, Qt  # noqa: E402
-from PySide6.QtGui import QKeyEvent  # noqa: E402
+from PySide6.QtGui import QColor, QKeyEvent  # noqa: E402
 from PySide6.QtTest import QTest  # noqa: E402
 
 from tests.qt.test_qt_editor import Editor, song, start  # noqa: E402
@@ -423,3 +423,47 @@ def test_comment_and_indent_are_refused_while_playing(ed):
     assert ed.text() == SHEET
     status = ed.harness.app.status_bar
     ed.qtbot.waitUntil(lambda: status.readOnlyNotice != "", timeout=1000)
+
+
+# -- a selected word's other occurrences --------------------------------------------------------
+
+
+def occurrences(ed):
+    return ed.bridge.tints["occurrence"]
+
+
+def test_a_selected_words_other_occurrences_are_tinted(ed):
+    text = "Am C Am7 Am\nam Am\n"
+    song(ed, text)
+    QTest.mouseDClick(ed.window, Qt.MouseButton.LeftButton, NONE, ed.point_of(1))
+    ed.run(60)
+    assert ed.area.property("selectedText") == "Am"            # a double click selects the word
+    assert occurrences(ed) == [(9, 11), (15, 17)]               # not Am7, not "am"
+    fmt = ed.formats_at(9)[-1]
+    assert fmt.background().color() == QColor(_theme(ed).property("occurrence"))
+    ed.set_cursor(3)
+    ed.run(60)
+    assert occurrences(ed) == []
+    ed.area.select(0, 4)                                       # not a word
+    ed.run(60)
+    assert occurrences(ed) == []
+
+
+def test_the_find_bar_takes_over_from_the_occurrences(ed):
+    text = "Am C Am\n"
+    song(ed, text)
+    ed.area.select(0, 2)
+    ed.run(60)
+    assert occurrences(ed) == [(5, 7)]
+    ed.key(K.Key_F, CTRL)
+    ed.qtbot.waitUntil(lambda: ed.bridge.tints["find"] == [(0, 2), (5, 7)], timeout=1000)
+    assert occurrences(ed) == []
+    ed.key(K.Key_Escape)
+    ed.run(60)
+    assert ed.bridge.tints["find"] == [] and occurrences(ed) == [(5, 7)]
+
+
+def _theme(ed):
+    from PySide6.QtQml import qmlEngine
+    return qmlEngine(ed.window).singletonInstance("CNTheme", "Theme")
+

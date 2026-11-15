@@ -307,6 +307,7 @@ class EditorBridge(QObject):
         self._tint_starts: List[int] = []
         self._longest_tint = 0
         self._finder = FindModel(store, self, parent=self)
+        self._finder.changed.connect(self._update_occurrences)
 
         store.event.connect(self._on_event)
         store.stateChanged.connect(self._on_state)
@@ -917,6 +918,21 @@ class EditorBridge(QObject):
     def selectionMoved(self) -> None:  # noqa: N802 (Qt)
         """The TextArea's selection or caret moved (EditorPane)."""
         self._finder.selectionMoved()
+        self._update_occurrences()
+
+    def _update_occurrences(self) -> None:
+        """A selected word's other occurrences get a subtle tint (exact case,
+        whole words: text_ops.occurrences), unless the find bar shows its
+        own matches."""
+        spans: List[Tuple[int, int]] = []
+        if self._area is not None and not (self._finder.active and self._finder.query):
+            start, end, _ = self.selection_range()
+            if start < end:
+                mapper = OffsetMapper(self._painted_text)
+                selected = (mapper.to_code_point(start), mapper.to_code_point(end))
+                spans = [mapper.range_to_utf16(s, e)
+                         for s, e in text_ops.occurrences(self._painted_text, selected) if (s, e) != selected]
+        self._set_tints("occurrence", spans)
 
     # -- drag and drop from the sidebars (the palette tiles, the identifier's chords) ---
 
