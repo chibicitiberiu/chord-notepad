@@ -1,0 +1,26 @@
+# Microsoft Store, "What's new in this version" for 0.6.0. Paste each block into
+# Partner Center > the submission > Store listings > <language> > What's new in
+# this version (limit 1500 characters; check with
+# `python3 packaging/store/msstore/count_whats_new.py`).
+
+== en-US ==
+Chord Notepad has a new window, with a light and a dark theme (Settings, or Ctrl+Shift+L).
+
+Two workspaces: Edit, with a toolbar and sidebars for directives and the Chord Identifier, and Play, with a player bar (timeline, speed, volume and a metronome volume), the text and the chord sheet. The menus are behind the button at the top right; the menu bar is still there when you want it (Show menu bar, or tap Alt).
+
+Click a chord in the text to hear it and move the playhead there; Play starts from the playhead. Alt+click selects the chord's text.
+
+The editor has Find and Replace, Go to line, line operations and comment toggling. The Insert dialogs are now a palette of directive tiles, with a picker for each value, and the tempo picker can find the bpm as you tap along.
+
+The chord sheet is redrawn: a piano roll on a time grid with note names, a continuous staff with repeat signs, and sections on alternating paper. Settings has Save and Discard, and lists the built-in voicings.
+
+== ro-RO ==
+Chord Notepad are o fereastră nouă, cu o temă luminoasă și una întunecată (Setări sau Ctrl+Shift+L).
+
+Două spații de lucru: Editare, cu o bară de unelte și panouri pentru directive și identificatorul de acorduri, și Redare, cu o bară de redare (cronologie, viteză, volum și volumul metronomului), textul și foaia de acorduri. Meniurile sunt în butonul din dreapta sus; bara de meniuri rămâne disponibilă (Arată bara de meniuri sau o atingere pe Alt).
+
+Fă clic pe un acord din text ca să-l auzi și să muți indicatorul de redare acolo; Redă pornește de la indicator. Alt+clic selectează textul acordului.
+
+Editorul are Caută și înlocuiește, Salt la linie, operații pe linii și comentarii. Dialogurile Inserare sunt acum o paletă de directive, cu un selector pentru fiecare valoare, iar selectorul de tempo găsește bpm-ul când bați ritmul.
+
+Foaia de acorduri e redesenată: o claviatură pe o grilă de timp, cu numele notelor, un portativ continuu cu semne de repetiție și secțiuni pe fundaluri alternante. Setările au Salvează și Renunță și arată voicing-urile predefinite.
