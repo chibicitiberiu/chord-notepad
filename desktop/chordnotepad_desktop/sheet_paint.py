@@ -13,7 +13,9 @@ it with Compose; this module is the same for the Qt window:
   the theme, ported from Android's ``ChordSheetTheme.kt`` (as the mockup's
   ``sheetpack.py`` did): the strip's paper becomes the panel's surface,
   neutrals flip their lightness in the dark theme, hues get lighter, the
-  hands keep their blue and brown, the piano roll's keys keep their look.
+  hands keep their blue and brown. The piano roll in the dark theme takes
+  the app's greys: its black-key rows stay the darker ones and its
+  keyboard isn't inverted (:func:`roll_dark_colors`, :func:`gutter_palette`).
 * :class:`GlyphCache`: the clef, notehead and accidental PNGs from
   ``clef_assets.base_png``, scaled once per device height and tinted.
 * :class:`SheetPainter`: replays ops in content coordinates, with fonts,
@@ -38,16 +40,41 @@ from chordnotepad.chord_sheet.renderer_interface import HAND_COLORS, NOTE_INK, S
 
 # -- Colours --------------------------------------------------------------------------
 
-#: The piano roll's gutter keys (``piano_roll.py``): they keep their look in
-#: the dark theme (an inverted keyboard reads wrong), the white ones a little
-#: dimmed.
+#: The piano roll's gutter keys and their edges (``piano_roll.py``).
 GUTTER_WHITE = "#ffffff"
 GUTTER_BLACK = "#31424a"
+GUTTER_EDGE = "#b9c2c7"
+GUTTER_LABEL = "#22323a"
+#: The piano roll's row shading and C guides (``piano_roll.py``; no other
+#: view uses these colours).
+ROLL_BLACK_ROW = "#eef0ec"
+ROLL_GUIDE_C = "#d9ddd6"
+ROLL_GUIDE_C4 = "#a9b0a6"
 _DARK_FIXED = {
     HAND_COLORS["rh"]: QColor("#78a6d8"),
     HAND_COLORS["lh"]: QColor("#d09a6c"),
-    GUTTER_WHITE: QColor("#d3d6dd"),
 }
+#: The keyboard in the dark theme: not inverted (that reads wrong), in the
+#: app's own neutral greys (``Theme.qml``: ``icon``, ``muted``, ``input``)
+#: instead of Tk's white and slate.
+_DARK_KEYS = {
+    GUTTER_WHITE: QColor("#c3c6cf"),
+    GUTTER_BLACK: QColor("#17181b"),
+    GUTTER_EDGE: QColor("#8a8d96"),
+    GUTTER_LABEL: QColor("#1d1e22"),
+}
+
+
+def roll_dark_colors(surface: QColor) -> Dict[str, QColor]:
+    """The piano roll's rows on a dark ``surface``: black-key rows darker
+    than the white-key ones, as in the light theme (a lightness flip would
+    make them the lighter ones), and the C guides a step and two lighter,
+    all in the surface's own hue."""
+    return {
+        ROLL_BLACK_ROW: QColor(surface).darker(125),
+        ROLL_GUIDE_C: QColor(surface).lighter(155),
+        ROLL_GUIDE_C4: QColor(surface).lighter(210),
+    }
 #: Below this HSL saturation a colour counts as neutral (ink, grid, shading).
 NEUTRAL_SATURATION = 0.3
 _NAMED = {"black": "#000000", "white": "#ffffff", "red": "#ff0000", "gray": "#bebebe",
@@ -101,6 +128,7 @@ def themed_color(spec: str, parsed: QColor, dark: bool, surface: QColor) -> QCol
     """A buffer colour as the sheet paints it: the strip's paper is the
     panel's ``surface`` in both themes; in the dark one the hands' bars and
     the piano roll's white keys get fixed colours, its black keys stay, and
+    and the piano roll's rows follow the surface (:func:`roll_dark_colors`);
     everything else goes through :func:`dark_variant`."""
     low = spec.lower()
     if low == STRIP_BG:
@@ -109,8 +137,9 @@ def themed_color(spec: str, parsed: QColor, dark: bool, surface: QColor) -> QCol
         return parsed
     if low in _DARK_FIXED:
         return QColor(_DARK_FIXED[low])
-    if low == GUTTER_BLACK:
-        return parsed
+    roll = roll_dark_colors(surface).get(low)
+    if roll is not None:
+        return roll
     return dark_variant(parsed)
 
 
@@ -123,6 +152,29 @@ def palette_for(strings: Sequence[str], dark: bool, surface: QColor) -> Dict[str
         if parsed is not None:
             palette[spec] = themed_color(spec, parsed, dark, surface)
     return palette
+
+
+def gutter_palette(strings: Sequence[str], dark: bool, surface: QColor) -> Dict[str, QColor]:
+    """The piano roll keyboard's palette: its light colours, and in the dark
+    theme the app's greys for the keys, their edges and the octave labels."""
+    palette = palette_for(strings, False, surface)
+    if dark:
+        for spec in list(palette):
+            key = _DARK_KEYS.get(spec.lower())
+            if key is not None:
+                palette[spec] = QColor(key)
+    return palette
+
+
+def key_bed(items: Sequence[tuple]) -> Optional[QRectF]:
+    """The box the keyboard's keys cover (the union of the gutter's
+    rectangles), or None: painted in the white keys' colour first, so the
+    space beside each black key isn't a hole in the keyboard."""
+    bed: Optional[QRectF] = None
+    for item in items:
+        if item[0] == K_RECT:
+            bed = QRectF(item[1]) if bed is None else bed.united(item[1])
+    return bed
 
 
 # -- Prepared ops -----------------------------------------------------------------------
@@ -185,7 +237,7 @@ class PreparedOps:
     """One op list ready to paint: each op as a tuple (kind first), its
     horizontal reach, and the ops bucketed by :data:`BUCKET` px of x."""
 
-    __slots__ = ("items", "x0", "x1", "_buckets")
+    __slots__ = ("items", "x0", "x1", "_buckets", "_bed")
 
     def __init__(self, ops: Sequence[object], clip_rights: Optional[Sequence[float]] = None) -> None:
         self.items: List[tuple] = []
@@ -196,12 +248,19 @@ class PreparedOps:
             self.items.append(item)
             self.x0.append(lo)
             self.x1.append(hi)
+        self._bed: Optional[Tuple[Optional[QRectF]]] = None
         self._buckets: Dict[int, List[int]] = {}
         for i, (lo, hi) in enumerate(zip(self.x0, self.x1)):
             if hi < lo:
                 continue
             for b in range(int(math.floor(lo / BUCKET)), int(math.floor(hi / BUCKET)) + 1):
                 self._buckets.setdefault(b, []).append(i)
+
+    def key_bed(self) -> Optional[QRectF]:
+        """:func:`key_bed` of these ops, worked out once."""
+        if self._bed is None:
+            self._bed = (key_bed(self.items),)
+        return self._bed[0]
 
     @staticmethod
     def _prepare(op: object, clip_right: float) -> Tuple[tuple, float, float]:
@@ -385,8 +444,8 @@ class SheetPainter:
         self.dark = dark
         self.surface = QColor(surface)
         self.palette = palette_for(strings, dark, surface)
-        #: The light palette (the piano roll's gutter keeps its keys' look).
-        self.light_palette = palette_for(strings, False, surface)
+        #: The piano roll keyboard's palette (:func:`gutter_palette`).
+        self.light_palette = gutter_palette(strings, dark, surface)
         self._pens.clear()
         ink = QColor(NOTE_INK)
         self._ink_tint = themed_color(NOTE_INK, ink, True, surface) if dark else None

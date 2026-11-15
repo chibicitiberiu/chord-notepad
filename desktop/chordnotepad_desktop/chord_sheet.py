@@ -47,7 +47,7 @@ from PySide6.QtQuick import QQuickPaintedItem
 from chordnotepad.chord_sheet.marker_lane import LANE_HEIGHT
 from chordnotepad.chord_sheet.pack import unpack
 from chordnotepad.viewmodels.chord_sheet_viewmodel import ChordSheetViewModel
-from chordnotepad_desktop.sheet_paint import PreparedSheet, SheetPainter
+from chordnotepad_desktop.sheet_paint import GUTTER_WHITE, PreparedSheet, SheetPainter
 
 logger = logging.getLogger(__name__)
 
@@ -562,8 +562,16 @@ class SheetView(QQuickPaintedItem):
             p.save()
             p.setClipRect(QRectF(0, 0, gutter, self.height()), Qt.ClipOperation.IntersectClip)
             p.translate(0, lane)
-            # The piano roll's keyboard keeps its look (its labels sit on white keys).
-            palette = painter.light_palette if sheet.view_id == "keyboard" else None
+            # The piano roll's keyboard: its own palette (not inverted in the
+            # dark theme; its labels sit on white keys), on a bed of the white
+            # keys' colour so the space beside each black key is filled.
+            palette = None
+            if sheet.view_id == "keyboard":
+                palette = painter.light_palette
+                bed = variant.key_bed()
+                white = palette.get(GUTTER_WHITE)
+                if bed is not None and white is not None:
+                    p.fillRect(bed, white)
             painter.draw(p, variant.items, palette)
             p.restore()
         self.last_paint_ops = painter.drawn

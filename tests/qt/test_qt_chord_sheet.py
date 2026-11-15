@@ -86,11 +86,34 @@ def test_the_dark_theme_flips_neutrals_and_lifts_hues():
     assert lifted.lightnessF() == pytest.approx(0.66, abs=0.01)
     light_hue = QColor("#80c0ff")              # already lighter: unchanged lightness
     assert dark_variant(light_hue).lightnessF() == pytest.approx(light_hue.lightnessF(), abs=0.01)
-    # The hands and the piano roll's keys have fixed colours.
+    # The hands have fixed colours.
     assert themed_color(HAND_COLORS["rh"], QColor(HAND_COLORS["rh"]), True, surface) == QColor("#78a6d8")
     assert themed_color(HAND_COLORS["lh"], QColor(HAND_COLORS["lh"]), True, surface) == QColor("#d09a6c")
-    assert themed_color("#FFFFFF", QColor("#ffffff"), True, surface) == QColor("#d3d6dd")
-    assert themed_color("#31424a", QColor("#31424a"), True, surface) == QColor("#31424a")
+
+
+def test_the_piano_roll_in_the_dark_theme_takes_the_apps_greys():
+    surface = QColor("#252629")
+    rows = sheet_paint.roll_dark_colors(surface)
+    # Black-key rows stay the darker ones (a lightness flip made them lighter).
+    black_row = themed_color(sheet_paint.ROLL_BLACK_ROW, QColor(sheet_paint.ROLL_BLACK_ROW), True, surface)
+    assert black_row == rows[sheet_paint.ROLL_BLACK_ROW]
+    assert black_row.lightnessF() < surface.lightnessF()
+    assert themed_color(sheet_paint.ROLL_BLACK_ROW, QColor(sheet_paint.ROLL_BLACK_ROW), False,
+                        surface) == QColor(sheet_paint.ROLL_BLACK_ROW)
+    # The C guides are lighter than the paper, C4's more; all in its hue (no green tint).
+    c, c4 = rows[sheet_paint.ROLL_GUIDE_C], rows[sheet_paint.ROLL_GUIDE_C4]
+    assert surface.lightnessF() < c.lightnessF() < c4.lightnessF()
+    for color in (black_row, c, c4):
+        assert color.hsvHueF() == pytest.approx(surface.hsvHueF(), abs=0.02)
+    # The keyboard isn't inverted and uses neutral greys, not Tk's white and slate.
+    strings = [sheet_paint.GUTTER_WHITE, sheet_paint.GUTTER_BLACK, sheet_paint.GUTTER_EDGE]
+    dark_keys = sheet_paint.gutter_palette(strings, True, surface)
+    white, black = dark_keys[sheet_paint.GUTTER_WHITE], dark_keys[sheet_paint.GUTTER_BLACK]
+    assert white.lightnessF() > 0.6 and black.lightnessF() < surface.lightnessF()
+    assert white.hslSaturationF() < 0.15 and black.hslSaturationF() < 0.15
+    light_keys = sheet_paint.gutter_palette(strings, False, surface)
+    assert light_keys[sheet_paint.GUTTER_WHITE] == QColor("#ffffff")
+    assert light_keys[sheet_paint.GUTTER_BLACK] == QColor("#31424a")
 
 
 def test_the_dark_remap_matches_the_kotlin_formula_on_the_sheets_colours():
@@ -686,6 +709,43 @@ def test_dark_paints_the_sheet_on_the_dark_panel(sh):
               for y in range(0, int(sh.view.height()), 3)}
     assert "#78a6d8" in colors and "#d09a6c" in colors        # the hands' dark colours
     theme.setProperty("dark", False)
+
+
+def test_the_piano_roll_keyboard_has_no_holes_and_its_rows_follow_the_keys(sh):
+    sh.to_play(1200)
+    sh.wait_sheet("keyboard")
+    theme = sh.theme()
+    sheet = sh.model.sheet
+    bottom = sh.view.height() - sheet.lane_height - 4
+    keys = [item[1] for item in sheet.gutters[0].items
+            if item[0] == sheet_paint.K_RECT and item[2] == sheet_paint.GUTTER_BLACK
+            and item[1].bottom() + item[1].height() < bottom]
+    assert keys
+    o = sh.view.mapToScene(QPointF(0, 0)).toPoint()
+    try:
+        for dark in (False, True):
+            theme.setProperty("dark", dark)
+            sh.run(100)
+            image = sh.grab()
+            surface = QColor("#252629") if dark else QColor(theme.property("panel"))
+            white_key = sheet_paint.gutter_palette([sheet_paint.GUTTER_WHITE], dark, surface)[
+                sheet_paint.GUTTER_WHITE]
+            black_row = themed_color(sheet_paint.ROLL_BLACK_ROW, QColor(sheet_paint.ROLL_BLACK_ROW),
+                                     dark, surface)
+            for key in keys:
+                y = o.y() + int(sheet.lane_height + key.center().y())
+                # Beside a black key: the white keys' colour, not the panel.
+                assert image.pixelColor(o.x() + int(key.right()) + 3, y) == white_key, (dark, key)
+                # Its row across the content is shaded wherever no note covers
+                # it (never the bare paper); the white-key row under it isn't.
+                row = [image.pixelColor(o.x() + x, y).name()
+                       for x in range(int(sheet.gutter_width) + 2, int(sh.view.width()) - 2)]
+                below = [image.pixelColor(o.x() + x, y + int(key.height())).name()
+                         for x in range(int(sheet.gutter_width) + 2, int(sh.view.width()) - 2)]
+                assert black_row.name() in row and surface.name() not in row, (dark, key)
+                assert black_row.name() not in below, (dark, key)
+    finally:
+        theme.setProperty("dark", False)
 
 
 def test_the_sheet_at_125_percent_is_painted_on_device_pixels(sh):
