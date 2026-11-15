@@ -322,7 +322,22 @@ def test_the_key_picker_in_a_european_song():
     assert options.groups[0].choices[1].value == "Reb" and options.current == "Lam"
 
 
-def test_the_capo_tile_says_only_the_fretted_views_change():
-    tile = snippets.snippet("capo")
-    assert tile.hint.startswith("Where the capo sits on a fretted instrument.")
-    assert "The sound and the chord names stay as written." in tile.hint
+def test_the_capo_tile_says_what_changes_and_what_stays():
+    hint = snippets.snippet("capo").hint
+    assert hint.startswith("Where the capo sits on a fretted instrument.")
+    assert "Fret cards and Tab views show the shapes you finger with the capo on" in hint
+    assert "The chords and the key stay as written" in hint
+
+
+def test_a_capo_keeps_the_chords_but_may_voice_them_differently():
+    """What the capo tile's hint promises, against the renderer: the same
+    chord names, the same pitch classes, and (here) different notes."""
+    from tests.test_capo_directive import _played, _render
+    from chordnotepad.services.song_parser_service import SongParserService
+    parser = SongParserService()
+    plain = _played(_render(parser, "C  G  Am  F\n"))
+    capoed = _played(_render(parser, "{capo: 2}\nC  G  Am  F\n"))
+    assert [rc.chord_info.chord for rc in plain] == [rc.chord_info.chord for rc in capoed]
+    for before, after in zip(plain, capoed):
+        assert {n % 12 for n in before.midi_notes} == {n % 12 for n in after.midi_notes}
+    assert [rc.midi_notes for rc in plain] != [rc.midi_notes for rc in capoed]

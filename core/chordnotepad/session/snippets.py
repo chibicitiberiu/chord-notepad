@@ -78,9 +78,9 @@ PALETTE: Tuple[SnippetGroup, ...] = (
         Snippet("key-minor", "key-minor", "", "{key: Am}", "Minor key",
                 "For roman numerals and the staff's key signature."),
         Snippet("capo", "capo", "", "{capo: 3}", "Capo",
-                "Where the capo sits on a fretted instrument. Only the Fret cards and Tab views "
-                "change: they show the shapes you finger with the capo on. The sound and the "
-                "chord names stay as written."),
+                "Where the capo sits on a fretted instrument. The Fret cards and Tab views "
+                "show the shapes you finger with the capo on. The chords and the key stay as "
+                "written, though the notes can be voiced a little differently."),
     )),
     SnippetGroup("Sections", (
         Snippet("label", "label", "", "{label: verse}", "Label",
