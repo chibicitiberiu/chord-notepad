@@ -238,6 +238,27 @@ Rectangle {
         enabled: !area.readOnly
         onTriggered: pane.lineOp("move_lines", { offset: 1 })
     }
+    // Comments are // to the end of the line (the parser's); indenting is a tab per line.
+    readonly property Action toggleCommentAction: Action {
+        objectName: "toggleCommentAction"
+        text: "Toggle c&omment"; shortcut: "Ctrl+/"
+        enabled: !area.readOnly
+        onTriggered: pane.lineOp("toggle_comment")
+    }
+    // Tab and Shift+Tab in the text (Keys below); no window shortcut, so
+    // Tab still moves the focus everywhere else. The menus show the keys.
+    readonly property Action indentAction: Action {
+        objectName: "indentAction"
+        text: "Indent lines"
+        enabled: !area.readOnly
+        onTriggered: { area.forceActiveFocus(); pane.lineOp("indent_lines", { outdent: false }) }
+    }
+    readonly property Action unindentAction: Action {
+        objectName: "unindentAction"
+        text: "Unindent lines"
+        enabled: !area.readOnly
+        onTriggered: { area.forceActiveFocus(); pane.lineOp("indent_lines", { outdent: true }) }
+    }
     // Select line: the selection's lines whole, one more on each repeat (also while read-only).
     readonly property Action selectLineAction: Action {
         objectName: "selectLineAction"
@@ -273,6 +294,7 @@ Rectangle {
             return true
         // The line operations' keys (their actions are off while read-only, so the keys come here).
         var lineKeys = [[Qt.Key_D, Qt.ControlModifier], [Qt.Key_K, Qt.ControlModifier | Qt.ShiftModifier],
+                        [Qt.Key_Slash, Qt.ControlModifier],
                         [Qt.Key_Up, Qt.ControlModifier | Qt.ShiftModifier],
                         [Qt.Key_Down, Qt.ControlModifier | Qt.ShiftModifier]]
         var held = event.modifiers & (Qt.ControlModifier | Qt.ShiftModifier | Qt.AltModifier | Qt.MetaModifier)
@@ -538,6 +560,15 @@ Rectangle {
                 } else if ((event.key === Qt.Key_Up || event.key === Qt.Key_Down) && mods === Qt.ControlModifier) {
                     event.accepted = true
                     pane.scrollLines(event.key === Qt.Key_Down ? 1 : -1)
+                } else if (event.key === Qt.Key_Tab && mods === Qt.NoModifier
+                           && /[\n\u2029]/.test(area.selectedText)) {
+                    // Tab over several lines indents them (else it types a tab).
+                    event.accepted = true
+                    pane.lineOp("indent_lines", { outdent: false })
+                } else if (event.key === Qt.Key_Backtab) {
+                    // Shift+Tab unindents the selection's lines, or the caret's.
+                    event.accepted = true
+                    pane.lineOp("indent_lines", { outdent: true })
                 } else if (event.key === Qt.Key_Escape && mods === Qt.NoModifier && findBar.shown) {
                     event.accepted = true
                     findBar.close()

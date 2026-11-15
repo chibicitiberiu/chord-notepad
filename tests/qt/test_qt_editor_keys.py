@@ -354,3 +354,72 @@ def test_the_line_shortcuts_work_with_caps_lock(ed):
     wait_text(ed, LINES)
     press(ed, K.Key_L, CTRL, "L")
     assert selection(ed)[1] > selection(ed)[0]
+
+
+# -- comments and indentation ----------------------------------------------------------------
+
+SHEET = "G       D\nAmazing grace\n"
+
+
+def test_ctrl_slash_toggles_comments(ed):
+    song(ed, SHEET)
+    ed.area.select(0, len(SHEET) - 1)
+    ed.key(K.Key_Slash, CTRL)
+    wait_text(ed, "// G       D\n// Amazing grace\n")
+    ed.key(K.Key_Slash, CTRL)
+    wait_text(ed, SHEET)
+    ed.set_cursor(12)                                       # one line, no selection
+    ed.key(K.Key_Slash, CTRL)
+    wait_text(ed, "G       D\n// Amazing grace\n")
+    assert caret(ed) == 15
+    ed.key(K.Key_Z, CTRL)
+    assert ed.text() == SHEET
+
+
+def test_the_comment_is_what_the_highlighter_paints_grey(ed):
+    song(ed, SHEET)
+    ed.set_cursor(0)
+    ed.key(K.Key_Slash, CTRL)
+    wait_text(ed, "// G       D\nAmazing grace\n")
+    ed.settle()
+    assert ("comment" in [kind for start, end, kind in ed.bridge.spans if start == 0])
+
+
+def test_tab_over_several_lines_indents_and_shift_tab_unindents(ed):
+    song(ed, SHEET)
+    ed.area.select(2, 15)
+    ed.key(K.Key_Tab)
+    wait_text(ed, "\tG       D\n\tAmazing grace\n")
+    assert selection(ed) == (3, 17)
+    ed.key(K.Key_Backtab, SHIFT)
+    wait_text(ed, SHEET)
+    # Within one line, Tab types a tab over the selection as before.
+    ed.area.select(0, 1)
+    ed.key(K.Key_Tab)
+    wait_text(ed, "\t       D\nAmazing grace\n")
+    # Shift+Tab without a selection unindents the caret's line.
+    ed.set_cursor(3)
+    ed.key(K.Key_Backtab, SHIFT)
+    wait_text(ed, "       D\nAmazing grace\n")
+    assert ed.area.hasActiveFocus()
+
+
+def test_unindent_keeps_chords_over_their_words(ed):
+    text = "      G\n    la la\n"
+    song(ed, text)
+    ed.area.select(0, len(text) - 1)
+    ed.key(K.Key_Backtab, SHIFT)
+    wait_text(ed, "  G\nla la\n")
+
+
+def test_comment_and_indent_are_refused_while_playing(ed):
+    song(ed, SHEET)
+    play(ed)
+    ed.area.select(0, 15)
+    ed.key(K.Key_Slash, CTRL)
+    ed.key(K.Key_Tab)
+    ed.key(K.Key_Backtab, SHIFT)
+    ed.run(60)
+    assert ed.text() == SHEET
+    status = ed.harness.app.status_bar
+    ed.qtbot.waitUntil(lambda: status.readOnlyNotice != "", timeout=1000)
