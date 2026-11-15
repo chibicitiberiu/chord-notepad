@@ -9,7 +9,7 @@ import kotlin.math.min
 // palette, core/chordnotepad/chord_sheet/). The Android sheet keeps them in the light theme
 // and maps them for the dark one (docs/design/android-ui-spec.md, "Chord
 // sheet"): the strip takes the surface-low background, every second section
-// the surface2 one, the playing column is
+// a colour halfway to the surface2 one, the playing column is
 // a translucent primary tint, the hands' bars keep their blue and brown a little
 // lighter, neutral inks and grids flip their lightness, and the other
 // colours (voice parts, marker flags) are lifted to stay readable.
@@ -23,10 +23,11 @@ private const val STRIP_BG = "#fbfbf8"
 
 /**
  * `renderer_interface.SECTION_BAND`: the paper of every second section, a
- * step from the strip's (the theme's surface2: a little darker than
- * surfaceLow in the light theme, a little lighter in the dark one).
+ * small step from the strip's: halfway between the theme's surfaceLow (the
+ * strip) and surface2 (a little darker in the light theme, a little lighter
+ * in the dark one).
  */
-private const val SECTION_BAND = "#f1f1ed"
+private const val SECTION_BAND = "#f6f6f2"
 
 /** The piano-roll gutter's keys keep their look (an inverted keyboard reads wrong). */
 private const val GUTTER_WHITE = "#ffffff"
@@ -71,7 +72,7 @@ private const val NEUTRAL_SATURATION = 0.3f
 fun themedSheetColor(spec: String, parsed: Color, colors: AppColors): Color {
     // The strip's paper (also the staff gutter's) is the sheet's surface.
     if (spec.equals(STRIP_BG, ignoreCase = true)) return colors.surfaceLow
-    if (spec.equals(SECTION_BAND, ignoreCase = true)) return colors.surface2
+    if (spec.equals(SECTION_BAND, ignoreCase = true)) return sectionBandColor(colors)
     if (!colors.dark) return parsed
     return when (spec.lowercase()) {
         HAND_RH -> DarkRh
@@ -81,6 +82,18 @@ fun themedSheetColor(spec: String, parsed: Color, colors: AppColors): Color {
         NOTE_LABEL -> DarkNoteLabel
         else -> darkVariant(parsed)
     }
+}
+
+/** A banded section's paper: halfway (per sRGB channel) from surfaceLow to surface2. */
+fun sectionBandColor(colors: AppColors): Color {
+    val a = colors.surfaceLow
+    val b = colors.surface2
+    return Color(
+        red = (a.red + b.red) / 2f,
+        green = (a.green + b.green) / 2f,
+        blue = (a.blue + b.blue) / 2f,
+        alpha = 1f,
+    )
 }
 
 /** [color] for a dark background: neutrals flip their lightness, hues get lighter. */

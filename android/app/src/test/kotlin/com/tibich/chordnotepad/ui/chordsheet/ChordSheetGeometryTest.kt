@@ -77,7 +77,7 @@ class ChordSheetGeometryTest {
         val paper = { scroll: Float -> (staff.gutterVariantAt(scroll)!!.ops.first() as RectOp).fill }
         val runs = staff.gutterRuns
         assertEquals("#fbfbf8", paper(0f))
-        assertEquals("#f1f1ed", paper(runs[1].startX + 1f))
+        assertEquals("#f6f6f2", paper(runs[1].startX + 1f))
         assertEquals("#fbfbf8", paper(runs[2].startX + 1f))
     }
 

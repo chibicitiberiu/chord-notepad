@@ -5,7 +5,7 @@
   "coord_sum": 7961095.796601415,
   "count": 1094,
   "first": {
-   "fill": "#f1f1ed",
+   "fill": "#f6f6f2",
    "h": 130.0,
    "op": "rect",
    "outline": null,
@@ -104,7 +104,7 @@
    "coord_sum": 2503.53049826622,
    "count": 16,
    "first": {
-    "fill": "#f1f1ed",
+    "fill": "#f6f6f2",
     "h": 130.0,
     "op": "rect",
     "outline": null,

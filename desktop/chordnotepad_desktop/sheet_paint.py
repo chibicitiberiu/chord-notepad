@@ -75,8 +75,8 @@ _DARK_KEYS = {
 #: How far a banded section's paper (``SECTION_BAND``) steps from the
 #: surface: darker in the light theme, lighter in the dark one (QColor's
 #: ``darker``/``lighter`` factors).
-BAND_STEP_LIGHT = 104
-BAND_STEP_DARK = 120
+BAND_STEP_LIGHT = 102
+BAND_STEP_DARK = 110
 
 
 def section_band_color(surface: QColor, dark: bool) -> QColor:

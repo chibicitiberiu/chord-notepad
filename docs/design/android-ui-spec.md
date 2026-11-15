@@ -121,7 +121,7 @@ The UI uses one Material 3-style tonal family: neutral surfaces with a hint of t
 
 **Editor colours.** Light mode uses the desktop colours unchanged: chord #1565c0, directive #7b1fa2, comment #9e9e9e, playing #fff176. Dark mode needs readable variants of the same hues: #8ab4f8, #d39be0, #7f848f and a dark-yellow playing highlight #5a4f00. This is the one place the "don't change the editor colours" rule bends, and only for dark mode.
 
-**Chord sheet.** The bars keep their blue and brown, slightly lighter in dark mode (#78a6d8 / #d09a6c). Every second section sits on a slightly different paper (the theme's surface2). The playing column is a translucent primary tint over the chord sounding, drawn over its content, with a stronger 2 dp edge at its top and bottom.
+**Chord sheet.** The bars keep their blue and brown, slightly lighter in dark mode (#78a6d8 / #d09a6c). Every second section sits on a slightly different paper (halfway between the strip's surface-low and the theme's surface2). The playing column is a translucent primary tint over the chord sounding, drawn over its content, with a stronger 2 dp edge at its top and bottom.
 
 ## Icons
 

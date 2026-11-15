@@ -70,19 +70,21 @@ class ChordSheetPaperTest {
 
     @Test
     fun `a banded section is a step from the strip, and the roll's black rows stay visible on it`() {
-        val band = Color(0xFFF1F1ED)
+        val band = Color(0xFFF6F6F2)
         val blackRow = Color(0xFFECEEF2)
-        val bandBlackRow = Color(0xFFE2E4E9)
+        val bandBlackRow = Color(0xFFE7E9ED)
         for (colors in listOf(AppColors.Light, AppColors.Dark)) {
             val paper = themedSheetColor("#fbfbf8", Color(0xFFFBFBF8), colors)
-            val banded = themedSheetColor("#f1f1ed", band, colors)
-            assertEquals(colors.surface2, banded)
+            val banded = themedSheetColor("#f6f6f2", band, colors)
+            assertEquals(sectionBandColor(colors), banded)
+            // Halfway between the strip's paper and surface2 (Tibi, 2026-11-15: half the step).
+            assertEquals((lum(paper) + lum(colors.surface2)) / 2f, lum(banded), 0.002f)
             val step = lum(banded) - lum(paper)
             // Darker in the light theme, lighter in the dark one; subtle either way.
-            assertTrue(if (colors.dark) step > 0.01f && step < 0.06f else step < -0.01f && step > -0.06f)
+            assertTrue(if (colors.dark) step > 0.008f && step < 0.03f else step < -0.008f && step > -0.03f)
             // Black-key rows differ from the paper they sit on, on both.
             val row = themedSheetColor("#eceef2", blackRow, colors)
-            val bandRow = themedSheetColor("#e2e4e9", bandBlackRow, colors)
+            val bandRow = themedSheetColor("#e7e9ed", bandBlackRow, colors)
             assertTrue(kotlin.math.abs(lum(row) - lum(paper)) > 0.02f)
             assertTrue(kotlin.math.abs(lum(bandRow) - lum(banded)) > 0.02f)
         }

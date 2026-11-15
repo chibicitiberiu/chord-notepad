@@ -158,7 +158,7 @@ GRID = "#cdd1d8"
 BEAT_GRID = "#e2e5e9"
 BLACK_ROW_SHADE = "#eceef2"
 #: A black-key row over a banded section (``SECTION_BAND``): a step darker.
-BAND_BLACK_ROW_SHADE = "#e2e4e9"
+BAND_BLACK_ROW_SHADE = "#e7e9ed"
 GUIDE_C = "#dfe2e7"
 GUIDE_C4 = "#b4b9c2"
 #: The keyboard in the gutter.

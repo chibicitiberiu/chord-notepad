@@ -248,7 +248,7 @@ PLAYHEAD_HIGHLIGHT = "#ffe58a"
 #: The front ends map it from their own surface (Qt
 #: ``sheet_paint.themed_color``, Android ``themedSheetColor``), as they map
 #: ``STRIP_BG``; Tk paints it as written.
-SECTION_BAND = "#f1f1ed"
+SECTION_BAND = "#f6f6f2"
 
 #: Marker kinds that start a section (as the player's timeline counts them,
 #: ``session.timeline.song_sections``).

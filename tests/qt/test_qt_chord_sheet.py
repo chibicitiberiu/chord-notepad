@@ -97,8 +97,9 @@ def test_a_banded_section_is_a_subtle_step_from_the_surface():
         band = themed_color(SECTION_BAND, QColor(SECTION_BAND), dark, surface)
         assert band == sheet_paint.section_band_color(surface, dark)
         step = band.lightnessF() - surface.lightnessF()
-        # Darker on the light paper, lighter on the dark one; a few percent.
-        assert (0.005 < step < 0.05) if dark else (-0.05 < step < -0.01), (dark, step)
+        # Darker on the light paper, lighter on the dark one; a percent or two
+        # (Tibi, 2026-11-15: half the first step, 104 -> 102 and 120 -> 110).
+        assert (0.008 < step < 0.025) if dark else (-0.025 < step < -0.012), (dark, step)
         assert band.hsvHueF() == pytest.approx(surface.hsvHueF(), abs=0.02)
         # The roll's black-key rows over the band stay darker than it.
         row = themed_color(sheet_paint.ROLL_BAND_BLACK_ROW, QColor(sheet_paint.ROLL_BAND_BLACK_ROW),
