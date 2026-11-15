@@ -18,19 +18,6 @@ from tests.qt.test_qt_chord_sheet import LEFT, NO_MODIFIER, finish, make_sheet  
 LONG = ("{label: verse}\n" + "C   G   Am  F\n" * 12 + "{label: chorus}\n" + "Am  F   C   G\n" * 12)
 
 
-def sheet_tabs(sh):
-    """The view tabs in the sheet's header (Repeater delegates: visual tree)."""
-    out = []
-
-    def walk(item):
-        if (item.objectName() or "").startswith("sheetTab:"):
-            out.append(item)
-        for child in item.childItems():
-            walk(child)
-    walk(sh.window.contentItem())
-    return out
-
-
 @pytest.fixture
 def sh(qapp, qtbot, tmp_path):
     sh = make_sheet(qapp, qtbot, tmp_path, text=LONG)
@@ -190,7 +177,11 @@ def test_a_banded_section_runs_on_under_the_staffs_clefs(sh, dark):
         image = sh.grab()
         o = sh.view.mapToScene(QPointF(0, 0)).toPoint()
         top = int(sheet.lane_height) + 2
-        rows = range(top, int(sh.view.height()) - 14)
+        # Above the staff notice (bottom left, over the strip and the gutter).
+        notice = sh.it("staffNotice")
+        bottom = int(notice.mapToItem(sh.view, QPointF(0, 0)).y()) - 1 if notice.isVisible() \
+            else int(sh.view.height()) - 14
+        rows = range(top, bottom)
         left = [image.pixelColor(o.x() + gutter - 1, o.y() + y).name() for y in rows]
         right = [image.pixelColor(o.x() + gutter + 1, o.y() + y).name() for y in rows]
         paper = [y for y, (a, b) in zip(rows, zip(left, right)) if a == band and b == band]
@@ -274,13 +265,16 @@ def test_the_staff_says_it_draws_every_chord_as_a_whole_note(sh):
     sh.store.submit("set_chord_sheet_view", {"view_id": "staff"})
     sh.wait_sheet("staff")
     sh.qtbot.waitUntil(notice.isVisible, timeout=2000)
-    # In the header after the view tabs, never over the strip (a short
-    # strip's staff fills its height and the notice covered the lowest notes).
-    top = sh.view.mapToScene(QPointF(0, 0)).y()
-    tabs_right = max(t.mapToScene(QPointF(t.width(), 0)).x() for t in sheet_tabs(sh))
+    # Bottom left, just above the scroll bar, inside the strip (Tibi put it
+    # back there from the header: its place was fine, it needed Dismiss).
+    view_at = sh.view.mapToScene(QPointF(0, 0))
+    bar = sh.it("sheetScrollBar")
+    bar_top = bar.mapToScene(QPointF(0, 0)).y()
     notice_at = notice.mapToScene(QPointF(0, 0))
-    assert notice_at.y() + notice.height() <= top + 1
-    assert notice_at.x() >= tabs_right
+    assert notice_at.x() - view_at.x() < 20
+    assert bar_top - 3 <= notice_at.y() + notice.height() <= bar_top + 1
+    assert notice_at.y() > view_at.y()
+    assert notice_at.x() + notice.width() <= view_at.x() + sh.view.width()
     sh.store.submit("set_chord_sheet_view", {"view_id": "keyboard"})
     sh.wait_sheet("keyboard")
     sh.qtbot.waitUntil(lambda: not notice.isVisible(), timeout=2000)
@@ -302,10 +296,12 @@ def test_dismiss_hides_the_staff_notice_for_good(qapp, qtbot, tmp_path):
         notice_right = notice.mapToScene(QPointF(notice.width(), 0)).x()
         link_at = link.mapToScene(QPointF(0, 0))
         assert notice_right <= link_at.x() <= notice_right + 20
+        assert abs(link_at.y() - notice.mapToScene(QPointF(0, 0)).y()) <= 2
         QTest.mouseClick(sh.window, LEFT, NO_MODIFIER,
                          link.mapToScene(QPointF(link.width() / 2, link.height() / 2)).toPoint())
         sh.qtbot.waitUntil(lambda: not notice.isVisible() and not link.isVisible(), timeout=2000)
         assert sh.sent("dismiss_notice") == [{"notice_id": "staff_rhythm"}]
+        assert sh.sent("audition") == []          # the strip under the link took no click
         sh.qtbot.waitUntil(lambda: sh.config("dismissed_notices") == ["staff_rhythm"], timeout=2000)
         # Still hidden after a round trip through another view.
         sh.store.submit("set_chord_sheet_view", {"view_id": "keyboard"})

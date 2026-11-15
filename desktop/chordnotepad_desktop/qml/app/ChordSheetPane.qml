@@ -89,42 +89,6 @@ Rectangle {
                         }
                     }
                 }
-                // The staff draws every chord as a whole note for now. In the
-                // header, not over the strip: a short strip's staff fills its
-                // height and the notice covered the lowest notes.
-                // Dismiss hides it for good (the config's dismissed_notices).
-                Label {
-                    id: staffNotice
-                    objectName: "staffNotice"
-                    visible: pane.activeView === "staff"
-                             && pane.model.dismissedNotices.indexOf("staff_rhythm") < 0
-                    Layout.fillWidth: true
-                    Layout.maximumWidth: implicitWidth
-                    Layout.minimumWidth: 0
-                    Layout.leftMargin: Theme.gap3
-                    elide: Text.ElideRight
-                    text: "Rhythm isn't shown yet: every chord is drawn as a whole note."
-                    font: Theme.fontC
-                    color: Theme.muted
-                    HoverHandler { id: noticeHover }
-                    ToolTip.visible: noticeHover.hovered && staffNotice.truncated
-                    ToolTip.delay: 600
-                    ToolTip.text: staffNotice.text
-                }
-                Label {
-                    objectName: "staffNoticeDismiss"
-                    visible: staffNotice.visible
-                    Layout.leftMargin: Theme.gap1
-                    readonly property string label: "Dismiss"
-                    // Underlined on hover, as a link.
-                    text: dismissHover.hovered ? "<u>" + label + "</u>" : label
-                    textFormat: Text.StyledText
-                    font: Theme.fontC
-                    color: Theme.accent
-                    Accessible.role: Accessible.Link
-                    HoverHandler { id: dismissHover; cursorShape: Qt.PointingHandCursor }
-                    TapHandler { onTapped: pane.model.dismissNotice("staff_rhythm") }
-                }
                 Item { Layout.fillWidth: true }
                 VoicingButton {
                     objectName: "sheetVoicingTip"
@@ -233,6 +197,51 @@ Rectangle {
                     if (sheetTap.point.modifiers & Qt.ShiftModifier) args.rolled = true
                     pane.store.submit("audition", args)
                     if (pane.editor) pane.editor.revealPlayhead()
+                }
+            }
+            // The staff draws every chord as a whole note for now: bottom
+            // left, just above the scroll bar, with a Dismiss link after it
+            // that hides it for good (the config's dismissed_notices).
+            Row {
+                anchors.left: parent.left; anchors.leftMargin: Theme.gap2
+                anchors.bottom: sheetBar.top; anchors.bottomMargin: Theme.px(0.5)
+                spacing: Theme.gap1
+                Label {
+                    id: staffNotice
+                    objectName: "staffNotice"
+                    visible: pane.activeView === "staff"
+                             && pane.model.dismissedNotices.indexOf("staff_rhythm") < 0
+                    width: Math.max(0, Math.min(implicitWidth, sheet.width - 2 * Theme.gap2
+                                                - Theme.gap1 - staffNoticeDismiss.implicitWidth))
+                    elide: Text.ElideRight
+                    text: "Rhythm isn't shown yet: every chord is drawn as a whole note."
+                    font: Theme.fontC
+                    color: Theme.muted
+                    HoverHandler { id: noticeHover }
+                    ToolTip.visible: noticeHover.hovered && staffNotice.truncated
+                    ToolTip.delay: 600
+                    ToolTip.text: staffNotice.text
+                }
+                Label {
+                    id: staffNoticeDismiss
+                    objectName: "staffNoticeDismiss"
+                    visible: staffNotice.visible
+                    readonly property string label: "Dismiss"
+                    // Underlined on hover, as a link.
+                    text: dismissArea.containsMouse ? "<u>" + label + "</u>" : label
+                    textFormat: Text.StyledText
+                    font: Theme.fontC
+                    color: Theme.accent
+                    Accessible.role: Accessible.Link
+                    // A MouseArea, not a TapHandler: it takes the press, so the
+                    // strip under it doesn't audition a chord or start a drag.
+                    MouseArea {
+                        id: dismissArea
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: pane.model.dismissNotice("staff_rhythm")
+                    }
                 }
             }
             ScrollBar {
