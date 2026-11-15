@@ -212,7 +212,6 @@ Rectangle {
                 id: lineField
                 objectName: "goToLineField"
                 Layout.preferredWidth: Theme.px(20)
-                placeholderText: "1–" + bar.finder.lineCount
                 Keys.onEscapePressed: bar.close()
                 validator: IntValidator { bottom: 1 }
                 Keys.onReturnPressed: bar.goToLine()

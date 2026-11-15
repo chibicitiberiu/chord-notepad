@@ -80,6 +80,9 @@ MenuBar {
         function onMenuBarShownChanged() { bar.peek = false }
     }
 
+    // A row whose key belongs to the text (Tab, Insert): shown, not a shortcut.
+    component KeyHintItem: MenuItem { property string keyHint }
+
     Menu {
         id: fileMenu
         objectName: "fileMenu"
@@ -108,6 +111,25 @@ MenuBar {
         MenuItem { action: bar.pane.pasteAction }
         MenuSeparator { }
         MenuItem { action: bar.pane.selectAllAction }
+        MenuItem { action: bar.pane.selectLineAction }
+        MenuSeparator { }
+        MenuItem { action: bar.pane.findAction }
+        MenuItem { action: bar.pane.replaceAction }
+        MenuItem { action: bar.pane.findNextAction }
+        MenuItem { action: bar.pane.findPreviousAction }
+        MenuItem { action: bar.pane.goToLineAction }
+        MenuSeparator { }
+        MenuItem { action: bar.pane.duplicateAction }
+        MenuItem { action: bar.pane.deleteLineAction }
+        MenuItem { action: bar.pane.moveUpAction }
+        MenuItem { action: bar.pane.moveDownAction }
+        MenuSeparator { }
+        MenuItem { action: bar.pane.toggleCommentAction }
+        // Tab and Shift+Tab, Insert: the text's own keys, so shown, not owned.
+        KeyHintItem { objectName: "barIndent"; action: bar.pane.indentAction; keyHint: "Tab" }
+        KeyHintItem { objectName: "barUnindent"; action: bar.pane.unindentAction; keyHint: "Shift+Tab" }
+        MenuSeparator { }
+        KeyHintItem { objectName: "barOverwrite"; action: bar.pane.overwriteAction; keyHint: "Insert" }
     }
     Menu {
         id: viewMenu

@@ -13,7 +13,14 @@ T.MenuItem {
     hoverEnabled: true
     font: Theme.font
     icon.width: Theme.iconSmall; icon.height: Theme.iconSmall
-    readonly property string shortcutText: control.action && control.action.shortcut ? String(control.action.shortcut) : ""
+    // Without a shortcut, a `keyHint` the item may declare (AppMenuBar's
+    // KeyHintItem: Tab, Insert, the text's own keys that can't be window
+    // shortcuts) shows in its place.
+    readonly property string shortcutText: {
+        if (control.action && control.action.shortcut) return String(control.action.shortcut)
+        var name = "keyHint"
+        return control[name] || ""
+    }
     readonly property color fg: enabled ? Theme.text : Theme.disabled
     contentItem: Item {
         readonly property int markWidth: Theme.iconSmall + Theme.gap2

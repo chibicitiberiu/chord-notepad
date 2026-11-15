@@ -495,3 +495,94 @@ def test_insert_toggles_overwrite_with_the_ovr_cell_and_a_block_caret(ed):
     QGuiApplication.clipboard().setText("Am")
     ed.key(K.Key_Insert, SHIFT)
     assert ed.text() == "DxAm G\n" and ed.area.property("overwriteMode") is False
+
+
+# -- the context menu and the Edit menu -------------------------------------------------------
+
+CONTEXT = [("menuUndo", "Ctrl+Z"), ("menuRedo", "Ctrl+Y"), ("menuCut", "Ctrl+X"), ("menuCopy", "Ctrl+C"),
+           ("menuPaste", "Ctrl+V"), ("menuSelectAll", "Ctrl+A"), ("menuFind", "Ctrl+F"),
+           ("menuReplace", "Ctrl+H"), ("menuGoToLine", "Ctrl+G"), ("menuToggleComment", "Ctrl+/"),
+           ("menuDuplicate", "Ctrl+D"), ("menuDeleteLine", "Ctrl+Shift+K")]
+
+
+def menu_rows(menu):
+    from tests.qt.test_qt_chrome import menu_item_at
+    rows = []
+    for i in range(menu.property("count")):
+        item = menu_item_at(menu, i)
+        rows.append("---" if "MenuSeparator" in item.metaObject().className() else item)
+    return rows
+
+
+def test_the_context_menu_has_the_editors_operations_with_their_keys(ed):
+    song(ed, LINES)
+    ed.click(1, Qt.MouseButton.RightButton)
+    menu = ed.item("editorContextMenu")
+    ed.qtbot.waitUntil(lambda: menu.property("opened") is True, timeout=1000)
+    rows = menu_rows(menu)
+    shown = ["---" if r == "---" else (r.objectName(), r.property("shortcutText")) for r in rows]
+    assert shown == CONTEXT[:2] + ["---"] + CONTEXT[2:6] + ["---"] + CONTEXT[6:9] + ["---"] + CONTEXT[9:]
+    ed.key(K.Key_Escape)
+
+
+def test_the_context_menus_edits_run_and_are_off_while_playing(ed):
+    song(ed, "C G\nAm F\n")
+    ed.set_cursor(1)
+    ed.click(1, Qt.MouseButton.RightButton)
+    menu = ed.item("editorContextMenu")
+    ed.qtbot.waitUntil(lambda: menu.property("opened") is True, timeout=1000)
+    item = ed.item("menuDuplicate")
+    from PySide6.QtCore import QPointF
+    centre = item.mapToScene(QPointF(item.width() / 2, item.height() / 2)).toPoint()
+    QTest.mouseClick(ed.window, Qt.MouseButton.LeftButton, NONE, centre)
+    wait_text(ed, "C G\nC G\nAm F\n")
+    play(ed)
+    for name in ("menuToggleComment", "menuDuplicate", "menuDeleteLine", "menuCut", "menuPaste"):
+        assert ed.item(name).property("enabled") is False, name
+    for name in ("menuFind", "menuGoToLine", "menuSelectAll"):
+        assert ed.item(name).property("enabled") is True, name
+
+
+def test_the_edit_menu_shows_every_key(ed):
+    menu = ed.item("editMenu")
+    keys = {r.property("text").replace("&", ""): r.property("shortcutText")
+            for r in menu_rows(menu) if r != "---"}
+    assert keys == {
+        "Undo": "Ctrl+Z", "Redo": "Ctrl+Y", "Cut": "Ctrl+X", "Copy": "Ctrl+C", "Paste": "Ctrl+V",
+        "Select all": "Ctrl+A", "Select line": "Ctrl+L", "Find…": "Ctrl+F", "Replace…": "Ctrl+H",
+        "Find next": "F3", "Find previous": "Shift+F3", "Go to line…": "Ctrl+G",
+        "Duplicate line or selection": "Ctrl+D", "Delete line": "Ctrl+Shift+K",
+        "Move line up": "Ctrl+Shift+Up", "Move line down": "Ctrl+Shift+Down",
+        "Toggle comment": "Ctrl+/", "Indent lines": "Tab", "Unindent lines": "Shift+Tab",
+        "Overwrite mode": "Insert"}
+
+
+def test_the_edit_menus_indent_and_overwrite_items(ed):
+    from PySide6.QtCore import QMetaObject
+    song(ed, LINES)
+    ed.area.select(0, 7)
+    QMetaObject.invokeMethod(ed.item("indentAction"), "trigger")
+    wait_text(ed, "\tone\n\ttwo\nthree\n")
+    QMetaObject.invokeMethod(ed.item("unindentAction"), "trigger")
+    wait_text(ed, LINES)
+    QMetaObject.invokeMethod(ed.item("overwriteAction"), "trigger")
+    assert ed.area.property("overwriteMode") is True
+    assert ed.item("overwriteAction").property("checked") is True
+    ed.key(K.Key_Insert)
+    assert ed.item("overwriteAction").property("checked") is False
+
+
+def test_no_shortcut_is_declared_twice():
+    """Every window shortcut in the QML is one sequence of one Action or Shortcut."""
+    import re
+    from pathlib import Path
+    from chordnotepad_desktop.main import QML_DIR
+    seen = {}
+    for path in sorted(Path(QML_DIR).rglob("*.qml")):
+        text = path.read_text(encoding="utf-8")
+        for seq in re.findall(r'\bshortcut: "([^"]+)"', text) + \
+                [s for group in re.findall(r'sequences?: \[([^\]]+)\]', text)
+                 for s in re.findall(r'"([^"]+)"', group)] + re.findall(r'\bsequence: "([^"]+)"', text):
+            seen.setdefault(seq.lower(), []).append(path.name)
+    twice = {seq: files for seq, files in seen.items() if len(files) > 1}
+    assert twice == {}

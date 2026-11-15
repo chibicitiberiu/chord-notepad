@@ -853,7 +853,9 @@ Rectangle {
         onClosed: pane.focusEditor()
     }
 
-    // Right-click: each item enabled only when it applies.
+    // Right-click: each item enabled only when it applies (the edits not while
+    // the text is read-only). Undo, Redo | Cut, Copy, Paste, Select all |
+    // Find, Replace, Go to line | Toggle comment, Duplicate, Delete line.
     Menu {
         id: contextMenu
         objectName: "editorContextMenu"
@@ -864,6 +866,14 @@ Rectangle {
         MenuItem { objectName: "menuCopy"; action: pane.copyAction }
         MenuItem { objectName: "menuPaste"; action: pane.pasteAction }
         MenuItem { objectName: "menuSelectAll"; action: pane.selectAllAction }
+        MenuSeparator { }
+        MenuItem { objectName: "menuFind"; action: pane.findAction }
+        MenuItem { objectName: "menuReplace"; action: pane.replaceAction }
+        MenuItem { objectName: "menuGoToLine"; action: pane.goToLineAction }
+        MenuSeparator { }
+        MenuItem { objectName: "menuToggleComment"; action: pane.toggleCommentAction }
+        MenuItem { objectName: "menuDuplicate"; action: pane.duplicateAction }
+        MenuItem { objectName: "menuDeleteLine"; action: pane.deleteLineAction }
         onClosed: pane.focusEditor()
     }
 }
