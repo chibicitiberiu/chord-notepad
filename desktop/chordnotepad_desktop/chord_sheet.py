@@ -600,9 +600,8 @@ class SheetView(QQuickPaintedItem):
         ink = 255 if self._dark else 0
         if self._scroll > 0 and clip.right() > gutter:
             gradient = QLinearGradient(gutter, 0, gutter + self.EDGE_SHADOW, 0)
-            top = QColor(ink, ink, ink, 70 if self._dark else 34)
-            gradient.setColorAt(0.0, top)
-            gradient.setColorAt(1.0, QColor(ink, ink, ink, 0))
+            gradient.setColorAt(0.0, QColor(0, 0, 0, 120 if self._dark else 34))   # a shadow darkens, in both themes
+            gradient.setColorAt(1.0, QColor(0, 0, 0, 0))
             p.fillRect(QRectF(gutter, 0, self.EDGE_SHADOW, height), QBrush(gradient))
         if clip.left() < gutter:
             px = 1.0 / (self._dpr or 1.0)
