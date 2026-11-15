@@ -29,8 +29,8 @@ notes (or a different fingering) each time through, exactly as it sounds.
 
 A rest (``NC``) keeps its slot in the timeline, labelled with ``NC``, so the
 strip's rhythm still reads correctly even where nothing sounds. The Staff,
-Fret cards and Tab views also draw a rest symbol in it; the piano roll leaves
-its lane empty.
+Fret cards and Tab views also draw a rest symbol in it (in Fret cards a rest
+gets a card as wide as a chord's); the piano roll leaves its lane empty.
 
 Roman-numeral chords show the chord they resolve to in the current key in
 parentheses: ``V7`` in the key of C is labeled ``V7 (G7)``. If the key
@@ -158,7 +158,11 @@ Staff
 --------
 
 One continuous grand staff running the length of the song, engraved with
-real music-font glyphs: whole-note heads, sharps, flats, and naturals.
+real music-font glyphs: note heads, sharps, flats, and naturals. Rhythm
+isn't shown yet: every chord is drawn as a whole note, however long it
+lasts, and a longer chord only gets more room. The chord names all have one
+size and sit on one line; a chord too short for its name gets a wider slot.
+
 The key signature is drawn after the clefs from the song's key, and again
 after a double barline wherever a ``{key}`` directive changes it; notes
 then only carry accidentals where they deviate from the signature
@@ -166,7 +170,22 @@ then only carry accidentals where they deviate from the signature
 key signature -- a ``Db`` chord in F# major is drawn as C# with no
 accidental -- while the chord labels stay exactly as you typed them.
 A rest (``NC``) shows as a whole rest on both staves; it's always drawn as
-one bar's rest, whatever its length. Available for any voicing. An
+one bar's rest, whatever its length.
+
+Since loops are unrolled, the passes of a repeated part follow one another
+on the staff, marked with repeat signs: every pass opens with ``|:`` and
+every pass that jumps back ends with ``:|``, so two passes meet at ``:||:``.
+The last pass ends with a plain bar line, and the song ends with a final
+bar line (a thin line and a thick one). A song that plays ``Am F`` twice
+between ``C G`` and ``Dm`` reads ``| C G |: Am F :||: Am F | Dm ||``. If the
+key changes where a pass starts, the new key signature comes right after the
+repeat sign.
+
+The staff grows with the strip up to a comfortable size; on a taller strip
+it keeps that size and sits in the middle. Zoom in to draw it larger, up to
+the size that still fits the strip's height.
+
+Available for any voicing. An
 ensemble voicing routes each voice to the staff (treble or bass) set for
 it -- see :doc:`ensembles` for where that per-voice ``staff`` setting comes
 from -- and colors each voice, with a small legend at the left. An ensemble
