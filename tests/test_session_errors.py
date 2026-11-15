@@ -75,6 +75,17 @@ def test_observable_reports_observer_errors_through_the_router():
     assert seen == [(KeyError, "observer of 'bpm'")]
 
 
+def test_an_observer_that_raises_doesnt_stop_the_others():
+    reported, values = [], []
+    errors.set_handler(lambda info, context: reported.append(context))
+    model = Observable()
+    model.observe("bpm", lambda value: {}["missing"])
+    model.observe("bpm", values.append)
+    model.notify("bpm", 120)
+    assert reported == ["observer of 'bpm'"]
+    assert values == [120]
+
+
 _IMPORT_PROBE = r"""
 import os, sys
 sys.path[:0] = sys.argv[1].split(os.pathsep)

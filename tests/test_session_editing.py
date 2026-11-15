@@ -642,9 +642,10 @@ def test_programmatic_edits_are_refused_while_playing():
     env.session.transpose(2, None)
     env.session.convert_notation("european")
     env.session.insert_text(0, "G ")
+    env.session.insert_chord(0, "Am")       # the identifier's Insert
 
     # Nothing but the refusals (the Qt status bar says why).
-    assert env.recorder.items == [EditRefused(formatting.EDIT_REFUSED_MESSAGE)] * 3
+    assert env.recorder.items == [EditRefused(formatting.EDIT_REFUSED_MESSAGE)] * 4
     assert env.session.text == env.main.current_text == "C G Am F"
     assert env.main.key == "C"
     assert env.main.notation.value == "american"

@@ -396,3 +396,40 @@ def test_q2_a_nudge_moves_past_the_magnet_of_a_grid_point():
     assert up == keepable
     # A scale without a magnet moves by its increment.
     assert toolbar.MULTIPLIER_SCALE.nudged(100, 1) == 101
+
+
+# -- ScrubScale on its own: clamping, the grid's origin, the magnet ---------------------------
+# (Tk's Scrubber widget tests checked these through the widget,
+# tests/test_scrubber.py; the scale is the core's and the Qt tempo uses it.)
+
+
+def test_a_scale_clamps_to_its_range():
+    scale = toolbar.ScrubScale(0, 100)
+    assert scale.normalize(999) == 100
+    assert scale.normalize(-50) == 0
+
+
+def test_without_a_magnet_every_value_snaps_to_the_grid():
+    assert toolbar.ScrubScale(0, 100, step=10).normalize(37) == 40
+
+
+def test_the_grid_starts_at_the_minimum():
+    scale = toolbar.ScrubScale(12.5, 400, step=12.5)
+    assert scale.normalize(50) == 50       # 12.5 + 3 x 12.5
+    assert scale.normalize(30) == 25.0     # nearer 25 than 37.5
+
+
+def test_a_magnetic_grid_latches_only_within_the_tolerance():
+    scale = toolbar.ScrubScale(12.5, 400, step=12.5, snap_tolerance=3)
+    assert scale.normalize(26) == 25.0
+    assert scale.normalize(30) == 30.0     # 5 from 25, 7.5 from 37.5
+
+
+def test_a_drag_finer_than_the_grid_latches_when_it_comes_near():
+    scale = toolbar.ScrubScale(12.5, 400, step=12.5, drag_step=1, snap_tolerance=2)
+    value = 30
+    seen = []
+    for _ in range(3):
+        value = scale.stepped(value, -1)
+        seen.append(value)
+    assert seen == [29, 28, 25]            # 27 is within 2 of 25
