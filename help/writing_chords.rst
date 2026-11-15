@@ -130,8 +130,8 @@ Switching Notations
    .. only:: desktop
 
       To actually rewrite the chords in your document from one system to the other,
-      use :menuselection:`Tools --> Convert to American Notation` or
-      :menuselection:`Tools --> Convert to European Notation`. Those commands
+      use :menuselection:`Tools --> Convert to American notation` or
+      :menuselection:`Tools --> Convert to European notation`. Those commands
       rewrite every chord and every ``{key}`` directive in place; the toggle
       never does. A lyric line that would read as chords in the other
       notation (``la la la`` is three ``La`` chords) gets a ``.`` in front,

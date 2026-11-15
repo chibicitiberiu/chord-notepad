@@ -435,12 +435,11 @@ accented letters; save it as UTF-8 in another editor first.
 
    **Open/Save dialog looks different on Linux:**
    On Linux, Chord Notepad uses your desktop's own file dialog (through the
-   XDG Desktop Portal) when one is available, and its built-in dialog
-   otherwise. The Flatpak version always goes through the portal, since that's
-   the only way it can reach your files. If the desktop dialog misbehaves, you
-   can force the built-in one by starting the app with the environment variable
-   ``CHORD_NOTEPAD_FILE_DIALOG=tk`` (or ``CHORD_NOTEPAD_FILE_DIALOG=portal`` to
-   force the desktop one).
+   XDG Desktop Portal) when one is available, and Qt's built-in dialog
+   otherwise. The Flatpak and Snap versions always go through the portal,
+   since that's the only way they can reach your files. If the desktop dialog
+   misbehaves, you can force the built-in one by starting the app with the
+   environment variable ``CHORD_NOTEPAD_FILE_DIALOG=qt``.
 
 
 Common Mistakes

@@ -187,8 +187,8 @@ System Requirements
    Chord Notepad runs on:
 
    * **Linux** (requires libfluidsynth)
-   * **Windows**
-   * **macOS** 11 Big Sur or newer, on Apple silicon or Intel
+   * **Windows** 10 or newer
+   * **macOS** 14.4 (Sonoma) or newer, on Apple silicon or Intel
 
    Audio playback requires a working sound system. The application uses FluidSynth
    for instrument synthesis.
