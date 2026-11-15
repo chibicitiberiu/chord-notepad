@@ -301,11 +301,12 @@ class EditorBridge(QObject):
         # The window went first (shutdown): a late timer must not reach it.
         self._area = None
 
-    @Slot(result=bool)
-    def modalPopupOpen(self) -> bool:
-        """Whether the editor's window shows a modal dialog: the editor must
-        not take the keys from it (EditorPane.focusEditor)."""
-        return self._area is not None and popups.modal_popup_open(self._area.window())
+    @Slot(QQuickItem, result=bool)
+    def modalPopupOpen(self, overlay: QQuickItem) -> bool:
+        """Whether the window whose ``Overlay.overlay`` this is shows a modal
+        dialog: the editor must not take the keys from it
+        (EditorPane.focusEditor)."""
+        return popups.modal_popup_open(overlay)
 
     @Slot("QVariantMap")
     def setPalette(self, palette: dict) -> None:  # noqa: N802 (Qt)

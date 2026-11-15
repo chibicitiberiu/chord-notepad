@@ -177,7 +177,7 @@ Rectangle {
     // The keys to the text, unless a dialog is open: a menu that opened it
     // closes after it (its onClosed would take the keys from the dialog),
     // and a deferred call may run while it is up.
-    function focusEditor() { if (!pane.editor.modalPopupOpen()) area.forceActiveFocus() }
+    function focusEditor() { if (!pane.editor.modalPopupOpen(Overlay.overlay)) area.forceActiveFocus() }
     // Whether a key would change the text (typing, deleting, a new line, a paste or cut).
     function editsKey(event) {
         if (event.matches(StandardKey.Paste) || event.matches(StandardKey.Cut)) return true
