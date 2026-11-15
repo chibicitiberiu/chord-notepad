@@ -103,4 +103,9 @@ Each is also noted where it applies, as "pitfall N":
     after the press-and-hold time, and hands it on without a timestamp (a
     click after a double-click selected the line). The editor's presses go
     to it without the left button in ``buttons()`` (text_mouse.py).
+30. QQuickPaintedItem: a plain ``update()`` followed by ``update(rect)`` in
+    the same frame paints only the rect (a null dirty rect means "all" and
+    the rect replaces it), leaving the old frame everywhere else. Ask for a
+    whole repaint as the item's rect, which merges (chord_sheet.py
+    ``_repaint``).
 """

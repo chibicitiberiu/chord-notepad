@@ -313,7 +313,7 @@ class SheetView(QQuickPaintedItem):
         self.contentChanged.emit()
         self.scrollXChanged.emit()
         self._follow(self._playing)
-        self.update()
+        self._repaint()
 
     # -- theme ----------------------------------------------------------------------
 
@@ -327,7 +327,7 @@ class SheetView(QQuickPaintedItem):
                 setattr(self, attr, value)
                 self._theme_dirty = True
                 self.changed.emit()
-                self.update()
+                self._repaint()
         return get, set_
 
     dark = Property(bool, *_theme_prop("_dark", bool), notify=changed)
@@ -343,7 +343,7 @@ class SheetView(QQuickPaintedItem):
         if family != self._painter.family:
             self._painter.set_family(family)
             self.changed.emit()
-            self.update()
+            self._repaint()
 
     fontFamily = Property(str, _get_family, _set_family, notify=changed)
 
@@ -408,7 +408,7 @@ class SheetView(QQuickPaintedItem):
         if abs(value - self._scroll) > 1e-6:
             self._scroll = value
             self.scrollXChanged.emit()
-            self.update()
+            self._repaint()
 
     scrollX = Property(float, _get_scroll, _set_scroll, notify=scrollXChanged)
 
@@ -437,7 +437,7 @@ class SheetView(QQuickPaintedItem):
         self._scroll = self._clamped(self._scroll)
         self.scrollXChanged.emit()
         self._follow(self._playing)
-        self.update()
+        self._repaint()
 
     def _get_zoom_anchor(self) -> float:
         return self._zoom_anchor
@@ -494,6 +494,15 @@ class SheetView(QQuickPaintedItem):
         """Item x of content x 0, on the device pixel grid."""
         sheet = self._sheet
         return round((sheet.gutter_width - self._scroll) * self._dpr) / self._dpr
+
+    def _repaint(self) -> None:
+        """Repaint the whole item, asked as its rect: Qt drops a plain
+        update() when update(rect) follows it in the same frame (only the
+        rect is painted), and a follow-scroll then a cursor move did just
+        that, leaving the old frame around the two columns (Tibi,
+        2026-11-15). An explicit rect merges with the partial ones."""
+        rect = QRectF(0, 0, self.width(), self.height()).toAlignedRect()
+        self.update(rect if not rect.isEmpty() else QRect())
 
     def _update_slot(self, index: int) -> None:
         sheet = self._sheet

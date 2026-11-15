@@ -20,7 +20,7 @@ from tests.conftest import QT_PROBLEM
 if QT_PROBLEM:
     pytest.skip(f"Qt not available: {QT_PROBLEM}", allow_module_level=True)
 
-from PySide6.QtCore import QPoint, QPointF, QRectF, Qt  # noqa: E402
+from PySide6.QtCore import QPoint, QPointF, QRect, QRectF, Qt  # noqa: E402
 from PySide6.QtGui import QColor, QImage, QPainter, QWheelEvent  # noqa: E402
 from PySide6.QtQml import qmlEngine  # noqa: E402
 from PySide6.QtTest import QTest  # noqa: E402
@@ -606,6 +606,34 @@ def test_the_playing_column_repaint_is_partial(sh):
     view.setProperty("playingIndex", 2)
     sh.run(50)
     assert rects and all(r is not None and r.width() < view.width() / 4 for r in rects)
+
+
+def test_a_follow_scroll_then_a_cursor_move_repaints_everything(sh):
+    # Tibi, 2026-11-15: bits of the old frame stayed around the playing
+    # column. Qt keeps only update(rect) when it follows a plain update() in
+    # the same frame: the follow-scroll's whole repaint was lost to the
+    # cursor's two columns.
+    sh.to_play(700)
+    sh.wait_sheet()
+    view, sheet = sh.view, sh.model.sheet
+    count = 0
+    while sheet.slot(count) is not None:
+        count += 1
+    view.setProperty("playingIndex", 0)
+    view.setProperty("cursorIndex", 0)
+    sh.run(50)
+    o = view.mapToScene(QPointF(0, 0)).toPoint()
+    area = QRect(o.x(), o.y(), int(view.width()), int(view.height()))
+    # One frame: the playing chord jumps past the band (the strip scrolls),
+    # then the cursor moves (a partial repaint of its columns).
+    view.setProperty("playingIndex", count - 1)
+    view.setProperty("cursorIndex", count - 1)
+    assert view.property("scrollX") > 0
+    sh.run(50)
+    after = sh.grab().copy(area)
+    view.update()
+    sh.run(50)
+    assert after == sh.grab().copy(area)
 
 
 def test_edit_shows_the_panel_with_f9_and_play_always(sh):
