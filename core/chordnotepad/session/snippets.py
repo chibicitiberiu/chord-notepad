@@ -5,7 +5,8 @@ selected, so typing replaces it (or the ▾ picker after it changes it), or a
 bit of text (a rest, a comment). ``AppSession.insert_snippet`` inserts one
 as a single undo step; :func:`fill_snippet` makes the template valid where
 it goes first (a key in the song's notation, a label not taken yet, a loop
-to a label above it), and :func:`select_range` is what gets selected.
+to a label above it), :func:`select_range` is what gets selected and
+:func:`drop_offset` is where a dragged tile or chord lands.
 
 The texts are the approved mockup's (``DirectivePalette.qml``). The
 duration tiles come after the switch (plan step B4, "after the switch").
@@ -128,6 +129,38 @@ def select_range(text: str) -> Optional[Tuple[int, int]]:
     if text.startswith(_COMMENT_PREFIX) and len(text) > len(_COMMENT_PREFIX):
         return len(_COMMENT_PREFIX), len(text)
     return None
+
+
+def drop_offset(text: str, offset: int) -> int:
+    """Where something dropped at ``offset`` of ``text`` goes in (a palette
+    tile or a chord dragged into the Qt editor; the drop caret shows it).
+
+    Out of the middle of a directive (``{`` to ``}`` on one line) or of a
+    word or chord, to its nearer edge, the left one on a tie (a word stops at
+    a directive's brace); unchanged next to whitespace or a directive, and at
+    either end of the text.
+    """
+    if not 0 < offset < len(text):
+        return offset
+    line_start = text.rfind("\n", 0, offset) + 1
+    line_end = text.find("\n", offset)
+    line_end = len(text) if line_end < 0 else line_end
+    brace = text.rfind("{", line_start, offset)
+    if brace >= 0 and text.find("}", brace, offset) < 0:
+        close = text.find("}", offset, line_end)
+        if close >= 0 and text.find("{", offset, close) < 0:
+            return brace if offset - brace <= close + 1 - offset else close + 1
+    before, after = text[offset - 1], text[offset]
+    if before.isspace() or after.isspace() or before == "}" or after == "{":
+        return offset
+    # A word ends at a directive's brace too.
+    left = offset
+    while left > 0 and not text[left - 1].isspace() and text[left - 1] != "}":
+        left -= 1
+    right = offset
+    while right < len(text) and not text[right].isspace() and text[right] != "{":
+        right += 1
+    return left if offset - left <= right - offset else right
 
 
 def _respell_key(key: str, notation: str) -> str:

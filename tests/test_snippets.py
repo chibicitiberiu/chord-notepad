@@ -110,6 +110,42 @@ def test_snap_moves_a_drop_off_the_middle_of_a_word():
     assert e.session.text == "A NC m7 G"
 
 
+@pytest.mark.parametrize("text, offset, expected", [
+    ("Am7 G", 1, 0),            # A|m7: the left edge is nearer
+    ("Am7 G", 2, 3),            # Am|7: the right edge
+    ("Am G", 1, 0),             # A|m: a tie goes left
+    ("Am7 G", 3, 3),            # next to a space: kept
+    ("Am7 G", 4, 4),
+    ("Am7", 0, 0),              # the ends of the text
+    ("Am7", 3, 3),
+    ("one\ntwo", 3, 3),         # before the newline
+    ("C {bpm: 90} G", 4, 2),    # {b|pm: 90}: out of the directive, left
+    ("C {bpm: 90} G", 9, 11),   # {bpm: 9|0}: right, past the brace
+    ("C {bpm: 90} G", 7, 11),   # {bpm:| 90}: next to its space, still inside
+    ("{a: 1}{b: 2}", 6, 6),     # between two directives
+    ("Am7{bpm: 90}", 2, 3),     # Am|7{: a word stops at the brace
+    ("{bpm: 90}Am7", 10, 9),    # }A|m7
+    ("C {bpm: 90", 4, 2),       # no closing brace: a word like any other
+    ("x}\n{y", 5, 5),           # braces on other lines don't count
+])
+def test_a_drop_lands_on_the_nearer_edge_of_a_word_or_directive(text, offset, expected):
+    assert snippets.drop_offset(text, offset) == expected
+
+
+def test_a_snapped_drop_never_lands_inside_a_directive():
+    e = env("C {bpm: 90} G")
+    e.session.insert_snippet(9, "{key: G}", snap=True)
+    assert e.session.text == "C {bpm: 90} {key: G} G"
+
+
+def test_a_dropped_chord_goes_in_spaced_as_one_undo_step():
+    e = env("C G\n")
+    e.session.insert_snippet(2, "Am7", snap=True)       # the identifier's drop
+    assert e.session.text == "C Am7 G\n"
+    edited = edit(e)
+    assert edited.undo is UndoPolicy.GROUP and edited.anchor is None and edited.cursor == 5
+
+
 def test_a_comment_selects_its_words():
     e = env("C G\n")
     e.session.insert_snippet(4, "// comment")

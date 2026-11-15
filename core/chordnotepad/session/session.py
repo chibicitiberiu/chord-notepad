@@ -171,20 +171,6 @@ def _same_place(old: str, new: str, offset: int) -> int:
     return min(starts[line] + column, end)
 
 
-def _word_edge(text: str, offset: int) -> int:
-    """``offset`` moved out of the middle of a word (or chord) to its nearer
-    edge, the left one on a tie; unchanged next to whitespace."""
-    if 0 < offset < len(text) and not text[offset - 1].isspace() and not text[offset].isspace():
-        left = offset
-        while left > 0 and not text[left - 1].isspace():
-            left -= 1
-        right = offset
-        while right < len(text) and not text[right].isspace():
-            right += 1
-        return left if offset - left <= right - offset else right
-    return offset
-
-
 def _label_names(parsed: Sequence[Any], before: Optional[int] = None) -> Tuple[str, ...]:
     """The valid labels of parsed directives in song order (only those
     starting before ``before``, if given)."""
@@ -708,8 +694,9 @@ class AppSession:
         Args:
             offset: Where (the caret, or where it was dropped).
             text: The snippet (``Snippet.text``), or any text.
-            snap: Move ``offset`` out of the middle of a word to its nearer
-                edge first (a drop between letters).
+            snap: Move ``offset`` out of the middle of a directive, word or
+                chord to its nearer edge first (a drop,
+                :func:`session.snippets.drop_offset`).
 
         Raises:
             ValueError: If ``offset`` is outside the text or ``text`` is empty.
@@ -722,7 +709,7 @@ class AppSession:
         if not self._edits_allowed("insert snippet"):
             return
         if snap:
-            offset = _word_edge(self._text, offset)
+            offset = snippets.drop_offset(self._text, offset)
         parsed = self._parsed_directives(self._text)
         filled = snippets.fill_snippet(
             text, notation=self._main.notation.value, labels=_label_names(parsed),
