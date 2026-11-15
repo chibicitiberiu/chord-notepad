@@ -5,10 +5,11 @@ import CNTheme
 // Playback › Voicing as a popup menu (plan step E3): the session's
 // VoicingMenuState groups (piano; the built-in fretboards; the built-in
 // ensembles; the user's voicings), separated, the one in use checked, then
-// "Edit voicings…". Built with createObject (Menu has no Repeater,
-// pitfall 7) and rebuilt when the choices change. A pick sends
-// set_voicing; the opener keeps the menu shut while the voicing is locked
-// (a song plays), and the core refuses set_voicing then anyway.
+// "Edit voicings…". Built with createObject, parented to the menu's
+// contentItem (Menu has no Repeater, pitfall 7), and rebuilt when the
+// choices change. A pick sends set_voicing; the opener keeps the menu shut
+// while the voicing is locked (a song plays), and the core refuses
+// set_voicing then anyway.
 Menu {
     id: menu
     objectName: "voicingMenu"
@@ -34,10 +35,10 @@ Menu {
             if (old) old.destroy()
         }
         for (var g = 0; g < groups.length; ++g) {
-            if (g > 0) menu.addItem(menu.sepComp.createObject(null))
+            if (g > 0) menu.addItem(menu.sepComp.createObject(menu.contentItem))
             for (var i = 0; i < groups[g].length; ++i) {
                 var choice = groups[g][i]
-                var item = menu.itemComp.createObject(null, { text: choice.label, objectName: "voicing:" + choice.value }) as MenuItem
+                var item = menu.itemComp.createObject(menu.contentItem, { text: choice.label, objectName: "voicing:" + choice.value }) as MenuItem
                 menu.check(item, choice.value)
                 item.triggered.connect(function (it, v) { return function () {
                     menu.check(it, v)
@@ -46,8 +47,8 @@ Menu {
                 menu.addItem(item)
             }
         }
-        menu.addItem(menu.sepComp.createObject(null))
-        var edit = menu.itemComp.createObject(null, { text: "Edit voicings…", checkable: false,
+        menu.addItem(menu.sepComp.createObject(menu.contentItem))
+        var edit = menu.itemComp.createObject(menu.contentItem, { text: "Edit voicings…", checkable: false,
                                                        objectName: "editVoicings" }) as MenuItem
         edit.triggered.connect(menu.editVoicings)
         menu.addItem(edit)

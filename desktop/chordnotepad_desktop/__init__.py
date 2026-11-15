@@ -46,7 +46,10 @@ Each is also noted where it applies, as "pitfall N":
 6. One handler per piano key fires for two keys where they overlap; hit-test
    the keyboard centrally, black keys first (the identifier piano, F5).
 7. Menu has no Repeater: use ``createObject`` and ``addItem`` (Menu.qml;
-   VoicingMenu.qml, InstrumentMenu.qml).
+   VoicingMenu.qml, InstrumentMenu.qml), and give ``createObject`` the menu's
+   ``contentItem`` as parent (the menu itself, not an Item, draws a
+   warning): a row made with ``createObject(null)`` that no JS closure
+   holds is deleted by the collector once the menu has been shown.
 8. Keep a Python reference to the ``QQuickTextDocument`` wrapper, or it is
    collected under the highlighter (editor_bridge.py).
 9. On KDE Wayland the ratio from Screen or QML is wrong; read it from the

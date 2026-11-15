@@ -39,7 +39,7 @@ Menu {
             sub.icon.color = Theme.accent
             for (var i = 0; i < fam.items.length; ++i) {
                 var program = parseInt(fam.items[i].value)
-                var item = menu.itemComp.createObject(null, { text: fam.items[i].label,
+                var item = menu.itemComp.createObject(sub.contentItem, { text: fam.items[i].label,
                                                                objectName: "program:" + program }) as MenuItem
                 menu.check(item, program)
                 item.triggered.connect(function (it, p) { return function () {

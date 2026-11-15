@@ -758,11 +758,11 @@ BUILT_MENUS = ["voicingMenu", "barVoicingMenu", "sheetVoicingMenu", "instrumentM
 
 
 def test_the_built_menus_keep_their_rows_through_a_garbage_collection(app, tmp_path):
-    # Rows made with createObject(null) are the JS engine's. A manual pass
-    # saw the Voicing menu without its separators and "Edit voicings…"; the
-    # suspect was the collector deleting rows nothing in JS holds. Qt 6.12
-    # keeps the items a Menu holds (a minimal QML probe agrees), so this is a
-    # guard, not the fix: the cause of what was seen is still open.
+    # Rows made with createObject(null) belong to the JS engine. Once the menu
+    # has been shown, the collector deleted the ones nothing in JS held (the
+    # separators, "Edit voicings…", the recent files): the manual pass saw
+    # the Voicing menu without them after a voicing was picked. The menus now
+    # parent their rows.
     for name in ("Choir", "Band"):
         (tmp_path / name).mkdir()
         (tmp_path / name / "song.txt").write_text(name + "\n", encoding="utf-8")
@@ -777,6 +777,17 @@ def test_the_built_menus_keep_their_rows_through_a_garbage_collection(app, tmp_p
     assert voicings[-2:] == ["---", "Edit voicings…"] and voicings.count("---") >= 2
     assert len(before["appMenuRecent"]) == 2
     # (The instrument submenus are empty here: the FakePlayer has no soundfont.)
+    for name in BUILT_MENUS:          # shown once, as in the manual pass
+        menu = app.obj(name)
+        QMetaObject.invokeMethod(menu, "open")   # (a submenu or a hidden bar's stays shut)
+        app.run(300)
+        QMetaObject.invokeMethod(menu, "close")
+        app.qtbot.waitUntil(lambda m=menu: m.property("visible") is False, timeout=2000)
+    groups = app.store.state("VoicingMenuState").value("groups")
+    app.store.submit("set_voicing", {"voicing": groups[-1][-1]["value"]})
+    app.qtbot.waitUntil(lambda: app.store.state("VoicingMenuState").value("selected")
+                        == groups[-1][-1]["value"], timeout=2000)
+    collect_garbage(app)
     collect_garbage(app)
     assert {name: menu_rows(app, app.obj(name)) for name in BUILT_MENUS} == before
 
