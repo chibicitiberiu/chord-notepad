@@ -85,8 +85,8 @@
       <image type="source" width="1920" height="1080">https://raw.githubusercontent.com/chibicitiberiu/chord-notepad/main/packaging/store/screenshots/desktop/03-play-fret-cards.png</image>
     </screenshot>
     <screenshot>
-      <caption>The staff view in the dark theme</caption>
-      <image type="source" width="1920" height="1080">https://raw.githubusercontent.com/chibicitiberiu/chord-notepad/main/packaging/store/screenshots/desktop/04-play-staff-dark.png</image>
+      <caption>The staff view: every chord written out as notes</caption>
+      <image type="source" width="1920" height="1080">https://raw.githubusercontent.com/chibicitiberiu/chord-notepad/main/packaging/store/screenshots/desktop/04-play-staff.png</image>
     </screenshot>
     <screenshot>
       <caption>The chord identifier names the notes you pick</caption>
@@ -95,6 +95,32 @@
     <screenshot>
       <caption>The voicing editor: your own guitar tunings, pianos and ensembles</caption>
       <image type="source" width="1920" height="1080">https://raw.githubusercontent.com/chibicitiberiu/chord-notepad/main/packaging/store/screenshots/desktop/06-voicings.png</image>
+    </screenshot>
+    <!-- The same six in the dark theme: software centres that know the
+         environment show these to a dark desktop. -->
+    <screenshot environment="plasma:dark">
+      <caption>A song playing: the chord that sounds is lit in the text and on the piano roll (dark theme)</caption>
+      <image type="source" width="1920" height="1080">https://raw.githubusercontent.com/chibicitiberiu/chord-notepad/main/packaging/store/screenshots/desktop/01-play-piano-roll-dark.png</image>
+    </screenshot>
+    <screenshot environment="plasma:dark">
+      <caption>Writing a song, with the directives palette beside the text (dark theme)</caption>
+      <image type="source" width="1920" height="1080">https://raw.githubusercontent.com/chibicitiberiu/chord-notepad/main/packaging/store/screenshots/desktop/02-edit-dark.png</image>
+    </screenshot>
+    <screenshot environment="plasma:dark">
+      <caption>Guitar chord diagrams follow the song as it plays (dark theme)</caption>
+      <image type="source" width="1920" height="1080">https://raw.githubusercontent.com/chibicitiberiu/chord-notepad/main/packaging/store/screenshots/desktop/03-play-fret-cards-dark.png</image>
+    </screenshot>
+    <screenshot environment="plasma:dark">
+      <caption>The staff view: every chord written out as notes (dark theme)</caption>
+      <image type="source" width="1920" height="1080">https://raw.githubusercontent.com/chibicitiberiu/chord-notepad/main/packaging/store/screenshots/desktop/04-play-staff-dark.png</image>
+    </screenshot>
+    <screenshot environment="plasma:dark">
+      <caption>The chord identifier names the notes you pick (dark theme)</caption>
+      <image type="source" width="1920" height="1080">https://raw.githubusercontent.com/chibicitiberiu/chord-notepad/main/packaging/store/screenshots/desktop/05-identifier-dark.png</image>
+    </screenshot>
+    <screenshot environment="plasma:dark">
+      <caption>The voicing editor: your own guitar tunings, pianos and ensembles (dark theme)</caption>
+      <image type="source" width="1920" height="1080">https://raw.githubusercontent.com/chibicitiberiu/chord-notepad/main/packaging/store/screenshots/desktop/06-voicings-dark.png</image>
     </screenshot>
   </screenshots>
 
