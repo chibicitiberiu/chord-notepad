@@ -71,6 +71,33 @@
     <control>pointing</control>
   </supports>
 
+  <screenshots>
+    <screenshot type="default">
+      <caption>A song playing: the chord that sounds is lit in the text and on the piano roll</caption>
+      <image type="source" width="1920" height="1080">https://raw.githubusercontent.com/chibicitiberiu/chord-notepad/main/packaging/store/screenshots/desktop/01-play-piano-roll.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Writing a song, with the directives palette beside the text</caption>
+      <image type="source" width="1920" height="1080">https://raw.githubusercontent.com/chibicitiberiu/chord-notepad/main/packaging/store/screenshots/desktop/02-edit.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Guitar chord diagrams follow the song as it plays</caption>
+      <image type="source" width="1920" height="1080">https://raw.githubusercontent.com/chibicitiberiu/chord-notepad/main/packaging/store/screenshots/desktop/03-play-fret-cards.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>The staff view in the dark theme</caption>
+      <image type="source" width="1920" height="1080">https://raw.githubusercontent.com/chibicitiberiu/chord-notepad/main/packaging/store/screenshots/desktop/04-play-staff-dark.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>The chord identifier names the notes you pick</caption>
+      <image type="source" width="1920" height="1080">https://raw.githubusercontent.com/chibicitiberiu/chord-notepad/main/packaging/store/screenshots/desktop/05-identifier.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>The voicing editor: your own guitar tunings, pianos and ensembles</caption>
+      <image type="source" width="1920" height="1080">https://raw.githubusercontent.com/chibicitiberiu/chord-notepad/main/packaging/store/screenshots/desktop/06-voicings.png</image>
+    </screenshot>
+  </screenshots>
+
   <releases>
     <release version="0.5.4" date="2026-11-13">
       <description>
