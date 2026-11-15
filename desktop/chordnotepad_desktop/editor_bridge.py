@@ -229,7 +229,8 @@ class EditorBridge(QObject):
     #: Another document's text came in (open, New, a restored draft: a
     #: ``reset`` edit). The view goes back to the top, as Tk's does: the
     #: session puts the cursor after the text, and Tk moves its insert mark
-    #: there without scrolling, so a song opens at its first line.
+    #: there without scrolling, so a song opens at its first line. Qt's
+    #: caret is visible (and the view follows it), so it goes to the start.
     documentReset = Signal()
     #: The text changed: typed, pasted or the session's edit. (TextArea's
     #: textChanged also fires when only the highlighting changed.)
@@ -528,7 +529,12 @@ class EditorBridge(QObject):
             self._identity = (0, edit["text_revision"])
         mapper = OffsetMapper(after)
         anchor = edit.get("anchor")
-        if anchor is not None and self._area is not None:
+        if policy == "reset":
+            # Another document: the caret at its start, nothing selected (the
+            # session's cursor is after the text, where Tk's unseen insert
+            # mark goes; here the caret would take the view to the end).
+            self._move_cursor(0)
+        elif anchor is not None and self._area is not None:
             # The edit selects what it inserted (B4's insert_snippet: the
             # value), from ``anchor`` to the cursor, so typing replaces it.
             QMetaObject.invokeMethod(self._area, "select",

@@ -209,6 +209,7 @@ Rectangle {
     // Scroll so `start`..`end` is in view, vertically and sideways (the
     // playing chord; wrap off lets the text run past the right edge).
     function ensureVisible(start, end) {
+        pane.releaseView()
         var r0 = area.positionToRectangle(start)
         var r1 = area.positionToRectangle(Math.max(start, end))
         var f = scroll.contentItem
@@ -225,6 +226,45 @@ Rectangle {
             f.contentX = Math.min(maxX, Math.max(0, r0.x - f.width / 2))
     }
 
+    // Keep the scroll position across a lock change or a workspace switch:
+    // the TextArea follows its caret (when it moves, and when a new size
+    // re-wraps the text), which is the user's to move, not ours. For a
+    // moment after the change (the move to the other workspace's host lays
+    // the editor out again a frame or two later) the view is put back
+    // whenever it moves; scrolling to the playing chord, or a caret that
+    // really moved, ends that.
+    property point heldView: Qt.point(0, 0)
+    property bool holding: false
+    function holdView() {
+        if (!pane.holding)
+            pane.heldView = Qt.point(scroll.contentItem.contentX, scroll.contentItem.contentY)
+        pane.holding = true
+        viewHold.restart()
+    }
+    function restoreView() {
+        if (!pane.holding) return
+        var f = scroll.contentItem
+        var x = Math.max(0, Math.min(pane.heldView.x, f.contentWidth - f.width))
+        var y = Math.max(0, Math.min(pane.heldView.y, f.contentHeight - f.height))
+        if (f.contentX !== x) f.contentX = x
+        if (f.contentY !== y) f.contentY = y
+    }
+    // To the other workspace's host (Main.qml), the view kept.
+    function moveTo(host) {
+        if (pane.parent === host) return
+        pane.holdView()
+        pane.parent = host
+        pane.restoreView()
+    }
+    function releaseView() { pane.holding = false; viewHold.stop() }
+    Timer { id: viewHold; interval: 200; onTriggered: pane.holding = false }
+    Connections {
+        target: scroll.contentItem
+        function onContentXChanged() { pane.restoreView() }
+        function onContentYChanged() { pane.restoreView() }
+        function onContentHeightChanged() { pane.restoreView() }
+    }
+
     Connections {
         target: Theme
         function onDarkChanged() { pane.editor.setPalette(pane.palette()) }
@@ -232,9 +272,10 @@ Rectangle {
     Connections {
         target: pane.editor
         function onPlayingMoved(start) { pane.ensureVisible(start, pane.editor.playingEnd) }
-        // Another document: show its first line (the TextArea has already
-        // scrolled to the cursor, which the session put after the text).
+        // Another document: show its first line (the bridge put the caret
+        // there; the view may have followed the text's end first).
         function onDocumentReset() {
+            pane.releaseView()
             Qt.callLater(function () {
                 scroll.contentItem.contentX = 0
                 scroll.contentItem.contentY = 0
@@ -277,12 +318,20 @@ Rectangle {
             // Read-only while playing or paused, and in Play. Set by hand, not
             // bound: TextEdit moves the caret to the end of the text whenever
             // readOnly changes, so the caret and the selection are put back.
+            // The view stays where it was too: the TextArea scrolls to the
+            // caret whenever it moves, so playback stopping, Play or Edit
+            // would jump to it (pane.holdView).
             readonly property bool locked: pane.editor.readOnly || pane.playMode
+            property bool relocking: false
             onLockedChanged: {
+                pane.holdView()
+                area.relocking = true
                 var caret = area.cursorPosition
                 var anchor = caret === area.selectionStart ? area.selectionEnd : area.selectionStart
                 area.readOnly = locked
                 area.select(anchor, caret)
+                area.relocking = false
+                pane.restoreView()
                 if (locked) pane.closePicker()      // a song started, or Play
             }
             selectByMouse: true
@@ -316,7 +365,11 @@ Rectangle {
                 area.readOnly = area.locked
                 pane.editor.attach(area, area.textDocument, pane.palette())
             }
-            onCursorPositionChanged: pane.caretTouched()
+            onCursorPositionChanged: {
+                pane.caretTouched()
+                // A caret the user (or an edit) moved: the view follows it again.
+                if (!area.relocking) pane.releaseView()
+            }
             onActiveFocusChanged: if (activeFocus) pane.caretTouched()
             Keys.onReleased: pane.status.schedule()
 

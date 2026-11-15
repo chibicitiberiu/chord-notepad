@@ -273,7 +273,11 @@ def test_a_reset_edit_clears_the_undo_history_and_places_the_cursor(editor):
     song(editor)                                            # restore_draft: a reset edit
     assert edits[-1]["undo"] == "reset"
     assert editor.area.property("canUndo") is False
-    assert editor.area.property("cursorPosition") == edits[-1]["cursor"]
+    # The session puts its cursor after the text (Tk's insert mark, unseen);
+    # Qt's caret shows, so it starts the song, with nothing selected.
+    assert edits[-1]["cursor"] == len(SONG)
+    assert editor.area.property("cursorPosition") == 0
+    assert editor.area.property("selectionStart") == editor.area.property("selectionEnd") == 0
 
 
 def test_opening_a_document_shows_it_at_the_start(editor, tmp_path):
@@ -302,6 +306,51 @@ def test_a_long_document_opens_at_its_first_line(editor, tmp_path):
     editor.qtbot.waitUntil(lambda: flick.property("contentY") == 0, timeout=1000)
     editor.run(100)
     assert flick.property("contentY") == 0
+
+
+LONG_SONG = "".join(f"C       G\nLine {n}\n" for n in range(200))
+
+
+def scrolled_to_the_middle(editor):
+    """A long song, opened, with the view scrolled to its middle by the wheel
+    (the caret left at the start)."""
+    song(editor, LONG_SONG)
+    flick = editor.item("editorScroll").property("contentItem")
+    editor.qtbot.waitUntil(lambda: flick.property("contentY") == 0, timeout=1000)
+    middle = round((flick.property("contentHeight") - flick.property("height")) / 2)
+    flick.setProperty("contentY", middle)
+    editor.run()
+    assert flick.property("contentY") == middle
+    return flick, middle
+
+
+def test_stopping_playback_keeps_the_view_where_it_was(editor):
+    editor.harness.player.auto_play = False
+    flick, middle = scrolled_to_the_middle(editor)
+    editor.store.submit("play_pause", {"from_offset": None})
+    editor.qtbot.waitUntil(lambda: editor.area.property("readOnly") is True, timeout=3000)
+    editor.run(100)
+    # Playback may have shown its chord; the user scrolls on from there.
+    flick.setProperty("contentY", middle)
+    editor.run()
+    editor.store.submit("stop")
+    editor.qtbot.waitUntil(lambda: editor.area.property("readOnly") is False, timeout=3000)
+    editor.run(150)
+    assert flick.property("contentY") == middle
+    assert editor.area.property("cursorPosition") == 0
+
+
+def test_switching_edit_and_play_keeps_the_view_where_it_was(editor):
+    flick, middle = scrolled_to_the_middle(editor)
+    editor.window.setProperty("mode", "play")
+    editor.qtbot.waitUntil(lambda: editor.area.property("readOnly") is True, timeout=1000)
+    editor.run(150)
+    assert flick.property("contentY") == middle
+    editor.window.setProperty("mode", "edit")
+    editor.qtbot.waitUntil(lambda: editor.area.property("readOnly") is False, timeout=1000)
+    editor.run(150)
+    assert flick.property("contentY") == middle
+    assert editor.area.property("cursorPosition") == 0
 
 
 def test_the_editors_own_text_wins_over_an_edit_made_on_an_older_one(editor):

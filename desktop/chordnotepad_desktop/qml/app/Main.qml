@@ -87,6 +87,7 @@ ApplicationWindow {
     }
     onModeChanged: {
         Theme.bumpLayout()
+        editorPane.moveTo(win.mode === "play" ? playTextHost : editHost)
         editorPane.focusEditor()
         win.sheetOnScreen()
     }
@@ -321,7 +322,8 @@ ApplicationWindow {
         pickers: win.pickers
         placeholder: win.store.texts.editorPlaceholder
         playMode: win.mode === "play"
-        parent: win.mode === "play" ? playTextHost : editHost
+        // Moved by onModeChanged (moveTo keeps the view where it was).
+        parent: editHost
         anchors.fill: parent
     }
     // One chord sheet, moved between the Edit panel and the Play strip (the mockup's).
