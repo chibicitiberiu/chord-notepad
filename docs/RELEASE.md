@@ -335,7 +335,7 @@ The `build` job runs on `macos-latest` (Apple silicon) and `macos-15-intel`
 (GitHub's last x86_64 image, due to retire around 2027) and attaches
 `ChordNotepad-macos-arm64.dmg` and `ChordNotepad-macos-x64.dmg`. On macOS the
 spec always builds a folder and wraps it in `dist/Chord Notepad.app`
-(bundle id `com.tibich.chordnotepad`, minimum macOS 11).
+(bundle id `com.tibich.chordnotepad`, minimum macOS 14.4).
 
 - `packaging/macos/build_fluidsynth.sh` builds libfluidsynth from the same
   pinned 2.6.1 source as the Flatpak, with C++11 threads instead of GLib and
@@ -361,12 +361,13 @@ bundle; installing it pulls the `org.freedesktop.Platform` runtime from
 Flathub. Bundles don't auto-update; a self-hosted Flatpak repo would fix that.
 
 Unlike the other builds it is built **from source**, not from PyInstaller:
-`packaging/flatpak/io.github.chibicitiberiu.ChordNotepad.yml` builds Tcl/Tk,
-the `_tkinter` extension (from the CPython release matching the runtime's
-Python), FluidSynth, the Python packages, and installs `core/` and `desktop/`
-with a small launcher (`python3 -m chordnotepad_tk.main`, with both folders on
-`PYTHONPATH`). The build reuses the help HTML, icons and
-`desktop/chordnotepad_tk/build_info.py` generated
+`packaging/flatpak/io.github.chibicitiberiu.ChordNotepad.yml` builds
+FluidSynth (and the libraries Qt needs that the runtime lacks), installs the
+Python packages, including the PySide6 wheel cut down by
+`packaging/qt_bundle.py trim` to the parts the window uses, and installs
+`core/` and `desktop/` with a small launcher (`python3 -m chordnotepad_desktop`,
+with both folders on `PYTHONPATH`). The build reuses the help HTML, icons and
+`desktop/chordnotepad_desktop/build_info.py` generated
 earlier in the job, so run `make flatpak` (which builds docs and icons first),
 not flatpak-builder directly.
 
@@ -385,10 +386,11 @@ Re-run it after changing app dependencies. The list is explicit on purpose:
 music21's numpy/matplotlib dependencies are never imported by the app and are
 left out. If you add a dependency, add it to `PACKAGES` in that script.
 
-**Sandbox:** X11 (Tk has no Wayland backend), PulseAudio, and network (only so
-the host browser can reach the help server on 127.0.0.1). There is no
-filesystem permission: open/save go through the XDG FileChooser portal
-(`desktop/chordnotepad_tk/file_dialogs.py`). Settings and logs live in
+**Sandbox:** Wayland (with X11 as the fallback), OpenGL for Qt Quick (it
+falls back to software rendering), PulseAudio, and network (only so the host
+browser can reach the help server on 127.0.0.1). There is no filesystem
+permission: open/save go through the XDG FileChooser portal, which Qt uses
+inside a Flatpak by itself. Settings and logs live in
 `~/.var/app/io.github.chibicitiberiu.ChordNotepad/`.
 
 **Desktop integration** files are in `packaging/linux/` (the `.desktop` file
@@ -407,10 +409,12 @@ submission would need a hand-written manifest and metainfo.
 `.desktop` file and metainfo in `packaging/linux/` (the store listing's title,
 summary, description and icon come from the metainfo), and the smoke test.
 
-- **Python and Tk:** `core26` ships no Python, so Python 3.14 and its tkinter
-  (Tk 8.6, which Ubuntu still builds Python against) are staged from the 26.04
-  archive, as are FluidSynth 2.4 and libpulse.
-- **Interfaces:** `x11`, `desktop`, `desktop-legacy`, `audio-playback`, `home`,
+- **Python and Qt:** `core26` ships no Python, so Python 3.14 is staged from
+  the 26.04 archive, as are FluidSynth 2.4 and libpulse. The PySide6 wheel is
+  installed with pip and cut down by `packaging/qt_bundle.py trim`; the
+  libraries it links (fontconfig, freetype, D-Bus and so on) come from the
+  archive too.
+- **Interfaces:** `wayland`, `x11`, `opengl`, `desktop`, `desktop-legacy`, `audio-playback`, `home`,
   `network-bind`. All auto-connect, so revisions pass automated review.
 - **Launcher** (`packaging/snap/chord-notepad.sh`) points libpulse at the
   user's sound server; inside a snap `XDG_RUNTIME_DIR` is per-snap.

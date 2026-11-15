@@ -17,7 +17,7 @@ it's done (git history keeps it); release mechanics live in `docs/RELEASE.md`.
 
 - Consider `groups` in `.github/dependabot.yml` for one weekly PR (the bumps in a3c910b signed fine on v0.5.1).
 - Cache the Ubuntu source packages the release's third-party source bundle downloads: "Build source bundles" takes 50-75 minutes of every release and nightly.
-- macOS: try both dmgs on a real Mac (Open Anyway on first launch, sound, the Intel one on macOS 11); CI only smoke-tests them.
+- macOS: try both dmgs on a real Mac (Open Anyway on first launch, sound, the Intel one on macOS 14.4); CI only smoke-tests them.
 - CI signing isolation: Windows signing in its own job that alone holds `id-token: write`; Android signing in a minimal job after an unsigned build; Gradle dependency verification.
 - Local signing (`docs/RELEASE.md`, "Signing locally"): read passwords in a subshell, accept them from the environment only (not `-P`), fail when `cnSigning=upload|foss` meets the configuration cache.
 - Local MSIX test recipe (`docs/RELEASE.md`): import only the `.cer`, not the PFX with its private key, and clean up afterwards, as `smoke_test.ps1` does.
@@ -25,11 +25,10 @@ it's done (git history keeps it); release mechanics live in `docs/RELEASE.md`.
 - Flatpak: serve the guide from the app's cache dir through the OpenURI portal and drop `--share=network`.
 - Fast tests: Hypothesis `dev`/`ci` profiles in `tests/conftest.py` (three fuzz tests in `test_chord_pickers.py` take 99 of 184 s), patch `_create_sequencer` in `test_user_facing_errors.py::test_no_audio_driver_raises` (9.4 s), `make test-fast`, pytest-xdist with `-n 4`.
 - Replace sleep-based timing tests (`test_playback_service.py`, `test_playback_stop.py`, `test_session_threaded_host.py`) with `ManualHost` or event waits.
-- ruff (`check --select F,E722,B`) in dev-packages, CI and pre-commit; fix the bare `except:` in `core/chordnotepad/chord/helper.py` and `desktop/chordnotepad_tk/application.py:373`, the duplicate `set_instrument` in `playback_service.py`, and the other pyflakes findings.
+- ruff (`check --select F,E722,B`) in dev-packages, CI and pre-commit; fix the bare `except:` in `core/chordnotepad/chord/helper.py`, the duplicate `set_instrument` in `playback_service.py`, and the other pyflakes findings.
 - Safe Makefile: `.DEFAULT_GOAL := help` with a `help` target (bare `make` launches the GUI today), and `make check` = lint + test + docs-check.
 - pytest 7.4 to 8.x (7.4 predates Python 3.14).
-- Desktop output dispatch: `MainWindow._on_session_output` (`desktop/chordnotepad_tk/main_window.py:338-381`) drops unknown types silently. A type→handler dict, an explicit "ignored on desktop" set and a test that covers every bridge output.
-- Limits in one place: BPM, speed, beats and transpose ranges are repeated in `main_window_viewmodel.py:586,613`, `chordnotepad_tk/dialogs/options_dialog.py:21-22` and Kotlin (`SheetRoute.kt`, `ToolForms.kt`, `ScrubberMath.kt`, `SettingsDraft.kt`). Use `constants.py` and publish them over the bridge.
+- Limits in one place: BPM, speed, beats and transpose ranges are repeated in `main_window_viewmodel.py:586,613` and Kotlin (`SheetRoute.kt`, `ToolForms.kt`, `ScrubberMath.kt`, `SettingsDraft.kt`). Use `constants.py` and publish them over the bridge.
 - Bridge contract test (`BridgeSchemaContractTest.kt`): fail instead of `assumeTrue` when the schema is missing; compare types, nullability and command argument shapes.
 - A stress test for `AppSession.chord_sheet_buffer` packing on a second thread while the session re-feeds (renderers are assumed pure, unchecked).
 - `tests/test_android_requirements.py`: compare versions with `Pipfile.lock`, not just names (allow-list chardet).
@@ -39,9 +38,9 @@ it's done (git history keeps it); release mechanics live in `docs/RELEASE.md`.
 - CONTRIBUTING.md: a Development section (setup, `make help`, `make check`, the core/desktop rule, `docs/ANDROID.md`).
 - `.gitignore` backstop for `*.p12`, `*.jks`, `*.keystore`, `*.pem`, `*.env`.
 
-## After the Qt switch
+## Qt desktop
 
-- Release after 0.6.0: delete the Tk window. `chordnotepad_tk` and the `DESKTOP` Tk texts; the interim live paths (`chord_sheet_model`, `settings_model`, `chord_identifier_model`) and the Tk-only viewmodels; the Tcl/Tk, Pillow and jeepney packaging and licence components; the Tk tests, `xvfb-run` in CI and `test_every_build_keeps_the_tk_front_end_for_the_fallback`; the Tk-only items in this file (`MainWindow._on_session_output`, the limits in `main_window_viewmodel.py` and `options_dialog.py`). `build_info.py` moves into `chordnotepad_desktop` (and `build.yml`'s path with it).
+- Tk leftovers in the core, now that the window is gone: the `DESKTOP` platform texts and `tests/fixtures/quick_start_desktop.json` (`session/platform.py`, `session/quick_start.py`); the interim live paths `chord_sheet_model`, `settings_model`, `chord_identifier_model`, `has_chord_sheet`, `set_window_geometry` and `report_audio_failure` on `AppSession`; the Tk keys in `models/window_geometry.py` and the config; the Tk-only viewmodels; Pillow, jeepney and the Tcl/Tk entries in the Pipfile, the packaging and the licence inventory; the guard lists in `tests/test_core_import_guard.py` once nothing needs them. `build_info.py` lives in `chordnotepad_desktop`.
 - Drag and drop from the Directives palette and the chord identifier: the drop caret and the word snap.
 - The duration tiles and `set_chord_duration`, keeping columns aligned.
 - Palette keyboard polish.
@@ -53,10 +52,10 @@ it's done (git history keeps it); release mechanics live in `docs/RELEASE.md`.
 
 - Split `AppSession` (`core/chordnotepad/session/session.py`, 2,548 lines) into per-area components, with one observer-registration helper that shutdown mirrors.
 - Then move value ownership (text, document, toolbar, playback) from `MainWindowViewModel` into the session, one value at a time.
-- Repo layout, the rest: the spec and `hooks/` into `packaging/pyinstaller/` (the code itself is split by layer since the move to `core/chordnotepad/` and `desktop/chordnotepad_tk/`).
+- Repo layout, the rest: the spec and `hooks/` into `packaging/pyinstaller/` (the code itself is split by layer since the move to `core/chordnotepad/` and `desktop/chordnotepad_desktop/`).
 - Build consolidation: `scripts/make_icons.py`, `scripts/gen_build_info.py` (untracked output), `scripts/bump_version.py` shared by Make and CI; a composite setup action and venv cache; `build.yml` split into `ci.yml`, `release.yml` and reusable workflows; drop the tag-push release path and RELEASE.md's "Quick Release Guide".
 - pipenv to `pyproject.toml` + uv, generating `android/docs-requirements.txt` from a dependency group.
-- Type and lint more: mypy on `session` and `models`, ktlint, hints and docstrings in `chordnotepad_tk/chord_identifier.py`, `chordnotepad_tk/chord_sheet/panel.py`, `voicings_page.py`, `insert_directives.py`.
+- Type and lint more: mypy on `session` and `models`, ktlint, hints and docstrings in the Qt models.
 - Compose hygiene: `collectAsStateWithLifecycle`, the rename flow out of `SongScreen.kt` into a controller, no per-gesture `Log.i` in `ChordSheetPane.kt`.
 - Android UI tests (`androidTest`, Compose) for `SongScreen`, `ChordSheetPane` and `ChordEditor`.
 - Test cleanup: shared `parser()` fixture instead of five copies, no `sys.path.insert` in tests, mock-plumbing tests asserting on `EventRecorder` states.

@@ -23,7 +23,7 @@ A text editor for chord notation. Write chord symbols above your lyrics and Chor
 - Click any chord to hear it, or press play to run the whole song with each chord lighting up as it sounds
 - Chords are voiced like a player, not stacked mechanically: the piano voicing moves smoothly from one chord to the next (voice leading), and the guitar voicing finds real, playable fingerings on the fretboard
 - Or voice for an ensemble instead of one instrument: Choir (SATB), Male Choir (TTBB), Treble Choir (SSA), and String Quartet presets voice each chord as independent parts with real voice leading (custom ensembles too), and MIDI export writes them out one track per voice
-- Choose the instrument: piano, or guitar in standard, Drop D, DADGAD, or Open G tuning, plus a ukulele preset (any custom fretted instrument or custom piano voicing too, built with the Tools → Settings voicing editor)
+- Choose the instrument: piano, or guitar in standard, Drop D, DADGAD, or Open G tuning, plus a ukulele preset (any custom fretted instrument or custom piano voicing too, built in Settings → Voicings)
 - Real MIDI synthesis through FluidSynth, with a soundfont bundled in
 - A metronome you can switch on and off mid-playback
 - A chord sheet strip (View → Chord Sheet) shows the song's voiced chords left to right as they'll actually play, follows along during playback, and switches between keyboard, staff, chord box, and tab views
@@ -66,7 +66,7 @@ Download the latest release from the [Releases](https://github.com/chibicitiberi
   executable; needs the FluidSynth library, see below). On ARM64 machines
   (Raspberry Pi 5, Asahi, ARM servers) use the `-linux-arm64` files instead.
 - **Windows**: `ChordNotepad-windows-x64.exe` (FluidSynth is bundled)
-- **macOS** (11 Big Sur or newer): `ChordNotepad-macos-arm64.dmg` for Apple
+- **macOS** (14.4 Sonoma or newer): `ChordNotepad-macos-arm64.dmg` for Apple
   silicon (M1 and later) or `ChordNotepad-macos-x64.dmg` for Intel Macs. Open
   it and drag Chord Notepad to Applications (FluidSynth is bundled). The app
   isn't notarized by Apple, so the first time macOS blocks it: open System
@@ -105,7 +105,7 @@ FluidSynth as above.
 git clone https://github.com/chibicitiberiu/chord-notepad.git
 cd chord-notepad
 pipenv install --dev
-make run          # or: PYTHONPATH=core:desktop pipenv run python -m chordnotepad_tk.main
+make run          # or: PYTHONPATH=core:desktop pipenv run python -m chordnotepad_desktop
 make test         # run the tests
 make fuzz         # the long fuzz tests (transpose, notation conversion)
 make docs-check   # build both editions of the User Guide
@@ -129,7 +129,7 @@ chord-notepad/
 │   └── chordnotepad/     # The shared core: services, audio, chord detection, view-models
 │       └── session/      # AppSession, the layer the desktop and Android UIs sit on
 ├── desktop/
-│   └── chordnotepad_tk/  # The Tk desktop app (python -m chordnotepad_tk.main)
+│   └── chordnotepad_desktop/  # The Qt desktop app (python -m chordnotepad_desktop)
 ├── android/              # Android app (Kotlin/Compose over the same Python core)
 ├── help/                 # User Guide source (Sphinx, desktop and Android editions)
 ├── docs/                 # Developer docs

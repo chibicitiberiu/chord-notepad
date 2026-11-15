@@ -85,7 +85,7 @@ The Python core is not copied: Chaquopy reads `../../core` directly and
 ships the `chordnotepad` package from it, minus `__pycache__`. The source
 set's `include("chordnotepad/**", "chordnotepad_android/**")` filters every
 folder of the set, so it names the glue package too; a package missing there
-silently drops out of the APK. The desktop front end lives in `desktop/chordnotepad_tk/`,
+silently drops out of the APK. The desktop front end lives in `desktop/chordnotepad_desktop/`,
 which the Android build never reads, so there is no exclusion list;
 `tests/test_core_import_guard.py` checks the Gradle lines and that no core
 module imports tkinter, Pillow, jeepney or PySide6. The glue in
@@ -303,7 +303,8 @@ class SessionHandle:
   session with an `AndroidDocumentStore` (below) and `platform="android"`
   (`session.platform`: the texts that name a gesture or a menu path get
   their Android wording, e.g. "Tapped chords won't play…", "⋮ → Playback →
-  Voicing"; the Tk desktop passes nothing and keeps its exact texts),
+  Voicing"; the Qt desktop passes `desktop_qt`, and texts with no variant of its
+  own keep the plain desktop wording),
   subscribes a listener that
   forwards every output to `event_sink`, installs the `session.errors`
   handler (emits `UnexpectedError`, throttled) and returns. It may block for
@@ -852,8 +853,8 @@ objects, against the release build's R8 rules ("R8 in release builds").
     screen: same `client_token` after a user edit, or token 0 and the
     edit's `text_revision` after a session edit (it may arrive before the
     `TextEdited`; it is re-checked once the edit is applied). Until then
-    the painted spans move with the edits like Tk tags.
-  - Styles are the desktop's (Tk's named colours, the tag priority, the
+    the painted spans move with the edits.
+  - Styles are the desktop's (the same named colours, the same priority, the
     playing chord on top); `OutputTransformation.addStyle` paints them.
     Font: `TkFixedFont`/monospaced names → Monospace, sans → Sans, serif →
     Serif; size in sp = pt × 4/3.
@@ -891,7 +892,7 @@ objects, against the release build's R8 rules ("R8 in release builds").
     (a wrapped `Clipboard` in `LocalClipboard` crashes Compose's text
     toolbar on a long-press). Pastes drop them anyway (`PasteNormalization`).
   - Dark theme: the editor's colours are readable variants of the desktop
-    hues (`AppColors.Dark`); light mode keeps the desktop's Tk colours.
+    hues (`AppColors.Dark`); light mode keeps the desktop's colours.
   - Paste normalization is the one rule set duplicated in Kotlin
     (`PasteNormalization`, the cases of `test_paste_normalization.py`):
     Compose has no paste hook for `TextFieldState`, so it applies to every
@@ -1032,9 +1033,8 @@ the cards. While a buffer is being fetched
 (`ChordSheetController.loading`) a thin progress bar shows under the tabs.
 
 The chord sheet's renderers (`core/chordnotepad/chord_sheet/`) are headless:
-they record draw ops (`chord_sheet/ops.py`) that the Tk panel replays onto a
-canvas.
-Android gets the same ops as one `bytes` object per (view, zoom, height):
+they record draw ops (`chord_sheet/ops.py`), which the desktop and Android
+both get as one `bytes` object per (view, zoom, height):
 
 ```python
 from chordnotepad.chord_sheet.pack import pack_view
@@ -1140,13 +1140,13 @@ Anchors: 0 `nw`, 1 `n`, 2 `ne`, 3 `w`, 4 `center`, 5 `e`, 6 `sw`, 7 `s`,
 Version 2 added opcode 7. A rect with square corners is still opcode 1, byte
 for byte as in version 1, so a version 2 buffer without rounded corners
 differs from version 1 only in its version field. Draw a rounded rect with
-both corner radii equal to `radius` (`drawRoundRect`); the Tk panel draws it
-square.
+both corner radii equal to `radius` (`drawRoundRect`).
 
-**Colours** are Tk colour strings; every renderer today uses `#rrggbb`.
+**Colours** are Tk-style colour strings (the renderers began on a Tk canvas,
+and the format keeps its conventions); every renderer today uses `#rrggbb`.
 Rect/oval fill or outline "none" (`0xFFFF`) or `""` means don't paint that
 part. Line, polygon and text never come without a fill today; if one does,
-Tk's default is black.
+black is the default.
 
 **Image keys** (staff view only): `clef_<kind>:<h>` (`treble`, `treble_8vb` or `bass`), `glyph_<name>:<h>` and
 `glyph_<name>:<h>:<rrggbb>` (`chord_sheet.clef_assets.parse_image_key`).
@@ -1189,25 +1189,23 @@ slower (the M2 render ratio). Compression isn't worth it in-process; the
 
 ### Units and calibration for Kotlin
 
-- **Coordinates and widths** are Tk canvas pixels, designed at 96 DPI. Map
+- **Coordinates and widths** are canvas pixels, designed at 96 DPI. Map
   1 px to **1 dp**. The same goes for `height` and `gutter_width`, and for
   the strip height the session stores.
-- **Font sizes** are points (`size`); Tk turns them into pixels at 96 DPI,
-  i.e. 4/3 px per pt. Use **sp = size × 4/3** (8 pt → 10.67 sp, 12 pt → 16
-  sp). The font is `TkDefaultFont` (a sans serif on every desktop), so use
-  `FontFamily.SansSerif`, bold when `bold` is set. Desktop HiDPI scaling
-  enlarges Tk fonts but not canvas geometry; the 96 DPI baseline above is
-  what the renderers are laid out for.
-- **Text anchors** place the text's bounding box, Tk style: the box is the
+- **Font sizes** are points (`size`); at 96 DPI that is 4/3 px per pt. Use **sp = size × 4/3** (8 pt → 10.67 sp, 12 pt → 16
+  sp). The font is the desktop's default UI font (a sans serif), so use
+  `FontFamily.SansSerif`, bold when `bold` is set. The 96 DPI baseline above
+  is what the renderers are laid out for.
+- **Text anchors** place the text's bounding box, Tk canvas style: the box is the
   measured advance width × the font's line spacing (ascent + descent), and
   `(x, y)` is the box's anchor point (`nw` = top-left, `n` = top-centre, `w`
   = left-middle, `center`, `e` = right-middle, ...). Emulate with
   `TextMeasurer`: measure with `includeFontPadding = false`, then draw at
   `(x - fx × width, y - fy × height)` with `fx`, `fy` in {0, ½, 1} from the
   anchor. Text is single-line.
-- **Strokes**: line width in dp, butt caps (Tk's default), round joins. Rect
+- **Strokes**: line width in dp, butt caps, round joins. Rect
   and oval outlines are centred on the box edge.
-- **Polygon `smooth`** (unused by the renderers today) is Tk's quadratic
+- **Polygon `smooth`** (unused by the renderers today) is a quadratic
   B-spline: start at the midpoint of the last and first points, then
   `quadraticTo(p[i], mid(p[i], p[i+1]))` around the ring.
 - **Marker lane label widths** are not measured: `marker_lane._CHAR_W = 5.5`

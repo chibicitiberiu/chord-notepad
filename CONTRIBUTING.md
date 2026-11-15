@@ -46,9 +46,6 @@ and what licence it's under, so it can be checked and credited.
   renderer and need no display; they skip when PySide6 or pytest-qt can't be
   imported. A QML warning fails the test. If you touched QML, also run
   `qmllint` on it (it ships with PySide6).
-- The Tk tests need a display and skip without one. CI runs the suite under
-  `xvfb-run`; on a headless machine, start an Xvfb (`Xvfb :97 -screen 0
-  1280x800x24 &`) and run with `DISPLAY=:97`. They go when the Tk window does.
 - Add or update tests for what you changed.
 - If you changed what users see, update the user guide in `help/`
   (see [docs/HELP_AUTHORING.md](docs/HELP_AUTHORING.md)) and check that
@@ -64,13 +61,11 @@ and what licence it's under, so it can be checked and credited.
   `UPPER_SNAKE_CASE`, private names with a leading underscore.
 - Public functions have type hints and docstrings.
 - One `logger = logging.getLogger(__name__)` per module.
-- Python packages, imported by name, nothing installed: the shared core
-  `chordnotepad` (`core/chordnotepad/`), the Qt Quick desktop app
-  `chordnotepad_desktop` (`desktop/chordnotepad_desktop/`) and the old Tk
-  desktop app `chordnotepad_tk` (`desktop/chordnotepad_tk/`, which stays for
-  one release as `--ui tk` and is then deleted; don't add features to it).
+- Two Python packages, imported by name, nothing installed: the shared core
+  `chordnotepad` (`core/chordnotepad/`) and the Qt Quick desktop app
+  `chordnotepad_desktop` (`desktop/chordnotepad_desktop/`).
   Imports are absolute (`from chordnotepad.session.state import ...`). The
-  core never imports tkinter, Pillow, jeepney or PySide6
+  core never imports PySide6 (or tkinter, Pillow or jeepney)
   (`tests/test_core_import_guard.py`); desktop-only code goes in
   `chordnotepad_desktop`.
 - Logic lives in the shared Python core. The front ends (Qt, and the Android
@@ -88,8 +83,8 @@ with it). Nothing is installed, so the folders go on `PYTHONPATH`. Don't run a
 bare `make`: its default target starts the app.
 
 ```bash
-# The Qt window (it becomes the default in 0.6.0); --ui tk is the old Tk one.
-PYTHONPATH=core:desktop pipenv run python -m chordnotepad_tk.main --ui qt
+# The desktop window
+PYTHONPATH=core:desktop pipenv run python -m chordnotepad_desktop
 
 # The Qt tests, offscreen (no display needed)
 QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software pipenv run python -m pytest tests/qt -q

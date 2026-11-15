@@ -1,33 +1,30 @@
 # AppSession: the shared application layer
 
 The shared layer every front end sits on: the Qt Quick desktop app, the
-Kotlin/Compose Android app and, later, SwiftUI. (The old Tk desktop window
-still ships for one release as `--ui tk`; it is deleted after that, and the
-Tk-specific parts below go with it.) "Where the session stands" says what
-each area does and what is still interim, and why. The wire format Kotlin
+Kotlin/Compose Android app and, later, SwiftUI. "Where the session stands"
+says what each area does and what is still interim, and why. The wire format Kotlin
 and QML see is in `docs/ANDROID.md`, "Bridge contract".
 
 The core is the `chordnotepad` package in `core/` (the session is
 `chordnotepad.session`); the Qt front end is `chordnotepad_desktop` in
-`desktop/` (the Tk one, `chordnotepad_tk`, sits beside it), and the Android
-glue is `chordnotepad_android`. Nothing is installed: each
+`desktop/`, and the Android glue is `chordnotepad_android`. Nothing is installed: each
 front end puts the folders on `sys.path` (`pytest.ini`, the Makefile, the
 launchers, the PyInstaller spec, Chaquopy's `srcDir`). Paths like
 `session/bridge.py` below are inside `core/chordnotepad/`.
 
 ## Why
 
-The viewmodels in `core/chordnotepad/viewmodels/` don't import Tk. The wiring
-*between* them does live in the Tk window,
-`desktop/chordnotepad_tk/main_window.py`. That includes:
+The viewmodels in `core/chordnotepad/viewmodels/` know nothing of any UI. The
+wiring *between* them used to live in the first desktop window (a Tk one,
+since removed). That wiring is:
 - the chord-sheet feed and the playback-event fan-out;
 - re-detection after transpose;
 - applying settings and the notation toggle;
 - the file flows and the status text.
 
 A second UI (Kotlin/Compose on Android, later SwiftUI) would have to copy all of
-it. AppSession moves that wiring into a Tk-free, host-agnostic core layer.
-**Every** UI becomes a thin view over it, so the wiring exists once. The Qt
+it. AppSession moves that wiring into a host-agnostic core layer.
+**Every** UI is a thin view over it, so the wiring exists once. The Qt
 desktop app was written that way from the start: its QML only shows states
 and sends commands.
 
@@ -41,7 +38,7 @@ and sends commands.
   - *Events* are delivered in order.
   - Dialogs are request/response pairs.
 - **The host owns the session thread.**
-  - Tk and Qt: the GUI thread is the session thread.
+  - Qt: the GUI thread is the session thread.
   - Android: a Python-owned `ThreadedHost` thread.
 - **Offsets are Unicode code points everywhere in Python.** Conversion to UTF-16
   happens only in the Kotlin `OffsetMapper`.
@@ -68,7 +65,7 @@ and sends commands.
   voicing-menu model and ordering; the instrument-family table; key options
   (`session/toolbar.py` holds the toolbar's value logic).
 
-**Views (Qt, Compose, later SwiftUI; Tk until it is removed)**
+**Views (Qt, Compose, later SwiftUI)**
 - Widgets, theme, icons, tooltip wording, dialog layout.
 - Pixel/cursor ↔ offset conversion.
 - Applying the undo policy carried by each edit event.
@@ -94,7 +91,7 @@ core/chordnotepad/session/
   settings.py      SettingsValues: the settings as plain values (bridge views);
                    DesktopSettingsValues adds the Qt desktop's (values_type(platform))
   testing.py       ManualHost (virtual clock), InMemoryDocumentStore, FakePlayer, EventRecorder
-  errors.py        Tk-free unexpected-error routing (handler registry; the handler throttles)
+  errors.py        unexpected-error routing (handler registry; the handler throttles)
   documents.py     DocumentRef, DocumentStore, FileSystemDocumentStore
   state.py         frozen state DTOs
   events.py        one-off event + request DTOs
@@ -117,11 +114,8 @@ core/chordnotepad/session/
   bridge.py        encode(dto) -> (type_name, json); decode_args/dispatch; SessionBridge;
                    ErrorEvents (throttled UnexpectedError); schema dump for Kotlin
   session.py       AppSession
-desktop/chordnotepad_tk/tk_host.py  TkHost (the queue drain that used to live in application.py)
-core/chordnotepad/utils/paths.py    display_path / is_document_portal_path (Tk-free;
-                                    chordnotepad_tk/file_dialogs.py re-exports them)
-core/chordnotepad/models/window_geometry.py  the window's and the sheet's sizes in a form
-                                    both desktops read (logical pixels next to Tk's)
+core/chordnotepad/utils/paths.py    display_path / is_document_portal_path
+core/chordnotepad/models/window_geometry.py  the window's and the sheet's sizes (logical pixels)
 core/chordnotepad/audio/volume.py   the volume slider's curve (config volume -> synth.gain)
 ```
 
@@ -138,19 +132,11 @@ class Host(Protocol):
     def monotonic(self) -> float: ...
 ```
 
-There are four implementations:
+There are three implementations:
 - **`QtHost`** (`desktop/chordnotepad_desktop/qt_host.py`): the Qt GUI thread
   is the session thread. `post` is a queued signal, `call_later` a
-  single-shot `QTimer`. Like TkHost it exists before the window, and what is
-  posted before `start()` waits.
-- **`TkHost(root=None)`**
-  - `post` puts the callback on a queue, which the existing 100 ms `after()`
-    drain runs.
-  - `call_later` wraps `root.after` and returns a handle that calls
-    `after_cancel`.
-  - The host is built before the window (services and viewmodels come
-    first), so the root is attached later with `attach(root)`; `start()` and
-    `stop()` run the drain. Posts made before `start()` wait in the queue.
+  single-shot `QTimer`. It exists before the window, and what is posted
+  before `start()` waits.
 - **`ManualHost`** (tests)
   - `run_pending()` runs posted callbacks.
   - `advance(seconds)` moves the virtual clock forward.
@@ -241,7 +227,7 @@ were computed for; it goes up on every change to the session's copy.
 `client_token` echoes the token of the `set_text` that produced that text (0
 for edits the session made), so a view whose text has moved on can tell the
 spans are stale. Spans are listed comments first, then chords, then directives;
-kinds may overlap and the view decides which wins (Tk: tag priority).
+kinds may overlap and the view decides which wins.
 
 ### One-off events and requests
 
@@ -320,30 +306,30 @@ class AppSession:
     def save_config(self) -> None;  def report_unexpected(self, message: str, context: str | None) -> None
 ```
 
-Desktop-only queries and commands (the Tk window's needs; Android ignores
-them): `window_geometry` / `set_window_geometry(geometry)`,
-`show_quick_start_on_startup` / `set_show_quick_start_on_startup(show)`,
-`settings_model()` and `chord_identifier_model()` (new dialog-scoped models),
+Desktop-only queries and commands (Android ignores them):
+`show_quick_start_on_startup` / `set_show_quick_start_on_startup(show)` and
 `licence_catalog(base_path)` (the Licences window's list, from
-`services.licence_catalog`; Android reads the same kind of data in Kotlin),
-`has_chord_sheet` and `chord_sheet_model` (the panel's painting read; see
-"Still interim"). Queries the views call synchronously on the session thread:
-`text`, `text_revision`, `chord_at(offset) -> Span | None` (the Tk hand
-cursor), `document_ref(id) -> DocumentRef` (a picker's answer;
+`services.licence_catalog`; Android reads the same kind of data in Kotlin).
+The old Tk window also used `window_geometry` / `set_window_geometry(geometry)`,
+`settings_model()`, `chord_identifier_model()`, `has_chord_sheet`,
+`chord_sheet_model` and `report_audio_failure(reason, from_click)`; nothing
+calls them since it was removed, and they are on the backlog to delete.
+Queries the views call synchronously on the session thread:
+`text`, `text_revision`, `chord_at(offset) -> Span | None` (the pointer over a
+chord), `document_ref(id) -> DocumentRef` (a picker's answer;
 `DocumentStore.ref_for`), `pending_request` (the bridge decodes `respond`'s
 value by its type) and `settings_values() -> SettingsValues`; plus
 `chord_sheet_buffer(height) -> bytes | None`, the one query meant for other
 threads. Other commands added on the way:
-`open_recent(ref)`, `insert_chord(at, chord)` (the chord identifier: inserts
-`chord + " "` and says "Inserted chord: X") and
-`report_audio_failure(reason, from_click)`.
+`open_recent(ref)` and `insert_chord(at, chord)` (the chord identifier:
+inserts `chord + " "` and says "Inserted chord: X").
 
 The Qt desktop's (its window talks through the bridge too: the commands
 QML sends are bridge commands, Android never sends them; the queries and
 the geometry are direct calls): `logical_window_geometry(scale)` /
 `set_logical_window_geometry(WindowGeometry, scale)` and
 `logical_chord_sheet_height(scale)` / `set_logical_chord_sheet_height(height,
-scale)` (logical pixels, Tk's keys kept in step: `models/window_geometry.py`);
+scale)` (logical pixels: `models/window_geometry.py`);
 `set_chord_sheet_on_screen(True | False | None)` (renders apart from
 `chord_sheet_visible`: True in Play, None to follow it); `volume`, `muted`,
 `set_volume(v)`, `set_muted(on)`, `step_volume(steps)`;
@@ -409,19 +395,17 @@ an empty one means none.
   still emitted, so the dialogs open as before. `ChordTextEditor.apply_edit`
   applies `TextEdited` even while the widget is locked and clears the
   widget's modified flag afterwards, so the edit isn't sent back.
-- The transpose dialog stays view-side (no request). Before any edit command
-  the Tk view sends the widget's text with `set_text`.
+- The transpose dialog stays view-side (no request).
 - Requests: `InsertDirectiveRequest(request_id, kind, existing_labels,
   notation, key_options)` (for `key`, the 15 major and 15 minor keys that have
   a signature, `toolbar.insert_key_options`; the toolbar's `key_options` are
   roots only), answered with a `{field: value}` mapping (`directives.py`
   documents the fields) or None; invalid fields at answer time emit
-  `UserError` (the Tk dialogs check them live with
+  `UserError` (a view can check them live with
   `directives.check_directive`, same messages). `CapoChoiceRequest(request_id,
   options, default)` with `MenuItem(label, value)` options, answered with a
-  value or None. The Tk window presents requests from `after_idle`, never from
-  inside the listener: a modal dialog there would hold back the session's
-  output.
+  value or None. A view presents requests after the listener returns, never from
+  inside it: a modal dialog there would hold back the session's output.
 
 **Playback.** The session drives `MainWindowViewModel`'s
 `start_playback(from_char_offset)`, `pause_playback`, `resume_playback`,
@@ -433,10 +417,8 @@ and the toolbar. Status texts come from `formatting.py`; the chord count in
 kept after Stop). Pings that arrive after the session went idle are dropped;
 each run's pings, end and render error also carry a
 generation (`MainWindowViewModel`), so what an old run posted before it saw
-a stop is dropped during the next run too. The Tk Play button sends
-`set_text`, then `play_pause(from_offset)` with the Shift+click cursor as a
-code-point offset (`ChordTextEditor.offset_of`); the old `"line.col"` API
-(`start_playback_from_cursor`) is gone.
+a stop is dropped during the next run too. Shift+▶ sends
+`play_pause(from_offset)` with the text cursor as a code-point offset.
 
 **The player (Android Edit/Play redesign, 2026-10-29).** The session owns a
 playhead: the start of the chord Play starts from (`PlaybackState.
@@ -461,12 +443,11 @@ first chord whenever the song has chords (an opened document starts
 there). The Qt desktop (`platform="desktop_qt"`) has all of them too, with
 the desktop's status texts: a clicked chord sounds and takes the playhead,
 ▶ plays from it and Shift+▶ (`from_offset`) from the cursor, and only a
-cursor start says "from cursor". The Tk desktop (`"desktop"`) has none of
-these, so its Play, Shift+Play, click and status behave as before; it would
-only get a playhead from an explicit `set_playhead`/`rewind`, which the Tk
-window doesn't send. The Qt desktop's texts are the Tk desktop's except
-where those name a Tk menu or control (the Quick Start pages, the fretted
-views' reason), which `platform.pick` falls back to. Android's
+cursor start says "from cursor". The `"desktop"` platform is what the
+removed Tk window used: no playhead, so Play, Shift+Play, click and status
+behave as they did before the playhead; no front end passes it now, but the
+core and its tests still carry it (`platform.py`), and `desktop_qt` falls
+back to its texts where it has none of its own. Android's
 status line is position + activity (`formatting.position_status`): "Bar
 6/24 · Playing Em", "Bar 6/24 · Paused", "Starting…" before the first
 chord, and while idle the playhead's bar ("Bar 6/24", from the strip's song
@@ -474,8 +455,8 @@ or the last run's pings over the same text) or "Ready"; Android counts bars
 from the top of the song even when playback started later
 (`RenderedChord.song_bar`, carried in the pings as
 `PlaybackEventArgs.song_bar`), and so does the Qt desktop, in
-`PlaybackState.bar` and its "Bar n/N" status; the Tk desktop keeps its
-rebased bars (`platform.COUNTS_SONG_BARS`). `PlaybackState.beat` is the
+`PlaybackState.bar` and its "Bar n/N" status; the `"desktop"` platform keeps
+the old rebased bars (`platform.COUNTS_SONG_BARS`). `PlaybackState.beat` is the
 beat of that bar the chord started on (`RenderedChord.song_beat` or `beat`).
 
 **Timeline.** `PlaybackState.sections` is the song's timeline for a
@@ -545,26 +526,24 @@ at answer time). Suggest Capo is unchanged.
 Play, chord taps, chord-sheet auditions and the chord identifier all go
 through the session's one `AudioFailurePolicy` (Play reports every time,
 click-to-hear once per session); playback render failures are `UserError`.
-The Tk window parents that dialog to the focused toplevel.
 
 **Toolbar.** `ToolbarState(notation, bpm, bpm_display, bpm_editable,
 multiplier_pct, key, key_options, beats, unit, metronome, play_action,
 bpm_set_by, time_set_by, key_set_by)`. `bpm`, `beats`/`unit` and `key` are
 what the song starts with (the same values as `SongDefaultsState`);
 `*_set_by` is the directive that sets one, as written in the song (`"{bpm:
-90}"`), or None. The Tk toolbar greys a set value out (key and time
-disabled, the BPM scrubber read-only) with the tooltip "Set by {bpm: 90} in
+90}"`), or None. A view greys a set value out with the tooltip "Set by {bpm: 90} in
 the song". `bpm_display` is the effective tempo of the chord sounding while
 a song plays (it follows mid-song changes; after a stop it is `bpm` again),
 `bpm_editable` is `status != playing` and no `{bpm}` sets the start,
 `play_action` drives the Play/Pause icon and tooltip. `key` is the first key
 option when none is set. The toolbar is republished after every detection. `set_bpm`
-is ignored while playing (so are `set_key` and `set_time_signature`; the Tk
-toolbar disables the key and time widgets then); `set_bpm` and `set_multiplier_pct` clamp
+is ignored while playing (so are `set_key` and `set_time_signature`; the
+views disable those controls then); `set_bpm` and `set_multiplier_pct` clamp
 and snap with the scrubber's own `ScrubScale`. The notation observer
 re-detects, respells the key (`toolbar.convert_key`) and publishes the new
-key list. The Tk toolbar only maps `ToolbarState`; widgets send commands
-from user actions, never from variable traces.
+key list. A view only maps `ToolbarState`; controls send commands
+from user actions, never from property bindings.
 
 **Settings, fonts and menus.** `apply_settings(changes)` applies a new font
 and word wrap, rebuilds the Voicing menu and re-applies the voicing in use when it was
@@ -602,9 +581,8 @@ or cancelled save stops the New/Open/close. Save As suggests the document's
 name (`Untitled.txt`), Export MIDI `<stem>.mid`. New and Open start the
 document from the Settings defaults; the song's own directives show on the
 toolbar through `ToolbarState`, not by changing any value. `request_close` emits
-`CloseApproved()`; the Tk window saves its geometry through
-`set_window_geometry`, stops playback, cancels its subscription and
-destroys itself; the application then shuts the session and services down
+`CloseApproved()`; the window saves its geometry, stops playback, cancels its
+subscription and closes; the application then shuts the session and services down
 and saves the config. Failures are `UserError("Error", "<action>:\n<location>
 \n\n<reason>")`. `DocumentState(display_name, location, is_modified,
 title)`; `RecentDocumentsState(items)` has one owner, the flows'
@@ -661,20 +639,8 @@ sheet, offsets, geometry, the device pixel ratio. The `DESKTOP_QT` platform
 adds the playhead, song-counted bars and its own Quick Start and help texts;
 see "Per-platform texts" below. `tests/qt/` runs the window offscreen.
 
-**The Tk window.** `MainWindow(session, host, resources)` talks only to the
-session (commands, subscribed states and events, the queries above) and does
-view work: widgets and theme, dialogs and pickers, pixel/cursor ↔ offset,
-the sash and the window geometry. A guard test
-(`tests/test_main_window_guard.py`) keeps `chordnotepad_tk/main_window.py` free of
-viewmodels, services and the `Application`. The chord identifier gets its
-model from `session.chord_identifier_model()`, inserts with `insert_chord`
-and reports audio failures with `report_audio_failure`. The Quick Start
-snippets paint `compute_spans` with the dialog's own parser (display only).
-`AppSession.shutdown` clears the viewmodels' remaining observers (the
-window used to, then `Application.on_shutdown`).
-
 **Construction.** `bootstrap.build_core_services(appdata,
-dispatch, paths=..., player=None, audio_options=None)` is the Tk-free half of the old
+dispatch, paths=..., player=None, audio_options=None)` is the UI-free half of the old
 `Application.on_initialize_services`: it creates the data directories,
 loads the config and builds `CoreServices(appdata, config, song_parser,
 playback, files, paths)`. `create_session(host, services, documents, dispatch=None,
@@ -684,8 +650,8 @@ optional `services` argument replaced `config_service`,
 `song_parser_service` and `playback_service`. The desktop `Application`
 uses both (passing itself as `dispatch`, as before) and keeps only the
 desktop-only services (resources, logging setup) and the document store.
-`AppSession.shutdown` now also drops whatever still observes its viewmodels
-(the Tk panel observes the strip), which `Application` used to do.
+`AppSession.shutdown` also drops whatever still observes its viewmodels,
+which `Application` used to do.
 `AppDataService(root=...)` takes the data directory from the host (Android:
 `filesDir`; the same layout the `XDG_*` shim gave). Config writes are atomic
 (temp file, `fsync`, `os.replace`).
@@ -695,10 +661,10 @@ desktop-only services (resources, logging setup) and the document store.
 help, the bundled SoundFont, the Windows dev DLL folder). The front end resolves it once at its entry point
 and passes it down; no core module walks up from its own `__file__`
 (`tests/test_app_paths.py` scans for that). The desktop's resolver is
-`chordnotepad_tk.desktop_paths.resolve_desktop_paths`: the PyInstaller bundle
+`resolve_desktop_paths` (in `chordnotepad_desktop`): the PyInstaller bundle
 (`sys._MEIPASS`), the Flatpak (`/app/share/chord-notepad`), the snap
-(`$SNAP/share/chord-notepad`), else the checkout. `chordnotepad_tk/main.py` calls it and
-hands it to `Application(paths)`, which passes it to `build_core_services` and
+(`$SNAP/share/chord-notepad`), else the checkout. `chordnotepad_desktop/main.py` calls it and
+hands it to `QtApplication(paths)`, which passes it to `build_core_services` and
 `ResourceService`. The Android host passes its own (no bundled files; the
 SoundFont path comes in `audio_options`). The default, `NO_BUNDLED_FILES`,
 is for tests that bring their own player.
@@ -753,32 +719,29 @@ is for tests that bring their own player.
   its own text copy in step. Moving the values into the session would
   touch about 15 test files for no behaviour change; the viewmodel is now
   reachable only through the session, so this can happen any time.
-- **The Tk panel still paints from the strip** (`session.chord_sheet_model`,
-  live renderers and `RenderedSong`). Android gets the drawing as bytes
+- **The chord sheet's painting.** The old Tk panel painted from the strip
+  (`session.chord_sheet_model`, live renderers and `RenderedSong`); nothing
+  uses that path now. Both Qt and Android get the drawing as bytes
   instead: `AppSession.chord_sheet_buffer(height)` packs the active view
   (`chord_sheet.pack.pack_view`) from a snapshot the session thread
   replaces with every `ChordSheetState`, on the caller's thread, so Kotlin
   calls it directly through `SessionHandle.chord_sheet_buffer` without
   waiting for the session thread. The renderers are shared with the strip;
   they are treated as pure (as `pack_view` requires), which nothing checks.
-- **Dialog-scoped models: desktop dialogs vs session-held screens.** The
-  desktop Settings dialog and chord identifier still hold live viewmodels
-  (`settings_model()`, `chord_identifier_model()`). Bridge views get the
-  same logic held by the session instead:
+- **Dialog-scoped screens are held by the session.** Qt and Android both
+  use them (the old Tk dialogs held live viewmodels through
+  `settings_model()` and `chord_identifier_model()`, which nothing calls
+  now):
   - the chord identifier is a session-owned `ChordIdentifierViewModel`
     behind `identifier_*` / `play_note` / `play_identified_chord` commands
     and an `IdentifierState`; the note helpers (`note_to_midi`,
-    `bass_note`, `parse_notes`) are module functions the Tk piano widget
-    uses too. The desktop dialog doesn't go through the session path yet:
-    it would need to subscribe to the session for `IdentifierState`, and
-    its listbox mixes chords with explanation lines, so it was left as is
-    (same viewmodel, so the same answers).
+    `bass_note`, `parse_notes`) are module functions.
   - a Settings screen is a `SettingsEdit` (`session/settings_edit.py`): a
     `SettingsViewModel` working copy plus the voicing in the form, edited
-    through `settings_forms.voicing_form` exactly as the Tk Voicings page
-    does, saved with the dialog's gate (`validate_all`, then `commit`, then
-    the same apply as `apply_settings`). One edit at a time; begin drops an
-    older one.
+    through `settings_forms.voicing_form`, saved with the gate
+    (`validate_all`, then `commit`, then the same apply as
+    `apply_settings`). One edit at a time; begin drops an older one. The Qt
+    window keeps its edit until **Save** or **Discard**.
   - `SettingsState` is re-read from the config at the end of every
     outermost command (`Emitter.set_before_flush`), because several
     viewmodels write the config and none notifies; an unchanged value is
@@ -793,11 +756,12 @@ is for tests that bring their own player.
   default, `android` from the Android host, `desktop_qt` from the Qt window) picks the wording of the few
   strings that name a gesture or a menu: the click-to-hear audio message,
   the chord sheet's disabled-tab reason, the voicing editor's name help and
-  the Quick Start pages (`session/quick_start.py`, which the Tk dialog now
-  reads too). The desktop variant is always the old text; tests pin it
+  the Quick Start pages (`session/quick_start.py`). The `desktop` variant is
+  the text of the removed Tk window; tests pin it
   (`tests/fixtures/quick_start_desktop.json`). `desktop_qt` falls back to
-  the desktop text, so only texts that name a Tk menu or control have a Qt
-  variant; its Quick Start picture is `resources/quickstart/chord_sheet_qt.png`.
+  the desktop text, so only texts that name a menu or control the Qt window
+  words differently have a Qt variant; its Quick Start picture is
+  `resources/quickstart/chord_sheet_qt.png`.
 - **Click-to-hear has its own picker.** `play_chord_immediate` voices on the
   session thread with `PlaybackService._click_picker`, built on the first
   click and dropped by `set_voicing`, never with the picker a playback render
@@ -826,15 +790,13 @@ is for tests that bring their own player.
    `HostScheduler` adapter replaces `_TimerScheduler` as the default, and
    `marshal` defaults to `host.post` (`_TimerScheduler` stays only for a
    viewmodel built without a host). The timer only dispatches the job; the
-   render still runs on the executor's thread. On desktop `MainWindow`
-   attaches itself to the `TkHost` first thing, because building the chord
-   sheet already arms that timer.
+   render still runs on the executor's thread.
 4. **The session thread never renders.**
    - MIDI export and capo suggestion run on `BackgroundWorker`.
    - `PlaybackService.stop_playback` no longer joins the render thread. A start
      lock orders "check cancel → `player.start_playback()`" against
      "`cancel.set()` → `player.stop`".
-5. **Tk:** the main thread is the session thread.
+5. **Qt:** the GUI thread is the session thread.
 6. **Android:**
    - A `ThreadedHost` thread is the session thread.
    - Kotlin calls `bridge.submit(name, json)` from a non-Main dispatcher, and
@@ -854,14 +816,10 @@ is for tests that bring their own player.
 
 - **`session/errors.py`** provides `set_handler(fn)` and
   `report_from_any_thread(exc_info, context)`. With no handler installed, it
-  logs. Throttling is the handler's job: the Tk presenter already throttles
-  its dialogs, and the Android handler will throttle its events.
+  logs. Throttling is the handler's job: the Qt presenter
+  (`chordnotepad_desktop/error_presenter.py`) throttles its dialogs, and the
+  Android handler throttles its events.
 - **`Observable.notify`** reports through it.
-- **`chordnotepad_tk/error_reporting.py`** is the Tk presenter. Importing it
-  installs nothing: `Application.on_configure_logging` calls `install_session_handler()`
-  next to `set_log_path` and `install_thread_hook`. Before that the core's
-  errors are only logged, which is all the presenter would do before its
-  thread hook is installed anyway.
 - **Android** installs a handler that emits `UnexpectedError`, throttled.
 - **Expected failures are events:** `last_error` becomes `UserError`, and
   `AudioInitializationError` becomes `AudioUnavailable`. The session owns the
@@ -885,9 +843,7 @@ is for tests that bring their own player.
   `PickDocumentRequest` answered with a ref object; transpose → `TextEdited`;
   restore draft; lifecycle commands; bad input → `UnexpectedError`.
 - **Guard tests:**
-  - `session` imports without tkinter;
+  - `session` imports without tkinter, Pillow, jeepney or PySide6;
   - DTO purity (every `EventRecorder` item, and every output type emitted
     over the bridge at least once);
-  - the committed bridge schema matches the code;
-  - no viewmodel, service or `Application` references in
-    `chordnotepad_tk/main_window.py` (`tests/test_main_window_guard.py`).
+  - the committed bridge schema matches the code.
