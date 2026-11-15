@@ -114,7 +114,7 @@ Item {
     LicencesDialog {
         id: licencesDlg
         dialogs: hub.dialogs
-        onClosed: if (!aboutDlg.visible) hub.pane.focusEditor()
+        onClosed: hub.pane.focusEditor()      // not while About (it opens this) is up
     }
 
     Connections {

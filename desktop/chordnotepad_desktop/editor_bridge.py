@@ -54,7 +54,7 @@ from PySide6.QtQuick import QQuickItem, QQuickTextDocument
 
 from chordnotepad.constants import DEFAULT_FONT_SIZE
 from chordnotepad.utils.text_normalization import normalize_song_text
-from chordnotepad_desktop import editor_font
+from chordnotepad_desktop import editor_font, popups
 from chordnotepad_desktop.offsets import OffsetMapper, utf16_length
 
 logger = logging.getLogger(__name__)
@@ -299,6 +299,12 @@ class EditorBridge(QObject):
     def _area_gone(self) -> None:
         # The window went first (shutdown): a late timer must not reach it.
         self._area = None
+
+    @Slot(result=bool)
+    def modalPopupOpen(self) -> bool:
+        """Whether the editor's window shows a modal dialog: the editor must
+        not take the keys from it (EditorPane.focusEditor)."""
+        return self._area is not None and popups.modal_popup_open(self._area.window())
 
     @Slot("QVariantMap")
     def setPalette(self, palette: dict) -> None:  # noqa: N802 (Qt)

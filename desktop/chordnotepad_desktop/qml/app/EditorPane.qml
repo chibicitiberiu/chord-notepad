@@ -174,7 +174,10 @@ Rectangle {
         onActivated: pane.zoomInAction.trigger()
     }
 
-    function focusEditor() { area.forceActiveFocus() }
+    // The keys to the text, unless a dialog is open: a menu that opened it
+    // closes after it (its onClosed would take the keys from the dialog),
+    // and a deferred call may run while it is up.
+    function focusEditor() { if (!pane.editor.modalPopupOpen()) area.forceActiveFocus() }
     // Whether a key would change the text (typing, deleting, a new line, a paste or cut).
     function editsKey(event) {
         if (event.matches(StandardKey.Paste) || event.matches(StandardKey.Cut)) return true
@@ -489,7 +492,7 @@ Rectangle {
                 id: picker
                 model: pane.pickers
                 onPicked: (v) => pane.replaceValue(v)
-                onClosed: { chipGrace.restart(); area.forceActiveFocus() }
+                onClosed: { chipGrace.restart(); pane.focusEditor() }
             }
             HintCard {
                 hint: pane.hint
@@ -523,6 +526,6 @@ Rectangle {
         MenuItem { objectName: "menuCopy"; action: pane.copyAction }
         MenuItem { objectName: "menuPaste"; action: pane.pasteAction }
         MenuItem { objectName: "menuSelectAll"; action: pane.selectAllAction }
-        onClosed: area.forceActiveFocus()
+        onClosed: pane.focusEditor()
     }
 }
