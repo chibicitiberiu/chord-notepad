@@ -813,8 +813,10 @@ class TestLegend:
                          voice_labels=labels)
         _, ops = paint(song)
         legend = [o for o in ops.ops if isinstance(o, TextOp) and "legend" in o.tags]
-        assert [o.s for o in legend] == labels
-        assert [o.fill for o in legend] == [VOICE_COLORS[i] for i in range(4)]
+        # High to low, top down; each label keeps its voice's colour.
+        assert [o.s for o in legend] == ['Soprano', 'Alto', 'Tenor', 'Bass']
+        assert [o.fill for o in legend] == [VOICE_COLORS[i] for i in (3, 2, 1, 0)]
+        assert [o.y for o in legend] == sorted(o.y for o in legend)
 
     def test_no_legend_without_voice_labels(self):
         song = make_song(make_chord("C", midi_notes=[60, 64, 67], chord_notes=C_MAJOR))

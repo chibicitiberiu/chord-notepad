@@ -60,7 +60,7 @@ Engraving detail:
   notehead/accidental by ``VOICE_COLORS[voice_index]``; piano chords
   (``hand_split``) tint the left hand and right hand by ``HAND_COLORS``;
   everything else uses ``NOTE_INK``. A legend (when ``voice_labels`` is set) is
-  drawn at the far left.
+  drawn at the far left, top voice first (Soprano above Bass).
 - **Ledger lines** are added above/below each staff as needed; **seconds**
   (two notes a diatonic step apart on one staff) offset the upper notehead one
   notehead-width to the right, alternating in a stacked run.
@@ -922,14 +922,18 @@ class StaffCardRenderer(StripRenderer):
                   anchor="nw", tags=tags)
 
     def _paint_legend(self, ops: DrawOps, labels: List[str], geom: _Geometry) -> None:
-        """Draw a tiny stacked voice legend at the far left, each in its color."""
+        """Draw a tiny stacked voice legend at the far left, each in its color.
+
+        ``labels`` are stored low voice first; the legend lists them high to
+        low (Soprano, Alto, Tenor, Bass), as the voices sit on the staff."""
         s = geom.staff_space
         size = max(6, int(round(0.85 * s)))
         line_h = size + 2.0
         y = geom.y_symbol
-        for i, label in enumerate(labels):
+        top_first = list(enumerate(labels))[::-1]
+        for row, (i, label) in enumerate(top_first):
             ops.text(
-                STRIP_MARGIN + 1.0, y + i * line_h, label,
+                STRIP_MARGIN + 1.0, y + row * line_h, label,
                 anchor="nw", size=size,
                 fill=VOICE_COLORS[i % len(VOICE_COLORS)], tags=("legend",),
             )
