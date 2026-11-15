@@ -83,6 +83,13 @@ PYINSTALLER_EXCLUDES = (
     # fileTools imports it, lazily, for files music21 reads itself, which the
     # app never does; requests falls back to charset-normalizer.
     "chardet",
+    # The Tk window's toolkit and image library, gone in 0.6.0. Pillow stays
+    # in the build venv (a dev package, for CI's icon check and the
+    # screenshot tool) and music21 would pull it in through an optional
+    # import; Python's own tkinter is in every CPython build.
+    "tkinter",
+    "_tkinter",
+    "PIL",
 )
 
 

@@ -134,11 +134,6 @@ def _python_version() -> str:
     return platform.python_version()
 
 
-def _tcl_version() -> Optional[str]:
-    import tkinter
-    return str(tkinter.Tcl().eval("info patchlevel"))
-
-
 def _openssl_version() -> Optional[str]:
     import ssl
     match = re.match(r"OpenSSL (\S+)", ssl.OPENSSL_VERSION)
@@ -148,7 +143,6 @@ def _openssl_version() -> Optional[str]:
 #: ``versionFrom`` keys: the version is whatever this build actually runs.
 RUNTIME_VERSIONS: Dict[str, Callable[[], Optional[str]]] = {
     "python": _python_version,
-    "tcl": _tcl_version,
     "openssl": _openssl_version,
 }
 

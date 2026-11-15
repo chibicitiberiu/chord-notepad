@@ -7,11 +7,9 @@ name = "pypi"
 pyfluidsynth = ">=1.4.0"
 pychord = "*"
 music21 = "*"
-pillow = "*"
 mido = "*"
-jeepney = "*"
-# The Qt front end (--ui qt). 6.12 is the last Qt for Windows 10; its macOS
-# floor is 14.4 (chord-notepad.spec).
+# The window. 6.12 is the last Qt for Windows 10; its macOS floor is 14.4
+# (chord-notepad.spec).
 pyside6-essentials = "==6.12.*"
 
 [dev-packages]
@@ -26,6 +24,9 @@ sphinx = "*"
 sphinx_rtd_theme = "*"
 rinohtype = "*"
 pytest-qt = "*"
+# CI's icon check and the help screenshot tool (packaging/tools); the app
+# doesn't use it (the PyInstaller spec excludes PIL).
+pillow = "*"
 
 [requires]
 python_version = "3.14"

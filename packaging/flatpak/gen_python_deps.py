@@ -44,9 +44,7 @@ PACKAGES = [
     "pyfluidsynth",
     "mido",
     "packaging",
-    "pillow",
-    "jeepney",
-    # The Qt window (--ui qt); packaging/qt_bundle.py trims the installed wheel.
+    # The Qt window; packaging/qt_bundle.py trims the installed wheel.
     "pyside6-essentials",
     "shiboken6",
 ]
@@ -56,12 +54,10 @@ PACKAGES = [
 ARCH_WHEELS = {"pyside6-essentials", "shiboken6"}
 FLATPAK_ARCHES = {"x86_64": "x86_64", "aarch64": "aarch64"}  # Flatpak arch -> wheel platform tag suffix
 
-# Needed only to build the packages above from source (Pillow's sdist), so it
-# goes into its own module whose files are all cleaned up afterwards. Not in
-# Pipfile.lock, hence pinned here.
-BUILD_ONLY = {
-    "pybind11": "3.1.0",
-}
+# Needed only to build the packages above from source, in a module of its own
+# whose files are all cleaned up afterwards. Not in Pipfile.lock, hence pinned
+# here. Empty since Pillow (the last sdist, for the Tk window) went in 0.6.0.
+BUILD_ONLY: dict = {}
 
 
 def pypi_files(name: str, version: str) -> list:
@@ -135,10 +131,11 @@ def main() -> None:
     """Write python3-deps.json next to this script."""
     locked = json.loads(LOCK.read_text())["default"]
     pinned = {name: locked[name]["version"].lstrip("=") for name in PACKAGES}
-    build_only = make_module("python3-build-deps", BUILD_ONLY)
-    build_only["cleanup"] = ["*"]
     runtime = make_module("python3-deps", pinned)
-    runtime["modules"] = [build_only]
+    if BUILD_ONLY:
+        build_only = make_module("python3-build-deps", BUILD_ONLY)
+        build_only["cleanup"] = ["*"]
+        runtime["modules"] = [build_only]
     out = HERE / "python3-deps.json"
     out.write_text(json.dumps(runtime, indent=4) + "\n")
     print(f"Wrote {out}")

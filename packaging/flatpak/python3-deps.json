@@ -2,7 +2,7 @@
     "name": "python3-deps",
     "buildsystem": "simple",
     "build-commands": [
-        "pip3 install --verbose --exists-action=i --no-index --no-deps --ignore-installed --no-build-isolation --find-links=\"file://${PWD}\" --prefix=${FLATPAK_DEST} pychord music21 more-itertools requests certifi charset-normalizer idna urllib3 webcolors pyfluidsynth mido packaging pillow jeepney pyside6-essentials shiboken6"
+        "pip3 install --verbose --exists-action=i --no-index --no-deps --ignore-installed --no-build-isolation --find-links=\"file://${PWD}\" --prefix=${FLATPAK_DEST} pychord music21 more-itertools requests certifi charset-normalizer idna urllib3 webcolors pyfluidsynth mido packaging pyside6-essentials shiboken6"
     ],
     "sources": [
         {
@@ -67,16 +67,6 @@
         },
         {
             "type": "file",
-            "url": "https://files.pythonhosted.org/packages/8c/21/c2bcdd5906101a30244eaffc1b6e6ce71a31bd0742a01eb89e660ebfac2d/pillow-12.2.0.tar.gz",
-            "sha256": "a830b1a40919539d07806aa58e1b114df53ddd43213d9c8b75847eee6c0182b5"
-        },
-        {
-            "type": "file",
-            "url": "https://files.pythonhosted.org/packages/b2/a3/e137168c9c44d18eff0376253da9f1e9234d0239e0ee230d2fee6cea8e55/jeepney-0.9.0-py3-none-any.whl",
-            "sha256": "97e5714520c16fc0a45695e5365a2e11b81ea79bba796e26f9f1d178cb182683"
-        },
-        {
-            "type": "file",
             "url": "https://files.pythonhosted.org/packages/7b/3c/7597d8dcb36aa8315427635ec6ec9d850ffbad4ce78b9118ac854889f2d3/pyside6_essentials-6.12.0-cp310-abi3-manylinux_2_34_x86_64.whl",
             "sha256": "16f4b5e41daf49235ae048458243da9efe5f3d8040f9cc5aa454ce69893d3bd9",
             "only-arches": [
@@ -105,25 +95,6 @@
             "sha256": "ff72a72b3277b418902d562b987b33a6f6818bed9fe40a49d634d09bc67f620e",
             "only-arches": [
                 "aarch64"
-            ]
-        }
-    ],
-    "modules": [
-        {
-            "name": "python3-build-deps",
-            "buildsystem": "simple",
-            "build-commands": [
-                "pip3 install --verbose --exists-action=i --no-index --no-deps --ignore-installed --no-build-isolation --find-links=\"file://${PWD}\" --prefix=${FLATPAK_DEST} pybind11"
-            ],
-            "sources": [
-                {
-                    "type": "file",
-                    "url": "https://files.pythonhosted.org/packages/33/fd/8762f7ee3e4e4be6d1d846cffb4916dd9bb02b2f800d3603718a0efe494c/pybind11-3.1.0-py3-none-any.whl",
-                    "sha256": "b8488090f8acffbcb6b5d6a85571a6827a0a2981ffb75e5a0b27b87c4a6b7dd0"
-                }
-            ],
-            "cleanup": [
-                "*"
             ]
         }
     ]

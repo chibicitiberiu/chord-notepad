@@ -3,8 +3,7 @@
 The SVG icons of the Qt Quick window (`desktop/chordnotepad_desktop`). QML
 draws them with `PixelIcon` through the icon provider
 (`chordnotepad_desktop/icons.py`), which tints each to one colour. They are
-drawn on a 24x24 grid, black on transparent. The Tk window's PNGs are in
-`resources/icons/`.
+drawn on a 24x24 grid, black on transparent.
 
 ## `mdi/`: Material Design Icons
 

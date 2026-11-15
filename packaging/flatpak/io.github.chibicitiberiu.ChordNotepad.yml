@@ -5,11 +5,10 @@ sdk: org.freedesktop.Sdk
 command: chord-notepad
 
 finish-args:
-  # The Qt window (--ui qt) draws on Wayland directly; Tk, the default until
-  # the switch, only speaks X11 (XWayland on Wayland sessions), so x11 stays
-  # a full socket. When Tk goes it becomes --socket=fallback-x11.
+  # Qt draws on Wayland directly; X11 only where there is no Wayland (Qt
+  # then uses its xcb plugin).
   - --socket=wayland
-  - --socket=x11
+  - --socket=fallback-x11
   - --share=ipc
   # OpenGL for Qt Quick (it falls back to software rendering without it)
   - --device=dri
@@ -28,56 +27,6 @@ cleanup:
   - '*.la'
 
 modules:
-  # The runtime's Python has no tkinter, so build Tcl/Tk and the _tkinter
-  # extension from the CPython release that matches the runtime's Python.
-  - name: tcl
-    buildsystem: autotools
-    subdir: unix
-    config-opts:
-      - --disable-zipfs
-    post-install:
-      - chmod 755 /app/lib/libtcl*.so
-    cleanup:
-      - /bin
-    sources:
-      - type: archive
-        url: https://prdownloads.sourceforge.net/tcl/tcl9.0.3-src.tar.gz
-        sha256: 2537ba0c86112c8c953f7c09d33f134dd45c0fb3a71f2d7f7691fd301d2c33a6
-
-  - name: tk
-    buildsystem: autotools
-    subdir: unix
-    config-opts:
-      - --disable-zipfs
-    post-install:
-      - chmod 755 /app/lib/libtcl*tk*.so
-    cleanup:
-      - /bin
-    sources:
-      - type: archive
-        url: https://prdownloads.sourceforge.net/tcl/tk9.0.3-src.tar.gz
-        sha256: bf344efadb618babb7933f69275620f72454d1c8220130da93e3f7feb0efbf9b
-
-  - name: tkinter
-    buildsystem: simple
-    build-commands:
-      - >-
-        PYINC=$(python3 -c 'import sysconfig; print(sysconfig.get_paths()["include"])');
-        EXT=$(python3 -c 'import sysconfig; print(sysconfig.get_config_var("EXT_SUFFIX"))');
-        SITE=${FLATPAK_DEST}/lib/python$(python3 -c 'import sys; print("%d.%d" % sys.version_info[:2])')/site-packages;
-        mkdir -p "$SITE" &&
-        gcc -shared -fPIC -O2 -DWITH_APPINIT=1
-        -I"$PYINC" -I"$PYINC/internal" -IModules -I${FLATPAK_DEST}/include
-        Modules/_tkinter.c Modules/tkappinit.c
-        -L${FLATPAK_DEST}/lib -ltcl9.0 -ltcl9tk9.0
-        -o "$SITE/_tkinter$EXT" &&
-        cp -r Lib/tkinter "$SITE/" &&
-        rm -rf "$SITE/tkinter/test"
-    sources:
-      - type: archive
-        url: https://www.python.org/ftp/python/3.14.7/Python-3.14.7.tar.xz
-        sha256: 3b48dac8fb59f62eaa67ac83c1eb12bda1b7a08406dd286e252c11a66be27f81
-
   - name: fluidsynth
     buildsystem: cmake-ninja
     config-opts:

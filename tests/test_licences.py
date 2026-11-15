@@ -231,13 +231,12 @@ def test_linux_packages_install_exactly_the_inventory():
         n: c["version"] for n, c in python_components("snap").items()}
 
 
-def test_pyinstaller_builds_bundle_every_python_package_but_jeepney_off_linux():
-    """The spec excludes jeepney on Windows and macOS; nothing else differs."""
+def test_every_build_bundles_every_python_package():
+    """The spec excludes nothing per platform (jeepney, Linux-only, went with Tk in 0.6.0)."""
     spec = (REPO / "chord-notepad.spec").read_text()
-    assert "excludes.append('jeepney')" in spec
+    assert "excludes.append('jeepney')" not in spec
     for name, c in python_components().items():
-        expected = {"linux", "flatpak", "snap"} if name == "jeepney" else set(inv.BUILDS)
-        assert set(c["builds"]) == expected, name
+        assert set(c["builds"]) == set(inv.BUILDS), name
 
 
 def test_spec_takes_excludes_and_fluidsynth_dlls_from_the_inventory():
@@ -263,10 +262,6 @@ def test_flatpak_manifest_sources_match_the_inventory():
     for cid in ("fluidsynth-flatpak",):
         for s in BY_ID[cid]["sources"]:
             assert pairs.get(s["urls"][0]) == s["sha256"], s["file"]
-    for name, entry in gather_texts.TEXT_ARCHIVES.items():
-        assert pairs.get(entry["urls"][0]) == entry["sha256"], name
-    python = re.search(r"Python-(3\.\d+\.\d+)\.tar\.xz", manifest).group(1)
-    assert BY_ID["tkinter-flatpak"]["version"] == python
     assert "v" + BY_ID["fluidsynth-flatpak"]["version"] + ".tar.gz" in manifest
 
 
@@ -346,22 +341,19 @@ def classify(entries, build, **kw):
 
 
 def test_classify_maps_files_to_components():
-    owners = {os.path.normcase("/site/PIL/_imaging.pyd"): "pillow",
-              os.path.normcase("/site/pillow.libs/libjpeg.dll"): "pillow"}
+    owners = {os.path.normcase("/site/mido/__init__.py"): "mido"}
     entries = [
         ("fluidsynth\\libfluidsynth-3.dll", "/fs/bin/libfluidsynth-3.dll", "BINARY"),
         ("VCRUNTIME140.dll", "/py/vcruntime140.dll", "BINARY"),
         ("libcrypto-3.dll", "/py/DLLs/libcrypto-3.dll", "BINARY"),
         ("_ssl.pyd", "/py/DLLs/_ssl.pyd", "EXTENSION"),
         ("json", "/py/Lib/json/__init__.py", "PYMODULE"),
-        ("PIL._imaging", "/site/PIL/_imaging.pyd", "EXTENSION"),
-        ("pillow.libs/libjpeg.dll", "/site/pillow.libs/libjpeg.dll", "BINARY"),
+        ("mido", "/site/mido/__init__.py", "PYMODULE"),
         ("__main__", "/repo/desktop/chordnotepad_desktop/__main__.py", "PYSOURCE"),
         ("resources/soundfont/GeneralUser-GS.sf2", "/repo/resources/soundfont/GeneralUser-GS.sf2", "DATA"),
         ("resources/icon-32.png", "/repo/resources/icon-32.png", "DATA"),
         ("help/build/html/index.html", "/repo/help/build/html/index.html", "DATA"),
         ("pyi_rth_inspect", "/site/PyInstaller/hooks/rthooks/pyi_rth_inspect.py", "PYSOURCE"),
-        ("_tcl_data/init.tcl", "/py/tcl/tcl8.6/init.tcl", "DATA"),
         ("libfoo.so", "libbar.so", "SYMLINK"),
         ("help/build/html/_static/jquery.js", "/repo/help/build/html/_static/jquery.js", "DATA"),
         ("help/build/html/_static/css/fonts/lato-bold.woff2", "/repo/help/build/html/_static/css/fonts/lato-bold.woff2",
@@ -374,7 +366,7 @@ def test_classify_maps_files_to_components():
     assert report.covered["msvc-runtime"] == ["VCRUNTIME140.dll"]
     assert report.covered["openssl"] == ["libcrypto-3.dll"]
     assert report.covered["cpython"] == ["_ssl.pyd", "json"]
-    assert report.covered["pillow"] == ["PIL._imaging", "pillow.libs/libjpeg.dll"]
+    assert report.covered["mido"] == ["mido"]
     assert report.covered["generaluser-gs"] == ["resources/soundfont/GeneralUser-GS.sf2"]
     assert report.covered["chord-notepad-logo"] == ["resources/icon-32.png"]
     assert report.covered["chord-notepad-guide"] == ["help/build/html/index.html"]
@@ -382,7 +374,6 @@ def test_classify_maps_files_to_components():
     assert report.covered["jquery"] == ["help/build/html/_static/jquery.js"]
     assert report.covered["lato"] == ["help/build/html/_static/css/fonts/lato-bold.woff2"]
     assert report.covered["pyinstaller"] == ["pyi_rth_inspect"]
-    assert report.covered["tcl-tk"] == ["_tcl_data/init.tcl"]
 
 
 @pytest.mark.parametrize("dest", ["PySide6/msvcp140.dll", "PySide6/msvcp140_2.dll", "PySide6/vcruntime140_1.dll",
@@ -403,15 +394,15 @@ def test_classify_reports_what_nothing_covers():
         ("numpy", "/site/numpy/__init__.py", "PYMODULE"),
         ("libmystery.dll", "/py/DLLs/libmystery.dll", "BINARY"),   # under the stdlib, still needs an entry
         ("fluidsynth/libinstpatch-2.dll", "/fs/libinstpatch-2.dll", "BINARY"),
-        ("jeepney", "/site/jeepney/__init__.py", "PYMODULE"),
+        ("PIL", "/site/PIL/__init__.py", "PYMODULE"),       # no entry since Tk went (0.6.0)
         # A file the next Sphinx or theme release adds is not the app's, though it lies under the repository
         ("help/build/html/_static/new-widget.js", "/repo/help/build/html/_static/new-widget.js", "DATA"),
     ]
-    owners[os.path.normcase("/site/jeepney/__init__.py")] = "jeepney"
+    owners[os.path.normcase("/site/PIL/__init__.py")] = "pillow"
     report = classify(entries, "windows", owners=owners, own_static={"custom.css"})
     assert [u[0] for u in report.uncovered] == [e[0] for e in entries]
     assert "numpy" in inv.format_uncovered(report)
-    assert classify(entries[3:4], "linux", owners=owners).uncovered == []  # jeepney is Linux-only
+    assert classify(entries[3:4], "linux", owners=owners).uncovered != []  # on no build
 
 
 def test_classify_lists_system_packages_on_linux():
@@ -454,7 +445,7 @@ def test_excluded_modules_are_not_needed_by_the_app():
         names = [m.name for m in pkgutil.walk_packages(roots) if not m.name.endswith(".__main__")]
         assert "chordnotepad.session.session" in names and "chordnotepad_desktop.launcher" in names
         failures = []
-        for name in sorted(set(names)) + ["mido", "music21.harmony", "music21.chord", "PIL.ImageTk", "requests"]:
+        for name in sorted(set(names)) + ["mido", "music21.harmony", "music21.chord", "requests"]:
             try:
                 importlib.import_module(name)
             except Exception as exc:
@@ -497,15 +488,15 @@ def test_catalog_from_source_lists_everything_and_fills_runtime_versions():
 def test_windows_list_has_the_fluidsynth_package_and_not_the_flatpak_one():
     ids = {e.id for e in cat.load_catalog(LICENSES, "windows").entries}
     assert {"fluidsynth-windows", "glib-windows", "libsndfile-windows", "gcc-runtime-windows"} <= ids
-    assert "fluidsynth-flatpak" not in ids and "jeepney" not in ids
+    assert "fluidsynth-flatpak" not in ids
     flatpak = {e.id for e in cat.load_catalog(LICENSES, "flatpak").entries}
     assert "fluidsynth-flatpak" in flatpak and "cpython" not in flatpak and "fluidsynth-windows" not in flatpak
 
 
 def test_macos_list_has_its_own_fluidsynth():
     ids = {e.id for e in cat.load_catalog(LICENSES, "macos").entries}
-    assert {"fluidsynth-macos", "gcem-macos", "cpython", "tcl-tk"} <= ids
-    assert not ids & {"fluidsynth-windows", "fluidsynth-flatpak", "glib-windows", "jeepney"}
+    assert {"fluidsynth-macos", "gcem-macos", "cpython"} <= ids
+    assert not ids & {"fluidsynth-windows", "fluidsynth-flatpak", "glib-windows"}
 
 
 def test_missing_text_shows_a_placeholder(tmp_path):
@@ -723,9 +714,10 @@ def test_licence_copies_are_the_repository_files_byte_for_byte(copy, original):
 
 
 @pytest.mark.parametrize("dest", ["Tcl", "Tk", "Tcl.framework/Versions/9.0/Tcl", "_tk_data/tk.tcl"])
-def test_macos_tcl_tk_frameworks_are_covered(dest):
-    """python.org's macOS Python bundles Tcl and Tk as frameworks named plain Tcl and Tk."""
-    assert inv.match(dest, BY_ID["tcl-tk"]["files"])
+def test_tcl_tk_files_have_no_entry_any_more(dest):
+    """python.org's macOS Python bundles Tcl and Tk as frameworks named plain Tcl and Tk.
+    Since 0.6.0 no build ships them: one that turns up fails the strict licence check."""
+    assert not [c["id"] for c in inv.load_components() if inv.match(dest, c.get("files", []))]
 
 
 def test_source_bundle_downloads_retry_server_errors_only(monkeypatch):

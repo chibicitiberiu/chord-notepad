@@ -64,19 +64,6 @@
       "note": "Starts the app from the single executable and unpacks the Python runtime."
     },
     {
-      "id": "tcl-tk",
-      "name": "Tcl/Tk",
-      "group": "runtime",
-      "versionFrom": "tcl",
-      "license": "TCL",
-      "copyright": "The Regents of the University of California, Sun Microsystems, Inc., Scriptics Corporation, ActiveState Corporation and other parties",
-      "url": "https://www.tcl-lang.org/",
-      "texts": ["Tcl-license", "Tk-license"],
-      "builds": ["windows", "macos", "linux"],
-      "files": ["tcl8*.dll", "tk8*.dll", "tcl9*.dll", "libtommath*", "libtcl*", "libtk*", "_tcl_data/*", "_tk_data/*", "tcl8/*", "tcl9/*", "Tcl", "Tk", "Tcl.framework/*", "Tk.framework/*"],
-      "note": "The toolkit the windows and menus are drawn with, as bundled with Python."
-    },
-    {
       "id": "qt",
       "name": "Qt",
       "group": "runtime",
@@ -108,7 +95,7 @@
           "role": "Qt Svg and the SVG image and icon plugins."
         }
       ],
-      "note": "The toolkit the Qt window (--ui qt) is drawn with: the libraries, plugins and QML modules of the PySide6-Essentials wheel, unchanged. Used under the LGPL 3.0, the GPL 3.0 text being part of it. The code from other projects inside Qt is listed under Third-party code in Qt."
+      "note": "The toolkit the window is drawn with: the libraries, plugins and QML modules of the PySide6-Essentials wheel, unchanged. Used under the LGPL 3.0, the GPL 3.0 text being part of it. The code from other projects inside Qt is listed under Third-party code in Qt."
     },
     {
       "id": "qt-wayland",
@@ -597,30 +584,6 @@
       "note": "Header-only maths library, compiled into FluidSynth."
     },
     {
-      "id": "tcl-tk-flatpak",
-      "name": "Tcl/Tk",
-      "group": "runtime",
-      "version": "9.0.3",
-      "license": "TCL",
-      "copyright": "The Regents of the University of California, Sun Microsystems, Inc., Scriptics Corporation, ActiveState Corporation and other parties",
-      "url": "https://www.tcl-lang.org/",
-      "texts": ["Tcl-license", "Tk-license"],
-      "builds": ["flatpak"],
-      "note": "The toolkit the windows and menus are drawn with, built from source for the Flatpak (the Flatpak runtime has none)."
-    },
-    {
-      "id": "tkinter-flatpak",
-      "name": "tkinter (from CPython 3.14.7)",
-      "group": "runtime",
-      "version": "3.14.7",
-      "license": "Python-2.0.1",
-      "copyright": "2001 Python Software Foundation",
-      "url": "https://www.python.org/",
-      "texts": ["PSF-Python"],
-      "builds": ["flatpak"],
-      "note": "Python's Tk bindings, built for the Flatpak. Python itself and the other libraries come from the Freedesktop runtime, which Flatpak installs and updates separately."
-    },
-    {
       "id": "pychord",
       "name": "pychord",
       "group": "python",
@@ -776,31 +739,6 @@
       "note": "A dependency of Mido."
     },
     {
-      "id": "pillow",
-      "name": "Pillow",
-      "group": "python",
-      "version": "12.2.0",
-      "pypi": "pillow",
-      "license": "MIT-CMU",
-      "copyright": "1997-2011 Secret Labs AB, 1995-2011 Fredrik Lundh and contributors, 2010 Jeffrey A. Clark and contributors",
-      "url": "https://python-pillow.github.io/",
-      "texts": ["pillow"],
-      "builds": ["windows", "macos", "linux", "flatpak", "snap"],
-      "note": "Loads the toolbar icons and chord sheet images. Pillow's wheels have image libraries built in (libjpeg-turbo, libpng, libtiff, libwebp, FreeType, Little CMS and others); their licences follow Pillow's in the text."
-    },
-    {
-      "id": "jeepney",
-      "name": "Jeepney",
-      "group": "python",
-      "version": "0.9.0",
-      "pypi": "jeepney",
-      "license": "MIT",
-      "url": "https://gitlab.com/takluyver/jeepney",
-      "texts": ["jeepney-MIT"],
-      "builds": ["linux", "flatpak", "snap"],
-      "note": "Talks to the desktop's file chooser portal (Linux only)."
-    },
-    {
       "id": "pyside6-essentials",
       "name": "PySide6",
       "group": "python",
@@ -820,7 +758,7 @@
           "role": "Source of PySide6 and Shiboken6."
         }
       ],
-      "note": "Qt for Python: the Python bindings the Qt window (--ui qt) is written with, from the PySide6-Essentials wheel. Used under the LGPL 3.0."
+      "note": "Qt for Python: the Python bindings the window is written with, from the PySide6-Essentials wheel. Used under the LGPL 3.0."
     },
     {
       "id": "shiboken6",
@@ -849,18 +787,6 @@
       "builds": ["windows", "macos", "linux", "flatpak", "snap"],
       "files": ["resources/soundfont/*"],
       "note": "The SoundFont (instrument sounds) the app plays with."
-    },
-    {
-      "id": "phosphor-icons",
-      "name": "Phosphor Icons",
-      "group": "data",
-      "license": "MIT",
-      "copyright": "2020-2024 Phosphor Icons",
-      "url": "https://phosphoricons.com/",
-      "texts": ["phosphor-MIT"],
-      "builds": ["windows", "macos", "linux", "flatpak", "snap"],
-      "files": ["resources/icons/*"],
-      "note": "The play, pause, stop and metronome toolbar icons."
     },
     {
       "id": "bravura",

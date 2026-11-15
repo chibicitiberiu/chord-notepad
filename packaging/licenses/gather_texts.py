@@ -40,18 +40,8 @@ ANDROID = REPO / "android/app/src/main/assets/licenses/texts"
 FEDORA = Path("/usr/share/licenses")
 
 # Archives read only for their licence files (no source obligation): the
-# Flatpak's Tcl/Tk (its manifest pins the same files).
-TEXT_ARCHIVES = {
-    "tcl9.0.3-src.tar.gz": {
-        "urls": ["https://prdownloads.sourceforge.net/tcl/tcl9.0.3-src.tar.gz"],
-        "sha256": "2537ba0c86112c8c953f7c09d33f134dd45c0fb3a71f2d7f7691fd301d2c33a6"},
-    "tk9.0.3-src.tar.gz": {
-        "urls": ["https://prdownloads.sourceforge.net/tcl/tk9.0.3-src.tar.gz"],
-        "sha256": "bf344efadb618babb7933f69275620f72454d1c8220130da93e3f7feb0efbf9b"},
-}
-
-# The same, for the user guide's fonts. Lato 2.015 is the version
-# sphinx_rtd_theme ships (see the fonts' name tables).
+# user guide's fonts. Lato 2.015 is the version sphinx_rtd_theme ships (see
+# the fonts' name tables).
 GUIDE_TEXT_ARCHIVES = {
     "Lato2OFL.zip": {
         "urls": ["https://www.latofonts.com/files/Lato2OFL.zip"],
@@ -220,7 +210,6 @@ SOURCES = {
     "help-LICENSE.txt": ("file", REPO / "help/LICENSE"),
     "CC-BY-SA-4.0.txt": ("download", "cc-by-sa-4.0-legalcode.txt"),
     "GeneralUser-GS.txt": ("file", REPO / "resources/soundfont/GeneralUser-GS.LICENSE.txt"),
-    "phosphor-MIT.txt": ("file", REPO / "resources/icons/LICENSE"),
     "Inter-OFL.txt": ("file", REPO / "resources/fonts/Inter-LICENSE.txt"),
     "NotoSansMono-OFL.txt": ("file", REPO / "resources/fonts/NotoSansMono-LICENSE.txt"),
     "Bravura-OFL.txt": ("file", ANDROID / "Bravura-OFL.txt"),
@@ -240,8 +229,6 @@ SOURCES = {
     "zstd-BSD.txt": ("file", ANDROID / "zstd-BSD.txt"),
     "GCC-exception-3.1.txt": ("file", FEDORA / "libgcc/COPYING.RUNTIME"),
     "pyinstaller-COPYING.txt": ("dist", "pyinstaller", r"licenses/COPYING\.txt$"),
-    "Tcl-license.txt": ("archive", "tcl9.0.3-src.tar.gz", "tcl9.0.3/license.terms"),
-    "Tk-license.txt": ("archive", "tk9.0.3-src.tar.gz", "tk9.0.3/license.terms"),
     "LGPL-2.1.txt": ("archive", "fluidsynth-2.3.4.tar.gz", "fluidsynth-2.3.4/LICENSE"),
     "LGPL-2.0.txt": ("archive", "glib-2.26.1.tar.bz2", "glib-2.26.1/COPYING"),
     "GPL-3.0.txt": ("archive", "gettext-0.18.1.1.tar.gz", "gettext-0.18.1.1/COPYING"),
@@ -273,8 +260,6 @@ SOURCES = {
     "mido-MIT.txt": ("dist", "mido", r"\.dist-info/LICENSE$"),
     "packaging-Apache-2.0.txt": ("dist", "packaging", r"licenses/LICENSE\.APACHE$"),
     "packaging-BSD.txt": ("dist", "packaging", r"licenses/LICENSE\.BSD$"),
-    "pillow.txt": ("dist", "pillow", r"licenses/LICENSE$"),
-    "jeepney-MIT.txt": ("dist", "jeepney", r"licenses/LICENSE$"),
     # The user guide's web assets (see TEXT_DOWNLOADS).
     "sphinx-BSD.txt": ("dist", "sphinx", r"licenses/LICENSE\.rst$"),
     "pygments-BSD.txt": ("dist", "pygments", r"licenses/LICENSE$"),
@@ -296,7 +281,7 @@ ONE_OFF = ["msvc-runtime.txt", "winpthreads.txt"]
 
 def archive_entries() -> dict:
     """File name -> download entry, for every archive a text may come from."""
-    entries = {name: {"file": name, **e} for name, e in {**TEXT_ARCHIVES, **GUIDE_TEXT_ARCHIVES}.items()}
+    entries = {name: {"file": name, **e} for name, e in GUIDE_TEXT_ARCHIVES.items()}
     for component in load_components():
         for source in component.get("sources", []):
             entries.setdefault(source["file"], source)

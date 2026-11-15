@@ -17,8 +17,8 @@ apps:
     common-id: io.github.chibicitiberiu.ChordNotepad
     desktop: usr/share/applications/io.github.chibicitiberiu.ChordNotepad.desktop
     plugs:
-      - x11            # Tk only speaks X11 (XWayland on Wayland sessions)
-      - wayland        # the Qt window (--ui qt) on Wayland desktops
+      - x11            # X11 sessions, and Qt's xcb fallback on Wayland ones
+      - wayland        # Qt on Wayland desktops
       - opengl         # Qt Quick (it falls back to software rendering)
       - desktop        # fonts, file-chooser portal, opening the help in a browser
       - desktop-legacy
@@ -27,8 +27,6 @@ apps:
       - network-bind   # built-in help server on 127.0.0.1
     environment:
       LD_LIBRARY_PATH: $SNAP/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR:$SNAP/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/pulseaudio
-      TCL_LIBRARY: $SNAP/usr/share/tcltk/tcl8.6
-      TK_LIBRARY: $SNAP/usr/share/tcltk/tk8.6
       # The host's /etc/fonts is visible in the snap, but its conf.d symlinks
       # point outside it, which leaves fontconfig without any family aliases
       # (monospace, sans-serif). Use the config staged with libfontconfig.
@@ -38,7 +36,7 @@ apps:
       CHORD_NOTEPAD_LIBFLUIDSYNTH: $SNAP/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/libfluidsynth.so.3
 
 parts:
-  # core26 doesn't ship Python; stage 3.14 (with tkinter) from the archive.
+  # core26 doesn't ship Python; stage 3.14 from the archive.
   python-runtime:
     plugin: nil
     stage-packages:
@@ -47,7 +45,6 @@ parts:
       - python3-minimal
       - python3.14-minimal
       - python3.14-venv
-      - python3.14-tk
       - fontconfig-config   # fonts.conf and aliases, see FONTCONFIG_FILE
 
   audio:

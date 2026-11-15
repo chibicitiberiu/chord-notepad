@@ -1,9 +1,10 @@
 """The Qt window in the packages (the packaging tracer, C5 of the Qt migration).
 
-PySide6 goes into every desktop build next to Tk: the licence entries, the
-Flatpak's per-architecture wheels, the parts of the wheel each build keeps
+PySide6 goes into every desktop build: the licence entries, the Flatpak's
+per-architecture wheels, the parts of the wheel each build keeps
 (packaging/qt_bundle.py), the PyInstaller spec, the Flatpak and snap
-manifests, and the CI steps that start ``--ui qt --smoke`` from each package.
+manifests, and the CI steps that start ``--smoke`` from each package. Since
+0.6.0 no build ships Tk (the last section).
 """
 
 import json
@@ -211,7 +212,7 @@ def test_the_flatpak_gives_the_qt_window_wayland_and_the_gpu():
     manifest = _yaml("packaging/flatpak/io.github.chibicitiberiu.ChordNotepad.yml")
     args = manifest["finish-args"]
     assert {"--socket=wayland", "--device=dri"} <= set(args)
-    assert "--socket=x11" in args  # Tk, the default, needs X11 even on Wayland sessions
+    assert "--socket=fallback-x11" in args and "--socket=x11" not in args  # X11 only without Wayland
     app = next(m for m in manifest["modules"] if isinstance(m, dict) and m["name"] == "chord-notepad")
     assert any("packaging/qt_bundle.py trim" in c for c in app["build-commands"])
 
@@ -238,7 +239,7 @@ def test_the_snap_gives_the_qt_window_wayland_opengl_and_its_libraries():
 
 
 def test_the_linux_packages_smoke_test_imports_the_qt_front_end():
-    """packaging/linux/smoke_test.py (make flatpak-check, snap-check) walks all three packages."""
+    """packaging/linux/smoke_test.py (make flatpak-check, snap-check) walks both packages."""
     smoke = (REPO / "packaging/linux/smoke_test.py").read_text(encoding="utf-8")
     assert '"chordnotepad_desktop": APP / "desktop"' in smoke
     assert "desktop/chordnotepad_desktop/qml/app/Main.qml" in smoke
@@ -303,27 +304,47 @@ def test_the_make_targets_the_build_job_calls_exist():
     assert "HOME=$(CURDIR)/build/flatpak-qt-home" in makefile and "dbus-run-session --" in makefile
 
 
-# --- Tk stays (the 0.6.0 --ui tk fallback) --------------------------------------
+# --- No build ships Tk (removed in 0.6.0) ------------------------------------------
 
-def test_every_build_keeps_the_tk_front_end_for_the_fallback():
-    """0.6.0 switches the default to Qt but keeps ``--ui tk``: no package may drop Tk yet."""
+def test_no_build_ships_the_tk_front_end():
+    """The Tk window, Tcl/Tk, tkinter, Pillow and jeepney are gone from every package."""
+    assert not (REPO / "desktop" / "chordnotepad_tk").exists()
+    assert not (REPO / "resources" / "icons").exists()  # Tk's toolbar PNGs
+
     spec = (REPO / "chord-notepad.spec").read_text(encoding="utf-8")
     assert "['desktop/chordnotepad_desktop/__main__.py']" in spec
-    assert "'chordnotepad_tk'," in spec and "'PIL._tkinter_finder'," in spec
-    assert not {"tkinter", "_tkinter", "PIL", "chordnotepad_tk"} & set(inv.PYINSTALLER_EXCLUDES)
-    assert set(COMPONENTS["tcl-tk"]["builds"]) == {"windows", "macos", "linux"}
-    assert {"tcl-tk-flatpak", "tkinter-flatpak", "pillow", "jeepney"} <= set(COMPONENTS)
+    assert "chordnotepad_tk" not in spec and "_tkinter_finder" not in spec
+    assert "'resources/icons'" not in spec
+    assert {"tkinter", "_tkinter", "PIL"} <= set(inv.PYINSTALLER_EXCLUDES)
+    assert not {"tcl-tk", "tcl-tk-flatpak", "tkinter-flatpak", "pillow", "jeepney",
+                "phosphor-icons"} & set(COMPONENTS)
 
     manifest = _yaml("packaging/flatpak/io.github.chibicitiberiu.ChordNotepad.yml")
     names = [m if isinstance(m, str) else m["name"] for m in manifest["modules"]]
-    assert {"tcl", "tk", "tkinter"} <= set(names)
-    assert "--socket=x11" in manifest["finish-args"]
+    assert not {"tcl", "tk", "tkinter"} & set(names)
+    deps = json.loads((REPO / "packaging/flatpak/python3-deps.json").read_text(encoding="utf-8"))
+    assert not any(n in s["url"] for s in deps["sources"] for n in ("/pillow-", "/jeepney-"))
+    assert "modules" not in deps  # pybind11 built Pillow's sdist only
+    assert not {"pillow", "jeepney"} & {inv.normalize(p) for p in gen_python_deps.PACKAGES}
+    requirements = (REPO / "packaging/linux/requirements.txt").read_text(encoding="utf-8")
+    assert "pillow" not in requirements and "jeepney" not in requirements
 
     snap = _yaml("snap/snapcraft.yaml")
-    assert "python3.14-tk" in snap["parts"]["python-runtime"]["stage-packages"]
-    assert "x11" in snap["apps"]["chord-notepad"]["plugs"]
+    assert "python3.14-tk" not in snap["parts"]["python-runtime"]["stage-packages"]
+    environment = snap["apps"]["chord-notepad"]["environment"]
+    assert "TCL_LIBRARY" not in environment and "TK_LIBRARY" not in environment
+    assert "x11" in snap["apps"]["chord-notepad"]["plugs"]  # Qt's xcb fallback
 
     for launcher in ("packaging/flatpak/chord-notepad.sh", "packaging/snap/chord-notepad.sh"):
         assert "-m chordnotepad_desktop " in (REPO / launcher).read_text(encoding="utf-8"), launcher
     smoke = (REPO / "packaging/linux/smoke_test.py").read_text(encoding="utf-8")
-    assert '"chordnotepad_tk": APP / "desktop"' in smoke and '"PIL.ImageTk"' in smoke
+    assert "PIL" not in smoke and "jeepney" not in smoke and '"chordnotepad_tk": APP' not in smoke
+
+
+def test_pillow_and_jeepney_are_not_runtime_packages():
+    """Pillow stays a dev package (CI's icon check, the screenshot tool); jeepney is gone."""
+    pipfile = (REPO / "Pipfile").read_text(encoding="utf-8")
+    packages, dev = pipfile.split("[dev-packages]")
+    assert "pillow" not in packages and "jeepney" not in pipfile
+    assert "pillow" in dev and "pillow" in LOCK["develop"]
+    assert "jeepney" not in LOCK["default"]
