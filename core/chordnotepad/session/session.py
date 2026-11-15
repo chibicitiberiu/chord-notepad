@@ -113,6 +113,10 @@ _TOOLBAR_INPUTS = ("bpm", "bpm_multiplier", "metronome_enabled", "key",
 # change while it is paused makes the next Play render again (see play_pause).
 _RENDER_INPUTS = ("voicing", "bpm", "key", "time_signature_beats", "time_signature_unit")
 
+# The main viewmodel values a chord-sheet render depends on (besides the
+# parsed song): the key, the voicing and the time signature.
+_SHEET_SONG_INPUTS = ("key", "voicing", "time_signature_beats", "time_signature_unit")
+
 # The chord-sheet viewmodel properties ChordSheetState mirrors (besides the
 # rendered song, which bumps its revision).
 _CHORD_SHEET_INPUTS = ("visible", "active_view", "available_views", "zoom", "current_index")
@@ -315,12 +319,14 @@ class AppSession:
             self._main.observe(name, self._on_toolbar_input)
 
         # The chord sheet re-renders when the parsed song, the key (roman
-        # numerals) or the voicing (fingerings, view gating) changes.
+        # numerals), the voicing (fingerings, view gating) or the time
+        # signature (the bars) changes. A time signature changed in the
+        # player bar left the strip on the old bars (Tibi, 2026-11-15).
         self._on_song_input = self._entry(self._feed_chord_sheet)
         if self._chord_sheet is not None:
             self._detector.observe("detected_lines", self._on_song_input)
-            self._main.observe("key", self._on_song_input)
-            self._main.observe("voicing", self._on_song_input)
+            for name in _SHEET_SONG_INPUTS:
+                self._main.observe(name, self._on_song_input)
 
         # The editor font and the Voicing menu follow the viewmodel (the
         # Settings dialog changes them too, through apply_settings).
@@ -499,8 +505,8 @@ class AppSession:
                 self._chord_sheet.unobserve(name, self._on_sheet_change)
             self._chord_sheet.unobserve("rendered_song", self._on_sheet_song)
         self._detector.unobserve("detected_lines", self._on_song_input)
-        self._main.unobserve("key", self._on_song_input)
-        self._main.unobserve("voicing", self._on_song_input)
+        for name in _SHEET_SONG_INPUTS:
+            self._main.unobserve(name, self._on_song_input)
         self._main.unobserve("is_playing", self._on_transport)
         self._main.unobserve("is_paused", self._on_transport)
         self._main.unobserve("current_playback_event", self._on_progress)

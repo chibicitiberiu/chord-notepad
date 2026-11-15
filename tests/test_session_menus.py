@@ -196,6 +196,23 @@ def test_a_notation_switch_republishes_the_sheet_with_a_new_revision(monkeypatch
     assert calls[-1]["notation"] == "american"
 
 
+def test_a_time_signature_or_key_from_the_player_bar_renders_the_sheet_again():
+    # Tibi, 2026-11-15: 7/8 picked in the player bar left the strip on the
+    # old bars. The strip renders with the document's time signature, so a
+    # change feeds it the song again (it debounces).
+    env = Env()
+    env.session.set_text("C G Am F")
+    env.host.advance(0.5)
+    fed = len(env.sheet.fed)
+    env.session.set_time_signature(7, 8)
+    assert len(env.sheet.fed) > fed
+    fed = len(env.sheet.fed)
+    env.session.set_time_signature(7, 8)              # unchanged: nothing new
+    assert len(env.sheet.fed) == fed
+    env.session.set_key("D")
+    assert env.sheet.fed[-1][1] == "D"
+
+
 def test_playhead_reaches_the_state():
     env = Env()
     env.session.set_text("C G")
