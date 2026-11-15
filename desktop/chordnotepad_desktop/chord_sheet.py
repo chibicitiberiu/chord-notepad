@@ -40,7 +40,7 @@ from collections import OrderedDict
 from typing import Any, Optional, Tuple
 
 from PySide6.QtCore import Property, QObject, QRect, QRectF, QTimer, Qt, Signal, Slot
-from PySide6.QtGui import QColor, QPainter
+from PySide6.QtGui import QBrush, QColor, QLinearGradient, QPainter
 from PySide6.QtQml import qmlRegisterType
 from PySide6.QtQuick import QQuickPaintedItem
 
@@ -583,9 +583,30 @@ class SheetView(QQuickPaintedItem):
                     p.fillRect(bed, white)
             painter.draw(p, variant.items, palette)
             p.restore()
+        if gutter > 0:
+            self._paint_gutter_edge(p, gutter, clip)
         self.last_paint_ops = painter.drawn
         self.last_paint_ms = (time.perf_counter() - start) * 1000
         self.paints += 1
+
+    #: How far the soft shadow reaches over the content, in item units.
+    EDGE_SHADOW = 6.0
+
+    def _paint_gutter_edge(self, p: QPainter, gutter: float, clip: QRectF) -> None:
+        """A hairline at the gutter's right edge, and, while the content has
+        scrolled under it, a soft shadow on the content beside it (every view
+        with a gutter; Tab has none)."""
+        height = self.height()
+        ink = 255 if self._dark else 0
+        if self._scroll > 0 and clip.right() > gutter:
+            gradient = QLinearGradient(gutter, 0, gutter + self.EDGE_SHADOW, 0)
+            top = QColor(ink, ink, ink, 70 if self._dark else 34)
+            gradient.setColorAt(0.0, top)
+            gradient.setColorAt(1.0, QColor(ink, ink, ink, 0))
+            p.fillRect(QRectF(gutter, 0, self.EDGE_SHADOW, height), QBrush(gradient))
+        if clip.left() < gutter:
+            px = 1.0 / (self._dpr or 1.0)
+            p.fillRect(QRectF(gutter - px, 0, px, height), QColor(ink, ink, ink, 46 if self._dark else 40))
 
 
 def _rescale_scroll(scroll: float, anchor: float, old_width: float, new_width: float,

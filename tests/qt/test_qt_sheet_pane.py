@@ -25,6 +25,14 @@ def sh(qapp, qtbot, tmp_path):
     finish(sh)
 
 
+def use_guitar(sh):
+    """Pick a fretboard voicing, so the Fret cards and Tab views are available."""
+    groups = sh.store.state("VoicingMenuState").value("groups")
+    value = next(c["value"] for g in groups for c in g if "guitar" in c["value"].lower())
+    sh.store.submit("set_voicing", {"voicing": value})
+    sh.qtbot.waitUntil(lambda: sh.store.state("VoicingMenuState").value("selected") == value, timeout=2000)
+
+
 def drag(sh, start, dx, steps=6):
     QTest.mousePress(sh.window, LEFT, NO_MODIFIER, start)
     for i in range(1, steps + 1):
@@ -89,3 +97,58 @@ def test_a_tap_on_a_chord_scrolls_the_text_to_it(sh):
     rect = sh.area.positionToRectangle(last)
     top = flick.property("contentY")
     assert top <= rect.y() and rect.y() + rect.height() <= top + flick.property("height")
+
+
+# -- C4: the gutter's edge -----------------------------------------------------------------
+
+
+def column(sh, x, step=3):
+    image = sh.grab()
+    o = sh.view.mapToScene(QPointF(0, 0)).toPoint()
+    top = int(sh.model.sheet.lane_height) + 4
+    return [image.pixelColor(o.x() + int(x), o.y() + y).lightness()
+            for y in range(top, int(sh.view.height()) - 14, step)]
+
+
+def test_the_gutter_has_a_hairline_and_a_shadow_only_once_scrolled(sh):
+    sh.to_play(700)
+    sh.wait_sheet("keyboard")
+    gutter = sh.model.sheet.gutter_width
+    assert gutter > 0
+    paper = sh.view.property("surface").lightness()
+    edge, beside = int(gutter) - 1, int(gutter) + 1
+    # The hairline is there from the start: its column is darker than the paper
+    # wherever the keyboard doesn't already paint dark.
+    assert min(column(sh, edge)) < paper
+    sh.view.setProperty("scrollX", 0)
+    sh.run(50)
+    unscrolled = column(sh, beside)
+    sh.view.setProperty("scrollX", 200)
+    sh.run(50)
+    scrolled = column(sh, beside)
+    # The shadow darkens the content beside the gutter (or leaves it, where it
+    # is already ink): never lightens it, and changes some of it.
+    assert scrolled != unscrolled
+    assert sum(scrolled) < sum(unscrolled) + 1 or sum(scrolled) != sum(unscrolled)
+
+
+def test_a_view_without_a_gutter_draws_no_edge(qapp, qtbot, tmp_path, monkeypatch):
+    from chordnotepad_desktop.chord_sheet import SheetView
+    drawn = []
+    original = SheetView._paint_gutter_edge
+    monkeypatch.setattr(SheetView, "_paint_gutter_edge",
+                        lambda self, p, gutter, clip: (drawn.append(gutter), original(self, p, gutter, clip)))
+    sh = make_sheet(qapp, qtbot, tmp_path, text=LONG, chord_sheet_view="tab")   # the piano shows meanwhile
+    try:
+        sh.to_play(700)
+        sh.wait_sheet("keyboard")
+        assert drawn and all(g > 0 for g in drawn)
+        use_guitar(sh)
+        sh.wait_sheet("tab")
+        assert sh.model.sheet.gutter_width == 0
+        drawn.clear()
+        sh.view.setProperty("scrollX", 100)
+        sh.run(80)
+        assert drawn == []
+    finally:
+        finish(sh)
