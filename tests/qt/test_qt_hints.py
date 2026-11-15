@@ -14,6 +14,7 @@ if QT_PROBLEM:
 
 from PySide6.QtCore import QPointF, Qt  # noqa: E402
 from PySide6.QtTest import QTest  # noqa: E402
+from PySide6.QtQuick import QQuickItem  # noqa: E402
 
 from chordnotepad.models.directive import DIRECTIVE_SYNTAX  # noqa: E402
 from chordnotepad_desktop.status_bar import HINT_DELAY_MS, HintLine, hint_line  # noqa: E402
@@ -153,14 +154,28 @@ def test_astral_characters_keep_the_card_on_its_directive(ed):
     assert hint["syntax"] == DIRECTIVE_SYNTAX["key"]
 
 
+def segment_items(ed):
+    """The status bar's segment labels (the Repeater's items aren't QObject children)."""
+    found, todo = [], [ed.item("statusBar")]
+    while todo:
+        item = todo.pop()
+        todo.extend(item.childItems())
+        if item.objectName() == "segment":
+            found.append(item)
+    return found
+
+
 # -- the status bar ---------------------------------------------------------------------
 
 
 def test_the_status_bar_is_under_the_editor_with_the_sessions_status(ed):
     bar = ed.item("statusBar")
     assert bar.isVisible()
-    assert ed.item("statusText").property("text") == "Ready"
-    assert status(ed).property("text") == "Ready"
+    # Idle with nothing to say: no "Ready" (the core's text stays for Tk), the
+    # song's starting tempo, time and key.
+    assert ed.item("statusText").property("text") == ""
+    assert status(ed).property("text") == ""
+    assert [s["text"] for s in status(ed).property("segments")][-2:] == ["4/4", "Key C"]
 
 
 def test_the_caret_in_a_directive_shows_its_hint_150_ms_later(ed):
@@ -170,11 +185,13 @@ def test_the_caret_in_a_directive_shows_its_hint_150_ms_later(ed):
     ed.qtbot.waitUntil(lambda: status(ed).property("showHint") is True, timeout=1000)
     assert status(ed).property("hintSyntax") == DIRECTIVE_SYNTAX["bpm"]
     assert status(ed).property("hintMessage") == ""
-    assert ed.item("hintSyntax").isVisible() and not ed.item("statusText").isVisible()
+    assert ed.item("hintSyntax").isVisible()
+    ed.qtbot.waitUntil(lambda: segment_items(ed) == [], timeout=1000)
     # Leaving brings the status back.
     ed.set_cursor(TEXT.index("Am"))
     ed.qtbot.waitUntil(lambda: status(ed).property("showHint") is False, timeout=1000)
-    assert ed.item("statusText").isVisible()
+    ed.qtbot.waitUntil(lambda: segment_items(ed) != [], timeout=1000)
+    assert not ed.item("hintSyntax").isVisible()
 
 
 def test_an_invalid_directive_puts_the_reason_first(ed):

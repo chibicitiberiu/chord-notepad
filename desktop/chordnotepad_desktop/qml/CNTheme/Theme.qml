@@ -195,6 +195,10 @@ QtObject {
     readonly property color markAmerican: dark ? "#64b5f6" : "#1e88e5"
     readonly property color markEuropean: dark ? "#ffb74d" : "#fb8c00"
     readonly property color error:     dark ? "#ff8a80" : "#c62828"
+    // A soft amber for notices that aren't errors (the status bar's read-only badge).
+    readonly property color warning:   dark ? "#f2b95c" : "#9a5b00"
+    readonly property color warningBg: Qt.rgba(warning.r, warning.g, warning.b, dark ? 0.16 : 0.13)
+    readonly property color errorBg:   Qt.rgba(error.r, error.g, error.b, dark ? 0.16 : 0.10)
 
     // Editor: light keeps today's desktop (Tk) colours, dark uses Android's.
     readonly property color editorBg:         base

@@ -22,6 +22,19 @@ QML reads :attr:`statusText` when :attr:`showHint` is false, else
 :attr:`hintSyntax` (monospace, the lines joined with " · ").
 :attr:`text` is all of it as one line, as Tk shows it.
 
+The polish round redesigned the left side. Playing, the bar shows
+:attr:`activity` ("Playing" or "Paused") and :attr:`chordName` (the sounding
+chord, read from the editor's text at ``playing_span``), then the
+:attr:`segments`: "Bar 2 / 125", "120 bpm", "4/4", "Key G" from
+``PlaybackState`` and ``ToolbarState``, live (a mid-song ``{key:}`` shows at
+once). Idle, the same without the bar, from the song's starting values.
+:attr:`running` is True only while sounding (the accent dot; not paused). The
+core's long playback status ("Bar 6/24 | ... | Playing Em") is not shown;
+a status from the session shows only while idle, and "Ready" never does
+(:data:`~chordnotepad.session.formatting.READY` is filtered here; the core's
+text stays for Tk). A clamped tempo is the tempo segment, tinted, with the
+note as its tooltip (:attr:`segments` entries have ``warning`` and ``tip``).
+
 The rest of the bar (plan step F4):
 
 * :attr:`caretLine` and :attr:`caretColumn`, the caret's, 1-based, the column in
@@ -39,7 +52,7 @@ The rest of the bar (plan step F4):
 
 import logging
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Any, List, Optional
 
 from PySide6.QtCore import Property, QObject, QTimer, Signal, Slot
 
@@ -116,19 +129,27 @@ class StatusBarModel(QObject):
         self._line, self._column = 1, 1
         self._notation = ""
         self._refused = ""
+        self._segments: List[dict] = []
+        self._activity = ""
+        self._chord_name = ""
+        self._running = False
         store.stateChanged.connect(self._on_state)
         store.event.connect(self._on_event)
         # The session replayed its states into the store when it was made.
         self._take_status()
         self._take_playback()
         self._take_editor()
+        self._take_values()
 
     # -- for QML ----------------------------------------------------------------------
 
     def _get_status_text(self) -> str:
+        if self.line.playing or self.line.status == formatting.READY:
+            return ""
         return self.line.status
 
-    #: The session's status (StatusState.text), or playback's.
+    #: The session's status (StatusState.text) while idle; "" while a song
+    #: plays (the activity and segments say it) and for the core's "Ready".
     statusText = Property(str, _get_status_text, notify=changed)
 
     def _get_show_hint(self) -> bool:
@@ -165,10 +186,35 @@ class StatusBarModel(QObject):
     playing = Property(bool, _get_playing, notify=changed)
 
     def _get_text(self) -> str:
-        return self._hint().text if self.line.showing_hint else self.line.status
+        return self._hint().text if self.line.showing_hint else self._get_status_text()
 
     #: Everything the message shows, on one line.
     text = Property(str, _get_text, notify=changed)
+
+    def _get_running(self) -> bool:
+        return self._running
+
+    #: A song is sounding (not paused): the accent dot.
+    running = Property(bool, _get_running, notify=changed)
+
+    def _get_activity(self) -> str:
+        return self._activity
+
+    #: "Playing", "Paused" or "".
+    activity = Property(str, _get_activity, notify=changed)
+
+    def _get_chord_name(self) -> str:
+        return self._chord_name
+
+    #: The chord sounding (or paused on), as written in the text; "" when
+    #: there is none yet.
+    chordName = Property(str, _get_chord_name, notify=changed)
+
+    def _get_segments(self) -> list:
+        return self._segments
+
+    #: The quiet segments, in order: dicts ``text``, ``warning``, ``tip``.
+    segments = Property("QVariantList", _get_segments, notify=changed)
 
     def _get_line(self) -> int:
         return self._line
@@ -242,6 +288,8 @@ class StatusBarModel(QObject):
             self.schedule()
         elif type_name == "EditorState":
             self._take_editor()
+        elif type_name == "ToolbarState":
+            self._take_values()
 
     def _on_event(self, type_name: str, data: Any) -> None:
         if type_name == "EditRefused" and self.line.playing:
@@ -280,7 +328,39 @@ class StatusBarModel(QObject):
         if text is not None:
             self.line.set_status(str(text), self._editor.cursor_position())
 
+    def _take_values(self) -> None:
+        """Rebuild what the playback states say: activity, chord, segments."""
+        playback = self._store.state("PlaybackState")
+        toolbar = self._store.state("ToolbarState")
+        status = playback.value("status") or "idle"
+        activity = {"playing": "Playing", "paused": "Paused"}.get(str(status), "")
+        name = ""
+        span = playback.value("playing_span")
+        if activity and span:
+            name = self._editor.text[span["start"]:span["end"]].strip()
+        segments: List[dict] = []
+        bar, total = playback.value("bar") or 0, playback.value("total_bars") or 0
+        if activity and bar > 0 and total > 0:
+            segments.append({"text": f"Bar {bar} / {total}", "warning": False, "tip": ""})
+        bpm = toolbar.value("bpm_display")
+        if bpm:
+            clamp = playback.value("tempo_clamped") or ""
+            segments.append({"text": f"{bpm} bpm", "warning": bool(clamp), "tip": clamp})
+        beats_unit = playback.value("time_signature")
+        if beats_unit and len(beats_unit) == 2:
+            segments.append({"text": f"{beats_unit[0]}/{beats_unit[1]}", "warning": False, "tip": ""})
+        key = playback.value("key") or toolbar.value("key")
+        if key:
+            segments.append({"text": f"Key {key}", "warning": False, "tip": ""})
+        running = status == "playing"
+        if (activity, name, segments, running) != (self._activity, self._chord_name,
+                                                    self._segments, self._running):
+            self._activity, self._chord_name = activity, name
+            self._segments, self._running = segments, running
+            self.changed.emit()
+
     def _take_playback(self) -> None:
+        self._take_values()
         status = self._store.state("PlaybackState").value("status")
         playing = status is not None and status != "idle"
         if playing != self.line.playing:

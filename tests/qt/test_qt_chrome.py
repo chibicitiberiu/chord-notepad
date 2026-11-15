@@ -836,8 +836,15 @@ def status(app):
     return app.harness.app.status_bar
 
 
-def test_the_status_bar_starts_ready_with_ln_col_and_the_notation(app):
-    assert app.it("statusText").property("text") == "Ready"
+def segments(app):
+    return [s["text"] for s in status(app).segments]
+
+
+def test_the_status_bar_starts_without_ready_but_with_ln_col_and_the_notation(app):
+    assert app.it("statusText").property("text") == ""        # never "Ready"
+    assert app.it("statusText").property("visible") is False
+    assert segments(app) == ["120 bpm", "4/4", "Key C"]
+    assert app.it("activityLabel").property("visible") is False
     assert app.it("caretPosition").property("text") == "Ln 1, Col 1"
     assert app.it("notationName").property("text") == "American"
     assert app.it("readOnlyNotice").property("visible") is False
@@ -866,6 +873,7 @@ def test_while_playing_the_bar_says_read_only_and_how_to_stop(app):
     assert app.it("caretPosition").property("visible") is False
     assert app.it("playingDot").property("visible") is True
     assert status(app).noticeWarning is False
+    assert app.it("readOnlyBadge").property("visible") is True
     app.key(Qt.Key.Key_F5, SHIFT)
     app.qtbot.waitUntil(lambda: notice.property("visible") is False, timeout=3000)
     assert app.it("caretPosition").property("visible") is True
@@ -896,3 +904,73 @@ def test_typing_into_the_locked_text_says_why(app):
     app.qtbot.waitUntil(lambda: status(app).noticeWarning is True, timeout=1000)
     assert app.text() == SONG
     app.store.submit("stop")
+
+
+KEYED = "{key: G}\n{bpm: 120}\nC   G   Am  F\n{key: A}\n{time: 3/4}\nA D E A\n"
+
+
+def ping(app, chords):
+    app.store.submit("play_pause", {"from_offset": None})
+    app.qtbot.waitUntil(lambda: status(app).playing, timeout=3000)
+    assert app.harness.player.play(chords) == chords
+    app.qtbot.waitUntil(lambda: status(app).chordName != "" and
+                        app.store.state("PlaybackState").value("chord_index") == chords - 1, timeout=3000)
+
+
+def test_playing_shows_the_chord_the_bar_and_the_values_in_force(app):
+    app.harness.player.auto_play = False
+    app.song(KEYED)
+    ping(app, 2)
+    assert app.it("playingDot").property("visible") is True
+    assert app.it("activityLabel").property("text") == "Playing"
+    assert app.it("chordName").property("text") == "G"
+    assert app.it("statusText").property("visible") is False      # playback's long text isn't shown
+    assert segments(app) == ["Bar 2 / 8", "120 bpm", "4/4", "Key G"]
+    assert app.it("caretPosition").property("visible") is False
+
+
+def test_the_key_and_time_follow_a_mid_song_directive(app):
+    app.harness.player.auto_play = False
+    app.song(KEYED)
+    ping(app, 5)                                      # the first chord after {key: A}{time: 3/4}
+    assert app.it("chordName").property("text") == "A"
+    assert segments(app)[2:] == ["3/4", "Key A"]
+    app.harness.player.play(1)
+    app.qtbot.waitUntil(lambda: status(app).chordName == "D", timeout=3000)
+    assert segments(app)[2:] == ["3/4", "Key A"]
+
+
+def test_paused_keeps_the_segments_without_the_dot(app):
+    app.harness.player.auto_play = False
+    app.song(KEYED)
+    ping(app, 2)
+    app.store.submit("play_pause", {"from_offset": None})         # pause
+    app.qtbot.waitUntil(lambda: status(app).activity == "Paused", timeout=3000)
+    assert app.it("playingDot").property("visible") is False
+    assert app.it("activityLabel").property("text") == "Paused"
+    assert app.it("chordName").property("text") == "G"
+    assert segments(app) == ["Bar 2 / 8", "120 bpm", "4/4", "Key G"]
+    assert app.it("readOnlyNotice").property("visible") is True
+
+
+def test_stopped_shows_the_core_message_then_the_song_values(app):
+    app.harness.player.auto_play = False
+    app.song(KEYED)
+    ping(app, 2)
+    app.store.submit("stop")
+    app.qtbot.waitUntil(lambda: not status(app).playing, timeout=3000)
+    assert app.it("statusText").property("text") == "Stopped playback"
+    assert app.it("chordName").property("visible") is False
+    assert segments(app) == ["120 bpm", "4/4", "Key G"]          # the song's starting values
+    assert app.it("caretPosition").property("visible") is True
+
+
+def test_a_clamped_tempo_tints_the_tempo_and_carries_the_note(app):
+    app.harness.player.auto_play = False
+    app.song("{bpm: 390}\nC\n{bpm: +50}\nG\n")
+    ping(app, 2)
+    tempo = next(s for s in status(app).segments if s["text"].endswith("bpm"))
+    assert tempo["text"] == "400 bpm" and tempo["warning"] is True
+    assert tempo["tip"].startswith("Tempo clamped to 400 BPM")
+    app.harness.player.play(0)
+    assert app.store.state("PlaybackState").value("tempo_clamped") == tempo["tip"]
