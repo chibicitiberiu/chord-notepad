@@ -55,11 +55,18 @@ class Recovery(Chrome):
         return self.recovery._recovery.instance_id
 
 
+def settle(app):
+    """Wait for the recovery worker's queue, then deliver what it sent back."""
+    app.recovery._executor.submit(lambda: None).result(timeout=5)
+    app.qtbot.wait(20)
+
+
 def started(qapp, qtbot, tmp_path, delay_ms=150):
     harness = start(qapp, qtbot, tmp_path)
     app = Recovery(harness, qtbot)
     app.recovery._delay_ms = delay_ms
     qtbot.waitUntil(lambda: app.area.hasActiveFocus(), timeout=1000)
+    settle(app)  # the start-up prune and the first list
     return app
 
 
@@ -138,7 +145,9 @@ def test_a_copy_that_appears_while_running_shows_when_the_menu_opens(app, tmp_pa
     app.key(Qt.Key.Key_F10)
     file_menu = app.obj("fileMenu")
     app.qtbot.waitUntil(lambda: file_menu.property("opened") is True, timeout=1000)
-    assert app.obj("menuBarRecovered").property("enabled") is True
+    # The list is read on the worker; the menu takes it when it arrives.
+    app.qtbot.waitUntil(lambda: app.obj("menuBarRecovered").property("enabled") is True,
+                        timeout=2000)
     assert app.menu_texts(app.obj("menuBarRecovered"))[0].startswith("later.txt, ")
     app.key(Qt.Key.Key_Escape)
 
@@ -148,8 +157,10 @@ def test_another_running_instances_copy_is_never_listed(app, tmp_path):
     live.write("theirs\n", display_name="theirs.txt")
     try:
         app.recovery.refresh()
+        settle(app)
         assert app.recovery.labels == []
         app.recovery.clearAll()
+        settle(app)
         assert live.instance_id in copies(tmp_path)
     finally:
         live.close()
@@ -332,3 +343,37 @@ def test_the_labels_say_when_in_local_time():
     assert recovery_module.when_label(at(days=1), now) == "yesterday at 15:00"
     assert recovery_module.when_label(at(days=4), now) == "12 Nov at 15:00"
     assert recovery_module.when_label(at(days=365), now) == "16 Nov 2025 at 15:00"
+
+
+def test_a_slow_disk_never_holds_the_window_up(app, tmp_path, monkeypatch):
+    # Every store call runs on the worker: with each one taking 0.5 s, the
+    # window's calls (a write, a list, a clear) all return at once.
+    import threading
+    import time
+
+    store = app.recovery._recovery
+    window_thread = threading.current_thread()
+    seen = []
+
+    def slow(name):
+        real = getattr(store, name)
+
+        def call(*args, **kwargs):
+            seen.append((name, threading.current_thread() is window_thread))
+            time.sleep(0.5)
+            return real(*args, **kwargs)
+        return call
+
+    for name in ("write", "entries", "clear", "read", "remove", "discard"):
+        monkeypatch.setattr(store, name, slow(name))
+    app.type("C G")
+    app.qtbot.waitUntil(
+        lambda: app.store.state("DocumentState").value("is_modified") is True, timeout=2000)
+    began = time.monotonic()
+    app.recovery._write_now()
+    app.recovery.refresh()
+    app.recovery.clearAll()
+    assert time.monotonic() - began < 0.2
+    settle(app)
+    assert {name for name, _ in seen} == {"write", "entries", "clear"}
+    assert not any(on_window for _, on_window in seen)

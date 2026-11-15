@@ -248,11 +248,10 @@ class QtApplication:
         return main
 
     def _open_recovery_store(self, core: CoreServices) -> Optional[RecoveryStore]:
-        """This instance's recovery slot (recovery.py), after dropping old
-        copies; None, logged, if the folder can't be used."""
+        """This instance's recovery slot (recovery.py; RecoveryModel drops old
+        copies on its worker); None, logged, if the folder can't be used."""
         try:
             store = RecoveryStore(recovery_folder(core.appdata.get_app_data_dir()))
-            store.prune()
         except OSError:
             logger.warning("No recovery copies this time", exc_info=True)
             return None

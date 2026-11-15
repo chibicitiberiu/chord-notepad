@@ -10,8 +10,10 @@ remove this instance's copy, and lists what crashed instances left:
   (``DocumentState.is_modified``), the editor's text is written
   :data:`DELAY_MS` after the last change (typed, pasted or the session's
   edit), and at least every :data:`MAX_WAIT_MS` while changes keep coming.
-  The write runs on a worker thread, so a slow disk never holds the window
-  up; writes and removals run there in order.
+  Every disk access (the writes, the removals, listing, reading and
+  clearing copies, the start-up prune) runs on one worker thread, in the
+  order asked, so a slow disk never holds the window up; results come back
+  to the window's thread through a queued signal.
 * **Removing.** When the document stops being modified (it was saved, or
   New or Open replaced it after Discard) and when the window closes after
   the session approved it (Discard or Save on quit). A crash or a kill
@@ -20,7 +22,8 @@ remove this instance's copy, and lists what crashed instances left:
   another running instance's: the store checks its lock), newest first, as
   "song.txt, today at 14:32". The list is read when the app starts (after
   dropping copies older than 30 days and all but the 20 newest) and again
-  when the File menu or the ☰ menu opens. Choosing one reads its text and
+  when the File menu or the ☰ menu opens (the menu shows the last list
+  until the new one arrives). Choosing one reads its text and
   sends ``open_recovered`` (the session asks about unsaved changes first,
   then opens it modified, bound to its file or untitled). Once the editor
   shows it, this instance's own copy is written at once and the chosen
@@ -36,7 +39,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Callable, List, Optional, Tuple
 
-from PySide6.QtCore import Property, QObject, QTimer, Signal, Slot
+from PySide6.QtCore import Property, QObject, Qt, QTimer, Signal, Slot
 
 from chordnotepad.services.recovery_store import RecoveredEntry, RecoveryStore
 from chordnotepad.session import formatting
@@ -93,6 +96,9 @@ class RecoveryModel(QObject):
 
     #: The listed copies changed.
     entriesChanged = Signal()
+    # From the worker thread to the window's: a new list, a copy's text read.
+    _listed = Signal(object)
+    _read = Signal(object, object)
 
     def __init__(self, store: Any, editor: Any, recovery: Optional[RecoveryStore], *,
                  delay_ms: int = DELAY_MS, max_wait_ms: int = MAX_WAIT_MS,
@@ -116,9 +122,13 @@ class RecoveryModel(QObject):
         self._timer = QTimer(self)
         self._timer.setSingleShot(True)
         self._timer.timeout.connect(self._write_now)
+        self._listed.connect(self._apply_entries, Qt.ConnectionType.QueuedConnection)
+        self._read.connect(self._open_read, Qt.ConnectionType.QueuedConnection)
         if recovery is None:
             return
         self._executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="recovery")
+        # Old copies go first, before the first list is read.
+        self._executor.submit(self._run, recovery.prune)
         editor.textChanged.connect(self._on_text)
         editor.documentReset.connect(self._on_reset)
         store.stateChanged.connect(self._on_state)
@@ -138,8 +148,18 @@ class RecoveryModel(QObject):
 
     @Slot()
     def refresh(self) -> None:
-        """Read the list of copies again (another instance may have crashed)."""
-        entries = self._recovery.entries() if self._recovery is not None else []
+        """Read the list of copies again (another instance may have crashed),
+        on the worker; the labels change when it arrives."""
+        if self._recovery is None or self._closed:
+            return
+        self._executor.submit(self._run, self._list)
+
+    def _list(self) -> None:
+        """On the worker: read the list and send it to the window's thread."""
+        self._listed.emit(self._recovery.entries())
+
+    @Slot(object)
+    def _apply_entries(self, entries: List[RecoveredEntry]) -> None:
         now = self._now()
         labels = [entry_label(e, now) for e in entries]
         if entries != self._entries or labels != self._labels:
@@ -148,11 +168,21 @@ class RecoveryModel(QObject):
 
     @Slot(int)
     def openEntry(self, index: int) -> None:  # noqa: N802 (Qt)
-        """Open the copy at ``index`` (the session asks about unsaved changes first)."""
-        if self._recovery is None or not 0 <= index < len(self._entries):
+        """Open the copy at ``index`` (the session asks about unsaved changes
+        first); its text is read on the worker."""
+        if self._recovery is None or self._closed or not 0 <= index < len(self._entries):
             return
         entry = self._entries[index]
-        text = self._recovery.read(entry.entry_id)
+
+        def read() -> None:
+            self._read.emit(entry, self._recovery.read(entry.entry_id))
+
+        self._executor.submit(self._run, read)
+
+    @Slot(object, object)
+    def _open_read(self, entry: RecoveredEntry, text: Optional[str]) -> None:
+        if self._closed:
+            return
         if text is None:
             logger.warning("The recovery copy %s can't be read any more", entry.entry_id)
             self.refresh()
@@ -169,9 +199,10 @@ class RecoveryModel(QObject):
 
     @Slot()
     def clearAll(self) -> None:  # noqa: N802 (Qt)
-        """Remove every listed copy."""
-        if self._recovery is not None:
-            self._recovery.clear()
+        """Remove every listed copy (on the worker), then list again."""
+        if self._recovery is None or self._closed:
+            return
+        self._executor.submit(self._run, self._recovery.clear)
         self.refresh()
 
     # -- this instance's copy -----------------------------------------------------------
@@ -198,7 +229,7 @@ class RecoveryModel(QObject):
             self._has_copy = False
             self._executor.submit(self._run, self._recovery.discard)
 
-    def _write_now(self, wait: bool = False) -> None:
+    def _write_now(self) -> None:
         self._timer.stop()
         self._since = None
         if self._closed or self._recovery is None or not self._modified():
@@ -209,10 +240,7 @@ class RecoveryModel(QObject):
                   "document_id": str(document_id) if document_id is not None else None,
                   "location": doc.value("location")}
         self._has_copy = True
-        future = self._executor.submit(self._run, self._recovery.write, self._editor.text,
-                                       **kwargs)
-        if wait:
-            future.result()
+        self._executor.submit(self._run, self._recovery.write, self._editor.text, **kwargs)
 
     @staticmethod
     def _run(call, *args, **kwargs) -> None:
@@ -220,7 +248,8 @@ class RecoveryModel(QObject):
         try:
             call(*args, **kwargs)
         except Exception:
-            logger.warning("Writing the recovery copy failed", exc_info=True)
+            logger.warning("A recovery copy call (%s) failed",
+                           getattr(call, "__name__", call), exc_info=True)
 
     def _on_reset(self) -> None:
         # Another text came in: if it is the copy being opened, check once
@@ -237,9 +266,10 @@ class RecoveryModel(QObject):
         if not (self._modified() and doc.value("document_id") == document_id
                 and self._editor.text == text):
             return
-        # This instance's copy takes over before the old one goes.
-        self._write_now(wait=True)
-        self._recovery.remove(entry_id)
+        # This instance's copy takes over before the old one goes: the
+        # worker runs the write, the removal and the new list in that order.
+        self._write_now()
+        self._executor.submit(self._run, self._recovery.remove, entry_id)
         self.refresh()
 
     # -- closing ------------------------------------------------------------------------
