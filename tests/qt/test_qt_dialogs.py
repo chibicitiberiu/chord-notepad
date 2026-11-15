@@ -14,7 +14,7 @@ from tests.conftest import QT_PROBLEM
 if QT_PROBLEM:
     pytest.skip(f"Qt not available: {QT_PROBLEM}", allow_module_level=True)
 
-from PySide6.QtCore import QMetaObject, QObject, QPointF, Qt, Q_ARG  # noqa: E402
+from PySide6.QtCore import QMetaObject, QObject, QPoint, QPointF, Qt, Q_ARG  # noqa: E402
 from PySide6.QtGui import QColor, QGuiApplication  # noqa: E402
 from PySide6.QtQuick import QQuickItem, QQuickWindow  # noqa: E402
 from PySide6.QtTest import QTest  # noqa: E402
@@ -356,6 +356,32 @@ def test_licences_lists_source_code_first_and_shows_the_selected_one(app):
     QMetaObject.invokeMethod(dialog, "select", Q_ARG("QVariant", "__source__"))
     app.key(Qt.Key.Key_Down)
     assert not next(r for r in rows if r["id"] == dialog.property("selectedId"))["group"]
+
+
+def test_a_licence_link_shows_the_hand_and_opens_in_the_browser(app, monkeypatch):
+    opened = []
+    monkeypatch.setattr(dialogs_module.QDesktopServices, "openUrl",
+                        lambda url: opened.append(url.toString()) or True)
+    app.open("openLicences")
+    dialog = app.opened("licencesDialog")
+    entry = next(r for r in dialog.property("rows")
+                 if not r["group"] and r["id"] != "__source__"
+                 and app.harness.app.dialogs._catalog.get(r["id"]).url)
+    QMetaObject.invokeMethod(dialog, "select", Q_ARG("QVariant", entry["id"]))
+    link = app.item("licenceLink")
+    app.qtbot.waitUntil(lambda: link.isVisible() and link.property("text") != "", timeout=1000)
+    url = link.property("text")
+    with app.qtbot.waitSignal(app.window.frameSwapped, timeout=1000):   # laid out
+        app.window.update()
+    centre = link.mapToScene(QPointF(min(link.width(), link.implicitWidth()) / 2,
+                                     link.height() / 2)).toPoint()
+    QTest.mouseMove(app.window, QPoint(2, 2))
+    app.qtbot.wait(10)
+    QTest.mouseMove(app.window, centre)
+    app.qtbot.waitUntil(lambda: app.window.cursor().shape() == Qt.CursorShape.PointingHandCursor,
+                        timeout=1000)
+    QTest.mouseClick(app.window, Qt.MouseButton.LeftButton, Qt.KeyboardModifier.NoModifier, centre)
+    app.qtbot.waitUntil(lambda: opened == [url], timeout=1000)
 
 
 def test_licences_unavailable(qapp, qtbot, tmp_path):

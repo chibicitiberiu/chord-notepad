@@ -18,7 +18,7 @@ if QT_PROBLEM:
     pytest.skip(f"Qt not available: {QT_PROBLEM}", allow_module_level=True)
 
 from PySide6.QtCore import (  # noqa: E402
-    Q_ARG, Q_RETURN_ARG, QCoreApplication, QEvent, QMetaObject, QObject, QPointF, Qt, QUrl,
+    Q_ARG, Q_RETURN_ARG, QCoreApplication, QEvent, QMetaObject, QObject, QPoint, QPointF, Qt, QUrl,
 )
 from PySide6.QtGui import QGuiApplication, QKeyEvent, QKeySequence  # noqa: E402
 from PySide6.QtTest import QTest  # noqa: E402
@@ -28,7 +28,7 @@ from chordnotepad_desktop import chrome, files as files_module  # noqa: E402
 from chordnotepad_desktop.main import QML_DIR  # noqa: E402
 from chordnotepad_desktop.status_bar import READ_ONLY_NOTICE, refused_notice  # noqa: E402
 from tests.qt.test_qt_editor import CTRL, NO_MODIFIER, Editor, start  # noqa: E402
-from tests.qt.test_qt_value_picker import find  # noqa: E402
+from tests.qt.test_qt_value_picker import find, texts_shown  # noqa: E402
 
 SHIFT = Qt.KeyboardModifier.ShiftModifier
 ALT = Qt.KeyboardModifier.AltModifier
@@ -521,6 +521,42 @@ def test_the_notation_toggle_has_tks_tooltips_and_switches(app):
     app.click_item(do)
     app.qtbot.waitUntil(lambda: do.property("checked") is True, timeout=1000)
     assert ("set_notation", {"notation": "european"}) in app.submitted
+
+
+def test_the_notation_toggle_redetects_without_rewriting_for_this_song_only(app):
+    app.song()
+    valid = [s for s in app.store.state("HighlightState").value("spans") if s["kind"] == "chord"]
+    assert valid
+    app.click_item(app.it("notation:european"))
+    app.qtbot.waitUntil(lambda: app.store.state("EditorState").value("notation") == "european",
+                        timeout=1000)
+    # Re-detected: American chord names aren't European chords.
+    app.qtbot.waitUntil(lambda: not [s for s in app.store.state("HighlightState").value("spans")
+                                     if s["kind"] == "chord"], timeout=3000)
+    assert app.text() == SONG
+    assert app.harness.app.core.config.get("notation") == "american"
+    # A new song starts from the Settings default again.
+    app.store.submit("new_document")
+    app.qtbot.waitUntil(lambda: app.store.state("EditorState").value("notation") == "american",
+                        timeout=2000)
+
+
+def test_the_zoom_chip_and_the_menu_button_have_their_tooltips(app):
+    chip = app.it("editZoomChip")
+    for name, text in (("zoomOutButton", "Smaller text"), ("zoomResetButton", "Text zoom; click to reset"),
+                       ("zoomInButton", "Larger text")):
+        button = find(chip, name)
+        assert button is not None, name
+        hover_until_tooltip(app, button, text)
+    hover_until_tooltip(app, app.it("appMenuButton"), "Menu")
+
+
+def hover_until_tooltip(app, it, text):
+    QTest.mouseMove(app.window, QPoint(1, app.window.height() - 2))
+    app.run(10)
+    QTest.mouseMove(app.window, it.mapToScene(QPointF(it.width() / 2, it.height() / 2)).toPoint())
+    app.qtbot.waitUntil(lambda: any(text in t for t in texts_shown(app.window.contentItem())),
+                        timeout=2500)
 
 
 def test_convert_converts_to_the_other_notation(app):

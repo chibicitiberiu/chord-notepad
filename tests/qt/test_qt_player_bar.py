@@ -20,6 +20,7 @@ if QT_PROBLEM:
 
 from PySide6.QtCore import QMetaObject, QObject, QPoint, QPointF, Qt  # noqa: E402
 from PySide6.QtGui import QWheelEvent  # noqa: E402
+from PySide6.QtQml import qmlEngine  # noqa: E402
 from PySide6.QtTest import QTest  # noqa: E402
 
 from chordnotepad.session import toolbar_texts  # noqa: E402
@@ -170,6 +171,23 @@ def test_the_title_block_has_the_name_and_the_unsaved_dot(pb):
                        timeout=2000)
     pb.to_play()
     pb.qtbot.waitUntil(lambda: pb.it("playerDirty").isVisible(), timeout=2000)
+
+
+def test_a_long_title_is_elided_and_the_unsaved_dot_stays(pb):
+    pb.to_play()
+    doc = pb.store.state("DocumentState")
+    doc.insert("display_name", "A very long song title that would never fit in the block.txt")
+    doc.insert("is_modified", True)
+    title, dot = pb.it("playerTitle"), pb.it("playerDirty")
+    pb.qtbot.waitUntil(lambda: dot.isVisible() and title.property("text").endswith("…"), timeout=1000)
+    pb.drawn()
+    u = qmlEngine(pb.window).singletonInstance("CNTheme", "Theme").property("u")
+    assert title.width() <= round(52 * u) + 1            # Theme.px(52), the elide width
+    # The dot sits right after the elided title, inside the block.
+    block = pb.it("titleBlock")
+    dot_x = dot.mapToItem(block, QPointF(0, 0)).x()
+    assert title.mapToItem(block, QPointF(title.width(), 0)).x() <= dot_x
+    assert dot_x + dot.width() <= block.width() + 0.5
 
 
 def test_play_acts_on_press_and_its_tooltip_follows_the_play_action(pb):

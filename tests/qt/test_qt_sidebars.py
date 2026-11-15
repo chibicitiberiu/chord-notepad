@@ -217,6 +217,32 @@ def test_the_sidebar_and_its_width_are_kept(qapp, qtbot, tmp_path):
     assert (saved["sidebar"], saved["sidebar_width"]) == ("identifier", 56)
 
 
+@pytest.mark.qt_log_ignore("does not support propagateSizeHints")
+def test_after_a_drag_the_sidebar_still_follows_the_ui_scale(qapp, qtbot, tmp_path):
+    w = started(qapp, qtbot, tmp_path, sidebar="directives", sidebar_width=80)
+    try:
+        box = w.find("sidebarBox")
+        u = w.unit()
+        grip = box.mapToScene(QPointF(box.width() + 1, box.height() / 2)).toPoint()
+        QTest.mousePress(w.window, LEFT, NO_MODIFIER, grip)
+        for step in range(1, 11):
+            QTest.mouseMove(w.window, grip + QPoint(round(step * u), 0))
+            w.run(5)
+        QTest.mouseRelease(w.window, LEFT, NO_MODIFIER, grip + QPoint(round(10 * u), 0))
+        w.run()
+        assert w.session.sidebar_width == pytest.approx(90, abs=0.6)
+        kept = w.sidebars.width
+        # F5's note feared the drag broke the width's binding. It doesn't (SplitView
+        # writes the attached preferredWidth from C++), so a UI-scale change
+        # still scales the kept units.
+        w.harness.app.chrome.stepUiScale(1)
+        w.qtbot.waitUntil(lambda: w.unit() > u, timeout=1000)
+        w.run()
+        assert box.width() == pytest.approx(round(kept * w.unit()), abs=1)
+    finally:
+        finish(w)
+
+
 # -- the palette --------------------------------------------------------------------------
 
 

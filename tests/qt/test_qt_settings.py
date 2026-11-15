@@ -15,8 +15,8 @@ from tests.conftest import QT_PROBLEM
 if QT_PROBLEM:
     pytest.skip(f"Qt not available: {QT_PROBLEM}", allow_module_level=True)
 
-from PySide6.QtCore import QMetaObject, QObject, QPointF, Qt, Q_ARG, Q_RETURN_ARG  # noqa: E402
-from PySide6.QtGui import QGuiApplication  # noqa: E402
+from PySide6.QtCore import QMetaObject, QObject, QPoint, QPointF, Qt, Q_ARG, Q_RETURN_ARG  # noqa: E402
+from PySide6.QtGui import QGuiApplication, QWheelEvent  # noqa: E402
 from PySide6.QtQuick import QQuickItem, QQuickWindow  # noqa: E402
 from PySide6.QtTest import QTest  # noqa: E402
 
@@ -556,3 +556,35 @@ def test_closing_with_wrong_values_asks_and_discard_drops_them(settings):
     settings.qtbot.waitUntil(lambda: not settings.window.isVisible(), timeout=2000)
     settings.qtbot.waitUntil(lambda: settings.editor("active") is False, timeout=2000)
     assert settings.config("bpm") == 120
+
+
+def test_the_voicing_form_scrolls_with_the_wheel_also_over_its_fields(settings):
+    settings.add_voicing()
+    form = settings.item("voicingForm")
+    flick = form.parentItem()
+    while flick is not None and flick.property("contentY") is None:
+        flick = flick.parentItem()
+    assert flick is not None
+    settings.window.setHeight(420)          # shorter than the form
+    settings.qtbot.waitUntil(lambda: flick.property("contentHeight") > flick.height() + 50, timeout=2000)
+    with settings.qtbot.waitSignal(settings.window.frameSwapped, timeout=1000):   # laid out
+        settings.window.update()
+    # Over a number field that hasn't the focus: the form scrolls, the value stays.
+    def spins(item):
+        if item.objectName().startswith("field:") and "FormSpin" in item.metaObject().className():
+            yield item
+        for child in item.childItems():
+            yield from spins(child)
+
+    field = next(f for f in spins(form) if f.isVisible()
+                 and 0 < f.mapToItem(flick, QPointF(0, 0)).y() < flick.height() - f.height())
+    before = settings.editor("values")
+    pos = field.mapToScene(QPointF(field.width() / 2, field.height() / 2))
+    for _ in range(3):
+        event = QWheelEvent(pos, QPointF(settings.window.mapToGlobal(pos.toPoint())), QPoint(0, 0),
+                            QPoint(0, -120), Qt.MouseButton.NoButton, Qt.KeyboardModifier.NoModifier,
+                            Qt.ScrollPhase.NoScrollPhase, False)
+        QGuiApplication.sendEvent(settings.window, event)
+        settings.wait(20)
+    settings.qtbot.waitUntil(lambda: flick.property("contentY") > 0, timeout=1000)
+    assert settings.editor("values") == before
