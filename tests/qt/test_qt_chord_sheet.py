@@ -895,6 +895,8 @@ def test_the_piano_roll_keyboard_has_no_holes_and_its_rows_follow_the_keys(sh):
             and item[2] == sheet_paint.GUTTER_BLACK
             and item[1].bottom() + item[1].height() < bottom]
     assert keys
+    verticals = [item[1].x1() for item in sheet.content.items
+                 if item[0] == sheet_paint.K_SEGMENT and item[1].x1() == item[1].x2()]
     o = sh.view.mapToScene(QPointF(0, 0)).toPoint()
     try:
         for dark in (False, True):
@@ -912,8 +914,11 @@ def test_the_piano_roll_keyboard_has_no_holes_and_its_rows_follow_the_keys(sh):
                 assert image.pixelColor(o.x() + int(key.right()) + 3, y) == white_key, (dark, key)
                 # Its row across the content is shaded wherever no note covers
                 # it (never the bare paper); the white-key row under it isn't.
+                # Off the bar and beat lines: an antialiased line's edge over
+                # the dark row can blend to the paper's colour.
                 row = [image.pixelColor(o.x() + x, y).name()
-                       for x in range(int(sheet.gutter_width) + 2, int(sh.view.width()) - 2)]
+                       for x in range(int(sheet.gutter_width) + 2, int(sh.view.width()) - 2)
+                       if all(abs(x - sheet.gutter_width - v) > 2 for v in verticals)]
                 below = [image.pixelColor(o.x() + x, y + int(key.height())).name()
                          for x in range(int(sheet.gutter_width) + 2, int(sh.view.width()) - 2)]
                 assert black_row.name() in row and surface.name() not in row, (dark, key)

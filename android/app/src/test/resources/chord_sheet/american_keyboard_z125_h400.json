@@ -1,9 +1,9 @@
 {
  "background": "#fbfbf8",
- "byte_length": 55754,
+ "byte_length": 66358,
  "content": {
-  "coord_sum": 14314592.052350044,
-  "count": 1674,
+  "coord_sum": 20212781.052350044,
+  "count": 2052,
   "first": {
    "fill": "#f1f1ed",
    "h": 400.0,
@@ -19,7 +19,7 @@
    "y": 0.0
   },
   "histogram": {
-   "line": 128,
+   "line": 506,
    "rect": 745,
    "text": 801
   },
@@ -35,13 +35,13 @@
     "note:66"
    ],
    "text": "F#4",
-   "x": 14885.0,
+   "x": 14975.0,
    "y": 108.33783721923828
   },
-  "tag_count": 3678
+  "tag_count": 4056
  },
  "content_height": 400.0,
- "content_width": 15012.0,
+ "content_width": 15102.0,
  "first_slot": [
   0,
   0.0,
@@ -97,7 +97,7 @@
  "height": 400.0,
  "highlight": "#ffe58a",
  "lane": {
-  "coord_sum": 522029.0,
+  "coord_sum": 522569.0,
   "count": 44,
   "first": {
    "fill": "#c2ccd6",
@@ -108,7 +108,7 @@
      19.5
     ],
     [
-     15012.0,
+     15102.0,
      19.5
     ]
    ],
@@ -134,7 +134,7 @@
     "marker:14"
    ],
    "text": "4/4 \u00b7 outro",
-   "x": 12974.0,
+   "x": 13064.0,
    "y": 10.0
   },
   "tag_count": 89
@@ -142,12 +142,12 @@
  "lane_height": 20.0,
  "last_slot": [
   132,
-  14880.0,
+  14970.0,
   120.0
  ],
  "slot_count": 133,
- "slot_x_sum": 1027380.0,
- "string_count": 358,
+ "slot_x_sum": 1029270.0,
+ "string_count": 360,
  "view_id": "keyboard",
  "zoom": 1.25
 }

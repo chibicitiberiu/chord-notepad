@@ -385,6 +385,55 @@ def measure_boundaries(song: RenderedSong) -> List[float]:
     return boundaries
 
 
+def beat_boundaries(song: RenderedSong) -> List[float]:
+    """Absolute beat positions of every beat inside a bar (not on a bar
+    line) across the song, for a view's beat grid.
+
+    Walks ``song.meter_map`` like :func:`measure_boundaries`, one beat at a
+    time from each bar's start, leaving out the bar starts themselves.
+    """
+    beats: List[float] = []
+    meters = list(song.meter_map) or [(0.0, (4, 4))]
+    eps = 1e-9
+    for i, (seg_start, (per_bar, _unit)) in enumerate(meters):
+        seg_end = meters[i + 1][0] if i + 1 < len(meters) else song.total_beats
+        if per_bar <= 0:
+            continue
+        bar = seg_start
+        while bar < seg_end - eps:
+            for k in range(1, int(per_bar)):
+                beat = bar + k
+                if beat < seg_end - eps:
+                    beats.append(beat)
+            bar += per_bar
+    return beats
+
+
+def beat_xs(layout: StripLayout, song: RenderedSong, beats: Sequence[float]) -> List[float]:
+    """X positions of beat positions ``beats`` (ascending) within a strip
+    layout, interpolated into the slot that holds each (as
+    :func:`bar_line_xs` places bar lines); beats past every slot are dropped."""
+    xs: List[float] = []
+    eps = 1e-9
+    slots = layout.slots
+    chords = song.chords
+    for beat in beats:
+        for slot in slots:
+            chord = chords[slot.chord_index]
+            start = chord.start_beat
+            dur = chord.duration_beats
+            if beat < start - eps:
+                xs.append(slot.x)
+                break
+            if beat < start + dur - eps:
+                if dur > eps and beat > start + eps:
+                    xs.append(slot.x + slot.width * (beat - start) / dur)
+                else:
+                    xs.append(slot.x)
+                break
+    return xs
+
+
 def bar_line_xs(layout: StripLayout, song: RenderedSong) -> List[float]:
     """X positions of measure-boundary bar lines within a strip layout.
 
@@ -402,22 +451,4 @@ def bar_line_xs(layout: StripLayout, song: RenderedSong) -> List[float]:
     Returns:
         X positions in content coordinates, in ascending order.
     """
-    xs: List[float] = []
-    eps = 1e-9
-    slots = layout.slots
-    chords = song.chords
-    for beat in measure_boundaries(song):
-        for slot in slots:
-            chord = chords[slot.chord_index]
-            start = chord.start_beat
-            dur = chord.duration_beats
-            if beat < start - eps:
-                xs.append(slot.x)
-                break
-            if beat < start + dur - eps:
-                if dur > eps and beat > start + eps:
-                    xs.append(slot.x + slot.width * (beat - start) / dur)
-                else:
-                    xs.append(slot.x)
-                break
-    return xs
+    return beat_xs(layout, song, measure_boundaries(song))

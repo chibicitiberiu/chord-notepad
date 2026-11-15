@@ -133,6 +133,16 @@ along the left edge for orientation, its Cs labelled in the song's notation
 model the two hands get two tones, for an ensemble each voice gets its own
 color, and other voicings use one indigo.
 
+The piano roll's horizontal axis is time, measured in beats: a chord is
+exactly as wide as it is long, so ``C*8`` in 4/4 spans two bars, every bar
+of a time signature has the same width (a 3/4 bar is three quarters of a
+4/4 one), and a rest takes its full length too. A tempo change doesn't
+change any widths. Bar lines and fainter beat lines between them form a
+regular grid; when you zoom out far enough for the beats to crowd together,
+the beat lines are left out. A chord too short for its name to fit above it
+shows its bars without the name. The other views aren't time-accurate yet:
+they give a long chord more room, but not in proportion.
+
 When a bar is tall and long enough, it carries its note's name, such as
 F#3 (or Fa#3 in European notation). Notes are named the way the Staff view
 spells them, from the chord and the key, so an E flat chord in E flat shows

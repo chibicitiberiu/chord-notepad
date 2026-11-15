@@ -36,10 +36,12 @@ Layout:
   live in the scrolling content, full width, under a hairline that closes
   the chord-name band.
 - **Slots:** one per chord in song order (rests included, as gaps -- nothing
-  is drawn for them beyond the shared bar-line/shading passes), duration-
-  proportional using the same ``PX_PER_BEAT``/min/max clamp values as
-  :mod:`~chord_sheet.tab_strip` for cross-view consistency, scaled by the
-  view's zoom. Zoom widens time only: the rows always share the strip height.
+  is drawn for them beyond the shared bar-line/shading passes), exactly as
+  wide as the chord is long: ``PX_PER_BEAT`` per beat, scaled by the view's
+  zoom, never clamped. The x axis is time in beats, so every bar of one time
+  signature has the same width (a ``C*8`` in 4/4 spans two bars), a 3/4 bar
+  is three quarters of a 4/4 one, and a tempo change changes no width. Zoom
+  widens time only: the rows always share the strip height.
 - **Note bars:** one rounded horizontal bar per sounding note, positioned by
   row, without an outline. Ensemble voicings (``voice_notes`` present) color
   each bar by voice index low-to-high via ``VOICE_COLORS`` (iterating
@@ -51,11 +53,13 @@ Layout:
   (``C#3``, ``Do#3``), spelled from the chord and the key in force as the
   staff spells it (:mod:`~chord_sheet.spelling`), in the song's notation.
 - **Chord symbols** (``chord_symbol_label``) sit in a band above the roll,
-  centered over each slot.
-- **Bar lines:** a vertical light rule at every measure boundary, placed by the
-  shared :func:`~chord_sheet.renderer_interface.bar_line_xs` helper. A
-  boundary that falls inside a long chord (e.g. ``A*8`` in 4/4) is interpolated
-  mid-slot, so held chords still show the measure line.
+  centered over each slot; a name too wide for its slot (a short chord) is
+  left out, never shrunk or run into the next one.
+- **Bar and beat lines:** a vertical light rule at every measure boundary,
+  placed by the shared :func:`~chord_sheet.renderer_interface.bar_line_xs`
+  helper, and a fainter one at every beat between them while beats are at
+  least ``MIN_BEAT_SPACING`` apart. With the linear time axis both fall on a
+  regular grid.
 """
 
 import math
@@ -68,6 +72,8 @@ from chordnotepad.chord_sheet.renderer_interface import (
     SheetContext,
     VOICE_COLORS,
     bar_line_xs,
+    beat_boundaries,
+    beat_xs,
     chord_symbol_label,
     label_ems,
     paint_section_bands,
@@ -91,13 +97,19 @@ GUTTER_W_EUROPEAN = 54.0
 #: leading margin: slots start at the content's left edge (x = 0), and the
 #: keyboard lives in the frozen gutter canvas, not in the content.
 STRIP_MARGIN = 12.0
-#: Pixels per beat before clamping -- identical to tab_strip's, so a chord of
-#: a given duration reads the same width across the tab and piano-roll views.
+#: Pixels per beat at zoom 1. The roll's x axis is time: a slot is exactly
+#: its chord's beats wide, never clamped, so every bar of a time signature has
+#: one width (96 px in 4/4) and the bar and beat lines fall on a regular grid.
+#: 24 is the tab and staff views' width for a beat, so the usual one- to
+#: four-beat chords keep the size they have there and had here before.
 PX_PER_BEAT = 24.0
-#: Narrowest a slot may be regardless of duration.
-MIN_SLOT_WIDTH = 20.0
-#: Widest a slot may be regardless of duration.
-MAX_SLOT_WIDTH = 120.0
+#: Beat lines are left out when beats are closer than this, px.
+MIN_BEAT_SPACING = 8.0
+#: Room a chord name keeps from its slot's edges, px; a name that doesn't fit
+#: is left out rather than shrunk or run into the next one.
+NAME_PAD = 2.0
+#: The chord names' size, pt.
+NAME_PT = 12
 
 #: Vertical space above the roll reserved for chord-symbol text, px.
 SYMBOL_H = 22.0
@@ -140,6 +152,8 @@ NOTE_LABEL = "#fdfdff"
 #: bar lines and the band's hairline, black-key row shade, octave guides.
 _INK = "#22323a"
 GRID = "#cdd1d8"
+#: The beat lines between bar lines: fainter than the bar lines.
+BEAT_GRID = "#e2e5e9"
 BLACK_ROW_SHADE = "#eceef2"
 #: A black-key row over a banded section (``SECTION_BAND``): a step darker.
 BAND_BLACK_ROW_SHADE = "#e2e4e9"
@@ -159,11 +173,15 @@ _OCTAVE_LABEL_INSET = 2.0
 
 
 def _slot_width(duration_beats: float, zoom: float = 1.0) -> float:
-    """Slot width proportional to duration, clamped to ``[MIN, MAX] * zoom``
-    (the tab strip's rule, ``tab_strip._slot_width``)."""
-    min_w = MIN_SLOT_WIDTH * zoom
-    max_w = MAX_SLOT_WIDTH * zoom
-    return max(min_w, min(max_w, duration_beats * PX_PER_BEAT * zoom))
+    """Slot width: the chord's beats at ``PX_PER_BEAT * zoom``, unclamped
+    (the x axis is time)."""
+    return max(0.0, duration_beats) * PX_PER_BEAT * zoom
+
+
+def name_fits(label: str, slot_w: float) -> bool:
+    """Whether a chord name fits over its slot at ``NAME_PT`` (estimated
+    bold width, ``NAME_PAD`` either side)."""
+    return label_ems(label) * NAME_PT * _PT_TO_PX <= slot_w - 2 * NAME_PAD
 
 
 def _gutter_width(notation: str) -> float:
@@ -359,6 +377,12 @@ class PianoRollRenderer(StripRenderer):
                          fill=GUIDE_C4 if note == 60 else GUIDE_C,
                          width=1.0, tags=("guide-c",))
 
+        # Faint beat lines between the bar lines, while beats are far enough
+        # apart to read as a grid.
+        if PX_PER_BEAT * ctx.zoom >= MIN_BEAT_SPACING:
+            for bx in beat_xs(layout, song, beat_boundaries(song)):
+                ops.line([(bx, SYMBOL_H), (bx, layout.height)],
+                         fill=BEAT_GRID, width=1.0, tags=("beat-line",))
         for bx in bar_line_xs(layout, song):
             ops.line([(bx, SYMBOL_H), (bx, layout.height)],
                      fill=GRID, width=1.0, tags=("bar-line",))
@@ -371,16 +395,18 @@ class PianoRollRenderer(StripRenderer):
             chord = chords[slot.chord_index]
             tag = f"slot:{slot.chord_index}"
 
-            ops.text(
-                slot.x + slot.width / 2.0,
-                SYMBOL_H / 2.0,
-                chord_symbol_label(chord),
-                anchor="center",
-                size=12,
-                fill=_INK,
-                bold=True,
-                tags=(tag,),
-            )
+            label = chord_symbol_label(chord)
+            if name_fits(label, slot.width):
+                ops.text(
+                    slot.x + slot.width / 2.0,
+                    SYMBOL_H / 2.0,
+                    label,
+                    anchor="center",
+                    size=NAME_PT,
+                    fill=_INK,
+                    bold=True,
+                    tags=(tag,),
+                )
             if chord.is_rest:
                 continue  # the label marks it; the empty lane is the silence
 

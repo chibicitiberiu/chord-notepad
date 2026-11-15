@@ -8,6 +8,8 @@ from chordnotepad.services.song_renderer import SongRenderer
 from chordnotepad.models.rendered_song import RenderedSong, RenderedChord
 from chordnotepad.models.chord import ChordInfo
 from chordnotepad.chord_sheet.ops import DrawOps, TextOp, RectOp, LineOp
+from chordnotepad.chord_sheet import piano_roll
+from chordnotepad.chord_sheet.piano_roll import NAME_PAD, NAME_PT, PX_PER_BEAT
 from chordnotepad.chord_sheet.piano_roll import (
     PianoRollRenderer,
     GUTTER_W,
@@ -112,7 +114,7 @@ def test_layout_slot_count_matches_chord_count_including_rests():
 
 
 def test_rest_draws_its_label_but_no_note_bars():
-    song = make_song(make_chord("C"), make_chord("NC", is_rest=True))
+    song = make_song(make_chord("C"), make_chord("NC", is_rest=True, duration_beats=4.0))
     _, layout, ops = render(song)
     rest_slot = layout.slots[1]
     rest_tag = f"slot:{rest_slot.chord_index}"
@@ -391,7 +393,7 @@ def test_names_hide_in_bars_too_narrow_for_them():
     song = make_song(make_chord("C", midi_notes=[60, 64, 67], duration_beats=0.5),
                      make_chord("C", midi_notes=[60, 64, 67], duration_beats=4.0))
     _, layout, ops = render(song, height=400.0)
-    assert layout.slots[0].width == 20.0
+    assert layout.slots[0].width == 12.0
     labelled = {t for o in note_labels(ops) for t in o.tags if t.startswith("slot:")}
     assert labelled == {"slot:1"}
     # The estimate keeps every shown name inside its bar with 3 px to spare.
@@ -459,9 +461,9 @@ def test_the_roll_zooms_time_not_pitch():
                      make_chord("Am", duration_beats=0.25))
     _, base, base_ops = render(song, height=300.0)
     _, wide, wide_ops = render(song, height=300.0, zoom=1.5)
-    assert [s.width for s in wide.slots] == [w * 1.5 for w in (24.0, 96.0, 20.0)]
+    assert [s.width for s in wide.slots] == [w * 1.5 for w in (24.0, 96.0, 6.0)]
     assert [s.width for s in base.slots] == [_slot_width(d) for d in (1.0, 4.0, 0.25)]
-    assert _slot_width(30.0, 2.0) == 240.0             # the clamp scales too
+    assert _slot_width(30.0, 2.0) == 1440.0            # no clamp: time is linear
     # The rows (and so the bars' heights and the names' sizes) don't change.
     heights = lambda ops: [o.h for o in ops.ops if isinstance(o, RectOp)]  # noqa: E731
     assert heights(base_ops) == heights(wide_ops)
@@ -495,3 +497,75 @@ def test_octave_guides_sit_where_b_meets_c():
     shades = [i for i, o in enumerate(ops.ops) if "row-shade" in o.tags]
     assert all(ops.ops.index(g) > max(shades) for g in guides)
     assert len({o.fill for o in guides}) == 2
+
+
+# -- The time axis --------------------------------------------------------------------------
+
+
+def _lines(ops, tag):
+    return sorted(o.points[0][0] for o in ops.ops if isinstance(o, LineOp) and tag in o.tags)
+
+
+def test_a_chord_twice_as_long_is_twice_as_wide_and_spans_two_bars():
+    ctx, layout, ops = render_real("C*4 G*8 C*4\n")
+    c, g, _ = layout.slots
+    assert g.width == 2 * c.width == 2 * 4 * PX_PER_BEAT
+    # The bar lines fall every 96 px, one in the middle of the long chord.
+    assert _lines(ops, "bar-line") == [96.0, 192.0, 288.0]
+    assert g.x < 192.0 == g.x + g.width / 2 < g.x + g.width
+
+
+def test_every_bar_of_a_time_signature_has_one_width():
+    _, layout, ops = render_real("C*1 D*1 E*1 F*2 G*0.5 A*2.5\n{time: 3/4}\nC*3 G*3 Am\n")
+    bars = _lines(ops, "bar-line")
+    widths = [b - a for a, b in zip([0.0] + bars, bars)]
+    assert widths[:2] == [96.0, 96.0]
+    assert widths[2:] == [72.0] * (len(widths) - 2)       # 3/4 bars: three quarters of a 4/4 one
+    # NC is time too.
+    _, rest_layout, _ = render_real("C*1 NC*2 G*1\n")
+    assert [s.width for s in rest_layout.slots] == [24.0, 48.0, 24.0]
+
+
+def test_half_beat_chords_are_half_a_beat_wide_and_hide_names_that_dont_fit():
+    _, layout, ops = render_real("C*0.5 G*0.5 Am*0.5 F*0.5 C*2\n", height=400.0)
+    assert [s.width for s in layout.slots] == [12.0] * 4 + [48.0]
+    names = [o.s for o in ops.ops if isinstance(o, TextOp) and "note-label" not in o.tags]
+    assert names == ["C"]                     # only the two-beat chord's fits
+    # The short chords keep their bars.
+    assert {o.tags[0] for o in ops.ops if isinstance(o, RectOp) and o.tags[:1]
+            and o.tags[0].startswith("slot:")} == {f"slot:{i}" for i in range(5)}
+    # A shown name stays inside its slot.
+    for o in ops.ops:
+        if isinstance(o, TextOp) and o.tags[0] == "slot:4" and "note-label" not in o.tags:
+            half = label_ems(o.s) * NAME_PT * 4 / 3 / 2
+            slot = layout.slots[4]
+            assert slot.x + NAME_PAD <= o.x - half and o.x + half <= slot.x + slot.width - NAME_PAD
+
+
+def test_zoom_scales_the_axis_linearly():
+    song_text = "C*4 G*2 Am*0.5\n"
+    _, base, _ = render_real(song_text)
+    for zoom in (0.5, 1.25, 2.5):
+        _, zoomed, ops = render_real(song_text, zoom=zoom)
+        assert [s.width for s in zoomed.slots] == [s.width * zoom for s in base.slots]
+        assert [s.x for s in zoomed.slots] == [s.x * zoom for s in base.slots]
+
+
+def test_beat_lines_mark_the_beats_between_bar_lines():
+    _, layout, ops = render_real("C*4 G*4\n")
+    assert _lines(ops, "beat-line") == [24.0, 48.0, 72.0, 120.0, 144.0, 168.0]
+    assert {o.fill for o in ops.ops if "beat-line" in o.tags} == {piano_roll.BEAT_GRID}
+    assert piano_roll.BEAT_GRID != piano_roll.GRID
+    # Under the bar lines in paint order, fainter (lighter on the light paper).
+    order = [o.tags[0] for o in ops.ops if isinstance(o, LineOp)
+             and o.tags[0] in ("beat-line", "bar-line")]
+    assert order.index("bar-line") > max(i for i, t in enumerate(order) if t == "beat-line")
+
+
+def test_beat_lines_are_left_out_when_beats_get_too_close(monkeypatch):
+    monkeypatch.setattr(piano_roll, "MIN_BEAT_SPACING", 13.0)
+    _, _, close = render_real("C*4 G*4\n", zoom=0.5)       # 12 px a beat
+    assert _lines(close, "beat-line") == []
+    assert _lines(close, "bar-line") == [48.0]
+    _, _, apart = render_real("C*4 G*4\n", zoom=0.6)
+    assert len(_lines(apart, "beat-line")) == 6
