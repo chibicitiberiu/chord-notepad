@@ -157,7 +157,8 @@ AppDialog {
                                 Component {
                                     id: picture
                                     Item {
-                                        readonly property string source: dlg.dialogs.resourceUrl(block.modelData.image || "")
+                                        // In the dark theme, the picture's dark twin (<name>.dark.png) if there is one.
+                                        readonly property string source: dlg.dialogs.themedResourceUrl(block.modelData.image || "", Theme.dark)
                                         visible: source !== ""
                                         implicitHeight: source !== "" ? img.height + 2 * Theme.hairline : 0
                                         Rectangle {

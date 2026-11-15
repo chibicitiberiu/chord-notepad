@@ -13,7 +13,8 @@ the session's store:
   Unavailable" through the error presenter when it can't open;
 * :meth:`DialogsModel.paintSnippet`: Quick Start's examples, highlighted
   with the editor's colours from the spans the session sent;
-* :meth:`DialogsModel.resourceUrl`, :meth:`DialogsModel.openUrl`.
+* :meth:`DialogsModel.resourceUrl`, :meth:`DialogsModel.themedResourceUrl`,
+  :meth:`DialogsModel.openUrl`.
 
 The texts are Tk's (``chordnotepad_tk/main_window.py`` About and
 show_licences, ``dialogs/licences_dialog.py``); the Qt package can't import
@@ -22,6 +23,7 @@ the Tk one.
 
 import html
 import logging
+from pathlib import Path
 from typing import Any, Dict, List, Mapping, Optional, Tuple
 
 from PySide6.QtCore import Property, QObject, Qt, QUrl, Signal, Slot
@@ -226,20 +228,37 @@ class DialogsModel(QObject):
 
     # -- Quick Start --------------------------------------------------------------------
 
+    def _resource(self, relative: str) -> Optional[Path]:
+        """``relative`` (``resources/quickstart/...``) as a bundled file's path, or None."""
+        if not relative or self._paths.resources is None:
+            return None
+        parts = relative.replace("\\", "/").split("/")
+        if parts[0] == "resources":
+            parts = parts[1:]
+        return self._paths.resources.joinpath(*parts)
+
     @Slot(str, result=str)
     def resourceUrl(self, relative: str) -> str:  # noqa: N802 (Qt)
         """A bundled file (``resources/quickstart/...``, as Quick Start names
         images) as a file URL, or "" if it isn't there."""
-        if not relative or self._paths.resources is None:
+        path = self._resource(relative)
+        if path is None:
             return ""
-        parts = relative.replace("\\", "/").split("/")
-        if parts[0] == "resources":
-            parts = parts[1:]
-        path = self._paths.resources.joinpath(*parts)
         if not path.is_file():
             logger.warning("Quick Start image missing: %s", relative)
             return ""
         return QUrl.fromLocalFile(str(path)).toString()
+
+    @Slot(str, bool, result=str)
+    def themedResourceUrl(self, relative: str, dark: bool) -> str:  # noqa: N802 (Qt)
+        """:meth:`resourceUrl`, but in the dark theme ``<name>.dark.png`` when
+        it is there (the screenshot tool makes one beside each picture)."""
+        stem, dot, ext = relative.rpartition(".")
+        if dark and dot:
+            twin = self._resource(f"{stem}.dark.{ext}")
+            if twin is not None and twin.is_file():
+                return QUrl.fromLocalFile(str(twin)).toString()
+        return self.resourceUrl(relative)
 
     @Slot(QQuickTextDocument, "QVariantList", "QVariantMap")
     def paintSnippet(self, document: QQuickTextDocument, spans: Any,  # noqa: N802 (Qt)

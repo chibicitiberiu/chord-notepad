@@ -352,6 +352,26 @@ def test_quick_start_pages_with_the_buttons_and_left_right(app):
     app.closed("quickStartDialog")
 
 
+def test_quick_start_shows_the_dark_picture_in_the_dark_theme(app):
+    pages = quick_start.pages(DESKTOP_QT)
+    page = next(i for i, p in enumerate(pages) if any(b[0] == "image" for b in p["blocks"]))
+    app.open("openQuickStart")
+    dialog = app.opened("quickStartDialog")
+    app.qtbot.waitUntil(lambda: len(plain(dialog.property("pages")) or []) == len(pages), timeout=2000)
+    dialog.setProperty("page", page)
+    app.qtbot.waitUntil(lambda: find(app.window, "quickStartImage") is not None, timeout=2000)
+    image = app.item("quickStartImage")
+    assert image.property("source").toString().endswith("/quickstart/chord_sheet_qt.png")
+    app.harness.store.submit("set_ui_theme", {"theme": "dark"})   # the open dialog follows
+    app.qtbot.waitUntil(lambda: image.property("source").toString()
+                        .endswith("/quickstart/chord_sheet_qt.dark.png"), timeout=2000)
+    # A picture without a dark twin stays itself; a missing one is still "".
+    dialogs = app.harness.app.dialogs
+    assert dialogs.themedResourceUrl(quick_start.CHORD_SHEET_IMAGE, True).endswith(
+        "/quickstart/chord_sheet.png")
+    assert dialogs.themedResourceUrl("resources/quickstart/none.png", True) == ""
+
+
 def test_dont_show_again_can_only_turn_quick_start_off(qapp, qtbot, tmp_path):
     harness = started(qapp, qtbot, tmp_path, show_quick_start_on_startup=False)
     try:
