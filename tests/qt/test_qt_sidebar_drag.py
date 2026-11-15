@@ -128,7 +128,7 @@ def test_the_tooltips_say_a_tile_or_chord_can_be_dragged(win):
     assert "Click to insert · drag to place" in win.find("tile:tempo").property("tip")
     show_candidates(win)
     win.hover(win.candidate("C"), 1000)
-    assert "Click to insert at the caret, or drag into the text" in texts_shown(win.window.contentItem())
+    assert "Click to play, double-click to insert at the caret, or drag into the text." in texts_shown(win.window.contentItem())
 
 
 def test_a_candidate_dragged_into_the_text_goes_in_spaced_as_one_undo_step(win):
@@ -145,15 +145,18 @@ def test_a_candidate_dragged_into_the_text_goes_in_spaced_as_one_undo_step(win):
     win.qtbot.waitUntil(lambda: win.text() == SONG, timeout=1000)
 
 
-def test_a_candidate_click_and_play_still_work(win):
+def test_a_candidate_double_click_and_play_still_work(win):
     show_candidates(win)
     win.set_cursor(SONG.index("\nRemember"))
-    win.click_item(win.candidate("C"))
+    QTest.mouseDClick(win.window, Qt.MouseButton.LeftButton, Qt.KeyboardModifier.NoModifier,
+                      win.centre(win.candidate("C")))
+    win.run()
     win.qtbot.waitUntil(lambda: win.text() == SONG.replace("F\n", "F C \n"), timeout=2000)
     assert ("insert_chord", {"at": SONG.index("\nRemember"), "chord": "C"}) in win.submitted
     win.hover(win.candidate("C"), 50)
     win.click_item(win.find("hear:C"))
-    assert [a for n, a in win.submitted if n == "play_identified_chord"] == [{"chord": "C", "rolled": False}]
+    assert [a for n, a in win.submitted if n == "play_identified_chord"] == [
+        {"chord": "C", "rolled": False}, {"chord": "C", "rolled": False}]      # the first click, then ▶
     assert not chip(win).isVisible()
 
 

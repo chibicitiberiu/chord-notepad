@@ -11,8 +11,10 @@ import CNTheme
 //
 // A press that moves 1.5u starts the drag (`dnd`, Main.qml's: the chip by
 // the pointer, the closed-hand or no-drop pointer); one that doesn't is a
-// click (`tapped`). Where a click still does something while the editor is
-// read-only (an identifier row), `draggable` false keeps the click and stops
+// click (`tapped`, with `shift` set when Shift was held); a double click is
+// `doubleTapped` where `doubleClicks` is set (its first click still
+// `tapped`; the release that ends it isn't another one), else two taps. Where a click still does something while the
+// editor is read-only (an identifier row), `draggable` false keeps the click and stops
 // the drag; elsewhere the source is disabled, as the click it stands for.
 MouseArea {
     id: src
@@ -22,7 +24,11 @@ MouseArea {
     property bool draggable: true
     property bool dragging: false
     property point pressAt
+    property bool shift: false
+    property bool doubleClicks: false     // a double click is its own gesture (else two taps)
+    property bool doubled: false
     signal tapped()
+    signal doubleTapped()
     anchors.fill: parent
     z: 1
     hoverEnabled: true
@@ -38,6 +44,12 @@ MouseArea {
         }
         if (src.dragging) src.dnd.move(p)
     }
-    onReleased: { if (src.dragging) { src.dragging = false; src.dnd.end() } else src.tapped() }
+    onReleased: (m) => {
+        if (src.dragging) { src.dragging = false; src.dnd.end(); return }
+        if (src.doubled) { src.doubled = false; return }
+        src.shift = (m.modifiers & Qt.ShiftModifier) !== 0
+        src.tapped()
+    }
+    onDoubleClicked: { if (!src.doubleClicks) return; src.doubled = true; src.doubleTapped() }
     onCanceled: if (src.dragging) { src.dragging = false; src.dnd.cancel() }
 }

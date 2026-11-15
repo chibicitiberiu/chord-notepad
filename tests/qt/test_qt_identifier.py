@@ -5,7 +5,7 @@ the core's (tests/test_chord_identifier*.py, the session's identifier
 tests); these check the panel over ``IdentifierState``: the piano's
 geometry and hit test (black keys first), its colours, the bass dot and the
 labels, clicks that select or only play, the notes field in either
-notation, the candidates (resolution 1: a click inserts, ▶ auditions,
+notation, the candidates (resolution 1: a click plays, a double click inserts, ▶ auditions,
 Shift+▶ plays rolled), the 3 s of amber keys and the markers, Clear, Play,
 the read-only lock and the insert error.
 """
@@ -273,18 +273,49 @@ def test_play_needs_notes_and_plays_them_rolled_with_shift_or_a_right_click(pane
 # -- candidates -------------------------------------------------------------------------------
 
 
-def test_a_candidate_click_inserts_it_at_the_caret_and_the_editor_gets_the_focus(panel):
+def double_click(panel, item):
+    QTest.mouseDClick(panel.window, LEFT, NO_MODIFIER, panel.centre(item))
+    panel.run()
+
+
+def test_a_candidate_click_plays_it_without_inserting(panel):
     song(panel, "F\n")
     panel.set_cursor(1)
     panel.type_notes("C E G")
     panel.qtbot.waitUntil(lambda: panel.model.property("candidates")[:1] == ["C"], timeout=1000)
     assert [t for t in texts_shown(panel.candidate("C")) if t == "best"]
     panel.click_item(panel.candidate("C"))
+    panel.click_item(panel.candidate("C"), LEFT, SHIFT)               # rolled
+    auditions = [a for n, a in panel.submitted if n == "play_identified_chord"]
+    assert auditions == [{"chord": "C", "rolled": False}, {"chord": "C", "rolled": True}]
+    assert panel.text() == "F\n"
+    assert not [n for n, _ in panel.submitted if n == "insert_chord"]
+    # The row is the current one, so Enter inserts and Space plays from here.
+    assert panel.find("candidates").property("currentIndex") == 0
+
+
+def test_a_candidate_double_click_inserts_it_once_and_the_editor_gets_the_focus(panel):
+    song(panel, "F\n")
+    panel.set_cursor(1)
+    panel.type_notes("C E G")
+    panel.qtbot.waitUntil(lambda: panel.model.property("candidates")[:1] == ["C"], timeout=1000)
+    double_click(panel, panel.candidate("C"))
     panel.qtbot.waitUntil(lambda: panel.text() == "F C \n", timeout=2000)
-    assert ("insert_chord", {"at": 1, "chord": "C"}) in panel.submitted
+    assert [a for n, a in panel.submitted if n == "insert_chord"] == [{"at": 1, "chord": "C"}]
+    # The first click played; the release that ends the double click didn't play again.
+    assert [a for n, a in panel.submitted if n == "play_identified_chord"] == [{"chord": "C", "rolled": False}]
     panel.qtbot.waitUntil(lambda: panel.area.hasActiveFocus(), timeout=1000)
     panel.qtbot.waitUntil(
         lambda: panel.harness.app.status_bar.property("statusText") == "Inserted chord: C", timeout=1000)
+
+
+def test_a_candidate_row_says_what_a_click_and_a_double_click_do(panel):
+    song(panel, "F\n")
+    panel.type_notes("C E G")
+    panel.qtbot.waitUntil(lambda: panel.model.property("candidates")[:1] == ["C"], timeout=1000)
+    panel.hover(panel.candidate("C"), 1200)
+    assert "Click to play, double-click to insert at the caret, or drag into the text." in \
+        texts_shown(panel.window.contentItem())
 
 
 def test_play_on_a_candidate_auditions_it_and_shift_plays_it_rolled(panel):
@@ -353,8 +384,9 @@ def test_inserting_is_locked_while_playing_but_play_still_works(panel):
     panel.store.submit("play_pause", {"from_offset": None})
     panel.qtbot.waitUntil(lambda: panel.area.property("readOnly") is True, timeout=3000)
     row = panel.candidate("C")
-    panel.click_item(row)
+    double_click(panel, row)                          # plays, but doesn't insert
     assert not [n for n, _ in panel.submitted if n == "insert_chord"]
+    assert ("play_identified_chord", {"chord": "C", "rolled": False}) in panel.submitted
     panel.hover(row, 1000)
     assert any(LOCKED_REASON in t for t in texts_shown(panel.window.contentItem()))
     panel.click_item(panel.find("hear:C"))
@@ -374,7 +406,7 @@ def test_an_insert_that_fails_says_so_in_tks_words(panel, monkeypatch):
     monkeypatch.setattr(panel.session, "insert_chord", broken)
     panel.set_cursor(0)
     presenter = panel.harness.app.presenter
-    panel.click_item(panel.candidate("C"))
+    double_click(panel, panel.candidate("C"))
     panel.qtbot.waitUntil(lambda: presenter.showing is not None, timeout=2000)
     assert presenter.showing == ("Error", "Could not insert the chord C.\n\n"
                                           "insert offset 0 outside the text (length 2)")

@@ -18,11 +18,12 @@ import CNTheme
 //   for the state's 3 s, with "◂ C3" / "D6 ▸" for notes off the keyboard.
 // - The notes field takes either notation and commas, re-parsed on every
 //   keystroke; a key click rewrites it.
-// - Candidates (resolution 1): a click inserts the chord at the caret (the
-//   editor gets the focus back), dragging it into the text drops it there
-//   (DragSource, the mockup's), ▶ auditions it, Shift+▶ (or a right click)
-//   plays it rolled. From the keyboard: Up/Down, Enter inserts, Space plays.
-//   Inserting and dragging are off while the editor is read-only; ▶ still plays.
+// - Candidates (resolution 1, changed 2026-11-15): a click plays the chord
+//   (Shift+click rolled), a double click inserts it at the caret (the editor
+//   gets the focus back), dragging it into the text drops it there
+//   (DragSource, the mockup's), ▶ auditions it, Shift+▶ plays it rolled.
+//   From the keyboard: Up/Down, Enter inserts, Space plays.
+//   Inserting and dragging are off while the editor is read-only; clicks still play.
 Rectangle {
     id: panel
     objectName: "identifierPanel"
@@ -267,7 +268,7 @@ Rectangle {
                 radius: Theme.radiusSmall
                 color: rowArea.pressed && !panel.locked ? Theme.pressed
                      : row.current ? Theme.selectedRow : rowArea.containsMouse ? Theme.hover : "transparent"
-                // Click or drag; below the ▶ (z 0), which takes its own clicks.
+                // Click (plays), double click (inserts) or drag; below the ▶ (z 0), which takes its own clicks.
                 DragSource {
                     id: rowArea
                     objectName: "candidateArea"
@@ -275,11 +276,17 @@ Rectangle {
                     dnd: panel.dnd
                     snippet: row.modelData
                     draggable: !panel.locked
-                    onTapped: { list.currentIndex = row.index; if (!panel.locked) panel.insert(row.modelData) }
+                    doubleClicks: true
+                    onTapped: {
+                        list.currentIndex = row.index
+                        list.forceActiveFocus()
+                        panel.model.audition(row.modelData, rowArea.shift)
+                    }
+                    onDoubleTapped: { list.currentIndex = row.index; if (!panel.locked) panel.insert(row.modelData) }
                 }
                 ToolTip.visible: rowArea.containsMouse && !hear.hovered && !rowArea.dragging
                 ToolTip.delay: 900
-                ToolTip.text: panel.locked ? panel.lockedReason : "Click to insert at the caret, or drag into the text"
+                ToolTip.text: panel.locked ? panel.lockedReason : "Click to play, double-click to insert at the caret, or drag into the text."
                 RowLayout {
                     anchors.fill: parent
                     anchors.leftMargin: Theme.gap2; anchors.rightMargin: Theme.gap1
