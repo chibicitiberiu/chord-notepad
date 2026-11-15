@@ -115,14 +115,19 @@ def test_a_live_instance_in_another_process_is_left_alone(tmp_path):
         from chordnotepad.services.recovery_store import RecoveryStore
         store = RecoveryStore({str(tmp_path)!r})
         store.write("theirs", display_name="theirs.txt")
-        print(store.instance_id, flush=True)
+        print("ID", store.instance_id, flush=True)
         sys.stdin.readline()
     """)
     child = subprocess.Popen([sys.executable, "-c", script], stdin=subprocess.PIPE,
                              stdout=subprocess.PIPE, text=True)
     try:
-        their_id = child.stdout.readline().strip()
-        assert their_id
+        # Other lines may come first (pyfluidsynth prints where it found the
+        # library when CI is set).
+        line = ""
+        while not line.startswith("ID "):
+            line = child.stdout.readline()
+            assert line, "the child exited"
+        their_id = line.split()[1]
         mine = RecoveryStore(tmp_path)
         assert mine.entries() == []
         assert mine.remove(their_id) is False
