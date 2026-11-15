@@ -73,12 +73,14 @@ logger = logging.getLogger(__name__)
 #: ``logical_chord_sheet_height`` (the Edit panel's saved height, B3).
 #: The rail's (plan step F5, sidebars.py): ``sidebar`` and ``sidebar_width``,
 #: properties (the open sidebar and its width, kept in the config).
+#: ``dismissed_notices``, a property: the notices dismissed for good (the
+#: staff's rhythm notice, chord_sheet.py).
 DIRECT_CALLS = frozenset({"directive_hint_at", "chord_at", "licence_catalog", "settings_values",
                           "picker_at", "timeline_offset", "timeline_position",
                           "setting_directive_start", "volume", "muted",
                           "ui_scale", "menu_bar_shown", "document_ref",
                           "chord_sheet_buffer", "logical_chord_sheet_height",
-                          "sidebar", "sidebar_width"})
+                          "sidebar", "sidebar_width", "dismissed_notices"})
 
 _STATE_NAMES = frozenset(t.__name__ for t in STATE_TYPES)
 _EVENT_NAMES = frozenset(t.__name__ for t in EVENT_TYPES)

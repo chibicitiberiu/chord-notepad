@@ -242,6 +242,46 @@ def test_the_staff_says_it_draws_every_chord_as_a_whole_note(sh):
     sh.qtbot.waitUntil(lambda: not notice.isVisible(), timeout=2000)
 
 
+def test_dismiss_hides_the_staff_notice_for_good(qapp, qtbot, tmp_path):
+    import json
+
+    from tests.qt.conftest import QtAppHarness
+    sh = make_sheet(qapp, qtbot, tmp_path, text=LONG)
+    try:
+        sh.to_play(700)
+        sh.store.submit("set_chord_sheet_view", {"view_id": "staff"})
+        sh.wait_sheet("staff")
+        notice, link = sh.it("staffNotice"), sh.it("staffNoticeDismiss")
+        sh.qtbot.waitUntil(notice.isVisible, timeout=2000)
+        assert link.isVisible() and link.property("label") == "Dismiss"
+        # Right after the notice, on its line.
+        notice_right = notice.mapToScene(QPointF(notice.width(), 0)).x()
+        link_at = link.mapToScene(QPointF(0, 0))
+        assert notice_right <= link_at.x() <= notice_right + 20
+        QTest.mouseClick(sh.window, LEFT, NO_MODIFIER,
+                         link.mapToScene(QPointF(link.width() / 2, link.height() / 2)).toPoint())
+        sh.qtbot.waitUntil(lambda: not notice.isVisible() and not link.isVisible(), timeout=2000)
+        assert sh.sent("dismiss_notice") == [{"notice_id": "staff_rhythm"}]
+        sh.qtbot.waitUntil(lambda: sh.config("dismissed_notices") == ["staff_rhythm"], timeout=2000)
+        # Still hidden after a round trip through another view.
+        sh.store.submit("set_chord_sheet_view", {"view_id": "keyboard"})
+        sh.wait_sheet("keyboard")
+        sh.store.submit("set_chord_sheet_view", {"view_id": "staff"})
+        sh.wait_sheet("staff")
+        assert not notice.isVisible()
+        sh.harness.app.core.config.save_config()
+        saved = json.loads(sh.harness.config_file().read_text())
+        assert saved["dismissed_notices"] == ["staff_rhythm"]
+    finally:
+        finish(sh)
+    # A new start with that config never shows it.
+    again = QtAppHarness(qapp, tmp_path).start()
+    try:
+        assert again.app.sheet.property("dismissedNotices") == ["staff_rhythm"]
+    finally:
+        again.shutdown()
+
+
 # -- C1: the zoom pill ----------------------------------------------------------------------
 
 

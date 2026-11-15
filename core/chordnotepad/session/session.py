@@ -2391,6 +2391,27 @@ class AppSession:
         self._require_services("the sidebars").config.set("sidebar_width", value)
 
     @property
+    def dismissed_notices(self) -> Tuple[str, ...]:
+        """The ids of the one-off notices dismissed for good (the Qt staff
+        view's ``staff_rhythm``), oldest first."""
+        return tuple(self._require_services("the notices").config.get("dismissed_notices") or ())
+
+    @_command
+    def dismiss_notice(self, notice_id: str) -> None:
+        """Hide a one-off notice for good: its id is kept in the config.
+
+        Raises:
+            ValueError: For an empty id.
+        """
+        notice_id = str(notice_id)
+        if not notice_id:
+            raise ValueError("a notice id can't be empty")
+        config = self._require_services("the notices").config
+        notices = list(config.get("dismissed_notices") or ())
+        if notice_id not in notices:
+            config.set("dismissed_notices", notices + [notice_id])
+
+    @property
     def show_quick_start_on_startup(self) -> bool:
         """Whether Quick Start opens when the app starts."""
         return bool(self._main.get_show_quick_start_on_startup())

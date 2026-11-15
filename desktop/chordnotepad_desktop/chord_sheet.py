@@ -13,9 +13,10 @@ makes through Chaquopy). ``ChordSheetState`` says when to fetch again
   :class:`~chordnotepad_desktop.sheet_paint.PreparedSheet`) whenever the
   request changes, waits 60 ms for a split drag to settle (Android's
   ``ChordSheetController``), keeps a few recent sheets (Edit and Play have
-  different heights), and keeps the Edit panel's height in logical pixels
+  different heights), keeps the Edit panel's height in logical pixels
   (``logical_chord_sheet_height`` / ``set_logical_chord_sheet_height``,
-  B3).
+  B3), and the notices dismissed for good (``dismissed_notices`` /
+  ``dismiss_notice``).
 * :class:`SheetView` (``CNSheet.SheetView`` in QML): a viewport-sized
   QQuickPaintedItem. It paints only what the viewport shows: the marker
   lane on top, the content, the playhead's edge mark, the playing column
@@ -75,6 +76,7 @@ class ChordSheetModel(QObject):
 
     sheetChanged = Signal()
     loadingChanged = Signal()
+    noticesChanged = Signal()
     #: A buffer is ready (emitted from the worker; queued to the GUI thread).
     _loaded = Signal(object, object, float)
 
@@ -88,6 +90,7 @@ class ChordSheetModel(QObject):
         self.sheet: Optional[PreparedSheet] = None
         self._cache: "OrderedDict[Request, Optional[PreparedSheet]]" = OrderedDict()
         self._closed = False
+        self._dismissed: Optional[list] = None
         #: How long the last fetches took (ms: pack in the core, then unpack
         #: and prepare), for the perf numbers in the logs.
         self.last_fetch_ms = 0.0
@@ -151,6 +154,26 @@ class ChordSheetModel(QObject):
     #: The zoom limits of every view (the zoom control's ends).
     zoomMin = Property(float, _get_zoom_min, constant=True)
     zoomMax = Property(float, _get_zoom_max, constant=True)
+
+    # -- one-off notices (the staff's rhythm notice) ---------------------------------
+
+    def _get_dismissed(self) -> list:
+        if self._dismissed is None:
+            self._dismissed = list(self._store.direct("dismissed_notices"))
+        return list(self._dismissed)
+
+    #: The ids of the notices dismissed for good (the config's
+    #: ``dismissed_notices``, read once through a direct call).
+    dismissedNotices = Property("QVariantList", _get_dismissed, notify=noticesChanged)
+
+    @Slot(str)
+    def dismissNotice(self, notice_id: str) -> None:  # noqa: N802 (Qt)
+        """Hide a notice for good (``dismiss_notice``: kept in the config)."""
+        dismissed = self._get_dismissed()
+        if notice_id and notice_id not in dismissed:
+            self._dismissed = dismissed + [notice_id]
+            self._store.submit("dismiss_notice", {"notice_id": notice_id})
+            self.noticesChanged.emit()
 
     # -- fetching (one at a time, off the GUI thread) -----------------------------------
 

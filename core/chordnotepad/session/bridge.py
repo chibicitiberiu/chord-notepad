@@ -316,6 +316,8 @@ SESSION_COMMANDS: Dict[str, Dict[str, str]] = {
     "apply_settings": {"changes": "SettingsValues"},
     "set_show_quick_start_on_startup": {"show": "bool"},
     "request_quick_start": {},
+    # a one-off notice dismissed for good (the Qt staff view's; Android never sends it)
+    "dismiss_notice": {"notice_id": "str"},
     # the startup screen (Android)
     "app_started": {"launch_kind": "str", "today": "str", "installed_on": "str",
                     "can_ask_for_support": "bool"},
@@ -393,7 +395,7 @@ CONFIG_COMMANDS = frozenset({
     "convert_notation", "apply_settings", "save_settings",
     "set_show_quick_start_on_startup", "open_document", "open_recent", "save", "save_as",
     "rename_document",
-    "set_sidebar", "set_sidebar_width",
+    "set_sidebar", "set_sidebar_width", "dismiss_notice",
 })
 
 

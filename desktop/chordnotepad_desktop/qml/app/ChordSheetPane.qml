@@ -92,11 +92,14 @@ Rectangle {
                 // The staff draws every chord as a whole note for now. In the
                 // header, not over the strip: a short strip's staff fills its
                 // height and the notice covered the lowest notes.
+                // Dismiss hides it for good (the config's dismissed_notices).
                 Label {
                     id: staffNotice
                     objectName: "staffNotice"
                     visible: pane.activeView === "staff"
+                             && pane.model.dismissedNotices.indexOf("staff_rhythm") < 0
                     Layout.fillWidth: true
+                    Layout.maximumWidth: implicitWidth
                     Layout.minimumWidth: 0
                     Layout.leftMargin: Theme.gap3
                     elide: Text.ElideRight
@@ -108,7 +111,21 @@ Rectangle {
                     ToolTip.delay: 600
                     ToolTip.text: staffNotice.text
                 }
-                Item { Layout.fillWidth: true; visible: !staffNotice.visible }
+                Label {
+                    objectName: "staffNoticeDismiss"
+                    visible: staffNotice.visible
+                    Layout.leftMargin: Theme.gap1
+                    readonly property string label: "Dismiss"
+                    // Underlined on hover, as a link.
+                    text: dismissHover.hovered ? "<u>" + label + "</u>" : label
+                    textFormat: Text.StyledText
+                    font: Theme.fontC
+                    color: Theme.accent
+                    Accessible.role: Accessible.Link
+                    HoverHandler { id: dismissHover; cursorShape: Qt.PointingHandCursor }
+                    TapHandler { onTapped: pane.model.dismissNotice("staff_rhythm") }
+                }
+                Item { Layout.fillWidth: true }
                 VoicingButton {
                     objectName: "sheetVoicingTip"
                     visible: pane.showVoicing

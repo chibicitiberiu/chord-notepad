@@ -265,12 +265,13 @@ def test_the_direct_calls_are_the_plans_four_the_pickers_the_player_bars_the_chr
     # The chord sheet's (E4): its packed draw ops (C3 named it) and the Edit
     # panel's saved height (B3 listed it).
     # The rail's (F5): the open sidebar and its width, kept in the config.
+    # The staff's notice: the notices dismissed for good, kept in the config.
     assert DIRECT_CALLS == {"directive_hint_at", "chord_at", "licence_catalog", "settings_values",
                             "picker_at", "timeline_offset", "timeline_position",
                             "setting_directive_start", "volume", "muted",
                             "ui_scale", "menu_bar_shown", "document_ref",
                             "chord_sheet_buffer", "logical_chord_sheet_height",
-                            "sidebar", "sidebar_width"}
+                            "sidebar", "sidebar_width", "dismissed_notices"}
 
 
 def test_nothing_in_the_qt_package_calls_the_session_outside_the_allow_list():

@@ -48,6 +48,9 @@
       "target": "str"
     },
     "discard_settings_problems": {},
+    "dismiss_notice": {
+      "notice_id": "str"
+    },
     "dismiss_startup_screen": {},
     "export_midi": {},
     "identifier_clear": {},
@@ -291,6 +294,7 @@
     "commit_settings",
     "convert_notation",
     "discard_settings_problems",
+    "dismiss_notice",
     "dismiss_startup_screen",
     "export_midi",
     "identifier_clear",

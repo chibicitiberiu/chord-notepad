@@ -114,6 +114,10 @@ class Config:
     sidebar: str = DEFAULT_SIDEBAR
     sidebar_width: float = DEFAULT_SIDEBAR_WIDTH
 
+    # One-off notices the user dismissed for good, by id (e.g. the Qt staff
+    # view's "staff_rhythm"). Not a setting: the Settings screen never writes it.
+    dismissed_notices: List[str] = field(default_factory=list)
+
     def validate(self) -> None:
         """Validate configuration values."""
         if not (MIN_BPM <= self.bpm <= MAX_BPM):
@@ -190,6 +194,7 @@ class Config:
             "chord_sheet_zoom": self.chord_sheet_zoom,
             "sidebar": self.sidebar,
             "sidebar_width": self.sidebar_width,
+            "dismissed_notices": list(self.dismissed_notices),
         }
 
     @classmethod
@@ -265,7 +270,20 @@ class Config:
             # Junk reads as the defaults (a failed validate() would reset everything).
             sidebar=cls._one_of(data.get("sidebar"), SIDEBARS + ("",), DEFAULT_SIDEBAR),
             sidebar_width=cls._sidebar_width(data.get("sidebar_width")),
+            dismissed_notices=cls._notice_ids(data.get("dismissed_notices")),
         )
+
+    @staticmethod
+    def _notice_ids(raw) -> List[str]:
+        """Saved ``dismissed_notices``: the non-empty strings, each once, in
+        order; anything else (not a list, junk entries) is dropped."""
+        if not isinstance(raw, list):
+            return []
+        ids: List[str] = []
+        for item in raw:
+            if isinstance(item, str) and item and item not in ids:
+                ids.append(item)
+        return ids
 
     @staticmethod
     def _window_bounds(raw) -> Optional[Dict[str, Optional[int]]]:
