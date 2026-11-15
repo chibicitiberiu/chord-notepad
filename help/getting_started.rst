@@ -412,6 +412,25 @@ To save your chord sheet:
 Your chord sheet is saved as a plain text file. You can open it in any text
 editor, but only Chord Notepad will play it back.
 
+.. only:: desktop
+
+   .. rubric:: Recovering unsaved work
+
+   While a song has unsaved changes, Chord Notepad keeps a copy of it on
+   the side, written a few seconds after you stop typing. If the app crashes
+   or the computer shuts down before you save, the copy is still there next
+   time: open **☰ → Open recovered** (also under **File** in the menu bar).
+   Each entry shows the song's name and when the copy was written, newest
+   first. Choosing one opens the text with unsaved changes. For a song that
+   had been saved before, **Save** writes it back to that file; a song that
+   was never saved asks for a name.
+
+   The copy goes away when you save, or when you choose **Don't save** on
+   quitting or opening another song. Copies older than 30 days are dropped,
+   and only the 20 newest are kept. **Clear recovered** at the bottom of the
+   list removes them all. A copy that belongs to another Chord Notepad window
+   that is still open isn't listed there.
+
 Opening Existing Files
 ----------------------
 
@@ -424,6 +443,19 @@ To open a saved chord sheet:
    3. Click Open
 
    Recent files appear in **☰ → Open recent** for quick access.
+
+   You can also drag a song from your file manager and drop it anywhere on
+   the Chord Notepad window. It opens just as if you had picked it with
+   **Open**: if the current song has unsaved changes you're asked about them
+   first, and the file joins **Open recent**. A window holds one song, so if
+   you drop several files only the first one opens.
+
+   To open a song as the app starts, give its path on the command line::
+
+      chord-notepad path/to/song.txt
+
+   (From a source checkout: ``python -m chordnotepad_desktop song.txt``.)
+   To work on two songs side by side, start Chord Notepad twice.
 
 .. only:: android
 
