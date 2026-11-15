@@ -1,12 +1,16 @@
 # AppSession: the shared application layer
 
-The shared layer both the Tk UI and the Android UI sit on. "Where the session
-stands" says what each area does and what is still interim, and why. The
-wire format Kotlin sees is in `docs/ANDROID.md`, "Bridge contract".
+The shared layer every front end sits on: the Qt Quick desktop app, the
+Kotlin/Compose Android app and, later, SwiftUI. (The old Tk desktop window
+still ships for one release as `--ui tk`; it is deleted after that, and the
+Tk-specific parts below go with it.) "Where the session stands" says what
+each area does and what is still interim, and why. The wire format Kotlin
+and QML see is in `docs/ANDROID.md`, "Bridge contract".
 
 The core is the `chordnotepad` package in `core/` (the session is
-`chordnotepad.session`); the Tk front end is `chordnotepad_tk` in `desktop/`,
-and the Android glue is `chordnotepad_android`. Nothing is installed: each
+`chordnotepad.session`); the Qt front end is `chordnotepad_desktop` in
+`desktop/` (the Tk one, `chordnotepad_tk`, sits beside it), and the Android
+glue is `chordnotepad_android`. Nothing is installed: each
 front end puts the folders on `sys.path` (`pytest.ini`, the Makefile, the
 launchers, the PyInstaller spec, Chaquopy's `srcDir`). Paths like
 `session/bridge.py` below are inside `core/chordnotepad/`.
@@ -23,8 +27,9 @@ The viewmodels in `core/chordnotepad/viewmodels/` don't import Tk. The wiring
 
 A second UI (Kotlin/Compose on Android, later SwiftUI) would have to copy all of
 it. AppSession moves that wiring into a Tk-free, host-agnostic core layer.
-**Both** the Tk UI and the mobile UIs become thin views over it, so the wiring
-exists once.
+**Every** UI becomes a thin view over it, so the wiring exists once. The Qt
+desktop app was written that way from the start: its QML only shows states
+and sends commands.
 
 ## Decisions
 
@@ -36,7 +41,7 @@ exists once.
   - *Events* are delivered in order.
   - Dialogs are request/response pairs.
 - **The host owns the session thread.**
-  - Tk: the main thread is the session thread.
+  - Tk and Qt: the GUI thread is the session thread.
   - Android: a Python-owned `ThreadedHost` thread.
 - **Offsets are Unicode code points everywhere in Python.** Conversion to UTF-16
   happens only in the Kotlin `OffsetMapper`.
@@ -63,7 +68,7 @@ exists once.
   voicing-menu model and ordering; the instrument-family table; key options
   (`session/toolbar.py` holds the toolbar's value logic).
 
-**Views (Tk now, Compose later)**
+**Views (Qt, Compose, later SwiftUI; Tk until it is removed)**
 - Widgets, theme, icons, tooltip wording, dialog layout.
 - Pixel/cursor ↔ offset conversion.
 - Applying the undo policy carried by each edit event.
@@ -133,7 +138,11 @@ class Host(Protocol):
     def monotonic(self) -> float: ...
 ```
 
-There are three implementations:
+There are four implementations:
+- **`QtHost`** (`desktop/chordnotepad_desktop/qt_host.py`): the Qt GUI thread
+  is the session thread. `post` is a queued signal, `call_later` a
+  single-shot `QTimer`. Like TkHost it exists before the window, and what is
+  posted before `start()` waits.
 - **`TkHost(root=None)`**
   - `post` puts the callback on a queue, which the existing 100 ms `after()`
     drain runs.
@@ -636,6 +645,20 @@ may be using.
   thread, for the previous one to finish before it resets and uses
   playback's note picker.
 
+**The Qt window.** `chordnotepad_desktop` builds the core the same way
+(`QtApplication.start`: services, logging and the error presenter, audio,
+then `create_session(..., platform=DESKTOP_QT)`) and puts a `SessionStore`
+(`session_store.py`) between the session and QML. The store sits on the same
+`SessionBridge` Android uses, so QML gets the states as property maps, the
+events and requests as signals, and sends the same JSON-shaped commands; a
+short list of direct calls answers what must come back at once. Every other
+model in the package (`editor_bridge`, `player_bar`, `chord_sheet`,
+`sidebars`, `identifier`, `settings_window`, `dialogs`, `chrome`) wraps the
+store for one part of the window and keeps view work only: the painted chord
+sheet, offsets, geometry, the device pixel ratio. The `DESKTOP_QT` platform
+adds the playhead, song-counted bars and its own Quick Start and help texts;
+see "Per-platform texts" below. `tests/qt/` runs the window offscreen.
+
 **The Tk window.** `MainWindow(session, host, resources)` talks only to the
 session (commands, subscribed states and events, the queries above) and does
 view work: widgets and theme, dialogs and pickers, pixel/cursor ↔ offset,
@@ -765,12 +788,14 @@ is for tests that bring their own player.
     typed `Any` (schema type `json`): the voicing form is a dict keyed by
     field id, and mirroring every field as a DTO would duplicate the schema.
 - **Per-platform texts.** `create_session(platform=...)` (`desktop` by
-  default, `android` from the Android host) picks the wording of the few
+  default, `android` from the Android host, `desktop_qt` from the Qt window) picks the wording of the few
   strings that name a gesture or a menu: the click-to-hear audio message,
   the chord sheet's disabled-tab reason, the voicing editor's name help and
   the Quick Start pages (`session/quick_start.py`, which the Tk dialog now
   reads too). The desktop variant is always the old text; tests pin it
-  (`tests/fixtures/quick_start_desktop.json`).
+  (`tests/fixtures/quick_start_desktop.json`). `desktop_qt` falls back to
+  the desktop text, so only texts that name a Tk menu or control have a Qt
+  variant; its Quick Start picture is `resources/quickstart/chord_sheet_qt.png`.
 - **Click-to-hear has its own picker.** `play_chord_immediate` voices on the
   session thread with `PlaybackService._click_picker`, built on the first
   click and dropped by `set_voicing`, never with the picker a playback render
