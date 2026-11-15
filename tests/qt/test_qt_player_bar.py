@@ -51,7 +51,16 @@ class Bar(Editor):
         assert found is not None, name
         return found
 
+    def drawn(self):
+        """Until the window has drawn a frame. A popup that has just opened
+        lays its content out in the next polish pass, so before that its
+        items still sit where the first, unpolished layout put them (a chip
+        then took the click meant for its neighbour)."""
+        with self.qtbot.waitSignal(self.window.frameSwapped, timeout=1000):
+            self.window.update()
+
     def centre(self, it, dx=0.0, dy=0.0):
+        self.drawn()
         return it.mapToScene(QPointF(it.width() / 2 + dx, it.height() / 2 + dy)).toPoint()
 
     def press(self, it, button=LEFT, modifier=NO_MODIFIER, dx=0.0):
