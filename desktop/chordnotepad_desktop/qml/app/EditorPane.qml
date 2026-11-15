@@ -266,6 +266,11 @@ Rectangle {
         enabled: area.length > 0
         onTriggered: { area.forceActiveFocus(); pane.editor.selectLine() }
     }
+    readonly property Action goToLineAction: Action {
+        objectName: "goToLineAction"
+        text: "&Go to line…"; shortcut: "Ctrl+G"
+        onTriggered: findBar.openGoToLine()
+    }
     // F3 with the bar closed finds the last query again; with none yet, the bar opens.
     function findAgain(backward) {
         if (!pane.editor.finder.findAgain(backward)) findBar.open(false)

@@ -258,3 +258,42 @@ def test_caps_lock_doesnt_stop_the_shortcuts(ed):
     ed.key(K.Key_Escape)
     press(ed, K.Key_H, CTRL, "H")
     ed.qtbot.waitUntil(lambda: ed.item("replaceField").property("visible") is True, timeout=1000)
+
+
+# -- Go to line -------------------------------------------------------------------------------
+
+
+def test_ctrl_g_goes_to_a_line(ed):
+    song(ed, TEXT)
+    ed.key(K.Key_G, CTRL)
+    line_field = field(ed, "goToLineField")
+    ed.qtbot.waitUntil(lambda: line_field.hasActiveFocus(), timeout=1000)
+    assert ed.item("lineCountLabel").property("text") == "of 4"
+    assert ed.item("findField").property("visible") is False
+    type_into(ed, "3")
+    ed.key(K.Key_Return)
+    ed.qtbot.waitUntil(lambda: bar(ed).property("visible") is False, timeout=1000)
+    assert caret(ed) == TEXT.index("Am7") and ed.area.hasActiveFocus()
+
+
+def test_go_to_line_clamps_and_escape_closes(ed):
+    song(ed, TEXT)
+    ed.key(K.Key_G, CTRL)
+    type_into(ed, "99")
+    ed.key(K.Key_Enter, Qt.KeyboardModifier.KeypadModifier)
+    assert caret(ed) == len(TEXT)                      # the last line (empty, after the newline)
+    ed.key(K.Key_G, CTRL)
+    ed.qtbot.waitUntil(lambda: field(ed, "goToLineField").hasActiveFocus(), timeout=1000)
+    assert field(ed, "goToLineField").property("text") == ""
+    ed.key(K.Key_Escape)
+    assert bar(ed).property("visible") is False and ed.area.hasActiveFocus()
+    assert caret(ed) == len(TEXT)
+
+
+def test_go_to_line_works_while_playing(ed):
+    song(ed, TEXT)
+    play(ed)
+    ed.key(K.Key_G, CTRL)
+    type_into(ed, "2")
+    ed.key(K.Key_Return)
+    assert caret(ed) == TEXT.index("la")
