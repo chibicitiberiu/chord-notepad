@@ -526,20 +526,35 @@ def test_every_bar_of_a_time_signature_has_one_width():
     assert [s.width for s in rest_layout.slots] == [24.0, 48.0, 24.0]
 
 
-def test_half_beat_chords_are_half_a_beat_wide_and_hide_names_that_dont_fit():
-    _, layout, ops = render_real("C*0.5 G*0.5 Am*0.5 F*0.5 C*2\n", height=400.0)
-    assert [s.width for s in layout.slots] == [12.0] * 4 + [48.0]
-    names = [o.s for o in ops.ops if isinstance(o, TextOp) and "note-label" not in o.tags]
-    assert names == ["C"]                     # only the two-beat chord's fits
+def test_half_beat_chords_are_half_a_beat_wide_and_their_names_shrink_never_hide():
+    # Tibi, 2026-11-15: "we shouldn't hide names, if we have to we render smaller".
+    _, layout, ops = render_real("C*0.5 G*0.5 Am*0.5 F*0.5 C*2 Cmaj7#11*2\n", height=400.0)
+    assert [s.width for s in layout.slots] == [12.0] * 4 + [48.0, 48.0]
+    names = {o.tags[0]: o for o in ops.ops
+             if isinstance(o, TextOp) and "note-label" not in o.tags and o.tags[:1]
+             and o.tags[0].startswith("slot:")}
+    assert [names[f"slot:{i}"].s for i in range(6)] == ["C", "G", "Am", "F", "C", "Cmaj7#11"]
+    # A name that fits keeps the full size; others shrink, never below the floor.
+    assert names["slot:4"].size == NAME_PT
+    assert all(piano_roll.NAME_MIN_PT <= names[f"slot:{i}"].size < NAME_PT for i in (0, 1, 2, 3, 5))
+    # Every name is centred on the band's middle (no staircase).
+    assert len({o.y for o in names.values()}) == 1
+    assert all(o.anchor == "center" for o in names.values())
+    # A shrunk name fits its slot whenever some size down to the floor does:
+    # the largest that fits.
+    long_name = names["slot:5"]
+    assert piano_roll.name_fits("Cmaj7#11", 48.0, long_name.size)
+    assert not piano_roll.name_fits("Cmaj7#11", 48.0, long_name.size + 1)
     # The short chords keep their bars.
     assert {o.tags[0] for o in ops.ops if isinstance(o, RectOp) and o.tags[:1]
-            and o.tags[0].startswith("slot:")} == {f"slot:{i}" for i in range(5)}
-    # A shown name stays inside its slot.
-    for o in ops.ops:
-        if isinstance(o, TextOp) and o.tags[0] == "slot:4" and "note-label" not in o.tags:
-            half = label_ems(o.s) * NAME_PT * 4 / 3 / 2
-            slot = layout.slots[4]
-            assert slot.x + NAME_PAD <= o.x - half and o.x + half <= slot.x + slot.width - NAME_PAD
+            and o.tags[0].startswith("slot:")} == {f"slot:{i}" for i in range(6)}
+
+
+def test_name_size_shrinks_to_fit_and_stops_at_the_floor():
+    assert piano_roll.name_size("C", 96.0) == NAME_PT
+    wide = piano_roll.name_size("Cmaj7#11", 30.0)
+    assert piano_roll.NAME_MIN_PT <= wide < NAME_PT
+    assert piano_roll.name_size("Cmaj7#11/G#", 4.0) == piano_roll.NAME_MIN_PT
 
 
 def test_zoom_scales_the_axis_linearly():

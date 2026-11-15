@@ -110,6 +110,8 @@ MIN_BEAT_SPACING = 8.0
 NAME_PAD = 2.0
 #: The chord names' size, pt.
 NAME_PT = 12
+#: The smallest a chord name gets when a short chord's slot is narrow.
+NAME_MIN_PT = 6
 
 #: Vertical space above the roll reserved for chord-symbol text, px.
 SYMBOL_H = 22.0
@@ -178,10 +180,23 @@ def _slot_width(duration_beats: float, zoom: float = 1.0) -> float:
     return max(0.0, duration_beats) * PX_PER_BEAT * zoom
 
 
-def name_fits(label: str, slot_w: float) -> bool:
-    """Whether a chord name fits over its slot at ``NAME_PT`` (estimated
+def name_fits(label: str, slot_w: float, size: int = NAME_PT) -> bool:
+    """Whether a chord name fits over its slot at ``size`` pt (estimated
     bold width, ``NAME_PAD`` either side)."""
-    return label_ems(label) * NAME_PT * _PT_TO_PX <= slot_w - 2 * NAME_PAD
+    return label_ems(label) * size * _PT_TO_PX <= slot_w - 2 * NAME_PAD
+
+
+def name_size(label: str, slot_w: float) -> int:
+    """The size a chord name is drawn at over its slot: ``NAME_PT`` when it
+    fits, else the largest size down to ``NAME_MIN_PT`` that does, and
+    ``NAME_MIN_PT`` when even that doesn't. A name is never hidden (Tibi,
+    2026-11-15: "we shouldn't hide names, if we have to we render
+    smaller"); every name is centred on the band's middle, so a smaller one
+    doesn't sit higher than its neighbours."""
+    for size in range(NAME_PT, NAME_MIN_PT - 1, -1):
+        if name_fits(label, slot_w, size):
+            return size
+    return NAME_MIN_PT
 
 
 def _gutter_width(notation: str) -> float:
@@ -396,17 +411,16 @@ class PianoRollRenderer(StripRenderer):
             tag = f"slot:{slot.chord_index}"
 
             label = chord_symbol_label(chord)
-            if name_fits(label, slot.width):
-                ops.text(
-                    slot.x + slot.width / 2.0,
-                    SYMBOL_H / 2.0,
-                    label,
-                    anchor="center",
-                    size=NAME_PT,
-                    fill=_INK,
-                    bold=True,
-                    tags=(tag,),
-                )
+            ops.text(
+                slot.x + slot.width / 2.0,
+                SYMBOL_H / 2.0,
+                label,
+                anchor="center",
+                size=name_size(label, slot.width),
+                fill=_INK,
+                bold=True,
+                tags=(tag,),
+            )
             if chord.is_rest:
                 continue  # the label marks it; the empty lane is the silence
 
