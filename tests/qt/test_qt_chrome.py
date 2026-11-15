@@ -587,6 +587,20 @@ def test_transpose_on_the_toolbar_opens_the_dialog(app):
     app.key(Qt.Key.Key_Escape)
 
 
+def test_the_capo_button_opens_suggest_capo_and_has_a_label_when_wide(app):
+    button = app.it("capoButton")
+    app.window.resize(1200, 600)
+    app.qtbot.waitUntil(lambda: button.property("showLabel") is True, timeout=1000)
+    assert button.property("text") == "Capo" and button.property("iconName") == "capo"
+    assert button.property("tip") == "Suggest a capo position that makes the chords easier to play."
+    assert button.property("enabled") is True
+    app.window.resize(700, 600)
+    app.qtbot.waitUntil(lambda: button.property("showLabel") is False, timeout=1000)
+    app.click_item(button)
+    app.qtbot.waitUntil(lambda: app.obj("capoDialog").property("opened") is True, timeout=2000)
+    app.key(Qt.Key.Key_Escape)
+
+
 def test_play_and_stop_on_the_toolbar(app):
     app.harness.player.auto_play = False
     app.song()

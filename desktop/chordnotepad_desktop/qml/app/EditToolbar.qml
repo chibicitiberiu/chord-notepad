@@ -4,12 +4,12 @@ import CNTheme
 
 // The Edit workspace's toolbar (plan step F2, the mockup's EditToolbar),
 // grouped with hairline separators:
-//   Undo, Redo | Transpose, Convert, AB|Do | … | Chord sheet | Play, Stop
+//   Undo, Redo | Transpose, Capo, Convert, AB|Do | … | Chord sheet | Play, Stop
 // Labels show when the bar is wider than 200 u (Play always has its label).
 // Inserting lives in the Directives sidebar (F5).
 //
 // Every button runs an Action someone else declares (EditorPane's Undo and
-// Redo, disabled on an empty stack, Q3; AppActions' Transpose and Convert;
+// Redo, disabled on an empty stack, Q3; AppActions' Transpose, Suggest capo and Convert;
 // PlaybackActions' Play; E4's chord-sheet toggle), so a shortcut is never
 // declared twice. Enabled as the menus are: Transpose and Convert stay on
 // while a song plays, and the session's refusal shows in the status bar (Q9).
@@ -62,6 +62,12 @@ Rectangle {
             icon.width: Theme.px(6)
             tip: "Transpose…"; shortcutHint: "Ctrl+T"
             onClicked: bar.actions.transposeAction.trigger()
+        }
+        IconButton {
+            objectName: "capoButton"
+            iconName: "capo"; text: "Capo"; showLabel: bar.roomy
+            tip: "Suggest a capo position that makes the chords easier to play."
+            onClicked: bar.actions.suggestCapoAction.trigger()
         }
         ConvertButton {
             showLabel: bar.roomy

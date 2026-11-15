@@ -170,6 +170,7 @@ WAYS_IN = {
     "ctrl-t": (keys(Qt.Key.Key_T, CTRL), "transposeDialog"),
     "f1": (keys(Qt.Key.Key_F1), "errorDialog"),
     "toolbar-transpose": (toolbar("transposeButton"), "transposeDialog"),
+    "toolbar-capo": (toolbar("capoButton"), "capoDialog"),
 }
 
 
