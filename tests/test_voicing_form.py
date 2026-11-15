@@ -455,6 +455,38 @@ def test_every_input_has_label_and_help(model):
             assert field['help'], field['id']
 
 
+#: The physical fields whose spec checks an upper limit too (the others only a
+#: lower one, or none: the piano's RH center).
+_SPEC_UPPER_LIMITS = {'max_fret', 'fingers'}
+
+
+@pytest.mark.parametrize('model', ['fretboard', 'piano'])
+def test_physical_ranges_agree_with_the_specs(model):
+    """Every physical number field has a schema range (its tooltip shows it),
+    the spec accepts both ends, and where the spec has a limit the range
+    stops at it: one step past is refused."""
+    section = next(s for s in vf.form_schema(model)['sections'] if s['id'] == 'physical')
+    for field in section['fields']:
+        assert field.get('min') is not None and field.get('max') is not None, field['id']
+
+        def error(value):
+            values = vf.default_values(model)
+            values[field['id']] = str(value)
+            # Relaxed span must not be under Max span: keep that rule out of it.
+            if field['id'] == 'relaxed_span':
+                values['max_span'] = '1'
+            if field['id'] == 'max_span':
+                values['relaxed_span'] = str(max(value, 1))
+            return vf.voicing_error('t', vf.voicing_from_values(model, values))
+
+        assert error(field['min']) is None, field['id']
+        assert error(field['max']) is None, field['id']
+        if field['kind'] == vf.KIND_INT:
+            assert error(field['min'] - 1) is not None, field['id']
+        if field['id'] in _SPEC_UPPER_LIMITS:
+            assert error(field['max'] + 1) is not None, field['id']
+
+
 def test_piano_weights_use_their_own_help_for_shared_keys():
     fields = {f['id']: f for f in vf.iter_fields(vf.form_schema('piano'))}
     assert fields['weight:movement_penalty']['help'].startswith(

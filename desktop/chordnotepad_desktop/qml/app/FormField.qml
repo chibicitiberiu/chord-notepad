@@ -9,12 +9,13 @@ import "FormTips.js" as FormTips
 // value, applied while the field doesn't have the focus (an echo of what is
 // being typed never moves the cursor). `error` draws the red outline and
 // ends the tooltip with "⚠ error" (Tk's mark); `tip` is the field's help,
-// shared with its caption.
+// shared with its caption, and `range` the muted line under it ("Range 5–24").
 TextField {
     id: control
     property var shown: ""
     property string error: ""
     property string tip: ""
+    property string range: ""
     signal edited(string text)
     signal committed()
 
@@ -39,5 +40,5 @@ TextField {
     HoverHandler { id: hover }
     ToolTip.visible: hover.hovered && ToolTip.text !== ""
     ToolTip.delay: 600
-    ToolTip.text: FormTips.tip(control.tip, control.error)
+    ToolTip.text: FormTips.tip(control.tip, control.error, control.range, Theme.muted)
 }

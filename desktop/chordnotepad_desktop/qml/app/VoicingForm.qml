@@ -14,8 +14,9 @@ import "FormTips.js" as FormTips
 // by side). Values, marks, hints and messages are the session's
 // (VoicingEditorState); edits go to SettingsModel (setField / setCell) and
 // the window's Save writes them. The help of each field is
-// its tooltip, shared with its caption; a wrong field's tooltip ends with
-// "⚠ message" (Tk's voicings page).
+// its tooltip, shared with its caption; a field with a range adds it as a
+// muted line ("Range 5–24", the schema's `range`), and a wrong field's
+// tooltip ends with "⚠ message" (Tk's voicings page).
 //
 // A switch (`bool`) is a row of the number grid: its caption in the label
 // column and the switch alone at the right, where the number fields end, so
@@ -47,10 +48,11 @@ ColumnLayout {
     // --- Pieces ---------------------------------------------------------------------------
     component Caption: Label {
         property string tip: ""
+        property string range: ""
         HoverHandler { id: capHover }
         ToolTip.visible: capHover.hovered && tip !== ""
         ToolTip.delay: 600
-        ToolTip.text: FormTips.tip(tip, "")
+        ToolTip.text: FormTips.tip(tip, "", range, Theme.muted)
     }
     component Hint: Label {
         color: Theme.muted; font: Theme.fontS
@@ -85,6 +87,7 @@ ColumnLayout {
                 shown: vform.values[fi.field.id]
                 error: vform.err(fi.field.id)
                 tip: fi.field.help || ""
+                range: fi.field.range || ""
                 from: fi.field.min !== undefined ? fi.field.min : -1000000
                 to: fi.field.max !== undefined ? fi.field.max : 1000000
                 stepSize: fi.field.step || 1
@@ -156,6 +159,7 @@ ColumnLayout {
                             objectName: "caption:" + row.modelData.id
                             text: row.modelData.label
                             tip: row.modelData.help || ""
+                            range: row.modelData.range || ""
                             font: Theme.fontMedium
                         }
                         FieldInput {
@@ -196,6 +200,7 @@ ColumnLayout {
                     objectName: "caption:" + cell.modelData.id
                     text: cell.modelData.label
                     tip: cell.modelData.help || ""
+                    range: cell.modelData.range || ""
                     elide: Text.ElideRight
                     Layout.fillWidth: true
                 }
@@ -330,6 +335,7 @@ ColumnLayout {
                     required property int index
                     text: modelData.label
                     tip: modelData.help || ""
+                    range: modelData.range || ""
                     font: Theme.fontStrongS
                     color: Theme.muted
                     wrapMode: Text.Wrap
@@ -377,6 +383,7 @@ ColumnLayout {
                             shown: tc.off ? "" : tc.record[tc.column.id]
                             error: tc.off ? "" : vform.err(tc.path)
                             tip: tc.column.help || ""
+                            range: tc.column.range || ""
                             from: tc.column.min; to: tc.column.max; stepSize: tc.column.step || 1
                             onEdited: (t) => vform.settings.setCell(table.field.id, tc.row, tc.column.id, t, false)
                         }

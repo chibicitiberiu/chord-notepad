@@ -10,6 +10,7 @@ the form's fields are found by walking the visual tree (:func:`find`).
 """
 
 import json
+import re
 
 import pytest
 
@@ -52,6 +53,12 @@ def tooltip(quick_item):
 
 def escaped(text):
     return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\n", "<br>")
+
+
+def range_line(tip):
+    """The muted range line of a field's tooltip ("Range 5–24"), or None."""
+    found = re.search(r"<br><font color='#[0-9a-f]{6}'>(Range [^<]*)</font>", tip or "")
+    return found.group(1) if found else None
 
 
 def click(window, quick_item):
@@ -656,7 +663,9 @@ def test_a_wrong_field_is_marked_with_its_message_and_save_refuses_it(settings):
     assert banner.isVisible()
     assert settings.item("voicingErrorsText").property("text").startswith(EDITOR_TEXTS["errors_banner"])
     # Tk's mark: the field's help, then "⚠ message".
-    assert tooltip(field) == escaped(TOOLTIPS["max_span"]) + "<br><br>⚠ Must be a whole number"
+    assert tooltip(field).startswith(escaped(TOOLTIPS["max_span"]) + "<br><font")
+    assert tooltip(field).endswith("</font><br><br>⚠ Must be a whole number")
+    assert range_line(tooltip(field)) == "Range 1–8"
     settings.key(Qt.Key.Key_Return)
     assert "New voicing" in settings.editor("invalid")
     # Save: the session refuses, names it and selects it; the window stays.
@@ -673,12 +682,41 @@ def test_a_wrong_field_is_marked_with_its_message_and_save_refuses_it(settings):
 def test_captions_share_their_fields_help(settings):
     settings.add_voicing()
     field = settings.item("field:max_fret")
-    assert tooltip(field) == escaped(TOOLTIPS["max_fret"])
+    assert tooltip(field).startswith(escaped(TOOLTIPS["max_fret"]) + "<br>")
     assert tooltip(settings.item("caption:max_fret")) == tooltip(field)
     # A switch's label is a caption, as the number fields have.
     assert settings.item("caption:allow_barres").property("text") == "Allow barre chords"
     assert settings.item("field:allow_barres").property("text") == ""
     assert tooltip(settings.item("caption:allow_barres")) == escaped(TOOLTIPS["allow_barres"])
+
+
+def test_number_fields_show_their_range_weights_dont(settings):
+    settings.add_voicing()
+    for name, expected in [("max_fret", "Range 5–24"), ("fingers", "Range 1–5"),
+                           ("max_span", "Range 1–8"), ("relaxed_span", "Range 1–10")]:
+        assert range_line(tooltip(settings.item(f"field:{name}"))) == expected, name
+        assert range_line(tooltip(settings.item(f"caption:{name}"))) == expected, name
+    for name in ("field:weight:barre_penalty", "field:tuning", "caption:weight:barre_penalty"):
+        assert range_line(tooltip(settings.item(name))) is None, name
+    settings.model.setModel("piano")
+    settings.qtbot.waitUntil(lambda: settings.editor("model") == "piano", timeout=2000)
+    settings.wait(50)
+    assert range_line(tooltip(settings.item("field:hand_span"))) == "Range 1–24"
+    assert range_line(tooltip(settings.item("field:rh_center"))) == "Range 0–127"
+    assert range_line(tooltip(settings.item("field:nested:omit:root"))) is None
+    settings.model.setModel("ensemble")
+    settings.qtbot.waitUntil(lambda: settings.editor("model") == "ensemble", timeout=2000)
+    settings.wait(50)
+    assert range_line(tooltip(settings.item("cell:voice:0:gap"))) == "Range 1–127"
+    assert range_line(tooltip(settings.item("field:movement"))) is None
+
+
+def test_range_text_comes_from_the_schema_limits():
+    assert settings_window.range_text({"id": "max_fret", "min": 5, "max": 24}) == "Range 5–24"
+    assert settings_window.range_text({"id": "rh_center", "min": 0, "max": 127.0}) == "Range 0–127"
+    assert settings_window.range_text({"id": "weight:barre_penalty", "min": -100, "max": 100}) == ""
+    assert settings_window.range_text({"id": "nested:omit:root", "min": -100, "max": 100}) == ""
+    assert settings_window.range_text({"id": "tuning", "min_items": 3, "max_items": 12}) == ""
 
 
 def scene_box(item):

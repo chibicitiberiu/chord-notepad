@@ -72,6 +72,52 @@ READ_ONLY_REFUSED = frozenset((
 AUTO_DRIVER_LABEL = "Auto"
 
 
+#: A number field's range, the muted second line of its tooltip.
+RANGE_TEXT = "Range {low}\u2013{high}"
+
+#: Field id prefixes of the weights (``settings_forms.voicing_form``): their
+#: min and max only bound the spinner, so their tooltips show no range.
+WEIGHT_PREFIXES = ("weight:", "nested:")
+
+
+def range_text(field: Dict[str, Any]) -> str:
+    """The range line of a voicing form field's tooltip ("Range 5\u201324"):
+    a field with the schema's ``min`` and ``max``, weights left out; ""
+    for any other."""
+    if field.get("min") is None or field.get("max") is None:
+        return ""
+    if str(field.get("id", "")).startswith(WEIGHT_PREFIXES):
+        return ""
+    return RANGE_TEXT.format(low=f"{field['min']:g}", high=f"{field['max']:g}")
+
+
+def with_ranges(schema: Any) -> Any:
+    """The editor schema with each field's :func:`range_text` as ``range``
+    (records columns too), for the tooltips."""
+    if not isinstance(schema, dict):
+        return schema
+    schema = copy.deepcopy(schema)
+
+    def mark(field: Dict[str, Any]) -> None:
+        field["range"] = range_text(field)
+        for column in field.get("columns") or []:
+            mark(column)
+
+    def walk(section: Dict[str, Any]) -> None:
+        for field in section.get("fields") or []:
+            mark(field)
+        for row in section.get("rows") or []:
+            for field in row.get("fields") or []:
+                mark(field)
+        for group in section.get("groups") or []:
+            walk(group)
+
+    for form in (schema.get("forms") or {}).values():
+        for section in form.get("sections") or []:
+            walk(section)
+    return schema
+
+
 def font_families(current: str) -> List[str]:
     """The font families to offer, sorted without regard to case.
 
@@ -407,7 +453,8 @@ class SettingsModel(QObject):
         return self._schema
 
     #: ``voicing_form.editor_schema`` for this platform: ``models``,
-    #: ``tree_groups``, ``texts``, ``help``, ``forms``.
+    #: ``tree_groups``, ``texts``, ``help``, ``forms`` (each field with its
+    #: tooltip's ``range`` line, :func:`range_text`).
     schema = Property("QVariant", _get_schema, notify=schemaChanged)
 
     @Slot(str)
@@ -547,7 +594,7 @@ class SettingsModel(QObject):
 
     def _on_event(self, type_name: str, data: Any) -> None:
         if type_name == "VoicingEditorSchema":
-            self._schema = data.get("schema")
+            self._schema = with_ranges(data.get("schema"))
             self.schemaChanged.emit()
 
     def _on_state(self, type_name: str) -> None:
