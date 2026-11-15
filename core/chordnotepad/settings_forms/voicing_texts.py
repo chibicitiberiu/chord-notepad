@@ -41,6 +41,7 @@ ENSEMBLE_WEIGHT_LABELS: Dict[str, str] = {
     'range_comfort_penalty': 'Out-of-comfort range',
     'unison_penalty': 'Unison between voices',
     'upper_spacing_penalty': 'Wide upper spacing',
+    'same_bass_penalty': 'Same chord, same bass',
 }
 
 PIANO_WEIGHT_LABELS: Dict[str, str] = {
@@ -261,6 +262,10 @@ TOOLTIPS: Dict[str, str] = {
                                      "semitones) between two neighbouring voices above the bass, "
                                      "per semitone beyond it. More negative favors closer "
                                      "spacing above the bass."),
+    'weight:same_bass_penalty': ("How the picker treats two neighbouring chords that are the same "
+                                 "chord over different written basses (C and C/E) but would sound "
+                                 "the same lowest note. More negative keeps a plain chord next to "
+                                 "its slash chord on its own root."),
 
     # Piano hands & range.
     'lh_range_low': "Lowest note the left hand may play (note name or MIDI number).",

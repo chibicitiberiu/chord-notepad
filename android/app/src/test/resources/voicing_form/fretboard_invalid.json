@@ -9,6 +9,13 @@
   "form_errors": [],
   "groups": [
    {
+    "builtins": [
+     "Guitar (Standard - EADGBE)",
+     "Guitar (Drop D)",
+     "Guitar (DADGAD)",
+     "Guitar (Open G)",
+     "Ukulele"
+    ],
     "label": "Fretboard",
     "model": "fretboard",
     "names": [
@@ -16,11 +23,20 @@
     ]
    },
    {
+    "builtins": [
+     "Piano (default)"
+    ],
     "label": "Piano",
     "model": "piano",
     "names": []
    },
    {
+    "builtins": [
+     "Choir (SATB)",
+     "Male Choir (TTBB)",
+     "Treble Choir (SSA)",
+     "String Quartet"
+    ],
     "label": "Ensemble",
     "model": "ensemble",
     "names": []
@@ -87,6 +103,7 @@
     "voicing": "New voicing"
    }
   ],
+  "read_only": false,
   "restored": false,
   "revision": 2,
   "selected": "New voicing",

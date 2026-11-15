@@ -68,3 +68,12 @@ def test_piano_texts():
     assert "4 semitones" in TOOLTIPS['weight:rh_low_interval_penalty']
     assert "fallback" in TOOLTIPS['rh_range_low']
     assert "slash" in TOOLTIPS['add_bass']
+
+
+def test_ensemble_same_bass_text_names_the_case():
+    # ensemble_voicer._score_transition: same chord, other written bass, same
+    # lowest pitch class.
+    from chordnotepad.settings_forms.voicing_texts import ENSEMBLE_WEIGHT_LABELS
+    assert ENSEMBLE_WEIGHT_LABELS['same_bass_penalty'] == 'Same chord, same bass'
+    text = TOOLTIPS['weight:same_bass_penalty']
+    assert "C/E" in text and "lowest note" in text

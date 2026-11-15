@@ -11,16 +11,32 @@
   "form_errors": [],
   "groups": [
    {
+    "builtins": [
+     "Guitar (Standard - EADGBE)",
+     "Guitar (Drop D)",
+     "Guitar (DADGAD)",
+     "Guitar (Open G)",
+     "Ukulele"
+    ],
     "label": "Fretboard",
     "model": "fretboard",
     "names": []
    },
    {
+    "builtins": [
+     "Piano (default)"
+    ],
     "label": "Piano",
     "model": "piano",
     "names": []
    },
    {
+    "builtins": [
+     "Choir (SATB)",
+     "Male Choir (TTBB)",
+     "Treble Choir (SSA)",
+     "String Quartet"
+    ],
     "label": "Ensemble",
     "model": "ensemble",
     "names": [
@@ -97,6 +113,7 @@
     "voicing": "New voicing"
    }
   ],
+  "read_only": false,
   "restored": false,
   "revision": 6,
   "selected": "New voicing",
@@ -153,6 +170,7 @@
    "weight:octave_leap_penalty": "-6.0",
    "weight:parallel_perfect_penalty": "-25.0",
    "weight:range_comfort_penalty": "-0.5",
+   "weight:same_bass_penalty": "-5.0",
    "weight:seventh_resolution_bonus": "1.5",
    "weight:tritone_leap_penalty": "-3.0",
    "weight:unison_penalty": "-0.5",
