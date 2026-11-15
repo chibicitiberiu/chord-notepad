@@ -221,7 +221,7 @@ DocumentState(display_name, location, is_modified, title, document_id, read_only
 EditorState(font_family, font_size, read_only, notation, word_wrap)
 HighlightState(text_revision, client_token, spans)
 PlaybackState(status, playing_span, chord_index, bar, total_bars, playhead_offset,  # idle|playing|paused
-              beat, sections)
+              beat, sections, key, time_signature, tempo_clamped)       # in force at the chord sounding
 TimelineSection(label, first_bar, last_bar, repeat)
 ToolbarState(notation, bpm, bpm_display, bpm_editable, multiplier_pct, key, key_options,
              beats, unit, metronome, play_action,                       # play|pause|resume

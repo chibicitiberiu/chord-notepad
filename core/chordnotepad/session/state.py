@@ -126,6 +126,19 @@ class PlaybackState:
             appears once per pass). From the chord sheet's song, so empty
             until the sheet has rendered the song (it renders while it is
             shown) and for a song without chords. Kept while idle.
+        key: The key in force at the chord sounding, as the song or the
+            toolbar sets it (so in the song's notation: ``"G"``, ``"Sol"``,
+            as ``ToolbarState.key``), or None when none is set there. Idle: the
+            key the song starts in (as ``SongDefaultsState``: None when
+            neither the song nor the document sets one, though the toolbar
+            then shows its first key). Paused: the paused chord's.
+        time_signature: ``(beats, unit)`` in force at the chord sounding;
+            idle, the one the song starts with (``ToolbarState.beats`` and
+            ``unit``); paused, the paused chord's.
+        tempo_clamped: The clamped-tempo note while the tempo in force was
+            clamped by a relative change (``"Tempo clamped to 400 BPM at
+            line 5"``, as the status line has it), else None (always None
+            when idle).
 
     The effective tempo of the chord sounding is the toolbar's
     (``ToolbarState.bpm_display``).
@@ -139,6 +152,9 @@ class PlaybackState:
     playhead_offset: Optional[int] = None
     beat: int = 0
     sections: Tuple[TimelineSection, ...] = ()
+    key: Optional[str] = None
+    time_signature: Tuple[int, ...] = (4, 4)
+    tempo_clamped: Optional[str] = None
 
 
 class PlayAction(str, Enum):

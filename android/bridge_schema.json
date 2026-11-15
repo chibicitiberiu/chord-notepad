@@ -581,10 +581,13 @@
         "bar": "int",
         "beat": "int",
         "chord_index": "int|null",
+        "key": "str|null",
         "playhead_offset": "int|null",
         "playing_span": "Span|null",
         "sections": "list[TimelineSection]",
         "status": "PlaybackStatus",
+        "tempo_clamped": "str|null",
+        "time_signature": "list[int]",
         "total_bars": "int"
       },
       "kind": "state"

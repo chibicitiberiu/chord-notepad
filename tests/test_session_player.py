@@ -302,7 +302,8 @@ def test_desktop_opening_a_document_while_playing_stops():
     playing_mid_song(env, paused=False)
     open_other(env)
     assert env.main.is_playing is False
-    assert env.playback() == PlaybackState(PlaybackStatus.IDLE)
+    # Idle: the key other.txt starts in.
+    assert env.playback() == PlaybackState(PlaybackStatus.IDLE, key="G")
     assert env.status() == "Opened: other.txt"
     env.player.played.clear()
     env.session.play_pause()

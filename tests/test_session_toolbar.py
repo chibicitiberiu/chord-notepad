@@ -15,7 +15,7 @@ from chordnotepad.services.song_parser_service import SongParserService
 from chordnotepad.session import toolbar
 from chordnotepad.session.host import HostDispatch
 from chordnotepad.session.session import AppSession
-from chordnotepad.session.state import HighlightState, PlayAction, ToolbarState
+from chordnotepad.session.state import HighlightState, PlayAction, PlaybackState, ToolbarState
 from chordnotepad.session.testing import EventRecorder, FakePlayer, InMemoryDocumentStore, ManualHost
 from chordnotepad.viewmodels.main_window_viewmodel import MainWindowViewModel
 from chordnotepad.viewmodels.text_editor_viewmodel import TextEditorViewModel
@@ -261,7 +261,10 @@ def test_set_notation_respells_the_key_and_redetects():
     env.session.set_notation("european")
 
     kinds = [type(item).__name__ for item in env.recorder.items]
-    assert kinds == ["HighlightState", "EditorState", "ToolbarState", "SongDefaultsState"]
+    # PlaybackState: the starting key is respelled (idle, it carries it).
+    assert kinds == ["HighlightState", "EditorState", "PlaybackState", "ToolbarState",
+                     "SongDefaultsState"]
+    assert env.recorder.last(PlaybackState).key == "Sol"
     assert len(env.recorder.last(HighlightState).spans) == 2
     state = env.toolbar()
     assert (state.notation, state.key) == ("european", "Sol")
@@ -281,8 +284,8 @@ def test_convert_sends_the_edit_first_then_its_highlight_and_the_toolbar():
     env.recorder.clear()
     env.session.convert_notation("european")
     kinds = [type(item).__name__ for item in env.recorder.items]
-    assert kinds == ["TextEdited", "HighlightState", "EditorState", "ToolbarState",
-                     "SongDefaultsState", "StatusState"]
+    assert kinds == ["TextEdited", "HighlightState", "EditorState", "PlaybackState",
+                     "ToolbarState", "SongDefaultsState", "StatusState"]
     assert env.toolbar().key == "Fa"
 
 

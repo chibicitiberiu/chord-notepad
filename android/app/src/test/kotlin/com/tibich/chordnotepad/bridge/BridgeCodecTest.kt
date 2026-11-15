@@ -70,6 +70,23 @@ class BridgeCodecTest {
     }
 
     @Test
+    fun `playback state, the live song values`() {
+        val playing = decode<PlaybackState>(
+            "PlaybackState",
+            """{"status": "playing", "playing_span": null, "chord_index": 1, "bar": 2, "total_bars": 4,
+               "key": "Sol", "time_signature": [6, 8],
+               "tempo_clamped": "Tempo clamped to 400 BPM at line 5"}""",
+        )
+        assertEquals("Sol", playing.key)
+        assertEquals(listOf(6, 8), playing.timeSignature)
+        assertEquals("Tempo clamped to 400 BPM at line 5", playing.tempoClamped)
+        val idle = decode<PlaybackState>("PlaybackState", """{"status": "idle"}""")
+        assertEquals(null, idle.key)
+        assertEquals(listOf(4, 4), idle.timeSignature)
+        assertEquals(null, idle.tempoClamped)
+    }
+
+    @Test
     fun `toolbar, editor, status`() {
         val t = decode<ToolbarState>(
             "ToolbarState",

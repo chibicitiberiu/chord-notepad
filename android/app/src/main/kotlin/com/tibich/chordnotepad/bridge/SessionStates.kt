@@ -56,6 +56,12 @@ data class PlaybackState(
     val beat: Int = 0,
     /** The song's sections, bar 1 to the last bar; empty until the chord sheet rendered. */
     val sections: List<TimelineSection> = emptyList(),
+    /** The key in force at the chord sounding (idle: the song's starting key); null when unset. */
+    val key: String? = null,
+    /** `[beats, unit]` in force at the chord sounding (idle: the song's starting one). */
+    @SerialName("time_signature") val timeSignature: List<Int> = listOf(4, 4),
+    /** The clamped-tempo note while a clamped tempo plays, else null. */
+    @SerialName("tempo_clamped") val tempoClamped: String? = null,
 ) : SessionState
 
 /** What the Play/Pause button does when pressed. */

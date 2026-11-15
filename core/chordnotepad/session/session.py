@@ -3277,6 +3277,14 @@ class AppSession:
         setting = self._setting_directives()
         bpm = int(start.tempo.value)
         beats, unit = (int(v) for v in start.time.value.split("/"))
+        if idle:
+            # PlaybackState shows the song's starting key and time while
+            # nothing plays: an edit or a toolbar change moves them.
+            key = start.key.value or None
+            if (self._playback.key, self._playback.time_signature) != (key, (beats, unit)):
+                self._playback = dataclasses.replace(
+                    self._playback, key=key, time_signature=(beats, unit), tempo_clamped=None)
+                self._emitter.set_state(self._playback)
         self._emitter.set_state(ToolbarState(
             notation=notation,
             bpm=bpm,
@@ -3336,9 +3344,21 @@ class AppSession:
             return self._ping_bars.get(self._playhead, (0, 0))
         return 0, 0
 
+    def _start_song_values(self) -> Tuple[Optional[str], Tuple[int, int]]:
+        """The key (None: unset) and time signature the song starts with,
+        as the toolbar's (``ToolbarState``) come from."""
+        start = self._song_defaults()
+        beats, unit = (int(v) for v in start.time.value.split("/"))
+        return start.key.value or None, (beats, unit)
+
     def _publish_playback(self, playback: PlaybackState) -> None:
         playback = dataclasses.replace(playback, playhead_offset=self._playhead,
                                        sections=self._sections)
+        if playback.status is PlaybackStatus.IDLE:
+            # Nothing sounds: the values the song starts with.
+            key, time_signature = self._start_song_values()
+            playback = dataclasses.replace(playback, key=key, time_signature=time_signature,
+                                           tempo_clamped=None)
         self._playback = playback
         if playback.status is PlaybackStatus.IDLE:
             self._effective_bpm = None
@@ -3522,6 +3542,9 @@ class AppSession:
                 self._playhead = chord.start
                 self._playhead_pass = start_pass
                 self._publish_chord_sheet()
+        time_signature = self._playback.time_signature
+        if event.time_signature_beats and event.time_signature_unit:
+            time_signature = (int(event.time_signature_beats), int(event.time_signature_unit))
         self._publish_playback(dataclasses.replace(
             self._playback,
             playing_span=Span(chord.start, chord.end, SpanKind.CHORD),
@@ -3529,6 +3552,10 @@ class AppSession:
             bar=bar,
             beat=_beat_number(beat),
             total_bars=event.total_bars,
+            key=event.key or None,
+            time_signature=time_signature,
+            tempo_clamped=(formatting.tempo_clamped_warning(*event.tempo_clamp)
+                           if event.tempo_clamp else None),
         ))
         if self._android:
             self._set_status(formatting.with_tempo_clamp(formatting.position_status(

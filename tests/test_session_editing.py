@@ -98,6 +98,8 @@ def test_golden_transpose_is_one_grouped_edit_then_immediate_spans_and_key_shift
     assert env.recorder.compact() == [
         ("TextEdited", 2, 0, 12, "D A\nla la\nBm", "group", 0),
         ("HighlightState", 2, 0, (chord(0, 1), chord(2, 3), chord(10, 12))),
+        # The key the song starts in moved (idle, PlaybackState carries it).
+        ("PlaybackState", "idle", None, None, 0, 0, None, 0, ()),
         # The toolbar key moved with the song.
         ("ToolbarState", "american", 120, 120, True, 100.0, "D", 4, 4, False, "play", None, None, None),
         # So did the song's starting key.
