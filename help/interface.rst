@@ -38,7 +38,7 @@ The User Interface
    .. platform-figure:: play-window-labeled
       :platforms: desktop
       :alt: The Play workspace while a song plays, with numbered callouts on
-            the player bar: 1 the song's name and values, 2 back to the start,
+            the player bar: 1 the song's values, 2 back to the start,
             3 play and pause, 4 stop, 5 the timeline, 6 the position, 7 the
             voicing, 8 the instrument, 9 the speed, 10 the metronome, 11 the
             volume, and 12 the chord sheet's views.

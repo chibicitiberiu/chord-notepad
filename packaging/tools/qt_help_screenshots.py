@@ -407,7 +407,7 @@ def _edit_window(sc: Scene):
 
 
 @shot("play-window-labeled", "getting started", "Play mode while a song plays, numbered.",
-      callouts=[(1, "titleBlock", 0.5, 1.0, "playerBar"), (2, "prevButton", 0.5, 1.0, "playerBar"),
+      callouts=[(1, "songValues", -0.12, 0.5, "playerBar"), (2, "prevButton", 0.5, 1.0, "playerBar"),
                 (3, "playButton", 0.5, 1.0, "playerBar"), (4, "stopButton", 0.5, 1.0, "playerBar"),
                 (5, "timeline", 0.5, 1.0, "playerBar"), (6, "position", 0.5, 1.0, "playerBar"),
                 (7, "voicingTip", 0.5, 1.0, "playerBar"), (8, "instrumentButton", 0.5, 1.0, "playerBar"),
