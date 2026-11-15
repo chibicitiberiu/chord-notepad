@@ -147,9 +147,10 @@ The User Interface
    **⏮** goes back to the start of the song, and keeps playing if the song was
    playing. **▶** plays from the **playhead**, the small marker in the text
    (see below); it shows ⏸ while playing, and then pauses. **Shift+click**
-   on ▶ plays from the text cursor instead. **⏹** stops playback and
-   silences any notes still ringing. The keyboard has **F5** for play and
-   pause and **Shift+F5** for stop and rewind.
+   on ▶ plays from the text cursor instead. **⏹** stops playback, puts the
+   playhead back on the first chord and silences any notes still ringing.
+   The keyboard has **F5** for play and pause and **Shift+F5** for stop and
+   rewind.
 
    The **position**, for example ``5:2``, is the bar and beat of the song,
    counted from the top.

@@ -48,6 +48,12 @@ def pick(variants: Mapping[str, T], platform: str) -> T:
 #: keeps starting at the top.
 TRACKS_PLAYHEAD = {DESKTOP: False, ANDROID: True, DESKTOP_QT: True}
 
+#: Whether Stop also puts the playhead back on the first chord, so Stop is
+#: "pause and go to the beginning" and ▶ then plays from the top. The Qt
+#: desktop's (Tibi, 2026-11-15); Android's Stop leaves the playhead where
+#: playback was, and the Tk desktop has no playhead.
+STOP_REWINDS = {DESKTOP: False, ANDROID: False, DESKTOP_QT: True}
+
 #: Whether ``PlaybackState.bar`` and ``beat`` (and the desktop's "Bar n/N"
 #: status) count from the top of the song. Android's status and the Qt
 #: desktop's timeline do; the Tk desktop's status restarts at bar 1 where

@@ -46,7 +46,7 @@ from chordnotepad.models.notation import Notation
 from chordnotepad.models.playback_event import PlaybackEventArgs, PlaybackEventType
 from chordnotepad.session import directives, errors, formatting, quick_start, song_defaults, support, toolbar
 from chordnotepad.session.platform import (
-    ANDROID, COUNTS_SONG_BARS, DESKTOP, TRACKS_PLAYHEAD, check_platform, pick,
+    ANDROID, COUNTS_SONG_BARS, DESKTOP, STOP_REWINDS, TRACKS_PLAYHEAD, check_platform, pick,
 )
 from chordnotepad.session.audio_policy import AudioFailurePolicy
 from chordnotepad.session.emitter import Emitter, Listener
@@ -371,6 +371,7 @@ class AppSession:
         # top). Kept on a chord across edits; on Android it also follows
         # playback and taps (TRACKS_PLAYHEAD).
         self._tracks_playhead = pick(TRACKS_PLAYHEAD, self._platform)
+        self._stop_rewinds = pick(STOP_REWINDS, self._platform)
         self._playhead: Optional[int] = None
         # PlaybackState.bar/beat from the top of the song (COUNTS_SONG_BARS).
         self._song_bars = pick(COUNTS_SONG_BARS, self._platform)
@@ -1171,9 +1172,13 @@ class AppSession:
         """Stop playback (also silences notes still ringing when idle).
 
         The playhead stays where it is (on the chord that was sounding when
-        it follows playback).
+        it follows playback), except on the Qt desktop, where it goes back to
+        the first chord (``STOP_REWINDS``).
         """
         self._main.stop_playback()
+        if self._stop_rewinds:
+            chord = first_chord(self._detector.detected_lines)
+            self._move_playhead(chord.start if chord is not None else None)
         if self._android:
             self._set_idle_status()
         else:

@@ -13,7 +13,7 @@ import pytest
 
 from chordnotepad.session import quick_start
 from chordnotepad.session.platform import (
-    ANDROID, DESKTOP, DESKTOP_QT, PLATFORMS, TRACKS_PLAYHEAD, check_platform, pick,
+    ANDROID, DESKTOP, DESKTOP_QT, PLATFORMS, STOP_REWINDS, TRACKS_PLAYHEAD, check_platform, pick,
 )
 from chordnotepad.session.state import PlaybackStatus
 from tests.test_session_player import Env, named_strip_song
@@ -25,6 +25,7 @@ def test_desktop_qt_is_a_platform_of_its_own():
     # Texts without a Qt variant are the desktop's.
     assert pick({DESKTOP: 1, ANDROID: 2}, DESKTOP_QT) == 1
     assert TRACKS_PLAYHEAD == {DESKTOP: False, ANDROID: True, DESKTOP_QT: True}
+    assert STOP_REWINDS == {DESKTOP: False, ANDROID: False, DESKTOP_QT: True}
 
 
 # -- the playhead -------------------------------------------------------------------
@@ -79,7 +80,7 @@ def test_shift_play_starts_at_the_cursor():
     assert env.playhead() == 16
 
 
-def test_stop_and_pause_keep_the_playhead_and_rewind_resets_it():
+def test_pause_keeps_the_playhead_stop_and_rewind_reset_it():
     env = Env(DESKTOP_QT, auto_play=False)
     env.session.play_pause()
     env.rendered()
@@ -88,12 +89,33 @@ def test_stop_and_pause_keep_the_playhead_and_rewind_resets_it():
     env.session.play_pause()
     assert env.status() == "Paused playback"
     assert env.playhead() == 4
-    env.session.stop()
-    assert env.status() == "Stopped playback"
-    assert env.playhead() == 4
     env.session.rewind()
     assert env.playhead() == 0
     assert env.status() == "Ready"
+
+
+@pytest.mark.parametrize("paused", [False, True])
+def test_stop_is_pause_and_back_to_the_beginning(paused):
+    # Tibi, 2026-11-15: Stop is "pause + go to beginning", not "stay on the
+    # chord that was sounding" (Android's rule, STOP_REWINDS).
+    env = Env(DESKTOP_QT, auto_play=False)
+    env.session.play_pause()
+    env.rendered()
+    env.player.play(2)
+    env.host.run_pending()
+    if paused:
+        env.session.play_pause()
+    assert env.playhead() == 4
+    env.session.stop()
+    assert env.status() == "Stopped playback"
+    assert env.playback().status is PlaybackStatus.IDLE
+    assert env.playhead() == 0
+    # ▶ then plays from the top.
+    env.session.play_pause()
+    env.rendered()
+    env.player.play(1)
+    env.host.run_pending()
+    assert env.first_played_chord() == "C"
 
 
 def test_a_click_while_playing_seeks_there():
