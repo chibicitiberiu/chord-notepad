@@ -14,7 +14,7 @@ import CNSheet
 // Everything comes from ChordSheetState: the views and why the fretted
 // ones are off (a disabled tab's tooltip), the zoom (the core's rules:
 // ×1.2 a step, 50-250%, per view, kept; none on the piano roll), what plays
-// (`current_index`, the yellow column) and the playhead's chord
+// (`current_index`, the playing column: an accent tint over it) and the playhead's chord
 // (`cursor_index`, the edge mark). A tab sends set_chord_sheet_view only
 // when clicked, so a view the core falls back to (Fret cards on a piano
 // voicing) isn't kept as the user's choice. A click on a chord sends

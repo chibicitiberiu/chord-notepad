@@ -689,6 +689,39 @@ def test_the_playing_column_is_highlighted_and_followed(sh):
     sh.qtbot.waitUntil(lambda: view.property("playingIndex") == -1, timeout=2000)
 
 
+def test_the_playing_column_is_a_tint_over_the_notes(sh):
+    # Tibi: the highlight is an overlay; the black-key rows and the bars
+    # must not cut stripes through it. A note bar in the playing column
+    # takes the tint too, and it is the accent's.
+    sh.to_play(1400)
+    sh.wait_sheet("keyboard")
+    view, sheet = sh.view, sh.model.sheet
+    accent = sh.theme().property("accent")
+    tint = view.property("playingColor")
+    assert (tint.red(), tint.green(), tint.blue()) == (accent.red(), accent.green(), accent.blue())
+    assert 0.1 <= tint.alphaF() <= 0.25
+    x, w = sheet.slot(1)
+    bar = next(item[1] for item in sheet.content.items
+               if item[0] == sheet_paint.K_RRECT and x <= item[1].left() and item[1].right() <= x + w)
+    o = view.mapToScene(QPointF(0, 0))
+    point = QPointF(o.x() + sheet.gutter_width + bar.center().x() - view.property("scrollX"),
+                    o.y() + sheet.lane_height + bar.center().y())
+    scale = sh.grab().width() / sh.window.width()
+
+    def sample():
+        sh.run(50)
+        return sh.grab().pixelColor(int(point.x() * scale), int(point.y() * scale))
+
+    view.setProperty("playingIndex", -1)
+    plain = sample()
+    view.setProperty("playingIndex", 1)
+    tinted = sample()
+    assert tinted != plain
+    # Mixed toward the accent, and still the bar's colour more than the tint's.
+    assert abs(tinted.hueF() - plain.hueF()) < 0.1 or plain.saturationF() < 0.1
+    assert abs(tinted.lightnessF() - plain.lightnessF()) < 0.15
+
+
 def test_the_playing_column_repaint_is_partial(sh):
     sh.to_play(1400)
     sh.wait_sheet()

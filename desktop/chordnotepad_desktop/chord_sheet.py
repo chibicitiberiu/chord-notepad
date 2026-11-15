@@ -18,8 +18,8 @@ makes through Chaquopy). ``ChordSheetState`` says when to fetch again
   B3).
 * :class:`SheetView` (``CNSheet.SheetView`` in QML): a viewport-sized
   QQuickPaintedItem. It paints only what the viewport shows: the marker
-  lane on top, the playing column, the content, the playhead's edge mark,
-  and the frozen gutter on the left with its own variant for the scroll
+  lane on top, the content, the playhead's edge mark, the playing column
+  (a translucent tint over the content), and the frozen gutter on the left with its own variant for the scroll
   position. Scrolling is a property (the wheel and the scroll bar set it);
   following playback uses the core's rule
   (``ChordSheetViewModel.scroll_target``: keep the chord between 25% and
@@ -563,17 +563,15 @@ class SheetView(QQuickPaintedItem):
             p.translate(origin, 0)
             painter.draw(p, sheet.lane.visible(left, right))
             p.translate(0, lane)
-            playing = sheet.slot(self._playing)
-            if playing is not None:
-                p.setPen(Qt.PenStyle.NoPen)
-                p.setBrush(self._playing_color)
-                p.drawRoundedRect(QRectF(playing[0], 2, playing[1], sheet.content_height - 4), 6, 6)
             painter.draw(p, sheet.content.visible(left, right))
+            playing = sheet.slot(self._playing)
             edge = sheet.slot(self._cursor) if playing is None else None
             if edge is not None:
                 p.setPen(Qt.PenStyle.NoPen)
                 p.setBrush(self._edge_color)
                 p.drawRoundedRect(QRectF(edge[0], 2, 3, sheet.content_height - 4), 1.5, 1.5)
+            if playing is not None:
+                self._paint_playing(p, playing, sheet.content_height)
             p.restore()
 
         variant = sheet.gutter_at(self._scroll)
@@ -598,6 +596,28 @@ class SheetView(QQuickPaintedItem):
         self.last_paint_ops = painter.drawn
         self.last_paint_ms = (time.perf_counter() - start) * 1000
         self.paints += 1
+
+    #: The playing column's corner radius and its accent edges' thickness
+    #: (item units; 0: no edges).
+    PLAYING_RADIUS = 6.0
+    PLAYING_EDGE = 2.0
+
+    def _paint_playing(self, p: QPainter, slot: Tuple[float, float], height: float) -> None:
+        """The playing column: a translucent tint over everything the
+        content drew there (rows, bars, staff, cards, numbers), so nothing
+        cuts through it."""
+        x, w = slot
+        rect = QRectF(x, 2, w, height - 4)
+        p.setPen(Qt.PenStyle.NoPen)
+        p.setBrush(self._playing_color)
+        p.drawRoundedRect(rect, self.PLAYING_RADIUS, self.PLAYING_RADIUS)
+        if self.PLAYING_EDGE > 0:
+            edge = QColor(self._playing_color)
+            edge.setAlphaF(min(1.0, edge.alphaF() * 4))
+            p.setBrush(edge)
+            e = self.PLAYING_EDGE
+            p.drawRoundedRect(QRectF(x + 1, 2, w - 2, e), e / 2, e / 2)
+            p.drawRoundedRect(QRectF(x + 1, height - 2 - e, w - 2, e), e / 2, e / 2)
 
     #: How far the soft shadow reaches over the content, in item units.
     EDGE_SHADOW = 6.0

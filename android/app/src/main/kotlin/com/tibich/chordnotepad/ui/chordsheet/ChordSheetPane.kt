@@ -427,10 +427,15 @@ private fun ChordSheetStrip(
     }
 }
 
+/** The playing column's top and bottom edges: thickness (dp) and alpha, as a multiple of the tint's. */
+private const val PLAYING_EDGE_DP = 2f
+private const val PLAYING_EDGE_ALPHA = 4f
+
 /**
- * Lane, highlight and content ops for the visible range, at scroll offset
- * [scrollPx]: the playing column behind the chord sounding, else a primary
- * edge on the left of the playhead's chord ([cursorIndex]).
+ * Lane, content and highlight ops for the visible range, at scroll offset
+ * [scrollPx]: the playing column as a tint over the chord sounding (on top of
+ * its content, so nothing cuts through it), else a primary edge on the left
+ * of the playhead's chord ([cursorIndex]).
  */
 private fun DrawScope.drawStrip(
     sheet: PreparedSheet,
@@ -453,12 +458,19 @@ private fun DrawScope.drawStrip(
         with(painter) {
             drawOps(sheet.lane, palette, left, right, density)
             translate(top = buffer.laneHeight) {
-                currentIndex?.let(buffer::slotFor)?.let { slot ->
-                    drawRoundRect(playingColor, Offset(slot.x, 2f), Size(slot.width, buffer.contentHeight - 4f), CornerRadius(6f))
-                }
                 drawOps(sheet.content, palette, left, right, density)
                 cursorIndex?.let(buffer::slotFor)?.let { slot ->
                     drawRoundRect(edgeColor, Offset(slot.x, 2f), Size(3f, buffer.contentHeight - 4f), CornerRadius(1.5f))
+                }
+                // The playing column: a tint over everything drawn there, with
+                // a stronger edge of the same colour at its top and bottom.
+                currentIndex?.let(buffer::slotFor)?.let { slot ->
+                    val h = buffer.contentHeight
+                    drawRoundRect(playingColor, Offset(slot.x, 2f), Size(slot.width, h - 4f), CornerRadius(6f))
+                    val edge = playingColor.copy(alpha = (playingColor.alpha * PLAYING_EDGE_ALPHA).coerceAtMost(1f))
+                    val e = PLAYING_EDGE_DP
+                    drawRoundRect(edge, Offset(slot.x + 1f, 2f), Size(slot.width - 2f, e), CornerRadius(e / 2))
+                    drawRoundRect(edge, Offset(slot.x + 1f, h - 2f - e), Size(slot.width - 2f, e), CornerRadius(e / 2))
                 }
             }
         }

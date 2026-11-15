@@ -56,7 +56,10 @@ data class AppColors(
     val comment: Color,
     val playing: Color,
     val editorText: Color,
-    /** The chord sheet's playing column (translucent yellow in both themes). */
+    /**
+     * The chord sheet's playing column: the primary colour as a translucent
+     * tint over the strip (the desktop's `Theme.sheetPlaying`).
+     */
     val sheetPlaying: Color,
 ) {
     companion object {
@@ -86,7 +89,7 @@ data class AppColors(
             comment = Color(0xFFBEBEBE),
             playing = Color(0xFFFFFF00),
             editorText = Color(0xFF000000),
-            sheetPlaying = Color(0x73FFEB3B),
+            sheetPlaying = Color(0x243F51B5),
         )
 
         /** The dark theme. */
@@ -114,7 +117,7 @@ data class AppColors(
             comment = Color(0xFF7F848F),
             playing = Color(0xFF5A4F00),
             editorText = Color(0xFFE3E4EB),
-            sheetPlaying = Color(0x2EFFEB3B),
+            sheetPlaying = Color(0x33B6C3FF),
         )
     }
 }

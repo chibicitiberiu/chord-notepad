@@ -10,7 +10,7 @@ import kotlin.math.min
 // and maps them for the dark one (docs/design/android-ui-spec.md, "Chord
 // sheet"): the strip takes the surface-low background, every second section
 // the surface2 one, the playing column is
-// translucent yellow, the hands' bars keep their blue and brown a little
+// a translucent primary tint, the hands' bars keep their blue and brown a little
 // lighter, neutral inks and grids flip their lightness, and the other
 // colours (voice parts, marker flags) are lifted to stay readable.
 

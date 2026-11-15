@@ -210,7 +210,8 @@ QtObject {
     readonly property color comment:          dark ? "#7f848f" : "#bebebe"
     readonly property color playing:          dark ? "#5a4f00" : "#ffff00"
     readonly property color selection:        dark ? "#3a4579" : "#cdd5f6"
-    readonly property color sheetPlaying:     dark ? "#2effeb3b" : "#73ffeb3b"
+    // The chord sheet's playing column: the accent as a tint over the strip.
+    readonly property color sheetPlaying:     Qt.rgba(accent.r, accent.g, accent.b, dark ? 0.20 : 0.14)
 
     readonly property int fast: 80
 
