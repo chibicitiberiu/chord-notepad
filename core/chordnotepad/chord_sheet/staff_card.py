@@ -2,11 +2,13 @@
 
 :class:`StaffCardRenderer` draws the whole song as a single continuous grand
 staff -- two 5-line staves (treble over bass) spanning the full strip width,
-joined at the left by a barline. Each sounding chord contributes its voiced
-notes as stemless **whole notes** (Bravura noteheads) at a duration-proportional
-slot; the chord symbol sits in a band above the treble staff. A rest (NC) draws
-a whole-bar rest on both staves in a slim slot. This replaces the
-old one-card-per-chord layout with a continuous lane like the tab view.
+joined at the left by the gutter's opening barline. Each sounding chord
+contributes its voiced notes as stemless **whole notes** (Bravura noteheads) at
+a duration-proportional slot; the chord symbol sits in a band above the treble
+staff, every name at one size on one baseline. A rest (NC) draws a whole-bar
+rest on both staves in a slim slot. Repeated passes carry repeat signs and the
+song ends with a final barline. This replaces the old one-card-per-chord
+layout with a continuous lane like the tab view.
 
 The renderer stays a pure function of ``(ctx, height)`` per the
 :class:`~chord_sheet.renderer_interface.StripRenderer` contract: all vertical
@@ -591,7 +593,7 @@ def _sign_strokes(sign: _Repeat, geom: "_Geometry") -> List[Tuple[str, float, fl
 
 def _sign_lead(sign: _Repeat, geom: "_Geometry") -> float:
     """Horizontal room a repeat sign takes before its slot, pads included."""
-    kind, x, width = _sign_strokes(sign, geom)[-1]
+    _, x, width = _sign_strokes(sign, geom)[-1]
     s = geom.staff_space
     return (_SIGN_PAD_BEFORE + _SIGN_PAD_AFTER) * s + x + width
 
@@ -715,9 +717,10 @@ class StaffCardRenderer(StripRenderer):
 
         Draws (in order) the strip background, both staves' lines across the
         gutter (they carry on into the content's at its right edge), the
-        system's opening bar line at its left edge, the two clefs, then the key signature for the key in effect
-        at the first chord whose slot is at-or-after ``scroll_x`` (empty song or
-        before the first chord -> the initial key). Coordinates are gutter-local.
+        system's opening bar line at its left edge, the two clefs, then the
+        key signature for the key in effect at the first chord whose slot is
+        at-or-after ``scroll_x`` (empty song or before the first chord -> the
+        initial key). Coordinates are gutter-local.
 
         Args:
             ops: Recorder to append draw ops to.
@@ -798,7 +801,7 @@ class StaffCardRenderer(StripRenderer):
         s = geom.staff_space
 
         # The staff lines start at the content's left edge, where the
-        # gutter's end, so the staff reads as one; the gutter draws the
+        # gutter's lines end, so the staff reads as one; the gutter draws the
         # system's opening bar line.
         x_left = 0.0
         x_right = max(x_left + 1.0, layout.width - STRIP_MARGIN)
