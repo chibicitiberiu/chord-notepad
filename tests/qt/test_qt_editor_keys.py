@@ -79,8 +79,6 @@ ZETA = TEXT.index("zeta")
 
 
 @pytest.mark.parametrize("anchor, pos, key, mods, expected", [
-    (2, ZETA + 2, K.Key_End, NONE, (ZETA + 4, ZETA + 4)),          # forward: the caret's line
-    (ZETA + 2, 2, K.Key_End, NONE, (10, 10)),                      # backward: the caret's (first) line
     (2, ZETA + 2, K.Key_End, SHIFT, (2, ZETA + 4)),
     (ZETA + 2, 2, K.Key_End, SHIFT, (ZETA + 2, 10)),
     (2, ZETA + 2, K.Key_Home, NONE, (ZETA, ZETA)),
@@ -91,6 +89,32 @@ def test_home_and_end_go_from_the_selections_moving_end(ed, anchor, pos, key, mo
     ed.area.select(anchor, pos)
     ed.key(key, mods)
     assert selection(ed) == expected
+
+
+@pytest.mark.parametrize("anchor, pos", [
+    (2, ZETA + 2), (ZETA + 2, 2),                      # across lines, both directions
+    (GAMMA + 1, GAMMA + 4), (GAMMA + 4, GAMMA + 1),    # inside one line
+])
+@pytest.mark.parametrize("wrapped", [False, True])
+def test_end_over_a_selection_goes_to_the_selections_end(ed, anchor, pos, wrapped):
+    # Tibi (2026-11-15): End with something selected puts the caret at the
+    # end of the selection, not at the end of the line.
+    song(ed, TEXT)
+    wrap(ed, wrapped)
+    ed.area.select(anchor, pos)
+    ed.key(K.Key_End)
+    end = max(anchor, pos)
+    assert selection(ed) == (end, end)
+    ed.key(K.Key_End)                                  # nothing selected now: the line's end
+    line_end = TEXT.index("\n", end)
+    assert selection(ed) == (line_end, line_end)
+
+
+def test_end_over_a_selection_on_the_keypad(ed):
+    song(ed, TEXT)
+    ed.area.select(ZETA + 2, 2)
+    ed.key(K.Key_End, KEYPAD)
+    assert selection(ed) == (ZETA + 2, ZETA + 2)
 
 
 def test_end_after_select_all_goes_to_the_last_line(ed):
@@ -145,8 +169,14 @@ def test_home_and_end_on_a_wrapped_line_stay_on_its_row(ed):
     ed.key(K.Key_End)
     assert a.positionToRectangle(caret(ed)).y() == row_y and caret(ed) > 200
     ed.area.select(10, 200)
+    ed.key(K.Key_End)                                 # a selection: its end, on that row
+    assert caret(ed) == 200 and a.property("selectedText") == ""
     ed.key(K.Key_End)
-    assert a.positionToRectangle(caret(ed)).y() == row_y
+    assert a.positionToRectangle(caret(ed)).y() == row_y and caret(ed) > 200
+    ed.area.select(10, 200)
+    ed.key(K.Key_End, SHIFT)                          # Shift: the row's end, still selecting
+    assert a.positionToRectangle(caret(ed)).y() == row_y and selection(ed)[0] == 10
+    assert caret(ed) > 200
 
 
 # -- Enter with modifiers -------------------------------------------------------------------

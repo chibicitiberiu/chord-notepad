@@ -588,6 +588,12 @@ Rectangle {
                     // Home: the first non-blank character, then the line's start.
                     event.accepted = true
                     pane.moveCaret(pane.editor.homePosition(area.cursorPosition), shift)
+                } else if (event.key === Qt.Key_End && mods === Qt.NoModifier
+                           && area.selectionStart !== area.selectionEnd) {
+                    // End over a selection: the caret at the selection's end
+                    // (the later of its two ends), not at the line's end.
+                    event.accepted = true
+                    pane.moveCaret(area.selectionEnd, false)
                 } else if ((event.key === Qt.Key_PageDown || event.key === Qt.Key_PageUp) && plain) {
                     event.accepted = true
                     pane.pageMove(event.key === Qt.Key_PageDown ? 1 : -1, shift)
