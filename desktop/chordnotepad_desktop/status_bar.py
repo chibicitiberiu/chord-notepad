@@ -41,13 +41,18 @@ The rest of the bar (plan step F4):
   characters (code points), updated with the hint's caret moves;
 * :attr:`notation`, the song's ("American" or "European", from
   ``EditorState.notation``);
-* :attr:`readOnlyNotice`, shown on the right while a song plays or is paused:
-  "Read-only while playing · Shift+F5 stops". An edit refused then (the
-  session's ``EditRefused``, or a key typed into the locked editor,
-  :meth:`StatusBarModel.refuseEdit`) turns it into the refusal (Q9),
-  :attr:`noticeWarning` set, until playback stops. Playback's own status
-  keeps the message on the left, so the refusal can't be overwritten by
-  the next chord.
+* :attr:`readOnlyNotice`, on the right, empty until an edit is refused while
+  a song plays or is paused (the session's ``EditRefused``, or a key typed
+  into the locked editor, :meth:`StatusBarModel.refuseEdit`): then the
+  refusal and how to stop (Q9), until playback stops. Nothing says
+  "read-only" before someone tries to edit (Tibi found the standing notice
+  an eyesore). Playback's own status keeps the message on the left, so the
+  refusal can't be overwritten by the next chord.
+
+Every cell has a fixed width, that of the widest text it is expected to
+show (:attr:`widest`, by cell kind; a segment's ``kind`` names its cell), so
+the bar doesn't shift as the chord, the bar number or the key change. A text
+wider than that still shows whole: the cell grows.
 """
 
 import logging
@@ -65,8 +70,23 @@ logger = logging.getLogger(__name__)
 HINT_DELAY_MS = 150
 #: How to stop, after the read-only notice and a refusal.
 STOP_HINT = "Shift+F5 stops"
-#: On the right while a song plays or is paused (the mockup's text).
+#: Why the locked text can't be edited. The status bar no longer shows it;
+#: the sidebars' tiles say it when they are locked.
 READ_ONLY_NOTICE = f"Read-only while playing · {STOP_HINT}"
+
+#: The widest texts each status bar cell is sized for, by cell kind (the
+#: cell takes the widest of them in its font). The chord and the key are the
+#: song's notation's (``WIDEST_EUROPEAN`` replaces theirs for European songs).
+WIDEST = {
+    "activity": ["Playing", "Paused"],
+    "chord": ["C#m7/G#"],
+    "bar": ["Bar 888 / 888"],
+    "tempo": ["888 bpm"],
+    "time": ["88/88"],
+    "key": ["Key C#m", "Key Bbm"],
+    "caret": ["Ln 8888, Col 888"],
+}
+WIDEST_EUROPEAN = {"chord": ["Do#m7/Sol#"], "key": ["Key Sol#m", "Key Solbm"]}
 
 
 def refused_notice(message: str) -> str:
@@ -213,7 +233,8 @@ class StatusBarModel(QObject):
     def _get_segments(self) -> list:
         return self._segments
 
-    #: The quiet segments, in order: dicts ``text``, ``warning``, ``tip``.
+    #: The quiet segments, in order: dicts ``kind`` (its cell in
+    #: :attr:`widest`), ``text``, ``warning``, ``tip``.
     segments = Property("QVariantList", _get_segments, notify=changed)
 
     def _get_line(self) -> int:
@@ -235,18 +256,20 @@ class StatusBarModel(QObject):
     notation = Property(str, _get_notation, notify=changed)
 
     def _get_notice(self) -> str:
-        if not self.line.playing:
+        if not self.line.playing or not self._refused:
             return ""
-        return refused_notice(self._refused) if self._refused else READ_ONLY_NOTICE
+        return refused_notice(self._refused)
 
-    #: The right-hand notice while a song plays or is paused; "" otherwise.
+    #: The refused edit (Q9) while a song plays or is paused; "" otherwise.
     readOnlyNotice = Property(str, _get_notice, notify=changed)
 
-    def _get_warning(self) -> bool:
-        return self.line.playing and bool(self._refused)
+    def _get_widest(self) -> dict:
+        if self._notation == "european":
+            return {**WIDEST, **WIDEST_EUROPEAN}
+        return dict(WIDEST)
 
-    #: The notice is a refused edit (shown as a warning).
-    noticeWarning = Property(bool, _get_warning, notify=changed)
+    #: The texts each cell is sized for, by kind (see :data:`WIDEST`).
+    widest = Property("QVariantMap", _get_widest, notify=changed)
 
     @Slot()
     def schedule(self) -> None:
@@ -341,17 +364,18 @@ class StatusBarModel(QObject):
         segments: List[dict] = []
         bar, total = playback.value("bar") or 0, playback.value("total_bars") or 0
         if activity and bar > 0 and total > 0:
-            segments.append({"text": f"Bar {bar} / {total}", "warning": False, "tip": ""})
+            segments.append({"kind": "bar", "text": f"Bar {bar} / {total}", "warning": False, "tip": ""})
         bpm = toolbar.value("bpm_display")
         if bpm:
             clamp = playback.value("tempo_clamped") or ""
-            segments.append({"text": f"{bpm} bpm", "warning": bool(clamp), "tip": clamp})
+            segments.append({"kind": "tempo", "text": f"{bpm} bpm", "warning": bool(clamp), "tip": clamp})
         beats_unit = playback.value("time_signature")
         if beats_unit and len(beats_unit) == 2:
-            segments.append({"text": f"{beats_unit[0]}/{beats_unit[1]}", "warning": False, "tip": ""})
+            segments.append({"kind": "time", "text": f"{beats_unit[0]}/{beats_unit[1]}", "warning": False,
+                             "tip": ""})
         key = playback.value("key") or toolbar.value("key")
         if key:
-            segments.append({"text": f"Key {key}", "warning": False, "tip": ""})
+            segments.append({"kind": "key", "text": f"Key {key}", "warning": False, "tip": ""})
         running = status == "playing"
         if (activity, name, segments, running) != (self._activity, self._chord_name,
                                                     self._segments, self._running):

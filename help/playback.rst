@@ -150,10 +150,10 @@ While playing:
 
 .. only:: desktop
 
-   * The text editor becomes **read-only** (you can't edit while playing).
-     Tools that change the text (Transpose, Suggest Capo, the notation
-     conversions, the Directives sidebar and the chord identifier) leave it
-     unchanged until you stop.
+   * The text editor becomes **read-only** (you can't edit while playing; if
+     you try, the status bar says so and how to stop). Tools that change the
+     text (Transpose, Suggest Capo, the notation conversions, the Directives
+     sidebar and the chord identifier) leave it unchanged until you stop.
    * The **current chord** is highlighted in yellow
    * The **status bar** shows the chord that is sounding, the bar, the tempo,
      the time signature and the key (see :ref:`playback-song-defaults`)

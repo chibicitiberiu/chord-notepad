@@ -565,16 +565,17 @@ The User Interface
    The strip along the bottom shows, on the left, messages ("Opened: ...",
    "Saved: ...", why something was refused) and the song's tempo, time
    signature and key. On the right it shows the line and column of the cursor
-   and the song's notation.
+   and the song's notation. Thin vertical lines separate the values, and
+   each keeps its place and width as the numbers change.
 
    While a song plays, the left side shows "Playing" and the chord that is
    sounding, with a coloured dot, then the bar ("Bar 2 / 125"), the tempo, the
    time signature and the key in force at that chord, so a key or tempo
    change in the middle of the song shows up as it plays. When the tempo was
    clamped by a relative change, the tempo is tinted and its tooltip says
-   where. Paused, the same shows without the dot. A small amber badge at the
-   right says "Read-only while playing · Shift+F5 stops"; typing into the
-   text then turns it red and says why nothing happens.
+   where. Paused, the same shows without the dot. The text can't be edited
+   until playback stops; if you try, a small red badge at the right says
+   "Stop playback to edit the song · Shift+F5 stops".
 
 .. only:: android
 

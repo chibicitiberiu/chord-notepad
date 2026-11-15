@@ -26,7 +26,7 @@ from PySide6.QtTest import QTest  # noqa: E402
 from chordnotepad.session import formatting, toolbar_texts  # noqa: E402
 from chordnotepad_desktop import chrome, files as files_module  # noqa: E402
 from chordnotepad_desktop.main import QML_DIR  # noqa: E402
-from chordnotepad_desktop.status_bar import READ_ONLY_NOTICE, refused_notice  # noqa: E402
+from chordnotepad_desktop.status_bar import WIDEST, refused_notice  # noqa: E402
 from tests.qt.test_qt_editor import CTRL, NO_MODIFIER, Editor, start  # noqa: E402
 from tests.qt.test_qt_value_picker import find, texts_shown  # noqa: E402
 
@@ -863,35 +863,34 @@ def test_the_notation_follows_the_song(app):
     app.qtbot.waitUntil(lambda: app.it("notationName").property("text") == "European", timeout=1000)
 
 
-def test_while_playing_the_bar_says_read_only_and_how_to_stop(app):
+def test_playing_says_nothing_about_read_only_until_an_edit_is_tried(app):
     app.harness.player.auto_play = False
     app.song()
     app.store.submit("play_pause", {"from_offset": None})
-    notice = app.it("readOnlyNotice")
-    app.qtbot.waitUntil(lambda: notice.property("visible") is True, timeout=3000)
-    assert notice.property("text") == READ_ONLY_NOTICE == "Read-only while playing · Shift+F5 stops"
+    app.qtbot.waitUntil(lambda: app.it("playingDot").property("opacity") == 1, timeout=3000)
+    assert app.it("readOnlyNotice").property("visible") is False
+    assert app.it("readOnlyBadge").property("visible") is False
+    assert status(app).readOnlyNotice == ""
     assert app.it("caretPosition").property("visible") is False
-    assert app.it("playingDot").property("visible") is True
-    assert status(app).noticeWarning is False
-    assert app.it("readOnlyBadge").property("visible") is True
     app.key(Qt.Key.Key_F5, SHIFT)
-    app.qtbot.waitUntil(lambda: notice.property("visible") is False, timeout=3000)
-    assert app.it("caretPosition").property("visible") is True
+    app.qtbot.waitUntil(lambda: app.it("caretPosition").property("visible") is True, timeout=3000)
 
 
 def test_an_edit_refused_while_playing_says_so_q9(app):
     app.harness.player.auto_play = False
     app.song()
     app.store.submit("play_pause", {"from_offset": None})
+    app.qtbot.waitUntil(lambda: status(app).playing, timeout=3000)
     notice = app.it("readOnlyNotice")
-    app.qtbot.waitUntil(lambda: notice.property("visible") is True, timeout=3000)
     app.trigger("toEuropeanAction")              # the session refuses it
-    app.qtbot.waitUntil(lambda: status(app).noticeWarning is True, timeout=2000)
+    app.qtbot.waitUntil(lambda: notice.property("visible") is True, timeout=2000)
     assert notice.property("text") == refused_notice(formatting.EDIT_REFUSED_MESSAGE)
+    assert notice.property("text") == "Stop playback to edit the song · Shift+F5 stops"
+    assert app.it("readOnlyBadge").property("visible") is True
     assert app.text() == SONG
     app.store.submit("stop")
     app.qtbot.waitUntil(lambda: notice.property("visible") is False, timeout=3000)
-    assert status(app).noticeWarning is False
+    assert status(app).readOnlyNotice == ""
 
 
 def test_typing_into_the_locked_text_says_why(app):
@@ -901,7 +900,7 @@ def test_typing_into_the_locked_text_says_why(app):
     app.qtbot.waitUntil(lambda: status(app).playing, timeout=3000)
     app.area.forceActiveFocus()
     app.type("x")
-    app.qtbot.waitUntil(lambda: status(app).noticeWarning is True, timeout=1000)
+    app.qtbot.waitUntil(lambda: app.it("readOnlyNotice").property("visible") is True, timeout=1000)
     assert app.text() == SONG
     app.store.submit("stop")
 
@@ -946,11 +945,11 @@ def test_paused_keeps_the_segments_without_the_dot(app):
     ping(app, 2)
     app.store.submit("play_pause", {"from_offset": None})         # pause
     app.qtbot.waitUntil(lambda: status(app).activity == "Paused", timeout=3000)
-    assert app.it("playingDot").property("visible") is False
+    assert app.it("playingDot").property("opacity") == 0          # its room stays
     assert app.it("activityLabel").property("text") == "Paused"
     assert app.it("chordName").property("text") == "G"
     assert segments(app) == ["Bar 2 / 8", "120 bpm", "4/4", "Key G"]
-    assert app.it("readOnlyNotice").property("visible") is True
+    assert app.it("readOnlyNotice").property("visible") is False
 
 
 def test_stopped_shows_the_core_message_then_the_song_values(app):
@@ -963,6 +962,71 @@ def test_stopped_shows_the_core_message_then_the_song_values(app):
     assert app.it("chordName").property("visible") is False
     assert segments(app) == ["120 bpm", "4/4", "Key G"]          # the song's starting values
     assert app.it("caretPosition").property("visible") is True
+
+
+def bar_items(app, name):
+    """The status bar's items named ``name``, visible ones, left to right
+    (Repeater delegates aren't QObject children, so walk the items)."""
+    found, todo = [], [app.it("statusBar")]
+    while todo:
+        item = todo.pop()
+        todo.extend(item.childItems())
+        if item.objectName() == name and item.isVisible():
+            found.append(item)
+    return sorted(found, key=lambda item: item.mapToScene(QPointF(0, 0)).x())
+
+
+def cell_edges(app):
+    return [(round(i.mapToScene(QPointF(0, 0)).x(), 1), round(i.width(), 1))
+            for i in bar_items(app, "segment")]
+
+
+def test_the_cells_keep_their_places_as_the_values_change(app):
+    app.harness.player.auto_play = False
+    app.song(KEYED)
+    ping(app, 2)                                   # G, bar 2, 4/4, Key G
+    chord = app.it("chordName")
+    before, chord_width = cell_edges(app), chord.width()
+    app.harness.player.play(3)                     # A, bar 5, 3/4, Key A
+    app.qtbot.waitUntil(lambda: status(app).chordName == "A", timeout=3000)
+    app.run(50)
+    assert segments(app) != ["Bar 2 / 8", "120 bpm", "4/4", "Key G"]
+    assert cell_edges(app) == before and chord.width() == chord_width
+    # "Paused" sits where "Playing" was, and the cells stay.
+    app.store.submit("play_pause", {"from_offset": None})
+    app.qtbot.waitUntil(lambda: status(app).activity == "Paused", timeout=3000)
+    app.run(50)
+    assert cell_edges(app) == before
+
+
+def test_each_cell_is_as_wide_as_its_widest_text(app):
+    app.song(KEYED)
+    widest = status(app).widest
+    assert widest == WIDEST
+    assert (widest["bar"], widest["tempo"], widest["time"], widest["key"]) == (
+        ["Bar 888 / 888"], ["888 bpm"], ["88/88"], ["Key C#m", "Key Bbm"])
+    # "4/4" is narrower than "88/88", yet its cell is as wide.
+    time = next(i for i in bar_items(app, "segment") if i.property("text") == "4/4")
+    assert time.width() > time.implicitWidth() + 1
+    app.click_item(app.it("notation:european"))
+    app.qtbot.waitUntil(lambda: status(app).widest["key"] == ["Key Sol#m", "Key Solbm"], timeout=1000)
+    assert status(app).widest["chord"] == ["Do#m7/Sol#"]
+
+
+def test_vertical_separators_part_the_cells(app):
+    app.harness.player.auto_play = False
+    app.song(KEYED)
+    # Idle: tempo | time | key ... Ln/Col | notation.
+    assert len(bar_items(app, "statusSeparator")) == 3
+    assert bar_items(app, "segmentDot") == []
+    ping(app, 2)
+    # Playing: activity | bar | tempo | time | key ... | notation (Ln/Col hidden).
+    app.qtbot.waitUntil(lambda: len(bar_items(app, "statusSeparator")) == 5, timeout=1000)
+    separator = bar_items(app, "statusSeparator")[0]
+    from PySide6.QtQml import qmlEngine
+    theme = qmlEngine(app.window).singletonInstance("CNTheme", "Theme")
+    assert separator.width() == pytest.approx(theme.property("hairline"))
+    assert separator.height() > app.it("statusBar").height() / 2
 
 
 def test_a_clamped_tempo_tints_the_tempo_and_carries_the_note(app):
