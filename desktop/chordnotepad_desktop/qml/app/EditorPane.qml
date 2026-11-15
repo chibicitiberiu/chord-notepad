@@ -13,7 +13,8 @@ import CNTheme
 // Paste goes through the bridge on every path, so the text is normalised:
 // Ctrl+V and Shift+Insert (Keys), the context menu, middle-click PRIMARY
 // (the MouseArea, which keeps the press from the TextArea's own paste) and
-// drag and drop (the DropArea, on top of the TextArea's own drop).
+// drag and drop (the DropArea, on top of the TextArea's own drop). A dragged
+// file isn't text: Main.qml's DropArea opens it, and the editor turns it down.
 //
 // Drag and drop from the sidebars (`dnd`, Main.qml's; the mockup's): a palette
 // tile or an identifier chord dragged over the text shows the drop caret
@@ -45,6 +46,8 @@ Rectangle {
     // The drag from the sidebars (Main.qml): its `accepting` is set here.
     required property var dnd
     property int dropPos: -1           // where a dragged tile or chord would go in, or -1
+    // FilesModel: a dragged file isn't text to insert (Main.qml's DropArea opens it).
+    property var files: null
     // "Type or paste a song here", shown while the text is empty.
     property string placeholder: ""
     // Play workspace: read-only (Ctrl+1 or the pencil goes back to Edit).
@@ -818,13 +821,14 @@ Rectangle {
                 objectName: "editorDrop"
                 anchors.fill: parent
                 function fromSidebar(d) { return d.keys.indexOf("snippet") >= 0 }
+                function isFile(d) { return pane.files !== null && d.hasUrls && pane.files.hasFiles(d.urls) }
                 function track(d) {
                     pane.dropPos = area.readOnly ? -1 : pane.editor.dropPosition(area.positionAt(d.x, d.y))
                     pane.dnd.accepting = !area.readOnly
                 }
                 onEntered: (drag) => {
                     if (fromSidebar(drag)) track(drag)
-                    else drag.accepted = drag.hasText && !area.readOnly
+                    else drag.accepted = drag.hasText && !area.readOnly && !isFile(drag)
                 }
                 onPositionChanged: (drag) => { if (fromSidebar(drag)) track(drag) }
                 onExited: { pane.dropPos = -1; pane.dnd.accepting = false }
@@ -838,7 +842,7 @@ Rectangle {
                         }
                         return
                     }
-                    if (!drop.hasText || area.readOnly) return
+                    if (!drop.hasText || area.readOnly || isFile(drop)) return
                     pane.editor.dropText(area.positionAt(drop.x, drop.y), drop.text)
                     drop.accept(Qt.CopyAction)
                     area.forceActiveFocus()

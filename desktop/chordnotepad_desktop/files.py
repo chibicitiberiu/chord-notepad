@@ -25,6 +25,13 @@ extension:
   only that name).
 * **One picker at a time:** a request that comes while one is open is
   answered "cancel" at once (Tk's portal dialog did the same).
+* **A file dropped on the window** (Main.qml's DropArea) opens as File ›
+  Open's choice would: :meth:`FilesModel.openPath`
+  sends ``open_document`` with its ref, so the session asks about unsaved
+  changes, reports a file it can't read and adds the file to the recent
+  list. Of several dropped files the first opens; :meth:`FilesModel.openDropped`
+  returns the status bar's note about the others. Only local files count
+  (:func:`dropped_paths`): a dropped web link stays text for the editor.
 
 No initial folder is set, as in Tk: the dialog starts where the platform's
 dialog starts.
@@ -82,6 +89,25 @@ def url_to_path(url: str) -> str:
         return url
     logger.warning("Ignoring a file that isn't local: %s", url)
     return ""
+
+
+def dropped_paths(urls: Any) -> List[str]:
+    """The local files (not folders) among dropped URLs, in order."""
+    paths = []
+    for url in urls or []:
+        qurl = url if isinstance(url, QUrl) else QUrl(str(url))
+        if qurl.isLocalFile():
+            path = qurl.toLocalFile()
+            if path and not os.path.isdir(path):
+                paths.append(path)
+    return paths
+
+
+def only_one_note(dropped: int) -> str:
+    """The status bar's note when ``dropped`` (2 or more) files were dropped."""
+    others = dropped - 1
+    left = "the other file was" if others == 1 else f"the other {others} files were"
+    return f"Only one file opens at a time; {left} left out."
 
 
 class FilesModel(QObject):
@@ -148,6 +174,29 @@ class FilesModel(QObject):
         if refs != self._refs:
             self._refs = refs
             self.recentChanged.emit()
+
+    # -- a file dropped on the window, or named on the command line ----------------------
+
+    @Slot("QVariantList", result=bool)
+    def hasFiles(self, urls: Any) -> bool:  # noqa: N802 (Qt)
+        """Whether dropped ``urls`` hold a local file to open."""
+        return bool(dropped_paths(urls))
+
+    @Slot("QVariantList", result=str)
+    def openDropped(self, urls: Any) -> str:  # noqa: N802 (Qt)
+        """Open the first local file of dropped ``urls``; the status bar's
+        note if there were others ("" if not, or if there was no file)."""
+        paths = dropped_paths(urls)
+        if not paths:
+            return ""
+        self.openPath(paths[0])
+        return only_one_note(len(paths)) if len(paths) > 1 else ""
+
+    @Slot(str)
+    def openPath(self, path: str) -> None:  # noqa: N802 (Qt)
+        """Open the file at ``path`` as Open does with a picked one."""
+        ref = self._store.direct("document_ref", os.path.abspath(path))
+        self._store.submit("open_document", {"ref": to_json_value(ref), "read_only": False})
 
     # -- the pickers --------------------------------------------------------------------
 

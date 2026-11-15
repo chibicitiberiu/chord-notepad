@@ -285,6 +285,15 @@ class StatusBarModel(QObject):
         if self.line.playing:
             self._refuse(formatting.EDIT_REFUSED_MESSAGE)
 
+    @Slot(str)
+    def showNotice(self, text: str) -> None:  # noqa: N802 (Qt)
+        """Show ``text`` as a status of the window's own (until the caret
+        moves), once the commands queued so far have run, so it isn't
+        replaced at once by their status (a dropped file's "Opened: ...")."""
+        self._store.after_commands(
+            lambda: None if self._store.closed
+            else self.line.set_status(str(text), self._editor.cursor_position()))
+
     @Slot()
     def refresh(self) -> None:
         """Look the caret's hint up now and show it."""

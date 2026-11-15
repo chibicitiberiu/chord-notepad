@@ -324,6 +324,7 @@ ApplicationWindow {
         status: win.status
         pickers: win.pickers
         dnd: sidebarDrag
+        files: win.chrome.files
         placeholder: win.store.texts.editorPlaceholder
         playMode: win.mode === "play"
         // Moved by onModeChanged (moveTo keeps the view where it was).
@@ -361,6 +362,49 @@ ApplicationWindow {
                 editorPane.focusEditor()
         })
         onCollapsed: editorPane.focusEditor()
+    }
+
+    // --- A file dropped anywhere on the window opens, as File › Open would --------------
+    // On top of everything (the menu bar too), for file drags only (keys:
+    // the URI list); any other drag (text, a tile or a chord from the
+    // sidebars, a web link) is turned down here and goes on to the editor's
+    // DropArea. The session asks about unsaved changes and reports a file it
+    // can't read (files.py). Not while a dialog or the file picker is up.
+    DropArea {
+        id: fileDrop
+        objectName: "fileDrop"
+        parent: Overlay.overlay
+        anchors.fill: parent
+        z: 999
+        keys: ["text/uri-list"]
+        property bool active: false
+        function allowed(urls) {
+            return !win.chrome.files.pickerOpen && !win.editor.modalPopupOpen(Overlay.overlay)
+                && win.chrome.files.hasFiles(urls)
+        }
+        onEntered: (drag) => {
+            fileDrop.active = fileDrop.allowed(drag.urls)
+            if (fileDrop.active) drag.accept(Qt.CopyAction)
+            else drag.accepted = false
+        }
+        onExited: fileDrop.active = false
+        onDropped: (drop) => {
+            fileDrop.active = false
+            if (!fileDrop.allowed(drop.urls)) return
+            drop.accept(Qt.CopyAction)
+            var note = win.chrome.files.openDropped(drop.urls)
+            if (note !== "") win.status.showNotice(note)
+            win.requestActivate()
+        }
+        // Where the drop goes: the whole window.
+        Rectangle {
+            objectName: "fileDropFrame"
+            anchors.fill: parent
+            visible: fileDrop.active
+            color: "transparent"
+            border.width: Theme.devW(2)
+            border.color: Theme.accent
+        }
     }
 
     // --- Drag from the sidebar into the text (internal drag, the mockup's) -------------
