@@ -669,7 +669,7 @@ Application Limits
    * - Setting
      - Minimum
      - Maximum
-   * - Tempo (:plat:`toolbar, Settings and the Insert dialog|Playback settings, Settings and the ＋ Insert form`)
+   * - Tempo (:plat:`player bar, Settings and the directive tiles|Playback settings, Settings and the ＋ Insert form`)
      - 20
      - 400
    * - Font size

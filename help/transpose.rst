@@ -14,11 +14,21 @@ Transposing a Song
 
 .. only:: desktop
 
-   1. Go to :menuselection:`Tools --> Transpose...`
-   2. Choose the number of **semitones** to shift by. Positive numbers move the
-      chords up, negative numbers move them down (a value of ``2`` raises
-      everything by a whole step; ``-1`` lowers it by a half step).
-   3. Click **OK**.
+   1. Click **Transpose** in the Edit toolbar (or press **Ctrl+T**, or use
+      :menuselection:`Tools --> Transpose...`). To transpose only part of
+      the song, select that part first.
+   2. Type the number of **semitones** to shift by in the box, or use its
+      arrows, from -11 to 11. Positive numbers move the chords up, negative
+      numbers move them down (a value of ``2`` raises everything by a whole
+      step; ``-1`` lowers it by a half step).
+   3. Click **Transpose** or press Enter.
+
+   .. platform-figure:: transpose
+      :platforms: desktop
+      :alt: The Transpose dialog: Transpose whole song, a short explanation,
+            a Semitones box, and the Cancel and Transpose buttons.
+
+      The Transpose dialog.
 
 .. only:: android
 
@@ -66,7 +76,7 @@ What Changes
 
    * **Key directives shift.** A ``{key: C}`` or ``{key: Am}`` inside the
      transposed range moves with the chords (and keeps its major or minor form).
-     When you transpose the whole song, the toolbar **Key** shifts too, so
+     When you transpose the whole song, the player bar's **Key** shifts too, so
      roman-numeral chords keep sounding the same.
 
 .. only:: android
@@ -112,7 +122,7 @@ Chord Notepad works out the key like this:
 
 .. only:: desktop
 
-   * The toolbar **Key** isn't used for spelling. Add a ``{key}`` at the top of
+   * The player bar's **Key** isn't used for spelling. Add a ``{key}`` at the top of
      the song if a spelling comes out wrong.
 
 .. only:: android
@@ -139,7 +149,7 @@ spelling (a ``Gb`` in a song in D returns as ``F#``).
 
 .. only:: desktop
 
-   Key names (the toolbar key and ``{key}`` directives) take the key with fewer
+   Key names (the player bar's key and ``{key}`` directives) take the key with fewer
    sharps or flats: C up a semitone is ``Db`` (five flats), not ``C#`` (seven
    sharps), and Am down a semitone is ``G#m``, not ``Abm``. Where both have as
    many (``F#`` and ``Gb``, ``D#m`` and ``Ebm``) the original's sharp or flat

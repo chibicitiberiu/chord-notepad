@@ -368,7 +368,7 @@ quality: ``V`` is major, ``v`` is minor.
 
    **Check the key for roman numerals:**
    If you're using roman numerals (I, IV, V, etc.), make sure the key is set
-   correctly in the toolbar or with a ``{key}`` directive.
+   correctly in the player bar or with a ``{key}`` directive.
 
 .. only:: android
 
@@ -516,7 +516,7 @@ Most questions are answered in :doc:`writing_chords`, :doc:`directives`, or
 .. only:: desktop
 
    **Use the Chord Identifier:**
-   If you're not sure how to write a chord, use Tools → Identify Chord to build
+   If you're not sure how to write a chord, open the Chord identifier (Ctrl+Shift+I) to build
    it from notes.
 
 .. only:: android

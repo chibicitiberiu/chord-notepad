@@ -13,9 +13,11 @@ Starting Playback
 
 .. only:: desktop
 
-   Click the **Play** button (▶) in the toolbar. By default playback starts from
-   the first chord in your document and runs to the end. The button turns into a
-   **Pause** button (⏸) while a song is playing.
+   Click the **Play** button (▶) in the toolbar or the player bar, or press
+   **F5**. By default playback starts from the playhead, the small marker in
+   the text that sits before the first chord until you click another chord,
+   and runs to the end. The button turns into a **Pause** button (⏸) while a
+   song is playing.
 
 .. only:: android
 
@@ -63,9 +65,14 @@ Want to start from a specific point?
 
 .. only:: desktop
 
-   1. Click in the text where you want to start
-   2. **Shift+Click** the Play button
-   3. Playback begins from that position
+   1. Click the chord you want to start from. The playhead moves there and
+      the chord plays once.
+   2. Press **▶**.
+   3. Playback begins from the playhead.
+
+   To start from any other point in the text, click there so the text cursor
+   is on it and **Shift+Click** the Play button. To start from a section,
+   click it on the timeline in the Play workspace.
 
 .. only:: android
 
@@ -121,8 +128,8 @@ Stopping Playback
 
 .. only:: desktop
 
-   * Click the **Stop button** (⏹) to stop completely
-   * The highlight clears and playback resets
+   * Click the **Stop button** (⏹), or press **Shift+F5**, to stop completely
+   * The highlight clears and any notes still ringing are silenced
 
 .. only:: android
 
@@ -145,7 +152,7 @@ While playing:
 
    * The text editor becomes **read-only** (you can't edit while playing).
      Tools that change the text (Transpose, Suggest Capo, the notation
-     conversions, the Insert menu and the chord identifier's Insert) leave it
+     conversions, the Directives sidebar and the chord identifier) leave it
      unchanged until you stop.
    * The **current chord** is highlighted in yellow
    * The **status bar** shows: bar number, BPM, time signature, key, and chord name
@@ -231,7 +238,10 @@ You can play individual chords without starting full playback.
 
    1. Move your mouse over any valid chord (the cursor changes to a hand pointer)
    2. Click the chord
-   3. The chord plays
+   3. The chord plays, and the playhead moves to it
+
+   In the Edit workspace a click on a chord does the same, so you can hear
+   what you have written as you go.
 
 .. only:: android
 
@@ -266,8 +276,8 @@ This works even when playback is stopped. Uses include:
 
 .. only:: desktop
 
-   * Play that chord immediately
-   * Not interrupt the ongoing playback
+   * Jump playback to that chord, which keeps playing from there. The
+     playhead moves with it.
 
 .. only:: android
 
@@ -506,8 +516,9 @@ How to Change Voicing
 
 .. only:: desktop
 
-   1. Open the **Playback** menu.
-   2. Click **Voicing**.
+   1. In the Play workspace, pause or stop the song if it is playing.
+   2. Click the **Voicing** button in the player bar (or open **Playback →
+      Voicing**).
    3. Select **Piano**, one of the fretted-instrument voicings (guitar
       tunings, **Ukulele**, or a custom instrument), or one of the ensemble
       presets -- see :doc:`fretted` for how each fretted voicing plays and how
@@ -550,8 +561,9 @@ How to Change Instruments
 
 .. only:: desktop
 
-   1. Go to **Playback** menu
-   2. Click **Instrument**
+   1. Click the **Instrument** button in the player bar (the guitar icon), or
+      open the **Playback** menu
+   2. Choose **Instrument** if you came from the menu
    3. Browse through the categories
    4. Click an instrument to select it
 

@@ -88,7 +88,7 @@ Tempo, meter, and key come from the same directives that drive playback:
 
 .. only:: desktop
 
-   * The starting tempo is the toolbar BPM, unless a ``{bpm}`` before the
+   * The starting tempo is the player bar's tempo, unless a ``{bpm}`` before the
      first chord sets it. Every ``{bpm}`` change in the song is written at the
      point it occurs, so the file speeds up and slows down exactly where the
      song does.
@@ -164,10 +164,10 @@ A Couple of Gotchas
 
 .. only:: desktop
 
-   * **The speed multiplier doesn't affect the file.** The toolbar's speed
+   * **The speed multiplier doesn't affect the file.** The player bar's speed
      percentage (see :doc:`playback`) is a practice control for live playback
-     only. Export always uses the song's real tempo -- the BPM from
-     the toolbar and any ``{bpm}`` directives, with the multiplier ignored.
+     only. Export always uses the song's real tempo -- the tempo from
+     the player bar and any ``{bpm}`` directives, with the multiplier ignored.
 
 .. only:: android
 

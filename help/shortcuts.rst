@@ -6,7 +6,7 @@ Keyboard Shortcuts
 
    Keyboard shortcuts let you work faster. This page lists all available shortcuts
    organized by category. Most menu items also show their shortcut on the right, so
-   you can pick them up as you go.
+   you can pick them up as you go. On macOS, **Ctrl** here is **Cmd**.
 
 .. only:: android
 
@@ -38,7 +38,7 @@ File Operations
       * - Ctrl+Shift+S
         - Save As (save with new name)
       * - Ctrl+Q
-        - Exit application
+        - Quit
 
 .. only:: android
 
@@ -124,15 +124,31 @@ View / Zoom
       * - Shortcut
         - Action
       * - Ctrl+Plus
-        - Increase font size
+        - Larger text
       * - Ctrl+=
-        - Increase font size (same as above)
+        - Larger text (same as above)
       * - Ctrl+Minus
-        - Decrease font size
+        - Smaller text
       * - Ctrl+0
-        - Reset font size to default (11pt)
+        - Reset text size to default (11pt)
       * - Ctrl+Mouse Wheel
-        - Zoom in/out
+        - Zoom the text in/out
+      * - Ctrl+Alt+Plus / Ctrl+Alt+Minus / Ctrl+Alt+0
+        - Zoom the whole window in, out, back to 100%
+      * - F11
+        - Full screen
+      * - Ctrl+1 / Ctrl+2
+        - Edit / Play workspace
+      * - Ctrl+Shift+D / Ctrl+Shift+I
+        - Directives sidebar / Chord identifier (open, or close if already open)
+      * - F9
+        - Show or hide the chord sheet under the text (Edit)
+      * - Alt+1 to Alt+4
+        - Chord sheet view: Piano roll, Staff, Fret cards, Tab
+      * - Ctrl+Shift+L
+        - Dark theme on or off
+      * - Alt, F10, Alt+F / E / V / P / T / H
+        - Show the menu bar, open its first menu, open that menu
 
 .. only:: android
 
@@ -168,12 +184,26 @@ Playback
 
       * - Shortcut
         - Action
-      * - Click Play Button
-        - Play from beginning
+      * - F5
+        - Play, pause, resume (from the playhead)
+      * - Shift+F5
+        - Stop and rewind
+      * - Click Play button
+        - Play from the playhead
       * - Shift+Click Play
-        - Play from cursor position
+        - Play from the text cursor
       * - Click valid chord
-        - Play that chord
+        - Play that chord and move the playhead there
+      * - Ctrl+M
+        - Metronome on or off
+      * - Ctrl+] / Ctrl+[ / Ctrl+Backslash
+        - Speed up 5% / down 5% / back to 100%
+      * - Alt+Down
+        - Open the picker of the song value or directive you're on
+      * - Ctrl+T
+        - Transpose
+      * - Ctrl+,
+        - Settings
 
 .. only:: android
 
@@ -279,16 +309,22 @@ Quick Reference Card
       Ctrl+O    Open          Ctrl+Y    Redo
       Ctrl+S    Save          Ctrl+X    Cut
       Ctrl+Shift+S  Save As   Ctrl+C    Copy
-      Ctrl+Q    Exit          Ctrl+V    Paste
+      Ctrl+Q    Quit          Ctrl+V    Paste
                               Ctrl+A    Select All
                               Ctrl+Shift+Z  Redo
 
       VIEW                    PLAYBACK
       ----                    --------
-      Ctrl++    Zoom In       Click ▶   Play
-      Ctrl+-    Zoom Out      Shift+▶   Play from cursor
-      Ctrl+0    Reset Zoom    Click ⏹   Stop
-      Ctrl+Wheel  Zoom        Click chord  Play chord
+      Ctrl+1 / 2  Edit / Play F5        Play / pause
+      F9        Chord sheet   Shift+F5  Stop and rewind
+      Ctrl+Shift+D  Directives  Shift+▶   Play from cursor
+      Ctrl+Shift+I  Identifier  Click chord  Play chord
+      Ctrl++    Larger text   Ctrl+M     Metronome
+      Ctrl+-    Smaller text  Ctrl+] / [ Speed +5% / -5%
+      Ctrl+0    Reset text    Ctrl+\    Speed 100%
+      Ctrl+Wheel  Zoom text   Ctrl+T     Transpose
+      F11       Full screen   Ctrl+,      Settings
+      Alt, F10  Menu bar      F1          User guide
 
 .. only:: android
 

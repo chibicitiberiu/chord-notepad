@@ -55,7 +55,9 @@ Showing and Resizing the Strip
 
 .. only:: desktop
 
-   Toggle the strip from :menuselection:`View --> Chord Sheet`. Hiding it stops
+   In the **Play** workspace the strip is always there. In **Edit**, toggle it
+   with **F9**, the **Chord sheet** button in the toolbar, or
+   :menuselection:`View --> Chord sheet under the text`. Hiding it stops
    the (fairly expensive) voicing work the strip does in the background; showing
    it again picks up whatever you've typed since and renders it.
 
@@ -129,6 +131,12 @@ for any voicing. Bars are color-coded: for the piano model the two hands
 get two tones, and for an ensemble each voice gets its own color.
 
 .. platform-figure:: chord-sheet-piano-roll
+   :platforms: desktop
+   :alt: The piano roll under the text: a small keyboard on the left, chord names along the top, and a bar for each voiced note, with the playing chord in yellow.
+
+   The piano roll.
+
+.. platform-figure:: chord-sheet-piano-roll
    :platforms: android
    :alt: The piano roll: a small keyboard on the left, chord names along the
          top and horizontal note bars, brown for the left hand and blue for
@@ -157,6 +165,12 @@ clef for tenors: the notes on that staff are then written an octave higher
 than they sound (the Male Choir (TTBB) preset does this). The piano
 model splits by hand (left hand to the bass staff, right hand to the
 treble); everything else splits at middle C.
+
+.. platform-figure:: chord-sheet-staff
+   :platforms: desktop
+   :alt: The Staff view: treble and bass staves with the chords stacked as notes, the key signature at the left and the playing chord in yellow.
+
+   The staff view.
 
 .. platform-figure:: chord-sheet-staff
    :platforms: android
@@ -189,6 +203,12 @@ Fret cards
    sheet to unlock it.
 
 .. platform-figure:: chord-sheet-fret-cards
+   :platforms: desktop
+   :alt: The Fret cards view: a guitar chord diagram for each chord, with the playing chord in yellow.
+
+   Fret cards with a guitar voicing.
+
+.. platform-figure:: chord-sheet-fret-cards
    :platforms: android
    :alt: Fret cards: one chord diagram per chord, with open and muted string
          marks above the nut and dots for the fretted notes.
@@ -201,6 +221,12 @@ Tab
 A continuous tab lane: string lines spanning the whole strip, with each
 chord's fret numbers written onto them at its position. Like Fret cards, this
 needs fingering data and is only available for a fretboard-model voicing.
+
+.. platform-figure:: chord-sheet-tab
+   :platforms: desktop
+   :alt: The Tab view: the strings of a guitar with the fret numbers of each chord.
+
+   Tab with a guitar voicing.
 
 .. platform-figure:: chord-sheet-tab
    :platforms: android
@@ -256,7 +282,7 @@ Suggesting a Capo
 
 .. only:: desktop
 
-   To find a good capo, use :menuselection:`Tools --> Suggest Capo...`. It asks
+   To find a good capo, use :menuselection:`Tools --> Suggest capo...`. It asks
    which fretboard voicing to optimize for -- defaulting to the current one, or
    standard guitar when the active voicing is not a fretboard voicing -- then
    scores capo positions over the selection (or the whole song when nothing is
@@ -264,6 +290,14 @@ Suggesting a Capo
    looks for the position that makes the part easiest to play: fewest barres,
    lowest on the neck, most open strings. If no capo helps, it says so and
    changes nothing.
+
+   .. platform-figure:: capo-suggest
+      :platforms: desktop
+      :alt: The Suggest Capo dialog: an explanation, the part of the song it
+            applies to, a Voicing box set to Guitar (Standard - EADGBE), and
+            the Cancel and Suggest buttons.
+
+      Suggest Capo asks which fretted instrument to optimize for.
 
    The directive goes at the very top of the song, or at the start of the
    selection's first line. If a ``{capo}`` already sits between there and the

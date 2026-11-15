@@ -39,8 +39,8 @@ the same swap appears on several pages.
 | Term | Desktop | Android |
 |---|---|---|
 | `\|click\|`, `\|Click\|`, `\|clicks\|`, `\|clicking\|`, `\|Clicking\|` | click... | tap... |
-| `\|settings\|` | :menuselection:`Tools --> Settings...` | **☰ → Settings** |
-| `\|voicings_settings\|` | :menuselection:`Tools --> Settings... --> Voicings` | **☰ → Settings → Voicings** |
+| `\|settings\|` | **☰ → Settings...** | **☰ → Settings** |
+| `\|voicings_settings\|` | **☰ → Settings... → Voicings** | **☰ → Settings → Voicings** |
 
 ```rst
 |Click| any chord to play it. Voicings live under |settings|.
@@ -102,10 +102,24 @@ screenshot but no Android one. Either add the image or limit the figure with
 Where the images live:
 
 ```
-help/images/desktop/   desktop screenshots
+help/images/desktop/   desktop screenshots (made by packaging/tools/qt_help_screenshots.py)
 help/images/android/   Android screenshots (<name>.png, optional <name>.dark.png)
 help/images/shared/    diagrams used by both editions
 ```
+
+The desktop screenshots come from the real Qt window, offscreen, so they can
+be redone whenever the UI changes (don't edit the PNGs by hand):
+
+```bash
+pipenv run python packaging/tools/qt_help_screenshots.py --list
+pipenv run python packaging/tools/qt_help_screenshots.py                 # every shot
+pipenv run python packaging/tools/qt_help_screenshots.py --only main-window-labeled,transpose
+```
+
+It needs no display, and uses a throwaway profile and a silent player. The
+shot list is in the script (each shot says which page it is for); it also
+makes the Quick Start picture (`resources/quickstart/chord_sheet_qt.png`) and
+the store listing images (`packaging/store/screenshots/desktop/`).
 
 On Android, `:width:` is ignored: images show at their natural size, never
 wider than the screen and never taller than 70% of it, so a full-screen phone

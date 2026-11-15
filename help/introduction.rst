@@ -12,8 +12,9 @@ highlights the chords and can play them back using synthesized instruments.
 
 .. platform-figure:: editor-main-window
    :alt: The Chord Notepad main window: a chord sheet with chord symbols
-         highlighted in blue above the lyrics, directives in braces, and a
-         toolbar across the top.
+         highlighted in blue above the lyrics, directives in braces, the chord
+         that is playing in yellow, a player bar across the top and the chord
+         sheet below the text.
    :android-alt: Chord Notepad on a phone, in the Play tab: a song with blue
                  chords above the lyrics, the chord that is playing in yellow,
                  the chord sheet below the text and the player at the bottom.
@@ -24,9 +25,10 @@ highlights the chords and can play them back using synthesized instruments.
       ``{directives}`` and ``// comments`` are colored differently and never
       play. Below the text are the chord sheet and the player.
 
-   A chord sheet open in Chord Notepad. Chord symbols are highlighted in blue
-   above the lyric lines; ``{directives}`` and ``// comments`` are colored
-   differently and never play.
+   A song playing in Chord Notepad. Chord symbols are highlighted in blue
+   above the lyric lines, the chord that sounds right now is yellow, and
+   ``{directives}`` and ``// comments`` are colored differently and never
+   play. Below the text is the chord sheet.
 
 .. only:: desktop
 
@@ -86,9 +88,9 @@ Use the notation you're comfortable with:
 
 .. only:: desktop
 
-   The toolbar toggle (labelled **AB / Do**) switches the editor between American
-   and European note names for the song you have open (new songs start in the
-   notation chosen in Settings):
+   The **AB / Do** switch in the Edit toolbar sets the notation the text is read
+   in: American or European note names, for the song you have open (new songs
+   start in the notation chosen in Settings):
 
 .. only:: android
 
@@ -98,7 +100,7 @@ Use the notation you're comfortable with:
    rewrites the chords themselves from one notation to the other.
 
 .. platform-figure:: notation-toggle
-   :alt: The AB / Do notation toggle at the left of the toolbar, with AB
+   :alt: The AB / Do notation switch in the Edit toolbar, with AB
          (American) selected.
    :android-alt: The AB / Do switch and the Convert button in the Edit ribbon,
                  with AB (American) selected.
@@ -106,15 +108,15 @@ Use the notation you're comfortable with:
    :android-caption: The notation switch and Convert. **AB** is American, **Do**
       is European.
 
-   The notation toggle. **AB** is American, **Do** is European.
+   The notation switch. **AB** is American, **Do** is European.
 
 .. only:: desktop
 
    Roman numerals are **not** part of this toggle -- they are always recognized,
    in either mode, and are resolved against the current ``{key: ...}``. Switching
    the toggle only changes how the editor reads and shows note names; it does not
-   rewrite text you have already typed (use :menuselection:`Tools --> Convert to
-   ...` for that). All three notations are covered in :doc:`writing_chords`.
+   rewrite text you have already typed (use **Convert** in the Edit toolbar, or
+   :menuselection:`Tools --> Convert to ...`, for that). All three notations are covered in :doc:`writing_chords`.
 
 .. only:: android
 

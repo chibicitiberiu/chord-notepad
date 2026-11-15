@@ -83,7 +83,7 @@ Switching Notations
 
 .. only:: desktop
 
-   The **AB / Do** toggle in the toolbar decides which system Chord Notepad *reads
+   The **AB / Do** switch in the Edit toolbar decides which system Chord Notepad *reads
    and displays*:
 
 .. only:: android
@@ -641,7 +641,7 @@ Roman numerals make it easy to write progressions that work in any key:
 
 .. only:: desktop
 
-   Set the key using the key selector in the toolbar (or a ``{key:}`` directive),
+   Set the key using the key in the player bar (or a ``{key:}`` directive),
    and Chord Notepad will play the right chords.
 
 .. only:: android

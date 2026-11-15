@@ -42,9 +42,9 @@ Setting Tempo
 
 .. only:: desktop
 
-   Use a whole number from 20 to 400, the toolbar's range (the Insert dialog
-   takes the same). A tempo outside 20-400 shows in red as an invalid directive
-   and playback ignores it. The toolbar's speed multiplier is applied on top of
+   Use a whole number from 20 to 400, the player bar's range (the tempo tiles
+   and pickers take the same). A tempo outside 20-400 shows in red as an invalid directive
+   and playback ignores it. The speed multiplier is applied on top of
    this value, so a song written at ``{bpm: 120}`` with the multiplier set to
    50% plays at 60 BPM.
 
@@ -132,7 +132,7 @@ Resetting Tempo
 ---------------
 
 Return to the tempo the song started at: the one its first chord plays at,
-set by a ``{bpm}`` before the first chord, or the :plat:`toolbar tempo|Tempo in
+set by a ``{bpm}`` before the first chord, or the :plat:`player bar's tempo|Tempo in
 Playback settings` when there's none:
 
 .. code-block:: chord
@@ -174,7 +174,7 @@ Setting Time Signature
    {time: 2/2}    // Two half-note beats - cut time
 
 The beats go from 1 to 16 and the unit is 1, 2, 4, 8 or 16, the same choices
-the :plat:`toolbar|Playback settings sheet` offers. Anything else (``{time: 0/4}``,
+the :plat:`player bar|Playback settings sheet` offers. Anything else (``{time: 0/4}``,
 ``{time: 4/3}``) shows in red as an invalid directive and playback ignores it.
 
 Common Time Signatures
@@ -336,7 +336,7 @@ Finding the Best Capo
 
 .. only:: desktop
 
-   You don't have to guess: :menuselection:`Tools --> Suggest Capo...` scores capo
+   You don't have to guess: :menuselection:`Tools --> Suggest capo...` scores capo
    positions for a voicing you choose and inserts the ``{capo}`` directive for you,
    at the top of the song or the start of the selection (replacing a ``{capo}``
    that already sits there, before the first chord).

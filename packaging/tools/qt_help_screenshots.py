@@ -460,6 +460,7 @@ def _sheet_staff(sc: Scene):
     sc.song(*GRACE)
     sc.mode("play")
     sc.click("sheetTab:staff")
+    sc.wait(700)  # the new view paints a moment after the tab
     sc.playing(5)
 
 
@@ -470,6 +471,7 @@ def _sheet_cards(sc: Scene):
     sc.mode("play")
     sc.fretted()
     sc.click("sheetTab:fret")
+    sc.wait(700)  # the new view paints a moment after the tab
     sc.playing(5)
 
 
@@ -479,6 +481,7 @@ def _sheet_tab(sc: Scene):
     sc.mode("play")
     sc.fretted()
     sc.click("sheetTab:tab")
+    sc.wait(700)  # the new view paints a moment after the tab
     sc.playing(5)
 
 
@@ -494,13 +497,6 @@ def _settings_general(sc: Scene):
 def _settings_playback(sc: Scene):
     sc.song(*FAIR)
     sc.dialogs("openSettings", "playback")
-
-
-@shot("settings-voicings", "settings", "Settings, Voicings.", window="settingsWindow",
-      size_window=(900, 720))
-def _settings_voicings(sc: Scene):
-    sc.song(*FAIR)
-    sc.dialogs("openSettings", "voicings")
 
 
 @shot("settings-voicing-form", "settings", "Settings, Voicings, a new fretboard voicing.",
@@ -572,6 +568,7 @@ def _quick_start_image(sc: Scene):
     sc.mode("play")
     sc.fretted()
     sc.click("sheetTab:fret")
+    sc.wait(700)  # the new view paints a moment after the tab
 
 
 # The store listings (Microsoft Store, AppStream, the Snap Store): 1920x1080, the
@@ -598,6 +595,7 @@ def _store_cards(sc: Scene):
     sc.mode("play")
     sc.fretted()
     sc.click("sheetTab:fret")
+    sc.wait(700)  # the new view paints a moment after the tab
     sc.playing(6)
 
 
@@ -607,6 +605,7 @@ def _store_staff_dark(sc: Scene):
     sc.song(*GRACE)
     sc.mode("play")
     sc.click("sheetTab:staff")
+    sc.wait(700)  # the new view paints a moment after the tab
     sc.playing(5)
 
 
@@ -714,7 +713,7 @@ def run_shot(shot: Shot, out_dir: Path, scale: float, size: Tuple[int, int],
     config_dir = tmp / "appdata" / "config" / "chord-notepad"
     config_dir.mkdir(parents=True)
     config = {"version": 4, "show_quick_start_on_startup": False,
-              "ui_theme": "dark" if shot.dark else "light", "audio_driver": "file",
+              "ui_theme": "dark" if shot.dark else "light",
               **shot.config}
     (config_dir / "settings.json").write_text(_json.dumps(config), encoding="utf-8")
 
