@@ -388,6 +388,25 @@ class Scene:
         self.window.setProperty("mode", mode)
         self.settle()
 
+    def align_sheet(self) -> None:
+        """Scroll the chord sheet back so its first visible slot starts at the
+        left edge: following the playing chord leaves the strip mid-slot, and
+        the fret cards' first card came out cut off."""
+        view = self.item("sheetView")
+        sheet = getattr(view, "_sheet", None)
+        if sheet is None:
+            return
+        scroll = float(view.property("scrollX"))
+        index = 0
+        while sheet.slot(index) is not None:
+            x, _width = sheet.slot(index)
+            if x >= scroll - 0.5:
+                # Half a card gap of paper before it, as at the strip's start.
+                view.setProperty("scrollX", max(0.0, x - 4.0))
+                break
+            index += 1
+        self.settle()
+
     def playing(self, chords: int) -> None:
         """Start playback and freeze it after ``chords`` chord pings."""
         self.qt.store.submit("play_pause", {"from_offset": None})
@@ -499,6 +518,7 @@ def _sheet_cards(sc: Scene):
     sc.click("sheetTab:fret")
     sc.wait(1500)  # the new view paints a moment after the tab
     sc.playing(5)
+    sc.align_sheet()
 
 
 @shot("chord-sheet-tab", "chord sheet", "Tab with a guitar voicing.", crop="chordSheetPane", pad=0)
@@ -624,6 +644,7 @@ def _store_cards(sc: Scene):
     sc.click("sheetTab:fret")
     sc.wait(1500)  # the new view paints a moment after the tab
     sc.playing(6)
+    sc.align_sheet()
 
 
 @shot("04-play-staff", "store", "Amazing Grace playing on the staff.", **STORE)
