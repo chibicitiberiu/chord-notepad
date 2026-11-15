@@ -35,6 +35,27 @@ private val DarkNoteLabel = Color(0xFF1D1E22)
 private val DarkLh = Color(0xFFD09A6C)
 private val DarkGutterWhite = Color(0xFFD3D6DD)
 
+/** `piano_roll.GUTTER_BORDER` and the octave labels' ink (`piano_roll._INK`). */
+private const val GUTTER_BORDER = "#b9c2c7"
+private const val GUTTER_INK = "#22323a"
+
+/**
+ * The piano roll's keyboard in the dark theme: not inverted (that reads
+ * wrong), in the app's own neutral greys, as the desktop paints it
+ * (`sheet_paint._DARK_KEYS`): light grey white keys, near-black black keys,
+ * grey edges and dark octave labels on the white keys.
+ */
+private val DarkKeys = mapOf(
+    GUTTER_WHITE to Color(0xFFC3C6CF),
+    GUTTER_BLACK to Color(0xFF17181B),
+    GUTTER_BORDER to Color(0xFF8A8D96),
+    GUTTER_INK to Color(0xFF1D1E22),
+)
+
+/** A colour of the piano roll's keyboard (its gutter) as it paints in [colors]' theme. */
+fun keyboardGutterColor(spec: String, parsed: Color, colors: AppColors): Color =
+    if (colors.dark) DarkKeys[spec.lowercase()] ?: parsed else parsed
+
 /** Below this HSL saturation a colour counts as neutral (ink, grid, shading). */
 private const val NEUTRAL_SATURATION = 0.3f
 

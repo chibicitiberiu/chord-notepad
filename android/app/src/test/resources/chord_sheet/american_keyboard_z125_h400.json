@@ -1,6 +1,6 @@
 {
  "background": "#fbfbf8",
- "byte_length": 53944,
+ "byte_length": 53986,
  "content": {
   "coord_sum": 13821723.566094398,
   "count": 1612,
@@ -55,25 +55,25 @@
  ],
  "gutter_variants": [
   {
-   "coord_sum": 10150.605298042297,
-   "count": 40,
+   "coord_sum": 10597.605298042297,
+   "count": 41,
    "first": {
     "fill": "#ffffff",
-    "h": 10.216216087341309,
+    "h": 378.0,
     "op": "rect",
-    "outline": "#b9c2c7",
+    "outline": null,
     "radius": 0.0,
     "tags": [
      "gutter",
-     "gutter-key"
+     "gutter-bed"
     ],
     "w": 46.0,
     "width": 1.0,
     "x": 0.0,
-    "y": 389.7837829589844
+    "y": 22.0
    },
    "histogram": {
-    "rect": 37,
+    "rect": 38,
     "text": 3
    },
    "last": {
@@ -90,7 +90,7 @@
     "x": 44.0,
     "y": 47.5405387878418
    },
-   "tag_count": 80
+   "tag_count": 82
   }
  ],
  "gutter_width": 46.0,
@@ -147,7 +147,7 @@
  ],
  "slot_count": 133,
  "slot_x_sum": 1027380.0,
- "string_count": 354,
+ "string_count": 355,
  "view_id": "keyboard",
  "zoom": 1.25
 }

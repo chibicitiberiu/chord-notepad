@@ -263,6 +263,7 @@ class PianoRollRenderer(StripRenderer):
                      scroll_x: float) -> None:
         """Paint the vertical mini-keyboard into the frozen gutter.
 
+        A bed in the white keys' colour goes under the whole keyboard first.
         White-key rows fill the gutter width; black-key rows draw a narrower,
         darker block, rounded on the right (it starts a corner radius left of
         the gutter, which clips its left corners away); each C row gets a tiny
@@ -282,6 +283,11 @@ class PianoRollRenderer(StripRenderer):
         black_w = BLACK_KEY_W
         radius = _corner(row_h)
 
+        # The bed: the white keys' colour under the whole keyboard, so the
+        # space beside each black key is a key, not a hole (Android showed
+        # the strip's background there; the desktop painted its own bed).
+        ops.rect(0.0, SYMBOL_H, width, (high - low + 1) * row_h, fill=GUTTER_WHITE,
+                 tags=("gutter", "gutter-bed"))
         for note in range(low, high + 1):
             y = SYMBOL_H + (high - note) * row_h
             pc = note % 12

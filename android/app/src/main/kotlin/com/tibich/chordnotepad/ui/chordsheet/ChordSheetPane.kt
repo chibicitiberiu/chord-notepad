@@ -272,6 +272,10 @@ private fun ChordSheetStrip(
     val palette = remember(sheet, colors) {
         sheet?.colors?.mapValues { (spec, c) -> themedSheetColor(spec, c, colors) }.orEmpty()
     }
+    // The piano roll's keyboard keeps its own look; in the dark theme its keys take the app's greys.
+    val keyboardPalette = remember(sheet, colors) {
+        sheet?.colors?.mapValues { (spec, c) -> keyboardGutterColor(spec, c, colors) }.orEmpty()
+    }
     val fontFamilyResolver = LocalFontFamilyResolver.current
     val painter = remember(fontFamilyResolver) {
         // Density 1, font scale 1: layouts measure in dp (see SheetPainter).
@@ -357,7 +361,7 @@ private fun ChordSheetStrip(
                         scale(density, density, Offset.Zero)
                     }) {
                         // The piano roll's keyboard keeps its own look (its labels sit on white keys).
-                        val gutterColors = if (sheet.buffer.viewId == "keyboard") sheet.colors else palette
+                        val gutterColors = if (sheet.buffer.viewId == "keyboard") keyboardPalette else palette
                         with(painter) { drawOps(variant, gutterColors, Float.NEGATIVE_INFINITY, Float.POSITIVE_INFINITY, density) }
                     }
                 }

@@ -10,6 +10,22 @@ class ChordSheetThemeTest {
     private fun lum(c: Color) = (maxOf(c.red, c.green, c.blue) + minOf(c.red, c.green, c.blue)) / 2f
 
     @Test
+    fun `the keyboard keeps its colours in light and takes the app's greys in dark`() {
+        val white = Color(0xFFFFFFFF)
+        val black = Color(0xFF31424A)
+        assertEquals(white, keyboardGutterColor("#ffffff", white, AppColors.Light))
+        assertEquals(black, keyboardGutterColor("#31424a", black, AppColors.Light))
+        // The desktop's dark keyboard (sheet_paint._DARK_KEYS).
+        assertEquals(Color(0xFFC3C6CF), keyboardGutterColor("#ffffff", white, AppColors.Dark))
+        assertEquals(Color(0xFF17181B), keyboardGutterColor("#31424a", black, AppColors.Dark))
+        assertEquals(Color(0xFF8A8D96), keyboardGutterColor("#B9C2C7", Color(0xFFB9C2C7), AppColors.Dark))
+        assertEquals(Color(0xFF1D1E22), keyboardGutterColor("#22323a", Color(0xFF22323A), AppColors.Dark))
+        // White keys stay lighter than black keys, so the keyboard isn't inverted.
+        assertTrue(lum(keyboardGutterColor("#ffffff", white, AppColors.Dark)) >
+            lum(keyboardGutterColor("#31424a", black, AppColors.Dark)))
+    }
+
+    @Test
     fun `light keeps the buffer's colours`() {
         val c = Color(0xFF22323A)
         assertEquals(c, themedSheetColor("#22323a", c, AppColors.Light))
