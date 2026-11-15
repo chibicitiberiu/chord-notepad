@@ -13,7 +13,9 @@ the :mod:`audio.chord_tones` role taxonomy:
 
    - Pick a bass note. A slash chord pins the bottom voice to the slash pitch
      class; a plain chord lets any chord tone sit in the bass (inversions),
-     each scored by ``weights['inversion']``.
+     each scored by ``weights['inversion']``. Next to the same chord with
+     another written bass (C beside C/E), a plain chord that would sound that
+     chord's bass costs ``weights['same_bass_penalty']`` in the transition.
    - Pick the pitch-class multiset for the remaining voices. More tones than
      voices means dropping the cheapest tones (``weights['omit']``); fewer
      means doubling the most agreeable ones (``weights['doubling']``).
@@ -30,8 +32,9 @@ the :mod:`audio.chord_tones` role taxonomy:
 3. **Score** every survivor with :meth:`_score_quality` (doubling, omission,
    inversion, range comfort, unisons, upper spacing, doubled leading tone) plus
    :meth:`_score_transition` (per-voice movement, leaps, common tones, parallel
-   perfect fifths/octaves, contrary motion of the outer voices, and 7th /
-   leading-tone resolution).
+   perfect fifths/octaves, contrary motion of the outer voices, 7th /
+   leading-tone resolution, and the same chord over a different written bass
+   sounding the same bass note).
 
 4. **Optimize**: :meth:`chord_to_midi` greedily picks the argmax against the
    stored previous voicing; :meth:`voice_sequence` runs the whole-song beam DP
@@ -90,16 +93,39 @@ _INVERSION_KEY: Dict[str, str] = {
 
 
 class _ChordContext(NamedTuple):
-    """Per-chord facts the transition scorer needs about a *previous* chord.
+    """Per-chord facts the transition scorer needs about a neighbouring chord.
 
     Carried alongside each candidate so the whole-song optimizer can look up
-    the predecessor chord's resolving tones from only the two candidates it is
-    handed.
+    the predecessor chord's resolving tones (and both chords' identities) from
+    only the two candidates it is handed.
     """
     seventh_pcs: FrozenSet[int]
     """Pitch classes of any seventh-role tone in the chord (for 7th resolution)."""
     leading_tone_pc: Optional[int]
     """Leading-tone pitch class implied by the chord's key, or ``None``."""
+    root_pc: Optional[int] = None
+    """The chord's root pitch class, or ``None`` when unknown (no history)."""
+    chord_pcs: FrozenSet[int] = frozenset()
+    """The chord's own tones as pitch classes (a slash bass that isn't a chord
+    tone is not among them)."""
+    bass_pc: Optional[int] = None
+    """The written bass pitch class: the slash note, else the root."""
+
+
+def same_chord_other_bass(a: _ChordContext, b: _ChordContext) -> bool:
+    """True when ``a`` and ``b`` are one chord written over two different basses.
+
+    Same root pitch class, same set of chord-tone pitch classes, different
+    written bass pitch class. A plain chord's written bass is its root, so C
+    and C/E qualify, as do C and C/G, C/E and C/G, or C and C/Bb; C and C/C
+    (the same bass), C and Cm/E (another chord) and C and Am/C (another root)
+    don't. Spelling doesn't matter: C# and Db/F qualify, as pitch classes.
+    An unknown context (``root_pc`` ``None``) never qualifies.
+    """
+    if a.root_pc is None or b.root_pc is None or a.bass_pc is None or b.bass_pc is None:
+        return False
+    return (a.root_pc == b.root_pc and a.chord_pcs == b.chord_pcs
+            and a.bass_pc != b.bass_pc)
 
 
 @dataclass
@@ -130,6 +156,10 @@ class EnsembleVoicerState:
     previous_voicing: Optional[Tuple[int, ...]] = None  # low -> high
     previous_seventh_pcs: Optional[Tuple[int, ...]] = None
     previous_leading_tone_pc: Optional[int] = None
+    # The previous chord's identity, for the same-chord/other-bass penalty.
+    previous_root_pc: Optional[int] = None
+    previous_chord_pcs: Optional[Tuple[int, ...]] = None
+    previous_bass_pc: Optional[int] = None
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to a JSON-friendly dict for serialization."""
@@ -139,17 +169,29 @@ class EnsembleVoicerState:
             'previous_seventh_pcs': list(self.previous_seventh_pcs)
             if self.previous_seventh_pcs is not None else None,
             'previous_leading_tone_pc': self.previous_leading_tone_pc,
+            'previous_root_pc': self.previous_root_pc,
+            'previous_chord_pcs': list(self.previous_chord_pcs)
+            if self.previous_chord_pcs is not None else None,
+            'previous_bass_pc': self.previous_bass_pc,
         }
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'EnsembleVoicerState':
-        """Rebuild a state object from :meth:`to_dict` output."""
+        """Rebuild a state object from :meth:`to_dict` output.
+
+        A dict from before the chord identity was stored loads with no
+        identity, so the same-bass penalty simply doesn't apply to it.
+        """
         pv = data.get('previous_voicing')
         ps = data.get('previous_seventh_pcs')
+        pc = data.get('previous_chord_pcs')
         return cls(
             previous_voicing=tuple(pv) if pv is not None else None,
             previous_seventh_pcs=tuple(ps) if ps is not None else None,
             previous_leading_tone_pc=data.get('previous_leading_tone_pc'),
+            previous_root_pc=data.get('previous_root_pc'),
+            previous_chord_pcs=tuple(pc) if pc is not None else None,
+            previous_bass_pc=data.get('previous_bass_pc'),
         )
 
     @property
@@ -158,6 +200,9 @@ class EnsembleVoicerState:
         return _ChordContext(
             frozenset(self.previous_seventh_pcs or ()),
             self.previous_leading_tone_pc,
+            self.previous_root_pc,
+            frozenset(self.previous_chord_pcs or ()),
+            self.previous_bass_pc,
         )
 
 
@@ -205,6 +250,7 @@ class EnsembleVoicer(INotePicker):
         self._range_comfort_penalty = float(w('range_comfort_penalty'))
         self._unison_penalty = float(w('unison_penalty'))
         self._upper_spacing_penalty = float(w('upper_spacing_penalty'))
+        self._same_bass_penalty = float(w('same_bass_penalty'))
         self._doubling: Dict[str, float] = dict(w('doubling'))
         self._omit: Dict[str, float] = dict(w('omit'))
         self._inversion: Dict[str, float] = dict(w('inversion'))
@@ -281,7 +327,7 @@ class EnsembleVoicer(INotePicker):
         best_score: Optional[float] = None
         for stack in candidates:
             score = (self._score_quality(stack, meta)
-                     + self._score_transition(prev, stack, prev_ctx))
+                     + self._score_transition(prev, stack, prev_ctx, meta.ctx))
             if (best_score is None or score > best_score
                     or (score == best_score and stack < best_stack)):
                 best_score = score
@@ -334,8 +380,8 @@ class EnsembleVoicer(INotePicker):
         def transition(prev_cand: _Cand, cand: _Cand) -> float:
             if not prev_cand.notes or not cand.notes:
                 return 0.0
-            prev_ctx = metas[prev_cand.pos].ctx
-            return self._score_transition(prev_cand.notes, cand.notes, prev_ctx)
+            return self._score_transition(prev_cand.notes, cand.notes,
+                                          metas[prev_cand.pos].ctx, metas[cand.pos].ctx)
 
         chosen = optimize_sequence(
             candidate_sets, unary, transition, beam_width=20, prune_to=30,
@@ -391,7 +437,8 @@ class EnsembleVoicer(INotePicker):
 
         seventh_pcs = frozenset(pc for pc, role in tones if role == 'seventh')
         leading_tone_pc = self._leading_tone_pc(chord_notes.key)
-        ctx = _ChordContext(seventh_pcs, leading_tone_pc)
+        ctx = _ChordContext(seventh_pcs, leading_tone_pc, root_pc,
+                            frozenset(role_by_pc), bass_pc)
 
         return _ChordMeta(
             root_pc=root_pc,
@@ -748,14 +795,19 @@ class EnsembleVoicer(INotePicker):
 
     def _score_transition(self, prev_notes: Optional[Tuple[int, ...]],
                           cur_notes: Tuple[int, ...],
-                          prev_ctx: _ChordContext) -> float:
+                          prev_ctx: _ChordContext,
+                          cur_ctx: Optional[_ChordContext] = None) -> float:
         """Voice-leading score from ``prev_notes`` to ``cur_notes``; higher is better.
 
         Both voicings are low-to-high and voice-aligned. Penalizes per-voice
         movement and leaps, rewards common tones and contrary motion of the
         outer voices, penalizes parallel perfect fifths/octaves, and rewards a
         chordal seventh resolving down or a leading tone resolving up by step
-        (both keyed off the *previous* chord's context).
+        (both keyed off the *previous* chord's context). When the two chords
+        are one chord over two written basses (:func:`same_chord_other_bass`)
+        and both voicings' lowest notes share a pitch class, adds
+        ``weights['same_bass_penalty']``: the listener expects to hear the
+        bass change, and holding every voice would otherwise win.
         """
         if not prev_notes or not cur_notes or len(prev_notes) != len(cur_notes):
             return 0.0
@@ -810,6 +862,11 @@ class EnsembleVoicer(INotePicker):
                 if prev_notes[b] % _OCTAVE == lt and (cur_notes[b] - prev_notes[b]) == 1:
                     score += self._leading_tone_resolution_bonus
 
+        # The same chord over another written bass, sounding the same bass.
+        if (cur_ctx is not None and prev_notes[0] % _OCTAVE == cur_notes[0] % _OCTAVE
+                and same_chord_other_bass(prev_ctx, cur_ctx)):
+            score += self._same_bass_penalty
+
         return score
 
     # ------------------------------------------------------------------
@@ -820,3 +877,6 @@ class EnsembleVoicer(INotePicker):
         self._state.previous_voicing = tuple(stack)
         self._state.previous_seventh_pcs = tuple(sorted(meta.ctx.seventh_pcs))
         self._state.previous_leading_tone_pc = meta.ctx.leading_tone_pc
+        self._state.previous_root_pc = meta.ctx.root_pc
+        self._state.previous_chord_pcs = tuple(sorted(meta.ctx.chord_pcs))
+        self._state.previous_bass_pc = meta.ctx.bass_pc

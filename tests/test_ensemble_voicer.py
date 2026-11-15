@@ -420,3 +420,153 @@ def test_user_omission_weights_still_win():
     g7 = cn(['G', 'B', 'D', 'F'], intervals=[0, 4, 7, 10])
     pcs = {m % 12 for m in EnsembleVoicer(spec).voice_sequence([g7])[0]}
     assert 7 not in pcs and {11, 2, 5} <= pcs
+
+
+# ---------------------------------------------------------------------------
+# The same chord over another written bass must sound another bass
+# ---------------------------------------------------------------------------
+# Tibi, 2026-11-15: "C then C/E or C/E then C ... shouldn't sound the same."
+# A plain chord may take any chord tone in the bass, so holding all four voices
+# of the neighbouring C/E (four common tones) used to beat root position. The
+# transition term weights['same_bass_penalty'] nudges it back. The expected
+# basses below come from the chord symbols alone: a plain chord's written bass
+# is its root, a slash chord's is the note after the slash.
+from chordnotepad.audio.ensemble_voicer import EnsembleVoicerState, same_chord_other_bass
+from chordnotepad.chord.helper import ChordHelper
+
+_HELPER = ChordHelper()
+BUILTIN_NAMES = ['satb', 'ttbb', 'ssa', 'quartet']
+
+
+def parsed(symbol):
+    notes = _HELPER.compute_chord_notes(symbol)
+    assert notes is not None, symbol
+    return notes
+
+
+def _ctx(symbol):
+    return EnsembleVoicer(BUILTIN_ENSEMBLES['satb'])._build_meta(parsed(symbol)).ctx
+
+
+@pytest.mark.parametrize('a, b, expected', [
+    ('C', 'C/E', True),     # root position vs first inversion written out
+    ('C', 'C/G', True),
+    ('C/E', 'C/G', True),   # two slash basses
+    ('C', 'C/Bb', True),    # a bass that isn't a chord tone still counts
+    ('Am', 'Am/C', True),
+    ('G7', 'G7/F', True),
+    ('C#', 'Db/F', True),   # spelling doesn't matter, pitch classes do
+    ('C', 'C', False),      # same bass
+    ('C/E', 'C/E', False),
+    ('C', 'C/C', False),    # C/C is written over its root
+    ('C/E', 'C/Fb', False),  # E and Fb are one pitch class
+    ('C', 'Cm/Eb', False),  # another chord
+    ('C', 'C7/E', False),   # another chord (adds the 7th)
+    ('C/E', 'Em', False),   # another root
+    ('C', 'Am/C', False),   # another root over C
+    ('C', 'Cadd9/E', False),
+])
+def test_same_chord_other_bass_definition(a, b, expected):
+    assert same_chord_other_bass(_ctx(a), _ctx(b)) is expected
+    assert same_chord_other_bass(_ctx(b), _ctx(a)) is expected
+
+
+def test_unknown_context_never_counts():
+    from chordnotepad.audio.ensemble_voicer import _ChordContext
+    empty = _ChordContext(frozenset(), None)
+    assert not same_chord_other_bass(empty, _ctx('C/E'))
+    assert not same_chord_other_bass(_ctx('C/E'), empty)
+
+
+@pytest.mark.parametrize('spec_name', BUILTIN_NAMES)
+@pytest.mark.parametrize('progression', [
+    ['C', 'C/E', 'Dm', 'Am', 'G'],
+    ['C/E', 'C', 'Dm', 'Am', 'G'],
+])
+def test_plain_chord_keeps_its_root_next_to_its_slash_chord(spec_name, progression):
+    voicer = EnsembleVoicer(BUILTIN_ENSEMBLES[spec_name])
+    voicings = voicer.voice_sequence([parsed(s) for s in progression])
+    basses = dict(zip(progression[:2], (v[0] % 12 for v in voicings[:2])))
+    assert basses == {'C': 0, 'C/E': 4}, voicings[:2]
+
+
+def _bass_pairs():
+    """Each of 7 roots x (major, minor, 7th) beside its /3rd and /5th, both orders."""
+    pairs = []
+    for root in 'CDEFGAB':
+        for quality in ('', 'm', '7'):
+            plain = root + quality
+            notes = parsed(plain).notes
+            for slash_note in (notes[1], notes[2]):
+                slash = f'{plain}/{slash_note}'
+                pairs.append((plain, slash))
+                pairs.append((slash, plain))
+    return pairs
+
+
+def test_bass_pair_corpus_has_84_pairs():
+    assert len(_bass_pairs()) == 84
+
+
+@pytest.mark.parametrize('spec_name', BUILTIN_NAMES)
+def test_no_pair_sounds_the_same_bass(spec_name):
+    """Before the nudge: satb 44, ttbb 55, ssa 70, quartet 25 of 84 collided."""
+    voicer = EnsembleVoicer(BUILTIN_ENSEMBLES[spec_name])
+    same = []
+    for a, b in _bass_pairs():
+        first, second = voicer.voice_sequence([parsed(a), parsed(b)])
+        if first[0] % 12 == second[0] % 12:
+            same.append((a, b, first, second))
+    assert same == []
+
+
+@pytest.mark.parametrize('spec_name', BUILTIN_NAMES)
+def test_click_to_play_keeps_the_basses_apart(spec_name):
+    """The greedy path (one chord after the previous) applies the same weight."""
+    voicer = EnsembleVoicer(BUILTIN_ENSEMBLES[spec_name])
+    for symbol, bass in (('C/E', 4), ('C', 0), ('C/G', 7), ('C', None), ('C/E', 4)):
+        lowest = voicer.chord_to_midi(parsed(symbol))[0] % 12
+        if bass is None:
+            assert lowest != 7  # after C/G, a plain C mustn't sound G
+        else:
+            assert lowest == bass, (symbol, lowest)
+
+
+def test_zero_weight_brings_back_the_held_voicing():
+    """The term is what moves the bass: switched off, C copies C/E."""
+    data = BUILTIN_ENSEMBLES['satb'].to_dict()
+    data['weights']['same_bass_penalty'] = 0.0
+    voicer = EnsembleVoicer(EnsembleSpec.from_dict('satb', data))
+    first, second = voicer.voice_sequence([parsed('C'), parsed('C/E')])
+    assert first == second and first[0] % 12 == 4
+
+
+def test_penalty_is_added_once_in_the_transition():
+    voicer = EnsembleVoicer(BUILTIN_ENSEMBLES['satb'])
+    prev = (52, 60, 67, 72)  # E3 C4 G4 C5, as C/E
+    cur = (52, 60, 67, 72)   # the same notes, as a plain C
+    without = voicer._score_transition(prev, cur, _ctx('C/E'))
+    with_ctx = voicer._score_transition(prev, cur, _ctx('C/E'), _ctx('C'))
+    assert with_ctx - without == pytest.approx(-5.0)
+    # Another bass note sounding: no penalty.
+    root_pos = (48, 64, 67, 72)
+    assert (voicer._score_transition(prev, root_pos, _ctx('C/E'), _ctx('C'))
+            == voicer._score_transition(prev, root_pos, _ctx('C/E')))
+
+
+def test_state_round_trips_the_chord_identity():
+    voicer = EnsembleVoicer(BUILTIN_ENSEMBLES['satb'])
+    voicer.chord_to_midi(parsed('C/E'))
+    state = voicer.state
+    assert (state.previous_root_pc, state.previous_bass_pc) == (0, 4)
+    assert state.previous_chord_pcs == (0, 4, 7)
+    rebuilt = EnsembleVoicerState.from_dict(state.to_dict())
+    assert rebuilt == state
+
+
+def test_old_state_dict_loads_without_identity():
+    old = {'previous_voicing': [52, 60, 67, 72], 'previous_seventh_pcs': [],
+           'previous_leading_tone_pc': None}
+    state = EnsembleVoicerState.from_dict(old)
+    assert state.previous_root_pc is None and state.previous_chord_pcs is None
+    assert state.context.root_pc is None

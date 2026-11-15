@@ -722,3 +722,43 @@ class TestBuiltinEnsembles:
     def test_builtins_round_trip(self):
         for key, spec in BUILTIN_ENSEMBLES.items():
             assert EnsembleSpec.from_dict(key, spec.to_dict()) == spec
+
+
+class TestSameBassPenalty:
+    """The weight added for the same chord over another bass sounding one bass."""
+
+    def _voices(self):
+        return [
+            {"name": "Top", "range": ["C4", "C5"]},
+            {"name": "Bottom", "range": ["C3", "C4"]},
+        ]
+
+    def test_default_is_a_five_point_nudge(self):
+        assert DEFAULT_WEIGHTS["same_bass_penalty"] == -5.0
+
+    def test_saved_voicing_without_the_key_gets_the_default(self):
+        spec = EnsembleSpec.from_dict("old", {
+            "voices": self._voices(),
+            "weights": {"leap_penalty": -2.0},
+        })
+        assert spec.weight("same_bass_penalty") == -5.0
+
+    def test_override_round_trips(self):
+        spec = EnsembleSpec.from_dict("mine", {
+            "voices": self._voices(),
+            "weights": {"same_bass_penalty": -1},
+        })
+        assert spec.weight("same_bass_penalty") == -1.0
+        rebuilt = EnsembleSpec.from_dict(spec.name, spec.to_dict())
+        assert rebuilt.weight("same_bass_penalty") == -1.0
+
+    def test_non_numeric_raises(self):
+        with pytest.raises(ConfigurationError):
+            EnsembleSpec.from_dict("bad", {
+                "voices": self._voices(),
+                "weights": {"same_bass_penalty": "a lot"},
+            })
+
+    @pytest.mark.parametrize("name", sorted(BUILTIN_ENSEMBLES))
+    def test_builtins_use_the_default(self, name):
+        assert BUILTIN_ENSEMBLES[name].weight("same_bass_penalty") == -5.0
