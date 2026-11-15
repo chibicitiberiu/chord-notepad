@@ -59,3 +59,10 @@ STOP_REWINDS = {DESKTOP: False, ANDROID: False, DESKTOP_QT: True}
 #: desktop's timeline do; the Tk desktop's status restarts at bar 1 where
 #: playback started, as it always has.
 COUNTS_SONG_BARS = {DESKTOP: False, ANDROID: True, DESKTOP_QT: True}
+
+#: Whether the voicings editor's presets (``VoicingEditorState.presets``)
+#: start with the ``blank`` group, a model's defaults: the Qt desktop's Add
+#: voicing menu lists them. Android's "Load config" menu titles each group
+#: with its model and would show this one under "Your voicings", so it is
+#: left out there (Android adds with ``add_voicing``, then loads a preset).
+BLANK_VOICING_PRESETS = {DESKTOP: True, ANDROID: False, DESKTOP_QT: True}

@@ -72,7 +72,13 @@ data class SettingsState(
 
 /** One model's voicings in the editor's list. */
 @Serializable
-data class VoicingGroup(val model: String, val label: String, val names: List<String>)
+data class VoicingGroup(
+    val model: String,
+    val label: String,
+    val names: List<String>,
+    /** The model's built-in voicings, as the presets label them (the Qt desktop lists them). */
+    val builtins: List<String> = emptyList(),
+)
 
 /** A "Load config" entry; send [group] and [label] to `load_voicing_preset`. */
 @Serializable
@@ -115,6 +121,8 @@ data class VoicingEditorState(
     val problems: List<SettingsProblem> = emptyList(),
     @SerialName("staged_numbers") val stagedNumbers: Map<String, String> = emptyMap(),
     val restored: Boolean = false,
+    /** The form shows a built-in (`select_builtin`, the Qt desktop's); edits are refused. */
+    @SerialName("read_only") val readOnly: Boolean = false,
 ) : SessionState
 
 /** The voicings editor's form schemas (`settings_forms.voicing_form.editor_schema`); keep it. */

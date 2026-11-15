@@ -523,11 +523,17 @@ raises is an `UnexpectedError` whose `context` is the command name.
   (that model's defaults; confirm first when `dirty`), `add_voicing_record
   {field_id}` / `remove_voicing_record {index, field_id}` /
   `move_voicing_record {index, offset, field_id}` (`offset` -1 up, +1 down;
-  `field_id` defaults to `voices`), `load_voicing_preset {group, label}`. Every one
+  `field_id` defaults to `voices`), `load_voicing_preset {group, label}`.
+  The Qt desktop also sends `add_voicing_from {group, label}` (a new voicing
+  copied from a preset, a built-in or one of the user's, named "New
+  <label>", or "New fretboard voicing" and so on for a `blank` preset) and
+  `select_builtin {group, label}` (a built-in in the form, `read_only`:
+  edits raise); Android doesn't, and its `presets` leave out the `blank`
+  group. Every one
   republishes `VoicingEditorState {active, revision, groups: [{model, label,
-  names}], invalid, presets: [{label, group}], selected, model, values,
+  names, builtins}], invalid, presets: [{label, group}], selected, model, values,
   field_errors, form_errors, hints, dirty, problems, staged_numbers,
-  restored}`: `values` / `field_errors` /
+  restored, read_only}`: `values` / `field_errors` /
   `hints` are JSON objects keyed by field id (`voice:<i>:<column>` for a
   records cell). Note names in `values`, `hints` and the problem texts are
   in the working copy's notation (the Settings notation, which follows the

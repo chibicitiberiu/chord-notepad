@@ -90,7 +90,8 @@ def test_editor_is_inactive_until_begun_and_after_cancel(tmp_path):
     assert state.active and state.selected is None and state.values == {}
     assert [(g.model, g.names) for g in state.groups] == [
         ("fretboard", ("Bass",)), ("piano", ()), ("ensemble", ())]
-    assert state.presets[0].group == "fretboard"
+    # The blanks (a model's defaults), then the built-ins, then the user's.
+    assert [p.group for p in state.presets[:4]] == ["blank", "blank", "blank", "fretboard"]
     assert state.presets[-1].label == "Bass" and state.presets[-1].group == "custom"
     session.add_voicing()
     session.cancel_settings_edit()

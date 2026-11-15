@@ -401,8 +401,9 @@ def test_add_voicing_offers_the_presets_and_the_pick_is_what_it_starts_as(settin
     groups = [p["group"] for p in settings.editor("presets")]
     assert labels.count("") == len(set(groups)) - 1          # a separator between groups
     # Not the last row (each row keeps its own preset).
+    # (The blank fretboard first: a guitar's defaults.)
     first = settings.editor("presets")[0]
-    assert first["group"] == "fretboard" and labels[0] == first["label"]
+    assert first["group"] == "blank" and labels[0] == first["label"] == "Blank fretboard"
     QMetaObject.invokeMethod(items[0], "triggered")
     settings.qtbot.waitUntil(lambda: settings.editor("selected") == "New voicing", timeout=2000)
     settings.qtbot.waitUntil(lambda: settings.editor("model") == "fretboard", timeout=2000)

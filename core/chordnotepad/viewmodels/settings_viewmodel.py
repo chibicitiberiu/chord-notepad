@@ -153,6 +153,18 @@ class SettingsViewModel:
         }
         return name
 
+    def add_voicing_data(self, base: str, data: dict) -> str:
+        """Add a voicing with ``data`` (it must include ``'model'``), named
+        ``base`` or, when that is taken (ignoring case, or a built-in's
+        name), ``base 2``, ``base 3``...
+
+        Returns:
+            The name it got.
+        """
+        name = self._unique_name(base)
+        self._working_voicings[name] = data
+        return name
+
     def remove_voicing(self, name: str) -> None:
         """Remove a voicing from the working copy (no-op if it is absent)."""
         self._working_voicings.pop(name, None)

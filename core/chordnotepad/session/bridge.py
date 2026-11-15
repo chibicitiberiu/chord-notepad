@@ -330,6 +330,8 @@ SESSION_COMMANDS: Dict[str, Dict[str, str]] = {
     "request_voicing_editor_schema": {},
     "select_voicing": {"name": "str"},
     "add_voicing": {},
+    "add_voicing_from": {"group": "str", "label": "str"},
+    "select_builtin": {"group": "str", "label": "str"},
     "remove_voicing": {"name": "str"},
     "rename_voicing": {"old": "str", "new": "str"},
     "set_voicing_values": {"values": "json"},

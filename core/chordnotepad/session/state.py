@@ -562,21 +562,29 @@ class VoicingGroup:
         model: ``fretboard``, ``piano`` or ``ensemble``.
         label: The group's heading.
         names: The working copy's voicings of that model, sorted.
+        builtins: The built-in voicings of that model, as the presets label
+            them, in preset order (``"Guitar (Standard)"``, ...; the piano's
+            is ``"Piano (default)"``). ``select_builtin(model, label)`` shows
+            one read-only, ``add_voicing_from(model, label)`` copies it.
     """
 
     model: str
     label: str
     names: Tuple[str, ...]
+    builtins: Tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
 class VoicingPreset:
-    """An entry of the "Load config" menu; send both back with ``load_voicing_preset``.
+    """An entry of the "Load config" menu; send both back with
+    ``load_voicing_preset`` (or ``add_voicing_from``, for a new voicing).
 
     Attributes:
         label: What the menu shows.
-        group: ``fretboard``, ``ensemble``, ``piano`` or ``custom`` (a view
-            separates the groups).
+        group: ``blank`` (a model's defaults: "Blank fretboard", "Blank
+            piano", "Blank ensemble"; listed first, and not on Android),
+            ``fretboard``, ``ensemble``, ``piano`` (the built-ins) or
+            ``custom`` (the user's voicings); a view separates the groups.
     """
 
     label: str
@@ -634,6 +642,10 @@ class VoicingEditorState:
             ``invalid_numbers``, or kept from last time).
         restored: The edit opened with wrong values kept from last time
             (the app went away before they were fixed or discarded).
+        read_only: The form shows a built-in (``select_builtin``): then
+            ``selected`` is its label, ``model`` its group, and every edit
+            command is refused (``RuntimeError``) until a voicing of the
+            user's is selected or added.
     """
 
     active: bool
@@ -651,6 +663,7 @@ class VoicingEditorState:
     problems: Tuple[SettingsProblem, ...]
     staged_numbers: Any
     restored: bool
+    read_only: bool = False
 
 
 #: The voicings editor while no settings edit is open.

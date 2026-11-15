@@ -70,6 +70,18 @@ class ScreenBridgeTest {
         ) as VoicingEditorState
         assertEquals(JsonPrimitive("12"), editor.values["max_fret"])
         assertEquals(setOf("max_fret"), editor.fieldErrors.keys)
+        assertEquals(emptyList<String>(), editor.groups.single().builtins)
+        assertEquals(false, editor.readOnly)
+
+        val builtin = BridgeCodec.decode(
+            "VoicingEditorState",
+            """{"active":true,"revision":4,"groups":[{"model":"fretboard","label":"Fretboard",
+               "names":[],"builtins":["Guitar (Standard)","Ukulele"]}],"invalid":[],"presets":[],
+               "selected":"Ukulele","model":"fretboard","values":{},"field_errors":{},
+               "form_errors":[],"hints":{},"dirty":false,"read_only":true}""",
+        ) as VoicingEditorState
+        assertEquals(listOf("Guitar (Standard)", "Ukulele"), builtin.groups.single().builtins)
+        assertEquals(true, builtin.readOnly)
 
         val tour = BridgeCodec.decode(
             "QuickStartContent",

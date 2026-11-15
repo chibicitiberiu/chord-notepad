@@ -46,7 +46,8 @@ from chordnotepad.models.notation import Notation
 from chordnotepad.models.playback_event import PlaybackEventArgs, PlaybackEventType
 from chordnotepad.session import directives, errors, formatting, quick_start, song_defaults, support, toolbar
 from chordnotepad.session.platform import (
-    ANDROID, COUNTS_SONG_BARS, DESKTOP, STOP_REWINDS, TRACKS_PLAYHEAD, check_platform, pick,
+    ANDROID, BLANK_VOICING_PRESETS, COUNTS_SONG_BARS, DESKTOP, STOP_REWINDS, TRACKS_PLAYHEAD,
+    check_platform, pick,
 )
 from chordnotepad.session.audio_policy import AudioFailurePolicy
 from chordnotepad.session.emitter import Emitter, Listener
@@ -1722,7 +1723,8 @@ class AppSession:
         Raises:
             RuntimeError: If the session was built without services.
         """
-        edit = SettingsEdit(self.settings_model())
+        edit = SettingsEdit(self.settings_model(),
+                            blank_presets=pick(BLANK_VOICING_PRESETS, self._platform))
         disk = self._require_services("settings").config.config.voicings
         voicings, numbers = self._settings_staging().load()
         for name, data in voicings.items():
@@ -1960,6 +1962,35 @@ class AppSession:
         """Add a voicing (a guitar fretboard, named "New voicing", "New voicing 2"...)
         and select it."""
         self._edit_voicings(lambda edit: edit.add())
+
+    @_command
+    def add_voicing_from(self, group: str, label: str) -> None:
+        """Add a voicing that starts as a preset and select it, in one state.
+
+        ``group`` and ``label`` name a ``VoicingEditorState.presets`` entry,
+        a built-in (``VoicingGroup.builtins``) or a voicing of the user's
+        (group ``custom``, the selected one too). A blank is named "New
+        fretboard voicing", "New piano voicing" or "New ensemble voicing";
+        a copy "New <label>"; either gets " 2", " 3"... when the name is
+        taken (ignoring case) or a built-in's.
+
+        Raises:
+            RuntimeError: If no settings edit is open.
+            ValueError: If there is no such preset.
+        """
+        self._edit_voicings(lambda edit: edit.add_from(group, label))
+
+    @_command
+    def select_builtin(self, group: str, label: str) -> None:
+        """Show built-in voicing ``label`` of model ``group`` in the form,
+        read-only (``VoicingEditorState.read_only``): every edit command is
+        refused until a voicing of the user's is selected or added.
+
+        Raises:
+            RuntimeError: If no settings edit is open.
+            ValueError: If there is no such built-in.
+        """
+        self._edit_voicings(lambda edit: edit.select_builtin(group, label))
 
     @_command
     def remove_voicing(self, name: str) -> None:

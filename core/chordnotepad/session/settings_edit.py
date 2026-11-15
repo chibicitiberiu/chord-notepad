@@ -29,7 +29,12 @@ from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Mapping, Optional, 
 from chordnotepad.settings_forms import voicing_form as form
 from chordnotepad.settings_forms.voicing_autosave import VoicingPlan, plan_voicing, problem_text
 from chordnotepad.session.state import SettingsProblem, VoicingEditorState, VoicingGroup, VoicingPreset
-from chordnotepad.settings_forms.voicing_texts import MODEL_LABELS
+from chordnotepad.settings_forms.voicing_texts import (
+    BLANK_PRESET_LABELS, BLANK_VOICING_NAMES, COPY_NAME, MODEL_LABELS,
+)
+
+#: The group of the presets that are a model's defaults (listed first).
+BLANK_GROUP = "blank"
 
 if TYPE_CHECKING:
     from chordnotepad.viewmodels.settings_viewmodel import SettingsViewModel
@@ -38,10 +43,20 @@ if TYPE_CHECKING:
 class SettingsEdit:
     """The working copy of one Settings screen and its voicing form."""
 
-    def __init__(self, model: "SettingsViewModel") -> None:
-        """Start editing ``model`` (a fresh ``SettingsViewModel``); nothing selected."""
+    def __init__(self, model: "SettingsViewModel", blank_presets: bool = True) -> None:
+        """Start editing ``model`` (a fresh ``SettingsViewModel``); nothing selected.
+
+        Args:
+            model: The working copy.
+            blank_presets: Whether :meth:`presets` lists the ``blank`` group
+                first (a model's defaults; not on Android, whose "Load
+                config" menu has no heading for it).
+        """
         self.model = model
+        self._blank_presets = blank_presets
         self._selected: Optional[str] = None
+        #: ``(group, label)`` of the built-in shown read-only, or None.
+        self._builtin: Optional[Tuple[str, str]] = None
         self._form_model: Optional[str] = None
         self._values: Dict[str, Any] = {}
         self._label: Optional[str] = None
@@ -74,7 +89,10 @@ class SettingsEdit:
 
         The form is rebuilt from the voicing, so a value being typed that
         doesn't parse stays as it is."""
-        if self._selected is not None:
+        if self._builtin is not None:
+            self._values = form.values_from_voicing(
+                self._form_model, self._builtin_data(*self._builtin), self.notation)
+        elif self._selected is not None:
             self._values = form.values_from_voicing(
                 self._form_model, self.model.get_voicings()[self._selected], self.notation)
 
@@ -84,6 +102,12 @@ class SettingsEdit:
     def selected(self) -> Optional[str]:
         """The voicing in the form, or None."""
         return self._selected
+
+    @property
+    def read_only(self) -> bool:
+        """Whether the form shows a built-in (:meth:`select_builtin`): every
+        edit is refused until a voicing of the user's is selected."""
+        return self._builtin is not None
 
     def select(self, name: str) -> None:
         """Load ``name`` into the form (not edited yet).
@@ -96,6 +120,21 @@ class SettingsEdit:
             raise ValueError(f"No voicing named '{name}'.")
         data = voicings[name]
         self._selected = name
+        self._builtin = None
+        self._load(data)
+        self._dirty = False
+        self._recent = []
+
+    def select_builtin(self, group: str, label: str) -> None:
+        """Show built-in ``label`` of model ``group`` (a ``VoicingGroup.builtins``
+        entry) in the form, read-only.
+
+        Raises:
+            ValueError: If there is no such built-in.
+        """
+        data = self._builtin_data(group, label)
+        self._selected = label
+        self._builtin = (group, label)
         self._load(data)
         self._dirty = False
         self._recent = []
@@ -106,10 +145,36 @@ class SettingsEdit:
         self.select(name)
         return name
 
+    def add_from(self, group: str, label: str) -> str:
+        """Add a voicing that starts as preset ``label`` of ``group`` and select it.
+
+        ``group`` is ``blank`` (a model's defaults), a model (a built-in) or
+        ``custom`` (a voicing of the working copy, also the selected one).
+        A blank is named "New fretboard voicing" (and so on), a copy "New
+        <label>"; either is numbered ("New Piano (default) 2") when the
+        name is taken, ignoring case, or a built-in's.
+
+        Raises:
+            ValueError: If there is no such preset.
+        """
+        for preset in self._all_presets():
+            if preset["group"] == group and preset["label"] == label:
+                break
+        else:
+            raise ValueError(f"no preset {label!r} in group {group!r}")
+        data = copy.deepcopy(preset["data"])
+        if group == BLANK_GROUP:
+            base = BLANK_VOICING_NAMES[data["model"]]
+        else:
+            base = COPY_NAME.format(label=label)
+        name = self.model.add_voicing_data(base, data)
+        self.select(name)
+        return name
+
     def remove(self, name: str) -> None:
         """Remove ``name``; the form empties if it was the one shown."""
         self.model.remove_voicing(name)
-        if self._selected == name:
+        if self._selected == name and self._builtin is None:
             self._clear()
 
     def rename(self, old: str, new: str) -> None:
@@ -119,7 +184,7 @@ class SettingsEdit:
             ValueError: For an empty or taken name, or no voicing ``old``.
         """
         self.model.rename_voicing(old, new)
-        if self._selected == old:
+        if self._selected == old and self._builtin is None:
             self._selected = (new or "").strip()
 
     # -- the form ----------------------------------------------------------------
@@ -131,10 +196,10 @@ class SettingsEdit:
         that doesn't parse stays a raw string and shows as a field error).
 
         Raises:
-            RuntimeError: If no voicing is selected.
+            RuntimeError: If no voicing is selected, or a built-in is.
             TypeError: If ``values`` isn't an object.
         """
-        self._require_selected()
+        self._require_editable()
         if not isinstance(values, Mapping):
             raise TypeError(f"voicing values must be an object, got {values!r}")
         merged = dict(self._values)
@@ -150,10 +215,10 @@ class SettingsEdit:
         """Switch the selected voicing to ``model`` with that model's defaults.
 
         Raises:
-            RuntimeError: If no voicing is selected.
+            RuntimeError: If no voicing is selected, or a built-in is.
             ValueError: For an unknown model.
         """
-        self._require_selected()
+        self._require_editable()
         if model not in form.MODELS:
             raise ValueError(f"unknown voicing model {model!r}")
         if model == self._form_model:
@@ -165,36 +230,43 @@ class SettingsEdit:
 
     def add_record(self, field_id: str = "voices") -> None:
         """Append a row to a records field (the ensemble's voices)."""
-        self._require_selected()
+        self._require_editable()
         self._replace_values(form.add_record(self._form_model, self._values, field_id,
                                              self.notation))
 
     def remove_record(self, index: int, field_id: str = "voices") -> None:
         """Remove row ``index`` of a records field (nothing if out of range)."""
-        self._require_selected()
+        self._require_editable()
         self._replace_values(form.remove_record(self._form_model, self._values, index, field_id,
                                                 self.notation))
 
     def move_record(self, index: int, offset: int, field_id: str = "voices") -> None:
         """Move row ``index`` of a records field by ``offset`` rows (-1 up, +1
         down; nothing if it would leave the list)."""
-        self._require_selected()
+        self._require_editable()
         self._replace_values(form.move_record(self._form_model, self._values, index, offset,
                                               field_id, self.notation))
 
     def presets(self) -> List[Dict[str, Any]]:
-        """The "Load config" entries (built-ins, then the working voicings but
-        the selected one)."""
-        return self.model.get_load_presets(exclude=self._selected)
+        """The "Load config" entries: the blanks (unless left out for the
+        platform), the built-ins, then the working voicings but the selected
+        one."""
+        exclude = self._selected if self._builtin is None else None
+        blanks = self._blanks() if self._blank_presets else []
+        return blanks + self.model.get_load_presets(exclude=exclude)
+
+    def builtins(self, model: str) -> Tuple[str, ...]:
+        """The built-in presets of ``model``, in preset order (their labels)."""
+        return tuple(p["label"] for p in self.model.get_load_presets() if p["group"] == model)
 
     def load_preset(self, group: str, label: str) -> None:
         """Replace the selected voicing's parameters with a "Load config" entry.
 
         Raises:
-            RuntimeError: If no voicing is selected.
+            RuntimeError: If no voicing is selected, or a built-in is.
             ValueError: If there is no such entry.
         """
-        self._require_selected()
+        self._require_editable()
         for preset in self.presets():
             if preset["group"] == group and preset["label"] == label:
                 data = copy.deepcopy(preset["data"])
@@ -224,7 +296,7 @@ class SettingsEdit:
             saved = self.saved_voicing(name, disk)
             if saved is not None and data == saved:
                 continue
-            if name == self._selected:
+            if name == self._selected and self._builtin is None:
                 model, values, label, recent = self._form_model, self._values, self._label, self._recent
             else:
                 model = form.form_model(data.get('model', 'piano'))
@@ -267,7 +339,7 @@ class SettingsEdit:
                 self.remove(name)
             else:
                 self.model.set_voicing_data(name, copy.deepcopy(saved))
-                if name == self._selected:
+                if name == self._selected and self._builtin is None:
                     self.select(name)
         self.staged_numbers = {}
         self.restored = False
@@ -285,7 +357,8 @@ class SettingsEdit:
         for name in sorted(voicings):
             model = voicings[name].get("model", "piano")
             by_group[model if model in form.TREE_GROUPS else "piano"].append(name)
-        groups = tuple(VoicingGroup(group, MODEL_LABELS[group], tuple(by_group[group]))
+        groups = tuple(VoicingGroup(group, MODEL_LABELS[group], tuple(by_group[group]),
+                                    self.builtins(group))
                        for group in form.TREE_GROUPS)
         plans = self.plans(disk)
         listed = [name for group in groups for name in group.names]
@@ -296,14 +369,17 @@ class SettingsEdit:
         presets = tuple(VoicingPreset(p["label"], p["group"]) for p in self.presets())
         common = dict(active=True, revision=self._revision, groups=groups, invalid=invalid,
                       presets=presets, problems=tuple(p for ps in problems for p in ps),
-                      staged_numbers=dict(self.staged_numbers), restored=self.restored)
+                      staged_numbers=dict(self.staged_numbers), restored=self.restored,
+                      read_only=self.read_only)
         if self._selected is None:
             return VoicingEditorState(
                 selected=None, model=None, values={}, field_errors={},
                 form_errors=(), hints={}, dirty=False, **common)
         checked = form.validate_form(self._selected, self._form_model, self._values, self._label)
         field_errors = dict(checked["fields"])
-        for problem in plans[self._selected].problems if self._selected in plans else ():
+        # (A built-in has no plan; a voicing of the user's may share its label.)
+        own = self._builtin is None and self._selected in plans
+        for problem in plans[self._selected].problems if own else ():
             if problem.field_id is not None:
                 field_errors.setdefault(problem.field_id, problem.message)
         # The spec's message is the form's only while no field is blamed for
@@ -318,7 +394,7 @@ class SettingsEdit:
             form_errors=form_errors, hints=hints, dirty=self._dirty, **common)
 
     def _problems(self, name: str, plan: VoicingPlan) -> Tuple[SettingsProblem, ...]:
-        if name == self._selected:
+        if name == self._selected and self._builtin is None:
             model, values = self._form_model, self._values
         else:
             data = self.model.get_voicings()[name]
@@ -333,6 +409,29 @@ class SettingsEdit:
     def _require_selected(self) -> None:
         if self._selected is None:
             raise RuntimeError("no voicing is selected in the voicings editor")
+
+    def _require_editable(self) -> None:
+        self._require_selected()
+        if self._builtin is not None:
+            raise RuntimeError(
+                f"the voicing in the form is the built-in {self._selected!r}, "
+                "which can't be edited (add_voicing_from copies it)")
+
+    def _blanks(self) -> List[Dict[str, Any]]:
+        """The ``blank`` presets: each model's defaults, in list order."""
+        return [{"label": BLANK_PRESET_LABELS[model], "group": BLANK_GROUP,
+                 "data": form.default_voicing(model)} for model in form.TREE_GROUPS]
+
+    def _all_presets(self) -> List[Dict[str, Any]]:
+        """Every preset :meth:`add_from` copies: the blanks, the built-ins
+        and every working voicing (the selected one too)."""
+        return self._blanks() + self.model.get_load_presets()
+
+    def _builtin_data(self, group: str, label: str) -> Dict[str, Any]:
+        for preset in self.model.get_load_presets():
+            if preset["group"] == group and preset["label"] == label and group in form.MODELS:
+                return copy.deepcopy(preset["data"])
+        raise ValueError(f"no built-in voicing {label!r} of model {group!r}")
 
     def _load(self, data: Mapping[str, Any], keep_label: bool = False) -> None:
         self._form_model = form.form_model(data.get("model", "piano"))
@@ -351,6 +450,7 @@ class SettingsEdit:
     def _clear(self) -> None:
         self._recent = []
         self._selected = None
+        self._builtin = None
         self._form_model = None
         self._values = {}
         self._label = None

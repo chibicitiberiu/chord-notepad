@@ -89,6 +89,19 @@ ROLE_LABELS: Dict[str, str] = {
 #: Display names of the three models, in the order the model selector lists them.
 MODEL_LABELS: Dict[str, str] = {'fretboard': 'Fretboard', 'ensemble': 'Ensemble', 'piano': 'Piano'}
 
+#: The 'blank' presets (a model's defaults), in list order: model -> its label.
+BLANK_PRESET_LABELS: Dict[str, str] = {
+    'fretboard': 'Blank fretboard', 'piano': 'Blank piano', 'ensemble': 'Blank ensemble'}
+
+#: What a voicing added from a blank preset is called (numbered when taken).
+BLANK_VOICING_NAMES: Dict[str, str] = {
+    'fretboard': 'New fretboard voicing', 'piano': 'New piano voicing',
+    'ensemble': 'New ensemble voicing'}
+
+#: What a voicing copied from a preset or another voicing is called
+#: ("New Guitar (Standard)", numbered when taken).
+COPY_NAME = 'New {label}'
+
 #: Display names for a voice's staff selector ('Auto' is the absent/None key).
 STAFF_LABELS = ((None, 'Auto'), ('treble', 'Treble'), ('bass', 'Bass'))
 

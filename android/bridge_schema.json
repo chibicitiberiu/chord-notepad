@@ -7,6 +7,10 @@
   },
   "command_params": {
     "add_voicing": {},
+    "add_voicing_from": {
+      "group": "str",
+      "label": "str"
+    },
     "add_voicing_record": {
       "field_id": "str"
     },
@@ -154,6 +158,10 @@
     "seek_to_bar": {
       "bar": "int"
     },
+    "select_builtin": {
+      "group": "str",
+      "label": "str"
+    },
     "select_voicing": {
       "name": "str"
     },
@@ -268,6 +276,7 @@
   },
   "commands": [
     "add_voicing",
+    "add_voicing_from",
     "add_voicing_record",
     "app_background",
     "app_foreground",
@@ -321,6 +330,7 @@
     "save_as",
     "save_settings",
     "seek_to_bar",
+    "select_builtin",
     "select_voicing",
     "set_bpm",
     "set_bpm_text",
@@ -781,6 +791,7 @@
         "model": "str|null",
         "presets": "list[VoicingPreset]",
         "problems": "list[SettingsProblem]",
+        "read_only": "bool",
         "restored": "bool",
         "revision": "int",
         "selected": "str|null",
@@ -791,6 +802,7 @@
     },
     "VoicingGroup": {
       "fields": {
+        "builtins": "list[str]",
         "label": "str",
         "model": "str",
         "names": "list[str]"
