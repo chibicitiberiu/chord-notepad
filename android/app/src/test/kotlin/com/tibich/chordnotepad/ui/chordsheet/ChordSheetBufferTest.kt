@@ -75,12 +75,13 @@ class ChordSheetBufferTest {
     @Test
     fun `a newer format version is rejected without guessing`() {
         val data = bytes("multikey_staff").copyOf()
-        ByteBuffer.wrap(data).order(ByteOrder.LITTLE_ENDIAN).putShort(4, 2)
+        val newer = ChordSheetBuffer.FORMAT_VERSION + 1
+        ByteBuffer.wrap(data).order(ByteOrder.LITTLE_ENDIAN).putShort(4, newer.toShort())
         try {
             ChordSheetBuffer.decode(data)
-            fail("version 2 decoded")
+            fail("version $newer decoded")
         } catch (e: UnsupportedChordSheetVersion) {
-            assertEquals(2, e.version)
+            assertEquals(newer, e.version)
         }
     }
 
@@ -163,8 +164,8 @@ class ChordSheetBufferTest {
         fun s(key: String) = e[key]!!.let { if (it is JsonNull) null else it.jsonPrimitive.content }
         when (op) {
             is RectOp -> {
-                assertEquals(listOf(d("x"), d("y"), d("w"), d("h"), d("width")),
-                    listOf(op.x, op.y, op.w, op.h, op.width).map(Float::toDouble))
+                assertEquals(listOf(d("x"), d("y"), d("w"), d("h"), d("width"), d("radius")),
+                    listOf(op.x, op.y, op.w, op.h, op.width, op.radius).map(Float::toDouble))
                 assertEquals(listOf(s("fill"), s("outline")), listOf(op.fill, op.outline))
             }
             is OvalOp -> {
@@ -200,7 +201,7 @@ class ChordSheetBufferTest {
     private fun points(e: JsonObject) = e["points"]!!.jsonArray.flatMap { p -> p.jsonArray.map { it.jsonPrimitive.double } }
 
     private fun coordSum(op: DrawOp): Double = when (op) {
-        is RectOp -> (op.x + op.y + op.w + op.h).toDouble() + op.width
+        is RectOp -> (op.x + op.y + op.w + op.h).toDouble() + op.width + op.radius
         is OvalOp -> (op.x + op.y + op.w + op.h).toDouble() + op.width
         is LineOp -> op.width.toDouble() + op.points.sumOf { it.toDouble() }
         is PolygonOp -> op.points.sumOf { it.toDouble() }

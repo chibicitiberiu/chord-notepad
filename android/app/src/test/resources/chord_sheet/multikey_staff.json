@@ -73,6 +73,7 @@
     "h": 130.0,
     "op": "rect",
     "outline": null,
+    "radius": 0.0,
     "tags": [
      "gutter"
     ],
@@ -106,6 +107,7 @@
     "h": 130.0,
     "op": "rect",
     "outline": null,
+    "radius": 0.0,
     "tags": [
      "gutter"
     ],
@@ -139,6 +141,7 @@
     "h": 130.0,
     "op": "rect",
     "outline": null,
+    "radius": 0.0,
     "tags": [
      "gutter"
     ],

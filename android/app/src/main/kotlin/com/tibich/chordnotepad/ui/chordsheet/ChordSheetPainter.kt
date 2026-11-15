@@ -4,6 +4,7 @@ import android.content.res.AssetManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.util.Log
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.BlendMode
@@ -218,7 +219,13 @@ class SheetPainter(private val measurer: TextMeasurer, private val glyphs: Glyph
             if (!list.intersects(i, left, right)) continue
             drawnOps++
             when (val op = list.ops[i]) {
-                is RectOp -> {
+                is RectOp -> if (op.radius > 0f) {
+                    val corner = CornerRadius(op.radius, op.radius)
+                    colors[op.fill]?.let { drawRoundRect(it, Offset(op.x, op.y), Size(op.w, op.h), corner) }
+                    if (op.width > 0f) colors[op.outline]?.let {
+                        drawRoundRect(it, Offset(op.x, op.y), Size(op.w, op.h), corner, style = stroke(op.width, StrokeJoin.Round))
+                    }
+                } else {
                     colors[op.fill]?.let { drawRect(it, Offset(op.x, op.y), Size(op.w, op.h)) }
                     if (op.width > 0f) colors[op.outline]?.let {
                         drawRect(it, Offset(op.x, op.y), Size(op.w, op.h), style = stroke(op.width, StrokeJoin.Miter))

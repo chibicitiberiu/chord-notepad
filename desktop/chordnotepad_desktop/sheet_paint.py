@@ -168,18 +168,19 @@ def gutter_palette(strings: Sequence[str], dark: bool, surface: QColor) -> Dict[
 
 def key_bed(items: Sequence[tuple]) -> Optional[QRectF]:
     """The box the keyboard's keys cover (the union of the gutter's
-    rectangles), or None: painted in the white keys' colour first, so the
-    space beside each black key isn't a hole in the keyboard."""
+    rectangles, square or rounded), or None: painted in the white keys'
+    colour first, so the space beside each black key isn't a hole in the
+    keyboard."""
     bed: Optional[QRectF] = None
     for item in items:
-        if item[0] == K_RECT:
+        if item[0] == K_RECT or item[0] == K_RRECT:
             bed = QRectF(item[1]) if bed is None else bed.united(item[1])
     return bed
 
 
 # -- Prepared ops -----------------------------------------------------------------------
 
-K_RECT, K_OVAL, K_LINE, K_SEGMENT, K_POLY, K_TEXT, K_IMAGE = range(7)
+K_RECT, K_OVAL, K_LINE, K_SEGMENT, K_POLY, K_TEXT, K_IMAGE, K_RRECT = range(8)
 #: Text sizes are points at 96 dpi, as Tk drew them (Android's ``PT_TO_SP``).
 PT_TO_PX = 4.0 / 3.0
 #: Anchor fractions (Tk's compass anchors): (x, y) of the anchor in the box.
@@ -267,8 +268,11 @@ class PreparedOps:
         kind = type(op)
         if kind is RectOp or kind is OvalOp:
             pad = op.width / 2
-            item = (K_RECT if kind is RectOp else K_OVAL, QRectF(op.x, op.y, op.w, op.h),
-                    op.fill, op.outline, op.width)
+            rect = QRectF(op.x, op.y, op.w, op.h)
+            if kind is RectOp and op.radius > 0:
+                item = (K_RRECT, rect, op.fill, op.outline, op.width, op.radius)
+            else:
+                item = (K_RECT if kind is RectOp else K_OVAL, rect, op.fill, op.outline, op.width)
             return item, op.x - pad, op.x + op.w + pad
         if kind is LineOp:
             xs = [p[0] for p in op.points]
@@ -497,8 +501,8 @@ class SheetPainter:
         for item in items:
             kind = item[0]
             self.drawn += 1
-            if kind == K_RECT or kind == K_OVAL:
-                _, rect, fill, outline, width = item
+            if kind == K_RECT or kind == K_OVAL or kind == K_RRECT:
+                rect, fill, outline, width = item[1:5]
                 fc = colors.get(fill) if fill else None
                 oc = colors.get(outline) if outline and width > 0 else None
                 if fc is None and oc is None:
@@ -511,6 +515,8 @@ class SheetPainter:
                 p.setBrush(QBrush(fc) if fc is not None else no_brush)
                 if kind == K_RECT:
                     p.drawRect(rect)
+                elif kind == K_RRECT:
+                    p.drawRoundedRect(rect, item[5], item[5])
                 else:
                     p.drawEllipse(rect)
             elif kind == K_SEGMENT or kind == K_LINE:

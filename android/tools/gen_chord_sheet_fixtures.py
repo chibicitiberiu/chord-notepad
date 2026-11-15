@@ -67,6 +67,8 @@ def _op_dict(op):
         d = {"op": "rect" if kind is RectOp else "oval", "x": op.x, "y": op.y,
              "w": op.w, "h": op.h, "fill": op.fill, "outline": op.outline,
              "width": op.width}
+        if kind is RectOp:
+            d["radius"] = op.radius
     elif kind is LineOp:
         d = {"op": "line", "fill": op.fill, "width": op.width,
              "points": [list(p) for p in op.points]}
@@ -89,7 +91,7 @@ def _coord_sum(ops):
     total = 0.0
     for op in ops:
         d = _op_dict(op)
-        for key in ("x", "y", "w", "h", "width", "size"):
+        for key in ("x", "y", "w", "h", "width", "radius", "size"):
             if key in d:
                 total += d[key]
         for p in d.get("points", ()):

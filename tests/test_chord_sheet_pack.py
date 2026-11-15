@@ -214,6 +214,8 @@ def test_views_without_a_gutter_pack_none(song, view_id):
 def _every_op_kind() -> pack.ViewOps:
     ops = DrawOps()
     ops.rect(1.5, 2.0, 30.0, 40.25, fill="#fbfbf8", outline=None, width=1.0, tags=("a",))
+    ops.rect(5.0, 6.0, 20.0, 7.5, fill="#5c6bc0", outline="#22323a", width=0.5, radius=2.5,
+             tags=("slot:0",))
     ops.oval(3.0, 4.0, 5.0, 6.0, fill=None, outline="#22323a", width=1.5)
     ops.line([(0.0, 1.0), (2.0, 3.0), (4.0, 5.0)], fill="#b9c2c7", width=0.75,
              tags=("a", "slot:0"))
@@ -236,7 +238,7 @@ def _every_op_kind() -> pack.ViewOps:
 def test_header_layout_matches_the_spec():
     data = pack.serialize(_every_op_kind())
     magic, version, header_size = struct.unpack_from("<4sHH", data, 0)
-    assert (magic, version, header_size) == (b"CNSB", 1, 48)
+    assert (magic, version, header_size) == (b"CNSB", 2, 48)
     view_id, background, highlight, flags = struct.unpack_from("<HHHH", data, 8)
     assert (view_id, background, highlight, flags) == (0, 1, 2, 0)
     assert struct.unpack_from("<6f", data, 16) == tuple(
@@ -246,7 +248,7 @@ def test_header_layout_matches_the_spec():
     # The string table starts at header_size, numbered in first-use order.
     (length,) = struct.unpack_from("<H", data, 48)
     assert data[50:50 + length] == b"staff"
-    assert string_count == 11
+    assert string_count == 12
 
 
 def test_every_op_kind_round_trips():
@@ -254,13 +256,40 @@ def test_every_op_kind_round_trips():
     assert pack.unpack(pack.serialize(view)) == _quantized(view)
 
 
+def _one_op_bytes(op) -> bytes:
+    """The encoded bytes of a single content op (its op list, minus the head)."""
+    w = pack._Writer()
+    w.op_list([op])
+    return bytes(w.body[pack._LIST_HEAD.size:])
+
+
+def test_a_square_rect_keeps_the_version_1_encoding():
+    square = DrawOps()
+    square.rect(1.0, 2.0, 3.0, 4.0, fill="#fbfbf8", outline="#22323a", width=1.5, tags=("a",))
+    data = _one_op_bytes(square.ops[0])
+    assert data[0] == pack.OP_RECT
+    # opcode, 4 f32, 2 str, f32 width, then the tags (u8 count + one str).
+    assert data == struct.pack("<BffffHHf", 1, 1.0, 2.0, 3.0, 4.0, 0, 1, 1.5) + b"\x01\x02\x00"
+
+
+def test_a_rounded_rect_carries_its_radius():
+    rounded = DrawOps()
+    rounded.rect(1.0, 2.0, 3.0, 4.0, fill="#5c6bc0", radius=1.25)
+    data = _one_op_bytes(rounded.ops[0])
+    assert data[0] == pack.OP_RRECT
+    assert struct.unpack_from("<f", data, 25) == (1.25,)   # after the width
+    view = dataclasses.replace(_every_op_kind(), content=rounded.ops)
+    (op,) = pack.unpack(pack.serialize(view)).content
+    assert op.radius == 1.25 and op.fill == "#5c6bc0" and op.outline is None
+
+
 def test_format_golden():
     # Pins the byte layout itself. A change here is a format change: bump
     # FORMAT_VERSION, update docs/ANDROID.md and the Kotlin decoder.
     data = pack.serialize(_every_op_kind())
-    assert len(data) == 428
+    assert len(data) == 469
     assert hashlib.sha256(data).hexdigest() == (
-        "4d231a7da6edda5a6ca92211daa29f3c87e7d1ec92644fee0b09fe307c8cb1d7")
+        "0708ca3ef7b9c22b535b5a8e3b3a75ad41d6c4ebf22d4cdd2aa30f3c7fed8b95")
 
 
 def test_bad_buffers_are_rejected():
@@ -286,10 +315,10 @@ def test_packing_is_deterministic(song):
 #     [print(v, len(d), hashlib.sha256(d).hexdigest()) for v in t.VIEWS \
 #      for d in [t.pack.pack_view(s, v, 1.0, t.HEIGHT)]]"
 VIEW_GOLDEN = {
-    "keyboard": (5904, "40852701ccf0815e1c3b95c1e7d6ccf9994551db1da4dab68855adbc1fc0b0d6"),
-    "staff": (5092, "6f66f5af1c7132ecad0c3cc74430bc30b6d1b2db4b02766a20fa692f5e09e5dc"),
-    "fret": (9372, "11ac650ce1e91984963bef4363fae3c3d5e0acb8968d983ccd5155ab8a55a8ce"),
-    "tab": (6547, "31be5503e9f9736cd196ef01f9968733c72dbbe223b6e5fd4d49f7d427e8a437"),
+    "keyboard": (5904, "bc4221a98ac567fb71b0da0be70ceaf5dad89b3dcf972869dfae42d7d6dc6b6a"),
+    "staff": (5092, "6569dcf7f85d894b963a4d14a78c5712d19a83e118173e0e9f8c6999dc4116b0"),
+    "fret": (9372, "821da82f4c5b20f88c90590320d06fe1245ddbc3697105aca1dbe08d8d248fab"),
+    "tab": (6547, "532cc9f7d4f77e016efc42ec13044b9b2ab48ca94ce3bc1862c133dee7e8f209"),
 }
 
 

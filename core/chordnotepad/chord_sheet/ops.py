@@ -21,7 +21,11 @@ Point = Tuple[float, float]
 
 @dataclass
 class RectOp:
-    """A rectangle from its top-left ``(x, y)`` spanning ``w`` x ``h`` px."""
+    """A rectangle from its top-left ``(x, y)`` spanning ``w`` x ``h`` px.
+
+    ``radius`` rounds its corners (px; 0 is square). The Tk panel draws every
+    rectangle square; the Qt window and Android round them.
+    """
 
     x: float
     y: float
@@ -31,6 +35,7 @@ class RectOp:
     outline: str = None
     width: float = 1.0
     tags: Tuple[str, ...] = ()
+    radius: float = 0.0
 
 
 @dataclass
@@ -124,10 +129,12 @@ class DrawOps:
         outline: str = None,
         width: float = 1.0,
         tags: Sequence[str] = (),
+        radius: float = 0.0,
     ) -> None:
         """Record a rectangle. See :class:`RectOp`."""
         self.ops.append(
-            RectOp(x, y, w, h, fill=fill, outline=outline, width=width, tags=tuple(tags))
+            RectOp(x, y, w, h, fill=fill, outline=outline, width=width, tags=tuple(tags),
+                   radius=radius)
         )
 
     def line(

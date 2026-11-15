@@ -4,7 +4,7 @@ import java.nio.BufferUnderflowException
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
-// Decoder for the chord sheet op buffer, format version 1 (docs/ANDROID.md,
+// Decoder for the chord sheet op buffer, format version 2 (docs/ANDROID.md,
 // "Chord sheet op buffer"; the Python side is core/chordnotepad/chord_sheet/pack.py). Pure
 // Kotlin: no Android or Compose types, so the JVM tests run it as is.
 
@@ -21,11 +21,15 @@ sealed interface DrawOp {
     val tags: List<String>
 }
 
-/** A rectangle; fill and outline may each be absent. The outline is centred on the edge. */
+/**
+ * A rectangle; fill and outline may each be absent. The outline is centred on
+ * the edge. [radius] rounds the corners (dp; 0 is square).
+ */
 data class RectOp(
     val x: Float, val y: Float, val w: Float, val h: Float,
     val fill: String?, val outline: String?, val width: Float,
     override val tags: List<String>,
+    val radius: Float = 0f,
 ) : DrawOp
 
 /** The ellipse inscribed in the box; same fields as [RectOp]. */
@@ -155,7 +159,7 @@ class ChordSheetBuffer(
 
     companion object {
         /** The only format version this decoder reads. */
-        const val FORMAT_VERSION = 1
+        const val FORMAT_VERSION = 2
 
         private const val NO_STRING = 0xFFFF
         private const val MIN_HEADER_SIZE = 48
@@ -251,6 +255,12 @@ class ChordSheetBuffer(
                         val tags = readTags()
                         if (code == 1) RectOp(x, y, w, h, fill, outline, width, tags)
                         else OvalOp(x, y, w, h, fill, outline, width, tags)
+                    }
+                    7 -> {
+                        val x = readF32(); val y = readF32(); val w = readF32(); val h = readF32()
+                        val fill = str(readU16()); val outline = str(readU16()); val width = readF32()
+                        val radius = readF32()
+                        RectOp(x, y, w, h, fill, outline, width, readTags(), radius)
                     }
                     3 -> {
                         val fill = str(readU16()); val width = readF32()

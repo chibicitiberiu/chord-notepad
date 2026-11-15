@@ -41,8 +41,9 @@ logger = logging.getLogger(__name__)
 
 #: First four bytes of every buffer.
 MAGIC = b"CNSB"
-#: Bumped on any incompatible change to the byte layout.
-FORMAT_VERSION = 1
+#: Bumped on any incompatible change to the byte layout (2: rounded
+#: rectangles, :data:`OP_RRECT`).
+FORMAT_VERSION = 2
 #: String index meaning "no string" (``None``: no fill, no outline, ...).
 NO_STRING = 0xFFFF
 
@@ -52,6 +53,9 @@ OP_LINE = 3
 OP_POLYGON = 4
 OP_TEXT = 5
 OP_IMAGE = 6
+#: A rectangle with rounded corners (``RectOp.radius > 0``); a square one
+#: stays :data:`OP_RECT`, byte for byte as in version 1.
+OP_RRECT = 7
 
 #: Tk anchor names by their one-byte code.
 ANCHORS: Tuple[str, ...] = ("nw", "n", "ne", "w", "center", "e", "sw", "s", "se")
@@ -64,6 +68,7 @@ _LIST_HEAD = struct.Struct("<II")
 _U16 = struct.Struct("<H")
 _RUN = struct.Struct("<fH")
 _BOX = struct.Struct("<BffffHHf")         # rect / oval
+_RRECT = struct.Struct("<BffffHHff")      # rect + corner radius
 _LINE = struct.Struct("<BHfH")            # + points
 _POLYGON = struct.Struct("<BHBH")         # + points
 _TEXT = struct.Struct("<BffHBBfH")
@@ -216,7 +221,10 @@ class _Writer:
         out = bytearray()
         for op in ops:
             kind = type(op)
-            if kind is RectOp or kind is OvalOp:
+            if kind is RectOp and op.radius > 0:
+                out += _RRECT.pack(OP_RRECT, op.x, op.y, op.w, op.h,
+                                   self.s(op.fill), self.s(op.outline), op.width, op.radius)
+            elif kind is RectOp or kind is OvalOp:
                 out += _BOX.pack(OP_RECT if kind is RectOp else OP_OVAL,
                                  op.x, op.y, op.w, op.h,
                                  self.s(op.fill), self.s(op.outline), op.width)
@@ -339,6 +347,10 @@ class _Reader:
                 cls = RectOp if code == OP_RECT else OvalOp
                 ops.append(cls(x, y, w, h, fill=self.s(fill), outline=self.s(outline),
                                width=width, tags=self.tags()))
+            elif code == OP_RRECT:
+                _, x, y, w, h, fill, outline, width, radius = self.read(_RRECT)
+                ops.append(RectOp(x, y, w, h, fill=self.s(fill), outline=self.s(outline),
+                                  width=width, tags=self.tags(), radius=radius))
             elif code == OP_LINE:
                 _, fill, width, n = self.read(_LINE)
                 points = self.points(n)

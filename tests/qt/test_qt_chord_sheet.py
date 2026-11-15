@@ -231,6 +231,20 @@ def test_the_painter_draws_rects_lines_text_and_glyphs():
     assert painter.drawn == 4
 
 
+def test_a_rounded_rect_paints_rounded_and_counts_in_the_key_bed():
+    ops = DrawOps()
+    ops.rect(10, 10, 40, 30, fill="#2a6f8a", radius=6)
+    ops.rect(60, 10, 40, 30, fill="#2a6f8a")
+    prepared = PreparedOps(ops.ops)
+    assert [item[0] for item in prepared.items] == [sheet_paint.K_RRECT, sheet_paint.K_RECT]
+    image, painter = paint(view_of(ops.ops))
+    assert image.pixelColor(30, 25) == QColor("#2a6f8a")
+    assert image.pixelColor(10, 10) == SURFACE             # the corner is cut
+    assert image.pixelColor(60, 10) == QColor("#2a6f8a")   # the square one isn't
+    assert painter.drawn == 2
+    assert prepared.key_bed() == QRectF(10, 10, 90, 30)
+
+
 def test_dark_paints_the_remapped_colours():
     ops = DrawOps()
     ops.rect(10, 10, 40, 30, fill=NOTE_INK)
@@ -746,7 +760,8 @@ def test_the_piano_roll_keyboard_has_no_holes_and_its_rows_follow_the_keys(sh):
     sheet = sh.model.sheet
     bottom = sh.view.height() - sheet.lane_height - 4
     keys = [item[1] for item in sheet.gutters[0].items
-            if item[0] == sheet_paint.K_RECT and item[2] == sheet_paint.GUTTER_BLACK
+            if item[0] in (sheet_paint.K_RECT, sheet_paint.K_RRECT)
+            and item[2] == sheet_paint.GUTTER_BLACK
             and item[1].bottom() + item[1].height() < bottom]
     assert keys
     o = sh.view.mapToScene(QPointF(0, 0)).toPoint()

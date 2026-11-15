@@ -9,6 +9,7 @@
    "h": 2.9189188480377197,
    "op": "rect",
    "outline": null,
+   "radius": 0.0,
    "tags": [
     "row-shade"
    ],
@@ -27,6 +28,7 @@
    "h": 1.9189189672470093,
    "op": "rect",
    "outline": "#22323a",
+   "radius": 0.0,
    "tags": [
     "slot:132",
     "note:66"
@@ -60,6 +62,7 @@
     "h": 2.9189188480377197,
     "op": "rect",
     "outline": "#b9c2c7",
+    "radius": 0.0,
     "tags": [
      "gutter",
      "gutter-key"

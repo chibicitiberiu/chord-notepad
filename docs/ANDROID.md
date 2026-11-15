@@ -1019,7 +1019,7 @@ objects, against the release build's R8 rules ("R8 in release builds").
 ## Chord sheet op buffer
 
 **Status:** the Python half is built (`core/chordnotepad/chord_sheet/pack.py`, format
-version 1), and the bridge hands it out (`SessionHandle.chord_sheet_buffer`,
+version 2), and the bridge hands it out (`SessionHandle.chord_sheet_buffer`,
 "Bridge contract" above); the Kotlin decoder, cache and painter are built
 too (M4: `ui/chordsheet/ChordSheetBuffer.kt`, `ChordSheetController.kt`,
 `ChordSheetPainter.kt`). A pinch sends its whole step count as one
@@ -1079,19 +1079,19 @@ zoom or the strip height changes, never on scroll.
   gutter (`fret`, `tab`) has `gutter_width = 0` and no variants.
 - `background` (the strip colour, `#fbfbf8`) and `highlight` (`#ffe58a`).
 
-### Byte layout (version 1)
+### Byte layout (version 2)
 
 Little-endian throughout, no padding or alignment (read with absolute offsets
 from a `ByteBuffer` in `LITTLE_ENDIAN` order). `f32` is IEEE 754 float32;
 `str` is a `u16` index into the string table, `0xFFFF` meaning "none".
 
-Header (`header_size` bytes; 48 in version 1, a later minor addition may
-append fields, so always continue at `header_size`):
+Header (`header_size` bytes; 48 in versions 1 and 2, a later minor addition
+may append fields, so always continue at `header_size`):
 
 | Offset | Type | Field |
 |---|---|---|
 | 0 | 4 bytes | magic `CNSB` |
-| 4 | u16 | version (1) |
+| 4 | u16 | version (2) |
 | 6 | u16 | header_size (48) |
 | 8 | str | view_id |
 | 10 | str | background colour |
@@ -1131,9 +1131,16 @@ ops. Each op is a `u8` opcode, its fields, then its tags (`u8` count, count ×
 | 4 | polygon | `str` fill; `u8` smooth; `u16` n; n × (`f32` x, `f32` y) |
 | 5 | text | `f32` x, y; `str` text; `u8` anchor; `u8` bold; `f32` size (pt); `str` fill |
 | 6 | image | `f32` x, y; `str` key; `u8` anchor |
+| 7 | rounded rect | same as rect, then `f32` radius (corner radius, > 0) |
 
 Anchors: 0 `nw`, 1 `n`, 2 `ne`, 3 `w`, 4 `center`, 5 `e`, 6 `sw`, 7 `s`,
 8 `se`. An unknown opcode or version is an error (don't guess at sizes).
+
+Version 2 added opcode 7. A rect with square corners is still opcode 1, byte
+for byte as in version 1, so a version 2 buffer without rounded corners
+differs from version 1 only in its version field. Draw a rounded rect with
+both corner radii equal to `radius` (`drawRoundRect`); the Tk panel draws it
+square.
 
 **Colours** are Tk colour strings; every renderer today uses `#rrggbb`.
 Rect/oval fill or outline "none" (`0xFFFF`) or `""` means don't paint that

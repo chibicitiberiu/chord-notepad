@@ -2,7 +2,7 @@
  "background": "#fbfbf8",
  "byte_length": 25330,
  "content": {
-  "coord_sum": 7895244.266245842,
+  "coord_sum": 7895241.266245842,
   "count": 1091,
   "first": {
    "fill": "#7c8b96",
@@ -62,6 +62,7 @@
     "h": 130.0,
     "op": "rect",
     "outline": null,
+    "radius": 0.0,
     "tags": [
      "gutter"
     ],

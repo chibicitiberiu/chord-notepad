@@ -44,6 +44,8 @@ def replay(ops: Sequence[object], canvas, images: Dict[str, object]) -> None:
     for op in ops:
         tags = op.tags
         if isinstance(op, RectOp):
+            # Square corners: the Tk canvas has no rounded rectangle, and at
+            # the radii the renderers use (2 px) it hardly shows.
             canvas.create_rectangle(
                 op.x, op.y, op.x + op.w, op.y + op.h,
                 fill=op.fill or "", outline=op.outline or "", width=op.width, tags=tags,
