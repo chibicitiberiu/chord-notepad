@@ -130,10 +130,12 @@ Item {
             scrub.lastSeek = 0
             scrub.dragBar = scrub.barAt(m.x)
             scrub.seek(scrub.dragBar)
+            scrub.player.revealPlayhead()
         }
         onReleased: (m) => {
             if (scrub.playing) scrub.seek(scrub.barAt(m.x))
             scrub.dragBar = 0
+            scrub.player.revealPlayhead()
         }
         onExited: scrub.hoverSeg = -1
     }

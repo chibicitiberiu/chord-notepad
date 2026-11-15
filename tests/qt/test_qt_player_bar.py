@@ -353,6 +353,24 @@ def test_a_drag_seeks_as_it_goes_when_idle_and_where_it_ends_when_playing(pb):
     assert pb.sent("seek_to_bar")[-1] == {"bar": 4}
 
 
+def test_a_press_and_a_release_reveal_the_playhead_in_the_text_not_every_bar(pb):
+    # Polish round C3: the editor scrolls to the chord the seek landed on, on
+    # the press and when the drag lets go, not on each bar of an idle drag.
+    pb.to_play()
+    timeline, segs = segments(pb)
+    reveals = []
+    pb.bridge.revealRequested.connect(reveals.append)
+    QTest.mousePress(pb.window, LEFT, NO_MODIFIER, pb.centre(segs[0], -segs[0].width() / 4))
+    pb.qtbot.waitUntil(lambda: len(reveals) == 1, timeout=2000)
+    for dx in (-0.25, 0.25):                                   # two bars of an idle drag
+        QTest.mouseMove(pb.window, pb.centre(segs[1], segs[1].width() * dx))
+        pb.run()
+    assert len(reveals) == 1
+    QTest.mouseRelease(pb.window, LEFT, NO_MODIFIER, pb.centre(segs[1], segs[1].width() * 0.25))
+    pb.qtbot.waitUntil(lambda: len(reveals) == 2, timeout=2000)
+    assert reveals[-1] == pb.bridge.property("playheadPos") == TEXT.index("F")
+
+
 def test_a_click_in_a_loops_second_pass_seeks_into_that_pass(pb):
     # Tibi, 2026-11-15: a click on the second segment registered in the first.
     pb.to_play()

@@ -283,6 +283,8 @@ Rectangle {
     Connections {
         target: pane.editor
         function onPlayingMoved(start) { pane.ensureVisible(start, pane.editor.playingEnd) }
+        // A click in the chord sheet or on the seek bar: show the playhead's chord.
+        function onRevealRequested(pos) { pane.ensureVisible(pos, pos) }
         // Another document: show its first line (the bridge put the caret
         // there; the view may have followed the text's end first).
         function onDocumentReset() {

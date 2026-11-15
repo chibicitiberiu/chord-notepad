@@ -334,6 +334,7 @@ ApplicationWindow {
         id: sheetPane
         store: win.store
         model: win.sheet
+        editor: win.editor
         parent: win.mode === "play" ? playSheetHost : editSheetHost
         anchors.fill: parent
         closable: win.mode === "edit"

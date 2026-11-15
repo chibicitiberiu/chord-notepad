@@ -226,6 +226,9 @@ class EditorBridge(QObject):
     playingMoved = Signal(int)
     #: The playhead moved (playheadPos).
     playheadChanged = Signal()
+    #: Scroll the text to the playhead's chord (a click in the chord sheet or
+    #: on the seek bar): its position.
+    revealRequested = Signal(int)
     #: The session put the cursor here (after one of its edits).
     cursorMoved = Signal(int)
     #: Another document's text came in (open, New, a restored draft: a
@@ -698,6 +701,16 @@ class EditorBridge(QObject):
         chord there, if any, and moves the playhead (or seeks while playing)."""
         if position >= 0:
             self._store.submit("tap_chord_at", {"offset": self.codePointAt(position)})
+
+    @Slot()
+    def revealPlayhead(self) -> None:  # noqa: N802 (Qt)
+        """Scroll the text to the playhead's chord once the session has run the
+        commands submitted so far (the click's audition or seek moves it)."""
+        self._store.after_commands(self._reveal_playhead)
+
+    def _reveal_playhead(self) -> None:
+        if self._playhead >= 0:
+            self.revealRequested.emit(self._playhead)
 
     @Slot()
     def paste(self) -> None:

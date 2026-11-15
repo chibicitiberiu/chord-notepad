@@ -67,3 +67,25 @@ def test_the_scroll_bar_still_takes_its_own_presses(sh):
     sh.run()
     assert sh.view.property("scrollX") > 0
     assert sh.sent("audition") == []
+
+
+# -- C3: a tap shows the chord in the text --------------------------------------------------
+
+
+def test_a_tap_on_a_chord_scrolls_the_text_to_it(sh):
+    sh.to_play(900)
+    sh.wait_sheet()
+    flick = sh.item("editorScroll").property("contentItem")
+    assert flick.property("contentHeight") > flick.property("height") * 1.5
+    assert flick.property("contentY") == 0
+    last = LONG.rindex("G")
+    sheet = sh.model.sheet
+    index = 24 * 4 - 1                                            # 24 lines of four chords
+    sh.view.setProperty("scrollX", sheet.content_width)           # the last chord on screen
+    sh.run(50)
+    QTest.mouseClick(sh.window, LEFT, NO_MODIFIER, sh.slot_point(index))
+    sh.qtbot.waitUntil(lambda: sh.playback("playhead_offset") == last, timeout=2000)
+    sh.qtbot.waitUntil(lambda: flick.property("contentY") > 0, timeout=2000)
+    rect = sh.area.positionToRectangle(last)
+    top = flick.property("contentY")
+    assert top <= rect.y() and rect.y() + rect.height() <= top + flick.property("height")

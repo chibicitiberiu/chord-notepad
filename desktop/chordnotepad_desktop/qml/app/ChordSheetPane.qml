@@ -24,6 +24,7 @@ Rectangle {
     objectName: "chordSheetPane"
     required property var store
     required property var model
+    property var editor: null              // the EditorBridge: a tap shows the chord in the text
     property bool closable: false          // Edit: × hides the panel (F9)
     property bool showVoicing: false       // Edit only: Play has Voicing in its player bar
     property bool active: false            // on screen: fetch and paint
@@ -191,7 +192,9 @@ Rectangle {
             TapHandler {
                 onTapped: (ev) => {
                     var i = sheet.chordAt(ev.position.x, ev.position.y)
-                    if (i >= 0) pane.store.submit("audition", { index: i })
+                    if (i < 0) return
+                    pane.store.submit("audition", { index: i })
+                    if (pane.editor) pane.editor.revealPlayhead()
                 }
             }
             ScrollBar {

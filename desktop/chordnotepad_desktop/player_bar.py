@@ -333,6 +333,12 @@ class PlayerBarModel(QObject):
         self._store.submit("seek_to_bar", {"bar": int(bar)})
         return True
 
+    @Slot()
+    def revealPlayhead(self) -> None:  # noqa: N802 (Qt)
+        """Scroll the text to the chord the playhead is on (the seek bar's
+        press, and the release of a drag; not each bar of an idle drag)."""
+        self._editor.revealPlayhead()
+
     # -- song values ------------------------------------------------------------------
 
     @Slot(str, result=int)
