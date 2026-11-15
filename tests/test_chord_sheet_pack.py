@@ -18,7 +18,9 @@ from chordnotepad.audio.guitar_chord_picker import GuitarChordPicker
 from chordnotepad.chord_sheet import pack
 from chordnotepad.chord_sheet.ops import DrawOps, TextOp
 from chordnotepad.chord_sheet.registry import default_renderers
-from chordnotepad.chord_sheet.renderer_interface import SheetContext, SlotBox
+from chordnotepad.chord_sheet.renderer_interface import (
+    SECTION_BAND, STRIP_BG, SheetContext, SlotBox, section_band_spans,
+)
 from chordnotepad.chord_sheet.staff_card import StaffCardRenderer
 from chordnotepad.services.song_parser_service import SongParserService
 from chordnotepad.services.song_renderer import SongRenderer
@@ -184,12 +186,16 @@ def test_empty_song_packs(song):
 
 # -- Frozen gutter ----------------------------------------------------------------
 
-def test_staff_gutter_has_one_variant_per_key_signature(song):
+def test_staff_gutter_has_one_variant_per_key_signature_and_paper(song):
     view = pack.collect_view(song, _renderer("staff"), 1.0, HEIGHT)
-    # C, G, Eb, then C again: three distinct signatures, four runs.
-    assert len(view.gutter_variants) == 3
-    assert [run.variant for run in view.gutter_runs] == [0, 1, 2, 0]
+    # C, G, Eb, then C again: three signatures on plain paper, and C on the
+    # outro's band. C takes over while the last Eb chord (Ab) passes under
+    # the gutter, still plain; the band starts at Ab's right edge and runs
+    # to the strip's end, past which the plain C gutter is reused.
+    assert len(view.gutter_variants) == 4
+    assert [run.variant for run in view.gutter_runs] == [0, 1, 2, 0, 3, 0]
     assert view.gutter_runs[0].start_x == -math.inf
+    assert [ops[0].fill for ops in view.gutter_variants] == [STRIP_BG] * 3 + [SECTION_BAND]
 
 
 @pytest.mark.parametrize("zoom", [1.0, 1.728])
@@ -200,6 +206,10 @@ def test_gutter_variants_match_paint_gutter_at_any_scroll(song, zoom):
     probes = [-10.0, 0.0, view.content_width + 50.0]
     for slot in view.slots:
         probes += [slot.x - 0.5, slot.x, slot.x + 0.5, slot.x + slot.width / 2]
+    spans = section_band_spans(song, renderer.layout(ctx, HEIGHT))
+    assert spans
+    for edge in [x for span in spans for x in span]:
+        probes += [edge - 0.5, edge, edge + 0.5]
     for scroll_x in probes:
         expected = DrawOps()
         renderer.paint_gutter(expected, ctx, HEIGHT, scroll_x)
@@ -329,7 +339,7 @@ def test_packing_is_deterministic(song):
 #      for d in [t.pack.pack_view(s, v, 1.0, t.HEIGHT)]]"
 VIEW_GOLDEN = {
     "keyboard": (7929, "42be6bcc68d32bc9f99119be35a42ad0c4a8fe20f43f49493dfffbe439ff2f9e"),
-    "staff": (5270, "5fb2ba938c0d090cde3fc0c2b2444c36249eb207d8257bda298a3d74c551ce6d"),
+    "staff": (5656, "e01e8a1171f119cb73b36759aea4a28e8edeecc2d720b8db93b91369a973a60e"),
     "fret": (9423, "3637edd3dde8b51283032bd8a2963c93673f31769113265fb3965169456db7bf"),
     "tab": (6598, "2ba36846499571e7d84e50ed19122ff6386662af9614896fbc5278e6726ad046"),
 }

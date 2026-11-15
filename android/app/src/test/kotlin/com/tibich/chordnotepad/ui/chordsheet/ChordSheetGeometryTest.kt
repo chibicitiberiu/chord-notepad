@@ -59,15 +59,26 @@ class ChordSheetGeometryTest {
     @Test
     fun `the gutter variant is the last run starting strictly before the scroll`() {
         val runs = multiKey.gutterRuns
-        assertEquals(4, runs.size)
+        // C, G, Eb, C, then C on the outro's section band, to the strip's end.
+        assertEquals(6, runs.size)
         assertEquals(Float.NEGATIVE_INFINITY, runs[0].startX)
         assertEquals(0, multiKey.gutterVariantIndexAt(0f))
         assertEquals(0, multiKey.gutterVariantIndexAt(runs[1].startX)) // strict <
         assertEquals(1, multiKey.gutterVariantIndexAt(runs[1].startX + 0.01f))
         assertEquals(2, multiKey.gutterVariantIndexAt(runs[2].startX + 1f))
         assertEquals(0, multiKey.gutterVariantIndexAt(runs[3].startX + 1f))
+        assertEquals(3, multiKey.gutterVariantIndexAt(runs[4].startX + 1f))
         assertEquals(0, multiKey.gutterVariantIndexAt(1e9f))
         assertTrue(multiKey.gutterVariantAt(runs[2].startX + 1f) === multiKey.gutterVariants[2])
+    }
+
+    @Test
+    fun `the staff gutter takes the section band at its edge`() {
+        val paper = { scroll: Float -> (staff.gutterVariantAt(scroll)!!.ops.first() as RectOp).fill }
+        val runs = staff.gutterRuns
+        assertEquals("#fbfbf8", paper(0f))
+        assertEquals("#f1f1ed", paper(runs[1].startX + 1f))
+        assertEquals("#fbfbf8", paper(runs[2].startX + 1f))
     }
 
     @Test
@@ -75,7 +86,7 @@ class ChordSheetGeometryTest {
         val fret = ChordSheetBuffer.decode(bytes("american_fret"))
         assertEquals(0f, fret.gutterWidth)
         assertNull(fret.gutterVariantAt(0f))
-        // A static gutter is one variant everywhere.
+        // One key: the plain gutter before the first band and between bands.
         assertEquals(0, staff.gutterVariantIndexAt(-5f))
         assertEquals(0, staff.gutterVariantIndexAt(5000f))
     }

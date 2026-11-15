@@ -1,6 +1,6 @@
 {
  "background": "#fbfbf8",
- "byte_length": 5270,
+ "byte_length": 5656,
  "content": {
   "coord_sum": 145374.31073915958,
   "count": 140,
@@ -58,6 +58,14 @@
   ],
   [
    1080.7672119140625,
+   0
+  ],
+  [
+   1176.7672119140625,
+   3
+  ],
+  [
+   1421.6878662109375,
    0
   ]
  ],
@@ -163,6 +171,40 @@
     "y": 96.53439331054688
    },
    "tag_count": 20
+  },
+  {
+   "coord_sum": 2516.218663930893,
+   "count": 14,
+   "first": {
+    "fill": "#f1f1ed",
+    "h": 130.0,
+    "op": "rect",
+    "outline": null,
+    "radius": 0.0,
+    "tags": [
+     "gutter"
+    ],
+    "w": 60.042327880859375,
+    "width": 1.0,
+    "x": 0.0,
+    "y": 0.0
+   },
+   "histogram": {
+    "image": 2,
+    "line": 11,
+    "rect": 1
+   },
+   "last": {
+    "anchor": "nw",
+    "key": "clef_bass:25",
+    "op": "image",
+    "tags": [
+     "gutter"
+    ],
+    "x": 4.126984119415283,
+    "y": 84.1988754272461
+   },
+   "tag_count": 14
   }
  ],
  "gutter_width": 60.042327880859375,

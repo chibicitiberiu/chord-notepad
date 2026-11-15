@@ -42,7 +42,8 @@ Engraving detail:
   reminder, not a replacement. Sharps/flats use the circle of fifths (minor
   keys via their relative major); a key spelled without a real signature of
   its own (Gbm, D#) engraves as its enharmonic twin (F#m, Eb), and only a
-  wholly unparseable key draws no signature.
+  wholly unparseable key draws no signature. The gutter's paper follows the
+  section band at its right edge, so a banded section runs on under the clefs.
 - **Size and zoom.** The staff space follows the strip's height up to a
   ceiling (strips up to about 190 px); a taller strip centres a staff of that
   size. The renderer honors ``SheetContext.zoom``: the staff space (and every
@@ -96,7 +97,6 @@ from chordnotepad.chord_sheet.spelling import (  # noqa: F401
 from chordnotepad.chord_sheet.renderer_interface import (
     HAND_COLORS,
     NOTE_INK,
-    STRIP_BG,
     WHOLE_REST_W,
     SheetContext,
     SlotBox,
@@ -104,9 +104,11 @@ from chordnotepad.chord_sheet.renderer_interface import (
     StripRenderer,
     VOICE_COLORS,
     chord_symbol_label,
+    gutter_paper,
     label_ems,
     paint_section_bands,
     paint_whole_rest,
+    section_band_spans,
 )
 # Duration->width constants are shared with the tab lane so both continuous
 # views scale time identically.
@@ -733,12 +735,15 @@ class StaffCardRenderer(StripRenderer):
                      scroll_x: float) -> None:
         """Paint the frozen clefs and the scroll-aware key signature.
 
-        Draws (in order) the strip background, both staves' lines across the
-        gutter (they carry on into the content's at its right edge), the
-        system's opening bar line at its left edge, the two clefs, then the
-        key signature for the key in effect at the first chord whose slot is
+        Draws (in order) the paper, both staves' lines across the gutter
+        (they carry on into the content's at its right edge), the system's
+        opening bar line at its left edge, the two clefs, then the key
+        signature for the key in effect at the first chord whose slot is
         at-or-after ``scroll_x`` (empty song or before the first chord -> the
-        initial key). Coordinates are gutter-local.
+        initial key). The paper is the section band's when a banded section
+        meets the gutter's right edge (:func:`gutter_paper`), else the
+        strip's, so the band carries on under the clefs. Coordinates are
+        gutter-local.
 
         Args:
             ops: Recorder to append draw ops to.
@@ -752,7 +757,10 @@ class StaffCardRenderer(StripRenderer):
         s = geom.staff_space
         x_clef, x_sig, width = _gutter_geometry(song, s)
 
-        ops.rect(0.0, 0.0, width, height, fill=STRIP_BG, tags=("gutter",))
+        layout = self.layout(ctx, height)
+        bands = section_band_spans(song, layout)
+        ops.rect(0.0, 0.0, width, height, fill=gutter_paper(scroll_x, bands),
+                 tags=("gutter",))
         for base in (geom.treble_top, geom.bass_top):
             for k in range(5):
                 y = base + k * s
@@ -765,17 +773,19 @@ class StaffCardRenderer(StripRenderer):
                  fill=_STAFF_LINE, width=geom.thin_bar_w, tags=("gutter",))
 
         self._paint_clefs(ops, x_clef, geom, _upper_clef_kind(song), tags=("gutter",))
-        fifths = self._key_at_scroll(ctx, height, scroll_x)
+        fifths = self._key_at_scroll(ctx, layout, scroll_x)
         self._paint_signature(ops, x_sig, fifths, geom, ("gutter",))
 
     def gutter_breakpoints(self, ctx: SheetContext, height: float,
                            layout: StripLayout) -> List[float]:
-        """Scroll positions where the gutter's key signature changes.
+        """Scroll positions where the gutter's key signature or paper changes.
 
         :meth:`_key_at_scroll` shows the key of the first slot whose left edge
         is at or past ``scroll_x``, so the key of slot ``j`` takes over once
         ``scroll_x`` passes slot ``j - 1``'s left edge. A breakpoint is that
         edge, for every ``j`` whose key signature differs from slot ``j - 1``'s.
+        The paper changes at both edges of every section band
+        (:func:`gutter_paper`).
         """
         chords = ctx.song.chords
         slots = layout.slots
@@ -784,13 +794,15 @@ class StaffCardRenderer(StripRenderer):
             if (_key_fifths(chords[slots[j].chord_index].key)
                     != _key_fifths(chords[slots[j - 1].chord_index].key)):
                 breakpoints.append(slots[j - 1].x)
-        return breakpoints
+        for x0, x1 in section_band_spans(ctx.song, layout):
+            breakpoints += [x0, x1]
+        return sorted(set(breakpoints))
 
-    def _key_at_scroll(self, ctx: SheetContext, height: float,
+    def _key_at_scroll(self, ctx: SheetContext, layout: StripLayout,
                        scroll_x: float) -> Optional[int]:
         """Circle-of-fifths of the key in effect at the first visible chord.
 
-        Walks the (pure) layout slots and returns the fifths of the first chord
+        Walks ``layout``'s slots and returns the fifths of the first chord
         whose slot begins at-or-after ``scroll_x``; before the first chord (or
         an empty song) returns the initial key; scrolled past every chord it
         returns the last chord's key.
@@ -800,7 +812,7 @@ class StaffCardRenderer(StripRenderer):
         if not chords:
             return None
         eps = 1e-6
-        for slot in self.layout(ctx, height).slots:
+        for slot in layout.slots:
             if slot.x >= scroll_x - eps:
                 return _key_fifths(chords[slot.chord_index].key)
         return _key_fifths(chords[-1].key)

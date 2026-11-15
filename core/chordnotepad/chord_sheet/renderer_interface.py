@@ -327,6 +327,22 @@ def paper_at(x: float, spans: Sequence[Tuple[float, float]]) -> str:
     return STRIP_BG
 
 
+def gutter_paper(scroll_x: float, spans: Sequence[Tuple[float, float]]) -> str:
+    """The paper of a frozen gutter scrolled to ``scroll_x``: the paper of
+    the content that meets its right edge, so a banded section carries on
+    under the gutter with no edge.
+
+    A span counts for ``x0 < scroll_x <= x1``, the way a packed gutter run
+    holds for every ``scroll_x`` past its start, so the band edges serve as
+    the gutter's breakpoints (:meth:`StripRenderer.gutter_breakpoints`) and
+    painting at a breakpoint gives the same gutter as the run before it.
+    """
+    for x0, x1 in spans:
+        if x0 < scroll_x <= x1:
+            return SECTION_BAND
+    return STRIP_BG
+
+
 #: Whole rest (Bravura ``restWhole``) proportions, in staff spaces: a block
 #: hanging from a line. Shared so every view draws NC with the same symbol.
 WHOLE_REST_W = 1.13

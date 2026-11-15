@@ -166,6 +166,50 @@ def test_the_staff_runs_on_from_its_clefs_scrolled_or_not(sh):
     assert max(column(sh, gutter + 2, step=1)) == max(at_start) == paper
 
 
+@pytest.mark.parametrize("dark", [False, True])
+def test_a_banded_section_runs_on_under_the_staffs_clefs(sh, dark):
+    # Scrolled into the chorus (the second section, on the band), the
+    # gutter's paper is the band too: the pixels either side of its edge
+    # match on every row the staff leaves as paper, so no edge shows.
+    from chordnotepad_desktop.sheet_paint import section_band_color
+
+    sh.to_play(700)
+    sh.store.submit("set_chord_sheet_view", {"view_id": "staff"})
+    sh.wait_sheet("staff")
+    theme = sh.theme()
+    theme.setProperty("dark", dark)
+    sh.run(100)
+    try:
+        sheet = sh.model.sheet
+        gutter = int(sheet.gutter_width)
+        x0 = min(s[0] for s in sheet.slots if s[2] == 48)   # the chorus's first chord
+        sh.view.setProperty("scrollX", x0 + 100)
+        sh.run(50)
+        band = section_band_color(sh.view.property("surface"), dark).name()
+        assert band != sh.view.property("surface").name()
+        image = sh.grab()
+        o = sh.view.mapToScene(QPointF(0, 0)).toPoint()
+        top = int(sheet.lane_height) + 2
+        rows = range(top, int(sh.view.height()) - 14)
+        left = [image.pixelColor(o.x() + gutter - 1, o.y() + y).name() for y in rows]
+        right = [image.pixelColor(o.x() + gutter + 1, o.y() + y).name() for y in rows]
+        paper = [y for y, (a, b) in zip(rows, zip(left, right)) if a == band and b == band]
+        assert len(paper) > len(rows) / 2
+        # Row by row the two sides are the same pixels: the band, and the
+        # staff lines crossing the edge on the same rows.
+        assert left == right
+        assert len(set(left)) > 1                                  # the staff lines are in there
+        # Back in the verse, both sides are the plain paper again.
+        sh.view.setProperty("scrollX", 200)
+        sh.run(50)
+        image = sh.grab()
+        surface = sh.view.property("surface").name()
+        assert image.pixelColor(o.x() + gutter - 1, o.y() + top).name() == surface
+        assert image.pixelColor(o.x() + gutter + 1, o.y() + top).name() == surface
+    finally:
+        theme.setProperty("dark", False)
+
+
 def test_only_the_piano_roll_gets_the_gutter_edge(qapp, qtbot, tmp_path, monkeypatch):
     from chordnotepad_desktop.chord_sheet import SheetView
     assert SheetView.EDGED_VIEWS == ("keyboard",)

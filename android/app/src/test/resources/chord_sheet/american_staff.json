@@ -1,6 +1,6 @@
 {
  "background": "#fbfbf8",
- "byte_length": 25480,
+ "byte_length": 25908,
  "content": {
   "coord_sum": 7961095.796601415,
   "count": 1094,
@@ -47,6 +47,22 @@
   [
    null,
    0
+  ],
+  [
+   2322.87841796875,
+   1
+  ],
+  [
+   4242.87841796875,
+   0
+  ],
+  [
+   7698.87841796875,
+   1
+  ],
+  [
+   10386.8779296875,
+   0
   ]
  ],
  "gutter_variants": [
@@ -55,6 +71,40 @@
    "count": 16,
    "first": {
     "fill": "#fbfbf8",
+    "h": 130.0,
+    "op": "rect",
+    "outline": null,
+    "radius": 0.0,
+    "tags": [
+     "gutter"
+    ],
+    "w": 44.22751235961914,
+    "width": 1.0,
+    "x": 0.0,
+    "y": 0.0
+   },
+   "histogram": {
+    "image": 4,
+    "line": 11,
+    "rect": 1
+   },
+   "last": {
+    "anchor": "nw",
+    "key": "glyph_accidental_sharp:19",
+    "op": "image",
+    "tags": [
+     "gutter"
+    ],
+    "x": 27.94179916381836,
+    "y": 81.92840576171875
+   },
+   "tag_count": 16
+  },
+  {
+   "coord_sum": 2503.53049826622,
+   "count": 16,
+   "first": {
+    "fill": "#f1f1ed",
     "h": 130.0,
     "op": "rect",
     "outline": null,

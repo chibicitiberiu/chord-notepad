@@ -10,11 +10,12 @@ import pytest
 from chordnotepad.audio.guitar_chord_picker import GuitarChordPicker
 from chordnotepad.chord_sheet.ops import DrawOps, RectOp
 from chordnotepad.chord_sheet.registry import default_renderers
-from chordnotepad.chord_sheet import piano_roll, tab_strip
+from chordnotepad.chord_sheet import pack, piano_roll, tab_strip
 from chordnotepad.chord_sheet.renderer_interface import (
     SECTION_BAND,
     STRIP_BG,
     SheetContext,
+    gutter_paper,
     paper_at,
     section_band_spans,
 )
@@ -125,3 +126,77 @@ def test_paper_at():
     assert paper_at(20.0, spans) == STRIP_BG
     assert paper_at(39.9, spans) == SECTION_BAND
     assert tab_strip.paper_at is paper_at
+
+
+def test_gutter_paper():
+    spans = [(10.0, 20.0), (30.0, 40.0)]
+    assert gutter_paper(-5.0, spans) == STRIP_BG
+    assert gutter_paper(10.0, spans) == STRIP_BG
+    assert gutter_paper(10.5, spans) == SECTION_BAND
+    assert gutter_paper(20.0, spans) == SECTION_BAND
+    assert gutter_paper(20.5, spans) == STRIP_BG
+    assert gutter_paper(35.0, spans) == SECTION_BAND
+    assert gutter_paper(50.0, spans) == STRIP_BG
+    assert gutter_paper(15.0, []) == STRIP_BG
+
+
+FOUR_SECTIONS = "{label: verse}\nC G\n{label: chorus}\nF C\n{label: bridge}\nAm G\n{label: outro}\nC\n"
+
+
+def _gutter_paper_op(renderer, ctx, height, scroll_x):
+    ops = DrawOps()
+    renderer.paint_gutter(ops, ctx, height, scroll_x)
+    first = ops.ops[0]
+    assert isinstance(first, RectOp) and first.tags == ("gutter",)
+    assert (first.x, first.y, first.w, first.h) == (
+        0.0, 0.0, renderer.gutter_width(ctx, height), height)
+    return first.fill
+
+
+def test_the_staff_gutter_takes_the_band_of_the_section_at_its_edge():
+    height = 130.0
+    song, renderer, ctx, layout = _layout(FOUR_SECTIONS, "staff", height)
+    spans = section_band_spans(song, layout)
+    assert len(spans) == 2
+    (a0, a1), (b0, _) = spans
+    for scroll_x in (-20.0, 0.0, a0 / 2, a0):
+        assert _gutter_paper_op(renderer, ctx, height, scroll_x) == STRIP_BG, scroll_x
+    for scroll_x in (a0 + 0.5, (a0 + a1) / 2, a1, b0 + 0.5, layout.width - 1.0):
+        assert _gutter_paper_op(renderer, ctx, height, scroll_x) == SECTION_BAND, scroll_x
+    for scroll_x in (a1 + 0.5, (a1 + b0) / 2, b0):
+        assert _gutter_paper_op(renderer, ctx, height, scroll_x) == STRIP_BG, scroll_x
+
+
+def test_the_staff_gutter_breaks_at_the_band_edges_and_the_key_changes():
+    height = 130.0
+    song, renderer, ctx, layout = _layout(
+        "{label: verse}\nC G\n{label: chorus}\n{key: D}\nD A\n{label: outro}\nC\n", "staff", height)
+    (x0, x1), = section_band_spans(song, layout)
+    points = renderer.gutter_breakpoints(ctx, height, layout)
+    assert points == sorted(set(points))
+    assert x0 in points and x1 in points
+    # The key change (C to D at chord 2) still breaks at the slot before it.
+    assert layout.slots[1].x in points
+
+
+def test_no_band_before_the_first_banded_section():
+    height = 130.0
+    song, renderer, ctx, layout = _layout(FOUR_SECTIONS, "staff", height)
+    view = pack.collect_view(song, renderer, 1.0, height)
+    first_band = section_band_spans(song, layout)[0][0]
+    for run in view.gutter_runs:
+        if run.start_x < first_band:
+            assert view.gutter_variants[run.variant][0].fill == STRIP_BG
+
+
+def test_the_packed_staff_gutter_has_a_variant_per_paper_and_dedups_them():
+    height = 130.0
+    song, renderer, ctx, layout = _layout(FOUR_SECTIONS, "staff", height)
+    view = pack.collect_view(song, renderer, 1.0, height)
+    (a0, a1), (b0, b1) = section_band_spans(song, layout)
+    # One key: a plain gutter and a banded one, each painted once.
+    assert [ops[0].fill for ops in view.gutter_variants] == [STRIP_BG, SECTION_BAND]
+    assert [(run.start_x, run.variant) for run in view.gutter_runs] == [
+        (float("-inf"), 0), (a0, 1), (a1, 0), (b0, 1), (b1, 0)]
+    for scroll_x in ((a0 + a1) / 2, (b0 + b1) / 2):
+        assert view.gutter_variants[view.gutter_variant_at(scroll_x)][0].fill == SECTION_BAND
