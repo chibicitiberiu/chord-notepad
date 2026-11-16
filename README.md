@@ -4,7 +4,10 @@ A text editor for chord notation. Write chord symbols above your lyrics and Chor
 
 **[Watch the demo](https://youtu.be/1Pf2bl4FVAc)** · **[Read how it was built](https://tibich.com/blog/chord-notepad-release/)**
 
-<img width="1084" height="830" alt="image" src="https://github.com/user-attachments/assets/54ebad77-a203-4140-a018-d04476315819" />
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="packaging/store/screenshots/desktop/01-play-piano-roll-dark.png">
+  <img alt="Chord Notepad playing Amazing Grace, with the piano roll under the text" src="packaging/store/screenshots/desktop/01-play-piano-roll.png">
+</picture>
 
 ## Notes:
 
