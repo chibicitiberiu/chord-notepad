@@ -88,6 +88,9 @@ def run_qt(argv) -> int:
         # A venv without the packages (every build bundles PySide6).
         print("chord-notepad: PySide6 is missing (run `pipenv install` first).", file=sys.stderr)
         return 2
+    # Before PySide6 loads: Qt's plugins must find the Qt DLLs, also in the MSIX.
+    from chordnotepad_desktop.windows_dlls import use_bundled_dll_dirs
+    use_bundled_dll_dirs()
     from chordnotepad_desktop.main import run
     return run(APP_PATHS, argv, build_info=read_build_info())
 

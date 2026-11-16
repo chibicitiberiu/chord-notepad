@@ -680,6 +680,13 @@ jobs:
           path: dist-store/*.msix
           retention-days: 90
 
+      # The onedir build the MSIX is made of, started outside the package
+      # (the same files, without the package identity).
+      - name: Smoke-test the Qt window (Store build)
+        if: runner.os == 'Windows' && (startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch')
+        shell: pwsh
+        run: ./packaging/windows/smoke_test_qt.ps1 -Exe dist-store/ChordNotepad/ChordNotepad.exe
+
       # Install the package on the runner and check the app starts inside it.
       # Signs a throwaway copy with a self-signed cert; the uploaded artifact
       # stays unsigned for Partner Center.
@@ -691,13 +698,6 @@ jobs:
             -Package $env:MSIX_PATH `
             -IdentityName $env:MSIX_IDENTITY `
             -Publisher $env:MSIX_PUBLISHER
-
-      # The onedir build the MSIX is made of, started outside the package
-      # (the same files, without the package identity).
-      - name: Smoke-test the Qt window (Store build)
-        if: runner.os == 'Windows' && (startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch')
-        shell: pwsh
-        run: ./packaging/windows/smoke_test_qt.ps1 -Exe dist-store/ChordNotepad/ChordNotepad.exe
 
   build-pdf-docs:
     name: Build PDF Documentation
