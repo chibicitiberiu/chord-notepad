@@ -256,7 +256,7 @@ class TestWeightMerging:
             "position_penalty", "fretted_finger_penalty",
             "barre_penalty", "finger_barre_penalty", "interior_mute_penalty",
             "movement_penalty", "omitted_fifth_penalty", "damped_mute_penalty",
-            "bass_register_penalty",
+            "bass_register_penalty", "thin_shape_penalty",
         }
         for key, value in DEFAULT_WEIGHTS.items():
             if key in penalties:

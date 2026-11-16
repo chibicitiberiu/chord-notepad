@@ -113,12 +113,12 @@ FLIP = [
              ok={'x32210'}),
     _fixture('Gadd9', 'Gadd9', ok={'320203', '3x0203'}, xfail=_TODAY + ' 300003'),
     _fixture('Csus4 after Cadd9, colour', 'Cadd9 Csus2 Csus4 C6 Am9 Fmaj9', index=2,
-             ok={'x33011'}, xfail=_TODAY + ' x330xx'),
+             ok={'x33011', 'x33013'}),
     _fixture('F/C in walk slash, key C', 'C/E F G/B C F/C G/D', index=4,
-             ok={'x33211'}, xfail=_TODAY + ' x332xx'),
+             ok={'x33211'}),
     _fixture('Aaug in dim/aug, key A', 'Adim7 A#dim7 Aaug Dm6', index=2,
              ok={'x03221'}),
-    _fixture('Gm/Bb', 'Gm/Bb', ok={'x10033'}, xfail=_TODAY + ' x100xx'),
+    _fixture('Gm/Bb', 'Gm/Bb', ok={'x10033'}),
 ]
 
 # Any pick but the forbidden one.
@@ -127,13 +127,13 @@ FORBID = [
              forbid={'43151x'}),
     _fixture('Eb in pop, key Bb', 'Bb F Gm Eb', forbid={'xx13x3'}),
     _fixture('Eb in andalusian, key Bb', 'Gm F Eb D', index=2, forbid={'xx13x3'}),
-    _fixture('Bb/F', 'Bb/F', forbid={'110xxx'}, xfail=_TODAY + ' 110xxx'),
+    _fixture('Bb/F', 'Bb/F', forbid={'110xxx'}),
     _fixture('Bb/F in walk slash, key F', 'F/A Bb C/E F Bb/F C/G', index=4,
-             forbid={'110xxx'}, xfail=_TODAY + ' 110xxx'),
+             forbid={'110xxx'}),
     _fixture('B/D# in walk slash, key E', 'E/G# A B/D# E A/E B/F#', index=2,
              forbid={'xx1x02'}, xfail=_TODAY + ' xx1x02'),
     _fixture('Esus2 in colour, key E', 'Eadd9 Esus2 Esus4 E6 C#m9 Amaj9', index=1,
-             forbid={'xx2x02'}, xfail=_TODAY + ' xx2x02'),
+             forbid={'xx2x02'}),
 ]
 
 

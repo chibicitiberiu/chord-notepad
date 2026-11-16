@@ -16,7 +16,7 @@ import pytest
 
 from chordnotepad.audio.guitar_chord_picker import GuitarChordPicker
 from chordnotepad.chord.helper import ChordHelper
-from chordnotepad.models.fretboard_spec import BUILTIN_FRETBOARDS
+from chordnotepad.models.fretboard_spec import BUILTIN_FRETBOARDS, FretboardSpec
 
 _HELPER = ChordHelper()
 
@@ -190,6 +190,20 @@ class TestRules:
         assert not take(frets('10321x'), 0, [0, 2, 3, 4])
         assert not take(frets('x10331'), 1, [1, 3, 4, 5])
         assert not take(frets('4x4554'), 0, [0, 2, 3, 4, 5])
+
+    def test_a_thin_shape(self, guitar):
+        # Three strings of six (Bb/F 110xxx) pay once on top of the strings
+        # they lose; four don't. Not a power chord (two notes).
+        w = guitar.spec.weights['thin_shape_penalty']
+        assert w < 0
+        assert guitar._full_strum_strings() == 4
+        assert GuitarChordPicker(BUILTIN_FRETBOARDS['ukulele'])._full_strum_strings() == 3
+        free = GuitarChordPicker(FretboardSpec.from_dict(
+            'free', {'tuning': list(guitar.tuning_midi), 'weights': {'thin_shape_penalty': 0}}))
+        for chord, shape_, charged in (('Bb/F', '110xxx', True), ('Bb/F', '1103xx', False),
+                                       ('E5', '022xxx', False)):
+            delta = self.score(guitar, chord, shape_) - self.score(free, chord, shape_)
+            assert delta == pytest.approx(w if charged else 0.0), (chord, shape_)
 
     def test_the_thumb_measures_from_the_capo(self, guitar):
         # With a capo the picker's frets are capo-relative: the thumb rule

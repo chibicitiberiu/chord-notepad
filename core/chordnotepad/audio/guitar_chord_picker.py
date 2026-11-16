@@ -152,6 +152,7 @@ class GuitarChordPicker(INotePicker):
         self._w_omitted_fifth = spec.weight('omitted_fifth_penalty')
         self._w_damped_mute = spec.weight('damped_mute_penalty')
         self._w_bass_register = spec.weight('bass_register_penalty')
+        self._w_thin = spec.weight('thin_shape_penalty')
 
         # Derive note names from MIDI values
         self.tuning_notes = [self._midi_to_note(midi) for midi in self.tuning_midi]
@@ -876,6 +877,10 @@ class GuitarChordPicker(INotePicker):
           thumb, wrapped over the neck, frets its bass low on the edge string
           and damps the next (:meth:`_thumb_frets_bass`): then the bass takes
           no finger and the grip isn't cramped (D/F# 2x0232).
+        * **Thin shapes.** Fewer sounding strings than a full strum
+          (:meth:`_full_strum_strings`: 4 of 6, 3 of 4) cost
+          ``thin_shape_penalty`` once, on top of the strings they lose; not
+          for a two-note (power) chord.
         * **Bass register.** A right bass on the upper half of the strings
           costs ``bass_register_penalty`` per octave above where that note
           sits lowest on the neck (C/G xxx010 against 332010); on the lower
@@ -898,6 +903,14 @@ class GuitarChordPicker(INotePicker):
         fretted = [s for s in sounding if fingering[s] > 0]
 
         score = self._w_sounding * len(sounding)
+        # A fragment rather than a strummed chord: fewer strings than a full
+        # strum sounds (see _full_strum_strings; C/G xxx010, Bb/F 110xxx).
+        # Not for a two-note chord (C5 x355xx), which has nothing to fill a
+        # strum with.
+        if (self._w_thin and len(sounding) < self._full_strum_strings()
+                and len(chord_notes) >= 3
+                and len({self._normalize_note(n) for n in chord_notes}) >= 3):
+            score += self._w_thin
         opens = [s for s in sounding if fingering[s] == 0]
         if not fretted or max(fingering[s] for s in fretted) <= self._fingers - 1:
             score += self._w_open * len(opens)
