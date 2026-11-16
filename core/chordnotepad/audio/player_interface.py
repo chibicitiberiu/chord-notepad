@@ -83,6 +83,10 @@ class IPlayer(ABC):
         live: a playing song and click-to-hear follow at once. Nothing by
         default."""
 
+    def set_music_volume(self, level: float) -> None:
+        """Set the music's level, 0.0-1.0 (the chords' channel, not the
+        click), live. Nothing by default."""
+
     def set_metronome_volume(self, level: float) -> None:
         """Set the metronome click's level, 0.0-1.0 (under the gain), live.
         Nothing by default."""

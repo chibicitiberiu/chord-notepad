@@ -806,7 +806,7 @@ def test_speed_is_live_while_playing_and_saved_as_bpm_multiplier(pb):
 def test_the_volume_dropdown_slider_mute_and_wheel(pb):
     pb.to_play()
     volume = pb.it("volumeButton")
-    tooltip_shows(pb, volume, "Volume 100%")
+    tooltip_shows(pb, volume, "Music 100%")
     pb.wheel(volume, -2)
     pb.qtbot.waitUntil(lambda: pb.model.volume == pytest.approx(0.9), timeout=1000)
     pb.click_on(volume)

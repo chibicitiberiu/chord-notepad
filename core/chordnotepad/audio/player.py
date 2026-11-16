@@ -20,7 +20,8 @@ from chordnotepad.audio.fluidsynth_import import fluidsynth
 from chordnotepad.audio.player_interface import IPlayer
 from chordnotepad.audio.sequencer import TICKS_PER_SECOND, SynthSequencer
 from chordnotepad.audio.song_scheduler import CLICK_TICKS, ClickSound, SongScheduler
-from chordnotepad.audio.volume import DEFAULT_METRONOME_VOLUME, metronome_cc
+from chordnotepad.audio.volume import (
+    DEFAULT_METRONOME_VOLUME, DEFAULT_VOLUME, metronome_cc, music_cc)
 from chordnotepad.constants import AUDIO_GAIN
 from chordnotepad.exceptions import AudioInitializationError
 from chordnotepad.models.playback_event_internal import MidiEvent
@@ -35,6 +36,8 @@ class NotePlayer(IPlayer):
     _driver_candidates: List[str] = []
     #: The synth's output gain (``synth.gain``); see :meth:`set_gain`.
     _gain: float = AUDIO_GAIN
+    #: The music slider (0.0-1.0): the chords' channel volume.
+    _music_level: float = DEFAULT_VOLUME
     #: The metronome slider (0.0-1.0) and whether the click is on.
     _metronome_level: float = DEFAULT_METRONOME_VOLUME
     _metronome_on: bool = False
@@ -159,8 +162,9 @@ class NotePlayer(IPlayer):
                 raise AudioInitializationError(f"Could not load the soundfont: {soundfont_path}")
             logger.info(f"Loaded soundfont: {soundfont_path}, ID: {self.sfid}")
 
-            # Select instrument (program)
+            # Select instrument (program), at the music slider's level
             self.fs.program_select(self.channel, self.sfid, 0, self.instrument)
+            self._apply_music_volume()
 
         except Exception as e:
             logger.error(f"Failed to initialize FluidSynth: {e}", exc_info=True)
@@ -471,6 +475,31 @@ class NotePlayer(IPlayer):
             if self._scheduler is not None and self._sequencer is not None:
                 self._scheduler.set_multiplier(multiplier, self._sequencer.now())
                 self._wake.notify_all()
+
+    def set_music_volume(self, level: float) -> None:
+        """Set the music's level, 0.0-1.0 (the music slider), live: it
+        rides the chords' channel volume (CC 7), so the click keeps its own.
+        Kept for when the synth starts.
+
+        Raises:
+            ValueError: For a level outside 0.0-1.0.
+        """
+        music_cc(level)                     # checks it
+        self._music_level = float(level)
+        self._apply_music_volume()
+
+    @property
+    def music_volume(self) -> float:
+        """The music's level, 0.0-1.0."""
+        return self._music_level
+
+    def _apply_music_volume(self) -> None:
+        if self.fs is None:
+            return
+        try:
+            self.fs.cc(self.channel, 7, music_cc(self._music_level))
+        except Exception as e:
+            logger.warning(f"Could not set the music channel volume: {e}")
 
     def set_metronome_enabled(self, enabled: bool) -> None:
         """Mute/unmute the drum channel that carries the click track.

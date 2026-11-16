@@ -289,7 +289,7 @@ Rectangle {
                 id: volumeBtn
                 objectName: "volumeButton"
                 iconName: bar.player.muted || bar.player.volume <= 0 ? "volume-off" : "volume"
-                tip: "Volume " + (bar.player.muted ? "(muted)" : Math.round(bar.player.volume * 100) + "%") + " (wheel steps)"
+                tip: "Music " + (bar.player.muted ? "(muted)" : Math.round(bar.player.volume * 100) + "%") + " (wheel steps)"
                 checked: volPop.visible
                 onClicked: volPop.visible ? volPop.close() : volPop.open()
                 MouseArea {        // the wheel steps 5% (B3's step_volume)
@@ -386,7 +386,7 @@ Rectangle {
         }
     }
 
-    // --- Volume: the slider and mute, and the metronome's own level under them
+    // --- Volume: the music's slider and mute, and the metronome's own level under them
     // (B3: no state; PlayerBarModel reads them back) ---------------------------------
     component VolumePopup: Popup {
         objectName: "volumePopup"
@@ -395,7 +395,7 @@ Rectangle {
         contentItem: ColumnLayout {
             spacing: Theme.gap2
             RowLayout {
-                Label { text: "Volume"; font: Theme.fontStrong; Layout.fillWidth: true }
+                Label { text: "Music"; font: Theme.fontStrong; Layout.fillWidth: true }
                 Label { text: bar.player.muted ? "muted" : Math.round(bar.player.volume * 100) + "%"; color: Theme.muted }
             }
             RowLayout {
@@ -414,8 +414,8 @@ Rectangle {
                     onClicked: bar.player.setMuted(!bar.player.muted)
                 }
             }
-            // The click's level against the music; the volume and mute above
-            // still turn it up, down and off with everything else.
+            // The click's own level: the music slider above leaves it alone
+            // (Tibi, 2026-11-17); mute silences both.
             RowLayout {
                 Layout.topMargin: Theme.gap1
                 Label { text: "Metronome"; font: Theme.fontStrong; Layout.fillWidth: true }

@@ -71,7 +71,8 @@ class PlaybackService:
         # click during a render would change state that thread is using.
         self._click_picker: Optional[INotePicker] = None
         self._initialized = player is not None
-        # The slider (config ``volume``) and mute (not saved), as gain.
+        # The music slider (config ``volume``, the chords' channel volume)
+        # and mute (not saved, the output gain).
         self._volume = volume_curve.volume_from_config(
             self._config.get("volume", volume_curve.DEFAULT_VOLUME))
         self._muted = False
@@ -563,7 +564,8 @@ class PlaybackService:
 
     @property
     def volume(self) -> float:
-        """The volume slider's position, 0.0-1.0 (config ``volume``)."""
+        """The music slider's position, 0.0-1.0 (config ``volume``): the
+        chords, not the metronome."""
         return self._volume
 
     @property
@@ -589,12 +591,13 @@ class PlaybackService:
 
     def _apply_gain(self) -> None:
         if self._player is not None:
-            self._player.set_gain(volume_curve.gain_for(self._volume, self._muted))
+            self._player.set_gain(volume_curve.output_gain(self._muted))
+            self._player.set_music_volume(self._volume)
 
     @property
     def metronome_volume(self) -> float:
         """The metronome slider's position, 0.0-1.0 (config
-        ``metronome_volume``): the click's level under the volume."""
+        ``metronome_volume``): the click's own level."""
         return self._metronome_volume
 
     def set_metronome_volume(self, level: float) -> None:

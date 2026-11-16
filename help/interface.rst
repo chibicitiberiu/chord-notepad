@@ -272,12 +272,13 @@ The User Interface
    * Too quiet or too loud? Set its level with the **Metronome** slider
      under the volume button
 
-   The **volume** button opens a slider and a mute button. The volume is
-   remembered; mute isn't. Under them, the **Metronome** slider sets how
-   loud the click is against the music, from 0% to 100% (the loudest it
-   gets, and the default). It works while a song plays and is remembered
-   too. The volume slider and mute still turn the click up, down and off
-   along with the music.
+   The **volume** button opens two sliders and a mute button. The **Music**
+   slider sets how loud the chords are, and the **Metronome** slider under
+   it sets how loud the click is, each from 0% to 100% (the default). Each
+   leaves the other alone, so you can turn the music down and keep the
+   click loud. Both work while a song plays and are remembered. **Mute**
+   silences both, and isn't remembered. The mouse wheel over the volume
+   button steps the music by 5%.
 
    When the window is narrow, the bar gives up space in a fixed order: the
    timeline shrinks first, then the song's name and values move into a **»**

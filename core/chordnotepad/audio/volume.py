@@ -1,11 +1,16 @@
-"""The playback volume: what the Qt player bar's slider and mute set.
+"""The playback volume: what the Qt player bar's sliders and mute set.
 
-``volume`` (config, 0.0-1.0) is the slider's position; 1.0 is the loudness
-the app always had (``synth.gain`` :data:`~constants.AUDIO_GAIN`), so a
-config without the key sounds as before. The gain follows the square of the
-position: loudness is heard roughly on a log scale, so a linear gain would
-crowd every audible change into the bottom of the slider. Mute is not a
-volume: it silences without moving the slider, and isn't saved.
+``volume`` (config, 0.0-1.0) is the music slider's position: the chords'
+channel volume (CC 7), so the metronome keeps its own level (Tibi,
+2026-11-17: "first should control music, second metronome"). 1.0 is the
+loudness the music always had (CC 7 100, the General MIDI default, under
+``synth.gain`` :data:`~constants.AUDIO_GAIN`), so a config without the key
+sounds as before. FluidSynth's CC 7 curve is 40·log10(cc/127) dB, so the
+amplitude follows the square of the position, as the output gain did:
+loudness is heard roughly on a log scale, and a linear curve would crowd
+every audible change into the bottom of the slider. Mute is not a volume: it
+silences everything (the output gain goes to 0) without moving the slider,
+and isn't saved.
 """
 
 import math
@@ -42,20 +47,27 @@ def volume_from_config(raw: Any) -> float:
         return DEFAULT_VOLUME
 
 
-def gain_for(volume: float, muted: bool = False) -> float:
-    """FluidSynth's ``synth.gain`` for a slider position (0 when muted)."""
-    if muted:
-        return 0.0
-    volume = check_volume(volume)
-    return AUDIO_GAIN * volume * volume
+#: The music channel's CC 7 at full volume: General MIDI's default, the
+#: level the chords always played at.
+MUSIC_CC_FULL = 100
+
+
+def output_gain(muted: bool = False) -> float:
+    """FluidSynth's ``synth.gain``: the app's fixed level, 0 when muted.
+    The sliders don't move it (each rides its own channel's CC 7)."""
+    return 0.0 if muted else AUDIO_GAIN
+
+
+def music_cc(volume: float) -> int:
+    """The music channel's volume (CC 7) for the music slider at ``volume``."""
+    return int(round(MUSIC_CC_FULL * check_volume(volume)))
 
 
 # -- the metronome's own level -------------------------------------------------------
 #
 # ``metronome_volume`` (config, 0.0-1.0) is the second slider in the Qt
-# volume popup: the click's level against the music. The volume above still
-# turns both up and down (it is the synth's output gain), and mute silences
-# both. 1.0 is the loudest click MIDI allows (full velocity on the downbeat,
+# volume popup: the click's own level. The music slider above doesn't move
+# it (Tibi, 2026-11-17); mute silences both. 1.0 is the loudest click MIDI allows (full velocity on the downbeat,
 # channel volume 127), about 8 dB louder than the click before this slider,
 # which sits near 60%.
 

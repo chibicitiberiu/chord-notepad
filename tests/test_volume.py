@@ -1,9 +1,10 @@
-"""The playback volume (plan step B3): the player's gain, the slider and mute.
+"""The playback volume (plan step B3): the music slider and mute.
 
-The gain was hard-coded at 0.5 in the player. Now ``volume`` (config,
-0.0-1.0) sets it through a square curve, 1.0 being the old loudness, and a
-mute that isn't saved silences without moving the slider. Desktop only:
-nothing of it crosses the bridge.
+``volume`` (config, 0.0-1.0) is the music's level only (Tibi, 2026-11-17:
+"first should control music, second metronome"): it rides the chords'
+channel volume (CC 7), 1.0 being the old loudness (CC 7 100), and the
+output gain stays at 0.5. A mute that isn't saved silences everything
+without moving the slider. Desktop only: nothing of it crosses the bridge.
 """
 
 import json
@@ -26,12 +27,15 @@ from tests.test_audio_driver_selection import FakeSynth, _bare_player, _init
 
 def test_full_volume_is_the_loudness_the_app_always_had():
     assert AUDIO_GAIN == 0.5
-    assert volume.gain_for(1.0) == AUDIO_GAIN
-    assert volume.gain_for(0.0) == 0.0
-    assert volume.gain_for(0.5) == pytest.approx(0.125)
-    assert volume.gain_for(1.0, muted=True) == 0.0
-    gains = [volume.gain_for(i / 20) for i in range(21)]
-    assert gains == sorted(gains) and len(set(gains)) == 21
+    assert volume.output_gain() == AUDIO_GAIN and volume.output_gain(muted=True) == 0.0
+    assert volume.music_cc(1.0) == 100        # General MIDI's default channel volume
+    assert volume.music_cc(0.0) == 0
+    assert volume.music_cc(0.5) == 50         # amplitude (cc/127)^2: a quarter, as before
+    ccs = [volume.music_cc(i / 20) for i in range(21)]
+    assert ccs == sorted(ccs) and len(set(ccs)) == 21
+    for bad in (-0.01, 1.01, math.nan, True, "1"):
+        with pytest.raises(ValueError):
+            volume.music_cc(bad)
 
 
 @pytest.mark.parametrize("bad", [-0.01, 1.01, math.nan, math.inf, True, "0.5", None])
@@ -110,21 +114,21 @@ def make(tmp_path, config=None):
 def test_the_saved_volume_is_applied_at_start(tmp_path):
     session, _, player = make(tmp_path, {"volume": 0.5})
     assert session.volume == 0.5 and session.muted is False
-    assert player.gain == pytest.approx(0.125)
+    assert player.music_volume == 0.5 and player.gain == AUDIO_GAIN
 
 
 def test_set_volume_saves_and_mute_doesnt(tmp_path):
     session, services, player = make(tmp_path)
-    assert player.gain == AUDIO_GAIN
+    assert (player.gain, player.music_volume) == (AUDIO_GAIN, 1.0)
     session.set_volume(0.8)
     assert services.config.config.volume == 0.8
-    assert player.gain == pytest.approx(0.32)
+    assert (player.gain, player.music_volume) == (AUDIO_GAIN, 0.8)
     session.set_muted(True)
     assert (session.muted, session.volume, player.gain) == (True, 0.8, 0.0)
     session.set_volume(0.6)                   # the slider moves, still muted
-    assert (session.volume, player.gain) == (0.6, 0.0)
+    assert (session.volume, player.music_volume, player.gain) == (0.6, 0.6, 0.0)
     session.set_muted(False)
-    assert player.gain == pytest.approx(0.18)
+    assert (player.gain, player.music_volume) == (AUDIO_GAIN, 0.6)
     services.config.save_config()
     saved = json.loads(services.config.config_file_path.read_text())
     assert saved["volume"] == 0.6 and "muted" not in saved
@@ -136,6 +140,7 @@ def test_set_volume_refuses_out_of_range(tmp_path, bad):
     with pytest.raises(ValueError):
         session.set_volume(bad)
     assert services.config.config.volume == 1.0 and player.gain == AUDIO_GAIN
+    assert player.music_volume == 1.0
 
 
 def test_the_wheel_steps_5_percent_within_the_range_and_unmutes(tmp_path):
@@ -148,7 +153,7 @@ def test_the_wheel_steps_5_percent_within_the_range_and_unmutes(tmp_path):
     session.step_volume(-5)
     assert session.volume == 0.75
     session.step_volume(-40)
-    assert session.volume == 0.0 and player.gain == 0.0
+    assert session.volume == 0.0 and player.music_volume == 0.0
     for _ in range(3):
         session.step_volume(1)               # no float drift: 0.05, 0.1, 0.15
     assert session.volume == 0.15

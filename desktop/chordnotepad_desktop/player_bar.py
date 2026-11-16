@@ -501,7 +501,7 @@ class PlayerBarModel(QObject):
 
     @Slot(float)
     def setVolume(self, volume: float) -> None:  # noqa: N802 (Qt)
-        """The slider moved: that volume, and unmuted (the mockup's rule)."""
+        """The music slider moved: that level, and unmuted (the mockup's rule)."""
         volume = min(1.0, max(0.0, round(float(volume), 2)))
         self._volume_command("set_volume", {"volume": volume})
         if self._muted:
@@ -509,7 +509,7 @@ class PlayerBarModel(QObject):
 
     @Slot(int)
     def stepVolume(self, steps: int) -> None:  # noqa: N802 (Qt)
-        """The wheel over the volume button: 5% steps, unmuting."""
+        """The wheel over the volume button: the music in 5% steps, unmuting."""
         self._volume_command("step_volume", {"steps": int(steps)})
 
     @Slot(bool)
@@ -520,7 +520,7 @@ class PlayerBarModel(QObject):
         return self._metronome_volume
 
     #: The metronome slider, 0-1 (config ``metronome_volume``): the click's
-    #: level under the volume.
+    #: own level (the music slider doesn't move it).
     metronomeVolume = Property(float, _get_metronome_volume, notify=volumeChanged)
 
     @Slot(float)

@@ -1,8 +1,9 @@
 """The metronome's own volume (Tibi, 2026-11-15: "a second volume slider for
 the metronome? realized it's hard to hear").
 
-``metronome_volume`` (config, 0.0-1.0) rides the click channel's CC 7, live;
-the volume and mute still apply to the click too. Rendered through the file
+``metronome_volume`` (config, 0.0-1.0) rides the click channel's CC 7, live.
+The music slider rides the chords' channel and leaves the click alone
+(Tibi, 2026-11-17); mute silences both. Rendered through the file
 driver, the old click (velocity 100, CC 7 100, a wood block panned right)
 peaked 4 dB under a piano chord and its loudest 50 ms were 12 dB under; now
 the downbeat has full velocity and 100% is CC 7 127, 8 dB louder than
@@ -78,10 +79,36 @@ def started_player():
     return player, synth
 
 
-def test_the_music_channel_and_the_gain_are_untouched():
+def test_the_click_slider_leaves_the_music_channel_and_the_gain_alone():
     player, synth = started_player()
-    assert [c for c in synth.ccs if c[0] == player.channel] == []
+    before = [c for c in synth.ccs if c[0] == player.channel]
+    assert before == [(player.channel, 7, 100)]   # the music slider's level at start
+    player.set_metronome_enabled(True)
+    player.set_metronome_volume(0.3)
+    assert [c for c in synth.ccs if c[0] == player.channel] == before
     assert synth.gain == player.gain
+
+
+def test_the_music_slider_leaves_the_click_alone():
+    player, synth = started_player()
+    player.set_metronome_enabled(True)
+    player.set_metronome_volume(0.8)
+    click = synth.last_cc(DRUMS)
+    gain = synth.gain
+    player.set_music_volume(0.25)
+    assert synth.last_cc(player.channel) == volume.music_cc(0.25) == 25
+    assert synth.last_cc(DRUMS) == click and synth.gain == gain
+    with pytest.raises(ValueError):
+        player.set_music_volume(1.5)
+    assert player.music_volume == 0.25
+
+
+def test_a_music_level_set_before_the_synth_is_used_when_it_starts():
+    player = _bare_player()
+    player.set_music_volume(0.4)              # no synth yet: kept
+    synth = CcSynth()
+    _init(player, synth, {"pulseaudio": object()})
+    assert synth.last_cc(player.channel) == 40
 
 
 def test_the_click_channel_follows_the_switch_and_the_slider_live():
@@ -137,9 +164,11 @@ def test_set_metronome_volume_saves_and_is_live_while_playing(tmp_path):
     session.set_metronome_volume(0.35)
     assert player.metronome_volume == 0.35 and player.is_playing
     assert services.config.config.metronome_volume == 0.35
-    gain = player.gain
-    session.set_metronome_volume(0.7)         # the music's gain doesn't move
-    assert player.gain == gain
+    gain, music = player.gain, player.music_volume
+    session.set_metronome_volume(0.7)         # the music doesn't move
+    assert (player.gain, player.music_volume) == (gain, music)
+    session.set_volume(0.2)                   # nor the click with the music
+    assert player.metronome_volume == 0.7
     services.config.save_config()
     saved = json.loads(services.config.config_file_path.read_text())
     assert saved["metronome_volume"] == 0.7
