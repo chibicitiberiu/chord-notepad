@@ -172,8 +172,8 @@ General
 .. platform-figure:: settings-playback
    :platforms: desktop
    :alt: The Playback and audio page: Default tempo 120, Default time
-         signature 4 over 4, a Soundfont field with Browse, and an Audio
-         driver box.
+         signature 4 over 4, the Clicked chords sound as in the chord sheet
+         switch, on, a Soundfont field with Browse, and an Audio driver box.
 
    The Playback & audio page.
 
@@ -184,6 +184,14 @@ General
 **Default time signature**
    The time signature a song starts with when it has no ``{time}`` directive
    before its first chord.
+
+**Clicked chords sound as in the chord sheet**
+   On (the default), a chord you |click| in the text plays the notes the
+   chord sheet shows for it, the ones ▶ plays, so it sounds the same every
+   time and matches the sheet (see :ref:`voicing-options`).
+   Off, each |click| is voiced from the chord you |clicked| before it, so the
+   same chord can sound different from one |click| to the next. Takes effect
+   at the next |click|.
 
 Only Settings changes the defaults (the key, tempo and time signature). The
 values :plat:`in the player bar|in the song pill's Playback settings` belong to the

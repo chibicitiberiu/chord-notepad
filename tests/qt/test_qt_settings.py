@@ -205,6 +205,44 @@ def test_discard_drops_every_change(settings):
     assert settings.model.values["word_wrap"] is False and not settings.model.hasChanges
 
 
+CLICK_SETTING = "setting:click_plays_chart_voicing"
+
+
+def test_the_clicked_chords_switch_is_on_the_playback_page_and_saves(settings):
+    settings.open("playback")
+    settings.qtbot.waitUntil(lambda: settings.window.property("page") == "playback", timeout=1000)
+    switch = settings.item(CLICK_SETTING)
+    # The page lays out once it is shown.
+    settings.qtbot.waitUntil(lambda: switch.mapToScene(QPointF(0, 0)).y() > 0, timeout=2000)
+    assert switch.property("title") == "Clicked chords sound as in the chord sheet"
+    assert switch.property("help") == "Off: each click is voiced from the chord you clicked before it."
+    assert switch.property("checked") is True and settings.config("click_plays_chart_voicing") is True
+    settings.click(CLICK_SETTING)
+    settings.qtbot.waitUntil(lambda: settings.model.hasChanges, timeout=2000)
+    assert settings.config("click_plays_chart_voicing") is True
+    settings.save()
+    assert settings.config("click_plays_chart_voicing") is False
+    assert settings.saved()["click_plays_chart_voicing"] is False
+    # Opened again: off.
+    settings.open("playback")
+    assert settings.model.values["click_plays_chart_voicing"] is False
+    assert settings.item(CLICK_SETTING).property("checked") is False
+
+
+def test_a_saved_off_shows_off_after_a_restart(qapp, qtbot, tmp_path):
+    write_config(tmp_path, show_quick_start_on_startup=False, click_plays_chart_voicing=False)
+    harness = QtAppHarness(qapp, tmp_path).start()
+    qtbot.waitUntil(lambda: harness.window.property("contentReady") is True, timeout=3000)
+    s = Settings(harness, qtbot).open("playback")
+    try:
+        assert s.model.values["click_plays_chart_voicing"] is False
+        assert s.item(CLICK_SETTING).property("checked") is False
+        assert harness.app.core.config.get("click_plays_chart_voicing") is False
+    finally:
+        harness.shutdown()
+        qtbot.wait(1)
+
+
 def test_q8_a_typed_number_out_of_range_is_marked_and_save_waits_for_it(settings):
     assert settings.config("max_recent_files") == 10
     settings.model.setNumber("max_recent_files", "60", True)

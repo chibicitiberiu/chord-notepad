@@ -292,6 +292,8 @@ This works even when playback is stopped. Uses include:
    A tap between chords does nothing while a song plays.
 
 
+.. _voicing-options:
+
 Voicing Options
 ===============
 
@@ -346,6 +348,17 @@ worked out before the first note (the Voicing control is greyed out until you
 pause). Pause, pick another voicing, and press Play: the song starts again from
 the chord where you paused, with the new voicing. The instrument can change at
 any time, including during playback.
+
+A chord you |click| in the text sounds the way the song voices it: the notes
+the chord sheet shows for it, the same ones ▶ plays, every time you |click|
+it. A chord that a ``{loop}`` repeats can be voiced differently in each pass;
+it sounds as in the pass a paused song is in, and otherwise as in its first
+pass. Right after an edit, until the chord sheet has caught up with it (or
+while the chord sheet is hidden and hasn't drawn the song), a |click| falls
+back to voicing the chord from the one you |clicked| before it. To have
+every |click| work that way, a new voicing each time, turn off **Clicked
+chords sound as in the chord sheet** in the Playback settings (see
+:doc:`settings`).
 
 .. only:: android
 

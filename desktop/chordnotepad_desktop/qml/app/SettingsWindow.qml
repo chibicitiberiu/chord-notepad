@@ -375,6 +375,13 @@ ApplicationWindow {
                             }
                         }
                         ErrorText { text: win.numberErrors.time_signature_beats || "" }
+                        SwitchRow {
+                            objectName: "setting:click_plays_chart_voicing"
+                            title: "Clicked chords sound as in the chord sheet"
+                            help: "Off: each click is voiced from the chord you clicked before it."
+                            checked: !!win.values.click_plays_chart_voicing
+                            onToggled: (on) => win.settings.setValue("click_plays_chart_voicing", on)
+                        }
                         FieldLabel { text: "Soundfont" }
                         RowLayout {
                             Layout.maximumWidth: win.formWidth

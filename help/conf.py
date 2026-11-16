@@ -45,6 +45,7 @@ help_terms = {
     'click': ('click', 'tap'),
     'Click': ('Click', 'Tap'),
     'clicks': ('clicks', 'taps'),
+    'clicked': ('clicked', 'tapped'),
     'clicking': ('clicking', 'tapping'),
     'Clicking': ('Clicking', 'Tapping'),
     'settings': ('**☰ → Settings...**', '**☰ → Settings**'),
