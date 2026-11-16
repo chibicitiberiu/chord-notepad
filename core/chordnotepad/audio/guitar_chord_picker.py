@@ -150,6 +150,7 @@ class GuitarChordPicker(INotePicker):
         self._w_movement = spec.weight('movement_penalty')
         self._w_kept = spec.weight('kept_finger_bonus')
         self._w_omitted_fifth = spec.weight('omitted_fifth_penalty')
+        self._w_damped_mute = spec.weight('damped_mute_penalty')
 
         # Derive note names from MIDI values
         self.tuning_notes = [self._midi_to_note(midi) for midi in self.tuning_midi]
@@ -786,6 +787,27 @@ class GuitarChordPicker(INotePicker):
             return None
         return len(at_low)
 
+    @staticmethod
+    def _bass_finger_damps(fingering: Union[List[int], Tuple[int, ...]], first: int,
+                           fretted: List[int]) -> bool:
+        """Whether the finger fretting the lowest sounding string (``first``)
+        can lean over and damp the string after it.
+
+        It can when the bass is fretted by a finger of its own: not an open
+        string (no finger), and not the index lying flat across the lowest
+        fret as a barre, which would sound the muted string too. A barre is
+        there when another string beyond the bass is fretted at that lowest
+        fret with no open string between (as :meth:`_barre_strings` has it).
+        """
+        bass_fret = fingering[first]
+        if bass_fret <= 0:
+            return False
+        if bass_fret != min(fingering[s] for s in fretted):
+            return True
+        at_low = [s for s in fretted if fingering[s] == bass_fret]
+        return at_low[-1] == first or any(
+            fingering[s] == 0 for s in range(first, at_low[-1] + 1))
+
     def _score_quality(self, fingering: List[int], chord_notes: List[str],
                        bass_note: Optional[str]) -> float:
         """Intrinsic quality of a fingering in isolation; higher is better.
@@ -816,8 +838,11 @@ class GuitarChordPicker(INotePicker):
           them side by side on its lowest fret where no barre fits, costs
           ``awkward_stretch_penalty`` (F 10321x, Bb x10331).
         * **Interior mutes.** A dead string inside a strummed shape costs
-          ``interior_mute_penalty``; right above the bass the bass finger
-          damps it (3x0033), so anywhere else it costs double (B x21x02).
+          twice ``interior_mute_penalty`` (B x21x02). Right above a fretted
+          bass the bass finger leans over and damps it (3x0033, D/F# 2x0232),
+          a standard move that costs only ``damped_mute_penalty``; not when
+          the bass is open (no finger is there) or under an index barre that
+          lies across the muted string too (see :meth:`_bass_finger_damps`).
         """
 
         tuning = self.tuning_midi
@@ -899,7 +924,9 @@ class GuitarChordPicker(INotePicker):
         first, last = sounding[0], sounding[-1]
         for s in range(first + 1, last):
             if fingering[s] == -1:
-                score += self._w_interior_mute * (1 if s == first + 1 else 2)
+                score += (self._w_damped_mute
+                          if s == first + 1 and self._bass_finger_damps(fingering, first, fretted)
+                          else 2 * self._w_interior_mute)
 
         return score
 
