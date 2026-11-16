@@ -20,11 +20,15 @@ param(
 $ErrorActionPreference = 'Stop'
 $Exe = (Resolve-Path $Exe).Path
 
-# A throwaway %APPDATA% (the app keeps its config and logs there): the real
-# AppData\Roaming\ChordNotepad must not exist when the Store package's smoke
-# test runs, or the package writes into it instead of its own redirected copy.
-$env:APPDATA = Join-Path ([System.IO.Path]::GetTempPath()) ("cn-smoke-" + [guid]::NewGuid())
-New-Item -ItemType Directory -Path $env:APPDATA | Out-Null
+# The app keeps its config and logs in %USERPROFILE%\AppData\Roaming\ChordNotepad.
+# If this run creates that folder it removes it again at the end: it must not
+# exist when the Store package's smoke test runs, or the package writes into
+# it instead of its own redirected copy.
+$appData = Join-Path $HOME 'AppData\Roaming\ChordNotepad'
+$hadAppData = Test-Path $appData
+function Remove-OwnAppData {
+    if (-not $hadAppData -and (Test-Path $appData)) { Remove-Item -Recurse -Force $appData }
+}
 
 function Invoke-Smoke([bool] $Software) {
     if ($Software) { $env:QT_QUICK_BACKEND = 'software' } else { Remove-Item Env:QT_QUICK_BACKEND -ErrorAction SilentlyContinue }
@@ -41,6 +45,7 @@ function Invoke-Smoke([bool] $Software) {
 $code = Invoke-Smoke $false
 if ($code -eq 0) {
     Write-Host "The Qt window started and quit cleanly ($Exe)"
+    Remove-OwnAppData
     exit 0
 }
 Write-Host "::warning::--smoke exited with $code; trying QT_QUICK_BACKEND=software"
@@ -48,14 +53,16 @@ $code = Invoke-Smoke $true
 Remove-Item Env:QT_QUICK_BACKEND -ErrorAction SilentlyContinue
 if ($code -eq 0) {
     Write-Host "::warning::The Qt window only starts with software rendering on this runner ($Exe)"
+    Remove-OwnAppData
     exit 0
 }
 
 Write-Host "::error::The Qt window (--smoke) didn't start from $Exe (exit code $code)"
-$logs = Join-Path $env:APPDATA 'ChordNotepad\logs'
+$logs = Join-Path $appData 'logs'
 $log = Get-ChildItem -Path $logs -Filter '*.log' -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1
 if ($log) {
     Write-Host "----- $($log.FullName) -----"
     Get-Content $log.FullName -Tail 80
 }
+Remove-OwnAppData
 exit 1
