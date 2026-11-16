@@ -10,10 +10,14 @@ turning MIDI events into a stream is now the compiler's job
 
 Rendering runs in two phases. A *structure pass* walks the song once, resolving
 every chord's notes and computing all timing/bar/tempo/meter information, but
-leaves each chord's ``midi_notes`` unset. A *voicing pass* then hands the played
+leaves each chord's ``midi_notes`` unset. A *voicing pass* then hands the
 chords (in playback order, loop repeats included) to
 ``note_picker.voice_sequence`` in a single call, so the voicer can optimize the
-whole song in context, and assigns the results back. Determinism is owned by
+whole song in context, and assigns the results back. A render from the cursor
+voices the chords before it too (and drops their results): each voicing
+follows from the one before, so starting fresh at the cursor sounded
+different from the chord sheet and from Play at the top (Tibi, 2026-11-17: a
+String Quartet an octave apart). Determinism is owned by
 ``voice_sequence`` (which resets the picker itself), so the renderer no longer
 resets the picker or snapshots its state across loops.
 """
@@ -123,6 +127,9 @@ class SongRenderer:
         """
         self._note_picker = note_picker
         self._should_abort = should_abort
+        # The resolved notes of the chords before the start position (by
+        # id of their skipped RenderedChord): voiced for context only.
+        self._lead_in = {}
         self._initial_key = initial_key
         self._initial_bpm = initial_bpm
         self._initial_time_sig = initial_time_sig
@@ -586,7 +593,8 @@ class SongRenderer:
         render from the cursor match those of a render from the top (the
         chord-sheet strip places the playhead by them).
         """
-        if not chord.is_rest and not self._resolve_chord_notes(chord, state['current_key']):
+        notes = None if chord.is_rest else self._resolve_chord_notes(chord, state['current_key'])
+        if not chord.is_rest and not notes:
             self._logger.warning(f"Could not resolve chord: {chord.chord}")
             return None
         duration_beats = self._duration_beats(chord, state)
@@ -614,6 +622,8 @@ class SongRenderer:
             capo=state['current_capo'],
             tempo_clamp=state['tempo_clamp'],
         )
+        if notes:
+            self._lead_in[id(rc)] = notes
         state['current_beat_position'] += duration_beats
         self._advance_total_bar_counter(state, duration_beats, time_sig[0])
         return rc
@@ -721,7 +731,9 @@ class SongRenderer:
         Collects the played (non-rest, non-skipped) chords in playback order,
         voices them together via ``note_picker.voice_sequence``, and writes each
         result back onto its :class:`RenderedChord`. Rests and skipped chords are
-        left with ``midi_notes=None``.
+        left with ``midi_notes=None``; the skipped ones (before a cursor start)
+        are voiced with the rest, in order, and their results dropped, so every
+        played chord sounds as in a render from the top.
 
         For fixed-ensemble pickers -- ``note_picker.voice_labels`` is not
         ``None`` (checked via ``getattr`` so picker fakes without the
@@ -748,22 +760,30 @@ class SongRenderer:
             store on the ``RenderedSong``, or ``(None, None)`` for free-voiced
             pickers.
         """
-        played = [rc for rc in rendered
-                  if not rc.is_rest and not rc.skipped and rc.chord_notes is not None]
-        if not played:
+        sequence = []           # (rendered chord, its notes), lead-in included
+        for rc in rendered:
+            if rc.is_rest:
+                continue
+            notes = self._lead_in.get(id(rc)) if rc.skipped else rc.chord_notes
+            if notes is not None:
+                sequence.append((rc, notes))
+        played_at = [k for k, (rc, _) in enumerate(sequence) if not rc.skipped]
+        if not played_at:
             return None, None
+        played = [sequence[k][0] for k in played_at]
+        all_notes = [notes for _, notes in sequence]
         # Capo path only when the model supports it (fretboard) AND some chord
         # actually carries a capo. Otherwise take the single whole-song call --
         # byte-for-byte the pre-capo behaviour, which the goldens depend on.
-        capos = [rc.capo for rc in played]
+        capos = [rc.capo for rc, _ in sequence]
         use_capo = self._note_picker.supports_capo and any(c != 0 for c in capos)
         try:
             if use_capo:
-                voicings = self._voice_capo_spans(played, capos)
+                voiced_all = self._voice_capo_spans(all_notes, capos)
             else:
-                voicings = self._note_picker.voice_sequence_details(
-                    [rc.chord_notes for rc in played],
-                    should_abort=getattr(self, '_should_abort', None))
+                voiced_all = self._note_picker.voice_sequence_details(
+                    all_notes, should_abort=getattr(self, '_should_abort', None))
+            voicings = [voiced_all[k] for k in played_at]
         except RenderAborted:
             # Cooperative abort: a newer render generation superseded this one.
             # Propagate so the caller can drop the abandoned work; this is
@@ -789,8 +809,8 @@ class SongRenderer:
         staves = list(reversed(voice_staves)) if voice_staves is not None else None
         return list(reversed(voice_labels)), staves
 
-    def _voice_capo_spans(self, played, capos):
-        """Voice ``played`` in maximal same-capo spans, each on a capo'd picker.
+    def _voice_capo_spans(self, notes, capos):
+        """Voice ``notes`` in maximal same-capo spans, each on a capo'd picker.
 
         Only reached for capo-supporting (fretboard) models with at least one
         nonzero capo. Consecutive chords sharing a capo value are voiced together
@@ -798,19 +818,19 @@ class SongRenderer:
         each span's fingerings come out relative to its own capo. Voice leading is
         optimized within a span but not carried across a capo change -- a capo
         move is a natural break where the hand repositions anyway. Returns one
-        :class:`VoicedChord` per entry of ``played``, in order.
+        :class:`VoicedChord` per entry of ``notes``, in order.
 
         ``RenderAborted`` from any span propagates to the caller's handler.
         """
         result = []
-        i, n = 0, len(played)
+        i, n = 0, len(notes)
         while i < n:
             j = i
             while j < n and capos[j] == capos[i]:
                 j += 1
             picker = self._note_picker.with_capo(capos[i])
             result.extend(picker.voice_sequence_details(
-                [rc.chord_notes for rc in played[i:j]],
+                notes[i:j],
                 should_abort=getattr(self, '_should_abort', None)))
             i = j
         return result
