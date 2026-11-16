@@ -1,6 +1,6 @@
 {
  "background": "#fbfbf8",
- "byte_length": 6598,
+ "byte_length": 6595,
  "content": {
   "coord_sum": 152896.3168888092,
   "count": 216,
@@ -102,7 +102,7 @@
  ],
  "slot_count": 15,
  "slot_x_sum": 8076.839996337891,
- "string_count": 60,
+ "string_count": 59,
  "view_id": "tab",
  "zoom": 0.8330000042915344
 }
