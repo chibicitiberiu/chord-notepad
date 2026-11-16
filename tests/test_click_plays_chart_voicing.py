@@ -26,10 +26,10 @@ from tests.test_chord_sheet_playhead import Env as SheetEnv
 from tests.test_session_player import Env as FakeSheetEnv
 
 GUITAR = "guitar:standard"
-# F# C G Am: the picker voices C after F# with five strings, the sheet (from
-# the top of the song) with three.
-TEXT = "F#  C  G  Am"
-FS, C, G = TEXT.index("F#"), TEXT.index("C"), TEXT.index("G")
+# G C G Am: the sheet voices C x32013, keeping the pinky on the G's top
+# note, the click picker x32010.
+TEXT = "G  C  G  Am"
+FIRST, C, G = 0, TEXT.index("C"), TEXT.index("G", 1)
 
 # A loop whose second pass voices C lower (piano): it follows G, not B.
 # The strip: F# B C G C G (indices 0-5).
@@ -52,25 +52,25 @@ def picker_notes(voicing, taps, text=TEXT):
 @pytest.mark.parametrize("platform", [DESKTOP_QT, ANDROID, DESKTOP])
 def test_a_clicked_chord_sounds_the_notes_the_chord_sheet_shows(platform):
     env = SheetEnv(platform, TEXT, voicing=GUITAR)
-    env.session.tap_chord_at(FS)
+    env.session.tap_chord_at(FIRST)
     env.session.tap_chord_at(C)
     assert env.player.immediate == [sheet_notes(env, 0), sheet_notes(env, 1)]
-    # The click picker would have voiced that C from the F# before it.
-    assert picker_notes(GUITAR, [FS, C])[-1] != sheet_notes(env, 1)
+    # The click picker would have voiced that C from the G before it.
+    assert picker_notes(GUITAR, [FIRST, C])[-1] != sheet_notes(env, 1)
 
 
 def test_the_same_chord_sounds_the_same_however_often_and_after_whatever():
     env = SheetEnv(DESKTOP_QT, TEXT, voicing=GUITAR)
-    for offset in (C, FS, C, G, C, C):
+    for offset in (C, FIRST, C, G, C, C):
         env.session.tap_chord_at(offset)
-    c_taps = [notes for notes, offset in zip(env.player.immediate, (C, FS, C, G, C, C))
+    c_taps = [notes for notes, offset in zip(env.player.immediate, (C, FIRST, C, G, C, C))
               if offset == C]
     assert c_taps == [sheet_notes(env, 1)] * 4
 
 
 def test_shift_click_rolls_the_same_notes():
     env = SheetEnv(DESKTOP_QT, TEXT, voicing=GUITAR)
-    env.session.tap_chord_at(FS, rolled=True)
+    env.session.tap_chord_at(FIRST, rolled=True)
     env.session.tap_chord_at(C, rolled=True)
     assert [notes for notes, _gap in env.player.rolled] == [
         sorted(sheet_notes(env, 0)), sorted(sheet_notes(env, 1))]
@@ -173,16 +173,16 @@ def test_playing_on_the_qt_desktop_a_tap_still_only_jumps():
 def test_an_edited_text_falls_back_until_the_sheet_renders_it():
     env = SheetEnv(DESKTOP_QT, TEXT, voicing=GUITAR)
     rendered = env.sheet.rendered_song
-    env.session.set_text("F#  C  G  Am  C")        # detection still pending
-    env.session.tap_chord_at(FS)
+    env.session.set_text("G  C  G  Am  C")        # detection still pending
+    env.session.tap_chord_at(FIRST)
     env.session.tap_chord_at(C)
-    assert env.player.immediate == picker_notes(GUITAR, [FS, C])
+    assert env.player.immediate == picker_notes(GUITAR, [FIRST, C])
     # Detected, but the sheet's render is still the old text's (debounced).
     env.host.advance(0.6)                          # detection: 0.5 s, the sheet: 0.5 s more
     assert env.session._detected_text == env.session.text
     assert env.sheet.rendered_song is rendered and not env.sheet.render_is_current
     env.session.tap_chord_at(C)
-    assert env.player.immediate[-1] == picker_notes(GUITAR, [FS, C, C])[-1] != sheet_notes(env, 1)
+    assert env.player.immediate[-1] == picker_notes(GUITAR, [FIRST, C, C])[-1] != sheet_notes(env, 1)
     # Rendered: the sheet's notes again.
     env.host.advance(2.0)
     assert env.sheet.render_is_current
@@ -207,9 +207,9 @@ def test_a_hidden_sheet_that_never_rendered_falls_back():
     env.session.set_text(TEXT)
     env.host.advance(2.0)
     assert env.sheet.rendered_song is None
-    env.session.tap_chord_at(FS)
+    env.session.tap_chord_at(FIRST)
     env.session.tap_chord_at(C)
-    assert env.player.immediate == picker_notes(GUITAR, [FS, C])
+    assert env.player.immediate == picker_notes(GUITAR, [FIRST, C])
 
 
 def _fake_chord(chord, start, notes):
@@ -264,18 +264,18 @@ def test_audio_that_fails_is_reported_like_any_tap():
 
 def test_off_clicks_voice_lead_from_the_chord_clicked_before():
     env = SheetEnv(DESKTOP_QT, TEXT, voicing=GUITAR, click_plays_chart_voicing=False)
-    env.session.tap_chord_at(FS)
+    env.session.tap_chord_at(FIRST)
     env.session.tap_chord_at(C)
     assert env.player.immediate[-1] != sheet_notes(env, 1)
     # The PlaybackService's click picker, from the chord before.
     picker = env.audio._click_picker
     assert picker is not None
-    assert env.player.immediate == picker_notes(GUITAR, [FS, C])
+    assert env.player.immediate == picker_notes(GUITAR, [FIRST, C])
 
 
 def test_the_setting_is_read_at_each_click():
     env = SheetEnv(DESKTOP_QT, TEXT, voicing=GUITAR)
-    env.session.tap_chord_at(FS)
+    env.session.tap_chord_at(FIRST)
     env.config.set("click_plays_chart_voicing", False)
     env.session.tap_chord_at(C)
     assert env.player.immediate[-1] == picker_notes(GUITAR, [C])[-1] != sheet_notes(env, 1)
