@@ -158,3 +158,42 @@ class TestRules:
         next_to_bass = self.score(picker, 'G', '3x0033') - self.score(picker, 'G', '320033')
         inside = self.score(picker, 'G', '32x033') - self.score(picker, 'G', '320033')
         assert next_to_bass > inside
+
+    def test_only_a_fretted_bass_finger_damps(self, guitar):
+        # Above an open bass no finger damps the mute; under an index barre
+        # reaching past it the barre would sound it. Both cost a buried mute.
+        w = guitar.spec.weights
+        assert w['damped_mute_penalty'] > 2 * w['interior_mute_penalty']
+        damps = guitar._bass_finger_damps
+        assert damps(frets('3x0033'), 0, [0, 4, 5])
+        assert damps(frets('2x0232'), 0, [0, 3, 4, 5])
+        assert damps(frets('4x2100'), 0, [0, 2, 3])
+        assert not damps(frets('0x2010'), 0, [2, 4])
+        assert not damps(frets('1x1211'), 0, [0, 2, 3, 4, 5])
+        assert not damps(frets('3x3333'), 0, [0, 2, 3, 4, 5])
+
+    def test_the_thumb_takes_a_low_bass(self, guitar):
+        # D/F# 2x0232: four fingers, three on fret 2 with no barre, unless
+        # the thumb over the neck frets the F# and damps the A string.
+        w = guitar.spec.weights
+        thumb = self.score(guitar, 'D/F#', '2x0232')
+        cramped = (w['sounding_string_bonus'] * 5 + w['open_string_bonus']
+                   + w['slash_bass_bonus'] + w['span_penalty'] + w['position_penalty'] * 9 / 4
+                   + w['fretted_finger_penalty'] * 4 + w['damped_mute_penalty']
+                   + w['awkward_stretch_penalty'])
+        assert thumb == pytest.approx(cramped - w['awkward_stretch_penalty']
+                                      - w['fretted_finger_penalty'])
+        # Not with the next string ringing (F 10321x), not on the second
+        # string (Bb x10331), not high up (fret 4 and above).
+        take = guitar._thumb_frets_bass
+        assert take(frets('2x0232'), 0, [0, 3, 4, 5])
+        assert not take(frets('10321x'), 0, [0, 2, 3, 4])
+        assert not take(frets('x10331'), 1, [1, 3, 4, 5])
+        assert not take(frets('4x4554'), 0, [0, 2, 3, 4, 5])
+
+    def test_the_thumb_measures_from_the_capo(self, guitar):
+        # With a capo the picker's frets are capo-relative: the thumb rule
+        # reads them as they are.
+        capo = guitar.with_capo(5)
+        assert capo._thumb_frets_bass(frets('2x0232'), 0, [0, 3, 4, 5])
+        assert not capo._thumb_frets_bass(frets('7x5787'), 0, [0, 2, 3, 4, 5])

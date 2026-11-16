@@ -787,6 +787,30 @@ class GuitarChordPicker(INotePicker):
             return None
         return len(at_low)
 
+    #: Highest fret the thumb, wrapped over the neck, frets a bass note at.
+    #: Counted from the nut, or from the capo on a capo picker (whose frets
+    #: are capo-relative). A fact about hands.
+    _THUMB_MAX_FRET = 3
+
+    def _thumb_frets_bass(self, fingering: Union[List[int], Tuple[int, ...]], first: int,
+                          fretted: List[int]) -> bool:
+        """Whether the thumb, wrapped over the neck, can fret the bass note.
+
+        The thumb reaches only the string at the neck's edge (the first in
+        string order), and lies against the next one, damping it, so that
+        one must be muted (D/F# 2x0232, G/F# 2x0033). It frets low on the
+        neck (fret ``1`` to :attr:`_THUMB_MAX_FRET`), next to the index:
+        within a fret of the lowest fret the fingers hold. Only asked of a
+        shape that needs every finger without it; the fingers then hold the
+        rest.
+        """
+        fret = fingering[first]
+        if (first != 0 or self._num_strings < 2 or fingering[1] != -1
+                or not 0 < fret <= self._THUMB_MAX_FRET):
+            return False
+        rest = [fingering[s] for s in fretted if s != first]
+        return bool(rest) and abs(fret - min(rest)) <= 1
+
     @staticmethod
     def _bass_finger_damps(fingering: Union[List[int], Tuple[int, ...]], first: int,
                            fretted: List[int]) -> bool:
@@ -836,7 +860,10 @@ class GuitarChordPicker(INotePicker):
           strings ringing beside the shape stay free (DADGAD's 400200).
         * **Cramped grips.** A shape that needs every finger, two or more of
           them side by side on its lowest fret where no barre fits, costs
-          ``awkward_stretch_penalty`` (F 10321x, Bb x10331).
+          ``awkward_stretch_penalty`` (F 10321x, Bb x10331). Unless the
+          thumb, wrapped over the neck, frets its bass low on the edge string
+          and damps the next (:meth:`_thumb_frets_bass`): then the bass takes
+          no finger and the grip isn't cramped (D/F# 2x0232).
         * **Interior mutes.** A dead string inside a strummed shape costs
           twice ``interior_mute_penalty`` (B x21x02). Right above a fretted
           bass the bass finger leans over and damps it (3x0033, D/F# 2x0232),
@@ -901,6 +928,11 @@ class GuitarChordPicker(INotePicker):
                     fingers, finger_barre = plan
                     score += self._w_finger_barre * finger_barre
                 score += self._w_barre
+            elif fingers == self._fingers and self._thumb_frets_bass(fingering, sounding[0],
+                                                                     fretted):
+                # The thumb over the neck takes the bass: one finger fewer,
+                # and the others aren't cramped (D/F# 2x0232).
+                fingers -= 1
             elif fingers == self._fingers and barre is None and sum(
                     1 for v in fret_vals if v == min(fret_vals)) >= 2:
                 score += self._w_awkward
