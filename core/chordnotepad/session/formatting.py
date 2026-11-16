@@ -298,7 +298,7 @@ def opened_status(location: str) -> str:
 
 
 def recovered_status(display_name: str) -> str:
-    """The status after a recovery copy was opened (File > Open recovered)."""
+    """The status after a recovery copy was opened (File > Backups)."""
     return f"Recovered: {display_name}"
 
 

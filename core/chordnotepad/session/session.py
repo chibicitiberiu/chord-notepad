@@ -1055,7 +1055,7 @@ class AppSession:
     @_command
     def open_recovered(self, text: str, document: Optional[DocumentRef],
                        name: Optional[str] = None) -> None:
-        """Open a recovery copy (the Qt desktop's File > Open recovered).
+        """Open a recovery copy (the Qt desktop's File > Backups).
 
         Asks about unsaved changes first, like Open. The text then replaces
         the editor's as a ``reset`` edit and the document is modified,

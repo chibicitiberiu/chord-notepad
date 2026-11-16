@@ -7,7 +7,7 @@ import CNTheme
 // a wide menu, the common commands at the top level with their shortcuts,
 // the rare ones in submenus, and an inline Zoom row for the whole window's
 // scale. The groups:
-//   New, Open, Open recent ›, Open recovered ›, Save, Save as | Zoom − % + ⛶ | Export MIDI |
+//   New, Open, Open recent ›, Backups ›, Save, Save as | Zoom − % + ⛶ | Export MIDI |
 //   Show menu bar ✓, Dark theme ✓ | Settings | Help › | Quit
 // The items are AppActions' (and the editor's) Actions: no shortcut is
 // declared here. A second click on ☰ closes it (CloseOnPressOutsideParent:
@@ -17,7 +17,7 @@ Menu {
     objectName: "appMenu"
     required property var actions      // AppActions
     required property var files        // FilesModel (Open recent)
-    property var recovery: null        // RecoveryModel (Open recovered)
+    property var recovery: null        // RecoveryModel (Backups)
     width: Theme.px(80)
     closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutsideParent
 

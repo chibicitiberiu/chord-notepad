@@ -267,7 +267,7 @@ def test_the_app_menu_has_the_groups_in_order(app):
     menu = open_app_menu(app)
     assert app.it("appMenuButton").property("checked") is True
     rows = [plain_text(r) if r not in ("---", "[zoom]") else r for r in app.menu_texts(menu)]
-    assert rows == ["New", "Open…", "Open recent", "Open recovered", "Save", "Save as…", "---",
+    assert rows == ["New", "Open…", "Open recent", "Backups", "Save", "Save as…", "---",
                     "[zoom]", "---", "Export MIDI…", "---", "Show menu bar", "Dark theme", "---",
                     "Settings…", "---", "Help", "---", "Quit"]
 
@@ -383,7 +383,7 @@ def test_f10_opens_the_file_menu(app):
     file_menu = app.obj("fileMenu")
     app.qtbot.waitUntil(lambda: file_menu.property("opened") is True, timeout=1000)
     rows = [plain_text(r) for r in app.menu_texts(file_menu)]
-    assert rows == ["New", "Open…", "Open recent", "Open recovered", "---", "Save", "Save as…",
+    assert rows == ["New", "Open…", "Open recent", "Backups", "---", "Save", "Save as…",
                     "Export MIDI…", "---", "Quit"]
 
 

@@ -2,16 +2,16 @@ import QtQuick
 import QtQuick.Controls
 import CNTheme
 
-// File › Open recovered, right after Open recent, in the menu bar and the ☰
+// File › Backups, right after Open recent, in the menu bar and the ☰
 // menu: the copies of unsaved songs that crashed or killed instances left
 // (recovery.py), newest first ("song.txt, today at 14:32"), then "Clear
-// recovered". Disabled while there are none.
+// backups". Disabled while there are none.
 // Built like RecentMenu (createObject under contentItem, pitfall 7) and
 // rebuilt when the list changes; the parent menu asks for a fresh list as it
 // opens (refresh). `recovery` is null when the app has no recovery folder.
 Menu {
     id: menu
-    title: "Open reco&vered"
+    title: "&Backups"
     property var recovery: null
     readonly property int entryCount: menu.recovery ? menu.recovery.labels.length : 0
     enabled: menu.entryCount > 0

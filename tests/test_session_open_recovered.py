@@ -1,4 +1,4 @@
-"""AppSession.open_recovered: the Qt desktop's File > Open recovered.
+"""AppSession.open_recovered: the Qt desktop's File > Backups.
 
 A recovery copy opens like Open (the unsaved-changes question first), as a
 modified document bound to the file it was a copy of (or untitled), and

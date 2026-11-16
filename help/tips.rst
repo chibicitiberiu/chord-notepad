@@ -454,7 +454,7 @@ Forgetting to Save
    with Ctrl+S.
 
    If Chord Notepad crashes or is closed without asking (the computer shut
-   down, say), your unsaved text is waiting in **☰ → Open recovered** the
+   down, say), your unsaved text is waiting in **☰ → Backups** the
    next time you start it. That's a safety net, not a save: choosing
    **Don't save** removes the copy too.
 

@@ -1,4 +1,4 @@
-"""File › Open recovered and the open song's recovery copy (recovery.py).
+"""File › Backups and the open song's recovery copy (recovery.py).
 
 The whole front end runs in the test process (QtAppHarness); its data folder
 is under tmp_path, so the copies are in ``tmp_path/appdata/data/chord-notepad/
@@ -100,7 +100,7 @@ def test_with_nothing_recovered_the_submenu_is_disabled_in_both_menus(app):
     for parent, name in (("appMenu", "appMenuRecovered"), ("fileMenu", "menuBarRecovered")):
         sub = app.obj(name)
         assert sub.property("enabled") is False
-        index, row = submenu_row(app.obj(parent), "Open recovered")
+        index, row = submenu_row(app.obj(parent), "Backups")
         assert row.property("enabled") is False
         # Right after Open recent.
         recent_index, _ = submenu_row(app.obj(parent), "Open recent")
@@ -118,9 +118,9 @@ def test_copies_crashed_instances_left_are_listed_newest_first(qapp, qtbot, tmp_
         rows = app.menu_texts(sub)
         assert rows[0].startswith("new.txt, today at ") or rows[0].startswith("new.txt, yesterday")
         assert rows[1].startswith("old.txt, ")
-        assert rows[2:] == ["---", "Clear recovered"]
+        assert rows[2:] == ["---", "Clear backups"]
         assert app.menu_texts(app.obj("appMenuRecovered")) == rows
-        _, row = submenu_row(app.obj("fileMenu"), "Open recovered")
+        _, row = submenu_row(app.obj("fileMenu"), "Backups")
         assert row.property("enabled") is True
     finally:
         finish(app)
@@ -183,7 +183,8 @@ def test_opening_a_copy_of_a_saved_song_binds_it_to_the_file(qapp, qtbot, tmp_pa
         app.qtbot.waitUntil(lambda: entry not in copies(tmp_path), timeout=2000)
         own = copies(tmp_path)[app.own_id()]
         assert own["document_id"] == str(song) and own["display_name"] == "Hymn.txt"
-        assert app.recovery.labels == []
+        # The list refreshes on the worker thread.
+        app.qtbot.waitUntil(lambda: app.recovery.labels == [], timeout=2000)
         # Save writes to the original file, and the copy goes.
         app.trigger("saveAction")
         app.qtbot.waitUntil(lambda: song.read_text("utf-8") == "G D Em\nAmazing grace\n",

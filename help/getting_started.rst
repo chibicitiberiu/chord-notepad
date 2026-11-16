@@ -419,7 +419,7 @@ editor, but only Chord Notepad will play it back.
    While a song has unsaved changes, Chord Notepad keeps a copy of it on
    the side, written a few seconds after you stop typing. If the app crashes
    or the computer shuts down before you save, the copy is still there next
-   time: open **☰ → Open recovered** (also under **File** in the menu bar).
+   time: open **☰ → Backups** (also under **File** in the menu bar).
    Each entry shows the song's name and when the copy was written, newest
    first. Choosing one opens the text with unsaved changes. For a song that
    had been saved before, **Save** writes it back to that file; a song that
@@ -427,7 +427,7 @@ editor, but only Chord Notepad will play it back.
 
    The copy goes away when you save, or when you choose **Don't save** on
    quitting or opening another song. Copies older than 30 days are dropped,
-   and only the 20 newest are kept. **Clear recovered** at the bottom of the
+   and only the 20 newest are kept. **Clear backups** at the bottom of the
    list removes them all. A copy that belongs to another Chord Notepad window
    that is still open isn't listed there.
 

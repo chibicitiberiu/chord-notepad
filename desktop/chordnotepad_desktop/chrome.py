@@ -104,7 +104,7 @@ class ChromeModel(QObject):
         store: The window's SessionStore.
         mac: Whether the menu bar is the native global one (macOS); detected
             by default.
-        recovery: File › Open recovered's RecoveryModel (recovery.py), or
+        recovery: File › Backups's RecoveryModel (recovery.py), or
             None (the menu is then disabled).
     """
 
@@ -131,7 +131,7 @@ class ChromeModel(QObject):
     def _get_recovery(self) -> Optional[QObject]:
         return self._recovery
 
-    #: File › Open recovered (recovery.py); null without one.
+    #: File › Backups (recovery.py); null without one.
     recovery = Property(QObject, _get_recovery, constant=True)
 
     def _get_texts(self) -> dict:

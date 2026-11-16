@@ -323,7 +323,7 @@ SESSION_COMMANDS: Dict[str, Dict[str, str]] = {
     "respond": {"request_id": "int", "value": "any"},
     "restore_draft": {"text": "str", "document": "DocumentRef|null", "modified": "bool",
                       "read_only": "bool"},
-    # the Qt desktop's File > Open recovered (Android never sends it)
+    # the Qt desktop's File > Backups (Android never sends it)
     "open_recovered": {"text": "str", "document": "DocumentRef|null", "name": "str|null"},
     # settings and preferences
     "apply_settings": {"changes": "SettingsValues"},

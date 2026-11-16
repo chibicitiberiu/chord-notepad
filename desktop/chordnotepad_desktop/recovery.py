@@ -1,4 +1,4 @@
-"""The open song's recovery copy, and File › Open recovered.
+"""The open song's recovery copy, and File › Backups.
 
 The copies themselves are the core's
 :class:`~chordnotepad.services.recovery_store.RecoveryStore` (one slot per
@@ -18,7 +18,7 @@ remove this instance's copy, and lists what crashed instances left:
   New or Open replaced it after Discard) and when the window closes after
   the session approved it (Discard or Save on quit). A crash or a kill
   leaves the copy for the next start.
-* **Open recovered ›** lists the copies of instances that are gone (never
+* **Backups ›** lists the copies of instances that are gone (never
   another running instance's: the store checks its lock), newest first, as
   "song.txt, today at 14:32". The list is read when the app starts (after
   dropping copies older than 30 days and all but the 20 newest) and again
@@ -27,7 +27,7 @@ remove this instance's copy, and lists what crashed instances left:
   sends ``open_recovered`` (the session asks about unsaved changes first,
   then opens it modified, bound to its file or untitled). Once the editor
   shows it, this instance's own copy is written at once and the chosen
-  copy is removed. "Clear recovered" removes every listed copy.
+  copy is removed. "Clear backups" removes every listed copy.
 
 Without a store (the folder couldn't be made) nothing is written and the
 menu stays empty.
@@ -52,7 +52,7 @@ DELAY_MS = 5000
 #: ...and at least this often while changes keep coming.
 MAX_WAIT_MS = 30000
 #: The menu's last row.
-CLEAR_TEXT = "Clear recovered"
+CLEAR_TEXT = "Clear backups"
 
 MONTHS = ("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
 
@@ -83,7 +83,7 @@ def _local_now() -> datetime.datetime:
 
 
 class RecoveryModel(QObject):
-    """This instance's recovery copy, and the Open recovered menu.
+    """This instance's recovery copy, and the Backups menu.
 
     Args:
         store: The window's SessionStore.
