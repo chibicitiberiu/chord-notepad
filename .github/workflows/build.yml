@@ -451,9 +451,10 @@ jobs:
         run: ./packaging/windows/smoke_test_qt.ps1 -Exe "dist/${{ matrix.asset_name }}"
 
       # --- Code signing (Windows) -------------------------------------------
-      # Sign the final .exe with Azure Trusted Signing so Windows stops flagging
-      # it as an unknown publisher (SmartScreen) and WDAC machines stop blocking
-      # it. The signing key lives in Azure's HSM; the runner only requests a
+      # Sign the final .exe with Azure Artifact Signing (formerly Trusted
+      # Signing; the repo variables keep their TRUSTED_SIGNING_* names) so
+      # Windows stops flagging it as an unknown publisher (SmartScreen) and WDAC
+      # machines stop blocking it. The signing key lives in Azure's HSM; the runner only requests a
       # signature over OIDC (no stored secret). Both steps no-op until the
       # TRUSTED_SIGNING_* repo variables and the OIDC signing identity are set
       # up, so unconfigured builds and forks still succeed.
@@ -465,12 +466,12 @@ jobs:
           tenant-id: ${{ vars.AZURE_TENANT_ID }}
           subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Sign Windows executable (Azure Trusted Signing)
+      - name: Sign Windows executable (Azure Artifact Signing)
         if: runner.os == 'Windows' && vars.TRUSTED_SIGNING_ACCOUNT != '' && startsWith(github.ref, 'refs/tags/v')
         uses: Azure/artifact-signing-action@c7ab2a863ab5f9a846ddb8265964877ef296ee82 # v2.0.0
         with:
           endpoint: ${{ vars.TRUSTED_SIGNING_ENDPOINT }}
-          trusted-signing-account-name: ${{ vars.TRUSTED_SIGNING_ACCOUNT }}
+          signing-account-name: ${{ vars.TRUSTED_SIGNING_ACCOUNT }}
           certificate-profile-name: ${{ vars.TRUSTED_SIGNING_PROFILE }}
           files-folder: ${{ github.workspace }}/dist
           files-folder-filter: exe
