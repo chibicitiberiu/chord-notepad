@@ -19,9 +19,9 @@ Like a diamond in the sky.
 {loop: verse 2}
 
 // Duration: Add *beats after a chord to hold it longer
-C*4         G*4
-When the blazing sun is gone,
-Am*2        F*2         C*4
-When he nothing shines upon.
+C*2   C/B*2 Am*2 Em/G*2 F*2  Fdim*2 C/G 
+When  the   blazing     sun  is     gone,
+Dm*2  Dm/F*2 C/G*2 C/B*2 Dm/A*2 G/B*2  C
+When  he     nothing     shines upon.
 
 // That's it! Open the other examples to learn more features.
