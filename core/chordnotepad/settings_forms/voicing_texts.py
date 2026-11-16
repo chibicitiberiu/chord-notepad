@@ -37,6 +37,7 @@ ENSEMBLE_WEIGHT_LABELS: Dict[str, str] = {
     'bass_movement': 'Bass movement',
     'leap_penalty': 'Large leap',
     'octave_leap_penalty': 'Octave leap',
+    'outer_leap_penalty': 'Wide outer leap',
     'tritone_leap_penalty': 'Tritone leap',
     'common_tone_bonus': 'Common tone held',
     'parallel_perfect_penalty': 'Parallel fifths/octaves',
@@ -270,6 +271,10 @@ TOOLTIPS: Dict[str, str] = {
     'weight:octave_leap_penalty': ("How the picker treats a voice jumping more than an octave, "
                                    "on top of the large-leap weight. More negative avoids octave "
                                    "leaps."),
+    'weight:outer_leap_penalty': ("How the picker treats the top or bottom voice leaping more "
+                                  "than a fifth, per semitone beyond it, on top of the large-leap "
+                                  "weight, so a wider leap costs more. 0 turns it off. More "
+                                  "negative keeps the outer lines smoother."),
     'weight:tritone_leap_penalty': ("How the picker treats a voice leaping exactly a tritone "
                                     "(six semitones). More negative avoids tritone leaps."),
     'weight:common_tone_bonus': ("How the picker treats a voice singing the same note again "

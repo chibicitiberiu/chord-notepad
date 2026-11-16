@@ -25,6 +25,12 @@ def test_ensemble_upper_spacing_threshold_is_a_fifth():
     assert "7 (a fifth)" in text and "12 (an octave)" in text and "semitones" in text
 
 
+def test_ensemble_outer_leap_is_per_semitone_beyond_a_fifth_for_the_outer_voices():
+    # ensemble_voicer._score_transition: b == 0 or n - 1, magnitude > 7.
+    text = TOOLTIPS['weight:outer_leap_penalty']
+    assert "top or bottom voice" in text and "fifth" in text and "per semitone" in text
+
+
 def test_every_ensemble_weight_has_a_label_and_help():
     from chordnotepad.models.ensemble_spec import DEFAULT_WEIGHTS, _NESTED_WEIGHT_KEYS
     from chordnotepad.settings_forms.voicing_texts import ENSEMBLE_WEIGHT_LABELS

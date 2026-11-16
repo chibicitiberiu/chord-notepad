@@ -143,6 +143,9 @@ def _resolve_pitch(value: Union[int, str], *, context: str) -> int:
 #: - ``leap_penalty`` / ``octave_leap_penalty`` / ``tritone_leap_penalty``:
 #:   extra cost for a single voice leaping more than a fifth, more than an
 #:   octave, or exactly a tritone (6 semitones).
+#: - ``outer_leap_penalty``: extra cost per semitone the top or bottom voice
+#:   leaps beyond a fifth, so a wide outer leap costs more the wider it is (0,
+#:   off, by default).
 #: - ``common_tone_bonus``: reward for a voice holding the same pitch class.
 #: - ``parallel_perfect_penalty``: cost per pair of voices moving in parallel
 #:   perfect fifths/octaves.
@@ -204,6 +207,7 @@ DEFAULT_WEIGHTS: Dict[str, Any] = {
     'bass_movement': -0.15,
     'leap_penalty': -2.0,
     'octave_leap_penalty': -6.0,
+    'outer_leap_penalty': 0.0,
     'tritone_leap_penalty': -3.0,
     'common_tone_bonus': 1.5,
     'parallel_perfect_penalty': -25.0,
@@ -636,12 +640,14 @@ def _builtin(name: str, label: str, voices: List[Tuple], max_spacing: List[int],
 #: drop the leading tone a step instead of raising it, that resolution is worth
 #: twice the choir's. The upper voices may spread to an octave before the
 #: wide-spacing cost applies (a choir keeps a fifth), which sounds warmer on
-#: strings. The quartet also allows no unisons (four instruments on a triad can
+#: strings. A leap of the cello or Violin I beyond a fifth costs 0.5 more per
+#: semitone (the outer lines are the ones heard). The quartet also allows no unisons (four instruments on a triad can
 #: always double at the octave).
 QUARTET_WEIGHTS: Dict[str, Any] = {
     'movement': [-0.8, -0.4, -0.4, -0.15],
     'leading_tone_resolution_bonus': 3.0,
     'upper_spacing_threshold': 12.0,
+    'outer_leap_penalty': -0.5,
 }
 
 #: Built-in ensemble presets, keyed by a voicing-string slug. The choirs use

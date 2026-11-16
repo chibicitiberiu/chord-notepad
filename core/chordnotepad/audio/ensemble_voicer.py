@@ -239,6 +239,8 @@ class EnsembleVoicer(INotePicker):
         w = spec.weight
         self._leap_penalty = float(w('leap_penalty'))
         self._octave_leap_penalty = float(w('octave_leap_penalty'))
+        # Per semitone an outer voice (top or bottom) leaps beyond a fifth.
+        self._outer_leap_penalty = float(w('outer_leap_penalty'))
         self._tritone_leap_penalty = float(w('tritone_leap_penalty'))
         self._common_tone_bonus = float(w('common_tone_bonus'))
         self._parallel_perfect_penalty = float(w('parallel_perfect_penalty'))
@@ -826,6 +828,8 @@ class EnsembleVoicer(INotePicker):
             score += weight * magnitude
             if magnitude > _LEAP_THRESHOLD:
                 score += self._leap_penalty
+                if b == 0 or b == n - 1:
+                    score += self._outer_leap_penalty * (magnitude - _LEAP_THRESHOLD)
             if magnitude > _OCTAVE:
                 score += self._octave_leap_penalty
             if magnitude == _TRITONE:

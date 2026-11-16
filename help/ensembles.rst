@@ -153,8 +153,10 @@ movement is ``-0.8, -0.4, -0.4, -0.15``), and the leading tone's bonus for
 rising to the tonic is doubled to 3, so the calmer top line still resolves
 it in G to Am. Its upper voices may spread an octave apart before Wide
 upper spacing costs anything (Upper spacing allowed is 12; a choir keeps 7,
-a fifth). It also has Allow unisons off: four instruments playing a triad
-can always double a note an octave apart instead.
+a fifth). When Violin I or the cello leaps more than a fifth, each semitone
+past the fifth costs another 0.5 (Wide outer leap is -0.5). It also has
+Allow unisons off: four instruments playing a triad can always double a
+note an octave apart instead.
 
 The three choirs allow adjacent voices to land on the same pitch (a
 unison), since that's an ordinary, occasional occurrence in real choral
@@ -504,6 +506,12 @@ Voicing Parameters
        leap". A leap of exactly an octave pays only "Large leap".
      - ``octave_leap_penalty``
      - -6.0
+   * - Wide outer leap
+     - Subtracted per semitone that the top or the bottom voice leaps beyond
+       a fifth, on top of "Large leap", so a wider leap of an outer line costs
+       more. Off (0) by default; the String Quartet uses -0.5.
+     - ``outer_leap_penalty``
+     - 0
    * - Tritone leap
      - Subtracted when a voice leaps exactly a tritone (six semitones), an
        interval singers and string players find hard to place accurately.
