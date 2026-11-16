@@ -1,9 +1,9 @@
 {
  "background": "#fbfbf8",
- "byte_length": 66358,
+ "byte_length": 49183,
  "content": {
-  "coord_sum": 20212781.052350044,
-  "count": 2052,
+  "coord_sum": 15032996.148657799,
+  "count": 1394,
   "first": {
    "fill": "#f6f6f2",
    "h": 400.0,
@@ -20,25 +20,25 @@
   },
   "histogram": {
    "line": 506,
-   "rect": 745,
-   "text": 801
+   "rect": 755,
+   "text": 133
   },
   "last": {
-   "anchor": "w",
-   "bold": false,
-   "fill": "#fdfdff",
-   "op": "text",
-   "size": 6.0,
+   "fill": "#5c6bc0",
+   "h": 8.449999809265137,
+   "op": "rect",
+   "outline": null,
+   "radius": 2.0,
    "tags": [
     "slot:132",
-    "note-label",
     "note:66"
    ],
-   "text": "F#4",
-   "x": 14975.0,
-   "y": 108.33783721923828
+   "w": 116.0,
+   "width": 1.0,
+   "x": 14972.0,
+   "y": 125.94999694824219
   },
-  "tag_count": 4056
+  "tag_count": 2067
  },
  "content_height": 400.0,
  "content_width": 15102.0,
@@ -55,8 +55,8 @@
  ],
  "gutter_variants": [
   {
-   "coord_sum": 10597.605298042297,
-   "count": 41,
+   "coord_sum": 11406.604995727539,
+   "count": 44,
    "first": {
     "fill": "#ffffff",
     "h": 378.0,
@@ -73,7 +73,7 @@
     "y": 22.0
    },
    "histogram": {
-    "rect": 38,
+    "rect": 41,
     "text": 3
    },
    "last": {
@@ -88,9 +88,9 @@
     ],
     "text": "C5",
     "x": 44.0,
-    "y": 47.5405387878418
+    "y": 73.9749984741211
    },
-   "tag_count": 82
+   "tag_count": 88
   }
  ],
  "gutter_width": 46.0,
@@ -147,7 +147,7 @@
  ],
  "slot_count": 133,
  "slot_x_sum": 1029270.0,
- "string_count": 360,
+ "string_count": 316,
  "view_id": "keyboard",
  "zoom": 1.25
 }

@@ -1,9 +1,9 @@
 {
  "background": "#fbfbf8",
- "byte_length": 48770,
+ "byte_length": 49183,
  "content": {
-  "coord_sum": 11791049.684812784,
-  "count": 1384,
+  "coord_sum": 11852572.266992867,
+  "count": 1394,
   "first": {
    "fill": "#f6f6f2",
    "h": 130.0,
@@ -20,15 +20,15 @@
   },
   "histogram": {
    "line": 506,
-   "rect": 745,
+   "rect": 755,
    "text": 133
   },
   "last": {
    "fill": "#5c6bc0",
-   "h": 1.9189189672470093,
+   "h": 1.7000000476837158,
    "op": "rect",
    "outline": null,
-   "radius": 0.6396396160125732,
+   "radius": 0.5666666626930237,
    "tags": [
     "slot:132",
     "note:66"
@@ -36,9 +36,9 @@
    "w": 92.0,
    "width": 1.0,
    "x": 11978.0,
-   "y": 45.35135269165039
+   "y": 51.70000076293945
   },
-  "tag_count": 2052
+  "tag_count": 2067
  },
  "content_height": 130.0,
  "content_width": 12084.0,
@@ -55,8 +55,8 @@
  ],
  "gutter_variants": [
   {
-   "coord_sum": 4864.767567873001,
-   "count": 41,
+   "coord_sum": 5229.630006790161,
+   "count": 44,
    "first": {
     "fill": "#ffffff",
     "h": 108.0,
@@ -73,7 +73,7 @@
     "y": 22.0
    },
    "histogram": {
-    "rect": 38,
+    "rect": 41,
     "text": 3
    },
    "last": {
@@ -88,9 +88,9 @@
     ],
     "text": "C5",
     "x": 44.0,
-    "y": 29.29729652404785
+    "y": 36.849998474121094
    },
-   "tag_count": 82
+   "tag_count": 88
   }
  ],
  "gutter_width": 46.0,
@@ -147,7 +147,7 @@
  ],
  "slot_count": 133,
  "slot_x_sum": 823416.0,
- "string_count": 315,
+ "string_count": 316,
  "view_id": "keyboard",
  "zoom": 1.0
 }

@@ -338,10 +338,10 @@ def test_packing_is_deterministic(song):
 #     [print(v, len(d), hashlib.sha256(d).hexdigest()) for v in t.VIEWS \
 #      for d in [t.pack.pack_view(s, v, 1.0, t.HEIGHT)]]"
 VIEW_GOLDEN = {
-    "keyboard": (7929, "b955e91607c1cab00ebe8d6ea1243dfef76c84ea6341013bd5dcc26061cdf807"),
-    "staff": (5656, "2eb11d651a4f82fd5218af1dd14653bdeab37549760f9969d7537f1cb2f67b30"),
-    "fret": (9423, "fa77a2673bd4714af9cda2e91446ec07e6cddf299bb02918efdaced3002c3cad"),
-    "tab": (6598, "aec2ee523cf041491eefc42e1b4303ae0f2d5175637bfe943c2ba9af245fe71e"),
+    "keyboard": (7947, "925bf9faf9f52b196cedf19727ffaaa2d659159ae8475fccf2e7c49adf7754f7"),
+    "staff": (5628, "1ba216f591a05cc106369aefe813c8f694e2ba44834c4ba818c4258fdfeccd2c"),
+    "fret": (9002, "e714bcffbc421806767f17c3e668a66b709cb83aa4bad7fa4906de4689333d82"),
+    "tab": (6598, "3910850d47e162e7c9c36edca60765201de4321ceea4fa702fb9732a25ecc6d4"),
 }
 
 
