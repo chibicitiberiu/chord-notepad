@@ -222,18 +222,61 @@ def test_opening_an_untitled_copy_with_unsaved_changes_asks_first(qapp, qtbot, t
         finish(app)
 
 
-def test_clear_recovered_removes_every_listed_copy(qapp, qtbot, tmp_path):
+def ask_clear(app):
+    """Choose Clear backups; the question once it is open."""
+    QMetaObject.invokeMethod(app.obj("clearRecovered"), "click")
+    dialog = app.item("clearBackupsDialog")
+    app.qtbot.waitUntil(lambda: dialog.property("opened") is True, timeout=2000)
+    return dialog
+
+
+def test_clear_recovered_asks_then_removes_every_listed_copy(qapp, qtbot, tmp_path):
     crashed(tmp_path, "a\n", "a.txt")
     crashed(tmp_path, "b\n", "b.txt")
     app = started(qapp, qtbot, tmp_path)
     try:
         assert len(app.recovery.labels) == 2
-        QMetaObject.invokeMethod(app.obj("clearRecovered"), "click")
+        dialog = ask_clear(app)
+        assert dialog.property("title") == "Clear backups?"
+        assert app.it("clearBackupsText").property("text") == (
+            "This removes the 2 backed-up songs listed here. They can't be restored.")
+        assert app.it("clearBackupsYes").property("text") == "Clear"
+        assert app.it("clearBackupsCancel").property("text") == "Cancel"
+        assert len(copies(tmp_path)) == 2      # nothing goes before the answer
+        app.click_item(app.it("clearBackupsYes"))
         app.qtbot.waitUntil(lambda: app.recovery.labels == [], timeout=1000)
+        assert dialog.property("visible") is False
         assert copies(tmp_path) == {}
         assert app.obj("menuBarRecovered").property("enabled") is False
     finally:
         finish(app)
+
+
+def test_cancel_or_escape_on_clear_backups_keeps_the_copies(qapp, qtbot, tmp_path):
+    entry = crashed(tmp_path, "a\n", "a.txt")
+    app = started(qapp, qtbot, tmp_path)
+    try:
+        dialog = ask_clear(app)
+        assert app.it("clearBackupsText").property("text") == (
+            "This removes the backed-up song listed here. It can't be restored.")
+        app.click_item(app.it("clearBackupsCancel"))
+        app.qtbot.waitUntil(lambda: dialog.property("visible") is False, timeout=2000)
+        dialog = ask_clear(app)
+        app.key(Qt.Key.Key_Escape)
+        app.qtbot.waitUntil(lambda: dialog.property("visible") is False, timeout=2000)
+        app.recovery.refresh()
+        settle(app)
+        assert set(copies(tmp_path)) == {entry}
+        assert len(app.recovery.labels) == 1
+    finally:
+        finish(app)
+
+
+def test_the_clear_question_counts_the_listed_copies():
+    assert recovery_module.clear_confirm_message(3) == (
+        "This removes the 3 backed-up songs listed here. They can't be restored.")
+    assert recovery_module.clear_confirm_message(1) == (
+        "This removes the backed-up song listed here. It can't be restored.")
 
 
 # -- this instance's copy -------------------------------------------------------------------

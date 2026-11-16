@@ -517,6 +517,44 @@ ApplicationWindow {
         onDismissed: win.errors.dismissed()
         onClosed: editorPane.focusEditor()
     }
+    // File › Backups › Clear backups asks first (recovery.py's askClear):
+    // Cancel, then Clear, as Settings' Remove voicing does. Cancel, Escape
+    // or closing it any other way removes nothing.
+    AppDialog {
+        id: clearBackupsDlg
+        objectName: "clearBackupsDialog"
+        property string message: ""
+        property string actionText: ""
+        closePolicy: Popup.CloseOnEscape
+        onClosed: editorPane.focusEditor()
+        contentItem: Label {
+            objectName: "clearBackupsText"
+            text: clearBackupsDlg.message
+            color: Theme.muted; wrapMode: Text.Wrap
+        }
+        footer: DialogFooter {
+            Button { objectName: "clearBackupsCancel"; text: "Cancel"; onClicked: clearBackupsDlg.close() }
+            Button {
+                objectName: "clearBackupsYes"
+                text: clearBackupsDlg.actionText
+                highlighted: true
+                onClicked: {
+                    clearBackupsDlg.close()
+                    if (win.chrome.recovery) win.chrome.recovery.clearAll()
+                }
+            }
+        }
+    }
+    Connections {
+        target: win.chrome.recovery
+        ignoreUnknownSignals: true
+        function onClearAsked(title, message, actionText) {
+            clearBackupsDlg.title = title
+            clearBackupsDlg.message = message
+            clearBackupsDlg.actionText = actionText
+            clearBackupsDlg.open()
+        }
+    }
     Connections {
         target: win.store
         function onRequest(typeName, data) {

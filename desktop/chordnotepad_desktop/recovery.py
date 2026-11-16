@@ -27,7 +27,9 @@ remove this instance's copy, and lists what crashed instances left:
   sends ``open_recovered`` (the session asks about unsaved changes first,
   then opens it modified, bound to its file or untitled). Once the editor
   shows it, this instance's own copy is written at once and the chosen
-  copy is removed. "Clear backups" removes every listed copy.
+  copy is removed. "Clear backups" asks first ("Clear backups?", Clear
+  or Cancel; :meth:`RecoveryModel.askClear` and ``clearAsked``), then
+  removes every listed copy.
 
 Without a store (the folder couldn't be made) nothing is written and the
 menu stays empty.
@@ -53,6 +55,9 @@ DELAY_MS = 5000
 MAX_WAIT_MS = 30000
 #: The menu's last row.
 CLEAR_TEXT = "Clear backups"
+#: The question it asks first, and its button (Cancel is the other).
+CLEAR_CONFIRM_TITLE = "Clear backups?"
+CLEAR_CONFIRM_BUTTON = "Clear"
 
 MONTHS = ("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
 
@@ -78,6 +83,13 @@ def entry_label(entry: RecoveredEntry, now: datetime.datetime) -> str:
     return f"{entry.display_name}, {when_label(entry.written, now)}"
 
 
+def clear_confirm_message(count: int) -> str:
+    """The question before Clear backups removes ``count`` copies."""
+    if count == 1:
+        return "This removes the backed-up song listed here. It can't be restored."
+    return f"This removes the {count} backed-up songs listed here. They can't be restored."
+
+
 def _local_now() -> datetime.datetime:
     return datetime.datetime.now().astimezone()
 
@@ -96,6 +108,8 @@ class RecoveryModel(QObject):
 
     #: The listed copies changed.
     entriesChanged = Signal()
+    #: Clear backups was chosen: ask (title, message, button), then clearAll.
+    clearAsked = Signal(str, str, str)
     # From the worker thread to the window's: a new list, a copy's text read.
     _listed = Signal(object)
     _read = Signal(object, object)
@@ -145,6 +159,16 @@ class RecoveryModel(QObject):
         return CLEAR_TEXT
 
     clearText = Property(str, _get_clear_text, constant=True)
+
+    @Slot()
+    def askClear(self) -> None:  # noqa: N802 (Qt)
+        """Clear backups was chosen: ``clearAsked`` with the question for the
+        copies listed now (the window's dialog calls :meth:`clearAll` on
+        Clear; Cancel or Escape does nothing)."""
+        if self._recovery is None or self._closed or not self._entries:
+            return
+        self.clearAsked.emit(CLEAR_CONFIRM_TITLE, clear_confirm_message(len(self._entries)),
+                             CLEAR_CONFIRM_BUTTON)
 
     @Slot()
     def refresh(self) -> None:

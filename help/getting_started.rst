@@ -428,7 +428,7 @@ editor, but only Chord Notepad will play it back.
    The copy goes away when you save, or when you choose **Don't save** on
    quitting or opening another song. Copies older than 30 days are dropped,
    and only the 20 newest are kept. **Clear backups** at the bottom of the
-   list removes them all. A copy that belongs to another Chord Notepad window
+   list removes them all, after asking (they can't be brought back). A copy that belongs to another Chord Notepad window
    that is still open isn't listed there.
 
 Opening Existing Files

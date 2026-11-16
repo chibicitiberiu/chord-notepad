@@ -5,7 +5,8 @@ import CNTheme
 // File › Backups, right after Open recent, in the menu bar and the ☰
 // menu: the copies of unsaved songs that crashed or killed instances left
 // (recovery.py), newest first ("song.txt, today at 14:32"), then "Clear
-// backups". Disabled while there are none.
+// backups", which asks first (recovery.askClear; Main.qml's
+// clearBackupsDialog). Disabled while there are none.
 // Built like RecentMenu (createObject under contentItem, pitfall 7) and
 // rebuilt when the list changes; the parent menu asks for a fresh list as it
 // opens (refresh). `recovery` is null when the app has no recovery folder.
@@ -37,7 +38,7 @@ Menu {
         menu.addItem(menu.separatorComp.createObject(menu.contentItem))
         var clear = menu.itemComp.createObject(menu.contentItem, { text: menu.recovery.clearText,
                                                        objectName: "clearRecovered" }) as MenuItem
-        clear.triggered.connect(function () { menu.recovery.clearAll() })
+        clear.triggered.connect(function () { menu.recovery.askClear() })
         menu.addItem(clear)
     }
     function opener(index) { return function () { menu.recovery.openEntry(index) } }
