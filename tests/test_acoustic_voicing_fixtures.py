@@ -110,7 +110,7 @@ FLIP = [
     _fixture('Dm/F after Dm', 'Dm Dm/F', ok={'xx3231', '1x0231'},
              xfail=_TODAY + ' 1002xx'),
     _fixture('C6 in colour, key C', 'Cadd9 Csus2 Csus4 C6 Am9 Fmaj9', index=3,
-             ok={'x32210'}, xfail=_TODAY + ' x35210'),
+             ok={'x32210'}),
     _fixture('Gadd9', 'Gadd9', ok={'320203', '3x0203'}, xfail=_TODAY + ' 300003'),
     _fixture('Csus4 after Cadd9, colour', 'Cadd9 Csus2 Csus4 C6 Am9 Fmaj9', index=2,
              ok={'x33011'}, xfail=_TODAY + ' x330xx'),

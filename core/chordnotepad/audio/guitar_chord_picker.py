@@ -149,6 +149,7 @@ class GuitarChordPicker(INotePicker):
         self._w_interior_mute = spec.weight('interior_mute_penalty')
         self._w_movement = spec.weight('movement_penalty')
         self._w_kept = spec.weight('kept_finger_bonus')
+        self._w_omitted_fifth = spec.weight('omitted_fifth_penalty')
 
         # Derive note names from MIDI values
         self.tuning_notes = [self._midi_to_note(midi) for midi in self.tuning_midi]
@@ -157,9 +158,15 @@ class GuitarChordPicker(INotePicker):
         self._state = GuitarPickerState()
 
         # Cache for enumerated candidate fingerings (keyed by chord pitch
-        # classes). Per-instance, so the spec's identity is implicit in the
-        # cache and never needs to be part of the key.
-        self._fingering_cache: Dict[Tuple[Tuple[int, ...], Optional[int]], List[List[int]]] = {}
+        # classes, bass and root; see :meth:`_chord_key`). Per-instance, so
+        # the spec's identity is implicit in the cache and never needs to be
+        # part of the key.
+        self._fingering_cache: Dict[Tuple[Tuple[int, ...], Optional[int], int],
+                                    List[List[int]]] = {}
+        # Per chord key: the perfect 5th a voicing may leave out at a cost
+        # (see :meth:`_omittable_fifth`), or None.
+        self._omittable_fifth_cache: Dict[Tuple[Tuple[int, ...], Optional[int], int],
+                                          Optional[int]] = {}
 
         # Pre-compute fret-to-note mapping for each string (used by the fallback)
         self._string_note_map = self._build_string_note_map()
@@ -210,6 +217,7 @@ class GuitarChordPicker(INotePicker):
         """Reset to initial state"""
         self._state = GuitarPickerState()
         self._fingering_cache.clear()
+        self._omittable_fifth_cache.clear()
 
     @property
     def supports_capo(self) -> bool:
@@ -261,15 +269,7 @@ class GuitarChordPicker(INotePicker):
         against the current transition state and returns the argmax.
         """
 
-        chord_pitch_classes = {self._normalize_note(n) for n in chord_notes}
-        bass_pc = self._normalize_note(bass_note) if bass_note else None
-
-        cache_key = (tuple(sorted(chord_pitch_classes)), bass_pc)
-
-        candidates = self._fingering_cache.get(cache_key)
-        if candidates is None:
-            candidates = self._build_candidate_ladder(chord_notes, bass_note)
-            self._fingering_cache[cache_key] = candidates
+        candidates = self._candidates(chord_notes, bass_note)
 
         if not candidates:
             logger.warning(f"No fingerings found for {chord_notes}, using fallback")
@@ -277,6 +277,75 @@ class GuitarChordPicker(INotePicker):
 
         # max() returns the first argmax, so DFS order breaks ties deterministically.
         return max(candidates, key=lambda f: self._score_fingering(f, chord_notes, bass_note))
+
+    def _chord_key(self, chord_notes: List[str], bass_note: Optional[str]
+                   ) -> Tuple[Tuple[int, ...], Optional[int], int]:
+        """Cache key of a chord: its pitch classes, bass and root.
+
+        The root (``chord_notes[0]``) is part of it because it decides which
+        tone is the perfect 5th a voicing may leave out: C6 and Am7/C share
+        their pitch classes and bass but not their 5th.
+        """
+        chord_pcs = {self._normalize_note(n) for n in chord_notes}
+        bass_pc = self._normalize_note(bass_note) if bass_note else None
+        return tuple(sorted(chord_pcs)), bass_pc, self._normalize_note(chord_notes[0])
+
+    def _candidates(self, chord_notes: List[str],
+                    bass_note: Optional[str]) -> List[List[int]]:
+        """The chord's candidate fingerings, enumerated once and cached."""
+        cache_key = self._chord_key(chord_notes, bass_note)
+        candidates = self._fingering_cache.get(cache_key)
+        if candidates is None:
+            candidates = self._build_candidate_ladder(chord_notes, bass_note)
+            self._fingering_cache[cache_key] = candidates
+        return candidates
+
+    def _full_strum_strings(self) -> int:
+        """Fewest sounding strings of a full strummed shape on this
+        instrument: all but two, and never fewer than three (4 of 6 on a
+        guitar, 3 of 4 on a ukulele)."""
+        return max(3, self._num_strings - 2)
+
+    @staticmethod
+    def _fifth_to_omit(chord_pcs: Set[int], root_pc: int,
+                       bass_pc: Optional[int]) -> Optional[int]:
+        """The perfect 5th a voicing of this chord may leave out, or None.
+
+        Guitarists drop the plain perfect 5th first (C6 x32210, C7 x32310).
+        Only in a chord of four tones: a triad without its 5th is two notes,
+        and a five-tone chord's no-5th open shapes (C9 x30330) would beat the
+        chord-book grips up the neck (x32333) on open strings alone. Never
+        when the 5th is the written bass, and never when a tone a semitone
+        off the 5th is also in the chord (b5/#11, #5/b13): there the 5th is
+        what tells them apart. Dim, aug and b5 chords have no perfect 5th.
+        """
+        fifth = (root_pc + 7) % 12
+        if (len(chord_pcs) != 4 or fifth not in chord_pcs or fifth == bass_pc
+                or (fifth + 1) % 12 in chord_pcs or (fifth - 1) % 12 in chord_pcs):
+            return None
+        return fifth
+
+    def _omittable_fifth(self, chord_notes: List[str],
+                         bass_note: Optional[str]) -> Optional[int]:
+        """The 5th whose absence costs ``omitted_fifth_penalty``, or None.
+
+        That's :meth:`_fifth_to_omit`, when the chord also has a complete
+        voicing among its candidates: then no-5th voicings compete with
+        complete ones at a cost. When none is complete every candidate lacks
+        something and none is charged (the old ladder behaviour).
+        """
+        cache_key = self._chord_key(chord_notes, bass_note)
+        if cache_key in self._omittable_fifth_cache:
+            return self._omittable_fifth_cache[cache_key]
+        chord_pcs = set(cache_key[0])
+        fifth = self._fifth_to_omit(chord_pcs, cache_key[2], cache_key[1])
+        if fifth is not None:
+            tuning = self.tuning_midi
+            if not any({(tuning[s] + f) % 12 for s, f in enumerate(c) if f >= 0} >= chord_pcs
+                       for c in self._candidates(chord_notes, bass_note)):
+                fifth = None
+        self._omittable_fifth_cache[cache_key] = fifth
+        return fifth
 
     def _build_candidate_ladder(self, chord_notes: List[str],
                                 bass_note: Optional[str]) -> List[List[int]]:
@@ -337,7 +406,9 @@ class GuitarChordPicker(INotePicker):
         whose pitch class is a chord tone or the slash bass), pruning branches
         that exceed ``max_span``. Complete voicings (every chord tone present)
         are preferred; partial voicings are returned only when no complete
-        voicing exists.
+        voicing exists, except voicings that leave out only the chord's
+        perfect 5th (see :meth:`_fifth_to_omit`), which join the complete
+        ones and pay ``omitted_fifth_penalty`` when scored.
 
         Args:
             chord_notes: The chord tones (note names).
@@ -363,6 +434,15 @@ class GuitarChordPicker(INotePicker):
         # Slash bass notes that are not chord tones do not count toward coverage.
         num_unique = len(chord_pcs)
         pc_bit = {pc: i for i, pc in enumerate(chord_pcs)}
+
+        # The coverage mask of a voicing missing only an omittable 5th. Such
+        # a voicing is kept only when it still sounds a full strum's worth of
+        # strings (see _full_strum_strings): the 5th is dropped for a fuller
+        # or easier grip (C6 x32210), not for a three-string fragment.
+        fifth = self._fifth_to_omit(chord_pcs, self._normalize_note(chord_notes[0]), bass_pc)
+        no_fifth_mask = (((1 << num_unique) - 1) & ~(1 << pc_bit[fifth])
+                         if fifth is not None else -1)
+        full_strum = self._full_strum_strings()
 
         # Minimum number of chord tones a candidate must cover to be kept at all
         # (complete or partial). Anything below this is pruned during the DFS.
@@ -415,6 +495,7 @@ class GuitarChordPicker(INotePicker):
 
         complete: List[List[int]] = []
         partial: List[List[int]] = []
+        no_fifth: List[List[int]] = []
         buf = [0] * num_strings
 
         def dfs(string_idx: int, min_f: int, max_f: int, mask: int,
@@ -471,6 +552,8 @@ class GuitarChordPicker(INotePicker):
                     complete.append(buf[:])
                 elif present >= min_present:
                     partial.append(buf[:])
+                    if mask == no_fifth_mask and n_sound >= full_strum:
+                        no_fifth.append(buf[:])
                 return
 
             for fret, bit in string_options[string_idx]:
@@ -491,7 +574,7 @@ class GuitarChordPicker(INotePicker):
         # Sentinels chosen so the first fretted string always sets both bounds.
         dfs(0, max_fret + 1, 0, 0, 0, 0)
 
-        return complete if complete else partial
+        return complete + no_fifth if complete else partial
 
     def _is_playable(self, fingering: Union[List[int], Tuple[int, ...]]) -> bool:
         """Check if a fingering is physically playable.
@@ -767,6 +850,15 @@ class GuitarChordPicker(INotePicker):
             lowest_pc = (tuning[lowest_string] + fingering[lowest_string]) % 12
             score += weight if lowest_pc == target_pc else -weight
 
+        # Left-out 5th: a voicing that drops only the chord's plain perfect
+        # 5th (C6 x32210) when a complete one exists (see _omittable_fifth).
+        if self._w_omitted_fifth and len(chord_notes) == 4:
+            fifth = self._omittable_fifth(chord_notes, bass_note)
+            if fifth is not None:
+                sounding_pcs = {(tuning[s] + fingering[s]) % 12 for s in sounding}
+                if fifth not in sounding_pcs:
+                    score += self._w_omitted_fifth
+
         if fretted:
             fret_vals = [fingering[s] for s in fretted]
             span = max(fret_vals) - min(fret_vals)
@@ -938,9 +1030,9 @@ class GuitarChordPicker(INotePicker):
         # ``pos_keys[pos]`` is a hashable identity of everything the unary
         # scorer reads from the chord at ``pos`` (``None`` for empty-notes
         # positions, whose unary is 0.0): the fingering-cache key (sorted pitch
-        # classes + bass pc) plus the first note's pitch class, which
-        # :meth:`_score_quality` consults for its slash-bass check. Repeated
-        # chords share the key, so the memo below collapses their (identical)
+        # classes, bass pc and the root's pitch class, which
+        # :meth:`_score_quality` consults for its slash-bass check and the
+        # left-out 5th; see :meth:`_chord_key`). Repeated chords share the key, so the memo below collapses their (identical)
         # rescoring into a single computation per (chord, fingering) pair.
         candidate_sets: List[List[List[int]]] = []
         chord_data: List[Tuple[List[str], Optional[str]]] = []
@@ -955,15 +1047,9 @@ class GuitarChordPicker(INotePicker):
                 pos_keys.append(None)
                 continue
 
-            chord_pcs = {self._normalize_note(n) for n in notes}
-            bass_pc = self._normalize_note(bass_note) if bass_note else None
-            cache_key = (tuple(sorted(chord_pcs)), bass_pc)
-            pos_keys.append((cache_key, self._normalize_note(notes[0])))
+            pos_keys.append(self._chord_key(notes, bass_note))
 
-            candidates = self._fingering_cache.get(cache_key)
-            if candidates is None:
-                candidates = self._build_candidate_ladder(notes, bass_note)
-                self._fingering_cache[cache_key] = candidates
+            candidates = self._candidates(notes, bass_note)
             if not candidates:
                 logger.warning(f"No fingerings found for {notes}, using fallback")
                 candidates = [self._get_fallback_fingering(notes[0])]

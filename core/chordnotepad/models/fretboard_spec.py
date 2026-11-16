@@ -96,6 +96,7 @@ DEFAULT_WEIGHTS: Dict[str, float] = {
     'interior_mute_penalty': -4.0,    # a dead string inside a strummed shape is hard to execute
     'movement_penalty': -1.0,         # was SCORE_PER_MOVE_FRET
     'kept_finger_bonus': 0.4,         # was SCORE_PER_KEPT_FINGER
+    'omitted_fifth_penalty': -2.4,    # a four-tone chord voiced without its plain perfect 5th
 }
 
 
