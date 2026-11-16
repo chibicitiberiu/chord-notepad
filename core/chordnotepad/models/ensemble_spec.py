@@ -161,6 +161,9 @@ def _resolve_pitch(value: Union[int, str], *, context: str) -> int:
 #: - ``inversion``: per-inversion bonus/penalty for the chosen bass note.
 #: - ``range_comfort_penalty``: cost per semitone a voice sits inside the
 #:   outer 2 semitones of its configured range.
+#: - ``middle_range_penalty``: cost per semitone a voice sits outside the
+#:   middle half of its range (a quarter of the range in from each end), the
+#:   band that anchors its register (0, off, by default).
 #: - ``unison_penalty``: cost per pair of adjacent voices sounding a unison.
 #: - ``upper_spacing_penalty``: cost per semitone an upper-voice adjacent gap
 #:   exceeds ``upper_spacing_threshold``.
@@ -231,6 +234,7 @@ DEFAULT_WEIGHTS: Dict[str, Any] = {
         'third': -3.0,
     },
     'range_comfort_penalty': -0.5,
+    'middle_range_penalty': 0.0,
     'unison_penalty': -0.5,
     'upper_spacing_penalty': -0.15,
     'upper_spacing_threshold': 7.0,
@@ -641,13 +645,17 @@ def _builtin(name: str, label: str, voices: List[Tuple], max_spacing: List[int],
 #: twice the choir's. The upper voices may spread to an octave before the
 #: wide-spacing cost applies (a choir keeps a fifth), which sounds warmer on
 #: strings. A leap of the cello or Violin I beyond a fifth costs 0.5 more per
-#: semitone (the outer lines are the ones heard). The quartet also allows no unisons (four instruments on a triad can
+#: semitone (the outer lines are the ones heard), and each voice pays 0.5 per
+#: semitone it strays outside the middle half of its range, which keeps the
+#: texture in one register across a song and from key to key. The quartet
+#: also allows no unisons (four instruments on a triad can
 #: always double at the octave).
 QUARTET_WEIGHTS: Dict[str, Any] = {
     'movement': [-0.8, -0.4, -0.4, -0.15],
     'leading_tone_resolution_bonus': 3.0,
     'upper_spacing_threshold': 12.0,
     'outer_leap_penalty': -0.5,
+    'middle_range_penalty': -0.5,
 }
 
 #: Built-in ensemble presets, keyed by a voicing-string slug. The choirs use

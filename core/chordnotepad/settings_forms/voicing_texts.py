@@ -46,6 +46,7 @@ ENSEMBLE_WEIGHT_LABELS: Dict[str, str] = {
     'leading_tone_resolution_bonus': 'Leading tone resolves',
     'double_leading_tone_penalty': 'Doubled leading tone',
     'range_comfort_penalty': 'Out-of-comfort range',
+    'middle_range_penalty': 'Outside the middle range',
     'unison_penalty': 'Unison between voices',
     'upper_spacing_penalty': 'Wide upper spacing',
     'upper_spacing_threshold': 'Upper spacing allowed',
@@ -297,6 +298,10 @@ TOOLTIPS: Dict[str, str] = {
     'weight:range_comfort_penalty': ("How the picker treats a voice sitting in the outer 2 "
                                      "semitones of its range, per semitone into that edge. More "
                                      "negative keeps voices off their extremes."),
+    'weight:middle_range_penalty': ("How the picker treats a voice sitting outside the middle "
+                                    "half of its range (a quarter of the range in from each end), "
+                                    "per semitone outside it. 0 turns it off. More negative keeps "
+                                    "each voice in one register through a song and from key to key."),
     'weight:unison_penalty': ("How the picker treats a pair of neighbouring voices on the same "
                               "pitch, when unisons are allowed. More negative avoids unisons."),
     'weight:upper_spacing_penalty': ("How the picker treats a gap between two neighbouring "

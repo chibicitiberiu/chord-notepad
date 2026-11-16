@@ -167,6 +167,7 @@
    "weight:double_leading_tone_penalty": "-8.0",
    "weight:leading_tone_resolution_bonus": "1.5",
    "weight:leap_penalty": "-2.0",
+   "weight:middle_range_penalty": "0.0",
    "weight:octave_leap_penalty": "-6.0",
    "weight:outer_leap_penalty": "0.0",
    "weight:parallel_perfect_penalty": "-25.0",

@@ -74,6 +74,7 @@ _OCTAVE = 12
 _LEAP_THRESHOLD = 7          # a leap wider than a perfect fifth is penalized
 _TRITONE = 6                 # an exact tritone leap is penalized
 _RANGE_COMFORT_EDGE = 2      # the outer 2 semitones of a range are uncomfortable
+_BAND_QUARTER = 4            # the comfortable band leaves out a quarter of the range at each end
 _RANGE_PAD = 2               # semitones the ladder widens each range end by
 _BEAM_STACKS = 300           # partial octave-stacks kept per DFS level
 _TOP_CANDIDATES = 60         # complete voicings kept per chord for the DP
@@ -223,6 +224,12 @@ class EnsembleVoicer(INotePicker):
         n = self._n
         self._lo: Tuple[int, ...] = tuple(spec.voices[n - 1 - b].low for b in range(n))
         self._hi: Tuple[int, ...] = tuple(spec.voices[n - 1 - b].high for b in range(n))
+        # The comfortable band of each voice: the middle half of its range,
+        # derived from the range alone (no extra setting per voice).
+        self._band_lo: Tuple[float, ...] = tuple(
+            lo + (hi - lo) / _BAND_QUARTER for lo, hi in zip(self._lo, self._hi))
+        self._band_hi: Tuple[float, ...] = tuple(
+            hi - (hi - lo) / _BAND_QUARTER for lo, hi in zip(self._lo, self._hi))
 
         # spec.max_spacing is top-first too: entry i bounds voices[i]/voices[i+1].
         # Bottom-up, the gap above voice b (between b and b+1) is max_spacing[N-2-b].
@@ -249,6 +256,7 @@ class EnsembleVoicer(INotePicker):
         self._leading_tone_resolution_bonus = float(w('leading_tone_resolution_bonus'))
         self._double_leading_tone_penalty = float(w('double_leading_tone_penalty'))
         self._range_comfort_penalty = float(w('range_comfort_penalty'))
+        self._middle_range_penalty = float(w('middle_range_penalty'))
         self._unison_penalty = float(w('unison_penalty'))
         self._upper_spacing_penalty = float(w('upper_spacing_penalty'))
         # Semitones an upper-voice gap may span before upper_spacing_penalty
@@ -734,13 +742,24 @@ class EnsembleVoicer(INotePicker):
     # Scoring
     # ------------------------------------------------------------------
     def _comfort(self, midi: int, voice_index: int) -> float:
-        """Range-comfort contribution for one voice (bottom-up index)."""
+        """Range-comfort contribution for one voice (bottom-up index).
+
+        ``range_comfort_penalty`` per semitone inside the outer
+        :data:`_RANGE_COMFORT_EDGE` semitones of the range, plus
+        ``middle_range_penalty`` per semitone outside the middle half of it
+        (the band that anchors each voice's register).
+        """
         low = self._lo[voice_index]
         high = self._hi[voice_index]
         under = _RANGE_COMFORT_EDGE - (midi - low)
         over = _RANGE_COMFORT_EDGE - (high - midi)
         penalty = (under if under > 0 else 0) + (over if over > 0 else 0)
-        return self._range_comfort_penalty * penalty
+        score = self._range_comfort_penalty * penalty
+        if self._middle_range_penalty:
+            outside = (max(0.0, self._band_lo[voice_index] - midi)
+                       + max(0.0, midi - self._band_hi[voice_index]))
+            score += self._middle_range_penalty * outside
+        return score
 
     def _score_quality(self, stack: Tuple[int, ...], meta: _ChordMeta) -> float:
         """Intrinsic quality of a voicing in isolation; higher is better.

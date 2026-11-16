@@ -570,3 +570,58 @@ def test_old_state_dict_loads_without_identity():
     state = EnsembleVoicerState.from_dict(old)
     assert state.previous_root_pc is None and state.previous_chord_pcs is None
     assert state.context.root_pc is None
+
+
+# ---------------------------------------------------------------------------
+# Background-texture terms: spacing threshold, outer leaps, middle band
+# ---------------------------------------------------------------------------
+def _two_voice(weights=None, low=('C3', 'C4'), high=('C4', 'C6')):
+    """A two-voice spec whose ranges are easy to reason about."""
+    return EnsembleSpec.from_dict('two', {
+        'voices': [{'name': 'Hi', 'range': list(high)}, {'name': 'Lo', 'range': list(low)}],
+        'max_spacing': [36],
+        **({'weights': weights} if weights else {}),
+    })
+
+
+def test_middle_band_is_the_middle_half_of_each_range():
+    # Lo C3-C4 (48-60): band 51-57. Off by default.
+    plain = EnsembleVoicer(_two_voice())
+    banded = EnsembleVoicer(_two_voice({'middle_range_penalty': -1.0}))
+    for midi in range(48, 61):
+        assert plain._comfort(midi, 0) == banded._comfort(midi, 0) - (
+            -1.0 * (max(0, 51 - midi) + max(0, midi - 57)))
+    assert banded._comfort(54, 0) == 0.0
+    assert banded._comfort(57, 0) == 0.0
+    assert banded._comfort(58, 0) == -1.0
+
+
+def test_outer_leap_penalty_scales_beyond_a_fifth_for_the_outer_voices_only():
+    spec3 = lambda w: EnsembleSpec.from_dict('three', {
+        'voices': [{'name': 'T', 'range': ['C4', 'C6']}, {'name': 'M', 'range': ['C3', 'C5']},
+                   {'name': 'B', 'range': ['C2', 'C4']}],
+        'max_spacing': [36, 36], **({'weights': w} if w else {})})
+    off = EnsembleVoicer(spec3(None))
+    on = EnsembleVoicer(spec3({'outer_leap_penalty': -1.0}))
+    ctx = off._state.context
+    prev = (36, 60, 72)
+    for cur, extra in (((46, 60, 72), -3.0),   # bass leaps 10: 3 beyond a fifth
+                       ((36, 60, 81), -2.0),   # top leaps 9
+                       ((36, 70, 72), 0.0),    # inner voice leaps 10: not outer
+                       ((43, 60, 72), 0.0)):   # a fifth is not beyond a fifth
+        gain = on._score_transition(prev, cur, ctx) - off._score_transition(prev, cur, ctx)
+        assert gain == pytest.approx(extra)
+
+
+def test_upper_spacing_threshold_moves_where_wide_spacing_starts():
+    four = lambda t: EnsembleVoicer(EnsembleSpec.from_dict('four', {
+        'voices': [{'name': n, 'range': ['C2', 'C6']} for n in 'ABCD'],
+        'max_spacing': [24, 24, 24], 'weights': {'upper_spacing_threshold': t}}))
+    chord = cn(['C', 'E', 'G'])
+    fifth, octave = four(7), four(12)
+    meta = fifth._build_meta(chord)
+    stack = (36, 52, 55, 64)    # gaps above the bass: 3 and 9
+    # 9 is 2 beyond a fifth, within an octave.
+    assert fifth._score_quality(stack, meta) - octave._score_quality(stack, meta) == \
+        pytest.approx(-0.15 * 2)
+    assert DEFAULT_WEIGHTS['upper_spacing_threshold'] == 7

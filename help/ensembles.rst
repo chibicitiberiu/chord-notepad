@@ -154,7 +154,10 @@ rising to the tonic is doubled to 3, so the calmer top line still resolves
 it in G to Am. Its upper voices may spread an octave apart before Wide
 upper spacing costs anything (Upper spacing allowed is 12; a choir keeps 7,
 a fifth). When Violin I or the cello leaps more than a fifth, each semitone
-past the fifth costs another 0.5 (Wide outer leap is -0.5). It also has
+past the fifth costs another 0.5 (Wide outer leap is -0.5). Each voice also
+pays 0.5 for every semitone it strays outside the middle half of its range
+(Outside the middle range is -0.5), so the quartet stays in one register
+through a song and sounds alike in every key. It also has
 Allow unisons off: four instruments playing a triad can always double a
 note an octave apart instead.
 
@@ -581,6 +584,15 @@ Voicing Parameters
        very top or bottom of what they can sing.
      - ``range_comfort_penalty``
      - -0.5
+   * - Outside the middle range
+     - Subtracted per semitone a voice sits outside the middle half of its
+       range: a quarter of the range in from each end. Cello C2 - E4 spans 28
+       semitones, so its middle half runs from G2 to A3. More negative keeps
+       every voice in one register through a song, and the same song in
+       another key in the same register. Off (0) by default; the String
+       Quartet uses -0.5.
+     - ``middle_range_penalty``
+     - 0
    * - Unison between voices
      - Subtracted per pair of neighbouring voices landing on the same pitch.
        Only relevant when ``allow_unisons`` is ``true``.

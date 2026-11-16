@@ -31,6 +31,14 @@ def test_ensemble_outer_leap_is_per_semitone_beyond_a_fifth_for_the_outer_voices
     assert "top or bottom voice" in text and "fifth" in text and "per semitone" in text
 
 
+def test_ensemble_middle_range_is_the_middle_half():
+    # ensemble_voicer.__init__: a quarter of the range in from each end.
+    from chordnotepad.audio.ensemble_voicer import _BAND_QUARTER
+    assert _BAND_QUARTER == 4
+    text = TOOLTIPS['weight:middle_range_penalty']
+    assert "middle half" in text and "a quarter of the range" in text
+
+
 def test_every_ensemble_weight_has_a_label_and_help():
     from chordnotepad.models.ensemble_spec import DEFAULT_WEIGHTS, _NESTED_WEIGHT_KEYS
     from chordnotepad.settings_forms.voicing_texts import ENSEMBLE_WEIGHT_LABELS
