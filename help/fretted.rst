@@ -397,12 +397,13 @@ while pushing it more negative clamps down on them.
      - ``stretch_penalty``
      - -0.7
    * - Awkward stretch
-     - Subtracted once when a three-fret shape is *not* a clean index-to-pinky
-       reach -- that is, when the far fret isn't a single note on an outer
-       string with the rest bunched near the low fret -- so an inner finger
-       would have to make the stretch. Set strongly negative because no hand
-       can hold such a shape; a clean lengthwise reach pays only "Compact
-       shape".
+     - Subtracted once when a shape spanning three frets or more is *not* a
+       clean index-to-pinky reach -- that is, when the far fret isn't a single
+       note on an outer string with the rest bunched near the low fret -- so an
+       inner finger would have to make the stretch. Set strongly negative
+       because no hand can hold such a shape; a clean lengthwise reach pays
+       only "Compact shape". From four frets such a shape isn't considered at
+       all.
      - ``awkward_stretch_penalty``
      - -6.0
    * - High neck position

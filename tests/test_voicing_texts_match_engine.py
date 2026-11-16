@@ -52,7 +52,10 @@ def test_fretboard_texts():
     assert "subtracted" in TOOLTIPS['weight:slash_bass_bonus']
     assert "fretted string" in TOOLTIPS['weight:fretted_finger_penalty']
     assert "more strings than" in TOOLTIPS['weight:barre_penalty']
-    assert "exactly three frets" in TOOLTIPS['weight:awkward_stretch_penalty']
+    # _score_quality charges it from a three-fret span; _enumerate_candidates
+    # drops such shapes from four frets.
+    assert "three frets or more" in TOOLTIPS['weight:awkward_stretch_penalty']
+    assert "four frets or more" in TOOLTIPS['weight:awkward_stretch_penalty']
     assert "Max span" in TOOLTIPS['relaxed_span']
     assert "lowest string first" not in TOOLTIPS['tuning']
 

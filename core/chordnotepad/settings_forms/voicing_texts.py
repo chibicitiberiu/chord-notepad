@@ -180,11 +180,12 @@ TOOLTIPS: Dict[str, str] = {
     'weight:stretch_penalty': ("How the picker treats a shape's overall fret span beyond a "
                                "single fret. More negative favors compact shapes; a one-fret "
                                "span costs nothing."),
-    'weight:awkward_stretch_penalty': ("How the picker treats a shape spanning exactly three "
-                                       "frets (say 2 to 5), unless one finger on an outer string "
+    'weight:awkward_stretch_penalty': ("How the picker treats a shape spanning three frets or "
+                                       "more (say 2 to 5), unless one finger on an outer string "
                                        "makes the reach and the rest stay within a fret of the "
-                                       "lowest. Set strongly negative to reject shapes no hand "
-                                       "can hold."),
+                                       "lowest; such a shape spanning four frets or more isn't "
+                                       "considered at all. Set strongly negative to reject shapes "
+                                       "no hand can hold."),
     'weight:position_penalty': ("How the picker treats fingerings further up the neck. More "
                                 "negative keeps fingerings closer to the nut."),
     'weight:fretted_finger_penalty': ("How the picker treats each fretted string, counting a "
