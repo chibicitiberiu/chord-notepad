@@ -146,9 +146,17 @@ The violins are drawn on the treble staff and the cello on the bass staff.
 The viola, normally written in the alto clef, picks its staff from its range,
 which puts it on the treble staff.
 
-All four presets allow adjacent voices to land on the same pitch (a
-unison), since that's an ordinary, occasional occurrence in real choral and
-string writing rather than something to avoid outright.
+The String Quartet is tuned as a background pad rather than four-part
+choir writing, so it has a few weights of its own. Violin I, the line you
+hear on top, costs twice as much to move as the two middle voices (Voice
+movement is ``-0.8, -0.4, -0.4, -0.15``), and the leading tone's bonus for
+rising to the tonic is doubled to 3, so the calmer top line still resolves
+it in G to Am. It also has Allow unisons off: four instruments playing a
+triad can always double a note an octave apart instead.
+
+The three choirs allow adjacent voices to land on the same pitch (a
+unison), since that's an ordinary, occasional occurrence in real choral
+writing rather than something to avoid outright.
 
 
 How Voicing Decisions Are Made

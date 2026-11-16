@@ -596,14 +596,17 @@ class EnsembleSpec:
 
 
 def _builtin(name: str, label: str, voices: List[Tuple], max_spacing: List[int],
-             upper_clef: str = 'treble') -> EnsembleSpec:
-    """Build one built-in :class:`EnsembleSpec` with default weights.
+             upper_clef: str = 'treble', weights: Optional[Mapping[str, Any]] = None,
+             allow_unisons: bool = True) -> EnsembleSpec:
+    """Build one built-in :class:`EnsembleSpec`.
 
     ``voices`` is a list of ``(voice_name, low_note_name, high_note_name)``
     tuples, top voice first, optionally followed by a fourth ``staff``
     element (``'treble'``/``'bass'``) to pin that voice's grand-staff
     assignment explicitly; a 3-element tuple leaves it unset (auto-resolved
     from the range). ``upper_clef`` is the chord sheet's upper-staff clef.
+    ``weights`` is a partial override merged over :data:`DEFAULT_WEIGHTS`
+    (as a config's ``weights`` is); ``allow_unisons`` is the spec field.
     """
     voice_dicts = []
     for entry in voices:
@@ -617,12 +620,26 @@ def _builtin(name: str, label: str, voices: List[Tuple], max_spacing: List[int],
         'voices': voice_dicts,
         'max_spacing': max_spacing,
         'upper_clef': upper_clef,
+        'allow_unisons': allow_unisons,
+        **({'weights': dict(weights)} if weights else {}),
     })
 
 
-#: Built-in ensemble presets, keyed by a voicing-string slug. All use the
-#: engine's default weights (:data:`DEFAULT_WEIGHTS`); a future Voices UI
-#: will let the user override weights per-ensemble on top of these. Staffs are
+#: The String Quartet's own weights over :data:`DEFAULT_WEIGHTS`, for a calm
+#: background pad rather than four-part choral writing: the top voice costs
+#: twice an inner voice to move (it is the line a listener follows), the cello
+#: stays cheap, and since a heavier top would let a deceptive cadence (V-vi)
+#: drop the leading tone a step instead of raising it, that resolution is worth
+#: twice the choir's. The quartet also allows no unisons (four instruments on
+#: a triad can always double at the octave).
+QUARTET_WEIGHTS: Dict[str, Any] = {
+    'movement': [-0.8, -0.4, -0.4, -0.15],
+    'leading_tone_resolution_bonus': 3.0,
+}
+
+#: Built-in ensemble presets, keyed by a voicing-string slug. The choirs use
+#: the engine's default weights (:data:`DEFAULT_WEIGHTS`), the String Quartet
+#: :data:`QUARTET_WEIGHTS` over them. Staffs are
 #: pinned as a choir or quartet score sets them: TTBB writes its tenors on an
 #: octave-lower treble clef, the viola stays auto (no C clef yet).
 BUILTIN_ENSEMBLES: Dict[str, EnsembleSpec] = {
@@ -665,5 +682,7 @@ BUILTIN_ENSEMBLES: Dict[str, EnsembleSpec] = {
             ('Cello', 'C2', 'E4', 'bass'),
         ],
         [14, 14, 24],
+        weights=QUARTET_WEIGHTS,
+        allow_unisons=False,
     ),
 }

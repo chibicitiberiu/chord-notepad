@@ -9,7 +9,9 @@ from chordnotepad.models.ensemble_spec import (
     BUILTIN_ENSEMBLES,
     DEFAULT_WEIGHTS,
     EnsembleSpec,
+    QUARTET_WEIGHTS,
     VoiceSpec,
+    _merge_weights,
     parse_note_name,
 )
 
@@ -660,7 +662,32 @@ class TestBuiltinEnsembles:
             assert 0 <= voice.high <= 127
         for gap in spec.max_spacing:
             assert gap > 0
-        assert spec.weights == DEFAULT_WEIGHTS
+        if key == "quartet":
+            assert spec.weights == _merge_weights(QUARTET_WEIGHTS)
+        else:
+            assert spec.weights == DEFAULT_WEIGHTS
+
+    @pytest.mark.parametrize("key", ["satb", "ttbb", "ssa"])
+    def test_choirs_allow_unisons(self, key):
+        assert BUILTIN_ENSEMBLES[key].allow_unisons is True
+
+    def test_quartet_has_its_own_weights_and_no_unisons(self):
+        # A background pad: the top voice moves least, and with the heavier top
+        # the leading tone still rises in V-vi (bonus doubled); no unisons.
+        spec = BUILTIN_ENSEMBLES["quartet"]
+        assert spec.allow_unisons is False
+        assert spec.movement_per_voice() == (-0.8, -0.4, -0.4, -0.15)
+        assert spec.weight("leading_tone_resolution_bonus") == 3.0
+        # Everything the quartet doesn't override is the default.
+        for key, value in DEFAULT_WEIGHTS.items():
+            if key not in QUARTET_WEIGHTS:
+                assert spec.weight(key) == value
+
+    def test_a_quartet_copy_keeps_its_weights(self):
+        spec = BUILTIN_ENSEMBLES["quartet"]
+        rebuilt = EnsembleSpec.from_dict("copy", spec.to_dict())
+        assert rebuilt.weights == spec.weights
+        assert rebuilt.allow_unisons is False
 
     def test_satb_voice_names_and_label(self):
         spec = BUILTIN_ENSEMBLES["satb"]
