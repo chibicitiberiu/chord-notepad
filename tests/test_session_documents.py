@@ -586,3 +586,67 @@ def test_a_failed_save_stops_new_and_open():
     env.answer("save")
     assert env.recorder.of_type(PickDocumentRequest) == []
     assert env.session.text == "C G"
+
+
+# -- an untitled song's suggested name: its first lyric line (session.song_name) -----
+
+TWINKLE = "{bpm: 190}\n// Quick start\nC        C/E      F      C\nTwinkle, twinkle, little star,\n"
+
+
+def test_save_suggests_an_untitled_songs_first_lyric_line():
+    env = Env(TWINKLE, documents={})
+    env.session.save()
+    request = env.request(PickDocumentRequest)
+    assert (request.mode, request.suggested_name) == (
+        PickMode.SAVE, "Twinkle, twinkle, little star.txt")
+    # The title still says Untitled.
+    assert env.document().display_name == "Untitled"
+    assert env.document().title == "Untitled* - Chord Notepad"
+
+
+def test_the_suggestion_follows_the_text_as_it_is_when_saving():
+    env = Env("C G\n", documents={})
+    env.session.save_as()
+    assert env.request(PickDocumentRequest).suggested_name == "Untitled.txt"
+    env.answer(None)
+    env.type("C G\nHere comes the sun\n")
+    env.session.save_as()
+    assert env.request(PickDocumentRequest).suggested_name == "Here comes the sun.txt"
+
+
+def test_the_suggestion_uses_the_songs_notation():
+    env = Env("Do Re Mi Fa\nSing along\n", documents={})
+    env.session.set_notation("american")
+    env.session.save()
+    assert env.request(PickDocumentRequest).suggested_name == "Do Re Mi Fa.txt"
+    env.answer(None)
+    env.session.set_notation("european")
+    env.session.save()
+    assert env.request(PickDocumentRequest).suggested_name == "Sing along.txt"
+
+
+def test_a_renamed_untitled_song_keeps_its_name_over_the_lyric():
+    env = Env(TWINKLE, documents={})
+    env.session.rename_document("Lullaby")
+    env.session.save()
+    assert env.request(PickDocumentRequest).suggested_name == "Lullaby.txt"
+
+
+def test_a_saved_song_suggests_its_own_name_not_a_lyric():
+    env = Env(documents={"song.txt": TWINKLE})
+    open_song(env)
+    env.session.save_as()
+    assert env.request(PickDocumentRequest).suggested_name == "song.txt"
+
+
+def test_export_midi_of_an_untitled_song_suggests_its_first_lyric_line():
+    env = Env(TWINKLE)
+    env.session.export_midi()
+    assert env.request(PickDocumentRequest).suggested_name == "Twinkle, twinkle, little star.mid"
+
+
+def test_export_midi_of_a_renamed_untitled_song_suggests_that_name():
+    env = Env(TWINKLE)
+    env.session.rename_document("Lullaby")
+    env.session.export_midi()
+    assert env.request(PickDocumentRequest).suggested_name == "Lullaby.mid"

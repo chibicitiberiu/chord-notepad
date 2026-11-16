@@ -50,6 +50,16 @@ def test_an_untitled_copy_opens_untitled_and_save_asks_for_a_name():
     assert env.request(PickDocumentRequest).suggested_name == formatting.UNTITLED_FILE_NAME
 
 
+def test_an_untitled_copy_without_a_name_suggests_its_first_lyric_line():
+    env = Env()
+    env.session.open_recovered("C G\nHey Jude\n", None)
+    assert env.document().display_name == "Untitled"
+    assert env.status() == "Recovered: Untitled"
+    env.recorder.clear()
+    env.session.save()
+    assert env.request(PickDocumentRequest).suggested_name == "Hey Jude.txt"
+
+
 def test_an_untitled_copy_keeps_the_name_it_was_given():
     env = Env()
     env.session.open_recovered("C\n", None, "Set list.txt")

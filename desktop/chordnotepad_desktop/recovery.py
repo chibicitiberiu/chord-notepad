@@ -20,8 +20,13 @@ remove this instance's copy, and lists what crashed instances left:
   leaves the copy for the next start.
 * **Backups ›** lists the copies of instances that are gone (never
   another running instance's: the store checks its lock), newest first, as
-  "song.txt, today at 14:32". The list is read when the app starts (after
-  dropping copies older than 30 days and all but the 20 newest) and again
+  "song.txt, today at 14:32". A song that was never saved or renamed goes
+  by its first lyric line ("Twinkle, twinkle, little star, today at
+  14:32"; ``session.song_name``), worked out on the worker each time the
+  copy is written, so it follows the typing; the copy says it isn't the
+  song's own name (``named``), and opening it opens it untitled. The list
+  is read when the app starts (after dropping copies older than 30 days
+  and all but the 20 newest) and again
   when the File menu or the ☰ menu opens (the menu shows the last list
   until the new one arrives). Choosing one reads its text and
   sends ``open_recovered`` (the session asks about unsaved changes first,
@@ -44,7 +49,7 @@ from typing import Any, Callable, List, Optional, Tuple
 from PySide6.QtCore import Property, QObject, Qt, QTimer, Signal, Slot
 
 from chordnotepad.services.recovery_store import RecoveredEntry, RecoveryStore
-from chordnotepad.session import formatting
+from chordnotepad.session import formatting, song_name
 from chordnotepad.session.bridge import to_json_value
 
 logger = logging.getLogger(__name__)
@@ -215,11 +220,20 @@ class RecoveryModel(QObject):
         name = None
         if entry.document_id is not None:
             ref = self._store.direct("document_ref", entry.document_id)
-        elif entry.display_name != formatting.UNTITLED:
+        elif self._own_name(entry):
             name = entry.display_name
         self._pending = (entry.entry_id, text, ref.id if ref is not None else None)
         self._store.submit("open_recovered", {"text": text, "document": to_json_value(ref),
                                               "name": name})
+
+    @staticmethod
+    def _own_name(entry: RecoveredEntry) -> bool:
+        """Whether an untitled copy's name was given with Rename (not made
+        up from its first lyric line). An older copy without ``named`` is
+        named unless it says Untitled."""
+        if entry.named is not None:
+            return entry.named
+        return entry.display_name != formatting.UNTITLED
 
     @Slot()
     def clearAll(self) -> None:  # noqa: N802 (Qt)
@@ -260,11 +274,22 @@ class RecoveryModel(QObject):
             return
         doc = self._store.state("DocumentState")
         document_id = doc.value("document_id")
-        kwargs = {"display_name": str(doc.value("display_name") or formatting.UNTITLED),
+        display_name = str(doc.value("display_name") or formatting.UNTITLED)
+        # Untitled and not renamed: the name comes from the text, on the worker.
+        named = document_id is not None or display_name != formatting.UNTITLED
+        notation = str(self._store.state("ToolbarState").value("notation") or "american")
+        kwargs = {"display_name": display_name,
                   "document_id": str(document_id) if document_id is not None else None,
-                  "location": doc.value("location")}
+                  "location": doc.value("location"), "named": named}
         self._has_copy = True
-        self._executor.submit(self._run, self._recovery.write, self._editor.text, **kwargs)
+        self._executor.submit(self._run, self._write_copy, self._editor.text, notation, **kwargs)
+
+    def _write_copy(self, text: str, notation: str, **kwargs) -> None:
+        """On the worker: write this instance's copy; an untitled song that
+        wasn't renamed is named by its first lyric line."""
+        if not kwargs["named"]:
+            kwargs["display_name"] = song_name.song_name(text, notation)
+        self._recovery.write(text, **kwargs)
 
     @staticmethod
     def _run(call, *args, **kwargs) -> None:

@@ -12,9 +12,10 @@ Exporting a Song
 .. only:: desktop
 
    1. Go to :menuselection:`File --> Export MIDI...`
-   2. The save dialog suggests the song's name with ``.mid`` (``Untitled.mid``
-      for a song you haven't saved yet). Choose a folder, change the name if
-      you like, and save.
+   2. The save dialog suggests the song's name with ``.mid``. A song you
+      haven't saved yet gets its first line of lyrics
+      (``Twinkle, twinkle, little star.mid``), or ``Untitled.mid`` if it has
+      none. Choose a folder, change the name if you like, and save.
    3. Chord Notepad renders the song and writes the file. The status bar says
       "Exporting MIDI: …" while it works and "Exported MIDI: …" when it's done.
 
@@ -22,9 +23,10 @@ Exporting a Song
 
    1. Tap **☰** at the top left and choose **Export MIDI…**.
    2. Android's file picker opens, with the song's name and ``.mid`` filled
-      in (``Untitled.mid`` for a song you haven't saved yet). Pick a folder,
-      on the phone or in any storage app such as Google Drive, change the
-      name if you like, and tap **Save**.
+      in (for a song you haven't saved yet, its first line of lyrics, or
+      ``Untitled.mid`` without lyrics). Pick a folder, on the phone or in any
+      storage app such as Google Drive, change the name if you like, and tap
+      **Save**.
    3. Chord Notepad renders the song and writes the file. The status says
       "Exporting MIDI: …" while it works and "Exported MIDI: …" when the file
       is written: on the player's status line in the Play tab, or at the

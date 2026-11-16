@@ -9,9 +9,11 @@ app's data folder, ``recovery/``), named by a fresh id:
   so a slot whose lock can be taken belongs to no running instance.
 * ``<id>.txt``: the song's text (UTF-8, ``\\n`` line endings), and
 * ``<id>.json``: what the text belongs to: the document's id (its path on
-  the desktop) or null for an untitled song, its name, where it is, and
-  when the copy was written. Written after the text, so a slot with a
-  readable ``.json`` has its text.
+  the desktop) or null for an untitled song, its name, whether that name
+  is the song's own (``named``: false for an untitled song shown by its
+  first lyric line; copies written before the field have none), where it
+  is, and when the copy was written. Written after the text, so a slot
+  with a readable ``.json`` has its text.
 
 The encoding and line endings aren't kept: Save writes to the original file
 in the encoding and line endings that file has (``FileService.save_file``).
@@ -71,6 +73,10 @@ class RecoveredEntry:
             None for a song that was never saved.
         location: Where that document is, as the user sees it; None without one.
         written: When the copy was written (aware, UTC).
+        named: Whether ``display_name`` is the song's own name (a file's,
+            or one given with Rename); False for an untitled song shown by
+            a name made up for it; None for a copy that doesn't say (written
+            before the field).
     """
 
     entry_id: str
@@ -78,6 +84,7 @@ class RecoveredEntry:
     document_id: Optional[str]
     location: Optional[str]
     written: datetime.datetime
+    named: Optional[bool] = None
 
 
 def _utc_now() -> datetime.datetime:
@@ -249,8 +256,11 @@ class RecoveryStore:
 
     @_serialized
     def write(self, text: str, *, display_name: str, document_id: Optional[str] = None,
-              location: Optional[str] = None) -> None:
+              location: Optional[str] = None, named: bool = True) -> None:
         """Write (or replace) this instance's copy.
+
+        ``named`` is False when ``display_name`` was made up for an untitled
+        song (its first lyric line) rather than being its own.
 
         Raises:
             OSError: If it couldn't be written.
@@ -263,6 +273,7 @@ class RecoveryStore:
             "display_name": str(display_name),
             "document_id": document_id,
             "location": location,
+            "named": bool(named),
             "written": self._now().isoformat(),
         }
         _write_atomically(self._path(self._id, TEXT_SUFFIX), str(text).encode("utf-8"))
@@ -453,12 +464,14 @@ class RecoveryStore:
                 written = written.replace(tzinfo=datetime.timezone.utc)
             document_id = data.get("document_id")
             location = data.get("location")
+            named = data.get("named")
             return RecoveredEntry(
                 entry_id=entry_id,
                 display_name=str(data["display_name"]),
                 document_id=str(document_id) if document_id is not None else None,
                 location=str(location) if location is not None else None,
                 written=written,
+                named=named if isinstance(named, bool) else None,
             )
         except FileNotFoundError:
             return None

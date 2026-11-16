@@ -62,7 +62,7 @@ from chordnotepad.session.events import (
 )
 from chordnotepad.audio import volume as volume_curve
 from chordnotepad.models.window_geometry import WindowGeometry, check_scale
-from chordnotepad.session import pickers, snippets
+from chordnotepad.session import pickers, snippets, song_name
 from chordnotepad.session import text_ops
 from chordnotepad.session.flows import Flow, FlowRunner
 from chordnotepad.session.pickers import DirectivePicker
@@ -1178,6 +1178,10 @@ class AppSession:
     def save_as(self, name: Optional[str] = None) -> None:
         """Save the document under a name the user picks (it becomes the open document).
 
+        The picker suggests the document's name; for an untitled song the
+        name it was given with Rename, else its first lyric line with
+        ``.txt`` (``session.song_name``), else ``Untitled.txt``.
+
         Args:
             name: The name to suggest instead of the document's, as typed
                 (without the extension; the document's, or ``.txt``, is
@@ -1242,11 +1246,14 @@ class AppSession:
     def export_midi(self) -> None:
         """Render the song and write it as a MIDI file the user picks.
 
-        Suggests ``<document name>.mid``. The song as it is when the user
-        picks the file is rendered on the background worker ("Exporting
-        MIDI: ..." meanwhile) and written when the render arrives. Exports
-        don't join the recent list and don't change the open document. A
-        failure (no chords, a render or write error) is a :class:`UserError`.
+        Suggests ``<document name>.mid``; for an untitled song the name it
+        was given with Rename, else its first lyric line
+        (``session.song_name``), else ``Untitled.mid``. The song as it is
+        when the user picks the file is rendered on the background worker
+        ("Exporting MIDI: ..." meanwhile) and written when the render
+        arrives. Exports don't join the recent list and don't change the
+        open document. A failure (no chords, a render or write error) is a
+        :class:`UserError`.
         """
         self._flows.start(self._export_flow())
 
@@ -3175,8 +3182,10 @@ class AppSession:
         # A name with its extension: the Flatpak's portal dialog only grants
         # access to the exact name chosen, so ".txt" can't be added later.
         if suggested is None:
+            # An untitled song that wasn't renamed: its first lyric line.
             suggested = (current.display_name if current is not None
-                         else self._pending_name or formatting.UNTITLED_FILE_NAME)
+                         else self._pending_name
+                         or song_name.song_file_name(self._text, self._main.notation.value))
         ref = self._as_ref((yield PickDocumentRequest(0, PickMode.SAVE, suggested)))
         if ref is None:
             return False
@@ -3254,7 +3263,13 @@ class AppSession:
                 formatting.FILE_ERROR_TITLE, formatting.NO_CHORDS_TO_EXPORT_MESSAGE))
             return
         current = self._main.current_document
-        suggested = formatting.midi_export_name(current.stem if current is not None else None)
+        if current is not None:
+            stem = current.stem
+        elif self._pending_name:
+            stem = os.path.splitext(self._pending_name)[0]
+        else:
+            stem = song_name.lyric_name(self._text, self._main.notation.value)
+        suggested = formatting.midi_export_name(stem)
         ref = self._as_ref((yield PickDocumentRequest(0, PickMode.EXPORT_MIDI, suggested)))
         if ref is None:
             return

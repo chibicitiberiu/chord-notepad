@@ -66,8 +66,35 @@ def test_the_text_and_metadata_files_are_utf8_json_and_text(tmp_path):
     store.write("Dó Ré\n", display_name="cântec.txt")
     meta = json.loads((tmp_path / f"{store.instance_id}{META_SUFFIX}").read_text("utf-8"))
     assert meta == {"version": 1, "display_name": "cântec.txt", "document_id": None,
-                    "location": None, "written": T0.isoformat()}
+                    "location": None, "named": True, "written": T0.isoformat()}
     assert (tmp_path / f"{store.instance_id}{TEXT_SUFFIX}").read_text("utf-8") == "Dó Ré\n"
+    store.close()
+
+
+def test_a_copy_says_whether_its_name_is_the_songs_own(tmp_path):
+    clock = Clock()
+    lyric = RecoveryStore(tmp_path, now=clock)
+    lyric.write("C\nHey Jude\n", display_name="Hey Jude", named=False)
+    lyric.close(keep=True)
+    clock.advance(seconds=1)
+    renamed = RecoveryStore(tmp_path, now=clock)
+    renamed.write("C\n", display_name="Set list.txt")
+    renamed.close(keep=True)
+    later = RecoveryStore(tmp_path, now=clock)
+    assert [(e.display_name, e.named) for e in later.entries()] == [
+        ("Set list.txt", True), ("Hey Jude", False)]
+    later.close()
+
+
+def test_a_copy_written_before_the_named_field_reads_as_not_saying(tmp_path):
+    entry_id = "20261116T120000-1-abcdef12"
+    (tmp_path / f"{entry_id}{TEXT_SUFFIX}").write_text("C\n", encoding="utf-8")
+    (tmp_path / f"{entry_id}{META_SUFFIX}").write_text(json.dumps(
+        {"version": 1, "display_name": "Untitled", "document_id": None, "location": None,
+         "written": T0.isoformat()}), encoding="utf-8")
+    store = RecoveryStore(tmp_path, now=Clock())
+    [entry] = store.entries()
+    assert (entry.display_name, entry.named) == ("Untitled", None)
     store.close()
 
 

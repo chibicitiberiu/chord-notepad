@@ -179,7 +179,8 @@ def audio_unavailable_message(reason: str, from_click: bool, platform: str = DES
 
 APP_TITLE = "Chord Notepad"
 UNTITLED = "Untitled"
-#: The name Save As suggests for a document that was never saved.
+#: The name Save As suggests for a document that was never saved, renamed,
+#: or given a lyric line to be named by (``session.song_name``).
 UNTITLED_FILE_NAME = "Untitled.txt"
 NEW_DOCUMENT_STATUS = "New file created"
 
@@ -288,7 +289,7 @@ def window_title(display_name: Optional[str], is_modified: bool) -> str:
 
 
 def midi_export_name(stem: Optional[str]) -> str:
-    """The name Export MIDI suggests, e.g. ``song.mid`` (``Untitled.mid`` without a document)."""
+    """The name Export MIDI suggests, e.g. ``song.mid`` (``Untitled.mid`` without a name)."""
     return f"{stem or UNTITLED}.mid"
 
 

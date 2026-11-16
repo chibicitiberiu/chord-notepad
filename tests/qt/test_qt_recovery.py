@@ -32,12 +32,20 @@ def folder(tmp_path):
     return tmp_path / "appdata" / "data" / "chord-notepad" / "recovery"
 
 
-def crashed(tmp_path, text, display_name, document_id=None, location=None, written=None):
-    """A copy left by an instance that crashed; its id."""
+def crashed(tmp_path, text, display_name, document_id=None, location=None, written=None,
+            named=True):
+    """A copy left by an instance that crashed; its id. ``named=None`` writes
+    it as copies were before the ``named`` field."""
     clock = (lambda: written) if written is not None else (lambda: datetime.datetime.now(UTC))
     store = RecoveryStore(folder(tmp_path), now=clock)
-    store.write(text, display_name=display_name, document_id=document_id, location=location)
+    store.write(text, display_name=display_name, document_id=document_id, location=location,
+                named=bool(named))
     store.close(keep=True)
+    if named is None:
+        meta = folder(tmp_path) / f"{store.instance_id}.json"
+        data = json.loads(meta.read_text("utf-8"))
+        del data["named"]
+        meta.write_text(json.dumps(data), encoding="utf-8")
     return store.instance_id
 
 
@@ -195,7 +203,7 @@ def test_opening_a_copy_of_a_saved_song_binds_it_to_the_file(qapp, qtbot, tmp_pa
 
 
 def test_opening_an_untitled_copy_with_unsaved_changes_asks_first(qapp, qtbot, tmp_path):
-    entry = crashed(tmp_path, "Am F\n", "Untitled")
+    entry = crashed(tmp_path, "Am F\n", "Untitled", named=False)
     app = started(qapp, qtbot, tmp_path)
     try:
         app.type("mine")
@@ -218,6 +226,64 @@ def test_opening_an_untitled_copy_with_unsaved_changes_asks_first(qapp, qtbot, t
             "Untitled", True, None)
         app.qtbot.waitUntil(lambda: entry not in copies(tmp_path), timeout=2000)
         assert copies(tmp_path)[app.own_id()]["document_id"] is None
+    finally:
+        finish(app)
+
+
+def test_an_untitled_copy_is_listed_by_its_first_lyric_line(qapp, qtbot, tmp_path):
+    crashed(tmp_path, "C G\nHey Jude\n", "Hey Jude", named=False)
+    app = started(qapp, qtbot, tmp_path)
+    try:
+        assert app.menu_texts(app.obj("menuBarRecovered"))[0].startswith("Hey Jude, today at ")
+    finally:
+        finish(app)
+
+
+def test_opening_a_lyric_named_copy_opens_it_untitled_and_save_suggests_the_lyric(
+        qapp, qtbot, tmp_path):
+    crashed(tmp_path, "C G\nHey Jude\n", "Hey Jude", named=False)
+    app = started(qapp, qtbot, tmp_path)
+    try:
+        QMetaObject.invokeMethod(app.obj("recovered:0"), "click")
+        app.qtbot.waitUntil(lambda: app.text() == "C G\nHey Jude\n", timeout=2000)
+        doc = app.store.state("DocumentState")
+        assert (doc.value("display_name"), doc.value("document_id")) == ("Untitled", None)
+        assert app.window.property("title") == "Untitled* - Chord Notepad"
+        app.trigger("saveAction")
+        picker = app.wait_picker("Save File As")
+        assert picker.property("selectedFile").fileName() == "Hey Jude.txt"
+        QMetaObject.invokeMethod(picker, "reject")
+        app.qtbot.waitUntil(lambda: app.session.pending_request is None, timeout=2000)
+    finally:
+        finish(app)
+
+
+def test_a_renamed_untitled_copy_opens_with_its_name(qapp, qtbot, tmp_path):
+    crashed(tmp_path, "C G\nHey Jude\n", "Set list.txt")
+    app = started(qapp, qtbot, tmp_path)
+    try:
+        assert app.menu_texts(app.obj("menuBarRecovered"))[0].startswith("Set list.txt, ")
+        QMetaObject.invokeMethod(app.obj("recovered:0"), "click")
+        app.qtbot.waitUntil(lambda: app.text() == "C G\nHey Jude\n", timeout=2000)
+        doc = app.store.state("DocumentState")
+        assert (doc.value("display_name"), doc.value("document_id")) == ("Set list.txt", None)
+    finally:
+        finish(app)
+
+
+def test_an_untitled_copy_from_before_the_named_field_still_opens_untitled(
+        qapp, qtbot, tmp_path):
+    crashed(tmp_path, "C G\nHey Jude\n", "Untitled", named=None)
+    app = started(qapp, qtbot, tmp_path)
+    try:
+        QMetaObject.invokeMethod(app.obj("recovered:0"), "click")
+        app.qtbot.waitUntil(lambda: app.text() == "C G\nHey Jude\n", timeout=2000)
+        assert app.window.property("title") == "Untitled* - Chord Notepad"
+        app.trigger("saveAction")
+        picker = app.wait_picker("Save File As")
+        assert picker.property("selectedFile").fileName() == "Hey Jude.txt"
+        QMetaObject.invokeMethod(picker, "reject")
+        app.qtbot.waitUntil(lambda: app.session.pending_request is None, timeout=2000)
     finally:
         finish(app)
 
@@ -303,9 +369,32 @@ def test_a_copy_is_written_once_a_while_after_the_last_change(app, tmp_path):
     app.qtbot.waitUntil(lambda: app.own_id() in copies(tmp_path), timeout=3000)
     assert writes == ["C G Am"]
     own = copies(tmp_path)[app.own_id()]
-    assert (own["display_name"], own["document_id"]) == ("Untitled", None)
+    assert (own["display_name"], own["document_id"], own["named"]) == ("Untitled", None, False)
     text_file = folder(tmp_path) / f"{app.own_id()}.txt"
     assert text_file.read_text("utf-8") == "C G Am"
+
+
+def test_an_untitled_songs_copy_is_named_by_its_first_lyric_line_as_it_is_typed(app, tmp_path):
+    app.type("C G\nHey")
+    app.qtbot.waitUntil(
+        lambda: copies(tmp_path).get(app.own_id(), {}).get("display_name") == "Hey", timeout=3000)
+    app.type(" Jude")
+    app.qtbot.waitUntil(
+        lambda: copies(tmp_path)[app.own_id()]["display_name"] == "Hey Jude", timeout=3000)
+    assert copies(tmp_path)[app.own_id()]["named"] is False
+    # The title says Untitled all along.
+    assert app.window.property("title") == "Untitled* - Chord Notepad"
+
+
+def test_a_renamed_untitled_songs_copy_keeps_the_given_name(app, tmp_path):
+    app.store.submit("rename_document", {"name": "Set list"})
+    app.qtbot.waitUntil(lambda: app.store.state("DocumentState").value("display_name")
+                        == "Set list.txt", timeout=2000)
+    app.type("C G\nHey Jude")
+    app.qtbot.waitUntil(lambda: app.own_id() in copies(tmp_path), timeout=3000)
+    app.qtbot.waitUntil(
+        lambda: copies(tmp_path)[app.own_id()]["display_name"] == "Set list.txt", timeout=3000)
+    assert copies(tmp_path)[app.own_id()]["named"] is True
 
 
 def test_changes_that_keep_coming_are_written_at_least_every_max_wait(app, tmp_path):

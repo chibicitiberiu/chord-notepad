@@ -390,7 +390,9 @@ To save your chord sheet:
 
    1. Press **Ctrl+S** (or go to **☰ → Save**)
    2. Choose where to save the file
-   3. Enter a filename
+   3. Enter a filename. For a new song the box already holds its first line
+      of lyrics ("Twinkle, twinkle, little star.txt"), or the name you gave
+      it with Rename; a song without lyrics starts as "Untitled.txt".
    4. Click Save
 
 .. only:: android
@@ -399,7 +401,9 @@ To save your chord sheet:
       hardware keyboard)
    2. For a new song, the system file picker opens: choose where to save it
       (the device's storage, Downloads, Drive, or any other place it offers) and
-      enter a filename
+      enter a filename. The name starts as the song's first line of lyrics
+      ("Twinkle, twinkle, little star.txt"), or the name you gave it, or
+      "Untitled.txt" for a song without lyrics
    3. Confirm
 
    A song you saved before is saved in place, without asking. To save a copy
@@ -421,9 +425,11 @@ editor, but only Chord Notepad will play it back.
    or the computer shuts down before you save, the copy is still there next
    time: open **☰ → Backups** (also under **File** in the menu bar).
    Each entry shows the song's name and when the copy was written, newest
-   first. Choosing one opens the text with unsaved changes. For a song that
-   had been saved before, **Save** writes it back to that file; a song that
-   was never saved asks for a name.
+   first. A song that was never saved or renamed is listed by its first line
+   of lyrics ("Twinkle, twinkle, little star, today at 14:32"). Choosing one
+   opens the text with unsaved changes. For a song that had been saved
+   before, **Save** writes it back to that file; a song that was never saved
+   asks for a name, starting from that first line.
 
    The copy goes away when you save, or when you choose **Don't save** on
    quitting or opening another song. Copies older than 30 days are dropped,

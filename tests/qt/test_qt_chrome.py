@@ -735,7 +735,8 @@ def test_export_midi_suggests_the_mid_name_and_writes_it(app, tmp_path):
     app.song()
     app.trigger("exportMidiAction")
     picker = app.wait_picker("Export MIDI")
-    assert picker.property("selectedFile").fileName() == "Untitled.mid"
+    # An untitled song: its first lyric line (SONG's second line).
+    assert picker.property("selectedFile").fileName() == "One two three four.mid"
     assert list(picker.property("nameFilters")) == ["MIDI files (*.mid)", "All files (*)"]
     accept(app, tmp_path / "song")
     app.qtbot.waitUntil(lambda: (tmp_path / "song.mid").exists(), timeout=10000)
