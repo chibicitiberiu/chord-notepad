@@ -151,6 +151,7 @@ class GuitarChordPicker(INotePicker):
         self._w_kept = spec.weight('kept_finger_bonus')
         self._w_omitted_fifth = spec.weight('omitted_fifth_penalty')
         self._w_damped_mute = spec.weight('damped_mute_penalty')
+        self._w_bass_register = spec.weight('bass_register_penalty')
 
         # Derive note names from MIDI values
         self.tuning_notes = [self._midi_to_note(midi) for midi in self.tuning_midi]
@@ -171,6 +172,17 @@ class GuitarChordPicker(INotePicker):
 
         # Pre-compute fret-to-note mapping for each string (used by the fallback)
         self._string_note_map = self._build_string_note_map()
+
+        # Per pitch class: the lowest pitch of it on these strings within
+        # max_fret (the bass register term measures from there). From this
+        # picker's own tuning, so a capo picker measures from its capo.
+        self._lowest_pitch: Dict[int, int] = {}
+        for string_idx, base in enumerate(self.tuning_midi):
+            for fret in range(self._max_fret + 1):
+                pitch = base + fret
+                pc = pitch % 12
+                if pc not in self._lowest_pitch or pitch < self._lowest_pitch[pc]:
+                    self._lowest_pitch[pc] = pitch
 
     def _build_string_note_map(self) -> List[Dict[int, str]]:
         """Pre-compute which note each fret produces on each string"""
@@ -864,6 +876,10 @@ class GuitarChordPicker(INotePicker):
           thumb, wrapped over the neck, frets its bass low on the edge string
           and damps the next (:meth:`_thumb_frets_bass`): then the bass takes
           no finger and the grip isn't cramped (D/F# 2x0232).
+        * **Bass register.** A right bass on the upper half of the strings
+          costs ``bass_register_penalty`` per octave above where that note
+          sits lowest on the neck (C/G xxx010 against 332010); on the lower
+          strings the bass is low enough.
         * **Interior mutes.** A dead string inside a strummed shape costs
           twice ``interior_mute_penalty`` (B x21x02). Right above a fretted
           bass the bass finger leans over and damps it (3x0033, D/F# 2x0232),
@@ -899,8 +915,16 @@ class GuitarChordPicker(INotePicker):
             is_slash = not self._notes_match(bass_note, chord_notes[0])
             weight = self._w_slash_bass if is_slash else self._w_bass
             lowest_string = min(sounding, key=lambda s: tuning[s] + fingering[s])
-            lowest_pc = (tuning[lowest_string] + fingering[lowest_string]) % 12
-            score += weight if lowest_pc == target_pc else -weight
+            lowest_pitch = tuning[lowest_string] + fingering[lowest_string]
+            score += weight if lowest_pitch % 12 == target_pc else -weight
+            # Register: a right bass on the upper half of the strings (G and
+            # up on a six-string, C/G xxx010) costs per octave it sits above
+            # the lowest pitch of that note on the neck. A bass on the lower
+            # strings is left alone, however it sits (C#m/E xx2120).
+            if (self._w_bass_register and lowest_pitch % 12 == target_pc
+                    and lowest_string >= self._num_strings // 2):
+                octaves = (lowest_pitch - self._lowest_pitch[target_pc]) // 12
+                score += self._w_bass_register * octaves
 
         # Left-out 5th: a voicing that drops only the chord's plain perfect
         # 5th (C6 x32210) when a complete one exists (see _omittable_fifth).

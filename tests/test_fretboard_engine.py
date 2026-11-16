@@ -292,7 +292,10 @@ class TestHandParameters:
         for chord in CORPUS:
             picker.chord_to_midi(chord)
             fingering = picker.state.previous_fingering
-            assert _fingers_used(fingering, spec.fingers) <= 3, \
+            # The hand model's count: an index barre or a ring/pinky barre
+            # over two or three strings is one finger (Bb x1333x is two).
+            plan = picker._finger_plan(fingering)
+            assert plan is not None and plan[0] <= 3, \
                 f"{chord.root}: used >3 fingers ({fingering})"
 
 

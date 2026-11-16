@@ -102,7 +102,7 @@ KEEP = [
 
 # Should flip to passing; each is xfail until the step that fixes it.
 FLIP = [
-    _fixture('C/G', 'C/G', ok={'332010', '3x2010'}, xfail=_TODAY + ' xxx010'),
+    _fixture('C/G', 'C/G', ok={'332010', '3x2010'}),
     _fixture('D/F#', 'D/F#', ok={'2x0232', '200232'}, xfail=_TODAY + ' 2002xx'),
     _fixture('E/G#', 'E/G#', ok={'4x2100'}, xfail=_TODAY + ' xxx100'),
     _fixture('Am/G', 'Am/G', ok={'3x2210', '3x2010'}, xfail=_TODAY + ' 302010'),
@@ -117,7 +117,7 @@ FLIP = [
     _fixture('F/C in walk slash, key C', 'C/E F G/B C F/C G/D', index=4,
              ok={'x33211'}, xfail=_TODAY + ' x332xx'),
     _fixture('Aaug in dim/aug, key A', 'Adim7 A#dim7 Aaug Dm6', index=2,
-             ok={'x03221'}, xfail=_TODAY + ' xxx221'),
+             ok={'x03221'}),
     _fixture('Gm/Bb', 'Gm/Bb', ok={'x10033'}, xfail=_TODAY + ' x100xx'),
 ]
 
@@ -164,9 +164,8 @@ SONG = [
     _fixture('verse 2: Dm', _LINE2, 0, ok={'xx0231'}),
     _fixture('verse 2: Dm/F', _LINE2, 1, ok={'xx3231', '1x0231'},
              xfail=_TODAY + ' 1002xx'),
-    _fixture('verse 2: C/E', _LINE2, 2, ok={'032010'}, xfail=_TODAY + ' xx2010'),
-    _fixture('verse 2: C/G', _LINE2, 3, ok={'332010', '3x2010'},
-             xfail=_TODAY + ' xxx010'),
+    _fixture('verse 2: C/E', _LINE2, 2, ok={'032010'}),
+    _fixture('verse 2: C/G', _LINE2, 3, ok={'332010', '3x2010'}),
     _fixture('verse 2: F/A', _LINE2, 4, ok={'x03211'}),
     _fixture('verse 2: G/B', _LINE2, 5, ok={'x20003', 'x20033', 'x2000x'}),
     _fixture('verse 2: C', _LINE2, 6, ok={'x32010'}),

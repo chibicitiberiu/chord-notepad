@@ -98,6 +98,7 @@ DEFAULT_WEIGHTS: Dict[str, float] = {
     'kept_finger_bonus': 0.4,         # was SCORE_PER_KEPT_FINGER
     'omitted_fifth_penalty': -2.4,    # a four-tone chord voiced without its plain perfect 5th
     'damped_mute_penalty': -2.0,      # a muted string right above a fretted bass, damped by its finger
+    'bass_register_penalty': -3.0,    # per octave a bass on the upper half of the strings sits too high
 }
 
 
