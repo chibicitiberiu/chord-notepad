@@ -160,7 +160,10 @@ def _resolve_pitch(value: Union[int, str], *, context: str) -> int:
 #:   outer 2 semitones of its configured range.
 #: - ``unison_penalty``: cost per pair of adjacent voices sounding a unison.
 #: - ``upper_spacing_penalty``: cost per semitone an upper-voice adjacent gap
-#:   exceeds a perfect fifth (7 semitones).
+#:   exceeds ``upper_spacing_threshold``.
+#: - ``upper_spacing_threshold``: not a score but a size, in semitones: the
+#:   widest upper-voice gap that costs nothing (a perfect fifth, 7, by default;
+#:   the String Quartet spreads to an octave).
 #: - ``same_bass_penalty``: cost when two neighbouring chords are the same
 #:   chord over different written basses (C and C/E) but the voicings sound
 #:   the same lowest pitch class, so the bass change isn't heard.
@@ -226,6 +229,7 @@ DEFAULT_WEIGHTS: Dict[str, Any] = {
     'range_comfort_penalty': -0.5,
     'unison_penalty': -0.5,
     'upper_spacing_penalty': -0.15,
+    'upper_spacing_threshold': 7.0,
     'same_bass_penalty': -8.0,
 }
 
@@ -630,11 +634,14 @@ def _builtin(name: str, label: str, voices: List[Tuple], max_spacing: List[int],
 #: twice an inner voice to move (it is the line a listener follows), the cello
 #: stays cheap, and since a heavier top would let a deceptive cadence (V-vi)
 #: drop the leading tone a step instead of raising it, that resolution is worth
-#: twice the choir's. The quartet also allows no unisons (four instruments on
-#: a triad can always double at the octave).
+#: twice the choir's. The upper voices may spread to an octave before the
+#: wide-spacing cost applies (a choir keeps a fifth), which sounds warmer on
+#: strings. The quartet also allows no unisons (four instruments on a triad can
+#: always double at the octave).
 QUARTET_WEIGHTS: Dict[str, Any] = {
     'movement': [-0.8, -0.4, -0.4, -0.15],
     'leading_tone_resolution_bonus': 3.0,
+    'upper_spacing_threshold': 12.0,
 }
 
 #: Built-in ensemble presets, keyed by a voicing-string slug. The choirs use

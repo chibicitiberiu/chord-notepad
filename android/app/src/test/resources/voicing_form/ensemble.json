@@ -174,7 +174,8 @@
    "weight:seventh_resolution_bonus": "1.5",
    "weight:tritone_leap_penalty": "-3.0",
    "weight:unison_penalty": "-0.5",
-   "weight:upper_spacing_penalty": "-0.15"
+   "weight:upper_spacing_penalty": "-0.15",
+   "weight:upper_spacing_threshold": "7.0"
   }
  },
  "type": "VoicingEditorState"

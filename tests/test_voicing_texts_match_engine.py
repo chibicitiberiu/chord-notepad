@@ -4,7 +4,6 @@ Each check pins a fact the text used to get wrong; the engine code it
 describes is named in the comment.
 """
 
-from chordnotepad.audio import ensemble_voicer
 from chordnotepad.settings_forms.voicing_texts import TOOLTIPS, nested_tooltip
 
 
@@ -16,9 +15,23 @@ def test_ensemble_octave_leap_is_more_than_an_octave_on_top_of_a_large_leap():
 
 
 def test_ensemble_upper_spacing_threshold_is_a_fifth():
-    assert ensemble_voicer._UPPER_SPACING_THRESHOLD == 7
-    text = TOOLTIPS['weight:upper_spacing_penalty']
-    assert "fifth" in text and "octave" not in text
+    # ensemble_voicer: gaps above the bass beyond upper_spacing_threshold
+    # cost upper_spacing_penalty per semitone; a fifth by default.
+    from chordnotepad.models.ensemble_spec import BUILTIN_ENSEMBLES, DEFAULT_WEIGHTS
+    assert DEFAULT_WEIGHTS['upper_spacing_threshold'] == 7
+    assert BUILTIN_ENSEMBLES['quartet'].weight('upper_spacing_threshold') == 12
+    assert "Upper spacing allowed" in TOOLTIPS['weight:upper_spacing_penalty']
+    text = TOOLTIPS['weight:upper_spacing_threshold']
+    assert "7 (a fifth)" in text and "12 (an octave)" in text and "semitones" in text
+
+
+def test_every_ensemble_weight_has_a_label_and_help():
+    from chordnotepad.models.ensemble_spec import DEFAULT_WEIGHTS, _NESTED_WEIGHT_KEYS
+    from chordnotepad.settings_forms.voicing_texts import ENSEMBLE_WEIGHT_LABELS
+    flat = {k for k in DEFAULT_WEIGHTS if k not in _NESTED_WEIGHT_KEYS}
+    assert set(ENSEMBLE_WEIGHT_LABELS) == flat
+    for key in flat:
+        assert TOOLTIPS[f'weight:{key}']
 
 
 def test_ensemble_common_tone_is_the_same_pitch():

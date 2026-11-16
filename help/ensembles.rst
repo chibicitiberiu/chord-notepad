@@ -151,8 +151,10 @@ choir writing, so it has a few weights of its own. Violin I, the line you
 hear on top, costs twice as much to move as the two middle voices (Voice
 movement is ``-0.8, -0.4, -0.4, -0.15``), and the leading tone's bonus for
 rising to the tonic is doubled to 3, so the calmer top line still resolves
-it in G to Am. It also has Allow unisons off: four instruments playing a
-triad can always double a note an octave apart instead.
+it in G to Am. Its upper voices may spread an octave apart before Wide
+upper spacing costs anything (Upper spacing allowed is 12; a choir keeps 7,
+a fifth). It also has Allow unisons off: four instruments playing a triad
+can always double a note an octave apart instead.
 
 The three choirs allow adjacent voices to land on the same pitch (a
 unison), since that's an ordinary, occasional occurrence in real choral
@@ -578,11 +580,19 @@ Voicing Parameters
      - -0.5
    * - Wide upper spacing
      - Subtracted per semitone that a gap between two neighbouring voices
-       above the bass exceeds a perfect fifth (7 semitones). Separate from
+       above the bass exceeds "Upper spacing allowed". Separate from
        ``max_spacing``, which is a hard limit; this is a soft nudge toward
        closer spacing above the bass.
      - ``upper_spacing_penalty``
      - -0.15
+   * - Upper spacing allowed
+     - Not a score but a size: the widest gap, in semitones, two
+       neighbouring voices above the bass may have before "Wide upper
+       spacing" applies. 7 (a perfect fifth) keeps a choir in close
+       position; the String Quartet allows 12 (an octave), which sounds
+       warmer on strings.
+     - ``upper_spacing_threshold``
+     - 7
    * - Same chord, same bass
      - Subtracted when two neighbouring chords are the same chord over
        different written basses (C and C/E, or C/E and C/G) but both

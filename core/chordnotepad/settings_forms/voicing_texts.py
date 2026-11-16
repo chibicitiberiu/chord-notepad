@@ -47,6 +47,7 @@ ENSEMBLE_WEIGHT_LABELS: Dict[str, str] = {
     'range_comfort_penalty': 'Out-of-comfort range',
     'unison_penalty': 'Unison between voices',
     'upper_spacing_penalty': 'Wide upper spacing',
+    'upper_spacing_threshold': 'Upper spacing allowed',
     'same_bass_penalty': 'Same chord, same bass',
 }
 
@@ -293,10 +294,14 @@ TOOLTIPS: Dict[str, str] = {
                                      "negative keeps voices off their extremes."),
     'weight:unison_penalty': ("How the picker treats a pair of neighbouring voices on the same "
                               "pitch, when unisons are allowed. More negative avoids unisons."),
-    'weight:upper_spacing_penalty': ("How the picker treats a gap wider than a fifth (7 "
-                                     "semitones) between two neighbouring voices above the bass, "
-                                     "per semitone beyond it. More negative favors closer "
-                                     "spacing above the bass."),
+    'weight:upper_spacing_penalty': ("How the picker treats a gap between two neighbouring "
+                                     "voices above the bass that is wider than Upper spacing "
+                                     "allowed, per semitone beyond it. More negative favors "
+                                     "closer spacing above the bass."),
+    'weight:upper_spacing_threshold': ("Not a score but a size: the widest gap, in semitones, "
+                                       "two neighbouring voices above the bass may have before "
+                                       "Wide upper spacing applies. 7 (a fifth) keeps a choir "
+                                       "close; the String Quartet allows 12 (an octave)."),
     'weight:same_bass_penalty': ("How the picker treats two neighbouring chords that are the same "
                                  "chord over different written basses (C and C/E) but would sound "
                                  "the same lowest note. More negative keeps a plain chord next to "

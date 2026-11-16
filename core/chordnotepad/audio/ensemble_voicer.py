@@ -73,7 +73,6 @@ logger = logging.getLogger(__name__)
 _OCTAVE = 12
 _LEAP_THRESHOLD = 7          # a leap wider than a perfect fifth is penalized
 _TRITONE = 6                 # an exact tritone leap is penalized
-_UPPER_SPACING_THRESHOLD = 7  # upper-voice adjacent gaps beyond this cost per st
 _RANGE_COMFORT_EDGE = 2      # the outer 2 semitones of a range are uncomfortable
 _RANGE_PAD = 2               # semitones the ladder widens each range end by
 _BEAM_STACKS = 300           # partial octave-stacks kept per DFS level
@@ -250,6 +249,9 @@ class EnsembleVoicer(INotePicker):
         self._range_comfort_penalty = float(w('range_comfort_penalty'))
         self._unison_penalty = float(w('unison_penalty'))
         self._upper_spacing_penalty = float(w('upper_spacing_penalty'))
+        # Semitones an upper-voice gap may span before upper_spacing_penalty
+        # applies (a fifth by default; a string pad spreads to an octave).
+        self._upper_spacing_threshold = float(w('upper_spacing_threshold'))
         self._same_bass_penalty = float(w('same_bass_penalty'))
         self._doubling: Dict[str, float] = dict(w('doubling'))
         self._omit: Dict[str, float] = dict(w('omit'))
@@ -671,8 +673,8 @@ class EnsembleVoicer(INotePicker):
                         add = self._comfort(midi, b)
                         if midi == below:
                             add += self._unison_penalty
-                        if b >= 2 and gap > _UPPER_SPACING_THRESHOLD:
-                            add += self._upper_spacing_penalty * (gap - _UPPER_SPACING_THRESHOLD)
+                        if b >= 2 and gap > self._upper_spacing_threshold:
+                            add += self._upper_spacing_penalty * (gap - self._upper_spacing_threshold)
                         new_remaining = list(remaining)
                         new_remaining.remove(pc)
                         next_beam.append(
@@ -783,8 +785,8 @@ class EnsembleVoicer(INotePicker):
         # Upper spacing: adjacent gaps not involving the bottom voice.
         for i in range(1, len(stack) - 1):
             gap = stack[i + 1] - stack[i]
-            if gap > _UPPER_SPACING_THRESHOLD:
-                score += self._upper_spacing_penalty * (gap - _UPPER_SPACING_THRESHOLD)
+            if gap > self._upper_spacing_threshold:
+                score += self._upper_spacing_penalty * (gap - self._upper_spacing_threshold)
 
         # Doubled leading tone.
         lt = meta.ctx.leading_tone_pc

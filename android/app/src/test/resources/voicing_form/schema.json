@@ -283,10 +283,20 @@
         },
         {
          "default": "-0.15",
-         "help": "How the picker treats a gap wider than a fifth (7 semitones) between two neighbouring voices above the bass, per semitone beyond it. More negative favors closer spacing above the bass.",
+         "help": "How the picker treats a gap between two neighbouring voices above the bass that is wider than Upper spacing allowed, per semitone beyond it. More negative favors closer spacing above the bass.",
          "id": "weight:upper_spacing_penalty",
          "kind": "float",
          "label": "Wide upper spacing",
+         "max": 100.0,
+         "min": -100.0,
+         "step": 0.1
+        },
+        {
+         "default": "7.0",
+         "help": "Not a score but a size: the widest gap, in semitones, two neighbouring voices above the bass may have before Wide upper spacing applies. 7 (a fifth) keeps a choir close; the String Quartet allows 12 (an octave).",
+         "id": "weight:upper_spacing_threshold",
+         "kind": "float",
+         "label": "Upper spacing allowed",
          "max": 100.0,
          "min": -100.0,
          "step": 0.1

@@ -337,3 +337,46 @@ def test_v4_fretboard_voicing_gets_the_acoustic_tuning_weights(tmp_path):
     values = values_from_voicing("fretboard", entry)
     for key in added:
         assert float(values[f"weight:{key}"]) == DEFAULT_WEIGHTS[key]
+
+
+#: The ensemble weights a v4 config can carry (DEFAULT_WEIGHTS at v4), with
+#: their v4 defaults. Saved ensembles persist this whole dict.
+_V4_ENSEMBLE_WEIGHTS = {
+    'movement': -0.4, 'bass_movement': -0.15, 'leap_penalty': -2.0,
+    'octave_leap_penalty': -6.0, 'tritone_leap_penalty': -3.0, 'common_tone_bonus': 1.5,
+    'parallel_perfect_penalty': -25.0, 'contrary_motion_bonus': 0.8,
+    'seventh_resolution_bonus': 1.5, 'leading_tone_resolution_bonus': 1.5,
+    'double_leading_tone_penalty': -8.0,
+    'doubling': {'root': 2.0, 'fifth': 0.5, 'third': -2.0, 'seventh': -6.0,
+                 'color': -6.0, 'extension': -6.0},
+    'omit': {'root': -20.0, 'third': -40.0, 'fifth': -3.0, 'seventh': -40.0,
+             'color': -30.0, 'extension': -6.0},
+    'inversion': {'root': 0.0, 'first': -1.5, 'second': -5.0, 'third': -3.0},
+    'range_comfort_penalty': -0.5, 'unison_penalty': -0.5, 'upper_spacing_penalty': -0.15,
+    'same_bass_penalty': -8.0,
+}
+
+
+def test_v4_ensemble_gets_the_background_weights(tmp_path):
+    """The background-texture work added ensemble weights and changed no v4
+    default, so a v4 config needs no migration: a saved ensemble with its full
+    v4 weight dict takes the new weights from the defaults, in the engine and
+    the editor."""
+    from chordnotepad.models.ensemble_spec import DEFAULT_WEIGHTS, EnsembleSpec
+    from chordnotepad.settings_forms.voicing_form import values_from_voicing
+    assert {k: DEFAULT_WEIGHTS[k] for k in _V4_ENSEMBLE_WEIGHTS} == _V4_ENSEMBLE_WEIGHTS
+    added = set(DEFAULT_WEIGHTS) - set(_V4_ENSEMBLE_WEIGHTS)
+    assert added == {'upper_spacing_threshold'}
+
+    entry = {"model": "ensemble",
+             "voices": [{"name": "S", "range": [60, 79]}, {"name": "B", "range": [40, 60]}],
+             "weights": dict(copy.deepcopy(_V4_ENSEMBLE_WEIGHTS), unison_penalty=-1.0)}
+    data = {"version": 4, "voicings": {"mine": copy.deepcopy(entry)}}
+    migrated = _service(tmp_path)._migrate_config(data, 4)
+    assert migrated["voicings"]["mine"] == entry
+
+    spec = EnsembleSpec.from_dict("mine", entry)
+    assert spec.weights == dict(copy.deepcopy(DEFAULT_WEIGHTS), unison_penalty=-1.0)
+    values = values_from_voicing("ensemble", entry)
+    for key in added:
+        assert float(values[f"weight:{key}"]) == DEFAULT_WEIGHTS[key]
