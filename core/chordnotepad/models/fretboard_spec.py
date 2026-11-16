@@ -97,7 +97,7 @@ DEFAULT_WEIGHTS: Dict[str, float] = {
     'movement_penalty': -1.0,         # was SCORE_PER_MOVE_FRET
     'kept_finger_bonus': 0.4,         # was SCORE_PER_KEPT_FINGER
     'omitted_fifth_penalty': -2.4,    # a four-tone chord voiced without its plain perfect 5th
-    'damped_mute_penalty': -2.0,      # a muted string right above a fretted bass, damped by its finger
+    'damped_mute_penalty': -3.0,      # a muted string right above a fretted bass, damped by its finger
     'bass_register_penalty': -3.0,    # per octave a bass on the upper half of the strings sits too high
     'thin_shape_penalty': -3.0,       # fewer strings sound than a full strum (4 of 6, 3 of 4)
     'low_interval_penalty': -1.5,     # a third or less below G2, or a second or less below C3

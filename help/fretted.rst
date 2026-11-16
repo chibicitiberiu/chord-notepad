@@ -467,7 +467,7 @@ while pushing it more negative clamps down on them.
        G 3x0033 or D/F# 2x0232. Above an open bass, or under a barre that
        reaches past it, the mute is a buried one.
      - ``damped_mute_penalty``
-     - -2.0
+     - -3.0
    * - High bass
      - Subtracted per octave a bass on the upper half of the strings (the G
        string and above on a six-string) sits above where that note is

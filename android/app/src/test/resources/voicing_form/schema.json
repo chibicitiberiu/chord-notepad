@@ -732,7 +732,7 @@
          "step": 0.1
         },
         {
-         "default": "-2.0",
+         "default": "-3.0",
          "help": "How the picker treats a muted string right above a fretted bass, which the bass finger leans over and damps (G 3x0033, D/F# 2x0232). Not above an open bass or under a barre. More negative avoids that shape.",
          "id": "weight:damped_mute_penalty",
          "kind": "float",
