@@ -101,6 +101,7 @@ DEFAULT_WEIGHTS: Dict[str, float] = {
     'bass_register_penalty': -3.0,    # per octave a bass on the upper half of the strings sits too high
     'thin_shape_penalty': -3.0,       # fewer strings sound than a full strum (4 of 6, 3 of 4)
     'low_interval_penalty': -1.5,     # a third or less below G2, or a second or less below C3
+    'muted_treble_penalty': -1.0,     # the top string (high e) left muted
 }
 
 

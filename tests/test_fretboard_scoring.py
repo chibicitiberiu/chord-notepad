@@ -219,6 +219,18 @@ class TestRules:
             delta = self.score(guitar, chord, shape_) - self.score(free, chord, shape_)
             assert delta == pytest.approx(w if charged else 0.0), (chord, shape_)
 
+    def test_a_muted_treble(self, guitar):
+        # The top string muted costs once; the edge string on the other side
+        # doesn't.
+        w = guitar.spec.weights['muted_treble_penalty']
+        assert w < 0
+        free = GuitarChordPicker(FretboardSpec.from_dict(
+            'free', {'tuning': list(guitar.tuning_midi), 'weights': {'muted_treble_penalty': 0}}))
+        for chord, shape_, charged in (('G/B', 'x2000x', True), ('G/B', 'x20003', False),
+                                       ('C', 'x32010', False), ('E5', '022xxx', False)):
+            delta = self.score(guitar, chord, shape_) - self.score(free, chord, shape_)
+            assert delta == pytest.approx(w if charged else 0.0), (chord, shape_)
+
     def test_the_thumb_measures_from_the_capo(self, guitar):
         # With a capo the picker's frets are capo-relative: the thumb rule
         # reads them as they are.
