@@ -107,6 +107,32 @@ class SettingsControllerTest {
         assertEquals("false", commits.last().jsonObject.getValue("word_wrap").jsonPrimitive.content)
     }
 
+    @Test
+    fun `clicked chords sound as in the chord sheet, on from the settings and saved at once`() {
+        val c = editing()
+        assertTrue(Fixtures.settings.values.clickPlaysChartVoicing)
+        assertTrue(c.ui.value.draft!!.clickPlaysChartVoicing)
+        c.updateDraft { it.copy(clickPlaysChartVoicing = false) }
+        assertEquals("false", commits.single().jsonObject.getValue("click_plays_chart_voicing").jsonPrimitive.content)
+        assertFalse(c.ui.value.draft!!.clickPlaysChartVoicing)
+        // Sent with the other values, and back on.
+        assertEquals("false", commits.single().jsonObject.getValue("word_wrap").jsonPrimitive.content)
+        c.updateDraft { it.copy(clickPlaysChartVoicing = true) }
+        assertEquals("true", commits.last().jsonObject.getValue("click_plays_chart_voicing").jsonPrimitive.content)
+    }
+
+    @Test
+    fun `clicked chords off survives a rotation, and a snapshot from before the setting reads on`() {
+        val c = editing()
+        c.updateDraft { it.copy(clickPlaysChartVoicing = false) }
+        val snapshot = c.snapshot()
+        assertFalse(SettingsController.restore(commands, snapshot).ui.value.draft!!.clickPlaysChartVoicing)
+        // An older build's snapshot has no such key: on, the default.
+        val older = snapshot.replace(",\"clickPlaysChartVoicing\":false", "")
+        assertFalse(older.contains("clickPlaysChartVoicing"))
+        assertTrue(SettingsController.restore(commands, older).ui.value.draft!!.clickPlaysChartVoicing)
+    }
+
     /** The fixture's own word_wrap, as Python sent it. */
     private fun commitsWordWrap(): Boolean = Fixtures.settings.values.wordWrap
 

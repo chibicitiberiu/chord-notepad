@@ -88,7 +88,7 @@ fun GeneralPage(draft: SettingsDraft, limits: SettingsState, numbers: Map<Number
     }
 }
 
-/** Settings › Playback: default BPM and time signature. */
+/** Settings › Playback: default BPM and time signature, how a tapped chord sounds. */
 @Composable
 fun PlaybackPage(draft: SettingsDraft, limits: SettingsState, numbers: Map<NumberSetting, String>, controller: SettingsController) {
     PageColumn {
@@ -112,6 +112,12 @@ fun PlaybackPage(draft: SettingsDraft, limits: SettingsState, numbers: Map<Numbe
             )
         }
         HelpText(stringResource(R.string.settings_time_signature_help))
+        SwitchRow(
+            label = stringResource(R.string.settings_click_chart_voicing),
+            checked = draft.clickPlaysChartVoicing,
+            onChange = { on -> controller.updateDraft { it.copy(clickPlaysChartVoicing = on) } },
+            supporting = stringResource(R.string.settings_click_chart_voicing_help),
+        )
     }
 }
 

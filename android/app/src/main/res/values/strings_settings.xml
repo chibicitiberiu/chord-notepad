@@ -10,7 +10,7 @@
     <string name="settings_page_general">General</string>
     <string name="settings_page_general_summary">Font, word wrap, chord notation, default key, quick start, recent files</string>
     <string name="settings_page_playback">Playback</string>
-    <string name="settings_page_playback_summary">Default BPM and time signature</string>
+    <string name="settings_page_playback_summary">Default BPM and time signature, clicked chords</string>
     <string name="settings_page_voicings">Voicings</string>
     <string name="settings_page_voicings_summary">Your custom fretboard, piano and ensemble voicings</string>
 
@@ -37,6 +37,8 @@
     <string name="settings_default_bpm_help">The tempo a new document starts at.</string>
     <string name="settings_time_signature">Default time signature</string>
     <string name="settings_time_signature_help">The time signature a new document starts at.</string>
+    <string name="settings_click_chart_voicing">Clicked chords sound as in the chord sheet</string>
+    <string name="settings_click_chart_voicing_help">Off: each click is voiced from the chord you clicked before it.</string>
     <string name="settings_beats">Beats</string>
     <string name="settings_beat_unit">Beat unit</string>
     <string name="settings_number_range">Enter a whole number from %1$d to %2$d.</string>
