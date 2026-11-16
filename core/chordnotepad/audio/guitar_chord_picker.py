@@ -153,6 +153,7 @@ class GuitarChordPicker(INotePicker):
         self._w_damped_mute = spec.weight('damped_mute_penalty')
         self._w_bass_register = spec.weight('bass_register_penalty')
         self._w_thin = spec.weight('thin_shape_penalty')
+        self._w_low_interval = spec.weight('low_interval_penalty')
 
         # Derive note names from MIDI values
         self.tuning_notes = [self._midi_to_note(midi) for midi in self.tuning_midi]
@@ -800,6 +801,13 @@ class GuitarChordPicker(INotePicker):
             return None
         return len(at_low)
 
+    #: Low mud: two neighbouring notes a third or less apart below G2, or a
+    #: second or less below C3, blur into one rumble (F6 10021x, Gadd9
+    #: 300003). As (widest interval in semitones, lower note below this MIDI
+    #: pitch). Pitches, not strings, so the same on any tuning; G2-B2 (open
+    #: G) and E2-B2 (open E) stay clear.
+    _LOW_INTERVAL_LIMITS = ((4, 43), (2, 48))
+
     #: Highest fret the thumb, wrapped over the neck, frets a bass note at.
     #: Counted from the nut, or from the capo on a capo picker (whose frets
     #: are capo-relative). A fact about hands.
@@ -885,6 +893,9 @@ class GuitarChordPicker(INotePicker):
           costs ``bass_register_penalty`` per octave above where that note
           sits lowest on the neck (C/G xxx010 against 332010); on the lower
           strings the bass is low enough.
+        * **Low mud.** Two neighbouring notes a third or less apart below
+          G2, or a second or less below C3, cost ``low_interval_penalty``
+          once (D/F# 2002xx, Gadd9 300003).
         * **Interior mutes.** A dead string inside a strummed shape costs
           twice ``interior_mute_penalty`` (B x21x02). Right above a fretted
           bass the bass finger leans over and damps it (3x0033, D/F# 2x0232),
@@ -985,6 +996,14 @@ class GuitarChordPicker(INotePicker):
             if (span >= self._WIDE_REACH_SPAN
                     and not self._is_clean_lengthwise_stretch(fingering, fretted)):
                 score += self._w_awkward
+
+        # Low mud: charged once, for the lowest such pair.
+        if self._w_low_interval:
+            pitches = sorted(tuning[s] + fingering[s] for s in sounding)
+            if any(0 < high - low <= width and low < below
+                   for low, high in zip(pitches, pitches[1:])
+                   for width, below in self._LOW_INTERVAL_LIMITS):
+                score += self._w_low_interval
 
         # Interior mutes: muted strings between the first and last sounding
         # string cannot be avoided while strumming. String-order based, which is
