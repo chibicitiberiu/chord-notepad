@@ -284,7 +284,10 @@ def test_every_package_the_build_job_makes_starts_the_qt_window(step, command):
     # Right after the step that makes or checks that package, so a Qt failure points at it.
     before = {"(Linux binary)": "Prepare artifact (Linux)", "(macOS)": "Smoke-test disk image (macOS)",
               "(Windows exe)": "Prepare artifact (Windows)", "(snap)": "Smoke-test snap",
-              "(Flatpak)": "Smoke-test Flatpak bundle", "(Store build)": "Smoke-test Store package"}
+              "(Flatpak)": "Smoke-test Flatpak bundle",
+              # The onedir build first, then the installed package: a failure in
+              # only the second points at the packaging.
+              "(Store build)": "Upload Store package"}
     previous = next(v for k, v in before.items() if step.endswith(k))
     assert names.index(step) == names.index(previous) + 1
     if "xvfb-run" in _step(build, step)["run"]:
