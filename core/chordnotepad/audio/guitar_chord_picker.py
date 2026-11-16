@@ -390,6 +390,8 @@ class GuitarChordPicker(INotePicker):
         allow_barres = self._allow_barres
         finger_plan = self._finger_plan
         finger_barre_span = self._max_span - 1
+        hard_reach = self._HARD_REACH_SPAN
+        clean_reach = self._is_clean_lengthwise_stretch
 
         # Per-string options as (fret, coverage_bit) tuples. Mute is (-1, 0).
         string_options: List[List[Tuple[int, int]]] = []
@@ -457,6 +459,13 @@ class GuitarChordPicker(INotePicker):
                                                 or finger_plan(buf) is None):
                         return
 
+                # A reach of four frets or more is only held by an outer
+                # finger (index or pinky) stretching alone; with an inner
+                # finger making it (C6 x35210) no hand holds the shape.
+                if max_f - min_f >= hard_reach and not clean_reach(
+                        buf, [s for s in range(num_strings) if buf[s] > 0]):
+                    return
+
                 present = mask.bit_count()
                 if present == num_unique:
                     complete.append(buf[:])
@@ -504,6 +513,13 @@ class GuitarChordPicker(INotePicker):
     #: flattens over three strings at most (G B e in the 9th grip 076777) and
     #: a pinky over two or three. A fact about hands, not instruments.
     _MAX_FINGER_BARRE = 3
+
+    #: Fretted spans the hand only makes as a clean lengthwise reach (see
+    #: :meth:`_is_clean_lengthwise_stretch`). From three frets a shape where
+    #: an inner finger makes the reach costs ``awkward_stretch_penalty``; from
+    #: four such a shape isn't enumerated at all. A fact about hands.
+    _WIDE_REACH_SPAN = 3
+    _HARD_REACH_SPAN = 4
 
     def _finger_plan(self, fingering: Union[List[int], Tuple[int, ...]]
                      ) -> Optional[Tuple[int, int]]:
@@ -774,11 +790,14 @@ class GuitarChordPicker(INotePicker):
             score += self._w_fretted * fingers
             # Whole-shape stretch cost: free up to a one-fret span, then per fret.
             score += self._w_stretch * max(0, span - 1)
-            # Middle-finger cost: a span-3 shape that is not a clean lengthwise
-            # (index<->pinky) reach forces an inner finger to make the far
-            # stretch, which no hand can hold. Charged on top of the mild,
-            # sign-agnostic stretch cost above.
-            if span == 3 and not self._is_clean_lengthwise_stretch(fingering, fretted):
+            # Middle-finger cost: a shape spanning three frets or more that is
+            # not a clean lengthwise (index<->pinky) reach forces an inner
+            # finger to make the far stretch, which no hand can hold. Charged
+            # on top of the mild, sign-agnostic stretch cost above. (From four
+            # frets enumeration drops such shapes; this keeps a direct score
+            # of one honest.)
+            if (span >= self._WIDE_REACH_SPAN
+                    and not self._is_clean_lengthwise_stretch(fingering, fretted)):
                 score += self._w_awkward
 
         # Interior mutes: muted strings between the first and last sounding

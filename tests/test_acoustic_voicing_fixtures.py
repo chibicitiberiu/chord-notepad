@@ -124,7 +124,7 @@ FLIP = [
 # Any pick but the forbidden one.
 FORBID = [
     _fixture('Ab after Eb/G, walk slash, key Eb', 'Eb/G Ab Bb/D Eb Ab/Eb Bb/F', index=1,
-             forbid={'43151x'}, xfail=_TODAY + ' 43151x'),
+             forbid={'43151x'}),
     _fixture('Eb in pop, key Bb', 'Bb F Gm Eb', forbid={'xx13x3'}),
     _fixture('Eb in andalusian, key Bb', 'Gm F Eb D', index=2, forbid={'xx13x3'},
              xfail=_TODAY + ' xx13x3'),
