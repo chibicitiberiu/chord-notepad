@@ -5,8 +5,8 @@ import QtQuick.Layouts
 import CNTheme
 import CNSheet
 
-// The chord sheet (plan step E4): flat view tabs, (Edit) the Voicing
-// selector, the zoom and ×, then the strip, drawn by SheetView
+// The chord sheet (plan step E4): flat view tabs, (Edit) the Voicing and
+// Instrument selectors, the zoom and ×, then the strip, drawn by SheetView
 // (chord_sheet.py: a viewport-sized QQuickPaintedItem replaying the core's
 // packed draw ops). One instance, moved between the Edit panel (F9) and
 // the Play workspace's strip, as in the mockup.
@@ -26,7 +26,8 @@ Rectangle {
     required property var model
     property var editor: null              // the EditorBridge: a tap shows the chord in the text
     property bool closable: false          // Edit: × hides the panel (F9)
-    property bool showVoicing: false       // Edit only: Play has Voicing in its player bar
+    property var player: null              // PlayerBarModel: the instrument's name
+    property bool showVoicing: false       // Edit only: Play has Voicing and Instrument in its player bar
     property bool active: false            // on screen: fetch and paint
     signal closeRequested()
     signal editVoicings()
@@ -100,6 +101,15 @@ Rectangle {
                     // The label collapses below 150 units.
                     showText: pane.width > Theme.px(150)
                     onEditVoicings: pane.editVoicings()
+                }
+                InstrumentButton {
+                    visible: pane.showVoicing && pane.player !== null
+                    store: pane.store
+                    player: pane.player
+                    buttonName: "sheetInstrument"
+                    menuName: "sheetInstrumentMenu"
+                    compact: true
+                    showText: pane.width > Theme.px(150)
                 }
                 Item { visible: pane.showVoicing; Layout.preferredWidth: Theme.gap2 }
                 ZoomPill {

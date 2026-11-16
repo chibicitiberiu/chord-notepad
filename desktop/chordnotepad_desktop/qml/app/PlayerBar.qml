@@ -41,16 +41,10 @@ Rectangle {
 
     readonly property var tb: bar.store.states.ToolbarState
     readonly property var pb: bar.store.states.PlaybackState
-    readonly property var im: bar.store.states.InstrumentMenuState
     readonly property bool playing: bar.tb.play_action === "pause"
     readonly property var sections: bar.pb.sections || []
     readonly property int totalBars: bar.sections.length ? bar.sections[bar.sections.length - 1].last_bar : 0
     readonly property real speed: bar.tb.multiplier_pct || 100
-    readonly property string instrumentLabel: {
-        for (var f of bar.im.families || [])
-            for (var c of f.items) if (parseInt(c.value) === bar.im.current) return bar.player.instrumentName(c.label)
-        return ""
-    }
 
     readonly property real units: width / Theme.u
     // Narrowing, measured from what the parts need (the values, the names and
@@ -237,16 +231,12 @@ Rectangle {
                 showText: bar.namesShown
                 onEditVoicings: bar.editVoicings()
             }
-            FlatDrop {
+            InstrumentButton {
                 id: instrumentBtn
-                objectName: "instrumentButton"
-                iconName: "guitar-acoustic"
-                text: bar.instrumentLabel
+                store: bar.store
+                player: bar.player
+                menuName: "instrumentMenu"
                 showText: bar.namesShown
-                maxTextWidth: Theme.px(26)
-                tip: "Instrument: " + bar.instrumentLabel + " (General MIDI " + bar.im.current + ")"
-                checked: instrumentMenu.visible
-                onClicked: instrumentMenu.popup(instrumentBtn, 0, instrumentBtn.height + Theme.gap1)
             }
             Sep {}
             FlatDrop {
@@ -292,11 +282,17 @@ Rectangle {
                 tip: "Music " + (bar.player.muted ? "(muted)" : Math.round(bar.player.volume * 100) + "%") + " (wheel steps)"
                 checked: volPop.visible
                 onClicked: volPop.visible ? volPop.close() : volPop.open()
+                // The wheel's feedback (Tibi, 2026-11-17): the level shows at once
+                // while it turns, and for a moment after, not after the hover delay.
+                ToolTip.visible: (wheelShown.running || (hovered && !down)) && !checked
+                ToolTip.delay: wheelShown.running ? 0 : 600
+                Timer { id: wheelShown; objectName: "volumeWheelShown"; interval: 1500 }
                 MouseArea {        // the wheel steps 5% (B3's step_volume)
                     anchors.fill: parent
                     acceptedButtons: Qt.NoButton
                     property real notches: 0
                     onWheel: (e) => {
+                        wheelShown.restart()
                         notches += e.angleDelta.y / 120
                         while (Math.abs(notches) >= 1) {
                             var dir = notches > 0 ? 1 : -1
@@ -316,7 +312,6 @@ Rectangle {
         model: bar.pickers
         onPicked: (v) => bar.player.applySongValue(songPicker.kind, v)
     }
-    InstrumentMenu { id: instrumentMenu; store: bar.store }
 
     // --- Speed: live (it is playback, not text) -------------------------------------------
     component SpeedPopup: Popup {

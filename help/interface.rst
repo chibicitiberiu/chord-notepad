@@ -199,7 +199,11 @@ The User Interface
       The Voicing menu.
 
    The **Voicing** button (with a note icon and its name, such as *Piano*)
-   chooses *how* chords are laid out:
+   chooses *how* each chord's notes are picked: which notes sound, in which
+   octaves, and on a fretted instrument, which shape you play. The
+   **Instrument** button beside it chooses the sound you hear. In Edit, both
+   are also in the chord sheet's header, since you usually change them
+   together. The voicings:
 
    * **Piano** - Keyboard-style voicing (default)
    * **Guitar (Standard - EADGBE)** - standard tuning

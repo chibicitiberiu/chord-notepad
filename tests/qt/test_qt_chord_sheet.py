@@ -792,12 +792,15 @@ def test_edit_shows_the_panel_with_f9_and_play_always(sh):
     assert host.isVisible() and pane.parentItem() is host and sh.view.property("active") is True
     sh.wait_sheet()
     assert sh.config("chord_sheet_visible") is True
-    # Edit's header: the Voicing selector and ×.
+    # Edit's header: the Voicing and Instrument selectors (switched together,
+    # Tibi 2026-11-17) and ×.
     assert sh.it("sheetVoicing").isVisible() and sh.it("sheetClose").isVisible()
+    assert sh.it("sheetInstrument").isVisible()
     # Play: the strip, without them; F9 does nothing there.
     sh.to_play(1200)
     assert pane.parentItem() is sh.it("playSheetHost")
     assert not sh.it("sheetVoicing").isVisible() and not sh.it("sheetClose").isVisible()
+    assert not sh.it("sheetInstrument").isVisible()
     sent = len(sh.sent("set_chord_sheet_visible"))
     QTest.keyClick(sh.window, Qt.Key.Key_F9)
     sh.run()
@@ -831,6 +834,24 @@ def test_the_voicing_selector_is_locked_while_playing(sh):
     sh.hover(sh.it("sheetVoicingTip"))
     sh.qtbot.waitUntil(lambda: any(reason in t for t in texts_shown(sh.window.contentItem())),
                        timeout=2500)
+
+
+def test_the_sheet_headers_instrument_menu_opens_above_and_sets_the_program(sh):
+    sh.store.submit("set_chord_sheet_visible", {"visible": True})
+    sh.qtbot.waitUntil(lambda: sh.it("sheetInstrument").isVisible(), timeout=2000)
+    button = sh.it("sheetInstrument")
+    assert "The sound you hear" in button.property("tip")
+    sh.click_on(button)
+    menu = sh.it("sheetInstrumentMenu")
+    sh.qtbot.waitUntil(lambda: menu.property("visible") is True, timeout=1000)
+    top = button.mapToScene(QPointF(0, 0)).y()
+    content = menu.property("contentItem")
+    sh.qtbot.waitUntil(lambda: content.height() > 0, timeout=1000)
+    # It opens upward; Qt shifts a menu taller than the room above it down to fit the window.
+    assert content.mapToScene(QPointF(0, 0)).y() < top
+    QTest.keyClick(sh.window, Qt.Key.Key_Escape)
+    sh.store.submit("set_instrument", {"program": 25})
+    sh.qtbot.waitUntil(lambda: "General MIDI 25" in button.property("tip"), timeout=1000)
 
 
 def test_the_voicing_label_collapses_below_150_units(sh):

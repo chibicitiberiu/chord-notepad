@@ -781,7 +781,7 @@ def collect_garbage(app):
 
 #: The menus built with createObject (Menu has no Repeater).
 BUILT_MENUS = ["voicingMenu", "barVoicingMenu", "sheetVoicingMenu", "instrumentMenu",
-               "barInstrumentMenu", "appMenuRecent", "menuBarRecent"]
+               "barInstrumentMenu", "sheetInstrumentMenu", "appMenuRecent", "menuBarRecent"]
 
 
 def test_the_built_menus_keep_their_rows_through_a_garbage_collection(app, tmp_path):

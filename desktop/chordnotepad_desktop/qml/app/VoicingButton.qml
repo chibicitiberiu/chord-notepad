@@ -33,7 +33,9 @@ Item {
     HoverHandler { id: hover }
     ToolTip.visible: hover.hovered && !menu.visible
     ToolTip.delay: 600
-    ToolTip.text: "Voicing: " + vb.label + (vb.lockedReason ? " (" + vb.lockedReason + ")" : "")
+    ToolTip.text: "Voicing: " + vb.label + (vb.lockedReason ? " (" + vb.lockedReason + ")" : "") + "\n"
+                  + "How each chord's notes are chosen: which notes sound, in which octaves,"
+                  + " and on a fretted instrument, which shape you play."
 
     FlatDrop {
         id: btn

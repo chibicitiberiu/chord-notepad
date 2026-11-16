@@ -337,6 +337,7 @@ ApplicationWindow {
         store: win.store
         model: win.sheet
         editor: win.editor
+        player: win.player
         parent: win.mode === "play" ? playSheetHost : editSheetHost
         anchors.fill: parent
         closable: win.mode === "edit"

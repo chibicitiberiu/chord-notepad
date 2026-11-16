@@ -809,6 +809,10 @@ def test_the_volume_dropdown_slider_mute_and_wheel(pb):
     tooltip_shows(pb, volume, "Music 100%")
     pb.wheel(volume, -2)
     pb.qtbot.waitUntil(lambda: pb.model.volume == pytest.approx(0.9), timeout=1000)
+    # The wheel shows the level it reached at once (Tibi, 2026-11-17).
+    assert pb.it("volumeWheelShown").property("running") is True
+    pb.qtbot.waitUntil(lambda: any("Music 90%" in t for t in texts_shown(pb.window.contentItem())),
+                       timeout=500)
     pb.click_on(volume)
     pb.qtbot.waitUntil(lambda: pb.it("volumePopup").property("visible") is True, timeout=1000)
     pb.click_on(pb.it("muteButton"))
@@ -927,7 +931,8 @@ def test_the_voicing_is_locked_while_playing_with_the_reason(pb):
     pb.wait_status("playing")
     button = pb.it("voicingButton")
     pb.qtbot.waitUntil(lambda: button.property("enabled") is False, timeout=1000)
-    tooltip_shows(pb, pb.it("voicingTip"), "Voicing: Piano", "Pause to change the voicing")
+    tooltip_shows(pb, pb.it("voicingTip"), "Voicing: Piano", "Pause to change the voicing",
+                  "How each chord's notes are chosen")
     pb.click_on(button)
     pb.run()
     assert not shown(pb, "voicing:")
@@ -973,6 +978,7 @@ def test_the_instrument_menu_has_16_families_with_the_familys_dot(pb):
     pb.store.submit("set_instrument", {"program": 25})
     pb.qtbot.waitUntil(lambda: state.value("current") == 25, timeout=1000)
     assert "General MIDI 25" in instrument.property("tip")
+    assert "The sound you hear" in instrument.property("tip")
     pb.click_on(instrument)
     pb.qtbot.waitUntil(lambda: len(rows(pb, FAMILIES)) == 16, timeout=1000)
     dots = [r.property("text") for r in rows(pb, FAMILIES)
