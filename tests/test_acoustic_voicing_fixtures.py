@@ -66,8 +66,6 @@ def _fixture(name, sequence, index=None, ok=None, forbid=None, xfail=None):
     return pytest.param(symbols, index, ok, forbid, id=name, marks=marks)
 
 
-_TODAY = "today's pick"
-
 # Must keep passing.
 KEEP = [
     _fixture('C', 'C', ok={'x32010'}),
@@ -103,15 +101,21 @@ KEEP = [
 # Should flip to passing; each is xfail until the step that fixes it.
 FLIP = [
     _fixture('C/G', 'C/G', ok={'332010', '3x2010'}),
-    _fixture('D/F#', 'D/F#', ok={'2x0232', '200232'}, xfail=_TODAY + ' 2002xx'),
-    _fixture('E/G#', 'E/G#', ok={'4x2100'}, xfail=_TODAY + ' xxx100'),
-    _fixture('Am/G', 'Am/G', ok={'3x2210', '3x2010'}, xfail=_TODAY + ' 302010'),
-    _fixture('F#dim7', 'F#dim7', ok={'2x121x'}, xfail=_TODAY + ' 201212'),
+    _fixture('D/F#', 'D/F#', ok={'2x0232', '200232'},
+             xfail="2002xx still 0.65 ahead of 2x0232; more low mud breaks DADGAD's 400200, "
+                   "a cheaper damped mute breaks Fsus2/Esus2"),
+    _fixture('E/G#', 'E/G#', ok={'4x2100'},
+             xfail="422400 (full, right bass) leads by 4.2: 4x2100's 1-to-4 span costs 5"),
+    _fixture('Am/G', 'Am/G', ok={'3x2210', '3x2010'},
+             xfail="302010 leads by 3.2 on its extra open string and finger"),
+    _fixture('F#dim7', 'F#dim7', ok={'2x121x'},
+             xfail="201212 leads by 2.8 on two more strings"),
     _fixture('Dm/F after Dm', 'Dm Dm/F', ok={'xx3231', '1x0231'},
-             xfail=_TODAY + ' 1002xx'),
+             xfail="1002xx still 1.35 ahead of 1x0231 after low mud and muted treble"),
     _fixture('C6 in colour, key C', 'Cadd9 Csus2 Csus4 C6 Am9 Fmaj9', index=3,
              ok={'x32210'}),
-    _fixture('Gadd9', 'Gadd9', ok={'320203', '3x0203'}, xfail=_TODAY + ' 300003'),
+    _fixture('Gadd9', 'Gadd9', ok={'320203', '3x0203'},
+             xfail="300003 leads 3x0203 by 4.2 on open strings and fingers"),
     _fixture('Csus4 after Cadd9, colour', 'Cadd9 Csus2 Csus4 C6 Am9 Fmaj9', index=2,
              ok={'x33011', 'x33013'}),
     _fixture('F/C in walk slash, key C', 'C/E F G/B C F/C G/D', index=4,
@@ -131,7 +135,9 @@ FORBID = [
     _fixture('Bb/F in walk slash, key F', 'F/A Bb C/E F Bb/F C/G', index=4,
              forbid={'110xxx'}),
     _fixture('B/D# in walk slash, key E', 'E/G# A B/D# E A/E B/F#', index=2,
-             forbid={'xx1x02'}, xfail=_TODAY + ' xx1x02'),
+             forbid={'xx1x02'},
+             xfail="xx1x02 is 0.4 behind x6440x alone; staying in open position between A "
+                   "and E wins on movement"),
     _fixture('Esus2 in colour, key E', 'Eadd9 Esus2 Esus4 E6 C#m9 Amaj9', index=1,
              forbid={'xx2x02'}),
 ]
@@ -163,7 +169,7 @@ SONG = [
     _fixture('verse 1: C/E', _LINE1, 6, ok={'032010'}),
     _fixture('verse 2: Dm', _LINE2, 0, ok={'xx0231'}),
     _fixture('verse 2: Dm/F', _LINE2, 1, ok={'xx3231', '1x0231'},
-             xfail=_TODAY + ' 1002xx'),
+             xfail="1002xx still 1.35 ahead of 1x0231 after low mud and muted treble"),
     _fixture('verse 2: C/E', _LINE2, 2, ok={'032010'}),
     _fixture('verse 2: C/G', _LINE2, 3, ok={'332010', '3x2010'}),
     _fixture('verse 2: F/A', _LINE2, 4, ok={'x03211'}),
