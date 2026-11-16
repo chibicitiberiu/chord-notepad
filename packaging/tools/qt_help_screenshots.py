@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Capture the desktop edition's screenshots from the Qt Quick window.
 
-The desktop user guide, the Quick Start image, the AppStream metainfo and the
-store listings use the images this tool makes. Run it again whenever the UI
+The desktop user guide, the Quick Start image, the README, the AppStream
+metainfo and the store listings use the images this tool makes. Run it again whenever the UI
 changes; don't edit the PNGs by hand.
 
 How it works (the Qt counterpart of ``android/tools/help_screenshots.py``):
@@ -22,10 +22,11 @@ How it works (the Qt counterpart of ``android/tools/help_screenshots.py``):
    ``packaging/store/screenshots/``; numbered callouts are drawn at the
    centres of named QML items.
 
-Every shot is taken twice, in the light theme and in the dark one. The dark
-image of a help or Quick Start shot is ``<name>.dark.png`` beside the light
+Every shot is taken twice, in the light theme and in the dark one, except the
+README's two (``docs/images/``), which are one of each. The dark image of a
+help or Quick Start shot is ``<name>.dark.png`` beside the light
 ``<name>.png`` (the guide and the Quick Start show it when they are dark); a
-store shot's is ``<name>-dark.png``. ``--theme`` takes one of the two, and
+store or README shot's is ``<name>-dark.png``. ``--theme`` takes one of the two, and
 ``--only`` also takes a single image's name (``04-play-staff-dark``).
 
 Usage (from the repository root, nothing needs installing)::
@@ -59,6 +60,7 @@ SONGS = REPO / "android" / "tools" / "help_shot_songs"
 HELP_OUT = REPO / "help" / "images" / "desktop"
 STORE_OUT = REPO / "packaging" / "store" / "screenshots" / "desktop"
 QUICK_START_OUT = REPO / "resources" / "quickstart"
+README_OUT = REPO / "docs" / "images"
 
 #: The window's logical size: wide enough for the whole player bar, the rail
 #: and a sidebar, small enough to read in the guide at its column width.
@@ -162,7 +164,7 @@ class Shot:
     page: str
     what: str
     scene: Callable[["Scene"], Optional[object]]
-    #: Where the PNG goes: ``help``, ``store`` or ``quickstart``.
+    #: Where the PNG goes: ``help``, ``store``, ``readme`` or ``quickstart``.
     dest: str = "help"
     #: Numbered callouts: (number, objectName[, fx, fy]): the disc sits at
     #: that fraction of the item's rectangle (the middle by default).
@@ -189,6 +191,8 @@ class Shot:
     config: Dict[str, object] = field(default_factory=dict)
     #: The scene leaves the pointer where it wants it (a tooltip shot).
     keep_pointer: bool = False
+    #: The themes this shot is taken in (the README's pair needs one each).
+    themes: Tuple[str, ...] = THEMES
 
 
 SHOTS: Dict[str, Shot] = {}
@@ -196,15 +200,16 @@ SHOTS: Dict[str, Shot] = {}
 
 def image_name(shot: Shot, theme: str) -> str:
     """The file name (no ``.png``) of ``shot`` in ``theme``: the help's and the
-    Quick Start's dark images are ``<name>.dark``, the store's ``<name>-dark``."""
+    Quick Start's dark images are ``<name>.dark``, the store's and the README's
+    ``<name>-dark``."""
     if theme == "light":
         return shot.name
-    return f"{shot.name}-dark" if shot.dest == "store" else f"{shot.name}.dark"
+    return f"{shot.name}-dark" if shot.dest in ("store", "readme") else f"{shot.name}.dark"
 
 
 def images() -> Dict[str, Tuple[Shot, str]]:
     """Every image the tool makes: {file name without .png: (shot, theme)}."""
-    return {image_name(s, t): (s, t) for s in SHOTS.values() for t in THEMES}
+    return {image_name(s, t): (s, t) for s in SHOTS.values() for t in s.themes}
 
 
 def shot(name: str, page: str, what: str, **kw):
@@ -672,6 +677,36 @@ def _store_voicings(sc: Scene):
     sc.wait(400)
 
 
+# The README's pair, side by side: a smaller window than the store's, so the text
+# stays readable at half the page's width: Edit in the light theme beside Play in
+# the dark one. Scale 2, so they're sharp on high-density screens.
+README = dict(dest="readme", size=(1200, 760), scale=2.0)
+
+
+@shot("readme-edit", "README", "Scarborough Fair in Edit mode, the piano roll open.",
+      config={"chord_sheet_logical_height": 240}, themes=("light",), **README)
+def _readme_edit(sc: Scene):
+    sc.song(*FAIR)
+    sc.mode("edit")
+    sc.submit("set_chord_sheet_visible", visible=True)
+    sc.until(lambda: sc.has("sheetTab:keyboard") or sc.has("sheetView"), what="the chord sheet")
+    sc.wait(1500)  # the view paints a moment after it opens
+    sc.playing(4)
+    sc.align_sheet()
+
+
+@shot("readme-play", "README", "Amazing Grace playing in Play mode, guitar fret cards.",
+      config={"chord_sheet_zoom": {"fret": 0.75}}, themes=("dark",), **README)
+def _readme_play(sc: Scene):
+    sc.song(*GRACE)
+    sc.mode("play")
+    sc.fretted()
+    sc.click("sheetTab:fret")
+    sc.wait(1500)  # the new view paints a moment after the tab
+    sc.playing(5)
+    sc.align_sheet()
+
+
 @shot("notation-toggle", "writing chords", "The AB | Do switch.", crop="notationToggle", pad=6)
 def _notation(sc: Scene):
     sc.song(*FAIR)
@@ -697,7 +732,7 @@ def destination(shot: Shot, out_dir: Path) -> Path:
     if shot.dest == "help":
         return out_dir
     if out_dir == HELP_OUT:
-        return {"store": STORE_OUT, "quickstart": QUICK_START_OUT}[shot.dest]
+        return {"store": STORE_OUT, "quickstart": QUICK_START_OUT, "readme": README_OUT}[shot.dest]
     return out_dir / shot.dest
 
 
@@ -855,7 +890,7 @@ def main(argv=None) -> int:
     # The images to make, as names from images(): a shot's name means both themes.
     wanted = []
     for n in names:
-        variants = [image_name(SHOTS[n], t) for t in THEMES] if n in SHOTS else [n]
+        variants = [image_name(SHOTS[n], t) for t in SHOTS[n].themes] if n in SHOTS else [n]
         wanted += [v for v in variants if args.theme in (None, every[v][1]) and v not in wanted]
     width, height = (int(v) for v in args.size.lower().split("x"))
 

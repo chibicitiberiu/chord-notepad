@@ -4,10 +4,10 @@ A text editor for chord notation. Write chord symbols above your lyrics and Chor
 
 **[Watch the demo](https://youtu.be/1Pf2bl4FVAc)** · **[Read how it was built](https://tibich.com/blog/chord-notepad-release/)**
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="packaging/store/screenshots/desktop/01-play-piano-roll-dark.png">
-  <img alt="Chord Notepad playing Amazing Grace, with the piano roll under the text" src="packaging/store/screenshots/desktop/01-play-piano-roll.png">
-</picture>
+<p>
+  <img src="docs/images/readme-edit.png" width="49%" alt="Edit mode in the light theme: Scarborough Fair with the Directives sidebar and the piano roll">
+  <img src="docs/images/readme-play-dark.png" width="49%" alt="Play mode in the dark theme: Amazing Grace playing, with guitar fret cards under the text">
+</p>
 
 ## Notes:
 

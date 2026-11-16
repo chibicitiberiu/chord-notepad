@@ -74,12 +74,17 @@ def test_the_images_are_named_per_theme():
     assert images["chord_sheet_qt.dark"][1] == "dark"
     assert images["04-play-staff-dark"][1] == "dark"     # the store's dark names end in -dark
     assert images["04-play-staff"][1] == "light"
-    assert len(images) == 2 * len(tool.SHOTS)
+    # Both themes, except the README's pair: one light, one dark.
+    assert images["readme-edit"][1] == "light" and images["readme-play-dark"][1] == "dark"
+    assert "readme-edit-dark" not in images and "readme-play" not in images
+    assert len(images) == sum(len(shot.themes) for shot in tool.SHOTS.values())
+    assert len(images) == 2 * len(tool.SHOTS) - 2
 
 
 def test_every_committed_image_has_its_dark_twin():
     tool = load_tool()
-    folders = {"help": tool.HELP_OUT, "store": tool.STORE_OUT, "quickstart": tool.QUICK_START_OUT}
+    folders = {"help": tool.HELP_OUT, "store": tool.STORE_OUT, "quickstart": tool.QUICK_START_OUT,
+               "readme": tool.README_OUT}
     missing = [f"{folders[shot.dest].relative_to(REPO)}/{name}.png"
                for name, (shot, _) in tool.images().items()
                if not (folders[shot.dest] / f"{name}.png").is_file()]
@@ -87,3 +92,15 @@ def test_every_committed_image_has_its_dark_twin():
     # And nothing in the help's folder that the tool doesn't make (a stale name).
     made = {f"{name}.png" for name, (shot, _) in tool.images().items() if shot.dest == "help"}
     assert {p.name for p in tool.HELP_OUT.glob("*.png")} == made
+
+
+def test_the_readme_shows_the_tools_two_images():
+    import re
+
+    tool = load_tool()
+    shown = re.findall(r'src="(docs/images/[^"]+)"', (REPO / "README.md").read_text("utf-8"))
+    made = sorted(f"docs/images/{name}.png" for name, (shot, _) in tool.images().items()
+                  if shot.dest == "readme")
+    assert sorted(shown) == made == ["docs/images/readme-edit.png",
+                                     "docs/images/readme-play-dark.png"]
+    assert sorted(p.name for p in tool.README_OUT.glob("*.png")) == [p.split("/")[-1] for p in made]
