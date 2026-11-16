@@ -24,6 +24,12 @@ FRETBOARD_WEIGHT_LABELS: Dict[str, str] = {
     'interior_mute_penalty': 'Muted inner string',
     'movement_penalty': 'Hand movement',
     'kept_finger_bonus': 'Kept finger',
+    'omitted_fifth_penalty': 'Left-out fifth',
+    'damped_mute_penalty': 'Damped string above the bass',
+    'bass_register_penalty': 'High bass',
+    'thin_shape_penalty': 'Thin shape',
+    'low_interval_penalty': 'Muddy low notes',
+    'muted_treble_penalty': 'Muted top string',
 }
 
 ENSEMBLE_WEIGHT_LABELS: Dict[str, str] = {
@@ -184,8 +190,11 @@ TOOLTIPS: Dict[str, str] = {
                                        "more (say 2 to 5), unless one finger on an outer string "
                                        "makes the reach and the rest stay within a fret of the "
                                        "lowest; such a shape spanning four frets or more isn't "
-                                       "considered at all. Set strongly negative to reject shapes "
-                                       "no hand can hold."),
+                                       "considered at all. Also charged for a cramped grip "
+                                       "(every finger, two side by side on the lowest fret, no "
+                                       "barre: F 10321x), unless the thumb can take a low bass "
+                                       "(D/F# 2x0232). Set strongly negative to reject shapes no "
+                                       "hand can hold."),
     'weight:position_penalty': ("How the picker treats fingerings further up the neck. More "
                                 "negative keeps fingerings closer to the nut."),
     'weight:fretted_finger_penalty': ("How the picker treats each fretted string, counting a "
@@ -200,11 +209,36 @@ TOOLTIPS: Dict[str, str] = {
                                     "076777; charged per string under it, on top of the barre "
                                     "weight. More negative avoids such grips."),
     'weight:interior_mute_penalty': ("How the picker treats a muted string buried between two "
-                                     "sounding strings. More negative avoids that shape."),
+                                     "sounding strings; charged twice for each, except the one "
+                                     "right above a fretted bass (Damped string above the bass). "
+                                     "More negative avoids that shape."),
     'weight:movement_penalty': ("How the picker treats the hand shifting from the previous "
                                 "chord, across the whole song. More negative steadies the hand."),
     'weight:kept_finger_bonus': ("How the picker treats a finger staying on the same string and "
                                  "fret between chords. More positive rewards keeping it there."),
+    'weight:omitted_fifth_penalty': ("How the picker treats a four-note chord voiced without its "
+                                     "plain fifth (C6 x32210, C7 x32310), when a full voicing also "
+                                     "fits and the shape still sounds all strings but two. More "
+                                     "negative keeps the fifth."),
+    'weight:damped_mute_penalty': ("How the picker treats a muted string right above a fretted "
+                                   "bass, which the bass finger leans over and damps (G 3x0033, "
+                                   "D/F# 2x0232). Not above an open bass or under a barre. More "
+                                   "negative avoids that shape."),
+    'weight:bass_register_penalty': ("How the picker treats a bass on the upper half of the "
+                                     "strings that sits an octave or more above where that note "
+                                     "is lowest on the neck (C/G xxx010); charged per octave. "
+                                     "More negative keeps the bass low."),
+    'weight:thin_shape_penalty': ("How the picker treats a shape sounding fewer strings than a "
+                                  "full strum (all but two, at least three: 4 of 6); charged "
+                                  "once, not for a two-note chord. More negative favors fuller "
+                                  "shapes."),
+    'weight:low_interval_penalty': ("How the picker treats two neighbouring notes a third or less "
+                                    "apart below G2, or a second or less below C3, which blur "
+                                    "into a rumble; charged once. More negative keeps the low "
+                                    "notes apart."),
+    'weight:muted_treble_penalty': ("How the picker treats a shape leaving the top string (the "
+                                    "high e) muted; charged once, not for a two-note chord. More "
+                                    "negative favors shapes that ring to the top."),
 
     # Ensemble voices / spacing / unisons.
     'voice_name': "Name of this voice, e.g. Soprano. Free text.",

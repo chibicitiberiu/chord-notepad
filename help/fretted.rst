@@ -403,7 +403,10 @@ while pushing it more negative clamps down on them.
        inner finger would have to make the stretch. Set strongly negative
        because no hand can hold such a shape; a clean lengthwise reach pays
        only "Compact shape". From four frets such a shape isn't considered at
-       all.
+       all. Also subtracted for a cramped grip: every finger used, two or more
+       side by side on the lowest fret with no barre possible (F 10321x) --
+       unless the thumb, over the neck, frets the bass low on the low E string
+       with the A string muted (D/F# 2x0232).
      - ``awkward_stretch_penalty``
      - -6.0
    * - High neck position
@@ -432,10 +435,11 @@ while pushing it more negative clamps down on them.
      - ``finger_barre_penalty``
      - -0.5
    * - Muted inner string
-     - Subtracted per muted string sitting between two sounding strings -- a
-       "buried" mute that a strum can't skip cleanly. Set strongly negative so
-       a plain barre chord beats a contorted shape with a dead string in the
-       middle.
+     - Subtracted twice per muted string sitting between two sounding strings
+       -- a "buried" mute that a strum can't skip cleanly -- except the one
+       right above a fretted bass ("Damped string above the bass"). Set
+       strongly negative so a plain barre chord beats a contorted shape with a
+       dead string in the middle.
      - ``interior_mute_penalty``
      - -4.0
    * - Hand movement
@@ -449,6 +453,45 @@ while pushing it more negative clamps down on them.
        to the next.
      - ``kept_finger_bonus``
      - +0.4
+   * - Left-out fifth
+     - Subtracted when a four-note chord is voiced without its plain perfect
+       fifth, as guitarists play C6 x32210 and C7 x32310. Such a voicing is
+       only considered when a full one also fits, the fifth isn't the bass
+       or next to another chord tone, and the shape still sounds all strings
+       but two. More negative keeps the fifth in.
+     - ``omitted_fifth_penalty``
+     - -2.4
+   * - Damped string above the bass
+     - Subtracted, instead of "Muted inner string", for a muted string right
+       above a fretted bass: the bass finger leans over and damps it, as in
+       G 3x0033 or D/F# 2x0232. Above an open bass, or under a barre that
+       reaches past it, the mute is a buried one.
+     - ``damped_mute_penalty``
+     - -2.0
+   * - High bass
+     - Subtracted per octave a bass on the upper half of the strings (the G
+       string and above on a six-string) sits above where that note is
+       lowest on the neck, so C/G is 332010 rather than xxx010. A bass on
+       the lower strings is left alone. With a capo it counts from the capo.
+     - ``bass_register_penalty``
+     - -3.0
+   * - Thin shape
+     - Subtracted once when fewer strings sound than a full strum: all but
+       two, and at least three (4 of 6, 3 of 4). Not for a two-note chord.
+       More negative favors fuller shapes over three-string fragments.
+     - ``thin_shape_penalty``
+     - -3.0
+   * - Muddy low notes
+     - Subtracted once when two neighbouring notes are a third or less apart
+       below G2, or a second or less below C3; they blur into a rumble.
+       Open G (G2-B2) and open E (E2-B2) are clear of it.
+     - ``low_interval_penalty``
+     - -1.5
+   * - Muted top string
+     - Subtracted once when the top string (the high e) is muted, so a shape
+       rings to the top (G/B x20003). Not for a two-note chord.
+     - ``muted_treble_penalty``
+     - -1.0
 
 .. note::
    These weights apply per voicing. A custom fretted voicing that omits

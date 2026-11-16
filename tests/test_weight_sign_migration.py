@@ -302,3 +302,38 @@ def test_v1_ensemble_omission_chains_to_the_ensemble_order(tmp_path):
     data["voicings"]["c"]["weights"]["movement"] = 0.4
     migrated = service._migrate_config(data, 1)
     assert migrated["voicings"]["c"]["weights"]["omit"] == ENSEMBLE_OMIT_WEIGHTS
+
+
+#: The fretboard weights a v4 config can carry (DEFAULT_WEIGHTS at v4), with
+#: their v4 defaults. Saved voicings persist this whole dict.
+_V4_FRETBOARD_WEIGHTS = {
+    'sounding_string_bonus': 1.2, 'open_string_bonus': 0.5, 'bass_note_bonus': 8.0,
+    'slash_bass_bonus': 12.0, 'span_penalty': -1.2, 'stretch_penalty': -0.7,
+    'awkward_stretch_penalty': -6.0, 'position_penalty': -0.6,
+    'fretted_finger_penalty': -0.5, 'barre_penalty': -1.0, 'finger_barre_penalty': -0.5,
+    'interior_mute_penalty': -4.0, 'movement_penalty': -1.0, 'kept_finger_bonus': 0.4,
+}
+
+
+def test_v4_fretboard_voicing_gets_the_acoustic_tuning_weights(tmp_path):
+    """The acoustic tuning added weights and changed no v4 default, so a v4
+    config needs no migration: a saved voicing with its full v4 weight dict
+    takes the new weights from the defaults, in the engine and the editor."""
+    from chordnotepad.models.fretboard_spec import DEFAULT_WEIGHTS, FretboardSpec
+    from chordnotepad.settings_forms.voicing_form import values_from_voicing
+    assert {k: DEFAULT_WEIGHTS[k] for k in _V4_FRETBOARD_WEIGHTS} == _V4_FRETBOARD_WEIGHTS
+    added = set(DEFAULT_WEIGHTS) - set(_V4_FRETBOARD_WEIGHTS)
+    assert added == {'omitted_fifth_penalty', 'damped_mute_penalty', 'bass_register_penalty',
+                     'thin_shape_penalty', 'low_interval_penalty', 'muted_treble_penalty'}
+
+    entry = {"model": "fretboard", "tuning": [40, 45, 50, 55, 59, 64],
+             "weights": dict(_V4_FRETBOARD_WEIGHTS, span_penalty=-1.5)}
+    data = {"version": 4, "voicings": {"mine": copy.deepcopy(entry)}}
+    migrated = _service(tmp_path)._migrate_config(data, 4)
+    assert migrated["voicings"]["mine"] == entry
+
+    spec = FretboardSpec.from_dict("mine", entry)
+    assert spec.weights == dict(DEFAULT_WEIGHTS, span_penalty=-1.5)
+    values = values_from_voicing("fretboard", entry)
+    for key in added:
+        assert float(values[f"weight:{key}"]) == DEFAULT_WEIGHTS[key]

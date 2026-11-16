@@ -118,17 +118,23 @@
    "weight:awkward_stretch_penalty": "-6.0",
    "weight:barre_penalty": "-1.0",
    "weight:bass_note_bonus": "8.0",
+   "weight:bass_register_penalty": "-3.0",
+   "weight:damped_mute_penalty": "-2.0",
    "weight:finger_barre_penalty": "-0.5",
    "weight:fretted_finger_penalty": "-0.5",
    "weight:interior_mute_penalty": "-4.0",
    "weight:kept_finger_bonus": "0.4",
+   "weight:low_interval_penalty": "-1.5",
    "weight:movement_penalty": "-1.0",
+   "weight:muted_treble_penalty": "-1.0",
+   "weight:omitted_fifth_penalty": "-2.4",
    "weight:open_string_bonus": "0.5",
    "weight:position_penalty": "-0.6",
    "weight:slash_bass_bonus": "12.0",
    "weight:sounding_string_bonus": "1.2",
    "weight:span_penalty": "-1.2",
-   "weight:stretch_penalty": "-0.7"
+   "weight:stretch_penalty": "-0.7",
+   "weight:thin_shape_penalty": "-3.0"
   }
  },
  "type": "VoicingEditorState"

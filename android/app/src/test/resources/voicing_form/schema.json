@@ -643,7 +643,7 @@
         },
         {
          "default": "-6.0",
-         "help": "How the picker treats a shape spanning exactly three frets (say 2 to 5), unless one finger on an outer string makes the reach and the rest stay within a fret of the lowest. Set strongly negative to reject shapes no hand can hold.",
+         "help": "How the picker treats a shape spanning three frets or more (say 2 to 5), unless one finger on an outer string makes the reach and the rest stay within a fret of the lowest; such a shape spanning four frets or more isn't considered at all. Also charged for a cramped grip (every finger, two side by side on the lowest fret, no barre: F 10321x), unless the thumb can take a low bass (D/F# 2x0232). Set strongly negative to reject shapes no hand can hold.",
          "id": "weight:awkward_stretch_penalty",
          "kind": "float",
          "label": "Awkward stretch",
@@ -693,7 +693,7 @@
         },
         {
          "default": "-4.0",
-         "help": "How the picker treats a muted string buried between two sounding strings. More negative avoids that shape.",
+         "help": "How the picker treats a muted string buried between two sounding strings; charged twice for each, except the one right above a fretted bass (Damped string above the bass). More negative avoids that shape.",
          "id": "weight:interior_mute_penalty",
          "kind": "float",
          "label": "Muted inner string",
@@ -717,6 +717,66 @@
          "id": "weight:kept_finger_bonus",
          "kind": "float",
          "label": "Kept finger",
+         "max": 100.0,
+         "min": -100.0,
+         "step": 0.1
+        },
+        {
+         "default": "-2.4",
+         "help": "How the picker treats a four-note chord voiced without its plain fifth (C6 x32210, C7 x32310), when a full voicing also fits and the shape still sounds all strings but two. More negative keeps the fifth.",
+         "id": "weight:omitted_fifth_penalty",
+         "kind": "float",
+         "label": "Left-out fifth",
+         "max": 100.0,
+         "min": -100.0,
+         "step": 0.1
+        },
+        {
+         "default": "-2.0",
+         "help": "How the picker treats a muted string right above a fretted bass, which the bass finger leans over and damps (G 3x0033, D/F# 2x0232). Not above an open bass or under a barre. More negative avoids that shape.",
+         "id": "weight:damped_mute_penalty",
+         "kind": "float",
+         "label": "Damped string above the bass",
+         "max": 100.0,
+         "min": -100.0,
+         "step": 0.1
+        },
+        {
+         "default": "-3.0",
+         "help": "How the picker treats a bass on the upper half of the strings that sits an octave or more above where that note is lowest on the neck (C/G xxx010); charged per octave. More negative keeps the bass low.",
+         "id": "weight:bass_register_penalty",
+         "kind": "float",
+         "label": "High bass",
+         "max": 100.0,
+         "min": -100.0,
+         "step": 0.1
+        },
+        {
+         "default": "-3.0",
+         "help": "How the picker treats a shape sounding fewer strings than a full strum (all but two, at least three: 4 of 6); charged once, not for a two-note chord. More negative favors fuller shapes.",
+         "id": "weight:thin_shape_penalty",
+         "kind": "float",
+         "label": "Thin shape",
+         "max": 100.0,
+         "min": -100.0,
+         "step": 0.1
+        },
+        {
+         "default": "-1.5",
+         "help": "How the picker treats two neighbouring notes a third or less apart below G2, or a second or less below C3, which blur into a rumble; charged once. More negative keeps the low notes apart.",
+         "id": "weight:low_interval_penalty",
+         "kind": "float",
+         "label": "Muddy low notes",
+         "max": 100.0,
+         "min": -100.0,
+         "step": 0.1
+        },
+        {
+         "default": "-1.0",
+         "help": "How the picker treats a shape leaving the top string (the high e) muted; charged once, not for a two-note chord. More negative favors shapes that ring to the top.",
+         "id": "weight:muted_treble_penalty",
+         "kind": "float",
+         "label": "Muted top string",
          "max": 100.0,
          "min": -100.0,
          "step": 0.1

@@ -80,3 +80,25 @@ def test_ensemble_same_bass_text_names_the_case():
     assert ENSEMBLE_WEIGHT_LABELS['same_bass_penalty'] == 'Same chord, same bass'
     text = TOOLTIPS['weight:same_bass_penalty']
     assert "C/E" in text and "lowest note" in text
+
+
+def test_every_fretboard_weight_has_a_label_and_help():
+    from chordnotepad.models.fretboard_spec import DEFAULT_WEIGHTS
+    from chordnotepad.settings_forms.voicing_texts import FRETBOARD_WEIGHT_LABELS
+    assert set(FRETBOARD_WEIGHT_LABELS) == set(DEFAULT_WEIGHTS)
+    for key in DEFAULT_WEIGHTS:
+        assert TOOLTIPS[f'weight:{key}']
+
+
+def test_acoustic_tuning_texts():
+    # guitar_chord_picker: _full_strum_strings is all strings but two, at
+    # least three; the register term only for a bass on the upper half of
+    # the strings; low mud below G2 / C3; the thumb only for a cramped grip.
+    assert "4 of 6" in TOOLTIPS['weight:thin_shape_penalty']
+    assert "two-note" in TOOLTIPS['weight:thin_shape_penalty']
+    assert "upper half" in TOOLTIPS['weight:bass_register_penalty']
+    assert "G2" in TOOLTIPS['weight:low_interval_penalty']
+    assert "C3" in TOOLTIPS['weight:low_interval_penalty']
+    assert "four-note" in TOOLTIPS['weight:omitted_fifth_penalty']
+    assert "fretted bass" in TOOLTIPS['weight:damped_mute_penalty']
+    assert "thumb" in TOOLTIPS['weight:awkward_stretch_penalty']
