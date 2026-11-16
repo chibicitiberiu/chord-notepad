@@ -20,6 +20,12 @@ param(
 $ErrorActionPreference = 'Stop'
 $Exe = (Resolve-Path $Exe).Path
 
+# A throwaway %APPDATA% (the app keeps its config and logs there): the real
+# AppData\Roaming\ChordNotepad must not exist when the Store package's smoke
+# test runs, or the package writes into it instead of its own redirected copy.
+$env:APPDATA = Join-Path ([System.IO.Path]::GetTempPath()) ("cn-smoke-" + [guid]::NewGuid())
+New-Item -ItemType Directory -Path $env:APPDATA | Out-Null
+
 function Invoke-Smoke([bool] $Software) {
     if ($Software) { $env:QT_QUICK_BACKEND = 'software' } else { Remove-Item Env:QT_QUICK_BACKEND -ErrorAction SilentlyContinue }
     $proc = Start-Process -FilePath $Exe -ArgumentList '--smoke' -PassThru
