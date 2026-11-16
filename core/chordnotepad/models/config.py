@@ -72,6 +72,10 @@ class Config:
     # Its second slider: the metronome click's level under the volume,
     # 0.0-1.0; 1.0 is the loudest click (audio/volume.py).
     metronome_volume: float = 1.0
+    # A chord clicked (tapped) in the text sounds the notes the chord sheet
+    # shows for it, as playback plays them. Off: each click is voiced from
+    # the chord clicked before it (PlaybackService's click picker).
+    click_plays_chart_voicing: bool = True
 
     # Notation
     notation: Literal["american", "european"] = "american"
@@ -181,6 +185,7 @@ class Config:
             "instrument": self.instrument,
             "volume": self.volume,
             "metronome_volume": self.metronome_volume,
+            "click_plays_chart_voicing": self.click_plays_chart_voicing,
             "notation": self.notation,
             "key": american_key(self.key),
             "window_geometry": self.window_geometry,
@@ -249,6 +254,8 @@ class Config:
             instrument=data.get("instrument", 0),
             volume=volume_from_config(data.get("volume", 1.0)),
             metronome_volume=metronome_volume_from_config(data.get("metronome_volume", 1.0)),
+            # On unless saved off (a config from before the setting has none).
+            click_plays_chart_voicing=data.get("click_plays_chart_voicing", True) is not False,
             notation=data.get("notation", "american"),
             # Older versions saved the key in the notation's spelling.
             key=american_key(data.get("key", "C")),

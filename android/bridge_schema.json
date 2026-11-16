@@ -726,6 +726,7 @@
     "SettingsValues": {
       "fields": {
         "bpm": "int",
+        "click_plays_chart_voicing": "bool",
         "font_family": "str",
         "font_size": "int",
         "key": "str",

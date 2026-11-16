@@ -232,6 +232,8 @@ class ChordSheetViewModel(Observable):
 
         # Observable state (private storage with leading underscore).
         self._rendered_song: Optional[RenderedSong] = None
+        # The generation ``_rendered_song`` was rendered for (-1: none yet).
+        self._rendered_generation: int = -1
         self._current_index: Optional[int] = None
         # The last playback ping (chord, index in the played song), kept until
         # playback stops so a song rendered after it can still place it.
@@ -264,6 +266,15 @@ class ChordSheetViewModel(Observable):
     def rendered_song(self) -> Optional[RenderedSong]:
         """The song currently displayed by the strip (``None`` before first render)."""
         return self._rendered_song
+
+    @property
+    def render_is_current(self) -> bool:
+        """Whether :attr:`rendered_song` is the render of the latest
+        :meth:`set_song` (its lines, key and the voicing then), so its notes
+        are what Play would sound now. False before the first render, and
+        from a ``set_song`` until its render lands (or for as long as the
+        sheet is off screen and holds the render back)."""
+        return self._rendered_song is not None and self._rendered_generation == self._generation
 
     @property
     def current_index(self) -> Optional[int]:
@@ -510,6 +521,7 @@ class ChordSheetViewModel(Observable):
                     "Dropping stale chord-sheet result (generation %d, current %d)",
                     gen, self._generation)
                 return
+            self._rendered_generation = gen
             self._apply_rendered(rendered)
         return _apply
 

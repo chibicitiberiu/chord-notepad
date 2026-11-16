@@ -54,6 +54,8 @@ data class SettingsValues(
     @SerialName("time_signature_unit") val timeSignatureUnit: Int,
     /** Sent always (no default: kotlinx leaves a default value out, and Python needs every field). */
     @SerialName("word_wrap") val wordWrap: Boolean,
+    /** A tapped chord sounds as the chord sheet shows it; off, voiced from the chord tapped before. Sent always too. */
+    @SerialName("click_plays_chart_voicing") val clickPlaysChartVoicing: Boolean,
 )
 
 /** The current settings (re-sent whenever the config changes) and their limits. */

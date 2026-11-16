@@ -38,8 +38,10 @@ _GENERAL_FIELDS = (
 _AUDIO_FIELDS = ('soundfont_path', 'audio_driver')
 _WRAP_FIELDS = ('word_wrap',)
 _THEME_FIELDS = ('ui_theme',)
+#: Read when used (a chord click reads the config), so no change flag.
+_LIVE_FIELDS = ('click_plays_chart_voicing',)
 _ALL_SCALAR_FIELDS = (_FONT_FIELDS + _GENERAL_FIELDS + _AUDIO_FIELDS + _WRAP_FIELDS
-                      + _THEME_FIELDS)
+                      + _THEME_FIELDS + _LIVE_FIELDS)
 
 
 @dataclass
@@ -93,6 +95,7 @@ class SettingsViewModel:
         self.soundfont_path: Optional[str] = config.soundfont_path
         self.audio_driver: Optional[str] = config.audio_driver
         self.ui_theme: str = config.ui_theme
+        self.click_plays_chart_voicing: bool = config.click_plays_chart_voicing
 
         # Deep working copy of the voicings registry.
         self._working_voicings: Dict[str, dict] = copy.deepcopy(config.voicings)

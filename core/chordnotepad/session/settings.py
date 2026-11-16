@@ -63,6 +63,9 @@ class SettingsValues:
         time_signature_unit: Its denominator: 1, 2, 4, 8 or 16.
         word_wrap: Whether long lines wrap at the editor's edge (off: the
             text scrolls sideways and chords stay over their lyrics).
+        click_plays_chart_voicing: Whether a chord clicked (tapped) in the
+            text sounds the notes the chord sheet shows for it; off, each
+            click is voiced from the chord clicked before it.
     """
 
     font_family: str
@@ -75,6 +78,7 @@ class SettingsValues:
     time_signature_beats: int
     time_signature_unit: int
     word_wrap: bool = False
+    click_plays_chart_voicing: bool = True
 
     def check(self) -> None:
         """Raise ValueError naming the first value that is out of range."""

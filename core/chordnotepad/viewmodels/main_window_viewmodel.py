@@ -623,6 +623,14 @@ class MainWindowViewModel(Observable):
         self.set_and_notify("current_playback_event", None)
         logger.info("Playback state reset complete")
 
+    @property
+    def click_plays_chart_voicing(self) -> bool:
+        """Whether a clicked chord sounds the notes the chord sheet shows for
+        it (config ``click_plays_chart_voicing``; on unless saved off). Read
+        at each click, so a saved setting applies at once; off, clicks go
+        through :meth:`on_chord_clicked`'s click picker."""
+        return self._config.get("click_plays_chart_voicing", True) is not False
+
     def on_chord_clicked(self, chord_info: ChordInfo, rolled: bool = False,
                          key: Optional[str] = None) -> None:
         """Handle chord click event (play chord immediately).

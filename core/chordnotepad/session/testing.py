@@ -605,6 +605,8 @@ class FakeChordSheet(Observable):
         self._zoom = 1.0
         self._current_index: Optional[int] = None
         self._rendered_song: Any = None
+        #: Whether a render finished since the last set_song.
+        self._render_current = False
 
     # -- what the session reads ------------------------------------------------
 
@@ -654,6 +656,11 @@ class FakeChordSheet(Observable):
         return self._rendered_song
 
     @property
+    def render_is_current(self) -> bool:
+        """Whether :meth:`finish_render` ran since the last :meth:`set_song`."""
+        return self._rendered_song is not None and self._render_current
+
+    @property
     def fretted_views_unavailable_reason(self) -> Optional[str]:
         """Why some views are unavailable, or None."""
         if len(self._available_views) == len(self._renderers):
@@ -663,8 +670,9 @@ class FakeChordSheet(Observable):
     # -- what the session calls ------------------------------------------------
 
     def set_song(self, lines: Any, key: Optional[str]) -> None:
-        """Record the fed song."""
+        """Record the fed song (the render is stale until the next finish_render)."""
         self.fed.append(([c.chord for line in lines for c in line.chords], key))
+        self._render_current = False
 
     def on_playback_chord(self, chord_info: Any, chord_index: Optional[int] = None) -> None:
         """Record the ping and move the playhead."""
@@ -736,6 +744,7 @@ class FakeChordSheet(Observable):
     def finish_render(self, song: Any, fingering: bool = False) -> None:
         """Adopt ``song`` as if a render finished (fretted views if ``fingering``)."""
         self._rendered_song = song
+        self._render_current = True
         self.notify("rendered_song", song)
         views = [r.id for r in self._renderers if fingering or not r.requires_fingering]
         self.set_and_notify("available_views", views)

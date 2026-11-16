@@ -124,13 +124,15 @@ class ScreenBridgeTest {
         commands.insertChord(4, "Am")
         assertSent("insert_chord", """{"at":4,"chord":"Am"}""")
 
-        val values = SettingsValues("TkFixedFont", 11, "american", "", true, 10, 120, 4, 4, wordWrap = false)
+        val values = SettingsValues("TkFixedFont", 11, "american", "", true, 10, 120, 4, 4, wordWrap = false,
+            clickPlaysChartVoicing = true)
         commands.commitSettings(values)
         assertSent(
             "commit_settings",
             """{"values":{"font_family":"TkFixedFont","font_size":11,"notation":"american","key":"",
                "show_quick_start_on_startup":true,"max_recent_files":10,"bpm":120,
-               "time_signature_beats":4,"time_signature_unit":4,"word_wrap":false},"invalid_numbers":null}""",
+               "time_signature_beats":4,"time_signature_unit":4,"word_wrap":false,
+               "click_plays_chart_voicing":true},"invalid_numbers":null}""",
         )
         commands.commitSettings(null)
         assertSent("commit_settings", """{"values":null,"invalid_numbers":null}""")

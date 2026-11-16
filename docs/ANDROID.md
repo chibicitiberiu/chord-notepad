@@ -463,6 +463,10 @@ raises is an `UnexpectedError` whose `context` is the command name.
   `values.word_wrap` (config `word_wrap`, default false) is the editor's
   word wrap, shared with the desktop's View > Word Wrap; the editors follow
   `EditorState.word_wrap`, which changes as soon as it's committed.
+  `values.click_plays_chart_voicing` (config `click_plays_chart_voicing`,
+  default true, also for a config without it) makes a chord tapped in the
+  text sound the chord sheet's notes for it (`tap_chord_at`); off, taps are
+  voiced by click-to-hear's own picker. It is read at each tap.
   `apply_settings {changes: SettingsValues}` writes and applies them at once
   (out-of-range values: `UnexpectedError`, nothing written);
   `set_show_quick_start_on_startup {show}` is "Don't show this again".

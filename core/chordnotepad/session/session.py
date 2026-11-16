@@ -178,6 +178,23 @@ def _same_place(old: str, new: str, offset: int) -> int:
     return min(starts[line] + column, end)
 
 
+def _same_chord(source: Any, chord: Any) -> bool:
+    """Whether a rendered chord's source token is ``chord`` of the text:
+    the same span and the same name."""
+    return (source is not None and source.start == chord.start
+            and source.end == chord.end and source.chord == chord.chord)
+
+
+def _same_pass(chords: Sequence[Any], a: int, b: int) -> bool:
+    """Whether strip chords ``a`` and ``b`` of a loop-unrolled song are in
+    the same pass: from one to the other the song never goes back in the
+    text (a loop's next pass starts over at its first chord, an inner
+    loop's too), so their source offsets only go up."""
+    lo, hi = min(a, b), max(a, b)
+    starts = [c.chord_info.start for c in chords[lo:hi + 1] if c.chord_info is not None]
+    return all(x < y for x, y in zip(starts, starts[1:]))
+
+
 def _label_names(parsed: Sequence[Any], before: Optional[int] = None) -> Tuple[str, ...]:
     """The valid labels of parsed directives in song order (only those
     starting before ``before``, if given)."""
@@ -1391,24 +1408,43 @@ class AppSession:
         moves there (a paused song is dropped) and the chord sounds; while a
         song plays, playback jumps there instead of sounding the chord over
         it.
+
+        With the ``click_plays_chart_voicing`` setting on (the default) the
+        chord sounds the notes the chord sheet shows for it, which are the
+        ones Play sounds (:meth:`_chart_index_of_tap`); a chord a loop
+        repeats sounds as in the pass a paused (or, on the Tk desktop,
+        playing) song is in, else as in its first pass, and where the
+        playhead follows taps it lands on that pass. Without a current
+        render of that chord, and with the setting off, it is voiced by
+        click-to-hear's own picker, from the chord clicked before it.
         """
         chord = chord_at(self._detector.detected_lines, offset)
         if chord is None or not chord.is_valid:
             return
-        if self._tracks_playhead:
-            if self._playback_status() is PlaybackStatus.PLAYING:
-                self._seek(chord.start)
-                return
+        if self._tracks_playhead and self._playback_status() is PlaybackStatus.PLAYING:
             self._seek(chord.start)
-        # Roman numerals resolve in the key in force where the chord is (a
-        # {key: D} above it), not only the document's key (Tibi, 2026-11-15:
-        # a song in D sounded in C when its chords were clicked).
-        key = song_defaults.key_at(self._detector.detected_lines, chord.start, self._main.key)
+            return
+        # Picked before the seek below drops a paused song (and its pass).
+        index = self._chart_index_of_tap(chord)
+        if self._tracks_playhead:
+            self._seek(chord.start, self._pass_of_strip(index) if index is not None else 0)
         try:
-            if rolled:
-                self._main.on_chord_clicked(chord, rolled=True, key=key)
+            if index is not None:
+                if rolled:
+                    self._chord_sheet.audition(index, rolled=True)
+                else:
+                    self._chord_sheet.audition(index)
             else:
-                self._main.on_chord_clicked(chord, key=key)
+                # Roman numerals resolve in the key in force where the chord
+                # is (a {key: D} above it), not only the document's key (Tibi,
+                # 2026-11-15: a song in D sounded in C when its chords were
+                # clicked).
+                key = song_defaults.key_at(self._detector.detected_lines, chord.start,
+                                           self._main.key)
+                if rolled:
+                    self._main.on_chord_clicked(chord, rolled=True, key=key)
+                else:
+                    self._main.on_chord_clicked(chord, key=key)
         except AudioInitializationError as e:
             self._set_status(formatting.AUDIO_UNAVAILABLE_STATUS)
             self._report_audio_failure(str(e), from_click=True)
@@ -3455,6 +3491,65 @@ class AppSession:
         if source is None or source.start != chord.start:
             return 0
         return self._pass_of_strip(chord_index)
+
+    def _chart_index_of_tap(self, chord: "ChordInfo") -> Optional[int]:
+        """The chord sheet's chord whose notes a tap on text chord ``chord``
+        sounds (``click_plays_chart_voicing``), or None for click-to-hear's
+        own picker.
+
+        Only from a render of the text as it is now: detection is up to
+        date (``_detected_text``), the sheet's song is the render of the
+        latest song it was fed (``render_is_current``: the lines, the key and
+        the voicing), and the strip chord has the tapped chord's span and
+        name. Of a chord a loop repeats, the occurrence in the pass the
+        paused (or playing) song is in when that pass has it, else the
+        first. Logs which way the tap goes.
+        """
+        if not self._main.click_plays_chart_voicing:
+            logger.debug("Click-to-hear: %s with the click picker (setting off)", chord.chord)
+            return None
+        sheet = self._chord_sheet
+        song = sheet.rendered_song if sheet is not None else None
+        if song is None:
+            logger.debug("Click-to-hear: %s with the click picker (no chord sheet render)",
+                         chord.chord)
+            return None
+        if self._detected_text != self._text or not sheet.render_is_current:
+            logger.debug("Click-to-hear: %s with the click picker (the chord sheet's render "
+                         "is older than the text)", chord.chord)
+            return None
+        occurrences = [
+            i for i, rendered in enumerate(song.chords)
+            if not rendered.skipped and getattr(rendered, "midi_notes", None)
+            and _same_chord(rendered.chord_info, chord)]
+        if not occurrences:
+            logger.debug("Click-to-hear: %s with the click picker (not in the chord sheet)",
+                         chord.chord)
+            return None
+        index = occurrences[0]
+        current = self._sounding_strip_index()
+        if current is not None:
+            index = next((i for i in occurrences if _same_pass(song.chords, i, current)), index)
+        logger.debug("Click-to-hear: %s as the chord sheet shows it (chord %d, pass %d)",
+                     chord.chord, index, self._pass_of_strip(index) + 1)
+        return index
+
+    def _sounding_strip_index(self) -> Optional[int]:
+        """The strip index of the chord a paused or playing song is on, or
+        None when idle (or the strip doesn't have it there)."""
+        if self._playback_status() is PlaybackStatus.IDLE:
+            return None
+        if self._tracks_playhead:
+            # Pings keep the playhead on the sounding chord in its pass.
+            found = self._playhead_strip_chord()
+            return found[0] if found is not None else None
+        sheet = self._chord_sheet
+        song = sheet.rendered_song if sheet is not None else None
+        index, span = self._playback.chord_index, self._playback.playing_span
+        if song is None or index is None or span is None or not 0 <= index < len(song.chords):
+            return None
+        source = song.chords[index].chord_info
+        return index if source is not None and source.start == span.start else None
 
     def _text_chord_of_strip(self, index: int) -> Optional["ChordInfo"]:
         """The valid chord of the current text that strip chord ``index`` is

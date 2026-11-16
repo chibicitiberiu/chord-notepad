@@ -21,7 +21,7 @@ from chordnotepad.session.testing import EventRecorder, FakePlayer, InMemoryDocu
 
 DEFAULTS = dict(font_family="TkFixedFont", font_size=11, show_quick_start_on_startup=True,
                 max_recent_files=10, bpm=120, time_signature_beats=4, time_signature_unit=4,
-                word_wrap=False)
+                word_wrap=False, click_plays_chart_voicing=True)
 
 
 def read(notation, key):

@@ -52,6 +52,7 @@
   ],
   "values": {
    "bpm": 120,
+   "click_plays_chart_voicing": true,
    "font_family": "TkFixedFont",
    "font_size": 11,
    "key": "C",

@@ -762,10 +762,28 @@ is for tests that bring their own player.
   the desktop text, so only texts that name a menu or control the Qt window
   words differently have a Qt variant; its Quick Start picture is
   `resources/quickstart/chord_sheet_qt.png`.
-- **Click-to-hear has its own picker.** `play_chord_immediate` voices on the
-  session thread with `PlaybackService._click_picker`, built on the first
-  click and dropped by `set_voicing`, never with the picker a playback render
-  uses on the RenderThread. Clicks voice-lead from one to the next, across
+- **A clicked chord sounds as the chord sheet shows it.** With the
+  `click_plays_chart_voicing` setting on (config, `SettingsValues`; on by
+  default and for a config without the key), `tap_chord_at` plays the
+  chord sheet's notes for the chord (`ChordSheetViewModel.audition`, rolled
+  for a Shift+click), which are the ones Play sounds
+  (`_chart_index_of_tap`). Only from a render of the text as it is now:
+  detection is up to date (`_detected_text == _text`), the sheet's render is
+  of the latest song it was fed (`render_is_current`: its generation, so a
+  new text, key, voicing or time signature makes it stale until the next
+  render lands, and a hidden sheet stays stale), and the strip chord has the
+  tapped chord's span and name. Of a chord a loop repeats it takes the
+  occurrence in the pass a paused (Tk desktop: playing) song is on, else the
+  first; "the same pass" means the strip never goes back in the text between
+  the two (`_same_pass`). Where the playhead follows taps, the tap seeks to
+  that pass, so the sheet's cursor is on the card that sounds. Each tap logs
+  (debug) which way it went.
+- **Otherwise click-to-hear has its own picker.** With the setting off, or
+  without such a render (none yet, stale, the chord not in it),
+  `play_chord_immediate` voices on the session thread with
+  `PlaybackService._click_picker`, built on the first click and dropped by
+  `set_voicing`, never with the picker a playback render uses on the
+  RenderThread. Those clicks voice-lead from one to the next, across
   playback. On Android the session thread is not the UI thread, so a slow
   voicing delays the next command, not the UI.
 - **Audio across the app lifecycle.** `app_background` pauses, saves the
