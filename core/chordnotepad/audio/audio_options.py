@@ -12,7 +12,10 @@ SettingValue = Union[str, int, float]
 
 #: Audio drivers tried, in order, when the preferred one is unset or fails.
 PLATFORM_DRIVERS: Dict[str, List[str]] = {
-    "win32": ["dsound", "wasapi", "waveout"],
+    # No waveout: on a machine without a working output it never returns
+    # (seen on the CI runner), so the app hung at start-up instead of saying
+    # there is no audio; where dsound and wasapi both fail it adds nothing.
+    "win32": ["dsound", "wasapi"],
     "darwin": ["coreaudio"],
     "android": ["oboe", "opensles"],
 }
