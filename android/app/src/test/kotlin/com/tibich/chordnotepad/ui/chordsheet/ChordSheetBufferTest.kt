@@ -27,7 +27,7 @@ class ChordSheetBufferTest {
     private val fixtures = listOf(
         "american_keyboard", "american_staff", "american_fret", "american_tab",
         "american_staff_z1728", "multikey_staff", "multikey_tab_z0833",
-        "american_keyboard_z125_h400",
+        "american_keyboard_z125_h480",
     )
 
     @Test
@@ -67,7 +67,7 @@ class ChordSheetBufferTest {
 
     @Test
     fun `a tall piano roll decodes rounded bars and the names in them`() {
-        val buffer = ChordSheetBuffer.decode(bytes("american_keyboard_z125_h400"))
+        val buffer = ChordSheetBuffer.decode(bytes("american_keyboard_z125_h480"))
         val bars = buffer.content.ops.filterIsInstance<RectOp>().filter { op -> op.tags.any { it.startsWith("note:") } }
         assertTrue(bars.isNotEmpty() && bars.all { it.radius > 0f && it.outline == null })
         val names = buffer.content.ops.filterIsInstance<TextOp>().filter { "note-label" in it.tags }
