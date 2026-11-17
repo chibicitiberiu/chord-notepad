@@ -239,8 +239,9 @@ you choose the file name:
      ``{bpm}`` change keeps its place.
 
 Like a MIDI export, it's **the whole song, from the top**, with every loop
-played out, whatever the cursor or the playhead is on. Two seconds of the
-last chord ringing out follow the end. The export is a copy: the song stays
+played out, whatever the cursor or the playhead is on. After the last chord
+the file goes on while it rings out: two seconds at least, longer for a
+sound that fades slowly such as a pad, and eight at most. The export is a copy: the song stays
 open as it was, and the ``.wav`` file doesn't join the recent songs.
 
 One audio export runs at a time. Choosing **Export audio** again before the
@@ -250,3 +251,14 @@ status says "Exported audio".
 A WAV file is large: about 10 MB per minute of music. If the export fails (a
 song without chords, a full disk, or a folder the app can't write to), a
 message says why.
+
+.. only:: android
+
+   Android makes the file as soon as you tap **Save** in the picker, so an
+   export that fails after that leaves it behind, empty or cut short. The
+   message names it; delete it in your files app if you don't need it.
+
+.. only:: desktop
+
+   Quitting while an audio export is still running stops it, and no file is
+   written.

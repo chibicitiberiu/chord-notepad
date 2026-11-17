@@ -657,8 +657,14 @@ may be using.
   `DocumentStore.write_file` on its own thread and deletes the temp file,
   also on failure or abort. Its progress comes back through `host.post` every
   5% ("Exporting audio… 40%"); "Exported audio: <location>" when done.
-  `shutdown()` aborts it (`should_abort`). `start()` removes temp files older
-  than a day (newer ones may be another window's export).
+  A missing SoundFont or a libfluidsynth that won't load is also said before
+  the picker (`audio_export_problem`). On Android a failure after the pick
+  adds a note that the picked file is left behind (the store can't delete).
+  The tail runs at least 2 s and on until a block peaks below 16, at most
+  8 s. `shutdown()` aborts it (`should_abort`) and waits up to 2 s
+  (`BackgroundWorker.join`) so the job deletes its temp file; quitting
+  doesn't ask. `start()` removes temp files older than a day (newer ones may
+  be another window's export).
 - `PlaybackService.stop_playback` doesn't join the render thread (it waited
   up to 2 s). `_start_lock` orders the render thread's "check cancel → wire
   the player → `player.start_playback()`" against stop's "cancel and take the

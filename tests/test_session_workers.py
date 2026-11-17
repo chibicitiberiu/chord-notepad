@@ -90,3 +90,22 @@ def test_the_thread_starts_with_the_first_job():
     worker = BackgroundWorker(ManualHost(), name="LazyWorker")
     assert all(t.name != "LazyWorker" for t in threading.enumerate())
     assert worker.wait_idle(timeout=0)  # idle with nothing submitted
+
+
+def test_join_waits_for_an_aborting_job_after_shutdown():
+    host = ManualHost()
+    worker = BackgroundWorker(host)
+    assert worker.join(0.1)                      # never started
+    running, finished = threading.Event(), []
+
+    def job(should_abort):
+        running.set()
+        while not should_abort():
+            threading.Event().wait(0.01)
+        finished.append(True)                    # its clean-up ran
+
+    worker.submit(job, lambda outcome: None, pass_abort=True)
+    assert running.wait(5)
+    worker.shutdown()
+    assert worker.join(5)
+    assert finished == [True]

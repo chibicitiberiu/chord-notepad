@@ -81,7 +81,7 @@ def live_play(events, multiplier=1.0):
     return seq.played
 
 
-def test_the_plan_is_what_the_live_sequencer_plays():
+def test_the_plan_is_in_the_order_the_live_sequencer_plays():
     events = clicked_chords()
     planned = plan_events(events)
     assert [(e.tick, e.kind, e.channel, e.key) for e in planned] == live_play(events)
@@ -197,10 +197,14 @@ class FakeSynth:
     def play(self, event):
         self.played.append((self.frames, event))
 
+    #: The (left, right) sample every frame holds; below SILENCE_PEAK, so
+    #: the file ends after the shortest tail.
+    sample = (3, -5)
+
     def render(self, frames):
         assert 0 < frames <= audio_export.BLOCK_FRAMES
         self.frames += frames
-        return b"\x10\x00\x20\x00" * frames
+        return array.array("h", self.sample * frames).tobytes()
 
     def delete(self):
         self.deleted = True
@@ -235,8 +239,60 @@ def test_write_wav_plays_each_event_at_its_frame(fake_synth, soundfont, tmp_path
         assert (w.getnchannels(), w.getsampwidth(), w.getframerate()) == (2, 2, 44100)
         assert w.getnframes() == total_frames(planned) == synth.frames
         assert w.getnframes() == round((2.0 + audio_export.TAIL_SECONDS) * 44100)  # last off at 2 s
-        assert array.array("h", w.readframes(2)).tolist() == [16, 32, 16, 32]
+        assert array.array("h", w.readframes(2)).tolist() == [3, -5, 3, -5]
     assert progress == pytest.approx([0.05 * i for i in range(1, 21)])
+
+
+class DecayingSynth(FakeSynth):
+    """A pad: full level until the last note-off, then halving every 0.25 s."""
+
+    def __init__(self, soundfont, sample_rate):
+        super().__init__(soundfont, sample_rate)
+        self.released_at = None
+
+    def play(self, event):
+        super().play(event)
+        self.released_at = self.frames if event.kind == NOTE_OFF else None
+
+    def render(self, frames):
+        out = array.array("h")
+        for i in range(frames):
+            t = self.frames + i
+            level = 8000 if self.released_at is None else int(
+                8000 * 0.5 ** ((t - self.released_at) / (0.25 * 44100)))
+            out.extend((level, -level))
+        self.frames += frames
+        return out.tobytes()
+
+
+def test_a_long_release_rings_out_until_a_block_is_silent(monkeypatch, soundfont, tmp_path):
+    monkeypatch.setattr(audio_export, "open_synth", DecayingSynth)
+    planned = plan_events(clicked_chords())
+    end = audio_export.frame_of(planned[-1].tick)
+    out = tmp_path / "pad.wav"
+    progress = []
+    write_wav(planned, str(out), AudioExportSettings(soundfont), progress=progress.append)
+    with wave.open(str(out)) as w:
+        frames = w.getnframes()
+        samples = array.array("h", w.readframes(frames))
+    # 8000 halves to below 16 in log2(500) ~ 9 quarter-seconds: longer than
+    # the 2 s minimum, and it stops at the first silent block.
+    tail = (frames - end) / 44100
+    assert 2.0 < tail < 2.6
+    assert max(abs(v) for v in samples[-2 * audio_export.BLOCK_FRAMES:]) < audio_export.SILENCE_PEAK
+    assert max(abs(v) for v in samples[-4 * audio_export.BLOCK_FRAMES:-2 * audio_export.BLOCK_FRAMES]) \
+        >= audio_export.SILENCE_PEAK
+    assert progress[-1] == 1.0 and progress == sorted(progress)
+
+
+def test_a_release_that_never_ends_is_cut_at_the_longest_tail(monkeypatch, fake_synth, soundfont,
+                                                              tmp_path):
+    monkeypatch.setattr(FakeSynth, "sample", (500, 500))
+    planned = plan_events(clicked_chords())
+    out = tmp_path / "drone.wav"
+    write_wav(planned, str(out), AudioExportSettings(soundfont))
+    with wave.open(str(out)) as w:
+        assert w.getnframes() == total_frames(planned, tail_seconds=audio_export.MAX_TAIL_SECONDS)
 
 
 def test_write_wav_stops_when_asked_and_frees_the_synth(fake_synth, soundfont, tmp_path):
@@ -261,6 +317,25 @@ def test_write_wav_needs_a_soundfont(fake_synth, tmp_path):
     with pytest.raises(AudioInitializationError, match="Soundfont not found"):
         write_wav([], str(tmp_path / "a.wav"), AudioExportSettings(str(tmp_path / "gone.sf2")))
     assert fake_synth.instances == []
+
+
+def test_problems_are_named_before_any_file_is_asked_for(tmp_path, monkeypatch):
+    assert audio_export.soundfont_problem(None) == "No soundfont found. Choose one in Settings."
+    assert audio_export.soundfont_problem(str(tmp_path / "gone.sf2")).startswith("Soundfont not found")
+    (tmp_path / "a.sf2").write_bytes(b"x")
+    assert audio_export.soundfont_problem(str(tmp_path / "a.sf2")) is None
+    import builtins
+
+    real_import = builtins.__import__
+
+    def no_fluidsynth(name, *args, **kwargs):
+        if name == "chordnotepad.audio.fluidsynth_import":
+            raise OSError("libfluidsynth.so.3: cannot open shared object file")
+        return real_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", no_fluidsynth)
+    assert audio_export.synth_problem() == (
+        "FluidSynth could not be loaded: libfluidsynth.so.3: cannot open shared object file")
 
 
 # -- temp files --------------------------------------------------------------------
@@ -359,8 +434,9 @@ def test_a_real_export_is_a_wav_of_the_songs_length_with_sound(tmp_path):
         assert (w.getnchannels(), w.getsampwidth(), w.getframerate()) == (2, 2, 44100)
         frames = w.getnframes()
         samples = array.array("h", w.readframes(frames))
-    # Four bars at 120 (8 s), the last click's 40 ms and the 2 s tail.
-    assert frames == total_frames(planned)
-    assert abs(frames / 44100 - (8.0 + audio_export.TAIL_SECONDS)) < 0.1
+    # Four bars at 120 (8 s), then 2 s of tail or a little more while the
+    # piano rings.
+    assert total_frames(planned) <= frames < total_frames(planned, tail_seconds=4.0)
+    assert abs(frames / 44100 - (8.0 + audio_export.TAIL_SECONDS)) < 0.5
     assert max(abs(s) for s in samples[:44100]) > 1000          # the first chord sounds
     assert max(abs(s) for s in samples[-4410:]) < 200            # and the tail dies away

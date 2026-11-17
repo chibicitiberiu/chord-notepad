@@ -22,6 +22,8 @@ was cancelled or the worker shut down, so a long render or search can stop
 early (Suggest Capo passes it to the renderer and the capo scoring, which
 then raise :class:`~exceptions.RenderAborted`). Any other job that already
 started runs to its end; its outcome is just not delivered.
+:meth:`BackgroundWorker.join` waits for the thread after a shutdown (the
+audio export, so a stopped job gets to delete its temp file).
 """
 
 import logging
@@ -135,6 +137,19 @@ class BackgroundWorker:
                 return
             self._shut_down = True
         self._queue.put(_STOP)
+
+    def join(self, timeout: float) -> bool:
+        """Wait up to ``timeout`` seconds for the thread to end after
+        :meth:`shutdown` (the job running then finishes or stops first).
+
+        Returns:
+            True if no thread is left running (or none was ever started).
+        """
+        thread = self._thread
+        if thread is None or thread is threading.current_thread():
+            return True
+        thread.join(timeout)
+        return not thread.is_alive()
 
     @property
     def is_shut_down(self) -> bool:

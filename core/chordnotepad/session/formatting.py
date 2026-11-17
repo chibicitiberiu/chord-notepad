@@ -194,6 +194,15 @@ NO_CHORDS_TO_EXPORT_MESSAGE = f"{EXPORT_FAILED}:\nThere are no chords to export.
 AUDIO_EXPORT_FAILED = "Failed to export audio file"
 #: Export Audio on a song without chords (said before any file is asked for).
 NO_CHORDS_TO_EXPORT_AUDIO_MESSAGE = f"{AUDIO_EXPORT_FAILED}:\nThere are no chords to export."
+
+
+def audio_export_left_file_note(display_name: str) -> str:
+    """After an audio export failed on Android: its picker made the file
+    already, and the document store can't delete it."""
+    return (f"Android made {display_name} when you picked it, so it may be empty or "
+            "incomplete. Delete it in your files app if you don't need it.")
+
+
 #: Export Audio while an audio export is still being written (said before
 #: the picker: on Android picking a name already makes the file).
 AUDIO_EXPORT_BUSY_TITLE = "Export Audio"

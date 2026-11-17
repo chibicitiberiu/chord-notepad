@@ -74,7 +74,7 @@ Item {
     }
     readonly property Action exportAudioAction: Action {
         objectName: "exportAudioAction"
-        text: "Export au&dio…"
+        text: "Export a&udio…"
         onTriggered: acts.store.submit("export_audio")
     }
     readonly property Action quitAction: Action {

@@ -102,6 +102,9 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+#: How long shutdown waits for a running audio export to stop.
+AUDIO_EXPORT_STOP_WAIT_S = 2.0
+
 F = TypeVar("F", bound=Callable[..., Any])
 
 Selection = Optional[Sequence[int]]
@@ -564,6 +567,14 @@ class AppSession:
         # deletes its temp file.
         self._worker.shutdown()
         self._audio_worker.shutdown()
+        if self._audio_job is not None:
+            # A moment for it to stop and delete its temp file (it checks
+            # between blocks); one that doesn't is removed at a later start.
+            if self._audio_worker.join(AUDIO_EXPORT_STOP_WAIT_S):
+                logger.info("Stopped the running audio export")
+            else:
+                logger.warning("The audio export didn't stop within %.0f s; its temp file "
+                               "is removed at a later start", AUDIO_EXPORT_STOP_WAIT_S)
         self._audio_job = None
         self._main.unobserve("current_text", self._on_replaced)
         self._main.unobserve("current_document", self._on_document)
@@ -3523,6 +3534,11 @@ class AppSession:
             self._emitter.emit(UserError(
                 formatting.FILE_ERROR_TITLE, formatting.NO_CHORDS_TO_EXPORT_AUDIO_MESSAGE))
             return
+        problem = self._main.audio_export_problem()
+        if problem:
+            self._emitter.emit(UserError(
+                formatting.FILE_ERROR_TITLE, f"{formatting.AUDIO_EXPORT_FAILED}:\n{problem}"))
+            return
         suggested = formatting.audio_export_name(self._export_stem())
         ref = self._as_ref((yield PickDocumentRequest(0, PickMode.EXPORT_AUDIO, suggested)))
         if ref is None or self._audio_job is not None:
@@ -3556,9 +3572,14 @@ class AppSession:
         # Not remembered as recent: exports aren't documents to reopen here.
         if self._main.finish_audio_export(ref, outcome.error):
             self._set_status(formatting.exported_audio_status(ref.location))
-        else:
-            self._set_status(formatting.READY)
-            self._file_error(formatting.AUDIO_EXPORT_FAILED, ref)
+            return
+        self._set_status(formatting.READY)
+        message = formatting.file_error_message(
+            formatting.AUDIO_EXPORT_FAILED, ref.location, self._main.last_error)
+        if self._android:
+            # The picker made the file, and the store can't delete it.
+            message += "\n\n" + formatting.audio_export_left_file_note(ref.display_name)
+        self._emitter.emit(UserError(formatting.FILE_ERROR_TITLE, message))
 
     def _close_flow(self) -> Flow:
         if not (yield from self._confirm_discard()):

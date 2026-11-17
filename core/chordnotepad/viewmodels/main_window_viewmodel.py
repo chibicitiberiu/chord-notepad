@@ -451,6 +451,14 @@ class MainWindowViewModel(Observable):
             self._last_error = _describe_error(e)
             return False
 
+    def audio_export_problem(self) -> Optional[str]:
+        """Why an audio export can't run here (no SoundFont, or FluidSynth
+        won't load), or None; checked before a file is asked for."""
+        from chordnotepad.services import audio_export
+
+        return (audio_export.soundfont_problem(self._audio.soundfont_in_use())
+                or audio_export.synth_problem())
+
     def audio_export_job(self, ref: DocumentRef, temp_dir: str,
                          progress: Callable[[float], None]
                          ) -> Callable[[Callable[[], bool]], None]:

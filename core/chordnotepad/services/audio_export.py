@@ -4,8 +4,9 @@ The timing is song playback's own: the real :class:`SongScheduler` maps the
 compiled song onto sequencer ticks, but into an :class:`OfflineSequencer`
 that only records what it is sent. A FluidSynth synth with no audio driver
 then plays those events and its samples go straight to a 16-bit stereo WAV
-(stdlib ``wave``), block by block, with :data:`TAIL_SECONDS` after the last
-event for the notes to ring out.
+(stdlib ``wave``), block by block. After the last event it goes on for at
+least :data:`TAIL_SECONDS`, and then until a block is silent (a pad's long
+release), at most :data:`MAX_TAIL_SECONDS`.
 
 What Play would use is what the export uses: the voicing (the render), the
 instrument, the music slider (the chords' CC 7), the metronome (always
@@ -18,6 +19,7 @@ prototype of ``fluid_synth_write_s16`` (pyfluidsynth's returns a pointer and
 its stereo helper needs numpy).
 """
 
+import array
 import ctypes
 import logging
 import os
@@ -41,8 +43,14 @@ logger = logging.getLogger(__name__)
 SAMPLE_RATE = 44100
 #: Frames asked of FluidSynth at a time (an abort is checked between blocks).
 BLOCK_FRAMES = 4096
-#: Silence rendered after the last event, for the release and the reverb.
+#: The shortest tail rendered after the last event, for the release and the reverb.
 TAIL_SECONDS = 2.0
+#: The longest: a patch still sounding then is cut (a pad's release is a
+#: few seconds).
+MAX_TAIL_SECONDS = 8.0
+#: After the shortest tail, a block whose peak is below this (of 32767,
+#: about -66 dBFS) ends the file.
+SILENCE_PEAK = 16
 #: Progress is reported each time it passes another step of this size.
 PROGRESS_STEP = 0.05
 #: The temp files an export renders into, in the cache folder.
@@ -157,10 +165,40 @@ def frame_of(tick: int, sample_rate: int = SAMPLE_RATE) -> int:
     return max(0, int(round(tick * sample_rate / TICKS_PER_SECOND)))
 
 
-def total_frames(planned: Sequence[PlannedEvent], sample_rate: int = SAMPLE_RATE) -> int:
-    """How long the WAV of ``planned`` is: up to the last event, plus the tail."""
+def total_frames(planned: Sequence[PlannedEvent], sample_rate: int = SAMPLE_RATE,
+                 tail_seconds: float = TAIL_SECONDS) -> int:
+    """The frames up to the last event of ``planned`` plus a tail: the
+    shortest WAV (:data:`TAIL_SECONDS`) or, with :data:`MAX_TAIL_SECONDS`,
+    the longest."""
     end = frame_of(planned[-1].tick, sample_rate) if planned else 0
-    return end + int(round(TAIL_SECONDS * sample_rate))
+    return end + int(round(tail_seconds * sample_rate))
+
+
+def peak(block: bytes) -> int:
+    """The largest sample magnitude in a block of 16-bit samples."""
+    samples = array.array("h", block)
+    return max(max(samples), -min(samples)) if samples else 0
+
+
+def synth_problem() -> Optional[str]:
+    """Why no synth can be made here (libfluidsynth won't load), or None.
+
+    Checked before the picker, since an Android picker makes the file.
+    """
+    try:
+        from chordnotepad.audio.fluidsynth_import import fluidsynth  # noqa: F401
+    except Exception as e:      # ImportError, OSError...
+        return f"FluidSynth could not be loaded: {e}"
+    return None
+
+
+def soundfont_problem(soundfont: Optional[str]) -> Optional[str]:
+    """Why ``soundfont`` can't be played (none chosen, or the file is gone), or None."""
+    if not soundfont:
+        return "No soundfont found. Choose one in Settings."
+    if not os.path.exists(soundfont):
+        return f"Soundfont not found: {soundfont}"
+    return None
 
 
 class FluidSynthRenderer:
@@ -259,38 +297,50 @@ def write_wav(planned: Sequence[PlannedEvent], path: str, settings: AudioExportS
         RenderAborted: ``should_abort()`` said so; the file is left as it is.
         OSError: The file can't be written.
     """
-    if not settings.soundfont or not os.path.exists(settings.soundfont):
-        raise AudioInitializationError(
-            f"Soundfont not found: {settings.soundfont}" if settings.soundfont
-            else "No soundfont found. Choose one in Settings.")
+    problem = soundfont_problem(settings.soundfont)
+    if problem:
+        raise AudioInitializationError(problem)
     synth = open_synth(settings.soundfont, sample_rate)
     try:
         synth.setup(settings)
-        total = total_frames(planned, sample_rate)
+        end = total_frames(planned, sample_rate, tail_seconds=0.0)
+        shortest = total_frames(planned, sample_rate)
+        longest = total_frames(planned, sample_rate, tail_seconds=MAX_TAIL_SECONDS)
         written = 0
         reported = 0          # PROGRESS_STEPs reported so far
+        last_peak = 0         # of the latest block
         with wave.open(path, "wb") as out:
             out.setnchannels(2)
             out.setsampwidth(2)
             out.setframerate(sample_rate)
+            # The likely length, so the header is written once; close()
+            # corrects it if the tail ran longer. (writeframes would rewrite
+            # it after every block.)
+            out.setnframes(shortest)
 
             def render_to(frame: int) -> None:
-                nonlocal written, reported
+                nonlocal written, reported, last_peak
                 while written < frame:
                     if should_abort():
                         raise RenderAborted("The audio export was stopped.")
                     count = min(BLOCK_FRAMES, frame - written)
-                    out.writeframes(synth.render(count))
+                    block = synth.render(count)
+                    out.writeframesraw(block)
                     written += count
-                    steps = int(written / total / PROGRESS_STEP + 1e-9)
-                    if steps > reported and written < total:
+                    if written > end:
+                        last_peak = peak(block)
+                    steps = int(written / shortest / PROGRESS_STEP + 1e-9)
+                    if steps > reported and written < shortest:
                         reported = steps
                         progress(min(1.0, round(steps * PROGRESS_STEP, 6)))
 
             for event in planned:
                 render_to(frame_of(event.tick, sample_rate))
                 synth.play(event)
-            render_to(total)
+            render_to(shortest)
+            # A long release still sounding: on until a block is silent.
+            while last_peak >= SILENCE_PEAK and written < longest:
+                render_to(min(longest, written + BLOCK_FRAMES))
         progress(1.0)
     finally:
         synth.delete()
