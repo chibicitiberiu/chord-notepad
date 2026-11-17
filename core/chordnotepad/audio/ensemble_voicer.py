@@ -37,8 +37,11 @@ the :mod:`audio.chord_tones` role taxonomy:
    sounding the same bass note).
 
 4. **Optimize**: :meth:`chord_to_midi` greedily picks the argmax against the
-   stored previous voicing; :meth:`voice_sequence` runs the whole-song beam DP
-   so voice leading is optimized with lookahead across loops.
+   stored previous voicing; :meth:`voice_sequence` first plans the bass line
+   on its own (:meth:`_plan_bass`, which also chooses a plain chord's
+   inversion), then runs the whole-song beam DP over the voicings that sit on
+   the planned bass, so voice leading is optimized with lookahead across loops
+   and the upper voices can't break the bass line.
 
 Voices in an :class:`EnsembleSpec` are ordered top-first; this module assigns
 octaves bottom-up and emits voicings low-to-high, so the index mapping between
@@ -73,7 +76,7 @@ logger = logging.getLogger(__name__)
 _OCTAVE = 12
 _LEAP_THRESHOLD = 7          # a leap wider than a perfect fifth is penalized
 _TRITONE = 6                 # an exact tritone leap is penalized
-_PERFECT_FIFTH = 7
+_PERFECT_FIFTH = 7           # the only fifth an incomplete chord may leave out
 _STEP = 2                    # a move of up to a whole tone is a step
 _RANGE_COMFORT_EDGE = 2      # the outer 2 semitones of a range are uncomfortable
 _BAND_QUARTER = 4            # the comfortable band leaves out a quarter of the range at each end
@@ -140,6 +143,17 @@ class _ChordMeta:
     role_by_pc: Dict[int, str]
     ctx: _ChordContext
     empty: bool = False
+
+
+class _BassState(NamedTuple):
+    """One option of the bass plan: a bottom-voice note for one chord.
+
+    ``quality`` is the unary score the plan charges for it; ``pos`` lets the
+    transition callback find both chords' contexts.
+    """
+    midi: Optional[int]
+    pos: int
+    quality: float
 
 
 class _Cand(NamedTuple):
@@ -378,12 +392,13 @@ class EnsembleVoicer(INotePicker):
             return []
 
         metas = [self._build_meta(cn) for cn in sequence]
+        basses = self._plan_bass(sequence, metas)
         candidate_sets: List[List[_Cand]] = []
         for pos, (cn, meta) in enumerate(zip(sequence, metas)):
             if meta.empty:
                 candidate_sets.append([_Cand((), pos)])
                 continue
-            stacks = self._candidates(cn, meta)
+            stacks = self._candidates(cn, meta, basses[pos])
             candidate_sets.append([_Cand(stack, pos) for stack in stacks])
 
         def unary(position: int, cand: _Cand) -> float:
@@ -412,6 +427,95 @@ class EnsembleVoicer(INotePicker):
                 self._store_state(notes, metas[pos])
                 break
         return result
+
+    # ------------------------------------------------------------------
+    # Bass plan
+    # ------------------------------------------------------------------
+    def _bass_options(self, meta: _ChordMeta) -> List[int]:
+        """Every bottom-voice note the plan may choose for a chord.
+
+        Each octave, inside the bottom voice's range, of the written bass (a
+        slash chord) or of every chord tone (a plain chord, whose inversion the
+        plan chooses).
+        """
+        pcs = [meta.bass_pc] if meta.is_slash else [pc for pc, _role in meta.tones]
+        notes: List[int] = []
+        for pc in pcs:
+            notes.extend(self._octaves_in_range(pc, self._lo[0], self._hi[0]))
+        return sorted(notes)
+
+    def _bass_quality(self, midi: int, meta: _ChordMeta) -> float:
+        """The bass plan's unary score for one option: comfort plus inversion.
+
+        The same comfort (:meth:`_comfort`) and ``weights['inversion']`` terms
+        :meth:`_score_quality` charges the bottom voice; a slash chord's bass is
+        written, so it pays no inversion weight.
+        """
+        score = self._comfort(midi, 0)
+        if not meta.is_slash:
+            role = meta.role_by_pc.get(midi % _OCTAVE)
+            score += self._inversion[_INVERSION_KEY.get(role, 'second') if role else 'second']
+        return score
+
+    def _plan_bass(self, sequence: List['ChordNotes'],
+                   metas: List[_ChordMeta]) -> List[Optional[int]]:
+        """Choose the bottom voice's note for every chord before voicing them.
+
+        Voicing all the voices at once lets the upper voices' transition
+        terms break the bass line (a line that fits in one octave jumping up
+        one, because the voices above it found that a point cheaper). So the
+        bass is planned on its own first: a small exact DP over the bass
+        options of each chord (:meth:`_bass_options`), scored with the bottom
+        voice's own motion terms (:meth:`_motion_score`) and the same-bass
+        penalty, plus, per option, :meth:`_bass_quality` (the bottom voice's
+        range comfort and, for a plain chord, the inversion weight). Only the
+        bass's own terms count, so the voices above can't trade the line away
+        again. An option no voicing fits (range and spacing caps, nothing
+        relaxed) isn't offered; a chord with no option left gets ``None``, and
+        the full relaxation ladder voices it unplanned. Nor is an option whose
+        voicings must leave out more of the chord than another option's
+        (:meth:`_omission_score`). The plan depends only
+        on the line's intervals and the range, so a song in another key gets
+        the same inversions wherever the range allows.
+
+        Returns:
+            The planned bottom-voice MIDI note per position (``None`` for an
+            empty or unplanned chord).
+        """
+        n = self._n
+        state_sets: List[List[_BassState]] = []
+        for pos, (cn, meta) in enumerate(zip(sequence, metas)):
+            states: List[_BassState] = []
+            if not meta.empty:
+                # Each option that fits, with the least its voicings leave out.
+                fitting: List[Tuple[int, float]] = []
+                for midi in self._bass_options(meta):
+                    stacks = self._candidates(cn, meta, midi)
+                    if stacks:
+                        fitting.append((midi, max(self._omission_score(s, meta) for s in stacks)))
+                # Never a bass that leaves out more than the chord must (C5 under
+                # a three-voice C7 leaves no room for the Bb above it).
+                least = max((omitted for _midi, omitted in fitting), default=0.0)
+                states = [_BassState(midi, pos, self._bass_quality(midi, meta))
+                          for midi, omitted in fitting if omitted >= least]
+            state_sets.append(states or [_BassState(None, pos, 0.0)])
+
+        def unary(_position: int, state: _BassState) -> float:
+            return state.quality
+
+        def transition(prev: _BassState, cur: _BassState) -> float:
+            if prev.midi is None or cur.midi is None:
+                return 0.0
+            score = self._motion_score(0, n, cur.midi - prev.midi)
+            if (prev.midi % _OCTAVE == cur.midi % _OCTAVE
+                    and same_chord_other_bass(metas[prev.pos].ctx, metas[cur.pos].ctx)):
+                score += self._same_bass_penalty
+            return score
+
+        widest = max(len(states) for states in state_sets)
+        chosen = optimize_sequence(state_sets, unary, transition,
+                                   beam_width=widest, prune_to=None)
+        return [state_sets[pos][idx].midi for pos, idx in enumerate(chosen)]
 
     # ------------------------------------------------------------------
     # Chord metadata
@@ -483,13 +587,16 @@ class EnsembleVoicer(INotePicker):
     # ------------------------------------------------------------------
     # Candidate enumeration (cached)
     # ------------------------------------------------------------------
-    def _candidates(self, chord_notes: 'ChordNotes',
-                    meta: _ChordMeta) -> List[Tuple[int, ...]]:
+    def _candidates(self, chord_notes: 'ChordNotes', meta: _ChordMeta,
+                    bass: Optional[int] = None) -> List[Tuple[int, ...]]:
         """Return (cached) candidate voicings for a chord, best-scoring first.
 
-        Runs the relaxation ladder, then keeps the top :data:`_TOP_CANDIDATES`
-        complete voicings by intrinsic quality (ties by voicing tuple ascending).
-        Always returns at least one voicing.
+        Without ``bass``, runs the relaxation ladder, then keeps the top
+        :data:`_TOP_CANDIDATES` complete voicings by intrinsic quality (ties by
+        voicing tuple ascending), and always returns at least one voicing.
+        With ``bass`` (a planned bottom-voice MIDI note), enumerates only the
+        voicings over that note, inside the ranges and spacing caps (nothing
+        relaxed), and may return none.
         """
         key = (
             tuple(chord_notes.notes),
@@ -497,17 +604,21 @@ class EnsembleVoicer(INotePicker):
             chord_notes.root,
             tuple(chord_notes.intervals or ()),
             chord_notes.key,
+            bass,
         )
         cached = self._cache.get(key)
         if cached is not None:
             return cached
 
-        stacks = self._build_ladder(meta)
+        if bass is None:
+            stacks = self._build_ladder(meta)
+        else:
+            stacks = self._enumerate(meta, pad=0, ignore_spacing=False, bass=bass)
         # Rank by intrinsic quality; deterministic tie-break by the tuple.
         scored = [(self._score_quality(stack, meta), stack) for stack in stacks]
         scored.sort(key=lambda item: (-item[0], item[1]))
         result = [stack for _score, stack in scored[:_TOP_CANDIDATES]]
-        if not result:
+        if not result and bass is None:
             result = [self._closed_stack(meta)]
         self._cache[key] = result
         return result
@@ -532,7 +643,7 @@ class EnsembleVoicer(INotePicker):
         return [self._closed_stack(meta)]
 
     def _enumerate(self, meta: _ChordMeta, *, pad: int,
-                   ignore_spacing: bool) -> List[Tuple[int, ...]]:
+                   ignore_spacing: bool, bass: Optional[int] = None) -> List[Tuple[int, ...]]:
         """Enumerate complete voicings for every bass choice and PC plan.
 
         Args:
@@ -540,6 +651,9 @@ class EnsembleVoicer(INotePicker):
             pad: Semitones to widen every voice range by at both ends (0 for the
                 normal pass; :data:`_RANGE_PAD` on the relaxation ladder).
             ignore_spacing: When true, adjacent-voice spacing caps are dropped.
+            bass: When given, only voicings whose bottom voice is this MIDI note
+                (the bass plan's choice); its pitch class must be a bass choice
+                of the chord.
 
         Returns:
             A de-duplicated list of complete low-to-high voicings.
@@ -550,8 +664,10 @@ class EnsembleVoicer(INotePicker):
         seen: set = set()
         results: List[Tuple[int, ...]] = []
         for bass_pc, upper_multiset in self._pc_plans(meta):
+            if bass is not None and bass_pc != bass % _OCTAVE:
+                continue
             for stack in self._octave_stacks(
-                bass_pc, upper_multiset, place_lo, place_hi, ignore_spacing
+                bass_pc, upper_multiset, place_lo, place_hi, ignore_spacing, bass
             ):
                 if stack not in seen:
                     seen.add(stack)
@@ -565,7 +681,13 @@ class EnsembleVoicer(INotePicker):
         of ``N - 1`` pitch classes the remaining voices must sing (assignment to
         specific voices happens later, during octave placement). Plans differ by
         bass choice (inversions, unless slash) and by which tones are dropped
-        (too many tones) or doubled (too few).
+        (too many tones) or doubled (too few). When the tones fill the upper
+        voices exactly, the chord may also leave out its perfect fifth and
+        double another tone instead (G G B F for a G7 in four voices), the
+        incomplete form four-part writing uses to resolve a seventh chord with
+        both chords in root position; ``weights['omit']`` and
+        ``weights['doubling']`` price it. A diminished or augmented fifth
+        defines its chord and is never left out this way.
         """
         n_upper = self._n - 1
         tones = meta.tones
@@ -583,6 +705,11 @@ class EnsembleVoicer(INotePicker):
 
             if m == n_upper:
                 plans.append((bass_pc, [pc for pc, _role in to_place]))
+                fifth = (meta.root_pc + _PERFECT_FIFTH) % _OCTAVE
+                if m >= 2 and any(pc == fifth for pc, _role in to_place):
+                    kept = [(pc, role) for pc, role in to_place if pc != fifth]
+                    others = tuple((pc, role) for pc, role in tones if pc != fifth)
+                    plans.extend(self._double_plans(bass_pc, kept, others, 1))
             elif m > n_upper:
                 plans.extend(self._drop_plans(bass_pc, to_place, m - n_upper))
             else:  # m < n_upper: double the most agreeable tones
@@ -650,7 +777,8 @@ class EnsembleVoicer(INotePicker):
 
     def _octave_stacks(self, bass_pc: int, upper_multiset: List[int],
                        place_lo: Tuple[int, ...], place_hi: Tuple[int, ...],
-                       ignore_spacing: bool) -> List[Tuple[int, ...]]:
+                       ignore_spacing: bool,
+                       bass: Optional[int] = None) -> List[Tuple[int, ...]]:
         """Assign octaves bottom-up, returning every complete low-to-high stack.
 
         The bottom voice takes each octave of ``bass_pc`` in its range; each
@@ -658,12 +786,14 @@ class EnsembleVoicer(INotePicker):
         range that sits above (or equal to, if unisons are allowed) the voice
         below and within the spacing cap. A beam keeps only the best
         :data:`_BEAM_STACKS` partial stacks per level so large ensembles stay
-        tractable.
+        tractable. ``bass``, when given, is the only bottom-voice note tried.
         """
         # A partial stack: (partial_score, notes_so_far, remaining_multiset).
         beam: List[Tuple[float, Tuple[int, ...], Tuple[int, ...]]] = []
         remaining0 = tuple(sorted(upper_multiset))
         for midi in self._octaves_in_range(bass_pc, place_lo[0], place_hi[0]):
+            if bass is not None and midi != bass:
+                continue
             beam.append((self._comfort(midi, 0), (midi,), remaining0))
         if not beam:
             return []
@@ -764,6 +894,11 @@ class EnsembleVoicer(INotePicker):
             score += self._middle_range_penalty * outside
         return score
 
+    def _omission_score(self, stack: Tuple[int, ...], meta: _ChordMeta) -> float:
+        """``weights['omit']`` summed over the chord tones ``stack`` leaves out."""
+        voiced = {m % _OCTAVE for m in stack}
+        return sum(self._omit[role] for pc, role in meta.tones if pc not in voiced)
+
     def _score_quality(self, stack: Tuple[int, ...], meta: _ChordMeta) -> float:
         """Intrinsic quality of a voicing in isolation; higher is better.
 
@@ -776,7 +911,6 @@ class EnsembleVoicer(INotePicker):
             return float('-inf')
 
         counts = Counter(m % _OCTAVE for m in stack)
-        voiced = set(counts)
         score = 0.0
 
         # Doubling: extra copies of each pitch class, by role.
@@ -787,9 +921,7 @@ class EnsembleVoicer(INotePicker):
                     score += (count - 1) * self._doubling[role]
 
         # Omission: chord tones not sung at all.
-        for pc, role in meta.tones:
-            if pc not in voiced:
-                score += self._omit[role]
+        score += self._omission_score(stack, meta)
 
         # Inversion: which chord tone is in the bass (plain chords only).
         if not meta.is_slash:
@@ -823,7 +955,9 @@ class EnsembleVoicer(INotePicker):
         """One voice's own share of a transition: movement, leaps, a held note.
 
         ``b`` is the bottom-up voice index of ``n`` voices and ``delta`` its
-        motion in semitones.
+        motion in semitones. Shared by :meth:`_score_transition` and the bass
+        plan (:meth:`_plan_bass`), so the planned line pays exactly what the
+        bottom voice would.
         """
         # movement weight is top-first; low-to-high voice b maps to N-1-b.
         magnitude = abs(delta)

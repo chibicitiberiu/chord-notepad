@@ -150,8 +150,8 @@ The String Quartet is tuned as a background pad rather than four-part
 choir writing, so it has a few weights of its own. Violin I, the line you
 hear on top, costs twice as much to move as the two middle voices (Voice
 movement is ``-0.8, -0.4, -0.4, -0.15``), and the leading tone's bonus for
-rising to the tonic is doubled to 3, so the calmer top line still resolves
-it in G to Am. Its upper voices may spread an octave apart before Wide
+rising to the tonic is 4.5, so the calmer top line still resolves it in G
+to Am. Its upper voices may spread an octave apart before Wide
 upper spacing costs anything (Upper spacing allowed is 12; a choir keeps 7,
 a fifth). When Violin I or the cello leaps more than a fifth, each semitone
 past the fifth costs another 0.5 (Wide outer leap is -0.5). Each voice also
@@ -163,7 +163,14 @@ note an octave apart instead.
 
 The three choirs allow adjacent voices to land on the same pitch (a
 unison), since that's an ordinary, occasional occurrence in real choral
-writing rather than something to avoid outright.
+writing rather than something to avoid outright. Their seventh and leading
+tone resolve more firmly than the defaults (Seventh resolves down 3,
+Leading tone resolves 4): with both chords on their roots, G to Am only
+keeps the leading tone rising if the choir doubles the A minor's third.
+
+All four presets keep a plain chord on its root (Inversion ``first`` -4,
+``third`` -6, ``second`` -8; the defaults, which a custom ensemble starts
+from, are -1.5, -3 and -5). Write a slash chord when you want an inversion.
 
 
 How Voicing Decisions Are Made
@@ -185,11 +192,24 @@ then the root; the third, the seventh and a ``sus`` chord's suspended tone
 are kept. (The piano drops the root before the fifth, because its left hand
 plays the root; an ensemble keeps it.) If a chord has fewer
 notes than voices, something gets doubled, and the engine reaches for the
-root first. Any chord tone may go in the bass, though the Inversion weights
-favor root position; a slash chord's bass note always lands in the bottom
-voice. When a chord sits next to itself over another bass, say C then C/E,
-you expect to hear the bass move, so the plain C is nudged off E and back
-onto its own root. Without that nudge the easiest answer is to keep every
+root first. A chord that fills the voices exactly may also leave out its
+perfect fifth and double the root instead, as four-part writing does to
+resolve a G7 to C with both chords on their roots; a diminished or augmented
+fifth is always kept.
+
+The bass line is planned first, on its own, before the other voices are
+placed. A slash chord's bass note always lands in the bottom voice; a plain
+chord may take any chord tone there, weighed by the Inversion weights. The
+plan keeps the line in one octave while it fits the bottom voice's range, so
+``C C/B Am Em/G F`` walks down C B A G F instead of jumping up an octave in
+the middle, and changes octave where the line leaps anyway. It never picks a
+bass note that would leave too little room above it for the rest of the
+chord. Because the plan only looks at the line and the range, the same song
+in another key gets the same inversions.
+
+When a chord sits next to itself over another bass, say C then C/E, you
+expect to hear the bass move, so the plain C is nudged off E and back onto
+its own root. Without that nudge the easiest answer is to keep every
 voice where it was, and both chords would sound the same.
 
 And when a chord simply won't fit the ensemble as written -- an awkward
@@ -579,7 +599,11 @@ Voicing Parameters
      - :plat:`see left|per key, above`
    * - Inversion (Root, First, Second, Third)
      - Added to the score for the bass note's chosen inversion (not used for
-       slash chords, whose bass is fixed). Keys: ``root`` (0.0), ``first``
+       slash chords, whose bass is fixed). The bass line is planned with
+       them: against a bass held from the chord before (worth "Common tone
+       held") or a shorter step, the defaults still let a plain chord be
+       inverted now and then; the presets use ``first`` -4, ``third`` -6,
+       ``second`` -8 to keep it on its root. Keys: ``root`` (0.0), ``first``
        (-1.5), ``second`` (-5.0), ``third`` (-3.0); nearer zero favors that
        inversion, more negative avoids it. A sixth, sus tone or extension in
        the bass counts as ``second``.

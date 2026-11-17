@@ -14,6 +14,7 @@ from collections import Counter
 from chordnotepad.audio.ensemble_voicer import EnsembleVoicer
 from chordnotepad.models.ensemble_spec import BUILTIN_ENSEMBLES, DEFAULT_WEIGHTS, EnsembleSpec, VoiceSpec
 from chordnotepad.models.chord_notes import ChordNotes
+from chordnotepad.chord.midi_converter import parse_note_to_semitone
 
 
 # ---------------------------------------------------------------------------
@@ -533,9 +534,13 @@ def test_click_to_play_keeps_the_basses_apart(spec_name):
 
 
 def test_zero_weight_brings_back_the_held_voicing():
-    """The term is what moves the bass: switched off, C copies C/E."""
+    """The term is what moves the bass: switched off, C copies C/E.
+
+    On the SATB voices with the default weights; the preset's own root-position
+    inversion weights would move it too.
+    """
     data = BUILTIN_ENSEMBLES['satb'].to_dict()
-    data['weights']['same_bass_penalty'] = 0.0
+    data['weights'] = {'same_bass_penalty': 0.0}
     voicer = EnsembleVoicer(EnsembleSpec.from_dict('satb', data))
     first, second = voicer.voice_sequence([parsed('C'), parsed('C/E')])
     assert first == second and first[0] % 12 == 4
@@ -642,3 +647,100 @@ def test_hidden_perfects_cost_only_with_a_leaping_top_voice():
     assert gain((50, 64, 81)) == pytest.approx(-2.0)   # D3 A5: up into a fifth, top leaps
     assert gain((53, 64, 77)) == pytest.approx(0.0)    # F3 F5: the top steps
     assert gain((43, 64, 79)) == pytest.approx(0.0)    # G2 G5: contrary motion
+
+
+# ---------------------------------------------------------------------------
+# The bass plan
+# ---------------------------------------------------------------------------
+#: Tibi's six-voice strings (the setup the bass plan was written for).
+STRINGS_SIX = EnsembleSpec.from_dict('strings6', {
+    'voices': [
+        {'name': 'Solo', 'range': ['G3', 'E6']}, {'name': 'Violin I', 'range': ['G3', 'E6']},
+        {'name': 'Violin II', 'range': ['G3', 'C6']}, {'name': 'Viola', 'range': ['C3', 'E5']},
+        {'name': 'Cello', 'range': ['C2', 'E4']}, {'name': 'Contrabass', 'range': ['B0', 'A2']},
+    ],
+    'max_spacing': [12, 14, 14, 24, 12],
+})
+
+
+def _song(symbols, key='C'):
+    return [_HELPER.compute_chord_notes(s, key=key) for s in symbols.split()]
+
+
+def test_bass_line_that_fits_the_range_stays_unbroken():
+    # Test oracle: the written line fits the contrabass in one octave, and
+    # voicing every voice at once used to jump A1 to G2.
+    voicings = EnsembleVoicer(STRINGS_SIX).voice_sequence(_song('C C/B Am Em/G F Fdim C/E'))
+    names = ['C2', 'B1', 'A1', 'G1', 'F1', 'F1', 'E1']
+    from chordnotepad.models.ensemble_spec import parse_note_name
+    assert [v[0] for v in voicings] == [parse_note_name(n) for n in names]
+
+
+@pytest.mark.parametrize('spec_name', BUILTIN_NAMES)
+def test_presets_voice_plain_chords_on_their_root_in_every_key(spec_name):
+    voicer = EnsembleVoicer(BUILTIN_ENSEMBLES[spec_name])
+    keys = {'C': 'C G Am F Dm G7 C', 'G': 'G D Em C Am D7 G', 'Eb': 'Eb Bb Cm Ab Fm Bb7 Eb',
+            'E': 'E B C#m A F#m B7 E'}
+    for key, symbols in keys.items():
+        chords = _song(symbols, key)
+        for chord, voicing in zip(chords, voicer.voice_sequence(chords)):
+            assert voicing[0] % 12 == parse_note_to_semitone(chord.root), (key, chord.root)
+
+
+def test_a_planned_bass_never_leaves_out_more_than_the_chord_must():
+    # SSA's alto reaches D5, but C5 under a C7 leaves no room for the Bb above
+    # it (Soprano 1 stops at A5): the plan doesn't take a bass that drops the 7th.
+    voicer = EnsembleVoicer(BUILTIN_ENSEMBLES['ssa'])
+    for symbols, key in (('Gm7 C7 Fmaj7 D7 Gm7 C7 F6', 'F'), ('Dm7 G7 Cmaj7 A7 Dm7 G7 C6', 'C')):
+        chords = _song(symbols, key)
+        for chord, voicing in zip(chords, voicer.voice_sequence(chords)):
+            sounding = {m % 12 for m in voicing}
+            for note, interval in zip(chord.notes, chord.intervals):
+                if interval % 12 != 7:      # only a perfect fifth may go
+                    assert parse_note_to_semitone(note) in sounding, (chord.root, voicing)
+
+
+def test_planned_candidates_all_sit_on_the_planned_bass():
+    voicer = EnsembleVoicer(BUILTIN_ENSEMBLES['satb'])
+    chord = parsed('Am')
+    meta = voicer._build_meta(chord)
+    for midi in voicer._bass_options(meta):
+        stacks = voicer._candidates(chord, meta, midi)
+        assert all(stack[0] == midi for stack in stacks)
+    # The plan's options are every chord tone's octaves in the bass's range.
+    assert voicer._bass_options(meta) == [40, 45, 48, 52, 57, 60]   # E2 A2 C3 E3 A3 C4
+
+
+def test_unfit_chord_falls_back_to_the_ladder():
+    # Nothing fits a two-voice spec whose voices can't be a third apart.
+    spec = EnsembleSpec.from_dict('tight', {
+        'voices': [{'name': 'Hi', 'range': ['C4', 'D4']}, {'name': 'Lo', 'range': ['C4', 'D4']}],
+        'max_spacing': [1]})
+    voicer = EnsembleVoicer(spec)
+    chords = [parsed('E'), parsed('F#')]
+    assert voicer._plan_bass(chords, [voicer._build_meta(c) for c in chords]) == [None, None]
+    assert all(len(v) == 2 for v in voicer.voice_sequence(chords))
+
+
+@pytest.mark.parametrize('spec_name', ['satb', 'quartet'])
+def test_root_position_dominant_seventh_resolves_its_seventh(spec_name):
+    # Both chords on their roots: the incomplete form (no fifth) lets F fall to E.
+    voicer = EnsembleVoicer(BUILTIN_ENSEMBLES[spec_name])
+    g7, c = voicer.voice_sequence(_song('G7 C'))
+    assert g7[0] % 12 == 7 and c[0] % 12 == 0
+    for before, after in zip(g7, c):
+        if before % 12 == 5:
+            assert before - after in (1, 2)
+
+
+def test_a_diminished_fifth_is_never_left_out():
+    # Bm7b5's F defines it: the incomplete form drops only a perfect fifth.
+    voicer = EnsembleVoicer(BUILTIN_ENSEMBLES['satb'])
+    meta = voicer._build_meta(parsed('Bm7b5'))
+    plans = voicer._pc_plans(meta)
+    assert plans
+    for bass, upper in plans:
+        assert 5 in upper or bass == 5
+    # A G7's perfect fifth may go (G G B F), so its plans include one without D.
+    g7_plans = voicer._pc_plans(voicer._build_meta(parsed('G7')))
+    assert any(bass == 7 and 2 not in upper for bass, upper in g7_plans)

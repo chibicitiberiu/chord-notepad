@@ -7,7 +7,9 @@ import pytest
 from chordnotepad.exceptions import ConfigurationError
 from chordnotepad.models.ensemble_spec import (
     BUILTIN_ENSEMBLES,
+    CHOIR_WEIGHTS,
     DEFAULT_WEIGHTS,
+    PRESET_INVERSION,
     EnsembleSpec,
     QUARTET_WEIGHTS,
     VoiceSpec,
@@ -665,19 +667,37 @@ class TestBuiltinEnsembles:
         if key == "quartet":
             assert spec.weights == _merge_weights(QUARTET_WEIGHTS)
         else:
-            assert spec.weights == DEFAULT_WEIGHTS
+            assert spec.weights == _merge_weights(CHOIR_WEIGHTS)
 
     @pytest.mark.parametrize("key", ["satb", "ttbb", "ssa"])
     def test_choirs_allow_unisons(self, key):
         assert BUILTIN_ENSEMBLES[key].allow_unisons is True
 
+    @pytest.mark.parametrize("key", ["satb", "ttbb", "ssa", "quartet"])
+    def test_presets_keep_plain_chords_in_root_position(self, key):
+        # The bass plan charges these; the defaults' -1.5 loses to a held bass.
+        inversion = BUILTIN_ENSEMBLES[key].weight("inversion")
+        assert inversion == {"root": 0.0, "first": -4.0, "second": -8.0, "third": -6.0}
+        assert inversion == PRESET_INVERSION
+        assert DEFAULT_WEIGHTS["inversion"]["first"] == -1.5   # saved ensembles: unchanged
+
+    @pytest.mark.parametrize("key", ["satb", "ttbb", "ssa"])
+    def test_choirs_resolve_harder_over_root_position(self, key):
+        spec = BUILTIN_ENSEMBLES[key]
+        assert spec.weight("seventh_resolution_bonus") == 3.0
+        assert spec.weight("leading_tone_resolution_bonus") == 4.0
+        for weight_key, value in DEFAULT_WEIGHTS.items():
+            if weight_key not in CHOIR_WEIGHTS:
+                assert spec.weight(weight_key) == value
+
     def test_quartet_has_its_own_weights_and_no_unisons(self):
         # A background pad: the top voice moves least, and with the heavier top
-        # the leading tone still rises in V-vi (bonus doubled); no unisons.
+        # the leading tone still rises in V-vi; no unisons.
         spec = BUILTIN_ENSEMBLES["quartet"]
         assert spec.allow_unisons is False
         assert spec.movement_per_voice() == (-0.8, -0.4, -0.4, -0.15)
-        assert spec.weight("leading_tone_resolution_bonus") == 3.0
+        assert spec.weight("leading_tone_resolution_bonus") == 4.5
+        assert spec.weight("seventh_resolution_bonus") == 3.0
         # Everything the quartet doesn't override is the default.
         for key, value in DEFAULT_WEIGHTS.items():
             if key not in QUARTET_WEIGHTS:

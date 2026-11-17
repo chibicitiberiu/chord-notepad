@@ -641,30 +641,48 @@ def _builtin(name: str, label: str, voices: List[Tuple], max_spacing: List[int],
     })
 
 
+#: Root position for the presets: the bass plan weighs a plain chord's
+#: inversion against the bass line's motion, and the defaults' first inversion
+#: (-1.5) loses to a held bass note (+1.5), so Am F came out as Am F/A. These
+#: make a plain chord sound on its root unless its root is out of reach; write
+#: a slash chord for an inversion.
+PRESET_INVERSION: Dict[str, float] = {'root': 0.0, 'first': -4.0, 'second': -8.0, 'third': -6.0}
+
+#: The choirs' weights over :data:`DEFAULT_WEIGHTS`: root position, and with
+#: both chords on their roots a seventh needs more pull to fall and the leading
+#: tone to rise (V-vi has to double vi's third for it), so both bonuses grow.
+CHOIR_WEIGHTS: Dict[str, Any] = {
+    'inversion': PRESET_INVERSION,
+    'seventh_resolution_bonus': 3.0,
+    'leading_tone_resolution_bonus': 4.0,
+}
+
 #: The String Quartet's own weights over :data:`DEFAULT_WEIGHTS`, for a calm
 #: background pad rather than four-part choral writing: the top voice costs
 #: twice an inner voice to move (it is the line a listener follows), the cello
 #: stays cheap, and since a heavier top would let a deceptive cadence (V-vi)
 #: drop the leading tone a step instead of raising it, that resolution is worth
-#: twice the choir's. The upper voices may spread to an octave before the
-#: wide-spacing cost applies (a choir keeps a fifth), which sounds warmer on
-#: strings. A leap of the cello or Violin I beyond a fifth costs 0.5 more per
-#: semitone (the outer lines are the ones heard), and each voice pays 0.5 per
-#: semitone it strays outside the middle half of its range, which keeps the
-#: texture in one register across a song and from key to key. The quartet
-#: also allows no unisons (four instruments on a triad can
-#: always double at the octave).
+#: more than the choirs'. Root position and the seventh as for the choirs. The
+#: upper voices may spread to an octave before the wide-spacing cost applies (a
+#: choir keeps a fifth), which sounds warmer on strings. A leap of the cello or
+#: Violin I beyond a fifth costs 0.5 more per semitone (the outer lines are the
+#: ones heard), and each voice pays 0.5 per semitone it strays outside the
+#: middle half of its range, which keeps the texture in one register across a
+#: song and from key to key. The quartet also allows no unisons (four
+#: instruments on a triad can always double at the octave).
 QUARTET_WEIGHTS: Dict[str, Any] = {
     'movement': [-0.8, -0.4, -0.4, -0.15],
-    'leading_tone_resolution_bonus': 3.0,
+    'inversion': PRESET_INVERSION,
+    'seventh_resolution_bonus': 3.0,
+    'leading_tone_resolution_bonus': 4.5,
     'upper_spacing_threshold': 12.0,
     'outer_leap_penalty': -0.5,
     'middle_range_penalty': -0.5,
 }
 
 #: Built-in ensemble presets, keyed by a voicing-string slug. The choirs use
-#: the engine's default weights (:data:`DEFAULT_WEIGHTS`), the String Quartet
-#: :data:`QUARTET_WEIGHTS` over them. Staffs are
+#: :data:`CHOIR_WEIGHTS` over the engine's defaults (:data:`DEFAULT_WEIGHTS`),
+#: the String Quartet :data:`QUARTET_WEIGHTS`. Staffs are
 #: pinned as a choir or quartet score sets them: TTBB writes its tenors on an
 #: octave-lower treble clef, the viola stays auto (no C clef yet).
 BUILTIN_ENSEMBLES: Dict[str, EnsembleSpec] = {
@@ -677,6 +695,7 @@ BUILTIN_ENSEMBLES: Dict[str, EnsembleSpec] = {
             ('Bass', 'E2', 'C4', 'bass'),
         ],
         [12, 12, 19],
+        weights=CHOIR_WEIGHTS,
     ),
     'ttbb': _builtin(
         'ttbb', 'Male Choir (TTBB)',
@@ -688,6 +707,7 @@ BUILTIN_ENSEMBLES: Dict[str, EnsembleSpec] = {
         ],
         [12, 12, 12],
         upper_clef='treble_8vb',
+        weights=CHOIR_WEIGHTS,
     ),
     'ssa': _builtin(
         'ssa', 'Treble Choir (SSA)',
@@ -697,6 +717,7 @@ BUILTIN_ENSEMBLES: Dict[str, EnsembleSpec] = {
             ('Alto', 'F3', 'D5', 'treble'),
         ],
         [12, 12],
+        weights=CHOIR_WEIGHTS,
     ),
     'quartet': _builtin(
         'quartet', 'String Quartet',
