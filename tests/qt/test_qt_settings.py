@@ -978,6 +978,34 @@ def test_dragging_a_handle_moves_the_voice(settings):
     assert _names(settings) == [before[1], before[2], before[0], before[3]]
 
 
+def test_dragging_a_handle_shows_the_row_the_target_and_the_voice(settings):
+    _ensemble_with_four_voices(settings)
+    before = _names(settings)
+    handle = settings.item("dragRow:0")
+    start = handle.mapToScene(QPointF(handle.width() / 2, handle.height() / 2)).toPoint()
+    step = settings.item("dragRow:1").mapToScene(QPointF(0, 0)).y() - handle.mapToScene(QPointF(0, 0)).y()
+    source, line, ghost = (settings.item(n) for n in ("dragSourceRow", "dropIndicator", "dragGhost"))
+    assert not source.isVisible() and not line.isVisible() and not ghost.isVisible()
+    QTest.mousePress(settings.window, Qt.MouseButton.LeftButton, Qt.KeyboardModifier.NoModifier, start)
+    for fraction in (0.3, 0.6, 1.0):
+        QTest.mouseMove(settings.window, start + QPoint(0, int(2 * step * fraction)))
+        settings.wait(30)
+    settings.qtbot.waitUntil(lambda: line.isVisible(), timeout=2000)
+    assert source.isVisible() and ghost.isVisible()
+    assert settings.item("dragGhostText").property("text") == before[0]
+    # The source band sits on row 0; the ghost follows the pointer.
+    top = lambda item: item.mapToScene(QPointF(0, 0)).y()
+    assert abs(top(source) - top(handle)) < 1
+    assert abs(top(ghost) + ghost.height() / 2 - (start.y() + 2 * step)) < 2
+    # Landing on row 2 (moving down): the line is in the gap below row 2.
+    row2 = settings.item("dragRow:2")
+    assert top(row2) + row2.height() <= top(line) <= top(settings.item("dragRow:3"))
+    QTest.mouseRelease(settings.window, Qt.MouseButton.LeftButton, Qt.KeyboardModifier.NoModifier,
+                       start + QPoint(0, int(2 * step)))
+    settings.qtbot.waitUntil(lambda: _names(settings) != before, timeout=2000)
+    assert not source.isVisible() and not line.isVisible() and not ghost.isVisible()
+
+
 def test_alt_up_and_down_move_the_row_holding_the_focus(settings):
     _ensemble_with_four_voices(settings)
     before = _names(settings)

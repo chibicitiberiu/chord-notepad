@@ -333,155 +333,237 @@ ColumnLayout {
             if (target >= 0 && target < table.rows.length)
                 vform.settings.moveRecord(row, offset, table.field.id)
         }
+        // While a handle is dragged: the row it picked up, where it would land, and
+        // the pointer's y in tableArea (all -1 when no drag is on).
+        property int dragFrom: -1
+        property int dragTo: -1
+        property real dragY: 0
+        function rowTop(r) {
+            const g = grips.itemAt(r)
+            return g ? cells.y + g.y : 0
+        }
         SectionTitle { text: table.section.title || "" }
-        GridLayout {
-            id: cells
-            objectName: "recordsTable"
-            columns: table.field.columns.length + 3
-            columnSpacing: Theme.gap2
-            rowSpacing: Theme.gap1
-            // The distance between two rows' tops (what a drag measures in).
-            readonly property real rowStep: Theme.controlHeight + cells.rowSpacing
-            Repeater {
-                model: table.field.columns
-                delegate: Caption {
-                    required property var modelData
-                    required property int index
-                    text: modelData.label
-                    tip: modelData.help || ""
-                    range: modelData.range || ""
-                    font: Theme.fontStrongS
-                    color: Theme.muted
-                    wrapMode: Text.Wrap
-                    Layout.maximumWidth: Theme.px(2 * (modelData.width || 8) + 4)
-                    Layout.alignment: Qt.AlignBottom
-                    Layout.row: 0
-                    Layout.column: index + 1
-                }
-            }
-            Repeater {
-                model: table.rows.length * table.field.columns.length
-                delegate: Item {
-                    id: tc
-                    required property int index
-                    readonly property int row: Math.floor(index / table.field.columns.length)
-                    readonly property var column: table.field.columns[index % table.field.columns.length]
-                    readonly property bool off: tc.column.disabled_in_last_row === true && tc.row === table.rows.length - 1
-                    readonly property var record: table.rows[tc.row] || ({})
-                    readonly property string path: vform.cellPath(table.field, tc.row, tc.column.id)
-                    Layout.row: tc.row + 1
-                    Layout.column: index % table.field.columns.length + 1
-                    Layout.preferredWidth: Theme.px(2 * (tc.column.width || 8) + 4)
-                    implicitHeight: Theme.controlHeight
-                    Loader {
-                        anchors.fill: parent
-                        sourceComponent: tc.column.kind === "choice" ? cellChoice
-                                         : tc.column.kind === "int" ? cellNumber : cellText
-                    }
-                    Component {
-                        id: cellText
-                        FormField {
-                            objectName: "cell:" + tc.path
-                            shown: tc.record[tc.column.id]
-                            error: tc.column.kind === "text" ? "" : vform.err(tc.path)
-                            tip: tc.column.help || ""
-                            font: tc.column.kind === "pitch" ? Theme.fontMonoS : Theme.font
-                            Keys.priority: Keys.BeforeItem
-                            Keys.onPressed: (event) => table.moveRowOnKey(tc.row, event)
-                            onEdited: (t) => vform.settings.setCell(table.field.id, tc.row, tc.column.id, t, false)
-                        }
-                    }
-                    Component {
-                        id: cellNumber
-                        FormSpin {
-                            objectName: "cell:" + tc.path
-                            enabled: !tc.off
-                            shown: tc.off ? "" : tc.record[tc.column.id]
-                            error: tc.off ? "" : vform.err(tc.path)
-                            tip: tc.column.help || ""
-                            range: tc.column.range || ""
-                            from: tc.column.min; to: tc.column.max; stepSize: tc.column.step || 1
-                            Keys.priority: Keys.BeforeItem
-                            Keys.onPressed: (event) => table.moveRowOnKey(tc.row, event)
-                            onEdited: (t) => vform.settings.setCell(table.field.id, tc.row, tc.column.id, t, false)
-                        }
-                    }
-                    Component {
-                        id: cellChoice
-                        ComboBox {
-                            objectName: "cell:" + tc.path
-                            model: tc.column.choices.map((c) => c.label)
-                            currentIndex: vform.choiceIndex(tc.column.choices, tc.record[tc.column.id])
-                            Keys.priority: Keys.BeforeItem
-                            Keys.onPressed: (event) => table.moveRowOnKey(tc.row, event)
-                            onActivated: (i) => vform.settings.setCell(table.field.id, tc.row, tc.column.id, tc.column.choices[i].value, true)
-                            HoverHandler { id: chHover }
-                            ToolTip.visible: chHover.hovered && ToolTip.text !== ""
-                            ToolTip.delay: 600
-                            ToolTip.text: FormTips.tip(tc.column.help, vform.err(tc.path))
-                        }
+        Item {
+            id: tableArea
+            implicitWidth: cells.implicitWidth
+            implicitHeight: cells.implicitHeight
+            GridLayout {
+                id: cells
+                objectName: "recordsTable"
+                width: implicitWidth
+                height: implicitHeight
+                columns: table.field.columns.length + 3
+                columnSpacing: Theme.gap2
+                rowSpacing: Theme.gap1
+                // The distance between two rows' tops (what a drag measures in).
+                readonly property real rowStep: Theme.controlHeight + cells.rowSpacing
+                Repeater {
+                    model: table.field.columns
+                    delegate: Caption {
+                        required property var modelData
+                        required property int index
+                        text: modelData.label
+                        tip: modelData.help || ""
+                        range: modelData.range || ""
+                        font: Theme.fontStrongS
+                        color: Theme.muted
+                        wrapMode: Text.Wrap
+                        Layout.maximumWidth: Theme.px(2 * (modelData.width || 8) + 4)
+                        Layout.alignment: Qt.AlignBottom
+                        Layout.row: 0
+                        Layout.column: index + 1
                     }
                 }
-            }
-            // The drag handle of each row: dragging it past other rows moves the voice there.
-            Repeater {
-                model: table.rows.length
-                delegate: Item {
-                    id: grip
-                    required property int index
-                    readonly property int row: grip.index
-                    objectName: "dragRow:" + grip.row
-                    Layout.row: grip.row + 1
-                    Layout.column: 0
-                    implicitWidth: Theme.px(4)
-                    implicitHeight: Theme.controlHeight
-                    Accessible.role: Accessible.Button
-                    Accessible.name: table.field.drag_help || ""
-                    PixelIcon {
-                        anchors.centerIn: grip
-                        name: "drag-vertical"
-                        size: Theme.px(4)
-                        color: dragger.active ? Theme.icon : Theme.muted
-                    }
-                    HoverHandler {
-                        id: gripHover
-                        cursorShape: dragger.active ? Qt.ClosedHandCursor : Qt.OpenHandCursor
-                    }
-                    ToolTip.visible: gripHover.hovered && !dragger.active
-                    ToolTip.delay: 600
-                    ToolTip.text: table.field.drag_help || ""
-                    DragHandler {
-                        id: dragger
-                        objectName: "dragHandler:" + grip.row
-                        target: null
-                        xAxis.enabled: false
-                        onActiveChanged: {
-                            if (active) return
-                            const shift = Math.round((centroid.scenePosition.y - centroid.scenePressPosition.y) / cells.rowStep)
-                            const to = Math.max(0, Math.min(table.rows.length - 1, grip.row + shift))
-                            if (to !== grip.row) vform.settings.moveRecord(grip.row, to - grip.row, table.field.id)
+                Repeater {
+                    model: table.rows.length * table.field.columns.length
+                    delegate: Item {
+                        id: tc
+                        required property int index
+                        readonly property int row: Math.floor(index / table.field.columns.length)
+                        readonly property var column: table.field.columns[index % table.field.columns.length]
+                        readonly property bool off: tc.column.disabled_in_last_row === true && tc.row === table.rows.length - 1
+                        readonly property var record: table.rows[tc.row] || ({})
+                        readonly property string path: vform.cellPath(table.field, tc.row, tc.column.id)
+                        Layout.row: tc.row + 1
+                        Layout.column: index % table.field.columns.length + 1
+                        Layout.preferredWidth: Theme.px(2 * (tc.column.width || 8) + 4)
+                        implicitHeight: Theme.controlHeight
+                        Loader {
+                            anchors.fill: parent
+                            sourceComponent: tc.column.kind === "choice" ? cellChoice
+                                             : tc.column.kind === "int" ? cellNumber : cellText
+                        }
+                        Component {
+                            id: cellText
+                            FormField {
+                                objectName: "cell:" + tc.path
+                                shown: tc.record[tc.column.id]
+                                error: tc.column.kind === "text" ? "" : vform.err(tc.path)
+                                tip: tc.column.help || ""
+                                font: tc.column.kind === "pitch" ? Theme.fontMonoS : Theme.font
+                                Keys.priority: Keys.BeforeItem
+                                Keys.onPressed: (event) => table.moveRowOnKey(tc.row, event)
+                                onEdited: (t) => vform.settings.setCell(table.field.id, tc.row, tc.column.id, t, false)
+                            }
+                        }
+                        Component {
+                            id: cellNumber
+                            FormSpin {
+                                objectName: "cell:" + tc.path
+                                enabled: !tc.off
+                                shown: tc.off ? "" : tc.record[tc.column.id]
+                                error: tc.off ? "" : vform.err(tc.path)
+                                tip: tc.column.help || ""
+                                range: tc.column.range || ""
+                                from: tc.column.min; to: tc.column.max; stepSize: tc.column.step || 1
+                                Keys.priority: Keys.BeforeItem
+                                Keys.onPressed: (event) => table.moveRowOnKey(tc.row, event)
+                                onEdited: (t) => vform.settings.setCell(table.field.id, tc.row, tc.column.id, t, false)
+                            }
+                        }
+                        Component {
+                            id: cellChoice
+                            ComboBox {
+                                objectName: "cell:" + tc.path
+                                model: tc.column.choices.map((c) => c.label)
+                                currentIndex: vform.choiceIndex(tc.column.choices, tc.record[tc.column.id])
+                                Keys.priority: Keys.BeforeItem
+                                Keys.onPressed: (event) => table.moveRowOnKey(tc.row, event)
+                                onActivated: (i) => vform.settings.setCell(table.field.id, tc.row, tc.column.id, tc.column.choices[i].value, true)
+                                HoverHandler { id: chHover }
+                                ToolTip.visible: chHover.hovered && ToolTip.text !== ""
+                                ToolTip.delay: 600
+                                ToolTip.text: FormTips.tip(tc.column.help, vform.err(tc.path))
+                            }
                         }
                     }
                 }
+                // The drag handle of each row: dragging it past other rows moves the voice there.
+                Repeater {
+                    id: grips
+                    model: table.rows.length
+                    delegate: Item {
+                        id: grip
+                        required property int index
+                        readonly property int row: grip.index
+                        objectName: "dragRow:" + grip.row
+                        Layout.row: grip.row + 1
+                        Layout.column: 0
+                        implicitWidth: Theme.px(4)
+                        implicitHeight: Theme.controlHeight
+                        Accessible.role: Accessible.Button
+                        Accessible.name: table.field.drag_help || ""
+                        PixelIcon {
+                            anchors.centerIn: grip
+                            name: "drag-vertical"
+                            size: Theme.px(4)
+                            color: dragger.active ? Theme.icon : Theme.muted
+                        }
+                        HoverHandler {
+                            id: gripHover
+                            cursorShape: dragger.active ? Qt.ClosedHandCursor : Qt.OpenHandCursor
+                        }
+                        ToolTip.visible: gripHover.hovered && !dragger.active
+                        ToolTip.delay: 600
+                        ToolTip.text: table.field.drag_help || ""
+                        DragHandler {
+                            id: dragger
+                            objectName: "dragHandler:" + grip.row
+                            target: null
+                            xAxis.enabled: false
+                            function target() {
+                                const shift = Math.round((centroid.scenePosition.y - centroid.scenePressPosition.y) / cells.rowStep)
+                                return Math.max(0, Math.min(table.rows.length - 1, grip.row + shift))
+                            }
+                            function track() {
+                                table.dragFrom = grip.row
+                                table.dragTo = target()
+                                table.dragY = tableArea.mapFromItem(null, centroid.scenePosition.x, centroid.scenePosition.y).y
+                            }
+                            onCentroidChanged: if (active) track()
+                            onActiveChanged: {
+                                if (active) { track(); return }
+                                const to = target()
+                                table.dragFrom = -1
+                                table.dragTo = -1
+                                if (to !== grip.row) vform.settings.moveRecord(grip.row, to - grip.row, table.field.id)
+                            }
+                        }
+                    }
+                }
+                // ⧉ ✕ of each row.
+                Repeater {
+                    model: table.rows.length * 2
+                    delegate: IconButton {
+                        required property int index
+                        readonly property int row: Math.floor(index / 2)
+                        readonly property int which: index % 2
+                        objectName: ["duplicateRow", "removeRow"][which] + ":" + row
+                        Layout.row: row + 1
+                        Layout.column: table.field.columns.length + 1 + which
+                        iconName: ["content-copy", "close"][which]
+                        text: [table.field.duplicate_label, table.field.remove_label][which]
+                        tip: [table.field.duplicate_help, table.field.remove_help][which]
+                        Accessible.name: tip
+                        enabled: which === 0 ? table.rows.length < (table.field.max_items || 8) : true
+                        onClicked: {
+                            if (which === 0) vform.settings.duplicateRecord(row, table.field.id)
+                            else vform.settings.removeRecord(row, table.field.id)
+                        }
+                    }
+                }
             }
-            // ⧉ ✕ of each row.
-            Repeater {
-                model: table.rows.length * 2
-                delegate: IconButton {
-                    required property int index
-                    readonly property int row: Math.floor(index / 2)
-                    readonly property int which: index % 2
-                    objectName: ["duplicateRow", "removeRow"][which] + ":" + row
-                    Layout.row: row + 1
-                    Layout.column: table.field.columns.length + 1 + which
-                    iconName: ["content-copy", "close"][which]
-                    text: [table.field.duplicate_label, table.field.remove_label][which]
-                    tip: [table.field.duplicate_help, table.field.remove_help][which]
-                    Accessible.name: tip
-                    enabled: which === 0 ? table.rows.length < (table.field.max_items || 8) : true
-                    onClicked: {
-                        if (which === 0) vform.settings.duplicateRecord(row, table.field.id)
-                        else vform.settings.removeRecord(row, table.field.id)
+            // Drag feedback, over the grid (a layout would place these as cells).
+            // The row picked up is tinted where it was.
+            Rectangle {
+                objectName: "dragSourceRow"
+                visible: table.dragFrom >= 0
+                z: 2
+                x: 0
+                y: table.rowTop(table.dragFrom)
+                width: cells.width
+                height: Theme.controlHeight
+                radius: Theme.radius
+                color: Theme.selectedRow
+            }
+            // Where it lands: a line in the gap above or below the row it would take.
+            Rectangle {
+                objectName: "dropIndicator"
+                visible: table.dragFrom >= 0 && table.dragTo !== table.dragFrom
+                z: 3
+                x: 0
+                width: cells.width
+                height: Theme.px(0.5)
+                radius: height / 2
+                color: Theme.accent
+                y: table.dragTo > table.dragFrom
+                   ? table.rowTop(table.dragTo) + Theme.controlHeight + (cells.rowSpacing - height) / 2
+                   : table.rowTop(table.dragTo) - (cells.rowSpacing + height) / 2
+            }
+            // The voice's name follows the pointer.
+            Rectangle {
+                id: ghost
+                objectName: "dragGhost"
+                visible: table.dragFrom >= 0
+                z: 4
+                x: Theme.px(5)
+                y: Math.max(-height / 2, Math.min(tableArea.height - height / 2, table.dragY - height / 2))
+                width: ghostRow.implicitWidth + 2 * Theme.gap2
+                height: Theme.controlHeight
+                radius: Theme.radius
+                color: Theme.popup
+                border.color: Theme.accent
+                opacity: 0.95
+                RowLayout {
+                    id: ghostRow
+                    anchors.centerIn: parent
+                    spacing: Theme.gap1
+                    PixelIcon { name: "drag-vertical"; size: Theme.px(4); color: Theme.icon }
+                    Label {
+                        objectName: "dragGhostText"
+                        text: table.dragFrom >= 0 ? ((table.rows[table.dragFrom] || {}).name || "") : ""
+                        font: Theme.font
+                        color: Theme.text
                     }
                 }
             }
