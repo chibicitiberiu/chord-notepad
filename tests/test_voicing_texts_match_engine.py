@@ -103,6 +103,13 @@ def test_piano_omission_isnt_about_voices():
     assert "voices" in nested_tooltip('omit', 'fifth')
 
 
+def test_piano_root_omission_names_the_right_hand_of_a_triad():
+    # chord_picker._score_quality charges omit.root when a triad's right
+    # hand leaves out the root the left hand plays.
+    text = nested_tooltip('omit', 'root', model='piano')
+    assert "right hand" in text and "three-note" in text
+
+
 def test_fretboard_texts():
     # guitar_chord_picker._score_fingering
     assert "subtracted" in TOOLTIPS['weight:bass_note_bonus']

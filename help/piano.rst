@@ -369,7 +369,10 @@ you want it to steer clear of gets a negative one; zero leaves it neutral.
        negative, so a more negative one keeps that tone more insistently.
        The piano only ever leaves out the fifth, the root (and only when the
        left hand plays it), or an extension that won't fit, so the third,
-       seventh and color weights rarely come into play. The fifth is the
+       seventh and color weights rarely come into play. The root's weight
+       is also charged when a plain three-note chord's right hand leaves out
+       the root the left hand plays, which would leave a bare two-note right
+       hand (E2 | B3 G♯4 for an E). The fifth is the
        perfect fifth only: the diminished or augmented fifth of ``m7b5``,
        ``7b5``, ``aug`` or ``7#5`` counts as a color tone and is kept.
        An extension the chord's name only stacks in (G13's 9th) costs half

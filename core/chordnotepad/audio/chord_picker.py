@@ -573,6 +573,13 @@ class ChordNotePicker(INotePicker):
             if pc not in voiced_pcs:
                 score += omission_cost(self.OMIT_PENALTY, interval, intervals)
 
+        # A triad's right hand without the root: the left hand covers it, but
+        # two notes left on top thin the chord out (E2 | B3 G#4), so the
+        # right hand pays the root's omission weight on its own.
+        if (rh and len({(root_pc + iv) % 12 for iv in intervals}) == 3
+                and root_pc not in {m % 12 for m in rh}):
+            score += self.OMIT_PENALTY['root']
+
         # Right-hand register centering (strong: prevents drift over long songs).
         if rh:
             score += self.SCORE_PER_RH_NOTE * len(rh)

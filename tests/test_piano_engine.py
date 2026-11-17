@@ -181,3 +181,31 @@ def test_outer_parallels_cost_the_outer_parallel_penalty():
     assert p._score_transition(g, contrary) == base._score_transition(g, contrary)
     third = [45, 61, 64, 73]                         # octave to tenth: free
     assert p._score_transition(g, third) == base._score_transition(g, third)
+
+
+def test_a_triad_keeps_its_root_in_the_right_hand():
+    # E after D used to thin to E2 | B3 G#4 (the root only in the bass).
+    p = ChordNotePicker()
+    for symbols in (['D', 'E'], ['C', 'Em', 'F', 'G', 'E', 'Am']):
+        for chord, voiced in zip(_seq(symbols), p.voice_sequence_details(_seq(symbols))):
+            rh = voiced.midi_notes[voiced.hand_split:]
+            root = p._chord_signature(chord)[0]
+            assert root in {m % 12 for m in rh} and len(rh) >= 3, (chord.root, voiced.midi_notes)
+
+
+def test_right_hand_root_drop_costs_the_root_weight_on_a_triad_only():
+    from chordnotepad.audio.chord_picker import Voicing
+    p = ChordNotePicker()
+    e = _seq(['E'])[0]
+    with_root = p._score_quality(Voicing((40,), (59, 64, 68)), e)       # E2 | B3 E4 G#4
+    without = p._score_quality(Voicing((40,), (59, 68)), e)             # E2 | B3 G#4
+    centre = p.SCORE_CENTER * (abs((59 + 68) / 2 - p.RH_IDEAL_CENTER)
+                               - abs((59 + 64 + 68) / 3 - p.RH_IDEAL_CENTER))
+    assert without - with_root == pytest.approx(
+        p.OMIT_PENALTY['root'] - p.SCORE_PER_RH_NOTE + centre)
+    # A seventh chord's rootless right hand pays nothing extra: the score
+    # doesn't depend on the root's weight.
+    e7 = _seq(['E7'])[0]
+    rootless = Voicing((40,), (56, 59, 62))                              # E2 | G#3 B3 D4
+    free = ChordNotePicker(PianoSpec.from_dict('p', {'weights': {'omit': {'root': 0.0}}}))
+    assert p._score_quality(rootless, e7) == free._score_quality(rootless, e7)

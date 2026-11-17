@@ -438,6 +438,11 @@ def nested_tooltip(group: str, role: str, model: str = 'ensemble') -> str:
         return (f"How much to favor doubling the {role_label} when there are more voices "
                 f"than chord tones, per extra copy. Positive encourages it, negative "
                 f"avoids it.")
+    if group == 'omit' and model == 'piano' and role == 'root':
+        return ("How much the picker loses when a plain three-note chord's right hand leaves "
+                "out the root (the left hand plays it, so only two notes are left on top), or "
+                "when the root is missing from both hands. More negative keeps it in the right "
+                "hand; nearer zero allows the thinner voicing.")
     if group == 'omit' and model == 'piano':
         return (f"How much the picker loses when the {role_label} is missing from both "
                 f"hands; the right hand may leave out the fifth, or extensions that won't "
