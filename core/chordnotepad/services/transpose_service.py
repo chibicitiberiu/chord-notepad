@@ -431,6 +431,31 @@ def _spelling_plan(lines_model, semitones: int, notation: str) -> Dict[int, Plan
     return plan
 
 
+def transposed_chords(text: str, semitones: int, notation: Union[Notation, str]
+                      ) -> Dict[int, str]:
+    """Every chord :func:`transpose_text` would move, as it would write it.
+
+    Keyed by the chord's start offset in ``text``; the value is the chord
+    moved by ``semitones`` (without any ``*duration``), spelled by the same
+    plan as a whole-song transpose (the key at each chord, detected from the
+    chords before the first ``{key}``, the next chord, secondary
+    dominants). Roman numerals, rests and invalid chords aren't in it.
+    """
+    notation = _notation_str(notation)
+    lines_model = SongParserService().detect_chords_in_text(text, notation)
+    plan = _spelling_plan(lines_model, semitones, notation)
+    moved: Dict[int, str] = {}
+    for model in lines_model:
+        for chord in model.chords:
+            if not _transposable(chord):
+                continue
+            entry = plan.get(chord.start, PlanEntry(None, None, None))
+            moved[chord.start] = transpose_chord_token(
+                chord.chord, semitones, notation, entry.key, entry.next_chord,
+                entry.source_key, entry.next_root)
+    return moved
+
+
 def transpose_text(
     text: str,
     semitones: int,

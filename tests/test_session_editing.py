@@ -590,6 +590,8 @@ def test_apply_takes_any_row_not_just_the_recommended_one():
     other = next(r.capo for r in rows if r.capo not in (0, rows[0].capo))
     env.session.capo_advice_apply(other)
     assert env.session.text == f"{{capo: {other}}}\n{BARRE_SONG}"
+    # Not the recommended one: the status says what went in, not "Suggested".
+    assert env.status() == f"Inserted: {{capo: {other}}}"
 
 
 def test_apply_replaces_a_capo_before_the_first_chord():

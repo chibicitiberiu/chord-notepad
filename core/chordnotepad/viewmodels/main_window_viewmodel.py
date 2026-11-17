@@ -1049,9 +1049,8 @@ class MainWindowViewModel(Observable):
 
         def rank(should_abort: Callable[[], bool]) -> Optional[List["CapoChoice"]]:
             from chordnotepad.audio.guitar_chord_picker import GuitarChordPicker
-            from chordnotepad.chord.converter import NotationConverter
             from chordnotepad.services.capo_advisor import (
-                CapoChoice, capo_shapes, ease_of, rank_capos)
+                CapoChoice, PlayedChord, capo_shapes, ease_of, rank_capos)
 
             lines = self._chord.detect_chords_in_text(text, notation)
             rendered = self._audio.render_song(
@@ -1072,19 +1071,14 @@ class MainWindowViewModel(Observable):
             if not options:
                 return None
 
-            def american(rc) -> str:
-                if rc.chord_notes.resolved_symbol:
-                    return rc.chord_notes.resolved_symbol
-                written = rc.chord_info.chord
-                if notation == "european":
-                    return NotationConverter.chord_european_to_american(written)
-                return written
-
-            played = [(american(rc), rc.key) for rc in chords]
+            played = [PlayedChord(rc.chord_info.start, rc.chord_info.chord,
+                                  rc.chord_notes.resolved_symbol if rc.chord_info.is_relative
+                                  else None, rc.key)
+                      for rc in chords]
             count = sum(1 for cn in sequence if cn.notes)
             base = next(o for o in options if o.capo == 0)
             return [CapoChoice(option.capo, ease_of(option, base, count),
-                               capo_shapes(played, option.capo, notation), i == 0)
+                               capo_shapes(text, played, option.capo, notation), i == 0)
                     for i, option in enumerate(options)]
 
         return rank

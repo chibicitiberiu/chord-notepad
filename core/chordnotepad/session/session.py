@@ -1111,11 +1111,12 @@ class AppSession:
         if capo != self._main.current_capo(region):
             with self._undo_policy(UndoPolicy.GROUP):
                 self._main.insert_capo(capo, region)
-            if capo:
+            recommended = next(row.recommended for row in dialog.rows if row.capo == capo)
+            if capo and recommended:
                 label = next(o.label for o in dialog.voicings if o.value == dialog.voicing)
                 self._set_status(formatting.capo_suggested_status(capo, region is not None, label))
             else:
-                self._set_status(formatting.inserted_status("{capo: 0}"))
+                self._set_status(formatting.inserted_status(f"{{capo: {capo}}}"))
         self._close_capo_advice()
 
     @_command

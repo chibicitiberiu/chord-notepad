@@ -2,7 +2,7 @@
 
 ``rank_capos`` scores every capo and puts the recommended one first,
 ``ease_of`` puts each against capo 0 in words, ``capo_shapes`` names the
-shapes a capo turns the chords into, and the viewmodel's ``capo_job`` puts
+shapes a capo turns the chords into (as Transpose would write them), and the viewmodel's ``capo_job`` puts
 them together from a rendered song (roman numerals resolved, the key in
 force at each chord). ``current_capo`` is the capo in force where Suggest
 Capo would put one.
@@ -16,9 +16,10 @@ from chordnotepad.models.chord_notes import ChordNotes
 from chordnotepad.models.fretboard_spec import BUILTIN_FRETBOARDS
 from chordnotepad.services import capo_advisor
 from chordnotepad.services.capo_advisor import (
-    CapoOption, _capo_spec, capo_shapes, ease_of, rank_capos, suggest_capo)
+    CapoOption, _capo_spec, ease_of, rank_capos, suggest_capo)
 from chordnotepad.services.playback_service import PlaybackService
 from chordnotepad.services.song_parser_service import SongParserService
+from chordnotepad.services.transpose_service import transpose_text
 from chordnotepad.session.host import HostDispatch
 from chordnotepad.session.testing import FakePlayer, InMemoryDocumentStore, ManualHost
 from chordnotepad.viewmodels.main_window_viewmodel import MainWindowViewModel
@@ -122,43 +123,77 @@ def test_the_recommended_capo_is_easier():
 # -- capo_shapes ----------------------------------------------------------------------
 
 
-def test_shapes_move_down_by_the_capo_in_the_key():
-    chords = [("Bb", "Bb"), ("F", "Bb"), ("Gm", "Bb"), ("Eb", "Bb"), ("F", "Bb")]
-    assert capo_shapes(chords, 3, "american") == ("G", "D", "Em", "C")
-    assert capo_shapes(chords, 0, "american") == ("Bb", "F", "Gm", "Eb")
-    # Sharps in a sharp key: F# major, capo 2, is E major.
-    assert capo_shapes([("F#", "F#"), ("D#m", "F#"), ("C#/E#", "F#")], 2, "american") == (
-        "E", "C#m", "B/D#")
+def _shapes(text, capo, notation="american"):
+    """The shapes of ``text`` under ``capo``, as the dialog's row names them."""
+    rows = {c.capo: c for c in _viewmodel(text, notation=notation)
+            .capo_job("guitar:standard")(lambda: False)}
+    return rows[capo].shapes
 
 
-def test_a_chromatic_chord_keeps_its_letter():
-    # E7 in C (V/vi) under capo 2: D7 in Bb, not Ebb7 or a flat spelling.
-    assert capo_shapes([("C", "C"), ("E7", "C"), ("Am", "C")], 2, "american") == (
-        "Bb", "D7", "Gm")
+def _transposed(text, capo, notation):
+    """Transpose's oracle: the distinct chords of the song moved down ``capo``."""
+    out = []
+    moved = transpose_text(text, -capo, notation)
+    for line in SongParserService().detect_chords_in_text(moved, notation):
+        for chord in line.chords:
+            if chord.is_valid and not chord.is_rest and chord.chord not in out:
+                out.append(chord.chord)
+    return tuple(out)
 
 
-def test_shapes_follow_the_key_at_each_chord():
-    # A key change halfway: Db in Db is B under capo 2; the same pitch as
-    # C# in A (capo 2: B in G) is the same shape, named once.
-    chords = [("Db", "Db"), ("Gb", "Db"), ("C#m", "E"), ("A", "E")]
-    assert capo_shapes(chords, 2, "american") == ("B", "E", "Bm", "G")
+ORACLE_SONGS = [
+    ("C G Am F", "american"),
+    ("D A Bm G", "american"),
+    ("Bb F Gm Eb Cm", "american"),
+    ("Eb Ab Bb Cm Fm", "american"),
+    ("F#m D A E C#7", "american"),
+    ("C E7 Am F G7", "american"),
+    ("C(add9) G/B Am7 Fmaj7", "american"),
+    ("{key: C}\nDm C#dim Dm G", "american"),
+    ("{key: F}\nGm F#dim7 Gm C7", "american"),
+    ("{key: Bb}\nBb B7 Em Bb", "american"),
+    ("{key: G}\nG F#7 Bm E7 Am D7", "american"),
+    ("{key: Eb}\nEb D7 Gm C7 Fm Bb7", "american"),
+    ("{key: Ebm}\nEbm Cb Gb Db", "american"),
+    ("{key: E}\nE B C#m A G#7", "american"),
+    ("{key: G}\nG Bm C D7 G/B", "american"),
+    ("{key: Db}\nDb Gb\n{key: E}\nC#m A", "american"),
+    ("Do Sol Lam Fa", "european"),
+    ("Sib Fa Solm Mib", "european"),
+    ("{key: La}\nLa Mi/Sol# Fa#m Re", "european"),
+]
 
 
-def test_european_shapes_read_the_key_and_write_the_chords_in_european():
-    chords = [("A", "La"), ("E/G#", "La"), ("F#m", "La"), ("D", "La")]
-    assert capo_shapes(chords, 2, "european") == ("Sol", "Re/Fa#", "Mim", "Do")
+@pytest.mark.parametrize("text, notation", ORACLE_SONGS)
+def test_the_shapes_are_what_transpose_would_write(text, notation):
+    # Every capo, with and without {key}: the key detected from the chords,
+    # flat keys, slash chords, secondary dominants, dim leading tones.
+    for capo in range(0, 8):
+        assert _shapes(text, capo, notation) == _transposed(text, capo, notation), capo
 
 
-def test_without_a_key_the_plain_spelling_is_used():
-    assert capo_shapes([("Bb", None), ("Eb", None), ("F#", None)], 1, "american") == (
-        "A", "D", "F")
+def test_shapes_without_a_key_use_the_detected_key():
+    assert _shapes("C G Am F", 1) == ("B", "F#", "G#m", "E")
+    assert _shapes("C G Am F", 4) == ("Ab", "Eb", "Fm", "Db")
+    assert _shapes("D A Bm G", 1) == ("Db", "Ab", "Bbm", "Gb")
+    assert _shapes("Do Sol Lam Fa", 4, "european") == ("Lab", "Mib", "Fam", "Reb")
+
+
+def test_a_secondary_dominant_keeps_its_letter():
+    # B7 in Bb is V/iii: capo 1 makes it A#7 before D#m, not Bb7.
+    assert _shapes("{key: Bb}\nBb B7 Em Bb", 1) == ("A", "A#7", "D#m")
+    # A diminished chord leading up to the next chord takes a sharp.
+    assert _shapes("{key: C}\nDm C#dim Dm G", 2) == ("Cm", "Bdim", "F")
+
+
+def test_no_capo_names_the_chords_as_written():
+    assert _shapes("{key: Ebm}\nEbm Cb Gb Db", 0) == ("Ebm", "Cb", "Gb", "Db")
+    assert _shapes("{key: Sib}\nSib Fa Solm", 0, "european") == ("Sib", "Fa", "Solm")
 
 
 def test_each_shape_is_named_once_and_long_lists_stop_after_eight():
-    chords = [(c, "C") for c in "C G C Am F G C".split()]
-    assert capo_shapes(chords, 0, "american") == ("C", "G", "Am", "F")
-    many = [(c, None) for c in "C D E F G A B Cm Dm Em".split()]
-    assert capo_shapes(many, 0, "american") == tuple("C D E F G A B Cm".split()) + ("…",)
+    assert _shapes("{key: C}\nC G C Am F G C", 0) == ("C", "G", "Am", "F")
+    assert _shapes("C D E F G A B Cm Dm Em", 0) == tuple("C D E F G A B Cm".split()) + ("\u2026",)
 
 
 # -- the viewmodel's job ------------------------------------------------------------------

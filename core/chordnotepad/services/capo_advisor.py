@@ -192,45 +192,79 @@ def ease_of(
     return ABOUT_THE_SAME
 
 
+@dataclasses.dataclass(frozen=True)
+class PlayedChord:
+    """A chord as Suggest Capo names it (:func:`capo_shapes`).
+
+    Attributes:
+        start: Its offset in the song's text.
+        written: The chord as written (in the song's notation).
+        resolved: For a roman numeral, the chord it resolves to (American);
+            None for any other chord.
+        key: The key in force at it, as the song writes it, or None.
+    """
+
+    start: int
+    written: str
+    resolved: Optional[str] = None
+    key: Optional[str] = None
+
+
 def capo_shapes(
-    chords: Sequence[Tuple[str, Optional[str]]],
+    text: str,
+    played: Sequence[PlayedChord],
     capo: int,
     notation: str,
     limit: int = MAX_SHAPES,
 ) -> Tuple[str, ...]:
-    """The shapes ``chords`` are played with under a capo on fret ``capo``.
+    """The shapes ``played`` are played with under a capo on fret ``capo``.
 
-    Each chord moves down ``capo`` semitones
-    (:func:`services.transpose_service.transpose_chord_token`), spelled in
-    the key it is in, moved the same way, as Transpose would write it.
+    Each chord is named as Transpose would write it moved down ``capo``
+    semitones (:func:`services.transpose_service.transposed_chords`: the
+    whole song's spelling plan, with the key detected from the chords where
+    no ``{key}`` names one). A roman numeral is named by the chord it
+    resolves to, moved the same way in its key. With no capo, every chord
+    is named as written (a roman numeral by the chord it resolves to).
 
     Args:
-        chords: ``(chord, key)`` in playback order: the chord in American
-            spelling (a roman numeral already resolved), the key in effect
-            as the song writes it (in ``notation``), or None. Repeats are
-            dropped: each chord is named once, where it first appears.
+        text: The song's text (the chords' offsets point into it).
+        played: The chords in playback order. Repeats are dropped: each
+            shape is named once, where it first appears.
         capo: The fret.
-        notation: The song's notation (``american`` or ``european``): the
-            keys are read in it and the shapes are written in it.
+        notation: The song's notation (``american`` or ``european``).
         limit: How many shapes to name; when there are more, the last
             entry is "…".
 
     Returns:
-        The distinct shapes, in the order their chords first appear.
+        The distinct shapes, in the order they first appear.
     """
     from chordnotepad.chord.converter import NotationConverter
-    from chordnotepad.services.transpose_service import keys_for_move, transpose_chord_token
+    from chordnotepad.services.transpose_service import (
+        keys_for_move, transpose_chord_token, transposed_chords)
 
-    distinct = list(dict.fromkeys(chords))
-    shapes: List[str] = []
-    for i, (chord, key) in enumerate(distinct):
-        keys = keys_for_move(key, -capo, notation) if key else None
-        source, target = keys if keys is not None else (None, None)
-        next_chord = distinct[i + 1][0] if i + 1 < len(distinct) else None
-        shape = transpose_chord_token(chord, -capo, "american", key=target,
-                                      next_chord=next_chord, source_key=source)
+    moved = transposed_chords(text, -capo, notation) if capo else {}
+
+    def american(chord: PlayedChord) -> str:
+        if chord.resolved:
+            return chord.resolved
         if notation == "european":
-            shape = NotationConverter.chord_american_to_european(shape)
+            return NotationConverter.chord_european_to_american(chord.written)
+        return chord.written
+
+    shapes: List[str] = []
+    for i, chord in enumerate(played):
+        if not chord.resolved:
+            shape = moved.get(chord.start, chord.written) if capo else chord.written
+        else:
+            shape = chord.resolved
+            if capo:
+                keys = keys_for_move(chord.key, -capo, notation) if chord.key else None
+                source, target = keys if keys is not None else (None, None)
+                after = american(played[i + 1]) if i + 1 < len(played) else None
+                shape = transpose_chord_token(shape, -capo, "american", key=target,
+                                              next_chord=after, source_key=source)
+            if notation == "european":
+                shape = NotationConverter.chord_american_to_european(shape)
         if shape not in shapes:
             shapes.append(shape)
     if len(shapes) > limit:
