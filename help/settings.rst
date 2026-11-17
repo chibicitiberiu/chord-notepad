@@ -482,3 +482,52 @@ instead of editing JSON by hand:
             voicings, My 7-String. Edit voicings and Done at the bottom.
 
       The Voicing sheet, with the new voicing under Your voicings.
+
+Upgrading
+=========
+
+The first time a new version of Chord Notepad starts, it brings your
+settings up to date. Your voicings keep the values you gave them.
+
+**Copies of the built-in voicings.** A voicing you made by copying a built-in
+one (a guitar, a choir, the String Quartet, the piano) remembers which one it
+came from. When a later version retunes that built-in, your copy takes the new
+values for each setting you left as it was, and keeps every setting you
+changed. A voicing made from a blank, or from one of your own that wasn't a
+copy, is never changed this way. Copies made before 0.6.0 are recognised by
+the built-in's name, which they kept; a guitar also needs the built-in's
+tuning, so a Standard copy you retuned to seven strings counts as your own.
+For a new setting that a version adds, every voicing starts at its default,
+and a copy of a built-in at the built-in's value.
+
+.. only:: desktop
+
+   **A copy of the settings file.** Before an upgrade first changes the
+   settings file, the file as it was is copied next to it, named
+   ``settings.json.bak-v<version>-<date>-<time>`` (for example
+   ``settings.json.bak-v4-20261117-093012``). The same happens when a value in
+   the file can't be used, like a tempo of 500: that one setting goes back to
+   its default and the others stay. The app never deletes these copies; remove
+   the old ones yourself once you no longer need them.
+
+   **A settings file that can't be read.** If the file is damaged (cut short,
+   or broken by a hand edit), the app starts with the default settings and
+   tells you so. The damaged file is kept in the same folder as
+   ``settings.json.corrupt-<date>-<time>``, so you can repair it, or copy your
+   voicings out of it, and put it back as ``settings.json`` while the app is
+   closed.
+
+   **Going back to an older version.** From 0.6.0 on, an older version keeps
+   the settings a newer one wrote that it doesn't know. Versions before 0.6.0
+   drop them when they save, and editing a copy of a built-in voicing there
+   drops its link to the built-in and the settings added since. Back on the
+   newer version, the link is found again by the name, and those settings
+   take the built-in's values again.
+
+.. only:: android
+
+   Before an upgrade first changes your settings, the app keeps a copy of them
+   as they were. If a value can't be used, that one setting goes back to its
+   default and the others stay. If your settings can't be read at all, the app
+   starts with the default settings and tells you so; the old settings are
+   kept.
