@@ -164,6 +164,7 @@
     }
    ],
    "weight:augmented_second_penalty": "-4.0",
+   "weight:chromatic_tendency_bonus": "2.0",
    "weight:common_tone_bonus": "1.5",
    "weight:contrary_motion_bonus": "0.8",
    "weight:double_leading_tone_penalty": "-8.0",

@@ -740,6 +740,17 @@ Voicing Parameters
        common in the close choirs (TTBB, SSA).
      - ``voice_overlap_penalty``
      - -1.0
+   * - Chromatic line continues
+     - Added per voice that carries a chromatically altered tone on by a
+       step the way it was altered. A tone is altered when the chord before
+       had the same letter a semitone away: A to A♭ from F to Fdim, C to C♯
+       from C to A7, B to B♭ from Cmaj7 to C7. A raised tone earns it rising
+       by a semitone or a whole tone into the next chord, a lowered one
+       falling, so the A♭ of Fdim goes on to G over C/E instead of leaping.
+       A semitone between two letters (E to F, G to A♭) isn't an
+       alteration, and the leading tone resolves by its own rule.
+     - ``chromatic_tendency_bonus``
+     - +2.0
 
 .. note::
    These weights apply per ensemble. A custom ensemble that omits

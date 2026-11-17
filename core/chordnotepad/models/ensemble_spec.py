@@ -185,6 +185,10 @@ def _resolve_pitch(value: Union[int, str], *, context: str) -> int:
 #: - ``voice_overlap_penalty``: cost per voice that moves past where its
 #:   neighbour just was (the tenor below the bass's previous note), which
 #:   blurs the two lines for singers and on the staff.
+#: - ``chromatic_tendency_bonus``: reward per voice that carries a tone the
+#:   chord altered chromatically (the same letter a semitone away in the
+#:   chord before: A to Ab, C to C#) on by a step the way it was altered, a
+#:   raised tone up, a lowered one down.
 #: - ``same_bass_penalty``: cost when two neighbouring chords are the same
 #:   chord over different written basses (C and C/E) but the voicings sound
 #:   the same lowest pitch class, so the bass change isn't heard.
@@ -258,6 +262,7 @@ DEFAULT_WEIGHTS: Dict[str, Any] = {
     'upper_spacing_threshold': 7.0,
     'same_bass_penalty': -8.0,
     'voice_overlap_penalty': -1.0,
+    'chromatic_tendency_bonus': 2.0,
 }
 
 #: Weight keys whose value is itself a per-role mapping rather than a scalar.

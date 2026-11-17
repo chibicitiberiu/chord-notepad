@@ -53,6 +53,7 @@ ENSEMBLE_WEIGHT_LABELS: Dict[str, str] = {
     'upper_spacing_threshold': 'Upper spacing allowed',
     'same_bass_penalty': 'Same chord, same bass',
     'voice_overlap_penalty': 'Voice overlap',
+    'chromatic_tendency_bonus': 'Chromatic line continues',
 }
 
 PIANO_WEIGHT_LABELS: Dict[str, str] = {
@@ -338,6 +339,13 @@ TOOLTIPS: Dict[str, str] = {
                                      "bass's previous note; the two lines blur for singers and "
                                      "on the staff. More negative keeps each voice on its own "
                                      "side."),
+    'weight:chromatic_tendency_bonus': ("How the picker treats a voice on a tone the chord altered "
+                                        "chromatically from the chord before (A to Ab from F to "
+                                        "Fdim, C to C# from C to A7) moving on by a step the way "
+                                        "it was altered: a raised tone rising, a lowered one "
+                                        "falling (Ab on to G). A semitone between two letters (E "
+                                        "to F) isn't an alteration, and the leading tone has its "
+                                        "own rule. More positive keeps chromatic lines going."),
     'weight:unison_penalty': ("How the picker treats a pair of neighbouring voices on the same "
                               "pitch, when unisons are allowed. More negative avoids unisons."),
     'weight:upper_spacing_penalty': ("How the picker treats a gap between two neighbouring "

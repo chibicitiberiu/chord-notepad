@@ -369,6 +369,16 @@
          "max": 100.0,
          "min": -100.0,
          "step": 0.1
+        },
+        {
+         "default": "2.0",
+         "help": "How the picker treats a voice on a tone the chord altered chromatically from the chord before (A to Ab from F to Fdim, C to C# from C to A7) moving on by a step the way it was altered: a raised tone rising, a lowered one falling (Ab on to G). A semitone between two letters (E to F) isn't an alteration, and the leading tone has its own rule. More positive keeps chromatic lines going.",
+         "id": "weight:chromatic_tendency_bonus",
+         "kind": "float",
+         "label": "Chromatic line continues",
+         "max": 100.0,
+         "min": -100.0,
+         "step": 0.1
         }
        ],
        "id": "weights",

@@ -35,9 +35,11 @@ the :mod:`audio.chord_tones` role taxonomy:
    perfect fifths/octaves (except, with five voices or more, octaves between
    two voices doubling the bass line), hidden fifths/octaves and contrary
    motion of the outer voices, 7th /
-   leading-tone resolution, and the same chord over a different written bass
-   sounding the same bass note). The leading tone is the ``{key:}``'s; in a
-   song without one, :meth:`voice_sequence` infers the key around each chord
+   leading-tone resolution, a chromatically altered tone moving on the way it
+   was altered (:meth:`_apply_chromatic_tendencies`, whole songs only), and
+   the same chord over a different written bass sounding the same bass
+   note). The leading tone is the ``{key:}``'s; in a song without one,
+   :meth:`voice_sequence` infers the key around each chord
    and adds each dominant's third before the chord a fifth below
    (:meth:`_apply_keyless_leading_tones`).
 
@@ -144,6 +146,13 @@ class _ChordContext(NamedTuple):
     """In a song without a key, the third of a major or dominant chord whose
     root falls a fifth to the next chord's root (G or G7 before C, A7 before
     Dm): a leading tone for that change, at full weight."""
+    raised_pcs: FrozenSet[int] = frozenset()
+    """Tones the chord raised chromatically from the chord before (C to C#
+    from C to A7, G to G#): they tend to keep rising (:meth:`EnsembleVoicer.
+    _apply_chromatic_tendencies`)."""
+    lowered_pcs: FrozenSet[int] = frozenset()
+    """Tones the chord lowered chromatically from the chord before (A to Ab
+    from F to Fdim, B to Bb): they tend to keep falling."""
 
 
 def same_chord_other_bass(a: _ChordContext, b: _ChordContext) -> bool:
@@ -321,6 +330,7 @@ class EnsembleVoicer(INotePicker):
         self._upper_spacing_threshold = float(w('upper_spacing_threshold'))
         self._same_bass_penalty = float(w('same_bass_penalty'))
         self._voice_overlap_penalty = float(w('voice_overlap_penalty'))
+        self._chromatic_tendency_bonus = float(w('chromatic_tendency_bonus'))
         self._doubling: Dict[str, float] = dict(w('doubling'))
         self._omit: Dict[str, float] = dict(w('omit'))
         self._inversion: Dict[str, float] = dict(w('inversion'))
@@ -434,6 +444,7 @@ class EnsembleVoicer(INotePicker):
 
         metas = [self._build_meta(cn) for cn in sequence]
         self._apply_keyless_leading_tones(sequence, metas)
+        self._apply_chromatic_tendencies(metas)
         basses = self._plan_bass(sequence, metas)
         candidate_sets: List[List[_Cand]] = []
         for pos, (cn, meta) in enumerate(zip(sequence, metas)):
@@ -508,6 +519,46 @@ class EnsembleVoicer(INotePicker):
                 meta.ctx = meta.ctx._replace(dominant_leading_tone_pc=dominant)
             if lt is not None:
                 meta.ctx = meta.ctx._replace(leading_tone_pc=lt, leading_tone_weight=weight)
+
+    @staticmethod
+    def _apply_chromatic_tendencies(metas: List[_ChordMeta]) -> None:
+        """Mark the tones each chord altered chromatically from the chord before.
+
+        A tone of chord ``i`` (one of its tones, or its slash bass) that chord
+        ``i - 1`` doesn't have is *lowered* when chord ``i - 1`` has the
+        pitch a semitone above it spelled with the same letter (A to Ab from
+        F to Fdim), and *raised* when it has the one a semitone below with
+        the same letter (C to C# from C to A7). A semitone between two letters
+        (E to F, G# to A) is a diatonic step and carries no tendency, nor does
+        a tone with both neighbours in the chord before, the chord's leading
+        tone (:attr:`_ChordContext.leading_tone_pc`, which resolves up by its
+        own rule) or a dominant's third (``dominant_leading_tone_pc``). No
+        tendency next to an empty chord or N.C.; the transition out of the
+        chord rewards a voice on a raised tone rising, or on a lowered one
+        falling, by a step (:meth:`_score_transition`).
+        """
+        for prev, meta in zip(metas, metas[1:]):
+            if prev.empty or meta.empty:
+                continue
+            before, now = prev.ctx.letters, meta.ctx.letters
+            if not before or not now:
+                continue
+            skip = {meta.ctx.leading_tone_pc, meta.ctx.dominant_leading_tone_pc}
+            raised, lowered = set(), set()
+            for pc in range(_OCTAVE):
+                letter = now[pc]
+                if letter < 0 or before[pc] >= 0 or pc in skip:
+                    continue
+                above, below = before[(pc + 1) % _OCTAVE], before[(pc - 1) % _OCTAVE]
+                if above >= 0 and below >= 0:
+                    continue
+                if above == letter:
+                    lowered.add(pc)
+                elif below == letter:
+                    raised.add(pc)
+            if raised or lowered:
+                meta.ctx = meta.ctx._replace(raised_pcs=frozenset(raised),
+                                             lowered_pcs=frozenset(lowered))
 
     # ------------------------------------------------------------------
     # Bass plan
@@ -1119,8 +1170,9 @@ class EnsembleVoicer(INotePicker):
         Both voicings are low-to-high and voice-aligned. Penalizes per-voice
         movement and leaps, rewards common tones and contrary motion of the
         outer voices, penalizes parallel perfect fifths/octaves, and rewards a
-        chordal seventh resolving down or a leading tone resolving up by step
-        (both keyed off the *previous* chord's context). When the two chords
+        chordal seventh resolving down, a leading tone resolving up, or a
+        chromatically raised (lowered) tone rising (falling), each by step
+        (all keyed off the *previous* chord's context). When the two chords
         are one chord over two written basses (:func:`same_chord_other_bass`)
         and both voicings' lowest notes share a pitch class, adds
         ``weights['same_bass_penalty']``: the listener expects to hear the
@@ -1184,6 +1236,15 @@ class EnsembleVoicer(INotePicker):
                 if (prev_notes[b] % _OCTAVE) in prev_ctx.seventh_pcs:
                     if (prev_notes[b] - cur_notes[b]) in (1, 2):
                         score += self._seventh_resolution_bonus
+
+        # Chromatic tendency: a tone the previous chord raised (lowered)
+        # chromatically keeps rising (falling) by a step.
+        if self._chromatic_tendency_bonus and (prev_ctx.raised_pcs or prev_ctx.lowered_pcs):
+            for b in range(n):
+                note_pc = prev_notes[b] % _OCTAVE
+                if ((note_pc in prev_ctx.raised_pcs and 0 < deltas[b] <= _STEP)
+                        or (note_pc in prev_ctx.lowered_pcs and -_STEP <= deltas[b] < 0)):
+                    score += self._chromatic_tendency_bonus
 
         # Leading-tone resolution: a prev leading tone stepping up exactly 1 st.
         lt = prev_ctx.leading_tone_pc

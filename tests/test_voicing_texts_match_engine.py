@@ -55,6 +55,17 @@ def test_ensemble_parallels_spare_a_doubled_bass_line_from_five_voices():
     assert "five voices or more" in TOOLTIPS['weight:parallel_perfect_penalty']
 
 
+def test_ensemble_chromatic_tendency_is_a_step_from_a_same_letter_alteration():
+    # ensemble_voicer._apply_chromatic_tendencies: the same letter a semitone
+    # away in the chord before; _score_transition: 0 < |delta| <= _STEP (2).
+    from chordnotepad.audio.ensemble_voicer import _STEP
+    assert _STEP == 2
+    text = TOOLTIPS['weight:chromatic_tendency_bonus']
+    assert "by a step" in text and "between two letters" in text
+    assert "raised tone rising" in text and "lowered one" in text
+    assert "leading tone has its own rule" in text
+
+
 def test_ensemble_low_interval_limits_match_the_tooltip_and_help():
     from chordnotepad.audio.low_intervals import LOW_INTERVAL_LIMITS as L
     # minor third C3, major third Bb2, fourth A2, fifth Bb1, seconds Eb3/E3.

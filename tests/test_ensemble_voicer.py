@@ -961,3 +961,149 @@ def test_a_held_bass_doesnt_turn_a_plain_chord_into_an_inversion():
     # a held bass (+1.5), so Am F sounded Am F/A on six strings.
     voicings = EnsembleVoicer(STRINGS_SIX).voice_sequence(_song('C G Am F C G Am F'))
     assert [v[0] % 12 for v in voicings] == [0, 7, 9, 5, 0, 7, 9, 5]
+
+
+# ---------------------------------------------------------------------------
+# Chromatic tendency
+# ---------------------------------------------------------------------------
+_LETTER_PC = {'C': 0, 'D': 2, 'E': 4, 'F': 5, 'G': 7, 'A': 9, 'B': 11}
+
+
+def _spelled(chord):
+    """(letter, accidental) of each note the chord sounds: its tones and slash bass."""
+    names = list(chord.notes) + ([chord.bass_note] if chord.bass_note else [])
+    return {(n[0], n.count('#') - n.count('b')) for n in names}
+
+
+def _reference_tendencies(prev, cur, skip=()):
+    """Raised and lowered pitch classes, worked out from the spellings alone:
+    a note of ``cur`` whose pitch ``prev`` lacks, on a letter ``prev`` sounds
+    one accidental lower (raised) or higher (lowered), unless ``prev`` sounds
+    both semitone neighbours or the pitch class is in ``skip``."""
+    def pc(letter, acc):
+        return (_LETTER_PC[letter] + acc) % 12
+    before = _spelled(prev)
+    before_pcs = {pc(*n) for n in before}
+    raised, lowered = set(), set()
+    for letter, acc in _spelled(cur):
+        p = pc(letter, acc)
+        if p in before_pcs or p in skip:
+            continue
+        if (p + 1) % 12 in before_pcs and (p - 1) % 12 in before_pcs:
+            continue
+        if (letter, acc - 1) in before:
+            raised.add(p)
+        elif (letter, acc + 1) in before:
+            lowered.add(p)
+    return raised, lowered
+
+
+def _tendencies(symbols, key='C'):
+    voicer = EnsembleVoicer(BUILTIN_ENSEMBLES['satb'])
+    chords = [_HELPER.compute_chord_notes(s, key=key) for s in symbols.split()]
+    metas = [voicer._build_meta(c) for c in chords]
+    voicer._apply_keyless_leading_tones(chords, metas)
+    voicer._apply_chromatic_tendencies(metas)
+    return chords, metas
+
+
+@pytest.mark.parametrize('symbols, raised, lowered', [
+    ('F Fdim', set(), {8}),           # A to Ab (Fdim's Cb is the key's leading tone)
+    ('C A7', {1}, set()),             # C to C#
+    ('Cmaj7 C7', set(), {10}),        # B to Bb
+    ('C Caug', {8}, set()),           # G to G#
+    ('Am/G# Am/G', set(), {7}),       # the slash bass G# to G
+    ('C F', set(), set()),            # E to F: two letters, a diatonic step
+    ('C Ab', set(), {3}),             # E to Eb (G to Ab is two letters)
+    ('Am E', set(), set()),           # A to G#: two letters
+    ('Am7 Fm', set(), set()),         # Ab between Am7's A and G
+    ('C Bb G', set(), set()),         # Bb to B: the key's leading tone, resolved by its own rule
+])
+def test_chromatic_tendencies_follow_the_spelling(symbols, raised, lowered):
+    _chords, metas = _tendencies(symbols)
+    assert (set(metas[-1].ctx.raised_pcs), set(metas[-1].ctx.lowered_pcs)) == (raised, lowered)
+
+
+def test_chromatic_tendencies_match_a_reference_over_a_corpus():
+    # Independent check: the reference works from letters and accidentals, the
+    # engine from pitch classes and each chord's letter per pitch class.
+    progressions = [
+        'C C/B Am Em/G F Fdim C/E Dm Dm/F C/E C/G F/A G/B C',
+        'C Cmaj7 C7 C6 F G7 C', 'Am AmM7 Am7 Am6 Dm E7 Am', 'Am Am/G# Am/G Am/F# F E7 Am',
+        'C C#dim7 Dm D#dim7 C/E F G7 C', 'F Fm C/E Ebdim7 Dm G7 C', 'C Caug Am F Fm C G7 C',
+        'C A7 Dm E7 Am D7 G7 C', 'C Ab C E Am F Db C', 'Eb Cb Bbm Gb Ebm', 'Bb Bbm F F#dim7 Gm',
+    ]
+    for key in ('C', None):
+        for symbols in progressions:
+            chords, metas = _tendencies(symbols, key)
+            for i in range(1, len(chords)):
+                skip = {metas[i].ctx.leading_tone_pc, metas[i].ctx.dominant_leading_tone_pc} - {None}
+                expected = _reference_tendencies(chords[i - 1], chords[i], skip)
+                assert (set(metas[i].ctx.raised_pcs), set(metas[i].ctx.lowered_pcs)) == expected, (
+                    symbols, key, i)
+
+
+def test_no_chromatic_tendency_next_to_no_chord():
+    voicer = EnsembleVoicer(BUILTIN_ENSEMBLES['satb'])
+    chords = [_HELPER.compute_chord_notes('F', key='C'), ChordNotes(notes=[], bass_note=None, root=None),
+              _HELPER.compute_chord_notes('Fdim', key='C')]
+    metas = [voicer._build_meta(c) for c in chords]
+    voicer._apply_chromatic_tendencies(metas)
+    assert all(not m.ctx.raised_pcs and not m.ctx.lowered_pcs for m in metas)
+
+
+def test_a_chromatic_tone_moving_on_by_step_earns_the_tendency_bonus():
+    voicer = EnsembleVoicer(BUILTIN_ENSEMBLES['satb'])
+    w = voicer._chromatic_tendency_bonus
+    assert w == DEFAULT_WEIGHTS['chromatic_tendency_bonus'] > 0
+    _chords, metas = _tendencies('F Fdim C/E')
+    fdim, c_e = metas[1].ctx, metas[2].ctx
+    prev = (53, 59, 65, 68)                       # F3 B3 F4 Ab4
+    on, off = (52, 60, 67, 67), (52, 60, 64, 72)  # Ab4 to G4; Ab4 to C5
+    free = EnsembleVoicer(BUILTIN_ENSEMBLES['satb'])
+    free._chromatic_tendency_bonus = 0.0
+    assert voicer._score_transition(prev, on, fdim, c_e) == pytest.approx(
+        free._score_transition(prev, on, fdim, c_e) + w)
+    assert voicer._score_transition(prev, off, fdim, c_e) == pytest.approx(
+        free._score_transition(prev, off, fdim, c_e))
+
+
+#: Tibi's String Quartet copy with a double bass (settings.json, "New String
+#: Quartet", 2026-11-17), the setup he heard Violin II leap G#4 to C5 on.
+TIBI_QUINTET = {
+    'voices': [
+        {'name': 'Violin I', 'range': [55, 88], 'staff': 'treble'},
+        {'name': 'Violin II', 'range': [55, 84], 'staff': 'treble'},
+        {'name': 'Viola', 'range': [48, 76]},
+        {'name': 'Cello', 'range': [36, 64], 'staff': 'bass'},
+        {'name': 'Double Bass', 'range': [35, 52], 'staff': 'bass'},
+    ],
+    'max_spacing': [14, 14, 24, 12],
+    'allow_unisons': False,
+    'weights': {
+        'leap_penalty': -4.0, 'octave_leap_penalty': -6.0, 'outer_leap_penalty': -0.5,
+        'tritone_leap_penalty': -4.5, 'common_tone_bonus': 1.5, 'parallel_perfect_penalty': -25.0,
+        'hidden_perfect_penalty': -2.0, 'contrary_motion_bonus': 1.5,
+        'seventh_resolution_bonus': 3.0, 'leading_tone_resolution_bonus': 4.5,
+        'double_leading_tone_penalty': -8.0, 'range_comfort_penalty': -0.5,
+        'middle_range_penalty': -0.5, 'unison_penalty': -0.5, 'upper_spacing_penalty': -0.15,
+        'upper_spacing_threshold': 12.0, 'same_bass_penalty': -8.0,
+        'movement': [-0.4, -0.6, -0.4, -0.4, -0.15],
+        'doubling': {'root': 2.0, 'fifth': 0.5, 'third': -2.0, 'seventh': -6.0,
+                     'color': -6.0, 'extension': -6.0},
+        'omit': {'root': -20.0, 'third': -40.0, 'fifth': -3.0, 'seventh': -40.0,
+                 'color': -30.0, 'extension': -6.0},
+        'inversion': {'root': 0.0, 'first': -4.0, 'second': -8.0, 'third': -6.0},
+    },
+    'label': 'String Quartet',
+}
+
+
+def test_tibis_quintet_carries_violin_two_down_the_chromatic_line():
+    # Quick Start verse: Violin II played A4 G#4 and leapt to C5 on C/E; the
+    # Ab that Fdim lowered from F's A now goes on down to G4.
+    spec = EnsembleSpec.from_dict('quintet', TIBI_QUINTET)
+    voicings = EnsembleVoicer(spec).voice_sequence(
+        _song('C C/B Am Em/G F Fdim C/E Dm Dm/F C/E C/G F/A G/B C'))
+    violin_two = [v[3] for v in voicings]
+    assert violin_two[4:7] == [69, 68, 67]       # A4 G#4 G4
