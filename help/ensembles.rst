@@ -532,6 +532,13 @@ Voicing Parameters
        by default because it's rarely wanted.
      - ``parallel_perfect_penalty``
      - -25.0
+   * - Hidden fifths/octaves
+     - Subtracted when the top and bottom voices move the same way into a
+       perfect fifth or octave (counted in any octave) while the top voice
+       leaps, by more than a whole tone. A top voice moving by step is never
+       charged, as in four-part writing.
+     - ``hidden_perfect_penalty``
+     - -2.0
    * - Contrary motion
      - Added when the outer two voices (typically soprano and bass) move
        in opposite directions.

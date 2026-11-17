@@ -165,6 +165,7 @@
    "weight:common_tone_bonus": "1.5",
    "weight:contrary_motion_bonus": "0.8",
    "weight:double_leading_tone_penalty": "-8.0",
+   "weight:hidden_perfect_penalty": "-2.0",
    "weight:leading_tone_resolution_bonus": "1.5",
    "weight:leap_penalty": "-2.0",
    "weight:middle_range_penalty": "0.0",

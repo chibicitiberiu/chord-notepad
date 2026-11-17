@@ -232,6 +232,16 @@
          "step": 0.1
         },
         {
+         "default": "-2.0",
+         "help": "How the picker treats the top and bottom voices moving the same way into a fifth or an octave while the top voice leaps (more than a whole tone). More negative avoids these hidden fifths and octaves; a top voice moving by step is never charged.",
+         "id": "weight:hidden_perfect_penalty",
+         "kind": "float",
+         "label": "Hidden fifths/octaves",
+         "max": 100.0,
+         "min": -100.0,
+         "step": 0.1
+        },
+        {
          "default": "0.8",
          "help": "How the picker treats the outer two voices moving in opposite directions. More positive encourages it.",
          "id": "weight:contrary_motion_bonus",

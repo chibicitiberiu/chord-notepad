@@ -73,6 +73,8 @@ logger = logging.getLogger(__name__)
 _OCTAVE = 12
 _LEAP_THRESHOLD = 7          # a leap wider than a perfect fifth is penalized
 _TRITONE = 6                 # an exact tritone leap is penalized
+_PERFECT_FIFTH = 7
+_STEP = 2                    # a move of up to a whole tone is a step
 _RANGE_COMFORT_EDGE = 2      # the outer 2 semitones of a range are uncomfortable
 _BAND_QUARTER = 4            # the comfortable band leaves out a quarter of the range at each end
 _RANGE_PAD = 2               # semitones the ladder widens each range end by
@@ -251,6 +253,7 @@ class EnsembleVoicer(INotePicker):
         self._tritone_leap_penalty = float(w('tritone_leap_penalty'))
         self._common_tone_bonus = float(w('common_tone_bonus'))
         self._parallel_perfect_penalty = float(w('parallel_perfect_penalty'))
+        self._hidden_perfect_penalty = float(w('hidden_perfect_penalty'))
         self._contrary_motion_bonus = float(w('contrary_motion_bonus'))
         self._seventh_resolution_bonus = float(w('seventh_resolution_bonus'))
         self._leading_tone_resolution_bonus = float(w('leading_tone_resolution_bonus'))
@@ -816,6 +819,27 @@ class EnsembleVoicer(INotePicker):
 
         return score
 
+    def _motion_score(self, b: int, n: int, delta: int) -> float:
+        """One voice's own share of a transition: movement, leaps, a held note.
+
+        ``b`` is the bottom-up voice index of ``n`` voices and ``delta`` its
+        motion in semitones.
+        """
+        # movement weight is top-first; low-to-high voice b maps to N-1-b.
+        magnitude = abs(delta)
+        score = self._movement[n - 1 - b] * magnitude
+        if magnitude > _LEAP_THRESHOLD:
+            score += self._leap_penalty
+            if b == 0 or b == n - 1:
+                score += self._outer_leap_penalty * (magnitude - _LEAP_THRESHOLD)
+        if magnitude > _OCTAVE:
+            score += self._octave_leap_penalty
+        if magnitude == _TRITONE:
+            score += self._tritone_leap_penalty
+        if delta == 0:
+            score += self._common_tone_bonus
+        return score
+
     def _score_transition(self, prev_notes: Optional[Tuple[int, ...]],
                           cur_notes: Tuple[int, ...],
                           prev_ctx: _ChordContext,
@@ -840,21 +864,7 @@ class EnsembleVoicer(INotePicker):
         score = 0.0
 
         for b in range(n):
-            # movement weight is top-first; low-to-high voice b maps to N-1-b.
-            weight = self._movement[n - 1 - b]
-            delta = deltas[b]
-            magnitude = abs(delta)
-            score += weight * magnitude
-            if magnitude > _LEAP_THRESHOLD:
-                score += self._leap_penalty
-                if b == 0 or b == n - 1:
-                    score += self._outer_leap_penalty * (magnitude - _LEAP_THRESHOLD)
-            if magnitude > _OCTAVE:
-                score += self._octave_leap_penalty
-            if magnitude == _TRITONE:
-                score += self._tritone_leap_penalty
-            if delta == 0:
-                score += self._common_tone_bonus
+            score += self._motion_score(b, n, deltas[b])
 
         # Parallel perfect fifths/octaves between any two moving voices.
         for i in range(n):
@@ -868,10 +878,14 @@ class EnsembleVoicer(INotePicker):
                 if prev_ic == cur_ic and prev_ic in (0, 7):
                     score += self._parallel_perfect_penalty
 
-        # Contrary motion of the outer voices.
+        # Contrary motion of the outer voices; similar motion into a perfect
+        # fifth or octave with the top voice leaping (hidden fifths/octaves).
         if n >= 2 and deltas[0] != 0 and deltas[n - 1] != 0:
             if (deltas[0] > 0) != (deltas[n - 1] > 0):
                 score += self._contrary_motion_bonus
+            elif (abs(deltas[n - 1]) > _STEP
+                    and (cur_notes[n - 1] - cur_notes[0]) % _OCTAVE in (0, _PERFECT_FIFTH)):
+                score += self._hidden_perfect_penalty
 
         # Seventh resolution: a prev seventh-role tone stepping down 1-2 st.
         if prev_ctx.seventh_pcs:

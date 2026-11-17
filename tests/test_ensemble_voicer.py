@@ -625,3 +625,20 @@ def test_upper_spacing_threshold_moves_where_wide_spacing_starts():
     assert fifth._score_quality(stack, meta) - octave._score_quality(stack, meta) == \
         pytest.approx(-0.15 * 2)
     assert DEFAULT_WEIGHTS['upper_spacing_threshold'] == 7
+
+
+def test_hidden_perfects_cost_only_with_a_leaping_top_voice():
+    spec = lambda w: EnsembleSpec.from_dict('three', {
+        'voices': [{'name': 'T', 'range': ['C4', 'C6']}, {'name': 'M', 'range': ['C3', 'C5']},
+                   {'name': 'B', 'range': ['C2', 'C4']}],
+        'max_spacing': [36, 36], **({'weights': w} if w else {})})
+    off = EnsembleVoicer(spec({'hidden_perfect_penalty': 0.0}))
+    on = EnsembleVoicer(spec(None))
+    assert DEFAULT_WEIGHTS['hidden_perfect_penalty'] == -2.0
+    ctx = off._state.context
+    prev = (48, 64, 76)                 # C3 E4 E5
+    gain = lambda cur: on._score_transition(prev, cur, ctx) - off._score_transition(prev, cur, ctx)
+    assert gain((55, 64, 79)) == pytest.approx(-2.0)   # G3 G5: up into an octave, top leaps
+    assert gain((50, 64, 81)) == pytest.approx(-2.0)   # D3 A5: up into a fifth, top leaps
+    assert gain((53, 64, 77)) == pytest.approx(0.0)    # F3 F5: the top steps
+    assert gain((43, 64, 79)) == pytest.approx(0.0)    # G2 G5: contrary motion

@@ -41,6 +41,7 @@ ENSEMBLE_WEIGHT_LABELS: Dict[str, str] = {
     'tritone_leap_penalty': 'Tritone leap',
     'common_tone_bonus': 'Common tone held',
     'parallel_perfect_penalty': 'Parallel fifths/octaves',
+    'hidden_perfect_penalty': 'Hidden fifths/octaves',
     'contrary_motion_bonus': 'Contrary motion',
     'seventh_resolution_bonus': 'Seventh resolves down',
     'leading_tone_resolution_bonus': 'Leading tone resolves',
@@ -284,6 +285,11 @@ TOOLTIPS: Dict[str, str] = {
     'weight:parallel_perfect_penalty': ("How the picker treats a pair of voices moving in "
                                         "parallel fifths or octaves. More negative avoids them; "
                                         "set strongly negative by default."),
+    'weight:hidden_perfect_penalty': ("How the picker treats the top and bottom voices moving the "
+                                      "same way into a fifth or an octave while the top voice "
+                                      "leaps (more than a whole tone). More negative avoids these "
+                                      "hidden fifths and octaves; a top voice moving by step is "
+                                      "never charged."),
     'weight:contrary_motion_bonus': ("How the picker treats the outer two voices moving in "
                                      "opposite directions. More positive encourages it."),
     'weight:seventh_resolution_bonus': ("How the picker treats a chordal seventh resolving down "

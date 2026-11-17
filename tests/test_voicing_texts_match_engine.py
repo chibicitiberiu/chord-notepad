@@ -39,6 +39,14 @@ def test_ensemble_middle_range_is_the_middle_half():
     assert "middle half" in text and "a quarter of the range" in text
 
 
+def test_ensemble_hidden_perfects_spare_a_stepwise_top_voice():
+    # ensemble_voicer._score_transition: abs(top delta) > _STEP (2).
+    from chordnotepad.audio.ensemble_voicer import _STEP
+    assert _STEP == 2
+    assert "whole tone" in TOOLTIPS['weight:hidden_perfect_penalty']
+    assert "by step is never charged" in TOOLTIPS['weight:hidden_perfect_penalty']
+
+
 def test_every_ensemble_weight_has_a_label_and_help():
     from chordnotepad.models.ensemble_spec import DEFAULT_WEIGHTS, _NESTED_WEIGHT_KEYS
     from chordnotepad.settings_forms.voicing_texts import ENSEMBLE_WEIGHT_LABELS

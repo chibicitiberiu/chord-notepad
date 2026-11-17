@@ -149,6 +149,9 @@ def _resolve_pitch(value: Union[int, str], *, context: str) -> int:
 #: - ``common_tone_bonus``: reward for a voice holding the same pitch class.
 #: - ``parallel_perfect_penalty``: cost per pair of voices moving in parallel
 #:   perfect fifths/octaves.
+#: - ``hidden_perfect_penalty``: cost when the outer voices move the same way
+#:   into a perfect fifth or octave and the top voice leaps (more than a whole
+#:   tone): hidden fifths/octaves.
 #: - ``contrary_motion_bonus``: reward for outer voices moving in contrary
 #:   motion.
 #: - ``seventh_resolution_bonus`` / ``leading_tone_resolution_bonus``: reward
@@ -214,6 +217,7 @@ DEFAULT_WEIGHTS: Dict[str, Any] = {
     'tritone_leap_penalty': -3.0,
     'common_tone_bonus': 1.5,
     'parallel_perfect_penalty': -25.0,
+    'hidden_perfect_penalty': -2.0,
     'contrary_motion_bonus': 0.8,
     'seventh_resolution_bonus': 1.5,
     'leading_tone_resolution_bonus': 1.5,

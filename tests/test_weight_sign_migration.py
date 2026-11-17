@@ -366,7 +366,8 @@ def test_v4_ensemble_gets_the_background_weights(tmp_path):
     from chordnotepad.settings_forms.voicing_form import values_from_voicing
     assert {k: DEFAULT_WEIGHTS[k] for k in _V4_ENSEMBLE_WEIGHTS} == _V4_ENSEMBLE_WEIGHTS
     added = set(DEFAULT_WEIGHTS) - set(_V4_ENSEMBLE_WEIGHTS)
-    assert added == {'upper_spacing_threshold', 'outer_leap_penalty', 'middle_range_penalty'}
+    assert added == {'upper_spacing_threshold', 'outer_leap_penalty', 'middle_range_penalty',
+                     'hidden_perfect_penalty'}
 
     entry = {"model": "ensemble",
              "voices": [{"name": "S", "range": [60, 79]}, {"name": "B", "range": [40, 60]}],
