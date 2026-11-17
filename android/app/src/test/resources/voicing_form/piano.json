@@ -113,6 +113,7 @@
    "rh_center": "63.0",
    "rh_low_interval_floor": "52",
    "weight:common_tone_bonus": "1.5",
+   "weight:final_top_root_bonus": "2.0",
    "weight:lh_above_bass_penalty": "-1.5",
    "weight:lh_below_bass_penalty": "-1.5",
    "weight:lh_double_low_penalty": "-1.0",

@@ -383,7 +383,7 @@ def test_v4_ensemble_gets_the_background_weights(tmp_path):
     assert added == {'upper_spacing_threshold', 'outer_leap_penalty', 'middle_range_penalty',
                      'hidden_perfect_penalty', 'low_interval_limit_penalty',
                      'augmented_second_penalty', 'voice_overlap_penalty',
-                     'chromatic_tendency_bonus'}
+                     'chromatic_tendency_bonus', 'final_root_step_bonus'}
 
     entry = {"model": "ensemble",
              "voices": [{"name": "S", "range": [60, 79]}, {"name": "B", "range": [40, 60]}],

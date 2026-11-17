@@ -153,6 +153,9 @@ class _ChordContext(NamedTuple):
     lowered_pcs: FrozenSet[int] = frozenset()
     """Tones the chord lowered chromatically from the chord before (A to Ab
     from F to Fdim, B to Bb): they tend to keep falling."""
+    final: bool = False
+    """The song's last chord (the last one with notes), which the top voice
+    should reach on its root (:meth:`EnsembleVoicer._score_transition`)."""
 
 
 def same_chord_other_bass(a: _ChordContext, b: _ChordContext) -> bool:
@@ -331,6 +334,7 @@ class EnsembleVoicer(INotePicker):
         self._same_bass_penalty = float(w('same_bass_penalty'))
         self._voice_overlap_penalty = float(w('voice_overlap_penalty'))
         self._chromatic_tendency_bonus = float(w('chromatic_tendency_bonus'))
+        self._final_root_step_bonus = float(w('final_root_step_bonus'))
         self._doubling: Dict[str, float] = dict(w('doubling'))
         self._omit: Dict[str, float] = dict(w('omit'))
         self._inversion: Dict[str, float] = dict(w('inversion'))
@@ -445,6 +449,10 @@ class EnsembleVoicer(INotePicker):
         metas = [self._build_meta(cn) for cn in sequence]
         self._apply_keyless_leading_tones(sequence, metas)
         self._apply_chromatic_tendencies(metas)
+        for meta in reversed(metas):
+            if not meta.empty:
+                meta.ctx = meta.ctx._replace(final=True)
+                break
         basses = self._plan_bass(sequence, metas)
         candidate_sets: List[List[_Cand]] = []
         for pos, (cn, meta) in enumerate(zip(sequence, metas)):
@@ -1172,7 +1180,8 @@ class EnsembleVoicer(INotePicker):
         outer voices, penalizes parallel perfect fifths/octaves, and rewards a
         chordal seventh resolving down, a leading tone resolving up, or a
         chromatically raised (lowered) tone rising (falling), each by step
-        (all keyed off the *previous* chord's context). When the two chords
+        (all keyed off the *previous* chord's context), and into the song's
+        last chord the top voice reaching its root by step. When the two chords
         are one chord over two written basses (:func:`same_chord_other_bass`)
         and both voicings' lowest notes share a pitch class, adds
         ``weights['same_bass_penalty']``: the listener expects to hear the
@@ -1257,6 +1266,13 @@ class EnsembleVoicer(INotePicker):
             for b in range(n):
                 if prev_notes[b] % _OCTAVE == dlt and (cur_notes[b] - prev_notes[b]) == 1:
                     score += self._leading_tone_resolution_bonus
+
+        # The song's last chord: the top voice reaching its root by a step
+        # (or holding it), the melody's cadence.
+        if (self._final_root_step_bonus and cur_ctx is not None and cur_ctx.final
+                and cur_notes[n - 1] % _OCTAVE == cur_ctx.root_pc
+                and abs(deltas[n - 1]) <= _STEP):
+            score += self._final_root_step_bonus
 
         # The same chord over another written bass, sounding the same bass.
         if (cur_ctx is not None and prev_notes[0] % _OCTAVE == cur_notes[0] % _OCTAVE

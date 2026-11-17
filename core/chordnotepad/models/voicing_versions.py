@@ -218,6 +218,7 @@ def _choir_untouched() -> Dict[str, List[Any]]:
         'augmented_second_penalty': [-4.0],            # engine review E1
         'voice_overlap_penalty': [-1.0],               # engine review E5
         'chromatic_tendency_bonus': [2.0],             # engine round D
+        'final_root_step_bonus': [0.75],               # engine round D
     }
 
 
@@ -257,6 +258,7 @@ def _quartet_untouched() -> Dict[str, List[Any]]:
         'augmented_second_penalty': [-4.0],            # engine review E1
         'voice_overlap_penalty': [-1.0],               # engine review E5
         'chromatic_tendency_bonus': [2.0],             # engine round D
+        'final_root_step_bonus': [0.75],               # engine round D
     }
 
 

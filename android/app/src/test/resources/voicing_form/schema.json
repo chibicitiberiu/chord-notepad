@@ -379,6 +379,16 @@
          "max": 100.0,
          "min": -100.0,
          "step": 0.1
+        },
+        {
+         "default": "0.75",
+         "help": "How the picker treats the top voice reaching the song's last chord on its root by a step or by holding it (B to C or D to C over the final C). More positive ends the melody on the root more often.",
+         "id": "weight:final_root_step_bonus",
+         "kind": "float",
+         "label": "Ending on the root",
+         "max": 100.0,
+         "min": -100.0,
+         "step": 0.1
         }
        ],
        "id": "weights",
@@ -1174,6 +1184,16 @@
          "id": "weight:outer_parallel_penalty",
          "kind": "float",
          "label": "Outer parallels",
+         "max": 100.0,
+         "min": -100.0,
+         "step": 0.1
+        },
+        {
+         "default": "2.0",
+         "help": "How the picker treats the song's last chord with its top note on the chord's root, so the song ends on the root rather than its third or fifth. More positive ends on the root more often.",
+         "id": "weight:final_top_root_bonus",
+         "kind": "float",
+         "label": "Ending on the root",
          "max": 100.0,
          "min": -100.0,
          "step": 0.1

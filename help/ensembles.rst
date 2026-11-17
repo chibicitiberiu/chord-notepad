@@ -751,6 +751,14 @@ Voicing Parameters
        alteration, and the leading tone resolves by its own rule.
      - ``chromatic_tendency_bonus``
      - +2.0
+   * - Ending on the root
+     - Added when the top voice reaches the song's last chord on its root
+       by a step or by holding it: B to C or D to C over a closing C, the
+       melody's cadence. Only the song's last chord with notes counts. A
+       leap onto the root earns nothing, so the voicing isn't pulled up or
+       down to get there.
+     - ``final_root_step_bonus``
+     - +0.75
 
 .. note::
    These weights apply per ensemble. A custom ensemble that omits

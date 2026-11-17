@@ -363,6 +363,13 @@ you want it to steer clear of gets a negative one; zero leaves it neutral.
        nothing, as in most piano comping.
      - ``outer_parallel_penalty``
      - -1.5
+   * - Ending on the root
+     - Added when the song's last chord has its top note on the chord's
+       root, so the song closes on the root (C on top of the final C)
+       rather than its third or fifth. Only the song's last chord with
+       notes counts.
+     - ``final_top_root_bonus``
+     - +2.0
    * - Omission
      - Added to the score for dropping a chord tone entirely when the hand
        and note limits don't leave room for everything. The values are

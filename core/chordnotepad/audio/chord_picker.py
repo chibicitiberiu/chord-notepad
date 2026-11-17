@@ -15,7 +15,8 @@ than applying a rigid, register-preserving template:
    which also guarantees no duplicated key).
 3. **Score** every survivor with :meth:`_score_quality` (completeness, right-hand
    register centering, left-hand register preference, low-interval and spacing
-   sanity) plus :meth:`_score_transition` (nearest-neighbour voice leading with a
+   sanity, and in a whole song the last chord's top note on its root) plus
+   :meth:`_score_transition` (nearest-neighbour voice leading with a
    common-tone reward).
 4. **Optimize**: :meth:`chord_to_midi` greedily picks the argmax against the
    previous chord; :meth:`voice_sequence` runs the whole-song beam DP so the
@@ -131,6 +132,7 @@ class ChordNotePicker(INotePicker):
         self.SCORE_COMMON_TONE = self.spec.weight('common_tone_bonus')
         self.SCORE_PER_MOVE = self.spec.weight('movement_penalty')
         self.SCORE_OUTER_PARALLEL = self.spec.weight('outer_parallel_penalty')
+        self.SCORE_FINAL_TOP_ROOT = self.spec.weight('final_top_root_bonus')
         # Completeness weights, keyed by harmonic role (see audio.chord_tones);
         # negative = the score lost when a tone of that role is omitted.
         self.OMIT_PENALTY = self.spec.weight('omit')
@@ -239,6 +241,10 @@ class ChordNotePicker(INotePicker):
             root_pc, intervals, bass_pc = self._chord_signature(chord_notes)
             sig_keys.append((root_pc, tuple(intervals), bass_pc))
 
+        # The song's last chord (the last one with notes) also scores the
+        # cadence term, so its memo entries are kept apart from the same
+        # chord's earlier in the song.
+        final = max((pos for pos, key in enumerate(sig_keys) if key is not None), default=None)
         unary_memo: Dict[Tuple[Any, ...], float] = {}
         transition_memo: Dict[Tuple[Voicing, Voicing], float] = {}
 
@@ -246,10 +252,11 @@ class ChordNotePicker(INotePicker):
             sig_key = sig_keys[position]
             if sig_key is None:
                 return 0.0
-            memo_key = (sig_key, voicing)
+            is_final = position == final
+            memo_key = (sig_key, is_final, voicing)
             score = unary_memo.get(memo_key)
             if score is None:
-                score = self._score_quality(voicing, sequence[position])
+                score = self._score_quality(voicing, sequence[position], final=is_final)
                 unary_memo[memo_key] = score
             return score
 
@@ -555,8 +562,13 @@ class ChordNotePicker(INotePicker):
         )
         return list(best.lh), list(best.rh)
 
-    def _score_quality(self, voicing: Voicing, chord_notes: 'ChordNotes') -> float:
-        """Intrinsic quality of a voicing in isolation; higher is better."""
+    def _score_quality(self, voicing: Voicing, chord_notes: 'ChordNotes',
+                       final: bool = False) -> float:
+        """Intrinsic quality of a voicing in isolation; higher is better.
+
+        ``final`` marks the song's last chord, whose top note earns
+        ``final_top_root_bonus`` on the chord's root.
+        """
         lh, rh = voicing.lh, voicing.rh
         if not rh and not lh:
             return float('-inf')
@@ -610,6 +622,10 @@ class ChordNotePicker(INotePicker):
                 gap = rh[0] - max(lh)
                 if gap <= self.HAND_GAP_FLOOR:
                     score += self.SCORE_MUDDY_GAP * (self.HAND_GAP_FLOOR - gap + 1)
+
+        # The song ends with the top note on the root.
+        if final and max(lh + rh) % 12 == root_pc:
+            score += self.SCORE_FINAL_TOP_ROOT
 
         return score
 

@@ -54,6 +54,7 @@ ENSEMBLE_WEIGHT_LABELS: Dict[str, str] = {
     'same_bass_penalty': 'Same chord, same bass',
     'voice_overlap_penalty': 'Voice overlap',
     'chromatic_tendency_bonus': 'Chromatic line continues',
+    'final_root_step_bonus': 'Ending on the root',
 }
 
 PIANO_WEIGHT_LABELS: Dict[str, str] = {
@@ -69,6 +70,7 @@ PIANO_WEIGHT_LABELS: Dict[str, str] = {
     'common_tone_bonus': 'Common tone held',
     'movement_penalty': 'Voice movement',
     'outer_parallel_penalty': 'Outer parallels',
+    'final_top_root_bonus': 'Ending on the root',
 }
 
 # Two piano weight keys collide by name with an existing fretboard/ensemble
@@ -346,6 +348,10 @@ TOOLTIPS: Dict[str, str] = {
                                         "falling (Ab on to G). A semitone between two letters (E "
                                         "to F) isn't an alteration, and the leading tone has its "
                                         "own rule. More positive keeps chromatic lines going."),
+    'weight:final_root_step_bonus': ("How the picker treats the top voice reaching the song's last "
+                                     "chord on its root by a step or by holding it (B to C or D "
+                                     "to C over the final C). More positive ends the melody on "
+                                     "the root more often."),
     'weight:unison_penalty': ("How the picker treats a pair of neighbouring voices on the same "
                               "pitch, when unisons are allowed. More negative avoids unisons."),
     'weight:upper_spacing_penalty': ("How the picker treats a gap between two neighbouring "
@@ -425,6 +431,10 @@ TOOLTIPS: Dict[str, str] = {
                                       "same way while keeping an octave or a fifth between them "
                                       "(C2-C4 to D2-D4), which sounds like a doubled bass line. More "
                                       "negative moves the top note against the bass instead."),
+    'weight:final_top_root_bonus': ("How the picker treats the song's last chord with its top "
+                                    "note on the chord's root, so the song ends on the root "
+                                    "rather than its third or fifth. More positive ends on the "
+                                    "root more often."),
 }
 
 

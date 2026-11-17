@@ -209,3 +209,33 @@ def test_right_hand_root_drop_costs_the_root_weight_on_a_triad_only():
     rootless = Voicing((40,), (56, 59, 62))                              # E2 | G#3 B3 D4
     free = ChordNotePicker(PianoSpec.from_dict('p', {'weights': {'omit': {'root': 0.0}}}))
     assert p._score_quality(rootless, e7) == free._score_quality(rootless, e7)
+
+
+def test_the_last_chord_earns_the_final_top_root_bonus():
+    from chordnotepad.audio.chord_picker import Voicing
+    p = ChordNotePicker()
+    w = p.SCORE_FINAL_TOP_ROOT
+    assert w == DEFAULT_PIANO.weight('final_top_root_bonus') > 0
+    c = _seq(['C'])[0]
+    on_root, on_fifth = Voicing((36,), (64, 67, 72)), Voicing((36,), (60, 64, 67))
+    assert p._score_quality(on_root, c, final=True) == pytest.approx(
+        p._score_quality(on_root, c) + w)
+    assert p._score_quality(on_fifth, c, final=True) == p._score_quality(on_fifth, c)
+
+
+def test_only_the_songs_last_chord_is_pulled_to_its_root():
+    # C G Am F twice: the closing F puts F on top (it ended on A4); the first
+    # time round is voiced as before (the memo keeps the two Fs apart).
+    song = ['C', 'G', 'Am', 'F', 'C', 'G', 'Am', 'F']
+    off = ChordNotePicker(PianoSpec.from_dict('p', {'weights': {'final_top_root_bonus': 0.0}}))
+    before = off.voice_sequence(_seq(song))
+    after = ChordNotePicker().voice_sequence(_seq(song))
+    assert before[-1][-1] % 12 != 5 and after[-1][-1] % 12 == 5
+    assert after[:4] == before[:4]
+
+
+def test_the_pull_skips_a_trailing_no_chord():
+    from chordnotepad.models.chord_notes import ChordNotes
+    song = _seq(['C', 'G', 'Am', 'F']) + [ChordNotes(notes=[], bass_note=None, root=None)]
+    voiced = ChordNotePicker().voice_sequence(song)
+    assert voiced[-1] == [] and voiced[-2][-1] % 12 == 5

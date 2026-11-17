@@ -99,6 +99,9 @@ def _resolve_pitch(value: Union[int, str], *, context: str) -> int:
 #: - ``outer_parallel_penalty``: cost when the bass and the top note move the
 #:   same way into the same octave or fifth they formed before (parallel
 #:   octaves or fifths of the outer voices, heard as a doubled bass line).
+#: - ``final_top_root_bonus``: reward when the song's last chord has its
+#:   top note on the chord's root, so a song ends on the root rather than its
+#:   third or fifth.
 #: - ``omit``: per-chord-tone-role penalty for omitting a tone entirely, keyed
 #:   by the shared role taxonomy in :mod:`audio.chord_tones`. Was
 #:   ``OMIT_PENALTY`` (stored positive-magnitude then subtracted; now stored
@@ -116,6 +119,7 @@ DEFAULT_WEIGHTS: Dict[str, Any] = {
     'common_tone_bonus': 1.5,
     'movement_penalty': -0.35,
     'outer_parallel_penalty': -1.5,
+    'final_top_root_bonus': 2.0,
     'omit': {role: -penalty for role, penalty in DEFAULT_OMIT_PENALTY.items()},
 }
 

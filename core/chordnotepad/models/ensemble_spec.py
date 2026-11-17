@@ -189,6 +189,9 @@ def _resolve_pitch(value: Union[int, str], *, context: str) -> int:
 #:   chord altered chromatically (the same letter a semitone away in the
 #:   chord before: A to Ab, C to C#) on by a step the way it was altered, a
 #:   raised tone up, a lowered one down.
+#: - ``final_root_step_bonus``: reward when the top voice reaches the song's
+#:   last chord on its root by a step or by holding it (B to C, D to C, C
+#:   held), the melody's cadence.
 #: - ``same_bass_penalty``: cost when two neighbouring chords are the same
 #:   chord over different written basses (C and C/E) but the voicings sound
 #:   the same lowest pitch class, so the bass change isn't heard.
@@ -263,6 +266,7 @@ DEFAULT_WEIGHTS: Dict[str, Any] = {
     'same_bass_penalty': -8.0,
     'voice_overlap_penalty': -1.0,
     'chromatic_tendency_bonus': 2.0,
+    'final_root_step_bonus': 0.75,
 }
 
 #: Weight keys whose value is itself a per-role mapping rather than a scalar.

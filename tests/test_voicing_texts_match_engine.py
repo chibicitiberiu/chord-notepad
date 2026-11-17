@@ -66,6 +66,26 @@ def test_ensemble_chromatic_tendency_is_a_step_from_a_same_letter_alteration():
     assert "leading tone has its own rule" in text
 
 
+def test_ensemble_final_root_step_is_a_step_or_a_held_note():
+    # ensemble_voicer._score_transition: cur_ctx.final, top on the root,
+    # abs(delta) <= _STEP (2), so 0 (held) counts.
+    from chordnotepad.models.ensemble_spec import DEFAULT_WEIGHTS
+    assert DEFAULT_WEIGHTS['final_root_step_bonus'] == 0.75
+    text = TOOLTIPS['weight:final_root_step_bonus']
+    assert "last chord" in text and "by a step or by holding it" in text
+
+
+def test_piano_final_top_root_is_the_last_chords_top_note():
+    # chord_picker.voice_sequence_details: the last position with notes;
+    # _score_quality: max(lh + rh) on the root pitch class.
+    from chordnotepad.settings_forms.voicing_texts import PIANO_WEIGHT_LABELS, piano_weight_tooltip
+    from chordnotepad.models.piano_spec import DEFAULT_WEIGHTS
+    assert PIANO_WEIGHT_LABELS['final_top_root_bonus'] == 'Ending on the root'
+    assert DEFAULT_WEIGHTS['final_top_root_bonus'] == 2.0
+    text = piano_weight_tooltip('final_top_root_bonus')
+    assert "last chord" in text and "top note" in text and "root" in text
+
+
 def test_ensemble_low_interval_limits_match_the_tooltip_and_help():
     from chordnotepad.audio.low_intervals import LOW_INTERVAL_LIMITS as L
     # minor third C3, major third Bb2, fourth A2, fifth Bb1, seconds Eb3/E3.

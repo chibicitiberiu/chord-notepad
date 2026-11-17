@@ -1107,3 +1107,49 @@ def test_tibis_quintet_carries_violin_two_down_the_chromatic_line():
         _song('C C/B Am Em/G F Fdim C/E Dm Dm/F C/E C/G F/A G/B C'))
     violin_two = [v[3] for v in voicings]
     assert violin_two[4:7] == [69, 68, 67]       # A4 G#4 G4
+
+
+# ---------------------------------------------------------------------------
+# The song's ending
+# ---------------------------------------------------------------------------
+def test_only_the_last_chord_with_notes_is_final():
+    # C F G7 C Am, then N.C.: only Am (root A) is scored as the song's end.
+    voicer = EnsembleVoicer(BUILTIN_ENSEMBLES['satb'])
+    chords = _song('C F G7 C Am') + [ChordNotes(notes=[], bass_note=None, root=None)]
+    finals = []
+    original = voicer._score_transition
+
+    def spy(prev, cur, prev_ctx, cur_ctx=None):
+        if cur_ctx is not None and cur_ctx.final:
+            finals.append(cur_ctx.root_pc)
+        return original(prev, cur, prev_ctx, cur_ctx)
+    voicer._score_transition = spy
+    voicer.voice_sequence(chords)
+    assert finals and set(finals) == {9}
+
+
+def test_the_top_voice_stepping_onto_the_last_root_earns_the_bonus():
+    voicer = EnsembleVoicer(BUILTIN_ENSEMBLES['satb'])
+    w = voicer._final_root_step_bonus
+    assert w == DEFAULT_WEIGHTS['final_root_step_bonus'] > 0
+    free = EnsembleVoicer(BUILTIN_ENSEMBLES['satb'])
+    free._final_root_step_bonus = 0.0
+    g7, c = voicer._build_meta(parsed('G7')).ctx, voicer._build_meta(parsed('C')).ctx
+    last = c._replace(final=True)
+    prev = (43, 59, 65, 71)                          # G2 B3 F4 B4
+    step, leap = (48, 60, 64, 72), (48, 60, 64, 67)  # B4 to C5; B4 to G4
+    assert voicer._score_transition(prev, step, g7, last) == pytest.approx(
+        free._score_transition(prev, step, g7, last) + w)
+    assert voicer._score_transition(prev, step, g7, c) == free._score_transition(prev, step, g7, c)
+    high = (48, 60, 64, 79)                          # B4 leaps to G5: not the root
+    assert voicer._score_transition(prev, high, g7, last) == free._score_transition(prev, high, g7, last)
+    up = (48, 55, 64, 84)                            # B4 leaps to C6: no step
+    assert voicer._score_transition(prev, up, g7, last) == free._score_transition(prev, up, g7, last)
+    assert voicer._score_transition(prev, leap, g7, last) == free._score_transition(prev, leap, g7, last)
+
+
+def test_tibis_quintet_ends_the_verse_on_the_root():
+    spec = EnsembleSpec.from_dict('quintet', TIBI_QUINTET)
+    voicings = EnsembleVoicer(spec).voice_sequence(
+        _song('C C/B Am Em/G F Fdim C/E Dm Dm/F C/E C/G F/A G/B C'))
+    assert voicings[-1][-1] % 12 == 0 and abs(voicings[-1][-1] - voicings[-2][-1]) <= 2
