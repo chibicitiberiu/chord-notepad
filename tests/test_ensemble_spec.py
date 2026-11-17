@@ -383,7 +383,7 @@ class TestWeightMerging:
         assert DEFAULT_WEIGHTS["bass_movement"] == -0.15
         assert DEFAULT_WEIGHTS["leap_penalty"] == -2.0
         assert DEFAULT_WEIGHTS["octave_leap_penalty"] == -6.0
-        assert DEFAULT_WEIGHTS["tritone_leap_penalty"] == -3.0
+        assert DEFAULT_WEIGHTS["tritone_leap_penalty"] == -4.5
         assert DEFAULT_WEIGHTS["parallel_perfect_penalty"] == -25.0
         assert DEFAULT_WEIGHTS["double_leading_tone_penalty"] == -8.0
         assert DEFAULT_WEIGHTS["range_comfort_penalty"] == -0.5

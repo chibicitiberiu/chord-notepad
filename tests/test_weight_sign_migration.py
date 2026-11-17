@@ -366,16 +366,23 @@ _V4_ENSEMBLE_WEIGHTS = {
 
 
 def test_v4_ensemble_gets_the_background_weights(tmp_path):
-    """The background-texture work added ensemble weights and changed no v4
-    default, so a v4 config needs no migration: a saved ensemble with its full
-    v4 weight dict takes the new weights from the defaults, in the engine and
-    the editor."""
+    """The background-texture work added ensemble weights and the engine
+    review changed one v4 default (the tritone leap, -3.0 to -4.5), so a v4
+    config needs no config migration: a saved ensemble with its full v4
+    weight dict takes the new weights from the defaults, in the engine and
+    the editor, and the voicing migration 1->2 moves the tritone."""
+    from chordnotepad.models import voicing_versions as vv
     from chordnotepad.models.ensemble_spec import DEFAULT_WEIGHTS, EnsembleSpec
     from chordnotepad.settings_forms.voicing_form import values_from_voicing
-    assert {k: DEFAULT_WEIGHTS[k] for k in _V4_ENSEMBLE_WEIGHTS} == _V4_ENSEMBLE_WEIGHTS
+    moved = vv.DEFAULT_MOVES['ensemble']
+    assert {k: DEFAULT_WEIGHTS[k] for k in _V4_ENSEMBLE_WEIGHTS if k not in moved} \
+        == {k: v for k, v in _V4_ENSEMBLE_WEIGHTS.items() if k not in moved}
+    assert moved == {'tritone_leap_penalty': [(-3.0, -4.5)]}
+    assert _V4_ENSEMBLE_WEIGHTS['tritone_leap_penalty'] == -3.0
     added = set(DEFAULT_WEIGHTS) - set(_V4_ENSEMBLE_WEIGHTS)
     assert added == {'upper_spacing_threshold', 'outer_leap_penalty', 'middle_range_penalty',
-                     'hidden_perfect_penalty', 'low_interval_limit_penalty'}
+                     'hidden_perfect_penalty', 'low_interval_limit_penalty',
+                     'augmented_second_penalty'}
 
     entry = {"model": "ensemble",
              "voices": [{"name": "S", "range": [60, 79]}, {"name": "B", "range": [40, 60]}],
@@ -385,10 +392,14 @@ def test_v4_ensemble_gets_the_background_weights(tmp_path):
     assert migrated["voicings"]["mine"] == entry
 
     spec = EnsembleSpec.from_dict("mine", entry)
-    assert spec.weights == dict(copy.deepcopy(DEFAULT_WEIGHTS), unison_penalty=-1.0)
+    assert spec.weights == dict(copy.deepcopy(DEFAULT_WEIGHTS), unison_penalty=-1.0,
+                                tritone_leap_penalty=-3.0)
     values = values_from_voicing("ensemble", entry)
     for key in added:
         assert float(values[f"weight:{key}"]) == DEFAULT_WEIGHTS[key]
+    vv._migrate_1_to_2(entry)
+    assert EnsembleSpec.from_dict("mine", entry).weights == dict(
+        copy.deepcopy(DEFAULT_WEIGHTS), unison_penalty=-1.0)
 
 
 # -- what ConfigService does with a file below version 3 ---------------------------------

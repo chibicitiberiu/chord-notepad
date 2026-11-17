@@ -143,6 +143,10 @@ def _resolve_pitch(value: Union[int, str], *, context: str) -> int:
 #: - ``leap_penalty`` / ``octave_leap_penalty`` / ``tritone_leap_penalty``:
 #:   extra cost for a single voice leaping more than a fifth, more than an
 #:   octave, or exactly a tritone (6 semitones).
+#: - ``augmented_second_penalty``: cost for a voice moving an augmented
+#:   second, three semitones between neighbouring letters as the two chords
+#:   spell their tones (F to G# for F to E, not F to Ab). Sits beyond
+#:   ``tritone_leap_penalty`` so the voice doesn't leap a tritone instead.
 #: - ``outer_leap_penalty``: extra cost per semitone the top or bottom voice
 #:   leaps beyond a fifth, so a wide outer leap costs more the wider it is (0,
 #:   off, by default).
@@ -219,7 +223,7 @@ DEFAULT_WEIGHTS: Dict[str, Any] = {
     'leap_penalty': -2.0,
     'octave_leap_penalty': -6.0,
     'outer_leap_penalty': 0.0,
-    'tritone_leap_penalty': -3.0,
+    'tritone_leap_penalty': -4.5,
     'common_tone_bonus': 1.5,
     'parallel_perfect_penalty': -25.0,
     'hidden_perfect_penalty': -2.0,
@@ -246,6 +250,7 @@ DEFAULT_WEIGHTS: Dict[str, Any] = {
     'middle_range_penalty': 0.0,
     'unison_penalty': -0.5,
     'low_interval_limit_penalty': -2.0,
+    'augmented_second_penalty': -4.0,
     'upper_spacing_penalty': -0.15,
     'upper_spacing_threshold': 7.0,
     'same_bass_penalty': -8.0,

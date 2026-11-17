@@ -85,6 +85,8 @@ _LEAP_THRESHOLD = 7          # a leap wider than a perfect fifth is penalized
 _TRITONE = 6                 # an exact tritone leap is penalized
 _PERFECT_FIFTH = 7           # the only fifth an incomplete chord may leave out
 _STEP = 2                    # a move of up to a whole tone is a step
+_AUGMENTED_SECOND = 3        # three semitones between neighbouring letters
+_LETTERS = 'CDEFGAB'
 _RANGE_COMFORT_EDGE = 2      # the outer 2 semitones of a range are uncomfortable
 _BAND_QUARTER = 4            # the comfortable band leaves out a quarter of the range at each end
 _RANGE_PAD = 2               # semitones the ladder widens each range end by
@@ -131,6 +133,9 @@ class _ChordContext(NamedTuple):
     tone is not among them)."""
     bass_pc: Optional[int] = None
     """The written bass pitch class: the slash note, else the root."""
+    letters: Tuple[int, ...] = ()
+    """Per pitch class (12 entries), the letter (0 = C .. 6 = B) the chord
+    spells it with, or -1 when it isn't a chord tone or the slash bass."""
     leading_tone_weight: float = 1.0
     """How much the leading-tone rules count for :attr:`leading_tone_pc`: 1
     under a ``{key:}`` line, less (down to 0) for a key inferred with low
@@ -310,6 +315,7 @@ class EnsembleVoicer(INotePicker):
         self._unison_penalty = float(w('unison_penalty'))
         self._upper_spacing_penalty = float(w('upper_spacing_penalty'))
         self._low_interval_limit_penalty = float(w('low_interval_limit_penalty'))
+        self._augmented_second_penalty = float(w('augmented_second_penalty'))
         # Semitones an upper-voice gap may span before upper_spacing_penalty
         # applies (a fifth by default; a string pad spreads to an octave).
         self._upper_spacing_threshold = float(w('upper_spacing_threshold'))
@@ -583,6 +589,9 @@ class EnsembleVoicer(INotePicker):
                 return 0.0
             score = self._motion_score(0, n, cur.midi - prev.midi)
             cur_meta = metas[cur.pos]
+            if self._augmented_second_penalty and self._augmented_second(
+                    prev.midi, cur.midi, metas[prev.pos].ctx, cur_meta.ctx):
+                score += self._augmented_second_penalty
             if (cur.midi == prev.midi and not cur_meta.is_slash
                     and cur.midi % _OCTAVE != cur_meta.root_pc):
                 # Holding the bass under a plain chord that isn't its root
@@ -639,9 +648,14 @@ class EnsembleVoicer(INotePicker):
                 tones.append((pc, role))
 
         seventh_pcs = frozenset(pc for pc, role in tones if role == 'seventh')
+        letters = [-1] * _OCTAVE
+        for name in list(notes) + ([chord_notes.bass_note] if chord_notes.bass_note else []):
+            note_pc = parse_note_to_semitone(name)
+            if note_pc is not None and letters[note_pc] < 0 and name[:1].upper() in _LETTERS:
+                letters[note_pc] = _LETTERS.index(name[:1].upper())
         leading_tone_pc = self._leading_tone_pc(chord_notes.key)
         ctx = _ChordContext(seventh_pcs, leading_tone_pc, root_pc,
-                            frozenset(role_by_pc), bass_pc)
+                            frozenset(role_by_pc), bass_pc, tuple(letters))
 
         return _ChordMeta(
             root_pc=root_pc,
@@ -1056,6 +1070,22 @@ class EnsembleVoicer(INotePicker):
 
         return score
 
+    def _augmented_second(self, prev_note: int, cur_note: int,
+                          prev_ctx: _ChordContext, cur_ctx: Optional[_ChordContext]) -> bool:
+        """True when one voice moves an augmented second: three semitones
+        between neighbouring letters, as spelled by the two chords (F to G#
+        from F to E, not F to Ab)."""
+        delta = cur_note - prev_note
+        if abs(delta) != _AUGMENTED_SECOND or cur_ctx is None:
+            return False
+        if not prev_ctx.letters or not cur_ctx.letters:
+            return False
+        before = prev_ctx.letters[prev_note % _OCTAVE]
+        after = cur_ctx.letters[cur_note % _OCTAVE]
+        if before < 0 or after < 0:
+            return False
+        return (after - before) % 7 == (1 if delta > 0 else 6)
+
     def _motion_score(self, b: int, n: int, delta: int) -> float:
         """One voice's own share of a transition: movement, leaps, a held note.
 
@@ -1104,6 +1134,9 @@ class EnsembleVoicer(INotePicker):
 
         for b in range(n):
             score += self._motion_score(b, n, deltas[b])
+            if self._augmented_second_penalty and self._augmented_second(
+                    prev_notes[b], cur_notes[b], prev_ctx, cur_ctx):
+                score += self._augmented_second_penalty
 
         # Parallel perfect fifths/octaves between any two moving voices. With
         # five voices or more, two that both carry the bass line (the bass's

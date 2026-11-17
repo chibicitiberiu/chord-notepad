@@ -163,6 +163,7 @@
      "staff": null
     }
    ],
+   "weight:augmented_second_penalty": "-4.0",
    "weight:common_tone_bonus": "1.5",
    "weight:contrary_motion_bonus": "0.8",
    "weight:double_leading_tone_penalty": "-8.0",
@@ -177,7 +178,7 @@
    "weight:range_comfort_penalty": "-0.5",
    "weight:same_bass_penalty": "-8.0",
    "weight:seventh_resolution_bonus": "1.5",
-   "weight:tritone_leap_penalty": "-3.0",
+   "weight:tritone_leap_penalty": "-4.5",
    "weight:unison_penalty": "-0.5",
    "weight:upper_spacing_penalty": "-0.15",
    "weight:upper_spacing_threshold": "7.0"

@@ -215,6 +215,7 @@ def _choir_untouched() -> Dict[str, List[Any]]:
         'middle_range_penalty': [0.0],                 # 8e650db
         'hidden_perfect_penalty': [-2.0],              # b3d4c24
         'low_interval_limit_penalty': [-2.0],          # 60a1a60
+        'augmented_second_penalty': [-4.0],            # engine review E1
     }
 
 
@@ -251,6 +252,7 @@ def _quartet_untouched() -> Dict[str, List[Any]]:
         'middle_range_penalty': [0.0],                 # 8e650db
         'hidden_perfect_penalty': [-2.0],              # b3d4c24
         'low_interval_limit_penalty': [-2.0],          # 60a1a60
+        'augmented_second_penalty': [-4.0],            # engine review E1
     }
 
 
@@ -266,6 +268,19 @@ UNTOUCHED_PRESET_VALUES: Dict[str, Dict[str, List[Any]]] = {
     'satb': _choir_untouched(),
     'ttbb': _choir_untouched(),
     'ssa': _choir_untouched(),
+}
+
+#: Defaults changed since 0.5.4, per model: ``{key: [(old, new), ...]}``.
+#: Migration 1->2 moves a saved flat weight still holding ``old`` to ``new``,
+#: in every voicing of that model, preset copy or not (a voicing edited in
+#: Settings saves its whole weight dict, so it holds the old default
+#: explicitly). A key a voicing doesn't have already reads the new default.
+DEFAULT_MOVES: Dict[str, Dict[str, List[Tuple[Any, Any]]]] = {
+    'ensemble': {
+        # With augmented seconds priced at -4.0, a tritone at -3.0 was the
+        # cheaper way out of VI-V in minor (F4 to B3).
+        'tritone_leap_penalty': [(-3.0, -4.5)],
+    },
 }
 
 #: The voicing's own keys among the untouched values (the rest are weights).
@@ -326,12 +341,38 @@ def _move_nested(weights: Dict[str, Any], key: str, values: List[Any],
     return True
 
 
+def _move_defaults(entry: MutableMapping[str, Any]) -> bool:
+    """Move each saved flat weight still on a default changed since 0.5.4 to
+    the new default (:data:`DEFAULT_MOVES`), in any voicing of that model."""
+    moves = DEFAULT_MOVES.get(entry.get('model'), {})
+    weights = entry.get('weights')
+    if not moves or not isinstance(weights, dict):
+        return False
+    changed = False
+    for key, pairs in moves.items():
+        if key not in weights:
+            continue
+        for old, new in pairs:
+            if _equal(weights[key], old):
+                weights[key] = copy.deepcopy(new)
+                changed = True
+                break
+    return changed
+
+
 def _migrate_1_to_2(entry: MutableMapping[str, Any]) -> bool:
     """Copies of the String Quartet and the choirs take the preset values
     tuned since 0.5.4, key by key, where the copy still holds a value its
-    user never changed (:data:`UNTOUCHED_PRESET_VALUES`). Fretboard and piano
-    presets only gained keys since 0.5.4, which a copy already takes from
-    the defaults."""
+    user never changed (:data:`UNTOUCHED_PRESET_VALUES`); then every voicing
+    takes the defaults changed since 0.5.4 where it still holds the old one
+    (:data:`DEFAULT_MOVES`). Fretboard and piano presets only gained keys
+    since 0.5.4, which a copy already takes from the defaults."""
+    changed = _migrate_preset_copy(entry)
+    return _move_defaults(entry) or changed
+
+
+def _migrate_preset_copy(entry: MutableMapping[str, Any]) -> bool:
+    """The preset half of :func:`_migrate_1_to_2`."""
     from chordnotepad.models.ensemble_spec import BUILTIN_ENSEMBLES, DEFAULT_WEIGHTS
 
     based_on = entry.get('based_on')

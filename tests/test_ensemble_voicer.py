@@ -890,6 +890,28 @@ def test_an_added_ninth_is_kept_over_the_fifth(spec_name):
         assert (root + 2) % 12 in {m % 12 for m in voicing}, (symbol, voicing)
 
 
+def test_an_augmented_second_is_spelled_from_the_chords():
+    voicer = EnsembleVoicer(BUILTIN_ENSEMBLES['satb'])
+    f, e = voicer._build_meta(parsed('F')), voicer._build_meta(parsed('E'))
+    fm, db = voicer._build_meta(parsed('Fm')), voicer._build_meta(parsed('Db'))
+    assert voicer._augmented_second(65, 68, f.ctx, e.ctx)        # F4 -> G#4: F to G sharp
+    assert not voicer._augmented_second(65, 68, fm.ctx, db.ctx)  # F4 -> Ab4: a minor third
+    assert voicer._augmented_second(68, 65, e.ctx, f.ctx)        # G#4 -> F4, down
+    assert not voicer._augmented_second(65, 67, f.ctx, e.ctx)    # a step
+
+
+@pytest.mark.parametrize('spec_name', BUILTIN_NAMES)
+def test_vi_to_v_in_minor_avoids_the_augmented_second(spec_name):
+    # Am G F E: the F chord's upper F used to climb to E's G# (F2 C4 F4 A4 ->
+    # E2 E4 G#4 B4); no voice moves F to G# now, and none leaps a tritone.
+    chords = [_HELPER.compute_chord_notes(s, key='Am') for s in 'Am G F E Am G F E'.split()]
+    voicings = EnsembleVoicer(BUILTIN_ENSEMBLES[spec_name]).voice_sequence(chords)
+    for (f, e) in ((voicings[2], voicings[3]), (voicings[6], voicings[7])):
+        for b in range(len(f)):
+            assert not (f[b] % 12 == 5 and e[b] - f[b] == 3), (spec_name, f, e)
+            assert abs(e[b] - f[b]) != 6, (spec_name, f, e)
+
+
 def test_a_diminished_seventh_may_still_leave_out_its_fifth():
     # Any three tones of a dim7 sound the same chord: SSA keeps F#dim7's root
     # (the line F F# G) and leaves out the C.

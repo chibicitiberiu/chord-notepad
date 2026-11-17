@@ -201,7 +201,7 @@
          "step": 0.1
         },
         {
-         "default": "-3.0",
+         "default": "-4.5",
          "help": "How the picker treats a voice leaping exactly a tritone (six semitones). More negative avoids tritone leaps.",
          "id": "weight:tritone_leap_penalty",
          "kind": "float",
@@ -316,6 +316,16 @@
          "id": "weight:low_interval_limit_penalty",
          "kind": "float",
          "label": "Muddy low interval",
+         "max": 100.0,
+         "min": -100.0,
+         "step": 0.1
+        },
+        {
+         "default": "-4.0",
+         "help": "How the picker treats a voice moving an augmented second, three semitones between neighbouring letters as the chords spell them (F to G# from F to E in A minor, not F to Ab). More negative avoids it; keep it beyond Tritone leap, or the voice leaps a tritone instead.",
+         "id": "weight:augmented_second_penalty",
+         "kind": "float",
+         "label": "Augmented second",
          "max": 100.0,
          "min": -100.0,
          "step": 0.1

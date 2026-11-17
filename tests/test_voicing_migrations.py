@@ -290,9 +290,12 @@ def test_tibis_shaped_file(tmp_path):
     v = _load(tmp_path).voicings
     quartet = v["New String Quartet"]
     assert quartet["based_on"] == "ensemble:quartet"
-    # Its values match the current quartet already: 1->2 changes nothing.
-    assert {k: e for k, e in quartet.items() if k not in ("version", "based_on")} \
-        == original["New String Quartet"]
+    # Its values match the current quartet already, but for the tritone
+    # leap default the engine review moved (DEFAULT_MOVES).
+    expected = copy.deepcopy(original["New String Quartet"])
+    if expected["weights"].get("tritone_leap_penalty") == -3.0:
+        expected["weights"]["tritone_leap_penalty"] = -4.5
+    assert {k: e for k, e in quartet.items() if k not in ("version", "based_on")} == expected
     for name in ("7-string", "D tuning", "New voicing"):
         assert "based_on" not in v[name], name
         assert {k: e for k, e in v[name].items() if k != "version"} == original[name]
@@ -442,6 +445,37 @@ def test_1_to_2_allow_unisons_and_scope():
     vv._migrate_1_to_2(junk)
     assert junk["weights"]["leading_tone_resolution_bonus"] == "x"
     assert junk["weights"]["movement"] == "y"
+
+
+def test_1_to_2_moves_a_changed_default_in_every_voicing_of_its_model():
+    # Settings saves an ensemble's whole weight dict, so an edited custom
+    # ensemble holds the old Tritone leap default (-3.0) explicitly.
+    for based_on in (None, "ensemble:satb", "ensemble:quartet"):
+        entry = {"model": "ensemble", "voices": [{"name": "S", "range": [60, 79]},
+                                                 {"name": "B", "range": [40, 60]}],
+                 "weights": {"tritone_leap_penalty": -3.0}}
+        if based_on:
+            entry["based_on"] = based_on
+        assert vv._migrate_1_to_2(entry) is True
+        assert entry["weights"]["tritone_leap_penalty"] == -4.5
+        once = copy.deepcopy(entry)
+        assert vv._migrate_1_to_2(entry) is False and entry == once
+    tuned = {"model": "ensemble", "weights": {"tritone_leap_penalty": -2.0}}
+    assert vv._migrate_1_to_2(tuned) is False
+    assert tuned["weights"]["tritone_leap_penalty"] == -2.0
+    absent = {"model": "ensemble", "weights": {"leap_penalty": -2.0}}
+    assert vv._migrate_1_to_2(absent) is False and "tritone_leap_penalty" not in absent["weights"]
+    other = {"model": "fretboard", "weights": {"tritone_leap_penalty": -3.0}}
+    assert vv._migrate_1_to_2(other) is False
+
+
+def test_default_moves_end_on_the_current_defaults():
+    from chordnotepad.models import ensemble_spec, fretboard_spec, piano_spec
+    defaults = {"fretboard": fretboard_spec.DEFAULT_WEIGHTS,
+                "ensemble": ensemble_spec.DEFAULT_WEIGHTS, "piano": piano_spec.DEFAULT_WEIGHTS}
+    for model, moves in vv.DEFAULT_MOVES.items():
+        for key, pairs in moves.items():
+            assert pairs[-1][1] == defaults[model][key], (model, key)
 
 
 def test_0_to_1_infers_links_only_from_label_and_tuning():

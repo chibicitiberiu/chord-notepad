@@ -583,7 +583,16 @@ Voicing Parameters
      - Subtracted when a voice leaps exactly a tritone (six semitones), an
        interval singers and string players find hard to place accurately.
      - ``tritone_leap_penalty``
-     - -3.0
+     - -4.5
+   * - Augmented second
+     - Subtracted when a voice moves an augmented second: three semitones
+       between neighbouring letter names, as the two chords spell them (F to
+       G♯ when F goes to E in A minor; F to A♭ is a minor third and costs
+       nothing). The classic place is VI to V in a minor key, where the
+       doubled root of F would otherwise climb to the G♯. Keep it more
+       negative than "Tritone leap", or the voice leaps a tritone instead.
+     - ``augmented_second_penalty``
+     - -4.0
    * - Common tone held
      - Added when a voice holds the same note it just sang (the same pitch,
        not the same note an octave away). More positive keeps more notes
