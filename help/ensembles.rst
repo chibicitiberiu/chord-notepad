@@ -685,11 +685,13 @@ Voicing Parameters
      - -0.5
    * - Muddy low interval
      - Subtracted per semitone that the lower of two neighbouring voices
-       closer than an octave sits below that interval's low interval limit,
+       up to a tenth apart sits below that interval's low interval limit,
        the point below which it sounds muddy: a minor second below E3, a
        major second below Eb3, a minor third below C3, a major third or a
        tritone below Bb2, a fourth below A2, a minor sixth below G2, a major
-       sixth or a seventh below F2, a fifth below Bb1. Sources differ a
+       sixth or a seventh below F2, a fifth below Bb1, a minor ninth below
+       E2, a major ninth below Eb2, a minor tenth below C2, a major tenth
+       below Bb1 (the wide ones matter for a double bass under a cello). Sources differ a
        little (some put the tritone at B2 and the fourth at Bb2). The cost
        fades in at the limit: a pair one semitone under it costs little, A2
        with C3 above it (three under) costs three times as much. It keeps the

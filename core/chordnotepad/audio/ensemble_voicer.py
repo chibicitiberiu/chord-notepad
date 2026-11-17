@@ -67,6 +67,7 @@ from typing import Any, Callable, Dict, FrozenSet, List, NamedTuple, Optional, T
 
 from chordnotepad.audio.note_picker_interface import INotePicker
 from chordnotepad.audio.chord_tones import classify_role, omission_cost
+from chordnotepad.audio.low_intervals import semitones_below_limit
 from chordnotepad.audio.voicing_optimizer import optimize_sequence
 from chordnotepad.chord.key_inference import infer_keys, triad_quality
 from chordnotepad.chord.midi_converter import parse_note_to_semitone, intervals_from_note_names
@@ -84,25 +85,6 @@ _LEAP_THRESHOLD = 7          # a leap wider than a perfect fifth is penalized
 _TRITONE = 6                 # an exact tritone leap is penalized
 _PERFECT_FIFTH = 7           # the only fifth an incomplete chord may leave out
 _STEP = 2                    # a move of up to a whole tone is a step
-# Low interval limits: for each interval smaller than an octave, the lowest MIDI
-# note its lower pitch may sit on before the interval sounds muddy (the usual
-# orchestration table: a minor third from C3, a major third from Bb2, a fifth
-# from Bb1; some sources put the tritone at B2 and the fourth at Bb2). Below it,
-# the pair costs ``low_interval_limit_penalty`` per semitone, so the cost fades
-# in at the limit and grows the lower the pair sits.
-_LOW_INTERVAL_LIMITS = {
-    1: 52,   # minor second: E3
-    2: 51,   # major second: Eb3
-    3: 48,   # minor third: C3
-    4: 46,   # major third: Bb2
-    5: 45,   # perfect fourth: A2
-    6: 46,   # tritone: Bb2
-    7: 34,   # perfect fifth: Bb1
-    8: 43,   # minor sixth: G2
-    9: 41,   # major sixth: F2
-    10: 41,  # minor seventh: F2
-    11: 41,  # major seventh: F2
-}
 _RANGE_COMFORT_EDGE = 2      # the outer 2 semitones of a range are uncomfortable
 _BAND_QUARTER = 4            # the comfortable band leaves out a quarter of the range at each end
 _RANGE_PAD = 2               # semitones the ladder widens each range end by
@@ -927,6 +909,9 @@ class EnsembleVoicer(INotePicker):
                         add = self._comfort(midi, b)
                         if midi == below:
                             add += self._unison_penalty
+                        if self._low_interval_limit_penalty:
+                            add += (self._low_interval_limit_penalty
+                                    * semitones_below_limit(below, midi))
                         if b >= 2 and gap > self._upper_spacing_threshold:
                             add += self._upper_spacing_penalty * (gap - self._upper_spacing_threshold)
                         new_remaining = list(remaining)
@@ -1049,12 +1034,11 @@ class EnsembleVoicer(INotePicker):
             if lower == upper:
                 score += self._unison_penalty
 
-        # Low intervals: adjacent voices closer than an octave, per semitone below their limit.
+        # Low intervals: adjacent voices up to a tenth apart, per semitone
+        # below their limit (audio.low_intervals).
         if self._low_interval_limit_penalty:
             for lower, upper in zip(stack, stack[1:]):
-                limit = _LOW_INTERVAL_LIMITS.get(upper - lower)
-                if limit is not None and lower < limit:
-                    score += self._low_interval_limit_penalty * (limit - lower)
+                score += self._low_interval_limit_penalty * semitones_below_limit(lower, upper)
 
         # Upper spacing: adjacent gaps not involving the bottom voice.
         for i in range(1, len(stack) - 1):

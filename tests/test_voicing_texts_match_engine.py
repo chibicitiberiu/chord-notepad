@@ -56,15 +56,16 @@ def test_ensemble_parallels_spare_a_doubled_bass_line_from_five_voices():
 
 
 def test_ensemble_low_interval_limits_match_the_tooltip_and_help():
-    from chordnotepad.audio.ensemble_voicer import _LOW_INTERVAL_LIMITS as L
+    from chordnotepad.audio.low_intervals import LOW_INTERVAL_LIMITS as L
     # minor third C3, major third Bb2, fourth A2, fifth Bb1, seconds Eb3/E3.
     assert (L[3], L[4], L[5], L[7], L[2], L[1]) == (48, 46, 45, 34, 51, 52)
     tip = TOOLTIPS['weight:low_interval_limit_penalty']
     for text in ('minor third below C3', 'major third below Bb2', 'fourth below A2',
-                 'fifth below Bb1', 'seconds below Eb3'):
+                 'fifth below Bb1', 'seconds below Eb3', 'major ninth below Eb2'):
         assert text in tip
-    assert "per semitone below" in tip
-    assert set(L) == set(range(1, 12))
+    assert "per semitone below" in tip and "a tenth apart" in tip
+    assert L[14] == 39
+    assert set(L) == set(range(1, 12)) | {13, 14, 15, 16}
 
 
 def test_every_ensemble_weight_has_a_label_and_help():

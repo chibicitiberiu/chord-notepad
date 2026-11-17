@@ -725,6 +725,19 @@ def test_a_close_interval_costs_per_semitone_below_its_low_interval_limit():
     assert cost((40, 45, 76)) == pytest.approx(-10.0)  # E2 A2: a fourth, 5 below A2
 
 
+def test_a_ninth_or_tenth_between_low_voices_has_a_limit_too():
+    # A double bass on C2 under a cello on D3 (a major ninth, limit Eb2)
+    # costs three semitones' worth; the cello on G3 (a twelfth) is clear.
+    voicer = EnsembleVoicer(_two_voice({'low_interval_limit_penalty': -1.0},
+                                       low=('C2', 'C4'), high=('C3', 'C5')))
+    meta = voicer._build_meta(cn(['C', 'E', 'G', 'D'], intervals=[0, 4, 7, 14]))
+    free = EnsembleVoicer(_two_voice({'low_interval_limit_penalty': 0.0},
+                                     low=('C2', 'C4'), high=('C3', 'C5')))
+    assert (voicer._score_quality((36, 50), meta) - free._score_quality((36, 50), meta)
+            == pytest.approx(-3.0))
+    assert voicer._score_quality((36, 55), meta) == free._score_quality((36, 55), meta)
+
+
 def test_a_quintet_puts_the_third_of_am_above_the_low_strings():
     # Tibi's String Quartet copy with a double bass added: Am after C and Dm
     # had the cello's C3 a minor third over the bass's A2.
@@ -735,7 +748,7 @@ def test_a_quintet_puts_the_third_of_am_above_the_low_strings():
         'max_spacing': [14, 14, 24, 12], 'allow_unisons': False,
         'weights': {'movement': [-0.4, -0.6, -0.4, -0.4, -0.15]}})
     voiced = EnsembleVoicer(quintet).voice_sequence([parsed(s) for s in ('C', 'Dm', 'Am', 'G')])
-    from chordnotepad.audio.ensemble_voicer import _LOW_INTERVAL_LIMITS
+    from chordnotepad.audio.low_intervals import LOW_INTERVAL_LIMITS as _LOW_INTERVAL_LIMITS
     am = voiced[2]
     assert am[0] == 45 and am[1] - am[0] >= 7          # A2, then a fifth or wider
     assert all(lo >= _LOW_INTERVAL_LIMITS.get(hi - lo, 0) for lo, hi in zip(am, am[1:]))
