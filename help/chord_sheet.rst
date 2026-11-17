@@ -353,28 +353,50 @@ Suggesting a Capo
 .. only:: desktop
 
    To find a good capo, click **Capo** in the Edit toolbar (the capo icon, next
-   to Transpose) or use :menuselection:`Tools --> Suggest capo...`. It asks
-   which fretboard voicing to optimize for -- defaulting to the current one, or
-   standard guitar when the active voicing is not a fretboard voicing -- then
-   scores capo positions over the selection (or the whole song when nothing is
-   selected) and writes the ``{capo: N}`` directive, as a single undo step. It
-   looks for the position that makes the part easiest to play: fewest barres,
-   lowest on the neck, most open strings. If no capo helps, it says so and
-   changes nothing. A capo has to make the chords easier on average, so a
-   long song or a chorus that repeats is judged the same as a short one, and
-   a selection of two or three chords needs a clear gain over all of them.
+   to Transpose) or use :menuselection:`Tools --> Suggest capo...`. Select part
+   of the song first to get a capo for just that part; with nothing selected the
+   whole song is used.
+
+   The Suggest Capo dialog scores every capo position from no capo up to the
+   7th fret while a spinner turns, then lists them, one row each:
+
+   * the capo, for example ``Capo 3``, or ``No capo``;
+   * the chord shapes you would play with it, for example ``G D Em C``;
+   * how they compare with no capo: **Easier**, **About the same** or
+     **Harder**.
+
+   Easier means fewer barres, shapes lower on the neck and more open strings.
+   The recommended row comes first and is already chosen, marked
+   **Recommended**; the rest follow from easiest to hardest. When no capo makes
+   the chords easier, **No capo** is the recommended row. The capo the song
+   already has there (or no capo) is marked **Current**. A capo has to make the
+   chords easier on average, so a long song or a chorus that repeats is judged
+   the same as a short one, and a selection of two or three chords needs a
+   clear gain over all of them.
+
+   The **Voicing** box says which fretboard voicing the shapes are scored for:
+   the current voicing, or standard guitar when the active voicing is not a
+   fretboard voicing. Choose another and the list is scored again.
+
+   Choose a row with the mouse or the Up and Down keys, then press **Apply**
+   (or Enter) to write its ``{capo: N}`` directive as a single undo step.
+   **Cancel** (or Escape) changes nothing. Apply waits while a song is playing
+   or paused; stop it first.
 
    .. platform-figure:: capo-suggest
       :platforms: desktop
       :alt: The Suggest Capo dialog: an explanation, the part of the song it
-            applies to, a Voicing box set to Guitar (Standard - EADGBE), and
-            the Cancel and Suggest buttons.
+            applies to, a Voicing box set to Guitar (Standard - EADGBE), a
+            list of capo positions with their chord shapes, the first one
+            marked Recommended, and the Cancel and Apply buttons.
 
-      Suggest Capo asks which fretted instrument to optimize for.
+      Suggest Capo lists every capo position, the recommended one first.
 
    The directive goes at the very top of the song, or at the start of the
    selection's first line. If a ``{capo}`` already sits between there and the
-   first chord, it is replaced instead of adding a second one.
+   first chord, it is replaced instead of adding a second one. Choosing
+   **No capo** when the song has a capo there writes ``{capo: 0}``; choosing the
+   capo already in place changes nothing.
 
 .. only:: android
 
@@ -386,30 +408,39 @@ Suggesting a Capo
    3. Tap **Suggest**. If you already know the fret, type it in the
       **Fret** field (0 to 12, where 0 means no capo) and tap **Insert**
       instead.
-   4. Pick the fretboard voicing to optimize for and tap **OK**. It starts on
-      the current voicing, or on standard guitar when the current voicing
-      isn't a fretboard voicing.
+   4. Wait for the list. Each row is a capo position, the chord shapes you
+      would play with it, and **Easier**, **About the same** or **Harder**
+      next to no capo. The recommended row comes first and is already chosen.
+   5. Tap the row you want and tap **Apply**, or **Cancel** to change nothing.
 
 .. platform-figure:: capo-suggest
    :platforms: android
-   :alt: The Suggest Capo dialog with a list of fretboard voicings, Guitar
-         (Standard - EADGBE) selected, and Cancel and OK buttons.
+   :alt: The Suggest Capo dialog: a Voicing button set to Guitar (Standard -
+         EADGBE), a list of capo positions with their chord shapes, the first
+         one marked Recommended, and Cancel and Apply buttons.
 
-   Suggest Capo asks which fretted instrument to optimize for.
+   Suggest Capo lists every capo position, the recommended one first.
 
 .. only:: android
 
-   Chord Notepad then scores capo positions over the selection (or the whole
-   song) and writes the ``{capo: N}`` directive, as a single undo step. It
-   looks for the position that makes the part easiest to play: fewest barres,
-   lowest on the neck, most open strings. If no capo helps, it says so and
-   changes nothing. A capo has to make the chords easier on average, so a long
-   song or a chorus that repeats is judged the same as a short one, and a
-   selection of two or three chords needs a clear gain over all of them. The
-   directive goes at the very top of the song, or at the
-   start of the selection's first line; a ``{capo}`` already sitting between
-   there and the first chord is replaced instead. Switch back to Play and pick a fretted
-   voicing to see the new shapes in Fret cards or Tab.
+   Easier means fewer barres, shapes lower on the neck and more open strings.
+   When no capo makes the chords easier, **No capo** is the recommended row.
+   The capo the song already has there (or no capo) is marked **Current**. A
+   capo has to make the chords easier on average, so a long song or a chorus
+   that repeats is judged the same as a short one, and a selection of two or
+   three chords needs a clear gain over all of them.
+
+   The **Voicing** button picks the fretboard voicing the shapes are scored
+   for. It starts on the current voicing, or on standard guitar when the
+   current voicing isn't a fretboard voicing; pick another and the list is
+   scored again. Apply waits while a song is playing; stop it first.
+
+   Apply writes the ``{capo: N}`` directive as a single undo step, at the very
+   top of the song or at the start of the selection's first line; a ``{capo}``
+   already sitting between there and the first chord is replaced instead.
+   Choosing **No capo** when the song has a capo there writes ``{capo: 0}``.
+   Switch back to Play and pick a fretted voicing to see the new shapes in
+   Fret cards or Tab.
 
 
 Following Playback

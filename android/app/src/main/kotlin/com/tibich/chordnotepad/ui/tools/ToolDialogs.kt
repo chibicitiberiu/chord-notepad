@@ -3,6 +3,9 @@ package com.tibich.chordnotepad.ui.tools
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
@@ -15,6 +18,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AlertDialogDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -48,7 +52,8 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.tibich.chordnotepad.R
-import com.tibich.chordnotepad.bridge.CapoChoiceRequest
+import com.tibich.chordnotepad.bridge.CapoAdviceState
+import com.tibich.chordnotepad.bridge.CapoRow
 import com.tibich.chordnotepad.bridge.DirectiveCheck
 import com.tibich.chordnotepad.bridge.InsertDirectiveRequest
 import com.tibich.chordnotepad.ui.KeyboardSafeAlertDialog
@@ -96,45 +101,108 @@ fun TransposeDialog(hasSelection: Boolean, onApply: (semitones: Int) -> Unit, on
 }
 
 /**
- * Tools › Suggest Capo…: which fretboard voicing to optimize for (the
- * request's options, its default chosen). [onAnswer] gets an option's value,
- * or null for Cancel.
+ * Suggest Capo (Insert › Capo › Suggest): the session's [CapoAdviceState].
+ * The voicing at the top ([onVoicing] scores again for another), a spinner
+ * while the capos are scored, then the ranked rows, the recommended one
+ * first and chosen. Apply sends the chosen row's capo ([onApply]); it waits
+ * while a song plays, with a hint, since the session refuses the edit then.
+ * Cancel or dismiss is [onCancel].
  */
 @Composable
-fun CapoDialog(request: CapoChoiceRequest, onAnswer: (String?) -> Unit) {
-    var chosen by rememberSaveable(request.requestId) { mutableStateOf(initialCapoChoice(request)) }
+fun CapoDialog(
+    state: CapoAdviceState,
+    onVoicing: (String) -> Unit,
+    onApply: (Int) -> Unit,
+    onCancel: () -> Unit,
+) {
+    var picked by rememberSaveable(state.voicing, state.rows) { mutableStateOf(capoChoice(state, null)) }
+    val chosen = capoChoice(state, picked)
     val scroll = rememberScrollState()
     AlertDialog(
-        onDismissRequest = { onAnswer(null) },
+        onDismissRequest = onCancel,
         title = { Text(stringResource(R.string.capo_title)) },
         text = {
-            // A fade while the voicings go on below the edge (L9).
+            // A fade while the rows go on below the edge (L9).
             Column(Modifier.moreBelowFade(scroll, AlertDialogDefaults.containerColor).verticalScroll(scroll)) {
                 Text(stringResource(R.string.capo_hint), Modifier.padding(bottom = 12.dp))
-                if (request.scope.isNotEmpty()) {
+                if (state.scope.isNotEmpty()) {
+                    Text(state.scope, Modifier.padding(bottom = 12.dp), fontWeight = FontWeight.Bold)
+                }
+                Picker(
+                    label = stringResource(R.string.capo_voicing),
+                    value = state.voicings.firstOrNull { it.value == state.voicing }?.label ?: state.voicing,
+                    options = state.voicings.map { it.label },
+                ) { label -> state.voicings.firstOrNull { it.label == label }?.let { onVoicing(it.value) } }
+                Spacer(Modifier.height(12.dp))
+                if (state.computing) {
+                    Row(Modifier.padding(vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                        CircularProgressIndicator(Modifier.size(24.dp), strokeWidth = 3.dp)
+                        Text(stringResource(R.string.capo_finding), Modifier.padding(start = 12.dp))
+                    }
+                }
+                Column(Modifier.selectableGroup()) {
+                    for (row in state.rows) {
+                        CapoRadioRow(row, selected = row.capo == chosen) { picked = row.capo }
+                    }
+                }
+                if (state.message.isNotEmpty()) {
                     Text(
-                        request.scope,
-                        Modifier.padding(bottom = 12.dp),
-                        fontWeight = FontWeight.Bold,
+                        state.message,
+                        Modifier.padding(top = 8.dp),
+                        color = if (state.status == CapoAdviceState.ERROR) {
+                            MaterialTheme.colorScheme.error
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
                     )
                 }
-                Text(stringResource(R.string.capo_voicing), style = MaterialTheme.typography.labelLarge)
-                Column(Modifier.selectableGroup()) {
-                    for (option in request.options) {
-                        RadioRow(option.label, selected = option.value == chosen) { chosen = option.value }
-                    }
+                if (state.playing) {
+                    Text(
+                        stringResource(R.string.capo_stop_to_apply),
+                        Modifier.padding(top = 8.dp),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
             }
         },
         confirmButton = {
-            TextButton(onClick = { onAnswer(chosen) }, enabled = chosen != null) {
-                Text(stringResource(android.R.string.ok))
+            TextButton(onClick = { chosen?.let(onApply) }, enabled = capoCanApply(state, picked)) {
+                Text(stringResource(R.string.capo_apply))
             }
         },
         dismissButton = {
-            TextButton(onClick = { onAnswer(null) }) { Text(stringResource(android.R.string.cancel)) }
+            TextButton(onClick = onCancel) { Text(stringResource(android.R.string.cancel)) }
         },
     )
+}
+
+/** One capo position: a radio, the row's words and its Recommended / Current tags. */
+@Composable
+private fun CapoRadioRow(row: CapoRow, selected: Boolean, onSelect: () -> Unit) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .heightIn(min = 48.dp)
+            .selectable(selected = selected, role = Role.RadioButton, onClick = onSelect),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        RadioButton(selected = selected, onClick = null, modifier = Modifier.padding(end = 12.dp))
+        Column {
+            Text(row.label)
+            val tags = listOfNotNull(
+                stringResource(R.string.capo_recommended).takeIf { row.recommended },
+                stringResource(R.string.capo_current).takeIf { row.current },
+            )
+            if (tags.isNotEmpty()) {
+                Text(
+                    tags.joinToString(" · "),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
+        }
+    }
 }
 
 /**
@@ -350,19 +418,5 @@ private fun Stepper(
         IconButton(onClick = onUp, enabled = canUp) {
             Text("+", style = MaterialTheme.typography.titleLarge, modifier = Modifier.semantics { contentDescription = upLabel })
         }
-    }
-}
-
-@Composable
-private fun RadioRow(label: String, selected: Boolean, onSelect: () -> Unit) {
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .heightIn(min = 48.dp)
-            .selectable(selected = selected, role = Role.RadioButton, onClick = onSelect),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        RadioButton(selected = selected, onClick = null, modifier = Modifier.padding(end = 12.dp))
-        Text(label)
     }
 }

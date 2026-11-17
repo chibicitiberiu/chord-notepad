@@ -71,12 +71,11 @@ DESKTOP_FILE_NAME = "io.github.chibicitiberiu.ChordNotepad"
 ICON_FILES = ("icon-32.png", "icon-128.png", "icon-256.png")
 #: The session's requests the window answers (Main.qml). The others are
 #: answered "cancel" at once, so a flow that asks one doesn't wait forever.
-#: The capo choice is Suggest Capo's (G2, AppDialogs.qml), the file pickers
-#: FilesModel's (F3, files.py and FileDialogs.qml). The Insert dialogs'
-#: requests never come: the palette and the ▾ value pickers (D5) edit
-#: through commands that ask nothing.
-HANDLED_REQUESTS = frozenset({"ConfirmDiscardRequest", "CapoChoiceRequest",
-                              "PickDocumentRequest"})
+#: The file pickers are FilesModel's (F3, files.py and FileDialogs.qml).
+#: The Insert dialogs' requests never come: the palette and the ▾ value
+#: pickers (D5) edit through commands that ask nothing. Suggest Capo asks
+#: nothing either: its dialog follows CapoAdviceState (AppDialogs.qml).
+HANDLED_REQUESTS = frozenset({"ConfirmDiscardRequest", "PickDocumentRequest"})
 
 
 def set_identity(app: QGuiApplication, paths: AppPaths) -> None:

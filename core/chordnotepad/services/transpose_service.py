@@ -352,6 +352,15 @@ def _directive_keys(value: str, semitones: int, notation: str) -> Optional[Tuple
     return Key(letter + accidental, source.minor), moved[0]
 
 
+def keys_for_move(key_str: str, semitones: int, notation: Union[Notation, str]
+                  ) -> Optional[Tuple[Key, Key]]:
+    """The key ``key_str`` names (in ``notation``) and the key it names after
+    moving by ``semitones``, as :func:`transpose_key` writes it, both in
+    American spelling; None when it isn't a key (for
+    :func:`transpose_chord_token`'s ``source_key`` and ``key``)."""
+    return _directive_keys(key_str, semitones, _notation_str(notation))
+
+
 class PlanEntry(NamedTuple):
     """How :func:`transpose_text` spells one chord's root and bass."""
     key: Optional[Key]          # the key it lands in (None: the plain table)

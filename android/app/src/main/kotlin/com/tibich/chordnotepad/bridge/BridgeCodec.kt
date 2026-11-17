@@ -39,11 +39,10 @@ object BridgeCodec {
         "EditRefused" to EditRefused.serializer(),
         "TextEdited" to TextEdited.serializer(),
         "InsertDirectiveRequest" to InsertDirectiveRequest.serializer(),
-        "CapoChoiceRequest" to CapoChoiceRequest.serializer(),
         "ConfirmDiscardRequest" to ConfirmDiscardRequest.serializer(),
         "PickDocumentRequest" to PickDocumentRequest.serializer(),
         "CloseApproved" to CloseApproved.serializer(),
-    ) + screenSerializers + playerSerializers + startupSerializers
+    ) + screenSerializers + playerSerializers + startupSerializers + capoSerializers
 
     /**
      * Decodes one output.

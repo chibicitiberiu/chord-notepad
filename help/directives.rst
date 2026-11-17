@@ -336,29 +336,33 @@ Finding the Best Capo
 
 .. only:: desktop
 
-   You don't have to guess: :menuselection:`Tools --> Suggest capo...` scores capo
-   positions for a voicing you choose and inserts the ``{capo}`` directive for you,
-   at the top of the song or the start of the selection (replacing a ``{capo}``
-   that already sits there, before the first chord).
+   You don't have to guess: :menuselection:`Tools --> Suggest capo...` lists
+   every capo position with the chord shapes you would play and whether they
+   are easier than no capo, the recommended one first. Pick one and Apply
+   inserts the ``{capo}`` directive for you, at the top of the song or the
+   start of the selection (replacing a ``{capo}`` that already sits there,
+   before the first chord).
    See :doc:`chord_sheet` for details.
 
 .. only:: android
 
-   You don't have to guess: in the Edit tab, ＋ Insert → Capo → Suggest scores capo
-   positions for a voicing you choose and inserts the ``{capo}`` directive for you.
+   You don't have to guess: in the Edit tab, ＋ Insert → Capo → Suggest lists
+   every capo position with the chord shapes you would play and whether they
+   are easier than no capo, the recommended one first. Pick one and Apply
+   inserts the ``{capo}`` directive for you.
    With nothing selected it looks at the whole song and puts the directive at
-   the top. Select part of the song first to get a suggestion for just that
+   the top. Select part of the song first to get a capo for just that
    part, inserted at the start of its first line. A ``{capo}`` already sitting
    between that point and the first chord is replaced instead.
    See :doc:`chord_sheet` for details.
 
    .. platform-figure:: capo-suggest
       :platforms: android
-      :alt: The Suggest Capo dialog: a short explanation and a list of
-            fretboard voicings (four guitar tunings, Ukulele and My 7-String)
-            with Guitar Standard selected, and Cancel and OK.
+      :alt: The Suggest Capo dialog: a Voicing button set to Guitar
+            (Standard - EADGBE), a list of capo positions with their chord
+            shapes, the first one marked Recommended, and Cancel and Apply.
 
-      Pick the instrument the capo is for.
+      Pick the capo you want from the list.
 
 
 Labels and Loops

@@ -1,12 +1,12 @@
 """Request/response flows written as generators.
 
-A flow that has to ask the user something (pick a voicing, fill in a
-directive, later: save changes?, pick a file) is a generator. It yields a
-request DTO and gets the view's answer back as the value of the ``yield``::
+A flow that has to ask the user something (fill in a directive, save
+changes?, pick a file) is a generator. It yields a request DTO and gets the
+view's answer back as the value of the ``yield``::
 
-    def suggest_capo(self):
-        voicing = yield CapoChoiceRequest(0, options, default)
-        if voicing is None:      # cancelled
+    def open_flow(self):
+        ref = yield PickDocumentRequest(0, PickMode.OPEN, "")
+        if ref is None:          # cancelled
             return
         ...
 

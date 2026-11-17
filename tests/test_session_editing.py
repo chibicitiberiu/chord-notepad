@@ -14,11 +14,11 @@ from chordnotepad.session import formatting
 from chordnotepad.services.playback_service import PlaybackService
 from chordnotepad.services.song_parser_service import SongParserService
 from chordnotepad.session.events import (
-    CapoChoiceRequest, EditRefused, InsertDirectiveRequest, TextEdited, UndoPolicy,
+    EditRefused, InsertDirectiveRequest, TextEdited, UndoPolicy,
 )
 from chordnotepad.session.host import HostDispatch
 from chordnotepad.session.session import AppSession
-from chordnotepad.session.state import HighlightState, MenuItem, StatusState
+from chordnotepad.session.state import CapoAdviceState, HighlightState, MenuItem, StatusState
 from chordnotepad.session.testing import EventRecorder, FakePlayer, InMemoryDocumentStore, ManualHost
 from chordnotepad.session.workers import BackgroundWorker
 from chordnotepad.viewmodels.main_window_viewmodel import MainWindowViewModel
@@ -465,170 +465,323 @@ def test_stale_answers_are_ignored():
 # -- suggest capo ------------------------------------------------------------------------------
 
 BARRE_SONG = "{key: F#}\nF#  B  C#  D#m  F#  B"
+STANDARD_LABEL = "Guitar (Standard - EADGBE)"
 
 
-def test_capo_request_lists_the_fretboard_voicings_with_the_active_one_preselected():
+def _advice(env):
+    """The latest CapoAdviceState (a new listener gets every state replayed)."""
+    recorder = EventRecorder()
+    subscription = env.session.subscribe(recorder)
+    subscription.cancel()
+    return recorder.last(CapoAdviceState)
+
+
+def _open(env, region=None):
+    """Open Suggest Capo and let the worker score it."""
+    env.session.capo_advice_open(region)
+    env.settle()
+    return _advice(env)
+
+
+def test_the_dialog_is_closed_from_the_start_without_services():
+    env = Env("C")
+    advice = _advice(env)
+    assert advice is not None and not advice.active and advice.rows == ()
+
+
+def test_open_computes_then_ranks_the_capos_with_the_recommended_one_first():
+    env = Env(BARRE_SONG)
+    env.session.capo_advice_open(None)
+
+    computing = _advice(env)
+    assert computing.active and computing.status == "computing" and computing.rows == ()
+    assert computing.scope == formatting.capo_scope_text(False)
+    assert computing.voicing == "guitar:standard" and not computing.playing
+    assert env.session.text == BARRE_SONG          # nothing changes yet
+
+    env.settle()
+    ready = _advice(env)
+    assert ready.status == "ready" and ready.message == ""
+    rows = ready.rows
+    assert sorted(r.capo for r in rows) == list(range(0, 8))
+    first = rows[0]
+    assert first.recommended and first.capo > 0 and first.ease == "Easier"
+    assert [r.recommended for r in rows[1:]] == [False] * 7
+    assert first.label == f"Capo {first.capo} \u00b7 {first.shapes} \u00b7 Easier"
+    no_capo = next(r for r in rows if r.capo == 0)
+    assert no_capo.label == "No capo \u00b7 F# B C# D#m" and no_capo.ease == "No capo"
+    assert no_capo.current                         # no capo in force
+    assert [r.current for r in rows].count(True) == 1
+
+
+def test_the_rows_name_the_shapes_in_the_songs_notation():
+    env = Env("{key: Si}\nSi Fa# Sol#m Mi", notation="european")
+    rows = {r.capo: r for r in _open(env).rows}
+    assert rows[0].shapes == "Si Fa# Sol#m Mi"
+    assert rows[2].shapes == "La Mi Fa#m Re"
+    assert rows[4].shapes == "Sol Re Mim Do"
+
+
+def test_the_voicings_are_the_fretboard_ones_with_the_active_one_chosen():
     env = Env("C", voicing="guitar:drop_d")
-    env.session.request_suggest_capo(None)
-    request = env.request(CapoChoiceRequest)
-    assert request.default == "guitar:drop_d"
-    assert MenuItem("Guitar (Standard - EADGBE)", "guitar:standard") in request.options
-    assert all(o.value.startswith(("guitar:", "voicing:")) for o in request.options)
+    env.session.capo_advice_open(None)
+    advice = _advice(env)
+    assert advice.voicing == "guitar:drop_d"
+    assert MenuItem(STANDARD_LABEL, "guitar:standard") in advice.voicings
+    assert all(o.value.startswith(("guitar:", "voicing:")) for o in advice.voicings)
 
 
-def test_capo_request_says_where_the_capo_goes():
+def test_a_piano_voicing_scores_for_standard_guitar():
+    env = Env("C", voicing="piano")
+    env.session.capo_advice_open(None)
+    assert _advice(env).voicing == "guitar:standard"
+
+
+def test_the_scope_says_where_the_capo_goes():
     env = Env("C G Am F")
-    env.session.request_suggest_capo(None)
-    assert env.request(CapoChoiceRequest).scope == formatting.capo_scope_text(False)
+    env.session.capo_advice_open(None)
+    assert _advice(env).scope == formatting.capo_scope_text(False)
     assert "top of the song" in formatting.capo_scope_text(False)
-    env.session.request_suggest_capo((2, 5))
-    assert env.request(CapoChoiceRequest).scope == formatting.capo_scope_text(True)
+    env.session.capo_advice_open((2, 5))
+    assert _advice(env).scope == formatting.capo_scope_text(True)
     # The capo stays in force after the selection: the text mustn't say "only".
     assert "selected part" in formatting.capo_scope_text(True)
     assert "only" not in formatting.capo_scope_text(True)
 
 
-def test_capo_defaults_to_standard_guitar_for_a_piano_voicing():
-    env = Env("C", voicing="piano")
-    env.session.request_suggest_capo(None)
-    assert env.request(CapoChoiceRequest).default == "guitar:standard"
-
-
-def test_capo_response_inserts_the_directive_as_one_grouped_edit():
+def test_switching_the_voicing_scores_again():
     env = Env(BARRE_SONG)
-    env.session.request_suggest_capo(None)
+    _open(env)
     env.recorder.clear()
 
-    env.session.respond(1, "guitar:standard")
+    env.session.capo_advice_voicing("guitar:drop_d")
 
-    # Scored on the worker: only a progress status until the result is in.
-    assert env.recorder.compact() == [
-        ("StatusState", "Finding a capo for the whole song on Guitar (Standard - EADGBE)...")]
-    assert env.session.text == BARRE_SONG
-    env.recorder.clear()
+    assert _advice(env).status == "computing" and _advice(env).voicing == "guitar:drop_d"
     env.settle()
+    assert _advice(env).status == "ready" and len(_advice(env).rows) == 8
+
+
+def test_an_unknown_voicing_is_ignored():
+    env = Env(BARRE_SONG)
+    _open(env)
+    env.recorder.clear()
+    env.session.capo_advice_voicing("voicing:no such thing")
+    env.session.capo_advice_voicing("piano")
+    assert env.recorder.items == []
+
+
+def test_apply_inserts_the_directive_as_one_grouped_edit_and_closes():
+    env = Env(BARRE_SONG)
+    capo = _open(env).rows[0].capo
+    env.recorder.clear()
+
+    env.session.capo_advice_apply(capo)
 
     edit = env.recorder.last(TextEdited)
-    capo = int(edit.replacement.split("}")[0].split(":")[1])
-    assert capo > 0
     assert (edit.start, edit.end, edit.undo) == (0, len(BARRE_SONG), UndoPolicy.GROUP)
     assert edit.replacement == f"{{capo: {capo}}}\n{BARRE_SONG}"
-    assert [type(i).__name__ for i in env.recorder.items] == [
-        "TextEdited", "HighlightState", "SongDefaultsState", "StatusState"]
-    assert env.status() == f"Suggested capo {capo} for the whole song on Guitar (Standard - EADGBE)"
+    assert env.status() == f"Suggested capo {capo} for the whole song on {STANDARD_LABEL}"
+    assert not _advice(env).active
 
 
-def _suggest(env, region=None):
-    env.session.request_suggest_capo(region)
-    env.session.respond(env.request(CapoChoiceRequest).request_id, "guitar:standard")
-    env.settle()
+def test_apply_takes_any_row_not_just_the_recommended_one():
+    env = Env(BARRE_SONG)
+    rows = _open(env).rows
+    other = next(r.capo for r in rows if r.capo not in (0, rows[0].capo))
+    env.session.capo_advice_apply(other)
+    assert env.session.text == f"{{capo: {other}}}\n{BARRE_SONG}"
 
 
-def test_suggest_capo_replaces_a_capo_before_the_first_chord():
+def test_apply_replaces_a_capo_before_the_first_chord():
     song = "{capo: 0}\n" + BARRE_SONG
     env = Env(song)
-    _suggest(env)
+    advice = _open(env)
+    assert next(r for r in advice.rows if r.capo == 0).current
+    env.session.capo_advice_apply(advice.rows[0].capo)
     lines = env.session.text.split("\n")
-    assert lines[0].startswith("{capo: ") and lines[0] != "{capo: 0}"
+    assert lines[0] == f"{{capo: {advice.rows[0].capo}}}"
     assert "\n".join(lines[1:]) == BARRE_SONG
-    assert env.session.text.count("{capo") == 1
 
 
-def test_suggest_capo_for_a_selection_replaces_its_own_capo():
+def test_a_selection_replaces_its_own_capo():
     song = "C G\n{capo: 0}\n" + BARRE_SONG
     env = Env(song)
     start = song.index("{capo")
-    _suggest(env, (start, len(song)))
+    advice = _open(env, (start, len(song)))
+    env.session.capo_advice_apply(advice.rows[0].capo)
     text = env.session.text
-    assert text.startswith("C G\n{capo: ") and not text.startswith("C G\n{capo: 0}")
-    assert text.count("{capo") == 1 and text.endswith(BARRE_SONG)
+    assert text == f"C G\n{{capo: {advice.rows[0].capo}}}\n{BARRE_SONG}"
+    assert env.status().endswith(f"for the selection on {STANDARD_LABEL}")
 
 
-def test_no_capo_helps_only_says_so():
+def test_no_capo_helps_puts_no_capo_first():
     env = Env("C G Am F")
-    env.session.request_suggest_capo((0, 3))
+    advice = _open(env, (0, 3))
+    first = advice.rows[0]
+    assert first.capo == 0 and first.recommended and first.label == "No capo \u00b7 C G"
+    assert advice.scope == formatting.capo_scope_text(True)
+
+
+def test_no_capo_with_none_in_force_changes_nothing_and_closes():
+    env = Env("C G Am F")
+    _open(env)
     env.recorder.clear()
-
-    env.session.respond(1, "guitar:standard")
-    env.settle()
-
-    assert env.recorder.compact() == [
-        ("StatusState", "Finding a capo for the selection on Guitar (Standard - EADGBE)..."),
-        ("StatusState", "No capo makes the selection easier on Guitar (Standard - EADGBE)")]
+    env.session.capo_advice_apply(0)
+    assert env.recorder.of_type(TextEdited) == []
     assert env.session.text == "C G Am F"
+    assert not _advice(env).active
 
 
-def test_capo_cancelled_or_unknown_voicing_does_nothing():
-    env = Env(BARRE_SONG)
-    env.session.request_suggest_capo(None)
+def test_no_capo_with_a_capo_in_force_writes_capo_0():
+    song = "{capo: 3}\nC G Am F"
+    env = Env(song)
+    advice = _open(env)
+    assert next(r for r in advice.rows if r.capo == 3).current
+    env.session.capo_advice_apply(0)
+    assert env.session.text == "{capo: 0}\nC G Am F"
+    assert env.status() == "Inserted: {capo: 0}"
+    assert not _advice(env).active
+
+
+def test_the_capo_in_force_above_a_selection_is_current():
+    song = "{capo: 2}\nC G\nAm F"
+    env = Env(song)
+    start = song.index("Am")
+    advice = _open(env, (start, len(song)))
+    assert [r.capo for r in advice.rows if r.current] == [2]
+    env.session.capo_advice_apply(0)   # no capo from the selection on
+    assert env.session.text == "{capo: 2}\nC G\n{capo: 0}\nAm F"
+
+
+def test_applying_the_capo_already_in_force_changes_nothing():
+    song = "{capo: 2}\nC G Am F"
+    env = Env(song)
+    _open(env)
     env.recorder.clear()
-    env.session.respond(1, None)
-    env.session.request_suggest_capo(None)
-    env.session.respond(2, "voicing:no such thing")
-    env.settle()
+    env.session.capo_advice_apply(2)
     assert env.recorder.of_type(TextEdited) == []
-    assert env.recorder.of_type(StatusState) == []
+    assert not _advice(env).active
 
 
-def test_capo_result_for_text_that_changed_meanwhile_is_dropped():
+def test_apply_before_the_rows_are_in_or_of_no_row_is_ignored():
     env = Env(BARRE_SONG)
-    env.session.request_suggest_capo(None)
-    env.session.respond(1, "guitar:standard")
-    env.session.set_text(BARRE_SONG + "\nmore")  # typed while it was scored
+    env.session.capo_advice_open(None)
+    env.session.capo_advice_apply(2)              # still computing
+    env.settle()
+    env.session.capo_advice_apply(40)             # no such row
+    assert env.session.text == BARRE_SONG
+    assert _advice(env).active
+
+
+def test_apply_after_the_text_changed_scores_again():
+    env = Env(BARRE_SONG)
+    capo = _open(env).rows[0].capo
+    env.session.set_text(BARRE_SONG + "\nmore")
     env.recorder.clear()
 
-    env.settle()
+    env.session.capo_advice_apply(capo)
 
     assert env.recorder.of_type(TextEdited) == []
-    assert env.session.text == BARRE_SONG + "\nmore"
-    assert env.status() == "The song changed while finding a capo; nothing was inserted"
+    assert _advice(env).status == "computing" and _advice(env).active
+    env.settle()
+    env.session.capo_advice_apply(_advice(env).rows[0].capo)
+    assert env.session.text.startswith("{capo: ")
 
 
-def test_capo_result_is_refused_if_playback_started_meanwhile():
+def test_apply_is_refused_while_playing_and_the_state_says_so():
     env = Env(BARRE_SONG)
-    env.session.request_suggest_capo(None)
-    env.session.respond(1, "guitar:standard")
+    capo = _open(env).rows[0].capo
     env.play()
+    assert _advice(env).playing
 
-    env.settle()
+    env.session.capo_advice_apply(capo)
 
     assert env.recorder.of_type(TextEdited) == []
-    assert env.session.text == BARRE_SONG
+    assert EditRefused(formatting.EDIT_REFUSED_MESSAGE) in env.recorder.items
+    assert _advice(env).active
+    env.session.stop()
+    assert not _advice(env).playing
+    env.session.capo_advice_apply(capo)
+    assert env.session.text.startswith(f"{{capo: {capo}}}")
 
 
-def test_a_newer_capo_request_supersedes_the_older_one():
+def test_close_cancels_the_scoring_and_changes_nothing():
     env = Env(BARRE_SONG)
-    env.session.request_suggest_capo(None)
-    env.session.respond(1, "guitar:standard")
-    env.session.request_suggest_capo(None)
-    env.session.respond(2, "guitar:standard")
+    env.session.capo_advice_open(None)
+    env.session.capo_advice_close()
+    assert not _advice(env).active
     env.recorder.clear()
-
     env.settle()
-
-    # One insert: the first result was cancelled, not dropped as stale.
-    assert len(env.recorder.of_type(TextEdited)) == 1
-    assert env.session.text.count("{capo:") == 1
+    assert env.recorder.items == []
+    assert env.session.text == BARRE_SONG
 
 
-def test_capo_render_failure_is_reported_as_unexpected():
+def test_a_newer_open_supersedes_the_older_scoring():
+    env = Env(BARRE_SONG)
+    env.session.capo_advice_open(None)
+    env.session.capo_advice_open((0, 9))
+    env.settle()
+    readies = [a for a in env.recorder.of_type(CapoAdviceState) if a.status == "ready"]
+    assert readies, env.recorder.compact()
+    assert len(readies) == 1 and readies[0].scope == formatting.capo_scope_text(True)
+
+
+def test_no_chords_in_range_says_so():
+    env = Env("{key: C}\nsome words\nC G")
+    advice = _open(env, (0, 8))
+    assert advice.status == "ready" and advice.rows == ()
+    assert advice.message == "No chords in this range"
+
+
+def test_a_render_failure_shows_its_error_in_the_dialog():
     from unittest.mock import patch
-    from chordnotepad.session import errors
 
     env = Env(BARRE_SONG)
-    env.session.request_suggest_capo(None)
-    reported = []
-    previous = errors.set_handler(lambda exc_info, context: reported.append((exc_info[1], context)))
-    try:
-        with patch.object(env.audio, "render_song", side_effect=ValueError("boom")):
-            env.session.respond(1, "guitar:standard")
-            env.settle()
-    finally:
-        errors.set_handler(previous)
-
-    assert [(str(e), c) for e, c in reported] == [("boom", "Suggest Capo")]
-    assert env.status() == "Ready"
+    with patch.object(env.audio, "render_song", side_effect=ValueError("boom")):
+        advice = _open(env)
+    assert advice.status == "error" and advice.rows == ()
+    assert advice.message == "Couldn't score the capos: boom"
     assert env.session.text == BARRE_SONG
+
+
+def test_replacing_the_document_closes_the_dialog():
+    env = Env(BARRE_SONG)
+    env.session.capo_advice_open(None)
+    env.session.new_document()
+    from chordnotepad.session.events import ConfirmDiscardRequest, DiscardChoice
+    pending = env.recorder.last(ConfirmDiscardRequest)
+    if pending is not None:
+        env.session.respond(pending.request_id, DiscardChoice.DISCARD)
+    assert not _advice(env).active
+    env.recorder.clear()
+    env.settle()
+    assert env.recorder.of_type(CapoAdviceState) == []   # the scoring was called off
+
+    _open(env)
+    env.session.restore_draft("Am", None, True)
+    assert not _advice(env).active
+
+    _open(env)
+    env.session.open_recovered("Dm G", None, "Song")
+    pending = env.recorder.last(ConfirmDiscardRequest)
+    if pending is not None:
+        env.session.respond(pending.request_id, DiscardChoice.DISCARD)
+    assert not _advice(env).active
+
+
+def test_opening_a_document_closes_the_dialog():
+    env = Env(BARRE_SONG)
+    store = env.main.documents
+    ref = store.ref("other.txt")
+    store.contents[ref.id] = "Em C"
+    _open(env)
+    env.session.open_document(ref)
+    from chordnotepad.session.events import ConfirmDiscardRequest, DiscardChoice
+    pending = env.recorder.last(ConfirmDiscardRequest)
+    if pending is not None:
+        env.session.respond(pending.request_id, DiscardChoice.DISCARD)
+    assert env.session.text == "Em C"
+    assert not _advice(env).active
 
 
 # -- read-only while playing ------------------------------------------------------------------
@@ -657,17 +810,17 @@ def test_dialogs_still_open_while_playing_but_their_answers_are_refused():
     env.play()  # started while the dialog was open
     env.session.respond(1, {"value": "90"})
 
-    env.session.request_suggest_capo(None)
-    assert env.request(CapoChoiceRequest) is not None
-    env.session.respond(2, "guitar:standard")
+    env.session.capo_advice_open(None)
     env.settle()
+    assert _advice(env).active and _advice(env).playing
+    env.session.capo_advice_apply(_advice(env).rows[0].capo)
 
     assert env.recorder.of_type(TextEdited) == []
     assert env.session.text == BARRE_SONG
 
     env.session.stop()
     env.session.request_insert_directive("bpm", 0)
-    env.session.respond(3, {"value": "90"})
+    env.session.respond(2, {"value": "90"})
     assert env.session.text.startswith("{bpm: 90} ")
 
 

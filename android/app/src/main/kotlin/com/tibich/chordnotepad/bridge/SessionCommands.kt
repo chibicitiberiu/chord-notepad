@@ -23,7 +23,10 @@ object CommandNames {
     const val CHECK_DIRECTIVE = "check_directive"
     const val REQUEST_DIRECTIVE_HINT = "request_directive_hint"
     const val TRANSPOSE = "transpose"
-    const val REQUEST_SUGGEST_CAPO = "request_suggest_capo"
+    const val CAPO_ADVICE_OPEN = "capo_advice_open"
+    const val CAPO_ADVICE_VOICING = "capo_advice_voicing"
+    const val CAPO_ADVICE_APPLY = "capo_advice_apply"
+    const val CAPO_ADVICE_CLOSE = "capo_advice_close"
     const val CONVERT_NOTATION = "convert_notation"
     const val WRITE_SONG_DEFAULTS = "write_song_defaults"
     // AppSession: playback and toolbar
@@ -75,7 +78,7 @@ object CommandNames {
     /** Every command Kotlin may submit (the contract test checks Python knows them all). */
     val ALL: Set<String> = setOf(
         SET_TEXT, INSERT_TEXT, REQUEST_INSERT_DIRECTIVE, CHECK_DIRECTIVE, REQUEST_DIRECTIVE_HINT,
-        TRANSPOSE, REQUEST_SUGGEST_CAPO,
+        TRANSPOSE, CAPO_ADVICE_OPEN, CAPO_ADVICE_VOICING, CAPO_ADVICE_APPLY, CAPO_ADVICE_CLOSE,
         CONVERT_NOTATION, PLAY_PAUSE, STOP, TAP_CHORD_AT, SET_BPM, SET_MULTIPLIER_PCT,
         SET_BPM_TEXT, SET_MULTIPLIER_TEXT, RESET_BPM, RESET_MULTIPLIER,
         SET_KEY, SET_TIME_SIGNATURE, TOGGLE_METRONOME, SET_VOICING, SET_INSTRUMENT,
@@ -158,10 +161,23 @@ class SessionCommands(
         if (cursor != null) put("cursor", cursor)
     }
 
-    /** Start Suggest Capo for the selection (or the whole song). */
-    fun requestSuggestCapo(selection: Selection? = null) = send(CommandNames.REQUEST_SUGGEST_CAPO) {
+    /** Open Suggest Capo for the selection (or the whole song); it scores at once (`CapoAdviceState`). */
+    fun capoAdviceOpen(selection: Selection? = null) = send(CommandNames.CAPO_ADVICE_OPEN) {
         put("selection", selection.toJson())
     }
+
+    /** Score the open Suggest Capo dialog for another fretboard [voicing] (a `voicings` value). */
+    fun capoAdviceVoicing(voicing: String) = send(CommandNames.CAPO_ADVICE_VOICING) {
+        put("voicing", voicing)
+    }
+
+    /** Put a row's [capo] in the song and close Suggest Capo (refused while a song plays). */
+    fun capoAdviceApply(capo: Int) = send(CommandNames.CAPO_ADVICE_APPLY) {
+        put("capo", capo)
+    }
+
+    /** Close Suggest Capo without changing the song. */
+    fun capoAdviceClose() = send(CommandNames.CAPO_ADVICE_CLOSE)
 
     /** Convert the song's chords to [target] notation (`american`/`european`), keeping the [cursor] on its line. */
     fun convertNotation(target: String, cursor: Int? = null) = send(CommandNames.CONVERT_NOTATION) {
@@ -312,9 +328,6 @@ class SessionCommands(
 
     /** Answer a `PickDocumentRequest`; null means the user cancelled. */
     fun respondPick(requestId: Int, ref: DocumentRef?) = respond(requestId, ref.toJson())
-
-    /** Answer a `CapoChoiceRequest` with an option's value; null cancels. */
-    fun respondCapo(requestId: Int, value: String?) = respond(requestId, JsonPrimitive(value))
 
     /** Answer an `InsertDirectiveRequest` with its fields; null cancels. */
     fun respondDirective(requestId: Int, fields: Map<String, String>?) = respond(

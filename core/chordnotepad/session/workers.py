@@ -16,8 +16,12 @@ so ``on_done`` runs on the session thread like any other posted callback.
 
 Jobs run in submission order on one daemon thread, started on the first
 submit. :meth:`Job.cancel` (or :meth:`BackgroundWorker.shutdown`) drops a
-result that hasn't been delivered yet; a job that already started still runs
-to its end, its outcome is just not delivered.
+result that hasn't been delivered yet. A job submitted with ``pass_abort``
+is called as ``job(should_abort)``: ``should_abort()`` turns True once it
+was cancelled or the worker shut down, so a long render or search can stop
+early (Suggest Capo passes it to the renderer and the capo scoring, which
+then raise :class:`~exceptions.RenderAborted`). Any other job that already
+started runs to its end; its outcome is just not delivered.
 """
 
 import logging
@@ -88,13 +92,17 @@ class BackgroundWorker:
         self._unfinished = 0
         self._idle = threading.Condition(self._lock)
 
-    def submit(self, fn: Callable[[], T], on_done: Callable[[Outcome[T]], None]) -> Job:
+    def submit(self, fn: Callable[..., T], on_done: Callable[[Outcome[T]], None],
+               pass_abort: bool = False) -> Job:
         """Run ``fn()`` on the worker thread; ``on_done(outcome)`` on the session thread.
 
         Args:
             fn: The job. Runs after every job submitted before it.
             on_done: Gets the :class:`Outcome`, unless the job was cancelled
                 or the worker shut down first.
+            pass_abort: Call ``fn(should_abort)`` instead, where
+                ``should_abort()`` says whether the job was cancelled or the
+                worker shut down since (checked by the job as it goes).
 
         Returns:
             The job's handle.
@@ -102,7 +110,10 @@ class BackgroundWorker:
         Raises:
             RuntimeError: After :meth:`shutdown`.
         """
-        job = Job(fn, on_done)
+        if pass_abort:
+            job = Job(lambda: fn(lambda: job.cancelled or self._shut_down), on_done)
+        else:
+            job = Job(fn, on_done)
         with self._lock:
             if self._shut_down:
                 raise RuntimeError("the background worker has been shut down")

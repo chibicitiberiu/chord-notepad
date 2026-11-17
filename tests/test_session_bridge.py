@@ -305,11 +305,11 @@ def ref_json(name):
 
 
 def test_subscribing_replays_every_state_first(env):
-    names = [name for name, _ in env.out[:14]]
+    names = [name for name, _ in env.out[:15]]
     assert set(names) == {"HighlightState", "PlaybackState", "StatusState", "EditorState",
                           "ToolbarState", "VoicingMenuState", "InstrumentMenuState",
                           "DocumentState", "RecentDocumentsState", "SongDefaultsState",
-                          "IdentifierState",
+                          "CapoAdviceState", "IdentifierState",
                           "SettingsState", "VoicingEditorState"} | ({"ChordSheetState"}
                                                                      & set(names))
     assert env.out[0][0] == "HighlightState"
@@ -512,16 +512,26 @@ def test_check_directive_duplicate_label_uses_the_songs_labels(env):
         "label": "A label named 'verse' already exists. Please use a unique name."}
 
 
-def test_capo_choice_answer_is_an_option_value(env):
-    env.send("set_text", text="F Bb C Dm\n", client_token=1)
+def test_suggest_capo_lists_rows_then_applies_one(env):
+    env.send("set_text", text="{key: F#}\nF# B C# D#m\n", client_token=1)
     env.expect("HighlightState", lambda d: d["client_token"] == 1 and d["spans"])
-    env.send("request_suggest_capo", selection=None)
-    request = env.expect("CapoChoiceRequest")
-    values = [o["value"] for o in request["options"]]
-    assert request["default"] in values
-    env.send("respond", request_id=request["request_id"], value=request["default"])
-    env.expect("StatusState", lambda d: "capo" in d["text"].lower()
-               and not d["text"].startswith("Finding"))
+    env.send("capo_advice_open", selection=None)
+    advice = env.expect("CapoAdviceState", lambda d: d["active"] and d["status"] == "ready")
+    assert advice["voicing"] in [o["value"] for o in advice["voicings"]]
+    first = advice["rows"][0]
+    assert first["recommended"] and first["label"].startswith("Capo ")
+    assert set(first) == {"capo", "label", "shapes", "ease", "recommended", "current"}
+    env.send("capo_advice_apply", capo=first["capo"])
+    assert env.expect("TextEdited")["replacement"].startswith(f"{{capo: {first['capo']}}}")
+    env.expect("CapoAdviceState", lambda d: not d["active"])
+
+
+def test_suggest_capo_close_and_a_voicing_switch(env):
+    env.send("capo_advice_open", selection=None)
+    env.send("capo_advice_voicing", voicing="guitar:drop_d")
+    env.expect("CapoAdviceState", lambda d: d["voicing"] == "guitar:drop_d")
+    env.send("capo_advice_close")
+    env.expect("CapoAdviceState", lambda d: not d["active"])
 
 
 def test_restore_draft_resets_the_text_and_takes_the_document(env):
@@ -708,9 +718,9 @@ def test_every_output_type_crosses_the_bridge_as_plain_values(tmp_path):
                  request_id=request["request_id"])             # DirectiveCheck
         env.send("request_directive_hint", offset=0)             # DirectiveHint
         env.send("respond", request_id=request["request_id"], value={"label": "a"})  # UserError
-        env.send("request_suggest_capo", selection=None)
-        request = env.expect("CapoChoiceRequest")
-        env.send("respond", request_id=request["request_id"], value=None)
+        env.send("capo_advice_open", selection=None)            # CapoAdviceState, CapoRow
+        env.expect("CapoAdviceState", lambda d: d["rows"])
+        env.send("capo_advice_close")
         env.send("transpose", semitones=1, selection=[11, 14])   # TextEdited
         env.settle()
         # No audio here, so nothing plays: pretend for one refused edit.

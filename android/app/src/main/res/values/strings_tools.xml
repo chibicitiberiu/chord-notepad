@@ -12,10 +12,15 @@
     <string name="transpose_down">One semitone down</string>
     <string name="transpose_up">One semitone up</string>
 
-    <!-- Suggest Capo (ui/dialogs/capo_dialog.py) -->
+    <!-- Suggest Capo (the desktop's CapoDialog.qml) -->
     <string name="capo_title">Suggest Capo</string>
-    <string name="capo_hint">Suggest a capo position for this song.\n\nChoose the fretboard voicing the suggestion should optimize for; the recommended capo makes those shapes easiest to play.</string>
+    <string name="capo_hint">Each row is a capo position, the chord shapes you play with it, and how easy they are next to no capo. The recommended one comes first.</string>
     <string name="capo_voicing">Voicing</string>
+    <string name="capo_finding">Finding the easiest capo…</string>
+    <string name="capo_recommended">Recommended</string>
+    <string name="capo_current">Current</string>
+    <string name="capo_apply">Apply</string>
+    <string name="capo_stop_to_apply">Stop playback to apply</string>
 
     <!-- Insert directive dialogs (ui/dialogs/insert_directives.py) -->
     <string name="insert_button">Insert</string>

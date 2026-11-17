@@ -1,7 +1,7 @@
 """ViewModel for the main application window."""
 
 import logging
-from typing import Optional, List, Callable, Tuple
+from typing import TYPE_CHECKING, Optional, List, Callable, Tuple
 from chordnotepad.utils.observable import Observable
 from chordnotepad.services.config_service import ConfigService
 from chordnotepad.services.playback_service import PlaybackService
@@ -15,6 +15,9 @@ from chordnotepad.models.notation import Notation, spell_key
 from chordnotepad.models.playback_event import PlaybackEventArgs, PlaybackEventType
 from chordnotepad.models import window_geometry as neutral_geometry
 from chordnotepad.models.window_geometry import WindowGeometry
+
+if TYPE_CHECKING:
+    from chordnotepad.services.capo_advisor import CapoChoice
 
 logger = logging.getLogger(__name__)
 
@@ -1008,46 +1011,53 @@ class MainWindowViewModel(Observable):
     def suggest_capo_for(self, voicing: str, region: Optional[tuple] = None) -> Optional[int]:
         """Best capo fret for ``voicing`` over ``region`` (whole song if ``None``).
 
-        Runs :meth:`capo_job` on the calling thread. Returns the suggested
+        Runs :meth:`capo_job` on the calling thread. Returns the recommended
         fret, or ``None`` when the voicing is not a fretboard voicing, there
         are no chords in range, or no capo beats capo 0 meaningfully.
         """
         job = self.capo_job(voicing, region)
-        return job() if job is not None else None
+        choices = job(lambda: False) if job is not None else None
+        if not choices or not choices[0].capo:
+            return None
+        return choices[0].capo
 
     def capo_job(self, voicing: str, region: Optional[tuple] = None
-                 ) -> Optional[Callable[[], Optional[int]]]:
-        """Snapshot the song for Suggest Capo on ``voicing``; the job scores it.
+                 ) -> Optional[Callable[[Callable[[], bool]], Optional[List["CapoChoice"]]]]:
+        """Snapshot the song for Suggest Capo on ``voicing``; the job ranks the capos.
 
-        The job renders the document (as it is now) with a picker on the
-        chosen voicing's spec, so chords resolve with the same key/loop
-        context as everywhere else, keeps the chords whose source span
-        overlaps ``region``, and scores capo positions with
-        :func:`services.capo_advisor.suggest_capo`. It only uses what was
-        captured here, so it can run on any thread.
+        The job, called with a ``should_abort`` predicate, renders the
+        document (as it is now) with a picker on the chosen voicing's spec,
+        so chords resolve with the same key/loop context as everywhere else,
+        keeps the chords whose source span overlaps ``region``, and ranks
+        capo positions with :func:`services.capo_advisor.rank_capos`. It
+        only uses what was captured here, so it can run on any thread.
 
         Returns:
             None when ``voicing`` is not a fretboard voicing; otherwise a job
-            returning the suggested fret, or None when there are no chords in
-            range or no capo beats capo 0 meaningfully. Rendering errors are
-            raised by the job.
+            returning the :class:`services.capo_advisor.CapoChoice` list
+            (the recommended one first), or None when there are no chords in
+            range. Rendering errors are raised by the job, and
+            :class:`~exceptions.RenderAborted` once ``should_abort`` fires.
         """
         spec = self._audio.fretboard_spec_for(voicing)
         if spec is None:
             return None
 
-        text, notation, key = self._current_text, self._notation, self._key
+        text, notation, key = self._current_text, self._notation.value, self._key
         bpm = self._bpm
         time_signature = (self._time_signature_beats, self._time_signature_unit)
 
-        def score() -> Optional[int]:
+        def rank(should_abort: Callable[[], bool]) -> Optional[List["CapoChoice"]]:
             from chordnotepad.audio.guitar_chord_picker import GuitarChordPicker
-            from chordnotepad.services.capo_advisor import suggest_capo
+            from chordnotepad.chord.converter import NotationConverter
+            from chordnotepad.services.capo_advisor import (
+                CapoChoice, capo_shapes, ease_of, rank_capos)
 
             lines = self._chord.detect_chords_in_text(text, notation)
             rendered = self._audio.render_song(
                 lines, key, note_picker=GuitarChordPicker(spec), raise_errors=True,
-                initial_bpm=bpm, initial_time_sig=time_signature)
+                initial_bpm=bpm, initial_time_sig=time_signature,
+                should_abort=should_abort)
             if rendered is None:
                 return None
 
@@ -1056,12 +1066,63 @@ class MainWindowViewModel(Observable):
                 start, end = region
                 chords = [rc for rc in chords
                           if rc.chord_info.start < end and rc.chord_info.end > start]
-            sequence = [rc.chord_notes for rc in chords if rc.chord_notes is not None]
-            if not sequence:
+            chords = [rc for rc in chords if rc.chord_notes is not None]
+            sequence = [rc.chord_notes for rc in chords]
+            options = rank_capos(spec, sequence, should_abort=should_abort)
+            if not options:
                 return None
-            return suggest_capo(spec, sequence)
 
-        return score
+            def american(rc) -> str:
+                if rc.chord_notes.resolved_symbol:
+                    return rc.chord_notes.resolved_symbol
+                written = rc.chord_info.chord
+                if notation == "european":
+                    return NotationConverter.chord_european_to_american(written)
+                return written
+
+            played = [(american(rc), rc.key) for rc in chords]
+            count = sum(1 for cn in sequence if cn.notes)
+            base = next(o for o in options if o.capo == 0)
+            return [CapoChoice(option.capo, ease_of(option, base, count),
+                               capo_shapes(played, option.capo, notation), i == 0)
+                    for i, option in enumerate(options)]
+
+        return rank
+
+    def _capo_context(self, text: str, region: Optional[tuple]) -> tuple:
+        """Where Suggest Capo works in ``text``: ``(selection_start, start,
+        capo directives, first_chord)``.
+
+        ``start`` is the top, or the start of the selection's line; the
+        directives are every ``{capo}``; ``first_chord`` is the offset of
+        the first chord at or after ``start``, or None.
+        """
+        from chordnotepad.models.chord import ChordInfo
+        from chordnotepad.models.directive import DirectiveType
+        from chordnotepad.services.capo_insert import line_start_offset
+
+        selection_start = region[0] if region is not None else None
+        start = 0 if selection_start is None else line_start_offset(text, selection_start)
+        capos = [d for d in self._chord.parse_directives(text) if d.type == DirectiveType.CAPO]
+        chord_starts = [item.start
+                        for line in self._chord.detect_chords_in_text(text, self._notation)
+                        for item in line.items
+                        if isinstance(item, ChordInfo) and item.start >= start]
+        return selection_start, start, capos, min(chord_starts) if chord_starts else None
+
+    def current_capo(self, region: Optional[tuple] = None) -> int:
+        """The capo in force where Suggest Capo would put one (0: none).
+
+        The value of the last valid ``{capo}`` before the first chord at or
+        after the insertion point (the top, or the start of the selection's
+        line; anywhere in the text when no chord follows it), as
+        :meth:`insert_capo` finds them.
+        """
+        text = self._current_text
+        _, _, capos, first_chord = self._capo_context(text, region)
+        limit = len(text) if first_chord is None else first_chord
+        in_force = [d for d in capos if d.is_valid and d.capo is not None and d.end <= limit]
+        return max(in_force, key=lambda d: d.start).capo if in_force else 0
 
     def insert_capo(self, capo: int, region: Optional[tuple] = None) -> None:
         """Insert a ``{capo: N}`` directive and replace the document text.
@@ -1073,22 +1134,13 @@ class MainWindowViewModel(Observable):
         start (the top, or the selection's line) and the first chord after it
         is replaced; otherwise the directive lands at that start.
         """
-        from chordnotepad.models.chord import ChordInfo
-        from chordnotepad.models.directive import DirectiveType
-        from chordnotepad.services.capo_insert import line_start_offset, insert_capo_directive
+        from chordnotepad.services.capo_insert import insert_capo_directive
 
         text = self._current_text
-        selection_start = region[0] if region is not None else None
-        start = 0 if selection_start is None else line_start_offset(text, selection_start)
-        capo_spans = [(d.start, d.end) for d in self._chord.parse_directives(text)
-                      if d.type == DirectiveType.CAPO]
-        chord_starts = [item.start
-                        for line in self._chord.detect_chords_in_text(text, self._notation)
-                        for item in line.items
-                        if isinstance(item, ChordInfo) and item.start >= start]
+        selection_start, _, capos, first_chord = self._capo_context(text, region)
         new_text, _offset = insert_capo_directive(
-            text, capo, selection_start, capo_spans=capo_spans,
-            first_chord=min(chord_starts) if chord_starts else None)
+            text, capo, selection_start, capo_spans=[(d.start, d.end) for d in capos],
+            first_chord=first_chord)
         self.set_and_notify("current_text", new_text)
         if not self._is_modified:
             self.set_and_notify("is_modified", True)

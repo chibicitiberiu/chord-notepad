@@ -89,15 +89,13 @@ class SessionCommandsTest {
         assertSent("respond", """{"request_id": 2, "value": null}""")
         commands.respondPick(3, DocumentRef("content://a", "a.txt", "a.txt"))
         assertSent("respond", """{"request_id": 3, "value": {"id": "content://a", "display_name": "a.txt", "location": "a.txt"}}""")
-        commands.respondCapo(4, "guitar:standard")
-        assertSent("respond", """{"request_id": 4, "value": "guitar:standard"}""")
         commands.respondDirective(5, mapOf("label" to "chorus", "count" to "2"))
         assertSent("respond", """{"request_id": 5, "value": {"label": "chorus", "count": "2"}}""")
         commands.checkDirective("bpm", mapOf("value" to "99"), 5)
         assertSent("check_directive", """{"kind": "bpm", "fields": {"value": "99"}, "request_id": 5}""")
         commands.respondDirective(6, null)
         assertSent("respond", """{"request_id": 6, "value": null}""")
-        assertEquals(listOf(1, 2, 3, 4, 5, 6), answered)
+        assertEquals(listOf(1, 2, 3, 5, 6), answered)
     }
 
     @Test
@@ -152,7 +150,8 @@ class SessionCommandsTest {
         with(commands) {
             setText("", 0); insertText(0, ""); requestInsertDirective("bpm", 0); checkDirective("bpm", mapOf(), 1); requestDirectiveHint(0)
             transpose(1)
-            requestSuggestCapo(); convertNotation("american"); playPause(); stop(); tapChordAt(0)
+            capoAdviceOpen(); capoAdviceVoicing("guitar:standard"); capoAdviceApply(2); capoAdviceClose()
+            convertNotation("american"); playPause(); stop(); tapChordAt(0)
             setBpm(100.0); setMultiplierPct(100.0); setBpmText("1"); setMultiplierText("1x"); resetBpm()
             resetMultiplier(); setKey("C"); setTimeSignature(4, 4); toggleMetronome()
             setVoicing("piano"); setInstrument(0); setNotation("american"); setFont("Monospace", 12)

@@ -15,9 +15,10 @@ import CNTheme
 //   openHelpPage(page)  Help › Keyboard shortcuts ("shortcuts.html")
 //   openLicences()      Help › Open source licences
 //   openAbout()         Help › About
-// The session's requests and events it answers: CapoChoiceRequest (Suggest
-// Capo), QuickStartContent (Quick Start's pages). It also follows the
-// theme setting (ui_theme: the system's, light or dark), live.
+// The session's states and events it follows: CapoAdviceState (Suggest
+// Capo opens and closes with it), QuickStartContent (Quick Start's pages).
+// It also follows the theme setting (ui_theme: the system's, light or
+// dark), live.
 Item {
     id: hub
     objectName: "appDialogs"
@@ -46,7 +47,7 @@ Item {
         var a = hub.pane.area
         transposeDlg.ask(a.selectionEnd > a.selectionStart)
     }
-    function openSuggestCapo() { hub.store.submit("request_suggest_capo", { selection: hub.selection() }) }
+    function openSuggestCapo() { capoDlg.begin(hub.selection()) }
     function openQuickStart() { if (!quickStartDlg.opened) quickStartDlg.open() }
     function openHelp() { hub.dialogs.openHelp() }
     function openHelpPage(page) { hub.dialogs.openHelpPage(page) }
@@ -90,7 +91,7 @@ Item {
     }
     CapoDialog {
         id: capoDlg
-        onAnswered: (id, value) => hub.store.submit("respond", { request_id: id, value: value })
+        store: hub.store
         onClosed: hub.pane.focusEditor()
     }
     QuickStartDialog {
@@ -126,9 +127,6 @@ Item {
             if (!settingsWin.visible) return
             hub.dialogs.settings.close()
             settingsWin.closeNow()
-        }
-        function onRequest(typeName, data) {
-            if (typeName === "CapoChoiceRequest") capoDlg.ask(data)
         }
         function onEvent(typeName, data) {
             if (typeName === "QuickStartContent") quickStartDlg.setContent(data)

@@ -673,6 +673,76 @@ INACTIVE_VOICING_EDITOR = VoicingEditorState(
     staged_numbers={}, restored=False)
 
 
+#: ``CapoAdviceState.status``: the capos are being scored (show a spinner).
+CAPO_COMPUTING = "computing"
+#: The rows are in (or ``message`` says there are none).
+CAPO_READY = "ready"
+#: Scoring failed; ``message`` says why.
+CAPO_ERROR = "error"
+
+
+@dataclass(frozen=True)
+class CapoRow:
+    """One capo position in the Suggest Capo list.
+
+    Attributes:
+        capo: The fret (0 for no capo); ``capo_advice_apply`` takes it.
+        label: The row in words: ``Capo 3 · G D Em C · Easier``, or
+            ``No capo · Bb F Gm Eb``.
+        shapes: The shapes the chords are played with on this capo
+            (``G D Em C``; up to eight, then ``…``).
+        ease: Against no capo: ``Easier``, ``Harder`` or ``About the
+            same``; ``No capo`` for capo 0.
+        recommended: The capo Suggest Capo recommends (the first row;
+            ``No capo`` when no capo makes the chords easier).
+        current: The capo already in force where it would go (``No capo``
+            when there is none).
+    """
+
+    capo: int
+    label: str
+    shapes: str
+    ease: str
+    recommended: bool
+    current: bool
+
+
+@dataclass(frozen=True)
+class CapoAdviceState:
+    """The Suggest Capo dialog (``capo_advice_open`` to ``capo_advice_close``).
+
+    Attributes:
+        active: Whether the dialog is open. It closes after Apply,
+            ``capo_advice_close`` and whenever the document is replaced
+            (new, open, a recovered copy, a restored draft).
+        scope: One line on where the capo goes: the selection's start or
+            the top of the song.
+        voicings: The fretboard voicings it can score for (label, value).
+        voicing: The value of the one it scores for.
+        status: ``computing`` (show a spinner), ``ready`` or ``error``.
+        message: The error, or that there are no chords in range; "" otherwise.
+        playing: A song is playing or paused: Apply is refused until it
+            stops (show it disabled, with a hint).
+        rows: The capo positions, the recommended one first and the rest
+            from easiest to hardest; empty unless ``ready``.
+    """
+
+    active: bool
+    scope: str
+    voicings: Tuple[MenuItem, ...]
+    voicing: str
+    status: str
+    message: str
+    playing: bool
+    rows: Tuple[CapoRow, ...]
+
+
+#: The Suggest Capo dialog while it is closed.
+INACTIVE_CAPO_ADVICE = CapoAdviceState(
+    active=False, scope="", voicings=(), voicing="", status=CAPO_READY, message="",
+    playing=False, rows=())
+
+
 class StartupScreen(str, Enum):
     """What opens over the editor when the app starts."""
 

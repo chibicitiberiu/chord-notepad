@@ -65,6 +65,7 @@ class SessionRepository {
     private val _directiveHint = MutableStateFlow<DirectiveHint?>(null)
     private val _songDefaults = MutableStateFlow<SongDefaultsState?>(null)
     private val _startup = MutableStateFlow<StartupState?>(null)
+    private val _capoAdvice = MutableStateFlow<CapoAdviceState?>(null)
     private val _renameFailed = MutableSharedFlow<RenameFailed>(
         extraBufferCapacity = 4,
         onBufferOverflow = BufferOverflow.DROP_OLDEST,
@@ -132,6 +133,9 @@ class SessionRepository {
     /** What opens over the editor at startup; null until the session answers `app_started`. */
     val startup: StateFlow<StartupState?> = _startup.asStateFlow()
 
+    /** The Suggest Capo dialog (open while `active`). */
+    val capoAdvice: StateFlow<CapoAdviceState?> = _capoAdvice.asStateFlow()
+
     /** Failed renames (hot: only collectors present at the time get one). */
     val renameFailed: SharedFlow<RenameFailed> = _renameFailed.asSharedFlow()
 
@@ -178,6 +182,7 @@ class SessionRepository {
             is DirectiveHint -> _directiveHint.value = output
             is SongDefaultsState -> _songDefaults.value = output
             is StartupState -> _startup.value = output
+            is CapoAdviceState -> _capoAdvice.value = output
             is RenameFailed -> _renameFailed.tryEmit(output)
             is TextEdited -> _textEdits.trySend(output)
             // Android stops the song before it edits: nothing to show.

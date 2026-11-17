@@ -1,6 +1,5 @@
 {
   "answers": {
-    "CapoChoiceRequest": "str|null",
     "ConfirmDiscardRequest": "DiscardChoice|null",
     "InsertDirectiveRequest": "dict[str,str]|null",
     "PickDocumentRequest": "DocumentRef|null"
@@ -31,6 +30,16 @@
     },
     "begin_settings_edit": {},
     "cancel_settings_edit": {},
+    "capo_advice_apply": {
+      "capo": "int"
+    },
+    "capo_advice_close": {},
+    "capo_advice_open": {
+      "selection": "selection"
+    },
+    "capo_advice_voicing": {
+      "voicing": "str"
+    },
     "check_directive": {
       "fields": "json",
       "kind": "str",
@@ -175,9 +184,6 @@
       "kind": "str"
     },
     "request_quick_start": {},
-    "request_suggest_capo": {
-      "selection": "selection"
-    },
     "request_voicing_editor_schema": {},
     "reset_bpm": {},
     "reset_font_size": {},
@@ -338,6 +344,10 @@
     "audition",
     "begin_settings_edit",
     "cancel_settings_edit",
+    "capo_advice_apply",
+    "capo_advice_close",
+    "capo_advice_open",
+    "capo_advice_voicing",
     "check_directive",
     "chord_sheet_zoom",
     "chord_sheet_zoom_reset",
@@ -380,7 +390,6 @@
     "request_directive_hint",
     "request_insert_directive",
     "request_quick_start",
-    "request_suggest_capo",
     "request_voicing_editor_schema",
     "reset_bpm",
     "reset_font_size",
@@ -481,14 +490,29 @@
       },
       "kind": "event"
     },
-    "CapoChoiceRequest": {
+    "CapoAdviceState": {
       "fields": {
-        "default": "str",
-        "options": "list[MenuItem]",
-        "request_id": "int",
-        "scope": "str"
+        "active": "bool",
+        "message": "str",
+        "playing": "bool",
+        "rows": "list[CapoRow]",
+        "scope": "str",
+        "status": "str",
+        "voicing": "str",
+        "voicings": "list[MenuItem]"
       },
-      "kind": "request"
+      "kind": "state"
+    },
+    "CapoRow": {
+      "fields": {
+        "capo": "int",
+        "current": "bool",
+        "ease": "str",
+        "label": "str",
+        "recommended": "bool",
+        "shapes": "str"
+      },
+      "kind": "value"
     },
     "ChordSheetState": {
       "fields": {

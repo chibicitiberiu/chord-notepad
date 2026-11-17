@@ -63,6 +63,7 @@ class BridgeSchemaContractTest {
             "ChordSheetView" to ChordSheetView.serializer(),
             "SongDefault" to SongDefault.serializer(),
             "TimelineSection" to TimelineSection.serializer(),
+            "CapoRow" to CapoRow.serializer(),
         )
         for ((name, serializer) in values) assertEquals("fields of $name", fieldsOf(name), serializer.names())
     }

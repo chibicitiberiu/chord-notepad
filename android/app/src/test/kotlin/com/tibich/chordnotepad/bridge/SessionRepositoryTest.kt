@@ -56,6 +56,16 @@ class SessionRepositoryTest {
     }
 
     @Test
+    fun `suggest capo has its flow`() {
+        assertNull(repo.capoAdvice.value)
+        val row = CapoRow(3, "Capo 3 · G D Em C · Easier", "G D Em C", "Easier", recommended = true, current = false)
+        repo.publish(CapoAdviceState(true, "", listOf(MenuItem("Standard", "guitar:standard")), "guitar:standard",
+            "ready", "", false, listOf(row)))
+        assertEquals(listOf(row), repo.capoAdvice.value?.rows)
+        assertNull(repo.pendingRequest.value) // a state, not a request
+    }
+
+    @Test
     fun `song defaults and failed renames have their flows`() = runTest(UnconfinedTestDispatcher()) {
         val defaults = SongDefaultsState(
             SongDefault("90", true, 0), SongDefault("3/4", false), SongDefault("", false), "90 · 3/4",

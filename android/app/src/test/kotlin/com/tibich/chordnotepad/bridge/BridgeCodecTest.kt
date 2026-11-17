@@ -205,11 +205,6 @@ class BridgeCodecTest {
             """{"request_id": 5, "mode": "export_midi", "suggested_name": "song.mid"}""",
         )
         assertEquals(PickMode.EXPORT_MIDI, p.mode)
-        val c = decode<CapoChoiceRequest>(
-            "CapoChoiceRequest",
-            """{"request_id": 6, "options": [{"label": "Guitar", "value": "guitar:standard"}], "default": "guitar:standard"}""",
-        )
-        assertEquals("guitar:standard", c.default)
         val d = decode<InsertDirectiveRequest>(
             "InsertDirectiveRequest",
             """{"request_id": 7, "kind": "loop", "existing_labels": ["chorus"], "notation": "american"}""",
@@ -221,6 +216,29 @@ class BridgeCodecTest {
     fun `extra keys from a newer core are ignored`() {
         val s = decode<StatusState>("StatusState", """{"text": "x", "severity": "info"}""")
         assertEquals("x", s.text)
+    }
+
+    @Test
+    fun `suggest capo's state`() {
+        val advice = decode<CapoAdviceState>(
+            "CapoAdviceState",
+            """{"active": true, "scope": "Applies to the whole song.",
+               "voicings": [{"label": "Guitar", "value": "guitar:standard"}], "voicing": "guitar:standard",
+               "status": "ready", "message": "", "playing": false,
+               "rows": [{"capo": 3, "label": "Capo 3 · G D Em C · Easier", "shapes": "G D Em C",
+                         "ease": "Easier", "recommended": true, "current": false},
+                        {"capo": 0, "label": "No capo · Bb F Gm Eb", "shapes": "Bb F Gm Eb",
+                         "ease": "No capo", "recommended": false, "current": true}]}""",
+        )
+        assertEquals(listOf(3, 0), advice.rows.map { it.capo })
+        assertTrue(advice.rows[0].recommended && advice.rows[1].current)
+        assertFalse(advice.computing)
+        val computing = decode<CapoAdviceState>(
+            "CapoAdviceState",
+            """{"active": true, "scope": "", "voicings": [], "voicing": "", "status": "computing",
+               "message": "", "playing": true, "rows": []}""",
+        )
+        assertTrue(computing.computing && computing.playing)
     }
 
     @Test

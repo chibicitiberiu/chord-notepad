@@ -230,27 +230,73 @@ def test_transpose_a_selection(app):
 # -- Suggest Capo --------------------------------------------------------------------------
 
 
-def test_suggest_capo_asks_for_a_voicing_and_inserts_the_capo(app):
-    app.set_text("Ab  Eb  Fm  Db\nAmazing grace\n")
+BARRE_SONG = "{key: F#}\nF#  B  C#  D#m  G#m  A#m  F#  B\nAmazing grace\n"
+
+
+def _capo_rows(app):
+    return plain(app.popup("capoDialog").property("rows")) or []
+
+
+def test_suggest_capo_computes_then_lists_the_ranked_rows(app):
+    app.set_text(BARRE_SONG)
     app.open("openSuggestCapo")
     dialog = app.opened("capoDialog")
     assert dialog.property("title") == "Suggest Capo"
     assert app.item("capoScope").property("text")
     assert app.item("capoVoicing").property("count") >= 1
+    # The spinner while it scores, then the rows.
+    app.qtbot.waitUntil(lambda: app.item("capoSpinner").property("running") is True, timeout=2000)
+    assert app.item("capoApply").property("enabled") is False
+    app.qtbot.waitUntil(lambda: len(_capo_rows(app)) == 8, timeout=20000)
+    assert app.item("capoSpinner").property("running") is False
+    rows = _capo_rows(app)
+    assert rows[0]["recommended"] and rows[0]["label"].startswith(f"Capo {rows[0]['capo']} \u00b7 ")
+    assert app.item("capoRows").property("count") == 8
+    assert dialog.property("chosen") == rows[0]["capo"]       # the recommended one, preselected
+    assert app.item("capoApply").property("enabled") is True
+
+
+def test_suggest_capo_keys_choose_a_row_and_enter_applies_it_as_one_undo_step(app):
+    app.set_text(BARRE_SONG)
+    app.open("openSuggestCapo")
+    dialog = app.opened("capoDialog")
+    app.qtbot.waitUntil(lambda: len(_capo_rows(app)) == 8, timeout=20000)
+    rows = _capo_rows(app)
+    app.key(Qt.Key.Key_Down)
+    assert dialog.property("chosen") == rows[1]["capo"]
+    app.key(Qt.Key.Key_Down)
+    app.key(Qt.Key.Key_Up)
+    assert dialog.property("chosen") == rows[1]["capo"]
     app.key(Qt.Key.Key_Return)
     app.closed("capoDialog")
-    app.qtbot.waitUntil(lambda: app.text().startswith("{capo:"), timeout=5000)
+    capo = rows[1]["capo"]
+    expected = (f"{{capo: {capo}}}\n" if capo else "") + BARRE_SONG
+    app.qtbot.waitUntil(lambda: app.text() == expected, timeout=5000)
+    assert ("capo_advice_apply", {"capo": capo}) in app.submitted
+    QMetaObject.invokeMethod(app.window.findChild(QObject, "undoAction"), "trigger")
+    app.qtbot.waitUntil(lambda: app.text() == BARRE_SONG, timeout=2000)
+
+
+def test_suggest_capo_apply_inserts_the_recommended_capo(app):
+    app.set_text(BARRE_SONG)
+    app.open("openSuggestCapo")
+    app.opened("capoDialog")
+    app.qtbot.waitUntil(lambda: len(_capo_rows(app)) == 8, timeout=20000)
+    capo = _capo_rows(app)[0]["capo"]
+    app.click("capoApply")
+    app.closed("capoDialog")
+    app.qtbot.waitUntil(lambda: app.text() == f"{{capo: {capo}}}\n{BARRE_SONG}", timeout=5000)
 
 
 def test_escape_cancels_suggest_capo(app):
     app.set_text()
     app.open("openSuggestCapo")
-    dialog = app.opened("capoDialog")
-    request = dialog.property("requestId")
+    app.opened("capoDialog")
     app.key(Qt.Key.Key_Escape)
     app.closed("capoDialog")
-    app.qtbot.waitUntil(lambda: ("respond", {"request_id": request, "value": None}) in app.submitted,
-                        timeout=1000)
+    app.qtbot.waitUntil(lambda: ("capo_advice_close", None) in app.submitted, timeout=1000)
+    app.qtbot.waitUntil(
+        lambda: app.harness.store.state("CapoAdviceState").value("active") is False, timeout=1000)
     app.qtbot.wait(50)
     assert app.text() == SONG
 
@@ -586,7 +632,7 @@ def test_the_requests_the_window_answers():
     from chordnotepad_desktop.application import HANDLED_REQUESTS
 
     # The file pickers are F3's (files.py, FileDialogs.qml).
-    assert HANDLED_REQUESTS == {"ConfirmDiscardRequest", "CapoChoiceRequest", "PickDocumentRequest"}
+    assert HANDLED_REQUESTS == {"ConfirmDiscardRequest", "PickDocumentRequest"}
 
 
 def test_the_settings_window_closes_with_the_main_window(app):

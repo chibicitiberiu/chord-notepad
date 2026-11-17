@@ -8,9 +8,10 @@ import com.tibich.chordnotepad.ui.editor.EditorController
 /**
  * What the Edit ribbon's tools (Insert, Transpose, Convert) and Suggest Capo
  * do: session commands with the editor's selection or cursor in code points,
- * the text sent first (the session reads it). The
- * dialogs that follow a request (Insert, Suggest Capo) are presented from
- * the pending request (`SessionRequests`). Main thread.
+ * the text sent first (the session reads it). The Insert dialogs that follow
+ * a request are presented from the pending request (`SessionRequests`);
+ * Suggest Capo from the session's `CapoAdviceState` (`CapoAdviceDialog`).
+ * Main thread.
  *
  * @param selectionNow The editor's text and its selection in UTF-16 units.
  * @param cursorNow The editor's cursor in code points, after syncing the text.
@@ -53,8 +54,8 @@ class ToolActions(
     /** Insert ▸ [kind]: ask for its fields; the directive goes in at the cursor. */
     fun insertDirective(kind: DirectiveKind) = commands.requestInsertDirective(kind.wire, cursorNow())
 
-    /** Suggest Capo for the selection (or the whole song); the voicing is asked next. */
-    fun suggestCapo() = commands.requestSuggestCapo(selection())
+    /** Suggest Capo for the selection (or the whole song): its dialog opens and scores at once. */
+    fun suggestCapo() = commands.capoAdviceOpen(selection())
 
     /** Convert notation › [target] (`american`/`european`). */
     fun convertNotation(target: String) {

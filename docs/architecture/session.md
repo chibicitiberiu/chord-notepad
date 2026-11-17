@@ -220,6 +220,8 @@ ChordSheetState(visible, height, active_view, views, disabled_reason, zoom, zoom
                 current_index, song_revision, cursor_index)
 SongDefaultsState(tempo, time, key, summary, locked_reason)             # SongDefault(value, from_directive, directive_offset)
 StartupState(screen)                                                    # none|quick_start|support_prompt (Android)
+CapoAdviceState(active, scope, voicings, voicing, status, message,      # status: computing|ready|error
+                playing, rows)                                          # CapoRow(capo, label, shapes, ease, recommended, current)
 ```
 
 `HighlightState.text_revision` is the session's revision of the text the spans
@@ -236,7 +238,6 @@ TextEdited(text_revision, start, end, replacement, undo, cursor, anchor=None)
                                     # undo: group|plain|reset; anchor: select anchor..cursor
 ConfirmDiscardRequest(request_id)                                  # answer DiscardChoice: save|discard|cancel
 PickDocumentRequest(request_id, mode, suggested_name)              # PickMode: open|save|export_midi
-CapoChoiceRequest(request_id, options, default)
 InsertDirectiveRequest(request_id, kind, existing_labels, notation, key_options)
 UserError(title, message)
 AudioUnavailable(message, from_click)
@@ -275,7 +276,9 @@ class AppSession:
     def request_insert_directive(self, kind: str, at: int) -> None
     def transpose(self, semitones: int, selection: tuple[int, int] | None,
                   cursor: int | None = None) -> None
-    def request_suggest_capo(self, selection: tuple[int, int] | None) -> None
+    def capo_advice_open(self, selection: tuple[int, int] | None) -> None   # Suggest Capo (CapoAdviceState)
+    def capo_advice_voicing(self, voicing: str) -> None
+    def capo_advice_apply(self, capo: int) -> None;  def capo_advice_close(self) -> None
     def convert_notation(self, target: str, cursor: int | None = None) -> None
     # playback / toolbar
     def play_pause(self, from_offset: int | None = None) -> None;  def stop(self) -> None
@@ -390,9 +393,10 @@ an empty one means none.
   don't re-detect up front: convert reuses the detector's lines only when no
   detection is pending, and the label lookup parses afresh when one is.
 - Programmatic edits are refused (logged, no output) while a song plays or
-  is paused: `transpose`, `convert_notation`, `insert_text`, `insert_chord`
-  and the answers to the insert-directive and capo requests. The requests are
-  still emitted, so the dialogs open as before. `ChordTextEditor.apply_edit`
+  is paused: `transpose`, `convert_notation`, `insert_text`, `insert_chord`,
+  the answers to the insert-directive requests and `capo_advice_apply`. The
+  requests are still emitted and Suggest Capo still opens and scores, so the
+  dialogs open as before (`CapoAdviceState.playing` says Apply waits). `ChordTextEditor.apply_edit`
   applies `TextEdited` even while the widget is locked and clears the
   widget's modified flag afterwards, so the edit isn't sent back.
 - The transpose dialog stays view-side (no request).
@@ -402,9 +406,7 @@ an empty one means none.
   roots only), answered with a `{field: value}` mapping (`directives.py`
   documents the fields) or None; invalid fields at answer time emit
   `UserError` (a view can check them live with
-  `directives.check_directive`, same messages). `CapoChoiceRequest(request_id,
-  options, default)` with `MenuItem(label, value)` options, answered with a
-  value or None. A view presents requests after the listener returns, never from
+  `directives.check_directive`, same messages). A view presents requests after the listener returns, never from
   inside it: a modal dialog there would hold back the session's output.
 
 **Playback.** The session drives `MainWindowViewModel`'s
@@ -520,7 +522,24 @@ suggestion) until its first save; New, Open and a restored draft forget it.
 
 **Capo in Insert.** `request_insert_directive("capo", at)` answers with
 `{"capo": "N"}`, 0-12 (`directives.check_directive`, same message live and
-at answer time). Suggest Capo is unchanged.
+at answer time). The Insert Capo dialog's Suggest opens Suggest Capo.
+
+**Suggest Capo.** A stateful dialog, like the voicings editor, not a
+request: `capo_advice_open(selection)` publishes `CapoAdviceState` active
+and `computing` and scores every capo 0..7 on the worker
+(`MainWindowViewModel.capo_job`: render with a guitar picker on the chosen
+voicing, then `capo_advisor.rank_capos`, `ease_of` and `capo_shapes`). The
+rows come back ranked, the recommended one first: the top scorer when it
+beats capo 0 by `max(CAPO_MIN_GAIN * chords, CAPO_MIN_TOTAL_GAIN)`, else
+no capo; the rest by score, ties to the lower capo. A row's `label` is its
+words ("Capo 3 · G D Em C · Easier"); `current` marks the capo in force
+where it would go (`MainWindowViewModel.current_capo`; no capo when there
+is none). `capo_advice_voicing` scores again; `capo_advice_apply(capo)`
+inserts or rewrites the directive (`insert_capo`, one `group` edit), or
+changes nothing for the capo already in force, then closes; it scores
+again instead when the text changed since. `capo_advice_close` cancels.
+The session publishes the inactive state at construction (with or without
+services) and closes the dialog whenever the document is replaced.
 
 **Audio failures.** `AudioUnavailable.message` is the full user-facing text.
 Play, chord taps, chord-sheet auditions and the chord identifier all go
@@ -591,7 +610,10 @@ title)`; `RecentDocumentsState(items)` has one owner, the flows'
 **Background work.** `BackgroundWorker(host)` (`workers.py`) runs
 jobs one at a time on a daemon thread started by the first `submit`;
 `submit(fn, on_done)` returns a `Job` whose `cancel()` drops the outcome
-(skipping the job if it hasn't started). The `Outcome(value, error)` comes
+(skipping the job if it hasn't started). With `pass_abort=True` the job is
+called as `fn(should_abort)`; `should_abort()` turns True once the job is
+cancelled or the worker shut down, so a render or search stops early
+(`RenderAborted`). The `Outcome(value, error)` comes
 back through `host.post`; the session wraps `on_done` like a timer.
 `shutdown()` (from `AppSession.shutdown`) drops outcomes still on their way
 and doesn't wait for a running job; `wait_idle()` is for tests. Jobs only use
@@ -601,15 +623,14 @@ what they captured on the session thread: `MainWindowViewModel.capo_job` and
 and the export renders with its own note picker
 (`PlaybackService.create_note_picker`), not the shared one a playback render
 may be using.
-- Suggest Capo: "Finding a capo for the whole song on X..." while it is
-  scored. When the result arrives it is refused while a song plays or is
-  paused, and dropped if the text revision moved on (status: "The song
-  changed while finding a capo; nothing was inserted"); the user asks again.
-  Dropping is the simplest correct choice: re-running on its own could insert
-  a capo into text the user is still editing. A newer Suggest Capo cancels
-  an older one. A render failure goes to the unexpected-error handler (as
-  the exception escaping `respond` did before) and the status returns to
-  "Ready".
+- Suggest Capo: `CapoAdviceState.status` is `computing` while it is
+  scored; the job gets `should_abort`, passed to `render_song` and
+  `rank_capos`, so a voicing switch, a close or a newer open stops the old
+  scoring early. The rows show when they arrive, whatever happened to the
+  text meanwhile; Apply scores again if the text revision moved on, rather
+  than insert into a song the rows weren't computed for. A render failure is
+  logged and shown in the dialog (`status="error"`, "Couldn't score the
+  capos: <error>").
 - Export MIDI: the song as it is when the file is picked is rendered on the
   worker ("Exporting MIDI: <location>..."); the bytes are written on the
   session thread when it arrives (`finish_midi_export`), so failures keep
@@ -681,8 +702,8 @@ is for tests that bring their own player.
   (never bools), floats, strings, bools, `[start, end]` selections,
   `DocumentRef` and `SettingsValues` objects (exact field sets), `|null`.
   `respond`'s value is decoded by the pending request's type (picker:
-  `DocumentRef`/null; unsaved changes: `save|discard|cancel`/null; capo: a
-  string/null; directive: an object of strings/null). An unknown command or
+  `DocumentRef`/null; unsaved changes: `save|discard|cancel`/null;
+  directive: an object of strings/null). An unknown command or
   argument, a missing one or a wrong type emits
   `UnexpectedError(context="bridge")`; a command that raises emits
   `UnexpectedError(context=<command>)`. Nothing reaches the session thread

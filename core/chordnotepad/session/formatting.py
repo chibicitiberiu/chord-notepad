@@ -421,16 +421,6 @@ def capo_suggested_status(capo: int, has_selection: bool, voicing: str) -> str:
     return f"Suggested capo {capo} for the {_scope(has_selection)} on {voicing}"
 
 
-def no_capo_status(has_selection: bool, voicing: str) -> str:
-    """The status when no capo makes the song (or selection) easier to play."""
-    return f"No capo makes the {_scope(has_selection)} easier on {voicing}"
-
-
-def finding_capo_status(has_selection: bool, voicing: str) -> str:
-    """The status while Suggest Capo scores the song (or selection)."""
-    return f"Finding a capo for the {_scope(has_selection)} on {voicing}..."
-
-
 def capo_scope_text(has_selection: bool) -> str:
     """The Suggest Capo dialog's line on where the capo goes."""
     if has_selection:
@@ -439,8 +429,31 @@ def capo_scope_text(has_selection: bool) -> str:
     return "Applies to the whole song: inserted at the top of the song, replacing a capo there."
 
 
-#: The status when the text changed while Suggest Capo was scoring it.
-CAPO_STALE_STATUS = "The song changed while finding a capo; nothing was inserted"
+def capo_row_label(capo: int, shapes: Sequence[str], ease: str) -> str:
+    """A Suggest Capo row in words: ``Capo 3 · G D Em C · Easier``, or
+    ``No capo · Bb F Gm Eb`` for capo 0."""
+    parts = [f"Capo {capo}" if capo else "No capo"]
+    if shapes:
+        parts.append(" ".join(shapes))
+    if capo:
+        parts.append(ease)
+    return " \u00b7 ".join(parts)
+
+
+def capo_failed_message(error: BaseException) -> str:
+    """The Suggest Capo dialog's line when scoring the capos failed."""
+    reason = str(error) or type(error).__name__
+    return f"Couldn't score the capos: {reason}"
+
+
+#: The Suggest Capo dialog's line next to its spinner.
+CAPO_FINDING = "Finding the easiest capo\u2026"
+#: The Suggest Capo dialog's line when the song (or selection) has no chords.
+CAPO_NO_CHORDS = "No chords in this range"
+#: The Suggest Capo dialog's line when there is no fretboard voicing to score for.
+CAPO_NO_VOICING = "No fretboard voicing to score the capos for"
+#: The hint by Suggest Capo's disabled Apply while a song plays or is paused.
+CAPO_STOP_TO_APPLY = "Stop playback to apply"
 
 
 # -- settings ------------------------------------------------------------------------

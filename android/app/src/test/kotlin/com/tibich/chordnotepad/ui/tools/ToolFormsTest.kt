@@ -1,6 +1,7 @@
 package com.tibich.chordnotepad.ui.tools
 
-import com.tibich.chordnotepad.bridge.CapoChoiceRequest
+import com.tibich.chordnotepad.bridge.CapoAdviceState
+import com.tibich.chordnotepad.bridge.CapoRow
 import com.tibich.chordnotepad.bridge.CommandSubmitter
 import com.tibich.chordnotepad.bridge.InsertDirectiveRequest
 import com.tibich.chordnotepad.bridge.MenuItem
@@ -12,6 +13,7 @@ import kotlinx.serialization.json.JsonElement
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -110,11 +112,23 @@ class ToolFormsTest {
     }
 
     @Test
-    fun `capo starts on the default voicing, else the first`() {
-        val options = listOf(MenuItem("Standard", "g:std"), MenuItem("Drop D", "g:dropd"))
-        assertEquals("g:dropd", initialCapoChoice(CapoChoiceRequest(1, options, "g:dropd")))
-        assertEquals("g:std", initialCapoChoice(CapoChoiceRequest(1, options, "piano")))
-        assertNull(initialCapoChoice(CapoChoiceRequest(1, emptyList(), "")))
+    fun `suggest capo starts on the recommended row and applies only when it can`() {
+        val rows = listOf(
+            CapoRow(2, "Capo 2 · E A B C#m · Easier", "E A B C#m", "Easier", recommended = true, current = false),
+            CapoRow(0, "No capo · F# B C# D#m", "F# B C# D#m", "No capo", recommended = false, current = true),
+        )
+        val voicings = listOf(MenuItem("Standard", "g:std"))
+        val ready = CapoAdviceState(true, "", voicings, "g:std", "ready", "", false, rows)
+        assertEquals(2, capoChoice(ready, null))   // the recommended one, preselected
+        assertEquals(0, capoChoice(ready, 0))
+        assertEquals(2, capoChoice(ready, 5))      // not a row (any more): back to the first
+        assertTrue(capoCanApply(ready, 0))
+        assertFalse(capoCanApply(ready.copy(playing = true), 0))
+        val computing = ready.copy(status = "computing", rows = emptyList())
+        assertTrue(computing.computing)
+        assertNull(capoChoice(computing, 2))
+        assertFalse(capoCanApply(computing, 2))
+        assertFalse(capoCanApply(ready.copy(status = "ready", rows = emptyList(), message = "No chords in this range"), null))
     }
 
     // -- the commands the Tools menu sends -----------------------------------------
@@ -161,7 +175,7 @@ class ToolFormsTest {
         assertSent("request_insert_directive", """{"kind": "label", "at": 4}""")
         sel = 2 to 6
         t.suggestCapo()
-        assertSent("request_suggest_capo", """{"selection": [2, 6]}""")
+        assertSent("capo_advice_open", """{"selection": [2, 6]}""")
         t.convertNotation("european")
         assertSent("convert_notation", """{"target": "european", "cursor": 4}""")
         t.insertChord("Am7")

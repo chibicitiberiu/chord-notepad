@@ -36,6 +36,7 @@ import com.tibich.chordnotepad.ui.settings.SettingsPage
 import com.tibich.chordnotepad.ui.settings.SettingsScreen
 import com.tibich.chordnotepad.ui.support.SupportPrompt
 import com.tibich.chordnotepad.ui.support.SupportThankYou
+import com.tibich.chordnotepad.ui.tools.CapoDialog
 import com.tibich.chordnotepad.ui.tools.ToolActions
 
 /**
@@ -183,11 +184,23 @@ fun MainScreen(graph: AppGraph, onCloseApproved: () -> Unit) {
             tools::suggestCapo
         },
     )
+    // Suggest Capo: the session holds the dialog (CapoAdviceState), not a request.
+    val capoAdvice by graph.repository.capoAdvice.collectAsState()
+    capoAdvice?.takeIf { it.active }?.let { advice ->
+        CapoDialog(
+            state = advice,
+            onVoicing = graph.commands::capoAdviceVoicing,
+            onApply = graph.commands::capoAdviceApply,
+            onCancel = graph.commands::capoAdviceClose,
+        )
+    }
     ErrorPresenter(graph.errorQueue, snackbars)
 
     // Over the editor only, and not while a dialog of the session's is up.
     val pending by graph.repository.pendingRequest.collectAsState()
-    if (startup?.screen == StartupScreen.SUPPORT_PROMPT && page == Pages.MAIN && pending == null) {
+    if (startup?.screen == StartupScreen.SUPPORT_PROMPT && page == Pages.MAIN && pending == null &&
+        capoAdvice?.active != true
+    ) {
         val activity = LocalActivity.current
         val price by graph.supportBilling.price.collectAsState()
         SupportPrompt(

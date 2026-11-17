@@ -8,13 +8,11 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.res.stringResource
 import com.tibich.chordnotepad.R
-import com.tibich.chordnotepad.bridge.CapoChoiceRequest
 import com.tibich.chordnotepad.bridge.ConfirmDiscardRequest
 import com.tibich.chordnotepad.bridge.DiscardChoice
 import com.tibich.chordnotepad.bridge.InsertDirectiveRequest
 import com.tibich.chordnotepad.bridge.SessionRepository
 import com.tibich.chordnotepad.bridge.SessionRequest
-import com.tibich.chordnotepad.ui.tools.CapoDialog
 import com.tibich.chordnotepad.ui.tools.InsertDirectiveDialog
 import com.tibich.chordnotepad.ui.tools.keyChoices
 import kotlinx.coroutines.flow.StateFlow
@@ -26,7 +24,7 @@ import kotlinx.coroutines.flow.StateFlow
  *
  * @param repo The states the Insert directive dialogs choose from (the key
  *   lists and beat units of `SettingsState`, the toolbar's keys as a fallback).
- * @param onSuggestCapo The Capo dialog's Suggest (after it cancelled its request).
+ * @param onSuggestCapo The Insert Capo dialog's Suggest (after it cancelled its request).
  */
 @Composable
 fun SessionRequests(
@@ -39,7 +37,6 @@ fun SessionRequests(
     val dialog = request?.let(::presentationOf) as? RequestPresentation.Dialog ?: return
     when (val r = dialog.request) {
         is ConfirmDiscardRequest -> ConfirmDiscardDialog { controller.answerDiscard(r, it) }
-        is CapoChoiceRequest -> CapoDialog(r) { controller.answerCapo(r, it) }
         is InsertDirectiveRequest -> {
             val settings by repo.settings.collectAsState()
             val toolbar by repo.toolbar.collectAsState()

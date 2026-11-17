@@ -55,9 +55,9 @@ The User Interface
    * **Undo** and **Redo** (Ctrl+Z, Ctrl+Y or Ctrl+Shift+Z). They are greyed
      out when there is nothing to undo or redo.
    * **Transpose** (Ctrl+T) opens the Transpose dialog; see :doc:`transpose`.
-   * **Capo** opens Suggest Capo, which finds the capo position that makes the
-     chords easier to play; the same as :menuselection:`Tools --> Suggest
-     capo...` (see :doc:`chord_sheet`).
+   * **Capo** opens Suggest Capo, which lists the capo positions with the
+     chord shapes they give, the easiest first; the same as
+     :menuselection:`Tools --> Suggest capo...` (see :doc:`chord_sheet`).
    * **Convert** converts the song between American and European chord
      names; see :doc:`transpose`.
    * The **AB | Do** switch, described below.
@@ -549,8 +549,9 @@ The User Interface
       :doc:`transpose`.
 
    **Suggest capo...**
-      Picks the easiest capo position for a fretboard voicing and inserts a
-      ``{capo}`` directive. See :doc:`directives`.
+      Lists the capo positions for a fretboard voicing, the easiest first, and
+      inserts the ``{capo}`` directive for the one you pick. See
+      :doc:`directives`.
 
    **Convert to American notation**
       Converts all European notation chords (Do, Re, Mi...) in your document to
@@ -1683,16 +1684,17 @@ Insert Capo Dialog
 .. only:: desktop
 
    The capo tile adds ``{capo: 3}`` at your cursor; type the fret the capo
-   sits on over the 3 (0 to 12, where 0 means no capo). To let Chord Notepad
-   pick the easiest capo for a fretboard voicing and insert it for you, use
-   :menuselection:`Tools --> Suggest capo...`; see :doc:`chord_sheet`.
+   sits on over the 3 (0 to 12, where 0 means no capo). To see the capo
+   positions ranked for a fretboard voicing, the easiest first, and insert
+   the one you pick, use :menuselection:`Tools --> Suggest capo...`; see
+   :doc:`chord_sheet`.
 
 .. only:: android
 
    Enter the fret the capo sits on (0 to 12, where 0 means no capo), then tap
-   Insert to add ``{capo: N}`` at your cursor. Tap **Suggest** instead to let
-   Chord Notepad pick the easiest capo for a fretboard voicing and insert it
-   for you; see :doc:`chord_sheet`.
+   Insert to add ``{capo: N}`` at your cursor. Tap **Suggest** instead to see
+   the capo positions ranked for a fretboard voicing, the easiest first, and
+   insert the one you pick; see :doc:`chord_sheet`.
 
    .. platform-figure:: insert-capo
       :platforms: android

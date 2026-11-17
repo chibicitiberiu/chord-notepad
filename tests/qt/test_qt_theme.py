@@ -39,9 +39,10 @@ def code_of(path):
 
 
 def test_every_mockup_control_and_the_theme_module_are_there():
-    """All of the mockup's CNStyle folder: 30 files plus qmldir (the plan's "31")."""
+    """All of the mockup's CNStyle folder: 30 files plus qmldir (the plan's "31"),
+    and the BusyIndicator Suggest Capo added."""
     controls = [p for p in (QML_DIR / "CNStyle").glob("*.qml")]
-    assert len(controls) == 30
+    assert len(controls) == 31
     listed = re.findall(r"^(?:internal )?(\w+) (?:6\.0 )?(\w+)\.qml$", qml("CNStyle/qmldir"), re.M)
     assert sorted(f"{file}.qml" for _, file in listed) == sorted(p.name for p in controls)
     assert set(re.findall(r"(\w+)\.qml", qml("CNTheme/qmldir"))) == {

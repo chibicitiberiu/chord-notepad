@@ -1,7 +1,6 @@
 package com.tibich.chordnotepad.ui.requests
 
 import android.util.Log
-import com.tibich.chordnotepad.bridge.CapoChoiceRequest
 import com.tibich.chordnotepad.bridge.ConfirmDiscardRequest
 import com.tibich.chordnotepad.bridge.DiscardChoice
 import com.tibich.chordnotepad.bridge.DocumentRef
@@ -31,7 +30,7 @@ sealed interface RequestPresentation {
 
 /** Which presentation [request] gets. */
 fun presentationOf(request: SessionRequest): RequestPresentation = when (request) {
-    is ConfirmDiscardRequest, is CapoChoiceRequest, is InsertDirectiveRequest -> RequestPresentation.Dialog(request)
+    is ConfirmDiscardRequest, is InsertDirectiveRequest -> RequestPresentation.Dialog(request)
     is PickDocumentRequest -> RequestPresentation.Picker(request)
 }
 
@@ -113,9 +112,6 @@ class RequestController(
         commands.respondDiscard(request.requestId, answer)
     }
 
-    /** Suggest Capo's voicing ([value], an option's value), or null for Cancel. */
-    fun answerCapo(request: CapoChoiceRequest, value: String?) = commands.respondCapo(request.requestId, value)
-
     /** An Insert directive dialog's fields, or null for Cancel; the session checks them. */
     fun answerDirective(request: InsertDirectiveRequest, fields: Map<String, String>?) =
         commands.respondDirective(request.requestId, fields)
@@ -128,7 +124,6 @@ class RequestController(
     fun cancel(request: SessionRequest) = when (request) {
         is ConfirmDiscardRequest -> answerDiscard(request, DiscardChoice.CANCEL)
         is PickDocumentRequest -> commands.respondPick(request.requestId, null)
-        is CapoChoiceRequest -> commands.respondCapo(request.requestId, null)
         is InsertDirectiveRequest -> commands.respondDirective(request.requestId, null)
     }
 

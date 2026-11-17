@@ -1,11 +1,9 @@
 package com.tibich.chordnotepad.ui.requests
 
-import com.tibich.chordnotepad.bridge.CapoChoiceRequest
 import com.tibich.chordnotepad.bridge.ConfirmDiscardRequest
 import com.tibich.chordnotepad.bridge.DiscardChoice
 import com.tibich.chordnotepad.bridge.DocumentRef
 import com.tibich.chordnotepad.bridge.InsertDirectiveRequest
-import com.tibich.chordnotepad.bridge.MenuItem
 import com.tibich.chordnotepad.bridge.PickDocumentRequest
 import com.tibich.chordnotepad.bridge.PickMode
 import com.tibich.chordnotepad.bridge.SessionCommands
@@ -61,8 +59,6 @@ class RequestControllerTest {
         assertEquals(RequestPresentation.Dialog(ConfirmDiscardRequest(1)), presentationOf(ConfirmDiscardRequest(1)))
         val pick = PickDocumentRequest(2, PickMode.OPEN, "")
         assertEquals(RequestPresentation.Picker(pick), presentationOf(pick))
-        val capo = CapoChoiceRequest(3, listOf(MenuItem("Piano", "piano")), "piano")
-        assertEquals(RequestPresentation.Dialog(capo), presentationOf(capo))
         val directive = InsertDirectiveRequest(4, "bpm", emptyList(), "american")
         assertEquals(RequestPresentation.Dialog(directive), presentationOf(directive))
     }
@@ -164,16 +160,8 @@ class RequestControllerTest {
     }
 
     @Test
-    fun `capo and directive requests wait for their dialogs, then answer`() {
+    fun `directive requests wait for their dialogs, then answer`() {
         val c = controller()
-        val capo = CapoChoiceRequest(20, listOf(MenuItem("Standard", "guitar:standard")), "guitar:standard")
-        pending.value = capo
-        assertNull(c.onPending(capo)) // a dialog: nothing sent yet
-        assertTrue(sent.isEmpty())
-        c.answerCapo(capo, "guitar:standard")
-        assertResponded("""{"request_id": 20, "value": "guitar:standard"}""")
-        assertNull(pending.value)
-
         val label = InsertDirectiveRequest(21, "label", listOf("verse"), "american")
         pending.value = label
         assertNull(c.onPending(label))
@@ -183,9 +171,6 @@ class RequestControllerTest {
         assertNull(pending.value)
 
         // Cancel answers null.
-        pending.value = CapoChoiceRequest(22, capo.options, capo.default)
-        c.answerCapo(pending.value as CapoChoiceRequest, null)
-        assertResponded("""{"request_id": 22, "value": null}""")
         pending.value = InsertDirectiveRequest(23, "bpm", emptyList(), "american")
         c.answerDirective(pending.value as InsertDirectiveRequest, null)
         assertResponded("""{"request_id": 23, "value": null}""")

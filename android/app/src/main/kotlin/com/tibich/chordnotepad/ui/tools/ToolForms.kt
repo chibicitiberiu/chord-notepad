@@ -2,7 +2,7 @@ package com.tibich.chordnotepad.ui.tools
 
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
-import com.tibich.chordnotepad.bridge.CapoChoiceRequest
+import com.tibich.chordnotepad.bridge.CapoAdviceState
 import com.tibich.chordnotepad.bridge.InsertDirectiveRequest
 import com.tibich.chordnotepad.bridge.Selection
 import com.tibich.chordnotepad.text.OffsetMapper
@@ -155,9 +155,16 @@ fun keyChoices(notation: String, american: List<String>?, european: List<String>
 fun keyChoices(request: InsertDirectiveRequest, american: List<String>?, european: List<String>?, toolbar: List<String>?): List<String> =
     request.keyOptions.ifEmpty { keyChoices(request.notation, american, european, toolbar) }
 
-/** The voicing the Suggest Capo dialog starts on: the request's default, else the first option. */
-fun initialCapoChoice(request: CapoChoiceRequest): String? =
-    request.options.firstOrNull { it.value == request.default }?.value ?: request.options.firstOrNull()?.value
+/**
+ * The Suggest Capo row that is chosen: [picked] while it is one of the
+ * rows, else the first (the recommended one); null with no rows.
+ */
+fun capoChoice(state: CapoAdviceState, picked: Int?): Int? =
+    state.rows.firstOrNull { it.capo == picked }?.capo ?: state.rows.firstOrNull()?.capo
+
+/** Whether Suggest Capo's Apply can go: the rows are in, one is chosen and no song plays. */
+fun capoCanApply(state: CapoAdviceState, picked: Int?): Boolean =
+    state.status == CapoAdviceState.READY && !state.playing && capoChoice(state, picked) != null
 
 /**
  * What a typed directive field shows for [text]: [current] (its cursor and

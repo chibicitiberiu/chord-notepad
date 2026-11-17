@@ -45,7 +45,7 @@ from chordnotepad.exceptions import (
 )
 from chordnotepad.models.notation import Notation
 from chordnotepad.models.playback_event import PlaybackEventArgs, PlaybackEventType
-from chordnotepad.session import directives, errors, formatting, quick_start, song_defaults, support, toolbar
+from chordnotepad.session import directives, formatting, quick_start, song_defaults, support, toolbar
 from chordnotepad.session.platform import (
     ANDROID, BLANK_VOICING_PRESETS, COUNTS_SONG_BARS, DESKTOP, STOP_REWINDS, TRACKS_PLAYHEAD,
     check_platform, pick,
@@ -54,7 +54,7 @@ from chordnotepad.session.audio_policy import AudioFailurePolicy
 from chordnotepad.session.emitter import Emitter, Listener
 from chordnotepad.session.documents import DocumentRef
 from chordnotepad.session.events import (
-    AudioUnavailable, CapoChoiceRequest, CloseApproved, ConfirmDiscardRequest, DiscardChoice,
+    AudioUnavailable, CloseApproved, ConfirmDiscardRequest, DiscardChoice,
     InsertDirectiveRequest, PickDocumentRequest, PickMode, QuickStartBlock, QuickStartContent,
     DirectiveCheck, DirectiveHint, EditRefused, QuickStartPage, RenameFailed, TextEdited,
     UndoPolicy, UnexpectedError,
@@ -76,6 +76,7 @@ from chordnotepad.session.settings_edit import SettingsEdit
 from chordnotepad.session.settings_staging import SettingsStaging
 from chordnotepad.session.workers import BackgroundWorker, Job, Outcome
 from chordnotepad.session.state import (
+    CAPO_COMPUTING, CAPO_ERROR, CAPO_READY, INACTIVE_CAPO_ADVICE, CapoAdviceState, CapoRow,
     ChordSheetState, ChordSheetView, DocumentState, EditorState, HighlightState,
     IdentifierNote, IdentifierState, InstrumentMenuState, MenuItem, PlayAction, PlaybackState,
     INACTIVE_VOICING_EDITOR, PlaybackStatus, RecentDocumentsState, SettingsState,
@@ -228,6 +229,21 @@ def _command(method: F) -> F:
     return wrapper  # type: ignore[return-value]
 
 
+class _CapoAdvice:
+    """The open Suggest Capo dialog: what it scores and what it shows."""
+
+    def __init__(self, region: Optional[Tuple[int, int]], voicings: Tuple[MenuItem, ...],
+                 voicing: str) -> None:
+        self.region = region
+        self.voicings = voicings
+        self.voicing = voicing
+        self.status = CAPO_COMPUTING
+        self.message = ""
+        self.rows: Tuple[CapoRow, ...] = ()
+        # The text revision the rows are (being) scored for.
+        self.revision = -1
+
+
 class AppSession:
     """The application layer shared by the Tk and the mobile UIs."""
 
@@ -307,14 +323,15 @@ class AppSession:
         self._on_replaced = self._entry(self._on_text_replaced)
         self._main.observe("current_text", self._on_replaced)
 
-        # Dialog-driven commands (insert directive, suggest capo, the
-        # document flows).
+        # Dialog-driven commands (insert directive, the document flows).
         self._flows = FlowRunner(self._emitter.emit)
 
         # Renders the user waits for run here; the outcome comes back as a
-        # posted callback. A newer Suggest Capo supersedes an older one.
+        # posted callback. A newer Suggest Capo scoring supersedes an older one.
         self._worker = worker if worker is not None else BackgroundWorker(host)
         self._capo_job: Optional[Job] = None
+        # The open Suggest Capo dialog (CapoAdviceState), or None.
+        self._capo: Optional[_CapoAdvice] = None
 
         # Documents: the viewmodel reads and writes them through its store;
         # the session keeps the recent list there (the flows are its only
@@ -460,6 +477,7 @@ class AppSession:
             self._publish_document()
             self._publish_recent()
             self._publish_song_defaults()
+            self._emitter.set_state(INACTIVE_CAPO_ADVICE)
             if services is not None:
                 # The screens that need the services (Android's identifier
                 # and Settings).
@@ -1015,19 +1033,18 @@ class AppSession:
         self._splice(0, 0, text + "\n", UndoPolicy.GROUP)
         self._set_status(formatting.inserted_status(text))
 
-    @_command
-    def request_suggest_capo(self, selection: Selection = None) -> None:
-        """Ask which voicing to optimize for, then insert the best ``{capo: N}``.
+    # -- Suggest Capo (CapoAdviceState) ------------------------------------------
 
-        Emits :class:`CapoChoiceRequest`; ``respond`` with a voicing scores
-        the selection (or the whole song) on the background worker ("Finding
-        a capo..." meanwhile), then inserts the directive at the start of the
-        selection's line (the top without one) as one undo step, or says in
-        the status line that no capo helps. Refused at answer time, and when
-        the result arrives, while a song plays. If the text changed while it
-        was being scored the result is dropped (the status says so) rather
-        than inserted into a song it wasn't computed for; the user can ask
-        again.
+    @_command
+    def capo_advice_open(self, selection: Selection = None) -> None:
+        """Open the Suggest Capo dialog and start scoring the capo positions.
+
+        The dialog (:class:`CapoAdviceState`) scores the selection's chords
+        (or the whole song's) on the background worker for the active
+        fretboard voicing (standard guitar when the active voicing isn't
+        one): ``computing`` meanwhile, then the ranked rows. Opening it
+        again starts over. It opens while a song plays too; only Apply
+        waits for the song to stop.
 
         Args:
             selection: ``(start, end)`` to score only the chords that overlap
@@ -1036,7 +1053,78 @@ class AppSession:
         Raises:
             ValueError: If the selection is outside the text.
         """
-        self._flows.start(self._suggest_capo_flow(self._region(selection)))
+        region = self._region(selection)
+        options = tuple(MenuItem(label, value)
+                        for label, value in self._main.capo_voicing_options())
+        values = [o.value for o in options]
+        default = self._main.default_capo_voicing()
+        if default not in values:
+            default = values[0] if values else ""
+        self._capo = _CapoAdvice(region, options, default)
+        self._score_capos()
+
+    @_command
+    def capo_advice_voicing(self, voicing: str) -> None:
+        """Score the open Suggest Capo dialog's capos for another voicing.
+
+        Args:
+            voicing: A value of ``CapoAdviceState.voicings``. Anything else,
+                or no open dialog, is ignored.
+        """
+        dialog = self._capo
+        if dialog is None or voicing not in [o.value for o in dialog.voicings]:
+            logger.info("Ignoring capo voicing %r: no dialog or not one of its voicings", voicing)
+            return
+        dialog.voicing = voicing
+        self._score_capos()
+
+    @_command
+    def capo_advice_apply(self, capo: int) -> None:
+        """Put the chosen row's capo in the song and close the dialog.
+
+        Inserts ``{capo: N}`` at the start of the selection's line (the top
+        without one), or rewrites the ``{capo}`` already there before the
+        first chord, as one undo step. Choosing the capo already in force
+        changes nothing; "No capo" with a capo in force writes
+        ``{capo: 0}``. Refused while a song plays or is paused
+        (``CapoAdviceState.playing``; :class:`EditRefused`). When the text
+        changed since the rows were scored, they are scored again and
+        nothing is inserted yet.
+
+        Args:
+            capo: A row's ``capo``. Ignored when no dialog is open, the rows
+                aren't in yet, or no row has it.
+        """
+        dialog = self._capo
+        capo = int(capo)
+        if (dialog is None or dialog.status != CAPO_READY
+                or capo not in [row.capo for row in dialog.rows]):
+            logger.info("Ignoring capo apply %r: no dialog, not scored, or not a row", capo)
+            return
+        if not self._edits_allowed("apply capo"):
+            return
+        if dialog.revision != self._revision:
+            logger.info("The text changed since the capos were scored; scoring again")
+            self._score_capos()
+            return
+        region = dialog.region
+        if capo != self._main.current_capo(region):
+            with self._undo_policy(UndoPolicy.GROUP):
+                self._main.insert_capo(capo, region)
+            if capo:
+                label = next(o.label for o in dialog.voicings if o.value == dialog.voicing)
+                self._set_status(formatting.capo_suggested_status(capo, region is not None, label))
+            else:
+                self._set_status(formatting.inserted_status("{capo: 0}"))
+        self._close_capo_advice()
+
+    @_command
+    def capo_advice_close(self) -> None:
+        """Close the Suggest Capo dialog without changing the song (Cancel).
+
+        A scoring still running is called off.
+        """
+        self._close_capo_advice()
 
     @_command
     def respond(self, request_id: int, value: object) -> None:
@@ -1074,6 +1162,7 @@ class AppSession:
         if not self._edits_allowed("restore draft"):
             return
         self._flows.cancel()
+        self._close_capo_advice()
         self._pending_name = None
         self._read_only_id = document.id if document is not None and read_only else None
         revision = self._revision
@@ -3121,56 +3210,79 @@ class AppSession:
             return " " + text
         return text
 
-    def _suggest_capo_flow(self, region: Optional[Tuple[int, int]]) -> Flow:
-        """Ask for a voicing, score capo positions on it and insert the best."""
-        options = tuple(MenuItem(label, value)
-                        for label, value in self._main.capo_voicing_options())
-        values = [o.value for o in options]
-        default = self._main.default_capo_voicing()
-        if default not in values:
-            default = values[0] if values else ""
-        voicing = yield CapoChoiceRequest(0, options, default,
-                                          formatting.capo_scope_text(region is not None))
-        label = next((o.label for o in options if o.value == voicing), None)
-        if voicing is None or label is None:
-            return
-        if not self._edits_allowed("suggest capo"):
-            return
-        if region is not None and region[1] > len(self._text):
-            region = None  # the text changed under the selection
-        job = self._main.capo_job(voicing, region)
-        if job is None:
-            self._set_status(formatting.no_capo_status(region is not None, label))
-            return
+    def _score_capos(self) -> None:
+        """Score the open Suggest Capo dialog's capos on the worker (``computing``)."""
+        dialog = self._capo
         if self._capo_job is not None:
             self._capo_job.cancel()  # superseded: its result would be stale anyway
-        self._set_status(formatting.finding_capo_status(region is not None, label))
-        self._capo_job = self._worker.submit(job, self._entry(functools.partial(
-            self._on_capo_scored, self._revision, region, label)))
+            self._capo_job = None
+        if dialog.region is not None and dialog.region[1] > len(self._text):
+            dialog.region = None  # the text changed under the selection
+        dialog.revision = self._revision
+        dialog.rows = ()
+        dialog.message = ""
+        job = self._main.capo_job(dialog.voicing, dialog.region)
+        if job is None:
+            # Not a fretboard voicing (there were none to offer).
+            dialog.status = CAPO_ERROR
+            dialog.message = formatting.CAPO_NO_VOICING
+            self._publish_capo_advice()
+            return
+        dialog.status = CAPO_COMPUTING
+        self._capo_job = self._worker.submit(
+            job, self._entry(functools.partial(self._on_capos_ranked, dialog)), pass_abort=True)
+        self._publish_capo_advice()
 
-    def _on_capo_scored(self, revision: int, region: Optional[Tuple[int, int]], label: str,
-                        outcome: Outcome) -> None:
-        """The worker scored the capo positions for the text at ``revision``."""
+    def _on_capos_ranked(self, dialog: "_CapoAdvice", outcome: Outcome) -> None:
+        """The worker ranked the capos for ``dialog`` (or failed to)."""
+        if self._capo is not dialog:
+            return  # closed or opened again since
         self._capo_job = None
         if not outcome.ok:
-            self._set_status(formatting.READY)
             error = outcome.error
-            errors.report_from_any_thread((type(error), error, error.__traceback__),
-                                          "Suggest Capo")
+            logger.error("Suggest Capo couldn't score the capos: %s", error,
+                         exc_info=(type(error), error, error.__traceback__))
+            dialog.status = CAPO_ERROR
+            dialog.message = formatting.capo_failed_message(error)
+        elif not outcome.value:
+            dialog.status = CAPO_READY
+            dialog.message = formatting.CAPO_NO_CHORDS
+        else:
+            current = self._main.current_capo(dialog.region)
+            dialog.status = CAPO_READY
+            dialog.rows = tuple(
+                CapoRow(capo=choice.capo,
+                        label=formatting.capo_row_label(choice.capo, choice.shapes, choice.ease),
+                        shapes=" ".join(choice.shapes), ease=choice.ease,
+                        recommended=choice.recommended, current=choice.capo == current)
+                for choice in outcome.value)
+        self._publish_capo_advice()
+
+    def _close_capo_advice(self) -> None:
+        """Close the Suggest Capo dialog (if open), calling off its scoring."""
+        if self._capo_job is not None:
+            self._capo_job.cancel()
+            self._capo_job = None
+        if self._capo is None:
             return
-        if not self._edits_allowed("suggest capo"):
+        self._capo = None
+        self._publish_capo_advice()
+
+    def _publish_capo_advice(self) -> None:
+        dialog = self._capo
+        if dialog is None:
+            self._emitter.set_state(INACTIVE_CAPO_ADVICE)
             return
-        if self._revision != revision:
-            logger.info("The text changed while finding a capo; dropping the result")
-            self._set_status(formatting.CAPO_STALE_STATUS)
-            return
-        capo = outcome.value
-        if not capo:
-            self._set_status(formatting.no_capo_status(region is not None, label))
-            return
-        with self._undo_policy(UndoPolicy.GROUP):
-            self._main.insert_capo(capo, region)
-        self._set_status(formatting.capo_suggested_status(capo, region is not None, label))
+        self._emitter.set_state(CapoAdviceState(
+            active=True,
+            scope=formatting.capo_scope_text(dialog.region is not None),
+            voicings=dialog.voicings,
+            voicing=dialog.voicing,
+            status=dialog.status,
+            message=dialog.message,
+            playing=self._playback_status() is not PlaybackStatus.IDLE,
+            rows=dialog.rows,
+        ))
 
     # -- document internals -----------------------------------------------------
 
@@ -3269,6 +3381,7 @@ class AppSession:
         if not (yield from self._confirm_discard()):
             return
         self._pending_name = None
+        self._close_capo_advice()
         with self._undo_policy(UndoPolicy.PLAIN):
             self._main.new_file()
         self._publish_document()
@@ -3298,6 +3411,7 @@ class AppSession:
         if self._revision == revision:
             # Same text as before: still a new undo history in the views.
             self._splice(0, len(self._text), self._text, UndoPolicy.RESET)
+        self._close_capo_advice()
         self._pending_name = None
         self._remember(ref)
         self._set_status(formatting.opened_status(ref.location))
@@ -3306,6 +3420,7 @@ class AppSession:
         if not (yield from self._confirm_discard()):
             return
         revision = self._revision
+        self._close_capo_advice()
         self._pending_name = name if ref is None else None
         self._read_only_id = None
         with self._undo_policy(UndoPolicy.RESET):
@@ -3864,6 +3979,9 @@ class AppSession:
         # The voicing menu is locked only while a song plays.
         if self._voicing_locked != (status is PlaybackStatus.PLAYING):
             self._publish_voicing_menu()
+        # Suggest Capo's Apply waits for the song to stop.
+        if self._capo is not None:
+            self._publish_capo_advice()
 
     def _clear_playhead(self) -> None:
         """Take the chord sheet's playhead off the last chord (once).

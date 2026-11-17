@@ -16,7 +16,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Optional, Tuple
 
-from chordnotepad.session.state import MenuItem, Span
+from chordnotepad.session.state import Span
 
 
 @dataclass(frozen=True)
@@ -188,27 +188,6 @@ class DirectiveHint:
     syntax: str
     message: str
     redundant: bool = False
-
-
-@dataclass(frozen=True)
-class CapoChoiceRequest:
-    """Ask which fretboard voicing a capo suggestion should optimize for.
-
-    Answer with ``respond(request_id, value)``, the chosen option's value, or
-    None to cancel.
-
-    Attributes:
-        request_id: Pass back to ``respond``.
-        options: The fretboard voicings.
-        default: The value to preselect.
-        scope: One line saying where the capo goes: the selected part only,
-            or the whole song (:func:`session.formatting.capo_scope_text`).
-    """
-
-    request_id: int
-    options: Tuple[MenuItem, ...]
-    default: str
-    scope: str = ""
 
 
 class DiscardChoice(str, Enum):

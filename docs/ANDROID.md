@@ -339,9 +339,9 @@ Types Kotlin decodes (`BridgeCodec.serializers`):
 
 | Kind | Types |
 |---|---|
-| States | `DocumentState`, `EditorState`, `HighlightState`, `PlaybackState`, `ToolbarState`, `StatusState`, `VoicingMenuState`, `InstrumentMenuState`, `RecentDocumentsState`, `ChordSheetState`; M5: `IdentifierState`, `SettingsState`, `VoicingEditorState`; Edit/Play: `SongDefaultsState`; startup: `StartupState` |
+| States | `DocumentState`, `EditorState`, `HighlightState`, `PlaybackState`, `ToolbarState`, `StatusState`, `VoicingMenuState`, `InstrumentMenuState`, `RecentDocumentsState`, `ChordSheetState`; M5: `IdentifierState`, `SettingsState`, `VoicingEditorState`; Edit/Play: `SongDefaultsState`; startup: `StartupState`; Suggest Capo: `CapoAdviceState` |
 | Events | `TextEdited`, `UserError`, `AudioUnavailable`, `UnexpectedError`, `CloseApproved`; M5 replies: `VoicingEditorSchema`, `QuickStartContent`, `DirectiveCheck`; Edit/Play: `RenameFailed`; editor: `DirectiveHint` (reply to `request_directive_hint`) |
-| Requests | `ConfirmDiscardRequest`, `PickDocumentRequest`, `CapoChoiceRequest`, `InsertDirectiveRequest` |
+| Requests | `ConfirmDiscardRequest`, `PickDocumentRequest`, `InsertDirectiveRequest` |
 
 **Step 14 added two things to the DTOs** (Kotlin already had them):
 - `UnexpectedError(message: str, context: Optional[str])` in `events.py`
@@ -376,7 +376,9 @@ step 14.)
 `set_text {text, client_token}`, `insert_text {at, text}`,
 `request_insert_directive {kind, at}`, `check_directive {kind, fields, request_id}`,
 `request_directive_hint {offset}`, `transpose {semitones, selection, cursor}`,
-`request_suggest_capo {selection}`, `convert_notation {target, cursor}`,
+`capo_advice_open {selection}`, `capo_advice_voicing {voicing}`,
+`capo_advice_apply {capo}`, `capo_advice_close {}` (Suggest Capo, below),
+`convert_notation {target, cursor}`,
 `play_pause {from_offset}`, `stop {}`, `tap_chord_at {offset}`,
 `set_bpm {bpm}`, `set_multiplier_pct {pct}`, `set_bpm_text {text}`,
 `reset_bpm {}`, `reset_multiplier {}` (the scrubber's reset to the default),
@@ -400,8 +402,24 @@ desktop's View > Word Wrap; Android changes it through Settings),
 
 `respond`'s `value` is decoded by the type of the pending request:
 `PickDocumentRequest` → `DocumentRef` or None; `ConfirmDiscardRequest` →
-`"save"`/`"discard"`/`"cancel"` or None; `CapoChoiceRequest` → the option
-value or None; `InsertDirectiveRequest` → a `{field: str}` dict or None.
+`"save"`/`"discard"`/`"cancel"` or None; `InsertDirectiveRequest` → a
+`{field: str}` dict or None.
+
+**Suggest Capo** (2026-11-17) is a state, not a request, so it never takes
+the pending-request slot. `capo_advice_open {selection}` publishes
+`CapoAdviceState(active=True, scope, voicings: [MenuItem], voicing,
+status="computing", message, playing, rows=[])` and scores the capos on the
+worker; then `status="ready"` with `rows: [CapoRow(capo, label, shapes,
+ease, recommended, current)]`, the recommended one first (`label` is the
+row in words: "Capo 3 · G D Em C · Easier"), or an empty list and
+`message="No chords in this range"`; or `status="error"` with the error in
+`message`. `capo_advice_voicing {voicing}` scores again for another
+voicing. `capo_advice_apply {capo}` inserts the capo as one `group` edit
+and closes (`active=False`); it is refused while `playing` (Android drops
+`EditRefused`, so the dialog disables Apply with a hint), and when the text
+changed since scoring it scores again instead. `capo_advice_close {}` is
+Cancel. The session also closes it when the document is replaced (new,
+open, a recovered copy, a restored draft).
 The M5 screens' commands are below ("M5 screens"). A parameter that has a default in
 `AppSession` may be left out; any other missing, unknown or mistyped
 argument is an `UnexpectedError(context="bridge")`, and a command that
@@ -651,7 +669,7 @@ Kotlin DTOs/builders done 2026-10-29: `bridge/PlayerBridge.kt`):
   `check_directive {kind: "capo", fields: {"capo": …}, request_id}` checks
   0-12 live ("The capo must be on a fret from 0 to 12 (0 means no capo).",
   field `capo`). The dialog's Suggest button answers the insert request with
-  null (`respond` cancel) and sends `request_suggest_capo {selection}`.
+  null (`respond` cancel) and sends `capo_advice_open {selection}`.
 - *Rename.* `rename_document {name}`: `name` without the extension (the
   document's own is kept; `.txt` for an untitled one; a name already ending
   in it isn't doubled). Success: `DocumentState` (new `display_name` and
@@ -949,7 +967,7 @@ objects, against the release build's R8 rules ("R8 in release builds").
   request is shown: `ConfirmDiscardRequest` as a dialog (the desktop's
   "Unsaved Changes / Do you want to save your changes?", buttons Save /
   Don't save / Cancel, dismiss = cancel), `PickDocumentRequest` as a SAF
-  picker, `CapoChoiceRequest` and `InsertDirectiveRequest` as the Tools
+  picker, `InsertDirectiveRequest` as the Tools
   dialogs (M5, below; `NotYetSupported` is left for a request type a newer
   core may add: cancelled at once). `RequestController`
   (app-scoped, in `AppGraph`) remembers which pick request already got a
@@ -974,7 +992,7 @@ objects, against the release build's R8 rules ("R8 in release builds").
   ＋ Insert (Tempo, Time signature, Key, Capo, Label, Loop), Transpose,
   Identify, AB/Do and Convert (to the other notation; the session switches
   AB/Do with it). Suggest Capo is the Capo dialog's Suggest (it cancels the
-  insert request, then `request_suggest_capo`). The desktop's Tools ›
+  insert request, then `capo_advice_open`). The desktop's Tools ›
   Settings… is ☰ → Settings. `ToolActions` sends the commands with the editor's selection
   (`selectionOf`: UTF-16 → code points through `OffsetMapper`; an empty one
   is null, the whole song) or cursor, the text synced first.
@@ -994,10 +1012,13 @@ objects, against the release build's R8 rules ("R8 in release builds").
     (`DirectiveVerdict`), so it stays open on a bad value like the
     desktop's. The session still checks on `respond`. Only the pickers'
     ranges and `@start` are mirrored in Kotlin (`ToolForms.kt`).
-  - *Suggest Capo* sends `request_suggest_capo {selection}`; the
-    `CapoChoiceRequest` opens a radio list of its options, the default
-    chosen → `respond(value)`. "Finding a capo…", the result and "No capo
-    makes …" are the session's status line.
+  - *Suggest Capo* sends `capo_advice_open {selection}`. `MainScreen`
+    shows `CapoDialog` while `SessionRepository.capoAdvice` is active: the
+    voicing dropdown (`capo_advice_voicing`), a `CircularProgressIndicator`
+    while `computing`, the rows as radio rows with Recommended and Current
+    tags, the recommended one chosen (`capoChoice`), the message, and
+    Cancel (`capo_advice_close`) / Apply (`capo_advice_apply`, disabled
+    while `playing` with "Stop playback to apply"; `capoCanApply`).
   - *Identify Chord* is full screen below 600 dp, a dialog wider: the
     two-octave keyboard from C4 (`PianoKeyboard`: tap →
     `identifier_toggle_note`, long-press → `play_note`), the notes field

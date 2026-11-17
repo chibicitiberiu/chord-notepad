@@ -26,6 +26,7 @@ TabBar 6.0 TabBar.qml
 TabButton 6.0 TabButton.qml
 ItemDelegate 6.0 ItemDelegate.qml
 Popup 6.0 Popup.qml
+BusyIndicator 6.0 BusyIndicator.qml
 Dialog 6.0 Dialog.qml
 Label 6.0 Label.qml
 Pane 6.0 Pane.qml

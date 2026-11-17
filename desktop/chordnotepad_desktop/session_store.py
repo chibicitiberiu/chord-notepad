@@ -95,6 +95,9 @@ TEXTS = {
     "confirmDiscardMessage": formatting.CONFIRM_DISCARD_MESSAGE,
     # The empty editor's placeholder, the Tk window's.
     "editorPlaceholder": "Type or paste a song here",
+    # Suggest Capo's spinner line and the hint by its disabled Apply.
+    "capoFinding": formatting.CAPO_FINDING,
+    "capoStopToApply": formatting.CAPO_STOP_TO_APPLY,
 }
 
 

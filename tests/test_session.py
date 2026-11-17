@@ -83,6 +83,7 @@ def test_type_text_no_spans_before_the_debounce_spans_after(env):
         ("RecentDocumentsState", ()),
         ("SongDefaultsState", ("SongDefault", "120", False, None),
          ("SongDefault", "4/4", False, None), ("SongDefault", "", False, None), "120 · 4/4", None),
+        ("CapoAdviceState", False, "", (), "", "ready", "", False, ()),
     ]
     env.recorder.clear()
 

@@ -468,7 +468,7 @@ def test_initial_states():
     ]
     assert [type(item).__name__ for item in recorder.items[5:]] == [
         "VoicingMenuState", "InstrumentMenuState", "DocumentState", "RecentDocumentsState",
-        "SongDefaultsState"]
+        "SongDefaultsState", "CapoAdviceState"]
 
 
 def test_an_inserted_chord_status_goes_through_the_status_state():

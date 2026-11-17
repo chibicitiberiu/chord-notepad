@@ -37,7 +37,7 @@ from chordnotepad.exceptions import ConfigurationError
 from chordnotepad.session import errors
 from chordnotepad.session.documents import DocumentRef
 from chordnotepad.session.events import (
-    AudioUnavailable, CapoChoiceRequest, CloseApproved, ConfirmDiscardRequest, DiscardChoice,
+    AudioUnavailable, CloseApproved, ConfirmDiscardRequest, DiscardChoice,
     InsertDirectiveRequest, PickDocumentRequest, PickMode, QuickStartBlock, QuickStartContent,
     DirectiveCheck, DirectiveHint, EditRefused, QuickStartPage, RenameFailed, TextEdited, UndoPolicy,
     UnexpectedError,
@@ -46,7 +46,7 @@ from chordnotepad.session.events import (
 from chordnotepad.session.host import Host
 from chordnotepad.session.settings import DesktopSettingsValues, SettingsValues
 from chordnotepad.session.state import (
-    ChordSheetState, ChordSheetView, DocumentState, EditorState, HighlightState,
+    CapoAdviceState, CapoRow, ChordSheetState, ChordSheetView, DocumentState, EditorState, HighlightState,
     IdentifierNote, IdentifierState, InstrumentFamily, InstrumentMenuState, MenuItem, PlayAction,
     PlaybackState, PlaybackStatus, RecentDocumentsState, SettingsProblem, SettingsState,
     SongDefault, SongDefaultsState, Span, SpanKind, StartupScreen, StartupState, StatusState,
@@ -67,6 +67,7 @@ STATE_TYPES: Tuple[type, ...] = (
     DocumentState, EditorState, HighlightState, PlaybackState, ToolbarState, StatusState,
     VoicingMenuState, InstrumentMenuState, RecentDocumentsState, ChordSheetState,
     IdentifierState, SettingsState, VoicingEditorState, SongDefaultsState, StartupState,
+    CapoAdviceState,
 )
 EVENT_TYPES: Tuple[type, ...] = (
     TextEdited, UserError, AudioUnavailable, UnexpectedError, CloseApproved,
@@ -74,13 +75,13 @@ EVENT_TYPES: Tuple[type, ...] = (
     EditRefused,
 )
 REQUEST_TYPES: Tuple[type, ...] = (
-    ConfirmDiscardRequest, PickDocumentRequest, CapoChoiceRequest, InsertDirectiveRequest,
+    ConfirmDiscardRequest, PickDocumentRequest, InsertDirectiveRequest,
 )
 #: Nested in outputs, or sent in commands.
 VALUE_TYPES: Tuple[type, ...] = (
     Span, MenuItem, InstrumentFamily, ChordSheetView, DocumentRef, SettingsValues,
     IdentifierNote, VoicingGroup, VoicingPreset, SettingsProblem, QuickStartPage, QuickStartBlock,
-    SongDefault, TimelineSection,
+    SongDefault, TimelineSection, CapoRow,
 )
 ENUM_TYPES: Tuple[Type[Enum], ...] = (
     SpanKind, PlaybackStatus, PlayAction, UndoPolicy, DiscardChoice, PickMode, StartupScreen,
@@ -243,7 +244,11 @@ SESSION_COMMANDS: Dict[str, Dict[str, str]] = {
     "check_directive": {"kind": "str", "fields": "json", "request_id": "int"},
     "request_directive_hint": {"offset": "int"},
     "transpose": {"semitones": "int", "selection": "selection", "cursor": "int|null"},
-    "request_suggest_capo": {"selection": "selection"},
+    # Suggest Capo (CapoAdviceState)
+    "capo_advice_open": {"selection": "selection"},
+    "capo_advice_voicing": {"voicing": "str"},
+    "capo_advice_apply": {"capo": "int"},
+    "capo_advice_close": {},
     "convert_notation": {"target": "str", "cursor": "int|null"},
     "write_song_defaults": {},
     # playback and toolbar
@@ -369,7 +374,6 @@ HOST_COMMANDS: Dict[str, Dict[str, str]] = {
 ANSWER_TYPES: Dict[type, str] = {
     PickDocumentRequest: "DocumentRef|null",
     ConfirmDiscardRequest: "DiscardChoice|null",
-    CapoChoiceRequest: "str|null",
     InsertDirectiveRequest: "dict[str,str]|null",
 }
 
@@ -393,8 +397,6 @@ def _decode_answer(request: Any, value: Any) -> Any:
         return dict(value)
     if isinstance(request, PickDocumentRequest):
         return _decoder("DocumentRef|null")(value)
-    if isinstance(request, CapoChoiceRequest):
-        return _decoder("str|null")(value)
     raise BridgeError(f"no answer decoding for {type(request).__name__}")
 
 
