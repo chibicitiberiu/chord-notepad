@@ -766,7 +766,7 @@ def test_number_fields_show_their_range_weights_dont(settings):
     settings.qtbot.waitUntil(lambda: settings.editor("model") == "ensemble", timeout=2000)
     settings.wait(50)
     assert range_line(tooltip(settings.item("cell:voice:0:gap"))) == "Range 1–127"
-    assert range_line(tooltip(settings.item("field:movement"))) is None
+    assert range_line(tooltip(settings.item("cell:voice:0:movement"))) is None
 
 
 def test_range_text_comes_from_the_schema_limits():
@@ -783,15 +783,15 @@ def scene_box(item):
     return round(left, 2), round(left + item.width(), 2)
 
 
-def test_switches_and_voice_movement_line_up_with_the_number_fields(settings):
+def test_switches_and_weights_line_up_with_the_number_fields(settings):
     """A switch's label sits where the captions do and the switch ends where
     the number fields end (it used to be the switch's own text, inset by its
-    padding); the ensemble's Voice movement is as wide as the number fields."""
+    padding); the ensemble's weights are as wide as the number fields."""
     settings.add_voicing()
     settings.window.setProperty("page", "voicings")
     for model, switch, number in [("fretboard", "allow_barres", "max_fret"),
                                   ("piano", "add_bass", "rh_center"),
-                                  ("ensemble", "allow_unisons", "movement")]:
+                                  ("ensemble", "allow_unisons", "weight:leap_penalty")]:
         if model != "fretboard":
             settings.model.setModel(model)
             settings.qtbot.waitUntil(lambda: settings.editor("model") == model, timeout=2000)
@@ -802,7 +802,6 @@ def test_switches_and_voice_movement_line_up_with_the_number_fields(settings):
         assert scene_box(settings.item(f"field:{switch}"))[1] == scene_box(settings.item(f"field:{number}"))[1], model
         # The switch is alone at the right of its row, not stretched.
         assert settings.item(f"field:{switch}").width() < settings.item(f"field:{number}").width()
-    assert scene_box(settings.item("field:movement")) == scene_box(settings.item("field:weight:leap_penalty"))
 
 
 def test_switching_the_model_asks_first_when_edited(settings):
@@ -833,7 +832,7 @@ def test_every_section_kind_is_drawn(settings):
                           ("piano", ["field:range:lh_range:low", "field:range:rh_range:high",
                                      "field:rh_center", "field:add_bass", "field:nested:omit:root"]),
                           ("ensemble", ["recordsTable", "field:upper_clef", "field:allow_unisons",
-                                        "field:movement", "field:nested:doubling:root",
+                                        "cell:voice:0:movement", "field:nested:doubling:root",
                                         "field:nested:inversion:first"])]:
         settings.model.setModel(model)
         settings.qtbot.waitUntil(lambda: settings.editor("model") == model, timeout=2000)
@@ -848,14 +847,13 @@ def test_the_voices_table(settings):
     settings.qtbot.waitUntil(lambda: settings.editor("model") == "ensemble", timeout=2000)
     settings.wait(50)
     rows = len(settings.editor("values")["voices"])
-    assert not settings.item("moveUp:0").isEnabled() and settings.item("moveDown:0").isEnabled()
-    assert settings.item(f"moveUp:{rows - 1}").isEnabled()
-    assert not settings.item(f"moveDown:{rows - 1}").isEnabled()
+    assert settings.item("dragRow:0").isVisible() and settings.item(f"dragRow:{rows - 1}").isVisible()
+    assert settings.item("duplicateRow:0").isEnabled() and settings.item("cell:voice:0:movement").isEnabled()
     # The last row's gap is off.
     assert not settings.item(f"cell:voice:{rows - 1}:gap").isEnabled()
     assert settings.item("cell:voice:0:gap").isEnabled()
     first = settings.editor("values")["voices"][0]["name"]
-    settings.click("moveDown:0")
+    settings.model.moveRecord(0, 1, "voices")
     settings.qtbot.waitUntil(lambda: settings.editor("values")["voices"][1]["name"] == first, timeout=2000)
     settings.click("addRecord")
     settings.qtbot.waitUntil(lambda: len(settings.editor("values")["voices"]) == rows + 1, timeout=2000)
@@ -948,3 +946,60 @@ def test_the_voicing_form_scrolls_with_the_wheel_also_over_its_fields(settings):
         settings.wait(20)
     settings.qtbot.waitUntil(lambda: flick.property("contentY") > 0, timeout=1000)
     assert settings.editor("values") == before
+
+
+def _names(settings):
+    return [row["name"] for row in settings.editor("values")["voices"]]
+
+
+def _ensemble_with_four_voices(settings):
+    settings.add_voicing()
+    settings.model.setModel("ensemble")
+    settings.qtbot.waitUntil(lambda: settings.editor("model") == "ensemble", timeout=2000)
+    for _ in range(2):
+        settings.click("addRecord")
+    settings.qtbot.waitUntil(lambda: len(settings.editor("values")["voices"]) == 4, timeout=2000)
+    settings.wait(50)
+
+
+def test_dragging_a_handle_moves_the_voice(settings):
+    _ensemble_with_four_voices(settings)
+    before = _names(settings)
+    handle = settings.item("dragRow:0")
+    start = handle.mapToScene(QPointF(handle.width() / 2, handle.height() / 2)).toPoint()
+    step = settings.item("dragRow:1").mapToScene(QPointF(0, 0)).y() - handle.mapToScene(QPointF(0, 0)).y()
+    QTest.mousePress(settings.window, Qt.MouseButton.LeftButton, Qt.KeyboardModifier.NoModifier, start)
+    for fraction in (0.3, 0.6, 1.0):
+        QTest.mouseMove(settings.window, start + QPoint(0, int(2 * step * fraction)))
+        settings.wait(30)
+    QTest.mouseRelease(settings.window, Qt.MouseButton.LeftButton, Qt.KeyboardModifier.NoModifier,
+                       start + QPoint(0, int(2 * step)))
+    settings.qtbot.waitUntil(lambda: _names(settings) != before, timeout=2000)
+    assert _names(settings) == [before[1], before[2], before[0], before[3]]
+
+
+def test_alt_up_and_down_move_the_row_holding_the_focus(settings):
+    _ensemble_with_four_voices(settings)
+    before = _names(settings)
+    settings.click("cell:voice:2:name")
+    settings.key(Qt.Key.Key_Up, Qt.KeyboardModifier.AltModifier)
+    settings.qtbot.waitUntil(lambda: _names(settings) != before, timeout=2000)
+    assert _names(settings) == [before[0], before[2], before[1], before[3]]
+    settings.wait(100)
+    settings.click("cell:voice:1:name")
+    settings.key(Qt.Key.Key_Down, Qt.KeyboardModifier.AltModifier)
+    settings.qtbot.waitUntil(lambda: _names(settings) == before, timeout=2000)
+
+
+def test_duplicate_inserts_a_copy_of_the_voice_below_it(settings):
+    _ensemble_with_four_voices(settings)
+    before = settings.editor("values")["voices"]
+    settings.click("duplicateRow:1")
+    settings.qtbot.waitUntil(lambda: len(settings.editor("values")["voices"]) == 5, timeout=2000)
+    after = settings.editor("values")["voices"]
+    assert after[2]["name"] == f"{before[1]['name']} 2"
+    assert {k: v for k, v in after[2].items() if k != "name"} == \
+        {k: v for k, v in before[1].items() if k != "name"}
+    assert [r["movement"] for r in after] == [before[0]["movement"], before[1]["movement"],
+                                              before[1]["movement"], before[2]["movement"],
+                                              before[3]["movement"]]

@@ -591,25 +591,75 @@ class EnsembleSpec:
 
         If ``weights['movement']`` is a scalar, it applies to every voice
         except the bottommost, which uses ``weights['bass_movement']``
-        instead. If it is a list, it must have one entry per voice
-        (top-first) and is used verbatim, overriding ``bass_movement`` for
-        the bottom voice too.
+        instead. If it is a list (top-first) it is used verbatim, overriding
+        ``bass_movement`` for the bottom voice too, when it has one entry per
+        voice.
+
+        A list of another length (a copy of a preset that then had voices
+        added or removed, saved before the form kept the two in step) is
+        adapted rather than refused, with one warning: the top voice takes the
+        first entry, the bottom voice the last, and the inner voices the inner
+        entries by relative position (voice ``j`` of ``k`` inner voices takes
+        inner entry ``(2j + 1) * len(inner) // (2k)``). With no inner
+        entries (a list of one or two) the inner voices take the list's mean;
+        The result depends only
+        on the list and the voice count.
 
         Raises:
-            ConfigurationError: if a list-form ``movement`` weight's length
-                doesn't match the number of voices.
+            ConfigurationError: if a list-form ``movement`` weight is empty or
+                holds anything but numbers.
         """
         n = len(self.voices)
         movement = self.weights.get('movement', DEFAULT_WEIGHTS['movement'])
-        if isinstance(movement, (list, tuple)):
-            if len(movement) != n:
-                raise ConfigurationError(
-                    f"Ensemble {self.name!r}: 'movement' list must have one entry per voice "
-                    f"({n}), got {len(movement)}"
-                )
-            return tuple(float(v) for v in movement)
-        bass_movement = float(self.weights.get('bass_movement', DEFAULT_WEIGHTS['bass_movement']))
-        return tuple([float(movement)] * (n - 1) + [bass_movement])
+        bass_movement = self.weights.get('bass_movement', DEFAULT_WEIGHTS['bass_movement'])
+        try:
+            result = expand_movement(movement, bass_movement, n)
+        except ConfigurationError as exc:
+            raise ConfigurationError(f"Ensemble {self.name!r}: {exc}") from None
+        if isinstance(movement, (list, tuple)) and len(movement) != n:
+            logger.warning(
+                "Ensemble %r: 'movement' list has %d entries for %d voices; "
+                "adapting it (top and bottom kept, inner voices by position)",
+                self.name, len(movement), n)
+        return result
+
+
+def expand_movement(movement: Any, bass_movement: Any, n: int) -> Tuple[float, ...]:
+    """The per-voice movement weight of ``n`` voices, top voice first.
+
+    A scalar ``movement`` applies to every voice but the bottom one, which
+    takes ``bass_movement``. A list is used as it is when it has ``n``
+    entries and otherwise adapted (see :meth:`EnsembleSpec.movement_per_voice`).
+
+    Raises:
+        ConfigurationError: for a list that is empty or holds anything but
+            numbers, or a scalar that isn't a number.
+    """
+    if isinstance(movement, (list, tuple)):
+        try:
+            values = [float(v) for v in movement]
+        except (TypeError, ValueError):
+            raise ConfigurationError("'movement' list must hold numbers") from None
+        if not values:
+            raise ConfigurationError("'movement' list must not be empty")
+        return tuple(values) if len(values) == n else _adapted_movement(values, n)
+    try:
+        return tuple([float(movement)] * (n - 1) + [float(bass_movement)])
+    except (TypeError, ValueError):
+        raise ConfigurationError("'movement' must be a number or a list of numbers") from None
+
+
+def _adapted_movement(values: List[float], n: int) -> Tuple[float, ...]:
+    """``values`` (top first) stretched or squeezed to ``n`` voices: see
+    :meth:`EnsembleSpec.movement_per_voice`."""
+    inner = values[1:-1]
+    count = n - 2
+    if inner:
+        middle = [inner[(2 * j + 1) * len(inner) // (2 * count)]
+                  for j in range(count)]
+    else:
+        middle = [sum(values) / len(values)] * count
+    return (values[0], *middle, values[-1])
 
 
 def _builtin(name: str, label: str, voices: List[Tuple], max_spacing: List[int],

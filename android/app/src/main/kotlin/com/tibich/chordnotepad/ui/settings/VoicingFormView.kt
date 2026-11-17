@@ -41,6 +41,9 @@ interface FormActions {
 
     /** Move row [index] of records field [fieldId] by [offset] rows (-1 up, +1 down). */
     fun moveRecord(index: Int, offset: Int, fieldId: String)
+
+    /** Copy row [index] of records field [fieldId] right below it. */
+    fun duplicateRecord(index: Int, fieldId: String)
 }
 
 /**
@@ -201,6 +204,9 @@ private fun RecordsInput(item: FormItem.Records, formKey: String, wide: Boolean,
             }
             IconButton(onClick = { actions.moveRecord(row.index, 1, spec.id) }, enabled = row.canMoveDown) {
                 Icon(SettingsIcons.ArrowDownward, contentDescription = spec.moveDownHelp ?: "Move down")
+            }
+            IconButton(onClick = { actions.duplicateRecord(row.index, spec.id) }, enabled = item.canAdd) {
+                Icon(SettingsIcons.ContentCopy, contentDescription = spec.duplicateHelp ?: "Duplicate")
             }
             IconButton(onClick = { actions.removeRecord(row.index, spec.id) }, enabled = item.canRemove) {
                 Icon(SettingsIcons.Close, contentDescription = spec.removeHelp ?: spec.removeLabel)

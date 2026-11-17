@@ -65,7 +65,8 @@ NO_KEY_LABEL = "None"
 #: (``VoicingEditorState.read_only``); the window doesn't send them then.
 READ_ONLY_REFUSED = frozenset((
     "set_voicing_values", "set_voicing_model", "rename_voicing", "load_voicing_preset",
-    "add_voicing_record", "remove_voicing_record", "move_voicing_record"))
+    "add_voicing_record", "remove_voicing_record", "move_voicing_record",
+    "duplicate_voicing_record"))
 
 #: The audio driver entry that saves no driver: FluidSynth's default, then
 #: the platform's list (``PlaybackService``).
@@ -559,6 +560,12 @@ class SettingsModel(QObject):
         """Remove row ``index`` of records field ``field_id``."""
         self._pending.pop(field_id, None)
         self._voicing_command("remove_voicing_record", {"index": index, "field_id": field_id})
+
+    @Slot(int, str)
+    def duplicateRecord(self, index: int, field_id: str) -> None:  # noqa: N802 (Qt)
+        """Copy row ``index`` of records field ``field_id`` right below it."""
+        self._pending.pop(field_id, None)
+        self._voicing_command("duplicate_voicing_record", {"index": index, "field_id": field_id})
 
     @Slot(int, int, str)
     def moveRecord(self, index: int, offset: int, field_id: str) -> None:  # noqa: N802 (Qt)

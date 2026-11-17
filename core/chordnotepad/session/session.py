@@ -355,6 +355,8 @@ class AppSession:
         self._main.observe("word_wrap", self._on_editor_input)
         self._on_voicing = self._entry(self._publish_voicing_menu)
         self._main.observe("voicing", self._on_voicing)
+        self._on_voicing_used = self._entry(self._report_voicing_failure)
+        self._main.observe("voicing", self._on_voicing_used)
         # A voicing, tempo, key or time-signature change while a song is
         # paused: it was rendered with the old values, so Play re-renders
         # from the paused chord.
@@ -497,6 +499,7 @@ class AppSession:
         # Started after detecting, so the strip is seeded exactly once.
         self._started = True
         self._feed_chord_sheet()
+        self._report_voicing_failure()
 
     def shutdown(self) -> None:
         """Cancel pending work and stop observing; drops every listener."""
@@ -517,6 +520,7 @@ class AppSession:
         self._main.unobserve("font_size", self._on_editor_input)
         self._main.unobserve("word_wrap", self._on_editor_input)
         self._main.unobserve("voicing", self._on_voicing)
+        self._main.unobserve("voicing", self._on_voicing_used)
         for name in _RENDER_INPUTS:
             self._main.unobserve(name, self._on_render_input)
         if self._chord_sheet is not None:
@@ -2246,6 +2250,12 @@ class AppSession:
         self._edit_voicings(lambda edit: edit.remove_record(int(index), field_id))
 
     @_command
+    def duplicate_voicing_record(self, index: int, field_id: str = "voices") -> None:
+        """Copy row ``index`` of a records field of the form right below it
+        (an ensemble voice, named "<name> 2", "<name> 3"...)."""
+        self._edit_voicings(lambda edit: edit.duplicate_record(int(index), field_id))
+
+    @_command
     def move_voicing_record(self, index: int, offset: int, field_id: str = "voices") -> None:
         """Move row ``index`` of a records field of the form by ``offset`` rows
         (-1 up, +1 down); a voice keeps its gap to the next voice."""
@@ -3397,6 +3407,13 @@ class AppSession:
 
     def _voicing_groups(self) -> Tuple[Tuple[MenuItem, ...], ...]:
         return formatting.voicing_menu_groups(self._main.get_voicings())
+
+    def _report_voicing_failure(self, _changed: Any = None) -> None:
+        """Tell the user when the voicing just chosen or loaded couldn't be
+        built and playback fell back to Piano (once per choice or load)."""
+        reason = self._main.voicing_failure
+        if isinstance(reason, str) and reason:
+            self._emitter.emit(UserError(formatting.UNUSABLE_VOICING_TITLE, reason))
 
     def _publish_voicing_menu(self, _changed: Any = None) -> None:
         locked = self._voicing_locked = self._playback_status() is PlaybackStatus.PLAYING

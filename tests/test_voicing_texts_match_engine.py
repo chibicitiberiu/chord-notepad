@@ -58,10 +58,13 @@ def test_ensemble_parallels_spare_a_doubled_bass_line_from_five_voices():
 def test_every_ensemble_weight_has_a_label_and_help():
     from chordnotepad.models.ensemble_spec import DEFAULT_WEIGHTS, _NESTED_WEIGHT_KEYS
     from chordnotepad.settings_forms.voicing_texts import ENSEMBLE_WEIGHT_LABELS
-    flat = {k for k in DEFAULT_WEIGHTS if k not in _NESTED_WEIGHT_KEYS}
+    # The movement weights are a column of the voices table, not weight fields.
+    flat = {k for k in DEFAULT_WEIGHTS
+            if k not in _NESTED_WEIGHT_KEYS and k not in ('movement', 'bass_movement')}
     assert set(ENSEMBLE_WEIGHT_LABELS) == flat
     for key in flat:
         assert TOOLTIPS[f'weight:{key}']
+    assert 'calmer' in TOOLTIPS['voice_movement']
 
 
 def test_ensemble_common_tone_is_the_same_pitch():

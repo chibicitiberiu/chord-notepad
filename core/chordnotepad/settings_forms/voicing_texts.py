@@ -33,8 +33,6 @@ FRETBOARD_WEIGHT_LABELS: Dict[str, str] = {
 }
 
 ENSEMBLE_WEIGHT_LABELS: Dict[str, str] = {
-    'movement': 'Voice movement',
-    'bass_movement': 'Bass movement',
     'leap_penalty': 'Large leap',
     'octave_leap_penalty': 'Octave leap',
     'outer_leap_penalty': 'Wide outer leap',
@@ -257,17 +255,16 @@ TOOLTIPS: Dict[str, str] = {
     'remove_voice': "Remove this voice from the ensemble.",
     'move_voice_up': "Move up",
     'move_voice_down': "Move down",
+    'duplicate_voice': "Duplicate this voice",
+    'drag_voice': "Drag to reorder (Alt+Up or Alt+Down moves the focused row)",
     'allow_unisons': "Whether two neighbouring voices may land on the same pitch.",
     'upper_clef': ("The clef of the Staff view's upper staff; octave lower writes its notes "
                    "an octave above how they sound, as tenor parts are."),
 
     # Ensemble weights.
-    'weight:movement': ("How the picker treats an inner or upper voice moving between chords, "
-                        "per semitone (a single number, or one per voice, top first). More "
-                        "negative discourages movement; positive would encourage it."),
-    'weight:bass_movement': ("How the picker treats the bottom voice moving between chords, per "
-                             "semitone; normally set less negative than the inner-voice movement "
-                             "weight. Ignored when Voice movement lists one value per voice."),
+    'voice_movement': ("How the picker treats this voice moving between chords, per semitone. "
+                       "More negative keeps the voice calmer; positive would encourage it. "
+                       "The bottom voice's is the bass's, normally less negative than the others."),
     'weight:leap_penalty': ("How the picker treats a voice jumping more than a fifth between "
                             "chords. More negative avoids large leaps."),
     'weight:octave_leap_penalty': ("How the picker treats a voice jumping more than an octave, "

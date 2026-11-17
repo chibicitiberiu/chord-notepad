@@ -252,7 +252,7 @@ class TestRegistryDispatchFretboard:
             "my_tuning": {"model": "fretboard", "tuning": CUSTOM_TUNING}
         }
         sentinel = Mock(name="picker")
-        with patch("chordnotepad.services.playback_service.GuitarChordPicker", return_value=sentinel) as mock_cls:
+        with patch("chordnotepad.audio.guitar_chord_picker.GuitarChordPicker", return_value=sentinel) as mock_cls:
             picker = playback_service._create_note_picker("voicing:my_tuning")
 
         assert picker is sentinel

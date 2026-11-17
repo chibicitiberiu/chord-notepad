@@ -97,7 +97,7 @@ class VoicingFormTest {
         val items = formOf(Fixtures.ensemble)
         val records = items.filterIsInstance<FormItem.Records>().single()
         assertEquals("voices", records.spec.id)
-        assertEquals(listOf("name", "low", "high", "staff", "gap"), records.spec.columns.map { it.id })
+        assertEquals(listOf("name", "low", "high", "staff", "gap", "movement"), records.spec.columns.map { it.id })
         // Voice 3 was added and moved up one place.
         assertEquals(listOf("Voice 1", "Voice 3", "Voice 2"), records.rows.map { r -> r.cells.first { it.spec.id == "name" }.text })
         // min_items 2, max_items 8: may add and remove.
@@ -115,7 +115,7 @@ class VoicingFormTest {
         val fields = items.fields().associateBy { it.spec.id }
         // No spacing field: the gaps are per voice.
         assertFalse("max_spacing" in fields)
-        assertEquals(FieldKind.FLOAT_OR_LIST, fields.getValue("movement").spec.kind)
+        assertFalse("movement" in fields)  // a column of the voices table
         // The upper staff's clef: a choice in its own stack, plain treble by default.
         val clef = fields.getValue("upper_clef")
         assertEquals(FieldKind.CHOICE, clef.spec.kind)
@@ -153,6 +153,8 @@ class VoicingFormTest {
         assertEquals(listOf(false, true, true), records.rows.map { it.canMoveUp })
         assertEquals(listOf(true, true, false), records.rows.map { it.canMoveDown })
         assertEquals("Move up", records.spec.moveUpHelp)
+        assertEquals("Duplicate this voice", records.spec.duplicateHelp)
+        assertEquals("Movement cost", records.spec.columns.first { it.id == "movement" }.label)
         assertEquals("Move down", records.spec.moveDownHelp)
     }
 

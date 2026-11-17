@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import CNStyle
 import CNTheme
 import "FormTips.js" as FormTips
 
@@ -21,7 +22,7 @@ import "FormTips.js" as FormTips
 // A switch (`bool`) is a row of the number grid: its caption in the label
 // column and the switch alone at the right, where the number fields end, so
 // captions and fields line up down the form. The grid's fields are all one
-// width, the ensemble's Voice movement too.
+// width.
 ColumnLayout {
     id: vform
     objectName: "voicingForm"
@@ -311,9 +312,10 @@ ColumnLayout {
         }
     }
 
-    // A records field as a table (the ensemble's voices): ↑ ↓ ✕ per row and
-    // Add voice; a column with disabled_in_last_row (the gap to the next
-    // voice) is off in the last row.
+    // A records field as a table (the ensemble's voices): a drag handle at the
+    // left of each row (Alt+Up / Alt+Down moves the row holding the focus),
+    // ⧉ ✕ at its right, and Add voice; a column with disabled_in_last_row (the
+    // gap to the next voice) is off in the last row.
     component TableSection: ColumnLayout {
         id: table
         required property var section
@@ -321,6 +323,16 @@ ColumnLayout {
         readonly property var rows: vform.values[table.field.id] || []
         spacing: Theme.gap1
         Layout.fillWidth: true
+        // Alt+Up / Alt+Down in a cell or button of a row: move that row.
+        function moveRowOnKey(row, event) {
+            if (!(event.modifiers & Qt.AltModifier)) return
+            const offset = event.key === Qt.Key_Up ? -1 : event.key === Qt.Key_Down ? 1 : 0
+            if (offset === 0) return
+            event.accepted = true
+            const target = row + offset
+            if (target >= 0 && target < table.rows.length)
+                vform.settings.moveRecord(row, offset, table.field.id)
+        }
         SectionTitle { text: table.section.title || "" }
         GridLayout {
             id: cells
@@ -328,6 +340,8 @@ ColumnLayout {
             columns: table.field.columns.length + 3
             columnSpacing: Theme.gap2
             rowSpacing: Theme.gap1
+            // The distance between two rows' tops (what a drag measures in).
+            readonly property real rowStep: Theme.controlHeight + cells.rowSpacing
             Repeater {
                 model: table.field.columns
                 delegate: Caption {
@@ -342,7 +356,7 @@ ColumnLayout {
                     Layout.maximumWidth: Theme.px(2 * (modelData.width || 8) + 4)
                     Layout.alignment: Qt.AlignBottom
                     Layout.row: 0
-                    Layout.column: index
+                    Layout.column: index + 1
                 }
             }
             Repeater {
@@ -356,7 +370,7 @@ ColumnLayout {
                     readonly property var record: table.rows[tc.row] || ({})
                     readonly property string path: vform.cellPath(table.field, tc.row, tc.column.id)
                     Layout.row: tc.row + 1
-                    Layout.column: index % table.field.columns.length
+                    Layout.column: index % table.field.columns.length + 1
                     Layout.preferredWidth: Theme.px(2 * (tc.column.width || 8) + 4)
                     implicitHeight: Theme.controlHeight
                     Loader {
@@ -372,6 +386,8 @@ ColumnLayout {
                             error: tc.column.kind === "text" ? "" : vform.err(tc.path)
                             tip: tc.column.help || ""
                             font: tc.column.kind === "pitch" ? Theme.fontMonoS : Theme.font
+                            Keys.priority: Keys.BeforeItem
+                            Keys.onPressed: (event) => table.moveRowOnKey(tc.row, event)
                             onEdited: (t) => vform.settings.setCell(table.field.id, tc.row, tc.column.id, t, false)
                         }
                     }
@@ -385,6 +401,8 @@ ColumnLayout {
                             tip: tc.column.help || ""
                             range: tc.column.range || ""
                             from: tc.column.min; to: tc.column.max; stepSize: tc.column.step || 1
+                            Keys.priority: Keys.BeforeItem
+                            Keys.onPressed: (event) => table.moveRowOnKey(tc.row, event)
                             onEdited: (t) => vform.settings.setCell(table.field.id, tc.row, tc.column.id, t, false)
                         }
                     }
@@ -394,6 +412,8 @@ ColumnLayout {
                             objectName: "cell:" + tc.path
                             model: tc.column.choices.map((c) => c.label)
                             currentIndex: vform.choiceIndex(tc.column.choices, tc.record[tc.column.id])
+                            Keys.priority: Keys.BeforeItem
+                            Keys.onPressed: (event) => table.moveRowOnKey(tc.row, event)
                             onActivated: (i) => vform.settings.setCell(table.field.id, tc.row, tc.column.id, tc.column.choices[i].value, true)
                             HoverHandler { id: chHover }
                             ToolTip.visible: chHover.hovered && ToolTip.text !== ""
@@ -403,24 +423,65 @@ ColumnLayout {
                     }
                 }
             }
-            // ↑ ↓ ✕ of each row.
+            // The drag handle of each row: dragging it past other rows moves the voice there.
             Repeater {
-                model: table.rows.length * 3
+                model: table.rows.length
+                delegate: Item {
+                    id: grip
+                    required property int index
+                    readonly property int row: grip.index
+                    objectName: "dragRow:" + grip.row
+                    Layout.row: grip.row + 1
+                    Layout.column: 0
+                    implicitWidth: Theme.px(4)
+                    implicitHeight: Theme.controlHeight
+                    Accessible.role: Accessible.Button
+                    Accessible.name: table.field.drag_help || ""
+                    PixelIcon {
+                        anchors.centerIn: grip
+                        name: "drag-vertical"
+                        size: Theme.px(4)
+                        color: dragger.active ? Theme.icon : Theme.muted
+                    }
+                    HoverHandler {
+                        id: gripHover
+                        cursorShape: dragger.active ? Qt.ClosedHandCursor : Qt.OpenHandCursor
+                    }
+                    ToolTip.visible: gripHover.hovered && !dragger.active
+                    ToolTip.delay: 600
+                    ToolTip.text: table.field.drag_help || ""
+                    DragHandler {
+                        id: dragger
+                        objectName: "dragHandler:" + grip.row
+                        target: null
+                        xAxis.enabled: false
+                        onActiveChanged: {
+                            if (active) return
+                            const shift = Math.round((centroid.scenePosition.y - centroid.scenePressPosition.y) / cells.rowStep)
+                            const to = Math.max(0, Math.min(table.rows.length - 1, grip.row + shift))
+                            if (to !== grip.row) vform.settings.moveRecord(grip.row, to - grip.row, table.field.id)
+                        }
+                    }
+                }
+            }
+            // ⧉ ✕ of each row.
+            Repeater {
+                model: table.rows.length * 2
                 delegate: IconButton {
                     required property int index
-                    readonly property int row: Math.floor(index / 3)
-                    readonly property int which: index % 3
-                    objectName: ["moveUp", "moveDown", "removeRow"][which] + ":" + row
+                    readonly property int row: Math.floor(index / 2)
+                    readonly property int which: index % 2
+                    objectName: ["duplicateRow", "removeRow"][which] + ":" + row
                     Layout.row: row + 1
-                    Layout.column: table.field.columns.length + which
-                    iconName: ["chevron-up", "chevron-down", "close"][which]
-                    text: [table.field.move_up_label, table.field.move_down_label, table.field.remove_label][which]
-                    tip: [table.field.move_up_help, table.field.move_down_help, table.field.remove_help][which]
+                    Layout.column: table.field.columns.length + 1 + which
+                    iconName: ["content-copy", "close"][which]
+                    text: [table.field.duplicate_label, table.field.remove_label][which]
+                    tip: [table.field.duplicate_help, table.field.remove_help][which]
                     Accessible.name: tip
-                    enabled: which === 0 ? row > 0 : which === 1 ? row < table.rows.length - 1 : true
+                    enabled: which === 0 ? table.rows.length < (table.field.max_items || 8) : true
                     onClicked: {
-                        if (which === 2) vform.settings.removeRecord(row, table.field.id)
-                        else vform.settings.moveRecord(row, which === 0 ? -1 : 1, table.field.id)
+                        if (which === 0) vform.settings.duplicateRecord(row, table.field.id)
+                        else vform.settings.removeRecord(row, table.field.id)
                     }
                 }
             }

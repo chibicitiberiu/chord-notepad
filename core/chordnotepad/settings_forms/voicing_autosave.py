@@ -97,6 +97,8 @@ def _old_value(model: str, base: Mapping[str, Any], field_id: str) -> Any:
         # The bottom voice's gap isn't saved; one that moved up or got a
         # voice below falls back to the gap a new one gets.
         return str(form.DEFAULT_GAP)
+    if column == form.MOVEMENT_COLUMN and not _text(value).strip():
+        return str(form.ENSEMBLE_DEFAULT_WEIGHTS['movement'])
     return value
 
 
@@ -312,10 +314,6 @@ def _parse_message(field: Optional[Mapping[str, Any]], typed: str) -> str:
         bad = _first_bad(text, _is_int, r',')
         if bad:
             return f"{bad.strip()} isn't a whole number."
-    elif kind == form.KIND_FLOAT_OR_LIST:
-        bad = _first_bad(text, _is_float, r',')
-        if bad:
-            return f"{bad.strip()} isn't a number."
     elif kind == form.KIND_CHOICE:
         return f"{text} isn't one of the choices."
     return "This value can't be read."
@@ -356,8 +354,6 @@ def field_syntax(field: Optional[Mapping[str, Any]], values: Mapping[str, Any],
             count = max(len(values.get(rule['records']) or []) + rule['offset'], 0)
             return f'Use whole numbers separated by commas, {count} of them.'
         return 'Use whole numbers separated by commas.'
-    if kind == form.KIND_FLOAT_OR_LIST:
-        return 'Use a number, or one number per voice separated by commas.'
     if kind == form.KIND_CHOICE:
         names = [choice['label'] for choice in field.get('choices', [])]
         if len(names) < 2:

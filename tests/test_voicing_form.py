@@ -6,6 +6,8 @@ schema, the values and the error ids agree, and the messages keep the
 desktop's wording.
 """
 
+import copy
+import dataclasses
 import json
 
 import pytest
@@ -83,6 +85,10 @@ def test_builtin_round_trips_spec_values_spec(model, spec):
     back = vf.voicing_from_values(model, values, label=spec.label)
     assert back['model'] == model
     rebuilt = _SPEC_CLASSES[model].from_dict(spec.name, back)
+    if model == 'ensemble':
+        # The form saves the movement weight as one value per voice.
+        assert rebuilt.movement_per_voice() == spec.movement_per_voice()
+        rebuilt = dataclasses.replace(rebuilt, weights=dict(spec.weights))
     assert rebuilt == spec
     assert vf.field_errors(model, values) == {}
     assert vf.cross_field_errors(spec.name, model, values, spec.label) == []
@@ -162,7 +168,7 @@ def test_every_parseable_field_reports_with_a_schema_id(model):
     broken = {}
     for key, value in values.items():
         if key == 'voices':
-            broken[key] = [{**row, 'low': 'zz', 'high': 'zz', 'staff': 'alto', 'gap': 'zz'}
+            broken[key] = [{**row, 'low': 'zz', 'high': 'zz', 'staff': 'alto', 'gap': 'zz', 'movement': 'zz'}
                            for row in value]
         elif isinstance(value, str):
             broken[key] = 'zz'
@@ -188,13 +194,14 @@ def test_error_wording_per_kind():
         'weight:barre_penalty': 'Must be a number',
     }
     ens = vf.default_values('ensemble')
-    ens['voices'][0] = {**ens['voices'][0], 'low': 'Q', 'staff': 'alto', 'gap': 'x'}
-    ens.update({'movement': 'a,b', 'nested:doubling:third': 'bad'})
+    ens['voices'][0] = {**ens['voices'][0], 'low': 'Q', 'staff': 'alto', 'gap': 'x',
+                        'movement': 'a'}
+    ens.update({'nested:doubling:third': 'bad'})
     assert vf.field_errors('ensemble', ens) == {
         'voice:0:low': 'Not a valid note name',
         'voice:0:staff': "Must be 'treble', 'bass', or omitted",
         'voice:0:gap': 'Must be a whole number',
-        'movement': 'Must be a number or list of numbers',
+        'voice:0:movement': 'Must be a number',
         'nested:doubling:third': 'Must be a number',
     }
     piano = {**vf.default_values('piano'), 'range:rh_range:high': 'Q9', 'rh_center': 'x',
@@ -297,8 +304,10 @@ def test_missing_max_spacing_shows_the_spec_defaults():
         {'name': 'C', 'range': [40, 52]}]}
     values = vf.values_from_voicing('ensemble', data)
     assert _gaps(values) == ['12', '19', '']
-    assert EnsembleSpec.from_dict('x', vf.voicing_from_values('ensemble', values)) == \
-        EnsembleSpec.from_dict('x', data)
+    saved = EnsembleSpec.from_dict('x', vf.voicing_from_values('ensemble', values))
+    original = EnsembleSpec.from_dict('x', data)
+    assert saved.movement_per_voice() == original.movement_per_voice()
+    assert dataclasses.replace(saved, weights=original.weights) == original
 
 
 def test_a_raw_spacing_list_shows_entry_by_entry():
@@ -428,7 +437,7 @@ def test_add_and_remove_record_normalise_like_the_desktop():
     added = vf.add_record('ensemble', values)
     assert [v['name'] for v in added['voices']] == ['Voice 1', 'Voice 2', 'Voice 3']
     assert added['voices'][2] == {'name': 'Voice 3', 'low': 'C3', 'high': 'C4', 'staff': None,
-                                  'gap': ''}
+                                  'gap': '', 'movement': '-0.15'}
     assert added['voices'][0]['low'] == 'C#4'
     removed = vf.remove_record('ensemble', added, 0)
     assert [v['name'] for v in removed['voices']] == ['Voice 2', 'Voice 3']
@@ -601,3 +610,90 @@ def test_every_built_in_and_default_is_inside_its_ranges():
     for item in data:
         assert vf.range_errors(item) == {}, item
         assert vf.voicing_error('T', item) is None, item
+
+
+# ---------------------------------------------------------------------------
+# The movement column
+# ---------------------------------------------------------------------------
+
+
+def _quartet():
+    return next(p['data'] for p in vf.load_presets() if p['label'] == 'String Quartet')
+
+
+def _cells(values):
+    return [row['movement'] for row in values['voices']]
+
+
+def test_movement_is_a_column_of_the_voices_table_and_no_separate_field():
+    ids = {f['id'] for f in vf.iter_fields(vf.form_schema('ensemble'))}
+    assert 'movement' not in ids and 'weight:bass_movement' not in ids
+    column = next(c for c in _voices_field()['columns'] if c['id'] == 'movement')
+    assert column['label'] == 'Movement cost'
+    assert 'calmer' in column['help']
+
+
+def test_scalar_movement_loads_as_cells_with_the_bass_value_last():
+    data = {'model': 'ensemble', 'weights': {'movement': -0.4, 'bass_movement': -0.1},
+            'voices': [{'name': n, 'range': r} for n, r in
+                       (('A', [60, 72]), ('B', [52, 64]), ('C', [40, 52]))]}
+    values = vf.values_from_voicing('ensemble', data)
+    assert _cells(values) == ['-0.4', '-0.4', '-0.1']
+    assert vf.voicing_from_values('ensemble', values)['weights']['movement'] == [-0.4, -0.4, -0.1]
+    assert 'bass_movement' not in vf.voicing_from_values('ensemble', values)['weights']
+
+
+def test_list_movement_loads_verbatim_and_a_wrong_length_adapted():
+    values = vf.values_from_voicing('ensemble', _quartet())
+    assert _cells(values) == ['-0.8', '-0.4', '-0.4', '-0.15']
+    tibi = copy.deepcopy(_quartet())
+    tibi['voices'] += [{'name': 'Solo', 'range': ['B1', 'D4']},
+                       {'name': 'Double Bass', 'range': ['E1', 'G2']}]
+    tibi['max_spacing'] += [12, 12]
+    values = vf.values_from_voicing('ensemble', tibi)
+    assert _cells(values) == ['-0.8', '-0.4', '-0.4', '-0.4', '-0.4', '-0.15']
+    assert vf.field_errors('ensemble', values) == {}
+
+
+def test_movement_cells_travel_with_their_voice():
+    values = vf.values_from_voicing('ensemble', _quartet())
+    names = [r['name'] for r in values['voices']]
+    moved = vf.move_record('ensemble', values, 0, 2)
+    assert [r['name'] for r in moved['voices']] == [names[1], names[2], names[0], names[3]]
+    assert _cells(moved) == ['-0.4', '-0.4', '-0.8', '-0.15']
+    removed = vf.remove_record('ensemble', values, 1)
+    assert _cells(removed) == ['-0.8', '-0.4', '-0.15']
+
+
+def test_a_voice_added_at_the_bottom_takes_the_bottom_value_and_the_old_bottom_an_inner_one():
+    values = vf.values_from_voicing('ensemble', _quartet())
+    added = vf.add_record('ensemble', values)
+    assert _cells(added) == ['-0.8', '-0.4', '-0.4', '-0.4', '-0.15']
+    # With no inner voice the old bottom keeps its own.
+    two = vf.default_values('ensemble')
+    assert _cells(vf.add_record('ensemble', two)) == ['-0.4', '-0.15', '-0.15']
+    assert vf.voicing_with_record_added(_quartet())['weights']['movement'] == \
+        [-0.8, -0.4, -0.4, -0.4, -0.15]
+    assert vf.voicing_with_record_removed(_quartet(), 0)['weights']['movement'] == \
+        [-0.4, -0.4, -0.15]
+
+
+def test_duplicating_a_voice_copies_the_row_below_it_with_a_new_name():
+    values = vf.values_from_voicing('ensemble', _quartet())
+    values['voices'][1]['gap'] = '14'
+    copied = vf.duplicate_record('ensemble', values, 1)
+    names = [r['name'] for r in copied['voices']]
+    assert names == [values['voices'][0]['name'], 'Violin II', 'Violin II 2',
+                     values['voices'][2]['name'], values['voices'][3]['name']]
+    assert {k: v for k, v in copied['voices'][2].items() if k != 'name'} == \
+        {k: v for k, v in copied['voices'][1].items() if k != 'name'}
+    assert copied['voices'][2]['gap'] == '14'
+    assert _cells(copied) == ['-0.8', '-0.4', '-0.4', '-0.4', '-0.15']
+    # Again: the next free number; the original is unchanged by it.
+    again = vf.duplicate_record('ensemble', copied, 1)
+    assert [r['name'] for r in again['voices']][:4] == [
+        values['voices'][0]['name'], 'Violin II', 'Violin II 3', 'Violin II 2']
+    # The bottom voice: the original gains a voice below and so a gap.
+    bottom = vf.duplicate_record('ensemble', values, 3)
+    assert bottom['voices'][3]['gap'] != '' and _cells(bottom)[-2:] == ['-0.15', '-0.15']
+    assert vf.duplicate_record('ensemble', values, 9)['voices'] == values['voices']

@@ -240,6 +240,13 @@ class SettingsEdit:
         self._replace_values(form.remove_record(self._form_model, self._values, index, field_id,
                                                 self.notation))
 
+    def duplicate_record(self, index: int, field_id: str = "voices") -> None:
+        """Copy row ``index`` of a records field right below it (nothing if
+        out of range): the same cells, the name with " 2" added."""
+        self._require_editable()
+        self._replace_values(form.duplicate_record(self._form_model, self._values, index,
+                                                   field_id, self.notation))
+
     def move_record(self, index: int, offset: int, field_id: str = "voices") -> None:
         """Move row ``index`` of a records field by ``offset`` rows (-1 up, +1
         down; nothing if it would leave the list)."""

@@ -13,6 +13,7 @@ from chordnotepad.audio.player import NotePlayer
 from chordnotepad.audio.note_picker_interface import INotePicker
 from chordnotepad.audio.chord_picker import ChordNotePicker
 from chordnotepad.audio.guitar_chord_picker import GuitarChordPicker
+from chordnotepad.audio.picker_factory import build_picker
 from chordnotepad.audio.event_buffer import EventBuffer
 from chordnotepad.services.song_renderer import SongRenderer
 from chordnotepad.services.event_compiler import compile_events
@@ -23,7 +24,7 @@ from chordnotepad.models.playback_event import PlaybackEventArgs
 from chordnotepad.models.line import Line
 from chordnotepad.models.rendered_song import RenderedSong
 from chordnotepad.services.config_service import ConfigService
-from chordnotepad.exceptions import AudioInitializationError, RenderAborted
+from chordnotepad.exceptions import AudioInitializationError, ConfigurationError, RenderAborted
 from chordnotepad.constants import ROLL_GAP_SECONDS
 
 
@@ -65,7 +66,11 @@ class PlaybackService:
         self._player: Optional[IPlayer] = player
         # Before the note picker: building a configured voicing that fails logs a warning.
         self._logger = logging.getLogger(__name__)
+        self._failure: Optional[str] = None
         self._note_picker = self._create_note_picker(self._config.get("voicing", "piano"))
+        #: Why the configured voicing was replaced by Piano (None when it wasn't);
+        #: set when the voicing is chosen or loaded, for the session to report once.
+        self.voicing_failure: Optional[str] = self._failure
         # Click-to-hear's picker, built on the first click (see _notes_to_midi)
         # so start-up builds one picker, not two. Never the render's picker: a
         # click during a render would change state that thread is using.
@@ -141,45 +146,25 @@ class PlaybackService:
             An INotePicker instance for the resolved model, or a
             ``ChordNotePicker`` fallback.
         """
-        from chordnotepad.exceptions import ConfigurationError
-
         voicings = self._config.get("voicings", {})
         params = voicings.get(name)
         if params is None:
             self._logger.warning(f"Unknown voicing '{name}'; falling back to piano")
+            self._failure = self._unusable(name, "there is no such voicing")
             return ChordNotePicker()
-
-        params = dict(params)
-        model = params.pop("model", None)
 
         try:
-            if model == "fretboard":
-                from chordnotepad.models.fretboard_spec import FretboardSpec
-
-                spec = FretboardSpec.from_dict(name, params)
-                return GuitarChordPicker(spec)
-            elif model == "ensemble":
-                from chordnotepad.models.ensemble_spec import EnsembleSpec
-                # Imported lazily (rather than at module level) because this
-                # module is owned by a concurrent task and may not exist on
-                # disk yet when this branch is first exercised.
-                from chordnotepad.audio.ensemble_voicer import EnsembleVoicer
-
-                spec = EnsembleSpec.from_dict(name, params)
-                return EnsembleVoicer(spec)
-            elif model == "piano":
-                from chordnotepad.models.piano_spec import PianoSpec
-
-                spec = PianoSpec.from_dict(name, params)
-                return ChordNotePicker(spec)
-            else:
-                self._logger.warning(
-                    f"Unknown model {model!r} for voicing '{name}'; falling back to piano"
-                )
-                return ChordNotePicker()
+            return build_picker(name, params)
         except ConfigurationError as e:
             self._logger.warning(f"Invalid voicing '{name}': {e}; falling back to piano")
+            self._failure = self._unusable(name, str(e))
             return ChordNotePicker()
+
+    @staticmethod
+    def _unusable(name: str, reason: str) -> str:
+        """What the user is told when voicing ``name`` can't be built."""
+        return (f"Voicing {name!r} can't be used: {reason.strip().rstrip('.')}. "
+                "Playing with Piano until it's fixed in Settings.")
 
     def _create_guitar_picker(self, tuning_name: str) -> INotePicker:
         """Create a ``GuitarChordPicker`` for a built-in fretboard tuning.
@@ -244,7 +229,9 @@ class PlaybackService:
             voicing: Voicing string like 'piano', 'guitar:standard', etc.
         """
         self._logger.debug(f"Setting voicing to {voicing}")
+        self._failure = None
         self._note_picker = self._create_note_picker(voicing)
+        self.voicing_failure = self._failure
         self._click_picker = None  # the next click builds one for this voicing
         self._config.set("voicing", voicing)
 

@@ -143,6 +143,8 @@ private fun VoicingDetail(schema: EditorSchema, view: EditorView, wide: Boolean,
             override fun removeRecord(index: Int, fieldId: String) = controller.removeRecord(index, fieldId)
             override fun moveRecord(index: Int, offset: Int, fieldId: String) =
                 controller.moveRecord(index, offset, fieldId)
+            override fun duplicateRecord(index: Int, fieldId: String) =
+                controller.duplicateRecord(index, fieldId)
         }
     }
     Column(modifier) {

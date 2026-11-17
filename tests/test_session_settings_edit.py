@@ -9,6 +9,7 @@ import json
 
 import pytest
 
+from chordnotepad.constants import CONFIG_VERSION
 from chordnotepad.services.appdata_service import AppDataService
 from chordnotepad.session.bootstrap import build_core_services, create_session
 from chordnotepad.session.events import UserError
@@ -21,11 +22,13 @@ from chordnotepad.session.testing import EventRecorder, FakePlayer, InMemoryDocu
 from chordnotepad.settings_forms import voicing_form
 
 
-def make(tmp_path, voicings=None):
+def make(tmp_path, voicings=None, current=False):
     if voicings is not None:
         config_dir = tmp_path / "config" / "chord-notepad"
         config_dir.mkdir(parents=True)
-        (config_dir / "settings.json").write_text(json.dumps({"voicings": voicings}))
+        # An old (versionless) config is migrated on load; ``current`` is one that isn't.
+        settings = {"version": CONFIG_VERSION, "voicings": voicings} if current else {"voicings": voicings}
+        (config_dir / "settings.json").write_text(json.dumps(settings))
     host = ManualHost()
     services = build_core_services(AppDataService(root=tmp_path), HostDispatch(host),
                                    player=FakePlayer())

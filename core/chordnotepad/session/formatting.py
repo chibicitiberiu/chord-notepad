@@ -447,6 +447,8 @@ CAPO_STALE_STATUS = "The song changed while finding a capo; nothing was inserted
 
 #: The title of the error naming the first invalid voicing at Save.
 INVALID_VOICING_TITLE = "Invalid Voicing"
+#: The title of the notice that the voicing in use was replaced by Piano.
+UNUSABLE_VOICING_TITLE = "Voicing Not Used"
 SETTINGS_TITLE = "Settings"
 
 

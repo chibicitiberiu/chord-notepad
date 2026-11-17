@@ -772,6 +772,11 @@ class MainWindowViewModel(Observable):
         # so observers (e.g. the chord sheet) must re-render regardless.
         self.notify("voicing", voicing)
 
+    @property
+    def voicing_failure(self) -> Optional[str]:
+        """Why the voicing chosen last was replaced by Piano, or None."""
+        return getattr(self._audio, "voicing_failure", None)
+
     def get_voicings(self) -> dict:
         """Get the raw voicings registry.
 

@@ -68,6 +68,17 @@
            "min": 1,
            "step": 1,
            "width": 6
+          },
+          {
+           "default": "",
+           "help": "How the picker treats this voice moving between chords, per semitone. More negative keeps the voice calmer; positive would encourage it. The bottom voice's is the bass's, normally less negative than the others.",
+           "id": "movement",
+           "kind": "float",
+           "label": "Movement cost",
+           "max": 100.0,
+           "min": -100.0,
+           "step": 0.1,
+           "width": 6
           }
          ],
          "default": [
@@ -75,6 +86,7 @@
            "gap": "19",
            "high": "C5",
            "low": "C4",
+           "movement": "-0.4",
            "name": "Voice 1",
            "staff": null
           },
@@ -82,10 +94,14 @@
            "gap": "",
            "high": "C4",
            "low": "C3",
+           "movement": "-0.15",
            "name": "Voice 2",
            "staff": null
           }
          ],
+         "drag_help": "Drag to reorder (Alt+Up or Alt+Down moves the focused row)",
+         "duplicate_help": "Duplicate this voice",
+         "duplicate_label": "⧉",
          "error_path": "voice:{index}:{column}",
          "help": "",
          "id": "voices",
@@ -101,6 +117,7 @@
           "gap": "",
           "high": "C4",
           "low": "C3",
+          "movement": "",
           "name": "Voice {n}",
           "staff": null
          },
@@ -153,24 +170,6 @@
       {
        "blurb": "Each weight adds to a voicing's score, so a higher number always means more preferred. Positive values pull the picker toward a trait; negative values push it away. Zero is neutral. The defaults suit most music, so change these only if the results aren't to your taste.",
        "fields": [
-        {
-         "default": "-0.4",
-         "help": "How the picker treats an inner or upper voice moving between chords, per semitone (a single number, or one per voice, top first). More negative discourages movement; positive would encourage it.",
-         "id": "movement",
-         "kind": "float_or_list",
-         "label": "Voice movement",
-         "width": 10
-        },
-        {
-         "default": "-0.15",
-         "help": "How the picker treats the bottom voice moving between chords, per semitone; normally set less negative than the inner-voice movement weight. Ignored when Voice movement lists one value per voice.",
-         "id": "weight:bass_movement",
-         "kind": "float",
-         "label": "Bass movement",
-         "max": 100.0,
-         "min": -100.0,
-         "step": 0.1
-        },
         {
          "default": "-2.0",
          "help": "How the picker treats a voice jumping more than a fifth between chords. More negative avoids large leaps.",

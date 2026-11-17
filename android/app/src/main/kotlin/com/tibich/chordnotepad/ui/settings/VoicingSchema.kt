@@ -24,7 +24,6 @@ enum class FieldKind(val wire: String) {
     CHOICE("choice"),
     PITCH("pitch"),
     PITCH_LIST("pitch_list"),
-    FLOAT_OR_LIST("float_or_list"),
     RECORDS("records"),
     ;
 
@@ -84,6 +83,7 @@ data class FieldSpec(
     val removeHelp: String? = null,
     val moveUpHelp: String? = null,
     val moveDownHelp: String? = null,
+    val duplicateHelp: String? = null,
     val disabledInLastRow: Boolean = false,
 ) {
     /** The error key of records cell ([index], [column]); the field id itself for other fields. */
@@ -187,6 +187,7 @@ private fun parseField(json: JsonObject): FieldSpec = FieldSpec(
     removeHelp = json.str("remove_help"),
     moveUpHelp = json.str("move_up_help"),
     moveDownHelp = json.str("move_down_help"),
+    duplicateHelp = json.str("duplicate_help"),
     disabledInLastRow = (json["disabled_in_last_row"] as? JsonPrimitive)?.booleanOrNull ?: false,
 )
 

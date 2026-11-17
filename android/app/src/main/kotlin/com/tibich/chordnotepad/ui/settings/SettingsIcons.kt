@@ -48,6 +48,12 @@ object SettingsIcons {
     val ArrowDownward: ImageVector =
         icon("ArrowDownward", "M20,12l-1.41,-1.41L13,16.17V4h-2v12.17l-5.58,-5.59L4,12l8,8 8,-8z")
 
+    /** Duplicate a row (Material "content copy"). */
+    val ContentCopy: ImageVector = icon(
+        "ContentCopy",
+        "M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z",
+    )
+
     /** Remove a row. */
     val Close: ImageVector = icon(
         "Close",

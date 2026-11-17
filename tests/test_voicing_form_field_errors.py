@@ -244,7 +244,8 @@ def test_movement_raw_string_flagged():
         'weights': {'movement': 'a,b'},
     }
     errors = field_errors(data)
-    assert 'movement' in errors
+    # A raw value is blamed on the first voice's movement cost.
+    assert errors == {'voice:0:movement': 'Must be a number'}
 
 
 def test_nested_role_raw_string_flagged():

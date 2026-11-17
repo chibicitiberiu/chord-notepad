@@ -61,6 +61,10 @@
       "anchor": "int",
       "cursor": "int"
     },
+    "duplicate_voicing_record": {
+      "field_id": "str",
+      "index": "int"
+    },
     "export_midi": {},
     "identifier_clear": {},
     "identifier_play_selection": {
@@ -344,6 +348,7 @@
     "dismiss_notice",
     "dismiss_startup_screen",
     "duplicate_lines",
+    "duplicate_voicing_record",
     "export_midi",
     "identifier_clear",
     "identifier_play_selection",

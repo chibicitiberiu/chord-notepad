@@ -148,8 +148,8 @@ which puts it on the treble staff.
 
 The String Quartet is tuned as a background pad rather than four-part
 choir writing, so it has a few weights of its own. Violin I, the line you
-hear on top, costs twice as much to move as the two middle voices (Voice
-movement is ``-0.8, -0.4, -0.4, -0.15``), and the leading tone's bonus for
+hear on top, costs twice as much to move as the two middle voices (the Movement
+costs are ``-0.8, -0.4, -0.4, -0.15``), and the leading tone's bonus for
 rising to the tonic is 4.5, so the calmer top line still resolves it in G
 to Am. Its upper voices may spread an octave apart before Wide
 upper spacing costs anything (Upper spacing allowed is 12; a choir keeps 7,
@@ -284,11 +284,19 @@ Custom Ensembles
 
    The **Voices** table has a row per voice, top voice first: **Name**,
    **Low** and **High** (the range), **Staff** (where the Staff view draws
-   it; see the ``staff`` key below for what **Auto** does), and **Max gap to
+   it; see the ``staff`` key below for what **Auto** does), **Max gap to
    next voice**, the largest gap in semitones between this voice and the
-   one below it. The bottom voice has no voice below, so its gap is greyed
-   out. **↑** and **↓** move a voice up or down a place (its gap goes with
-   it), **✕** removes it, and **Add voice** adds one at the bottom. A voice
+   one below it, and **Movement cost**, how much the picker dislikes this
+   voice moving between chords (per semitone; a more negative value keeps
+   the voice calmer, and the bottom voice's is the bass's, normally nearer
+   zero). The bottom voice has no voice below, so its gap is greyed out.
+   Drag the grip at the left of a row to move that voice up or down (or
+   focus a row and press :kbd:`Alt+Up` or :kbd:`Alt+Down`); its gap and
+   movement cost go with it. **⧉** copies a voice right below itself, with
+   the same range, staff, gap and movement cost and a name that ends in 2
+   (3, 4... if taken), **✕** removes it, and **Add voice** adds one at the
+   bottom. A new bottom voice starts with the old bottom voice's movement
+   cost, and the old one takes the inner voices' average. A voice
    that gets a voice below it and has no gap yet starts at 12, an octave.
 
 .. only:: android
@@ -403,17 +411,23 @@ Custom Ensembles
      between this voice and the one below it. The bottom voice has none, so
      its field is greyed out. A voice that gets a voice below it and has no
      gap yet starts at 12, an octave.
+   * **Movement cost**: added per semitone this voice moves from one chord
+     to the next. More negative keeps the voice calmer. The bottom voice's
+     is the bass's, normally nearer zero.
 
-   **Add voice** adds a voice at the bottom, **↑** and **↓** move a voice up
-   or down a place (its gap goes with it), and **✕** removes one. To make a
-   new voice the top one, add it, then tap its **↑** until it's first. An
-   ensemble has 2 to 8 voices.
+   **Add voice** adds a voice at the bottom, with the old bottom voice's
+   movement cost (the old one takes the inner voices' average). **↑** and
+   **↓** move a voice up or down a place (its gap and movement cost go with
+   it), the copy button duplicates a voice right below itself (same range,
+   staff, gap and movement cost, named "<name> 2", then 3...), and **✕**
+   removes one. To make a new voice the top one, add it, then tap its **↑**
+   until it's first. An ensemble has 2 to 8 voices.
 
 .. platform-figure:: settings-voicing-ensemble
    :platforms: android
    :alt: The Jazz Vocal Trio form scrolled to Voices: short help lines for
          Name, Low, High, Staff and Max gap to next voice, then a card per
-         voice with up and down arrows and an X: Lead, A3 to F5, Staff Auto,
+         voice with up and down arrows, a copy button and an X: Lead, A3 to F5, Staff Auto,
          Max gap 12, and the top of Harmony's card.
 
    The voices of a custom ensemble, one card each.
@@ -443,12 +457,10 @@ Custom Ensembles
         - Value
       * - Name
         - Jazz Vocal Trio
-      * - Voices (Name, Low, High, Max gap to next voice)
-        - Lead, A3, F5, 12; Harmony, F3, D5, 19; Bass, E2, C4
+      * - Voices (Name, Low, High, Max gap to next voice, Movement cost)
+        - Lead, A3, F5, 12, -0.6; Harmony, F3, D5, 19, -0.6; Bass, E2, C4, no gap, -0.15
       * - Allow unisons
         - off
-      * - Voice movement (under Weights)
-        - -0.6
       * - Common tone held
         - 2.5
       * - Parallel fifths/octaves
@@ -511,20 +523,19 @@ Voicing Parameters
      - What it does
      - Config key
      - Default
-   * - Voice movement
-     - Added per semitone an inner or upper voice moves from one chord to
-       the next. It's negative, so a more negative value makes those voices
-       sit stiller; nearer zero lets them roam more freely. You can also
-       give one value per voice, top voice first, separated by commas; that
-       list then sets the bottom voice too, in place of "Bass movement".
-     - ``movement``
-     - -0.4
-   * - Bass movement
-     - The same, but for the bottom voice specifically. Basses conventionally
-       leap more than inner voices, so this sits nearer zero than
-       "Voice movement".
-     - ``bass_movement``
-     - -0.15
+   * - Movement cost (a column of the Voices table)
+     - Added per semitone that voice moves from one chord to the next. It's
+       negative, so a more negative value makes the voice sit stiller; nearer
+       zero lets it roam more freely. The bottom voice's is the bass's: bass
+       lines conventionally leap more than inner voices, so it usually sits
+       nearer zero. Saved as one value per voice, top voice first. In the
+       file, a single number is also accepted (every voice but the bottom
+       takes it, and the bottom takes ``bass_movement``), and a list of the
+       wrong length is stretched to the voices: the first value stays the top
+       voice's, the last the bottom's, and the inner voices take the inner
+       values by position.
+     - ``movement`` (``bass_movement`` with a single number)
+     - -0.4 (-0.15)
    * - Large leap
      - Subtracted when a single voice jumps more than a fifth between
        chords, on top of the per-semitone movement weight.

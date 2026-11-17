@@ -26,6 +26,14 @@ the voice below it. The last voice has no voice below, so its cell is off
 (``disabled_in_last_row``) and never saved; the form may still hold a value
 there, so a voice moved to the bottom and back gets its gap back.
 
+The ensemble's ``movement`` weight is shown per voice too: row ``i``'s
+``movement`` cell is entry ``i`` of ``weights['movement']`` (top voice first),
+and the bottom row's is the bass's. A scalar ``movement`` loads as that value
+for every row but the bottom, which takes ``bass_movement``; a list of another
+length loads adapted (:func:`chordnotepad.models.ensemble_spec.expand_movement`).
+A voicing is always saved with the list, so a cell and its voice can't part:
+adding, removing, moving and duplicating a row carry the cells along.
+
 Parsing is forgiving, as on the desktop: a value that doesn't parse stays a
 raw string in the voicing dict, so the user can keep typing. Two error
 classes come out of that:
@@ -44,6 +52,7 @@ import logging
 import re
 from typing import Any, Dict, List, Mapping, Optional, Tuple
 
+from chordnotepad.audio.picker_factory import build_picker
 from chordnotepad.exceptions import ConfigurationError
 from chordnotepad.models.ensemble_spec import (
     BUILTIN_ENSEMBLES,
@@ -52,6 +61,7 @@ from chordnotepad.models.ensemble_spec import (
     VALID_UPPER_CLEFS,
     _NESTED_WEIGHT_KEYS,
     default_max_spacing,
+    expand_movement,
     midi_to_note_name,
     parse_note_name,
 )
@@ -104,7 +114,6 @@ KIND_CHOICE = 'choice'                # one of ``choices`` (by value)
 KIND_PITCH = 'pitch'                  # a note name or MIDI number
 KIND_PITCH_LIST = 'pitch_list'        # pitches separated by spaces or commas
 KIND_INT_LIST = 'int_list'            # comma-separated whole numbers
-KIND_FLOAT_OR_LIST = 'float_or_list'  # a number, or comma-separated numbers
 KIND_RECORDS = 'records'              # a list of rows, each a dict of ``columns``
 
 # Section kinds (presentation hints shared by every view).
@@ -124,7 +133,6 @@ _KIND_ERRORS = {
     KIND_PITCH: 'Not a valid note name',
     KIND_PITCH_LIST: 'Not a valid note name',
     KIND_INT_LIST: 'Must be whole numbers',
-    KIND_FLOAT_OR_LIST: 'Must be a number or list of numbers',
     KIND_CHOICE: "Must be 'treble', 'bass', or omitted",
 }
 
@@ -133,6 +141,9 @@ _CHOICE_ERROR = 'Not one of the choices'
 
 #: The voices' column holding the gap to the next voice down (``max_spacing``).
 GAP_COLUMN = 'gap'
+
+#: The voices' column holding the voice's movement cost (``weights['movement']``).
+MOVEMENT_COLUMN = 'movement'
 
 #: The gap a voice gets when it gains a voice below it (an octave).
 DEFAULT_GAP = 12
@@ -265,31 +276,6 @@ def parse_int_list_or_raw(text: str) -> Any:
     return parsed
 
 
-def parse_scalar_or_list(text: str) -> Any:
-    """Parse ``movement`` as a single float or a comma-separated list of floats."""
-    text = text.strip()
-    if ',' in text:
-        tokens = [t.strip() for t in text.split(',') if t.strip()]
-        parsed = []
-        for token in tokens:
-            try:
-                parsed.append(float(token))
-            except ValueError:
-                return text
-        return parsed
-    try:
-        return float(text)
-    except ValueError:
-        return text
-
-
-def _join(value: Any) -> str:
-    """Render a list as ``'a, b, c'`` and anything else with ``str``."""
-    if isinstance(value, (list, tuple)):
-        return ', '.join(str(x) for x in value)
-    return str(value)
-
-
 def _cell_text(value: Any) -> str:
     """A form value as text (None is empty)."""
     return '' if value is None else str(value)
@@ -405,6 +391,29 @@ def _fretboard_schema() -> Dict[str, Any]:
     }
 
 
+#: The ensemble weights the voices table holds, one per voice, not a field of their own.
+_PER_VOICE_WEIGHT_KEYS = ('movement', 'bass_movement')
+
+
+def _movement_cells(weights: Mapping[str, Any], count: int) -> List[str]:
+    """The ``movement`` cell of each of ``count`` voices, top first, from a
+    voicing's ``weights``: a scalar and ``bass_movement``, or a list (adapted
+    when its length isn't ``count``, see :func:`expand_movement`)."""
+    movement = weights.get('movement', ENSEMBLE_DEFAULT_WEIGHTS['movement'])
+    bass = weights.get('bass_movement', ENSEMBLE_DEFAULT_WEIGHTS['bass_movement'])
+    if isinstance(movement, str) and ',' in movement:
+        movement = [token.strip() for token in movement.split(',') if token.strip()]
+    if isinstance(movement, (list, tuple)):
+        if len(movement) == count:
+            return [_cell_text(v) for v in movement]
+        try:
+            return [str(v) for v in expand_movement(movement, bass, count)]
+        except ConfigurationError:
+            # Something that isn't a number is in it: the first entry (as typed) for all.
+            return [_cell_text(movement[0] if movement else '')] * count
+    return [_cell_text(movement)] * max(count - 1, 0) + [_cell_text(bass)] * min(count, 1)
+
+
 def _ensemble_schema() -> Dict[str, Any]:
     defaults = values_from_voicing('ensemble', default_voicing('ensemble'))
     staff_choices = [{'value': value, 'label': label} for value, label in STAFF_LABELS]
@@ -418,22 +427,23 @@ def _ensemble_schema() -> Dict[str, Any]:
                    width=8, choices=staff_choices),
             _field(GAP_COLUMN, KIND_INT, 'Max gap to next voice', TOOLTIPS['voice_gap'], '',
                    width=6, min=GAP_MIN, max=GAP_MAX, step=1, disabled_in_last_row=True),
+            _field(MOVEMENT_COLUMN, KIND_FLOAT, 'Movement cost', TOOLTIPS['voice_movement'], '',
+                   width=6, min=_WEIGHT_MIN, max=_WEIGHT_MAX, step=_WEIGHT_STEP),
         ],
         error_path='voice:{index}:{column}',
         min_items=2, max_items=8,
         new_item={'name': 'Voice {n}', 'low': 'C3', 'high': 'C4', 'staff': None,
-                  GAP_COLUMN: ''},
+                  GAP_COLUMN: '', MOVEMENT_COLUMN: ''},
         add_label='Add voice', add_help=TOOLTIPS['add_voice'],
         remove_label='✕', remove_help=TOOLTIPS['remove_voice'],
         move_up_label='↑', move_up_help=TOOLTIPS['move_voice_up'],
         move_down_label='↓', move_down_help=TOOLTIPS['move_voice_down'],
+        duplicate_label='⧉', duplicate_help=TOOLTIPS['duplicate_voice'],
+        drag_help=TOOLTIPS['drag_voice'],
     )
-    flat_weights = [
-        _field('movement', KIND_FLOAT_OR_LIST, ENSEMBLE_WEIGHT_LABELS['movement'],
-               TOOLTIPS['weight:movement'], defaults['movement'], width=10),
-    ]
+    flat_weights = []
     for key, value in ENSEMBLE_DEFAULT_WEIGHTS.items():
-        if key == 'movement' or key in _NESTED_WEIGHT_KEYS:
+        if key in _PER_VOICE_WEIGHT_KEYS or key in _NESTED_WEIGHT_KEYS:
             continue
         flat_weights.append(_weight_field(
             f'weight:{key}', ENSEMBLE_WEIGHT_LABELS.get(key, key),
@@ -710,6 +720,7 @@ def values_from_voicing(model: str, data: Mapping[str, Any],
         elif not isinstance(spacing, (list, tuple)):
             spacing = []
         rows = []
+        movement_cells = _movement_cells(_weights_of(data), len(voices))
         for i, voice in enumerate(voices):
             is_dict = isinstance(voice, Mapping)
             vrange = voice.get('range', [None, None]) if is_dict else [None, None]
@@ -724,14 +735,14 @@ def values_from_voicing(model: str, data: Mapping[str, Any],
                 'staff': voice.get('staff') if is_dict else None,
                 GAP_COLUMN: (str(spacing[i]) if i < len(voices) - 1 and i < len(spacing)
                              and spacing[i] is not None else ''),
+                MOVEMENT_COLUMN: movement_cells[i],
             })
         values['voices'] = rows
         values['allow_unisons'] = bool(data.get('allow_unisons', True))
         values['upper_clef'] = data.get('upper_clef', 'treble')
         weights = _weights_of(data)
-        values['movement'] = _join(weights.get('movement', ENSEMBLE_DEFAULT_WEIGHTS['movement']))
         for key, default in ENSEMBLE_DEFAULT_WEIGHTS.items():
-            if key == 'movement' or key in _NESTED_WEIGHT_KEYS:
+            if key in _PER_VOICE_WEIGHT_KEYS or key in _NESTED_WEIGHT_KEYS:
                 continue
             values[f'weight:{key}'] = str(weights.get(key, default))
         for group in _NESTED_WEIGHT_KEYS:
@@ -819,9 +830,15 @@ def voicing_from_values(model: str, values: Mapping[str, Any],
         weights: Dict[str, Any] = {
             key: parse_float_or_raw(text(f'weight:{key}'))
             for key in ENSEMBLE_DEFAULT_WEIGHTS
-            if key != 'movement' and key not in _NESTED_WEIGHT_KEYS
+            if key not in _PER_VOICE_WEIGHT_KEYS and key not in _NESTED_WEIGHT_KEYS
         }
-        weights['movement'] = parse_scalar_or_list(text('movement'))
+        # One value per voice (a row without the cell at all gets the default).
+        defaults_by_voice = _movement_cells({}, len(rows))
+        weights['movement'] = [
+            parse_float_or_raw(_cell_text(row.get(MOVEMENT_COLUMN)) if MOVEMENT_COLUMN in row
+                               else defaults_by_voice[i])
+            for i, row in enumerate(rows)
+        ]
         for group in _NESTED_WEIGHT_KEYS:
             weights[group] = {role: parse_float_or_raw(text(f'nested:{group}:{role}'))
                               for role in ENSEMBLE_DEFAULT_WEIGHTS[group]}
@@ -851,6 +868,39 @@ def voicing_from_values(model: str, values: Mapping[str, Any],
 # ---------------------------------------------------------------------------
 
 
+def _floats_or_raw(cells: List[str]) -> List[Any]:
+    return [parse_float_or_raw(cell) for cell in cells]
+
+
+def _fmt_float(value: float) -> str:
+    return str(round(value, 10))
+
+
+def _cells_with_voice_added(cells: List[str]) -> List[str]:
+    """The movement cells of a voice list with a new bottom voice added.
+
+    The new voice takes the old bottom voice's cell, and the old bottom voice
+    an inner voice's (the mean of the inner cells, if they are numbers; with
+    no inner voice it keeps its own).
+    """
+    out = list(cells)
+    if not out:
+        return [_fmt_float(ENSEMBLE_DEFAULT_WEIGHTS['movement'])]
+    inner = [float(c) for c in out[1:-1] if _is_float_text(c)]
+    out.append(out[-1])
+    if inner and len(inner) == len(cells) - 2:
+        out[-2] = _fmt_float(sum(inner) / len(inner))
+    return out
+
+
+def _is_float_text(text: str) -> bool:
+    try:
+        float(text)
+    except ValueError:
+        return False
+    return True
+
+
 def voicing_with_record_added(data: Mapping[str, Any], field_id: str = 'voices') -> Dict[str, Any]:
     """A copy of ``data`` with one new row appended to its records field.
 
@@ -859,6 +909,10 @@ def voicing_with_record_added(data: Mapping[str, Any], field_id: str = 'voices')
     """
     out = copy.deepcopy(dict(data))
     rows = out.setdefault(field_id, [])
+    weights = out.get('weights')
+    if isinstance(weights, dict) and rows and 'movement' in weights:
+        cells = _movement_cells(weights, len(rows))
+        weights['movement'] = _floats_or_raw(_cells_with_voice_added(cells))
     rows.append({'name': f'Voice {len(rows) + 1}', 'range': ['C3', 'C4']})
     spacing = out.get('max_spacing')
     if isinstance(spacing, list) and len(rows) > 1:
@@ -871,11 +925,18 @@ def voicing_with_record_removed(data: Mapping[str, Any], index: int,
     """A copy of ``data`` without row ``index`` of its records field (no-op if out of range).
 
     The voice's gap in an explicit ``max_spacing`` list goes with it (the
-    bottom voice's: the gap of the voice that becomes the bottom one).
+    bottom voice's: the gap of the voice that becomes the bottom one), and so
+    does its entry of a ``movement`` list. Adding a voice adds an entry as
+    :func:`add_record` does.
     """
     out = copy.deepcopy(dict(data))
     rows = out.get(field_id, [])
     if 0 <= index < len(rows):
+        weights = out.get('weights')
+        if isinstance(weights, dict) and 'movement' in weights:
+            cells = _movement_cells(weights, len(rows))
+            del cells[index]
+            weights['movement'] = _floats_or_raw(cells)
         del rows[index]
         spacing = out.get('max_spacing')
         if isinstance(spacing, list) and spacing:
@@ -919,11 +980,48 @@ def add_record(model: str, values: Mapping[str, Any], field_id: str = 'voices',
                notation: str = 'american') -> Dict[str, Any]:
     """Form values with a new row appended to a records field.
 
-    The old last row gets :data:`DEFAULT_GAP` if it has no gap. The other
+    The old last row gets :data:`DEFAULT_GAP` if it has no gap, and the
+    movement cost of a voice added at the bottom is the old bottom voice's,
+    which takes the inner voices' mean instead. The other
     values come back normalised (``'Db4'`` becomes ``'C#4'``) in ``notation``.
     """
     def change(rows: List[Dict[str, Any]]) -> None:
-        rows.append(_new_row(model, field_id, len(rows)))
+        new = _new_row(model, field_id, len(rows))
+        if form_model(model) == 'ensemble':
+            cells = _cells_with_voice_added([_cell_text(r.get(MOVEMENT_COLUMN)) for r in rows])
+            for row, cell in zip(rows, cells):
+                row[MOVEMENT_COLUMN] = cell
+            new[MOVEMENT_COLUMN] = cells[-1]
+        rows.append(new)
+    return _with_gaps(model, values, field_id, notation, change)
+
+
+def _copy_name(name: str, taken: List[str]) -> str:
+    """``name`` with " 2", " 3"... added until no one in ``taken`` has it
+    (ignoring case), as a copied voicing is named."""
+    base = name.strip() or 'Voice'
+    used = {t.strip().casefold() for t in taken}
+    n = 2
+    while f'{base} {n}'.casefold() in used:
+        n += 1
+    return f'{base} {n}'
+
+
+def duplicate_record(model: str, values: Mapping[str, Any], index: int,
+                     field_id: str = 'voices', notation: str = 'american') -> Dict[str, Any]:
+    """Form values with a copy of row ``index`` right below it (no-op if out
+    of range; normalised like :func:`add_record`).
+
+    The copy has the row's range, staff, gap and movement cost, and its name
+    with " 2" (" 3"... when taken) added. The movement column stays one value
+    per voice because it is a column.
+    """
+    def change(rows: List[Dict[str, Any]]) -> None:
+        if 0 <= index < len(rows):
+            copy_row = dict(rows[index])
+            copy_row['name'] = _copy_name(_cell_text(copy_row.get('name')),
+                                          [_cell_text(r.get('name')) for r in rows])
+            rows.insert(index + 1, copy_row)
     return _with_gaps(model, values, field_id, notation, change)
 
 
@@ -1008,7 +1106,8 @@ def collected_field_errors(data: Mapping[str, Any]) -> Dict[str, str]:
     * ``'tuning'``, ``'max_fret'``, ``'fingers'``, ``'max_span'``,
       ``'relaxed_span'``: fretboard strings / physical parameters.
     * ``'weight:<key>'``: a flat weight that isn't a number.
-    * ``'movement'``: the ensemble ``movement`` weight still a raw string.
+    * ``'voice:<i>:movement'``: entry ``i`` of the ensemble's ``movement``
+      weight (the voice's movement cost) that isn't a number.
     * ``'nested:<group>:<role>'``: a doubling/omit/inversion role that isn't
       a number (ensemble, and the piano's ``omit``).
     * ``'voice:<i>:low'`` / ``'voice:<i>:high'``: a voice range endpoint
@@ -1074,8 +1173,10 @@ def collected_field_errors(data: Mapping[str, Any]) -> Dict[str, str]:
         weights = data.get('weights') or {}
         for key, value in weights.items():
             if key == 'movement':
-                if isinstance(value, str):
-                    errors['movement'] = _KIND_ERRORS[KIND_FLOAT_OR_LIST]
+                entries = value if isinstance(value, (list, tuple)) else [value]
+                for i, entry in enumerate(entries):
+                    if not _is_number(entry):
+                        errors[f'voice:{i}:{MOVEMENT_COLUMN}'] = _KIND_ERRORS[KIND_FLOAT]
             elif key in _NESTED_WEIGHT_KEYS:
                 for role, role_value in (value or {}).items():
                     if not _is_number(role_value):
@@ -1134,14 +1235,10 @@ def voicing_error(name: str, data: Mapping[str, Any]) -> Optional[str]:
         kind = {'fretboard': 'Fretboard', 'piano': 'Piano'}[model]
         return f"{kind} '{name}': '{key}' {message[:1].lower() + message[1:]}"
     try:
-        if model == 'fretboard':
-            FretboardSpec.from_dict(name, data)
-        elif model == 'ensemble':
-            EnsembleSpec.from_dict(name, data)
-        elif model == 'piano':
-            PianoSpec.from_dict(name, data)
-        else:
+        if model not in ('fretboard', 'ensemble', 'piano'):
             return f"Unknown voicing model: {model!r}"
+        # The construction playback runs, so what the form accepts plays.
+        build_picker(name, data)
     except Exception as exc:  # noqa: BLE001 - surface any parse failure as text
         return str(exc)
     return None

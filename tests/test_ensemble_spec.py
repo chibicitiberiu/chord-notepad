@@ -502,10 +502,32 @@ class TestMovementPerVoice:
         spec = self._spec(3, weights={"movement": [1.0, 2.0, 3.0]})
         assert spec.movement_per_voice() == (1.0, 2.0, 3.0)
 
-    def test_list_wrong_length_raises(self):
-        spec = self._spec(3, weights={"movement": [1.0, 2.0]})
-        with pytest.raises(ConfigurationError, match="movement"):
-            spec.movement_per_voice()
+    def test_list_of_another_length_is_adapted_with_one_warning(self, caplog):
+        spec = self._spec(6, weights={"movement": [-0.8, -0.4, -0.4, -0.15]})
+        with caplog.at_level("WARNING"):
+            result = spec.movement_per_voice()
+        assert result == (-0.8, -0.4, -0.4, -0.4, -0.4, -0.15)
+        assert len([r for r in caplog.records if "movement" in r.getMessage()]) == 1
+        assert spec.movement_per_voice() == result
+
+    def test_adaptation_by_relative_position(self):
+        weights = {"movement": [-1.0, -0.1, -0.2, -0.3, -0.4, -0.5]}
+        assert self._spec(4, weights).movement_per_voice() == (-1.0, -0.2, -0.4, -0.5)
+        assert self._spec(3, weights).movement_per_voice() == (-1.0, -0.3, -0.5)
+        assert self._spec(8, weights).movement_per_voice() == (
+            -1.0, -0.1, -0.2, -0.2, -0.3, -0.4, -0.4, -0.5)
+
+    def test_adaptation_of_a_list_of_one_or_two(self):
+        assert self._spec(4, {"movement": [-0.5]}).movement_per_voice() == (-0.5,) * 4
+        assert self._spec(4, {"movement": [-1.0, -0.2]}).movement_per_voice() == (
+            -1.0, -0.6, -0.6, -0.2)
+        assert self._spec(3, {"movement": [-0.8, -0.2]}).movement_per_voice() == (-0.8, -0.5, -0.2)
+        assert self._spec(2, {"movement": [-0.5]}).movement_per_voice() == (-0.5, -0.5)
+
+    def test_list_that_is_not_numbers_still_raises(self):
+        for bad in ([], ["x", 1.0], [None, 1.0]):
+            with pytest.raises(ConfigurationError, match="movement"):
+                self._spec(3, weights={"movement": bad}).movement_per_voice()
 
     def test_custom_bass_movement_used_for_bottom_voice(self):
         spec = self._spec(2, weights={"bass_movement": 0.9})

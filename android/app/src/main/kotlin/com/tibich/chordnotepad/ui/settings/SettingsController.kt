@@ -402,6 +402,12 @@ class SettingsController(private val commands: ScreenCommands, saved: SettingsUi
         touch { commands.moveVoicingRecord(index, offset, fieldId) }
     }
 
+    /** Copy row [index] of records field [fieldId] right below it. */
+    fun duplicateRecord(index: Int, fieldId: String) {
+        pending.clear(fieldId)
+        touch { commands.duplicateVoicingRecord(index, fieldId) }
+    }
+
     private fun setModel(model: String) {
         pending.clear()
         touch { commands.setVoicingModel(model) }

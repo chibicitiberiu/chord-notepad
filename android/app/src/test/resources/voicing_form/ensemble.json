@@ -120,7 +120,6 @@
   "staged_numbers": {},
   "values": {
    "allow_unisons": true,
-   "movement": "-0.4",
    "nested:doubling:color": "-6.0",
    "nested:doubling:extension": "-6.0",
    "nested:doubling:fifth": "0.5",
@@ -143,6 +142,7 @@
      "gap": "19",
      "high": "C4",
      "low": "C5",
+     "movement": "-0.4",
      "name": "Voice 1",
      "staff": null
     },
@@ -150,6 +150,7 @@
      "gap": "0",
      "high": "C4",
      "low": "H9",
+     "movement": "-0.15",
      "name": "Voice 3",
      "staff": null
     },
@@ -157,11 +158,11 @@
      "gap": "12",
      "high": "C4",
      "low": "C3",
+     "movement": "-0.15",
      "name": "Voice 2",
      "staff": null
     }
    ],
-   "weight:bass_movement": "-0.15",
    "weight:common_tone_bonus": "1.5",
    "weight:contrary_motion_bonus": "0.8",
    "weight:double_leading_tone_penalty": "-8.0",
