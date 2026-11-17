@@ -312,7 +312,7 @@
         },
         {
          "default": "-2.0",
-         "help": "How the picker treats two neighbouring voices up to a tenth apart down where that interval sounds muddy: a minor third below C3, a major third below Bb2, a fourth below A2, a fifth below Bb1, seconds below Eb3, a major ninth below Eb2. Charged per semitone below that point, so a pair just under it costs little and one far under it a lot. More negative spreads the low voices wider and leaves the third to the upper voices.",
+         "help": "How the picker treats two neighbouring voices up to a tenth apart down where that interval sounds muddy: a minor third below C3, a major third below Bb2, a fourth below A2, a fifth below Bb1, a major second below Eb3, a minor second below E3, a major ninth below Eb2. Charged per semitone below that point, so a pair just under it costs little and one far under it a lot. More negative spreads the low voices wider and leaves the third to the upper voices.",
          "id": "weight:low_interval_limit_penalty",
          "kind": "float",
          "label": "Muddy low interval",

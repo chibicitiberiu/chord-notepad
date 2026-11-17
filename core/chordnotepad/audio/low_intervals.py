@@ -1,12 +1,12 @@
-"""Low interval limits, shared by every voicing engine.
+"""Low interval limits for the ensemble voicer.
 
 Two notes close together sound muddy when they sit low: the lower the pair,
 the wider it has to be to stay clear. The usual orchestration and arranging
 table gives, per interval, the lowest note its lower pitch may sit on. This
-module holds that one table; each engine reads it through
-:func:`semitones_below_limit`, with an offset where its instrument hears it
-differently (a guitar's low strings blur less than sustained voices, so the
-fretboard reads the seconds and thirds three semitones lower).
+module holds that table; the ensemble voicer reads it through
+:func:`semitones_below_limit`. The fretboard picker keeps its own shorter
+table (``GuitarChordPicker._LOW_INTERVAL_LIMITS``: thirds below G2, seconds
+below C3), since a guitar's low strings blur less than sustained voices.
 
 The table (lower pitch, MIDI with C4 = 60) is the usual arranging one.
 Sources differ by a semitone on a few entries: some put the tritone at B2

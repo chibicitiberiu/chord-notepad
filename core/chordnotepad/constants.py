@@ -52,7 +52,7 @@ SIDEBAR_WIDTH_MIN = 56
 SIDEBAR_WIDTH_MAX = 150
 DEFAULT_SIDEBAR_WIDTH = 76
 
-# Capo advisor (see services/capo_advisor.py). When "Allow capo" is on and a
+# Capo advisor (see services/capo_advisor.py). When a
 # fretboard voicing is active, the advisor scores every capo position 0..MAX
 # with the guitar picker's whole-song playability score and suggests the best
 # one only if it beats capo 0 by at least MIN_GAIN per chord (the song's

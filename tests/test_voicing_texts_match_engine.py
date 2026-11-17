@@ -92,7 +92,8 @@ def test_ensemble_low_interval_limits_match_the_tooltip_and_help():
     assert (L[3], L[4], L[5], L[7], L[2], L[1]) == (48, 46, 45, 34, 51, 52)
     tip = TOOLTIPS['weight:low_interval_limit_penalty']
     for text in ('minor third below C3', 'major third below Bb2', 'fourth below A2',
-                 'fifth below Bb1', 'seconds below Eb3', 'major ninth below Eb2'):
+                 'fifth below Bb1', 'major second below Eb3', 'minor second below E3',
+                 'major ninth below Eb2'):
         assert text in tip
     assert "per semitone below" in tip and "a tenth apart" in tip
     assert L[14] == 39

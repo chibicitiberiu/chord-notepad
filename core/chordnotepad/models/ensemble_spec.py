@@ -150,7 +150,7 @@ def _resolve_pitch(value: Union[int, str], *, context: str) -> int:
 #: - ``outer_leap_penalty``: extra cost per semitone the top or bottom voice
 #:   leaps beyond a fifth, so a wide outer leap costs more the wider it is (0,
 #:   off, by default).
-#: - ``common_tone_bonus``: reward for a voice holding the same pitch class.
+#: - ``common_tone_bonus``: reward for a voice holding the same pitch.
 #: - ``parallel_perfect_penalty``: cost per pair of voices moving in parallel
 #:   perfect fifths/octaves.
 #: - ``hidden_perfect_penalty``: cost when the outer voices move the same way
