@@ -8,6 +8,7 @@ from chordnotepad.exceptions import ConfigurationError
 from chordnotepad.models.ensemble_spec import (
     BUILTIN_ENSEMBLES,
     CHOIR_WEIGHTS,
+    SSA_WEIGHTS,
     DEFAULT_WEIGHTS,
     PRESET_INVERSION,
     EnsembleSpec,
@@ -688,6 +689,8 @@ class TestBuiltinEnsembles:
             assert gap > 0
         if key == "quartet":
             assert spec.weights == _merge_weights(QUARTET_WEIGHTS)
+        elif key == "ssa":
+            assert spec.weights == _merge_weights(SSA_WEIGHTS)
         else:
             assert spec.weights == _merge_weights(CHOIR_WEIGHTS)
 
@@ -708,9 +711,34 @@ class TestBuiltinEnsembles:
         spec = BUILTIN_ENSEMBLES[key]
         assert spec.weight("seventh_resolution_bonus") == 3.0
         assert spec.weight("leading_tone_resolution_bonus") == 4.0
+        assert spec.weight("middle_range_penalty") == -0.5
+        own = SSA_WEIGHTS if key == "ssa" else CHOIR_WEIGHTS
         for weight_key, value in DEFAULT_WEIGHTS.items():
-            if weight_key not in CHOIR_WEIGHTS:
+            if weight_key not in own:
                 assert spec.weight(weight_key) == value
+
+    def test_ssa_moves_its_top_voice_least(self):
+        assert BUILTIN_ENSEMBLES["ssa"].movement_per_voice() == (-0.8, -0.4, -0.15)
+        assert BUILTIN_ENSEMBLES["satb"].movement_per_voice() == (-0.4, -0.4, -0.4, -0.15)
+
+    @pytest.mark.parametrize("key", ["satb", "ttbb", "ssa"])
+    def test_a_choir_copy_saved_before_the_middle_band_moves_to_it(self, key):
+        # voicing_versions 1->2: a copy still on the values the preset had
+        # (middle band off, movement -0.4 / bass -0.15) takes the new ones.
+        from chordnotepad.models import voicing_versions as vv
+        spec = BUILTIN_ENSEMBLES[key]
+        entry = {"model": "ensemble", "based_on": f"ensemble:{key}",
+                 "voices": [{"name": v.name, "range": [v.low, v.high]} for v in spec.voices],
+                 "weights": {"middle_range_penalty": 0.0, "movement": -0.4,
+                             "bass_movement": -0.15}}
+        vv._migrate_1_to_2(entry)
+        assert entry["weights"]["middle_range_penalty"] == -0.5
+        moved = EnsembleSpec.from_dict(key, entry)
+        assert moved.movement_per_voice() == spec.movement_per_voice()
+        # A user's own value stays.
+        mine = dict(entry, weights={"middle_range_penalty": -0.2})
+        vv._migrate_1_to_2(mine)
+        assert mine["weights"]["middle_range_penalty"] == -0.2
 
     def test_quartet_has_its_own_weights_and_no_unisons(self):
         # A background pad: the top voice moves least, and with the heavier top

@@ -867,6 +867,16 @@ def test_a_stacked_extension_goes_before_the_named_one(symbol, named, stacked):
     assert meta.omit_cost[stacked] == pytest.approx(0.5 * meta.omit_cost[named])
 
 
+@pytest.mark.parametrize('spec_name', BUILTIN_NAMES)
+def test_an_added_ninth_is_kept_over_the_fifth(spec_name):
+    # Without its 9 a Cadd9 is a plain triad: three voices leave out the fifth.
+    for symbol in ('Cadd9', 'Gadd9', 'Dadd9', 'Fadd9'):
+        chord = parsed(symbol)
+        voicing = EnsembleVoicer(BUILTIN_ENSEMBLES[spec_name]).voice_sequence([chord])[0]
+        root = parse_note_to_semitone(chord.root)
+        assert (root + 2) % 12 in {m % 12 for m in voicing}, (symbol, voicing)
+
+
 def test_a_diminished_seventh_may_still_leave_out_its_fifth():
     # Any three tones of a dim7 sound the same chord: SSA keeps F#dim7's root
     # (the line F F# G) and leaves out the C.

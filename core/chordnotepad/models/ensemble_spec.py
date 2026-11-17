@@ -707,10 +707,23 @@ PRESET_INVERSION: Dict[str, float] = {'root': 0.0, 'first': -4.0, 'second': -8.0
 #: The choirs' weights over :data:`DEFAULT_WEIGHTS`: root position, and with
 #: both chords on their roots a seventh needs more pull to fall and the leading
 #: tone to rise (V-vi has to double vi's third for it), so both bonuses grow.
+#: Each voice pays 0.5 per semitone outside the middle half of its range (the
+#: bass only above it): without that pull the bass sang C3 G3 A3 F3 for
+#: C G Am F, the low line costing the same motion and a little range comfort.
 CHOIR_WEIGHTS: Dict[str, Any] = {
     'inversion': PRESET_INVERSION,
     'seventh_resolution_bonus': 3.0,
     'leading_tone_resolution_bonus': 4.0,
+    'middle_range_penalty': -0.5,
+}
+
+#: The Treble Choir (SSA): the choirs' weights, and the top voice costing
+#: twice an inner voice to move, as for the String Quartet. With three voices
+#: the alto carries the bass line and the top voice had leapt and leapt back
+#: in 81 of 664 changes.
+SSA_WEIGHTS: Dict[str, Any] = {
+    **CHOIR_WEIGHTS,
+    'movement': [-0.8, -0.4, -0.15],
 }
 
 #: The String Quartet's own weights over :data:`DEFAULT_WEIGHTS`, for a calm
@@ -736,9 +749,9 @@ QUARTET_WEIGHTS: Dict[str, Any] = {
     'middle_range_penalty': -0.5,
 }
 
-#: Built-in ensemble presets, keyed by a voicing-string slug. The choirs use
+#: Built-in ensemble presets, keyed by a voicing-string slug. SATB and TTBB use
 #: :data:`CHOIR_WEIGHTS` over the engine's defaults (:data:`DEFAULT_WEIGHTS`),
-#: the String Quartet :data:`QUARTET_WEIGHTS`. Staffs are
+#: SSA :data:`SSA_WEIGHTS`, the String Quartet :data:`QUARTET_WEIGHTS`. Staffs are
 #: pinned as a choir or quartet score sets them: TTBB writes its tenors on an
 #: octave-lower treble clef, the viola stays auto (no C clef yet).
 BUILTIN_ENSEMBLES: Dict[str, EnsembleSpec] = {
@@ -773,7 +786,7 @@ BUILTIN_ENSEMBLES: Dict[str, EnsembleSpec] = {
             ('Alto', 'F3', 'D5', 'treble'),
         ],
         [12, 12],
-        weights=CHOIR_WEIGHTS,
+        weights=SSA_WEIGHTS,
     ),
     'quartet': _builtin(
         'quartet', 'String Quartet',

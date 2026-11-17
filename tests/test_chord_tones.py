@@ -3,7 +3,7 @@
 import pytest
 
 from chordnotepad.audio.chord_tones import (
-    classify_role, is_diminished_seventh, is_named_extension, omission_cost,
+    classify_role, is_added_tone, is_diminished_seventh, is_named_extension, omission_cost,
     STACKED_EXTENSION_SHARE, DEFAULT_OMIT_PENALTY)
 
 
@@ -97,6 +97,18 @@ def test_omission_cost_halves_a_stacked_extension() -> None:
     assert omission_cost(omit, 14, g13) == -6.0 * STACKED_EXTENSION_SHARE
     assert omission_cost(omit, 7, g13) == -3.0
     assert omission_cost(omit, 6, [0, 3, 6, 10]) == -5.0  # m7b5's b5 is colour
+
+
+def test_an_added_tone_costs_a_colour_tone() -> None:
+    # Cadd9's 9 and C6/9's 9 are the chord's colour (no seventh under them);
+    # C9's 9 is an extension over a seventh.
+    omit = {'root': -1.0, 'third': -2.0, 'fifth': -3.0, 'seventh': -4.0,
+            'color': -5.0, 'extension': -6.0}
+    assert is_added_tone(14, [0, 4, 7, 14]) and omission_cost(omit, 14, [0, 4, 7, 14]) == -5.0
+    assert is_added_tone(14, [0, 4, 7, 9, 14])
+    assert not is_added_tone(14, [0, 4, 7, 10, 14])
+    assert omission_cost(omit, 14, [0, 4, 7, 10, 14]) == -6.0
+    assert not is_added_tone(9, [0, 4, 7, 9])  # the 6 is a colour tone already
 
 
 class TestDefaultOmitPenalty:

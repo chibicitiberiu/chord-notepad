@@ -168,6 +168,12 @@ writing rather than something to avoid outright. Their seventh and leading
 tone resolve more firmly than the defaults (Seventh resolves down 3,
 Leading tone resolves 4): with both chords on their roots, G to Am only
 keeps the leading tone rising if the choir doubles the A minor's third.
+Like the quartet, each voice pays 0.5 for every semitone it strays outside
+the middle half of its range, the bass only above it (Outside the middle
+range is -0.5), which keeps the basses low: C G Am F is C3 G2 A2 F2 rather
+than C3 G3 A3 F3. In the Treble Choir the top voice also costs twice as much
+to move as the others (Movement ``-0.8, -0.4, -0.15``): with three voices the
+alto carries the bass line, and the top line had been leaping up and back.
 
 All four presets keep a plain chord on its root (Inversion ``first`` -4,
 ``third`` -6, ``second`` -8; the defaults, which a custom ensemble starts

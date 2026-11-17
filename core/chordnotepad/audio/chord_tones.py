@@ -102,14 +102,27 @@ def omission_cost(omit: Mapping[str, float], interval: int, intervals: Iterable[
     """What leaving out the tone at ``interval`` costs under an ``omit`` map.
 
     The weight of its role (:func:`classify_role`); an extension the chord's
-    name only stacks in costs :data:`STACKED_EXTENSION_SHARE` of it.
+    name only stacks in costs :data:`STACKED_EXTENSION_SHARE` of it, and an
+    added tone (:func:`is_added_tone`) costs the ``color`` weight.
     """
     intervals = list(intervals)
     role = classify_role(interval, intervals)
+    if role == 'extension' and is_added_tone(interval, intervals):
+        return omit['color']
     cost = omit[role]
     if role == 'extension' and not is_named_extension(interval, intervals):
         cost *= STACKED_EXTENSION_SHARE
     return cost
+
+
+def is_added_tone(interval: int, intervals: Iterable[int]) -> bool:
+    """Whether an extension is an added tone: the named extension of a chord
+    with no seventh (the 9 of Cadd9 or C6/9, the 11 of Cadd11). Without a
+    seventh under it the extension is the chord's colour, like a 6 or a sus
+    tone, so it costs what a colour tone does when left out."""
+    intervals = list(intervals)
+    return (interval >= 12 and is_named_extension(interval, intervals)
+            and not any(iv % 12 in (10, 11) for iv in intervals if iv < 12))
 
 
 # Completeness (piano): penalty (subtracted) for each chord tone missing from
