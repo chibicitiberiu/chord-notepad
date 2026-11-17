@@ -169,6 +169,10 @@ def _resolve_pitch(value: Union[int, str], *, context: str) -> int:
 #:   band that anchors its register (0, off, by default). The bottom voice
 #:   only pays above that band, never for sitting low.
 #: - ``unison_penalty``: cost per pair of adjacent voices sounding a unison.
+#: - ``low_interval_limit_penalty``: cost per semitone the lower note of two
+#:   adjacent voices closer than an octave sits below that interval's low
+#:   interval limit (a minor third below C3, a major third below Bb2, a fifth
+#:   below Bb1, ...), where the interval sounds muddy; it fades in at the limit.
 #: - ``upper_spacing_penalty``: cost per semitone an upper-voice adjacent gap
 #:   exceeds ``upper_spacing_threshold``.
 #: - ``upper_spacing_threshold``: not a score but a size, in semitones: the
@@ -241,6 +245,7 @@ DEFAULT_WEIGHTS: Dict[str, Any] = {
     'range_comfort_penalty': -0.5,
     'middle_range_penalty': 0.0,
     'unison_penalty': -0.5,
+    'low_interval_limit_penalty': -2.0,
     'upper_spacing_penalty': -0.15,
     'upper_spacing_threshold': 7.0,
     'same_bass_penalty': -8.0,

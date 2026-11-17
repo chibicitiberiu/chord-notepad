@@ -666,6 +666,42 @@ def test_hidden_perfects_cost_only_with_a_leaping_top_voice():
     assert gain((43, 64, 79)) == pytest.approx(0.0)    # G2 G5: contrary motion
 
 
+def test_a_close_interval_costs_per_semitone_below_its_low_interval_limit():
+    spec = lambda w: EnsembleSpec.from_dict('three', {
+        'voices': [{'name': 'T', 'range': ['C4', 'C6']}, {'name': 'M', 'range': ['C2', 'C5']},
+                   {'name': 'B', 'range': ['B1', 'E3']}],
+        'max_spacing': [36, 36], **({'weights': w} if w else {})})
+    off = EnsembleVoicer(spec({'low_interval_limit_penalty': 0.0}))
+    on = EnsembleVoicer(spec(None))
+    assert DEFAULT_WEIGHTS['low_interval_limit_penalty'] == -2.0
+    meta = off._build_meta(parsed('Am'))
+    cost = lambda stack: on._score_quality(stack, meta) - off._score_quality(stack, meta)
+    assert cost((45, 48, 76)) == pytest.approx(-6.0)   # A2 C3: a minor third, 3 below C3
+    assert cost((47, 50, 76)) == pytest.approx(-2.0)   # B2 D3: 1 below C3, it fades in
+    assert cost((48, 51, 76)) == pytest.approx(0.0)    # C3 Eb3: at the limit
+    assert cost((45, 52, 72)) == pytest.approx(0.0)    # A2 E3: a fifth, above Bb1
+    assert cost((57, 60, 76)) == pytest.approx(0.0)    # A3 C4: the third up where it is clear
+    assert cost((45, 57, 60)) == pytest.approx(0.0)    # A2 A3: an octave is never charged
+    assert cost((40, 45, 76)) == pytest.approx(-10.0)  # E2 A2: a fourth, 5 below A2
+
+
+def test_a_quintet_puts_the_third_of_am_above_the_low_strings():
+    # Tibi's String Quartet copy with a double bass added: Am after C and Dm
+    # had the cello's C3 a minor third over the bass's A2.
+    quintet = EnsembleSpec.from_dict('quintet', {
+        'voices': [{'name': 'Violin I', 'range': [55, 88]}, {'name': 'Violin II', 'range': [55, 84]},
+                   {'name': 'Viola', 'range': [48, 76]}, {'name': 'Cello', 'range': [36, 64]},
+                   {'name': 'Double Bass', 'range': [35, 52]}],
+        'max_spacing': [14, 14, 24, 12], 'allow_unisons': False,
+        'weights': {'movement': [-0.4, -0.6, -0.4, -0.4, -0.15]}})
+    voiced = EnsembleVoicer(quintet).voice_sequence([parsed(s) for s in ('C', 'Dm', 'Am', 'G')])
+    from chordnotepad.audio.ensemble_voicer import _LOW_INTERVAL_LIMITS
+    am = voiced[2]
+    assert am[0] == 45 and am[1] - am[0] >= 7          # A2, then a fifth or wider
+    assert all(lo >= _LOW_INTERVAL_LIMITS.get(hi - lo, 0) for lo, hi in zip(am, am[1:]))
+    assert any(n % 12 == 0 and n >= 60 for n in am)    # the third (C) sounds from C4 up
+
+
 # ---------------------------------------------------------------------------
 # The bass plan
 # ---------------------------------------------------------------------------

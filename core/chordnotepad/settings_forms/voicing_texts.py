@@ -47,6 +47,7 @@ ENSEMBLE_WEIGHT_LABELS: Dict[str, str] = {
     'range_comfort_penalty': 'Out-of-comfort range',
     'middle_range_penalty': 'Outside the middle range',
     'unison_penalty': 'Unison between voices',
+    'low_interval_limit_penalty': 'Muddy low interval',
     'upper_spacing_penalty': 'Wide upper spacing',
     'upper_spacing_threshold': 'Upper spacing allowed',
     'same_bass_penalty': 'Same chord, same bass',
@@ -308,6 +309,14 @@ TOOLTIPS: Dict[str, str] = {
                                     "per semitone outside it; the bottom voice only above it, so the "
                                     "bass may sit low. 0 turns it off. More negative keeps each voice "
                                     "in one register through a song and from key to key."),
+    'weight:low_interval_limit_penalty': ("How the picker treats two neighbouring voices closer "
+                                          "than an octave down where that interval sounds muddy: "
+                                          "a minor third below C3, a major third below Bb2, a fourth "
+                                          "below A2, a fifth below Bb1, and seconds below Eb3. Charged "
+                                          "per semitone below that point, so a pair just under it "
+                                          "costs little and one far under it a lot. More negative "
+                                          "spreads the low voices wider and leaves the third to the "
+                                          "upper voices."),
     'weight:unison_penalty': ("How the picker treats a pair of neighbouring voices on the same "
                               "pitch, when unisons are allowed. More negative avoids unisons."),
     'weight:upper_spacing_penalty': ("How the picker treats a gap between two neighbouring "

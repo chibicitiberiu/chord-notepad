@@ -80,6 +80,25 @@ _LEAP_THRESHOLD = 7          # a leap wider than a perfect fifth is penalized
 _TRITONE = 6                 # an exact tritone leap is penalized
 _PERFECT_FIFTH = 7           # the only fifth an incomplete chord may leave out
 _STEP = 2                    # a move of up to a whole tone is a step
+# Low interval limits: for each interval smaller than an octave, the lowest MIDI
+# note its lower pitch may sit on before the interval sounds muddy (the usual
+# orchestration table: a minor third from C3, a major third from Bb2, a fifth
+# from Bb1; some sources put the tritone at B2 and the fourth at Bb2). Below it,
+# the pair costs ``low_interval_limit_penalty`` per semitone, so the cost fades
+# in at the limit and grows the lower the pair sits.
+_LOW_INTERVAL_LIMITS = {
+    1: 52,   # minor second: E3
+    2: 51,   # major second: Eb3
+    3: 48,   # minor third: C3
+    4: 46,   # major third: Bb2
+    5: 45,   # perfect fourth: A2
+    6: 46,   # tritone: Bb2
+    7: 34,   # perfect fifth: Bb1
+    8: 43,   # minor sixth: G2
+    9: 41,   # major sixth: F2
+    10: 41,  # minor seventh: F2
+    11: 41,  # major seventh: F2
+}
 _RANGE_COMFORT_EDGE = 2      # the outer 2 semitones of a range are uncomfortable
 _BAND_QUARTER = 4            # the comfortable band leaves out a quarter of the range at each end
 _RANGE_PAD = 2               # semitones the ladder widens each range end by
@@ -284,6 +303,7 @@ class EnsembleVoicer(INotePicker):
         self._middle_range_penalty = float(w('middle_range_penalty'))
         self._unison_penalty = float(w('unison_penalty'))
         self._upper_spacing_penalty = float(w('upper_spacing_penalty'))
+        self._low_interval_limit_penalty = float(w('low_interval_limit_penalty'))
         # Semitones an upper-voice gap may span before upper_spacing_penalty
         # applies (a fifth by default; a string pad spreads to an octave).
         self._upper_spacing_threshold = float(w('upper_spacing_threshold'))
@@ -953,6 +973,13 @@ class EnsembleVoicer(INotePicker):
         for lower, upper in zip(stack, stack[1:]):
             if lower == upper:
                 score += self._unison_penalty
+
+        # Low intervals: adjacent voices closer than an octave, per semitone below their limit.
+        if self._low_interval_limit_penalty:
+            for lower, upper in zip(stack, stack[1:]):
+                limit = _LOW_INTERVAL_LIMITS.get(upper - lower)
+                if limit is not None and lower < limit:
+                    score += self._low_interval_limit_penalty * (limit - lower)
 
         # Upper spacing: adjacent gaps not involving the bottom voice.
         for i in range(1, len(stack) - 1):

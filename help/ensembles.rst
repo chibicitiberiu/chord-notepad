@@ -650,6 +650,21 @@ Voicing Parameters
        Only relevant when ``allow_unisons`` is ``true``.
      - ``unison_penalty``
      - -0.5
+   * - Muddy low interval
+     - Subtracted per semitone that the lower of two neighbouring voices
+       closer than an octave sits below that interval's low interval limit,
+       the point below which it sounds muddy: a minor second below E3, a
+       major second below Eb3, a minor third below C3, a major third or a
+       tritone below Bb2, a fourth below A2, a minor sixth below G2, a major
+       sixth or a seventh below F2, a fifth below Bb1. Sources differ a
+       little (some put the tritone at B2 and the fourth at Bb2). The cost
+       fades in at the limit: a pair one semitone under it costs little, A2
+       with C3 above it (three under) costs three times as much. It keeps the
+       third of a chord out of the double bass and cello's low register, so
+       the low voices spread to fifths and octaves and the third sounds
+       higher up.
+     - ``low_interval_limit_penalty``
+     - -2.0
    * - Wide upper spacing
      - Subtracted per semitone that a gap between two neighbouring voices
        above the bass exceeds "Upper spacing allowed". Separate from
