@@ -469,7 +469,7 @@ def _play_window(sc: Scene):
     sc.playing(5)
 
 
-@shot("app-menu", "interface", "The ☰ menu.", crop_rect=(940, 30, 1280, 420))
+@shot("app-menu", "interface", "The ☰ menu.", crop_rect=(940, 30, 1280, 520))
 def _app_menu(sc: Scene):
     sc.song(*FAIR)
     sc.click("appMenuButton")
@@ -570,6 +570,10 @@ def _transpose(sc: Scene):
 def _capo(sc: Scene):
     sc.song(*GRACE)
     sc.dialogs("openSuggestCapo")
+    # The ranked rows, not the spinner that turns while it scores.
+    sc.until(lambda: sc.item("capoRows").property("visible") and sc.item("capoRows").property("count") > 0,
+             timeout=30000, what="the capo rows")
+    sc.settle()
 
 
 @shot("quick-start", "getting started", "The Quick Start tour, page 1.", crop="quickStartDialog",
