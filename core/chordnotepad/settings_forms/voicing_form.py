@@ -70,6 +70,7 @@ from chordnotepad.models.fretboard_spec import (
     DEFAULT_WEIGHTS as FRETBOARD_DEFAULT_WEIGHTS,
     FretboardSpec,
 )
+from chordnotepad.models import voicing_versions
 from chordnotepad.models.notation import spell_key
 from chordnotepad.models.piano_spec import (
     DEFAULT_PIANO,
@@ -769,8 +770,49 @@ def values_from_voicing(model: str, data: Mapping[str, Any],
     return values
 
 
+#: The top-level keys :func:`voicing_from_values` builds for each model
+#: (``label``, ``version`` and ``based_on`` are handled on their own). A key
+#: the form leaves out (``upper_clef`` at treble) is still the form's: it is
+#: never carried over from the stored dict.
+_FORM_KEYS = {
+    'fretboard': frozenset(('model', 'tuning', 'allow_barres', 'weights') + _FRETBOARD_INT_KEYS),
+    'ensemble': frozenset(('model', 'voices', 'max_spacing', 'allow_unisons', 'upper_clef',
+                           'weights')),
+    'piano': frozenset(('model', 'rh_center', 'add_bass', 'weights')
+                       + _PIANO_RANGE_KEYS + _PIANO_INT_KEYS),
+}
+_OWN_KEYS = frozenset(('label', 'version', 'based_on'))
+
+
+def _carry_over(model: str, out: Dict[str, Any], base: Mapping[str, Any]) -> None:
+    """Copy into ``out`` what the stored voicing ``base`` has that the form
+    doesn't build: ``based_on``, top-level keys and weight keys (and roles of
+    a nested weight) a newer release wrote. Only from a voicing of the same
+    model: a model switch starts over."""
+    if base.get('model') != model:
+        return
+    based_on = base.get('based_on')
+    if isinstance(based_on, str):
+        out['based_on'] = based_on
+    for key, value in base.items():
+        if key not in out and key not in _FORM_KEYS[model] and key not in _OWN_KEYS:
+            out[key] = copy.deepcopy(value)
+    known = {'fretboard': FRETBOARD_DEFAULT_WEIGHTS, 'ensemble': ENSEMBLE_DEFAULT_WEIGHTS,
+             'piano': PIANO_DEFAULT_WEIGHTS}[model]
+    weights = out['weights']
+    for key, value in _weights_of(base).items():
+        if key not in known:
+            weights.setdefault(key, copy.deepcopy(value))
+        elif isinstance(known[key], Mapping) and isinstance(value, Mapping) \
+                and isinstance(weights.get(key), dict):
+            for role, role_value in value.items():
+                if role not in known[key]:
+                    weights[key].setdefault(role, copy.deepcopy(role_value))
+
+
 def voicing_from_values(model: str, values: Mapping[str, Any],
-                        label: Optional[str] = None) -> Dict[str, Any]:
+                        label: Optional[str] = None,
+                        base: Optional[Mapping[str, Any]] = None) -> Dict[str, Any]:
     """Parse form values back into a voicing dict, forgivingly.
 
     A value that doesn't parse stays a raw string in the result (see
@@ -780,6 +822,11 @@ def voicing_from_values(model: str, values: Mapping[str, Any],
         model: The form's model.
         values: The form values, keyed by field id.
         label: The voicing's display label to carry over, if it has one.
+        base: The voicing as stored before this edit. Its ``based_on``, and
+            every key the form doesn't build (a newer release's), carry over
+            when it is of the same model, and the result gets
+            ``version = max(base's version, VOICING_VERSION)``: the keys of
+            the newer release travel with its version. None: neither.
 
     Returns:
         A voicing dict including ``'model'``, ready for ``set_voicing_data``.
@@ -860,6 +907,11 @@ def voicing_from_values(model: str, values: Mapping[str, Any],
 
     if label:
         out['label'] = label
+    if base is not None:
+        _carry_over(model, out, base)
+        if base.get('model') == model:
+            out['version'] = voicing_versions.voicing_version(base)
+        voicing_versions.stamp(out)
     return out
 
 
@@ -1312,17 +1364,22 @@ def load_presets(custom_voicings: Optional[Mapping[str, Mapping[str, Any]]] = No
     piano entry, then the user's own voicings sorted by name. Each entry is
     ``{'label', 'group', 'data'}``: ``group`` is ``'fretboard'``,
     ``'ensemble'``, ``'piano'`` or ``'custom'`` (a view separates the
-    groups), ``data`` a complete voicing dict including ``'model'``.
+    groups), ``data`` a complete voicing dict including ``'model'``. A
+    built-in's entry also has ``based_on``: the link a copy of it keeps
+    (``models.voicing_versions``).
     """
     presets: List[Dict[str, Any]] = []
-    for fretboard in BUILTIN_FRETBOARDS.values():
+    for slug, fretboard in BUILTIN_FRETBOARDS.items():
         presets.append({'label': fretboard.label, 'group': 'fretboard',
-                        'data': {'model': 'fretboard', **fretboard.to_dict()}})
-    for ensemble in BUILTIN_ENSEMBLES.values():
+                        'data': {'model': 'fretboard', **fretboard.to_dict()},
+                        'based_on': voicing_versions.fretboard_id(slug)})
+    for slug, ensemble in BUILTIN_ENSEMBLES.items():
         presets.append({'label': ensemble.label, 'group': 'ensemble',
-                        'data': {'model': 'ensemble', **ensemble.to_dict()}})
+                        'data': {'model': 'ensemble', **ensemble.to_dict()},
+                        'based_on': voicing_versions.ensemble_id(slug)})
     presets.append({'label': 'Piano (default)', 'group': 'piano',
-                    'data': {'model': 'piano', **DEFAULT_PIANO.to_dict()}})
+                    'data': {'model': 'piano', **DEFAULT_PIANO.to_dict()},
+                    'based_on': voicing_versions.PIANO_ID})
     for name in sorted(custom_voicings or {}):
         presets.append({'label': name, 'group': 'custom',
                         'data': copy.deepcopy(dict(custom_voicings[name]))})

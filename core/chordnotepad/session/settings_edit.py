@@ -26,6 +26,7 @@ What the view draws comes out as :class:`~session.state.VoicingEditorState`
 import copy
 from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Mapping, Optional, Tuple
 
+from chordnotepad.models import voicing_versions
 from chordnotepad.settings_forms import voicing_form as form
 from chordnotepad.settings_forms.voicing_autosave import VoicingPlan, plan_voicing, problem_text
 from chordnotepad.session.state import SettingsProblem, VoicingEditorState, VoicingGroup, VoicingPreset
@@ -154,6 +155,9 @@ class SettingsEdit:
         <label>"; either is numbered ("New Piano (default) 2") when the
         name is taken, ignoring case, or a built-in's.
 
+        A copy of a built-in links to it (``based_on``), a copy of the
+        user's own voicing keeps that one's link, and a blank has none.
+
         Raises:
             ValueError: If there is no such preset.
         """
@@ -163,6 +167,7 @@ class SettingsEdit:
         else:
             raise ValueError(f"no preset {label!r} in group {group!r}")
         data = copy.deepcopy(preset["data"])
+        voicing_versions.stamp(data, preset.get("based_on"))
         if group == BLANK_GROUP:
             base = BLANK_VOICING_NAMES[data["model"]]
         else:
@@ -209,10 +214,12 @@ class SettingsEdit:
             if key in self._recent:
                 self._recent.remove(key)
             self._recent.append(key)
-        self._store(form.voicing_from_values(self._form_model, merged, self._label))
+        self._store(form.voicing_from_values(self._form_model, merged, self._label,
+                                             base=self._stored()))
 
     def set_model(self, model: str) -> None:
-        """Switch the selected voicing to ``model`` with that model's defaults.
+        """Switch the selected voicing to ``model`` with that model's defaults
+        (it is no longer a copy of a built-in: ``based_on`` goes).
 
         Raises:
             RuntimeError: If no voicing is selected, or a built-in is.
@@ -269,6 +276,9 @@ class SettingsEdit:
     def load_preset(self, group: str, label: str) -> None:
         """Replace the selected voicing's parameters with a "Load config" entry.
 
+        It takes the entry's link too: a built-in's ``based_on``, a custom
+        voicing's own (or none), a blank's none.
+
         Raises:
             RuntimeError: If no voicing is selected, or a built-in is.
             ValueError: If there is no such entry.
@@ -277,6 +287,7 @@ class SettingsEdit:
         for preset in self.presets():
             if preset["group"] == group and preset["label"] == label:
                 data = copy.deepcopy(preset["data"])
+                voicing_versions.stamp(data, preset.get("based_on"))
                 self._label = data.get("label")
                 self._store(data)
                 self._load(data, keep_label=True)
@@ -309,7 +320,8 @@ class SettingsEdit:
                 model = form.form_model(data.get('model', 'piano'))
                 values = form.values_from_voicing(model, data, self.notation)
                 label, recent = data.get('label'), []
-            out[name] = plan_voicing(name, model, values, label, saved, recent, self.notation)
+            out[name] = plan_voicing(name, model, values, label, saved, recent, self.notation,
+                                     stored=data)
         return out
 
     def registry(self, plans: Mapping[str, VoicingPlan],
@@ -446,13 +458,22 @@ class SettingsEdit:
         if not keep_label:
             self._label = data.get("label")
 
+    def _stored(self) -> Optional[Mapping[str, Any]]:
+        """The selected voicing as the working copy has it (the base an edit
+        carries ``based_on`` and unknown keys over from)."""
+        return self.model.get_voicings().get(self._selected)
+
     def _store(self, data: Dict[str, Any]) -> None:
+        """Every write of the selected voicing comes here: it gets this
+        release's ``version`` (or keeps a newer one)."""
+        voicing_versions.stamp(data)
         self.model.set_voicing_data(self._selected, data)
         self._dirty = True
 
     def _replace_values(self, values: Dict[str, Any]) -> None:
         self._values = values
-        self._store(form.voicing_from_values(self._form_model, values, self._label))
+        self._store(form.voicing_from_values(self._form_model, values, self._label,
+                                             base=self._stored()))
 
     def _clear(self) -> None:
         self._recent = []

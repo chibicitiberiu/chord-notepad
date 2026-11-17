@@ -130,7 +130,8 @@ def _text(value: Any) -> str:
 
 def plan_voicing(name: str, model: str, values: Mapping[str, Any], label: Optional[str],
                  saved: Optional[Mapping[str, Any]], recent: Sequence[str] = (),
-                 notation: str = 'american') -> VoicingPlan:
+                 notation: str = 'american',
+                 stored: Optional[Mapping[str, Any]] = None) -> VoicingPlan:
     """Work out what to save of one voicing whose form holds ``values``.
 
     Args:
@@ -144,6 +145,9 @@ def plan_voicing(name: str, model: str, values: Mapping[str, Any], label: Option
             spans fields blames these first.
         notation: The notation the form shows note names in (old values
             put back into it are spelled the same way).
+        stored: The voicing as the working copy has it: its ``based_on``, the
+            keys the form doesn't build and its version carry over into what
+            is written (``voicing_form.voicing_from_values``).
 
     Returns:
         The voicing to write and what's wrong with the form.
@@ -165,11 +169,13 @@ def plan_voicing(name: str, model: str, values: Mapping[str, Any], label: Option
         _put(merged, field_id, _old_value(model, base, field_id))
 
     def error_of(candidate: Mapping[str, Any]) -> Optional[str]:
-        return form.voicing_error(name, form.voicing_from_values(model, candidate, label))
+        return form.voicing_error(name, form.voicing_from_values(model, candidate, label,
+                                                                 base=stored))
 
     error = error_of(merged)
     if error is None:
-        return VoicingPlan(form.voicing_from_values(model, merged, label), _ordered(problems, order))
+        return VoicingPlan(form.voicing_from_values(model, merged, label, base=stored),
+                           _ordered(problems, order))
 
     # A rule across fields: revert changed fields, the most recent first,
     # until it holds, then give back the ones it didn't need.
@@ -215,7 +221,8 @@ def plan_voicing(name: str, model: str, values: Mapping[str, Any], label: Option
         problems[field_id] = FieldProblem(
             field_id, typed,
             _range_message(_field_of(model, field_id), typed) or _sentence(message, model))
-    return VoicingPlan(form.voicing_from_values(model, trial, label), _ordered(problems, order))
+    return VoicingPlan(form.voicing_from_values(model, trial, label, base=stored),
+                       _ordered(problems, order))
 
 
 def _ordered(problems: Mapping[Optional[str], FieldProblem],

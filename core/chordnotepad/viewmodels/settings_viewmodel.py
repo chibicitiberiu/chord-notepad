@@ -17,6 +17,7 @@ import logging
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
 
+from chordnotepad.models import voicing_versions
 from chordnotepad.models.notation import american_key, key_names, spell_key
 from chordnotepad.services.config_service import ConfigService
 from chordnotepad.settings_forms.voicing_form import load_presets, voicing_error
@@ -150,22 +151,23 @@ class SettingsViewModel:
             The unique name assigned to the new voicing.
         """
         name = self._unique_name("New voicing")
-        self._working_voicings[name] = {
+        self._working_voicings[name] = voicing_versions.stamp({
             'model': 'fretboard',
             'tuning': list(_STANDARD_GUITAR_TUNING),
-        }
+        })
         return name
 
     def add_voicing_data(self, base: str, data: dict) -> str:
         """Add a voicing with ``data`` (it must include ``'model'``), named
         ``base`` or, when that is taken (ignoring case, or a built-in's
-        name), ``base 2``, ``base 3``...
+        name), ``base 2``, ``base 3``... It gets this release's ``version``
+        (``models.voicing_versions.stamp``).
 
         Returns:
             The name it got.
         """
         name = self._unique_name(base)
-        self._working_voicings[name] = data
+        self._working_voicings[name] = voicing_versions.stamp(data)
         return name
 
     def remove_voicing(self, name: str) -> None:

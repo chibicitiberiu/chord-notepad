@@ -4,6 +4,7 @@ read-only: ``add_voicing_from``, ``select_builtin``, the ``blank`` group,
 
 import pytest
 
+from chordnotepad.models.voicing_versions import VOICING_VERSION
 from chordnotepad.session.platform import ANDROID, DESKTOP_QT
 from chordnotepad.session.state import VoicingEditorState
 from chordnotepad.settings_forms import voicing_form
@@ -62,7 +63,9 @@ def test_a_blank_is_its_models_valid_defaults(tmp_path, label, model, name):
     session.add_voicing_from("blank", label)
     state = editor(recorder)
     assert (state.selected, state.model, state.read_only) == (name, model, False)
-    assert _working(session)[name] == voicing_form.default_voicing(model)
+    # A blank links to nothing; it has this release's version.
+    assert _working(session)[name] == dict(voicing_form.default_voicing(model),
+                                           version=VOICING_VERSION)
     assert voicing_error(name, _working(session)[name]) is None
     assert state.form_errors == () and state.field_errors == {}
     assert name not in state.invalid
@@ -99,7 +102,7 @@ def test_a_copy_of_a_voicing_of_the_users_also_the_selected_one(tmp_path):
     session.add_voicing_from("custom", "Bass")
     state = editor(recorder)
     assert state.selected == "New Bass" and state.model == "fretboard"
-    assert _working(session)["New Bass"] == BASS
+    assert _working(session)["New Bass"] == dict(BASS, version=VOICING_VERSION)
     assert _working(session)["New Bass"] is not _working(session)["Bass"]
     assert state.groups[0].names == ("Bass", "New Bass")
 
@@ -115,7 +118,9 @@ def test_a_copy_of_a_built_in_takes_its_data_and_one_state(tmp_path):
     assert (state.selected, state.model, state.dirty) == (name, "ensemble", False)
     assert len(state.values["voices"]) == 4 and state.form_errors == ()
     preset = next(p for p in voicing_form.load_presets() if p["label"] == satb.label)
-    assert _working(session)[name] == preset["data"]
+    assert preset["based_on"] == "ensemble:satb"
+    assert _working(session)[name] == dict(preset["data"], version=VOICING_VERSION,
+                                           based_on="ensemble:satb")
 
 
 def test_an_unknown_preset_is_refused(tmp_path):
