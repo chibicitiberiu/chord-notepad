@@ -557,11 +557,11 @@ Keyboard Shortcuts Summary
    ::
 
       FILE                 EDIT                 VIEW
-      Ctrl+N  New          Ctrl+Z  Undo         Ctrl++  Zoom In
-      Ctrl+O  Open         Ctrl+Y  Redo         Ctrl+-  Zoom Out
-      Ctrl+S  Save         Ctrl+X  Cut          Ctrl+0  Reset Zoom
+      Ctrl+N  New          Ctrl+Z  Undo         Ctrl++  Larger text
+      Ctrl+O  Open         Ctrl+Y  Redo         Ctrl+-  Smaller text
+      Ctrl+S  Save         Ctrl+X  Cut          Ctrl+0  Reset text size
       Ctrl+Shift+S  As     Ctrl+C  Copy
-      Ctrl+Q  Exit         Ctrl+V  Paste        HELP
+      Ctrl+Q  Quit         Ctrl+V  Paste        HELP
                            Ctrl+A  Select All   F1      User Guide
 
 .. only:: android
@@ -626,10 +626,8 @@ Color Coding Summary
      - Background
      - Currently playing
 
-.. only:: android
-
-   In the dark theme the same roles use lighter shades (light blue chords,
-   lilac directives) and a dark yellow for the playing chord.
+In the dark theme the same roles use lighter shades (light blue chords,
+lilac directives) and a dark yellow for the playing chord.
 
 
 Guitar Tunings
@@ -669,7 +667,7 @@ Application Limits
    * - Setting
      - Minimum
      - Maximum
-   * - Tempo (:plat:`player bar, Settings and the directive tiles|Playback settings, Settings and the ＋ Insert form`)
+   * - Tempo (:plat:`player bar, Settings and the tempo picker|Playback settings, Settings and the ＋ Insert form`)
      - 20
      - 400
    * - Font size
@@ -681,19 +679,19 @@ Application Limits
    * - Time signature unit (1, 2, 4, 8 or 16)
      - 1
      - 16
-   * - Loop count (:plat:`Insert dialog|＋ Insert form`)
+   * - Loop count (:plat:`loop picker|＋ Insert form`)
      - 1
-     - 100
+     - :plat:`16|100`
    * - Capo fret
      - 0
      - 12
    * - Recent files (default 10)
      - 1
-     - :plat:`30|50`
+     - 50
 
 These are the limits of the app's controls and forms. A directive you type
 yourself follows the tempo (20-400), time signature and capo limits too; a
-value outside them makes it an invalid directive. The Insert loop count is
+value outside them makes it an invalid directive. The :plat:`picker's|Insert form's` loop count is
 not a limit on typed loops, but a song stops after 5,000 chords once its loops
 are played out.
 

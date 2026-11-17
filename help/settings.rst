@@ -177,7 +177,7 @@ General
 
    The Playback & audio page.
 
-**Default BPM**
+:plat:`**Default tempo (bpm)**|**Default BPM**`
    The tempo a song starts at when it has no ``{bpm}`` directive before its
    first chord.
 
@@ -380,7 +380,7 @@ you there.
 
 **Parameters**
    For a fretboard voicing: strings, frets, fingers, spans, and barres,
-   plus all thirteen weights :plat:`in a compact multi-column form|` (see
+   plus all the weights :plat:`in a compact multi-column form|` (see
    :doc:`fretted`). For an ensemble voicing: the voices
    :plat:`table -- a row per voice with Name, Low, High, Staff and Max gap to
    next voice columns|-- a card per voice with Name, Low, High, Staff and Max

@@ -90,15 +90,16 @@ The User Interface
    ==============
 
    The player bar is the top of the Play workspace. Left to right, it holds
-   the song's own values, the transport, the timeline, and the sound.
+   the transport, the song's own values with the timeline under them, and
+   the sound.
 
    .. _desktop-song-values:
 
    Tempo, Key and Time Signature
    -----------------------------
 
-   At the left, under the song's name, are its tempo, time signature and
-   key, for example **90 bpm · 3/4 · G**. They are what the song starts with.
+   In the middle, above the timeline, are the song's tempo, time signature
+   and key, for example **90 bpm · 3/4 · G**. They are what the song starts with.
 
    * When the song sets one with a directive before its first chord, such as
      ``{bpm: 90}``, ``{key: D}`` or ``{time: 6/8}``, the value is the song's
@@ -128,8 +129,9 @@ The User Interface
       The key picker.
 
    **Key** and **Time signature** open a small picker when you click them
-   (or press **Alt+Down** on the value with the keyboard): a grid of keys,
-   or beats and beat unit. The keys shown match the song's notation
+   (or, with the keyboard, Tab to the value and press Enter or Space): a
+   grid of keys, or the common time signatures and a beats box over a beat
+   unit. The keys shown match the song's notation
    (C-D-E-F-G-A-B or Do-Re-Mi-Fa-Sol-La-Si), and the key also gives the key
    signature in the Staff view. Beats go from 1 to 16 and the beat unit is 1,
    2, 4, 8 or 16: 4/4 is standard time, 3/4 a waltz, 6/8 compound duple. The
@@ -285,8 +287,9 @@ The User Interface
    button steps the music by 5%.
 
    When the window is narrow, the bar gives up space in a fixed order: the
-   timeline shrinks first, then the song's name and values move into a **»**
-   menu, then the voicing and instrument buttons show only their icons.
+   timeline shrinks first, then the voicing and instrument buttons show only
+   their icons, then the timeline shrinks further. The song's values always
+   stay.
 
    The Menus
    =========
@@ -295,16 +298,17 @@ The User Interface
 
    .. platform-figure:: app-menu
       :platforms: desktop
-      :alt: The ☰ menu: New, Open, Open recent, Save, Save as, a zoom control,
-            Export MIDI, Show menu bar, Dark theme, Settings, Help and Quit.
+      :alt: The ☰ menu: New, Open, Open recent, Backups, Save, Save as, a
+            zoom control, Export MIDI, Export audio, Export PDF, Show menu
+            bar, Dark theme, Settings, Help and Quit.
 
       The ☰ menu.
 
-   **New**, **Open...**, **Open recent**, **Save**, **Save as...**
+   **New**, **Open...**, **Open recent**, **Backups**, **Save**, **Save as...**
       The file commands, described below.
 
    **Zoom**
-      The − and + buttons scale the whole window in steps (Ctrl+Alt+Plus,
+      The − and + buttons scale the whole window in steps (Ctrl+Alt+=,
       Ctrl+Alt+Minus; Ctrl+Alt+0 for 100%), and the corner button switches
       to full screen (F11). This is separate from the text size.
 
@@ -362,6 +366,11 @@ The User Interface
    **Open recent**
       A submenu showing the files you opened or saved lately (10 by default;
       see :doc:`settings`). Two files with the same name show their folders.
+
+   **Backups**
+      The copies of unsaved songs that a crash or a shutdown left behind,
+      newest first, and **Clear backups** at the bottom. It's greyed out
+      when there are none. See :doc:`getting_started`.
 
    **Save** (Ctrl+S)
       Save the current document. If it's a new file, you'll be asked where to
@@ -575,8 +584,9 @@ The User Interface
 
    **Settings...** (Ctrl+,)
       Opens the Settings window: general preferences, playback and audio
-      defaults, and the full voicing editor, across three pages that save as
-      you go. See :doc:`settings`.
+      defaults, and the full voicing editor, on three pages. **Save** at the
+      bottom keeps the changes and **Discard** drops them. See
+      :doc:`settings`.
 
    Directives and the chord identifier have no entry here: they live in the
    sidebars, which are in the View menu and on the rail.
@@ -695,8 +705,8 @@ The User Interface
    playback.
 
    Rest the mouse pointer on any directive for a moment, and a small card
-   shows what it does or, for a red or faded one, the reason and the correct
-   syntax.
+   under it shows how that directive is written; for a red or faded one, the
+   reason comes first.
 
    The Status Bar
    --------------
@@ -814,7 +824,7 @@ The User Interface
    two lines, but a wrapped chord line no longer lines up with its lyric).
 
    Songs you open start in the Play tab, and new songs start in Edit.
-   Switching to Edit while a song plays stops playback. Both tabs keep the same
+   Switching to Edit while a song plays or is paused stops playback. Both tabs keep the same
    scroll position, so you don't lose your place when you switch.
 
    Held sideways, the Play tab puts the text on the left and the chord sheet,
@@ -912,8 +922,8 @@ The User Interface
       125%.
 
    #. **The song pill** reads something like "𝄞 90 · 3/4 · G ⌄": the tempo,
-      time signature and key the song starts with. Tap it to open **Song
-      defaults** (below).
+      time signature and key the song starts with. Tap it to open **Playback
+      settings** (below).
    #. **Voicing** opens a sheet with the voicings grouped as Piano, Fretted,
       Ensembles and Your voicings. **Edit voicings…** at the bottom opens
       Settings › Voicings. See :doc:`playback`, :doc:`fretted` and
@@ -1089,9 +1099,11 @@ The User Interface
       The short tour that opens the first time you start the app.
 
    **About**
-      The version and build, the licence (GNU AGPL-3.0 with additional terms),
-      a link to the source code, the no-warranty notice, and **Open source
-      licences**: the licences of everything the app is built from.
+      The version and build, the copyright, the licence (GNU AGPL-3.0 with
+      additional terms), a link to the source code, the no-warranty notice,
+      and **Open source licences**: the licences of everything the app is
+      built from. Copies from outside Google Play also have a **Support
+      development** link.
 
    There is no Exit entry. Press Back on the main screen to leave the app; if
    the song has unsaved changes, it asks whether to save them first.
@@ -1454,8 +1466,9 @@ wrong with it.
    what it showed before. While a song plays, the status bar keeps showing
    playback.
 
-   Rest the mouse pointer on a red or faded directive for a moment, and a
-   tooltip shows the reason and the correct syntax.
+   Rest the mouse pointer on any directive for a moment, and a small card
+   under it shows the same; for a red or faded one, the reason and the
+   correct syntax.
 
 .. only:: android
 
@@ -1596,13 +1609,12 @@ Insert Time Signature Dialog
 
 .. only:: desktop
 
-   Two spinboxes let you set:
+   The time tile adds ``{time: 3/4}`` at your cursor with the value
+   selected. Its **▾** offers the common time signatures (2/4 to 12/8), or
+   set your own:
 
    * Beats (1-16)
    * Unit (1, 2, 4, 8, or 16)
-
-   The time tile adds ``{time: 3/4}`` at your cursor with the value
-   selected; the **▾** picks the beats and the unit.
 
 .. only:: android
 
@@ -1677,7 +1689,8 @@ Two controls:
 
 .. only:: desktop
 
-   * **Count:** How many times to repeat (1-100)
+   * **Count:** How many times to repeat (the **▾** offers 1 to 16; you can
+     type a bigger number)
 
    The loop tile adds a loop to the nearest label above the cursor, the
    **×3** tile the same with a count of 3, and the **start** tile a loop to

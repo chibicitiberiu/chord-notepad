@@ -28,7 +28,7 @@ This document describes how to create releases for Chord Notepad.
    ```
 
 5. **GitHub Actions will automatically:**
-   - Build for Linux, Windows, and macOS
+   - Build for Linux, Windows, macOS and Android
    - Create a GitHub Release
    - Upload binaries
 
@@ -43,7 +43,7 @@ Follow [Semantic Versioning](https://semver.org/):
 
 Nightly builds are created automatically every Monday if there are changes in the last 7 days.
 
-- **Format**: `nightly-YYYYMMDD-<commit>`
+- **Format**: tag `nightly-YYYYMMDD`; the version string is `v<VERSION> nightly YYYYMMDD (<commit>)`
 - **Purpose**: Testing latest development changes
 - **Retention**: Latest 5 nightlies kept, older ones deleted
 - **Not for production use**
@@ -139,8 +139,9 @@ git push origin v1.0.0
 
 ### Wrong Version in Build
 The version is determined by:
-- **Release builds**: Git tag name
-- **Nightly builds**: Date + commit hash
+- **Tag pushes**: the Git tag name
+- **Release dispatches**: `v<VERSION> build <run number> (<commit>)`, tagged `v<VERSION>-build<run number>`
+- **Nightly builds**: date + commit hash
 - **Local builds**: "dev-local"
 
 Make sure you're pushing the correct tag format: `v*.*.*`

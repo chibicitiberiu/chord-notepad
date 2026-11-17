@@ -363,7 +363,7 @@ Suggesting a Capo
    * the capo, for example ``Capo 3``, or ``No capo``;
    * the chord shapes you would play with it, for example ``G D Em C``;
    * how they compare with no capo: **Easier**, **About the same** or
-     **Harder**.
+     **Harder** (the **No capo** row has nothing to compare with).
 
    Easier means fewer barres, shapes lower on the neck and more open strings.
    The recommended row comes first and is already chosen, marked
@@ -379,7 +379,7 @@ Suggesting a Capo
    fretboard voicing. Choose another and the list is scored again.
 
    Choose a row with the mouse or the Up and Down keys, then press **Apply**
-   (or Enter) to write its ``{capo: N}`` directive as a single undo step.
+   (or Enter, or double-click the row) to write its ``{capo: N}`` directive as a single undo step.
    **Cancel** (or Escape) changes nothing. Apply waits while a song is playing
    or paused; stop it first.
 

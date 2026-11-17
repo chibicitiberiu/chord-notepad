@@ -44,7 +44,8 @@ Exporting MIDI
    :alt: The open drawer: New song, Open, the recent songs, Save as, Export
          MIDI, Settings, Examples, User guide, Quick start and About.
 
-   **Export MIDI…** is in the ☰ drawer, under Save as….
+   **Export MIDI…**, **Export audio…** and **Export PDF…** are in the ☰
+   drawer, under Save as….
 
 .. only:: android
 

@@ -67,12 +67,13 @@ The Main :plat:`Window|Screen`
 
    #. **Edit and Play tabs** -- switch between writing and listening
       (Ctrl+1, Ctrl+2). Play shows the player bar and the chord sheet.
-   #. **☰** -- the main menu: New, Open, Save, Export MIDI, Settings, Help and
-      more. **☰ → Show menu bar** adds a classic File, Edit, View, Playback,
+   #. **☰** -- the main menu: New, Open, Save, Export (MIDI, audio, PDF),
+      Settings, Help and more. **☰ → Show menu bar** adds a classic File, Edit, View, Playback,
       Tools and Help menu bar, which holds every command.
    #. **Rail** -- opens the Directives sidebar, the Chord identifier and
       Settings.
-   #. **Toolbar** (Edit only) -- Undo and Redo, Transpose, Convert, the
+   #. **Toolbar** (Edit only) -- Undo and Redo, Transpose, Capo (suggests a
+      capo position), Convert, the
       **AB / Do** switch (American or European note names; roman numerals
       work in either; see :doc:`writing_chords`), the chord sheet button, and
       **Play** and **Stop**.
@@ -113,7 +114,7 @@ The Main :plat:`Window|Screen`
       The Play tab, while a song plays.
 
    #. **☰** -- opens the drawer: New song, Open…, your recent songs, Save as…,
-      Export MIDI…, and below them Settings, Examples, User guide, Quick start
+      Export MIDI…, Export audio…, Export PDF…, and below them Settings, Examples, User guide, Quick start
       and About.
    #. **Song title** -- shows a • when there are unsaved changes. Tap it to
       rename the song.
@@ -253,7 +254,7 @@ Adjusting the Tempo
 .. only:: desktop
 
    There are two separate tempo controls, both in the Play workspace's player
-   bar: the tempo, under the song's name, and the speed button:
+   bar: the tempo, above the timeline, and the speed button:
 
    .. platform-figure:: speed-controls
       :platforms: desktop

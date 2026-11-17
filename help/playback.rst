@@ -72,7 +72,8 @@ Want to start from a specific point?
 
    To start from any other point in the text, click there so the text cursor
    is on it and **Shift+Click** the Play button. To start from a section,
-   click it on the timeline in the Play workspace.
+   click it on the timeline in the Play workspace (that moves the playhead
+   without a sound), then press **▶**.
 
 .. only:: android
 
@@ -247,7 +248,8 @@ You can play individual chords without starting full playback.
    chords in the chord sheet too.
 
    In the Edit workspace a click on a chord does the same, so you can hear
-   what you have written as you go.
+   what you have written as you go. **Alt+Click** treats the chord as plain
+   text instead: nothing plays, and you can select it.
 
 .. only:: android
 
@@ -358,8 +360,8 @@ pass. Right after an edit, until the chord sheet has caught up with it (or
 while the chord sheet is hidden and hasn't drawn the song), a |click| falls
 back to voicing the chord from the one you |clicked| before it. To have
 every |click| work that way, a new voicing each time, turn off **Clicked
-chords sound as in the chord sheet** in the Playback settings (see
-:doc:`settings`).
+chords sound as in the chord sheet** in the :plat:`Playback & audio|Playback`
+settings (see :doc:`settings`).
 
 .. only:: android
 
@@ -524,6 +526,8 @@ The same reasoning is applied to a small set of extended chords:
 * ``C11`` and ``Cmaj11`` drop the **third**, which clashes with the eleventh.
 * ``C13``, ``Cm13``, and ``Cmaj13`` drop the **eleventh**, a practical voicing
   players use. So does ``C7b9b13``.
+* ``C13b9``, ``C13#9`` and ``C13b5`` drop the eleventh the same way, and
+  ``C11b9`` drops the third like ``C11``.
 * Minor elevenths (``Cm11``) keep their flat third, since a minor third against
   the eleventh doesn't clash.
 
@@ -710,7 +714,12 @@ Different instruments can highlight different aspects of a chord progression.
    shows as it takes effect. Paused, the same shows with "Paused" and no dot;
    when nothing plays, the song's starting tempo, time signature and key show.
 
-   Watch the status bar to keep track of where you are in longer songs.
+   The status bar belongs to the Edit workspace. In the Play workspace, the
+   box beside the timeline in the player bar counts the bar and beat
+   ("7:2") from the top of the song, and the tempo, time signature and key
+   sit above the timeline.
+
+   Watch them to keep track of where you are in longer songs.
 
 .. only:: android
 

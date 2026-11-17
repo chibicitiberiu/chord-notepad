@@ -203,7 +203,7 @@ View / Zoom
         - Reset text size to default (11pt)
       * - Ctrl+Mouse Wheel
         - Zoom the text in/out
-      * - Ctrl+Alt+Plus / Ctrl+Alt+Minus / Ctrl+Alt+0
+      * - Ctrl+Alt+= / Ctrl+Alt+Minus / Ctrl+Alt+0
         - Zoom the whole window in, out, back to 100%
       * - F11
         - Full screen
@@ -273,7 +273,7 @@ Playback
       * - Ctrl+] / Ctrl+[ / Ctrl+Backslash
         - Speed up 5% / down 5% / back to 100%
       * - Alt+Down
-        - Open the picker of the song value or directive you're on (Edit → Change value…)
+        - Open the picker of the directive value the cursor is in (Edit → Change value…)
       * - Ctrl+T
         - Transpose
       * - Ctrl+,

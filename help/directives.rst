@@ -42,8 +42,8 @@ Setting Tempo
 
 .. only:: desktop
 
-   Use a whole number from 20 to 400, the player bar's range (the tempo tiles
-   and pickers take the same). A tempo outside 20-400 shows in red as an invalid directive
+   Use a whole number from 20 to 400, the player bar's range (the tempo picker
+   takes the same). A tempo outside 20-400 shows in red as an invalid directive
    and playback ignores it. The speed multiplier is applied on top of
    this value, so a song written at ``{bpm: 120}`` with the multiplier set to
    50% plays at 60 BPM.
@@ -388,7 +388,7 @@ Creating Labels
 Label names:
 
 * Can contain letters, numbers, underscores and spaces (``{label: verse 1}``).
-  The :plat:`Insert dialog|＋ Insert form` only takes letters, numbers and
+  :plat:`The loop picker only offers|The ＋ Insert form only takes` labels made of letters, numbers and
   underscores; a label with spaces has to be typed.
 * Are case-sensitive (``verse`` and ``Verse`` are different)
 * Should be descriptive (``verse``, ``chorus``, ``bridge``, ``intro``, etc.)
@@ -528,6 +528,9 @@ Directive Summary
    * - ``{key}``
      - Set musical key
      - ``{key: C}``, ``{key: Am}``, ``{key: F#}``
+   * - ``{capo}``
+     - Capo for Fret cards and Tab
+     - ``{capo: 2}``, ``{capo: 0}``
    * - ``{label}``
      - Mark a position
      - ``{label: verse}``, ``{label: chorus}``

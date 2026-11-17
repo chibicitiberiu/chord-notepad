@@ -77,9 +77,7 @@ root to chase, and insisting on one drags shapes up the neck) and the
 *Sounding string* weight is raised to +2.5 (with only four strings, every one that rings
 counts). With these values the picker lands on the familiar chord-book
 shapes when it voices a progression: C as 0003, G as 0232, G7 as 0212, F as
-2010. (An F played on its own, with no chord before it, comes out as 5550
-instead, which puts the root at the bottom; within a song, staying near the
-nut wins.)
+2010.
 
 A chord with more notes than the instrument has strings (a 9th, 11th or 13th
 on four strings) has to leave some out, and the picker chooses which by what
@@ -240,9 +238,8 @@ Defining a Custom Fretted Voicing
 
 .. only:: desktop
 
-   Custom fretted voicings appear in :menuselection:`Playback --> Voicing`
-   the next time Chord Notepad starts (or as soon as you save them in the
-   Settings window), in the last group of the menu with your other custom
+   Custom fretted voicings appear in the Voicing menus as soon as you save
+   them in the Settings window, in the last group with your other custom
    voicings, sorted by model and then name. They are also offered in Suggest
    Capo (see :doc:`chord_sheet`).
 
@@ -266,8 +263,9 @@ How to Change Voicing
 
 .. only:: desktop
 
-   1. Open the **Playback** menu.
-   2. Click **Voicing**.
+   1. Pause or stop the song if it is playing.
+   2. Click the **Voicing** button in the player bar (or open **Playback →
+      Voicing**).
    3. Select **Guitar (Standard - EADGBE)**, **Guitar (Drop D)**,
       **Guitar (DADGAD)**, **Guitar (Open G)**, **Ukulele**, or any custom
       fretted voicing you've defined (see above).
@@ -331,11 +329,11 @@ Physical Parameters
    * - Max fret
      - The highest fret considered when searching for a fingering. Higher
        lets the picker reach further up the neck; lower keeps everything
-       close to the nut.
+       close to the nut. From 5 to 24.
      - ``max_fret``
      - 12
    * - Fingers
-     - How many fretting fingers the hand has available.
+     - How many fretting fingers the hand has available, 1 to 5.
      - ``fingers``
      - 4
    * - Max span

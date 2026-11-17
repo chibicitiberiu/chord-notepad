@@ -21,10 +21,11 @@ at a few different octave placements. Any extensions a
 chord carries -- a 9th, an 11th, a 13th -- always stack on top of that core
 voicing rather than displacing it, so a dense jazz chord still reads as the
 plain triad or seventh underneath with color added above.
-When they don't all fit in one hand, the extension the chord's name spells
-is kept first: a G13 keeps its 13th (E) and gives up the 9th the name only
-stacks in, an Am11 keeps its 11th before its 9th, and an altered 9th (C7♭9)
-counts as named.
+When they don't all fit in one hand, leaving out the extension the chord's
+name spells costs twice as much as leaving out one the name only stacks in,
+so the named one usually stays: in Dm9 G13 Cmaj9 the G13 keeps its 13th (E)
+and gives up the 9th. An altered 9th (C7♭9) counts as named. It is a
+weight, not a rule, so a voicing that sits much better can still win.
 
 Not every voicing that's built this way is playable, so the picker throws
 out anything that breaks the physical model first: too many notes for one
@@ -45,18 +46,15 @@ The Built-in Voicing
    Chord Notepad ships with one built-in piano voicing, listed as **Piano** in
    the :menuselection:`Playback --> Voicing` menu and as **Piano (default)**
    in the **Add voicing** menu of the Voicings page. It's the voicing a fresh install
-   starts with. Its parameters reproduce the piano engine's original,
-   hand-tuned behavior exactly, so if you've never touched the Voicings page,
-   this is what you've been hearing all along.
+   starts with, and its parameters are the defaults listed under `Voicing
+   Parameters`_ below.
 
 .. only:: android
 
    Chord Notepad ships with one built-in piano voicing, listed as **Piano** in
    the player's Voicing sheet and as **Piano (default)** under Copy from existing in
-   the Voicings editor. It's the voicing a fresh install starts with. Its
-   parameters reproduce the piano engine's original, hand-tuned behavior
-   exactly, so if you've never touched the Voicings page, this is what you've
-   been hearing all along.
+   the Voicings editor. It's the voicing a fresh install starts with, and its
+   parameters are the defaults listed under `Voicing Parameters`_ below.
 
 
 Defining a Custom Piano Voicing
@@ -160,9 +158,8 @@ Defining a Custom Piano Voicing
 
 .. only:: desktop
 
-   Custom piano voicings appear in :menuselection:`Playback --> Voicing`
-   the next time Chord Notepad starts (or as soon as you save them in the
-   Settings window), in the last group of the menu with your other custom
+   Custom piano voicings appear in the Voicing menus as soon as you save
+   them in the Settings window, in the last group with your other custom
    voicings, sorted by model and then name.
 
 .. only:: android
@@ -176,8 +173,9 @@ How to Change Voicing
 
 .. only:: desktop
 
-   1. Open the **Playback** menu.
-   2. Click **Voicing**.
+   1. Pause or stop the song if it is playing.
+   2. Click the **Voicing** button in the player bar (or open **Playback →
+      Voicing**).
    3. Select **Piano**, or any custom piano voicing you've defined (see
       above).
    4. Play your chords to hear the difference.
@@ -238,7 +236,9 @@ Hands and Range
      - ``lh_range``
      - C1 - C3
    * - Right hand
-     - The lowest and highest key the right hand will ever play.
+     - The highest key the right hand will ever play. The low end is only
+       used by the fallback voicing for a chord nothing else fits; where the
+       right hand really starts is "RH lowest-note anchor".
      - ``rh_range``
      - C3 - C6
    * - Bass (preferred)
@@ -250,7 +250,7 @@ Hands and Range
      - C2 - B2
    * - RH lowest-note anchor
      - The window the right hand's *lowest* note is anchored within when the
-       optimizer places a voicing at a given octave.
+       optimizer places a voicing at a given octave. A hard limit.
      - ``rh_low_anchor``
      - C3 - E4
    * - RH center
@@ -265,11 +265,14 @@ Hands and Range
      - ``rh_low_interval_floor``
      - 52 (E3)
    * - Hand span
-     - The widest reach of a single hand, in semitones -- a ninth by default.
+     - The widest reach of the right hand, in semitones -- a ninth by
+       default. Extensions that won't fit are dropped. The left hand plays
+       one bass note or an octave, whatever this is set to.
      - ``hand_span``
      - 14
    * - Max notes/hand
-     - The most notes one hand may hold at once -- five fingers, five notes.
+     - The most notes the right hand may hold at once -- five fingers, five
+       notes. Extensions are dropped first.
      - ``max_notes_per_hand``
      - 5
    * - Max total notes
@@ -383,7 +386,9 @@ you want it to steer clear of gets a negative one; zero leaves it neutral.
        perfect fifth only: the diminished or augmented fifth of ``m7b5``,
        ``7b5``, ``aug`` or ``7#5`` counts as a color tone and is kept.
        An extension the chord's name only stacks in (G13's 9th) costs half
-       the ``extension`` value, so the named one is kept first.
+       the ``extension`` value, so the named one is more likely to stay, and
+       an added tone (the 9th of ``add9`` or ``6/9``, a chord with no
+       seventh) costs the ``color`` value.
        Same role taxonomy as the ensemble model's omission weights (see
        :doc:`ensembles`): ``root`` (-4.0), ``third`` (-40.0), ``fifth``
        (-8.0), ``seventh`` (-40.0), ``color`` (-30.0), ``extension`` (-7.0).

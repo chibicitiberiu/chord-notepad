@@ -1,6 +1,6 @@
 # Privacy Policy
 
-_Last updated: 30 October 2026_
+_Last updated: 18 November 2026_
 
 Chord Notepad does not collect or send any personal information. Nothing you
 do in the app is shared with the developer or anyone else.
@@ -13,6 +13,14 @@ do in the app is shared with the developer or anyone else.
   from the Microsoft Store). They never leave your computer. The log records
   what the app did, such as which audio driver it started and the paths of
   files you open or save, but not the contents of your songs.
+- **Backup copies** (desktop only). While a song has unsaved changes, the app
+  keeps a copy of its text in its data folder, so a crash or a power cut
+  doesn't lose your work. The copy goes away when you save or choose
+  **Don't save**, and copies older than 30 days are dropped. It stays on your
+  computer like the settings.
+- **Exports.** Export MIDI, Export audio and Export PDF write only to the
+  file you choose. Export audio renders into a temporary file in the app's
+  cache folder first, and deletes it when the export ends.
 
 ## Android
 
@@ -26,7 +34,7 @@ The Android app follows the same rules, with these specifics:
 - **Opening files from other apps.** When you open a `.txt` file with Chord
   Notepad from a file manager, the app gets access to that one file only.
 - **Your songs.** The app sees only the files you pick in the system's file
-  picker (Open, Save as, Export MIDI). It keeps access to those files so the
+  picker (Open, Save as, Export MIDI, Export audio, Export PDF). It keeps access to those files so the
   Recent list works; you can revoke that by removing the app.
 - **Example songs.** The Examples entry in the drawer opens a copy of a song
   that ships with the app. The copy is stored in the app's private storage,

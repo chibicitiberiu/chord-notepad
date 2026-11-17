@@ -50,6 +50,9 @@ Transposing a Song
 If you have text selected, only the chords inside the selection are
 transposed, and the dialog says *Transpose selection*. With nothing selected
 the whole document is transposed, and the dialog says *Transpose whole song*.
+Transpose moves the chords written in the song's notation. If there are none
+(``C G`` in a song read as European, say), nothing changes and the status says
+"No European chords to transpose".
 
 .. only:: desktop
 

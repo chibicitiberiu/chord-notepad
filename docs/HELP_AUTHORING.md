@@ -38,7 +38,7 @@ the same swap appears on several pages.
 
 | Term | Desktop | Android |
 |---|---|---|
-| `\|click\|`, `\|Click\|`, `\|clicks\|`, `\|clicking\|`, `\|Clicking\|` | click... | tap... |
+| `\|click\|`, `\|Click\|`, `\|clicks\|`, `\|clicked\|`, `\|clicking\|`, `\|Clicking\|` | click... | tap... |
 | `\|settings\|` | **☰ → Settings...** | **☰ → Settings** |
 | `\|voicings_settings\|` | **☰ → Settings... → Voicings** | **☰ → Settings → Voicings** |
 
@@ -118,10 +118,10 @@ pipenv run python packaging/tools/qt_help_screenshots.py --only main-window-labe
 
 It needs no display, and uses a throwaway profile and a silent player. The
 shot list is in the script (each shot says which page it is for); it also
-makes the Quick Start picture (`resources/quickstart/chord_sheet_qt.png`) and
-the store listing images (`packaging/store/screenshots/desktop/`). Every shot
+makes the Quick Start picture (`resources/quickstart/chord_sheet_qt.png`), the
+store listing images (`packaging/store/screenshots/desktop/`) and the README's two (`docs/images/`). Every shot
 is taken in the light and the dark theme: `<name>.png` and `<name>.dark.png`
-(the store's dark ones are `<name>-dark.png`). `--theme light` or `--theme
+(the store's and the README's dark ones are `<name>-dark.png`). `--theme light` or `--theme
 dark` takes one, and `--only` also takes a single image (`--only
 transpose.dark`).
 

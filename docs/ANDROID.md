@@ -58,7 +58,8 @@ android/
     ChordNotepadApp.kt, AppGraph.kt, MainActivity.kt
     bridge/                         PyHost, the Python contract, DTOs, codec, commands, SessionRepository
     text/                           OffsetMapper (code points <-> UTF-16), TextEdited/Span conversion
-    files/                          SafDocumentStore (SAF I/O, persisted grants, recent list), picker mapping
+    files/                          SafDocumentStore (SAF I/O, persisted grants, recent list), picker mapping, PdfExporter (Export PDF)
+    about/, support/                BuildInfo and licences; SupportBilling (play flavour)
     lifecycle/                      process start/stop hooks, audio focus + noisy, draft restore
     audio/                          SoundFont install, device sample rate
     ui/                             MainScreen (pages), MainActions, errors, shortcuts
@@ -302,8 +303,8 @@ class SessionHandle:
   (`bootstrap.build_core_services`), starts a `ThreadedHost`, creates the
   session with an `AndroidDocumentStore` (below) and `platform="android"`
   (`session.platform`: the texts that name a gesture or a menu path get
-  their Android wording, e.g. "Tapped chords won't play…", "⋮ → Playback →
-  Voicing"; the Qt desktop passes `desktop_qt`, and texts with no variant of its
+  their Android wording, e.g. "Tapped chords won't play…", "☰ → User guide";
+  the Qt desktop passes `desktop_qt`, and texts with no variant of its
   own keep the plain desktop wording),
   subscribes a listener that
   forwards every output to `event_sink`, installs the `session.errors`
@@ -568,7 +569,7 @@ raises is an `UnexpectedError` whose `context` is the command name.
   so the screen can reset its fields from the state.
 - *Quick Start.* `request_quick_start {}` → `QuickStartContent {pages:
   [{title, blocks: [{kind: text|snippet|image, text, notation, spans,
-  image}]}], show_on_startup}`, worded for the platform (taps, the ⋮ menu;
+  image}]}], show_on_startup}`, worded for the platform (taps, the ☰ drawer;
   no desktop screenshot). Snippet blocks carry the editor's highlight spans
   (code points), so they paint like the editor.
 

@@ -29,7 +29,7 @@ A text editor for chord notation. Write chord symbols above your lyrics and Chor
 - Choose the instrument: piano, or guitar in standard, Drop D, DADGAD, or Open G tuning, plus a ukulele preset (any custom fretted instrument or custom piano voicing too, built in Settings → Voicings)
 - Real MIDI synthesis through FluidSynth, with a soundfont bundled in
 - A metronome you can switch on and off mid-playback
-- A chord sheet strip (View → Chord Sheet) shows the song's voiced chords left to right as they'll actually play, follows along during playback, and switches between keyboard, staff, chord box, and tab views
+- A chord sheet strip (View → Chord sheet under the text) shows the song's voiced chords left to right as they'll actually play, follows along during playback, and switches between keyboard, staff, chord box, and tab views
 
 **A small format for songs**
 - Hold a chord longer with `C*2` (two beats), rest with `NC`, comment with `//`
@@ -39,11 +39,11 @@ A text editor for chord notation. Write chord symbols above your lyrics and Chor
 **Also**
 - A reverse tool: click notes on a keyboard and it names the chord, inversions and slash spellings included
 - File operations, recent files, adjustable font size
-- Export the song as a standard MIDI file, for use in DAWs or notation software
+- Export the song as a standard MIDI file (for DAWs or notation software), as a WAV that sounds like Play, or as a PDF of the text
 
 ## Documentation
 
-**For users**, the [User Guide](https://github.com/chibicitiberiu/chord-notepad/releases/latest/download/ChordNotepad-UserGuide.pdf) covers everything: writing chords, directives, playback, instruments and ensembles, the chord sheet, transpose and capo, MIDI export, settings and shortcuts. The same guide is built into the app (**Help → User Guide**, or F1; on Android, **Help** in the menu). Its source is in [`help/`](help/). Good places to start:
+**For users**, the [User Guide](https://github.com/chibicitiberiu/chord-notepad/releases/latest/download/ChordNotepad-UserGuide.pdf) covers everything: writing chords, directives, playback, instruments and ensembles, the chord sheet, transpose and capo, exports (MIDI, audio, PDF), settings and shortcuts. The same guide is built into the app (**Help → User Guide**, or F1; on Android, **User guide** in the ☰ drawer). Its source is in [`help/`](help/). Good places to start:
 
 - [Getting started](help/getting_started.rst)
 - [Writing chords](help/writing_chords.rst) and [directives](help/directives.rst) (`{bpm}`, `{key}`, `{label}`, `{loop}` and the rest)
@@ -163,4 +163,4 @@ Contributions are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for how to sen
 - [GeneralUser GS](https://schristiancollins.com/generaluser.php) soundfont by S. Christian Collins
 
 The full list of bundled components and their licences is in the app
-(**Help → Open Source Licences**).
+(**Help → Open source licences**).

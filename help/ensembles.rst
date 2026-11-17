@@ -211,7 +211,8 @@ a C9 for four voices as C, E, B♭ and D. Next comes an extension the chord's
 name only stacks in (the 9th of a G13, which costs half the Extension
 weight), then the named one (G13's 13th, an Am11's 11th, an altered 9th),
 then the root; the third, the seventh and a ``sus`` chord's suspended tone
-are kept. So a G13 for four voices is G, B, F and E. (The piano drops the root before the fifth, because its left hand
+are kept. A 9th or 11th added to a chord with no seventh (``add9``, ``6/9``)
+is the chord's color, like a 6th, so it costs the Color weight and stays. So a G13 for four voices is G, B, F and E. (The piano drops the root before the fifth, because its left hand
 plays the root; an ensemble keeps it.) If a chord has fewer
 notes than voices, something gets doubled, and the engine reaches for the
 root first. A chord that fills the voices exactly may also leave out its
@@ -257,8 +258,9 @@ How to Change Voicing
 
 .. only:: desktop
 
-   1. Open the **Playback** menu.
-   2. Click **Voicing**.
+   1. Pause or stop the song if it is playing.
+   2. Click the **Voicing** button in the player bar (or open **Playback →
+      Voicing**).
    3. Select **Choir (SATB)**, **Male Choir (TTBB)**, **Treble Choir (SSA)**,
       **String Quartet**, or any custom ensemble you've defined (see below).
    4. Play your chords to hear the difference.
@@ -495,9 +497,8 @@ Custom Ensembles
 
 .. only:: desktop
 
-   Custom ensembles appear in :menuselection:`Playback --> Voicing` the next
-   time Chord Notepad starts (or as soon as you save them in the Settings
-   window), in the last group of the menu with your other custom voicings,
+   Custom ensembles appear in the Voicing menus as soon as you save them in
+   the Settings window, in the last group with your other custom voicings,
    sorted by model and then name.
 
 .. only:: android
@@ -654,7 +655,9 @@ Voicing Parameters
        (-30.0), ``extension`` (-6.0). The fifth is the perfect fifth only;
        a diminished or augmented fifth (``m7b5``, ``7#5``) is a color tone.
        An extension the chord's name only stacks in (G13's 9th) costs half
-       the ``extension`` value, so the named one is kept first.
+       the ``extension`` value, so the named one is kept first. An added
+       tone (the 9th of ``add9`` or ``6/9``, a chord with no seventh) costs
+       the ``color`` value.
      - ``omit.root`` / ``.third`` / ``.fifth`` / ``.seventh`` /
        ``.color`` / ``.extension``
      - :plat:`see left|per key, above`

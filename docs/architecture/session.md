@@ -108,6 +108,11 @@ core/chordnotepad/session/
                    nearest_chord(lines, text, offset) (the playhead's snap), first_chord
   song_defaults.py song_defaults(lines, bpm, time, key) -> SongDefaultsState; missing_directives
   flows.py         generator-based request/response FlowRunner
+  print_layout.py  Export PDF: layout_song -> PdfLayout (pages, lines, runs), page_for_territory
+  settings_edit.py SettingsEdit: a Settings screen's working copy (begin/commit/discard)
+  quick_start.py   the Quick Start pages per platform
+  timeline.py      PlaybackState.sections (the scrubber's timeline)
+  platform.py      platform names, pick(), TRACKS_PLAYHEAD, COUNTS_SONG_BARS
   workers.py       BackgroundWorker (single-thread executor, results via host.post)
   bootstrap.py     CoreServices, build_core_services(appdata, dispatch, paths=, player=, audio_options=),
                    create_session(host, services, documents, chord_sheet=)
@@ -168,7 +173,7 @@ class DocumentRef:
 
 class DocumentStore(Protocol):
     def read_text(self, ref: DocumentRef) -> str: ...       # normalized; raises FileOperationError
-    def write_text(self, ref: DocumentRef, text: str) -> None: ...
+    def write_text(self, ref: DocumentRef, text: str) -> str | None: ...   # None, or a status note (written as UTF-8)
     def write_bytes(self, ref: DocumentRef, data: bytes) -> None: ...
     def write_file(self, ref: DocumentRef, local_path: str) -> None: ...
         # an export from a local file (audio); any thread, unlike the rest
@@ -723,7 +728,11 @@ desktop-only services (resources, logging setup) and the document store.
 which `Application` used to do.
 `AppDataService(root=...)` takes the data directory from the host (Android:
 `filesDir`; the same layout the `XDG_*` shim gave). Config writes are atomic
-(temp file, `fsync`, `os.replace`).
+(temp file, `fsync`, `os.replace`). `ConfigService` also keeps the file safe
+through upgrades: the first save after a migration or a replaced bad value copies
+it to `settings.json.bak-v<old version>-<timestamp>`, a damaged file is renamed
+`settings.json.corrupt-<timestamp>` and the app starts on the defaults with a
+`load_notice`, and a file it can't open is left alone (nothing saved that run).
 
 **Where the app's files are.** `paths` is an `AppPaths`
 (`core/chordnotepad/app_paths.py`: the root, VERSION, `resources/`, the built
