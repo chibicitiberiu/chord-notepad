@@ -812,7 +812,7 @@
         },
         {
          "default": "-1.5",
-         "help": "How the picker treats two neighbouring notes a third or less apart below G2, or a second or less below C3, which blur into a rumble; charged once. More negative keeps the low notes apart.",
+         "help": "How the picker treats two neighbouring notes a third or less apart below G2, or a second or less below C3, which blur into a rumble; charged per semitone the lower note sits below that, for the muddiest pair. More negative keeps the low notes apart.",
          "id": "weight:low_interval_penalty",
          "kind": "float",
          "label": "Muddy low notes",

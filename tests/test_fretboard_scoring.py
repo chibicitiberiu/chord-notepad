@@ -207,17 +207,17 @@ class TestRules:
 
     def test_low_mud(self, guitar):
         # A third or less below G2 (D/F# 2002xx: F#2-A2), a second or less
-        # below C3 (Gadd9 300003: G2-A2), once; open G (G2-B2) and open E
-        # (E2-B2) stay clear.
+        # below C3 (Gadd9 300003: G2-A2), per semitone below the limit for
+        # the muddiest pair; open G (G2-B2) and open E (E2-B2) stay clear.
         w = guitar.spec.weights['low_interval_penalty']
         assert w < 0
         free = GuitarChordPicker(FretboardSpec.from_dict(
             'free', {'tuning': list(guitar.tuning_midi), 'weights': {'low_interval_penalty': 0}}))
-        for chord, shape_, charged in (('D/F#', '2002xx', True), ('Gadd9', '300003', True),
-                                       ('Dm/F', '1002xx', True), ('G', '320003', False),
-                                       ('E', '022100', False), ('C', 'x32010', False)):
+        for chord, shape_, depth in (('D/F#', '2002xx', 1), ('Gadd9', '300003', 5),
+                                     ('Dm/F', '1002xx', 2), ('F6', '10021x', 2),
+                                     ('G', '320003', 0), ('E', '022100', 0), ('C', 'x32010', 0)):
             delta = self.score(guitar, chord, shape_) - self.score(free, chord, shape_)
-            assert delta == pytest.approx(w if charged else 0.0), (chord, shape_)
+            assert delta == pytest.approx(w * depth), (chord, shape_)
 
     def test_a_muted_treble(self, guitar):
         # The top string muted costs once; the edge string on the other side

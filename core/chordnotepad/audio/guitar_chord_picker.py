@@ -959,8 +959,10 @@ class GuitarChordPicker(INotePicker):
           sits lowest on the neck (C/G xxx010 against 332010); on the lower
           strings the bass is low enough.
         * **Low mud.** Two neighbouring notes a third or less apart below
-          G2, or a second or less below C3, cost ``low_interval_penalty``
-          once (D/F# 2002xx, Gadd9 300003).
+          G2, or a second or less below C3, cost ``low_interval_penalty`` per
+          semitone the lower note sits below that limit, for the muddiest
+          pair (D/F# 2002xx, F#2-A2: once; F6 10021x, F2-A2: twice; Gadd9
+          300003, G2-A2: five times).
         * **Interior mutes.** A dead string inside a strummed shape costs
           twice ``interior_mute_penalty`` (B x21x02). Right above a fretted
           bass the bass finger leans over and damps it (3x0033, D/F# 2x0232),
@@ -1071,13 +1073,15 @@ class GuitarChordPicker(INotePicker):
                     and not self._is_clean_lengthwise_stretch(fingering, fretted)):
                 score += self._w_awkward
 
-        # Low mud: charged once, for the lowest such pair.
+        # Low mud: per semitone the muddiest pair's lower note sits below its
+        # limit, so one just under it costs the weight once (a DADGAD drone,
+        # F#2 A2 in 400200) and a pair deep under it more (F2 A2: twice).
         if self._w_low_interval:
             pitches = sorted(tuning[s] + fingering[s] for s in sounding)
-            if any(0 < high - low <= width and low < below
-                   for low, high in zip(pitches, pitches[1:])
-                   for width, below in self._LOW_INTERVAL_LIMITS):
-                score += self._w_low_interval
+            depth = max((below - low for low, high in zip(pitches, pitches[1:])
+                         for width, below in self._LOW_INTERVAL_LIMITS
+                         if 0 < high - low <= width and low < below), default=0)
+            score += self._w_low_interval * depth
 
         # Interior mutes: muted strings between the first and last sounding
         # string cannot be avoided while strumming. String-order based, which is

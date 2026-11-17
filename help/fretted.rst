@@ -498,9 +498,13 @@ while pushing it more negative clamps down on them.
      - ``thin_shape_penalty``
      - -3.0
    * - Muddy low notes
-     - Subtracted once when two neighbouring notes are a third or less apart
-       below G2, or a second or less below C3; they blur into a rumble.
-       Open G (G2-B2) and open E (E2-B2) are clear of it.
+     - Subtracted when two neighbouring notes are a third or less apart
+       below G2, or a second or less below C3; they blur into a rumble. It
+       counts per semitone the lower note sits below that limit, for the
+       muddiest pair: D/F# 2002xx (F♯2-A2, a semitone under G2) pays it
+       once, F6 10021x (F2-A2) twice, Gadd9 300003 (G2-A2, five semitones
+       under C3) five times, so F6 becomes 1x0211 and Gadd9 32020x. Open G
+       (G2-B2) and open E (E2-B2) are clear of it.
      - ``low_interval_penalty``
      - -1.5
    * - Muted top string

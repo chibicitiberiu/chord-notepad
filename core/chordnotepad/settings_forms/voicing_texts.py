@@ -241,8 +241,9 @@ TOOLTIPS: Dict[str, str] = {
                                   "shapes."),
     'weight:low_interval_penalty': ("How the picker treats two neighbouring notes a third or less "
                                     "apart below G2, or a second or less below C3, which blur "
-                                    "into a rumble; charged once. More negative keeps the low "
-                                    "notes apart."),
+                                    "into a rumble; charged per semitone the lower note sits "
+                                    "below that, for the muddiest pair. More negative keeps the "
+                                    "low notes apart."),
     'weight:muted_treble_penalty': ("How the picker treats a shape leaving the top string (the "
                                     "high e) muted; charged once, not for a two-note chord. More "
                                     "negative favors shapes that ring to the top."),
