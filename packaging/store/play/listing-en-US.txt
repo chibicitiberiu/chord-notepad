@@ -23,10 +23,10 @@ Chord Notepad is a text editor for musicians. Type chord symbols above your lyri
 • A chord sheet shows the voiced chords as a piano roll, a staff, chord boxes or tab
 
 <b>Files and privacy</b>
-• Songs are plain text files, opened and saved through the Android file picker (local storage or cloud providers); songs can be exported as MIDI files
+• Songs are plain text files, opened and saved through the Android file picker (local storage or cloud providers); songs can be exported as MIDI, as a WAV audio file, or as a PDF to print or share
 • No account, no ads and no internet permission; your songs stay on your device
 
 Chord Notepad is free, with every feature included, and it's free software under the GNU AGPL-3.0. If you find it useful, an optional one-time purchase inside the app supports its development and adds a supporter badge. The source code and free builds for Android, Windows, macOS and Linux are at https://github.com/chibicitiberiu/chord-notepad
 
 ## Release notes (current version)
-0.6.0: The chord sheet is redrawn. The piano roll shows note names on a time grid and can be zoomed; the staff is one continuous line with repeat signs and a final bar line; sections alternate their paper; rests get full-size fret cards. In ensembles, C next to C/E no longer sounds the same, roman numerals play in the song's key, and the piano keys are dark in the dark theme.
+0.6.0: Export a song as a WAV audio file, or as a PDF to print or share. Suggest capo lists every capo position with its chord shapes, easiest first, and you pick one. Ensemble lines follow chromatic steps and songs end with the root on top more often. The chord sheet is redrawn: a zoomable piano roll with note names, one continuous staff with repeat signs, and full-size fret cards for rests.

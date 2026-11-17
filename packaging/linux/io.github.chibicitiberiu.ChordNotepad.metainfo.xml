@@ -125,7 +125,7 @@
   </screenshots>
 
   <releases>
-    <release version="0.6.0" date="2026-11-16">
+    <release version="0.6.0" date="2026-11-18">
       <description>
         <p>
           A completely redesigned app. Chord Notepad 0.6.0 is a top-to-bottom
@@ -140,6 +140,14 @@
           the features you'd expect from a modern text editor, such as find and
           replace, line operations and go to line, and clicking any chord in
           the text plays it.
+        </p>
+        <p>
+          New since the redesign: export a song as a WAV audio file that
+          sounds like Play, or as a PDF of its text to print or share. Suggest
+          Capo now lists every capo position with the chord shapes you'd play,
+          easiest first, and you pick one. Ensemble and piano voicings move
+          more smoothly: a line that steps chromatically keeps going the same
+          way, and songs end with the root on top more often.
         </p>
       </description>
     </release>
