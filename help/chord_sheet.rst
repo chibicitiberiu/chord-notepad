@@ -230,8 +230,8 @@ treble); everything else splits at middle C.
    :platforms: desktop
    :alt: The Staff view: treble and bass staves with the chords stacked as
          notes, the key signature and a repeat sign at the left, the playing
-         chord's column shaded, and the note that rhythm isn't shown yet
-         beside the view tabs.
+         chord's column shaded, and at the bottom left the note that rhythm
+         isn't shown yet, with Dismiss.
 
    The staff view.
 
@@ -387,8 +387,9 @@ Suggesting a Capo
       :platforms: desktop
       :alt: The Suggest Capo dialog: an explanation, the part of the song it
             applies to, a Voicing box set to Guitar (Standard - EADGBE), a
-            list of capo positions with their chord shapes, the first one
-            marked Recommended, and the Cancel and Apply buttons.
+            list of capo positions with their chord shapes and how easy each is,
+            the first one marked Recommended and Current, and the Cancel and
+            Apply buttons.
 
       Suggest Capo lists every capo position, the recommended one first.
 
@@ -415,9 +416,10 @@ Suggesting a Capo
 
 .. platform-figure:: capo-suggest
    :platforms: android
-   :alt: The Suggest Capo dialog: a Voicing button set to Guitar (Standard -
-         EADGBE), a list of capo positions with their chord shapes, the first
-         one marked Recommended, and Cancel and Apply buttons.
+   :alt: The Suggest Capo dialog: a Voicing dropdown set to Guitar (Standard -
+         EADGBE), radio rows of capo positions with their chord shapes and
+         how easy each is, the first one marked Recommended, and Cancel and
+         Apply buttons.
 
    Suggest Capo lists every capo position, the recommended one first.
 

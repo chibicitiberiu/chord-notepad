@@ -1039,7 +1039,7 @@ The User Interface
    .. platform-figure:: drawer
       :platforms: android
       :alt: The drawer: New song, Open, a Recent list with three songs, Save
-            as, Export MIDI, Settings, Examples, User guide, Quick start and
+            as, Export MIDI, Export audio, Export PDF, Settings, Examples, User guide, Quick start and
             About.
 
       The drawer.

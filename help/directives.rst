@@ -358,9 +358,10 @@ Finding the Best Capo
 
    .. platform-figure:: capo-suggest
       :platforms: android
-      :alt: The Suggest Capo dialog: a Voicing button set to Guitar
-            (Standard - EADGBE), a list of capo positions with their chord
-            shapes, the first one marked Recommended, and Cancel and Apply.
+      :alt: The Suggest Capo dialog: a Voicing dropdown set to Guitar
+            (Standard - EADGBE), radio rows of capo positions with their
+            chord shapes and how easy each is, the first one marked
+            Recommended, and Cancel and Apply.
 
       Pick the capo you want from the list.
 

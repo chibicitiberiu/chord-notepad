@@ -455,9 +455,9 @@ Custom Ensembles
 .. platform-figure:: settings-voicing-ensemble
    :platforms: android
    :alt: The Jazz Vocal Trio form scrolled to Voices: short help lines for
-         Name, Low, High, Staff and Max gap to next voice, then a card per
+         Name, Low, High, Staff, Max gap to next voice and Movement cost, then a card per
          voice with up and down arrows, a copy button and an X: Lead, A3 to F5, Staff Auto,
-         Max gap 12, and the top of Harmony's card.
+         Max gap 12, Movement cost -0.4, and the rest of the card below.
 
    The voices of a custom ensemble, one card each.
 
