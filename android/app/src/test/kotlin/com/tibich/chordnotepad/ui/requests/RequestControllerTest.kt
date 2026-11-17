@@ -96,13 +96,18 @@ class RequestControllerTest {
         runOffMain()
         assertResponded("""{"request_id": 31, "value": "Permission denied: song.pdf"}""")
 
-        // A painter that throws answers null (failed, no reason).
+        // A painter that throws, even an Error, still answers, with what went wrong.
         paintAnswer = { throw IllegalStateException("broken") }
         pending.value = paintRequest(32)
         c.onPending(pending.value)
         runOffMain()
-        assertResponded("""{"request_id": 32, "value": null}""")
-        assertEquals(listOf(30, 31, 32), painted)
+        assertResponded("""{"request_id": 32, "value": "IllegalStateException: broken"}""")
+        paintAnswer = { throw OutOfMemoryError("no room") }
+        pending.value = paintRequest(33)
+        c.onPending(pending.value)
+        runOffMain()
+        assertResponded("""{"request_id": 33, "value": "OutOfMemoryError: no room"}""")
+        assertEquals(listOf(30, 31, 32, 33), painted)
     }
 
     @Test

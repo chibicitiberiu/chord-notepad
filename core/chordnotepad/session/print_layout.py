@@ -18,28 +18,41 @@ desktop's ``pdf_export.py``, Android's ``PdfExporter.kt``) paint
   ``Key: A | Time: 4/4 | BPM: 200``). :func:`directive_label` has the labels.
 * **Columns:** a label shorter than the directives it replaces is padded with
   spaces to their width, so the chords after it keep their columns over the
-  lyrics. A longer one pushes the rest of its line right.
-* Tabs are expanded to :data:`TAB_SIZE` columns. Every other character
-  counts one column (Noto Sans Mono has no CJK or Hebrew to be wider).
+  lyrics. A longer one takes its overflow from the run of spaces after it,
+  keeping at least one, and pushes the rest of its line right only for what
+  those spaces can't give.
+* Tabs are expanded to :data:`TAB_SIZE` columns (a known limit: the editor
+  sets no tab stops of its own). Every other character counts one column
+  (Noto Sans Mono has no CJK or Hebrew to be wider).
 
 **Pages** (:func:`paginate`):
 
 * A4 or Letter (:data:`PAGE_SIZES`), with :data:`MARGIN` all round.
 * The font shrinks from :data:`MAX_FONT_SIZE` until the longest chord line
-  fits the width, down to :data:`MIN_FONT_SIZE`. Any longer line wraps at a
-  space (or mid-word, for a word longer than the width) with its
-  continuation indented by two spaces.
-* A page never ends on a chord line whose next line is its lyric line: the
-  chord line moves to the next page with it.
+  fits the width, down to :data:`MIN_FONT_SIZE`; a chord line counts up to
+  the end of its last chord or directive (:attr:`PrintLine.measure`), so a
+  comment after the chords wraps rather than shrinking the song. Any longer
+  line wraps at a space after its indent (or mid-word, for a word longer
+  than the width), its continuation indented by its own indent plus two
+  spaces. A chord line too long even at the smallest size is cut at the same
+  column as its lyric line, and the rows interleave: chords, lyric, chords,
+  lyric.
+* A page never ends on a chord line whose next line is its lyric line, nor
+  on a comment-only or directive-only line (a heading) with a line under
+  it: those move to the next page with it (at most half a page of them).
+  Blank lines at the top of a page are dropped.
 * Every position is absolute, in PDF points from the top-left corner of the
-  page; ``y`` is a baseline. A monospace character is :data:`ADVANCE_EM`
-  wide, and a line :data:`LINE_HEIGHT_EM` high (Noto Sans Mono's ascent plus
-  descent, :data:`ASCENT_EM` + :data:`DESCENT_EM`).
+  page; ``y`` is a baseline. Every word is a run of its own at its column,
+  so a glyph the painter's font lacks (Android's monospace has no ♯ or ♭)
+  can't move the words after it. A monospace character is
+  :data:`ADVANCE_EM` wide, and a line :data:`LINE_HEIGHT_EM` high (Noto Sans
+  Mono's ascent plus descent, :data:`ASCENT_EM` + :data:`DESCENT_EM`).
 
 Pure: no state, no I/O.
 """
 
 import math
+import re
 from dataclasses import dataclass
 from typing import List, NamedTuple, Optional, Sequence, Tuple
 
@@ -108,7 +121,7 @@ class PdfLine:
 
     Attributes:
         y: Its baseline, in points from the page's top edge.
-        runs: Its text, left to right (no run is empty or only spaces).
+        runs: Its words, left to right, one run each (no spaces).
     """
 
     y: float
@@ -169,11 +182,14 @@ class PrintLine(NamedTuple):
     """A line of the song as it prints: ``text`` with a ``dim`` flag per character.
 
     ``chord`` says whether it is a chord line (the editor's detection).
+    ``measure`` is how many columns must fit across the page: a chord line's
+    up to the end of its last chord or directive, any other line's all of it.
     """
 
     text: str
     dim: Tuple[bool, ...]
     chord: bool
+    measure: int = 0
 
     def runs(self) -> List[Tuple[int, str, bool]]:
         """``(column, text, dim)`` for each stretch of one colour, spaces included."""
@@ -225,18 +241,14 @@ def directive_label(text: str, directive: Directive) -> str:
     return text[directive.start + 1:directive.end - 1].strip()
 
 
-def _expand(segment: str, column: int) -> str:
-    """``segment`` with its tabs expanded, as it reads from ``column`` on."""
-    out = []
-    for ch in segment:
-        if ch == "\t":
-            spaces = TAB_SIZE - (column % TAB_SIZE)
-            out.append(" " * spaces)
-            column += spaces
-        else:
-            out.append(ch)
-            column += 1
-    return "".join(out)
+def _columns(raw: str) -> List[int]:
+    """The editor's column of each character of ``raw`` (tabs expanded), and
+    of its end."""
+    cols = [0]
+    for ch in raw:
+        col = cols[-1]
+        cols.append(col + (TAB_SIZE - col % TAB_SIZE if ch == "\t" else 1))
+    return cols
 
 
 def _groups(text: str, line_start: int,
@@ -265,19 +277,33 @@ def printable_lines(text: str, notation: str = "american") -> List[PrintLine]:
     out: List[PrintLine] = []
     line_start = 0
     for raw, line in zip(text.split("\n"), parsed):
-        directives = [item for item in line.items if isinstance(item, Directive)]
+        cols = _columns(raw)
+        expanded = "".join(" " * (cols[i + 1] - cols[i]) if ch == "\t" else ch
+                           for i, ch in enumerate(raw))
         chars: List[str] = []
         dim: List[bool] = []
+        # Each offset of raw -> its column in the printed line.
+        where = [0] * (len(raw) + 1)
+        debt = 0        # columns a longer label still wants from the spaces after it
+
+        def plain(a: int, b: int) -> None:
+            nonlocal debt
+            segment = expanded[cols[a]:cols[b]]
+            lead = len(segment) - len(segment.lstrip(" "))
+            removed = min(debt, lead - 1) if 0 < lead < len(segment) else 0
+            debt = 0
+            base = len(chars)
+            for i in range(a, b + 1):
+                where[i] = base + max(0, cols[i] - cols[a] - removed)
+            chars.extend(segment[removed:])
+            dim.extend([False] * (len(segment) - removed))
+
         pos = 0
-
-        def plain(segment: str) -> None:
-            expanded = _expand(segment, len(chars))
-            chars.extend(expanded)
-            dim.extend([False] * len(expanded))
-
+        items = line.items
+        directives = [item for item in items if isinstance(item, Directive)]
         for start, end, group in _groups(text, line_start, directives):
-            plain(raw[pos:start])
-            width = len(_expand(raw[start:end], len(chars)))
+            plain(pos, start)
+            width = cols[end] - cols[start]
             label = LABEL_JOIN.join(directive_label(text, d) for d in group)
             chars.extend(label)
             dim.extend([True] * len(label))
@@ -285,9 +311,16 @@ def printable_lines(text: str, notation: str = "american") -> List[PrintLine]:
             if padding > 0:
                 chars.extend(" " * padding)
                 dim.extend([False] * padding)
+            debt = max(0, -padding)
+            where[end] = len(chars)
             pos = end
-        plain(raw[pos:])
-        out.append(PrintLine("".join(chars), tuple(dim), line.is_chord_line()))
+        plain(pos, len(raw))
+        printed = "".join(chars)
+        if line.is_chord_line() and items:
+            measure = max(where[item.end - line_start] for item in items)
+        else:
+            measure = len(printed.rstrip())
+        out.append(PrintLine(printed, tuple(dim), line.is_chord_line(), measure))
         line_start += len(raw) + 1
     return out
 
@@ -305,35 +338,104 @@ class _Row(NamedTuple):
 
 def _fitting_size(lines: Sequence[PrintLine], width: float) -> float:
     """The largest body size (0.1 pt steps) the longest chord line fits at,
-    within :data:`MIN_FONT_SIZE`..:data:`MAX_FONT_SIZE`."""
-    longest = max((len(line.text.rstrip()) for line in lines if line.chord), default=0)
+    within :data:`MIN_FONT_SIZE`..:data:`MAX_FONT_SIZE`. A chord line counts
+    to the end of its last chord or directive (a comment after it wraps)."""
+    longest = max((line.measure for line in lines if line.chord), default=0)
     if longest * ADVANCE_EM * MAX_FONT_SIZE <= width:
         return MAX_FONT_SIZE
     size = math.floor(width / (ADVANCE_EM * longest) * 10) / 10
     return max(MIN_FONT_SIZE, size)
 
 
-def _wrap(text: str, dim: Tuple[bool, ...], columns: int) -> List[Tuple[str, Tuple[bool, ...]]]:
+Piece = Tuple[str, Tuple[bool, ...]]
+
+
+def _leading(text: str) -> int:
+    return len(text) - len(text.lstrip(" "))
+
+
+def _wrap(text: str, dim: Tuple[bool, ...], columns: int) -> List[Piece]:
     """``text`` cut into rows of at most ``columns``, at a space when there
-    is one; each row after the first starts with :data:`WRAP_INDENT`."""
-    rows: List[Tuple[str, Tuple[bool, ...]]] = []
-    indent = ""
+    is one after the line's indent; the rows after the first keep the indent
+    plus :data:`WRAP_INDENT`."""
+    lead = min(_leading(text), max(0, columns - 1))
+    cont = " " * lead + WRAP_INDENT if lead + len(WRAP_INDENT) < columns // 2 else WRAP_INDENT
+    rows: List[Piece] = []
+    indent, floor = "", lead
     while True:
         room = max(1, columns - len(indent))
         if len(text) <= room:
             rows.append((indent + text, (False,) * len(indent) + dim))
             return rows
-        cut = text.rfind(" ", 1, room + 1)
-        if cut <= 0:
+        cut = text.rfind(" ", floor + 1, room + 1)
+        if cut <= floor:
             cut = room
-        head, head_dim = text[:cut].rstrip(), dim[:len(text[:cut].rstrip())]
-        rows.append((indent + head, (False,) * len(indent) + head_dim))
+        head = text[:cut].rstrip()
+        rows.append((indent + head, (False,) * len(indent) + dim[:len(head)]))
         rest = text[cut:]
-        skip = len(rest) - len(rest.lstrip(" "))
+        skip = _leading(rest)
         text, dim = rest[skip:], dim[cut + skip:]
-        indent = WRAP_INDENT
+        indent, floor = cont, 0
         if not text:
             return rows
+
+
+def _pair_cut(chords: str, lyric: str, room: int) -> int:
+    """Where to cut a chord line and its lyric line together: a column at most
+    ``room`` with a space in both (not before half of ``room``), else one with
+    a space in the chord line, else ``room``."""
+    def space(text: str, column: int) -> bool:
+        return column >= len(text) or text[column] == " "
+
+    for column in range(room, max(1, room // 2) - 1, -1):
+        if space(chords, column) and space(lyric, column):
+            return column
+    for column in range(room, 0, -1):
+        if space(chords, column):
+            return column
+    return room
+
+
+def _interleave(chords: Piece, lyric: Piece, columns: int) -> List[_Row]:
+    """A chord line too long for the page and its lyric line, cut at the same
+    columns: chords, lyric, chords, lyric... (each continuation indented by
+    :data:`WRAP_INDENT`, both alike, so the chords stay over their words)."""
+    (ct, cd), (lt, ld) = chords, lyric
+    rows: List[_Row] = []
+    indent = ""
+    while True:
+        room = max(1, columns - len(indent))
+        pad = (False,) * len(indent)
+        done = len(ct) <= room and len(lt) <= room
+        cut = room if done else _pair_cut(ct, lt, room)
+        c_head, l_head = ct[:cut].rstrip(), lt[:cut].rstrip()
+        if c_head.strip():
+            rows.append(_Row(indent + c_head, pad + cd[:len(c_head)], True))
+        if l_head.strip():
+            rows.append(_Row(indent + l_head, pad + ld[:len(l_head)], False))
+        if done:
+            return rows
+        ct, cd, lt, ld = ct[cut:], cd[cut:], lt[cut:], ld[cut:]
+        if not ct.strip():
+            ct, cd = "", ()
+        if not lt.strip():
+            lt, ld = "", ()
+        if not ct and not lt:
+            return rows
+        # Drop the spaces both rests start with, the same number for both.
+        skip = min(_leading(rest) for rest in (ct, lt) if rest)
+        ct, cd, lt, ld = ct[skip:], cd[skip:], lt[skip:], ld[skip:]
+        indent = WRAP_INDENT
+
+
+def _heading(text: str, line: PrintLine) -> bool:
+    """A comment-only line, or one of directives only (all dim)."""
+    stripped = text.strip()
+    if not stripped or line.chord:
+        return False
+    if stripped.startswith("//"):
+        return True
+    return all(d for ch, d in zip(text, line.dim) if ch != " ")
 
 
 def _rows(lines: Sequence[PrintLine], columns: int) -> List[_Row]:
@@ -342,28 +444,41 @@ def _rows(lines: Sequence[PrintLine], columns: int) -> List[_Row]:
     while trimmed and not trimmed[-1][0]:
         trimmed.pop()
     rows: List[_Row] = []
-    for i, (text, line) in enumerate(trimmed):
+    i = 0
+    while i < len(trimmed):
+        text, line = trimmed[i]
         dim = line.dim[:len(text)]
         following = trimmed[i + 1] if i + 1 < len(trimmed) else None
+        has_next = following is not None and bool(following[0].strip())
         # A chord line stays on the page of the lyric line under it.
-        keep = (line.chord and following is not None and bool(following[0].strip())
-                and not following[1].chord)
+        lyric_next = line.chord and has_next and not following[1].chord
+        if lyric_next and len(text) > columns:
+            lyric_text, lyric_line = following
+            rows.extend(_interleave((text, dim), (lyric_text, lyric_line.dim[:len(lyric_text)]),
+                                    columns))
+            i += 2
+            continue
+        keep = lyric_next or (has_next and _heading(text, line))
         for row_text, row_dim in _wrap(text, dim, columns) if text else [("", ())]:
             rows.append(_Row(row_text, row_dim, keep))
+        i += 1
     return rows
 
 
 def _pages(rows: Sequence[_Row], per_page: int) -> List[List[_Row]]:
-    """``rows`` in pages of ``per_page``, a chord line moved down with its lyric."""
+    """``rows`` in pages of ``per_page``: rows kept with the next move down
+    with it (at most half a page of them), and a page starts without blank rows."""
     pages: List[List[_Row]] = [[]]
     for row in rows:
         page = pages[-1]
         if len(page) >= per_page:
             moved: List[_Row] = []
-            while len(page) > 1 and page[-1].keep_with_next:
+            while len(page) > 1 and page[-1].keep_with_next and len(moved) < per_page // 2:
                 moved.insert(0, page.pop())
             page = moved
             pages.append(page)
+        if not page and len(pages) > 1 and not row.text.strip():
+            continue
         page.append(row)
     return pages
 
@@ -379,15 +494,16 @@ def _round(value: float) -> float:
     return round(value, 2)
 
 
+_WORD = re.compile(r"\S+")
+
+
 def _line_runs(row: _Row, x0: float, advance: float) -> Tuple[PdfRun, ...]:
-    """A row's runs, each starting at its first character that isn't a space."""
+    """A row's words, one run each at its own column (so a glyph drawn wider
+    or narrower, from a font that lacks it, can't move the words after it)."""
     runs = []
     for column, text, dim in PrintLine(row.text, row.dim, False).runs():
-        stripped = text.lstrip(" ")
-        if not stripped.strip():
-            continue
-        column += len(text) - len(stripped)
-        runs.append(PdfRun(_round(x0 + column * advance), stripped.rstrip(" "), dim))
+        for word in _WORD.finditer(text):
+            runs.append(PdfRun(_round(x0 + (column + word.start()) * advance), word.group(), dim))
     return tuple(runs)
 
 

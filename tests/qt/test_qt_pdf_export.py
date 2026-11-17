@@ -5,7 +5,10 @@ checked by its header, its page objects and its font; the layout itself is
 tested in tests/test_print_layout.py.
 """
 
+import html
 import re
+import shutil
+import subprocess
 
 import pytest
 from PySide6.QtCore import QBuffer, QByteArray, QIODevice
@@ -81,3 +84,48 @@ def test_a_request_is_answered_with_its_id(qapp, tmp_path):
         (request_id, answer)))
     assert answers == [(7, "")]
     assert out.read_bytes().startswith(b"%PDF")
+
+
+def test_a_request_that_can_not_be_painted_is_still_answered(qapp, tmp_path, caplog):
+    request = {"request_id": 8, "ref": {"id": str(tmp_path / "x.pdf"), "display_name": "x.pdf",
+                                        "location": "x.pdf"},
+               "layout": {"title": "broken"}}
+    answers = []
+    pdf_export.answer_paint_request(request, lambda request_id, answer: answers.append(
+        (request_id, answer)))
+    [(request_id, answer)] = answers
+    assert request_id == 8 and answer      # the reason, never "" and never no answer
+    assert "PDF" in caplog.text
+
+
+@pytest.mark.skipif(shutil.which("pdftotext") is None, reason="needs poppler's pdftotext")
+@pytest.mark.parametrize("page", ["a4", "letter"])
+def test_every_word_starts_at_its_column_in_the_pdf(qapp, tmp_path, page):
+    """pdftotext -bbox gives each word's x: margin + column × 0.6 × size."""
+    song = ("{key: A} {time: 4/4} {bpm: 200}\n"
+            "F#m   Bb    C/E     Dsus4\n"
+            "Twinkle, twinkle, little star\n"
+            "\tG\tD\n"
+            "// a comment with {key: B} in it\n"
+            + " ".join(["Am7"] * 30) + "\n" + "la " * 40)
+    layout = print_layout.layout_song(song, "american", "Song", page)
+    out = tmp_path / "song.pdf"
+    assert pdf_export.write_pdf(str(out), to_json_value(layout)) == ""
+    bbox = tmp_path / "song.html"
+    subprocess.run(["pdftotext", "-bbox", str(out), str(bbox)], check=True)
+    words = re.findall(r'<word xMin="([\d.]+)" yMin="[\d.]+" xMax="[\d.]+" yMax="[\d.]+">([^<]*)</word>',
+                       bbox.read_text(encoding="utf-8"))
+    advance = print_layout.ADVANCE_EM * layout.font_size
+    expected = []
+    for page_ in layout.pages:
+        for line in page_.lines:
+            for run in line.runs:
+                column = (run.x - round(print_layout.MARGIN, 2)) / advance
+                assert column == pytest.approx(round(column), abs=1e-6)
+                expected.append((run.x, run.text))
+    found = [(float(x), html.unescape(w)) for x, w in words]
+    # The header and the footer are words too: keep the body's, in order.
+    body = [w for w in found if w[1] not in ("Song", "1", "/")]
+    assert [w for _, w in body] == [w for _, w in expected]
+    for (x, word), (want, _) in zip(body, expected):
+        assert x == pytest.approx(want, abs=0.01), word

@@ -97,11 +97,13 @@ class RequestController(
         if (paintedId == request.requestId) return
         paintedId = request.requestId
         runOffMain {
+            // Always answered, whatever fails (an OutOfMemoryError on a huge song
+            // too), so the session's flow never waits.
             val answer = try {
                 paint(request)
-            } catch (e: RuntimeException) {
+            } catch (e: Throwable) {
                 Log.w(TAG, "Painting the PDF failed", e)
-                null
+                "${e.javaClass.simpleName}: ${e.message}"
             }
             commands.respondPaint(request.requestId, answer)
         }

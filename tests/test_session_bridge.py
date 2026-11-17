@@ -506,8 +506,9 @@ def test_pdf_export_paints_through_a_request_answered_with_a_string(env):
     assert paint["ref"] == ref_json("la.pdf")
     layout = paint["layout"]
     assert (layout["page_width"], layout["page_height"], layout["page_count"]) == (612.0, 792.0, 1)
-    assert layout["pages"][0]["lines"][0]["runs"] == [
-        {"x": layout["title_x"], "text": "Key: A | BPM: 90", "dim": True}]
+    runs = layout["pages"][0]["lines"][0]["runs"]
+    assert runs[0] == {"x": layout["title_x"], "text": "Key:", "dim": True}
+    assert [r["text"] for r in runs] == ["Key:", "A", "|", "BPM:", "90"]
     # Not a string: rejected, and the request is still pending.
     env.send("respond", request_id=paint["request_id"], value=3)
     assert env.expect("UnexpectedError")["context"] == "bridge"

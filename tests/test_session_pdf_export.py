@@ -107,8 +107,9 @@ def test_the_picked_file_gets_the_pages_of_the_song(env):
     layout = request.layout
     assert layout == print_layout.layout_song(SONG, "american", "Hello there", "letter")
     assert (layout.page_width, layout.page_height) == (612.0, 792.0)
-    first = layout.pages[0].lines[0].runs[0]
-    assert (first.text, first.dim) == ("Key: A | Time: 4/4 | BPM: 200", True)
+    first = layout.pages[0].lines[0].runs
+    assert [(r.text, r.dim) for r in first] == [
+        (word, True) for word in "Key: A | Time: 4/4 | BPM: 200".split()]
     # Nothing written by the session: the front end writes the file.
     assert "memory:out.pdf" not in env.store.contents
 
@@ -171,7 +172,7 @@ def test_lyrics_without_chords_export(tmp_path):
     env = Env(tmp_path, text="Amazing grace\nhow sweet the sound\n")
     env.session.export_pdf("a4")
     layout = env.pick().layout
-    assert [line.runs[0].text for line in layout.pages[0].lines] == [
+    assert [" ".join(r.text for r in line.runs) for line in layout.pages[0].lines] == [
         "Amazing grace", "how sweet the sound"]
     env.session.shutdown()
 

@@ -124,5 +124,13 @@ def write_pdf(path: str, layout: Mapping[str, Any]) -> str:
 def answer_paint_request(data: Mapping[str, Any],
                          respond: Callable[[int, Optional[str]], None]) -> None:
     """Paint and write a ``PaintPdfRequest`` (``data``, as the bridge sends
-    it) and give ``respond(request_id, answer)`` the answer."""
-    respond(int(data["request_id"]), write_pdf(str(data["ref"]["id"]), data["layout"]))
+    it) and give ``respond(request_id, answer)`` the answer. Always answers:
+    whatever goes wrong is logged and answered with its reason, so the
+    session's flow never waits."""
+    request_id = int(data["request_id"])
+    try:
+        answer = write_pdf(str(data["ref"]["id"]), data["layout"])
+    except Exception as e:
+        logger.exception("Exporting the PDF failed")
+        answer = f"{type(e).__name__}: {e}"
+    respond(request_id, answer)

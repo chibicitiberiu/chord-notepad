@@ -110,8 +110,17 @@ def body_top(size=MAX_FONT_SIZE):
     return MARGIN + LINE_HEIGHT_EM * SMALL_FONT_SIZE + HEADER_GAP
 
 
-def page_texts(page):
-    return ["".join(run.text for run in line.runs) for line in page.lines]
+def row_text(line, size=MAX_FONT_SIZE):
+    """A PdfLine's words put back at their columns, from its first word."""
+    out = ""
+    for run in line.runs:
+        column = round((run.x - line.runs[0].x) / (ADVANCE_EM * size))
+        out = out.ljust(column) + run.text
+    return out
+
+
+def page_texts(page, size=MAX_FONT_SIZE):
+    return [row_text(line, size) for line in page.lines]
 
 
 def test_a_short_song_on_one_a4_page_at_full_size():
@@ -128,11 +137,14 @@ def test_a_short_song_on_one_a4_page_at_full_size():
     first, chords, lyric = page.lines
     assert first.y == round(body_top() + ASCENT_EM * MAX_FONT_SIZE, 2)
     assert chords.y == round(first.y + layout.line_height, 2)
+    # One run per word, each at its column.
     assert [(r.x, r.text, r.dim) for r in first.runs] == [
-        (round(MARGIN, 2), "Key: A | Time: 4/4 | BPM: 200", True)]
+        (round(MARGIN + column * ADVANCE_EM * MAX_FONT_SIZE, 2), word, True)
+        for column, word in ((0, "Key:"), (5, "A"), (7, "|"), (9, "Time:"), (15, "4/4"),
+                             (19, "|"), (21, "BPM:"), (26, "200"))]
     # Runs start where their first character is: G three columns in.
     assert [(r.x, r.text) for r in chords.runs] == [
-        (round(MARGIN, 2), "C  G")]
+        (round(MARGIN, 2), "C"), (round(MARGIN + 3 * ADVANCE_EM * MAX_FONT_SIZE, 2), "G")]
 
 
 def test_runs_after_padding_start_at_their_column():
@@ -140,7 +152,8 @@ def test_runs_after_padding_start_at_their_column():
     [line] = layout.pages[0].lines
     advance = ADVANCE_EM * MAX_FONT_SIZE
     assert [(r.x, r.text, r.dim) for r in line.runs] == [
-        (round(MARGIN, 2), "Capo: 3", True), (round(MARGIN + 11 * advance, 2), "A", False)]
+        (round(MARGIN, 2), "Capo:", True), (round(MARGIN + 6 * advance, 2), "3", True),
+        (round(MARGIN + 11 * advance, 2), "A", False)]
 
 
 def test_letter():
@@ -162,7 +175,7 @@ def test_the_font_shrinks_until_the_longest_chord_line_fits():
     assert len(chords) * ADVANCE_EM * layout.font_size <= width
     assert len(chords) * ADVANCE_EM * (layout.font_size + 0.1) > width
     # The chord line is one line; the longer lyric line wraps instead.
-    texts_ = page_texts(layout.pages[0])
+    texts_ = page_texts(layout.pages[0], layout.font_size)
     assert texts_[0] == chords
     assert len(texts_) == 3 and texts_[2].startswith("la")
     indent = 2 * ADVANCE_EM * layout.font_size
@@ -204,10 +217,15 @@ def test_a_word_longer_than_the_line_is_cut():
 
 
 def test_a_dim_label_keeps_its_colour_when_it_wraps():
-    lines = [PrintLine("ab cd", (True, True, False, True, True), False)]
-    layout = paginate(lines, "Song", "a4")
-    assert [(r.text, r.dim) for r in layout.pages[0].lines[0].runs] == [
-        ("ab", True), ("cd", True)]
+    # A label longer than the page: its second row is still dim, the text after it not.
+    label = " | ".join(["Repeat the long chorus ×3"] * 6)          # 168 columns
+    song = "{label: the long chorus}\n" + " ".join(["{loop: the long chorus 3}"] * 6) + " end"
+    layout = layout_song(song, "american", "Song", "a4")
+    rows = layout.pages[0].lines[1:]
+    assert len(rows) == 3
+    words = [(r.text, r.dim) for row in rows for r in row.runs]
+    assert " ".join(w for w, _ in words) == label + " end"
+    assert all(dim for w, dim in words[:-1]) and words[-1] == ("end", False)
 
 
 def test_pages_fill_with_lines_and_number_themselves():
@@ -269,3 +287,115 @@ def test_android_uses_the_same_letter_territories():
     listed = re.search(r"val LETTER_COUNTRIES = setOf\(([^)]*)\)", kotlin)
     assert listed is not None
     assert set(re.findall(r'"([A-Z]{2})"', listed.group(1))) == print_layout.LETTER_TERRITORIES
+
+
+# -- the review of 98cb293 -----------------------------------------------------------
+
+
+ADV10 = ADVANCE_EM * MAX_FONT_SIZE
+
+
+def words_at(line, advance=ADV10):
+    """A PdfLine's runs as (column, text, dim)."""
+    return [(round((r.x - round(MARGIN, 2)) / advance, 6), r.text, r.dim) for r in line.runs]
+
+
+def test_every_word_is_a_run_at_its_own_column():
+    # A glyph a font lacks (Android's monospace and ♯ ♭) can't move the words after it.
+    layout = layout_song("F♯m   B♭    C\n{key: A} {bpm: 90}", "american", "Song", "a4")
+    chords, labels = layout.pages[0].lines
+    assert words_at(chords) == [(0, "F♯m", False), (6, "B♭", False), (12, "C", False)]
+    assert words_at(labels) == [(0, "Key:", True), (5, "A", True), (7, "|", True),
+                                (9, "BPM:", True), (14, "90", True)]
+
+
+def test_a_longer_label_takes_its_room_from_the_spaces_after_it():
+    song = "{label: v}\nC  {loop: v}    G\nC  {loop: v}  G\n{loop: v} G"
+    lines = printable_lines(song)
+    # {loop: v} is 9 columns, "Repeat v ×2" 11: G stays at column 16.
+    assert lines[1].text == "C  Repeat v ×2  G"
+    assert lines[1].text.index("G") == song.split("\n")[1].index("G") == 16
+    # Only two spaces after it: one is kept, G moves one column.
+    assert lines[2].text == "C  Repeat v ×2 G"
+    # No space to take: the rest is pushed.
+    assert lines[3].text == "Repeat v ×2 G"
+
+
+def test_a_chord_line_too_long_even_at_the_smallest_size_interleaves_with_its_lyric():
+    chords = "   ".join(["Am7"] * 40)                         # 237 columns
+    lyric = " ".join(["la"] * 80)                              # 239 columns
+    layout = layout_song(chords + "\n" + lyric, "american", "Song", "a4")
+    assert layout.font_size == MIN_FONT_SIZE
+    rows = layout.pages[0].lines
+    kinds = ["chords" if r.runs[0].text == "Am7" else "lyric" for r in rows]
+    assert kinds == ["chords", "lyric", "chords", "lyric"]
+    # Each pair is cut at the same column, so the chords stay over their words.
+    advance = ADVANCE_EM * MIN_FONT_SIZE
+    for chord_row, lyric_row in ((rows[0], rows[1]), (rows[2], rows[3])):
+        assert chord_row.runs[0].x == lyric_row.runs[0].x
+        assert (lyric_row.y - chord_row.y) == pytest.approx(layout.line_height, abs=0.02)
+    cut = round((rows[1].runs[-1].x - MARGIN) / advance) + 2      # where row 1 ended
+    second_chords = [round((r.x - rows[2].runs[0].x) / advance) for r in rows[2].runs]
+    source = [i for i in range(cut, len(chords)) if chords.startswith("Am7", i)]
+    assert second_chords == [i - source[0] for i in source]
+    assert " ".join(r.text for row in (rows[1], rows[3]) for r in row.runs) == lyric
+    assert [r.text for row in (rows[0], rows[2]) for r in row.runs] == ["Am7"] * 40
+
+
+def test_a_trailing_comment_does_not_shrink_the_font_it_wraps():
+    song = "C G Am F // " + "a long note about the chords " * 6 + "\nla la la"
+    layout = layout_song(song, "american", "Song", "a4")
+    assert layout.font_size == MAX_FONT_SIZE
+    texts_ = page_texts(layout.pages[0])
+    # The lyric stays under its chords; the rest of the comment follows it.
+    assert texts_[0].startswith("C G Am F //") and texts_[1] == "la la la"
+    assert " ".join(texts_[:1] + texts_[2:]).split() == song.split("\n")[0].split()
+
+
+def test_measure_is_the_end_of_the_last_chord_or_directive():
+    [line] = printable_lines("C   G {key: A}   // note")
+    assert line.measure == len("C   G Key: A  ")
+    [line] = printable_lines("plain words here   ")
+    assert line.measure == len("plain words here")
+
+
+def _filler(n):
+    return [f"word{i}" for i in range(n)]
+
+
+@pytest.mark.parametrize("heading", ["// ===== CHORUS =====", "{label: chorus}",
+                                     "{key: G} {bpm: 90}"])
+def test_a_heading_or_directive_line_moves_down_with_the_line_under_it(heading):
+    per_page = 52
+    song = "\n".join(_filler(per_page - 1) + [heading, "plain text under it", "more"])
+    first, second = (page_texts(p) for p in layout_song(song, "american", "S", "a4").pages)
+    assert first[-1] == f"word{per_page - 2}"
+    assert len(second) == 3 and second[1] == "plain text under it"
+
+
+def test_blank_lines_at_the_top_of_a_page_are_dropped():
+    per_page = 52
+    song = "\n".join(_filler(per_page) + ["", "", "after"])
+    layout = layout_song(song, "american", "S", "a4")
+    second = layout.pages[1]
+    assert page_texts(second) == ["after"]
+    assert second.lines[0].y == layout.pages[0].lines[0].y
+
+
+def test_wrapping_keeps_the_line_indent():
+    columns = int((PAGE_SIZES["a4"][0] - 2 * MARGIN) / ADV10)
+    song = "    " + " ".join(["lorem"] * 20)
+    rows = layout_song(song, "american", "S", "a4").pages[0].lines
+    assert [words_at(r)[0][0] for r in rows] == [4, 6]
+    # A first word longer than the line after a wide indent: cut, indent kept.
+    song = " " * 8 + "x" * 200
+    rows = layout_song(song, "american", "S", "a4").pages[0].lines
+    assert words_at(rows[0])[0][0] == 8
+    assert len(rows[0].runs[0].text) == columns - 8
+    assert "".join(r.runs[0].text for r in rows) == "x" * 200
+
+
+def test_a_comment_wrapping_after_its_lyric_starts_at_the_indent():
+    song = "C G // " + "note " * 20 + "\nla la"
+    rows = layout_song(song, "american", "Song", "a4").pages[0].lines
+    assert [words_at(r)[0][0] for r in rows] == [0, 0, 2]

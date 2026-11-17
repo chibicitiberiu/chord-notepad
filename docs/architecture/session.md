@@ -669,10 +669,14 @@ may be using.
   be another window's export).
 - Export PDF needs no worker. After the pick, `session/print_layout.py` lays
   the song out on the session thread (`layout_song(text, notation, stem,
-  page)`: directives as dim labels joined " | " and padded to their width,
-  tabs expanded, the font 10 pt down to 7 pt to fit the longest chord line,
-  other lines wrapped with a two-space indent, a chord line kept on the page
-  of its lyric line, every position absolute in points). The flow yields
+  page)`: directives as dim labels joined " | ", padded to their width or
+  taking a longer label's room from the spaces after it, tabs expanded to 8
+  columns, the font 10 pt down to 7 pt to fit the longest chord line up to
+  its last chord or directive, other lines wrapped with their indent plus
+  two spaces, a chord line too long even at 7 pt interleaved with its
+  lyric, a chord line or heading kept on the page of the line under it, no
+  blank lines at a page's top, one run per word at its absolute position in
+  points). The flow yields
   `PaintPdfRequest(ref, layout)`: the front end paints and writes the file
   (desktop `pdf_export.py` with `QPdfWriter`; Android `files/PdfExporter.kt`
   with `PdfDocument`, off the main thread) and answers "" ("Exported PDF:

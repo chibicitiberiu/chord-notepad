@@ -295,21 +295,30 @@ along.
 What the pages look like:
 
 * **The text as it is.** Every line, blank lines, comments (``// ...``) and
-  ``.`` text lines included, in the same columns as in the editor.
+  ``.`` text lines included, in the same columns as in the editor. A tab
+  prints as spaces up to the next multiple of 8 columns, so text lined up
+  with tabs may sit differently than on your screen; spaces line up exactly.
 * **Directives as plain words, in grey.** ``{key: A} {time: 4/4} {bpm: 200}``
   prints as ``Key: A | Time: 4/4 | BPM: 200``. A ``{label: Chorus}`` prints
   as ``Chorus``, a ``{loop: Chorus 3}`` as ``Repeat Chorus ×3`` and
   ``{capo: 3}`` as ``Capo: 3``. A directive with a mistake in it prints the
   text between its braces. When the words are shorter than the directive,
-  spaces fill the gap, so the chords after it keep their places.
+  spaces fill the gap, so the chords after it keep their places. When
+  they're longer, they take the room from the spaces after them, and push
+  the rest of the line only when there aren't enough.
 * **The song's name** at the top of every page, and the page number
   ("1 / 3") at the bottom.
 * **A4 or Letter paper**, whichever your country uses (Letter in the US,
   Canada, Mexico and a few other countries, A4 elsewhere).
 * **Long lines.** The text gets smaller, down to 7 points from 10, until
-  the longest chord line fits across the page. A lyric or comment line that's
-  still too long continues on the next line, indented by two spaces.
-* **Page breaks** never separate a chord line from the lyric line under it.
+  the chords of the longest chord line fit across the page (a comment at its
+  end doesn't count). A line that's still too long continues on the next
+  line, indented by two more spaces. A chord line that doesn't fit even at 7
+  points is cut at the same place as its lyric line, so each part of the
+  chords stays over its part of the words.
+* **Page breaks** never separate a chord line from the lyric line under it,
+  and a comment or directive line, such as a section heading, moves to the
+  next page with the line under it. A page never starts with blank lines.
 
 A song with only lyrics, or with no text at all, exports too. The export is a
 copy: the song stays open as it was, and the ``.pdf`` file doesn't join the
