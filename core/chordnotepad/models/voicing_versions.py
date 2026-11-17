@@ -430,11 +430,21 @@ def _migrate_preset_copy(entry: MutableMapping[str, Any]) -> bool:
     return changed
 
 
+def _migrate_2_to_3(entry: MutableMapping[str, Any]) -> bool:
+    """Run :func:`_migrate_1_to_2` again. Development builds stamped voicings
+    at version 2 before the choir presets were retuned and before the
+    tritone default moved (:data:`DEFAULT_MOVES`); both halves only move a
+    value still on an old default, so running them twice changes nothing
+    for a voicing that already had them."""
+    return _migrate_1_to_2(entry)
+
+
 #: ``MIGRATIONS[i]`` moves a voicing dict from version ``i`` to ``i + 1``,
 #: in place, and returns whether it changed it.
 MIGRATIONS: Tuple[Callable[[MutableMapping[str, Any]], bool], ...] = (
     _migrate_0_to_1,
     _migrate_1_to_2,
+    _migrate_2_to_3,
 )
 
 #: The version a voicing saved by this release has.

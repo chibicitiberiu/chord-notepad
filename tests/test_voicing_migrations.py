@@ -674,3 +674,21 @@ def test_an_edit_of_a_voicing_whose_migration_failed_keeps_its_version(tmp_path)
         for name in ("New String Quartet", "New New String Quartet"):
             assert working[name]["version"] == 0, name
         assert working["New String Quartet"]["weights"]["leap_penalty"] == -2.75
+
+
+def test_a_dev_build_v2_voicing_still_gets_the_later_moves():
+    # Tibi's own settings were stamped at version 2 by a development build
+    # before the tritone default moved and the choirs were retuned; 2->3
+    # runs the moves again for such a file.
+    quartet = {"model": "ensemble", "label": "String Quartet", "based_on": "ensemble:quartet",
+               "version": 2,
+               "voices": [{"name": "Vn I", "range": [55, 88]}, {"name": "Vn II", "range": [55, 84]},
+                          {"name": "Va", "range": [48, 76]}, {"name": "Vc", "range": [36, 64]}],
+               "max_spacing": [14, 14, 24], "weights": {"tritone_leap_penalty": -3.0}}
+    mine = {**copy.deepcopy(quartet), "weights": {"tritone_leap_penalty": -2.0}}
+    assert vv.migrate_voicing(quartet) and quartet["version"] == VOICING_VERSION
+    assert quartet["weights"]["tritone_leap_penalty"] == -4.5
+    assert vv.migrate_voicing(mine)          # the version moves, the user's value doesn't
+    assert mine["weights"]["tritone_leap_penalty"] == -2.0
+    again = copy.deepcopy(quartet)
+    assert not vv.migrate_voicing(again) and again == quartet
