@@ -471,19 +471,19 @@ ColumnLayout {
                             objectName: "dragHandler:" + grip.row
                             target: null
                             xAxis.enabled: false
-                            function target() {
+                            function landingRow() {
                                 const shift = Math.round((centroid.scenePosition.y - centroid.scenePressPosition.y) / cells.rowStep)
                                 return Math.max(0, Math.min(table.rows.length - 1, grip.row + shift))
                             }
                             function track() {
                                 table.dragFrom = grip.row
-                                table.dragTo = target()
+                                table.dragTo = landingRow()
                                 table.dragY = tableArea.mapFromItem(null, centroid.scenePosition.x, centroid.scenePosition.y).y
                             }
                             onCentroidChanged: if (active) track()
                             onActiveChanged: {
                                 if (active) { track(); return }
-                                const to = target()
+                                const to = landingRow()
                                 table.dragFrom = -1
                                 table.dragTo = -1
                                 if (to !== grip.row) vform.settings.moveRecord(grip.row, to - grip.row, table.field.id)
