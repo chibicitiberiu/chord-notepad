@@ -32,7 +32,9 @@ the :mod:`audio.chord_tones` role taxonomy:
 3. **Score** every survivor with :meth:`_score_quality` (doubling, omission,
    inversion, range comfort, unisons, upper spacing, doubled leading tone) plus
    :meth:`_score_transition` (per-voice movement, leaps, common tones, parallel
-   perfect fifths/octaves, contrary motion of the outer voices, 7th /
+   perfect fifths/octaves (except, with five voices or more, octaves between
+   two voices doubling the bass line), hidden fifths/octaves and contrary
+   motion of the outer voices, 7th /
    leading-tone resolution, and the same chord over a different written bass
    sounding the same bass note).
 
@@ -82,6 +84,7 @@ _RANGE_COMFORT_EDGE = 2      # the outer 2 semitones of a range are uncomfortabl
 _BAND_QUARTER = 4            # the comfortable band leaves out a quarter of the range at each end
 _RANGE_PAD = 2               # semitones the ladder widens each range end by
 _BEAM_STACKS = 300           # partial octave-stacks kept per DFS level
+_DOUBLED_BASS_MIN_VOICES = 5  # from five voices on, the bass line may be doubled in octaves
 _TOP_CANDIDATES = 60         # complete voicings kept per chord for the DP
 _DROP_SETS_KEPT = 3          # cheapest drop-sets kept per bass choice (k > N)
 _DOUBLING_SETS_KEPT = 6      # best doubling multisets kept per bass choice (k < N)
@@ -1000,7 +1003,12 @@ class EnsembleVoicer(INotePicker):
         for b in range(n):
             score += self._motion_score(b, n, deltas[b])
 
-        # Parallel perfect fifths/octaves between any two moving voices.
+        # Parallel perfect fifths/octaves between any two moving voices. With
+        # five voices or more, two that both carry the bass line (the bass's
+        # pitch class in both chords) double it in octaves, as cello and
+        # contrabass do: free. Four-part writing keeps the rule.
+        prev_bass, cur_bass = prev_notes[0] % _OCTAVE, cur_notes[0] % _OCTAVE
+        doubling_ok = n >= _DOUBLED_BASS_MIN_VOICES
         for i in range(n):
             if deltas[i] == 0:
                 continue
@@ -1010,6 +1018,10 @@ class EnsembleVoicer(INotePicker):
                 prev_ic = (prev_notes[j] - prev_notes[i]) % _OCTAVE
                 cur_ic = (cur_notes[j] - cur_notes[i]) % _OCTAVE
                 if prev_ic == cur_ic and prev_ic in (0, 7):
+                    if (doubling_ok and prev_ic == 0
+                            and prev_notes[i] % _OCTAVE == prev_bass
+                            and cur_notes[i] % _OCTAVE == cur_bass):
+                        continue
                     score += self._parallel_perfect_penalty
 
         # Contrary motion of the outer voices; similar motion into a perfect

@@ -47,6 +47,13 @@ def test_ensemble_hidden_perfects_spare_a_stepwise_top_voice():
     assert "by step is never charged" in TOOLTIPS['weight:hidden_perfect_penalty']
 
 
+def test_ensemble_parallels_spare_a_doubled_bass_line_from_five_voices():
+    # ensemble_voicer._score_transition: n >= _DOUBLED_BASS_MIN_VOICES.
+    from chordnotepad.audio.ensemble_voicer import _DOUBLED_BASS_MIN_VOICES
+    assert _DOUBLED_BASS_MIN_VOICES == 5
+    assert "five voices or more" in TOOLTIPS['weight:parallel_perfect_penalty']
+
+
 def test_every_ensemble_weight_has_a_label_and_help():
     from chordnotepad.models.ensemble_spec import DEFAULT_WEIGHTS, _NESTED_WEIGHT_KEYS
     from chordnotepad.settings_forms.voicing_texts import ENSEMBLE_WEIGHT_LABELS

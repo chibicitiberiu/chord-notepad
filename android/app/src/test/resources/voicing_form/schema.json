@@ -223,7 +223,7 @@
         },
         {
          "default": "-25.0",
-         "help": "How the picker treats a pair of voices moving in parallel fifths or octaves. More negative avoids them; set strongly negative by default.",
+         "help": "How the picker treats a pair of voices moving in parallel fifths or octaves. More negative avoids them; set strongly negative by default. With five voices or more, two voices both playing the bass line may move in octaves for free.",
          "id": "weight:parallel_perfect_penalty",
          "kind": "float",
          "label": "Parallel fifths/octaves",

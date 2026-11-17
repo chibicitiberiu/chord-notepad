@@ -180,7 +180,9 @@ Each voice tries to keep the note it's already singing (a common tone),
 and moves by the smallest useful step when it has to move at all. Parallel
 fifths and octaves between two voices carry a heavy penalty -- that one
 motion is the fastest way to make four-part harmony sound wrong -- so the
-engine avoids them whenever another voicing is available. When a key is in
+engine avoids them whenever another voicing is available. The one exception
+is an ensemble of five voices or more: there two voices that both play the
+bass line may move in octaves, the way a cello and a double bass do. When a key is in
 effect (``{key:}``), the leading tone earns a bonus for resolving up to the
 tonic, and doubling it is avoided.
 
@@ -549,7 +551,9 @@ Voicing Parameters
    * - Parallel fifths/octaves
      - Subtracted per pair of voices that move in parallel perfect fifths
        or octaves -- the classic part-writing fault. Set strongly negative
-       by default because it's rarely wanted.
+       by default because it's rarely wanted. With five voices or more, two
+       voices that both play the bass line (the bass note of each chord, in
+       another octave) aren't charged for moving in octaves.
      - ``parallel_perfect_penalty``
      - -25.0
    * - Hidden fifths/octaves

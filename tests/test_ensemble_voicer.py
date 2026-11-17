@@ -744,3 +744,22 @@ def test_a_diminished_fifth_is_never_left_out():
     # A G7's perfect fifth may go (G G B F), so its plans include one without D.
     g7_plans = voicer._pc_plans(voicer._build_meta(parsed('G7')))
     assert any(bass == 7 and 2 not in upper for bass, upper in g7_plans)
+
+
+def test_a_doubled_bass_line_may_move_in_octaves_with_five_voices_or_more():
+    six = EnsembleVoicer(STRINGS_SIX)
+    four = EnsembleVoicer(BUILTIN_ENSEMBLES['satb'])
+    ctx = six._state.context
+    # Contrabass and cello both on the bass, C to F in octaves; the rest hold.
+    prev6, cur6 = (36, 48, 55, 64, 67, 72), (41, 53, 55, 64, 67, 72)
+    assert six._score_transition(prev6, cur6, ctx) == pytest.approx(
+        six._motion_score(0, 6, 5) + six._motion_score(1, 6, 5)
+        + 4 * six._motion_score(2, 6, 0))
+    # Octaves between two voices off the bass are still parallels.
+    prev_off, cur_off = (36, 52, 55, 64, 67, 72), (36, 53, 55, 65, 67, 72)
+    assert (six._score_transition(prev_off, cur_off, ctx)
+            <= DEFAULT_WEIGHTS['parallel_perfect_penalty'] + 10)
+    # Four voices: bass and tenor doubling the root in octaves is a fault.
+    prev4, cur4 = (48, 60, 64, 67), (53, 65, 64, 67)
+    assert (four._score_transition(prev4, cur4, ctx)
+            <= DEFAULT_WEIGHTS['parallel_perfect_penalty'] + 10)

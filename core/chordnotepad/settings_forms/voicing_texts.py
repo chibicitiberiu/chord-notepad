@@ -284,7 +284,9 @@ TOOLTIPS: Dict[str, str] = {
                                  "rewards holding common tones."),
     'weight:parallel_perfect_penalty': ("How the picker treats a pair of voices moving in "
                                         "parallel fifths or octaves. More negative avoids them; "
-                                        "set strongly negative by default."),
+                                        "set strongly negative by default. With five voices or "
+                                        "more, two voices both playing the bass line may move "
+                                        "in octaves for free."),
     'weight:hidden_perfect_penalty': ("How the picker treats the top and bottom voices moving the "
                                       "same way into a fifth or an octave while the top voice "
                                       "leaps (more than a whole tone). More negative avoids these "
