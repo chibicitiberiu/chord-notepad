@@ -2,7 +2,7 @@
 
 The advisor scores every capo position with
 ``GuitarChordPicker.voice_sequence_score`` and suggests the best one only when
-it beats capo 0 by ``CAPO_MIN_GAIN``. These tests pin the behaviour the
+it beats capo 0 by ``CAPO_MIN_GAIN`` per chord. These tests pin the behaviour the
 chord-sheet header relies on: a barre-heavy key suggests a nonzero capo, an
 open-friendly key suggests none, and the score sums the same path the details
 API voices.
@@ -56,7 +56,17 @@ def test_barre_heavy_key_suggests_a_nonzero_capo():
     at_suggested = GuitarChordPicker(
         _capo_spec(STANDARD, suggested)
     ).voice_sequence_score(FSHARP_PROGRESSION)
-    assert at_suggested - base >= CAPO_MIN_GAIN
+    assert at_suggested - base >= CAPO_MIN_GAIN * len(FSHARP_PROGRESSION)
+
+
+def test_the_gain_is_per_chord_so_repeats_dont_tip_it():
+    # C G Am F scores a little better at capo 5 (G shapes), by about 1.2 a
+    # chord: not enough, however often the loop repeats. A whole-song
+    # threshold suggested capo 5 once the loop ran four times.
+    assert suggest_capo(STANDARD, CMAJOR_PROGRESSION) is None
+    assert suggest_capo(STANDARD, CMAJOR_PROGRESSION * 4) is None
+    suggested = suggest_capo(STANDARD, FSHARP_PROGRESSION)
+    assert suggest_capo(STANDARD, FSHARP_PROGRESSION * 4) == suggested
 
 
 def test_open_friendly_key_suggests_no_capo():

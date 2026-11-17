@@ -55,11 +55,15 @@ DEFAULT_SIDEBAR_WIDTH = 76
 # Capo advisor (see services/capo_advisor.py). When "Allow capo" is on and a
 # fretboard voicing is active, the advisor scores every capo position 0..MAX
 # with the guitar picker's whole-song playability score and suggests the best
-# one only if it beats capo 0 by at least MIN_GAIN. The score is driven mostly
-# by the fretboard weights open_string_bonus / position_penalty / barre_penalty,
-# so the gain is roughly "points of playability saved across the whole song".
+# one only if it beats capo 0 by at least MIN_GAIN per chord (the song's
+# chords with notes, repeats included), so a long song or a repeated chorus
+# needs the same gain per chord as a short one. The score is driven mostly by
+# the fretboard weights open_string_bonus / position_penalty / barre_penalty,
+# so the gain is roughly "points of playability saved per chord". 1.5 keeps
+# the open keys (C, D, E, A, G) capo-free in most progressions while every
+# flat key (Bb, Eb, Ab, Db) and F# gets one.
 CAPO_MAX_DEFAULT = 7      # Highest capo position considered.
-CAPO_MIN_GAIN = 6.0       # Minimum score improvement over capo 0 to suggest a capo.
+CAPO_MIN_GAIN = 1.5       # Minimum score improvement per chord over capo 0 to suggest a capo.
 
 # Audio settings
 DEFAULT_OCTAVE = 4

@@ -64,7 +64,8 @@ def suggest_capo(
 
     Scores capo positions ``0..max_capo`` with the guitar picker's whole-song
     playability score and returns the best-scoring position, but only when it is
-    nonzero *and* beats capo 0 by at least ``min_gain``. Deterministic; ties go
+    nonzero *and* beats capo 0 by at least ``min_gain`` per chord (each chord
+    with notes, repeats included). Deterministic; ties go
     to the lower capo (a higher capo must strictly beat the running best to
     replace it, and capo 0 is the running best to start).
 
@@ -73,8 +74,8 @@ def suggest_capo(
         sequence: The whole song's resolved chords, in playback order. Entries
             with no notes (rests) are ignored for the empty-guard.
         max_capo: Highest capo position to consider (inclusive).
-        min_gain: Minimum score improvement over capo 0 required to suggest a
-            capo. See :data:`constants.CAPO_MIN_GAIN`.
+        min_gain: Minimum score improvement per chord over capo 0 required to
+            suggest a capo. See :data:`constants.CAPO_MIN_GAIN`.
         should_abort: Optional cooperative-abort predicate checked between capo
             positions and threaded into every per-capo whole-song score. When it
             fires, the underlying search raises
@@ -86,7 +87,8 @@ def suggest_capo(
         best, the improvement is below ``min_gain``, or the sequence has no
         voiceable chords.
     """
-    if not any(cn is not None and cn.notes for cn in sequence):
+    chords = sum(1 for cn in sequence if cn is not None and cn.notes)
+    if not chords:
         return None
 
     base_score = GuitarChordPicker(spec).voice_sequence_score(
@@ -108,7 +110,7 @@ def suggest_capo(
 
     if best_capo == 0:
         return None
-    if best_score - base_score < min_gain:
+    if best_score - base_score < min_gain * chords:
         return None
     logger.debug(
         "Capo advisor: suggesting capo %d (score %.3f vs %.3f at capo 0)",
