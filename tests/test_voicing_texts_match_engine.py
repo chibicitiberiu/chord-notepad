@@ -85,9 +85,11 @@ def test_ensemble_common_tone_is_the_same_pitch():
     assert "pitch class" not in text and "same note" in text
 
 
-def test_ensemble_key_dependent_weights_say_they_need_a_key():
+def test_ensemble_key_dependent_weights_say_where_the_key_comes_from():
+    # ensemble_voicer._apply_keyless_leading_tones: the song's {key:}, else
+    # the key inferred around each chord.
     for key in ('leading_tone_resolution_bonus', 'double_leading_tone_penalty'):
-        assert "key" in TOOLTIPS[f'weight:{key}']
+        assert "{key:}" in TOOLTIPS[f'weight:{key}'] and "inferred" in TOOLTIPS[f'weight:{key}']
 
 
 def test_inversion_tooltips_name_the_inversion_not_a_tone():

@@ -300,12 +300,15 @@ TOOLTIPS: Dict[str, str] = {
     'weight:seventh_resolution_bonus': ("How the picker treats a chordal seventh resolving down "
                                         "by step. More positive encourages that resolution."),
     'weight:leading_tone_resolution_bonus': ("How the picker treats the leading tone rising a "
-                                             "semitone to the tonic, in the same voice. Only "
-                                             "applies when the song sets a key. More positive "
-                                             "encourages it."),
+                                             "semitone to the tonic, in the same voice. The key "
+                                             "is the song's {key:}, or else inferred from the "
+                                             "chords around (not in a chromatic passage); a "
+                                             "dominant's third before the chord a fifth below "
+                                             "counts too. More positive encourages it."),
     'weight:double_leading_tone_penalty': ("How the picker treats two or more voices on the "
-                                           "leading tone. Only applies when the song sets a key. "
-                                           "More negative avoids doubling it."),
+                                           "leading tone (of the song's {key:}, or of the key "
+                                           "inferred from the chords around). More negative "
+                                           "avoids doubling it."),
     'weight:range_comfort_penalty': ("How the picker treats a voice sitting in the outer 2 "
                                      "semitones of its range, per semitone into that edge. More "
                                      "negative keeps voices off their extremes."),

@@ -36,7 +36,10 @@ the :mod:`audio.chord_tones` role taxonomy:
    two voices doubling the bass line), hidden fifths/octaves and contrary
    motion of the outer voices, 7th /
    leading-tone resolution, and the same chord over a different written bass
-   sounding the same bass note).
+   sounding the same bass note). The leading tone is the ``{key:}``'s; in a
+   song without one, :meth:`voice_sequence` infers the key around each chord
+   and adds each dominant's third before the chord a fifth below
+   (:meth:`_apply_keyless_leading_tones`).
 
 4. **Optimize**: :meth:`chord_to_midi` greedily picks the argmax against the
    stored previous voicing; :meth:`voice_sequence` first plans the bass line
@@ -65,6 +68,7 @@ from typing import Any, Callable, Dict, FrozenSet, List, NamedTuple, Optional, T
 from chordnotepad.audio.note_picker_interface import INotePicker
 from chordnotepad.audio.chord_tones import classify_role, omission_cost
 from chordnotepad.audio.voicing_optimizer import optimize_sequence
+from chordnotepad.chord.key_inference import infer_keys, triad_quality
 from chordnotepad.chord.midi_converter import parse_note_to_semitone, intervals_from_note_names
 
 if TYPE_CHECKING:
@@ -105,6 +109,14 @@ _RANGE_PAD = 2               # semitones the ladder widens each range end by
 _BEAM_STACKS = 300           # partial octave-stacks kept per DFS level
 _DOUBLED_BASS_MIN_VOICES = 5  # from five voices on, the bass line may be doubled in octaves
 _TOP_CANDIDATES = 60         # complete voicings kept per chord for the DP
+# A song without {key:}: the key around each chord is inferred from this many
+# chords before and after it (audio/chord/key_inference). Below a confidence of
+# _KEY_THRESHOLD the key's leading-tone rules don't apply; above it they grow
+# linearly to full strength _KEY_RAMP further up (a diatonic loop scores about
+# 0.25 to 0.6, a chromatic passage below 0.2).
+_KEY_WINDOW = 4
+_KEY_THRESHOLD = 0.15
+_KEY_RAMP = 0.1
 _DROP_SETS_KEPT = 3          # cheapest drop-sets kept per bass choice (k > N)
 _DOUBLING_SETS_KEPT = 6      # best doubling multisets kept per bass choice (k < N)
 
@@ -137,6 +149,14 @@ class _ChordContext(NamedTuple):
     tone is not among them)."""
     bass_pc: Optional[int] = None
     """The written bass pitch class: the slash note, else the root."""
+    leading_tone_weight: float = 1.0
+    """How much the leading-tone rules count for :attr:`leading_tone_pc`: 1
+    under a ``{key:}`` line, less (down to 0) for a key inferred with low
+    confidence."""
+    dominant_leading_tone_pc: Optional[int] = None
+    """In a song without a key, the third of a major or dominant chord whose
+    root falls a fifth to the next chord's root (G or G7 before C, A7 before
+    Dm): a leading tone for that change, at full weight."""
 
 
 def same_chord_other_bass(a: _ChordContext, b: _ChordContext) -> bool:
@@ -424,6 +444,7 @@ class EnsembleVoicer(INotePicker):
             return []
 
         metas = [self._build_meta(cn) for cn in sequence]
+        self._apply_keyless_leading_tones(sequence, metas)
         basses = self._plan_bass(sequence, metas)
         candidate_sets: List[List[_Cand]] = []
         for pos, (cn, meta) in enumerate(zip(sequence, metas)):
@@ -459,6 +480,45 @@ class EnsembleVoicer(INotePicker):
                 self._store_state(notes, metas[pos])
                 break
         return result
+
+    def _apply_keyless_leading_tones(self, sequence: List['ChordNotes'],
+                                     metas: List[_ChordMeta]) -> None:
+        """Give the chords without a ``{key:}`` their leading tones.
+
+        Two sources, both only for chords with no key (an explicit key always
+        wins): the key inferred around the chord
+        (:func:`chord.key_inference.infer_keys`), whose leading tone counts
+        with a weight that grows from 0 at a confidence of
+        :data:`_KEY_THRESHOLD` to 1 at ``_KEY_THRESHOLD + _KEY_RAMP``; and the
+        chord's own dominant function, the third of a major or dominant
+        chord whose root falls a fifth to the next root, at full weight (a
+        secondary dominant's leading tone, which no single key has). The
+        whole song is known, so each chord sees the chords after it too.
+        """
+        if all(cn.key for cn in sequence):
+            return
+        estimates = infer_keys(sequence, _KEY_WINDOW)
+        for pos, (cn, meta) in enumerate(zip(sequence, metas)):
+            if cn.key or meta.empty:
+                continue
+            lt, weight = None, 0.0
+            estimate = estimates[pos]
+            if estimate is not None:
+                weight = min(1.0, max(0.0, (estimate.confidence - _KEY_THRESHOLD) / _KEY_RAMP))
+                if weight > 0:
+                    lt = estimate.leading_tone_pc
+            dominant = None
+            nxt = metas[pos + 1] if pos + 1 < len(metas) else None
+            if (nxt is not None and not nxt.empty
+                    and (meta.root_pc - nxt.root_pc) % _OCTAVE == _PERFECT_FIFTH
+                    and triad_quality(cn.intervals or intervals_from_note_names(cn.notes)) == 'maj'):
+                dominant = (meta.root_pc + 4) % _OCTAVE
+            if dominant is not None and dominant == lt:
+                weight = 1.0
+            elif dominant is not None:
+                meta.ctx = meta.ctx._replace(dominant_leading_tone_pc=dominant)
+            if lt is not None:
+                meta.ctx = meta.ctx._replace(leading_tone_pc=lt, leading_tone_weight=weight)
 
     # ------------------------------------------------------------------
     # Bass plan
@@ -647,6 +707,9 @@ class EnsembleVoicer(INotePicker):
             chord_notes.root,
             tuple(chord_notes.intervals or ()),
             chord_notes.key,
+            meta.ctx.leading_tone_pc,
+            meta.ctx.leading_tone_weight,
+            meta.ctx.dominant_leading_tone_pc,
             bass,
         )
         cached = self._cache.get(key)
@@ -1002,6 +1065,9 @@ class EnsembleVoicer(INotePicker):
         # Doubled leading tone.
         lt = meta.ctx.leading_tone_pc
         if lt is not None and counts.get(lt, 0) >= 2:
+            score += self._double_leading_tone_penalty * meta.ctx.leading_tone_weight
+        dlt = meta.ctx.dominant_leading_tone_pc
+        if dlt is not None and counts.get(dlt, 0) >= 2:
             score += self._double_leading_tone_penalty
 
         return score
@@ -1097,6 +1163,11 @@ class EnsembleVoicer(INotePicker):
         if lt is not None:
             for b in range(n):
                 if prev_notes[b] % _OCTAVE == lt and (cur_notes[b] - prev_notes[b]) == 1:
+                    score += self._leading_tone_resolution_bonus * prev_ctx.leading_tone_weight
+        dlt = prev_ctx.dominant_leading_tone_pc
+        if dlt is not None:
+            for b in range(n):
+                if prev_notes[b] % _OCTAVE == dlt and (cur_notes[b] - prev_notes[b]) == 1:
                     score += self._leading_tone_resolution_bonus
 
         # The same chord over another written bass, sounding the same bass.

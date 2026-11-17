@@ -262,7 +262,7 @@
         },
         {
          "default": "1.5",
-         "help": "How the picker treats the leading tone rising a semitone to the tonic, in the same voice. Only applies when the song sets a key. More positive encourages it.",
+         "help": "How the picker treats the leading tone rising a semitone to the tonic, in the same voice. The key is the song's {key:}, or else inferred from the chords around (not in a chromatic passage); a dominant's third before the chord a fifth below counts too. More positive encourages it.",
          "id": "weight:leading_tone_resolution_bonus",
          "kind": "float",
          "label": "Leading tone resolves",
@@ -272,7 +272,7 @@
         },
         {
          "default": "-8.0",
-         "help": "How the picker treats two or more voices on the leading tone. Only applies when the song sets a key. More negative avoids doubling it.",
+         "help": "How the picker treats two or more voices on the leading tone (of the song's {key:}, or of the key inferred from the chords around). More negative avoids doubling it.",
          "id": "weight:double_leading_tone_penalty",
          "kind": "float",
          "label": "Doubled leading tone",

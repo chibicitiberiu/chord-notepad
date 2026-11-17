@@ -183,9 +183,20 @@ fifths and octaves between two voices carry a heavy penalty -- that one
 motion is the fastest way to make four-part harmony sound wrong -- so the
 engine avoids them whenever another voicing is available. The one exception
 is an ensemble of five voices or more: there two voices that both play the
-bass line may move in octaves, the way a cello and a double bass do. When a key is in
-effect (``{key:}``), the leading tone earns a bonus for resolving up to the
-tonic, and doubling it is avoided.
+bass line may move in octaves, the way a cello and a double bass do. The
+leading tone earns a bonus for resolving up to the tonic, and doubling it is
+avoided.
+
+Which note is the leading tone comes from the key. With a ``{key:}`` line it
+is that key's. Without one, the engine works the key out from the chords
+around each chord, four before and four after, and how clearly they belong
+to one key rather than another: a loop like C G Am F is clearly in C, a
+passage like C E A♭ C belongs to no key. Where the key is clear the leading
+tone counts in full; where it is borderline it counts less, and in a
+chromatic passage not at all. On top of that, a major or dominant chord whose
+root falls a fifth to the next chord's root has its third treated as a
+leading tone for that change, so a secondary dominant resolves too (the C♯
+of A7 rises to D in A7 Dm). A ``{key:}`` line always wins over both.
 
 If a chord has more notes than there are voices, the tone with the
 cheapest Omission weight is left out. With the defaults that's the fifth,
@@ -600,12 +611,15 @@ Voicing Parameters
      - +1.5
    * - Leading tone resolves
      - Added when the leading tone (the raised 7th degree of the current
-       key) resolves upward by step into the tonic.
+       key) resolves upward by step into the tonic. Without ``{key:}`` the
+       key is inferred (see above), and the third of a dominant falling a
+       fifth counts as a leading tone too.
      - ``leading_tone_resolution_bonus``
      - +1.5
    * - Doubled leading tone
      - Subtracted if two voices end up doubling the leading tone, which
        traditionally produces awkward parallel octaves at the resolution.
+       Without ``{key:}``, as for "Leading tone resolves".
      - ``double_leading_tone_penalty``
      - -8.0
    * - Doubling (Root, Fifth, Third, Seventh, Color, Extension)

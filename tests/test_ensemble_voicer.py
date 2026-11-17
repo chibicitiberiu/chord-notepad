@@ -295,6 +295,46 @@ def test_leading_tone_resolves_up():
         )
 
 
+def _metas(voicer, symbols, key=None):
+    chords = [_HELPER.compute_chord_notes(sym, key=key) for sym in symbols.split()]
+    metas = [voicer._build_meta(c) for c in chords]
+    voicer._apply_keyless_leading_tones(chords, metas)
+    return metas
+
+
+def test_without_a_key_the_leading_tone_comes_from_the_inferred_key():
+    voicer = EnsembleVoicer(BUILTIN_ENSEMBLES['satb'])
+    metas = _metas(voicer, 'C F G7 C Am Dm G7 C')
+    assert all(m.ctx.leading_tone_pc == 11 for m in metas)  # B, in C major
+    assert all(m.ctx.leading_tone_weight == 1.0 for m in metas)
+    minor = _metas(voicer, 'Am Dm E7 Am F Dm E7 Am')
+    assert all(m.ctx.leading_tone_pc == 8 for m in minor)   # G#, in A minor
+
+
+def test_a_chromatic_passage_gets_no_inferred_leading_tone():
+    voicer = EnsembleVoicer(BUILTIN_ENSEMBLES['satb'])
+    metas = _metas(voicer, 'C B Bb A Ab G F# F')
+    assert all(m.ctx.leading_tone_pc is None for m in metas[2:-2])
+
+
+def test_a_secondary_dominant_has_its_own_leading_tone_without_a_key():
+    # A7 -> Dm in C: C# is a leading tone for that change, B (the key's) too.
+    voicer = EnsembleVoicer(BUILTIN_ENSEMBLES['satb'])
+    metas = _metas(voicer, 'C F C A7 Dm G7 C')
+    assert metas[3].ctx.dominant_leading_tone_pc == 1
+    a7, dm = voicer.voice_sequence([_HELPER.compute_chord_notes(s) for s in 'C F C A7 Dm G7 C'.split()])[3:5]
+    for b in range(4):
+        if a7[b] % 12 == 1:
+            assert dm[b] - a7[b] == 1, (a7, dm)
+
+
+def test_an_explicit_key_always_wins():
+    voicer = EnsembleVoicer(BUILTIN_ENSEMBLES['satb'])
+    metas = _metas(voicer, 'C A7 Dm G7 C', key='C')
+    assert all(m.ctx.leading_tone_pc == 11 and m.ctx.leading_tone_weight == 1.0
+               and m.ctx.dominant_leading_tone_pc is None for m in metas)
+
+
 # ---------------------------------------------------------------------------
 # Relaxation ladder
 # ---------------------------------------------------------------------------
