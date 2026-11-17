@@ -3,11 +3,12 @@
 import datetime
 import logging
 from dataclasses import dataclass, field
-from typing import List, Optional, Literal, Dict
+from typing import Any, Callable, List, Optional, Literal, Dict
 
 from chordnotepad.constants import (
-    DEFAULT_UI_SCALE, DEFAULT_UI_THEME, LOG_LEVELS, MAX_BPM, MIN_BPM, UI_SCALE_MAX, UI_SCALE_MIN,
-    UI_THEMES,
+    CONFIG_VERSION, DEFAULT_UI_SCALE, DEFAULT_UI_THEME, LOG_LEVELS, MAX_BEATS, MAX_BPM,
+    MAX_FONT_SIZE, MAX_RECENT_LIMIT, MIN_BEATS, MIN_BPM, MIN_FONT_SIZE, TIME_SIGNATURE_UNITS,
+    UI_SCALE_MAX, UI_SCALE_MIN, UI_THEMES,
     DEFAULT_SIDEBAR, DEFAULT_SIDEBAR_WIDTH, SIDEBAR_WIDTH_MAX, SIDEBAR_WIDTH_MIN, SIDEBARS,
 )
 from chordnotepad.models.notation import american_key
@@ -29,12 +30,72 @@ def ui_scale_from_config(raw) -> float:
     return value if UI_SCALE_MIN <= value <= UI_SCALE_MAX else DEFAULT_UI_SCALE
 
 
+def config_version(raw: Any) -> int:
+    """A saved ``version`` as the migrations read it: an int, else 1.
+
+    A string, a float or a bool can only come from a damaged or hand-edited
+    file; it reads as 1 (with a warning) instead of failing the whole load.
+    A missing version is 1 as well: v0.1 and v0.2 wrote one, but a hand-made
+    file may not.
+    """
+    if raw is None:
+        return 1
+    if isinstance(raw, bool) or not isinstance(raw, int):
+        logger.warning(f"Config version {raw!r} is not a whole number; reading it as 1")
+        return 1
+    return raw
+
+
+def _is_number(value: Any) -> bool:
+    """True for an int or a float, not a bool (a bool is an int)."""
+    return isinstance(value, (int, float)) and not isinstance(value, bool)
+
+
+def _is_int(value: Any) -> bool:
+    return isinstance(value, int) and not isinstance(value, bool)
+
+
+def _number_in(low: float, high: float) -> Callable[[Any], bool]:
+    return lambda value: _is_number(value) and low <= value <= high
+
+
+def _int_in(low: int, high: int) -> Callable[[Any], bool]:
+    return lambda value: _is_int(value) and low <= value <= high
+
+
+#: The checks ``Config.from_dict`` makes, key by key: a saved value that
+#: fails its check reads as the field's default (with a warning), so one bad
+#: value never costs the other settings. They accept what ``validate()``
+#: accepts, so a loaded config always validates.
+_FIELD_CHECKS: Dict[str, Callable[[Any], bool]] = {
+    "bpm": _number_in(MIN_BPM, MAX_BPM),
+    "bpm_multiplier": _number_in(0.125, 4.0),
+    "font_size": _number_in(MIN_FONT_SIZE, MAX_FONT_SIZE),
+    "notation": lambda value: value in ("american", "european"),
+    "log_level": lambda value: isinstance(value, str) and value in LOG_LEVELS,
+    "instrument": _int_in(0, 127),
+    # MIDI octaves run from -1 to 9.
+    "default_octave": _int_in(-1, 9),
+    "bass_octave": _int_in(-1, 9),
+    "time_signature_beats": _int_in(MIN_BEATS, MAX_BEATS),
+    "time_signature_unit": lambda value: _is_int(value) and value in TIME_SIGNATURE_UNITS,
+    "max_recent_files": _int_in(1, MAX_RECENT_LIMIT),
+    "key": lambda value: isinstance(value, str),
+}
+
+#: The top-level keys ``from_dict`` reads besides the fields ``to_dict``
+#: writes: the legacy voicing registries, moved into ``voicings`` on load.
+_LEGACY_KEYS = ("custom_tunings", "custom_ensembles")
+
+
 @dataclass
 class Config:
     """Application configuration model with validation."""
 
-    # Version for migration support
-    version: int = 1
+    # Version for migration support. A new config is written at the current
+    # version: one saved as 1 would go through the v1 migrations at the next
+    # start, which negated the signed weights of voicings made in between.
+    version: int = CONFIG_VERSION
 
     # Appearance
     font_family: str = "TkFixedFont"
@@ -126,6 +187,16 @@ class Config:
     # view's "staff_rhythm"). Not a setting: the Settings screen never writes it.
     dismissed_notices: List[str] = field(default_factory=list)
 
+    # Top-level keys the file had that this release doesn't know (a newer
+    # release wrote them). They are written back as they were, after the
+    # known keys, so running an older release doesn't trim a newer file.
+    extra: Dict[str, Any] = field(default_factory=dict)
+
+    # Not saved: True when ``from_dict`` had to replace a saved value (or drop
+    # a voicing entry) because it was unusable. ConfigService then backs the
+    # file up before its next write.
+    needs_backup: bool = field(default=False, compare=False, repr=False)
+
     def validate(self) -> None:
         """Validate configuration values."""
         if not (MIN_BPM <= self.bpm <= MAX_BPM):
@@ -165,8 +236,10 @@ class Config:
 
     def to_dict(self) -> dict:
         """Convert config to dictionary for JSON serialization."""
-        return {
-            "version": self.version,
+        # A file from a newer release keeps its higher version; anything
+        # older is written at the current one.
+        data = {
+            "version": max(self.version, CONFIG_VERSION),
             "font_family": self.font_family,
             "font_size": self.font_size,
             "theme": self.theme,
@@ -207,6 +280,10 @@ class Config:
             "sidebar_width": self.sidebar_width,
             "dismissed_notices": list(self.dismissed_notices),
         }
+        for key, value in self.extra.items():
+            if key not in data:
+                data[key] = value
+        return data
 
     @classmethod
     def from_dict(cls, data: dict) -> 'Config':
@@ -229,13 +306,29 @@ class Config:
         ``"guitar:<name>"``/``"ensemble:<name>"`` to ``"voicing:<name>"`` when
         it referred to a migrated legacy entry (built-in ensemble names are
         left alone even if shadowed by a same-named custom entry).
-        """
-        voicings, voicing = cls._migrate_voicings(data)
 
-        return cls(
-            version=data.get("version", 1),
+        Values are checked field by field (``_FIELD_CHECKS``): an unusable one
+        reads as its default with a warning, and sets ``needs_backup``, so one
+        bad value never resets the other settings. Keys this release doesn't
+        know are kept in ``extra``.
+        """
+        fallbacks: List[str] = []
+        voicings, voicing = cls._migrate_voicings(data, fallbacks)
+
+        def checked(key: str, default: Any) -> Any:
+            if key not in data:
+                return default
+            value = data[key]
+            if _FIELD_CHECKS[key](value):
+                return value
+            logger.warning(f"Config {key}={value!r} is not usable; using the default {default!r}")
+            fallbacks.append(key)
+            return default
+
+        config = cls(
+            version=config_version(data.get("version", 1)),
             font_family=data.get("font_family", "TkFixedFont"),
-            font_size=data.get("font_size", 11),
+            font_size=checked("font_size", 11),
             theme=data.get("theme", "default"),
             # Unknown values fall back here: a failed validate() on load would
             # reset every setting.
@@ -243,22 +336,22 @@ class Config:
             ui_scale=ui_scale_from_config(data.get("ui_scale")),
             menu_bar_shown=data.get("menu_bar_shown", False) is True,
             word_wrap=data.get("word_wrap", False) is True,
-            bpm=data.get("bpm", 120),
-            bpm_multiplier=data.get("bpm_multiplier", 1.0),
-            default_octave=data.get("default_octave", 4),
-            bass_octave=data.get("bass_octave", 3),
-            time_signature_beats=data.get("time_signature_beats", 4),
-            time_signature_unit=data.get("time_signature_unit", 4),
+            bpm=checked("bpm", 120),
+            bpm_multiplier=checked("bpm_multiplier", 1.0),
+            default_octave=checked("default_octave", 4),
+            bass_octave=checked("bass_octave", 3),
+            time_signature_beats=checked("time_signature_beats", 4),
+            time_signature_unit=checked("time_signature_unit", 4),
             voicing=voicing,
             voicings=voicings,
-            instrument=data.get("instrument", 0),
+            instrument=checked("instrument", 0),
             volume=volume_from_config(data.get("volume", 1.0)),
             metronome_volume=metronome_volume_from_config(data.get("metronome_volume", 1.0)),
             # On unless saved off (a config from before the setting has none).
             click_plays_chart_voicing=data.get("click_plays_chart_voicing", True) is not False,
-            notation=data.get("notation", "american"),
+            notation=checked("notation", "american"),
             # Older versions saved the key in the notation's spelling.
-            key=american_key(data.get("key", "C")),
+            key=american_key(checked("key", "C")),
             window_geometry=data.get("window_geometry", "900x600"),
             window_maximized=data.get("window_maximized", False),
             # A first start has the neutral defaults; a config Tk wrote
@@ -266,11 +359,11 @@ class Config:
             window_bounds=(cls._window_bounds(data["window_bounds"]) if "window_bounds" in data
                            else None if "window_geometry" in data
                            else dict(neutral_geometry.DEFAULT_BOUNDS)),
-            recent_files=data.get("recent_files", []),
-            max_recent_files=data.get("max_recent_files", 10),
+            recent_files=cls._recent_files(data, fallbacks),
+            max_recent_files=checked("max_recent_files", 10),
             soundfont_path=data.get("soundfont_path"),
             audio_driver=data.get("audio_driver"),
-            log_level=data.get("log_level", "INFO"),
+            log_level=checked("log_level", "INFO"),
             show_quick_start_on_startup=data.get("show_quick_start_on_startup", True),
             support_prompt_last_shown=cls._iso_date_or_none(data.get("support_prompt_last_shown")),
             chord_sheet_visible=data.get("chord_sheet_visible", False),
@@ -286,6 +379,25 @@ class Config:
             sidebar_width=cls._sidebar_width(data.get("sidebar_width")),
             dismissed_notices=cls._notice_ids(data.get("dismissed_notices")),
         )
+        known = set(config.to_dict()) | set(_LEGACY_KEYS)
+        config.extra = {key: value for key, value in data.items() if key not in known}
+        config.needs_backup = bool(fallbacks)
+        return config
+
+    @staticmethod
+    def _recent_files(data: dict, fallbacks: List[str]) -> List[str]:
+        """Saved ``recent_files``: the strings of the list; a list that isn't
+        one, or entries that aren't strings, are dropped with a warning."""
+        raw = data.get("recent_files", [])
+        if not isinstance(raw, list):
+            logger.warning(f"Config recent_files={raw!r} is not a list; starting it empty")
+            fallbacks.append("recent_files")
+            return []
+        files = [item for item in raw if isinstance(item, str)]
+        if len(files) != len(raw):
+            logger.warning("Config recent_files had entries that aren't file names; dropped them")
+            fallbacks.append("recent_files")
+        return files
 
     @staticmethod
     def _notice_ids(raw) -> List[str]:
@@ -349,17 +461,45 @@ class Config:
         return clean
 
     @staticmethod
-    def _migrate_voicings(data: dict) -> tuple:
+    def _migrate_voicings(data: dict, fallbacks: List[str]) -> tuple:
         """Build the ``voicings`` registry, migrating legacy keys if present.
 
         Returns a ``(voicings, voicing)`` pair: the merged registry, and the
-        (possibly rewritten) selected ``voicing`` string.
+        (possibly rewritten) selected ``voicing`` string. A ``voicings`` that
+        isn't a mapping reads as empty, an entry that isn't a mapping is
+        dropped, and a ``voicing`` that isn't a string reads as ``piano``,
+        each with a warning and a note in ``fallbacks``.
         """
-        voicings: Dict[str, dict] = dict(data.get("voicings", {}))
-        voicing: str = data.get("voicing", "piano")
+        raw_voicings = data.get("voicings", {})
+        if not isinstance(raw_voicings, dict):
+            logger.warning(f"Config voicings={raw_voicings!r} is not a mapping; starting it empty")
+            fallbacks.append("voicings")
+            raw_voicings = {}
+        voicings: Dict[str, dict] = {}
+        for name, entry in raw_voicings.items():
+            if isinstance(entry, dict):
+                voicings[name] = entry
+            else:
+                logger.warning(f"Voicing {name!r} is not a mapping ({entry!r}); dropped it")
+                fallbacks.append("voicings")
 
-        legacy_tunings: Dict[str, list] = data.get("custom_tunings", {}) or {}
-        legacy_ensembles: Dict[str, dict] = data.get("custom_ensembles", {}) or {}
+        voicing = data.get("voicing", "piano")
+        if not isinstance(voicing, str):
+            logger.warning(f"Config voicing={voicing!r} is not a name; using piano")
+            fallbacks.append("voicing")
+            voicing = "piano"
+
+        legacy_tunings = data.get("custom_tunings", {}) or {}
+        if not isinstance(legacy_tunings, dict):
+            logger.warning(f"Config custom_tunings={legacy_tunings!r} is not a mapping; ignored it")
+            fallbacks.append("custom_tunings")
+            legacy_tunings = {}
+        legacy_ensembles = data.get("custom_ensembles", {}) or {}
+        if not isinstance(legacy_ensembles, dict):
+            logger.warning(f"Config custom_ensembles={legacy_ensembles!r} is not a mapping; "
+                           f"ignored it")
+            fallbacks.append("custom_ensembles")
+            legacy_ensembles = {}
 
         for name, tuning in legacy_tunings.items():
             if name in voicings:
@@ -371,6 +511,10 @@ class Config:
             voicings[name] = {"model": "fretboard", "tuning": tuning}
 
         for name, ensemble_data in legacy_ensembles.items():
+            if not isinstance(ensemble_data, dict):
+                logger.warning(f"Legacy ensemble {name!r} is not a mapping; dropped it")
+                fallbacks.append("custom_ensembles")
+                continue
             if name in voicings:
                 logger.warning(
                     f"Voicing '{name}' already exists in the voicings registry; "

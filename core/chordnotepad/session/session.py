@@ -499,7 +499,18 @@ class AppSession:
         # Started after detecting, so the strip is seeded exactly once.
         self._started = True
         self._feed_chord_sheet()
+        self._report_unreadable_settings()
         self._report_voicing_failure()
+
+    def _report_unreadable_settings(self) -> None:
+        """Tell the user, once, that the settings file couldn't be read and
+        the app started on the defaults (the file was kept aside)."""
+        if self._services is None:
+            return
+        take = getattr(self._services.config, "take_load_notice", None)
+        notice = take() if callable(take) else None
+        if isinstance(notice, str) and notice:
+            self._emitter.emit(UserError(formatting.SETTINGS_TITLE, notice))
 
     def shutdown(self) -> None:
         """Cancel pending work and stop observing; drops every listener."""

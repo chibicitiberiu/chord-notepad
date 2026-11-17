@@ -25,15 +25,12 @@ from dataclasses import dataclass, fields, replace
 from typing import Any, Dict, Optional, Type
 
 from chordnotepad.constants import (  # noqa: F401
-    DEFAULT_LOG_LEVEL, DEFAULT_UI_THEME, LOG_LEVELS, MAX_FONT_SIZE, MIN_FONT_SIZE,
-    TIME_SIGNATURE_UNITS, UI_THEMES,
+    DEFAULT_LOG_LEVEL, DEFAULT_UI_THEME, LOG_LEVELS, MAX_FONT_SIZE, MAX_RECENT_LIMIT,
+    MIN_FONT_SIZE, TIME_SIGNATURE_UNITS, UI_THEMES,
 )
 from chordnotepad.models.notation import AMERICAN_KEYS, american_key
 from chordnotepad.session import toolbar
 from chordnotepad.session.platform import DESKTOP_QT
-
-#: Upper bound of the recent-documents list length.
-MAX_RECENT_LIMIT = 50
 
 #: What the desktop's audio driver box suggests ("" means auto-detect). The
 #: box is editable: any FluidSynth driver name goes.

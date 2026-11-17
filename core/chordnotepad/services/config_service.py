@@ -1,12 +1,14 @@
 """Configuration persistence service."""
 
+import datetime
 import json
 import logging
 import os
+import shutil
 from pathlib import Path
 from typing import Any, Optional
 
-from chordnotepad.models.config import Config
+from chordnotepad.models.config import Config, config_version
 from chordnotepad.exceptions import ConfigurationError
 from chordnotepad.services.appdata_service import AppDataService
 from chordnotepad.constants import CONFIG_VERSION
@@ -135,10 +137,58 @@ def _negate_signed_weights(data: dict) -> None:
                         omit[subkey] = -subval
 
 
+def effective_version(data: dict, version: int) -> int:
+    """The version a saved config's migrations start from.
+
+    Every release from 0.3.0 to 0.5.4 wrote a new config as version 1 although
+    its voicings were already signed, so the v1 sign flip turned the penalties
+    of voicings made before the next start into rewards. v0.1 and v0.2 never
+    wrote a ``voicings`` key (their tunings are under ``custom_tunings``), so
+    a file below version 3 that has a ``voicings`` mapping was written signed:
+    it is read as version 3, which skips the sign flip and the interior-mute
+    bump (made for unsigned and v2 values) but still moves exact old ``omit``
+    defaults. A genuine v1 file keeps its version.
+    """
+    if version < 3 and isinstance(data.get("voicings"), dict):
+        return 3
+    return version
+
+
+def backup_name(path: Path, label: str, now: Optional[datetime.datetime] = None) -> str:
+    """The name of a copy of ``path`` made before it is changed for good:
+    ``settings.json.<label>-<YYYYmmdd-HHMMSS>``."""
+    stamp = (now or datetime.datetime.now()).strftime("%Y%m%d-%H%M%S")
+    return f"{path.name}.{label}-{stamp}"
+
+
+def _free_path(path: Path, name: str) -> Path:
+    """``name`` next to ``path``, or ``name-1``, ``name-2``... if it is taken:
+    a backup never replaces a file already there."""
+    candidate = path.with_name(name)
+    count = 0
+    while candidate.exists():
+        count += 1
+        candidate = path.with_name(f"{name}-{count}")
+    return candidate
+
+
 class ConfigService:
     """Manages application configuration loading and saving.
 
     Handles JSON serialization/deserialization and provides type-safe access.
+
+    The file is never lost to an upgrade or a damaged value:
+
+    * a load that migrates the file, or that had to replace an unusable value
+      with its default, makes the next save first copy the file to
+      ``settings.json.bak-v<old version>-<timestamp>`` (once per run; if the
+      copy can't be made, nothing is written);
+    * a file that can't be read at all (not JSON, not an object, or failing
+      to load) is renamed to ``settings.json.corrupt-<timestamp>`` and the app
+      starts on the defaults, with :attr:`load_notice` saying so;
+    * a save that fails at load keeps the loaded config in memory.
+
+    Backups are never deleted.
     """
 
     def __init__(self, appdata_service: AppDataService):
@@ -146,56 +196,133 @@ class ConfigService:
         self._config: Optional[Config] = None
         self._config_file_path: Path = appdata_service.get_config_file_path()
         self._logger = logging.getLogger(__name__)
+        # The label of the backup the next save makes first ("bak-v3"), or
+        # None when the file on disk needs none.
+        self._backup_label: Optional[str] = None
+        #: Set when the settings file couldn't be read and the app started on
+        #: the defaults: what to tell the user, once (see take_load_notice).
+        self.load_notice: Optional[str] = None
 
     def load_config(self) -> Config:
         """Load configuration from file.
 
+        A missing file gives the defaults (saved at once). A file that can't
+        be read is set aside (see the class docstring) and also gives the
+        defaults; this never raises.
+
         Returns:
             Config object with loaded or default values
-
-        Raises:
-            ConfigurationError: If config file is corrupted
         """
         if self._config is not None:
             return self._config
 
-        try:
-            if self._config_file_path.exists():
-                self._logger.info(f"Loading configuration from {self._config_file_path}")
-                with open(self._config_file_path, 'r', encoding='utf-8') as f:
-                    data = json.load(f)
-
-                # Check if migration is needed
-                config_version = data.get("version", 1)
-                if config_version < CONFIG_VERSION:
-                    self._logger.info(f"Migrating config from version {config_version} to {CONFIG_VERSION}")
-                    data = self._migrate_config(data, config_version)
-
-                self._config = Config.from_dict(data)
-                self._logger.debug(f"Configuration loaded successfully")
-
-                # Save if migration occurred
-                if config_version < CONFIG_VERSION:
-                    self._logger.info("Saving migrated configuration")
-                    self.save_config()
-            else:
-                self._logger.info("No configuration file found, using defaults")
-                self._config = Config()
-                # Save the default config
-                self.save_config()
-
-            # Validate the config
-            self._config.validate()
-
-        except json.JSONDecodeError as e:
-            self._logger.error(f"Failed to parse configuration file: {e}")
-            raise ConfigurationError(f"Configuration file is corrupted: {e}")
-        except Exception as e:
-            self._logger.error(f"Error loading configuration: {e}")
-            # Fall back to defaults on any error
+        if not self._config_file_path.exists():
+            self._logger.info("No configuration file found, using defaults")
             self._config = Config()
+            self._save_at_load("the default configuration")
+            return self._config
 
+        self._logger.info(f"Loading configuration from {self._config_file_path}")
+        try:
+            with open(self._config_file_path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+            if not isinstance(data, dict):
+                raise ValueError(f"the settings are a {type(data).__name__}, not an object")
+            version = config_version(data.get("version", 1))
+            start = effective_version(data, version)
+            migrated = version < CONFIG_VERSION
+            if migrated:
+                self._logger.info(f"Migrating config from version {version} to {CONFIG_VERSION}"
+                                  + (f" (read as version {start})" if start != version else ""))
+                data = self._migrate_config(data, start)
+            config = Config.from_dict(data)
+        except Exception as e:  # noqa: BLE001 - any failure to read keeps the file aside
+            self._logger.error(f"Could not read the configuration file: {e}")
+            self._set_aside_unreadable()
+            self._config = Config()
+            return self._config
+
+        self._config = config
+        self._logger.debug("Configuration loaded successfully")
+        if migrated or config.needs_backup:
+            self._backup_label = f"bak-v{version}"
+        if migrated:
+            self._save_at_load("the migrated configuration")
+        try:
+            self._config.validate()
+        except ValueError as e:
+            # from_dict checks every value validate() looks at, so this is a
+            # bug; the config is kept, and save_config (which validates)
+            # leaves the file as it is.
+            self._logger.error(f"Loaded configuration does not validate: {e}")
         return self._config
+
+    def _save_at_load(self, what: str) -> None:
+        """Save during load; a failure (disk full, read-only) is logged and
+        the config stays in memory, never reset."""
+        self._logger.info(f"Saving {what}")
+        try:
+            self.save_config()
+        except ConfigurationError as e:
+            self._logger.error(f"Could not save {what}; keeping it in memory: {e}")
+
+    def _set_aside_unreadable(self) -> None:
+        """Rename the unreadable settings file to ``settings.json.corrupt-<ts>``
+        and set :attr:`load_notice`. If it can't be renamed, a copy is tried;
+        if that fails too, the next save must back it up first (and won't
+        write without that backup)."""
+        path = self._config_file_path
+        target = _free_path(path, backup_name(path, "corrupt"))
+        try:
+            os.replace(path, target)
+        except OSError as e:
+            self._logger.error(f"Could not rename {path.name} to {target.name}: {e}")
+            try:
+                shutil.copyfile(path, target)
+            except OSError as e2:
+                self._logger.error(f"Could not copy {path.name} to {target.name} either: {e2}")
+                self._backup_label = "corrupt"
+                self.load_notice = ("Settings couldn't be read. The app started with default "
+                                    "settings; the old file was kept as it was.")
+                return
+            # A copy of the file is kept; the file itself may now be replaced.
+        self._logger.warning(f"Kept the unreadable settings file as {target.name}")
+        self.load_notice = ("Settings couldn't be read. The app started with default settings; "
+                            f"the old file was kept as {target.name}.")
+
+    def take_load_notice(self) -> Optional[str]:
+        """:attr:`load_notice`, cleared: the session shows it once."""
+        notice, self.load_notice = self.load_notice, None
+        return notice
+
+    def _make_backup(self) -> None:
+        """Copy the settings file aside before the first write that changes it
+        for good (after a migration or a replaced value). Raises
+        ConfigurationError, so nothing is written, if the copy fails."""
+        if self._backup_label is None:
+            return
+        path = self._config_file_path
+        if path.exists():
+            target = _free_path(path, backup_name(path, self._backup_label))
+            created = False
+            try:
+                with open(path, 'rb') as source, open(target, 'xb') as copy:
+                    created = True
+                    shutil.copyfileobj(source, copy)
+                    copy.flush()
+                    os.fsync(copy.fileno())
+            except OSError as e:
+                # A half-made copy is not a backup: remove it (only the file
+                # this call created; ``xb`` never opens an existing one).
+                if created:
+                    try:
+                        target.unlink()
+                    except OSError:
+                        pass
+                raise ConfigurationError(
+                    f"Could not back up {path.name} before changing it: {e}") from e
+            self._logger.info(f"Backed up {path.name} to {target.name}")
+        self._backup_label = None
 
     def save_config(self, config: Optional[Config] = None) -> None:
         """Save configuration to file.
@@ -220,6 +347,10 @@ class ConfigService:
 
             # Ensure directory exists
             self._config_file_path.parent.mkdir(parents=True, exist_ok=True)
+
+            # The file as it was loaded is copied aside before it is first
+            # replaced by a migrated or repaired one.
+            self._make_backup()
 
             # Write a temporary file and swap it in, so a crash or a killed
             # process (Android may stop the app any time once it is in the
@@ -276,8 +407,11 @@ class ConfigService:
         self._logger.debug(f"Configuration updated: {key} = {value}")
 
     def reset_to_defaults(self) -> None:
-        """Reset configuration to default values."""
+        """Reset configuration to default values; the file is backed up first."""
         self._logger.info("Resetting configuration to defaults")
+        old_version = self._config.version if self._config is not None else CONFIG_VERSION
+        if self._backup_label is None:
+            self._backup_label = f"bak-v{old_version}"
         self._config = Config()
         self.save_config()
 

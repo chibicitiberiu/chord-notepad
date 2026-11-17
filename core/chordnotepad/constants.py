@@ -17,6 +17,9 @@ CONFIG_VERSION = 4  # Increment when config structure changes
 
 # Limits
 MAX_RECENT_FILES = 10
+#: Upper bound of the recent-documents list length (Settings, and a saved
+#: ``max_recent_files`` outside 1-MAX_RECENT_LIMIT reads as the default).
+MAX_RECENT_LIMIT = 50
 # The tempo range: Config, the toolbar scrubber and in-song {bpm} directives
 # all use it (a relative tempo change is clamped to it).
 MIN_BPM = 20
