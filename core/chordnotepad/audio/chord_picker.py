@@ -321,12 +321,13 @@ class ChordNotePicker(INotePicker):
         return root_pc, list(intervals), bass_pc
 
     @staticmethod
-    def _role(interval: int) -> str:
+    def _role(interval: int, intervals: Optional[List[int]] = None) -> str:
         """Classify a chord tone by its register-preserving interval.
 
-        Thin delegation to :func:`audio.chord_tones.classify_role`.
+        Thin delegation to :func:`audio.chord_tones.classify_role`; pass the
+        chord's ``intervals`` so a diminished seventh's b5 counts as a fifth.
         """
-        return classify_role(interval)
+        return classify_role(interval, intervals)
 
     def _generate_candidates(self, root_pc: int, intervals: List[int],
                              bass_pc: Optional[int]) -> List[Voicing]:
@@ -337,7 +338,7 @@ class ChordNotePicker(INotePicker):
         exts: List[int] = []               # extension pitch classes, low->high
         seen_core_pc = set()
         for interval in intervals:
-            role = self._role(interval)
+            role = self._role(interval, intervals)
             pc = (root_pc + interval) % 12
             if role == 'extension':
                 exts.append(pc)
@@ -550,7 +551,7 @@ class ChordNotePicker(INotePicker):
         for interval in intervals:
             pc = (root_pc + interval) % 12
             if pc not in voiced_pcs:
-                score += self.OMIT_PENALTY[self._role(interval)]
+                score += self.OMIT_PENALTY[self._role(interval, intervals)]
 
         # Right-hand register centering (strong: prevents drift over long songs).
         if rh:

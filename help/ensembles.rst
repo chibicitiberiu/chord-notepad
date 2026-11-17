@@ -200,6 +200,14 @@ perfect fifth and double the root instead, as four-part writing does to
 resolve a G7 to C with both chords on their roots; a diminished or augmented
 fifth is always kept.
 
+Only a perfect fifth counts as the fifth. The ♭5 of ``m7b5`` or ``7b5`` and
+the ♯5 of ``aug`` or ``7#5`` count as color tones, because without them the
+chord is heard as m7, 7 or a major triad. So with too few voices such a chord
+gives up its root instead: C7♯5 for three voices is E, G♯ and B♭, the
+rootless voicing a jazz arranger writes. A diminished seventh chord is the
+exception: its four tones are a minor third apart, any three of them sound the
+same chord, so it still leaves out its ♭5 and keeps the root.
+
 The bass line is planned first, on its own, before the other voices are
 placed. A slash chord's bass note always lands in the bottom voice; a plain
 chord may take any chord tone there, weighed by the Inversion weights. The
@@ -612,7 +620,8 @@ Voicing Parameters
        fewer voices than notes. The values are negative, so a more negative
        one keeps that tone more insistently. Keys: ``root`` (-20.0),
        ``third`` (-40.0), ``fifth`` (-3.0), ``seventh`` (-40.0), ``color``
-       (-30.0), ``extension`` (-6.0).
+       (-30.0), ``extension`` (-6.0). The fifth is the perfect fifth only;
+       a diminished or augmented fifth (``m7b5``, ``7#5``) is a color tone.
      - ``omit.root`` / ``.third`` / ``.fifth`` / ``.seventh`` /
        ``.color`` / ``.extension``
      - :plat:`see left|per key, above`

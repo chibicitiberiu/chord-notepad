@@ -358,7 +358,9 @@ you want it to steer clear of gets a negative one; zero leaves it neutral.
        negative, so a more negative one keeps that tone more insistently.
        The piano only ever leaves out the fifth, the root (and only when the
        left hand plays it), or an extension that won't fit, so the third,
-       seventh and color weights rarely come into play.
+       seventh and color weights rarely come into play. The fifth is the
+       perfect fifth only: the diminished or augmented fifth of ``m7b5``,
+       ``7b5``, ``aug`` or ``7#5`` counts as a color tone and is kept.
        Same role taxonomy as the ensemble model's omission weights (see
        :doc:`ensembles`): ``root`` (-4.0), ``third`` (-40.0), ``fifth``
        (-8.0), ``seventh`` (-40.0), ``color`` (-30.0), ``extension`` (-7.0).

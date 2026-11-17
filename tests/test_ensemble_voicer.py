@@ -799,6 +799,29 @@ def test_a_diminished_fifth_is_never_left_out():
     assert any(bass == 7 and 2 not in upper for bass, upper in g7_plans)
 
 
+@pytest.mark.parametrize('progression', [
+    'Bm7b5 E7 Am', 'Dm7b5 G7 Cm', 'C7#5 F', 'C7b5 F', 'Caug F', 'G7#5b9 Cm9'])
+@pytest.mark.parametrize('spec_name', BUILTIN_NAMES)
+def test_an_altered_fifth_is_never_left_out(spec_name, progression):
+    # Without its b5 Bm7b5 is Bm7, and without its #5 C7#5 is C7: with fewer
+    # voices than tones (SSA) another tone goes, never the altered fifth.
+    chords = _song(progression)
+    voicings = EnsembleVoicer(BUILTIN_ENSEMBLES[spec_name]).voice_sequence(chords)
+    for chord, voicing in zip(chords, voicings):
+        root = parse_note_to_semitone(chord.root)
+        altered = {(root + iv) % 12 for iv in chord.intervals if iv in (6, 8)}
+        assert altered <= {m % 12 for m in voicing}, (chord.root, chord.intervals, voicing)
+
+
+def test_a_diminished_seventh_may_still_leave_out_its_fifth():
+    # Any three tones of a dim7 sound the same chord: SSA keeps F#dim7's root
+    # (the line F F# G) and leaves out the C.
+    voicer = EnsembleVoicer(BUILTIN_ENSEMBLES['ssa'])
+    f, dim7, g = voicer.voice_sequence(_song('F F#dim7 C/G'))
+    assert dim7[0] % 12 == 6
+    assert 0 not in {m % 12 for m in dim7}
+
+
 def test_a_doubled_bass_line_may_move_in_octaves_with_five_voices_or_more():
     six = EnsembleVoicer(STRINGS_SIX)
     four = EnsembleVoicer(BUILTIN_ENSEMBLES['satb'])

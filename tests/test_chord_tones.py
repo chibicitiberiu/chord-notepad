@@ -2,7 +2,7 @@
 
 import pytest
 
-from chordnotepad.audio.chord_tones import classify_role, DEFAULT_OMIT_PENALTY
+from chordnotepad.audio.chord_tones import classify_role, is_diminished_seventh, DEFAULT_OMIT_PENALTY
 
 
 class TestClassifyRole:
@@ -19,8 +19,30 @@ class TestClassifyRole:
         assert classify_role(7) == 'fifth'
 
     @pytest.mark.parametrize('interval', [6, 8])
-    def test_altered_fifth(self, interval: int) -> None:
-        assert classify_role(interval) == 'fifth'
+    def test_altered_fifth_is_colour(self, interval: int) -> None:
+        # The b5 of m7b5/7b5 and the #5 of aug/7#5 define the chord.
+        assert classify_role(interval) == 'color'
+
+    @pytest.mark.parametrize('name, intervals', [
+        ('m7b5', [0, 3, 6, 10]), ('7b5', [0, 4, 6, 10]), ('dim', [0, 3, 6]),
+        ('aug', [0, 4, 8]), ('7#5', [0, 4, 8, 10]), ('addb5', [0, 4, 7, 6]),
+    ])
+    def test_altered_fifth_in_its_chord_is_colour(self, name, intervals) -> None:
+        for interval in intervals:
+            if interval in (6, 8):
+                assert classify_role(interval, intervals) == 'color', name
+
+    def test_diminished_seventh_b5_is_a_fifth(self) -> None:
+        # Any three tones of a dim7 sound the same chord, so its b5 may go.
+        dim7 = [0, 3, 6, 9]
+        assert is_diminished_seventh(dim7)
+        assert classify_role(6, dim7) == 'fifth'
+        assert classify_role(9, dim7) == 'color'
+        assert not is_diminished_seventh([0, 3, 6, 10])
+        assert not is_diminished_seventh([0, 4, 7, 9])  # C6
+
+    def test_addb5_keeps_the_perfect_fifth_as_fifth(self) -> None:
+        assert classify_role(7, [0, 4, 7, 6]) == 'fifth'
 
     @pytest.mark.parametrize('interval', [10, 11])
     def test_seventh(self, interval: int) -> None:

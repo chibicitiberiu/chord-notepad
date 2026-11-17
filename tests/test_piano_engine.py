@@ -109,3 +109,22 @@ def _rh_mean(picker, chord_notes):
     rh = [m for m in midi if m >= picker.RH_MIN]
     assert rh, f"no right-hand notes in {midi}"
     return sum(rh) / len(rh)
+
+
+# ---------------------------------------------------------------------------
+# Altered fifths (the shared role taxonomy, audio.chord_tones)
+# ---------------------------------------------------------------------------
+
+def test_right_hand_never_drops_an_altered_fifth():
+    # The right hand may leave out a perfect fifth, never the b5 of m7b5 or
+    # the #5 of aug/7#5, without which the chord is heard as m7, 7 or major.
+    p = ChordNotePicker()
+    order_m7b5 = [(11, 'root'), (2, 'third'), (5, 'color'), (9, 'seventh')]
+    for variant in p._core_reductions(order_m7b5, allow_root_drop=True):
+        assert (5, 'color') in variant
+    for symbol in ['Bm7b5', 'C7#5', 'C7b5', 'Caug', 'Dm7b5', 'G7#5b9']:
+        chord = _seq([symbol])[0]
+        root = p._chord_signature(chord)[0]
+        altered = {(root + iv) % 12 for iv in chord.intervals if iv in (6, 8)}
+        for voicing in p._get_candidates(chord):
+            assert altered <= {m % 12 for m in voicing.rh}, (symbol, voicing)

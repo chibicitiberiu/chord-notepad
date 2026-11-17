@@ -586,7 +586,7 @@ class EnsembleVoicer(INotePicker):
         for interval in intervals:
             pc = (root_pc + interval) % _OCTAVE
             if pc not in role_by_pc:
-                role = classify_role(interval)
+                role = classify_role(interval, intervals)
                 role_by_pc[pc] = role
                 tones.append((pc, role))
 

@@ -15,23 +15,46 @@ The roles:
   voicing because a bass line normally covers it.
 - ``third`` (3 or 4): major/minor quality. Defines the chord; effectively never
   dropped.
-- ``fifth`` (6, 7 or 8): perfect/altered fifth. Harmonically weak, the first
-  tone sacrificed when a voicing runs out of fingers.
+- ``fifth`` (7): the perfect fifth. Harmonically weak, the first tone
+  sacrificed when a voicing runs out of fingers.
 - ``seventh`` (10 or 11): the tone that turns a triad into a seventh chord.
   Defining; effectively never dropped.
-- ``color`` (everything else below the octave - notably sus2's 2nd, sus4's 4th
-  and the added 6th): the tone that *is* the chord's character. A sus4's
-  suspended fourth is not decoration, it replaces the third, so it counts as
-  colour and is protected accordingly.
+- ``color`` (everything else below the octave - notably sus2's 2nd, sus4's 4th,
+  the added 6th and a diminished or augmented fifth): the tone that *is* the
+  chord's character. A sus4's suspended fourth is not decoration, it replaces
+  the third, so it counts as colour and is protected accordingly; likewise the
+  b5 of m7b5 or 7b5 and the #5 of aug or 7#5, without which the chord is heard
+  as m7, 7 or a major triad. One exception: in a diminished seventh chord
+  (minor third, diminished fifth and diminished seventh all present) every
+  tone is a minor third from the next and any three of them sound the same
+  chord, so its b5 stays a ``fifth``.
 - ``extension`` (>= 12, i.e. 9th/11th/13th stacked above the octave): upper
   structure. Adds richness but is expendable when space is tight.
 """
 
-from typing import Dict
+from typing import Dict, Iterable, Optional
+
+#: The perfect fifth, the only fifth with the ``fifth`` role (outside a
+#: diminished seventh chord).
+PERFECT_FIFTH = 7
+_DIMINISHED_FIFTH = 6
+_DIMINISHED_SEVENTH_TONES = frozenset((3, 6, 9))
 
 
-def classify_role(interval: int) -> str:
-    """Classify a chord tone by its register-preserving interval."""
+def is_diminished_seventh(intervals: Iterable[int]) -> bool:
+    """True when the chord holds a minor third, a diminished fifth and a
+    diminished seventh (intervals 3, 6 and 9 below the octave)."""
+    return _DIMINISHED_SEVENTH_TONES <= {iv for iv in intervals if 0 <= iv < 12}
+
+
+def classify_role(interval: int, intervals: Optional[Iterable[int]] = None) -> str:
+    """Classify a chord tone by its register-preserving interval.
+
+    ``intervals``, the whole chord's intervals, is needed for one case only:
+    the diminished fifth of a diminished seventh chord is a ``fifth``, while
+    without the chord (or in any other chord) a diminished or augmented
+    fifth is ``color``.
+    """
     if interval >= 12:
         return 'extension'
     m = interval % 12
@@ -41,9 +64,11 @@ def classify_role(interval: int) -> str:
         return 'third'
     if m in (10, 11):
         return 'seventh'
-    if m in (6, 7, 8):
+    if m == PERFECT_FIFTH:
         return 'fifth'
-    return 'color'  # sus2/sus4/6th and other defining colour tones
+    if m == _DIMINISHED_FIFTH and intervals is not None and is_diminished_seventh(intervals):
+        return 'fifth'
+    return 'color'  # sus2/sus4/6th, an altered fifth and other defining colour tones
 
 
 # Completeness (piano): penalty (subtracted) for each chord tone missing from
