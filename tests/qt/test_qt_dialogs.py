@@ -301,6 +301,22 @@ def test_escape_cancels_suggest_capo(app):
     assert app.text() == SONG
 
 
+def test_suggest_capo_reopened_right_after_escape_opens(app):
+    # Escape and a reopen before the session answers. In the app the close
+    # and the open can reach the window as one state that stays active
+    # (CapoDialog.begin opens then); this harness delivers each command's
+    # state on its own, so it checks the reopen, not the coalescing.
+    app.set_text()
+    app.open("openSuggestCapo")
+    app.opened("capoDialog")
+    app.key(Qt.Key.Key_Escape)
+    app.open("openSuggestCapo")
+    app.opened("capoDialog")
+    app.qtbot.wait(200)
+    assert app.popup("capoDialog").property("opened") is True
+    assert app.harness.store.state("CapoAdviceState").value("active") is True
+
+
 # -- Quick Start ---------------------------------------------------------------------------
 
 

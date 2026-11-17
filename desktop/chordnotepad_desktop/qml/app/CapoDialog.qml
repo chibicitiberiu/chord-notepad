@@ -28,11 +28,13 @@ AppDialog {
     readonly property int chosenIndex: dlg.rows.findIndex((r) => r.capo === dlg.chosen)
     readonly property bool canApply: dlg.advice.status === "ready" && !dlg.playing && dlg.chosenIndex >= 0
 
-    // Open at once: a close and a reopen can reach the store as one state
-    // that never stops being active, so the active change alone can't be relied on.
+    // The dialog opens when the state goes active. But closed while the
+    // state still says active, its close is on the way, and that close and
+    // this open can reach the store as one state that never stops being
+    // active: then open now.
     function begin(selection) {
         dlg.store.submit("capo_advice_open", { selection: selection })
-        if (!dlg.opened) dlg.open()
+        if (dlg.active && !dlg.opened) dlg.open()
     }
     function choose(index) {
         if (index < 0 || index >= dlg.rows.length) return
