@@ -223,8 +223,9 @@ While playing:
 
    When the speed isn't 100%, the button shows it as a badge (``1.25×``) and
    gets a tinted background, so you can see at a glance that you're not
-   hearing the written tempo. The speed only affects what you hear: MIDI
-   export always uses the song's real tempo (see :doc:`midi_export`).
+   hearing the written tempo. A MIDI export ignores the speed and keeps the
+   song's real tempo; an audio export plays at the speed set here, like Play
+   (see :doc:`midi_export`).
 
 
 |Click|-to-Play

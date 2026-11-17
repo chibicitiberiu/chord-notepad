@@ -417,6 +417,13 @@ def test_save_as_and_export_through_pickers(env):
     env.expect("StatusState", lambda d: d["text"].startswith("Exported MIDI"))
     assert env.store.contents["memory:new.mid"][:4] == b"MThd"
 
+    env.send("export_audio")
+    request = env.expect("PickDocumentRequest", lambda d: d["mode"] == "export_audio")
+    assert request["suggested_name"] == "new.wav"
+    env.send("respond", request_id=request["request_id"], value=None)
+    env.settle()
+    assert "memory:new.wav" not in env.store.contents
+
 
 def test_a_cancelled_picker_and_close(env):
     env.send("set_text", text="C", client_token=1)

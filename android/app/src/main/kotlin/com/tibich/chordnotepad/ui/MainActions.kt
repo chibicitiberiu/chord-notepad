@@ -182,6 +182,12 @@ class MainActions(
         commands.exportMidi()
     }
 
+    /** Export the song as a WAV file. */
+    fun exportAudio() {
+        editor.syncNow()
+        commands.exportAudio()
+    }
+
     /**
      * Ask to close (Back with unsaved changes; the desktop's window close):
      * the session asks about the changes, then answers with `CloseApproved`.

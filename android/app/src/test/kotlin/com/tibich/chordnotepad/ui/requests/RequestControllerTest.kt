@@ -94,6 +94,11 @@ class RequestControllerTest {
         c.onPicked("content://docs/song.mid")
         runOffMain()
         assertEquals(listOf("content://docs/song.mid" to PickMode.EXPORT_MIDI), adopted)
+        pending.value = PickDocumentRequest(3, PickMode.EXPORT_AUDIO, "song.wav")
+        assertEquals(PickerLaunch.Create("audio/wav", "song.wav"), c.takePickerLaunch())
+        c.onPicked("content://docs/song.wav")
+        runOffMain()
+        assertEquals("content://docs/song.wav" to PickMode.EXPORT_AUDIO, adopted.last())
     }
 
     @Test

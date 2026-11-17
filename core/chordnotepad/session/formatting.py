@@ -191,6 +191,15 @@ EXPORT_FAILED = "Failed to export MIDI file"
 #: Export MIDI on a song without chords (said before any file is asked for).
 NO_CHORDS_TO_EXPORT_MESSAGE = f"{EXPORT_FAILED}:\nThere are no chords to export."
 
+AUDIO_EXPORT_FAILED = "Failed to export audio file"
+#: Export Audio on a song without chords (said before any file is asked for).
+NO_CHORDS_TO_EXPORT_AUDIO_MESSAGE = f"{AUDIO_EXPORT_FAILED}:\nThere are no chords to export."
+#: Export Audio while an audio export is still being written (said before
+#: the picker: on Android picking a name already makes the file).
+AUDIO_EXPORT_BUSY_TITLE = "Export Audio"
+AUDIO_EXPORT_BUSY_MESSAGE = ("An audio export is still running. "
+                             "Wait for it to finish, then export again.")
+
 CONFIRM_DISCARD_TITLE = "Unsaved Changes"
 CONFIRM_DISCARD_MESSAGE = "Do you want to save your changes?"
 
@@ -205,6 +214,9 @@ EXPORT_PICKER_TITLE = "Export MIDI"
 TEXT_FILE_TYPES = (("Text Files", "*.txt"), ("All Files", "*.*"))
 MIDI_FILE_TYPES = (("MIDI files", "*.mid"), ("All files", "*.*"))
 MIDI_EXTENSION = ".mid"
+AUDIO_EXPORT_PICKER_TITLE = "Export Audio"
+WAV_FILE_TYPES = (("WAV audio", "*.wav"), ("All files", "*.*"))
+WAV_EXTENSION = ".wav"
 #: A name picked without an extension got one, and that file exists already
 #: (the picker only asked about the name as typed).
 CONFIRM_REPLACE_TITLE = "Confirm Save As"
@@ -293,6 +305,11 @@ def midi_export_name(stem: Optional[str]) -> str:
     return f"{stem or UNTITLED}.mid"
 
 
+def audio_export_name(stem: Optional[str]) -> str:
+    """The name Export Audio suggests, e.g. ``song.wav`` (``Untitled.wav`` without a name)."""
+    return f"{stem or UNTITLED}.wav"
+
+
 def opened_status(location: str) -> str:
     """The status after a document was opened."""
     return f"Opened: {location}"
@@ -317,6 +334,16 @@ def exporting_midi_status(location: str) -> str:
 def exported_midi_status(location: str) -> str:
     """The status after a MIDI file was exported."""
     return f"Exported MIDI: {location}"
+
+
+def exporting_audio_status(fraction: float) -> str:
+    """The status while an audio file is being rendered: ``Exporting audio… 40%``."""
+    return f"Exporting audio… {int(round(max(0.0, min(1.0, fraction)) * 100))}%"
+
+
+def exported_audio_status(location: str) -> str:
+    """The status after an audio file was exported."""
+    return f"Exported audio: {location}"
 
 
 def file_error_message(action: str, location: str, reason: Optional[str]) -> str:

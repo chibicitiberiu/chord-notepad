@@ -170,6 +170,8 @@ class DocumentStore(Protocol):
     def read_text(self, ref: DocumentRef) -> str: ...       # normalized; raises FileOperationError
     def write_text(self, ref: DocumentRef, text: str) -> None: ...
     def write_bytes(self, ref: DocumentRef, data: bytes) -> None: ...
+    def write_file(self, ref: DocumentRef, local_path: str) -> None: ...
+        # an export from a local file (audio); any thread, unlike the rest
     def is_available(self, ref: DocumentRef) -> bool: ...
     def recent(self) -> list[DocumentRef]: ...                # prunes unavailable ones
     def add_recent(self, ref: DocumentRef) -> None: ...       # capped (max_recent_files)
@@ -186,7 +188,11 @@ and exports never join.
   handles normalization, pruning recent files and error messages. It adds
   `ref_for_path(path)`. The desktop id is `os.path.abspath`, not `resolve()`:
   resolving would rewrite symlinks and mapped network drives in the location
-  the user sees. `write_bytes` goes through `FileService.save_bytes`.
+  the user sees. `write_bytes` goes through `FileService.save_bytes`,
+  `write_file` through `FileService.copy_file` (`shutil.copyfile` straight
+  into the file: no temp file and rename, which the Flatpak's portal
+  wouldn't allow). Android's `write_file` is Kotlin's `copyFromFile`, which
+  streams the file into the document.
 - **`MainWindowViewModel`** works on `DocumentRef`s instead of `Path`:
   - `_current_document` replaces `_current_file`;
   - `open_file`, `save_file_as` and `export_midi_file` take refs.
@@ -237,7 +243,7 @@ kinds may overlap and the view decides which wins.
 TextEdited(text_revision, start, end, replacement, undo, cursor, anchor=None)
                                     # undo: group|plain|reset; anchor: select anchor..cursor
 ConfirmDiscardRequest(request_id)                                  # answer DiscardChoice: save|discard|cancel
-PickDocumentRequest(request_id, mode, suggested_name)              # PickMode: open|save|export_midi
+PickDocumentRequest(request_id, mode, suggested_name)              # PickMode: open|save|export_midi|export_audio
 InsertDirectiveRequest(request_id, kind, existing_labels, notation, key_options)
 UserError(title, message)
 AudioUnavailable(message, from_click)
@@ -298,7 +304,8 @@ class AppSession:
     def new_document(self) -> None;  def open_document(self, ref: DocumentRef | None = None, read_only: bool = False) -> None
     def save(self) -> None;  def save_as(self, name: str | None = None) -> None
     def rename_document(self, name: str) -> None
-    def export_midi(self) -> None;  def request_close(self) -> None
+    def export_midi(self) -> None;  def export_audio(self) -> None
+    def request_close(self) -> None
     def respond(self, request_id: int, value: object) -> None
     def apply_settings(self, changes: SettingsChanges | SettingsValues) -> None
     # lifecycle (Android)
@@ -590,14 +597,14 @@ window uses the state for the pane, the View menu check and the sash height.
 
 **Documents.** `new_document()`, `open_document(ref=None)`,
 `open_recent(ref)`, `save()`, `save_as()`, `export_midi()`,
-`request_close()`, each a `FlowRunner` flow. `ConfirmDiscardRequest`
+`export_audio()`, `request_close()`, each a `FlowRunner` flow. `ConfirmDiscardRequest`
 (answered `save|discard|cancel`), `PickDocumentRequest(mode,
 suggested_name)` answered with a `DocumentRef` or None (anything else raises
 `TypeError`). The flows contain no path logic: the desktop view answers with
 `session.document_ref(picked path)`. Semantics as before: unsaved changes
 ask first; "save" on a never-saved document goes through Save As; a failed
 or cancelled save stops the New/Open/close. Save As suggests the document's
-name (`Untitled.txt`), Export MIDI `<stem>.mid`. New and Open start the
+name (`Untitled.txt`), Export MIDI `<stem>.mid`, Export audio `<stem>.wav`. New and Open start the
 document from the Settings defaults; the song's own directives show on the
 toolbar through `ToolbarState`, not by changing any value. `request_close` emits
 `CloseApproved()`; the window saves its geometry, stops playback, cancels its
@@ -636,6 +643,22 @@ may be using.
   session thread when it arrives (`finish_midi_export`), so failures keep
   their wording and closing mid-render leaves no half-written file (the
   export is dropped). On failure the status returns to "Ready".
+- Export audio runs on a `BackgroundWorker` of its own (`audio_export_worker`,
+  thread "AudioExport"), so a MIDI export or a capo scoring doesn't wait
+  behind it. One at a time: while `_audio_job` is set, `export_audio` says so
+  (`UserError`) before the picker, as does a song without chords (an Android
+  picker makes the file). `MainWindowViewModel.audio_export_job` snapshots
+  the song and what Play sounds like (voicing via its own note picker,
+  instrument, music and metronome sliders, metronome on/off, the session's
+  speed multiplier, `PlaybackService.soundfont_in_use()`). The job renders,
+  plans the events with the real `SongScheduler` into an `OfflineSequencer`
+  (`services/audio_export.py`), plays them on a driverless FluidSynth into a
+  temp WAV under `export_temp_dir` (the cache folder), then calls
+  `DocumentStore.write_file` on its own thread and deletes the temp file,
+  also on failure or abort. Its progress comes back through `host.post` every
+  5% ("Exporting audio… 40%"); "Exported audio: <location>" when done.
+  `shutdown()` aborts it (`should_abort`). `start()` removes temp files older
+  than a day (newer ones may be another window's export).
 - `PlaybackService.stop_playback` doesn't join the render thread (it waited
   up to 2 s). `_start_lock` orders the render thread's "check cancel → wire
   the player → `player.start_playback()`" against stop's "cancel and take the
@@ -831,7 +854,8 @@ is for tests that bring their own player.
    viewmodel built without a host). The timer only dispatches the job; the
    render still runs on the executor's thread.
 4. **The session thread never renders.**
-   - MIDI export and capo suggestion run on `BackgroundWorker`.
+   - MIDI export and capo suggestion run on `BackgroundWorker`; audio export
+     on a second one.
    - `PlaybackService.stop_playback` no longer joins the render thread. A start
      lock orders "check cancel → `player.start_playback()`" against
      "`cancel.set()` → `player.stop`".

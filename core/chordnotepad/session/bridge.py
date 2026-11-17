@@ -325,6 +325,7 @@ SESSION_COMMANDS: Dict[str, Dict[str, str]] = {
     "save_as": {"name": "str|null"},
     "rename_document": {"name": "str"},
     "export_midi": {},
+    "export_audio": {},
     "request_close": {},
     "respond": {"request_id": "int", "value": "any"},
     "restore_draft": {"text": "str", "document": "DocumentRef|null", "modified": "bool",

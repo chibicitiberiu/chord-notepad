@@ -9,6 +9,7 @@ import com.tibich.chordnotepad.bridge.PickMode
 import com.tibich.chordnotepad.bridge.RenameUnsupportedException
 import kotlinx.serialization.builtins.ListSerializer
 import java.io.ByteArrayOutputStream
+import java.io.File
 import java.io.FileNotFoundException
 import java.io.IOException
 import java.io.InputStream
@@ -19,8 +20,9 @@ import java.io.InputStream
  * [adopt]; this class only does I/O by URI and keeps the recent list.
  *
  * Python calls the [DocumentStoreBridge] methods on its session thread
- * (blocking I/O is fine there). Text is returned raw: normalization stays in
- * Python. Error messages follow the desktop's `FileService` wording.
+ * (blocking I/O is fine there), except [copyFromFile], which the audio
+ * export's worker thread calls; it only streams into its one document.
+ * Text is returned raw: normalization stays in Python. Error messages follow the desktop's `FileService` wording.
  *
  * @param maxRecent Initial cap of the recent list; Python sets the configured
  *   one with [setMaxRecent].
@@ -37,12 +39,12 @@ class SafDocumentStore(
     // -- UI side ----------------------------------------------------------------
 
     /**
-     * Take a document the picker returned: persist its grant (not for MIDI
+     * Take a document the picker returned: persist its grant (not for
      * exports, which are written once) and describe it. Does provider I/O;
      * call it off the main thread.
      */
     fun adopt(id: String, mode: PickMode): DocumentRef {
-        if (mode != PickMode.EXPORT_MIDI) access.persistGrant(id)
+        if (keepsGrant(mode)) access.persistGrant(id)
         return refFor(id) ?: DocumentRef(id, fallbackName(id), fallbackName(id))
     }
 
@@ -84,6 +86,18 @@ class SafDocumentStore(
     override fun writeBytes(id: String, data: ByteArray) {
         try {
             access.openOutput(id).use { it.write(data) }
+        } catch (e: SecurityException) {
+            throw DocumentStoreException("Permission denied: ${where(id)}", e)
+        } catch (e: IOException) {
+            throw DocumentStoreException("Failed to write file: ${e.message}", e)
+        }
+    }
+
+    override fun copyFromFile(id: String, path: String) {
+        try {
+            File(path).inputStream().use { input ->
+                access.openOutput(id).use { output -> input.copyTo(output, COPY_BUFFER_BYTES) }
+            }
         } catch (e: SecurityException) {
             throw DocumentStoreException("Permission denied: ${where(id)}", e)
         } catch (e: IOException) {
@@ -238,6 +252,16 @@ class SafDocumentStore(
         fun renameRevokesAccess(info: DocumentInfo): Boolean =
             info.authority == DOWNLOADS_AUTHORITY && info.documentId?.startsWith("msf:") == true
 
+        /**
+         * Whether a document picked for [mode] keeps its grant across
+         * restarts: songs do (the recent list reopens them), exports don't
+         * (written once, right after the pick).
+         */
+        fun keepsGrant(mode: PickMode): Boolean = when (mode) {
+            PickMode.OPEN, PickMode.SAVE -> true
+            PickMode.EXPORT_MIDI, PickMode.EXPORT_AUDIO -> false
+        }
+
         /** The desktop's default `max_recent_files`. */
         const val DEFAULT_MAX_RECENT = 10
 
@@ -245,6 +269,8 @@ class SafDocumentStore(
         const val MAX_READ_BYTES = 5 * 1024 * 1024
         private const val MB = 1024 * 1024
         private const val BUFFER_BYTES = 64 * 1024
+        /** [copyFromFile]'s chunk: an audio export is megabytes, streamed. */
+        private const val COPY_BUFFER_BYTES = 256 * 1024
         private const val TAG = "CNDocuments"
     }
 }

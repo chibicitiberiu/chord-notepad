@@ -398,7 +398,7 @@ desktop's View > Word Wrap; Android changes it through Settings),
 `audition {index}`, `new_document {}`, `open_document {ref, read_only}`
 (`read_only` defaults to false; ignored with a null `ref`),
 `open_recent {ref}`, `save {}`, `save_as {}`, `export_midi {}`,
-`request_close {}`, `respond {request_id, value}`.
+`export_audio {}`, `request_close {}`, `respond {request_id, value}`.
 
 `respond`'s `value` is decoded by the type of the pending request:
 `PickDocumentRequest` → `DocumentRef` or None; `ConfirmDiscardRequest` →
@@ -720,11 +720,13 @@ it.)
 ### Documents: `document_store`
 
 Kotlin's `SafDocumentStore` implements `DocumentStoreBridge`, called on the
-session thread (blocking provider I/O is fine there):
+session thread (blocking provider I/O is fine there), except `copyFromFile`,
+which the audio export's worker thread calls:
 
 ```kotlin
 fun readBytes(id: String): ByteArray      // the file's bytes (at most 5 MB); Python decodes them
 fun writeBytes(id: String, data: ByteArray)  // a song Python encoded, or a MIDI export
+fun copyFromFile(id: String, path: String)   // an audio export from the cache, streamed (openOutput)
 fun isAvailable(id: String): Boolean
 fun recent(): String                      // JSON array of {"id", "display_name", "location"}, pruned
 fun addRecent(id: String, displayName: String, location: String)
@@ -974,13 +976,16 @@ objects, against the release build's R8 rules ("R8 in release builds").
   picker, so a recreated activity doesn't open a second one and a result
   delivered after a rotation still answers it; a result for anything else
   (a request from before process death) is ignored. `RequestPickers`
-  registers the three launchers on the activity in `onCreate` (Open:
+  registers the launchers on the activity in `onCreate` (Open:
   `text/plain`, `text/*`, `*/*`; Save As: `text/plain` with the suggested
-  name; Export MIDI: `audio/midi`), follows `pendingRequest` while STARTED,
-  and answers with `SafDocumentStore.adopt` (grant persisted, ref
-  described) off the main thread; backing out answers null.
+  name; Export MIDI: `audio/midi`; Export audio: `audio/wav`; a `when` on
+  the MIME type picks the CreateDocument one), follows `pendingRequest`
+  while STARTED, and answers with `SafDocumentStore.adopt` off the main
+  thread (the ref described; the grant persisted for Open and Save As only,
+  `SafDocumentStore.keepsGrant`: an export is written once); backing out
+  answers null.
 - **Drawer** (☰, `ui/main/AppDrawer.kt`) replaces the old ⋮ menu: New
-  song, Open…, Recent (inline), Save as…, Export MIDI…, Settings, Examples, User
+  song, Open…, Recent (inline), Save as…, Export MIDI…, Export audio…, Settings, Examples, User
   guide, Quick start, About. Examples opens a bottom sheet
   (`SheetRoute.Examples`) listing the bundled example songs by file name;
   a tap calls `AppGraph.openExample`, which opens a private copy (see

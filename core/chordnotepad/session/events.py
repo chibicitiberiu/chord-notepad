@@ -225,6 +225,8 @@ class PickMode(str, Enum):
     """Where to save the song (Save As)."""
     EXPORT_MIDI = "export_midi"
     """Where to write a MIDI export."""
+    EXPORT_AUDIO = "export_audio"
+    """Where to write an audio (WAV) export."""
 
 
 @dataclass(frozen=True)
@@ -239,7 +241,8 @@ class PickDocumentRequest:
         request_id: Pass back to ``respond``.
         mode: Open, save or export.
         suggested_name: The name to pre-fill when saving or exporting
-            (``"song.txt"``, ``"song.mid"``); empty when opening.
+            (``"song.txt"``, ``"song.mid"``, ``"song.wav"``); empty when
+            opening.
     """
 
     request_id: int

@@ -64,6 +64,7 @@ object CommandNames {
     const val SAVE_AS = "save_as"
     const val RENAME_DOCUMENT = "rename_document"
     const val EXPORT_MIDI = "export_midi"
+    const val EXPORT_AUDIO = "export_audio"
     const val REQUEST_CLOSE = "request_close"
     const val RESPOND = "respond"
     // Host (Android lifecycle), handled in chordnotepad_android.host
@@ -84,7 +85,7 @@ object CommandNames {
         SET_KEY, SET_TIME_SIGNATURE, TOGGLE_METRONOME, SET_VOICING, SET_INSTRUMENT,
         SET_NOTATION, SET_FONT, STEP_FONT_SIZE, RESET_FONT_SIZE, SET_CHORD_SHEET_VISIBLE,
         SET_CHORD_SHEET_HEIGHT, SET_CHORD_SHEET_VIEW, CHORD_SHEET_ZOOM, AUDITION,
-        NEW_DOCUMENT, OPEN_DOCUMENT, OPEN_RECENT, SAVE, SAVE_AS, EXPORT_MIDI,
+        NEW_DOCUMENT, OPEN_DOCUMENT, OPEN_RECENT, SAVE, SAVE_AS, EXPORT_MIDI, EXPORT_AUDIO,
         REQUEST_CLOSE, RESPOND, APP_BACKGROUND, APP_FOREGROUND, PAUSE, RESTORE_DRAFT,
         WRITE_SONG_DEFAULTS, REWIND, SET_PLAYHEAD, RENAME_DOCUMENT, APP_STARTED,
         DISMISS_STARTUP_SCREEN,
@@ -307,6 +308,9 @@ class SessionCommands(
 
     /** Export the song as MIDI. */
     fun exportMidi() = send(CommandNames.EXPORT_MIDI)
+
+    /** Export the song as a WAV file, as Play sounds it. */
+    fun exportAudio() = send(CommandNames.EXPORT_AUDIO)
 
     /** Ask to close; the session answers with `CloseApproved` or a request. */
     fun requestClose() = send(CommandNames.REQUEST_CLOSE)

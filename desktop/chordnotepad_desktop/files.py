@@ -18,7 +18,7 @@ extension:
   The suggested name carries its extension: the Flatpak's portal only grants
   access to the exact name chosen, so ".txt" can't be added afterwards.
 * **A typed name without an extension** gets the picker's (".txt",
-  ".mid"), as in Tk. The picker only asked about the name as typed, so if the
+  ".mid", ".wav"), as in Tk. The picker only asked about the name as typed, so if the
   name with the extension exists already, :attr:`FilesModel.confirmReplace`
   asks first ("Confirm Save As"); :meth:`FilesModel.replaceAnswered` gives
   the answer. A document-portal path is left as it is (the sandbox may write
@@ -62,6 +62,8 @@ PICKERS = {
                           formatting.TEXT_FILE_TYPES),
     PickMode.EXPORT_MIDI.value: (formatting.EXPORT_PICKER_TITLE, formatting.MIDI_EXTENSION,
                                  formatting.MIDI_FILE_TYPES),
+    PickMode.EXPORT_AUDIO.value: (formatting.AUDIO_EXPORT_PICKER_TITLE, formatting.WAV_EXTENSION,
+                                  formatting.WAV_FILE_TYPES),
 }
 
 

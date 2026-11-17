@@ -51,8 +51,9 @@ interface SessionHandle {
 
 /**
  * The documents Python reads and writes, by id (a content URI on Android).
- * Called on the Python session thread; blocking I/O is fine there, waiting for
- * the bridge thread is not. Failures throw [DocumentStoreException] with a
+ * Called on the Python session thread, except [copyFromFile] (the audio
+ * export's worker thread); blocking I/O is fine there, waiting for the bridge
+ * thread is not. Failures throw [DocumentStoreException] with a
  * user-facing message, which Python turns into `FileOperationError`.
  */
 interface DocumentStoreBridge {
@@ -66,6 +67,14 @@ interface DocumentStoreBridge {
 
     /** Replace the document's content with [data] (a song Python encoded, a MIDI export). */
     fun writeBytes(id: String, data: ByteArray)
+
+    /**
+     * Replace the document's content with the local file at [path] (an audio
+     * export Python rendered into the cache folder), streamed rather than
+     * passed as one array. Called on the audio export's worker thread, not
+     * the session thread; it touches nothing but that document.
+     */
+    fun copyFromFile(id: String, path: String)
 
     /** Whether the document can still be opened (grant held, provider has it). */
     fun isAvailable(id: String): Boolean

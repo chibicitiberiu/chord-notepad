@@ -1,13 +1,18 @@
-===========
-MIDI export
-===========
-
-Chord Notepad can save your song as a standard MIDI file, so you can open it
-in a DAW, a notation program, or any other tool that reads ``.mid`` files.
-
-
-Exporting a Song
 ================
+Exporting a song
+================
+
+Chord Notepad can export a song in two ways:
+
+* **MIDI** (``.mid``): the notes themselves, with the tempo and the key, to
+  open in a DAW, a notation program, or any other tool that reads MIDI files.
+* **Audio** (``.wav``): a recording of the song as Play sounds it, to listen
+  to anywhere, send to the band, or practise along with. See
+  `Exporting Audio`_ below.
+
+
+Exporting MIDI
+==============
 
 .. only:: desktop
 
@@ -168,12 +173,80 @@ A Couple of Gotchas
 
    * **The speed multiplier doesn't affect the file.** The player bar's speed
      percentage (see :doc:`playback`) is a practice control for live playback
-     only. Export always uses the song's real tempo -- the tempo from
+     only. A MIDI export always uses the song's real tempo -- the tempo from
      the player bar and any ``{bpm}`` directives, with the multiplier ignored.
+     An audio export does follow it (below).
 
 .. only:: android
 
    * **The speed multiplier doesn't affect the file.** The player's Speed
      setting (see :doc:`playback`) is a practice control for live playback
-     only. Export always uses the song's real tempo -- the song's BPM and any
-     ``{bpm}`` directives, with the multiplier ignored.
+     only. A MIDI export always uses the song's real tempo -- the song's BPM
+     and any ``{bpm}`` directives, with the multiplier ignored. An audio
+     export does follow it (below).
+
+
+Exporting Audio
+===============
+
+An audio export records the song the way you hear it when you press Play,
+into a WAV file (16-bit stereo, 44.1 kHz) that any music player, phone or
+audio editor can open.
+
+.. only:: desktop
+
+   1. Choose **Export audio...** in the ☰ menu, or
+      :menuselection:`File --> Export audio...` on the menu bar.
+   2. The save dialog suggests the song's name with ``.wav``, picked the same
+      way as for MIDI. Choose a folder, change the name if you like, and save.
+   3. Chord Notepad plays the song into the file, faster than real time: a
+      four-minute song takes a few seconds. The status bar counts up while it
+      works ("Exporting audio… 40%") and says "Exported audio: …" when the
+      file is written. You can keep editing and playing meanwhile.
+
+.. only:: android
+
+   1. Tap **☰** at the top left and choose **Export audio…**.
+   2. Android's file picker opens with the song's name and ``.wav`` filled
+      in, picked the same way as for MIDI. Pick a folder, change the name if
+      you like, and tap **Save**.
+   3. Chord Notepad plays the song into the file, faster than real time. The
+      status counts up while it works ("Exporting audio… 40%") and says
+      "Exported audio: …" when the file is written: on the player's status
+      line in the Play tab, or at the bottom of the screen in the Edit tab.
+
+There is no dialog with options. The file sounds like Play does at the moment
+you choose the file name:
+
+.. only:: desktop
+
+   * **The voicing and the instrument** selected under
+     :menuselection:`Playback`, note for note.
+   * **The Music slider** under the volume button. Mute doesn't apply: the
+     file is never silent.
+   * **The metronome**, only if it's on, at the Metronome slider's level.
+   * **The speed percentage** in the player bar: at 50% the file is twice as
+     long, and every ``{bpm}`` change keeps its place.
+   * **The soundfont** playback uses (see :doc:`settings`). A new soundfont
+     chosen in Settings is used after a restart, for exports too.
+
+.. only:: android
+
+   * **The voicing and the instrument** picked in the Play tab's player, note
+     for note.
+   * **The metronome**, only if it's on.
+   * **The speed** in the player: at 50% the file is twice as long, and every
+     ``{bpm}`` change keeps its place.
+
+Like a MIDI export, it's **the whole song, from the top**, with every loop
+played out, whatever the cursor or the playhead is on. Two seconds of the
+last chord ringing out follow the end. The export is a copy: the song stays
+open as it was, and the ``.wav`` file doesn't join the recent songs.
+
+One audio export runs at a time. Choosing **Export audio** again before the
+first one has finished says so and asks for no file; try again once the
+status says "Exported audio".
+
+A WAV file is large: about 10 MB per minute of music. If the export fails (a
+song without chords, a full disk, or a folder the app can't write to), a
+message says why.

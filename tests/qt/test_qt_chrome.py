@@ -268,7 +268,7 @@ def test_the_app_menu_has_the_groups_in_order(app):
     assert app.it("appMenuButton").property("checked") is True
     rows = [plain_text(r) if r not in ("---", "[zoom]") else r for r in app.menu_texts(menu)]
     assert rows == ["New", "Open…", "Open recent", "Backups", "Save", "Save as…", "---",
-                    "[zoom]", "---", "Export MIDI…", "---", "Show menu bar", "Dark theme", "---",
+                    "[zoom]", "---", "Export MIDI…", "Export audio…", "---", "Show menu bar", "Dark theme", "---",
                     "Settings…", "---", "Help", "---", "Quit"]
 
 
@@ -384,7 +384,7 @@ def test_f10_opens_the_file_menu(app):
     app.qtbot.waitUntil(lambda: file_menu.property("opened") is True, timeout=1000)
     rows = [plain_text(r) for r in app.menu_texts(file_menu)]
     assert rows == ["New", "Open…", "Open recent", "Backups", "---", "Save", "Save as…",
-                    "Export MIDI…", "---", "Quit"]
+                    "Export MIDI…", "Export audio…", "---", "Quit"]
 
 
 def test_show_menu_bar_keeps_it_and_is_kept(qapp, qtbot, tmp_path):
@@ -741,6 +741,50 @@ def test_export_midi_suggests_the_mid_name_and_writes_it(app, tmp_path):
     accept(app, tmp_path / "song")
     app.qtbot.waitUntil(lambda: (tmp_path / "song.mid").exists(), timeout=10000)
     assert (tmp_path / "song.mid").read_bytes().startswith(b"MThd")
+
+
+def test_export_audio_without_chords_says_so(app):
+    app.trigger("exportAudioAction")
+    dialog = app.obj("errorDialog")
+    app.qtbot.waitUntil(lambda: dialog.property("opened") is True, timeout=2000)
+    assert app.it("errorMessage").property("text") == formatting.NO_CHORDS_TO_EXPORT_AUDIO_MESSAGE
+    assert app.picker().property("visible") is False
+    app.click_item(app.it("errorOk"))
+
+
+def _fluidsynth_available():
+    try:
+        from chordnotepad.audio.fluidsynth_import import fluidsynth  # noqa: F401
+    except Exception:
+        return False
+    return True
+
+
+BUNDLED_SOUNDFONT = Path(__file__).resolve().parents[2] / "resources" / "soundfont" / "GeneralUser-GS.sf2"
+
+
+@pytest.mark.skipif(not BUNDLED_SOUNDFONT.exists() or not _fluidsynth_available(),
+                    reason="needs libfluidsynth and the bundled SoundFont")
+def test_export_audio_suggests_the_wav_name_and_writes_it(qapp, qtbot, tmp_path):
+    app = restarted(qapp, qtbot, tmp_path, soundfont_path=str(BUNDLED_SOUNDFONT))
+    try:
+        app.song()
+        app.trigger("exportAudioAction")
+        picker = app.wait_picker("Export Audio")
+        assert picker.property("selectedFile").fileName() == "One two three four.wav"
+        assert list(picker.property("nameFilters")) == ["WAV audio (*.wav)", "All files (*)"]
+        accept(app, tmp_path / "song")
+        out, cache = tmp_path / "song.wav", tmp_path / "appdata" / "cache"
+        # Copied from the temp file, which goes once the copy is done.
+        app.qtbot.waitUntil(lambda: out.exists() and not list(cache.glob("audio-export-*")),
+                            timeout=20000)
+        data = out.read_bytes()
+        assert data[:4] == b"RIFF" and data[8:12] == b"WAVE" and len(data) > 44100 * 4
+        status = app.it("statusText")
+        app.qtbot.waitUntil(lambda: status.property("text").startswith("Exported audio: ")
+                            and status.property("text").endswith("song.wav"), timeout=2000)
+    finally:
+        app.harness.shutdown()
 
 
 def test_the_recent_list_tells_same_names_apart_and_opens_one(app, tmp_path):

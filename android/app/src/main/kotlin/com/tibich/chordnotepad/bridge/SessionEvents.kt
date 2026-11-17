@@ -87,6 +87,7 @@ enum class PickMode {
     @SerialName("open") OPEN,
     @SerialName("save") SAVE,
     @SerialName("export_midi") EXPORT_MIDI,
+    @SerialName("export_audio") EXPORT_AUDIO,
 }
 
 /** Ask the user to pick a document; answer with a [DocumentRef] or null. */

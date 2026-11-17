@@ -71,6 +71,14 @@ class FakeKotlinStore:
             raise DocumentStoreException("Permission denied: readonly.txt")
         self.docs[uri] = data
 
+    def copyFromFile(self, uri, path):
+        """Like SafDocumentStore: stream the local file into the document."""
+        self.calls.append(("copyFromFile", uri, path))
+        if uri.endswith("readonly.wav"):
+            raise DocumentStoreException("Permission denied: readonly.wav")
+        with open(path, "rb") as f:
+            self.docs[uri] = f.read()
+
     def isAvailable(self, uri):
         return uri in self.docs
 
@@ -152,6 +160,18 @@ def test_store_writes_and_keeps_the_recent_list():
     limit[0] = 5
     store.add_recent(ref)
     assert kotlin.max_recent == 5
+
+
+def test_store_writes_an_export_from_a_local_file_through_kotlin(tmp_path):
+    kotlin = FakeKotlinStore()
+    store = AndroidDocumentStore(kotlin)
+    local = tmp_path / "audio-export-1.wav"
+    local.write_bytes(b"RIFF....WAVE")
+    store.write_file(DocumentRef("content://x/a.wav", "a.wav", "a.wav"), str(local))
+    assert kotlin.docs == {"content://x/a.wav": b"RIFF....WAVE"}
+    assert ("copyFromFile", "content://x/a.wav", str(local)) in kotlin.calls
+    with pytest.raises(FileOperationError, match="Permission denied: readonly.wav"):
+        store.write_file(DocumentRef("content://x/readonly.wav", "readonly.wav", "x"), str(local))
 
 
 def test_store_reads_and_keeps_a_files_encoding_and_line_endings():

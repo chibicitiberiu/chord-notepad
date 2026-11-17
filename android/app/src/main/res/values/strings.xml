@@ -15,6 +15,7 @@
     <string name="menu_open">Open…</string>
     <string name="menu_save">Save</string>
     <string name="menu_export_midi">Export MIDI…</string>
+    <string name="menu_export_audio">Export audio…</string>
     <string name="menu_undo">Undo</string>
     <string name="menu_redo">Redo</string>
     <string name="menu_voicing">Voicing</string>

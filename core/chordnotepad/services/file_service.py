@@ -2,6 +2,7 @@
 
 import logging
 import os
+import shutil
 from pathlib import Path
 from typing import List, Optional
 
@@ -119,6 +120,26 @@ class FileService:
             with open(path, 'wb') as f:
                 f.write(data)
             self._logger.debug(f"File written successfully: {len(data)} bytes")
+        except PermissionError:
+            self._logger.error(f"Permission denied: {path}")
+            raise FileOperationError("Permission denied")
+        except Exception as e:
+            self._logger.error(f"Error writing file: {e}", exc_info=True)
+            raise FileOperationError(f"Failed to write file: {getattr(e, 'strerror', None) or e}")
+
+    def copy_file(self, source: Path, path: Path) -> None:
+        """Copy a finished export (an audio file rendered to a temp file) to
+        ``path``, as :meth:`save_bytes` writes one: straight into the file,
+        not through a temp file and a rename, which the Flatpak's document
+        portal wouldn't allow. Leaves the recent list alone.
+
+        Raises:
+            FileOperationError: If the file cannot be written
+        """
+        try:
+            self._logger.info(f"Writing file: {path}")
+            shutil.copyfile(source, path)
+            self._logger.debug(f"File written successfully: {path}")
         except PermissionError:
             self._logger.error(f"Permission denied: {path}")
             raise FileOperationError("Permission denied")

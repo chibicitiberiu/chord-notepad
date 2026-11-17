@@ -205,6 +205,11 @@ class BridgeCodecTest {
             """{"request_id": 5, "mode": "export_midi", "suggested_name": "song.mid"}""",
         )
         assertEquals(PickMode.EXPORT_MIDI, p.mode)
+        val audio = decode<PickDocumentRequest>(
+            "PickDocumentRequest",
+            """{"request_id": 6, "mode": "export_audio", "suggested_name": "song.wav"}""",
+        )
+        assertEquals(PickMode.EXPORT_AUDIO, audio.mode)
         val d = decode<InsertDirectiveRequest>(
             "InsertDirectiveRequest",
             """{"request_id": 7, "kind": "loop", "existing_labels": ["chorus"], "notation": "american"}""",

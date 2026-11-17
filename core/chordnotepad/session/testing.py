@@ -175,6 +175,8 @@ class InMemoryDocumentStore:
         #: When False, :meth:`rename` raises ``RenameNotSupported`` (a
         #: provider without rename support).
         self.can_rename = True
+        #: The thread each :meth:`write_file` ran on.
+        self.write_file_threads: List[threading.Thread] = []
         self._recent: List[DocumentRef] = []
         self._max_recent = max_recent
         for name, data in (documents or {}).items():
@@ -212,6 +214,15 @@ class InMemoryDocumentStore:
         if self.write_error is not None:
             raise FileOperationError(self.write_error)
         self.contents[ref.id] = bytes(data)
+
+    def write_file(self, ref: DocumentRef, local_path: str) -> None:
+        """Store a local file's bytes as an export (any thread; the thread
+        is kept in ``write_file_threads``), or raise ``write_error``."""
+        self.write_file_threads.append(threading.current_thread())
+        if self.write_error is not None:
+            raise FileOperationError(self.write_error)
+        with open(local_path, "rb") as f:
+            self.contents[ref.id] = f.read()
 
     def is_available(self, ref: DocumentRef) -> bool:
         """Whether the document exists."""

@@ -8,8 +8,9 @@ chord-sheet feed, playback (transport, playing chord, status line, editor
 lock, audio-failure reporting), the programmatic edits (transpose, capo,
 convert notation, inserts), which it sends to the views as ``TextEdited``,
 the toolbar, the menus, settings, and the document flows (new, open, save,
-save as, export MIDI, close; the recent list and the window title). Renders
-the user waits for (MIDI export, Suggest Capo) run on a background worker.
+save as, export MIDI and audio, close; the recent list and the window
+title). Renders the user waits for (MIDI export, Suggest Capo) run on a
+background worker; an audio export runs on one of its own.
 The Qt window talks to nothing else (``tests/test_desktop_view_guard.py``,
 ``tests/qt/test_qt_session_store.py``).
 
@@ -25,11 +26,12 @@ import functools
 import logging
 import math
 import os
+import tempfile
 import weakref
 from pathlib import Path
 from typing import (
-    TYPE_CHECKING, Any, Callable, Dict, Generator, Iterator, Mapping, Optional, Sequence, Tuple,
-    TypeVar,
+    TYPE_CHECKING, Any, Callable, Dict, Generator, Iterator, List, Mapping, Optional, Sequence,
+    Tuple, TypeVar,
 )
 
 from chordnotepad.constants import (
@@ -255,7 +257,9 @@ class AppSession:
                  audio_failure_policy: Optional[AudioFailurePolicy] = None,
                  worker: Optional[BackgroundWorker] = None,
                  services: Optional["CoreServices"] = None,
-                 platform: str = DESKTOP) -> None:
+                 platform: str = DESKTOP,
+                 audio_export_worker: Optional[BackgroundWorker] = None,
+                 export_temp_dir: Optional[str] = None) -> None:
         """Create the session. Nothing is delivered or scheduled until used.
 
         Args:
@@ -287,6 +291,13 @@ class AppSession:
                 name gestures or menus, whether the playhead follows playback
                 and taps (``TRACKS_PLAYHEAD``) and, on Android, the player's
                 short status texts.
+            audio_export_worker: Runs audio exports (a render and a synth
+                run of up to a few seconds per song minute, then a copy),
+                so a MIDI export or Suggest Capo doesn't wait behind one; a
+                new one on ``host`` by default. Shut down with the session.
+            export_temp_dir: Where an audio export renders its temp file;
+                by default the cache folder (``services.appdata``), else the
+                system's temp folder.
 
         Raises:
             ValueError: For an unknown platform.
@@ -332,6 +343,15 @@ class AppSession:
         self._capo_job: Optional[Job] = None
         # The open Suggest Capo dialog (CapoAdviceState), or None.
         self._capo: Optional[_CapoAdvice] = None
+        # Audio export: its own worker, one export at a time. The job's
+        # handle while one runs, and the folder its temp file goes in.
+        self._audio_worker = (audio_export_worker if audio_export_worker is not None
+                              else BackgroundWorker(host, name="AudioExport"))
+        self._audio_job: Optional[Job] = None
+        if export_temp_dir is None:
+            export_temp_dir = (str(services.appdata.get_cache_dir()) if services is not None
+                               else tempfile.gettempdir())
+        self._export_temp_dir = export_temp_dir
 
         # Documents: the viewmodel reads and writes them through its store;
         # the session keeps the recent list there (the flows are its only
@@ -519,6 +539,10 @@ class AppSession:
         self._feed_chord_sheet()
         self._report_unreadable_settings()
         self._report_voicing_failure()
+        # An audio export's temp file left by a crash (a newer one may be
+        # another window's export in progress).
+        from chordnotepad.services.audio_export import remove_stale_temp_files
+        remove_stale_temp_files(self._export_temp_dir)
 
     def _report_unreadable_settings(self) -> None:
         """Tell the user, once, that the settings file couldn't be read and
@@ -536,8 +560,11 @@ class AppSession:
         self._cancel_detection()
         self._flows.cancel()
         # Outcomes still on their way are dropped (an export not written yet
-        # is lost; the app is closing).
+        # is lost; the app is closing). A running audio export stops and
+        # deletes its temp file.
         self._worker.shutdown()
+        self._audio_worker.shutdown()
+        self._audio_job = None
         self._main.unobserve("current_text", self._on_replaced)
         self._main.unobserve("current_document", self._on_document)
         self._main.unobserve("is_modified", self._on_document)
@@ -1378,6 +1405,23 @@ class AppSession:
         :class:`UserError`.
         """
         self._flows.start(self._export_flow())
+
+    @_command
+    def export_audio(self) -> None:
+        """Render the song as Play sounds it and write it as a WAV file the
+        user picks.
+
+        Suggests ``<document name>.wav`` (named as :meth:`export_midi`
+        names its file). The whole song, from the top with its repeats, at
+        the voicing, instrument, music volume, metronome (on or off) and
+        speed multiplier Play uses now, is rendered on the audio export's
+        worker; the status line counts the percentage ("Exporting audio…
+        40%") and then says where it went. One export at a time: another
+        while one runs is refused before the picker (an Android picker makes
+        the file). A failure (no chords, a render, synth or write error) is
+        a :class:`UserError`.
+        """
+        self._flows.start(self._audio_export_flow())
 
     @_command
     def request_close(self) -> None:
@@ -3433,20 +3477,24 @@ class AppSession:
         shown = ref.display_name if ref is not None else name or formatting.UNTITLED
         self._set_status(formatting.recovered_status(shown))
 
+    def _export_stem(self) -> str:
+        """The name an export suggests, without its extension: the
+        document's, else the name an untitled song was given, else its first
+        lyric line (``session.song_name``)."""
+        current = self._main.current_document
+        if current is not None:
+            return current.stem
+        if self._pending_name:
+            return os.path.splitext(self._pending_name)[0]
+        return song_name.lyric_name(self._text, self._main.notation.value)
+
     def _export_flow(self) -> Flow:
         if not self._main.has_chords_to_export():
             # Before the picker: on Android picking a name already makes the file.
             self._emitter.emit(UserError(
                 formatting.FILE_ERROR_TITLE, formatting.NO_CHORDS_TO_EXPORT_MESSAGE))
             return
-        current = self._main.current_document
-        if current is not None:
-            stem = current.stem
-        elif self._pending_name:
-            stem = os.path.splitext(self._pending_name)[0]
-        else:
-            stem = song_name.lyric_name(self._text, self._main.notation.value)
-        suggested = formatting.midi_export_name(stem)
+        suggested = formatting.midi_export_name(self._export_stem())
         ref = self._as_ref((yield PickDocumentRequest(0, PickMode.EXPORT_MIDI, suggested)))
         if ref is None:
             return
@@ -3463,6 +3511,54 @@ class AppSession:
         else:
             self._set_status(formatting.READY)
             self._file_error(formatting.EXPORT_FAILED, ref)
+
+    def _audio_export_flow(self) -> Flow:
+        # Both checks before the picker: on Android picking a name already
+        # makes the file.
+        if self._audio_job is not None:
+            self._emitter.emit(UserError(
+                formatting.AUDIO_EXPORT_BUSY_TITLE, formatting.AUDIO_EXPORT_BUSY_MESSAGE))
+            return
+        if not self._main.has_chords_to_export():
+            self._emitter.emit(UserError(
+                formatting.FILE_ERROR_TITLE, formatting.NO_CHORDS_TO_EXPORT_AUDIO_MESSAGE))
+            return
+        suggested = formatting.audio_export_name(self._export_stem())
+        ref = self._as_ref((yield PickDocumentRequest(0, PickMode.EXPORT_AUDIO, suggested)))
+        if ref is None or self._audio_job is not None:
+            return
+        # The song and Play's sound as they are now; rendered, played and
+        # written to ref off the session thread.
+        handle: List[Job] = []
+        worker = self._audio_worker
+
+        def progress(fraction: float) -> None:
+            # On the job's thread: the status follows on the session thread.
+            if not worker.is_shut_down:
+                self._host.post(self._entry(
+                    functools.partial(self._on_audio_progress, handle, fraction)))
+
+        job = self._main.audio_export_job(ref, self._export_temp_dir, progress)
+        self._set_status(formatting.exporting_audio_status(0.0))
+        self._audio_job = worker.submit(
+            job, self._entry(functools.partial(self._on_audio_exported, ref)), pass_abort=True)
+        handle.append(self._audio_job)
+
+    def _on_audio_progress(self, handle: List[Job], fraction: float) -> None:
+        """The audio export rendered ``fraction`` of the song (it's still running)."""
+        if not handle or handle[0] is not self._audio_job or fraction >= 1.0:
+            return      # another export's, or the end (its own status follows)
+        self._set_status(formatting.exporting_audio_status(fraction))
+
+    def _on_audio_exported(self, ref: DocumentRef, outcome: Outcome) -> None:
+        """The audio export wrote its file to ``ref``, or failed."""
+        self._audio_job = None
+        # Not remembered as recent: exports aren't documents to reopen here.
+        if self._main.finish_audio_export(ref, outcome.error):
+            self._set_status(formatting.exported_audio_status(ref.location))
+        else:
+            self._set_status(formatting.READY)
+            self._file_error(formatting.AUDIO_EXPORT_FAILED, ref)
 
     def _close_flow(self) -> Flow:
         if not (yield from self._confirm_discard()):

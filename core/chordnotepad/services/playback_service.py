@@ -109,6 +109,9 @@ class PlaybackService:
         self._pause_pending = False
 
         self._metronome_enabled: bool = False
+        # The SoundFont initialize_player loaded (a change in Settings takes
+        # effect after a restart, so this is what Play sounds like).
+        self._soundfont_in_use: Optional[str] = None
 
     def _create_note_picker(self, voicing: str) -> INotePicker:
         """Create appropriate note picker based on voicing string.
@@ -334,6 +337,7 @@ class PlaybackService:
 
             self._initialized = True
             self._init_error = None
+            self._soundfont_in_use = sf_path
             self._logger.info("Audio player initialized successfully")
             return True
 
@@ -343,6 +347,18 @@ class PlaybackService:
             self._initialized = False
             self._init_error = str(e) or type(e).__name__
             return False
+
+    def soundfont_in_use(self) -> Optional[str]:
+        """The SoundFont Play sounds with: the one :meth:`initialize_player`
+        loaded, else (playback never started) the one it would load now,
+        Settings' or the bundled one. None when there is none.
+
+        A SoundFont chosen in Settings takes effect after a restart, so the
+        loaded one wins over the config's while the player is up.
+        """
+        if self._soundfont_in_use is not None:
+            return self._soundfont_in_use
+        return self._config.get("soundfont_path") or self._existing_bundled_soundfont()
 
     def _existing_bundled_soundfont(self) -> Optional[str]:
         """The bundled SoundFont if the file is there, else None."""

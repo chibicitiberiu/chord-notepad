@@ -88,6 +88,19 @@ class DocumentStore(Protocol):
         """
         ...
 
+    def write_file(self, ref: DocumentRef, local_path: str) -> None:
+        """Write an export from a local file (one too big to hold in memory,
+        an audio export), copying it as it is.
+
+        Unlike the other methods this one may be called off the session
+        thread (the audio export's worker calls it), so it must not touch
+        state the session thread uses.
+
+        Raises:
+            FileOperationError: With a user-facing reason.
+        """
+        ...
+
     def is_available(self, ref: DocumentRef) -> bool:
         """Whether the document can still be opened."""
         ...
@@ -167,6 +180,11 @@ class FileSystemDocumentStore:
     def write_bytes(self, ref: DocumentRef, data: bytes) -> None:
         """Write an export through ``FileService.save_bytes``."""
         self._files.save_bytes(Path(ref.id), data)
+
+    def write_file(self, ref: DocumentRef, local_path: str) -> None:
+        """Copy an export to the file through ``FileService.copy_file``
+        (any thread: it only writes that file)."""
+        self._files.copy_file(Path(local_path), Path(ref.id))
 
     def is_available(self, ref: DocumentRef) -> bool:
         """Whether the file still exists."""

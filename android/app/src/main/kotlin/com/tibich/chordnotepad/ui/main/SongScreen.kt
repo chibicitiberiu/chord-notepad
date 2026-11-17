@@ -297,6 +297,7 @@ fun SongScreen(graph: AppGraph, actions: MainActions, snackbars: SnackbarHostSta
             override fun openRecent(ref: DocumentRef) = actions.openRecent(ref)
             override fun saveAs() = actions.saveAs()
             override fun exportMidi() = actions.exportMidi()
+            override fun exportAudio() = actions.exportAudio()
             override fun settings() = nav.settings()
             override fun examples() = go(SheetRoute.Examples)
             override fun userGuide() = nav.userGuide()

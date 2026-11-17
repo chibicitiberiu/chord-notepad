@@ -19,7 +19,8 @@ from chordnotepad.audio.audio_options import AudioOptions
 from chordnotepad.audio.fluidsynth_import import fluidsynth
 from chordnotepad.audio.player_interface import IPlayer
 from chordnotepad.audio.sequencer import TICKS_PER_SECOND, SynthSequencer
-from chordnotepad.audio.song_scheduler import CLICK_TICKS, ClickSound, SongScheduler
+from chordnotepad.audio.song_scheduler import (
+    CLICK_BANK, CLICK_TICKS, PLAYER_CLICK, ClickSound, SongScheduler)
 from chordnotepad.audio.volume import (
     DEFAULT_METRONOME_VOLUME, DEFAULT_VOLUME, metronome_cc, music_cc)
 from chordnotepad.constants import AUDIO_GAIN
@@ -544,28 +545,19 @@ class NotePlayer(IPlayer):
         """Update time signature"""
         self.time_signature = (beats_per_measure, beat_unit)
 
-    # GM percussion on channel 9
-    METRONOME_DRUM_CHANNEL = 9
-    METRONOME_DRUM_BANK = 128
-    METRONOME_DOWNBEAT_NOTE = 76  # High Wood Block
-    METRONOME_OFFBEAT_NOTE = 77   # Low Wood Block
-    # Full velocity on the downbeat (it was 100, at CC 7 100: the click was
-    # hard to hear under the music), and the offbeat in the same 4:5
-    # proportion as before. With the slider at 100% (CC 7 127) the click is
-    # about 8 dB louder than it was; the old click is the slider near 60%.
-    METRONOME_DOWNBEAT_VELOCITY = 127
-    METRONOME_OFFBEAT_VELOCITY = 102
+    # GM percussion on channel 9: the click song playback schedules
+    # (song_scheduler.PLAYER_CLICK, which the audio export renders too).
+    METRONOME_DRUM_CHANNEL = PLAYER_CLICK.channel
+    METRONOME_DRUM_BANK = CLICK_BANK
+    METRONOME_DOWNBEAT_NOTE = PLAYER_CLICK.downbeat_note
+    METRONOME_OFFBEAT_NOTE = PLAYER_CLICK.offbeat_note
+    METRONOME_DOWNBEAT_VELOCITY = PLAYER_CLICK.downbeat_velocity
+    METRONOME_OFFBEAT_VELOCITY = PLAYER_CLICK.offbeat_velocity
 
     @property
     def click_sound(self) -> ClickSound:
         """The metronome click the scheduler plays."""
-        return ClickSound(
-            channel=self.METRONOME_DRUM_CHANNEL,
-            downbeat_note=self.METRONOME_DOWNBEAT_NOTE,
-            offbeat_note=self.METRONOME_OFFBEAT_NOTE,
-            downbeat_velocity=self.METRONOME_DOWNBEAT_VELOCITY,
-            offbeat_velocity=self.METRONOME_OFFBEAT_VELOCITY,
-        )
+        return PLAYER_CLICK
 
     def _ensure_drum_channel(self) -> None:
         if getattr(self, "_drum_configured", False) or self.fs is None or self.sfid is None:

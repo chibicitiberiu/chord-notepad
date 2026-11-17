@@ -62,6 +62,23 @@ class ClickSound:
     offbeat_velocity: int = 80
 
 
+#: The bank the drum channel plays the click from (GM percussion).
+CLICK_BANK = 128
+
+#: The click song playback plays and the audio export renders: GM wood blocks
+#: on channel 9, full velocity on the downbeat (it was 100, at CC 7 100: the
+#: click was hard to hear under the music) and the offbeat in the same 4:5
+#: proportion as before. With the slider at 100% (CC 7 127) the click is
+#: about 8 dB louder than it was; the old click is the slider near 60%.
+PLAYER_CLICK = ClickSound(
+    channel=9,
+    downbeat_note=76,   # High Wood Block
+    offbeat_note=77,    # Low Wood Block
+    downbeat_velocity=127,
+    offbeat_velocity=102,
+)
+
+
 @dataclass
 class PumpResult:
     """What one :meth:`SongScheduler.pump` call found.

@@ -450,6 +450,27 @@ class SafDocumentStoreTest {
         assertTrue(access.hasPersistedGrant("content://d/song"))
         store.adopt("content://d/song.mid", PickMode.EXPORT_MIDI)
         assertFalse(access.hasPersistedGrant("content://d/song.mid"))
+        access.add("content://d/song.wav", "song.wav", granted = false)
+        store.adopt("content://d/song.wav", PickMode.EXPORT_AUDIO)
+        assertFalse(access.hasPersistedGrant("content://d/song.wav"))
+    }
+
+    @Test
+    fun `copyFromFile streams a local file into the document, replacing it`() {
+        access.add("content://d/song.wav", "song.wav", "an older and longer export")
+        val local = File(tmp.root, "audio-export-1.wav")
+        val data = ByteArray(700_000) { (it % 251).toByte() }
+        local.writeBytes(data)
+        store.copyFromFile("content://d/song.wav", local.path)
+        assertArrayEquals(data, access.content["content://d/song.wav"])
+
+        access.denied += "content://d/song.wav"
+        expectError("Permission denied") { store.copyFromFile("content://d/song.wav", local.path) }
+        expectError("Failed to write file") { store.copyFromFile("content://d/gone", local.path) }
+        access.add("content://d/other.wav", "other.wav")
+        expectError("Failed to write file") {
+            store.copyFromFile("content://d/other.wav", File(tmp.root, "missing.wav").path)
+        }
     }
 
     @Test

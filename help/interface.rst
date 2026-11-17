@@ -308,7 +308,7 @@ The User Interface
       Ctrl+Alt+Minus; Ctrl+Alt+0 for 100%), and the corner button switches
       to full screen (F11). This is separate from the text size.
 
-   **Export MIDI...**
+   **Export MIDI...**, **Export audio...**
       Described under File Menu.
 
    **Show menu bar**
@@ -375,6 +375,11 @@ The User Interface
       file containing the same voicings, timing, tempo, and instrument as
       playback, with loops unrolled into their repeats. See
       :doc:`midi_export` for details.
+
+   **Export audio...**
+      Save the song as a ``.wav`` file that sounds the way Play does: the
+      same voicing, instrument, volume and speed, with the metronome if it's
+      on. See :doc:`midi_export`.
 
    **Quit** (Ctrl+Q)
       Close Chord Notepad. You'll be asked to save any unsaved changes.
@@ -1045,6 +1050,10 @@ The User Interface
 
    **Export MIDI…**
       Write the song as a ``.mid`` file. See :doc:`midi_export`.
+
+   **Export audio…**
+      Write the song as a ``.wav`` file that sounds the way Play does. See
+      :doc:`midi_export`.
 
    Below those, the app's own entries:
 

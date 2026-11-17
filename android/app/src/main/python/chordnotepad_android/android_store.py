@@ -7,7 +7,9 @@ Python. A failure arrives as a Java ``DocumentStoreException`` whose message
 is user-facing; it is raised again as ``FileOperationError`` with that
 message, like ``FileService`` does on desktop; Kotlin's
 ``RenameUnsupportedException`` (a provider that can't rename) becomes
-``RenameNotSupported``. Called on the session thread only.
+``RenameNotSupported``. Called on the session thread only, except
+:meth:`AndroidDocumentStore.write_file`, which the audio export's worker
+calls (Kotlin's ``copyFromFile`` only streams into that one document).
 """
 
 import json
@@ -122,6 +124,12 @@ class AndroidDocumentStore:
     def write_bytes(self, ref: DocumentRef, data: bytes) -> None:
         """Write an export (Chaquopy passes ``bytes`` as a Java ``byte[]``)."""
         self._call(self._bridge.writeBytes, ref.id, bytes(data))
+
+    def write_file(self, ref: DocumentRef, local_path: str) -> None:
+        """Write an export from a local file (an audio export): Kotlin streams
+        it into the document, so it never crosses the bridge as one array.
+        Called on the audio export's worker thread."""
+        self._call(self._bridge.copyFromFile, ref.id, str(local_path))
 
     def is_available(self, ref: DocumentRef) -> bool:
         """Whether the grant is still held and the provider has the document."""

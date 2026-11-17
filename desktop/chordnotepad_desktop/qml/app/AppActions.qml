@@ -72,6 +72,11 @@ Item {
         text: "&Export MIDI…"
         onTriggered: acts.store.submit("export_midi")
     }
+    readonly property Action exportAudioAction: Action {
+        objectName: "exportAudioAction"
+        text: "Export au&dio…"
+        onTriggered: acts.store.submit("export_audio")
+    }
     readonly property Action quitAction: Action {
         objectName: "quitAction"
         text: "&Quit"; shortcut: "Ctrl+Q"

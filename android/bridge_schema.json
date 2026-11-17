@@ -74,6 +74,7 @@
       "field_id": "str",
       "index": "int"
     },
+    "export_audio": {},
     "export_midi": {},
     "identifier_clear": {},
     "identifier_play_selection": {
@@ -359,6 +360,7 @@
     "dismiss_startup_screen",
     "duplicate_lines",
     "duplicate_voicing_record",
+    "export_audio",
     "export_midi",
     "identifier_clear",
     "identifier_play_selection",
@@ -451,7 +453,8 @@
     "PickMode": [
       "open",
       "save",
-      "export_midi"
+      "export_midi",
+      "export_audio"
     ],
     "PlayAction": [
       "play",

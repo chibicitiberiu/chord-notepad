@@ -1,6 +1,7 @@
 """ViewModel for the main application window."""
 
 import logging
+import os
 from typing import TYPE_CHECKING, Optional, List, Callable, Tuple
 from chordnotepad.utils.observable import Observable
 from chordnotepad.services.config_service import ConfigService
@@ -449,6 +450,101 @@ class MainWindowViewModel(Observable):
             logger.error(f"Failed to export MIDI file: {e}", exc_info=True)
             self._last_error = _describe_error(e)
             return False
+
+    def audio_export_job(self, ref: DocumentRef, temp_dir: str,
+                         progress: Callable[[float], None]
+                         ) -> Callable[[Callable[[], bool]], None]:
+        """Snapshot the song and the sound of Play for an audio export; the
+        job renders it to a WAV and writes it to ``ref``.
+
+        What Play would use now is captured: the text, notation, key, tempo
+        and time signature, a note picker of its own for the voicing, the
+        instrument, the music and metronome sliders, whether the metronome
+        is on, the speed multiplier and the SoundFont playback loaded. The
+        job renders the whole song from the top (loops repeated), plays it
+        on a synth of its own into a temp file in ``temp_dir``, copies that
+        to ``ref`` through the document store (on the job's thread) and
+        deletes it, also when it fails or is stopped.
+
+        Args:
+            ref: Where the WAV goes.
+            temp_dir: Where the temp file is rendered (the cache folder).
+            progress: Called on the job's thread with the fraction rendered
+                (every 5%).
+
+        Returns:
+            ``job(should_abort)``. It raises if there are no chords
+            (``ChordNotepadError``), rendering or the synth fails, the file
+            can't be written (``FileOperationError``) or ``should_abort()``
+            turned True (``RenderAborted``).
+        """
+        from chordnotepad.exceptions import ChordNotepadError, RenderAborted
+        from chordnotepad.services import audio_export
+
+        text, notation, key = self._current_text, self._notation, self._key
+        bpm = self._bpm
+        time_signature = (self._time_signature_beats, self._time_signature_unit)
+        settings = audio_export.AudioExportSettings(
+            soundfont=self._audio.soundfont_in_use(),
+            instrument=self._config.get("instrument", 0),
+            music_volume=self._audio.volume,
+            metronome_volume=self._audio.metronome_volume,
+            metronome_on=self._metronome_enabled,
+            multiplier=self._bpm_multiplier,
+        )
+        # Its own picker, as Play renders with a reset one: the shared one
+        # may be voicing a playback render on the render thread meanwhile.
+        picker = self._audio.create_note_picker()
+        documents = self._documents
+
+        def export(should_abort: Callable[[], bool]) -> None:
+            from chordnotepad.services.event_compiler import compile_events
+
+            lines = self._chord.detect_chords_in_text(text, notation)
+            rendered = None
+            if any(line.chords for line in lines):
+                rendered = self._audio.render_song(
+                    lines, key, should_abort=should_abort, note_picker=picker,
+                    raise_errors=True, initial_bpm=bpm, initial_time_sig=time_signature)
+            if rendered is None:
+                logger.warning("No chords found to export as audio")
+                raise ChordNotepadError(_NO_CHORDS_TO_EXPORT)
+            planned = audio_export.plan_events(compile_events(rendered, False),
+                                               settings.multiplier)
+            path = audio_export.temp_path(temp_dir)
+            try:
+                audio_export.write_wav(planned, path, settings, should_abort, progress)
+                if should_abort():
+                    raise RenderAborted("The audio export was stopped.")
+                logger.info(f"Exporting audio file: {ref.location}")
+                documents.write_file(ref, path)
+            finally:
+                try:
+                    os.remove(path)
+                except FileNotFoundError:
+                    pass
+                except OSError as e:
+                    logger.warning(f"Couldn't remove the audio export's temp file: {e}")
+
+        return export
+
+    def finish_audio_export(self, ref: DocumentRef, error: Optional[BaseException]) -> bool:
+        """Take an :meth:`audio_export_job`'s outcome (the job wrote the file).
+
+        Args:
+            ref: The document the WAV was written to.
+            error: What the job raised, or None.
+
+        Returns:
+            True if the file was written, False otherwise (see :attr:`last_error`).
+        """
+        self._last_error = None
+        if error is None:
+            return True
+        logger.error(f"Failed to export audio file {ref.location}: {error}",
+                     exc_info=(type(error), error, error.__traceback__))
+        self._last_error = _describe_error(error)
+        return False
 
     def on_text_changed(self, text: str) -> None:
         """Handle text content changes.
