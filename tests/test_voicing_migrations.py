@@ -168,8 +168,15 @@ def test_v054_copies_get_their_link_and_the_presets_values(tmp_path, fixture):
         "leading_tone_resolution_bonus"]
     ssa = v["Android Treble Choir (SSA)"]
     assert _plays("ssa", ssa) == _preset_weights("ssa")
-    # A choir's movement already plays the preset's: left as 0.5.4 saved it.
-    assert (ssa["weights"]["movement"], ssa["weights"]["bass_movement"]) == (-0.4, -0.15)
+    # Movement: left as 0.5.4 saved it while it plays the preset's, else the
+    # preset's per-voice list.
+    preset = _preset_weights("ssa")
+    voices = len(ssa["voices"])
+    wanted = expand_movement(preset["movement"], preset["bass_movement"], voices)
+    if wanted == expand_movement(-0.4, -0.15, voices):
+        assert (ssa["weights"]["movement"], ssa["weights"]["bass_movement"]) == (-0.4, -0.15)
+    else:
+        assert ssa["weights"]["movement"] == list(wanted)
 
     # Fretboard and piano copies keep their values (their presets only gained keys).
     original = _fixture(fixture)["voicings"]
