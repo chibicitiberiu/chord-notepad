@@ -763,3 +763,10 @@ def test_a_doubled_bass_line_may_move_in_octaves_with_five_voices_or_more():
     prev4, cur4 = (48, 60, 64, 67), (53, 65, 64, 67)
     assert (four._score_transition(prev4, cur4, ctx)
             <= DEFAULT_WEIGHTS['parallel_perfect_penalty'] + 10)
+
+
+def test_a_held_bass_doesnt_turn_a_plain_chord_into_an_inversion():
+    # Default weights (a custom ensemble): first inversion -1.5 used to lose to
+    # a held bass (+1.5), so Am F sounded Am F/A on six strings.
+    voicings = EnsembleVoicer(STRINGS_SIX).voice_sequence(_song('C G Am F C G Am F'))
+    assert [v[0] % 12 for v in voicings] == [0, 7, 9, 5, 0, 7, 9, 5]

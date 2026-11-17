@@ -469,8 +469,9 @@ class EnsembleVoicer(INotePicker):
         one, because the voices above it found that a point cheaper). So the
         bass is planned on its own first: a small exact DP over the bass
         options of each chord (:meth:`_bass_options`), scored with the bottom
-        voice's own motion terms (:meth:`_motion_score`) and the same-bass
-        penalty, plus, per option, :meth:`_bass_quality` (the bottom voice's
+        voice's own motion terms (:meth:`_motion_score`, except that holding
+        the bass into a plain chord it isn't the root of earns no common-tone
+        bonus) and the same-bass penalty, plus, per option, :meth:`_bass_quality` (the bottom voice's
         range comfort and, for a plain chord, the inversion weight). Only the
         bass's own terms count, so the voices above can't trade the line away
         again. An option no voicing fits (range and spacing caps, nothing
@@ -510,6 +511,13 @@ class EnsembleVoicer(INotePicker):
             if prev.midi is None or cur.midi is None:
                 return 0.0
             score = self._motion_score(0, n, cur.midi - prev.midi)
+            cur_meta = metas[cur.pos]
+            if (cur.midi == prev.midi and not cur_meta.is_slash
+                    and cur.midi % _OCTAVE != cur_meta.root_pc):
+                # Holding the bass under a plain chord that isn't its root
+                # turns the chord into an inversion (Am F heard as Am F/A):
+                # no common-tone reward for that.
+                score -= self._common_tone_bonus
             if (prev.midi % _OCTAVE == cur.midi % _OCTAVE
                     and same_chord_other_bass(metas[prev.pos].ctx, metas[cur.pos].ctx)):
                 score += self._same_bass_penalty

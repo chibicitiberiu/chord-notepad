@@ -204,7 +204,10 @@ placed. A slash chord's bass note always lands in the bottom voice; a plain
 chord may take any chord tone there, weighed by the Inversion weights. The
 plan keeps the line in one octave while it fits the bottom voice's range, so
 ``C C/B Am Em/G F`` walks down C B A G F instead of jumping up an octave in
-the middle, and changes octave where the line leaps anyway. It never picks a
+the middle, and changes octave where the line leaps anyway. Holding the bass
+note into the next chord earns the usual common-tone bonus, except when that
+would put a plain chord on something other than its root (Am then F stays
+F, not F/A). It never picks a
 bass note that would leave too little room above it for the rest of the
 chord. Because the plan only looks at the line and the range, the same song
 in another key gets the same inversions.
