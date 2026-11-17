@@ -22,7 +22,9 @@ from chordnotepad.models.config import Config
 from chordnotepad.models.voicing_versions import VOICING_VERSION
 from chordnotepad.services import config_service as config_service_module
 from chordnotepad.services.appdata_service import AppDataService
-from chordnotepad.services.config_service import ConfigService, effective_version
+from chordnotepad.services.config_service import (
+    READ_ONLY_NOTICE, ConfigService, effective_version,
+)
 from chordnotepad.session import formatting
 from chordnotepad.session.bootstrap import build_core_services, create_session
 from chordnotepad.session.events import UserError
@@ -247,6 +249,41 @@ def test_voicing_registry_junk_is_dropped_entry_by_entry():
     assert config.voicings == {} and config.needs_backup
 
 
+@pytest.mark.parametrize("key, bad", [
+    ("ui_theme", "purple"), ("ui_scale", 9.0), ("ui_scale", 1.234), ("menu_bar_shown", "yes"),
+    ("word_wrap", 1), ("volume", 2.0), ("metronome_volume", "loud"),
+    ("click_plays_chart_voicing", None), ("window_bounds", {"width": "wide"}),
+    ("support_prompt_last_shown", "yesterday"), ("chord_sheet_logical_height", -5),
+    ("chord_sheet_zoom", {"staff": 9.0}), ("sidebar", "nope"), ("sidebar_width", 500),
+    ("dismissed_notices", ["a", 3, "a"]),
+])
+def test_a_cleaned_up_value_counts_as_a_fallback(key, bad):
+    """Each of these has its own clean-up (junk reads as the default, a
+    number is clamped); a value it changes means the file gets backed up."""
+    config = Config.from_dict({"version": CONFIG_VERSION, key: bad})
+    assert config.needs_backup, key
+
+
+def test_a_saved_config_reads_back_without_a_fallback():
+    config = Config(ui_scale=1.1, volume=0.333, metronome_volume=0.5, sidebar="",
+                    sidebar_width=80.5, chord_sheet_zoom={"staff": 1.25},
+                    window_bounds={"width": 1000, "height": 700, "x": 10, "y": 20},
+                    support_prompt_last_shown="2026-10-30", dismissed_notices=["staff_rhythm"],
+                    menu_bar_shown=True, word_wrap=True, click_plays_chart_voicing=False)
+    again = Config.from_dict(json.loads(json.dumps(config.to_dict())))
+    assert not again.needs_backup
+    assert again.to_dict() == config.to_dict()
+    assert not Config.from_dict(json.loads(json.dumps(Config().to_dict()))).needs_backup
+
+
+def test_a_legacy_entry_shadowed_by_a_voicing_counts_as_a_fallback():
+    config = Config.from_dict({"voicings": {"T": _GUITAR}, "custom_tunings": {"T": ["E2"]}})
+    assert config.voicings == {"T": _GUITAR} and config.needs_backup
+    config = Config.from_dict({"voicings": {"E": _GUITAR},
+                               "custom_ensembles": {"E": {"voices": []}}})
+    assert config.needs_backup
+
+
 def test_recent_files_junk_is_dropped():
     config = Config.from_dict({"recent_files": ["a.txt", 3, None, "b.txt"]})
     assert config.recent_files == ["a.txt", "b.txt"] and config.needs_backup
@@ -299,13 +336,71 @@ def test_an_unreadable_file_is_renamed_and_the_defaults_are_used(tmp_path, text)
     assert json.loads(path.read_text())["version"] == CONFIG_VERSION
 
 
-def test_a_failure_inside_from_dict_sets_the_file_aside(tmp_path):
-    original = _write(tmp_path, {"version": CONFIG_VERSION, "bpm": 99}).read_bytes()
-    with patch.object(Config, "from_dict", side_effect=RuntimeError("boom")):
+def _assert_left_and_read_only(tmp_path, service, original):
+    """The file stays as it was, nothing is set aside, and no save writes."""
+    assert service.read_only and service.load_notice == READ_ONLY_NOTICE
+    assert service.config == Config()
+    assert _backups(tmp_path, "corrupt") == [] and _backups(tmp_path) == []
+    with pytest.raises(ConfigurationError, match="couldn't be read"):
+        service.save_config()
+    service.set("bpm", 77)
+    with pytest.raises(ConfigurationError):
+        service.save_config()
+    with pytest.raises(ConfigurationError):
+        service.reset_to_defaults()
+    assert _path(tmp_path).read_bytes() == original
+    assert sorted(p.name for p in tmp_path.iterdir()) == ["settings.json"]
+
+
+@pytest.mark.parametrize("where", ["from_dict", "_migrate_config"])
+def test_a_bug_while_loading_leaves_the_file_and_saves_nothing(tmp_path, where):
+    """A failure in the migrations or Config.from_dict is ours, not the
+    file's: it is never renamed, and the defaults never replace it."""
+    original = _write(tmp_path, {"version": 2, "bpm": 99,
+                                 "voicings": {"Mine": _GUITAR}}).read_bytes()
+    target = Config if where == "from_dict" else ConfigService
+    with patch.object(target, where, side_effect=RuntimeError("boom")):
         service = _service(tmp_path)
-        assert service.load_config() == Config()
-    [kept] = _backups(tmp_path, "corrupt")
-    assert kept.read_bytes() == original and service.load_notice
+        service.load_config()
+    _assert_left_and_read_only(tmp_path, service, original)
+
+
+@pytest.mark.parametrize("error", [PermissionError(13, "Permission denied"),
+                                   OSError(32, "The process cannot access the file because "
+                                               "it is being used by another process")])
+def test_a_file_that_cant_be_opened_is_left_and_nothing_is_saved(tmp_path, error):
+    original = _write(tmp_path, {"version": CONFIG_VERSION, "bpm": 99}).read_bytes()
+    with patch.object(config_service_module, "open", side_effect=error, create=True):
+        service = _service(tmp_path)
+        service.load_config()
+    _assert_left_and_read_only(tmp_path, service, original)
+
+
+def test_a_file_without_read_permission_is_left(tmp_path):
+    import os
+    if os.geteuid() == 0:
+        pytest.skip("root reads any file")
+    path = _write(tmp_path, {"version": CONFIG_VERSION, "bpm": 99})
+    original = path.read_bytes()
+    path.chmod(0)
+    try:
+        service = _service(tmp_path)
+        service.load_config()
+        assert service.read_only
+        with pytest.raises(ConfigurationError):
+            service.save_config()
+    finally:
+        path.chmod(0o600)
+    assert path.read_bytes() == original
+    assert _backups(tmp_path, "corrupt") == []
+
+
+def test_a_byte_order_mark_is_read(tmp_path):
+    path = _path(tmp_path)
+    path.write_bytes(b"\xef\xbb\xbf" + json.dumps({"version": CONFIG_VERSION, "bpm": 99}).encode())
+    service = _service(tmp_path)
+    assert service.load_config().bpm == 99
+    assert not service.read_only and service.load_notice is None
 
 
 def test_an_unreadable_file_that_cant_be_moved_is_never_overwritten(tmp_path):
@@ -315,12 +410,37 @@ def test_an_unreadable_file_that_cant_be_moved_is_never_overwritten(tmp_path):
             patch.object(config_service_module.shutil, "copyfile", side_effect=OSError("full")):
         service = _service(tmp_path)
         service.load_config()
-        assert service.load_notice
-        with patch.object(config_service_module.shutil, "copyfileobj",
-                          side_effect=OSError("full")):
-            with pytest.raises(ConfigurationError, match="back up"):
-                service.save_config()
+    assert service.read_only and service.load_notice == READ_ONLY_NOTICE
+    with pytest.raises(ConfigurationError, match="couldn't be read"):
+        service.save_config()
     assert path.read_text() == "{broken"
+
+
+def test_the_session_shows_the_read_only_notice_at_startup(tmp_path):
+    config_dir = tmp_path / "config" / "chord-notepad"
+    config_dir.mkdir(parents=True)
+    (config_dir / "settings.json").write_text(json.dumps({"version": CONFIG_VERSION}))
+    with patch.object(Config, "from_dict", side_effect=RuntimeError("boom")):
+        host = ManualHost()
+        services = build_core_services(AppDataService(root=tmp_path), HostDispatch(host),
+                                       player=FakePlayer())
+    session = create_session(host, services, InMemoryDocumentStore(), chord_sheet=False)
+    recorder = EventRecorder()
+    session.subscribe(recorder)
+    session.start()
+    [error] = [e for e in recorder.of_type(UserError) if e.title == formatting.SETTINGS_TITLE]
+    assert error.message == READ_ONLY_NOTICE
+    assert "won't be saved this session" in READ_ONLY_NOTICE
+
+
+def test_leaving_the_screen_still_releases_the_audio_when_saving_is_refused():
+    from unittest.mock import MagicMock
+    from chordnotepad.session.bridge import _app_background
+    session = MagicMock()
+    session.save_config.side_effect = ConfigurationError("not this run")
+    _app_background(session)
+    session.pause.assert_called_once()
+    session.suspend_audio.assert_called_once()
 
 
 def test_the_session_shows_the_notice_once_at_startup(tmp_path):

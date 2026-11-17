@@ -33,6 +33,7 @@ import typing
 from enum import Enum
 from typing import Any, Callable, Dict, List, Optional, Tuple, Type
 
+from chordnotepad.exceptions import ConfigurationError
 from chordnotepad.session import errors
 from chordnotepad.session.documents import DocumentRef
 from chordnotepad.session.events import (
@@ -430,7 +431,13 @@ def _app_background(session: Any) -> None:
     """The app left the screen and may be killed: pause, keep the settings,
     release the audio output (refused while a song plays or renders)."""
     session.pause()
-    session.save_config()
+    try:
+        session.save_config()
+    except ConfigurationError:
+        # Logged by the config service (a full disk, or settings that
+        # couldn't be read at startup and are never overwritten); the audio
+        # is released all the same.
+        logger.exception("Saving the config when the app left the screen failed")
     session.suspend_audio()
 
 

@@ -25,6 +25,10 @@ import "FormTips.js" as FormTips
 // disabled and its name a plain label, with "Copy to a new voicing" in place
 // of the name field. Viewing one is not a change.
 //
+// A voicing of a model a newer release added shows read-only too, with no
+// form and no copy button: only its name and the session's note (the
+// banner, form_errors).
+//
 // It asks before removing a voicing and before switching the model of an
 // edited one (`confirm`, the window's ConfirmDialog); a refused name comes
 // back as the session's UserError ("Rename Voicing"), shown over the
@@ -260,6 +264,9 @@ RowLayout {
                             }
                             Button {
                                 objectName: "copyBuiltin"
+                                // A voicing of a model a newer release added has no
+                                // model here (and nothing to copy it to).
+                                visible: !!page.editor.model
                                 text: page.copyText
                                 onClicked: page.settings.addVoicingFrom(page.editor.model, page.selected)
                             }
@@ -326,7 +333,8 @@ RowLayout {
                         objectName: "voicingErrorsText"
                         x: Theme.gap3; y: Theme.gap2
                         width: parent.width - 2 * Theme.gap3
-                        text: [page.texts.errors_banner].concat(parent.formErrors).join("\n")
+                        // Read-only (a newer release's voicing): only its note.
+                        text: (page.readOnly ? [] : [page.texts.errors_banner]).concat(parent.formErrors).join("\n")
                         color: Theme.error
                         wrapMode: Text.Wrap
                         textFormat: Text.PlainText

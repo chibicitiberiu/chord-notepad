@@ -287,6 +287,13 @@ def _is_number(value: Any) -> bool:
     return isinstance(value, (int, float)) and not isinstance(value, bool)
 
 
+def made_by_newer_version(data: Mapping[str, Any]) -> bool:
+    """Whether ``data`` is a voicing of a model this release doesn't know (a
+    newer release's): the Settings editor shows it read-only, since editing
+    it with a form of ours would rewrite it as another model."""
+    return data.get('model') not in MODELS
+
+
 def form_model(model: Any) -> str:
     """The form a voicing of ``model`` is edited with (unknown models get the piano form)."""
     return model if model in ('fretboard', 'ensemble') else 'piano'
@@ -908,6 +915,17 @@ def voicing_from_values(model: str, values: Mapping[str, Any],
     if label:
         out['label'] = label
     if base is not None:
+        if voicing_versions.voicing_version(base) < voicing_versions.VOICING_VERSION:
+            # A voicing whose load-time migration failed: carry over from its
+            # migrated copy, or, if migrating fails again, keep its version
+            # so the next load tries again (it isn't stamped as current).
+            migrated, ok = voicing_versions.migrated_copy(base)
+            if ok:
+                base = migrated
+            elif base.get('model') == model:
+                _carry_over(model, out, base)
+                out['version'] = voicing_versions.voicing_version(base)
+                return out
         _carry_over(model, out, base)
         if base.get('model') == model:
             out['version'] = voicing_versions.voicing_version(base)

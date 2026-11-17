@@ -17,7 +17,13 @@ v0.5.4's config migration for the damaged file):
   outer_leap_penalty and middle_range_penalty at their added defaults;
 * ``tibi-shaped.json``: shaped like Tibi's file as the plan describes it (a
   five-voice quartet copy saved before the version field, three guitars
-  that kept the Standard label with other tunings).
+  that kept the Standard label with other tunings);
+* ``v0.4.1-first-session.json``: v0.4.1's first session (version 1): copies
+  of SATB, TTBB and the Standard guitar from its Load config sources, and a
+  guitar hand-edited in the file with a single weight;
+* ``v0.4.1-damaged.json``: the same (without the hand-made guitar) after
+  v0.4.1's second start, whose v1 migration flipped the signs; its choirs
+  still have the omission order 0.3.0-0.4.1 used.
 """
 
 import copy
@@ -85,7 +91,8 @@ def _plays(name, entry):
 def test_the_fixtures_are_all_here():
     assert ALL_FIXTURES == sorted([
         "between-builds-copy.json", "damaged-flipped.json", "tibi-shaped.json",
-        "v0.2-legacy.json", "v0.5.4-copies.json", "v0.5.4-first-session.json"])
+        "v0.2-legacy.json", "v0.4.1-damaged.json", "v0.4.1-first-session.json",
+        "v0.5.4-copies.json", "v0.5.4-first-session.json"])
 
 
 @pytest.mark.parametrize("fixture", ALL_FIXTURES)
@@ -223,6 +230,34 @@ def test_the_damaged_file_gets_its_signs_back(tmp_path):
     assert choir["based_on"] == "ensemble:satb"
     assert all(value < 0 for value in choir["weights"]["omit"].values())
     assert _plays("choir", choir) == _preset_weights("satb")
+
+
+@pytest.mark.parametrize("fixture", ["v0.4.1-damaged.json", "v0.4.1-first-session.json"])
+def test_v041_choirs_end_on_the_presets_omission_order(tmp_path, fixture):
+    """0.3.0-0.4.1 choirs had the piano's omission order (root -4, fifth -8,
+    extension -7). Flipped by the old v1 migration, then repaired, they come
+    back to it, and must take the ensemble order as config v4 gave every
+    undamaged one; then 1->2 makes them play the preset."""
+    from chordnotepad.models.ensemble_spec import ENSEMBLE_OMIT_WEIGHTS
+    _install(tmp_path, fixture)
+    v = _load(tmp_path).voicings
+    for name, slug in (("My SATB", "satb"), ("My TTBB", "ttbb")):
+        assert v[name]["based_on"] == f"ensemble:{slug}"
+        assert v[name]["weights"]["omit"] == ENSEMBLE_OMIT_WEIGHTS, name
+        assert _plays(name, v[name]) == _preset_weights(slug), name
+    guitar = v["My Guitar"]["weights"]
+    assert guitar["span_penalty"] == -1.5 and guitar["interior_mute_penalty"] == -4.0
+    assert all(guitar[key] < 0 for key in vv.FRETBOARD_NEGATED_KEYS)
+
+
+def test_v041_first_session_is_not_flipped(tmp_path):
+    """The hand-made guitar has one weight, so the 0->1 repair can't tell a
+    flip from the user's choice: only the v<3-with-voicings rule (read as v3,
+    no sign flip) keeps it right."""
+    _install(tmp_path, "v0.4.1-first-session.json")
+    v = _load(tmp_path).voicings
+    assert v["Hand-made"]["weights"] == {"barre_penalty": -2.5}
+    assert "based_on" not in v["Hand-made"]
 
 
 def test_a_copy_from_a_build_in_between_takes_the_preset(tmp_path):
@@ -515,3 +550,86 @@ def test_the_untouched_sets_hold_the_v054_defaults():
             assert sets[key][0] == value, (slug, key)
         # Every weight of the preset has a set (a key added later: its added default).
         assert set(_preset_weights(slug)) <= set(sets), slug
+
+
+def test_0_to_1_repairs_a_flipped_voicing_with_a_penalty_at_0():
+    entry = _flipped_guitar(stretch_penalty=-0.7, barre_penalty=0.0)
+    assert vv._migrate_0_to_1(entry) is True
+    w = entry["weights"]
+    assert w["barre_penalty"] == 0.0 and w["span_penalty"] == -1.0
+    assert all(w[key] <= 0 for key in vv.FRETBOARD_NEGATED_KEYS)
+    zeros = _flipped_guitar(**{key: 0.0 for key in vv.FRETBOARD_NEGATED_KEYS})
+    before = copy.deepcopy(zeros)
+    assert vv._migrate_0_to_1(zeros) is False and zeros == before
+    choir = {"model": "ensemble", "weights": {"omit": {"root": 20.0, "fifth": 0.0},
+                                              "leap_penalty": 2.0}}
+    assert vv._migrate_0_to_1(choir) is True
+    assert choir["weights"] == {"omit": {"root": -20.0, "fifth": 0.0}, "leap_penalty": -2.0}
+
+
+def test_0_to_1_moves_a_repaired_old_omission_order_to_the_ensemble_order():
+    from chordnotepad.models.ensemble_spec import (
+        ENSEMBLE_OMIT_WEIGHTS, PREVIOUS_ENSEMBLE_OMIT_WEIGHTS,
+    )
+    flipped = {role: -value for role, value in PREVIOUS_ENSEMBLE_OMIT_WEIGHTS.items()}
+    entry = {"model": "ensemble", "weights": {"omit": dict(flipped)}}
+    assert vv._migrate_0_to_1(entry) is True
+    assert entry["weights"]["omit"] == ENSEMBLE_OMIT_WEIGHTS
+    # One role changed by the user: repaired, and left in its order.
+    tuned = dict(flipped, root=5.0)
+    entry = {"model": "ensemble", "weights": {"omit": dict(tuned)}}
+    vv._migrate_0_to_1(entry)
+    assert entry["weights"]["omit"] == {role: -value for role, value in tuned.items()}
+
+
+def _failing_1_to_2(entry):
+    raise RuntimeError("a migration bug")
+
+
+def test_a_staged_voicing_whose_migration_fails_is_kept_as_staged(tmp_path):
+    from unittest.mock import patch
+    staging = SettingsStaging(tmp_path / "settings-staged.json")
+    quartet = copy.deepcopy(_fixture("v0.5.4-copies.json")["voicings"]["New String Quartet"])
+    staging.path.write_text(json.dumps({"version": 1, "voicings": {"Q": quartet},
+                                        "numbers": {}}))
+    with patch.object(vv, "MIGRATIONS", (vv._migrate_0_to_1, _failing_1_to_2)):
+        voicings, _ = staging.load()
+    assert voicings["Q"] == quartet
+
+
+def test_a_rebuild_from_an_unmigrated_base_migrates_a_copy_first():
+    from chordnotepad.settings_forms import voicing_form as vf
+    base = copy.deepcopy(_fixture("v0.5.4-copies.json")["voicings"]["New String Quartet"])
+    values = vf.values_from_voicing("ensemble", base)
+    out = vf.voicing_from_values("ensemble", values, base["label"], base=base)
+    assert out["based_on"] == "ensemble:quartet" and out["version"] == VOICING_VERSION
+    with __import__("unittest.mock").mock.patch.object(
+            vv, "MIGRATIONS", (vv._migrate_0_to_1, _failing_1_to_2)):
+        out = vf.voicing_from_values("ensemble", values, base["label"], base=base)
+    # Not stamped as current: the next load tries the migration again.
+    assert out["version"] == 0 and "based_on" not in out
+
+
+def test_an_edit_of_a_voicing_whose_migration_failed_keeps_its_version(tmp_path):
+    from unittest.mock import patch
+    from chordnotepad.session.platform import DESKTOP_QT
+    config_dir = tmp_path / "config" / "chord-notepad"
+    config_dir.mkdir(parents=True)
+    shutil.copyfile(FIXTURES / "v0.5.4-copies.json", config_dir / "settings.json")
+    with patch.object(vv, "MIGRATIONS", (vv._migrate_0_to_1, _failing_1_to_2)):
+        host = ManualHost()
+        services = build_core_services(AppDataService(root=tmp_path), HostDispatch(host),
+                                       player=FakePlayer())
+        assert "version" not in services.config.config.voicings["New String Quartet"]
+        session = create_session(host, services, InMemoryDocumentStore(), chord_sheet=False,
+                                 platform=DESKTOP_QT)
+        session.subscribe(EventRecorder())
+        session.start()
+        session.begin_settings_edit()
+        session.select_voicing("New String Quartet")
+        session.set_voicing_values({"weight:leap_penalty": "-2.75"})
+        session.add_voicing_from("custom", "New String Quartet")
+        working = session._settings_edit.model.get_voicings()
+        for name in ("New String Quartet", "New New String Quartet"):
+            assert working[name]["version"] == 0, name
+        assert working["New String Quartet"]["weights"]["leap_penalty"] == -2.75

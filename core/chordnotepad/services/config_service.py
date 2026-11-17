@@ -135,6 +135,12 @@ def _negate_signed_weights(data: dict) -> None:
                         omit[subkey] = -subval
 
 
+#: The startup notice when the settings file couldn't be read and was left in
+#: place (ConfigService.read_only).
+READ_ONLY_NOTICE = ("Settings couldn't be read, so the app started with default settings. "
+                    "Changes won't be saved this session; the settings file was left as it is.")
+
+
 def effective_version(data: dict, version: int) -> int:
     """The version a saved config's migrations start from.
 
@@ -182,9 +188,13 @@ class ConfigService:
       with its default, makes the next save first copy the file to
       ``settings.json.bak-v<old version>-<timestamp>`` (once per run; if the
       copy can't be made, nothing is written);
-    * a file that can't be read at all (not JSON, not an object, or failing
-      to load) is renamed to ``settings.json.corrupt-<timestamp>`` and the app
-      starts on the defaults, with :attr:`load_notice` saying so;
+    * a file whose content is damaged (not JSON, not UTF-8, not an object)
+      is renamed to ``settings.json.corrupt-<timestamp>`` and the app starts
+      on the defaults, with :attr:`load_notice` saying so;
+    * a file that can't be opened (no permission, locked by another program)
+      or that the migrations or ``Config.from_dict`` fail on (a bug) stays
+      where it is, and the app runs on the defaults without saving anything
+      this run (:attr:`read_only`), with its own notice;
     * a save that fails at load keeps the loaded config in memory.
 
     Backups are never deleted.
@@ -201,6 +211,9 @@ class ConfigService:
         #: Set when the settings file couldn't be read and the app started on
         #: the defaults: what to tell the user, once (see take_load_notice).
         self.load_notice: Optional[str] = None
+        #: True when the file on disk couldn't be read and mustn't be replaced
+        #: by the defaults: every save this run is refused.
+        self.read_only = False
 
     def load_config(self) -> Config:
         """Load configuration from file.
@@ -223,10 +236,30 @@ class ConfigService:
 
         self._logger.info(f"Loading configuration from {self._config_file_path}")
         try:
-            with open(self._config_file_path, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-            if not isinstance(data, dict):
-                raise ValueError(f"the settings are a {type(data).__name__}, not an object")
+            # utf-8-sig: a file saved by an editor that adds a byte order mark.
+            with open(self._config_file_path, 'r', encoding='utf-8-sig') as f:
+                text = f.read()
+        except OSError as e:
+            # No permission, locked by another program (Windows), ...: the
+            # file may be fine, so it stays as it is and nothing is saved.
+            self._logger.error(f"Could not open the configuration file: {e}")
+            return self._start_read_only()
+        except ValueError as e:  # UnicodeDecodeError: not text
+            self._logger.error(f"The configuration file is not UTF-8 text: {e}")
+            return self._start_set_aside()
+        try:
+            data = json.loads(text)
+        except ValueError as e:  # JSONDecodeError
+            self._logger.error(f"The configuration file is not valid JSON: {e}")
+            return self._start_set_aside()
+        except RecursionError as e:
+            self._logger.error(f"The configuration file is nested too deeply to read: {e}")
+            return self._start_read_only()
+        if not isinstance(data, dict):
+            self._logger.error(f"The configuration file holds a {type(data).__name__}, "
+                               f"not an object")
+            return self._start_set_aside()
+        try:
             version = config_version(data.get("version", 1))
             start = effective_version(data, version)
             migrated = version < CONFIG_VERSION
@@ -235,11 +268,9 @@ class ConfigService:
                                   + (f" (read as version {start})" if start != version else ""))
                 data = self._migrate_config(data, start)
             config = Config.from_dict(data)
-        except Exception as e:  # noqa: BLE001 - any failure to read keeps the file aside
-            self._logger.error(f"Could not read the configuration file: {e}")
-            self._set_aside_unreadable()
-            self._config = Config()
-            return self._config
+        except Exception as e:  # noqa: BLE001 - a bug here must not cost the file
+            self._logger.exception(f"Could not load the configuration file: {e}")
+            return self._start_read_only()
 
         self._config = config
         self._logger.debug("Configuration loaded successfully")
@@ -282,6 +313,20 @@ class ConfigService:
         except ConfigurationError as e:
             self._logger.error(f"Could not save {what}; keeping it in memory: {e}")
 
+    def _start_set_aside(self) -> Config:
+        """The file's content is damaged: set it aside and start on the defaults."""
+        self._set_aside_unreadable()
+        self._config = Config()
+        return self._config
+
+    def _start_read_only(self) -> Config:
+        """The file couldn't be read but may be fine: leave it, run on the
+        defaults, and refuse every save this run."""
+        self.read_only = True
+        self.load_notice = READ_ONLY_NOTICE
+        self._config = Config()
+        return self._config
+
     def _set_aside_unreadable(self) -> None:
         """Rename the unreadable settings file to ``settings.json.corrupt-<ts>``
         and set :attr:`load_notice`. If it can't be renamed, a copy is tried;
@@ -297,9 +342,8 @@ class ConfigService:
                 shutil.copyfile(path, target)
             except OSError as e2:
                 self._logger.error(f"Could not copy {path.name} to {target.name} either: {e2}")
-                self._backup_label = "corrupt"
-                self.load_notice = ("Settings couldn't be read. The app started with default "
-                                    "settings; the old file was kept as it was.")
+                self.read_only = True
+                self.load_notice = READ_ONLY_NOTICE
                 return
             # A copy of the file is kept; the file itself may now be replaced.
         self._logger.warning(f"Kept the unreadable settings file as {target.name}")
@@ -354,6 +398,10 @@ class ConfigService:
 
         if self._config is None:
             raise ConfigurationError("No configuration to save")
+        if self.read_only:
+            raise ConfigurationError(
+                f"{self._config_file_path.name} couldn't be read when the app started, so "
+                "nothing is saved until the app is restarted (the file was left as it is).")
 
         try:
             # Validate before saving

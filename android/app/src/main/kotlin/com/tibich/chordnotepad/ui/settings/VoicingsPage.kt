@@ -129,7 +129,14 @@ private fun VoicingDetail(schema: EditorSchema, view: EditorView, wide: Boolean,
         }
         return
     }
-    val form = schema.form(state.model) ?: return
+    val form = schema.form(state.model)
+    if (form == null) {
+        // A voicing of a model a newer version added: read-only, no form
+        // (editing it here would rewrite it as another model); the session's
+        // note says so. It can still be renamed or removed.
+        if (state.readOnly) NewerVersionDetail(schema, name, state.formErrors, controller, modifier)
+        return
+    }
     val items = remember(form, view.values, state.fieldErrors, state.hints) {
         buildForm(form, view.values, state.fieldErrors, state.hints)
     }
@@ -187,6 +194,33 @@ private fun VoicingDetail(schema: EditorSchema, view: EditorView, wide: Boolean,
             schema.help["load"]?.let { HelpLine(it) }
             HorizontalDivider(Modifier.padding(top = 8.dp))
             VoicingFormItems(items, "$name:${state.model}", wide, actions)
+        }
+    }
+}
+
+/** A voicing of a model a newer version added: its name, the note, and Remove. */
+@Composable
+private fun NewerVersionDetail(
+    schema: EditorSchema,
+    name: String,
+    notes: List<String>,
+    controller: SettingsController,
+    modifier: Modifier,
+) {
+    val focus = LocalFocusManager.current
+    Column(
+        modifier.padding(16.dp).widthIn(max = 900.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        NameField(schema, name) {
+            focus.clearFocus()
+            controller.askRename(name)
+        }
+        notes.forEach { Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+        TextButton(onClick = { controller.askRemove(name) }) {
+            Icon(SettingsIcons.Delete, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
+            Spacer(Modifier.width(ButtonDefaults.IconSpacing))
+            Text(stringResource(R.string.voicings_remove))
         }
     }
 }

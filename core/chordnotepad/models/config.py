@@ -83,6 +83,31 @@ _FIELD_CHECKS: Dict[str, Callable[[Any], bool]] = {
     "key": lambda value: isinstance(value, str),
 }
 
+#: The keys ``from_dict`` cleans up on its own (junk reads as the default, a
+#: number is clamped or rounded): one whose saved value comes out different
+#: counts as a fallback too, so the file is backed up before it is replaced.
+_SANITIZED_KEYS = (
+    "ui_theme", "ui_scale", "menu_bar_shown", "word_wrap", "volume", "metronome_volume",
+    "click_plays_chart_voicing", "window_bounds", "support_prompt_last_shown",
+    "chord_sheet_logical_height", "chord_sheet_zoom", "sidebar", "sidebar_width",
+    "dismissed_notices",
+)
+
+
+def _same(a: Any, b: Any) -> bool:
+    """``a == b`` for saved JSON values, where a bool is never a number and
+    3 equals 3.0."""
+    if isinstance(a, bool) or isinstance(b, bool):
+        return isinstance(a, bool) and isinstance(b, bool) and a is b
+    if _is_number(a) or _is_number(b):
+        return _is_number(a) and _is_number(b) and float(a) == float(b)
+    if isinstance(a, dict) and isinstance(b, dict):
+        return a.keys() == b.keys() and all(_same(a[k], b[k]) for k in a)
+    if isinstance(a, (list, tuple)) and isinstance(b, (list, tuple)):
+        return len(a) == len(b) and all(_same(x, y) for x, y in zip(a, b))
+    return a == b
+
+
 #: The top-level keys ``from_dict`` reads besides the fields ``to_dict``
 #: writes: the legacy voicing registries, moved into ``voicings`` on load.
 _LEGACY_KEYS = ("custom_tunings", "custom_ensembles")
@@ -379,6 +404,11 @@ class Config:
             sidebar_width=cls._sidebar_width(data.get("sidebar_width")),
             dismissed_notices=cls._notice_ids(data.get("dismissed_notices")),
         )
+        for key in _SANITIZED_KEYS:
+            if key in data and not _same(getattr(config, key), data[key]):
+                logger.warning(f"Config {key}={data[key]!r} is not usable as saved; "
+                               f"read as {getattr(config, key)!r}")
+                fallbacks.append(key)
         known = set(config.to_dict()) | set(_LEGACY_KEYS)
         config.extra = {key: value for key, value in data.items() if key not in known}
         config.needs_backup = bool(fallbacks)
@@ -507,6 +537,7 @@ class Config:
                     f"Voicing '{name}' already exists in the voicings registry; "
                     f"ignoring legacy custom_tunings entry of the same name"
                 )
+                fallbacks.append("custom_tunings")
                 continue
             voicings[name] = {"model": "fretboard", "tuning": tuning}
 
@@ -520,6 +551,7 @@ class Config:
                     f"Voicing '{name}' already exists in the voicings registry; "
                     f"ignoring legacy custom_ensembles entry of the same name"
                 )
+                fallbacks.append("custom_ensembles")
                 continue
             voicings[name] = {"model": "ensemble", **ensemble_data}
 

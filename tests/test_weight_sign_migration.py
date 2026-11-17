@@ -401,18 +401,25 @@ def _write_and_load(tmp_path, data):
 
 def test_a_file_below_v3_with_voicings_is_read_as_v3(tmp_path):
     """A first-session file of 0.3.0-0.5.4 (version 1, or 2 from a nightly):
-    its voicings are signed already, so loading it flips no sign."""
-    signed_choir = {"model": "ensemble",
-                    "voices": [{"name": "S", "range": ["C4", "G5"]},
-                               {"name": "B", "range": ["E2", "C4"]}],
-                    "weights": {"movement": [-0.4, -0.15], "leap_penalty": -2.5,
-                                "common_tone_bonus": 1.5,
-                                "omit": {"root": -20.0, "third": -40.0}}}
+    its voicings are signed already, so loading it flips no sign. The choir
+    has no ``omit`` and the guitar only some penalties, so the voicing
+    migration's sign repair (which needs every omit value, or all six
+    fretboard penalties) can't undo a flip: only the rule keeps them."""
+    signed = {
+        "c": {"model": "ensemble",
+              "voices": [{"name": "S", "range": ["C4", "G5"]},
+                         {"name": "B", "range": ["E2", "C4"]}],
+              "weights": {"movement": [-0.4, -0.15], "leap_penalty": -2.5,
+                          "common_tone_bonus": 1.5}},
+        "g": {"model": "fretboard", "tuning": [40, 45, 50, 55, 59, 64],
+              "weights": {"span_penalty": -1.2, "barre_penalty": -1.0, "bass_note_bonus": 8.0}},
+    }
     for version in (1, 2):
         root = tmp_path / f"v{version}"
         root.mkdir()
-        loaded = _write_and_load(root, {"version": version, "voicings": {"c": signed_choir}})
-        assert loaded.voicings["c"]["weights"] == signed_choir["weights"], version
+        loaded = _write_and_load(root, {"version": version, "voicings": copy.deepcopy(signed)})
+        for name, entry in signed.items():
+            assert loaded.voicings[name]["weights"] == entry["weights"], (version, name)
 
 
 def test_a_signed_v1_file_keeps_its_penalties_negative(tmp_path):

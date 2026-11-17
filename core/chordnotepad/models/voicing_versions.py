@@ -108,38 +108,57 @@ def _infer_based_on(entry: Mapping[str, Any]) -> Optional[str]:
     return None
 
 
+def _flipped(values: List[Any]) -> bool:
+    """Every value a number of at least 0, and at least one above 0: what the
+    old flip left of penalties that were all at or below 0."""
+    return (all(_is_number(value) and value >= 0 for value in values)
+            and any(value > 0 for value in values))
+
+
 def _repair_flipped_signs(entry: MutableMapping[str, Any]) -> bool:
     """Negate back the penalties the old v1 migration turned into rewards.
 
-    A fretboard is repaired only when all six negated keys are there and
-    above 0, an ensemble only when every ``omit`` value is above 0 (no one
-    rewards dropping the third); then each of those penalties above 0 goes
-    back below 0. Anything mixed is a user's own setting and stays.
+    A fretboard is repaired only when all six negated keys are there, none
+    below 0 and at least one above 0; an ensemble only when its ``omit``
+    values are the same (no one rewards dropping the third). Then each of
+    those penalties above 0 goes back below 0 (a 0 stays 0). Anything mixed
+    is a user's own setting and stays.
+
+    An ensemble repaired back to the omission order 0.3.0 to 0.4.1 used
+    (``PREVIOUS_ENSEMBLE_OMIT_WEIGHTS``, exactly) then takes the ensemble
+    order, as config v4 moved every undamaged one.
     """
+    from chordnotepad.models.ensemble_spec import (
+        ENSEMBLE_OMIT_WEIGHTS, PREVIOUS_ENSEMBLE_OMIT_WEIGHTS,
+    )
+
     weights = entry.get('weights')
     if not isinstance(weights, dict):
         return False
     model = entry.get('model')
     if model == 'fretboard':
-        if not all(_is_number(weights.get(key)) and weights[key] > 0
-                   for key in FRETBOARD_NEGATED_KEYS):
+        if not all(key in weights for key in FRETBOARD_NEGATED_KEYS) or not _flipped(
+                [weights[key] for key in FRETBOARD_NEGATED_KEYS]):
             return False
         for key in FRETBOARD_NEGATED_KEYS:
-            weights[key] = -weights[key]
+            if weights[key] > 0:
+                weights[key] = -weights[key]
         return True
     if model == 'ensemble':
         omit = weights.get('omit')
-        if not isinstance(omit, dict) or not omit or not all(
-                _is_number(value) and value > 0 for value in omit.values()):
+        if not isinstance(omit, dict) or not omit or not _flipped(list(omit.values())):
             return False
         for role in omit:
-            omit[role] = -omit[role]
+            if omit[role] > 0:
+                omit[role] = -omit[role]
         for key in ENSEMBLE_NEGATED_FLAT_KEYS:
             value = weights.get(key)
             if _is_number(value) and value > 0:
                 weights[key] = -value
             elif isinstance(value, list):
                 weights[key] = [-v if _is_number(v) and v > 0 else v for v in value]
+        if _equal(omit, PREVIOUS_ENSEMBLE_OMIT_WEIGHTS):
+            weights['omit'] = dict(ENSEMBLE_OMIT_WEIGHTS)
         return True
     return False
 
@@ -396,6 +415,30 @@ def stamp(entry: MutableMapping[str, Any], based_on: Optional[str] = None) -> Mu
     if based_on is not None:
         entry["based_on"] = based_on
     return entry
+
+
+def stamp_new(entry: MutableMapping[str, Any], based_on: Optional[str] = None) -> MutableMapping[str, Any]:
+    """Like :func:`stamp`, but a ``version`` the entry has is kept as it is:
+    a copy of a voicing whose migration failed keeps its lower version, so
+    the next load tries again. For dicts that may come from the working copy
+    (presets of the user's own voicings); a fresh dict gets this release's."""
+    if "version" not in entry:
+        entry["version"] = VOICING_VERSION
+    if based_on is not None:
+        entry["based_on"] = based_on
+    return entry
+
+
+def migrated_copy(entry: Mapping[str, Any]) -> Tuple[Dict[str, Any], bool]:
+    """A deep copy of ``entry`` brought up to :data:`VOICING_VERSION`, and
+    whether that worked; if a migration fails, the untouched copy and False
+    (its version stays below the current one)."""
+    out = copy.deepcopy(dict(entry))
+    try:
+        migrate_voicing(out)
+    except Exception:  # noqa: BLE001 - a failed migration keeps the voicing as it was
+        return copy.deepcopy(dict(entry)), False
+    return out, True
 
 
 def migrate_voicing(entry: MutableMapping[str, Any]) -> bool:

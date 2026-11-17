@@ -37,6 +37,10 @@ from chordnotepad.settings_forms.voicing_texts import (
 #: The group of the presets that are a model's defaults (listed first).
 BLANK_GROUP = "blank"
 
+#: The note on a voicing of a model this release doesn't know, shown
+#: read-only (``VoicingEditorState.form_errors``).
+NEWER_VERSION_NOTE = "Made by a newer version of Chord Notepad; edit it there."
+
 if TYPE_CHECKING:
     from chordnotepad.viewmodels.settings_viewmodel import SettingsViewModel
 
@@ -59,6 +63,8 @@ class SettingsEdit:
         #: ``(group, label)`` of the built-in shown read-only, or None.
         self._builtin: Optional[Tuple[str, str]] = None
         self._form_model: Optional[str] = None
+        #: The voicing selected is a newer release's model (read-only).
+        self._newer = False
         self._values: Dict[str, Any] = {}
         self._label: Optional[str] = None
         self._dirty = False
@@ -93,7 +99,7 @@ class SettingsEdit:
         if self._builtin is not None:
             self._values = form.values_from_voicing(
                 self._form_model, self._builtin_data(*self._builtin), self.notation)
-        elif self._selected is not None:
+        elif self._selected is not None and not self._newer:
             self._values = form.values_from_voicing(
                 self._form_model, self.model.get_voicings()[self._selected], self.notation)
 
@@ -106,9 +112,10 @@ class SettingsEdit:
 
     @property
     def read_only(self) -> bool:
-        """Whether the form shows a built-in (:meth:`select_builtin`): every
-        edit is refused until a voicing of the user's is selected."""
-        return self._builtin is not None
+        """Whether the form shows a built-in (:meth:`select_builtin`), or a
+        voicing of a model a newer release added: every edit is refused
+        until another voicing is selected (renaming and removing still work)."""
+        return self._builtin is not None or self._newer
 
     def select(self, name: str) -> None:
         """Load ``name`` into the form (not edited yet).
@@ -167,7 +174,7 @@ class SettingsEdit:
         else:
             raise ValueError(f"no preset {label!r} in group {group!r}")
         data = copy.deepcopy(preset["data"])
-        voicing_versions.stamp(data, preset.get("based_on"))
+        voicing_versions.stamp_new(data, preset.get("based_on"))
         if group == BLANK_GROUP:
             base = BLANK_VOICING_NAMES[data["model"]]
         else:
@@ -287,7 +294,7 @@ class SettingsEdit:
         for preset in self.presets():
             if preset["group"] == group and preset["label"] == label:
                 data = copy.deepcopy(preset["data"])
-                voicing_versions.stamp(data, preset.get("based_on"))
+                voicing_versions.stamp_new(data, preset.get("based_on"))
                 self._label = data.get("label")
                 self._store(data)
                 self._load(data, keep_label=True)
@@ -313,6 +320,9 @@ class SettingsEdit:
         for name, data in self.model.get_voicings().items():
             saved = self.saved_voicing(name, disk)
             if saved is not None and data == saved:
+                continue
+            if form.made_by_newer_version(data):
+                # Never through a form of ours: written as it is.
                 continue
             if name == self._selected and self._builtin is None:
                 model, values, label, recent = self._form_model, self._values, self._label, self._recent
@@ -394,6 +404,10 @@ class SettingsEdit:
             return VoicingEditorState(
                 selected=None, model=None, values={}, field_errors={},
                 form_errors=(), hints={}, dirty=False, **common)
+        if self._newer:
+            return VoicingEditorState(
+                selected=self._selected, model=None, values={}, field_errors={},
+                form_errors=(NEWER_VERSION_NOTE,), hints={}, dirty=False, **common)
         checked = form.validate_form(self._selected, self._form_model, self._values, self._label)
         field_errors = dict(checked["fields"])
         # (A built-in has no plan; a voicing of the user's may share its label.)
@@ -435,6 +449,8 @@ class SettingsEdit:
             raise RuntimeError(
                 f"the voicing in the form is the built-in {self._selected!r}, "
                 "which can't be edited (add_voicing_from copies it)")
+        if self._newer:
+            raise RuntimeError(f"{self._selected!r}: {NEWER_VERSION_NOTE}")
 
     def _blanks(self) -> List[Dict[str, Any]]:
         """The ``blank`` presets: each model's defaults, in list order."""
@@ -453,6 +469,13 @@ class SettingsEdit:
         raise ValueError(f"no built-in voicing {label!r} of model {group!r}")
 
     def _load(self, data: Mapping[str, Any], keep_label: bool = False) -> None:
+        self._newer = form.made_by_newer_version(data)
+        if self._newer:
+            self._form_model = None
+            self._values = {}
+            if not keep_label:
+                self._label = data.get("label")
+            return
         self._form_model = form.form_model(data.get("model", "piano"))
         self._values = form.values_from_voicing(self._form_model, data, self.notation)
         if not keep_label:
@@ -464,9 +487,10 @@ class SettingsEdit:
         return self.model.get_voicings().get(self._selected)
 
     def _store(self, data: Dict[str, Any]) -> None:
-        """Every write of the selected voicing comes here: it gets this
-        release's ``version`` (or keeps a newer one)."""
-        voicing_versions.stamp(data)
+        """Every write of the selected voicing comes here: one without a
+        ``version`` gets this release's (a rebuild from the form has set its
+        own, which may stay lower if the stored voicing's migration failed)."""
+        voicing_versions.stamp_new(data)
         self.model.set_voicing_data(self._selected, data)
         self._dirty = True
 
@@ -479,6 +503,7 @@ class SettingsEdit:
         self._recent = []
         self._selected = None
         self._builtin = None
+        self._newer = False
         self._form_model = None
         self._values = {}
         self._label = None

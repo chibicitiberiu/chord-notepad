@@ -2332,7 +2332,11 @@ class AppSession:
         if self._startup_screen == StartupScreen.SUPPORT_PROMPT:
             services = self._require_services("the support prompt")
             services.config.config.support_prompt_last_shown = self._startup_today
-            services.config.save_config()
+            try:
+                services.config.save_config()
+            except ConfigurationError as e:
+                # The date stays in memory; the prompt is closed all the same.
+                logger.error(f"Could not save the support prompt's date: {e}")
         self._set_startup_screen(StartupScreen.NONE)
 
     def _set_startup_screen(self, screen: StartupScreen) -> None:

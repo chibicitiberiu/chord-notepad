@@ -19,6 +19,7 @@ value that doesn't parse stays the raw text); ``numbers`` the text of each
 General/Playback number field that isn't a whole number in range.
 """
 
+import copy
 import json
 import logging
 import os
@@ -62,12 +63,16 @@ class SettingsStaging:
             return {}, {}
         voicings = {str(name): voicing for name, voicing in (data.get("voicings") or {}).items()
                     if isinstance(voicing, dict) and "model" in voicing}
-        # Staged by an older release: brought up to date as the config is.
+        # Staged by an older release: brought up to date as the config is. A
+        # voicing a migration fails on is kept exactly as it was staged.
         for name, voicing in voicings.items():
+            before = copy.deepcopy(voicing)
             try:
                 migrate_voicing(voicing)
             except Exception as e:  # noqa: BLE001 - staging is a safety net
                 logger.warning("Could not migrate the staged voicing %r: %s", name, e)
+                voicing.clear()
+                voicing.update(before)
         numbers = {key: text for key, text in (data.get("numbers") or {}).items()
                    if key in NUMBER_SETTINGS and isinstance(text, str)}
         self._written = data

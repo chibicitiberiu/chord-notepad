@@ -20,7 +20,9 @@ from typing import Any, Dict, List, Optional, Tuple
 from chordnotepad.models import voicing_versions
 from chordnotepad.models.notation import american_key, key_names, spell_key
 from chordnotepad.services.config_service import ConfigService
-from chordnotepad.settings_forms.voicing_form import load_presets, voicing_error
+from chordnotepad.settings_forms.voicing_form import (
+    load_presets, made_by_newer_version, voicing_error,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -160,14 +162,14 @@ class SettingsViewModel:
     def add_voicing_data(self, base: str, data: dict) -> str:
         """Add a voicing with ``data`` (it must include ``'model'``), named
         ``base`` or, when that is taken (ignoring case, or a built-in's
-        name), ``base 2``, ``base 3``... It gets this release's ``version``
-        (``models.voicing_versions.stamp``).
+        name), ``base 2``, ``base 3``... One without a ``version`` gets this
+        release's (``models.voicing_versions.stamp_new``).
 
         Returns:
             The name it got.
         """
         name = self._unique_name(base)
-        self._working_voicings[name] = voicing_versions.stamp(data)
+        self._working_voicings[name] = voicing_versions.stamp_new(data)
         return name
 
     def remove_voicing(self, name: str) -> None:
@@ -270,9 +272,14 @@ class SettingsViewModel:
         return voicing_error(name, data)
 
     def validate_all(self) -> List[Tuple[str, str]]:
-        """Return ``(name, error_message)`` for every invalid working voicing."""
+        """Return ``(name, error_message)`` for every invalid working voicing.
+
+        A voicing of a model a newer release added is left out: it can't be
+        edited here, and it is saved as that release wrote it."""
         errors: List[Tuple[str, str]] = []
-        for name in self._working_voicings:
+        for name, data in self._working_voicings.items():
+            if made_by_newer_version(data):
+                continue
             message = self.validate_voicing(name)
             if message is not None:
                 errors.append((name, message))

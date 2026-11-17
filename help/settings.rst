@@ -515,14 +515,20 @@ and a copy of a built-in at the built-in's value.
    tells you so. The damaged file is kept in the same folder as
    ``settings.json.corrupt-<date>-<time>``, so you can repair it, or copy your
    voicings out of it, and put it back as ``settings.json`` while the app is
-   closed.
+   closed. If the file can't be opened at all (another program has it
+   locked, or its permissions don't allow it), the app leaves it where it is,
+   starts with the default settings and saves nothing until you restart it;
+   it tells you so at startup.
 
    **Going back to an older version.** From 0.6.0 on, an older version keeps
    the settings a newer one wrote that it doesn't know. Versions before 0.6.0
    drop them when they save, and editing a copy of a built-in voicing there
    drops its link to the built-in and the settings added since. Back on the
    newer version, the link is found again by the name, and those settings
-   take the built-in's values again.
+   take the built-in's values again. A kind of voicing an older version
+   doesn't know (one a newer version added) shows in its Voicings list
+   read-only, with a note to edit it in the newer version, and is saved as
+   it was.
 
 .. only:: android
 
@@ -530,4 +536,5 @@ and a copy of a built-in at the built-in's value.
    as they were. If a value can't be used, that one setting goes back to its
    default and the others stay. If your settings can't be read at all, the app
    starts with the default settings and tells you so; the old settings are
-   kept.
+   kept. A kind of voicing this version doesn't know (one a newer version
+   added) shows read-only, with a note to edit it in the newer version.

@@ -243,6 +243,30 @@ def test_a_saved_off_shows_off_after_a_restart(qapp, qtbot, tmp_path):
         qtbot.wait(1)
 
 
+def test_a_newer_releases_voicing_shows_read_only_with_its_note(qapp, qtbot, tmp_path):
+    from chordnotepad.models.voicing_versions import VOICING_VERSION
+    from chordnotepad.session.settings_edit import NEWER_VERSION_NOTE
+    harp = {"model": "harp", "strings": 47, "version": VOICING_VERSION + 1}
+    write_config(tmp_path, show_quick_start_on_startup=False, voicings={"Harp": harp})
+    harness = QtAppHarness(qapp, tmp_path).start()
+    qtbot.waitUntil(lambda: harness.window.property("contentReady") is True, timeout=3000)
+    s = Settings(harness, qtbot).open("voicings")
+    try:
+        s.click("voicing:Harp")
+        qtbot.waitUntil(lambda: s.editor("selected") == "Harp", timeout=2000)
+        assert s.editor("read_only") is True and s.editor("model") is None
+        s.wait(50)
+        assert s.item("builtinName").isVisible() and not s.item("copyBuiltin").isVisible()
+        assert s.item("voicingErrorsText").property("text") == NEWER_VERSION_NOTE
+        assert s.item("removeVoicing").property("enabled") is False
+        s.save()
+        assert s.saved()["voicings"]["Harp"] == harp
+        assert list(harness.app.warnings) == []
+    finally:
+        harness.shutdown()
+        qtbot.wait(1)
+
+
 def test_q8_a_typed_number_out_of_range_is_marked_and_save_waits_for_it(settings):
     assert settings.config("max_recent_files") == 10
     settings.model.setNumber("max_recent_files", "60", True)

@@ -252,3 +252,60 @@ def test_an_edit_on_either_platform_keeps_a_newer_releases_keys(tmp_path):
         assert saved["future_key"] == [1, 2] and saved["weights"]["future_weight"] == -1.5
         assert saved["version"] == VOICING_VERSION + 2
         assert saved["based_on"] == "ensemble:quartet"
+
+
+# -- a newer release's model ------------------------------------------------------------
+
+
+HARP = {"model": "harp", "strings": 47, "pedals": {"C": "natural"},
+        "weights": {"glissando_bonus": 1.0}, "version": VOICING_VERSION + 1}
+GUITAR = {"model": "fretboard", "tuning": [40, 45, 50, 55, 59, 64], "label": "Mine",
+          "version": VOICING_VERSION}
+
+
+def _editor(session):
+    from chordnotepad.session.state import VoicingEditorState
+    return session._settings_edit.state(session._services.config.config.voicings)
+
+
+@pytest.mark.parametrize("platform", [DESKTOP_QT, ANDROID])
+def test_a_newer_releases_model_is_read_only_and_never_rewritten(tmp_path, platform):
+    from chordnotepad.session.settings_edit import NEWER_VERSION_NOTE
+    session, services = _make(tmp_path, voicings={"Harp": copy.deepcopy(HARP),
+                                                   "Mine": copy.deepcopy(GUITAR)},
+                              platform=platform)
+    session.select_voicing("Harp")
+    state = _editor(session)
+    assert (state.selected, state.model, state.read_only) == ("Harp", None, True)
+    assert state.values == {} and state.form_errors == (NEWER_VERSION_NOTE,)
+    assert "Harp" not in state.invalid
+    for edit in (lambda: session.set_voicing_values({"weight:x": "1"}),
+                 lambda: session.set_voicing_model("piano"),
+                 lambda: session.load_voicing_preset("ensemble", "String Quartet"),
+                 lambda: session.add_voicing_record("voices")):
+        with pytest.raises(RuntimeError, match="newer version"):
+            edit()
+    assert _working(session)["Harp"] == HARP
+
+    # Editing another voicing and saving writes the harp as it was.
+    session.select_voicing("Mine")
+    assert not _editor(session).read_only
+    session.set_voicing_values({"max_fret": "15"})
+    session.rename_voicing("Harp", "Concert harp")
+    if platform == ANDROID:
+        session.commit_settings(None, invalid_numbers={})
+    else:
+        session.save_settings()
+    disk = _disk(services)
+    assert disk["Concert harp"] == HARP and "Harp" not in disk
+    assert disk["Mine"]["max_fret"] == 15
+
+
+def test_loading_a_newer_releases_voicing_over_one_makes_it_read_only(tmp_path):
+    session, services = _make(tmp_path, voicings={"Harp": copy.deepcopy(HARP),
+                                                   "Mine": copy.deepcopy(GUITAR)})
+    session.select_voicing("Mine")
+    session.load_voicing_preset("custom", "Harp")
+    assert _editor(session).read_only and _working(session)["Mine"] == HARP
+    with pytest.raises(RuntimeError):
+        session.set_voicing_values({"max_fret": "15"})
