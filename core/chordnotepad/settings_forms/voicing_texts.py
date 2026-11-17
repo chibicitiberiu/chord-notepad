@@ -176,7 +176,9 @@ TOOLTIPS: Dict[str, str] = {
                                      "positive favors fuller-sounding fingerings; negative would "
                                      "favor sparser ones."),
     'weight:open_string_bonus': ("How the picker treats open strings (fret 0), on top of the "
-                                 "sounding-string weight. More positive favors open strings."),
+                                 "sounding-string weight, while the shape stays within the "
+                                 "first frets (one fewer than the fingers). Up the neck an open "
+                                 "string earns nothing. More positive favors open strings."),
     'weight:bass_note_bonus': ("How the picker treats the root as the lowest-sounding note, "
                                "judged by pitch, not string. Added when it is and subtracted "
                                "when it isn't; more positive insists on a root bass."),
@@ -214,7 +216,8 @@ TOOLTIPS: Dict[str, str] = {
     'weight:interior_mute_penalty': ("How the picker treats a muted string buried between two "
                                      "sounding strings; charged twice for each, except the one "
                                      "right above a fretted bass (Damped string above the bass). "
-                                     "More negative avoids that shape."),
+                                     "Also charged once for an open string ringing between two "
+                                     "fretted strings up the neck. More negative avoids those shapes."),
     'weight:movement_penalty': ("How the picker treats the hand shifting from the previous "
                                 "chord, across the whole song. More negative steadies the hand."),
     'weight:kept_finger_bonus': ("How the picker treats a finger staying on the same string and "

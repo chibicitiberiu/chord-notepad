@@ -642,7 +642,7 @@
         },
         {
          "default": "0.5",
-         "help": "How the picker treats open strings (fret 0), on top of the sounding-string weight. More positive favors open strings.",
+         "help": "How the picker treats open strings (fret 0), on top of the sounding-string weight, while the shape stays within the first frets (one fewer than the fingers). Up the neck an open string earns nothing. More positive favors open strings.",
          "id": "weight:open_string_bonus",
          "kind": "float",
          "label": "Open string",
@@ -742,7 +742,7 @@
         },
         {
          "default": "-4.0",
-         "help": "How the picker treats a muted string buried between two sounding strings; charged twice for each, except the one right above a fretted bass (Damped string above the bass). More negative avoids that shape.",
+         "help": "How the picker treats a muted string buried between two sounding strings; charged twice for each, except the one right above a fretted bass (Damped string above the bass). Also charged once for an open string ringing between two fretted strings up the neck. More negative avoids those shapes.",
          "id": "weight:interior_mute_penalty",
          "kind": "float",
          "label": "Muted inner string",

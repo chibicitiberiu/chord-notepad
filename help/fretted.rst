@@ -378,8 +378,12 @@ while pushing it more negative clamps down on them.
      - +1.2
    * - Open string
      - Added per string played open (fret 0), on top of the sounding-string
-       weight. Open strings ring fuller and cost nothing to hold, so this
-       stays positive.
+       weight, while the whole shape stays within the first three frets (one
+       fewer than the hand's fingers), where a hand at the nut lets strings
+       ring: C x32010, B7 x21202. Up the neck an open string earns nothing,
+       and one ringing between two fretted strings costs "Muted inner string"
+       once instead (Eb x65046). Open strings ring fuller and cost nothing to
+       hold, so this stays positive.
      - ``open_string_bonus``
      - +0.5
    * - Correct bass note
@@ -447,9 +451,11 @@ while pushing it more negative clamps down on them.
    * - Muted inner string
      - Subtracted twice per muted string sitting between two sounding strings
        -- a "buried" mute that a strum can't skip cleanly -- except the one
-       right above a fretted bass ("Damped string above the bass"). Set
-       strongly negative so a plain barre chord beats a contorted shape with a
-       dead string in the middle.
+       right above a fretted bass ("Damped string above the bass"). The same
+       weight is charged once for an open string ringing between two fretted
+       strings in a shape up the neck (Eb x65046), so changing it changes
+       that rule too. Set strongly negative so a plain barre chord beats a
+       contorted shape with a dead string in the middle.
      - ``interior_mute_penalty``
      - -4.0
    * - Hand movement
