@@ -81,6 +81,16 @@ shapes when it voices a progression: C as 0003, G as 0232, G7 as 0212, F as
 instead, which puts the root at the bottom; within a song, staying near the
 nut wins.)
 
+A chord with more notes than the instrument has strings (a 9th, 11th or 13th
+on four strings) has to leave some out, and the picker chooses which by what
+each note does in the chord. The perfect fifth goes first, then an extension
+the chord's name only stacks in (the 9th of a 13 chord), then the root, then
+the extension the name spells (the 13th of G13). The third, the seventh, a
+6th, a ``sus`` tone and an altered fifth are kept. So a ukulele G13 sounds
+G, B, F and E, and a D9 keeps its F♯ and C. This is built in rather than a
+weight, and it only applies when no shape holds the whole chord; six strings
+almost always have room for every note.
+
 
 Defining a Custom Fretted Voicing
 ======================================

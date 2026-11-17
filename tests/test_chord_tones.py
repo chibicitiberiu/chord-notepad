@@ -2,7 +2,8 @@
 
 import pytest
 
-from chordnotepad.audio.chord_tones import classify_role, is_diminished_seventh, DEFAULT_OMIT_PENALTY
+from chordnotepad.audio.chord_tones import (
+    classify_role, is_diminished_seventh, is_named_extension, DEFAULT_OMIT_PENALTY)
 
 
 class TestClassifyRole:
@@ -60,6 +61,31 @@ class TestClassifyRole:
     def test_extension_above_octave(self, interval: int) -> None:
         # Everything >= 12 is upper structure, regardless of pitch class.
         assert classify_role(interval) == 'extension'
+
+
+class TestNamedExtension:
+    """Which extension a chord symbol spells (hand-written from the names)."""
+
+    @pytest.mark.parametrize('name, intervals, named, stacked', [
+        ('G13', [0, 4, 7, 10, 14, 21], {21}, {14}),
+        ('Am11', [0, 3, 7, 10, 14, 17], {17}, {14}),
+        ('C9', [0, 4, 7, 10, 14], {14}, set()),
+        ('Cadd9', [0, 4, 7, 14], {14}, set()),
+        ('Cmaj9', [0, 4, 7, 11, 14], {14}, set()),
+        ('C7b9', [0, 4, 7, 10, 13], {13}, set()),
+        ('C7#9', [0, 4, 7, 10, 15], {15}, set()),
+        ('C13b9', [0, 4, 7, 10, 13, 21], {13, 21}, set()),
+        ('C9#11', [0, 4, 7, 10, 14, 18], {14, 18}, set()),
+        ('C7b13', [0, 4, 7, 10, 20], {20}, set()),
+        ('C13 with an 11', [0, 4, 7, 10, 14, 17, 21], {21}, {14, 17}),
+    ])
+    def test_named_and_stacked(self, name, intervals, named, stacked) -> None:
+        exts = {iv for iv in intervals if iv >= 12}
+        assert {iv for iv in exts if is_named_extension(iv, intervals)} == named, name
+        assert {iv for iv in exts if not is_named_extension(iv, intervals)} == stacked, name
+
+    def test_core_tones_are_never_extensions(self) -> None:
+        assert not any(is_named_extension(iv, [0, 4, 7, 9]) for iv in [0, 4, 7, 9])
 
 
 class TestDefaultOmitPenalty:

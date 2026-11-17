@@ -71,6 +71,28 @@ def classify_role(interval: int, intervals: Optional[Iterable[int]] = None) -> s
     return 'color'  # sus2/sus4/6th, an altered fifth and other defining colour tones
 
 
+#: Extensions a chord symbol spells as alterations (b9, #9, #11, b13): each is
+#: written in the name, so each is a named extension.
+ALTERED_EXTENSIONS = frozenset((13, 15, 18, 20))
+
+
+def is_named_extension(interval: int, intervals: Iterable[int]) -> bool:
+    """Whether an extension is one the chord's name spells.
+
+    A chord symbol names its highest natural extension (the 13 of G13, the 11
+    of Am11, the 9 of Cmaj9 or Cadd9) and every altered one (the b9 of C7b9,
+    the #11 of Cmaj7#11). A natural 9 or 11 under a named 13th, or a 9 under
+    a named 11th, is stacked in by the name without being what it says, so it
+    is the one to leave out first. False for anything below the octave.
+    """
+    if interval < 12:
+        return False
+    if interval in ALTERED_EXTENSIONS:
+        return True
+    naturals = [iv for iv in intervals if iv >= 12 and iv not in ALTERED_EXTENSIONS]
+    return not naturals or interval >= max(naturals)
+
+
 # Completeness (piano): penalty (subtracted) for each chord tone missing from
 # the whole voicing, keyed by the tone's harmonic role. The bass covers the root,
 # so an omitted root is cheap; the third, seventh and colour tones define the

@@ -219,6 +219,56 @@ class TestUkulele:
             assert got == shape, f"{name}: expected {shape}, got {got}"
 
 
+class TestPartialVoicingsKeepTheDefiningTones:
+    """A chord with more tones than strings leaves out tones by role: the
+    perfect fifth first, then a stacked-in extension, the root, the named
+    extension; never the third, the seventh or a colour tone."""
+
+    @pytest.mark.parametrize('symbol', [
+        'G13', 'D9', 'Bb9', 'Fmaj9', 'A13', 'C9', 'Am11', 'Em11', 'C7#9', 'Dm9',
+        'E7b9', 'Bm9', 'F13', 'Cmaj9', 'Ab9'])
+    def test_ukulele_keeps_third_and_seventh(self, symbol):
+        from chordnotepad.chord.helper import ChordHelper
+        from chordnotepad.chord.midi_converter import parse_note_to_semitone
+        chord = ChordHelper().compute_chord_notes(symbol)
+        picker = GuitarChordPicker('ukulele')
+        voiced = {m % 12 for m in picker.voice_sequence([chord])[0]}
+        root = parse_note_to_semitone(chord.root)
+        for interval in chord.intervals:
+            if interval % 12 in (3, 4, 10, 11) and interval < 12:
+                assert (root + interval) % 12 in voiced, (symbol, interval, voiced)
+
+    def test_ukulele_g13_keeps_its_thirteenth_over_its_ninth(self):
+        chord = _triad('G', ['G', 'B', 'D', 'F', 'A', 'E'])
+        voiced = {m % 12 for m in GuitarChordPicker('ukulele').voice_sequence([chord])[0]}
+        assert voiced == {7, 11, 5, 4}  # G B F E: no D (fifth), no A (stacked-in 9th)
+
+    def test_omission_costs_follow_the_roles(self):
+        picker = GuitarChordPicker('ukulele')
+        costs = picker._omission_costs(['G', 'B', 'D', 'F', 'A', 'E'])
+        cost = GuitarChordPicker._PARTIAL_OMIT_COST
+        assert costs == {7: cost['root'], 11: cost['third'], 2: cost['fifth'],
+                         5: cost['seventh'], 9: cost['lower_extension'],
+                         4: cost['extension']}
+        assert (cost['fifth'] > cost['lower_extension'] > cost['root'] > cost['extension']
+                > cost['color'] > cost['third'] >= cost['seventh'])
+
+    def test_a_complete_voicing_pays_no_omission_cost(self):
+        # The cost is for tones left out: a voicing sounding every tone of
+        # G7 scores the same with the table zeroed or tripled.
+        notes = ['G', 'B', 'D', 'F']
+        picker = GuitarChordPicker('standard')
+        fingering = [3, 2, 0, 0, 0, 1]  # G2 B2 D3 G3 B3 F4
+        base = picker._score_quality(fingering, notes, 'G')
+        original = dict(GuitarChordPicker._PARTIAL_OMIT_COST)
+        try:
+            GuitarChordPicker._PARTIAL_OMIT_COST = {k: 3 * v for k, v in original.items()}
+            other = GuitarChordPicker('standard')
+            assert other._score_quality(fingering, notes, 'G') == base
+        finally:
+            GuitarChordPicker._PARTIAL_OMIT_COST = original
+
+
 # ---------------------------------------------------------------------------
 # Alternate string counts: 7-string and synthetic 3-string
 # ---------------------------------------------------------------------------

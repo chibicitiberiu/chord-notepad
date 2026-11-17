@@ -52,7 +52,8 @@ from copy import deepcopy
 import logging
 from chordnotepad.audio.note_picker_interface import INotePicker, VoicedChord
 from chordnotepad.audio.voicing_optimizer import optimize_sequence
-from chordnotepad.chord.midi_converter import parse_note_to_semitone
+from chordnotepad.audio.chord_tones import classify_role, is_named_extension
+from chordnotepad.chord.midi_converter import parse_note_to_semitone, intervals_from_note_names
 from chordnotepad.models.fretboard_spec import FretboardSpec, BUILTIN_FRETBOARDS
 
 if TYPE_CHECKING:
@@ -172,6 +173,10 @@ class GuitarChordPicker(INotePicker):
         # (see :meth:`_omittable_fifth`), or None.
         self._omittable_fifth_cache: Dict[Tuple[Tuple[int, ...], Optional[int], int],
                                           Optional[int]] = {}
+        # Per chord (its note names): each tone's cost when left out of a
+        # partial voicing (see _PARTIAL_OMIT_COST).
+        self._omit_cost_cache: Dict[Tuple[str, ...], Dict[int, float]] = {}
+        self._has_complete_cache: Dict[Tuple[Tuple[int, ...], Optional[int], int], bool] = {}
 
         # Pre-compute fret-to-note mapping for each string (used by the fallback)
         self._string_note_map = self._build_string_note_map()
@@ -234,6 +239,8 @@ class GuitarChordPicker(INotePicker):
         self._state = GuitarPickerState()
         self._fingering_cache.clear()
         self._omittable_fifth_cache.clear()
+        self._omit_cost_cache.clear()
+        self._has_complete_cache.clear()
 
     @property
     def supports_capo(self) -> bool:
@@ -362,6 +369,60 @@ class GuitarChordPicker(INotePicker):
                 fifth = None
         self._omittable_fifth_cache[cache_key] = fifth
         return fifth
+
+    #: What leaving a chord tone out of a partial voicing costs, by its role
+    #: (:mod:`audio.chord_tones`). Only charged when the chord has no complete
+    #: voicing among its candidates (a five- or six-tone chord on four strings), so it decides
+    #: which tone goes rather than whether one does. The perfect fifth goes
+    #: first, then an extension the name only stacks in (the 9 of a 13 chord),
+    #: the root, the extension the name spells (the 13 of G13), and the
+    #: third, the seventh and the colour tones (6, sus, an altered fifth)
+    #: almost never: a ukulele G13 keeps G B F E. Facts about harmony, the same
+    #: on any tuning.
+    _PARTIAL_OMIT_COST: Dict[str, float] = {
+        'fifth': 0.0,
+        'lower_extension': -2.0,
+        'root': -6.0,
+        'extension': -10.0,
+        'color': -12.0,
+        'third': -14.0,
+        'seventh': -14.0,
+    }
+
+    def _omission_costs(self, chord_notes: List[str]) -> Dict[int, float]:
+        """Per chord-tone pitch class, :data:`_PARTIAL_OMIT_COST` of leaving it out.
+
+        Roles come from the register-preserving intervals of the note names
+        (the first is the root); a tone that appears twice keeps its first role.
+        """
+        key = tuple(chord_notes)
+        costs = self._omit_cost_cache.get(key)
+        if costs is None:
+            intervals = intervals_from_note_names(chord_notes)
+            root_pc = self._normalize_note(chord_notes[0])
+            costs = {}
+            for interval in intervals:
+                pc = (root_pc + interval) % 12
+                if pc in costs:
+                    continue
+                role = classify_role(interval, intervals)
+                if role == 'extension' and not is_named_extension(interval, intervals):
+                    role = 'lower_extension'
+                costs[pc] = self._PARTIAL_OMIT_COST[role]
+            self._omit_cost_cache[key] = costs
+        return costs
+
+    def _has_complete(self, chord_notes: List[str], bass_note: Optional[str]) -> bool:
+        """Whether any candidate of the chord sounds every chord tone (cached)."""
+        cache_key = self._chord_key(chord_notes, bass_note)
+        found = self._has_complete_cache.get(cache_key)
+        if found is None:
+            chord_pcs = set(cache_key[0])
+            tuning = self.tuning_midi
+            found = any({(tuning[s] + f) % 12 for s, f in enumerate(c) if f >= 0} >= chord_pcs
+                        for c in self._candidates(chord_notes, bass_note))
+            self._has_complete_cache[cache_key] = found
+        return found
 
     def _build_candidate_ladder(self, chord_notes: List[str],
                                 bass_note: Optional[str]) -> List[List[int]]:
@@ -957,12 +1018,18 @@ class GuitarChordPicker(INotePicker):
                 octaves = (lowest_pitch - self._lowest_pitch[target_pc]) // 12
                 score += self._w_bass_register * octaves
 
+        # Left-out tones, by role, when no shape holds the whole chord (a
+        # chord that has one keeps its no-5th shapes, priced below).
+        sounding_pcs = {(tuning[s] + fingering[s]) % 12 for s in sounding}
+        omit_costs = self._omission_costs(chord_notes)
+        if not omit_costs.keys() <= sounding_pcs and not self._has_complete(chord_notes, bass_note):
+            score += sum(cost for pc, cost in omit_costs.items() if pc not in sounding_pcs)
+
         # Left-out 5th: a voicing that drops only the chord's plain perfect
         # 5th (C6 x32210) when a complete one exists (see _omittable_fifth).
         if self._w_omitted_fifth and len(chord_notes) == 4:
             fifth = self._omittable_fifth(chord_notes, bass_note)
             if fifth is not None:
-                sounding_pcs = {(tuning[s] + fingering[s]) % 12 for s in sounding}
                 if fifth not in sounding_pcs:
                     score += self._w_omitted_fifth
 
