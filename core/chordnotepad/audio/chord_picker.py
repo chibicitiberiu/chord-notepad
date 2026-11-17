@@ -130,6 +130,7 @@ class ChordNotePicker(INotePicker):
         self.SCORE_MUDDY_GAP = self.spec.weight('muddy_gap_penalty')
         self.SCORE_COMMON_TONE = self.spec.weight('common_tone_bonus')
         self.SCORE_PER_MOVE = self.spec.weight('movement_penalty')
+        self.SCORE_OUTER_PARALLEL = self.spec.weight('outer_parallel_penalty')
         # Completeness weights, keyed by harmonic role (see audio.chord_tones);
         # negative = the score lost when a tone of that role is omitted.
         self.OMIT_PENALTY = self.spec.weight('omit')
@@ -625,6 +626,16 @@ class ChordNotePicker(INotePicker):
                 score += self.SCORE_COMMON_TONE
             else:
                 score += self.SCORE_PER_MOVE * min_dist
+
+        # Outer voices in parallel octaves or fifths: the bass and the top
+        # note move the same way and keep the same octave or fifth.
+        if self.SCORE_OUTER_PARALLEL:
+            bass_move = cur_midi[0] - prev_midi[0]
+            top_move = cur_midi[-1] - prev_midi[-1]
+            if bass_move and top_move and (bass_move > 0) == (top_move > 0):
+                before = (prev_midi[-1] - prev_midi[0]) % 12
+                if before in (0, 7) and (cur_midi[-1] - cur_midi[0]) % 12 == before:
+                    score += self.SCORE_OUTER_PARALLEL
         return score
 
     # ------------------------------------------------------------------

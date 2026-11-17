@@ -166,3 +166,18 @@ def test_stacked_extension_costs_half_the_named_one():
     # Apart from omission the two differ only by register (rh mean).
     centre = p.SCORE_CENTER * (abs(sum(rh) / 5 - p.RH_IDEAL_CENTER) - abs(sum(rh2) / 5 - p.RH_IDEAL_CENTER))
     assert no_13 - no_9 == pytest.approx(omit - 0.5 * omit + centre)
+
+
+def test_outer_parallels_cost_the_outer_parallel_penalty():
+    p = ChordNotePicker()
+    w = p.SCORE_OUTER_PARALLEL
+    assert w == DEFAULT_PIANO.weight('outer_parallel_penalty') < 0
+    base = ChordNotePicker(PianoSpec.from_dict('p', {'weights': {'outer_parallel_penalty': 0.0}}))
+    g, am = [43, 59, 62, 67], [45, 60, 64, 69]       # G2 B3 D4 G4 -> A2 C4 E4 A4: octaves
+    assert p._score_transition(g, am) == pytest.approx(base._score_transition(g, am) + w)
+    c, d = [36, 60, 64, 67], [38, 62, 66, 69]        # C2 .. G4 -> D2 .. A4: fifths
+    assert p._score_transition(c, d) == pytest.approx(base._score_transition(c, d) + w)
+    contrary = [45, 60, 64, 67]                      # bass up, top held: free
+    assert p._score_transition(g, contrary) == base._score_transition(g, contrary)
+    third = [45, 61, 64, 73]                         # octave to tenth: free
+    assert p._score_transition(g, third) == base._score_transition(g, third)

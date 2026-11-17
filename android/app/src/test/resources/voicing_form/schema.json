@@ -1137,6 +1137,16 @@
          "max": 100.0,
          "min": -100.0,
          "step": 0.1
+        },
+        {
+         "default": "-1.5",
+         "help": "How the picker treats the bass and the top note moving the same way while keeping an octave or a fifth between them (C2-C4 to D2-D4), which sounds like a doubled bass line. More negative moves the top note against the bass instead.",
+         "id": "weight:outer_parallel_penalty",
+         "kind": "float",
+         "label": "Outer parallels",
+         "max": 100.0,
+         "min": -100.0,
+         "step": 0.1
         }
        ],
        "groups": [

@@ -65,6 +65,7 @@ PIANO_WEIGHT_LABELS: Dict[str, str] = {
     'muddy_gap_penalty': 'Hands too close',
     'common_tone_bonus': 'Common tone held',
     'movement_penalty': 'Voice movement',
+    'outer_parallel_penalty': 'Outer parallels',
 }
 
 # Two piano weight keys collide by name with an existing fretboard/ensemble
@@ -395,6 +396,10 @@ TOOLTIPS: Dict[str, str] = {
     'weight:piano_movement_penalty': ("How the picker treats a note's nearest-neighbour movement "
                                       "across a chord change, across the whole song. More "
                                       "negative steadies the voicing."),
+    'weight:outer_parallel_penalty': ("How the picker treats the bass and the top note moving the "
+                                      "same way while keeping an octave or a fifth between them "
+                                      "(C2-C4 to D2-D4), which sounds like a doubled bass line. More "
+                                      "negative moves the top note against the bass instead."),
 }
 
 

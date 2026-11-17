@@ -119,6 +119,7 @@
    "weight:lh_double_penalty": "-1.0",
    "weight:movement_penalty": "-0.35",
    "weight:muddy_gap_penalty": "-1.5",
+   "weight:outer_parallel_penalty": "-1.5",
    "weight:rh_center_penalty": "-1.4",
    "weight:rh_low_interval_penalty": "-2.0",
    "weight:rh_note_bonus": "0.6",

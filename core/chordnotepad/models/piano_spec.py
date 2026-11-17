@@ -96,6 +96,9 @@ def _resolve_pitch(value: Union[int, str], *, context: str) -> int:
 #:   (voice leading). Was ``SCORE_COMMON_TONE``.
 #: - ``movement_penalty``: cost per semitone of nearest-neighbour movement
 #:   across a chord change (voice leading). Was ``SCORE_PER_MOVE``.
+#: - ``outer_parallel_penalty``: cost when the bass and the top note move the
+#:   same way into the same octave or fifth they formed before (parallel
+#:   octaves or fifths of the outer voices, heard as a doubled bass line).
 #: - ``omit``: per-chord-tone-role penalty for omitting a tone entirely, keyed
 #:   by the shared role taxonomy in :mod:`audio.chord_tones`. Was
 #:   ``OMIT_PENALTY`` (stored positive-magnitude then subtracted; now stored
@@ -112,6 +115,7 @@ DEFAULT_WEIGHTS: Dict[str, Any] = {
     'muddy_gap_penalty': -1.5,
     'common_tone_bonus': 1.5,
     'movement_penalty': -0.35,
+    'outer_parallel_penalty': -1.5,
     'omit': {role: -penalty for role, penalty in DEFAULT_OMIT_PENALTY.items()},
 }
 

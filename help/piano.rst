@@ -356,6 +356,13 @@ you want it to steer clear of gets a negative one; zero leaves it neutral.
        one chord to the next.
      - ``movement_penalty``
      - -0.35
+   * - Outer parallels
+     - Subtracted when the bass and the top note move the same way and keep
+       the octave or fifth they formed (G2-G4 to A2-A4), which the ear hears
+       as the bass line doubled on top. Inner notes moving in parallel cost
+       nothing, as in most piano comping.
+     - ``outer_parallel_penalty``
+     - -1.5
    * - Omission
      - Added to the score for dropping a chord tone entirely when the hand
        and note limits don't leave room for everything. The values are
