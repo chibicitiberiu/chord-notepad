@@ -293,7 +293,7 @@
         },
         {
          "default": "0.0",
-         "help": "How the picker treats a voice sitting outside the middle half of its range (a quarter of the range in from each end), per semitone outside it. 0 turns it off. More negative keeps each voice in one register through a song and from key to key.",
+         "help": "How the picker treats a voice sitting outside the middle half of its range (a quarter of the range in from each end), per semitone outside it; the bottom voice only above it, so the bass may sit low. 0 turns it off. More negative keeps each voice in one register through a song and from key to key.",
          "id": "weight:middle_range_penalty",
          "kind": "float",
          "label": "Outside the middle range",

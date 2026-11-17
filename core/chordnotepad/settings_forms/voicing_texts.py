@@ -308,8 +308,9 @@ TOOLTIPS: Dict[str, str] = {
                                      "negative keeps voices off their extremes."),
     'weight:middle_range_penalty': ("How the picker treats a voice sitting outside the middle "
                                     "half of its range (a quarter of the range in from each end), "
-                                    "per semitone outside it. 0 turns it off. More negative keeps "
-                                    "each voice in one register through a song and from key to key."),
+                                    "per semitone outside it; the bottom voice only above it, so the "
+                                    "bass may sit low. 0 turns it off. More negative keeps each voice "
+                                    "in one register through a song and from key to key."),
     'weight:unison_penalty': ("How the picker treats a pair of neighbouring voices on the same "
                               "pitch, when unisons are allowed. More negative avoids unisons."),
     'weight:upper_spacing_penalty': ("How the picker treats a gap between two neighbouring "

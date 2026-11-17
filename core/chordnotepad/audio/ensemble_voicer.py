@@ -244,9 +244,14 @@ class EnsembleVoicer(INotePicker):
         self._lo: Tuple[int, ...] = tuple(spec.voices[n - 1 - b].low for b in range(n))
         self._hi: Tuple[int, ...] = tuple(spec.voices[n - 1 - b].high for b in range(n))
         # The comfortable band of each voice: the middle half of its range,
-        # derived from the range alone (no extra setting per voice).
+        # derived from the range alone (no extra setting per voice). The
+        # bottom voice's band reaches down to its lowest note: the bass plan
+        # owns its register, and a band pulling it up a quarter of the range
+        # lifted a whole bass line an octave (the cello on C4 B3 A3 for
+        # C C/B Am); it is only kept out of the top quarter.
         self._band_lo: Tuple[float, ...] = tuple(
-            lo + (hi - lo) / _BAND_QUARTER for lo, hi in zip(self._lo, self._hi))
+            lo if b == 0 else lo + (hi - lo) / _BAND_QUARTER
+            for b, (lo, hi) in enumerate(zip(self._lo, self._hi)))
         self._band_hi: Tuple[float, ...] = tuple(
             hi - (hi - lo) / _BAND_QUARTER for lo, hi in zip(self._lo, self._hi))
 

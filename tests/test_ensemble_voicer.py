@@ -590,15 +590,32 @@ def _two_voice(weights=None, low=('C3', 'C4'), high=('C4', 'C6')):
 
 
 def test_middle_band_is_the_middle_half_of_each_range():
-    # Lo C3-C4 (48-60): band 51-57. Off by default.
+    # Hi C4-C6 (60-84): band 66-78. Off by default.
+    plain = EnsembleVoicer(_two_voice())
+    banded = EnsembleVoicer(_two_voice({'middle_range_penalty': -1.0}))
+    for midi in range(60, 85):
+        assert banded._comfort(midi, 1) - plain._comfort(midi, 1) == pytest.approx(
+            -1.0 * (max(0, 66 - midi) + max(0, midi - 78)))
+    assert banded._comfort(72, 1) == 0.0
+    assert banded._comfort(65, 1) == -1.0
+
+
+def test_middle_band_never_pulls_the_bottom_voice_up():
+    # Lo C3-C4 (48-60): no floor, the ceiling of the middle half (57) stays.
     plain = EnsembleVoicer(_two_voice())
     banded = EnsembleVoicer(_two_voice({'middle_range_penalty': -1.0}))
     for midi in range(48, 61):
-        assert plain._comfort(midi, 0) == banded._comfort(midi, 0) - (
-            -1.0 * (max(0, 51 - midi) + max(0, midi - 57)))
-    assert banded._comfort(54, 0) == 0.0
-    assert banded._comfort(57, 0) == 0.0
-    assert banded._comfort(58, 0) == -1.0
+        assert banded._comfort(midi, 0) - plain._comfort(midi, 0) == pytest.approx(
+            -1.0 * max(0, midi - 57))
+
+
+def test_quartet_cello_keeps_the_verse_in_its_low_octave():
+    # Test oracle: the middle band used to lift the whole line to C4 B3 A3.
+    from chordnotepad.models.ensemble_spec import parse_note_name
+    voicings = EnsembleVoicer(BUILTIN_ENSEMBLES['quartet']).voice_sequence(
+        _song('C C/B Am Em/G F Fdim C/E Dm Dm/F C/E C/G F/A G/B C'))
+    names = 'C3 B2 A2 G2 F2 F2 E2 D2 F2 E2 G2 A2 B2 C3'.split()
+    assert [v[0] for v in voicings] == [parse_note_name(n) for n in names]
 
 
 def test_outer_leap_penalty_scales_beyond_a_fifth_for_the_outer_voices_only():

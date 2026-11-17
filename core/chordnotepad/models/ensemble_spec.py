@@ -166,7 +166,8 @@ def _resolve_pitch(value: Union[int, str], *, context: str) -> int:
 #:   outer 2 semitones of its configured range.
 #: - ``middle_range_penalty``: cost per semitone a voice sits outside the
 #:   middle half of its range (a quarter of the range in from each end), the
-#:   band that anchors its register (0, off, by default).
+#:   band that anchors its register (0, off, by default). The bottom voice
+#:   only pays above that band, never for sitting low.
 #: - ``unison_penalty``: cost per pair of adjacent voices sounding a unison.
 #: - ``upper_spacing_penalty``: cost per semitone an upper-voice adjacent gap
 #:   exceeds ``upper_spacing_threshold``.

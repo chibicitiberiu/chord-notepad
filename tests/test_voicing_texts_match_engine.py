@@ -37,6 +37,7 @@ def test_ensemble_middle_range_is_the_middle_half():
     assert _BAND_QUARTER == 4
     text = TOOLTIPS['weight:middle_range_penalty']
     assert "middle half" in text and "a quarter of the range" in text
+    assert "bottom voice only above it" in text
 
 
 def test_ensemble_hidden_perfects_spare_a_stepwise_top_voice():
