@@ -19,6 +19,7 @@ import pytest
 from chordnotepad.constants import CONFIG_VERSION
 from chordnotepad.exceptions import ConfigurationError
 from chordnotepad.models.config import Config
+from chordnotepad.models.voicing_versions import VOICING_VERSION
 from chordnotepad.services import config_service as config_service_module
 from chordnotepad.services.appdata_service import AppDataService
 from chordnotepad.services.config_service import ConfigService, effective_version
@@ -56,9 +57,11 @@ def _backups(tmp_path, label="bak"):
     return sorted(p for p in tmp_path.iterdir() if p.name.startswith(f"settings.json.{label}-"))
 
 
-#: A guitar a user made, with signed weights as every release since 0.3 saves them.
+#: A guitar a user made, with signed weights as every release since 0.3 saves
+#: them, at this release's voicing version (so no voicing migration touches it).
 _GUITAR = {"model": "fretboard", "tuning": [40, 45, 50, 55, 59, 64], "label": "Mine",
-           "weights": {"span_penalty": -1.5, "barre_penalty": -1.0, "bass_note_bonus": 8.0}}
+           "weights": {"span_penalty": -1.5, "barre_penalty": -1.0, "bass_note_bonus": 8.0},
+           "version": VOICING_VERSION}
 
 
 # -- the version a config is saved at -----------------------------------------------
@@ -124,7 +127,8 @@ def test_a_v02_file_with_custom_tunings_still_migrates(tmp_path):
                       "custom_tunings": {"Drop D": ["D2", "A2", "D3", "G3", "B3", "E4"]}})
     config = _service(tmp_path).load_config()
     assert config.voicings == {"Drop D": {"model": "fretboard",
-                                          "tuning": ["D2", "A2", "D3", "G3", "B3", "E4"]}}
+                                          "tuning": ["D2", "A2", "D3", "G3", "B3", "E4"],
+                                          "version": VOICING_VERSION}}
     assert config.voicing == "voicing:Drop D"
     saved = json.loads(_path(tmp_path).read_text())
     assert "custom_tunings" not in saved and saved["version"] == CONFIG_VERSION

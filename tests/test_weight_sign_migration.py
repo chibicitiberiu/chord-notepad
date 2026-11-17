@@ -11,13 +11,21 @@ v2 -> v3: ``interior_mute_penalty``'s default was recalibrated from -2.0 to
 -4.0; fretboard voicings still carrying the exact old default follow it, while
 user-tuned values stay. A v1 config chains through both steps (+2.0 -> -2.0 ->
 -4.0). The version gate makes the whole pipeline idempotent.
+
+These steps are tested here on ``_migrate_config`` itself. ConfigService
+reaches them only for a file that was really written unsigned: every release
+from 0.3.0 to 0.5.4 saved a new config as version 1 with signed voicings, so
+a file below version 3 that has a ``voicings`` mapping is read as version 3
+(``effective_version``): no sign flip, no interior-mute bump. v0.1 and v0.2
+kept their tunings under ``custom_tunings``, which carries no weights.
 """
 
 import copy
+import json
 from pathlib import Path
 
 from chordnotepad.constants import CONFIG_VERSION
-from chordnotepad.services.config_service import ConfigService
+from chordnotepad.services.config_service import ConfigService, effective_version
 
 
 class _FakeAppData:
@@ -381,3 +389,54 @@ def test_v4_ensemble_gets_the_background_weights(tmp_path):
     values = values_from_voicing("ensemble", entry)
     for key in added:
         assert float(values[f"weight:{key}"]) == DEFAULT_WEIGHTS[key]
+
+
+# -- what ConfigService does with a file below version 3 ---------------------------------
+
+
+def _write_and_load(tmp_path, data):
+    (tmp_path / "settings.json").write_text(json.dumps(data))
+    return _service(tmp_path).load_config()
+
+
+def test_a_file_below_v3_with_voicings_is_read_as_v3(tmp_path):
+    """A first-session file of 0.3.0-0.5.4 (version 1, or 2 from a nightly):
+    its voicings are signed already, so loading it flips no sign."""
+    signed_choir = {"model": "ensemble",
+                    "voices": [{"name": "S", "range": ["C4", "G5"]},
+                               {"name": "B", "range": ["E2", "C4"]}],
+                    "weights": {"movement": [-0.4, -0.15], "leap_penalty": -2.5,
+                                "common_tone_bonus": 1.5,
+                                "omit": {"root": -20.0, "third": -40.0}}}
+    for version in (1, 2):
+        root = tmp_path / f"v{version}"
+        root.mkdir()
+        loaded = _write_and_load(root, {"version": version, "voicings": {"c": signed_choir}})
+        assert loaded.voicings["c"]["weights"] == signed_choir["weights"], version
+
+
+def test_a_signed_v1_file_keeps_its_penalties_negative(tmp_path):
+    data = {"version": 1, "voicings": {"g": {
+        "model": "fretboard", "tuning": [40, 45, 50, 55, 59, 64],
+        "weights": {"span_penalty": -1.2, "interior_mute_penalty": -2.0,
+                    "bass_note_bonus": 8.0}}}}
+    weights = _write_and_load(tmp_path, data).voicings["g"]["weights"]
+    # Not flipped, and not bumped either (the bump was for v2 files).
+    assert weights == {"span_penalty": -1.2, "interior_mute_penalty": -2.0,
+                       "bass_note_bonus": 8.0}
+
+
+def test_a_v1_file_with_voicings_still_moves_the_old_omit_defaults(tmp_path):
+    from chordnotepad.models.ensemble_spec import ENSEMBLE_OMIT_WEIGHTS
+    data = {"version": 1, "voicings": {"c": _choir(_OLD_ENSEMBLE_OMIT)}}
+    loaded = _write_and_load(tmp_path, data)
+    assert loaded.voicings["c"]["weights"]["omit"] == ENSEMBLE_OMIT_WEIGHTS
+    assert loaded.voicings["c"]["weights"]["movement"] == -0.4
+
+
+def test_a_genuine_v1_file_has_no_voicings_key(tmp_path):
+    assert effective_version({"version": 1, "custom_tunings": {"T": ["E2"]}}, 1) == 1
+    assert effective_version({"version": 1, "voicings": {}}, 1) == 3
+    assert effective_version({"version": 2, "voicings": {"x": {}}}, 2) == 3
+    loaded = _write_and_load(tmp_path, {"version": 1, "custom_tunings": {"T": ["E2", "A2"]}})
+    assert loaded.voicings["T"]["tuning"] == ["E2", "A2"]

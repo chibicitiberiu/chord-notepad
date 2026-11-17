@@ -1,5 +1,6 @@
 """Configuration persistence service."""
 
+import copy
 import datetime
 import json
 import logging
@@ -9,6 +10,9 @@ from pathlib import Path
 from typing import Any, Optional
 
 from chordnotepad.models.config import Config, config_version
+from chordnotepad.models.voicing_versions import (
+    ENSEMBLE_NEGATED_FLAT_KEYS, FRETBOARD_NEGATED_KEYS, migrate_voicing,
+)
 from chordnotepad.exceptions import ConfigurationError
 from chordnotepad.services.appdata_service import AppDataService
 from chordnotepad.constants import CONFIG_VERSION
@@ -16,19 +20,13 @@ from chordnotepad.constants import CONFIG_VERSION
 
 #: Fretboard weight keys stored as positive magnitudes under the v1 (pre-signed)
 #: convention that must be negated when migrating to the v2 signed convention.
-_FRETBOARD_NEGATE_KEYS = (
-    'span_penalty', 'position_penalty', 'fretted_finger_penalty',
-    'barre_penalty', 'interior_mute_penalty', 'movement_penalty',
-)
+#: (The voicing migration 0->1 repairs voicings this flip hit by mistake, so
+#: both share the list.)
+_FRETBOARD_NEGATE_KEYS = FRETBOARD_NEGATED_KEYS
 
 #: Flat ensemble weight keys negated for the same reason. ``movement`` may be a
 #: scalar or a per-voice list; both are negated element-wise.
-_ENSEMBLE_NEGATE_FLAT_KEYS = (
-    'movement', 'bass_movement', 'leap_penalty', 'octave_leap_penalty',
-    'tritone_leap_penalty', 'parallel_perfect_penalty',
-    'double_leading_tone_penalty', 'range_comfort_penalty',
-    'unison_penalty', 'upper_spacing_penalty',
-)
+_ENSEMBLE_NEGATE_FLAT_KEYS = ENSEMBLE_NEGATED_FLAT_KEYS
 
 
 #: v2 default for ``interior_mute_penalty`` and the recalibrated v3 default.
@@ -179,7 +177,8 @@ class ConfigService:
 
     The file is never lost to an upgrade or a damaged value:
 
-    * a load that migrates the file, or that had to replace an unusable value
+    * a load that migrates the file (the config, or any voicing:
+      ``models.voicing_versions``), or that had to replace an unusable value
       with its default, makes the next save first copy the file to
       ``settings.json.bak-v<old version>-<timestamp>`` (once per run; if the
       copy can't be made, nothing is written);
@@ -244,9 +243,10 @@ class ConfigService:
 
         self._config = config
         self._logger.debug("Configuration loaded successfully")
-        if migrated or config.needs_backup:
+        voicings_migrated = self._migrate_voicings(config)
+        if migrated or voicings_migrated or config.needs_backup:
             self._backup_label = f"bak-v{version}"
-        if migrated:
+        if migrated or voicings_migrated:
             self._save_at_load("the migrated configuration")
         try:
             self._config.validate()
@@ -256,6 +256,22 @@ class ConfigService:
             # leaves the file as it is.
             self._logger.error(f"Loaded configuration does not validate: {e}")
         return self._config
+
+    def _migrate_voicings(self, config: Config) -> bool:
+        """Run the voicing migrations on every saved voicing (legacy entries
+        are voicings by now); True if any changed. A voicing a migration
+        fails on is logged and kept exactly as it was."""
+        changed = False
+        for name, entry in config.voicings.items():
+            before = copy.deepcopy(entry)
+            try:
+                if migrate_voicing(entry):
+                    changed = True
+            except Exception as e:  # noqa: BLE001 - never lose a voicing to a migration bug
+                self._logger.error(f"Could not migrate voicing {name!r}; kept as it was: {e}")
+                entry.clear()
+                entry.update(before)
+        return changed
 
     def _save_at_load(self, what: str) -> None:
         """Save during load; a failure (disk full, read-only) is logged and

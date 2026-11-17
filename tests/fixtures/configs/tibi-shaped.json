@@ -1,0 +1,250 @@
+{
+  "version": 4,
+  "font_family": "TkFixedFont",
+  "font_size": 11,
+  "theme": "default",
+  "word_wrap": false,
+  "bpm": 120,
+  "bpm_multiplier": 1.0,
+  "default_octave": 4,
+  "bass_octave": 3,
+  "time_signature_beats": 4,
+  "time_signature_unit": 4,
+  "voicing": "voicing:New String Quartet",
+  "voicings": {
+    "New String Quartet": {
+      "model": "ensemble",
+      "voices": [
+        {
+          "name": "Violin I",
+          "range": [
+            55,
+            88
+          ],
+          "staff": "treble"
+        },
+        {
+          "name": "Violin II",
+          "range": [
+            55,
+            84
+          ],
+          "staff": "treble"
+        },
+        {
+          "name": "Viola",
+          "range": [
+            48,
+            76
+          ]
+        },
+        {
+          "name": "Cello",
+          "range": [
+            36,
+            64
+          ],
+          "staff": "bass"
+        },
+        {
+          "name": "Double Bass",
+          "range": [
+            28,
+            55
+          ]
+        }
+      ],
+      "max_spacing": [
+        14,
+        14,
+        24,
+        12
+      ],
+      "allow_unisons": false,
+      "weights": {
+        "leap_penalty": -2.0,
+        "octave_leap_penalty": -6.0,
+        "outer_leap_penalty": -0.5,
+        "tritone_leap_penalty": -3.0,
+        "common_tone_bonus": 1.5,
+        "parallel_perfect_penalty": -25.0,
+        "hidden_perfect_penalty": -2.0,
+        "contrary_motion_bonus": 0.8,
+        "seventh_resolution_bonus": 3.0,
+        "leading_tone_resolution_bonus": 4.5,
+        "double_leading_tone_penalty": -8.0,
+        "range_comfort_penalty": -0.5,
+        "middle_range_penalty": -0.5,
+        "unison_penalty": -0.5,
+        "low_interval_limit_penalty": -2.0,
+        "upper_spacing_penalty": -0.15,
+        "upper_spacing_threshold": 12.0,
+        "same_bass_penalty": -8.0,
+        "movement": [
+          -0.8,
+          -0.4,
+          -0.4,
+          -0.4,
+          -0.15
+        ],
+        "doubling": {
+          "root": 2.0,
+          "fifth": 0.5,
+          "third": -2.0,
+          "seventh": -6.0,
+          "color": -6.0,
+          "extension": -6.0
+        },
+        "omit": {
+          "root": -20.0,
+          "third": -40.0,
+          "fifth": -3.0,
+          "seventh": -40.0,
+          "color": -30.0,
+          "extension": -6.0
+        },
+        "inversion": {
+          "root": 0.0,
+          "first": -4.0,
+          "second": -8.0,
+          "third": -6.0
+        }
+      },
+      "label": "String Quartet"
+    },
+    "7-string": {
+      "model": "fretboard",
+      "tuning": [
+        35,
+        40,
+        45,
+        50,
+        55,
+        59,
+        64
+      ],
+      "max_fret": 12,
+      "fingers": 4,
+      "max_span": 4,
+      "relaxed_span": 5,
+      "allow_barres": true,
+      "weights": {
+        "sounding_string_bonus": 1.2,
+        "open_string_bonus": 0.5,
+        "bass_note_bonus": 8.0,
+        "slash_bass_bonus": 12.0,
+        "span_penalty": -1.2,
+        "stretch_penalty": -0.7,
+        "awkward_stretch_penalty": -6.0,
+        "position_penalty": -0.6,
+        "fretted_finger_penalty": -0.5,
+        "barre_penalty": -1.0,
+        "finger_barre_penalty": -0.5,
+        "interior_mute_penalty": -4.0,
+        "movement_penalty": -1.0,
+        "kept_finger_bonus": 0.4,
+        "omitted_fifth_penalty": -2.4,
+        "damped_mute_penalty": -3.0,
+        "bass_register_penalty": -3.0,
+        "thin_shape_penalty": -3.0,
+        "low_interval_penalty": -1.5,
+        "muted_treble_penalty": -1.0
+      },
+      "label": "Guitar (Standard - EADGBE)"
+    },
+    "D tuning": {
+      "model": "fretboard",
+      "tuning": [
+        38,
+        43,
+        48,
+        53,
+        57,
+        62
+      ],
+      "max_fret": 12,
+      "fingers": 4,
+      "max_span": 4,
+      "relaxed_span": 5,
+      "allow_barres": true,
+      "weights": {
+        "sounding_string_bonus": 1.2,
+        "open_string_bonus": 0.5,
+        "bass_note_bonus": 8.0,
+        "slash_bass_bonus": 12.0,
+        "span_penalty": -1.2,
+        "stretch_penalty": -0.7,
+        "awkward_stretch_penalty": -6.0,
+        "position_penalty": -0.6,
+        "fretted_finger_penalty": -0.5,
+        "barre_penalty": -1.0,
+        "finger_barre_penalty": -0.5,
+        "interior_mute_penalty": -4.0,
+        "movement_penalty": -1.0,
+        "kept_finger_bonus": 0.4,
+        "omitted_fifth_penalty": -2.4,
+        "damped_mute_penalty": -3.0,
+        "bass_register_penalty": -3.0,
+        "thin_shape_penalty": -3.0,
+        "low_interval_penalty": -1.5,
+        "muted_treble_penalty": -1.0
+      },
+      "label": "Guitar (Standard - EADGBE)"
+    },
+    "New voicing": {
+      "model": "fretboard",
+      "tuning": [
+        40,
+        45,
+        50,
+        55,
+        59,
+        62
+      ],
+      "max_fret": 12,
+      "fingers": 4,
+      "max_span": 4,
+      "relaxed_span": 5,
+      "allow_barres": true,
+      "weights": {
+        "sounding_string_bonus": 1.2,
+        "open_string_bonus": 0.5,
+        "bass_note_bonus": 8.0,
+        "slash_bass_bonus": 12.0,
+        "span_penalty": -1.2,
+        "stretch_penalty": -0.7,
+        "awkward_stretch_penalty": -6.0,
+        "position_penalty": -0.6,
+        "fretted_finger_penalty": -0.5,
+        "barre_penalty": -1.0,
+        "finger_barre_penalty": -0.5,
+        "interior_mute_penalty": -4.0,
+        "movement_penalty": -1.0,
+        "kept_finger_bonus": 0.4,
+        "omitted_fifth_penalty": -2.4,
+        "damped_mute_penalty": -3.0,
+        "bass_register_penalty": -3.0,
+        "thin_shape_penalty": -3.0,
+        "low_interval_penalty": -1.5,
+        "muted_treble_penalty": -1.0
+      },
+      "label": "Guitar (Standard - EADGBE)"
+    }
+  },
+  "instrument": 0,
+  "notation": "european",
+  "key": "C",
+  "window_geometry": "900x600",
+  "window_maximized": false,
+  "recent_files": [],
+  "max_recent_files": 10,
+  "soundfont_path": null,
+  "audio_driver": null,
+  "log_level": "INFO",
+  "show_quick_start_on_startup": true,
+  "support_prompt_last_shown": null,
+  "chord_sheet_visible": false,
+  "chord_sheet_view": "keyboard",
+  "chord_sheet_height": 160,
+  "chord_sheet_zoom": {}
+}

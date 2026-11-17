@@ -1,0 +1,206 @@
+{
+  "version": 4,
+  "font_family": "TkFixedFont",
+  "font_size": 11,
+  "theme": "default",
+  "word_wrap": false,
+  "bpm": 120,
+  "bpm_multiplier": 1.0,
+  "default_octave": 4,
+  "bass_octave": 3,
+  "time_signature_beats": 4,
+  "time_signature_unit": 4,
+  "voicing": "piano",
+  "voicings": {
+    "Strings": {
+      "model": "ensemble",
+      "voices": [
+        {
+          "name": "Violin I",
+          "range": [
+            55,
+            88
+          ],
+          "staff": "treble"
+        },
+        {
+          "name": "Violin II",
+          "range": [
+            55,
+            84
+          ],
+          "staff": "treble"
+        },
+        {
+          "name": "Viola",
+          "range": [
+            48,
+            76
+          ]
+        },
+        {
+          "name": "Cello",
+          "range": [
+            36,
+            64
+          ],
+          "staff": "bass"
+        }
+      ],
+      "max_spacing": [
+        14,
+        14,
+        24
+      ],
+      "allow_unisons": false,
+      "weights": {
+        "bass_movement": -0.15,
+        "leap_penalty": -2.0,
+        "octave_leap_penalty": -6.0,
+        "tritone_leap_penalty": -3.0,
+        "common_tone_bonus": 1.5,
+        "parallel_perfect_penalty": -25.0,
+        "contrary_motion_bonus": 0.8,
+        "seventh_resolution_bonus": 1.5,
+        "leading_tone_resolution_bonus": 3.0,
+        "double_leading_tone_penalty": -8.0,
+        "range_comfort_penalty": -0.5,
+        "unison_penalty": -0.5,
+        "upper_spacing_penalty": -0.15,
+        "upper_spacing_threshold": 12.0,
+        "same_bass_penalty": -8.0,
+        "movement": [
+          -0.8,
+          -0.4,
+          -0.4,
+          -0.15
+        ],
+        "doubling": {
+          "root": 2.0,
+          "fifth": 0.5,
+          "third": -2.0,
+          "seventh": -6.0,
+          "color": -6.0,
+          "extension": -6.0
+        },
+        "omit": {
+          "root": -20.0,
+          "third": -40.0,
+          "fifth": -3.0,
+          "seventh": -40.0,
+          "color": -30.0,
+          "extension": -6.0
+        },
+        "inversion": {
+          "root": 0.0,
+          "first": -1.5,
+          "second": -5.0,
+          "third": -3.0
+        },
+        "outer_leap_penalty": 0.0,
+        "middle_range_penalty": 0.0
+      },
+      "label": "String Quartet"
+    },
+    "Choir": {
+      "model": "ensemble",
+      "voices": [
+        {
+          "name": "Soprano",
+          "range": [
+            60,
+            79
+          ],
+          "staff": "treble"
+        },
+        {
+          "name": "Alto",
+          "range": [
+            53,
+            74
+          ],
+          "staff": "treble"
+        },
+        {
+          "name": "Tenor",
+          "range": [
+            48,
+            67
+          ],
+          "staff": "bass"
+        },
+        {
+          "name": "Bass",
+          "range": [
+            40,
+            60
+          ],
+          "staff": "bass"
+        }
+      ],
+      "max_spacing": [
+        12,
+        12,
+        19
+      ],
+      "allow_unisons": true,
+      "weights": {
+        "bass_movement": -0.15,
+        "leap_penalty": -2.0,
+        "octave_leap_penalty": -6.0,
+        "tritone_leap_penalty": -3.0,
+        "common_tone_bonus": 1.5,
+        "parallel_perfect_penalty": -25.0,
+        "contrary_motion_bonus": 0.8,
+        "seventh_resolution_bonus": 1.5,
+        "leading_tone_resolution_bonus": 1.5,
+        "double_leading_tone_penalty": -8.0,
+        "range_comfort_penalty": -0.5,
+        "unison_penalty": -0.5,
+        "upper_spacing_penalty": -0.15,
+        "upper_spacing_threshold": 7.0,
+        "same_bass_penalty": -8.0,
+        "movement": -0.4,
+        "doubling": {
+          "root": 2.0,
+          "fifth": 0.5,
+          "third": -2.0,
+          "seventh": -6.0,
+          "color": -6.0,
+          "extension": -6.0
+        },
+        "omit": {
+          "root": -20.0,
+          "third": -40.0,
+          "fifth": -3.0,
+          "seventh": -40.0,
+          "color": -30.0,
+          "extension": -6.0
+        },
+        "inversion": {
+          "root": 0.0,
+          "first": -1.5,
+          "second": -5.0,
+          "third": -3.0
+        }
+      },
+      "label": "Choir (SATB)"
+    }
+  },
+  "instrument": 0,
+  "notation": "american",
+  "key": "C",
+  "window_geometry": "900x600",
+  "window_maximized": false,
+  "recent_files": [],
+  "max_recent_files": 10,
+  "soundfont_path": null,
+  "audio_driver": null,
+  "log_level": "INFO",
+  "show_quick_start_on_startup": true,
+  "support_prompt_last_shown": null,
+  "chord_sheet_visible": false,
+  "chord_sheet_view": "keyboard",
+  "chord_sheet_height": 160,
+  "chord_sheet_zoom": {}
+}

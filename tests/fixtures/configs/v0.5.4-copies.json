@@ -1,0 +1,881 @@
+{
+  "version": 4,
+  "font_family": "TkFixedFont",
+  "font_size": 11,
+  "theme": "default",
+  "word_wrap": false,
+  "bpm": 120,
+  "bpm_multiplier": 1.0,
+  "default_octave": 4,
+  "bass_octave": 3,
+  "time_signature_beats": 4,
+  "time_signature_unit": 4,
+  "voicing": "voicing:New String Quartet",
+  "voicings": {
+    "New Guitar (Standard - EADGBE)": {
+      "model": "fretboard",
+      "tuning": [
+        40,
+        45,
+        50,
+        55,
+        59,
+        64
+      ],
+      "max_fret": 12,
+      "fingers": 4,
+      "max_span": 4,
+      "relaxed_span": 5,
+      "allow_barres": true,
+      "weights": {
+        "sounding_string_bonus": 1.2,
+        "open_string_bonus": 0.5,
+        "bass_note_bonus": 8.0,
+        "slash_bass_bonus": 12.0,
+        "span_penalty": -1.2,
+        "stretch_penalty": -0.7,
+        "awkward_stretch_penalty": -6.0,
+        "position_penalty": -0.6,
+        "fretted_finger_penalty": -0.5,
+        "barre_penalty": -1.0,
+        "finger_barre_penalty": -0.5,
+        "interior_mute_penalty": -4.0,
+        "movement_penalty": -1.0,
+        "kept_finger_bonus": 0.4
+      },
+      "label": "Guitar (Standard - EADGBE)"
+    },
+    "New Guitar (Drop D)": {
+      "model": "fretboard",
+      "tuning": [
+        38,
+        45,
+        50,
+        55,
+        59,
+        64
+      ],
+      "max_fret": 12,
+      "fingers": 4,
+      "max_span": 4,
+      "relaxed_span": 5,
+      "allow_barres": true,
+      "weights": {
+        "sounding_string_bonus": 1.2,
+        "open_string_bonus": 0.5,
+        "bass_note_bonus": 8.0,
+        "slash_bass_bonus": 12.0,
+        "span_penalty": -1.2,
+        "stretch_penalty": -0.7,
+        "awkward_stretch_penalty": -6.0,
+        "position_penalty": -0.6,
+        "fretted_finger_penalty": -0.5,
+        "barre_penalty": -1.0,
+        "finger_barre_penalty": -0.5,
+        "interior_mute_penalty": -4.0,
+        "movement_penalty": -1.0,
+        "kept_finger_bonus": 0.4
+      },
+      "label": "Guitar (Drop D)"
+    },
+    "New Guitar (DADGAD)": {
+      "model": "fretboard",
+      "tuning": [
+        38,
+        45,
+        50,
+        55,
+        57,
+        62
+      ],
+      "max_fret": 12,
+      "fingers": 4,
+      "max_span": 4,
+      "relaxed_span": 5,
+      "allow_barres": true,
+      "weights": {
+        "sounding_string_bonus": 1.2,
+        "open_string_bonus": 0.5,
+        "bass_note_bonus": 8.0,
+        "slash_bass_bonus": 12.0,
+        "span_penalty": -1.2,
+        "stretch_penalty": -0.7,
+        "awkward_stretch_penalty": -6.0,
+        "position_penalty": -0.6,
+        "fretted_finger_penalty": -0.5,
+        "barre_penalty": -1.0,
+        "finger_barre_penalty": -0.5,
+        "interior_mute_penalty": -4.0,
+        "movement_penalty": -1.0,
+        "kept_finger_bonus": 0.4
+      },
+      "label": "Guitar (DADGAD)"
+    },
+    "New Guitar (Open G)": {
+      "model": "fretboard",
+      "tuning": [
+        38,
+        43,
+        50,
+        55,
+        59,
+        62
+      ],
+      "max_fret": 12,
+      "fingers": 4,
+      "max_span": 4,
+      "relaxed_span": 5,
+      "allow_barres": true,
+      "weights": {
+        "sounding_string_bonus": 1.2,
+        "open_string_bonus": 0.5,
+        "bass_note_bonus": 8.0,
+        "slash_bass_bonus": 12.0,
+        "span_penalty": -1.2,
+        "stretch_penalty": -0.7,
+        "awkward_stretch_penalty": -6.0,
+        "position_penalty": -0.6,
+        "fretted_finger_penalty": -0.5,
+        "barre_penalty": -1.0,
+        "finger_barre_penalty": -0.5,
+        "interior_mute_penalty": -4.0,
+        "movement_penalty": -1.0,
+        "kept_finger_bonus": 0.4
+      },
+      "label": "Guitar (Open G)"
+    },
+    "New Ukulele": {
+      "model": "fretboard",
+      "tuning": [
+        67,
+        60,
+        64,
+        69
+      ],
+      "max_fret": 12,
+      "fingers": 4,
+      "max_span": 4,
+      "relaxed_span": 5,
+      "allow_barres": true,
+      "weights": {
+        "sounding_string_bonus": 2.5,
+        "open_string_bonus": 0.5,
+        "bass_note_bonus": 1.0,
+        "slash_bass_bonus": 12.0,
+        "span_penalty": -1.2,
+        "stretch_penalty": -0.7,
+        "awkward_stretch_penalty": -6.0,
+        "position_penalty": -0.6,
+        "fretted_finger_penalty": -0.5,
+        "barre_penalty": -1.0,
+        "finger_barre_penalty": -0.5,
+        "interior_mute_penalty": -4.0,
+        "movement_penalty": -1.0,
+        "kept_finger_bonus": 0.4
+      },
+      "label": "Ukulele"
+    },
+    "New Choir (SATB)": {
+      "model": "ensemble",
+      "voices": [
+        {
+          "name": "Soprano",
+          "range": [
+            60,
+            79
+          ],
+          "staff": "treble"
+        },
+        {
+          "name": "Alto",
+          "range": [
+            53,
+            74
+          ],
+          "staff": "treble"
+        },
+        {
+          "name": "Tenor",
+          "range": [
+            48,
+            67
+          ],
+          "staff": "bass"
+        },
+        {
+          "name": "Bass",
+          "range": [
+            40,
+            60
+          ],
+          "staff": "bass"
+        }
+      ],
+      "max_spacing": [
+        12,
+        12,
+        19
+      ],
+      "allow_unisons": true,
+      "weights": {
+        "bass_movement": -0.15,
+        "leap_penalty": -2.0,
+        "octave_leap_penalty": -6.0,
+        "tritone_leap_penalty": -3.0,
+        "common_tone_bonus": 1.5,
+        "parallel_perfect_penalty": -25.0,
+        "contrary_motion_bonus": 0.8,
+        "seventh_resolution_bonus": 1.5,
+        "leading_tone_resolution_bonus": 2.0,
+        "double_leading_tone_penalty": -8.0,
+        "range_comfort_penalty": -0.5,
+        "unison_penalty": -0.5,
+        "upper_spacing_penalty": -0.15,
+        "movement": -0.4,
+        "doubling": {
+          "root": 2.0,
+          "fifth": 0.5,
+          "third": -2.0,
+          "seventh": -6.0,
+          "color": -6.0,
+          "extension": -6.0
+        },
+        "omit": {
+          "root": -20.0,
+          "third": -40.0,
+          "fifth": -3.0,
+          "seventh": -40.0,
+          "color": -30.0,
+          "extension": -6.0
+        },
+        "inversion": {
+          "root": 0.0,
+          "first": -1.5,
+          "second": -5.0,
+          "third": -3.0
+        }
+      },
+      "label": "Choir (SATB)"
+    },
+    "Android Choir (SATB)": {
+      "model": "ensemble",
+      "label": "Choir (SATB)",
+      "voices": [
+        {
+          "name": "Soprano",
+          "range": [
+            60,
+            79
+          ],
+          "staff": "treble"
+        },
+        {
+          "name": "Alto",
+          "range": [
+            53,
+            74
+          ],
+          "staff": "treble"
+        },
+        {
+          "name": "Tenor",
+          "range": [
+            48,
+            67
+          ],
+          "staff": "bass"
+        },
+        {
+          "name": "Bass",
+          "range": [
+            40,
+            60
+          ],
+          "staff": "bass"
+        }
+      ],
+      "max_spacing": [
+        12,
+        12,
+        19
+      ],
+      "allow_unisons": true,
+      "weights": {
+        "movement": -0.4,
+        "bass_movement": -0.15,
+        "leap_penalty": -2.0,
+        "octave_leap_penalty": -6.0,
+        "tritone_leap_penalty": -3.0,
+        "common_tone_bonus": 1.5,
+        "parallel_perfect_penalty": -25.0,
+        "contrary_motion_bonus": 0.8,
+        "seventh_resolution_bonus": 1.5,
+        "leading_tone_resolution_bonus": 1.5,
+        "double_leading_tone_penalty": -8.0,
+        "doubling": {
+          "root": 2.0,
+          "fifth": 0.5,
+          "third": -2.0,
+          "seventh": -6.0,
+          "color": -6.0,
+          "extension": -6.0
+        },
+        "omit": {
+          "root": -20.0,
+          "third": -40.0,
+          "fifth": -3.0,
+          "seventh": -40.0,
+          "color": -30.0,
+          "extension": -6.0
+        },
+        "inversion": {
+          "root": 0.0,
+          "first": -1.5,
+          "second": -5.0,
+          "third": -3.0
+        },
+        "range_comfort_penalty": -0.5,
+        "unison_penalty": -0.5,
+        "upper_spacing_penalty": -0.15
+      }
+    },
+    "New Male Choir (TTBB)": {
+      "model": "ensemble",
+      "voices": [
+        {
+          "name": "Tenor 1",
+          "range": [
+            48,
+            69
+          ],
+          "staff": "treble"
+        },
+        {
+          "name": "Tenor 2",
+          "range": [
+            45,
+            65
+          ],
+          "staff": "treble"
+        },
+        {
+          "name": "Baritone",
+          "range": [
+            41,
+            62
+          ],
+          "staff": "bass"
+        },
+        {
+          "name": "Bass",
+          "range": [
+            40,
+            60
+          ],
+          "staff": "bass"
+        }
+      ],
+      "max_spacing": [
+        12,
+        12,
+        12
+      ],
+      "allow_unisons": true,
+      "upper_clef": "treble_8vb",
+      "weights": {
+        "bass_movement": -0.15,
+        "leap_penalty": -2.0,
+        "octave_leap_penalty": -6.0,
+        "tritone_leap_penalty": -3.0,
+        "common_tone_bonus": 1.5,
+        "parallel_perfect_penalty": -25.0,
+        "contrary_motion_bonus": 0.8,
+        "seventh_resolution_bonus": 1.5,
+        "leading_tone_resolution_bonus": 1.5,
+        "double_leading_tone_penalty": -8.0,
+        "range_comfort_penalty": -0.5,
+        "unison_penalty": -0.5,
+        "upper_spacing_penalty": -0.15,
+        "movement": -0.4,
+        "doubling": {
+          "root": 2.0,
+          "fifth": 0.5,
+          "third": -2.0,
+          "seventh": -6.0,
+          "color": -6.0,
+          "extension": -6.0
+        },
+        "omit": {
+          "root": -20.0,
+          "third": -40.0,
+          "fifth": -3.0,
+          "seventh": -40.0,
+          "color": -30.0,
+          "extension": -6.0
+        },
+        "inversion": {
+          "root": 0.0,
+          "first": -1.5,
+          "second": -5.0,
+          "third": -3.0
+        }
+      },
+      "label": "Male Choir (TTBB)"
+    },
+    "Android Male Choir (TTBB)": {
+      "model": "ensemble",
+      "label": "Male Choir (TTBB)",
+      "voices": [
+        {
+          "name": "Tenor 1",
+          "range": [
+            48,
+            69
+          ],
+          "staff": "treble"
+        },
+        {
+          "name": "Tenor 2",
+          "range": [
+            45,
+            65
+          ],
+          "staff": "treble"
+        },
+        {
+          "name": "Baritone",
+          "range": [
+            41,
+            62
+          ],
+          "staff": "bass"
+        },
+        {
+          "name": "Bass",
+          "range": [
+            40,
+            60
+          ],
+          "staff": "bass"
+        }
+      ],
+      "max_spacing": [
+        12,
+        12,
+        12
+      ],
+      "allow_unisons": true,
+      "weights": {
+        "movement": -0.4,
+        "bass_movement": -0.15,
+        "leap_penalty": -2.0,
+        "octave_leap_penalty": -6.0,
+        "tritone_leap_penalty": -3.0,
+        "common_tone_bonus": 1.5,
+        "parallel_perfect_penalty": -25.0,
+        "contrary_motion_bonus": 0.8,
+        "seventh_resolution_bonus": 1.5,
+        "leading_tone_resolution_bonus": 1.5,
+        "double_leading_tone_penalty": -8.0,
+        "doubling": {
+          "root": 2.0,
+          "fifth": 0.5,
+          "third": -2.0,
+          "seventh": -6.0,
+          "color": -6.0,
+          "extension": -6.0
+        },
+        "omit": {
+          "root": -20.0,
+          "third": -40.0,
+          "fifth": -3.0,
+          "seventh": -40.0,
+          "color": -30.0,
+          "extension": -6.0
+        },
+        "inversion": {
+          "root": 0.0,
+          "first": -2.0,
+          "second": -5.0,
+          "third": -3.0
+        },
+        "range_comfort_penalty": -0.5,
+        "unison_penalty": -0.5,
+        "upper_spacing_penalty": -0.15
+      },
+      "upper_clef": "treble_8vb"
+    },
+    "New Treble Choir (SSA)": {
+      "model": "ensemble",
+      "voices": [
+        {
+          "name": "Soprano 1",
+          "range": [
+            60,
+            81
+          ],
+          "staff": "treble"
+        },
+        {
+          "name": "Soprano 2",
+          "range": [
+            57,
+            77
+          ],
+          "staff": "treble"
+        },
+        {
+          "name": "Alto",
+          "range": [
+            53,
+            74
+          ],
+          "staff": "treble"
+        }
+      ],
+      "max_spacing": [
+        12,
+        12
+      ],
+      "allow_unisons": true,
+      "weights": {
+        "bass_movement": -0.15,
+        "leap_penalty": -2.0,
+        "octave_leap_penalty": -6.0,
+        "tritone_leap_penalty": -3.0,
+        "common_tone_bonus": 1.5,
+        "parallel_perfect_penalty": -25.0,
+        "contrary_motion_bonus": 0.8,
+        "seventh_resolution_bonus": 1.5,
+        "leading_tone_resolution_bonus": 1.5,
+        "double_leading_tone_penalty": -8.0,
+        "range_comfort_penalty": -0.5,
+        "unison_penalty": -0.5,
+        "upper_spacing_penalty": -0.15,
+        "movement": -0.4,
+        "doubling": {
+          "root": 2.0,
+          "fifth": 0.5,
+          "third": -2.0,
+          "seventh": -6.0,
+          "color": -6.0,
+          "extension": -6.0
+        },
+        "omit": {
+          "root": -20.0,
+          "third": -40.0,
+          "fifth": -3.0,
+          "seventh": -40.0,
+          "color": -30.0,
+          "extension": -6.0
+        },
+        "inversion": {
+          "root": 0.0,
+          "first": -1.5,
+          "second": -5.0,
+          "third": -3.0
+        }
+      },
+      "label": "Treble Choir (SSA)"
+    },
+    "Android Treble Choir (SSA)": {
+      "model": "ensemble",
+      "label": "Treble Choir (SSA)",
+      "voices": [
+        {
+          "name": "Soprano 1",
+          "range": [
+            60,
+            81
+          ],
+          "staff": "treble"
+        },
+        {
+          "name": "Soprano 2",
+          "range": [
+            57,
+            77
+          ],
+          "staff": "treble"
+        },
+        {
+          "name": "Alto",
+          "range": [
+            53,
+            74
+          ],
+          "staff": "treble"
+        }
+      ],
+      "max_spacing": [
+        12,
+        12
+      ],
+      "allow_unisons": true,
+      "weights": {
+        "movement": -0.4,
+        "bass_movement": -0.15,
+        "leap_penalty": -2.0,
+        "octave_leap_penalty": -6.0,
+        "tritone_leap_penalty": -3.0,
+        "common_tone_bonus": 1.5,
+        "parallel_perfect_penalty": -25.0,
+        "contrary_motion_bonus": 0.8,
+        "seventh_resolution_bonus": 1.5,
+        "leading_tone_resolution_bonus": 1.5,
+        "double_leading_tone_penalty": -8.0,
+        "doubling": {
+          "root": 2.0,
+          "fifth": 0.5,
+          "third": -2.0,
+          "seventh": -6.0,
+          "color": -6.0,
+          "extension": -6.0
+        },
+        "omit": {
+          "root": -20.0,
+          "third": -40.0,
+          "fifth": -3.0,
+          "seventh": -40.0,
+          "color": -30.0,
+          "extension": -6.0
+        },
+        "inversion": {
+          "root": 0.0,
+          "first": -1.5,
+          "second": -5.0,
+          "third": -3.0
+        },
+        "range_comfort_penalty": -0.5,
+        "unison_penalty": -0.5,
+        "upper_spacing_penalty": -0.15
+      }
+    },
+    "New String Quartet": {
+      "model": "ensemble",
+      "voices": [
+        {
+          "name": "Violin I",
+          "range": [
+            55,
+            88
+          ],
+          "staff": "treble"
+        },
+        {
+          "name": "Violin II",
+          "range": [
+            55,
+            84
+          ],
+          "staff": "treble"
+        },
+        {
+          "name": "Viola",
+          "range": [
+            48,
+            76
+          ]
+        },
+        {
+          "name": "Cello",
+          "range": [
+            36,
+            64
+          ],
+          "staff": "bass"
+        }
+      ],
+      "max_spacing": [
+        14,
+        14,
+        24
+      ],
+      "allow_unisons": true,
+      "weights": {
+        "bass_movement": -0.15,
+        "leap_penalty": -3.0,
+        "octave_leap_penalty": -6.0,
+        "tritone_leap_penalty": -3.0,
+        "common_tone_bonus": 1.5,
+        "parallel_perfect_penalty": -25.0,
+        "contrary_motion_bonus": 0.8,
+        "seventh_resolution_bonus": 1.5,
+        "leading_tone_resolution_bonus": 1.5,
+        "double_leading_tone_penalty": -8.0,
+        "range_comfort_penalty": -0.5,
+        "unison_penalty": -0.5,
+        "upper_spacing_penalty": -0.15,
+        "movement": -0.4,
+        "doubling": {
+          "root": 2.0,
+          "fifth": 0.5,
+          "third": -2.0,
+          "seventh": -6.0,
+          "color": -6.0,
+          "extension": -6.0
+        },
+        "omit": {
+          "root": -20.0,
+          "third": -40.0,
+          "fifth": -3.0,
+          "seventh": -40.0,
+          "color": -30.0,
+          "extension": -6.0
+        },
+        "inversion": {
+          "root": 0.0,
+          "first": -1.5,
+          "second": -5.0,
+          "third": -3.0
+        }
+      },
+      "label": "String Quartet"
+    },
+    "Android String Quartet": {
+      "model": "ensemble",
+      "label": "String Quartet",
+      "voices": [
+        {
+          "name": "Violin I",
+          "range": [
+            55,
+            88
+          ],
+          "staff": "treble"
+        },
+        {
+          "name": "Violin II",
+          "range": [
+            55,
+            84
+          ],
+          "staff": "treble"
+        },
+        {
+          "name": "Viola",
+          "range": [
+            48,
+            76
+          ]
+        },
+        {
+          "name": "Cello",
+          "range": [
+            36,
+            64
+          ],
+          "staff": "bass"
+        }
+      ],
+      "max_spacing": [
+        14,
+        14,
+        24
+      ],
+      "allow_unisons": true,
+      "weights": {
+        "movement": -0.4,
+        "bass_movement": -0.15,
+        "leap_penalty": -2.0,
+        "octave_leap_penalty": -6.0,
+        "tritone_leap_penalty": -3.0,
+        "common_tone_bonus": 1.5,
+        "parallel_perfect_penalty": -25.0,
+        "contrary_motion_bonus": 0.8,
+        "seventh_resolution_bonus": 1.5,
+        "leading_tone_resolution_bonus": 1.5,
+        "double_leading_tone_penalty": -8.0,
+        "doubling": {
+          "root": 2.0,
+          "fifth": 0.5,
+          "third": -2.0,
+          "seventh": -6.0,
+          "color": -6.0,
+          "extension": -6.0
+        },
+        "omit": {
+          "root": -20.0,
+          "third": -40.0,
+          "fifth": -3.0,
+          "seventh": -40.0,
+          "color": -30.0,
+          "extension": -6.0
+        },
+        "inversion": {
+          "root": 0.0,
+          "first": -1.5,
+          "second": -5.0,
+          "third": -3.0
+        },
+        "range_comfort_penalty": -0.5,
+        "unison_penalty": -0.5,
+        "upper_spacing_penalty": -0.15
+      }
+    },
+    "New Piano (default)": {
+      "model": "piano",
+      "lh_range": [
+        24,
+        48
+      ],
+      "rh_range": [
+        48,
+        84
+      ],
+      "bass_range": [
+        36,
+        47
+      ],
+      "rh_low_anchor": [
+        48,
+        64
+      ],
+      "rh_center": 63.0,
+      "rh_low_interval_floor": 52,
+      "hand_span": 14,
+      "max_notes_per_hand": 5,
+      "max_total_notes": 10,
+      "hand_gap_floor": 2,
+      "add_bass": true,
+      "weights": {
+        "rh_note_bonus": 0.6,
+        "rh_center_penalty": -1.4,
+        "lh_below_bass_penalty": -1.5,
+        "lh_above_bass_penalty": -1.5,
+        "lh_double_penalty": -1.0,
+        "lh_double_low_penalty": -1.0,
+        "rh_low_interval_penalty": -2.0,
+        "rh_wide_gap_penalty": -0.6,
+        "muddy_gap_penalty": -1.5,
+        "common_tone_bonus": 1.5,
+        "movement_penalty": -0.35,
+        "omit": {
+          "root": -4.0,
+          "third": -40.0,
+          "fifth": -8.0,
+          "seventh": -40.0,
+          "color": -30.0,
+          "extension": -7.0
+        }
+      },
+      "label": "Grand Piano"
+    }
+  },
+  "instrument": 0,
+  "notation": "american",
+  "key": "C",
+  "window_geometry": "900x600",
+  "window_maximized": false,
+  "recent_files": [],
+  "max_recent_files": 10,
+  "soundfont_path": null,
+  "audio_driver": null,
+  "log_level": "INFO",
+  "show_quick_start_on_startup": true,
+  "support_prompt_last_shown": null,
+  "chord_sheet_visible": false,
+  "chord_sheet_view": "keyboard",
+  "chord_sheet_height": 160,
+  "chord_sheet_zoom": {}
+}

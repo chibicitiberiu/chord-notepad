@@ -10,6 +10,7 @@ import json
 import pytest
 
 from chordnotepad.constants import CONFIG_VERSION
+from chordnotepad.models.voicing_versions import VOICING_VERSION
 from chordnotepad.services.appdata_service import AppDataService
 from chordnotepad.session.bootstrap import build_core_services, create_session
 from chordnotepad.session.events import UserError
@@ -126,7 +127,8 @@ def test_select_edit_and_validate_like_the_desktop_page(tmp_path):
     data = session._settings_edit.model.get_voicings()["Bass"]
     assert data["max_fret"] == 15 and data["tuning"] == [28, 33, 38, 43]
     assert data["label"] == "My Bass"
-    assert services.config.config.voicings["Bass"] == BASS        # not saved yet
+    # Not saved yet: on disk as loaded (stamped by the voicing migrations).
+    assert services.config.config.voicings["Bass"] == dict(BASS, version=VOICING_VERSION)
 
     with pytest.raises(ValueError):
         session.select_voicing("Nope")

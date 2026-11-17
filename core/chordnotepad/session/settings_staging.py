@@ -25,6 +25,7 @@ import os
 from pathlib import Path
 from typing import Any, Dict, Mapping, Optional, Tuple
 
+from chordnotepad.models.voicing_versions import migrate_voicing
 from chordnotepad.session.settings import NUMBER_SETTINGS
 
 logger = logging.getLogger(__name__)
@@ -61,6 +62,12 @@ class SettingsStaging:
             return {}, {}
         voicings = {str(name): voicing for name, voicing in (data.get("voicings") or {}).items()
                     if isinstance(voicing, dict) and "model" in voicing}
+        # Staged by an older release: brought up to date as the config is.
+        for name, voicing in voicings.items():
+            try:
+                migrate_voicing(voicing)
+            except Exception as e:  # noqa: BLE001 - staging is a safety net
+                logger.warning("Could not migrate the staged voicing %r: %s", name, e)
         numbers = {key: text for key, text in (data.get("numbers") or {}).items()
                    if key in NUMBER_SETTINGS and isinstance(text, str)}
         self._written = data

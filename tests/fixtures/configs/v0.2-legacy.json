@@ -1,0 +1,42 @@
+{
+  "version": 1,
+  "font_family": "TkFixedFont",
+  "font_size": 11,
+  "theme": "default",
+  "bpm": 120,
+  "bpm_multiplier": 1.0,
+  "default_octave": 4,
+  "bass_octave": 3,
+  "time_signature_beats": 4,
+  "time_signature_unit": 4,
+  "voicing": "guitar:Drop D",
+  "custom_tunings": {
+    "Drop D": [
+      "D2",
+      "A2",
+      "D3",
+      "G3",
+      "B3",
+      "E4"
+    ],
+    "Mandolin": [
+      "G3",
+      "D4",
+      "A4",
+      "E5"
+    ]
+  },
+  "instrument": 0,
+  "notation": "european",
+  "key": "Sol",
+  "window_geometry": "900x600",
+  "window_maximized": false,
+  "recent_files": [
+    "/home/user/songs/amazing.txt"
+  ],
+  "max_recent_files": 10,
+  "soundfont_path": null,
+  "audio_driver": null,
+  "log_level": "INFO",
+  "show_quick_start_on_startup": true
+}
