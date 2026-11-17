@@ -732,6 +732,14 @@ Voicing Parameters
        chord on its own root.
      - ``same_bass_penalty``
      - -8.0
+   * - Voice overlap
+     - Subtracted per voice that moves past where its neighbour just was:
+       the tenor going below the note the bass just sang, or the alto above
+       the soprano's last note. The two lines cross in the listener's ear
+       and on the staff even though no voice crosses within a chord. Most
+       common in the close choirs (TTBB, SSA).
+     - ``voice_overlap_penalty``
+     - -1.0
 
 .. note::
    These weights apply per ensemble. A custom ensemble that omits

@@ -320,6 +320,7 @@ class EnsembleVoicer(INotePicker):
         # applies (a fifth by default; a string pad spreads to an octave).
         self._upper_spacing_threshold = float(w('upper_spacing_threshold'))
         self._same_bass_penalty = float(w('same_bass_penalty'))
+        self._voice_overlap_penalty = float(w('voice_overlap_penalty'))
         self._doubling: Dict[str, float] = dict(w('doubling'))
         self._omit: Dict[str, float] = dict(w('omit'))
         self._inversion: Dict[str, float] = dict(w('inversion'))
@@ -1137,6 +1138,15 @@ class EnsembleVoicer(INotePicker):
             if self._augmented_second_penalty and self._augmented_second(
                     prev_notes[b], cur_notes[b], prev_ctx, cur_ctx):
                 score += self._augmented_second_penalty
+
+        # Overlaps: a voice moving past where its neighbour just was (the
+        # tenor below the bass's previous note), which blurs the two lines.
+        if self._voice_overlap_penalty:
+            for b in range(n):
+                if b > 0 and cur_notes[b] < prev_notes[b - 1]:
+                    score += self._voice_overlap_penalty
+                if b < n - 1 and cur_notes[b] > prev_notes[b + 1]:
+                    score += self._voice_overlap_penalty
 
         # Parallel perfect fifths/octaves between any two moving voices. With
         # five voices or more, two that both carry the bass line (the bass's

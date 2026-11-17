@@ -182,6 +182,9 @@ def _resolve_pitch(value: Union[int, str], *, context: str) -> int:
 #: - ``upper_spacing_threshold``: not a score but a size, in semitones: the
 #:   widest upper-voice gap that costs nothing (a perfect fifth, 7, by default;
 #:   the String Quartet spreads to an octave).
+#: - ``voice_overlap_penalty``: cost per voice that moves past where its
+#:   neighbour just was (the tenor below the bass's previous note), which
+#:   blurs the two lines for singers and on the staff.
 #: - ``same_bass_penalty``: cost when two neighbouring chords are the same
 #:   chord over different written basses (C and C/E) but the voicings sound
 #:   the same lowest pitch class, so the bass change isn't heard.
@@ -254,6 +257,7 @@ DEFAULT_WEIGHTS: Dict[str, Any] = {
     'upper_spacing_penalty': -0.15,
     'upper_spacing_threshold': 7.0,
     'same_bass_penalty': -8.0,
+    'voice_overlap_penalty': -1.0,
 }
 
 #: Weight keys whose value is itself a per-role mapping rather than a scalar.

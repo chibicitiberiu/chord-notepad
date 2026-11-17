@@ -912,6 +912,22 @@ def test_vi_to_v_in_minor_avoids_the_augmented_second(spec_name):
             assert abs(e[b] - f[b]) != 6, (spec_name, f, e)
 
 
+def test_a_voice_moving_past_its_neighbours_last_note_costs_the_overlap_penalty():
+    voicer = EnsembleVoicer(BUILTIN_ENSEMBLES['ttbb'])
+    free = EnsembleVoicer(EnsembleSpec.from_dict('free', {
+        **BUILTIN_ENSEMBLES['ttbb'].to_dict(),
+        'weights': {**BUILTIN_ENSEMBLES['ttbb'].to_dict()['weights'], 'voice_overlap_penalty': 0.0}}))
+    w = voicer._voice_overlap_penalty
+    assert w == DEFAULT_WEIGHTS['voice_overlap_penalty'] < 0
+    ctx = voicer._state.context
+    prev, cur = (53, 57, 60, 65), (48, 52, 60, 67)   # F3 A3 C4 F4 -> C3 E3 C4 G4
+    # The baritone's E3 is under the bass's previous F3: one overlap.
+    assert voicer._score_transition(prev, cur, ctx) == pytest.approx(
+        free._score_transition(prev, cur, ctx) + w)
+    plain = (48, 55, 60, 64)                          # C3 G3 C4 E4: none
+    assert voicer._score_transition(prev, plain, ctx) == free._score_transition(prev, plain, ctx)
+
+
 def test_a_diminished_seventh_may_still_leave_out_its_fifth():
     # Any three tones of a dim7 sound the same chord: SSA keeps F#dim7's root
     # (the line F F# G) and leaves out the C.

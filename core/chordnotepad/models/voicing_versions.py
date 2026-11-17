@@ -216,6 +216,7 @@ def _choir_untouched() -> Dict[str, List[Any]]:
         'hidden_perfect_penalty': [-2.0],              # b3d4c24
         'low_interval_limit_penalty': [-2.0],          # 60a1a60
         'augmented_second_penalty': [-4.0],            # engine review E1
+        'voice_overlap_penalty': [-1.0],               # engine review E5
     }
 
 
@@ -253,6 +254,7 @@ def _quartet_untouched() -> Dict[str, List[Any]]:
         'hidden_perfect_penalty': [-2.0],              # b3d4c24
         'low_interval_limit_penalty': [-2.0],          # 60a1a60
         'augmented_second_penalty': [-4.0],            # engine review E1
+        'voice_overlap_penalty': [-1.0],               # engine review E5
     }
 
 

@@ -52,6 +52,7 @@ ENSEMBLE_WEIGHT_LABELS: Dict[str, str] = {
     'upper_spacing_penalty': 'Wide upper spacing',
     'upper_spacing_threshold': 'Upper spacing allowed',
     'same_bass_penalty': 'Same chord, same bass',
+    'voice_overlap_penalty': 'Voice overlap',
 }
 
 PIANO_WEIGHT_LABELS: Dict[str, str] = {
@@ -332,6 +333,11 @@ TOOLTIPS: Dict[str, str] = {
                                           "costs little and one far under it a lot. More negative "
                                           "spreads the low voices wider and leaves the third to the "
                                           "upper voices."),
+    'weight:voice_overlap_penalty': ("How the picker treats a voice moving past where its "
+                                     "neighbour just was, such as the tenor going below the "
+                                     "bass's previous note; the two lines blur for singers and "
+                                     "on the staff. More negative keeps each voice on its own "
+                                     "side."),
     'weight:unison_penalty': ("How the picker treats a pair of neighbouring voices on the same "
                               "pitch, when unisons are allowed. More negative avoids unisons."),
     'weight:upper_spacing_penalty': ("How the picker treats a gap between two neighbouring "
