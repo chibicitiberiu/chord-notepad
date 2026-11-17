@@ -190,9 +190,11 @@ tonic, and doubling it is avoided.
 If a chord has more notes than there are voices, the tone with the
 cheapest Omission weight is left out. With the defaults that's the fifth,
 as in four-part writing: a G7 for three voices comes out as G, B and F, and
-a C9 for four voices as C, E, B♭ and D. Next comes a 9th or other extension,
+a C9 for four voices as C, E, B♭ and D. Next comes an extension the chord's
+name only stacks in (the 9th of a G13, which costs half the Extension
+weight), then the named one (G13's 13th, an Am11's 11th, an altered 9th),
 then the root; the third, the seventh and a ``sus`` chord's suspended tone
-are kept. (The piano drops the root before the fifth, because its left hand
+are kept. So a G13 for four voices is G, B, F and E. (The piano drops the root before the fifth, because its left hand
 plays the root; an ensemble keeps it.) If a chord has fewer
 notes than voices, something gets doubled, and the engine reaches for the
 root first. A chord that fills the voices exactly may also leave out its
@@ -622,6 +624,8 @@ Voicing Parameters
        ``third`` (-40.0), ``fifth`` (-3.0), ``seventh`` (-40.0), ``color``
        (-30.0), ``extension`` (-6.0). The fifth is the perfect fifth only;
        a diminished or augmented fifth (``m7b5``, ``7#5``) is a color tone.
+       An extension the chord's name only stacks in (G13's 9th) costs half
+       the ``extension`` value, so the named one is kept first.
      - ``omit.root`` / ``.third`` / ``.fifth`` / ``.seventh`` /
        ``.color`` / ``.extension``
      - :plat:`see left|per key, above`

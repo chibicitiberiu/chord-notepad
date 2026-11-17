@@ -32,7 +32,7 @@ The roles:
   structure. Adds richness but is expendable when space is tight.
 """
 
-from typing import Dict, Iterable, Optional
+from typing import Dict, Iterable, Mapping, Optional
 
 #: The perfect fifth, the only fifth with the ``fifth`` role (outside a
 #: diminished seventh chord).
@@ -91,6 +91,25 @@ def is_named_extension(interval: int, intervals: Iterable[int]) -> bool:
         return True
     naturals = [iv for iv in intervals if iv >= 12 and iv not in ALTERED_EXTENSIONS]
     return not naturals or interval >= max(naturals)
+
+
+#: The share of the ``extension`` omission weight an extension the name only
+#: stacks in (not :func:`is_named_extension`) costs: G13's 9th goes before its 13th.
+STACKED_EXTENSION_SHARE = 0.5
+
+
+def omission_cost(omit: Mapping[str, float], interval: int, intervals: Iterable[int]) -> float:
+    """What leaving out the tone at ``interval`` costs under an ``omit`` map.
+
+    The weight of its role (:func:`classify_role`); an extension the chord's
+    name only stacks in costs :data:`STACKED_EXTENSION_SHARE` of it.
+    """
+    intervals = list(intervals)
+    role = classify_role(interval, intervals)
+    cost = omit[role]
+    if role == 'extension' and not is_named_extension(interval, intervals):
+        cost *= STACKED_EXTENSION_SHARE
+    return cost
 
 
 # Completeness (piano): penalty (subtracted) for each chord tone missing from

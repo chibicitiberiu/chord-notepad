@@ -813,6 +813,20 @@ def test_an_altered_fifth_is_never_left_out(spec_name, progression):
         assert altered <= {m % 12 for m in voicing}, (chord.root, chord.intervals, voicing)
 
 
+@pytest.mark.parametrize('symbol, named, stacked', [
+    ('G13', 4, 9), ('Am11', 2, 11), ('D13', 11, 4)])
+def test_a_stacked_extension_goes_before_the_named_one(symbol, named, stacked):
+    # G13 for four voices: drop the fifth and the 9th the name only stacks
+    # in, keep the 13th it spells (G B F E).
+    voicer = EnsembleVoicer(BUILTIN_ENSEMBLES['satb'])
+    meta = voicer._build_meta(parsed(symbol))
+    root = meta.root_pc
+    to_place = [(pc, role) for pc, role in meta.tones if pc != root]
+    best = voicer._ranked_drop_sets(to_place, len(to_place) - 3, meta.omit_cost)[0]
+    assert stacked in best and named not in best
+    assert meta.omit_cost[stacked] == pytest.approx(0.5 * meta.omit_cost[named])
+
+
 def test_a_diminished_seventh_may_still_leave_out_its_fifth():
     # Any three tones of a dim7 sound the same chord: SSA keeps F#dim7's root
     # (the line F F# G) and leaves out the C.

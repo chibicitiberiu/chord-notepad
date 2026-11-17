@@ -32,7 +32,7 @@ from copy import deepcopy
 import logging
 
 from chordnotepad.audio.note_picker_interface import INotePicker, VoicedChord
-from chordnotepad.audio.chord_tones import classify_role
+from chordnotepad.audio.chord_tones import classify_role, omission_cost, is_named_extension
 from chordnotepad.audio.voicing_optimizer import optimize_sequence
 from chordnotepad.chord.midi_converter import parse_note_to_semitone, intervals_from_note_names
 from chordnotepad.models.piano_spec import PianoSpec, DEFAULT_PIANO
@@ -336,12 +336,15 @@ class ChordNotePicker(INotePicker):
         # Partition chord tones into core (below the octave) and extensions.
         core: List[Tuple[int, str]] = []   # (pitch class, role), stacking order
         exts: List[int] = []               # extension pitch classes, low->high
+        named: set = set()                 # the extensions the chord's name spells
         seen_core_pc = set()
         for interval in intervals:
             role = self._role(interval, intervals)
             pc = (root_pc + interval) % 12
             if role == 'extension':
                 exts.append(pc)
+                if is_named_extension(interval, intervals):
+                    named.add(pc)
             elif pc not in seen_core_pc:
                 seen_core_pc.add(pc)
                 core.append((pc, role))
@@ -354,7 +357,8 @@ class ChordNotePicker(INotePicker):
         # Over a slash bass that isn't the root (G#5/C, C/E) dropping it would
         # leave the chord without its root at all.
         bass_covers_root = self.add_bass and bass_pc == root_pc
-        right_hands = self._enumerate_right_hands(core, exts, allow_root_drop=bass_covers_root)
+        right_hands = self._enumerate_right_hands(core, exts, allow_root_drop=bass_covers_root,
+                                                  named_exts=frozenset(named))
 
         candidates: List[Voicing] = []
         seen: set = set()
@@ -390,10 +394,12 @@ class ChordNotePicker(INotePicker):
 
     def _enumerate_right_hands(self, core: List[Tuple[int, str]],
                                exts: List[int],
-                               allow_root_drop: bool = True) -> List[Tuple[int, ...]]:
+                               allow_root_drop: bool = True,
+                               named_exts: frozenset = frozenset()) -> List[Tuple[int, ...]]:
         """Enumerate right-hand chord-tone voicings across inversions/anchors.
 
-        ``allow_root_drop`` is passed through to :meth:`_core_reductions`.
+        ``allow_root_drop`` is passed through to :meth:`_core_reductions`,
+        ``named_exts`` to :meth:`_stack_right_hand`.
         """
         results: List[Tuple[int, ...]] = []
         seen: set = set()
@@ -406,7 +412,7 @@ class ChordNotePicker(INotePicker):
                        if m % 12 == low_pc]
             for anchor in anchors:
                 for core_kept in self._core_reductions(order, allow_root_drop):
-                    rh = self._stack_right_hand(core_kept, exts, anchor)
+                    rh = self._stack_right_hand(core_kept, exts, anchor, named_exts)
                     if rh is None:
                         continue
                     key = tuple(rh)
@@ -442,13 +448,17 @@ class ChordNotePicker(INotePicker):
         return variants
 
     def _stack_right_hand(self, core_kept: List[Tuple[int, str]], exts: List[int],
-                          anchor: int) -> Optional[Tuple[int, ...]]:
+                          anchor: int, named_exts: frozenset = frozenset()
+                          ) -> Optional[Tuple[int, ...]]:
         """Stack a right-hand voicing and drop over-reaching extensions.
 
         Core tones are stacked in closest position from ``anchor`` upward;
-        extensions are added above the top core tone, lowest first, each dropped
-        if it would break the per-hand span, count or range limit. Returns the
-        sorted voicing, or ``None`` if even the core does not fit.
+        extensions go above the top core tone, lowest first. When they don't
+        all fit the per-hand span, count or range limit, the ones the chord's
+        name spells (``named_exts``: the 13 of G13, an altered 9) are kept
+        before the ones it only stacks in (G13's 9th), lowest first within
+        each. Returns the sorted voicing, or ``None`` if even the core does not
+        fit.
         """
         notes: List[int] = []
         prev: Optional[int] = None
@@ -466,18 +476,27 @@ class ChordNotePicker(INotePicker):
         if len(notes) > self.MAX_NOTES_PER_HAND:
             return None
 
-        for pc in exts:
-            if len(notes) >= self.MAX_NOTES_PER_HAND:
-                break
-            m = self._next_above(prev, pc)
-            if m > self.RH_MAX:
-                continue
-            if m - min(notes) > self.HAND_SPAN_SEMITONES:
-                continue  # drop this (higher) extension; it over-reaches the hand
-            notes.append(m)
-            prev = m
+        kept: List[int] = []
+        for pc in sorted(exts, key=lambda e: e not in named_exts):  # stable: low first
+            trial = [e for e in exts if e in kept or e == pc]
+            if self._stack_extensions(notes, trial) is not None:
+                kept = trial
+        return tuple(notes + self._stack_extensions(notes, kept))
 
-        return tuple(notes)
+    def _stack_extensions(self, core_notes: List[int], exts: List[int]) -> Optional[List[int]]:
+        """``exts`` stacked in order above ``core_notes``, or ``None`` when one
+        breaks the hand's span, note count or range."""
+        placed: List[int] = []
+        prev = core_notes[-1]
+        low = min(core_notes)
+        for pc in exts:
+            m = self._next_above(prev, pc)
+            if (m > self.RH_MAX or m - low > self.HAND_SPAN_SEMITONES
+                    or len(core_notes) + len(placed) >= self.MAX_NOTES_PER_HAND):
+                return None
+            placed.append(m)
+            prev = m
+        return placed
 
     @staticmethod
     def _next_above(prev: int, pc: int) -> int:
@@ -551,7 +570,7 @@ class ChordNotePicker(INotePicker):
         for interval in intervals:
             pc = (root_pc + interval) % 12
             if pc not in voiced_pcs:
-                score += self.OMIT_PENALTY[self._role(interval, intervals)]
+                score += omission_cost(self.OMIT_PENALTY, interval, intervals)
 
         # Right-hand register centering (strong: prevents drift over long songs).
         if rh:

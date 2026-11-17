@@ -57,13 +57,13 @@ from __future__ import annotations
 
 from collections import Counter
 from copy import deepcopy
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from itertools import combinations, combinations_with_replacement
 import logging
 from typing import Any, Callable, Dict, FrozenSet, List, NamedTuple, Optional, Tuple, TYPE_CHECKING
 
 from chordnotepad.audio.note_picker_interface import INotePicker
-from chordnotepad.audio.chord_tones import classify_role
+from chordnotepad.audio.chord_tones import classify_role, omission_cost
 from chordnotepad.audio.voicing_optimizer import optimize_sequence
 from chordnotepad.chord.midi_converter import parse_note_to_semitone, intervals_from_note_names
 
@@ -165,6 +165,10 @@ class _ChordMeta:
     role_by_pc: Dict[int, str]
     ctx: _ChordContext
     empty: bool = False
+    omit_cost: Dict[int, float] = field(default_factory=dict)
+    """Per chord-tone pitch class, ``weights['omit']`` of leaving it out
+    (:func:`audio.chord_tones.omission_cost`: a stacked-in extension costs
+    less than the named one)."""
 
 
 class _BassState(NamedTuple):
@@ -582,12 +586,14 @@ class EnsembleVoicer(INotePicker):
             bass_pc = root_pc
 
         role_by_pc: Dict[int, str] = {}
+        omit_cost: Dict[int, float] = {}
         tones: List[Tuple[int, str]] = []
         for interval in intervals:
             pc = (root_pc + interval) % _OCTAVE
             if pc not in role_by_pc:
                 role = classify_role(interval, intervals)
                 role_by_pc[pc] = role
+                omit_cost[pc] = omission_cost(self._omit, interval, intervals)
                 tones.append((pc, role))
 
         seventh_pcs = frozenset(pc for pc, role in tones if role == 'seventh')
@@ -602,6 +608,7 @@ class EnsembleVoicer(INotePicker):
             tones=tuple(tones),
             role_by_pc=role_by_pc,
             ctx=ctx,
+            omit_cost=omit_cost,
         )
 
     @staticmethod
@@ -747,7 +754,7 @@ class EnsembleVoicer(INotePicker):
                     others = tuple((pc, role) for pc, role in tones if pc != fifth)
                     plans.extend(self._double_plans(bass_pc, kept, others, 1))
             elif m > n_upper:
-                plans.extend(self._drop_plans(bass_pc, to_place, m - n_upper))
+                plans.extend(self._drop_plans(bass_pc, to_place, m - n_upper, meta.omit_cost))
             else:  # m < n_upper: double the most agreeable tones
                 plans.extend(
                     self._double_plans(bass_pc, to_place, tones, n_upper - m)
@@ -760,9 +767,10 @@ class EnsembleVoicer(INotePicker):
         return plans
 
     def _drop_plans(self, bass_pc: int, to_place: List[Tuple[int, str]],
-                    drop_count: int) -> List[Tuple[int, List[int]]]:
+                    drop_count: int, costs: Optional[Dict[int, float]] = None
+                    ) -> List[Tuple[int, List[int]]]:
         """Plans that drop ``drop_count`` tones, cheapest drop-sets first."""
-        ranked = self._ranked_drop_sets(to_place, drop_count)
+        ranked = self._ranked_drop_sets(to_place, drop_count, costs)
         plans: List[Tuple[int, List[int]]] = []
         for drop_pcs in ranked[:_DROP_SETS_KEPT]:
             drop_set = set(drop_pcs)
@@ -771,18 +779,22 @@ class EnsembleVoicer(INotePicker):
         return plans
 
     def _ranked_drop_sets(self, to_place: List[Tuple[int, str]],
-                          drop_count: int) -> List[Tuple[int, ...]]:
+                          drop_count: int, costs: Optional[Dict[int, float]] = None
+                          ) -> List[Tuple[int, ...]]:
         """Return drop-sets (pitch-class tuples) ranked cheapest-first.
 
         ``weights['omit']`` is now a signed (negative) contribution, so the
         cheapest tone to drop is the one whose omission hurts the score least,
         i.e. the drop-set with the *largest* (least-negative) summed weight.
         We therefore rank by summed weight descending; ties break by the
-        pitch-class tuple for determinism. Exposed for direct unit testing.
+        pitch-class tuple for determinism. ``costs`` (per pitch class, as
+        :attr:`_ChordMeta.omit_cost`) prices each tone; without it, its role's
+        weight. Exposed for direct unit testing.
         """
         scored: List[Tuple[float, Tuple[int, ...]]] = []
         for combo in combinations(to_place, drop_count):
-            cost = sum(self._omit[role] for _pc, role in combo)
+            cost = sum(costs[pc] if costs is not None else self._omit[role]
+                       for pc, role in combo)
             pcs = tuple(sorted(pc for pc, _role in combo))
             scored.append((cost, pcs))
         scored.sort(key=lambda item: (-item[0], item[1]))
@@ -933,7 +945,7 @@ class EnsembleVoicer(INotePicker):
     def _omission_score(self, stack: Tuple[int, ...], meta: _ChordMeta) -> float:
         """``weights['omit']`` summed over the chord tones ``stack`` leaves out."""
         voiced = {m % _OCTAVE for m in stack}
-        return sum(self._omit[role] for pc, role in meta.tones if pc not in voiced)
+        return sum(meta.omit_cost[pc] for pc, _role in meta.tones if pc not in voiced)
 
     def _score_quality(self, stack: Tuple[int, ...], meta: _ChordMeta) -> float:
         """Intrinsic quality of a voicing in isolation; higher is better.

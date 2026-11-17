@@ -3,7 +3,8 @@
 import pytest
 
 from chordnotepad.audio.chord_tones import (
-    classify_role, is_diminished_seventh, is_named_extension, DEFAULT_OMIT_PENALTY)
+    classify_role, is_diminished_seventh, is_named_extension, omission_cost,
+    STACKED_EXTENSION_SHARE, DEFAULT_OMIT_PENALTY)
 
 
 class TestClassifyRole:
@@ -86,6 +87,16 @@ class TestNamedExtension:
 
     def test_core_tones_are_never_extensions(self) -> None:
         assert not any(is_named_extension(iv, [0, 4, 7, 9]) for iv in [0, 4, 7, 9])
+
+
+def test_omission_cost_halves_a_stacked_extension() -> None:
+    omit = {'root': -1.0, 'third': -2.0, 'fifth': -3.0, 'seventh': -4.0,
+            'color': -5.0, 'extension': -6.0}
+    g13 = [0, 4, 7, 10, 14, 21]
+    assert omission_cost(omit, 21, g13) == -6.0
+    assert omission_cost(omit, 14, g13) == -6.0 * STACKED_EXTENSION_SHARE
+    assert omission_cost(omit, 7, g13) == -3.0
+    assert omission_cost(omit, 6, [0, 3, 6, 10]) == -5.0  # m7b5's b5 is colour
 
 
 class TestDefaultOmitPenalty:

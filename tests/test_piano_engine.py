@@ -10,6 +10,8 @@ Covers two things the generalization must guarantee:
    the voicing (register, bass inclusion, physical limits).
 """
 
+import pytest
+
 from chordnotepad.audio.chord_picker import ChordNotePicker
 from chordnotepad.models.piano_spec import DEFAULT_PIANO, PianoSpec
 from chordnotepad.chord.helper import ChordHelper
@@ -128,3 +130,39 @@ def test_right_hand_never_drops_an_altered_fifth():
         altered = {(root + iv) % 12 for iv in chord.intervals if iv in (6, 8)}
         for voicing in p._get_candidates(chord):
             assert altered <= {m % 12 for m in voicing.rh}, (symbol, voicing)
+
+
+def test_right_hand_keeps_the_named_extension_first():
+    # A stacked-in extension costs half the named one: in a ii-V-I G13
+    # keeps its 13th (E) and gives up the 9th (A).
+    p = ChordNotePicker()
+    symbols = ['Dm9', 'G13', 'Cmaj9', 'A7b9']
+    g13 = p.voice_sequence(_seq(symbols))[1]
+    assert 4 in {m % 12 for m in g13}, g13
+
+
+def test_stacking_keeps_the_named_extension_when_only_one_fits():
+    # With room for one extension (four notes a hand) the named 13th of C13
+    # is stacked, not the 9th the name only stacks in.
+    p = ChordNotePicker()
+    p.MAX_NOTES_PER_HAND = 4
+    p.HAND_SPAN_SEMITONES = 24
+    core = [(0, 'root'), (4, 'third'), (10, 'seventh')]
+    rh = p._stack_right_hand(core, [2, 9], 60, frozenset({9}))
+    assert rh == (60, 64, 70, 81)  # C4 E4 Bb4 A5
+    assert p._stack_right_hand(core, [2, 9], 60) == (60, 64, 70, 74)  # no names: lowest first
+
+
+def test_stacked_extension_costs_half_the_named_one():
+    p = ChordNotePicker()
+    chord = _seq(['G13'])[0]
+    root = p._chord_signature(chord)[0]
+    lh, rh = (43,), (59, 62, 65, 67, 69)  # G2 | B3 D4 F4 G4 A4: no E
+    lh2, rh2 = (43,), (59, 62, 64, 65, 67)  # G2 | B3 D4 E4 F4 G4: no A
+    from chordnotepad.audio.chord_picker import Voicing
+    no_13 = p._score_quality(Voicing(lh, rh), chord)
+    no_9 = p._score_quality(Voicing(lh2, rh2), chord)
+    omit = p.OMIT_PENALTY['extension']
+    # Apart from omission the two differ only by register (rh mean).
+    centre = p.SCORE_CENTER * (abs(sum(rh) / 5 - p.RH_IDEAL_CENTER) - abs(sum(rh2) / 5 - p.RH_IDEAL_CENTER))
+    assert no_13 - no_9 == pytest.approx(omit - 0.5 * omit + centre)

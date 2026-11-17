@@ -21,6 +21,10 @@ at a few different octave placements. Any extensions a
 chord carries -- a 9th, an 11th, a 13th -- always stack on top of that core
 voicing rather than displacing it, so a dense jazz chord still reads as the
 plain triad or seventh underneath with color added above.
+When they don't all fit in one hand, the extension the chord's name spells
+is kept first: a G13 keeps its 13th (E) and gives up the 9th the name only
+stacks in, an Am11 keeps its 11th before its 9th, and an altered 9th (C7♭9)
+counts as named.
 
 Not every voicing that's built this way is playable, so the picker throws
 out anything that breaks the physical model first: too many notes for one
@@ -361,6 +365,8 @@ you want it to steer clear of gets a negative one; zero leaves it neutral.
        seventh and color weights rarely come into play. The fifth is the
        perfect fifth only: the diminished or augmented fifth of ``m7b5``,
        ``7b5``, ``aug`` or ``7#5`` counts as a color tone and is kept.
+       An extension the chord's name only stacks in (G13's 9th) costs half
+       the ``extension`` value, so the named one is kept first.
        Same role taxonomy as the ensemble model's omission weights (see
        :doc:`ensembles`): ``root`` (-4.0), ``third`` (-40.0), ``fifth``
        (-8.0), ``seventh`` (-40.0), ``color`` (-30.0), ``extension`` (-7.0).
