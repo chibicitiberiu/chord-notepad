@@ -361,7 +361,8 @@ Suggesting a Capo
    looks for the position that makes the part easiest to play: fewest barres,
    lowest on the neck, most open strings. If no capo helps, it says so and
    changes nothing. A capo has to make the chords easier on average, so a
-   long song or a chorus that repeats is judged the same as a short one.
+   long song or a chorus that repeats is judged the same as a short one, and
+   a selection of two or three chords needs a clear gain over all of them.
 
    .. platform-figure:: capo-suggest
       :platforms: desktop
@@ -403,7 +404,8 @@ Suggesting a Capo
    looks for the position that makes the part easiest to play: fewest barres,
    lowest on the neck, most open strings. If no capo helps, it says so and
    changes nothing. A capo has to make the chords easier on average, so a long
-   song or a chorus that repeats is judged the same as a short one. The
+   song or a chorus that repeats is judged the same as a short one, and a
+   selection of two or three chords needs a clear gain over all of them. The
    directive goes at the very top of the song, or at the
    start of the selection's first line; a ``{capo}`` already sitting between
    there and the first chord is replaced instead. Switch back to Play and pick a fretted

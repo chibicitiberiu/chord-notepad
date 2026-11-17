@@ -64,6 +64,9 @@ DEFAULT_SIDEBAR_WIDTH = 76
 # flat key (Bb, Eb, Ab, Db) and F# gets one.
 CAPO_MAX_DEFAULT = 7      # Highest capo position considered.
 CAPO_MIN_GAIN = 1.5       # Minimum score improvement per chord over capo 0 to suggest a capo.
+# ... and never less than this over the whole selection: two or three open
+# chords (C G) can gain 1.5 a chord from a capo by chance, which isn't worth one.
+CAPO_MIN_TOTAL_GAIN = 6.0
 
 # Audio settings
 DEFAULT_OCTAVE = 4

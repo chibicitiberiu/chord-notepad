@@ -69,6 +69,16 @@ def test_the_gain_is_per_chord_so_repeats_dont_tip_it():
     assert suggest_capo(STANDARD, FSHARP_PROGRESSION * 4) == suggested
 
 
+def test_a_short_selection_needs_the_whole_selection_floor():
+    # C G alone gains more than 1.5 a chord at capo 5 by chance; two chords
+    # still need CAPO_MIN_TOTAL_GAIN over the selection, as before.
+    from chordnotepad.constants import CAPO_MIN_TOTAL_GAIN
+    c_g = CMAJOR_PROGRESSION[:2]
+    assert suggest_capo(STANDARD, c_g) is None
+    assert suggest_capo(STANDARD, c_g, min_total_gain=0.0) is not None
+    assert CAPO_MIN_TOTAL_GAIN == 6.0
+
+
 def test_open_friendly_key_suggests_no_capo():
     assert suggest_capo(STANDARD, CMAJOR_PROGRESSION) is None
 

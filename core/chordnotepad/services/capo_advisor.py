@@ -36,7 +36,7 @@ import logging
 from typing import Callable, List, Optional
 
 from chordnotepad.audio.guitar_chord_picker import GuitarChordPicker
-from chordnotepad.constants import CAPO_MAX_DEFAULT, CAPO_MIN_GAIN
+from chordnotepad.constants import CAPO_MAX_DEFAULT, CAPO_MIN_GAIN, CAPO_MIN_TOTAL_GAIN
 from chordnotepad.models.chord_notes import ChordNotes
 from chordnotepad.models.fretboard_spec import FretboardSpec
 
@@ -58,6 +58,7 @@ def suggest_capo(
     sequence: List[ChordNotes],
     max_capo: int = CAPO_MAX_DEFAULT,
     min_gain: float = CAPO_MIN_GAIN,
+    min_total_gain: float = CAPO_MIN_TOTAL_GAIN,
     should_abort: Optional[Callable[[], bool]] = None,
 ) -> Optional[int]:
     """Suggest the easiest-to-play capo position for a song, or ``None``.
@@ -65,7 +66,8 @@ def suggest_capo(
     Scores capo positions ``0..max_capo`` with the guitar picker's whole-song
     playability score and returns the best-scoring position, but only when it is
     nonzero *and* beats capo 0 by at least ``min_gain`` per chord (each chord
-    with notes, repeats included). Deterministic; ties go
+    with notes, repeats included) and ``min_total_gain`` in all.
+    Deterministic; ties go
     to the lower capo (a higher capo must strictly beat the running best to
     replace it, and capo 0 is the running best to start).
 
@@ -76,6 +78,9 @@ def suggest_capo(
         max_capo: Highest capo position to consider (inclusive).
         min_gain: Minimum score improvement per chord over capo 0 required to
             suggest a capo. See :data:`constants.CAPO_MIN_GAIN`.
+        min_total_gain: Minimum improvement over the whole sequence, so two
+            or three chords can't get a capo on a small gain. See
+            :data:`constants.CAPO_MIN_TOTAL_GAIN`.
         should_abort: Optional cooperative-abort predicate checked between capo
             positions and threaded into every per-capo whole-song score. When it
             fires, the underlying search raises
@@ -110,7 +115,7 @@ def suggest_capo(
 
     if best_capo == 0:
         return None
-    if best_score - base_score < min_gain * chords:
+    if best_score - base_score < max(min_gain * chords, min_total_gain):
         return None
     logger.debug(
         "Capo advisor: suggesting capo %d (score %.3f vs %.3f at capo 0)",
