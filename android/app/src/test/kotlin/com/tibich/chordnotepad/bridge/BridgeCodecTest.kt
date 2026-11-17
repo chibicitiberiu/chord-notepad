@@ -215,6 +215,31 @@ class BridgeCodecTest {
             """{"request_id": 7, "kind": "loop", "existing_labels": ["chorus"], "notation": "american"}""",
         )
         assertEquals(listOf("chorus"), d.existingLabels)
+        val pdf = decode<PickDocumentRequest>(
+            "PickDocumentRequest",
+            """{"request_id": 8, "mode": "export_pdf", "suggested_name": "song.pdf"}""",
+        )
+        assertEquals(PickMode.EXPORT_PDF, pdf.mode)
+    }
+
+    @Test
+    fun `a PDF export's pages, as Python encodes them`() {
+        // session.bridge.encode(PaintPdfRequest(...)) for "{key: A}  A\nla" on Letter.
+        val paint = decode<PaintPdfRequest>(
+            "PaintPdfRequest",
+            """{"request_id":9,"ref":{"id":"content://d/song.pdf","display_name":"song.pdf","location":"Downloads/song.pdf"},"layout":{"page_width":612.0,"page_height":792.0,"font_size":10.0,"line_height":13.62,"small_font_size":8.0,"title":"Song","title_x":42.52,"title_y":51.07,"footer_y":747.14,"page_count":1,"pages":[{"lines":[{"y":76.11,"runs":[{"x":42.52,"text":"Key: A","dim":true},{"x":102.52,"text":"A","dim":false}]},{"y":89.73,"runs":[{"x":42.52,"text":"la","dim":false}]}],"footer":"1 / 1","footer_x":294.0}]}}""",
+        )
+        assertEquals(9, paint.requestId)
+        assertEquals("content://d/song.pdf", paint.ref.id)
+        val layout = paint.layout
+        assertEquals(612.0, layout.pageWidth, 0.0)
+        assertEquals(792.0, layout.pageHeight, 0.0)
+        assertEquals(10.0, layout.fontSize, 0.0)
+        assertEquals(1, layout.pageCount)
+        val page = layout.pages.single()
+        assertEquals("1 / 1", page.footer)
+        assertEquals(listOf(PdfRun(42.52, "Key: A", true), PdfRun(102.52, "A", false)), page.lines[0].runs)
+        assertEquals(89.73, page.lines[1].y, 0.0)
     }
 
     @Test

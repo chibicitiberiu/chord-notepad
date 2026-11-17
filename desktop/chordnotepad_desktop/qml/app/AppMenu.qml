@@ -96,6 +96,7 @@ Menu {
     MenuSeparator { }
     MenuItem { action: root.actions.exportMidiAction }
     MenuItem { action: root.actions.exportAudioAction }
+    MenuItem { action: root.actions.exportPdfAction }
     MenuSeparator { }
     MenuItem { objectName: "appMenuMenuBar"; action: root.actions.menuBarAction }
     MenuItem { objectName: "appMenuDark"; action: root.actions.darkAction }

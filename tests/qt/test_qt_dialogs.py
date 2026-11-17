@@ -647,8 +647,9 @@ def test_escape_closes_every_dialog(app, opener, name):
 def test_the_requests_the_window_answers():
     from chordnotepad_desktop.application import HANDLED_REQUESTS
 
-    # The file pickers are F3's (files.py, FileDialogs.qml).
-    assert HANDLED_REQUESTS == {"ConfirmDiscardRequest", "PickDocumentRequest"}
+    # The file pickers are F3's (files.py, FileDialogs.qml); the PDF's pages
+    # pdf_export.py's.
+    assert HANDLED_REQUESTS == {"ConfirmDiscardRequest", "PickDocumentRequest", "PaintPdfRequest"}
 
 
 def test_the_settings_window_closes_with_the_main_window(app):

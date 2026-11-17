@@ -25,6 +25,9 @@ const val MIDI_MIME_TYPE = "audio/midi"
 /** MIME type of an audio (WAV) export. */
 const val WAV_MIME_TYPE = "audio/wav"
 
+/** MIME type of a PDF export. */
+const val PDF_MIME_TYPE = "application/pdf"
+
 /**
  * What Open asks the picker for: text first, then anything, as the desktop's
  * "Text Files / All Files" dialog allows any file. Songs are plain text, but
@@ -39,4 +42,5 @@ fun pickerFor(request: PickDocumentRequest): PickerLaunch = when (request.mode) 
     PickMode.SAVE -> PickerLaunch.Create(SONG_MIME_TYPE, request.suggestedName.ifEmpty { "Untitled.txt" })
     PickMode.EXPORT_MIDI -> PickerLaunch.Create(MIDI_MIME_TYPE, request.suggestedName.ifEmpty { "Untitled.mid" })
     PickMode.EXPORT_AUDIO -> PickerLaunch.Create(WAV_MIME_TYPE, request.suggestedName.ifEmpty { "Untitled.wav" })
+    PickMode.EXPORT_PDF -> PickerLaunch.Create(PDF_MIME_TYPE, request.suggestedName.ifEmpty { "Untitled.pdf" })
 }

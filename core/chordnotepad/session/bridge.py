@@ -38,12 +38,13 @@ from chordnotepad.session import errors
 from chordnotepad.session.documents import DocumentRef
 from chordnotepad.session.events import (
     AudioUnavailable, CloseApproved, ConfirmDiscardRequest, DiscardChoice,
-    InsertDirectiveRequest, PickDocumentRequest, PickMode, QuickStartBlock, QuickStartContent,
-    DirectiveCheck, DirectiveHint, EditRefused, QuickStartPage, RenameFailed, TextEdited, UndoPolicy,
+    InsertDirectiveRequest, PaintPdfRequest, PickDocumentRequest, PickMode, QuickStartBlock,
+    QuickStartContent, DirectiveCheck, DirectiveHint, EditRefused, QuickStartPage, RenameFailed, TextEdited, UndoPolicy,
     UnexpectedError,
     UserError, VoicingEditorSchema,
 )
 from chordnotepad.session.host import Host
+from chordnotepad.session.print_layout import PdfLayout, PdfLine, PdfPage, PdfRun
 from chordnotepad.session.settings import DesktopSettingsValues, SettingsValues
 from chordnotepad.session.state import (
     CapoAdviceState, CapoRow, ChordSheetState, ChordSheetView, DocumentState, EditorState, HighlightState,
@@ -75,13 +76,13 @@ EVENT_TYPES: Tuple[type, ...] = (
     EditRefused,
 )
 REQUEST_TYPES: Tuple[type, ...] = (
-    ConfirmDiscardRequest, PickDocumentRequest, InsertDirectiveRequest,
+    ConfirmDiscardRequest, PickDocumentRequest, InsertDirectiveRequest, PaintPdfRequest,
 )
 #: Nested in outputs, or sent in commands.
 VALUE_TYPES: Tuple[type, ...] = (
     Span, MenuItem, InstrumentFamily, ChordSheetView, DocumentRef, SettingsValues,
     IdentifierNote, VoicingGroup, VoicingPreset, SettingsProblem, QuickStartPage, QuickStartBlock,
-    SongDefault, TimelineSection, CapoRow,
+    SongDefault, TimelineSection, CapoRow, PdfLayout, PdfPage, PdfLine, PdfRun,
 )
 ENUM_TYPES: Tuple[Type[Enum], ...] = (
     SpanKind, PlaybackStatus, PlayAction, UndoPolicy, DiscardChoice, PickMode, StartupScreen,
@@ -326,6 +327,7 @@ SESSION_COMMANDS: Dict[str, Dict[str, str]] = {
     "rename_document": {"name": "str"},
     "export_midi": {},
     "export_audio": {},
+    "export_pdf": {"page": "str"},
     "request_close": {},
     "respond": {"request_id": "int", "value": "any"},
     "restore_draft": {"text": "str", "document": "DocumentRef|null", "modified": "bool",
@@ -376,6 +378,7 @@ ANSWER_TYPES: Dict[type, str] = {
     PickDocumentRequest: "DocumentRef|null",
     ConfirmDiscardRequest: "DiscardChoice|null",
     InsertDirectiveRequest: "dict[str,str]|null",
+    PaintPdfRequest: "str|null",
 }
 
 
@@ -398,6 +401,8 @@ def _decode_answer(request: Any, value: Any) -> Any:
         return dict(value)
     if isinstance(request, PickDocumentRequest):
         return _decoder("DocumentRef|null")(value)
+    if isinstance(request, PaintPdfRequest):
+        return _decoder("str|null")(value)
     raise BridgeError(f"no answer decoding for {type(request).__name__}")
 
 

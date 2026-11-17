@@ -98,6 +98,7 @@ MenuBar {
         MenuItem { action: bar.actions.saveAsAction }
         MenuItem { action: bar.actions.exportMidiAction }
         MenuItem { action: bar.actions.exportAudioAction }
+        MenuItem { action: bar.actions.exportPdfAction }
         MenuSeparator { }
         MenuItem { action: bar.actions.quitAction }
     }

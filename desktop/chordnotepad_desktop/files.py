@@ -18,7 +18,7 @@ extension:
   The suggested name carries its extension: the Flatpak's portal only grants
   access to the exact name chosen, so ".txt" can't be added afterwards.
 * **A typed name without an extension** gets the picker's (".txt",
-  ".mid", ".wav"), as in Tk. The picker only asked about the name as typed, so if the
+  ".mid", ".wav", ".pdf"), as in Tk. The picker only asked about the name as typed, so if the
   name with the extension exists already, :attr:`FilesModel.confirmReplace`
   asks first ("Confirm Save As"); :meth:`FilesModel.replaceAnswered` gives
   the answer. A document-portal path is left as it is (the sandbox may write
@@ -41,10 +41,10 @@ import logging
 import os
 from typing import Any, List, Optional
 
-from PySide6.QtCore import Property, QObject, QUrl, Signal, Slot
+from PySide6.QtCore import Property, QLocale, QObject, QUrl, Signal, Slot
 from PySide6.QtGui import QColor, QGuiApplication, QPalette
 
-from chordnotepad.session import formatting
+from chordnotepad.session import formatting, print_layout
 from chordnotepad.session.bridge import to_json_value
 from chordnotepad.session.documents import DocumentRef
 from chordnotepad.session.events import PickMode
@@ -64,6 +64,8 @@ PICKERS = {
                                  formatting.MIDI_FILE_TYPES),
     PickMode.EXPORT_AUDIO.value: (formatting.AUDIO_EXPORT_PICKER_TITLE, formatting.WAV_EXTENSION,
                                   formatting.WAV_FILE_TYPES),
+    PickMode.EXPORT_PDF.value: (formatting.PDF_EXPORT_PICKER_TITLE, formatting.PDF_EXTENSION,
+                                formatting.PDF_FILE_TYPES),
 }
 
 
@@ -103,6 +105,12 @@ def dropped_paths(urls: Any) -> List[str]:
             if path and not os.path.isdir(path):
                 paths.append(path)
     return paths
+
+
+def system_page_size() -> str:
+    """``letter`` or ``a4``: the paper of the system locale's territory."""
+    territory = QLocale.system().territory()
+    return print_layout.page_for_territory(QLocale.territoryToCode(territory))
 
 
 def only_one_note(dropped: int) -> str:
@@ -199,6 +207,13 @@ class FilesModel(QObject):
         """Open the file at ``path`` as Open does with a picked one."""
         ref = self._store.direct("document_ref", os.path.abspath(path))
         self._store.submit("open_document", {"ref": to_json_value(ref), "read_only": False})
+
+    # -- Export PDF -----------------------------------------------------------------------
+
+    @Slot()
+    def exportPdf(self) -> None:  # noqa: N802 (Qt)
+        """File › Export PDF…: on Letter or A4 paper, as the system's locale uses."""
+        self._store.submit("export_pdf", {"page": system_page_size()})
 
     # -- the pickers --------------------------------------------------------------------
 

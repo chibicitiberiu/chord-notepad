@@ -41,6 +41,7 @@ object BridgeCodec {
         "InsertDirectiveRequest" to InsertDirectiveRequest.serializer(),
         "ConfirmDiscardRequest" to ConfirmDiscardRequest.serializer(),
         "PickDocumentRequest" to PickDocumentRequest.serializer(),
+        "PaintPdfRequest" to PaintPdfRequest.serializer(),
         "CloseApproved" to CloseApproved.serializer(),
     ) + screenSerializers + playerSerializers + startupSerializers + capoSerializers
 

@@ -456,6 +456,21 @@ class SafDocumentStoreTest {
     }
 
     @Test
+    fun `writeWith replaces the document with what the block writes`() {
+        access.add("content://d/song.pdf", "song.pdf", "an older and longer export")
+        store.writeWith("content://d/song.pdf") { it.write("%PDF".toByteArray()) }
+        assertArrayEquals("%PDF".toByteArray(), access.content["content://d/song.pdf"])
+
+        access.denied += "content://d/song.pdf"
+        expectError("Permission denied") { store.writeWith("content://d/song.pdf") { } }
+        expectError("Failed to write file") { store.writeWith("content://d/gone") { } }
+        access.add("content://d/other.pdf", "other.pdf")
+        expectError("Failed to write file: disk full") {
+            store.writeWith("content://d/other.pdf") { throw java.io.IOException("disk full") }
+        }
+    }
+
+    @Test
     fun `copyFromFile streams a local file into the document, replacing it`() {
         access.add("content://d/song.wav", "song.wav", "an older and longer export")
         val local = File(tmp.root, "audio-export-1.wav")

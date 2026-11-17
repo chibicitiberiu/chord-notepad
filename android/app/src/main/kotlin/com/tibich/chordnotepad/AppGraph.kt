@@ -18,6 +18,7 @@ import com.tibich.chordnotepad.bridge.UserError
 import com.tibich.chordnotepad.files.AppFilesDocumentAccess
 import com.tibich.chordnotepad.files.ContentResolverDocumentAccess
 import com.tibich.chordnotepad.files.ExampleLibrary
+import com.tibich.chordnotepad.files.PdfExporter
 import com.tibich.chordnotepad.files.RecentDocumentsFile
 import com.tibich.chordnotepad.files.SafDocumentStore
 import com.tibich.chordnotepad.lifecycle.AndroidAudioFocusGateway
@@ -100,6 +101,7 @@ class AppGraph(context: Context) {
         adopt = documents::adopt,
         runOffMain = { block -> scope.launch(Dispatchers.IO) { block() } },
         onDiscardAnswered = close::onDiscardAnswered,
+        paint = PdfExporter(write = documents::writeWith)::export,
     )
 
     /** The editor's text and highlighting (app-scoped: survives rotation). */

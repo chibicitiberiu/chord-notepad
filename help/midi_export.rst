@@ -2,13 +2,15 @@
 Exporting a song
 ================
 
-Chord Notepad can export a song in two ways:
+Chord Notepad can export a song in three ways:
 
 * **MIDI** (``.mid``): the notes themselves, with the tempo and the key, to
   open in a DAW, a notation program, or any other tool that reads MIDI files.
 * **Audio** (``.wav``): a recording of the song as Play sounds it, to listen
   to anywhere, send to the band, or practise along with. See
   `Exporting Audio`_ below.
+* **PDF** (``.pdf``): the song's text on paper-sized pages, to print or send
+  to someone who doesn't have Chord Notepad. See `Exporting a PDF`_ below.
 
 
 Exporting MIDI
@@ -262,3 +264,59 @@ message says why.
 
    Quitting while an audio export is still running stops it, and no file is
    written.
+
+
+Exporting a PDF
+===============
+
+A PDF export prints the song's text as you typed it, in a monospace font, so
+the chords stay over the words they belong to. It's for sharing the song: the
+chord sheet, the chord diagrams and the colours of the editor don't come
+along.
+
+.. only:: desktop
+
+   1. Choose **Export PDF...** in the ☰ menu, or
+      :menuselection:`File --> Export PDF...` on the menu bar.
+   2. The save dialog suggests the song's name with ``.pdf``, picked the same
+      way as for MIDI. Choose a folder, change the name if you like, and save.
+   3. The status bar says "Exported PDF: …" when the file is written.
+
+.. only:: android
+
+   1. Tap **☰** at the top left and choose **Export PDF…**.
+   2. Android's file picker opens with the song's name and ``.pdf`` filled
+      in, picked the same way as for MIDI. Pick a folder, change the name if
+      you like, and tap **Save**.
+   3. The status says "Exported PDF: …" when the file is written: on the
+      player's status line in the Play tab, or at the bottom of the screen in
+      the Edit tab.
+
+What the pages look like:
+
+* **The text as it is.** Every line, blank lines, comments (``// ...``) and
+  ``.`` text lines included, in the same columns as in the editor.
+* **Directives as plain words, in grey.** ``{key: A} {time: 4/4} {bpm: 200}``
+  prints as ``Key: A | Time: 4/4 | BPM: 200``. A ``{label: Chorus}`` prints
+  as ``Chorus``, a ``{loop: Chorus 3}`` as ``Repeat Chorus ×3`` and
+  ``{capo: 3}`` as ``Capo: 3``. A directive with a mistake in it prints the
+  text between its braces. When the words are shorter than the directive,
+  spaces fill the gap, so the chords after it keep their places.
+* **The song's name** at the top of every page, and the page number
+  ("1 / 3") at the bottom.
+* **A4 or Letter paper**, whichever your country uses (Letter in the US,
+  Canada, Mexico and a few other countries, A4 elsewhere).
+* **Long lines.** The text gets smaller, down to 7 points from 10, until
+  the longest chord line fits across the page. A lyric or comment line that's
+  still too long continues on the next line, indented by two spaces.
+* **Page breaks** never separate a chord line from the lyric line under it.
+
+A song with only lyrics, or with no text at all, exports too. The export is a
+copy: the song stays open as it was, and the ``.pdf`` file doesn't join the
+recent songs.
+
+.. only:: android
+
+   Android makes the file as soon as you tap **Save** in the picker, so an
+   export that fails after that leaves it behind, empty. The message names
+   it; delete it in your files app if you don't need it.

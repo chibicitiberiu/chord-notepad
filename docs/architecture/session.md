@@ -243,7 +243,8 @@ kinds may overlap and the view decides which wins.
 TextEdited(text_revision, start, end, replacement, undo, cursor, anchor=None)
                                     # undo: group|plain|reset; anchor: select anchor..cursor
 ConfirmDiscardRequest(request_id)                                  # answer DiscardChoice: save|discard|cancel
-PickDocumentRequest(request_id, mode, suggested_name)              # PickMode: open|save|export_midi|export_audio
+PickDocumentRequest(request_id, mode, suggested_name)              # PickMode: open|save|export_midi|export_audio|export_pdf
+PaintPdfRequest(request_id, ref, layout)                           # answer "" written, the reason, or None
 InsertDirectiveRequest(request_id, kind, existing_labels, notation, key_options)
 UserError(title, message)
 AudioUnavailable(message, from_click)
@@ -597,14 +598,15 @@ window uses the state for the pane, the View menu check and the sash height.
 
 **Documents.** `new_document()`, `open_document(ref=None)`,
 `open_recent(ref)`, `save()`, `save_as()`, `export_midi()`,
-`export_audio()`, `request_close()`, each a `FlowRunner` flow. `ConfirmDiscardRequest`
+`export_audio()`, `export_pdf(page)`, `request_close()`, each a `FlowRunner` flow. `ConfirmDiscardRequest`
 (answered `save|discard|cancel`), `PickDocumentRequest(mode,
 suggested_name)` answered with a `DocumentRef` or None (anything else raises
 `TypeError`). The flows contain no path logic: the desktop view answers with
 `session.document_ref(picked path)`. Semantics as before: unsaved changes
 ask first; "save" on a never-saved document goes through Save As; a failed
 or cancelled save stops the New/Open/close. Save As suggests the document's
-name (`Untitled.txt`), Export MIDI `<stem>.mid`, Export audio `<stem>.wav`. New and Open start the
+name (`Untitled.txt`), Export MIDI `<stem>.mid`, Export audio `<stem>.wav`, Export PDF
+`<stem>.pdf`. New and Open start the
 document from the Settings defaults; the song's own directives show on the
 toolbar through `ToolbarState`, not by changing any value. `request_close` emits
 `CloseApproved()`; the window saves its geometry, stops playback, cancels its
@@ -665,6 +667,19 @@ may be using.
   (`BackgroundWorker.join`) so the job deletes its temp file; quitting
   doesn't ask. `start()` removes temp files older than a day (newer ones may
   be another window's export).
+- Export PDF needs no worker. After the pick, `session/print_layout.py` lays
+  the song out on the session thread (`layout_song(text, notation, stem,
+  page)`: directives as dim labels joined " | " and padded to their width,
+  tabs expanded, the font 10 pt down to 7 pt to fit the longest chord line,
+  other lines wrapped with a two-space indent, a chord line kept on the page
+  of its lyric line, every position absolute in points). The flow yields
+  `PaintPdfRequest(ref, layout)`: the front end paints and writes the file
+  (desktop `pdf_export.py` with `QPdfWriter`; Android `files/PdfExporter.kt`
+  with `PdfDocument`, off the main thread) and answers "" ("Exported PDF:
+  <location>"), the reason, or None (`UserError` "Failed to export PDF
+  file", plus the left-file note on Android). `page` is `a4` or `letter`,
+  from the front end's locale (`print_layout.page_for_territory`). No
+  no-chords check: lyrics export, and an empty song is one page with its header.
 - `PlaybackService.stop_playback` doesn't join the render thread (it waited
   up to 2 s). `_start_lock` orders the render thread's "check cancel → wire
   the player → `player.start_playback()`" against stop's "cancel and take the

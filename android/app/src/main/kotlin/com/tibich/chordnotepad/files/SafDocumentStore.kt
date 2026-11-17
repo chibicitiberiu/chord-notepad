@@ -13,6 +13,7 @@ import java.io.File
 import java.io.FileNotFoundException
 import java.io.IOException
 import java.io.InputStream
+import java.io.OutputStream
 
 /**
  * The Android `DocumentStore`: documents are content URIs from the Storage
@@ -98,6 +99,22 @@ class SafDocumentStore(
             File(path).inputStream().use { input ->
                 access.openOutput(id).use { output -> input.copyTo(output, COPY_BUFFER_BYTES) }
             }
+        } catch (e: SecurityException) {
+            throw DocumentStoreException("Permission denied: ${where(id)}", e)
+        } catch (e: IOException) {
+            throw DocumentStoreException("Failed to write file: ${e.message}", e)
+        }
+    }
+
+    /**
+     * Replace the document's content with what [write] writes (a PDF export
+     * Kotlin paints). Not on the bridge: called off the main thread by the
+     * export itself. Throws [DocumentStoreException] with a user-facing
+     * message, as [copyFromFile] does.
+     */
+    fun writeWith(id: String, write: (OutputStream) -> Unit) {
+        try {
+            access.openOutput(id).use(write)
         } catch (e: SecurityException) {
             throw DocumentStoreException("Permission denied: ${where(id)}", e)
         } catch (e: IOException) {
@@ -259,7 +276,7 @@ class SafDocumentStore(
          */
         fun keepsGrant(mode: PickMode): Boolean = when (mode) {
             PickMode.OPEN, PickMode.SAVE -> true
-            PickMode.EXPORT_MIDI, PickMode.EXPORT_AUDIO -> false
+            PickMode.EXPORT_MIDI, PickMode.EXPORT_AUDIO, PickMode.EXPORT_PDF -> false
         }
 
         /** The desktop's default `max_recent_files`. */

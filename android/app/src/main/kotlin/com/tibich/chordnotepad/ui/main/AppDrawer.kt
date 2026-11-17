@@ -45,6 +45,7 @@ interface DrawerActions {
     fun saveAs()
     fun exportMidi()
     fun exportAudio()
+    fun exportPdf()
     fun settings()
     fun examples()
     fun userGuide()
@@ -54,7 +55,7 @@ interface DrawerActions {
 
 /**
  * The ☰ drawer, which replaces the old ⋮ menu: Documents (New song, Open…,
- * the recent songs inline, Save as…, Export MIDI…, Export audio…) and App (Settings, Examples, User
+ * the recent songs inline, Save as…, Export MIDI…, Export audio…, Export PDF…) and App (Settings, Examples, User
  * guide, Quick start, About). Each entry closes the drawer first ([close]).
  */
 @Composable
@@ -98,6 +99,7 @@ fun AppDrawer(recent: List<DocumentRef>, actions: DrawerActions, close: () -> Un
             DrawerItem(R.drawable.mdi_content_save_edit, IconTints.Save, stringResource(R.string.drawer_save_as), run(actions::saveAs))
             DrawerItem(R.drawable.mdi_export, IconTints.Export, stringResource(R.string.menu_export_midi), run(actions::exportMidi))
             DrawerItem(R.drawable.mdi_waveform, IconTints.Export, stringResource(R.string.menu_export_audio), run(actions::exportAudio))
+            DrawerItem(R.drawable.mdi_file_pdf_box, IconTints.Export, stringResource(R.string.menu_export_pdf), run(actions::exportPdf))
             DrawerSeparator()
             DrawerItem(R.drawable.mdi_cog, IconTints.Settings, stringResource(R.string.menu_settings), run(actions::settings))
             DrawerItem(R.drawable.mdi_music_box_multiple, IconTints.Examples, stringResource(R.string.drawer_examples), run(actions::examples))

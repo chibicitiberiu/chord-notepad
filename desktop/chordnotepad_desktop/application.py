@@ -43,7 +43,7 @@ from chordnotepad.session.documents import FileSystemDocumentStore
 from chordnotepad.session.formatting import AUDIO_ERROR_TITLE
 from chordnotepad.session.host import HostDispatch
 from chordnotepad.session.platform import DESKTOP_QT
-from chordnotepad_desktop import rendering, window_geometry
+from chordnotepad_desktop import pdf_export, rendering, window_geometry
 from chordnotepad_desktop.chrome import ChromeModel
 from chordnotepad_desktop.error_presenter import ErrorPresenter
 from chordnotepad_desktop.main import (
@@ -75,7 +75,9 @@ ICON_FILES = ("icon-32.png", "icon-128.png", "icon-256.png")
 #: The Insert dialogs' requests never come: the palette and the ▾ value
 #: pickers (D5) edit through commands that ask nothing. Suggest Capo asks
 #: nothing either: its dialog follows CapoAdviceState (AppDialogs.qml).
-HANDLED_REQUESTS = frozenset({"ConfirmDiscardRequest", "PickDocumentRequest"})
+#: Export PDF's pages are painted here (pdf_export.py).
+HANDLED_REQUESTS = frozenset({"ConfirmDiscardRequest", "PickDocumentRequest",
+                              pdf_export.PAINT_PDF_REQUEST})
 
 
 def set_identity(app: QGuiApplication, paths: AppPaths) -> None:
@@ -292,7 +294,11 @@ class QtApplication:
                 self.presenter.report_event(data["message"], data["context"])
 
     def _on_request(self, type_name: str, data: Any) -> None:
-        if type_name not in HANDLED_REQUESTS:
+        if type_name == pdf_export.PAINT_PDF_REQUEST:
+            # After delivery (the store posts requests); the answer is queued.
+            pdf_export.answer_paint_request(data, lambda request_id, answer: self.store.submit(
+                "respond", {"request_id": request_id, "value": answer}))
+        elif type_name not in HANDLED_REQUESTS:
             logger.warning("The Qt window can't answer %s yet; cancelled", type_name)
             self.store.submit("respond", {"request_id": data["request_id"], "value": None})
 

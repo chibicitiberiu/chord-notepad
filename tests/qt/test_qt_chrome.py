@@ -268,7 +268,8 @@ def test_the_app_menu_has_the_groups_in_order(app):
     assert app.it("appMenuButton").property("checked") is True
     rows = [plain_text(r) if r not in ("---", "[zoom]") else r for r in app.menu_texts(menu)]
     assert rows == ["New", "Open…", "Open recent", "Backups", "Save", "Save as…", "---",
-                    "[zoom]", "---", "Export MIDI…", "Export audio…", "---", "Show menu bar", "Dark theme", "---",
+                    "[zoom]", "---", "Export MIDI…", "Export audio…",
+                    "Export PDF…", "---", "Show menu bar", "Dark theme", "---",
                     "Settings…", "---", "Help", "---", "Quit"]
 
 
@@ -384,7 +385,7 @@ def test_f10_opens_the_file_menu(app):
     app.qtbot.waitUntil(lambda: file_menu.property("opened") is True, timeout=1000)
     rows = [plain_text(r) for r in app.menu_texts(file_menu)]
     assert rows == ["New", "Open…", "Open recent", "Backups", "---", "Save", "Save as…",
-                    "Export MIDI…", "Export audio…", "---", "Quit"]
+                    "Export MIDI…", "Export audio…", "Export PDF…", "---", "Quit"]
 
 
 def test_show_menu_bar_keeps_it_and_is_kept(qapp, qtbot, tmp_path):
@@ -741,6 +742,21 @@ def test_export_midi_suggests_the_mid_name_and_writes_it(app, tmp_path):
     accept(app, tmp_path / "song")
     app.qtbot.waitUntil(lambda: (tmp_path / "song.mid").exists(), timeout=10000)
     assert (tmp_path / "song.mid").read_bytes().startswith(b"MThd")
+
+
+def test_export_pdf_suggests_the_pdf_name_and_writes_it(app, tmp_path):
+    app.song()
+    app.trigger("exportPdfAction")
+    picker = app.wait_picker("Export PDF")
+    assert picker.property("selectedFile").fileName() == "One two three four.pdf"
+    assert list(picker.property("nameFilters")) == ["PDF files (*.pdf)", "All files (*)"]
+    accept(app, tmp_path / "song")
+    out = tmp_path / "song.pdf"
+    status = app.it("statusText")
+    app.qtbot.waitUntil(lambda: status.property("text").startswith("Exported PDF: ")
+                        and status.property("text").endswith("song.pdf"), timeout=10000)
+    data = out.read_bytes()
+    assert data.startswith(b"%PDF") and len(re.findall(rb"/Type\s*/Page(?![a-zA-Z])", data)) == 1
 
 
 def test_export_audio_without_chords_says_so(app):

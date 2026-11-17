@@ -8,8 +8,8 @@ chord-sheet feed, playback (transport, playing chord, status line, editor
 lock, audio-failure reporting), the programmatic edits (transpose, capo,
 convert notation, inserts), which it sends to the views as ``TextEdited``,
 the toolbar, the menus, settings, and the document flows (new, open, save,
-save as, export MIDI and audio, close; the recent list and the window
-title). Renders the user waits for (MIDI export, Suggest Capo) run on a
+save as, export MIDI, audio and PDF, close; the recent list and the
+window title). Renders the user waits for (MIDI export, Suggest Capo) run on a
 background worker; an audio export runs on one of its own.
 The Qt window talks to nothing else (``tests/test_desktop_view_guard.py``,
 ``tests/qt/test_qt_session_store.py``).
@@ -57,14 +57,14 @@ from chordnotepad.session.emitter import Emitter, Listener
 from chordnotepad.session.documents import DocumentRef
 from chordnotepad.session.events import (
     AudioUnavailable, CloseApproved, ConfirmDiscardRequest, DiscardChoice,
-    InsertDirectiveRequest, PickDocumentRequest, PickMode, QuickStartBlock, QuickStartContent,
-    DirectiveCheck, DirectiveHint, EditRefused, QuickStartPage, RenameFailed, TextEdited,
-    UndoPolicy, UnexpectedError,
+    InsertDirectiveRequest, PaintPdfRequest, PickDocumentRequest, PickMode, QuickStartBlock,
+    QuickStartContent, DirectiveCheck, DirectiveHint, EditRefused, QuickStartPage, RenameFailed,
+    TextEdited, UndoPolicy, UnexpectedError,
     UserError, VoicingEditorSchema,
 )
 from chordnotepad.audio import volume as volume_curve
 from chordnotepad.models.window_geometry import WindowGeometry, check_scale
-from chordnotepad.session import pickers, snippets, song_name
+from chordnotepad.session import pickers, print_layout, snippets, song_name
 from chordnotepad.session import text_ops
 from chordnotepad.session.flows import Flow, FlowRunner
 from chordnotepad.session.pickers import DirectivePicker
@@ -1433,6 +1433,29 @@ class AppSession:
         a :class:`UserError`.
         """
         self._flows.start(self._audio_export_flow())
+
+    @_command
+    def export_pdf(self, page: str) -> None:
+        """Write the song's text as a PDF file the user picks.
+
+        Suggests ``<document name>.pdf`` (named as :meth:`export_midi`
+        names its file). The text prints as it is, each directive as a
+        dimmer label, with the song's name on top of every page and the page
+        numbers at the bottom (:mod:`session.print_layout`). A song without
+        chords exports too. The session lays the pages out from the text as
+        it is when the file is picked; the front end paints and writes them
+        (:class:`PaintPdfRequest`).
+
+        Args:
+            page: ``a4`` or ``letter`` (the front end's locale,
+                :func:`print_layout.page_for_territory`).
+
+        Raises:
+            ValueError: For another page size.
+        """
+        if page not in print_layout.PAGE_SIZES:
+            raise ValueError(f"Unknown page size {page!r}")
+        self._flows.start(self._pdf_export_flow(page))
 
     @_command
     def request_close(self) -> None:
@@ -3578,7 +3601,28 @@ class AppSession:
             formatting.AUDIO_EXPORT_FAILED, ref.location, self._main.last_error)
         if self._android:
             # The picker made the file, and the store can't delete it.
-            message += "\n\n" + formatting.audio_export_left_file_note(ref.display_name)
+            message += "\n\n" + formatting.export_left_file_note(ref.display_name)
+        self._emitter.emit(UserError(formatting.FILE_ERROR_TITLE, message))
+
+    def _pdf_export_flow(self, page: str) -> Flow:
+        stem = self._export_stem()
+        suggested = formatting.pdf_export_name(stem)
+        ref = self._as_ref((yield PickDocumentRequest(0, PickMode.EXPORT_PDF, suggested)))
+        if ref is None:
+            return
+        layout = print_layout.layout_song(
+            self._text, self._main.notation.value, stem or formatting.UNTITLED, page)
+        answer = yield PaintPdfRequest(0, ref, layout)
+        # Not remembered as recent: exports aren't documents to reopen here.
+        if answer == "":
+            self._set_status(formatting.exported_pdf_status(ref.location))
+            return
+        reason = answer if isinstance(answer, str) else None
+        message = formatting.file_error_message(
+            formatting.PDF_EXPORT_FAILED, ref.location, reason)
+        if self._android:
+            # The picker made the file, and the store can't delete it.
+            message += "\n\n" + formatting.export_left_file_note(ref.display_name)
         self._emitter.emit(UserError(formatting.FILE_ERROR_TITLE, message))
 
     def _close_flow(self) -> Flow:

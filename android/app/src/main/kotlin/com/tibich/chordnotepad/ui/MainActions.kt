@@ -3,8 +3,10 @@ package com.tibich.chordnotepad.ui
 import androidx.compose.foundation.ExperimentalFoundationApi
 import com.tibich.chordnotepad.bridge.DocumentRef
 import com.tibich.chordnotepad.bridge.SessionCommands
+import com.tibich.chordnotepad.files.paperFor
 import com.tibich.chordnotepad.ui.editor.EditorController
 import com.tibich.chordnotepad.ui.main.ModeController
+import java.util.Locale
 
 /**
  * What the main screen's buttons, drawer, sheets and shortcuts do: session
@@ -186,6 +188,12 @@ class MainActions(
     fun exportAudio() {
         editor.syncNow()
         commands.exportAudio()
+    }
+
+    /** Export the song's text as a PDF, on the locale's paper (Letter or A4). */
+    fun exportPdf() {
+        editor.syncNow()
+        commands.exportPdf(paperFor(Locale.getDefault().country))
     }
 
     /**

@@ -4,6 +4,8 @@ import com.tibich.chordnotepad.bridge.ConfirmDiscardRequest
 import com.tibich.chordnotepad.bridge.DiscardChoice
 import com.tibich.chordnotepad.bridge.DocumentRef
 import com.tibich.chordnotepad.bridge.InsertDirectiveRequest
+import com.tibich.chordnotepad.bridge.PaintPdfRequest
+import com.tibich.chordnotepad.bridge.PdfLayout
 import com.tibich.chordnotepad.bridge.PickDocumentRequest
 import com.tibich.chordnotepad.bridge.PickMode
 import com.tibich.chordnotepad.bridge.SessionCommands
@@ -25,6 +27,8 @@ class RequestControllerTest {
     private val adopted = mutableListOf<Pair<String, PickMode>>()
     private var adoptFails = false
     private val offMain = mutableListOf<() -> Unit>()
+    private val painted = mutableListOf<Int>()
+    private var paintAnswer: () -> String? = { "" }
 
     // Answering clears the pending request, as SessionRepository.requestAnswered does.
     private val commands = SessionCommands(
@@ -41,6 +45,16 @@ class RequestControllerTest {
             DocumentRef(uri, "song.txt", "Downloads/song.txt")
         },
         runOffMain = { offMain += it },
+        paint = { request ->
+            painted += request.requestId
+            paintAnswer()
+        },
+    )
+
+    private fun paintRequest(id: Int) = PaintPdfRequest(
+        id,
+        DocumentRef("content://docs/song.pdf", "song.pdf", "Downloads/song.pdf"),
+        PdfLayout(612.0, 792.0, 10.0, 13.62, 8.0, "Song", 42.52, 51.07, 747.14, 1, emptyList()),
     )
 
     private fun assertResponded(json: String) {
@@ -61,6 +75,34 @@ class RequestControllerTest {
         assertEquals(RequestPresentation.Picker(pick), presentationOf(pick))
         val directive = InsertDirectiveRequest(4, "bpm", emptyList(), "american")
         assertEquals(RequestPresentation.Dialog(directive), presentationOf(directive))
+        assertEquals(RequestPresentation.Paint(paintRequest(5)), presentationOf(paintRequest(5)))
+    }
+
+    @Test
+    fun `a PDF is painted off the main thread once per request and answered`() {
+        val c = controller()
+        pending.value = paintRequest(30)
+        assertNull(c.onPending(pending.value))
+        // A recreated activity sees the same request again: not painted twice.
+        assertNull(c.onPending(pending.value))
+        assertTrue(painted.isEmpty() && sent.isEmpty())
+        runOffMain()
+        assertEquals(listOf(30), painted)
+        assertResponded("""{"request_id": 30, "value": ""}""")
+
+        paintAnswer = { "Permission denied: song.pdf" }
+        pending.value = paintRequest(31)
+        c.onPending(pending.value)
+        runOffMain()
+        assertResponded("""{"request_id": 31, "value": "Permission denied: song.pdf"}""")
+
+        // A painter that throws answers null (failed, no reason).
+        paintAnswer = { throw IllegalStateException("broken") }
+        pending.value = paintRequest(32)
+        c.onPending(pending.value)
+        runOffMain()
+        assertResponded("""{"request_id": 32, "value": null}""")
+        assertEquals(listOf(30, 31, 32), painted)
     }
 
     @Test
@@ -188,6 +230,8 @@ class RequestControllerTest {
         assertResponded("""{"request_id": 1, "value": "cancel"}""")
         c.cancel(PickDocumentRequest(2, PickMode.OPEN, ""))
         assertResponded("""{"request_id": 2, "value": null}""")
+        c.cancel(paintRequest(3))
+        assertResponded("""{"request_id": 3, "value": null}""")
     }
 
     @Test

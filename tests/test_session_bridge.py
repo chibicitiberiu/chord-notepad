@@ -496,6 +496,29 @@ def test_insert_directive_answer_is_a_dict_of_strings(env):
     assert edit["replacement"] == "{bpm: 100} " and edit["undo"] == "plain"
 
 
+def test_pdf_export_paints_through_a_request_answered_with_a_string(env):
+    env.send("set_text", text="{key: A} {bpm: 90}\nA D\nla la\n", client_token=1)
+    env.send("export_pdf", page="letter")
+    pick = env.expect("PickDocumentRequest", lambda d: d["mode"] == "export_pdf")
+    assert pick["suggested_name"] == "la la.pdf"
+    env.send("respond", request_id=pick["request_id"], value=ref_json("la.pdf"))
+    paint = env.expect("PaintPdfRequest")
+    assert paint["ref"] == ref_json("la.pdf")
+    layout = paint["layout"]
+    assert (layout["page_width"], layout["page_height"], layout["page_count"]) == (612.0, 792.0, 1)
+    assert layout["pages"][0]["lines"][0]["runs"] == [
+        {"x": layout["title_x"], "text": "Key: A | BPM: 90", "dim": True}]
+    # Not a string: rejected, and the request is still pending.
+    env.send("respond", request_id=paint["request_id"], value=3)
+    assert env.expect("UnexpectedError")["context"] == "bridge"
+    env.send("respond", request_id=paint["request_id"], value="")
+    status = env.expect("StatusState", lambda d: d["text"].startswith("Exported PDF"))
+    assert status["text"] == "Exported PDF: " + ref_json("la.pdf")["location"]
+    # A page size the session doesn't know is a bug in the front end.
+    env.send("export_pdf", page="a5")
+    assert env.expect("UnexpectedError")["context"] == "export_pdf"
+
+
 def test_check_directive_replies_with_field_errors_and_stays_pending(env):
     env.send("request_insert_directive", kind="bpm", at=0)
     request = env.expect("InsertDirectiveRequest")
@@ -744,6 +767,11 @@ def test_every_output_type_crosses_the_bridge_as_plain_values(tmp_path):
         env.send("save")
         request = env.expect("PickDocumentRequest")
         env.send("respond", request_id=request["request_id"], value=None)
+        env.send("export_pdf", page="a4")
+        request = env.expect("PickDocumentRequest", lambda d: d["mode"] == "export_pdf")
+        env.send("respond", request_id=request["request_id"], value=ref_json("a.pdf"))
+        request = env.expect("PaintPdfRequest")                 # PdfLayout, PdfPage, PdfLine, PdfRun
+        env.send("respond", request_id=request["request_id"], value="")
         env.send("request_voicing_editor_schema")              # VoicingEditorSchema
         env.send("request_quick_start")                        # QuickStartContent
         env.send("app_started", launch_kind="direct", today="2026-10-30",

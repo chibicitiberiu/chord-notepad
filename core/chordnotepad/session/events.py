@@ -16,6 +16,8 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Optional, Tuple
 
+from chordnotepad.session.documents import DocumentRef
+from chordnotepad.session.print_layout import PdfLayout
 from chordnotepad.session.state import Span
 
 
@@ -227,6 +229,8 @@ class PickMode(str, Enum):
     """Where to write a MIDI export."""
     EXPORT_AUDIO = "export_audio"
     """Where to write an audio (WAV) export."""
+    EXPORT_PDF = "export_pdf"
+    """Where to write a PDF export."""
 
 
 @dataclass(frozen=True)
@@ -241,13 +245,34 @@ class PickDocumentRequest:
         request_id: Pass back to ``respond``.
         mode: Open, save or export.
         suggested_name: The name to pre-fill when saving or exporting
-            (``"song.txt"``, ``"song.mid"``, ``"song.wav"``); empty when
-            opening.
+            (``"song.txt"``, ``"song.mid"``, ``"song.wav"``,
+            ``"song.pdf"``); empty when opening.
     """
 
     request_id: int
     mode: PickMode
     suggested_name: str
+
+
+@dataclass(frozen=True)
+class PaintPdfRequest:
+    """Paint a PDF export's pages and write them to the document picked for it.
+
+    The front end paints ``layout`` as it is (every position is absolute;
+    :mod:`session.print_layout`) and writes the file itself, then answers
+    with ``respond(request_id, answer)``: ``""`` when the file was written,
+    the reason as a string when it couldn't be, or None when it was
+    cancelled or failed without a reason.
+
+    Attributes:
+        request_id: Pass back to ``respond``.
+        ref: The document to write (from the ``PickDocumentRequest`` before).
+        layout: The pages.
+    """
+
+    request_id: int
+    ref: DocumentRef
+    layout: PdfLayout
 
 
 @dataclass(frozen=True)

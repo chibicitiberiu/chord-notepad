@@ -196,9 +196,12 @@ AUDIO_EXPORT_FAILED = "Failed to export audio file"
 NO_CHORDS_TO_EXPORT_AUDIO_MESSAGE = f"{AUDIO_EXPORT_FAILED}:\nThere are no chords to export."
 
 
-def audio_export_left_file_note(display_name: str) -> str:
-    """After an audio export failed on Android: its picker made the file
-    already, and the document store can't delete it."""
+PDF_EXPORT_FAILED = "Failed to export PDF file"
+
+
+def export_left_file_note(display_name: str) -> str:
+    """After an audio or PDF export failed on Android: its picker made the
+    file already, and the document store can't delete it."""
     return (f"Android made {display_name} when you picked it, so it may be empty or "
             "incomplete. Delete it in your files app if you don't need it.")
 
@@ -226,6 +229,9 @@ MIDI_EXTENSION = ".mid"
 AUDIO_EXPORT_PICKER_TITLE = "Export Audio"
 WAV_FILE_TYPES = (("WAV audio", "*.wav"), ("All files", "*.*"))
 WAV_EXTENSION = ".wav"
+PDF_EXPORT_PICKER_TITLE = "Export PDF"
+PDF_FILE_TYPES = (("PDF files", "*.pdf"), ("All files", "*.*"))
+PDF_EXTENSION = ".pdf"
 #: A name picked without an extension got one, and that file exists already
 #: (the picker only asked about the name as typed).
 CONFIRM_REPLACE_TITLE = "Confirm Save As"
@@ -353,6 +359,16 @@ def exporting_audio_status(fraction: float) -> str:
 def exported_audio_status(location: str) -> str:
     """The status after an audio file was exported."""
     return f"Exported audio: {location}"
+
+
+def pdf_export_name(stem: Optional[str]) -> str:
+    """The name Export PDF suggests, e.g. ``song.pdf`` (``Untitled.pdf`` without a name)."""
+    return f"{stem or UNTITLED}.pdf"
+
+
+def exported_pdf_status(location: str) -> str:
+    """The status after a PDF file was exported."""
+    return f"Exported PDF: {location}"
 
 
 def file_error_message(action: str, location: str, reason: Optional[str]) -> str:

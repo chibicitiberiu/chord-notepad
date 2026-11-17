@@ -11,6 +11,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import com.tibich.chordnotepad.bridge.SessionRequest
 import com.tibich.chordnotepad.files.MIDI_MIME_TYPE
+import com.tibich.chordnotepad.files.PDF_MIME_TYPE
 import com.tibich.chordnotepad.files.PickerLaunch
 import com.tibich.chordnotepad.files.SONG_MIME_TYPE
 import com.tibich.chordnotepad.files.WAV_MIME_TYPE
@@ -32,6 +33,7 @@ class RequestPickers(
     private lateinit var saveSong: ActivityResultLauncher<String>
     private lateinit var saveMidi: ActivityResultLauncher<String>
     private lateinit var saveWav: ActivityResultLauncher<String>
+    private lateinit var savePdf: ActivityResultLauncher<String>
 
     /** Register the launchers and follow the pending request while started. */
     fun attach() {
@@ -40,6 +42,7 @@ class RequestPickers(
         saveSong = activity.registerForActivityResult(ActivityResultContracts.CreateDocument(SONG_MIME_TYPE), answer)
         saveMidi = activity.registerForActivityResult(ActivityResultContracts.CreateDocument(MIDI_MIME_TYPE), answer)
         saveWav = activity.registerForActivityResult(ActivityResultContracts.CreateDocument(WAV_MIME_TYPE), answer)
+        savePdf = activity.registerForActivityResult(ActivityResultContracts.CreateDocument(PDF_MIME_TYPE), answer)
         activity.lifecycleScope.launch {
             activity.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 pending.collect { request -> controller.onPending(request)?.let(::launch) }
@@ -64,6 +67,7 @@ class RequestPickers(
     private fun createLauncher(mimeType: String): ActivityResultLauncher<String> = when (mimeType) {
         MIDI_MIME_TYPE -> saveMidi
         WAV_MIME_TYPE -> saveWav
+        PDF_MIME_TYPE -> savePdf
         else -> saveSong
     }
 

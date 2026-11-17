@@ -284,7 +284,7 @@ def test_a_failure_on_android_says_the_picked_file_is_left(tmp_path):
     env.answer(env.store.ref("out.wav"))
     env.settle()
     assert env.errors() == [("Error", "Failed to export audio file:\nout.wav\n\ndisk full\n\n"
-                             + formatting.audio_export_left_file_note("out.wav"))]
+                             + formatting.export_left_file_note("out.wav"))]
     env.session.shutdown()
 
 

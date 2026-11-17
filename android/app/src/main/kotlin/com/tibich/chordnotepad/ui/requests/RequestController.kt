@@ -5,6 +5,7 @@ import com.tibich.chordnotepad.bridge.ConfirmDiscardRequest
 import com.tibich.chordnotepad.bridge.DiscardChoice
 import com.tibich.chordnotepad.bridge.DocumentRef
 import com.tibich.chordnotepad.bridge.InsertDirectiveRequest
+import com.tibich.chordnotepad.bridge.PaintPdfRequest
 import com.tibich.chordnotepad.bridge.PickDocumentRequest
 import com.tibich.chordnotepad.bridge.PickMode
 import com.tibich.chordnotepad.bridge.SessionCommands
@@ -21,6 +22,9 @@ sealed interface RequestPresentation {
     /** The activity launches a system picker for it ([RequestController.takePickerLaunch]). */
     data class Picker(val request: PickDocumentRequest) : RequestPresentation
 
+    /** Painted and written off the main thread, no UI ([RequestController.paintOnce]). */
+    data class Paint(val request: PaintPdfRequest) : RequestPresentation
+
     /**
      * Not presented: cancelled at once. Every kind has a UI since M5; kept
      * for a request type a newer core may add.
@@ -32,6 +36,7 @@ sealed interface RequestPresentation {
 fun presentationOf(request: SessionRequest): RequestPresentation = when (request) {
     is ConfirmDiscardRequest, is InsertDirectiveRequest -> RequestPresentation.Dialog(request)
     is PickDocumentRequest -> RequestPresentation.Picker(request)
+    is PaintPdfRequest -> RequestPresentation.Paint(request)
 }
 
 /**
@@ -41,12 +46,17 @@ fun presentationOf(request: SessionRequest): RequestPresentation = when (request
  * already launched, so a recreated activity doesn't open the same picker
  * twice and the result delivered to it still answers the right request.
  *
- * Main thread, except that [adopt] runs through [runOffMain].
+ * The same goes for a PDF export's pages: painted once per request, so a
+ * rotation while they're written doesn't write them twice.
+ *
+ * Main thread, except that [adopt] and [paint] run through [runOffMain].
  *
  * @param pending The repository's pending request.
  * @param adopt Persists a picked document's grant and describes it
  *   (`SafDocumentStore.adopt`); provider I/O.
  * @param runOffMain Runs provider I/O away from the main thread.
+ * @param paint Paints a PDF export and writes it (`PdfExporter.export`):
+ *   "" when written, else why not; provider I/O.
  * @param onDiscardAnswered Told every answer to the unsaved-changes question,
  *   before it is sent (`CloseCoordinator`).
  */
@@ -56,8 +66,10 @@ class RequestController(
     private val adopt: (uri: String, mode: PickMode) -> DocumentRef,
     private val runOffMain: (block: () -> Unit) -> Unit,
     private val onDiscardAnswered: (DiscardChoice) -> Unit = {},
+    private val paint: (PaintPdfRequest) -> String? = { null },
 ) {
     private var launchedPickerId: Int? = null
+    private var paintedId: Int? = null
 
     /**
      * Handle a request that just became pending: cancels the ones not
@@ -70,7 +82,29 @@ class RequestController(
             null
         }
         is RequestPresentation.Picker -> takePickerLaunch()
+        is RequestPresentation.Paint -> {
+            paintOnce(p.request)
+            null
+        }
         is RequestPresentation.Dialog, null -> null
+    }
+
+    /**
+     * Paint and write [request]'s PDF off the main thread and answer it;
+     * once per request (a recreated activity sees the same pending request).
+     */
+    fun paintOnce(request: PaintPdfRequest) {
+        if (paintedId == request.requestId) return
+        paintedId = request.requestId
+        runOffMain {
+            val answer = try {
+                paint(request)
+            } catch (e: RuntimeException) {
+                Log.w(TAG, "Painting the PDF failed", e)
+                null
+            }
+            commands.respondPaint(request.requestId, answer)
+        }
     }
 
     /** The picker for the pending pick request, once per request; null otherwise. */
@@ -125,6 +159,7 @@ class RequestController(
         is ConfirmDiscardRequest -> answerDiscard(request, DiscardChoice.CANCEL)
         is PickDocumentRequest -> commands.respondPick(request.requestId, null)
         is InsertDirectiveRequest -> commands.respondDirective(request.requestId, null)
+        is PaintPdfRequest -> commands.respondPaint(request.requestId, null)
     }
 
     private companion object {

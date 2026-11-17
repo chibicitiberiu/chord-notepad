@@ -88,6 +88,7 @@ enum class PickMode {
     @SerialName("save") SAVE,
     @SerialName("export_midi") EXPORT_MIDI,
     @SerialName("export_audio") EXPORT_AUDIO,
+    @SerialName("export_pdf") EXPORT_PDF,
 }
 
 /** Ask the user to pick a document; answer with a [DocumentRef] or null. */
@@ -97,6 +98,52 @@ data class PickDocumentRequest(
     val mode: PickMode,
     /** Pre-filled name when saving or exporting; empty when opening. */
     @SerialName("suggested_name") val suggestedName: String,
+) : SessionRequest
+
+/** Text in one colour from [x] (points from the page's left edge) on its line's baseline. */
+@Serializable
+data class PdfRun(val x: Double, val text: String, val dim: Boolean)
+
+/** One printed line: its baseline [y] (points from the page's top edge) and its runs. */
+@Serializable
+data class PdfLine(val y: Double, val runs: List<PdfRun>)
+
+/** One page's lines and its centred page number ("1 / 3") from [footerX]. */
+@Serializable
+data class PdfPage(
+    val lines: List<PdfLine>,
+    val footer: String,
+    @SerialName("footer_x") val footerX: Double,
+)
+
+/**
+ * A PDF export's pages (`session.print_layout`): sizes in points, every
+ * position absolute; the painter adds nothing of its own.
+ */
+@Serializable
+data class PdfLayout(
+    @SerialName("page_width") val pageWidth: Double,
+    @SerialName("page_height") val pageHeight: Double,
+    @SerialName("font_size") val fontSize: Double,
+    @SerialName("line_height") val lineHeight: Double,
+    @SerialName("small_font_size") val smallFontSize: Double,
+    val title: String,
+    @SerialName("title_x") val titleX: Double,
+    @SerialName("title_y") val titleY: Double,
+    @SerialName("footer_y") val footerY: Double,
+    @SerialName("page_count") val pageCount: Int,
+    val pages: List<PdfPage>,
+)
+
+/**
+ * Paint [layout] and write it to [ref] (picked just before); answer with ""
+ * when written, the reason when not, or null when cancelled or failed.
+ */
+@Serializable
+data class PaintPdfRequest(
+    @SerialName("request_id") override val requestId: Int,
+    val ref: DocumentRef,
+    val layout: PdfLayout,
 ) : SessionRequest
 
 /** The app may close now; the view tears itself down. */

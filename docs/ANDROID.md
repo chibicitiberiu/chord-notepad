@@ -341,7 +341,7 @@ Types Kotlin decodes (`BridgeCodec.serializers`):
 |---|---|
 | States | `DocumentState`, `EditorState`, `HighlightState`, `PlaybackState`, `ToolbarState`, `StatusState`, `VoicingMenuState`, `InstrumentMenuState`, `RecentDocumentsState`, `ChordSheetState`; M5: `IdentifierState`, `SettingsState`, `VoicingEditorState`; Edit/Play: `SongDefaultsState`; startup: `StartupState`; Suggest Capo: `CapoAdviceState` |
 | Events | `TextEdited`, `UserError`, `AudioUnavailable`, `UnexpectedError`, `CloseApproved`; M5 replies: `VoicingEditorSchema`, `QuickStartContent`, `DirectiveCheck`; Edit/Play: `RenameFailed`; editor: `DirectiveHint` (reply to `request_directive_hint`) |
-| Requests | `ConfirmDiscardRequest`, `PickDocumentRequest`, `InsertDirectiveRequest` |
+| Requests | `ConfirmDiscardRequest`, `PickDocumentRequest`, `InsertDirectiveRequest`; Export PDF: `PaintPdfRequest` (with the values `PdfLayout`, `PdfPage`, `PdfLine`, `PdfRun`) |
 
 **Step 14 added two things to the DTOs** (Kotlin already had them):
 - `UnexpectedError(message: str, context: Optional[str])` in `events.py`
@@ -398,12 +398,13 @@ desktop's View > Word Wrap; Android changes it through Settings),
 `audition {index}`, `new_document {}`, `open_document {ref, read_only}`
 (`read_only` defaults to false; ignored with a null `ref`),
 `open_recent {ref}`, `save {}`, `save_as {}`, `export_midi {}`,
-`export_audio {}`, `request_close {}`, `respond {request_id, value}`.
+`export_audio {}`, `export_pdf {page}`, `request_close {}`, `respond {request_id, value}`.
 
 `respond`'s `value` is decoded by the type of the pending request:
 `PickDocumentRequest` → `DocumentRef` or None; `ConfirmDiscardRequest` →
 `"save"`/`"discard"`/`"cancel"` or None; `InsertDirectiveRequest` → a
-`{field: str}` dict or None.
+`{field: str}` dict or None; `PaintPdfRequest` → a string (`""` written,
+else the reason) or None.
 
 **Suggest Capo** (2026-11-17) is a state, not a request, so it never takes
 the pending-request slot. `capo_advice_open {selection}` publishes
@@ -978,14 +979,21 @@ objects, against the release build's R8 rules ("R8 in release builds").
   (a request from before process death) is ignored. `RequestPickers`
   registers the launchers on the activity in `onCreate` (Open:
   `text/plain`, `text/*`, `*/*`; Save As: `text/plain` with the suggested
-  name; Export MIDI: `audio/midi`; Export audio: `audio/wav`; a `when` on
+  name; Export MIDI: `audio/midi`; Export audio: `audio/wav`; Export PDF:
+  `application/pdf`; a `when` on
   the MIME type picks the CreateDocument one), follows `pendingRequest`
   while STARTED, and answers with `SafDocumentStore.adopt` off the main
   thread (the ref described; the grant persisted for Open and Save As only,
   `SafDocumentStore.keepsGrant`: an export is written once); backing out
-  answers null.
+  answers null. A `PaintPdfRequest` has no UI (`RequestPresentation.Paint`):
+  `RequestController.paintOnce` runs `PdfExporter.export` off the main
+  thread, once per request id (a rotation doesn't paint twice), and answers
+  with its result. `PdfExporter` paints the layout on `PdfDocument` pages
+  (`Typeface.MONOSPACE`, unhinted, fractional advances) and writes through
+  `SafDocumentStore.writeWith` (`DocumentAccess.openOutput`); the paper is
+  `paperFor(Locale.getDefault().country)`.
 - **Drawer** (☰, `ui/main/AppDrawer.kt`) replaces the old ⋮ menu: New
-  song, Open…, Recent (inline), Save as…, Export MIDI…, Export audio…, Settings, Examples, User
+  song, Open…, Recent (inline), Save as…, Export MIDI…, Export audio…, Export PDF…, Settings, Examples, User
   guide, Quick start, About. Examples opens a bottom sheet
   (`SheetRoute.Examples`) listing the bundled example songs by file name;
   a tap calls `AppGraph.openExample`, which opens a private copy (see

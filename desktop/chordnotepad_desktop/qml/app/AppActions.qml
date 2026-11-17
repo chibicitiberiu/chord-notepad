@@ -77,6 +77,12 @@ Item {
         text: "Export a&udio…"
         onTriggered: acts.store.submit("export_audio")
     }
+    readonly property Action exportPdfAction: Action {
+        objectName: "exportPdfAction"
+        text: "Export &PDF…"
+        // On the locale's paper (Letter or A4).
+        onTriggered: acts.chrome.files.exportPdf()
+    }
     readonly property Action quitAction: Action {
         objectName: "quitAction"
         text: "&Quit"; shortcut: "Ctrl+Q"

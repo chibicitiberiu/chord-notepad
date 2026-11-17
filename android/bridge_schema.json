@@ -2,6 +2,7 @@
   "answers": {
     "ConfirmDiscardRequest": "DiscardChoice|null",
     "InsertDirectiveRequest": "dict[str,str]|null",
+    "PaintPdfRequest": "str|null",
     "PickDocumentRequest": "DocumentRef|null"
   },
   "command_params": {
@@ -76,6 +77,9 @@
     },
     "export_audio": {},
     "export_midi": {},
+    "export_pdf": {
+      "page": "str"
+    },
     "identifier_clear": {},
     "identifier_play_selection": {
       "rolled": "bool"
@@ -362,6 +366,7 @@
     "duplicate_voicing_record",
     "export_audio",
     "export_midi",
+    "export_pdf",
     "identifier_clear",
     "identifier_play_selection",
     "identifier_set_notes_text",
@@ -454,7 +459,8 @@
       "open",
       "save",
       "export_midi",
-      "export_audio"
+      "export_audio",
+      "export_pdf"
     ],
     "PlayAction": [
       "play",
@@ -668,6 +674,53 @@
       "fields": {
         "label": "str",
         "value": "str"
+      },
+      "kind": "value"
+    },
+    "PaintPdfRequest": {
+      "fields": {
+        "layout": "PdfLayout",
+        "ref": "DocumentRef",
+        "request_id": "int"
+      },
+      "kind": "request"
+    },
+    "PdfLayout": {
+      "fields": {
+        "font_size": "float",
+        "footer_y": "float",
+        "line_height": "float",
+        "page_count": "int",
+        "page_height": "float",
+        "page_width": "float",
+        "pages": "list[PdfPage]",
+        "small_font_size": "float",
+        "title": "str",
+        "title_x": "float",
+        "title_y": "float"
+      },
+      "kind": "value"
+    },
+    "PdfLine": {
+      "fields": {
+        "runs": "list[PdfRun]",
+        "y": "float"
+      },
+      "kind": "value"
+    },
+    "PdfPage": {
+      "fields": {
+        "footer": "str",
+        "footer_x": "float",
+        "lines": "list[PdfLine]"
+      },
+      "kind": "value"
+    },
+    "PdfRun": {
+      "fields": {
+        "dim": "bool",
+        "text": "str",
+        "x": "float"
       },
       "kind": "value"
     },
