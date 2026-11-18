@@ -627,9 +627,10 @@ def _quick_start_image(sc: Scene):
     sc.wait(1500)  # the new view paints a moment after the tab
 
 
-# The store listings (Microsoft Store, AppStream, the Snap Store): 1920x1080, the
-# window 1920x1080 at scale 1 (at 2x the icons come out cropped offscreen, see notes). Songs are the same public-domain two.
-STORE = dict(dest="store", size=(1920, 1080), quantize=False)
+# The store listings (Microsoft Store, AppStream, the Snap Store): 1920x1080, a
+# 1280x720 window at scale 1.5, so the stores' thumbnails stay readable (a
+# 1920x1080 window at scale 1 was half empty space). Songs are the same public-domain two.
+STORE = dict(dest="store", size=(1280, 720), scale=1.5, quantize=False)
 
 
 @shot("01-play-piano-roll", "store", "Amazing Grace playing, on the piano roll.", **STORE)
@@ -673,7 +674,7 @@ def _store_identifier(sc: Scene):
 
 
 @shot("06-voicings", "store", "Settings, a fretboard voicing.", window="settingsWindow",
-      size_window=(1920, 1080), **STORE)
+      size_window=(1280, 720), **STORE)
 def _store_voicings(sc: Scene):
     sc.song(*FAIR)
     sc.dialogs("openSettings", "voicings")
