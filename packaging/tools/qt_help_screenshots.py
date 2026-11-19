@@ -556,7 +556,8 @@ def _settings_playback(sc: Scene):
 def _settings_voicing_form(sc: Scene):
     sc.song(*FAIR)
     sc.dialogs("openSettings", "voicings")
-    sc.submit("add_voicing")
+    # What Add voicing › Blank fretboard sends: "New fretboard voicing".
+    sc.submit("add_voicing_from", group="blank", label="Blank fretboard")
     sc.wait(400)
 
 
@@ -678,7 +679,8 @@ def _store_identifier(sc: Scene):
 def _store_voicings(sc: Scene):
     sc.song(*FAIR)
     sc.dialogs("openSettings", "voicings")
-    sc.submit("add_voicing")
+    # What Add voicing › Blank fretboard sends: "New fretboard voicing".
+    sc.submit("add_voicing_from", group="blank", label="Blank fretboard")
     sc.wait(400)
 
 

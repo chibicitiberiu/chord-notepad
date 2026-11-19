@@ -261,8 +261,10 @@ you there.
    .. platform-figure:: settings-voicing-form
       :platforms: desktop
       :alt: The Voicings page: an Add voicing button with a trash button
-            beside it and the group Fretboard with New voicing, and the voicing's form with its name, model,
-            strings, limits, the barre switch and the weights.
+            beside it, then the groups Fretboard, Piano and Ensemble, each
+            starting with its built-in voicings in grey with a lock, and New
+            fretboard voicing selected under Fretboard. On the right, its form:
+            name, model, strings, limits, the barre switch and the weights.
 
       The Voicings page with a new fretboard voicing.
 
