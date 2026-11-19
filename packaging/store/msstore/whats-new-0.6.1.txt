@@ -1,0 +1,14 @@
+# Microsoft Store, "What's new in this version" for 0.6.1. Paste each block into
+# Partner Center > the submission > Store listings > <language> > What's new in
+# this version (limit 1500 characters; check with
+# `python3 packaging/store/msstore/count_whats_new.py`).
+
+== en-US ==
+A small update to 0.6.0. The loop picker's count now starts at 2, since a loop that plays its section once doesn't repeat anything. A {loop: verse 1} you've typed keeps working and plays the section once.
+
+New in 0.6.0, in case you missed it: a completely redesigned app with light and dark themes, separate Edit and Play workspaces, a player with a timeline, speed and volume, a redrawn chord sheet, find and replace, export to WAV audio and PDF, and a Suggest Capo that lists every capo position with the chord shapes you'd play.
+
+== ro-RO ==
+O actualizare mică a versiunii 0.6.0. Numărul de repetări din selectorul de bucle pornește acum de la 2, pentru că o buclă care își cântă secțiunea o singură dată nu repetă nimic. Un {loop: verse 1} scris deja merge în continuare și cântă secțiunea o dată.
+
+Nou în 0.6.0, dacă ți-a scăpat: o aplicație complet reproiectată, cu teme luminoasă și întunecată, spații de lucru separate Editare și Redare, un player cu cronologie, viteză și volum, o foaie de acorduri redesenată, căutare și înlocuire, export ca audio WAV și PDF, și Sugerează capodastru, care afișează fiecare poziție a capodastrului cu acordurile pe care le-ai cânta.
