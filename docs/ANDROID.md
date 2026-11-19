@@ -1004,6 +1004,7 @@ objects, against the release build's R8 rules ("R8 in release builds").
   `ui/menus/MenuModels.kt`.
 - **Tools (M5)**: `ui/tools/`, `ui/identifier/`. The Edit ribbon has
   ＋ Insert (Tempo, Time signature, Key, Capo, Label, Loop), Transpose,
+  Capo (Suggest Capo, for the selection or the whole song),
   Identify, AB/Do and Convert (to the other notation; the session switches
   AB/Do with it). Suggest Capo is the Capo dialog's Suggest (it cancels the
   insert request, then `capo_advice_open`). The desktop's Tools ›

@@ -740,7 +740,8 @@ The User Interface
    * **The song title.** A • after the name means there are unsaved changes.
      An untitled song shows "Untitled" until you save it or give it a name.
    * **The Edit and Play tabs.**
-   * **Save** (the disk icon).
+   * **Save** (the disk icon). It is greyed out while there are no unsaved
+     changes.
 
    Tap the title to **Rename** the song. The dialog shows the file's full name
    ("Saved as …"); type the new name without the ``.txt``, which is kept. Some
@@ -854,7 +855,7 @@ The User Interface
 
    .. platform-figure:: edit-ribbon
       :platforms: android
-      :alt: The Edit ribbon: Undo, Redo, Insert, Transpose, Identify, the AB
+      :alt: The Edit ribbon: Undo, Redo, Insert, Transpose, Capo, Identify, the AB
             and Do switch, Convert, and a chevron at the right edge.
 
       The Edit ribbon.
@@ -864,6 +865,11 @@ The User Interface
    * **＋ Insert**, which opens a sheet of directives (see *Insert
      Directive Dialogs* below)
    * **Transpose**, which opens the dialog described in :doc:`transpose`
+   * **Capo**, which opens Suggest Capo (see :doc:`chord_sheet`). It looks at
+     the selected text, or the whole song when nothing is selected, and puts
+     the ``{capo}`` directive at the top or at the start of the selection.
+     **＋ Insert → Capo** instead inserts at the cursor, and has a **Suggest**
+     button for the same dialog
    * **Identify**, which opens the Chord Identifier (see below)
    * **AB / Do**, the notation the text is read in, for this song only (a new
      song starts in the one set in Settings, an opened one in the one its

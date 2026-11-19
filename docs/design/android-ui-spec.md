@@ -39,7 +39,7 @@ The app bar holds, from left to right:
   - If the storage provider can't rename, the app offers Save As instead with a short explanation.
   - An untitled song takes the name when it's first saved.
 - **The tabs.**
-- **Save.**
+- **Save.** Greyed out (dimmed, no click) while the document has no unsaved changes.
 
 Phone landscape: the title (shortened to a fifth of the line, 96–200 dp), the tabs and the Edit ribbon share one line; the ribbon scrolls when it has to.
 
@@ -49,6 +49,7 @@ Phone landscape: the title (shortened to a fifth of the line, 96–200 dp), the 
 - Redo
 - ＋ Insert: opens a sheet with Tempo `{bpm}`, Time signature `{time}`, Key `{key}`, Capo `{capo}`, Label `{label}` and Loop `{loop}`.
 - Transpose: a `swap-vertical` + `music-note` composite icon.
+- Capo: `ic_capo`, tinted `IconTints.Capo`. Opens Suggest Capo for the selection (the whole song when nothing is selected), where ＋ Insert › Capo inserts at the cursor.
 - Identify: `piano`.
 - AB | Do: notation segmented control.
 - Convert: blue **C** at top-left with ↘, orange **↖ Do** at bottom-right. The arrows are the `arrow_right_alt` glyph rotated, the same arrow `swap_horiz` uses. The letters are Roboto Bold.

@@ -405,14 +405,15 @@ Suggesting a Capo
 
    1. Go to the **Edit** tab. To get a capo for one part of the song only,
       select that part; otherwise the whole song is used.
-   2. Tap **＋ Insert** in the Edit ribbon, then **Capo**.
-   3. Tap **Suggest**. If you already know the fret, type it in the
+   2. Tap **Capo** in the Edit ribbon (next to Transpose). If you already
+      know the fret, tap **＋ Insert**, then **Capo**, type it in the
       **Fret** field (0 to 12, where 0 means no capo) and tap **Insert**
-      instead.
-   4. Wait for the list. Each row is a capo position, the chord shapes you
-      would play with it, and **Easier**, **About the same** or **Harder**
-      next to no capo. The recommended row comes first and is already chosen.
-   5. Tap the row you want and tap **Apply**, or **Cancel** to change nothing.
+      instead. That sheet's **Suggest** button opens the same dialog.
+   3. Wait for the list. Each row has the capo position as its heading with
+      **Easier**, **About the same** or **Harder** (next to no capo) at its
+      right, and the chord shapes you would play with it below. The
+      recommended row comes first and is already chosen.
+   4. Tap the row you want and tap **Apply**, or **Cancel** to change nothing.
 
 .. platform-figure:: capo-suggest
    :platforms: android

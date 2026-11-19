@@ -346,7 +346,8 @@ Finding the Best Capo
 
 .. only:: android
 
-   You don't have to guess: in the Edit tab, ＋ Insert → Capo → Suggest lists
+   You don't have to guess: in the Edit tab, the **Capo** button in the ribbon (or ＋ Insert → Capo →
+   Suggest) lists
    every capo position with the chord shapes you would play and whether they
    are easier than no capo, the recommended one first. Pick one and Apply
    inserts the ``{capo}`` directive for you.
