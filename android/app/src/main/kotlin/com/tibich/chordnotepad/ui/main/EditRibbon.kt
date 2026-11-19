@@ -57,6 +57,7 @@ interface RibbonActions {
     fun redo()
     fun insert()
     fun transpose()
+    fun capo()
     fun identify()
     fun setNotation(notation: String)
     fun convert()
@@ -66,7 +67,7 @@ interface RibbonActions {
 private const val MORE_SCROLL_DP = 140
 
 /**
- * The Edit ribbon, one 48 dp row: Undo, Redo | Insert, Transpose, Identify |
+ * The Edit ribbon, one 48 dp row: Undo, Redo | Insert, Transpose, Capo, Identify |
  * AB/Do, Convert. It scrolls sideways by dragging; a fade and a › chevron
  * show there's more to the right, a fade on the left once scrolled.
  *
@@ -107,6 +108,9 @@ fun EditRibbon(
                     painterResource(R.drawable.ic_transpose), null,
                     Modifier.size(width = 32.dp, height = 24.dp), tint = IconTints.Transpose,
                 )
+            }
+            RibbonButton(stringResource(R.string.ribbon_capo), UiTags.RIBBON_CAPO, onClick = actions::capo) {
+                MdiIcon(R.drawable.ic_capo, IconTints.Capo)
             }
             RibbonButton(stringResource(R.string.ribbon_identify), UiTags.RIBBON_IDENTIFY, onClick = actions::identify) {
                 MdiIcon(R.drawable.mdi_piano, IconTints.Identify)

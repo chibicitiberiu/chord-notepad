@@ -21,6 +21,7 @@ object UiTags {
     const val RIBBON_REDO = "ribbon_redo"
     const val RIBBON_INSERT = "ribbon_insert"
     const val RIBBON_TRANSPOSE = "ribbon_transpose"
+    const val RIBBON_CAPO = "ribbon_capo"
     const val RIBBON_IDENTIFY = "ribbon_identify"
     const val RIBBON_NOTATION = "ribbon_notation"
     const val RIBBON_CONVERT = "ribbon_convert"

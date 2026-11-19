@@ -253,6 +253,7 @@ fun SongScreen(graph: AppGraph, actions: MainActions, snackbars: SnackbarHostSta
             override fun redo() = actions.redo()
             override fun insert() = go(SheetRoute.Insert)
             override fun transpose() = go(SheetRoute.Transpose(selection = tools.selection() != null))
+            override fun capo() = tools.suggestCapo()
             override fun identify() = go(SheetRoute.Identify)
             override fun setNotation(notation: String) = actions.setNotation(notation)
             override fun convert() {

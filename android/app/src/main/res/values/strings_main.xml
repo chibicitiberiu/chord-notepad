@@ -11,6 +11,7 @@
     <!-- Edit ribbon -->
     <string name="ribbon_insert">Insert</string>
     <string name="ribbon_transpose">Transpose</string>
+    <string name="ribbon_capo">Capo</string>
     <string name="ribbon_identify">Identify</string>
     <string name="ribbon_convert">Convert</string>
     <string name="ribbon_more">Show more tools</string>
