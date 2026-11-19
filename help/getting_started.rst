@@ -98,8 +98,8 @@ The Main :plat:`Window|Screen`
    .. platform-figure:: main-edit-labeled
       :platforms: android
       :alt: The Edit tab with numbered callouts: 1 the menu button, 2 the song
-            title, 3 the Edit and Play tabs, 4 Save, 5 the Edit ribbon, 6 the
-            song text.
+            title, 3 the Edit and Play tabs, 4 Save (greyed out, as there is
+            nothing to save), 5 the Edit ribbon, 6 the song text.
 
       The Edit tab.
 

@@ -315,10 +315,21 @@ you there.
    .. platform-figure:: settings-voicings
       :platforms: android
       :alt: The Voicings page on a phone: an Add voicing button, then the
-            groups Fretboard with My 7-String, Piano with no voicings, and
-            Ensemble with no voicings.
+            group Fretboard with four guitars and Ukulele in grey, each with
+            a lock, and My 7-String below them in black; then Piano with
+            Piano (default) and Ensemble with its presets, also locked.
 
-      The Voicings list on a phone, with one custom voicing.
+      The Voicings list on a phone: the built-ins with locks, then the
+      custom voicing.
+
+   .. platform-figure:: settings-add-voicing
+      :platforms: android
+      :alt: The Add voicing menu over the Voicings list: Blank fretboard,
+            Blank piano and Blank ensemble, then the groups Fretboard (four
+            guitars and Ukulele), Ensemble (four presets), Piano (default),
+            and Your voicings with My 7-String.
+
+      The Add voicing menu.
 
    On a tablet held sideways, the pages, the list and the form all fit on one
    screen:
@@ -326,8 +337,9 @@ you there.
    .. platform-figure:: settings-voicings-tablet
       :platforms: android
       :alt: Settings on a tablet in landscape: the pages on the left, the
-            Voicings list in the middle with My 7-String selected, and its
-            form on the right with Name, Model, Copy from existing, Remove voicing,
+            Voicings list in the middle with the locked built-ins and My
+            7-String selected, and its
+            form on the right with Name, Model, Remove voicing,
             Strings and the fret and span fields.
 
       Settings › Voicings on a tablet.
@@ -351,8 +363,8 @@ you there.
    .. platform-figure:: settings-voicing-form
       :platforms: android
       :alt: The form for the voicing My 7-String on a phone: Name with a
-            pencil button, Model Fretboard, Copy from existing and Remove voicing
-            buttons, Strings B1 E2 A2 D3 G3 B3 E4, then Max fret, Fingers and
+            pencil button, Model Fretboard, the Remove voicing
+            button, Strings B1 E2 A2 D3 G3 B3 E4, then Max fret, Fingers and
             Max span with minus and plus buttons.
 
       A fretboard voicing's form on a phone (the top of it; the weights are
@@ -453,7 +465,7 @@ instead of editing JSON by hand:
 
    1. Open |settings| and go to the **Voicings** page.
    2. Click **Add voicing** and pick **Guitar (Standard - EADGBE)** from the
-      menu. "New voicing" opens on the right as a copy of it, with the
+      menu. "New Guitar (Standard - EADGBE)" opens on the right as a copy of it, with the
       standard tuning and all its defaults as a starting point.
    3. In **Name**, type ``My 7-String``.
    4. In the strings field, change the tuning from ``E2 A2 D3 G3 B3 E4`` to

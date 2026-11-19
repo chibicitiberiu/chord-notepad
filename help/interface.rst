@@ -764,7 +764,7 @@ The User Interface
    .. platform-figure:: landscape-edit
       :platforms: android
       :alt: A phone held sideways in the Edit tab: one bar with the menu
-            button, the song's title, the Edit and Play tabs, Save and the
+            button, the song's title, the Edit and Play tabs, a greyed-out Save and the
             Edit ribbon, and the song below it.
 
       The Edit tab on a phone held sideways.

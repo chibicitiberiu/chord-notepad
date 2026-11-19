@@ -359,10 +359,12 @@ Finding the Best Capo
 
    .. platform-figure:: capo-suggest
       :platforms: android
-      :alt: The Suggest Capo dialog: a Voicing dropdown set to Guitar
-            (Standard - EADGBE), radio rows of capo positions with their
-            chord shapes and how easy each is, the first one marked
-            Recommended, and Cancel and Apply.
+      :alt: The Suggest Capo dialog: an explanation, a line saying it applies
+            to the whole song, a Voicing dropdown set to Guitar (Standard -
+            EADGBE), then radio rows of capo positions. Each row has the capo
+            as a heading with how easy it is at the right, the chord shapes
+            below, and tags last; the first row, No capo, is tagged
+            Recommended and Current. Cancel and Apply at the bottom.
 
       Pick the capo you want from the list.
 

@@ -109,10 +109,10 @@ Defining a Custom Fretted Voicing
    1. Open |voicings_settings|. (From the player, **Voicing → Edit
       voicings…** gets you there too.)
    2. Tap **Add voicing** and pick what the new voicing starts as: **Blank
-      fretboard**, a six-string guitar in standard tuning, or a preset (the
-      built-in voicings, grouped by model, then your own). The new voicing,
-      called "New fretboard voicing" or "New" and the preset's name, appears
-      under its model and its form opens.
+      fretboard** (a six-string guitar in standard tuning), or a copy of a
+      built-in or of one of your own voicings (the menu groups them by
+      model). The new voicing, called "New fretboard voicing" or "New" and the
+      copied voicing's name, appears under its model and its form opens.
    3. Tap the **Name** field (or its pencil) to give the voicing a name. That
       name is what the Voicing sheet shows.
    4. Change what's different: the strings, the fret range, the stretch, the
@@ -122,7 +122,7 @@ Defining a Custom Fretted Voicing
 .. platform-figure:: settings-voicing-form
    :platforms: android
    :alt: The voicing form for My 7-String: the Name field with a pencil, the
-         Model drop-down set to Fretboard, Copy from existing and Remove voicing,
+         Model drop-down set to Fretboard, the Remove voicing button,
          then the Strings field with B1 E2 A2 D3 G3 B3 E4 and the Max fret,
          Fingers and Max span steppers.
 
