@@ -28,7 +28,8 @@ object ScreenCommandNames {
     // voicings editor
     const val REQUEST_VOICING_EDITOR_SCHEMA = "request_voicing_editor_schema"
     const val SELECT_VOICING = "select_voicing"
-    const val ADD_VOICING = "add_voicing"
+    const val ADD_VOICING_FROM = "add_voicing_from"
+    const val SELECT_BUILTIN = "select_builtin"
     const val REMOVE_VOICING = "remove_voicing"
     const val RENAME_VOICING = "rename_voicing"
     const val SET_VOICING_VALUES = "set_voicing_values"
@@ -37,7 +38,6 @@ object ScreenCommandNames {
     const val REMOVE_VOICING_RECORD = "remove_voicing_record"
     const val MOVE_VOICING_RECORD = "move_voicing_record"
     const val DUPLICATE_VOICING_RECORD = "duplicate_voicing_record"
-    const val LOAD_VOICING_PRESET = "load_voicing_preset"
 
     /** Every command these builders send (the contract test checks Python knows them all). */
     val ALL: Set<String> = setOf(
@@ -45,9 +45,9 @@ object ScreenCommandNames {
         PLAY_IDENTIFIED_CHORD, IDENTIFIER_PLAY_SELECTION, INSERT_CHORD, APPLY_SETTINGS, SET_SHOW_QUICK_START_ON_STARTUP,
         REQUEST_QUICK_START, BEGIN_SETTINGS_EDIT, CANCEL_SETTINGS_EDIT, COMMIT_SETTINGS,
         DISCARD_SETTINGS_PROBLEMS,
-        REQUEST_VOICING_EDITOR_SCHEMA, SELECT_VOICING, ADD_VOICING, REMOVE_VOICING,
+        REQUEST_VOICING_EDITOR_SCHEMA, SELECT_VOICING, ADD_VOICING_FROM, SELECT_BUILTIN, REMOVE_VOICING,
         RENAME_VOICING, SET_VOICING_VALUES, SET_VOICING_MODEL, ADD_VOICING_RECORD,
-        REMOVE_VOICING_RECORD, MOVE_VOICING_RECORD, DUPLICATE_VOICING_RECORD, LOAD_VOICING_PRESET,
+        REMOVE_VOICING_RECORD, MOVE_VOICING_RECORD, DUPLICATE_VOICING_RECORD,
     )
 }
 
@@ -143,8 +143,22 @@ class ScreenCommands(private val submitter: CommandSubmitter) {
     /** Show voicing [name] in the form. */
     fun selectVoicing(name: String) = send(ScreenCommandNames.SELECT_VOICING) { put("name", name) }
 
-    /** Add a voicing and select it. */
-    fun addVoicing() = send(ScreenCommandNames.ADD_VOICING)
+    /**
+     * Add a voicing that starts as [preset] (a `VoicingEditorState.presets`
+     * entry, a built-in with its model as the group, or one of the user's in
+     * group `custom`) and select it; Python names it ("New fretboard
+     * voicing", "New <label>", numbered when taken).
+     */
+    fun addVoicingFrom(preset: VoicingPreset) = send(ScreenCommandNames.ADD_VOICING_FROM) {
+        put("group", preset.group)
+        put("label", preset.label)
+    }
+
+    /** Show built-in [label] of model [model] in the form, read-only (`VoicingEditorState.readOnly`). */
+    fun selectBuiltin(model: String, label: String) = send(ScreenCommandNames.SELECT_BUILTIN) {
+        put("group", model)
+        put("label", label)
+    }
 
     /** Remove a voicing (confirm first with the schema's `remove_confirm` text). */
     fun removeVoicing(name: String) = send(ScreenCommandNames.REMOVE_VOICING) { put("name", name) }
@@ -186,10 +200,4 @@ class ScreenCommands(private val submitter: CommandSubmitter) {
             put("index", index)
             put("field_id", fieldId)
         }
-
-    /** Load a "Load config" entry into the selected voicing (confirm first). */
-    fun loadVoicingPreset(preset: VoicingPreset) = send(ScreenCommandNames.LOAD_VOICING_PRESET) {
-        put("group", preset.group)
-        put("label", preset.label)
-    }
 }

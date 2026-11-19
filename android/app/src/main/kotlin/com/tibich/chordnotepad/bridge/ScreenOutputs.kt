@@ -78,11 +78,11 @@ data class VoicingGroup(
     val model: String,
     val label: String,
     val names: List<String>,
-    /** The model's built-in voicings, as the presets label them (the Qt desktop lists them). */
+    /** The model's built-in voicings, as the presets label them (listed first, read-only). */
     val builtins: List<String> = emptyList(),
 )
 
-/** A "Load config" entry; send [group] and [label] to `load_voicing_preset`. */
+/** An Add voicing entry; send [group] and [label] to `add_voicing_from`. */
 @Serializable
 data class VoicingPreset(val label: String, val group: String)
 
@@ -123,7 +123,10 @@ data class VoicingEditorState(
     val problems: List<SettingsProblem> = emptyList(),
     @SerialName("staged_numbers") val stagedNumbers: Map<String, String> = emptyMap(),
     val restored: Boolean = false,
-    /** The form shows a built-in (`select_builtin`, the Qt desktop's); edits are refused. */
+    /**
+     * The form shows a built-in (`select_builtin`; [model] is its model) or a
+     * voicing of a model a newer release added ([model] null); edits are refused.
+     */
     @SerialName("read_only") val readOnly: Boolean = false,
 ) : SessionState
 

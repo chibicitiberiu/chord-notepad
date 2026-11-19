@@ -148,8 +148,10 @@ class ScreenBridgeTest {
         assertSent("move_voicing_record", """{"index":2,"offset":-1,"field_id":"voices"}""")
         commands.duplicateVoicingRecord(1)
         assertSent("duplicate_voicing_record", """{"index":1,"field_id":"voices"}""")
-        commands.loadVoicingPreset(VoicingPreset("SATB Choir", "ensemble"))
-        assertSent("load_voicing_preset", """{"group":"ensemble","label":"SATB Choir"}""")
+        commands.addVoicingFrom(VoicingPreset("Blank piano", "blank"))
+        assertSent("add_voicing_from", """{"group":"blank","label":"Blank piano"}""")
+        commands.selectBuiltin("ensemble", "String Quartet")
+        assertSent("select_builtin", """{"group":"ensemble","label":"String Quartet"}""")
         commands.renameVoicing("A", "B")
         assertSent("rename_voicing", """{"old":"A","new":"B"}""")
     }

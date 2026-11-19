@@ -64,4 +64,7 @@
     <string name="voicings_empty_group">No voicings</string>
     <string name="voicings_invalid_banner">A field with an error isn\'t saved until it\'s fixed; the rest of the voicing is.</string>
     <string name="voicings_preset_custom">Your voicings</string>
+    <!-- A built-in voicing: the lock beside it (read-only). -->
+    <string name="voicings_builtin">Built-in, read-only</string>
+    <string name="voicings_copy_builtin">Copy to a new voicing</string>
 </resources>

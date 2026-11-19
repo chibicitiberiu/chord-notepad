@@ -49,8 +49,7 @@ from chordnotepad.models.notation import Notation
 from chordnotepad.models.playback_event import PlaybackEventArgs, PlaybackEventType
 from chordnotepad.session import directives, formatting, quick_start, song_defaults, support, toolbar
 from chordnotepad.session.platform import (
-    ANDROID, BLANK_VOICING_PRESETS, COUNTS_SONG_BARS, DESKTOP, STOP_REWINDS, TRACKS_PLAYHEAD,
-    check_platform, pick,
+    ANDROID, COUNTS_SONG_BARS, DESKTOP, STOP_REWINDS, TRACKS_PLAYHEAD, check_platform, pick,
 )
 from chordnotepad.session.audio_policy import AudioFailurePolicy
 from chordnotepad.session.emitter import Emitter, Listener
@@ -2111,8 +2110,7 @@ class AppSession:
         Raises:
             RuntimeError: If the session was built without services.
         """
-        edit = SettingsEdit(self.settings_model(),
-                            blank_presets=pick(BLANK_VOICING_PRESETS, self._platform))
+        edit = SettingsEdit(self.settings_model())
         disk = self._require_services("settings").config.config.voicings
         voicings, numbers = self._settings_staging().load()
         for name, data in voicings.items():

@@ -333,13 +333,11 @@ Custom Ensembles
    If the four presets don't match the group you're writing for, define your
    own:
 
-   1. Open |voicings_settings| and tap **Add voicing**. The new
-      voicing starts out as a guitar.
-   2. Tap **Copy from existing** and pick the built-in ensemble closest to what you
-      want, such as **Choir (SATB)**. Or set **Model** to **Ensemble** to
-      start from two plain voices.
-   3. Tap the **Name** field to name the voicing.
-   4. Change the voices, the spacing or the weights (see below). Each change
+   1. Open |voicings_settings|, tap **Add voicing** and pick the built-in
+      ensemble closest to what you want, such as **Choir (SATB)**. Or pick
+      **Blank ensemble** to start from two plain voices.
+   2. Tap the **Name** field to name the voicing.
+   3. Change the voices, the spacing or the weights (see below). Each change
       is saved as you make it.
 
    See :doc:`fretted` for how errors are shown, and :doc:`settings` for the

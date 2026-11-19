@@ -52,8 +52,8 @@ The Built-in Voicing
 .. only:: android
 
    Chord Notepad ships with one built-in piano voicing, listed as **Piano** in
-   the player's Voicing sheet and as **Piano (default)** under Copy from existing in
-   the Voicings editor. It's the voicing a fresh install starts with, and its
+   the player's Voicing sheet and as **Piano (default)** in the Voicings
+   editor's list and its **Add voicing** menu. It's the voicing a fresh install starts with, and its
    parameters are the defaults listed under `Voicing Parameters`_ below.
 
 
@@ -74,13 +74,11 @@ Defining a Custom Piano Voicing
    further apart, or trade completeness for a sparser texture, make a custom
    piano voicing:
 
-   1. Open |voicings_settings| and tap **Add voicing**. The new
-      voicing starts out as a guitar.
-   2. Tap **Copy from existing** and pick **Piano (default)**. The form switches to
-      the piano's fields, with the built-in values filled in. (Picking
-      **Piano** under **Model** gives you the same values.)
-   3. Tap the **Name** field to name the voicing.
-   4. Change what's different: the hand ranges, the hand span, the weights.
+   1. Open |voicings_settings|, tap **Add voicing** and pick **Piano
+      (default)**. The new voicing opens with the piano's fields and the
+      built-in values filled in. (**Blank piano** gives you the same values.)
+   2. Tap the **Name** field to name the voicing.
+   3. Change what's different: the hand ranges, the hand span, the weights.
       Each change is saved as you make it.
 
    See :doc:`fretted` for how errors are shown, and :doc:`settings` for the

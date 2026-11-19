@@ -51,6 +51,18 @@
   "model": "ensemble",
   "presets": [
    {
+    "group": "blank",
+    "label": "Blank fretboard"
+   },
+   {
+    "group": "blank",
+    "label": "Blank piano"
+   },
+   {
+    "group": "blank",
+    "label": "Blank ensemble"
+   },
+   {
     "group": "fretboard",
     "label": "Guitar (Standard - EADGBE)"
    },

@@ -159,6 +159,22 @@ class VoicingFormTest {
     }
 
     @Test
+    fun `a read-only form (a built-in) greys every field and has no row buttons`() {
+        for (state in listOf(Fixtures.fretboardInvalid, Fixtures.ensemble, Fixtures.piano)) {
+            val items = buildForm(schema.form(state.model)!!, state.values, state.fieldErrors, state.hints, enabled = false)
+            assertTrue(items.fields().isNotEmpty())
+            assertTrue(items.fields().none { it.enabled })
+            // The values still show.
+            assertEquals(formOf(state).fields().map { it.value }, items.fields().map { it.value })
+            for (records in items.filterIsInstance<FormItem.Records>()) {
+                assertFalse(records.canAdd || records.canRemove)
+                assertTrue(records.rows.none { it.canMoveUp || it.canMoveDown })
+                assertTrue(records.rows.flatMap { it.cells }.none { it.enabled })
+            }
+        }
+    }
+
+    @Test
     fun `the errors banner shows while a field or the form has an error`() {
         assertTrue(Fixtures.ensemble.hasErrors)
         assertFalse(Fixtures.piano.hasErrors)

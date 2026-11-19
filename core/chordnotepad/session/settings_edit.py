@@ -48,17 +48,9 @@ if TYPE_CHECKING:
 class SettingsEdit:
     """The working copy of one Settings screen and its voicing form."""
 
-    def __init__(self, model: "SettingsViewModel", blank_presets: bool = True) -> None:
-        """Start editing ``model`` (a fresh ``SettingsViewModel``); nothing selected.
-
-        Args:
-            model: The working copy.
-            blank_presets: Whether :meth:`presets` lists the ``blank`` group
-                first (a model's defaults; not on Android, whose "Load
-                config" menu has no heading for it).
-        """
+    def __init__(self, model: "SettingsViewModel") -> None:
+        """Start editing ``model`` (a fresh ``SettingsViewModel``); nothing selected."""
         self.model = model
-        self._blank_presets = blank_presets
         self._selected: Optional[str] = None
         #: ``(group, label)`` of the built-in shown read-only, or None.
         self._builtin: Optional[Tuple[str, str]] = None
@@ -269,12 +261,10 @@ class SettingsEdit:
                                               field_id, self.notation))
 
     def presets(self) -> List[Dict[str, Any]]:
-        """The "Load config" entries: the blanks (unless left out for the
-        platform), the built-ins, then the working voicings but the selected
-        one."""
+        """The "Load config" entries: the blanks, the built-ins, then the
+        working voicings but the selected one."""
         exclude = self._selected if self._builtin is None else None
-        blanks = self._blanks() if self._blank_presets else []
-        return blanks + self.model.get_load_presets(exclude=exclude)
+        return self._blanks() + self.model.get_load_presets(exclude=exclude)
 
     def builtins(self, model: str) -> Tuple[str, ...]:
         """The built-in presets of ``model``, in preset order (their labels)."""

@@ -290,14 +290,27 @@ you there.
 
 .. only:: android
 
-   The list shows your custom voicings, grouped by model (Fretboard, Piano,
-   Ensemble). **Add voicing** at the top of the list adds a new one and opens
-   it; the **Remove voicing** button is in the voicing's own form, and asks
-   before it removes anything. On a phone the list is a screen of its own:
-   tap a voicing to open its form full screen, and ← or Back returns to the
-   list. Built-in voicings -- the four guitars, the ukulele, the four
-   ensemble presets, the default piano -- aren't listed here since they're
-   not yours to edit, but they are available as starting points (see below).
+   The list shows the voicings by model (Fretboard, Piano, Ensemble). Each
+   group starts with its built-in voicings, in grey with a lock: the four
+   guitars and the ukulele, the default piano, the four ensemble presets.
+   Your own voicings follow. On a phone the list is a screen of its own: tap
+   a voicing to open its form full screen, and ← or Back returns to the
+   list. The **Remove voicing** button is in the voicing's own form, and asks
+   before it removes anything.
+
+   **Add voicing** at the top of the list opens a menu of what the new
+   voicing starts as. First come **Blank fretboard**, **Blank piano** and
+   **Blank ensemble**, each that model's defaults; below a line, the
+   built-in fretboards, the built-in ensembles, **Piano (default)** and your
+   own voicings, each group under its name. Pick one and the new voicing
+   opens, with no question to answer. A blank is called "New fretboard
+   voicing" ("New piano voicing", "New ensemble voicing"), and a copy "New"
+   and the name of what it copies, such as "New Ukulele". When that name is
+   taken, a number follows: "New Ukulele 2".
+
+   Tap a built-in to see its settings. It can't be changed: every field is
+   greyed out, there's no **Remove voicing**, and next to its name is **Copy
+   to a new voicing**, which adds a copy of your own and opens it.
 
    .. platform-figure:: settings-voicings
       :platforms: android
@@ -345,23 +358,12 @@ you there.
       A fretboard voicing's form on a phone (the top of it; the weights are
       further down).
 
-.. only:: android
-
-   **Copy from existing**
-      Copies every parameter from an existing voicing -- any built-in preset
-      or any other custom voicing -- into the one you're editing. This is the
-      normal way to start a new voicing: load the closest preset, then change
-      what's different. Since it overwrites everything currently in the
-      editor, it asks you to confirm first.
-
-.. only:: desktop
-
-   **Starting point**
-      The **Add voicing** menu: a new voicing starts as a blank of one model,
-      or as a copy of the preset or voicing you pick there, every parameter
-      included. A copy is the normal way to start one: pick the closest, then
-      change what's different. **Copy to a new voicing** on a built-in does
-      the same.
+**Starting point**
+   The **Add voicing** menu: a new voicing starts as a blank of one model,
+   or as a copy of the preset or voicing you pick there, every parameter
+   included. A copy is the normal way to start one: pick the closest, then
+   change what's different. **Copy to a new voicing** on a built-in does
+   the same.
 
 **Name**
    .. only:: desktop
@@ -464,15 +466,16 @@ instead of editing JSON by hand:
 .. only:: android
 
    1. Open |voicings_settings|.
-   2. Tap **Add voicing**. The new voicing opens (full screen on a phone).
-   3. Tap **Copy from existing** and pick **Guitar (Standard - EADGBE)**. This
-      fills in the standard tuning and all its defaults as a starting point.
-   4. In **Name**, type ``My 7-String``.
-   5. In the strings field, change the tuning from ``E2 A2 D3 G3 B3 E4`` to
+   2. Tap **Add voicing** and pick **Guitar (Standard - EADGBE)** from the
+      menu. "New Guitar (Standard - EADGBE)" opens (full screen on a phone)
+      as a copy of it, with the standard tuning and all its defaults as a
+      starting point.
+   3. In **Name**, type ``My 7-String``.
+   4. In the strings field, change the tuning from ``E2 A2 D3 G3 B3 E4`` to
       ``B1 E2 A2 D3 G3 B3 E4`` -- the same six strings with a low B added in
       front (the list starts at the lowest string).
-   6. That's it: the voicing is saved as you go. Leave Settings with ←.
-   7. Switch to the Play tab and tap **Voicing** in the player -- **My 7-String**
+   5. That's it: the voicing is saved as you go. Leave Settings with ←.
+   6. Switch to the Play tab and tap **Voicing** in the player -- **My 7-String**
       is now in the list, under Your voicings. Select it and play some chords.
 
    .. platform-figure:: voicing-sheet

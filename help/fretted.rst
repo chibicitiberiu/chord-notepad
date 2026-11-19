@@ -108,15 +108,14 @@ Defining a Custom Fretted Voicing
 
    1. Open |voicings_settings|. (From the player, **Voicing → Edit
       voicings…** gets you there too.)
-   2. Tap **Add voicing**. A new voicing called "New voicing" appears under
-      **Fretboard**, already set up as a six-string guitar in standard
-      tuning, and its form opens.
-   3. To start from another instrument, tap **Copy from existing** and pick a
-      preset: the built-in voicings, grouped by model, then your own. It
-      replaces every parameter but keeps the name, and asks first.
-   4. Tap the **Name** field (or its pencil) to give the voicing a name. That
+   2. Tap **Add voicing** and pick what the new voicing starts as: **Blank
+      fretboard**, a six-string guitar in standard tuning, or a preset (the
+      built-in voicings, grouped by model, then your own). The new voicing,
+      called "New fretboard voicing" or "New" and the preset's name, appears
+      under its model and its form opens.
+   3. Tap the **Name** field (or its pencil) to give the voicing a name. That
       name is what the Voicing sheet shows.
-   5. Change what's different: the strings, the fret range, the stretch, the
+   4. Change what's different: the strings, the fret range, the stretch, the
       weights. Each field explains itself in the small text under it. There's
       no Save button: each change is saved as you make it.
 

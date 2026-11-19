@@ -108,7 +108,7 @@ fun StepperButtons(label: String, canDown: Boolean, canUp: Boolean, onStep: (Int
     }
 }
 
-/** A read-only field that opens a menu of [options] ([label] of each). */
+/** A read-only field that opens a menu of [options] ([label] of each); greyed and shut when not [enabled]. */
 @Composable
 fun <T> DropdownField(
     label: String,
@@ -119,6 +119,7 @@ fun <T> DropdownField(
     modifier: Modifier = Modifier,
     supporting: String? = null,
     isError: Boolean = false,
+    enabled: Boolean = true,
 ) {
     var open by remember { mutableStateOf(false) }
     // The menu as wide as the field (P8: it opened about 300 px wide under a full-width field).
@@ -134,6 +135,7 @@ fun <T> DropdownField(
             isError = isError,
             singleLine = true,
             trailingIcon = { Icon(AppIcons.ArrowDropDown, contentDescription = null) },
+            enabled = enabled,
             modifier = Modifier.fillMaxWidth(),
         )
         // The field itself would take the tap for focus; this layer opens the menu.
@@ -141,7 +143,7 @@ fun <T> DropdownField(
             Modifier
                 .matchParentSize()
                 .padding(top = 8.dp)
-                .clickable(role = Role.DropdownList, onClickLabel = label) { open = true },
+                .clickable(enabled = enabled, role = Role.DropdownList, onClickLabel = label) { open = true },
         )
         DropdownMenu(
             expanded = open,
@@ -161,13 +163,19 @@ fun <T> DropdownField(
     }
 }
 
-/** A switch with its label and supporting text; the whole row toggles. */
+/** A switch with its label and supporting text; the whole row toggles (unless not [enabled]). */
 @Composable
-fun SwitchRow(label: String, checked: Boolean, onChange: (Boolean) -> Unit, supporting: String? = null) {
+fun SwitchRow(
+    label: String,
+    checked: Boolean,
+    onChange: (Boolean) -> Unit,
+    supporting: String? = null,
+    enabled: Boolean = true,
+) {
     Row(
         Modifier
             .fillMaxWidth()
-            .toggleable(value = checked, role = Role.Switch, onValueChange = onChange)
+            .toggleable(value = checked, enabled = enabled, role = Role.Switch, onValueChange = onChange)
             .padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(16.dp),
@@ -178,7 +186,7 @@ fun SwitchRow(label: String, checked: Boolean, onChange: (Boolean) -> Unit, supp
                 Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
-        Switch(checked = checked, onCheckedChange = null)
+        Switch(checked = checked, onCheckedChange = null, enabled = enabled)
     }
 }
 

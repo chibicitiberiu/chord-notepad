@@ -71,14 +71,14 @@ def test_a_blank_is_its_models_valid_defaults(tmp_path, label, model, name):
     assert name not in state.invalid
 
 
-def test_android_keeps_the_blank_group_out_of_its_presets(tmp_path):
-    # Its "Load config" menu would title the group "Your voicings".
+def test_android_lists_the_blank_group_first_too(tmp_path):
+    # Its Add voicing menu offers the blanks, as the Qt desktop's does.
     session, recorder = _make(tmp_path, platform=ANDROID)
-    assert all(p.group != "blank" for p in editor(recorder).presets)
-    session.add_voicing()
-    assert all(p.group != "blank" for p in editor(recorder).presets)
-    with pytest.raises(ValueError):
-        session.load_voicing_preset("blank", "Blank piano")
+    presets = editor(recorder).presets
+    assert [(p.group, p.label) for p in presets[:3]] == [
+        ("blank", "Blank fretboard"), ("blank", "Blank piano"), ("blank", "Blank ensemble")]
+    session.add_voicing_from("blank", "Blank piano")
+    assert editor(recorder).selected == "New piano voicing"
 
 
 # -- add_voicing_from: names ---------------------------------------------------------

@@ -185,11 +185,11 @@ class SettingsControllerTest {
         assertEquals(listOf(ScreenCommandNames.SELECT_VOICING), submitter.names)
         c.onEditor(Fixtures.piano)
         c.edit(VoicingEdits.text("rh_center", "60"))
-        c.addVoicing()
+        c.addVoicingFrom(VoicingPreset("Blank piano", BLANK_GROUP))
         assertEquals(
             listOf(
                 ScreenCommandNames.SELECT_VOICING, ScreenCommandNames.SET_VOICING_VALUES,
-                ScreenCommandNames.COMMIT_SETTINGS, ScreenCommandNames.ADD_VOICING, ScreenCommandNames.COMMIT_SETTINGS,
+                ScreenCommandNames.COMMIT_SETTINGS, ScreenCommandNames.ADD_VOICING_FROM, ScreenCommandNames.COMMIT_SETTINGS,
             ),
             submitter.names,
         )
@@ -418,13 +418,95 @@ class SettingsControllerTest {
         val before = submitter.sent.size
         c.askModel("fretboard")
         assertEquals(before, submitter.sent.size)
+    }
 
-        c.askPreset(VoicingPreset("Ukulele", "fretboard"))
-        c.confirmDialog()
-        val (name, args) = voicingCommands.last()
-        assertEquals(ScreenCommandNames.LOAD_VOICING_PRESET, name)
+    /** The piano fixture showing its built-in, as `select_builtin` leaves it. */
+    private val pianoBuiltin = Fixtures.piano.copy(selected = "Piano (default)", readOnly = true, dirty = false)
+
+    @Test
+    fun `Add voicing offers the blanks first, then the built-ins and the user's voicings`() {
+        val presets = Fixtures.piano.addPresets()
+        assertEquals(
+            listOf("Blank fretboard", "Blank piano", "Blank ensemble"),
+            presets.takeWhile { it.group == BLANK_GROUP }.map { it.label },
+        )
+        assertEquals(
+            listOf(BLANK_GROUP, "fretboard", "ensemble", "piano", CUSTOM_GROUP),
+            presets.map { it.group }.distinct(),
+        )
+        // The voicing shown is left out of the state's presets, but a new one may copy it.
+        assertFalse(Fixtures.piano.presets.any { it.label == "New voicing" })
+        assertEquals(VoicingPreset("New voicing", CUSTOM_GROUP), presets.last())
+        // Sorted in among the others, and only once.
+        val more = Fixtures.piano.copy(
+            presets = Fixtures.piano.presets + listOf(VoicingPreset("Alto", CUSTOM_GROUP), VoicingPreset("Tenor", CUSTOM_GROUP)),
+        )
+        assertEquals(listOf("Alto", "New voicing", "Tenor"), more.addPresets().filter { it.group == CUSTOM_GROUP }.map { it.label })
+        val listed = more.copy(presets = more.addPresets())
+        assertEquals(listed.presets, listed.addPresets())
+        // A built-in being viewed isn't one of the user's voicings.
+        assertEquals(pianoBuiltin.presets, pianoBuiltin.addPresets())
+    }
+
+    @Test
+    fun `Add voicing sends one add_voicing_from and opens the new voicing`() {
+        val c = editing()
+        c.openPage(SettingsPage.VOICINGS)
+        c.addVoicingFrom(VoicingPreset("Ukulele", "fretboard"))
+        val (name, args) = voicingCommands.single()
+        assertEquals(ScreenCommandNames.ADD_VOICING_FROM, name)
         assertEquals("Ukulele", args.getValue("label").jsonPrimitive.content)
         assertEquals("fretboard", args.getValue("group").jsonPrimitive.content)
+        assertEquals(1, commits.size)
+        assertEquals(SettingsNav(SettingsPage.VOICINGS, voicingDetail = true), c.ui.value.nav)
+    }
+
+    @Test
+    fun `a built-in shows read-only - nothing saved, no edit sent, Copy adds a voicing from it`() {
+        val c = editing()
+        c.openPage(SettingsPage.VOICINGS)
+        c.selectBuiltin("piano", "Piano (default)")
+        val (name, args) = submitter.sent.single()
+        assertEquals(ScreenCommandNames.SELECT_BUILTIN, name)
+        assertEquals("piano", args.getValue("group").jsonPrimitive.content)
+        assertEquals("Piano (default)", args.getValue("label").jsonPrimitive.content)
+        // On a phone the form opens.
+        assertEquals(SettingsNav(SettingsPage.VOICINGS, voicingDetail = true), c.ui.value.nav)
+
+        c.onEditor(pianoBuiltin)
+        assertTrue(pianoBuiltin.showsBuiltin)
+        submitter.clear()
+        // Python would refuse these (RuntimeError): none goes out.
+        c.edit(VoicingEdits.text("rh_center", "60"))
+        c.addRecord("voices")
+        c.removeRecord(0, "voices")
+        c.moveRecord(0, 1, "voices")
+        c.duplicateRecord(0, "voices")
+        c.askModel("ensemble")
+        c.askRemove("Piano (default)")
+        c.askRename("Piano (default)")
+        assertEquals(emptyList<String>(), submitter.names)
+        assertNull(c.ui.value.dialog)
+        assertEquals(Fixtures.piano.values, c.editor.value!!.values)
+
+        c.addVoicingFrom(VoicingPreset("Piano (default)", "piano"))
+        assertEquals(listOf(ScreenCommandNames.ADD_VOICING_FROM, ScreenCommandNames.COMMIT_SETTINGS), submitter.names)
+    }
+
+    @Test
+    fun `a newer release's voicing is read-only but no built-in - it can be renamed and removed`() {
+        val newer = Fixtures.piano.copy(model = null, readOnly = true, values = JsonObject(emptyMap()))
+        assertFalse(newer.showsBuiltin)
+        val c = editing()
+        c.onEditor(newer)
+        c.edit(VoicingEdits.text("rh_center", "60"))
+        c.askModel("piano")
+        assertEquals(emptyList<String>(), submitter.names)
+        c.askRemove("New voicing")
+        assertEquals(SettingsDialog.RemoveVoicing("New voicing"), c.ui.value.dialog)
+        c.dismissDialog()
+        c.askRename("New voicing")
+        assertEquals(SettingsDialog.Rename("New voicing"), c.ui.value.dialog)
     }
 
     @Test

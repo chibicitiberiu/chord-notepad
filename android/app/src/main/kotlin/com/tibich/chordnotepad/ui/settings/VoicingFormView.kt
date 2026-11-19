@@ -108,7 +108,7 @@ private fun FieldInput(
         onValue ?: { actions.edit(JsonObject(mapOf(spec.id to it))) }
     when (spec.kind) {
         FieldKind.BOOL -> Column(modifier) {
-            SwitchRow(spec.label, field.checked, { send(JsonPrimitive(it)) }, supportingOf(field, withHelp))
+            SwitchRow(spec.label, field.checked, { send(JsonPrimitive(it)) }, supportingOf(field, withHelp), field.enabled)
         }
         FieldKind.CHOICE -> DropdownField(
             label = spec.label,
@@ -118,6 +118,7 @@ private fun FieldInput(
             onSelect = { option -> option?.let { send(it.value) } },
             supporting = supportingOf(field, withHelp),
             isError = field.error != null,
+            enabled = field.enabled,
             modifier = modifier,
         )
         FieldKind.INT, FieldKind.FLOAT -> StateTextField(

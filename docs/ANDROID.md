@@ -540,21 +540,27 @@ raises is an `UnexpectedError` whose `context` is the command name.
   {version, schema}` (`voicing_form.editor_schema("android")`: models, list
   groups, fixed texts incl. the confirmation dialogs, header help, and per
   model the sections and fields with kinds, labels, help, ranges, defaults;
-  static, keep it per `version`), `select_voicing {name}`, `add_voicing {}`
-  (a guitar fretboard named "New voicing", selected), `remove_voicing
-  {name}`, `rename_voicing {old, new}` (refused names: `UserError` "Rename
-  Voicing"), `set_voicing_values {values}` (a JSON object of the changed
-  fields, or all; merged, parsed forgivingly), `set_voicing_model {model}`
-  (that model's defaults; confirm first when `dirty`), `add_voicing_record
-  {field_id}` / `remove_voicing_record {index, field_id}` /
-  `move_voicing_record {index, offset, field_id}` (`offset` -1 up, +1 down;
-  `field_id` defaults to `voices`), `load_voicing_preset {group, label}`.
-  The Qt desktop also sends `add_voicing_from {group, label}` (a new voicing
-  copied from a preset, a built-in or one of the user's, named "New
-  <label>", or "New fretboard voicing" and so on for a `blank` preset) and
-  `select_builtin {group, label}` (a built-in in the form, `read_only`:
-  edits raise); Android doesn't, and its `presets` leave out the `blank`
-  group. Every one
+  static, keep it per `version`), `select_voicing {name}`,
+  `add_voicing_from {group, label}` (Add voicing's menu: a new voicing
+  copied from a `presets` entry, a built-in or one of the user's, the
+  selected one too, named "New <label>", or "New fretboard voicing" and so
+  on for a `blank` preset; selected), `select_builtin {group, label}` (a
+  built-in in the form, `read_only`: the edit commands raise
+  `RuntimeError`, so the screen doesn't send them; viewing one isn't a
+  change), `remove_voicing {name}`, `rename_voicing {old, new}` (refused
+  names: `UserError` "Rename Voicing"), `set_voicing_values {values}` (a
+  JSON object of the changed fields, or all; merged, parsed forgivingly),
+  `set_voicing_model {model}` (that model's defaults; confirm first when
+  `dirty`), `add_voicing_record {field_id}` / `remove_voicing_record
+  {index, field_id}` / `move_voicing_record {index, offset, field_id}`
+  (`offset` -1 up, +1 down; `field_id` defaults to `voices`). `presets`
+  start with the `blank` group (each model's defaults), then the built-ins
+  by model, then the user's voicings. A voicing of a model a newer release
+  added is `read_only` too, with `model` null and no form (it can still be
+  renamed or removed). `add_voicing {}` (a guitar fretboard named "New
+  voicing") and `load_voicing_preset {group, label}` (a preset into the
+  selected voicing) are still there, but neither Android nor the Qt desktop
+  sends them now. Every one
   republishes `VoicingEditorState {active, revision, groups: [{model, label,
   names, builtins}], invalid, presets: [{label, group}], selected, model, values,
   field_errors, form_errors, hints, dirty, problems, staged_numbers,

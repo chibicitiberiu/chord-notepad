@@ -23,7 +23,10 @@ data class FieldItem(
     val error: String?,
     /** Python's hint ("N values expected"), or null. */
     val hint: String?,
-    /** False for a cell that is off (the bottom voice's gap): drawn empty and greyed. */
+    /**
+     * False for a cell that is off (the bottom voice's gap: drawn empty and
+     * greyed), and for every field of a read-only form (a built-in).
+     */
     val enabled: Boolean = true,
 ) {
     /** What a text field shows. */
@@ -73,10 +76,18 @@ sealed interface FormItem {
 /**
  * The form of [form] with [values] (the editor state's values with local
  * edits applied, see [PendingEdits]), [errors] and [hints] from the state.
+ * Not [enabled] (a built-in, `VoicingEditorState.readOnly`): every field is
+ * greyed and records rows can't be added, moved or removed.
  */
-fun buildForm(form: FormSpec, values: JsonObject, errors: JsonObject, hints: JsonObject): List<FormItem> {
+fun buildForm(
+    form: FormSpec,
+    values: JsonObject,
+    errors: JsonObject,
+    hints: JsonObject,
+    enabled: Boolean = true,
+): List<FormItem> {
     val out = mutableListOf<FormItem>()
-    fun item(spec: FieldSpec) = FieldItem(spec, values[spec.id], errors.text(spec.id), hints.text(spec.id))
+    fun item(spec: FieldSpec) = FieldItem(spec, values[spec.id], errors.text(spec.id), hints.text(spec.id), enabled)
 
     fun section(section: SectionSpec, level: Int) {
         if (section.title != null || section.blurb != null) {
@@ -90,7 +101,7 @@ fun buildForm(form: FormSpec, values: JsonObject, errors: JsonObject, hints: Jso
                 out += FormItem.Grid("g:${section.id}", section.fields.map(::item))
             }
             SectionKind.TABLE -> for (spec in section.fields) {
-                if (spec.kind == FieldKind.RECORDS) out += records(spec, values, errors)
+                if (spec.kind == FieldKind.RECORDS) out += records(spec, values, errors, enabled)
                 else out += FormItem.Stack("s:${section.id}:${spec.id}", listOf(item(spec)))
             }
             SectionKind.RANGE_TABLE -> for (row in section.rows) {
@@ -108,7 +119,7 @@ fun buildForm(form: FormSpec, values: JsonObject, errors: JsonObject, hints: Jso
     return out
 }
 
-private fun records(spec: FieldSpec, values: JsonObject, errors: JsonObject): FormItem.Records {
+private fun records(spec: FieldSpec, values: JsonObject, errors: JsonObject, enabled: Boolean): FormItem.Records {
     val rows = values[spec.id].asRecords()
     return FormItem.Records(
         key = "t:${spec.id}",
@@ -120,13 +131,13 @@ private fun records(spec: FieldSpec, values: JsonObject, errors: JsonObject): Fo
                     // Not saved (the bottom voice has no voice below); Python keeps its value.
                     FieldItem(column, null, null, null, enabled = false)
                 } else {
-                    FieldItem(column, row[column.id], errors.text(spec.cellErrorKey(index, column.id)), null)
+                    FieldItem(column, row[column.id], errors.text(spec.cellErrorKey(index, column.id)), null, enabled)
                 }
             }
-            RecordRow(index, cells, canMoveUp = index > 0, canMoveDown = !last)
+            RecordRow(index, cells, canMoveUp = enabled && index > 0, canMoveDown = enabled && !last)
         },
-        canAdd = spec.maxItems == null || rows.size < spec.maxItems,
-        canRemove = spec.minItems == null || rows.size > spec.minItems,
+        canAdd = enabled && (spec.maxItems == null || rows.size < spec.maxItems),
+        canRemove = enabled && (spec.minItems == null || rows.size > spec.minItems),
         error = errors.text(spec.id),
     )
 }

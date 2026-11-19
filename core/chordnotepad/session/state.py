@@ -576,13 +576,14 @@ class VoicingGroup:
 
 @dataclass(frozen=True)
 class VoicingPreset:
-    """An entry of the "Load config" menu; send both back with
-    ``load_voicing_preset`` (or ``add_voicing_from``, for a new voicing).
+    """An entry of the Add voicing menu; send both back with
+    ``add_voicing_from`` (or ``load_voicing_preset``, which no front end
+    sends any more).
 
     Attributes:
         label: What the menu shows.
         group: ``blank`` (a model's defaults: "Blank fretboard", "Blank
-            piano", "Blank ensemble"; listed first, and not on Android),
+            piano", "Blank ensemble"; listed first),
             ``fretboard``, ``ensemble``, ``piano`` (the built-ins) or
             ``custom`` (the user's voicings); a view separates the groups.
     """

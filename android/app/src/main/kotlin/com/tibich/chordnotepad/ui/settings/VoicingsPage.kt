@@ -28,7 +28,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -53,9 +52,10 @@ import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 
 /**
- * Settings › Voicings: the list of custom voicings grouped by model, and the
- * selected one's form. Both side by side when [split], else the list, and
- * the form once a voicing is picked ([SettingsNav.voicingDetail]).
+ * Settings › Voicings: the voicings grouped by model, each group's built-ins
+ * first (read-only, with a lock), and the selected one's form. Both side by
+ * side when [split], else the list, and the form once a voicing is picked
+ * ([SettingsNav.voicingDetail]).
  */
 @Composable
 fun VoicingsPage(schema: EditorSchema?, view: EditorView?, detail: Boolean, split: Boolean, controller: SettingsController) {
@@ -76,27 +76,53 @@ fun VoicingsPage(schema: EditorSchema?, view: EditorView?, detail: Boolean, spli
     }
 }
 
-/** The voicings grouped by model, invalid ones marked; "+" adds one. */
+/**
+ * The voicings grouped by model, each group's built-ins first (muted, with a
+ * lock; tapping one shows it read-only), invalid ones marked; Add voicing
+ * opens a menu of what the new one starts as ([AddVoicingButton]).
+ */
 @Composable
 private fun VoicingList(schema: EditorSchema, state: VoicingEditorState, controller: SettingsController, modifier: Modifier) {
     Column(modifier.verticalScroll(rememberScrollState()).padding(vertical = 8.dp)) {
-        FilledTonalButton(onClick = controller::addVoicing, modifier = Modifier.padding(horizontal = 16.dp)) {
-            Icon(SettingsIcons.Add, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
-            Spacer(Modifier.width(ButtonDefaults.IconSpacing))
-            Text(stringResource(R.string.voicings_add))
-        }
+        AddVoicingButton(schema, state.addPresets(), controller::addVoicingFrom, Modifier.padding(horizontal = 16.dp))
         schema.help["tree_add"]?.let { HelpLine(it, Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) }
         if (state.invalid.isNotEmpty()) {
             ErrorBanner(listOf(stringResource(R.string.voicings_invalid_banner)), Modifier.padding(16.dp))
         }
+        val builtin = state.showsBuiltin
         for (group in state.groups) {
             Box(Modifier.padding(horizontal = 16.dp)) { SectionTitle(group.label, level = 1) }
-            if (group.names.isEmpty()) {
+            if (group.names.isEmpty() && group.builtins.isEmpty()) {
                 HelpLine(stringResource(R.string.voicings_empty_group), Modifier.padding(horizontal = 16.dp))
+            }
+            for (label in group.builtins) {
+                val selected = builtin && state.model == group.model && label == state.selected
+                ListItem(
+                    headlineContent = {
+                        Text(
+                            label,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    },
+                    trailingContent = {
+                        Icon(
+                            SettingsIcons.Lock,
+                            contentDescription = stringResource(R.string.voicings_builtin),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(18.dp),
+                        )
+                    },
+                    colors = ListItemDefaults.colors(
+                        containerColor = if (selected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surface,
+                    ),
+                    modifier = Modifier.clickable { controller.selectBuiltin(group.model, label) },
+                )
             }
             for (name in group.names) {
                 val invalid = name in state.invalid
-                val selected = name == state.selected
+                val selected = !builtin && name == state.selected
                 ListItem(
                     headlineContent = { Text(name, maxLines = 1, overflow = TextOverflow.Ellipsis) },
                     supportingContent = if (invalid) {
@@ -116,8 +142,10 @@ private fun VoicingList(schema: EditorSchema, state: VoicingEditorState, control
 }
 
 /**
- * The selected voicing: name, model, Load config, remove, then the form,
- * scrolling under the errors banner ([FormErrorsBanner]).
+ * The selected voicing: name, model, remove, then the form, scrolling under
+ * the errors banner ([FormErrorsBanner]). A built-in shows read-only: its
+ * name as text with Copy to a new voicing, the model and the form greyed,
+ * no remove.
  */
 @Composable
 private fun VoicingDetail(schema: EditorSchema, view: EditorView, wide: Boolean, controller: SettingsController, modifier: Modifier) {
@@ -137,8 +165,9 @@ private fun VoicingDetail(schema: EditorSchema, view: EditorView, wide: Boolean,
         if (state.readOnly) NewerVersionDetail(schema, name, state.formErrors, controller, modifier)
         return
     }
-    val items = remember(form, view.values, state.fieldErrors, state.hints) {
-        buildForm(form, view.values, state.fieldErrors, state.hints)
+    val builtin = state.showsBuiltin
+    val items = remember(form, view.values, state.fieldErrors, state.hints, builtin) {
+        buildForm(form, view.values, state.fieldErrors, state.hints, enabled = !builtin)
     }
     val focus = LocalFocusManager.current
     val actions = remember(controller) {
@@ -164,9 +193,15 @@ private fun VoicingDetail(schema: EditorSchema, view: EditorView, wide: Boolean,
                 .widthIn(max = 900.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            NameField(schema, name) {
-                focus.clearFocus()
-                controller.askRename(name)
+            if (builtin) {
+                BuiltinName(schema, name, wide) {
+                    controller.addVoicingFrom(VoicingPreset(name, state.model.orEmpty()))
+                }
+            } else {
+                NameField(schema, name) {
+                    focus.clearFocus()
+                    controller.askRename(name)
+                }
             }
             DropdownField(
                 label = schema.text("model_label"),
@@ -178,22 +213,18 @@ private fun VoicingDetail(schema: EditorSchema, view: EditorView, wide: Boolean,
                     option?.let { controller.askModel(it.model) }
                 },
                 supporting = schema.help["model"],
+                enabled = !builtin,
                 modifier = Modifier.fillMaxWidth(),
             )
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                PresetButton(schema, state.presets) {
-                    focus.clearFocus()
-                    controller.askPreset(it)
-                }
+            if (!builtin) {
                 TextButton(onClick = { controller.askRemove(name) }) {
                     Icon(SettingsIcons.Delete, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
                     Spacer(Modifier.width(ButtonDefaults.IconSpacing))
                     Text(stringResource(R.string.voicings_remove))
                 }
             }
-            schema.help["load"]?.let { HelpLine(it) }
             HorizontalDivider(Modifier.padding(top = 8.dp))
-            VoicingFormItems(items, "$name:${state.model}", wide, actions)
+            VoicingFormItems(items, "$name:${state.model}:$builtin", wide, actions)
         }
     }
 }
@@ -278,23 +309,87 @@ private fun NameField(schema: EditorSchema, name: String, onRename: () -> Unit) 
     }
 }
 
-/** Load config: a menu of the presets, built-ins by model then the user's own voicings. */
+/**
+ * A built-in's name, as plain text with a lock, and Copy to a new voicing
+ * ([onCopy]); beside it when [wide], under it on a phone.
+ */
 @Composable
-private fun PresetButton(schema: EditorSchema, presets: List<VoicingPreset>, onPick: (VoicingPreset) -> Unit) {
+private fun BuiltinName(schema: EditorSchema, name: String, wide: Boolean, onCopy: () -> Unit) {
+    val title: @Composable (Modifier) -> Unit = { modifier ->
+        Column(modifier) {
+            Text(
+                schema.text("name_label"),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    SettingsIcons.Lock,
+                    contentDescription = stringResource(R.string.voicings_builtin),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(18.dp),
+                )
+                Text(name, style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            }
+        }
+    }
+    val copy: @Composable () -> Unit = {
+        FilledTonalButton(onClick = onCopy) {
+            Icon(SettingsIcons.ContentCopy, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
+            Spacer(Modifier.width(ButtonDefaults.IconSpacing))
+            Text(stringResource(R.string.voicings_copy_builtin))
+        }
+    }
+    if (wide) {
+        Row(
+            Modifier.fillMaxWidth().padding(vertical = 4.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            title(Modifier.weight(1f))
+            copy()
+        }
+    } else {
+        Column(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            title(Modifier)
+            copy()
+        }
+    }
+}
+
+/**
+ * Add voicing: a menu of what the new voicing starts as ([presets], from
+ * [addPresets]): a blank of each model, then the built-ins by model and the
+ * user's own voicings, each group under its title.
+ */
+@Composable
+private fun AddVoicingButton(
+    schema: EditorSchema,
+    presets: List<VoicingPreset>,
+    onPick: (VoicingPreset) -> Unit,
+    modifier: Modifier = Modifier,
+) {
     var open by remember { mutableStateOf(false) }
-    Box {
-        OutlinedButton(onClick = { open = true }) { Text(schema.text("load_button")) }
+    Box(modifier) {
+        FilledTonalButton(onClick = { open = true }) {
+            Icon(SettingsIcons.Add, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
+            Spacer(Modifier.width(ButtonDefaults.IconSpacing))
+            Text(stringResource(R.string.voicings_add))
+        }
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
             val custom = stringResource(R.string.voicings_preset_custom)
             presets.groupBy { it.group }.entries.forEachIndexed { i, (group, entries) ->
                 if (i > 0) HorizontalDivider()
-                val title = schema.treeGroups.firstOrNull { it.model == group }?.label ?: custom
-                Text(
-                    title,
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                )
+                // The blanks say what they are ("Blank piano"); the others get their group's title.
+                if (group != BLANK_GROUP) {
+                    val title = schema.treeGroups.firstOrNull { it.model == group }?.label ?: custom
+                    Text(
+                        title,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                    )
+                }
                 for (preset in entries) {
                     DropdownMenuItem(
                         text = { Text(preset.label) },

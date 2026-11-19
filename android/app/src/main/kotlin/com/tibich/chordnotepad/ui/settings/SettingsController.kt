@@ -79,10 +79,6 @@ sealed interface SettingsDialog {
     /** Switch to [model], dropping the edits? (`model_confirm`) */
     @Serializable
     data class ChangeModel(val model: String) : SettingsDialog
-
-    /** Replace the parameters with a preset? (`load_confirm`) */
-    @Serializable
-    data class LoadPreset(val label: String, val group: String) : SettingsDialog
 }
 
 /**
@@ -118,6 +114,30 @@ data class SettingsUi(
 
 /** The voicings editor as the form draws it: the state plus local edits not echoed yet. */
 data class EditorView(val state: VoicingEditorState, val values: JsonObject)
+
+/** The form shows a built-in voicing (`select_builtin`): read-only, with a form (a newer release's model has none). */
+val VoicingEditorState.showsBuiltin: Boolean get() = readOnly && model != null
+
+/**
+ * Add voicing's menu, in the session's order: the blanks (group `blank`),
+ * the built-ins by model, then the user's voicings sorted by name. The
+ * state's [VoicingEditorState.presets] leave out the selected voicing (it
+ * can't load itself); a new one may copy it, so it goes back in. A built-in
+ * or a newer release's voicing being viewed ([VoicingEditorState.readOnly])
+ * doesn't.
+ */
+fun VoicingEditorState.addPresets(): List<VoicingPreset> {
+    val name = selected
+    if (name == null || readOnly || presets.any { it.group == CUSTOM_GROUP && it.label == name }) return presets
+    val custom = (presets.filter { it.group == CUSTOM_GROUP }.map { it.label } + name).sorted()
+    return presets.filter { it.group != CUSTOM_GROUP } + custom.map { VoicingPreset(it, CUSTOM_GROUP) }
+}
+
+/** The presets group of the user's own voicings. */
+const val CUSTOM_GROUP = "custom"
+
+/** The presets group of each model's blank defaults (first in the Add voicing menu). */
+const val BLANK_GROUP = "blank"
 
 /**
  * The Settings screen's state holder: the settings edit's life (begin,
@@ -327,10 +347,6 @@ class SettingsController(private val commands: ScreenCommands, saved: SettingsUi
             is SettingsDialog.RemoveVoicing -> touch { commands.removeVoicing(dialog.name) }
             is SettingsDialog.Rename -> if (newName != dialog.name) touch { commands.renameVoicing(dialog.name, newName) }
             is SettingsDialog.ChangeModel -> setModel(dialog.model)
-            is SettingsDialog.LoadPreset -> {
-                pending.clear()
-                touch { commands.loadVoicingPreset(VoicingPreset(dialog.label, dialog.group)) }
-            }
         }
     }
 
@@ -343,32 +359,47 @@ class SettingsController(private val commands: ScreenCommands, saved: SettingsUi
         _ui.update { it.copy(nav = SettingsNav(SettingsPage.VOICINGS, voicingDetail = true)) }
     }
 
-    /** Add a voicing (Python selects it); on phones the form opens. */
-    fun addVoicing() {
+    /**
+     * Add a voicing that starts as [preset] (an [addPresets] entry, or the
+     * built-in shown: its model and label); Python names and selects it. On
+     * phones the form opens.
+     */
+    fun addVoicingFrom(preset: VoicingPreset) {
         pending.clear()
-        touch { commands.addVoicing() }
+        touch { commands.addVoicingFrom(preset) }
         _ui.update { it.copy(nav = SettingsNav(SettingsPage.VOICINGS, voicingDetail = true)) }
     }
 
-    /** Ask before removing [name]. */
-    fun askRemove(name: String) = _ui.update { it.copy(dialog = SettingsDialog.RemoveVoicing(name)) }
+    /**
+     * Show built-in [label] of [model] in the form, read-only (on phones,
+     * open the form). Viewing one changes nothing, so nothing is saved.
+     */
+    fun selectBuiltin(model: String, label: String) {
+        pending.clear()
+        commands.selectBuiltin(model, label)
+        _ui.update { it.copy(nav = SettingsNav(SettingsPage.VOICINGS, voicingDetail = true)) }
+    }
 
-    /** Open the rename dialog for [name]. */
-    fun askRename(name: String) = _ui.update { it.copy(dialog = SettingsDialog.Rename(name)) }
+    /** Ask before removing [name] (not a built-in: it can't be removed). */
+    fun askRemove(name: String) {
+        if (!showsBuiltin) _ui.update { it.copy(dialog = SettingsDialog.RemoveVoicing(name)) }
+    }
+
+    /** Open the rename dialog for [name] (not a built-in's). */
+    fun askRename(name: String) {
+        if (!showsBuiltin) _ui.update { it.copy(dialog = SettingsDialog.Rename(name)) }
+    }
 
     /** Switch the selected voicing to [model], asking first when it has edits (`dirty`). */
     fun askModel(model: String) {
         val state = _editor.value?.state ?: return
-        if (model == state.model) return
+        if (model == state.model || state.readOnly) return
         if (state.dirty) _ui.update { it.copy(dialog = SettingsDialog.ChangeModel(model)) } else setModel(model)
     }
 
-    /** Ask before loading [preset] (it replaces every parameter). */
-    fun askPreset(preset: VoicingPreset) =
-        _ui.update { it.copy(dialog = SettingsDialog.LoadPreset(preset.label, preset.group)) }
-
     /** A form edit (`set_voicing_values` with [payload], e.g. from [VoicingEdits]). */
     fun edit(payload: JsonObject) {
+        if (readOnly) return
         pending.record(payload)
         touch { commands.setVoicingValues(payload) }
         _editor.value?.let { _editor.value = it.copy(values = pending.applyTo(it.state.values)) }
@@ -386,32 +417,46 @@ class SettingsController(private val commands: ScreenCommands, saved: SettingsUi
 
     /** Add a row to records field [fieldId]. */
     fun addRecord(fieldId: String) {
+        if (readOnly) return
         pending.clear(fieldId)
         touch { commands.addVoicingRecord(fieldId) }
     }
 
     /** Remove row [index] of records field [fieldId]. */
     fun removeRecord(index: Int, fieldId: String) {
+        if (readOnly) return
         pending.clear(fieldId)
         touch { commands.removeVoicingRecord(index, fieldId) }
     }
 
     /** Move row [index] of records field [fieldId] by [offset] rows (-1 up, +1 down). */
     fun moveRecord(index: Int, offset: Int, fieldId: String) {
+        if (readOnly) return
         pending.clear(fieldId)
         touch { commands.moveVoicingRecord(index, offset, fieldId) }
     }
 
     /** Copy row [index] of records field [fieldId] right below it. */
     fun duplicateRecord(index: Int, fieldId: String) {
+        if (readOnly) return
         pending.clear(fieldId)
         touch { commands.duplicateVoicingRecord(index, fieldId) }
     }
 
     private fun setModel(model: String) {
+        if (readOnly) return
         pending.clear()
         touch { commands.setVoicingModel(model) }
     }
+
+    /**
+     * The form shows a built-in or a newer release's voicing: Python refuses
+     * the edit commands then (a `RuntimeError`), so none is sent.
+     */
+    private val readOnly: Boolean get() = _editor.value?.state?.readOnly == true
+
+    /** The form shows a built-in ([VoicingEditorState.showsBuiltin]). */
+    private val showsBuiltin: Boolean get() = _editor.value?.state?.showsBuiltin == true
 
     /** Send a voicing command, then save (Python writes it once every voicing is valid). */
     private inline fun touch(send: () -> Unit) {

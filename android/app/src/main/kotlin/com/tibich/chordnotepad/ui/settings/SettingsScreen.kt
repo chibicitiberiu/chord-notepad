@@ -335,11 +335,6 @@ private fun SettingsDialogs(
             message = schema?.text("model_confirm").orEmpty(),
             controller = controller,
         )
-        is SettingsDialog.LoadPreset -> ConfirmDialog(
-            title = schema?.text("load_confirm_title").orEmpty(),
-            message = schema?.text("load_confirm").orEmpty(),
-            controller = controller,
-        )
         is SettingsDialog.Rename -> RenameDialog(dialog.name, schema, controller)
     }
 }
