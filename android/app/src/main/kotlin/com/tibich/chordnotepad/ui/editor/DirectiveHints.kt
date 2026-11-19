@@ -6,16 +6,9 @@ import androidx.compose.runtime.setValue
 import com.tibich.chordnotepad.bridge.DirectiveHint
 import com.tibich.chordnotepad.bridge.SessionRepository
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.debounce
-import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
-
-/** How long the cursor rests before its directive hint is asked for. */
-const val HINT_DEBOUNCE_MS = 150L
 
 /** How long a long-pressed directive's explanation stays up in Play mode. */
 const val EXPLAIN_SHOWN_MS = 6000L
@@ -49,52 +42,23 @@ data class HintCard(val reason: String, val error: Boolean, val syntax: String) 
 data class ExplainedDirective(val card: HintCard, val start: Int, val end: Int)
 
 /**
- * The directive hints on Android, as plain state (tested on the JVM):
- *
- * - Edit mode: while the cursor rests inside a directive (or one being
- *   typed), [strip] is its hint, for the strip above the keyboard; null
- *   otherwise. The cursor comes in debounced ([bind]); each rest asks the
- *   session once (`request_directive_hint`, through [request]).
- * - Play mode: a long-press on a red or faded directive asks for it
- *   ([explain]); [explained] is its reason and syntax until [dismiss].
+ * The directive hints on Android, as plain state (tested on the JVM): in
+ * Play mode a long-press on a red or faded directive asks for it
+ * ([explain], through [request]); [explained] is its reason and syntax until
+ * [dismiss]. There is no Edit-mode hint (Tibi found the strip distracting).
  *
  * Replies for an offset nobody is waiting for any more are dropped. The
  * repository keeps only the latest reply and doesn't repeat an equal one,
- * so the last reply is kept here too and reused when the cursor comes back
- * to its offset. Main thread only.
+ * so the last reply is kept here too and reused when the same directive is
+ * explained again. Main thread only.
  */
 class DirectiveHintController(private val request: (Int) -> Unit) {
-    /** The Edit-mode hint strip, or null. */
-    var strip: HintCard? by mutableStateOf(null)
-        private set
-
     /** The Play-mode explanation of a long-pressed directive, or null. */
     var explained: ExplainedDirective? by mutableStateOf(null)
         private set
 
-    private var cursor: Int? = null
     private var explaining: Int? = null
     private var last: DirectiveHint? = null
-
-    /**
-     * The cursor rested at code point [offset]; null when there's no cursor
-     * to hint for (Play mode, the text isn't focused, or a range is selected),
-     * which hides the strip at once.
-     */
-    fun onCursor(offset: Int?) {
-        cursor = offset
-        if (offset == null) {
-            strip = null
-            return
-        }
-        last?.takeIf { it.offset == offset }?.let { strip = HintCard.of(it) }
-        request(offset)
-    }
-
-    /** New highlighting (detection caught up): ask again, a directive's reason may have changed. */
-    fun onHighlight() {
-        cursor?.let(request)
-    }
 
     /** Explain the directive starting at code point [offset] (a long-press in Play mode). */
     fun explain(offset: Int) {
@@ -112,7 +76,6 @@ class DirectiveHintController(private val request: (Int) -> Unit) {
     /** The session's reply to `request_directive_hint`. */
     fun onHint(hint: DirectiveHint) {
         last = hint
-        if (hint.offset == cursor) strip = HintCard.of(hint)
         if (hint.offset == explaining) showExplained(hint)
     }
 
@@ -122,22 +85,9 @@ class DirectiveHintController(private val request: (Int) -> Unit) {
     }
 }
 
-/**
- * Feed [this] in [scope] (main thread): [cursor] (code points, null for no
- * cursor) debounced by [HINT_DEBOUNCE_MS] (a null at once), and the
- * repository's hint replies and highlighting.
- */
-@OptIn(FlowPreview::class)
-fun DirectiveHintController.bind(scope: CoroutineScope, repository: SessionRepository, cursor: Flow<Int?>): Job =
-    scope.launch {
-        launch {
-            cursor.distinctUntilChanged()
-                .debounce { if (it == null) 0L else HINT_DEBOUNCE_MS }
-                .collect(::onCursor)
-        }
-        launch { repository.directiveHint.filterNotNull().collect(::onHint) }
-        launch { repository.highlight.filterNotNull().collect { onHighlight() } }
-    }
+/** Feed [this] in [scope] (main thread) the repository's hint replies. */
+fun DirectiveHintController.bind(scope: CoroutineScope, repository: SessionRepository): Job =
+    scope.launch { repository.directiveHint.filterNotNull().collect(::onHint) }
 
 /**
  * Where the explanation card's top goes, in the text's pixels: under the

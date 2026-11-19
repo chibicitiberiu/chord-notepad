@@ -170,7 +170,6 @@ legend. Pages are named `file: section`.
 | `landscape-edit.png` | Phone in landscape, Edit tab: a short title, the tabs and the Edit ribbon share one line. (phone, landscape) | interface: The App Bar (phone held sideways) |
 | `edit-keyboard.png` | A new song in the Edit tab with the keyboard open, after typing C Am F G (each chord blue). (phone) | getting_started: Your First Chord Sheet |
 | `edit-keyboard-collapsed.png` | Phone in landscape typing in Edit: the keyboard leaves little room, so the app bar and ribbon hide and the floating Undo / Redo chip sits above the keyboard. (phone, landscape) | interface: The Edit Ribbon |
-| `directive-hint.png` | Edit tab with the keyboard open, the cursor inside a red {bpm: 500}: the hint strip above the keyboard says 'Tempo must be 20-400' in red, then the {bpm} forms in monospace. (phone) | interface: Directive Hints |
 | `directive-explain.png` | Play tab after touching and holding the red {bpm: 500}: a small card under it with the reason and the {bpm} forms. (phone) | interface: Directive Hints |
 | `tablet-play.png` | Tablet in landscape, Play tab while playing: text on the left, chord sheet and player on the right. (tablet, landscape) | chord_sheet: Showing and Resizing the Strip; interface: Edit and Play |
 | `settings-pages.png` | ☰ → Settings on a phone: the list of pages (General, Playback, Voicings). (phone) | settings: Settings |

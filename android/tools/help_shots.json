@@ -1309,38 +1309,6 @@
    ]
   },
   {
-   "name": "directive-hint",
-   "page": "interface: Directive Hints",
-   "what": "Edit tab with the keyboard open, the cursor inside a red {bpm: 500}: the hint strip above the keyboard says 'Tempo must be 20-400' in red, then the {bpm} forms in monospace.",
-   "scene": "typo_edit",
-   "steps": [
-    {
-     "tap": {
-      "tag": "editor",
-      "at": [
-       0.5,
-       0.75
-      ]
-     }
-    },
-    {
-     "sleep": 1.5
-    },
-    {
-     "actions": [
-      {
-       "do": "select",
-       "text": "{bpm: 50",
-       "cursor": true
-      }
-     ]
-    },
-    {
-     "sleep": 1.5
-    }
-   ]
-  },
-  {
    "name": "directive-explain",
    "page": "interface: Directive Hints",
    "what": "Play tab after touching and holding the red {bpm: 500}: a small card under it with the reason and the {bpm} forms.",

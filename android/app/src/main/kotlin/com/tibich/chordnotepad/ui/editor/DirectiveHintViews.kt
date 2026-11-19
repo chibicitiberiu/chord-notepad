@@ -1,11 +1,9 @@
 package com.tibich.chordnotepad.ui.editor
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -23,23 +21,8 @@ import com.tibich.chordnotepad.ui.UiTags
 import com.tibich.chordnotepad.ui.theme.appColors
 
 /**
- * Edit mode's hint strip, under the text (so just above the keyboard when
- * it's open): the reason, in the error colour for an invalid directive, then
- * the syntax in monospace. The floating undo chip's family: surface-high,
- * muted text.
- */
-@Composable
-fun DirectiveHintStrip(card: HintCard, modifier: Modifier = Modifier) {
-    val colors = appColors
-    Column(modifier.background(colors.surfaceHigh).testTag(UiTags.HINT_STRIP)) {
-        HorizontalDivider(color = colors.line)
-        HintText(card, Modifier.padding(horizontal = 12.dp, vertical = 5.dp))
-    }
-}
-
-/**
  * Play mode's explanation of a long-pressed directive: a small card by the
- * directive, in the hint strip's look (the caller places it).
+ * directive (the caller places it).
  */
 @Composable
 fun DirectiveHintCard(card: HintCard, modifier: Modifier = Modifier) {

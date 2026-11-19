@@ -129,8 +129,7 @@ private val ChordSlop = 8.dp
  * coordinates; only the scrolls move them on screen.
  *
  * Both modes share [scroll] and [hScroll], so switching keeps the place. Offsets are UTF-16
- * except where said. [onTextFocus] tells whether the Edit-mode field has the
- * focus (the hint strip shows only then).
+ * except where said.
  */
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
@@ -148,7 +147,6 @@ fun ChordEditor(
     modifier: Modifier = Modifier,
     focusRequester: FocusRequester? = null,
     onKeyBeforeIme: (KeyEvent) -> Boolean = { false },
-    onTextFocus: (Boolean) -> Unit = {},
     explained: ExplainedDirective? = null,
     onExplain: (Int) -> Unit = {},
     onDismissExplained: () -> Unit = {},
@@ -230,10 +228,7 @@ fun ChordEditor(
                 modifier = Modifier.fillMaxSize()
                     .let { m -> if (wordWrap) m else m.horizontalScroll(hScroll).widthIn(min = maxWidth) }
                     .let { m -> focusRequester?.let { m.focusRequester(it) } ?: m }
-                    .onFocusChanged {
-                        fieldFocused = it.isFocused
-                        onTextFocus(it.isFocused)
-                    }
+                    .onFocusChanged { fieldFocused = it.isFocused }
                     // Hardware Ctrl+Z / Ctrl+Y before Gboard takes them (B11).
                     .onInterceptKeyBeforeSoftKeyboard(onKeyBeforeIme),
                 readOnly = editorState?.readOnly ?: false,

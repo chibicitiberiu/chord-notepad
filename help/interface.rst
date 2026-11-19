@@ -1450,9 +1450,9 @@ you can delete it.
 Directive Hints
 ---------------
 
-You don't have to remember how a directive is written: the app shows its
+You don't have to remember how a directive is written: :plat:`the app shows its
 syntax while you write one, and a red or faded directive tells you what's
-wrong with it.
+wrong with it|a red or faded directive tells you what's wrong with it`.
 
 .. only:: desktop
 
@@ -1472,28 +1472,8 @@ wrong with it.
 
 .. only:: android
 
-   In the Edit tab, while the cursor is inside a directive, a slim strip
-   under the text shows how that directive is written, for example
-   ``{bpm: 120} · {bpm: +10} · {bpm: 50%} · {bpm: 2x} · {bpm: reset}``. With
-   the keyboard open, the strip sits just above it. It works for one you're
-   still typing too: after ``{lo`` it shows the ``{loop}`` forms, and after a
-   lone ``{`` it lists every directive. If the directive is red, the reason
-   comes first, in red ("Tempo must be 20-400"); for a faded one it says what
-   replaces it. The strip goes away when the cursor leaves the directive. When
-   the header is folded away for the keyboard, the undo / redo button sits
-   above the strip.
-
-   .. platform-figure:: directive-hint
-      :platforms: android
-      :alt: The Edit tab with the keyboard open. The cursor is inside a red
-            {bpm: 500}, and a strip just above the keyboard says "Tempo must
-            be 20-400" in red, then the {bpm} forms in a monospace font.
-
-      The hint strip for an invalid tempo.
-
-   In the Play tab the text can't be edited, so there's no cursor: touch and
-   hold a red or faded directive instead. A small card under it shows the
-   reason and the correct syntax. It goes away after a few seconds, or when
+   In the Play tab, touch and hold a red or faded directive. A small card
+   under it shows the reason and the correct syntax. It goes away after a few seconds, or when
    you touch the screen again. Holding a directive doesn't move the playhead.
 
    .. platform-figure:: directive-explain
