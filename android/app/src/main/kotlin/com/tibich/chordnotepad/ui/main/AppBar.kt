@@ -76,7 +76,11 @@ fun AppBar(
         }
         ModeTabs(mode, onMode)
         if (!showTitle && trailing == null) Box(Modifier.weight(1f))
-        BarIconButton(R.drawable.mdi_content_save, stringResource(R.string.menu_save), IconTints.Save, onSave, Modifier.testTag(UiTags.SAVE))
+        BarIconButton(
+            R.drawable.mdi_content_save, stringResource(R.string.menu_save),
+            IconTints.Save.copy(alpha = if (modified) 1f else 0.38f), onSave, Modifier.testTag(UiTags.SAVE),
+            enabled = modified,
+        )
         trailing?.invoke(this)
     }
 }
@@ -153,7 +157,7 @@ private fun ModeTab(target: AppMode, icon: Int, label: String, selected: Boolean
 
 /** A round 44 dp icon button in the app bar. */
 @Composable
-fun BarIconButton(icon: Int, description: String, tint: Color, onClick: () -> Unit, modifier: Modifier = Modifier) {
+fun BarIconButton(icon: Int, description: String, tint: Color, onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true) {
     Box(
         modifier
             .size(44.dp)
@@ -161,6 +165,7 @@ fun BarIconButton(icon: Int, description: String, tint: Color, onClick: () -> Un
             .clickable(
                 interactionSource = null,
                 indication = ripple(bounded = true),
+                enabled = enabled,
                 role = Role.Button,
                 onClick = onClick,
             )
