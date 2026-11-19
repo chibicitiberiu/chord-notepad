@@ -136,8 +136,9 @@ def test_loop_rules():
     assert build_directive("loop", {"label": "@start", "count": "2"}) == "{loop: @start 2}"
     assert build_directive("loop", {"label": "verse", "count": 4}) == "{loop: verse 4}"
     assert _message("loop", label="", count="2") == "Please select a label."
-    assert _message("loop", label="verse", count="0") == "Loop count must be at least 1."
-    assert _message("loop", label="verse", count="two") == "Loop count must be at least 1."
+    assert _message("loop", label="verse", count="0") == "Loop count must be at least 2."
+    assert _message("loop", label="verse", count="1") == "Loop count must be at least 2."
+    assert _message("loop", label="verse", count="two") == "Loop count must be at least 2."
 
 
 def test_build_raises_with_the_problem():

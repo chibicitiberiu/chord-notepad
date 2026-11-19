@@ -11,7 +11,7 @@ import com.tibich.chordnotepad.text.OffsetMapper
 // answer it sends. The rules (which BPM forms are valid, duplicate labels)
 // stay in Python (session/directives.py): a bad answer comes back as a
 // UserError. Only the pickers' ranges are mirrored from the desktop's
-// spinboxes (Transpose −11..+11, beats 1–16, loop count 1–100), so a picker
+// spinboxes (Transpose −11..+11, beats 1–16, loop count 2–100), so a picker
 // can't offer a value the desktop couldn't.
 
 /**
@@ -90,7 +90,7 @@ data class DirectiveForm(
     /** One more loop repeat (stops at 100). */
     fun moreRepeats() = copy(count = (count + 1).coerceIn(COUNT_RANGE))
 
-    /** One loop repeat fewer (stops at 1). */
+    /** One loop repeat fewer (stops at 2). */
     fun fewerRepeats() = copy(count = (count - 1).coerceIn(COUNT_RANGE))
 
     /** As a list of strings for `rememberSaveable` ([restore] reads it back). */
@@ -105,7 +105,7 @@ data class DirectiveForm(
         val BEATS_RANGE: IntRange = 1..16
 
         /** Loop repeats the stepper offers (the desktop spinbox). */
-        val COUNT_RANGE: IntRange = 1..100
+        val COUNT_RANGE: IntRange = 2..100
 
         /**
          * The fields a fresh dialog shows for [kind], as the desktop's do:
@@ -126,7 +126,7 @@ data class DirectiveForm(
                 key = saved[4],
                 label = saved[5],
                 loopLabel = saved[6],
-                count = saved[7].toIntOrNull() ?: 2,
+                count = (saved[7].toIntOrNull() ?: 2).coerceIn(COUNT_RANGE),
                 capo = saved[8],
             )
         }

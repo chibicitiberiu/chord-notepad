@@ -18,7 +18,7 @@ kind      what it offers
 ``time``  presets (2/4 ... 12/8), and beats 1-16 over a unit of 1, 2, 4, 8 or 16
 ``tempo`` the forms (120, +10, −10, 50%, 2x, reset), each with its number's range
 ``capo``  a fret from 0 to 12 (0: no capo)
-``loop``  the labels above the loop in song order, then ``@start``; a count 1-16
+``loop``  the labels above the loop in song order, then ``@start``; a count 2-16
 ========  =========================================================================
 
 Key values are spelled in the song's notation (``Reb``, ``Lam``); labels show
@@ -50,7 +50,7 @@ KIND_OF_KEYWORD = {"bpm": TEMPO, "tempo": TEMPO, "time": TIME, "key": KEY, "capo
 TIME_PRESETS = ("2/4", "3/4", "4/4", "5/4", "6/8", "7/8", "9/8", "12/8")
 
 #: Loop counts the picker's box offers (a typed {loop} may say more).
-MIN_LOOP_COUNT, MAX_LOOP_COUNT = 1, 16
+MIN_LOOP_COUNT, MAX_LOOP_COUNT = 2, 16
 #: The count a {loop} without one plays (the parser's default).
 DEFAULT_LOOP_COUNT = 2
 
@@ -332,7 +332,7 @@ def loop_value(label: str, count: int) -> str:
     picked (without one, a loop plays twice).
 
     Raises:
-        ValueError: For a count outside 1-16 or an empty label.
+        ValueError: For a count outside 2-16 or an empty label.
     """
     if not label.strip() or count not in LOOP_COUNT:
         raise ValueError(f"no loop {label!r} {count!r}")

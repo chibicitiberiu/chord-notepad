@@ -510,6 +510,8 @@ def test_initial_values_read_the_value_as_typed():
     assert initial_values(picker_for("capo", "30")) == {"fret": 12}
     assert initial_values(picker_for("loop", "verse", ["verse"])) == {"label": "verse", "count": 2}
     assert initial_values(picker_for("loop", "intro 40", ["verse"])) == {"label": "", "count": 16}
+    # An existing count of 1 (valid by hand, plays once) opens showing the minimum, 2.
+    assert initial_values(picker_for("loop", "verse 1", ["verse"])) == {"label": "verse", "count": 2}
     assert initial_values(picker_for("key", "G")) == {}
 
 
@@ -519,14 +521,14 @@ def test_compose_value_gives_only_values_the_insert_dialogs_took():
         ("tempo", {"form": "abs", "number": 90}), ("tempo", {"form": "rel", "number": -10}),
         ("tempo", {"form": "pct", "number": 50}), ("tempo", {"form": "mul", "number": 0.25}),
         ("tempo", {"form": "reset"}), ("capo", {"fret": 7}),
-        ("loop", {"label": "verse", "count": 1}),
+        ("loop", {"label": "verse", "count": 3}),
     ]
     values = [compose_value(kind, parts) for kind, parts in composed]
-    assert values == ["Db", "6/8", "5/16", "90", "-10", "50%", "0.25x", "reset", "7", "verse 1"]
+    assert values == ["Db", "6/8", "5/16", "90", "-10", "50%", "0.25x", "reset", "7", "verse 3"]
     fields = {"key": "key", "tempo": "value", "capo": "capo"}
     for (kind, _), value in zip(composed, values):
         if kind == "loop":
-            problem = check_directive("loop", {"label": "verse", "count": "1"},
+            problem = check_directive("loop", {"label": "verse", "count": "3"},
                                       existing_labels={"verse"})
         elif kind == "time":
             beats, unit = value.split("/")
@@ -544,6 +546,7 @@ def test_compose_value_refuses_what_isnt_a_value():
     assert compose_value("capo", {"fret": 13}) == ""
     assert compose_value("loop", {"label": "", "count": 2}) == ""
     assert compose_value("loop", {"label": "verse", "count": 0}) == ""
+    assert compose_value("loop", {"label": "verse", "count": 1}) == ""
     assert compose_value("key", {}) == ""
     assert compose_value("nope", {"value": "x"}) == ""
 

@@ -403,13 +403,16 @@ Creating Loops
 
    {loop: verse}        // Play "verse" section 2 times (default)
    {loop: verse 3}      // Play "verse" section 3 times
-   {loop: chorus 1}     // Play "chorus" section 1 time
+   {loop: chorus 4}     // Play "chorus" section 4 times
    {loop: my verse 2}   // A label with spaces works too
 
 The count is the last word when it is a whole number, and the label is
 everything before it. So for a label that itself ends in a number, give the
 count: ``{loop: verse 1 2}`` plays ``verse 1`` twice, while ``{loop: verse 1}``
-means the label ``verse``, once. The count must be at least 1.
+means the label ``verse``, once. The count must be a whole number, and
+:plat:`the loop picker's count starts at 2|the Insert form's count starts at 2`, because a count of 1
+would not loop at all. A ``1`` typed by hand is still valid and plays the
+section once.
 
 Building Song Structure
 -----------------------
@@ -486,8 +489,8 @@ Step by step, when playback reaches a ``{loop: label N}`` directive:
    total.
 4. Playback then continues past the loop directive to the rest of the song.
 
-A ``count`` of ``1`` is a no-op -- the section simply plays its single inline
-pass. A very large count is cut short: a song stops after 5,000 chords once its
+A ``count`` of ``1`` (which you can only type by hand) is a no-op -- the
+section simply plays its single inline pass. A very large count is cut short: a song stops after 5,000 chords once its
 loops are played out. Labels and loops are also handy for drilling one tricky
 section over and over while you practice.
 

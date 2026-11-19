@@ -691,7 +691,8 @@ Application Limits
 
 These are the limits of the app's controls and forms. A directive you type
 yourself follows the tempo (20-400), time signature and capo limits too; a
-value outside them makes it an invalid directive. The :plat:`picker's|Insert form's` loop count is
+value outside them makes it an invalid directive. The :plat:`picker's|Insert form's` loop count (2 to 16
+on the desktop, 2 to 100 on Android) is
 not a limit on typed loops, but a song stops after 5,000 chords once its loops
 are played out.
 

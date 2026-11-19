@@ -237,7 +237,7 @@ def test_the_keyword_and_spacing_stay_as_typed():
     ("{key: H}", "C#m", "{key: C#m}"),          # an invalid directive is fixed by a pick
     ("{capo: 2}", "0", "{capo: 0}"),
     ("{loop: verse}", "verse 3", "{loop: verse 3}"),
-    ("{loop: verse}", "@start 1", "{loop: @start 1}"),
+    ("{loop: verse}", "@start 2", "{loop: @start 2}"),
     ("{bpm: 120}", "reset", "{bpm: reset}"),
 ])
 def test_picker_values(before, value, after):

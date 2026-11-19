@@ -1669,7 +1669,7 @@ Two controls:
 
 .. only:: desktop
 
-   * **Count:** How many times to repeat (the **▾** offers 1 to 16; you can
+   * **Count:** How many times to repeat (the **▾** offers 2 to 16; you can
      type a bigger number)
 
    The loop tile adds a loop to the nearest label above the cursor, the
@@ -1678,7 +1678,7 @@ Two controls:
 
 .. only:: android
 
-   * **Count:** How many times to repeat (1-100), set with − and +
+   * **Count:** How many times to repeat (2-100), set with − and +
 
    Tap Insert to add ``{loop: label count}`` at your cursor.
 

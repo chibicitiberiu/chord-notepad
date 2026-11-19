@@ -279,7 +279,7 @@ def _check_loop(label: str, count: str) -> Optional[DirectiveProblem]:
     if label != LOOP_START and not _LABEL_RE.match(label):
         return _invalid("Please select a label.", "label")
     count_n = _as_int(count)
-    if count_n is None or count_n < 1:
-        return _invalid("Loop count must be at least 1.", "count")
+    if count_n is None or count_n < 2:
+        return _invalid("Loop count must be at least 2.", "count")
     return None
 

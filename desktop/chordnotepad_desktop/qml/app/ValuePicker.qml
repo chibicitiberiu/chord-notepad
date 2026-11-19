@@ -14,7 +14,7 @@ import CNTheme
 //   tempo  the form (120 · +10 · −10 · 50% · 2x · reset) and a box + slider for its number
 //          and Tap: tap the beat, the box shows its tempo (ValuePickerModel.tap)
 //   capo   box + slider, 0-12
-//   loop   the labels above the loop and @start, and a count box (1-16)
+//   loop   the labels above the loop and @start, and a count box (2-16)
 // A chip that is a whole value (a key, a time, reset) applies at once;
 // numbers apply on Enter or Apply. Escape or a click outside cancels. The
 // value is composed in Python (ValuePickerModel.valueFor) and sent as one

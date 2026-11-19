@@ -68,12 +68,18 @@ class ToolFormsTest {
     }
 
     @Test
-    fun `loop count stays within 1 and 100`() {
+    fun `loop count stays within 2 and 100`() {
         var form = DirectiveForm(DirectiveKind.LOOP)
         repeat(5) { form = form.fewerRepeats() }
-        assertEquals(1, form.count)
+        assertEquals(2, form.count)
         repeat(200) { form = form.moreRepeats() }
         assertEquals(100, form.count)
+    }
+
+    @Test
+    fun `a saved loop count below the minimum restores as 2`() {
+        val saved = DirectiveForm(DirectiveKind.LOOP, count = 1).save()
+        assertEquals(2, DirectiveForm.restore(saved)!!.count)
     }
 
     @Test

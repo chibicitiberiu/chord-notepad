@@ -218,12 +218,14 @@ def test_the_loop_picker_offers_labels_above_then_start_and_counts():
     options = picker_options("loop", PickerContext(labels=("verse", "my verse", "chorus", "verse")))
     assert [c.value for c in options.groups[0].choices] == ["verse", "chorus", "@start"]
     (count,) = options.numbers
-    assert (count.minimum, count.maximum) == (1, 16)
+    assert (count.minimum, count.maximum) == (2, 16)
     for label in ("verse", "chorus", "@start"):
         for n in numbers(count):
             value = pickers.loop_value(label, int(n))
             assert valid("loop", value, labels=("verse", "chorus")), value
-    assert pickers.loop_value("verse", 1) == "verse 1"     # never dropped: no count means 2
+    assert pickers.loop_value("verse", 2) == "verse 2"     # never dropped: no count means 2
+    with pytest.raises(ValueError):
+        pickers.loop_value("verse", 1)                      # a pick of 1 would not loop
     assert [c.value for c in picker_options("loop").groups[0].choices] == ["@start"]
 
 

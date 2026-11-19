@@ -1017,7 +1017,7 @@ objects, against the release build's R8 rules ("R8 in release builds").
     title, text and fields (BPM and Label typed; Time beats 1–16 and the
     `SettingsState` units; Key from `SettingsState`'s list for the
     request's notation; Loop `@start` + the request's labels and a count
-    1–100) → `respond {field: value}`. The values go as entered. As they
+    2–100) → `respond {field: value}`. The values go as entered. As they
     change the dialog sends `check_directive {kind, fields, request_id}`
     (the request stays pending) and Python replies `DirectiveCheck {kind,
     request_id, fields, errors: {field: msg}, form_error}` from
