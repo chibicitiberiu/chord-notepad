@@ -177,19 +177,42 @@ fun CapoDialog(
     )
 }
 
-/** One capo position: a radio, the row's words and its Recommended / Current tags. */
+/**
+ * One capo position: a radio, the capo as the headline with its ease at the
+ * right, the shapes as the main line below, then the Recommended / Current tags.
+ */
 @Composable
 private fun CapoRadioRow(row: CapoRow, selected: Boolean, onSelect: () -> Unit) {
     Row(
         Modifier
             .fillMaxWidth()
-            .heightIn(min = 48.dp)
-            .selectable(selected = selected, role = Role.RadioButton, onClick = onSelect),
+            .heightIn(min = 56.dp)
+            .selectable(selected = selected, role = Role.RadioButton, onClick = onSelect)
+            .padding(vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         RadioButton(selected = selected, onClick = null, modifier = Modifier.padding(end = 12.dp))
-        Column {
-            Text(row.label)
+        Column(Modifier.weight(1f)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    if (row.capo > 0) stringResource(R.string.capo_row_capo, row.capo) else stringResource(R.string.capo_row_none),
+                    Modifier.weight(1f),
+                    style = MaterialTheme.typography.titleSmall,
+                )
+                // "No capo" is the headline already; it has nothing to compare with.
+                if (row.capo > 0) {
+                    Text(
+                        row.ease,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+            Text(
+                row.shapes,
+                Modifier.padding(top = 2.dp),
+                style = MaterialTheme.typography.bodyLarge,
+            )
             val tags = listOfNotNull(
                 stringResource(R.string.capo_recommended).takeIf { row.recommended },
                 stringResource(R.string.capo_current).takeIf { row.current },
@@ -197,6 +220,7 @@ private fun CapoRadioRow(row: CapoRow, selected: Boolean, onSelect: () -> Unit) 
             if (tags.isNotEmpty()) {
                 Text(
                     tags.joinToString(" · "),
+                    Modifier.padding(top = 2.dp),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.primary,
                 )
