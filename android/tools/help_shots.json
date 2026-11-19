@@ -109,21 +109,6 @@
     "ms": 4500
    }
   ],
-  "typo_edit": [
-   {
-    "do": "song",
-    "text": "{bpm: 500} {time: 3/4} {key: G}\n\n// Amazing Grace (John Newton, 1779)\n{label: verse}\nG           G7        C      G\nAmazing grace, how sweet the sound\nG               Em      D\nThat saved a wretch like me\nG            G7       C      G\nI once was lost, but now am found\nG      Em       D       G\nWas blind, but now I see\n",
-    "name": "Amazing Grace.txt"
-   },
-   {
-    "do": "mode",
-    "mode": "edit"
-   },
-   {
-    "do": "wait",
-    "ms": 4500
-   }
-  ],
   "typo_play": [
    {
     "do": "song",
@@ -155,7 +140,7 @@
   {
    "name": "main-play-labeled",
    "page": "getting_started: The Main Window; interface: Edit and Play",
-   "what": "Play tab of a phone in portrait while a song plays (frozen on Em, bar 6): app bar, text with the playhead and yellow highlight, chord sheet (piano roll), player. Callouts: 1 drawer, 2 title, 3 Edit/Play tabs, 4 Save, 6 text, 7 player, 8 chord sheet (5 is the ribbon, only in Edit).",
+   "what": "Play tab of a phone in portrait while a song plays (frozen on Em, bar 6): app bar, text with the playhead and yellow highlight, chord sheet (piano roll), player. Callouts: 1 drawer, 2 title, 3 Edit/Play tabs, 4 Save (greyed out), 6 text, 7 player, 8 chord sheet (5 is the ribbon, only in Edit).",
    "scene": "grace_playing",
    "dark": true,
    "callouts": [
@@ -250,7 +235,7 @@
   {
    "name": "main-edit-labeled",
    "page": "getting_started: The Main Window; interface: The Edit Ribbon",
-   "what": "Edit tab of a phone in portrait: app bar, Edit ribbon, editable text. Callouts: 1 drawer, 2 title, 3 Edit/Play tabs, 4 Save, 5 Edit ribbon, 6 text.",
+   "what": "Edit tab of a phone in portrait: app bar, Edit ribbon, editable text. Callouts: 1 drawer, 2 title, 3 Edit/Play tabs, 4 Save (greyed out: nothing to save), 5 Edit ribbon, 6 text.",
    "scene": "grace_edit_cursor",
    "dark": true,
    "callouts": [
@@ -488,7 +473,7 @@
   {
    "name": "edit-ribbon",
    "page": "interface: The Edit Ribbon",
-   "what": "The Edit ribbon on a phone: Undo, Redo, Insert, Transpose, Identify, AB/Do, Convert, and the › chevron (more to the right).",
+   "what": "The Edit ribbon on a phone: Undo, Redo, Insert, Transpose, Capo, Identify, AB/Do, and the › chevron (Convert is further right).",
    "scene": "grace_edit",
    "crop": {
     "nodes": [
@@ -922,7 +907,7 @@
   {
    "name": "capo-suggest",
    "page": "chord_sheet: Suggesting a Capo; directives: Finding the Best Capo",
-   "what": "Suggest Capo dialog (＋ Insert → Capo → Suggest): pick the fretboard voicing to optimize for.",
+   "what": "Suggest Capo dialog (＋ Insert → Capo → Suggest, or the ribbon's Capo): the explanation, the part of the song it applies to, the Voicing dropdown, then radio rows, each with the capo as a heading and its ease at the right, the chord shapes on a larger line and the tags (Recommended, Current) last; Cancel / Apply.",
    "scene": "grace_edit_cursor",
    "steps": [
     {
@@ -1240,7 +1225,7 @@
   {
    "name": "landscape-edit",
    "page": "interface: The App Bar (phone held sideways)",
-   "what": "Phone in landscape, Edit tab: a short title, the tabs and the Edit ribbon share one line.",
+   "what": "Phone in landscape, Edit tab: a short title, the tabs, a greyed-out Save and the Edit ribbon (Undo to Convert) share one line.",
    "orientation": "landscape",
    "scene": "grace_edit",
    "scale": 0.5
@@ -1439,7 +1424,7 @@
   {
    "name": "settings-voicings",
    "page": "settings: Voicings",
-   "what": "Settings › Voicings on a phone: Add voicing and the custom voicings grouped by model (My 7-String under Fretboard).",
+   "what": "Settings › Voicings on a phone: Add voicing, then the groups by model, each starting with its built-ins in grey with a lock (five fretboards, Piano (default), four ensembles) and My 7-String in black under Fretboard.",
    "scene": "grace_play",
    "steps": [
     {
@@ -1457,21 +1442,40 @@
       "text": "Voicings"
      }
     }
-   ],
-   "crop": {
-    "rect_dp": [
-     0,
-     0,
-     412,
-     420
-    ],
-    "pad_dp": 0
-   }
+   ]
+  },
+  {
+   "name": "settings-add-voicing",
+   "page": "settings: Voicings",
+   "what": "The Add voicing menu over the Voicings list: Blank fretboard, Blank piano, Blank ensemble, then Fretboard (four guitars, Ukulele), Ensemble (four presets), Piano (default) and Your voicings (My 7-String).",
+   "scene": "grace_play",
+   "steps": [
+    {
+     "tap": {
+      "tag": "menu"
+     }
+    },
+    {
+     "tap": {
+      "text": "Settings"
+     }
+    },
+    {
+     "tap": {
+      "text": "Voicings"
+     }
+    },
+    {
+     "tap": {
+      "text": "Add voicing"
+     }
+    }
+   ]
   },
   {
    "name": "settings-voicing-form",
    "page": "settings: Voicings; settings: Worked Example: A Seven-String Guitar",
-   "what": "The voicing form for My 7-String on a phone: Name, Model, Copy from existing, Remove voicing, Strings (B1 E2 A2 D3 G3 B3 E4), Max fret, Fingers, spans….",
+   "what": "The voicing form for My 7-String on a phone: Name, Model, Remove voicing, Strings (B1 E2 A2 D3 G3 B3 E4), Max fret, Fingers, spans….",
    "scene": "grace_play",
    "steps": [
     {
@@ -1565,6 +1569,16 @@
      }
     },
     {
+     "swipe": {
+      "text": "Guitar (Drop D)"
+     },
+     "by": [
+      0,
+      -1500
+     ],
+     "sleep": 1.5
+    },
+    {
      "tap": {
       "text": "Jazz Vocal Trio"
      }
@@ -1584,7 +1598,7 @@
   {
    "name": "settings-voicings-tablet",
    "page": "settings: Voicings",
-   "what": "Settings › Voicings on a tablet: the list on the left and My 7-String's form on the right.",
+   "what": "Settings › Voicings on a tablet: the list on the left with the locked built-ins and My 7-String selected, and its form on the right.",
    "device": "tablet",
    "orientation": "landscape",
    "scene": "grace_play",
