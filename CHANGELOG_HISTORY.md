@@ -3,6 +3,10 @@
 Append-only log of published releases. Newer releases at the top.
 Entries are added automatically by the release pipeline.
 
+## v0.6.2 — 2026-11-20
+
+- Desktop: with nothing typed, the chord sheet in the Play tab was partly black on GPU rendering until the window was resized.
+
 ## v0.6.1 — 2026-11-20
 
 - Android: the hint strip at the bottom of the Edit tab, which showed a directive's syntax while the cursor was inside it, is gone. Touch and hold a red or faded directive in the Play tab still explains it.
