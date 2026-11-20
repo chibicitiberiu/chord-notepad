@@ -125,6 +125,14 @@
   </screenshots>
 
   <releases>
+    <release version="0.6.2" date="2026-11-20">
+      <description>
+        <p>
+          A fix for the chord sheet: with no song typed yet, part of the sheet
+          in the Play tab was drawn black until the window was resized.
+        </p>
+      </description>
+    </release>
     <release version="0.6.1" date="2026-11-20">
       <description>
         <p>

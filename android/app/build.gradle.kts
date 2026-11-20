@@ -112,8 +112,8 @@ android {
         applicationId = "com.tibich.chordnotepad"
         minSdk = 24
         targetSdk = 36
-        // (0*10000 + 6*100 + 1)*10 + 0 for VERSION 0.6.1. Keep it a plain literal.
-        versionCode = 6010
+        // (0*10000 + 6*100 + 2)*10 + 0 for VERSION 0.6.2. Keep it a plain literal.
+        versionCode = 6020
         versionName = appVersionName
         check(versionCode!! / 10 == versionCodeBase(appVersionName)) {
             "versionCode $versionCode doesn't match VERSION $appVersionName: set it to " +
