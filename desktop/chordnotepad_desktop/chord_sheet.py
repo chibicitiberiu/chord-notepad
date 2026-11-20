@@ -282,7 +282,7 @@ class SheetView(QQuickPaintedItem):
         # Slots, not plain methods: a QML instance that declares a property
         # gets QML's own metaobject, and PySide's dynamic slots on it are
         # never called (signals connected to plain methods went dead).
-        self.heightChanged.connect(self._report_height)
+        self.heightChanged.connect(self._on_height)
         self.widthChanged.connect(self._on_width)
 
     # -- the model ------------------------------------------------------------------
@@ -464,6 +464,15 @@ class SheetView(QQuickPaintedItem):
         return LANE_HEIGHT
 
     laneHeight = Property(float, _get_lane_height, constant=True)
+
+    @Slot()
+    def _on_height(self) -> None:
+        # Repaint as well: the new strip height brings a new sheet only when
+        # there is a song. With none, the part of the grown item below the
+        # last painted rect stayed black on the GPU renderer (Tibi,
+        # 2026-11-20: an empty song's staff, freshly opened).
+        self._report_height()
+        self._repaint()
 
     @Slot()
     def _on_width(self) -> None:

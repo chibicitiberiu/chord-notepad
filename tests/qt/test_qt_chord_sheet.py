@@ -782,6 +782,28 @@ def test_a_follow_scroll_then_a_cursor_move_repaints_everything(sh):
     assert after == sh.grab().copy(area)
 
 
+def test_a_taller_strip_repaints_all_of_it_with_no_song(qapp, qtbot, tmp_path):
+    # Tibi, 2026-11-20: a fresh instance with nothing typed, Play tab, staff:
+    # the strip was black below the height it first painted at. With no
+    # song no new sheet follows a resize, and only a width change repainted;
+    # the GPU renderer left the rest of the grown item black (the software
+    # one the tests use repaints it anyway, so the requested rect is checked).
+    sh = make_sheet(qapp, qtbot, tmp_path, text="")
+    try:
+        sh.window.setWidth(1000)
+        sh.window.setProperty("mode", "play")
+        sh.run(200)
+        view = sh.view
+        assert view.property("hasSheet") is False
+        asked = []
+        view.update = lambda rect=QRect(): asked.append(QRect(rect))
+        view.setHeight(view.height() + 120)
+        full = QRect(0, 0, int(view.width()), int(view.height()))
+        assert any(r.contains(full) for r in asked), asked
+    finally:
+        finish(sh)
+
+
 def test_edit_shows_the_panel_with_f9_and_play_always(sh):
     pane, host = sh.it("chordSheetPane"), sh.it("editSheetHost")
     assert sh.window.property("mode") == "edit" and sh.sheet_state("visible") is False
