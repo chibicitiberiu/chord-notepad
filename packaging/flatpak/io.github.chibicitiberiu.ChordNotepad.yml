@@ -132,6 +132,7 @@ modules:
           - packaging/flatpak/.flatpak-builder
           - packaging/flatpak/build-dir
           - packaging/flatpak/repo
-          - packaging/store/out
+          - packaging/store/msstore/graphics
+          - packaging/store/snap
           - node_modules
           - tests

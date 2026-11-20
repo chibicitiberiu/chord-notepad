@@ -87,7 +87,7 @@ Before creating a release tag:
       `packaging/linux/io.github.chibicitiberiu.ChordNotepad.metainfo.xml`,
       dated the day you tag (`appstreamcli validate` it)
 - [ ] Store texts for the version: Microsoft Store "What's new"
-      (`packaging/store/msstore/whats-new-<version>.txt`), Play release notes
+      (`packaging/store/msstore/whats-new/<version>.txt`), Play release notes
       (`packaging/store/play/listing-en-US.txt`, checked by `count_listing.py`)
 - [ ] Version number follows semantic versioning
 - [ ] Android `versionCode` bumped with `VERSION` (see "Android" below)
@@ -239,7 +239,7 @@ certificate, so Trusted Signing is not involved and SmartScreen does not apply.
    never attached to the GitHub release.
 4. In Partner Center, start a new submission, upload the `.msix` under
    **Packages**, paste each language's "What's new in this version" from
-   `packaging/store/msstore/whats-new-<version>.txt` (check the lengths with
+   `packaging/store/msstore/whats-new/<version>.txt` (check the lengths with
    `count_whats_new.py`), and submit for certification (usually 1-3 days).
 
 After building, CI runs `packaging/msix/smoke_test.ps1`: it signs a throwaway
