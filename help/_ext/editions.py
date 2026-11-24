@@ -1,25 +1,36 @@
-"""Desktop / Android editions of the User Guide.
+"""Desktop / Android / iOS editions of the User Guide.
 
-The guide builds once per platform (``-t desktop`` or ``-t android``). This
-extension gives the sources the pieces that ``.. only::`` alone can't:
+The guide builds once per platform (``-t desktop``, ``-t android`` or
+``-t ios``). The iOS edition is the Android one wherever the sources don't
+say otherwise (``FALLBACK``): a ``-t ios`` build also has the ``android``
+tag, so every ``.. only:: android`` block shows, and ``:plat:``,
+``help_terms``, ``:platforms:`` and a figure's ``:android-alt:`` /
+``:android-caption:`` give iOS the Android text unless they name iOS
+themselves. Text that is wrong on iOS goes in ``.. only:: android and not
+ios`` with an ``.. only:: ios`` block next to it. Images never fall back: an
+iOS figure needs ``images/ios/<name>``.
+
+This extension gives the sources the pieces that ``.. only::`` alone can't:
 
 ``.. platform-figure:: <name>``
     A figure whose image is ``images/<platform>/<name>.png`` for the edition
     being built (or ``images/shared/<name>.png`` with ``:shared:``). A missing
     image for the active platform is an error, so ``-W`` builds catch an
     incomplete edition. ``:platforms: desktop`` limits the figure to one
-    edition. ``:desktop-caption:`` / ``:android-caption:`` and
-    ``:desktop-alt:`` / ``:android-alt:`` override the shared caption (the
-    body) and ``:alt:``. An optional ``<name>.dark.png`` next to the image
+    edition. ``:desktop-caption:`` / ``:android-caption:`` / ``:ios-caption:``
+    and ``:desktop-alt:`` / ``:android-alt:`` / ``:ios-alt:`` override the
+    shared caption (the body) and ``:alt:``. An optional ``<name>.dark.png`` next to the image
     is shown when the page is dark (both editions; the desktop's screenshot
     tool makes one for each screenshot).
 
-``:plat:`desktop text|android text```
-    Inline choice between two short texts. Either side may be empty, and
-    may hold inline markup that needs no backquotes (``**bold**``).
+``:plat:`desktop text|android text``` or ``:plat:`desktop|android|ios```
+    Inline choice between two short texts (iOS takes the Android side) or
+    three. Any side may be empty, and may hold inline markup that needs no
+    backquotes (``**bold**``).
 
 ``|click|`` and friends
-    Substitutions defined per platform in conf.py (``help_terms``).
+    Substitutions defined per platform in conf.py (``help_terms``: a
+    ``(desktop, android)`` or ``(desktop, android, ios)`` tuple).
 
 ``:platforms: desktop`` (file-wide field at the very top of a page)
     The page is only part of that edition. The other edition excludes the
@@ -49,7 +60,9 @@ from sphinx.util.docutils import SphinxDirective, SphinxRole
 
 logger = logging.getLogger(__name__)
 
-PLATFORMS = ('desktop', 'android')
+PLATFORMS = ('desktop', 'android', 'ios')
+# An edition that takes another's text and pages unless told otherwise.
+FALLBACK = {'ios': 'android'}
 IMAGE_EXTENSIONS = ('.png', '.svg', '.jpg', '.jpeg', '.webp')
 # Where the images live, relative to the source directory.
 IMAGE_ROOT = 'images'
@@ -58,6 +71,11 @@ SHARED = 'shared'
 _PAGE_PLATFORMS = re.compile(r'^:platforms:\s*(.+?)\s*$')
 # The build's tags, for ``.. only::`` around a figure (set at config-inited).
 _TAGS: dict[str, Any] = {}
+
+
+def _applies(platform: str, platforms: Any) -> bool:
+    """Whether a page or figure for ``platforms`` is part of ``platform``'s edition."""
+    return platform in platforms or FALLBACK.get(platform) in platforms
 
 
 def _platform_list(value: str) -> list[str]:
@@ -91,15 +109,17 @@ class PlatformFigure(Figure, SphinxDirective):
         'shared': directives.flag,
         'desktop-alt': directives.unchanged,
         'android-alt': directives.unchanged,
+        'ios-alt': directives.unchanged,
         'desktop-caption': directives.unchanged,
         'android-caption': directives.unchanged,
+        'ios-caption': directives.unchanged,
     })
 
     def run(self) -> list[nodes.Node]:
         """Resolve the image for the active platform and build the figure."""
         platform = self.config.help_platform
         name = self.arguments[0]
-        if platform not in self.options.get('platforms', PLATFORMS) or self._in_excluded_only():
+        if not _applies(platform, self.options.get('platforms', PLATFORMS)) or self._in_excluded_only():
             return []
 
         folder = SHARED if 'shared' in self.options else platform
@@ -119,6 +139,10 @@ class PlatformFigure(Figure, SphinxDirective):
             self.options.pop(key, None)
         alt = self.options.pop(f'{platform}-alt', None)
         caption = self.options.pop(f'{platform}-caption', None)
+        fallback = FALLBACK.get(platform)
+        if fallback is not None:
+            alt = alt if alt is not None else self.options.get(f'{fallback}-alt')
+            caption = caption if caption is not None else self.options.get(f'{fallback}-caption')
         for other in PLATFORMS:
             self.options.pop(f'{other}-alt', None)
             self.options.pop(f'{other}-caption', None)
@@ -176,20 +200,31 @@ class PlatformFigure(Figure, SphinxDirective):
 
 
 class PlatRole(SphinxRole):
-    """``:plat:`desktop|android```: the side for the active edition."""
+    """``:plat:`desktop|android``` or ``:plat:`desktop|android|ios```: the side
+    for the active edition (iOS takes the Android side when there are two)."""
 
     def run(self) -> tuple[list[nodes.Node], list[nodes.system_message]]:
         """Pick the text for the active platform and parse its inline markup."""
         parts = self.text.split('|')
-        if len(parts) != 2:
+        if len(parts) not in (2, 3):
             msg = self.inliner.reporter.error(
-                f':plat: needs exactly one "|" between the desktop and Android text: {self.rawtext}',
+                f':plat: needs one "|" between the desktop and Android text, or two with the iOS '
+                f'text last: {self.rawtext}',
                 line=self.lineno)
             return [self.inliner.problematic(self.rawtext, self.rawtext, msg)], [msg]
-        text = parts[PLATFORMS.index(self.config.help_platform)]
+        text = _side(parts, self.config.help_platform)
         if not text:
             return [], []
         return self.inliner.parse(text, self.lineno, self.inliner, self.inliner.parent)
+
+
+def _side(values: Any, platform: str) -> Any:
+    """``values[i]`` for ``platform``: one value per platform in ``PLATFORMS``
+    order, where a shorter tuple gives an edition its fallback's value."""
+    index = PLATFORMS.index(platform)
+    if index >= len(values):
+        index = PLATFORMS.index(FALLBACK[platform])
+    return values[index]
 
 
 def _page_platforms(path: str) -> list[str] | None:
@@ -209,9 +244,13 @@ def _page_platforms(path: str) -> list[str] | None:
 def _on_config_inited(app: Sphinx, config: Config) -> None:
     _TAGS['tags'] = app.tags
     if config.help_platform is None:
-        config.help_platform = 'android' if app.tags.has('android') else 'desktop'
+        config.help_platform = next((p for p in reversed(PLATFORMS) if app.tags.has(p)), 'desktop')
     if config.help_platform not in PLATFORMS:
         raise ValueError(f'help_platform must be one of {PLATFORMS}, not {config.help_platform!r}')
+    # The iOS edition shows the Android text (``.. only:: android``) too.
+    fallback = FALLBACK.get(config.help_platform)
+    if fallback is not None and not app.tags.has(fallback):
+        app.tags.add(fallback)
 
     # Pages limited to other editions are left out of this one.
     excluded = []
@@ -221,7 +260,7 @@ def _on_config_inited(app: Sphinx, config: Config) -> None:
             if file.endswith('.rst'):
                 path = os.path.join(root, file)
                 platforms = _page_platforms(path)
-                if platforms and config.help_platform not in platforms:
+                if platforms and not _applies(config.help_platform, platforms):
                     excluded.append(os.path.relpath(path, app.srcdir).replace(os.sep, '/'))
     config.exclude_patterns = list(config.exclude_patterns) + excluded
     # Toctrees list every page; the ones this edition excludes just drop out.
@@ -230,7 +269,10 @@ def _on_config_inited(app: Sphinx, config: Config) -> None:
     # |term| substitutions, per platform.
     lines = []
     for term, values in (config.help_terms or {}).items():
-        value = dict(zip(PLATFORMS, values))[config.help_platform]
+        if len(values) not in (2, 3):
+            raise ValueError(f'help_terms[{term!r}] needs a desktop and an Android text, '
+                             f'and may add an iOS one')
+        value = _side(values, config.help_platform)
         lines.append(f'.. |{term}| replace:: {value}')
     if lines:
         config.rst_prolog = (config.rst_prolog or '') + '\n' + '\n'.join(lines) + '\n'
@@ -276,9 +318,9 @@ def _skip(self: Any, node: nodes.Node) -> None:
 
 def setup(app: Sphinx) -> dict[str, Any]:
     """Register the directive, role, nodes and config values."""
-    # None: worked out from the -t tag (android, else desktop).
+    # None: worked out from the -t tag (ios, else android, else desktop).
     app.add_config_value('help_platform', None, 'env', types=frozenset({str, type(None)}))
-    # {name: (desktop text, android text)} -> |name| substitutions.
+    # {name: (desktop text, android text[, ios text])} -> |name| substitutions.
     app.add_config_value('help_terms', {}, 'env', types=frozenset({dict}))
     app.add_node(picture, html=(_visit_picture, _depart_picture))
     app.add_node(dark_image, html=(_visit_dark_image, None),

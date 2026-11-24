@@ -27,8 +27,12 @@ with open(os.path.join(os.path.dirname(__file__), '..', 'VERSION')) as _vf:
 version = release
 
 # -- General configuration ---------------------------------------------------
-# The guide builds in two variants: ``-t desktop`` and ``-t android``. A plain
-# build (CI) is the desktop guide.
+# The guide builds in three variants: ``-t desktop``, ``-t android`` and
+# ``-t ios``. A plain build (CI) is the desktop guide. The iOS edition is the
+# Android one unless the text says otherwise, so it has the android tag too
+# (help/_ext/editions.py, docs/HELP_AUTHORING.md).
+if tags.has('ios'):  # noqa: F821
+    tags.add('android')  # noqa: F821
 if not (tags.has('desktop') or tags.has('android')):  # noqa: F821
     tags.add('desktop')  # noqa: F821
 
@@ -39,8 +43,9 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '_ext'))
 # (docs/HELP_AUTHORING.md).
 extensions = ['editions']
 
-# |name| substitutions: (desktop text, android text). Use them where only a
-# word differs; anything longer goes in ``.. only::`` blocks.
+# |name| substitutions: (desktop text, android text), or with an iOS text
+# third where Android's is wrong there. Use them where only a word differs;
+# anything longer goes in ``.. only::`` blocks.
 help_terms = {
     'click': ('click', 'tap'),
     'Click': ('Click', 'Tap'),
@@ -128,8 +133,9 @@ html_css_files = ['custom.css']
 html_show_sourcelink = False
 html_copy_source = False
 
-if tags.has('android'):  # noqa: F821
-    # The in-app WebView (android/.../ui/help/UserGuideScreen.kt): a phone
+if tags.has('android'):  # noqa: F821  (the iOS edition too)
+    # The in-app WebView (android/.../ui/help/UserGuideScreen.kt and iOS's
+    # UserGuideView.swift): a phone
     # stylesheet with the app's colours and dark mode, instead of the desktop
     # guide's coral.
     html_css_files = ['android.css']

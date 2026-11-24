@@ -22,8 +22,15 @@ musical ideas.
    walkthrough, read :doc:`getting_started`; for the full chord notation, see
    :doc:`writing_chords`. If something isn't working, jump to :doc:`tips`.
 
-   This is the Android edition of the guide. It describes the app on phones
-   and tablets; the desktop app has its own edition.
+   .. only:: not ios
+
+      This is the Android edition of the guide. It describes the app on phones
+      and tablets; the desktop app has its own edition.
+
+   .. only:: ios
+
+      This is the iOS edition of the guide. It describes the app on iPhone and
+      iPad; the desktop app has its own edition.
 
 .. toctree::
    :maxdepth: 2
