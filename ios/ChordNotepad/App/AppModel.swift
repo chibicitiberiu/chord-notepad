@@ -159,7 +159,7 @@ final class AppModel: ObservableObject {
             case "menu":
                 // CI's screenshot of the menu, over the song.
                 ui.route = .menu
-            case "speed", "insert", "capo", "identify", "settings", "voicings", "about":
+            case "speed", "instrument", "insert", "capo", "identify", "settings", "voicings", "about":
                 // CI's screenshots of a sheet or a tool, live.
                 Task { await self.runToolScreen(AppEnvironment.startScreen ?? "") }
             default:
@@ -708,9 +708,10 @@ final class AppModel: ObservableObject {
         }
     }
 
-    /// `-CNScreen speed|insert|capo|identify|settings|voicings|about` (CI):
-    /// once the song is on screen, open that sheet, tool or page as a person
-    /// would (the speed at 125 %, Insert › Tempo, Suggest Capo scored, the
+    /// `-CNScreen speed|instrument|insert|capo|identify|settings|voicings|about`
+    /// (CI): once the song is on screen, open that sheet, tool or page as a
+    /// person would (the speed at 125 %, the Guitar family's programs with
+    /// Steel Guitar from the real SoundFont, Insert › Tempo, Suggest Capo scored, the
     /// identifier with C, E, G and B and Cmaj7 picked, Settings › General,
     /// Settings › Voicings with the built-in standard guitar shown, About),
     /// then write `Diagnostics/tool-<name>.json`, which the screenshot waits for.
@@ -723,6 +724,15 @@ final class AppModel: ObservableObject {
             sheet(.open(.speed(manual: false)))
             sheet(.speedDragged(124))
             ok = await waitFor(timeout: .seconds(30)) { $0.toolbar?.multiplierPct == 125 }
+        case "instrument":
+            selectMode(.play)
+            sheet(.open(.instrument(family: nil)))
+            sheet(.chooseInstrument(25))
+            sheet(.openFamily(3))
+            ok = await waitFor(timeout: .seconds(30)) { snapshot in
+                guard let menu = snapshot.instrumentMenu, menu.families.count > 3 else { return false }
+                return menu.current == 25 && !menu.families[3].items.isEmpty
+            }
         case "insert":
             selectMode(.edit)
             sheet(.ribbon(.insert))
@@ -821,7 +831,7 @@ extension ContinuousClock.Instant {
     private static let reference = ContinuousClock.now
 }
 
-/// `Diagnostics/tool-<name>.json` (`-CNScreen speed|insert|capo|identify`):
+/// `Diagnostics/tool-<name>.json` (`-CNScreen speed|instrument|insert|capo|identify|...`):
 /// whether the sheet or tool got to the state the screenshot shows.
 struct ToolScreenReport: Codable {
     var name: String

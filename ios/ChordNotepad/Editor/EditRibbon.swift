@@ -141,8 +141,7 @@ struct EditRibbon: View {
             self.tool?(tool)
         } label: {
             VStack(spacing: 1) {
-                MdiIcon(icon, tint: tint.swiftUI)
-                    .frame(width: width, height: 24)
+                MdiIcon(icon, tint: tint.swiftUI, width: width)
                 Text(label)
                     .font(.caption2.weight(.medium))
                     .foregroundStyle(palette.ribbonText.swiftUI)

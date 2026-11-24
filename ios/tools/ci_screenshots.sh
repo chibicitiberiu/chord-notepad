@@ -5,14 +5,14 @@
 # Diagnostics, whose self-test also tries live CoreAudio playback, one of Play
 # with the chord sheet shown (its buffer from the live session), one of
 # Edit after the app typed into the editor (the session's highlight checked),
-# the speed sheet and the ribbon's Insert › Tempo, Suggest Capo and Identify,
+# the speed sheet, the Guitar family's programs, the ribbon's Insert › Tempo, Suggest Capo and Identify,
 # Settings › General, Settings › Voicings with a built-in's form, About, and
 # one of the export picker after an audio export (export.json checked).
 #
 #   ios/tools/ci_screenshots.sh <udid> <label> <ChordNotepad.app> <out-dir>
 #
 # Writes <out-dir>/<label>-main.png, <label>-menu.png, <label>-selftest.png,
-# <label>-chordsheet.png, <label>-editor.png, <label>-speed.png,
+# <label>-chordsheet.png, <label>-editor.png, <label>-speed.png, <label>-instrument.png,
 # <label>-insert.png, <label>-capo.png, <label>-identify.png, <label>-settings.png,
 # <label>-voicings.png, <label>-about.png, <label>-export.png, the app's
 # Diagnostics folder as <label>-diagnostics/ and the unified log of the
@@ -128,7 +128,7 @@ xcrun simctl io "$UDID" screenshot "$OUT/$LABEL-editor.png"
 # speed at 125 %, Insert › Tempo with the session's check, Suggest Capo
 # scored, the identifier with Cmaj7, Settings › General, Settings › Voicings
 # with the built-in standard guitar, About). Same retry as the chord sheet.
-for tool in speed insert capo identify settings voicings about; do
+for tool in speed instrument insert capo identify settings voicings about; do
     rm -f "$DIAG/tool-$tool.json"
     shown=1
     for attempt in 1 2; do

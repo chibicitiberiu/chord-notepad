@@ -339,8 +339,10 @@ tools' scenes on Amazing Grace, as Android's help screenshots show it
 `player_sheets` (the tempo set by `{bpm: 90}`, 3/4 and G as the song's own
 values, the speed at 125 %, Steel Guitar), `insert_bpm`, `insert_time`,
 `insert_key`, `insert_capo`, `insert_label` and `insert_loop` (each ends on
-its `InsertDirectiveRequest`, the cursor after "me"; the tempo's carries the
-session's check of "999", the label's a clean check of "chorus"),
+its `InsertDirectiveRequest`, the cursor after "me", and the session's check
+of the fields the dialog opens with, so Insert is on for the time, key and
+loop as on Android; the tempo's then carries a check of "999", the label's a
+clean check of "chorus"),
 `grace_edit` (the song restored again, nothing pending), `capo_advice`
 (Suggest Capo scored for the whole song) and `identifier_cmaj7` (C, E, G and
 B selected, Cmaj7 played), then Settings' scenes, last, each from Amazing
@@ -782,7 +784,7 @@ The third slice: the app's frame, a port of Android's `ui/main/`
   `-CNScreen chordsheet` opens Play with the sheet shown, `-CNScreen editor`
   switches to Edit before typing, `-CNScreen menu` opens the menu,
   `-CNScreen export` exports the song as audio ("Files"), `-CNScreen speed`,
-  `insert`, `capo` and `identify` open a sheet or a tool ("The player's sheets
+  `instrument`, `insert`, `capo` and `identify` open a sheet or a tool ("The player's sheets
   and the ribbon's tools"), `-CNScreen settings`, `voicings` and `about` a
   page ("Settings, About and Licences").
 
@@ -1031,8 +1033,9 @@ nothing in the core or the schema changed.
   and an accepted Manual… value, Reset), Playback settings' Edit, and from
   the ribbon Transpose, Insert › Tempo with the session's check, Suggest Capo
   and the identifier's Insert, checking the editor's text after each.
-  `-CNScreen speed`, `insert`, `capo` and `identify` open each live for CI's
-  screenshots and write `Diagnostics/tool-<name>.json` when ready.
+  `-CNScreen speed`, `instrument`, `insert`, `capo` and `identify` open
+  each live for CI's screenshots and write `Diagnostics/tool-<name>.json`
+  when ready.
 
 Deliberate differences from Android:
 
@@ -1189,7 +1192,7 @@ with and the windows it is drawn in; adding a screen is one line there.
 renders each entry with `ImageRenderer` at iPhone 17 (402×874 pt, @3x) and
 iPad Air 11-inch (820×1180 pt, @2x), and on their sides (874×402,
 1180×820) where the layout differs, light and dark, default and
-`accessibility2` text: 440 PNGs.
+`accessibility2` text: 432 PNGs.
 
 | Screen | Scenes | Windows |
 |---|---|---|
@@ -1203,7 +1206,7 @@ iPad Air 11-inch (820×1180 pt, @2x), and on their sides (874×402,
 | `open_error` | `errors` in Play with the open failure as a snackbar | iPhone, iPad |
 | `examples` | the Examples sheet, from the bundle's `examples/` | iPhone |
 | `diagnostics` | a sample self-test report | iPhone, iPad |
-| `voicing`, `instrument`, `instrument_programs`, `speed`, `speed_manual`, `song_defaults` | `player_sheets` in Play: the sheet over the screen (the Guitar family's programs; Manual… over the speed sheet) | iPhone, iPad |
+| `voicing`, `instrument`, `speed`, `speed_manual`, `song_defaults` | `player_sheets` in Play: the sheet over the screen (Manual… over the speed sheet). The kit's session has the FakePlayer and no SoundFont, so the instrument families list no programs and no current instrument there; CI's `<device>-instrument.png` shows a family's programs live | iPhone, iPad |
 | `insert_sheet`, `transpose` | `grace_edit` in Edit: the Insert sheet; Transpose at +2 for the whole song | iPhone, iPad |
 | `insert` | the six `insert_*` scenes: each Insert dialog as it opens | iPhone |
 | `insert_error` | `insert_bpm` with "999" typed: the session's check under the field, Insert off | iPhone, iPad |
@@ -1295,7 +1298,9 @@ Artifacts of each run:
   `<iphone|ipad>-chordsheet.png` (Play with the chord sheet shown, its
   buffer from the live session), `<iphone|ipad>-editor.png` (Edit after the
   app typed a long chord line into the editor, the session's highlight
-  painted, the keyboard up), `<iphone|ipad>-speed.png`, `-insert.png`,
+  painted, the keyboard up), `<iphone|ipad>-speed.png`, `-instrument.png`
+  (the Guitar family's programs, Steel Guitar chosen, from the real
+  SoundFont), `-insert.png`,
   `-capo.png` and `-identify.png` (the speed sheet at 125 %, Insert › Tempo
   with the keyboard up, Suggest Capo scored, the identifier with Cmaj7
   picked; `tool-<name>.json` says each got there), `<iphone|ipad>-settings.png`,

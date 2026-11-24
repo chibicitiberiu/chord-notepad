@@ -99,10 +99,6 @@ enum PreviewCatalog {
         CatalogScreen("instrument", fixtures: ["player_sheets"]) { scene, _ in
             PreviewCatalog.mainScreen(scene, MainUiState(mode: .play, route: .instrument(family: nil)))
         },
-        // A family's programs: Guitar, Steel Guitar chosen.
-        CatalogScreen("instrument_programs", fixtures: ["player_sheets"]) { scene, _ in
-            PreviewCatalog.mainScreen(scene, MainUiState(mode: .play, route: .instrument(family: 3)))
-        },
         CatalogScreen("speed", fixtures: ["player_sheets"]) { scene, _ in
             PreviewCatalog.mainScreen(scene, MainUiState(mode: .play, route: .speed(manual: false)))
         },

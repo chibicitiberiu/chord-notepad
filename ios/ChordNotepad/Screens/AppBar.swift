@@ -7,11 +7,14 @@ struct MdiIcon: View {
     let name: String
     let tint: Color
     var size: CGFloat = 24
+    /// A wider drawing's width (Transpose's is 32 × 24); nil: square.
+    var width: CGFloat?
 
-    init(_ name: String, tint: Color, size: CGFloat = 24) {
+    init(_ name: String, tint: Color, size: CGFloat = 24, width: CGFloat? = nil) {
         self.name = name
         self.tint = tint
         self.size = size
+        self.width = width
     }
 
     var body: some View {
@@ -29,7 +32,7 @@ struct MdiIcon: View {
             }
         }
         .foregroundStyle(tint)
-        .frame(width: size, height: size)
+        .frame(width: width ?? size, height: size)
         .accessibilityHidden(true)
     }
 }
