@@ -112,8 +112,10 @@ final class SheetControllerTests: XCTestCase {
         try assertCommands(tap(.chooseVoicing("guitar:standard")).commands,
                            [("set_voicing", #"{"voicing": "guitar:standard"}"#)])
         XCTAssertEqual(ui.route, .voicing, "choosing applies at once; the sheet stays")
-        XCTAssertEqual(tap(.editVoicings).notice, SheetNotices.editVoicings)
-        tap(.dismiss)
+        // Edit voicings…: the sheet closes and Settings opens at Voicings.
+        let edit = tap(.editVoicings)
+        XCTAssertEqual(edit.openSettings, .voicings)
+        XCTAssertNil(edit.notice)
         XCTAssertEqual(ui.route, MainRoute.none)
 
         tap(.open(.instrument(family: nil)))

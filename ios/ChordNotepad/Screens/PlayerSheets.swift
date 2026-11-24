@@ -320,9 +320,9 @@ struct VoicingPickerSheet: View {
                 }
             }
         } actions: {
-            SheetTextButton(label: VoicingSheetTexts.edit, colors: colors, locked: true,
+            SheetTextButton(label: VoicingSheetTexts.edit, colors: colors,
                             action: { event(.editVoicings) }) {
-                MdiIcon("mdi_pencil", tint: colors.text.swiftUI.opacity(AppColors.disabledAlpha), size: 18)
+                MdiIcon("mdi_pencil", tint: colors.primary.swiftUI, size: 18)
             }
             Spacer(minLength: 0)
             SheetDoneButton(colors: colors) { event(.done) }

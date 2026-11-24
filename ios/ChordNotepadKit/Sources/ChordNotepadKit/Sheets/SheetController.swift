@@ -24,7 +24,7 @@ public enum SheetEvent: Sendable, Equatable {
     case back
 
     case chooseVoicing(String)
-    /// Edit voicings… (Settings › Voicings, which the iOS app hasn't got yet).
+    /// Edit voicings…: Settings › Voicings.
     case editVoicings
     case openFamily(Int)
     case chooseInstrument(Int)
@@ -88,6 +88,8 @@ public struct SheetEffects: Sendable {
     public var notice: String?
     /// Switch to Edit with the cursor at this code point.
     public var editAt: Int?
+    /// Open Settings at this page (Edit voicings… opens Voicings, as on Android).
+    public var openSettings: SettingsPage?
 
     public init() {}
 }
@@ -210,7 +212,8 @@ extension MainUiState {
         case .chooseVoicing(let value):
             if snapshot.voicingMenu?.selected != value { effects.commands = [.setVoicing(voicing: value)] }
         case .editVoicings:
-            effects.notice = SheetNotices.editVoicings
+            route = .none
+            effects.openSettings = .voicings
         case .openFamily(let index):
             route = route.openingFamily(index)
         case .chooseInstrument(let program):
@@ -377,10 +380,4 @@ extension SessionSnapshot {
         let units = settings?.timeSignatureUnits.isEmpty == false ? settings!.timeSignatureUnits : defaultTimeUnits
         return (keys, units)
     }
-}
-
-/// The notes a greyed sheet control gives.
-public enum SheetNotices {
-    /// Edit voicings… opens Settings › Voicings on Android.
-    public static let editVoicings = "Editing voicings comes with Settings, in a later version."
 }
