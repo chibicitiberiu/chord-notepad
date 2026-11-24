@@ -1,0 +1,561 @@
+{
+ "chord_sheet_buffers": [],
+ "description": "The colour demo (android/tools/help_shot_songs/colours.txt) in Edit: every span kind (Android's editor-colours).",
+ "events": [
+  {
+   "json": {
+    "anchor": null,
+    "cursor": 232,
+    "end": 635,
+    "replacement": "{bpm: 100} {time: 4/4} {key: C}\n{tempo: fast}\n\n// A comment, never played\n{label: verse}\nC        Am       F        G7\nChords on one line, the words below\nC        Am       Dm7      Gsus5  G\nBlue ones play, grey ones are not chords\n",
+    "start": 0,
+    "text_revision": 32,
+    "undo": "reset"
+   },
+   "type": "TextEdited"
+  }
+ ],
+ "scene": "colours_edit",
+ "states": {
+  "CapoAdviceState": {
+   "active": false,
+   "message": "",
+   "playing": false,
+   "rows": [],
+   "scope": "",
+   "status": "ready",
+   "voicing": "",
+   "voicings": []
+  },
+  "ChordSheetState": {
+   "active_view": "keyboard",
+   "current_index": null,
+   "cursor_index": null,
+   "disabled_reason": "Pick a fretted voicing, like Guitar, with the Voicing button.",
+   "height": 330,
+   "song_revision": 12,
+   "views": [
+    {
+     "available": true,
+     "label": "Piano roll",
+     "view_id": "keyboard"
+    },
+    {
+     "available": true,
+     "label": "Staff",
+     "view_id": "staff"
+    },
+    {
+     "available": false,
+     "label": "Fret cards",
+     "view_id": "fret"
+    },
+    {
+     "available": false,
+     "label": "Tab",
+     "view_id": "tab"
+    }
+   ],
+   "visible": false,
+   "zoom": 1.0,
+   "zoom_supported": true
+  },
+  "DocumentState": {
+   "display_name": "Colours.txt",
+   "document_id": "Colours.txt",
+   "is_modified": false,
+   "location": "On My iPhone",
+   "read_only": false,
+   "title": "Colours.txt - Chord Notepad"
+  },
+  "EditorState": {
+   "font_family": "TkFixedFont",
+   "font_size": 11,
+   "notation": "american",
+   "read_only": false,
+   "word_wrap": false
+  },
+  "HighlightState": {
+   "client_token": 0,
+   "spans": [
+    {
+     "end": 73,
+     "kind": "comment",
+     "message": "",
+     "start": 47
+    },
+    {
+     "end": 90,
+     "kind": "chord",
+     "message": "",
+     "start": 89
+    },
+    {
+     "end": 100,
+     "kind": "chord",
+     "message": "",
+     "start": 98
+    },
+    {
+     "end": 108,
+     "kind": "chord",
+     "message": "",
+     "start": 107
+    },
+    {
+     "end": 118,
+     "kind": "chord",
+     "message": "",
+     "start": 116
+    },
+    {
+     "end": 156,
+     "kind": "chord",
+     "message": "",
+     "start": 155
+    },
+    {
+     "end": 166,
+     "kind": "chord",
+     "message": "",
+     "start": 164
+    },
+    {
+     "end": 176,
+     "kind": "chord",
+     "message": "",
+     "start": 173
+    },
+    {
+     "end": 187,
+     "kind": "chord_invalid",
+     "message": "",
+     "start": 182
+    },
+    {
+     "end": 190,
+     "kind": "chord",
+     "message": "",
+     "start": 189
+    },
+    {
+     "end": 10,
+     "kind": "directive",
+     "message": "",
+     "start": 0
+    },
+    {
+     "end": 22,
+     "kind": "directive",
+     "message": "",
+     "start": 11
+    },
+    {
+     "end": 31,
+     "kind": "directive",
+     "message": "",
+     "start": 23
+    },
+    {
+     "end": 45,
+     "kind": "directive_invalid",
+     "message": "Tempo must be a whole number from 20 to 400, a change (+10, 50%, 2x) or reset",
+     "start": 32
+    },
+    {
+     "end": 88,
+     "kind": "directive",
+     "message": "",
+     "start": 74
+    }
+   ],
+   "text_revision": 32
+  },
+  "IdentifierState": {
+   "candidates": [
+    "Cmaj7",
+    "Em/C"
+   ],
+   "message": null,
+   "notation": "american",
+   "notes": [
+    {
+     "midi": 60,
+     "name": "C",
+     "octave": 4
+    },
+    {
+     "midi": 64,
+     "name": "E",
+     "octave": 4
+    },
+    {
+     "midi": 67,
+     "name": "G",
+     "octave": 4
+    },
+    {
+     "midi": 71,
+     "name": "B",
+     "octave": 4
+    }
+   ],
+   "notes_text": "C E G B",
+   "sounding": [
+    60,
+    64,
+    67,
+    71
+   ],
+   "sounding_above": null,
+   "sounding_below": null,
+   "sounding_seconds": 3.0,
+   "sounding_token": 2,
+   "typed_text_error": null
+  },
+  "InstrumentMenuState": {
+   "current": 0,
+   "families": [
+    {
+     "is_current": true,
+     "items": [],
+     "name": "Piano"
+    },
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Chromatic Percussion"
+    },
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Organ"
+    },
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Guitar"
+    },
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Bass"
+    },
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Strings"
+    },
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Ensemble"
+    },
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Brass"
+    },
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Reed"
+    },
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Pipe"
+    },
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Synth Lead"
+    },
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Synth Pad"
+    },
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Synth Effects"
+    },
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Ethnic"
+    },
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Percussive"
+    },
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Sound Effects"
+    }
+   ]
+  },
+  "PlaybackState": {
+   "bar": 0,
+   "beat": 0,
+   "chord_index": null,
+   "key": "C",
+   "playhead_offset": 89,
+   "playing_span": null,
+   "sections": [
+    {
+     "first_bar": 1,
+     "label": "verse",
+     "last_bar": 30,
+     "repeat": false
+    },
+    {
+     "first_bar": 31,
+     "label": "verse",
+     "last_bar": 66,
+     "repeat": true
+    }
+   ],
+   "status": "idle",
+   "tempo_clamped": null,
+   "time_signature": [
+    4,
+    4
+   ],
+   "total_bars": 0
+  },
+  "RecentDocumentsState": {
+   "items": [
+    {
+     "display_name": "Lullaby (2).txt",
+     "id": "songs/Lullaby (2).txt",
+     "location": "On My iPhone"
+    },
+    {
+     "display_name": "Lullaby.txt",
+     "id": "songs/Lullaby.txt",
+     "location": "On My iPhone"
+    },
+    {
+     "display_name": "Evening.txt",
+     "id": "songs/Evening.txt",
+     "location": "On My iPhone"
+    },
+    {
+     "display_name": "Morning.txt",
+     "id": "songs/Morning.txt",
+     "location": "On My iPhone"
+    },
+    {
+     "display_name": "song.txt",
+     "id": "song.txt",
+     "location": "On My iPhone"
+    }
+   ]
+  },
+  "SettingsState": {
+   "american_keys": [
+    "C",
+    "C#",
+    "Db",
+    "D",
+    "D#",
+    "Eb",
+    "E",
+    "F",
+    "F#",
+    "Gb",
+    "G",
+    "G#",
+    "Ab",
+    "A",
+    "A#",
+    "Bb",
+    "B"
+   ],
+   "bpm_max": 400,
+   "bpm_min": 20,
+   "european_keys": [
+    "Do",
+    "Do#",
+    "Reb",
+    "Re",
+    "Re#",
+    "Mib",
+    "Mi",
+    "Fa",
+    "Fa#",
+    "Solb",
+    "Sol",
+    "Sol#",
+    "Lab",
+    "La",
+    "La#",
+    "Sib",
+    "Si"
+   ],
+   "font_size_max": 72,
+   "font_size_min": 6,
+   "max_recent_files_max": 50,
+   "time_signature_units": [
+    1,
+    2,
+    4,
+    8,
+    16
+   ],
+   "values": {
+    "bpm": 120,
+    "click_plays_chart_voicing": true,
+    "font_family": "TkFixedFont",
+    "font_size": 11,
+    "key": "C",
+    "max_recent_files": 10,
+    "notation": "american",
+    "show_quick_start_on_startup": true,
+    "time_signature_beats": 4,
+    "time_signature_unit": 4,
+    "word_wrap": false
+   }
+  },
+  "SongDefaultsState": {
+   "key": {
+    "directive_offset": 23,
+    "from_directive": true,
+    "value": "C"
+   },
+   "locked_reason": null,
+   "summary": "100 · 4/4 · C",
+   "tempo": {
+    "directive_offset": 0,
+    "from_directive": true,
+    "value": "100"
+   },
+   "time": {
+    "directive_offset": 11,
+    "from_directive": true,
+    "value": "4/4"
+   }
+  },
+  "StatusState": {
+   "text": "Ready"
+  },
+  "ToolbarState": {
+   "beats": 4,
+   "bpm": 100,
+   "bpm_display": 100,
+   "bpm_editable": false,
+   "bpm_set_by": "{bpm: 100}",
+   "key": "C",
+   "key_options": [
+    "C",
+    "C#",
+    "Db",
+    "D",
+    "D#",
+    "Eb",
+    "E",
+    "F",
+    "F#",
+    "Gb",
+    "G",
+    "G#",
+    "Ab",
+    "A",
+    "A#",
+    "Bb",
+    "B"
+   ],
+   "key_set_by": "{key: C}",
+   "metronome": false,
+   "multiplier_pct": 100.0,
+   "notation": "american",
+   "play_action": "play",
+   "time_set_by": "{time: 4/4}",
+   "unit": 4
+  },
+  "VoicingEditorState": {
+   "active": false,
+   "dirty": false,
+   "field_errors": {},
+   "form_errors": [],
+   "groups": [],
+   "hints": {},
+   "invalid": [],
+   "model": null,
+   "presets": [],
+   "problems": [],
+   "read_only": false,
+   "restored": false,
+   "revision": 0,
+   "selected": null,
+   "staged_numbers": {},
+   "values": {}
+  },
+  "VoicingMenuState": {
+   "groups": [
+    [
+     {
+      "label": "Piano",
+      "value": "piano"
+     }
+    ],
+    [
+     {
+      "label": "Guitar (Standard - EADGBE)",
+      "value": "guitar:standard"
+     },
+     {
+      "label": "Guitar (Drop D)",
+      "value": "guitar:drop_d"
+     },
+     {
+      "label": "Guitar (DADGAD)",
+      "value": "guitar:dadgad"
+     },
+     {
+      "label": "Guitar (Open G)",
+      "value": "guitar:open_g"
+     },
+     {
+      "label": "Ukulele",
+      "value": "guitar:ukulele"
+     }
+    ],
+    [
+     {
+      "label": "Choir (SATB)",
+      "value": "ensemble:satb"
+     },
+     {
+      "label": "Male Choir (TTBB)",
+      "value": "ensemble:ttbb"
+     },
+     {
+      "label": "Treble Choir (SSA)",
+      "value": "ensemble:ssa"
+     },
+     {
+      "label": "String Quartet",
+      "value": "ensemble:quartet"
+     }
+    ],
+    [
+     {
+      "label": "Jazz Vocal Trio",
+      "value": "voicing:Jazz Vocal Trio"
+     },
+     {
+      "label": "My 7-String",
+      "value": "voicing:My 7-String"
+     }
+    ]
+   ],
+   "locked_reason": null,
+   "selected": "piano"
+  }
+ }
+}

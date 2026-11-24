@@ -1,15 +1,15 @@
 {
  "chord_sheet_buffers": [],
- "description": "The chord identifier over Amazing Grace: C, E, G and B selected, Cmaj7 played.",
+ "description": "The chord identifier over Amazing Grace: C, E, G and B selected, Cmaj7 played; the status still the start's Ready.",
  "events": [
   {
    "json": {
     "anchor": null,
     "cursor": 635,
-    "end": 635,
+    "end": 0,
     "replacement": "{bpm: 90} {time: 3/4} {key: G}\n\n// Amazing Grace (John Newton, 1779)\n{label: verse}\nG           G7        C      G\nAmazing grace, how sweet the sound\nG               Em      D\nThat saved a wretch like me\nG            G7       C      G\nI once was lost, but now am found\nG      Em       D       G\nWas blind, but now I see\n\nG             G7          C        G\n'Twas grace that taught my heart to fear\nG           Em        D\nAnd grace my fears relieved\nG             G7         C       G\nHow precious did that grace appear\nG       Em      D        G\nThe hour I first believed\n\n{loop: verse 2}\n\n// Ending\nC      G/B    Am7    D7sus4  G*6\n",
     "start": 0,
-    "text_revision": 22,
+    "text_revision": 1,
     "undo": "reset"
    },
    "type": "TextEdited"
@@ -28,12 +28,12 @@
    "voicings": []
   },
   "ChordSheetState": {
-   "active_view": "tab",
+   "active_view": "keyboard",
    "current_index": null,
    "cursor_index": null,
-   "disabled_reason": null,
-   "height": 330,
-   "song_revision": 9,
+   "disabled_reason": "Add some chords to see this view.",
+   "height": 160,
+   "song_revision": 0,
    "views": [
     {
      "available": true,
@@ -46,18 +46,18 @@
      "view_id": "staff"
     },
     {
-     "available": true,
+     "available": false,
      "label": "Fret cards",
      "view_id": "fret"
     },
     {
-     "available": true,
+     "available": false,
      "label": "Tab",
      "view_id": "tab"
     }
    ],
    "visible": false,
-   "zoom": 0.833,
+   "zoom": 1.0,
    "zoom_supported": true
   },
   "DocumentState": {
@@ -331,7 +331,7 @@
      "start": 575
     }
    ],
-   "text_revision": 22
+   "text_revision": 1
   },
   "IdentifierState": {
    "candidates": [
@@ -376,10 +376,10 @@
    "typed_text_error": null
   },
   "InstrumentMenuState": {
-   "current": 25,
+   "current": 0,
    "families": [
     {
-     "is_current": false,
+     "is_current": true,
      "items": [],
      "name": "Piano"
     },
@@ -394,7 +394,7 @@
      "name": "Organ"
     },
     {
-     "is_current": true,
+     "is_current": false,
      "items": [],
      "name": "Guitar"
     },
@@ -467,32 +467,7 @@
    "key": "G",
    "playhead_offset": 84,
    "playing_span": null,
-   "sections": [
-    {
-     "first_bar": 1,
-     "label": "verse",
-     "last_bar": 14,
-     "repeat": false
-    },
-    {
-     "first_bar": 15,
-     "label": "verse 2",
-     "last_bar": 28,
-     "repeat": false
-    },
-    {
-     "first_bar": 29,
-     "label": "verse",
-     "last_bar": 42,
-     "repeat": true
-    },
-    {
-     "first_bar": 43,
-     "label": "verse 2",
-     "last_bar": 56,
-     "repeat": false
-    }
-   ],
+   "sections": [],
    "status": "idle",
    "tempo_clamped": null,
    "time_signature": [
@@ -502,33 +477,7 @@
    "total_bars": 0
   },
   "RecentDocumentsState": {
-   "items": [
-    {
-     "display_name": "Lullaby (2).txt",
-     "id": "songs/Lullaby (2).txt",
-     "location": "On My iPhone"
-    },
-    {
-     "display_name": "Lullaby.txt",
-     "id": "songs/Lullaby.txt",
-     "location": "On My iPhone"
-    },
-    {
-     "display_name": "Evening.txt",
-     "id": "songs/Evening.txt",
-     "location": "On My iPhone"
-    },
-    {
-     "display_name": "Morning.txt",
-     "id": "songs/Morning.txt",
-     "location": "On My iPhone"
-    },
-    {
-     "display_name": "song.txt",
-     "id": "song.txt",
-     "location": "On My iPhone"
-    }
-   ]
+   "items": []
   },
   "SettingsState": {
    "american_keys": [
@@ -615,7 +564,7 @@
    }
   },
   "StatusState": {
-   "text": "Inserted: {time: 3/4} {key: G}"
+   "text": "Ready"
   },
   "ToolbarState": {
    "beats": 3,
@@ -719,7 +668,7 @@
     ]
    ],
    "locked_reason": null,
-   "selected": "guitar:standard"
+   "selected": "piano"
   }
  }
 }

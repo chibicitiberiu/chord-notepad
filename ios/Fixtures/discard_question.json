@@ -9,7 +9,7 @@
     "end": 103,
     "replacement": "{bpm: 72} {time: 3/4}\nG        Em       C        D\nHush now, the stars are out\nSleep until the morning\n",
     "start": 0,
-    "text_revision": 16,
+    "text_revision": 17,
     "undo": "reset"
    },
    "type": "TextEdited"
@@ -29,7 +29,7 @@
     "end": 0,
     "replacement": "{key: G}\n",
     "start": 0,
-    "text_revision": 17,
+    "text_revision": 18,
     "undo": "plain"
    },
    "type": "TextEdited"
@@ -147,7 +147,7 @@
      "start": 19
     }
    ],
-   "text_revision": 17
+   "text_revision": 18
   },
   "IdentifierState": {
    "candidates": [],
@@ -159,7 +159,7 @@
    "sounding_above": null,
    "sounding_below": null,
    "sounding_seconds": 3.0,
-   "sounding_token": 0,
+   "sounding_token": 1,
    "typed_text_error": null
   },
   "InstrumentMenuState": {

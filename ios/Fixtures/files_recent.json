@@ -9,7 +9,7 @@
     "end": 69,
     "replacement": "{bpm: 72} {time: 3/4}\nG        Em       C        D\nHush now, the stars are out\n",
     "start": 0,
-    "text_revision": 14,
+    "text_revision": 15,
     "undo": "reset"
    },
    "type": "TextEdited"
@@ -115,7 +115,7 @@
      "start": 10
     }
    ],
-   "text_revision": 14
+   "text_revision": 15
   },
   "IdentifierState": {
    "candidates": [],
@@ -127,7 +127,7 @@
    "sounding_above": null,
    "sounding_below": null,
    "sounding_seconds": 3.0,
-   "sounding_token": 0,
+   "sounding_token": 1,
    "typed_text_error": null
   },
   "InstrumentMenuState": {

@@ -33,7 +33,7 @@
     "end": 4370,
     "replacement": "C G\n",
     "start": 0,
-    "text_revision": 4,
+    "text_revision": 5,
     "undo": "reset"
    },
    "type": "TextEdited"
@@ -123,7 +123,7 @@
      "start": 2
     }
    ],
-   "text_revision": 4
+   "text_revision": 5
   },
   "IdentifierState": {
    "candidates": [],
@@ -135,7 +135,7 @@
    "sounding_above": null,
    "sounding_below": null,
    "sounding_seconds": 3.0,
-   "sounding_token": 0,
+   "sounding_token": 1,
    "typed_text_error": null
   },
   "InstrumentMenuState": {

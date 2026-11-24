@@ -1,0 +1,1249 @@
+{
+ "chord_sheet_buffers": [],
+ "description": "The Quick Start tour (request_quick_start).",
+ "events": [
+  {
+   "json": {
+    "anchor": null,
+    "cursor": 635,
+    "end": 635,
+    "replacement": "{bpm: 90} {time: 3/4} {key: G}\n\n// Amazing Grace (John Newton, 1779)\n{label: verse}\nG           G7        C      G\nAmazing grace, how sweet the sound\nG               Em      D\nThat saved a wretch like me\nG            G7       C      G\nI once was lost, but now am found\nG      Em       D       G\nWas blind, but now I see\n\nG             G7          C        G\n'Twas grace that taught my heart to fear\nG           Em        D\nAnd grace my fears relieved\nG             G7         C       G\nHow precious did that grace appear\nG       Em      D        G\nThe hour I first believed\n\n{loop: verse 2}\n\n// Ending\nC      G/B    Am7    D7sus4  G*6\n",
+    "start": 0,
+    "text_revision": 30,
+    "undo": "reset"
+   },
+   "type": "TextEdited"
+  },
+  {
+   "json": {
+    "pages": [
+     {
+      "blocks": [
+       {
+        "image": null,
+        "kind": "text",
+        "notation": null,
+        "spans": [],
+        "text": "Chord Notepad is a text editor for musicians. Write a song the way a chord sheet looks: chords on their own line, right above the lyrics they go with."
+       },
+       {
+        "image": null,
+        "kind": "snippet",
+        "notation": "american",
+        "spans": [
+         {
+          "end": 1,
+          "kind": "chord",
+          "message": "",
+          "start": 0
+         },
+         {
+          "end": 12,
+          "kind": "chord",
+          "message": "",
+          "start": 9
+         },
+         {
+          "end": 19,
+          "kind": "chord",
+          "message": "",
+          "start": 18
+         },
+         {
+          "end": 26,
+          "kind": "chord",
+          "message": "",
+          "start": 25
+         },
+         {
+          "end": 60,
+          "kind": "chord",
+          "message": "",
+          "start": 58
+         },
+         {
+          "end": 66,
+          "kind": "chord",
+          "message": "",
+          "start": 64
+         },
+         {
+          "end": 72,
+          "kind": "chord",
+          "message": "",
+          "start": 71
+         },
+         {
+          "end": 81,
+          "kind": "chord",
+          "message": "",
+          "start": 80
+         }
+        ],
+        "text": "C        C/E      F      C\nTwinkle, twinkle, little star,\nDm    Am     G        C\nHow I wonder what you are!"
+       },
+       {
+        "image": null,
+        "kind": "text",
+        "notation": null,
+        "spans": [],
+        "text": "The app recognizes chord lines on its own and highlights their chords; lyric lines are left alone. In the Play tab, tap any chord to hear it, or press ▶ at the bottom to play the whole song."
+       }
+      ],
+      "title": "Welcome to Chord Notepad"
+     },
+     {
+      "blocks": [
+       {
+        "image": null,
+        "kind": "text",
+        "notation": null,
+        "spans": [],
+        "text": "There is nothing to mark up. A line counts as a chord line when most of its words are chords, so a lyric that happens to contain a word like “A” stays plain text."
+       },
+       {
+        "image": null,
+        "kind": "snippet",
+        "notation": "american",
+        "spans": [
+         {
+          "end": 1,
+          "kind": "chord",
+          "message": "",
+          "start": 0
+         },
+         {
+          "end": 19,
+          "kind": "chord",
+          "message": "",
+          "start": 15
+         },
+         {
+          "end": 29,
+          "kind": "chord",
+          "message": "",
+          "start": 27
+         },
+         {
+          "end": 40,
+          "kind": "chord",
+          "message": "",
+          "start": 39
+         },
+         {
+          "end": 76,
+          "kind": "chord",
+          "message": "",
+          "start": 73
+         },
+         {
+          "end": 84,
+          "kind": "chord",
+          "message": "",
+          "start": 79
+         },
+         {
+          "end": 92,
+          "kind": "chord",
+          "message": "",
+          "start": 87
+         },
+         {
+          "end": 98,
+          "kind": "chord",
+          "message": "",
+          "start": 95
+         },
+         {
+          "end": 107,
+          "kind": "chord",
+          "message": "",
+          "start": 101
+         },
+         {
+          "end": 114,
+          "kind": "chord",
+          "message": "",
+          "start": 110
+         }
+        ],
+        "text": "G              D/F#        Em          C\nA song for you, a melody I made\nAm7   Dsus4   Cmaj7   G/B   F#m7b5   E7#9"
+       },
+       {
+        "image": null,
+        "kind": "text",
+        "notation": null,
+        "spans": [],
+        "text": "Chords can be as rich as you need: sevenths, suspended and added notes, extensions, altered notes, and slash chords for a specific bass note."
+       }
+      ],
+      "title": "How Chord Lines Are Detected"
+     },
+     {
+      "blocks": [
+       {
+        "image": null,
+        "kind": "text",
+        "notation": null,
+        "spans": [],
+        "text": "Prefer solfège? Switch to European notation with the Do button in the Edit ribbon and write chords as Do, Re, Mi… with a lowercase m for minor. Convert rewrites a whole song from one notation to the other."
+       },
+       {
+        "image": null,
+        "kind": "snippet",
+        "notation": "european",
+        "spans": [
+         {
+          "end": 2,
+          "kind": "chord",
+          "message": "",
+          "start": 0
+         },
+         {
+          "end": 13,
+          "kind": "chord",
+          "message": "",
+          "start": 10
+         },
+         {
+          "end": 24,
+          "kind": "chord",
+          "message": "",
+          "start": 20
+         },
+         {
+          "end": 34,
+          "kind": "chord",
+          "message": "",
+          "start": 30
+         },
+         {
+          "end": 67,
+          "kind": "chord",
+          "message": "",
+          "start": 65
+         },
+         {
+          "end": 80,
+          "kind": "chord",
+          "message": "",
+          "start": 75
+         },
+         {
+          "end": 88,
+          "kind": "chord",
+          "message": "",
+          "start": 85
+         },
+         {
+          "end": 98,
+          "kind": "chord",
+          "message": "",
+          "start": 95
+         }
+        ],
+        "text": "Do        Lam       Rem7      Sol7\nSomewhere a melody is calling\nFa        Do/Mi     Rem       Sol\nEvery note is coming home"
+       },
+       {
+        "image": null,
+        "kind": "text",
+        "notation": null,
+        "spans": [],
+        "text": "Roman numerals write chords relative to the key, set with {key: …} or the key in the song pill (Play tab). Change the key and the same song plays in the new key."
+       },
+       {
+        "image": null,
+        "kind": "snippet",
+        "notation": "american",
+        "spans": [
+         {
+          "end": 10,
+          "kind": "chord",
+          "message": "",
+          "start": 9
+         },
+         {
+          "end": 21,
+          "kind": "chord",
+          "message": "",
+          "start": 19
+         },
+         {
+          "end": 31,
+          "kind": "chord",
+          "message": "",
+          "start": 29
+         },
+         {
+          "end": 41,
+          "kind": "chord",
+          "message": "",
+          "start": 39
+         },
+         {
+          "end": 79,
+          "kind": "chord",
+          "message": "",
+          "start": 76
+         },
+         {
+          "end": 88,
+          "kind": "chord",
+          "message": "",
+          "start": 86
+         },
+         {
+          "end": 97,
+          "kind": "chord",
+          "message": "",
+          "start": 96
+         },
+         {
+          "end": 8,
+          "kind": "directive",
+          "message": "",
+          "start": 0
+         }
+        ],
+        "text": "{key: G}\nI         vi        IV        V7\nHere's a tune in any key you like\nii7       V7        I\nPlay it high or play it low"
+       }
+      ],
+      "title": "Do-Re-Mi and Roman Numerals"
+     },
+     {
+      "blocks": [
+       {
+        "image": null,
+        "kind": "text",
+        "notation": null,
+        "spans": [],
+        "text": "Directives in {braces} set the tempo, time signature and key. They can go anywhere, so a song can speed up or change key halfway through."
+       },
+       {
+        "image": null,
+        "kind": "snippet",
+        "notation": "american",
+        "spans": [
+         {
+          "end": 23,
+          "kind": "chord",
+          "message": "",
+          "start": 22
+         },
+         {
+          "end": 34,
+          "kind": "chord",
+          "message": "",
+          "start": 32
+         },
+         {
+          "end": 45,
+          "kind": "chord",
+          "message": "",
+          "start": 42
+         },
+         {
+          "end": 80,
+          "kind": "chord",
+          "message": "",
+          "start": 74
+         },
+         {
+          "end": 88,
+          "kind": "chord",
+          "message": "",
+          "start": 83
+         },
+         {
+          "end": 93,
+          "kind": "chord",
+          "message": "",
+          "start": 92
+         },
+         {
+          "end": 100,
+          "kind": "chord",
+          "message": "",
+          "start": 98
+         },
+         {
+          "end": 9,
+          "kind": "directive",
+          "message": "",
+          "start": 0
+         },
+         {
+          "end": 21,
+          "kind": "directive",
+          "message": "",
+          "start": 10
+         }
+        ],
+        "text": "{bpm: 90} {time: 3/4}\nG         G7        C*6\nWalking slow in waltz time,\nD7*1.5   C*1.5    G     NC\nstep and turn and home"
+       },
+       {
+        "image": null,
+        "kind": "text",
+        "notation": null,
+        "spans": [],
+        "text": "Each chord lasts one bar unless you add *beats after it: C*6 holds for two bars of 3/4, D7*1.5 for a beat and a half. NC is a bar of silence. The song pill in the Play tab sets the tempo, key and time defaults for the whole song, and Speed slows it down for practice."
+       }
+      ],
+      "title": "Tempo, Meter and Timing"
+     },
+     {
+      "blocks": [
+       {
+        "image": null,
+        "kind": "text",
+        "notation": null,
+        "spans": [],
+        "text": "Name a section with {label: …} and repeat it with {loop: name times}. Lines starting with // are comments: they're notes for you and are never played."
+       },
+       {
+        "image": null,
+        "kind": "snippet",
+        "notation": "american",
+        "spans": [
+         {
+          "end": 151,
+          "kind": "comment",
+          "message": "",
+          "start": 125
+         },
+         {
+          "end": 17,
+          "kind": "chord",
+          "message": "",
+          "start": 16
+         },
+         {
+          "end": 27,
+          "kind": "chord",
+          "message": "",
+          "start": 26
+         },
+         {
+          "end": 37,
+          "kind": "chord",
+          "message": "",
+          "start": 36
+         },
+         {
+          "end": 48,
+          "kind": "chord",
+          "message": "",
+          "start": 46
+         },
+         {
+          "end": 82,
+          "kind": "chord",
+          "message": "",
+          "start": 81
+         },
+         {
+          "end": 92,
+          "kind": "chord",
+          "message": "",
+          "start": 91
+         },
+         {
+          "end": 102,
+          "kind": "chord",
+          "message": "",
+          "start": 101
+         },
+         {
+          "end": 15,
+          "kind": "directive",
+          "message": "",
+          "start": 0
+         },
+         {
+          "end": 168,
+          "kind": "directive",
+          "message": "",
+          "start": 152
+         }
+        ],
+        "text": "{label: chorus}\nF         C         G         Am\nSing it loud and sing it clear,\nF         C         G\neverybody gather near\n// Chorus twice at the end\n{loop: chorus 2}"
+       },
+       {
+        "image": null,
+        "kind": "text",
+        "notation": null,
+        "spans": [],
+        "text": "In the Edit tab, ＋ Insert has small dialogs for adding labels, loops and other directives if you'd rather not type them."
+       }
+      ],
+      "title": "Song Structure"
+     },
+     {
+      "blocks": [
+       {
+        "image": null,
+        "kind": "text",
+        "notation": null,
+        "spans": [],
+        "text": "In the Play tab, the panel under the song draws its chords: as a piano roll, on a music staff, as guitar chord diagrams (Fret cards), or as tab. It follows along while the song plays."
+       },
+       {
+        "image": null,
+        "kind": "text",
+        "notation": null,
+        "spans": [],
+        "text": "Fret cards and Tab need a fretted instrument, picked with the Voicing button in the Play tab (for example Guitar). The panel shows in the Play tab only; the ▭ button there shows or hides it."
+       }
+      ],
+      "title": "The Chord Sheet"
+     },
+     {
+      "blocks": [
+       {
+        "image": null,
+        "kind": "text",
+        "notation": null,
+        "spans": [],
+        "text": "That's all you need to get started."
+       },
+       {
+        "image": null,
+        "kind": "text",
+        "notation": null,
+        "spans": [],
+        "text": "The full User Guide is in ☰ → User guide. Identify in the Edit ribbon names a chord from the notes you pick, and ☰ → Quick start brings this tour back."
+       },
+       {
+        "image": null,
+        "kind": "text",
+        "notation": null,
+        "spans": [],
+        "text": "Have fun making music!"
+       }
+      ],
+      "title": "You're Ready!"
+     }
+    ],
+    "show_on_startup": true
+   },
+   "type": "QuickStartContent"
+  }
+ ],
+ "scene": "quick_start_tour",
+ "states": {
+  "CapoAdviceState": {
+   "active": false,
+   "message": "",
+   "playing": false,
+   "rows": [],
+   "scope": "",
+   "status": "ready",
+   "voicing": "",
+   "voicings": []
+  },
+  "ChordSheetState": {
+   "active_view": "tab",
+   "current_index": null,
+   "cursor_index": null,
+   "disabled_reason": null,
+   "height": 330,
+   "song_revision": 9,
+   "views": [
+    {
+     "available": true,
+     "label": "Piano roll",
+     "view_id": "keyboard"
+    },
+    {
+     "available": true,
+     "label": "Staff",
+     "view_id": "staff"
+    },
+    {
+     "available": true,
+     "label": "Fret cards",
+     "view_id": "fret"
+    },
+    {
+     "available": true,
+     "label": "Tab",
+     "view_id": "tab"
+    }
+   ],
+   "visible": false,
+   "zoom": 0.833,
+   "zoom_supported": true
+  },
+  "DocumentState": {
+   "display_name": "Amazing Grace.txt",
+   "document_id": "Amazing Grace.txt",
+   "is_modified": false,
+   "location": "On My iPhone",
+   "read_only": false,
+   "title": "Amazing Grace.txt - Chord Notepad"
+  },
+  "EditorState": {
+   "font_family": "TkFixedFont",
+   "font_size": 11,
+   "notation": "american",
+   "read_only": false,
+   "word_wrap": false
+  },
+  "HighlightState": {
+   "client_token": 0,
+   "spans": [
+    {
+     "end": 68,
+     "kind": "comment",
+     "message": "",
+     "start": 32
+    },
+    {
+     "end": 601,
+     "kind": "comment",
+     "message": "",
+     "start": 592
+    },
+    {
+     "end": 85,
+     "kind": "chord",
+     "message": "",
+     "start": 84
+    },
+    {
+     "end": 98,
+     "kind": "chord",
+     "message": "",
+     "start": 96
+    },
+    {
+     "end": 107,
+     "kind": "chord",
+     "message": "",
+     "start": 106
+    },
+    {
+     "end": 114,
+     "kind": "chord",
+     "message": "",
+     "start": 113
+    },
+    {
+     "end": 151,
+     "kind": "chord",
+     "message": "",
+     "start": 150
+    },
+    {
+     "end": 168,
+     "kind": "chord",
+     "message": "",
+     "start": 166
+    },
+    {
+     "end": 175,
+     "kind": "chord",
+     "message": "",
+     "start": 174
+    },
+    {
+     "end": 205,
+     "kind": "chord",
+     "message": "",
+     "start": 204
+    },
+    {
+     "end": 219,
+     "kind": "chord",
+     "message": "",
+     "start": 217
+    },
+    {
+     "end": 227,
+     "kind": "chord",
+     "message": "",
+     "start": 226
+    },
+    {
+     "end": 234,
+     "kind": "chord",
+     "message": "",
+     "start": 233
+    },
+    {
+     "end": 270,
+     "kind": "chord",
+     "message": "",
+     "start": 269
+    },
+    {
+     "end": 278,
+     "kind": "chord",
+     "message": "",
+     "start": 276
+    },
+    {
+     "end": 286,
+     "kind": "chord",
+     "message": "",
+     "start": 285
+    },
+    {
+     "end": 294,
+     "kind": "chord",
+     "message": "",
+     "start": 293
+    },
+    {
+     "end": 322,
+     "kind": "chord",
+     "message": "",
+     "start": 321
+    },
+    {
+     "end": 337,
+     "kind": "chord",
+     "message": "",
+     "start": 335
+    },
+    {
+     "end": 348,
+     "kind": "chord",
+     "message": "",
+     "start": 347
+    },
+    {
+     "end": 357,
+     "kind": "chord",
+     "message": "",
+     "start": 356
+    },
+    {
+     "end": 400,
+     "kind": "chord",
+     "message": "",
+     "start": 399
+    },
+    {
+     "end": 413,
+     "kind": "chord",
+     "message": "",
+     "start": 411
+    },
+    {
+     "end": 422,
+     "kind": "chord",
+     "message": "",
+     "start": 421
+    },
+    {
+     "end": 452,
+     "kind": "chord",
+     "message": "",
+     "start": 451
+    },
+    {
+     "end": 467,
+     "kind": "chord",
+     "message": "",
+     "start": 465
+    },
+    {
+     "end": 477,
+     "kind": "chord",
+     "message": "",
+     "start": 476
+    },
+    {
+     "end": 485,
+     "kind": "chord",
+     "message": "",
+     "start": 484
+    },
+    {
+     "end": 522,
+     "kind": "chord",
+     "message": "",
+     "start": 521
+    },
+    {
+     "end": 531,
+     "kind": "chord",
+     "message": "",
+     "start": 529
+    },
+    {
+     "end": 538,
+     "kind": "chord",
+     "message": "",
+     "start": 537
+    },
+    {
+     "end": 547,
+     "kind": "chord",
+     "message": "",
+     "start": 546
+    },
+    {
+     "end": 603,
+     "kind": "chord",
+     "message": "",
+     "start": 602
+    },
+    {
+     "end": 612,
+     "kind": "chord",
+     "message": "",
+     "start": 609
+    },
+    {
+     "end": 619,
+     "kind": "chord",
+     "message": "",
+     "start": 616
+    },
+    {
+     "end": 629,
+     "kind": "chord",
+     "message": "",
+     "start": 623
+    },
+    {
+     "end": 634,
+     "kind": "chord",
+     "message": "",
+     "start": 631
+    },
+    {
+     "end": 9,
+     "kind": "directive",
+     "message": "",
+     "start": 0
+    },
+    {
+     "end": 21,
+     "kind": "directive",
+     "message": "",
+     "start": 10
+    },
+    {
+     "end": 30,
+     "kind": "directive",
+     "message": "",
+     "start": 22
+    },
+    {
+     "end": 83,
+     "kind": "directive",
+     "message": "",
+     "start": 69
+    },
+    {
+     "end": 590,
+     "kind": "directive",
+     "message": "",
+     "start": 575
+    }
+   ],
+   "text_revision": 30
+  },
+  "IdentifierState": {
+   "candidates": [
+    "Cmaj7",
+    "Em/C"
+   ],
+   "message": null,
+   "notation": "american",
+   "notes": [
+    {
+     "midi": 60,
+     "name": "C",
+     "octave": 4
+    },
+    {
+     "midi": 64,
+     "name": "E",
+     "octave": 4
+    },
+    {
+     "midi": 67,
+     "name": "G",
+     "octave": 4
+    },
+    {
+     "midi": 71,
+     "name": "B",
+     "octave": 4
+    }
+   ],
+   "notes_text": "C E G B",
+   "sounding": [
+    60,
+    64,
+    67,
+    71
+   ],
+   "sounding_above": null,
+   "sounding_below": null,
+   "sounding_seconds": 3.0,
+   "sounding_token": 2,
+   "typed_text_error": null
+  },
+  "InstrumentMenuState": {
+   "current": 25,
+   "families": [
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Piano"
+    },
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Chromatic Percussion"
+    },
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Organ"
+    },
+    {
+     "is_current": true,
+     "items": [],
+     "name": "Guitar"
+    },
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Bass"
+    },
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Strings"
+    },
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Ensemble"
+    },
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Brass"
+    },
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Reed"
+    },
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Pipe"
+    },
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Synth Lead"
+    },
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Synth Pad"
+    },
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Synth Effects"
+    },
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Ethnic"
+    },
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Percussive"
+    },
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Sound Effects"
+    }
+   ]
+  },
+  "PlaybackState": {
+   "bar": 0,
+   "beat": 0,
+   "chord_index": null,
+   "key": "G",
+   "playhead_offset": 84,
+   "playing_span": null,
+   "sections": [
+    {
+     "first_bar": 1,
+     "label": "verse",
+     "last_bar": 14,
+     "repeat": false
+    },
+    {
+     "first_bar": 15,
+     "label": "verse 2",
+     "last_bar": 28,
+     "repeat": false
+    },
+    {
+     "first_bar": 29,
+     "label": "verse",
+     "last_bar": 42,
+     "repeat": true
+    },
+    {
+     "first_bar": 43,
+     "label": "verse 2",
+     "last_bar": 56,
+     "repeat": false
+    }
+   ],
+   "status": "idle",
+   "tempo_clamped": null,
+   "time_signature": [
+    3,
+    4
+   ],
+   "total_bars": 0
+  },
+  "RecentDocumentsState": {
+   "items": [
+    {
+     "display_name": "Lullaby (2).txt",
+     "id": "songs/Lullaby (2).txt",
+     "location": "On My iPhone"
+    },
+    {
+     "display_name": "Lullaby.txt",
+     "id": "songs/Lullaby.txt",
+     "location": "On My iPhone"
+    },
+    {
+     "display_name": "Evening.txt",
+     "id": "songs/Evening.txt",
+     "location": "On My iPhone"
+    },
+    {
+     "display_name": "Morning.txt",
+     "id": "songs/Morning.txt",
+     "location": "On My iPhone"
+    },
+    {
+     "display_name": "song.txt",
+     "id": "song.txt",
+     "location": "On My iPhone"
+    }
+   ]
+  },
+  "SettingsState": {
+   "american_keys": [
+    "C",
+    "C#",
+    "Db",
+    "D",
+    "D#",
+    "Eb",
+    "E",
+    "F",
+    "F#",
+    "Gb",
+    "G",
+    "G#",
+    "Ab",
+    "A",
+    "A#",
+    "Bb",
+    "B"
+   ],
+   "bpm_max": 400,
+   "bpm_min": 20,
+   "european_keys": [
+    "Do",
+    "Do#",
+    "Reb",
+    "Re",
+    "Re#",
+    "Mib",
+    "Mi",
+    "Fa",
+    "Fa#",
+    "Solb",
+    "Sol",
+    "Sol#",
+    "Lab",
+    "La",
+    "La#",
+    "Sib",
+    "Si"
+   ],
+   "font_size_max": 72,
+   "font_size_min": 6,
+   "max_recent_files_max": 50,
+   "time_signature_units": [
+    1,
+    2,
+    4,
+    8,
+    16
+   ],
+   "values": {
+    "bpm": 120,
+    "click_plays_chart_voicing": true,
+    "font_family": "TkFixedFont",
+    "font_size": 11,
+    "key": "C",
+    "max_recent_files": 10,
+    "notation": "american",
+    "show_quick_start_on_startup": true,
+    "time_signature_beats": 4,
+    "time_signature_unit": 4,
+    "word_wrap": false
+   }
+  },
+  "SongDefaultsState": {
+   "key": {
+    "directive_offset": 22,
+    "from_directive": true,
+    "value": "G"
+   },
+   "locked_reason": null,
+   "summary": "90 · 3/4 · G",
+   "tempo": {
+    "directive_offset": 0,
+    "from_directive": true,
+    "value": "90"
+   },
+   "time": {
+    "directive_offset": 10,
+    "from_directive": true,
+    "value": "3/4"
+   }
+  },
+  "StatusState": {
+   "text": "Inserted: {capo: 2}"
+  },
+  "ToolbarState": {
+   "beats": 3,
+   "bpm": 90,
+   "bpm_display": 90,
+   "bpm_editable": false,
+   "bpm_set_by": "{bpm: 90}",
+   "key": "G",
+   "key_options": [
+    "C",
+    "C#",
+    "Db",
+    "D",
+    "D#",
+    "Eb",
+    "E",
+    "F",
+    "F#",
+    "Gb",
+    "G",
+    "G#",
+    "Ab",
+    "A",
+    "A#",
+    "Bb",
+    "B"
+   ],
+   "key_set_by": "{key: G}",
+   "metronome": false,
+   "multiplier_pct": 100.0,
+   "notation": "american",
+   "play_action": "play",
+   "time_set_by": "{time: 3/4}",
+   "unit": 4
+  },
+  "VoicingEditorState": {
+   "active": false,
+   "dirty": false,
+   "field_errors": {},
+   "form_errors": [],
+   "groups": [],
+   "hints": {},
+   "invalid": [],
+   "model": null,
+   "presets": [],
+   "problems": [],
+   "read_only": false,
+   "restored": false,
+   "revision": 0,
+   "selected": null,
+   "staged_numbers": {},
+   "values": {}
+  },
+  "VoicingMenuState": {
+   "groups": [
+    [
+     {
+      "label": "Piano",
+      "value": "piano"
+     }
+    ],
+    [
+     {
+      "label": "Guitar (Standard - EADGBE)",
+      "value": "guitar:standard"
+     },
+     {
+      "label": "Guitar (Drop D)",
+      "value": "guitar:drop_d"
+     },
+     {
+      "label": "Guitar (DADGAD)",
+      "value": "guitar:dadgad"
+     },
+     {
+      "label": "Guitar (Open G)",
+      "value": "guitar:open_g"
+     },
+     {
+      "label": "Ukulele",
+      "value": "guitar:ukulele"
+     }
+    ],
+    [
+     {
+      "label": "Choir (SATB)",
+      "value": "ensemble:satb"
+     },
+     {
+      "label": "Male Choir (TTBB)",
+      "value": "ensemble:ttbb"
+     },
+     {
+      "label": "Treble Choir (SSA)",
+      "value": "ensemble:ssa"
+     },
+     {
+      "label": "String Quartet",
+      "value": "ensemble:quartet"
+     }
+    ],
+    [
+     {
+      "label": "Jazz Vocal Trio",
+      "value": "voicing:Jazz Vocal Trio"
+     },
+     {
+      "label": "My 7-String",
+      "value": "voicing:My 7-String"
+     }
+    ]
+   ],
+   "locked_reason": null,
+   "selected": "piano"
+  }
+ }
+}

@@ -22,7 +22,7 @@
     "end": 4370,
     "replacement": "{bpm: 100} {time: 3/4} {key: Am}\n\n// Scarborough Fair (traditional)\n{label: verse}\nAm           G          Am\nAre you going to Scarborough Fair?\nC        G         Am    Em\nParsley, sage, rosemary and thyme\nAm         C        G\nRemember me to one who lives there\nAm        G         D       Am\nFor once she was a true love of mine\n\n{label: verse 2}\nAm         G          Am\nTell her to make me a cambric shirt\nC        G         Am    Em\nParsley, sage, rosemary and thyme\nAm          C          G\nWithout any seam or needlework\nAm        G         D       Am\nAnd then she'll be a true love of mine\n\n{loop: verse 2}\n",
     "start": 0,
-    "text_revision": 6,
+    "text_revision": 7,
     "undo": "reset"
    },
    "type": "TextEdited"
@@ -302,7 +302,7 @@
      "start": 600
     }
    ],
-   "text_revision": 6
+   "text_revision": 7
   },
   "IdentifierState": {
    "candidates": [],
@@ -314,7 +314,7 @@
    "sounding_above": null,
    "sounding_below": null,
    "sounding_seconds": 3.0,
-   "sounding_token": 0,
+   "sounding_token": 1,
    "typed_text_error": null
   },
   "InstrumentMenuState": {

@@ -9,7 +9,7 @@
     "end": 14,
     "replacement": "{bpm: 190} {time: 4/4} {key: C}\n\n// Quick Start Example - Your first chord chart!\n// Chords go on one line, lyrics on the next.\n// Click any chord to hear it, or press Play to hear them all.\n\n{label: verse}\nC        C/E      F      C\nTwinkle, twinkle, little star,\nDm    Am     G        C\nHow I wonder what you are!\n\nC/E Dm       Am       G\nUp above the world so high,\nC/E    F       Am     G\nLike a diamond in the sky.\n\n// Use {loop: label count} to repeat a section\n{loop: verse 2}\n\n// Duration: Add *beats after a chord to hold it longer\nC*2   C/B*2 Am*2 Em/G*2 F*2 Fdim*2 C/E \nWhen  the   blazing     sun is     gone,\nDm*2 Dm/F*2 C/E*2 C/G*2 F/A*2  G/B*2 C\nWhen he     nothing     shines upon.\n\n// That's it! Open the other examples to learn more features.\n",
     "start": 0,
-    "text_revision": 2,
+    "text_revision": 3,
     "undo": "reset"
    },
    "type": "TextEdited"
@@ -325,7 +325,7 @@
      "start": 468
     }
    ],
-   "text_revision": 2
+   "text_revision": 3
   },
   "IdentifierState": {
    "candidates": [],
@@ -337,7 +337,7 @@
    "sounding_above": null,
    "sounding_below": null,
    "sounding_seconds": 3.0,
-   "sounding_token": 0,
+   "sounding_token": 1,
    "typed_text_error": null
   },
   "InstrumentMenuState": {

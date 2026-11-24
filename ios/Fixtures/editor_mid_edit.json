@@ -9,7 +9,7 @@
     "end": 616,
     "replacement": "{bpm: 190} {time: 4/4} {key: C}\n\n// Quick Start Example - Your first chord chart!\n// Chords go on one line, lyrics on the next.\n// Click any chord to hear it, or press Play to hear them all.\n\n{label: verse}\nC        C/E      F      C\nTwinkle, twinkle, little star,\nDm    Am     G        C\nHow I wonder what you are!\n\nC/E Dm       Am       G\nUp above the world so high,\nC/E    F       Am     G\nLike a diamond in the sky.\n\n// Use {loop: label count} to repeat a section\n{loop: verse 2}\n\n// Duration: Add *beats after a chord to hold it longer\nC*2   C/B*2 Am*2 Em/G*2 F*2 Fdim*2 C/E \nWhen  the   blazing     sun is     gone,\nDm*2 Dm/F*2 C/E*2 C/G*2 F/A*2  G/B*2 C\nWhen he     nothing     shines upon.\n\n// That's it! Open the other examples to learn more features.\n",
     "start": 0,
-    "text_revision": 7,
+    "text_revision": 8,
     "undo": "reset"
    },
    "type": "TextEdited"
@@ -21,7 +21,7 @@
     "end": 207,
     "replacement": "{bpm: 1000} {key: G} {key: C}\nC      Gsus9    F/A    G7\n",
     "start": 207,
-    "text_revision": 8,
+    "text_revision": 9,
     "undo": "plain"
    },
    "type": "TextEdited"
@@ -33,7 +33,7 @@
     "end": 424,
     "replacement": "// C/E Dm       Am       G\n// Up above the world so high,",
     "start": 373,
-    "text_revision": 9,
+    "text_revision": 10,
     "undo": "group"
    },
    "type": "TextEdited"
@@ -379,7 +379,7 @@
      "start": 530
     }
    ],
-   "text_revision": 9
+   "text_revision": 10
   },
   "IdentifierState": {
    "candidates": [],
@@ -391,7 +391,7 @@
    "sounding_above": null,
    "sounding_below": null,
    "sounding_seconds": 3.0,
-   "sounding_token": 0,
+   "sounding_token": 1,
    "typed_text_error": null
   },
   "InstrumentMenuState": {

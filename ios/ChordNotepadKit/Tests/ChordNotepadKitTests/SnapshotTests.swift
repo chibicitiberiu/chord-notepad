@@ -41,16 +41,17 @@ final class SnapshotTests: XCTestCase {
 
     func testEveryFixtureFolds() throws {
         let all = try Fixture.all(in: fixtures)
-        XCTAssertEqual(all.map(\.scene), ["capo_advice", "chord_sheet_fret", "chord_sheet_staff",
+        XCTAssertEqual(all.map(\.scene), ["capo_advice", "chord_sheet_fret", "chord_sheet_staff", "colours_edit",
                                           "discard_question", "editor_european", "editor_mid_edit", "empty_song",
                                           "errors", "export_done", "files_recent", "find_replaced", "grace_edit",
-                                          "identifier_cmaj7",
+                                          "grace_fret", "grace_play", "grace_playhead", "grace_playing",
+                                          "grace_playing_metronome", "grace_staff", "grace_tab", "identifier_cmaj7",
                                           "insert_bpm", "insert_capo", "insert_key", "insert_label",
                                           "insert_loop", "insert_time", "play_with_chord_sheet", "player_sheets",
-                                          "quick_start_edit", "scarborough_edit", "scarborough_fret",
-                                          "scarborough_piano_roll", "scarborough_tab", "settings_builtin",
-                                          "settings_open", "settings_voicing_ensemble", "settings_voicing_form",
-                                          "settings_voicing_refused"])
+                                          "quick_start_edit", "quick_start_tour", "scarborough_edit",
+                                          "scarborough_fret", "scarborough_piano_roll", "scarborough_tab",
+                                          "settings_builtin", "settings_open", "settings_voicing_ensemble",
+                                          "settings_voicing_form", "settings_voicing_refused"])
         for fixture in all {
             let snapshot = try fixture.snapshot()
             XCTAssertNotNil(snapshot.editor, fixture.scene)
@@ -63,6 +64,34 @@ final class SnapshotTests: XCTestCase {
                 XCTAssertFalse(snapshot.text.isEmpty, "\(fixture.scene) has a document but no text")
             }
         }
+    }
+
+    func testTheHelpScenesFoldIntoWhatAndroidsScreenshotsShow() throws {
+        func scene(_ name: String) throws -> SessionSnapshot {
+            try Fixture(contentsOf: fixtures.appendingPathComponent("\(name).json")).snapshot()
+        }
+        let tour = try XCTUnwrap(try scene("quick_start_tour").quickStart)
+        XCTAssertEqual(tour.pages.count, 7)
+        // The identifier as a fresh app shows it, and the Voicing sheet on Piano.
+        XCTAssertEqual(try scene("identifier_cmaj7").status?.text, "Ready")
+        XCTAssertEqual(try scene("identifier_cmaj7").identifier?.sounding, [60, 64, 67, 71])
+        XCTAssertEqual(try scene("player_sheets").voicingMenu?.selected, "piano")
+        let playing = try scene("grace_playing")
+        XCTAssertEqual(playing.playback?.status, .playing)
+        XCTAssertEqual(playing.chordSheet?.currentIndex, 5)
+        XCTAssertEqual(playing.toolbar?.metronome, false)
+        let metronome = try scene("grace_playing_metronome")
+        XCTAssertEqual(metronome.toolbar?.metronome, true)
+        XCTAssertEqual(metronome.toolbar?.multiplierPct, 125)
+        for (name, view) in [("grace_play", "keyboard"), ("grace_staff", "staff"), ("grace_fret", "fret"),
+                             ("grace_tab", "tab")] {
+            let sheet = try XCTUnwrap(try scene(name).chordSheet, name)
+            XCTAssertEqual(sheet.activeView, view, name)
+            XCTAssertEqual(sheet.zoom, 1, name)
+            XCTAssertEqual(sheet.height, 330, name)
+        }
+        XCTAssertEqual(try scene("grace_playhead").playback?.status, .idle)
+        XCTAssertEqual(try scene("colours_edit").document?.displayName, "Colours.txt")
     }
 
     func testTheToolScenesFoldIntoWhatTheirDialogsShow() throws {

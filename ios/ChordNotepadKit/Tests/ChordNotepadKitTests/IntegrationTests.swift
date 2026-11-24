@@ -47,6 +47,9 @@ final class IntegrationTests: XCTestCase {
         XCTAssertEqual(audio["initialized"] as? Bool, true, "\(audio)")
         XCTAssertTrue(audio["error"] is NSNull, "\(audio)")
         try await scenes.record("empty_song", "A new, empty song: the replay of every state at start.", from: 0)
+        // The identifier next, while the status is still the start's "Ready",
+        // as in Android's help screenshot (a fresh app).
+        try await recordIdentifier(session, log, scenes)
 
         // -- a draft with a supplementary character: offsets are code points ---------
         let draft = "😀 Am  C\nla la\n"
@@ -441,6 +444,8 @@ final class IntegrationTests: XCTestCase {
 
         try await checkSheetsAndTools(session, log, scenes)
         try await checkSettings(session, log, scenes, filesDir: filesDir)
+        // The guide's scenes before the editor's features, which leave a serif font at 16.
+        try await recordHelpScenes(session, log, scenes)
         try await checkEditorFeatures(session, log, scenes)
 
         // -- every output decoded with the generated types; nothing unexpected -------------
@@ -527,7 +532,7 @@ final class EventLog: @unchecked Sendable {
 /// scene "while playing" is the session's output up to that index (Android's
 /// store screenshots freeze playback the same way, by republishing the states
 /// seen while the chord sounded).
-private func freeze(_ session: Session, _ log: EventLog, chord n: Int, of chords: [Span]) async throws -> Int {
+func freeze(_ session: Session, _ log: EventLog, chord n: Int, of chords: [Span]) async throws -> Int {
     session.submit(.setPlayhead(offset: chords[n].start))
     try await log.wait("the playhead on chord \(n)") {
         guard let state = try? log.decodeLatest(PlaybackState.self, "PlaybackState") else { return false }

@@ -30,13 +30,17 @@ extension IntegrationTests {
         session.submit(.setKey(key: "G"))
         session.submit(.setMultiplierPct(pct: 125))
         session.submit(.setInstrument(program: 25))
-        try await log.wait("the song's defaults, the speed and the instrument") {
+        // Piano, as Android's help screenshots' config has it (the Scarborough
+        // Fair scenes left the standard guitar on).
+        session.submit(.setVoicing(voicing: "piano"))
+        try await log.wait("the song's defaults, the speed, the instrument and the voicing") {
             guard let defaults = try? log.decodeLatest(SongDefaultsState.self, "SongDefaultsState"),
                   let toolbar = try? log.decodeLatest(ToolbarState.self, "ToolbarState"),
-                  let instruments = try? log.decodeLatest(InstrumentMenuState.self, "InstrumentMenuState")
+                  let instruments = try? log.decodeLatest(InstrumentMenuState.self, "InstrumentMenuState"),
+                  let voicings = try? log.decodeLatest(VoicingMenuState.self, "VoicingMenuState")
             else { return false }
             return defaults.time.value == "3/4" && defaults.key.value == "G" && defaults.tempo.fromDirective
-                && toolbar.multiplierPct == 125 && instruments.current == 25
+                && toolbar.multiplierPct == 125 && instruments.current == 25 && voicings.selected == "piano"
         }
         let defaults = try log.decodeLatest(SongDefaultsState.self, "SongDefaultsState")
         XCTAssertEqual(defaults.tempo.value, "90")
@@ -186,8 +190,6 @@ extension IntegrationTests {
         state = try log.decodeLatest(IdentifierState.self, "IdentifierState")
         XCTAssertEqual(Set(state.sounding), [60, 64, 67, 71], "\(state.sounding)")
         await log.waitQuiet()
-        try await scenes.record("identifier_cmaj7", "The chord identifier over Amazing Grace: C, E, G and B selected, "
-                                + "Cmaj7 played.", from: mark)
 
         // -- what the tools do to the song --------------------------------------------
         // The identifier's Insert: the chord and a space at the cursor.

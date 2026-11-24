@@ -9,7 +9,7 @@
     "end": 662,
     "replacement": "{bpm: 90} {time: 3/4} {key: G}\n\n// Amazing Grace (John Newton, 1779)\n{label: verse}\nG           G7        C      G\nAmazing grace, how sweet the sound\nG               Em      D\nThat saved a wretch like me\nG            G7       C      G\nI once was lost, but now am found\nG      Em       D       G\nWas blind, but now I see\n\nG             G7          C        G\n'Twas grace that taught my heart to fear\nG           Em        D\nAnd grace my fears relieved\nG             G7         C       G\nHow precious did that grace appear\nG       Em      D        G\nThe hour I first believed\n\n{loop: verse 2}\n\n// Ending\nC      G/B    Am7    D7sus4  G*6\n",
     "start": 0,
-    "text_revision": 28,
+    "text_revision": 29,
     "undo": "reset"
    },
    "type": "TextEdited"
@@ -1664,7 +1664,7 @@
      "start": 575
     }
    ],
-   "text_revision": 28
+   "text_revision": 29
   },
   "IdentifierState": {
    "candidates": [
@@ -1705,7 +1705,7 @@
    "sounding_above": null,
    "sounding_below": null,
    "sounding_seconds": 3.0,
-   "sounding_token": 1,
+   "sounding_token": 2,
    "typed_text_error": null
   },
   "InstrumentMenuState": {
@@ -2188,7 +2188,7 @@
     ]
    ],
    "locked_reason": null,
-   "selected": "guitar:standard"
+   "selected": "piano"
   }
  }
 }
