@@ -439,6 +439,8 @@ final class IntegrationTests: XCTestCase {
         XCTAssertEqual(vanished.message, "Failed to open file:\nOn My iPhone\n\nFile not found: songs/Morning.txt")
         XCTAssertNil(try log.decodeLatest(DocumentState.self, "DocumentState").documentId, "nothing opened")
 
+        try await checkSheetsAndTools(session, log, scenes)
+
         // -- every output decoded with the generated types; nothing unexpected -------------
         for event in log.events(since: 0) {
             XCTAssertNoThrow(try SessionOutput.decode(typeName: event.typeName, json: event.json),
@@ -556,7 +558,7 @@ private func freeze(_ session: Session, _ log: EventLog, chord n: Int, of chords
 }
 
 /// The chord spans of the newest highlight once it has `count` of them.
-private func waitForChords(_ log: EventLog, since mark: Int, count: Int) async throws -> [Span] {
+func waitForChords(_ log: EventLog, since mark: Int, count: Int) async throws -> [Span] {
     try await log.wait("the song's \(count) chords") {
         (try? log.decode(HighlightState.self, log.latest("HighlightState", since: mark)))?
             .spans.filter { $0.kind == .chord }.count == count
@@ -565,7 +567,7 @@ private func waitForChords(_ log: EventLog, since mark: Int, count: Int) async t
 }
 
 /// The newest `HighlightState` since `mark` once it has spans and `condition` holds for it.
-private func waitForHighlight(_ log: EventLog, since mark: Int, _ what: String,
+func waitForHighlight(_ log: EventLog, since mark: Int, _ what: String,
                               _ condition: @escaping (HighlightState) -> Bool = { _ in true })
     async throws -> HighlightState {
     try await log.wait(what) {
@@ -578,7 +580,7 @@ private func waitForHighlight(_ log: EventLog, since mark: Int, _ what: String,
 }
 
 /// The newest `TextEdited` since `mark` once `condition` holds for it.
-private func waitForEdit(_ log: EventLog, since mark: Int,
+func waitForEdit(_ log: EventLog, since mark: Int,
                          _ condition: @escaping (TextEdited) -> Bool) async throws -> TextEdited {
     try await log.wait("an edit") {
         (try? log.decode(TextEdited.self, log.events(since: mark, type: "TextEdited").last)).map(condition) ?? false
@@ -587,7 +589,7 @@ private func waitForEdit(_ log: EventLog, since mark: Int,
 }
 
 /// The newest `ChordSheetState` once `condition` holds for it.
-private func waitForSheet(_ log: EventLog, _ what: String,
+func waitForSheet(_ log: EventLog, _ what: String,
                           _ condition: @escaping (ChordSheetState) -> Bool) async throws -> ChordSheetState {
     try await log.wait(what, timeout: 30) {
         (try? log.decodeLatest(ChordSheetState.self, "ChordSheetState")).map(condition) ?? false

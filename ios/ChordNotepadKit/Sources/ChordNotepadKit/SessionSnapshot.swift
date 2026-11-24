@@ -27,6 +27,12 @@ public struct SessionSnapshot: Sendable, Equatable {
     public private(set) var instrumentMenu: InstrumentMenuState?
     public private(set) var recentDocuments: RecentDocumentsState?
     public private(set) var settings: SettingsState?
+    /// Suggest Capo's dialog, while `active` (the session holds it, not a request).
+    public private(set) var capoAdvice: CapoAdviceState?
+    /// The chord identifier's notes and candidates.
+    public private(set) var identifier: IdentifierState?
+    /// The newest live check of an Insert dialog's fields (`check_directive`).
+    public private(set) var directiveCheck: DirectiveCheck?
     /// The newest reply to `request_directive_hint`.
     public private(set) var directiveHint: DirectiveHint?
     /// The newest rename the session refused, and how many there were (the
@@ -78,6 +84,12 @@ public struct SessionSnapshot: Sendable, Equatable {
             recentDocuments = state
         case .settingsState(let state):
             settings = state
+        case .capoAdviceState(let state):
+            capoAdvice = state
+        case .identifierState(let state):
+            identifier = state
+        case .directiveCheck(let check):
+            directiveCheck = check
         case .directiveHint(let hint):
             directiveHint = hint
         case .audioUnavailable(let event):

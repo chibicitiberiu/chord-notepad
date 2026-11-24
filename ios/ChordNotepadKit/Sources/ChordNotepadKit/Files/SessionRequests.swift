@@ -35,20 +35,20 @@ public enum SessionRequest: Sendable, Equatable {
 
 /// How the app presents a pending request.
 public enum RequestPresentation: Sendable, Equatable {
-    /// The screen shows a dialog for it (the unsaved-changes question).
+    /// The screen shows a dialog for it (the unsaved-changes question, an
+    /// Insert directive's fields).
     case dialog(SessionRequest)
     /// A document picker, or for an export a file of the store's, answers it.
     case picker(PickDocumentRequest)
-    /// No UI on iOS yet: cancelled at once (the Insert dialogs, which come
-    /// with the ribbon's sheets; a PDF's pages, which need a painter).
+    /// No UI on iOS yet: cancelled at once (a PDF's pages, which need a painter).
     case notYetSupported(SessionRequest)
 }
 
 public func presentationOf(_ request: SessionRequest) -> RequestPresentation {
     switch request {
-    case .confirmDiscard: return .dialog(request)
+    case .confirmDiscard, .insertDirective: return .dialog(request)
     case .pickDocument(let pick): return .picker(pick)
-    case .insertDirective, .paintPdf: return .notYetSupported(request)
+    case .paintPdf: return .notYetSupported(request)
     }
 }
 
@@ -201,6 +201,19 @@ public final class RequestController {
         submit(.respondToConfirmDiscardRequest(requestId: request.requestId, value: answer))
     }
 
+    /// An Insert directive dialog's fields, or nil for Cancel; the session checks them.
+    public func answerDirective(_ request: InsertDirectiveRequest, _ fields: [String: String]?) {
+        answered(request.requestId)
+        submit(.respondToInsertDirectiveRequest(requestId: request.requestId, value: fields))
+    }
+
+    /// Ask the session whether an Insert dialog's `fields` make a valid
+    /// directive (reply: `DirectiveCheck`); the request stays pending.
+    public func checkDirective(_ request: InsertDirectiveRequest, _ fields: [String: String]) {
+        submit(.checkDirective(fields: .object(fields.mapValues { .string($0) }), kind: request.kind,
+                               requestId: request.requestId))
+    }
+
     /// Cancel `request` (dismissed, or no UI for it).
     public func cancel(_ request: SessionRequest) {
         switch request {
@@ -209,8 +222,7 @@ public final class RequestController {
         case .pickDocument(let pick):
             respondPick(pick.requestId, nil)
         case .insertDirective(let insert):
-            answered(insert.requestId)
-            submit(.respondToInsertDirectiveRequest(requestId: insert.requestId, value: nil))
+            answerDirective(insert, nil)
         case .paintPdf(let paint):
             answered(paint.requestId)
             submit(.respondToPaintPdfRequest(requestId: paint.requestId, value: nil))

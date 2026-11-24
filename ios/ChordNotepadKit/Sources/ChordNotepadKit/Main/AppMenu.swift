@@ -127,9 +127,18 @@ public enum MainRoute: Sendable, Hashable {
     /// The bundled example songs (Android's Examples sheet).
     case examples
     case voicing
-    case instrument
-    case speed
+    /// The families (`family` nil) or one family's programs.
+    case instrument(family: Int?)
+    /// The speed sheet; `manual` is the typed-value dialog on top of it.
+    case speed(manual: Bool)
+    /// The song pill's Playback settings.
     case songDefaults
+    /// The ribbon's ＋ Insert.
+    case insert
+    /// Transpose, for the selection or the whole song.
+    case transpose(selection: Bool)
+    /// The chord identifier.
+    case identify
 }
 
 /// The main screen's own state, which the session doesn't keep: the tab, what
@@ -144,6 +153,8 @@ public struct MainUiState: Sendable, Equatable {
     public var renameRefusal: String?
     /// The rename dialog's field (the catalog's scene shows one typed).
     public var renameInput: String?
+    /// The sheets' and the tools' dialogs' fields (``handle(_:snapshot:editor:)``).
+    public var tools = ToolsUiState()
 
     public var mode: AppMode { modes.mode }
 

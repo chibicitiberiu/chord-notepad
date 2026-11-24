@@ -5,8 +5,9 @@ import XCTest
 
 /// Android's `RequestControllerTest` and `DocumentPickersTest` as behaviour,
 /// with iOS's pickers: Save As moves a file the app made, an export is
-/// answered with the store's file at once, and the requests iOS has no UI
-/// for yet (Insert, a PDF's pages) are cancelled.
+/// answered with the store's file at once, an Insert directive's fields are
+/// checked and answered from its dialog, and a PDF's pages (no painter yet)
+/// are cancelled.
 @MainActor
 final class SessionRequestsTests: XCTestCase {
     private var snapshot = SessionSnapshot()
@@ -121,7 +122,7 @@ final class SessionRequestsTests: XCTestCase {
         XCTAssertEqual(presentationOf(.pickDocument(pick(2, .open))), .picker(pick(2, .open)))
         let insert = SessionRequest.insertDirective(InsertDirectiveRequest(
             existingLabels: [], keyOptions: [], kind: "bpm", notation: "american", requestId: 4))
-        XCTAssertEqual(presentationOf(insert), .notYetSupported(insert))
+        XCTAssertEqual(presentationOf(insert), .dialog(insert))
         XCTAssertEqual(presentationOf(.paintPdf(paint(5))), .notYetSupported(.paintPdf(paint(5))))
     }
 
@@ -248,16 +249,40 @@ final class SessionRequestsTests: XCTestCase {
 
     func testRequestsWithoutAnIOSScreenAreCancelledOnce() async {
         let c = controller()
+        pend(.paintPdfRequest(paint(22)))
+        XCTAssertNil(c.onPending(snapshot.request))
+        assertResponded(22, nil)
+        XCTAssertNil(c.onPending(.paintPdf(paint(22))), "seen again: not cancelled twice")
+        XCTAssertTrue(sent.isEmpty)
+    }
+
+    func testAnInsertDialogChecksItsFieldsAndAnswersThem() async {
+        // Android's SessionRequests: the dialog stays until it is answered;
+        // the fields go to check_directive as they change, Insert answers them.
+        let c = controller()
         let insert = InsertDirectiveRequest(existingLabels: ["verse"], keyOptions: [], kind: "label",
                                             notation: "american", requestId: 21)
         pend(.insertDirectiveRequest(insert))
         XCTAssertNil(c.onPending(snapshot.request))
+        XCTAssertTrue(sent.isEmpty, "not cancelled: the screen shows its dialog")
+        XCTAssertEqual(snapshot.request, .insertDirective(insert))
+        c.checkDirective(insert, ["label": "chorus"])
+        let (name, args) = sent.removeFirst()
+        XCTAssertEqual(name, "check_directive")
+        XCTAssertEqual(args["kind"] as? String, "label")
+        XCTAssertEqual(args["request_id"] as? Int, 21)
+        XCTAssertEqual(args["fields"] as? [String: String], ["label": "chorus"])
+        XCTAssertEqual(snapshot.request, .insertDirective(insert), "a check leaves the request pending")
+        c.answerDirective(insert, ["label": "chorus"])
+        let (respond, answer) = sent.removeFirst()
+        XCTAssertEqual(respond, "respond")
+        XCTAssertEqual(answer["request_id"] as? Int, 21)
+        XCTAssertEqual(answer["value"] as? [String: String], ["label": "chorus"])
+        XCTAssertNil(snapshot.request)
+        // Cancel answers null.
+        pend(.insertDirectiveRequest(insert))
+        c.cancel(.insertDirective(insert))
         assertResponded(21, nil)
-        XCTAssertNil(c.onPending(.insertDirective(insert)), "seen again: not cancelled twice")
-        XCTAssertTrue(sent.isEmpty)
-        pend(.paintPdfRequest(paint(22)))
-        XCTAssertNil(c.onPending(snapshot.request))
-        assertResponded(22, nil)
     }
 
     func testCancelAnswersEveryKindWithNullOrCancel() async {

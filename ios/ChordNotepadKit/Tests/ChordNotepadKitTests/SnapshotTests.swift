@@ -41,9 +41,12 @@ final class SnapshotTests: XCTestCase {
 
     func testEveryFixtureFolds() throws {
         let all = try Fixture.all(in: fixtures)
-        XCTAssertEqual(all.map(\.scene), ["chord_sheet_fret", "chord_sheet_staff", "discard_question",
-                                          "editor_european", "editor_mid_edit", "empty_song", "errors",
-                                          "export_done", "files_recent", "play_with_chord_sheet",
+        XCTAssertEqual(all.map(\.scene), ["capo_advice", "chord_sheet_fret", "chord_sheet_staff",
+                                          "discard_question", "editor_european", "editor_mid_edit", "empty_song",
+                                          "errors", "export_done", "files_recent", "grace_edit",
+                                          "identifier_cmaj7",
+                                          "insert_bpm", "insert_capo", "insert_key", "insert_label",
+                                          "insert_loop", "insert_time", "play_with_chord_sheet", "player_sheets",
                                           "quick_start_edit", "scarborough_edit", "scarborough_fret",
                                           "scarborough_piano_roll", "scarborough_tab"])
         for fixture in all {
@@ -58,6 +61,37 @@ final class SnapshotTests: XCTestCase {
                 XCTAssertFalse(snapshot.text.isEmpty, "\(fixture.scene) has a document but no text")
             }
         }
+    }
+
+    func testTheToolScenesFoldIntoWhatTheirDialogsShow() throws {
+        func scene(_ name: String) throws -> SessionSnapshot {
+            try Fixture(contentsOf: fixtures.appendingPathComponent("\(name).json")).snapshot()
+        }
+        // Each Insert scene ends on its pending request; two carry the session's check.
+        for kind in DirectiveKind.allCases {
+            let snapshot = try scene("insert_\(kind.wire)")
+            guard case .insertDirective(let request)? = snapshot.request else {
+                return XCTFail("insert_\(kind.wire): no pending request")
+            }
+            XCTAssertEqual(request.kind, kind.wire)
+            XCTAssertTrue(snapshot.text.contains("Amazing grace"), kind.wire)
+        }
+        let bpm = try scene("insert_bpm")
+        XCTAssertEqual(bpm.directiveCheck?.kind, "bpm")
+        XCTAssertEqual(bpm.directiveCheck?.formError, "")
+        for name in ["grace_edit", "capo_advice", "identifier_cmaj7"] {
+            XCTAssertNil(try scene(name).request, "\(name): no Insert dialog over it")
+        }
+        let advice = try XCTUnwrap(try scene("capo_advice").capoAdvice)
+        XCTAssertTrue(advice.active)
+        XCTAssertEqual(advice.rows.first?.capo, 0, "Amazing Grace in G: no capo is the easiest")
+        let identifier = try XCTUnwrap(try scene("identifier_cmaj7").identifier)
+        XCTAssertEqual(identifier.candidates.first, "Cmaj7")
+        XCTAssertEqual(identifier.notesText, "C E G B")
+        let sheets = try scene("player_sheets")
+        XCTAssertEqual(sheets.toolbar?.multiplierPct, 125)
+        XCTAssertEqual(sheets.songDefaults?.summary, "90 · 3/4 · G")
+        XCTAssertEqual(sheets.instrumentMenu?.current, 25)
     }
 
     func testTheQuickStartFixtureHasItsText() throws {

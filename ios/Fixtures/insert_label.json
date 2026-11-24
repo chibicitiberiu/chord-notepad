@@ -1,0 +1,813 @@
+{
+ "chord_sheet_buffers": [],
+ "description": "Amazing Grace in Edit with ＋ Insert › Label (section)'s dialog pending, the cursor after “me”, fields checked: [\"label\": \"chorus\"].",
+ "events": [
+  {
+   "json": {
+    "anchor": null,
+    "cursor": 635,
+    "end": 635,
+    "replacement": "{bpm: 90} {time: 3/4} {key: G}\n\n// Amazing Grace (John Newton, 1779)\n{label: verse}\nG           G7        C      G\nAmazing grace, how sweet the sound\nG               Em      D\nThat saved a wretch like me\nG            G7       C      G\nI once was lost, but now am found\nG      Em       D       G\nWas blind, but now I see\n\nG             G7          C        G\n'Twas grace that taught my heart to fear\nG           Em        D\nAnd grace my fears relieved\nG             G7         C       G\nHow precious did that grace appear\nG       Em      D        G\nThe hour I first believed\n\n{loop: verse 2}\n\n// Ending\nC      G/B    Am7    D7sus4  G*6\n",
+    "start": 0,
+    "text_revision": 21,
+    "undo": "reset"
+   },
+   "type": "TextEdited"
+  },
+  {
+   "json": {
+    "existing_labels": [
+     "verse"
+    ],
+    "key_options": [],
+    "kind": "bpm",
+    "notation": "american",
+    "request_id": 6
+   },
+   "type": "InsertDirectiveRequest"
+  },
+  {
+   "json": {
+    "errors": {
+     "value": "BPM must be between 20 and 400."
+    },
+    "fields": {
+     "value": "999"
+    },
+    "form_error": "",
+    "kind": "bpm",
+    "request_id": 6
+   },
+   "type": "DirectiveCheck"
+  },
+  {
+   "json": {
+    "existing_labels": [
+     "verse"
+    ],
+    "key_options": [],
+    "kind": "time",
+    "notation": "american",
+    "request_id": 7
+   },
+   "type": "InsertDirectiveRequest"
+  },
+  {
+   "json": {
+    "existing_labels": [
+     "verse"
+    ],
+    "key_options": [
+     "C",
+     "G",
+     "D",
+     "A",
+     "E",
+     "B",
+     "F#",
+     "C#",
+     "F",
+     "Bb",
+     "Eb",
+     "Ab",
+     "Db",
+     "Gb",
+     "Cb",
+     "Am",
+     "Em",
+     "Bm",
+     "F#m",
+     "C#m",
+     "G#m",
+     "D#m",
+     "A#m",
+     "Dm",
+     "Gm",
+     "Cm",
+     "Fm",
+     "Bbm",
+     "Ebm",
+     "Abm"
+    ],
+    "kind": "key",
+    "notation": "american",
+    "request_id": 8
+   },
+   "type": "InsertDirectiveRequest"
+  },
+  {
+   "json": {
+    "existing_labels": [
+     "verse"
+    ],
+    "key_options": [],
+    "kind": "capo",
+    "notation": "american",
+    "request_id": 9
+   },
+   "type": "InsertDirectiveRequest"
+  },
+  {
+   "json": {
+    "existing_labels": [
+     "verse"
+    ],
+    "key_options": [],
+    "kind": "label",
+    "notation": "american",
+    "request_id": 10
+   },
+   "type": "InsertDirectiveRequest"
+  },
+  {
+   "json": {
+    "errors": {},
+    "fields": {
+     "label": "chorus"
+    },
+    "form_error": "",
+    "kind": "label",
+    "request_id": 10
+   },
+   "type": "DirectiveCheck"
+  }
+ ],
+ "scene": "insert_label",
+ "states": {
+  "CapoAdviceState": {
+   "active": false,
+   "message": "",
+   "playing": false,
+   "rows": [],
+   "scope": "",
+   "status": "ready",
+   "voicing": "",
+   "voicings": []
+  },
+  "ChordSheetState": {
+   "active_view": "tab",
+   "current_index": null,
+   "cursor_index": null,
+   "disabled_reason": null,
+   "height": 330,
+   "song_revision": 9,
+   "views": [
+    {
+     "available": true,
+     "label": "Piano roll",
+     "view_id": "keyboard"
+    },
+    {
+     "available": true,
+     "label": "Staff",
+     "view_id": "staff"
+    },
+    {
+     "available": true,
+     "label": "Fret cards",
+     "view_id": "fret"
+    },
+    {
+     "available": true,
+     "label": "Tab",
+     "view_id": "tab"
+    }
+   ],
+   "visible": false,
+   "zoom": 0.833,
+   "zoom_supported": true
+  },
+  "DocumentState": {
+   "display_name": "Amazing Grace.txt",
+   "document_id": "Amazing Grace.txt",
+   "is_modified": false,
+   "location": "On My iPhone",
+   "read_only": false,
+   "title": "Amazing Grace.txt - Chord Notepad"
+  },
+  "EditorState": {
+   "font_family": "TkFixedFont",
+   "font_size": 11,
+   "notation": "american",
+   "read_only": false,
+   "word_wrap": false
+  },
+  "HighlightState": {
+   "client_token": 0,
+   "spans": [
+    {
+     "end": 68,
+     "kind": "comment",
+     "message": "",
+     "start": 32
+    },
+    {
+     "end": 601,
+     "kind": "comment",
+     "message": "",
+     "start": 592
+    },
+    {
+     "end": 85,
+     "kind": "chord",
+     "message": "",
+     "start": 84
+    },
+    {
+     "end": 98,
+     "kind": "chord",
+     "message": "",
+     "start": 96
+    },
+    {
+     "end": 107,
+     "kind": "chord",
+     "message": "",
+     "start": 106
+    },
+    {
+     "end": 114,
+     "kind": "chord",
+     "message": "",
+     "start": 113
+    },
+    {
+     "end": 151,
+     "kind": "chord",
+     "message": "",
+     "start": 150
+    },
+    {
+     "end": 168,
+     "kind": "chord",
+     "message": "",
+     "start": 166
+    },
+    {
+     "end": 175,
+     "kind": "chord",
+     "message": "",
+     "start": 174
+    },
+    {
+     "end": 205,
+     "kind": "chord",
+     "message": "",
+     "start": 204
+    },
+    {
+     "end": 219,
+     "kind": "chord",
+     "message": "",
+     "start": 217
+    },
+    {
+     "end": 227,
+     "kind": "chord",
+     "message": "",
+     "start": 226
+    },
+    {
+     "end": 234,
+     "kind": "chord",
+     "message": "",
+     "start": 233
+    },
+    {
+     "end": 270,
+     "kind": "chord",
+     "message": "",
+     "start": 269
+    },
+    {
+     "end": 278,
+     "kind": "chord",
+     "message": "",
+     "start": 276
+    },
+    {
+     "end": 286,
+     "kind": "chord",
+     "message": "",
+     "start": 285
+    },
+    {
+     "end": 294,
+     "kind": "chord",
+     "message": "",
+     "start": 293
+    },
+    {
+     "end": 322,
+     "kind": "chord",
+     "message": "",
+     "start": 321
+    },
+    {
+     "end": 337,
+     "kind": "chord",
+     "message": "",
+     "start": 335
+    },
+    {
+     "end": 348,
+     "kind": "chord",
+     "message": "",
+     "start": 347
+    },
+    {
+     "end": 357,
+     "kind": "chord",
+     "message": "",
+     "start": 356
+    },
+    {
+     "end": 400,
+     "kind": "chord",
+     "message": "",
+     "start": 399
+    },
+    {
+     "end": 413,
+     "kind": "chord",
+     "message": "",
+     "start": 411
+    },
+    {
+     "end": 422,
+     "kind": "chord",
+     "message": "",
+     "start": 421
+    },
+    {
+     "end": 452,
+     "kind": "chord",
+     "message": "",
+     "start": 451
+    },
+    {
+     "end": 467,
+     "kind": "chord",
+     "message": "",
+     "start": 465
+    },
+    {
+     "end": 477,
+     "kind": "chord",
+     "message": "",
+     "start": 476
+    },
+    {
+     "end": 485,
+     "kind": "chord",
+     "message": "",
+     "start": 484
+    },
+    {
+     "end": 522,
+     "kind": "chord",
+     "message": "",
+     "start": 521
+    },
+    {
+     "end": 531,
+     "kind": "chord",
+     "message": "",
+     "start": 529
+    },
+    {
+     "end": 538,
+     "kind": "chord",
+     "message": "",
+     "start": 537
+    },
+    {
+     "end": 547,
+     "kind": "chord",
+     "message": "",
+     "start": 546
+    },
+    {
+     "end": 603,
+     "kind": "chord",
+     "message": "",
+     "start": 602
+    },
+    {
+     "end": 612,
+     "kind": "chord",
+     "message": "",
+     "start": 609
+    },
+    {
+     "end": 619,
+     "kind": "chord",
+     "message": "",
+     "start": 616
+    },
+    {
+     "end": 629,
+     "kind": "chord",
+     "message": "",
+     "start": 623
+    },
+    {
+     "end": 634,
+     "kind": "chord",
+     "message": "",
+     "start": 631
+    },
+    {
+     "end": 9,
+     "kind": "directive",
+     "message": "",
+     "start": 0
+    },
+    {
+     "end": 21,
+     "kind": "directive",
+     "message": "",
+     "start": 10
+    },
+    {
+     "end": 30,
+     "kind": "directive",
+     "message": "",
+     "start": 22
+    },
+    {
+     "end": 83,
+     "kind": "directive",
+     "message": "",
+     "start": 69
+    },
+    {
+     "end": 590,
+     "kind": "directive",
+     "message": "",
+     "start": 575
+    }
+   ],
+   "text_revision": 21
+  },
+  "IdentifierState": {
+   "candidates": [],
+   "message": "Select notes to identify chords...",
+   "notation": "american",
+   "notes": [],
+   "notes_text": "",
+   "sounding": [],
+   "sounding_above": null,
+   "sounding_below": null,
+   "sounding_seconds": 3.0,
+   "sounding_token": 0,
+   "typed_text_error": null
+  },
+  "InstrumentMenuState": {
+   "current": 25,
+   "families": [
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Piano"
+    },
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Chromatic Percussion"
+    },
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Organ"
+    },
+    {
+     "is_current": true,
+     "items": [],
+     "name": "Guitar"
+    },
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Bass"
+    },
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Strings"
+    },
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Ensemble"
+    },
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Brass"
+    },
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Reed"
+    },
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Pipe"
+    },
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Synth Lead"
+    },
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Synth Pad"
+    },
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Synth Effects"
+    },
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Ethnic"
+    },
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Percussive"
+    },
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Sound Effects"
+    }
+   ]
+  },
+  "PlaybackState": {
+   "bar": 0,
+   "beat": 0,
+   "chord_index": null,
+   "key": "G",
+   "playhead_offset": 84,
+   "playing_span": null,
+   "sections": [
+    {
+     "first_bar": 1,
+     "label": "verse",
+     "last_bar": 14,
+     "repeat": false
+    },
+    {
+     "first_bar": 15,
+     "label": "verse 2",
+     "last_bar": 28,
+     "repeat": false
+    },
+    {
+     "first_bar": 29,
+     "label": "verse",
+     "last_bar": 42,
+     "repeat": true
+    },
+    {
+     "first_bar": 43,
+     "label": "verse 2",
+     "last_bar": 56,
+     "repeat": false
+    }
+   ],
+   "status": "idle",
+   "tempo_clamped": null,
+   "time_signature": [
+    3,
+    4
+   ],
+   "total_bars": 0
+  },
+  "RecentDocumentsState": {
+   "items": [
+    {
+     "display_name": "Lullaby (2).txt",
+     "id": "songs/Lullaby (2).txt",
+     "location": "On My iPhone"
+    },
+    {
+     "display_name": "Lullaby.txt",
+     "id": "songs/Lullaby.txt",
+     "location": "On My iPhone"
+    },
+    {
+     "display_name": "Evening.txt",
+     "id": "songs/Evening.txt",
+     "location": "On My iPhone"
+    },
+    {
+     "display_name": "Morning.txt",
+     "id": "songs/Morning.txt",
+     "location": "On My iPhone"
+    },
+    {
+     "display_name": "song.txt",
+     "id": "song.txt",
+     "location": "On My iPhone"
+    }
+   ]
+  },
+  "SettingsState": {
+   "american_keys": [
+    "C",
+    "C#",
+    "Db",
+    "D",
+    "D#",
+    "Eb",
+    "E",
+    "F",
+    "F#",
+    "Gb",
+    "G",
+    "G#",
+    "Ab",
+    "A",
+    "A#",
+    "Bb",
+    "B"
+   ],
+   "bpm_max": 400,
+   "bpm_min": 20,
+   "european_keys": [
+    "Do",
+    "Do#",
+    "Reb",
+    "Re",
+    "Re#",
+    "Mib",
+    "Mi",
+    "Fa",
+    "Fa#",
+    "Solb",
+    "Sol",
+    "Sol#",
+    "Lab",
+    "La",
+    "La#",
+    "Sib",
+    "Si"
+   ],
+   "font_size_max": 72,
+   "font_size_min": 6,
+   "max_recent_files_max": 50,
+   "time_signature_units": [
+    1,
+    2,
+    4,
+    8,
+    16
+   ],
+   "values": {
+    "bpm": 120,
+    "click_plays_chart_voicing": true,
+    "font_family": "TkFixedFont",
+    "font_size": 11,
+    "key": "C",
+    "max_recent_files": 10,
+    "notation": "american",
+    "show_quick_start_on_startup": true,
+    "time_signature_beats": 4,
+    "time_signature_unit": 4,
+    "word_wrap": false
+   }
+  },
+  "SongDefaultsState": {
+   "key": {
+    "directive_offset": 22,
+    "from_directive": true,
+    "value": "G"
+   },
+   "locked_reason": null,
+   "summary": "90 · 3/4 · G",
+   "tempo": {
+    "directive_offset": 0,
+    "from_directive": true,
+    "value": "90"
+   },
+   "time": {
+    "directive_offset": 10,
+    "from_directive": true,
+    "value": "3/4"
+   }
+  },
+  "StatusState": {
+   "text": "Inserted: {time: 3/4} {key: G}"
+  },
+  "ToolbarState": {
+   "beats": 3,
+   "bpm": 90,
+   "bpm_display": 90,
+   "bpm_editable": false,
+   "bpm_set_by": "{bpm: 90}",
+   "key": "G",
+   "key_options": [
+    "C",
+    "C#",
+    "Db",
+    "D",
+    "D#",
+    "Eb",
+    "E",
+    "F",
+    "F#",
+    "Gb",
+    "G",
+    "G#",
+    "Ab",
+    "A",
+    "A#",
+    "Bb",
+    "B"
+   ],
+   "key_set_by": "{key: G}",
+   "metronome": false,
+   "multiplier_pct": 100.0,
+   "notation": "american",
+   "play_action": "play",
+   "time_set_by": "{time: 3/4}",
+   "unit": 4
+  },
+  "VoicingEditorState": {
+   "active": false,
+   "dirty": false,
+   "field_errors": {},
+   "form_errors": [],
+   "groups": [],
+   "hints": {},
+   "invalid": [],
+   "model": null,
+   "presets": [],
+   "problems": [],
+   "read_only": false,
+   "restored": false,
+   "revision": 0,
+   "selected": null,
+   "staged_numbers": {},
+   "values": {}
+  },
+  "VoicingMenuState": {
+   "groups": [
+    [
+     {
+      "label": "Piano",
+      "value": "piano"
+     }
+    ],
+    [
+     {
+      "label": "Guitar (Standard - EADGBE)",
+      "value": "guitar:standard"
+     },
+     {
+      "label": "Guitar (Drop D)",
+      "value": "guitar:drop_d"
+     },
+     {
+      "label": "Guitar (DADGAD)",
+      "value": "guitar:dadgad"
+     },
+     {
+      "label": "Guitar (Open G)",
+      "value": "guitar:open_g"
+     },
+     {
+      "label": "Ukulele",
+      "value": "guitar:ukulele"
+     }
+    ],
+    [
+     {
+      "label": "Choir (SATB)",
+      "value": "ensemble:satb"
+     },
+     {
+      "label": "Male Choir (TTBB)",
+      "value": "ensemble:ttbb"
+     },
+     {
+      "label": "Treble Choir (SSA)",
+      "value": "ensemble:ssa"
+     },
+     {
+      "label": "String Quartet",
+      "value": "ensemble:quartet"
+     }
+    ]
+   ],
+   "locked_reason": null,
+   "selected": "guitar:standard"
+  }
+ }
+}
