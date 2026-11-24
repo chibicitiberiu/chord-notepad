@@ -91,11 +91,64 @@ enum PreviewCatalog {
         CatalogScreen("diagnostics", fixtures: ["empty_song"]) { _, _ in
             SelfTestContent(report: .sample, timings: SelfTestReport.sample.timings, running: false, scrolls: false)
         },
-        CatalogScreen("voicing", fixtures: ["scarborough_fret"], devices: [CatalogRenderer.devices[0]]) { scene, _ in
-            CatalogColors { VoicingSheet(state: scene.snapshot.voicingMenu, colors: $0, scrolls: false) }
+        // The player's sheets over Play, as Android's help screenshots show them (Amazing Grace,
+        // speed 125 %, Steel Guitar, 3/4 and G as the song's own values).
+        CatalogScreen("voicing", fixtures: ["player_sheets"]) { scene, _ in
+            PreviewCatalog.mainScreen(scene, MainUiState(mode: .play, route: .voicing))
         },
-        CatalogScreen("instrument", fixtures: ["scarborough_fret"], devices: [CatalogRenderer.devices[0]]) { scene, _ in
-            CatalogColors { InstrumentSheet(state: scene.snapshot.instrumentMenu, colors: $0, scrolls: false) }
+        CatalogScreen("instrument", fixtures: ["player_sheets"]) { scene, _ in
+            PreviewCatalog.mainScreen(scene, MainUiState(mode: .play, route: .instrument(family: nil)))
+        },
+        // A family's programs: Guitar, Steel Guitar chosen.
+        CatalogScreen("instrument_programs", fixtures: ["player_sheets"]) { scene, _ in
+            PreviewCatalog.mainScreen(scene, MainUiState(mode: .play, route: .instrument(family: 3)))
+        },
+        CatalogScreen("speed", fixtures: ["player_sheets"]) { scene, _ in
+            PreviewCatalog.mainScreen(scene, MainUiState(mode: .play, route: .speed(manual: false)))
+        },
+        CatalogScreen("speed_manual", fixtures: ["player_sheets"]) { scene, _ in
+            var ui = MainUiState(mode: .play, route: .speed(manual: true))
+            ui.tools.speedEntry = SpeedEntry(pct: scene.snapshot.toolbar?.multiplierPct ?? 100)
+            return PreviewCatalog.mainScreen(scene, ui)
+        },
+        CatalogScreen("song_defaults", fixtures: ["player_sheets"]) { scene, _ in
+            PreviewCatalog.mainScreen(scene, MainUiState(mode: .play, route: .songDefaults))
+        },
+        // The ribbon's tools over Edit.
+        CatalogScreen("insert_sheet", fixtures: ["grace_edit"]) { scene, _ in
+            PreviewCatalog.mainScreen(scene, MainUiState(mode: .edit, route: .insert))
+        },
+        // Transpose for the whole song, two semitones up (Android's transpose shot).
+        CatalogScreen("transpose", fixtures: ["grace_edit"]) { scene, _ in
+            var ui = MainUiState(mode: .edit, route: .transpose(selection: false))
+            ui.tools.transpose = TransposeForm(semitones: 2)
+            return PreviewCatalog.mainScreen(scene, ui)
+        },
+        // Each Insert dialog as it opens, from the session's pending request.
+        CatalogScreen("insert", fixtures: DirectiveKind.allCases.map { "insert_\($0.wire)" },
+                      devices: [CatalogRenderer.devices[0]]) { scene, _ in
+            PreviewCatalog.mainScreen(scene, MainUiState(mode: .edit))
+        },
+        // The tempo typed out of range: the session's check under the field, Insert off.
+        CatalogScreen("insert_error", fixtures: ["insert_bpm"]) { scene, _ in
+            var ui = MainUiState(mode: .edit)
+            if case .insertDirective(let request)? = scene.snapshot.request,
+               var state = ui.directiveForm(for: request, snapshot: scene.snapshot) {
+                state.form.bpm = scene.snapshot.directiveCheck?.fields["value"]?.stringValue ?? ""
+                ui.tools.directive = state
+            }
+            return PreviewCatalog.mainScreen(scene, ui)
+        },
+        CatalogScreen("capo", fixtures: ["capo_advice"]) { scene, _ in
+            PreviewCatalog.mainScreen(scene, MainUiState(mode: .edit))
+        },
+        // C, E, G and B selected, Cmaj7 picked and sounding: full screen on the iPhone (side by
+        // side on its side), a card on the iPad.
+        CatalogScreen("identify", fixtures: ["identifier_cmaj7"],
+                      devices: CatalogRenderer.upright + [CatalogRenderer.iphoneLandscape]) { scene, _ in
+            var ui = MainUiState(mode: .edit, route: .identify)
+            ui.tools.identifier = IdentifierModel(typed: scene.snapshot.identifier?.notesText ?? "", picked: "Cmaj7")
+            return PreviewCatalog.mainScreen(scene, ui)
         },
     ]
 

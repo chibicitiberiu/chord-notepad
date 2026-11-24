@@ -4,8 +4,9 @@ import SwiftUI
 import UIKit
 
 /// The live main screen: ``MainScreen`` over the app's session, with the
-/// sheets it opens (Diagnostics, the player's pickers) and the keyboard's
-/// height for the collapsing header.
+/// system sheets it opens (Diagnostics, Examples) and the keyboard's height
+/// for the collapsing header. The player's sheets and the tools are the
+/// screen's own (`MainScreen`).
 struct MainView: View {
     @ObservedObject var model: AppModel
     /// The model's editor, observed for the ribbon (undo, redo, notation).
@@ -21,16 +22,6 @@ struct MainView: View {
             .sheet(isPresented: route(.diagnostics)) {
                 DiagnosticsView(model: model)
             }
-            .sheet(isPresented: route(.voicing)) {
-                VoicingSheet(state: model.snapshot.voicingMenu, colors: colors, choose: model.setVoicing,
-                             done: close)
-                    .presentationDetents([.medium, .large])
-            }
-            .sheet(isPresented: route(.instrument)) {
-                InstrumentSheet(state: model.snapshot.instrumentMenu, colors: colors, choose: model.setInstrument,
-                                done: close)
-                    .presentationDetents([.medium, .large])
-            }
             .sheet(isPresented: route(.examples)) {
                 ExamplesSheet(names: AppDocumentStore.exampleNames, colors: colors,
                               choose: { name in
@@ -39,16 +30,6 @@ struct MainView: View {
                               },
                               done: close)
                     .presentationDetents([.medium, .large])
-            }
-            .sheet(isPresented: route(.speed)) {
-                ValuesSheet(title: "Speed", rows: ValuesSheet.speed(model.snapshot.toolbar), colors: colors,
-                            done: close)
-                    .presentationDetents([.medium])
-            }
-            .sheet(isPresented: route(.songDefaults)) {
-                ValuesSheet(title: "Playback settings", rows: ValuesSheet.songDefaults(model.snapshot.songDefaults),
-                            colors: colors, done: close)
-                    .presentationDetents([.medium])
             }
             .onChange(of: model.ui.route) { _, route in
                 if route == .rename {
@@ -103,13 +84,13 @@ struct MainView: View {
                                   rename: { open(.rename) },
                                   mode: { model.selectMode($0) },
                                   save: { model.save() }),
-            player: PlayerActions(songDefaults: { open(.songDefaults) },
-                                  voicing: { open(.voicing) },
-                                  instrument: { open(.instrument) },
+            player: PlayerActions(songDefaults: { model.sheet(.open(.songDefaults)) },
+                                  voicing: { model.sheet(.open(.voicing)) },
+                                  instrument: { model.sheet(.open(.instrument(family: nil))) },
                                   rewind: { model.rewind() },
                                   playPause: { model.playPause() },
                                   toggleMetronome: { model.toggleMetronome() },
-                                  speed: { open(.speed) },
+                                  speed: { model.sheet(.open(.speed(manual: false))) },
                                   toggleSheet: { model.toggleChordSheet() }),
             ribbon: { editor.perform($0) },
             chordSheet: ChordSheetActions(
@@ -126,6 +107,7 @@ struct MainView: View {
             },
             discard: { model.answerDiscard($0) },
             dismissSnackbar: { model.dismissSnackbar($0) },
-            notice: { model.notice($0) })
+            notice: { model.notice($0) },
+            sheet: { model.sheet($0) })
     }
 }

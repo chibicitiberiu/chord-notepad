@@ -152,6 +152,9 @@ final class AppModel: ObservableObject {
             case "menu":
                 // CI's screenshot of the menu, over the song.
                 ui.route = .menu
+            case "speed", "insert", "capo", "identify":
+                // CI's screenshots of a sheet or a tool, live.
+                Task { await self.runToolScreen(AppEnvironment.startScreen ?? "") }
             default:
                 break
             }
@@ -219,6 +222,7 @@ final class AppModel: ObservableObject {
             let previousName = snapshot.document?.displayName
             snapshot.apply(output)
             editor.receive(output)
+            ui.received(output)
             switch output {
             case .documentState(let document):
                 ui.modes.onDocument(document)
@@ -358,12 +362,22 @@ final class AppModel: ObservableObject {
         session?.submit(.renameDocument(name: name))
     }
 
-    func setVoicing(_ value: String) {
-        session?.submit(.setVoicing(voicing: value))
-    }
-
-    func setInstrument(_ program: Int) {
-        session?.submit(.setInstrument(program: program))
+    /// A tap in the player's sheets, the ribbon's tools or their dialogs: the
+    /// kit's reducer decides the route, the fields and the commands (the
+    /// editor's text first when a tool reads it).
+    func sheet(_ event: SheetEvent) {
+        let current = snapshot
+        var effects = SheetEffects()
+        editor.run { model in
+            effects = ui.handle(event, snapshot: current, editor: &model)
+            return effects.commands
+        }
+        if let id = effects.answered { snapshot.requestAnswered(id) }
+        if let notice = effects.notice { self.notice(notice) }
+        if let offset = effects.editAt {
+            selectMode(.edit)
+            editor.placeCursor(codePoint: offset)
+        }
     }
 
     /// A menu entry: only what the iOS app has now (``AppMenu/available``).
@@ -614,6 +628,52 @@ final class AppModel: ObservableObject {
         }
     }
 
+    /// `-CNScreen speed|insert|capo|identify` (CI): once the song is on
+    /// screen, open that sheet or tool as a person would (the speed at 125 %,
+    /// Insert › Tempo, Suggest Capo scored, the identifier with C, E, G and B
+    /// and Cmaj7 picked), then write `Diagnostics/tool-<name>.json`, which
+    /// the screenshot waits for.
+    func runToolScreen(_ name: String) async {
+        _ = await waitFor(timeout: .seconds(120)) { $0.highlight?.spans.isEmpty == false }
+        var ok = false
+        switch name {
+        case "speed":
+            selectMode(.play)
+            sheet(.open(.speed(manual: false)))
+            sheet(.speedDragged(124))
+            ok = await waitFor(timeout: .seconds(30)) { $0.toolbar?.multiplierPct == 125 }
+        case "insert":
+            selectMode(.edit)
+            sheet(.ribbon(.insert))
+            sheet(.insert(.bpm))
+            // The dialog's task asks the session to check its first fields.
+            ok = await waitFor(timeout: .seconds(30)) { snapshot in
+                guard case .insertDirective(let request)? = snapshot.request else { return false }
+                return snapshot.directiveCheck?.requestId == request.requestId
+            }
+        case "capo":
+            selectMode(.edit)
+            sheet(.ribbon(.capo))
+            ok = await waitFor(timeout: .seconds(60)) {
+                $0.capoAdvice?.active == true && $0.capoAdvice?.status == CapoAdviceState.ready
+            }
+        case "identify":
+            selectMode(.edit)
+            sheet(.ribbon(.identify))
+            let piano = PianoKeyboard()
+            for key in piano.keys where [60, 64, 67, 71].contains(key.midi) {
+                sheet(.identifierTap(key))
+            }
+            ok = await waitFor(timeout: .seconds(30)) { $0.identifier?.candidates.contains("Cmaj7") == true }
+            if ok { sheet(.identifierPick("Cmaj7", rolled: false)) }
+        default:
+            break
+        }
+        Log.ui.info("Tool screen \(name, privacy: .public): \(ok ? "ready" : "failed", privacy: .public)")
+        Diagnostics.shared.writeJSON(ToolScreenReport(name: name, ok: ok, route: String(describing: ui.route)),
+                                     name: "tool-\(name).json")
+    }
+
     /// Wait until `condition` holds for the snapshot (polled), or `timeout` passes.
     func waitFor(timeout: Duration, _ condition: (SessionSnapshot) -> Bool) async -> Bool {
         let deadline = ContinuousClock.now + timeout
@@ -647,6 +707,14 @@ extension ContinuousClock.Instant {
     }
 
     private static let reference = ContinuousClock.now
+}
+
+/// `Diagnostics/tool-<name>.json` (`-CNScreen speed|insert|capo|identify`):
+/// whether the sheet or tool got to the state the screenshot shows.
+struct ToolScreenReport: Codable {
+    var name: String
+    var ok: Bool
+    var route: String
 }
 
 /// `Diagnostics/export.json` (`-CNScreen export`): the audio export the store

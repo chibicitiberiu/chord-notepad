@@ -60,6 +60,27 @@ final class EditorController: ObservableObject {
         model.willReplace(UTF16Range(range.location, range.location + range.length), with: text)
     }
 
+    /// Commands made from the model (a tool reads its text, selection and
+    /// cursor, and may send the text first), sent as the editor's own.
+    func run(_ body: (inout EditorModel) -> [BridgeCommand]) {
+        var effects = EditorEffects()
+        effects.commands = body(&model)
+        apply(effects)
+    }
+
+    /// Put the caret at code point `codePoint` and give the text view the
+    /// keyboard (Playback settings' Edit, after the switch to Edit mode).
+    func placeCursor(codePoint: Int) {
+        let utf16 = OffsetMapper(model.text).toUTF16(codePoint)
+        DispatchQueue.main.async { [weak self] in
+            guard let self, let view = self.textView else { return }
+            view.selectedRange = NSRange(location: min(utf16, view.textStorage.length), length: 0)
+            self.viewChanged()
+            view.becomeFirstResponder()
+            view.scrollRangeToVisible(view.selectedRange)
+        }
+    }
+
     /// Send the text if the session hasn't got it yet (before a command that reads it).
     func sync() {
         var effects = EditorEffects()

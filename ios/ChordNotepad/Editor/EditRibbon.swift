@@ -2,14 +2,15 @@ import ChordNotepadKit
 import SwiftUI
 
 /// The Edit ribbon under the header (Android's `ui/main/EditRibbon.kt`, one
-/// 48 pt row): Undo, Redo | AB/Do, Convert. Android's Insert, Transpose, Capo
-/// and Identify open sheets the iOS app doesn't have yet; they join the row
-/// with them.
+/// 48 pt row): Undo, Redo | Insert, Transpose, Capo, Identify | AB/Do,
+/// Convert. When the row is wider than the window it scrolls sideways; a
+/// fade and a › chevron show there's more to the right, a fade on the left
+/// once scrolled (`RibbonEdges`).
 ///
 /// It sits at the top rather than above the keyboard (an
 /// `inputAccessoryView`), as on Android: it stays put with a hardware
 /// keyboard or none, and the preview catalog can draw it. The same view is
-/// live and in the catalog (`perform` nil: inert).
+/// live and in the catalog (`perform` nil: inert, the row cut at the edge).
 struct EditRibbon: View {
     let canUndo: Bool
     let canRedo: Bool
@@ -17,14 +18,34 @@ struct EditRibbon: View {
     let notation: String?
     var readOnly = false
     var perform: ((EditorAction) -> Void)?
+    /// The tool buttons (Insert, Transpose, Capo, Identify).
+    var tool: ((RibbonTool) -> Void)?
+    /// False in the catalog: no ScrollView.
+    var scrolls = true
 
     @Environment(\.colorScheme) private var colorScheme
+    @State private var offset: CGFloat = 0
+    @State private var contentWidth: CGFloat = 0
+    @State private var viewport: CGFloat = 0
 
     /// The ribbon's height (Android's `BAR_HEIGHT_DP`).
     static let height: CGFloat = 48
 
     var body: some View {
         let palette = EditorPalette.forScheme(dark: colorScheme == .dark)
+        ViewThatFits(in: .horizontal) {
+            row(palette)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            overflowing(palette)
+        }
+        .frame(height: Self.height)
+        .frame(maxWidth: .infinity)
+        .background(palette.ribbon.swiftUI)
+        // The captions follow the text size up to a point: the row is a fixed 48 pt.
+        .dynamicTypeSize(...DynamicTypeSize.xLarge)
+    }
+
+    private func row(_ palette: EditorPalette) -> some View {
         HStack(spacing: 1) {
             button("Undo", enabled: canUndo, action: .undo) {
                 Image(systemName: "arrow.uturn.backward").foregroundStyle(RibbonTints.undo)
@@ -33,18 +54,105 @@ struct EditRibbon: View {
                 Image(systemName: "arrow.uturn.forward").foregroundStyle(RibbonTints.undo)
             }
             separator(palette)
+            toolButton("Insert", .insert, "mdi_plus", IconTints.insert)
+            toolButton("Transpose", .transpose, "ic_transpose", IconTints.transpose, width: 32)
+            toolButton("Capo", .capo, "ic_capo", IconTints.capo)
+            toolButton("Identify", .identify, "mdi_piano", IconTints.identify)
+            separator(palette)
             notationSegments(palette)
             button("Convert", enabled: !readOnly, action: .convertNotation) {
                 ConvertIcon()
             }
-            Spacer(minLength: 0)
+            .id("ribbon-end")
         }
         .padding(.horizontal, 4)
-        .frame(height: Self.height)
-        .frame(maxWidth: .infinity)
-        .background(palette.ribbon.swiftUI)
-        // The captions follow the text size up to a point: the row is a fixed 48 pt.
-        .dynamicTypeSize(...DynamicTypeSize.xLarge)
+        .fixedSize(horizontal: true, vertical: false)
+    }
+
+    /// Wider than the window: live, a sideways scroll with Android's fades
+    /// and chevron; in the catalog, the row cut at the edge with the same ends.
+    @ViewBuilder
+    private func overflowing(_ palette: EditorPalette) -> some View {
+        let edges = RibbonEdges.of(Double(offset), Double(max(contentWidth - viewport, 0)))
+        ScrollViewReader { proxy in
+            ZStack {
+                if scrolls {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        row(palette)
+                            .padding(.trailing, 24)
+                            .background(GeometryReader { geometry in
+                                Color.clear
+                                    .onAppear { contentWidth = geometry.size.width }
+                                    .onChange(of: geometry.frame(in: .named("ribbon")).minX) { _, x in
+                                        offset = -x
+                                    }
+                            })
+                    }
+                    .coordinateSpace(name: "ribbon")
+                } else {
+                    row(palette)
+                        .padding(.trailing, 24)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .clipped()
+                }
+            }
+            .background(GeometryReader { geometry in
+                Color.clear.onAppear { viewport = geometry.size.width }
+                    .onChange(of: geometry.size.width) { _, width in viewport = width }
+            })
+            .overlay(alignment: .leading) {
+                if scrolls && edges.fadeLeft {
+                    LinearGradient(colors: [palette.ribbon.swiftUI, palette.ribbon.swiftUI.opacity(0)],
+                                   startPoint: .leading, endPoint: .trailing)
+                        .frame(width: 36)
+                        .allowsHitTesting(false)
+                }
+            }
+            .overlay(alignment: .trailing) {
+                if !scrolls || edges.more {
+                    ZStack(alignment: .trailing) {
+                        LinearGradient(stops: [.init(color: palette.ribbon.swiftUI.opacity(0), location: 0),
+                                               .init(color: palette.ribbon.swiftUI, location: 0.7)],
+                                       startPoint: .leading, endPoint: .trailing)
+                            .frame(width: 36)
+                            .allowsHitTesting(false)
+                        Button {
+                            withAnimation { proxy.scrollTo("ribbon-end", anchor: .trailing) }
+                        } label: {
+                            MdiIcon("mdi_chevron_right", tint: palette.muted.swiftUI, size: 22)
+                                .frame(width: 28, height: Self.height)
+                                .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Show more tools")
+                        .accessibilityIdentifier("ribbon-more")
+                    }
+                }
+            }
+        }
+    }
+
+    private func toolButton(_ label: String, _ tool: RibbonTool, _ icon: String, _ tint: SheetColor,
+                            width: CGFloat = 24) -> some View {
+        let palette = EditorPalette.forScheme(dark: colorScheme == .dark)
+        return Button {
+            self.tool?(tool)
+        } label: {
+            VStack(spacing: 1) {
+                MdiIcon(icon, tint: tint.swiftUI)
+                    .frame(width: width, height: 24)
+                Text(label)
+                    .font(.caption2.weight(.medium))
+                    .foregroundStyle(palette.ribbonText.swiftUI)
+                    .lineLimit(1)
+            }
+            .padding(.horizontal, 6)
+            .frame(minWidth: 44, minHeight: 44)
+            .contentShape(RoundedRectangle(cornerRadius: 10))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(label)
+        .accessibilityIdentifier("ribbon-\(label.lowercased())")
     }
 
     private func button<Icon: View>(_ label: String, enabled: Bool, action: EditorAction,

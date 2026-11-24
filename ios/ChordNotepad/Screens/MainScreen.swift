@@ -19,6 +19,8 @@ struct MainActions {
     var dismissSnackbar: (Int) -> Void
     /// Why a greyed button does nothing.
     var notice: (String) -> Void
+    /// A tap in the player's sheets, the ribbon's tools and their dialogs (the kit's reducer).
+    var sheet: (SheetEvent) -> Void
 }
 
 /// The main screen (Android's `SongScreen.kt`): the app bar with its Edit /
@@ -30,8 +32,9 @@ struct MainActions {
 /// The live app and the preview catalog draw the same view; the catalog
 /// passes `scrolls: false`, since ImageRenderer can't draw UIKit views or a
 /// ScrollView: the text is ``EditorPreview`` and the menu doesn't scroll.
-/// The sheets over it (Diagnostics, the player's pickers) are the live view's
-/// (`MainView`); the catalog draws their contents on their own.
+/// The player's sheets, the ribbon's tools and their dialogs are drawn here
+/// too, over the screen; Diagnostics and Examples are the live view's system
+/// sheets (`MainView`).
 struct MainScreen: View {
     let snapshot: SessionSnapshot
     var editorModel = EditorModel()
@@ -95,15 +98,29 @@ struct MainScreen: View {
                 if collapsed { undoChip }
             }
             .overlay(alignment: .bottom) {
-                if let snackbar {
-                    SnackbarView(snackbar: snackbar, colors: colors) { actions?.dismissSnackbar(snackbar.id) }
-                        .padding(.bottom, CGFloat(snackbarClearance(mode: ui.mode, sideBySide: layout.sideBySide)))
-                        .transition(.move(edge: .bottom).combined(with: .opacity))
-                }
+                if ui.route == .identify { snackbarView(layout) }
             }
             .overlay { routeOverlay }
+            .overlay(alignment: .bottom) {
+                // Over a sheet, so a greyed control's reason shows (Android: a Toast); under the
+                // identifier, which covers the screen as Android's dialog does.
+                if ui.route != .identify { snackbarView(layout) }
+            }
         }
         .background(colors.surface.swiftUI)
+    }
+
+    @ViewBuilder
+    private func snackbarView(_ layout: ScreenLayout) -> some View {
+        if let snackbar {
+            SnackbarView(snackbar: snackbar, colors: colors) { actions?.dismissSnackbar(snackbar.id) }
+                .padding(.bottom, CGFloat(snackbarClearance(mode: ui.mode, sideBySide: layout.sideBySide)))
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+        }
+    }
+
+    private func sheet(_ event: SheetEvent) {
+        actions?.sheet(event)
     }
 
     // MARK: - The header
@@ -134,7 +151,8 @@ struct MainScreen: View {
 
     private var ribbon: some View {
         EditRibbon(canUndo: editorModel.canUndo, canRedo: editorModel.canRedo, notation: editorModel.notation,
-                   readOnly: editorModel.readOnly, perform: actions?.ribbon)
+                   readOnly: editorModel.readOnly, perform: actions?.ribbon,
+                   tool: actions.map { actions in { actions.sheet(.ribbon($0)) } }, scrolls: scrolls)
     }
 
     // MARK: - The text, the chord sheet and the player
@@ -274,8 +292,33 @@ struct MainScreen: View {
         if case .confirmDiscard? = snapshot.request {
             DiscardDialog(colors: colors) { actions?.discard($0) }
         } else {
-            routeView
+            ZStack {
+                routeView
+                if case .insertDirective(let request)? = snapshot.request {
+                    insertDialog(request)
+                }
+                if let advice = snapshot.capoAdvice, advice.active {
+                    CapoDialog(state: advice, chosen: ui.capoChosen(advice), canApply: ui.capoCanApplyNow(advice),
+                               colors: colors, live: scrolls, event: sheet)
+                }
+            }
         }
+    }
+
+    /// The pending Insert request's dialog; it asks the session to check its
+    /// first fields when it appears (a kind it doesn't know is cancelled then).
+    @ViewBuilder
+    private func insertDialog(_ request: InsertDirectiveRequest) -> some View {
+        ZStack {
+            if let state = ui.directiveForm(for: request, snapshot: snapshot) {
+                let choices = snapshot.insertChoices(request)
+                InsertDirectiveDialog(request: request, state: state,
+                                      verdict: ui.directiveVerdict(for: request, snapshot: snapshot),
+                                      keys: choices.keys, units: choices.units, colors: colors, live: scrolls,
+                                      event: sheet)
+            }
+        }
+        .task(id: request.requestId) { sheet(.directiveShown) }
     }
 
     @ViewBuilder
@@ -292,6 +335,39 @@ struct MainScreen: View {
         case .renameFailed(let name, let reason, let canSaveAs):
             RenameFailedDialog(name: name, reason: reason, canSaveAs: canSaveAs, colors: colors,
                                saveAs: { actions?.saveAs($0) }, dismiss: { actions?.close() })
+        case .voicing:
+            VoicingPickerSheet(state: snapshot.voicingMenu, colors: colors, live: scrolls, event: sheet)
+        case .instrument(let family):
+            InstrumentPickerSheet(state: snapshot.instrumentMenu, family: family, colors: colors, live: scrolls,
+                                  event: sheet)
+        case .speed(let manual):
+            ZStack {
+                SpeedSheet(pct: snapshot.toolbar?.multiplierPct ?? 100, slider: ui.tools.speedSlider, colors: colors,
+                           live: scrolls, event: sheet)
+                if manual, let entry = ui.tools.speedEntry {
+                    SpeedDialog(entry: entry, colors: colors, live: scrolls, event: sheet)
+                }
+            }
+        case .songDefaults:
+            if let defaults = snapshot.songDefaults {
+                ZStack {
+                    SongDefaultsSheet(state: defaults, keys: snapshot.toolbar?.keyOptions ?? [], colors: colors,
+                                      directive: EditorPalette.forScheme(dark: scheme == .dark).directive.swiftUI,
+                                      live: scrolls, event: sheet)
+                    if let tempo = ui.tools.tempoEntry {
+                        TempoDialog(text: tempo, colors: colors, live: scrolls, event: sheet)
+                    }
+                }
+            }
+        case .insert:
+            InsertSheet(colors: colors, live: scrolls, event: sheet)
+        case .transpose(let selection):
+            TransposeDialog(hasSelection: selection, form: ui.tools.transpose, colors: colors, live: scrolls,
+                            event: sheet)
+        case .identify:
+            ChordIdentifierView(state: snapshot.identifier, model: ui.tools.identifier,
+                                expired: ui.tools.identifierExpired, status: snapshot.status?.text, colors: colors,
+                                live: scrolls, event: sheet)
         default:
             EmptyView()
         }
