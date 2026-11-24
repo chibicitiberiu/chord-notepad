@@ -128,8 +128,25 @@ final class EditorTextView: UITextView {
         host?.setNeedsLayout()
     }
 
+    /// Unwrapped, the container is wide whatever UIKit did: it sizes the
+    /// container to the view's frame even with `widthTracksTextView` off
+    /// (563 pt in a 587 pt view in run 45366786133), and the text then wraps.
+    func keepContainerUnwrapped() {
+        guard !wordWrap else { return }
+        if container.widthTracksTextView { container.widthTracksTextView = false }
+        if container.size.width != Self.unwrappedWidth {
+            container.size = CGSize(width: Self.unwrappedWidth, height: CGFloat.greatestFiniteMagnitude)
+        }
+    }
+
+    override func layoutSubviews() {
+        keepContainerUnwrapped()
+        super.layoutSubviews()
+    }
+
     /// The width the unwrapped text needs: its longest line and the insets.
     func unwrappedTextWidth() -> CGFloat {
+        keepContainerUnwrapped()
         // The whole text, so a long line off screen counts too (TextKit lays out lazily).
         layout.ensureLayout(for: container)
         return ceil(layout.usedRect(for: container).maxX + textContainerInset.left + textContainerInset.right)
@@ -285,7 +302,10 @@ final class EditorHost: UIScrollView {
         super.layoutSubviews()
         let width = textView.wordWrap ? bounds.width : max(bounds.width, textView.unwrappedTextWidth())
         let frame = CGRect(x: 0, y: 0, width: width, height: bounds.height)
-        if textView.frame != frame { textView.frame = frame }
+        if textView.frame != frame {
+            textView.frame = frame
+            textView.keepContainerUnwrapped()
+        }
         let size = CGSize(width: width, height: bounds.height)
         if contentSize != size { contentSize = size }
     }
