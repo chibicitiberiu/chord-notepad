@@ -29,8 +29,14 @@ struct AppMenuPanel: View {
                 }
                 .frame(width: min(300, geometry.size.width * 0.85))
                 .frame(maxHeight: .infinity)
-                .background(colors.surfaceLow.swiftUI)
-                .clipShape(UnevenRoundedRectangle(bottomTrailingRadius: 16, topTrailingRadius: 16))
+                // The panel runs the screen's whole height, under the status
+                // bar and the home indicator, as Android's drawer does; its
+                // entries stay inside the safe area.
+                .background(alignment: .leading) {
+                    UnevenRoundedRectangle(bottomTrailingRadius: 16, topTrailingRadius: 16)
+                        .fill(colors.surfaceLow.swiftUI)
+                        .ignoresSafeArea()
+                }
                 .accessibilityIdentifier("app-menu")
             }
         }
@@ -225,20 +231,91 @@ struct RenameDialog: View {
     }
 }
 
-/// The storage couldn't rename (Android's `RenameFailedDialog`). Save As needs
-/// the document picker, which comes later; until then it only says why.
+/// The storage couldn't rename (Android's `RenameFailedDialog`): why, and
+/// Save As under the new name when that's the way out.
 struct RenameFailedDialog: View {
+    let name: String
     let reason: String
+    let canSaveAs: Bool
     let colors: AppColors
+    var saveAs: (String) -> Void = { _ in }
     var dismiss: () -> Void = {}
 
     var body: some View {
         DialogCard(title: "Couldn't rename", colors: colors) {
-            Text(reason)
+            Text(canSaveAs ? "\(reason)\n\nSave a copy under the new name instead?" : reason)
                 .font(.subheadline)
                 .foregroundColor(colors.text.swiftUI)
+                .fixedSize(horizontal: false, vertical: true)
         } buttons: {
-            DialogButton(label: "OK", colors: colors, action: dismiss)
+            if canSaveAs {
+                DialogButton(label: "Cancel", colors: colors, action: dismiss)
+                DialogButton(label: "Save as…", colors: colors) { saveAs(name) }
+            } else {
+                DialogButton(label: "OK", colors: colors, action: dismiss)
+            }
+        }
+    }
+}
+
+/// The unsaved-changes question (Android's `ConfirmDiscardDialog`, the
+/// desktop's "Unsaved Changes"): Don't save, Cancel, Save. The buttons stack
+/// when they don't fit on one line (large text), as Android's flow row wraps.
+struct DiscardDialog: View {
+    let colors: AppColors
+    var answer: (DiscardChoice) -> Void = { _ in }
+
+    var body: some View {
+        DialogCard(title: DiscardQuestion.title, colors: colors) {
+            Text(DiscardQuestion.message)
+                .font(.subheadline)
+                .foregroundColor(colors.text.swiftUI)
+                .fixedSize(horizontal: false, vertical: true)
+        } buttons: {
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 8) { buttons }
+                VStack(alignment: .trailing, spacing: 0) { buttons }
+            }
+        }
+        .accessibilityIdentifier("discard-dialog")
+    }
+
+    @ViewBuilder
+    private var buttons: some View {
+        DialogButton(label: DiscardQuestion.discard, colors: colors) { answer(.discard) }
+        DialogButton(label: DiscardQuestion.cancel, colors: colors) { answer(.cancel) }
+        DialogButton(label: DiscardQuestion.save, colors: colors) { answer(.save) }
+    }
+}
+
+/// Examples (Android's `ExamplesSheet`): the songs the app ships, by file
+/// name; a tap opens a copy of one.
+struct ExamplesSheet: View {
+    let names: [String]
+    let colors: AppColors
+    var scrolls = true
+    var choose: (String) -> Void = { _ in }
+    var done: () -> Void = {}
+
+    var body: some View {
+        PlayerSheet(title: "Examples", colors: colors, scrolls: scrolls, done: done) {
+            ForEach(names, id: \.self) { name in
+                Button { choose(name) } label: {
+                    HStack(spacing: 14) {
+                        MdiIcon("mdi_file_music", tint: MenuTint.examples.color.swiftUI)
+                        Text(name)
+                            .font(.body)
+                            .foregroundColor(colors.text.swiftUI)
+                            .lineLimit(1)
+                        Spacer(minLength: 0)
+                    }
+                    .padding(.horizontal, 20)
+                    .frame(minHeight: 48)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("example-\(name)")
+            }
         }
     }
 }

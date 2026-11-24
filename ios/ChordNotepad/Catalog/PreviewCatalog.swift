@@ -56,8 +56,29 @@ enum PreviewCatalog {
                     .overlay { Text("Keyboard").font(.caption).foregroundStyle(.secondary) }
             }
         },
-        CatalogScreen("menu", fixtures: ["scarborough_edit"]) { scene, _ in
+        CatalogScreen("menu", fixtures: ["scarborough_edit", "files_recent"]) { scene, _ in
             PreviewCatalog.mainScreen(scene, MainUiState(mode: .play, route: .menu))
+        },
+        // The session's unsaved-changes question (New on a changed song).
+        CatalogScreen("discard", fixtures: ["discard_question"]) { scene, _ in
+            PreviewCatalog.mainScreen(scene, MainUiState(mode: .edit))
+        },
+        // An export done: its status in Play's status line; in Edit, as a snackbar.
+        CatalogScreen("export", fixtures: ["export_done"]) { scene, _ in
+            PreviewCatalog.mainScreen(scene, MainUiState(mode: .play))
+        },
+        CatalogScreen("export_edit", fixtures: ["export_done"], devices: [CatalogRenderer.devices[0]]) { scene, _ in
+            PreviewCatalog.mainScreen(scene, MainUiState(mode: .edit),
+                                      snackbar: scene.snapshot.status.map { Snackbar(text: $0.text, error: false, id: 1) })
+        },
+        // A document that can't be opened: the session's error as a snackbar.
+        CatalogScreen("open_error", fixtures: ["errors"]) { scene, _ in
+            PreviewCatalog.mainScreen(scene, MainUiState(mode: .play),
+                                      snackbar: scene.snapshot.messages.first { $0.contains("Failed to open") }
+                                          .map { Snackbar(text: $0, error: true, id: 1) })
+        },
+        CatalogScreen("examples", fixtures: ["empty_song"], devices: [CatalogRenderer.devices[0]]) { _, _ in
+            CatalogColors { ExamplesSheet(names: AppDocumentStore.exampleNames, colors: $0, scrolls: false) }
         },
         CatalogScreen("rename", fixtures: ["scarborough_edit", "errors"]) { scene, _ in
             let failure = scene.snapshot.renameFailure
@@ -79,9 +100,10 @@ enum PreviewCatalog {
     ]
 
     /// The main screen of a scene in `ui`'s mode, with what is open over it.
-    static func mainScreen(_ scene: CatalogScene, _ ui: MainUiState, renameName: String = "") -> MainScreen {
+    static func mainScreen(_ scene: CatalogScene, _ ui: MainUiState, renameName: String = "",
+                           snackbar: Snackbar? = nil) -> MainScreen {
         MainScreen(snapshot: scene.snapshot, editorModel: scene.editor, ui: ui, scrolls: false,
-                   chordSheet: scene.chordSheet, renameName: .constant(renameName))
+                   chordSheet: scene.chordSheet, snackbar: snackbar, renameName: .constant(renameName))
     }
 
     /// A recorded scene, or nil (logged) when it's missing.

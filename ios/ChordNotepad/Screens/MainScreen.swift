@@ -12,6 +12,10 @@ struct MainActions {
     /// Close what is open over the screen (the menu, a dialog).
     var close: () -> Void
     var rename: (String) -> Void
+    /// Save As under a name (a rename the storage refused).
+    var saveAs: (String) -> Void
+    /// The unsaved-changes question's answer.
+    var discard: (DiscardChoice) -> Void
     var dismissSnackbar: (Int) -> Void
     /// Why a greyed button does nothing.
     var notice: (String) -> Void
@@ -266,6 +270,16 @@ struct MainScreen: View {
 
     @ViewBuilder
     private var routeOverlay: some View {
+        // The session's unsaved-changes question is over everything else.
+        if case .confirmDiscard? = snapshot.request {
+            DiscardDialog(colors: colors) { actions?.discard($0) }
+        } else {
+            routeView
+        }
+    }
+
+    @ViewBuilder
+    private var routeView: some View {
         switch ui.route {
         case .menu:
             AppMenuPanel(recent: recentEntries(snapshot.recentDocuments, max: snapshot.settings?.values.maxRecentFiles),
@@ -275,8 +289,9 @@ struct MainScreen: View {
             RenameDialog(displayName: snapshot.document?.displayName ?? "", colors: colors, name: renameName,
                          refusal: ui.renameRefusal, live: scrolls,
                          rename: { actions?.rename($0) }, cancel: { actions?.close() })
-        case .renameFailed(_, let reason, _):
-            RenameFailedDialog(reason: reason, colors: colors) { actions?.close() }
+        case .renameFailed(let name, let reason, let canSaveAs):
+            RenameFailedDialog(name: name, reason: reason, canSaveAs: canSaveAs, colors: colors,
+                               saveAs: { actions?.saveAs($0) }, dismiss: { actions?.close() })
         default:
             EmptyView()
         }

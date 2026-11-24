@@ -31,6 +31,15 @@ struct MainView: View {
                                 done: close)
                     .presentationDetents([.medium, .large])
             }
+            .sheet(isPresented: route(.examples)) {
+                ExamplesSheet(names: AppDocumentStore.exampleNames, colors: colors,
+                              choose: { name in
+                                  close()
+                                  model.openExample(name)
+                              },
+                              done: close)
+                    .presentationDetents([.medium, .large])
+            }
             .sheet(isPresented: route(.speed)) {
                 ValuesSheet(title: "Speed", rows: ValuesSheet.speed(model.snapshot.toolbar), colors: colors,
                             done: close)
@@ -111,6 +120,11 @@ struct MainView: View {
             menu: { model.choose($0) },
             close: { close() },
             rename: { model.rename($0) },
+            saveAs: { name in
+                close()
+                model.saveAs(name: name)
+            },
+            discard: { model.answerDiscard($0) },
             dismissSnackbar: { model.dismissSnackbar($0) },
             notice: { model.notice($0) })
     }
