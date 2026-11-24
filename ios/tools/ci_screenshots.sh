@@ -1,20 +1,28 @@
 #!/bin/bash
 # Run the app in a simulator the way a person would, and keep what it shows
-# (docs/IOS.md, "CI"): a screenshot of the main screen with the quick-start
-# song (in Play, as a saved song opens), one of the ☰ menu, one of
+# (docs/IOS.md, "CI"): the first launch after the install, where the Quick
+# Start tour opens over the song (startup.json checked), a screenshot of the
+# main screen with the quick-start song (in Play, as a saved song opens), one
+# of the ☰ menu, one of
 # Diagnostics, whose self-test also tries live CoreAudio playback, one of Play
 # with the chord sheet shown (its buffer from the live session), one of
 # Edit after the app typed into the editor (the session's highlight checked),
 # the speed sheet, the Guitar family's programs, the ribbon's Insert › Tempo, Suggest Capo and Identify,
-# the find bar with its Replace row, Settings › General, Settings › Voicings with a built-in's form, About, and
-# one of the export picker after an audio export (export.json checked).
+# the find bar with its Replace row, Settings › General, Settings › Voicings
+# with a built-in's form, About, the Instrument sheet's families, the user
+# guide, a directive's explanation in Play, a new song typed with the keyboard
+# up, the phone on its side typing (the guide's screenshots), one of the
+# export picker after an audio export (export.json checked) and one after a
+# PDF export (pdf.json checked, the PDF in the Diagnostics folder).
 #
 #   ios/tools/ci_screenshots.sh <udid> <label> <ChordNotepad.app> <out-dir>
 #
-# Writes <out-dir>/<label>-main.png, <label>-menu.png, <label>-selftest.png,
-# <label>-chordsheet.png, <label>-editor.png, <label>-speed.png, <label>-instrument.png,
-# <label>-insert.png, <label>-capo.png, <label>-identify.png, <label>-find.png, <label>-settings.png,
-# <label>-voicings.png, <label>-about.png, <label>-export.png, the app's
+# Writes <out-dir>/<label>-quickstart.png, <label>-main.png, <label>-menu.png,
+# <label>-selftest.png, <label>-chordsheet.png, <label>-editor.png, <label>-speed.png,
+# <label>-instrument.png, <label>-insert.png, <label>-capo.png, <label>-identify.png,
+# <label>-find.png, <label>-settings.png, <label>-voicings.png, <label>-about.png,
+# <label>-families.png, <label>-guide.png, <label>-hint.png, <label>-keyboard.png,
+# <label>-landscape.png, <label>-export.png, <label>-pdf.png, the app's
 # Diagnostics folder as <label>-diagnostics/ and the unified log of the
 # app's subsystem as <label>-app.log. The live audio result is in
 # <label>-diagnostics/selftest.json; ci_live_audio.py reads it.
@@ -52,7 +60,24 @@ wait_for() {
 
 status=0
 start=$(date -u +%Y-%m-%dT%H:%M:%S)
+# The first launch after the install, as a person's: the session opens the
+# Quick Start tour over the song (app_started, "Show at startup" on), and the
+# app writes startup.json once the tour is on screen.
 xcrun simctl launch --terminate-running-process "$UDID" "$BUNDLE_ID"
+if wait_for "$DIAG/startup.json" 240; then
+    cat "$DIAG/startup.json"
+    sleep 2
+    python3 -c 'import json, sys; sys.exit(0 if json.load(open(sys.argv[1]))["ok"] else 1)' "$DIAG/startup.json" \
+        || { echo "The tour didn't open at the first launch" >&2; status=1; }
+else
+    status=1
+fi
+xcrun simctl io "$UDID" screenshot "$OUT/$LABEL-quickstart.png"
+
+# The main screen: -CNScreen main is a hook that does nothing, so the launch
+# isn't a direct one and nothing opens over the song.
+rm -f "$DIAG/launch.json" "$DATA/Library/Application Support/Diagnostics/launch.json"
+xcrun simctl launch --terminate-running-process "$UDID" "$BUNDLE_ID" -CNScreen main
 if wait_for "$DIAG/launch.json" 240; then
     cat "$DIAG/launch.json"
     sleep 3
@@ -128,15 +153,18 @@ xcrun simctl io "$UDID" screenshot "$OUT/$LABEL-editor.png"
 # speed at 125 %, Insert › Tempo with the session's check, Suggest Capo
 # scored, the identifier with Cmaj7, Find and Replace with "the" typed,
 # Settings › General, Settings › Voicings with the built-in standard guitar,
-# About). Same retry as the chord sheet.
-for tool in speed instrument insert capo identify find settings voicings about; do
+# About; for the guide: the Instrument sheet's families, the guide itself, a
+# directive's explanation, a new song typed with the keyboard up and, last,
+# the phone on its side typing). The identifier's keys stay lit 3 s after
+# Cmaj7 sounds, so its screenshot comes sooner. Same retry as the chord sheet.
+for tool in speed instrument insert capo identify find settings voicings about families guide hint keyboard landscape; do
     rm -f "$DIAG/tool-$tool.json"
     shown=1
     for attempt in 1 2; do
         xcrun simctl launch --terminate-running-process "$UDID" "$BUNDLE_ID" -CNScreen "$tool"
         if wait_for "$DIAG/tool-$tool.json" 150; then
             cat "$DIAG/tool-$tool.json"
-            sleep 3
+            if [ "$tool" = identify ]; then sleep 0.5; else sleep 3; fi
             if python3 -c 'import json, sys; sys.exit(0 if json.load(open(sys.argv[1]))["ok"] else 1)' "$DIAG/tool-$tool.json"; then
                 shown=0
             else
@@ -171,6 +199,28 @@ for attempt in 1 2; do
 done
 [ "$exported" -eq 0 ] || status=1
 xcrun simctl io "$UDID" screenshot "$OUT/$LABEL-export.png"
+
+# Export PDF: the app paints the session's pages and writes pdf.json (PDFKit's
+# page count, a line of the song in its text, the font's advance) and
+# export.pdf when the store has the file, then opens the export picker.
+rm -f "$DIAG/pdf.json" "$DIAG/export.pdf"
+pdf=1
+for attempt in 1 2; do
+    xcrun simctl launch --terminate-running-process "$UDID" "$BUNDLE_ID" -CNScreen pdf
+    if wait_for "$DIAG/pdf.json" 150; then
+        cat "$DIAG/pdf.json"
+        sleep 4
+        if python3 -c 'import json, sys; sys.exit(0 if json.load(open(sys.argv[1]))["ok"] else 1)' "$DIAG/pdf.json"; then
+            pdf=0
+        else
+            echo "The PDF export check failed" >&2
+        fi
+        break
+    fi
+    echo "Attempt $attempt: no PDF export" >&2
+done
+[ "$pdf" -eq 0 ] || status=1
+xcrun simctl io "$UDID" screenshot "$OUT/$LABEL-pdf.png"
 xcrun simctl terminate "$UDID" "$BUNDLE_ID" || true
 
 rm -rf "$OUT/$LABEL-diagnostics"

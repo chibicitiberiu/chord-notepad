@@ -37,6 +37,12 @@ on:
       - 'android/app/src/main/res/drawable/ic_capo.xml'
       - 'android/app/src/main/res/drawable/ic_time_signature.xml'
       - 'android/app/src/main/res/drawable/ic_transpose.xml'
+      # The user guide the app ships (its iOS edition) and the Sphinx stack it
+      # is built with; the colour demo song of the guide's scenes.
+      - 'help/**'
+      - 'android/docs-requirements.txt'
+      - 'android/tools/help_shot_songs/colours.txt'
+      - 'android/app/src/main/assets/licenses/components.json'
       - '.github/workflows/ios.yml'
   workflow_dispatch:
 
@@ -174,6 +180,15 @@ jobs:
 
       - name: Build the Python bundle
         run: python -I packaging/ios/build_python_bundle.py ios/build/python-bundle
+
+      # The user guide's iOS edition (sphinx -t ios, Android's pinned Sphinx
+      # stack), which the "User guide" build phase copies into the app.
+      - name: Build the user guide
+        env:
+          CN_HELP_DRAFT: '1'
+        run: |
+          python -m pip install --quiet --require-hashes -r android/docs-requirements.txt
+          PYTHON=python ios/tools/build_help.sh ios/build/help
 
       # Pinned and hash-checked; the image has no XcodeGen.
       - name: Install XcodeGen
@@ -323,6 +338,14 @@ jobs:
         with:
           name: ios-catalog
           path: ios/build/artifacts/catalog
+          if-no-files-found: ignore
+
+      - name: Upload the user guide
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ios-help
+          path: ios/build/help
           if-no-files-found: ignore
 
       - name: Upload the screenshots and diagnostics

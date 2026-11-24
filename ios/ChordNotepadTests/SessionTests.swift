@@ -1,6 +1,7 @@
 import ChordNotepadKit
 import UIKit
 import UniformTypeIdentifiers
+import WebKit
 import XCTest
 
 @testable import ChordNotepad
@@ -113,6 +114,9 @@ final class SessionTests: XCTestCase {
         try await checkSheetsAndTools(model)
         try await checkSettingsAndAbout(model)
         try await checkTheEditorsFeatures(model)
+        try await checkPdfExport(model)
+        try await checkQuickStart(model)
+        try await checkUserGuide()
 
         XCTAssertTrue(model.snapshot.messages.allSatisfy { !$0.hasPrefix("Unexpected error") },
                       "\(model.snapshot.messages)")
@@ -690,6 +694,108 @@ final class SessionTests: XCTestCase {
         }
         let png = XCTAttachment(image: image)
         png.name = "editor-live.png"
+        png.lifetime = .keepAlways
+        add(png)
+        window.isHidden = true
+    }
+}
+
+extension SessionTests {
+    /// Export PDF, live: the session lays the quick-start song out, the app
+    /// paints it with UIGraphicsPDFRenderer and the real store writes it, then
+    /// the export picker (a stand-in) gets the file. PDFKit reads it back.
+    func checkPdfExport(_ model: AppModel) async throws {
+        model.openQuickStart()
+        _ = await model.waitFor(timeout: .seconds(30)) {
+            $0.document?.displayName == "01_quick_start.txt" && $0.highlight?.spans.isEmpty == false
+        }
+        let picker = StandInPicker()
+        let folder = AppPaths.documents.appendingPathComponent("session-test-pdf", isDirectory: true)
+        try? FileManager.default.removeItem(at: folder)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        picker.exportFolder = folder
+        model.picker = picker
+        model.choose(.exportPdf)
+        let exported = await model.waitFor(timeout: .seconds(60)) { _ in picker.exported?.pathExtension == "pdf" }
+        XCTAssertTrue(exported, "\(picker.calls); \(model.snapshot.messages)")
+        let file = try XCTUnwrap(picker.exported)
+        XCTAssertEqual(file.lastPathComponent, "01_quick_start.pdf")
+        let report = PdfReport.of(file, song: model.editor.model.text)
+        XCTAssertTrue(report.ok, report.problem ?? "")
+        XCTAssertGreaterThan(report.pages, 0)
+        let status = await model.waitFor(timeout: .seconds(10)) { $0.status?.text.hasPrefix("Exported PDF") == true }
+        XCTAssertTrue(status, model.snapshot.status?.text ?? "")
+        XCTAssertNil(model.snapshot.request, "the paint request answered")
+        let attachment = XCTAttachment(contentsOfFile: file)
+        attachment.name = "export-live.pdf"
+        attachment.lifetime = .keepAlways
+        add(attachment)
+        model.picker = SystemDocumentPicker()
+        try? FileManager.default.removeItem(at: folder)
+    }
+
+    /// Quick Start, live: ☰ › Quick start fetches the tour; its checkbox is
+    /// Settings' "Show quick start at startup"; a direct launch opens it
+    /// (`app_started`), and closing it dismisses the startup screen.
+    func checkQuickStart(_ model: AppModel) async throws {
+        model.choose(.quickStart)
+        XCTAssertEqual(model.ui.route, .quickStart)
+        let tour = await model.waitFor(timeout: .seconds(30)) { $0.quickStart?.pages.count == 7 }
+        XCTAssertTrue(tour, "\(String(describing: model.snapshot.quickStart?.pages.map(\.title)))")
+        model.setShowQuickStart(false)
+        let off = await model.waitFor(timeout: .seconds(10)) { $0.settings?.values.showQuickStartOnStartup == false }
+        XCTAssertTrue(off)
+        XCTAssertNil(model.quickStartPicked, "the setting echoed")
+        model.setShowQuickStart(true)
+        let on = await model.waitFor(timeout: .seconds(10)) { $0.settings?.values.showQuickStartOnStartup == true }
+        XCTAssertTrue(on)
+        model.closeTour()
+        XCTAssertEqual(model.ui.route, .none)
+
+        // A direct launch with the setting on: the session opens the tour over the song.
+        let session = try XCTUnwrap(model.session)
+        session.submit(.appStarted(canAskForSupport: false, installedOn: "2026-11-01", launchKind: "direct",
+                                   today: "2026-11-24"))
+        let opened = await model.waitForModel(timeout: .seconds(10)) { $0.ui.route == .quickStart }
+        XCTAssertTrue(opened, "\(String(describing: model.snapshot.startup))")
+        model.closeTour()
+        XCTAssertEqual(model.snapshot.startup?.screen, StartupScreen.noScreen)
+        XCTAssertEqual(model.ui.route, .none)
+    }
+
+    /// The user guide the build put in the app, in a real web view through
+    /// the app's scheme handler: the iOS edition's first page, its stylesheet
+    /// and an image load; a file outside the guide doesn't.
+    func checkUserGuide() async throws {
+        XCTAssertTrue(UserGuideFiles.available, "no \(UserGuideFiles.directory.path)/index.html")
+        let configuration = WKWebViewConfiguration()
+        configuration.setURLSchemeHandler(HelpSchemeHandler(root: UserGuideFiles.directory),
+                                          forURLScheme: HelpLinks.scheme)
+        let web = WKWebView(frame: CGRect(x: 0, y: 0, width: 402, height: 800), configuration: configuration)
+        let window = UIWindow(frame: web.frame)
+        window.addSubview(web)
+        window.isHidden = false
+        web.load(URLRequest(url: URL(string: HelpLinks.startURL)!))
+        let deadline = ContinuousClock.now + .seconds(30)
+        while web.isLoading || web.url == nil, ContinuousClock.now < deadline {
+            try await Task.sleep(for: .milliseconds(100))
+        }
+        try await Task.sleep(for: .seconds(1))
+        let title = try await web.evaluateJavaScript("document.title") as? String
+        XCTAssertTrue(title?.contains("Chord Notepad") == true, title ?? "no title")
+        let edition = try await web.evaluateJavaScript("document.body.innerText.includes('iOS edition')") as? Bool
+        XCTAssertEqual(edition, true, "the iOS edition's first page")
+        let styled = try await web.evaluateJavaScript(
+            "Array.from(document.styleSheets).some(s => (s.href || '').endsWith('android.css') && s.cssRules.length > 0)")
+            as? Bool
+        XCTAssertEqual(styled, true, "the phone stylesheet loaded through the scheme")
+        let outside = try await web.callAsyncJavaScript(
+            "try { return (await fetch('cnhelp://guide/_static/%2E%2E/%2E%2E/Info.plist')).status } catch (e) { return -1 }",
+            arguments: [:], in: nil, contentWorld: .page) as? Int
+        XCTAssertNotEqual(outside, 200, "a file outside the guide")
+        let image = try await web.takeSnapshot(configuration: nil)
+        let png = XCTAttachment(image: image)
+        png.name = "guide-live.png"
         png.lifetime = .keepAlways
         add(png)
         window.isHidden = true

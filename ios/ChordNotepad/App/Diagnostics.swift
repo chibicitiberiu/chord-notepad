@@ -95,6 +95,16 @@ final class Diagnostics: NSObject, MXMetricManagerSubscriber, @unchecked Sendabl
         }
     }
 
+    /// Copy `file` in as `Diagnostics/<name>` (and its visible copy), now.
+    func copy(_ file: URL, name: String) throws {
+        let data = try Data(contentsOf: file)
+        queue.sync {
+            for folder in [AppPaths.diagnostics, AppPaths.sharedDiagnostics] {
+                try? data.write(to: folder.appendingPathComponent(name), options: .atomic)
+            }
+        }
+    }
+
     /// Copy the diagnostics and the core's logs into Documents/Diagnostics.
     func mirror() {
         queue.sync {

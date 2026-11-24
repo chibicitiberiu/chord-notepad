@@ -3,7 +3,7 @@ import SwiftUI
 
 /// The ☰ menu: a panel from the leading edge over a dimmed screen (Android's
 /// drawer, without its edge swipe), with Android's entries (``AppMenu``).
-/// Entries the iOS app can't do yet are greyed with "Coming soon".
+/// An entry the app can't do (none now) is greyed with "Coming soon".
 struct AppMenuPanel: View {
     let recent: [DocumentRef]
     let colors: AppColors

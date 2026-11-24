@@ -390,7 +390,7 @@ struct MainScreen: View {
             ChordIdentifierView(state: snapshot.identifier, model: ui.tools.identifier,
                                 expired: ui.tools.identifierExpired, status: snapshot.status?.text, colors: colors,
                                 live: scrolls, event: sheet)
-        case .settings, .about, .licences, .licence:
+        case .settings, .about, .licences, .licence, .userGuide, .quickStart:
             if let page { page }
         default:
             EmptyView()

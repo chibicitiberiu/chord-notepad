@@ -232,6 +232,30 @@ enum PreviewCatalog {
             let entry = AppLicences.entries.first { $0.id == "fluidsynth" }
             LicenceDetailScreen(entry: entry, text: entry.flatMap(AppLicences.text), live: false)
         },
+        // ☰ › Quick start: the tour's first page (its snippet in the editor's colours).
+        CatalogScreen("quick_start", fixtures: ["quick_start_tour"]) { scene, _ in
+            QuickStartScreen(content: scene.snapshot.quickStart,
+                             showAtStartup: quickStartShowsAtStartup(picked: nil, settings: scene.snapshot.settings,
+                                                                     content: scene.snapshot.quickStart),
+                             page: .constant(0), live: false)
+        },
+        // The guide's screenshots (ios/tools/help_shots.json), set up as Android's
+        // (android/tools/help_shots.json): Amazing Grace playing, frozen on Em, in every window ...
+        CatalogScreen("help_play", fixtures: ["grace_playing"], devices: CatalogRenderer.all) { scene, _ in
+            PreviewCatalog.mainScreen(scene, MainUiState(mode: .play))
+        },
+        // ... the four views with the playhead on the first chord, the player with the
+        // metronome on at 125 %, the playhead on Em ...
+        CatalogScreen("help_play_phone", fixtures: ["grace_play", "grace_staff", "grace_fret", "grace_tab",
+                                                    "grace_playing_metronome", "grace_playhead"],
+                      devices: [CatalogRenderer.devices[0]]) { scene, _ in
+            PreviewCatalog.mainScreen(scene, MainUiState(mode: .play))
+        },
+        // ... and Edit: Amazing Grace (the bar, the ribbon, on a phone on its side) and the colour demo.
+        CatalogScreen("help_edit", fixtures: ["grace_edit", "colours_edit"],
+                      devices: CatalogRenderer.upright + [CatalogRenderer.iphoneLandscape]) { scene, _ in
+            PreviewCatalog.mainScreen(scene, MainUiState(mode: .edit))
+        },
     ]
 
     /// Settings over a scene's settings edit, at `nav`.

@@ -73,6 +73,15 @@ final class AppModel: ObservableObject {
     private var offeringExport = false
     /// `-CNScreen export` waits for its export (``runExportCheck()``).
     private var exportCheck = false
+    /// `-CNScreen pdf` waits for its PDF (``runPdfCheck()``).
+    private var pdfCheck = false
+    /// Songs from Files were waiting when the session started (a document launch).
+    private var launchOpensDocument = false
+    /// The tour's "Show at startup" as the user just set it, until the
+    /// session's settings echo it (Android's `QuickStartRoute`).
+    @Published private(set) var quickStartPicked: Bool?
+    /// The guide's page on screen, once one has loaded.
+    @Published private(set) var guidePage: String?
     private var reader: Task<Void, Never>?
     private var startedAt = ContinuousClock.now
     private var auditionState: OSSignpostIntervalState?
@@ -95,6 +104,31 @@ final class AppModel: ObservableObject {
             ui.route = .diagnostics
         }
         await start(fakePlayer: false)
+        reportLaunch()
+        if AppEnvironment.startScreen == nil {
+            // `Diagnostics/startup.json`: what opened over the song at this
+            // launch (CI's first launch after the install waits for the tour).
+            _ = await waitForModel(timeout: .seconds(60)) { model in
+                guard let startup = model.snapshot.startup else { return false }
+                return startup.screen != .quickStart || (model.ui.route == .quickStart && model.snapshot.quickStart != nil)
+            }
+            let tour = ui.route == .quickStart && snapshot.quickStart != nil
+            Diagnostics.shared.writeJSON(ToolScreenReport(name: "startup", ok: tour, route: String(describing: ui.route)),
+                                         name: "startup.json")
+        }
+    }
+
+    /// Tell the session how the app came up, so it decides what opens over the
+    /// song (`app_started`: Quick Start at a direct launch while its setting
+    /// is on; nothing for a song from Files or a CI hook). No purchase on iOS,
+    /// so never the support prompt.
+    private func reportLaunch() {
+        guard phase == .running, let session else { return }
+        let kind = LaunchKind.of(startScreen: AppEnvironment.startScreen, openingDocument: launchOpensDocument)
+        let now = Date()
+        let created = (try? FileManager.default.attributesOfItem(atPath: AppPaths.filesDir.path))?[.creationDate] as? Date
+        session.submit(.appStarted(canAskForSupport: false, installedOn: isoDay(created ?? now),
+                                   launchKind: kind.rawValue, today: isoDay(now)))
     }
 
     /// Start Python, the session (FluidSynth's CoreAudio player, or the
@@ -132,6 +166,12 @@ final class AppModel: ObservableObject {
                         let ref = work()
                         await MainActor.run { done(ref) }
                     }
+                },
+                // Export PDF: the session's pages painted with UIGraphicsPDFRenderer and
+                // written through the store, whose write offers the export picker.
+                paint: { request in
+                    PdfExporter(write: { id, data in try store.writeBytes(id: id, data: data) },
+                                newCanvas: { UIKitPdfCanvas() }).export(request)
                 })
             editor.submit = { session.submit($0) }
             editor.playHandlers = playHandlers
@@ -147,6 +187,7 @@ final class AppModel: ObservableObject {
             openQuickStart()
             let waiting = waitingURLs
             waitingURLs = []
+            launchOpensDocument = !waiting.isEmpty
             waiting.forEach(openURL)
             switch AppEnvironment.startScreen {
             case "chordsheet":
@@ -166,9 +207,13 @@ final class AppModel: ObservableObject {
             case "find":
                 // CI's screenshot of the find bar with its Replace row, live (AppShortcuts.swift).
                 Task { await self.runFindScreen() }
-            case "speed", "instrument", "insert", "capo", "identify", "settings", "voicings", "about":
-                // CI's screenshots of a sheet or a tool, live.
+            case "speed", "instrument", "insert", "capo", "identify", "settings", "voicings", "about",
+                 "families", "guide", "quickstart", "hint", "keyboard", "landscape":
+                // CI's screenshots of a sheet, a tool or a page, live.
                 Task { await self.runToolScreen(AppEnvironment.startScreen ?? "") }
+            case "pdf":
+                // CI's live PDF export: painted, written through the store, checked, then the picker.
+                Task { await self.runPdfCheck() }
             default:
                 break
             }
@@ -240,10 +285,15 @@ final class AppModel: ObservableObject {
             switch output {
             case .settingsState(let state):
                 settingsAct { $0.onSettings(state) }
+                // The tour's checkbox follows the setting once the session has echoed it.
+                if quickStartPicked == state.values.showQuickStartOnStartup { quickStartPicked = nil }
             case .voicingEditorState(let state):
                 settingsAct { $0.onEditor(state) }
             case .voicingEditorSchema(let event):
                 voicingSchema = EditorSchema.parse(event.schema)
+            case .startupState(let state) where state.screen == .quickStart:
+                // The session's answer to app_started: the tour opens over the song.
+                openTour()
             default:
                 break
             }
@@ -489,9 +539,47 @@ final class AppModel: ObservableObject {
             openSettings()
         case .about:
             ui.route = .about
-        case .exportPdf, .userGuide, .quickStart:
-            break
+        case .exportPdf:
+            // A4 or Letter from the region, as Android's locale country.
+            editor.sync()
+            session?.submit(.exportPdf(page: paperFor(Locale.current.region?.identifier)))
+        case .userGuide:
+            guidePage = nil
+            ui.route = .userGuide
+        case .quickStart:
+            openTour()
         }
+    }
+
+    // MARK: - Quick Start
+
+    /// Open the tour: the session sends its pages (`request_quick_start`).
+    func openTour() {
+        editor.sync()
+        quickStartPicked = nil
+        ui.route = .quickStart
+        session?.submit(.requestQuickStart())
+    }
+
+    /// Leave the tour (✕, Done, a song opened from Files); the startup screen
+    /// is dismissed in the session at once, so it doesn't come back.
+    func closeTour() {
+        if ui.route == .quickStart { ui.route = .none }
+        if snapshot.startup?.screen == .quickStart {
+            snapshot.startupDismissed()
+            session?.submit(.dismissStartupScreen())
+        }
+    }
+
+    /// The tour's "Show at startup" (the same setting as Settings › General's switch).
+    func setShowQuickStart(_ show: Bool) {
+        quickStartPicked = show
+        session?.submit(.setShowQuickStartOnStartup(show: show))
+    }
+
+    /// The guide put a page on screen.
+    func guideLoaded(_ url: String) {
+        guidePage = url
     }
 
     /// Save As, suggesting `name` (typed without the extension, after a
@@ -548,6 +636,7 @@ final class AppModel: ObservableObject {
                     // while a value is wrong (Android's P1).
                     switch self.ui.route.onSongOpened {
                     case .leaveSettings: self.settingsAct { $0.requestClose() }
+                    case .close where self.ui.route == .quickStart: self.closeTour()
                     case .close: self.ui.route = .none
                     case .stay: break
                     }
@@ -604,6 +693,12 @@ final class AppModel: ObservableObject {
                                                       ok: riff && data.count > 10_000, problem: nil),
                                          name: "export.json")
             exportCheck = false
+        }
+        if pdfCheck, file.pathExtension == "pdf" {
+            // `-CNScreen pdf`: the file the store got, read back with PDFKit.
+            Diagnostics.shared.writeJSON(PdfReport.of(file, song: editor.model.text), name: "pdf.json")
+            try? Diagnostics.shared.copy(file, name: "export.pdf")
+            pdfCheck = false
         }
         exportsToOffer.append((id, file))
         offerNextExport()
@@ -785,12 +880,103 @@ final class AppModel: ObservableObject {
         case "about":
             ui.route = .about
             ok = true
+        case "families":
+            // The Instrument sheet's families, Steel Guitar the current one (Android's instrument-families).
+            selectMode(.play)
+            sheet(.open(.instrument(family: nil)))
+            sheet(.chooseInstrument(25))
+            ok = await waitFor(timeout: .seconds(30)) { $0.instrumentMenu?.current == 25 }
+        case "guide":
+            choose(.userGuide)
+            ok = await waitForModel(timeout: .seconds(60)) { $0.guidePage != nil }
+            // The theme's fonts and images after the page itself.
+            try? await Task.sleep(for: .seconds(2))
+        case "quickstart":
+            openTour()
+            ok = await waitFor(timeout: .seconds(30)) { $0.quickStart != nil }
+        case "hint":
+            // A typo'd tempo in Play, touched and held (Android's directive-explain).
+            restoreSong(HelpShotSongs.typo, name: "Amazing Grace.txt")
+            ok = await waitFor(timeout: .seconds(30)) { snapshot in
+                snapshot.text == HelpShotSongs.typo && snapshot.highlight?.spans.contains { $0.kind == .directiveInvalid } == true
+            }
+            selectMode(.play)
+            try? await Task.sleep(for: .seconds(1))
+            if ok {
+                // The song starts with the red {bpm: 500}.
+                playHandlers.explain(0)
+                ok = await waitFor(timeout: .seconds(15)) { $0.directiveHint != nil }
+            }
+        case "keyboard":
+            // A new song typed in Edit with the keyboard up (Android's edit-keyboard).
+            choose(.newSong)
+            ok = await waitFor(timeout: .seconds(30)) { $0.document?.documentId == nil && $0.text.isEmpty }
+            selectMode(.edit)
+            try? await Task.sleep(for: .seconds(1))
+            ok = ok && EditorScript.type(HelpShotSongs.typed, at: 0, into: editor)
+            if ok {
+                ok = await waitFor(timeout: .seconds(30)) { snapshot in
+                    snapshot.highlight?.spans.filter { $0.kind == .chord }.count == 4
+                }
+            }
+        case "landscape":
+            // The phone on its side, typing in Edit: the header gives way (Android's edit-keyboard-collapsed).
+            if let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene {
+                scene.requestGeometryUpdate(.iOS(interfaceOrientations: .landscapeRight)) { error in
+                    Log.ui.error("Rotation: \(error.localizedDescription, privacy: .public)")
+                }
+            }
+            selectMode(.edit)
+            try? await Task.sleep(for: .seconds(2))
+            let line = (editor.model.text as NSString).range(of: EditorScript.line)
+            ok = line.location != NSNotFound && EditorScript.type(" x", at: NSMaxRange(line), into: editor)
+            try? await Task.sleep(for: .seconds(2))
+            ok = ok && ui.keyboardHeight > 0
         default:
             break
         }
         Log.ui.info("Tool screen \(name, privacy: .public): \(ok ? "ready" : "failed", privacy: .public)")
         Diagnostics.shared.writeJSON(ToolScreenReport(name: name, ok: ok, route: String(describing: ui.route)),
                                      name: "tool-\(name).json")
+    }
+
+    /// Open `text` as the song `name`, saved (a help screenshot's song).
+    private func restoreSong(_ text: String, name: String) {
+        guard let session else { return }
+        editor.sync()
+        ui.modes.expectOpen()
+        snapshot.requestAnswered(nil)
+        session.submit(.restoreDraft(document: DocumentRef(displayName: name, id: "bundle:\(name)", location: name),
+                                     modified: false, readOnly: true, text: text))
+    }
+
+    /// `-CNScreen pdf` (CI): once the song is on screen, export it as a PDF:
+    /// the session lays the pages out, the app paints them and the store
+    /// writes the file. `Diagnostics/pdf.json` says what the file holds (its
+    /// pages, whether the song's first lyric line is in its text, the font's
+    /// advance) and `Diagnostics/export.pdf` is the file itself, written
+    /// before the export picker opens; the screenshot then shows the picker.
+    func runPdfCheck() async {
+        _ = await waitFor(timeout: .seconds(120)) { $0.highlight?.spans.isEmpty == false }
+        let before = snapshot.messageCount
+        pdfCheck = true
+        choose(.exportPdf)
+        _ = await waitFor(timeout: .seconds(120)) { snapshot in !self.pdfCheck || snapshot.messageCount > before }
+        if pdfCheck {
+            pdfCheck = false
+            let problem = snapshot.messageCount > before ? snapshot.messages.last : "no PDF after 120 s"
+            Diagnostics.shared.writeJSON(PdfReport(problem: problem), name: "pdf.json")
+        }
+    }
+
+    /// Wait until `condition` holds for the model (polled), or `timeout` passes.
+    func waitForModel(timeout: Duration, _ condition: (AppModel) -> Bool) async -> Bool {
+        let deadline = ContinuousClock.now + timeout
+        while ContinuousClock.now < deadline {
+            if condition(self) { return true }
+            try? await Task.sleep(for: .milliseconds(50))
+        }
+        return condition(self)
     }
 
     /// Wait until `condition` holds for Settings (polled), or `timeout` passes.

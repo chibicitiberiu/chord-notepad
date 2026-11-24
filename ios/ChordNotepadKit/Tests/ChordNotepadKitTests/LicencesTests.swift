@@ -51,14 +51,33 @@ final class LicencesTests: XCTestCase {
         let ids = Set(components.map(\.id))
         let expected = ["chord-notepad", "chord-notepad-logo", "cpython", "openssl", "libffi", "xz", "bzip2",
                         "libmpdec", "zstd", "expat", "fluidsynth", "gcem", "pychord", "music21", "mido",
-                        "generaluser-gs", "bravura", "material-design-icons-mdi", "material-icons-google"]
+                        "generaluser-gs", "bravura", "material-design-icons-mdi", "material-icons-google",
+                        "chord-notepad-guide", "sphinx", "sphinx-rtd-theme", "jquery", "snowball-stemmers",
+                        "pygments", "font-awesome", "lato", "roboto-slab"]
         XCTAssertEqual(expected.filter { !ids.contains($0) }, [])
         // Android's own (Chaquopy, Oboe, the libsndfile family, libc++) and
-        // what the iOS app leaves out (chardet, the guide it doesn't ship yet).
+        // what the iOS app leaves out (chardet).
         let notOnIOS = ["chaquopy", "oboe", "libsndfile", "libogg", "libvorbis", "flac", "opus", "libcxx",
-                        "signalsmith-dsp", "chardet", "chord-notepad-guide", "sphinx", "ca-bundle"]
+                        "signalsmith-dsp", "chardet", "ca-bundle"]
         XCTAssertEqual(notOnIOS.filter { ids.contains($0) }, [])
-        XCTAssertFalse(components.contains { $0.group == .guide })
+    }
+
+    func testTheGuidesEntriesAreAndroidsForTheSameBuild() throws {
+        // The same Sphinx stack builds both guides (android/docs-requirements.txt),
+        // so the entries for what the guide ships are Android's, word for word.
+        let android = try Licences.parseComponents(Data(contentsOf: TestPython.repo.appendingPathComponent(
+            "android/app/src/main/assets/licenses/components.json")))
+        let guideIds = Set(android.filter { $0.group == .guide || $0.id == "chord-notepad-guide" }.map(\.id))
+        XCTAssertEqual(guideIds.count, 9)
+        for id in guideIds {
+            XCTAssertEqual(components.first { $0.id == id }, android.first { $0.id == id }, id)
+        }
+        let pins = try String(contentsOf: TestPython.repo.appendingPathComponent("android/docs-requirements.txt"),
+                              encoding: .utf8)
+        for (id, package) in [("sphinx", "sphinx"), ("sphinx-rtd-theme", "sphinx-rtd-theme"), ("pygments", "pygments")] {
+            let version = try XCTUnwrap(components.first { $0.id == id }?.version, id)
+            XCTAssertTrue(pins.contains("\n\(package)==\(version) "), "\(id) \(version) isn't the pinned one")
+        }
     }
 
     func testTheVersionsAreTheOnesTheBuildPins() throws {
@@ -132,9 +151,10 @@ final class LicencesTests: XCTestCase {
         let pythonNames = all.filter { $0.group == .python }.map { $0.name.lowercased() }
         XCTAssertEqual(pythonNames, pythonNames.sorted())
         let sections = Licences.sections(all)
-        XCTAssertEqual(sections.map(\.group), [.app, .runtime, .native, .python, .data])
+        XCTAssertEqual(sections.map(\.group), [.app, .runtime, .native, .python, .data, .guide])
         XCTAssertEqual(sections.map { $0.group.title },
-                       ["This app", "Python runtime", "Audio libraries", "Python packages", "Sounds and graphics"])
+                       ["This app", "Python runtime", "Audio libraries", "Python packages", "Sounds and graphics",
+                        "User guide"])
         XCTAssertEqual(sections.flatMap(\.entries), all)
         // Two texts are shown one after the other.
         let app = all.first { $0.id == appLicenceId }!

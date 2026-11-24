@@ -75,6 +75,18 @@ targets:
           "$PYTHON" -I "$PROJECT_DIR/tools/copy_licences.py" "$CODESIGNING_FOLDER_PATH/licenses"
         basedOnDependencyAnalysis: false
         showEnvVars: false
+      - name: User guide
+        script: |
+          # The iOS edition of the guide (ios/tools/build_help.sh ios/build/help) into <app>/help.
+          src="$PROJECT_DIR/build/help"
+          if [ ! -f "$src/index.html" ]; then
+            echo "error: the user guide isn't built: run ios/tools/build_help.sh ios/build/help"
+            exit 1
+          fi
+          rm -rf "$CODESIGNING_FOLDER_PATH/help"
+          cp -R "$src" "$CODESIGNING_FOLDER_PATH/help"
+        basedOnDependencyAnalysis: false
+        showEnvVars: false
       - name: Install Python
         script: |
           "$PROJECT_DIR/tools/install_python.sh"

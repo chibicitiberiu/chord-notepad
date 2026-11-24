@@ -39,6 +39,23 @@ enum EditorScript {
         return editor.model.text.contains(line + typed)
     }
 
+    /// Put the caret at UTF-16 offset `at` and type `text` there (CI's help
+    /// screenshots), through the same input path as ``type(into:)``.
+    static func type(_ text: String, at: Int, into editor: EditorController) -> Bool {
+        guard let view = editor.textView, at <= (editor.model.text as NSString).length else { return false }
+        let before = editor.model.text
+        _ = view.becomeFirstResponder()
+        view.selectedRange = NSRange(location: at, length: 0)
+        editor.viewChanged()
+        view.insertText(text)
+        editor.viewChanged()
+        if editor.model.text == before, let range = view.selectedTextRange {
+            view.replace(range, withText: text)
+            editor.viewChanged()
+        }
+        return editor.model.text != before
+    }
+
     /// The chords inside the typed text that the editor paints now.
     static func paintedChords(_ editor: EditorController) -> [String] {
         let text = editor.model.text as NSString

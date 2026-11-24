@@ -64,6 +64,17 @@ struct MainView: View {
             let entry = AppLicences.entries.first { $0.id == id }
             return AnyView(LicenceDetailScreen(entry: entry, text: entry.flatMap(AppLicences.text),
                                                actions: aboutActions))
+        case .userGuide:
+            return AnyView(UserGuideScreen(close: { model.pageBack() },
+                                           linkFailed: { model.notice(AboutTexts.openFailed) },
+                                           loaded: { model.guideLoaded($0) }))
+        case .quickStart:
+            return AnyView(QuickStartScreen(
+                content: model.snapshot.quickStart,
+                showAtStartup: quickStartShowsAtStartup(picked: model.quickStartPicked, settings: model.snapshot.settings,
+                                                        content: model.snapshot.quickStart),
+                setShowAtStartup: { model.setShowQuickStart($0) },
+                close: { model.closeTour() }))
         default:
             return nil
         }
