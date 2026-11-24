@@ -111,6 +111,7 @@ final class SessionTests: XCTestCase {
 
         try await checkFiles(model)
         try await checkSheetsAndTools(model)
+        try await checkSettingsAndAbout(model)
 
         XCTAssertTrue(model.snapshot.messages.allSatisfy { !$0.hasPrefix("Unexpected error") },
                       "\(model.snapshot.messages)")
@@ -398,6 +399,139 @@ final class SessionTests: XCTestCase {
         XCTAssertTrue(done)
         XCTAssertTrue(editor.model.text.hasPrefix("C {bpm: 110}"), "\(editor.model.text.prefix(60))")
         model.sheet(.dismiss)
+        XCTAssertEqual(model.ui.route, MainRoute.none)
+    }
+
+    /// Settings, live, through the app's own calls (the screen's taps): a
+    /// General value saved at once and applied, a number saved once its
+    /// typing rests (the 400 ms timer), a voicing made from a blank
+    /// fretboard, renamed, given strings, then an unbuildable value the core
+    /// refuses (the problems question on leaving, Edit back to it), fixed and
+    /// removed; Edit voicings… from the Voicing sheet; About and the bundled
+    /// licences. Everything is put back as it was.
+    private func checkSettingsAndAbout(_ model: AppModel) async throws {
+        model.choose(.settings)
+        XCTAssertEqual(model.ui.route, .settings)
+        var ok = await model.waitForSettings(timeout: .seconds(30)) {
+            $0.ui.phase == .editing && $0.ui.draft != nil && $0.editor != nil
+        }
+        XCTAssertTrue(ok, "\(String(describing: model.settings?.ui))")
+        ok = await model.waitFor(timeout: .seconds(30)) { _ in model.voicingSchema != nil }
+        XCTAssertTrue(ok, "the voicings editor's schema")
+
+        // A General value: saved at once, applied to the editor.
+        let wrap = try XCTUnwrap(model.settings?.ui.draft?.wordWrap)
+        model.settingsAct { $0.updateDraft { $0.wordWrap = !wrap } }
+        ok = await model.waitFor(timeout: .seconds(10)) {
+            $0.settings?.values.wordWrap == !wrap && $0.editor?.wordWrap == !wrap
+        }
+        XCTAssertTrue(ok, "word wrap saved and applied")
+        model.settingsAct { $0.updateDraft { $0.wordWrap = wrap } }
+        ok = await model.waitFor(timeout: .seconds(10)) { $0.settings?.values.wordWrap == wrap }
+        XCTAssertTrue(ok)
+
+        // A number typed: nothing until the typing rests, then saved; one out of range isn't.
+        let bpm = try XCTUnwrap(model.snapshot.settings?.values.bpm)
+        model.settingsAct { $0.setNumber(.bpm, "9") }
+        model.settingsAct { $0.setNumber(.bpm, "96") }
+        XCTAssertNotEqual(model.snapshot.settings?.values.bpm, 96, "saved before the typing rested")
+        ok = await model.waitFor(timeout: .seconds(10)) { $0.settings?.values.bpm == 96 }
+        XCTAssertTrue(ok, "the typed tempo saved once the typing rested")
+        model.settingsAct { $0.setNumber(.bpm, "1000") }
+        XCTAssertEqual(model.settings?.ui.numberTexts, [.bpm: "1000"])
+        ok = await model.waitFor(timeout: .seconds(10)) { snapshot in
+            NumberSetting.fromKeys(snapshot.voicingEditor?.stagedNumbers ?? .null) == [.bpm: "1000"]
+        }
+        XCTAssertTrue(ok, "the wrong number staged, not saved")
+        XCTAssertEqual(model.snapshot.settings?.values.bpm, 96)
+        model.settingsAct { $0.setNumber(.bpm, String(bpm)) }
+        ok = await model.waitFor(timeout: .seconds(10)) { $0.settings?.values.bpm == bpm }
+        XCTAssertTrue(ok)
+
+        // A voicing: a blank fretboard, renamed, its strings typed.
+        model.settingsAct { $0.openPage(.voicings) }
+        model.settingsAct { $0.addVoicingFrom(VoicingPreset(group: VoicingPresetGroup.blank, label: "Blank fretboard")) }
+        ok = await model.waitForSettings(timeout: .seconds(10)) {
+            $0.editor?.state.model == "fretboard" && $0.editor?.state.selected?.hasPrefix("New fretboard voicing") == true
+        }
+        XCTAssertTrue(ok, "\(String(describing: model.settings?.editor?.state.selected))")
+        let blank = try XCTUnwrap(model.settings?.editor?.state.selected)
+        model.settingsAct { $0.askRename(blank) }
+        XCTAssertEqual(model.settings?.ui.dialog, .rename(blank))
+        model.settingsAct { $0.confirmDialog(newName: "CI 7-String") }
+        ok = await model.waitForSettings(timeout: .seconds(10)) { $0.editor?.state.selected == "CI 7-String" }
+        XCTAssertTrue(ok)
+        model.settingsAct { $0.edit(VoicingEdits.text("tuning", "B1 E2 A2 D3 G3 B3 E4")) }
+        ok = await model.waitFor(timeout: .seconds(10)) { snapshot in
+            snapshot.voicingEditor?.values["tuning"] == .string("B1 E2 A2 D3 G3 B3 E4")
+                && snapshot.voicingEditor?.problems.isEmpty == true
+                && snapshot.voicingMenu?.groups.joined().contains { $0.label == "CI 7-String" } == true
+        }
+        XCTAssertTrue(ok, "the voicing saved and in the Voicing sheet")
+
+        // Unbuildable: a string that isn't a note. Shown, not saved; leaving asks.
+        model.settingsAct { $0.edit(VoicingEdits.text("tuning", "B1 E2 X9")) }
+        ok = await model.waitFor(timeout: .seconds(10)) { snapshot in
+            snapshot.voicingEditor?.problems.contains { $0.fieldId == "tuning" } == true
+        }
+        XCTAssertTrue(ok, "\(String(describing: model.snapshot.voicingEditor?.problems))")
+        XCTAssertEqual(model.snapshot.voicingEditor?.invalid, ["CI 7-String"])
+        XCTAssertTrue(model.snapshot.voicingEditor?.hasErrors == true)
+        model.settingsAct { $0.requestClose() }
+        XCTAssertEqual(model.settings?.ui.dialog, .problems, "leaving with a refused value asks first")
+        XCTAssertEqual(model.ui.route, .settings)
+        model.settingsAct { $0.editProblems() }
+        XCTAssertEqual(model.settings?.ui.nav, SettingsNav(.voicings, voicingDetail: true))
+        model.settingsAct { $0.edit(VoicingEdits.text("tuning", "B1 E2 A2 D3 G3 B3 E4")) }
+        ok = await model.waitFor(timeout: .seconds(10)) { $0.voicingEditor?.problems.isEmpty == true }
+        XCTAssertTrue(ok, "fixed")
+
+        // Removed again, through its question.
+        model.settingsAct { $0.askRemove("CI 7-String") }
+        model.settingsAct { $0.confirmDialog() }
+        ok = await model.waitFor(timeout: .seconds(10)) { snapshot in
+            snapshot.voicingEditor?.groups.allSatisfy { !$0.names.contains("CI 7-String") } == true
+                && snapshot.voicingMenu?.groups.joined().contains { $0.label == "CI 7-String" } == false
+        }
+        XCTAssertTrue(ok, "removed")
+        model.settingsAct { $0.back(twoPane: false, split: false) }
+        model.settingsAct { $0.back(twoPane: false, split: false) }
+        model.settingsAct { $0.back(twoPane: false, split: false) }
+        XCTAssertNil(model.settings, "left")
+        XCTAssertEqual(model.ui.route, MainRoute.none)
+        ok = await model.waitFor(timeout: .seconds(10)) { $0.voicingEditor?.active == false }
+        XCTAssertTrue(ok, "the edit ended")
+
+        // Edit voicings… in the Voicing sheet opens Settings at Voicings.
+        model.sheet(.open(.voicing))
+        model.sheet(.editVoicings)
+        XCTAssertEqual(model.ui.route, .settings)
+        XCTAssertEqual(model.settings?.ui.nav, SettingsNav(.voicings))
+        ok = await model.waitForSettings(timeout: .seconds(10)) { $0.ui.phase == .editing }
+        XCTAssertTrue(ok)
+        model.settingsAct { $0.requestClose() }
+        XCTAssertEqual(model.ui.route, MainRoute.none)
+
+        // About and the licences the build phase put in the app.
+        model.choose(.about)
+        XCTAssertEqual(model.ui.route, .about)
+        XCTAssertGreaterThan(AppLicences.entries.count, 20)
+        let app = try XCTUnwrap(AppLicences.entries.first { $0.id == appLicenceId })
+        XCTAssertTrue(AppLicences.text(app)?.contains("GNU AFFERO GENERAL PUBLIC LICENSE") == true)
+        let fluidsynth = try XCTUnwrap(AppLicences.entries.first { $0.id == "fluidsynth" })
+        XCTAssertTrue(AppLicences.text(fluidsynth)?.contains("GNU LESSER GENERAL PUBLIC LICENSE") == true)
+        for entry in AppLicences.entries {
+            XCTAssertNotNil(AppLicences.text(entry), "\(entry.id): its text isn't in the app")
+        }
+        model.ui.route = .licence(id: appLicenceId, fromAbout: true)
+        model.pageBack()
+        XCTAssertEqual(model.ui.route, .about)
+        model.ui.route = .licences
+        model.ui.route = .licence(id: "fluidsynth", fromAbout: false)
+        model.pageBack()
+        XCTAssertEqual(model.ui.route, .licences)
+        model.pageBack()
+        model.pageBack()
         XCTAssertEqual(model.ui.route, MainRoute.none)
     }
 

@@ -150,7 +150,110 @@ enum PreviewCatalog {
             ui.tools.identifier = IdentifierModel(typed: scene.snapshot.identifier?.notesText ?? "", picked: "Cmaj7")
             return PreviewCatalog.mainScreen(scene, ui)
         },
+        // Settings, from the session's settings edit on Amazing Grace (the voicings as Android's help
+        // screenshots have them: My 7-String, Jazz Vocal Trio). On a phone the pages list; with two panes General.
+        CatalogScreen("settings", fixtures: ["settings_open"]) { scene, _ in
+            PreviewCatalog.settings(scene)
+        },
+        CatalogScreen("settings_general", fixtures: ["settings_open"], devices: [CatalogRenderer.devices[0]]) { scene, _ in
+            PreviewCatalog.settings(scene, nav: SettingsNav(.general))
+        },
+        CatalogScreen("settings_playback", fixtures: ["settings_open"]) { scene, _ in
+            PreviewCatalog.settings(scene, nav: SettingsNav(.playback))
+        },
+        CatalogScreen("settings_voicings", fixtures: ["settings_voicing_form"]) { scene, _ in
+            PreviewCatalog.settings(scene, nav: SettingsNav(.voicings))
+        },
+        // The Add voicing menu open over the list (live, it is iOS's menu: a stand-in here).
+        CatalogScreen("settings_add_voicing", fixtures: ["settings_voicing_form"],
+                      devices: [CatalogRenderer.devices[0]]) { scene, _ in
+            PreviewCatalog.settings(scene, nav: SettingsNav(.voicings), addMenuShown: true)
+        },
+        // My 7-String's form; on an iPad on its side the list and the form side by side.
+        CatalogScreen("settings_voicing_form", fixtures: ["settings_voicing_form"],
+                      devices: CatalogRenderer.upright + [CatalogRenderer.ipadLandscape]) { scene, _ in
+            PreviewCatalog.settings(scene, nav: SettingsNav(.voicings, voicingDetail: true))
+        },
+        // Jazz Vocal Trio: its voices as cards (the phone's form scrolled to them, as Android's help
+        // screenshot shows it), and the whole form as a table on an iPad on its side.
+        CatalogScreen("settings_voicing_voices", fixtures: ["settings_voicing_ensemble"],
+                      devices: [CatalogRenderer.devices[0]]) { scene, _ in
+            CatalogColors { PreviewCatalog.voices(scene, colors: $0) }
+        },
+        CatalogScreen("settings_voicing_ensemble", fixtures: ["settings_voicing_ensemble"],
+                      devices: [CatalogRenderer.ipadLandscape]) { scene, _ in
+            PreviewCatalog.settings(scene, nav: SettingsNav(.voicings, voicingDetail: true))
+        },
+        // An unbuildable voicing the core refused: the banner, the red fields.
+        CatalogScreen("settings_voicing_refused", fixtures: ["settings_voicing_refused"]) { scene, _ in
+            PreviewCatalog.settings(scene, nav: SettingsNav(.voicings, voicingDetail: true))
+        },
+        // Leaving with those values and a tempo out of range: the question.
+        CatalogScreen("settings_problems", fixtures: ["settings_voicing_refused"]) { scene, _ in
+            var controller = SettingsController.showing(scene.snapshot, nav: SettingsNav(.voicings, voicingDetail: true))
+            controller.setNumber(.bpm, "1000")
+            controller.requestClose()
+            return PreviewCatalog.settings(scene, controller: controller)
+        },
+        // A built-in, read-only, with Copy to a new voicing.
+        CatalogScreen("settings_builtin", fixtures: ["settings_builtin"],
+                      devices: [CatalogRenderer.devices[0], CatalogRenderer.ipadLandscape]) { scene, _ in
+            PreviewCatalog.settings(scene, nav: SettingsNav(.voicings, voicingDetail: true))
+        },
+        CatalogScreen("settings_rename", fixtures: ["settings_voicing_form"], devices: [CatalogRenderer.devices[0]]) { scene, _ in
+            var controller = SettingsController.showing(scene.snapshot, nav: SettingsNav(.voicings, voicingDetail: true))
+            controller.askRename("My 7-String")
+            return PreviewCatalog.settings(scene, controller: controller)
+        },
+        // About, the licences and one licence's text, from the bundle's licence list.
+        CatalogScreen("about", fixtures: ["empty_song"]) { _, _ in
+            AboutScreen(info: AboutBuildInfo(versionName: "0.6.2", buildNumber: "1", commit: "f31fbb5",
+                                             buildType: "release"), live: false)
+        },
+        CatalogScreen("licences", fixtures: ["empty_song"]) { _, _ in
+            LicencesScreen(entries: AppLicences.entries, live: false)
+        },
+        CatalogScreen("licence", fixtures: ["empty_song"], devices: [CatalogRenderer.devices[0]]) { _, _ in
+            let entry = AppLicences.entries.first { $0.id == "fluidsynth" }
+            LicenceDetailScreen(entry: entry, text: entry.flatMap(AppLicences.text), live: false)
+        },
     ]
+
+    /// Settings over a scene's settings edit, at `nav`.
+    static func settings(_ scene: CatalogScene, nav: SettingsNav = SettingsNav(), addMenuShown: Bool = false)
+        -> SettingsScreen {
+        settings(scene, controller: SettingsController.showing(scene.snapshot, nav: nav), addMenuShown: addMenuShown)
+    }
+
+    static func settings(_ scene: CatalogScene, controller: SettingsController, addMenuShown: Bool = false)
+        -> SettingsScreen {
+        SettingsScreen(controller: controller,
+                       schema: scene.snapshot.voicingEditorSchema.map { EditorSchema.parse($0.schema) },
+                       live: false, addMenuShown: addMenuShown)
+    }
+
+    /// An ensemble's voices as the phone's form shows them once scrolled to
+    /// them: the bar, then the records field.
+    @ViewBuilder
+    static func voices(_ scene: CatalogScene, colors: AppColors) -> some View {
+        let state = scene.snapshot.voicingEditor
+        let schema = scene.snapshot.voicingEditorSchema.map { EditorSchema.parse($0.schema) }
+        let form = state.flatMap { schema?.form($0.model) }
+        let items = state.flatMap { state in
+            form.map { buildForm($0, values: state.values, errors: state.fieldErrors, hints: state.hints) }
+        } ?? []
+        VStack(spacing: 0) {
+            PageBar(title: state?.selected ?? "", colors: colors)
+            PageColumn(live: false, spacing: 8, maxWidth: 900) {
+                ForEach(items, id: \.key) { item in
+                    if case .records(let records) = item {
+                        RecordsInput(item: records, formKey: "catalog", wide: false, colors: colors, live: false)
+                    }
+                }
+            }
+        }
+        .background(colors.surface.swiftUI)
+    }
 
     /// The main screen of a scene in `ui`'s mode, with what is open over it.
     static func mainScreen(_ scene: CatalogScene, _ ui: MainUiState, renameName: String = "",

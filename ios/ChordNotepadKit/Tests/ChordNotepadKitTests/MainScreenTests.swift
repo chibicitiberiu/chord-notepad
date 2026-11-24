@@ -422,9 +422,9 @@ final class MainScreenTests: XCTestCase {
         XCTAssertEqual(labels, ["New song", "Open…", "a.txt", "—", "Save as…", "Export MIDI…", "Export audio…",
                                 "Export PDF…", "—", "Settings", "Examples", "User guide", "Quick start", "About",
                                 "Diagnostics"])
-        // Export PDF waits for a painter; Settings, the guide, the tour and About for their screens.
-        XCTAssertEqual(enabled, ["New song", "Open…", "a.txt", "Save as…", "Export MIDI…", "Export audio…", "Examples",
-                                 "Diagnostics"])
+        // Export PDF waits for a painter; the guide and the tour for their screens.
+        XCTAssertEqual(enabled, ["New song", "Open…", "a.txt", "Save as…", "Export MIDI…", "Export audio…", "Settings",
+                                 "Examples", "About", "Diagnostics"])
     }
 
     // -- the player's state ------------------------------------------------------------------------

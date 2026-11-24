@@ -17,7 +17,7 @@ struct MainView: View {
         MainScreen(snapshot: model.snapshot, editorModel: editor.model, editor: editor, ui: model.ui,
                    starting: model.phase == .starting || model.phase == .idle, failure: failure,
                    actions: actions, chordSheet: model.chordSheet, snackbar: model.snackbars.shown,
-                   renameName: $renameName)
+                   renameName: $renameName, page: page)
             .animation(.easeOut(duration: 0.2), value: model.snackbars.shown)
             .sheet(isPresented: route(.diagnostics)) {
                 DiagnosticsView(model: model)
@@ -45,6 +45,41 @@ struct MainView: View {
     }
 
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.openURL) private var openURL
+
+    /// Settings, About, the licences or a licence's text, when the route opens one.
+    private var page: AnyView? {
+        switch model.ui.route {
+        case .settings:
+            guard let settings = model.settings else { return nil }
+            return AnyView(SettingsScreen(controller: settings, schema: model.voicingSchema,
+                                          act: { model.settingsAct($0) }))
+        case .about:
+            return AnyView(AboutScreen(info: AboutBuildInfo.from(info: Bundle.main.infoDictionary ?? [:],
+                                                                 debug: AppEnvironment.debugBuild),
+                                       actions: aboutActions))
+        case .licences:
+            return AnyView(LicencesScreen(entries: AppLicences.entries, actions: aboutActions))
+        case .licence(let id, _):
+            let entry = AppLicences.entries.first { $0.id == id }
+            return AnyView(LicenceDetailScreen(entry: entry, text: entry.flatMap(AppLicences.text),
+                                               actions: aboutActions))
+        default:
+            return nil
+        }
+    }
+
+    private var aboutActions: AboutActions {
+        AboutActions(back: { model.pageBack() },
+                     openLicence: { id, fromAbout in model.ui.route = .licence(id: id, fromAbout: fromAbout) },
+                     openLicences: { model.ui.route = .licences },
+                     openLink: { link in
+                         guard let url = URL(string: link) else { return }
+                         openURL(url) { opened in
+                             if !opened { model.notice(AboutTexts.openFailed) }
+                         }
+                     })
+    }
 
     private var colors: AppColors { .forScheme(dark: scheme == .dark) }
 

@@ -52,6 +52,9 @@ struct MainScreen: View {
     var snackbar: Snackbar?
     /// The rename dialog's field.
     var renameName: Binding<String> = .constant("")
+    /// The full-screen page the route opens (Settings, About, the licences),
+    /// over everything but the snackbar; the live view makes it.
+    var page: AnyView?
 
     @Environment(\.colorScheme) private var scheme
     @Environment(\.dynamicTypeSize) private var textSize
@@ -114,7 +117,8 @@ struct MainScreen: View {
     private func snackbarView(_ layout: ScreenLayout) -> some View {
         if let snackbar {
             SnackbarView(snackbar: snackbar, colors: colors) { actions?.dismissSnackbar(snackbar.id) }
-                .padding(.bottom, CGFloat(snackbarClearance(mode: ui.mode, sideBySide: layout.sideBySide)))
+                .padding(.bottom, ui.route.isFullPage ? 16
+                         : CGFloat(snackbarClearance(mode: ui.mode, sideBySide: layout.sideBySide)))
                 .transition(.move(edge: .bottom).combined(with: .opacity))
         }
     }
@@ -368,6 +372,8 @@ struct MainScreen: View {
             ChordIdentifierView(state: snapshot.identifier, model: ui.tools.identifier,
                                 expired: ui.tools.identifierExpired, status: snapshot.status?.text, colors: colors,
                                 live: scrolls, event: sheet)
+        case .settings, .about, .licences, .licence:
+            if let page { page }
         default:
             EmptyView()
         }

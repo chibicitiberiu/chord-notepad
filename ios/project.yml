@@ -68,6 +68,13 @@ targets:
           "$PROJECT_DIR/tools/export_glyphs.sh"
         basedOnDependencyAnalysis: false
         showEnvVars: false
+      - name: Licences
+        script: |
+          # The licence list and the texts it names, into <app>/licenses (About › Open source licences).
+          PYTHON=$(command -v python3.14 || command -v python3)
+          "$PYTHON" -I "$PROJECT_DIR/tools/copy_licences.py" "$CODESIGNING_FOLDER_PATH/licenses"
+        basedOnDependencyAnalysis: false
+        showEnvVars: false
       - name: Install Python
         script: |
           "$PROJECT_DIR/tools/install_python.sh"

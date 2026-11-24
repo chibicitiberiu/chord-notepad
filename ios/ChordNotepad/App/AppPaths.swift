@@ -67,6 +67,15 @@ enum AppEnvironment {
             || environment["XCTestSessionIdentifier"] != nil
     }
 
+    /// A Debug build (About's build type).
+    static var debugBuild: Bool {
+        #if DEBUG
+        return true
+        #else
+        return false
+        #endif
+    }
+
     /// `-CNScreen selftest` opens the self-test at launch, `-CNScreen
     /// chordsheet` shows the chord sheet (CI's screenshots).
     static var startScreen: String? { argument(after: "-CNScreen") }

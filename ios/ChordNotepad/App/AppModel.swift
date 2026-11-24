@@ -44,6 +44,13 @@ final class AppModel: ObservableObject {
     private var snackbarShown: Int?
     /// The chord sheet's buffers, once the session runs.
     @Published private(set) var chordSheet: ChordSheetSource?
+    /// Settings while it is open (the kit's controller: Android's
+    /// `SettingsController`); nil once it is left.
+    @Published private(set) var settings: SettingsController?
+    /// The save of a number being typed, once the typing rests (``draftSaveDelay``).
+    private var settingsSave: Task<Void, Never>?
+    /// The voicings editor's schema, read once it arrives.
+    @Published private(set) var voicingSchema: EditorSchema?
     /// The song editor: the text the user sees and edits (``snapshot``'s
     /// `text` has the session's edits only; the user's typing isn't echoed).
     let editor = EditorController()
@@ -152,7 +159,7 @@ final class AppModel: ObservableObject {
             case "menu":
                 // CI's screenshot of the menu, over the song.
                 ui.route = .menu
-            case "speed", "insert", "capo", "identify":
+            case "speed", "insert", "capo", "identify", "settings", "voicings", "about":
                 // CI's screenshots of a sheet or a tool, live.
                 Task { await self.runToolScreen(AppEnvironment.startScreen ?? "") }
             default:
@@ -223,6 +230,16 @@ final class AppModel: ObservableObject {
             snapshot.apply(output)
             editor.receive(output)
             ui.received(output)
+            switch output {
+            case .settingsState(let state):
+                settingsAct { $0.onSettings(state) }
+            case .voicingEditorState(let state):
+                settingsAct { $0.onEditor(state) }
+            case .voicingEditorSchema(let event):
+                voicingSchema = EditorSchema.parse(event.schema)
+            default:
+                break
+            }
             switch output {
             case .documentState(let document):
                 ui.modes.onDocument(document)
@@ -374,10 +391,63 @@ final class AppModel: ObservableObject {
         }
         if let id = effects.answered { snapshot.requestAnswered(id) }
         if let notice = effects.notice { self.notice(notice) }
+        if let page = effects.openSettings { openSettings(page: page) }
         if let offset = effects.editAt {
             selectMode(.edit)
             editor.placeCursor(codePoint: offset)
         }
+    }
+
+    // MARK: - Settings
+
+    /// Open Settings (at `page`: Edit voicings… opens Voicings). The edit
+    /// begins in the session (`begin_settings_edit`); the schema is asked for
+    /// once per process.
+    func openSettings(page: SettingsPage? = nil) {
+        editor.sync()
+        var controller = SettingsController(initialPage: page)
+        controller.start(needSchema: snapshot.voicingEditorSchema == nil)
+        if let state = snapshot.settings { controller.onSettings(state) }
+        if let state = snapshot.voicingEditor { controller.onEditor(state) }
+        settings = controller
+        ui.route = .settings
+        flushSettings()
+    }
+
+    /// A change to Settings (a tap, a typed value, a state from the session):
+    /// the controller's commands go out, a number being typed is saved once
+    /// it rests, and the screen goes once the edit has ended.
+    func settingsAct(_ change: (inout SettingsController) -> Void) {
+        guard var controller = settings else { return }
+        change(&controller)
+        settings = controller
+        flushSettings()
+    }
+
+    private func flushSettings() {
+        guard var controller = settings else { return }
+        let commands = controller.takeCommands()
+        settings = controller
+        for command in commands { session?.submit(command) }
+        settingsSave?.cancel()
+        settingsSave = nil
+        if controller.ui.phase == .closed {
+            settings = nil
+            if ui.route == .settings { ui.route = .none }
+            return
+        }
+        if controller.needsSave {
+            settingsSave = Task { [weak self] in
+                try? await Task.sleep(for: .milliseconds(Int(draftSaveDelay * 1000)))
+                guard !Task.isCancelled else { return }
+                self?.settingsAct { $0.saveDraft() }
+            }
+        }
+    }
+
+    /// A full-screen page's ← (About, the licences, a licence's text).
+    func pageBack() {
+        ui.route = ui.route.parent
     }
 
     /// A menu entry: only what the iOS app has now (``AppMenu/available``).
@@ -408,7 +478,11 @@ final class AppModel: ObservableObject {
         case .exportAudio:
             editor.sync()
             session?.submit(.exportAudio())
-        case .exportPdf, .settings, .userGuide, .quickStart, .about:
+        case .settings:
+            openSettings()
+        case .about:
+            ui.route = .about
+        case .exportPdf, .userGuide, .quickStart:
             break
         }
     }
@@ -462,8 +536,14 @@ final class AppModel: ObservableObject {
             await MainActor.run {
                 switch adopted {
                 case .success(let ref):
-                    // Nothing over the screen: the unsaved-changes question may follow.
-                    self.ui.route = .none
+                    // Nothing over the screen: the unsaved-changes question may
+                    // follow. Settings is left as ← leaves it: it asks first
+                    // while a value is wrong (Android's P1).
+                    switch self.ui.route.onSongOpened {
+                    case .leaveSettings: self.settingsAct { $0.requestClose() }
+                    case .close: self.ui.route = .none
+                    case .stay: break
+                    }
                     self.ui.modes.expectOpen(target: ref.id, current: self.snapshot.document)
                     session.submit(.openDocument(readOnly: false, ref: ref))
                 case .failure(let error):
@@ -628,11 +708,12 @@ final class AppModel: ObservableObject {
         }
     }
 
-    /// `-CNScreen speed|insert|capo|identify` (CI): once the song is on
-    /// screen, open that sheet or tool as a person would (the speed at 125 %,
-    /// Insert › Tempo, Suggest Capo scored, the identifier with C, E, G and B
-    /// and Cmaj7 picked), then write `Diagnostics/tool-<name>.json`, which
-    /// the screenshot waits for.
+    /// `-CNScreen speed|insert|capo|identify|settings|voicings|about` (CI):
+    /// once the song is on screen, open that sheet, tool or page as a person
+    /// would (the speed at 125 %, Insert › Tempo, Suggest Capo scored, the
+    /// identifier with C, E, G and B and Cmaj7 picked, Settings › General,
+    /// Settings › Voicings with the built-in standard guitar shown, About),
+    /// then write `Diagnostics/tool-<name>.json`, which the screenshot waits for.
     func runToolScreen(_ name: String) async {
         _ = await waitFor(timeout: .seconds(120)) { $0.highlight?.spans.isEmpty == false }
         var ok = false
@@ -666,12 +747,39 @@ final class AppModel: ObservableObject {
             }
             ok = await waitFor(timeout: .seconds(30)) { $0.identifier?.candidates.contains("Cmaj7") == true }
             if ok { sheet(.identifierPick("Cmaj7", rolled: false)) }
+        case "settings":
+            openSettings(page: .general)
+            ok = await waitForSettings(timeout: .seconds(30)) { $0.ui.phase == .editing && $0.ui.draft != nil }
+        case "voicings":
+            openSettings(page: .voicings)
+            ok = await waitForSettings(timeout: .seconds(30)) {
+                $0.ui.phase == .editing && $0.editor != nil && self.snapshot.voicingEditorSchema != nil
+            }
+            if ok {
+                settingsAct { $0.selectBuiltin(model: "fretboard", label: "Guitar (Standard - EADGBE)") }
+                ok = await waitForSettings(timeout: .seconds(30)) {
+                    $0.editor?.state.showsBuiltin == true && $0.editor?.state.selected == "Guitar (Standard - EADGBE)"
+                }
+            }
+        case "about":
+            ui.route = .about
+            ok = true
         default:
             break
         }
         Log.ui.info("Tool screen \(name, privacy: .public): \(ok ? "ready" : "failed", privacy: .public)")
         Diagnostics.shared.writeJSON(ToolScreenReport(name: name, ok: ok, route: String(describing: ui.route)),
                                      name: "tool-\(name).json")
+    }
+
+    /// Wait until `condition` holds for Settings (polled), or `timeout` passes.
+    func waitForSettings(timeout: Duration, _ condition: (SettingsController) -> Bool) async -> Bool {
+        let deadline = ContinuousClock.now + timeout
+        while ContinuousClock.now < deadline {
+            if let settings, condition(settings) { return true }
+            try? await Task.sleep(for: .milliseconds(50))
+        }
+        return settings.map(condition) ?? false
     }
 
     /// Wait until `condition` holds for the snapshot (polled), or `timeout` passes.

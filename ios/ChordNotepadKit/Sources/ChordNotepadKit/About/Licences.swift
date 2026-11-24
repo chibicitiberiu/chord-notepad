@@ -133,7 +133,7 @@ public enum Licences {
 
 /// What About shows about this build (Android's `BuildInfo`). There is no
 /// build date, as on Android.
-public struct BuildInfo: Sendable, Equatable {
+public struct AboutBuildInfo: Sendable, Equatable {
     /// The `VERSION` file's version (`CFBundleShortVersionString`).
     public var versionName: String
     /// The build number (`CFBundleVersion`: CI's run number).
@@ -151,9 +151,9 @@ public struct BuildInfo: Sendable, Equatable {
     }
 
     /// From the app's Info.plist (`CNGitCommit` is CI's full hash; shown short).
-    public static func from(info: [String: Any], debug: Bool) -> BuildInfo {
+    public static func from(info: [String: Any], debug: Bool) -> AboutBuildInfo {
         let commit = (info["CNGitCommit"] as? String).flatMap { $0.isEmpty ? nil : $0 } ?? "unknown"
-        return BuildInfo(versionName: info["CFBundleShortVersionString"] as? String ?? "0.0.0",
+        return AboutBuildInfo(versionName: info["CFBundleShortVersionString"] as? String ?? "0.0.0",
                          buildNumber: info["CFBundleVersion"] as? String ?? "0",
                          commit: commit.count == 40 ? String(commit.prefix(7)) : commit,
                          buildType: debug ? "debug" : "release")

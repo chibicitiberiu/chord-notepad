@@ -160,6 +160,8 @@ final class LicencesTests: XCTestCase {
         XCTAssertEqual(fromAbout.licenceId, appLicenceId)
         XCTAssertEqual(fromAbout.parent, .about)
         XCTAssertEqual(MainRoute.settings.parent, MainRoute.none)
+        XCTAssertTrue([MainRoute.settings, .about, .licences, fromAbout].allSatisfy(\.isFullPage))
+        XCTAssertFalse([MainRoute.none, .menu, .voicing, .identify, .diagnostics].contains(where: \.isFullPage))
     }
 
     func testAnOpenedSongClosesThePageOverTheEditorSettingsAsksFirst() {
@@ -173,16 +175,16 @@ final class LicencesTests: XCTestCase {
     }
 
     func testBuildInfoHasAVersionAndNoDate() {
-        let info = BuildInfo.from(info: ["CFBundleShortVersionString": "0.6.2", "CFBundleVersion": "123",
+        let info = AboutBuildInfo.from(info: ["CFBundleShortVersionString": "0.6.2", "CFBundleVersion": "123",
                                          "CNGitCommit": "f31fbb5b39345578918245345b85f6a7b03b862d",
                                          "CNBuildDate": "2026-11-24"], debug: false)
-        XCTAssertEqual(info, BuildInfo(versionName: "0.6.2", buildNumber: "123", commit: "f31fbb5", buildType: "release"))
+        XCTAssertEqual(info, AboutBuildInfo(versionName: "0.6.2", buildNumber: "123", commit: "f31fbb5", buildType: "release"))
         XCTAssertEqual(info.rows.map(\.label), ["Version", "Build type", "Build number", "Commit"])
         XCTAssertFalse(info.rows.contains { $0.value.contains("2026") })
-        let dev = BuildInfo.from(info: ["CNGitCommit": ""], debug: true)
+        let dev = AboutBuildInfo.from(info: ["CNGitCommit": ""], debug: true)
         XCTAssertEqual(dev.commit, "unknown")
         XCTAssertEqual(dev.buildType, "debug")
-        XCTAssertEqual(BuildInfo.from(info: ["CNGitCommit": "dev"], debug: true).commit, "dev")
+        XCTAssertEqual(AboutBuildInfo.from(info: ["CNGitCommit": "dev"], debug: true).commit, "dev")
         let version = try! String(contentsOf: TestPython.repo.appendingPathComponent("VERSION"), encoding: .utf8)
         XCTAssertNotNil(version.trimmingCharacters(in: .whitespacesAndNewlines)
             .range(of: #"^\d+\.\d+(\.\d+)?$"#, options: .regularExpression))

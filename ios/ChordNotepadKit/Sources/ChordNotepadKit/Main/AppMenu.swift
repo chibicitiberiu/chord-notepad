@@ -76,11 +76,11 @@ public enum MenuSection: Sendable, Hashable {
 
 /// The menu's contents, top to bottom.
 public enum AppMenu {
-    /// What the iOS app can do from the menu now: the rest waits for
-    /// Settings, the guide, the Quick Start tour, About and a PDF painter
-    /// (BACKLOG.md).
+    /// What the iOS app can do from the menu now: the rest waits for the
+    /// guide, the Quick Start tour and a PDF painter (BACKLOG.md).
     public static let available: Set<String> = [
-        "new", "open", "recent", "saveAs", "exportMidi", "exportAudio", "examples", "diagnostics",
+        "new", "open", "recent", "saveAs", "exportMidi", "exportAudio", "settings", "examples", "about",
+        "diagnostics",
     ]
 
     public static func sections(recent: [DocumentRef]) -> [MenuSection] {
@@ -159,6 +159,15 @@ public enum MainRoute: Sendable, Hashable {
         case .licence(_, let fromAbout): return fromAbout ? .about : .licences
         case .licences: return .about
         default: return .none
+        }
+    }
+
+    /// Settings, About, the licences or a licence's text: a page that covers
+    /// the whole screen.
+    public var isFullPage: Bool {
+        switch self {
+        case .settings, .about, .licences, .licence: return true
+        default: return false
         }
     }
 
