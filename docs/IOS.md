@@ -56,7 +56,7 @@ ios/
     App/                        AppModel (the session), paths, document store,
                                 diagnostics, self-test
     Screens/                    ShellScreen (pure), ShellView (live), self-test
-    Editor/                     the song editor: EditorTextView, EditorController, SongEditor,
+    Editor/                     the song editor: EditorTextView and EditorHost, EditorController, SongEditor,
                                 EditRibbon, EditorAppearance and EditorPreview, EditorScript (CI)
     ChordSheet/                 the chord sheet: CGSheetCanvas, ChordSheetSource, ChordSheetPane
     Catalog/PreviewCatalog.swift  the screens drawn from Fixtures, and the PNG renderer
@@ -529,7 +529,8 @@ The second slice: the shell's text is the song editor, a port of Android's
   `DirectiveHints.swift` Play mode's long-press explanation (Android's
   controller as plain state, for the Play slice: the editor shows no hint).
 - **In the app** (`ChordNotepad/Editor/`): `EditorTextView` (a UITextView on
-  a TextKit 1 stack built by hand), `EditorController` (the main actor's
+  a TextKit 1 stack built by hand) in its `EditorHost` (the sideways
+  scroll), `EditorController` (the main actor's
   `ObservableObject` over the model; it applies the effects to the view and
   sends the commands), `SongEditor` (the `UIViewRepresentable` and its
   delegate), `EditRibbon`, `EditorAppearance` (fonts and attributes from the
@@ -551,10 +552,17 @@ The second slice: the shell's text is the song editor, a port of Android's
   the clipboard). The stack is built by hand at init, since asking a
   TextKit 2 view for its layout manager switches it over mid-life.
 - **Word wrap off** (the default, `EditorState.word_wrap`): the container is
-  100 000 pt wide, the content as wide as the longest line, and the view
-  scrolls sideways; UIKit follows the caret up and down,
-  `TextScroll.followCursor` sideways. The sounding chord is followed on both
-  axes (`TextScroll.followChord`).
+  100 000 pt wide and the text view as wide as the longest line, inside
+  `EditorHost`, a scroll view of its own that scrolls sideways (Android's
+  `horizontalScroll` around its field). The text view scrolls up and down
+  and follows the caret that way itself; the host follows it sideways
+  (`TextScroll.followCursor`), and the sounding chord on both axes
+  (`TextScroll.followChord`). UIKit sizes a text view's container to its
+  frame even with `widthTracksTextView` off, so the text view puts the
+  container back to its full width after every layout. A first try let the
+  text view scroll both ways with a widened `contentSize`; UIKit kept
+  putting the content width back to the view's, which reset the sideways
+  offset (the iPhone's caret ended up off screen).
 - **Undo:** the view's undo manager is an `EditorUndoManager` whose undo,
   redo and "can undo" are the kit's, so the Edit menu, shake to undo, the
   three-finger gestures, the iPad's shortcut bar and Command-Z all reach
@@ -575,7 +583,8 @@ The second slice: the shell's text is the song editor, a port of Android's
 - **Live check:** `SessionTests` puts a real `EditorTextView` in a window,
   types through UIKit's `insertText` (the keyboard's path, which calls the
   delegate), waits for the session's highlight under the editor's own
-  token, checks the unwrapped content is wider than the view, a session
+  token, checks the unwrapped content is wider than the view with the caret
+  at the end of the typed line scrolled into sight, a session
   `insert_text` lands without a `set_text` going back, and undo and redo
   (the ribbon's and the undo manager's) go back as user edits; the view is
   attached as `editor-live.png`. `-CNScreen editor` does the typing at
