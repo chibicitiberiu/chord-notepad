@@ -174,6 +174,52 @@ final class IntegrationTests: XCTestCase {
                                 "The complete example as guitar fret cards (standard tuning), playhead on the first chord.",
                                 from: songMark, buffers: try await scenes.buffers(session, for: fret))
 
+        // -- Scarborough Fair, as the Android store screenshots show it ---------------------
+        // (android/tools/store_shots.json): Edit, then Play frozen mid-song on the
+        // piano roll, the fret cards and the tab, with the strip 330 pt tall.
+        let scarborough = try String(contentsOf: TestPython.repo.appendingPathComponent(
+            "android/tools/help_shot_songs/scarborough_fair.txt"), encoding: .utf8)
+        session.submit(.setVoicing(voicing: "piano"))
+        session.submit(.setChordSheetView(viewId: "keyboard"))
+        session.submit(.setChordSheetHeight(px: 330))
+        _ = try await waitForSheet(log, "the piano roll at 330 pt") { $0.activeView == "keyboard" && $0.height == 330 }
+        await log.waitQuiet()
+        mark = log.count
+        session.submit(.restoreDraft(document: memoryRef("Scarborough Fair.txt"), modified: false, readOnly: false,
+                                     text: scarborough))
+        let fair = try await waitForChords(log, since: mark, count: 28)
+        await log.waitQuiet()
+        try await scenes.record("scarborough_edit", "Scarborough Fair (the Android store screenshots' song) in Edit.",
+                                from: mark)
+
+        var cut = try await freeze(session, log, chord: 4, of: fair)
+        var frozen = try log.decode(ChordSheetState.self, log.events(upTo: cut, type: "ChordSheetState").last)
+        try await scenes.record("scarborough_piano_roll",
+                                "Scarborough Fair playing on the piano roll, frozen as chord 4 (G, bar 5) sounds.",
+                                from: mark, upTo: cut, buffers: try await scenes.buffers(session, for: frozen))
+
+        session.submit(.setVoicing(voicing: "guitar:standard"))
+        _ = try await waitForSheet(log, "the fret view to become available again") {
+            $0.views.contains { $0.viewId == "fret" && $0.available }
+        }
+        session.submit(.setChordSheetView(viewId: "fret"))
+        session.submit(.chordSheetZoom(step: -4))
+        _ = try await waitForSheet(log, "the fret cards zoomed out") { $0.activeView == "fret" && $0.zoom == 0.5 }
+        cut = try await freeze(session, log, chord: 3, of: fair)
+        frozen = try log.decode(ChordSheetState.self, log.events(upTo: cut, type: "ChordSheetState").last)
+        try await scenes.record("scarborough_fret",
+                                "Scarborough Fair playing on guitar fret cards (zoom 0.5), frozen as chord 3 (C) sounds.",
+                                from: mark, upTo: cut, buffers: try await scenes.buffers(session, for: frozen))
+
+        session.submit(.setChordSheetView(viewId: "tab"))
+        session.submit(.chordSheetZoom(step: -1))
+        _ = try await waitForSheet(log, "the tab zoomed out a step") { $0.activeView == "tab" && $0.zoom < 1 }
+        cut = try await freeze(session, log, chord: 6, of: fair)
+        frozen = try log.decode(ChordSheetState.self, log.events(upTo: cut, type: "ChordSheetState").last)
+        try await scenes.record("scarborough_tab",
+                                "Scarborough Fair playing on the guitar tab, frozen as chord 6 (Em) sounds.",
+                                from: mark, upTo: cut, buffers: try await scenes.buffers(session, for: frozen))
+
         // -- the editor (last: a notation change stays in every later scene's states) ------
         session.submit(.setChordSheetVisible(visible: false))
         _ = try await waitForSheet(log, "the chord sheet to hide") { !$0.visible }
@@ -264,6 +310,11 @@ final class EventLog: @unchecked Sendable {
         lock.withLock { all[index...].filter { type == nil || $0.typeName == type } }
     }
 
+    /// The events before `end`.
+    func events(upTo end: Int, type: String? = nil) -> [Session.Event] {
+        lock.withLock { all[..<end].filter { type == nil || $0.typeName == type } }
+    }
+
     /// The newest JSON of `type` at or after `index`.
     func latest(_ type: String, since index: Int = 0) -> String? {
         events(since: index, type: type).last?.json
@@ -302,6 +353,44 @@ final class EventLog: @unchecked Sendable {
             try? await Task.sleep(nanoseconds: 50_000_000)
         }
     }
+}
+
+/// Play from chord `n` of `chords` and return the log index just after the
+/// moment it sounds: its `PlaybackState` (playing, `chord_index` n) and the
+/// status that names it. The FakePlayer plays the whole song at once, so a
+/// scene "while playing" is the session's output up to that index (Android's
+/// store screenshots freeze playback the same way, by republishing the states
+/// seen while the chord sounded).
+private func freeze(_ session: Session, _ log: EventLog, chord n: Int, of chords: [Span]) async throws -> Int {
+    session.submit(.setPlayhead(offset: chords[n].start))
+    try await log.wait("the playhead on chord \(n)") {
+        guard let state = try? log.decodeLatest(PlaybackState.self, "PlaybackState") else { return false }
+        return state.playheadOffset == chords[n].start && state.status == .idle
+    }
+    await log.waitQuiet()
+    let mark = log.count
+    session.submit(.playPause(fromOffset: nil))
+    try await log.wait("the song to play to its end", timeout: 60) {
+        let states = log.events(since: mark, type: "PlaybackState")
+            .compactMap { try? JSONDecoder().decode(PlaybackState.self, from: Data($0.json.utf8)) }
+        return states.contains { $0.status == .playing } && states.last?.status == .idle
+    }
+    await log.waitQuiet()
+    let events = log.events(since: mark)
+    let sounding = try XCTUnwrap(events.firstIndex {
+        $0.typeName == "PlaybackState"
+            && (try? JSONDecoder().decode(PlaybackState.self, from: Data($0.json.utf8)))?.chordIndex == n
+    }, "chord \(n) never sounded")
+    let named = try XCTUnwrap(events[sounding...].firstIndex { $0.typeName == "StatusState" },
+                              "no status after chord \(n)")
+    let cut = mark + named + 1
+    let status = try log.decode(StatusState.self, events[named].json)
+    XCTAssertTrue(status.text.contains("Playing"), status.text)
+    let sheet = try log.decode(ChordSheetState.self, log.events(upTo: cut, type: "ChordSheetState").last)
+    XCTAssertEqual(sheet.currentIndex, n, "the strip's chord is the one sounding")
+    let playing = try log.decode(PlaybackState.self, events[sounding].json)
+    XCTAssertEqual(playing.playingSpan?.start, chords[n].start)
+    return cut
 }
 
 /// The chord spans of the newest highlight once it has `count` of them.
@@ -353,18 +442,17 @@ struct SceneRecorder {
     static let directory = TestPython.repo.appendingPathComponent("ios/Fixtures")
     static var recording: Bool { TestPython.environment["CN_RECORD_FIXTURES"] == "1" }
 
-    /// The windows the preview catalog renders in, in points (the app's
-    /// `CatalogRenderer.devices`: iPhone 17 and iPad Air 11-inch).
-    static let catalogWindows: [(width: Double, height: Double)] = [(402, 874), (820, 1180)]
+    /// The windows the preview catalog shows Play mode in, in points (the
+    /// app's `CatalogRenderer.devices`: iPhone 17 and iPad Air 11-inch, each
+    /// upright and on its side).
+    static let catalogWindows: [(width: Double, height: Double)] = [(402, 874), (820, 1180), (874, 402), (1180, 820)]
 
-    /// The content heights the catalog's chord sheet asks for in those
-    /// windows, for a sheet whose stored height is `stored` (the app's split
-    /// and pane metrics, from the kit).
+    /// The content heights the main screen's chord sheet asks for in those
+    /// windows, for a sheet whose stored height is `stored` (below the text
+    /// upright, in the side column on its side; ``MainSheetPane``).
     static func catalogHeights(stored: Int) -> [Int] {
-        Array(Set(catalogWindows.map { window in
-            let pane = ChordSheetSplit.wantedHeight(stored: stored, windowWidth: window.width,
-                                                    windowHeight: window.height)
-            return ChordSheetPaneMetrics.contentHeight(stripHeight: ChordSheetPaneMetrics.stripHeight(paneHeight: pane))
+        Array(Set(catalogWindows.compactMap { window in
+            MainSheetPane.contentHeight(width: window.width, height: window.height, stored: stored)
         })).sorted()
     }
 
@@ -387,15 +475,18 @@ struct SceneRecorder {
     /// One scene: the newest JSON of every state (the whole screen) and the
     /// other outputs since `index`, in order, all as they crossed the bridge,
     /// with the chord sheet's `buffers` (base64, by content height).
-    func record(_ name: String, _ description: String, from index: Int,
+    /// With `end`, the scene stops at that log index (a frozen moment of playback).
+    func record(_ name: String, _ description: String, from index: Int, upTo end: Int? = nil,
                 buffers: [Int: Data] = [:]) async throws {
+        let end = end ?? log.count
+        let upToEnd = log.events(upTo: end)
         var states: [String: String] = [:]
-        for event in log.events(since: 0) {
+        for event in upToEnd {
             if (try? SessionOutput.decode(typeName: event.typeName, json: event.json))?.kind == .state {
                 states[event.typeName] = event.json
             }
         }
-        let others = log.events(since: index).filter { states[$0.typeName] == nil }
+        let others = upToEnd[index...].filter { states[$0.typeName] == nil }
         func quoted(_ text: String) -> String {
             String(decoding: try! JSONEncoder().encode(text), as: UTF8.self)
         }

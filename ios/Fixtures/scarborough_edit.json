@@ -1,0 +1,640 @@
+{
+ "chord_sheet_buffers": [],
+ "description": "Scarborough Fair (the Android store screenshots' song) in Edit.",
+ "events": [
+  {
+   "json": {
+    "anchor": null,
+    "cursor": 616,
+    "end": 4370,
+    "replacement": "{bpm: 100} {time: 3/4} {key: Am}\n\n// Scarborough Fair (traditional)\n{label: verse}\nAm           G          Am\nAre you going to Scarborough Fair?\nC        G         Am    Em\nParsley, sage, rosemary and thyme\nAm         C        G\nRemember me to one who lives there\nAm        G         D       Am\nFor once she was a true love of mine\n\n{label: verse 2}\nAm         G          Am\nTell her to make me a cambric shirt\nC        G         Am    Em\nParsley, sage, rosemary and thyme\nAm          C          G\nWithout any seam or needlework\nAm        G         D       Am\nAnd then she'll be a true love of mine\n\n{loop: verse 2}\n",
+    "start": 0,
+    "text_revision": 6,
+    "undo": "reset"
+   },
+   "type": "TextEdited"
+  }
+ ],
+ "scene": "scarborough_edit",
+ "states": {
+  "CapoAdviceState": {
+   "active": false,
+   "message": "",
+   "playing": false,
+   "rows": [],
+   "scope": "",
+   "status": "ready",
+   "voicing": "",
+   "voicings": []
+  },
+  "ChordSheetState": {
+   "active_view": "keyboard",
+   "current_index": null,
+   "cursor_index": null,
+   "disabled_reason": null,
+   "height": 330,
+   "song_revision": 4,
+   "views": [
+    {
+     "available": true,
+     "label": "Piano roll",
+     "view_id": "keyboard"
+    },
+    {
+     "available": true,
+     "label": "Staff",
+     "view_id": "staff"
+    },
+    {
+     "available": true,
+     "label": "Fret cards",
+     "view_id": "fret"
+    },
+    {
+     "available": true,
+     "label": "Tab",
+     "view_id": "tab"
+    }
+   ],
+   "visible": true,
+   "zoom": 1.0,
+   "zoom_supported": true
+  },
+  "DocumentState": {
+   "display_name": "Scarborough Fair.txt",
+   "document_id": "Scarborough Fair.txt",
+   "is_modified": false,
+   "location": "On My iPhone",
+   "read_only": false,
+   "title": "Scarborough Fair.txt - Chord Notepad"
+  },
+  "EditorState": {
+   "font_family": "TkFixedFont",
+   "font_size": 11,
+   "notation": "american",
+   "read_only": false,
+   "word_wrap": false
+  },
+  "HighlightState": {
+   "client_token": 0,
+   "spans": [
+    {
+     "end": 67,
+     "kind": "comment",
+     "message": "",
+     "start": 34
+    },
+    {
+     "end": 85,
+     "kind": "chord",
+     "message": "",
+     "start": 83
+    },
+    {
+     "end": 97,
+     "kind": "chord",
+     "message": "",
+     "start": 96
+    },
+    {
+     "end": 109,
+     "kind": "chord",
+     "message": "",
+     "start": 107
+    },
+    {
+     "end": 146,
+     "kind": "chord",
+     "message": "",
+     "start": 145
+    },
+    {
+     "end": 155,
+     "kind": "chord",
+     "message": "",
+     "start": 154
+    },
+    {
+     "end": 166,
+     "kind": "chord",
+     "message": "",
+     "start": 164
+    },
+    {
+     "end": 172,
+     "kind": "chord",
+     "message": "",
+     "start": 170
+    },
+    {
+     "end": 209,
+     "kind": "chord",
+     "message": "",
+     "start": 207
+    },
+    {
+     "end": 219,
+     "kind": "chord",
+     "message": "",
+     "start": 218
+    },
+    {
+     "end": 228,
+     "kind": "chord",
+     "message": "",
+     "start": 227
+    },
+    {
+     "end": 266,
+     "kind": "chord",
+     "message": "",
+     "start": 264
+    },
+    {
+     "end": 275,
+     "kind": "chord",
+     "message": "",
+     "start": 274
+    },
+    {
+     "end": 285,
+     "kind": "chord",
+     "message": "",
+     "start": 284
+    },
+    {
+     "end": 294,
+     "kind": "chord",
+     "message": "",
+     "start": 292
+    },
+    {
+     "end": 352,
+     "kind": "chord",
+     "message": "",
+     "start": 350
+    },
+    {
+     "end": 362,
+     "kind": "chord",
+     "message": "",
+     "start": 361
+    },
+    {
+     "end": 374,
+     "kind": "chord",
+     "message": "",
+     "start": 372
+    },
+    {
+     "end": 412,
+     "kind": "chord",
+     "message": "",
+     "start": 411
+    },
+    {
+     "end": 421,
+     "kind": "chord",
+     "message": "",
+     "start": 420
+    },
+    {
+     "end": 432,
+     "kind": "chord",
+     "message": "",
+     "start": 430
+    },
+    {
+     "end": 438,
+     "kind": "chord",
+     "message": "",
+     "start": 436
+    },
+    {
+     "end": 475,
+     "kind": "chord",
+     "message": "",
+     "start": 473
+    },
+    {
+     "end": 486,
+     "kind": "chord",
+     "message": "",
+     "start": 485
+    },
+    {
+     "end": 497,
+     "kind": "chord",
+     "message": "",
+     "start": 496
+    },
+    {
+     "end": 531,
+     "kind": "chord",
+     "message": "",
+     "start": 529
+    },
+    {
+     "end": 540,
+     "kind": "chord",
+     "message": "",
+     "start": 539
+    },
+    {
+     "end": 550,
+     "kind": "chord",
+     "message": "",
+     "start": 549
+    },
+    {
+     "end": 559,
+     "kind": "chord",
+     "message": "",
+     "start": 557
+    },
+    {
+     "end": 10,
+     "kind": "directive",
+     "message": "",
+     "start": 0
+    },
+    {
+     "end": 22,
+     "kind": "directive",
+     "message": "",
+     "start": 11
+    },
+    {
+     "end": 32,
+     "kind": "directive",
+     "message": "",
+     "start": 23
+    },
+    {
+     "end": 82,
+     "kind": "directive",
+     "message": "",
+     "start": 68
+    },
+    {
+     "end": 349,
+     "kind": "directive",
+     "message": "",
+     "start": 333
+    },
+    {
+     "end": 615,
+     "kind": "directive",
+     "message": "",
+     "start": 600
+    }
+   ],
+   "text_revision": 6
+  },
+  "IdentifierState": {
+   "candidates": [],
+   "message": "Select notes to identify chords...",
+   "notation": "american",
+   "notes": [],
+   "notes_text": "",
+   "sounding": [],
+   "sounding_above": null,
+   "sounding_below": null,
+   "sounding_seconds": 3.0,
+   "sounding_token": 0,
+   "typed_text_error": null
+  },
+  "InstrumentMenuState": {
+   "current": 0,
+   "families": [
+    {
+     "is_current": true,
+     "items": [],
+     "name": "Piano"
+    },
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Chromatic Percussion"
+    },
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Organ"
+    },
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Guitar"
+    },
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Bass"
+    },
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Strings"
+    },
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Ensemble"
+    },
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Brass"
+    },
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Reed"
+    },
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Pipe"
+    },
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Synth Lead"
+    },
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Synth Pad"
+    },
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Synth Effects"
+    },
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Ethnic"
+    },
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Percussive"
+    },
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Sound Effects"
+    }
+   ]
+  },
+  "PlaybackState": {
+   "bar": 0,
+   "beat": 0,
+   "chord_index": null,
+   "key": "Am",
+   "playhead_offset": 83,
+   "playing_span": null,
+   "sections": [
+    {
+     "first_bar": 1,
+     "label": "intro",
+     "last_bar": 24,
+     "repeat": false
+    },
+    {
+     "first_bar": 25,
+     "label": "verse1",
+     "last_bar": 44,
+     "repeat": false
+    },
+    {
+     "first_bar": 45,
+     "label": "bridge",
+     "last_bar": 80,
+     "repeat": false
+    },
+    {
+     "first_bar": 81,
+     "label": "enharmonic",
+     "last_bar": 108,
+     "repeat": false
+    },
+    {
+     "first_bar": 109,
+     "label": "outro",
+     "last_bar": 125,
+     "repeat": false
+    }
+   ],
+   "status": "idle",
+   "tempo_clamped": null,
+   "time_signature": [
+    3,
+    4
+   ],
+   "total_bars": 0
+  },
+  "RecentDocumentsState": {
+   "items": [
+    {
+     "display_name": "song.txt",
+     "id": "song.txt",
+     "location": "On My iPhone"
+    }
+   ]
+  },
+  "SettingsState": {
+   "american_keys": [
+    "C",
+    "C#",
+    "Db",
+    "D",
+    "D#",
+    "Eb",
+    "E",
+    "F",
+    "F#",
+    "Gb",
+    "G",
+    "G#",
+    "Ab",
+    "A",
+    "A#",
+    "Bb",
+    "B"
+   ],
+   "bpm_max": 400,
+   "bpm_min": 20,
+   "european_keys": [
+    "Do",
+    "Do#",
+    "Reb",
+    "Re",
+    "Re#",
+    "Mib",
+    "Mi",
+    "Fa",
+    "Fa#",
+    "Solb",
+    "Sol",
+    "Sol#",
+    "Lab",
+    "La",
+    "La#",
+    "Sib",
+    "Si"
+   ],
+   "font_size_max": 72,
+   "font_size_min": 6,
+   "max_recent_files_max": 50,
+   "time_signature_units": [
+    1,
+    2,
+    4,
+    8,
+    16
+   ],
+   "values": {
+    "bpm": 120,
+    "click_plays_chart_voicing": true,
+    "font_family": "TkFixedFont",
+    "font_size": 11,
+    "key": "C",
+    "max_recent_files": 10,
+    "notation": "american",
+    "show_quick_start_on_startup": true,
+    "time_signature_beats": 4,
+    "time_signature_unit": 4,
+    "word_wrap": false
+   }
+  },
+  "SongDefaultsState": {
+   "key": {
+    "directive_offset": 23,
+    "from_directive": true,
+    "value": "Am"
+   },
+   "locked_reason": null,
+   "summary": "100 · 3/4 · Am",
+   "tempo": {
+    "directive_offset": 0,
+    "from_directive": true,
+    "value": "100"
+   },
+   "time": {
+    "directive_offset": 11,
+    "from_directive": true,
+    "value": "3/4"
+   }
+  },
+  "StatusState": {
+   "text": "Ready"
+  },
+  "ToolbarState": {
+   "beats": 3,
+   "bpm": 100,
+   "bpm_display": 100,
+   "bpm_editable": false,
+   "bpm_set_by": "{bpm: 100}",
+   "key": "Am",
+   "key_options": [
+    "C",
+    "C#",
+    "Db",
+    "D",
+    "D#",
+    "Eb",
+    "E",
+    "F",
+    "F#",
+    "Gb",
+    "G",
+    "G#",
+    "Ab",
+    "A",
+    "A#",
+    "Bb",
+    "B"
+   ],
+   "key_set_by": "{key: Am}",
+   "metronome": false,
+   "multiplier_pct": 100.0,
+   "notation": "american",
+   "play_action": "play",
+   "time_set_by": "{time: 3/4}",
+   "unit": 4
+  },
+  "VoicingEditorState": {
+   "active": false,
+   "dirty": false,
+   "field_errors": {},
+   "form_errors": [],
+   "groups": [],
+   "hints": {},
+   "invalid": [],
+   "model": null,
+   "presets": [],
+   "problems": [],
+   "read_only": false,
+   "restored": false,
+   "revision": 0,
+   "selected": null,
+   "staged_numbers": {},
+   "values": {}
+  },
+  "VoicingMenuState": {
+   "groups": [
+    [
+     {
+      "label": "Piano",
+      "value": "piano"
+     }
+    ],
+    [
+     {
+      "label": "Guitar (Standard - EADGBE)",
+      "value": "guitar:standard"
+     },
+     {
+      "label": "Guitar (Drop D)",
+      "value": "guitar:drop_d"
+     },
+     {
+      "label": "Guitar (DADGAD)",
+      "value": "guitar:dadgad"
+     },
+     {
+      "label": "Guitar (Open G)",
+      "value": "guitar:open_g"
+     },
+     {
+      "label": "Ukulele",
+      "value": "guitar:ukulele"
+     }
+    ],
+    [
+     {
+      "label": "Choir (SATB)",
+      "value": "ensemble:satb"
+     },
+     {
+      "label": "Male Choir (TTBB)",
+      "value": "ensemble:ttbb"
+     },
+     {
+      "label": "Treble Choir (SSA)",
+      "value": "ensemble:ssa"
+     },
+     {
+      "label": "String Quartet",
+      "value": "ensemble:quartet"
+     }
+    ]
+   ],
+   "locked_reason": null,
+   "selected": "piano"
+  }
+ }
+}

@@ -43,7 +43,8 @@ final class SnapshotTests: XCTestCase {
         let all = try Fixture.all(in: fixtures)
         XCTAssertEqual(all.map(\.scene), ["chord_sheet_fret", "chord_sheet_staff", "editor_european",
                                           "editor_mid_edit", "empty_song", "errors", "play_with_chord_sheet",
-                                          "quick_start_edit"])
+                                          "quick_start_edit", "scarborough_edit", "scarborough_fret",
+                                          "scarborough_piano_roll", "scarborough_tab"])
         for fixture in all {
             let snapshot = try fixture.snapshot()
             XCTAssertNotNil(snapshot.editor, fixture.scene)
@@ -93,7 +94,8 @@ final class SnapshotTests: XCTestCase {
                 XCTAssertEqual(buffer.slots.count, scene == "errors" ? 2 : 133, scene)
             }
             // Another height takes the tallest recorded one below it, else the shortest.
-            XCTAssertEqual(fixture.chordSheetBuffer(forHeight: 200), fixture.chordSheetBuffers[102])
+            XCTAssertEqual(fixture.chordSheetBuffers.keys.sorted(), [102, 185, 355, 603])
+            XCTAssertEqual(fixture.chordSheetBuffer(forHeight: 200), fixture.chordSheetBuffers[185])
             XCTAssertEqual(fixture.chordSheetBuffer(forHeight: 50), fixture.chordSheetBuffers[102])
             XCTAssertEqual(fixture.chordSheetBuffer(forHeight: 355), fixture.chordSheetBuffers[355])
         }
@@ -107,6 +109,38 @@ final class SnapshotTests: XCTestCase {
             XCTAssertEqual(try fixture.snapshot().chordSheet?.visible, false, scene)
             XCTAssertTrue(fixture.chordSheetBuffers.isEmpty, scene)
         }
+    }
+
+    func testTheScarboroughScenesAreFrozenWhileTheirChordSounds() throws {
+        // (scene, view, the chord sounding, the strip's zoom, the status)
+        let expected = [("scarborough_piano_roll", "keyboard", 4, 1.0, "Bar 5/56 · Playing G"),
+                        ("scarborough_fret", "fret", 3, 0.5, "Bar 4/56 · Playing C"),
+                        ("scarborough_tab", "tab", 6, 0.833, "Bar 7/56 · Playing Em")]
+        for (scene, view, chord, zoom, status) in expected {
+            let fixture = try Fixture(contentsOf: fixtures.appendingPathComponent("\(scene).json"))
+            let snapshot = try fixture.snapshot()
+            XCTAssertEqual(snapshot.document?.displayName, "Scarborough Fair.txt", scene)
+            XCTAssertTrue(snapshot.text.hasPrefix("{bpm: 100} {time: 3/4} {key: Am}\n"), scene)
+            let playback = try XCTUnwrap(snapshot.playback, scene)
+            XCTAssertEqual(playback.status, .playing, scene)
+            XCTAssertEqual(playback.chordIndex, chord, scene)
+            XCTAssertNotNil(playback.playingSpan, scene)
+            XCTAssertEqual(snapshot.status?.text, status, scene)
+            let sheet = try XCTUnwrap(snapshot.chordSheet, scene)
+            XCTAssertEqual(sheet.activeView, view, scene)
+            XCTAssertEqual(sheet.currentIndex, chord, scene)
+            XCTAssertEqual(sheet.zoom, zoom, accuracy: 1e-9, scene)
+            XCTAssertEqual(sheet.height, 330, scene)
+            XCTAssertEqual(fixture.chordSheetBuffers.keys.sorted(), SceneRecorder.catalogHeights(stored: 330), scene)
+            XCTAssertEqual(snapshot.songDefaults?.summary, "100 · 3/4 · Am", scene)
+            XCTAssertNotNil(snapshot.voicingMenu?.lockedReason, "\(scene): the voicing can't change while playing")
+            // The editor paints the sounding chord.
+            let editor = try fixture.editorModel()
+            XCTAssertNotNil(editor.playing, scene)
+        }
+        let edit = try Fixture(contentsOf: fixtures.appendingPathComponent("scarborough_edit.json")).snapshot()
+        XCTAssertEqual(edit.playback?.status, .idle)
+        XCTAssertEqual(edit.document?.displayName, "Scarborough Fair.txt")
     }
 
     func testTheEditorScenesFoldIntoTheEditorAsTheCatalogShowsThem() throws {

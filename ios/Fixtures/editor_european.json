@@ -9,7 +9,7 @@
     "end": 823,
     "replacement": "{bpm: 190} {time: 4/4} {key: C}\n\n// Quick Start Example - Your first chord chart!\n// Chords go on one line, lyrics on the next.\n// Click any chord to hear it, or press Play to hear them all.\n\n{label: verse}\nC        C/E      F      C\nTwinkle, twinkle, little star,\nDm    Am     G        C\nHow I wonder what you are!\n\nC/E Dm       Am       G\nUp above the world so high,\nC/E    F       Am     G\nLike a diamond in the sky.\n\n// Use {loop: label count} to repeat a section\n{loop: verse 2}\n\n// Duration: Add *beats after a chord to hold it longer\nC*2   C/B*2 Am*2 Em/G*2 F*2 Fdim*2 C/E \nWhen  the   blazing     sun is     gone,\nDm*2 Dm/F*2 C/E*2 C/G*2 F/A*2  G/B*2 C\nWhen he     nothing     shines upon.\n\n// That's it! Open the other examples to learn more features.\n",
     "start": 0,
-    "text_revision": 9,
+    "text_revision": 10,
     "undo": "reset"
    },
    "type": "TextEdited"
@@ -21,7 +21,7 @@
     "end": 761,
     "replacement": "{bpm: 190} {time: 4/4} {key: Do}\n\n// Quick Start Example - Your first chord chart!\n// Chords go on one line, lyrics on the next.\n// Click any chord to hear it, or press Play to hear them all.\n\n{label: verse}\nDo       Do/Mi    Fa     Do\nTwinkle, twinkle, little star,\nRem   Lam    Sol      Do\nHow I wonder what you are!\n\nDo/Mi Rem      Lam      Sol\nUp   above the world so high,\nDo/Mi  Fa      Lam    Sol\nLike a diamond in the sky.\n\n// Use {loop: label count} to repeat a section\n{loop: verse 2}\n\n// Duration: Add *beats after a chord to hold it longer\nDo*2  Do/Si*2 Lam*2 Mim/Sol*2 Fa*2 Fadim*2 Do/Mi \nWhen  the     blazi·ng        sun  is      gone,\nRem*2 Rem/Fa*2 Do/Mi*2 Do/Sol*2 Fa/La*2 Sol/Si*2 Do\nWhen  he       nothin· g        shines  upon.\n\n// That's it! Open the other examples to learn more features.\n",
     "start": 0,
-    "text_revision": 10,
+    "text_revision": 11,
     "undo": "plain"
    },
    "type": "TextEdited"
@@ -40,12 +40,12 @@
    "voicings": []
   },
   "ChordSheetState": {
-   "active_view": "fret",
+   "active_view": "tab",
    "current_index": null,
    "cursor_index": null,
    "disabled_reason": null,
-   "height": 160,
-   "song_revision": 5,
+   "height": 330,
+   "song_revision": 7,
    "views": [
     {
      "available": true,
@@ -69,7 +69,7 @@
     }
    ],
    "visible": false,
-   "zoom": 1.0,
+   "zoom": 0.833,
    "zoom_supported": true
   },
   "DocumentState": {
@@ -337,7 +337,7 @@
      "start": 479
     }
    ],
-   "text_revision": 10
+   "text_revision": 11
   },
   "IdentifierState": {
    "candidates": [],
@@ -447,32 +447,26 @@
    "sections": [
     {
      "first_bar": 1,
-     "label": "intro",
-     "last_bar": 24,
+     "label": "verse",
+     "last_bar": 14,
      "repeat": false
     },
     {
-     "first_bar": 25,
-     "label": "verse1",
-     "last_bar": 44,
+     "first_bar": 15,
+     "label": "verse 2",
+     "last_bar": 28,
      "repeat": false
     },
     {
-     "first_bar": 45,
-     "label": "bridge",
-     "last_bar": 80,
-     "repeat": false
+     "first_bar": 29,
+     "label": "verse",
+     "last_bar": 42,
+     "repeat": true
     },
     {
-     "first_bar": 81,
-     "label": "enharmonic",
-     "last_bar": 108,
-     "repeat": false
-    },
-    {
-     "first_bar": 109,
-     "label": "outro",
-     "last_bar": 125,
+     "first_bar": 43,
+     "label": "verse 2",
+     "last_bar": 56,
      "repeat": false
     }
    ],
