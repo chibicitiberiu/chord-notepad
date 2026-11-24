@@ -78,6 +78,7 @@ enum EditorScript {
         var wordWrap: Bool
         var contentWidth: Double
         var viewWidth: Double
+        var layout: String
         var problems: [String]
     }
 
@@ -96,6 +97,7 @@ enum EditorScript {
                       paintedChords: paintedChords(editor), setTextCount: setTexts,
                       textLength: editor.model.text.utf16.count, wordWrap: editor.model.wordWrap,
                       contentWidth: Double(view?.contentSize.width ?? 0), viewWidth: Double(view?.bounds.width ?? 0),
+                      layout: view?.layoutDescription ?? "",
                       problems: problems)
     }
 }

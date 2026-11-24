@@ -139,7 +139,8 @@ final class SessionTests: XCTestCase {
                       + "highlighted \(String(describing: editor.model.highlightedIdentity))")
         // Unwrapped, the long line makes the content wider than the view.
         view.layoutIfNeeded()
-        XCTAssertGreaterThan(view.contentSize.width, view.bounds.width, "the unwrapped text scrolls sideways")
+        XCTAssertGreaterThan(view.contentSize.width, view.bounds.width,
+                             "the unwrapped text scrolls sideways: \(view.layoutDescription)")
         // The view's typing attributes are plain (not the chord's blue) after the chord line.
         let typingColor = view.typingAttributes[.foregroundColor] as? UIColor
         XCTAssertEqual(typingColor, EditorPalette.forScheme(dark: view.traitCollection.userInterfaceStyle == .dark)

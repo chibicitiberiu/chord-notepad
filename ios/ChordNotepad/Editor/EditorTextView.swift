@@ -150,6 +150,12 @@ final class EditorTextView: UITextView {
     override func layoutSubviews() {
         super.layoutSubviews()
         guard !wordWrap else { return }
+        if container.widthTracksTextView || container.size.width < Self.unwrappedWidth {
+            // UIKit sized the container to the view (it may on a frame change): unwrap again.
+            container.widthTracksTextView = false
+            container.size = CGSize(width: Self.unwrappedWidth, height: CGFloat.greatestFiniteMagnitude)
+            contentWidthStale = true
+        }
         if contentWidthStale || measuredWidth != bounds.width {
             // The whole text, so the longest line is measured even when it is
             // off screen (TextKit lays out lazily).
@@ -214,6 +220,13 @@ final class EditorTextView: UITextView {
                                            margin: Double(Self.cursorMargin)) {
             setContentOffset(CGPoint(x: CGFloat(x) - inset.left, y: contentOffset.y), animated: false)
         }
+    }
+
+    /// The text layout's state, for a failed check's message.
+    var layoutDescription: String {
+        "container \(container.size.width) pt (tracks \(container.widthTracksTextView)), used "
+            + "\(layout.usedRect(for: container).width) pt, content \(contentSize.width) pt, "
+            + "view \(bounds.width) pt, wrap \(wordWrap), TextKit 2 \(textLayoutManager != nil)"
     }
 
     /// Back to the top left (a document was opened).
