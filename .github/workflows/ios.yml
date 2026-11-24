@@ -35,10 +35,12 @@ on:
 permissions:
   contents: read
 
-# A newer push makes a running build pointless.
+# Every commit gets its own run: two slices are worked on at once and push
+# to main in turn, and each needs its own green run, so a newer push must not
+# cancel an older one.
 concurrency:
-  group: ios-${{ github.ref }}
-  cancel-in-progress: true
+  group: ios-${{ github.sha }}
+  cancel-in-progress: false
 
 jobs:
   kit:
