@@ -14,10 +14,11 @@ CI builds the app and tests it on iPhone and iPad simulators with no Apple
 account (section D, `.github/workflows/ios.yml`). The screen slices so far:
 the chord sheet ("The chord sheet" below), the song editor with the Edit
 ribbon ("The song editor") and the main screen with the Edit / Play tabs, the
-player and the ☰ menu ("The main screen"). Still to come: enrollment,
-signing and TestFlight (A, E), then the other screens (F, in `BACKLOG.md`):
-the player's and the ribbon's sheets, Settings, the guide and the document
-picker.
+player and the ☰ menu ("The main screen"), and file handling: Open, New,
+Save, Save As, Recent, Export MIDI and audio, Examples and songs opened from
+Files ("Files"). Still to come: enrollment, signing and TestFlight (A, E),
+then the other screens (F, in `BACKLOG.md`): the player's and the ribbon's
+sheets, Settings, the guide, About and Export PDF.
 
 ## Decisions and constraints
 
@@ -55,8 +56,8 @@ ios/
   project.yml                   XcodeGen spec of the app (the .xcodeproj isn't committed)
   .xcode-version                the Xcode CI selects (and her MacBook should match)
   ChordNotepad/                 the app target (SwiftUI, Swift 5 mode)
-    App/                        AppModel (the session), paths, document store,
-                                diagnostics, self-test
+    App/                        AppModel (the session), paths, the document store (AppDocumentStore,
+                                ScopedFileAccess, DocumentPicking), diagnostics, self-test
     Screens/                    MainScreen (pure), MainView (live), AppBar, PlayerBar, PlayerSheets,
                                 Overlays (menu, dialogs, snackbar), DiagnosticsView (self-test, export)
     Editor/                     the song editor: EditorTextView and EditorHost, EditorController, SongEditor,
@@ -86,6 +87,8 @@ ios/
                                 styles, paste and wrap, scrolling, shortcuts, directive hints
       Main/                     the main screen's logic: modes, layout, playback, rename, menus,
                                 playhead gestures, snackbars, the screen's own state, AppColors
+      Files/                    file handling's logic: document ids, the store (FileDocumentStore over
+                                DocumentFileAccess), the bookmark table, examples, the session's requests
       Python/chordnotepad_ios/  the Python glue (host.py, diagnostics.py), shipped as a resource
     Tests/ChordNotepadKitTests/ XCTest; python/ holds a tiny test module
   Fixtures/                     recorded session output per scene, for the preview catalog
@@ -138,7 +141,7 @@ it at import even with the fake player.
 ## Running the tests
 
 ```sh
-make ios-kit-test      # swift test: 221 tests, about 18 s after the first build
+make ios-kit-test      # swift test: 275 tests, about 20 s after the first build
 make ios-bridge-gen    # regenerate Generated/Bridge.swift after a schema change
 make ios-fixtures      # rewrite ios/Fixtures after an intended output change
 ```
@@ -181,7 +184,10 @@ What the tests cover:
 | `DiagnosticsTests` | the offline render of a chord is not silent (system libfluidsynth, the repo's SoundFont), a missing SoundFont is reported, the fault handler's file |
 | `MainScreenTests` | Android's `ModeControllerTest`, `ScreenLayoutTest`, `PlaybackUiTest`, `RenameFlowTest` and `MenuModelsTest`, case for case; the chord sheet pane's height upright and on its side, the speed badge, the snackbars, the menu's entries, the rename dialog's state, the player's state from a snapshot |
 | `PlayheadGesturesTests` | Android's `PlayheadGesturesTest`, case for case, and the marker's shape |
-| `IntegrationTests` | one real session: restore a draft, code-point highlights, save through the store, a refused rename, a decoded chord sheet buffer, the twelve scenes (three of them frozen while a chord sounds) |
+| `FileDocumentStoreTests` | Android's `SafDocumentStoreTest` as behaviour on real files (`PlainFileAccess`): raw bytes, the desktop's wording with the document's location, a recent file that has gone (named from its entry, dropped with its bookmark), the 5 MB cap, a cloud file not downloaded, the same file picked twice, a stale bookmark made again under its id, a moved file, a relaunch, corrupt lists, writes in place, `copyFromFile`, the shipped song, example copies (rename, a taken name), rename keeping the id, the recent list's order, cap and pruning, exports and their written callback; the id scheme |
+| `ExampleLibraryTests` | Android's `ExampleLibraryTest`, case for case (ids are `app:examples/<name>`) |
+| `SessionRequestsTests` | Android's `RequestControllerTest` and `DocumentPickersTest` as behaviour: the snapshot's pending request, a picker once per request, a stale result ignored, Save As's move, an export answered at once with the store's file, the unsaved-changes answers, Insert and PDF requests cancelled once |
+| `IntegrationTests` | one real session: restore a draft, code-point highlights, save through the store, a refused rename, a decoded chord sheet buffer; open songs from the store, save a typed change, Save As to a new id, Export MIDI through the store, the unsaved-changes question on Open and New (Don't save, Cancel), a recent song that has gone; the fifteen scenes (three of them frozen while a chord sounds) |
 
 ## The Swift kit
 
@@ -282,7 +288,7 @@ Regenerate after changing a DTO or a command: first the schema
 
 ### Fixtures for the preview catalog
 
-`IntegrationTests` records twelve scenes into `ios/Fixtures/`: `empty_song`,
+`IntegrationTests` records fifteen scenes into `ios/Fixtures/`: `empty_song`,
 `quick_start_edit`, `play_with_chord_sheet` (the complete example with the
 chord sheet shown as the piano roll and the playhead on the third chord),
 `errors` (a document that can't be opened, a rename the storage refuses),
@@ -297,7 +303,13 @@ then `scarborough_piano_roll`, `scarborough_fret` (`guitar:standard`, zoom
 line of an invalid and a redundant directive and an unknown chord put in by
 `insert_text`, then two lines commented out by `toggle_comment`, whose
 `anchor` leaves them selected: every span kind) and `editor_european` (the
-quick-start song after `convert_notation european`). Each scene comes after
+quick-start song after `convert_notation european`), then the file scenes:
+`files_recent` (three songs opened from the store, the recent list with them
+and the song saved earlier), `export_done` (the lullaby's copy, saved with
+Save As and reopened from Recent so the scene carries its text, exported as
+MIDI: "Exported MIDI: Lullaby (2).mid") and `discard_question` (a session edit,
+then New: the scene ends on `ConfirmDiscardRequest`). A fixture has no
+answers, so a request in it stays pending; only the question draws. Each scene comes after
 the ones whose states it would change, so theirs stay as they were; the
 editor's come last, with the sheet hidden again. A scene starts at the mark
 before its song's `restore_draft`, so it carries the `TextEdited` with the
@@ -706,14 +718,15 @@ The third slice: the app's frame, a port of Android's `ui/main/`
 - **Rename** (tap the title): the name without its extension, "Saved as
   “name.txt”" or why the name can't be used under it; a name the session
   refuses stays in the dialog with the reason, a storage that can't rename
-  closes it and says so (Android offers Save As there; it needs the document
-  picker).
+  closes it and offers "Save a copy under the new name instead?" with
+  Save as… (`save_as {name}`), as Android does.
 - **The menu** has Android's drawer's entries in its order (New song,
   Open…, Recent, Save as…, the three exports, Settings, Examples, User
-  guide, Quick start, About) and Diagnostics last. Only Diagnostics works
-  now: the others need the document picker, Settings, the guide, About or
-  the discard question (`ConfirmDiscardRequest`), and are greyed with
-  "Coming soon".
+  guide, Quick start, About) and Diagnostics last. The file entries,
+  Recent and Examples work ("Files"); Export PDF, Settings, the guide, the
+  Quick Start tour and About are greyed with "Coming soon". The panel runs
+  the screen's whole height, under the status bar and the home indicator,
+  as Android's drawer does; its entries stay inside the safe area.
 - **Layout:** as `ScreenLayout.kt`. The chord sheet is a Play-mode view, so
   the shell's case of the keyboard up with the sheet showing doesn't arise
   any more; the header collapses in Edit with the keyboard up when the text
@@ -749,6 +762,150 @@ the scroll views waiting for it), the long-press and its card, the menu,
 the dialogs and the sheets live (the catalog draws them), the keyboard
 collapsing the header live, rotation, VoiceOver.
 
+### Files
+
+The fourth slice: Open, New song, Save, Save As, Recent, Export MIDI and
+audio, Examples, the unsaved-changes question and songs opened from Files,
+ported from Android's `files/` and `ui/requests/`. The session runs every
+flow (`session.py`: `_open_flow`, `_save_as_flow`, `_export_flow`, ...);
+Swift answers its requests and does the file I/O for the store.
+
+- **In the kit** (`Sources/ChordNotepadKit/Files/`, tested on Linux):
+  `DocumentId` (the id scheme below), `DocumentFileAccess` (file I/O by URL:
+  bookmarks, facts, read, write in place, copy, rename) with
+  `PlainFileAccess` (FileManager only, a bookmark that is the path; the
+  tests use it, and its helpers do the app's I/O too), `BookmarkTable`,
+  `FileDocumentStore` (Android's `SafDocumentStore`: the `DocumentStore`
+  protocol, `adopt` for a picked file, the recent list, exports, example
+  copies), `ExampleLibrary` (Android's, case for case) and
+  `SessionRequests.swift`: `SessionRequest`, `presentationOf`, `PickerLaunch`
+  and `pickerFor`, the question's texts (`DiscardQuestion`) and
+  `RequestController` (Android's). `SessionSnapshot.request` is the pending
+  request until the app answers it (`requestAnswered`).
+- **In the app** (`App/`): `AppDocumentStore.make()` (the kit's store over
+  `ScopedFileAccess`, its lists in Application Support), `ScopedFileAccess`
+  (the real bookmarks, `startAccessingSecurityScopedResource` around each
+  call, stopped only when it returned true, since a file in the container
+  returns false; `NSFileCoordinator` for every read, write and rename),
+  `DocumentPicking` (the seam over `UIDocumentPickerViewController`,
+  `SystemDocumentPicker`), and `AppModel`'s menu actions, request handling,
+  export hand-off, Examples and `openURL`. The screens: `DiscardDialog`,
+  `RenameFailedDialog` with Save as…, `ExamplesSheet` (`Screens/Overlays.swift`).
+
+**Ids.** Python compares ids as strings (Recent, the mode controller), so an
+id stays the same as long as the document does:
+
+| Id | What | Store |
+|---|---|---|
+| `bundle:<file>` | a song the app ships (the quick-start song at launch) | read only: Save runs Save As (`restore_draft` with `read_only`), rename is refused |
+| `app:examples/<file>` | a copy Examples made | Application Support/examples, always writable, in Recent until deleted, not in Files |
+| `app:exports/<uuid>/<file>` | an export waiting for the export picker | Application Support/exports, deleted after the picker, all of them at launch |
+| `bookmark:<uuid>` | a song the user picked (Open, Save As) or opened from Files | its bookmark in `bookmarks.json` |
+
+A picked file's id is a key into the bookmark table, never its URL: a URL
+changes when the file moves or is renamed, and a bookmark follows it. Each
+entry keeps the bookmark, the path it last resolved to (picking the same
+file again gives the same id, so Recent doesn't list it twice), its name
+and its location (for a message once the file is gone). A stale bookmark is
+made again under the same id; one that doesn't resolve is "File not found"
+and, read from Recent, drops out of the list with its bookmark, for good
+(Android does the same with a revoked grant). An entry that falls off the
+recent list loses its bookmark, except the newest, which is the open
+document (Android's grants). The table and the recent list are JSON files in
+Application Support (no UserDefaults, which would need a privacy reason).
+Bookmarks are made with no options: `.withSecurityScope` is macOS only, and
+on iOS the bookmark of a security-scoped URL carries the scope.
+
+**Locations** (status lines and messages): "song.txt (Chord Notepad)" for the
+app's Documents (Files' name for it), otherwise the name and the folder as
+Files names it ("song.txt (iCloud Drive)", "song.txt (Downloads)"); the
+shipped song and the copies are "x.txt (Examples)", an export its name.
+
+**The flows.**
+
+- **Open** (`open_document {}`): the session asks about changes first, then
+  `PickDocumentRequest(open)`; the picker
+  (`forOpeningContentTypes: [plain text, text, data]`, Android's
+  text-then-anything) returns a security-scoped URL, which is adopted off the
+  main actor and answered. Recent entries send `open_recent`.
+- **Save** writes through the store in place (`Data.write` without
+  `.atomic`, which would need a temporary file in a folder the app may not
+  reach). Never saved, or the shipped song: Save As.
+- **Save As**: iOS's export picker needs a file before it opens, so the app
+  makes an empty one with the suggested name in its temporary folder, and
+  `UIDocumentPickerViewController(forExporting:asCopy: false)` moves it where
+  the user chooses; the moved file is adopted, the request answered, and the
+  session writes the song into it. A failed write leaves the empty file
+  there.
+- **Exports** (`PICKER_CREATES_FILE` is false for iOS): the request is
+  answered at once with a store file (`app:exports/...`), the session renders
+  and writes it through the store, and the store's `onExportWritten` (after
+  `writeBytes` for MIDI, `copyFromFile` for audio) has the app offer it with
+  `forExporting:asCopy: true`. The export picker rather than the share sheet:
+  Android's exports are saved to a place the user picks, and the share sheet
+  would put AirDrop and Messages before "Save to Files". The status says
+  "Exported MIDI: song.mid" before the user has picked a place, and a
+  cancelled picker drops the file without a word (a note for the core:
+  an iOS wording such as "Ready to save").
+- **Export PDF stays greyed.** The core doesn't make the PDF: it sends
+  `PaintPdfRequest` with the pages laid out (`PdfLayout`), and Android paints
+  them itself (`PdfExporter`). iOS has no painter yet (`UIGraphicsPDFRenderer`
+  would do; `BACKLOG.md`); a `PaintPdfRequest` that arrives anyway is
+  cancelled.
+- **The unsaved-changes question** (`ConfirmDiscardRequest`, before New,
+  Open, a recent song, an example, a song from Files): a card over the
+  screen with "Unsaved Changes", "Do you want to save your changes?" and
+  Don't save, Cancel, Save (stacked when they don't fit one line).
+- **Recent** comes from `RecentDocumentsState`: the store keeps the list
+  (`recent`, `addRecent`, `setMaxRecent`), so it survives a relaunch, and a
+  recent song reopens through its bookmark.
+- **Examples** (Android's sheet): the songs in `examples/` (bundled as a
+  folder), a tap copies one to `app:examples/` (Android's `copyFor`: the same
+  copy while it is unchanged, `x (2).txt` after an edit) and opens it.
+  **Quick start** stays greyed: on Android it is a tour
+  (`request_quick_start`, `QuickStartContent`), not a song.
+- **From Files and other apps:** `CFBundleDocumentTypes` lists plain text
+  as an Alternate handler (never the default for `.txt`), and
+  `LSSupportsOpeningDocumentsInPlace` opens it in place: `onOpenURL` gets a
+  security-scoped URL, which is adopted and opened like a picked one. A URL
+  that arrives before the session runs waits for it, after the quick-start
+  song. `.cho` and `.chordpro` files aren't plain text to iOS, so they open
+  through Open only.
+- **iCloud and providers:** a read of a cloud file whose content isn't on the
+  device asks for it and waits up to 20 s, then says "File not downloaded
+  yet (open it in the Files app to download it, then try again)", rather
+  than letting a coordinated read wait for the network with the session
+  stuck behind it. Renaming a picked file needs its folder, which the app
+  doesn't have: a refused move is "stored where Chord Notepad can't rename
+  it", and the dialog offers Save As.
+- **Messages** are the store's, in the desktop's wording, with the document's
+  location: "File not found: song.txt (Downloads)", "Permission denied: …",
+  "File too large to open (over 5 MB): …", "Failed to write file: …". An
+  error of the app's own (an example it couldn't copy, a file from Files it
+  can't bookmark) is a snackbar like the session's.
+
+Deliberate differences from Android:
+
+- Save As takes the suggested name; the export picker has no name field, so
+  a different name is a rename afterwards (tap the title).
+- Exports go through the export picker after the file is written, so a
+  failed export leaves nothing behind, and the status line names the export
+  before it is saved.
+- Errors are snackbars, as in the main-screen slice (Android: dialogs).
+- Example copies, the recent list and the bookmarks live in Application
+  Support: not in Files, not removed by anything but the app.
+- No Quick Start tour yet, and no Export PDF.
+
+What CI doesn't test (`SessionTests` drives the real store on files in the
+app's Documents with a stand-in for the pickers; see the device checklist
+below): `UIDocumentPickerViewController` itself (Open, the Save As move, the
+export copy) and the security scope of a URL from it or from Files, a file
+outside the container (iCloud Drive, On My iPhone, a third-party provider),
+a bookmark resolved after a reboot or an app update, an iCloud file that
+isn't downloaded, renaming a picked file, a song opened from the Files app
+or another app's "Open in…" (`onOpenURL` is called directly), an export
+whose picker is cancelled, and the live dialogs.
+
 ### Preview catalog
 
 `PreviewCatalog.screens` lists every screen with the fixtures it is shown
@@ -757,14 +914,19 @@ with and the windows it is drawn in; adding a screen is one line there.
 renders each entry with `ImageRenderer` at iPhone 17 (402×874 pt, @3x) and
 iPad Air 11-inch (820×1180 pt, @2x), and on their sides (874×402,
 1180×820) where the layout differs, light and dark, default and
-`accessibility2` text: 192 PNGs.
+`accessibility2` text: 232 PNGs.
 
 | Screen | Scenes | Windows |
 |---|---|---|
 | `edit` | `scarborough_edit`, `empty_song`, `editor_mid_edit`, `editor_european` | iPhone, iPad, iPad on its side |
 | `play` | the three Scarborough Fair scenes, `play_with_chord_sheet`, `chord_sheet_staff`, `quick_start_edit` (no sheet) | all four |
 | `keyboard` | `scarborough_edit` in Edit with a grey stand-in for the keyboard (the header collapses on the phone on its side) | iPhone on its side, iPhone |
-| `menu`, `rename` | `scarborough_edit`; `errors` for the refused rename | iPhone, iPad |
+| `menu` | `scarborough_edit`; `files_recent` (the recent songs) | iPhone, iPad |
+| `rename` | `scarborough_edit`; `errors` for the refused rename with Save as… | iPhone, iPad |
+| `discard` | `discard_question` in Edit: the unsaved-changes question | iPhone, iPad |
+| `export`, `export_edit` | `export_done`: "Exported MIDI: …" in Play's status line; in Edit as a snackbar | iPhone, iPad; iPhone |
+| `open_error` | `errors` in Play with the open failure as a snackbar | iPhone, iPad |
+| `examples` | the Examples sheet, from the bundle's `examples/` | iPhone |
 | `diagnostics` | a sample self-test report | iPhone, iPad |
 | `voicing`, `instrument` | the player's lists, `scarborough_fret` | iPhone |
 
@@ -790,8 +952,9 @@ the system's); `PrivacyInfo.xcprivacy` with no tracking and no collected
 data, and the required-reason APIs the embedded CPython links: file
 timestamps (`C617.1`, files in the container), system boot time (`35F9.1`,
 `time.monotonic` and Swift's clocks) and disk space (`E174.1`, `statvfs` is
-in the binary). Add `3B52.1` with the document picker, and the user
-defaults category if the app ever uses them. `_ssl` and `_hashlib` (which
+in the binary), plus `3B52.1` for the size of a song the user picked or
+opened from Files; add the user defaults category if the app ever uses
+them. `_ssl` and `_hashlib` (which
 link OpenSSL, on Apple's list of SDKs that need a manifest) get one each
 from `packaging/ios/privacy/`. The icon is one 1024 px PNG, flattened on the
 Android icon's cream (`ios/tools/make_app_icon.py`, Inkscape and Pillow).
@@ -956,7 +1119,26 @@ expires, her tester status and the issue list. By hand:
   aborted once with "CoreAudio Initialize: RPC timeout. Apparently
   deadlocked." (run 45341096346). The session starts off the main thread,
   so it's most likely the runner's audio server, but only a device can
-  show that.
+  show that. Standing items for file handling, until a device run clears
+  them (docs "Files", what CI doesn't test), first of all Save As: does the
+  URL the export picker returns after moving the empty file stay writable
+  and bookmarkable?
+  1. Save As into iCloud Drive and into On My iPhone: the song is written
+     there, the title shows its name, Recent lists it.
+  2. Open… a song in iCloud Drive, one in On My iPhone and one from a
+     third-party provider if she has one; change and Save each in place.
+  3. Quit the app (swipe it away), reopen, reopen each from Recent; again
+     after a reboot.
+  4. A song in iCloud Drive removed from the device ("Remove Download"),
+     then opened from Recent online and in flight mode: it downloads, or
+     the "not downloaded yet" message after 20 s.
+  5. Rename (tap the title) a picked song: renamed, or the Save As offer.
+  6. Export MIDI and audio: the export picker after the render, the file
+     plays in Files; cancel the picker once.
+  7. In Files, long-press a `.txt` › Share or Open in › Chord Notepad, with
+     the app running and with it closed; a `.txt` from Mail's attachments.
+  8. Delete a recent song in Files, then open it from Recent: "File not
+     found" and it leaves the list.
 - [ ] the checklist printed, screen recording on
 - [ ] where the artifacts go
 - [ ] which fallback agenda applies
