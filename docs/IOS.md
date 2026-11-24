@@ -1019,8 +1019,6 @@ Deliberate differences from Android:
   dialogs), not iOS sheets and alerts: a dialog (Manual…, the tempo) stacks
   over its sheet as on Android, and the catalog draws them. A tap on the
   dimmed screen or a swipe down on the handle closes a sheet.
-- Edit voicings… is greyed: a tap says editing voicings comes with Settings
-  (Android opens Settings › Voicings).
 - The dropdowns (Playback settings' time and key, the Insert dialogs'
   pickers, Suggest Capo's voicing) are iOS pop-up menus with the same
   choices.
