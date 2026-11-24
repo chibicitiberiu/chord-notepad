@@ -888,6 +888,9 @@ The User Interface
       :platforms: android
       :alt: The Edit ribbon: Undo, Redo, Insert, Transpose, Capo, Identify, the AB
             and Do switch, Convert, and a chevron at the right edge.
+      :ios-alt: The Edit ribbon on an iPhone: Undo, Redo, Find, Insert,
+                Transpose, Capo, Identify, and a chevron at the right edge (the
+                AB and Do switch and Convert are further right).
 
       The Edit ribbon.
 

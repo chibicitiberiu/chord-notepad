@@ -181,6 +181,11 @@ Workflow Tips
    :platforms: android
    :alt: A tablet held sideways in the Play tab while a song plays: the whole
          song text on the left, a tall piano roll and the player on the right.
+   :ios-alt: An iPad held sideways in the Play tab while a song plays: the
+             whole song text on the left, a tall piano roll and the player on
+             the right.
+   :ios-caption: An iPad in landscape: the whole song on the left, the chord
+      sheet and the player on the right.
 
    A tablet in landscape: the whole song on the left, the chord sheet and the
    player on the right.

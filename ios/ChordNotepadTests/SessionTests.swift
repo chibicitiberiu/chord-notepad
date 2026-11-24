@@ -810,6 +810,17 @@ extension SessionTests {
         png.name = "guide-live.png"
         png.lifetime = .keepAlways
         add(png)
+        // Dark: the page follows the view's look (GuideWebView sets it from the app's).
+        web.overrideUserInterfaceStyle = .dark
+        try await Task.sleep(for: .seconds(1))
+        let dark = try await web.evaluateJavaScript("window.matchMedia('(prefers-color-scheme: dark)').matches")
+            as? Bool
+        XCTAssertEqual(dark, true, "the guide's page follows the dark look")
+        let darkImage = try await web.takeSnapshot(configuration: nil)
+        let darkPng = XCTAttachment(image: darkImage)
+        darkPng.name = "guide-live-dark.png"
+        darkPng.lifetime = .keepAlways
+        add(darkPng)
         window.isHidden = true
     }
 }

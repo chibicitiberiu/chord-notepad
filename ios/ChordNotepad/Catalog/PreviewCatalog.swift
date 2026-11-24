@@ -256,6 +256,10 @@ enum PreviewCatalog {
                       devices: CatalogRenderer.upright + [CatalogRenderer.iphoneLandscape]) { scene, _ in
             PreviewCatalog.mainScreen(scene, MainUiState(mode: .edit))
         },
+        // ... the Voicing sheet once Settings has made My 7-String (Android's voicing-sheet) ...
+        CatalogScreen("help_voicing", fixtures: ["grace_play"], devices: [CatalogRenderer.devices[0]]) { scene, _ in
+            PreviewCatalog.mainScreen(scene, MainUiState(mode: .play, route: .voicing))
+        },
         // ... and Rename on Amazing Grace, as it opens (the name without its extension).
         CatalogScreen("help_rename", fixtures: ["grace_edit"], devices: [CatalogRenderer.devices[0]]) { scene, _ in
             PreviewCatalog.mainScreen(scene, MainUiState(mode: .play, route: .rename), renameName: "Amazing Grace")

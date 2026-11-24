@@ -48,7 +48,7 @@
      "what": "Play's text with the playhead before Em."},
     {"name": "song-defaults", "catalog": "song_defaults-player_sheets-iphone",
      "what": "Playback settings: the tempo set by {bpm: 90}, 3/4 and G, Write into song."},
-    {"name": "voicing-sheet", "catalog": "voicing-player_sheets-iphone", "panel": [4, 870], "full_width": true, "to_bottom": true, "pad": 0,
+    {"name": "voicing-sheet", "catalog": "help_voicing-grace_play-iphone", "panel": [4, 870], "full_width": true, "to_bottom": true, "pad": 0,
      "what": "The Voicing sheet on Piano."},
     {"name": "instrument-families", "shot": "iphone-families",
      "what": "The Instrument sheet's families, Grand Piano the current instrument."},

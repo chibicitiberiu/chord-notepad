@@ -824,8 +824,9 @@ The third slice: the app's frame, a port of Android's `ui/main/`
   and the ribbon's tools"), `-CNScreen settings`, `voicings` and `about` a
   page ("Settings, About and Licences"). `-CNScreen main` does nothing but
   make the launch not a direct one (CI's main screenshot, with no tour over
-  it); `-CNScreen guide`, `quickstart` and `pdf` open the guide, the tour and
-  an export of the song as a PDF, and `families`, `hint`, `keyboard` and
+  it); `-CNScreen guide` and `pdf` open the guide and an export of the song
+  as a PDF, `-CNScreen quickstart` is a direct launch that waits for the tour
+  (CI's first launch after the install checks that already), and `families`, `hint`, `keyboard` and
   `landscape` set up the guide's live screenshots ("The user guide, Quick
   Start and Export PDF"). `-CNScreen find` opens the find bar ("Find, the font,
   the pinch and the keys").
@@ -1519,7 +1520,7 @@ iPad Air 11-inch (820×1180 pt, @2x), and on their sides (874×402,
 | `settings_builtin`, `settings_rename` | the standard guitar read-only with Copy; My 7-String's rename dialog | iPhone, iPad on its side; iPhone |
 | `about`, `licences`, `licence` | About (a sample build), the licences from the bundle's list, FluidSynth's page with its text | iPhone, iPad; iPhone, iPad; iPhone |
 | `quick_start` | `quick_start_tour`: the tour's first page | iPhone, iPad |
-| `help_play`, `help_play_phone`, `help_edit` | the guide's scenes (`ios/tools/help_shots.json`): `grace_playing` in every window; the four views, the metronome at 125 % and the playhead on Em; `grace_edit` and `colours_edit` in Edit | all four; iPhone; iPhone, iPad, iPhone on its side |
+| `help_play`, `help_play_phone`, `help_edit`, `help_voicing`, `help_rename` | the guide's scenes (`ios/tools/help_shots.json`): `grace_playing` in every window; the four views, the metronome at 125 % and the playhead on Em; `grace_edit` and `colours_edit` in Edit; the Voicing sheet over `grace_play` (My 7-String made by then); Rename over `grace_edit` | all four; iPhone; iPhone, iPad, iPhone on its side; iPhone; iPhone |
 | `find`, `find_play`, `find_replaced` | `scarborough_edit` with the find bar and its Replace row (Am, match case and whole words, the second of the matches selected, Em to replace with); `scarborough_piano_roll` in Play finding "parsley" (no Replace row; beside the chord sheet on the phone on its side); `find_replaced` after Replace all, its status as a snackbar | iPhone, iPad; iPhone, iPad, iPhone on its side; iPhone, iPad |
 
 The chord sheet's strip draws there too: it is a SwiftUI `Canvas`, and only
@@ -1558,8 +1559,9 @@ Android icon's cream (`ios/tools/make_app_icon.py`, Inkscape and Pillow).
 glyph export script, Android's chord sheet and voicing form fixtures, the
 help screenshots' songs the scenes use (the kit's tests read them), the
 examples, Android's icons the asset catalog copies (the drawables and
-`SettingsIcons.kt`), the licence texts and
-`VERSION`, and by hand (workflow_dispatch). Each push gets its own run; a
+`SettingsIcons.kt`), the licence texts, the user guide (`help/`, its Sphinx
+pins in `android/docs-requirements.txt`, Android's licence list the iOS
+guide's entries must match) and `VERSION`, and by hand (workflow_dispatch). Each push gets its own run; a
 newer one doesn't cancel an older one.
 `build.yml` ignores pushes that touch only `ios/`, `packaging/ios/`,
 `ios.yml` or this file. Four jobs at once, three of them on `macos-26`

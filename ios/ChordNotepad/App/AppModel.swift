@@ -895,8 +895,8 @@ final class AppModel: ObservableObject {
             // The theme's fonts and images after the page itself.
             try? await Task.sleep(for: .seconds(2))
         case "quickstart":
-            openTour()
-            ok = await waitFor(timeout: .seconds(30)) { $0.quickStart != nil }
+            // A direct launch (LaunchKind.of): the session opens the tour itself.
+            ok = await waitForModel(timeout: .seconds(30)) { $0.ui.route == .quickStart && $0.snapshot.quickStart != nil }
         case "hint":
             // A typo'd tempo in Play, touched and held (Android's directive-explain).
             restoreSong(HelpShotSongs.typo, name: "Amazing Grace.txt")
