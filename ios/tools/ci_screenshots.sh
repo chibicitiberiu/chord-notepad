@@ -62,15 +62,23 @@ else
 fi
 xcrun simctl io "$UDID" screenshot "$OUT/$LABEL-selftest.png"
 
-# The chord sheet: the app writes chordsheet.json when its first buffer is drawn.
+# The chord sheet: the app writes chordsheet.json when its first buffer is
+# drawn. One retry: the simulator's CoreAudio sometimes aborts the app while
+# FluidSynth's player starts ("Initialize: RPC timeout. Apparently
+# deadlocked."), before the sheet is reached.
 rm -f "$DIAG/chordsheet.json"
-xcrun simctl launch --terminate-running-process "$UDID" "$BUNDLE_ID" -CNScreen chordsheet
-if wait_for "$DIAG/chordsheet.json" 240; then
-    cat "$DIAG/chordsheet.json"
-    sleep 3
-else
-    status=1
-fi
+sheet=1
+for attempt in 1 2; do
+    xcrun simctl launch --terminate-running-process "$UDID" "$BUNDLE_ID" -CNScreen chordsheet
+    if wait_for "$DIAG/chordsheet.json" 150; then
+        cat "$DIAG/chordsheet.json"
+        sleep 3
+        sheet=0
+        break
+    fi
+    echo "Attempt $attempt: no chord sheet drawn" >&2
+done
+[ "$sheet" -eq 0 ] || status=1
 xcrun simctl io "$UDID" screenshot "$OUT/$LABEL-chordsheet.png"
 xcrun simctl terminate "$UDID" "$BUNDLE_ID" || true
 
