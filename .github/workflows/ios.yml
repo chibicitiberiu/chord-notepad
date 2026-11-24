@@ -23,7 +23,12 @@ on:
       # The quick-start song, the kit's scenes and the menu's Examples.
       - 'examples/*.txt'
       - 'android/tools/help_shot_songs/scarborough_fair.txt'
+      - 'android/tools/help_shot_songs/amazing_grace*.txt'
       - 'android/app/src/main/res/drawable/mdi_*.xml'
+      # Chord Notepad's own icons the iOS asset catalog copies (ios/tools/mdi_assets.py).
+      - 'android/app/src/main/res/drawable/ic_capo.xml'
+      - 'android/app/src/main/res/drawable/ic_time_signature.xml'
+      - 'android/app/src/main/res/drawable/ic_transpose.xml'
       - '.github/workflows/ios.yml'
   workflow_dispatch:
 

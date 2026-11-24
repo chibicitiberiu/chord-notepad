@@ -378,8 +378,14 @@ final class SessionTests: XCTestCase {
         // The chord identifier: C, E and G tapped, C picked and inserted at the cursor.
         model.sheet(.ribbon(.identify))
         XCTAssertEqual(model.ui.route, .identify)
+        // One key at a time, as a person taps: the field follows the session's
+        // state after each tap (Android's IdentifierModel).
+        var tapped = 0
         for key in PianoKeyboard().keys where [60, 64, 67].contains(key.midi) {
             model.sheet(.identifierTap(key))
+            tapped += 1
+            let count = tapped
+            _ = await model.waitFor(timeout: .seconds(10)) { $0.identifier?.notes.count == count }
         }
         let named = await model.waitFor(timeout: .seconds(30)) { $0.identifier?.candidates.contains("C") == true }
         XCTAssertTrue(named, "\(String(describing: model.snapshot.identifier))")
