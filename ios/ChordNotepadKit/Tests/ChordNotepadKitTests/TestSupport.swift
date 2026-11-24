@@ -51,7 +51,7 @@ enum TestPython {
 /// An in-memory ``DocumentStore`` with fixed ids, safe on any thread.
 ///
 /// - `missing`: never exists ("File not found: missing").
-/// - `locked`: can't be renamed (``DocumentStoreError/renameUnsupported(_:)``).
+/// - ids starting with `locked`: can't be renamed (``DocumentStoreError/renameUnsupported(_:)``).
 /// - ids starting with `slow`: `readBytes` blocks for 300 ms.
 final class MemoryStore: DocumentStore, @unchecked Sendable {
     private let lock = NSLock()
@@ -118,7 +118,7 @@ final class MemoryStore: DocumentStore, @unchecked Sendable {
 
     func rename(id: String, displayName: String) throws -> DocumentRef {
         log("rename \(id)")
-        if id == "locked" {
+        if id.hasPrefix("locked") {
             throw DocumentStoreError.renameUnsupported("This storage can't rename “\(id)”.")
         }
         return lock.withLock {

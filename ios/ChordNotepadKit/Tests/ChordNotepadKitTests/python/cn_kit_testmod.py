@@ -100,6 +100,34 @@ def gil_released_during_store_call(document_id: str) -> str:
     return json.dumps({"ticks_during_call": during})
 
 
+def scene_fixture(path: str, scene_json: str, files_dir: str, record: str) -> str:
+    """Compare (or with ``record == "1"`` write) one ios/Fixtures scene.
+
+    ``scene_json`` holds the session's JSON exactly as it crossed the bridge;
+    it is written sorted and indented, with ``files_dir`` (a temp folder)
+    replaced by ``$FILES_DIR``, so the file is the same on every run.
+
+    Returns:
+        ``""`` when the file matches (or was written), else what differs.
+    """
+    import difflib
+    from pathlib import Path
+
+    text = scene_json.replace(files_dir, "$FILES_DIR")
+    canonical = json.dumps(json.loads(text), indent=1, sort_keys=True, ensure_ascii=False) + "\n"
+    target = Path(path)
+    if record == "1":
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(canonical, encoding="utf-8")
+        return ""
+    current = target.read_text(encoding="utf-8") if target.exists() else ""
+    if current == canonical:
+        return ""
+    diff = difflib.unified_diff(current.splitlines(), canonical.splitlines(),
+                                str(target), "this run", lineterm="", n=1)
+    return "\n".join(list(diff)[:40]) or f"{target} is missing"
+
+
 def check_command(command: str, args_json: str) -> str:
     """``""`` if the core's bridge accepts ``args_json`` for ``command``, else why not."""
     from chordnotepad.session.bridge import BridgeError, decode_args

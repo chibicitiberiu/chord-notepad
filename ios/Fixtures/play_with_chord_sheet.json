@@ -1,0 +1,1587 @@
+{
+ "description": "The complete American example in Play: chord sheet shown, playhead on the third chord.",
+ "events": [
+  {
+   "json": {
+    "anchor": null,
+    "cursor": 4370,
+    "end": 761,
+    "replacement": "{bpm: 120} {time: 4/4} {key: G}\n\n// Complete American Notation Reference\n// Shakespeare's \"A Midsummer Night's Dream\" meets jazz harmony\n\n// ===== BASIC TRIADS & SEVENTHS =====\n{label: intro}\nG           D           Em          C           // Major, minor triads\nI know a bank where the wild thyme blows,\nGmaj7       Am7         Bm7         Cmaj7       // Major 7th, minor 7th\nWhere oxlips and the nodding violet grows.\n\n// ===== SLASH CHORDS (Inversions) =====\nG/B         C/E         D/F#        G/D\nQuite over-canopied with luscious woodbine,\nAm/C        D/A         G/B         C\nWith sweet musk-roses and with eglantine.\n\n// ===== LOWERCASE = MINOR (American shorthand) =====\n// c = Cm, d = Dm, e = Em, etc.\ng           d           e           c\nThere sleeps Titania sometime of the night,\na           e           d           g\nLull'd in these flowers with dances and delight.\n\n// ===== DOMINANT 7THS & EXTENSIONS =====\n{label: verse1}\nG7          C7          D7          G7          // Dominant 7ths\nLord, what fools these mortals be!\nG9          C9          D9          G9          // 9ths\nThe course of true love never did run smooth.\nG11         C11         D13         Gmaj9       // 11ths, 13ths\nLove looks not with the eyes, but with the mind.\n\n// ===== ALTERED DOMINANTS =====\n{bpm: 100}\nG7#9        C7b9        D7#11       G7b13       // Sharp/flat extensions\nAnd therefore is wing'd Cupid painted blind.\nD7alt       G7#9#5      C7b9b13     D7#9b13     // Multiple alterations\nNor hath Love's mind of any judgement taste.\n\n// ===== DIMINISHED & AUGMENTED =====\n{label: bridge}\nGdim        Gdim7       G°          G°7         // Diminished (text & symbol)\nThe lunatic, the lover and the poet\nGaug        Gaug7       G+          G+7         // Augmented (text & symbol)\nAre of imagination all compact.\n\n// ===== HALF-DIMINISHED =====\nBm7b5       Am7b5       Bø7         Aø7         // m7b5 and ø symbol\nOne sees more devils than vast hell can hold;\nEm7b5       Dm7b5       Eø7         Dø          // Half-diminished variations\nThat is the madman.\n\n// ===== SUSPENDED & ADD CHORDS =====\n{bpm: 110}\nGsus4       Gsus2       Csus4       Dsus4       // Suspended\nThe poet's eye, in fine frenzy rolling,\nGadd9       Cadd9       Dadd9       Gadd9       // Add chords\nDoth glance from heaven to Earth.\nG(add11)    C(add9)     D(no3)      G(omit5)    // Parenthetical notation\nAnd gives to airy nothing a local habitation.\n\n// ===== MINOR-MAJOR CHORDS =====\nGmM7        CmM7        DmM7        GmM9        // Minor with major 7th\nIf we shadows have offended,\nAmM7        EmM7        BmM7        FmM7        // More minor-major\nThink but this, and all is mended.\n\n// ===== ENHARMONIC & UNICODE =====\n{label: enharmonic}\nF#m7        Gbm7        C#7         Db7         // Enharmonic equivalents\nThat you have but slumber'd here\nG♯m7        A♭maj7      D♯7         E♭7         // Unicode ♯ and ♭\nWhile these visions did appear.\n\n// ===== TEMPO MODIFIERS =====\n{bpm: +20}                                      // Relative: add 20 BPM\nG           D           Em          C\nAnd this weak and idle theme,\n\n{bpm: 75%}                                      // Percentage: 75% of current\nAm          D           G\nNo more yielding but a dream.\n\n{bpm: 2x}                                       // Multiplier: double tempo\nG*1         D*1         C*1         G*1\nGentles, do not reprehend!\n\n{bpm: 0.5x}                                     // Multiplier: half tempo\nG*2         C*2         D*2         G*2\nIf you pardon, we will mend.\n\n{bpm: reset}                                    // Reset to original (120)\nG           D           C           G\nSo, good night unto you all.\n\n// ===== TIME SIGNATURES =====\n{time: 3/4}\nG           D           Em\nGive me your hands, if we be friends,\n\n{time: 6/8}\nC           G           D\nAnd Robin shall restore amends.\n\n{time: 4/4}\n\n// ===== NC (NO CHORD / SILENCE) =====\n{label: outro}\nG           NC*2        D           NC*2        // NC = silence/rest\n(chord)     (silence)   (chord)     (silence)\n\nG*2         NC*1        D*1         G*4\nThe end... draws... near.\n\n// ===== COMPLEX FINALE =====\nGmaj7#11    Em9         Am7b5       D7#9b13\nNow the hungry lion roars,\nCmaj9#11    Bm7b5       E7alt       Am(add9)\nAnd the wolf behowls the moon.\nG/B         C           D7sus4      Gmaj7*4\nGood night... and dream of summer.\n\n{loop: outro 1}\n",
+    "start": 0,
+    "text_revision": 3,
+    "undo": "reset"
+   },
+   "type": "TextEdited"
+  }
+ ],
+ "scene": "play_with_chord_sheet",
+ "states": {
+  "CapoAdviceState": {
+   "active": false,
+   "message": "",
+   "playing": false,
+   "rows": [],
+   "scope": "",
+   "status": "ready",
+   "voicing": "",
+   "voicings": []
+  },
+  "ChordSheetState": {
+   "active_view": "keyboard",
+   "current_index": null,
+   "cursor_index": 2,
+   "disabled_reason": "Pick a fretted voicing, like Guitar, with the Voicing button.",
+   "height": 160,
+   "song_revision": 1,
+   "views": [
+    {
+     "available": true,
+     "label": "Piano roll",
+     "view_id": "keyboard"
+    },
+    {
+     "available": true,
+     "label": "Staff",
+     "view_id": "staff"
+    },
+    {
+     "available": false,
+     "label": "Fret cards",
+     "view_id": "fret"
+    },
+    {
+     "available": false,
+     "label": "Tab",
+     "view_id": "tab"
+    }
+   ],
+   "visible": true,
+   "zoom": 1.0,
+   "zoom_supported": true
+  },
+  "DocumentState": {
+   "display_name": "02_american_complete.txt",
+   "document_id": "examples/02_american_complete.txt",
+   "is_modified": false,
+   "location": "On My iPhone",
+   "read_only": false,
+   "title": "02_american_complete.txt - Chord Notepad"
+  },
+  "EditorState": {
+   "font_family": "TkFixedFont",
+   "font_size": 11,
+   "notation": "american",
+   "read_only": false,
+   "word_wrap": false
+  },
+  "HighlightState": {
+   "client_token": 0,
+   "spans": [
+    {
+     "end": 72,
+     "kind": "comment",
+     "message": "",
+     "start": 33
+    },
+    {
+     "end": 136,
+     "kind": "comment",
+     "message": "",
+     "start": 73
+    },
+    {
+     "end": 176,
+     "kind": "comment",
+     "message": "",
+     "start": 138
+    },
+    {
+     "end": 262,
+     "kind": "comment",
+     "message": "",
+     "start": 240
+    },
+    {
+     "end": 376,
+     "kind": "comment",
+     "message": "",
+     "start": 353
+    },
+    {
+     "end": 461,
+     "kind": "comment",
+     "message": "",
+     "start": 421
+    },
+    {
+     "end": 680,
+     "kind": "comment",
+     "message": "",
+     "start": 627
+    },
+    {
+     "end": 712,
+     "kind": "comment",
+     "message": "",
+     "start": 681
+    },
+    {
+     "end": 924,
+     "kind": "comment",
+     "message": "",
+     "start": 883
+    },
+    {
+     "end": 1005,
+     "kind": "comment",
+     "message": "",
+     "start": 989
+    },
+    {
+     "end": 1096,
+     "kind": "comment",
+     "message": "",
+     "start": 1089
+    },
+    {
+     "end": 1206,
+     "kind": "comment",
+     "message": "",
+     "start": 1191
+    },
+    {
+     "end": 1289,
+     "kind": "comment",
+     "message": "",
+     "start": 1257
+    },
+    {
+     "end": 1373,
+     "kind": "comment",
+     "message": "",
+     "start": 1349
+    },
+    {
+     "end": 1490,
+     "kind": "comment",
+     "message": "",
+     "start": 1467
+    },
+    {
+     "end": 1574,
+     "kind": "comment",
+     "message": "",
+     "start": 1537
+    },
+    {
+     "end": 1668,
+     "kind": "comment",
+     "message": "",
+     "start": 1639
+    },
+    {
+     "end": 1781,
+     "kind": "comment",
+     "message": "",
+     "start": 1753
+    },
+    {
+     "end": 1845,
+     "kind": "comment",
+     "message": "",
+     "start": 1815
+    },
+    {
+     "end": 1914,
+     "kind": "comment",
+     "message": "",
+     "start": 1894
+    },
+    {
+     "end": 2038,
+     "kind": "comment",
+     "message": "",
+     "start": 2009
+    },
+    {
+     "end": 2097,
+     "kind": "comment",
+     "message": "",
+     "start": 2060
+    },
+    {
+     "end": 2169,
+     "kind": "comment",
+     "message": "",
+     "start": 2157
+    },
+    {
+     "end": 2271,
+     "kind": "comment",
+     "message": "",
+     "start": 2258
+    },
+    {
+     "end": 2379,
+     "kind": "comment",
+     "message": "",
+     "start": 2354
+    },
+    {
+     "end": 2460,
+     "kind": "comment",
+     "message": "",
+     "start": 2427
+    },
+    {
+     "end": 2532,
+     "kind": "comment",
+     "message": "",
+     "start": 2509
+    },
+    {
+     "end": 2629,
+     "kind": "comment",
+     "message": "",
+     "start": 2610
+    },
+    {
+     "end": 2701,
+     "kind": "comment",
+     "message": "",
+     "start": 2666
+    },
+    {
+     "end": 2795,
+     "kind": "comment",
+     "message": "",
+     "start": 2770
+    },
+    {
+     "end": 2895,
+     "kind": "comment",
+     "message": "",
+     "start": 2877
+    },
+    {
+     "end": 2959,
+     "kind": "comment",
+     "message": "",
+     "start": 2929
+    },
+    {
+     "end": 3031,
+     "kind": "comment",
+     "message": "",
+     "start": 3008
+    },
+    {
+     "end": 3178,
+     "kind": "comment",
+     "message": "",
+     "start": 3149
+    },
+    {
+     "end": 3311,
+     "kind": "comment",
+     "message": "",
+     "start": 3284
+    },
+    {
+     "end": 3453,
+     "kind": "comment",
+     "message": "",
+     "start": 3428
+    },
+    {
+     "end": 3598,
+     "kind": "comment",
+     "message": "",
+     "start": 3572
+    },
+    {
+     "end": 3697,
+     "kind": "comment",
+     "message": "",
+     "start": 3667
+    },
+    {
+     "end": 3898,
+     "kind": "comment",
+     "message": "",
+     "start": 3860
+    },
+    {
+     "end": 3982,
+     "kind": "comment",
+     "message": "",
+     "start": 3962
+    },
+    {
+     "end": 4126,
+     "kind": "comment",
+     "message": "",
+     "start": 4097
+    },
+    {
+     "end": 193,
+     "kind": "chord",
+     "message": "",
+     "start": 192
+    },
+    {
+     "end": 205,
+     "kind": "chord",
+     "message": "",
+     "start": 204
+    },
+    {
+     "end": 218,
+     "kind": "chord",
+     "message": "",
+     "start": 216
+    },
+    {
+     "end": 229,
+     "kind": "chord",
+     "message": "",
+     "start": 228
+    },
+    {
+     "end": 310,
+     "kind": "chord",
+     "message": "",
+     "start": 305
+    },
+    {
+     "end": 320,
+     "kind": "chord",
+     "message": "",
+     "start": 317
+    },
+    {
+     "end": 332,
+     "kind": "chord",
+     "message": "",
+     "start": 329
+    },
+    {
+     "end": 346,
+     "kind": "chord",
+     "message": "",
+     "start": 341
+    },
+    {
+     "end": 465,
+     "kind": "chord",
+     "message": "",
+     "start": 462
+    },
+    {
+     "end": 477,
+     "kind": "chord",
+     "message": "",
+     "start": 474
+    },
+    {
+     "end": 490,
+     "kind": "chord",
+     "message": "",
+     "start": 486
+    },
+    {
+     "end": 501,
+     "kind": "chord",
+     "message": "",
+     "start": 498
+    },
+    {
+     "end": 550,
+     "kind": "chord",
+     "message": "",
+     "start": 546
+    },
+    {
+     "end": 561,
+     "kind": "chord",
+     "message": "",
+     "start": 558
+    },
+    {
+     "end": 573,
+     "kind": "chord",
+     "message": "",
+     "start": 570
+    },
+    {
+     "end": 583,
+     "kind": "chord",
+     "message": "",
+     "start": 582
+    },
+    {
+     "end": 714,
+     "kind": "chord",
+     "message": "",
+     "start": 713
+    },
+    {
+     "end": 726,
+     "kind": "chord",
+     "message": "",
+     "start": 725
+    },
+    {
+     "end": 738,
+     "kind": "chord",
+     "message": "",
+     "start": 737
+    },
+    {
+     "end": 750,
+     "kind": "chord",
+     "message": "",
+     "start": 749
+    },
+    {
+     "end": 796,
+     "kind": "chord",
+     "message": "",
+     "start": 795
+    },
+    {
+     "end": 808,
+     "kind": "chord",
+     "message": "",
+     "start": 807
+    },
+    {
+     "end": 820,
+     "kind": "chord",
+     "message": "",
+     "start": 819
+    },
+    {
+     "end": 832,
+     "kind": "chord",
+     "message": "",
+     "start": 831
+    },
+    {
+     "end": 943,
+     "kind": "chord",
+     "message": "",
+     "start": 941
+    },
+    {
+     "end": 955,
+     "kind": "chord",
+     "message": "",
+     "start": 953
+    },
+    {
+     "end": 967,
+     "kind": "chord",
+     "message": "",
+     "start": 965
+    },
+    {
+     "end": 979,
+     "kind": "chord",
+     "message": "",
+     "start": 977
+    },
+    {
+     "end": 1043,
+     "kind": "chord",
+     "message": "",
+     "start": 1041
+    },
+    {
+     "end": 1055,
+     "kind": "chord",
+     "message": "",
+     "start": 1053
+    },
+    {
+     "end": 1067,
+     "kind": "chord",
+     "message": "",
+     "start": 1065
+    },
+    {
+     "end": 1079,
+     "kind": "chord",
+     "message": "",
+     "start": 1077
+    },
+    {
+     "end": 1146,
+     "kind": "chord",
+     "message": "",
+     "start": 1143
+    },
+    {
+     "end": 1158,
+     "kind": "chord",
+     "message": "",
+     "start": 1155
+    },
+    {
+     "end": 1170,
+     "kind": "chord",
+     "message": "",
+     "start": 1167
+    },
+    {
+     "end": 1184,
+     "kind": "chord",
+     "message": "",
+     "start": 1179
+    },
+    {
+     "end": 1305,
+     "kind": "chord",
+     "message": "",
+     "start": 1301
+    },
+    {
+     "end": 1317,
+     "kind": "chord",
+     "message": "",
+     "start": 1313
+    },
+    {
+     "end": 1330,
+     "kind": "chord",
+     "message": "",
+     "start": 1325
+    },
+    {
+     "end": 1342,
+     "kind": "chord",
+     "message": "",
+     "start": 1337
+    },
+    {
+     "end": 1424,
+     "kind": "chord",
+     "message": "",
+     "start": 1419
+    },
+    {
+     "end": 1437,
+     "kind": "chord",
+     "message": "",
+     "start": 1431
+    },
+    {
+     "end": 1450,
+     "kind": "chord",
+     "message": "",
+     "start": 1443
+    },
+    {
+     "end": 1462,
+     "kind": "chord",
+     "message": "",
+     "start": 1455
+    },
+    {
+     "end": 1595,
+     "kind": "chord",
+     "message": "",
+     "start": 1591
+    },
+    {
+     "end": 1608,
+     "kind": "chord",
+     "message": "",
+     "start": 1603
+    },
+    {
+     "end": 1617,
+     "kind": "chord",
+     "message": "",
+     "start": 1615
+    },
+    {
+     "end": 1630,
+     "kind": "chord",
+     "message": "",
+     "start": 1627
+    },
+    {
+     "end": 1709,
+     "kind": "chord",
+     "message": "",
+     "start": 1705
+    },
+    {
+     "end": 1722,
+     "kind": "chord",
+     "message": "",
+     "start": 1717
+    },
+    {
+     "end": 1731,
+     "kind": "chord",
+     "message": "",
+     "start": 1729
+    },
+    {
+     "end": 1744,
+     "kind": "chord",
+     "message": "",
+     "start": 1741
+    },
+    {
+     "end": 1851,
+     "kind": "chord",
+     "message": "",
+     "start": 1846
+    },
+    {
+     "end": 1863,
+     "kind": "chord",
+     "message": "",
+     "start": 1858
+    },
+    {
+     "end": 1873,
+     "kind": "chord",
+     "message": "",
+     "start": 1870
+    },
+    {
+     "end": 1885,
+     "kind": "chord",
+     "message": "",
+     "start": 1882
+    },
+    {
+     "end": 1966,
+     "kind": "chord",
+     "message": "",
+     "start": 1961
+    },
+    {
+     "end": 1978,
+     "kind": "chord",
+     "message": "",
+     "start": 1973
+    },
+    {
+     "end": 1988,
+     "kind": "chord",
+     "message": "",
+     "start": 1985
+    },
+    {
+     "end": 1999,
+     "kind": "chord",
+     "message": "",
+     "start": 1997
+    },
+    {
+     "end": 2114,
+     "kind": "chord",
+     "message": "",
+     "start": 2109
+    },
+    {
+     "end": 2126,
+     "kind": "chord",
+     "message": "",
+     "start": 2121
+    },
+    {
+     "end": 2138,
+     "kind": "chord",
+     "message": "",
+     "start": 2133
+    },
+    {
+     "end": 2150,
+     "kind": "chord",
+     "message": "",
+     "start": 2145
+    },
+    {
+     "end": 2215,
+     "kind": "chord",
+     "message": "",
+     "start": 2210
+    },
+    {
+     "end": 2227,
+     "kind": "chord",
+     "message": "",
+     "start": 2222
+    },
+    {
+     "end": 2239,
+     "kind": "chord",
+     "message": "",
+     "start": 2234
+    },
+    {
+     "end": 2251,
+     "kind": "chord",
+     "message": "",
+     "start": 2246
+    },
+    {
+     "end": 2314,
+     "kind": "chord",
+     "message": "",
+     "start": 2306
+    },
+    {
+     "end": 2325,
+     "kind": "chord",
+     "message": "",
+     "start": 2318
+    },
+    {
+     "end": 2336,
+     "kind": "chord",
+     "message": "",
+     "start": 2330
+    },
+    {
+     "end": 2350,
+     "kind": "chord",
+     "message": "",
+     "start": 2342
+    },
+    {
+     "end": 2465,
+     "kind": "chord",
+     "message": "",
+     "start": 2461
+    },
+    {
+     "end": 2477,
+     "kind": "chord",
+     "message": "",
+     "start": 2473
+    },
+    {
+     "end": 2489,
+     "kind": "chord",
+     "message": "",
+     "start": 2485
+    },
+    {
+     "end": 2501,
+     "kind": "chord",
+     "message": "",
+     "start": 2497
+    },
+    {
+     "end": 2566,
+     "kind": "chord",
+     "message": "",
+     "start": 2562
+    },
+    {
+     "end": 2578,
+     "kind": "chord",
+     "message": "",
+     "start": 2574
+    },
+    {
+     "end": 2590,
+     "kind": "chord",
+     "message": "",
+     "start": 2586
+    },
+    {
+     "end": 2602,
+     "kind": "chord",
+     "message": "",
+     "start": 2598
+    },
+    {
+     "end": 2726,
+     "kind": "chord",
+     "message": "",
+     "start": 2722
+    },
+    {
+     "end": 2738,
+     "kind": "chord",
+     "message": "",
+     "start": 2734
+    },
+    {
+     "end": 2749,
+     "kind": "chord",
+     "message": "",
+     "start": 2746
+    },
+    {
+     "end": 2761,
+     "kind": "chord",
+     "message": "",
+     "start": 2758
+    },
+    {
+     "end": 2833,
+     "kind": "chord",
+     "message": "",
+     "start": 2829
+    },
+    {
+     "end": 2847,
+     "kind": "chord",
+     "message": "",
+     "start": 2841
+    },
+    {
+     "end": 2856,
+     "kind": "chord",
+     "message": "",
+     "start": 2853
+    },
+    {
+     "end": 2868,
+     "kind": "chord",
+     "message": "",
+     "start": 2865
+    },
+    {
+     "end": 3033,
+     "kind": "chord",
+     "message": "",
+     "start": 3032
+    },
+    {
+     "end": 3045,
+     "kind": "chord",
+     "message": "",
+     "start": 3044
+    },
+    {
+     "end": 3058,
+     "kind": "chord",
+     "message": "",
+     "start": 3056
+    },
+    {
+     "end": 3069,
+     "kind": "chord",
+     "message": "",
+     "start": 3068
+    },
+    {
+     "end": 3181,
+     "kind": "chord",
+     "message": "",
+     "start": 3179
+    },
+    {
+     "end": 3192,
+     "kind": "chord",
+     "message": "",
+     "start": 3191
+    },
+    {
+     "end": 3204,
+     "kind": "chord",
+     "message": "",
+     "start": 3203
+    },
+    {
+     "end": 3315,
+     "kind": "chord",
+     "message": "",
+     "start": 3312
+    },
+    {
+     "end": 3327,
+     "kind": "chord",
+     "message": "",
+     "start": 3324
+    },
+    {
+     "end": 3339,
+     "kind": "chord",
+     "message": "",
+     "start": 3336
+    },
+    {
+     "end": 3351,
+     "kind": "chord",
+     "message": "",
+     "start": 3348
+    },
+    {
+     "end": 3457,
+     "kind": "chord",
+     "message": "",
+     "start": 3454
+    },
+    {
+     "end": 3469,
+     "kind": "chord",
+     "message": "",
+     "start": 3466
+    },
+    {
+     "end": 3481,
+     "kind": "chord",
+     "message": "",
+     "start": 3478
+    },
+    {
+     "end": 3493,
+     "kind": "chord",
+     "message": "",
+     "start": 3490
+    },
+    {
+     "end": 3600,
+     "kind": "chord",
+     "message": "",
+     "start": 3599
+    },
+    {
+     "end": 3612,
+     "kind": "chord",
+     "message": "",
+     "start": 3611
+    },
+    {
+     "end": 3624,
+     "kind": "chord",
+     "message": "",
+     "start": 3623
+    },
+    {
+     "end": 3636,
+     "kind": "chord",
+     "message": "",
+     "start": 3635
+    },
+    {
+     "end": 3711,
+     "kind": "chord",
+     "message": "",
+     "start": 3710
+    },
+    {
+     "end": 3723,
+     "kind": "chord",
+     "message": "",
+     "start": 3722
+    },
+    {
+     "end": 3736,
+     "kind": "chord",
+     "message": "",
+     "start": 3734
+    },
+    {
+     "end": 3789,
+     "kind": "chord",
+     "message": "",
+     "start": 3788
+    },
+    {
+     "end": 3801,
+     "kind": "chord",
+     "message": "",
+     "start": 3800
+    },
+    {
+     "end": 3813,
+     "kind": "chord",
+     "message": "",
+     "start": 3812
+    },
+    {
+     "end": 3915,
+     "kind": "chord",
+     "message": "",
+     "start": 3914
+    },
+    {
+     "end": 3930,
+     "kind": "chord",
+     "message": "",
+     "start": 3926
+    },
+    {
+     "end": 3939,
+     "kind": "chord",
+     "message": "",
+     "start": 3938
+    },
+    {
+     "end": 3954,
+     "kind": "chord",
+     "message": "",
+     "start": 3950
+    },
+    {
+     "end": 4033,
+     "kind": "chord",
+     "message": "",
+     "start": 4030
+    },
+    {
+     "end": 4046,
+     "kind": "chord",
+     "message": "",
+     "start": 4042
+    },
+    {
+     "end": 4057,
+     "kind": "chord",
+     "message": "",
+     "start": 4054
+    },
+    {
+     "end": 4069,
+     "kind": "chord",
+     "message": "",
+     "start": 4066
+    },
+    {
+     "end": 4135,
+     "kind": "chord",
+     "message": "",
+     "start": 4127
+    },
+    {
+     "end": 4142,
+     "kind": "chord",
+     "message": "",
+     "start": 4139
+    },
+    {
+     "end": 4156,
+     "kind": "chord",
+     "message": "",
+     "start": 4151
+    },
+    {
+     "end": 4170,
+     "kind": "chord",
+     "message": "",
+     "start": 4163
+    },
+    {
+     "end": 4206,
+     "kind": "chord",
+     "message": "",
+     "start": 4198
+    },
+    {
+     "end": 4215,
+     "kind": "chord",
+     "message": "",
+     "start": 4210
+    },
+    {
+     "end": 4227,
+     "kind": "chord",
+     "message": "",
+     "start": 4222
+    },
+    {
+     "end": 4242,
+     "kind": "chord",
+     "message": "",
+     "start": 4234
+    },
+    {
+     "end": 4277,
+     "kind": "chord",
+     "message": "",
+     "start": 4274
+    },
+    {
+     "end": 4287,
+     "kind": "chord",
+     "message": "",
+     "start": 4286
+    },
+    {
+     "end": 4304,
+     "kind": "chord",
+     "message": "",
+     "start": 4298
+    },
+    {
+     "end": 4317,
+     "kind": "chord",
+     "message": "",
+     "start": 4310
+    },
+    {
+     "end": 10,
+     "kind": "directive",
+     "message": "",
+     "start": 0
+    },
+    {
+     "end": 22,
+     "kind": "directive",
+     "message": "",
+     "start": 11
+    },
+    {
+     "end": 31,
+     "kind": "directive",
+     "message": "",
+     "start": 23
+    },
+    {
+     "end": 191,
+     "kind": "directive",
+     "message": "",
+     "start": 177
+    },
+    {
+     "end": 940,
+     "kind": "directive",
+     "message": "",
+     "start": 925
+    },
+    {
+     "end": 1300,
+     "kind": "directive",
+     "message": "",
+     "start": 1290
+    },
+    {
+     "end": 1590,
+     "kind": "directive",
+     "message": "",
+     "start": 1575
+    },
+    {
+     "end": 2108,
+     "kind": "directive",
+     "message": "",
+     "start": 2098
+    },
+    {
+     "end": 2721,
+     "kind": "directive",
+     "message": "",
+     "start": 2702
+    },
+    {
+     "end": 2970,
+     "kind": "directive",
+     "message": "",
+     "start": 2960
+    },
+    {
+     "end": 3111,
+     "kind": "directive",
+     "message": "",
+     "start": 3101
+    },
+    {
+     "end": 3245,
+     "kind": "directive",
+     "message": "",
+     "start": 3236
+    },
+    {
+     "end": 3391,
+     "kind": "directive",
+     "message": "",
+     "start": 3380
+    },
+    {
+     "end": 3536,
+     "kind": "directive",
+     "message": "",
+     "start": 3524
+    },
+    {
+     "end": 3709,
+     "kind": "directive",
+     "message": "",
+     "start": 3698
+    },
+    {
+     "end": 3787,
+     "kind": "directive",
+     "message": "",
+     "start": 3776
+    },
+    {
+     "end": 3858,
+     "kind": "directive",
+     "message": "",
+     "start": 3847
+    },
+    {
+     "end": 3913,
+     "kind": "directive",
+     "message": "",
+     "start": 3899
+    },
+    {
+     "end": 4369,
+     "kind": "directive",
+     "message": "",
+     "start": 4354
+    }
+   ],
+   "text_revision": 3
+  },
+  "IdentifierState": {
+   "candidates": [],
+   "message": "Select notes to identify chords...",
+   "notation": "american",
+   "notes": [],
+   "notes_text": "",
+   "sounding": [],
+   "sounding_above": null,
+   "sounding_below": null,
+   "sounding_seconds": 3.0,
+   "sounding_token": 0,
+   "typed_text_error": null
+  },
+  "InstrumentMenuState": {
+   "current": 0,
+   "families": [
+    {
+     "is_current": true,
+     "items": [],
+     "name": "Piano"
+    },
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Chromatic Percussion"
+    },
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Organ"
+    },
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Guitar"
+    },
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Bass"
+    },
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Strings"
+    },
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Ensemble"
+    },
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Brass"
+    },
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Reed"
+    },
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Pipe"
+    },
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Synth Lead"
+    },
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Synth Pad"
+    },
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Synth Effects"
+    },
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Ethnic"
+    },
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Percussive"
+    },
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Sound Effects"
+    }
+   ]
+  },
+  "PlaybackState": {
+   "bar": 0,
+   "beat": 0,
+   "chord_index": null,
+   "key": "G",
+   "playhead_offset": 216,
+   "playing_span": null,
+   "sections": [
+    {
+     "first_bar": 1,
+     "label": "intro",
+     "last_bar": 24,
+     "repeat": false
+    },
+    {
+     "first_bar": 25,
+     "label": "verse1",
+     "last_bar": 44,
+     "repeat": false
+    },
+    {
+     "first_bar": 45,
+     "label": "bridge",
+     "last_bar": 80,
+     "repeat": false
+    },
+    {
+     "first_bar": 81,
+     "label": "enharmonic",
+     "last_bar": 108,
+     "repeat": false
+    },
+    {
+     "first_bar": 109,
+     "label": "outro",
+     "last_bar": 125,
+     "repeat": false
+    }
+   ],
+   "status": "idle",
+   "tempo_clamped": null,
+   "time_signature": [
+    4,
+    4
+   ],
+   "total_bars": 0
+  },
+  "RecentDocumentsState": {
+   "items": [
+    {
+     "display_name": "song.txt",
+     "id": "song.txt",
+     "location": "On My iPhone"
+    }
+   ]
+  },
+  "SettingsState": {
+   "american_keys": [
+    "C",
+    "C#",
+    "Db",
+    "D",
+    "D#",
+    "Eb",
+    "E",
+    "F",
+    "F#",
+    "Gb",
+    "G",
+    "G#",
+    "Ab",
+    "A",
+    "A#",
+    "Bb",
+    "B"
+   ],
+   "bpm_max": 400,
+   "bpm_min": 20,
+   "european_keys": [
+    "Do",
+    "Do#",
+    "Reb",
+    "Re",
+    "Re#",
+    "Mib",
+    "Mi",
+    "Fa",
+    "Fa#",
+    "Solb",
+    "Sol",
+    "Sol#",
+    "Lab",
+    "La",
+    "La#",
+    "Sib",
+    "Si"
+   ],
+   "font_size_max": 72,
+   "font_size_min": 6,
+   "max_recent_files_max": 50,
+   "time_signature_units": [
+    1,
+    2,
+    4,
+    8,
+    16
+   ],
+   "values": {
+    "bpm": 120,
+    "click_plays_chart_voicing": true,
+    "font_family": "TkFixedFont",
+    "font_size": 11,
+    "key": "C",
+    "max_recent_files": 10,
+    "notation": "american",
+    "show_quick_start_on_startup": true,
+    "time_signature_beats": 4,
+    "time_signature_unit": 4,
+    "word_wrap": false
+   }
+  },
+  "SongDefaultsState": {
+   "key": {
+    "directive_offset": 23,
+    "from_directive": true,
+    "value": "G"
+   },
+   "locked_reason": null,
+   "summary": "120 · 4/4 · G",
+   "tempo": {
+    "directive_offset": 0,
+    "from_directive": true,
+    "value": "120"
+   },
+   "time": {
+    "directive_offset": 11,
+    "from_directive": true,
+    "value": "4/4"
+   }
+  },
+  "StatusState": {
+   "text": "Bar 3/125"
+  },
+  "ToolbarState": {
+   "beats": 4,
+   "bpm": 120,
+   "bpm_display": 120,
+   "bpm_editable": false,
+   "bpm_set_by": "{bpm: 120}",
+   "key": "G",
+   "key_options": [
+    "C",
+    "C#",
+    "Db",
+    "D",
+    "D#",
+    "Eb",
+    "E",
+    "F",
+    "F#",
+    "Gb",
+    "G",
+    "G#",
+    "Ab",
+    "A",
+    "A#",
+    "Bb",
+    "B"
+   ],
+   "key_set_by": "{key: G}",
+   "metronome": false,
+   "multiplier_pct": 100.0,
+   "notation": "american",
+   "play_action": "play",
+   "time_set_by": "{time: 4/4}",
+   "unit": 4
+  },
+  "VoicingEditorState": {
+   "active": false,
+   "dirty": false,
+   "field_errors": {},
+   "form_errors": [],
+   "groups": [],
+   "hints": {},
+   "invalid": [],
+   "model": null,
+   "presets": [],
+   "problems": [],
+   "read_only": false,
+   "restored": false,
+   "revision": 0,
+   "selected": null,
+   "staged_numbers": {},
+   "values": {}
+  },
+  "VoicingMenuState": {
+   "groups": [
+    [
+     {
+      "label": "Piano",
+      "value": "piano"
+     }
+    ],
+    [
+     {
+      "label": "Guitar (Standard - EADGBE)",
+      "value": "guitar:standard"
+     },
+     {
+      "label": "Guitar (Drop D)",
+      "value": "guitar:drop_d"
+     },
+     {
+      "label": "Guitar (DADGAD)",
+      "value": "guitar:dadgad"
+     },
+     {
+      "label": "Guitar (Open G)",
+      "value": "guitar:open_g"
+     },
+     {
+      "label": "Ukulele",
+      "value": "guitar:ukulele"
+     }
+    ],
+    [
+     {
+      "label": "Choir (SATB)",
+      "value": "ensemble:satb"
+     },
+     {
+      "label": "Male Choir (TTBB)",
+      "value": "ensemble:ttbb"
+     },
+     {
+      "label": "Treble Choir (SSA)",
+      "value": "ensemble:ssa"
+     },
+     {
+      "label": "String Quartet",
+      "value": "ensemble:quartet"
+     }
+    ]
+   ],
+   "locked_reason": null,
+   "selected": "piano"
+  }
+ }
+}
