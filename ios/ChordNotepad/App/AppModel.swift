@@ -54,6 +54,10 @@ final class AppModel: ObservableObject {
     /// The song editor: the text the user sees and edits (``snapshot``'s
     /// `text` has the session's edits only; the user's typing isn't echoed).
     let editor = EditorController()
+    /// View-only preferences (the side column's width), in UserDefaults.
+    let preferences = UiPreferences(store: UserDefaultsPreferences())
+    /// The landscape chord sheet column's share of the width, as last kept.
+    @Published var sideFraction = UiPreferences(store: UserDefaultsPreferences()).sideFraction
 
     private(set) var runtime: PythonRuntime?
     private(set) var session: Session?
@@ -159,6 +163,9 @@ final class AppModel: ObservableObject {
             case "menu":
                 // CI's screenshot of the menu, over the song.
                 ui.route = .menu
+            case "find":
+                // CI's screenshot of the find bar with its Replace row, live (AppShortcuts.swift).
+                Task { await self.runFindScreen() }
             case "speed", "instrument", "insert", "capo", "identify", "settings", "voicings", "about":
                 // CI's screenshots of a sheet or a tool, live.
                 Task { await self.runToolScreen(AppEnvironment.startScreen ?? "") }

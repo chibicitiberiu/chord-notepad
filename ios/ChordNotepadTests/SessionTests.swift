@@ -112,6 +112,7 @@ final class SessionTests: XCTestCase {
         try await checkFiles(model)
         try await checkSheetsAndTools(model)
         try await checkSettingsAndAbout(model)
+        try await checkTheEditorsFeatures(model)
 
         XCTAssertTrue(model.snapshot.messages.allSatisfy { !$0.hasPrefix("Unexpected error") },
                       "\(model.snapshot.messages)")

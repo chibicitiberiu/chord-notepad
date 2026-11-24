@@ -21,6 +21,10 @@ struct MainActions {
     var notice: (String) -> Void
     /// A tap in the player's sheets, the ribbon's tools and their dialogs (the kit's reducer).
     var sheet: (SheetEvent) -> Void
+    /// The find bar's controls and the ribbon's Find.
+    var find: (FindAction) -> Void = { _ in }
+    /// The landscape column's handle was let go at this share (kept across launches).
+    var sideFraction: (Double) -> Void = { _ in }
 }
 
 /// The main screen (Android's `SongScreen.kt`): the app bar with its Edit /
@@ -55,10 +59,13 @@ struct MainScreen: View {
     /// The full-screen page the route opens (Settings, About, the licences),
     /// over everything but the snackbar; the live view makes it.
     var page: AnyView?
+    /// The landscape chord sheet column's share of the width, as last kept.
+    var sideFraction = MainMetrics.sideFractionDefault
 
     @Environment(\.colorScheme) private var scheme
     @Environment(\.dynamicTypeSize) private var textSize
-    @State private var sideFraction = MainMetrics.sideFractionDefault
+    /// The column's share while its handle is dragged.
+    @State private var dragFraction: Double?
     @State private var sideDragStart: Double?
 
     private var colors: AppColors { .forScheme(dark: scheme == .dark) }
@@ -156,7 +163,8 @@ struct MainScreen: View {
     private var ribbon: some View {
         EditRibbon(canUndo: editorModel.canUndo, canRedo: editorModel.canRedo, notation: editorModel.notation,
                    readOnly: editorModel.readOnly, perform: actions?.ribbon,
-                   tool: actions.map { actions in { actions.sheet(.ribbon($0)) } }, scrolls: scrolls)
+                   tool: actions.map { actions in { actions.sheet(.ribbon($0)) } },
+                   find: actions.map { actions in { actions.find(.open(replace: true)) } }, scrolls: scrolls)
     }
 
     // MARK: - The text, the chord sheet and the player
@@ -167,7 +175,12 @@ struct MainScreen: View {
     private func content(layout: ScreenLayout, size: CGSize, header: Double) -> some View {
         VStack(spacing: 0) {
             HStack(spacing: 0) {
-                text
+                VStack(spacing: 0) {
+                    text
+                    if editorModel.find.open {
+                        FindBarView(bar: editorModel.find, colors: colors, live: scrolls) { actions?.find($0) }
+                    }
+                }
                 if layout.sideBySide {
                     sideColumn(size: size, header: header)
                 }
@@ -187,7 +200,7 @@ struct MainScreen: View {
     private func sideColumn(size: CGSize, header: Double) -> some View {
         let row = Double(size.width)
         let lower = minSideFraction(row)
-        let fraction = clampSideFraction(sideFraction, min: lower)
+        let fraction = clampSideFraction(dragFraction ?? sideFraction, min: lower)
         let column = (row - MainMetrics.sideHandleWidth) * fraction
         let paneHeight = Double(size.height) - header - MainMetrics.playerHeight
         handle(row: row, lower: lower)
@@ -216,11 +229,16 @@ struct MainScreen: View {
         .gesture(DragGesture(minimumDistance: 2)
             .onChanged { drag in
                 guard scrolls, row > 0 else { return }
-                let start = sideDragStart ?? clampSideFraction(sideFraction, min: lower)
+                let start = sideDragStart ?? clampSideFraction(dragFraction ?? sideFraction, min: lower)
                 sideDragStart = start
-                sideFraction = clampSideFraction(start - Double(drag.translation.width) / row, min: lower)
+                dragFraction = clampSideFraction(start - Double(drag.translation.width) / row, min: lower)
             }
-            .onEnded { _ in sideDragStart = nil })
+            .onEnded { _ in
+                // Kept when the handle is let go, as Android's onDragStopped.
+                if let dragFraction { actions?.sideFraction(dragFraction) }
+                sideDragStart = nil
+                dragFraction = nil
+            })
         .accessibilityLabel("Resize the chord sheet")
     }
 

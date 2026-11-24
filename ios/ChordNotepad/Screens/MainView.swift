@@ -17,7 +17,7 @@ struct MainView: View {
         MainScreen(snapshot: model.snapshot, editorModel: editor.model, editor: editor, ui: model.ui,
                    starting: model.phase == .starting || model.phase == .idle, failure: failure,
                    actions: actions, chordSheet: model.chordSheet, snackbar: model.snackbars.shown,
-                   renameName: $renameName, page: page)
+                   renameName: $renameName, page: page, sideFraction: model.sideFraction)
             .animation(.easeOut(duration: 0.2), value: model.snackbars.shown)
             .sheet(isPresented: route(.diagnostics)) {
                 DiagnosticsView(model: model)
@@ -143,6 +143,8 @@ struct MainView: View {
             discard: { model.answerDiscard($0) },
             dismissSnackbar: { model.dismissSnackbar($0) },
             notice: { model.notice($0) },
-            sheet: { model.sheet($0) })
+            sheet: { model.sheet($0) },
+            find: { editor.find($0) },
+            sideFraction: { model.keepSideFraction($0) })
     }
 }

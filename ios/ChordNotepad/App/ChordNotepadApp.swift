@@ -18,6 +18,8 @@ struct ChordNotepadApp: App {
         .onChange(of: scenePhase) { _, phase in
             model.scenePhaseChanged(phase)
         }
+        // The hardware keyboard's shortcuts, listed in the menus (AppShortcuts.swift).
+        .commands { AppCommands(model: model) }
     }
 }
 

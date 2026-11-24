@@ -2,8 +2,8 @@ import ChordNotepadKit
 import SwiftUI
 
 /// The Edit ribbon under the header (Android's `ui/main/EditRibbon.kt`, one
-/// 48 pt row): Undo, Redo | Insert, Transpose, Capo, Identify | AB/Do,
-/// Convert. When the row is wider than the window it scrolls sideways; a
+/// 48 pt row): Undo, Redo, Find (iOS's) | Insert, Transpose, Capo, Identify |
+/// AB/Do, Convert. When the row is wider than the window it scrolls sideways; a
 /// fade and a › chevron show there's more to the right, a fade on the left
 /// once scrolled (`RibbonEdges`).
 ///
@@ -20,6 +20,8 @@ struct EditRibbon: View {
     var perform: ((EditorAction) -> Void)?
     /// The tool buttons (Insert, Transpose, Capo, Identify).
     var tool: ((RibbonTool) -> Void)?
+    /// Find (and Replace): the bar under the text.
+    var find: (() -> Void)?
     /// False in the catalog: no ScrollView.
     var scrolls = true
 
@@ -53,6 +55,7 @@ struct EditRibbon: View {
             button("Redo", enabled: canRedo, action: .redo) {
                 Image(systemName: "arrow.uturn.forward").foregroundStyle(RibbonTints.undo)
             }
+            findButton(palette)
             separator(palette)
             toolButton("Insert", .insert, "mdi_plus", IconTints.insert)
             toolButton("Transpose", .transpose, "ic_transpose", IconTints.transpose, width: 32)
@@ -132,6 +135,31 @@ struct EditRibbon: View {
                 }
             }
         }
+    }
+
+    /// Find: the find bar with its Replace row (Android's ribbon has no Find;
+    /// the desktop's is Edit › Find and Replace).
+    private func findButton(_ palette: EditorPalette) -> some View {
+        Button {
+            find?()
+        } label: {
+            VStack(spacing: 1) {
+                Image(systemName: "magnifyingglass")
+                    .font(.system(size: 19, weight: .medium))
+                    .foregroundStyle(RibbonTints.convertBlue)
+                    .frame(height: 24)
+                Text("Find")
+                    .font(.caption2.weight(.medium))
+                    .foregroundStyle(palette.ribbonText.swiftUI)
+                    .lineLimit(1)
+            }
+            .padding(.horizontal, 6)
+            .frame(minWidth: 44, minHeight: 44)
+            .contentShape(RoundedRectangle(cornerRadius: 10))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Find and Replace")
+        .accessibilityIdentifier("ribbon-find")
     }
 
     private func toolButton(_ label: String, _ tool: RibbonTool, _ icon: String, _ tint: SheetColor,

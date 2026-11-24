@@ -9,9 +9,10 @@
      - system boot time: time.monotonic() (mach_absolute_time) and Swift's
        ContinuousClock, for elapsed times inside the app;
      - disk space: os.statvfs / shutil.disk_usage are in the binary; any use
-       is a check before writing files in the container.
-     The shell uses no UserDefaults (launch arguments are read from
-     ProcessInfo). -->
+       is a check before writing files in the container;
+     - user defaults: the landscape chord sheet column's width, which only
+       this app reads and writes (CA92.1). Launch arguments are read from
+       ProcessInfo, not UserDefaults. -->
 <plist version="1.0">
 <dict>
 	<key>NSPrivacyTracking</key>
@@ -45,6 +46,14 @@
 			<key>NSPrivacyAccessedAPITypeReasons</key>
 			<array>
 				<string>E174.1</string>
+			</array>
+		</dict>
+		<dict>
+			<key>NSPrivacyAccessedAPIType</key>
+			<string>NSPrivacyAccessedAPICategoryUserDefaults</string>
+			<key>NSPrivacyAccessedAPITypeReasons</key>
+			<array>
+				<string>CA92.1</string>
 			</array>
 		</dict>
 	</array>

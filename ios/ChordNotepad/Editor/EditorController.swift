@@ -26,6 +26,9 @@ final class EditorController: ObservableObject {
     private(set) weak var textView: EditorTextView?
     private var applying = false
     private var paintedFont: UIFont?
+    /// A pinch on the text in progress.
+    private var pinch = FontPinch()
+    private var noticeTask: Task<Void, Never>?
 
     init() {}
 
@@ -53,6 +56,45 @@ final class EditorController: ObservableObject {
     /// A ribbon button or a key command.
     func perform(_ action: EditorAction) {
         apply(model.perform(action))
+    }
+
+    /// One of the find bar's actions (the bar, the ribbon's Find, the app's
+    /// shortcuts). Play mode finds without replacing; closing in Edit gives
+    /// the text the keys back, as the desktop's Escape does.
+    func find(_ action: FindAction) {
+        let effects = model.find(action, canReplace: !playMode)
+        apply(effects)
+        if effects.findNotice {
+            noticeTask?.cancel()
+            noticeTask = Task { [weak self] in
+                try? await Task.sleep(for: .seconds(TextFind.noticeSeconds))
+                guard !Task.isCancelled else { return }
+                self?.apply(self?.model.find(.clearNotice) ?? EditorEffects())
+            }
+        }
+        if action == .close, !playMode, !model.readOnly {
+            textView?.becomeFirstResponder()
+        }
+    }
+
+    /// A pinch on the text: each new whole size goes to the session as a
+    /// step (`step_font_size`), from the size when it began.
+    func pinched(_ state: UIGestureRecognizer.State, scale: Double) {
+        switch state {
+        case .began:
+            pinch.began(points: model.fontPoints)
+            if let step = pinch.changed(scale: scale) { submitStep(step) }
+        case .changed:
+            if let step = pinch.changed(scale: scale) { submitStep(step) }
+        default:
+            pinch.ended()
+        }
+    }
+
+    private func submitStep(_ step: Int) {
+        var effects = EditorEffects()
+        effects.commands = [.stepFontSize(delta: step)]
+        apply(effects)
     }
 
     /// What to do with a change the user is about to make.
@@ -105,6 +147,7 @@ final class EditorController: ObservableObject {
         view.onPlayTap = { [weak self] in self?.playTapped(at: $0) }
         view.onScrub = { [weak self] in self?.scrubbed($0, at: $1) }
         view.onHold = { [weak self] in self?.held(at: $0) }
+        view.onPinch = { [weak self] in self?.pinched($0, scale: $1) }
         view.onWidthChanged = { [weak self] in self?.updateMarker() }
         view.markerScrub.grabs = { [weak self] in self?.scrubGrabs($0) ?? false }
         view.markerScrub.touchDown = { [weak self] in
@@ -271,6 +314,9 @@ final class EditorController: ObservableObject {
         }
         if effects.documentOpened {
             view.scrollToStart()
+        } else if effects.findMoved, let selection = effects.selection {
+            // A match the find bar selected (the text may not have the keys): into view on both axes.
+            view.follow(selection)
         } else if effects.playingMoved, let playing = model.playing {
             view.follow(playing.range)
         } else if effects.selection != nil {

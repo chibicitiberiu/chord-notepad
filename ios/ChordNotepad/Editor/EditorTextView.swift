@@ -57,6 +57,9 @@ final class EditorTextView: UITextView {
     var onPlayTap: ((CGPoint) -> Void)?
     var onScrub: ((UIGestureRecognizer.State, CGPoint) -> Void)?
     var onHold: ((CGPoint) -> Void)?
+    /// A pinch on the text, in both modes (the font size: Android's `pinchToZoomFont`).
+    let textPinch = UIPinchGestureRecognizer()
+    var onPinch: ((UIGestureRecognizer.State, Double) -> Void)?
 
     // TextKit 1, built by hand: UITextView keeps only a weak reference to its
     // text storage, so the view keeps the stack.
@@ -108,6 +111,12 @@ final class EditorTextView: UITextView {
         playHold.addTarget(self, action: #selector(playHeld(_:)))
         playHold.isEnabled = false
         addGestureRecognizer(playHold)
+        textPinch.addTarget(self, action: #selector(pinched(_:)))
+        addGestureRecognizer(textPinch)
+    }
+
+    @objc private func pinched(_ recognizer: UIPinchGestureRecognizer) {
+        onPinch?(recognizer.state, Double(recognizer.scale))
     }
 
     @objc private func playTapped(_ recognizer: UITapGestureRecognizer) {
@@ -291,8 +300,10 @@ final class EditorTextView: UITextView {
             case EditorKeyBinding.downArrow: input = UIKeyCommand.inputDownArrow
             default: input = binding.input
             }
+            // An untitled binding (Command-+ beside the app's Command-=) works but isn't listed.
             let command = UIKeyCommand(title: binding.title, action: #selector(runKeyCommand(_:)), input: input,
-                                       modifierFlags: flags, propertyList: index)
+                                       modifierFlags: flags, propertyList: index,
+                                       attributes: binding.title.isEmpty ? .hidden : [])
             command.wantsPriorityOverSystemBehavior = true
             return command
         }

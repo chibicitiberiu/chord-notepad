@@ -201,6 +201,25 @@ enum PreviewCatalog {
             controller.askRename("My 7-String")
             return PreviewCatalog.settings(scene, controller: controller)
         },
+        // Find and Replace (the Qt desktop's bar; Android has none): the Am chords, match case and
+        // whole words, the second selected, "Em" to replace them with; in Play without the Replace
+        // row (and beside the chord sheet on a phone on its side); after Replace all, its status.
+        CatalogScreen("find", fixtures: ["scarborough_edit"]) { scene, _ in
+            PreviewCatalog.mainScreen(PreviewCatalog.finding(scene, query: "Am", replacement: "Em", current: 2,
+                                                             matchCase: true, wholeWord: true),
+                                      MainUiState(mode: .edit))
+        },
+        CatalogScreen("find_play", fixtures: ["scarborough_piano_roll"],
+                      devices: CatalogRenderer.upright + [CatalogRenderer.iphoneLandscape]) { scene, _ in
+            PreviewCatalog.mainScreen(PreviewCatalog.finding(scene, query: "parsley", current: 1, canReplace: false),
+                                      MainUiState(mode: .play))
+        },
+        CatalogScreen("find_replaced", fixtures: ["find_replaced"]) { scene, _ in
+            PreviewCatalog.mainScreen(PreviewCatalog.finding(scene, query: "Am", replacement: "Em", current: 0,
+                                                             matchCase: true, wholeWord: true),
+                                      MainUiState(mode: .edit),
+                                      snackbar: scene.snapshot.status.map { Snackbar(text: $0.text, error: false, id: 1) })
+        },
         // About, the licences and one licence's text, from the bundle's licence list.
         CatalogScreen("about", fixtures: ["empty_song"]) { _, _ in
             AboutScreen(info: AboutBuildInfo(versionName: "0.6.2", buildNumber: "1", commit: "f31fbb5",
@@ -250,6 +269,16 @@ enum PreviewCatalog {
             }
         }
         .background(colors.surface.swiftUI)
+    }
+
+    /// A scene with the find bar open on `query` over its text, match
+    /// `current` (1-based; 0: none) selected as the bar selects it.
+    static func finding(_ scene: CatalogScene, query: String, replacement: String? = nil, current: Int,
+                        canReplace: Bool = true, matchCase: Bool = false, wholeWord: Bool = false) -> CatalogScene {
+        var editor = scene.editor
+        editor.showFind(FindBar.showing(editor, query: query, replacement: replacement, current: current,
+                                        canReplace: canReplace, matchCase: matchCase, wholeWord: wholeWord))
+        return CatalogScene(snapshot: scene.snapshot, editor: editor, chordSheet: scene.chordSheet)
     }
 
     /// The main screen of a scene in `ui`'s mode, with what is open over it.
