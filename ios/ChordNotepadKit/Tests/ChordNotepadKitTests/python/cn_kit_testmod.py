@@ -177,3 +177,24 @@ def scaled_widths(keys_json: str) -> str:
         parsed = parse_image_key(key)
         widths[key] = None if parsed is None else scaled_width(parsed.asset, parsed.height)
     return json.dumps(widths)
+
+
+def find_all_cases(cases_json: str) -> str:
+    """The core's ``text_ops.find_all`` for each ``[text, query, match_case,
+    whole_word]``, as a list of span lists (code points): the reference the
+    find bar's Swift matching must equal."""
+    from chordnotepad.session import text_ops
+
+    return json.dumps([[list(span) for span in text_ops.find_all(text, query, case, word)]
+                       for text, query, case, word in json.loads(cases_json)])
+
+
+def find_char_facts(code_points_json: str) -> str:
+    """What ``re`` folds and calls a word character, per code point:
+    ``[lower, iscased, is_word]`` (the find bar's tables, checked live)."""
+    import _sre
+    import re
+
+    word = re.compile(r"\w")
+    return json.dumps([[_sre.unicode_tolower(cp), _sre.unicode_iscased(cp), word.match(chr(cp)) is not None]
+                       for cp in json.loads(code_points_json)])

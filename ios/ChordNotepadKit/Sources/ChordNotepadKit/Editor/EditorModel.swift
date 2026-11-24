@@ -50,6 +50,11 @@ public struct EditorEffects: Sendable {
     public var documentOpened = false
     /// The sounding chord moved: keep it in view.
     public var playingMoved = false
+    /// The find bar selected a match: bring it into view.
+    public var findMoved = false
+    /// The find bar's wrap-around notice appeared: clear it after
+    /// ``TextFind/noticeSeconds`` (``FindAction/clearNotice``).
+    public var findNotice = false
 
     public init() {}
 
@@ -60,6 +65,8 @@ public struct EditorEffects: Sendable {
         restyle = restyle || other.restyle
         documentOpened = documentOpened || other.documentOpened
         playingMoved = playingMoved || other.playingMoved
+        findMoved = findMoved || other.findMoved
+        findNotice = findNotice || other.findNotice
     }
 
     /// The names of the commands, for tests and logs.
@@ -125,6 +132,8 @@ public struct EditorModel: Sendable {
     /// An input method is composing (marked text).
     public private(set) var composing = false
     public private(set) var history = EditHistory()
+    /// The find bar (``FindAction``, FindReplace.swift).
+    public internal(set) var find = FindBar()
 
     // The text the session has, as far as the editor knows.
     private var syncedText = ""
@@ -161,7 +170,7 @@ public struct EditorModel: Sendable {
     /// The styled runs to paint over the text.
     public func styleRuns(_ palette: EditorPalette) -> [StyleRun] {
         ChordNotepadKit.styleRuns(spans: spans, playing: playing?.range, length: text.utf16.count,
-                                  palette: palette)
+                                  palette: palette, find: findPaint)
     }
 
     // MARK: - The session's output
@@ -183,6 +192,9 @@ public struct EditorModel: Sendable {
         case .playbackState(let state):
             latestPlayback = state
             return repaintPlaying()
+        case .editRefused:
+            // A Replace the session refused (a song plays): on to the next match anyway.
+            return findAdvanceAfterReplace()
         case .editorState(let state):
             let changed = state != editorState
             editorState = state
@@ -219,6 +231,8 @@ public struct EditorModel: Sendable {
         }
         effects.viewEdits.append(ViewEdit(range: UTF16Range(edit.start, edit.end), replacement: edit.replacement))
         effects.selection = selection
+        findTextChanged()
+        if find.advancing { effects.merge(findAdvanceAfterReplace()) }
         if unsent {
             // The user typed after the session last heard from the editor:
             // the editor's text wins, the session re-syncs to it.
@@ -255,6 +269,7 @@ public struct EditorModel: Sendable {
         if newText == text {
             if newSelection != selection && !composing { history.seal() }
             selection = newSelection
+            findSelectionMoved()
         } else {
             let oldUnits = Array(text.utf16)
             let newUnits = Array(newText.utf16)
@@ -271,6 +286,7 @@ public struct EditorModel: Sendable {
             }
             text = newText
             selection = newSelection
+            findTextChanged()
             effects.commands.append(contentsOf: syncCommands())
         }
         if !nowComposing && composing {
@@ -360,6 +376,7 @@ public struct EditorModel: Sendable {
         }
         selection = step.selectionBefore.clamped(to: text.utf16.count)
         effects.selection = selection
+        findSelectionMoved()
         effects.commands.append(contentsOf: syncCommands())
         return effects
     }
@@ -373,6 +390,7 @@ public struct EditorModel: Sendable {
         }
         selection = step.selectionAfter.clamped(to: text.utf16.count)
         effects.selection = selection
+        findSelectionMoved()
         effects.commands.append(contentsOf: syncCommands())
         return effects
     }
@@ -382,8 +400,21 @@ public struct EditorModel: Sendable {
         let r = range.clamped(to: text.utf16.count)
         spans = spans.shifted(by: TextChange(start: r.start, oldEnd: r.end, newEnd: r.start + replacement.utf16.count))
         text = UTF16Text.replacing(text, r, with: replacement)
+        findTextChanged()
         effects.viewEdits.append(ViewEdit(range: r, replacement: replacement))
         effects.restyle = true
+        return effects
+    }
+
+    /// Select UTF-16 `range` (the find bar's match, a caret it puts back):
+    /// a caret move for the undo history.
+    public mutating func select(_ range: UTF16Range) -> EditorEffects {
+        var effects = EditorEffects()
+        let r = range.clamped(to: text.utf16.count)
+        if r != selection { history.seal() }
+        selection = r
+        findSelectionMoved()
+        effects.selection = r
         return effects
     }
 

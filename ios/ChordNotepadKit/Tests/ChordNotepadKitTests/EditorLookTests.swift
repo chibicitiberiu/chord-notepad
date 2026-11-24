@@ -104,10 +104,12 @@ final class EditorLookTests: XCTestCase {
         func action(_ input: String, shift: Bool = false, option: Bool = false) -> EditorAction? {
             EditorKeyBinding.action(input: input, command: true, shift: shift, option: option)
         }
-        XCTAssertEqual(action("="), .fontBigger)
+        // Command-= , Command-- and Command-0 are the app's (AppShortcut); the text view adds Command-+.
+        XCTAssertEqual(action("+"), .fontBigger)
         XCTAssertEqual(action("+", shift: true), .fontBigger)
-        XCTAssertEqual(action("-"), .fontSmaller)
-        XCTAssertEqual(action("0"), .fontReset)
+        XCTAssertNil(action("="))
+        XCTAssertNil(action("-"))
+        XCTAssertNil(action("0"))
         XCTAssertEqual(action("z"), .undo)
         XCTAssertEqual(action("Z", shift: true), .redo)
         XCTAssertEqual(action("/"), .toggleComment)

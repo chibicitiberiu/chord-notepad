@@ -103,6 +103,11 @@ public struct EditorPalette: Sendable, Equatable {
 
     /// The sounding chord, painted over every other span.
     public var playingStyle: RunStyle { RunStyle(color: text, underline: true, background: playing) }
+
+    /// The find bar's matches while it is open, and the selected one (the Qt
+    /// desktop's `Theme.findMatch` and `findCurrent`).
+    public var findMatch: SheetColor { SheetColor(argb: dark ? 0xFF2D_4B35 : 0xFFCD_ECD2) }
+    public var findCurrent: SheetColor { SheetColor(argb: dark ? 0xFF3C_7448 : 0xFF9F_DCAA) }
 }
 
 /// What a span sets on its text; nil fields leave the text (or a span under
@@ -149,17 +154,28 @@ public let spanPriority: [SpanKind] = [
 
 /// The painted spans and the sounding chord as runs that don't overlap, in
 /// order, each with every style that covers it merged in priority order
-/// (the playing chord last). Text outside every run has the plain style.
+/// (the find bar's tints, then the playing chord, last). Text outside every
+/// run has the plain style.
 /// One function serves the UITextView (attributes on its text storage) and
 /// the preview catalog (a SwiftUI `AttributedString`), so both look alike.
 public func styleRuns(spans: [PaintedSpan], playing: UTF16Range?, length: Int,
-                      palette: EditorPalette) -> [StyleRun] {
+                      palette: EditorPalette, find: FindPaint? = nil) -> [StyleRun] {
     var layers: [(UTF16Range, RunStyle)] = []
     for kind in spanPriority {
         let style = palette.style(kind)
         for span in spans where span.kind == kind {
             let r = UTF16Range(span.start, span.end).clamped(to: length)
             if !r.isEmpty { layers.append((r, style)) }
+        }
+    }
+    // The find bar's tints: a background under the playing chord's.
+    if let find {
+        for match in find.matches {
+            let r = match.clamped(to: length)
+            if !r.isEmpty { layers.append((r, RunStyle(background: palette.findMatch))) }
+        }
+        if let current = find.current?.clamped(to: length), !current.isEmpty {
+            layers.append((current, RunStyle(background: palette.findCurrent)))
         }
     }
     if let playing {

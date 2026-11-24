@@ -1,8 +1,10 @@
 import Foundation
 
-/// The editor's hardware keyboard shortcuts: Android's (`ui/Shortcuts.kt`:
-/// undo, redo and the font size) and the Qt desktop's line commands
-/// (`qml/app/EditorPane.qml`), with Command for Ctrl as on a Mac.
+/// The editor's hardware keyboard shortcuts, while the text has the keys:
+/// Android's undo and redo (`ui/Shortcuts.kt`) and the Qt desktop's line
+/// commands (`qml/app/EditorPane.qml`), with Command for Ctrl as on a Mac.
+/// The file, find and font size keys are the app's (``AppShortcut``), so they
+/// work in Play mode too.
 ///
 /// Cut, copy, paste and select all are the text view's own; Command-Z and
 /// Shift-Command-Z also reach the editor through the text view's undo
@@ -17,7 +19,7 @@ public struct EditorKeyBinding: Sendable, Hashable {
     public var shift: Bool
     public var option: Bool
     public var action: EditorAction
-    /// The command's name in the iPad's shortcut list.
+    /// The command's name in the iPad's shortcut list ("": not listed).
     public var title: String
 
     /// `UIKeyCommand.inputUpArrow` and `inputDownArrow`.
@@ -28,12 +30,11 @@ public struct EditorKeyBinding: Sendable, Hashable {
     public static let all: [EditorKeyBinding] = [
         EditorKeyBinding(input: "z", shift: false, option: false, action: .undo, title: "Undo"),
         EditorKeyBinding(input: "z", shift: true, option: false, action: .redo, title: "Redo"),
-        // Command-= is the same key as Command-+ on most layouts.
-        EditorKeyBinding(input: "=", shift: false, option: false, action: .fontBigger, title: "Larger Text"),
-        EditorKeyBinding(input: "+", shift: false, option: false, action: .fontBigger, title: "Larger Text"),
-        EditorKeyBinding(input: "+", shift: true, option: false, action: .fontBigger, title: "Larger Text"),
-        EditorKeyBinding(input: "-", shift: false, option: false, action: .fontSmaller, title: "Smaller Text"),
-        EditorKeyBinding(input: "0", shift: false, option: false, action: .fontReset, title: "Reset Text Size"),
+        // Command-+ (Shift and =, or a keypad's +) as well as the app's Command-=
+        // (``AppShortcut``), as Android takes both; untitled, so the shortcut
+        // list shows Larger Text once.
+        EditorKeyBinding(input: "+", shift: false, option: false, action: .fontBigger, title: ""),
+        EditorKeyBinding(input: "+", shift: true, option: false, action: .fontBigger, title: ""),
         EditorKeyBinding(input: "/", shift: false, option: false, action: .toggleComment, title: "Toggle Comment"),
         EditorKeyBinding(input: "d", shift: false, option: false, action: .duplicateLines,
                          title: "Duplicate Line or Selection"),
