@@ -20,6 +20,7 @@ public struct SessionSnapshot: Sendable, Equatable {
     public private(set) var status: StatusState?
     public private(set) var playback: PlaybackState?
     public private(set) var highlight: HighlightState?
+    public private(set) var chordSheet: ChordSheetState?
     /// The newest `AudioUnavailable` message, nil once audio played.
     public private(set) var audioProblem: String?
     /// User-facing messages (errors, refused renames, audio problems), oldest first.
@@ -45,6 +46,8 @@ public struct SessionSnapshot: Sendable, Equatable {
             playback = state
         case .highlightState(let state):
             highlight = state
+        case .chordSheetState(let state):
+            chordSheet = state
         case .audioUnavailable(let event):
             audioProblem = event.message
             note(event.message)
@@ -91,6 +94,9 @@ public struct Fixture: Sendable, Equatable {
     public let description: String
     /// Every state, then the events in order, as `(typeName, json)`.
     public let outputs: [RecordedOutput]
+    /// The chord sheet's op buffers recorded with the scene, by the content
+    /// height they were packed for (the catalog can't call Python).
+    public let chordSheetBuffers: [Int: Data]
 
     /// Read `<scene>.json`.
     public init(contentsOf url: URL) throws {
@@ -114,6 +120,24 @@ public struct Fixture: Sendable, Equatable {
             outputs.append(RecordedOutput(typeName: type, json: try Fixture.text(json)))
         }
         self.outputs = outputs
+        var buffers: [Int: Data] = [:]
+        for case let entry as [String: Any] in root["chord_sheet_buffers"] as? [Any] ?? [] {
+            guard let height = entry["height"] as? Int, let text = entry["base64"] as? String,
+                  let data = Data(base64Encoded: text) else {
+                throw FixtureError("\(url.lastPathComponent): a chord sheet buffer without height or base64")
+            }
+            buffers[height] = data
+        }
+        chordSheetBuffers = buffers
+    }
+
+    /// The recorded buffer packed for content `height`, else the tallest one
+    /// below it, else the shortest (drawn at its own height, never stretched).
+    public func chordSheetBuffer(forHeight height: Int) -> Data? {
+        if let exact = chordSheetBuffers[height] { return exact }
+        let heights = chordSheetBuffers.keys.sorted()
+        guard let pick = heights.last(where: { $0 < height }) ?? heights.first else { return nil }
+        return chordSheetBuffers[pick]
     }
 
     /// The fixture folded into a snapshot.

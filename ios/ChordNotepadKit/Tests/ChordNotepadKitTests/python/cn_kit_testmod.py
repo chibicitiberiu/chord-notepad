@@ -1,7 +1,10 @@
-"""Python helpers for ChordNotepadKit's Swift tests (RuntimeTests, BridgeCodecTests).
+"""Python helpers for ChordNotepadKit's Swift tests (RuntimeTests, BridgeCodecTests,
+SheetPainterTests, the fixture recording).
 
-Each function takes and returns strings (``PythonRuntime.call``). Only the
-command check imports the core; the rest need nothing but ``_cnbridge``.
+Each function takes and returns strings (``PythonRuntime.call``). The command
+and answer checks import the core with its packages, the glyph helpers only
+``chord_sheet.clef_assets`` (standard library only); the rest need nothing but
+``_cnbridge``.
 """
 
 import json
@@ -150,3 +153,27 @@ def check_answer(request_type: str, args_json: str) -> str:
     except BridgeError as e:
         return str(e)
     return ""
+
+
+def glyph_index() -> str:
+    """The base clef and glyph sizes as ``glyphs.json`` holds them
+    (android/tools/export_clef_glyphs.py, which the app's build runs)."""
+    from chordnotepad.chord_sheet.clef_assets import base_glyph_pngs, base_size
+
+    assets = {}
+    for asset in base_glyph_pngs():
+        width, height = base_size(asset)
+        assets[asset] = {"width": width, "height": height}
+    return json.dumps({"version": 1, "assets": assets}, sort_keys=True)
+
+
+def scaled_widths(keys_json: str) -> str:
+    """``clef_assets.scaled_width`` for each image key: the width every
+    renderer of a key must use, as ``{key: width}``."""
+    from chordnotepad.chord_sheet.clef_assets import parse_image_key, scaled_width
+
+    widths = {}
+    for key in json.loads(keys_json):
+        parsed = parse_image_key(key)
+        widths[key] = None if parsed is None else scaled_width(parsed.asset, parsed.height)
+    return json.dumps(widths)
