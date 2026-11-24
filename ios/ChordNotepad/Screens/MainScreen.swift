@@ -135,45 +135,45 @@ struct MainScreen: View {
 
     // MARK: - The text, the chord sheet and the player
 
-    @ViewBuilder
+    /// The text keeps its place in the view tree whatever the layout, so the
+    /// live text view (and its scroll position) stays when the tab changes,
+    /// as both of Android's modes share one scroll.
     private func content(layout: ScreenLayout, size: CGSize, header: Double) -> some View {
-        if layout.sideBySide {
-            sideBySide(size: size, header: header)
-        } else if layout.sheetBelow, let state = snapshot.chordSheet, let chordSheet {
-            let available = Double(size.height) - header - MainMetrics.playerHeight
-            VStack(spacing: 0) {
+        VStack(spacing: 0) {
+            HStack(spacing: 0) {
                 text
-                ChordSheetSplitView(state: state, source: chordSheet, available: available, window: size,
-                                    interactive: scrolls, actions: actions?.chordSheet)
+                if layout.sideBySide {
+                    sideColumn(size: size, header: header)
+                }
             }
-        } else {
-            text
+            if layout.sheetBelow, let state = snapshot.chordSheet, let chordSheet {
+                ChordSheetSplitView(state: state, source: chordSheet,
+                                    available: Double(size.height) - header - MainMetrics.playerHeight,
+                                    window: size, interactive: scrolls, actions: actions?.chordSheet)
+            }
         }
     }
 
-    /// Landscape Play: the text on the left, a handle, then a column with the
-    /// chord sheet and the compact player. The handle sets the column's share
+    /// Landscape Play: after the text, a handle, then a column with the chord
+    /// sheet and the compact player. The handle sets the column's share
     /// (30–70 %, wider when the player needs it).
     @ViewBuilder
-    private func sideBySide(size: CGSize, header: Double) -> some View {
+    private func sideColumn(size: CGSize, header: Double) -> some View {
         let row = Double(size.width)
         let lower = minSideFraction(row)
         let fraction = clampSideFraction(sideFraction, min: lower)
         let column = (row - MainMetrics.sideHandleWidth) * fraction
         let paneHeight = Double(size.height) - header - MainMetrics.playerHeight
-        HStack(spacing: 0) {
-            text
-            handle(row: row, lower: lower)
-            VStack(spacing: 0) {
-                if let state = snapshot.chordSheet, let chordSheet {
-                    ChordSheetPane(state: state, source: chordSheet, height: paneHeight, interactive: scrolls,
-                                   actions: actions?.chordSheet)
-                        .frame(height: CGFloat(max(paneHeight, 0)))
-                }
-                player(compact: true)
+        handle(row: row, lower: lower)
+        VStack(spacing: 0) {
+            if let state = snapshot.chordSheet, let chordSheet {
+                ChordSheetPane(state: state, source: chordSheet, height: paneHeight, interactive: scrolls,
+                               actions: actions?.chordSheet)
+                    .frame(height: CGFloat(max(paneHeight, 0)))
             }
-            .frame(width: CGFloat(column))
+            player(compact: true)
         }
+        .frame(width: CGFloat(column))
     }
 
     private func handle(row: Double, lower: Double) -> some View {
