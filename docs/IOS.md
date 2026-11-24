@@ -316,7 +316,13 @@ ChordNotepad.app/
   if anything outside `/usr/lib` and `/System` is. Each slice is a
   hand-made `FluidSynth.framework` (`install_name_tool -id
   @rpath/FluidSynth.framework/FluidSynth`, an Info.plist with the slice's
-  platform and `MinimumOSVersion` 17.0).
+  platform and `MinimumOSVersion` 17.0). Two flags FluidSynth's CMake
+  doesn't set for iOS: `CMAKE_MACOSX_BUNDLE=OFF` (CMake makes every iOS
+  executable a bundle, and the install rule for FluidSynth's program has no
+  bundle destination) and `-lobjc -framework Foundation` for the
+  AVAudioSession code. That code also asks for `defaultToSpeaker` with the
+  Playback category, which CoreAudio logs as an error and ignores; the
+  session still ends up in Playback.
 - **Start:** `AppModel.start` starts Python with `home = <app>/python`,
   `python/app` and `python/app_packages` in front of `sys.path`, and
   `CHORD_NOTEPAD_LIBFLUIDSYNTH=<app>/Frameworks/FluidSynth.framework/FluidSynth`;
@@ -444,6 +450,16 @@ Artifacts of each run:
 - `ios-kit-tests`: the kit's `swift test` output on macOS.
 
 `gh run download <run> -n ios-screenshots` fetches one on Linux.
+
+What the first green run (2026-11-24, Xcode 26.5, iOS 26.5 simulators)
+measured: Python boot 0.15–0.6 s, session start 3.2–4.4 s (most of it the
+core's imports, music21 included), first song text about 4 s; the offline
+render peaks at about 5700 of 32767; the live player started on both
+simulators (route Speaker, 48 kHz, 10 ms buffer); the simulator app is
+141 MB and the device build 114 MB (the SoundFont is 32 MB of it). The kit's
+45 tests pass on the Mac host as on Linux, fixtures included. The first
+layout issue the catalog shows (for S1's list): at accessibility text sizes
+the shell's title truncates beside its three buttons.
 
 To build the same on a Mac (S0's `mac_bootstrap.sh` will do this):
 
