@@ -97,12 +97,13 @@ jobs:
             exit 1
           fi
 
-      # Both editions of the User Guide must build without warnings (e.g. a
+      # Every edition of the User Guide must build without warnings (e.g. a
       # screenshot missing for one edition). docs/HELP_AUTHORING.md.
-      - name: Check the User Guide (desktop and Android editions)
+      - name: Check the User Guide (desktop, Android and iOS editions)
         run: |
           pipenv run sphinx-build -q -W --keep-going -t desktop -b html help "$RUNNER_TEMP/help-desktop"
           pipenv run sphinx-build -q -W --keep-going -t android -b html help "$RUNNER_TEMP/help-android"
+          pipenv run sphinx-build -q -W --keep-going -t ios -b html help "$RUNNER_TEMP/help-ios"
 
   check-changes:
     name: Check for Recent Changes

@@ -132,12 +132,13 @@ docs-html-ios:
 docs-check:
 	$(SPHINX_BUILD) -W --keep-going -t desktop -b html $(DOCS_SOURCE) $(DOCS_BUILD)/html
 	$(SPHINX_BUILD) -W --keep-going -t android -b html $(DOCS_SOURCE) $(DOCS_BUILD)/html-android
+	$(SPHINX_BUILD) -W --keep-going -t ios -b html $(DOCS_SOURCE) $(DOCS_BUILD)/html-ios
 	@if pipenv run python -c "import rinoh" 2>/dev/null; then \
 		$(SPHINX_BUILD) -q -W --keep-going -t desktop -b rinoh $(DOCS_SOURCE) $(DOCS_BUILD)/rinoh >/dev/null; \
 	else \
 		echo "rinohtype not installed: PDF not checked"; \
 	fi
-	@echo "Both editions of the guide build cleanly"
+	@echo "The three editions of the guide build cleanly"
 
 # Build PDF documentation using rinohtype
 docs-pdf:
