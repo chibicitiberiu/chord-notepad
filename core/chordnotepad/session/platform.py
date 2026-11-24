@@ -12,7 +12,8 @@ There are two desktop front ends while the desktop moves from Tk to Qt Quick:
 falls back to them) except where those name a Tk menu or control, and it has
 a playhead like Android's (:data:`TRACKS_PLAYHEAD`).
 
-``IOS`` is the SwiftUI app. It behaves like Android in every flag below, so
+``IOS`` is the SwiftUI app. It behaves like Android in every flag below except
+:data:`PICKER_CREATES_FILE`, so
 :func:`pick` falls back ios -> android -> desktop: a text with no iOS variant
 uses Android's, and one with neither uses the desktop's. Only a text that
 names something Android-only (Android's Back button, say) would need an iOS

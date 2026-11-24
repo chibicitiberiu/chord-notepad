@@ -88,6 +88,8 @@ and sends commands.
 core/chordnotepad/session/
   host.py          Host protocol, Cancellable, HostDispatch (queue_ui_callback shim)
   threaded_host.py ThreadedHost (queue + timer heap; Android/headless)
+  embedded_host.py start() -> SessionHandle: the startup Android and iOS share
+  callback_store.py CallbackDocumentStore: DocumentStore over a native callbacks object
   settings.py      SettingsValues: the settings as plain values (bridge views);
                    DesktopSettingsValues adds the Qt desktop's (values_type(platform))
   testing.py       ManualHost (virtual clock), InMemoryDocumentStore, FakePlayer, EventRecorder
@@ -112,7 +114,7 @@ core/chordnotepad/session/
   settings_edit.py SettingsEdit: a Settings screen's working copy (begin/commit/discard)
   quick_start.py   the Quick Start pages per platform
   timeline.py      PlaybackState.sections (the scrubber's timeline)
-  platform.py      platform names, pick(), TRACKS_PLAYHEAD, COUNTS_SONG_BARS
+  platform.py      platform names, pick(), TRACKS_PLAYHEAD, COUNTS_SONG_BARS, POSITION_STATUS, PICKER_CREATES_FILE
   workers.py       BackgroundWorker (single-thread executor, results via host.post)
   bootstrap.py     CoreServices, build_core_services(appdata, dispatch, paths=, player=, audio_options=),
                    create_session(host, services, documents, chord_sheet=)
@@ -782,10 +784,14 @@ is for tests that bring their own player.
   `apply_settings(SettingsValues)` range-checks it and commits it through a
   `SettingsViewModel`, so the config writes and change flags are the
   dialog's. The desktop path (`SettingsChanges`) is unchanged.
-- The Android host (`android/app/src/main/python/chordnotepad_android/
-  host.py`) wires these: `ThreadedHost`, `AppDataService(root=filesDir)`,
-  `build_core_services`, an `AndroidDocumentStore` over Kotlin's SAF store,
-  `create_session` on the session thread, `SessionBridge`, `ErrorEvents`.
+- `session/embedded_host.py` wires these for the apps that embed Python:
+  `ThreadedHost`, `AppDataService(root=filesDir)`, `build_core_services`, a
+  `CallbackDocumentStore` over the native side's callbacks, `create_session`
+  on the session thread, `SessionBridge`, `ErrorEvents`. The Android host
+  (`android/app/src/main/python/chordnotepad_android/host.py`) is a thin
+  wrapper that passes `platform=ANDROID`, the Oboe settings and an
+  `AndroidDocumentStore` (a `CallbackDocumentStore` that reads Java
+  exceptions).
 
 ### Still interim, and why
 
@@ -831,7 +837,7 @@ is for tests that bring their own player.
     typed `Any` (schema type `json`): the voicing form is a dict keyed by
     field id, and mirroring every field as a DTO would duplicate the schema.
 - **Per-platform texts.** `create_session(platform=...)` (`desktop` by
-  default, `android` from the Android host, `desktop_qt` from the Qt window) picks the wording of the few
+  default, `android` from the Android host, `desktop_qt` from the Qt window, `ios` from the iOS host, which falls back to the Android wording) picks the wording of the few
   strings that name a gesture or a menu: the click-to-hear audio message,
   the chord sheet's disabled-tab reason, the voicing editor's name help and
   the Quick Start pages (`session/quick_start.py`). The `desktop` variant is

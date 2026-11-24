@@ -23,7 +23,12 @@ class BridgeR8RulesTest {
 
     private val pythonDir = File(System.getProperty("cn.androidPython") ?: error("cn.androidPython not set"))
 
+    /** The shared host and store adapter (`session/embedded_host.py`, `callback_store.py`). */
+    private val coreSession = File(System.getProperty("cn.coreSession") ?: error("cn.coreSession not set"))
+
     private fun python(name: String): String = File(pythonDir, name).readText()
+
+    private fun core(name: String): String = File(coreSession, name).readText()
 
     /** A rule that starts with [rule] and then opens its member block. */
     private fun hasRule(rule: String) =
@@ -58,9 +63,9 @@ class BridgeR8RulesTest {
 
     @Test
     fun `everything Python calls on the document store is on DocumentStoreBridge`() {
-        val called = calledOn(python("android_store.py"), "self._bridge") +
-            calledOn(python("host.py"), "document_store")
-        assertTrue("found no calls; did android_store.py change shape?", "readBytes" in called)
+        val called = calledOn(core("callback_store.py"), "self._bridge") +
+            calledOn(core("embedded_host.py"), "document_store")
+        assertTrue("found no calls; did callback_store.py change shape?", "readBytes" in called)
         val missing = called - methodsOf(DocumentStoreBridge::class.java)
         assertTrue("Python calls $missing, which DocumentStoreBridge doesn't declare (so no rule keeps it)", missing.isEmpty())
         assertTrue(DocumentStoreBridge::class.java.isAssignableFrom(SafDocumentStore::class.java))
@@ -68,7 +73,7 @@ class BridgeR8RulesTest {
 
     @Test
     fun `everything Python calls on the event sink is on EventSink`() {
-        val called = calledOn(python("host.py"), "event_sink")
+        val called = calledOn(core("embedded_host.py"), "event_sink")
         assertEquals(setOf("onEvent"), called)
         assertTrue(called.all { it in methodsOf(EventSink::class.java) })
         assertTrue(EventSink::class.java.isAssignableFrom(RepositoryEventSink::class.java))

@@ -5,8 +5,8 @@ and builds an :class:`AppPaths` at its entry point:
 
 * the desktop: ``chordnotepad_desktop.desktop_paths.resolve_desktop_paths`` (a
   checkout, a PyInstaller bundle, the Flatpak or the snap);
-* Android: ``chordnotepad_android.host`` (the SoundFont Kotlin copied to
-  ``filesDir``, the native library folder).
+* Android: ``chordnotepad_android.host`` (through ``session.embedded_host``;
+  the SoundFont Kotlin copied to ``filesDir``, the native library folder).
 
 It then passes it to ``session.bootstrap.build_core_services``. A module
 that walked up from its own ``__file__`` instead would find nothing, without

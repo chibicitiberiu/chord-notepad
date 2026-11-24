@@ -1,46 +1,34 @@
 """Android host entry point: starts an AppSession for the Kotlin bridge.
 
 The contract Kotlin is written against (``bridge/BridgeContract.kt``,
-docs/ANDROID.md, "Bridge contract"): :func:`start` builds the core
-(``session.bootstrap``) on a ``ThreadedHost`` and returns a
-:class:`SessionHandle`; Kotlin submits commands to it as ``(name,
-args_json)`` and gets every output through ``event_sink.onEvent(type_name,
-json)`` on the session thread. Decoding, dispatch, the lifecycle commands
-(``app_background``, ``app_foreground``, ``pause``, ``restore_draft``) and
-the error events live in ``session.bridge`` so they are tested with the rest
-of the core; this module only wires the Android pieces in.
+docs/ANDROID.md, "Bridge contract"): :func:`start` builds the core on a
+``ThreadedHost`` and returns a :class:`SessionHandle`; Kotlin submits commands
+to it as ``(name, args_json)`` and gets every output through
+``event_sink.onEvent(type_name, json)`` on the session thread. The startup
+itself is ``chordnotepad.session.embedded_host`` (shared with iOS); this module
+fixes what is Android's: the platform, the Oboe settings, the paths, the
+document store that reads Java exceptions, and Kotlin's ``audio_options`` dict.
 """
 
 import logging
-import os
-import sys
 from pathlib import Path
-from typing import Any, Mapping, Optional
+from typing import Any, Mapping
 
 from chordnotepad.app_paths import AppPaths
 from chordnotepad.audio.audio_options import AudioOptions
-from chordnotepad.services.appdata_service import AppDataService
-from chordnotepad.services.logging_service import LoggingService
-from chordnotepad.session import errors
-from chordnotepad.session.bootstrap import CoreServices, build_core_services, create_session
+from chordnotepad.session import embedded_host
+from chordnotepad.session.embedded_host import AUTOSAVE_DELAY_S, START_TIMEOUT_S, SessionHandle
 from chordnotepad.session.platform import ANDROID
-from chordnotepad.session.bridge import ErrorEvents, SessionBridge
-from chordnotepad.session.host import HostDispatch
-from chordnotepad.session.threaded_host import ThreadedHost
 
 from chordnotepad_android.android_store import AndroidDocumentStore
 
-logger = logging.getLogger("chordnotepad_android.host")
+logger = logging.getLogger(__name__)
+
+__all__ = ["AUTOSAVE_DELAY_S", "START_TIMEOUT_S", "OBOE_SETTINGS", "SessionHandle",
+           "audio_options_from", "app_paths_from", "start"]
 
 #: Oboe stream settings (the M2 latency measurements in docs/ANDROID.md were taken with these).
 OBOE_SETTINGS = {"audio.oboe.performance-mode": "LowLatency"}
-
-#: Settings are written this long after the last change, so a process kill
-#: (not only leaving the screen) keeps the toolbar's state.
-AUTOSAVE_DELAY_S = 1.5
-
-#: How long start() waits for the session thread to build the session.
-START_TIMEOUT_S = 120.0
 
 
 def audio_options_from(options: Mapping[str, Any]) -> AudioOptions:
@@ -64,81 +52,9 @@ def app_paths_from(native_lib_dir: str) -> AppPaths:
     There is no VERSION file (the version is ``versionName``), no
     ``resources/`` and no built help (it is served from the APK's assets).
     The SoundFont Kotlin copied to ``filesDir`` arrives in ``audio_options``
-    and becomes the configured one (:func:`_init_audio`), so it is not a
-    bundled fallback here either.
+    and becomes the configured one, so it is not a bundled fallback here either.
     """
     return AppPaths(native_lib_dir=Path(native_lib_dir) if native_lib_dir else None)
-
-
-class SessionHandle:
-    """A running session, owned by Kotlin's PyHost."""
-
-    def __init__(self, host: ThreadedHost, bridge: SessionBridge, services: CoreServices,
-                 error_events: ErrorEvents) -> None:
-        self._host = host
-        self._bridge = bridge
-        self._services = services
-        self._error_events = error_events
-        self._shut_down = False
-
-    @property
-    def session(self) -> Any:
-        """The AppSession (tests)."""
-        return self._bridge.session
-
-    @property
-    def host(self) -> ThreadedHost:
-        """The session's host (tests)."""
-        return self._host
-
-    def submit(self, command: str, args_json: str) -> None:
-        """Queue ``command`` for the session thread and return at once.
-
-        Args:
-            command: A command name (``CommandNames`` in SessionCommands.kt).
-            args_json: Its keyword arguments as a JSON object.
-        """
-        self._bridge.submit(str(command), str(args_json))
-
-    def chord_sheet_buffer(self, height: float) -> Optional[bytes]:
-        """The active chord-sheet view as a packed op buffer, or None.
-
-        Called directly by Kotlin (``callAttr("chord_sheet_buffer", height)
-        .toJava(ByteArray::class.java)``) on its bridge thread, not through
-        ``submit``: bytes don't fit the JSON events. Packs on the caller's
-        thread from the last rendered song, so it never waits for the
-        session thread. A failure is reported as an ``UnexpectedError`` and
-        returns None.
-        """
-        try:
-            return self._bridge.session.chord_sheet_buffer(float(height))
-        except Exception:
-            errors.report_from_any_thread(sys.exc_info(), "chord_sheet_buffer")
-            return None
-
-    def shutdown(self) -> None:
-        """Stop playback and the session thread, save the config, release audio."""
-        if self._shut_down:
-            return
-        self._shut_down = True
-        session = self._bridge.session
-
-        def stop() -> None:
-            session.stop()
-            self._bridge.close()
-            session.shutdown()
-
-        try:
-            self._host.call(stop, timeout=10.0)
-        except Exception:
-            logger.exception("Stopping the session failed")
-        self._error_events.uninstall()
-        self._host.shutdown(timeout=5.0)
-        try:
-            self._services.config.save_config()
-        except Exception:
-            logger.exception("Saving the config failed")
-        self._services.playback.cleanup()
 
 
 def start(files_dir: str, native_lib_dir: str, document_store, event_sink, audio_options,
@@ -162,69 +78,9 @@ def start(files_dir: str, native_lib_dir: str, document_store, event_sink, audio
         The handle Kotlin submits commands to.
     """
     options = dict(audio_options or {})
-    appdata = AppDataService(root=files_dir)
-    host = ThreadedHost(name="python-session")
-    host.start()
-    paths = app_paths_from(native_lib_dir)
-    services = build_core_services(appdata, HostDispatch(host), paths=paths, player=player,
-                                   audio_options=audio_options_from(options))
-    if configure_logging:
-        LoggingService().configure_logging(
-            appdata, log_level=services.config.get("log_level", "INFO"), console_output=True)
-    logger.info("Starting the session (files %s, natives %s)", files_dir, native_lib_dir)
-
-    _init_audio(services, options.get("soundfont_path"), player is not None)
-    store = AndroidDocumentStore(
-        document_store, max_recent=lambda: services.config.get("max_recent_files", 10))
-
-    def sink(type_name: str, payload: str) -> None:
-        event_sink.onEvent(type_name, payload)
-
-    def build() -> SessionBridge:
-        session = create_session(host, services, store, chord_sheet=_chord_sheet_available(),
-                                 platform=ANDROID)
-        bridge = SessionBridge(host, session, sink, autosave_s=AUTOSAVE_DELAY_S)
-        session.start()
-        return bridge
-
-    try:
-        bridge = host.call(build, timeout=START_TIMEOUT_S)
-    except BaseException:
-        host.shutdown(timeout=1.0)
-        raise
-    error_events = ErrorEvents(host, bridge.session)
-    error_events.install()
-    logger.info("Session started")
-    return SessionHandle(host, bridge, services, error_events)
-
-
-def _init_audio(services: CoreServices, soundfont_path: Optional[str], has_player: bool) -> None:
-    """Start FluidSynth now, so the instrument menu has the SoundFont's programs.
-
-    The SoundFont Kotlin copied to ``filesDir`` becomes the configured one,
-    so a later lazy re-initialization (after a failure) finds it too. A
-    failure is reported when the user plays something (``AudioUnavailable``).
-    """
-    if has_player:
-        return
-    if soundfont_path:
-        configured = services.config.get("soundfont_path")
-        if configured != soundfont_path and not (configured and os.path.isfile(configured)):
-            services.config.set("soundfont_path", soundfont_path)
-    if not services.playback.initialize_player(soundfont_path or None):
-        logger.warning("Audio isn't available yet: %s", services.playback.audio_error)
-
-
-def _chord_sheet_available() -> bool:
-    """Whether the chord-sheet strip can be built here.
-
-    The renderers are headless and Pillow-free (``core/chordnotepad/chord_sheet``); if a
-    build still can't import them, the session runs without the strip
-    rather than not at all.
-    """
-    try:
-        import chordnotepad.viewmodels.chord_sheet_viewmodel  # noqa: F401
-    except ImportError as e:
-        logger.warning("No chord sheet on this build: %s", e)
-        return False
-    return True
+    logger.info("Android natives in %s", native_lib_dir)
+    return embedded_host.start(
+        platform=ANDROID, files_dir=files_dir, document_store=document_store,
+        event_sink=event_sink, audio_options=audio_options_from(options),
+        soundfont_path=options.get("soundfont_path"), paths=app_paths_from(native_lib_dir),
+        store_class=AndroidDocumentStore, player=player, configure_logging=configure_logging)

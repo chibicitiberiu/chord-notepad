@@ -69,8 +69,8 @@ android/
     ui/theme/                       the tonal light/dark tokens (AppColors) and ChordNotepadTheme
     ui/editor/                      the song text (editable in Edit, frozen in Play), highlighting, pinch zoom
   app/src/main/python/chordnotepad_android/
-    host.py                         bridge entry point: start() -> SessionHandle (submit, shutdown)
-    android_store.py                AndroidDocumentStore: session DocumentStore over Kotlin's SafDocumentStore
+    host.py                         bridge entry point: start() -> SessionHandle (submit, shutdown); wraps session/embedded_host.py
+    android_store.py                AndroidDocumentStore: reads Java exceptions for session/callback_store.py over Kotlin's SafDocumentStore
   native/                           FluidSynth + dependencies as pinned git submodules
   native/build.sh                   cross-compiles them (mirrors upstream's Android CI)
   tools/strip_music21.py            builds the data-trimmed music21 wheel

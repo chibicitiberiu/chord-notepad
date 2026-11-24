@@ -250,7 +250,7 @@ def _keywords_of_calls(path: Path, func_name: str):
 
 @pytest.mark.parametrize("entry", [
     DESKTOP / "application.py",
-    REPO / "android/app/src/main/python/chordnotepad_android/host.py",
+    CORE / "session/embedded_host.py",    # Android's host and iOS's both start through it
 ])
 def test_front_ends_pass_their_paths_to_the_core(entry):
     calls = _keywords_of_calls(entry, "build_core_services")

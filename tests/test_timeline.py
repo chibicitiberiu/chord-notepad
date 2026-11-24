@@ -159,7 +159,7 @@ SONG = "{label: verse}\nC   G\n{label: chorus}\nAm  F\n{loop: chorus 2}"
 
 
 def test_only_the_tk_desktop_counts_bars_from_where_playback_started():
-    assert COUNTS_SONG_BARS == {DESKTOP: False, ANDROID: True, DESKTOP_QT: True}
+    assert COUNTS_SONG_BARS == {DESKTOP: False, ANDROID: True, DESKTOP_QT: True, "ios": True}
 
 
 def strip_render(env):
