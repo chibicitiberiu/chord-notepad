@@ -48,6 +48,9 @@ build_slice() {
     local build="$WORK/build-$sdk"
     # CMAKE_TRY_COMPILE_TARGET_TYPE: the feature checks build static
     # libraries, since an iOS executable can't be linked unsigned here.
+    # -lobjc and Foundation: FluidSynth's CMake links the AVAudioSession code
+    # (an .m file) with only the audio frameworks, which leaves objc_msgSend
+    # undefined on iOS.
     # CMAKE_MACOSX_BUNDLE: CMake makes every iOS executable an app bundle,
     # and FluidSynth's install rule for its command-line program has no
     # bundle destination (only the library is built anyway).
@@ -59,7 +62,7 @@ build_slice() {
         -DCMAKE_OSX_DEPLOYMENT_TARGET="$MIN_IOS" \
         -DCMAKE_TRY_COMPILE_TARGET_TYPE=STATIC_LIBRARY \
         -DCMAKE_MACOSX_BUNDLE=OFF \
-        -DCMAKE_SHARED_LINKER_FLAGS="-Wl,-headerpad_max_install_names" \
+        -DCMAKE_SHARED_LINKER_FLAGS="-Wl,-headerpad_max_install_names -lobjc -framework Foundation" \
         -DCMAKE_FIND_FRAMEWORK=LAST \
         -DBUILD_SHARED_LIBS=ON \
         -Dosal=cpp11 \
