@@ -9,8 +9,9 @@ it like Android's MdiIcon:
 
     python3 -I ios/tools/mdi_assets.py
 
-Writes ios/ChordNotepad/Assets.xcassets/Icons/<name>.imageset. Standard
-library only.
+Writes ios/ChordNotepad/Assets.xcassets/Icons/<name>.imageset. Chord
+Notepad's own drawables (ic_*) come along the same way: their strokes and
+group transforms are kept. Standard library only.
 """
 
 import json
@@ -33,15 +34,42 @@ ICONS = [
     "mdi_file_plus", "mdi_folder_open", "mdi_file_music", "mdi_content_save_edit", "mdi_export",
     "mdi_waveform", "mdi_file_pdf_box", "mdi_cog", "mdi_music_box_multiple", "mdi_book_open_variant",
     "mdi_school", "mdi_information",
+    # The Edit ribbon's tools and the player's and the ribbon's sheets.
+    "mdi_plus", "ic_transpose", "ic_capo", "mdi_piano", "ic_time_signature", "mdi_label", "mdi_repeat",
+    "mdi_radiobox_marked", "mdi_radiobox_blank", "mdi_circle", "mdi_circle_outline", "mdi_chevron_right",
+    "mdi_arrow_left",
 ]
+
+
+def svg_element(node: ET.Element) -> str:
+    """A path or a group of the drawable as SVG: filled paths, stroked ones
+    (Chord Notepad's own icons, such as ic_time_signature) and groups with
+    their scale and translation (ic_transpose)."""
+    if node.tag == "path":
+        d = " ".join(node.get(ANDROID + "pathData").split())
+        if node.get(ANDROID + "strokeColor") and not node.get(ANDROID + "fillColor"):
+            width = node.get(ANDROID + "strokeWidth", "1")
+            cap = node.get(ANDROID + "strokeLineCap", "butt")
+            join = node.get(ANDROID + "strokeLineJoin", "miter")
+            return (f'<path d="{d}" fill="none" stroke="#000000" stroke-width="{width}" '
+                    f'stroke-linecap="{cap}" stroke-linejoin="{join}"/>')
+        return f'<path d="{d}"/>'
+    if node.tag == "group":
+        # Android applies a group's scale, then its translation.
+        tx = node.get(ANDROID + "translateX", "0")
+        ty = node.get(ANDROID + "translateY", "0")
+        sx = node.get(ANDROID + "scaleX", "1")
+        sy = node.get(ANDROID + "scaleY", "1")
+        inner = "".join(svg_element(child) for child in node)
+        return f'<g transform="translate({tx} {ty}) scale({sx} {sy})">{inner}</g>'
+    return ""
 
 
 def svg(drawable: pathlib.Path) -> str:
     root = ET.parse(drawable).getroot()
     width = root.get(ANDROID + "viewportWidth")
     height = root.get(ANDROID + "viewportHeight")
-    paths = [p.get(ANDROID + "pathData") for p in root.iter("path")]
-    body = "".join(f'<path d="{d}"/>' for d in paths)
+    body = "".join(svg_element(child) for child in root)
     return (f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" '
             f'viewBox="0 0 {width} {height}">{body}</svg>\n')
 
