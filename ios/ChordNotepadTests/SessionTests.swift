@@ -54,6 +54,23 @@ final class SessionTests: XCTestCase {
         attachment.name = "selftest.json"
         attachment.lifetime = .keepAlways
         add(attachment)
+        // Export diagnostics: a zip of the Files-visible folder, with the
+        // self-test report and the core's log in it.
+        let archive = try Diagnostics.shared.exportArchive()
+        let archiveSize = try FileManager.default.attributesOfItem(atPath: archive.path)[.size] as? Int ?? 0
+        XCTAssertGreaterThan(archiveSize, 200, archive.path)
+        XCTAssertEqual(try Data(contentsOf: archive).prefix(2), Data("PK".utf8), "not a zip")
+        for name in ["selftest.json", "build.json", "faulthandler.log"] {
+            XCTAssertTrue(FileManager.default.fileExists(
+                atPath: AppPaths.sharedDiagnostics.appendingPathComponent(name).path), name)
+        }
+        XCTAssertTrue(FileManager.default.fileExists(
+            atPath: AppPaths.sharedDiagnostics.appendingPathComponent("logs/chord-notepad.log").path))
+        let zipAttachment = XCTAttachment(contentsOfFile: archive)
+        zipAttachment.name = "diagnostics.zip"
+        zipAttachment.lifetime = .keepAlways
+        add(zipAttachment)
+
         XCTAssertTrue(model.snapshot.messages.allSatisfy { !$0.hasPrefix("Unexpected error") },
                       "\(model.snapshot.messages)")
     }

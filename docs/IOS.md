@@ -123,7 +123,7 @@ FluidSynth even with the fake player.
 ## Running the tests
 
 ```sh
-make ios-kit-test      # swift test: 37 tests, about 5 s after the first build
+make ios-kit-test      # swift test: 45 tests, about 5 s after the first build
 make ios-bridge-gen    # regenerate Generated/Bridge.swift after a schema change
 make ios-fixtures      # rewrite ios/Fixtures after an intended output change
 ```
@@ -153,6 +153,8 @@ What the tests cover:
 | `BridgeCodecTests` | generated facts against the schema file, every builder (null and set) accepted by the core's own `decode_args` and answer decoders, required nullable keys written as null, decoding by type name |
 | `OffsetMapperTests` | Android's `OffsetMapperTest`, case for case (lone surrogates through UTF-16 code units) |
 | `SheetBufferTests` | Android's `ChordSheetBufferTest` on the same fixtures, plus every truncation throwing, huge counts, `Data` slices |
+| `SnapshotTests` | `SessionSnapshot` (code-point edits, the message cap) and every fixture folding into a screen's snapshot |
+| `DiagnosticsTests` | the offline render of a chord is not silent (system libfluidsynth, the repo's SoundFont), a missing SoundFont is reported, the fault handler's file |
 | `IntegrationTests` | one real session: restore a draft, code-point highlights, save through the store, a refused rename, a decoded chord sheet buffer, the four scenes |
 
 ## The Swift kit
@@ -419,12 +421,14 @@ and by hand (workflow_dispatch). A newer push cancels a running build.
 - **app:** the frameworks (cached on the scripts, the pins and the Xcode
   version), the Python bundle, XcodeGen, one `build-for-testing` for the
   simulator, `test-without-building` on the iPhone and the iPad (the
-  session test with the FakePlayer and the blocking offline render; the
+  session test with the FakePlayer, the blocking offline render and the
+  diagnostics zip; the
   catalog on the iPhone only, since it renders both sizes anyway), the
   real app launched on both simulators for screenshots and the self-test,
   the live CoreAudio check (non-blocking: a runner may have no audio
   device), and a Release `generic/platform=iOS` build with
-  `CODE_SIGNING_ALLOWED=NO`.
+  `CODE_SIGNING_ALLOWED=NO`, checked for the privacy manifests, the
+  compiled icon and the stdlib.
 
 | Pin | Value | Where |
 |---|---|---|

@@ -274,6 +274,15 @@ jobs:
           du -sh "$APP"
           lipo -info "$APP/ChordNotepad"
           plutil -p "$APP/Info.plist" | grep -E 'CNGitCommit|CFBundle(Short)?Version|ITSApp|UIFileSharing'
+          # What App Store validation looks for: the privacy manifests, the
+          # compiled icon.
+          for file in PrivacyInfo.xcprivacy Frameworks/_ssl.framework/PrivacyInfo.xcprivacy \
+              Frameworks/_hashlib.framework/PrivacyInfo.xcprivacy Assets.car python/lib/python3.14/os.py; do
+            test -e "$APP/$file" || { echo "Missing from the app: $file"; exit 1; }
+          done
+          plutil -extract CFBundleIcons json -o - "$APP/Info.plist"
+          echo "$(find "$APP/python" -name '*.pyc' | wc -l | tr -d ' ') .pyc files," \
+            "$(find "$APP/Frameworks" -maxdepth 1 -name '*.framework' | wc -l | tr -d ' ') frameworks"
           for framework in "$APP"/Frameworks/*.framework; do
             plutil -extract CFBundleSupportedPlatforms json -o - "$framework/Info.plist" | grep -q iPhoneOS \
               || { echo "$framework isn't marked for iPhoneOS"; exit 1; }
