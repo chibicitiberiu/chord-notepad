@@ -293,8 +293,7 @@ struct ChordSheetStrip: View {
                                       on: CGSheetCanvas(cg, scale: displayScale))
                     }
                 }
-                .scaleEffect(pinch?.scale ?? 1,
-                             anchor: UnitPoint(x: size.width > 0 ? ((pinch?.focusX ?? 0) + gutter) / size.width : 0, y: 0))
+                .scaleEffect(CGFloat(pinch?.scale ?? 1), anchor: pinchAnchor(width: Double(size.width), gutter: gutter))
                 if interactive {
                     StripScrollOverlay(
                         contentWidth: Double(sheet.buffer.contentWidth) + gutter, jump: jump,
@@ -321,6 +320,12 @@ struct ChordSheetStrip: View {
         }
         .accessibilityElement()
         .accessibilityLabel("Chord sheet, \(sheet.buffer.slots.count) chords")
+    }
+
+    /// A pinch scales about its focus, from the strip's top (Android's transform origin).
+    private func pinchAnchor(width: Double, gutter: Double) -> UnitPoint {
+        guard width > 0 else { return .topLeading }
+        return UnitPoint(x: CGFloat(((pinch?.focusX ?? 0) + gutter) / width), y: 0)
     }
 
     /// Where a strip seen for the first time starts: with the playhead in view.
@@ -373,7 +378,10 @@ struct ChordSheetStrip: View {
     private func pinchChanged(_ state: UIGestureRecognizer.State, scale: Double, focusX: Double) {
         guard zoomSupported else { return }
         switch state {
-        case .began, .changed:
+        case .began:
+            // The focus stays where the fingers first met.
+            pinch = StripPinch(scale: scale, focusX: focusX)
+        case .changed:
             pinch = StripPinch(scale: scale, focusX: pinch?.focusX ?? focusX)
         case .ended:
             let steps = ChordSheetZoom.pinchSteps(zoomSupported: zoomSupported, scale: scale, currentZoom: zoom)
