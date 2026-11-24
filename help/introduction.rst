@@ -226,14 +226,27 @@ System Requirements
 
 .. only:: android
 
-   The Android app needs Android 7.0 or newer on a 64-bit phone or tablet. It
-   works offline: the instruments, this guide and everything else are built in,
-   and the app doesn't ask for internet access.
+   .. only:: not ios
 
-   This edition of the guide describes the Android app. Chord Notepad also runs
-   on Linux, Windows and macOS. Songs are plain text files, and the chord
-   notation is the same on every platform, so a song written on your phone
-   plays the same on your computer.
+      The Android app needs Android 7.0 or newer on a 64-bit phone or tablet. It
+      works offline: the instruments, this guide and everything else are built in,
+      and the app doesn't ask for internet access.
+
+      This edition of the guide describes the Android app. Chord Notepad also runs
+      on Linux, Windows and macOS. Songs are plain text files, and the chord
+      notation is the same on every platform, so a song written on your phone
+      plays the same on your computer.
+
+   .. only:: ios
+
+      The iOS app needs iOS 17 or newer, on an iPhone or iPad. It works offline:
+      the instruments, this guide and everything else are built in, and the app
+      doesn't ask for internet access.
+
+      This edition of the guide describes the iOS app. Chord Notepad also runs on
+      Android, Linux, Windows and macOS. Songs are plain text files, and the chord
+      notation is the same on every platform, so a song written on your iPhone plays
+      the same on your computer.
 
 Getting Chord Notepad
 ---------------------
@@ -257,10 +270,17 @@ Getting Chord Notepad
    for every platform, are on
    `GitHub <https://github.com/chibicitiberiu/chord-notepad/releases>`_.
 
-   Every feature is free, wherever you got the app. The version from Google
-   Play offers an optional one-time purchase that supports development: from
-   a week after you install it, the app asks about it at most once a day, when
-   you open the app itself (never when you open a song from another app). Tap
-   **Not now** to carry on. After you buy it, the app stops asking and
-   **☰ → Settings** shows a supporter badge. The purchase is tied to your
-   Google account, so it comes back when you reinstall or change phones.
+   .. only:: not ios
+
+      Every feature is free, wherever you got the app. The version from Google
+      Play offers an optional one-time purchase that supports development: from
+      a week after you install it, the app asks about it at most once a day, when
+      you open the app itself (never when you open a song from another app). Tap
+      **Not now** to carry on. After you buy it, the app stops asking and
+      **☰ → Settings** shows a supporter badge. The purchase is tied to your
+      Google account, so it comes back when you reinstall or change phones.
+
+   .. only:: ios
+
+      Every feature is free. If you'd like to support development, there is a
+      Ko-fi link under **☰ → About**.

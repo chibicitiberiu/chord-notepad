@@ -10,12 +10,23 @@ Keyboard Shortcuts
 
 .. only:: android
 
-   The keyboard shortcuts on this page work when a hardware keyboard is
-   attached to your phone or tablet (over Bluetooth or USB, or a tablet's
-   keyboard cover), and on a Chromebook, where a mouse or trackpad also does
-   everything a tap does. You never need them: everything they do is also on the
-   screen, in the ☰ drawer, the Edit ribbon or the player. The touch gestures
-   are listed too, where they apply.
+   .. only:: not ios
+
+      The keyboard shortcuts on this page work when a hardware keyboard is
+      attached to your phone or tablet (over Bluetooth or USB, or a tablet's
+      keyboard cover), and on a Chromebook, where a mouse or trackpad also does
+      everything a tap does. You never need them: everything they do is also on the
+      screen, in the ☰ drawer, the Edit ribbon or the player. The touch gestures
+      are listed too, where they apply.
+
+   .. only:: ios
+
+      The keyboard shortcuts on this page work when a hardware keyboard is
+      attached to your iPhone or iPad (over Bluetooth or USB, or an iPad's keyboard
+      case). They use **Command** where the other editions use Ctrl. You never need
+      them: everything they do is also on the screen, in the ☰ menu, the Edit ribbon
+      or the player. The touch gestures are listed too, where they apply. On an iPad,
+      holding Command lists the app's shortcuts.
 
 
 File Operations
@@ -42,23 +53,44 @@ File Operations
 
 .. only:: android
 
-   .. list-table::
-      :header-rows: 1
-      :widths: 30 70
+   .. only:: not ios
 
-      * - Shortcut
-        - Action
-      * - Ctrl+N
-        - New song
-      * - Ctrl+O
-        - Open a song
-      * - Ctrl+S
-        - Save
-      * - Ctrl+Shift+S
-        - Save as (under a new name or in a new place)
+      .. list-table::
+         :header-rows: 1
+         :widths: 30 70
 
-   There is no shortcut to quit. Press Back on the main screen to leave the
-   app; if the song has unsaved changes, it asks whether to save them first.
+         * - Shortcut
+           - Action
+         * - Ctrl+N
+           - New song
+         * - Ctrl+O
+           - Open a song
+         * - Ctrl+S
+           - Save
+         * - Ctrl+Shift+S
+           - Save as (under a new name or in a new place)
+
+      There is no shortcut to quit. Press Back on the main screen to leave the
+      app; if the song has unsaved changes, it asks whether to save them first.
+
+   .. only:: ios
+
+      .. list-table::
+         :header-rows: 1
+         :widths: 30 70
+
+         * - Shortcut
+           - Action
+         * - Command+N
+           - New song
+         * - Command+O
+           - Open a song
+         * - Command+S
+           - Save
+         * - Command+Shift+S
+           - Save as (under a new name or in a new place)
+
+      There is no shortcut to quit.
 
 
 Edit Operations
@@ -132,24 +164,61 @@ Edit Operations
 
    These work in the Edit tab, while the cursor is in the text.
 
-   .. list-table::
-      :header-rows: 1
-      :widths: 30 70
+   .. only:: not ios
 
-      * - Shortcut
-        - Action
-      * - Ctrl+Z
-        - Undo
-      * - Ctrl+Y or Ctrl+Shift+Z
-        - Redo
-      * - Ctrl+X
-        - Cut selected text
-      * - Ctrl+C
-        - Copy selected text
-      * - Ctrl+V
-        - Paste from clipboard
-      * - Ctrl+A
-        - Select all text
+      .. list-table::
+         :header-rows: 1
+         :widths: 30 70
+
+         * - Shortcut
+           - Action
+         * - Ctrl+Z
+           - Undo
+         * - Ctrl+Y or Ctrl+Shift+Z
+           - Redo
+         * - Ctrl+X
+           - Cut selected text
+         * - Ctrl+C
+           - Copy selected text
+         * - Ctrl+V
+           - Paste from clipboard
+         * - Ctrl+A
+           - Select all text
+
+   .. only:: ios
+
+      .. list-table::
+         :header-rows: 1
+         :widths: 30 70
+
+         * - Shortcut
+           - Action
+         * - Command+Z
+           - Undo
+         * - Command+Shift+Z
+           - Redo
+         * - Command+X
+           - Cut selected text
+         * - Command+C
+           - Copy selected text
+         * - Command+V
+           - Paste from clipboard
+         * - Command+A
+           - Select all text
+         * - Command+/
+           - Comment or uncomment the line or selection
+         * - Command+D
+           - Duplicate the line or selection
+         * - Command+Shift+K
+           - Delete the line
+         * - Option+Command+Up / Down
+           - Move the line up or down
+         * - Command+F
+           - Find
+         * - Option+Command+F
+           - Find and replace
+         * - Command+G / Command+Shift+G
+           - Next or previous match
 
    Without a keyboard, Undo and Redo are in the Edit ribbon, and cut, copy,
    paste and select all are in the menu that appears when you select text.
@@ -222,22 +291,43 @@ View / Zoom
 
 .. only:: android
 
-   .. list-table::
-      :header-rows: 1
-      :widths: 30 70
+   .. only:: not ios
 
-      * - Shortcut
-        - Action
-      * - Ctrl+Plus
-        - Increase font size
-      * - Ctrl+=
-        - Increase font size (same as above)
-      * - Ctrl+Minus
-        - Decrease font size
-      * - Ctrl+0
-        - Reset font size to default (11pt)
-      * - Pinch
-        - Zoom in/out: spread two fingers on the text to make it bigger, pinch them together to make it smaller (in both tabs)
+      .. list-table::
+         :header-rows: 1
+         :widths: 30 70
+
+         * - Shortcut
+           - Action
+         * - Ctrl+Plus
+           - Increase font size
+         * - Ctrl+=
+           - Increase font size (same as above)
+         * - Ctrl+Minus
+           - Decrease font size
+         * - Ctrl+0
+           - Reset font size to default (11pt)
+         * - Pinch
+           - Zoom in/out: spread two fingers on the text to make it bigger, pinch them together to make it smaller (in both tabs)
+
+   .. only:: ios
+
+      .. list-table::
+         :header-rows: 1
+         :widths: 30 70
+
+         * - Shortcut
+           - Action
+         * - Command+Plus
+           - Increase font size
+         * - Command+=
+           - Increase font size (same as above)
+         * - Command+Minus
+           - Decrease font size
+         * - Command+0
+           - Reset font size to default (11pt)
+         * - Pinch
+           - Zoom in/out: spread two fingers on the text to make it bigger, pinch them together to make it smaller (in both tabs)
 
    The size you pick is remembered, and it's the same setting as the font size
    in **☰ → Settings → General**.
@@ -348,16 +438,22 @@ Help
 
 .. only:: android
 
-   .. list-table::
-      :header-rows: 1
-      :widths: 30 70
+   .. only:: not ios
 
-      * - Shortcut
-        - Action
-      * - F1
-        - Open the user guide
+      .. list-table::
+         :header-rows: 1
+         :widths: 30 70
 
-   Without a keyboard, open it from **☰ → User guide**.
+         * - Shortcut
+           - Action
+         * - F1
+           - Open the user guide
+
+      Without a keyboard, open it from **☰ → User guide**.
+
+   .. only:: ios
+
+      The user guide has no keyboard shortcut. Open it from **☰ → User guide**.
 
    .. platform-figure:: user-guide
       :platforms: android
@@ -402,29 +498,61 @@ Quick Reference Card
 
 .. only:: android
 
-   The keys and gestures at a glance.
+   .. only:: not ios
 
-   ::
+      The keys and gestures at a glance.
 
-      CHORD NOTEPAD FOR ANDROID
+      ::
 
-      KEYBOARD
-      Ctrl+N        New song
-      Ctrl+O        Open
-      Ctrl+S        Save
-      Ctrl+Shift+S  Save as
-      Ctrl+Z        Undo
-      Ctrl+Y        Redo
-      Ctrl++        Bigger text
-      Ctrl+-        Smaller text
-      Ctrl+0        Reset text size
-      F1            User guide
+         CHORD NOTEPAD FOR ANDROID
 
-      TOUCH (PLAY TAB)
-      Play / pause  Tap the big button
-      Rewind        Tap ⏮
-      Hear a chord  Tap it
-      Move the      Tap a chord or the
-        playhead    text, or drag the
-                    marker
-      Text size     Pinch
+         KEYBOARD
+         Ctrl+N        New song
+         Ctrl+O        Open
+         Ctrl+S        Save
+         Ctrl+Shift+S  Save as
+         Ctrl+Z        Undo
+         Ctrl+Y        Redo
+         Ctrl++        Bigger text
+         Ctrl+-        Smaller text
+         Ctrl+0        Reset text size
+         F1            User guide
+
+         TOUCH (PLAY TAB)
+         Play / pause  Tap the big button
+         Rewind        Tap ⏮
+         Hear a chord  Tap it
+         Move the      Tap a chord or the
+           playhead    text, or drag the
+                       marker
+         Text size     Pinch
+
+
+   .. only:: ios
+
+      The keys and gestures at a glance.
+
+      ::
+
+         CHORD NOTEPAD FOR IOS
+
+         KEYBOARD
+         Cmd+N         New song
+         Cmd+O         Open
+         Cmd+S         Save
+         Cmd+Shift+S   Save as
+         Cmd+Z         Undo
+         Cmd+Shift+Z   Redo
+         Cmd+F         Find
+         Cmd++         Bigger text
+         Cmd+-         Smaller text
+         Cmd+0         Reset text size
+
+         TOUCH (PLAY TAB)
+         Play / pause  Tap the big button
+         Rewind        Tap ⏮
+         Hear a chord  Tap it
+         Move the      Tap a chord or the
+           playhead    text, or drag the
+                       marker
+         Text size     Pinch

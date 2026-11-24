@@ -566,33 +566,65 @@ Keyboard Shortcuts Summary
 
 .. only:: android
 
-   With a hardware keyboard attached (a Bluetooth or USB keyboard, or a
-   tablet's keyboard cover):
+   .. only:: not ios
 
-   .. list-table::
-      :header-rows: 1
-      :widths: 45 55
+      With a hardware keyboard attached (a Bluetooth or USB keyboard, or a
+      tablet's keyboard cover):
 
-      * - Keys
-        - Does
-      * - Ctrl+N
-        - New song
-      * - Ctrl+O
-        - Open
-      * - Ctrl+S
-        - Save
-      * - Ctrl+Shift+S
-        - Save as
-      * - Ctrl++ / Ctrl+- / Ctrl+0
-        - Bigger, smaller, default text size
-      * - F1
-        - User guide
-      * - Ctrl+Z, Ctrl+Y
-        - Undo, redo (Edit tab)
-      * - Ctrl+X, Ctrl+C, Ctrl+V
-        - Cut, copy, paste (Edit tab)
-      * - Ctrl+A
-        - Select all (Edit tab)
+      .. list-table::
+         :header-rows: 1
+         :widths: 45 55
+
+         * - Keys
+           - Does
+         * - Ctrl+N
+           - New song
+         * - Ctrl+O
+           - Open
+         * - Ctrl+S
+           - Save
+         * - Ctrl+Shift+S
+           - Save as
+         * - Ctrl++ / Ctrl+- / Ctrl+0
+           - Bigger, smaller, default text size
+         * - F1
+           - User guide
+         * - Ctrl+Z, Ctrl+Y
+           - Undo, redo (Edit tab)
+         * - Ctrl+X, Ctrl+C, Ctrl+V
+           - Cut, copy, paste (Edit tab)
+         * - Ctrl+A
+           - Select all (Edit tab)
+
+   .. only:: ios
+
+      With a hardware keyboard attached (a Bluetooth or USB keyboard, or an iPad's
+      keyboard case); Command stands where the other editions use Ctrl:
+
+      .. list-table::
+         :header-rows: 1
+         :widths: 45 55
+
+         * - Keys
+           - Does
+         * - Command+N
+           - New song
+         * - Command+O
+           - Open
+         * - Command+S
+           - Save
+         * - Command+Shift+S
+           - Save as
+         * - Command++ / Command+- / Command+0
+           - Bigger, smaller, default text size
+         * - Command+Z, Command+Shift+Z
+           - Undo, redo (Edit tab)
+         * - Command+X, Command+C, Command+V
+           - Cut, copy, paste (Edit tab)
+         * - Command+A
+           - Select all (Edit tab)
+         * - Command+F, Option+Command+F
+           - Find, find and replace
 
 Color Coding Summary
 ====================
@@ -692,7 +724,7 @@ Application Limits
 These are the limits of the app's controls and forms. A directive you type
 yourself follows the tempo (20-400), time signature and capo limits too; a
 value outside them makes it an invalid directive. The :plat:`picker's|Insert form's` loop count (2 to 16
-on the desktop, 2 to 100 on Android) is
+on the desktop, 2 to 100 on :plat:`Android|Android|iOS`) is
 not a limit on typed loops, but a song stops after 5,000 chords once its loops
 are played out.
 

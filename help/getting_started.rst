@@ -113,9 +113,9 @@ The Main :plat:`Window|Screen`
 
       The Play tab, while a song plays.
 
-   #. **☰** -- opens the drawer: New song, Open…, your recent songs, Save as…,
+   #. **☰** -- opens the :plat:`|drawer|menu`: New song, Open…, your recent songs, Save as…,
       Export MIDI…, Export audio…, Export PDF…, and below them Settings, Examples, User guide, Quick start
-      and About.
+      and :plat:`|About.|About, with Diagnostics last.`
    #. **Song title** -- shows a • when there are unsaved changes. Tap it to
       rename the song.
    #. **Edit and Play tabs** -- switch between writing and listening. Switching
@@ -398,21 +398,41 @@ To save your chord sheet:
 
 .. only:: android
 
-   1. Tap the **Save** button (the disk icon) in the app bar (or press Ctrl+S on a
-      hardware keyboard)
-   2. For a new song, the system file picker opens: choose where to save it
-      (the device's storage, Downloads, Drive, or any other place it offers) and
-      enter a filename. The name starts as the song's first line of lyrics
-      ("Twinkle, twinkle, little star.txt"), or the name you gave it, or
-      "Untitled.txt" for a song without lyrics
-   3. Confirm
+   .. only:: not ios
+
+      1. Tap the **Save** button (the disk icon) in the app bar (or press Ctrl+S on a
+         hardware keyboard)
+      2. For a new song, the system file picker opens: choose where to save it
+         (the device's storage, Downloads, Drive, or any other place it offers) and
+         enter a filename. The name starts as the song's first line of lyrics
+         ("Twinkle, twinkle, little star.txt"), or the name you gave it, or
+         "Untitled.txt" for a song without lyrics
+      3. Confirm
+
+   .. only:: ios
+
+      1. Tap the **Save** button (the disk icon) in the app bar (or press Command+S on a
+         hardware keyboard)
+      2. For a new song, iOS's save sheet opens: type the name in the **Save as**
+         field and choose a folder (On My iPhone, iCloud Drive, or any other place
+         Files offers). The name starts as the song's first line of lyrics
+         ("Twinkle, twinkle, little star.txt"), or the name you gave it, or
+         "Untitled.txt" for a song without lyrics
+      3. Confirm
 
    A song you saved before is saved in place, without asking. To save a copy
    under another name or in another place, use **☰ → Save as…**. To rename the
    song, tap its title in the app bar.
 
-   If you leave the app with the Back button while there are unsaved changes,
-   it asks whether to save them first.
+   .. only:: not ios
+
+      If you leave the app with the Back button while there are unsaved changes,
+      it asks whether to save them first.
+
+   .. only:: ios
+
+      If you start a new song or open another one while there are unsaved changes,
+      the app asks whether to save them first.
 
 Your chord sheet is saved as a plain text file. You can open it in any text
 editor, but only Chord Notepad will play it back.
@@ -466,16 +486,30 @@ To open a saved chord sheet:
 
 .. only:: android
 
-   1. Open **☰ → Open…** (or press Ctrl+O on a hardware keyboard)
-   2. Pick your file in the system file picker
+   .. only:: not ios
 
-   Recent songs are listed right in the drawer, under **Recent**; tap one to
-   open it.
+      1. Open **☰ → Open…** (or press Ctrl+O on a hardware keyboard)
+      2. Pick your file in the system file picker
 
-   You can also open a ``.txt`` song from a file manager or another app: tap
-   the file and choose Chord Notepad under **Open with**. Some apps only let
-   Chord Notepad read the file; in that case **Save** asks where to save a
-   copy, like **Save as…**.
+      Recent songs are listed right in the drawer, under **Recent**; tap one to
+      open it.
+
+      You can also open a ``.txt`` song from a file manager or another app: tap
+      the file and choose Chord Notepad under **Open with**. Some apps only let
+      Chord Notepad read the file; in that case **Save** asks where to save a
+      copy, like **Save as…**.
+
+   .. only:: ios
+
+      1. Open **☰ → Open…** (or press Command+O on a hardware keyboard)
+      2. Pick your file in the Files picker
+
+      Recent songs are listed right in the menu, under **Recent**; tap one to open
+      it.
+
+      You can also open a ``.txt`` song from the Files app, or from another app with
+      **Open in…** or **Share**: choose Chord Notepad. Songs with other extensions,
+      such as ``.cho`` and ``.chordpro``, open only through **☰ → Open…**.
 
    A song you open any of these ways starts in the Play tab, ready to play.
 

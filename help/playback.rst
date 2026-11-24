@@ -179,17 +179,25 @@ While playing:
      plays. The voicing, tempo, time signature and key wait until you pause
      (see `Voicing Options`_ and :ref:`playback-song-defaults`).
 
-   Chord Notepad doesn't play in the background. Playback pauses, and stays
-   paused until you tap **▶**, when:
+   .. only:: not ios
 
-   * the app leaves the screen (you switch apps, go to the home screen or turn
-     the screen off);
-   * a call comes in, or another app starts playing audio;
-   * headphones are unplugged or a Bluetooth headset disconnects, so the song
-     doesn't suddenly play out loud through the speaker.
+      Chord Notepad doesn't play in the background. Playback pauses, and stays
+      paused until you tap **▶**, when:
 
-   A short sound from another app, such as a navigation prompt, doesn't pause
-   it: Android lowers the volume for a moment instead.
+      * the app leaves the screen (you switch apps, go to the home screen or turn
+        the screen off);
+      * a call comes in, or another app starts playing audio;
+      * headphones are unplugged or a Bluetooth headset disconnects, so the song
+        doesn't suddenly play out loud through the speaker.
+
+      A short sound from another app, such as a navigation prompt, doesn't pause
+      it: Android lowers the volume for a moment instead.
+
+   .. only:: ios
+
+      Chord Notepad doesn't play in the background. Playback pauses, and stays
+      paused until you tap **▶**, when the app leaves the screen (you switch apps,
+      go to the Home screen or lock the screen).
 
 .. only:: android
 

@@ -89,7 +89,7 @@ Showing and Resizing the Strip
    **In portrait**, the sheet sits below the text. Drag the small handle on
    its top edge to make it taller or shorter (up to about 60% of the screen).
 
-   **In landscape** (phones and tablets), the text is on the left, and the
+   **In landscape** :plat:`(phones and tablets)|(phones and tablets)|(iPhone and iPad)`, the text is on the left, and the
    chord sheet and a narrower player share the right column. Drag the
    vertical handle between them to change the width of that column, from 30%
    to 70% of the screen. With the sheet hidden, the text takes the whole

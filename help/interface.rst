@@ -2,7 +2,7 @@
 The User Interface
 ==================
 
-:plat:`This section covers all the menus, toolbars, and special tools in Chord Notepad.|This section covers every part of the screen, the drawer, and the special tools in Chord Notepad.`
+:plat:`This section covers all the menus, toolbars, and special tools in Chord Notepad.|This section covers every part of the screen, the drawer, and the special tools in Chord Notepad.|This section covers every part of the screen, the menu, and the special tools in Chord Notepad.`
 
 
 .. only:: desktop
@@ -736,24 +736,38 @@ The User Interface
 
    The bar across the top of the screen holds, from left to right:
 
-   * **☰** opens the drawer (see :ref:`android-drawer` below).
+   * **☰** opens the :plat:`|drawer|menu` (see :ref:`android-drawer` below).
    * **The song title.** A • after the name means there are unsaved changes.
      An untitled song shows "Untitled" until you save it or give it a name.
    * **The Edit and Play tabs.**
    * **Save** (the disk icon). It is greyed out while there are no unsaved
      changes.
 
-   Tap the title to **Rename** the song. The dialog shows the file's full name
-   ("Saved as …"); type the new name without the ``.txt``, which is kept. Some
-   storage places (a cloud drive, for example) don't allow renaming. Then the
-   app offers to save a copy under the new name instead. That includes songs
-   opened from **Downloads** in the file picker: open the same file through
-   the device's storage (its Download folder) and it renames in place.
+   .. only:: not ios
+
+      Tap the title to **Rename** the song. The dialog shows the file's full name
+      ("Saved as …"); type the new name without the ``.txt``, which is kept. Some
+      storage places (a cloud drive, for example) don't allow renaming. Then the
+      app offers to save a copy under the new name instead. That includes songs
+      opened from **Downloads** in the file picker: open the same file through
+      the device's storage (its Download folder) and it renames in place.
+
+   .. only:: ios
+
+      Tap the title to **Rename** the song. The dialog shows the file's full name
+      ("Saved as …"); type the new name without the ``.txt``, which is kept. Songs
+      the app keeps itself, such as the examples, and songs saved in the Chord
+      Notepad folder in Files, rename in place. A song you picked from another folder
+      or a cloud provider may refuse, because the app has no access to that folder.
+      Then the app offers to save a copy under the new name instead.
 
    .. platform-figure:: rename
       :platforms: android
       :alt: The Rename dialog: a text field with Amazing Grace selected, the
             note Saved as "Amazing Grace.txt", and Cancel and Rename buttons.
+      :ios-alt: The Rename dialog: a text field holding Amazing Grace with the
+                cursor after the name, the note Saved as "Amazing Grace.txt",
+                and Cancel and Rename buttons.
 
       Renaming a song.
 
@@ -828,11 +842,21 @@ The User Interface
    Switching to Edit while a song plays or is paused stops playback. Both tabs keep the same
    scroll position, so you don't lose your place when you switch.
 
-   Held sideways, the Play tab puts the text on the left and the chord sheet,
-   with the player under it, on the right. Drag the handle between the two
-   halves to give either side more room (from 30% to 70% of the width); the
-   app remembers it. A tablet does the same in landscape. With the chord sheet
-   hidden, the text takes the whole width and the player sits at the bottom.
+   .. only:: not ios
+
+      Held sideways, the Play tab puts the text on the left and the chord sheet,
+      with the player under it, on the right. Drag the handle between the two
+      halves to give either side more room (from 30% to 70% of the width); the
+      app remembers it. A tablet does the same in landscape. With the chord sheet
+      hidden, the text takes the whole width and the player sits at the bottom.
+
+   .. only:: ios
+
+      Held sideways, the Play tab puts the text on the left and the chord sheet,
+      with the player under it, on the right. Drag the handle between the two
+      halves to give either side more room (from 30% to 70% of the width); the
+      app remembers it. An iPad does the same in landscape. With the chord sheet
+      hidden, the text takes the whole width and the player sits at the bottom.
 
    .. platform-figure:: landscape-play
       :platforms: android
@@ -842,9 +866,16 @@ The User Interface
 
       The Play tab on a phone held sideways.
 
-   While a song plays, the screen stays on. Playback pauses by itself when you
-   leave the app, when another app starts playing sound or a call comes in, and
-   when you unplug your headphones.
+   .. only:: not ios
+
+      While a song plays, the screen stays on. Playback pauses by itself when you
+      leave the app, when another app starts playing sound or a call comes in, and
+      when you unplug your headphones.
+
+   .. only:: ios
+
+      While a song plays, the screen stays on. Playback pauses by itself when you
+      leave the app.
 
    .. _android-edit-ribbon:
 
@@ -1036,83 +1067,164 @@ The User Interface
 
    .. _android-drawer:
 
-   The Drawer
-   ==========
+   The :plat:`Drawer|Drawer|Menu`
+   ==================================
 
-   The ☰ button opens the drawer. Everything that isn't on the main screen is
-   here. To close it without picking anything, tap outside it or press Back.
+   .. only:: not ios
+
+      The ☰ button opens the drawer. Everything that isn't on the main screen is
+      here. To close it without picking anything, tap outside it or press Back.
+
+   .. only:: ios
+
+      The ☰ button opens the menu. Everything that isn't on the main screen is
+      here. To close it without picking anything, tap outside it. There is no edge
+      swipe: the menu opens with ☰ only.
 
    .. platform-figure:: drawer
       :platforms: android
+      :ios-alt: The menu: New song, Open, a Recent list with three songs, Save
+                as, Export MIDI, Export audio, Export PDF, Settings, Examples,
+                User guide, Quick start, About and Diagnostics.
+      :ios-caption: The menu.
       :alt: The drawer: New song, Open, a Recent list with three songs, Save
             as, Export MIDI, Export audio, Export PDF, Settings, Examples, User guide, Quick start and
             About.
 
       The drawer.
 
-   **New song**
-      Start a new, empty song. It opens in the Edit tab. If the current song
-      has unsaved changes, you're asked whether to save them first.
+   .. only:: not ios
 
-   **Open…**
-      Pick a song with the system file picker (the device's storage,
-      Downloads, Drive or any other place it offers). It opens in the Play
-      tab.
+      **New song**
+         Start a new, empty song. It opens in the Edit tab. If the current song
+         has unsaved changes, you're asked whether to save them first.
 
-   **Recent**
-      The songs you opened recently, listed right in the drawer. Tap one to open
-      it. The app keeps access to the songs you picked, and a song that has
-      been deleted or moved drops off the list. How many it remembers is a
-      setting (see :doc:`settings`).
+      **Open…**
+         Pick a song with the system file picker (the device's storage,
+         Downloads, Drive or any other place it offers). It opens in the Play
+         tab.
 
-   **Save as…**
-      Save the song under a new name or in a new place. (Plain Save is the disk
-      icon in the app bar.)
+      **Recent**
+         The songs you opened recently, listed right in the drawer. Tap one to open
+         it. The app keeps access to the songs you picked, and a song that has
+         been deleted or moved drops off the list. How many it remembers is a
+         setting (see :doc:`settings`).
 
-   **Export MIDI…**
-      Write the song as a ``.mid`` file. See :doc:`midi_export`.
+      **Save as…**
+         Save the song under a new name or in a new place. (Plain Save is the disk
+         icon in the app bar.)
 
-   **Export audio…**
-      Write the song as a ``.wav`` file that sounds the way Play does. See
-      :doc:`midi_export`.
+      **Export MIDI…**
+         Write the song as a ``.mid`` file. See :doc:`midi_export`.
 
-   **Export PDF…**
-      Write the song's text as a ``.pdf`` file to print or share. See
-      :doc:`midi_export`.
+      **Export audio…**
+         Write the song as a ``.wav`` file that sounds the way Play does. See
+         :doc:`midi_export`.
 
-   Below those, the app's own entries:
+      **Export PDF…**
+         Write the song's text as a ``.pdf`` file to print or share. See
+         :doc:`midi_export`.
 
-   **Settings**
-      The settings screens, including the Voicings editor. See :doc:`settings`.
+      Below those, the app's own entries:
 
-   **Examples**
-      The example songs that come with Chord Notepad. A sheet lists them by
-      file name (``01_quick_start.txt`` and so on); tap one to open it in the
-      Play tab. You get a copy that is stored inside the app, so you can edit
-      and save it. Tap the same example again and the unchanged copy reopens;
-      if you changed it (or it is open with unsaved edits), a new copy is made
-      with a number in the name, such as ``01_quick_start (2).txt``. The copies
-      show up in **Recent** as "name.txt (Examples)" and can be renamed. They
-      live only in the app's own storage: file managers don't see them, they
-      aren't backed up, and uninstalling the app deletes them. Use **Save
-      as…** to keep your own copy somewhere else.
+      **Settings**
+         The settings screens, including the Voicings editor. See :doc:`settings`.
 
-   **User guide**
-      This guide. It works offline, and F1 on a hardware keyboard opens it too.
-      Back goes to the page you read before, then back to your song.
+      **Examples**
+         The example songs that come with Chord Notepad. A sheet lists them by
+         file name (``01_quick_start.txt`` and so on); tap one to open it in the
+         Play tab. You get a copy that is stored inside the app, so you can edit
+         and save it. Tap the same example again and the unchanged copy reopens;
+         if you changed it (or it is open with unsaved edits), a new copy is made
+         with a number in the name, such as ``01_quick_start (2).txt``. The copies
+         show up in **Recent** as "name.txt (Examples)" and can be renamed. They
+         live only in the app's own storage: file managers don't see them, they
+         aren't backed up, and uninstalling the app deletes them. Use **Save
+         as…** to keep your own copy somewhere else.
 
-   **Quick start**
-      The short tour that opens the first time you start the app.
+      **User guide**
+         This guide. It works offline, and F1 on a hardware keyboard opens it too.
+         Back goes to the page you read before, then back to your song.
 
-   **About**
-      The version and build, the copyright, the licence (GNU AGPL-3.0 with
-      additional terms), a link to the source code, the no-warranty notice,
-      and **Open source licences**: the licences of everything the app is
-      built from. Copies from outside Google Play also have a **Support
-      development** link.
+      **Quick start**
+         The short tour that opens the first time you start the app.
 
-   There is no Exit entry. Press Back on the main screen to leave the app; if
-   the song has unsaved changes, it asks whether to save them first.
+      **About**
+         The version and build, the copyright, the licence (GNU AGPL-3.0 with
+         additional terms), a link to the source code, the no-warranty notice,
+         and **Open source licences**: the licences of everything the app is
+         built from. Copies from outside Google Play also have a **Support
+         development** link.
+
+      There is no Exit entry. Press Back on the main screen to leave the app; if
+      the song has unsaved changes, it asks whether to save them first.
+
+   .. only:: ios
+
+      **New song**
+         Start a new, empty song. It opens in the Edit tab. If the current song
+         has unsaved changes, you're asked whether to save them first.
+
+      **Open…**
+         Pick a song in the Files picker (On My iPhone, iCloud Drive or any other
+         place Files offers). It opens in the Play tab.
+
+      **Recent**
+         The songs you opened recently, listed right in the menu. Tap one to open
+         it. The app keeps access to the songs you picked, and a song that has
+         been deleted or moved drops off the list. How many it remembers is a
+         setting (see :doc:`settings`).
+
+      **Save as…**
+         Save the song under a new name or in a new place. (Plain Save is the disk
+         icon in the app bar.)
+
+      **Export MIDI…**
+         Write the song as a ``.mid`` file. See :doc:`midi_export`.
+
+      **Export audio…**
+         Write the song as a ``.wav`` file that sounds the way Play does. See
+         :doc:`midi_export`.
+
+      **Export PDF…**
+         Write the song's text as a ``.pdf`` file to print or share. See
+         :doc:`midi_export`.
+
+      Below those, the app's own entries:
+
+      **Settings**
+         The settings screens, including the Voicings editor. See :doc:`settings`.
+
+      **Examples**
+         The example songs that come with Chord Notepad. A sheet lists them by
+         file name (``01_quick_start.txt`` and so on); tap one to open it in the
+         Play tab. You get a copy that is stored inside the app, so you can edit
+         and save it. Tap the same example again and the unchanged copy reopens;
+         if you changed it (or it is open with unsaved edits), a new copy is made
+         with a number in the name, such as ``01_quick_start (2).txt``. The copies
+         show up in **Recent** as "name.txt (Examples)" and can be renamed. They
+         live only in the app's own storage: the Files app doesn't show them, and
+         deleting the app deletes them. Use **Save as…** to keep your own copy
+         somewhere else.
+
+      **User guide**
+         This guide. It works offline. Links to web sites open in Safari. Swipe from
+         the left edge to go back through the guide's pages; ← returns to your song.
+
+      **Quick start**
+         The short tour that opens the first time you start the app.
+
+      **About**
+         The version and build, the copyright, the licence (GNU AGPL-3.0 with
+         additional terms), a link to the source code, the no-warranty notice, a
+         link to support development on Ko-fi, and **Open source licences**: the
+         licences of everything the app is built from.
+
+      **Diagnostics**
+         A page with what the app's audio and Python engine report, and an **Export
+         diagnostics** button for when you report a problem.
+
+      There is no Exit entry. Leave the app as you leave any other iOS app.
 
 
 .. _chord-identifier:
@@ -1136,11 +1248,21 @@ The Chord Identifier
 
 .. only:: android
 
-   The Chord Identifier helps you figure out what chord you're hearing or playing.
-   Open it with **Identify** (the piano icon) in the Edit ribbon. On a phone it
-   fills the screen, and the ← at the top left closes it; held sideways, the
-   piano is on the left and the Notes field and the chords on the right. On a
-   tablet it opens as a dialog.
+   .. only:: not ios
+
+      The Chord Identifier helps you figure out what chord you're hearing or playing.
+      Open it with **Identify** (the piano icon) in the Edit ribbon. On a phone it
+      fills the screen, and the ← at the top left closes it; held sideways, the
+      piano is on the left and the Notes field and the chords on the right. On a
+      tablet it opens as a dialog.
+
+   .. only:: ios
+
+      The Chord Identifier helps you figure out what chord you're hearing or playing.
+      Open it with **Identify** (the piano icon) in the Edit ribbon. On an iPhone it
+      fills the screen, and the ← at the top left closes it; held sideways, the
+      piano is on the left and the Notes field and the chords on the right. On an
+      iPad it opens as a card over the screen.
 
    .. platform-figure:: identify
       :platforms: android

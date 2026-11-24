@@ -47,7 +47,7 @@ Settings
       Settings on a phone. Tap a page to open it.
 
    On a phone each page is a screen of its own, and the ← at the top goes back
-   to the list. On a tablet, or a phone held sideways, the list stays on the
+   to the list. On :plat:`a tablet, or a phone|a tablet, or a phone|an iPad, or an iPhone` held sideways, the list stays on the
    left and the page opens beside it.
 
    There's no Save button: each change is saved as you make it and takes
@@ -55,21 +55,25 @@ Settings
    everything else still is: a number you type is saved once it's a whole
    number in range (until then the field shows the range it accepts), and in
    a voicing only the field with the mistake keeps its old value (see
-   `Voicings`_). Leave with ← or Back when you're done. If something still
+   `Voicings`_). Leave with :plat:`← or Back|← or Back|←` when you're done. If something still
    has a mistake, the app lists each one first: where it is, what you typed,
    what's wrong, and what the field accepts. **Edit** takes you to the first
    one; **Discard** drops those values and leaves.
 
-   If the app closes before you've done either (you switch away and Android
-   stops it, say), the values with mistakes are kept, not used. The next time
+   If the app closes before you've done either (you switch away and :plat:`Android
+   stops it|Android
+   stops it|iOS
+   ends the app`, say), the values with mistakes are kept, not used. The next time
    you open Settings they're back in their fields, still marked, and a note at
    the top offers **Edit** and **Discard** again.
 
    The Voicing sheet in the Play tab has an **Edit voicings…** entry that opens
    the Voicings editor directly.
 
-   In the version from Google Play, a card above the pages offers the optional
-   supporter purchase, or shows your supporter badge once you've bought it.
+   .. only:: not ios
+
+      In the version from Google Play, a card above the pages offers the optional
+      supporter purchase, or shows your supporter badge once you've bought it.
 
 
 General
@@ -212,8 +216,15 @@ next new or opened song.
    A song's own ``{bpm}`` and ``{time}`` directives always win over them
    while it plays (see :doc:`interface`).
 
-   The sound itself has no settings on Android: the app always uses its
-   built-in instruments and the phone's normal audio output.
+   .. only:: not ios
+
+      The sound itself has no settings on Android: the app always uses its
+      built-in instruments and the phone's normal audio output.
+
+   .. only:: ios
+
+      The sound itself has no settings on iOS: the app always uses its
+      built-in instruments and the iPhone's or iPad's normal audio output.
 
 .. only:: desktop
 
@@ -296,7 +307,7 @@ you there.
    group starts with its built-in voicings, in grey with a lock: the four
    guitars and the ukulele, the default piano, the four ensemble presets.
    Your own voicings follow. On a phone the list is a screen of its own: tap
-   a voicing to open its form full screen, and ← or Back returns to the
+   a voicing to open its form full screen, and :plat:`← or Back|← or Back|←` returns to the
    list. The **Remove voicing** button is in the voicing's own form, and asks
    before it removes anything.
 
@@ -333,7 +344,7 @@ you there.
 
       The Add voicing menu.
 
-   On a tablet held sideways, the pages, the list and the form all fit on one
+   On :plat:`a tablet|a tablet|an iPad` held sideways, the pages, the list and the form all fit on one
    screen:
 
    .. platform-figure:: settings-voicings-tablet
@@ -343,6 +354,11 @@ you there.
             7-String selected, and its
             form on the right with Name, Model, Remove voicing,
             Strings and the fret and span fields.
+      :ios-alt: Settings on an iPad in landscape: the pages on the left, the
+                Voicings list in the middle with the locked built-ins and My
+                7-String selected, and its form on the right with Name, Model,
+                Remove voicing, Strings and the fret and span fields.
+      :ios-caption: Settings › Voicings on an iPad.
 
       Settings › Voicings on a tablet.
 

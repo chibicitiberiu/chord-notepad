@@ -28,31 +28,59 @@ Exporting MIDI
 
 .. only:: android
 
-   1. Tap **☰** at the top left and choose **Export MIDI…**.
-   2. Android's file picker opens, with the song's name and ``.mid`` filled
-      in (for a song you haven't saved yet, its first line of lyrics, or
-      ``Untitled.mid`` without lyrics). Pick a folder, on the phone or in any
-      storage app such as Google Drive, change the name if you like, and tap
-      **Save**.
-   3. Chord Notepad renders the song and writes the file. The status says
-      "Exporting MIDI: …" while it works and "Exported MIDI: …" when the file
-      is written: on the player's status line in the Play tab, or at the
-      bottom of the screen in the Edit tab.
+   .. only:: not ios
+
+      1. Tap **☰** at the top left and choose **Export MIDI…**.
+      2. Android's file picker opens, with the song's name and ``.mid`` filled
+         in (for a song you haven't saved yet, its first line of lyrics, or
+         ``Untitled.mid`` without lyrics). Pick a folder, on the phone or in any
+         storage app such as Google Drive, change the name if you like, and tap
+         **Save**.
+      3. Chord Notepad renders the song and writes the file. The status says
+         "Exporting MIDI: …" while it works and "Exported MIDI: …" when the file
+         is written: on the player's status line in the Play tab, or at the
+         bottom of the screen in the Edit tab.
+
+   .. only:: ios
+
+      1. Tap **☰** at the top left and choose **Export MIDI…**.
+      2. Chord Notepad renders the song and writes the file. The status says
+         "Exporting MIDI: …" while it works and "Exported MIDI: …" when the file is
+         ready: on the player's status line in the Play tab, or at the bottom of the
+         screen in the Edit tab.
+      3. iOS's save sheet opens with the song's name and ``.mid`` (for a song you
+         haven't saved yet, its first line of lyrics, or ``Untitled.mid`` without
+         lyrics). Choose a folder in Files, iCloud Drive or another provider, change
+         the name in the **Save as** field if you like, and confirm. If you cancel the
+         sheet, nothing is saved, even though the status has already said "Exported".
 
 .. platform-figure:: drawer
    :platforms: android
    :alt: The open drawer: New song, Open, the recent songs, Save as, Export
          MIDI, Export audio, Export PDF, Settings, Examples, User guide, Quick start and About.
+   :ios-alt: The open menu: New song, Open, the recent songs, Save as, Export
+             MIDI, Export audio, Export PDF, Settings, Examples, User guide,
+             Quick start, About and Diagnostics.
+   :ios-caption: **Export MIDI…**, **Export audio…** and **Export PDF…** are in
+      the ☰ menu, under Save as….
 
    **Export MIDI…**, **Export audio…** and **Export PDF…** are in the ☰
    drawer, under Save as….
 
 .. only:: android
 
-   The exported file is a copy: the song you're editing stays open as it was,
-   and the ``.mid`` file doesn't join the recent songs. If the export fails
-   (a song without chords, or a folder the app can't write to), a message
-   says why.
+   .. only:: not ios
+
+      The exported file is a copy: the song you're editing stays open as it was,
+      and the ``.mid`` file doesn't join the recent songs. If the export fails
+      (a song without chords, or a folder the app can't write to), a message
+      says why.
+
+   .. only:: ios
+
+      The exported file is a copy: the song you're editing stays open as it was,
+      and the ``.mid`` file doesn't join the recent songs. If the export fails
+      (a song without chords, say), a message says why.
 
 There are no export options to set: the export uses whatever is currently set
 for voicing, instrument, and tempo, described below.
@@ -158,9 +186,17 @@ playing everything at a single flat speed.
 
 .. only:: android
 
-   On the phone, open the file from the folder you saved it to with any app
-   that plays or edits MIDI files. To work on it on a computer, save it to a
-   cloud folder (or copy it over USB) and open it there.
+   .. only:: not ios
+
+      On the phone, open the file from the folder you saved it to with any app
+      that plays or edits MIDI files. To work on it on a computer, save it to a
+      cloud folder (or copy it over USB) and open it there.
+
+   .. only:: ios
+
+      Open the file from the Files app with any app that plays or edits MIDI
+      files. To work on it on a computer, save it to iCloud Drive or another cloud
+      folder and open it there.
 
 
 A Couple of Gotchas
@@ -209,14 +245,27 @@ audio editor can open.
 
 .. only:: android
 
-   1. Tap **☰** at the top left and choose **Export audio…**.
-   2. Android's file picker opens with the song's name and ``.wav`` filled
-      in, picked the same way as for MIDI. Pick a folder, change the name if
-      you like, and tap **Save**.
-   3. Chord Notepad plays the song into the file, faster than real time. The
-      status counts up while it works ("Exporting audio… 40%") and says
-      "Exported audio: …" when the file is written: on the player's status
-      line in the Play tab, or at the bottom of the screen in the Edit tab.
+   .. only:: not ios
+
+      1. Tap **☰** at the top left and choose **Export audio…**.
+      2. Android's file picker opens with the song's name and ``.wav`` filled
+         in, picked the same way as for MIDI. Pick a folder, change the name if
+         you like, and tap **Save**.
+      3. Chord Notepad plays the song into the file, faster than real time. The
+         status counts up while it works ("Exporting audio… 40%") and says
+         "Exported audio: …" when the file is written: on the player's status
+         line in the Play tab, or at the bottom of the screen in the Edit tab.
+
+   .. only:: ios
+
+      1. Tap **☰** at the top left and choose **Export audio…**.
+      2. Chord Notepad plays the song into the file, faster than real time. The
+         status counts up while it works ("Exporting audio… 40%") and says
+         "Exported audio: …" when the file is ready: on the player's status line in
+         the Play tab, or at the bottom of the screen in the Edit tab.
+      3. iOS's save sheet opens with the song's name and ``.wav``, picked the same
+         way as for MIDI. Choose a folder, change the name in the **Save as** field if
+         you like, and confirm. If you cancel the sheet, nothing is saved.
 
 There is no dialog with options. The file sounds like Play does at the moment
 you choose the file name:
@@ -257,9 +306,16 @@ message says why.
 
 .. only:: android
 
-   Android makes the file as soon as you tap **Save** in the picker, so an
-   export that fails after that leaves it behind, empty or cut short. The
-   message names it; delete it in your files app if you don't need it.
+   .. only:: not ios
+
+      Android makes the file as soon as you tap **Save** in the picker, so an
+      export that fails after that leaves it behind, empty or cut short. The
+      message names it; delete it in your files app if you don't need it.
+
+   .. only:: ios
+
+      Chord Notepad makes the file before the save sheet opens, so an export that
+      fails leaves nothing behind. If you cancel the sheet, nothing is saved.
 
 .. only:: desktop
 
@@ -285,13 +341,25 @@ along.
 
 .. only:: android
 
-   1. Tap **☰** at the top left and choose **Export PDF…**.
-   2. Android's file picker opens with the song's name and ``.pdf`` filled
-      in, picked the same way as for MIDI. Pick a folder, change the name if
-      you like, and tap **Save**.
-   3. The status says "Exported PDF: …" when the file is written: on the
-      player's status line in the Play tab, or at the bottom of the screen in
-      the Edit tab.
+   .. only:: not ios
+
+      1. Tap **☰** at the top left and choose **Export PDF…**.
+      2. Android's file picker opens with the song's name and ``.pdf`` filled
+         in, picked the same way as for MIDI. Pick a folder, change the name if
+         you like, and tap **Save**.
+      3. The status says "Exported PDF: …" when the file is written: on the
+         player's status line in the Play tab, or at the bottom of the screen in
+         the Edit tab.
+
+   .. only:: ios
+
+      1. Tap **☰** at the top left and choose **Export PDF…**.
+      2. iOS's save sheet opens with the song's name and ``.pdf``, picked the same
+         way as for MIDI. Choose a folder, change the name in the **Save as** field if
+         you like, and confirm.
+      3. The status says "Exported PDF: …" when the file is ready: on the player's
+         status line in the Play tab, or at the bottom of the screen in the Edit tab.
+         If you cancel the save sheet, nothing is saved.
 
 What the pages look like:
 
@@ -327,6 +395,13 @@ recent songs.
 
 .. only:: android
 
-   Android makes the file as soon as you tap **Save** in the picker, so an
-   export that fails after that leaves it behind, empty. The message names
-   it; delete it in your files app if you don't need it.
+   .. only:: not ios
+
+      Android makes the file as soon as you tap **Save** in the picker, so an
+      export that fails after that leaves it behind, empty. The message names
+      it; delete it in your files app if you don't need it.
+
+   .. only:: ios
+
+      Chord Notepad makes the file before the save sheet opens, so an export that
+      fails leaves nothing behind. If you cancel the sheet, nothing is saved.

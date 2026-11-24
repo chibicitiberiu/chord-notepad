@@ -151,7 +151,7 @@ Workflow Tips
 
 .. only:: android
 
-   .. rubric:: On a Phone or Tablet
+   .. rubric:: :plat:`On a Phone or Tablet|On a Phone or Tablet|On an iPhone or iPad`
 
    * **Write in Edit, listen in Play.** Edit is for typing; Play freezes the
      text so a tap plays a chord instead of opening the keyboard. Songs you
@@ -160,12 +160,14 @@ Workflow Tips
    * **Turn the phone sideways for the chord sheet.** In landscape the sheet
      sits beside the text instead of under it, so you see more of both.
      Drag the handle between them to give the sheet more or less room (see
-     :doc:`chord_sheet`). On a tablet the same layout shows a lot more of
+     :doc:`chord_sheet`). :plat:`On a tablet|On a tablet|On an iPad` the same layout shows a lot more of
      the song.
    * **Pinch the text** with two fingers to make it bigger or smaller, in
      either tab. On a music stand, a bigger font is easier to read.
-   * **Use a hardware keyboard** for longer songs. Ctrl+S saves, Ctrl+Z
-     undoes, and the other shortcuts are listed in :doc:`reference`.
+   * **Use a hardware keyboard** for longer songs. :plat:`Ctrl+S saves, Ctrl+Z
+     undoes,|Ctrl+S saves, Ctrl+Z
+     undoes,|Command+S saves, Command+Z
+     undoes,` and the other shortcuts are listed in :doc:`reference`.
    * **Typing in landscape** leaves little room above the keyboard, so the
      app bar and the Edit ribbon step aside and a small Undo / Redo chip
      floats above the keyboard. They come back when the keyboard closes.
@@ -279,8 +281,15 @@ No Sound?
 
 .. only:: android
 
-   **Check your device volume:**
-   Make sure the media volume is turned up and not muted.
+   .. only:: not ios
+
+      **Check your device volume:**
+      Make sure the media volume is turned up and not muted.
+
+   .. only:: ios
+
+      **Check your device volume:**
+      Make sure the volume is turned up and not muted.
 
 .. only:: desktop
 
@@ -305,11 +314,19 @@ No Sound?
    **Check where the sound goes:**
    If headphones or a Bluetooth speaker are connected, the sound plays there.
 
-   **Check whether playback was paused:**
-   Playback pauses when you leave the app, when a call comes in or another
-   app starts playing, and when headphones are unplugged or a Bluetooth
-   device disconnects. The status line then says "Paused". Tap **▶** to
-   resume.
+   .. only:: not ios
+
+      **Check whether playback was paused:**
+      Playback pauses when you leave the app, when a call comes in or another
+      app starts playing, and when headphones are unplugged or a Bluetooth
+      device disconnects. The status line then says "Paused". Tap **▶** to
+      resume.
+
+   .. only:: ios
+
+      **Check whether playback was paused:**
+      Playback pauses when you leave the app. The status line then says "Paused".
+      Tap **▶** to resume.
 
 .. only:: desktop
 
@@ -318,9 +335,17 @@ No Sound?
 
 .. only:: android
 
-   **Try restarting the application:**
-   Sometimes audio systems need a fresh start. Close Chord Notepad from the
-   recent apps screen and open it again.
+   .. only:: not ios
+
+      **Try restarting the application:**
+      Sometimes audio systems need a fresh start. Close Chord Notepad from the
+      recent apps screen and open it again.
+
+   .. only:: ios
+
+      **Try restarting the application:**
+      Sometimes audio systems need a fresh start. Swipe Chord Notepad away in the
+      app switcher and open it again.
 
 Chords Not Detected?
 --------------------
@@ -425,11 +450,21 @@ accented letters; save it as UTF-8 in another editor first.
 
 .. only:: android
 
-   **Check the file type:**
-   The file picker in **☰ → Open…** lists every file, so a song with an
-   unusual extension still shows up and opens as text. A file that isn't
-   plain text (a PDF or a word-processor document, say) won't open as a
-   song: copy its text into a new song instead.
+   .. only:: not ios
+
+      **Check the file type:**
+      The file picker in **☰ → Open…** lists every file, so a song with an
+      unusual extension still shows up and opens as text. A file that isn't
+      plain text (a PDF or a word-processor document, say) won't open as a
+      song: copy its text into a new song instead.
+
+   .. only:: ios
+
+      **Check the file type:**
+      The Files picker in **☰ → Open…** lists every file, so a song with an
+      unusual extension still shows up and opens as text. A file that isn't
+      plain text (a PDF or a word-processor document, say) won't open as a
+      song: copy its text into a new song instead.
 
 .. only:: desktop
 
@@ -460,13 +495,25 @@ Forgetting to Save
 
 .. only:: android
 
-   A dot (•) after the song's title in the app bar means there are unsaved
-   changes. Save regularly with the Save button (the disk icon) in the app
-   bar, or Ctrl+S on a hardware keyboard.
+   .. only:: not ios
 
-   If Android closes Chord Notepad while it's in the background, your unsaved
-   text is still there when you come back. That's a safety net, not a save:
-   swiping the app away from the recent apps screen drops it.
+      A dot (•) after the song's title in the app bar means there are unsaved
+      changes. Save regularly with the Save button (the disk icon) in the app
+      bar, or Ctrl+S on a hardware keyboard.
+
+      If Android closes Chord Notepad while it's in the background, your unsaved
+      text is still there when you come back. That's a safety net, not a save:
+      swiping the app away from the recent apps screen drops it.
+
+   .. only:: ios
+
+      A dot (•) after the song's title in the app bar means there are unsaved
+      changes. Save regularly with the Save button (the disk icon) in the app bar,
+      or Command+S on a hardware keyboard.
+
+      iOS can end an app that is in the background to free memory, and Chord
+      Notepad doesn't keep your unsaved text when that happens. Save before you
+      switch away.
 
 Using Wrong Notation Toggle
 ---------------------------
