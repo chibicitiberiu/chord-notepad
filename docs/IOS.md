@@ -14,11 +14,13 @@ CI builds the app and tests it on iPhone and iPad simulators with no Apple
 account (section D, `.github/workflows/ios.yml`). The screen slices so far:
 the chord sheet ("The chord sheet" below), the song editor with the Edit
 ribbon ("The song editor") and the main screen with the Edit / Play tabs, the
-player and the ☰ menu ("The main screen"), and file handling: Open, New,
+player and the ☰ menu ("The main screen"), file handling: Open, New,
 Save, Save As, Recent, Export MIDI and audio, Examples and songs opened from
-Files ("Files"). Still to come: enrollment, signing and TestFlight (A, E),
-then the other screens (F, in `BACKLOG.md`): the player's and the ribbon's
-sheets, Settings, the guide, About and Export PDF.
+Files ("Files"), and the player's sheets with the ribbon's tools: Voicing,
+Instrument, Playback speed, Playback settings, Insert, Transpose, Suggest
+Capo and the chord identifier ("The player's sheets and the ribbon's
+tools"). Still to come: enrollment, signing and TestFlight (A, E), then the
+other screens (F, in `BACKLOG.md`): Settings, the guide, About and Export PDF.
 
 ## Decisions and constraints
 
@@ -58,8 +60,11 @@ ios/
   ChordNotepad/                 the app target (SwiftUI, Swift 5 mode)
     App/                        AppModel (the session), paths, the document store (AppDocumentStore,
                                 ScopedFileAccess, DocumentPicking), diagnostics, self-test
-    Screens/                    MainScreen (pure), MainView (live), AppBar, PlayerBar, PlayerSheets,
-                                Overlays (menu, dialogs, snackbar), DiagnosticsView (self-test, export)
+    Screens/                    MainScreen (pure), MainView (live), AppBar, PlayerBar, PlayerSheets (the
+                                player's and Insert's sheets), Overlays (menu, dialogs, snackbar),
+                                DiagnosticsView (self-test, export)
+    Tools/                      ToolDialogs (Transpose, Suggest Capo, the Insert dialogs, Manual… speed,
+                                the tempo), ChordIdentifierView (the identifier and its piano)
     Editor/                     the song editor: EditorTextView and EditorHost, EditorController, SongEditor,
                                 PlayText (Play mode), EditRibbon, EditorAppearance, EditorPreview, EditorScript (CI)
     ChordSheet/                 the chord sheet: CGSheetCanvas, ChordSheetSource, ChordSheetPane
@@ -87,6 +92,10 @@ ios/
                                 styles, paste and wrap, scrolling, shortcuts, directive hints
       Main/                     the main screen's logic: modes, layout, playback, rename, menus,
                                 playhead gestures, snackbars, the screen's own state, AppColors
+      Sheets/                   the player's sheets: routes, speed, Playback settings' rows, Insert's
+                                entries, SheetController (every tap in a sheet or a tool, as commands)
+      Tools/                    the ribbon's tools: forms, the session's check, Suggest Capo's pick,
+                                the identifier's piano and model, RibbonEdges
       Files/                    file handling's logic: document ids, the store (FileDocumentStore over
                                 DocumentFileAccess), the bookmark table, examples, the session's requests
       Python/chordnotepad_ios/  the Python glue (host.py, diagnostics.py), shipped as a resource
@@ -141,7 +150,7 @@ it at import even with the fake player.
 ## Running the tests
 
 ```sh
-make ios-kit-test      # swift test: 275 tests, about 20 s after the first build
+make ios-kit-test      # swift test: 334 tests, about 30 s after the first build
 make ios-bridge-gen    # regenerate Generated/Bridge.swift after a schema change
 make ios-fixtures      # rewrite ios/Fixtures after an intended output change
 ```
@@ -186,8 +195,12 @@ What the tests cover:
 | `PlayheadGesturesTests` | Android's `PlayheadGesturesTest`, case for case, and the marker's shape |
 | `FileDocumentStoreTests` | Android's `SafDocumentStoreTest` as behaviour on real files (`PlainFileAccess`): raw bytes, the desktop's wording with the document's location, a recent file that has gone (named from its entry, dropped with its bookmark), the 5 MB cap, a cloud file not downloaded, the same file picked twice, a stale bookmark made again under its id, a moved file, a relaunch, corrupt lists, writes in place, `copyFromFile`, the shipped song, example copies (rename, a taken name), rename keeping the id, the recent list's order, cap and pruning, exports and their written callback; the id scheme |
 | `ExampleLibraryTests` | Android's `ExampleLibraryTest`, case for case (ids are `app:examples/<name>`) |
-| `SessionRequestsTests` | Android's `RequestControllerTest` and `DocumentPickersTest` as behaviour: the snapshot's pending request, a picker once per request, a stale result ignored, Save As's move, an export answered at once with the store's file, the unsaved-changes answers, Insert and PDF requests cancelled once |
-| `IntegrationTests` | one real session: restore a draft, code-point highlights, save through the store, a refused rename, a decoded chord sheet buffer; open songs from the store, save a typed change, Save As to a new id, Export MIDI through the store, the unsaved-changes question on Open and New (Don't save, Cancel), a recent song that has gone; the fifteen scenes (three of them frozen while a chord sounds) |
+| `SessionRequestsTests` | Android's `RequestControllerTest` and `DocumentPickersTest` as behaviour: the snapshot's pending request, a picker once per request, a stale result ignored, Save As's move, an export answered at once with the store's file, the unsaved-changes answers, an Insert dialog's fields checked and answered (Cancel answers null), PDF requests cancelled once |
+| `PlayerSheetsTests` | Android's `SheetRouteTest`, case for case (the instrument's two levels, the speed dialog, typed and snapped speeds, the badge, the pill and Write into song), the slider letting go once the session has its value, Manual…'s check, Playback settings' rows and choices, Insert's entries |
+| `ToolsTests` | Android's `ToolFormsTest` and `DirectiveVerdictTest`, case for case (selections in code points, Transpose's range, each directive's answer, loop targets, key lists, Suggest Capo's pick and Apply, a stale or foreign check ignored), the messages in the fields' order, the tools' commands from the editor's model, `RibbonEdges` |
+| `IdentifierTests` | Android's `IdentifierTest`, case for case: the piano's keys and hit testing, labels in either notation, the model's field and pick, a notation switch, the layout, key looks, sounding keys and their token |
+| `SheetControllerTests` | every tap in the sheets and the tools through the reducer: the route, the dialogs' fields, the commands (speed, Playback settings and its locked reason, voicing, instrument, Insert, Transpose with and without a selection, an Insert dialog checked as it changes, Suggest from Insert Capo, Suggest Capo's pick and Apply, the identifier) |
+| `IntegrationTests` | one real session: restore a draft, code-point highlights, save through the store, a refused rename, a decoded chord sheet buffer; open songs from the store, save a typed change, Save As to a new id, Export MIDI through the store, the unsaved-changes question on Open and New (Don't save, Cancel), a recent song that has gone; the speed and its Reset, Write into song, every Insert request with the session's check, an answered Insert, Suggest Capo scored and applied, the identifier naming Cmaj7 and its Insert, Transpose of the song and of a selection; the twenty-five scenes (three of them frozen while a chord sounds) |
 
 ## The Swift kit
 
@@ -288,7 +301,7 @@ Regenerate after changing a DTO or a command: first the schema
 
 ### Fixtures for the preview catalog
 
-`IntegrationTests` records fifteen scenes into `ios/Fixtures/`: `empty_song`,
+`IntegrationTests` records twenty-five scenes into `ios/Fixtures/`: `empty_song`,
 `quick_start_edit`, `play_with_chord_sheet` (the complete example with the
 chord sheet shown as the piano roll and the playhead on the third chord),
 `errors` (a document that can't be opened, a rename the storage refuses),
@@ -308,8 +321,19 @@ quick-start song after `convert_notation european`), then the file scenes:
 and the song saved earlier), `export_done` (the lullaby's copy, saved with
 Save As and reopened from Recent so the scene carries its text, exported as
 MIDI: "Exported MIDI: Lullaby (2).mid") and `discard_question` (a session edit,
-then New: the scene ends on `ConfirmDiscardRequest`). A fixture has no
-answers, so a request in it stays pending; only the question draws. Each scene comes after
+then New: the scene ends on `ConfirmDiscardRequest`), then the sheets' and
+tools' scenes on Amazing Grace, as Android's help screenshots show it
+(`android/tools/help_shots.json`, the songs in `android/tools/help_shot_songs/`):
+`player_sheets` (the tempo set by `{bpm: 90}`, 3/4 and G as the song's own
+values, the speed at 125 %, Steel Guitar), `insert_bpm`, `insert_time`,
+`insert_key`, `insert_capo`, `insert_label` and `insert_loop` (each ends on
+its `InsertDirectiveRequest`, the cursor after "me"; the tempo's carries the
+session's check of "999", the label's a clean check of "chorus"),
+`grace_edit` (the song restored again, nothing pending), `capo_advice`
+(Suggest Capo scored for the whole song) and `identifier_cmaj7` (C, E, G and
+B selected, Cmaj7 played). A fixture has no answers, so a request in it
+stays pending; only the question draws, and the scenes after the Insert
+requests start from a fresh restore. Each scene comes after
 the ones whose states it would change, so theirs stay as they were; the
 editor's come last, with the sheet hidden again. A scene starts at the mark
 before its song's `restore_draft`, so it carries the `TextEdited` with the
@@ -630,9 +654,6 @@ Android's `ui/editor/` with the Edit ribbon (`ui/main/EditRibbon.kt`).
 
 Deliberate differences from Android:
 
-- The ribbon has Undo, Redo, AB/Do and Convert. Insert, Transpose, Capo and
-  Identify open sheets that come with later slices; until then the row fits
-  every screen, so it has no chevron or fades (`RibbonEdges` isn't ported).
 - Hardware keys use Command, not Ctrl; redo is Shift-Command-Z (no
   Command-Y). The Qt desktop's line commands come along: Command-/ (toggle
   comment), Command-D (duplicate), Shift-Command-K (delete lines) and
@@ -712,9 +733,8 @@ The third slice: the app's frame, a port of Android's `ui/main/`
   ring while the song renders), metronome, speed (with its badge) and the
   chord sheet's toggle, then the status line ("Bar 5/56 · Playing G", the
   session's `StatusState`). The voicing button is greyed while a song plays
-  and a tap says why (`locked_reason`). Voicing and Instrument open lists
-  from the session's menus (`set_voicing`, `set_instrument`); Speed and the
-  pill open sheets that only show the values until the sheets slice.
+  and a tap says why (`locked_reason`). The pill, Voicing, Instrument and
+  Speed open their sheets ("The player's sheets and the ribbon's tools").
 - **Rename** (tap the title): the name without its extension, "Saved as
   “name.txt”" or why the name can't be used under it; a name the session
   refuses stays in the dialog with the reason, a storage that can't rename
@@ -740,7 +760,9 @@ The third slice: the app's frame, a port of Android's `ui/main/`
 - **Launch hooks:** `-CNScreen selftest` opens Diagnostics,
   `-CNScreen chordsheet` opens Play with the sheet shown, `-CNScreen editor`
   switches to Edit before typing, `-CNScreen menu` opens the menu,
-  `-CNScreen export` exports the song as audio ("Files").
+  `-CNScreen export` exports the song as audio ("Files"), `-CNScreen speed`,
+  `insert`, `capo` and `identify` open a sheet or a tool ("The player's sheets
+  and the ribbon's tools").
 
 Deliberate differences from Android:
 
@@ -749,8 +771,8 @@ Deliberate differences from Android:
   drawer is open, and an edge swipe would fight the marker's grab strip at
   a line's first chord). It lists Diagnostics, which Android doesn't have.
 - The dialogs (rename, a refused rename) are cards in the app's colours over
-  a dimmed screen, so the catalog draws them; Diagnostics and the player's
-  lists are iOS sheets.
+  a dimmed screen, so the catalog draws them; Diagnostics and Examples are
+  iOS sheets.
 - Snackbars are drawn by the screen (no Material snackbar host); a greyed
   button's reason is a short snackbar (Android: a Toast).
 - The screen stays awake while a song plays through the idle timer.
@@ -760,8 +782,8 @@ Deliberate differences from Android:
 
 What CI doesn't test: a finger on the marker (the scrub's recognizer and
 the scroll views waiting for it), the long-press and its card, the menu,
-the dialogs and the sheets live (the catalog draws them), the keyboard
-collapsing the header live, rotation, VoiceOver.
+the dialogs live (the catalog draws them), the keyboard collapsing the
+header live, rotation, VoiceOver.
 
 ### Files
 
@@ -921,6 +943,106 @@ isn't downloaded, renaming a picked file, a song opened from the Files app
 or another app's "Open in…" (`onOpenURL` is called directly), an export
 whose picker is cancelled, and the live dialogs.
 
+### The player's sheets and the ribbon's tools
+
+The fifth slice, ported from Android's `ui/sheets/` (`PickerSheet.kt`,
+`PlayerSheets.kt`, `SongDefaultsSheet.kt`, `SheetRoute.kt`), `ui/tools/`
+(`ToolDialogs.kt`, `ToolForms.kt`, `ToolActions.kt`, `DirectiveVerdict.kt`),
+`ui/identifier/` and the ribbon's four tools (`EditRibbon.kt`). The session
+does the work (`transpose`, `request_insert_directive` and `check_directive`,
+`capo_advice_*`, `identifier_*`, `insert_chord`, `set_multiplier_pct`,
+`set_bpm_text`, `set_time_signature`, `set_key`, `write_song_defaults`);
+nothing in the core or the schema changed.
+
+- **In the kit** (`Sources/ChordNotepadKit/Sheets/` and `Tools/`, tested on
+  Linux): the routes (`MainRoute.instrument(family:)`, `.speed(manual:)`,
+  `.insert`, `.transpose(selection:)`, `.identify`, with Android's `back()`
+  and `afterSheetDismissed()`), the speed's limits, snapping and texts
+  (`parseSpeedPct`, `snapSpeedPct`, `speedPctText`, `SpeedSlider`,
+  `SpeedEntry`), Playback settings' rows (`songDefaultRows`,
+  `songDefaultChoice`, `anythingToWrite`, `canWrite`), `insertEntries`,
+  `TransposeForm`, `DirectiveKind` (its fields, title and hint),
+  `DirectiveForm`, `DirectiveVerdict` (the session's check for exactly these
+  fields; the messages in the fields' order, since a JSON object has none in
+  Swift), `loopChoices`, `keyChoices`, `capoChoice`, `capoCanApply`,
+  `PianoKeyboard`, `KeyLook`, `IdentifierModel`, `identifierLayout`,
+  `RibbonEdges`, and the tools' commands on `EditorModel` (the text first,
+  the selection and cursor in code points). `SheetController.swift` is one
+  reducer, `MainUiState.handle(_:snapshot:editor:)`: every tap in a sheet, a
+  tool or their dialogs is a `SheetEvent`, and it returns the commands, the
+  request it answered, a notice or where to put the caret. The dialogs'
+  fields are the screen's (`MainUiState.tools`), so the catalog sets them.
+  `SessionSnapshot` keeps `CapoAdviceState`, `IdentifierState` and
+  `DirectiveCheck`; an `InsertDirectiveRequest` is a dialog now, not
+  cancelled.
+- **In the app**: `Screens/PlayerSheets.swift` (`BottomSheet`, Android's
+  `PickerSheet`: a handle, the title row, the body, the actions under a
+  divider; `SheetRow`, `SheetSection`, the text and Done buttons, the radio
+  mark, `DropdownChip`; the Voicing, Instrument, Speed, Playback settings and
+  Insert sheets), `Tools/ToolDialogs.swift` (`ToolDialog`, `OutlinedField`,
+  `DialogPicker`, `ValueStepper`, `Spinner`; Manual…, the tempo, Transpose,
+  Suggest Capo, the Insert dialogs) and `Tools/ChordIdentifierView.swift`
+  (the identifier and `PianoView`, a `Canvas`). `MainScreen` draws them over
+  itself from the route, the pending request and `CapoAdviceState.active`;
+  `AppModel.sheet(_:)` runs the reducer. The ribbon gains Insert, Transpose,
+  Capo and Identify (Android's icons) and scrolls sideways when it doesn't
+  fit.
+- **The flows**, as Android's: Voicing and Instrument apply a choice at once
+  and stay open (Done closes); Instrument opens a family's programs, ← goes
+  back. Speed sends each new 5 % stop while the finger moves; Manual… checks
+  12.5–400 before OK. Playback settings shows a value a directive sets as
+  "Set by `{bpm: 90}` in the song · Edit" (Edit goes to Edit mode with the
+  caret on the directive); the others are dropdowns (the tempo a typed
+  dialog) for this song only; Write into song puts the missing directives at
+  the top; while a song plays a tap says why not. Insert asks the session for
+  the kind's dialog at the caret; the dialog sends its fields to
+  `check_directive` as they change and Insert waits for a clean reply for
+  exactly those fields; Insert Capo's Suggest drops the request and opens
+  Suggest Capo. Transpose knows when it opens whether there is a selection.
+  The ribbon's Capo opens Suggest Capo for the selection or the song; the
+  recommended row is chosen, a new voicing or new rows choose it again, Apply
+  waits while a song plays. Identify clears the notes, a key tap toggles it,
+  a long press sounds it, the typed notes follow the keys until the user
+  types, a candidate tap plays it (long press rolled, double tap inserts),
+  Insert puts the chord and a space at the editor's caret.
+- **Live check:** `SessionTests` drives the speed sheet (a drag, a refused
+  and an accepted Manual… value, Reset), Playback settings' Edit, and from
+  the ribbon Transpose, Insert › Tempo with the session's check, Suggest Capo
+  and the identifier's Insert, checking the editor's text after each.
+  `-CNScreen speed`, `insert`, `capo` and `identify` open each live for CI's
+  screenshots and write `Diagnostics/tool-<name>.json` when ready.
+
+Deliberate differences from Android:
+
+- The sheets and the tools' dialogs are drawn by the screen over a dimmed
+  copy of itself (a panel from the bottom with a handle, cards for the
+  dialogs), not iOS sheets and alerts: a dialog (Manual…, the tempo) stacks
+  over its sheet as on Android, and the catalog draws them. A tap on the
+  dimmed screen or a swipe down on the handle closes a sheet.
+- Edit voicings… is greyed: a tap says editing voicings comes with Settings
+  (Android opens Settings › Voicings).
+- The dropdowns (Playback settings' time and key, the Insert dialogs'
+  pickers, Suggest Capo's voicing) are iOS pop-up menus with the same
+  choices.
+- The speed slider is drawn in Material's shape (a thick track, a bar
+  thumb, a stop dot) instead of a UISlider, so it looks like Android's and
+  the catalog draws it; VoiceOver adjusts it in 5 % steps.
+- A greyed value's reason in Playback settings is a short snackbar over the
+  sheet (Android: a Toast).
+- The ribbon's › chevron scrolls to the end of the row (Android scrolls
+  140 dp; on a phone that is the end).
+- The Insert dialogs, Manual… and the tempo don't keep their fields across a
+  relaunch (Android saves them for a rotation; on iOS a rotation keeps them
+  anyway).
+
+What CI doesn't test: a finger on the slider, a swipe down on a sheet, the
+pop-up menus, a long press on a piano key, Play or a candidate, a double tap
+on a candidate (the session test sends the same events the gestures send),
+the keyboard over the Insert dialogs and the identifier's field, the live
+sound of the identifier's notes (the session test has the FakePlayer;
+`-CNScreen identify` plays them in the simulator), VoiceOver, rotation with a
+sheet open.
+
 ### Preview catalog
 
 `PreviewCatalog.screens` lists every screen with the fixtures it is shown
@@ -929,7 +1051,7 @@ with and the windows it is drawn in; adding a screen is one line there.
 renders each entry with `ImageRenderer` at iPhone 17 (402×874 pt, @3x) and
 iPad Air 11-inch (820×1180 pt, @2x), and on their sides (874×402,
 1180×820) where the layout differs, light and dark, default and
-`accessibility2` text: 232 PNGs.
+`accessibility2` text: 340 PNGs.
 
 | Screen | Scenes | Windows |
 |---|---|---|
@@ -943,7 +1065,12 @@ iPad Air 11-inch (820×1180 pt, @2x), and on their sides (874×402,
 | `open_error` | `errors` in Play with the open failure as a snackbar | iPhone, iPad |
 | `examples` | the Examples sheet, from the bundle's `examples/` | iPhone |
 | `diagnostics` | a sample self-test report | iPhone, iPad |
-| `voicing`, `instrument` | the player's lists, `scarborough_fret` | iPhone |
+| `voicing`, `instrument`, `instrument_programs`, `speed`, `speed_manual`, `song_defaults` | `player_sheets` in Play: the sheet over the screen (the Guitar family's programs; Manual… over the speed sheet) | iPhone, iPad |
+| `insert_sheet`, `transpose` | `grace_edit` in Edit: the Insert sheet; Transpose at +2 for the whole song | iPhone, iPad |
+| `insert` | the six `insert_*` scenes: each Insert dialog as it opens | iPhone |
+| `insert_error` | `insert_bpm` with "999" typed: the session's check under the field, Insert off | iPhone, iPad |
+| `capo` | `capo_advice`: Suggest Capo scored | iPhone, iPad |
+| `identify` | `identifier_cmaj7`, Cmaj7 picked: full screen, side by side on the phone on its side, a card on the iPad | iPhone, iPad, iPhone on its side |
 
 The chord sheet's strip draws there too: it is a SwiftUI `Canvas`, and only
 its scroll view (live only) is UIKit. ImageRenderer can't draw a
@@ -978,8 +1105,9 @@ Android icon's cream (`ios/tools/make_app_icon.py`, Inkscape and Pillow).
 
 `.github/workflows/ios.yml` runs on every push to main that touches `ios/`,
 `core/`, `packaging/ios/`, the schema, the Python pins, the SoundFont, the
-glyph export script or Android's chord sheet fixtures (the kit's tests read
-them), and by hand (workflow_dispatch). A newer push cancels a running build.
+glyph export script, Android's chord sheet fixtures, the help screenshots'
+songs the scenes use (the kit's tests read them), the examples or Android's
+icons the asset catalog copies, and by hand (workflow_dispatch). A newer push cancels a running build.
 `build.yml` ignores pushes that touch only `ios/`, `packaging/ios/`,
 `ios.yml` or this file. Two jobs on `macos-26` (arm64):
 
@@ -1019,7 +1147,11 @@ Artifacts of each run:
   `<iphone|ipad>-chordsheet.png` (Play with the chord sheet shown, its
   buffer from the live session), `<iphone|ipad>-editor.png` (Edit after the
   app typed a long chord line into the editor, the session's highlight
-  painted, the keyboard up), `<iphone|ipad>-export.png` (the export picker
+  painted, the keyboard up), `<iphone|ipad>-speed.png`, `-insert.png`,
+  `-capo.png` and `-identify.png` (the speed sheet at 125 %, Insert › Tempo
+  with the keyboard up, Suggest Capo scored, the identifier with Cmaj7
+  picked; `tool-<name>.json` says each got there),
+  `<iphone|ipad>-export.png` (the export picker
   over the song after an audio export), the app's Diagnostics
   folder from each simulator (`launch.json`, `chordsheet.json`, `editor.json`,
   `export.json`, `selftest.json` with the live
@@ -1157,6 +1289,23 @@ expires, her tester status and the issue list. By hand:
      the app running and with it closed; a `.txt` from Mail's attachments.
   8. Delete a recent song in Files, then open it from Recent: "File not
      found" and it leaves the list.
+
+  Standing items for the sheets and the tools:
+  1. Speed: drag the slider end to end and back (the value follows, the
+     song's tempo changes while it plays), Manual… with the decimal pad,
+     Reset; swipe the sheet down and tap the dimmed screen to close it.
+  2. Playback settings on a song without directives: pick a time signature
+     and a key from the menus, type a tempo, Write into song; on a song with
+     `{bpm: 90}`, tap Edit (Edit mode, the caret on the directive, the
+     keyboard up); while a song plays, tap a value (the reason shows).
+  3. Each Insert dialog with the keyboard up: a bad tempo (the reason under
+     the field, Insert off), a label, a loop back to it, a capo, Suggest.
+  4. Transpose with and without a selection; Suggest Capo with another
+     voicing, Apply.
+  5. Identify: tap and long-press keys, type notes, long-press Play and a
+     candidate (rolled), double-tap a candidate (inserted), on the phone
+     upright and on its side and on an iPad; the notes sound.
+  6. The ribbon on the smallest phone: drag it sideways, tap ›.
 - [ ] the checklist printed, screen recording on
 - [ ] where the artifacts go
 - [ ] which fallback agenda applies
