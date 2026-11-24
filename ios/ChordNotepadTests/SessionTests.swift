@@ -785,10 +785,15 @@ extension SessionTests {
         XCTAssertTrue(title?.contains("Chord Notepad") == true, title ?? "no title")
         let edition = try await web.evaluateJavaScript("document.body.innerText.includes('iOS edition')") as? Bool
         XCTAssertEqual(edition, true, "the iOS edition's first page")
-        let styled = try await web.evaluateJavaScript(
-            "Array.from(document.styleSheets).some(s => (s.href || '').endsWith('android.css') && s.cssRules.length > 0)")
-            as? Bool
-        XCTAssertEqual(styled, true, "the phone stylesheet loaded through the scheme")
+        // Sphinx links it as android.css?v=<hash>; WebKit doesn't expose a custom
+        // scheme's rules to the page (run 45489954194), so the file is fetched too.
+        let linked = try await web.evaluateJavaScript(
+            "Array.from(document.styleSheets).some(s => (s.href || '').includes('/_static/android.css'))") as? Bool
+        XCTAssertEqual(linked, true, "the page links the phone stylesheet")
+        let served = try await web.callAsyncJavaScript(
+            "try { return (await fetch('cnhelp://guide/_static/android.css')).status } catch (e) { return -1 }",
+            arguments: [:], in: nil, contentWorld: .page) as? Int
+        XCTAssertEqual(served, 200, "the phone stylesheet served through the scheme")
         let outside = try await web.callAsyncJavaScript(
             "try { return (await fetch('cnhelp://guide/_static/%2E%2E/%2E%2E/Info.plist')).status } catch (e) { return -1 }",
             arguments: [:], in: nil, contentWorld: .page) as? Int
